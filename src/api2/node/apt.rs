@@ -90,8 +90,8 @@ fn do_apt_update(worker: &WorkerTask, quiet: bool) -> Result<(), Error> {
                 type: bool,
                 description: r#"Send notification mail about new package updates availanle to the
                     email address configured for 'root@pam')."#,
-                optional: true,
                 default: false,
+                optional: true,
             },
             quiet: {
                 description: "Only produces output suitable for logging, omitting progress indicators.",
@@ -116,7 +116,7 @@ pub fn apt_update_database(
 ) -> Result<String, Error> {
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-    let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
+    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
     // FIXME: change to non-option in signature and drop below once we have proxmox-api-macro 0.2.3
     let quiet = quiet.unwrap_or(API_METHOD_APT_UPDATE_DATABASE_PARAM_DEFAULT_QUIET);
     let notify = notify.unwrap_or(API_METHOD_APT_UPDATE_DATABASE_PARAM_DEFAULT_NOTIFY);

@@ -227,7 +227,7 @@ pub fn erase_media(
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-    let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
+    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
     let upid_str = WorkerTask::new_thread(
         "erase-media",
@@ -268,7 +268,7 @@ pub fn rewind(
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-    let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
+    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
     let upid_str = WorkerTask::new_thread(
         "rewind-media",
@@ -354,7 +354,7 @@ pub fn label_media(
 
     let (config, _digest) = config::drive::config()?;
 
-    let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
+    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
     let upid_str = WorkerTask::new_thread(
         "label-media",
@@ -590,7 +590,7 @@ pub fn clean_drive(
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-    let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
+    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
     let upid_str = WorkerTask::new_thread(
         "clean-drive",
@@ -717,7 +717,7 @@ pub fn update_inventory(
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-    let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
+    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
     let upid_str = WorkerTask::new_thread(
         "inventory-update",
@@ -819,7 +819,7 @@ pub fn barcode_label_media(
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-    let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
+    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
     let upid_str = WorkerTask::new_thread(
         "barcode-label-media",
@@ -997,7 +997,7 @@ pub fn catalog_media(
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-    let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
+    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
     let upid_str = WorkerTask::new_thread(
         "catalog-media",

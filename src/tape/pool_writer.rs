@@ -303,7 +303,7 @@ impl PoolWriter {
 
         status.bytes_written += bytes_written;
 
-        let request_sync = if status.bytes_written >= COMMIT_BLOCK_SIZE { true } else { false };
+        let request_sync = status.bytes_written >= COMMIT_BLOCK_SIZE;
 
         if !done || request_sync {
             status.commit()?;
@@ -361,7 +361,7 @@ impl PoolWriter {
             (bytes_written as f64)/(1024.0*1024.0*elapsed),
         ));
 
-        let request_sync = if status.bytes_written >= COMMIT_BLOCK_SIZE { true } else { false };
+        let request_sync = status.bytes_written >= COMMIT_BLOCK_SIZE;
 
         // register chunks in media_catalog
         status.catalog.start_chunk_archive(content_uuid, current_file_number)?;

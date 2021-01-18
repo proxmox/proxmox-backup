@@ -132,7 +132,7 @@ pub fn create_datastore_disk(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
 
-    let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
+    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 

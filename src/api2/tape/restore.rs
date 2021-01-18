@@ -115,7 +115,7 @@ pub fn restore(
     // early check before starting worker
     check_drive_exists(&drive_config, &pool_config.drive)?;
 
-    let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
+    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
     let upid_str = WorkerTask::new_thread(
         "tape-restore",

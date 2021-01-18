@@ -662,7 +662,7 @@ pub fn verify(
         _ => bail!("parameters do not specify a backup group or snapshot"),
     }
 
-    let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
+    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
     let upid_str = WorkerTask::new_thread(
         worker_type,
@@ -935,7 +935,7 @@ fn start_garbage_collection(
     let job =  Job::new("garbage_collection", &store)
         .map_err(|_| format_err!("garbage collection already running"))?;
 
-    let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
+    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
     let upid_str = crate::server::do_garbage_collection_job(job, datastore, &auth_id, None, to_stdout)
         .map_err(|err| format_err!("unable to start garbage collection job on datastore {} - {}", store, err))?;
