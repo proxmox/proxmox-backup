@@ -5,7 +5,7 @@ proxmox-backup-client
 .. include:: ../epilog.rst
 
 -------------------------------------------------------------
-Command line toot for Backup and Restore
+Command line tool for Backup and Restore
 -------------------------------------------------------------
 
 :Author: |AUTHOR|
