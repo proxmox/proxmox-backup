@@ -281,9 +281,9 @@ Ext.define('PBS.login.TfaWindow', {
 		me.lookup('totpButton').setVisible(false);
 	    }
 
-	    if (!view.challenge.recovery) {
+	    if (!view.challenge.recovery || !view.challenge.recovery.length) {
 		me.lookup('recoveryButton').setVisible(false);
-	    } else if (view.challenge.recovery === "low") {
+	    } else if (view.challenge.recovery.length <= 3) {
 		me.lookup('recoveryButton')
 		    .setIconCls('fa fa-fw fa-exclamation-triangle');
 	    }
@@ -384,7 +384,12 @@ Ext.define('PBS.login.TfaWindow', {
 		me.lookup('webauthnButton').setVisible(false);
 		me.lookup('recoveryButton').setText(gettext("Confirm"));
 		me.lookup('recoveryInfo').setVisible(true);
-		if (view.challenge.recovery === "low") {
+		console.log("RECOVERY:", view.challenge.recovery);
+		me.lookup('availableRecovery').update(Ext.String.htmlEncode(
+		    gettext('Available recovery keys: ') + view.challenge.recovery.join(', ')
+		));
+		me.lookup('availableRecovery').setVisible(true);
+		if (view.challenge.recovery.length <= 3) {
 		    me.lookup('recoveryLow').setVisible(true);
 		}
 	    }
@@ -452,6 +457,15 @@ Ext.define('PBS.login.TfaWindow', {
 	    reference: 'recoveryInfo',
 	    hidden: true,
 	    html: gettext('Please note that each recovery code can only be used once!'),
+	    style: {
+		textAlign: "center",
+	    },
+	},
+	{
+	    xtype: 'box',
+	    padding: '0 5',
+	    reference: 'availableRecovery',
+	    hidden: true,
 	    style: {
 		textAlign: "center",
 	    },

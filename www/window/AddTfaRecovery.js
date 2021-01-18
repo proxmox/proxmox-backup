@@ -24,7 +24,12 @@ Ext.define('PBS.window.AddTfaRecovery', {
 	    return;
 	}
 
-	let values = response.result.data.recovery.join("\n");
+	let values = response
+	    .result
+	    .data
+	    .recovery
+	    .map((v, i) => `${i}: ${v}`)
+	    .join("\n");
 	Ext.create('PBS.window.TfaRecoveryShow', {
 	    autoShow: true,
 	    userid: this.getViewModel().get('userid'),
