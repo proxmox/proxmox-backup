@@ -262,9 +262,10 @@ Ext.define('PBS.config.TfaView', {
 Ext.define('PBS.tfa.confirmRemove', {
     extend: 'Proxmox.window.Edit',
 
+    title: gettext("Confirm TFA Removal"),
+
     modal: true,
     resizable: false,
-    title: gettext("Confirm Password"),
     width: 512,
     isCreate: true, // logic
     isRemove: true,
