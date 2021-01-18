@@ -74,9 +74,9 @@ impl <R: BufRead> Lexer<R> {
     }
 
     fn split_line(line: &str) -> VecDeque<(Token, String)> {
-        if line.starts_with("#") {
+        if let Some(comment) = line.strip_prefix('#') {
             let mut res = VecDeque::new();
-            res.push_back((Token::Comment, line[1..].trim().to_string()));
+            res.push_back((Token::Comment, comment.trim().to_string()));
             return res;
         }
         let mut list: VecDeque<(Token, String)> = line.split_ascii_whitespace().map(|text| {

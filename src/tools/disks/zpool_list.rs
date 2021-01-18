@@ -31,8 +31,8 @@ pub struct ZFSPoolInfo {
 
 
 fn parse_optional_u64(i: &str) -> IResult<&str, Option<u64>> {
-    if i.starts_with('-') {
-        Ok((&i[1..], None))
+    if let Some(rest) = i.strip_prefix('-') {
+        Ok((rest, None))
     } else {
         let (i, value) = map_res(recognize(digit1), str::parse)(i)?;
         Ok((i, Some(value)))
@@ -40,8 +40,8 @@ fn parse_optional_u64(i: &str) -> IResult<&str, Option<u64>> {
 }
 
 fn parse_optional_f64(i: &str) -> IResult<&str, Option<f64>> {
-    if i.starts_with('-') {
-        Ok((&i[1..], None))
+    if let Some(rest) = i.strip_prefix('-') {
+        Ok((rest, None))
     } else {
         let (i, value) = nom::number::complete::double(i)?;
         Ok((i, Some(value)))

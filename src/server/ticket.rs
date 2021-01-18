@@ -68,8 +68,8 @@ impl std::str::FromStr for ApiTicket {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Error> {
-        if s.starts_with("!tfa!") {
-            Ok(ApiTicket::Partial(serde_json::from_str(&s[5..])?))
+        if let Some(tfa_ticket) = s.strip_prefix("!tfa!") {
+            Ok(ApiTicket::Partial(serde_json::from_str(tfa_ticket)?))
         } else {
             Ok(ApiTicket::Full(s.parse()?))
         }

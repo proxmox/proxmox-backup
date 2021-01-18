@@ -58,13 +58,12 @@ fn parse_drive_status(i: &str) -> IResult<&str, DriveStatus> {
 
     let mut loaded_slot = None;
 
-    if i.starts_with("Empty") {
-        return Ok((&i[5..], DriveStatus { loaded_slot, status: ElementStatus::Empty }));
+    if let Some(empty) = i.strip_suffix("Empty") {
+        return Ok((empty, DriveStatus { loaded_slot, status: ElementStatus::Empty }));
     }
     let (mut i, _) = tag("Full (")(i)?;
 
-    if i.starts_with("Storage Element ") {
-        let n = &i[16..];
+    if let Some(n) = i.strip_prefix("Storage Element ") {
         let (n, id) = parse_u64(n)?;
         loaded_slot = Some(id);
         let (n, _) = tag(" Loaded")(n)?;
@@ -76,8 +75,7 @@ fn parse_drive_status(i: &str) -> IResult<&str, DriveStatus> {
 
     let (i, _) = tag(")")(i)?;
 
-    if i.starts_with(":VolumeTag = ") {
-        let i = &i[13..];
+    if let Some(i) = i.strip_prefix(":VolumeTag = ") {
         let (i, tag) = take_while(|c| !(c == ' ' || c == ':' || c == '\n'))(i)?;
         let (i, _) = take_while(|c| c != '\n')(i)?; // skip to eol
         return Ok((i, DriveStatus { loaded_slot, status: ElementStatus::VolumeTag(tag.to_string()) }));
@@ -89,14 +87,11 @@ fn parse_drive_status(i: &str) -> IResult<&str, DriveStatus> {
 }
 
 fn parse_slot_status(i: &str) -> IResult<&str, ElementStatus> {
-    if i.starts_with("Empty") {
-        return Ok((&i[5..],  ElementStatus::Empty));
+    if let Some(empty) = i.strip_prefix("Empty") {
+        return Ok((empty,  ElementStatus::Empty));
     }
-    if i.starts_with("Full ") {
-        let mut n = &i[5..];
-
-        if n.starts_with(":VolumeTag=") {
-            n = &n[11..];
+    if let Some(n) = i.strip_prefix("Full ") {
+        if let Some(n) = n.strip_prefix(":VolumeTag=") {
             let (n, tag) = take_while(|c| !(c == ' ' || c == ':' || c == '\n'))(n)?;
             let (n, _) = take_while(|c| c != '\n')(n)?; // skip to eol
             return Ok((n, ElementStatus::VolumeTag(tag.to_string())));

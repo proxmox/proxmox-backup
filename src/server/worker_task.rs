@@ -267,11 +267,11 @@ impl TaskState {
             Ok(TaskState::Unknown { endtime })
         } else if s == "OK" {
             Ok(TaskState::OK { endtime })
-        } else if s.starts_with("WARNINGS: ") {
-            let count: u64 = s[10..].parse()?;
+        } else if let Some(warnings) = s.strip_prefix("WARNINGS: ") {
+            let count: u64 = warnings.parse()?;
             Ok(TaskState::Warning{ count, endtime })
         } else if s.len() > 0 {
-            let message = if s.starts_with("ERROR: ") { &s[7..] } else { s }.to_string();
+            let message = if let Some(err) = s.strip_prefix("ERROR: ") { err } else { s }.to_string();
             Ok(TaskState::Error{ message, endtime })
         } else {
             bail!("unable to parse Task Status '{}'", s);

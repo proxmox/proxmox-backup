@@ -996,8 +996,8 @@ pub fn get_fs_uuid(disk: &Disk) -> Result<String, Error> {
     let output = crate::tools::run_command(command, None)?;
 
     for line in output.lines() {
-        if line.starts_with("UUID=") {
-            return Ok(line[5..].to_string());
+        if let Some(uuid) = line.strip_prefix("UUID=") {
+            return Ok(uuid.to_string());
         }
     }
 

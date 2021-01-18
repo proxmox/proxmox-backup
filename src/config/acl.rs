@@ -651,8 +651,7 @@ impl AclTree {
                 if !ROLE_NAMES.contains_key(role) {
                     bail!("unknown role '{}'", role);
                 }
-                if user_or_group.starts_with('@') {
-                    let group = &user_or_group[1..];
+                if let Some(group) = user_or_group.strip_prefix('@') {
                     node.insert_group_role(group.to_string(), role.to_string(), propagate);
                 } else {
                     node.insert_user_role(user_or_group.parse()?, role.to_string(), propagate);

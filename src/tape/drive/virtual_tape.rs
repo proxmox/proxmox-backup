@@ -168,8 +168,8 @@ impl VirtualTapeHandle {
             if path.is_file() && path.extension() == Some(std::ffi::OsStr::new("json")) {
                 if let Some(name) = path.file_stem() {
                     if let Some(name) = name.to_str() {
-                        if name.starts_with("tape-") {
-                            list.push(name[5..].to_string());
+                        if let Some(label) = name.strip_prefix("tape-") {
+                            list.push(label.to_string());
                         }
                     }
                 }

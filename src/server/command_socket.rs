@@ -127,13 +127,13 @@ pub async fn send_command<P>(
                 if rx.read_line(&mut data).await? == 0 {
                     bail!("no response");
                 }
-                if data.starts_with("OK: ") {
-                    match data[4..].parse::<Value>() {
+                if let Some(res) = data.strip_prefix("OK: ") {
+                    match res.parse::<Value>() {
                         Ok(v) => Ok(v),
                         Err(err) => bail!("unable to parse json response - {}", err),
                     }
-                } else if data.starts_with("ERROR: ") {
-                    bail!("{}", &data[7..]);
+                } else if let Some(err) = data.strip_prefix("ERROR: ") {
+                    bail!("{}", err);
                 } else {
                     bail!("unable to parse response: {}", data);
                 }
