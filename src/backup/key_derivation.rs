@@ -278,7 +278,7 @@ pub fn rsa_decrypt_key_config(
     let decrypted = rsa
         .private_decrypt(key, &mut buffer, openssl::rsa::Padding::PKCS1)
         .map_err(|err| format_err!("failed to decrypt KeyConfig using RSA - {}", err))?;
-    decrypt_key(&mut buffer[..decrypted], passphrase)
+    decrypt_key(&buffer[..decrypted], passphrase)
 }
 
 #[test]

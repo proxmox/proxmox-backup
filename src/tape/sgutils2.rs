@@ -191,16 +191,16 @@ impl <'a, F: AsRawFd> SgRaw<'a, F> {
         }
 
         // todo: what about sense data?
-        let _sense_len = unsafe { get_scsi_pt_sense_len(&mut *ptvp) };
+        let _sense_len = unsafe { get_scsi_pt_sense_len(&*ptvp) };
 
-        let status = unsafe { get_scsi_pt_status_response(&mut *ptvp) };
+        let status = unsafe { get_scsi_pt_status_response(&*ptvp) };
         if status != 0 {
             // toto: improve error reporting
             bail!("unknown scsi error - status response {}", status);
         }
 
         let data_len = self.buffer.len() -
-            (unsafe { get_scsi_pt_resid(&mut *ptvp) } as usize);
+            (unsafe { get_scsi_pt_resid(&*ptvp) } as usize);
         if data_len == 0 {
             bail!("do_scsi_pt failed - no data received");
         }
@@ -248,9 +248,9 @@ impl <'a, F: AsRawFd> SgRaw<'a, F> {
         }
 
         // todo: what about sense data?
-        let _sense_len = unsafe { get_scsi_pt_sense_len(&mut *ptvp) };
+        let _sense_len = unsafe { get_scsi_pt_sense_len(&*ptvp) };
 
-        let status = unsafe { get_scsi_pt_status_response(&mut *ptvp) };
+        let status = unsafe { get_scsi_pt_status_response(&*ptvp) };
         if status != 0 {
             // toto: improve error reporting
             bail!("unknown scsi error - status response {}", status);
