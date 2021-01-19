@@ -386,7 +386,7 @@ Ext.define('PBS.login.TfaWindow', {
 		me.lookup('recoveryInfo').setVisible(true);
 		console.log("RECOVERY:", view.challenge.recovery);
 		me.lookup('availableRecovery').update(Ext.String.htmlEncode(
-		    gettext('Available recovery keys: ') + view.challenge.recovery.join(', ')
+		    gettext('Available recovery keys: ') + view.challenge.recovery.join(', '),
 		));
 		me.lookup('availableRecovery').setVisible(true);
 		if (view.challenge.recovery.length <= 3) {
