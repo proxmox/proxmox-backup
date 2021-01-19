@@ -145,10 +145,7 @@ Ext.define('PBS.config.TfaView', {
 	    let me = this;
 
 	    Ext.create('PBS.tfa.confirmRemove', {
-		message: Ext.String.format(
-		    gettext('Are you sure you want to remove entry {0}'),
-		    record.data.description,
-		),
+		...record.data,
 		callback: password => me.removeItem(password, record),
 	    })
 	    .show();
@@ -271,12 +268,13 @@ Ext.define('PBS.config.TfaView', {
 
 Ext.define('PBS.tfa.confirmRemove', {
     extend: 'Proxmox.window.Edit',
+    mixins: ['Proxmox.Mixin.CBind'],
 
     title: gettext("Confirm TFA Removal"),
 
     modal: true,
     resizable: false,
-    width: 512,
+    width: 600,
     isCreate: true, // logic
     isRemove: true,
 
@@ -285,8 +283,8 @@ Ext.define('PBS.tfa.confirmRemove', {
     initComponent: function() {
 	let me = this;
 
-	if (!me.message) {
-	    throw "missing message";
+	if (typeof me.type !== "string") {
+	    throw "missing type";
 	}
 
 	if (!me.callback) {
@@ -299,8 +297,6 @@ Ext.define('PBS.tfa.confirmRemove', {
 	    me.lookup('password').setVisible(false);
 	    me.lookup('password').setDisabled(true);
 	}
-
-	me.lookup('message').setHtml(Ext.String.htmlEncode(me.message));
     },
 
     submit: function() {
@@ -316,12 +312,76 @@ Ext.define('PBS.tfa.confirmRemove', {
     items: [
 	{
 	    xtype: 'box',
-	    padding: '5 5',
-	    reference: 'message',
-	    html: '',
-	    style: {
-		textAlign: "center",
+	    padding: '0 0 10 0',
+	    html: Ext.String.format(
+	        gettext('Are you sure you want to remove this {0} entry?'),
+	        'TFA',
+	    ),
+	},
+	{
+	    xtype: 'container',
+	    layout: {
+		type: 'hbox',
+		align: 'begin',
 	    },
+	    defaults: {
+		border: false,
+		layout: 'anchor',
+		flex: 1,
+		padding: 5,
+	    },
+	    items: [
+		{
+		    xtype: 'container',
+		    layout: {
+			type: 'vbox',
+		    },
+		    padding: '0 10 0 0',
+		    items: [
+			{
+			    xtype: 'displayfield',
+			    fieldLabel: gettext('User'),
+			    cbind: {
+				value: '{userid}',
+			    },
+			},
+			{
+			    xtype: 'displayfield',
+			    fieldLabel: gettext('Type'),
+			    cbind: {
+				value: '{type}',
+			    },
+			},
+		    ],
+		},
+		{
+		    xtype: 'container',
+		    layout: {
+			type: 'vbox',
+		    },
+		    padding: '0 0 0 10',
+		    items: [
+			{
+			    xtype: 'displayfield',
+			    fieldLabel: gettext('Created'),
+			    renderer: v => Proxmox.Utils.render_timestamp(v),
+			    cbind: {
+				value: '{created}',
+			    },
+			},
+			{
+			    xtype: 'textfield',
+			    fieldLabel: gettext('Description'),
+			    cbind: {
+				value: '{description}',
+			    },
+			    emptyText: Proxmox.Utils.NoneText,
+			    submitValue: false,
+			    editable: false,
+			},
+		    ],
+		},
+	    ],
 	},
 	{
 	    xtype: 'textfield',
@@ -332,8 +392,11 @@ Ext.define('PBS.tfa.confirmRemove', {
 	    name: 'password',
 	    allowBlank: false,
 	    validateBlank: true,
-	    padding: '0 0 5 5',
-	    emptyText: gettext('verify current password'),
+	    padding: '10 0 0 0',
+	    cbind: {
+		emptyText: get =>
+		    Ext.String.format(gettext("Confirm password of '{0}'"), get('userid')),
+	    },
 	},
     ],
 });
