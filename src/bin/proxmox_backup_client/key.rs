@@ -24,11 +24,7 @@ use proxmox_backup::{
         PASSWORD_HINT_SCHEMA,
     },
     backup::{
-        encrypt_key_with_passphrase,
-        load_key_config,
-        decrypt_key_config,
         rsa_decrypt_key_config,
-        store_key_config,
         CryptConfig,
         Kdf,
         KeyConfig,
@@ -129,31 +125,20 @@ fn create(
 
     let kdf = kdf.unwrap_or_default();
 
-    let mut key_array = [0u8; 32];
-    proxmox::sys::linux::fill_with_random_data(&mut key_array)?;
-    let crypt_config = CryptConfig::new(key_array.clone())?;
-    let key = key_array.to_vec();
+    let mut key = [0u8; 32];
+    proxmox::sys::linux::fill_with_random_data(&mut key)?;
+    let crypt_config = CryptConfig::new(key.clone())?;
 
     match kdf {
         Kdf::None => {
-            let created = proxmox::tools::time::epoch_i64();
-
             if hint.is_some() {
                 bail!("password hint not allowed for Kdf::None");
             }
 
-            store_key_config(
-                &path,
-                false,
-                KeyConfig {
-                    kdf: None,
-                    created,
-                    modified: created,
-                    data: key,
-                    fingerprint: Some(crypt_config.fingerprint()),
-                    hint: None,
-                },
-            )?;
+            let mut key_config = KeyConfig::without_password(key);
+            key_config.fingerprint = Some(crypt_config.fingerprint());
+
+            key_config.store(path, false)?;
         }
         Kdf::Scrypt | Kdf::PBKDF2 => {
             // always read passphrase from tty
@@ -163,11 +148,11 @@ fn create(
 
             let password = tty::read_and_verify_password("Encryption Key Password: ")?;
 
-            let mut key_config = encrypt_key_with_passphrase(&key, &password, kdf)?;
+            let mut key_config = KeyConfig::with_key(&key, &password, kdf)?;
             key_config.fingerprint = Some(crypt_config.fingerprint());
             key_config.hint = hint;
 
-            store_key_config(&path, false, key_config)?;
+            key_config.store(&path, false)?;
         }
     }
 
@@ -235,34 +220,26 @@ async fn import_with_master_key(
     let kdf = kdf.unwrap_or_default();
     match kdf {
         Kdf::None => {
-            let modified = proxmox::tools::time::epoch_i64();
-
             if hint.is_some() {
                 bail!("password hint not allowed for Kdf::None");
             }
 
-            store_key_config(
-                &path,
-                true,
-                KeyConfig {
-                    kdf: None,
-                    created, // keep original value
-                    modified,
-                    data: key.to_vec(),
-                    fingerprint: Some(fingerprint),
-                    hint: None,
-                },
-            )?;
+            let mut key_config = KeyConfig::without_password(key);
+            key_config.created = created; // keep original value
+            key_config.fingerprint = Some(fingerprint);
+
+            key_config.store(path, true)?;
+
         }
         Kdf::Scrypt | Kdf::PBKDF2 => {
             let password = tty::read_and_verify_password("New Password: ")?;
 
-            let mut new_key_config = encrypt_key_with_passphrase(&key, &password, kdf)?;
+            let mut new_key_config = KeyConfig::with_key(&key, &password, kdf)?;
             new_key_config.created = created; // keep original value
             new_key_config.fingerprint = Some(fingerprint);
             new_key_config.hint = hint;
 
-            store_key_config(&path, true, new_key_config)?;
+            new_key_config.store(path, true)?;
         }
     }
 
@@ -311,38 +288,30 @@ fn change_passphrase(
         bail!("unable to change passphrase - no tty");
     }
 
-    let key_config = load_key_config(&path)?;
-    let (key, created, fingerprint) = decrypt_key_config(&key_config, &get_encryption_key_password)?;
+    let key_config = KeyConfig::load(&path)?;
+    let (key, created, fingerprint) = key_config.decrypt(&get_encryption_key_password)?;
 
     match kdf {
         Kdf::None => {
-            let modified = proxmox::tools::time::epoch_i64();
-
             if hint.is_some() {
                 bail!("password hint not allowed for Kdf::None");
             }
 
-            store_key_config(
-                &path,
-                true,
-                KeyConfig {
-                    kdf: None,
-                    created, // keep original value
-                    modified,
-                    data: key.to_vec(),
-                    fingerprint: Some(fingerprint),
-                    hint: None,
-                },
-            )?;
+            let mut key_config = KeyConfig::without_password(key);
+            key_config.created =  created; // keep original value
+            key_config.fingerprint = Some(fingerprint);
+
+            key_config.store(&path, true)?;
         }
         Kdf::Scrypt | Kdf::PBKDF2 => {
             let password = tty::read_and_verify_password("New Password: ")?;
 
-            let mut new_key_config = encrypt_key_with_passphrase(&key, &password, kdf)?;
+            let mut new_key_config = KeyConfig::with_key(&key, &password, kdf)?;
             new_key_config.created = created; // keep original value
             new_key_config.fingerprint = Some(fingerprint);
             new_key_config.hint = hint;
-            store_key_config(&path, true, new_key_config)?;
+
+            new_key_config.store(&path, true)?;
         }
     }
 

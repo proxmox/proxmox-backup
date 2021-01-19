@@ -24,7 +24,6 @@ use crate::{
         self,
         drive::check_drive_exists,
     },
-    backup::decrypt_key_config,
     api2::{
         types::{
             UPID_SCHEMA,
@@ -485,7 +484,7 @@ pub async fn restore_key(
 
         if let Some(key_config) = key_config {
             let password_fn = || { Ok(password.as_bytes().to_vec()) };
-            let key = match decrypt_key_config(&key_config, &password_fn) {
+            let key = match key_config.decrypt(&password_fn) {
                 Ok((key, ..)) => key,
                 Err(_) => {
                     match key_config.hint {

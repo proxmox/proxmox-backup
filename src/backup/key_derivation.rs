@@ -3,6 +3,8 @@ use anyhow::{bail, format_err, Context, Error};
 use serde::{Deserialize, Serialize};
 
 use crate::backup::{CryptConfig, Fingerprint};
+use std::io::Write;
+use std::path::Path;
 
 use proxmox::api::api;
 use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
@@ -99,94 +101,179 @@ pub struct KeyConfig {
     pub hint: Option<String>,
 }
 
-pub fn store_key_config(
-    path: &std::path::Path,
-    replace: bool,
-    key_config: KeyConfig,
-) -> Result<(), Error> {
+impl KeyConfig  {
 
-    let data = serde_json::to_string(&key_config)?;
+    pub fn new(passphrase: &[u8], kdf: Kdf) -> Result<([u8;32], Self), Error> {
+        let mut key = [0u8; 32];
+        proxmox::sys::linux::fill_with_random_data(&mut key)?;
+        let key_config = Self::with_key(&key, passphrase, kdf)?;
+        Ok((key, key_config))
+    }
 
-    use std::io::Write;
-
-    try_block!({
-        if replace {
-            let mode = nix::sys::stat::Mode::S_IRUSR | nix::sys::stat::Mode::S_IWUSR;
-            replace_file(&path, data.as_bytes(), CreateOptions::new().perm(mode))?;
-        } else {
-            use std::os::unix::fs::OpenOptionsExt;
-
-            let mut file = std::fs::OpenOptions::new()
-                .write(true)
-                .mode(0o0600)
-                .create_new(true)
-                .open(&path)?;
-
-            file.write_all(data.as_bytes())?;
+    pub fn without_password(raw_key: [u8; 32]) -> Self {
+        let created = proxmox::tools::time::epoch_i64();
+        Self {
+            kdf: None,
+            created,
+            modified: created,
+            data: raw_key.to_vec(),
+            fingerprint: None,
+            hint: None,
         }
+    }
+
+    pub fn with_key(
+        raw_key: &[u8],
+        passphrase: &[u8],
+        kdf: Kdf,
+    ) -> Result<Self, Error> {
+
+        if raw_key.len() != 32 {
+            bail!("got strange key length ({} != 32)", raw_key.len())
+        }
+
+        let salt = proxmox::sys::linux::random_data(32)?;
+
+        let kdf = match kdf {
+            Kdf::Scrypt => KeyDerivationConfig::Scrypt {
+                n: 65536,
+                r: 8,
+                p: 1,
+                salt,
+            },
+            Kdf::PBKDF2 => KeyDerivationConfig::PBKDF2 {
+                iter: 65535,
+                salt,
+            },
+            Kdf::None => {
+                bail!("No key derivation function specified");
+            }
+        };
+
+        let derived_key = kdf.derive_key(passphrase)?;
+
+        let cipher = openssl::symm::Cipher::aes_256_gcm();
+
+        let iv = proxmox::sys::linux::random_data(16)?;
+        let mut tag = [0u8; 16];
+
+        let encrypted_key = openssl::symm::encrypt_aead(
+            cipher,
+            &derived_key,
+            Some(&iv),
+            b"",
+            &raw_key,
+            &mut tag,
+        )?;
+
+        let mut enc_data = vec![];
+        enc_data.extend_from_slice(&iv);
+        enc_data.extend_from_slice(&tag);
+        enc_data.extend_from_slice(&encrypted_key);
+
+        let created = proxmox::tools::time::epoch_i64();
+
+        Ok(Self {
+            kdf: Some(kdf),
+            created,
+            modified: created,
+            data: enc_data,
+            fingerprint: None,
+            hint: None,
+        })
+    }
+
+    /// Loads a KeyConfig from path
+    pub fn load<P: AsRef<Path>>(path: P) -> Result<KeyConfig, Error> {
+        let keydata = file_get_contents(path)?;
+        let key_config: KeyConfig = serde_json::from_reader(&keydata[..])?;
+        Ok(key_config)
+    }
+
+    pub fn decrypt(
+        &self,
+        passphrase: &dyn Fn() -> Result<Vec<u8>, Error>,
+    ) -> Result<([u8;32], i64, Fingerprint), Error> {
+
+        let raw_data = &self.data;
+
+        let key = if let Some(ref kdf) = self.kdf {
+
+            let passphrase = passphrase()?;
+            if passphrase.len() < 5 {
+                bail!("Passphrase is too short!");
+            }
+
+            let derived_key = kdf.derive_key(&passphrase)?;
+
+            if raw_data.len() < 32 {
+                bail!("Unable to encode key - short data");
+            }
+            let iv = &raw_data[0..16];
+            let tag = &raw_data[16..32];
+            let enc_data = &raw_data[32..];
+
+            let cipher = openssl::symm::Cipher::aes_256_gcm();
+
+            openssl::symm::decrypt_aead(
+                cipher,
+                &derived_key,
+                Some(&iv),
+                b"",
+                &enc_data,
+                &tag,
+            ).map_err(|err| format_err!("Unable to decrypt key (wrong password?) - {}", err))?
+
+        } else {
+            raw_data.clone()
+        };
+
+        let mut result = [0u8; 32];
+        result.copy_from_slice(&key);
+
+        let crypt_config = CryptConfig::new(result.clone())?;
+        let fingerprint = crypt_config.fingerprint();
+        if let Some(ref stored_fingerprint) = self.fingerprint {
+            if &fingerprint != stored_fingerprint {
+                bail!(
+                    "KeyConfig contains wrong fingerprint {}, contained key has fingerprint {}",
+                    stored_fingerprint, fingerprint
+                );
+            }
+        }
+
+        Ok((result, self.created, fingerprint))
+    }
+
+    pub fn store<P: AsRef<Path>>(&self, path: P, replace: bool) -> Result<(), Error> {
+
+        let path: &Path = path.as_ref();
+
+        let data = serde_json::to_string(self)?;
+
+        try_block!({
+            if replace {
+                let mode = nix::sys::stat::Mode::S_IRUSR | nix::sys::stat::Mode::S_IWUSR;
+                replace_file(path, data.as_bytes(), CreateOptions::new().perm(mode))?;
+            } else {
+                use std::os::unix::fs::OpenOptionsExt;
+
+                let mut file = std::fs::OpenOptions::new()
+                    .write(true)
+                    .mode(0o0600)
+                    .create_new(true)
+                    .open(&path)?;
+
+                file.write_all(data.as_bytes())?;
+            }
+
+            Ok(())
+        }).map_err(|err: Error| format_err!("Unable to store key file {:?} - {}", path, err))?;
 
         Ok(())
-    }).map_err(|err: Error| format_err!("Unable to create file {:?} - {}", path, err))?;
-
-    Ok(())
+    }
 }
 
-pub fn encrypt_key_with_passphrase(
-    raw_key: &[u8],
-    passphrase: &[u8],
-    kdf: Kdf,
-) -> Result<KeyConfig, Error> {
-
-    let salt = proxmox::sys::linux::random_data(32)?;
-
-    let kdf = match kdf {
-        Kdf::Scrypt => KeyDerivationConfig::Scrypt {
-            n: 65536,
-            r: 8,
-            p: 1,
-            salt,
-        },
-        Kdf::PBKDF2 => KeyDerivationConfig::PBKDF2 {
-            iter: 65535,
-            salt,
-        },
-        Kdf::None => {
-            bail!("No key derivation function specified");
-        }
-    };
-
-    let derived_key = kdf.derive_key(passphrase)?;
-
-    let cipher = openssl::symm::Cipher::aes_256_gcm();
-
-    let iv = proxmox::sys::linux::random_data(16)?;
-    let mut tag = [0u8; 16];
-
-    let encrypted_key = openssl::symm::encrypt_aead(
-        cipher,
-        &derived_key,
-        Some(&iv),
-        b"",
-        &raw_key,
-        &mut tag,
-    )?;
-
-    let mut enc_data = vec![];
-    enc_data.extend_from_slice(&iv);
-    enc_data.extend_from_slice(&tag);
-    enc_data.extend_from_slice(&encrypted_key);
-
-    let created = proxmox::tools::time::epoch_i64();
-
-    Ok(KeyConfig {
-        kdf: Some(kdf),
-        created,
-        modified: created,
-        data: enc_data,
-        fingerprint: None,
-        hint: None,
-    })
-}
 
 pub fn load_and_decrypt_key(
     path: &std::path::Path,
@@ -196,76 +283,12 @@ pub fn load_and_decrypt_key(
         .with_context(|| format!("failed to load decryption key from {:?}", path))
 }
 
-/// Loads a KeyConfig from path
-pub fn load_key_config(
-    path: &std::path::Path,
-) -> Result<KeyConfig, Error> {
-    let keydata = file_get_contents(&path)?;
-    let key_config: KeyConfig = serde_json::from_reader(&keydata[..])?;
-    Ok(key_config)
-}
-
-pub fn decrypt_key_config(
-    key_config: &KeyConfig,
-    passphrase: &dyn Fn() -> Result<Vec<u8>, Error>,
-) -> Result<([u8;32], i64, Fingerprint), Error> {
-
-    let raw_data = &key_config.data;
-
-    let key = if let Some(ref kdf) = key_config.kdf {
-
-        let passphrase = passphrase()?;
-        if passphrase.len() < 5 {
-            bail!("Passphrase is too short!");
-        }
-
-        let derived_key = kdf.derive_key(&passphrase)?;
-
-        if raw_data.len() < 32 {
-            bail!("Unable to encode key - short data");
-        }
-        let iv = &raw_data[0..16];
-        let tag = &raw_data[16..32];
-        let enc_data = &raw_data[32..];
-
-        let cipher = openssl::symm::Cipher::aes_256_gcm();
-
-        openssl::symm::decrypt_aead(
-            cipher,
-            &derived_key,
-            Some(&iv),
-            b"", //??
-            &enc_data,
-            &tag,
-        ).map_err(|err| format_err!("Unable to decrypt key (wrong password?) - {}", err))?
-
-    } else {
-        raw_data.clone()
-    };
-
-    let mut result = [0u8; 32];
-    result.copy_from_slice(&key);
-
-    let crypt_config = CryptConfig::new(result.clone())?;
-    let fingerprint = crypt_config.fingerprint();
-    if let Some(ref stored_fingerprint) = key_config.fingerprint {
-        if &fingerprint != stored_fingerprint {
-            bail!(
-                "KeyConfig contains wrong fingerprint {}, contained key has fingerprint {}",
-                stored_fingerprint, fingerprint
-            );
-        }
-    }
-
-    Ok((result, key_config.created, fingerprint))
-}
-
 pub fn decrypt_key(
     mut keydata: &[u8],
     passphrase: &dyn Fn() -> Result<Vec<u8>, Error>,
 ) -> Result<([u8;32], i64, Fingerprint), Error> {
     let key_config: KeyConfig = serde_json::from_reader(&mut keydata)?;
-    decrypt_key_config(&key_config, passphrase)
+    key_config.decrypt(passphrase)
 }
 
 pub fn rsa_encrypt_key_config(

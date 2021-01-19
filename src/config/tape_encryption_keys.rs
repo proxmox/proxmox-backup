@@ -16,7 +16,6 @@ use crate::{
         Kdf,
         KeyConfig,
         CryptConfig,
-        encrypt_key_with_passphrase,
     },
 };
 
@@ -59,11 +58,7 @@ pub fn compute_tape_key_fingerprint(key: &[u8; 32]) -> Result<Fingerprint, Error
 }
 
 pub fn generate_tape_encryption_key(password: &[u8]) -> Result<([u8; 32], KeyConfig), Error> {
-
-    let mut key = [0u8; 32];
-    proxmox::sys::linux::fill_with_random_data(&mut key)?;
-
-    let mut key_config = encrypt_key_with_passphrase(&key, password, Kdf::Scrypt)?;
+    let (key, mut key_config) = KeyConfig::new(password, Kdf::Scrypt)?;
     key_config.fingerprint = Some(compute_tape_key_fingerprint(&key)?);
     Ok((key, key_config))
 }
