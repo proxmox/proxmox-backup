@@ -134,11 +134,7 @@ impl<I: Send + 'static> ParallelHandler<I> {
         let mut msg_list = Vec::new();
 
         let mut i = 0;
-        loop {
-            let handle = match self.handles.pop() {
-                Some(handle) => handle,
-                None => break,
-            };
+        while let Some(handle) = self.handles.pop() {
             if let Err(panic) = handle.join() {
                 match panic.downcast::<&str>() {
                     Ok(panic_msg) => msg_list.push(

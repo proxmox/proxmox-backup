@@ -343,32 +343,26 @@ fn restore_chunk_archive<'a>(
     let mut decoder = ChunkArchiveDecoder::new(reader);
 
     let result: Result<_, Error> = proxmox::try_block!({
-        loop {
-            match decoder.next_chunk()? {
-                Some((digest, blob)) => {
+        while let Some((digest, blob)) = decoder.next_chunk()? {
+            if let Some(datastore) = datastore {
+                let chunk_exists = datastore.cond_touch_chunk(&digest, false)?;
+                if !chunk_exists {
+                    blob.verify_crc()?;
 
-                    if let Some(datastore) = datastore {
-                        let chunk_exists = datastore.cond_touch_chunk(&digest, false)?;
-                        if !chunk_exists {
-                            blob.verify_crc()?;
-
-                            if blob.crypt_mode()? == CryptMode::None {
-                                blob.decode(None, Some(&digest))?; // verify digest
-                            }
-                            if verbose {
-                                worker.log(format!("Insert chunk: {}", proxmox::tools::digest_to_hex(&digest)));
-                            }
-                            datastore.insert_chunk(&blob, &digest)?;
-                        } else if verbose {
-                            worker.log(format!("Found existing chunk: {}", proxmox::tools::digest_to_hex(&digest)));
-                        }
-                    } else if verbose {
-                        worker.log(format!("Found chunk: {}", proxmox::tools::digest_to_hex(&digest)));
+                    if blob.crypt_mode()? == CryptMode::None {
+                        blob.decode(None, Some(&digest))?; // verify digest
                     }
-                    chunks.push(digest);
+                    if verbose {
+                        worker.log(format!("Insert chunk: {}", proxmox::tools::digest_to_hex(&digest)));
+                    }
+                    datastore.insert_chunk(&blob, &digest)?;
+                } else if verbose {
+                    worker.log(format!("Found existing chunk: {}", proxmox::tools::digest_to_hex(&digest)));
                 }
-                None => break,
+            } else if verbose {
+                worker.log(format!("Found chunk: {}", proxmox::tools::digest_to_hex(&digest)));
             }
+            chunks.push(digest);
         }
         Ok(())
     });
