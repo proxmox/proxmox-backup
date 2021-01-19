@@ -142,7 +142,7 @@ impl From<TimeSpan> for f64 {
 }
 
 
-pub fn verify_time_span<'a>(i: &'a str) -> Result<(), Error> {
+pub fn verify_time_span(i: &str) -> Result<(), Error> {
     parse_time_span(i)?;
     Ok(())
 }
