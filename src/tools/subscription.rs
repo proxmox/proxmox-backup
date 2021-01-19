@@ -87,8 +87,8 @@ pub struct SubscriptionInfo {
 }
 
 async fn register_subscription(
-    key: &String,
-    server_id: &String,
+    key: &str,
+    server_id: &str,
     checktime: i64
 ) -> Result<(String, String), Error> {
     // WHCMS sample code feeds the key into this, but it's just a challenge, so keep it simple

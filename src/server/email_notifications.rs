@@ -376,7 +376,7 @@ fn get_server_url() -> (String, usize) {
 }
 
 pub fn send_updates_available(
-    updates: &Vec<&APTUpdateInfo>,
+    updates: &[&APTUpdateInfo],
 ) -> Result<(), Error> {
     // update mails always go to the root@pam configured email..
     if let Some(email) = lookup_user_email(Userid::root_userid()) {
