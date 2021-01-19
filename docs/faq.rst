@@ -53,9 +53,12 @@ checksums. This manifest file is used to verify the integrity of each backup.
 When backing up to remote servers, do I have to trust the remote server?
 ------------------------------------------------------------------------
 
-Proxmox Backup Server supports client-side encryption, meaning your data is
-encrypted before it reaches the server. Thus, in the event that an attacker
-gains access to the server, they will not be able to read the data.
+Proxmox Backup Server transfers data via `Transport Layer Security (TLS)
+<https://en.wikipedia.org/wiki/Transport_Layer_Security>`_ and additionally
+supports client-side encryption. This means that data is transferred securely
+and can be encrypted before it reaches the server.  Thus, in the event that an
+attacker gains access to the server or any point of the network, they will not
+be able to read the data.
 
 .. note:: Encryption is not enabled by default. To set up encryption, see the
   `Encryption

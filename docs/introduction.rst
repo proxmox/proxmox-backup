@@ -14,11 +14,12 @@ It supports deduplication, compression, and authenticated
 encryption (AE_). Using :term:`Rust` as the implementation language guarantees high
 performance, low resource usage, and a safe, high-quality codebase.
 
-Proxmox Backup uses state of the art cryptography for client communication and
-backup content :ref:`encryption <encryption>`. Encryption is done on the
-client side, making it safer to back up data to targets that are not fully
-trusted.
-
+Proxmox Backup uses state of the art cryptography for both client-server
+communication and backup content :ref:`encryption <encryption>`. All
+client-server communication uses `TLS
+<https://en.wikipedia.org/wiki/Transport_Layer_Security>`_, and backup data can
+be encrypted on the client-side before sending, making it safer to back up data
+to targets that are not fully trusted.
 
 Architecture
 ------------
@@ -65,8 +66,9 @@ Main Features
    several gigabytes of data per second.
 
 :Encryption: Backups can be encrypted on the client-side, using AES-256 in
-   Galois/Counter Mode (GCM_) mode. This authenticated encryption (AE_) mode
-   provides very high performance on modern hardware.
+   Galois/Counter Mode (GCM_). This authenticated encryption (AE_) mode
+   provides very high performance on modern hardware. In addition to client-side
+   encryption, all data is transferred via a secure TLS connection.
 
 :Web interface: Manage the Proxmox Backup Server with the integrated, web-based
    user interface.
