@@ -391,7 +391,7 @@ pub fn request_and_load_media(
                             }
                             Ok((None, _)) => {
                                 if last_media_uuid.is_some() {
-                                    worker.log(format!("found empty media without label (please label all tapes first)"));
+                                    worker.log("found empty media without label (please label all tapes first)".to_string());
                                     last_media_uuid = None;
                                 }
                             }

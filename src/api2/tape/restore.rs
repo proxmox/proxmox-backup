@@ -389,7 +389,7 @@ fn restore_chunk_archive<'a>(
 
             // check if this is an aborted stream without end marker
             if let Ok(false) = reader.has_end_marker() {
-                worker.log(format!("missing stream end marker"));
+                worker.log("missing stream end marker".to_string());
                 return Ok(None);
             }
 

@@ -426,7 +426,7 @@ fn write_chunk_archive<'a>(
         }
 
         if writer.bytes_written() > max_size {
-            worker.log(format!("Chunk Archive max size reached, closing archive"));
+            worker.log("Chunk Archive max size reached, closing archive".to_string());
             break;
         }
     }
@@ -472,7 +472,7 @@ fn update_media_set_label(
 
     match old_set {
         None => {
-            worker.log(format!("wrinting new media set label"));
+            worker.log("wrinting new media set label".to_string());
             drive.write_media_set_label(new_set, key_config.as_ref())?;
             media_catalog = MediaCatalog::overwrite(status_path, media_id, false)?;
         }

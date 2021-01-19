@@ -730,7 +730,7 @@ pub fn update_inventory(
 
             let label_text_list = changer.online_media_label_texts()?;
             if label_text_list.is_empty() {
-                worker.log(format!("changer device does not list any media labels"));
+                worker.log("changer device does not list any media labels".to_string());
             }
 
             let state_path = Path::new(TAPE_STATUS_DIR);
