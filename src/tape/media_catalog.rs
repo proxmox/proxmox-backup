@@ -323,7 +323,7 @@ impl MediaCatalog {
 
     /// Returns the chunk archive file number
     pub fn lookup_snapshot(&self, snapshot: &str) -> Option<u64> {
-        self.snapshot_index.get(snapshot).map(|n| *n)
+        self.snapshot_index.get(snapshot).copied()
     }
 
     /// Test if the catalog already contain a chunk
@@ -333,7 +333,7 @@ impl MediaCatalog {
 
     /// Returns the chunk archive file number
     pub fn lookup_chunk(&self, digest: &[u8;32]) -> Option<u64> {
-        self.chunk_index.get(digest).map(|n| *n)
+        self.chunk_index.get(digest).copied()
     }
 
     fn check_register_label(&self, file_number: u64) -> Result<(), Error> {

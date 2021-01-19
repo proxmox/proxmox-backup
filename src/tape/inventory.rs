@@ -300,7 +300,7 @@ impl Inventory {
     }
 
     pub fn media_set_start_time(&self, media_set_uuid: &Uuid) -> Option<i64> {
-        self.media_set_start_times.get(media_set_uuid).map(|t| *t)
+        self.media_set_start_times.get(media_set_uuid).copied()
     }
 
     /// Lookup media set pool

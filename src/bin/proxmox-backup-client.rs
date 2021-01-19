@@ -1466,7 +1466,7 @@ async fn prune_async(mut param: Value) -> Result<Value, Error> {
     if quiet {
         let list: Vec<Value> = data.as_array().unwrap().iter().filter(|item| {
             item["keep"].as_bool() == Some(false)
-        }).map(|v| v.clone()).collect();
+        }).cloned().collect();
         data = list.into();
     }
 
