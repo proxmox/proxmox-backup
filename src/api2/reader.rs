@@ -150,16 +150,16 @@ fn upgrade_to_backup_reader_protocol(
                     }
                 });
             let abort_future = abort_future
-                .map(|_| Err(format_err!("task aborted")));
+                .map(|_| -> Result<(), anyhow::Error> { Err(format_err!("task aborted")) });
 
             use futures::future::Either;
             futures::future::select(req_fut, abort_future)
                 .map(move |res| {
                     let _guard = _guard;
                     match res {
-                        Either::Left((Ok(res), _)) => Ok(res),
+                        Either::Left((Ok(_), _)) => Ok(()),
                         Either::Left((Err(err), _)) => Err(err),
-                        Either::Right((Ok(res), _)) => Ok(res),
+                        Either::Right((Ok(_), _)) => Ok(()),
                         Either::Right((Err(err), _)) => Err(err),
                     }
                 })
