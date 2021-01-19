@@ -105,7 +105,7 @@ impl DiskManage {
                 let mut mounted = HashSet::new();
 
                 for (_id, mp) in self.mount_info()? {
-                    let source = match mp.mount_source.as_ref().map(OsString::as_os_str) {
+                    let source = match mp.mount_source.as_deref() {
                         Some(s) => s,
                         None => continue,
                     };
