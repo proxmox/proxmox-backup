@@ -10,7 +10,7 @@ Ext.define('pbs-tfa-users', {
 
 Ext.define('pbs-tfa-entry', {
     extend: 'Ext.data.Model',
-    fields: ['fullid', 'type', 'description', 'created', 'enable'],
+    fields: ['fullid', 'userid', 'type', 'description', 'created', 'enable'],
     idProperty: 'fullid',
 });
 
@@ -61,6 +61,7 @@ Ext.define('PBS.config.TfaView', {
 		Ext.Array.each(user.data.entries, entry => {
 		    records.push({
 			fullid: `${user.id}/${entry.id}`,
+			userid: user.id,
 			type: entry.type,
 			description: entry.description,
 			created: entry.created,
