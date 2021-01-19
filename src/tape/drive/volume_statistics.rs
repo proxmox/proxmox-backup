@@ -105,8 +105,8 @@ fn decode_volume_statistics(data: &[u8]) -> Result<Lp17VolumeStatistics, Error> 
         let mut value: u64 = 0;
 
         for i in 0..len {
-            value = value << 8;
-            value = value | buffer[i] as u64;
+            value <<= 8;
+            value |= buffer[i] as u64;
         }
 
         Ok(value)

@@ -605,7 +605,7 @@ pub fn catalog_encode_i64<W: Write>(writer: &mut W, v: i64) -> Result<(), Error>
             break;
         }
         enc.push((128 | (d & 127)) as u8);
-        d = d >> 7;
+        d >>= 7;
     }
     writer.write_all(&enc)?;
 
@@ -659,7 +659,7 @@ pub fn catalog_encode_u64<W: Write>(writer: &mut W, v: u64) -> Result<(), Error>
             break;
         }
         enc.push((128 | (d & 127)) as u8);
-        d = d >> 7;
+        d >>= 7;
     }
     writer.write_all(&enc)?;
 

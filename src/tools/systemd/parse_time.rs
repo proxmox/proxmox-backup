@@ -120,7 +120,7 @@ fn parse_weekdays_range(i: &str) -> IResult<&str, WeekDays> {
         loop {
             res |= pos;
             if pos >= end { break; }
-            pos = pos << 1;
+            pos <<= 1;
         }
         WeekDays::from_bits(res).unwrap()
     };
