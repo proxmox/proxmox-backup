@@ -147,7 +147,7 @@ fn log_response(
         let now = proxmox::tools::time::epoch_i64();
         // time format which apache/nginx use (by default), copied from pve-http-server
         let datetime = proxmox::tools::time::strftime_local("%d/%m/%Y:%H:%M:%S %z", now)
-            .unwrap_or("-".into());
+            .unwrap_or_else(|_| "-".to_string());
 
         logfile
             .lock()
@@ -161,7 +161,7 @@ fn log_response(
                 path,
                 status.as_str(),
                 resp.body().size_hint().lower(),
-                user_agent.unwrap_or("-".into()),
+                user_agent.unwrap_or_else(|| "-".to_string()),
             ));
     }
 }

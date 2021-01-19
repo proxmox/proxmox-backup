@@ -135,8 +135,8 @@ pub const DATASTORE_CFG_LOCKFILE: &str = "/etc/proxmox-backup/.datastore.lck";
 
 pub fn config() -> Result<(SectionConfigData, [u8;32]), Error> {
 
-    let content = proxmox::tools::fs::file_read_optional_string(DATASTORE_CFG_FILENAME)?;
-    let content = content.unwrap_or(String::from(""));
+    let content = proxmox::tools::fs::file_read_optional_string(DATASTORE_CFG_FILENAME)?
+        .unwrap_or_else(|| "".to_string());
 
     let digest = openssl::sha::sha256(content.as_bytes());
     let data = CONFIG.parse(DATASTORE_CFG_FILENAME, &content)?;

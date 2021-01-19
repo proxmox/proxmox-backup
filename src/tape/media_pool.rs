@@ -89,9 +89,9 @@ impl MediaPool {
         use_offline_media: bool,
     ) -> Result<Self, Error> {
 
-        let allocation = config.allocation.clone().unwrap_or(String::from("continue")).parse()?;
+        let allocation = config.allocation.clone().unwrap_or_else(|| String::from("continue")).parse()?;
 
-        let retention = config.retention.clone().unwrap_or(String::from("keep")).parse()?;
+        let retention = config.retention.clone().unwrap_or_else(|| String::from("keep")).parse()?;
 
         let encrypt_fingerprint = match config.encrypt {
             Some(ref fingerprint) => Some(fingerprint.parse()?),

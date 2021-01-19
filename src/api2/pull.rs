@@ -88,7 +88,7 @@ pub fn do_sync_job(
             let worker_future = async move {
 
                 let delete = sync_job.remove_vanished.unwrap_or(true);
-                let sync_owner = sync_job.owner.unwrap_or(Authid::root_auth_id().clone());
+                let sync_owner = sync_job.owner.unwrap_or_else(|| Authid::root_auth_id().clone());
                 let (client, src_repo, tgt_store) = get_pull_parameters(&sync_job.store, &sync_job.remote, &sync_job.remote_store).await?;
 
                 worker.log(format!("Starting datastore sync job '{}'", job_id));

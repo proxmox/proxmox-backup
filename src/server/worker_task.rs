@@ -330,7 +330,7 @@ pub fn rotate_task_log_archive(size_threshold: u64, compress: bool, max_files: O
     let _lock = lock_task_list_files(true)?;
 
     let mut logrotate = LogRotate::new(PROXMOX_BACKUP_ARCHIVE_TASK_FN, compress)
-        .ok_or(format_err!("could not get archive file names"))?;
+        .ok_or_else(|| format_err!("could not get archive file names"))?;
 
     logrotate.rotate(size_threshold, None, max_files)
 }

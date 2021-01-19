@@ -386,9 +386,9 @@ impl NetworkConfig {
     pub fn check_mtu(&self, parent_name: &str, child_name: &str) -> Result<(), Error> {
 
         let parent = self.interfaces.get(parent_name)
-            .ok_or(format_err!("check_mtu - missing parent interface '{}'", parent_name))?;
+            .ok_or_else(|| format_err!("check_mtu - missing parent interface '{}'", parent_name))?;
         let child = self.interfaces.get(child_name)
-            .ok_or(format_err!("check_mtu - missing child interface '{}'", child_name))?;
+            .ok_or_else(|| format_err!("check_mtu - missing child interface '{}'", child_name))?;
 
         let child_mtu = match child.mtu {
             Some(mtu) => mtu,

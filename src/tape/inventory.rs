@@ -522,7 +522,7 @@ impl Inventory {
     ) -> Result<String, Error> {
 
         if let Some(ctime) = self.media_set_start_time(media_set_uuid) {
-            let mut template = template.unwrap_or(String::from("%c"));
+            let mut template = template.unwrap_or_else(|| String::from("%c"));
             template = template.replace("%id%", &media_set_uuid.to_string());
             proxmox::tools::time::strftime_local(&template, ctime)
         } else {

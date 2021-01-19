@@ -104,8 +104,8 @@ impl LogRotate {
 
         for i in (0..count-1).rev() {
             if self.compress
-                && filenames[i+0].extension().unwrap_or(std::ffi::OsStr::new("")) != "zst"
-                && filenames[i+1].extension().unwrap_or(std::ffi::OsStr::new("")) == "zst"
+                && filenames[i+0].extension() != Some(std::ffi::OsStr::new("zst"))
+                && filenames[i+1].extension() == Some(std::ffi::OsStr::new("zst"))
             {
                 Self::compress(&filenames[i], &filenames[i+1], &options)?;
             } else {
@@ -204,7 +204,7 @@ impl Iterator for LogRotateFiles {
         let filename = self.file_names.next()?;
         let file = File::open(&filename).ok()?;
 
-        if filename.extension().unwrap_or(std::ffi::OsStr::new("")) == "zst" {
+        if filename.extension() == Some(std::ffi::OsStr::new("zst")) {
             let encoder = zstd::stream::read::Decoder::new(file).ok()?;
             return Some(Box::new(encoder));
         }

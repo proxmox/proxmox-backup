@@ -97,7 +97,7 @@ where
                     let info = this
                         .index
                         .chunk_info(idx)
-                        .ok_or(io_format_err!("could not get digest"))?;
+                        .ok_or_else(|| io_format_err!("could not get digest"))?;
 
                     this.current_chunk_offset = offset;
                     this.current_chunk_idx = idx;

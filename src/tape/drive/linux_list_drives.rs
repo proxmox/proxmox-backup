@@ -85,12 +85,12 @@ pub fn linux_tape_changer_list() -> Vec<TapeDeviceInfo> {
         let vendor = device.property_value("ID_VENDOR")
             .map(std::ffi::OsString::from)
             .and_then(|s| if let Ok(s) = s.into_string() { Some(s) } else { None })
-            .unwrap_or(String::from("unknown"));
+            .unwrap_or_else(|| String::from("unknown"));
 
         let model = device.property_value("ID_MODEL")
             .map(std::ffi::OsString::from)
             .and_then(|s| if let Ok(s) = s.into_string() { Some(s) } else { None })
-            .unwrap_or(String::from("unknown"));
+            .unwrap_or_else(|| String::from("unknown"));
 
         let dev_path = format!("/dev/tape/by-id/scsi-{}", serial);
 
@@ -166,12 +166,12 @@ pub fn linux_tape_device_list() -> Vec<TapeDeviceInfo> {
         let vendor = device.property_value("ID_VENDOR")
             .map(std::ffi::OsString::from)
             .and_then(|s| if let Ok(s) = s.into_string() { Some(s) } else { None })
-            .unwrap_or(String::from("unknown"));
+            .unwrap_or_else(|| String::from("unknown"));
 
         let model = device.property_value("ID_MODEL")
             .map(std::ffi::OsString::from)
             .and_then(|s| if let Ok(s) = s.into_string() { Some(s) } else { None })
-            .unwrap_or(String::from("unknown"));
+            .unwrap_or_else(|| String::from("unknown"));
 
         let dev_path = format!("/dev/tape/by-id/scsi-{}-nst", serial);
 
