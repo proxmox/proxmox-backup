@@ -35,13 +35,10 @@ use crate::api2::types::{Authid, APTUpdateInfo, NODE_SCHEMA, UPID_SCHEMA};
 /// List available APT updates
 fn apt_update_available(_param: Value) -> Result<Value, Error> {
 
-    match apt::pkg_cache_expired() {
-        Ok(false) => {
-            if let Ok(Some(cache)) = apt::read_pkg_state() {
-                return Ok(json!(cache.package_status));
-            }
-        },
-        _ => (),
+    if let Ok(false) = apt::pkg_cache_expired() {
+        if let Ok(Some(cache)) = apt::read_pkg_state() {
+            return Ok(json!(cache.package_status));
+        }
     }
 
     let cache = apt::update_cache()?;

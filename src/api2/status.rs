@@ -127,49 +127,46 @@ fn datastore_status(
             rrd_mode,
         );
 
-        match (total_res, used_res) {
-            (Some((start, reso, total_list)), Some((_, _, used_list))) => {
-                let mut usage_list: Vec<f64> = Vec::new();
-                let mut time_list: Vec<u64> = Vec::new();
-                let mut history = Vec::new();
+        if let (Some((start, reso, total_list)), Some((_, _, used_list))) = (total_res, used_res) {
+            let mut usage_list: Vec<f64> = Vec::new();
+            let mut time_list: Vec<u64> = Vec::new();
+            let mut history = Vec::new();
 
-                for (idx, used) in used_list.iter().enumerate() {
-                    let total = if idx < total_list.len() {
-                        total_list[idx]
+            for (idx, used) in used_list.iter().enumerate() {
+                let total = if idx < total_list.len() {
+                    total_list[idx]
+                } else {
+                    None
+                };
+
+                match (total, used) {
+                    (Some(total), Some(used)) if total != 0.0 => {
+                        time_list.push(start + (idx as u64)*reso);
+                        let usage = used/total;
+                        usage_list.push(usage);
+                        history.push(json!(usage));
+                    },
+                    _ => {
+                        history.push(json!(null))
+                    }
+                }
+            }
+
+            entry["history-start"] = start.into();
+            entry["history-delta"] = reso.into();
+            entry["history"] = history.into();
+
+            // we skip the calculation for datastores with not enough data
+            if usage_list.len() >= 7 {
+                if let Some((a,b)) = linear_regression(&time_list, &usage_list) {
+                    if b != 0.0 {
+                        let estimate = (1.0 - a) / b;
+                        entry["estimated-full-date"] = Value::from(estimate.floor() as u64);
                     } else {
-                        None
-                    };
-
-                    match (total, used) {
-                        (Some(total), Some(used)) if total != 0.0 => {
-                            time_list.push(start + (idx as u64)*reso);
-                            let usage = used/total;
-                            usage_list.push(usage);
-                            history.push(json!(usage));
-                        },
-                        _ => {
-                            history.push(json!(null))
-                        }
+                        entry["estimated-full-date"] = Value::from(0);
                     }
                 }
-
-                entry["history-start"] = start.into();
-                entry["history-delta"] = reso.into();
-                entry["history"] = history.into();
-
-                // we skip the calculation for datastores with not enough data
-                if usage_list.len() >= 7 {
-                    if let Some((a,b)) = linear_regression(&time_list, &usage_list) {
-                        if b != 0.0 {
-                            let estimate = (1.0 - a) / b;
-                            entry["estimated-full-date"] = Value::from(estimate.floor() as u64);
-                        } else {
-                            entry["estimated-full-date"] = Value::from(0);
-                        }
-                    }
-                }
-            },
-            _ => {},
+            }
         }
 
         list.push(entry);

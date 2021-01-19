@@ -207,11 +207,8 @@ impl Job {
     /// Start the job and update the statefile accordingly
     /// Fails if the job was already started
     pub fn start(&mut self, upid: &str) -> Result<(), Error> {
-        match self.state {
-            JobState::Started { .. } => {
-                bail!("cannot start job that is started!");
-            }
-            _ => {}
+        if let JobState::Started { .. } = self.state {
+            bail!("cannot start job that is started!");
         }
 
         self.state = JobState::Started {

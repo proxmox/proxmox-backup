@@ -357,18 +357,12 @@ pub fn find_all_mappings() -> Result<impl Iterator<Item = (String, Option<String
     // get map of all /dev/loop mappings belonging to us
     let mut loopmap = HashMap::new();
     for ent in fs::scan_subdir(libc::AT_FDCWD, Path::new("/dev/"), &LOOPDEV_REGEX)? {
-        match ent {
-            Ok(ent) => {
-                let loopdev = format!("/dev/{}", ent.file_name().to_string_lossy());
-                match get_backing_file(&loopdev) {
-                    Ok(file) => {
-                        // insert filename only, strip RUN_DIR/
-                        loopmap.insert(file[RUN_DIR.len()+1..].to_owned(), loopdev);
-                    },
-                    Err(_) => {},
-                }
-            },
-            Err(_) => {},
+        if let Ok(ent) = ent {
+            let loopdev = format!("/dev/{}", ent.file_name().to_string_lossy());
+            if let Ok(file) = get_backing_file(&loopdev) {
+                // insert filename only, strip RUN_DIR/
+                loopmap.insert(file[RUN_DIR.len()+1..].to_owned(), loopdev);
+            }
         }
     }
 

@@ -566,23 +566,18 @@ pub fn get_partition_type_info() -> Result<HashMap<String, Vec<String>>, Error> 
     let mut res: HashMap<String, Vec<String>> = HashMap::new();
 
     let output: serde_json::Value = output.parse()?;
-    match output["blockdevices"].as_array() {
-        Some(list) => {
-            for info in list {
-                let path = match info["path"].as_str() {
-                    Some(p) => p,
-                    None => continue,
-                };
-                let partition_type = match info["parttype"].as_str() {
-                    Some(t) => t.to_owned(),
-                    None => continue,
-                };
-                let devices = res.entry(partition_type).or_insert(Vec::new());
-                devices.push(path.to_string());
-            }
-        }
-        None => {
-
+    if let Some(list) = output["blockdevices"].as_array() {
+        for info in list {
+            let path = match info["path"].as_str() {
+                Some(p) => p,
+                None => continue,
+            };
+            let partition_type = match info["parttype"].as_str() {
+                Some(t) => t.to_owned(),
+                None => continue,
+            };
+            let devices = res.entry(partition_type).or_insert(Vec::new());
+            devices.push(path.to_string());
         }
     }
     Ok(res)
