@@ -434,7 +434,7 @@ pub fn lookup_datastore_notify_settings(
         None => lookup_user_email(Userid::root_userid()),
     };
 
-    let notify_str = config.notify.unwrap_or(String::new());
+    let notify_str = config.notify.unwrap_or_default();
 
     if let Ok(value) = parse_property_string(&notify_str, &DatastoreNotify::API_SCHEMA) {
         if let Ok(notify) = serde_json::from_value(value) {

@@ -515,7 +515,7 @@ pub fn config() -> Result<(NetworkConfig, [u8;32]), Error> {
         Some(content) => content,
         None => {
             let content = proxmox::tools::fs::file_get_optional_contents(NETWORK_INTERFACES_FILENAME)?;
-            content.unwrap_or(Vec::new())
+            content.unwrap_or_default()
         }
     };
 

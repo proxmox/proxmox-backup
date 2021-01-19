@@ -749,7 +749,7 @@ async fn generate_host_stats(save: bool) {
         match datastore::config() {
             Ok((config, _)) => {
                 let datastore_list: Vec<datastore::DataStoreConfig> =
-                    config.convert_to_typed_array("datastore").unwrap_or(Vec::new());
+                    config.convert_to_typed_array("datastore").unwrap_or_default();
 
                 for config in datastore_list {
 
