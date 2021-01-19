@@ -4,7 +4,7 @@ use std::os::unix::io::AsRawFd;
 
 use anyhow::{bail, format_err, Error};
 use futures::*;
-use hyper;
+
 use openssl::ssl::{SslMethod, SslAcceptor, SslFiletype};
 use tokio_stream::wrappers::ReceiverStream;
 

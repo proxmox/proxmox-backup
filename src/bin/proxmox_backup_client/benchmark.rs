@@ -293,7 +293,7 @@ fn test_crypt_speed(
     let speed = (bytes as f64)/start_time.elapsed().as_secs_f64();
     benchmark_result.sha256.speed = Some(speed);
 
-    eprintln!("SHA256 speed: {:.2} MB/s", speed/1_000_000_.0);
+    eprintln!("SHA256 speed: {:.2} MB/s", speed/1_000_000.0);
 
 
     let start_time = std::time::Instant::now();
@@ -308,7 +308,7 @@ fn test_crypt_speed(
     let speed = (bytes as f64)/start_time.elapsed().as_secs_f64();
     benchmark_result.compress.speed = Some(speed);
 
-    eprintln!("Compression speed: {:.2} MB/s", speed/1_000_000_.0);
+    eprintln!("Compression speed: {:.2} MB/s", speed/1_000_000.0);
 
 
     let start_time = std::time::Instant::now();
@@ -328,7 +328,7 @@ fn test_crypt_speed(
     let speed = (bytes as f64)/start_time.elapsed().as_secs_f64();
     benchmark_result.decompress.speed = Some(speed);
 
-    eprintln!("Decompress speed: {:.2} MB/s", speed/1_000_000_.0);
+    eprintln!("Decompress speed: {:.2} MB/s", speed/1_000_000.0);
 
 
     let start_time = std::time::Instant::now();
@@ -343,7 +343,7 @@ fn test_crypt_speed(
     let speed = (bytes as f64)/start_time.elapsed().as_secs_f64();
     benchmark_result.aes256_gcm.speed = Some(speed);
 
-    eprintln!("AES256/GCM speed: {:.2} MB/s", speed/1_000_000_.0);
+    eprintln!("AES256/GCM speed: {:.2} MB/s", speed/1_000_000.0);
 
 
     let start_time = std::time::Instant::now();
@@ -361,7 +361,7 @@ fn test_crypt_speed(
     let speed = (bytes as f64)/start_time.elapsed().as_secs_f64();
     benchmark_result.verify.speed = Some(speed);
 
-    eprintln!("Verify speed: {:.2} MB/s", speed/1_000_000_.0);
+    eprintln!("Verify speed: {:.2} MB/s", speed/1_000_000.0);
 
     Ok(())
 }

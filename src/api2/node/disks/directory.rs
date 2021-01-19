@@ -212,8 +212,7 @@ pub fn delete_datastore_disk(name: String) -> Result<(), Error> {
     let (config, _) = crate::config::datastore::config()?;
     let datastores: Vec<DataStoreConfig> = config.convert_to_typed_array("datastore")?;
     let conflicting_datastore: Option<DataStoreConfig> = datastores.into_iter()
-        .filter(|ds| ds.path == path)
-        .next();
+        .find(|ds| ds.path == path);
 
     if let Some(conflicting_datastore) = conflicting_datastore {
         bail!("Can't remove '{}' since it's required by datastore '{}'",

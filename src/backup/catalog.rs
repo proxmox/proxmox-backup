@@ -585,6 +585,7 @@ impl <R: Read + Seek> CatalogReader<R> {
 ///
 /// Stores 7 bits per byte, Bit 8 indicates the end of the sequence (when not set).
 /// If the value is negative, we end with a zero byte (0x00).
+#[allow(clippy::neg_multiply)]
 pub fn catalog_encode_i64<W: Write>(writer: &mut W, v: i64) -> Result<(), Error> {
     let mut enc = Vec::new();
 
@@ -617,6 +618,7 @@ pub fn catalog_encode_i64<W: Write>(writer: &mut W, v: i64) -> Result<(), Error>
 /// We currently read maximal 11 bytes, which give a maximum of 70 bits + sign.
 /// this method is compatible with catalog_encode_u64 iff the
 /// value encoded is <= 2^63 (values > 2^63 cannot be represented in an i64)
+#[allow(clippy::neg_multiply)]
 pub fn catalog_decode_i64<R: Read>(reader: &mut R) -> Result<i64, Error> {
 
     let mut v: u64 = 0;

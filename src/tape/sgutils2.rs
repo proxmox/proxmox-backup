@@ -201,7 +201,7 @@ impl <'a, F: AsRawFd> SgRaw<'a, F> {
 
         let data_len = self.buffer.len() -
             (unsafe { get_scsi_pt_resid(&mut *ptvp) } as usize);
-        if data_len <= 0 {
+        if data_len == 0 {
             bail!("do_scsi_pt failed - no data received");
         }
 

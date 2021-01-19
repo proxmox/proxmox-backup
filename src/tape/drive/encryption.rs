@@ -24,10 +24,7 @@ pub fn has_encryption<F: AsRawFd>(
         Ok(data) => data,
         Err(_) => return false,
     };
-    match decode_spin_data_encryption_caps(&data) {
-        Ok(_) => true,
-        Err(_) => false,
-    }
+    decode_spin_data_encryption_caps(&data).is_ok()
 }
 
 /// Set or clear encryption key

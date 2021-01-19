@@ -476,12 +476,11 @@ impl DataStore {
         let image_list = self.list_images()?;
         let image_count = image_list.len();
 
-        let mut done = 0;
         let mut last_percentage: usize = 0;
 
         let mut strange_paths_count: u64 = 0;
 
-        for img in image_list {
+        for (i, img) in image_list.into_iter().enumerate() {
 
             worker.check_abort()?;
             tools::fail_on_shutdown()?;
@@ -514,15 +513,14 @@ impl DataStore {
                 Err(err) if err.kind() == io::ErrorKind::NotFound => (), // ignore vanished files
                 Err(err) => bail!("can't open index {} - {}", img.to_string_lossy(), err),
             }
-            done += 1;
 
-            let percentage = done*100/image_count;
+            let percentage = (i + 1) * 100 / image_count;
             if percentage > last_percentage {
                 crate::task_log!(
                     worker,
                     "marked {}% ({} of {} index files)",
                     percentage,
-                    done,
+                    i + 1,
                     image_count,
                 );
                 last_percentage = percentage;

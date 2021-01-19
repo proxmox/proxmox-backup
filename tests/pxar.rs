@@ -52,9 +52,9 @@ fn pxar_create_and_extract() {
         .unwrap();
 
     let reader = BufReader::new(stdout);
-    let mut line_iter = reader.lines().map(|l| l.unwrap());
+    let line_iter = reader.lines().map(|l| l.unwrap());
     let mut linecount = 0;
-    while let Some(curr) = line_iter.next() {
+    for curr in line_iter {
         println!("{}", curr);
         linecount += 1;
     }

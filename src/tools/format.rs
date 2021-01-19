@@ -144,6 +144,6 @@ fn correct_byte_convert() {
     assert_eq!(convert(1023), "1023 B");
     assert_eq!(convert(1<<10), "1.00 KiB");
     assert_eq!(convert(1<<20), "1.00 MiB");
-    assert_eq!(convert((1<<30) + (103 * 1<<20)), "1.10 GiB");
-    assert_eq!(convert((2<<50) + (500 * 1<<40)), "2.49 PiB");
+    assert_eq!(convert((1<<30) + 103 * (1<<20)), "1.10 GiB");
+    assert_eq!(convert((2<<50) + 500 * (1<<40)), "2.49 PiB");
 }

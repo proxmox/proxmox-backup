@@ -49,7 +49,7 @@ impl DateTimeValue {
     }
 
     pub fn list_contains(list: &[DateTimeValue], value: u32) -> bool {
-        list.iter().find(|spec| spec.contains(value)).is_some()
+        list.iter().any(|spec| spec.contains(value))
     }
 
     // Find an return an entry greater than value
