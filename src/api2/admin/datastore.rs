@@ -1344,7 +1344,7 @@ fn catalog(
         if !components.is_empty() && components[0] == b'/' {
             components.remove(0);
         }
-        for component in components.split(|c| *c == '/' as u8) {
+        for component in components.split(|c| *c == b'/') {
             if let Some(entry) = catalog_reader.lookup(&current, component)? {
                 current = entry;
             } else {
@@ -1357,7 +1357,7 @@ fn catalog(
 
     for direntry in catalog_reader.read_dir(&current)? {
         let mut components = components.clone();
-        components.push('/' as u8);
+        components.push(b'/');
         components.extend(&direntry.name);
         let path = base64::encode(components);
         let text = String::from_utf8_lossy(&direntry.name);
@@ -1491,7 +1491,7 @@ fn pxar_file_download(
             components.remove(0);
         }
 
-        let mut split = components.splitn(2, |c| *c == '/' as u8);
+        let mut split = components.splitn(2, |c| *c == b'/');
         let pxar_name = std::str::from_utf8(split.next().unwrap())?;
         let file_path = split.next().ok_or(format_err!("filepath looks strange '{}'", filepath))?;
         let (manifest, files) = read_backup_index(&datastore, &backup_dir)?;

@@ -578,7 +578,7 @@ pub fn complete_port_list(arg: &str, _param: &HashMap<String, String>) -> Vec<St
     };
 
     let arg = arg.trim();
-    let prefix = if let Some(idx) = arg.rfind(",") { &arg[..idx+1] } else { "" };
+    let prefix = if let Some(idx) = arg.rfind(',') { &arg[..idx+1] } else { "" };
     ports.iter().map(|port| format!("{}{}", prefix, port)).collect()
 }
 

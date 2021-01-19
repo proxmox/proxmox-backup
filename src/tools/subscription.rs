@@ -152,7 +152,7 @@ fn parse_register_response(
                 info.message = Some("Invalid Server ID".into()),
             "message" => info.message = Some(value.into()),
             "validdirectory" => {
-                if value.split(",").find(is_server_id) == None {
+                if value.split(',').find(is_server_id) == None {
                     bail!("Server ID does not match");
                 }
                 info.serverid = Some(server_id.to_owned());

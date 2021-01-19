@@ -44,7 +44,7 @@ fn digest_to_prefix(digest: &[u8]) -> PathBuf {
     buf.push(HEX_CHARS[(digest[0] as usize) &0xf]);
     buf.push(HEX_CHARS[(digest[1] as usize) >> 4]);
     buf.push(HEX_CHARS[(digest[1] as usize) & 0xf]);
-    buf.push('/' as u8);
+    buf.push(b'/');
 
     let path = unsafe { String::from_utf8_unchecked(buf)};
 
@@ -226,7 +226,7 @@ impl ChunkStore {
                                 continue;
                             }
 
-                            let bad = bytes.ends_with(".bad".as_bytes());
+                            let bad = bytes.ends_with(b".bad");
                             return Some((Ok(entry), percentage, bad));
                         }
                         Some(Err(err)) => {
