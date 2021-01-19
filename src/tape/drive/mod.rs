@@ -20,12 +20,16 @@ pub use linux_list_drives::*;
 
 use anyhow::{bail, format_err, Error};
 use ::serde::{Deserialize};
+use serde_json::Value;
 
 use proxmox::tools::io::ReadExt;
 use proxmox::api::section_config::SectionConfigData;
 
 use crate::{
-    backup::Fingerprint,
+    backup::{
+        Fingerprint,
+        KeyConfig,
+    },
     api2::types::{
         VirtualTapeDrive,
         LinuxTapeDrive,
@@ -101,18 +105,26 @@ pub trait TapeDriver {
     }
 
     /// Write the media set label to tape
-    fn write_media_set_label(&mut self, media_set_label: &MediaSetLabel) -> Result<(), Error>;
+    ///
+    /// If the media-set is encrypted, we also store the encryption
+    /// key_config, so that it is possible to restore the key.
+    fn write_media_set_label(
+        &mut self,
+        media_set_label: &MediaSetLabel,
+        key_config: Option<&KeyConfig>,
+    ) -> Result<(), Error>;
 
     /// Read the media label
     ///
-    /// This tries to read both media labels (label and media_set_label).
-    fn read_label(&mut self) -> Result<Option<MediaId>, Error> {
+    /// This tries to read both media labels (label and
+    /// media_set_label). Also returns the optional encryption key configuration.
+    fn read_label(&mut self) -> Result<(Option<MediaId>, Option<KeyConfig>), Error> {
 
         self.rewind()?;
 
         let label = {
             let mut reader = match self.read_next_file()? {
-                None => return Ok(None), // tape is empty
+                None => return Ok((None, None)), // tape is empty
                 Some(reader) => reader,
             };
 
@@ -135,7 +147,7 @@ pub trait TapeDriver {
 
         // try to read MediaSet label
         let mut reader = match self.read_next_file()? {
-            None => return Ok(Some(media_id)),
+            None => return Ok((Some(media_id), None)),
             Some(reader) => reader,
         };
 
@@ -143,7 +155,17 @@ pub trait TapeDriver {
         header.check(PROXMOX_BACKUP_MEDIA_SET_LABEL_MAGIC_1_0, 1, 64*1024)?;
         let data = reader.read_exact_allocated(header.size as usize)?;
 
-        let media_set_label: MediaSetLabel = serde_json::from_slice(&data)
+        let mut data: Value = serde_json::from_slice(&data)
+            .map_err(|err| format_err!("unable to parse media set label - {}", err))?;
+
+        let key_config_value = data["key-config"].take();
+        let key_config: Option<KeyConfig> = if !key_config_value.is_null() {
+            Some(serde_json::from_value(key_config_value)?)
+        } else {
+            None
+        };
+
+        let media_set_label: MediaSetLabel = serde_json::from_value(data)
             .map_err(|err| format_err!("unable to parse media set label - {}", err))?;
 
         // make sure we read the EOF marker
@@ -153,7 +175,7 @@ pub trait TapeDriver {
 
         media_id.media_set_label = Some(media_set_label);
 
-        Ok(Some(media_id))
+        Ok((Some(media_id), key_config))
     }
 
     /// Eject media
@@ -278,7 +300,7 @@ pub fn request_and_load_media(
 ), Error> {
 
     let check_label = |handle: &mut dyn TapeDriver, uuid: &proxmox::tools::Uuid| {
-        if let Ok(Some(media_id)) = handle.read_label() {
+        if let Ok((Some(media_id), _)) = handle.read_label() {
             worker.log(format!(
                 "found media label {} ({})",
                 media_id.label.label_text,
@@ -348,7 +370,7 @@ pub fn request_and_load_media(
                         };
 
                         match handle.read_label() {
-                            Ok(Some(media_id)) => {
+                            Ok((Some(media_id), _)) => {
                                 if media_id.label.uuid == label.uuid {
                                     worker.log(format!(
                                         "found media label {} ({})",
@@ -367,7 +389,7 @@ pub fn request_and_load_media(
                                     }
                                 }
                             }
-                            Ok(None) => {
+                            Ok((None, _)) => {
                                 if last_media_uuid.is_some() {
                                     worker.log(format!("found empty media without label (please label all tapes first)"));
                                     last_media_uuid = None;

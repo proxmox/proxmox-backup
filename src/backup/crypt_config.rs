@@ -22,10 +22,13 @@ use crate::tools::format::{as_fingerprint, bytes_as_fingerprint};
 use proxmox::api::api;
 
 // openssl::sha::sha256(b"Proxmox Backup Encryption Key Fingerprint")
-const FINGERPRINT_INPUT: [u8; 32] = [ 110, 208, 239, 119,  71,  31, 255,  77,
-                                       85, 199, 168, 254,  74, 157, 182,  33,
-                                       97,  64, 127,  19,  76, 114,  93, 223,
-                                       48, 153,  45,  37, 236,  69, 237,  38, ];
+/// This constant is used to compute fingerprints.
+const FINGERPRINT_INPUT: [u8; 32] = [
+    110, 208, 239, 119,  71,  31, 255,  77,
+    85, 199, 168, 254,  74, 157, 182,  33,
+    97,  64, 127,  19,  76, 114,  93, 223,
+    48, 153,  45,  37, 236,  69, 237,  38,
+];
 #[api(default: "encrypt")]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]

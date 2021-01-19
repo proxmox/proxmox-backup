@@ -1,18 +1,22 @@
-use std::collections::HashMap;
+use std::collections::{HashSet, HashMap};
 
 use anyhow::{bail, Error};
 use serde::{Deserialize, Serialize};
-use openssl::sha::sha256;
 
 use proxmox::tools::fs::{
     file_read_optional_string,
     replace_file,
+    open_file_locked,
     CreateOptions,
 };
 
 use crate::{
     backup::{
         Fingerprint,
+        Kdf,
+        KeyConfig,
+        CryptConfig,
+        encrypt_key_with_passphrase,
     },
 };
 
@@ -41,29 +45,53 @@ mod hex_key {
     }
 }
 
-/// Store Hardware Encryption keys
+/// Store Hardware Encryption keys (private part)
 #[derive(Deserialize, Serialize)]
 pub struct EncryptionKeyInfo {
-    pub hint: String,
+    pub fingerprint: Fingerprint,
     #[serde(with = "hex_key")]
     pub key: [u8; 32],
-    pub fingerprint: Fingerprint,
+}
+
+/// Store Hardware Encryption keys (public part)
+#[derive(Deserialize, Serialize)]
+pub struct EncryptionKeyConfig {
+    pub hint: String,
+    pub key_config: KeyConfig,
+}
+
+pub fn compute_tape_key_fingerprint(key: &[u8; 32]) -> Result<Fingerprint, Error> {
+    let crypt_config = CryptConfig::new(key.clone())?;
+    Ok(crypt_config.fingerprint())
+}
+
+pub fn generate_tape_encryption_key(password: &[u8]) -> Result<([u8; 32], KeyConfig), Error> {
+
+    let mut key = [0u8; 32];
+    proxmox::sys::linux::fill_with_random_data(&mut key)?;
+
+    let mut key_config = encrypt_key_with_passphrase(&key, password, Kdf::Scrypt)?;
+    key_config.fingerprint = Some(compute_tape_key_fingerprint(&key)?);
+    Ok((key, key_config))
 }
 
 impl EncryptionKeyInfo {
+    pub fn new(key: [u8; 32], fingerprint: Fingerprint) -> Self {
+        Self { fingerprint, key }
+    }
+}
 
-    pub fn new(key: &[u8; 32], hint: String) -> Self {
-        Self {
-            hint,
-            key: key.clone(),
-            fingerprint: Fingerprint::new(sha256(key)),
-        }
+impl EncryptionKeyConfig {
+    pub fn new(key_config: KeyConfig, hint: String) -> Self {
+        Self { hint, key_config }
     }
 }
 
 pub const TAPE_KEYS_FILENAME: &str = "/etc/proxmox-backup/tape-encryption-keys.json";
+pub const TAPE_KEY_CONFIG_FILENAME: &str = "/etc/proxmox-backup/tape-encryption-key-config.json";
 pub const TAPE_KEYS_LOCKFILE: &str = "/etc/proxmox-backup/.tape-encryption-keys.lck";
 
+/// Load tape encryption keys (private part)
 pub fn load_keys() -> Result<(HashMap<Fingerprint, EncryptionKeyInfo>,  [u8;32]), Error> {
 
     let content = file_read_optional_string(TAPE_KEYS_FILENAME)?;
@@ -71,12 +99,12 @@ pub fn load_keys() -> Result<(HashMap<Fingerprint, EncryptionKeyInfo>,  [u8;32])
 
     let digest = openssl::sha::sha256(content.as_bytes());
 
-    let list: Vec<EncryptionKeyInfo> = serde_json::from_str(&content)?;
+    let key_list: Vec<EncryptionKeyInfo> = serde_json::from_str(&content)?;
 
     let mut map = HashMap::new();
-    
-    for item in list {
-        let expected_fingerprint = Fingerprint::new(sha256(&item.key));
+
+    for item in key_list {
+        let expected_fingerprint = compute_tape_key_fingerprint(&item.key)?;
         if item.fingerprint != expected_fingerprint {
             bail!(
                 "inconsistent fingerprint ({} != {})",
@@ -84,10 +112,42 @@ pub fn load_keys() -> Result<(HashMap<Fingerprint, EncryptionKeyInfo>,  [u8;32])
                 expected_fingerprint,
             );
         }
-        
-        map.insert(item.fingerprint.clone(), item);
+
+        if map.insert(item.fingerprint.clone(), item).is_some() {
+            bail!("found duplicate fingerprint");
+        }
     }
-   
+
+    Ok((map, digest))
+}
+
+/// Load tape encryption key configurations (public part)
+pub fn load_key_configs() -> Result<(HashMap<Fingerprint, EncryptionKeyConfig>,  [u8;32]), Error> {
+
+    let content = file_read_optional_string(TAPE_KEY_CONFIG_FILENAME)?;
+    let content = content.unwrap_or_else(|| String::from("[]"));
+
+    let digest = openssl::sha::sha256(content.as_bytes());
+
+    let key_list: Vec<EncryptionKeyConfig> = serde_json::from_str(&content)?;
+
+    let mut map = HashMap::new();
+    let mut hint_set = HashSet::new();
+
+    for item in key_list {
+        match item.key_config.fingerprint {
+            Some(ref fingerprint) => {
+                if !hint_set.insert(item.hint.clone()) {
+                    bail!("found duplicate password hint '{}'", item.hint);
+                }
+                if map.insert(fingerprint.clone(), item).is_some() {
+                    bail!("found duplicate fingerprint");
+                }
+            }
+            None => bail!("missing fingerprint"),
+        }
+    }
+
     Ok((map, digest))
 }
 
@@ -100,7 +160,7 @@ pub fn save_keys(map: HashMap<Fingerprint, EncryptionKeyInfo>) -> Result<(), Err
     }
 
     let raw = serde_json::to_string_pretty(&list)?;
-    
+
     let mode = nix::sys::stat::Mode::from_bits_truncate(0o0600);
     // set the correct owner/group/permissions while saving file
     // owner(rw) = root, group(r)= root
@@ -110,17 +170,77 @@ pub fn save_keys(map: HashMap<Fingerprint, EncryptionKeyInfo>) -> Result<(), Err
         .group(nix::unistd::Gid::from_raw(0));
 
     replace_file(TAPE_KEYS_FILENAME, raw.as_bytes(), options)?;
-    
+
     Ok(())
+}
+
+pub fn save_key_configs(map: HashMap<Fingerprint, EncryptionKeyConfig>) -> Result<(), Error> {
+
+    let mut list = Vec::new();
+
+    let mut hint_set = HashSet::new();
+
+    for (_fp, item) in map {
+        if !hint_set.insert(item.hint.clone()) {
+            bail!("found duplicate password hint '{}'", item.hint);
+        }
+        list.push(item);
+    }
+
+    let raw = serde_json::to_string_pretty(&list)?;
+
+    let backup_user = crate::backup::backup_user()?;
+    let mode = nix::sys::stat::Mode::from_bits_truncate(0o0600);
+    // set the correct owner/group/permissions while saving file
+    // owner(rw) = root, group(r)= backup
+    let options = CreateOptions::new()
+        .perm(mode)
+        .owner(nix::unistd::ROOT)
+        .group(backup_user.gid);
+
+    replace_file(TAPE_KEY_CONFIG_FILENAME, raw.as_bytes(), options)?;
+
+    Ok(())
+}
+
+pub fn insert_key(key: [u8;32], key_config: KeyConfig, hint: String) -> Result<(), Error> {
+
+    let _lock = open_file_locked(
+        TAPE_KEYS_LOCKFILE,
+        std::time::Duration::new(10, 0),
+        true,
+    )?;
+
+    let (mut key_map, _) = load_keys()?;
+    let (mut config_map, _) = load_key_configs()?;
+
+    let fingerprint = match key_config.fingerprint.clone() {
+        Some(fingerprint) => fingerprint,
+        None => bail!("missing encryption key fingerprint - internal error"),
+    };
+
+    if let Some(_) = config_map.get(&fingerprint) {
+        bail!("encryption key '{}' already exists.", fingerprint);
+    }
+
+    let item = EncryptionKeyInfo::new(key, fingerprint.clone());
+    key_map.insert(fingerprint.clone(), item);
+    save_keys(key_map)?;
+
+    let item = EncryptionKeyConfig::new(key_config, hint);
+    config_map.insert(fingerprint.clone(), item);
+    save_key_configs(config_map)?;
+
+    Ok(())
+
 }
 
 // shell completion helper
 pub fn complete_key_fingerprint(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
-    let data = match load_keys() {
+    let data = match load_key_configs() {
         Ok((data, _digest)) => data,
         Err(_) => return Vec::new(),
     };
 
     data.keys().map(|fp| crate::tools::format::as_fingerprint(fp.bytes())).collect()
 }
-

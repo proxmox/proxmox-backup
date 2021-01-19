@@ -30,6 +30,7 @@ use crate::{
         media_changer,
         file_formats::MediaSetLabel,
     },
+    config::tape_encryption_keys::load_key_configs,
 };
 
 
@@ -452,12 +453,27 @@ fn update_media_set_label(
         Some(ref set) => set,
     };
 
+    let key_config = if let Some(ref fingerprint) = new_set.encryption_key_fingerprint {
+        let (config_map, _digest) = load_key_configs()?;
+        match config_map.get(fingerprint) {
+            Some(item) => {
+                // fixme: store item.hint??? should be in key-config instead
+                Some(item.key_config.clone())
+            }
+            None => {
+                bail!("unable to find tape encryption key config '{}'", fingerprint);
+            }
+        }
+    } else {
+        None
+    };
+
     let status_path = Path::new(TAPE_STATUS_DIR);
 
     match old_set {
         None => {
             worker.log(format!("wrinting new media set label"));
-            drive.write_media_set_label(new_set)?;
+            drive.write_media_set_label(new_set, key_config.as_ref())?;
             media_catalog = MediaCatalog::overwrite(status_path, media_id, false)?;
         }
         Some(media_set_label) => {
@@ -476,7 +492,7 @@ fn update_media_set_label(
                             media_set_label.uuid.to_string(), media_set_label.seq_nr)
                 );
 
-                drive.write_media_set_label(new_set)?;
+                drive.write_media_set_label(new_set, key_config.as_ref())?;
                 media_catalog = MediaCatalog::overwrite(status_path, media_id, false)?;
             }
         }

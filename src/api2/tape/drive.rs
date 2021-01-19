@@ -24,6 +24,7 @@ use crate::{
         self,
         drive::check_drive_exists,
     },
+    backup::decrypt_key_config,
     api2::{
         types::{
             UPID_SCHEMA,
@@ -408,7 +409,7 @@ fn write_media_label(
         worker.log(format!("Label media '{}' for pool '{}'", label.label_text, pool));
         let set = MediaSetLabel::with_data(&pool, [0u8; 16].into(), 0, label.ctime, None);
 
-        drive.write_media_set_label(&set)?;
+        drive.write_media_set_label(&set, None)?;
         media_set_label = Some(set);
     } else {
         worker.log(format!("Label media '{}' (no pool assignment)", label.label_text));
@@ -427,7 +428,7 @@ fn write_media_label(
     drive.rewind()?;
 
     match drive.read_label() {
-        Ok(Some(info)) => {
+        Ok((Some(info), _)) => {
             if info.label.uuid != media_id.label.uuid {
                 bail!("verify label failed - got wrong label uuid");
             }
@@ -447,7 +448,7 @@ fn write_media_label(
                 }
             }
         },
-        Ok(None) => bail!("verify label failed (got empty media)"),
+        Ok((None, _)) => bail!("verify label failed (got empty media)"),
         Err(err) => bail!("verify label failed - {}", err),
     };
 
@@ -457,6 +458,46 @@ fn write_media_label(
 }
 
 #[api(
+    protected: true,
+    input: {
+        properties: {
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+            },
+            password: {
+                description: "Encryption key password.",
+            },
+        },
+    },
+)]
+/// Try to restore a tape encryption key
+pub async fn restore_key(
+    drive: String,
+    password: String,
+) -> Result<(), Error> {
+
+    let (config, _digest) = config::drive::config()?;
+
+    tokio::task::spawn_blocking(move || {
+        let mut drive = open_drive(&config, &drive)?;
+
+        let (_media_id, key_config) = drive.read_label()?;
+
+        if let Some(key_config) = key_config {
+            let hint = String::from("fixme: add hint");
+            // fixme: howto show restore hint
+            let password_fn = || { Ok(password.as_bytes().to_vec()) };
+            let (key, ..) = decrypt_key_config(&key_config, &password_fn)?;
+            config::tape_encryption_keys::insert_key(key, key_config, hint)?;
+        } else {
+            bail!("media does not contain any encryption key configuration");
+        }
+
+        Ok(())
+    }).await?
+}
+
+ #[api(
     input: {
         properties: {
             drive: {
@@ -472,7 +513,7 @@ fn write_media_label(
         type: MediaIdFlat,
     },
 )]
-/// Read media label
+/// Read media label (optionally inventorize media)
 pub async fn read_label(
     drive: String,
     inventorize: Option<bool>,
@@ -483,7 +524,7 @@ pub async fn read_label(
     tokio::task::spawn_blocking(move || {
         let mut drive = open_drive(&config, &drive)?;
 
-        let media_id = drive.read_label()?;
+        let (media_id, _key_config) = drive.read_label()?;
 
         let media_id = match media_id {
             Some(media_id) => {
@@ -723,10 +764,10 @@ pub fn update_inventory(
                     Err(err) => {
                         worker.warn(format!("unable to read label form media '{}' - {}", label_text, err));
                     }
-                    Ok(None) => {
+                    Ok((None, _)) => {
                         worker.log(format!("media '{}' is empty", label_text));
                     }
-                    Ok(Some(media_id)) => {
+                    Ok((Some(media_id), _key_config)) => {
                         if label_text != media_id.label.label_text {
                             worker.warn(format!("label text missmatch ({} != {})", label_text, media_id.label.label_text));
                             continue;
@@ -970,14 +1011,20 @@ pub fn catalog_media(
             drive.rewind()?;
 
             let media_id = match drive.read_label()? {
-                Some(media_id) => {
+                (Some(media_id), key_config) => {
                     worker.log(format!(
                         "found media label: {}",
                         serde_json::to_string_pretty(&serde_json::to_value(&media_id)?)?
                     ));
+                    if key_config.is_some() {
+                        worker.log(format!(
+                            "encryption key config: {}",
+                            serde_json::to_string_pretty(&serde_json::to_value(&key_config)?)?
+                        ));
+                    }
                     media_id
                 },
-                None => bail!("media is empty (no media label found)"),
+                (None, _) => bail!("media is empty (no media label found)"),
             };
 
             let status_path = Path::new(TAPE_STATUS_DIR);

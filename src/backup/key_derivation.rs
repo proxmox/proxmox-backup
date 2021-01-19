@@ -30,7 +30,7 @@ impl Default for Kdf {
     }
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 pub enum KeyDerivationConfig {
     Scrypt {
         n: u64,
@@ -82,7 +82,7 @@ impl KeyDerivationConfig {
     }
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct KeyConfig {
     pub kdf: Option<KeyDerivationConfig>,
     #[serde(with = "proxmox::tools::serde::epoch_as_rfc3339")]

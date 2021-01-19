@@ -11,6 +11,7 @@ use proxmox::tools::{
 };
 
 use crate::{
+    backup::KeyConfig,
     tape::{
         TapeWrite,
         TapeRead,
@@ -325,9 +326,17 @@ impl TapeDriver for VirtualTapeHandle {
         }
     }
 
-    fn write_media_set_label(&mut self, media_set_label: &MediaSetLabel) -> Result<(), Error> {
+    fn write_media_set_label(
+        &mut self,
+        media_set_label: &MediaSetLabel,
+        key_config: Option<&KeyConfig>,
+    ) -> Result<(), Error> {
 
         self.set_encryption(None)?;
+
+        if key_config.is_some() {
+            bail!("encryption is not implemented - internal error");
+        }
 
         let mut status = self.load_status()?;
         match status.current_tape {

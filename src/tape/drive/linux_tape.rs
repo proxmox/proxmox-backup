@@ -10,7 +10,10 @@ use proxmox::sys::error::SysResult;
 
 use crate::{
     config,
-    backup::Fingerprint,
+    backup::{
+        Fingerprint,
+        KeyConfig,
+    },
     tools::run_command,
     api2::types::{
         TapeDensity,
@@ -448,7 +451,11 @@ impl TapeDriver for LinuxTapeHandle {
         Ok(Box::new(handle))
     }
 
-    fn write_media_set_label(&mut self, media_set_label: &MediaSetLabel) -> Result<(), Error> {
+    fn write_media_set_label(
+        &mut self,
+        media_set_label: &MediaSetLabel,
+        key_config: Option<&KeyConfig>,
+    ) -> Result<(), Error> {
 
         let file_number = self.current_file_number()?;
         if file_number != 1 {
@@ -466,7 +473,20 @@ impl TapeDriver for LinuxTapeHandle {
         let mut handle = TapeWriterHandle {
             writer: BlockedWriter::new(&mut self.file),
         };
-        let raw = serde_json::to_string_pretty(&serde_json::to_value(media_set_label)?)?;
+
+        let mut value = serde_json::to_value(media_set_label)?;
+        if media_set_label.encryption_key_fingerprint.is_some() {
+            match key_config {
+                Some(key_config) => {
+                    value["key-config"] = serde_json::to_value(key_config)?;
+                }
+                None => {
+                    bail!("missing encryption key config");
+                }
+            }
+        }
+
+        let raw = serde_json::to_string_pretty(&value)?;
 
         let header = MediaContentHeader::new(PROXMOX_BACKUP_MEDIA_SET_LABEL_MAGIC_1_0, raw.len() as u32);
         handle.write_header(&header, raw.as_bytes())?;
