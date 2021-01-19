@@ -19,18 +19,23 @@ use proxmox::api::router::ReturnType;
 use proxmox::sys::linux::tty;
 use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
 
-use proxmox_backup::backup::{
-    encrypt_key_with_passphrase,
-    load_and_decrypt_key,
-    rsa_decrypt_key_config,
-    store_key_config,
-    CryptConfig,
-    Kdf,
-    KeyConfig,
-    KeyDerivationConfig,
+use proxmox_backup::{
+    api2::types::{
+        PASSWORD_HINT_SCHEMA,
+    },
+    backup::{
+        encrypt_key_with_passphrase,
+        load_key_config,
+        decrypt_key_config,
+        rsa_decrypt_key_config,
+        store_key_config,
+        CryptConfig,
+        Kdf,
+        KeyConfig,
+        KeyDerivationConfig,
+    },
+    tools,
 };
-
-use proxmox_backup::tools;
 
 #[api()]
 #[derive(Debug, Serialize, Deserialize)]
@@ -99,12 +104,20 @@ pub fn get_encryption_key_password() -> Result<Vec<u8>, Error> {
                 description:
                     "Output file. Without this the key will become the new default encryption key.",
                 optional: true,
-            }
+            },
+            hint: {
+                schema: PASSWORD_HINT_SCHEMA,
+                optional: true,
+            },
         },
     },
 )]
 /// Create a new encryption key.
-fn create(kdf: Option<Kdf>, path: Option<String>) -> Result<(), Error> {
+fn create(
+    kdf: Option<Kdf>,
+    path: Option<String>,
+    hint: Option<String>
+) -> Result<(), Error> {
     let path = match path {
         Some(path) => PathBuf::from(path),
         None => {
@@ -125,6 +138,10 @@ fn create(kdf: Option<Kdf>, path: Option<String>) -> Result<(), Error> {
         Kdf::None => {
             let created = proxmox::tools::time::epoch_i64();
 
+            if hint.is_some() {
+                bail!("password hint not allowed for Kdf::None");
+            }
+
             store_key_config(
                 &path,
                 false,
@@ -134,6 +151,7 @@ fn create(kdf: Option<Kdf>, path: Option<String>) -> Result<(), Error> {
                     modified: created,
                     data: key,
                     fingerprint: Some(crypt_config.fingerprint()),
+                    hint: None,
                 },
             )?;
         }
@@ -147,6 +165,7 @@ fn create(kdf: Option<Kdf>, path: Option<String>) -> Result<(), Error> {
 
             let mut key_config = encrypt_key_with_passphrase(&key, &password, kdf)?;
             key_config.fingerprint = Some(crypt_config.fingerprint());
+            key_config.hint = hint;
 
             store_key_config(&path, false, key_config)?;
         }
@@ -172,7 +191,11 @@ fn create(kdf: Option<Kdf>, path: Option<String>) -> Result<(), Error> {
                 description:
                     "Output file. Without this the key will become the new default encryption key.",
                 optional: true,
-            }
+            },
+            hint: {
+                schema: PASSWORD_HINT_SCHEMA,
+                optional: true,
+            },
         },
     },
 )]
@@ -182,6 +205,7 @@ async fn import_with_master_key(
     encrypted_keyfile: String,
     kdf: Option<Kdf>,
     path: Option<String>,
+    hint: Option<String>,
 ) -> Result<(), Error> {
     let path = match path {
         Some(path) => PathBuf::from(path),
@@ -213,6 +237,10 @@ async fn import_with_master_key(
         Kdf::None => {
             let modified = proxmox::tools::time::epoch_i64();
 
+            if hint.is_some() {
+                bail!("password hint not allowed for Kdf::None");
+            }
+
             store_key_config(
                 &path,
                 true,
@@ -222,6 +250,7 @@ async fn import_with_master_key(
                     modified,
                     data: key.to_vec(),
                     fingerprint: Some(fingerprint),
+                    hint: None,
                 },
             )?;
         }
@@ -231,6 +260,7 @@ async fn import_with_master_key(
             let mut new_key_config = encrypt_key_with_passphrase(&key, &password, kdf)?;
             new_key_config.created = created; // keep original value
             new_key_config.fingerprint = Some(fingerprint);
+            new_key_config.hint = hint;
 
             store_key_config(&path, true, new_key_config)?;
         }
@@ -249,12 +279,20 @@ async fn import_with_master_key(
             path: {
                 description: "Key file. Without this the default key's password will be changed.",
                 optional: true,
-            }
+            },
+            hint: {
+                schema: PASSWORD_HINT_SCHEMA,
+                optional: true,
+            },
         },
     },
 )]
 /// Change the encryption key's password.
-fn change_passphrase(kdf: Option<Kdf>, path: Option<String>) -> Result<(), Error> {
+fn change_passphrase(
+    kdf: Option<Kdf>,
+    path: Option<String>,
+    hint: Option<String>,
+) -> Result<(), Error> {
     let path = match path {
         Some(path) => PathBuf::from(path),
         None => {
@@ -273,11 +311,16 @@ fn change_passphrase(kdf: Option<Kdf>, path: Option<String>) -> Result<(), Error
         bail!("unable to change passphrase - no tty");
     }
 
-    let (key, created, fingerprint) = load_and_decrypt_key(&path, &get_encryption_key_password)?;
+    let key_config = load_key_config(&path)?;
+    let (key, created, fingerprint) = decrypt_key_config(&key_config, &get_encryption_key_password)?;
 
     match kdf {
         Kdf::None => {
             let modified = proxmox::tools::time::epoch_i64();
+
+            if hint.is_some() {
+                bail!("password hint not allowed for Kdf::None");
+            }
 
             store_key_config(
                 &path,
@@ -288,6 +331,7 @@ fn change_passphrase(kdf: Option<Kdf>, path: Option<String>) -> Result<(), Error
                     modified,
                     data: key.to_vec(),
                     fingerprint: Some(fingerprint),
+                    hint: None,
                 },
             )?;
         }
@@ -297,7 +341,7 @@ fn change_passphrase(kdf: Option<Kdf>, path: Option<String>) -> Result<(), Error
             let mut new_key_config = encrypt_key_with_passphrase(&key, &password, kdf)?;
             new_key_config.created = created; // keep original value
             new_key_config.fingerprint = Some(fingerprint);
-
+            new_key_config.hint = hint;
             store_key_config(&path, true, new_key_config)?;
         }
     }
@@ -323,7 +367,11 @@ struct KeyInfo {
     /// Key modification time
     pub modified: i64,
     /// Key fingerprint
+    #[serde(skip_serializing_if="Option::is_none")]
     pub fingerprint: Option<String>,
+    /// Password hint
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub hint: Option<String>,
 }
 
 #[api(
@@ -374,6 +422,7 @@ fn show_key(
             Some(ref fp) => Some(format!("{}", fp)),
             None => None,
         },
+        hint: config.hint,
     };
 
     let options = proxmox::api::cli::default_table_format_options()
@@ -381,7 +430,8 @@ fn show_key(
         .column(ColumnConfig::new("kdf"))
         .column(ColumnConfig::new("created").renderer(tools::format::render_epoch))
         .column(ColumnConfig::new("modified").renderer(tools::format::render_epoch))
-        .column(ColumnConfig::new("fingerprint"));
+        .column(ColumnConfig::new("fingerprint"))
+        .column(ColumnConfig::new("hint"));
 
     let return_type = ReturnType::new(false, &KeyInfo::API_SCHEMA);
 

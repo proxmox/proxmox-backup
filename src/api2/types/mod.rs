@@ -1249,3 +1249,10 @@ pub const DATASTORE_NOTIFY_STRING_SCHEMA: Schema = StringSchema::new(
     "Datastore notification setting")
     .format(&ApiStringFormat::PropertyString(&DatastoreNotify::API_SCHEMA))
     .schema();
+
+
+pub const PASSWORD_HINT_SCHEMA: Schema = StringSchema::new("Password hint.")
+    .format(&SINGLE_LINE_COMMENT_FORMAT)
+    .min_length(1)
+    .max_length(64)
+    .schema();

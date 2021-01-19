@@ -94,7 +94,10 @@ pub struct KeyConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
     pub fingerprint: Option<Fingerprint>,
- }
+    /// Password hint
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hint: Option<String>,
+}
 
 pub fn store_key_config(
     path: &std::path::Path,
@@ -181,6 +184,7 @@ pub fn encrypt_key_with_passphrase(
         modified: created,
         data: enc_data,
         fingerprint: None,
+        hint: None,
     })
 }
 
@@ -190,6 +194,15 @@ pub fn load_and_decrypt_key(
 ) -> Result<([u8;32], i64, Fingerprint), Error> {
     decrypt_key(&file_get_contents(&path)?, passphrase)
         .with_context(|| format!("failed to load decryption key from {:?}", path))
+}
+
+/// Loads a KeyConfig from path
+pub fn load_key_config(
+    path: &std::path::Path,
+) -> Result<KeyConfig, Error> {
+    let keydata = file_get_contents(&path)?;
+    let key_config: KeyConfig = serde_json::from_reader(&keydata[..])?;
+    Ok(key_config)
 }
 
 pub fn decrypt_key_config(
@@ -243,7 +256,7 @@ pub fn decrypt_key_config(
             );
         }
     }
-    
+
     Ok((result, key_config.created, fingerprint))
 }
 
@@ -311,6 +324,7 @@ fn encrypt_decrypt_test() -> Result<(), Error> {
             14, 171, 212, 70, 11, 110, 185, 202, 52, 80, 35, 222, 226, 183, 120, 199, 144, 229, 74,
             22, 131, 185, 101, 156, 10, 87, 174, 25, 144, 144, 21, 155,
         ])),
+        hint: None,
     };
 
     let encrypted = rsa_encrypt_key_config(public.clone(), &key).expect("encryption failed");
@@ -333,6 +347,7 @@ fn fingerprint_checks() -> Result<(), Error> {
         modified: proxmox::tools::time::epoch_i64(),
         data: (0u8..32u8).collect(),
         fingerprint: Some(Fingerprint::new([0u8; 32])), // wrong FP
+        hint: None,
     };
 
     let expected_fingerprint = Fingerprint::new([
@@ -349,6 +364,7 @@ fn fingerprint_checks() -> Result<(), Error> {
         modified: proxmox::tools::time::epoch_i64(),
         data: (0u8..32u8).collect(),
         fingerprint: None,
+        hint: None,
     };
 
 

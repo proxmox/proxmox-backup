@@ -484,11 +484,21 @@ pub async fn restore_key(
         let (_media_id, key_config) = drive.read_label()?;
 
         if let Some(key_config) = key_config {
-            let hint = String::from("fixme: add hint");
-            // fixme: howto show restore hint
             let password_fn = || { Ok(password.as_bytes().to_vec()) };
-            let (key, ..) = decrypt_key_config(&key_config, &password_fn)?;
-            config::tape_encryption_keys::insert_key(key, key_config, hint)?;
+            let key = match decrypt_key_config(&key_config, &password_fn) {
+                Ok((key, ..)) => key,
+                Err(_) => {
+                    match key_config.hint {
+                        Some(hint) => {
+                            bail!("decrypt key failed (password hint: {})", hint);
+                        }
+                        None => {
+                            bail!("decrypt key failed (wrong password)");
+                        }
+                    }
+                }
+            };
+            config::tape_encryption_keys::insert_key(key, key_config)?;
         } else {
             bail!("media does not contain any encryption key configuration");
         }

@@ -923,13 +923,11 @@ async fn create_backup(
                 Some(ref path) if path.exists() => {
                     let pem_data = file_get_contents(path)?;
                     let rsa = openssl::rsa::Rsa::public_key_from_pem(&pem_data)?;
-                    let key_config = KeyConfig {
-                        kdf: None,
-                        created,
-                        modified: proxmox::tools::time::epoch_i64(),
-                        data: key.to_vec(),
-                        fingerprint: Some(fingerprint),
-                    };
+
+                    let mut key_config = KeyConfig::without_password(key);
+                    key_config.created = created; // keep original value
+                    key_config.fingerprint = Some(fingerprint);
+
                     let enc_key = rsa_encrypt_key_config(rsa, &key_config)?;
                     println!("Master key '{:?}'", path);
 

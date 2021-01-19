@@ -456,10 +456,7 @@ fn update_media_set_label(
     let key_config = if let Some(ref fingerprint) = new_set.encryption_key_fingerprint {
         let (config_map, _digest) = load_key_configs()?;
         match config_map.get(fingerprint) {
-            Some(item) => {
-                // fixme: store item.hint??? should be in key-config instead
-                Some(item.key_config.clone())
-            }
+            Some(key_config) => Some(key_config.clone()),
             None => {
                 bail!("unable to find tape encryption key config '{}'", fingerprint);
             }

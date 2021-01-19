@@ -26,6 +26,7 @@ use crate::{
     api2::types::{
         TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
         PROXMOX_CONFIG_DIGEST_SCHEMA,
+        PASSWORD_HINT_SCHEMA,
         TapeKeyMetadata,
     },
     backup::{
@@ -57,7 +58,7 @@ pub fn list_keys(
 
     for (fingerprint, item) in key_map {
         list.push(TapeKeyMetadata {
-            hint: item.hint,
+            hint: item.hint.unwrap_or(String::new()),
             fingerprint: as_fingerprint(fingerprint.bytes()),
         });
     }
@@ -75,9 +76,7 @@ pub fn list_keys(
                 min_length: 5,
             },
             hint: {
-                description: "Password restore hint.",
-                min_length: 1,
-                max_length: 32,
+                schema: PASSWORD_HINT_SCHEMA,
             },
         },
     },
@@ -92,11 +91,12 @@ pub fn create_key(
     _rpcenv: &mut dyn RpcEnvironment
 ) -> Result<Fingerprint, Error> {
 
-    let (key, key_config) = generate_tape_encryption_key(password.as_bytes())?;
+    let (key, mut key_config) = generate_tape_encryption_key(password.as_bytes())?;
+    key_config.hint = Some(hint);
 
     let fingerprint = key_config.fingerprint.clone().unwrap();
 
-    insert_key(key, key_config, hint)?;
+    insert_key(key, key_config)?;
 
     Ok(fingerprint)
 }

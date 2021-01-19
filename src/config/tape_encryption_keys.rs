@@ -1,4 +1,4 @@
-use std::collections::{HashSet, HashMap};
+use std::collections::HashMap;
 
 use anyhow::{bail, Error};
 use serde::{Deserialize, Serialize};
@@ -53,13 +53,6 @@ pub struct EncryptionKeyInfo {
     pub key: [u8; 32],
 }
 
-/// Store Hardware Encryption keys (public part)
-#[derive(Deserialize, Serialize)]
-pub struct EncryptionKeyConfig {
-    pub hint: String,
-    pub key_config: KeyConfig,
-}
-
 pub fn compute_tape_key_fingerprint(key: &[u8; 32]) -> Result<Fingerprint, Error> {
     let crypt_config = CryptConfig::new(key.clone())?;
     Ok(crypt_config.fingerprint())
@@ -78,12 +71,6 @@ pub fn generate_tape_encryption_key(password: &[u8]) -> Result<([u8; 32], KeyCon
 impl EncryptionKeyInfo {
     pub fn new(key: [u8; 32], fingerprint: Fingerprint) -> Self {
         Self { fingerprint, key }
-    }
-}
-
-impl EncryptionKeyConfig {
-    pub fn new(key_config: KeyConfig, hint: String) -> Self {
-        Self { hint, key_config }
     }
 }
 
@@ -122,25 +109,21 @@ pub fn load_keys() -> Result<(HashMap<Fingerprint, EncryptionKeyInfo>,  [u8;32])
 }
 
 /// Load tape encryption key configurations (public part)
-pub fn load_key_configs() -> Result<(HashMap<Fingerprint, EncryptionKeyConfig>,  [u8;32]), Error> {
+pub fn load_key_configs() -> Result<(HashMap<Fingerprint, KeyConfig>,  [u8;32]), Error> {
 
     let content = file_read_optional_string(TAPE_KEY_CONFIG_FILENAME)?;
     let content = content.unwrap_or_else(|| String::from("[]"));
 
     let digest = openssl::sha::sha256(content.as_bytes());
 
-    let key_list: Vec<EncryptionKeyConfig> = serde_json::from_str(&content)?;
+    let key_list: Vec<KeyConfig> = serde_json::from_str(&content)?;
 
     let mut map = HashMap::new();
-    let mut hint_set = HashSet::new();
 
-    for item in key_list {
-        match item.key_config.fingerprint {
+    for key_config in key_list {
+        match key_config.fingerprint {
             Some(ref fingerprint) => {
-                if !hint_set.insert(item.hint.clone()) {
-                    bail!("found duplicate password hint '{}'", item.hint);
-                }
-                if map.insert(fingerprint.clone(), item).is_some() {
+                if map.insert(fingerprint.clone(), key_config).is_some() {
                     bail!("found duplicate fingerprint");
                 }
             }
@@ -174,16 +157,11 @@ pub fn save_keys(map: HashMap<Fingerprint, EncryptionKeyInfo>) -> Result<(), Err
     Ok(())
 }
 
-pub fn save_key_configs(map: HashMap<Fingerprint, EncryptionKeyConfig>) -> Result<(), Error> {
+pub fn save_key_configs(map: HashMap<Fingerprint, KeyConfig>) -> Result<(), Error> {
 
     let mut list = Vec::new();
 
-    let mut hint_set = HashSet::new();
-
     for (_fp, item) in map {
-        if !hint_set.insert(item.hint.clone()) {
-            bail!("found duplicate password hint '{}'", item.hint);
-        }
         list.push(item);
     }
 
@@ -203,7 +181,7 @@ pub fn save_key_configs(map: HashMap<Fingerprint, EncryptionKeyConfig>) -> Resul
     Ok(())
 }
 
-pub fn insert_key(key: [u8;32], key_config: KeyConfig, hint: String) -> Result<(), Error> {
+pub fn insert_key(key: [u8;32], key_config: KeyConfig) -> Result<(), Error> {
 
     let _lock = open_file_locked(
         TAPE_KEYS_LOCKFILE,
@@ -227,8 +205,7 @@ pub fn insert_key(key: [u8;32], key_config: KeyConfig, hint: String) -> Result<(
     key_map.insert(fingerprint.clone(), item);
     save_keys(key_map)?;
 
-    let item = EncryptionKeyConfig::new(key_config, hint);
-    config_map.insert(fingerprint.clone(), item);
+    config_map.insert(fingerprint.clone(), key_config);
     save_key_configs(config_map)?;
 
     Ok(())
