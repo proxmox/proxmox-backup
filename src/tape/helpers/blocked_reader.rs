@@ -81,10 +81,8 @@ impl <R: Read> BlockedReader<R> {
 
         if size > buffer.payload.len() {
             proxmox::io_bail!("detected tape block with wrong payload size ({} > {}", size, buffer.payload.len());
-        } else if size == 0 {
-            if !found_end_marker{
-                proxmox::io_bail!("detected tape block with zero payload size");
-            }
+        } else if size == 0 && !found_end_marker {
+            proxmox::io_bail!("detected tape block with zero payload size");
         }
 
 

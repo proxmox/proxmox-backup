@@ -378,15 +378,13 @@ pub fn request_and_load_media(
                                         media_id.label.uuid.to_string(),
                                     ));
                                     return Ok((Box::new(handle), media_id));
-                                } else {
-                                    if Some(media_id.label.uuid.clone()) != last_media_uuid {
-                                        worker.log(format!(
-                                            "wrong media label {} ({})",
-                                            media_id.label.label_text,
-                                            media_id.label.uuid.to_string(),
-                                        ));
-                                        last_media_uuid = Some(media_id.label.uuid);
-                                    }
+                                } else if Some(media_id.label.uuid.clone()) != last_media_uuid {
+                                    worker.log(format!(
+                                        "wrong media label {} ({})",
+                                        media_id.label.label_text,
+                                        media_id.label.uuid.to_string(),
+                                    ));
+                                    last_media_uuid = Some(media_id.label.uuid);
                                 }
                             }
                             Ok((None, _)) => {

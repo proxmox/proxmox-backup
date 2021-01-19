@@ -675,20 +675,18 @@ impl Inventory {
         for (uuid, entry) in self.map.iter_mut() {
             if let Some(changer_name) = online_map.lookup_changer(uuid) {
                 entry.location = Some(MediaLocation::Online(changer_name.to_string()));
-            } else {
-                if let Some(MediaLocation::Online(ref changer_name)) = entry.location {
-                    match online_map.online_map(changer_name) {
-                        None => {
-                            // no such changer device
-                            entry.location = Some(MediaLocation::Offline);
-                        }
-                        Some(None) => {
-                            // got no info - do nothing
-                        }
-                        Some(Some(_)) => {
-                            // media changer changed
-                            entry.location = Some(MediaLocation::Offline);
-                        }
+            } else if let Some(MediaLocation::Online(ref changer_name)) = entry.location {
+                match online_map.online_map(changer_name) {
+                    None => {
+                        // no such changer device
+                        entry.location = Some(MediaLocation::Offline);
+                    }
+                    Some(None) => {
+                        // got no info - do nothing
+                    }
+                    Some(Some(_)) => {
+                        // media changer changed
+                        entry.location = Some(MediaLocation::Offline);
                     }
                 }
             }

@@ -187,11 +187,9 @@ pub trait MediaChange {
                 if let ElementStatus::Empty = element_status {
                     to = Some(i as u64 + 1);
                 }
-            } else {
-                if let ElementStatus::VolumeTag(ref tag) = element_status {
-                    if tag == label_text {
-                        from = Some(i as u64 + 1);
-                    }
+            } else if let ElementStatus::VolumeTag(ref tag) = element_status {
+                if tag == label_text {
+                    from = Some(i as u64 + 1);
                 }
             }
         }

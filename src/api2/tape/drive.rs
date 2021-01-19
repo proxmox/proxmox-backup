@@ -1051,10 +1051,8 @@ pub fn catalog_media(
 
             let _lock = MediaPool::lock(status_path, &pool)?;
 
-            if MediaCatalog::exists(status_path, &media_id.label.uuid) {
-                if !force {
-                    bail!("media catalog exists (please use --force to overwrite)");
-                }
+            if MediaCatalog::exists(status_path, &media_id.label.uuid) && !force {
+                bail!("media catalog exists (please use --force to overwrite)");
             }
 
             restore_media(&worker, &mut drive, &media_id, None, verbose)?;

@@ -159,11 +159,9 @@ impl PoolWriter {
                 }
             }
 
-        } else {
-            if let Some(mut status) = status {
-                worker.log("standalone drive - ejecting media instead of export");
-                status.drive.eject_media()?;
-            }
+        } else if let Some(mut status) = status {
+            worker.log("standalone drive - ejecting media instead of export");
+            status.drive.eject_media()?;
         }
 
         Ok(())

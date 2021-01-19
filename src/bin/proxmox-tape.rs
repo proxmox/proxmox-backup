@@ -601,16 +601,14 @@ fn debug_scan(param: Value) -> Result<(), Error> {
                     Ok(header) => {
                         if header.magic != PROXMOX_BACKUP_CONTENT_HEADER_MAGIC_1_0 {
                             println!("got MediaContentHeader with wrong magic: {:?}", header.magic);
+                        } else if let Some(name) = PROXMOX_BACKUP_CONTENT_NAME.get(&header.content_magic) {
+                            println!("got content header: {}", name);
+                            println!("  uuid:  {}", header.content_uuid());
+                            println!("  ctime: {}", strftime_local("%c", header.ctime)?);
+                            println!("  hsize: {}", HumanByte::from(header.size as usize));
+                            println!("  part:  {}", header.part_number);
                         } else {
-                            if let Some(name) = PROXMOX_BACKUP_CONTENT_NAME.get(&header.content_magic) {
-                                println!("got content header: {}", name);
-                                println!("  uuid:  {}", header.content_uuid());
-                                println!("  ctime: {}", strftime_local("%c", header.ctime)?);
-                                println!("  hsize: {}", HumanByte::from(header.size as usize));
-                                println!("  part:  {}", header.part_number);
-                            } else {
-                                println!("got unknown content header: {:?}", header.content_magic);
-                            }
+                            println!("got unknown content header: {:?}", header.content_magic);
                         }
                     }
                     Err(err) => {

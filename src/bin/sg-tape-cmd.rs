@@ -274,13 +274,11 @@ fn main() -> Result<(), Error> {
         bail!("this program needs to be run with setuid root");
     }
 
-    if !running_uid.is_root() {
-        if running_uid != backup_uid || running_gid != backup_gid {
-            bail!(
-                "Not running as backup user or group (got uid {} gid {})",
-                running_uid, running_gid,
-            );
-        }
+    if !running_uid.is_root() && (running_uid != backup_uid || running_gid != backup_gid) {
+        bail!(
+            "Not running as backup user or group (got uid {} gid {})",
+            running_uid, running_gid,
+        );
     }
 
     let cmd_def = CliCommandMap::new()

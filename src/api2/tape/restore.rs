@@ -359,15 +359,11 @@ fn restore_chunk_archive<'a>(
                                 worker.log(format!("Insert chunk: {}", proxmox::tools::digest_to_hex(&digest)));
                             }
                             datastore.insert_chunk(&blob, &digest)?;
-                        } else {
-                            if verbose {
-                                worker.log(format!("Found existing chunk: {}", proxmox::tools::digest_to_hex(&digest)));
-                            }
+                        } else if verbose {
+                            worker.log(format!("Found existing chunk: {}", proxmox::tools::digest_to_hex(&digest)));
                         }
-                    } else {
-                        if verbose {
-                            worker.log(format!("Found chunk: {}", proxmox::tools::digest_to_hex(&digest)));
-                        }
+                    } else if verbose {
+                        worker.log(format!("Found chunk: {}", proxmox::tools::digest_to_hex(&digest)));
                     }
                     chunks.push(digest);
                 }
