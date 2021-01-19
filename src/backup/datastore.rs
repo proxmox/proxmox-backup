@@ -546,7 +546,7 @@ impl DataStore {
     }
 
     pub fn garbage_collection_running(&self) -> bool {
-        if let Ok(_) = self.gc_mutex.try_lock() { false } else { true }
+        !matches!(self.gc_mutex.try_lock(), Ok(_))
     }
 
     pub fn garbage_collection(&self, worker: &dyn TaskState, upid: &UPID) -> Result<(), Error> {

@@ -137,18 +137,12 @@ impl DirEntry {
 
     /// Check if DirEntry is a directory
     pub fn is_directory(&self) -> bool {
-        match self.attr {
-            DirEntryAttribute::Directory { .. } => true,
-            _ => false,
-        }
+        matches!(self.attr, DirEntryAttribute::Directory { .. })
     }
 
     /// Check if DirEntry is a symlink
     pub fn is_symlink(&self) -> bool {
-        match self.attr {
-            DirEntryAttribute::Symlink { .. } => true,
-            _ => false,
-        }
+        matches!(self.attr, DirEntryAttribute::Symlink { .. })
     }
 }
 
