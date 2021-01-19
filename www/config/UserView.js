@@ -139,6 +139,8 @@ Ext.define('PBS.config.UserView', {
 	    xtype: 'proxmoxStdRemoveButton',
 	    baseurl: '/access/users/',
 	    enableFn: (rec) => rec.data.userid !== 'root@pam',
+	    getUrl: (rec) =>
+		`/access/users/${encodeURIComponent(rec.getId())}`,
 	    callback: 'reload',
 	},
 	'-',

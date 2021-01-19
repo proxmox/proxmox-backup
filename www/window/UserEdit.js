@@ -20,7 +20,7 @@ Ext.define('PBS.window.UserEdit', {
 	var baseurl = '/api2/extjs/access/users';
 
 	me.isCreate = !userid;
-	me.url = userid ? baseurl + '/' + userid : baseurl;
+	me.url = userid ? baseurl + '/' + encodeURIComponent(userid) : baseurl;
 	me.method = userid ? 'PUT' : 'POST';
 	me.autoLoad = !!userid;
 
