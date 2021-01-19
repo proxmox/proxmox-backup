@@ -239,7 +239,7 @@ async fn get_status(
         }
         let text = value.as_str().unwrap().to_string();
         if text.is_empty() {
-            return Ok(String::from("--FULL--"));
+            Ok(String::from("--FULL--"))
         } else {
             Ok(text)
         }

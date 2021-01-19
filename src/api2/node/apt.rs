@@ -46,7 +46,7 @@ fn apt_update_available(_param: Value) -> Result<Value, Error> {
 
     let cache = apt::update_cache()?;
 
-    return Ok(json!(cache.package_status));
+    Ok(json!(cache.package_status))
 }
 
 fn do_apt_update(worker: &WorkerTask, quiet: bool) -> Result<(), Error> {
@@ -205,7 +205,7 @@ fn apt_get_changelog(
     if changelog_url.starts_with("http://download.proxmox.com/") {
         let changelog = crate::tools::runtime::block_on(http::get_string(changelog_url, None))
             .map_err(|err| format_err!("Error downloading changelog from '{}': {}", changelog_url, err))?;
-        return Ok(json!(changelog));
+        Ok(json!(changelog))
 
     } else if changelog_url.starts_with("https://enterprise.proxmox.com/") {
         let sub = match subscription::read_subscription()? {
@@ -229,7 +229,7 @@ fn apt_get_changelog(
 
         let changelog = crate::tools::runtime::block_on(http::get_string(changelog_url, Some(&auth_header)))
             .map_err(|err| format_err!("Error downloading changelog from '{}': {}", changelog_url, err))?;
-        return Ok(json!(changelog));
+        Ok(json!(changelog))
 
     } else {
         let mut command = std::process::Command::new("apt-get");
@@ -237,7 +237,7 @@ fn apt_get_changelog(
         command.arg("-qq"); // don't display download progress
         command.arg(name);
         let output = crate::tools::run_command(command, None)?;
-        return Ok(json!(output));
+        Ok(json!(output))
     }
 }
 

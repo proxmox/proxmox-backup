@@ -246,13 +246,13 @@ pub fn required_media_changer(
 ) -> Result<(Box<dyn MediaChange>, String), Error> {
     match media_changer(config, drive) {
         Ok(Some(result)) => {
-            return Ok(result);
+            Ok(result)
         }
         Ok(None) => {
             bail!("drive '{}' has no associated changer device", drive);
         },
         Err(err) => {
-            return Err(err);
+            Err(err)
         }
     }
 }
@@ -327,7 +327,7 @@ pub fn request_and_load_media(
 
                     let media_id = check_label(handle.as_mut(), &label.uuid)?;
 
-                    return Ok((handle, media_id));
+                    Ok((handle, media_id))
                 }
                 "linux" => {
                     let drive_config = LinuxTapeDrive::deserialize(config)?;

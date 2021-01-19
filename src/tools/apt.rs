@@ -226,7 +226,7 @@ pub fn list_installed_apt_packages<F: Fn(FilterData) -> bool>(
         }
     }
 
-    return ret;
+    ret
 }
 
 fn query_detailed_info<'a, F, V>(
@@ -366,5 +366,5 @@ where
         }
     }
 
-    return None;
+    None
 }

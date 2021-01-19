@@ -435,7 +435,7 @@ impl AclTree {
     /// Iterates over the tree looking for a node matching `path`.
     pub fn find_node(&mut self, path: &str) -> Option<&mut AclTreeNode> {
         let path = split_acl_path(path);
-        return self.get_node(&path);
+        self.get_node(&path)
     }
 
     fn get_node(&mut self, path: &[&str]) -> Option<&mut AclTreeNode> {

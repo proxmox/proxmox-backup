@@ -406,7 +406,7 @@ fn restore_snapshot_archive<'a>(
 
     let mut decoder = pxar::decoder::sync::Decoder::from_std(reader)?;
     match try_restore_snapshot_archive(&mut decoder, snapshot_path) {
-        Ok(()) => return Ok(true),
+        Ok(()) => Ok(true),
         Err(err) => {
             let reader = decoder.input();
 
@@ -421,7 +421,7 @@ fn restore_snapshot_archive<'a>(
             }
 
             // else the archive is corrupt
-            return Err(err);
+            Err(err)
         }
     }
 }

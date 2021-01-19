@@ -33,7 +33,7 @@ pub fn do_verification_job(
 
         let raw_verify_state = manifest.unprotected["verify_state"].clone();
         match serde_json::from_value::<SnapshotVerifyState>(raw_verify_state) {
-            Err(_) => return true, // no last verification, always include
+            Err(_) => true, // no last verification, always include
             Ok(last_verify) => {
                 match outdated_after {
                     None => false, // never re-verify if ignored and no max age

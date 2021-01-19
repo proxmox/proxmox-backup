@@ -29,7 +29,7 @@ impl <R: BufRead> NetworkParser<R> {
                 bail!("input error - {}", err);
             }
             Some(Ok((token, _))) => {
-                return Ok(*token);
+                Ok(*token)
             }
             None => {
                 bail!("got unexpected end of stream (inside peek)");
@@ -44,7 +44,7 @@ impl <R: BufRead> NetworkParser<R> {
             }
             Some(Ok((token, text))) => {
                 if token == Token::Newline { self.line_nr += 1; }
-                return Ok((token, text));
+                Ok((token, text))
             }
             None => {
                 bail!("got unexpected end of stream (inside peek)");

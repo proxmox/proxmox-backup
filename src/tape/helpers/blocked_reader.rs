@@ -179,7 +179,7 @@ impl <R: Read> Read for BlockedReader<R> {
         }
 
         if rest <= 0 {
-            return Ok(0);
+            Ok(0)
         } else {
             let copy_len = if (buffer.len() as isize) < rest {
                 buffer.len()
@@ -189,7 +189,7 @@ impl <R: Read> Read for BlockedReader<R> {
             buffer[..copy_len].copy_from_slice(
                 &self.buffer.payload[self.read_pos..(self.read_pos + copy_len)]);
             self.read_pos += copy_len;
-            return Ok(copy_len);
+            Ok(copy_len)
         }
     }
 }

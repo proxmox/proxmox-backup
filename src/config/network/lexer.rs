@@ -114,14 +114,14 @@ impl <R: BufRead> Iterator for Lexer<R> {
             Some(ref mut  cur_line) => {
                 if cur_line.is_empty() {
                     self.cur_line = None;
-                    return Some(Ok((Token::Newline, String::from("\n"))));
+                    Some(Ok((Token::Newline, String::from("\n"))))
                 } else {
                     let (token, text) = cur_line.pop_front().unwrap();
-                    return Some(Ok((token, text)));
+                    Some(Ok((token, text)))
                 }
             }
             None => {
-                return None;
+                None
             }
         }
     }

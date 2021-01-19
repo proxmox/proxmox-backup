@@ -725,7 +725,7 @@ pub fn get_disk_usage_info(
     filter.push(disk.to_string());
     let mut map = get_disks(Some(filter), no_smart)?;
     if let Some(info) = map.remove(disk) {
-        return Ok(info);
+        Ok(info)
     } else {
         bail!("failed to get disk usage info - internal error"); // should not happen
     }
