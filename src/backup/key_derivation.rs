@@ -192,16 +192,14 @@ pub fn load_and_decrypt_key(
         .with_context(|| format!("failed to load decryption key from {:?}", path))
 }
 
-pub fn decrypt_key(
-    mut keydata: &[u8],
+pub fn decrypt_key_config(
+    key_config: &KeyConfig,
     passphrase: &dyn Fn() -> Result<Vec<u8>, Error>,
 ) -> Result<([u8;32], i64, Fingerprint), Error> {
-    let key_config: KeyConfig = serde_json::from_reader(&mut keydata)?;
 
-    let raw_data = key_config.data;
-    let created = key_config.created;
+    let raw_data = &key_config.data;
 
-    let key = if let Some(kdf) = key_config.kdf {
+    let key = if let Some(ref kdf) = key_config.kdf {
 
         let passphrase = passphrase()?;
         if passphrase.len() < 5 {
@@ -226,10 +224,10 @@ pub fn decrypt_key(
             b"", //??
             &enc_data,
             &tag,
-        ).map_err(|err| format_err!("Unable to decrypt key - {}", err))?
+        ).map_err(|err| format_err!("Unable to decrypt key (wrong password?) - {}", err))?
 
     } else {
-        raw_data
+        raw_data.clone()
     };
 
     let mut result = [0u8; 32];
@@ -237,16 +235,24 @@ pub fn decrypt_key(
 
     let crypt_config = CryptConfig::new(result.clone())?;
     let fingerprint = crypt_config.fingerprint();
-    if let Some(stored_fingerprint) = key_config.fingerprint {
-        if fingerprint != stored_fingerprint {
+    if let Some(ref stored_fingerprint) = key_config.fingerprint {
+        if &fingerprint != stored_fingerprint {
             bail!(
                 "KeyConfig contains wrong fingerprint {}, contained key has fingerprint {}",
                 stored_fingerprint, fingerprint
             );
         }
     }
+    
+    Ok((result, key_config.created, fingerprint))
+}
 
-    Ok((result, created, fingerprint))
+pub fn decrypt_key(
+    mut keydata: &[u8],
+    passphrase: &dyn Fn() -> Result<Vec<u8>, Error>,
+) -> Result<([u8;32], i64, Fingerprint), Error> {
+    let key_config: KeyConfig = serde_json::from_reader(&mut keydata)?;
+    decrypt_key_config(&key_config, passphrase)
 }
 
 pub fn rsa_encrypt_key_config(
