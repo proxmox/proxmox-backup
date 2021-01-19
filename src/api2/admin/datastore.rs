@@ -711,7 +711,7 @@ pub fn verify(
 
                 verify_all_backups(datastore, worker.clone(), worker.upid(), owner, None)?
             };
-            if failed_dirs.len() > 0 {
+            if !failed_dirs.is_empty() {
                 worker.log("Failed to verify the following snapshots/groups:");
                 for dir in failed_dirs {
                     worker.log(format!("\t{}", dir));
@@ -1341,7 +1341,7 @@ fn catalog(
 
     if filepath != "root" {
         components = base64::decode(filepath)?;
-        if components.len() > 0 && components[0] == '/' as u8 {
+        if !components.is_empty() && components[0] == b'/' {
             components.remove(0);
         }
         for component in components.split(|c| *c == '/' as u8) {
@@ -1487,7 +1487,7 @@ fn pxar_file_download(
         check_priv_or_backup_owner(&datastore, backup_dir.group(), &auth_id, PRIV_DATASTORE_READ)?;
 
         let mut components = base64::decode(&filepath)?;
-        if components.len() > 0 && components[0] == '/' as u8 {
+        if !components.is_empty() && components[0] == b'/' {
             components.remove(0);
         }
 

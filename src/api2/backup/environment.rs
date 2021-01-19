@@ -465,7 +465,7 @@ impl BackupEnvironment {
         state.ensure_unfinished()?;
 
         // test if all writer are correctly closed
-        if state.dynamic_writers.len() != 0 || state.fixed_writers.len() != 0 {
+        if !state.dynamic_writers.is_empty() || !state.fixed_writers.is_empty() {
             bail!("found open index writer - unable to finish backup");
         }
 

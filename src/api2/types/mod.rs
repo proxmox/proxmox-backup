@@ -1077,7 +1077,7 @@ fn test_cert_fingerprint_schema() -> Result<(), anyhow::Error> {
     ];
 
     for fingerprint in invalid_fingerprints.iter() {
-        if let Ok(_) = parse_simple_value(fingerprint, &schema) {
+        if parse_simple_value(fingerprint, &schema).is_ok() {
             bail!("test fingerprint '{}' failed -  got Ok() while exception an error.", fingerprint);
         }
     }
@@ -1118,7 +1118,7 @@ fn test_proxmox_user_id_schema() -> Result<(), anyhow::Error> {
     ];
 
     for name in invalid_user_ids.iter() {
-        if let Ok(_) = parse_simple_value(name, &Userid::API_SCHEMA) {
+        if parse_simple_value(name, &Userid::API_SCHEMA).is_ok() {
             bail!("test userid '{}' failed -  got Ok() while exception an error.", name);
         }
     }

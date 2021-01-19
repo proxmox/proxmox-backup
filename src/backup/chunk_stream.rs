@@ -59,7 +59,7 @@ where
                 }
                 None => {
                     this.scan_pos = 0;
-                    if this.buffer.len() > 0 {
+                    if !this.buffer.is_empty() {
                         return Poll::Ready(Some(Ok(this.buffer.split())));
                     } else {
                         return Poll::Ready(None);
@@ -111,7 +111,7 @@ where
                 }
                 None => {
                     // last chunk can have any size
-                    if this.buffer.len() > 0 {
+                    if !this.buffer.is_empty() {
                         return Poll::Ready(Some(Ok(this.buffer.split())));
                     } else {
                         return Poll::Ready(None);

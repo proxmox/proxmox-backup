@@ -161,7 +161,7 @@ pub fn create_sync_job(
 
     let (mut config, _digest) = sync::config()?;
 
-    if let Some(_) = config.sections.get(&sync_job.id) {
+    if config.sections.get(&sync_job.id).is_some() {
         bail!("job '{}' already exists.", sync_job.id);
     }
 

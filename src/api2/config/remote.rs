@@ -102,7 +102,7 @@ pub fn create_remote(password: String, param: Value) -> Result<(), Error> {
 
     let (mut config, _digest) = remote::config()?;
 
-    if let Some(_) = config.sections.get(&remote.name) {
+    if config.sections.get(&remote.name).is_some() {
         bail!("remote '{}' already exists.", remote.name);
     }
 

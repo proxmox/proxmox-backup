@@ -113,7 +113,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin> FuseLoopSession<R> {
         abort_chan: Receiver<()>,
     ) -> Result<(), Error> {
 
-        if let None = self.session {
+        if self.session.is_none() {
             panic!("internal error: fuse_loop::main called before ::map_loop");
         }
         let mut session = self.session.take().unwrap().fuse();
@@ -236,7 +236,7 @@ pub fn cleanup_unused_run_files(filter_name: Option<String>) {
 
                 // clean leftover FUSE instances (e.g. user called 'losetup -d' or similar)
                 // does nothing if files are already stagnant (e.g. instance crashed etc...)
-                if let Ok(_) = unmap_from_backing(&path, None) {
+                if unmap_from_backing(&path, None).is_ok() {
                     // we have reaped some leftover instance, tell the user
                     eprintln!(
                         "Cleaned up dangling mapping '{}': no loop device assigned",

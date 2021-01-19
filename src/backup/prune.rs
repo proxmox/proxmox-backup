@@ -26,7 +26,7 @@ fn mark_selections<F: Fn(&BackupInfo) -> Result<String, Error>> (
 
     for info in list {
         let backup_id = info.backup_dir.relative_path();
-        if let Some(_) = mark.get(&backup_id) { continue; }
+        if mark.get(&backup_id).is_some() { continue; }
         let sel_id: String = select_id(&info)?;
 
         if already_included.contains(&sel_id) { continue; }

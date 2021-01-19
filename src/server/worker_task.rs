@@ -48,7 +48,7 @@ pub async fn worker_is_active(upid: &UPID) -> Result<bool, Error> {
         return Ok(WORKER_TASK_LIST.lock().unwrap().contains_key(&upid.task_id));
     }
 
-    if !procfs::check_process_running_pstart(upid.pid, upid.pstart).is_some() {
+    if procfs::check_process_running_pstart(upid.pid, upid.pstart).is_none() {
         return Ok(false);
     }
 
@@ -191,7 +191,7 @@ pub fn upid_read_status(upid: &UPID) -> Result<TaskState, Error> {
     file.read_to_end(&mut data)?;
 
     // task logs should end with newline, we do not want it here
-    if data.len() > 0 && data[data.len()-1] == b'\n' {
+    if !data.is_empty() && data[data.len()-1] == b'\n' {
         data.pop();
     }
 
@@ -270,7 +270,7 @@ impl TaskState {
         } else if let Some(warnings) = s.strip_prefix("WARNINGS: ") {
             let count: u64 = warnings.parse()?;
             Ok(TaskState::Warning{ count, endtime })
-        } else if s.len() > 0 {
+        } else if !s.is_empty() {
             let message = if let Some(err) = s.strip_prefix("ERROR: ") { err } else { s }.to_string();
             Ok(TaskState::Error{ message, endtime })
         } else {

@@ -747,11 +747,9 @@ pub fn update_inventory(
 
                 let label_text = label_text.to_string();
 
-                if !read_all_labels.unwrap_or(false) {
-                    if let Some(_) = inventory.find_media_by_label_text(&label_text) {
-                        worker.log(format!("media '{}' already inventoried", label_text));
-                        continue;
-                    }
+                if !read_all_labels.unwrap_or(false) && inventory.find_media_by_label_text(&label_text).is_some() {
+                    worker.log(format!("media '{}' already inventoried", label_text));
+                    continue;
                 }
 
                 if let Err(err) = changer.load_media(&label_text) {

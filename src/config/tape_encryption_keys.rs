@@ -219,7 +219,7 @@ pub fn insert_key(key: [u8;32], key_config: KeyConfig, hint: String) -> Result<(
         None => bail!("missing encryption key fingerprint - internal error"),
     };
 
-    if let Some(_) = config_map.get(&fingerprint) {
+    if config_map.get(&fingerprint).is_some() {
         bail!("encryption key '{}' already exists.", fingerprint);
     }
 

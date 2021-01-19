@@ -106,7 +106,7 @@ pub fn create_verification_job(
 
     let (mut config, _digest) = verify::config()?;
 
-    if let Some(_) = config.sections.get(&verification_job.id) {
+    if config.sections.get(&verification_job.id).is_some() {
         bail!("job '{}' already exists.", verification_job.id);
     }
 

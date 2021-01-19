@@ -401,7 +401,7 @@ impl ChunkStore {
         file.write_all(raw_data)?;
 
         if let Err(err) = std::fs::rename(&tmp_path, &chunk_path) {
-            if let Err(_) = std::fs::remove_file(&tmp_path)  { /* ignore */ }
+            if std::fs::remove_file(&tmp_path).is_err()  { /* ignore */ }
             bail!(
                 "Atomic rename on store '{}' failed for chunk {} - {}",
                 self.name,

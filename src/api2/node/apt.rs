@@ -196,7 +196,7 @@ fn apt_get_changelog(
         }
     }, Some(&name));
 
-    if pkg_info.len() == 0 {
+    if pkg_info.is_empty() {
         bail!("Package '{}' not found", name);
     }
 

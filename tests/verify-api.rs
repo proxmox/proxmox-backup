@@ -13,7 +13,7 @@ fn verify_object_schema(schema: &ObjectSchema) -> Result<(), Error> {
 
     let map = schema.properties;
 
-    if map.len() >= 1 {
+    if !map.is_empty() {
 
         for i in 1..map.len() {
 
@@ -125,7 +125,7 @@ fn verify_dirmap(
     dirmap: SubdirMap,
 ) -> Result<(), Error> {
 
-    if dirmap.len() >= 1 {
+    if !dirmap.is_empty() {
 
         for i in 1..dirmap.len() {
 

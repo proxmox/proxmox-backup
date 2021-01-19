@@ -218,10 +218,8 @@ fn accept_connections(
 
                         match result {
                             Ok(Ok(())) => {
-                                if let Err(_) = sender.send(Ok(stream)).await {
-                                    if debug {
-                                        eprintln!("detect closed connection channel");
-                                    }
+                                if sender.send(Ok(stream)).await.is_err() && debug {
+                                    eprintln!("detect closed connection channel");
                                 }
                             }
                             Ok(Err(err)) => {

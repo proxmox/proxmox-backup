@@ -124,7 +124,7 @@ pub fn create_datastore(param: Value) -> Result<(), Error> {
 
     let (mut config, _digest) = datastore::config()?;
 
-    if let Some(_) = config.sections.get(&datastore.name) {
+    if config.sections.get(&datastore.name).is_some() {
         bail!("datastore '{}' already exists.", datastore.name);
     }
 

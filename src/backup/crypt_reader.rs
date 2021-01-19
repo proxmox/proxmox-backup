@@ -36,7 +36,7 @@ impl <R: BufRead> CryptReader<R> {
 impl <R: BufRead> Read for CryptReader<R> {
 
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
-        if self.small_read_buf.len() > 0 {
+        if !self.small_read_buf.is_empty() {
             let max = if self.small_read_buf.len() > buf.len() {  buf.len() } else { self.small_read_buf.len() };
             let rest = self.small_read_buf.split_off(max);
             buf[..max].copy_from_slice(&self.small_read_buf);
@@ -50,7 +50,7 @@ impl <R: BufRead> Read for CryptReader<R> {
         if buf.len() <= 2*self.block_size {
             let mut outbuf = [0u8; 1024];
 
-            let count = if data.len() == 0 { // EOF
+            let count = if data.is_empty() { // EOF
                 let written = self.crypter.finalize(&mut outbuf)?;
                 self.finalized = true;
                 written
@@ -72,7 +72,7 @@ impl <R: BufRead> Read for CryptReader<R> {
                 buf[..count].copy_from_slice(&outbuf[..count]);
                 Ok(count)
             }
-        } else if data.len() == 0 { // EOF
+        } else if data.is_empty() { // EOF
             let rest = self.crypter.finalize(buf)?;
             self.finalized = true;
             Ok(rest)
