@@ -194,7 +194,6 @@ pub fn destroy_media(label_text: String, force: Option<bool>,) -> Result<(), Err
     }
 
     let uuid = media_id.label.uuid.clone();
-    drop(media_id);
 
     inventory.remove_media(&uuid)?;
 
