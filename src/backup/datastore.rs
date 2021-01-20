@@ -37,7 +37,7 @@ lazy_static! {
 /// management interface for backup.
 pub struct DataStore {
     chunk_store: Arc<ChunkStore>,
-    gc_mutex: Mutex<bool>,
+    gc_mutex: Mutex<()>,
     last_gc_status: Mutex<GarbageCollectionStatus>,
     verify_new: bool,
 }
@@ -89,7 +89,7 @@ impl DataStore {
 
         Ok(Self {
             chunk_store: Arc::new(chunk_store),
-            gc_mutex: Mutex::new(false),
+            gc_mutex: Mutex::new(()),
             last_gc_status: Mutex::new(gc_status),
             verify_new: config.verify_new.unwrap_or(false),
         })

@@ -125,7 +125,7 @@ pub fn update_dns(
 ) -> Result<Value, Error> {
 
     lazy_static! {
-        static ref MUTEX: Arc<Mutex<usize>> = Arc::new(Mutex::new(0));
+        static ref MUTEX: Arc<Mutex<()>> = Arc::new(Mutex::new(()));
     }
 
     let _guard = MUTEX.lock();

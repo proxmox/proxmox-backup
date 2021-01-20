@@ -18,7 +18,7 @@ pub struct ChunkStore {
     name: String, // used for error reporting
     pub (crate) base: PathBuf,
     chunk_dir: PathBuf,
-    mutex: Mutex<bool>,
+    mutex: Mutex<()>,
     locker: Arc<Mutex<tools::ProcessLocker>>,
 }
 
@@ -143,7 +143,7 @@ impl ChunkStore {
             base,
             chunk_dir,
             locker,
-            mutex: Mutex::new(false)
+            mutex: Mutex::new(())
         })
     }
 
