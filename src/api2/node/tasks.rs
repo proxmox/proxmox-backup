@@ -110,16 +110,12 @@ fn check_task_access(auth_id: &Authid, upid: &UPID) -> Result<(), Error> {
     } else {
         let user_info = CachedUserInfo::new()?;
 
-        let task_privs = user_info.lookup_privs(auth_id, &["system", "tasks"]);
-        if task_privs & PRIV_SYS_AUDIT != 0 {
-            // allowed to read all tasks in general
-            Ok(())
-        } else if check_job_privs(&auth_id, &user_info, upid).is_ok() {
-            // job which the user/token could have configured/manually executed
-            Ok(())
-        } else {
-            bail!("task access not allowed");
-        }
+        // access to all tasks
+        // or task == job which the user/token could have configured/manually executed
+
+        user_info.check_privs(auth_id, &["system", "tasks"], PRIV_SYS_AUDIT, false)
+            .or_else(|_| check_job_privs(&auth_id, &user_info, upid))
+            .or_else(|_| bail!("task access not allowed"))
     }
 }
 

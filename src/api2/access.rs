@@ -27,6 +27,7 @@ pub mod role;
 pub mod tfa;
 pub mod user;
 
+#[allow(clippy::large_enum_variant)]
 enum AuthResult {
     /// Successful authentication which does not require a new ticket.
     Success,
@@ -331,27 +332,20 @@ pub fn list_permissions(
     let user_info = CachedUserInfo::new()?;
     let user_privs = user_info.lookup_privs(&current_auth_id, &["access"]);
 
-    let auth_id = if user_privs & PRIV_SYS_AUDIT == 0 {
-        match auth_id {
-            Some(auth_id) => {
-                if auth_id == current_auth_id {
-                    auth_id
-                } else if auth_id.is_token()
+    let auth_id = match auth_id {
+        Some(auth_id) if auth_id == current_auth_id => current_auth_id,
+        Some(auth_id) => {
+            if user_privs & PRIV_SYS_AUDIT != 0 
+                || (auth_id.is_token()
                     && !current_auth_id.is_token()
-                    && auth_id.user() == current_auth_id.user()
-                {
-                    auth_id
-                } else {
-                    bail!("not allowed to list permissions of {}", auth_id);
-                }
+                    && auth_id.user() == current_auth_id.user())
+            {
+                auth_id
+            } else {
+                bail!("not allowed to list permissions of {}", auth_id);
             }
-            None => current_auth_id,
-        }
-    } else {
-        match auth_id {
-            Some(auth_id) => auth_id,
-            None => current_auth_id,
-        }
+        },
+        None => current_auth_id,
     };
 
     fn populate_acl_paths(
