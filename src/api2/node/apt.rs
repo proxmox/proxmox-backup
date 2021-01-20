@@ -107,16 +107,13 @@ fn do_apt_update(worker: &WorkerTask, quiet: bool) -> Result<(), Error> {
 )]
 /// Update the APT database
 pub fn apt_update_database(
-    notify: Option<bool>,
-    quiet: Option<bool>,
+    notify: bool,
+    quiet: bool,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
-    // FIXME: change to non-option in signature and drop below once we have proxmox-api-macro 0.2.3
-    let quiet = quiet.unwrap_or(API_METHOD_APT_UPDATE_DATABASE_PARAM_DEFAULT_QUIET);
-    let notify = notify.unwrap_or(API_METHOD_APT_UPDATE_DATABASE_PARAM_DEFAULT_NOTIFY);
 
     let upid_str = WorkerTask::new_thread("aptupdate", None, auth_id, to_stdout, move |worker| {
         do_apt_update(&worker, quiet)?;
