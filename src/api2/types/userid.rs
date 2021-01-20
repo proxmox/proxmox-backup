@@ -277,7 +277,7 @@ impl PartialEq<&str> for RealmRef {
 
 impl PartialEq<RealmRef> for Realm {
     fn eq(&self, rhs: &RealmRef) -> bool {
-        self.0 == &rhs.0
+        self.0 == rhs.0
     }
 }
 

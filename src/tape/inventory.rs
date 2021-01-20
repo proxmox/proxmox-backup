@@ -382,7 +382,7 @@ impl Inventory {
 
         let set_list = self.map.values()
             .filter_map(|entry| entry.id.media_set_label.as_ref())
-            .filter(|set| &set.pool == &pool && set.uuid.as_ref() != [0u8;16]);
+            .filter(|set| set.pool == pool && set.uuid.as_ref() != [0u8;16]);
 
         for set in set_list {
             match last_set {
@@ -405,7 +405,7 @@ impl Inventory {
         // consistency check - must be the only set with that ctime
         let set_list = self.map.values()
             .filter_map(|entry| entry.id.media_set_label.as_ref())
-            .filter(|set| &set.pool == &pool && set.uuid.as_ref() != [0u8;16]);
+            .filter(|set| set.pool == pool && set.uuid.as_ref() != [0u8;16]);
 
         for set in set_list {
             if set.uuid != uuid && set.ctime >= ctime { // should not happen
@@ -436,7 +436,7 @@ impl Inventory {
 
         let set_list = self.map.values()
             .filter_map(|entry| entry.id.media_set_label.as_ref())
-            .filter(|set| (&set.uuid != media_set_uuid) && (&set.pool == &pool));
+            .filter(|set| (&set.uuid != media_set_uuid) && (set.pool == pool));
 
         let mut next_ctime = None;
 
