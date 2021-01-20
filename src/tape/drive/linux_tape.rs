@@ -7,6 +7,7 @@ use anyhow::{bail, format_err, Error};
 use nix::fcntl::{fcntl, FcntlArg, OFlag};
 
 use proxmox::sys::error::SysResult;
+use proxmox::tools::Uuid;
 
 use crate::{
     config,
@@ -535,16 +536,33 @@ impl TapeDriver for LinuxTapeHandle {
     /// Note: Only 'root' user may run RAW SG commands, so we need to
     /// spawn setuid binary 'sg-tape-cmd'. Also, encryption key file
     /// is only readable by root.
-    fn set_encryption(&mut self, key_fingerprint: Option<Fingerprint>) -> Result<(), Error> {
+    fn set_encryption(
+        &mut self,
+        key_fingerprint: Option<(Fingerprint, Uuid)>,
+    ) -> Result<(), Error> {
 
         if nix::unistd::Uid::effective().is_root() {
 
-            if let Some(ref key_fingerprint) = key_fingerprint {
+            if let Some((ref key_fingerprint, ref uuid)) = key_fingerprint {
 
                 let (key_map, _digest) = config::tape_encryption_keys::load_keys()?;
                 match key_map.get(key_fingerprint) {
                     Some(item) => {
-                        return set_encryption(&mut self.file, Some(item.key));
+
+                        // derive specialized key for each media-set
+
+                        let mut tape_key = [0u8; 32];
+
+                        let uuid_bytes: [u8; 16] = uuid.as_bytes().clone();
+
+                        openssl::pkcs5::pbkdf2_hmac(
+                            &item.key,
+                            &uuid_bytes,
+                            10,
+                            openssl::hash::MessageDigest::sha256(),
+                            &mut tape_key)?;
+
+                        return set_encryption(&mut self.file, Some(tape_key));
                     }
                     None => bail!("unknown tape encryption key '{}'", key_fingerprint),
                 }
@@ -556,9 +574,10 @@ impl TapeDriver for LinuxTapeHandle {
         let mut command = std::process::Command::new(
             "/usr/lib/x86_64-linux-gnu/proxmox-backup/sg-tape-cmd");
         command.args(&["encryption"]);
-        if let Some(fingerprint) = key_fingerprint {
+        if let Some((fingerprint, uuid)) = key_fingerprint {
             let fingerprint = crate::tools::format::as_fingerprint(fingerprint.bytes());
             command.args(&["--fingerprint", &fingerprint]);
+            command.args(&["--uuid", &uuid.to_string()]);
         }
         command.args(&["--stdin"]);
         command.stdin(unsafe { std::process::Stdio::from_raw_fd(self.file.as_raw_fd())});

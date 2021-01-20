@@ -231,12 +231,12 @@ impl PoolWriter {
             media.id(),
         )?;
 
-        let encrypt_fingerprint = media
-            .media_set_label()
-            .as_ref()
-            .unwrap()
+        let media_set = media.media_set_label().clone().unwrap();
+
+        let encrypt_fingerprint = media_set
             .encryption_key_fingerprint
-            .clone();
+            .clone()
+            .map(|fp| (fp, media_set.uuid.clone()));
 
         drive.set_encryption(encrypt_fingerprint)?;
 

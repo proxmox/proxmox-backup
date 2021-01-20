@@ -22,8 +22,13 @@ use anyhow::{bail, format_err, Error};
 use ::serde::{Deserialize};
 use serde_json::Value;
 
-use proxmox::tools::io::ReadExt;
-use proxmox::api::section_config::SectionConfigData;
+use proxmox::{
+    tools::{
+        Uuid,
+        io::ReadExt,
+    },
+    api::section_config::SectionConfigData,
+};
 
 use crate::{
     backup::{
@@ -190,7 +195,14 @@ pub trait TapeDriver {
     }
 
     /// Set or clear encryption key
-    fn set_encryption(&mut self, key_fingerprint: Option<Fingerprint>) -> Result<(), Error> {
+    ///
+    /// We use the media_set_uuid to XOR the secret key with the
+    /// uuid (first 16 bytes), so that each media set uses an uique
+    /// key for encryption.
+    fn set_encryption(
+        &mut self,
+        key_fingerprint: Option<(Fingerprint, Uuid)>,
+    ) -> Result<(), Error> {
         if key_fingerprint.is_some() {
             bail!("drive does not support encryption");
         }

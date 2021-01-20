@@ -17,6 +17,7 @@ use proxmox::{
         cli::*,
         RpcEnvironment,
     },
+    tools::Uuid,
 };
 
 use proxmox_backup::{
@@ -26,6 +27,7 @@ use proxmox_backup::{
         LINUX_DRIVE_PATH_SCHEMA,
         DRIVE_NAME_SCHEMA,
         TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
+        MEDIA_SET_UUID_SCHEMA,
         LinuxTapeDrive,
     },
     tape::{
@@ -193,6 +195,10 @@ fn tape_alert_flags(
                 schema: TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
                 optional: true,
             },
+            uuid: {
+                schema: MEDIA_SET_UUID_SCHEMA,
+                optional: true,
+            },
             drive: {
                 schema: DRIVE_NAME_SCHEMA,
                 optional: true,
@@ -212,13 +218,25 @@ fn tape_alert_flags(
 /// Set or clear encryption key
 fn set_encryption(
     fingerprint: Option<Fingerprint>,
+    uuid: Option<Uuid>,
     param: Value,
 ) -> Result<(), Error> {
 
     let result = proxmox::try_block!({
         let mut handle = get_tape_handle(&param)?;
 
-        handle.set_encryption(fingerprint)?;
+        match (fingerprint, uuid) {
+            (Some(fingerprint), Some(uuid)) => {
+                handle.set_encryption(Some((fingerprint, uuid)))?;
+            }
+            (Some(_), None) => {
+                bail!("missing media set uuid");
+            }
+            (None, _) => {
+                handle.set_encryption(None)?;
+            }
+        }
+
         Ok(())
     }).map_err(|err: Error| err.to_string());
 

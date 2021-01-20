@@ -1053,7 +1053,9 @@ pub fn catalog_media(
                         MediaCatalog::destroy(status_path, &media_id.label.uuid)?;
                         return Ok(());
                     }
-                    let encrypt_fingerprint = set.encryption_key_fingerprint.clone();
+                    let encrypt_fingerprint = set.encryption_key_fingerprint.clone()
+                        .map(|fp| (fp, set.uuid.clone()));
+
                     drive.set_encryption(encrypt_fingerprint)?;
 
                     set.pool.clone()
