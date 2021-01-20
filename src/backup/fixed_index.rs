@@ -126,7 +126,7 @@ impl FixedIndexReader {
     }
 
     fn unmap(&mut self) -> Result<(), Error> {
-        if self.index == std::ptr::null_mut() {
+        if self.index.is_null() {
             return Ok(());
         }
 
@@ -324,7 +324,7 @@ impl FixedIndexWriter {
     }
 
     fn unmap(&mut self) -> Result<(), Error> {
-        if self.index == std::ptr::null_mut() {
+        if self.index.is_null() {
             return Ok(());
         }
 
@@ -342,7 +342,7 @@ impl FixedIndexWriter {
     }
 
     pub fn close(&mut self) -> Result<[u8; 32], Error> {
-        if self.index == std::ptr::null_mut() {
+        if self.index.is_null() {
             bail!("cannot close already closed index file.");
         }
 
@@ -437,7 +437,7 @@ impl FixedIndexWriter {
             );
         }
 
-        if self.index == std::ptr::null_mut() {
+        if self.index.is_null() {
             bail!("cannot write to closed index file.");
         }
 
