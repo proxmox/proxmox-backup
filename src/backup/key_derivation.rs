@@ -11,6 +11,7 @@ use proxmox::try_block;
 
 use crate::api2::types::{KeyInfo, Kdf};
 
+/// Key derivation function configuration
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub enum KeyDerivationConfig {
     Scrypt {
@@ -63,6 +64,11 @@ impl KeyDerivationConfig {
     }
 }
 
+/// Encryption Key Configuration
+///
+/// We use this struct to store secret keys. When used with a key
+/// derivation function, the key data is encrypted (AES-CGM), and you
+/// need the password to restore the plain key.
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct KeyConfig {
     pub kdf: Option<KeyDerivationConfig>,
@@ -102,6 +108,7 @@ impl From<&KeyConfig> for KeyInfo {
 
 impl KeyConfig  {
 
+    /// Creates a new key using random data, protected by passphrase.
     pub fn new(passphrase: &[u8], kdf: Kdf) -> Result<([u8;32], Self), Error> {
         let mut key = [0u8; 32];
         proxmox::sys::linux::fill_with_random_data(&mut key)?;
@@ -109,6 +116,7 @@ impl KeyConfig  {
         Ok((key, key_config))
     }
 
+    /// Creates a new, unencrypted key.
     pub fn without_password(raw_key: [u8; 32]) -> Self {
         let created = proxmox::tools::time::epoch_i64();
         Self {
@@ -121,6 +129,7 @@ impl KeyConfig  {
         }
     }
 
+    /// Creates a new instance, protect raw_key with passphrase.
     pub fn with_key(
         raw_key: &[u8],
         passphrase: &[u8],
@@ -189,6 +198,7 @@ impl KeyConfig  {
         Ok(key_config)
     }
 
+    /// Decrypt key to get raw key data.
     pub fn decrypt(
         &self,
         passphrase: &dyn Fn() -> Result<Vec<u8>, Error>,
@@ -244,6 +254,7 @@ impl KeyConfig  {
         Ok((result, self.created, fingerprint))
     }
 
+    /// Store a KeyConfig to path
     pub fn store<P: AsRef<Path>>(&self, path: P, replace: bool) -> Result<(), Error> {
 
         let path: &Path = path.as_ref();
@@ -273,7 +284,7 @@ impl KeyConfig  {
     }
 }
 
-
+/// Loads a KeyConfig from path and decrypt it.
 pub fn load_and_decrypt_key(
     path: &std::path::Path,
     passphrase: &dyn Fn() -> Result<Vec<u8>, Error>,
@@ -282,6 +293,7 @@ pub fn load_and_decrypt_key(
         .with_context(|| format!("failed to load decryption key from {:?}", path))
 }
 
+/// Decrypt a KeyConfig from raw keydata.
 pub fn decrypt_key(
     mut keydata: &[u8],
     passphrase: &dyn Fn() -> Result<Vec<u8>, Error>,
@@ -290,6 +302,7 @@ pub fn decrypt_key(
     key_config.decrypt(passphrase)
 }
 
+/// RSA encrypt a KeyConfig using a public key
 pub fn rsa_encrypt_key_config(
     rsa: openssl::rsa::Rsa<openssl::pkey::Public>,
     key: &KeyConfig,
@@ -304,6 +317,7 @@ pub fn rsa_encrypt_key_config(
     Ok(buffer)
 }
 
+/// RSA deccrypt a KeyConfig using a private key
 pub fn rsa_decrypt_key_config(
     rsa: openssl::rsa::Rsa<openssl::pkey::Private>,
     key: &[u8],
