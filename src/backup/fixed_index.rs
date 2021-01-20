@@ -166,7 +166,7 @@ impl IndexFile for FixedIndexReader {
         if pos >= self.index_length {
             None
         } else {
-            Some(unsafe { std::mem::transmute(self.index.add(pos * 32)) })
+            Some(unsafe { &*(self.index.add(pos * 32) as *const [u8; 32]) })
         }
     }
 
