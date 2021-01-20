@@ -351,7 +351,7 @@ impl HttpClient {
                 };
                 match Self::credentials(client2.clone(), server2.clone(), port, auth_id.user().clone(), ticket).await {
                     Ok(auth) => {
-                        if use_ticket_cache & &prefix2.is_some() {
+                        if use_ticket_cache && prefix2.is_some() {
                             let _ = store_ticket_info(prefix2.as_ref().unwrap(), &server2, &auth.auth_id.to_string(), &auth.ticket, &auth.token);
                         }
                         *auth2.write().unwrap() = auth;
@@ -378,7 +378,7 @@ impl HttpClient {
             let authinfo = auth.clone();
 
             move |auth| {
-                if use_ticket_cache & &prefix.is_some() {
+                if use_ticket_cache && prefix.is_some() {
                     let _ = store_ticket_info(prefix.as_ref().unwrap(), &server, &auth.auth_id.to_string(), &auth.ticket, &auth.token);
                 }
                 *authinfo.write().unwrap() = auth;
