@@ -22,13 +22,13 @@ use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
 use proxmox_backup::{
     api2::types::{
         PASSWORD_HINT_SCHEMA,
+        KeyInfo,
+        Kdf,
     },
     backup::{
         rsa_decrypt_key_config,
         CryptConfig,
-        Kdf,
         KeyConfig,
-        KeyDerivationConfig,
     },
     tools,
 };
@@ -319,31 +319,6 @@ fn change_passphrase(
 }
 
 #[api(
-    properties: {
-        kdf: {
-            type: Kdf,
-        },
-    },
-)]
-#[derive(Deserialize, Serialize)]
-/// Encryption Key Information
-struct KeyInfo {
-    /// Path to key
-    path: String,
-    kdf: Kdf,
-    /// Key creation time
-    pub created: i64,
-    /// Key modification time
-    pub modified: i64,
-    /// Key fingerprint
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub fingerprint: Option<String>,
-    /// Password hint
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub hint: Option<String>,
-}
-
-#[api(
     input: {
         properties: {
             path: {
@@ -378,21 +353,8 @@ fn show_key(
 
     let output_format = get_output_format(&param);
 
-    let info = KeyInfo {
-        path: format!("{:?}", path),
-        kdf: match config.kdf {
-            Some(KeyDerivationConfig::PBKDF2 { .. }) => Kdf::PBKDF2,
-            Some(KeyDerivationConfig::Scrypt { .. }) => Kdf::Scrypt,
-            None => Kdf::None,
-        },
-        created: config.created,
-        modified: config.modified,
-        fingerprint:  match config.fingerprint {
-            Some(ref fp) => Some(format!("{}", fp)),
-            None => None,
-        },
-        hint: config.hint,
-    };
+    let mut info: KeyInfo = (&config).into();
+    info.path = Some(format!("{:?}", path));
 
     let options = proxmox::api::cli::default_table_format_options()
         .column(ColumnConfig::new("path"))

@@ -11,9 +11,9 @@ use proxmox::tools::fs::{
 };
 
 use crate::{
+    api2::types::Kdf,
     backup::{
         Fingerprint,
-        Kdf,
         KeyConfig,
         CryptConfig,
     },
@@ -204,7 +204,6 @@ pub fn insert_key(key: [u8;32], key_config: KeyConfig) -> Result<(), Error> {
     save_key_configs(config_map)?;
 
     Ok(())
-
 }
 
 // shell completion helper

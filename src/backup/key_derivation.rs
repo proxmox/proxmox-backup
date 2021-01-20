@@ -6,31 +6,10 @@ use crate::backup::{CryptConfig, Fingerprint};
 use std::io::Write;
 use std::path::Path;
 
-use proxmox::api::api;
 use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
 use proxmox::try_block;
 
-#[api(default: "scrypt")]
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "lowercase")]
-/// Key derivation function for password protected encryption keys.
-pub enum Kdf {
-    /// Do not encrypt the key.
-    None,
-
-    /// Encrypt they key with a password using SCrypt.
-    Scrypt,
-
-    /// Encrtypt the Key with a password using PBKDF2
-    PBKDF2,
-}
-
-impl Default for Kdf {
-    #[inline]
-    fn default() -> Self {
-        Kdf::Scrypt
-    }
-}
+use crate::api2::types::{KeyInfo, Kdf};
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub enum KeyDerivationConfig {
@@ -99,6 +78,26 @@ pub struct KeyConfig {
     /// Password hint
     #[serde(skip_serializing_if = "Option::is_none")]
     pub hint: Option<String>,
+}
+
+impl From<&KeyConfig> for KeyInfo {
+    fn from(key_config: &KeyConfig) -> Self {
+        Self {
+            path: None,
+            kdf: match key_config.kdf {
+                Some(KeyDerivationConfig::PBKDF2 { .. }) => Kdf::PBKDF2,
+                Some(KeyDerivationConfig::Scrypt { .. }) => Kdf::Scrypt,
+                None => Kdf::None,
+            },
+            created: key_config.created,
+            modified: key_config.modified,
+            fingerprint: key_config
+                .fingerprint
+                .as_ref()
+                .map(|fp| crate::tools::format::as_fingerprint(fp.bytes())),
+            hint: key_config.hint.clone(),
+        }
+    }
 }
 
 impl KeyConfig  {

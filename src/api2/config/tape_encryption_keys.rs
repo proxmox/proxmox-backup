@@ -27,14 +27,13 @@ use crate::{
         TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
         PROXMOX_CONFIG_DIGEST_SCHEMA,
         PASSWORD_HINT_SCHEMA,
-        TapeKeyMetadata,
+        KeyInfo,
+        Kdf,
     },
     backup::{
         KeyConfig,
-        Kdf,
         Fingerprint,
     },
-    tools::format::as_fingerprint,
 };
 
 #[api(
@@ -44,7 +43,7 @@ use crate::{
     returns: {
         description: "The list of tape encryption keys (with config digest).",
         type: Array,
-        items: { type: TapeKeyMetadata },
+        items: { type: KeyInfo },
     },
 )]
 /// List existing keys
@@ -52,17 +51,14 @@ pub fn list_keys(
     _param: Value,
     _info: &ApiMethod,
     mut rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Vec<TapeKeyMetadata>, Error> {
+) -> Result<Vec<KeyInfo>, Error> {
 
     let (key_map, digest) = load_key_configs()?;
 
     let mut list = Vec::new();
 
-    for (fingerprint, item) in key_map {
-        list.push(TapeKeyMetadata {
-            hint: item.hint.unwrap_or(String::new()),
-            fingerprint: as_fingerprint(fingerprint.bytes()),
-        });
+    for (_fingerprint, item) in key_map.iter() {
+        list.push(item.into());
     }
 
     rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
@@ -193,6 +189,38 @@ pub fn create_key(
 
 
 #[api(
+    input: {
+        properties: {
+            fingerprint: {
+                schema: TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
+            },
+        },
+    },
+    returns: {
+        type: KeyInfo,
+    },
+)]
+/// Get key config (public key part)
+pub fn read_key(
+    fingerprint: Fingerprint,
+    _rpcenv: &mut dyn RpcEnvironment,
+) -> Result<KeyInfo, Error> {
+
+    let (config_map, _digest) = load_key_configs()?;
+
+    let key_config = match config_map.get(&fingerprint) {
+        Some(key_config) => key_config,
+        None => bail!("tape encryption key '{}' does not exist.", fingerprint),
+    };
+
+    if key_config.kdf.is_none() {
+        bail!("found unencrypted key - internal error");
+    }
+
+    Ok(key_config.into())
+}
+
+#[api(
     protected: true,
     input: {
         properties: {
@@ -242,7 +270,7 @@ pub fn delete_key(
 }
 
 const ITEM_ROUTER: Router = Router::new()
-    //.get(&API_METHOD_READ_KEY_METADATA)
+    .get(&API_METHOD_READ_KEY)
     .put(&API_METHOD_CHANGE_PASSPHRASE)
     .delete(&API_METHOD_DELETE_KEY);
 

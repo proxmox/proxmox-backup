@@ -12,6 +12,7 @@ use proxmox::{
 };
 
 use proxmox_backup::{
+    tools,
     config,
     api2::{
         self,
@@ -19,9 +20,9 @@ use proxmox_backup::{
             DRIVE_NAME_SCHEMA,
             TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
             PASSWORD_HINT_SCHEMA,
+            Kdf,
         },
     },
-    backup::Kdf,
     config::tape_encryption_keys::complete_key_fingerprint,
 };
 
@@ -40,6 +41,12 @@ pub fn encryption_key_commands() -> CommandLineInterface {
                 .completion_cb("fingerprint", complete_key_fingerprint)
         )
         .insert(
+            "show",
+            CliCommand::new(&API_METHOD_SHOW_KEY)
+                .arg_param(&["fingerprint"])
+                .completion_cb("fingerprint", complete_key_fingerprint)
+        )
+        .insert(
             "restore",
             CliCommand::new(&API_METHOD_RESTORE_KEY)
         )
@@ -52,6 +59,45 @@ pub fn encryption_key_commands() -> CommandLineInterface {
         ;
 
     cmd_def.into()
+}
+
+#[api(
+    input: {
+        properties: {
+            fingerprint: {
+                schema: TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
+            },
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+        },
+    },
+)]
+/// Print tthe encryption key's metadata.
+fn show_key(
+    param: Value,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<(), Error> {
+
+    let output_format = get_output_format(&param);
+
+    let info = &api2::config::tape_encryption_keys::API_METHOD_READ_KEY;
+    let mut data = match info.handler {
+        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
+        _ => unreachable!(),
+    };
+
+    let options = proxmox::api::cli::default_table_format_options()
+        .column(ColumnConfig::new("kdf"))
+        .column(ColumnConfig::new("created").renderer(tools::format::render_epoch))
+        .column(ColumnConfig::new("modified").renderer(tools::format::render_epoch))
+        .column(ColumnConfig::new("fingerprint"))
+        .column(ColumnConfig::new("hint"));
+
+    format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
+
+    Ok(())
 }
 
 #[api(

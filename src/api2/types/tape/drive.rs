@@ -12,8 +12,7 @@ use proxmox::api::{
 use crate::api2::types::{
     PROXMOX_SAFE_ID_FORMAT,
     CHANGER_NAME_SCHEMA,
-    CERT_FINGERPRINT_SHA256_SCHEMA,
- };
+};
 
 pub const DRIVE_NAME_SCHEMA: Schema = StringSchema::new("Drive Identifier.")
     .format(&PROXMOX_SAFE_ID_FORMAT)
@@ -205,19 +204,4 @@ pub struct LinuxDriveAndMediaStatus {
     /// the head.
     #[serde(skip_serializing_if="Option::is_none")]
     pub medium_passes: Option<u64>,
-}
-
-#[api(
-    properties: {
-        fingerprint: {
-            schema: CERT_FINGERPRINT_SHA256_SCHEMA,
-        },
-    },
-)]
-#[derive(Deserialize, Serialize)]
-/// Hardware Encryption key Metadata
-pub struct TapeKeyMetadata {
-    /// Password hint
-    pub hint: String,
-    pub fingerprint: String,
 }
