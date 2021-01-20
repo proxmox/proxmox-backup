@@ -156,7 +156,7 @@ fn store_fingerprint(prefix: &str, server: &str, fingerprint: &str) -> Result<()
     raw.split('\n').for_each(|line| {
         let items: Vec<String> = line.split_whitespace().map(String::from).collect();
         if items.len() == 2 {
-            if &items[0] == server {
+            if items[0] == server {
                 // found, add later with new fingerprint
             } else {
                 result.push_str(line);
@@ -186,7 +186,7 @@ fn load_fingerprint(prefix: &str, server: &str) -> Option<String> {
 
     for line in raw.split('\n') {
         let items: Vec<String> = line.split_whitespace().map(String::from).collect();
-        if items.len() == 2 && &items[0] == server {
+        if items.len() == 2 && items[0] == server {
             return Some(items[1].clone());
         }
     }
@@ -371,7 +371,7 @@ impl HttpClient {
             server.to_owned(),
             port,
             auth_id.user().clone(),
-            password.to_owned(),
+            password,
         ).map_ok({
             let server = server.to_string();
             let prefix = options.prefix.clone();
