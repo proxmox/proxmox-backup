@@ -30,6 +30,7 @@ use crate::{
         TapeKeyMetadata,
     },
     backup::{
+        KeyConfig,
         Kdf,
         Fingerprint,
     },
@@ -68,6 +69,83 @@ pub fn list_keys(
 
     Ok(list)
 }
+
+#[api(
+    input: {
+        properties: {
+            kdf: {
+                type: Kdf,
+                optional: true,
+            },
+            fingerprint: {
+                schema: TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
+            },
+            password: {
+                description: "The current password.",
+                min_length: 5,
+            },
+            "new-password": {
+                description: "The new password.",
+                min_length: 5,
+            },
+            hint: {
+                schema: PASSWORD_HINT_SCHEMA,
+            },
+            digest: {
+                optional: true,
+                schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
+            },
+        },
+    },
+)]
+/// Change the encryption key's password (and password hint).
+pub fn change_passphrase(
+    kdf: Option<Kdf>,
+    password: String,
+    new_password: String,
+    hint: String,
+    fingerprint: Fingerprint,
+    digest: Option<String>,
+    _rpcenv: &mut dyn RpcEnvironment
+) -> Result<(), Error> {
+
+    let kdf = kdf.unwrap_or_default();
+
+    if let Kdf::None = kdf {
+        bail!("Please specify a key derivation  funktion (none is not allowed here).");
+    }
+
+    let _lock = open_file_locked(
+        TAPE_KEYS_LOCKFILE,
+        std::time::Duration::new(10, 0),
+        true,
+    )?;
+
+    let (mut config_map, expected_digest) = load_key_configs()?;
+
+    if let Some(ref digest) = digest {
+        let digest = proxmox::tools::hex_to_digest(digest)?;
+        crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
+    }
+
+    let key_config = match config_map.get(&fingerprint) {
+        Some(key_config) => key_config,
+        None => bail!("tape encryption key '{}' does not exist.", fingerprint),
+    };
+
+    let (key, created, fingerprint) = key_config.decrypt(&|| Ok(password.as_bytes().to_vec()))?;
+    let mut new_key_config = KeyConfig::with_key(&key, new_password.as_bytes(), kdf)?;
+    new_key_config.created = created; // keep original value
+    new_key_config.fingerprint = Some(fingerprint.clone());
+    new_key_config.hint = Some(hint);
+
+    config_map.insert(fingerprint, new_key_config);
+
+    save_key_configs(config_map)?;
+
+    Ok(())
+}
+
 #[api(
     protected: true,
     input: {
@@ -165,7 +243,7 @@ pub fn delete_key(
 
 const ITEM_ROUTER: Router = Router::new()
     //.get(&API_METHOD_READ_KEY_METADATA)
-    //.put(&API_METHOD_UPDATE_KEY_METADATA)
+    .put(&API_METHOD_CHANGE_PASSPHRASE)
     .delete(&API_METHOD_DELETE_KEY);
 
 pub const ROUTER: Router = Router::new()

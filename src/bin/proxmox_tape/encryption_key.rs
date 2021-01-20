@@ -17,6 +17,8 @@ use proxmox_backup::{
         self,
         types::{
             DRIVE_NAME_SCHEMA,
+            TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
+            PASSWORD_HINT_SCHEMA,
         },
     },
     backup::Kdf,
@@ -32,6 +34,12 @@ pub fn encryption_key_commands() -> CommandLineInterface {
             CliCommand::new(&API_METHOD_CREATE_KEY)
         )
         .insert(
+            "change-passphrase",
+            CliCommand::new(&API_METHOD_CHANGE_PASSPHRASE)
+                .arg_param(&["fingerprint"])
+                .completion_cb("fingerprint", complete_key_fingerprint)
+        )
+        .insert(
             "restore",
             CliCommand::new(&API_METHOD_RESTORE_KEY)
         )
@@ -44,6 +52,49 @@ pub fn encryption_key_commands() -> CommandLineInterface {
         ;
 
     cmd_def.into()
+}
+
+#[api(
+    input: {
+        properties: {
+            kdf: {
+                type: Kdf,
+                optional: true,
+            },
+            fingerprint: {
+                schema: TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
+            },
+            hint: {
+                schema: PASSWORD_HINT_SCHEMA,
+                optional: true,
+            },
+        },
+    },
+)]
+/// Change the encryption key's password.
+fn change_passphrase(
+    mut param: Value,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<(), Error> {
+
+    if !tty::stdin_isatty() {
+        bail!("unable to change passphrase - no tty");
+    }
+
+    let password = tty::read_password("Current Tape Encryption Key Password: ")?;
+
+    let new_password = tty::read_and_verify_password("New Tape Encryption Key Password: ")?;
+
+    param["password"] = String::from_utf8(password)?.into();
+    param["new-password"] = String::from_utf8(new_password)?.into();
+
+    let info = &api2::config::tape_encryption_keys::API_METHOD_CHANGE_PASSPHRASE;
+    match info.handler {
+        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
+        _ => unreachable!(),
+    };
+
+    Ok(())
 }
 
 #[api(
