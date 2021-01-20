@@ -196,9 +196,11 @@ impl<'a> ACLEntry<'a> {
 
         for &perm in &[ACL_READ, ACL_WRITE, ACL_EXECUTE] {
             res = unsafe { acl_get_perm(permset, perm) };
-            if res < 0 { 
+            if res < 0 {
                 return Err(Errno::last());
-            } else if res > 0 { 
+            }
+
+            if res == 1 {
                 permissions |= perm as u64;
             }
         }

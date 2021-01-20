@@ -293,6 +293,7 @@ impl <R: BufRead> NetworkParser<R> {
             }
         }
 
+        #[allow(clippy::comparison_chain)]
         if let Some(netmask) = netmask {
             if address_list.len() > 1 {
                 bail!("unable to apply netmask to multiple addresses (please use cidr notation)");

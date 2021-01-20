@@ -98,11 +98,8 @@ where
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Result<BytesMut, S::Error>>> {
         let this = self.get_mut();
         loop {
-            if this.buffer.len() == this.chunk_size {
-                return Poll::Ready(Some(Ok(this.buffer.split())));
-            } else if this.buffer.len() > this.chunk_size {
-                let result = this.buffer.split_to(this.chunk_size);
-                return Poll::Ready(Some(Ok(result)));
+            if this.buffer.len() >= this.chunk_size {
+                return Poll::Ready(Some(Ok(this.buffer.split_to(this.chunk_size))));
             }
 
             match ready!(Pin::new(&mut this.input).try_poll_next(cx)) {
