@@ -184,6 +184,11 @@ impl<K: std::cmp::Eq + std::hash::Hash + Copy, V> LruCache<K, V> {
         self.map.len()
     }
 
+    /// Returns `true` when the cache is empty
+    pub fn is_empty(&self) -> bool {
+        self.map.is_empty()
+    }
+
     /// Get a mutable reference to the value identified by `key`.
     /// This will update the cache entry to be the most recently used entry.
     /// On cache misses, the cachers fetch method is called to get a corresponding
