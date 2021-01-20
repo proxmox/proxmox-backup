@@ -421,7 +421,9 @@ impl MediaPool {
     /// longer because of consistency errors.
     pub fn current_set_usable(&self) -> Result<bool, Error> {
 
-        let media_count = self.current_media_set.media_list().len();
+        let media_list = self.current_media_set.media_list();
+
+        let media_count = media_list.len();
         if media_count == 0 {
             return Ok(false);
         }
@@ -429,7 +431,9 @@ impl MediaPool {
         let set_uuid =  self.current_media_set.uuid();
         let mut last_is_writable = false;
 
-        for (seq, opt_uuid) in self.current_media_set.media_list().iter().enumerate() {
+        let mut last_enc: Option<Option<Fingerprint>> = None;
+
+        for (seq, opt_uuid) in media_list.iter().enumerate() {
             let uuid = match opt_uuid {
                 None => bail!("media set is incomplete (missing media information)"),
                 Some(uuid) => uuid,
@@ -443,6 +447,23 @@ impl MediaPool {
                 Some(MediaSetLabel { uuid, ..}) => bail!("media owner error ({} != {}", uuid, set_uuid),
                 None => bail!("media owner error (no owner)"),
             }
+
+            if let Some(set) = media.media_set_label() { // always true here
+                if set.encryption_key_fingerprint != self.encrypt_fingerprint {
+                    bail!("pool encryption key changed");
+                }
+                match last_enc {
+                    None => {
+                        last_enc = Some(set.encryption_key_fingerprint.clone());
+                    }
+                    Some(ref last_enc) => {
+                        if last_enc != &set.encryption_key_fingerprint {
+                            bail!("inconsistent media encryption key");
+                        }
+                    }
+                }
+            }
+
             match media.status() {
                 MediaStatus::Full => { /* OK */ },
                 MediaStatus::Writable if (seq + 1) == media_count =>  {

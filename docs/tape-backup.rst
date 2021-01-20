@@ -426,6 +426,8 @@ one media pool, so a job only uses tapes from that pool.
 
    - Current set contains damaged of retired tapes.
 
+   - Media pool encryption changed
+
    - Database consistency errors, e.g. if the inventory does not
      contain required media info, or contain conflicting infos
      (outdated data).
