@@ -19,6 +19,7 @@ use proxmox_backup::{
             DRIVE_NAME_SCHEMA,
         },
     },
+    backup::Kdf,
     config::tape_encryption_keys::complete_key_fingerprint,
 };
 
@@ -83,6 +84,10 @@ async fn restore_key(
 #[api(
     input: {
         properties: {
+            kdf: {
+                type: Kdf,
+                optional: true,
+            },
             hint: {
                 description: "Password restore hint.",
                 type: String,

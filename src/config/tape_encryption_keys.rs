@@ -57,8 +57,8 @@ pub fn compute_tape_key_fingerprint(key: &[u8; 32]) -> Result<Fingerprint, Error
     Ok(crypt_config.fingerprint())
 }
 
-pub fn generate_tape_encryption_key(password: &[u8]) -> Result<([u8; 32], KeyConfig), Error> {
-    let (key, mut key_config) = KeyConfig::new(password, Kdf::Scrypt)?;
+pub fn generate_tape_encryption_key(password: &[u8], kdf: Kdf) -> Result<([u8; 32], KeyConfig), Error> {
+    let (key, mut key_config) = KeyConfig::new(password, kdf)?;
     key_config.fingerprint = Some(compute_tape_key_fingerprint(&key)?);
     Ok((key, key_config))
 }

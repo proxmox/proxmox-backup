@@ -30,6 +30,7 @@ use crate::{
         TapeKeyMetadata,
     },
     backup::{
+        Kdf,
         Fingerprint,
     },
     tools::format::as_fingerprint,
@@ -71,6 +72,10 @@ pub fn list_keys(
     protected: true,
     input: {
         properties: {
+            kdf: {
+                type: Kdf,
+                optional: true,
+            },
             password: {
                 description: "A secret password.",
                 min_length: 5,
@@ -86,12 +91,19 @@ pub fn list_keys(
 )]
 /// Create a new encryption key
 pub fn create_key(
+    kdf: Option<Kdf>,
     password: String,
     hint: String,
     _rpcenv: &mut dyn RpcEnvironment
 ) -> Result<Fingerprint, Error> {
 
-    let (key, mut key_config) = generate_tape_encryption_key(password.as_bytes())?;
+    let kdf = kdf.unwrap_or_default();
+
+    if let Kdf::None = kdf {
+        bail!("Please specify a key derivation  funktion (none is not allowed here).");
+    }
+
+    let (key, mut key_config) = generate_tape_encryption_key(password.as_bytes(), kdf)?;
     key_config.hint = Some(hint);
 
     let fingerprint = key_config.fingerprint.clone().unwrap();
