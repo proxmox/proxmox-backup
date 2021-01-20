@@ -86,6 +86,8 @@ const_regex!{
     pub BLOCKDEVICE_NAME_REGEX = r"^(:?(:?h|s|x?v)d[a-z]+)|(:?nvme\d+n\d+)$";
 
     pub ZPOOL_NAME_REGEX = r"^[a-zA-Z][a-z0-9A-Z\-_.:]+$";
+
+    pub UUID_REGEX = r"^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$";
 }
 
 pub const SYSTEMD_DATETIME_FORMAT: ApiStringFormat =
@@ -111,6 +113,9 @@ pub const PROXMOX_SAFE_ID_FORMAT: ApiStringFormat =
 
 pub const BACKUP_ID_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&BACKUP_ID_REGEX);
+
+pub const UUID_FORMAT: ApiStringFormat =
+    ApiStringFormat::Pattern(&UUID_REGEX);
 
 pub const SINGLE_LINE_COMMENT_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&SINGLE_LINE_COMMENT_REGEX);
@@ -308,6 +313,16 @@ pub const DATASTORE_SCHEMA: Schema = StringSchema::new("Datastore name.")
     .format(&PROXMOX_SAFE_ID_FORMAT)
     .min_length(3)
     .max_length(32)
+    .schema();
+
+pub const MEDIA_SET_UUID_SCHEMA: Schema =
+    StringSchema::new("MediaSet Uuid.")
+    .format(&UUID_FORMAT)
+    .schema();
+
+pub const MEDIA_UUID_SCHEMA: Schema =
+    StringSchema::new("Media Uuid.")
+    .format(&UUID_FORMAT)
     .schema();
 
 pub const SYNC_SCHEDULE_SCHEMA: Schema = StringSchema::new(
