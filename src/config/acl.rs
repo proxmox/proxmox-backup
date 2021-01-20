@@ -372,6 +372,7 @@ impl AclTreeNode {
     fn extract_group_roles(&self, _user: &Userid, leaf: bool) -> HashMap<String, bool> {
         let mut map = HashMap::new();
 
+        #[allow(clippy::for_kv_map)]
         for (_group, roles) in &self.groups {
             let is_member = false; // fixme: check if user is member of the group
             if !is_member {

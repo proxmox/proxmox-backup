@@ -215,12 +215,13 @@ impl Inventory {
 
     /// find media by label_text
     pub fn find_media_by_label_text(&self, label_text: &str) -> Option<&MediaId> {
-        for (_uuid, entry) in &self.map {
+        self.map.values().find_map(|entry| {
             if entry.id.label.label_text == label_text {
-                return Some(&entry.id);
+                Some(&entry.id)
+            } else {
+                None
             }
-        }
-        None
+        })
     }
 
     /// Lookup media pool
@@ -245,7 +246,7 @@ impl Inventory {
     pub fn list_pool_media(&self, pool: &str) -> Vec<MediaId> {
         let mut list = Vec::new();
 
-        for (_uuid, entry) in &self.map {
+        for entry in self.map.values() {
             match entry.id.media_set_label {
                 None => continue, // not assigned to any pool
                 Some(ref set) => {
@@ -272,7 +273,7 @@ impl Inventory {
     pub fn list_used_media(&self) -> Vec<MediaId> {
         let mut list = Vec::new();
 
-        for (_uuid, entry) in &self.map {
+        for entry in self.map.values() {
             match entry.id.media_set_label {
                 None => continue, // not assigned to any pool
                 Some(ref set) => {
@@ -288,15 +289,13 @@ impl Inventory {
 
     /// List media not assigned to any pool
     pub fn list_unassigned_media(&self) -> Vec<MediaId> {
-        let mut list = Vec::new();
-
-        for (_uuid, entry) in &self.map {
+        self.map.values().filter_map(|entry|
             if entry.id.media_set_label.is_none() {
-                list.push(entry.id.clone());
+                Some(entry.id.clone())
+            } else {
+                None
             }
-        }
-
-        list
+        ).collect()
     }
 
     pub fn media_set_start_time(&self, media_set_uuid: &Uuid) -> Option<i64> {
