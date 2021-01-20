@@ -316,7 +316,7 @@ pub const DATASTORE_SCHEMA: Schema = StringSchema::new("Datastore name.")
     .schema();
 
 pub const MEDIA_SET_UUID_SCHEMA: Schema =
-    StringSchema::new("MediaSet Uuid.")
+    StringSchema::new("MediaSet Uuid (We use the all-zero Uuid to reseve an empty media for a specific pool).")
     .format(&UUID_FORMAT)
     .schema();
 

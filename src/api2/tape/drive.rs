@@ -538,7 +538,7 @@ pub async fn read_label(
         let media_id = match media_id {
             Some(media_id) => {
                 let mut flat = MediaIdFlat {
-                    uuid: media_id.label.uuid.to_string(),
+                    uuid: media_id.label.uuid.clone(),
                     label_text: media_id.label.label_text.clone(),
                     ctime: media_id.label.ctime,
                     media_set_ctime: None,
@@ -550,7 +550,7 @@ pub async fn read_label(
                 if let Some(ref set) = media_id.media_set_label {
                     flat.pool = Some(set.pool.clone());
                     flat.seq_nr = Some(set.seq_nr);
-                    flat.media_set_uuid = Some(set.uuid.to_string());
+                    flat.media_set_uuid = Some(set.uuid.clone());
                     flat.media_set_ctime = Some(set.ctime);
                     flat.encryption_key_fingerprint = set
                         .encryption_key_fingerprint
@@ -678,7 +678,7 @@ pub async fn inventory(
             let label_text = label_text.to_string();
 
             if let Some(media_id) = inventory.find_media_by_label_text(&label_text) {
-                list.push(LabelUuidMap { label_text, uuid: Some(media_id.label.uuid.to_string()) });
+                list.push(LabelUuidMap { label_text, uuid: Some(media_id.label.uuid.clone()) });
             } else {
                 list.push(LabelUuidMap { label_text, uuid: None });
             }

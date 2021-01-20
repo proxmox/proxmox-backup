@@ -6,6 +6,7 @@ use serde::{Serialize, Deserialize};
 use proxmox::{
     api::{api, Router, SubdirMap},
     list_subdirs_api_method,
+    tools::Uuid,
 };
 
 use crate::{
@@ -17,6 +18,8 @@ use crate::{
         BACKUP_TYPE_SCHEMA,
         MEDIA_POOL_NAME_SCHEMA,
         MEDIA_LABEL_SCHEMA,
+        MEDIA_UUID_SCHEMA,
+        MEDIA_SET_UUID_SCHEMA,
         MediaPoolConfig,
         MediaListEntry,
         MediaStatus,
@@ -92,7 +95,7 @@ pub async fn list_media(pool: Option<String>) -> Result<Vec<MediaListEntry>, Err
             let expired = pool.media_is_expired(&media, current_time);
 
             let media_set_uuid = media.media_set_label()
-                .map(|set| set.uuid.to_string());
+                .map(|set| set.uuid.clone());
 
             let seq_nr = media.media_set_label()
                 .map(|set| set.seq_nr);
@@ -111,7 +114,7 @@ pub async fn list_media(pool: Option<String>) -> Result<Vec<MediaListEntry>, Err
             };
 
             list.push(MediaListEntry {
-                uuid: media.uuid().to_string(),
+                uuid: media.uuid().clone(),
                 label_text: media.label_text().to_string(),
                 ctime: media.ctime(),
                 pool: Some(pool_name.to_string()),
@@ -140,7 +143,7 @@ pub async fn list_media(pool: Option<String>) -> Result<Vec<MediaListEntry>, Err
             }
 
             list.push(MediaListEntry {
-                uuid: media_id.label.uuid.to_string(),
+                uuid: media_id.label.uuid.clone(),
                 ctime: media_id.label.ctime,
                 label_text: media_id.label.label_text.to_string(),
                 location,
@@ -212,13 +215,11 @@ pub fn destroy_media(label_text: String, force: Option<bool>,) -> Result<(), Err
             optional: true,
         },
         "media": {
-            description: "Filter by media UUID.",
-            type: String,
+            schema: MEDIA_UUID_SCHEMA,
             optional: true,
         },
         "media-set": {
-            description: "Filter by media set UUID.",
-            type: String,
+            schema: MEDIA_SET_UUID_SCHEMA,
             optional: true,
         },
         "backup-type": {
@@ -237,8 +238,8 @@ pub fn destroy_media(label_text: String, force: Option<bool>,) -> Result<(), Err
 pub struct MediaContentListFilter {
     pub pool: Option<String>,
     pub label_text: Option<String>,
-    pub media: Option<String>,
-    pub media_set: Option<String>,
+    pub media: Option<Uuid>,
+    pub media_set: Option<Uuid>,
     pub backup_type: Option<String>,
     pub backup_id: Option<String>,
 }
@@ -270,9 +271,6 @@ pub fn list_content(
     let status_path = Path::new(TAPE_STATUS_DIR);
     let inventory = Inventory::load(status_path)?;
 
-    let media_uuid = filter.media.and_then(|s| s.parse().ok());
-    let media_set_uuid = filter.media_set.and_then(|s| s.parse().ok());
-
     let mut list = Vec::new();
 
     for media_id in inventory.list_used_media() {
@@ -286,11 +284,11 @@ pub fn list_content(
             if &set.pool != pool { continue; }
         }
 
-        if let Some(ref media_uuid) = media_uuid {
+        if let Some(ref media_uuid) = filter.media {
             if &media_id.label.uuid != media_uuid { continue; }
         }
 
-        if let Some(ref media_set_uuid) = media_set_uuid {
+        if let Some(ref media_set_uuid) = filter.media_set {
             if &set.uuid != media_set_uuid { continue; }
         }
 
@@ -313,11 +311,11 @@ pub fn list_content(
             }
 
             list.push(MediaContentEntry {
-                uuid: media_id.label.uuid.to_string(),
+                uuid: media_id.label.uuid.clone(),
                 label_text: media_id.label.label_text.to_string(),
                 pool: set.pool.clone(),
                 media_set_name: media_set_name.clone(),
-                media_set_uuid: set.uuid.to_string(),
+                media_set_uuid: set.uuid.clone(),
                 seq_nr: set.seq_nr,
                 snapshot: snapshot.to_owned(),
                 backup_time: backup_dir.backup_time(),
