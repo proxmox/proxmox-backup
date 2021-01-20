@@ -395,16 +395,18 @@ impl DataStore {
         }
         let handle_entry_err = |err: walkdir::Error| {
             if let Some(inner) = err.io_error() {
-                let path = err.path().unwrap_or(Path::new(""));
-                match inner.kind() {
-                    io::ErrorKind::PermissionDenied => {
+                if let Some(path) = err.path() {
+                    if inner.kind() == io::ErrorKind::PermissionDenied {
                         // only allow to skip ext4 fsck directory, avoid GC if, for example,
                         // a user got file permissions wrong on datastore rsync to new server
                         if err.depth() > 1 || !path.ends_with("lost+found") {
-                            bail!("cannot continue garbage-collection safely, permission denied on: {}", path.display())
+                            bail!("cannot continue garbage-collection safely, permission denied on: {:?}", path)
                         }
-                    },
-                    _ => bail!("unexpected error on datastore traversal: {} - {}", inner, path.display()),
+                    } else {
+                        bail!("unexpected error on datastore traversal: {} - {:?}", inner, path)
+                    }
+                } else {
+                    bail!("unexpected error on datastore traversal: {}", inner)
                 }
             }
             Ok(())
