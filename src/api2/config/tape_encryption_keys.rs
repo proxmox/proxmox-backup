@@ -67,6 +67,7 @@ pub fn list_keys(
 }
 
 #[api(
+    protected: true,
     input: {
         properties: {
             kdf: {

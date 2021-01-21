@@ -163,7 +163,7 @@ pub fn save_key_configs(map: HashMap<Fingerprint, KeyConfig>) -> Result<(), Erro
     let raw = serde_json::to_string_pretty(&list)?;
 
     let backup_user = crate::backup::backup_user()?;
-    let mode = nix::sys::stat::Mode::from_bits_truncate(0o0600);
+    let mode = nix::sys::stat::Mode::from_bits_truncate(0o0640);
     // set the correct owner/group/permissions while saving file
     // owner(rw) = root, group(r)= backup
     let options = CreateOptions::new()
