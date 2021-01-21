@@ -1,3 +1,5 @@
+//! File format definitions for data written to tapes
+
 use std::collections::HashMap;
 
 use anyhow::{bail, Error};

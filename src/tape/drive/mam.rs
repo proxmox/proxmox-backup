@@ -114,6 +114,7 @@ fn read_tape_mam<F: AsRawFd>(file: &mut F) -> Result<Vec<u8>, Error> {
         .map(|v| v.to_vec())
 }
 
+/// Read Medium auxiliary memory attributes (cartridge memory) using raw SCSI command. 
 pub fn read_mam_attributes<F: AsRawFd>(file: &mut F) -> Result<Vec<MamAttribute>, Error> {
 
     let data = read_tape_mam(file)?;

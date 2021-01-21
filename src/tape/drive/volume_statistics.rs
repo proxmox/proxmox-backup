@@ -58,6 +58,8 @@ struct LpParameterHeader {
     parameter_len: u8,
 }
 
+
+/// Volume statistics from SCSI log page 17h
 #[derive(Default, Serialize, Deserialize)]
 pub struct Lp17VolumeStatistics {
     pub volume_mounts: u64,

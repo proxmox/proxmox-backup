@@ -1,3 +1,5 @@
+//! Driver for Linux SCSI tapes
+
 use std::fs::{OpenOptions, File};
 use std::os::unix::fs::OpenOptionsExt;
 use std::os::unix::io::{AsRawFd, FromRawFd};
@@ -49,12 +51,18 @@ use crate::{
     }
 };
 
+/// Linux tape drive status
 #[derive(Debug)]
 pub struct LinuxDriveStatus {
+    /// Size 0 is variable block size mode (default)
     pub blocksize: u32,
+    /// Drive status flags
     pub status: GMTStatusFlags,
+    /// Tape densitiy code (if drive media loaded)
     pub density: Option<TapeDensity>,
+    /// Current file position if known (or -1)
     pub file_number: Option<u32>,
+    /// Current block number if known (or -1)
     pub block_number: Option<u32>,
 }
 

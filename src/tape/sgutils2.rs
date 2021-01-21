@@ -1,12 +1,15 @@
-/// Bindings for libsgutils2
-///
-/// Incomplete, but we currently do not need more.
+//! Bindings for libsgutils2
+//!
+//! Incomplete, but we currently do not need more.
+//!
+//! See: `/usr/include/scsi/sg_pt.h`
 
 use std::os::unix::io::AsRawFd;
 
 use anyhow::{bail, Error};
 use libc::{c_char, c_int};
 
+/// Opaque wrapper for sg_pt_base
 #[repr(C)]
 pub struct SgPtBase { _private: [u8; 0] }
 
@@ -79,7 +82,7 @@ extern {
     pub fn get_scsi_pt_result_category(objp: *const SgPtBase) -> c_int;
 }
 
-/// Creates a Box<SgPtBase>
+/// Creates a `Box<SgPtBase>`
 ///
 /// Which get automatically dropped, so you do not need to call
 /// destruct_scsi_pt_obj yourself.
@@ -101,7 +104,9 @@ pub struct SgRaw<'a, F> {
     sense_buffer: [u8; 32],
 }
 
-// alloc page aligned buffer
+/// Allocate a page aligned buffer
+///
+/// SG RAWIO commands needs page aligned transfer buffers.
 pub fn alloc_page_aligned_buffer(buffer_size: usize) -> Result<Box<[u8]> , Error> {
     let page_size = unsafe { libc::sysconf(libc::_SC_PAGESIZE) } as usize;
     let layout = std::alloc::Layout::from_size_align(buffer_size, page_size)?;

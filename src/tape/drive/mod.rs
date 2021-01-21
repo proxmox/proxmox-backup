@@ -269,6 +269,7 @@ pub fn required_media_changer(
     }
 }
 
+/// Opens a tape drive (this fails if there is no media loaded)
 pub fn open_drive(
     config: &SectionConfigData,
     drive: &str,

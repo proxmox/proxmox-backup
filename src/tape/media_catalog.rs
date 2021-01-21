@@ -29,6 +29,7 @@ use crate::{
     },
 };
 
+/// Magic number for media catalog files.
 // openssl::sha::sha256(b"Proxmox Backup Media Catalog v1.0")[0..8]
 pub const PROXMOX_BACKUP_MEDIA_CATALOG_MAGIC_1_0: [u8; 8] = [221, 29, 164, 1, 59, 69, 19, 40];
 
