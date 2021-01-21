@@ -1,3 +1,15 @@
+//! Store Tape encryptions keys
+//!
+//! This module can store 256bit encryption keys for tape backups,
+//! indexed by key fingerprint.
+//!
+//! We store the plain key (unencrypted), as well as a encrypted
+//! version protected by passowrd (see struct `KeyConfig`)
+//!
+//! Tape backups store the password protected version on tape, so that
+//! it is possible to retore the key from tape if you know the
+//! password.
+
 use std::collections::HashMap;
 
 use anyhow::{bail, Error};
@@ -45,7 +57,9 @@ mod hex_key {
 /// Store Hardware Encryption keys (plain, unprotected keys)
 #[derive(Deserialize, Serialize)]
 pub struct EncryptionKeyInfo {
+    /// Key fingerprint (we verify the fingerprint on load)
     pub fingerprint: Fingerprint,
+    /// The plain encryption key
     #[serde(with = "hex_key")]
     pub key: [u8; 32],
 }
@@ -117,6 +131,9 @@ pub fn load_key_configs() -> Result<(HashMap<Fingerprint, KeyConfig>,  [u8;32]),
     Ok((map, digest))
 }
 
+/// Store tape encryption keys (plain, unprotected keys)
+///
+/// The file is only accessible by user root (mode 0600).
 pub fn save_keys(map: HashMap<Fingerprint, EncryptionKeyInfo>) -> Result<(), Error> {
 
     let mut list = Vec::new();
@@ -140,6 +157,7 @@ pub fn save_keys(map: HashMap<Fingerprint, EncryptionKeyInfo>) -> Result<(), Err
     Ok(())
 }
 
+/// Store tape encryption key configurations (password protected keys)
 pub fn save_key_configs(map: HashMap<Fingerprint, KeyConfig>) -> Result<(), Error> {
 
     let mut list = Vec::new();
@@ -164,6 +182,9 @@ pub fn save_key_configs(map: HashMap<Fingerprint, KeyConfig>) -> Result<(), Erro
     Ok(())
 }
 
+/// Insert a new key
+///
+/// Get the lock, load both files, insert the new key, store files.
 pub fn insert_key(key: [u8;32], key_config: KeyConfig, force: bool) -> Result<(), Error> {
 
     let _lock = open_file_locked(
@@ -197,6 +218,7 @@ pub fn insert_key(key: [u8;32], key_config: KeyConfig, force: bool) -> Result<()
 }
 
 // shell completion helper
+/// Complete tape encryption key fingerprints
 pub fn complete_key_fingerprint(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
     let data = match load_key_configs() {
         Ok((data, _digest)) => data,
