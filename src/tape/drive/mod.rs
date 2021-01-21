@@ -18,9 +18,6 @@ pub use linux_tape::*;
 mod mam;
 pub use mam::*;
 
-mod linux_list_drives;
-pub use linux_list_drives::*;
-
 use anyhow::{bail, format_err, Error};
 use ::serde::{Deserialize};
 use serde_json::Value;

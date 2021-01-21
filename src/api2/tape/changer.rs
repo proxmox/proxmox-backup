@@ -18,7 +18,7 @@ use crate::{
     tape::{
         TAPE_STATUS_DIR,
         Inventory,
-        drive::linux_tape_changer_list,
+        linux_tape_changer_list,
         changer::{
             OnlineStatusMap,
             ElementStatus,

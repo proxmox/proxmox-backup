@@ -47,7 +47,8 @@ use crate::{
         Inventory,
         MediaCatalog,
         MediaId,
-         file_formats::{
+        linux_tape_device_list,
+        file_formats::{
             MediaLabel,
             MediaSetLabel,
         },
@@ -55,8 +56,7 @@ use crate::{
             TapeDriver,
             LinuxTapeHandle,
             open_linux_tape_device,
-            linux_tape_device_list,
-            media_changer,
+             media_changer,
             required_media_changer,
             open_drive,
         },

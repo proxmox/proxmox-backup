@@ -26,6 +26,9 @@ pub use media_set::*;
 mod inventory;
 pub use inventory::*;
 
+mod linux_list_drives;
+pub use linux_list_drives::*;
+
 pub mod changer;
 
 pub mod drive;
