@@ -9,9 +9,9 @@ use std::os::unix::io::AsRawFd;
 use anyhow::{bail, Error};
 use libc::{c_char, c_int};
 
-/// Opaque wrapper for sg_pt_base
+// Opaque wrapper for sg_pt_base
 #[repr(C)]
-pub struct SgPtBase { _private: [u8; 0] }
+struct SgPtBase { _private: [u8; 0] }
 
 impl Drop for SgPtBase  {
     fn drop(&mut self) {
@@ -27,66 +27,68 @@ pub const SCSI_PT_RESULT_OS_ERR:c_int = 4;
 
 #[link(name = "sgutils2")]
 extern {
-
-    pub fn scsi_pt_open_device(
+    
+    #[allow(dead_code)]
+    fn scsi_pt_open_device(
         device_name: * const c_char,
         read_only: bool,
         verbose: c_int,
     ) -> c_int;
 
-    pub fn sg_is_scsi_cdb(
+    fn sg_is_scsi_cdb(
         cdbp: *const u8,
         clen: c_int,
     ) -> bool;
 
-    pub fn construct_scsi_pt_obj() -> *mut SgPtBase;
-    pub fn destruct_scsi_pt_obj(objp: *mut SgPtBase);
+    fn construct_scsi_pt_obj() -> *mut SgPtBase;
+    fn destruct_scsi_pt_obj(objp: *mut SgPtBase);
 
-    pub fn set_scsi_pt_data_in(
+    fn set_scsi_pt_data_in(
         objp: *mut SgPtBase,
         dxferp: *const u8,
         dxfer_ilen: c_int,
     );
 
-    pub fn set_scsi_pt_data_out(
+    fn set_scsi_pt_data_out(
         objp: *mut SgPtBase,
         dxferp: *const u8,
         dxfer_olen: c_int,
     );
 
-    pub fn set_scsi_pt_cdb(
+    fn set_scsi_pt_cdb(
         objp: *mut SgPtBase,
         cdb: *const u8,
         cdb_len: c_int,
     );
 
-    pub fn set_scsi_pt_sense(
+    fn set_scsi_pt_sense(
         objp: *mut SgPtBase,
         sense: *const u8,
         max_sense_len: c_int,
     );
 
-    pub fn do_scsi_pt(
+    fn do_scsi_pt(
         objp: *mut SgPtBase,
         fd: c_int,
         timeout_secs: c_int,
         verbose: c_int,
     ) -> c_int;
 
-    pub fn get_scsi_pt_resid(objp: *const SgPtBase) -> c_int;
+    fn get_scsi_pt_resid(objp: *const SgPtBase) -> c_int;
 
-    pub fn get_scsi_pt_sense_len(objp: *const SgPtBase) -> c_int;
+    fn get_scsi_pt_sense_len(objp: *const SgPtBase) -> c_int;
 
-    pub fn get_scsi_pt_status_response(objp: *const SgPtBase) -> c_int;
+    fn get_scsi_pt_status_response(objp: *const SgPtBase) -> c_int;
 
-    pub fn get_scsi_pt_result_category(objp: *const SgPtBase) -> c_int;
+    #[allow(dead_code)]
+    fn get_scsi_pt_result_category(objp: *const SgPtBase) -> c_int;
 }
 
 /// Creates a `Box<SgPtBase>`
 ///
 /// Which get automatically dropped, so you do not need to call
 /// destruct_scsi_pt_obj yourself.
-pub fn boxed_scsi_pt_obj() -> Result<Box<SgPtBase>, Error> {
+fn boxed_scsi_pt_obj() -> Result<Box<SgPtBase>, Error> {
     let objp = unsafe {
         construct_scsi_pt_obj()
     };
