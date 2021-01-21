@@ -22,7 +22,7 @@ Ext.define('PBS.window.AddWebauthn', {
     viewModel: {
 	data: {
 	    valid: false,
-	    userid: Proxmox.UserName,
+	    userid: null,
 	},
 	formulas: {
 	    passwordConfirmText: (get) => {
@@ -153,6 +153,7 @@ Ext.define('PBS.window.AddWebauthn', {
 		    name: 'user',
 		    cbind: {
 			editable: (get) => !get('fixedUser'),
+			value: () => Proxmox.UserName,
 		    },
 		    fieldLabel: gettext('User'),
 		    editConfig: {
@@ -160,7 +161,6 @@ Ext.define('PBS.window.AddWebauthn', {
 			allowBlank: false,
 		    },
 		    renderer: Ext.String.htmlEncode,
-		    value: Proxmox.UserName,
 		    listeners: {
 			change: function(field, newValue, oldValue) {
 			    let vm = this.up('window').getViewModel();
@@ -185,6 +185,10 @@ Ext.define('PBS.window.AddWebauthn', {
 		    name: 'password',
 		    allowBlank: false,
 		    validateBlank: true,
+		    cbind: {
+			hidden: () => Proxmox.UserName === 'root@pam',
+			disabled: () => Proxmox.UserName === 'root@pam',
+		    },
 		    bind: {
 			emptyText: '{passwordConfirmText}',
 		    },

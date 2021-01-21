@@ -50,7 +50,7 @@ Ext.define('PBS.window.AddTotp', {
 	    valid: false,
 	    secret: '',
 	    otpuri: '',
-	    userid: Proxmox.UserName,
+	    userid: null,
 	},
 
 	formulas: {
@@ -96,11 +96,6 @@ Ext.define('PBS.window.AddTotp', {
 		    view.down('#qrbox').getEl().appendChild(view.qrdiv);
 
 		    view.getController().randomizeSecret();
-
-		    if (Proxmox.UserName === 'root@pam') {
-			view.lookup('password').setVisible(false);
-			view.lookup('password').setDisabled(true);
-		    }
 		},
 	    },
 	},
@@ -140,6 +135,7 @@ Ext.define('PBS.window.AddTotp', {
 		    name: 'userid',
 		    cbind: {
 			editable: (get) => get('isAdd') && !get('fixedUser'),
+			value: () => Proxmox.UserName,
 		    },
 		    fieldLabel: gettext('User'),
 		    editConfig: {
@@ -147,7 +143,6 @@ Ext.define('PBS.window.AddTotp', {
 			allowBlank: false,
 		    },
 		    renderer: Ext.String.htmlEncode,
-		    value: Proxmox.UserName,
 		    listeners: {
 			change: function(field, newValue, oldValue) {
 			    let vm = this.up('window').getViewModel();
@@ -259,6 +254,10 @@ Ext.define('PBS.window.AddTotp', {
 		    name: 'password',
 		    allowBlank: false,
 		    validateBlank: true,
+		    cbind: {
+			hidden: () => Proxmox.UserName === 'root@pam',
+			disabled: () => Proxmox.UserName === 'root@pam',
+		    },
 		    bind: {
 			emptyText: '{passwordConfirmText}',
 		    },

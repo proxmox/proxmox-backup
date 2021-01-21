@@ -50,7 +50,9 @@ Ext.define('PBS.window.TfaEdit', {
 		xtype: 'pbsUserSelector',
 		allowBlank: false,
 	    },
-	    value: Proxmox.UserName,
+	    cbind: {
+		value: () => Proxmox.UserName,
+	    },
 	},
 	{
 	    xtype: 'proxmoxtextfield',

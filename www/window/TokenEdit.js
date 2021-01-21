@@ -23,13 +23,13 @@ Ext.define('PBS.window.TokenEdit', {
 		xtype: 'pmxDisplayEditField',
 		cbind: {
 		    editable: (get) => get('isCreate') && !get('fixedUser'),
+		    value: () => Proxmox.UserName,
 		},
 		editConfig: {
 		    xtype: 'pbsUserSelector',
 		    allowBlank: false,
 		},
 		name: 'user',
-		value: Proxmox.UserName,
 		renderer: Ext.String.htmlEncode,
 		fieldLabel: gettext('User'),
 	    },

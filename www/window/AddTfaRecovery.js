@@ -40,7 +40,7 @@ Ext.define('PBS.window.AddTfaRecovery', {
     viewModel: {
 	data: {
 	    has_entry: false,
-	    userid: Proxmox.UserName,
+	    userid: null,
 	},
 	formulas: {
 	    passwordConfirmText: (get) => {
@@ -89,6 +89,7 @@ Ext.define('PBS.window.AddTfaRecovery', {
 	    name: 'userid',
 	    cbind: {
 		editable: (get) => !get('fixedUser'),
+		value: () => Proxmox.UserName,
 	    },
 	    fieldLabel: gettext('User'),
 	    editConfig: {
@@ -99,7 +100,6 @@ Ext.define('PBS.window.AddTfaRecovery', {
 		},
 	    },
 	    renderer: Ext.String.htmlEncode,
-	    value: Proxmox.UserName,
 	    listeners: {
 		change: 'onUseridChange',
 	    },
@@ -127,8 +127,10 @@ Ext.define('PBS.window.AddTfaRecovery', {
 	    name: 'password',
 	    allowBlank: false,
 	    validateBlank: true,
-	    hidden: Proxmox.UserName === 'root@pam',
-	    disabled: Proxmox.UserName === 'root@pam',
+	    cbind: {
+		hidden: () => Proxmox.UserName === 'root@pam',
+		disabled: () => Proxmox.UserName === 'root@pam',
+	    },
 	    bind: {
 		emptyText: '{passwordConfirmText}',
 	    },
