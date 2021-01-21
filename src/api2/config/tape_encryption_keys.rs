@@ -183,7 +183,7 @@ pub fn create_key(
 
     let fingerprint = key_config.fingerprint.clone().unwrap();
 
-    insert_key(key, key_config)?;
+    insert_key(key, key_config, false)?;
 
     Ok(fingerprint)
 }

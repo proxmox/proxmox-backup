@@ -176,7 +176,7 @@ pub fn save_key_configs(map: HashMap<Fingerprint, KeyConfig>) -> Result<(), Erro
     Ok(())
 }
 
-pub fn insert_key(key: [u8;32], key_config: KeyConfig) -> Result<(), Error> {
+pub fn insert_key(key: [u8;32], key_config: KeyConfig, force: bool) -> Result<(), Error> {
 
     let _lock = open_file_locked(
         TAPE_KEYS_LOCKFILE,
@@ -192,8 +192,10 @@ pub fn insert_key(key: [u8;32], key_config: KeyConfig) -> Result<(), Error> {
         None => bail!("missing encryption key fingerprint - internal error"),
     };
 
-    if let Some(_) = config_map.get(&fingerprint) {
-        bail!("encryption key '{}' already exists.", fingerprint);
+    if !force {
+        if let Some(_) = config_map.get(&fingerprint) {
+            bail!("encryption key '{}' already exists.", fingerprint);
+        }
     }
 
     let item = EncryptionKeyInfo::new(key, fingerprint.clone());
