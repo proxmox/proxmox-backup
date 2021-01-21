@@ -226,7 +226,7 @@ pub fn erase_media(
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-    let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
+    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
     let upid_str = WorkerTask::new_thread(
         "erase-media",
@@ -267,7 +267,7 @@ pub fn rewind(
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-    let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
+    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
     let upid_str = WorkerTask::new_thread(
         "rewind-media",
@@ -353,7 +353,7 @@ pub fn label_media(
 
     let (config, _digest) = config::drive::config()?;
 
-    let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
+    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
     let upid_str = WorkerTask::new_thread(
         "label-media",
@@ -595,7 +595,7 @@ pub fn clean_drive(
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-    let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
+    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
     let upid_str = WorkerTask::new_thread(
         "clean-drive",
@@ -722,7 +722,7 @@ pub fn update_inventory(
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-    let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
+    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
     let upid_str = WorkerTask::new_thread(
         "inventory-update",
@@ -735,7 +735,7 @@ pub fn update_inventory(
 
             let label_text_list = changer.online_media_label_texts()?;
             if label_text_list.is_empty() {
-                worker.log(format!("changer device does not list any media labels"));
+                worker.log("changer device does not list any media labels".to_string());
             }
 
             let state_path = Path::new(TAPE_STATUS_DIR);
@@ -752,11 +752,9 @@ pub fn update_inventory(
 
                 let label_text = label_text.to_string();
 
-                if !read_all_labels.unwrap_or(false) {
-                    if let Some(_) = inventory.find_media_by_label_text(&label_text) {
-                        worker.log(format!("media '{}' already inventoried", label_text));
-                        continue;
-                    }
+                if !read_all_labels.unwrap_or(false) && inventory.find_media_by_label_text(&label_text).is_some() {
+                    worker.log(format!("media '{}' already inventoried", label_text));
+                    continue;
                 }
 
                 if let Err(err) = changer.load_media(&label_text) {
@@ -824,7 +822,7 @@ pub fn barcode_label_media(
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-    let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
+    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
     let upid_str = WorkerTask::new_thread(
         "barcode-label-media",
@@ -1002,7 +1000,7 @@ pub fn catalog_media(
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-    let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
+    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
     let upid_str = WorkerTask::new_thread(
         "catalog-media",
@@ -1060,10 +1058,8 @@ pub fn catalog_media(
 
             let _lock = MediaPool::lock(status_path, &pool)?;
 
-            if MediaCatalog::exists(status_path, &media_id.label.uuid) {
-                if !force {
-                    bail!("media catalog exists (please use --force to overwrite)");
-                }
+            if MediaCatalog::exists(status_path, &media_id.label.uuid) && !force {
+                bail!("media catalog exists (please use --force to overwrite)");
             }
 
             restore_media(&worker, &mut drive, &media_id, None, verbose)?;

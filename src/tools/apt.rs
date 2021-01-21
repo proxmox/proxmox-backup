@@ -37,7 +37,7 @@ pub fn read_pkg_state() -> Result<Option<PkgState>, Error> {
     };
 
     serde_json::from_str(&serialized_state)
-        .map(|s| Some(s))
+        .map(Some)
         .map_err(|err| format_err!("could not parse cached package status - {}", err))
 }
 
@@ -226,7 +226,7 @@ pub fn list_installed_apt_packages<F: Fn(FilterData) -> bool>(
         }
     }
 
-    return ret;
+    ret
 }
 
 fn query_detailed_info<'a, F, V>(
@@ -366,5 +366,5 @@ where
         }
     }
 
-    return None;
+    None
 }

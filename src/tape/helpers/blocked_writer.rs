@@ -77,7 +77,7 @@ impl <W: Write> BlockedWriter<W> {
             self.bytes_written += BlockHeader::SIZE;
 
         } else {
-            self.buffer_pos = self.buffer_pos + bytes;
+            self.buffer_pos += bytes;
         }
 
         Ok(bytes)

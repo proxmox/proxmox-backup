@@ -186,7 +186,7 @@ impl BackupManifest {
             manifest["unprotected"]["key-fingerprint"] = serde_json::to_value(fingerprint)?;
         }
 
-        let manifest = serde_json::to_string_pretty(&manifest).unwrap().into();
+        let manifest = serde_json::to_string_pretty(&manifest).unwrap();
         Ok(manifest)
     }
 

@@ -50,7 +50,7 @@ impl SnapshotReader {
             }
         };
 
-        let mut client_log_path = snapshot_path.clone();
+        let mut client_log_path = snapshot_path;
         client_log_path.push(CLIENT_LOG_BLOB_NAME);
 
         let mut file_list = Vec::new();

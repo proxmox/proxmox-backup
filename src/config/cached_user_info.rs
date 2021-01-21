@@ -98,7 +98,7 @@ impl CachedUserInfo {
             }
         }
 
-        return true;
+        true
     }
 
     pub fn check_privs(

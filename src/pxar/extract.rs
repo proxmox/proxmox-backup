@@ -228,7 +228,7 @@ impl Extractor {
             allow_existing_dirs,
             feature_flags,
             current_path: Arc::new(Mutex::new(OsString::new())),
-            on_error: Box::new(|err| Err(err)),
+            on_error: Box::new(Err),
         }
     }
 

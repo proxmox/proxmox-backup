@@ -194,7 +194,7 @@ impl IndexFile for DynamicIndexReader {
         if pos >= self.index.len() {
             None
         } else {
-            Some(unsafe { std::mem::transmute(self.chunk_digest(pos).as_ptr()) })
+            Some(unsafe { &*(self.chunk_digest(pos).as_ptr() as *const [u8; 32]) })
         }
     }
 
@@ -229,7 +229,7 @@ impl IndexFile for DynamicIndexReader {
 
         Some(ChunkReadInfo {
             range: start..end,
-            digest: self.index[pos].digest.clone(),
+            digest: self.index[pos].digest,
         })
     }
 

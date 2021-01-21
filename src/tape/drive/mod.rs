@@ -258,13 +258,13 @@ pub fn required_media_changer(
 ) -> Result<(Box<dyn MediaChange>, String), Error> {
     match media_changer(config, drive) {
         Ok(Some(result)) => {
-            return Ok(result);
+            Ok(result)
         }
         Ok(None) => {
             bail!("drive '{}' has no associated changer device", drive);
         },
         Err(err) => {
-            return Err(err);
+            Err(err)
         }
     }
 }
@@ -339,7 +339,7 @@ pub fn request_and_load_media(
 
                     let media_id = check_label(handle.as_mut(), &label.uuid)?;
 
-                    return Ok((handle, media_id));
+                    Ok((handle, media_id))
                 }
                 "linux" => {
                     let drive_config = LinuxTapeDrive::deserialize(config)?;
@@ -390,20 +390,18 @@ pub fn request_and_load_media(
                                         media_id.label.uuid.to_string(),
                                     ));
                                     return Ok((Box::new(handle), media_id));
-                                } else {
-                                    if Some(media_id.label.uuid.clone()) != last_media_uuid {
-                                        worker.log(format!(
-                                            "wrong media label {} ({})",
-                                            media_id.label.label_text,
-                                            media_id.label.uuid.to_string(),
-                                        ));
-                                        last_media_uuid = Some(media_id.label.uuid);
-                                    }
+                                } else if Some(media_id.label.uuid.clone()) != last_media_uuid {
+                                    worker.log(format!(
+                                        "wrong media label {} ({})",
+                                        media_id.label.label_text,
+                                        media_id.label.uuid.to_string(),
+                                    ));
+                                    last_media_uuid = Some(media_id.label.uuid);
                                 }
                             }
                             Ok((None, _)) => {
                                 if last_media_uuid.is_some() {
-                                    worker.log(format!("found empty media without label (please label all tapes first)"));
+                                    worker.log("found empty media without label (please label all tapes first)".to_string());
                                     last_media_uuid = None;
                                 }
                             }

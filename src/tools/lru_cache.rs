@@ -173,7 +173,7 @@ impl<K: std::cmp::Eq + std::hash::Hash + Copy, V> LruCache<K, V> {
     /// Get a mutable reference to the value identified by `key`.
     /// This will update the cache entry to be the most recently used entry.
     /// On cache misses, None is returned.
-    pub fn get_mut<'a>(&'a mut self, key: K) -> Option<&'a mut V> {
+    pub fn get_mut(&mut self, key: K) -> Option<&mut V> {
         let node_ptr = self.map.get(&key)?;
         self.list.bring_to_front(*node_ptr);
         Some(unsafe { &mut (*self.list.head).value })

@@ -79,7 +79,7 @@ impl From<&SyncJobStatus> for SyncJobConfig {
             owner: job_status.owner.clone(),
             remote: job_status.remote.clone(),
             remote_store: job_status.remote_store.clone(),
-            remove_vanished: job_status.remove_vanished.clone(),
+            remove_vanished: job_status.remove_vanished,
             comment: job_status.comment.clone(),
             schedule: job_status.schedule.clone(),
         }
@@ -183,8 +183,8 @@ pub const SYNC_CFG_LOCKFILE: &str = "/etc/proxmox-backup/.sync.lck";
 
 pub fn config() -> Result<(SectionConfigData, [u8;32]), Error> {
 
-    let content = proxmox::tools::fs::file_read_optional_string(SYNC_CFG_FILENAME)?;
-    let content = content.unwrap_or(String::from(""));
+    let content = proxmox::tools::fs::file_read_optional_string(SYNC_CFG_FILENAME)?
+        .unwrap_or_else(|| "".to_string());
 
     let digest = openssl::sha::sha256(content.as_bytes());
     let data = CONFIG.parse(SYNC_CFG_FILENAME, &content)?;

@@ -173,7 +173,7 @@ pub fn update_changer_online_status(
     drive_config: &SectionConfigData,
     inventory: &mut Inventory,
     changer_name: &str,
-    label_text_list: &Vec<String>,
+    label_text_list: &[String],
 ) -> Result<(), Error> {
 
     let mut online_map = OnlineStatusMap::new(drive_config)?;

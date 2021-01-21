@@ -189,12 +189,12 @@ async fn mount_do(param: Value, pipe: Option<Fd>) -> Result<Value, Error> {
     };
 
     let server_archive_name = if archive_name.ends_with(".pxar") {
-        if let None = target {
+        if target.is_none() {
             bail!("use the 'mount' command to mount pxar archives");
         }
         format!("{}.didx", archive_name)
     } else if archive_name.ends_with(".img") {
-        if let Some(_) = target {
+        if target.is_some() {
             bail!("use the 'map' command to map drive images");
         }
         format!("{}.fidx", archive_name)

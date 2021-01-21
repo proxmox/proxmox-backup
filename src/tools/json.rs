@@ -29,7 +29,7 @@ pub fn write_canonical_json(value: &Value, output: &mut Vec<u8>) -> Result<(), E
         Value::Object(map) => {
             output.push(b'{');
             let mut keys: Vec<&str> = map.keys().map(String::as_str).collect();
-            keys.sort();
+            keys.sort_unstable();
             let mut iter = keys.into_iter();
             if let Some(key) = iter.next() {
                 serde_json::to_writer(&mut *output, &key)?;

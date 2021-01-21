@@ -35,18 +35,15 @@ use crate::api2::types::{Authid, APTUpdateInfo, NODE_SCHEMA, UPID_SCHEMA};
 /// List available APT updates
 fn apt_update_available(_param: Value) -> Result<Value, Error> {
 
-    match apt::pkg_cache_expired() {
-        Ok(false) => {
-            if let Ok(Some(cache)) = apt::read_pkg_state() {
-                return Ok(json!(cache.package_status));
-            }
-        },
-        _ => (),
+    if let Ok(false) = apt::pkg_cache_expired() {
+        if let Ok(Some(cache)) = apt::read_pkg_state() {
+            return Ok(json!(cache.package_status));
+        }
     }
 
     let cache = apt::update_cache()?;
 
-    return Ok(json!(cache.package_status));
+    Ok(json!(cache.package_status))
 }
 
 fn do_apt_update(worker: &WorkerTask, quiet: bool) -> Result<(), Error> {
@@ -90,8 +87,8 @@ fn do_apt_update(worker: &WorkerTask, quiet: bool) -> Result<(), Error> {
                 type: bool,
                 description: r#"Send notification mail about new package updates availanle to the
                     email address configured for 'root@pam')."#,
-                optional: true,
                 default: false,
+                optional: true,
             },
             quiet: {
                 description: "Only produces output suitable for logging, omitting progress indicators.",
@@ -116,7 +113,7 @@ pub fn apt_update_database(
 ) -> Result<String, Error> {
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-    let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
+    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
     // FIXME: change to non-option in signature and drop below once we have proxmox-api-macro 0.2.3
     let quiet = quiet.unwrap_or(API_METHOD_APT_UPDATE_DATABASE_PARAM_DEFAULT_QUIET);
     let notify = notify.unwrap_or(API_METHOD_APT_UPDATE_DATABASE_PARAM_DEFAULT_NOTIFY);
@@ -196,7 +193,7 @@ fn apt_get_changelog(
         }
     }, Some(&name));
 
-    if pkg_info.len() == 0 {
+    if pkg_info.is_empty() {
         bail!("Package '{}' not found", name);
     }
 
@@ -205,7 +202,7 @@ fn apt_get_changelog(
     if changelog_url.starts_with("http://download.proxmox.com/") {
         let changelog = crate::tools::runtime::block_on(http::get_string(changelog_url, None))
             .map_err(|err| format_err!("Error downloading changelog from '{}': {}", changelog_url, err))?;
-        return Ok(json!(changelog));
+        Ok(json!(changelog))
 
     } else if changelog_url.starts_with("https://enterprise.proxmox.com/") {
         let sub = match subscription::read_subscription()? {
@@ -229,7 +226,7 @@ fn apt_get_changelog(
 
         let changelog = crate::tools::runtime::block_on(http::get_string(changelog_url, Some(&auth_header)))
             .map_err(|err| format_err!("Error downloading changelog from '{}': {}", changelog_url, err))?;
-        return Ok(json!(changelog));
+        Ok(json!(changelog))
 
     } else {
         let mut command = std::process::Command::new("apt-get");
@@ -237,7 +234,7 @@ fn apt_get_changelog(
         command.arg("-qq"); // don't display download progress
         command.arg(name);
         let output = crate::tools::run_command(command, None)?;
-        return Ok(json!(output));
+        Ok(json!(output))
     }
 }
 

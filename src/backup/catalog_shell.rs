@@ -441,8 +441,7 @@ impl Shell {
         R: 'static,
     {
         let shell: &mut Shell = unsafe { std::mem::transmute(SHELL.unwrap()) };
-        let result = call(&mut *shell).await;
-        result
+        call(&mut *shell).await
     }
 
     pub async fn shell(mut self) -> Result<(), Error> {

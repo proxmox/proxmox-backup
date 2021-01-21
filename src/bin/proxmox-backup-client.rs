@@ -898,7 +898,7 @@ async fn create_backup(
         }
     }
 
-    let backup_time = backup_time_opt.unwrap_or_else(|| epoch_i64());
+    let backup_time = backup_time_opt.unwrap_or_else(epoch_i64);
 
     let client = connect(&repo)?;
     record_repository(&repo);
@@ -917,7 +917,7 @@ async fn create_backup(
             let (key, created, fingerprint) = decrypt_key(&key, &key::get_encryption_key_password)?;
             println!("Encryption key fingerprint: {}", fingerprint);
 
-            let crypt_config = CryptConfig::new(key.clone())?;
+            let crypt_config = CryptConfig::new(key)?;
 
             match key::find_master_pubkey()? {
                 Some(ref path) if path.exists() => {
@@ -1464,7 +1464,7 @@ async fn prune_async(mut param: Value) -> Result<Value, Error> {
     if quiet {
         let list: Vec<Value> = data.as_array().unwrap().iter().filter(|item| {
             item["keep"].as_bool() == Some(false)
-        }).map(|v| v.clone()).collect();
+        }).cloned().collect();
         data = list.into();
     }
 

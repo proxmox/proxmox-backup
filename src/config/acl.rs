@@ -74,12 +74,14 @@ pub const ROLE_ADMIN: u64 = std::u64::MAX;
 pub const ROLE_NO_ACCESS: u64 = 0;
 
 #[rustfmt::skip]
+#[allow(clippy::identity_op)]
 /// Audit can view configuration and status information, but not modify it.
 pub const ROLE_AUDIT: u64 = 0
     | PRIV_SYS_AUDIT
     | PRIV_DATASTORE_AUDIT;
 
 #[rustfmt::skip]
+#[allow(clippy::identity_op)]
 /// Datastore.Admin can do anything on the datastore.
 pub const ROLE_DATASTORE_ADMIN: u64 = 0
     | PRIV_DATASTORE_AUDIT
@@ -90,6 +92,7 @@ pub const ROLE_DATASTORE_ADMIN: u64 = 0
     | PRIV_DATASTORE_PRUNE;
 
 #[rustfmt::skip]
+#[allow(clippy::identity_op)]
 /// Datastore.Reader can read/verify datastore content and do restore
 pub const ROLE_DATASTORE_READER: u64 = 0
     | PRIV_DATASTORE_AUDIT
@@ -97,27 +100,32 @@ pub const ROLE_DATASTORE_READER: u64 = 0
     | PRIV_DATASTORE_READ;
 
 #[rustfmt::skip]
+#[allow(clippy::identity_op)]
 /// Datastore.Backup can do backup and restore, but no prune.
 pub const ROLE_DATASTORE_BACKUP: u64 = 0
     | PRIV_DATASTORE_BACKUP;
 
 #[rustfmt::skip]
+#[allow(clippy::identity_op)]
 /// Datastore.PowerUser can do backup, restore, and prune.
 pub const ROLE_DATASTORE_POWERUSER: u64 = 0
     | PRIV_DATASTORE_PRUNE
     | PRIV_DATASTORE_BACKUP;
 
 #[rustfmt::skip]
+#[allow(clippy::identity_op)]
 /// Datastore.Audit can audit the datastore.
 pub const ROLE_DATASTORE_AUDIT: u64 = 0
     | PRIV_DATASTORE_AUDIT;
 
 #[rustfmt::skip]
+#[allow(clippy::identity_op)]
 /// Remote.Audit can audit the remote
 pub const ROLE_REMOTE_AUDIT: u64 = 0
     | PRIV_REMOTE_AUDIT;
 
 #[rustfmt::skip]
+#[allow(clippy::identity_op)]
 /// Remote.Admin can do anything on the remote.
 pub const ROLE_REMOTE_ADMIN: u64 = 0
     | PRIV_REMOTE_AUDIT
@@ -125,6 +133,7 @@ pub const ROLE_REMOTE_ADMIN: u64 = 0
     | PRIV_REMOTE_READ;
 
 #[rustfmt::skip]
+#[allow(clippy::identity_op)]
 /// Remote.SyncOperator can do read and prune on the remote.
 pub const ROLE_REMOTE_SYNC_OPERATOR: u64 = 0
     | PRIV_REMOTE_AUDIT
@@ -363,6 +372,7 @@ impl AclTreeNode {
     fn extract_group_roles(&self, _user: &Userid, leaf: bool) -> HashMap<String, bool> {
         let mut map = HashMap::new();
 
+        #[allow(clippy::for_kv_map)]
         for (_group, roles) in &self.groups {
             let is_member = false; // fixme: check if user is member of the group
             if !is_member {
@@ -402,7 +412,7 @@ impl AclTreeNode {
     }
 
     fn insert_group_role(&mut self, group: String, role: String, propagate: bool) {
-        let map = self.groups.entry(group).or_insert_with(|| HashMap::new());
+        let map = self.groups.entry(group).or_insert_with(HashMap::new);
         if role == ROLE_NAME_NO_ACCESS {
             map.clear();
             map.insert(role, propagate);
@@ -413,7 +423,7 @@ impl AclTreeNode {
     }
 
     fn insert_user_role(&mut self, auth_id: Authid, role: String, propagate: bool) {
-        let map = self.users.entry(auth_id).or_insert_with(|| HashMap::new());
+        let map = self.users.entry(auth_id).or_insert_with(HashMap::new);
         if role == ROLE_NAME_NO_ACCESS {
             map.clear();
             map.insert(role, propagate);
@@ -435,7 +445,7 @@ impl AclTree {
     /// Iterates over the tree looking for a node matching `path`.
     pub fn find_node(&mut self, path: &str) -> Option<&mut AclTreeNode> {
         let path = split_acl_path(path);
-        return self.get_node(&path);
+        self.get_node(&path)
     }
 
     fn get_node(&mut self, path: &[&str]) -> Option<&mut AclTreeNode> {
@@ -455,7 +465,7 @@ impl AclTree {
             node = node
                 .children
                 .entry(String::from(*comp))
-                .or_insert_with(|| AclTreeNode::new());
+                .or_insert_with(AclTreeNode::new);
         }
         node
     }
@@ -521,12 +531,12 @@ impl AclTree {
                 if *propagate {
                     role_ug_map1
                         .entry(role)
-                        .or_insert_with(|| BTreeSet::new())
+                        .or_insert_with(BTreeSet::new)
                         .insert(auth_id);
                 } else {
                     role_ug_map0
                         .entry(role)
-                        .or_insert_with(|| BTreeSet::new())
+                        .or_insert_with(BTreeSet::new)
                         .insert(auth_id);
                 }
             }
@@ -538,12 +548,12 @@ impl AclTree {
                 if *propagate {
                     role_ug_map1
                         .entry(role)
-                        .or_insert_with(|| BTreeSet::new())
+                        .or_insert_with(BTreeSet::new)
                         .insert(group);
                 } else {
                     role_ug_map0
                         .entry(role)
-                        .or_insert_with(|| BTreeSet::new())
+                        .or_insert_with(BTreeSet::new)
                         .insert(group);
                 }
             }
@@ -563,7 +573,7 @@ impl AclTree {
                 });
                 result_map
                     .entry(item_list)
-                    .or_insert_with(|| BTreeSet::new())
+                    .or_insert_with(BTreeSet::new)
                     .insert(item.to_string());
             }
             result_map
@@ -651,8 +661,7 @@ impl AclTree {
                 if !ROLE_NAMES.contains_key(role) {
                     bail!("unknown role '{}'", role);
                 }
-                if user_or_group.starts_with('@') {
-                    let group = &user_or_group[1..];
+                if let Some(group) = user_or_group.strip_prefix('@') {
                     node.insert_group_role(group.to_string(), role.to_string(), propagate);
                 } else {
                     node.insert_user_role(user_or_group.parse()?, role.to_string(), propagate);

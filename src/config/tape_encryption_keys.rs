@@ -53,7 +53,7 @@ pub struct EncryptionKeyInfo {
 }
 
 pub fn compute_tape_key_fingerprint(key: &[u8; 32]) -> Result<Fingerprint, Error> {
-    let crypt_config = CryptConfig::new(key.clone())?;
+    let crypt_config = CryptConfig::new(*key)?;
     Ok(crypt_config.fingerprint())
 }
 
@@ -193,7 +193,7 @@ pub fn insert_key(key: [u8;32], key_config: KeyConfig, force: bool) -> Result<()
     };
 
     if !force {
-        if let Some(_) = config_map.get(&fingerprint) {
+        if config_map.get(&fingerprint).is_some() {
             bail!("encryption key '{}' already exists.", fingerprint);
         }
     }

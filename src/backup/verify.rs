@@ -342,7 +342,7 @@ pub fn verify_backup_dir_with_lock(
     };
 
     if let Some(filter) = filter {
-        if filter(&manifest) == false {
+        if !filter(&manifest) {
             task_log!(
                 worker,
                 "SKIPPED: verify {}:{} (recently verified)",

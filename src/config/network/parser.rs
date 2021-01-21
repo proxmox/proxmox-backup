@@ -29,7 +29,7 @@ impl <R: BufRead> NetworkParser<R> {
                 bail!("input error - {}", err);
             }
             Some(Ok((token, _))) => {
-                return Ok(*token);
+                Ok(*token)
             }
             None => {
                 bail!("got unexpected end of stream (inside peek)");
@@ -44,7 +44,7 @@ impl <R: BufRead> NetworkParser<R> {
             }
             Some(Ok((token, text))) => {
                 if token == Token::Newline { self.line_nr += 1; }
-                return Ok((token, text));
+                Ok((token, text))
             }
             None => {
                 bail!("got unexpected end of stream (inside peek)");
@@ -215,12 +215,12 @@ impl <R: BufRead> NetworkParser<R> {
                 Token::Comment => {
                     let comment = self.eat(Token::Comment)?;
                     if !address_family_v4 && address_family_v6 {
-                        let mut comments = interface.comments6.take().unwrap_or(String::new());
+                        let mut comments = interface.comments6.take().unwrap_or_default();
                         if !comments.is_empty() { comments.push('\n'); }
                         comments.push_str(&comment);
                         interface.comments6 = Some(comments);
                     } else {
-                        let mut comments = interface.comments.take().unwrap_or(String::new());
+                        let mut comments = interface.comments.take().unwrap_or_default();
                         if !comments.is_empty() { comments.push('\n'); }
                         comments.push_str(&comment);
                         interface.comments = Some(comments);

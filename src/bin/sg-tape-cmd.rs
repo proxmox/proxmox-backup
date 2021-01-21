@@ -56,7 +56,7 @@ fn get_tape_handle(param: &Value) -> Result<LinuxTapeHandle, Error> {
         let file = unsafe { File::from_raw_fd(fd) };
         check_tape_is_linux_tape_device(&file)?;
         LinuxTapeHandle::new(file)
-    } else if let Some(name) = std::env::var("PROXMOX_TAPE_DRIVE").ok() {
+    } else if let Ok(name) = std::env::var("PROXMOX_TAPE_DRIVE") {
         let (config, _digest) = config::drive::config()?;
         let drive: LinuxTapeDrive = config.lookup("linux", &name)?;
         eprintln!("using device {}", drive.path);
@@ -292,13 +292,11 @@ fn main() -> Result<(), Error> {
         bail!("this program needs to be run with setuid root");
     }
 
-    if !running_uid.is_root() {
-        if running_uid != backup_uid || running_gid != backup_gid {
-            bail!(
-                "Not running as backup user or group (got uid {} gid {})",
-                running_uid, running_gid,
-            );
-        }
+    if !running_uid.is_root() && (running_uid != backup_uid || running_gid != backup_gid) {
+        bail!(
+            "Not running as backup user or group (got uid {} gid {})",
+            running_uid, running_gid,
+        );
     }
 
     let cmd_def = CliCommandMap::new()

@@ -63,11 +63,11 @@ pub struct EncryptedDataBlobHeader {
 ///
 /// Panics on unknown magic numbers.
 pub fn header_size(magic: &[u8; 8]) -> usize {
-    match magic {
-        &UNCOMPRESSED_BLOB_MAGIC_1_0 => std::mem::size_of::<DataBlobHeader>(),
-        &COMPRESSED_BLOB_MAGIC_1_0 => std::mem::size_of::<DataBlobHeader>(),
-        &ENCRYPTED_BLOB_MAGIC_1_0 => std::mem::size_of::<EncryptedDataBlobHeader>(),
-        &ENCR_COMPR_BLOB_MAGIC_1_0 => std::mem::size_of::<EncryptedDataBlobHeader>(),
+    match *magic {
+        UNCOMPRESSED_BLOB_MAGIC_1_0 => std::mem::size_of::<DataBlobHeader>(),
+        COMPRESSED_BLOB_MAGIC_1_0 => std::mem::size_of::<DataBlobHeader>(),
+        ENCRYPTED_BLOB_MAGIC_1_0 => std::mem::size_of::<EncryptedDataBlobHeader>(),
+        ENCR_COMPR_BLOB_MAGIC_1_0 => std::mem::size_of::<EncryptedDataBlobHeader>(),
         _ => panic!("unknown blob magic"),
     }
 }

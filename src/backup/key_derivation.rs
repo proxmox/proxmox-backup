@@ -336,7 +336,7 @@ pub fn rsa_decrypt_key_config(
     let decrypted = rsa
         .private_decrypt(key, &mut buffer, openssl::rsa::Padding::PKCS1)
         .map_err(|err| format_err!("failed to decrypt KeyConfig using RSA - {}", err))?;
-    decrypt_key(&mut buffer[..decrypted], passphrase)
+    decrypt_key(&buffer[..decrypted], passphrase)
 }
 
 #[test]
@@ -372,9 +372,9 @@ fn encrypt_decrypt_test() -> Result<(), Error> {
         hint: None,
     };
 
-    let encrypted = rsa_encrypt_key_config(public.clone(), &key).expect("encryption failed");
+    let encrypted = rsa_encrypt_key_config(public, &key).expect("encryption failed");
     let (decrypted, created, fingerprint) =
-        rsa_decrypt_key_config(private.clone(), &encrypted, &passphrase)
+        rsa_decrypt_key_config(private, &encrypted, &passphrase)
             .expect("decryption failed");
 
     assert_eq!(key.created, created);

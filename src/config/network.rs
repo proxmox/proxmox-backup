@@ -386,9 +386,9 @@ impl NetworkConfig {
     pub fn check_mtu(&self, parent_name: &str, child_name: &str) -> Result<(), Error> {
 
         let parent = self.interfaces.get(parent_name)
-            .ok_or(format_err!("check_mtu - missing parent interface '{}'", parent_name))?;
+            .ok_or_else(|| format_err!("check_mtu - missing parent interface '{}'", parent_name))?;
         let child = self.interfaces.get(child_name)
-            .ok_or(format_err!("check_mtu - missing child interface '{}'", child_name))?;
+            .ok_or_else(|| format_err!("check_mtu - missing child interface '{}'", child_name))?;
 
         let child_mtu = match child.mtu {
             Some(mtu) => mtu,
@@ -515,7 +515,7 @@ pub fn config() -> Result<(NetworkConfig, [u8;32]), Error> {
         Some(content) => content,
         None => {
             let content = proxmox::tools::fs::file_get_optional_contents(NETWORK_INTERFACES_FILENAME)?;
-            content.unwrap_or(Vec::new())
+            content.unwrap_or_default()
         }
     };
 
@@ -577,8 +577,8 @@ pub fn complete_port_list(arg: &str, _param: &HashMap<String, String>) -> Vec<St
         Err(_) => return vec![],
     };
 
-    let arg = arg.clone().trim();
-    let prefix = if let Some(idx) = arg.rfind(",") { &arg[..idx+1] } else { "" };
+    let arg = arg.trim();
+    let prefix = if let Some(idx) = arg.rfind(',') { &arg[..idx+1] } else { "" };
     ports.iter().map(|port| format!("{}{}", prefix, port)).collect()
 }
 

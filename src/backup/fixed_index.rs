@@ -60,7 +60,7 @@ impl FixedIndexReader {
     pub fn open(path: &Path) -> Result<Self, Error> {
         File::open(path)
             .map_err(Error::from)
-            .and_then(|file| Self::new(file))
+            .and_then(Self::new)
             .map_err(|err| format_err!("Unable to open fixed index {:?} - {}", path, err))
     }
 
@@ -126,7 +126,7 @@ impl FixedIndexReader {
     }
 
     fn unmap(&mut self) -> Result<(), Error> {
-        if self.index == std::ptr::null_mut() {
+        if self.index.is_null() {
             return Ok(());
         }
 
@@ -166,7 +166,7 @@ impl IndexFile for FixedIndexReader {
         if pos >= self.index_length {
             None
         } else {
-            Some(unsafe { std::mem::transmute(self.index.add(pos * 32)) })
+            Some(unsafe { &*(self.index.add(pos * 32) as *const [u8; 32]) })
         }
     }
 
@@ -324,7 +324,7 @@ impl FixedIndexWriter {
     }
 
     fn unmap(&mut self) -> Result<(), Error> {
-        if self.index == std::ptr::null_mut() {
+        if self.index.is_null() {
             return Ok(());
         }
 
@@ -342,7 +342,7 @@ impl FixedIndexWriter {
     }
 
     pub fn close(&mut self) -> Result<[u8; 32], Error> {
-        if self.index == std::ptr::null_mut() {
+        if self.index.is_null() {
             bail!("cannot close already closed index file.");
         }
 
@@ -437,7 +437,7 @@ impl FixedIndexWriter {
             );
         }
 
-        if self.index == std::ptr::null_mut() {
+        if self.index.is_null() {
             bail!("cannot write to closed index file.");
         }
 

@@ -138,7 +138,7 @@ async move {
         }
     };
 
-    let backup_dir = BackupDir::with_group(backup_group.clone(), backup_time)?;
+    let backup_dir = BackupDir::with_group(backup_group, backup_time)?;
 
     let _last_guard = if let Some(last) = &last_backup {
         if backup_dir.backup_time() <= last.backup_dir.backup_time() {

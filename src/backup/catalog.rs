@@ -137,18 +137,12 @@ impl DirEntry {
 
     /// Check if DirEntry is a directory
     pub fn is_directory(&self) -> bool {
-        match self.attr {
-            DirEntryAttribute::Directory { .. } => true,
-            _ => false,
-        }
+        matches!(self.attr, DirEntryAttribute::Directory { .. })
     }
 
     /// Check if DirEntry is a symlink
     pub fn is_symlink(&self) -> bool {
-        match self.attr {
-            DirEntryAttribute::Symlink { .. } => true,
-            _ => false,
-        }
+        matches!(self.attr, DirEntryAttribute::Symlink { .. })
     }
 }
 
@@ -591,6 +585,7 @@ impl <R: Read + Seek> CatalogReader<R> {
 ///
 /// Stores 7 bits per byte, Bit 8 indicates the end of the sequence (when not set).
 /// If the value is negative, we end with a zero byte (0x00).
+#[allow(clippy::neg_multiply)]
 pub fn catalog_encode_i64<W: Write>(writer: &mut W, v: i64) -> Result<(), Error> {
     let mut enc = Vec::new();
 
@@ -611,7 +606,7 @@ pub fn catalog_encode_i64<W: Write>(writer: &mut W, v: i64) -> Result<(), Error>
             break;
         }
         enc.push((128 | (d & 127)) as u8);
-        d = d >> 7;
+        d >>= 7;
     }
     writer.write_all(&enc)?;
 
@@ -623,6 +618,7 @@ pub fn catalog_encode_i64<W: Write>(writer: &mut W, v: i64) -> Result<(), Error>
 /// We currently read maximal 11 bytes, which give a maximum of 70 bits + sign.
 /// this method is compatible with catalog_encode_u64 iff the
 /// value encoded is <= 2^63 (values > 2^63 cannot be represented in an i64)
+#[allow(clippy::neg_multiply)]
 pub fn catalog_decode_i64<R: Read>(reader: &mut R) -> Result<i64, Error> {
 
     let mut v: u64 = 0;
@@ -665,7 +661,7 @@ pub fn catalog_encode_u64<W: Write>(writer: &mut W, v: u64) -> Result<(), Error>
             break;
         }
         enc.push((128 | (d & 127)) as u8);
-        d = d >> 7;
+        d >>= 7;
     }
     writer.write_all(&enc)?;
 

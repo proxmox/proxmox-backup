@@ -39,13 +39,12 @@ pub fn do_garbage_collection_job(
 
             let status = worker.create_state(&result);
 
-            match job.finish(status) {
-                Err(err) => eprintln!(
+            if let Err(err) = job.finish(status) {
+                eprintln!(
                     "could not finish job state for {}: {}",
                     job.jobtype().to_string(),
                     err
-                ),
-                Ok(_) => (),
+                );
             }
 
             if let Some(email) = email {

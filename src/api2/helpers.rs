@@ -16,7 +16,7 @@ pub async fn create_download_response(path: PathBuf) -> Result<Response<Body>, E
     };
 
     let payload = tokio_util::codec::FramedRead::new(file, tokio_util::codec::BytesCodec::new())
-        .map_ok(|bytes| hyper::body::Bytes::from(bytes.freeze()));
+        .map_ok(|bytes| bytes.freeze());
 
     let body = Body::wrap_stream(payload);
 

@@ -115,7 +115,7 @@ pub fn restore(
     // early check before starting worker
     check_drive_exists(&drive_config, &pool_config.drive)?;
 
-    let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
+    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
     let upid_str = WorkerTask::new_thread(
         "tape-restore",
@@ -128,7 +128,7 @@ pub fn restore(
 
             let members = inventory.compute_media_set_members(&media_set_uuid)?;
 
-            let media_list = members.media_list().clone();
+            let media_list = members.media_list();
 
             let mut media_id_list = Vec::new();
 
@@ -234,7 +234,6 @@ pub fn restore_media(
             Some(reader) => reader,
         };
 
-        let target = target.clone();
         restore_archive(worker, reader, current_file_number, target, &mut catalog, verbose)?;
     }
 
@@ -344,36 +343,26 @@ fn restore_chunk_archive<'a>(
     let mut decoder = ChunkArchiveDecoder::new(reader);
 
     let result: Result<_, Error> = proxmox::try_block!({
-        loop {
-            match decoder.next_chunk()? {
-                Some((digest, blob)) => {
+        while let Some((digest, blob)) = decoder.next_chunk()? {
+            if let Some(datastore) = datastore {
+                let chunk_exists = datastore.cond_touch_chunk(&digest, false)?;
+                if !chunk_exists {
+                    blob.verify_crc()?;
 
-                    if let Some(datastore) = datastore {
-                        let chunk_exists = datastore.cond_touch_chunk(&digest, false)?;
-                        if !chunk_exists {
-                            blob.verify_crc()?;
-
-                            if blob.crypt_mode()? == CryptMode::None {
-                                blob.decode(None, Some(&digest))?; // verify digest
-                            }
-                            if verbose {
-                                worker.log(format!("Insert chunk: {}", proxmox::tools::digest_to_hex(&digest)));
-                            }
-                            datastore.insert_chunk(&blob, &digest)?;
-                        } else {
-                            if verbose {
-                                worker.log(format!("Found existing chunk: {}", proxmox::tools::digest_to_hex(&digest)));
-                            }
-                        }
-                    } else {
-                        if verbose {
-                            worker.log(format!("Found chunk: {}", proxmox::tools::digest_to_hex(&digest)));
-                        }
+                    if blob.crypt_mode()? == CryptMode::None {
+                        blob.decode(None, Some(&digest))?; // verify digest
                     }
-                    chunks.push(digest);
+                    if verbose {
+                        worker.log(format!("Insert chunk: {}", proxmox::tools::digest_to_hex(&digest)));
+                    }
+                    datastore.insert_chunk(&blob, &digest)?;
+                } else if verbose {
+                    worker.log(format!("Found existing chunk: {}", proxmox::tools::digest_to_hex(&digest)));
                 }
-                None => break,
+            } else if verbose {
+                worker.log(format!("Found chunk: {}", proxmox::tools::digest_to_hex(&digest)));
             }
+            chunks.push(digest);
         }
         Ok(())
     });
@@ -390,7 +379,7 @@ fn restore_chunk_archive<'a>(
 
             // check if this is an aborted stream without end marker
             if let Ok(false) = reader.has_end_marker() {
-                worker.log(format!("missing stream end marker"));
+                worker.log("missing stream end marker".to_string());
                 return Ok(None);
             }
 
@@ -407,7 +396,7 @@ fn restore_snapshot_archive<'a>(
 
     let mut decoder = pxar::decoder::sync::Decoder::from_std(reader)?;
     match try_restore_snapshot_archive(&mut decoder, snapshot_path) {
-        Ok(()) => return Ok(true),
+        Ok(()) => Ok(true),
         Err(err) => {
             let reader = decoder.input();
 
@@ -422,7 +411,7 @@ fn restore_snapshot_archive<'a>(
             }
 
             // else the archive is corrupt
-            return Err(err);
+            Err(err)
         }
     }
 }

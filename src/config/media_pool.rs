@@ -43,8 +43,8 @@ fn init() -> SectionConfig {
     config
 }
 
-pub const MEDIA_POOL_CFG_FILENAME: &'static str = "/etc/proxmox-backup/media-pool.cfg";
-pub const MEDIA_POOL_CFG_LOCKFILE: &'static str = "/etc/proxmox-backup/.media-pool.lck";
+pub const MEDIA_POOL_CFG_FILENAME: &str = "/etc/proxmox-backup/media-pool.cfg";
+pub const MEDIA_POOL_CFG_LOCKFILE: &str = "/etc/proxmox-backup/.media-pool.lck";
 
 pub fn lock() -> Result<std::fs::File, Error> {
     open_file_locked(MEDIA_POOL_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)
@@ -52,8 +52,8 @@ pub fn lock() -> Result<std::fs::File, Error> {
 
 pub fn config() -> Result<(SectionConfigData, [u8;32]), Error> {
 
-    let content = proxmox::tools::fs::file_read_optional_string(MEDIA_POOL_CFG_FILENAME)?;
-    let content = content.unwrap_or(String::from(""));
+    let content = proxmox::tools::fs::file_read_optional_string(MEDIA_POOL_CFG_FILENAME)?
+        .unwrap_or_else(|| "".to_string());
 
     let digest = openssl::sha::sha256(content.as_bytes());
     let data = CONFIG.parse(MEDIA_POOL_CFG_FILENAME, &content)?;

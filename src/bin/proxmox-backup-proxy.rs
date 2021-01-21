@@ -4,7 +4,7 @@ use std::os::unix::io::AsRawFd;
 
 use anyhow::{bail, format_err, Error};
 use futures::*;
-use hyper;
+
 use openssl::ssl::{SslMethod, SslAcceptor, SslFiletype};
 use tokio_stream::wrappers::ReceiverStream;
 
@@ -218,10 +218,8 @@ fn accept_connections(
 
                         match result {
                             Ok(Ok(())) => {
-                                if let Err(_) = sender.send(Ok(stream)).await {
-                                    if debug {
-                                        eprintln!("detect closed connection channel");
-                                    }
+                                if sender.send(Ok(stream)).await.is_err() && debug {
+                                    eprintln!("detect closed connection channel");
                                 }
                             }
                             Ok(Err(err)) => {
@@ -583,16 +581,16 @@ async fn schedule_task_log_rotate() {
         false,
         move |worker| {
             job.start(&worker.upid().to_string())?;
-            worker.log(format!("starting task log rotation"));
+            worker.log("starting task log rotation".to_string());
 
             let result = try_block!({
                 let max_size = 512 * 1024 - 1; // an entry has ~ 100b, so > 5000 entries/file
                 let max_files = 20; // times twenty files gives > 100000 task entries
                 let has_rotated = rotate_task_log_archive(max_size, true, Some(max_files))?;
                 if has_rotated {
-                    worker.log(format!("task log archive was rotated"));
+                    worker.log("task log archive was rotated".to_string());
                 } else {
-                    worker.log(format!("task log archive was not rotated"));
+                    worker.log("task log archive was not rotated".to_string());
                 }
 
                 let max_size = 32 * 1024 * 1024 - 1;
@@ -603,18 +601,18 @@ async fn schedule_task_log_rotate() {
                 if logrotate.rotate(max_size, None, Some(max_files))? {
                     println!("rotated access log, telling daemons to re-open log file");
                     proxmox_backup::tools::runtime::block_on(command_reopen_logfiles())?;
-                    worker.log(format!("API access log was rotated"));
+                    worker.log("API access log was rotated".to_string());
                 } else {
-                    worker.log(format!("API access log was not rotated"));
+                    worker.log("API access log was not rotated".to_string());
                 }
 
                 let mut logrotate = LogRotate::new(buildcfg::API_AUTH_LOG_FN, true)
                         .ok_or_else(|| format_err!("could not get API auth log file names"))?;
 
                 if logrotate.rotate(max_size, None, Some(max_files))? {
-                    worker.log(format!("API authentication log was rotated"));
+                    worker.log("API authentication log was rotated".to_string());
                 } else {
-                    worker.log(format!("API authentication log was not rotated"));
+                    worker.log("API authentication log was not rotated".to_string());
                 }
 
                 Ok(())
@@ -751,7 +749,7 @@ async fn generate_host_stats(save: bool) {
         match datastore::config() {
             Ok((config, _)) => {
                 let datastore_list: Vec<datastore::DataStoreConfig> =
-                    config.convert_to_typed_array("datastore").unwrap_or(Vec::new());
+                    config.convert_to_typed_array("datastore").unwrap_or_default();
 
                 for config in datastore_list {
 

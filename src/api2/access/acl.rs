@@ -72,7 +72,7 @@ fn extract_acl_node_data(
         }
     }
     for (group, roles) in &node.groups {
-        if let Some(_) = token_user {
+        if token_user.is_some() {
             continue;
         }
 
@@ -210,7 +210,7 @@ pub fn update_acl(
 
     let top_level_privs = user_info.lookup_privs(&current_auth_id, &["access", "acl"]);
     if top_level_privs & PRIV_PERMISSIONS_MODIFY == 0 {
-        if let Some(_) = group {
+        if group.is_some() {
             bail!("Unprivileged users are not allowed to create group ACL item.");
         }
 

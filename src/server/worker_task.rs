@@ -48,7 +48,7 @@ pub async fn worker_is_active(upid: &UPID) -> Result<bool, Error> {
         return Ok(WORKER_TASK_LIST.lock().unwrap().contains_key(&upid.task_id));
     }
 
-    if !procfs::check_process_running_pstart(upid.pid, upid.pstart).is_some() {
+    if procfs::check_process_running_pstart(upid.pid, upid.pstart).is_none() {
         return Ok(false);
     }
 
@@ -191,7 +191,7 @@ pub fn upid_read_status(upid: &UPID) -> Result<TaskState, Error> {
     file.read_to_end(&mut data)?;
 
     // task logs should end with newline, we do not want it here
-    if data.len() > 0 && data[data.len()-1] == b'\n' {
+    if !data.is_empty() && data[data.len()-1] == b'\n' {
         data.pop();
     }
 
@@ -267,11 +267,11 @@ impl TaskState {
             Ok(TaskState::Unknown { endtime })
         } else if s == "OK" {
             Ok(TaskState::OK { endtime })
-        } else if s.starts_with("WARNINGS: ") {
-            let count: u64 = s[10..].parse()?;
+        } else if let Some(warnings) = s.strip_prefix("WARNINGS: ") {
+            let count: u64 = warnings.parse()?;
             Ok(TaskState::Warning{ count, endtime })
-        } else if s.len() > 0 {
-            let message = if s.starts_with("ERROR: ") { &s[7..] } else { s }.to_string();
+        } else if !s.is_empty() {
+            let message = if let Some(err) = s.strip_prefix("ERROR: ") { err } else { s }.to_string();
             Ok(TaskState::Error{ message, endtime })
         } else {
             bail!("unable to parse Task Status '{}'", s);
@@ -330,7 +330,7 @@ pub fn rotate_task_log_archive(size_threshold: u64, compress: bool, max_files: O
     let _lock = lock_task_list_files(true)?;
 
     let mut logrotate = LogRotate::new(PROXMOX_BACKUP_ARCHIVE_TASK_FN, compress)
-        .ok_or(format_err!("could not get archive file names"))?;
+        .ok_or_else(|| format_err!("could not get archive file names"))?;
 
     logrotate.rotate(size_threshold, None, max_files)
 }
@@ -362,8 +362,7 @@ fn update_active_workers(new_upid: Option<&UPID>) -> Result<(), Error> {
             if !worker_is_active_local(&info.upid) {
                 // println!("Detected stopped task '{}'", &info.upid_str);
                 let now = proxmox::tools::time::epoch_i64();
-                let status = upid_read_status(&info.upid)
-                    .unwrap_or_else(|_| TaskState::Unknown { endtime: now });
+                let status = upid_read_status(&info.upid).unwrap_or(TaskState::Unknown { endtime: now });
                 finish_list.push(TaskListInfo {
                     upid: info.upid,
                     upid_str: info.upid_str,

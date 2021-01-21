@@ -63,7 +63,7 @@ fn test_prune_hourly() -> Result<(), Error> {
     ];
     assert_eq!(remove_list, expect);
 
-    let list = orig_list.clone();
+    let list = orig_list;
     let options = PruneOptions::new().keep_hourly(Some(2));
     let remove_list = get_prune_list(list, true, &options);
     let expect: Vec<PathBuf> = vec![
@@ -126,7 +126,7 @@ fn test_prune_simple2() -> Result<(), Error> {
     ];
     assert_eq!(remove_list, expect);
 
-    let list = orig_list.clone();
+    let list = orig_list;
     let options = PruneOptions::new().keep_monthly(Some(1)).keep_yearly(Some(1));
     let remove_list = get_prune_list(list, true, &options);
     let expect: Vec<PathBuf> = vec![
@@ -266,7 +266,7 @@ fn test_prune_simple() -> Result<(), Error> {
     assert_eq!(remove_list, expect);
 
     // keep-weekly + keep-monthly + keep-yearly
-    let list = orig_list.clone();
+    let list = orig_list;
     let options = PruneOptions::new().keep_weekly(Some(5)).keep_monthly(Some(6)).keep_yearly(Some(7));
     let remove_list = get_prune_list(list, false, &options);
     // all backup are within one week, so we only keep a single file

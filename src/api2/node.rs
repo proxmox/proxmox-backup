@@ -121,7 +121,7 @@ async fn termproxy(
         )?;
 
     let mut command = Vec::new();
-    match cmd.as_ref().map(|x| x.as_str()) {
+    match cmd.as_deref() {
         Some("login") | None => {
             command.push("login");
             if userid == "root@pam" {

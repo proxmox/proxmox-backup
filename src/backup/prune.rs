@@ -8,7 +8,7 @@ enum PruneMark { Keep, KeepPartial, Remove }
 
 fn mark_selections<F: Fn(&BackupInfo) -> Result<String, Error>> (
     mark: &mut HashMap<PathBuf, PruneMark>,
-    list: &Vec<BackupInfo>,
+    list: &[BackupInfo],
     keep: usize,
     select_id: F,
 ) -> Result<(), Error> {
@@ -26,7 +26,7 @@ fn mark_selections<F: Fn(&BackupInfo) -> Result<String, Error>> (
 
     for info in list {
         let backup_id = info.backup_dir.relative_path();
-        if let Some(_) = mark.get(&backup_id) { continue; }
+        if mark.get(&backup_id).is_some() { continue; }
         let sel_id: String = select_id(&info)?;
 
         if already_included.contains(&sel_id) { continue; }
@@ -45,7 +45,7 @@ fn mark_selections<F: Fn(&BackupInfo) -> Result<String, Error>> (
 
 fn remove_incomplete_snapshots(
     mark: &mut HashMap<PathBuf, PruneMark>,
-    list: &Vec<BackupInfo>,
+    list: &[BackupInfo],
 ) {
 
     let mut keep_unfinished = true;

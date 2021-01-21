@@ -57,9 +57,9 @@ impl ApiConfig {
             prefix.push_str(components[0]);
             if let Some(subdir) = self.aliases.get(&prefix) {
                 filename.push(subdir);
-                for i in 1..comp_len { filename.push(components[i]) }
+                components.iter().skip(1).for_each(|comp| filename.push(comp));
             } else {
-                for i in 0..comp_len { filename.push(components[i]) }
+                components.iter().for_each(|comp| filename.push(comp));
             }
         }
         filename

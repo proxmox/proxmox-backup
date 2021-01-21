@@ -97,7 +97,7 @@ impl <E: RpcEnvironment + Clone> tower_service::Service<Request<Body>> for H2Ser
         let method = req.method().clone();
         let worker = self.worker.clone();
 
-        std::pin::Pin::from(self.handle_request(req))
+        self.handle_request(req)
             .map(move |result| match result {
                 Ok(res) => {
                     Self::log_response(worker, method, &path, &res);

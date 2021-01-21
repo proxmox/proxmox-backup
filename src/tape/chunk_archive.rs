@@ -62,15 +62,11 @@ impl <'a> ChunkArchiveWriter<'a> {
     }
 
     fn write_all(&mut self, data: &[u8]) -> Result<bool, std::io::Error> {
-        let result = match self.writer {
-            Some(ref mut writer) => {
-                let leom = writer.write_all(data)?;
-                Ok(leom)
-            }
+        match self.writer {
+            Some(ref mut writer) => writer.write_all(data),
             None => proxmox::io_bail!(
                 "detected write after archive finished - internal error"),
-        };
-        result
+        }
     }
 
     /// Write chunk into archive.

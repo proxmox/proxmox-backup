@@ -49,7 +49,7 @@ impl DateTimeValue {
     }
 
     pub fn list_contains(list: &[DateTimeValue], value: u32) -> bool {
-        list.iter().find(|spec| spec.contains(value)).is_some()
+        list.iter().any(|spec| spec.contains(value))
     }
 
     // Find an return an entry greater than value
@@ -142,7 +142,7 @@ impl From<TimeSpan> for f64 {
 }
 
 
-pub fn verify_time_span<'a>(i: &'a str) -> Result<(), Error> {
+pub fn verify_time_span(i: &str) -> Result<(), Error> {
     parse_time_span(i)?;
     Ok(())
 }

@@ -120,7 +120,7 @@ impl<T: Clone + Send + 'static> BroadcastFuture<T> {
 
             let task = source.map(move |value| {
                 match value {
-                    Ok(value) => Self::notify_listeners(inner1, Ok(value.clone())),
+                    Ok(value) => Self::notify_listeners(inner1, Ok(value)),
                     Err(err) => Self::notify_listeners(inner1, Err(err.to_string())),
                 }
             });

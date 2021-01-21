@@ -39,7 +39,7 @@ fn function_calls() -> Vec<(&'static str, fn() -> String)> {
             };
 
             let mut list = Vec::new();
-            for (store, _) in &config.sections {
+            for store in config.sections.keys() {
                 list.push(store.as_str());
             }
             list.join(", ")

@@ -345,10 +345,7 @@ fn apply_quota_project_id(flags: Flags, fd: RawFd, metadata: &Metadata) -> Resul
 }
 
 pub(crate) fn errno_is_unsupported(errno: Errno) -> bool {
-    match errno {
-        Errno::ENOTTY | Errno::ENOSYS | Errno::EBADF | Errno::EOPNOTSUPP | Errno::EINVAL => true,
-        _ => false,
-    }
+    matches!(errno, Errno::ENOTTY | Errno::ENOSYS | Errno::EBADF | Errno::EOPNOTSUPP | Errno::EINVAL)
 }
 
 fn apply_chattr(fd: RawFd, chattr: libc::c_long, mask: libc::c_long) -> Result<(), Error> {

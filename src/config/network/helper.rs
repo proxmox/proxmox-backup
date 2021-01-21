@@ -51,6 +51,7 @@ pub static IPV4_REVERSE_MASK: &[&str] = &[
 lazy_static! {
     pub static ref IPV4_MASK_HASH_LOCALNET: HashMap<&'static str, u8> = {
         let mut map = HashMap::new();
+        #[allow(clippy::needless_range_loop)]
         for i in 8..32 {
             map.insert(IPV4_REVERSE_MASK[i], i as u8);
         }
@@ -61,22 +62,23 @@ lazy_static! {
 pub fn parse_cidr(cidr: &str) -> Result<(String, u8, bool), Error> {
     let (address, mask, is_v6) = parse_address_or_cidr(cidr)?;
     if let Some(mask) = mask {
-        return Ok((address, mask, is_v6));
+        Ok((address, mask, is_v6))
     } else {
         bail!("missing netmask in '{}'", cidr);
     }
 }
 
 pub fn check_netmask(mask: u8, is_v6: bool) -> Result<(), Error> {
-    if is_v6 {
-        if !(mask >= 1 && mask <= 128) {
-            bail!("IPv6 mask '{}' is out of range (1..128).", mask);
-        }
+    let (ver, min, max) = if is_v6 {
+        ("IPv6", 1, 128)
     } else {
-        if !(mask > 0 && mask <= 32) {
-            bail!("IPv4 mask '{}' is out of range (1..32).", mask);
-        }
+        ("IPv4", 1, 32)
+    };
+
+    if !(mask >= min && mask <= max) {
+        bail!("{} mask '{}' is out of range ({}..{}).", ver, mask, min, max);
     }
+
     Ok(())
 }
 
@@ -97,18 +99,18 @@ pub fn parse_address_or_cidr(cidr: &str) -> Result<(String, Option<u8>, bool), E
         if let Some(mask) = caps.get(2) {
             let mask = u8::from_str_radix(mask.as_str(), 10)?;
             check_netmask(mask, false)?;
-            return Ok((address.to_string(), Some(mask), false));
+            Ok((address.to_string(), Some(mask), false))
         } else {
-            return Ok((address.to_string(), None, false));
+            Ok((address.to_string(), None, false))
         }
     } else if let Some(caps) = CIDR_V6_REGEX.captures(&cidr) {
         let address = &caps[1];
         if let Some(mask) = caps.get(2) {
             let mask = u8::from_str_radix(mask.as_str(), 10)?;
             check_netmask(mask, true)?;
-            return Ok((address.to_string(), Some(mask), true));
+            Ok((address.to_string(), Some(mask), true))
         } else {
-            return Ok((address.to_string(), None, true));
+            Ok((address.to_string(), None, true))
         }
     } else {
         bail!("invalid address/mask '{}'", cidr);

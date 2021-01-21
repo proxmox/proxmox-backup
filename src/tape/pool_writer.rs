@@ -159,11 +159,9 @@ impl PoolWriter {
                 }
             }
 
-        } else {
-            if let Some(mut status) = status {
-                worker.log("standalone drive - ejecting media instead of export");
-                status.drive.eject_media()?;
-            }
+        } else if let Some(mut status) = status {
+            worker.log("standalone drive - ejecting media instead of export");
+            status.drive.eject_media()?;
         }
 
         Ok(())
@@ -303,7 +301,7 @@ impl PoolWriter {
 
         status.bytes_written += bytes_written;
 
-        let request_sync = if status.bytes_written >= COMMIT_BLOCK_SIZE { true } else { false };
+        let request_sync = status.bytes_written >= COMMIT_BLOCK_SIZE;
 
         if !done || request_sync {
             status.commit()?;
@@ -361,7 +359,7 @@ impl PoolWriter {
             (bytes_written as f64)/(1024.0*1024.0*elapsed),
         ));
 
-        let request_sync = if status.bytes_written >= COMMIT_BLOCK_SIZE { true } else { false };
+        let request_sync = status.bytes_written >= COMMIT_BLOCK_SIZE;
 
         // register chunks in media_catalog
         status.catalog.start_chunk_archive(content_uuid, current_file_number)?;
@@ -426,7 +424,7 @@ fn write_chunk_archive<'a>(
         }
 
         if writer.bytes_written() > max_size {
-            worker.log(format!("Chunk Archive max size reached, closing archive"));
+            worker.log("Chunk Archive max size reached, closing archive".to_string());
             break;
         }
     }
@@ -469,7 +467,7 @@ fn update_media_set_label(
 
     match old_set {
         None => {
-            worker.log(format!("wrinting new media set label"));
+            worker.log("wrinting new media set label".to_string());
             drive.write_media_set_label(new_set, key_config.as_ref())?;
             media_catalog = MediaCatalog::overwrite(status_path, media_id, false)?;
         }

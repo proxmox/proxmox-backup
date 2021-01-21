@@ -154,14 +154,14 @@ pub fn create_sync_job(
 
     let _lock = open_file_locked(sync::SYNC_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
 
-    let sync_job: sync::SyncJobConfig = serde_json::from_value(param.clone())?;
+    let sync_job: sync::SyncJobConfig = serde_json::from_value(param)?;
     if !check_sync_job_modify_access(&user_info, &auth_id, &sync_job) {
         bail!("permission check failed");
     }
 
     let (mut config, _digest) = sync::config()?;
 
-    if let Some(_) = config.sections.get(&sync_job.id) {
+    if config.sections.get(&sync_job.id).is_some() {
         bail!("job '{}' already exists.", sync_job.id);
     }
 
@@ -514,7 +514,7 @@ acl:1:/remote/remote1/remotestore1:write@pbs:RemoteSyncOperator
 
     // unless they have Datastore.Modify as well
     job.store = "localstore3".to_string();
-    job.owner = Some(read_auth_id.clone());
+    job.owner = Some(read_auth_id);
     assert_eq!(check_sync_job_modify_access(&user_info, &write_auth_id, &job), true);
     job.owner = None;
     assert_eq!(check_sync_job_modify_access(&user_info, &write_auth_id, &job), true);

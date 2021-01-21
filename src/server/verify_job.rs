@@ -23,7 +23,7 @@ pub fn do_verification_job(
 
     let datastore = DataStore::lookup_datastore(&verification_job.store)?;
 
-    let outdated_after = verification_job.outdated_after.clone();
+    let outdated_after = verification_job.outdated_after;
     let ignore_verified_snapshots = verification_job.ignore_verified.unwrap_or(true);
 
     let filter = move |manifest: &BackupManifest| {
@@ -33,7 +33,7 @@ pub fn do_verification_job(
 
         let raw_verify_state = manifest.unprotected["verify_state"].clone();
         match serde_json::from_value::<SnapshotVerifyState>(raw_verify_state) {
-            Err(_) => return true, // no last verification, always include
+            Err(_) => true, // no last verification, always include
             Ok(last_verify) => {
                 match outdated_after {
                     None => false, // never re-verify if ignored and no max age
@@ -83,13 +83,12 @@ pub fn do_verification_job(
 
             let status = worker.create_state(&job_result);
 
-            match job.finish(status) {
-                Err(err) => eprintln!(
+            if let Err(err) = job.finish(status) {
+                eprintln!(
                     "could not finish job state for {}: {}",
                     job.jobtype().to_string(),
                     err
-                ),
-                Ok(_) => (),
+                );
             }
 
             if let Some(email) = email {

@@ -73,7 +73,7 @@ pub fn get_runtime_with_builder<F: Fn() -> runtime::Builder>(get_builder: F) -> 
     let runtime = builder.build().expect("failed to spawn tokio runtime");
     let rt = Arc::new(runtime);
 
-    *guard = Arc::downgrade(&rt.clone());
+    *guard = Arc::downgrade(&rt);
 
     rt
 }

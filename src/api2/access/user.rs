@@ -169,7 +169,7 @@ pub fn list_users(
             })
             .collect()
     } else {
-        iter.map(|user: user::User| UserWithTokens::new(user))
+        iter.map(UserWithTokens::new)
             .collect()
     };
 
@@ -230,7 +230,7 @@ pub fn create_user(
 
     let (mut config, _digest) = user::config()?;
 
-    if let Some(_) = config.sections.get(user.userid.as_str()) {
+    if config.sections.get(user.userid.as_str()).is_some() {
         bail!("user '{}' already exists.", user.userid);
     }
 
@@ -595,7 +595,7 @@ pub fn generate_token(
     let tokenid = Authid::from((userid.clone(), Some(tokenname.clone())));
     let tokenid_string = tokenid.to_string();
 
-    if let Some(_) = config.sections.get(&tokenid_string) {
+    if config.sections.get(&tokenid_string).is_some() {
         bail!("token '{}' for user '{}' already exists.", tokenname.as_str(), userid);
     }
 
@@ -603,7 +603,7 @@ pub fn generate_token(
     token_shadow::set_secret(&tokenid, &secret)?;
 
     let token = user::ApiToken {
-        tokenid: tokenid.clone(),
+        tokenid,
         comment,
         enable,
         expire,

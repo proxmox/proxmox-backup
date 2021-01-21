@@ -480,11 +480,11 @@ impl SessionImpl {
         Ok(())
     }
 
-    async fn lookup<'a>(
-        &'a self,
+    async fn lookup(
+        &'_ self,
         parent: u64,
         file_name: &OsStr,
-    ) -> Result<(EntryParam, LookupRef<'a>), Error> {
+    ) -> Result<(EntryParam, LookupRef<'_>), Error> {
         let dir = self.open_dir(parent).await?;
 
         let entry = match { dir }.lookup(file_name).await? {
@@ -519,10 +519,10 @@ impl SessionImpl {
         to_stat(inode, &entry)
     }
 
-    async fn readdirplus<'a>(
-        &'a self,
+    async fn readdirplus(
+        &'_ self,
         request: &mut requests::ReaddirPlus,
-    ) -> Result<Vec<LookupRef<'a>>, Error> {
+    ) -> Result<Vec<LookupRef<'_>>, Error> {
         let mut lookups = Vec::new();
         let offset = usize::try_from(request.offset)
             .map_err(|_| io_format_err!("directory offset out of range"))?;

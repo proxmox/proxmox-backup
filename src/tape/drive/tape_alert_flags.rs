@@ -17,6 +17,7 @@ bitflags::bitflags!{
     ///
     /// See LTO SCSI Reference LOG_SENSE - LP 2Eh: TapeAlerts
     pub struct TapeAlertFlags: u64 {
+        #[allow(clippy::eq_op)]
         const READ_WARNING = 1 << (0x0001 -1);
         const WRITE_WARNING = 1 << (0x0002 -1);
         const HARD_ERROR = 1 << (0x0003 -1);

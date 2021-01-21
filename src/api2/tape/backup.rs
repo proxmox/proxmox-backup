@@ -87,14 +87,14 @@ pub fn backup(
     // early check before starting worker
     check_drive_exists(&drive_config, &pool_config.drive)?;
 
-    let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
+    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
     let eject_media = eject_media.unwrap_or(false);
     let export_media_set = export_media_set.unwrap_or(false);
 
     let upid_str = WorkerTask::new_thread(
         "tape-backup",
-        Some(store.clone()),
+        Some(store),
         auth_id,
         to_stdout,
         move |worker| {

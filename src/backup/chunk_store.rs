@@ -44,7 +44,7 @@ fn digest_to_prefix(digest: &[u8]) -> PathBuf {
     buf.push(HEX_CHARS[(digest[0] as usize) &0xf]);
     buf.push(HEX_CHARS[(digest[1] as usize) >> 4]);
     buf.push(HEX_CHARS[(digest[1] as usize) & 0xf]);
-    buf.push('/' as u8);
+    buf.push(b'/');
 
     let path = unsafe { String::from_utf8_unchecked(buf)};
 
@@ -80,7 +80,7 @@ impl ChunkStore {
 
         let default_options = CreateOptions::new();
 
-        match create_path(&base, Some(default_options.clone()), Some(options.clone())) {
+        match create_path(&base, Some(default_options), Some(options.clone())) {
             Err(err) => bail!("unable to create chunk store '{}' at {:?} - {}", name, base, err),
             Ok(res) => if ! res  { nix::unistd::chown(&base, Some(uid), Some(gid))? },
         }
@@ -113,9 +113,8 @@ impl ChunkStore {
     }
 
     fn lockfile_path<P: Into<PathBuf>>(base: P) -> PathBuf {
-        let base: PathBuf = base.into();
+        let mut lockfile_path: PathBuf = base.into();
 
-        let mut lockfile_path = base.clone();
         lockfile_path.push(".lock");
 
         lockfile_path
@@ -227,7 +226,7 @@ impl ChunkStore {
                                 continue;
                             }
 
-                            let bad = bytes.ends_with(".bad".as_bytes());
+                            let bad = bytes.ends_with(b".bad");
                             return Some((Ok(entry), percentage, bad));
                         }
                         Some(Err(err)) => {
@@ -402,7 +401,7 @@ impl ChunkStore {
         file.write_all(raw_data)?;
 
         if let Err(err) = std::fs::rename(&tmp_path, &chunk_path) {
-            if let Err(_) = std::fs::remove_file(&tmp_path)  { /* ignore */ }
+            if std::fs::remove_file(&tmp_path).is_err()  { /* ignore */ }
             bail!(
                 "Atomic rename on store '{}' failed for chunk {} - {}",
                 self.name,

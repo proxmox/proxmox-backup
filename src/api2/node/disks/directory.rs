@@ -132,7 +132,7 @@ pub fn create_datastore_disk(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
 
-    let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
+    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
@@ -164,7 +164,7 @@ pub fn create_datastore_disk(
 
             let manager = DiskManage::new();
 
-            let disk = manager.clone().disk_by_name(&disk)?;
+            let disk = manager.disk_by_name(&disk)?;
 
             let partition = create_single_linux_partition(&disk)?;
             create_file_system(&partition, filesystem)?;
@@ -212,8 +212,7 @@ pub fn delete_datastore_disk(name: String) -> Result<(), Error> {
     let (config, _) = crate::config::datastore::config()?;
     let datastores: Vec<DataStoreConfig> = config.convert_to_typed_array("datastore")?;
     let conflicting_datastore: Option<DataStoreConfig> = datastores.into_iter()
-        .filter(|ds| ds.path == path)
-        .next();
+        .find(|ds| ds.path == path);
 
     if let Some(conflicting_datastore) = conflicting_datastore {
         bail!("Can't remove '{}' since it's required by datastore '{}'",

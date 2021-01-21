@@ -277,7 +277,7 @@ impl PartialEq<&str> for RealmRef {
 
 impl PartialEq<RealmRef> for Realm {
     fn eq(&self, rhs: &RealmRef) -> bool {
-        self.0 == &rhs.0
+        self.0 == rhs.0
     }
 }
 
@@ -638,7 +638,7 @@ impl std::str::FromStr for Authid {
             .iter()
             .rposition(|&b| b == b'!')
             .map(|pos| if pos < name_len { id.len() } else { pos })
-            .unwrap_or(id.len());
+            .unwrap_or_else(|| id.len());
 
         if realm_end == id.len() - 1 {
             bail!("empty token name in userid");
@@ -670,7 +670,7 @@ impl TryFrom<String> for Authid {
             .iter()
             .rposition(|&b| b == b'!')
             .map(|pos| if pos < name_len { data.len() } else { pos })
-            .unwrap_or(data.len());
+            .unwrap_or_else(|| data.len());
 
         if realm_end == data.len() - 1 {
             bail!("empty token name in userid");

@@ -376,7 +376,7 @@ fn get_server_url() -> (String, usize) {
 }
 
 pub fn send_updates_available(
-    updates: &Vec<&APTUpdateInfo>,
+    updates: &[&APTUpdateInfo],
 ) -> Result<(), Error> {
     // update mails always go to the root@pam configured email..
     if let Some(email) = lookup_user_email(Userid::root_userid()) {
@@ -403,7 +403,7 @@ fn lookup_user_email(userid: &Userid) -> Option<String> {
 
     if let Ok(user_config) = user::cached_config() {
         if let Ok(user) = user_config.lookup::<User>("user", userid.as_str()) {
-            return user.email.clone();
+            return user.email;
         }
     }
 
@@ -434,7 +434,7 @@ pub fn lookup_datastore_notify_settings(
         None => lookup_user_email(Userid::root_userid()),
     };
 
-    let notify_str = config.notify.unwrap_or(String::new());
+    let notify_str = config.notify.unwrap_or_default();
 
     if let Ok(value) = parse_property_string(&notify_str, &DatastoreNotify::API_SCHEMA) {
         if let Ok(notify) = serde_json::from_value(value) {
@@ -456,7 +456,7 @@ fn handlebars_humam_bytes_helper(
 ) -> HelperResult {
     let param = h.param(0).map(|v| v.value().as_u64())
         .flatten()
-        .ok_or(RenderError::new("human-bytes: param not found"))?;
+        .ok_or_else(|| RenderError::new("human-bytes: param not found"))?;
 
     out.write(&HumanByte::from(param).to_string())?;
 
@@ -472,10 +472,10 @@ fn handlebars_relative_percentage_helper(
 ) -> HelperResult {
     let param0 = h.param(0).map(|v| v.value().as_f64())
         .flatten()
-        .ok_or(RenderError::new("relative-percentage: param0 not found"))?;
+        .ok_or_else(|| RenderError::new("relative-percentage: param0 not found"))?;
     let param1 = h.param(1).map(|v| v.value().as_f64())
         .flatten()
-        .ok_or(RenderError::new("relative-percentage: param1 not found"))?;
+        .ok_or_else(|| RenderError::new("relative-percentage: param1 not found"))?;
 
     if param1 == 0.0 {
         out.write("-")?;

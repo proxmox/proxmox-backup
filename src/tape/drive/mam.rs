@@ -32,7 +32,7 @@ enum MamFormat {
     DEC,
 }
 
-static MAM_ATTRIBUTES: &'static [ (u16, u16, MamFormat, &'static str) ] = &[
+static MAM_ATTRIBUTES: &[ (u16, u16, MamFormat, &str) ] = &[
     (0x00_00, 8, MamFormat::DEC, "Remaining Capacity In Partition"),
     (0x00_01, 8, MamFormat::DEC, "Maximum Capacity In Partition"),
     (0x00_02, 8, MamFormat::DEC, "Tapealert Flags"),

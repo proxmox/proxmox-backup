@@ -120,7 +120,7 @@ fn parse_weekdays_range(i: &str) -> IResult<&str, WeekDays> {
         loop {
             res |= pos;
             if pos >= end { break; }
-            pos = pos << 1;
+            pos <<= 1;
         }
         WeekDays::from_bits(res).unwrap()
     };
@@ -151,10 +151,9 @@ fn parse_date_time_comp(max: usize) -> impl Fn(&str) -> IResult<&str, DateTimeVa
             return Ok((i, DateTimeValue::Range(value, end)))
         }
 
-        if i.starts_with("/") {
-            let i = &i[1..];
-            let (i, repeat) = parse_time_comp(max)(i)?;
-            Ok((i, DateTimeValue::Repeated(value, repeat)))
+        if let Some(time) = i.strip_prefix('/') {
+            let (time, repeat) = parse_time_comp(max)(time)?;
+            Ok((time, DateTimeValue::Repeated(value, repeat)))
         } else {
             Ok((i, DateTimeValue::Single(value)))
         }
@@ -163,15 +162,14 @@ fn parse_date_time_comp(max: usize) -> impl Fn(&str) -> IResult<&str, DateTimeVa
 
 fn parse_date_time_comp_list(start: u32, max: usize) -> impl Fn(&str) -> IResult<&str, Vec<DateTimeValue>> {
     move |i: &str| {
-        if i.starts_with("*") {
-            let i = &i[1..];
-            if i.starts_with("/") {
-                let (n, repeat) = parse_time_comp(max)(&i[1..])?;
+        if let Some(rest) = i.strip_prefix('*') {
+            if let Some(time) = rest.strip_prefix('/') {
+                let (n, repeat) = parse_time_comp(max)(time)?;
                 if repeat > 0 {
                     return Ok((n, vec![DateTimeValue::Repeated(start, repeat)]));
                 }
             }
-            return Ok((i, Vec::new()));
+            return Ok((rest, Vec::new()));
         }
 
         separated_nonempty_list(tag(","), parse_date_time_comp(max))(i)

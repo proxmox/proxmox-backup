@@ -113,7 +113,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin> FuseLoopSession<R> {
         abort_chan: Receiver<()>,
     ) -> Result<(), Error> {
 
-        if let None = self.session {
+        if self.session.is_none() {
             panic!("internal error: fuse_loop::main called before ::map_loop");
         }
         let mut session = self.session.take().unwrap().fuse();
@@ -236,7 +236,7 @@ pub fn cleanup_unused_run_files(filter_name: Option<String>) {
 
                 // clean leftover FUSE instances (e.g. user called 'losetup -d' or similar)
                 // does nothing if files are already stagnant (e.g. instance crashed etc...)
-                if let Ok(_) = unmap_from_backing(&path, None) {
+                if unmap_from_backing(&path, None).is_ok() {
                     // we have reaped some leftover instance, tell the user
                     eprintln!(
                         "Cleaned up dangling mapping '{}': no loop device assigned",
@@ -357,18 +357,12 @@ pub fn find_all_mappings() -> Result<impl Iterator<Item = (String, Option<String
     // get map of all /dev/loop mappings belonging to us
     let mut loopmap = HashMap::new();
     for ent in fs::scan_subdir(libc::AT_FDCWD, Path::new("/dev/"), &LOOPDEV_REGEX)? {
-        match ent {
-            Ok(ent) => {
-                let loopdev = format!("/dev/{}", ent.file_name().to_string_lossy());
-                match get_backing_file(&loopdev) {
-                    Ok(file) => {
-                        // insert filename only, strip RUN_DIR/
-                        loopmap.insert(file[RUN_DIR.len()+1..].to_owned(), loopdev);
-                    },
-                    Err(_) => {},
-                }
-            },
-            Err(_) => {},
+        if let Ok(ent) = ent {
+            let loopdev = format!("/dev/{}", ent.file_name().to_string_lossy());
+            if let Ok(file) = get_backing_file(&loopdev) {
+                // insert filename only, strip RUN_DIR/
+                loopmap.insert(file[RUN_DIR.len()+1..].to_owned(), loopdev);
+            }
         }
     }
 

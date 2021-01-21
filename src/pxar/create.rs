@@ -40,8 +40,7 @@ fn detect_fs_type(fd: RawFd) -> Result<i64, Error> {
 pub fn is_virtual_file_system(magic: i64) -> bool {
     use proxmox::sys::linux::magic::*;
 
-    match magic {
-        BINFMTFS_MAGIC |
+    matches!(magic, BINFMTFS_MAGIC |
         CGROUP2_SUPER_MAGIC |
         CGROUP_SUPER_MAGIC |
         CONFIGFS_MAGIC |
@@ -58,9 +57,7 @@ pub fn is_virtual_file_system(magic: i64) -> bool {
         SECURITYFS_MAGIC |
         SELINUX_MAGIC |
         SMACK_MAGIC |
-        SYSFS_MAGIC => true,
-        _ => false
-    }
+        SYSFS_MAGIC)
 }
 
 #[derive(Debug)]

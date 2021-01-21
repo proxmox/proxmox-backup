@@ -137,7 +137,7 @@ pub fn set_subscription(
 
     let server_id = tools::get_hardware_address()?;
 
-    let info = subscription::check_subscription(key, server_id.to_owned())?;
+    let info = subscription::check_subscription(key, server_id)?;
 
     subscription::write_subscription(info)
         .map_err(|e| format_err!("Error writing subscription status - {}", e))?;

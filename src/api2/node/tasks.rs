@@ -513,7 +513,7 @@ pub fn list_tasks(
         .collect();
 
     let mut count = result.len() + start as usize;
-    if result.len() > 0 && result.len() >= limit { // we have a 'virtual' entry as long as we have any new
+    if !result.is_empty() && result.len() >= limit { // we have a 'virtual' entry as long as we have any new
         count += 1;
     }
 

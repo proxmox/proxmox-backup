@@ -105,7 +105,7 @@ impl DiskManage {
                 let mut mounted = HashSet::new();
 
                 for (_id, mp) in self.mount_info()? {
-                    let source = match mp.mount_source.as_ref().map(OsString::as_os_str) {
+                    let source = match mp.mount_source.as_deref() {
                         Some(s) => s,
                         None => continue,
                     };
@@ -566,23 +566,18 @@ pub fn get_partition_type_info() -> Result<HashMap<String, Vec<String>>, Error> 
     let mut res: HashMap<String, Vec<String>> = HashMap::new();
 
     let output: serde_json::Value = output.parse()?;
-    match output["blockdevices"].as_array() {
-        Some(list) => {
-            for info in list {
-                let path = match info["path"].as_str() {
-                    Some(p) => p,
-                    None => continue,
-                };
-                let partition_type = match info["parttype"].as_str() {
-                    Some(t) => t.to_owned(),
-                    None => continue,
-                };
-                let devices = res.entry(partition_type).or_insert(Vec::new());
-                devices.push(path.to_string());
-            }
-        }
-        None => {
-
+    if let Some(list) = output["blockdevices"].as_array() {
+        for info in list {
+            let path = match info["path"].as_str() {
+                Some(p) => p,
+                None => continue,
+            };
+            let partition_type = match info["parttype"].as_str() {
+                Some(t) => t.to_owned(),
+                None => continue,
+            };
+            let devices = res.entry(partition_type).or_insert(Vec::new());
+            devices.push(path.to_string());
         }
     }
     Ok(res)
@@ -725,7 +720,7 @@ pub fn get_disk_usage_info(
     filter.push(disk.to_string());
     let mut map = get_disks(Some(filter), no_smart)?;
     if let Some(info) = map.remove(disk) {
-        return Ok(info);
+        Ok(info)
     } else {
         bail!("failed to get disk usage info - internal error"); // should not happen
     }
@@ -996,8 +991,8 @@ pub fn get_fs_uuid(disk: &Disk) -> Result<String, Error> {
     let output = crate::tools::run_command(command, None)?;
 
     for line in output.lines() {
-        if line.starts_with("UUID=") {
-            return Ok(line[5..].to_string());
+        if let Some(uuid) = line.strip_prefix("UUID=") {
+            return Ok(uuid.to_string());
         }
     }
 

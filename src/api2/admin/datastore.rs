@@ -440,8 +440,8 @@ pub fn list_snapshots (
                 let files = info
                         .files
                         .into_iter()
-                        .map(|x| BackupContent {
-                            filename: x.to_string(),
+                        .map(|filename| BackupContent {
+                            filename,
                             size: None,
                             crypt_mode: None,
                         })
@@ -662,11 +662,11 @@ pub fn verify(
         _ => bail!("parameters do not specify a backup group or snapshot"),
     }
 
-    let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
+    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
     let upid_str = WorkerTask::new_thread(
         worker_type,
-        Some(worker_id.clone()),
+        Some(worker_id),
         auth_id.clone(),
         to_stdout,
         move |worker| {
@@ -711,7 +711,7 @@ pub fn verify(
 
                 verify_all_backups(datastore, worker.clone(), worker.upid(), owner, None)?
             };
-            if failed_dirs.len() > 0 {
+            if !failed_dirs.is_empty() {
                 worker.log("Failed to verify the following snapshots/groups:");
                 for dir in failed_dirs {
                     worker.log(format!("\t{}", dir));
@@ -855,7 +855,7 @@ fn prune(
 
 
     // We use a WorkerTask just to have a task log, but run synchrounously
-    let worker = WorkerTask::new("prune", Some(worker_id), auth_id.clone(), true)?;
+    let worker = WorkerTask::new("prune", Some(worker_id), auth_id, true)?;
 
     if keep_all {
         worker.log("No prune selection - keeping all files.");
@@ -935,7 +935,7 @@ fn start_garbage_collection(
     let job =  Job::new("garbage_collection", &store)
         .map_err(|_| format_err!("garbage collection already running"))?;
 
-    let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
+    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
     let upid_str = crate::server::do_garbage_collection_job(job, datastore, &auth_id, None, to_stdout)
         .map_err(|err| format_err!("unable to start garbage collection job on datastore {} - {}", store, err))?;
@@ -1009,7 +1009,7 @@ fn get_datastore_list(
         }
     }
 
-    Ok(list.into())
+    Ok(list)
 }
 
 #[sortable]
@@ -1066,7 +1066,7 @@ fn download_file(
             .map_err(|err| http_err!(BAD_REQUEST, "File open failed: {}", err))?;
 
         let payload = tokio_util::codec::FramedRead::new(file, tokio_util::codec::BytesCodec::new())
-            .map_ok(|bytes| hyper::body::Bytes::from(bytes.freeze()))
+            .map_ok(|bytes| bytes.freeze())
             .map_err(move |err| {
                 eprintln!("error during streaming of '{:?}' - {}", &path, err);
                 err
@@ -1341,10 +1341,10 @@ fn catalog(
 
     if filepath != "root" {
         components = base64::decode(filepath)?;
-        if components.len() > 0 && components[0] == '/' as u8 {
+        if !components.is_empty() && components[0] == b'/' {
             components.remove(0);
         }
-        for component in components.split(|c| *c == '/' as u8) {
+        for component in components.split(|c| *c == b'/') {
             if let Some(entry) = catalog_reader.lookup(&current, component)? {
                 current = entry;
             } else {
@@ -1357,7 +1357,7 @@ fn catalog(
 
     for direntry in catalog_reader.read_dir(&current)? {
         let mut components = components.clone();
-        components.push('/' as u8);
+        components.push(b'/');
         components.extend(&direntry.name);
         let path = base64::encode(components);
         let text = String::from_utf8_lossy(&direntry.name);
@@ -1487,13 +1487,13 @@ fn pxar_file_download(
         check_priv_or_backup_owner(&datastore, backup_dir.group(), &auth_id, PRIV_DATASTORE_READ)?;
 
         let mut components = base64::decode(&filepath)?;
-        if components.len() > 0 && components[0] == '/' as u8 {
+        if !components.is_empty() && components[0] == b'/' {
             components.remove(0);
         }
 
-        let mut split = components.splitn(2, |c| *c == '/' as u8);
+        let mut split = components.splitn(2, |c| *c == b'/');
         let pxar_name = std::str::from_utf8(split.next().unwrap())?;
-        let file_path = split.next().ok_or(format_err!("filepath looks strange '{}'", filepath))?;
+        let file_path = split.next().ok_or_else(|| format_err!("filepath looks strange '{}'", filepath))?;
         let (manifest, files) = read_backup_index(&datastore, &backup_dir)?;
         for file in files {
             if file.filename == pxar_name && file.crypt_mode == Some(CryptMode::Encrypt) {
@@ -1520,7 +1520,7 @@ fn pxar_file_download(
         let root = decoder.open_root().await?;
         let file = root
             .lookup(OsStr::from_bytes(file_path)).await?
-            .ok_or(format_err!("error opening '{:?}'", file_path))?;
+            .ok_or_else(|| format_err!("error opening '{:?}'", file_path))?;
 
         let body = match file.kind() {
             EntryKind::File { .. } => Body::wrap_stream(

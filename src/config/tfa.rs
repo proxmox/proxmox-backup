@@ -1380,14 +1380,14 @@ impl std::str::FromStr for TfaResponse {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Error> {
-        Ok(if s.starts_with("totp:") {
-            TfaResponse::Totp(s[5..].to_string())
-        } else if s.starts_with("u2f:") {
-            TfaResponse::U2f(serde_json::from_str(&s[4..])?)
-        } else if s.starts_with("webauthn:") {
-            TfaResponse::Webauthn(serde_json::from_str(&s[9..])?)
-        } else if s.starts_with("recovery:") {
-            TfaResponse::Recovery(s[9..].to_string())
+        Ok(if let Some(totp) = s.strip_prefix("totp:") {
+            TfaResponse::Totp(totp.to_string())
+        } else if let Some(u2f) = s.strip_prefix("u2f:") {
+            TfaResponse::U2f(serde_json::from_str(u2f)?)
+        } else if let Some(webauthn) = s.strip_prefix("webauthn:") {
+            TfaResponse::Webauthn(serde_json::from_str(webauthn)?)
+        } else if let Some(recovery) = s.strip_prefix("recovery:") {
+            TfaResponse::Recovery(recovery.to_string())
         } else {
             bail!("invalid tfa response");
         })

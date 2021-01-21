@@ -98,16 +98,14 @@ impl LinuxTapeDrive {
 
             if drive_status.blocksize == 0 {
                 // device is variable block size - OK
-            } else {
-                if drive_status.blocksize != PROXMOX_TAPE_BLOCK_SIZE as u32 {
-                    eprintln!("device is in fixed block size mode with wrong size ({} bytes)", drive_status.blocksize);
-                    eprintln!("trying to set variable block size mode...");
-                    if handle.set_block_size(0).is_err() {
-                        bail!("set variable block size mod failed - device uses wrong blocksize.");
-                    }
-                } else {
-                    // device is in fixed block size mode with correct block size
+            } else if drive_status.blocksize != PROXMOX_TAPE_BLOCK_SIZE as u32 {
+                eprintln!("device is in fixed block size mode with wrong size ({} bytes)", drive_status.blocksize);
+                eprintln!("trying to set variable block size mode...");
+                if handle.set_block_size(0).is_err() {
+                    bail!("set variable block size mod failed - device uses wrong blocksize.");
                 }
+            } else {
+                // device is in fixed block size mode with correct block size
             }
 
             // Only root can set driver options, so we cannot
@@ -528,7 +526,7 @@ impl TapeDriver for LinuxTapeHandle {
         let result: Result<u64, String> = serde_json::from_str(&output)?;
         result
             .map_err(|err| format_err!("{}", err))
-            .map(|bits| TapeAlertFlags::from_bits_truncate(bits))
+            .map(TapeAlertFlags::from_bits_truncate)
     }
 
     /// Set or clear encryption key

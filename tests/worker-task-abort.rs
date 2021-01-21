@@ -25,7 +25,7 @@ fn garbage_collection(worker: &server::WorkerTask) -> Result<(), Error> {
 
     worker.log("end garbage collection");
 
-    Ok(()).into()
+    Ok(())
 }
 
 
