@@ -16,7 +16,7 @@ use crate::{
         LinuxTapeDrive,
         ScsiTapeChanger,
     },
-    tape::{
+    tape::drive::{
         linux_tape_device_list,
         check_drive_path,
         lookup_drive,

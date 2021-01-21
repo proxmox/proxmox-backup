@@ -1,3 +1,5 @@
+//! Media changer implementation (SCSI media changer)
+
 mod email;
 pub use email::*;
 
@@ -9,6 +11,9 @@ pub use mtx_wrapper::*;
 
 mod mtx;
 pub use mtx::*;
+
+mod online_status_map;
+pub use online_status_map::*;
 
 use anyhow::{bail, Error};
 

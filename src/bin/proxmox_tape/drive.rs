@@ -17,9 +17,7 @@ use proxmox_backup::{
             DRIVE_NAME_SCHEMA,
         },
     },
-    tape::{
-        complete_drive_path,
-    },
+    tape::drive::complete_drive_path,
     config::drive::{
         complete_drive_name,
         complete_changer_name,

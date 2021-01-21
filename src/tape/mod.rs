@@ -26,14 +26,9 @@ pub use media_set::*;
 mod inventory;
 pub use inventory::*;
 
-mod changer;
-pub use changer::*;
+pub mod changer;
 
-mod drive;
-pub use drive::*;
-
-mod online_status_map;
-pub use online_status_map::*;
+pub mod drive;
 
 mod media_pool;
 pub use media_pool::*;

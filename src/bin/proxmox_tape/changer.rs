@@ -19,8 +19,10 @@ use proxmox_backup::{
         },
     },
     tape::{
-        complete_changer_path,
-        media_changer,
+        drive::{
+            media_changer,
+            complete_changer_path,
+        },
     },
     config::{
         self,

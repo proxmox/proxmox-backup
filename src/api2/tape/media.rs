@@ -33,7 +33,7 @@ use crate::{
         Inventory,
         MediaPool,
         MediaCatalog,
-        update_online_status,
+        changer::update_online_status,
     },
 };
 

@@ -10,7 +10,7 @@ use proxmox::tools::io::ReadExt;
 use crate::{
     api2::types::MamAttribute,
     tape::{
-        TapeAlertFlags,
+        drive::TapeAlertFlags,
         sgutils2::SgRaw,
     },
 };

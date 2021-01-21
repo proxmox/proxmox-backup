@@ -43,24 +43,24 @@ use crate::{
     server::WorkerTask,
     tape::{
         TAPE_STATUS_DIR,
-        TapeDriver,
         MediaPool,
         Inventory,
         MediaCatalog,
         MediaId,
-        linux_tape_device_list,
-        open_drive,
-        media_changer,
-        required_media_changer,
-        update_changer_online_status,
-        linux_tape::{
-            LinuxTapeHandle,
-            open_linux_tape_device,
-        },
-        file_formats::{
+         file_formats::{
             MediaLabel,
             MediaSetLabel,
         },
+        drive::{
+            TapeDriver,
+            LinuxTapeHandle,
+            open_linux_tape_device,
+            linux_tape_device_list,
+            media_changer,
+            required_media_changer,
+            open_drive,
+        },
+        changer::update_changer_online_status,
     },
 };
 

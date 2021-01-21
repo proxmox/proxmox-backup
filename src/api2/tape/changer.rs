@@ -17,13 +17,15 @@ use crate::{
     },
     tape::{
         TAPE_STATUS_DIR,
-        ElementStatus,
-        OnlineStatusMap,
         Inventory,
-        linux_tape_changer_list,
-        mtx_status,
-        mtx_status_to_online_set,
-        mtx_transfer,
+        drive::linux_tape_changer_list,
+        changer::{
+            OnlineStatusMap,
+            ElementStatus,
+            mtx_status,
+            mtx_status_to_online_set,
+            mtx_transfer,
+        },
     },
 };
 

@@ -41,7 +41,7 @@ use proxmox_backup::{
         media_pool::complete_pool_name,
     },
     tape::{
-        open_drive,
+        drive::open_drive,
         complete_media_label_text,
         complete_media_set_uuid,
         file_formats::{

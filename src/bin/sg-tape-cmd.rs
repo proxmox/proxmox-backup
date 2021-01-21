@@ -31,8 +31,8 @@ use proxmox_backup::{
         LinuxTapeDrive,
     },
     tape::{
-        TapeDriver,
-        linux_tape::{
+        drive::{
+            TapeDriver,
             LinuxTapeHandle,
             open_linux_tape_device,
             check_tape_is_linux_tape_device,

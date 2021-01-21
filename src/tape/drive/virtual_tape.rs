@@ -15,10 +15,12 @@ use crate::{
     tape::{
         TapeWrite,
         TapeRead,
-        MtxStatus,
-        DriveStatus,
-        ElementStatus,
-        changer::MediaChange,
+        changer::{
+            MediaChange,
+            MtxStatus,
+            DriveStatus,
+            ElementStatus,
+        },
         drive::{
             VirtualTapeDrive,
             TapeDriver,

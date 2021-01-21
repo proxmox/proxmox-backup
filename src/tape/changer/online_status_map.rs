@@ -12,11 +12,13 @@ use crate::{
         ScsiTapeChanger,
     },
     tape::{
-        MediaChange,
         Inventory,
-        MtxStatus,
-        ElementStatus,
-        mtx_status,
+        changer::{
+            MediaChange,
+            MtxStatus,
+            ElementStatus,
+            mtx_status,
+        },
     },
 };
 

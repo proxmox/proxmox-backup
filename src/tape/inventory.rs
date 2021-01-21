@@ -31,12 +31,12 @@ use crate::{
     },
     tape::{
         TAPE_STATUS_DIR,
-        OnlineStatusMap,
         MediaSet,
         file_formats::{
             MediaLabel,
             MediaSetLabel,
         },
+        changer::OnlineStatusMap,
     },
 };
 

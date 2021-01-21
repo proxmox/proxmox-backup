@@ -37,8 +37,8 @@ use crate::{
         PoolWriter,
         MediaPool,
         SnapshotReader,
-        media_changer,
-        update_changer_online_status,
+        drive::media_changer,
+        changer::update_changer_online_status,
     },
 };
 

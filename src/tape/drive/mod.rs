@@ -1,3 +1,5 @@
+//! Tape drivers
+
 mod virtual_tape;
 mod linux_mtio;
 
@@ -10,7 +12,8 @@ pub use volume_statistics::*;
 mod encryption;
 pub use encryption::*;
 
-pub mod linux_tape;
+mod linux_tape;
+pub use linux_tape::*;
 
 mod mam;
 pub use mam::*;
@@ -44,7 +47,6 @@ use crate::{
         TapeWrite,
         TapeRead,
         MediaId,
-        MtxMediaChanger,
         file_formats::{
             PROXMOX_BACKUP_MEDIA_LABEL_MAGIC_1_0,
             PROXMOX_BACKUP_MEDIA_SET_LABEL_MAGIC_1_0,
@@ -54,6 +56,7 @@ use crate::{
         },
         changer::{
             MediaChange,
+            MtxMediaChanger,
             send_load_media_email,
         },
     },
