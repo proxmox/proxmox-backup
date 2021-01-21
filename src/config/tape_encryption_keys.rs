@@ -44,7 +44,7 @@ mod hex_key {
     }
 }
 
-/// Store Hardware Encryption keys (private part)
+/// Store Hardware Encryption keys (plain, unprotected keys)
 #[derive(Deserialize, Serialize)]
 pub struct EncryptionKeyInfo {
     pub fingerprint: Fingerprint,
@@ -73,7 +73,7 @@ pub const TAPE_KEYS_FILENAME: &str = "/etc/proxmox-backup/tape-encryption-keys.j
 pub const TAPE_KEY_CONFIG_FILENAME: &str = "/etc/proxmox-backup/tape-encryption-key-config.json";
 pub const TAPE_KEYS_LOCKFILE: &str = "/etc/proxmox-backup/.tape-encryption-keys.lck";
 
-/// Load tape encryption keys (private part)
+/// Load tape encryption keys (plain, unprotected keys)
 pub fn load_keys() -> Result<(HashMap<Fingerprint, EncryptionKeyInfo>,  [u8;32]), Error> {
 
     let content = file_read_optional_string(TAPE_KEYS_FILENAME)?;
@@ -103,7 +103,7 @@ pub fn load_keys() -> Result<(HashMap<Fingerprint, EncryptionKeyInfo>,  [u8;32])
     Ok((map, digest))
 }
 
-/// Load tape encryption key configurations (public part)
+/// Load tape encryption key configurations (password protected keys)
 pub fn load_key_configs() -> Result<(HashMap<Fingerprint, KeyConfig>,  [u8;32]), Error> {
 
     let content = file_read_optional_string(TAPE_KEY_CONFIG_FILENAME)?;
