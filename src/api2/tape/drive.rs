@@ -544,6 +544,14 @@ pub async fn read_label(
                         .encryption_key_fingerprint
                         .as_ref()
                         .map(|fp| crate::tools::format::as_fingerprint(fp.bytes()));
+
+                    let encrypt_fingerprint = set.encryption_key_fingerprint.clone()
+                        .map(|fp| (fp, set.uuid.clone()));
+
+                    if let Err(err) = drive.set_encryption(encrypt_fingerprint) {
+                        // try, but ignore errors. just log to stderr
+                        eprintln!("uable to load encryption key: {}", err);
+                    }
                 }
 
                 if let Some(true) = inventorize {
