@@ -178,11 +178,11 @@ Ext.define('PBS.window.AddWebauthn', {
 		},
 		{
 		    xtype: 'textfield',
-		    inputType: 'password',
-		    fieldLabel: gettext('Verify Password'),
-		    minLength: 5,
-		    reference: 'password',
 		    name: 'password',
+		    reference: 'password',
+		    fieldLabel: gettext('Verify Password'),
+		    inputType: 'password',
+		    minLength: 5,
 		    allowBlank: false,
 		    validateBlank: true,
 		    cbind: {
