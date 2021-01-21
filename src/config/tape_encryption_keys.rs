@@ -11,11 +11,9 @@ use proxmox::tools::fs::{
 };
 
 use crate::{
-    api2::types::Kdf,
     backup::{
         Fingerprint,
         KeyConfig,
-        CryptConfig,
     },
 };
 
@@ -52,17 +50,6 @@ pub struct EncryptionKeyInfo {
     pub key: [u8; 32],
 }
 
-pub fn compute_tape_key_fingerprint(key: &[u8; 32]) -> Result<Fingerprint, Error> {
-    let crypt_config = CryptConfig::new(*key)?;
-    Ok(crypt_config.fingerprint())
-}
-
-pub fn generate_tape_encryption_key(password: &[u8], kdf: Kdf) -> Result<([u8; 32], KeyConfig), Error> {
-    let (key, mut key_config) = KeyConfig::new(password, kdf)?;
-    key_config.fingerprint = Some(compute_tape_key_fingerprint(&key)?);
-    Ok((key, key_config))
-}
-
 impl EncryptionKeyInfo {
     pub fn new(key: [u8; 32], fingerprint: Fingerprint) -> Self {
         Self { fingerprint, key }
@@ -86,7 +73,8 @@ pub fn load_keys() -> Result<(HashMap<Fingerprint, EncryptionKeyInfo>,  [u8;32])
     let mut map = HashMap::new();
 
     for item in key_list {
-        let expected_fingerprint = compute_tape_key_fingerprint(&item.key)?;
+        let key_config = KeyConfig::without_password(item.key)?; // to compute fingerprint
+        let expected_fingerprint = key_config.fingerprint.unwrap();
         if item.fingerprint != expected_fingerprint {
             bail!(
                 "inconsistent fingerprint ({} != {})",

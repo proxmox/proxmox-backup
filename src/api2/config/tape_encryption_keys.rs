@@ -15,7 +15,6 @@ use crate::{
     config::{
         tape_encryption_keys::{
             TAPE_KEYS_LOCKFILE,
-            generate_tape_encryption_key,
             load_keys,
             load_key_configs,
             save_keys,
@@ -133,7 +132,6 @@ pub fn change_passphrase(
     let (key, created, fingerprint) = key_config.decrypt(&|| Ok(password.as_bytes().to_vec()))?;
     let mut new_key_config = KeyConfig::with_key(&key, new_password.as_bytes(), kdf)?;
     new_key_config.created = created; // keep original value
-    new_key_config.fingerprint = Some(fingerprint.clone());
     new_key_config.hint = Some(hint);
 
     config_map.insert(fingerprint, new_key_config);
@@ -178,7 +176,7 @@ pub fn create_key(
         bail!("Please specify a key derivation  funktion (none is not allowed here).");
     }
 
-    let (key, mut key_config) = generate_tape_encryption_key(password.as_bytes(), kdf)?;
+    let (key, mut key_config) = KeyConfig::new(password.as_bytes(), kdf)?;
     key_config.hint = Some(hint);
 
     let fingerprint = key_config.fingerprint.clone().unwrap();

@@ -924,9 +924,8 @@ async fn create_backup(
                     let pem_data = file_get_contents(path)?;
                     let rsa = openssl::rsa::Rsa::public_key_from_pem(&pem_data)?;
 
-                    let mut key_config = KeyConfig::without_password(key);
+                    let mut key_config = KeyConfig::without_password(key)?;
                     key_config.created = created; // keep original value
-                    key_config.fingerprint = Some(fingerprint);
 
                     let enc_key = rsa_encrypt_key_config(rsa, &key_config)?;
                     println!("Master key '{:?}'", path);

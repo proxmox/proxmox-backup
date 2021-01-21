@@ -117,21 +117,25 @@ impl KeyConfig  {
     }
 
     /// Creates a new, unencrypted key.
-    pub fn without_password(raw_key: [u8; 32]) -> Self {
+    pub fn without_password(raw_key: [u8; 32]) -> Result<Self, Error> {
+        // always compute fingerprint
+        let crypt_config = CryptConfig::new(raw_key.clone())?;
+        let fingerprint = Some(crypt_config.fingerprint());
+
         let created = proxmox::tools::time::epoch_i64();
-        Self {
+        Ok(Self {
             kdf: None,
             created,
             modified: created,
             data: raw_key.to_vec(),
-            fingerprint: None,
+            fingerprint,
             hint: None,
-        }
+        })
     }
 
     /// Creates a new instance, protect raw_key with passphrase.
     pub fn with_key(
-        raw_key: &[u8],
+        raw_key: &[u8; 32],
         passphrase: &[u8],
         kdf: Kdf,
     ) -> Result<Self, Error> {
@@ -170,7 +174,7 @@ impl KeyConfig  {
             &derived_key,
             Some(&iv),
             b"",
-            &raw_key,
+            raw_key,
             &mut tag,
         )?;
 
@@ -181,12 +185,16 @@ impl KeyConfig  {
 
         let created = proxmox::tools::time::epoch_i64();
 
+        // always compute fingerprint
+        let crypt_config = CryptConfig::new(raw_key.clone())?;
+        let fingerprint = Some(crypt_config.fingerprint());
+
         Ok(Self {
             kdf: Some(kdf),
             created,
             modified: created,
             data: enc_data,
-            fingerprint: None,
+            fingerprint,
             hint: None,
         })
     }

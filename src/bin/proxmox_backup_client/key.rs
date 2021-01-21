@@ -27,7 +27,6 @@ use proxmox_backup::{
     },
     backup::{
         rsa_decrypt_key_config,
-        CryptConfig,
         KeyConfig,
     },
     tools,
@@ -127,7 +126,6 @@ fn create(
 
     let mut key = [0u8; 32];
     proxmox::sys::linux::fill_with_random_data(&mut key)?;
-    let crypt_config = CryptConfig::new(key.clone())?;
 
     match kdf {
         Kdf::None => {
@@ -135,8 +133,7 @@ fn create(
                 bail!("password hint not allowed for Kdf::None");
             }
 
-            let mut key_config = KeyConfig::without_password(key);
-            key_config.fingerprint = Some(crypt_config.fingerprint());
+            let key_config = KeyConfig::without_password(key)?;
 
             key_config.store(path, false)?;
         }
@@ -149,7 +146,6 @@ fn create(
             let password = tty::read_and_verify_password("Encryption Key Password: ")?;
 
             let mut key_config = KeyConfig::with_key(&key, &password, kdf)?;
-            key_config.fingerprint = Some(crypt_config.fingerprint());
             key_config.hint = hint;
 
             key_config.store(&path, false)?;
@@ -214,7 +210,7 @@ async fn import_with_master_key(
         .rsa()
         .map_err(|err| format_err!("not a valid private RSA key - {}", err))?;
 
-    let (key, created, fingerprint) =
+    let (key, created, _fingerprint) =
         rsa_decrypt_key_config(master_key, &encrypted_key, &get_encryption_key_password)?;
 
     let kdf = kdf.unwrap_or_default();
@@ -224,9 +220,8 @@ async fn import_with_master_key(
                 bail!("password hint not allowed for Kdf::None");
             }
 
-            let mut key_config = KeyConfig::without_password(key);
+            let mut key_config = KeyConfig::without_password(key)?;
             key_config.created = created; // keep original value
-            key_config.fingerprint = Some(fingerprint);
 
             key_config.store(path, true)?;
 
@@ -236,7 +231,6 @@ async fn import_with_master_key(
 
             let mut new_key_config = KeyConfig::with_key(&key, &password, kdf)?;
             new_key_config.created = created; // keep original value
-            new_key_config.fingerprint = Some(fingerprint);
             new_key_config.hint = hint;
 
             new_key_config.store(path, true)?;
@@ -289,7 +283,7 @@ fn change_passphrase(
     }
 
     let key_config = KeyConfig::load(&path)?;
-    let (key, created, fingerprint) = key_config.decrypt(&get_encryption_key_password)?;
+    let (key, created, _fingerprint) = key_config.decrypt(&get_encryption_key_password)?;
 
     match kdf {
         Kdf::None => {
@@ -297,9 +291,8 @@ fn change_passphrase(
                 bail!("password hint not allowed for Kdf::None");
             }
 
-            let mut key_config = KeyConfig::without_password(key);
+            let mut key_config = KeyConfig::without_password(key)?;
             key_config.created =  created; // keep original value
-            key_config.fingerprint = Some(fingerprint);
 
             key_config.store(&path, true)?;
         }
@@ -308,7 +301,6 @@ fn change_passphrase(
 
             let mut new_key_config = KeyConfig::with_key(&key, &password, kdf)?;
             new_key_config.created = created; // keep original value
-            new_key_config.fingerprint = Some(fingerprint);
             new_key_config.hint = hint;
 
             new_key_config.store(&path, true)?;
