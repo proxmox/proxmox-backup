@@ -29,9 +29,6 @@ use crate::{
     },
 };
 
-/// Magic number for media catalog files.
-// openssl::sha::sha256(b"Proxmox Backup Media Catalog v1.0")[0..8]
-pub const PROXMOX_BACKUP_MEDIA_CATALOG_MAGIC_1_0: [u8; 8] = [221, 29, 164, 1, 59, 69, 19, 40];
 
 /// The Media Catalog
 ///
@@ -59,6 +56,10 @@ pub struct MediaCatalog  {
 }
 
 impl MediaCatalog {
+
+    /// Magic number for media catalog files.
+    // openssl::sha::sha256(b"Proxmox Backup Media Catalog v1.0")[0..8]
+    pub const PROXMOX_BACKUP_MEDIA_CATALOG_MAGIC_1_0: [u8; 8] = [221, 29, 164, 1, 59, 69, 19, 40];
 
     /// List media with catalogs
     pub fn media_with_catalogs(base_path: &Path) -> Result<HashSet<Uuid>, Error> {
@@ -156,7 +157,7 @@ impl MediaCatalog {
             let found_magic_number = me.load_catalog(&mut file)?;
 
             if !found_magic_number {
-                me.pending.extend(&PROXMOX_BACKUP_MEDIA_CATALOG_MAGIC_1_0);
+                me.pending.extend(&Self::PROXMOX_BACKUP_MEDIA_CATALOG_MAGIC_1_0);
             }
 
             if write {
@@ -213,7 +214,7 @@ impl MediaCatalog {
 
             me.log_to_stdout = log_to_stdout;
 
-            me.pending.extend(&PROXMOX_BACKUP_MEDIA_CATALOG_MAGIC_1_0);
+            me.pending.extend(&Self::PROXMOX_BACKUP_MEDIA_CATALOG_MAGIC_1_0);
 
             me.register_label(&media_id.label.uuid, 0)?;
 
@@ -580,7 +581,7 @@ impl MediaCatalog {
                     Ok(true) => { /* OK */ }
                     Err(err) => bail!("read failed - {}", err),
                 }
-                if magic != PROXMOX_BACKUP_MEDIA_CATALOG_MAGIC_1_0 {
+                if magic != Self::PROXMOX_BACKUP_MEDIA_CATALOG_MAGIC_1_0 {
                     bail!("wrong magic number");
                 }
                 found_magic_number = true;
