@@ -7,8 +7,6 @@ use proxmox::tools::fs::{
     CreateOptions,
 };
 
-pub mod sgutils2;
-
 pub mod file_formats;
 
 mod tape_write;
