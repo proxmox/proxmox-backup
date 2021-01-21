@@ -484,19 +484,7 @@ pub async fn restore_key(
 
         if let Some(key_config) = key_config {
             let password_fn = || { Ok(password.as_bytes().to_vec()) };
-            let key = match key_config.decrypt(&password_fn) {
-                Ok((key, ..)) => key,
-                Err(_) => {
-                    match key_config.hint {
-                        Some(hint) => {
-                            bail!("decrypt key failed (password hint: {})", hint);
-                        }
-                        None => {
-                            bail!("decrypt key failed (wrong password)");
-                        }
-                    }
-                }
-            };
+            let (key, ..) = key_config.decrypt(&password_fn)?;
             config::tape_encryption_keys::insert_key(key, key_config)?;
         } else {
             bail!("media does not contain any encryption key configuration");

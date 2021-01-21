@@ -216,7 +216,7 @@ impl KeyConfig  {
             let derived_key = kdf.derive_key(&passphrase)?;
 
             if raw_data.len() < 32 {
-                bail!("Unable to encode key - short data");
+                bail!("Unable to decrypt key - short data");
             }
             let iv = &raw_data[0..16];
             let tag = &raw_data[16..32];
@@ -231,7 +231,16 @@ impl KeyConfig  {
                 b"",
                 &enc_data,
                 &tag,
-            ).map_err(|err| format_err!("Unable to decrypt key (wrong password?) - {}", err))?
+            ).map_err(|err| {
+                match self.hint {
+                    Some(ref hint) => {
+                        format_err!("Unable to decrypt key (password hint: {})", hint)
+                    }
+                    None => {
+                        format_err!("Unable to decrypt key (wrong password?) - {}", err)
+                    }
+                }
+            })?
 
         } else {
             raw_data.clone()
