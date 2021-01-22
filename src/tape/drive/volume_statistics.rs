@@ -5,7 +5,10 @@ use anyhow::{bail, format_err, Error};
 use serde::{Serialize, Deserialize};
 use endian_trait::Endian;
 
-use proxmox::tools::io::ReadExt;
+use proxmox::{
+    api::api,
+    tools::io::ReadExt,
+};
 
 use crate::tools::sgutils2::SgRaw;
 
@@ -55,38 +58,64 @@ struct LpParameterHeader {
 }
 
 
+#[api()]
 /// Volume statistics from SCSI log page 17h
 #[derive(Default, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct Lp17VolumeStatistics {
+    /// Volume mounts (thread count)
     pub volume_mounts: u64,
+    /// Total data sets written
     pub volume_datasets_written: u64,
+    /// Write retries
     pub volume_recovered_write_data_errors: u64,
+    /// Total unrecovered write errors
     pub volume_unrecovered_write_data_errors: u64,
+    /// Total suspended writes
     pub volume_write_servo_errors: u64,
+    /// Total fatal suspended writes
     pub volume_unrecovered_write_servo_errors: u64,
+    /// Total datasets read
     pub volume_datasets_read: u64,
+    /// Total read retries
     pub volume_recovered_read_errors: u64,
+    /// Total unrecovered read errors
     pub volume_unrecovered_read_errors: u64,
+    /// Last mount unrecovered write errors
     pub last_mount_unrecovered_write_errors: u64,
+    /// Last mount unrecovered read errors
     pub last_mount_unrecovered_read_errors: u64,
+    /// Last mount bytes written
     pub last_mount_bytes_written: u64,
+    /// Last mount bytes read
     pub last_mount_bytes_read: u64,
+    /// Lifetime bytes written
     pub lifetime_bytes_written: u64,
+    /// Lifetime bytes read
     pub lifetime_bytes_read: u64,
+    /// Last load write compression ratio
     pub last_load_write_compression_ratio: u64,
+    /// Last load read compression ratio
     pub last_load_read_compression_ratio: u64,
+    /// Medium mount time
     pub medium_mount_time: u64,
+    /// Medium ready time
     pub medium_ready_time: u64,
+    /// Total native capacity
     pub total_native_capacity: u64,
+    /// Total used native capacity
     pub total_used_native_capacity: u64,
+    /// Write protect
     pub write_protect: bool,
+    /// Volume is WORM
     pub worm: bool,
+    /// Beginning of medium passes
     pub beginning_of_medium_passes: u64,
+    /// Middle of medium passes
     pub middle_of_tape_passes: u64,
+    /// Volume serial number
     pub serial: String,
 }
-
-//impl Default for Lp17VolumeStatistics {
 
 fn decode_volume_statistics(data: &[u8]) -> Result<Lp17VolumeStatistics, Error> {
 

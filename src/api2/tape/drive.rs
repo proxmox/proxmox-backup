@@ -55,6 +55,7 @@ use crate::{
         drive::{
             TapeDriver,
             LinuxTapeHandle,
+            Lp17VolumeStatistics,
             open_linux_tape_device,
              media_changer,
             required_media_changer,
@@ -943,6 +944,29 @@ pub fn cartridge_memory(drive: String) -> Result<Vec<MamAttribute>, Error> {
         },
     },
     returns: {
+        type: Lp17VolumeStatistics,
+    },
+)]
+/// Read Volume Statistics (SCSI log page 17h)
+pub fn volume_statistics(drive: String) -> Result<Lp17VolumeStatistics, Error> {
+
+    let (config, _digest) = config::drive::config()?;
+
+    let drive_config: LinuxTapeDrive = config.lookup("linux", &drive)?;
+    let mut handle = drive_config.open()?;
+
+    handle.volume_statistics()
+}
+
+#[api(
+    input: {
+        properties: {
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+            },
+        },
+    },
+    returns: {
         type: LinuxDriveAndMediaStatus,
     },
 )]
@@ -1119,6 +1143,11 @@ pub const SUBDIRS: SubdirMap = &sorted!([
         "cartridge-memory",
         &Router::new()
             .put(&API_METHOD_CARTRIDGE_MEMORY)
+    ),
+    (
+        "volume-statistics",
+        &Router::new()
+            .put(&API_METHOD_VOLUME_STATISTICS)
     ),
     (
         "read-label",

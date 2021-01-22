@@ -678,6 +678,44 @@ fn cartridge_memory(
         },
     },
 )]
+/// Read Volume Statistics (SCSI log page 17h)
+fn volume_statistics(
+    mut param: Value,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<(), Error> {
+
+    let (config, _digest) = config::drive::config()?;
+
+    param["drive"] = lookup_drive_name(&param, &config)?.into();
+
+    let output_format = get_output_format(&param);
+    let info = &api2::tape::drive::API_METHOD_VOLUME_STATISTICS;
+
+    let mut data = match info.handler {
+        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
+        _ => unreachable!(),
+    };
+
+    let options = default_table_format_options();
+
+    format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+                optional: true,
+            },
+             "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+             },
+        },
+    },
+)]
 /// Get drive/media status
 fn status(
     mut param: Value,
@@ -941,6 +979,11 @@ fn main() {
         .insert(
             "cartridge-memory",
             CliCommand::new(&API_METHOD_CARTRIDGE_MEMORY)
+                .completion_cb("drive", complete_drive_name)
+        )
+        .insert(
+            "volume-statistics",
+            CliCommand::new(&API_METHOD_VOLUME_STATISTICS)
                 .completion_cb("drive", complete_drive_name)
         )
         .insert(
