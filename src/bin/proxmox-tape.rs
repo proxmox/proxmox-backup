@@ -696,6 +696,13 @@ fn status(
         _ => unreachable!(),
     };
 
+    let render_percentage = |value: &Value, _record: &Value| {
+        match value.as_f64() {
+            Some(wearout) => Ok(format!("{:.2}%", wearout*100.0)),
+            None => Ok(String::from("ERROR")), // should never happen
+        }
+    };
+
     let options = default_table_format_options()
         .column(ColumnConfig::new("blocksize"))
         .column(ColumnConfig::new("density"))
@@ -707,6 +714,7 @@ fn status(
         .column(ColumnConfig::new("bytes-written").renderer(render_bytes_human_readable))
         .column(ColumnConfig::new("bytes-read").renderer(render_bytes_human_readable))
         .column(ColumnConfig::new("medium-passes"))
+        .column(ColumnConfig::new("medium-wearout").renderer(render_percentage))
         .column(ColumnConfig::new("volume-mounts"))
         ;
 

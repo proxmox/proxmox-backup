@@ -261,6 +261,7 @@ impl LinuxTapeHandle {
             bytes_read: None,
             bytes_written: None,
             medium_passes: None,
+            medium_wearout: None,
             volume_mounts: None,
         };
 
@@ -276,10 +277,17 @@ impl LinuxTapeHandle {
 
                 if let Ok(volume_stats) = self.volume_statistics() {
 
-                    status.medium_passes = Some(std::cmp::max(
+                    let passes = std::cmp::max(
                         volume_stats.beginning_of_medium_passes,
                         volume_stats.middle_of_tape_passes,
-                    ));
+                    );
+
+                    // assume max. 16000 medium passes
+                    // see: https://en.wikipedia.org/wiki/Linear_Tape-Open
+                    let wearout: f64 = (passes as f64)/(16000.0 as f64);
+
+                    status.medium_passes = Some(passes);
+                    status.medium_wearout = Some(wearout);
 
                     status.volume_mounts = Some(volume_stats.volume_mounts);
                 }

@@ -204,4 +204,7 @@ pub struct LinuxDriveAndMediaStatus {
     /// the head.
     #[serde(skip_serializing_if="Option::is_none")]
     pub medium_passes: Option<u64>,
+    /// Estimated tape wearout factor (assuming max. 16000 end-to-end passes)
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub medium_wearout: Option<f64>,
 }
