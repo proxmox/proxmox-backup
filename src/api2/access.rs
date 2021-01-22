@@ -1,3 +1,5 @@
+//! Access control (Users, Permissions and Authentication)
+
 use anyhow::{bail, format_err, Error};
 
 use serde_json::{json, Value};
@@ -177,7 +179,7 @@ fn authenticate_2nd(
 /// Create or verify authentication ticket.
 ///
 /// Returns: An authentication ticket with additional infos.
-fn create_ticket(
+pub fn create_ticket(
     username: Userid,
     password: String,
     path: Option<String>,
@@ -253,7 +255,7 @@ fn create_ticket(
 ///
 /// Each user is allowed to change his own password. Superuser
 /// can change all passwords.
-fn change_password(
+pub fn change_password(
     userid: Userid,
     password: String,
     rpcenv: &mut dyn RpcEnvironment,

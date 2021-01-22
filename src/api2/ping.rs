@@ -1,3 +1,5 @@
+//! Cheap check if the API daemon is online.
+
 use anyhow::{Error};
 use serde_json::{json, Value};
 
@@ -20,7 +22,7 @@ use proxmox::api::{api, Router, Permission};
     }
 )]
 /// Dummy method which replies with `{ "pong": True }`
-fn ping() -> Result<Value, Error> {
+pub fn ping() -> Result<Value, Error> {
     Ok(json!({
         "pong": true,
     }))

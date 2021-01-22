@@ -1,3 +1,5 @@
+//! Datastote status
+
 use proxmox::list_subdirs_api_method;
 
 use anyhow::{Error};
@@ -75,7 +77,7 @@ use crate::config::acl::{
     },
 )]
 /// List Datastore usages and estimates
-fn datastore_status(
+pub fn datastore_status(
     _param: Value,
     _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,

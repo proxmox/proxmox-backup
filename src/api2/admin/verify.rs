@@ -1,3 +1,5 @@
+//! Datastore Verify Job Management
+
 use anyhow::{format_err, Error};
 
 use proxmox::api::router::SubdirMap;
@@ -115,7 +117,7 @@ pub fn list_verification_jobs(
     },
 )]
 /// Runs a verification job manually.
-fn run_verification_job(
+pub fn run_verification_job(
     id: String,
     _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,

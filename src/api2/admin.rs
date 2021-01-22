@@ -1,3 +1,5 @@
+//! Backup Server Administration
+
 use proxmox::api::router::{Router, SubdirMap};
 use proxmox::list_subdirs_api_method;
 

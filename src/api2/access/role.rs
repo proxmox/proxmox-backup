@@ -1,3 +1,5 @@
+//! Manage Roles with privileges
+
 use anyhow::Error;
 
 use serde_json::{json, Value};

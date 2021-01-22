@@ -1,5 +1,6 @@
+//! Manage Access Control Lists
+
 use anyhow::{bail, Error};
-use ::serde::{Deserialize, Serialize};
 
 use proxmox::api::{api, Router, RpcEnvironment, Permission};
 use proxmox::tools::fs::open_file_locked;
@@ -8,36 +9,6 @@ use crate::api2::types::*;
 use crate::config::acl;
 use crate::config::acl::{Role, PRIV_SYS_AUDIT, PRIV_PERMISSIONS_MODIFY};
 use crate::config::cached_user_info::CachedUserInfo;
-
-#[api(
-    properties: {
-        propagate: {
-            schema: ACL_PROPAGATE_SCHEMA,
-        },
- 	path: {
-            schema: ACL_PATH_SCHEMA,
-        },
-        ugid_type: {
-            schema: ACL_UGID_TYPE_SCHEMA,
-        },
-	ugid: {
-            type: String,
-            description: "User or Group ID.",
-        },
-	roleid: {
-            type: Role,
-        }
-    }
-)]
-#[derive(Serialize, Deserialize)]
-/// ACL list entry.
-pub struct AclListItem {
-    path: String,
-    ugid: String,
-    ugid_type: String,
-    propagate: bool,
-    roleid: String,
-}
 
 fn extract_acl_node_data(
     node: &acl::AclTreeNode,

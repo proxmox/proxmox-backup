@@ -1,3 +1,5 @@
+//! Datastore Syncronization Job Management
+
 use anyhow::{bail, format_err, Error};
 use serde_json::Value;
 
@@ -110,7 +112,7 @@ pub fn list_sync_jobs(
     },
 )]
 /// Runs the sync jobs manually.
-fn run_sync_job(
+pub fn run_sync_job(
     id: String,
     _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,

@@ -1,3 +1,5 @@
+//! API Type Definitions
+
 use anyhow::bail;
 use serde::{Deserialize, Serialize};
 
@@ -5,8 +7,15 @@ use proxmox::api::{api, schema::*};
 use proxmox::const_regex;
 use proxmox::{IPRE, IPRE_BRACKET, IPV4RE, IPV6RE, IPV4OCTET, IPV6H16, IPV6LS32};
 
-use crate::backup::{CryptMode, Fingerprint, BACKUP_ID_REGEX};
-use crate::server::UPID;
+use crate::{
+    backup::{
+        CryptMode,
+        Fingerprint,
+        BACKUP_ID_REGEX,
+    },
+    server::UPID,
+    config::acl::Role,
+};
 
 #[macro_use]
 mod macros;
@@ -281,6 +290,36 @@ pub const ACL_UGID_TYPE_SCHEMA: Schema = StringSchema::new(
         EnumEntry::new("user", "User"),
         EnumEntry::new("group", "Group")]))
     .schema();
+
+#[api(
+    properties: {
+        propagate: {
+            schema: ACL_PROPAGATE_SCHEMA,
+        },
+	path: {
+            schema: ACL_PATH_SCHEMA,
+        },
+        ugid_type: {
+            schema: ACL_UGID_TYPE_SCHEMA,
+        },
+	ugid: {
+            type: String,
+            description: "User or Group ID.",
+        },
+	roleid: {
+            type: Role,
+        }
+    }
+)]
+#[derive(Serialize, Deserialize)]
+/// ACL list entry.
+pub struct AclListItem {
+    pub path: String,
+    pub ugid: String,
+    pub ugid_type: String,
+    pub propagate: bool,
+    pub roleid: String,
+}
 
 pub const BACKUP_ARCHIVE_NAME_SCHEMA: Schema =
     StringSchema::new("Backup archive name.")

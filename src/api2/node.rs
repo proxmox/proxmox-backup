@@ -1,3 +1,5 @@
+//! Server/Node Configuration and Administration
+
 use std::net::TcpListener;
 use std::os::unix::io::AsRawFd;
 

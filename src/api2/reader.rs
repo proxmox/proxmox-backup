@@ -1,3 +1,5 @@
+//! Backup reader/restore protocol (HTTP2 upgrade)
+
 use anyhow::{bail, format_err, Error};
 use futures::*;
 use hyper::header::{self, HeaderValue, UPGRADE};

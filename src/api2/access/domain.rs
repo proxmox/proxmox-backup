@@ -1,3 +1,5 @@
+//! List Authentication domains/realms
+
 use anyhow::{Error};
 
 use serde_json::{json, Value};

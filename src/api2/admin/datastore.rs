@@ -1,3 +1,5 @@
+//! Datastore Management
+
 use std::collections::HashSet;
 use std::ffi::OsStr;
 use std::os::unix::ffi::OsStrExt;
@@ -299,7 +301,7 @@ pub fn list_snapshot_files(
     },
 )]
 /// Delete backup snapshot.
-fn delete_snapshot(
+pub fn delete_snapshot(
     store: String,
     backup_type: String,
     backup_id: String,
@@ -795,7 +797,7 @@ pub const API_METHOD_PRUNE: ApiMethod = ApiMethod::new(
     true)
 );
 
-fn prune(
+pub fn prune(
     param: Value,
     _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
@@ -923,7 +925,7 @@ fn prune(
     },
 )]
 /// Start garbage collection.
-fn start_garbage_collection(
+pub fn start_garbage_collection(
     store: String,
     _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
@@ -983,7 +985,7 @@ pub fn garbage_collection_status(
     },
 )]
 /// Datastore list
-fn get_datastore_list(
+pub fn get_datastore_list(
     _param: Value,
     _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
@@ -1031,7 +1033,7 @@ pub const API_METHOD_DOWNLOAD_FILE: ApiMethod = ApiMethod::new(
     true)
 );
 
-fn download_file(
+pub fn download_file(
     _parts: Parts,
     _req_body: Body,
     param: Value,
@@ -1101,7 +1103,7 @@ pub const API_METHOD_DOWNLOAD_FILE_DECODED: ApiMethod = ApiMethod::new(
     true)
 );
 
-fn download_file_decoded(
+pub fn download_file_decoded(
     _parts: Parts,
     _req_body: Body,
     param: Value,
@@ -1215,7 +1217,7 @@ pub const API_METHOD_UPLOAD_BACKUP_LOG: ApiMethod = ApiMethod::new(
     &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_BACKUP, false)
 );
 
-fn upload_backup_log(
+pub fn upload_backup_log(
     _parts: Parts,
     req_body: Body,
     param: Value,
@@ -1294,7 +1296,7 @@ fn upload_backup_log(
     },
 )]
 /// Get the entries of the given path of the catalog
-fn catalog(
+pub fn catalog(
     store: String,
     backup_type: String,
     backup_id: String,
@@ -1462,7 +1464,7 @@ pub const API_METHOD_PXAR_FILE_DOWNLOAD: ApiMethod = ApiMethod::new(
     true)
 );
 
-fn pxar_file_download(
+pub fn pxar_file_download(
     _parts: Parts,
     _req_body: Body,
     param: Value,
@@ -1599,7 +1601,7 @@ fn pxar_file_download(
     },
 )]
 /// Read datastore stats
-fn get_rrd_stats(
+pub fn get_rrd_stats(
     store: String,
     timeframe: RRDTimeFrameResolution,
     cf: RRDMode,
@@ -1641,7 +1643,7 @@ fn get_rrd_stats(
     },
 )]
 /// Get "notes" for a specific backup
-fn get_notes(
+pub fn get_notes(
     store: String,
     backup_type: String,
     backup_id: String,
@@ -1691,7 +1693,7 @@ fn get_notes(
     },
 )]
 /// Set "notes" for a specific backup
-fn set_notes(
+pub fn set_notes(
     store: String,
     backup_type: String,
     backup_id: String,
@@ -1736,7 +1738,7 @@ fn set_notes(
     },
 )]
 /// Change owner of a backup group
-fn set_backup_owner(
+pub fn set_backup_owner(
     store: String,
     backup_type: String,
     backup_id: String,

@@ -1,3 +1,5 @@
+//! Two Factor Authentication
+
 use anyhow::{bail, format_err, Error};
 use serde::{Deserialize, Serialize};
 

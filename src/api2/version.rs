@@ -1,3 +1,5 @@
+//! Version information
+
 use anyhow::{Error};
 use serde_json::{json, Value};
 

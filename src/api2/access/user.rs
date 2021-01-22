@@ -1,3 +1,5 @@
+//! User Management
+
 use anyhow::{bail, format_err, Error};
 use serde::{Serialize, Deserialize};
 use serde_json::{json, Value};
