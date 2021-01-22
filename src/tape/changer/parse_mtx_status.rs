@@ -58,7 +58,7 @@ fn parse_drive_status(i: &str) -> IResult<&str, DriveStatus> {
 
     let mut loaded_slot = None;
 
-    if let Some(empty) = i.strip_suffix("Empty") {
+    if let Some(empty) = i.strip_prefix("Empty") {
         return Ok((empty, DriveStatus { loaded_slot, status: ElementStatus::Empty }));
     }
     let (mut i, _) = tag("Full (")(i)?;
