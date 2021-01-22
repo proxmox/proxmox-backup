@@ -1,3 +1,11 @@
+//! Media Pool configuration (Tape backup)
+//!
+//! This configuration module is based on [`SectionConfig`], and
+//! provides a type safe interface to store [`MediaPoolConfig`],
+//!
+//! [MediaPoolConfig]: crate::api2::types::MediaPoolConfig
+//! [SectionConfig]: proxmox::api::section_config::SectionConfig
+
 use std::collections::HashMap;
 
 use anyhow::Error;
@@ -27,7 +35,8 @@ use crate::{
 };
 
 lazy_static! {
-    static ref CONFIG: SectionConfig = init();
+    /// Static [`SectionConfig`] to access parser/writer functions.
+    pub static ref CONFIG: SectionConfig = init();
 }
 
 fn init() -> SectionConfig {
@@ -43,13 +52,18 @@ fn init() -> SectionConfig {
     config
 }
 
+/// Configuration file name
 pub const MEDIA_POOL_CFG_FILENAME: &str = "/etc/proxmox-backup/media-pool.cfg";
+/// Lock file name (used to prevent concurrent access)
 pub const MEDIA_POOL_CFG_LOCKFILE: &str = "/etc/proxmox-backup/.media-pool.lck";
 
+
+/// Get exclusive lock
 pub fn lock() -> Result<std::fs::File, Error> {
     open_file_locked(MEDIA_POOL_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)
 }
 
+/// Read and parse the configuration file
 pub fn config() -> Result<(SectionConfigData, [u8;32]), Error> {
 
     let content = proxmox::tools::fs::file_read_optional_string(MEDIA_POOL_CFG_FILENAME)?
@@ -60,6 +74,7 @@ pub fn config() -> Result<(SectionConfigData, [u8;32]), Error> {
     Ok((data, digest))
 }
 
+/// Save the configuration file
 pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
     let raw = CONFIG.write(MEDIA_POOL_CFG_FILENAME, &config)?;
 
