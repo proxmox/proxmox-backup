@@ -134,13 +134,21 @@ pub fn restore(
 
             let mut media_id_list = Vec::new();
 
+            let mut encryption_key_fingerprint = None;
+
             for (seq_nr, media_uuid) in media_list.iter().enumerate() {
                 match media_uuid {
                     None => {
                         bail!("media set {} is incomplete (missing member {}).", media_set_uuid, seq_nr);
                     }
                     Some(media_uuid) => {
-                        media_id_list.push(inventory.lookup_media(media_uuid).unwrap());
+                        let media_id = inventory.lookup_media(media_uuid).unwrap();
+                        if let Some(ref set) = media_id.media_set_label { // always true here
+                            if encryption_key_fingerprint.is_none() && set.encryption_key_fingerprint.is_some() {
+                                encryption_key_fingerprint = set.encryption_key_fingerprint.clone();
+                            }
+                        }
+                        media_id_list.push(media_id);
                     }
                 }
             }
@@ -148,6 +156,9 @@ pub fn restore(
             let drive = &pool_config.drive;
 
             worker.log(format!("Restore mediaset '{}'", media_set));
+            if let Some(fingerprint) = encryption_key_fingerprint {
+                worker.log(format!("Encryption key fingerprint: {}", fingerprint));
+            }
             worker.log(format!("Pool: {}", pool));
             worker.log(format!("Datastore: {}", store));
             worker.log(format!("Drive: {}", drive));
@@ -206,6 +217,10 @@ pub fn request_and_restore_media(
                       media_id.label.label_text, media_id.label.uuid,
                       media_set_uuid);
             }
+            let encrypt_fingerprint = set.encryption_key_fingerprint.clone()
+                .map(|fp| (fp, set.uuid.clone()));
+
+            drive.set_encryption(encrypt_fingerprint)?;
         }
     }
 
