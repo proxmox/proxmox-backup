@@ -1,3 +1,16 @@
+//! Tape drive/changer configuration
+//!
+//! This configuration module is based on [`SectionConfig`], and
+//! provides a type safe interface to store [`LinuxTapeDrive`],
+//! [`VirtualTapeDrive`] and [`ScsiTapeChanger`] configurations.
+//!
+//! Drive type [`VirtualTapeDrive`] is only useful for debugging.
+//!
+//! [LinuxTapeDrive]: crate::api2::types::LinuxTapeDrive
+//! [VirtualTapeDrive]: crate::api2::types::VirtualTapeDrive
+//! [ScsiTapeChanger]: crate::api2::types::ScsiTapeChanger
+//! [SectionConfig]: proxmox::api::section_config::SectionConfig
+
 use std::collections::HashMap;
 
 use anyhow::{bail, Error};
@@ -29,6 +42,7 @@ use crate::{
 };
 
 lazy_static! {
+    /// Static [`SectionConfig`] to access parser/writer functions.
     pub static ref CONFIG: SectionConfig = init();
 }
 
@@ -59,13 +73,17 @@ fn init() -> SectionConfig {
     config
 }
 
+/// Configuration file name
 pub const DRIVE_CFG_FILENAME: &str = "/etc/proxmox-backup/tape.cfg";
+/// Lock file name (used to prevent concurrent access)
 pub const DRIVE_CFG_LOCKFILE: &str = "/etc/proxmox-backup/.tape.lck";
 
+/// Get exclusive lock
 pub fn lock() -> Result<std::fs::File, Error> {
     open_file_locked(DRIVE_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)
 }
 
+/// Read and parse the configuration file
 pub fn config() -> Result<(SectionConfigData, [u8;32]), Error> {
 
     let content = proxmox::tools::fs::file_read_optional_string(DRIVE_CFG_FILENAME)?
@@ -76,6 +94,7 @@ pub fn config() -> Result<(SectionConfigData, [u8;32]), Error> {
     Ok((data, digest))
 }
 
+/// Save the configuration file
 pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
     let raw = CONFIG.write(DRIVE_CFG_FILENAME, &config)?;
 
@@ -93,6 +112,7 @@ pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
     Ok(())
 }
 
+/// Check if the specified drive name exists in the config.
 pub fn check_drive_exists(config: &SectionConfigData, drive: &str) -> Result<(), Error> {
     match config.sections.get(drive) {
         Some((section_type, _)) => {
