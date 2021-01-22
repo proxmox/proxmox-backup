@@ -12,7 +12,13 @@ use proxmox::{
 };
 
 use proxmox_backup::{
-    tools,
+    tools::{
+        self,
+        paperkey::{
+            PaperkeyFormat,
+            generate_paper_key,
+        },
+    },
     config,
     api2::{
         self,
@@ -23,7 +29,11 @@ use proxmox_backup::{
             Kdf,
         },
     },
-    config::tape_encryption_keys::complete_key_fingerprint,
+    backup::Fingerprint,
+    config::tape_encryption_keys::{
+        load_key_configs,
+        complete_key_fingerprint,
+    },
 };
 
 pub fn encryption_key_commands() -> CommandLineInterface {
@@ -47,6 +57,12 @@ pub fn encryption_key_commands() -> CommandLineInterface {
                 .completion_cb("fingerprint", complete_key_fingerprint)
         )
         .insert(
+            "paperkey",
+            CliCommand::new(&API_METHOD_PAPER_KEY)
+                .arg_param(&["fingerprint"])
+                .completion_cb("fingerprint", complete_key_fingerprint)
+        )
+        .insert(
             "restore",
             CliCommand::new(&API_METHOD_RESTORE_KEY)
         )
@@ -59,6 +75,44 @@ pub fn encryption_key_commands() -> CommandLineInterface {
         ;
 
     cmd_def.into()
+}
+
+#[api(
+    input: {
+        properties: {
+            fingerprint: {
+                schema: TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
+            },
+            subject: {
+                description: "Include the specified subject as titel text.",
+                optional: true,
+            },
+            "output-format": {
+                type: PaperkeyFormat,
+                optional: true,
+            },
+        },
+    },
+)]
+/// Generate a printable, human readable text file containing the encryption key.
+///
+/// This also includes a scanable QR code for fast key restore.
+fn paper_key(
+    fingerprint: Fingerprint,
+    subject: Option<String>,
+    output_format: Option<PaperkeyFormat>,
+) -> Result<(), Error> {
+
+    let (config_map, _digest) = load_key_configs()?;
+
+    let key_config = match config_map.get(&fingerprint) {
+        Some(key_config) => key_config,
+        None => bail!("tape encryption key '{}' does not exist.", fingerprint),
+    };
+
+    let data: String = serde_json::to_string_pretty(&key_config)?;
+
+    generate_paper_key(std::io::stdout(), &data, subject, output_format)
 }
 
 #[api(
