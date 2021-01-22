@@ -19,7 +19,7 @@ build_depends = [
   "graphviz <!nodoc>",
   "latexmk <!nodoc>",
   "patchelf",
-  "pve-eslint (>= 7.12.1-1)",
+  "pve-eslint (>= 7.18.0-1)",
   "python3-docutils",
   "python3-pygments",
   "python3-sphinx <!nodoc>",
