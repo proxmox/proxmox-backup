@@ -43,6 +43,7 @@ pub mod ticket;
 pub mod xattr;
 pub mod zip;
 pub mod sgutils2;
+pub mod paperkey;
 
 pub mod parallel_handler;
 pub use parallel_handler::ParallelHandler;

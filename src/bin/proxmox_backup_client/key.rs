@@ -1,9 +1,6 @@
 use std::path::PathBuf;
-use std::io::Write;
-use std::process::{Stdio, Command};
 
 use anyhow::{bail, format_err, Error};
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use proxmox::api::api;
@@ -20,6 +17,10 @@ use proxmox::sys::linux::tty;
 use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
 
 use proxmox_backup::{
+    tools::paperkey::{
+        PaperkeyFormat,
+        generate_paper_key,
+    },
     api2::types::{
         PASSWORD_HINT_SCHEMA,
         KeyInfo,
@@ -31,17 +32,6 @@ use proxmox_backup::{
     },
     tools,
 };
-
-#[api()]
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-/// Paperkey output format
-pub enum PaperkeyFormat {
-    /// Format as Utf8 text. Includes QR codes as ascii-art.
-    Text,
-    /// Format as Html. Includes QR codes as png images.
-    Html,
-}
 
 pub const DEFAULT_ENCRYPTION_KEY_FILE_NAME: &str = "encryption-key.json";
 pub const MASTER_PUBKEY_FILE_NAME: &str = "master-public.pem";
@@ -464,46 +454,7 @@ fn paper_key(
     let data = file_get_contents(&path)?;
     let data = String::from_utf8(data)?;
 
-    let (data, is_private_key) = if data.starts_with("-----BEGIN ENCRYPTED PRIVATE KEY-----\n") {
-        let lines: Vec<String> = data
-            .lines()
-            .map(|s| s.trim_end())
-            .filter(|s| !s.is_empty())
-            .map(String::from)
-            .collect();
-
-        if !lines[lines.len()-1].starts_with("-----END ENCRYPTED PRIVATE KEY-----") {
-            bail!("unexpected key format");
-        }
-
-        if lines.len() < 20 {
-            bail!("unexpected key format");
-        }
-
-        (lines, true)
-    } else {
-        match serde_json::from_str::<KeyConfig>(&data) {
-            Ok(key_config) => {
-                let lines = serde_json::to_string_pretty(&key_config)?
-                    .lines()
-                    .map(String::from)
-                    .collect();
-
-                (lines, false)
-            },
-            Err(err) => {
-                eprintln!("Couldn't parse '{:?}' as KeyConfig - {}", path, err);
-                bail!("Neither a PEM-formatted private key, nor a PBS key file.");
-            },
-        }
-    };
-
-    let format = output_format.unwrap_or(PaperkeyFormat::Html);
-
-    match format {
-        PaperkeyFormat::Html => paperkey_html(&data, subject, is_private_key),
-        PaperkeyFormat::Text => paperkey_text(&data, subject, is_private_key),
-    }
+    generate_paper_key(std::io::stdout(), &data, subject, output_format)
 }
 
 pub fn cli() -> CliCommandMap {
@@ -544,170 +495,4 @@ pub fn cli() -> CliCommandMap {
         .insert("change-passphrase", key_change_passphrase_cmd_def)
         .insert("show", key_show_cmd_def)
         .insert("paperkey", paper_key_cmd_def)
-}
-
-fn paperkey_html(lines: &[String], subject: Option<String>, is_private: bool) -> Result<(), Error> {
-
-    let img_size_pt = 500;
-
-    println!("<!DOCTYPE html>");
-    println!("<html lang=\"en\">");
-    println!("<head>");
-    println!("<meta charset=\"utf-8\">");
-    println!("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
-    println!("<title>Proxmox Backup Paperkey</title>");
-    println!("<style type=\"text/css\">");
-
-    println!("  p {{");
-    println!("    font-size: 12pt;");
-    println!("    font-family: monospace;");
-    println!("    white-space: pre-wrap;");
-    println!("    line-break: anywhere;");
-    println!("  }}");
-
-    println!("</style>");
-
-    println!("</head>");
-
-    println!("<body>");
-
-    if let Some(subject) = subject {
-        println!("<p>Subject: {}</p>", subject);
-    }
-
-    if is_private {
-        const BLOCK_SIZE: usize = 20;
-        let blocks = (lines.len() + BLOCK_SIZE -1)/BLOCK_SIZE;
-
-        for i in 0..blocks {
-            let start = i*BLOCK_SIZE;
-            let mut end = start + BLOCK_SIZE;
-            if end > lines.len() {
-                end = lines.len();
-            }
-            let data = &lines[start..end];
-
-            println!("<div style=\"page-break-inside: avoid;page-break-after: always\">");
-            println!("<p>");
-
-            for l in start..end {
-                println!("{:02}: {}", l, lines[l]);
-            }
-
-            println!("</p>");
-
-            let qr_code = generate_qr_code("svg", data)?;
-            let qr_code = base64::encode_config(&qr_code, base64::STANDARD_NO_PAD);
-
-            println!("<center>");
-            println!("<img");
-            println!("width=\"{}pt\" height=\"{}pt\"", img_size_pt, img_size_pt);
-            println!("src=\"data:image/svg+xml;base64,{}\"/>", qr_code);
-            println!("</center>");
-            println!("</div>");
-       }
-
-        println!("</body>");
-        println!("</html>");
-        return Ok(());
-    }
-
-    println!("<div style=\"page-break-inside: avoid\">");
-
-    println!("<p>");
-
-    println!("-----BEGIN PROXMOX BACKUP KEY-----");
-
-    for line in lines {
-        println!("{}", line);
-    }
-
-    println!("-----END PROXMOX BACKUP KEY-----");
-
-    println!("</p>");
-
-    let qr_code = generate_qr_code("svg", lines)?;
-    let qr_code = base64::encode_config(&qr_code, base64::STANDARD_NO_PAD);
-
-    println!("<center>");
-    println!("<img");
-    println!("width=\"{}pt\" height=\"{}pt\"", img_size_pt, img_size_pt);
-    println!("src=\"data:image/svg+xml;base64,{}\"/>", qr_code);
-    println!("</center>");
-
-    println!("</div>");
-
-    println!("</body>");
-    println!("</html>");
-
-    Ok(())
-}
-
-fn paperkey_text(lines: &[String], subject: Option<String>, is_private: bool) -> Result<(), Error> {
-
-    if let Some(subject) = subject {
-        println!("Subject: {}\n", subject);
-    }
-
-    if is_private {
-        const BLOCK_SIZE: usize = 5;
-        let blocks = (lines.len() + BLOCK_SIZE -1)/BLOCK_SIZE;
-
-        for i in 0..blocks {
-            let start = i*BLOCK_SIZE;
-            let mut end = start + BLOCK_SIZE;
-            if end > lines.len() {
-                end = lines.len();
-            }
-            let data = &lines[start..end];
-
-            for l in start..end {
-                println!("{:-2}: {}", l, lines[l]);
-            }
-            let qr_code = generate_qr_code("utf8i", data)?;
-            let qr_code = String::from_utf8(qr_code)
-                .map_err(|_| format_err!("Failed to read qr code (got non-utf8 data)"))?;
-            println!("{}", qr_code);
-            println!("{}", char::from(12u8)); // page break
-
-        }
-        return Ok(());
-    }
-
-    println!("-----BEGIN PROXMOX BACKUP KEY-----");
-    for line in lines {
-        println!("{}", line);
-    }
-    println!("-----END PROXMOX BACKUP KEY-----");
-
-    let qr_code = generate_qr_code("utf8i", &lines)?;
-    let qr_code = String::from_utf8(qr_code)
-        .map_err(|_| format_err!("Failed to read qr code (got non-utf8 data)"))?;
-
-    println!("{}", qr_code);
-
-    Ok(())
-}
-
-fn generate_qr_code(output_type: &str, lines: &[String]) -> Result<Vec<u8>, Error> {
-    let mut child = Command::new("qrencode")
-        .args(&["-t", output_type, "-m0", "-s1", "-lm", "--output", "-"])
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .spawn()?;
-
-    {
-        let stdin = child.stdin.as_mut()
-            .ok_or_else(|| format_err!("Failed to open stdin"))?;
-        let data = lines.join("\n");
-        stdin.write_all(data.as_bytes())
-            .map_err(|_| format_err!("Failed to write to stdin"))?;
-    }
-
-    let output = child.wait_with_output()
-        .map_err(|_| format_err!("Failed to read stdout"))?;
-
-    let output = crate::tools::command_output(output, None)?;
-
-    Ok(output)
 }
