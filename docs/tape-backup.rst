@@ -666,6 +666,13 @@ To show encryption key details::
  │ hint        │ tape pw 2020                                  │
  └─────────────┴───────────────────────────────────────────────┘
 
+The ``paperkey`` subcommand can be used to create a QR encoded
+version of a tape encryption key. The following command sends the output of the
+``paperkey`` command to a text file, for easy printing::
+
+ proxmox-tape key paperkey <fingerprint> --output-format text > qrkey.txt
+
+
 .. _restore_encryption_key:
 
 Restoring Encryption Keys
@@ -679,8 +686,7 @@ into the drive. Then run::
  Tepe Encryption Key Password: ***********
 
 If the password is correct, the key will get imported to the
-database. Further restore job automatically use any availbale key.
-
+database. Further restore jobs automatically use any availbale key.
 
 
 Tape Cleaning
