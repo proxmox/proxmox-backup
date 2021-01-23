@@ -33,7 +33,16 @@ pub fn set_encryption<F: AsRawFd>(
     key: Option<[u8; 32]>,
 ) -> Result<(), Error> {
 
-    let data = sg_spin_data_encryption_caps(file)?;
+    let data = match sg_spin_data_encryption_caps(file) {
+        Ok(data) => data,
+        Err(err) if key.is_none() => {
+            /// Assume device does not support HW encryption
+            /// We can simply ignore the clear key request
+            return Ok(());
+        }
+        Err(err) => return Err(err),
+    };
+
     let algorithm_index = decode_spin_data_encryption_caps(&data)?;
 
     sg_spout_set_encryption(file, algorithm_index, key)?;
