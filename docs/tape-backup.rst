@@ -49,6 +49,7 @@ In general, LTO tapes offer the following advantages:
 - Cold Media
 - Movable (storable inside vault)
 - Multiple vendors (for both media and drives)
+- Build in AES-CGM Encryption engine
 
 Please note that `Proxmox Backup Server` already stores compressed
 data, so we do not need/use the tape compression feature.
@@ -57,9 +58,10 @@ data, so we do not need/use the tape compression feature.
 Supported Hardware
 ------------------
 
-Proxmox Backup Server supports `Linear Tape Open`_ genertion 3
-(LTO3) or later. In general, all SCSI2 tape drives supported by
-the Linux kernel should work.
+Proxmox Backup Server supports `Linear Tape Open`_ genertion 4 (LTO4)
+or later. In general, all SCSI2 tape drives supported by the Linux
+kernel should work, but feature like hardware encryptions needs LTO4
+or later.
 
 Tape changer support is done using the Linux 'mtx' command line
 tool. So any changer devive supported by that tool work work.
@@ -445,6 +447,22 @@ one media pool, so a job only uses tapes from that pool.
 
    - Never overwrite data.
 
+.. topic:: Hardware Encryption
+
+   LTO4 (or later) tape drives support hardware encryption. If you
+   configure the media pool to use encryption, all data written to the
+   tapes is encrypted using the configured key.
+
+   That way, unauthorized users cannot read data from the media,
+   e.g. if you loose a media while shipping to an offsite location.
+
+   .. Note:: If the backup client also encrypts data, data on tape
+      will be double encrypted.
+
+   The password protected key is stored on each media, so it is
+   possbible to `restore the key <restore_encryption_key_>`_ using the password. Please make sure
+   you remember the password in case you need to restore the key.
+
 
 .. NOTE:: FIXME: Add note about global content namespace. (We do not store
    the source datastore, so it is impossible to distinguish
@@ -604,13 +622,64 @@ data disk (datastore)::
  # proxmox-tape restore 9da37a55-aac7-4deb-91c6-482b3b675f30 mystore
 
 
-
 Update Inventory
 ~~~~~~~~~~~~~~~~
 
 
 Restore Catalog
 ~~~~~~~~~~~~~~~
+
+
+Encryption Key Management
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Creating a new encryption key::
+
+ # proxmox-tape key create --hint "tape pw 2020"
+ Tape Encryption Key Password: **********
+ Verify Password: **********
+ "14:f8:79:b9:f5:13:e5:dc:bf:b6:f9:88:48:51:81:dc:79:bf:a0:22:68:47:d1:73:35:2d:b6:20:e1:7f:f5:0f"
+
+List existing encryption keys::
+
+ # proxmox-tape key list
+ ┌───────────────────────────────────────────────────┬───────────────┐
+ │ fingerprint                                       │ hint          │
+ ╞═══════════════════════════════════════════════════╪═══════════════╡
+ │ 14:f8:79:b9:f5:13:e5:dc: ...   :b6:20:e1:7f:f5:0f │ tape pw 2020  │
+ └───────────────────────────────────────────────────┴───────────────┘
+
+To show encryption key details::
+
+ # proxmox-tape key show 14:f8:79:b9:f5:13:e5:dc:...:b6:20:e1:7f:f5:0f
+ ┌─────────────┬───────────────────────────────────────────────┐
+ │ Name        │ Value                                         │
+ ╞═════════════╪═══════════════════════════════════════════════╡
+ │ kdf         │ scrypt                                        │
+ ├─────────────┼───────────────────────────────────────────────┤
+ │ created     │ Sat Jan 23 14:47:21 2021                      │
+ ├─────────────┼───────────────────────────────────────────────┤
+ │ modified    │ Sat Jan 23 14:47:21 2021                      │
+ ├─────────────┼───────────────────────────────────────────────┤
+ │ fingerprint │ 14:f8:79:b9:f5:13:e5:dc:...:b6:20:e1:7f:f5:0f │
+ ├─────────────┼───────────────────────────────────────────────┤
+ │ hint        │ tape pw 2020                                  │
+ └─────────────┴───────────────────────────────────────────────┘
+
+.. _restore_encryption_key:
+
+Restoring Encryption Keys
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+You can restore the encryption key from the tape, using the password
+used to generate the key. First, load the tape you want to restore
+into the drive. Then run::
+
+ # proxmox-tape key restore
+ Tepe Encryption Key Password: ***********
+
+If the password is correct, the key will get imported to the
+database. Further restore job automatically use any availbale key.
 
 
 
