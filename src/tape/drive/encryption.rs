@@ -35,9 +35,9 @@ pub fn set_encryption<F: AsRawFd>(
 
     let data = match sg_spin_data_encryption_caps(file) {
         Ok(data) => data,
-        Err(err) if key.is_none() => {
-            /// Assume device does not support HW encryption
-            /// We can simply ignore the clear key request
+        Err(_) if key.is_none() => {
+            // Assume device does not support HW encryption
+            // We can simply ignore the clear key request
             return Ok(());
         }
         Err(err) => return Err(err),
