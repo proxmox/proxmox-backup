@@ -216,11 +216,11 @@ impl <'a, F: AsRawFd> SgRaw<'a, F> {
             bail!("unknown scsi error - status response {}", status);
         }
 
-        let data_len = self.buffer.len() -
-            (unsafe { get_scsi_pt_resid(&*ptvp) } as usize);
-        if data_len == 0 {
-            bail!("do_scsi_pt failed - no data received");
+        let resid = unsafe { get_scsi_pt_resid(&*ptvp) } as usize;
+        if resid > self.buffer.len() {
+            bail!("do_scsi_pt failed - got strange resid (value too big)");
         }
+        let data_len = self.buffer.len() - resid;
 
         Ok(&self.buffer[..data_len])
     }
