@@ -104,6 +104,7 @@ pub struct SgRaw<'a, F> {
     file: &'a mut F,
     buffer: Box<[u8]>,
     sense_buffer: [u8; 32],
+    timeout: i32,
 }
 
 /// Allocate a page aligned buffer
@@ -138,7 +139,16 @@ impl <'a, F: AsRawFd> SgRaw<'a, F> {
 
         let sense_buffer = [0u8; 32];
 
-        Ok(Self { file, buffer, sense_buffer })
+        Ok(Self { file, buffer, sense_buffer, timeout: 0 })
+    }
+
+    /// Set the command timeout in seconds (0 means default (60 seconds))
+    pub fn set_timeout(&mut self, seconds: usize) {
+        if seconds > (i32::MAX as usize) {
+            self.timeout = i32::MAX; // don't care about larger values
+        } else {
+            self.timeout = seconds as i32;
+        }
     }
 
     // create new object with initialized data_in and sense buffer
@@ -188,7 +198,7 @@ impl <'a, F: AsRawFd> SgRaw<'a, F> {
             )
         };
 
-        let res = unsafe { do_scsi_pt(&mut *ptvp, self.file.as_raw_fd(), 0, 0) };
+        let res = unsafe { do_scsi_pt(&mut *ptvp, self.file.as_raw_fd(), self.timeout, 0) };
         if res < 0 {
             let err = nix::Error::last();
             bail!("do_scsi_pt failed  - {}", err);
@@ -245,7 +255,7 @@ impl <'a, F: AsRawFd> SgRaw<'a, F> {
             );
          };
 
-        let res = unsafe { do_scsi_pt(&mut *ptvp, self.file.as_raw_fd(), 0, 0) };
+        let res = unsafe { do_scsi_pt(&mut *ptvp, self.file.as_raw_fd(), self.timeout, 0) };
         if res < 0 {
             let err = nix::Error::last();
             bail!("do_scsi_pt failed  - {}", err);
