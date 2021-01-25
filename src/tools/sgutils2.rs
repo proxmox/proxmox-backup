@@ -233,7 +233,7 @@ impl <'a, F: AsRawFd> SgRaw<'a, F> {
     }
 
     // create new object with initialized data_in and sense buffer
-    fn create_boxed_scsi_pt_obj(&mut self) -> Result<SgPt, Error> {
+    fn create_scsi_pt_obj(&mut self) -> Result<SgPt, Error> {
 
         let mut ptvp = SgPt::new()?;
 
@@ -269,7 +269,7 @@ impl <'a, F: AsRawFd> SgRaw<'a, F> {
             bail!("output buffer too small");
         }
 
-        let mut ptvp = self.create_boxed_scsi_pt_obj()?;
+        let mut ptvp = self.create_scsi_pt_obj()?;
 
         unsafe {
             set_scsi_pt_cdb(
@@ -320,7 +320,7 @@ impl <'a, F: AsRawFd> SgRaw<'a, F> {
             bail!("wrong transfer buffer alignment");
         }
 
-        let mut ptvp = self.create_boxed_scsi_pt_obj()?;
+        let mut ptvp = self.create_scsi_pt_obj()?;
 
         unsafe {
             set_scsi_pt_data_out(
