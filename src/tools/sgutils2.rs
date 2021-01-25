@@ -5,6 +5,7 @@
 //! See: `/usr/include/scsi/sg_pt.h`
 
 use std::os::unix::io::AsRawFd;
+use std::ptr::NonNull;
 
 use anyhow::{bail, format_err, Error};
 use endian_trait::Endian;
@@ -18,32 +19,29 @@ struct SgPtBase { _private: [u8; 0] }
 
 #[repr(transparent)]
 struct SgPt {
-    raw: *mut SgPtBase,
+    raw: NonNull<SgPtBase>,
 }
 
-impl Drop for SgPt  {
+impl Drop for SgPt {
     fn drop(&mut self) {
-        unsafe { destruct_scsi_pt_obj(self.raw) };
+        unsafe { destruct_scsi_pt_obj(self.as_mut_ptr()) };
     }
 }
 
 impl SgPt {
     fn new() -> Result<Self, Error> {
-        let raw = unsafe { construct_scsi_pt_obj() };
-
-        if raw.is_null() {
-            bail!("construct_scsi_pt_ob failed");
-        }
-
-        Ok(Self { raw })
+        Ok(Self {
+            raw: NonNull::new(unsafe { construct_scsi_pt_obj() })
+                .ok_or_else(|| format_err!("construct_scsi_pt_ob failed"))?,
+        })
     }
 
     fn as_ptr(&self) -> *const SgPtBase {
-        self.raw as *const SgPtBase
+        self.raw.as_ptr()
     }
 
     fn as_mut_ptr(&mut self) -> *mut SgPtBase {
-        self.raw
+        self.raw.as_ptr()
     }
 }
 
