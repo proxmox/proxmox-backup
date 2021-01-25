@@ -164,7 +164,7 @@ pub trait MediaChange {
     fn load_media(&mut self, label_text: &str) -> Result<(), Error> {
 
         if label_text.starts_with("CLN") {
-            bail!("unable to load media '{}' (seems top be a a cleaning units)", label_text);
+            bail!("unable to load media '{}' (seems to be a cleaning unit)", label_text);
         }
 
         let mut status = self.status()?;

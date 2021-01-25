@@ -101,7 +101,7 @@ pub fn get_config(
         properties: {},
     },
     returns: {
-        description: "The list of configured remotes (with config digest).",
+        description: "The list of configured drives (with config digest).",
         type: Array,
         items: {
             type: DriveListEntry,
