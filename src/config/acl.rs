@@ -299,6 +299,7 @@ pub fn check_acl_path(path: &str) -> Result<(), Error> {
 }
 
 /// Tree representing a parsed acl.cfg
+#[derive(Default)]
 pub struct AclTree {
     /// Root node of the tree.
     ///
@@ -308,6 +309,7 @@ pub struct AclTree {
 }
 
 /// Node representing ACLs for a certain ACL path.
+#[derive(Default)]
 pub struct AclTreeNode {
     /// [User](crate::config::user::User) or
     /// [Token](crate::config::user::ApiToken) ACLs for this node.
@@ -412,7 +414,7 @@ impl AclTreeNode {
     }
 
     fn insert_group_role(&mut self, group: String, role: String, propagate: bool) {
-        let map = self.groups.entry(group).or_insert_with(HashMap::new);
+        let map = self.groups.entry(group).or_default();
         if role == ROLE_NAME_NO_ACCESS {
             map.clear();
             map.insert(role, propagate);
@@ -423,7 +425,7 @@ impl AclTreeNode {
     }
 
     fn insert_user_role(&mut self, auth_id: Authid, role: String, propagate: bool) {
-        let map = self.users.entry(auth_id).or_insert_with(HashMap::new);
+        let map = self.users.entry(auth_id).or_default();
         if role == ROLE_NAME_NO_ACCESS {
             map.clear();
             map.insert(role, propagate);
@@ -465,7 +467,7 @@ impl AclTree {
             node = node
                 .children
                 .entry(String::from(*comp))
-                .or_insert_with(AclTreeNode::new);
+                .or_default();
         }
         node
     }

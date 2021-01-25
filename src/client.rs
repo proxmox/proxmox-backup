@@ -49,17 +49,16 @@ pub fn connect_to_localhost() -> Result<HttpClient, Error> {
 
     let uid = nix::unistd::Uid::current();
 
-    let mut options = HttpClientOptions::new()
-        .prefix(Some("proxmox-backup".to_string()))
-        .verify_cert(false); // not required for connection to localhost
-
     let client = if uid.is_root()  {
         let ticket = Ticket::new("PBS", Userid::root_userid())?
             .sign(private_auth_key(), None)?;
-        options = options.password(Some(ticket));
+        let fingerprint = crate::tools::cert::CertInfo::new()?.fingerprint()?;
+        let options = HttpClientOptions::new_non_interactive(ticket, Some(fingerprint));
+
         HttpClient::new("localhost", 8007, Authid::root_auth_id(), options)?
     } else {
-        options = options.ticket_cache(true).interactive(true);
+        let options = HttpClientOptions::new_interactive(None, None);
+
         HttpClient::new("localhost", 8007, Authid::root_auth_id(), options)?
     };
 

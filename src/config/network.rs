@@ -318,7 +318,7 @@ enum NetworkOrderEntry {
     Option(String),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct NetworkConfig {
     pub interfaces: BTreeMap<String, Interface>,
     order: Vec<NetworkOrderEntry>,

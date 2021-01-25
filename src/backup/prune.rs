@@ -67,6 +67,7 @@ fn remove_incomplete_snapshots(
     }
 }
 
+#[derive(Default)]
 pub struct PruneOptions {
     pub keep_last: Option<u64>,
     pub keep_hourly: Option<u64>,

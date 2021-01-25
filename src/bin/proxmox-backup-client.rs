@@ -211,13 +211,7 @@ fn connect_do(server: &str, port: u16, auth_id: &Authid) -> Result<HttpClient, E
         Err(NotPresent) => None,
     };
 
-    let options = HttpClientOptions::new()
-        .prefix(Some("proxmox-backup".to_string()))
-        .password(password)
-        .interactive(true)
-        .fingerprint(fingerprint)
-        .fingerprint_cache(true)
-        .ticket_cache(true);
+    let options = HttpClientOptions::new_interactive(password, fingerprint);
 
     HttpClient::new(server, port, auth_id, options)
 }
@@ -1565,13 +1559,9 @@ async fn try_get(repo: &BackupRepository, url: &str) -> Value {
     let fingerprint = std::env::var(ENV_VAR_PBS_FINGERPRINT).ok();
     let password = std::env::var(ENV_VAR_PBS_PASSWORD).ok();
 
-    let options = HttpClientOptions::new()
-        .prefix(Some("proxmox-backup".to_string()))
-        .password(password)
-        .interactive(false)
-        .fingerprint(fingerprint)
-        .fingerprint_cache(true)
-        .ticket_cache(true);
+    // ticket cache, but no questions asked
+    let options = HttpClientOptions::new_interactive(password, fingerprint)
+        .interactive(false);
 
     let client = match HttpClient::new(repo.host(), repo.port(), repo.auth_id(), options) {
         Ok(v) => v,

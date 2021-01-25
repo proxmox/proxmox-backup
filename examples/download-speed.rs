@@ -28,7 +28,7 @@ async fn run() -> Result<(), Error> {
 
     let auth_id = Authid::root_auth_id();
 
-    let options = HttpClientOptions::new()
+    let options = HttpClientOptions::default()
         .interactive(true)
         .ticket_cache(true);
 

@@ -52,15 +52,23 @@ pub struct HttpClientOptions {
 
 impl HttpClientOptions {
 
-    pub fn new() -> Self {
+    pub fn new_interactive(password: Option<String>, fingerprint: Option<String>) -> Self {
         Self {
-            prefix: None,
-            password: None,
-            fingerprint: None,
-            interactive: false,
-            ticket_cache: false,
-            fingerprint_cache: false,
-            verify_cert: true,
+            password,
+            fingerprint,
+            fingerprint_cache: true,
+            ticket_cache: true,
+            interactive: true,
+            prefix: Some("proxmox-backup".to_string()),
+            ..Self::default()
+        }
+    }
+
+    pub fn new_non_interactive(password: String, fingerprint: Option<String>) -> Self {
+        Self {
+            password: Some(password),
+            fingerprint,
+            ..Self::default()
         }
     }
 
@@ -97,6 +105,20 @@ impl HttpClientOptions {
     pub fn verify_cert(mut self, verify_cert: bool) -> Self {
         self.verify_cert = verify_cert;
         self
+    }
+}
+
+impl Default for HttpClientOptions {
+    fn default() -> Self {
+        Self {
+            prefix: None,
+            password: None,
+            fingerprint: None,
+            interactive: false,
+            ticket_cache: false,
+            fingerprint_cache: false,
+            verify_cert: true,
+        }
     }
 }
 

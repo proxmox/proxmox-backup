@@ -502,9 +502,7 @@ pub async fn pull_group(
         // get updated auth_info (new tickets)
         let auth_info = client.login().await?;
 
-        let options = HttpClientOptions::new()
-            .password(Some(auth_info.ticket.clone()))
-            .fingerprint(fingerprint.clone());
+        let options = HttpClientOptions::new_non_interactive(auth_info.ticket.clone(), fingerprint.clone());
 
         let new_client = HttpClient::new(
             src_repo.host(),

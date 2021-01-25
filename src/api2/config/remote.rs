@@ -310,9 +310,7 @@ pub fn delete_remote(name: String, digest: Option<String>) -> Result<(), Error> 
 
 /// Helper to get client for remote.cfg entry
 pub async fn remote_client(remote: remote::Remote) -> Result<HttpClient, Error> {
-    let options = HttpClientOptions::new()
-        .password(Some(remote.password.clone()))
-        .fingerprint(remote.fingerprint.clone());
+    let options = HttpClientOptions::new_non_interactive(remote.password.clone(), remote.fingerprint.clone());
 
     let client = HttpClient::new(
         &remote.host,
