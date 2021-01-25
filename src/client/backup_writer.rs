@@ -39,6 +39,15 @@ pub struct BackupStats {
     pub csum: [u8; 32],
 }
 
+/// Options for uploading blobs/streams to the server
+#[derive(Default, Clone)]
+pub struct UploadOptions {
+    pub previous_manifest: Option<Arc<BackupManifest>>,
+    pub compress: bool,
+    pub encrypt: bool,
+    pub fixed_size: Option<u64>,
+}
+
 type UploadQueueSender = mpsc::Sender<(MergedChunkInfo, Option<h2::client::ResponseFuture>)>;
 type UploadResultReceiver = oneshot::Receiver<Result<(), Error>>;
 
@@ -168,13 +177,12 @@ impl BackupWriter {
         &self,
         data: Vec<u8>,
         file_name: &str,
-        compress: bool,
-        encrypt: bool,
+        options: UploadOptions,
     ) -> Result<BackupStats, Error> {
-        let blob = match (encrypt, &self.crypt_config) {
-             (false, _) => DataBlob::encode(&data, None, compress)?,
+        let blob = match (options.encrypt, &self.crypt_config) {
+             (false, _) => DataBlob::encode(&data, None, options.compress)?,
              (true, None) => bail!("requested encryption without a crypt config"),
-             (true, Some(crypt_config)) => DataBlob::encode(&data, Some(crypt_config), compress)?,
+             (true, Some(crypt_config)) => DataBlob::encode(&data, Some(crypt_config), options.compress)?,
         };
 
         let raw_data = blob.into_inner();
@@ -190,8 +198,7 @@ impl BackupWriter {
         &self,
         src_path: P,
         file_name: &str,
-        compress: bool,
-        encrypt: bool,
+        options: UploadOptions,
     ) -> Result<BackupStats, Error> {
 
         let src_path = src_path.as_ref();
@@ -206,34 +213,33 @@ impl BackupWriter {
             .await
             .map_err(|err| format_err!("unable to read file {:?} - {}", src_path, err))?;
 
-        self.upload_blob_from_data(contents, file_name, compress, encrypt).await
+        self.upload_blob_from_data(contents, file_name, options).await
     }
 
     pub async fn upload_stream(
         &self,
-        previous_manifest: Option<Arc<BackupManifest>>,
         archive_name: &str,
         stream: impl Stream<Item = Result<bytes::BytesMut, Error>>,
-        prefix: &str,
-        fixed_size: Option<u64>,
-        compress: bool,
-        encrypt: bool,
+        options: UploadOptions,
     ) -> Result<BackupStats, Error> {
         let known_chunks = Arc::new(Mutex::new(HashSet::new()));
 
         let mut param = json!({ "archive-name": archive_name });
-        if let Some(size) = fixed_size {
+        let prefix = if let Some(size) = options.fixed_size {
             param["size"] = size.into();
-        }
+            "fixed"
+        } else {
+            "dynamic"
+        };
 
-        if encrypt && self.crypt_config.is_none() {
+        if options.encrypt && self.crypt_config.is_none() {
             bail!("requested encryption without a crypt config");
         }
 
         let index_path = format!("{}_index", prefix);
         let close_path = format!("{}_close", prefix);
 
-        if let Some(manifest) = previous_manifest {
+        if let Some(manifest) = options.previous_manifest {
             // try, but ignore errors
             match archive_type(archive_name) {
                 Ok(ArchiveType::FixedIndex) => {
@@ -255,8 +261,8 @@ impl BackupWriter {
                 stream,
                 &prefix,
                 known_chunks.clone(),
-                if encrypt { self.crypt_config.clone() } else { None },
-                compress,
+                if options.encrypt { self.crypt_config.clone() } else { None },
+                options.compress,
                 self.verbose,
             )
             .await?;
