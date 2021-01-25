@@ -11,6 +11,7 @@ mod online_status_map;
 pub use online_status_map::*;
 
 use anyhow::{bail, Error};
+use serde::{Serialize, Deserialize};
 
 use crate::api2::types::{
     ScsiTapeChanger,
@@ -21,6 +22,7 @@ use crate::api2::types::{
 ///
 /// Drive and slots may be `Empty`, or contain some media, either
 /// with knwon volume tag `VolumeTag(String)`, or without (`Full`).
+#[derive(Serialize, Deserialize, Debug)]
 pub enum ElementStatus {
     Empty,
     Full,
@@ -28,6 +30,7 @@ pub enum ElementStatus {
 }
 
 /// Changer drive status.
+#[derive(Serialize, Deserialize)]
 pub struct DriveStatus {
     /// The slot the element was loaded from (if known).
     pub loaded_slot: Option<u64>,
@@ -40,6 +43,7 @@ pub struct DriveStatus {
 }
 
 /// Storage element status.
+#[derive(Serialize, Deserialize)]
 pub struct StorageElementStatus {
     /// Flag for Import/Export slots
     pub import_export: bool,
@@ -50,6 +54,7 @@ pub struct StorageElementStatus {
 }
 
 /// Transport element status.
+#[derive(Serialize, Deserialize)]
 pub struct TransportElementStatus {
     /// The status.
     pub status: ElementStatus,
@@ -58,6 +63,7 @@ pub struct TransportElementStatus {
 }
 
 /// Changer status - show drive/slot usage
+#[derive(Serialize, Deserialize)]
 pub struct MtxStatus {
     /// List of known drives
     pub drives: Vec<DriveStatus>,
@@ -99,6 +105,20 @@ impl MtxStatus {
             .get(0)
             .map(|t| t.element_address)
         .unwrap_or(0u16)
+    }
+
+    pub fn find_free_slot(&self, import_export: bool) -> Option<u64> {
+        let mut free_slot = None;
+        for (i, slot_info) in self.slots.iter().enumerate() {
+            if slot_info.import_export != import_export {
+                continue; // skip slots of wrong type
+            }
+            if let ElementStatus::Empty = slot_info.status {
+                free_slot = Some((i+1) as u64);
+                break;
+            }
+        }
+        free_slot
     }
 }
 
@@ -333,15 +353,7 @@ pub trait MediaChange {
             }
         }
 
-        let mut free_slot = None;
-        for i in 0..status.slots.len() {
-            if status.slots[i].import_export { continue; } // skip import/export slots
-            if let ElementStatus::Empty = status.slots[i].status {
-                free_slot = Some((i+1) as u64);
-                break;
-            }
-        }
-        if let Some(slot) = free_slot {
+        if let Some(slot) = status.find_free_slot(false) {
             self.unload_media(Some(slot))
         } else {
             bail!("drive '{}' unload failure - no free slot", self.drive_name());
