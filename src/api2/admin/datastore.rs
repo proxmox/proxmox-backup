@@ -3,7 +3,6 @@
 use std::collections::HashSet;
 use std::ffi::OsStr;
 use std::os::unix::ffi::OsStrExt;
-use std::sync::{Arc, Mutex};
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 
@@ -672,17 +671,12 @@ pub fn verify(
         auth_id.clone(),
         to_stdout,
         move |worker| {
-            let verified_chunks = Arc::new(Mutex::new(HashSet::with_capacity(1024*16)));
-            let corrupt_chunks = Arc::new(Mutex::new(HashSet::with_capacity(64)));
-
+            let verify_worker = crate::backup::VerifyWorker::new(worker.clone(), datastore);
             let failed_dirs = if let Some(backup_dir) = backup_dir {
                 let mut res = Vec::new();
                 if !verify_backup_dir(
-                    datastore,
+                    &verify_worker,
                     &backup_dir,
-                    verified_chunks,
-                    corrupt_chunks,
-                    worker.clone(),
                     worker.upid().clone(),
                     None,
                 )? {
@@ -691,12 +685,9 @@ pub fn verify(
                 res
             } else if let Some(backup_group) = backup_group {
                 let failed_dirs = verify_backup_group(
-                    datastore,
+                    &verify_worker,
                     &backup_group,
-                    verified_chunks,
-                    corrupt_chunks,
                     &mut StoreProgress::new(1),
-                    worker.clone(),
                     worker.upid(),
                     None,
                 )?;
@@ -711,7 +702,7 @@ pub fn verify(
                     None
                 };
 
-                verify_all_backups(datastore, worker.clone(), worker.upid(), owner, None)?
+                verify_all_backups(&verify_worker, worker.upid(), owner, None)?
             };
             if !failed_dirs.is_empty() {
                 worker.log("Failed to verify the following snapshots/groups:");

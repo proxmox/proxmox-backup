@@ -1,6 +1,6 @@
 use anyhow::{bail, format_err, Error};
 use std::sync::{Arc, Mutex};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use nix::dir::Dir;
 
 use ::serde::{Serialize};
@@ -525,15 +525,11 @@ impl BackupEnvironment {
             move |worker| {
                 worker.log("Automatically verifying newly added snapshot");
 
-                let verified_chunks = Arc::new(Mutex::new(HashSet::with_capacity(1024*16)));
-                let corrupt_chunks = Arc::new(Mutex::new(HashSet::with_capacity(64)));
 
+                let verify_worker = crate::backup::VerifyWorker::new(worker.clone(), datastore);
                 if !verify_backup_dir_with_lock(
-                    datastore,
+                    &verify_worker,
                     &backup_dir,
-                    verified_chunks,
-                    corrupt_chunks,
-                    worker.clone(),
                     worker.upid().clone(),
                     None,
                     snap_lock,

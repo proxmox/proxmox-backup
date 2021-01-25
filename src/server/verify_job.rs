@@ -67,7 +67,8 @@ pub fn do_verification_job(
                 task_log!(worker,"task triggered by schedule '{}'", event_str);
             }
 
-            let result = verify_all_backups(datastore, worker.clone(), worker.upid(), None, Some(&filter));
+            let verify_worker = crate::backup::VerifyWorker::new(worker.clone(), datastore);
+            let result = verify_all_backups(&verify_worker, worker.upid(), None, Some(&filter));
             let job_result = match result {
                 Ok(ref failed_dirs) if failed_dirs.is_empty() => Ok(()),
                 Ok(ref failed_dirs) => {
