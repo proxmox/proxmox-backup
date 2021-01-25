@@ -1,15 +1,15 @@
 Tape Backup
 ===========
 
-Proxmox tape backup provides an easy way to store datastore contents
-to a magnetic tapes. This increases data safety because you get:
+Proxmox tape backup provides an easy way to store datastore content
+onto magnetic tapes. This increases data safety because you get:
 
 - an additional copy of the data
 - to a different media type (tape)
 - to an additional location (you can move tapes offsite)
 
-Statistics show that 95% of all restore jobs restores data from the
-last backup. Restore requests further declines the older the data
+In most restore jobs, only data from the last backup job is restored.
+Restore requests further decline the older the data
 gets. Considering this, tape backup may also help to reduce disk
 usage, because you can safely remove data from disk once archived on
 tape. This is especially true if you need to keep data for several
@@ -32,14 +32,14 @@ As of 2021, the only broadly available tape technology standard is
 `Linear Tape Open`_, and different vendors offers LTO Ultrium tape
 drives, autoloaders and LTO tape cartridges.
 
-Of cause, there are a few vendor offering proprietary drives with
+There are a few vendors offering proprietary drives with
 slight advantages in performance and capacity, but they have
-significat disadvantages:
+significant disadvantages:
 
 - proprietary (single vendor)
 - a much higher purchase cost
 
-So we currently do no test such drives.
+So we currently do not test such drives.
 
 In general, LTO tapes offer the following advantages:
 
@@ -64,14 +64,14 @@ kernel should work, but feature like hardware encryptions needs LTO4
 or later.
 
 Tape changer support is done using the Linux 'mtx' command line
-tool. So any changer devive supported by that tool work work.
+tool. So any changer device supported by that tool should work.
 
 
 Drive Performance
 ~~~~~~~~~~~~~~~~~
 
-Current LTO8 tapes provide read/write speeds up to 360MB/s. Please
-note that it still takes a minimum of 9 hours to completely write or
+Current LTO-8 tapes provide read/write speeds up to 360MB/s. This means,
+that it still takes a minimum of 9 hours to completely write or
 read a single tape (even at maximum speed).
 
 The only way to speed up that data rate is to use more than one
@@ -80,10 +80,10 @@ restore jobs while the other dives are used for backups.
 
 Also consider that you need to read data first from your datastore
 (disk). But a single spinning disk is unable to deliver data at this
-rate. We meassured a maximum rate about 60MB/s to 100MB/s in practive,
-so it takes 33 hours to read 12TB to fill up a LTO8 tape. If you want
+rate. We measured a maximum rate of about 60MB/s to 100MB/s in practice,
+so it takes 33 hours to read 12TB to fill up an LTO-8 tape. If you want
 to run your tape at full speed, please make sure that the source
-datastore is able to delive that performance (use SSDs).
+datastore is able to deliver that performance (e.g, by using SSDs).
 
 
 Terminology
@@ -105,7 +105,7 @@ Terminology
    `Code 39`_, as definded in the `LTO Ultrium Cartridge Label
    Specification`_.
 
-   You can either bye such barcode labels from your cartidge vendor,
+   You can either buy such barcode labels from your cartridge vendor,
    or print them yourself. You can use our `LTO Barcode Generator`_ App
    for that.
 
