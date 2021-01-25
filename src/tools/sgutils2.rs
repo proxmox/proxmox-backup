@@ -118,7 +118,7 @@ extern {
 
     fn set_scsi_pt_data_in(
         objp: *mut SgPtBase,
-        dxferp: *const u8,
+        dxferp: *mut u8,
         dxfer_ilen: c_int,
     );
 
@@ -136,7 +136,7 @@ extern {
 
     fn set_scsi_pt_sense(
         objp: *mut SgPtBase,
-        sense: *const u8,
+        sense: *mut u8,
         max_sense_len: c_int,
     );
 
@@ -233,7 +233,7 @@ impl <'a, F: AsRawFd> SgRaw<'a, F> {
             unsafe {
                 set_scsi_pt_data_in(
                     &mut *ptvp,
-                    self.buffer.as_ptr(),
+                    self.buffer.as_mut_ptr(),
                     self.buffer.len() as c_int,
                 )
             };
@@ -242,7 +242,7 @@ impl <'a, F: AsRawFd> SgRaw<'a, F> {
         unsafe {
             set_scsi_pt_sense(
                 &mut *ptvp,
-                self.sense_buffer.as_ptr(),
+                self.sense_buffer.as_mut_ptr(),
                 self.sense_buffer.len() as c_int,
             )
         };
