@@ -203,6 +203,7 @@ pub enum DeletableProperty {
     },
 )]
 /// Update remote configuration.
+#[allow(clippy::too_many_arguments)]
 pub fn update_remote(
     name: String,
     comment: Option<String>,

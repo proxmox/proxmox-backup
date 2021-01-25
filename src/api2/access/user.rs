@@ -353,6 +353,7 @@ pub enum DeletableProperty {
     },
 )]
 /// Update user configuration.
+#[allow(clippy::too_many_arguments)]
 pub fn update_user(
     userid: Userid,
     comment: Option<String>,

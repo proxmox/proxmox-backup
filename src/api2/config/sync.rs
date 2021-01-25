@@ -279,6 +279,7 @@ pub enum DeletableProperty {
     },
 )]
 /// Update sync job config.
+#[allow(clippy::too_many_arguments)]
 pub fn update_sync_job(
     id: String,
     store: Option<String>,

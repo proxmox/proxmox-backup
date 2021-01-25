@@ -421,6 +421,7 @@ impl TfaUpdateInfo {
     },
 )]
 /// Add a TFA entry to the user.
+#[allow(clippy::too_many_arguments)]
 fn add_tfa_entry(
     userid: Userid,
     description: Option<String>,

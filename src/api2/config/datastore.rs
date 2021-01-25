@@ -277,6 +277,7 @@ pub enum DeletableProperty {
     },
 )]
 /// Update datastore config.
+#[allow(clippy::too_many_arguments)]
 pub fn update_datastore(
     name: String,
     comment: Option<String>,

@@ -215,6 +215,7 @@ pub enum DeletableProperty {
     },
 )]
 /// Update verification job config.
+#[allow(clippy::too_many_arguments)]
 pub fn update_verification_job(
     id: String,
     store: Option<String>,

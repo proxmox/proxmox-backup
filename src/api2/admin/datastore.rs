@@ -1293,8 +1293,6 @@ pub fn catalog(
     backup_id: String,
     backup_time: i64,
     filepath: String,
-    _param: Value,
-    _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
     let datastore = DataStore::lookup_datastore(&store)?;

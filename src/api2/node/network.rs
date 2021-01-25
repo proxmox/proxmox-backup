@@ -213,6 +213,7 @@ pub fn read_interface(iface: String) -> Result<Value, Error> {
     },
 )]
 /// Create network interface configuration.
+#[allow(clippy::too_many_arguments)]
 pub fn create_interface(
     iface: String,
     autostart: Option<bool>,
@@ -477,6 +478,7 @@ pub enum DeletableProperty {
     },
 )]
 /// Update network interface config.
+#[allow(clippy::too_many_arguments)]
 pub fn update_interface(
     iface: String,
     autostart: Option<bool>,

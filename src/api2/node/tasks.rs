@@ -425,6 +425,7 @@ fn stop_task(
     },
 )]
 /// List tasks.
+#[allow(clippy::too_many_arguments)]
 pub fn list_tasks(
     start: u64,
     limit: u64,

@@ -112,6 +112,7 @@ fn extract_archive_from_reader<R: std::io::Read>(
     },
 )]
 /// Extract an archive.
+#[allow(clippy::too_many_arguments)]
 fn extract_archive(
     archive: String,
     pattern: Option<Vec<String>>,

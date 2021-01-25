@@ -165,6 +165,7 @@ pub fn read_acl(
     },
 )]
 /// Update Access Control List (ACLs).
+#[allow(clippy::too_many_arguments)]
 pub fn update_acl(
     path: String,
     role: String,

@@ -57,6 +57,8 @@ impl BackupWriter {
         Arc::new(Self { h2, abort, crypt_config, verbose })
     }
 
+    // FIXME: extract into (flattened) parameter struct?
+    #[allow(clippy::too_many_arguments)]
     pub async fn start(
         client: HttpClient,
         crypt_config: Option<Arc<CryptConfig>>,
