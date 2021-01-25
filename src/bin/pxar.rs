@@ -17,7 +17,7 @@ use proxmox::api::cli::*;
 use proxmox::api::api;
 
 use proxmox_backup::tools;
-use proxmox_backup::pxar::{fuse, format_single_line_entry, ENCODER_MAX_ENTRIES, Flags};
+use proxmox_backup::pxar::{fuse, format_single_line_entry, ENCODER_MAX_ENTRIES, ErrorHandler, Flags};
 
 fn extract_archive_from_reader<R: std::io::Read>(
     reader: &mut R,
@@ -27,7 +27,7 @@ fn extract_archive_from_reader<R: std::io::Read>(
     verbose: bool,
     match_list: &[MatchEntry],
     extract_match_default: bool,
-    on_error: Option<Box<dyn FnMut(Error) -> Result<(), Error> + Send>>,
+    on_error: Option<ErrorHandler>,
 ) -> Result<(), Error> {
     proxmox_backup::pxar::extract_archive(
         pxar::decoder::Decoder::from_std(reader)?,

@@ -59,7 +59,7 @@ mod flags;
 pub use flags::Flags;
 
 pub use create::create_archive;
-pub use extract::extract_archive;
+pub use extract::{extract_archive, ErrorHandler};
 
 /// The format requires to build sorted directory lookup tables in
 /// memory, so we restrict the number of allowed entries to limit

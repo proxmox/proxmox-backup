@@ -24,6 +24,8 @@ use crate::pxar::dir_stack::PxarDirStack;
 use crate::pxar::metadata;
 use crate::pxar::Flags;
 
+pub type ErrorHandler = Box<dyn FnMut(Error) -> Result<(), Error> + Send>;
+
 pub fn extract_archive<T, F>(
     mut decoder: pxar::decoder::Decoder<T>,
     destination: &Path,
@@ -32,7 +34,7 @@ pub fn extract_archive<T, F>(
     feature_flags: Flags,
     allow_existing_dirs: bool,
     mut callback: F,
-    on_error: Option<Box<dyn FnMut(Error) -> Result<(), Error> + Send>>,
+    on_error: Option<ErrorHandler>,
 ) -> Result<(), Error>
 where
     T: pxar::decoder::SeqRead,
@@ -212,7 +214,7 @@ pub(crate) struct Extractor {
 
     /// Error callback. Includes `current_path` in the reformatted error, should return `Ok` to
     /// continue extracting or the passed error as `Err` to bail out.
-    on_error: Box<dyn FnMut(Error) -> Result<(), Error> + Send>,
+    on_error: ErrorHandler,
 }
 
 impl Extractor {
