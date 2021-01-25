@@ -16,7 +16,9 @@ use crate::{
     tape::{
         changer::{
             MtxStatus,
-            parse_mtx_status,
+            mtx::{
+                parse_mtx_status,
+            },
         },
     },
 };
@@ -48,7 +50,7 @@ pub fn mtx_status(config: &ScsiTapeChanger) -> Result<MtxStatus, Error> {
     for (i, entry) in status.slots.iter_mut().enumerate() {
         let slot = i as u64 + 1;
         if export_slots.contains(&slot) {
-            entry.0 = true; // mark as IMPORT/EXPORT
+            entry.import_export = true; // mark as IMPORT/EXPORT
         }
     }
 

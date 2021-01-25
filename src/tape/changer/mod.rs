@@ -3,19 +3,116 @@
 mod email;
 pub use email::*;
 
-mod parse_mtx_status;
-pub use parse_mtx_status::*;
+pub mod sg_pt_changer;
 
-mod mtx_wrapper;
-pub use mtx_wrapper::*;
-
-mod mtx;
-pub use mtx::*;
+pub mod mtx;
 
 mod online_status_map;
 pub use online_status_map::*;
 
 use anyhow::{bail, Error};
+
+use crate::api2::types::{
+    ScsiTapeChanger,
+    LinuxTapeDrive,
+};
+
+/// Changer element status.
+///
+/// Drive and slots may be `Empty`, or contain some media, either
+/// with knwon volume tag `VolumeTag(String)`, or without (`Full`).
+pub enum ElementStatus {
+    Empty,
+    Full,
+    VolumeTag(String),
+}
+
+/// Changer drive status.
+pub struct DriveStatus {
+    /// The slot the element was loaded from (if known).
+    pub loaded_slot: Option<u64>,
+    /// The status.
+    pub status: ElementStatus,
+    /// Drive Identifier (Serial number)
+    pub drive_serial_number: Option<String>,
+    /// Element Address
+    pub element_address: u16,
+}
+
+/// Storage element status.
+pub struct StorageElementStatus {
+    /// Flag for Import/Export slots
+    pub import_export: bool,
+    /// The status.
+    pub status: ElementStatus,
+    /// Element Address
+    pub element_address: u16,
+}
+
+/// Transport element status.
+pub struct TransportElementStatus {
+    /// The status.
+    pub status: ElementStatus,
+    /// Element Address
+    pub element_address: u16,
+}
+
+/// Changer status - show drive/slot usage
+pub struct MtxStatus {
+    /// List of known drives
+    pub drives: Vec<DriveStatus>,
+    /// List of known storage slots
+    pub slots: Vec<StorageElementStatus>,
+    /// Tranport elements
+    ///
+    /// Note: Some libraries do not report transport elements.
+    pub transports: Vec<TransportElementStatus>,
+}
+
+impl MtxStatus {
+
+    pub fn slot_address(&self, slot: u64) -> Result<u16, Error> {
+        if slot == 0 {
+            bail!("invalid slot number '{}' (slots numbers starts at 1)", slot);
+        }
+        if slot > (self.slots.len() as u64) {
+            bail!("invalid slot number '{}' (max {} slots)", slot, self.slots.len());
+        }
+
+        Ok(self.slots[(slot -1) as usize].element_address)
+    }
+
+    pub fn drive_address(&self, drivenum: u64) -> Result<u16, Error> {
+        if drivenum >= (self.drives.len() as u64) {
+            bail!("invalid drive number '{}'", drivenum);
+        }
+
+        Ok(self.drives[drivenum as usize].element_address)
+    }
+
+    pub fn transport_address(&self) -> u16 {
+        // simply use first transport
+        // (are there changers exposing more than one?)
+        // defaults to 0 for changer that do not report transports
+        self
+            .transports
+            .get(0)
+            .map(|t| t.element_address)
+        .unwrap_or(0u16)
+    }
+}
+
+/// Interface to SCSI changer devices
+pub trait ScsiMediaChange {
+
+    fn status(&mut self) -> Result<MtxStatus, Error>;
+
+    fn load_slot(&mut self, from_slot: u64, drivenum: u64) -> Result<(), Error>;
+
+    fn unload(&mut self, to_slot: u64, drivenum: u64) -> Result<(), Error>;
+
+    fn transfer(&mut self, from_slot: u64, to_slot: u64) -> Result<(), Error>;
+}
 
 /// Interface to the media changer device for a single drive
 pub trait MediaChange {
@@ -79,10 +176,10 @@ pub trait MediaChange {
         }
 
         let mut slot = None;
-        for (i, (import_export, element_status)) in status.slots.iter().enumerate() {
-            if let ElementStatus::VolumeTag(tag) = element_status {
-                if *tag == label_text {
-                    if *import_export {
+        for (i, slot_info) in status.slots.iter().enumerate() {
+            if let ElementStatus::VolumeTag(ref tag) = slot_info.status {
+                if tag == label_text {
+                    if slot_info.import_export {
                         bail!("unable to load media '{}' - inside import/export slot", label_text);
                     }
                     slot = Some(i+1);
@@ -117,9 +214,9 @@ pub trait MediaChange {
             }
         }
 
-        for (import_export, element_status) in status.slots.iter() {
-            if *import_export { continue; }
-            if let ElementStatus::VolumeTag(ref tag) = element_status {
+        for slot_info in status.slots.iter() {
+            if slot_info.import_export { continue; }
+            if let ElementStatus::VolumeTag(ref tag) = slot_info.status {
                 if tag.starts_with("CLN") { continue; }
                 list.push(tag.clone());
             }
@@ -137,9 +234,9 @@ pub trait MediaChange {
 
         let mut cleaning_cartridge_slot = None;
 
-        for (i, (import_export, element_status)) in status.slots.iter().enumerate() {
-            if *import_export { continue; }
-            if let ElementStatus::VolumeTag(ref tag) = element_status {
+        for (i, slot_info) in status.slots.iter().enumerate() {
+            if slot_info.import_export { continue; }
+            if let ElementStatus::VolumeTag(ref tag) = slot_info.status {
                 if tag.starts_with("CLN") {
                     cleaning_cartridge_slot = Some(i + 1);
                     break;
@@ -186,13 +283,13 @@ pub trait MediaChange {
         let mut from = None;
         let mut to = None;
 
-        for (i, (import_export, element_status)) in status.slots.iter().enumerate() {
-            if *import_export {
+        for (i, slot_info) in status.slots.iter().enumerate() {
+            if slot_info.import_export {
                 if to.is_some() { continue; }
-                if let ElementStatus::Empty = element_status {
+                if let ElementStatus::Empty = slot_info.status {
                     to = Some(i as u64 + 1);
                 }
-            } else if let ElementStatus::VolumeTag(ref tag) = element_status {
+            } else if let ElementStatus::VolumeTag(ref tag) = slot_info.status {
                 if tag == label_text {
                     from = Some(i as u64 + 1);
                 }
@@ -230,7 +327,7 @@ pub trait MediaChange {
         if let Some(slot) = drive_status.loaded_slot {
             // check if original slot is empty/usable
             if let Some(info) = status.slots.get(slot as usize - 1) {
-                if let (_import_export, ElementStatus::Empty) = info {
+                if let ElementStatus::Empty = info.status {
                     return self.unload_media(Some(slot));
                 }
             }
@@ -238,8 +335,8 @@ pub trait MediaChange {
 
         let mut free_slot = None;
         for i in 0..status.slots.len() {
-            if status.slots[i].0 { continue; } // skip import/export slots
-            if let ElementStatus::Empty = status.slots[i].1 {
+            if status.slots[i].import_export { continue; } // skip import/export slots
+            if let ElementStatus::Empty = status.slots[i].status {
                 free_slot = Some((i+1) as u64);
                 break;
             }
@@ -248,6 +345,103 @@ pub trait MediaChange {
             self.unload_media(Some(slot))
         } else {
             bail!("drive '{}' unload failure - no free slot", self.drive_name());
+        }
+    }
+}
+
+const USE_MTX: bool = false;
+
+impl ScsiMediaChange for ScsiTapeChanger {
+
+    fn status(&mut self)  -> Result<MtxStatus, Error> {
+        if USE_MTX {
+            mtx::mtx_status(&self)
+        } else {
+            let mut file = sg_pt_changer::open(&self.path)?;
+            sg_pt_changer::read_element_status(&mut file)
+        }
+    }
+
+    fn load_slot(&mut self, from_slot: u64, drivenum: u64) -> Result<(), Error> {
+        if USE_MTX {
+            mtx::mtx_load(&self.path, from_slot, drivenum)
+        } else {
+            let mut file = sg_pt_changer::open(&self.path)?;
+            sg_pt_changer::load_slot(&mut file, from_slot, drivenum)
+        }
+    }
+
+    fn unload(&mut self, to_slot: u64, drivenum: u64) -> Result<(), Error> {
+        if USE_MTX {
+            mtx::mtx_unload(&self.path, to_slot, drivenum)
+        } else {
+            let mut file = sg_pt_changer::open(&self.path)?;
+            sg_pt_changer::unload(&mut file, to_slot, drivenum)
+        }
+    }
+
+    fn transfer(&mut self, from_slot: u64, to_slot: u64) -> Result<(), Error> {
+        if USE_MTX {
+            mtx::mtx_transfer(&self.path, from_slot, to_slot)
+        } else {
+            let mut file = sg_pt_changer::open(&self.path)?;
+            sg_pt_changer::transfer_medium(&mut file, from_slot, to_slot)
+        }
+    }
+}
+
+/// Implements MediaChange using 'mtx' linux cli tool
+pub struct MtxMediaChanger {
+    drive_name: String, // used for error messages
+    drive_number: u64,
+    config: ScsiTapeChanger,
+}
+
+impl MtxMediaChanger {
+
+    pub fn with_drive_config(drive_config: &LinuxTapeDrive) -> Result<Self, Error> {
+        let (config, _digest) = crate::config::drive::config()?;
+        let changer_config: ScsiTapeChanger = match drive_config.changer {
+            Some(ref changer) => config.lookup("changer", changer)?,
+            None => bail!("drive '{}' has no associated changer", drive_config.name),
+        };
+
+        Ok(Self {
+            drive_name: drive_config.name.clone(),
+            drive_number: drive_config.changer_drive_id.unwrap_or(0),
+            config: changer_config,
+        })
+    }
+}
+
+impl MediaChange for MtxMediaChanger {
+
+    fn drive_number(&self) -> u64 {
+        self.drive_number
+    }
+
+    fn drive_name(&self) -> &str {
+        &self.drive_name
+    }
+
+    fn status(&mut self) -> Result<MtxStatus, Error> {
+        self.config.status()
+    }
+
+    fn transfer_media(&mut self, from: u64, to: u64) -> Result<(), Error> {
+        self.config.transfer(from, to)
+    }
+
+    fn load_media_from_slot(&mut self, slot: u64) -> Result<(), Error> {
+        self.config.load_slot(slot, self.drive_number)
+    }
+
+    fn unload_media(&mut self, target_slot: Option<u64>) -> Result<(), Error> {
+        if let Some(target_slot) = target_slot {
+            self.config.unload(target_slot, self.drive_number)
+        } else {
+            let status = self.status()?;
+            self.unload_to_free_slot(status)
         }
     }
 }

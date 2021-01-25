@@ -4,36 +4,19 @@ use nom::{
     bytes::complete::{take_while, tag},
 };
 
-use crate::tools::nom::{
-    parse_complete, multispace0, multispace1, parse_u64,
-    parse_failure, parse_error, IResult,
+use crate::{
+    tools::nom::{
+        parse_complete, multispace0, multispace1, parse_u64,
+        parse_failure, parse_error, IResult,
+    },
+    tape::changer::{
+        ElementStatus,
+        MtxStatus,
+        DriveStatus,
+        StorageElementStatus,
+    },
 };
 
-/// Changer element status.
-///
-/// Drive and slots may be `Empty`, or contain some media, either
-/// with knwon volume tag `VolumeTag(String)`, or without (`Full`).
-pub enum ElementStatus {
-    Empty,
-    Full,
-    VolumeTag(String),
-}
-
-/// Changer drive status.
-pub struct DriveStatus {
-    /// The slot the element was loaded from (if known).
-    pub loaded_slot: Option<u64>,
-    /// The status.
-    pub status: ElementStatus,
-}
-
-/// Changer status - show drive/slot usage
-pub struct MtxStatus {
-    /// List of known drives
-    pub drives: Vec<DriveStatus>,
-    /// List of known slots, the boolean attribute marks import/export slots
-    pub slots: Vec<(bool, ElementStatus)>,
-}
 
 // Recognizes one line
 fn next_line(i: &str)  -> IResult<&str, &str> {
@@ -54,12 +37,18 @@ fn parse_storage_changer(i: &str) -> IResult<&str, ()> {
     Ok((i, ()))
 }
 
-fn parse_drive_status(i: &str) -> IResult<&str, DriveStatus> {
+fn parse_drive_status(i: &str, id: u64) -> IResult<&str, DriveStatus> {
 
     let mut loaded_slot = None;
 
     if let Some(empty) = i.strip_prefix("Empty") {
-        return Ok((empty, DriveStatus { loaded_slot, status: ElementStatus::Empty }));
+        let status = DriveStatus {
+            loaded_slot,
+            status: ElementStatus::Empty,
+            drive_serial_number: None,
+            element_address: id as u16,
+        };
+        return Ok((empty, status));
     }
     let (mut i, _) = tag("Full (")(i)?;
 
@@ -78,12 +67,24 @@ fn parse_drive_status(i: &str) -> IResult<&str, DriveStatus> {
     if let Some(i) = i.strip_prefix(":VolumeTag = ") {
         let (i, tag) = take_while(|c| !(c == ' ' || c == ':' || c == '\n'))(i)?;
         let (i, _) = take_while(|c| c != '\n')(i)?; // skip to eol
-        return Ok((i, DriveStatus { loaded_slot, status: ElementStatus::VolumeTag(tag.to_string()) }));
+        let status = DriveStatus {
+            loaded_slot,
+            status: ElementStatus::VolumeTag(tag.to_string()),
+            drive_serial_number: None,
+            element_address: id as u16,
+        };
+        return Ok((i, status));
     }
 
     let (i, _) = take_while(|c| c != '\n')(i)?; // skip
 
-    Ok((i, DriveStatus { loaded_slot, status: ElementStatus::Full }))
+    let status = DriveStatus {
+        loaded_slot,
+        status: ElementStatus::Full,
+        drive_serial_number: None,
+        element_address: id as u16,
+    };
+    Ok((i, status))
 }
 
 fn parse_slot_status(i: &str) -> IResult<&str, ElementStatus> {
@@ -111,7 +112,7 @@ fn parse_data_transfer_element(i: &str) -> IResult<&str, (u64, DriveStatus)> {
     let (i, _) = multispace1(i)?;
     let (i, id) = parse_u64(i)?;
     let (i, _) = nom::character::complete::char(':')(i)?;
-    let (i, element_status) = parse_drive_status(i)?;
+    let (i, element_status) = parse_drive_status(i, id)?;
     let (i, _) = nom::character::complete::newline(i)?;
 
     Ok((i, (id, element_status)))
@@ -151,10 +152,15 @@ fn parse_status(i: &str) ->  IResult<&str, MtxStatus> {
             return Err(parse_failure(i, "unexpected slot number"));
         }
         i = n;
-        slots.push((import_export, element_status));
+        let status = StorageElementStatus {
+            import_export,
+            status: element_status,
+            element_address: id as u16,
+        };
+        slots.push(status);
     }
 
-    let status = MtxStatus { drives, slots };
+    let status = MtxStatus { drives, slots, transports: Vec::new() };
 
     Ok((i, status))
 }

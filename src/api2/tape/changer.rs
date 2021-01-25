@@ -22,9 +22,8 @@ use crate::{
         changer::{
             OnlineStatusMap,
             ElementStatus,
-            mtx_status,
+            ScsiMediaChange,
             mtx_status_to_online_set,
-            mtx_transfer,
         },
     },
 };
@@ -51,10 +50,10 @@ pub async fn get_status(name: String) -> Result<Vec<MtxStatusEntry>, Error> {
 
     let (config, _digest) = config::drive::config()?;
 
-    let data: ScsiTapeChanger = config.lookup("changer", &name)?;
+    let mut changer_config: ScsiTapeChanger = config.lookup("changer", &name)?;
 
     let status = tokio::task::spawn_blocking(move || {
-        mtx_status(&data)
+        changer_config.status()
     }).await??;
 
     let state_path = Path::new(TAPE_STATUS_DIR);
@@ -82,15 +81,15 @@ pub async fn get_status(name: String) -> Result<Vec<MtxStatusEntry>, Error> {
         list.push(entry);
     }
 
-    for (id, (import_export, slot_status)) in status.slots.iter().enumerate() {
+    for (id, slot_info) in status.slots.iter().enumerate() {
         let entry = MtxStatusEntry {
-            entry_kind: if *import_export {
+            entry_kind: if slot_info.import_export {
                 MtxEntryKind::ImportExport
             } else {
                 MtxEntryKind::Slot
             },
             entry_id: id as u64 + 1,
-            label_text: match &slot_status {
+            label_text: match &slot_info.status {
                 ElementStatus::Empty => None,
                 ElementStatus::Full => Some(String::new()),
                 ElementStatus::VolumeTag(tag) => Some(tag.to_string()),
@@ -129,10 +128,10 @@ pub async fn transfer(
 
     let (config, _digest) = config::drive::config()?;
 
-    let data: ScsiTapeChanger = config.lookup("changer", &name)?;
+    let mut changer_config: ScsiTapeChanger = config.lookup("changer", &name)?;
 
     tokio::task::spawn_blocking(move || {
-        mtx_transfer(&data.path, from, to)
+        changer_config.transfer(from, to)
     }).await?
 }
 

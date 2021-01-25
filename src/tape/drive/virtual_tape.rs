@@ -20,6 +20,7 @@ use crate::{
             MtxStatus,
             DriveStatus,
             ElementStatus,
+            StorageElementStatus,
         },
         drive::{
             VirtualTapeDrive,
@@ -397,7 +398,9 @@ impl MediaChange for VirtualTapeHandle {
             drives.push(DriveStatus {
                 loaded_slot: None,
                 status: ElementStatus::VolumeTag(current_tape.name.clone()),
-            });
+                drive_serial_number: None,
+                element_address: 0,
+           });
         }
 
         // This implementation is lame, because we do not have fixed
@@ -408,14 +411,19 @@ impl MediaChange for VirtualTapeHandle {
         let max_slots = ((label_texts.len() + 7)/8) * 8;
 
         for i in 0..max_slots {
-            if let Some(label_text) = label_texts.get(i) {
-                slots.push((false,  ElementStatus::VolumeTag(label_text.clone())));
+            let status = if let Some(label_text) = label_texts.get(i) {
+                ElementStatus::VolumeTag(label_text.clone())
             } else {
-                slots.push((false,  ElementStatus::Empty));
-            }
+                ElementStatus::Empty
+            };
+            slots.push(StorageElementStatus {
+                import_export: false,
+                status,
+                element_address: (i + 1) as u16,
+            });
         }
 
-        Ok(MtxStatus { drives, slots })
+        Ok(MtxStatus { drives, slots, transports: Vec::new() })
     }
 
     fn transfer_media(&mut self, _from: u64, _to: u64) -> Result<(), Error> {

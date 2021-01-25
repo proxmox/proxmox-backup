@@ -91,6 +91,10 @@ const proxmoxOnlineHelpInfo = {
     "link": "/docs/sysadmin.html#sysadmin-host-administration",
     "title": "Host System Administration"
   },
+  "restore-encryption-key": {
+    "link": "/docs/tape-backup.html#restore-encryption-key",
+    "title": "Restoring Encryption Keys"
+  },
   "user-mgmt": {
     "link": "/docs/user-management.html#user-mgmt",
     "title": "User Management"

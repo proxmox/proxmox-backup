@@ -17,7 +17,7 @@ use crate::{
             MediaChange,
             MtxStatus,
             ElementStatus,
-            mtx_status,
+            mtx::mtx_status,
         },
     },
 };
@@ -108,9 +108,9 @@ pub fn mtx_status_to_online_set(status: &MtxStatus, inventory: &Inventory) -> Ha
         }
     }
 
-    for (import_export, slot_status) in status.slots.iter() {
-        if *import_export { continue; }
-        if let ElementStatus::VolumeTag(ref label_text) = slot_status {
+    for slot_info in status.slots.iter() {
+        if slot_info.import_export { continue; }
+        if let ElementStatus::VolumeTag(ref label_text) = slot_info.status {
             if let Some(media_id) = inventory.find_media_by_label_text(label_text) {
                 online_set.insert(media_id.label.uuid.clone());
             }
