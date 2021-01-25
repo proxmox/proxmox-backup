@@ -16,10 +16,10 @@
 //! * [`Authid`]: an owned Authentication ID (a `Userid` with an optional `Tokenname`).
 //! Note that `Userid` and `Authid` do not have a separate borrowed type.
 //!
-//! Note that `Username`s and `Tokenname`s are not unique, therefore they do not implement `Eq` and cannot be
+//! Note that `Username`s are not unique, therefore they do not implement `Eq` and cannot be
 //! compared directly. If a direct comparison is really required, they can be compared as strings
-//! via the `as_str()` method. [`Realm`]s, [`Userid`]s and [`Authid`]s on the other
-//! hand can be compared with each other, as in those cases the comparison has meaning.
+//! via the `as_str()` method. [`Realm`]s, [`Userid`]s and [`Authid`]s on the other hand can be
+//! compared with each other, as in those cases the comparison has meaning.
 
 use std::borrow::Borrow;
 use std::convert::TryFrom;
@@ -299,16 +299,8 @@ impl PartialEq<Realm> for &RealmRef {
 )]
 /// The token ID part of an API token authentication id.
 ///
-/// This alone does NOT uniquely identify the API token and therefore does not implement `Eq`. In
-/// order to compare token IDs directly, they need to be explicitly compared as strings by calling
-/// `.as_str()`.
-///
-/// ```compile_fail
-/// fn test(a: Tokenname, b: Tokenname) -> bool {
-///     a == b // illegal and does not compile
-/// }
-/// ```
-#[derive(Clone, Debug, Hash, Deserialize, Serialize)]
+/// This alone does NOT uniquely identify the API token - use a full `Authid` for such use cases.
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
 pub struct Tokenname(String);
 
 /// A reference to a token name part of an authentication id. This alone does NOT uniquely identify
@@ -335,24 +327,6 @@ pub struct TokennameRef(str);
 /// let a: &UsernameRef = unsafe { std::mem::zeroed() };
 /// let b: &UsernameRef = unsafe { std::mem::zeroed() };
 /// let _ = <&UsernameRef as PartialEq>::eq(&a, &b);
-/// ```
-///
-/// ```compile_fail
-/// let a: Tokenname = unsafe { std::mem::zeroed() };
-/// let b: Tokenname = unsafe { std::mem::zeroed() };
-/// let _ = <Tokenname as PartialEq>::eq(&a, &b);
-/// ```
-///
-/// ```compile_fail
-/// let a: &TokennameRef = unsafe { std::mem::zeroed() };
-/// let b: &TokennameRef = unsafe { std::mem::zeroed() };
-/// let _ = <&TokennameRef as PartialEq>::eq(a, b);
-/// ```
-///
-/// ```compile_fail
-/// let a: &TokennameRef = unsafe { std::mem::zeroed() };
-/// let b: &TokennameRef = unsafe { std::mem::zeroed() };
-/// let _ = <&TokennameRef as PartialEq>::eq(&a, &b);
 /// ```
 struct _AssertNoEqImpl;
 
@@ -548,7 +522,7 @@ impl PartialEq<String> for Userid {
 }
 
 /// A complete authentication id consisting of a user id and an optional token name.
-#[derive(Clone, Debug, Hash)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Authid {
     user: Userid,
     tokenname: Option<Tokenname>
@@ -588,18 +562,6 @@ impl Authid {
 
 lazy_static! {
     pub static ref ROOT_AUTHID: Authid = Authid::from(Userid::new("root@pam".to_string(), 4));
-}
-
-impl Eq for Authid {}
-
-impl PartialEq for Authid {
-    fn eq(&self, rhs: &Self) -> bool {
-        self.user == rhs.user && match (&self.tokenname, &rhs.tokenname) {
-            (Some(ours), Some(theirs)) => ours.as_str() == theirs.as_str(),
-            (None, None) => true,
-            _ => false,
-        }
-    }
 }
 
 impl From<Userid> for Authid {
