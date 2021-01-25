@@ -15,6 +15,8 @@ use super::IndexFile;
 use super::read_chunk::AsyncReadChunk;
 use super::index::ChunkReadInfo;
 
+type ReadFuture<S> = dyn Future<Output = Result<(S, Vec<u8>), Error>> + Send + 'static;
+
 // FIXME: This enum may not be required?
 // - Put the `WaitForData` case directly into a `read_future: Option<>`
 // - make the read loop as follows:
@@ -28,7 +30,7 @@ use super::index::ChunkReadInfo;
 #[allow(clippy::enum_variant_names)]
 enum AsyncIndexReaderState<S> {
     NoData,
-    WaitForData(Pin<Box<dyn Future<Output = Result<(S, Vec<u8>), Error>> + Send + 'static>>),
+    WaitForData(Pin<Box<ReadFuture<S>>>),
     HaveData,
 }
 
