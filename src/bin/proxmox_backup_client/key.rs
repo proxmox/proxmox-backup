@@ -315,21 +315,12 @@ fn change_passphrase(
     },
 )]
 /// Print the encryption key's metadata.
-fn show_key(
-    path: Option<String>,
-    param: Value,
-) -> Result<(), Error> {
+fn show_key(path: Option<String>, param: Value) -> Result<(), Error> {
     let path = match path {
         Some(path) => PathBuf::from(path),
-        None => {
-            let path = find_default_encryption_key()?
-                .ok_or_else(|| {
-                    format_err!("no encryption file provided and no default file found")
-                })?;
-            path
-        }
+        None => find_default_encryption_key()?
+            .ok_or_else(|| format_err!("no encryption file provided and no default file found"))?,
     };
-
 
     let config: KeyConfig = serde_json::from_slice(&file_get_contents(path.clone())?)?;
 
@@ -442,13 +433,8 @@ fn paper_key(
 ) -> Result<(), Error> {
     let path = match path {
         Some(path) => PathBuf::from(path),
-        None => {
-            let path = find_default_encryption_key()?
-                .ok_or_else(|| {
-                    format_err!("no encryption file provided and no default file found")
-                })?;
-            path
-        }
+        None => find_default_encryption_key()?
+            .ok_or_else(|| format_err!("no encryption file provided and no default file found"))?,
     };
 
     let data = file_get_contents(&path)?;

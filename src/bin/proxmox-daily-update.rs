@@ -63,11 +63,8 @@ fn main() {
     let mut rpcenv = CliEnvironment::new();
     rpcenv.set_auth_id(Some(String::from("root@pam")));
 
-    match proxmox_backup::tools::runtime::main(do_update(&mut rpcenv)) {
-        Err(err) => {
-            eprintln!("error during update: {}", err);
-            std::process::exit(1);
-        },
-        _ => (),
+    if let Err(err) = proxmox_backup::tools::runtime::main(do_update(&mut rpcenv)) {
+        eprintln!("error during update: {}", err);
+        std::process::exit(1);
     }
 }

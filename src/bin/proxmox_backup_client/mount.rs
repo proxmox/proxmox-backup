@@ -345,7 +345,7 @@ fn unmap(
             let mut any = false;
             for (backing, loopdev) in tools::fuse_loop::find_all_mappings()? {
                 let name = tools::systemd::unescape_unit(&backing)?;
-                println!("{}:\t{}", loopdev.unwrap_or("(unmapped)".to_owned()), name);
+                println!("{}:\t{}", loopdev.unwrap_or_else(|| "(unmapped)".to_string()), name);
                 any = true;
             }
             if !any {

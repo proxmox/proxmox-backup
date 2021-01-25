@@ -133,7 +133,7 @@ fn list_permissions(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Val
     let output_format = get_output_format(&param);
 
     let info = &api2::access::API_METHOD_LIST_PERMISSIONS;
-    let mut data = match info.handler {
+    let data = match info.handler {
         ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
         _ => unreachable!(),
     };
@@ -161,7 +161,7 @@ fn list_permissions(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Val
             }
         }
     } else {
-        format_and_print_result(&mut data, &output_format);
+        format_and_print_result(&data, &output_format);
     }
 
     Ok(Value::Null)
