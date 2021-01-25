@@ -86,6 +86,19 @@ lazy_static! {
         map
     };
 }
+
+struct TimeSpec {
+    hour: Vec<DateTimeValue>,
+    minute: Vec<DateTimeValue>,
+    second: Vec<DateTimeValue>,
+}
+
+struct DateSpec {
+    year: Vec<DateTimeValue>,
+    month: Vec<DateTimeValue>,
+    day: Vec<DateTimeValue>,
+}
+
 fn parse_time_comp(max: usize) -> impl Fn(&str) -> IResult<&str, u32> {
     move |i: &str| {
         let (i, v) = map_res(recognize(digit1), str::parse)(i)?;
@@ -176,7 +189,7 @@ fn parse_date_time_comp_list(start: u32, max: usize) -> impl Fn(&str) -> IResult
     }
 }
 
-fn parse_time_spec(i: &str) -> IResult<&str, (Vec<DateTimeValue>, Vec<DateTimeValue>, Vec<DateTimeValue>)> {
+fn parse_time_spec(i: &str) -> IResult<&str, TimeSpec> {
 
     let (i, (hour, minute, opt_second)) = tuple((
         parse_date_time_comp_list(0, 24),
@@ -185,13 +198,13 @@ fn parse_time_spec(i: &str) -> IResult<&str, (Vec<DateTimeValue>, Vec<DateTimeVa
     ))(i)?;
 
     if let Some(second) = opt_second {
-        Ok((i, (hour, minute, second)))
+        Ok((i, TimeSpec { hour, minute, second }))
     } else {
-        Ok((i, (hour, minute, vec![DateTimeValue::Single(0)])))
+        Ok((i, TimeSpec { hour, minute, second: vec![DateTimeValue::Single(0)] }))
     }
 }
 
-fn parse_date_spec(i: &str) -> IResult<&str, (Vec<DateTimeValue>, Vec<DateTimeValue>, Vec<DateTimeValue>)> {
+fn parse_date_spec(i: &str) -> IResult<&str, DateSpec> {
 
     // TODO: implement ~ for days (man systemd.time)
     if let Ok((i, (year, month, day))) = tuple((
@@ -199,12 +212,12 @@ fn parse_date_spec(i: &str) -> IResult<&str, (Vec<DateTimeValue>, Vec<DateTimeVa
         preceded(tag("-"), parse_date_time_comp_list(1, 13)),
         preceded(tag("-"), parse_date_time_comp_list(1, 32)),
     ))(i) {
-        Ok((i, (year, month, day)))
+        Ok((i, DateSpec { year, month, day }))
     } else if let Ok((i, (month, day))) = tuple((
         parse_date_time_comp_list(1, 13),
         preceded(tag("-"), parse_date_time_comp_list(1, 32)),
     ))(i) {
-        Ok((i, (Vec::new(), month, day)))
+        Ok((i, DateSpec { year: Vec::new(), month, day }))
     } else {
         Err(parse_error(i, "invalid date spec"))
     }
@@ -317,18 +330,18 @@ fn parse_calendar_event_incomplete(mut i: &str) -> IResult<&str, CalendarEvent> 
         for range in range_list  { event.days.insert(range); }
     }
 
-    if let (n, Some((year, month, day))) = opt(parse_date_spec)(i)? {
-        event.year = year;
-        event.month = month;
-        event.day = day;
+    if let (n, Some(date)) = opt(parse_date_spec)(i)? {
+        event.year = date.year;
+        event.month = date.month;
+        event.day = date.day;
         has_datespec = true;
         i = space0(n)?.0;
     }
 
-    if let (n, Some((hour, minute, second))) = opt(parse_time_spec)(i)? {
-        event.hour = hour;
-        event.minute = minute;
-        event.second = second;
+    if let (n, Some(time)) = opt(parse_time_spec)(i)? {
+        event.hour = time.hour;
+        event.minute = time.minute;
+        event.second = time.second;
         has_timespec = true;
         i = n;
     } else {
