@@ -1354,20 +1354,24 @@ async fn restore(param: Value) -> Result<Value, Error> {
 
         let mut reader = BufferedDynamicReader::new(index, chunk_reader);
 
+        let options = proxmox_backup::pxar::PxarExtractOptions {
+            match_list: &[],
+            extract_match_default: true,
+            allow_existing_dirs,
+            on_error: None,
+        };
+
         if let Some(target) = target {
             proxmox_backup::pxar::extract_archive(
                 pxar::decoder::Decoder::from_std(reader)?,
                 Path::new(target),
-                &[],
-                true,
                 proxmox_backup::pxar::Flags::DEFAULT,
-                allow_existing_dirs,
                 |path| {
                     if verbose {
                         println!("{:?}", path);
                     }
                 },
-                None,
+                options,
             )
             .map_err(|err| format_err!("error extracting archive - {}", err))?;
         } else {

@@ -17,31 +17,26 @@ use proxmox::api::cli::*;
 use proxmox::api::api;
 
 use proxmox_backup::tools;
-use proxmox_backup::pxar::{fuse, format_single_line_entry, ENCODER_MAX_ENTRIES, ErrorHandler, Flags};
+use proxmox_backup::pxar::{fuse, format_single_line_entry, ENCODER_MAX_ENTRIES, Flags, PxarExtractOptions};
 
 fn extract_archive_from_reader<R: std::io::Read>(
     reader: &mut R,
     target: &str,
     feature_flags: Flags,
-    allow_existing_dirs: bool,
     verbose: bool,
-    match_list: &[MatchEntry],
-    extract_match_default: bool,
-    on_error: Option<ErrorHandler>,
+    options: PxarExtractOptions,
 ) -> Result<(), Error> {
+
     proxmox_backup::pxar::extract_archive(
         pxar::decoder::Decoder::from_std(reader)?,
         Path::new(target),
-        &match_list,
-        extract_match_default,
         feature_flags,
-        allow_existing_dirs,
         |path| {
             if verbose {
                 println!("{:?}", path);
             }
         },
-        on_error,
+        options,
     )
 }
 
@@ -190,6 +185,13 @@ fn extract_archive(
         }) as Box<dyn FnMut(Error) -> Result<(), Error> + Send>)
     };
 
+    let options = PxarExtractOptions {
+        match_list: &match_list,
+        allow_existing_dirs,
+        extract_match_default,
+        on_error,
+    };
+
     if archive == "-" {
         let stdin = std::io::stdin();
         let mut reader = stdin.lock();
@@ -197,11 +199,8 @@ fn extract_archive(
             &mut reader,
             &target,
             feature_flags,
-            allow_existing_dirs,
             verbose,
-            &match_list,
-            extract_match_default,
-            on_error,
+            options,
         )?;
     } else {
         if verbose {
@@ -213,11 +212,8 @@ fn extract_archive(
             &mut reader,
             &target,
             feature_flags,
-            allow_existing_dirs,
             verbose,
-            &match_list,
-            extract_match_default,
-            on_error,
+            options,
         )?;
     }
 
@@ -297,6 +293,7 @@ fn extract_archive(
     },
 )]
 /// Create a new .pxar archive.
+#[allow(clippy::too_many_arguments)]
 fn create_archive(
     archive: String,
     source: String,

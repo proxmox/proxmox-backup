@@ -24,17 +24,21 @@ use crate::pxar::dir_stack::PxarDirStack;
 use crate::pxar::metadata;
 use crate::pxar::Flags;
 
+pub struct PxarExtractOptions<'a> {
+    pub match_list: &'a[MatchEntry],
+    pub extract_match_default: bool,
+    pub allow_existing_dirs: bool,
+    pub on_error: Option<ErrorHandler>,
+}
+
 pub type ErrorHandler = Box<dyn FnMut(Error) -> Result<(), Error> + Send>;
 
 pub fn extract_archive<T, F>(
     mut decoder: pxar::decoder::Decoder<T>,
     destination: &Path,
-    match_list: &[MatchEntry],
-    extract_match_default: bool,
     feature_flags: Flags,
-    allow_existing_dirs: bool,
     mut callback: F,
-    on_error: Option<ErrorHandler>,
+    options: PxarExtractOptions,
 ) -> Result<(), Error>
 where
     T: pxar::decoder::SeqRead,
@@ -69,17 +73,17 @@ where
     let mut extractor = Extractor::new(
         dir,
         root.metadata().clone(),
-        allow_existing_dirs,
+        options.allow_existing_dirs,
         feature_flags,
     );
 
-    if let Some(on_error) = on_error {
+    if let Some(on_error) = options.on_error {
         extractor.on_error(on_error);
     }
 
     let mut match_stack = Vec::new();
     let mut err_path_stack = vec![OsString::from("/")];
-    let mut current_match = extract_match_default;
+    let mut current_match = options.extract_match_default;
     while let Some(entry) = decoder.next() {
         use pxar::EntryKind;
 
@@ -99,7 +103,7 @@ where
 
         extractor.set_path(entry.path().as_os_str().to_owned());
 
-        let match_result = match_list.matches(
+        let match_result = options.match_list.matches(
             entry.path().as_os_str().as_bytes(),
             Some(metadata.file_type() as u32),
         );
