@@ -1,6 +1,7 @@
 use anyhow::{Error};
 
 use std::collections::HashMap;
+use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
@@ -85,8 +86,8 @@ impl <E: RpcEnvironment + Clone> H2Service<E> {
 impl <E: RpcEnvironment + Clone> tower_service::Service<Request<Body>> for H2Service<E> {
     type Response = Response<Body>;
     type Error = Error;
-    type Future =
-        std::pin::Pin<Box<dyn Future<Output = Result<Response<Body>, Self::Error>> + Send>>;
+    #[allow(clippy::type_complexity)]
+    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
     fn poll_ready(&mut self, _cx: &mut Context) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))

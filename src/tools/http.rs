@@ -108,9 +108,8 @@ type MaybeTlsStream = EitherStream<
 impl hyper::service::Service<Uri> for HttpsConnector {
     type Response = MaybeTlsStream;
     type Error = Error;
-    type Future = std::pin::Pin<Box<
-        dyn Future<Output = Result<Self::Response, Self::Error>> + Send + 'static
-    >>;
+    #[allow(clippy::type_complexity)]
+    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send + 'static>>;
 
     fn poll_ready(&mut self, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         // This connector is always ready, but others might not be.
