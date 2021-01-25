@@ -7,8 +7,8 @@
 use std::os::unix::io::AsRawFd;
 
 use anyhow::{bail, format_err, Error};
-use libc::{c_char, c_int};
 use endian_trait::Endian;
+use libc::{c_char, c_int};
 
 use proxmox::tools::io::ReadExt;
 
@@ -124,7 +124,7 @@ pub const SCSI_PT_RESULT_TRANSPORT_ERR:c_int = 3;
 pub const SCSI_PT_RESULT_OS_ERR:c_int = 4;
 
 #[link(name = "sgutils2")]
-extern {
+extern "C" {
 
     #[allow(dead_code)]
     fn scsi_pt_open_device(
