@@ -16,9 +16,34 @@ use proxmox::tools::io::ReadExt;
 #[repr(C)]
 struct SgPtBase { _private: [u8; 0] }
 
-impl Drop for SgPtBase  {
+#[repr(transparent)]
+struct SgPt {
+    raw: *mut SgPtBase,
+}
+
+impl Drop for SgPt  {
     fn drop(&mut self) {
-        unsafe { destruct_scsi_pt_obj(self as *mut SgPtBase) };
+        unsafe { destruct_scsi_pt_obj(self.raw) };
+    }
+}
+
+impl SgPt {
+    fn new() -> Result<Self, Error> {
+        let raw = unsafe { construct_scsi_pt_obj() };
+
+        if raw.is_null() {
+            bail!("construct_scsi_pt_ob failed");
+        }
+
+        Ok(Self { raw })
+    }
+
+    fn as_ptr(&self) -> *const SgPtBase {
+        self.raw as *const SgPtBase
+    }
+
+    fn as_mut_ptr(&mut self) -> *mut SgPtBase {
+        self.raw
     }
 }
 
@@ -157,21 +182,6 @@ extern {
     fn get_scsi_pt_result_category(objp: *const SgPtBase) -> c_int;
 }
 
-/// Creates a `Box<SgPtBase>`
-///
-/// Which get automatically dropped, so you do not need to call
-/// destruct_scsi_pt_obj yourself.
-fn boxed_scsi_pt_obj() -> Result<Box<SgPtBase>, Error> {
-    let objp = unsafe {
-        construct_scsi_pt_obj()
-    };
-    if objp.is_null() {
-        bail!("construct_scsi_pt_ob failed");
-    }
-
-    Ok(unsafe { std::mem::transmute(objp)})
-}
-
 /// Safe interface to run RAW SCSI commands
 pub struct SgRaw<'a, F> {
     file: &'a mut F,
@@ -225,14 +235,14 @@ impl <'a, F: AsRawFd> SgRaw<'a, F> {
     }
 
     // create new object with initialized data_in and sense buffer
-    fn create_boxed_scsi_pt_obj(&mut self) -> Result<Box<SgPtBase>, Error> {
+    fn create_boxed_scsi_pt_obj(&mut self) -> Result<SgPt, Error> {
 
-        let mut ptvp = boxed_scsi_pt_obj()?;
+        let mut ptvp = SgPt::new()?;
 
         if self.buffer.len() > 0 {
             unsafe {
                 set_scsi_pt_data_in(
-                    &mut *ptvp,
+                    ptvp.as_mut_ptr(),
                     self.buffer.as_mut_ptr(),
                     self.buffer.len() as c_int,
                 )
@@ -241,7 +251,7 @@ impl <'a, F: AsRawFd> SgRaw<'a, F> {
 
         unsafe {
             set_scsi_pt_sense(
-                &mut *ptvp,
+                ptvp.as_mut_ptr(),
                 self.sense_buffer.as_mut_ptr(),
                 self.sense_buffer.len() as c_int,
             )
@@ -265,13 +275,13 @@ impl <'a, F: AsRawFd> SgRaw<'a, F> {
 
         unsafe {
             set_scsi_pt_cdb(
-                &mut *ptvp,
+                ptvp.as_mut_ptr(),
                 cmd.as_ptr(),
                 cmd.len() as c_int,
             )
         };
 
-        let res = unsafe { do_scsi_pt(&mut *ptvp, self.file.as_raw_fd(), self.timeout, 0) };
+        let res = unsafe { do_scsi_pt(ptvp.as_mut_ptr(), self.file.as_raw_fd(), self.timeout, 0) };
         if res < 0 {
             let err = nix::Error::last();
             bail!("do_scsi_pt failed  - {}", err);
@@ -281,15 +291,15 @@ impl <'a, F: AsRawFd> SgRaw<'a, F> {
         }
 
         // todo: what about sense data?
-        let _sense_len = unsafe { get_scsi_pt_sense_len(&*ptvp) };
+        let _sense_len = unsafe { get_scsi_pt_sense_len(ptvp.as_ptr()) };
 
-        let status = unsafe { get_scsi_pt_status_response(&*ptvp) };
+        let status = unsafe { get_scsi_pt_status_response(ptvp.as_ptr()) };
         if status != 0 {
             // toto: improve error reporting
             bail!("unknown scsi error - status response {}", status);
         }
 
-        let resid = unsafe { get_scsi_pt_resid(&*ptvp) } as usize;
+        let resid = unsafe { get_scsi_pt_resid(ptvp.as_ptr()) } as usize;
         if resid > self.buffer.len() {
             bail!("do_scsi_pt failed - got strange resid (value too big)");
         }
@@ -316,19 +326,19 @@ impl <'a, F: AsRawFd> SgRaw<'a, F> {
 
         unsafe {
             set_scsi_pt_data_out(
-                &mut *ptvp,
+                ptvp.as_mut_ptr(),
                 data.as_ptr(),
                 data.len() as c_int,
             );
 
             set_scsi_pt_cdb(
-                &mut *ptvp,
+                ptvp.as_mut_ptr(),
                 cmd.as_ptr(),
                 cmd.len() as c_int,
             );
          };
 
-        let res = unsafe { do_scsi_pt(&mut *ptvp, self.file.as_raw_fd(), self.timeout, 0) };
+        let res = unsafe { do_scsi_pt(ptvp.as_mut_ptr(), self.file.as_raw_fd(), self.timeout, 0) };
         if res < 0 {
             let err = nix::Error::last();
             bail!("do_scsi_pt failed  - {}", err);
@@ -338,9 +348,9 @@ impl <'a, F: AsRawFd> SgRaw<'a, F> {
         }
 
         // todo: what about sense data?
-        let _sense_len = unsafe { get_scsi_pt_sense_len(&*ptvp) };
+        let _sense_len = unsafe { get_scsi_pt_sense_len(ptvp.as_ptr()) };
 
-        let status = unsafe { get_scsi_pt_status_response(&*ptvp) };
+        let status = unsafe { get_scsi_pt_status_response(ptvp.as_ptr()) };
         if status != 0 {
             // toto: improve error reporting
             bail!("unknown scsi error - status response {}", status);
