@@ -17,7 +17,7 @@ use crate::{
             MediaChange,
             MtxStatus,
             ElementStatus,
-            mtx::mtx_status,
+            ScsiMediaChange,
         },
     },
 };
@@ -133,8 +133,8 @@ pub fn update_online_status(state_path: &Path) -> Result<OnlineStatusMap, Error>
 
     let mut map = OnlineStatusMap::new(&config)?;
 
-    for changer in changers {
-        let status = match mtx_status(&changer) {
+    for mut changer in changers {
+        let status = match changer.status() {
             Ok(status) => status,
             Err(err) => {
                 eprintln!("unable to get changer '{}' status - {}", changer.name, err);
