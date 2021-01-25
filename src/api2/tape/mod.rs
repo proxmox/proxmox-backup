@@ -16,6 +16,11 @@ pub const SUBDIRS: SubdirMap = &[
     ("drive", &drive::ROUTER),
     ("media", &media::ROUTER),
     ("restore", &restore::ROUTER),
+    (
+        "scan-changers",
+        &Router::new()
+            .get(&changer::API_METHOD_SCAN_CHANGERS),
+    ),
 ];
 
 pub const ROUTER: Router = Router::new()

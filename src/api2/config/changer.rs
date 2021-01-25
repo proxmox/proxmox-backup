@@ -24,7 +24,6 @@ use crate::{
     tape::{
         linux_tape_changer_list,
         check_drive_path,
-        lookup_drive,
     },
 };
 
@@ -126,28 +125,19 @@ pub fn list_changers(
 
     let (config, digest) = config::drive::config()?;
 
-    let linux_changers = linux_tape_changer_list();
-
     let changer_list: Vec<ScsiTapeChanger> = config.convert_to_typed_array("changer")?;
 
     let mut list = Vec::new();
 
     for changer in changer_list {
-        let mut entry = DriveListEntry {
+        list.push(DriveListEntry {
             name: changer.name,
             path: changer.path.clone(),
             changer: None,
             vendor: None,
             model: None,
             serial: None,
-        };
-        if let Some(info) = lookup_drive(&linux_changers, &changer.path) {
-            entry.vendor = Some(info.vendor.clone());
-            entry.model = Some(info.model.clone());
-            entry.serial = Some(info.serial.clone());
-        }
-
-        list.push(entry);
+        });
     }
 
     rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();

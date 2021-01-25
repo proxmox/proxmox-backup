@@ -10,6 +10,7 @@ use crate::{
     config,
     api2::types::{
         CHANGER_NAME_SCHEMA,
+        DriveListEntry,
         ScsiTapeChanger,
         TapeDeviceInfo,
         MtxStatusEntry,
@@ -25,6 +26,7 @@ use crate::{
             ScsiMediaChange,
             mtx_status_to_online_set,
         },
+        lookup_drive,
     },
 };
 
@@ -155,14 +157,68 @@ pub fn scan_changers(_param: Value) -> Result<Vec<TapeDeviceInfo>, Error> {
     Ok(list)
 }
 
+#[api(
+    input: {
+        properties: {},
+    },
+    returns: {
+        description: "The list of configured changers with model information.",
+        type: Array,
+        items: {
+            type: DriveListEntry,
+        },
+    },
+)]
+/// List changers
+pub fn list_changers(
+    _param: Value,
+) -> Result<Vec<DriveListEntry>, Error> {
+
+    let (config, _digest) = config::drive::config()?;
+
+    let linux_changers = linux_tape_changer_list();
+
+    let changer_list: Vec<ScsiTapeChanger> = config.convert_to_typed_array("changer")?;
+
+    let mut list = Vec::new();
+
+    for changer in changer_list {
+        let mut entry = DriveListEntry {
+            name: changer.name,
+            path: changer.path.clone(),
+            changer: None,
+            vendor: None,
+            model: None,
+            serial: None,
+        };
+        if let Some(info) = lookup_drive(&linux_changers, &changer.path) {
+            entry.vendor = Some(info.vendor.clone());
+            entry.model = Some(info.model.clone());
+            entry.serial = Some(info.serial.clone());
+        }
+
+        list.push(entry);
+    }
+    Ok(list)
+}
+
 const SUBDIRS: SubdirMap = &[
     (
-        "scan",
+        "status",
         &Router::new()
-            .get(&API_METHOD_SCAN_CHANGERS)
+            .get(&API_METHOD_GET_STATUS)
+    ),
+    (
+        "transfer",
+        &Router::new()
+            .post(&API_METHOD_TRANSFER)
     ),
 ];
 
-pub const ROUTER: Router = Router::new()
+const ITEM_ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(SUBDIRS))
-    .subdirs(SUBDIRS);
+    .subdirs(&SUBDIRS);
+
+pub const ROUTER: Router = Router::new()
+    .get(&API_METHOD_LIST_CHANGERS)
+    .match_all("name", &ITEM_ROUTER);
