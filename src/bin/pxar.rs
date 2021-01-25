@@ -311,16 +311,16 @@ fn create_archive(
     exclude: Option<Vec<String>>,
     entries_max: isize,
 ) -> Result<(), Error> {
-    let pattern_list = {
+    let patterns = {
         let input = exclude.unwrap_or_else(Vec::new);
-        let mut pattern_list = Vec::with_capacity(input.len());
+        let mut patterns = Vec::with_capacity(input.len());
         for entry in input {
-            pattern_list.push(
+            patterns.push(
                 MatchEntry::parse_pattern(entry, PatternFlag::PATH_NAME, MatchType::Exclude)
                     .map_err(|err| format_err!("error in exclude pattern: {}", err))?,
             );
         }
-        pattern_list
+        patterns
     };
 
     let device_set = if all_file_systems {
@@ -328,6 +328,15 @@ fn create_archive(
     } else {
         Some(HashSet::new())
     };
+
+    let options = proxmox_backup::pxar::PxarCreateOptions {
+        entries_max: entries_max as usize,
+        device_set,
+        patterns,
+        verbose,
+        skip_lost_and_found: false,
+    };
+
 
     let source = PathBuf::from(source);
 
@@ -368,18 +377,15 @@ fn create_archive(
     proxmox_backup::pxar::create_archive(
         dir,
         writer,
-        pattern_list,
         feature_flags,
-        device_set,
-        false,
         |path| {
             if verbose {
                 println!("{:?}", path);
             }
             Ok(())
         },
-        entries_max as usize,
         None,
+        options,
     )?;
 
     Ok(())

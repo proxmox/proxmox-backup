@@ -27,6 +27,22 @@ use crate::pxar::Flags;
 use crate::pxar::tools::assert_single_path_component;
 use crate::tools::{acl, fs, xattr, Fd};
 
+/// Pxar options for creating a pxar archive/stream
+#[derive(Default, Clone)]
+pub struct PxarCreateOptions {
+    /// Device/mountpoint st_dev numbers that should be included. None for no limitation.
+    pub device_set: Option<HashSet<u64>>,
+    /// Exclusion patterns
+    pub patterns: Vec<MatchEntry>,
+    /// Maximum number of entries to hold in memory
+    pub entries_max: usize,
+    /// Skip lost+found directory
+    pub skip_lost_and_found: bool,
+    /// Verbose output
+    pub verbose: bool,
+}
+
+
 fn detect_fs_type(fd: RawFd) -> Result<i64, Error> {
     let mut fs_stat = std::mem::MaybeUninit::uninit();
     let res = unsafe { libc::fstatfs(fd, fs_stat.as_mut_ptr()) };
@@ -136,13 +152,10 @@ type Encoder<'a, 'b> = pxar::encoder::Encoder<'a, &'b mut dyn pxar::encoder::Seq
 pub fn create_archive<T, F>(
     source_dir: Dir,
     mut writer: T,
-    mut patterns: Vec<MatchEntry>,
     feature_flags: Flags,
-    mut device_set: Option<HashSet<u64>>,
-    skip_lost_and_found: bool,
     mut callback: F,
-    entry_limit: usize,
     catalog: Option<&mut dyn BackupCatalogWriter>,
+    options: PxarCreateOptions,
 ) -> Result<(), Error>
 where
     T: pxar::encoder::SeqWrite,
@@ -164,6 +177,7 @@ where
     )
     .map_err(|err| format_err!("failed to get metadata for source directory: {}", err))?;
 
+    let mut device_set = options.device_set.clone();
     if let Some(ref mut set) = device_set {
         set.insert(stat.st_dev);
     }
@@ -171,7 +185,9 @@ where
     let writer = &mut writer as &mut dyn pxar::encoder::SeqWrite;
     let mut encoder = Encoder::new(writer, &metadata)?;
 
-    if skip_lost_and_found {
+    let mut patterns = options.patterns.clone();
+
+    if options.skip_lost_and_found {
         patterns.push(MatchEntry::parse_pattern(
             "lost+found",
             PatternFlag::PATH_NAME,
@@ -188,7 +204,7 @@ where
         catalog,
         path: PathBuf::new(),
         entry_counter: 0,
-        entry_limit,
+        entry_limit: options.entries_max,
         current_st_dev: stat.st_dev,
         device_set,
         hardlinks: HashMap::new(),

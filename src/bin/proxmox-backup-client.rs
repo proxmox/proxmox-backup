@@ -283,23 +283,15 @@ async fn backup_directory<P: AsRef<Path>>(
     dir_path: P,
     archive_name: &str,
     chunk_size: Option<usize>,
-    device_set: Option<HashSet<u64>>,
-    verbose: bool,
-    skip_lost_and_found: bool,
     catalog: Arc<Mutex<CatalogWriter<crate::tools::StdChannelWriter>>>,
-    exclude_pattern: Vec<MatchEntry>,
-    entries_max: usize,
+    pxar_create_options: proxmox_backup::pxar::PxarCreateOptions,
     upload_options: UploadOptions,
 ) -> Result<BackupStats, Error> {
 
     let pxar_stream = PxarBackupStream::open(
         dir_path.as_ref(),
-        device_set,
-        verbose,
-        skip_lost_and_found,
         catalog,
-        exclude_pattern,
-        entries_max,
+        pxar_create_options,
     )?;
     let mut chunk_stream = ChunkStream::new(pxar_stream, chunk_size);
 
@@ -1039,6 +1031,15 @@ async fn create_backup(
 
                 println!("Upload directory '{}' to '{}' as {}", filename, repo, target);
                 catalog.lock().unwrap().start_directory(std::ffi::CString::new(target.as_str())?.as_c_str())?;
+
+                let pxar_options = proxmox_backup::pxar::PxarCreateOptions {
+                    device_set: devices.clone(),
+                    patterns: pattern_list.clone(),
+                    entries_max: entries_max as usize,
+                    skip_lost_and_found,
+                    verbose,
+                };
+
                 let upload_options = UploadOptions {
                     previous_manifest: previous_manifest.clone(),
                     compress: true,
@@ -1051,12 +1052,8 @@ async fn create_backup(
                     &filename,
                     &target,
                     chunk_size_opt,
-                    devices.clone(),
-                    verbose,
-                    skip_lost_and_found,
                     catalog.clone(),
-                    pattern_list.clone(),
-                    entries_max as usize,
+                    pxar_options,
                     upload_options,
                 ).await?;
                 manifest.add_file(target, stats.size, stats.csum, crypt_mode)?;

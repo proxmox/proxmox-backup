@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::io::Write;
 //use std::os::unix::io::FromRawFd;
 use std::path::Path;
@@ -12,8 +11,6 @@ use futures::stream::Stream;
 use nix::dir::Dir;
 use nix::fcntl::OFlag;
 use nix::sys::stat::Mode;
-
-use pathpatterns::MatchEntry;
 
 use crate::backup::CatalogWriter;
 
@@ -38,12 +35,8 @@ impl Drop for PxarBackupStream {
 impl PxarBackupStream {
     pub fn new<W: Write + Send + 'static>(
         dir: Dir,
-        device_set: Option<HashSet<u64>>,
-        verbose: bool,
-        skip_lost_and_found: bool,
         catalog: Arc<Mutex<CatalogWriter<W>>>,
-        patterns: Vec<MatchEntry>,
-        entries_max: usize,
+        options: crate::pxar::PxarCreateOptions,
     ) -> Result<Self, Error> {
         let (tx, rx) = std::sync::mpsc::sync_channel(10);
 
@@ -61,22 +54,21 @@ impl PxarBackupStream {
                         crate::tools::StdChannelWriter::new(tx),
                     );
 
+                    let verbose = options.verbose;
+
                     let writer = pxar::encoder::sync::StandardWriter::new(writer);
                     if let Err(err) = crate::pxar::create_archive(
                         dir,
                         writer,
-                        patterns,
                         crate::pxar::Flags::DEFAULT,
-                        device_set,
-                        skip_lost_and_found,
                         |path| {
                             if verbose {
                                 println!("{:?}", path);
                             }
                             Ok(())
                         },
-                        entries_max,
                         Some(&mut *catalog_guard),
+                        options,
                     ) {
                         let mut error = error.lock().unwrap();
                         *error = Some(err.to_string());
@@ -93,23 +85,15 @@ impl PxarBackupStream {
 
     pub fn open<W: Write + Send + 'static>(
         dirname: &Path,
-        device_set: Option<HashSet<u64>>,
-        verbose: bool,
-        skip_lost_and_found: bool,
         catalog: Arc<Mutex<CatalogWriter<W>>>,
-        patterns: Vec<MatchEntry>,
-        entries_max: usize,
+        options: crate::pxar::PxarCreateOptions,
     ) -> Result<Self, Error> {
         let dir = nix::dir::Dir::open(dirname, OFlag::O_DIRECTORY, Mode::empty())?;
 
         Self::new(
             dir,
-            device_set,
-            verbose,
-            skip_lost_and_found,
             catalog,
-            patterns,
-            entries_max,
+            options,
         )
     }
 }

@@ -25,16 +25,18 @@ fn run_test(dir_name: &str) -> Result<(), Error> {
         dir_name, nix::fcntl::OFlag::O_NOFOLLOW,
         nix::sys::stat::Mode::empty())?;
 
+    let options = PxarCreateOptions {
+        entries_max: ENCODER_MAX_ENTRIES,
+        ..PxarCreateOptions::default()
+    };
+
     create_archive(
         dir,
         writer,
-        Vec::new(),
         Flags::DEFAULT,
-        None,
-        false,
         |_| Ok(()),
-        ENCODER_MAX_ENTRIES,
         None,
+        options,
     )?;
 
     Command::new("cmp")

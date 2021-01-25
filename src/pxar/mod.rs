@@ -58,7 +58,7 @@ pub(crate) mod tools;
 mod flags;
 pub use flags::Flags;
 
-pub use create::create_archive;
+pub use create::{create_archive, PxarCreateOptions};
 pub use extract::{extract_archive, ErrorHandler};
 
 /// The format requires to build sorted directory lookup tables in
