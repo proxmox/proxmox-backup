@@ -29,8 +29,10 @@ fn commands() -> Vec<(&'static str, Vec<&'static str>)> {
     ]
 }
 
-    // (<description>, <function to call>)
-fn function_calls() -> Vec<(&'static str, fn() -> String)> {
+// (description, function())
+type FunctionMapping = (&'static str, fn() -> String);
+
+fn function_calls() -> Vec<FunctionMapping> {
     vec![
         ("Datastores", || {
             let config = match datastore::config() {
