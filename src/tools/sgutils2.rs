@@ -3,6 +3,8 @@
 //! Incomplete, but we currently do not need more.
 //!
 //! See: `/usr/include/scsi/sg_pt.h`
+//!
+//! The SCSI Commands Reference Manual also contains some usefull information.
 
 use std::os::unix::io::AsRawFd;
 use std::ptr::NonNull;
@@ -268,7 +270,7 @@ struct InquiryPage {
 
 #[repr(C, packed)]
 #[derive(Endian, Debug)]
-struct RequestSensePage {
+struct RequestSenseFixed {
     response_code: u8,
     obsolete: u8,
     flags2: u8,
@@ -279,6 +281,17 @@ struct RequestSensePage {
     additional_sense_code_qualifier: u8,
     field_replacable_unit_code: u8,
     sense_key_specific: [u8; 3],
+}
+
+#[repr(C, packed)]
+#[derive(Endian, Debug)]
+struct RequestSenseDescriptor{
+    response_code: u8,
+    sense_key: u8,
+    additional_sense_code: u8,
+    additional_sense_code_qualifier: u8,
+    reserved: [u8;4],
+    additional_sense_len: u8,
 }
 
 /// Inquiry result
@@ -477,22 +490,34 @@ impl <'a, F: AsRawFd> SgRaw<'a, F> {
                 if sense_len == 0 {
                     return Err(format_err!("scsi command failed: no Sense").into());
                 }
+
+                let code = self.sense_buffer[0] & 0x7f;
+
                 let mut reader = &self.sense_buffer[..(sense_len as usize)];
 
-                let sense: RequestSensePage = unsafe { reader.read_be_value()? };
-
-                let code = sense.response_code & 0x7f;
-                if code == 0x71 {
-                    return Err(format_err!("scsi command failed: received deferred Sense").into());
-                }
-                if code != 0x70 {
-                    return Err(format_err!("scsi command failed: invalid Sense response code {:x}", code).into());
-                }
-
-                let sense = SenseInfo {
-                    sense_key: sense.flags2 & 0xf,
-                    asc: sense.additional_sense_code,
-                    ascq: sense.additional_sense_code_qualifier,
+                let sense = match code {
+                    0x70 => {
+                        let sense: RequestSenseFixed = unsafe { reader.read_be_value()? };
+                        SenseInfo {
+                            sense_key: sense.flags2 & 0xf,
+                            asc: sense.additional_sense_code,
+                            ascq: sense.additional_sense_code_qualifier,
+                        }
+                    }
+                    0x72 => {
+                        let sense: RequestSenseDescriptor = unsafe { reader.read_be_value()? };
+                        SenseInfo {
+                            sense_key: sense.sense_key & 0xf,
+                            asc: sense.additional_sense_code,
+                            ascq: sense.additional_sense_code_qualifier,
+                        }
+                    }
+                    0x71 | 0x73 => {
+                        return Err(format_err!("scsi command failed: received deferred Sense").into());
+                    }
+                    unknown => {
+                        return Err(format_err!("scsi command failed: invalid Sense response code {:x}", unknown).into());
+                    }
                 };
 
                 return Err(ScsiError {
