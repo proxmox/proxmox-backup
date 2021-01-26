@@ -551,6 +551,7 @@ impl ToString for SenseInfo {
         // Added codes from Seagate SCSI Commands Reference Manual
         // Added codes from IBM TS4300 Tape Library SCSI reference manual
         // Added codes from Quantum Intelligent Libraries SCSI Reference Guide
+        // Added codes from Tandberg Data StorageLibrary T24 SCSI Reference
         match (self.sense_key, self.asc, self.ascq) {
             // No sense
             (0x00, 0x00, 0x00) => String::from("No Additional Sense Information"),
@@ -630,6 +631,7 @@ impl ToString for SenseInfo {
             (0x03, 0x32, 0x03) => String::from("Defect list longer than allocated memory"),
             (0x03, 0x33, 0x00) => String::from("Flash not ready for access"),
             (0x03, 0x44, 0x00) => String::from("Internal Target Failure"),
+            (0x03, 0x53, 0x00) => String::from("Media load or eject failed"), // Tandberg
             (0x03, asc, ascq) => format!("media error, ASC = 0x{:02x}, ASCQ = 0x{:02x}", asc, ascq),
             // Hardware Error
             (0x04, 0x01, 0x00) => String::from("No Index/Logical Block Signal"),
@@ -706,6 +708,8 @@ impl ToString for SenseInfo {
             (0x05, 0x3B, 0x12) => String::from("Magazine not installed"),
             (0x05, 0x3B, 0x18) => String::from("Element disabled"),
             (0x05, 0x3B, 0x1A) => String::from("Data transfer element removed"),
+            (0x05, 0x3B, 0x87) => String::from("Cartridge stuck in tape drive"), // Tandgerg
+            (0x05, 0x3B, 0x90) => String::from("Source cartridge is loaded inside the tape drive and is not accessible"), // Tandgerg
             (0x05, 0x3B, 0xA0) => String::from("Media type does not match destination media type"),
             (0x05, 0x3F, 0x01) => String::from("New firmware loaded"),
             (0x05, 0x3F, 0x03) => String::from("Inquiry data changed"),
@@ -715,6 +719,8 @@ impl ToString for SenseInfo {
             (0x05, 0x53, 0x03) => String::from("Drive media removal prevented state set"),
             (0x05, 0x53, 0x81) => String::from("Insert/Eject station door is open"),
             (0x05, 0x55, 0x04) => String::from("PRKT table is full"),
+            (0x05, 0x80, 0x05) => String::from("Source tape drive not installed"), // Tandberg
+            (0x05, 0x80, 0x06) => String::from("Destination tape drive not installed"), // Tandberg
             (0x05, 0x82, 0x93) => String::from("Failure session sequence error"),
             (0x05, 0x82, 0x94) => String::from("Failover command sequence error"),
             (0x05, 0x82, 0x95) => String::from("Duplicate failover session key"),
