@@ -28,6 +28,8 @@ impl ToString for SenseInfo {
         // Added codes from IBM TS4300 Tape Library SCSI reference manual
         // Added codes from Quantum Intelligent Libraries SCSI Reference Guide
         match (self.sense_key, self.asc, self.ascq) {
+            (0x00, asc, ascq) => format!("no sense, ASC = 0x{:02x}, ASCQ = 0x{:02x}", asc, ascq),
+            (0x01, asc, ascq) => format!("recevered error, ASC = 0x{:02x}, ASCQ = 0x{:02x}", asc, ascq),
             // Not Ready
             (0x02, 0x04, 0x00) => String::from("Not ready, cause not reportable"),
             (0x02, 0x04, 0x01) => String::from("Not ready, operation in progress"),
@@ -36,9 +38,11 @@ impl ToString for SenseInfo {
             (0x02, 0x04, 0x83) => String::from("The library is not ready due to aisle power being disabled"),
             (0x02, 0x04, 0x8D) => String::from(" The library is not ready because it is offline"),
             (0x02, 0x3B, 0x12) => String::from("Not ready, magazine removed"),
+            (0x02, asc, ascq) => format!("not ready, ASC = 0x{:02x}, ASCQ = 0x{:02x}", asc, ascq),
             // Media Error
             (0x03, 0x30, 0x00) => String::from("Media error"),
             (0x03, 0x30, 0x07) => String::from("Cleaning failure"),
+            (0x03, asc, ascq) => format!("media error, ASC = 0x{:02x}, ASCQ = 0x{:02x}", asc, ascq),
             // Hardware Error
             (0x04, 0x15, 0x01) => String::from("A mechanical positioning error occurred"),
             (0x04, 0x3B, 0x0D) => String::from("Medium destination element full"),
@@ -58,6 +62,7 @@ impl ToString for SenseInfo {
             (0x04, 0x81, 0xB4) => String::from("Cartridge did not transport completely."),
             (0x04, 0x82, 0xFC) => String::from("Drive configuration failed"),
             (0x04, 0x83, 0x00) => String::from("Label too short or too long"),
+            (0x04, asc, ascq) => format!("hardware error, ASC = 0x{:02x}, ASCQ = 0x{:02x}", asc, ascq),
             // Illegal Request
             (0x05, 0x04, 0x83) => String::from("Door open"),
             (0x05, 0x1A, 0x00) => String::from("Parameter length error"),
@@ -97,6 +102,7 @@ impl ToString for SenseInfo {
             (0x05, 0x83, 0x04) => String::from("Data transfer element not installed"),
             (0x05, 0x83, 0x05) => String::from("Data transfer element is varied off and not accessible for library operations"),
             (0x05, 0x83, 0x06) => String::from("Element is contained within an offline tower or I/E station and is not accessible for library operations"),
+            (0x05, asc, ascq) => format!("illegal request, ASC = 0x{:02x}, ASCQ = 0x{:02x}", asc, ascq),
             // Unit Attention
             (0x06, 0x28, 0x00) => String::from("Not ready to change, medium changed"),
             (0x06, 0x28, 0x01) => String::from("Import/export element that is accessed"),
@@ -109,6 +115,7 @@ impl ToString for SenseInfo {
             (0x06, 0x2A, 0x03) => String::from("Reservations preempted"),
             (0x06, 0x2A, 0x04) => String::from("Reservations released"),
             (0x06, 0x2A, 0x05) => String::from("Registrations preempted"),
+            (0x06, asc, ascq) => format!("unit attention, ASC = 0x{:02x}, ASCQ = 0x{:02x}", asc, ascq),
              // Aborted Command
             (0x0B, 0x3F, 0x0F) => String::from("ECHO buffer overwritten"),
             (0x0B, 0x44, 0x00) => String::from("Firmware detected an internal logic failure"),
@@ -119,6 +126,7 @@ impl ToString for SenseInfo {
             (0x0B, 0x4A, 0x00) => String::from("Command phase error"),
             (0x0B, 0x4B, 0x00) => String::from("Data phase error"),
             (0x0B, 0x4E, 0x00) => String::from("Overlapped command attempt"),
+            (0x0B, asc, ascq) => format!("aborted command, ASC = 0x{:02x}, ASCQ = 0x{:02x}", asc, ascq),
             // Else, simply report values
             _ => format!("sense_key = 0x{:02x}, ASC = 0x{:02x}, ASCQ = 0x{:02x}", self.sense_key, self.asc, self.ascq),
         }
