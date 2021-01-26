@@ -172,3 +172,40 @@ pub fn parse_mtx_status(i: &str) -> Result<MtxStatus, Error> {
 
     Ok(status)
 }
+
+#[test]
+fn test_changer_status() -> Result<(), Error> {
+
+    let output = r###" Storage Changer /dev/tape/by-id/scsi-387408F60F0000:2 Drives, 24 Slots ( 4 Import/Export )
+Data Transfer Element 0:Empty
+Data Transfer Element 1:Empty
+      Storage Element 1:Full :VolumeTag=CLN002CU
+      Storage Element 2:Full :VolumeTag=test22L1
+      Storage Element 3:Full :VolumeTag=test23L1
+      Storage Element 4:Full :VolumeTag=CLN001CU
+      Storage Element 5:Full :VolumeTag=test1
+      Storage Element 6:Empty
+      Storage Element 7:Empty
+      Storage Element 8:Empty
+      Storage Element 9:Empty
+      Storage Element 10:Empty
+      Storage Element 11:Empty
+      Storage Element 12:Empty
+      Storage Element 13:Empty
+      Storage Element 14:Empty
+      Storage Element 15:Empty
+      Storage Element 16:Empty
+      Storage Element 17:Empty
+      Storage Element 18:Empty
+      Storage Element 19:Empty
+      Storage Element 20:Empty
+      Storage Element 21 IMPORT/EXPORT:Empty
+      Storage Element 22 IMPORT/EXPORT:Empty
+      Storage Element 23 IMPORT/EXPORT:Empty
+      Storage Element 24 IMPORT/EXPORT:Empty
+"###;
+
+    let _ = parse_mtx_status(&output)?;
+
+    Ok(())
+}
