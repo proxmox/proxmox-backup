@@ -185,7 +185,7 @@ where
     let writer = &mut writer as &mut dyn pxar::encoder::SeqWrite;
     let mut encoder = Encoder::new(writer, &metadata)?;
 
-    let mut patterns = options.patterns.clone();
+    let mut patterns = options.patterns;
 
     if options.skip_lost_and_found {
         patterns.push(MatchEntry::parse_pattern(
