@@ -13,6 +13,7 @@ use anyhow::{bail, format_err, Error};
 use endian_trait::Endian;
 use serde::{Deserialize, Serialize};
 use libc::{c_char, c_int};
+use std::ffi::CStr;
 
 use proxmox::tools::io::ReadExt;
 
@@ -23,6 +24,24 @@ pub struct SenseInfo {
     pub ascq: u8,
 }
 
+impl ToString for SenseInfo {
+
+    fn to_string(&self) -> String {
+
+        let sense_text = SENSE_KEY_DESCRIPTIONS
+            .get(self.sense_key as usize)
+            .map(|s| String::from(*s))
+            .unwrap_or_else(|| format!("Invalid sense {:02X}", self.sense_key));
+
+        if self.asc == 0 && self.ascq == 0 {
+            return sense_text;
+        }
+
+        let additional_sense_text = get_asc_ascq_string(self.asc, self.ascq);
+
+        format!("{}, {}", sense_text, additional_sense_text)
+    }
+}
 
 #[derive(Debug)]
 pub struct ScsiError {
@@ -139,6 +158,25 @@ pub const SENSE_KEY_ABORTED_COMMAND: u8 = 0x0b;
 pub const SENSE_KEY_VOLUME_OVERFLOW: u8 = 0x0d;
 pub const SENSE_KEY_MISCOMPARE: u8      = 0x0e;
 
+/// Sense Key Descriptions
+pub const SENSE_KEY_DESCRIPTIONS: [&'static str; 16] = [
+    "No Sense",
+    "Recovered Error",
+    "Not Ready",
+    "Medium Error",
+    "Hardware Error",
+    "Illegal Request",
+    "Unit Attention",
+    "Data Protect",
+    "Blank Check",
+    "Vendor specific",
+    "Copy Aborted",
+    "Aborted Command",
+    "Equal",
+    "Volume Overflow",
+    "Miscompare",
+    "Completed",
+];
 
 #[repr(C, packed)]
 #[derive(Endian)]
@@ -266,6 +304,13 @@ extern "C" {
     fn get_scsi_pt_result_category(objp: *const SgPtBase) -> c_int;
 
     fn get_scsi_pt_os_err(objp: *const SgPtBase) -> c_int;
+
+    fn sg_get_asc_ascq_str(
+        asc: c_int,
+        ascq:c_int,
+        buff_len: c_int,
+        buffer: *mut c_char,
+    ) -> * const c_char;
 }
 
 /// Safe interface to run RAW SCSI commands
@@ -274,6 +319,29 @@ pub struct SgRaw<'a, F> {
     buffer: Box<[u8]>,
     sense_buffer: [u8; 32],
     timeout: i32,
+}
+
+/// Get the string associated with ASC/ASCQ values
+pub fn get_asc_ascq_string(asc: u8, ascq: u8) -> String {
+
+    let mut buffer = [0u8; 1024];
+    let res = unsafe {
+        sg_get_asc_ascq_str(
+            asc as c_int,
+            ascq as c_int,
+            buffer.len() as c_int,
+            buffer.as_mut_ptr() as * mut c_char,
+        )
+    };
+
+    proxmox::try_block!({
+        if res.is_null() { // just to be safe
+            bail!("unexpected NULL ptr");
+        }
+        Ok(unsafe { CStr::from_ptr(res) }.to_str()?.to_owned())
+    }).unwrap_or_else(|_err: Error| {
+        format!("ASC={:02x}x, ASCQ={:02x}x", asc, ascq)
+    })
 }
 
 /// Allocate a page aligned buffer
@@ -373,11 +441,17 @@ impl <'a, F: AsRawFd> SgRaw<'a, F> {
 
         let res_cat = unsafe { get_scsi_pt_result_category(ptvp.as_ptr()) };
         match res_cat {
-            SCSI_PT_RESULT_GOOD => { /* Ok */ }
-            SCSI_PT_RESULT_STATUS => { /* test below */ }
+            SCSI_PT_RESULT_GOOD => return Ok(()),
+            SCSI_PT_RESULT_STATUS => {
+                let status = unsafe { get_scsi_pt_status_response(ptvp.as_ptr()) };
+                if status != 0 {
+                    return Err(format_err!("unknown scsi error - status response {}", status).into());
+                }
+                return Ok(());
+            }
             SCSI_PT_RESULT_SENSE => {
                 if sense_len == 0 {
-                    return Err(format_err!("scsi command failed: no Sense").into());
+                    return Err(format_err!("scsi command failed, but got no sense data").into());
                 }
 
                 let code = self.sense_buffer[0] & 0x7f;
@@ -410,7 +484,7 @@ impl <'a, F: AsRawFd> SgRaw<'a, F> {
                 };
 
                 return Err(ScsiError {
-                    error: format_err!("scsi command failed: {}", sense.to_string()),
+                    error: format_err!("{}", sense.to_string()),
                     sense: Some(sense),
                 });
             }
@@ -422,13 +496,6 @@ impl <'a, F: AsRawFd> SgRaw<'a, F> {
             }
             unknown => return Err(format_err!("scsi command failed: unknown result category {}", unknown).into()),
         }
-
-        let status = unsafe { get_scsi_pt_status_response(ptvp.as_ptr()) };
-        if status != 0 {
-            return Err(format_err!("unknown scsi error - status response {}", status).into());
-        }
-
-        Ok(())
     }
 
     /// Run the specified RAW SCSI command
@@ -543,262 +610,4 @@ pub fn scsi_inquiry<F: AsRawFd>(
 
         Ok(info)
     }).map_err(|err: Error| format_err!("decode inquiry page failed - {}", err))
-}
-
-impl ToString for SenseInfo {
-
-    fn to_string(&self) -> String {
-        // Added codes from Seagate SCSI Commands Reference Manual
-        // Added codes from IBM TS4300 Tape Library SCSI reference manual
-        // Added codes from Quantum Intelligent Libraries SCSI Reference Guide
-        // Added codes from Tandberg Data StorageLibrary T24 SCSI Reference
-        match (self.sense_key, self.asc, self.ascq) {
-            // No sense
-            (0x00, 0x00, 0x00) => String::from("No Additional Sense Information"),
-            (0x00, 0x81, 0x00) => String::from("LA Check Error, LCM bit ="),
-            (0x00, asc, ascq) => format!("no sense, ASC = 0x{:02x}, ASCQ = 0x{:02x}", asc, ascq),
-            // Recovered Error
-            (0x01, 0x03, 0x00) => String::from("Peripheral Device Write Fault"),
-            (0x01, 0x09, 0x00) => String::from("Track Following Error"),
-            (0x01, 0x09, 0x01) => String::from("Servo Fault"),
-            (0x01, 0x09, 0x0D) => String::from("Write to at least one copy of a redundant file failed"),
-            (0x01, 0x09, 0x0E) => String::from("Redundant files have < 50% good copies"),
-            (0x01, 0x09, 0xF8) => String::from("Calibration is needed but the QST is set without the Recal Only bit"),
-            (0x01, 0x09, 0xFF) => String::from("Servo Cal completed as part of self-test"),
-            (0x01, 0x0B, 0x01) => String::from("Warning—Specified Temperature Exceeded"),
-            (0x01, 0x0B, 0x02) => String::from("Warning, Enclosure Degraded"),
-            (0x01, 0x0C, 0x01) => String::from("Write Error Recovered With Auto-Reallocation"),
-            (0x01, 0x11, 0x00) => String::from("Unrecovered Read Error"),
-            (0x01, 0x15, 0x01) => String::from("Mechanical Positioning Error"),
-            (0x01, 0x16, 0x00) => String::from("Data Synchronization Mark Error"),
-            (0x01, 0x17, 0x01) => String::from("Recovered Data Using Retries"),
-            (0x01, 0x17, 0x02) => String::from("Recovered Data Using Positive Offset"),
-            (0x01, 0x17, 0x03) => String::from("Recovered Data Using Negative Offset"),
-            (0x01, 0x18, 0x00) => String::from("Recovered Data With ECC"),
-            (0x01, 0x18, 0x01) => String::from("Recovered Data With ECC And Retries Applied"),
-            (0x01, 0x18, 0x02) => String::from("Recovered Data With ECC And/Or Retries, Data Auto-Reallocated"),
-            (0x01, 0x18, 0x07) => String::from("Recovered Data With ECC—Data Rewritten"),
-            (0x01, 0x19, 0x00) => String::from("Defect List Error"),
-            (0x01, 0x1C, 0x00) => String::from("Defect List Not Found"),
-            (0x01, 0x1F, 0x00) => String::from("Number of Defects Overflows the Allocated Space That The Read Defect Command Can Handle"),
-            (0x01, 0x37, 0x00) => String::from("Parameter Rounded"),
-            (0x01, 0x3F, 0x80) => String::from("Buffer contents have changed"),
-            (0x01, 0x40, 0x01) => String::from("DRAM Parity Error"),
-            (0x01, 0x40, 0x02) => String::from("Spinup Error recovered with retries"),
-            (0x01, 0x44, 0x00) => String::from("Internal Target Failure"),
-            (0x01, 0x5D, 0x00) => String::from("Failure Prediction Threshold Exceeded"),
-            (0x01, 0x5D, 0xFF) => String::from("False Failure Prediction Threshold Exceeded"),
-            (0x01, asc, ascq) => format!("recovered error, ASC = 0x{:02x}, ASCQ = 0x{:02x}", asc, ascq),
-            // Not Ready
-            (0x02, 0x04, 0x00) => String::from("Logical Unit Not Ready, Cause Not Reportable"),
-            (0x02, 0x04, 0x01) => String::from("Logical Unit Not Ready, Becoming Ready"),
-            (0x02, 0x04, 0x02) => String::from("Logical Unit Not Ready, START UNIT Required"),
-            (0x02, 0x04, 0x03) => String::from("Logical Unit Not Ready, Manual Intervention Required"),
-            (0x02, 0x04, 0x04) => String::from("Logical Unit Not Ready, Format in Progress"),
-            (0x02, 0x04, 0x09) => String::from("Logical Unit Not Ready, Self Test in Progress"),
-            (0x02, 0x04, 0x0A) => String::from("Logical Unit Not Ready, NVC recovery in progress after and exception event"),
-            (0x02, 0x04, 0x11) => String::from("Logical Unit Not Ready, Notify (Enable Spinup) required"),
-            (0x02, 0x04, 0x12) => String::from("Not ready, offline"),
-            (0x02, 0x04, 0x22) => String::from("Logical unit not ready, power cycle required"),
-            (0x02, 0x04, 0x83) => String::from("The library is not ready due to aisle power being disabled"),
-            (0x02, 0x04, 0x8D) => String::from(" The library is not ready because it is offline"),
-            (0x02, 0x04, 0xF0) => String::from("Logical unit not ready, super certify in progress"),
-            (0x02, 0x35, 0x02) => String::from("Enclosure Services Unavailable"),
-            (0x02, 0x3B, 0x12) => String::from("Not ready, magazine removed"),
-            (0x02, asc, ascq) => format!("not ready, ASC = 0x{:02x}, ASCQ = 0x{:02x}", asc, ascq),
-            // Media Error
-            (0x03, 0x03, 0x00) => String::from("Peripheral Device Write Fault"),
-            (0x03, 0x09, 0x00) => String::from("Track Following Error"),
-            (0x03, 0x09, 0x04) => String::from("Head Select Fault"),
-            (0x03, 0x0A, 0x01) => String::from("Failed to write super certify log file"),
-            (0x03, 0x0A, 0x02) => String::from("Failed to read super certify log file"),
-            (0x03, 0x0C, 0x00) => String::from("Write Error"),
-            (0x03, 0x0C, 0x02) => String::from("Write Error—Auto Reallocation Failed"),
-            (0x03, 0x0C, 0x03) => String::from("Write Error—Recommend Reassignment"),
-            (0x03, 0x0C, 0xFF) => String::from("Write Error—Too many error recovery revs"),
-            (0x03, 0x11, 0x00) => String::from("Unrecovered Read Error"),
-            (0x03, 0x11, 0x04) => String::from("Unrecovered Read Error—Auto Reallocation Failed"),
-            (0x03, 0x11, 0xFF) => String::from("Unrecovered Read Error—Too many error recovery revs"),
-            (0x03, 0x14, 0x01) => String::from("Record Not Found"),
-            (0x03, 0x15, 0x01) => String::from("Mechanical Positioning Error"),
-            (0x03, 0x16, 0x00) => String::from("Data Synchronization Mark Error"),
-            (0x03, 0x30, 0x00) => String::from("Media error"),
-            (0x03, 0x30, 0x07) => String::from("Cleaning failure"),
-            (0x03, 0x31, 0x00) => String::from("Medium Format Corrupted"),
-            (0x03, 0x31, 0x01) => String::from("Corruption in R/W format request"),
-            (0x03, 0x31, 0x91) => String::from("Corrupt World Wide Name (WWN) in drive information file"),
-            (0x03, 0x32, 0x01) => String::from("Defect List Update Error"),
-            (0x03, 0x32, 0x03) => String::from("Defect list longer than allocated memory"),
-            (0x03, 0x33, 0x00) => String::from("Flash not ready for access"),
-            (0x03, 0x44, 0x00) => String::from("Internal Target Failure"),
-            (0x03, 0x53, 0x00) => String::from("Media load or eject failed"), // Tandberg
-            (0x03, asc, ascq) => format!("media error, ASC = 0x{:02x}, ASCQ = 0x{:02x}", asc, ascq),
-            // Hardware Error
-            (0x04, 0x01, 0x00) => String::from("No Index/Logical Block Signal"),
-            (0x04, 0x02, 0x00) => String::from("No SEEK Complete"),
-            (0x04, 0x03, 0x00) => String::from("Peripheral Device Write Fault"),
-            (0x04, 0x09, 0x00) => String::from("Track Following Error"),
-            (0x04, 0x09, 0x01) => String::from("Servo Fault"),
-            (0x04, 0x09, 0x04) => String::from("Head Select Fault"),
-            (0x04, 0x15, 0x01) => String::from("Mechanical Positioning Error"),
-            (0x04, 0x16, 0x00) => String::from("Data Synchronization Mark Error"),
-            (0x04, 0x19, 0x00) => String::from("Defect List Error"),
-            (0x04, 0x1C, 0x00) => String::from("Defect List Not Found"),
-            (0x04, 0x29, 0x00) => String::from("Flashing LED occurred"),
-            (0x04, 0x32, 0x00) => String::from("No Defect Spare Location Available"),
-            (0x04, 0x32, 0x01) => String::from("Defect List Update Error"),
-            (0x04, 0x35, 0x00) => String::from("Unspecified Enclosure Services Failure"),
-            (0x04, 0x35, 0x03) => String::from("Enclosure Transfer Failure"),
-            (0x04, 0x35, 0x04) => String::from("Enclosure Transfer Refused"),
-            (0x04, 0x3B, 0x0D) => String::from("Medium destination element full"),
-            (0x04, 0x3B, 0x0E) => String::from("Medium source element empty"),
-            (0x04, 0x3E, 0x03) => String::from("Logical Unit Failed Self Test"),
-            (0x04, 0x3F, 0x0F) => String::from("Echo buffer overwritten"),
-            (0x04, 0x40, 0x01) => String::from("DRAM Parity Error"),
-            (0x04, 0x40, 0x80) => String::from("Component failure"),
-            (0x04, 0x42, 0x00) => String::from("Power-On Or Self-Test Failure"),
-            (0x04, 0x42, 0x0A) => String::from("Port A failed loopback test"),
-            (0x04, 0x42, 0x0B) => String::from("Port B failed loopback test"),
-            (0x04, 0x44, 0x00) => String::from("Internal Target Failure"),
-            (0x04, 0x44, 0xF2) => String::from("Data Integrity Check Failed on verify"),
-            (0x04, 0x44, 0xF6) => String::from("Data Integrity Check Failed during write"),
-            (0x04, 0x44, 0xFF) => String::from("XOR CDB check error"),
-            (0x04, 0x53, 0x00) => String::from("A drive did not load or unload a tape"),
-            (0x04, 0x53, 0x01) => String::from("A drive did not unload a cartridge"),
-            (0x04, 0x53, 0x82) => String::from("Cannot lock the I/E station"),
-            (0x04, 0x53, 0x83) => String::from("Cannot unlock the I/E station"),
-            (0x04, 0x65, 0x00) => String::from("Voltage Fault"),
-            (0x04, 0x80, 0xD7) => String::from("Internal software error"),
-            (0x04, 0x80, 0xD8) => String::from("Database access error"),
-            (0x04, 0x81, 0x00) => String::from("LA Check Error, LCM bit ="),
-            (0x04, 0x81, 0xB0) => String::from("Internal system communication failed"),
-            (0x04, 0x81, 0xB2) => String::from("Robotic controller communication failed"),
-            (0x04, 0x81, 0xB3) => String::from("Mechanical positioning error"),
-            (0x04, 0x81, 0xB4) => String::from("Cartridge did not transport completely."),
-            (0x04, 0x82, 0xFC) => String::from("Drive configuration failed"),
-            (0x04, 0x83, 0x00) => String::from("Label too short or too long"),
-            (0x04, asc, ascq) => format!("hardware error, ASC = 0x{:02x}, ASCQ = 0x{:02x}", asc, ascq),
-            // Illegal Request
-            (0x05, 0x04, 0x83) => String::from("Door open"),
-            (0x05, 0x1A, 0x00) => String::from("Parameter List Length Error"),
-            (0x05, 0x20, 0x00) => String::from("Invalid Command Operation Code"),
-            (0x05, 0x20, 0xF3) => String::from("Invalid linked command operation code"),
-            (0x05, 0x21, 0x01) => String::from("Invalid element address"),
-            (0x05, 0x24, 0x00) => String::from("Invalid Field In CDB"),
-            (0x05, 0x24, 0x01) => String::from("Illegal Queue Type for CDB (Low priority commands must be SIMPLE queue)"),
-            (0x05, 0x24, 0xF0) => String::from("Invalid LBA in linked command"),
-            (0x05, 0x24, 0xF2) => String::from("Invalid linked command operation code"),
-            (0x05, 0x24, 0xF3) => String::from("Illegal G->P operation request"),
-            (0x05, 0x25, 0x00) => String::from("Logical Unit Not Supported"),
-            (0x05, 0x26, 0x00) => String::from("Invalid Field In Parameter List"),
-            (0x05, 0x26, 0x01) => String::from("Parameter Not Supported"),
-            (0x05, 0x26, 0x02) => String::from("Parameter Value Invalid"),
-            (0x05, 0x26, 0x03) => String::from("Invalid Field Parameter—Threshold Parameter"),
-            (0x05, 0x26, 0x04) => String::from("Invalid Release of Active Persistent Reserve"),
-            (0x05, 0x26, 0x05) => String::from("Fail to read valid log dump data"),
-            (0x05, 0x2C, 0x00) => String::from("Command Sequence Error"),
-            (0x05, 0x30, 0x00) => String::from("Incompatible medium installed"),
-            (0x05, 0x30, 0x12) => String::from("Incompatible Media loaded to drive"),
-            (0x05, 0x32, 0x01) => String::from("Defect List Update Error"),
-            (0x05, 0x35, 0x01) => String::from("Unsupported Enclosure Function"),
-            (0x05, 0x39, 0x00) => String::from("Saving parameters is not supported"),
-            (0x05, 0x3B, 0x0D) => String::from("Medium destination element full"),
-            (0x05, 0x3B, 0x0E) => String::from("Medium source element empty"),
-            (0x05, 0x3B, 0x11) => String::from("Magazine not accessible"),
-            (0x05, 0x3B, 0x12) => String::from("Magazine not installed"),
-            (0x05, 0x3B, 0x18) => String::from("Element disabled"),
-            (0x05, 0x3B, 0x1A) => String::from("Data transfer element removed"),
-            (0x05, 0x3B, 0x87) => String::from("Cartridge stuck in tape drive"), // Tandgerg
-            (0x05, 0x3B, 0x90) => String::from("Source cartridge is loaded inside the tape drive and is not accessible"), // Tandgerg
-            (0x05, 0x3B, 0xA0) => String::from("Media type does not match destination media type"),
-            (0x05, 0x3F, 0x01) => String::from("New firmware loaded"),
-            (0x05, 0x3F, 0x03) => String::from("Inquiry data changed"),
-            (0x05, 0x44, 0x81) => String::from("Source element not ready"),
-            (0x05, 0x44, 0x82) => String::from("Destination element not ready"),
-            (0x05, 0x53, 0x02) => String::from("Library media removal prevented state set."),
-            (0x05, 0x53, 0x03) => String::from("Drive media removal prevented state set"),
-            (0x05, 0x53, 0x81) => String::from("Insert/Eject station door is open"),
-            (0x05, 0x55, 0x04) => String::from("PRKT table is full"),
-            (0x05, 0x80, 0x05) => String::from("Source tape drive not installed"), // Tandberg
-            (0x05, 0x80, 0x06) => String::from("Destination tape drive not installed"), // Tandberg
-            (0x05, 0x82, 0x93) => String::from("Failure session sequence error"),
-            (0x05, 0x82, 0x94) => String::from("Failover command sequence error"),
-            (0x05, 0x82, 0x95) => String::from("Duplicate failover session key"),
-            (0x05, 0x82, 0x96) => String::from("Invalid failover key"),
-            (0x05, 0x82, 0x97) => String::from("Failover session that is released"),
-            (0x05, 0x83, 0x02) => String::from("Barcode label questionable"),
-            (0x05, 0x83, 0x03) => String::from("Cell status and barcode label questionable"),
-            (0x05, 0x83, 0x04) => String::from("Data transfer element not installed"),
-            (0x05, 0x83, 0x05) => String::from("Data transfer element is varied off and not accessible for library operations"),
-            (0x05, 0x83, 0x06) => String::from("Element is contained within an offline tower or I/E station and is not accessible for library operations"),
-            (0x05, asc, ascq) => format!("illegal request, ASC = 0x{:02x}, ASCQ = 0x{:02x}", asc, ascq),
-            // Unit Attention
-            (0x06, 0x0B, 0x01) => String::from("Warning—Specified Temperature Exceeded"),
-            (0x06, 0x28, 0x00) => String::from("Not ready to change, medium changed"),
-            (0x06, 0x28, 0x01) => String::from("Import/export element that is accessed"),
-            (0x06, 0x29, 0x00) => String::from("Power On, Reset, Or Bus Device Reset Occurred"),
-            (0x06, 0x29, 0x01) => String::from("Power-On Reset Occurred"),
-            (0x06, 0x29, 0x02) => String::from("SCSI Bus Reset Occurred"),
-            (0x06, 0x29, 0x03) => String::from("Bus Device Reset Function Occurred"),
-            (0x06, 0x29, 0x04) => String::from("Internal Reset Occurred"),
-            (0x06, 0x29, 0x05) => String::from("Transceiver Mode Changed To Single-Ended"),
-            (0x06, 0x29, 0x06) => String::from("Transceiver Mode Changed To LVD"),
-            (0x06, 0x29, 0x07) => String::from("Write Log Dump data to disk successful OR IT Nexus Loss"),
-            (0x06, 0x29, 0x08) => String::from("Write Log Dump data to disk fail"),
-            (0x06, 0x29, 0x09) => String::from("Write Log Dump Entry information fail"),
-            (0x06, 0x29, 0x0A) => String::from("Reserved disk space is full"),
-            (0x06, 0x29, 0x0B) => String::from("SDBP test service contained an error, examine status packet(s) for details"),
-            (0x06, 0x29, 0x0C) => String::from("SDBP incoming buffer overflow (incoming packet too big)"),
-            (0x06, 0x29, 0xCD) => String::from("Flashing LED occurred. (Cold reset)"),
-            (0x06, 0x29, 0xCE) => String::from("Flashing LED occurred. (Warm reset)"),
-            (0x06, 0x2A, 0x01) => String::from("Mode Parameters Changed"),
-            (0x06, 0x2A, 0x02) => String::from("Log Parameters Changed"),
-            (0x06, 0x2A, 0x03) => String::from("Reservations preempted"),
-            (0x06, 0x2A, 0x04) => String::from("Reservations Released"),
-            (0x06, 0x2A, 0x05) => String::from("Registrations Preempted"),
-            (0x06, 0x2F, 0x00) => String::from("Tagged Commands Cleared By Another Initiator"),
-            (0x06, 0x3F, 0x00) => String::from("Target Operating Conditions Have Changed"),
-            (0x06, 0x3F, 0x01) => String::from("Device internal reset occurred"),
-            (0x06, 0x3F, 0x02) => String::from("Changed Operating Definition"),
-            (0x06, 0x3F, 0x05) => String::from("Device Identifier Changed"),
-            (0x06, 0x3F, 0x91) => String::from("World Wide Name (WWN) Mismatch"),
-            (0x06, 0x5C, 0x00) => String::from("RPL Status Change"),
-            (0x06, 0x5D, 0x00) => String::from("Failure Prediction Threshold Exceeded"),
-            (0x06, 0x5D, 0xFF) => String::from("False Failure Prediction Threshold Exceeded"),
-            (0x06, 0xB4, 0x00) => String::from("Unreported Deferred Errors have been logged on log page 34h"),
-            (0x06, asc, ascq) => format!("unit attention, ASC = 0x{:02x}, ASCQ = 0x{:02x}", asc, ascq),
-            // Aborted Command
-            (0x0B, 0x08, 0x00) => String::from("Logical Unit Communication Failure"),
-            (0x0B, 0x08, 0x01) => String::from("Logical Unit Communication Time-Out"),
-            (0x0B, 0x0B, 0x00) => String::from("Aborted Command"),
-            (0x0B, 0x3F, 0x0F) => String::from("Echo buffer overwritten"),
-            (0x0B, 0x43, 0x00) => String::from("Message Reject Error"),
-            (0x0B, 0x44, 0x00) => String::from("Firmware detected an internal logic failure"),
-            (0x0B, 0x45, 0x00) => String::from("Select/Reselection Failure"),
-            (0x0B, 0x47, 0x00) => String::from("SCSI Parity Error"),
-            (0x0B, 0x47, 0x03) => String::from("Information Unit CRC Error"),
-            (0x0B, 0x47, 0x80) => String::from("Fibre Channel Sequence Error"),
-            (0x0B, 0x48, 0x00) => String::from("Initiator Detected Error Message Received"),
-            (0x0B, 0x49, 0x00) => String::from("Invalid Message Received"),
-            (0x0B, 0x4A, 0x00) => String::from("Command phase error"),
-            (0x0B, 0x4B, 0x00) => String::from("Data Phase Error"),
-            (0x0B, 0x4B, 0x01) => String::from("Invalid transfer tag"),
-            (0x0B, 0x4B, 0x02) => String::from("Too many write data"),
-            (0x0B, 0x4B, 0x03) => String::from("ACK NAK Timeout"),
-            (0x0B, 0x4B, 0x04) => String::from("NAK received"),
-            (0x0B, 0x4B, 0x05) => String::from("Data Offset error"),
-            (0x0B, 0x4B, 0x06) => String::from("Initiator response timeout"),
-            (0x0B, 0x4E, 0x00) => String::from("Overlapped Commands Attempted"),
-            (0x0B, 0x81, 0x00) => String::from("LA Check Error"),
-            (0x0B, asc, ascq) => format!("aborted command, ASC = 0x{:02x}, ASCQ = 0x{:02x}", asc, ascq),
-            // Volume overflow
-            (0x0D, 0x0D, 0x00) => String::from("Volume Overflow Constants"),
-            (0x0D, 0x21, 0x00) => String::from("Logical Block Address Out Of Range"),
-            // Miscompare
-            (0x0E, 0x0E, 0x00) => String::from("Data Miscompare"),
-            (0x0E, 0x1D, 0x00) => String::from("Miscompare During Verify Operation"),
-            // Else, simply report values
-            _ => format!("sense_key = 0x{:02x}, ASC = 0x{:02x}, ASCQ = 0x{:02x}", self.sense_key, self.asc, self.ascq),
-        }
-    }
 }
