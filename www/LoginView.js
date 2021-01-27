@@ -380,11 +380,13 @@ Ext.define('PBS.login.TfaWindow', {
 
 	    let challenge = view.challenge.webauthn;
 
-	    // Byte array fixup, keep challenge string:
-	    let challenge_str = challenge.publicKey.challenge;
-	    challenge.publicKey.challenge = PBS.Utils.base64url_to_bytes(challenge_str);
-	    for (const cred of challenge.publicKey.allowCredentials) {
-		cred.id = PBS.Utils.base64url_to_bytes(cred.id);
+	    if (typeof challenge.string !== 'string') {
+		// Byte array fixup, keep challenge string:
+		challenge.string = challenge.publicKey.challenge;
+		challenge.publicKey.challenge = PBS.Utils.base64url_to_bytes(challenge.string);
+		for (const cred of challenge.publicKey.allowCredentials) {
+		    cred.id = PBS.Utils.base64url_to_bytes(cred.id);
+		}
 	    }
 
 	    let controller = new AbortController();
@@ -395,7 +397,12 @@ Ext.define('PBS.login.TfaWindow', {
 		//Promise.race( ...
 		hwrsp = await navigator.credentials.get(challenge);
 	    } catch (error) {
-		view.onReject(error);
+		// we do NOT want to fail login because of canceling the challenge actively,
+		// in some browser that's the only way to switch over to another method as the
+		// disallow user input during the time the challenge is active
+		// checking for error.code === DOMException.ABORT_ERR only works in firefox -.-
+		this.getViewModel().set('canConfirm', true);
+		// FIXME: better handling, show some message, ...?
 		return;
 	    } finally {
 		let waitingMessage = me.lookup('webAuthnWaiting');
@@ -407,7 +414,7 @@ Ext.define('PBS.login.TfaWindow', {
 	    let response = {
 		id: hwrsp.id,
 		type: hwrsp.type,
-		challenge: challenge_str,
+		challenge: challenge.string,
 		rawId: PBS.Utils.bytes_to_base64url(hwrsp.rawId),
 		response: {
 		    authenticatorData: PBS.Utils.bytes_to_base64url(
