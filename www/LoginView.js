@@ -478,9 +478,6 @@ Ext.define('PBS.login.TfaWindow', {
 	region: 'center',
 	layout: 'fit',
 	bodyPadding: 10,
-	stateId: 'pbs-tfa-login-panel', // FIXME: do manually - get/setState miss
-	stateful: true,
-	stateEvents: ['tabchange'],
 	items: [
 	    {
 		xtype: 'panel',
