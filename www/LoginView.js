@@ -437,6 +437,8 @@ Ext.define('PBS.login.TfaWindow', {
 
 	loginTFA: function() {
 	    let me = this;
+	    // avoid triggering more than once during challenge
+	    me.getViewModel().set('canConfirm', false);
 	    let view = me.getView();
 	    let tfaPanel = view.down('tabpanel').getActiveTab();
 	    me[tfaPanel.handler]();
