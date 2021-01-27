@@ -23,6 +23,10 @@ use crate::{
     },
     tools::sgutils2::{
         SgRaw,
+        SENSE_KEY_NO_SENSE,
+        SENSE_KEY_RECOVERED_ERROR,
+        SENSE_KEY_UNIT_ATTENTION,
+        SENSE_KEY_NOT_READY,
         InquiryInfo,
         scsi_ascii_to_string,
         scsi_inquiry,
@@ -70,6 +74,67 @@ struct AddressAssignmentPage {
     reserved23: u8,
 }
 
+/// Repeat command until sucessful, sleep 1 second between invovations
+///
+/// Any Sense key other than NO_SENSE, RECOVERED_ERROR, NOT_READY and
+/// UNIT_ATTENTION aborts the loop and returns an error. If the device
+/// reports "Not Ready - becoming ready", we wait up to 5 minutes.
+///
+/// Skipped errors are printed on stderr.
+fn retry_command<F: AsRawFd>(
+    sg_raw: &mut SgRaw<F>,
+    cmd: &[u8],
+    error_prefix: &str,
+) -> Result<Vec<u8>, Error> {
+
+    let start = std::time::SystemTime::now();
+
+    let mut last_msg: Option<String> = None;
+
+    let mut timeout = std::time::Duration::new(5, 0); // short timeout by default
+
+    loop {
+        match sg_raw.do_command(&cmd) {
+            Ok(data) => return Ok(data.to_vec()),
+            Err(err) => {
+                if let Some(ref sense) = err.sense {
+
+                    if sense.sense_key == SENSE_KEY_NO_SENSE ||
+                        sense.sense_key == SENSE_KEY_RECOVERED_ERROR ||
+                        sense.sense_key == SENSE_KEY_UNIT_ATTENTION ||
+                        sense.sense_key == SENSE_KEY_NOT_READY
+                    {
+                        let msg = err.to_string();
+                        if let Some(ref last) = last_msg {
+                            if &msg != last {
+                                eprintln!("{}", err);
+                                last_msg = Some(msg);
+                            }
+                        } else {
+                            eprintln!("{}", err);
+                            last_msg = Some(msg);
+                        }
+
+                        // Not Ready - becoming ready
+                        if sense.sense_key == SENSE_KEY_NOT_READY && sense.asc == 0x04 && sense.ascq == 1 {
+                            // wait up to 5 minutes, long enough to finish inventorize
+                            timeout = std::time::Duration::new(5*60, 0);
+                        }
+
+                        if start.elapsed()? > timeout {
+                            bail!("{} failed: {}", error_prefix, err);
+                        }
+
+                        std::thread::sleep(std::time::Duration::new(1, 0));
+                        continue; // try again
+                    }
+                }
+            }
+        }
+   }
+}
+
+
 fn read_element_address_assignment<F: AsRawFd>(
     file: &mut F,
 ) -> Result<AddressAssignmentPage, Error> {
@@ -86,8 +151,7 @@ fn read_element_address_assignment<F: AsRawFd>(
     cmd.push(allocation_len); // allocation len
     cmd.push(0); //control
 
-    let data = sg_raw.do_command(&cmd)
-        .map_err(|err| format_err!("read element address assignment failed - {}", err))?;
+    let data = retry_command(&mut sg_raw, &cmd, "read element address assignment")?;
 
     proxmox::try_block!({
         let mut reader = &data[..];
@@ -254,10 +318,9 @@ pub fn read_element_status<F: AsRawFd>(file: &mut F) -> Result<MtxStatus, Error>
     loop {
         let cmd = scsi_read_element_status_cdb(start_element_address, allocation_len);
 
-        let data = sg_raw.do_command(&cmd)
-            .map_err(|err| format_err!("read element status (B8h) failed - {}", err))?;
+        let data = retry_command(&mut sg_raw, &cmd, "read element status (B8h)")?;
 
-        let page = decode_element_status_page(&inquiry, data, start_element_address)?;
+        let page = decode_element_status_page(&inquiry, &data, start_element_address)?;
 
         transports.extend(page.transports);
         drives.extend(page.drives);
