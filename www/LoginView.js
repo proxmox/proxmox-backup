@@ -280,17 +280,22 @@ Ext.define('PBS.login.TfaWindow', {
 		throw "no challenge given";
 	    }
 
-	    let firstAvailableTab = -1, i = 0;
+	    let lastTabId = me.getLastTabUsed();
+	    let initialTab = -1, i = 0;
 	    for (const k of ['webauthn', 'totp', 'recovery']) {
 		const available = !!challenge[k];
 		vm.set(`availabelChallenge.${k}`, available);
 
-		if (firstAvailableTab < 0 && available) {
-		    firstAvailableTab = i;
+		if (available) {
+		    if (i === lastTabId) {
+			initialTab = i;
+		    } else if (initialTab < 0) {
+			initialTab = i;
+		    }
 		}
 		i++;
 	    }
-	    view.down('tabpanel').setActiveTab(firstAvailableTab);
+	    view.down('tabpanel').setActiveTab(initialTab);
 
 	    if (challenge.recovery) {
 		me.lookup('availableRecovery').update(Ext.String.htmlEncode(
@@ -320,6 +325,7 @@ Ext.define('PBS.login.TfaWindow', {
 			newField.focus();
 			newField.validate();
 		    }
+		    this.saveLastTabUsed(tabPanel, newCard);
 		},
 	    },
 	    'field': {
@@ -329,6 +335,20 @@ Ext.define('PBS.login.TfaWindow', {
 		    this.getViewModel().set('canConfirm', valid);
 		},
 	    },
+	},
+
+	saveLastTabUsed: function(tabPanel, card) {
+	    let id = tabPanel.items.indexOf(card);
+	    window.localStorage.setItem('PBS.TFALogin.lastTab', JSON.stringify({ id }));
+	},
+
+	getLastTabUsed: function() {
+	    let data = window.localStorage.getItem('PBS.TFALogin.lastTab');
+	    if (typeof data === 'string') {
+		let last = JSON.parse(data);
+		return last.id;
+	    }
+	    return null;
 	},
 
 	onClose: function() {
