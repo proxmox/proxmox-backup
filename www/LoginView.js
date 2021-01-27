@@ -491,12 +491,11 @@ Ext.define('PBS.login.TfaWindow', {
 		items: [
 		    {
 			xtype: 'box',
-			html: `<i class="fa fa-refresh fa-spin fa-fw"></i>` +
-			 gettext('Please insert your authenticator device and press its button'),
+			html: gettext('Please insert your authentication device and press its button'),
 		    },
 		    {
 			xtype: 'box',
-			html: gettext('Waiting for second factor.'),
+			html: gettext('Waiting for second factor.') +`<i class="fa fa-refresh fa-spin fa-fw"></i>`,
 			reference: 'webAuthnWaiting',
 			hidden: true,
 		    },
