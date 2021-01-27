@@ -180,6 +180,7 @@ pub const SENSE_KEY_DESCRIPTIONS: [&'static str; 16] = [
 
 #[repr(C, packed)]
 #[derive(Endian)]
+// Standard Inquiry page - 36 bytes
 struct InquiryPage {
     peripheral_type: u8,
     rmb: u8,
@@ -192,7 +193,6 @@ struct InquiryPage {
     vendor: [u8; 8],
     product: [u8; 16],
     revision: [u8; 4],
-    // additional data follows, but we do not need that
 }
 
 #[repr(C, packed)]
@@ -583,7 +583,8 @@ pub fn scsi_inquiry<F: AsRawFd>(
     file: &mut F,
 ) -> Result<InquiryInfo, Error> {
 
-    let allocation_len: u8 = u8::MAX;
+    let allocation_len: u8 = std::mem::size_of::<InquiryPage>() as u8;
+
     let mut sg_raw = SgRaw::new(file, allocation_len as usize)?;
     sg_raw.set_timeout(30); // use short timeout
 
