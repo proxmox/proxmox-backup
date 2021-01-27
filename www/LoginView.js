@@ -241,60 +241,94 @@ Ext.define('PBS.login.TfaWindow', {
     extend: 'Ext.window.Window',
     mixins: ['Proxmox.Mixin.CBind'],
 
-    modal: true,
-    resizable: false,
     title: gettext("Second login factor required"),
 
-    cancelled: true,
-
+    modal: true,
+    resizable: false,
     width: 512,
     layout: {
 	type: 'vbox',
 	align: 'stretch',
     },
 
-    defaultButton: 'totpButton',
+    defaultButton: 'tfaButton',
+
+    viewModel: {
+	data: {
+	    canConfirm: false,
+	    availabelChallenge: {},
+	},
+    },
+
+    cancelled: true,
 
     controller: {
 	xclass: 'Ext.app.ViewController',
 
 	init: function(view) {
 	    let me = this;
+	    let vm = me.getViewModel();
 
 	    if (!view.userid) {
 		throw "no userid given";
 	    }
-
 	    if (!view.ticket) {
 		throw "no ticket given";
 	    }
-
-	    if (!view.challenge) {
+	    const challenge = view.challenge;
+	    if (!challenge) {
 		throw "no challenge given";
 	    }
 
-	    if (!view.challenge.webauthn) {
-		me.lookup('webauthnButton').setVisible(false);
+	    let firstAvailableTab = -1, i = 0;
+	    for (const k of ['webauthn', 'totp', 'recovery']) {
+		const available = !!challenge[k];
+		vm.set(`availabelChallenge.${k}`, available);
+
+		if (firstAvailableTab < 0 && available) {
+		    firstAvailableTab = i;
+		}
+		i++;
+	    }
+	    view.down('tabpanel').setActiveTab(firstAvailableTab);
+
+	    if (challenge.recovery) {
+		me.lookup('availableRecovery').update(Ext.String.htmlEncode(
+		    gettext('Available recovery keys: ') + view.challenge.recovery.join(', '),
+		));
+		me.lookup('availableRecovery').setVisible(true);
+		if (view.challenge.recovery.length <= 3) {
+		    me.lookup('recoveryLow').setVisible(true);
+		}
 	    }
 
-	    if (!view.challenge.totp) {
-		me.lookup('totpButton').setVisible(false);
-	    }
-
-	    if (!view.challenge.recovery || !view.challenge.recovery.length) {
-		me.lookup('recoveryButton').setVisible(false);
-	    } else if (view.challenge.recovery.length <= 3) {
-		me.lookup('recoveryButton')
-		    .setIconCls('fa fa-fw fa-exclamation-triangle');
-	    }
-
-
-	    if (!view.challenge.totp && !view.challenge.recovery) {
-		// only webauthn tokens available, maybe skip ahead?
-		me.lookup('totp').setVisible(false);
-		me.lookup('waiting').setVisible(true);
+	    if (challenge.webauthn) {
 		let _promise = me.loginWebauthn();
 	    }
+	},
+	control: {
+	    'tabpanel': {
+		tabchange: function(tabPanel, newCard, oldCard) {
+		    // for now every TFA method has at max one field, so keep it simple..
+		    let oldField = oldCard.down('field');
+		    if (oldField) {
+			oldField.setDisabled(true);
+		    }
+		    let newField = newCard.down('field');
+		    if (newField) {
+			newField.setDisabled(false);
+			newField.focus();
+			newField.validate();
+		    }
+		},
+	    },
+	    'field': {
+		validitychange: function(field, valid) {
+		    // triggers only for enabled fields and we disable the one from the
+		    // non-visible tab, so we can just directly use the valid param
+		    this.getViewModel().set('canConfirm', valid);
+		},
+	    },
 	},
 
 	onClose: function() {
@@ -315,24 +349,15 @@ Ext.define('PBS.login.TfaWindow', {
 	loginTotp: function() {
 	    let me = this;
 
-	    let _promise = me.finishChallenge('totp:' + me.lookup('totp').value);
+	    let code = me.lookup('totp').getValue();
+	    let _promise = me.finishChallenge(`totp:${code}`);
 	},
 
 	loginWebauthn: async function() {
 	    let me = this;
 	    let view = me.getView();
 
-	    // avoid this window ending up above the tfa popup if we got triggered from init().
-	    await PBS.Async.sleep(100);
-
-	    // FIXME: With webauthn the browser provides a popup (since it doesn't necessarily need
-	    // to require pressing a button, but eg. use a fingerprint scanner or face detection
-	    // etc., so should we just trust that that happens and skip the popup?)
-	    let msg = Ext.Msg.show({
-		title: `Webauthn: ${gettext('Login')}`,
-		message: gettext('Please press the button on your Authenticator Device'),
-		buttons: [],
-	    });
+	    me.lookup('webAuthnWaiting').setVisible(true);
 
 	    let challenge = view.challenge.webauthn;
 
@@ -343,14 +368,21 @@ Ext.define('PBS.login.TfaWindow', {
 		cred.id = PBS.Utils.base64url_to_bytes(cred.id);
 	    }
 
+	    let controller = new AbortController();
+	    challenge.signal = controller.signal;
+
 	    let hwrsp;
 	    try {
+		//Promise.race( ...
 		hwrsp = await navigator.credentials.get(challenge);
 	    } catch (error) {
 		view.onReject(error);
 		return;
 	    } finally {
-		msg.close();
+		let waitingMessage = me.lookup('webAuthnWaiting');
+		if (waitingMessage) {
+		    waitingMessage.setVisible(false);
+		}
 	    }
 
 	    let response = {
@@ -367,32 +399,21 @@ Ext.define('PBS.login.TfaWindow', {
 		},
 	    };
 
-	    msg.close();
-
 	    await me.finishChallenge("webauthn:" + JSON.stringify(response));
 	},
 
 	loginRecovery: function() {
 	    let me = this;
-	    let view = me.getView();
 
-	    if (me.login_recovery_confirm) {
-		let _promise = me.finishChallenge('recovery:' + me.lookup('totp').value);
-	    } else {
-		me.login_recovery_confirm = true;
-		me.lookup('totpButton').setVisible(false);
-		me.lookup('webauthnButton').setVisible(false);
-		me.lookup('recoveryButton').setText(gettext("Confirm"));
-		me.lookup('recoveryInfo').setVisible(true);
-		console.log("RECOVERY:", view.challenge.recovery);
-		me.lookup('availableRecovery').update(Ext.String.htmlEncode(
-		    gettext('Available recovery keys: ') + view.challenge.recovery.join(', '),
-		));
-		me.lookup('availableRecovery').setVisible(true);
-		if (view.challenge.recovery.length <= 3) {
-		    me.lookup('recoveryLow').setVisible(true);
-		}
-	    }
+	    let key = me.lookup('recoveryKey').getValue();
+	    let _promise = me.finishChallenge(`recovery:${key}`);
+	},
+
+	loginTFA: function() {
+	    let me = this;
+	    let view = me.getView();
+	    let tfaPanel = view.down('tabpanel').getActiveTab();
+	    me[tfaPanel.handler]();
 	},
 
 	finishChallenge: function(password) {
@@ -424,81 +445,111 @@ Ext.define('PBS.login.TfaWindow', {
 	close: 'onClose',
     },
 
-    items: [
-	{
-	    xtype: 'form',
-	    layout: 'anchor',
-	    border: false,
-	    fieldDefaults: {
-		anchor: '100%',
-		padding: '0 5',
-	    },
-	    items: [
-		{
-		    xtype: 'textfield',
-		    fieldLabel: gettext('Please enter your OTP verification code:'),
-		    labelWidth: '300px',
-		    name: 'totp',
-		    reference: 'totp',
-		    allowBlank: false,
+    items: [{
+	xtype: 'tabpanel',
+	region: 'center',
+	layout: 'fit',
+	bodyPadding: 10,
+	stateId: 'pbs-tfa-login-panel', // FIXME: do manually - get/setState miss
+	stateful: true,
+	stateEvents: ['tabchange'],
+	items: [
+	    {
+		xtype: 'panel',
+		title: 'WebAuthn',
+		iconCls: 'fa fa-fw fa-shield',
+		handler: 'loginWebauthn',
+		bind: {
+		    disabled: '{!availabelChallenge.webauthn}',
 		},
-	    ],
-	},
-	{
-	    xtype: 'box',
-	    html: gettext('Waiting for second factor.'),
-	    reference: 'waiting',
-	    padding: '0 5',
-	    hidden: true,
-	},
-	{
-	    xtype: 'box',
-	    padding: '0 5',
-	    reference: 'recoveryInfo',
-	    hidden: true,
-	    html: gettext('Please note that each recovery code can only be used once!'),
-	    style: {
-		textAlign: "center",
+		items: [
+		    {
+			xtype: 'box',
+			html: `<i class="fa fa-refresh fa-spin fa-fw"></i>` +
+			 gettext('Please insert your authenticator device and press its button'),
+		    },
+		    {
+			xtype: 'box',
+			html: gettext('Waiting for second factor.'),
+			reference: 'webAuthnWaiting',
+			hidden: true,
+		    },
+		],
 	    },
-	},
-	{
-	    xtype: 'box',
-	    padding: '0 5',
-	    reference: 'availableRecovery',
-	    hidden: true,
-	    style: {
-		textAlign: "center",
+	    {
+		xtype: 'panel',
+		title: gettext('TOTP App'),
+		iconCls: 'fa fa-fw fa-clock-o',
+		handler: 'loginTotp',
+		bind: {
+		    disabled: '{!availabelChallenge.totp}',
+		},
+		items: [
+		    {
+			xtype: 'textfield',
+			fieldLabel: gettext('Please enter your TOTP verification code'),
+			labelWidth: 300,
+			name: 'totp',
+			disabled: true,
+			reference: 'totp',
+			allowBlank: false,
+			regex: /^[0-9]{6}$/,
+			regexText: 'TOTP codes consist of six decimal digits',
+		    },
+		],
 	    },
-	},
-	{
-	    xtype: 'box',
-	    padding: '0 5',
-	    reference: 'recoveryLow',
-	    hidden: true,
-	    html: '<i class="fa fa-exclamation-triangle warning"></i>'
-		+ gettext('Only few recovery keys available. Please generate a new set!')
-		+ '<i class="fa fa-exclamation-triangle warning"></i>',
-	    style: {
-		textAlign: "center",
+	    {
+		xtype: 'panel',
+		title: gettext('Recovery Key'),
+		iconCls: 'fa fa-fw fa-file-text-o',
+		handler: 'loginRecovery',
+		bind: {
+		    disabled: '{!availabelChallenge.recovery}',
+		},
+		items: [
+		    {
+			xtype: 'box',
+			reference: 'availableRecovery',
+			hidden: true,
+		    },
+		    {
+			xtype: 'textfield',
+			fieldLabel: gettext('Please enter one of your single-use recovery keys'),
+			labelWidth: 300,
+			name: 'recoveryKey',
+			disabled: true,
+			reference: 'recoveryKey',
+			allowBlank: false,
+			regex: /^[0-9a-f]{4}(-[0-9a-f]{4}){3}$/,
+			regexText: 'Does not looks like a valid recovery key',
+		    },
+		    {
+			xtype: 'box',
+			reference: 'recoveryInfo',
+			hidden: true, // FIXME: remove this?
+			html: gettext('Note that each recovery code can only be used once!'),
+		    },
+		    {
+			xtype: 'box',
+			reference: 'recoveryLow',
+			hidden: true,
+			html: '<i class="fa fa-exclamation-triangle warning"></i>'
+			    + gettext('Less than {0} recovery keys available. Please generate a new set!'),
+		    },
+		],
 	    },
-	},
-    ],
+	],
+    }],
 
     buttons: [
 	{
-	    text: gettext('Login with TOTP'),
-	    handler: 'loginTotp',
-	    reference: 'totpButton',
-	},
-	{
-	    text: gettext('Login with a recovery key'),
-	    handler: 'loginRecovery',
-	    reference: 'recoveryButton',
-	},
-	{
-	    text: gettext('Use a Webauthn token'),
-	    handler: 'loginWebauthn',
-	    reference: 'webauthnButton',
+	    text: gettext('Confirm Second Factor'),
+	    handler: 'loginTFA',
+	    reference: 'tfaButton',
+	    disabled: true,
+	    bind: {
+		disabled: '{!canConfirm}',
+	    },
 	},
     ],
 });
