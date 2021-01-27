@@ -5,11 +5,13 @@ GENERATED_SYNOPSIS := 						\
 	proxmox-backup-client/catalog-shell-synopsis.rst 	\
 	proxmox-backup-manager/synopsis.rst			\
 	pxar/synopsis.rst					\
+	pmtx/synopsis.rst					\
 	backup-protocol-api.rst					\
 	reader-protocol-api.rst
 
 MANUAL_PAGES := 			\
 	pxar.1				\
+	pmtx.1				\
 	proxmox-backup-proxy.1		\
 	proxmox-backup-client.1		\
 	proxmox-backup-manager.1
@@ -66,6 +68,14 @@ pxar/synopsis.rst: ${COMPILEDIR}/pxar
 
 pxar.1: pxar/man1.rst  pxar/description.rst pxar/synopsis.rst
 	rst2man $< >$@
+
+
+pmtx/synopsis.rst: ${COMPILEDIR}/pmtx
+	${COMPILEDIR}/pmtx printdoc > pmtx/synopsis.rst
+
+pmtx.1: pmtx/man1.rst  pmtx/description.rst pmtx/synopsis.rst
+	rst2man $< >$@
+
 
 proxmox-backup-client/synopsis.rst: ${COMPILEDIR}/proxmox-backup-client
 	${COMPILEDIR}/proxmox-backup-client printdoc > proxmox-backup-client/synopsis.rst

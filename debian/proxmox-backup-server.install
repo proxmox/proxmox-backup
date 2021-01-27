@@ -10,10 +10,13 @@ usr/lib/x86_64-linux-gnu/proxmox-backup/proxmox-backup-banner
 usr/lib/x86_64-linux-gnu/proxmox-backup/proxmox-daily-update
 usr/lib/x86_64-linux-gnu/proxmox-backup/sg-tape-cmd
 usr/sbin/proxmox-backup-manager
+usr/bin/pmtx
 usr/share/javascript/proxmox-backup/index.hbs
 usr/share/javascript/proxmox-backup/css/ext6-pbs.css
 usr/share/javascript/proxmox-backup/images
 usr/share/javascript/proxmox-backup/js/proxmox-backup-gui.js
 usr/share/man/man1/proxmox-backup-manager.1
 usr/share/man/man1/proxmox-backup-proxy.1
+usr/share/man/man1/pmtx.1
 usr/share/zsh/vendor-completions/_proxmox-backup-manager
+usr/share/zsh/vendor-completions/_pmtx

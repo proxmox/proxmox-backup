@@ -8,8 +8,9 @@ SUBDIRS := etc www docs
 
 # Binaries usable by users
 USR_BIN := \
-	proxmox-backup-client \
-	pxar
+	proxmox-backup-client 	\
+	pxar			\
+	pmtx
 
 # Binaries usable by admins
 USR_SBIN := \

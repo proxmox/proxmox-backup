@@ -1,0 +1,3 @@
+# pmtx bash completion
+
+complete -C 'pmtx bashcomplete' pmtx
