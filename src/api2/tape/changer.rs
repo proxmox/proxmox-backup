@@ -12,7 +12,6 @@ use crate::{
         CHANGER_NAME_SCHEMA,
         DriveListEntry,
         ScsiTapeChanger,
-        TapeDeviceInfo,
         MtxStatusEntry,
         MtxEntryKind,
     },
@@ -135,26 +134,6 @@ pub async fn transfer(
     tokio::task::spawn_blocking(move || {
         changer_config.transfer(from, to)
     }).await?
-}
-
-#[api(
-    input: {
-        properties: {},
-    },
-    returns: {
-        description: "The list of autodetected tape changers.",
-        type: Array,
-        items: {
-            type: TapeDeviceInfo,
-        },
-    },
-)]
-/// Scan for SCSI tape changers
-pub fn scan_changers(_param: Value) -> Result<Vec<TapeDeviceInfo>, Error> {
-
-    let list = linux_tape_changer_list();
-
-    Ok(list)
 }
 
 #[api(

@@ -149,7 +149,7 @@ fn scan_for_changers(
 ) -> Result<(), Error> {
 
     let output_format = get_output_format(&param);
-    let info = &api2::tape::changer::API_METHOD_SCAN_CHANGERS;
+    let info = &api2::tape::API_METHOD_SCAN_CHANGERS;
     let mut data = match info.handler {
         ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
         _ => unreachable!(),

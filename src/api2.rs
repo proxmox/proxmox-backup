@@ -1,3 +1,5 @@
+//! The Proxmox Backup Server API
+
 pub mod access;
 pub mod admin;
 pub mod backup;
@@ -18,7 +20,7 @@ use proxmox::list_subdirs_api_method;
 
 const NODES_ROUTER: Router = Router::new().match_all("node", &node::ROUTER);
 
-pub const SUBDIRS: SubdirMap = &[
+const SUBDIRS: SubdirMap = &[
     ("access", &access::ROUTER),
     ("admin", &admin::ROUTER),
     ("backup", &backup::ROUTER),
