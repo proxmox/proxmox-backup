@@ -306,7 +306,7 @@ Ext.define('PBS.login.TfaWindow', {
 		}
 	    }
 
-	    if (challenge.webauthn) {
+	    if (challenge.webauthn && initialTab === 0) {
 		let _promise = me.loginWebauthn();
 	    }
 	},
