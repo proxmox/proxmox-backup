@@ -36,6 +36,7 @@ use proxmox_backup::{
         LinuxTapeDrive,
     },
     tape::{
+        linux_tape_changer_list,
         complete_changer_path,
         changer::{
             ElementStatus,
@@ -386,6 +387,44 @@ fn transfer(
     Ok(())
 }
 
+#[api(
+   input: {
+        properties: {
+           "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+        },
+    },
+)]
+/// Scan for existing tape changer devices
+fn scan(param: Value) -> Result<(), Error> {
+
+    let output_format = get_output_format(&param);
+
+    let list = linux_tape_changer_list();
+
+    if output_format == "json-pretty" {
+        println!("{}", serde_json::to_string_pretty(&list)?);
+        return Ok(());
+    }
+
+    if output_format == "json" {
+        println!("{}", serde_json::to_string(&list)?);
+        return Ok(());
+    }
+
+    if output_format != "text" {
+        bail!("unknown output format '{}'", output_format);
+    }
+
+    for item in list.iter() {
+        println!("{} ({}/{}/{})", item.path, item.vendor, item.model, item.serial);
+    }
+
+    Ok(())
+}
+
 fn main() -> Result<(), Error> {
 
     let uid = nix::unistd::Uid::current();
@@ -422,6 +461,7 @@ fn main() -> Result<(), Error> {
                 .completion_cb("changer", complete_changer_name)
                 .completion_cb("device", complete_changer_path)
         )
+        .insert("scan", CliCommand::new(&API_METHOD_SCAN))
         .insert(
             "status",
             CliCommand::new(&API_METHOD_STATUS)
