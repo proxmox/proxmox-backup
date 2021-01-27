@@ -48,7 +48,6 @@ Ext.define('PBS.LoginView', {
 		PBS.Utils.updateLoginData(data);
 		PBS.app.changeView('mainview');
 	    } catch (error) {
-		console.error(error); // for debugging
 		Proxmox.Utils.authClear();
 		loginForm.unmask();
 		Ext.MessageBox.alert(
