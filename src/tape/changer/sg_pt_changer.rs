@@ -74,17 +74,19 @@ struct AddressAssignmentPage {
     reserved23: u8,
 }
 
-/// Repeat command until sucessful, sleep 1 second between invovations
+/// Execute scsi commands, optionally repeat the command until
+/// successful (sleep 1 second between invovations)
 ///
 /// Any Sense key other than NO_SENSE, RECOVERED_ERROR, NOT_READY and
 /// UNIT_ATTENTION aborts the loop and returns an error. If the device
 /// reports "Not Ready - becoming ready", we wait up to 5 minutes.
 ///
 /// Skipped errors are printed on stderr.
-fn retry_command<F: AsRawFd>(
+fn execute_scsi_command<F: AsRawFd>(
     sg_raw: &mut SgRaw<F>,
     cmd: &[u8],
     error_prefix: &str,
+    retry: bool,
 ) -> Result<Vec<u8>, Error> {
 
     let start = std::time::SystemTime::now();
@@ -97,6 +99,9 @@ fn retry_command<F: AsRawFd>(
         match sg_raw.do_command(&cmd) {
             Ok(data) => return Ok(data.to_vec()),
             Err(err) => {
+                if !retry {
+                    bail!("{} failed: {}", error_prefix, err);
+                }
                 if let Some(ref sense) = err.sense {
 
                     if sense.sense_key == SENSE_KEY_NO_SENSE ||
@@ -151,7 +156,7 @@ fn read_element_address_assignment<F: AsRawFd>(
     cmd.push(allocation_len); // allocation len
     cmd.push(0); //control
 
-    let data = retry_command(&mut sg_raw, &cmd, "read element address assignment")?;
+    let data = execute_scsi_command(&mut sg_raw, &cmd, "read element address assignment", true)?;
 
     proxmox::try_block!({
         let mut reader = &data[..];
@@ -315,12 +320,16 @@ pub fn read_element_status<F: AsRawFd>(file: &mut F) -> Result<MtxStatus, Error>
     let mut import_export_slots = Vec::new();
     let mut transports = Vec::new();
 
+    let mut retry = true;
+
     loop {
         let cmd = scsi_read_element_status_cdb(start_element_address, allocation_len);
 
-        let data = retry_command(&mut sg_raw, &cmd, "read element status (B8h)")?;
+        let data = execute_scsi_command(&mut sg_raw, &cmd, "read element status (B8h)", retry)?;
 
         let page = decode_element_status_page(&inquiry, &data, start_element_address)?;
+
+        retry = false; // only retry the first command
 
         transports.extend(page.transports);
         drives.extend(page.drives);
