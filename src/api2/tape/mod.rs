@@ -54,6 +54,11 @@ const SUBDIRS: SubdirMap = &[
         &Router::new()
             .get(&API_METHOD_SCAN_CHANGERS),
     ),
+    (
+        "scan-drives",
+        &Router::new()
+            .get(&drive::API_METHOD_SCAN_DRIVES),
+    ),
 ];
 
 pub const ROUTER: Router = Router::new()

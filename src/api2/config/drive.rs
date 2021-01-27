@@ -19,7 +19,6 @@ use crate::{
     tape::{
         linux_tape_device_list,
         check_drive_path,
-        lookup_drive,
     },
 };
 
@@ -112,37 +111,14 @@ pub fn get_config(
 pub fn list_drives(
     _param: Value,
     mut rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Vec<DriveListEntry>, Error> {
+) -> Result<Vec<LinuxTapeDrive>, Error> {
 
     let (config, digest) = config::drive::config()?;
 
-    let linux_drives = linux_tape_device_list();
-
     let drive_list: Vec<LinuxTapeDrive> = config.convert_to_typed_array("linux")?;
 
-    let mut list = Vec::new();
-
-    for drive in drive_list {
-        let mut entry = DriveListEntry {
-            name: drive.name,
-            path: drive.path.clone(),
-            changer: drive.changer,
-            changer_drivenum: drive.changer_drive_id,
-            vendor: None,
-            model: None,
-            serial: None,
-        };
-        if let Some(info) = lookup_drive(&linux_drives, &drive.path) {
-            entry.vendor = Some(info.vendor.clone());
-            entry.model = Some(info.model.clone());
-            entry.serial = Some(info.serial.clone());
-        }
-
-        list.push(entry);
-    }
-
     rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
-    Ok(list)
+    Ok(drive_list)
 }
 
 #[api()]

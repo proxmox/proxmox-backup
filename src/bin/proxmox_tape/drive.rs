@@ -79,7 +79,7 @@ fn list_drives(
 ) -> Result<(), Error> {
 
     let output_format = get_output_format(&param);
-    let info = &api2::config::drive::API_METHOD_LIST_DRIVES;
+    let info = &api2::tape::drive::API_METHOD_LIST_DRIVES;
     let mut data = match info.handler {
         ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
         _ => unreachable!(),

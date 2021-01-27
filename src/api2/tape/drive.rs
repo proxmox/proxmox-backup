@@ -31,6 +31,7 @@ use crate::{
             MEDIA_LABEL_SCHEMA,
             MEDIA_POOL_NAME_SCHEMA,
             Authid,
+            DriveListEntry,
             LinuxTapeDrive,
             TapeDeviceInfo,
             MediaIdFlat,
@@ -48,6 +49,7 @@ use crate::{
         MediaCatalog,
         MediaId,
         linux_tape_device_list,
+        lookup_drive,
         file_formats::{
             MediaLabel,
             MediaSetLabel,
@@ -1096,6 +1098,53 @@ pub fn catalog_media(
     Ok(upid_str.into())
 }
 
+#[api(
+    input: {
+        properties: {},
+    },
+    returns: {
+        description: "The list of configured drives with model information.",
+        type: Array,
+        items: {
+            type: DriveListEntry,
+        },
+    },
+)]
+/// List drives
+pub fn list_drives(
+    _param: Value,
+) -> Result<Vec<DriveListEntry>, Error> {
+
+    let (config, _) = config::drive::config()?;
+
+    let linux_drives = linux_tape_device_list();
+
+    let drive_list: Vec<LinuxTapeDrive> = config.convert_to_typed_array("linux")?;
+
+    let mut list = Vec::new();
+
+    for drive in drive_list {
+        let mut entry = DriveListEntry {
+            name: drive.name,
+            path: drive.path.clone(),
+            changer: drive.changer,
+            changer_drivenum: drive.changer_drive_id,
+            vendor: None,
+            model: None,
+            serial: None,
+        };
+        if let Some(info) = lookup_drive(&linux_drives, &drive.path) {
+            entry.vendor = Some(info.vendor.clone());
+            entry.model = Some(info.model.clone());
+            entry.serial = Some(info.serial.clone());
+        }
+
+        list.push(entry);
+    }
+
+    Ok(list)
+}
+
 #[sortable]
 pub const SUBDIRS: SubdirMap = &sorted!([
     (
@@ -1160,11 +1209,6 @@ pub const SUBDIRS: SubdirMap = &sorted!([
             .put(&API_METHOD_REWIND)
     ),
     (
-        "scan",
-        &Router::new()
-            .get(&API_METHOD_SCAN_DRIVES)
-    ),
-    (
         "status",
         &Router::new()
             .get(&API_METHOD_STATUS)
@@ -1176,6 +1220,10 @@ pub const SUBDIRS: SubdirMap = &sorted!([
     ),
 ]);
 
-pub const ROUTER: Router = Router::new()
+const ITEM_ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(SUBDIRS))
-    .subdirs(SUBDIRS);
+    .subdirs(&SUBDIRS);
+
+pub const ROUTER: Router = Router::new()
+    .get(&API_METHOD_LIST_DRIVES)
+    .match_all("drive", &ITEM_ROUTER);
