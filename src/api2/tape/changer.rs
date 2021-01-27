@@ -166,6 +166,7 @@ pub fn list_changers(
             name: changer.name,
             path: changer.path.clone(),
             changer: None,
+            changer_drivenum: None,
             vendor: None,
             model: None,
             serial: None,

@@ -82,6 +82,7 @@ pub struct LinuxTapeDrive {
 
 #[api()]
 #[derive(Serialize,Deserialize)]
+#[serde(rename_all = "kebab-case")]
 /// Drive list entry
 pub struct DriveListEntry {
     /// Drive name
@@ -91,6 +92,9 @@ pub struct DriveListEntry {
     /// Associated changer device
     #[serde(skip_serializing_if="Option::is_none")]
     pub changer: Option<String>,
+    /// Drive number in associated changer device
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub changer_drivenum: Option<u64>,
     /// Vendor (autodetected)
     #[serde(skip_serializing_if="Option::is_none")]
     pub vendor: Option<String>,
