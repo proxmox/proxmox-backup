@@ -9,6 +9,12 @@ TAPE_UI_FILES=
 
 ifdef TEST_TAPE_GUI
 TAPE_UI_FILES=						\
+	tape/form/AllocationSelector.js			\
+	tape/form/ChangerSelector.js			\
+	tape/form/DriveSelector.js			\
+	tape/form/PoolSelector.js			\
+	tape/form/RetentionSelector.js			\
+	tape/form/TapeDevicePathSelector.js		\
 	TapeManagement.js
 endif
 
