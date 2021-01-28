@@ -27,6 +27,7 @@ use crate::{
     api2::{
         types::{
             UPID_SCHEMA,
+            CHANGER_NAME_SCHEMA,
             DRIVE_NAME_SCHEMA,
             MEDIA_LABEL_SCHEMA,
             MEDIA_POOL_NAME_SCHEMA,
@@ -1100,7 +1101,12 @@ pub fn catalog_media(
 
 #[api(
     input: {
-        properties: {},
+        properties: {
+            changer: {
+                schema: CHANGER_NAME_SCHEMA,
+                optional: true,
+            },
+        },
     },
     returns: {
         description: "The list of configured drives with model information.",
@@ -1112,6 +1118,7 @@ pub fn catalog_media(
 )]
 /// List drives
 pub fn list_drives(
+    changer: Option<String>,
     _param: Value,
 ) -> Result<Vec<DriveListEntry>, Error> {
 
@@ -1124,6 +1131,10 @@ pub fn list_drives(
     let mut list = Vec::new();
 
     for drive in drive_list {
+        if changer.is_some() && drive.changer != changer {
+            continue;
+        }
+
         let mut entry = DriveListEntry {
             name: drive.name,
             path: drive.path.clone(),

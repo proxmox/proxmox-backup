@@ -11,9 +11,9 @@ use crate::{
     api2::types::{
         CHANGER_NAME_SCHEMA,
         DriveListEntry,
-        ScsiTapeChanger,
-        MtxStatusEntry,
         MtxEntryKind,
+        MtxStatusEntry,
+        ScsiTapeChanger,
     },
     tape::{
         TAPE_STATUS_DIR,
