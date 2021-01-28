@@ -1181,7 +1181,7 @@ pub const SUBDIRS: SubdirMap = &sorted!([
     (
         "erase-media",
         &Router::new()
-            .put(&API_METHOD_ERASE_MEDIA)
+            .post(&API_METHOD_ERASE_MEDIA)
     ),
     (
         "inventory",
@@ -1222,7 +1222,7 @@ pub const SUBDIRS: SubdirMap = &sorted!([
     (
         "rewind",
         &Router::new()
-            .put(&API_METHOD_REWIND)
+            .post(&API_METHOD_REWIND)
     ),
     (
         "status",

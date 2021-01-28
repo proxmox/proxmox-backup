@@ -138,27 +138,28 @@ pub fn lookup_drive_name(
                 optional: true,
                 default: true,
             },
-        },
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+       },
     },
 )]
 /// Erase media
-async fn erase_media(
-    mut param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<(), Error> {
+async fn erase_media(param: Value) -> Result<(), Error> {
+
+    let output_format = get_output_format(&param);
 
     let (config, _digest) = config::drive::config()?;
 
-    param["drive"] = lookup_drive_name(&param, &config)?.into();
+    let drive = lookup_drive_name(&param, &config)?;
 
-    let info = &api2::tape::drive::API_METHOD_ERASE_MEDIA;
+    let mut client = connect_to_localhost()?;
 
-    let result = match info.handler {
-        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
-        _ => unreachable!(),
-    };
+    let path = format!("api2/json/tape/drive/{}/erase-media", drive);
+    let result = client.post(&path, Some(param)).await?;
 
-    wait_for_local_worker(result.as_str().unwrap()).await?;
+    view_task_result(client, result, &output_format).await?;
 
     Ok(())
 }
@@ -170,27 +171,28 @@ async fn erase_media(
                 schema: DRIVE_NAME_SCHEMA,
                 optional: true,
             },
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
         },
     },
 )]
 /// Rewind tape
-async fn rewind(
-    mut param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<(), Error> {
+async fn rewind(param: Value) -> Result<(), Error> {
+
+    let output_format = get_output_format(&param);
 
     let (config, _digest) = config::drive::config()?;
 
-    param["drive"] = lookup_drive_name(&param, &config)?.into();
+    let drive = lookup_drive_name(&param, &config)?;
 
-    let info = &api2::tape::drive::API_METHOD_REWIND;
+    let mut client = connect_to_localhost()?;
 
-    let result = match info.handler {
-        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
-        _ => unreachable!(),
-    };
+    let path = format!("api2/json/tape/drive/{}/rewind", drive);
+    let result = client.post(&path, Some(param)).await?;
 
-    wait_for_local_worker(result.as_str().unwrap()).await?;
+    view_task_result(client, result, &output_format).await?;
 
     Ok(())
 }
