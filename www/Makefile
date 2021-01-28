@@ -20,6 +20,7 @@ TAPE_UI_FILES=						\
 	tape/window/LabelMedia.js			\
 	tape/window/PoolEdit.js				\
 	tape/window/TapeBackup.js			\
+	tape/BackupOverview.js				\
 	TapeManagement.js
 endif
 
