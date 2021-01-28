@@ -1128,7 +1128,7 @@ pub fn list_drives(
             name: drive.name,
             path: drive.path.clone(),
             changer: drive.changer,
-            changer_drivenum: drive.changer_drive_id,
+            changer_drivenum: drive.changer_drivenum,
             vendor: None,
             model: None,
             serial: None,

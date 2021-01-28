@@ -10,7 +10,7 @@ use crate::{
         PROXMOX_CONFIG_DIGEST_SCHEMA,
         DRIVE_NAME_SCHEMA,
         CHANGER_NAME_SCHEMA,
-        CHANGER_DRIVE_ID_SCHEMA,
+        CHANGER_DRIVENUM_SCHEMA,
         LINUX_DRIVE_PATH_SCHEMA,
         DriveListEntry,
         LinuxTapeDrive,
@@ -36,8 +36,8 @@ use crate::{
                 schema: CHANGER_NAME_SCHEMA,
                 optional: true,
             },
-            "changer-drive-id": {
-                schema: CHANGER_DRIVE_ID_SCHEMA,
+            "changer-drivenum": {
+                schema: CHANGER_DRIVENUM_SCHEMA,
                 optional: true,
             },
         },
@@ -129,8 +129,8 @@ pub fn list_drives(
 pub enum DeletableProperty {
     /// Delete the changer property.
     changer,
-    /// Delete the changer-drive-id property.
-    changer_drive_id,
+    /// Delete the changer-drivenum property.
+    changer_drivenum,
 }
 
 #[api(
@@ -148,8 +148,8 @@ pub enum DeletableProperty {
                 schema: CHANGER_NAME_SCHEMA,
                 optional: true,
             },
-            "changer-drive-id": {
-                schema: CHANGER_DRIVE_ID_SCHEMA,
+            "changer-drivenum": {
+                schema: CHANGER_DRIVENUM_SCHEMA,
                 optional: true,
             },
             delete: {
@@ -172,7 +172,7 @@ pub fn update_drive(
     name: String,
     path: Option<String>,
     changer: Option<String>,
-    changer_drive_id: Option<u64>,
+    changer_drivenum: Option<u64>,
     delete: Option<Vec<DeletableProperty>>,
     digest: Option<String>,
    _param: Value,
@@ -194,9 +194,9 @@ pub fn update_drive(
             match delete_prop {
                 DeletableProperty::changer => {
                     data.changer = None;
-                    data.changer_drive_id = None;
+                    data.changer_drivenum = None;
                 },
-                DeletableProperty::changer_drive_id => { data.changer_drive_id = None; },
+                DeletableProperty::changer_drivenum => { data.changer_drivenum = None; },
             }
         }
     }
@@ -212,14 +212,14 @@ pub fn update_drive(
         data.changer = Some(changer);
     }
 
-    if let Some(changer_drive_id) = changer_drive_id {
-        if changer_drive_id == 0 {
-            data.changer_drive_id = None;
+    if let Some(changer_drivenum) = changer_drivenum {
+        if changer_drivenum == 0 {
+            data.changer_drivenum = None;
         } else {
             if data.changer.is_none() {
                 bail!("Option 'changer-drive-id' requires option 'changer'.");
             }
-            data.changer_drive_id = Some(changer_drive_id);
+            data.changer_drivenum = Some(changer_drivenum);
         }
     }
 

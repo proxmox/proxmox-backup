@@ -24,7 +24,7 @@ pub const LINUX_DRIVE_PATH_SCHEMA: Schema = StringSchema::new(
     "The path to a LINUX non-rewinding SCSI tape device (i.e. '/dev/nst0')")
     .schema();
 
-pub const CHANGER_DRIVE_ID_SCHEMA: Schema = IntegerSchema::new(
+pub const CHANGER_DRIVENUM_SCHEMA: Schema = IntegerSchema::new(
     "Associated changer drive number (requires option changer)")
     .minimum(0)
     .maximum(8)
@@ -62,8 +62,8 @@ pub struct VirtualTapeDrive {
             schema: CHANGER_NAME_SCHEMA,
             optional: true,
         },
-        "changer-drive-id": {
-            schema: CHANGER_DRIVE_ID_SCHEMA,
+        "changer-drivenum": {
+            schema: CHANGER_DRIVENUM_SCHEMA,
             optional: true,
         },
     }
@@ -77,7 +77,7 @@ pub struct LinuxTapeDrive {
     #[serde(skip_serializing_if="Option::is_none")]
     pub changer: Option<String>,
     #[serde(skip_serializing_if="Option::is_none")]
-    pub changer_drive_id: Option<u64>,
+    pub changer_drivenum: Option<u64>,
 }
 
 #[api()]

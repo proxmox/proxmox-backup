@@ -420,7 +420,7 @@ impl MtxMediaChanger {
 
         Ok(Self {
             drive_name: drive_config.name.clone(),
-            drive_number: drive_config.changer_drive_id.unwrap_or(0),
+            drive_number: drive_config.changer_drivenum.unwrap_or(0),
             config: changer_config,
         })
     }
