@@ -112,7 +112,7 @@ Ext.define('PBS.TapeManagement.PoolPanel', {
 	},
 	{
 	    text: gettext('Encryption Fingerprint'),
-	    dataIndex: 'encryption',
+	    dataIndex: 'encrypt',
 	},
     ],
 });
