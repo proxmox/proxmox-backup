@@ -399,6 +399,8 @@ impl MediaChange for VirtualTapeHandle {
                 loaded_slot: None,
                 status: ElementStatus::VolumeTag(current_tape.name.clone()),
                 drive_serial_number: None,
+                vendor: None,
+                model: None,
                 element_address: 0,
            });
         }

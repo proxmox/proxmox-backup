@@ -46,6 +46,8 @@ fn parse_drive_status(i: &str, id: u64) -> IResult<&str, DriveStatus> {
             loaded_slot,
             status: ElementStatus::Empty,
             drive_serial_number: None,
+            vendor: None,
+            model: None,
             element_address: id as u16,
         };
         return Ok((empty, status));
@@ -71,6 +73,8 @@ fn parse_drive_status(i: &str, id: u64) -> IResult<&str, DriveStatus> {
             loaded_slot,
             status: ElementStatus::VolumeTag(tag.to_string()),
             drive_serial_number: None,
+            vendor: None,
+            model: None,
             element_address: id as u16,
         };
         return Ok((i, status));
@@ -82,6 +86,8 @@ fn parse_drive_status(i: &str, id: u64) -> IResult<&str, DriveStatus> {
         loaded_slot,
         status: ElementStatus::Full,
         drive_serial_number: None,
+        vendor: None,
+        model: None,
         element_address: id as u16,
     };
     Ok((i, status))

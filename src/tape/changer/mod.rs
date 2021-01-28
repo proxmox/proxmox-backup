@@ -38,6 +38,10 @@ pub struct DriveStatus {
     pub status: ElementStatus,
     /// Drive Identifier (Serial number)
     pub drive_serial_number: Option<String>,
+    /// Drive Vendor
+    pub vendor: Option<String>,
+    /// Drive Model
+    pub model: Option<String>,
     /// Element Address
     pub element_address: u16,
 }
