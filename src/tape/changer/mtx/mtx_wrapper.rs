@@ -1,5 +1,4 @@
 use anyhow::Error;
-use serde_json::Value;
 
 use crate::{
     tools::run_command,
