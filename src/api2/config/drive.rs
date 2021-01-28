@@ -56,8 +56,15 @@ pub fn create_drive(param: Value) -> Result<(), Error> {
 
     check_drive_path(&linux_drives, &item.path)?;
 
-    if config.sections.get(&item.name).is_some() {
-        bail!("Entry '{}' already exists", item.name);
+    let existing: Vec<LinuxTapeDrive> = config.convert_to_typed_array("linux")?;
+
+    for drive in existing {
+        if drive.name == item.name {
+            bail!("Entry '{}' already exists", item.name);
+        }
+        if drive.path == item.path {
+            bail!("Path '{}' already used in drive '{}'", item.path, drive.name);
+        }
     }
 
     config.set_data(&item.name, "linux", &item)?;

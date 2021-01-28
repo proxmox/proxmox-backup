@@ -59,8 +59,16 @@ pub fn create_changer(
 
     check_drive_path(&linux_changers, &path)?;
 
-    if config.sections.get(&name).is_some() {
-        bail!("Entry '{}' already exists", name);
+    let existing: Vec<ScsiTapeChanger> = config.convert_to_typed_array("changer")?;
+
+    for changer in existing {
+        if changer.name == name {
+            bail!("Entry '{}' already exists", name);
+        }
+
+        if changer.path == path {
+            bail!("Path '{}' already in use by '{}'", path, changer.name);
+        }
     }
 
     let item = ScsiTapeChanger {
