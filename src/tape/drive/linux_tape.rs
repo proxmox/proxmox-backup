@@ -2,7 +2,7 @@
 
 use std::fs::{OpenOptions, File};
 use std::os::unix::fs::OpenOptionsExt;
-use std::os::unix::io::{AsRawFd, FromRawFd};
+use std::os::unix::io::{AsRawFd, FromRawFd, RawFd};
 use std::convert::TryFrom;
 
 use anyhow::{bail, format_err, Error};
@@ -50,6 +50,17 @@ use crate::{
         },
     }
 };
+
+fn run_sg_tape_cmd(subcmd: &str, args: &[&str], fd: RawFd) -> Result<String, Error> {
+    let mut command = std::process::Command::new(
+        "/usr/lib/x86_64-linux-gnu/proxmox-backup/sg-tape-cmd");
+    command.args(&[subcmd]);
+    command.args(&["--stdin"]);
+    command.args(args);
+    let device_fd = nix::unistd::dup(fd)?;
+    command.stdin(unsafe { std::process::Stdio::from_raw_fd(device_fd)});
+    run_command(command, None)
+}
 
 /// Linux tape drive status
 #[derive(Debug)]
@@ -351,12 +362,7 @@ impl LinuxTapeHandle {
             return read_mam_attributes(&mut self.file);
         }
 
-        let mut command = std::process::Command::new(
-            "/usr/lib/x86_64-linux-gnu/proxmox-backup/sg-tape-cmd");
-        command.args(&["cartridge-memory"]);
-        command.args(&["--stdin"]);
-        command.stdin(unsafe { std::process::Stdio::from_raw_fd(self.file.as_raw_fd())});
-        let output = run_command(command, None)?;
+        let output = run_sg_tape_cmd("cartridge-memory", &[], self.file.as_raw_fd())?;
         let result: Result<Vec<MamAttribute>, String> = serde_json::from_str(&output)?;
         result.map_err(|err| format_err!("{}", err))
     }
@@ -371,12 +377,7 @@ impl LinuxTapeHandle {
             return read_volume_statistics(&mut self.file);
         }
 
-        let mut command = std::process::Command::new(
-            "/usr/lib/x86_64-linux-gnu/proxmox-backup/sg-tape-cmd");
-        command.args(&["volume-statistics"]);
-        command.args(&["--stdin"]);
-        command.stdin(unsafe { std::process::Stdio::from_raw_fd(self.file.as_raw_fd())});
-        let output = run_command(command, None)?;
+        let output = run_sg_tape_cmd("volume-statistics", &[], self.file.as_raw_fd())?;
         let result: Result<Lp17VolumeStatistics, String> = serde_json::from_str(&output)?;
         result.map_err(|err| format_err!("{}", err))
     }
@@ -533,12 +534,7 @@ impl TapeDriver for LinuxTapeHandle {
             return read_tape_alert_flags(&mut self.file);
         }
 
-        let mut command = std::process::Command::new(
-            "/usr/lib/x86_64-linux-gnu/proxmox-backup/sg-tape-cmd");
-        command.args(&["tape-alert-flags"]);
-        command.args(&["--stdin"]);
-        command.stdin(unsafe { std::process::Stdio::from_raw_fd(self.file.as_raw_fd())});
-        let output = run_command(command, None)?;
+        let output = run_sg_tape_cmd("tape-alert-flags", &[], self.file.as_raw_fd())?;
         let result: Result<u64, String> = serde_json::from_str(&output)?;
         result
             .map_err(|err| format_err!("{}", err))
@@ -585,17 +581,15 @@ impl TapeDriver for LinuxTapeHandle {
             }
         }
 
-        let mut command = std::process::Command::new(
-            "/usr/lib/x86_64-linux-gnu/proxmox-backup/sg-tape-cmd");
-        command.args(&["encryption"]);
-        if let Some((fingerprint, uuid)) = key_fingerprint {
+        let output = if let Some((fingerprint, uuid)) = key_fingerprint {
             let fingerprint = crate::tools::format::as_fingerprint(fingerprint.bytes());
-            command.args(&["--fingerprint", &fingerprint]);
-            command.args(&["--uuid", &uuid.to_string()]);
-        }
-        command.args(&["--stdin"]);
-        command.stdin(unsafe { std::process::Stdio::from_raw_fd(self.file.as_raw_fd())});
-        let output = run_command(command, None)?;
+            run_sg_tape_cmd("encryption", &[
+                "--fingerprint", &fingerprint,
+                "--uuid", &uuid.to_string(),
+            ], self.file.as_raw_fd())?
+        } else {
+            run_sg_tape_cmd("encryption", &[], self.file.as_raw_fd())?
+        };
         let result: Result<(), String> = serde_json::from_str(&output)?;
         result.map_err(|err| format_err!("{}", err))
     }
