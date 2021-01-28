@@ -1207,12 +1207,12 @@ pub const SUBDIRS: SubdirMap = &sorted!([
     (
         "cartridge-memory",
         &Router::new()
-            .put(&API_METHOD_CARTRIDGE_MEMORY)
+            .get(&API_METHOD_CARTRIDGE_MEMORY)
     ),
     (
         "volume-statistics",
         &Router::new()
-            .put(&API_METHOD_VOLUME_STATISTICS)
+            .get(&API_METHOD_VOLUME_STATISTICS)
     ),
     (
         "read-label",
