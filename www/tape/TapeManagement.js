@@ -5,7 +5,31 @@ Ext.define('PBS.TapeManagement', {
     title: gettext('Tape Backup'),
 
     border: true,
-    defaults: { border: false },
+    defaults: {
+	border: false,
+	xtype: 'panel',
+    },
 
-    html: "Experimental tape backup GUI.",
+    items: [
+	{
+	    title: gettext('Backup'),
+	    itemId: 'backup',
+	    xtype: 'pbsBackupOverview',
+	},
+	{
+	    title: gettext('Changers'),
+	    itemId: 'changers',
+	    xtype: 'pbsChangerStatus',
+	},
+	{
+	    title: gettext('Drives'),
+	    itemId: 'drives',
+	    xtype: 'pbsTapeDrivePanel',
+	},
+	{
+	    title: gettext('Media Pools'),
+	    itemId: 'pools',
+	    xtype: 'pbsMediaPoolPanel',
+	},
+    ],
 });
