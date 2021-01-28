@@ -296,21 +296,40 @@ pub fn rewind(
             },
         },
     },
+    returns: {
+        schema: UPID_SCHEMA,
+    },
 )]
 /// Eject/Unload drive media
-pub async fn eject_media(drive: String) -> Result<(), Error> {
+pub fn eject_media(
+    drive: String,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
 
     let (config, _digest) = config::drive::config()?;
 
-    tokio::task::spawn_blocking(move || {
-        if let Some((mut changer, _)) = media_changer(&config, &drive)? {
-            changer.unload_media(None)?;
-        } else {
-            let mut drive = open_drive(&config, &drive)?;
-            drive.eject_media()?;
-        }
-        Ok(())
-    }).await?
+    check_drive_exists(&config, &drive)?; // early check before starting worker
+
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+
+    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
+
+    let upid_str = WorkerTask::new_thread(
+        "eject-media",
+        Some(drive.clone()),
+        auth_id,
+        to_stdout,
+        move |_worker| {
+            if let Some((mut changer, _)) = media_changer(&config, &drive)? {
+                changer.unload_media(None)?;
+            } else {
+                let mut drive = open_drive(&config, &drive)?;
+                drive.eject_media()?;
+            }
+            Ok(())
+        })?;
+
+    Ok(upid_str.into())
 }
 
 #[api(
@@ -1176,7 +1195,7 @@ pub const SUBDIRS: SubdirMap = &sorted!([
     (
         "eject-media",
         &Router::new()
-            .put(&API_METHOD_EJECT_MEDIA)
+            .post(&API_METHOD_EJECT_MEDIA)
     ),
     (
         "erase-media",

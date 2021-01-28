@@ -279,6 +279,7 @@ Ext.define('PBS.Utils', {
 	    "barcode-label-media": [gettext('Drive'), gettext('Barcode label media')],
 	    dircreate: [gettext('Directory Storage'), gettext('Create')],
 	    dirremove: [gettext('Directory'), gettext('Remove')],
+	    "eject-media": [gettext('Drive'), gettext('Eject media')],
 	    "erase-media": [gettext('Drive'), gettext('Erase media')],
 	    garbage_collection: ['Datastore', gettext('Garbage collect')],
 	    "inventory-update": [gettext('Drive'), gettext('Inventory update')],

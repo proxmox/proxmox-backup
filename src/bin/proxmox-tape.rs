@@ -204,25 +204,28 @@ async fn rewind(param: Value) -> Result<(), Error> {
                 schema: DRIVE_NAME_SCHEMA,
                 optional: true,
             },
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
         },
     },
 )]
 /// Eject/Unload drive media
-async fn eject_media(
-    mut param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<(), Error> {
+async fn eject_media(param: Value) -> Result<(), Error> {
+
+    let output_format = get_output_format(&param);
 
     let (config, _digest) = config::drive::config()?;
 
-    param["drive"] = lookup_drive_name(&param, &config)?.into();
+    let drive = lookup_drive_name(&param, &config)?;
 
-    let info = &api2::tape::drive::API_METHOD_EJECT_MEDIA;
+    let mut client = connect_to_localhost()?;
 
-    match info.handler {
-        ApiHandler::Async(handler) => (handler)(param, info, rpcenv).await?,
-        _ => unreachable!(),
-    };
+    let path = format!("api2/json/tape/drive/{}/eject-media", drive);
+    let result = client.post(&path, Some(param)).await?;
+
+    view_task_result(client, result, &output_format).await?;
 
     Ok(())
 }
