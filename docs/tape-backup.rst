@@ -299,11 +299,11 @@ configuration entry::
 If you have a tape library, you also need to set the associated
 changer device::
 
- # proxmox-tape drive update mydrive --changer sl3  --changer-drive-id 0
+ # proxmox-tape drive update mydrive --changer sl3  --changer-drivenum 0
 
-The ``--changer-drive-id`` is only necessary if the tape library
+The ``--changer-drivenum`` is only necessary if the tape library
 includes more than one drive (The changer status command lists all
-drive IDs).
+drivenums).
 
 You can show the final configuration with::
 
@@ -318,7 +318,7 @@ You can show the final configuration with::
  │ changer │ sl3                            │
  └─────────┴────────────────────────────────┘
 
-.. NOTE:: The ``changer-drive-id`` value 0 is not stored in the
+.. NOTE:: The ``changer-drivenum`` value 0 is not stored in the
    configuration, because that is the default.
 
 To list all configured drives use::

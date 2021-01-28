@@ -165,7 +165,7 @@ fn get_config(
         .column(ColumnConfig::new("name"))
         .column(ColumnConfig::new("path"))
         .column(ColumnConfig::new("changer"))
-        .column(ColumnConfig::new("changer-drive-id"))
+        .column(ColumnConfig::new("changer-drivenum"))
         ;
 
     format_and_print_result_full(&mut data, &info.returns, &output_format, &options);

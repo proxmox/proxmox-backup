@@ -224,7 +224,7 @@ pub fn update_drive(
             data.changer_drivenum = None;
         } else {
             if data.changer.is_none() {
-                bail!("Option 'changer-drive-id' requires option 'changer'.");
+                bail!("Option 'changer-drivenum' requires option 'changer'.");
             }
             data.changer_drivenum = Some(changer_drivenum);
         }
