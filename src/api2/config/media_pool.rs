@@ -28,6 +28,7 @@ use crate::{
 };
 
 #[api(
+    protected: true,
     input: {
         properties: {
             name: {
@@ -153,6 +154,7 @@ pub enum DeletableProperty {
 }
 
 #[api(
+    protected: true,
     input: {
         properties: {
             name: {
@@ -231,6 +233,7 @@ pub fn update_pool(
 }
 
 #[api(
+    protected: true,
     input: {
         properties: {
             name: {
