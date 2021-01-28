@@ -31,6 +31,7 @@ use crate::{
         scsi_ascii_to_string,
         scsi_inquiry,
     },
+    api2::types::ScsiTapeChanger,
 };
 
 const SCSI_CHANGER_DEFAULT_TIMEOUT: usize = 60*5; // 5 minutes
@@ -396,6 +397,21 @@ pub fn read_element_status<F: AsRawFd>(file: &mut F) -> Result<MtxStatus, Error>
 
     Ok(status)
 }
+
+/// Read status and map import-export slots from config
+pub fn status(config: &ScsiTapeChanger) -> Result<MtxStatus, Error> {
+    let path = &config.path;
+
+    let mut file = open(path)
+        .map_err(|err| format_err!("error opening '{}': {}", path, err))?;
+    let mut status = read_element_status(&mut file)
+        .map_err(|err| format_err!("error reading element status: {}", err))?;
+
+    status.mark_import_export_slots(&config)?;
+
+    Ok(status)
+}
+
 
 #[repr(C, packed)]
 #[derive(Endian)]

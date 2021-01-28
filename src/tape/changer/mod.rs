@@ -10,10 +10,16 @@ pub mod mtx;
 mod online_status_map;
 pub use online_status_map::*;
 
+use std::collections::HashSet;
+
 use anyhow::{bail, Error};
 use serde::{Serialize, Deserialize};
+use serde_json::Value;
+
+use proxmox::api::schema::parse_property_string;
 
 use crate::api2::types::{
+    SLOT_ARRAY_SCHEMA,
     ScsiTapeChanger,
     LinuxTapeDrive,
 };
@@ -123,6 +129,29 @@ impl MtxStatus {
             }
         }
         free_slot
+    }
+
+    pub fn mark_import_export_slots(&mut self, config: &ScsiTapeChanger) -> Result<(), Error>{
+        let mut export_slots: HashSet<u64> = HashSet::new();
+
+        if let Some(slots) = &config.export_slots {
+            let slots: Value = parse_property_string(&slots, &SLOT_ARRAY_SCHEMA)?;
+            export_slots = slots
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter_map(|v| v.as_u64())
+                .collect();
+        }
+
+        for (i, entry) in self.slots.iter_mut().enumerate() {
+            let slot = i as u64 + 1;
+            if export_slots.contains(&slot) {
+                entry.import_export = true; // mark as IMPORT/EXPORT
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -373,8 +402,7 @@ impl ScsiMediaChange for ScsiTapeChanger {
         if USE_MTX {
             mtx::mtx_status(&self)
         } else {
-            let mut file = sg_pt_changer::open(&self.path)?;
-            sg_pt_changer::read_element_status(&mut file)
+            sg_pt_changer::status(&self)
         }
     }
 
