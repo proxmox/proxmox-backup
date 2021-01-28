@@ -23,6 +23,7 @@ TAPE_UI_FILES=						\
 	tape/BackupOverview.js				\
 	tape/ChangerStatus.js				\
 	tape/DriveConfig.js				\
+	tape/PoolConfig.js				\
 	TapeManagement.js
 endif
 
