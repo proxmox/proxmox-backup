@@ -1195,6 +1195,11 @@ pub const SUBDIRS: SubdirMap = &sorted!([
             .put(&API_METHOD_LABEL_MEDIA)
     ),
     (
+        "load-media",
+        &Router::new()
+            .put(&API_METHOD_LOAD_MEDIA)
+    ),
+    (
         "load-slot",
         &Router::new()
             .put(&API_METHOD_LOAD_SLOT)
