@@ -21,6 +21,11 @@ use proxmox_backup::{
         render_epoch,
         render_bytes_human_readable,
     },
+    client::{
+        HttpClient,
+        display_task_log,
+        connect_to_localhost,
+    },
     server::{
         UPID,
         worker_is_active_local,
@@ -54,6 +59,23 @@ use proxmox_backup::{
 
 mod proxmox_tape;
 use proxmox_tape::*;
+
+async fn view_task_result(
+    client: HttpClient,
+    result: Value,
+    output_format: &str,
+) -> Result<(), Error> {
+    let data = &result["data"];
+    if output_format == "text" {
+        if let Some(upid) = data.as_str() {
+            display_task_log(client, upid, true).await?;
+        }
+    } else {
+        format_and_print_result(&data, &output_format);
+    }
+
+    Ok(())
+}
 
 // Note: local workers should print logs to stdout, so there is no need
 // to fetch/display logs. We just wait for the worker to finish.
@@ -811,23 +833,23 @@ async fn clean_drive(
                 type: bool,
                 optional: true,
             },
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
         },
     },
 )]
 /// Backup datastore to tape media pool
-async fn backup(
-    param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<(), Error> {
+async fn backup(param: Value) -> Result<(), Error> {
 
-    let info = &api2::tape::backup::API_METHOD_BACKUP;
+    let output_format = get_output_format(&param);
 
-    let result = match info.handler {
-        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
-        _ => unreachable!(),
-    };
+    let mut client = connect_to_localhost()?;
 
-    wait_for_local_worker(result.as_str().unwrap()).await?;
+    let result = client.post("api2/json/tape/backup", Some(param)).await?;
+
+    view_task_result(client, result, &output_format).await?;
 
     Ok(())
 }
