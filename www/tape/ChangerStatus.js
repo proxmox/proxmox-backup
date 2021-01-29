@@ -316,7 +316,7 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 		let txt = lines.join('<br>');
 
 		Ext.Msg.show({
-		    title: gettext('Label Information'),
+		    title: gettext('Status'),
 		    message: txt,
 		    icon: undefined,
 		});
