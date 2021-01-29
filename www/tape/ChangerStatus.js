@@ -527,11 +527,13 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 				{
 				    iconCls: 'fa fa-rotate-90 fa-exchange',
 				    handler: 'slotTransfer',
+				    tooltip: gettext('Transfer'),
 				    isDisabled: (v, r, c, i, rec) => !rec.data['label-text'],
 				},
 				{
 				    iconCls: 'fa fa-rotate-90 fa-upload',
 				    handler: 'load',
+				    tooltip: gettext('Load'),
 				    isDisabled: (v, r, c, i, rec) => !rec.data['label-text'],
 				},
 			    ],
@@ -601,29 +603,35 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 					{
 					    iconCls: 'fa fa-rotate-270 fa-upload',
 					    handler: 'unload',
+					    tooltip: gettext('Unload'),
 					    isDisabled: (v, r, c, i, rec) => !rec.data['label-text'],
 					},
 					{
 					    iconCls: 'fa fa-hdd-o',
 					    handler: 'cartridgeMemory',
+					    tooltip: gettext('Cartridge Memory'),
 					    isDisabled: (v, r, c, i, rec) => !rec.data['label-text'],
 					},
 					{
 					    iconCls: 'fa fa-line-chart',
 					    handler: 'volumeStatistics',
+					    tooltip: gettext('Volume Statistics'),
 					    isDisabled: (v, r, c, i, rec) => !rec.data['label-text'],
 					},
 					{
 					    iconCls: 'fa fa-tag',
 					    handler: 'readLabel',
+					    tooltip: gettext('Read Label'),
 					    isDisabled: (v, r, c, i, rec) => !rec.data['label-text'],
 					},
 					{
 					    iconCls: 'fa fa-info-circle',
+					    tooltip: gettext('Status'),
 					    handler: 'status',
 					},
 					{
 					    iconCls: 'fa fa-shower',
+					    tooltip: gettext('Clean Drive'),
 					    handler: 'cleanDrive',
 					},
 				    ],
