@@ -339,6 +339,7 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	    Ext.create('Proxmox.window.Edit', {
 		title: gettext('Barcode Label'),
 		showTaskViewer: true,
+		method: 'POST',
 		url: '/api2/extjs/tape/drive',
 		submitUrl: function(url, values) {
 		    let drive = values.drive;
