@@ -49,6 +49,39 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	    }).show();
 	},
 
+	importTape: function(view, rI, cI, button, el, record) {
+	    let me = this;
+	    let vm = me.getViewModel();
+	    let from = record.data['entry-id'];
+	    let changer = encodeURIComponent(vm.get('changer'));
+	    Ext.create('Proxmox.window.Edit', {
+		title: gettext('Import'),
+		isCreate: true,
+		submitText: gettext('OK'),
+		method: 'POST',
+		url: `/api2/extjs/tape/changer/${changer}/transfer`,
+		items: [
+		    {
+			xtype: 'displayfield',
+			name: 'from',
+			value: from,
+			submitValue: true,
+			fieldLabel: gettext('From Slot'),
+		    },
+		    {
+			xtype: 'proxmoxintegerfield',
+			name: 'to',
+			fieldLabel: gettext('To Slot'),
+		    },
+		],
+		listeners: {
+		    destroy: function() {
+			me.reload();
+		    },
+		},
+	    }).show();
+	},
+
 	slotTransfer: function(view, rI, cI, button, el, record) {
 	    let me = this;
 	    let vm = me.getViewModel();
@@ -618,7 +651,15 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 				},
 				{
 				    text: gettext('Actions'),
-				    items: [],
+				    xtype: 'actioncolumn',
+				    items: [
+					{
+					    iconCls: 'fa fa-rotate-270 fa-upload',
+					    handler: 'importTape',
+					    tooltip: gettext('Import'),
+					    isDisabled: (v, r, c, i, rec) => !rec.data['label-text'],
+					},
+				    ],
 				    width: 80,
 				},
 			    ],
