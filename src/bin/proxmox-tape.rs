@@ -22,13 +22,9 @@ use proxmox_backup::{
         render_bytes_human_readable,
     },
     client::{
-        HttpClient,
-        display_task_log,
         connect_to_localhost,
-    },
-    server::{
-        UPID,
-        worker_is_active_local,
+        view_task_result,
+        wait_for_local_worker,
     },
     api2::{
         self,
@@ -59,41 +55,6 @@ use proxmox_backup::{
 
 mod proxmox_tape;
 use proxmox_tape::*;
-
-async fn view_task_result(
-    client: HttpClient,
-    result: Value,
-    output_format: &str,
-) -> Result<(), Error> {
-    let data = &result["data"];
-    if output_format == "text" {
-        if let Some(upid) = data.as_str() {
-            display_task_log(client, upid, true).await?;
-        }
-    } else {
-        format_and_print_result(&data, &output_format);
-    }
-
-    Ok(())
-}
-
-// Note: local workers should print logs to stdout, so there is no need
-// to fetch/display logs. We just wait for the worker to finish.
-pub async fn wait_for_local_worker(upid_str: &str) -> Result<(), Error> {
-
-    let upid: UPID = upid_str.parse()?;
-
-    let sleep_duration = core::time::Duration::new(0, 100_000_000);
-
-    loop {
-        if worker_is_active_local(&upid) {
-            tokio::time::sleep(sleep_duration).await;
-        } else {
-            break;
-        }
-    }
-    Ok(())
-}
 
 pub fn lookup_drive_name(
     param: &Value,

@@ -14,41 +14,6 @@ use proxmox_backup::client::*;
 mod proxmox_backup_manager;
 use proxmox_backup_manager::*;
 
-async fn view_task_result(
-    client: HttpClient,
-    result: Value,
-    output_format: &str,
-) -> Result<(), Error> {
-    let data = &result["data"];
-    if output_format == "text" {
-        if let Some(upid) = data.as_str() {
-            display_task_log(client, upid, true).await?;
-        }
-    } else {
-        format_and_print_result(&data, &output_format);
-    }
-
-    Ok(())
-}
-
-// Note: local workers should print logs to stdout, so there is no need
-// to fetch/display logs. We just wait for the worker to finish.
-pub async fn wait_for_local_worker(upid_str: &str) -> Result<(), Error> {
-
-    let upid: proxmox_backup::server::UPID = upid_str.parse()?;
-
-    let sleep_duration = core::time::Duration::new(0, 100_000_000);
-
-    loop {
-        if proxmox_backup::server::worker_is_active_local(&upid) {
-            tokio::time::sleep(sleep_duration).await;
-        } else {
-            break;
-        }
-    }
-    Ok(())
-}
-
 #[api(
    input: {
         properties: {

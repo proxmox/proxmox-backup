@@ -216,23 +216,6 @@ fn connect_do(server: &str, port: u16, auth_id: &Authid) -> Result<HttpClient, E
     HttpClient::new(server, port, auth_id, options)
 }
 
-async fn view_task_result(
-    client: HttpClient,
-    result: Value,
-    output_format: &str,
-) -> Result<(), Error> {
-    let data = &result["data"];
-    if output_format == "text" {
-        if let Some(upid) = data.as_str() {
-            display_task_log(client, upid, true).await?;
-        }
-    } else {
-        format_and_print_result(&data, &output_format);
-    }
-
-    Ok(())
-}
-
 async fn api_datastore_list_snapshots(
     client: &HttpClient,
     store: &str,
