@@ -31,6 +31,8 @@ use proxmox::{
 };
 
 use crate::{
+    task_log,
+    task::TaskState,
     backup::{
         Fingerprint,
         KeyConfig,
@@ -314,11 +316,13 @@ pub fn request_and_load_media(
 
     let check_label = |handle: &mut dyn TapeDriver, uuid: &proxmox::tools::Uuid| {
         if let Ok((Some(media_id), _)) = handle.read_label() {
-            worker.log(format!(
+            task_log!(
+                worker,
                 "found media label {} ({})",
                 media_id.label.label_text,
-                media_id.label.uuid.to_string(),
-            ));
+                media_id.label.uuid,
+            );
+
             if media_id.label.uuid == *uuid {
                 return Ok(media_id);
             }
@@ -359,7 +363,7 @@ pub fn request_and_load_media(
                         return Ok((handle, media_id));
                     }
 
-                    worker.log(format!("Please insert media '{}' into drive '{}'", label_text, drive));
+                    task_log!(worker, "Please insert media '{}' into drive '{}'", label_text, drive);
 
                     let to = "root@localhost"; // fixme
 
@@ -369,15 +373,20 @@ pub fn request_and_load_media(
                     let mut last_error = None;
 
                     loop {
+                        worker.check_abort()?;
+
                         let mut handle = match drive_config.open() {
                             Ok(handle) => handle,
                             Err(err) => {
                                 let err = err.to_string();
                                 if Some(err.clone()) != last_error {
-                                    worker.log(format!("tape open failed - {}", err));
+                                    task_log!(worker, "tape open failed - {}", err);
                                     last_error = Some(err);
                                 }
-                                std::thread::sleep(std::time::Duration::from_millis(5_000));
+                                for _ in 0..50 { // delay 5 seconds
+                                    worker.check_abort()?;
+                                    std::thread::sleep(std::time::Duration::from_millis(100));
+                                }
                                 continue;
                             }
                         };
@@ -385,38 +394,43 @@ pub fn request_and_load_media(
                         match handle.read_label() {
                             Ok((Some(media_id), _)) => {
                                 if media_id.label.uuid == label.uuid {
-                                    worker.log(format!(
+                                    task_log!(
+                                        worker,
                                         "found media label {} ({})",
                                         media_id.label.label_text,
                                         media_id.label.uuid.to_string(),
-                                    ));
+                                    );
                                     return Ok((Box::new(handle), media_id));
                                 } else if Some(media_id.label.uuid.clone()) != last_media_uuid {
-                                    worker.log(format!(
+                                    task_log!(
+                                        worker,
                                         "wrong media label {} ({})",
                                         media_id.label.label_text,
                                         media_id.label.uuid.to_string(),
-                                    ));
+                                    );
                                     last_media_uuid = Some(media_id.label.uuid);
                                 }
                             }
                             Ok((None, _)) => {
                                 if last_media_uuid.is_some() {
-                                    worker.log("found empty media without label (please label all tapes first)".to_string());
+                                    task_log!(worker, "found empty media without label (please label all tapes first)");
                                     last_media_uuid = None;
                                 }
                             }
                             Err(err) => {
                                 let err = err.to_string();
                                 if Some(err.clone()) != last_error {
-                                    worker.log(format!("tape open failed - {}", err));
+                                    task_log!(worker, "tape open failed - {}", err);
                                     last_error = Some(err);
                                 }
                             }
                         }
 
                         // eprintln!("read label failed -  test again in 5 secs");
-                        std::thread::sleep(std::time::Duration::from_millis(5_000));
+                        for _ in 0..50 { // delay 5 seconds
+                            worker.check_abort()?;
+                            std::thread::sleep(std::time::Duration::from_millis(100));
+                        }
                     }
                 }
                 _ => bail!("drive type '{}' not implemented!"),

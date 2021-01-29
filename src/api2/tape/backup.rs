@@ -14,6 +14,7 @@ use proxmox::{
 };
 
 use crate::{
+    task_log,
     config::{
         self,
         drive::check_drive_exists,
@@ -31,6 +32,7 @@ use crate::{
         MediaPoolConfig,
     },
     server::WorkerTask,
+    task::TaskState,
     tape::{
         TAPE_STATUS_DIR,
         Inventory,
@@ -122,7 +124,7 @@ fn backup_worker(
 
     let _lock = MediaPool::lock(status_path, &pool_config.name)?;
 
-    worker.log("update media online status");
+    task_log!(worker, "update media online status");
     let has_changer = update_media_online_status(&pool_config.drive)?;
 
     let use_offline_media = !has_changer;
@@ -143,7 +145,7 @@ fn backup_worker(
             if pool_writer.contains_snapshot(&info.backup_dir.to_string()) {
                 continue;
             }
-            worker.log(format!("backup snapshot {}", info.backup_dir));
+            task_log!(worker, "backup snapshot {}", info.backup_dir);
             backup_snapshot(worker, &mut pool_writer, datastore.clone(), info.backup_dir)?;
         }
     }
@@ -193,13 +195,15 @@ pub fn backup_snapshot(
     snapshot: BackupDir,
 ) -> Result<(), Error> {
 
-    worker.log(format!("start backup {}:{}", datastore.name(), snapshot));
+    task_log!(worker, "start backup {}:{}", datastore.name(), snapshot);
 
     let snapshot_reader = SnapshotReader::new(datastore.clone(), snapshot.clone())?;
 
     let mut chunk_iter = snapshot_reader.chunk_iterator()?.peekable();
 
     loop {
+        worker.check_abort()?;
+
         // test is we have remaining chunks
         if chunk_iter.peek().is_none() {
             break;
@@ -214,6 +218,8 @@ pub fn backup_snapshot(
         }
     }
 
+    worker.check_abort()?;
+
     let uuid = pool_writer.load_writable_media(worker)?;
 
     let (done, _bytes) = pool_writer.append_snapshot_archive(worker, &snapshot_reader)?;
@@ -221,6 +227,8 @@ pub fn backup_snapshot(
     if !done {
         // does not fit on tape, so we try on next volume
         pool_writer.set_media_status_full(&uuid)?;
+
+        worker.check_abort()?;
 
         pool_writer.load_writable_media(worker)?;
         let (done, _bytes) = pool_writer.append_snapshot_archive(worker, &snapshot_reader)?;
@@ -230,7 +238,7 @@ pub fn backup_snapshot(
         }
     }
 
-    worker.log(format!("end backup {}:{}", datastore.name(), snapshot));
+    task_log!(worker, "end backup {}:{}", datastore.name(), snapshot);
 
     Ok(())
 }
