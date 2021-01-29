@@ -5,7 +5,6 @@ use proxmox::{
     api::{
         api,
         cli::*,
-        ApiHandler,
         RpcEnvironment,
         section_config::SectionConfigData,
     },
@@ -24,7 +23,6 @@ use proxmox_backup::{
     client::{
         connect_to_localhost,
         view_task_result,
-        wait_for_local_worker,
     },
     api2::{
         self,
@@ -478,27 +476,28 @@ async fn inventory(
                 schema: DRIVE_NAME_SCHEMA,
                 optional: true,
             },
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
         },
     },
 )]
 /// Label media with barcodes from changer device
-async fn barcode_label_media(
-    mut param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<(), Error> {
+async fn barcode_label_media(param: Value) -> Result<(), Error> {
+
+    let output_format = get_output_format(&param);
 
     let (config, _digest) = config::drive::config()?;
 
-    param["drive"] = lookup_drive_name(&param, &config)?.into();
+    let drive = lookup_drive_name(&param, &config)?;
 
-    let info = &api2::tape::drive::API_METHOD_BARCODE_LABEL_MEDIA;
+    let mut client = connect_to_localhost()?;
 
-    let result = match info.handler {
-        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
-        _ => unreachable!(),
-    };
+    let path = format!("api2/json/tape/drive/{}/barcode-label-media", drive);
+    let result = client.post(&path, Some(param)).await?;
 
-    wait_for_local_worker(result.as_str().unwrap()).await?;
+    view_task_result(&mut client, result, &output_format).await?;
 
     Ok(())
 }
@@ -594,30 +593,29 @@ fn debug_scan(param: Value) -> Result<(), Error> {
                 schema: DRIVE_NAME_SCHEMA,
                 optional: true,
             },
-             "output-format": {
+            "output-format": {
                 schema: OUTPUT_FORMAT,
                 optional: true,
-             },
+            },
         },
     },
 )]
 /// Read Cartridge Memory (Medium auxiliary memory attributes)
-fn cartridge_memory(
-    mut param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<(), Error> {
+async fn cartridge_memory(param: Value) -> Result<(), Error> {
+
+    let output_format = get_output_format(&param);
 
     let (config, _digest) = config::drive::config()?;
 
-    param["drive"] = lookup_drive_name(&param, &config)?.into();
+    let drive = lookup_drive_name(&param, &config)?;
 
-    let output_format = get_output_format(&param);
+    let client = connect_to_localhost()?;
+
+    let path = format!("api2/json/tape/drive/{}/cartridge-memory", drive);
+    let mut result = client.get(&path, Some(param)).await?;
+    let mut data = result["data"].take();
+
     let info = &api2::tape::drive::API_METHOD_CARTRIDGE_MEMORY;
-
-    let mut data = match info.handler {
-        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
-        _ => unreachable!(),
-    };
 
     let options = default_table_format_options()
         .column(ColumnConfig::new("id"))
@@ -636,34 +634,34 @@ fn cartridge_memory(
                 schema: DRIVE_NAME_SCHEMA,
                 optional: true,
             },
-             "output-format": {
+            "output-format": {
                 schema: OUTPUT_FORMAT,
                 optional: true,
-             },
+            },
         },
     },
 )]
 /// Read Volume Statistics (SCSI log page 17h)
-fn volume_statistics(
-    mut param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<(), Error> {
+async fn volume_statistics(param: Value) -> Result<(), Error> {
+
+    let output_format = get_output_format(&param);
 
     let (config, _digest) = config::drive::config()?;
 
-    param["drive"] = lookup_drive_name(&param, &config)?.into();
+    let drive = lookup_drive_name(&param, &config)?;
 
-    let output_format = get_output_format(&param);
+    let client = connect_to_localhost()?;
+
+    let path = format!("api2/json/tape/drive/{}/volume-statistics", drive);
+    let mut result = client.get(&path, Some(param)).await?;
+    let mut data = result["data"].take();
+
     let info = &api2::tape::drive::API_METHOD_VOLUME_STATISTICS;
-
-    let mut data = match info.handler {
-        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
-        _ => unreachable!(),
-    };
 
     let options = default_table_format_options();
 
     format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
+
     Ok(())
 }
 
@@ -682,22 +680,21 @@ fn volume_statistics(
     },
 )]
 /// Get drive/media status
-fn status(
-    mut param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<(), Error> {
+async fn status(param: Value) -> Result<(), Error> {
+
+    let output_format = get_output_format(&param);
 
     let (config, _digest) = config::drive::config()?;
 
-    param["drive"] = lookup_drive_name(&param, &config)?.into();
+    let drive = lookup_drive_name(&param, &config)?;
 
-    let output_format = get_output_format(&param);
+    let client = connect_to_localhost()?;
+
+    let path = format!("api2/json/tape/drive/{}/status", drive);
+    let mut result = client.get(&path, Some(param)).await?;
+    let mut data = result["data"].take();
+
     let info = &api2::tape::drive::API_METHOD_STATUS;
-
-    let mut data = match info.handler {
-        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
-        _ => unreachable!(),
-    };
 
     let render_percentage = |value: &Value, _record: &Value| {
         match value.as_f64() {
@@ -722,6 +719,7 @@ fn status(
         ;
 
     format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
+
     Ok(())
 }
 
@@ -732,27 +730,28 @@ fn status(
                 schema: DRIVE_NAME_SCHEMA,
                 optional: true,
             },
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
         },
     },
 )]
 /// Clean drive
-async fn clean_drive(
-    mut param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<(), Error> {
+async fn clean_drive(param: Value) -> Result<(), Error> {
+
+    let output_format = get_output_format(&param);
 
     let (config, _digest) = config::drive::config()?;
 
-    param["drive"] = lookup_drive_name(&param, &config)?.into();
+    let drive = lookup_drive_name(&param, &config)?;
 
-    let info = &api2::tape::drive::API_METHOD_CLEAN_DRIVE;
+    let mut client = connect_to_localhost()?;
 
-    let result = match info.handler {
-        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
-        _ => unreachable!(),
-    };
+    let path = format!("api2/json/tape/drive/{}/clean-drive", drive);
+    let result = client.post(&path, Some(param)).await?;
 
-    wait_for_local_worker(result.as_str().unwrap()).await?;
+    view_task_result(&mut client, result, &output_format).await?;
 
     Ok(())
 }
@@ -796,6 +795,7 @@ async fn backup(param: Value) -> Result<(), Error> {
 
     Ok(())
 }
+
 #[api(
    input: {
         properties: {
@@ -806,23 +806,23 @@ async fn backup(param: Value) -> Result<(), Error> {
                 description: "Media set UUID.",
                 type: String,
             },
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
         },
     },
 )]
 /// Restore data from media-set
-async fn restore(
-    param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<(), Error> {
+async fn restore(param: Value) -> Result<(), Error> {
 
-    let info = &api2::tape::restore::API_METHOD_RESTORE;
+    let output_format = get_output_format(&param);
 
-    let result = match info.handler {
-        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
-        _ => unreachable!(),
-    };
+    let mut client = connect_to_localhost()?;
 
-    wait_for_local_worker(result.as_str().unwrap()).await?;
+    let result = client.post("api2/json/tape/restore", Some(param)).await?;
+
+    view_task_result(&mut client, result, &output_format).await?;
 
     Ok(())
 }
@@ -852,23 +852,20 @@ async fn restore(
     },
 )]
 /// Scan media and record content
-async fn catalog_media(
-    mut param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
-)  -> Result<(), Error> {
+async fn catalog_media(param: Value)  -> Result<(), Error> {
+
+    let output_format = get_output_format(&param);
 
     let (config, _digest) = config::drive::config()?;
 
-    param["drive"] = lookup_drive_name(&param, &config)?.into();
+    let drive = lookup_drive_name(&param, &config)?;
 
-    let info = &api2::tape::drive::API_METHOD_CATALOG_MEDIA;
+    let mut client = connect_to_localhost()?;
 
-    let result = match info.handler {
-        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
-        _ => unreachable!(),
-    };
+    let path = format!("api2/json/tape/drive/{}/catalog", drive);
+    let result = client.post(&path, Some(param)).await?;
 
-    wait_for_local_worker(result.as_str().unwrap()).await?;
+    view_task_result(&mut client, result, &output_format).await?;
 
     Ok(())
 }

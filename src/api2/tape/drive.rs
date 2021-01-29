@@ -1180,12 +1180,12 @@ pub const SUBDIRS: SubdirMap = &sorted!([
     (
         "barcode-label-media",
         &Router::new()
-            .put(&API_METHOD_BARCODE_LABEL_MEDIA)
+            .post(&API_METHOD_BARCODE_LABEL_MEDIA)
     ),
     (
         "catalog",
         &Router::new()
-            .put(&API_METHOD_CATALOG_MEDIA)
+            .post(&API_METHOD_CATALOG_MEDIA)
     ),
     (
         "clean",
