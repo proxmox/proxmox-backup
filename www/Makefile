@@ -21,6 +21,7 @@ TAPE_UI_FILES=						\
 	tape/window/PoolEdit.js				\
 	tape/window/TapeBackup.js			\
 	tape/BackupOverview.js				\
+	tape/ChangerConfig.js				\
 	tape/ChangerStatus.js				\
 	tape/DriveConfig.js				\
 	tape/PoolConfig.js				\

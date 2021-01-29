@@ -17,9 +17,14 @@ Ext.define('PBS.TapeManagement', {
 	    xtype: 'pbsBackupOverview',
 	},
 	{
+	    title: gettext('Library'),
+	    itemId: 'library',
+	    xtype: 'pbsChangerStatus',
+	},
+	{
 	    title: gettext('Changers'),
 	    itemId: 'changers',
-	    xtype: 'pbsChangerStatus',
+	    xtype: 'pbsTapeChangerPanel',
 	},
 	{
 	    title: gettext('Drives'),
