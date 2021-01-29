@@ -552,7 +552,7 @@ async fn start_garbage_collection(param: Value) -> Result<Value, Error> {
 
     record_repository(&repo);
 
-    view_task_result(client, result, &output_format).await?;
+    view_task_result(&mut client, result, &output_format).await?;
 
     Ok(Value::Null)
 }

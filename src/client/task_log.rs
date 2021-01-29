@@ -24,7 +24,7 @@ use crate::{
 /// the user presses CTRL-C. Two interrupts cause an immediate end of
 /// the loop. The task may still run in that case.
 pub async fn display_task_log(
-    mut client: HttpClient,
+    client: &mut HttpClient,
     upid_str: &str,
     strip_date: bool,
 ) -> Result<(), Error> {
@@ -106,7 +106,7 @@ pub async fn display_task_log(
 
 /// Display task result (upid), or view task log - depending on output format
 pub async fn view_task_result(
-    client: HttpClient,
+    client: &mut HttpClient,
     result: Value,
     output_format: &str,
 ) -> Result<(), Error> {

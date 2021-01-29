@@ -96,9 +96,9 @@ async fn task_log(param: Value) -> Result<Value, Error> {
     let repo = extract_repository_from_value(&param)?;
     let upid =  tools::required_string_param(&param, "upid")?;
 
-    let client = connect(&repo)?;
+    let mut client = connect(&repo)?;
 
-    display_task_log(client, upid, true).await?;
+    display_task_log(&mut client, upid, true).await?;
 
     Ok(Value::Null)
 }

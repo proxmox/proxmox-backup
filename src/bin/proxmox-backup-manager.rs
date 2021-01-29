@@ -40,7 +40,7 @@ async fn start_garbage_collection(param: Value) -> Result<Value, Error> {
 
     let result = client.post(&path, None).await?;
 
-    view_task_result(client, result, &output_format).await?;
+    view_task_result(&mut client, result, &output_format).await?;
 
     Ok(Value::Null)
 }
@@ -164,9 +164,9 @@ async fn task_log(param: Value) -> Result<Value, Error> {
 
     let upid = tools::required_string_param(&param, "upid")?;
 
-    let client = connect_to_localhost()?;
+    let mut client = connect_to_localhost()?;
 
-    display_task_log(client, upid, true).await?;
+    display_task_log(&mut client, upid, true).await?;
 
     Ok(Value::Null)
 }
@@ -258,7 +258,7 @@ async fn pull_datastore(
 
     let result = client.post("api2/json/pull", Some(args)).await?;
 
-    view_task_result(client, result, &output_format).await?;
+    view_task_result(&mut client, result, &output_format).await?;
 
     Ok(Value::Null)
 }
@@ -292,7 +292,7 @@ async fn verify(
 
     let result = client.post(&path, Some(args)).await?;
 
-    view_task_result(client, result, &output_format).await?;
+    view_task_result(&mut client, result, &output_format).await?;
 
     Ok(Value::Null)
 }

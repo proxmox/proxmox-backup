@@ -120,7 +120,7 @@ async fn erase_media(param: Value) -> Result<(), Error> {
     let path = format!("api2/json/tape/drive/{}/erase-media", drive);
     let result = client.post(&path, Some(param)).await?;
 
-    view_task_result(client, result, &output_format).await?;
+    view_task_result(&mut client, result, &output_format).await?;
 
     Ok(())
 }
@@ -153,7 +153,7 @@ async fn rewind(param: Value) -> Result<(), Error> {
     let path = format!("api2/json/tape/drive/{}/rewind", drive);
     let result = client.post(&path, Some(param)).await?;
 
-    view_task_result(client, result, &output_format).await?;
+    view_task_result(&mut client, result, &output_format).await?;
 
     Ok(())
 }
@@ -186,7 +186,7 @@ async fn eject_media(param: Value) -> Result<(), Error> {
     let path = format!("api2/json/tape/drive/{}/eject-media", drive);
     let result = client.post(&path, Some(param)).await?;
 
-    view_task_result(client, result, &output_format).await?;
+    view_task_result(&mut client, result, &output_format).await?;
 
     Ok(())
 }
@@ -343,7 +343,7 @@ async fn label_media(param: Value) -> Result<(), Error> {
     let path = format!("api2/json/tape/drive/{}/label-media", drive);
     let result = client.post(&path, Some(param)).await?;
 
-    view_task_result(client, result, &output_format).await?;
+    view_task_result(&mut client, result, &output_format).await?;
 
     Ok(())
 }
@@ -428,7 +428,6 @@ async fn inventory(
     read_labels: Option<bool>,
     read_all_labels: Option<bool>,
     param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
 
     let output_format = get_output_format(&param);
@@ -438,28 +437,25 @@ async fn inventory(
 
     let do_read = read_labels.unwrap_or(false) || read_all_labels.unwrap_or(false);
 
+    let mut client = connect_to_localhost()?;
+
+    let path = format!("api2/json/tape/drive/{}/inventory", drive);
+
     if do_read {
-        let mut param = json!({
-            "drive": &drive,
-        });
+
+        let mut param = json!({});
         if let Some(true) = read_all_labels {
             param["read-all-labels"] = true.into();
         }
-        let info = &api2::tape::drive::API_METHOD_UPDATE_INVENTORY;
-        let result = match info.handler {
-            ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
-            _ => unreachable!(),
-        };
-        wait_for_local_worker(result.as_str().unwrap()).await?;
+
+        let result = client.put(&path, Some(param)).await?; // update inventory
+        view_task_result(&mut client, result, &output_format).await?;
     }
 
-    let info = &api2::tape::drive::API_METHOD_INVENTORY;
+    let mut result = client.get(&path, None).await?;
+    let mut data = result["data"].take();
 
-    let param = json!({ "drive": &drive });
-    let mut data = match info.handler {
-        ApiHandler::Async(handler) => (handler)(param, info, rpcenv).await?,
-        _ => unreachable!(),
-    };
+    let info = &api2::tape::drive::API_METHOD_INVENTORY;
 
     let options = default_table_format_options()
         .column(ColumnConfig::new("label-text"))
@@ -796,7 +792,7 @@ async fn backup(param: Value) -> Result<(), Error> {
 
     let result = client.post("api2/json/tape/backup", Some(param)).await?;
 
-    view_task_result(client, result, &output_format).await?;
+    view_task_result(&mut client, result, &output_format).await?;
 
     Ok(())
 }
