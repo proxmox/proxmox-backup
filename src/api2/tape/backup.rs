@@ -211,6 +211,8 @@ pub fn backup_snapshot(
 
         let uuid = pool_writer.load_writable_media(worker)?;
 
+        worker.check_abort()?;
+
         let (leom, _bytes) = pool_writer.append_chunk_archive(worker, &datastore, &mut chunk_iter)?;
 
         if leom {
@@ -221,6 +223,8 @@ pub fn backup_snapshot(
     worker.check_abort()?;
 
     let uuid = pool_writer.load_writable_media(worker)?;
+
+    worker.check_abort()?;
 
     let (done, _bytes) = pool_writer.append_snapshot_archive(worker, &snapshot_reader)?;
 
