@@ -738,7 +738,11 @@ impl WorkerTask {
     /// Request abort
     pub fn request_abort(&self) {
         eprintln!("set abort flag for worker {}", self.upid);
-        self.abort_requested.store(true, Ordering::SeqCst);
+
+        let prev_abort = self.abort_requested.swap(true, Ordering::SeqCst);
+        if !prev_abort { // log abort one time
+            self.log(format!("received abort request ..."));
+        }
         // noitify listeners
         let mut data = self.data.lock().unwrap();
         loop {
