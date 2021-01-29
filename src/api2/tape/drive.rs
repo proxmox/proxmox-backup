@@ -1203,6 +1203,11 @@ pub const SUBDIRS: SubdirMap = &sorted!([
             .post(&API_METHOD_ERASE_MEDIA)
     ),
     (
+        "export-media",
+        &Router::new()
+            .put(&API_METHOD_EXPORT_MEDIA)
+    ),
+    (
         "inventory",
         &Router::new()
             .get(&API_METHOD_INVENTORY)
@@ -1211,7 +1216,7 @@ pub const SUBDIRS: SubdirMap = &sorted!([
     (
         "label-media",
         &Router::new()
-            .put(&API_METHOD_LABEL_MEDIA)
+            .post(&API_METHOD_LABEL_MEDIA)
     ),
     (
         "load-media",

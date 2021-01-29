@@ -205,21 +205,16 @@ async fn eject_media(param: Value) -> Result<(), Error> {
     },
 )]
 /// Load media with specified label
-async fn load_media(
-    mut param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<(), Error> {
+async fn load_media(param: Value) -> Result<(), Error> {
 
     let (config, _digest) = config::drive::config()?;
 
-    param["drive"] = lookup_drive_name(&param, &config)?.into();
+    let drive = lookup_drive_name(&param, &config)?;
 
-    let info = &api2::tape::drive::API_METHOD_LOAD_MEDIA;
+    let mut client = connect_to_localhost()?;
 
-    match info.handler {
-        ApiHandler::Async(handler) => (handler)(param, info, rpcenv).await?,
-        _ => unreachable!(),
-    };
+    let path = format!("api2/json/tape/drive/{}/load-media", drive);
+    client.put(&path, Some(param)).await?;
 
     Ok(())
 }
@@ -238,21 +233,16 @@ async fn load_media(
     },
 )]
 /// Export media with specified label
-async fn export_media(
-    mut param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<(), Error> {
+async fn export_media(param: Value) -> Result<(), Error> {
 
     let (config, _digest) = config::drive::config()?;
 
-    param["drive"] = lookup_drive_name(&param, &config)?.into();
+    let drive = lookup_drive_name(&param, &config)?;
 
-    let info = &api2::tape::drive::API_METHOD_EXPORT_MEDIA;
+    let mut client = connect_to_localhost()?;
 
-    match info.handler {
-        ApiHandler::Async(handler) => (handler)(param, info, rpcenv).await?,
-        _ => unreachable!(),
-    };
+    let path = format!("api2/json/tape/drive/{}/export-media", drive);
+    client.put(&path, Some(param)).await?;
 
     Ok(())
 }
@@ -273,21 +263,16 @@ async fn export_media(
     },
 )]
 /// Load media from the specified slot
-async fn load_media_from_slot(
-    mut param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<(), Error> {
+async fn load_media_from_slot(param: Value) -> Result<(), Error> {
 
     let (config, _digest) = config::drive::config()?;
 
-    param["drive"] = lookup_drive_name(&param, &config)?.into();
+    let drive = lookup_drive_name(&param, &config)?;
 
-    let info = &api2::tape::drive::API_METHOD_LOAD_SLOT;
+    let mut client = connect_to_localhost()?;
 
-    match info.handler {
-        ApiHandler::Async(handler) => (handler)(param, info, rpcenv).await?,
-        _ => unreachable!(),
-    };
+    let path = format!("api2/json/tape/drive/{}/load-slot", drive);
+    client.put(&path, Some(param)).await?;
 
     Ok(())
 }
@@ -309,21 +294,16 @@ async fn load_media_from_slot(
     },
 )]
 /// Unload media via changer
-async fn unload_media(
-    mut param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<(), Error> {
+async fn unload_media(param: Value) -> Result<(), Error> {
 
     let (config, _digest) = config::drive::config()?;
 
-    param["drive"] = lookup_drive_name(&param, &config)?.into();
+    let drive = lookup_drive_name(&param, &config)?;
 
-    let info = &api2::tape::drive::API_METHOD_UNLOAD;
+    let mut client = connect_to_localhost()?;
 
-    match info.handler {
-        ApiHandler::Async(handler) => (handler)(param, info, rpcenv).await?,
-        _ => unreachable!(),
-    };
+    let path = format!("api2/json/tape/drive/{}/unload", drive);
+    client.put(&path, Some(param)).await?;
 
     Ok(())
 }
@@ -342,27 +322,28 @@ async fn unload_media(
             "label-text": {
                 schema: MEDIA_LABEL_SCHEMA,
             },
-       },
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+        },
     },
 )]
 /// Label media
-async fn label_media(
-    mut param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<(), Error> {
+async fn label_media(param: Value) -> Result<(), Error> {
+
+    let output_format = get_output_format(&param);
 
     let (config, _digest) = config::drive::config()?;
 
-    param["drive"] = lookup_drive_name(&param, &config)?.into();
+    let drive = lookup_drive_name(&param, &config)?;
 
-    let info = &api2::tape::drive::API_METHOD_LABEL_MEDIA;
+    let mut client = connect_to_localhost()?;
 
-    let result = match info.handler {
-        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
-        _ => unreachable!(),
-    };
+    let path = format!("api2/json/tape/drive/{}/label-media", drive);
+    let result = client.post(&path, Some(param)).await?;
 
-    wait_for_local_worker(result.as_str().unwrap()).await?;
+    view_task_result(client, result, &output_format).await?;
 
     Ok(())
 }
@@ -387,21 +368,21 @@ async fn label_media(
     },
 )]
 /// Read media label
-async fn read_label(
-    mut param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<(), Error> {
+async fn read_label(param: Value) -> Result<(), Error> {
+
+    let output_format = get_output_format(&param);
 
     let (config, _digest) = config::drive::config()?;
 
-    param["drive"] = lookup_drive_name(&param, &config)?.into();
+    let drive = lookup_drive_name(&param, &config)?;
 
-    let output_format = get_output_format(&param);
+    let client = connect_to_localhost()?;
+
+    let path = format!("api2/json/tape/drive/{}/read-label", drive);
+    let mut result = client.get(&path, Some(param)).await?;
+    let mut data = result["data"].take();
+
     let info = &api2::tape::drive::API_METHOD_READ_LABEL;
-    let mut data = match info.handler {
-        ApiHandler::Async(handler) => (handler)(param, info, rpcenv).await?,
-        _ => unreachable!(),
-    };
 
     let options = default_table_format_options()
         .column(ColumnConfig::new("label-text"))
