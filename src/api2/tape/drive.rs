@@ -34,7 +34,6 @@ use crate::{
             Authid,
             DriveListEntry,
             LinuxTapeDrive,
-            TapeDeviceInfo,
             MediaIdFlat,
             LabelUuidMap,
             MamAttribute,
@@ -177,26 +176,6 @@ pub async fn unload(
         let (mut changer, _) = required_media_changer(&config, &drive)?;
         changer.unload_media(target_slot)
     }).await?
-}
-
-#[api(
-    input: {
-        properties: {},
-    },
-    returns: {
-        description: "The list of autodetected tape drives.",
-        type: Array,
-        items: {
-            type: TapeDeviceInfo,
-        },
-    },
-)]
-/// Scan tape drives
-pub fn scan_drives(_param: Value) -> Result<Vec<TapeDeviceInfo>, Error> {
-
-    let list = linux_tape_device_list();
-
-    Ok(list)
 }
 
 #[api(

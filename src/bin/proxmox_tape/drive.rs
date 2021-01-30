@@ -116,7 +116,7 @@ fn scan_for_drives(
 ) -> Result<(), Error> {
 
     let output_format = get_output_format(&param);
-    let info = &api2::tape::drive::API_METHOD_SCAN_DRIVES;
+    let info = &api2::tape::API_METHOD_SCAN_DRIVES;
     let mut data = match info.handler {
         ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
         _ => unreachable!(),

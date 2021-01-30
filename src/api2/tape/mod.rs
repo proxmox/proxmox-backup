@@ -14,7 +14,10 @@ use proxmox::{
 
 use crate::{
     api2::types::TapeDeviceInfo,
-    tape::linux_tape_changer_list,
+    tape::{
+        linux_tape_device_list,
+        linux_tape_changer_list,
+    },
 };
 
 pub mod drive;
@@ -22,6 +25,26 @@ pub mod changer;
 pub mod media;
 pub mod backup;
 pub mod restore;
+
+#[api(
+    input: {
+        properties: {},
+    },
+    returns: {
+        description: "The list of autodetected tape drives.",
+        type: Array,
+        items: {
+            type: TapeDeviceInfo,
+        },
+    },
+)]
+/// Scan tape drives
+pub fn scan_drives(_param: Value) -> Result<Vec<TapeDeviceInfo>, Error> {
+
+    let list = linux_tape_device_list();
+
+    Ok(list)
+}
 
 #[api(
     input: {
@@ -57,7 +80,7 @@ const SUBDIRS: SubdirMap = &[
     (
         "scan-drives",
         &Router::new()
-            .get(&drive::API_METHOD_SCAN_DRIVES),
+            .get(&API_METHOD_SCAN_DRIVES),
     ),
 ];
 
