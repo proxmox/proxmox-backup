@@ -6,6 +6,9 @@ set -e
 
 case "$1" in
     configure)
+	# need to have user backup in the tapoe group
+	usermod -a -G tape backup
+
 	# modeled after dh_systemd_start output
 	systemctl --system daemon-reload >/dev/null || true
 	if [ -n "$2" ]; then
