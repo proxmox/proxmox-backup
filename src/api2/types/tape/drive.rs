@@ -12,6 +12,7 @@ use proxmox::api::{
 use crate::api2::types::{
     PROXMOX_SAFE_ID_FORMAT,
     CHANGER_NAME_SCHEMA,
+    OptionalDeviceIdentification,
 };
 
 pub const DRIVE_NAME_SCHEMA: Schema = StringSchema::new("Drive Identifier.")
@@ -80,30 +81,24 @@ pub struct LinuxTapeDrive {
     pub changer_drivenum: Option<u64>,
 }
 
-#[api()]
+#[api(
+    properties: {
+        config: {
+            type: LinuxTapeDrive,
+        },
+        info: {
+            type: OptionalDeviceIdentification,
+        },
+    },
+)]
 #[derive(Serialize,Deserialize)]
 #[serde(rename_all = "kebab-case")]
 /// Drive list entry
 pub struct DriveListEntry {
-    /// Drive name
-    pub name: String,
-    /// Path to the linux device node
-    pub path: String,
-    /// Associated changer device
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub changer: Option<String>,
-    /// Drive number in associated changer device
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub changer_drivenum: Option<u64>,
-    /// Vendor (autodetected)
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub vendor: Option<String>,
-    /// Model (autodetected)
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub model: Option<String>,
-    /// Serial number (autodetected)
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub serial: Option<String>,
+    #[serde(flatten)]
+    pub config: LinuxTapeDrive,
+    #[serde(flatten)]
+    pub info: OptionalDeviceIdentification,
 }
 
 #[api()]

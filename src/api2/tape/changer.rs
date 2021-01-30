@@ -10,7 +10,7 @@ use crate::{
     config,
     api2::types::{
         CHANGER_NAME_SCHEMA,
-        DriveListEntry,
+        ChangerListEntry,
         MtxEntryKind,
         MtxStatusEntry,
         ScsiTapeChanger,
@@ -25,7 +25,7 @@ use crate::{
             ScsiMediaChange,
             mtx_status_to_online_set,
         },
-        lookup_drive,
+        lookup_device_identification,
     },
 };
 
@@ -144,14 +144,14 @@ pub async fn transfer(
         description: "The list of configured changers with model information.",
         type: Array,
         items: {
-            type: DriveListEntry,
+            type: ChangerListEntry,
         },
     },
 )]
 /// List changers
 pub fn list_changers(
     _param: Value,
-) -> Result<Vec<DriveListEntry>, Error> {
+) -> Result<Vec<ChangerListEntry>, Error> {
 
     let (config, _digest) = config::drive::config()?;
 
@@ -162,21 +162,8 @@ pub fn list_changers(
     let mut list = Vec::new();
 
     for changer in changer_list {
-        let mut entry = DriveListEntry {
-            name: changer.name,
-            path: changer.path.clone(),
-            changer: None,
-            changer_drivenum: None,
-            vendor: None,
-            model: None,
-            serial: None,
-        };
-        if let Some(info) = lookup_drive(&linux_changers, &changer.path) {
-            entry.vendor = Some(info.vendor.clone());
-            entry.model = Some(info.model.clone());
-            entry.serial = Some(info.serial.clone());
-        }
-
+        let info = lookup_device_identification(&linux_changers, &changer.path);
+        let entry = ChangerListEntry { config: changer, info };
         list.push(entry);
     }
     Ok(list)

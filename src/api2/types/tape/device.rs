@@ -3,6 +3,22 @@ use ::serde::{Deserialize, Serialize};
 use proxmox::api::api;
 
 #[api()]
+#[derive(Serialize,Deserialize)]
+#[serde(rename_all = "kebab-case")]
+/// Optional Device Identification Attributes
+pub struct OptionalDeviceIdentification {
+    /// Vendor (autodetected)
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub vendor: Option<String>,
+    /// Model (autodetected)
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub model: Option<String>,
+    /// Serial number (autodetected)
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub serial: Option<String>,
+}
+
+#[api()]
 #[derive(Debug,Serialize,Deserialize)]
 #[serde(rename_all = "kebab-case")]
 /// Kind of devive

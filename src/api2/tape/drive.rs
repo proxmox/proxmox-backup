@@ -49,7 +49,7 @@ use crate::{
         MediaCatalog,
         MediaId,
         linux_tape_device_list,
-        lookup_drive,
+        lookup_device_identification,
         file_formats::{
             MediaLabel,
             MediaSetLabel,
@@ -1133,21 +1133,8 @@ pub fn list_drives(
             continue;
         }
 
-        let mut entry = DriveListEntry {
-            name: drive.name,
-            path: drive.path.clone(),
-            changer: drive.changer,
-            changer_drivenum: drive.changer_drivenum,
-            vendor: None,
-            model: None,
-            serial: None,
-        };
-        if let Some(info) = lookup_drive(&linux_drives, &drive.path) {
-            entry.vendor = Some(info.vendor.clone());
-            entry.model = Some(info.model.clone());
-            entry.serial = Some(info.serial.clone());
-        }
-
+        let info = lookup_device_identification(&linux_drives, &drive.path);
+        let entry = DriveListEntry { config: drive, info };
         list.push(entry);
     }
 

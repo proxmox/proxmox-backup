@@ -13,7 +13,10 @@ use proxmox::api::{
     },
 };
 
-use crate::api2::types::PROXMOX_SAFE_ID_FORMAT;
+use crate::api2::types::{
+    PROXMOX_SAFE_ID_FORMAT,
+    OptionalDeviceIdentification,
+};
 
 pub const CHANGER_NAME_SCHEMA: Schema = StringSchema::new("Tape Changer Identifier.")
     .format(&PROXMOX_SAFE_ID_FORMAT)
@@ -67,6 +70,26 @@ pub struct ScsiTapeChanger {
     pub path: String,
     #[serde(skip_serializing_if="Option::is_none")]
     pub export_slots: Option<String>,
+}
+
+#[api(
+    properties: {
+        config: {
+            type: ScsiTapeChanger,
+        },
+        info: {
+            type: OptionalDeviceIdentification,
+        },
+    },
+)]
+#[derive(Serialize,Deserialize)]
+#[serde(rename_all = "kebab-case")]
+/// Changer config with optional device identification attributes
+pub struct ChangerListEntry {
+    #[serde(flatten)]
+    pub config: ScsiTapeChanger,
+    #[serde(flatten)]
+    pub info: OptionalDeviceIdentification,
 }
 
 #[api()]

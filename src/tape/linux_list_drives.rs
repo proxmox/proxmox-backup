@@ -6,6 +6,7 @@ use anyhow::{bail, Error};
 use crate::{
     api2::types::{
         DeviceKind,
+        OptionalDeviceIdentification,
         TapeDeviceInfo,
     },
     tools::fs::scan_subdir,
@@ -191,9 +192,9 @@ pub fn linux_tape_device_list() -> Vec<TapeDeviceInfo> {
     list
 }
 
-/// Test if path is a linux tape device
-pub fn lookup_drive<'a>(
-    drives: &'a[TapeDeviceInfo],
+/// Test if a device exists, and returns associated `TapeDeviceInfo`
+pub fn lookup_device<'a>(
+    devices: &'a[TapeDeviceInfo],
     path: &str,
 ) -> Option<&'a TapeDeviceInfo> {
 
@@ -202,9 +203,30 @@ pub fn lookup_drive<'a>(
         let major = unsafe { libc::major(stat.st_rdev) };
         let minor = unsafe { libc::minor(stat.st_rdev) };
 
-        drives.iter().find(|d| d.major == major && d.minor == minor)
+        devices.iter().find(|d| d.major == major && d.minor == minor)
     } else {
         None
+    }
+}
+
+/// Lookup optional drive identification attributes
+pub fn lookup_device_identification<'a>(
+    devices: &'a[TapeDeviceInfo],
+    path: &str,
+) -> OptionalDeviceIdentification {
+
+    if let Some(info) = lookup_device(devices, path) {
+        OptionalDeviceIdentification {
+            vendor: Some(info.vendor.clone()),
+            model: Some(info.model.clone()),
+            serial: Some(info.serial.clone()),
+        }
+    } else {
+        OptionalDeviceIdentification {
+            vendor: None,
+            model: None,
+            serial: None,
+        }
     }
 }
 
@@ -213,7 +235,7 @@ pub fn check_drive_path(
     drives: &[TapeDeviceInfo],
     path: &str,
 ) -> Result<(), Error> {
-    if lookup_drive(drives, path).is_none() {
+    if lookup_device(drives, path).is_none() {
         bail!("path '{}' is not a linux (non-rewinding) tape device", path);
     }
     Ok(())

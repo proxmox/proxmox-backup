@@ -17,7 +17,6 @@ use crate::{
         LINUX_DRIVE_PATH_SCHEMA,
         SLOT_ARRAY_SCHEMA,
         EXPORT_SLOT_LIST_SCHEMA,
-        DriveListEntry,
         ScsiTapeChanger,
         LinuxTapeDrive,
     },
@@ -121,7 +120,7 @@ pub fn get_config(
         description: "The list of configured changers (with config digest).",
         type: Array,
         items: {
-            type: DriveListEntry,
+            type: ScsiTapeChanger,
         },
     },
 )]
@@ -129,27 +128,14 @@ pub fn get_config(
 pub fn list_changers(
     _param: Value,
     mut rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Vec<DriveListEntry>, Error> {
+) -> Result<Vec<ScsiTapeChanger>, Error> {
 
     let (config, digest) = config::drive::config()?;
 
-    let changer_list: Vec<ScsiTapeChanger> = config.convert_to_typed_array("changer")?;
-
-    let mut list = Vec::new();
-
-    for changer in changer_list {
-        list.push(DriveListEntry {
-            name: changer.name,
-            path: changer.path.clone(),
-            changer: None,
-            changer_drivenum: None,
-            vendor: None,
-            model: None,
-            serial: None,
-        });
-    }
+    let list: Vec<ScsiTapeChanger> = config.convert_to_typed_array("changer")?;
 
     rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
+
     Ok(list)
 }
 #[api()]

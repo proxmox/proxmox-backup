@@ -12,7 +12,6 @@ use crate::{
         CHANGER_NAME_SCHEMA,
         CHANGER_DRIVENUM_SCHEMA,
         LINUX_DRIVE_PATH_SCHEMA,
-        DriveListEntry,
         LinuxTapeDrive,
         ScsiTapeChanger,
     },
@@ -110,7 +109,7 @@ pub fn get_config(
         description: "The list of configured drives (with config digest).",
         type: Array,
         items: {
-            type: DriveListEntry,
+            type: LinuxTapeDrive,
         },
     },
 )]
@@ -125,6 +124,7 @@ pub fn list_drives(
     let drive_list: Vec<LinuxTapeDrive> = config.convert_to_typed_array("linux")?;
 
     rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
+
     Ok(drive_list)
 }
 
