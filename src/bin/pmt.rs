@@ -206,6 +206,36 @@ fn eod(param: Value) -> Result<(), Error> {
                 schema: LINUX_DRIVE_PATH_SCHEMA,
                 optional: true,
             },
+            fast: {
+                description: "Use fast erase.",
+                type: bool,
+                optional: true,
+                default: true,
+            },
+        },
+    },
+)]
+/// Erase media
+fn erase(fast: Option<bool>, param: Value) -> Result<(), Error> {
+
+    let mut handle = get_tape_handle(&param)?;
+    handle.erase_media(fast.unwrap_or(true))?;
+
+    Ok(())
+}
+
+
+#[api(
+   input: {
+        properties: {
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+                optional: true,
+            },
+            device: {
+                schema: LINUX_DRIVE_PATH_SCHEMA,
+                optional: true,
+            },
        },
     },
 )]
@@ -398,6 +428,7 @@ fn main() -> Result<(), Error> {
         .insert("cartridge-memory", std_cmd(&API_METHOD_CARTRIDGE_MEMORY))
         .insert("eject", std_cmd(&API_METHOD_EJECT))
         .insert("eod", std_cmd(&API_METHOD_EOD))
+        .insert("erase", std_cmd(&API_METHOD_ERASE))
         .insert("load", std_cmd(&API_METHOD_LOAD))
         .insert("rewind", std_cmd(&API_METHOD_REWIND))
         .insert("scan", CliCommand::new(&API_METHOD_SCAN))
