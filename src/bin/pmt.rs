@@ -11,8 +11,6 @@
 /// - support volume statistics
 /// - read cartridge memory
 
-use std::fs::File;
-
 use anyhow::{bail, Error};
 use serde_json::Value;
 
@@ -25,19 +23,13 @@ use proxmox::{
 };
 
 use proxmox_backup::{
-    tools::sgutils2::{
-        scsi_inquiry,
-    },
     config::{
         self,
         drive::complete_drive_name,
     },
-    backup::Fingerprint,
     api2::types::{
         LINUX_DRIVE_PATH_SCHEMA,
         DRIVE_NAME_SCHEMA,
-        TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
-        MEDIA_SET_UUID_SCHEMA,
         LinuxTapeDrive,
     },
     tape::{
@@ -47,8 +39,7 @@ use proxmox_backup::{
             TapeDriver,
             LinuxTapeHandle,
             open_linux_tape_device,
-            check_tape_is_linux_tape_device,
-        },
+       },
     },
 };
 
