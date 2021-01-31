@@ -193,6 +193,16 @@ impl LinuxTapeHandle {
         Ok(())
     }
 
+    pub fn mtop(&mut self, mt_op: MTCmd, mt_count: i32, msg: &str) -> Result<(), Error> {
+        let cmd = mtop { mt_op, mt_count };
+
+        unsafe {
+            mtioctop(self.file.as_raw_fd(), &cmd)
+        }.map_err(|err| format_err!("{} failed (count {}) - {}", msg, mt_count, err))?;
+
+        Ok(())
+    }
+
     pub fn mtload(&mut self) -> Result<(), Error> {
 
         let cmd = mtop { mt_op: MTCmd::MTLOAD, mt_count: 1, };

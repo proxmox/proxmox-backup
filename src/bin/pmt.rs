@@ -18,9 +18,19 @@ use proxmox::{
     api::{
         api,
         cli::*,
+        schema::{
+            Schema,
+            IntegerSchema,
+        },
         RpcEnvironment,
     },
 };
+
+pub const FILE_MARK_COUNT_SCHEMA: Schema =
+    IntegerSchema::new("File mark count.")
+    .minimum(1)
+    .minimum(i32::MAX as isize)
+    .schema();
 
 use proxmox_backup::{
     config::{
@@ -36,6 +46,7 @@ use proxmox_backup::{
         complete_drive_path,
         linux_tape_device_list,
         drive::{
+            linux_mtio::MTCmd,
             TapeDriver,
             LinuxTapeHandle,
             open_linux_tape_device,
@@ -99,11 +110,9 @@ fn get_tape_handle(param: &Value) -> Result<LinuxTapeHandle, Error> {
                 optional: true,
             },
             count: {
-                description: "File mark count.",
-                type: i32,
-                minimum: 1
+                schema: FILE_MARK_COUNT_SCHEMA,
             },
-        },
+       },
     },
 )]
 /// Backward space count files (position before file mark).
@@ -258,9 +267,7 @@ fn erase(fast: Option<bool>, param: Value) -> Result<(), Error> {
                 optional: true,
             },
             count: {
-                description: "File mark count.",
-                type: i32,
-                minimum: 1
+                schema: FILE_MARK_COUNT_SCHEMA,
             },
         },
     },
@@ -462,6 +469,33 @@ fn volume_statistics(param: Value) -> Result<(), Error> {
     Ok(())
 }
 
+#[api(
+   input: {
+        properties: {
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+                optional: true,
+            },
+            device: {
+                schema: LINUX_DRIVE_PATH_SCHEMA,
+                optional: true,
+            },
+            count: {
+                schema: FILE_MARK_COUNT_SCHEMA,
+                optional: true,
+             },
+        },
+    },
+)]
+/// Write count (default 1) EOF marks at current position.
+fn weof(count: Option<i32>, param: Value) -> Result<(), Error> {
+
+    let mut handle = get_tape_handle(&param)?;
+    handle.mtop(MTCmd::MTWEOF, count.unwrap_or(1), "write EOF mark")?;
+
+    Ok(())
+}
+
 fn main() -> Result<(), Error> {
 
     let uid = nix::unistd::Uid::current();
@@ -489,6 +523,7 @@ fn main() -> Result<(), Error> {
         .insert("scan", CliCommand::new(&API_METHOD_SCAN))
         .insert("status", std_cmd(&API_METHOD_STATUS))
         .insert("volume-statistics", std_cmd(&API_METHOD_VOLUME_STATISTICS))
+        .insert("weof", std_cmd(&API_METHOD_WEOF))
         ;
 
     let mut rpcenv = CliEnvironment::new();
