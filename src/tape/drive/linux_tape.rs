@@ -193,7 +193,7 @@ impl LinuxTapeHandle {
         Ok(())
     }
 
-    fn mtload(&mut self) -> Result<(), Error> {
+    pub fn mtload(&mut self) -> Result<(), Error> {
 
         let cmd = mtop { mt_op: MTCmd::MTLOAD, mt_count: 1, };
 
