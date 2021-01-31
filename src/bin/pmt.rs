@@ -224,6 +224,37 @@ fn erase(fast: Option<bool>, param: Value) -> Result<(), Error> {
     Ok(())
 }
 
+#[api(
+   input: {
+        properties: {
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+                optional: true,
+            },
+            device: {
+                schema: LINUX_DRIVE_PATH_SCHEMA,
+                optional: true,
+            },
+            count: {
+                description: "File mark count.",
+                type: i32,
+                minimum: 1
+            },
+        },
+    },
+)]
+/// Forward space count files (position after file mark).
+///
+/// The tape is positioned on the first block of the next file.
+fn fsf(count: i32, param: Value) -> Result<(), Error> {
+
+    let mut handle = get_tape_handle(&param)?;
+
+    handle.forward_space_count_files(count)?;
+
+    Ok(())
+}
+
 
 #[api(
    input: {
@@ -429,6 +460,7 @@ fn main() -> Result<(), Error> {
         .insert("eject", std_cmd(&API_METHOD_EJECT))
         .insert("eod", std_cmd(&API_METHOD_EOD))
         .insert("erase", std_cmd(&API_METHOD_ERASE))
+        .insert("fsf", std_cmd(&API_METHOD_FSF))
         .insert("load", std_cmd(&API_METHOD_LOAD))
         .insert("rewind", std_cmd(&API_METHOD_REWIND))
         .insert("scan", CliCommand::new(&API_METHOD_SCAN))

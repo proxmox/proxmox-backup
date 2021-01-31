@@ -204,13 +204,15 @@ impl LinuxTapeHandle {
         Ok(())
     }
 
-    fn forward_space_count_files(&mut self, count: i32) -> Result<(), Error> {
+    pub fn forward_space_count_files(&mut self, count: i32) -> Result<(), Error> {
 
         let cmd = mtop { mt_op: MTCmd::MTFSF, mt_count: count, };
 
         unsafe {
             mtioctop(self.file.as_raw_fd(), &cmd)
-        }.map_err(|err| format_err!("tape fsf {} failed - {}", count, err))?;
+        }.map_err(|err| {
+            format_err!("forward space {} files failed - {}", count, err)
+        })?;
 
         Ok(())
     }
