@@ -107,6 +107,37 @@ fn get_tape_handle(param: &Value) -> Result<LinuxTapeHandle, Error> {
                 schema: LINUX_DRIVE_PATH_SCHEMA,
                 optional: true,
             },
+            count: {
+                description: "File mark count.",
+                type: i32,
+                minimum: 1
+            },
+        },
+    },
+)]
+/// Backward space count files (position before file mark).
+///
+/// The tape is positioned on the last block of the previous file.
+fn bsf(count: i32, param: Value) -> Result<(), Error> {
+
+    let mut handle = get_tape_handle(&param)?;
+
+    handle.backward_space_count_files(count)?;
+
+    Ok(())
+}
+
+#[api(
+   input: {
+        properties: {
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+                optional: true,
+            },
+            device: {
+                schema: LINUX_DRIVE_PATH_SCHEMA,
+                optional: true,
+            },
             "output-format": {
                 schema: OUTPUT_FORMAT,
                 optional: true,
@@ -456,6 +487,7 @@ fn main() -> Result<(), Error> {
     };
 
     let cmd_def = CliCommandMap::new()
+        .insert("bsf", std_cmd(&API_METHOD_BSF))
         .insert("cartridge-memory", std_cmd(&API_METHOD_CARTRIDGE_MEMORY))
         .insert("eject", std_cmd(&API_METHOD_EJECT))
         .insert("eod", std_cmd(&API_METHOD_EOD))

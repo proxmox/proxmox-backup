@@ -217,6 +217,19 @@ impl LinuxTapeHandle {
         Ok(())
     }
 
+    pub fn backward_space_count_files(&mut self, count: i32) -> Result<(), Error> {
+
+        let cmd = mtop { mt_op: MTCmd::MTBSF, mt_count: count, };
+
+        unsafe {
+            mtioctop(self.file.as_raw_fd(), &cmd)
+        }.map_err(|err| {
+            format_err!("backward space {} files failed - {}", count, err)
+        })?;
+
+        Ok(())
+    }
+
     /// Set tape compression feature
     pub fn set_compression(&self, on: bool) -> Result<(), Error> {
 
