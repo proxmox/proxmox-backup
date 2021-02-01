@@ -59,8 +59,18 @@ Ext.define('PBS.WebauthnConfigEdit', {
     url: "/api2/extjs/config/access/tfa/webauthn",
     autoLoad: true,
 
+    width: 512,
+
     fieldDefaults: {
 	labelWidth: 120,
+    },
+
+    setValues: function(values) {
+	let me = this;
+
+	me.relayingPartySet = values && typeof values.rp === 'string';
+
+	me.callParent(arguments);
     },
 
     items: [
@@ -69,6 +79,13 @@ Ext.define('PBS.WebauthnConfigEdit', {
 	    fieldLabel: gettext('Relying Party'),
 	    name: 'rp',
 	    allowBlank: false,
+	    listeners: {
+		dirtychange: function(field, isDirty) {
+		    let win = field.up('window');
+		    let warningBox = win.down('box[id=rpChangeWarning]');
+		    warningBox.setHidden(!win.relayingPartySet || !isDirty);
+		},
+	    },
 	},
 	{
 	    xtype: 'textfield',
@@ -102,6 +119,19 @@ Ext.define('PBS.WebauthnConfigEdit', {
 		    },
 		},
 	    ],
+	},
+	{
+	    xtype: 'box',
+	    html: `<span class='pmx-hint'>${gettext('Note:')}</span> `
+		+ gettext('WebAuthn requires using a trusted certificate.'),
+	},
+	{
+	    xtype: 'box',
+	    id: 'rpChangeWarning',
+	    hidden: true,
+	    padding: '5 0 0 0',
+	    html: '<i class="fa fa-exclamation-triangle warning"></i> '
+	        + gettext('Changing the Relying Party may break existing webAuthn TFA entries.'),
 	},
     ],
 });
