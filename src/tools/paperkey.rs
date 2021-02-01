@@ -1,5 +1,5 @@
 use std::io::Write;
-use std::process::{Stdio, Command};
+use std::process::{Command, Stdio};
 
 use anyhow::{bail, format_err, Error};
 use serde::{Deserialize, Serialize};
@@ -61,11 +61,11 @@ pub fn generate_paper_key<W: Write>(
                     .collect();
 
                 (lines, false)
-            },
+            }
             Err(err) => {
                 eprintln!("Couldn't parse data as KeyConfig - {}", err);
                 bail!("Neither a PEM-formatted private key, nor a PBS key file.");
-            },
+            }
         }
     };
 
@@ -83,14 +83,16 @@ fn paperkey_html<W: Write>(
     subject: Option<String>,
     is_master: bool,
 ) -> Result<(), Error> {
-
     let img_size_pt = 500;
 
     writeln!(output, "<!DOCTYPE html>")?;
     writeln!(output, "<html lang=\"en\">")?;
     writeln!(output, "<head>")?;
     writeln!(output, "<meta charset=\"utf-8\">")?;
-    writeln!(output, "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">")?;
+    writeln!(
+        output,
+        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">"
+    )?;
     writeln!(output, "<title>Proxmox Backup Paperkey</title>")?;
     writeln!(output, "<style type=\"text/css\">")?;
 
@@ -115,7 +117,10 @@ fn paperkey_html<W: Write>(
         const BLOCK_SIZE: usize = 20;
 
         for (block_nr, block) in lines.chunks(BLOCK_SIZE).enumerate() {
-            writeln!(output, "<div style=\"page-break-inside: avoid;page-break-after: always\">")?;
+            writeln!(
+                output,
+                "<div style=\"page-break-inside: avoid;page-break-after: always\">"
+            )?;
             writeln!(output, "<p>")?;
 
             for (i, line) in block.iter().enumerate() {
@@ -129,11 +134,15 @@ fn paperkey_html<W: Write>(
 
             writeln!(output, "<center>")?;
             writeln!(output, "<img")?;
-            writeln!(output, "width=\"{}pt\" height=\"{}pt\"", img_size_pt, img_size_pt)?;
+            writeln!(
+                output,
+                "width=\"{}pt\" height=\"{}pt\"",
+                img_size_pt, img_size_pt
+            )?;
             writeln!(output, "src=\"data:image/svg+xml;base64,{}\"/>", qr_code)?;
             writeln!(output, "</center>")?;
             writeln!(output, "</div>")?;
-       }
+        }
 
         writeln!(output, "</body>")?;
         writeln!(output, "</html>")?;
@@ -159,7 +168,11 @@ fn paperkey_html<W: Write>(
 
     writeln!(output, "<center>")?;
     writeln!(output, "<img")?;
-    writeln!(output, "width=\"{}pt\" height=\"{}pt\"", img_size_pt, img_size_pt)?;
+    writeln!(
+        output,
+        "width=\"{}pt\" height=\"{}pt\"",
+        img_size_pt, img_size_pt
+    )?;
     writeln!(output, "src=\"data:image/svg+xml;base64,{}\"/>", qr_code)?;
     writeln!(output, "</center>")?;
 
@@ -177,7 +190,6 @@ fn paperkey_text<W: Write>(
     subject: Option<String>,
     is_private: bool,
 ) -> Result<(), Error> {
-
     if let Some(subject) = subject {
         writeln!(output, "Subject: {}\n", subject)?;
     }
@@ -194,7 +206,6 @@ fn paperkey_text<W: Write>(
                 .map_err(|_| format_err!("Failed to read qr code (got non-utf8 data)"))?;
             writeln!(output, "{}", qr_code)?;
             writeln!(output, "{}", char::from(12u8))?; // page break
-
         }
         return Ok(());
     }
@@ -222,14 +233,18 @@ fn generate_qr_code(output_type: &str, lines: &[String]) -> Result<Vec<u8>, Erro
         .spawn()?;
 
     {
-        let stdin = child.stdin.as_mut()
+        let stdin = child
+            .stdin
+            .as_mut()
             .ok_or_else(|| format_err!("Failed to open stdin"))?;
         let data = lines.join("\n");
-        stdin.write_all(data.as_bytes())
+        stdin
+            .write_all(data.as_bytes())
             .map_err(|_| format_err!("Failed to write to stdin"))?;
     }
 
-    let output = child.wait_with_output()
+    let output = child
+        .wait_with_output()
         .map_err(|_| format_err!("Failed to read stdout"))?;
 
     let output = crate::tools::command_output(output, None)?;
