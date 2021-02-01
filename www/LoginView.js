@@ -254,6 +254,7 @@ Ext.define('PBS.login.TfaWindow', {
 
     viewModel: {
 	data: {
+	    confirmText: gettext('Confirm Second Factor'),
 	    canConfirm: false,
 	    availabelChallenge: {},
 	},
@@ -324,6 +325,10 @@ Ext.define('PBS.login.TfaWindow', {
 			newField.focus();
 			newField.validate();
 		    }
+
+		    let confirmText = newCard.confirmText || gettext('Confirm Second Factor');
+		    this.getViewModel().set('confirmText', confirmText);
+
 		    this.saveLastTabUsed(tabPanel, newCard);
 		},
 	    },
@@ -483,6 +488,7 @@ Ext.define('PBS.login.TfaWindow', {
 		xtype: 'panel',
 		title: 'WebAuthn',
 		iconCls: 'fa fa-fw fa-shield',
+		confirmText: gettext('Start WebAuthn challenge'),
 		handler: 'loginWebauthn',
 		bind: {
 		    disabled: '{!availabelChallenge.webauthn}',
@@ -567,11 +573,11 @@ Ext.define('PBS.login.TfaWindow', {
 
     buttons: [
 	{
-	    text: gettext('Confirm Second Factor'),
 	    handler: 'loginTFA',
 	    reference: 'tfaButton',
 	    disabled: true,
 	    bind: {
+		text: '{confirmText}',
 		disabled: '{!canConfirm}',
 	    },
 	},
