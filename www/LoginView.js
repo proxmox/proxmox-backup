@@ -555,16 +555,10 @@ Ext.define('PBS.login.TfaWindow', {
 		    },
 		    {
 			xtype: 'box',
-			reference: 'recoveryInfo',
-			hidden: true, // FIXME: remove this?
-			html: gettext('Note that each recovery code can only be used once!'),
-		    },
-		    {
-			xtype: 'box',
 			reference: 'recoveryLow',
 			hidden: true,
 			html: '<i class="fa fa-exclamation-triangle warning"></i>'
-			    + gettext('Less than {0} recovery keys available. Please generate a new set!'),
+			    + gettext('Less than {0} recovery keys available. Please generate a new set after login!'),
 		    },
 		],
 	    },
