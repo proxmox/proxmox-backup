@@ -28,6 +28,7 @@ use crate::{
         Authid,
         DATASTORE_SCHEMA,
         MEDIA_POOL_NAME_SCHEMA,
+        DRIVE_NAME_SCHEMA,
         UPID_SCHEMA,
         MediaPoolConfig,
     },
@@ -53,6 +54,9 @@ use crate::{
             pool: {
                 schema: MEDIA_POOL_NAME_SCHEMA,
             },
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+            },
             "eject-media": {
                 description: "Eject media upon job completion.",
                 type: bool,
@@ -73,6 +77,7 @@ use crate::{
 pub fn backup(
     store: String,
     pool: String,
+    drive: String,
     eject_media: Option<bool>,
     export_media_set: Option<bool>,
     rpcenv: &mut dyn RpcEnvironment,
@@ -87,7 +92,7 @@ pub fn backup(
 
     let (drive_config, _digest) = config::drive::config()?;
     // early check before starting worker
-    check_drive_exists(&drive_config, &pool_config.drive)?;
+    check_drive_exists(&drive_config, &drive)?;
 
     let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
@@ -100,7 +105,7 @@ pub fn backup(
         auth_id,
         to_stdout,
         move |worker| {
-            backup_worker(&worker, datastore, &pool_config, eject_media, export_media_set)?;
+            backup_worker(&worker, datastore, &drive, &pool_config, eject_media, export_media_set)?;
             Ok(())
         }
     )?;
@@ -115,6 +120,7 @@ pub const ROUTER: Router = Router::new()
 fn backup_worker(
     worker: &WorkerTask,
     datastore: Arc<DataStore>,
+    drive: &str,
     pool_config: &MediaPoolConfig,
     eject_media: bool,
     export_media_set: bool,
@@ -125,13 +131,13 @@ fn backup_worker(
     let _lock = MediaPool::lock(status_path, &pool_config.name)?;
 
     task_log!(worker, "update media online status");
-    let has_changer = update_media_online_status(&pool_config.drive)?;
+    let has_changer = update_media_online_status(drive)?;
 
     let use_offline_media = !has_changer;
 
     let pool = MediaPool::with_config(status_path, &pool_config, use_offline_media)?;
 
-    let mut pool_writer = PoolWriter::new(pool, &pool_config.drive)?;
+    let mut pool_writer = PoolWriter::new(pool, drive)?;
 
     let mut group_list = BackupInfo::list_backup_groups(&datastore.base_path())?;
 

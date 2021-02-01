@@ -18,9 +18,6 @@ use proxmox_backup::{
         },
     },
     config::{
-        drive::{
-            complete_drive_name,
-        },
         media_pool::{
             complete_pool_name,
         },
@@ -50,7 +47,6 @@ pub fn pool_commands() -> CommandLineInterface {
             CliCommand::new(&api2::config::media_pool::API_METHOD_CREATE_POOL)
                 .arg_param(&["name"])
                 .completion_cb("name", complete_pool_name)
-                .completion_cb("drive", complete_drive_name)
                 .completion_cb("encrypt", complete_key_fingerprint)
         )
         .insert(
@@ -58,7 +54,6 @@ pub fn pool_commands() -> CommandLineInterface {
             CliCommand::new(&api2::config::media_pool::API_METHOD_UPDATE_POOL)
                 .arg_param(&["name"])
                 .completion_cb("name", complete_pool_name)
-                .completion_cb("drive", complete_drive_name)
                 .completion_cb("encrypt", complete_key_fingerprint)
         )
         ;
@@ -99,7 +94,6 @@ fn list_pools(
 
     let options = default_table_format_options()
         .column(ColumnConfig::new("name"))
-        .column(ColumnConfig::new("drive"))
         .column(ColumnConfig::new("allocation"))
         .column(ColumnConfig::new("retention"))
         .column(ColumnConfig::new("template"))

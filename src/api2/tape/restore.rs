@@ -27,6 +27,7 @@ use crate::{
     tools::compute_file_csum,
     api2::types::{
         DATASTORE_SCHEMA,
+        DRIVE_NAME_SCHEMA,
         UPID_SCHEMA,
         Authid,
         MediaPoolConfig,
@@ -82,6 +83,9 @@ pub const ROUTER: Router = Router::new()
             store: {
                 schema: DATASTORE_SCHEMA,
             },
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+            },
             "media-set": {
                 description: "Media set UUID.",
                 type: String,
@@ -95,6 +99,7 @@ pub const ROUTER: Router = Router::new()
 /// Restore data from media-set
 pub fn restore(
     store: String,
+    drive: String,
     media_set: String,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
@@ -110,12 +115,13 @@ pub fn restore(
 
     let pool = inventory.lookup_media_set_pool(&media_set_uuid)?;
 
+    // check if pool exists
     let (config, _digest) = config::media_pool::config()?;
-    let pool_config: MediaPoolConfig = config.lookup("pool", &pool)?;
+    let _pool_config: MediaPoolConfig = config.lookup("pool", &pool)?;
 
     let (drive_config, _digest) = config::drive::config()?;
     // early check before starting worker
-    check_drive_exists(&drive_config, &pool_config.drive)?;
+    check_drive_exists(&drive_config, &drive)?;
 
     let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
@@ -153,8 +159,6 @@ pub fn restore(
                 }
             }
 
-            let drive = &pool_config.drive;
-
             worker.log(format!("Restore mediaset '{}'", media_set));
             if let Some(fingerprint) = encryption_key_fingerprint {
                 worker.log(format!("Encryption key fingerprint: {}", fingerprint));
@@ -175,7 +179,7 @@ pub fn restore(
                     &worker,
                     media_id,
                     &drive_config,
-                    drive,
+                    &drive,
                     &datastore,
                     &auth_id,
                 )?;

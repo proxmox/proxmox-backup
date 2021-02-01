@@ -11,7 +11,6 @@ use proxmox::{
 
 use crate::{
     api2::types::{
-        DRIVE_NAME_SCHEMA,
         MEDIA_POOL_NAME_SCHEMA,
         MEDIA_SET_NAMING_TEMPLATE_SCHEMA,
         MEDIA_SET_ALLOCATION_POLICY_SCHEMA,
@@ -19,12 +18,7 @@ use crate::{
         TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
         MediaPoolConfig,
     },
-    config::{
-        self,
-        drive::{
-            check_drive_exists,
-        },
-    },
+    config,
 };
 
 #[api(
@@ -33,9 +27,6 @@ use crate::{
         properties: {
             name: {
                 schema: MEDIA_POOL_NAME_SCHEMA,
-            },
-            drive: {
-                schema: DRIVE_NAME_SCHEMA,
             },
             allocation: {
                 schema: MEDIA_SET_ALLOCATION_POLICY_SCHEMA,
@@ -59,7 +50,6 @@ use crate::{
 /// Create a new media pool
 pub fn create_pool(
     name: String,
-    drive: String,
     allocation: Option<String>,
     retention: Option<String>,
     template: Option<String>,
@@ -74,12 +64,8 @@ pub fn create_pool(
         bail!("Media pool '{}' already exists", name);
     }
 
-    let (drive_config, _) = config::drive::config()?;
-    check_drive_exists(&drive_config, &drive)?;
-
     let item = MediaPoolConfig {
         name: name.clone(),
-        drive,
         allocation,
         retention,
         template,
@@ -160,10 +146,6 @@ pub enum DeletableProperty {
             name: {
                 schema: MEDIA_POOL_NAME_SCHEMA,
             },
-            drive: {
-                schema: DRIVE_NAME_SCHEMA,
-                optional: true,
-            },
             allocation: {
                 schema: MEDIA_SET_ALLOCATION_POLICY_SCHEMA,
                 optional: true,
@@ -194,7 +176,6 @@ pub enum DeletableProperty {
 /// Update media pool settings
 pub fn update_pool(
     name: String,
-    drive: Option<String>,
     allocation: Option<String>,
     retention: Option<String>,
     template: Option<String>,
@@ -219,7 +200,6 @@ pub fn update_pool(
         }
     }
 
-    if let Some(drive) = drive { data.drive = drive; }
     if allocation.is_some() { data.allocation = allocation; }
     if retention.is_some() { data.retention = retention; }
     if template.is_some() { data.template = template; }

@@ -765,6 +765,10 @@ async fn clean_drive(param: Value) -> Result<(), Error> {
             pool: {
                 schema: MEDIA_POOL_NAME_SCHEMA,
             },
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+                optional: true,
+            },
             "eject-media": {
                 description: "Eject media upon job completion.",
                 type: bool,
@@ -783,9 +787,13 @@ async fn clean_drive(param: Value) -> Result<(), Error> {
     },
 )]
 /// Backup datastore to tape media pool
-async fn backup(param: Value) -> Result<(), Error> {
+async fn backup(mut param: Value) -> Result<(), Error> {
 
     let output_format = get_output_format(&param);
+
+    let (config, _digest) = config::drive::config()?;
+
+    param["drive"] = lookup_drive_name(&param, &config)?.into();
 
     let mut client = connect_to_localhost()?;
 
@@ -802,6 +810,10 @@ async fn backup(param: Value) -> Result<(), Error> {
             store: {
                 schema: DATASTORE_SCHEMA,
             },
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+                optional: true,
+            },
             "media-set": {
                 description: "Media set UUID.",
                 type: String,
@@ -814,9 +826,13 @@ async fn backup(param: Value) -> Result<(), Error> {
     },
 )]
 /// Restore data from media-set
-async fn restore(param: Value) -> Result<(), Error> {
+async fn restore(mut param: Value) -> Result<(), Error> {
 
     let output_format = get_output_format(&param);
+
+    let (config, _digest) = config::drive::config()?;
+
+    param["drive"] = lookup_drive_name(&param, &config)?.into();
 
     let mut client = connect_to_localhost()?;
 

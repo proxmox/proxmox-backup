@@ -21,7 +21,6 @@ use crate::{
         parse_calendar_event,
     },
     api2::types::{
-        DRIVE_NAME_SCHEMA,
         PROXMOX_SAFE_ID_FORMAT,
         SINGLE_LINE_COMMENT_FORMAT,
         TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
@@ -116,9 +115,6 @@ impl std::str::FromStr for RetentionPolicy {
         name: {
             schema: MEDIA_POOL_NAME_SCHEMA,
         },
-        drive: {
-            schema: DRIVE_NAME_SCHEMA,
-        },
         allocation: {
             schema: MEDIA_SET_ALLOCATION_POLICY_SCHEMA,
             optional: true,
@@ -142,8 +138,6 @@ impl std::str::FromStr for RetentionPolicy {
 pub struct MediaPoolConfig {
     /// The pool name
     pub name: String,
-    /// The associated drive
-    pub drive: String,
     /// Media Set allocation policy
     #[serde(skip_serializing_if="Option::is_none")]
     pub allocation: Option<String>,
