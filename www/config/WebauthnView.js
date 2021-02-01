@@ -82,5 +82,26 @@ Ext.define('PBS.WebauthnConfigEdit', {
 	    name: 'id',
 	    allowBlank: false,
 	},
+	{
+	    xtype: 'container',
+	    layout: 'hbox',
+	    items: [
+		{
+		    xtype: 'box',
+		    flex: 1,
+		},
+		{
+		    xtype: 'button',
+		    text: gettext('Auto-fill'),
+		    iconCls: 'fa fa-fw fa-pencil-square-o',
+		    handler: function(button, ev) {
+			let panel = this.up('panel');
+			panel.down('field[name=rp]').setValue(document.location.hostname);
+			panel.down('field[name=origin]').setValue(document.location.origin);
+			panel.down('field[name=id]').setValue(document.location.hostname);
+		    },
+		},
+	    ],
+	},
     ],
 });
