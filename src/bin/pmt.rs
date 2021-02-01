@@ -66,7 +66,7 @@ fn get_tape_handle(param: &Value) -> Result<LinuxTapeHandle, Error> {
         let (config, _digest) = config::drive::config()?;
         let drive: LinuxTapeDrive = config.lookup("linux", &name)?;
         eprintln!("using device {}", drive.path);
-        return drive.open();
+        return Ok(LinuxTapeHandle::new(open_linux_tape_device(&drive.path)?))
     }
 
     if let Some(device) = param["device"].as_str() {
@@ -78,7 +78,7 @@ fn get_tape_handle(param: &Value) -> Result<LinuxTapeHandle, Error> {
         let (config, _digest) = config::drive::config()?;
         let drive: LinuxTapeDrive = config.lookup("linux", &name)?;
         eprintln!("using device {}", drive.path);
-        return drive.open();
+        return Ok(LinuxTapeHandle::new(open_linux_tape_device(&drive.path)?))
     }
 
     if let Ok(device) = std::env::var("TAPE") {
@@ -98,7 +98,7 @@ fn get_tape_handle(param: &Value) -> Result<LinuxTapeHandle, Error> {
         let name = drive_names[0];
         let drive: LinuxTapeDrive = config.lookup("linux", &name)?;
         eprintln!("using device {}", drive.path);
-        return drive.open();
+        return Ok(LinuxTapeHandle::new(open_linux_tape_device(&drive.path)?))
     }
 
     bail!("no drive/device specified");
