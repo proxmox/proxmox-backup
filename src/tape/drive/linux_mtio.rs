@@ -134,20 +134,20 @@ pub enum SetDrvBufferCmd {
 
 bitflags::bitflags!{
    pub struct SetDrvBufferOptions: i32 {
-       const MT_ST_BUFFER_WRITES =    0x1;
-       const MT_ST_ASYNC_WRITES =     0x2;
-       const MT_ST_READ_AHEAD	=     0x4;
-       const MT_ST_DEBUGGING =        0x8;
-       const MT_ST_TWO_FM =          0x10;
-       const MT_ST_FAST_MTEOM	=    0x20;
-       const MT_ST_AUTO_LOCK =       0x40;
-       const MT_ST_DEF_WRITES =      0x80;
-       const MT_ST_CAN_BSR =        0x100;
-       const MT_ST_NO_BLKLIMS =     0x200;
-       const MT_ST_CAN_PARTITIONS = 0x400;
-       const MT_ST_SCSI2LOGICAL =   0x800;
-       const MT_ST_SYSV =          0x1000;
-       const MT_ST_NOWAIT =        0x2000;
-       const MT_ST_SILI =  	   0x4000;
+       const BUFFER_WRITES =    0x1;
+       const ASYNC_WRITES =     0x2;
+       const READ_AHEAD	=       0x4;
+       const DEBUGGING =        0x8;
+       const TWO_FM =          0x10;
+       const FAST_MTEOM	=      0x20;
+       const AUTO_LOCK =       0x40;
+       const DEF_WRITES =      0x80;
+       const CAN_BSR =        0x100;
+       const NO_BLKLIMS =     0x200;
+       const CAN_PARTITIONS = 0x400;
+       const SCSI2LOGICAL =   0x800;
+       const SYSV =          0x1000;
+       const NOWAIT =        0x2000;
+       const SILI =  	     0x4000;
    }
 }

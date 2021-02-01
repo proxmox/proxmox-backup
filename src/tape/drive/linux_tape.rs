@@ -154,12 +154,12 @@ impl LinuxTapeHandle {
         let mut opts = SetDrvBufferOptions::empty();
 
         // fixme: ? man st(4) claims we need to clear this for reliable multivolume
-        opts.set(SetDrvBufferOptions::MT_ST_BUFFER_WRITES, true);
+        opts.set(SetDrvBufferOptions::BUFFER_WRITES, true);
 
         // fixme: ?man st(4) claims we need to clear this for reliable multivolume
-        opts.set(SetDrvBufferOptions::MT_ST_ASYNC_WRITES, true);
+        opts.set(SetDrvBufferOptions::ASYNC_WRITES, true);
 
-        opts.set(SetDrvBufferOptions::MT_ST_READ_AHEAD, true);
+        opts.set(SetDrvBufferOptions::READ_AHEAD, true);
 
         self.set_drive_buffer_options(opts)
     }
