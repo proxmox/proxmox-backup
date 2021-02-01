@@ -1,3 +1,48 @@
+rust-proxmox-backup (1.0.7-1) unstable; urgency=medium
+
+  * fix #3197: skip fingerprint check when restoring key
+
+  * client: add 'import-with-master-key' command
+
+  * fix #3192: correct sort in prune sim
+
+  * tools/daemon: improve reload behaviour
+
+  * http client: add timeouts for critical connects
+
+  * api: improve error messages for restricted endpoints
+
+  * api: allow tokens to list users
+
+  * ui: running tasks: Use gettext for column labels
+
+  * login: add two-factor authenication (TFA) and integrate in web-interface
+
+  * login: support webAuthn, recovery keys and TOTP as TFA methods
+
+  * make it possible to abort tasks with CTRL-C
+
+  * fix #3245: only use default schedule for new jobs
+
+  * manager CLI: user/token list: fix rendering 0 (never) expire date
+
+  * update the event-driven, non-blocking I/O tokio platform to 1.0
+
+  * access: limit editing all pam credentials to superuser
+
+  * access: restrict password changes on @pam realm to superuser
+
+  * patch out wrongly linked libraries from ELFs to avoid extra, bogus
+    dependencies in resulting package
+
+  * add "password hint" to encryption key config
+
+  * improve GC error handling
+
+  * cli: make it possible to abort tasks with CTRL-C
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 03 Feb 2021 10:34:23 +0100
+
 rust-proxmox-backup (1.0.6-1) unstable; urgency=medium
 
   * stricter handling of file-descriptors, fixes some cases where some could
