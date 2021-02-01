@@ -115,7 +115,7 @@ fn authenticate_2nd(
     response: &str,
 ) -> Result<AuthResult, Error> {
     let challenge: TfaChallenge = Ticket::<ApiTicket>::parse(&challenge_ticket)?
-        .verify_with_time_frame(public_auth_key(), "PBS", Some(userid.as_str()), -120..240)?
+        .verify_with_time_frame(public_auth_key(), "PBS", Some(userid.as_str()), -60..600)?
         .require_partial()?;
 
     let _: () = crate::config::tfa::verify_challenge(userid, &challenge, response.parse()?)?;
