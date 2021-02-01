@@ -445,13 +445,12 @@ impl DataStore {
             worker.check_abort()?;
             tools::fail_on_shutdown()?;
             let digest = index.index_digest(pos).unwrap();
-            if let Err(err) = self.chunk_store.touch_chunk(digest) {
+            if !self.chunk_store.cond_touch_chunk(digest, false)? {
                 crate::task_warn!(
                     worker,
-                    "warning: unable to access chunk {}, required by {:?} - {}",
+                    "warning: unable to access non-existant chunk {}, required by {:?}",
                     proxmox::tools::digest_to_hex(digest),
                     file_name,
-                    err,
                 );
 
                 // touch any corresponding .bad files to keep them around, meaning if a chunk is
