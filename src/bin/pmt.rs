@@ -127,6 +127,38 @@ fn bsf(count: i32, param: Value) -> Result<(), Error> {
     Ok(())
 }
 
+
+#[api(
+   input: {
+        properties: {
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+                optional: true,
+            },
+            device: {
+                schema: LINUX_DRIVE_PATH_SCHEMA,
+                optional: true,
+            },
+            count: {
+                schema: FILE_MARK_COUNT_SCHEMA,
+            },
+       },
+    },
+)]
+/// Backward space count files, then forward space one record (position after file mark).
+///
+/// This leaves the tape positioned at the first block of the file
+/// that is count - 1 files before the current file.
+fn bsfm(count: i32, param: Value) -> Result<(), Error> {
+
+    let mut handle = get_tape_handle(&param)?;
+
+    handle.mtop(MTCmd::MTBSFM, count, "bsfm")?;
+
+    Ok(())
+}
+
+
 #[api(
    input: {
         properties: {
@@ -280,6 +312,36 @@ fn fsf(count: i32, param: Value) -> Result<(), Error> {
     let mut handle = get_tape_handle(&param)?;
 
     handle.forward_space_count_files(count)?;
+
+    Ok(())
+}
+
+#[api(
+   input: {
+        properties: {
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+                optional: true,
+            },
+            device: {
+                schema: LINUX_DRIVE_PATH_SCHEMA,
+                optional: true,
+            },
+            count: {
+                schema: FILE_MARK_COUNT_SCHEMA,
+            },
+        },
+    },
+)]
+/// Forward space count files, then backward space one record (position before file mark).
+///
+/// This leaves the tape positioned at the last block of the file that
+/// is count - 1 files past the current file.
+fn fsfm(count: i32, param: Value) -> Result<(), Error> {
+
+    let mut handle = get_tape_handle(&param)?;
+
+    handle.mtop(MTCmd::MTFSFM, count, "fsfm")?;
 
     Ok(())
 }
@@ -512,18 +574,20 @@ fn main() -> Result<(), Error> {
     };
 
     let cmd_def = CliCommandMap::new()
-        .insert("bsf", std_cmd(&API_METHOD_BSF))
+        .insert("bsf", std_cmd(&API_METHOD_BSF).arg_param(&["count"]))
+        .insert("bsfm", std_cmd(&API_METHOD_BSFM).arg_param(&["count"]))
         .insert("cartridge-memory", std_cmd(&API_METHOD_CARTRIDGE_MEMORY))
         .insert("eject", std_cmd(&API_METHOD_EJECT))
         .insert("eod", std_cmd(&API_METHOD_EOD))
         .insert("erase", std_cmd(&API_METHOD_ERASE))
-        .insert("fsf", std_cmd(&API_METHOD_FSF))
+        .insert("fsf", std_cmd(&API_METHOD_FSF).arg_param(&["count"]))
+        .insert("fsfm", std_cmd(&API_METHOD_FSFM).arg_param(&["count"]))
         .insert("load", std_cmd(&API_METHOD_LOAD))
         .insert("rewind", std_cmd(&API_METHOD_REWIND))
         .insert("scan", CliCommand::new(&API_METHOD_SCAN))
         .insert("status", std_cmd(&API_METHOD_STATUS))
         .insert("volume-statistics", std_cmd(&API_METHOD_VOLUME_STATISTICS))
-        .insert("weof", std_cmd(&API_METHOD_WEOF))
+        .insert("weof", std_cmd(&API_METHOD_WEOF).arg_param(&["count"]))
         ;
 
     let mut rpcenv = CliEnvironment::new();
