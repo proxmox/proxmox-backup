@@ -1,6 +1,6 @@
 Ext.define('pbs-model-media-pool', {
     extend: 'Ext.data.Model',
-    fields: ['drive', 'name', 'allocation', 'retention', 'template', 'encrypt'],
+    fields: ['name', 'allocation', 'retention', 'template', 'encrypt'],
     idProperty: 'name',
 });
 
@@ -97,10 +97,6 @@ Ext.define('PBS.TapeManagement.PoolPanel', {
 	{
 	    text: gettext('Name'),
 	    dataIndex: 'name',
-	},
-	{
-	    text: gettext('Drive'),
-	    dataIndex: 'drive',
 	},
 	{
 	    text: gettext('Allocation'),

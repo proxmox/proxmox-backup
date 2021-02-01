@@ -31,13 +31,6 @@ Ext.define('PBS.TapeManagement.PoolEditWindow', {
 	    },
 	},
 	{
-	    fieldLabel: gettext('Drive'),
-	    xtype: 'pbsDriveSelector',
-	    name: 'drive',
-	    allowBlank: false,
-	    autoSelect: false,
-	},
-	{
 	    fieldLabel: gettext('Allocation'),
 	    xtype: 'pbsAllocationSelector',
 	    name: 'allocation',
