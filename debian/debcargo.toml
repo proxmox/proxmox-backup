@@ -2,13 +2,11 @@ overlay = "."
 crate_src_path = ".."
 whitelist = ["tests/*.c"]
 
-# needed for pinutils alpha
-allow_prerelease_deps = true
+maintainer = "Proxmox Support Team <support@proxmox.com>"
 
 [source]
 vcs_git = "git://git.proxmox.com/git/proxmox-backup.git"
 vcs_browser = "https://git.proxmox.com/?p=proxmox-backup.git;a=summary"
-maintainer = "Proxmox Support Team <support@proxmox.com>"
 section = "admin"
 build_depends = [
   "bash-completion",
