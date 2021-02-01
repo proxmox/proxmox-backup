@@ -32,6 +32,12 @@ pub const FILE_MARK_COUNT_SCHEMA: Schema =
     .maximum(i32::MAX as isize)
     .schema();
 
+pub const RECORD_COUNT_SCHEMA: Schema =
+    IntegerSchema::new("Record count.")
+    .minimum(1)
+    .maximum(i32::MAX as isize)
+    .schema();
+
 use proxmox_backup::{
     config::{
         self,
@@ -187,6 +193,34 @@ fn bsfm(count: i32, param: Value) -> Result<(), Error> {
     let mut handle = get_tape_handle(&param)?;
 
     handle.mtop(MTCmd::MTBSFM, count, "bsfm")?;
+
+    Ok(())
+}
+
+
+#[api(
+   input: {
+        properties: {
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+                optional: true,
+            },
+            device: {
+                schema: LINUX_DRIVE_PATH_SCHEMA,
+                optional: true,
+            },
+            count: {
+                schema: RECORD_COUNT_SCHEMA,
+            },
+        },
+    },
+)]
+/// Backward space records.
+fn bsr(count: i32, param: Value) -> Result<(), Error> {
+
+    let mut handle = get_tape_handle(&param)?;
+
+    handle.mtop(MTCmd::MTBSR, count, "backward space records")?;
 
     Ok(())
 }
@@ -375,6 +409,34 @@ fn fsfm(count: i32, param: Value) -> Result<(), Error> {
     let mut handle = get_tape_handle(&param)?;
 
     handle.mtop(MTCmd::MTFSFM, count, "fsfm")?;
+
+    Ok(())
+}
+
+
+#[api(
+   input: {
+        properties: {
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+                optional: true,
+            },
+            device: {
+                schema: LINUX_DRIVE_PATH_SCHEMA,
+                optional: true,
+            },
+            count: {
+                schema: RECORD_COUNT_SCHEMA,
+            },
+        },
+    },
+)]
+/// Forward space records.
+fn fsr(count: i32, param: Value) -> Result<(), Error> {
+
+    let mut handle = get_tape_handle(&param)?;
+
+    handle.mtop(MTCmd::MTFSR, count, "forward space records")?;
 
     Ok(())
 }
@@ -610,12 +672,14 @@ fn main() -> Result<(), Error> {
         .insert("asf", std_cmd(&API_METHOD_ASF).arg_param(&["count"]))
         .insert("bsf", std_cmd(&API_METHOD_BSF).arg_param(&["count"]))
         .insert("bsfm", std_cmd(&API_METHOD_BSFM).arg_param(&["count"]))
+        .insert("bsr", std_cmd(&API_METHOD_BSR).arg_param(&["count"]))
         .insert("cartridge-memory", std_cmd(&API_METHOD_CARTRIDGE_MEMORY))
         .insert("eject", std_cmd(&API_METHOD_EJECT))
         .insert("eod", std_cmd(&API_METHOD_EOD))
         .insert("erase", std_cmd(&API_METHOD_ERASE))
         .insert("fsf", std_cmd(&API_METHOD_FSF).arg_param(&["count"]))
         .insert("fsfm", std_cmd(&API_METHOD_FSFM).arg_param(&["count"]))
+        .insert("fsr", std_cmd(&API_METHOD_FSR).arg_param(&["count"]))
         .insert("load", std_cmd(&API_METHOD_LOAD))
         .insert("rewind", std_cmd(&API_METHOD_REWIND))
         .insert("scan", CliCommand::new(&API_METHOD_SCAN))
