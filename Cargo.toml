@@ -23,7 +23,7 @@ name = "proxmox_backup"
 path = "src/lib.rs"
 
 [dependencies]
-apt-pkg-native = "0.3.1" # custom patched version
+apt-pkg-native = "0.3.2"
 base64 = "0.12"
 bitflags = "1.2.1"
 bytes = "1.0"
