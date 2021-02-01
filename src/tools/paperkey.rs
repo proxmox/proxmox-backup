@@ -30,18 +30,22 @@ pub fn generate_paper_key<W: Write>(
     subject: Option<String>,
     output_format: Option<PaperkeyFormat>,
 ) -> Result<(), Error> {
+    let (data, is_master_key) = if data.starts_with("-----BEGIN ENCRYPTED PRIVATE KEY-----\n")
+        || data.starts_with("-----BEGIN RSA PRIVATE KEY-----\n")
+    {
+        let data = data.trim_end();
+        if !(data.ends_with("\n-----END ENCRYPTED PRIVATE KEY-----")
+            || data.ends_with("\n-----END RSA PRIVATE KEY-----"))
+        {
+            bail!("unexpected key format");
+        }
 
-    let (data, is_private_key) = if data.starts_with("-----BEGIN ENCRYPTED PRIVATE KEY-----\n") {
         let lines: Vec<String> = data
             .lines()
             .map(|s| s.trim_end())
             .filter(|s| !s.is_empty())
             .map(String::from)
             .collect();
-
-        if !lines[lines.len()-1].starts_with("-----END ENCRYPTED PRIVATE KEY-----") {
-            bail!("unexpected key format");
-        }
 
         if lines.len() < 20 {
             bail!("unexpected key format");
@@ -68,8 +72,8 @@ pub fn generate_paper_key<W: Write>(
     let format = output_format.unwrap_or(PaperkeyFormat::Html);
 
     match format {
-        PaperkeyFormat::Html => paperkey_html(output, &data, subject, is_private_key),
-        PaperkeyFormat::Text => paperkey_text(output, &data, subject, is_private_key),
+        PaperkeyFormat::Html => paperkey_html(output, &data, subject, is_master_key),
+        PaperkeyFormat::Text => paperkey_text(output, &data, subject, is_master_key),
     }
 }
 
@@ -77,7 +81,7 @@ fn paperkey_html<W: Write>(
     mut output: W,
     lines: &[String],
     subject: Option<String>,
-    is_private: bool,
+    is_master: bool,
 ) -> Result<(), Error> {
 
     let img_size_pt = 500;
@@ -107,7 +111,7 @@ fn paperkey_html<W: Write>(
         writeln!(output, "<p>Subject: {}</p>", subject)?;
     }
 
-    if is_private {
+    if is_master {
         const BLOCK_SIZE: usize = 20;
         let blocks = (lines.len() + BLOCK_SIZE -1)/BLOCK_SIZE;
 
