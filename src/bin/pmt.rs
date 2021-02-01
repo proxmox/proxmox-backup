@@ -29,7 +29,7 @@ use proxmox::{
 pub const FILE_MARK_COUNT_SCHEMA: Schema =
     IntegerSchema::new("File mark count.")
     .minimum(1)
-    .minimum(i32::MAX as isize)
+    .maximum(i32::MAX as isize)
     .schema();
 
 use proxmox_backup::{
