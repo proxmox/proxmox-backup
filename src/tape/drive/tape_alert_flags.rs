@@ -130,7 +130,10 @@ fn decode_tape_alert_flags(data: &[u8]) -> Result<TapeAlertFlags, Error> {
             bail!("invalid parameter length");
         }
 
-        let value: u64 =  unsafe { reader.read_le_value()? };
+        let mut value: u64 =  unsafe { reader.read_be_value()? };
+
+        // bits are in wrong order, reverse them
+        value = value.reverse_bits();
 
         Ok(TapeAlertFlags::from_bits_truncate(value))
     }).map_err(|err| format_err!("decode tape alert flags failed - {}", err))
