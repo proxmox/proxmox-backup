@@ -480,6 +480,31 @@ fn load(param: Value) -> Result<(), Error> {
        },
     },
 )]
+/// Lock the tape drive door
+fn lock(param: Value) -> Result<(), Error> {
+
+    let mut handle = get_tape_handle(&param)?;
+
+    handle.mtop(MTCmd::MTLOCK, 1, "lock tape drive door")?;
+
+    Ok(())
+}
+
+
+#[api(
+   input: {
+        properties: {
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+                optional: true,
+            },
+            device: {
+                schema: LINUX_DRIVE_PATH_SCHEMA,
+                optional: true,
+            },
+       },
+    },
+)]
 /// Rewind the tape
 fn rewind(param: Value) -> Result<(), Error> {
 
@@ -576,6 +601,32 @@ fn status(param: Value) -> Result<(), Error> {
 
     Ok(())
 }
+
+
+#[api(
+   input: {
+        properties: {
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+                optional: true,
+            },
+            device: {
+                schema: LINUX_DRIVE_PATH_SCHEMA,
+                optional: true,
+            },
+       },
+    },
+)]
+/// Unlock the tape drive door
+fn unlock(param: Value) -> Result<(), Error> {
+
+    let mut handle = get_tape_handle(&param)?;
+
+    handle.mtop(MTCmd::MTUNLOCK, 1, "unlock tape drive door")?;
+
+    Ok(())
+}
+
 
 #[api(
     input: {
@@ -681,9 +732,11 @@ fn main() -> Result<(), Error> {
         .insert("fsfm", std_cmd(&API_METHOD_FSFM).arg_param(&["count"]))
         .insert("fsr", std_cmd(&API_METHOD_FSR).arg_param(&["count"]))
         .insert("load", std_cmd(&API_METHOD_LOAD))
+        .insert("lock", std_cmd(&API_METHOD_LOCK))
         .insert("rewind", std_cmd(&API_METHOD_REWIND))
         .insert("scan", CliCommand::new(&API_METHOD_SCAN))
         .insert("status", std_cmd(&API_METHOD_STATUS))
+        .insert("unlock", std_cmd(&API_METHOD_UNLOCK))
         .insert("volume-statistics", std_cmd(&API_METHOD_VOLUME_STATISTICS))
         .insert("weof", std_cmd(&API_METHOD_WEOF).arg_param(&["count"]))
         ;
