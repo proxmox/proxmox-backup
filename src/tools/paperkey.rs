@@ -113,26 +113,18 @@ fn paperkey_html<W: Write>(
 
     if is_master {
         const BLOCK_SIZE: usize = 20;
-        let blocks = (lines.len() + BLOCK_SIZE -1)/BLOCK_SIZE;
 
-        for i in 0..blocks {
-            let start = i*BLOCK_SIZE;
-            let mut end = start + BLOCK_SIZE;
-            if end > lines.len() {
-                end = lines.len();
-            }
-            let data = &lines[start..end];
-
+        for (block_nr, block) in lines.chunks(BLOCK_SIZE).enumerate() {
             writeln!(output, "<div style=\"page-break-inside: avoid;page-break-after: always\">")?;
             writeln!(output, "<p>")?;
 
-            for l in start..end {
-                writeln!(output, "{:02}: {}", l, lines[l])?;
+            for (i, line) in block.iter().enumerate() {
+                writeln!(output, "{:02}: {}", i + block_nr * BLOCK_SIZE, line)?;
             }
 
             writeln!(output, "</p>")?;
 
-            let qr_code = generate_qr_code("svg", data)?;
+            let qr_code = generate_qr_code("svg", block)?;
             let qr_code = base64::encode_config(&qr_code, base64::STANDARD_NO_PAD);
 
             writeln!(output, "<center>")?;
@@ -192,20 +184,12 @@ fn paperkey_text<W: Write>(
 
     if is_private {
         const BLOCK_SIZE: usize = 5;
-        let blocks = (lines.len() + BLOCK_SIZE -1)/BLOCK_SIZE;
 
-        for i in 0..blocks {
-            let start = i*BLOCK_SIZE;
-            let mut end = start + BLOCK_SIZE;
-            if end > lines.len() {
-                end = lines.len();
+        for (block_nr, block) in lines.chunks(BLOCK_SIZE).enumerate() {
+            for (i, line) in block.iter().enumerate() {
+                writeln!(output, "{:-2}: {}", i + block_nr * BLOCK_SIZE, line)?;
             }
-            let data = &lines[start..end];
-
-            for l in start..end {
-                writeln!(output, "{:-2}: {}", l, lines[l])?;
-            }
-            let qr_code = generate_qr_code("utf8i", data)?;
+            let qr_code = generate_qr_code("utf8i", block)?;
             let qr_code = String::from_utf8(qr_code)
                 .map_err(|_| format_err!("Failed to read qr code (got non-utf8 data)"))?;
             writeln!(output, "{}", qr_code)?;
