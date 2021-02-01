@@ -115,6 +115,39 @@ fn get_tape_handle(param: &Value) -> Result<LinuxTapeHandle, Error> {
        },
     },
 )]
+/// Position the tape at the beginning of the count file.
+///
+/// Positioning is done by first rewinding the tape and then spacing
+/// forward over count file marks.
+fn asf(count: i32, param: Value) -> Result<(), Error> {
+
+    let mut handle = get_tape_handle(&param)?;
+
+    handle.rewind()?;
+
+    handle.forward_space_count_files(count)?;
+
+    Ok(())
+}
+
+
+#[api(
+   input: {
+        properties: {
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+                optional: true,
+            },
+            device: {
+                schema: LINUX_DRIVE_PATH_SCHEMA,
+                optional: true,
+            },
+            count: {
+                schema: FILE_MARK_COUNT_SCHEMA,
+            },
+       },
+    },
+)]
 /// Backward space count files (position before file mark).
 ///
 /// The tape is positioned on the last block of the previous file.
@@ -574,6 +607,7 @@ fn main() -> Result<(), Error> {
     };
 
     let cmd_def = CliCommandMap::new()
+        .insert("asf", std_cmd(&API_METHOD_ASF).arg_param(&["count"]))
         .insert("bsf", std_cmd(&API_METHOD_BSF).arg_param(&["count"]))
         .insert("bsfm", std_cmd(&API_METHOD_BSFM).arg_param(&["count"]))
         .insert("cartridge-memory", std_cmd(&API_METHOD_CARTRIDGE_MEMORY))
