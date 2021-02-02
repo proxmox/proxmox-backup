@@ -2,11 +2,16 @@ Ext.define('PBS.TapeManagement.TapeBackupWindow', {
     extend: 'Proxmox.window.Edit',
     alias: 'pbsTapeBackupWindow',
 
+    width: 400,
     subject: gettext('Backup'),
     url: '/api2/extjs/tape/backup',
     method: 'POST',
     showTaskViewer: true,
     isCreate: true,
+
+    defaults: {
+	labelWidth: 120,
+    },
 
     items: [
 	{
@@ -18,6 +23,11 @@ Ext.define('PBS.TapeManagement.TapeBackupWindow', {
 	    xtype: 'pbsMediaPoolSelector',
 	    fieldLabel: gettext('Media Pool'),
 	    name: 'pool',
+	},
+	{
+	    xtype: 'pbsDriveSelector',
+	    fieldLabel: gettext('Drive'),
+	    name: 'drive',
 	},
 	{
 	    xtype: 'proxmoxcheckbox',
