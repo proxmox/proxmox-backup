@@ -16,6 +16,90 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 	    }).show();
 	},
 
+	restore: function(button, record) {
+	    let me = this;
+	    let view = me.getView();
+	    let selection = view.getSelection();
+	    if (!selection || selection.length < 1) {
+		return;
+	    }
+
+	    let mediaset = selection[0].data.text;
+	    let uuid = selection[0].data.uuid;
+	    Ext.create('PBS.TapeManagement.TapeRestoreWindow', {
+		mediaset,
+		uuid,
+		listeners: {
+		    destroy: function() {
+			me.reload();
+		    },
+		},
+	    }).show();
+	},
+
+	loadContent: async function() {
+	    let content_response = await PBS.Async.api2({
+		url: '/api2/extjs/tape/media/content',
+	    });
+	    let data = {};
+
+	    for (const entry of content_response.result.data) {
+		let pool = entry.pool;
+		let [type, group_id, id] = PBS.Utils.parse_snapshot_id(entry.snapshot);
+		let group = `${type}/${group_id}`;
+		let media_set = entry['media-set-name'];
+		let uuid = entry['media-set-uuid'];
+		let ctime = entry['media-set-ctime'];
+		if (data[pool] === undefined) {
+		    data[pool] = {};
+		}
+
+		if (data[pool][group] === undefined) {
+		    data[pool][group] = {};
+		}
+
+		if (data[pool][group][id] === undefined) {
+		    data[pool][group][id] = [];
+		}
+		data[pool][group][id].push({
+		    text: media_set,
+		    uuid,
+		    ctime,
+		    leaf: true,
+		});
+	    }
+
+	    let list = [];
+
+	    for (const [pool, groups] of Object.entries(data)) {
+		let pool_entry = {
+		    text: pool,
+		    leaf: false,
+		    children: [],
+		};
+		for (const [group, ids] of Object.entries(groups)) {
+		    let group_entry = {
+			text: group,
+			iconCls: "fa " + PBS.Utils.get_type_icon_cls(group),
+			leaf: false,
+			children: [],
+		    };
+		    for (const [id, media_sets] of Object.entries(ids)) {
+			let id_entry = {
+			    text: `${group}/${id}`,
+			    leaf: false,
+			    children: media_sets,
+			};
+			group_entry.children.push(id_entry);
+		    }
+		    pool_entry.children.push(group_entry);
+		}
+		list.push(pool_entry);
+	    }
+
+	    return list;
+	},
+
 	reload: async function() {
 	    let me = this;
 	    let view = me.getView();
@@ -23,43 +107,7 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 	    Proxmox.Utils.setErrorMask(view, true);
 
 	    try {
-		let list_response = await PBS.Async.api2({
-		    url: '/api2/extjs/tape/media/list',
-		});
-		let list = list_response.result.data.sort(
-		    (a, b) => a['label-text'].localeCompare(b['label-text']),
-		);
-
-		let content = {};
-
-		let content_response = await PBS.Async.api2({
-		    url: '/api2/extjs/tape/media/content',
-		});
-
-		let content_list = content_response.result.data.sort(
-		    (a, b) => a.snapshot.localeCompare(b.snapshot),
-		);
-
-		for (let entry of content_list) {
-		    let tape = entry['label-text'];
-		    entry['label-text'] = entry.snapshot;
-		    entry.leaf = true;
-		    if (content[tape] === undefined) {
-			content[tape] = [entry];
-		    } else {
-			content[tape].push(entry);
-		    }
-		}
-
-		for (let child of list) {
-		    let tape = child['label-text'];
-		    if (content[tape]) {
-			child.children = content[tape];
-			child.leaf = false;
-		    } else {
-			child.leaf = true;
-		    }
-		}
+		let list = await me.loadContent();
 
 		view.setRootNode({
 		    expanded: true,
@@ -78,8 +126,14 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
     },
 
     store: {
-	sorters: 'label-text',
 	data: [],
+	sorters: function(a, b) {
+	    if (a.data.leaf && b.data.leaf) {
+		return a.data.ctime - b.data.ctime;
+	    } else {
+		return a.data.text.localeCompare(b.data.text);
+	    }
+	},
     },
 
     rootVisible: false,
@@ -99,50 +153,15 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
     columns: [
 	{
 	    xtype: 'treecolumn',
-	    text: gettext('Tape/Backup'),
-	    dataIndex: 'label-text',
+	    text: gettext('Pool/Group/Snapshot/Media Set'),
+	    dataIndex: 'text',
+	    sortable: false,
 	    flex: 3,
 	},
 	{
-	    text: gettext('Location'),
-	    dataIndex: 'location',
-	    flex: 1,
-	    renderer: function(value) {
-		if (!value) {
-		    return "";
-		}
-		let result;
-		if ((result = /^online-(.+)$/.exec(value)) !== null) {
-		    return Ext.htmlEncode(result[1]);
-		}
-
-		return value;
-	    },
-	},
-	{
-	    text: gettext('Status'),
-	    dataIndex: 'status',
-	    flex: 1,
-	},
-	{
-	    text: gettext('Media Set'),
-	    dataIndex: 'media-set-name',
-	    flex: 2,
-	},
-	{
-	    text: gettext('Pool'),
-	    dataIndex: 'pool',
-	    flex: 1,
-	},
-	{
-	    text: gettext('Sequence Nr.'),
-	    dataIndex: 'seq-nr',
-	    flex: 0.5,
-	},
-	{
-	    text: gettext('Backup Time'),
-	    dataIndex: 'backup-time',
-	    renderer: (time) => time !== undefined ? new Date(time*1000) : "",
+	    text: gettext('Media Set UUID'),
+	    dataIndex: 'uuid',
+	    sortable: false,
 	    flex: 1,
 	},
     ],

@@ -260,6 +260,15 @@ Ext.define('PBS.Utils', {
 	return dedup;
     },
 
+    parse_snapshot_id: function(snapshot) {
+	if (!snapshot) {
+	    return [undefined, undefined, undefined];
+	}
+	let [_match, type, group, id] = /^([^/]+)\/([^/]+)\/(.+)$/.exec(snapshot);
+
+	return [type, group, id];
+    },
+
     get_type_icon_cls: function(btype) {
 	var cls = '';
 	if (btype.startsWith('vm')) {
