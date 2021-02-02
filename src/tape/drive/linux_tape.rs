@@ -180,6 +180,36 @@ impl LinuxTapeHandle {
         Ok(())
     }
 
+    /// call MTSETDRVBUFFER to set boolean options
+    ///
+    /// Note: this uses MT_ST_SETBOOLEANS
+    pub fn drive_buffer_set_options(&self, opts: SetDrvBufferOptions) -> Result<(), Error> {
+
+        let cmd = mtop {
+            mt_op: MTCmd::MTSETDRVBUFFER,
+            mt_count: (SetDrvBufferCmd::MT_ST_SETBOOLEANS as i32) | opts.bits(),
+        };
+        unsafe {
+            mtioctop(self.file.as_raw_fd(), &cmd)
+        }.map_err(|err| format_err!("MTSETDRVBUFFER options failed - {}", err))?;
+
+        Ok(())
+    }
+
+    /// call MTSETDRVBUFFER to clear boolean options
+    pub fn drive_buffer_clear_options(&self, opts: SetDrvBufferOptions) -> Result<(), Error> {
+
+        let cmd = mtop {
+            mt_op: MTCmd::MTSETDRVBUFFER,
+            mt_count: (SetDrvBufferCmd::MT_ST_CLEARBOOLEANS as i32) | opts.bits(),
+        };
+        unsafe {
+            mtioctop(self.file.as_raw_fd(), &cmd)
+        }.map_err(|err| format_err!("MTSETDRVBUFFER options failed - {}", err))?;
+
+        Ok(())
+    }
+
     /// This flushes the driver's buffer as a side effect. Should be
     /// used before reading status with MTIOCGET.
     fn mtnop(&self) -> Result<(), Error> {

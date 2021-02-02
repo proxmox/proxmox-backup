@@ -11,6 +11,8 @@
 /// - support volume statistics
 /// - read cartridge memory
 
+use std::collections::HashMap;
+
 use anyhow::{bail, Error};
 use serde_json::Value;
 
@@ -21,6 +23,8 @@ use proxmox::{
         schema::{
             Schema,
             IntegerSchema,
+            StringSchema,
+            ArraySchema,
         },
         RpcEnvironment,
     },
@@ -38,6 +42,14 @@ pub const RECORD_COUNT_SCHEMA: Schema =
     .maximum(i32::MAX as isize)
     .schema();
 
+pub const DRIVE_OPTION_SCHEMA: Schema = StringSchema::new(
+    "Linux Tape Driver Option, either numeric value or option name.")
+    .schema();
+
+pub const DRIVE_OPTION_LIST_SCHEMA: Schema =
+    ArraySchema::new("Drive Option List.", &DRIVE_OPTION_SCHEMA)
+    .schema();
+
 use proxmox_backup::{
     config::{
         self,
@@ -52,13 +64,55 @@ use proxmox_backup::{
         complete_drive_path,
         linux_tape_device_list,
         drive::{
-            linux_mtio::MTCmd,
+            linux_mtio::{MTCmd, SetDrvBufferOptions},
             TapeDriver,
             LinuxTapeHandle,
             open_linux_tape_device,
        },
     },
 };
+
+lazy_static::lazy_static!{
+
+    static ref DRIVE_OPTIONS: HashMap<String, SetDrvBufferOptions> = {
+        let mut map = HashMap::new();
+
+        for i in 0..31 {
+            let bit: i32 = 1 << i;
+            let flag = SetDrvBufferOptions::from_bits_truncate(bit);
+            if flag.bits() == 0 { continue; }
+            let name = format!("{:?}", flag)
+                .to_lowercase()
+                .replace("_", "-");
+
+            map.insert(name, flag);
+        }
+        map
+    };
+
+}
+
+fn parse_drive_options(options: Vec<String>) -> Result<SetDrvBufferOptions, Error> {
+
+    let mut value = SetDrvBufferOptions::empty();
+
+    for option in options.iter() {
+        if let Ok::<i32,_>(v) = option.parse() {
+            value |= SetDrvBufferOptions::from_bits_truncate(v);
+        } else if let Some(v) = DRIVE_OPTIONS.get(option) {
+            value |= *v;
+        } else {
+            let option = option.to_lowercase().replace("_", "-");
+            if let Some(v) = DRIVE_OPTIONS.get(&option) {
+                value |= *v;
+            } else {
+                bail!("unknown drive option {}", option);
+            }
+        }
+    }
+
+    Ok(value)
+}
 
 fn get_tape_handle(param: &Value) -> Result<LinuxTapeHandle, Error> {
 
@@ -582,6 +636,7 @@ fn setblk(size: i32, param: Value) -> Result<(), Error> {
     Ok(())
 }
 
+
 #[api(
     input: {
         properties: {
@@ -627,6 +682,109 @@ fn status(param: Value) -> Result<(), Error> {
     let status = result?;
 
     println!("{}", serde_json::to_string_pretty(&status)?);
+
+    Ok(())
+}
+
+
+#[api(
+    input: {
+        properties: {
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+                optional: true,
+            },
+            device: {
+                schema: LINUX_DRIVE_PATH_SCHEMA,
+                optional: true,
+            },
+            options: {
+                schema: DRIVE_OPTION_LIST_SCHEMA,
+                optional: true,
+            },
+        },
+    },
+)]
+/// Set device driver options (root only)
+///
+/// If no options specified, we reset to default options
+/// (buffer-writes async-writes read-ahead can-bsr)
+fn st_options(options: Option<Vec<String>>, param: Value) -> Result<(), Error> {
+
+    let handle = get_tape_handle(&param)?;
+
+    let options = options.unwrap_or_else(|| {
+        let mut list = Vec::new();
+        list.push(String::from("buffer-writes"));
+        list.push(String::from("async-writes"));
+        list.push(String::from("read-ahead"));
+        list.push(String::from("can-bsr"));
+        list
+    });
+
+    let value = parse_drive_options(options)?;
+
+    handle.set_drive_buffer_options(value)?;
+
+    Ok(())
+}
+
+
+#[api(
+    input: {
+        properties: {
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+                optional: true,
+            },
+            device: {
+                schema: LINUX_DRIVE_PATH_SCHEMA,
+                optional: true,
+            },
+            options: {
+                schema: DRIVE_OPTION_LIST_SCHEMA,
+            },
+        },
+    },
+)]
+/// Set selected device driver options bits (root only)
+fn st_set_options(options: Vec<String>, param: Value) -> Result<(), Error> {
+
+    let handle = get_tape_handle(&param)?;
+
+    let value = parse_drive_options(options)?;
+
+    handle.drive_buffer_set_options(value)?;
+
+    Ok(())
+}
+
+
+#[api(
+    input: {
+        properties: {
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+                optional: true,
+            },
+            device: {
+                schema: LINUX_DRIVE_PATH_SCHEMA,
+                optional: true,
+            },
+            options: {
+                schema: DRIVE_OPTION_LIST_SCHEMA,
+            },
+        },
+    },
+)]
+/// Clear selected device driver options bits (root only)
+fn st_clear_options(options: Vec<String>, param: Value) -> Result<(), Error> {
+
+    let handle = get_tape_handle(&param)?;
+
+    let value = parse_drive_options(options)?;
+
+    handle.drive_buffer_clear_options(value)?;
 
     Ok(())
 }
@@ -766,6 +924,9 @@ fn main() -> Result<(), Error> {
         .insert("scan", CliCommand::new(&API_METHOD_SCAN))
         .insert("setblk", CliCommand::new(&API_METHOD_SETBLK).arg_param(&["size"]))
         .insert("status", std_cmd(&API_METHOD_STATUS))
+        .insert("stoptions", std_cmd(&API_METHOD_ST_OPTIONS).arg_param(&["options"]))
+        .insert("stsetoptions", std_cmd(&API_METHOD_ST_SET_OPTIONS).arg_param(&["options"]))
+        .insert("stclearoptions", std_cmd(&API_METHOD_ST_CLEAR_OPTIONS).arg_param(&["options"]))
         .insert("unlock", std_cmd(&API_METHOD_UNLOCK))
         .insert("volume-statistics", std_cmd(&API_METHOD_VOLUME_STATISTICS))
         .insert("weof", std_cmd(&API_METHOD_WEOF).arg_param(&["count"]))
