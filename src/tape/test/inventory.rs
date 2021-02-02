@@ -1,6 +1,6 @@
 // Tape inventory tests
 //
-// # cargo test --release --test tape-inventory
+// # cargo test --release tape::test::inventory
 
 use std::path::PathBuf;
 use anyhow::{bail, Error};
@@ -9,7 +9,7 @@ use proxmox::tools::{
     Uuid,
 };
 
-use proxmox_backup::{
+use crate::{
     tape::{
         Inventory,
         file_formats::{

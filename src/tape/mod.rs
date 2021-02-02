@@ -7,6 +7,9 @@ use proxmox::tools::fs::{
     CreateOptions,
 };
 
+#[cfg(test)]
+mod test;
+
 pub mod file_formats;
 
 mod tape_write;
