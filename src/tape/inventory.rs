@@ -146,12 +146,18 @@ impl Inventory {
         let list: Vec<&MediaStateEntry> = self.map.values().collect();
         let raw = serde_json::to_string_pretty(&serde_json::to_value(list)?)?;
 
-        let backup_user = crate::backup::backup_user()?;
         let mode = nix::sys::stat::Mode::from_bits_truncate(0o0640);
-        let options = CreateOptions::new()
-            .perm(mode)
-            .owner(backup_user.uid)
-            .group(backup_user.gid);
+
+        let options = if cfg!(test) {
+            // We cannot use chown inside test environment (no permissions)
+            CreateOptions::new().perm(mode)
+        } else {
+            let backup_user = crate::backup::backup_user()?;
+            CreateOptions::new()
+                .perm(mode)
+                .owner(backup_user.uid)
+                .group(backup_user.gid)
+        };
 
         replace_file(&self.inventory_path, raw.as_bytes(), options)?;
 
