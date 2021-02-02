@@ -553,6 +553,35 @@ fn scan(param: Value) -> Result<(), Error> {
     Ok(())
 }
 
+
+#[api(
+    input: {
+        properties: {
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+                optional: true,
+            },
+            device: {
+                schema: LINUX_DRIVE_PATH_SCHEMA,
+                optional: true,
+            },
+            size: {
+                description: "Block size in bytes.",
+                minimum: 0,
+            },
+        },
+    },
+)]
+/// Set the block size of the drive
+fn setblk(size: i32, param: Value) -> Result<(), Error> {
+
+    let mut handle = get_tape_handle(&param)?;
+
+    handle.mtop(MTCmd::MTSETBLK, size, "set block size")?;
+
+    Ok(())
+}
+
 #[api(
     input: {
         properties: {
@@ -735,6 +764,7 @@ fn main() -> Result<(), Error> {
         .insert("lock", std_cmd(&API_METHOD_LOCK))
         .insert("rewind", std_cmd(&API_METHOD_REWIND))
         .insert("scan", CliCommand::new(&API_METHOD_SCAN))
+        .insert("setblk", CliCommand::new(&API_METHOD_SETBLK).arg_param(&["size"]))
         .insert("status", std_cmd(&API_METHOD_STATUS))
         .insert("unlock", std_cmd(&API_METHOD_UNLOCK))
         .insert("volume-statistics", std_cmd(&API_METHOD_VOLUME_STATISTICS))
