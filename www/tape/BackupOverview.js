@@ -148,6 +148,14 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 	    text: gettext('New Backup'),
 	    handler: 'backup',
 	},
+	{
+	    xtype: 'proxmoxButton',
+	    disabled: true,
+	    text: gettext('Restore Media Set'),
+	    handler: 'restore',
+	    parentXType: 'treepanel',
+	    enableFn: (rec) => !!rec.data.uuid,
+	},
     ],
 
     columns: [
