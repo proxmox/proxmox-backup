@@ -260,6 +260,18 @@ Ext.define('PBS.Utils', {
 	return dedup;
     },
 
+    get_type_icon_cls: function(btype) {
+	var cls = '';
+	if (btype.startsWith('vm')) {
+	    cls = 'fa-desktop';
+	} else if (btype.startsWith('ct')) {
+	    cls = 'fa-cube';
+	} else if (btype.startsWith('host')) {
+	    cls = 'fa-building';
+	}
+	return cls;
+    },
+
     constructor: function() {
 	var me = this;
 

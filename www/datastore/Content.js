@@ -105,14 +105,8 @@ Ext.define('PBS.DataStoreContent', {
 		    continue;
 		}
 
-		var cls = '';
-		if (btype === 'vm') {
-		    cls = 'fa-desktop';
-		} else if (btype === 'ct') {
-		    cls = 'fa-cube';
-		} else if (btype === 'host') {
-		    cls = 'fa-building';
-		} else {
+		var cls = PBS.Utils.get_type_icon_cls(btype);
+		if (cls === "") {
 		    console.warn(`got unknown backup-type '${btype}'`);
 		    continue; // FIXME: auto render? what do?
 		}
