@@ -6,6 +6,7 @@
 
 use std::collections::{HashMap, BTreeMap};
 use std::path::{Path, PathBuf};
+use std::os::unix::io::AsRawFd;
 
 use anyhow::{bail, Error};
 use serde::{Serialize, Deserialize};
@@ -16,6 +17,7 @@ use proxmox::tools::{
     fs::{
         open_file_locked,
         replace_file,
+        fchown,
         file_get_json,
         CreateOptions,
     },
@@ -126,7 +128,16 @@ impl Inventory {
 
     /// Lock the database
     pub fn lock(&self) -> Result<std::fs::File, Error> {
-        open_file_locked(&self.lockfile_path, std::time::Duration::new(10, 0), true)
+        let file = open_file_locked(&self.lockfile_path, std::time::Duration::new(10, 0), true)?;
+        if cfg!(test) {
+            // We cannot use chown inside test environment (no permissions)
+            return Ok(file);
+        }
+
+        let backup_user = crate::backup::backup_user()?;
+        fchown(file.as_raw_fd(), Some(backup_user.uid), Some(backup_user.gid))?;
+
+        Ok(file)
     }
 
     fn load_media_db(path: &Path) -> Result<BTreeMap<Uuid, MediaStateEntry>, Error> {
