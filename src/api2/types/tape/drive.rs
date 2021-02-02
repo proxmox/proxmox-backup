@@ -178,6 +178,8 @@ pub struct LinuxDriveAndMediaStatus {
     pub density: Option<TapeDensity>,
     /// Status flags
     pub status: String,
+    /// Linux Driver Options
+    pub options: String,
     /// Tape Alert Flags
     #[serde(skip_serializing_if="Option::is_none")]
     pub alert_flags: Option<String>,

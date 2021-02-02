@@ -707,6 +707,7 @@ async fn status(param: Value) -> Result<(), Error> {
         .column(ColumnConfig::new("blocksize"))
         .column(ColumnConfig::new("density"))
         .column(ColumnConfig::new("status"))
+        .column(ColumnConfig::new("options"))
         .column(ColumnConfig::new("alert-flags"))
         .column(ColumnConfig::new("file-number"))
         .column(ColumnConfig::new("block-number"))

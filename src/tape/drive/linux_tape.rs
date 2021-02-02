@@ -282,6 +282,8 @@ impl LinuxTapeHandle {
 
         let drive_status = self.get_drive_status()?;
 
+        let options = read_tapedev_options(&self.file)?;
+
         let alert_flags = self.tape_alert_flags()
             .map(|flags| format!("{:?}", flags))
             .ok();
@@ -290,6 +292,7 @@ impl LinuxTapeHandle {
             blocksize: drive_status.blocksize,
             density: drive_status.density,
             status: format!("{:?}", drive_status.status),
+            options: format!("{:?}", options),
             alert_flags,
             file_number: drive_status.file_number,
             block_number: drive_status.block_number,
@@ -684,6 +687,33 @@ pub fn open_linux_tape_device(
 
     Ok(file)
 }
+
+/// Read Linux tape device options from /sys
+pub fn read_tapedev_options(file: &File) -> Result<SetDrvBufferOptions, Error> {
+
+    let stat = nix::sys::stat::fstat(file.as_raw_fd())?;
+
+    let devnum = stat.st_rdev;
+
+    let major = unsafe { libc::major(devnum) };
+    let minor = unsafe { libc::minor(devnum) };
+
+    let path = format!("/sys/dev/char/{}:{}/options", major, minor);
+
+    let options = proxmox::tools::fs::file_read_firstline(&path)?;
+
+    let options = options.trim();
+
+    let options = match options.strip_prefix("0x") {
+        Some(rest) => rest,
+        None => bail!("unable to parse '{}'", path),
+    };
+
+    let options = i32::from_str_radix(&options, 16)?;
+
+    Ok(SetDrvBufferOptions::from_bits_truncate(options))
+}
+
 
 /// like BlockedWriter, but writes EOF mark on finish
 pub struct TapeWriterHandle<'a> {
