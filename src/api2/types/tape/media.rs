@@ -138,6 +138,8 @@ pub struct MediaContentEntry {
     pub media_set_name: String,
     /// Media set uuid
     pub media_set_uuid: Uuid,
+    /// MediaSet Creation time stamp
+    pub media_set_ctime: i64,
     /// Media set seq_nr
     pub seq_nr: u64,
     /// Media Pool

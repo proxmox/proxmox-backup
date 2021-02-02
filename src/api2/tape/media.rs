@@ -315,6 +315,7 @@ pub fn list_content(
                 pool: set.pool.clone(),
                 media_set_name: media_set_name.clone(),
                 media_set_uuid: set.uuid.clone(),
+                media_set_ctime: set.ctime,
                 seq_nr: set.seq_nr,
                 snapshot: snapshot.to_owned(),
                 backup_time: backup_dir.backup_time(),
