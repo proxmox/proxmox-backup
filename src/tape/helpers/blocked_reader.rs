@@ -49,16 +49,21 @@ impl <R: Read> BlockedReader<R> {
         let (_size, found_end_marker) = Self::check_buffer(&buffer, 0)?;
 
         let mut incomplete = false;
+        let mut got_eod = false;
+
         if found_end_marker {
             incomplete = buffer.flags.contains(BlockHeaderFlags::INCOMPLETE);
+            Self::consume_eof_marker(&mut reader)?;
+            got_eod = true;
         }
+
         Ok(Some(Self {
             reader,
             buffer,
             found_end_marker,
             incomplete,
+            got_eod,
             seq_nr: 1,
-            got_eod: false,
             read_error: false,
             read_pos: 0,
         }))
@@ -101,6 +106,14 @@ impl <R: Read> BlockedReader<R> {
         tape_device_read_block(reader, data)
     }
 
+    fn consume_eof_marker(reader: &mut R) -> Result<(), std::io::Error> {
+        let mut tmp_buf = [0u8; 512]; // use a small buffer for testing EOF
+        if tape_device_read_block(reader, &mut tmp_buf)? {
+            proxmox::io_bail!("detected tape block after stream end marker");
+        }
+        Ok(())
+    }
+
     fn read_block(&mut self) -> Result<usize, std::io::Error> {
 
         if !Self::read_block_frame(&mut self.buffer, &mut self.reader)? {
@@ -118,12 +131,8 @@ impl <R: Read> BlockedReader<R> {
         if found_end_marker { // consume EOF mark
             self.found_end_marker = true;
             self.incomplete = self.buffer.flags.contains(BlockHeaderFlags::INCOMPLETE);
-            let mut tmp_buf = [0u8; 512]; // use a small buffer for testing EOF
-            if tape_device_read_block(&mut self.reader, &mut tmp_buf)? {
-                proxmox::io_bail!("detected tape block after stream end marker");
-            } else {
-                self.got_eod = true;
-            }
+            Self::consume_eof_marker(&mut self.reader)?;
+            self.got_eod = true;
         }
 
         self.read_pos = 0;
