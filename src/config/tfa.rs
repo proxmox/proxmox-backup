@@ -18,6 +18,7 @@ use webauthn_rs::Webauthn;
 use webauthn_rs::proto::Credential as WebauthnCredential;
 
 use proxmox::api::api;
+use proxmox::api::schema::{Updatable, Updater};
 use proxmox::sys::error::SysError;
 use proxmox::tools::fs::CreateOptions;
 use proxmox::tools::tfa::totp::Totp;
@@ -87,7 +88,7 @@ pub struct U2fConfig {
 }
 
 #[api]
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize, Updater)]
 #[serde(deny_unknown_fields)]
 /// Server side webauthn server configuration.
 pub struct WebauthnConfig {
@@ -112,53 +113,6 @@ impl WebauthnConfig {
     pub fn digest(&self) -> Result<[u8; 32], Error> {
         let digest_data = crate::tools::json::to_canonical_json(&serde_json::to_value(self)?)?;
         Ok(openssl::sha::sha256(&digest_data))
-    }
-}
-
-// TODO: api macro should be able to generate this struct & impl automatically:
-#[api]
-#[derive(Default, Deserialize, Serialize)]
-#[serde(deny_unknown_fields)]
-/// Server side webauthn server configuration.
-pub struct WebauthnConfigUpdater {
-    /// Relying party name. Any text identifier.
-    ///
-    /// Changing this *may* break existing credentials.
-    rp: Option<String>,
-
-    /// Site origin. Must be a `https://` URL (or `http://localhost`). Should contain the address
-    /// users type in their browsers to access the web interface.
-    ///
-    /// Changing this *may* break existing credentials.
-    origin: Option<String>,
-
-    /// Relying part ID. Must be the domain name without protocol, port or location.
-    ///
-    /// Changing this *will* break existing credentials.
-    id: Option<String>,
-}
-
-impl WebauthnConfigUpdater {
-    pub fn apply_to(self, target: &mut WebauthnConfig) {
-        if let Some(val) = self.rp {
-            target.rp = val;
-        }
-
-        if let Some(val) = self.origin {
-            target.origin = val;
-        }
-
-        if let Some(val) = self.id {
-            target.id = val;
-        }
-    }
-
-    pub fn build(self) -> Result<WebauthnConfig, Error> {
-        Ok(WebauthnConfig {
-            rp: self.rp.ok_or_else(|| format_err!("missing required field: `rp`"))?,
-            origin: self.origin.ok_or_else(|| format_err!("missing required field: `origin`"))?,
-            id: self.id.ok_or_else(|| format_err!("missing required field: `origin`"))?,
-        })
     }
 }
 
