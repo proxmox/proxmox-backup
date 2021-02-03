@@ -57,10 +57,6 @@ Ext.define('PBS.window.AddTotp', {
 	    secretEmpty: function(get) {
 		return get('secret').length === 0;
 	    },
-	    passwordConfirmText: (get) => {
-		let id = get('userid');
-		return Ext.String.format(gettext("Confirm password of '{0}'"), id);
-	    },
 	},
     },
 
@@ -257,9 +253,8 @@ Ext.define('PBS.window.AddTotp', {
 		    cbind: {
 			hidden: () => Proxmox.UserName === 'root@pam',
 			disabled: () => Proxmox.UserName === 'root@pam',
-		    },
-		    bind: {
-			emptyText: '{passwordConfirmText}',
+			emptyText: () =>
+			    Ext.String.format(gettext("Confirm your ({0}) password"), Proxmox.UserName),
 		    },
 		},
 	    ],

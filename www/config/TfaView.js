@@ -394,8 +394,8 @@ Ext.define('PBS.tfa.confirmRemove', {
 	    validateBlank: true,
 	    padding: '10 0 0 0',
 	    cbind: {
-		emptyText: get =>
-		    Ext.String.format(gettext("Confirm password of '{0}'"), get('userid')),
+		emptyText: () =>
+		    Ext.String.format(gettext("Confirm your ({0}) password"), Proxmox.UserName),
 	    },
 	},
     ],

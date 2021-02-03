@@ -24,12 +24,6 @@ Ext.define('PBS.window.AddWebauthn', {
 	    valid: false,
 	    userid: null,
 	},
-	formulas: {
-	    passwordConfirmText: (get) => {
-		let id = get('userid');
-		return Ext.String.format(gettext("Confirm password of '{0}'"), id);
-	    },
-	},
     },
 
     controller: {
@@ -188,9 +182,8 @@ Ext.define('PBS.window.AddWebauthn', {
 		    cbind: {
 			hidden: () => Proxmox.UserName === 'root@pam',
 			disabled: () => Proxmox.UserName === 'root@pam',
-		    },
-		    bind: {
-			emptyText: '{passwordConfirmText}',
+			emptyText: () =>
+			    Ext.String.format(gettext("Confirm your ({0}) password"), Proxmox.UserName),
 		    },
 		},
 	    ],
