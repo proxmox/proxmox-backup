@@ -10,6 +10,10 @@ use proxmox::tools::{
 };
 
 use crate::{
+    api2::types::{
+        MediaLocation,
+        MediaStatus,
+    },
     tape::{
         Inventory,
         file_formats::{
@@ -27,6 +31,37 @@ fn create_testdir(name: &str) -> Result<PathBuf, Error> {
     let _ = std::fs::create_dir_all(&testdir);
 
     Ok(testdir)
+}
+
+#[test]
+fn test_media_state_db() -> Result<(), Error> {
+
+    let testdir = create_testdir("test_media_state_db")?;
+
+    let mut inventory = Inventory::load(&testdir)?;
+
+    let uuid1: Uuid = inventory.generate_free_tape("tape1", 0);
+
+    assert_eq!(inventory.status_and_location(&uuid1), (MediaStatus::Unknown, MediaLocation::Offline));
+
+    inventory.set_media_status_full(&uuid1)?;
+
+    assert_eq!(inventory.status_and_location(&uuid1), (MediaStatus::Full, MediaLocation::Offline));
+
+    inventory.set_media_location_vault(&uuid1, "Office2")?;
+    assert_eq!(inventory.status_and_location(&uuid1),
+               (MediaStatus::Full, MediaLocation::Vault(String::from("Office2"))));
+
+    inventory.set_media_location_offline(&uuid1)?;
+    assert_eq!(inventory.status_and_location(&uuid1), (MediaStatus::Full, MediaLocation::Offline));
+
+    inventory.set_media_status_damaged(&uuid1)?;
+    assert_eq!(inventory.status_and_location(&uuid1), (MediaStatus::Damaged, MediaLocation::Offline));
+
+    inventory.clear_media_status(&uuid1)?;
+    assert_eq!(inventory.status_and_location(&uuid1), (MediaStatus::Unknown, MediaLocation::Offline));
+
+    Ok(())
 }
 
 #[test]
