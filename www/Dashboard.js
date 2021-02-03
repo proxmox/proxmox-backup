@@ -159,7 +159,7 @@ Ext.define('PBS.Dashboard', {
 		    type = 'sync';
 		}
 
-		if (type.startsWith('verify')) {
+		if (type.startsWith('verif')) {
 		    type = 'verify';
 		}
 
