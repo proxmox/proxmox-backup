@@ -307,6 +307,10 @@ This means that a remote user can never get hold on such a physical object. So,
 even if that user would know your password they cannot successfully
 authenticate as you, as your second factor is missing.
 
+.. image:: images/screenshots/pbs-gui-tfa-login.png
+  :align: right
+  :alt: Add a new user
+
 Available Second Factors
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -336,6 +340,11 @@ Setup
 .. _user_tfa_setup_totp:
 TOTP
 ^^^^
+
+.. image:: images/screenshots/pbs-gui-tfa-add-totp.png
+  :align: right
+  :alt: Add a new user
+
 There is not server setup required, simply install a TOTP app on your
 smartphone (for example, `FreeOTP <https://freeotp.github.io/>`_) and use the
 Proxmox Backup Server web-interface to add a TOTP factor.
@@ -358,6 +367,10 @@ configuration in the *Access Control* panel.
 .. _user_tfa_setup_recovery_keys:
 Recovery Keys
 ^^^^^^^^^^^^^
+
+.. image:: images/screenshots/pbs-gui-tfa-add-recovery-keys.png
+  :align: right
+  :alt: Add a new user
 
 Recovery key codes do not need any preparation, you can simply create a set of
 recovery keys in the *Access Control* panel.
