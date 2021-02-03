@@ -74,7 +74,7 @@ rst_epilog = epilog_file.read()
 
 # General information about the project.
 project = 'Proxmox Backup'
-copyright = '2019-2020, Proxmox Server Solutions GmbH'
+copyright = '2019-2021, Proxmox Server Solutions GmbH'
 author = 'Proxmox Support Team'
 
 # The version info for the project you're documenting, acts as replacement for

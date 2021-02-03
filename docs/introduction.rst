@@ -161,7 +161,7 @@ of the issue and will send a notification once it has been solved.
 License
 -------
 
-Copyright (C) 2019-2020 Proxmox Server Solutions GmbH
+Copyright (C) 2019-2021 Proxmox Server Solutions GmbH
 
 This software is written by Proxmox Server Solutions GmbH <support@proxmox.com>
 
