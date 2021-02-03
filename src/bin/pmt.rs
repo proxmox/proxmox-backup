@@ -48,6 +48,7 @@ pub const DRIVE_OPTION_SCHEMA: Schema = StringSchema::new(
 
 pub const DRIVE_OPTION_LIST_SCHEMA: Schema =
     ArraySchema::new("Drive Option List.", &DRIVE_OPTION_SCHEMA)
+    .min_length(1)
     .schema();
 
 use proxmox_backup::{
@@ -702,25 +703,38 @@ fn status(param: Value) -> Result<(), Error> {
                 schema: DRIVE_OPTION_LIST_SCHEMA,
                 optional: true,
             },
+            defaults: {
+                description: "Set default options (buffer-writes async-writes read-ahead can-bsr).",
+                type: bool,
+                optional: true,
+            },
         },
     },
 )]
 /// Set device driver options (root only)
-///
-/// If no options specified, we reset to default options
-/// (buffer-writes async-writes read-ahead can-bsr)
-fn st_options(options: Option<Vec<String>>, param: Value) -> Result<(), Error> {
+fn st_options(
+    options: Option<Vec<String>>,
+    defaults: Option<bool>,
+    param: Value) -> Result<(), Error> {
 
     let handle = get_tape_handle(&param)?;
 
-    let options = options.unwrap_or_else(|| {
-        let mut list = Vec::new();
-        list.push(String::from("buffer-writes"));
-        list.push(String::from("async-writes"));
-        list.push(String::from("read-ahead"));
-        list.push(String::from("can-bsr"));
-        list
-    });
+    let options = match defaults {
+        Some(true) => {
+            if options.is_some() {
+                bail!("option --defaults conflicts with specified options");
+            }
+            let mut list = Vec::new();
+            list.push(String::from("buffer-writes"));
+            list.push(String::from("async-writes"));
+            list.push(String::from("read-ahead"));
+            list.push(String::from("can-bsr"));
+            list
+        }
+        Some(false) | None => {
+            options.unwrap_or_else(|| Vec::new())
+        }
+    };
 
     let value = parse_drive_options(options)?;
 
@@ -904,6 +918,7 @@ fn main() -> Result<(), Error> {
         CliCommand::new(method)
             .completion_cb("drive", complete_drive_name)
             .completion_cb("device", complete_drive_path)
+            .completion_cb("options", complete_option_name)
     };
 
     let cmd_def = CliCommandMap::new()
@@ -938,4 +953,12 @@ fn main() -> Result<(), Error> {
     run_cli_command(cmd_def, rpcenv, None);
 
     Ok(())
+}
+
+// Completion  helpers
+pub fn complete_option_name(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
+    DRIVE_OPTIONS
+        .keys()
+        .map(String::from)
+        .collect()
 }
