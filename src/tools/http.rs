@@ -124,6 +124,11 @@ impl hyper::service::Service<Uri> for HttpsConnector {
                 .ok_or_else(|| format_err!("missing URL scheme"))?
                 == "https";
 
+            let host = dst
+                .host()
+                .ok_or_else(|| format_err!("missing hostname in destination url?"))?
+                .to_string();
+
             let config = this.ssl_connector.configure();
             let dst_str = dst.to_string(); // for error messages
             let conn = this
@@ -135,7 +140,7 @@ impl hyper::service::Service<Uri> for HttpsConnector {
             let _ = set_tcp_keepalive(conn.as_raw_fd(), PROXMOX_BACKUP_TCP_KEEPALIVE_TIME);
 
             if is_https {
-                let conn: tokio_openssl::SslStream<tokio::net::TcpStream> = tokio_openssl::SslStream::new(config?.into_ssl(&dst_str)?, conn)?;
+                let conn: tokio_openssl::SslStream<tokio::net::TcpStream> = tokio_openssl::SslStream::new(config?.into_ssl(&host)?, conn)?;
                 let mut conn = Box::pin(conn);
                 conn.as_mut().connect().await?;
                 Ok(MaybeTlsStream::Right(conn))
