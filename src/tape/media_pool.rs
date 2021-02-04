@@ -467,16 +467,11 @@ impl MediaPool {
             match media.status() {
                 MediaStatus::Full => { /* OK */ },
                 MediaStatus::Writable if (seq + 1) == media_count =>  {
-                    match media.location() {
-                        MediaLocation::Online(_) => {
-                            last_is_writable = true;
-                        },
-                        MediaLocation::Offline => {
-                            if self.use_offline_media {
-                                last_is_writable = true;
-                            }
-                        }
-                        MediaLocation::Vault(vault) => {
+                    let media_location = media.location();
+                    if self.location_is_available(media_location) {
+                        last_is_writable = true;
+                    } else {
+                        if let MediaLocation::Vault(vault) = media_location {
                             bail!("writable media offsite in vault '{}'", vault);
                         }
                     }
