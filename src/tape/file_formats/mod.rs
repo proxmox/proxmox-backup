@@ -13,6 +13,12 @@ pub use chunk_archive::*;
 mod snapshot_archive;
 pub use snapshot_archive::*;
 
+mod multi_volume_writer;
+pub use multi_volume_writer::*;
+
+mod multi_volume_reader;
+pub use multi_volume_reader::*;
+
 use std::collections::HashMap;
 
 use anyhow::{bail, Error};
