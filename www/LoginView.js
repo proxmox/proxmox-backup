@@ -524,7 +524,7 @@ Ext.define('PBS.login.TfaWindow', {
 			reference: 'totp',
 			allowBlank: false,
 			regex: /^[0-9]{6}$/,
-			regexText: 'TOTP codes consist of six decimal digits',
+			regexText: gettext('TOTP codes consist of six decimal digits'),
 		    },
 		],
 	    },
@@ -551,7 +551,7 @@ Ext.define('PBS.login.TfaWindow', {
 			reference: 'recoveryKey',
 			allowBlank: false,
 			regex: /^[0-9a-f]{4}(-[0-9a-f]{4}){3}$/,
-			regexText: 'Does not looks like a valid recovery key',
+			regexText: gettext('Does not look like a valid recovery key'),
 		    },
 		    {
 			xtype: 'box',
