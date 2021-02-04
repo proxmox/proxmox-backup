@@ -338,6 +338,7 @@ Ext.define('PBS.login.TfaWindow', {
 		    // non-visible tab, so we can just directly use the valid param
 		    this.getViewModel().set('canConfirm', valid);
 		},
+		afterrender: field => field.focus(), // ensure focus after initial render
 	    },
 	},
 
