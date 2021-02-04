@@ -52,6 +52,17 @@ Ext.define('PBS.TapeManagement.PoolEditWindow', {
 		deleteEmpty: '{!isCreate}',
 	    },
 	},
+	{
+	    fieldLabel: gettext('Encryption Key'),
+	    xtype: 'pbsTapeKeySelector',
+	    name: 'encrypt',
+	    allowBlank: true,
+	    skipEmptyText: true,
+	    autoSelect: false,
+	    cbind: {
+		deleteEmpty: '{!isCreate}',
+	    },
+	},
     ],
 });
 

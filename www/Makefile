@@ -15,6 +15,7 @@ TAPE_UI_FILES=						\
 	tape/form/PoolSelector.js			\
 	tape/form/RetentionSelector.js			\
 	tape/form/TapeDevicePathSelector.js		\
+	tape/form/KeySelector.js			\
 	tape/window/ChangerEdit.js			\
 	tape/window/DriveEdit.js			\
 	tape/window/EncryptionEdit.js			\
