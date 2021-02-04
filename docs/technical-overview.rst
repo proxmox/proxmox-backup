@@ -59,11 +59,11 @@ blocks, and changing existing files changes only their own blocks.
 
 As an optimization, VMs in `Proxmox VE`_ can make use of 'dirty bitmaps', which
 can track the changed blocks of an image. Since these bitmap are also a
-representation of the image split into chunks, we have a direct relation
-between dirty blocks of the image and chunks we have to upload, so only
-modified chunks of the disk have to be uploaded for a backup.
+representation of the image split into chunks, there is a direct relation
+between dirty blocks of the image and chunks which need to get uploaded, so
+only modified chunks of the disk have to be uploaded for a backup.
 
-Since we always split the image into chunks of the same size, unchanged blocks
+Since the image is always split into chunks of the same size, unchanged blocks
 will result in identical checksums for those chunks, so such chunks do not need
 to be backed up again. This way storage snapshots are not needed to find the
 changed blocks.
@@ -126,21 +126,22 @@ approximation:
 
  p(n, d) = 1 - e^{-n^2/(2d)}
 
-Where `n` is the number of tries, and `d` is the number of possibilities. So
-for example, if we assume a large datastore of 1 PiB, and an average chunk size
-of 4 MiB, we have :math:`n = 268435456` tries, and :math:`d = 2^{256}`
-possibilities.  Using the above formula we get that the probability of a
-collision in that scenario is:
+Where `n` is the number of tries, and `d` is the number of possibilities.
+For a concrete example lets assume a large datastore of 1 PiB, and an average
+chunk size of 4 MiB. That means :math:`n = 268435456` tries, and :math:`d =
+2^{256}` possibilities. Inserting those values in the formula from earlier you
+will see that the probability of a collision in that scenario is:
 
 .. math::
 
  3.1115 * 10^{-61}
 
-For context, in a lottery game of 6 of 45, the chance to correctly guess all 6
-numbers is only :math:`1.2277 * 10^{-7}`.
+For context, in a lottery game of guessing 6 out of 45, the chance to correctly
+guess all 6 numbers is only :math:`1.2277 * 10^{-7}`, that means the chance of
+collission is about the same as winning 13 such lotto games *in a row*.
 
-So it is extremely unlikely that such a collision would occur by accident in a
-normal datastore.
+In conclusion, it is extremely unlikely that such a collision would occur by
+accident in a normal datastore.
 
 Additionally, SHA-256 is prone to length extension attacks, but since there is
 an upper limit for how big the chunk are, this is not a problem, since a
@@ -152,9 +153,10 @@ File-based Backup
 
 Since dynamically sized chunks (for file-based backups) are created on a custom
 archive format (pxar) and not over the files directly, there is no relation
-between files and the chunks. This means we have to read all files again for
-every backup, otherwise it would not be possible to generate a consistent pxar
-archive where the original chunks can be reused.
+between files and the chunks. This means  that the Proxmox Backup client has to
+read all files again for every backup, otherwise it would not be possible to
+generate a consistent independent pxar archive where the original chunks can be
+reused. Note that there will be still only new or change chunks be uploaded.
 
 Verification of encrypted chunks
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
