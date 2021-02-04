@@ -256,7 +256,7 @@ Ext.define('PBS.login.TfaWindow', {
 	data: {
 	    confirmText: gettext('Confirm Second Factor'),
 	    canConfirm: false,
-	    availabelChallenge: {},
+	    availableChallenge: {},
 	},
     },
 
@@ -284,7 +284,7 @@ Ext.define('PBS.login.TfaWindow', {
 	    let initialTab = -1, i = 0;
 	    for (const k of ['webauthn', 'totp', 'recovery']) {
 		const available = !!challenge[k];
-		vm.set(`availabelChallenge.${k}`, available);
+		vm.set(`availableChallenge.${k}`, available);
 
 		if (available) {
 		    if (i === lastTabId) {
@@ -492,7 +492,7 @@ Ext.define('PBS.login.TfaWindow', {
 		confirmText: gettext('Start WebAuthn challenge'),
 		handler: 'loginWebauthn',
 		bind: {
-		    disabled: '{!availabelChallenge.webauthn}',
+		    disabled: '{!availableChallenge.webauthn}',
 		},
 		items: [
 		    {
@@ -513,7 +513,7 @@ Ext.define('PBS.login.TfaWindow', {
 		iconCls: 'fa fa-fw fa-clock-o',
 		handler: 'loginTotp',
 		bind: {
-		    disabled: '{!availabelChallenge.totp}',
+		    disabled: '{!availableChallenge.totp}',
 		},
 		items: [
 		    {
@@ -535,7 +535,7 @@ Ext.define('PBS.login.TfaWindow', {
 		iconCls: 'fa fa-fw fa-file-text-o',
 		handler: 'loginRecovery',
 		bind: {
-		    disabled: '{!availabelChallenge.recovery}',
+		    disabled: '{!availableChallenge.recovery}',
 		},
 		items: [
 		    {
