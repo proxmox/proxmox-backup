@@ -57,7 +57,6 @@ use crate::{
         TapeRead,
         MediaId,
         MediaCatalog,
-        ChunkArchiveDecoder,
         MediaPool,
         Inventory,
         file_formats::{
@@ -67,6 +66,7 @@ use crate::{
             PROXMOX_BACKUP_CONTENT_HEADER_MAGIC_1_0,
             PROXMOX_BACKUP_CHUNK_ARCHIVE_MAGIC_1_0,
             MediaContentHeader,
+            ChunkArchiveDecoder,
         },
         drive::{
             TapeDriver,

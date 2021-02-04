@@ -1,4 +1,17 @@
-//! File format definitions for data written to tapes
+//! File format definitions and implementations for data written to
+//! tapes
+
+mod blocked_reader;
+pub use blocked_reader::*;
+
+mod blocked_writer;
+pub use blocked_writer::*;
+
+mod chunk_archive;
+pub use chunk_archive::*;
+
+mod snapshot_archive;
+pub use snapshot_archive::*;
 
 use std::collections::HashMap;
 
@@ -33,8 +46,8 @@ pub const PROXMOX_BACKUP_CHUNK_ARCHIVE_ENTRY_MAGIC_1_0: [u8; 8] = [72, 87, 109, 
 pub const PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_0: [u8; 8] = [9, 182, 2, 31, 125, 232, 114, 133];
 
 lazy_static::lazy_static!{
-    /// Map content Uuid to human readable names.
-    pub static ref PROXMOX_BACKUP_CONTENT_NAME: HashMap<&'static [u8;8], &'static str> = {
+    // Map content magic numbers to human readable names.
+    static ref PROXMOX_TAPE_CONTENT_NAME: HashMap<&'static [u8;8], &'static str> = {
         let mut map = HashMap::new();
         map.insert(&PROXMOX_BACKUP_MEDIA_LABEL_MAGIC_1_0, "Proxmox Backup Tape Label v1.0");
         map.insert(&PROXMOX_BACKUP_MEDIA_SET_LABEL_MAGIC_1_0, "Proxmox Backup MediaSet Label v1.0");
@@ -42,6 +55,11 @@ lazy_static::lazy_static!{
         map.insert(&PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_0, "Proxmox Backup Snapshot Archive v1.0");
         map
     };
+}
+
+/// Map content magic numbers to human readable names.
+pub fn proxmox_tape_magic_to_text(magic: &[u8; 8]) -> Option<String> {
+    PROXMOX_TAPE_CONTENT_NAME.get(magic).map(|s| String::from(*s))
 }
 
 /// Tape Block Header with data payload

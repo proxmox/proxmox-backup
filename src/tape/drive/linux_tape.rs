@@ -40,15 +40,13 @@ use crate::{
         },
         file_formats::{
             PROXMOX_TAPE_BLOCK_SIZE,
+            PROXMOX_BACKUP_MEDIA_SET_LABEL_MAGIC_1_0,
             MediaSetLabel,
             MediaContentHeader,
-            PROXMOX_BACKUP_MEDIA_SET_LABEL_MAGIC_1_0,
-        },
-        helpers::{
             BlockedReader,
             BlockedWriter,
         },
-    }
+    },
 };
 
 fn run_sg_tape_cmd(subcmd: &str, args: &[&str], fd: RawFd) -> Result<String, Error> {

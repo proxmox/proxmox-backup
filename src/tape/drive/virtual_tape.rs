@@ -30,12 +30,12 @@ use crate::{
             MediaSetLabel,
             MediaContentHeader,
             PROXMOX_BACKUP_MEDIA_SET_LABEL_MAGIC_1_0,
+            BlockedReader,
+            BlockedWriter,
         },
         helpers::{
             EmulateTapeReader,
             EmulateTapeWriter,
-            BlockedReader,
-            BlockedWriter,
         },
     },
 };

@@ -45,8 +45,8 @@ use proxmox_backup::{
         complete_media_set_uuid,
         file_formats::{
             PROXMOX_BACKUP_CONTENT_HEADER_MAGIC_1_0,
-            PROXMOX_BACKUP_CONTENT_NAME,
             MediaContentHeader,
+            proxmox_tape_magic_to_text,
         },
     },
 };
@@ -565,7 +565,7 @@ fn debug_scan(param: Value) -> Result<(), Error> {
                     Ok(header) => {
                         if header.magic != PROXMOX_BACKUP_CONTENT_HEADER_MAGIC_1_0 {
                             println!("got MediaContentHeader with wrong magic: {:?}", header.magic);
-                        } else if let Some(name) = PROXMOX_BACKUP_CONTENT_NAME.get(&header.content_magic) {
+                        } else if let Some(name) = proxmox_tape_magic_to_text(&header.content_magic) {
                             println!("got content header: {}", name);
                             println!("  uuid:  {}", header.content_uuid());
                             println!("  ctime: {}", strftime_local("%c", header.ctime)?);
