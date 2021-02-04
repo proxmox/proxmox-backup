@@ -24,6 +24,7 @@ use proxmox::{
 };
 
 use crate::{
+    task_log,
     tools::compute_file_csum,
     api2::types::{
         DATASTORE_SCHEMA,
@@ -159,20 +160,21 @@ pub fn restore(
                 }
             }
 
-            worker.log(format!("Restore mediaset '{}'", media_set));
+            task_log!(worker, "Restore mediaset '{}'", media_set);
             if let Some(fingerprint) = encryption_key_fingerprint {
-                worker.log(format!("Encryption key fingerprint: {}", fingerprint));
+                task_log!(worker, "Encryption key fingerprint: {}", fingerprint);
             }
-            worker.log(format!("Pool: {}", pool));
-            worker.log(format!("Datastore: {}", store));
-            worker.log(format!("Drive: {}", drive));
-            worker.log(format!(
+            task_log!(worker, "Pool: {}", pool);
+            task_log!(worker, "Datastore: {}", store);
+            task_log!(worker, "Drive: {}", drive);
+            task_log!(
+                worker,
                 "Required media list: {}",
                 media_id_list.iter()
                     .map(|media_id| media_id.label.label_text.as_str())
                     .collect::<Vec<&str>>()
                     .join(";")
-            ));
+            );
 
             for media_id in media_id_list.iter() {
                 request_and_restore_media(
@@ -185,7 +187,7 @@ pub fn restore(
                 )?;
             }
 
-            worker.log(format!("Restore mediaset '{}' done", media_set));
+            task_log!(worker, "Restore mediaset '{}' done", media_set);
             Ok(())
         }
     )?;
@@ -249,7 +251,7 @@ pub fn restore_media(
         let current_file_number = drive.current_file_number()?;
         let reader = match drive.read_next_file()? {
             None => {
-                worker.log(format!("detected EOT after {} files", current_file_number));
+                task_log!(worker, "detected EOT after {} files", current_file_number);
                 break;
             }
             Some(reader) => reader,
@@ -287,7 +289,7 @@ fn restore_archive<'a>(
             let snapshot = reader.read_exact_allocated(header.size as usize)?;
             let snapshot = std::str::from_utf8(&snapshot)
                 .map_err(|_| format_err!("found snapshot archive with non-utf8 characters in name"))?;
-            worker.log(format!("Found snapshot archive: {} {}", current_file_number, snapshot));
+            task_log!(worker, "Found snapshot archive: {} {}", current_file_number, snapshot);
 
             let backup_dir: BackupDir = snapshot.parse()?;
 
@@ -303,7 +305,7 @@ fn restore_archive<'a>(
                 path.push(rel_path);
 
                 if is_new {
-                    worker.log(format!("restore snapshot {}", backup_dir));
+                    task_log!(worker, "restore snapshot {}", backup_dir);
 
                     match restore_snapshot_archive(reader, &path) {
                         Err(err) => {
@@ -312,7 +314,7 @@ fn restore_archive<'a>(
                         }
                         Ok(false) => {
                             std::fs::remove_dir_all(&path)?;
-                            worker.log(format!("skip incomplete snapshot {}", backup_dir));
+                            task_log!(worker, "skip incomplete snapshot {}", backup_dir);
                         }
                         Ok(true) => {
                             catalog.register_snapshot(Uuid::from(header.uuid), current_file_number, snapshot)?;
@@ -331,7 +333,7 @@ fn restore_archive<'a>(
         }
         PROXMOX_BACKUP_CHUNK_ARCHIVE_MAGIC_1_0 => {
 
-            worker.log(format!("Found chunk archive: {}", current_file_number));
+            task_log!(worker, "Found chunk archive: {}", current_file_number);
             let datastore = target.as_ref().map(|t| t.0);
 
             if let Some(chunks) = restore_chunk_archive(worker, reader, datastore, verbose)? {
@@ -339,7 +341,7 @@ fn restore_archive<'a>(
                 for digest in chunks.iter() {
                     catalog.register_chunk(&digest)?;
                 }
-                worker.log(format!("register {} chunks", chunks.len()));
+                task_log!(worker, "register {} chunks", chunks.len());
                 catalog.end_chunk_archive()?;
                 catalog.commit_if_large()?;
             }
@@ -374,14 +376,14 @@ fn restore_chunk_archive<'a>(
                         blob.decode(None, Some(&digest))?; // verify digest
                     }
                     if verbose {
-                        worker.log(format!("Insert chunk: {}", proxmox::tools::digest_to_hex(&digest)));
+                        task_log!(worker, "Insert chunk: {}", proxmox::tools::digest_to_hex(&digest));
                     }
                     datastore.insert_chunk(&blob, &digest)?;
                 } else if verbose {
-                    worker.log(format!("Found existing chunk: {}", proxmox::tools::digest_to_hex(&digest)));
+                    task_log!(worker, "Found existing chunk: {}", proxmox::tools::digest_to_hex(&digest));
                 }
             } else if verbose {
-                worker.log(format!("Found chunk: {}", proxmox::tools::digest_to_hex(&digest)));
+                task_log!(worker, "Found chunk: {}", proxmox::tools::digest_to_hex(&digest));
             }
             chunks.push(digest);
         }
