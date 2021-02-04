@@ -1,3 +1,14 @@
+rust-proxmox-backup (1.0.8-1) unstable; urgency=medium
+
+  * Https Connector: use hostname instead of URL again to avoid certificate
+    verification issues.
+
+  * ui: task summary: add verification jobs to count
+
+  * docs: explain some technical details about datastores/chunks
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 04 Feb 2021 12:39:49 +0100
+
 rust-proxmox-backup (1.0.7-1) unstable; urgency=medium
 
   * fix #3197: skip fingerprint check when restoring key
