@@ -41,5 +41,10 @@ Ext.define('PBS.TapeManagement', {
 	    itemId: 'pools',
 	    xtype: 'pbsMediaPoolPanel',
 	},
+	{
+	    title: gettext('Encryption Keys'),
+	    itemId: 'encryption-keys',
+	    xtype: 'pbsEncryptionKeys',
+	},
     ],
 });

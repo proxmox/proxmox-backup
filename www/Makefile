@@ -17,6 +17,7 @@ TAPE_UI_FILES=						\
 	tape/form/TapeDevicePathSelector.js		\
 	tape/window/ChangerEdit.js			\
 	tape/window/DriveEdit.js			\
+	tape/window/EncryptionEdit.js			\
 	tape/window/LabelMedia.js			\
 	tape/window/PoolEdit.js				\
 	tape/window/TapeBackup.js			\
@@ -25,6 +26,7 @@ TAPE_UI_FILES=						\
 	tape/ChangerConfig.js				\
 	tape/ChangerStatus.js				\
 	tape/DriveConfig.js				\
+	tape/EncryptionKeys.js				\
 	tape/PoolConfig.js				\
 	tape/TapeInventory.js				\
 	tape/TapeManagement.js				\
