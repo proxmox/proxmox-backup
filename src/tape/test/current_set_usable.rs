@@ -49,7 +49,7 @@ fn test_current_set_usable_1() -> Result<(), Error> {
         &testdir,
         MediaSetPolicy::AlwaysCreate,
         RetentionPolicy::KeepForever,
-        true,
+        None,
         None,
     )?;
 
@@ -75,7 +75,7 @@ fn test_current_set_usable_2() -> Result<(), Error> {
         &testdir,
         MediaSetPolicy::AlwaysCreate,
         RetentionPolicy::KeepForever,
-        true,
+        None,
         None,
     )?;
 
@@ -103,7 +103,7 @@ fn test_current_set_usable_3() -> Result<(), Error> {
         &testdir,
         MediaSetPolicy::AlwaysCreate,
         RetentionPolicy::KeepForever,
-        false,
+        Some(String::from("changer1")),
         None,
     )?;
 
@@ -131,7 +131,7 @@ fn test_current_set_usable_4() -> Result<(), Error> {
         &testdir,
         MediaSetPolicy::AlwaysCreate,
         RetentionPolicy::KeepForever,
-        true,
+        None,
         None,
     )?;
 
@@ -161,7 +161,7 @@ fn test_current_set_usable_5() -> Result<(), Error> {
         &testdir,
         MediaSetPolicy::AlwaysCreate,
         RetentionPolicy::KeepForever,
-        true,
+        None,
         None,
     )?;
 
@@ -189,7 +189,7 @@ fn test_current_set_usable_6() -> Result<(), Error> {
         &testdir,
         MediaSetPolicy::AlwaysCreate,
         RetentionPolicy::KeepForever,
-        true,
+        None,
         None,
     )?;
 
@@ -223,7 +223,7 @@ fn test_current_set_usable_7() -> Result<(), Error> {
         &testdir,
         MediaSetPolicy::AlwaysCreate,
         RetentionPolicy::KeepForever,
-        true,
+        None,
         None,
     )?;
 

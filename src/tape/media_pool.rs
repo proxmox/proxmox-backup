@@ -44,7 +44,9 @@ pub struct MediaPool {
 
     media_set_policy: MediaSetPolicy,
     retention: RetentionPolicy,
-    use_offline_media: bool,
+
+    changer_name: Option<String>,
+
     encrypt_fingerprint: Option<Fingerprint>,
 
     inventory: Inventory,
@@ -55,12 +57,18 @@ pub struct MediaPool {
 impl MediaPool {
 
     /// Creates a new instance
+    ///
+    /// If you specify a `changer_name`, only media accessible via
+    /// that changer is considered available.  If you pass `None` for
+    /// `changer`, all offline media is considered available (backups
+    /// to standalone drives may not use media from inside a tape
+    /// library).
     pub fn new(
         name: &str,
         state_path: &Path,
         media_set_policy: MediaSetPolicy,
         retention: RetentionPolicy,
-        use_offline_media: bool,
+        changer_name: Option<String>,
         encrypt_fingerprint: Option<Fingerprint>,
      ) -> Result<Self, Error> {
 
@@ -75,7 +83,7 @@ impl MediaPool {
             name: String::from(name),
             media_set_policy,
             retention,
-            use_offline_media,
+            changer_name,
             inventory,
             current_media_set,
             encrypt_fingerprint,
@@ -86,7 +94,7 @@ impl MediaPool {
     pub fn with_config(
         state_path: &Path,
         config: &MediaPoolConfig,
-        use_offline_media: bool,
+        changer_name: Option<String>,
     ) -> Result<Self, Error> {
 
         let allocation = config.allocation.clone().unwrap_or_else(|| String::from("continue")).parse()?;
@@ -103,7 +111,7 @@ impl MediaPool {
             state_path,
             allocation,
             retention,
-            use_offline_media,
+            changer_name,
             encrypt_fingerprint,
         )
     }
@@ -272,8 +280,18 @@ impl MediaPool {
     // check if a location is considered on site
     pub fn location_is_available(&self, location: &MediaLocation) -> bool {
         match location {
-            MediaLocation::Online(_) => true,
-            MediaLocation::Offline => self.use_offline_media,
+            MediaLocation::Online(name) => {
+                if let Some(ref changer_name) = self.changer_name {
+                    name == changer_name
+                } else {
+                    // a standalone drive cannot use media currently inside a library
+                    false
+                }
+            }
+            MediaLocation::Offline => {
+                // consider available for standalone drives
+                self.changer_name.is_none()
+            }
             MediaLocation::Vault(_) => false,
         }
     }
