@@ -25,6 +25,7 @@ use proxmox::{
 
 use crate::{
     task_log,
+    task::TaskState,
     tools::compute_file_csum,
     api2::types::{
         DATASTORE_SCHEMA,
@@ -307,7 +308,7 @@ fn restore_archive<'a>(
                 if is_new {
                     task_log!(worker, "restore snapshot {}", backup_dir);
 
-                    match restore_snapshot_archive(reader, &path) {
+                    match restore_snapshot_archive(worker, reader, &path) {
                         Err(err) => {
                             std::fs::remove_dir_all(&path)?;
                             bail!("restore snapshot {} failed - {}", backup_dir, err);
@@ -367,6 +368,9 @@ fn restore_chunk_archive<'a>(
 
     let result: Result<_, Error> = proxmox::try_block!({
         while let Some((digest, blob)) = decoder.next_chunk()? {
+
+            worker.check_abort()?;
+
             if let Some(datastore) = datastore {
                 let chunk_exists = datastore.cond_touch_chunk(&digest, false)?;
                 if !chunk_exists {
@@ -413,12 +417,13 @@ fn restore_chunk_archive<'a>(
 }
 
 fn restore_snapshot_archive<'a>(
+    worker: &WorkerTask,
     reader: Box<dyn 'a + TapeRead>,
     snapshot_path: &Path,
 ) -> Result<bool, Error> {
 
     let mut decoder = pxar::decoder::sync::Decoder::from_std(reader)?;
-    match try_restore_snapshot_archive(&mut decoder, snapshot_path) {
+    match try_restore_snapshot_archive(worker, &mut decoder, snapshot_path) {
         Ok(()) => Ok(true),
         Err(err) => {
             let reader = decoder.input();
@@ -440,6 +445,7 @@ fn restore_snapshot_archive<'a>(
 }
 
 fn try_restore_snapshot_archive<R: pxar::decoder::SeqRead>(
+    worker: &WorkerTask,
     decoder: &mut pxar::decoder::sync::Decoder<R>,
     snapshot_path: &Path,
 ) -> Result<(), Error> {
@@ -462,6 +468,8 @@ fn try_restore_snapshot_archive<R: pxar::decoder::SeqRead>(
     let mut manifest = None;
 
     loop {
+        worker.check_abort()?;
+
         let entry = match decoder.next() {
             None => break,
             Some(entry) => entry?,
