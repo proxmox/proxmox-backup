@@ -377,18 +377,30 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	    try {
 		Proxmox.Utils.setErrorMask(view, true);
 		Proxmox.Utils.setErrorMask(me.lookup('content'));
-		let status = await PBS.Async.api2({
+		let status_fut = PBS.Async.api2({
 		    url: `/api2/extjs/tape/changer/${encodeURIComponent(changer)}/status`,
 		});
-		let drives = await PBS.Async.api2({
+		let drives_fut = PBS.Async.api2({
 		    url: `/api2/extjs/tape/drive?changer=${encodeURIComponent(changer)}`,
 		});
+
+		let tapes_fut = PBS.Async.api2({
+		    url: '/api2/extjs/tape/media/list',
+		});
+
+		let [status, drives, tapes_list] = await Promise.all([status_fut, drives_fut, tapes_fut]);
 
 		let data = {
 		    slot: [],
 		    'import-export': [],
 		    drive: [],
 		};
+
+		let tapes = {};
+
+		for (const tape of tapes_list.result.data) {
+		    tapes[tape['label-text']] = true;
+		}
 
 		let drive_entries = {};
 
@@ -402,6 +414,8 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 		    if (type === 'drive' && drive_entries[entry['entry-id']] !== undefined) {
 			entry = Ext.applyIf(entry, drive_entries[entry['entry-id']]);
 		    }
+
+		    entry['is-labeled'] = !!tapes[entry['label-text']];
 
 		    data[type].push(entry);
 		}
@@ -519,6 +533,22 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 			    dataIndex: 'label-text',
 			    flex: 1,
 			    renderer: (value) => value || '',
+			},
+			{
+			    text: gettext('Labeled'),
+			    dataIndex: 'is-labeled',
+			    width: 80,
+			    renderer: function(value, mD, record) {
+				if (!record.data['label-text']) {
+				    return "";
+				}
+
+				if (record.data['label-text'].startsWith("CLN")) {
+				    return "";
+				}
+
+				return Proxmox.Utils.format_boolean(value);
+			    },
 			},
 			{
 			    text: gettext('Actions'),
