@@ -97,18 +97,22 @@ Ext.define('PBS.TapeManagement.PoolPanel', {
 	{
 	    text: gettext('Name'),
 	    dataIndex: 'name',
+	    flex: 1,
 	},
 	{
 	    text: gettext('Allocation'),
 	    dataIndex: 'allocation',
+	    flex: 1,
 	},
 	{
 	    text: gettext('Retention'),
 	    dataIndex: 'retention',
+	    flex: 1,
 	},
 	{
 	    text: gettext('Encryption Fingerprint'),
 	    dataIndex: 'encrypt',
+	    flex: 3,
 	},
     ],
 });
