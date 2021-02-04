@@ -207,8 +207,8 @@ mod test {
     use anyhow::Error;
     use crate::tape::{
         TapeWrite,
-        file_formats::PROXMOX_TAPE_BLOCK_SIZE,
-        helpers::{
+        file_formats::{
+            PROXMOX_TAPE_BLOCK_SIZE,
             BlockedReader,
             BlockedWriter,
         },
