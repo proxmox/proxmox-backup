@@ -30,9 +30,9 @@ use crate::{
     complete_backup_group,
     complete_repository,
     connect,
+    crypto_parameters,
     extract_repository_from_value,
     record_repository,
-    keyfile_parameters,
 };
 
 #[api(
@@ -234,9 +234,9 @@ async fn upload_log(param: Value) -> Result<Value, Error> {
 
     let mut client = connect(&repo)?;
 
-    let (keydata, crypt_mode) = keyfile_parameters(&param)?;
+    let crypto = crypto_parameters(&param)?;
 
-    let crypt_config = match keydata {
+    let crypt_config = match crypto.enc_key {
         None => None,
         Some(key) => {
             let (key, _created, _) = decrypt_key(&key, &crate::key::get_encryption_key_password)?;
@@ -248,7 +248,7 @@ async fn upload_log(param: Value) -> Result<Value, Error> {
     let data = file_get_contents(logfile)?;
 
     // fixme: howto sign log?
-    let blob = match crypt_mode {
+    let blob = match crypto.mode {
         CryptMode::None | CryptMode::SignOnly => DataBlob::encode(&data, None, true)?,
         CryptMode::Encrypt => DataBlob::encode(&data, crypt_config.as_ref().map(Arc::as_ref), true)?,
     };

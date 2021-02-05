@@ -16,7 +16,6 @@ use crate::{
     KEYFD_SCHEMA,
     extract_repository_from_value,
     record_repository,
-    keyfile_parameters,
     key::get_encryption_key_password,
     decrypt_key,
     api_datastore_latest_snapshot,
@@ -25,6 +24,7 @@ use crate::{
     complete_group_or_snapshot,
     complete_pxar_archive_name,
     connect,
+    crypto_parameters,
     BackupDir,
     BackupGroup,
     BufferedDynamicReader,
@@ -68,9 +68,9 @@ async fn dump_catalog(param: Value) -> Result<Value, Error> {
     let path = tools::required_string_param(&param, "snapshot")?;
     let snapshot: BackupDir = path.parse()?;
 
-    let (keydata, _) = keyfile_parameters(&param)?;
+    let crypto = crypto_parameters(&param)?;
 
-    let crypt_config = match keydata {
+    let crypt_config = match crypto.enc_key {
         None => None,
         Some(key) => {
             let (key, _created, _fingerprint) = decrypt_key(&key, &get_encryption_key_password)?;
@@ -166,9 +166,9 @@ async fn catalog_shell(param: Value) -> Result<(), Error> {
         (snapshot.group().backup_type().to_owned(), snapshot.group().backup_id().to_owned(), snapshot.backup_time())
     };
 
-    let (keydata, _) = keyfile_parameters(&param)?;
+    let crypto = crypto_parameters(&param)?;
 
-    let crypt_config = match keydata {
+    let crypt_config = match crypto.enc_key {
         None => None,
         Some(key) => {
             let (key, _created, _fingerprint) = decrypt_key(&key, &get_encryption_key_password)?;

@@ -597,7 +597,13 @@ fn spawn_catalog_upload(
     Ok(CatalogUploadResult { catalog_writer, result: catalog_result_rx })
 }
 
-fn keyfile_parameters(param: &Value) -> Result<(Option<Vec<u8>>, CryptMode), Error> {
+#[derive(Debug, Eq, PartialEq)]
+struct CryptoParams {
+    mode: CryptMode,
+    enc_key: Option<Vec<u8>>,
+}
+
+fn crypto_parameters(param: &Value) -> Result<CryptoParams, Error> {
     let keyfile = match param.get("keyfile") {
         Some(Value::String(keyfile)) => Some(keyfile),
         Some(_) => bail!("bad --keyfile parameter type"),
@@ -616,7 +622,7 @@ fn keyfile_parameters(param: &Value) -> Result<(Option<Vec<u8>>, CryptMode), Err
         None => None,
     };
 
-    let crypt_mode: Option<CryptMode> = match param.get("crypt-mode") {
+    let mode: Option<CryptMode> = match param.get("crypt-mode") {
         Some(mode) => Some(serde_json::from_value(mode.clone())?),
         None => None,
     };
@@ -640,30 +646,31 @@ fn keyfile_parameters(param: &Value) -> Result<(Option<Vec<u8>>, CryptMode), Err
         }
     };
 
-    Ok(match (keydata, crypt_mode) {
+    Ok(match (keydata, mode) {
         // no parameters:
         (None, None) => match key::read_optional_default_encryption_key()? {
-            Some(key) => {
+            None => CryptoParams { enc_key: None, mode: CryptMode::None },
+            enc_key => {
                 eprintln!("Encrypting with default encryption key!");
-                (Some(key), CryptMode::Encrypt)
+                CryptoParams { enc_key, mode: CryptMode::Encrypt }
             },
-            None => (None, CryptMode::None),
         },
 
         // just --crypt-mode=none
-        (None, Some(CryptMode::None)) => (None, CryptMode::None),
+        (None, Some(CryptMode::None)) => CryptoParams { enc_key: None, mode: CryptMode::None },
 
         // just --crypt-mode other than none
-        (None, Some(crypt_mode)) => match key::read_optional_default_encryption_key()? {
+        (None, Some(mode)) => match key::read_optional_default_encryption_key()? {
             None => bail!("--crypt-mode without --keyfile and no default key file available"),
-            Some(key) => {
+            enc_key => {
                 eprintln!("Encrypting with default encryption key!");
-                (Some(key), crypt_mode)
+
+                CryptoParams { enc_key, mode }
             },
         }
 
         // just --keyfile
-        (Some(key), None) => (Some(key), CryptMode::Encrypt),
+        (enc_key, None) => CryptoParams { enc_key, mode: CryptMode::Encrypt },
 
         // --keyfile and --crypt-mode=none
         (Some(_), Some(CryptMode::None)) => {
@@ -671,57 +678,57 @@ fn keyfile_parameters(param: &Value) -> Result<(Option<Vec<u8>>, CryptMode), Err
         }
 
         // --keyfile and --crypt-mode other than none
-        (Some(key), Some(crypt_mode)) => (Some(key), crypt_mode),
+        (enc_key, Some(mode)) => CryptoParams { enc_key, mode },
     })
 }
 
 #[test]
-// WARNING: there must only be one test for keyfile_parameters as the default key handling is not
+// WARNING: there must only be one test for crypto_parameters as the default key handling is not
 // safe w.r.t. concurrency
-fn test_keyfile_parameters_handling() -> Result<(), Error> {
+fn test_crypto_parameters_handling() -> Result<(), Error> {
     let some_key = Some(vec![1;1]);
     let default_key = Some(vec![2;1]);
 
-    let no_key_res: (Option<Vec<u8>>, CryptMode) = (None, CryptMode::None);
-    let some_key_res = (some_key.clone(), CryptMode::Encrypt);
-    let some_key_sign_res = (some_key.clone(), CryptMode::SignOnly);
-    let default_key_res = (default_key.clone(), CryptMode::Encrypt);
-    let default_key_sign_res = (default_key.clone(), CryptMode::SignOnly);
+    let no_key_res = CryptoParams { enc_key: None, mode: CryptMode::None };
+    let some_key_res = CryptoParams { enc_key: some_key.clone(), mode: CryptMode::Encrypt };
+    let some_key_sign_res = CryptoParams { enc_key: some_key.clone(), mode: CryptMode::SignOnly };
+    let default_key_res = CryptoParams { enc_key: default_key.clone(), mode: CryptMode::Encrypt };
+    let default_key_sign_res = CryptoParams { enc_key: default_key.clone(), mode: CryptMode::SignOnly };
 
     let keypath = "./tests/keyfile.test";
     replace_file(&keypath, some_key.as_ref().unwrap(), CreateOptions::default())?;
     let invalid_keypath = "./tests/invalid_keyfile.test";
 
     // no params, no default key == no key
-    let res = keyfile_parameters(&json!({}));
+    let res = crypto_parameters(&json!({}));
     assert_eq!(res.unwrap(), no_key_res);
 
     // keyfile param == key from keyfile
-    let res = keyfile_parameters(&json!({"keyfile": keypath}));
+    let res = crypto_parameters(&json!({"keyfile": keypath}));
     assert_eq!(res.unwrap(), some_key_res);
 
     // crypt mode none == no key
-    let res = keyfile_parameters(&json!({"crypt-mode": "none"}));
+    let res = crypto_parameters(&json!({"crypt-mode": "none"}));
     assert_eq!(res.unwrap(), no_key_res);
 
     // crypt mode encrypt/sign-only, no keyfile, no default key == Error
-    assert!(keyfile_parameters(&json!({"crypt-mode": "sign-only"})).is_err());
-    assert!(keyfile_parameters(&json!({"crypt-mode": "encrypt"})).is_err());
+    assert!(crypto_parameters(&json!({"crypt-mode": "sign-only"})).is_err());
+    assert!(crypto_parameters(&json!({"crypt-mode": "encrypt"})).is_err());
 
     // crypt mode none with explicit key == Error
-    assert!(keyfile_parameters(&json!({"crypt-mode": "none", "keyfile": keypath})).is_err());
+    assert!(crypto_parameters(&json!({"crypt-mode": "none", "keyfile": keypath})).is_err());
 
     // crypt mode sign-only/encrypt with keyfile == key from keyfile with correct mode
-    let res = keyfile_parameters(&json!({"crypt-mode": "sign-only", "keyfile": keypath}));
+    let res = crypto_parameters(&json!({"crypt-mode": "sign-only", "keyfile": keypath}));
     assert_eq!(res.unwrap(), some_key_sign_res);
-    let res = keyfile_parameters(&json!({"crypt-mode": "encrypt", "keyfile": keypath}));
+    let res = crypto_parameters(&json!({"crypt-mode": "encrypt", "keyfile": keypath}));
     assert_eq!(res.unwrap(), some_key_res);
 
     // invalid keyfile parameter always errors
-    assert!(keyfile_parameters(&json!({"keyfile": invalid_keypath})).is_err());
-    assert!(keyfile_parameters(&json!({"keyfile": invalid_keypath, "crypt-mode": "none"})).is_err());
-    assert!(keyfile_parameters(&json!({"keyfile": invalid_keypath, "crypt-mode": "sign-only"})).is_err());
-    assert!(keyfile_parameters(&json!({"keyfile": invalid_keypath, "crypt-mode": "encrypt"})).is_err());
+    assert!(crypto_parameters(&json!({"keyfile": invalid_keypath})).is_err());
+    assert!(crypto_parameters(&json!({"keyfile": invalid_keypath, "crypt-mode": "none"})).is_err());
+    assert!(crypto_parameters(&json!({"keyfile": invalid_keypath, "crypt-mode": "sign-only"})).is_err());
+    assert!(crypto_parameters(&json!({"keyfile": invalid_keypath, "crypt-mode": "encrypt"})).is_err());
 
     // now set a default key
     unsafe { key::set_test_encryption_key(Ok(default_key.clone())); }
@@ -729,37 +736,37 @@ fn test_keyfile_parameters_handling() -> Result<(), Error> {
     // and repeat
 
     // no params but default key == default key
-    let res = keyfile_parameters(&json!({}));
+    let res = crypto_parameters(&json!({}));
     assert_eq!(res.unwrap(), default_key_res);
 
     // keyfile param == key from keyfile
-    let res = keyfile_parameters(&json!({"keyfile": keypath}));
+    let res = crypto_parameters(&json!({"keyfile": keypath}));
     assert_eq!(res.unwrap(), some_key_res);
 
     // crypt mode none == no key
-    let res = keyfile_parameters(&json!({"crypt-mode": "none"}));
+    let res = crypto_parameters(&json!({"crypt-mode": "none"}));
     assert_eq!(res.unwrap(), no_key_res);
 
     // crypt mode encrypt/sign-only, no keyfile, default key == default key with correct mode
-    let res = keyfile_parameters(&json!({"crypt-mode": "sign-only"}));
+    let res = crypto_parameters(&json!({"crypt-mode": "sign-only"}));
     assert_eq!(res.unwrap(), default_key_sign_res);
-    let res = keyfile_parameters(&json!({"crypt-mode": "encrypt"}));
+    let res = crypto_parameters(&json!({"crypt-mode": "encrypt"}));
     assert_eq!(res.unwrap(), default_key_res);
 
     // crypt mode none with explicit key == Error
-    assert!(keyfile_parameters(&json!({"crypt-mode": "none", "keyfile": keypath})).is_err());
+    assert!(crypto_parameters(&json!({"crypt-mode": "none", "keyfile": keypath})).is_err());
 
     // crypt mode sign-only/encrypt with keyfile == key from keyfile with correct mode
-    let res = keyfile_parameters(&json!({"crypt-mode": "sign-only", "keyfile": keypath}));
+    let res = crypto_parameters(&json!({"crypt-mode": "sign-only", "keyfile": keypath}));
     assert_eq!(res.unwrap(), some_key_sign_res);
-    let res = keyfile_parameters(&json!({"crypt-mode": "encrypt", "keyfile": keypath}));
+    let res = crypto_parameters(&json!({"crypt-mode": "encrypt", "keyfile": keypath}));
     assert_eq!(res.unwrap(), some_key_res);
 
     // invalid keyfile parameter always errors
-    assert!(keyfile_parameters(&json!({"keyfile": invalid_keypath})).is_err());
-    assert!(keyfile_parameters(&json!({"keyfile": invalid_keypath, "crypt-mode": "none"})).is_err());
-    assert!(keyfile_parameters(&json!({"keyfile": invalid_keypath, "crypt-mode": "sign-only"})).is_err());
-    assert!(keyfile_parameters(&json!({"keyfile": invalid_keypath, "crypt-mode": "encrypt"})).is_err());
+    assert!(crypto_parameters(&json!({"keyfile": invalid_keypath})).is_err());
+    assert!(crypto_parameters(&json!({"keyfile": invalid_keypath, "crypt-mode": "none"})).is_err());
+    assert!(crypto_parameters(&json!({"keyfile": invalid_keypath, "crypt-mode": "sign-only"})).is_err());
+    assert!(crypto_parameters(&json!({"keyfile": invalid_keypath, "crypt-mode": "encrypt"})).is_err());
 
     // now make default key retrieval error
     unsafe { key::set_test_encryption_key(Err(format_err!("test error"))); }
@@ -767,34 +774,34 @@ fn test_keyfile_parameters_handling() -> Result<(), Error> {
     // and repeat
 
     // no params, default key retrieval errors == Error
-    assert!(keyfile_parameters(&json!({})).is_err());
+    assert!(crypto_parameters(&json!({})).is_err());
 
     // keyfile param == key from keyfile
-    let res = keyfile_parameters(&json!({"keyfile": keypath}));
+    let res = crypto_parameters(&json!({"keyfile": keypath}));
     assert_eq!(res.unwrap(), some_key_res);
 
     // crypt mode none == no key
-    let res = keyfile_parameters(&json!({"crypt-mode": "none"}));
+    let res = crypto_parameters(&json!({"crypt-mode": "none"}));
     assert_eq!(res.unwrap(), no_key_res);
 
     // crypt mode encrypt/sign-only, no keyfile, default key error == Error
-    assert!(keyfile_parameters(&json!({"crypt-mode": "sign-only"})).is_err());
-    assert!(keyfile_parameters(&json!({"crypt-mode": "encrypt"})).is_err());
+    assert!(crypto_parameters(&json!({"crypt-mode": "sign-only"})).is_err());
+    assert!(crypto_parameters(&json!({"crypt-mode": "encrypt"})).is_err());
 
     // crypt mode none with explicit key == Error
-    assert!(keyfile_parameters(&json!({"crypt-mode": "none", "keyfile": keypath})).is_err());
+    assert!(crypto_parameters(&json!({"crypt-mode": "none", "keyfile": keypath})).is_err());
 
     // crypt mode sign-only/encrypt with keyfile == key from keyfile with correct mode
-    let res = keyfile_parameters(&json!({"crypt-mode": "sign-only", "keyfile": keypath}));
+    let res = crypto_parameters(&json!({"crypt-mode": "sign-only", "keyfile": keypath}));
     assert_eq!(res.unwrap(), some_key_sign_res);
-    let res = keyfile_parameters(&json!({"crypt-mode": "encrypt", "keyfile": keypath}));
+    let res = crypto_parameters(&json!({"crypt-mode": "encrypt", "keyfile": keypath}));
     assert_eq!(res.unwrap(), some_key_res);
 
     // invalid keyfile parameter always errors
-    assert!(keyfile_parameters(&json!({"keyfile": invalid_keypath})).is_err());
-    assert!(keyfile_parameters(&json!({"keyfile": invalid_keypath, "crypt-mode": "none"})).is_err());
-    assert!(keyfile_parameters(&json!({"keyfile": invalid_keypath, "crypt-mode": "sign-only"})).is_err());
-    assert!(keyfile_parameters(&json!({"keyfile": invalid_keypath, "crypt-mode": "encrypt"})).is_err());
+    assert!(crypto_parameters(&json!({"keyfile": invalid_keypath})).is_err());
+    assert!(crypto_parameters(&json!({"keyfile": invalid_keypath, "crypt-mode": "none"})).is_err());
+    assert!(crypto_parameters(&json!({"keyfile": invalid_keypath, "crypt-mode": "sign-only"})).is_err());
+    assert!(crypto_parameters(&json!({"keyfile": invalid_keypath, "crypt-mode": "encrypt"})).is_err());
     Ok(())
 }
 
@@ -906,7 +913,7 @@ async fn create_backup(
         verify_chunk_size(size)?;
     }
 
-    let (keydata, crypt_mode) = keyfile_parameters(&param)?;
+    let crypto = crypto_parameters(&param)?;
 
     let backup_id = param["backup-id"].as_str().unwrap_or(&proxmox::tools::nodename());
 
@@ -1011,7 +1018,7 @@ async fn create_backup(
 
     println!("Starting backup protocol: {}", strftime_local("%c", epoch_i64())?);
 
-    let (crypt_config, rsa_encrypted_key) = match keydata {
+    let (crypt_config, rsa_encrypted_key) = match crypto.enc_key {
         None => (None, None),
         Some(key) => {
             let (key, created, fingerprint) = decrypt_key(&key, &key::get_encryption_key_password)?;
@@ -1097,7 +1104,7 @@ async fn create_backup(
             BackupSpecificationType::CONFIG => {
                 let upload_options = UploadOptions {
                     compress: true,
-                    encrypt: crypt_mode == CryptMode::Encrypt,
+                    encrypt: crypto.mode == CryptMode::Encrypt,
                     ..UploadOptions::default()
                 };
 
@@ -1105,12 +1112,12 @@ async fn create_backup(
                 let stats = client
                     .upload_blob_from_file(&filename, &target, upload_options)
                     .await?;
-                manifest.add_file(target, stats.size, stats.csum, crypt_mode)?;
+                manifest.add_file(target, stats.size, stats.csum, crypto.mode)?;
             }
             BackupSpecificationType::LOGFILE => { // fixme: remove - not needed anymore ?
                 let upload_options = UploadOptions {
                     compress: true,
-                    encrypt: crypt_mode == CryptMode::Encrypt,
+                    encrypt: crypto.mode == CryptMode::Encrypt,
                     ..UploadOptions::default()
                 };
 
@@ -1118,12 +1125,12 @@ async fn create_backup(
                 let stats = client
                     .upload_blob_from_file(&filename, &target, upload_options)
                     .await?;
-                manifest.add_file(target, stats.size, stats.csum, crypt_mode)?;
+                manifest.add_file(target, stats.size, stats.csum, crypto.mode)?;
             }
             BackupSpecificationType::PXAR => {
                 // start catalog upload on first use
                 if catalog.is_none() {
-                    let catalog_upload_res = spawn_catalog_upload(client.clone(), crypt_mode == CryptMode::Encrypt)?;
+                    let catalog_upload_res = spawn_catalog_upload(client.clone(), crypto.mode == CryptMode::Encrypt)?;
                     catalog = Some(catalog_upload_res.catalog_writer);
                     catalog_result_rx = Some(catalog_upload_res.result);
                 }
@@ -1143,7 +1150,7 @@ async fn create_backup(
                 let upload_options = UploadOptions {
                     previous_manifest: previous_manifest.clone(),
                     compress: true,
-                    encrypt: crypt_mode == CryptMode::Encrypt,
+                    encrypt: crypto.mode == CryptMode::Encrypt,
                     ..UploadOptions::default()
                 };
 
@@ -1156,7 +1163,7 @@ async fn create_backup(
                     pxar_options,
                     upload_options,
                 ).await?;
-                manifest.add_file(target, stats.size, stats.csum, crypt_mode)?;
+                manifest.add_file(target, stats.size, stats.csum, crypto.mode)?;
                 catalog.lock().unwrap().end_directory()?;
             }
             BackupSpecificationType::IMAGE => {
@@ -1166,7 +1173,7 @@ async fn create_backup(
                     previous_manifest: previous_manifest.clone(),
                     fixed_size: Some(size),
                     compress: true,
-                    encrypt: crypt_mode == CryptMode::Encrypt,
+                    encrypt: crypto.mode == CryptMode::Encrypt,
                 };
 
                 let stats = backup_image(
@@ -1176,7 +1183,7 @@ async fn create_backup(
                     chunk_size_opt,
                     upload_options,
                 ).await?;
-                manifest.add_file(target, stats.size, stats.csum, crypt_mode)?;
+                manifest.add_file(target, stats.size, stats.csum, crypto.mode)?;
             }
         }
     }
@@ -1193,7 +1200,7 @@ async fn create_backup(
 
         if let Some(catalog_result_rx) = catalog_result_rx {
             let stats = catalog_result_rx.await??;
-            manifest.add_file(CATALOG_NAME.to_owned(), stats.size, stats.csum, crypt_mode)?;
+            manifest.add_file(CATALOG_NAME.to_owned(), stats.size, stats.csum, crypto.mode)?;
         }
     }
 
@@ -1204,7 +1211,7 @@ async fn create_backup(
         let stats = client
             .upload_blob_from_data(rsa_encrypted_key, target, options)
             .await?;
-        manifest.add_file(target.to_string(), stats.size, stats.csum, crypt_mode)?;
+        manifest.add_file(target.to_string(), stats.size, stats.csum, crypto.mode)?;
 
     }
     // create manifest (index.json)
@@ -1379,9 +1386,9 @@ async fn restore(param: Value) -> Result<Value, Error> {
     let target = tools::required_string_param(&param, "target")?;
     let target = if target == "-" { None } else { Some(target) };
 
-    let (keydata, _crypt_mode) = keyfile_parameters(&param)?;
+    let crypto = crypto_parameters(&param)?;
 
-    let crypt_config = match keydata {
+    let crypt_config = match crypto.enc_key {
         None => None,
         Some(key) => {
             let (key, _, fingerprint) = decrypt_key(&key, &key::get_encryption_key_password)?;
