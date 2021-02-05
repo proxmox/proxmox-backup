@@ -57,6 +57,16 @@ Ext.define('PBS.TapeManagement.DrivePanel', {
 	    });
 	},
 
+	catalog: function(view, rI, cI, button, el, record) {
+	    let me = this;
+	    let drive = record.data.name;
+	    me.driveCommand(drive, 'catalog', function(response) {
+		Ext.create('Proxmox.window.TaskViewer', {
+		    upid: response.result.data,
+		}).show();
+	    }, {}, 'POST');
+	},
+
 	readLabel: function(view, rI, cI, button, el, record) {
 	    let me = this;
 	    let drive = record.data.name;
@@ -286,7 +296,7 @@ Ext.define('PBS.TapeManagement.DrivePanel', {
 	},
 	{
 	    text: gettext('Actions'),
-	    width: 120,
+	    width: 140,
 	    xtype: 'actioncolumn',
 	    items: [
 		{
@@ -300,6 +310,11 @@ Ext.define('PBS.TapeManagement.DrivePanel', {
 		{
 		    iconCls: 'fa fa-tag',
 		    handler: 'readLabel',
+		},
+		{
+		    iconCls: 'fa fa-book',
+		    handler: 'catalog',
+		    tooltip: gettext('Catalog'),
 		},
 		{
 		    iconCls: 'fa fa-info-circle',
