@@ -58,6 +58,13 @@ pub fn read_optional_default_encryption_key() -> Result<Option<Vec<u8>>, Error> 
         .transpose()
 }
 
+#[cfg(not(test))]
+pub fn read_optional_default_master_pubkey() -> Result<Option<Vec<u8>>, Error> {
+    find_default_master_pubkey()?
+        .map(file_get_contents)
+        .transpose()
+}
+
 #[cfg(test)]
 static mut TEST_DEFAULT_ENCRYPTION_KEY: Result<Option<Vec<u8>>, Error> = Ok(None);
 
@@ -76,6 +83,26 @@ pub fn read_optional_default_encryption_key() -> Result<Option<Vec<u8>>, Error> 
 // not safe when multiple concurrent test cases end up here!
 pub unsafe fn set_test_encryption_key(value: Result<Option<Vec<u8>>, Error>) {
     TEST_DEFAULT_ENCRYPTION_KEY = value;
+}
+
+#[cfg(test)]
+static mut TEST_DEFAULT_MASTER_PUBKEY: Result<Option<Vec<u8>>, Error> = Ok(None);
+
+#[cfg(test)]
+pub fn read_optional_default_master_pubkey() -> Result<Option<Vec<u8>>, Error> {
+    // not safe when multiple concurrent test cases end up here!
+    unsafe {
+        match &TEST_DEFAULT_MASTER_PUBKEY {
+            Ok(key) => Ok(key.clone()),
+            Err(_) => bail!("test error"),
+        }
+    }
+}
+
+#[cfg(test)]
+// not safe when multiple concurrent test cases end up here!
+pub unsafe fn set_test_default_master_pubkey(value: Result<Option<Vec<u8>>, Error>) {
+    TEST_DEFAULT_MASTER_PUBKEY = value;
 }
 
 pub fn get_encryption_key_password() -> Result<Vec<u8>, Error> {

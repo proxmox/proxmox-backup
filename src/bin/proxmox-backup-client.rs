@@ -77,14 +77,23 @@ pub const REPO_URL_SCHEMA: Schema = StringSchema::new("Repository URL.")
     .max_length(256)
     .schema();
 
-pub const KEYFILE_SCHEMA: Schema = StringSchema::new(
-    "Path to encryption key. All data will be encrypted using this key.")
+pub const KEYFILE_SCHEMA: Schema =
+    StringSchema::new("Path to encryption key. All data will be encrypted using this key.")
+        .schema();
+
+pub const KEYFD_SCHEMA: Schema =
+    IntegerSchema::new("Pass an encryption key via an already opened file descriptor.")
+        .minimum(0)
+        .schema();
+
+pub const MASTER_PUBKEY_FILE_SCHEMA: Schema = StringSchema::new(
+    "Path to master public key. The encryption key used for a backup will be encrypted using this key and appended to the backup.")
     .schema();
 
-pub const KEYFD_SCHEMA: Schema = IntegerSchema::new(
-    "Pass an encryption key via an already opened file descriptor.")
-    .minimum(0)
-    .schema();
+pub const MASTER_PUBKEY_FD_SCHEMA: Schema =
+    IntegerSchema::new("Pass a master public key via an already opened file descriptor.")
+        .minimum(0)
+        .schema();
 
 const CHUNK_SIZE_SCHEMA: Schema = IntegerSchema::new(
     "Chunk size in KB. Must be a power of 2.")
@@ -601,6 +610,8 @@ fn spawn_catalog_upload(
 struct CryptoParams {
     mode: CryptMode,
     enc_key: Option<Vec<u8>>,
+    // FIXME switch to openssl::rsa::rsa<openssl::pkey::Public> once that is Eq?
+    master_pubkey: Option<Vec<u8>>,
 }
 
 fn crypto_parameters(param: &Value) -> Result<CryptoParams, Error> {
@@ -619,6 +630,24 @@ fn crypto_parameters(param: &Value) -> Result<CryptoParams, Error> {
             .map_err(|err| format_err!("bad key fd: {:?}: {}", key_fd, err))?
         ),
         Some(_) => bail!("bad --keyfd parameter type"),
+        None => None,
+    };
+
+    let master_pubkey_file = match param.get("master-pubkey-file") {
+        Some(Value::String(keyfile)) => Some(keyfile),
+        Some(_) => bail!("bad --master-pubkey-file parameter type"),
+        None => None,
+    };
+
+    let master_pubkey_fd = match param.get("master-pubkey-fd") {
+        Some(Value::Number(key_fd)) => Some(
+            RawFd::try_from(key_fd
+                .as_i64()
+                .ok_or_else(|| format_err!("bad master public key fd: {:?}", key_fd))?
+            )
+            .map_err(|err| format_err!("bad public master key fd: {:?}: {}", key_fd, err))?
+        ),
+        Some(_) => bail!("bad --master-pubkey-fd parameter type"),
         None => None,
     };
 
@@ -646,39 +675,105 @@ fn crypto_parameters(param: &Value) -> Result<CryptoParams, Error> {
         }
     };
 
-    Ok(match (keydata, mode) {
+    let master_pubkey_data = match (master_pubkey_file, master_pubkey_fd) {
+        (None, None) => None,
+        (Some(_), Some(_)) => bail!("--keyfile and --keyfd are mutually exclusive"),
+        (Some(keyfile), None) => {
+            eprintln!("Using master key from file: {}", keyfile);
+            Some(file_get_contents(keyfile)?)
+        },
+        (None, Some(fd)) => {
+            let input = unsafe { std::fs::File::from_raw_fd(fd) };
+            let mut data = Vec::new();
+            let _len: usize = { input }.read_to_end(&mut data)
+                .map_err(|err| {
+                    format_err!("error reading master key from fd {}: {}", fd, err)
+                })?;
+            eprintln!("Using master key from file descriptor");
+            Some(data)
+        }
+    };
+
+    Ok(match (keydata, master_pubkey_data, mode) {
         // no parameters:
-        (None, None) => match key::read_optional_default_encryption_key()? {
-            None => CryptoParams { enc_key: None, mode: CryptMode::None },
+        (None, None, None) => match key::read_optional_default_encryption_key()? {
+            None => CryptoParams { mode: CryptMode::None, enc_key: None, master_pubkey: None },
             enc_key => {
                 eprintln!("Encrypting with default encryption key!");
-                CryptoParams { enc_key, mode: CryptMode::Encrypt }
+                let master_pubkey = key::read_optional_default_master_pubkey()?;
+                CryptoParams {
+                    mode: CryptMode::Encrypt,
+                    enc_key,
+                    master_pubkey,
+                }
             },
         },
 
         // just --crypt-mode=none
-        (None, Some(CryptMode::None)) => CryptoParams { enc_key: None, mode: CryptMode::None },
+        (None, None, Some(CryptMode::None)) => CryptoParams { mode: CryptMode::None, enc_key: None, master_pubkey: None },
 
-        // just --crypt-mode other than none
-        (None, Some(mode)) => match key::read_optional_default_encryption_key()? {
+        // --keyfile and --crypt-mode=none
+        (Some(_), _, Some(CryptMode::None)) => {
+            bail!("--keyfile/--keyfd and --crypt-mode=none are mutually exclusive");
+        },
+
+        // --master-pubkey-file and --crypt-mode=none
+        (_, Some(_), Some(CryptMode::None)) => {
+            bail!("--master-pubkey-file/--master-pubkey-fd and --crypt-mode=none are mutually exclusive");
+        },
+
+        // --master-pubkey-file and nothing else
+        (None, master_pubkey, None) => {
+            match key::read_optional_default_encryption_key()? {
+                None => bail!("--master-pubkey-file/--master-pubkey-fd specified, but no key available"),
+                enc_key => {
+                    eprintln!("Encrypting with default encryption key!");
+                    CryptoParams {
+                        mode: CryptMode::Encrypt,
+                        enc_key,
+                        master_pubkey,
+                    }
+                },
+            }
+        },
+
+        // --crypt-mode other than none, without keyfile, with or without master key
+        (None, master_pubkey, Some(mode)) => match key::read_optional_default_encryption_key()? {
             None => bail!("--crypt-mode without --keyfile and no default key file available"),
             enc_key => {
                 eprintln!("Encrypting with default encryption key!");
+                let master_pubkey = match master_pubkey {
+                    None => key::read_optional_default_master_pubkey()?,
+                    master_pubkey => master_pubkey,
+                };
 
-                CryptoParams { enc_key, mode }
+                CryptoParams {
+                    mode,
+                    enc_key,
+                    master_pubkey,
+                }
             },
         }
 
         // just --keyfile
-        (enc_key, None) => CryptoParams { enc_key, mode: CryptMode::Encrypt },
+        (enc_key, master_pubkey, None) => {
+            let master_pubkey = match master_pubkey {
+                None => key::read_optional_default_master_pubkey()?,
+                master_pubkey => master_pubkey,
+            };
 
-        // --keyfile and --crypt-mode=none
-        (Some(_), Some(CryptMode::None)) => {
-            bail!("--keyfile/--keyfd and --crypt-mode=none are mutually exclusive");
-        }
+            CryptoParams { mode: CryptMode::Encrypt, enc_key, master_pubkey }
+        },
 
         // --keyfile and --crypt-mode other than none
-        (enc_key, Some(mode)) => CryptoParams { enc_key, mode },
+        (enc_key, master_pubkey, Some(mode)) => {
+            let master_pubkey = match master_pubkey {
+                None => key::read_optional_default_master_pubkey()?,
+                master_pubkey => master_pubkey,
+            };
+
+            CryptoParams { mode, enc_key, master_pubkey }
+        },
     })
 }
 
@@ -689,11 +784,31 @@ fn test_crypto_parameters_handling() -> Result<(), Error> {
     let some_key = Some(vec![1;1]);
     let default_key = Some(vec![2;1]);
 
-    let no_key_res = CryptoParams { enc_key: None, mode: CryptMode::None };
-    let some_key_res = CryptoParams { enc_key: some_key.clone(), mode: CryptMode::Encrypt };
-    let some_key_sign_res = CryptoParams { enc_key: some_key.clone(), mode: CryptMode::SignOnly };
-    let default_key_res = CryptoParams { enc_key: default_key.clone(), mode: CryptMode::Encrypt };
-    let default_key_sign_res = CryptoParams { enc_key: default_key.clone(), mode: CryptMode::SignOnly };
+    let no_key_res = CryptoParams {
+        enc_key: None,
+        master_pubkey: None,
+        mode: CryptMode::None,
+    };
+    let some_key_res = CryptoParams {
+        enc_key: some_key.clone(),
+        master_pubkey: None,
+        mode: CryptMode::Encrypt,
+    };
+    let some_key_sign_res = CryptoParams {
+        enc_key: some_key.clone(),
+        master_pubkey: None,
+        mode: CryptMode::SignOnly,
+    };
+    let default_key_res = CryptoParams {
+        enc_key: default_key.clone(),
+        master_pubkey: None,
+        mode: CryptMode::Encrypt,
+    };
+    let default_key_sign_res = CryptoParams {
+        enc_key: default_key.clone(),
+        master_pubkey: None,
+        mode: CryptMode::SignOnly,
+    };
 
     let keypath = "./tests/keyfile.test";
     replace_file(&keypath, some_key.as_ref().unwrap(), CreateOptions::default())?;
@@ -838,6 +953,14 @@ fn test_crypto_parameters_handling() -> Result<(), Error> {
            },
            "keyfd": {
                schema: KEYFD_SCHEMA,
+               optional: true,
+           },
+           "master-pubkey-file": {
+               schema: MASTER_PUBKEY_FILE_SCHEMA,
+               optional: true,
+           },
+           "master-pubkey-fd": {
+               schema: MASTER_PUBKEY_FD_SCHEMA,
                optional: true,
            },
            "crypt-mode": {
@@ -1026,16 +1149,14 @@ async fn create_backup(
 
             let crypt_config = CryptConfig::new(key)?;
 
-            match key::find_default_master_pubkey()? {
-                Some(ref path) if path.exists() => {
-                    let pem_data = file_get_contents(path)?;
+            match crypto.master_pubkey {
+                Some(pem_data) => {
                     let rsa = openssl::rsa::Rsa::public_key_from_pem(&pem_data)?;
 
                     let mut key_config = KeyConfig::without_password(key)?;
                     key_config.created = created; // keep original value
 
                     let enc_key = rsa_encrypt_key_config(rsa, &key_config)?;
-                    println!("Master key '{:?}'", path);
 
                     (Some(Arc::new(crypt_config)), Some(enc_key))
                 }
@@ -1941,6 +2062,7 @@ fn main() {
         .completion_cb("repository", complete_repository)
         .completion_cb("backupspec", complete_backup_source)
         .completion_cb("keyfile", tools::complete_file_name)
+        .completion_cb("master-pubkey-file", tools::complete_file_name)
         .completion_cb("chunk-size", complete_chunk_size);
 
     let benchmark_cmd_def = CliCommand::new(&API_METHOD_BENCHMARK)
