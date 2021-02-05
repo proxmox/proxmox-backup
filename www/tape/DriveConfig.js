@@ -302,14 +302,17 @@ Ext.define('PBS.TapeManagement.DrivePanel', {
 		{
 		    iconCls: 'fa fa-hdd-o',
 		    handler: 'cartridgeMemory',
+		    tooltip: gettext('Cartridge Memory'),
 		},
 		{
 		    iconCls: 'fa fa-line-chart',
 		    handler: 'volumeStatistics',
+		    tooltip: gettext('Volume Statistics'),
 		},
 		{
 		    iconCls: 'fa fa-tag',
 		    handler: 'readLabel',
+		    tooltip: gettext('Read Label'),
 		},
 		{
 		    iconCls: 'fa fa-book',
@@ -319,10 +322,12 @@ Ext.define('PBS.TapeManagement.DrivePanel', {
 		{
 		    iconCls: 'fa fa-info-circle',
 		    handler: 'status',
+		    tooltip: gettext('Status'),
 		},
 		{
 		    iconCls: 'fa fa-pencil-square-o',
 		    handler: 'labelMedia',
+		    tooltip: gettext('Label Media'),
 		},
 	    ],
 	},
