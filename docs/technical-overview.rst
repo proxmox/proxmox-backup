@@ -1,7 +1,7 @@
+.. _tech_design_overview:
+
 Technical Overview
 ==================
-
-.. _technical_overview:
 
 Datastores
 ----------

@@ -86,7 +86,7 @@ Please use the following environment variables to modify output behavior:
    format if you need to process the output.
 
 
-.. _creating-backups:
+.. _client_creating_backups:
 
 Creating Backups
 ----------------
@@ -246,7 +246,7 @@ Restoring this backup will result in:
     .  ..  file2
 
 
-.. _encryption:
+.. _client_encryption:
 
 Encryption
 ----------
@@ -660,7 +660,7 @@ shows the list of existing snapshots and what actions prune would take.
    space you need to perform :ref:`garbage-collection`.
 
 
-.. _garbage-collection:
+.. _client_garbage-collection:
 
 Garbage Collection
 ------------------

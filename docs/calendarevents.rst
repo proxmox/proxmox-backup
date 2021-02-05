@@ -1,5 +1,4 @@
-
-.. _calendar-events:
+.. _calendar-event-scheduling:
 
 Calendar Events
 ===============

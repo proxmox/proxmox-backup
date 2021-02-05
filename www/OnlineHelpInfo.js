@@ -3,12 +3,12 @@ const proxmoxOnlineHelpInfo = {
     "link": "/docs/index.html",
     "title": "Proxmox Backup Server Documentation Index"
   },
-  "id1": {
-    "link": "/docs/calendarevents.html#id1",
-    "title": "Calendar Events"
+  "client-creating-backups": {
+    "link": "/docs/backup-client.html#client-creating-backups",
+    "title": "Creating Backups"
   },
-  "id2": {
-    "link": "/docs/backup-client.html#id2",
+  "client-encryption": {
+    "link": "/docs/backup-client.html#client-encryption",
     "title": "Encryption"
   },
   "changing-backup-owner": {
@@ -19,9 +19,13 @@ const proxmoxOnlineHelpInfo = {
     "link": "/docs/backup-client.html#backup-pruning",
     "title": "Pruning and Removing Backups"
   },
-  "id3": {
-    "link": "/docs/backup-client.html#id3",
+  "client-garbage-collection": {
+    "link": "/docs/backup-client.html#client-garbage-collection",
     "title": "Garbage Collection"
+  },
+  "calendar-event-scheduling": {
+    "link": "/docs/calendarevents.html#calendar-event-scheduling",
+    "title": "Calendar Events"
   },
   "pxar-format": {
     "link": "/docs/file-formats.html#pxar-format",
@@ -94,6 +98,18 @@ const proxmoxOnlineHelpInfo = {
   "restore-encryption-key": {
     "link": "/docs/tape-backup.html#restore-encryption-key",
     "title": "Restoring Encryption Keys"
+  },
+  "tech-design-overview": {
+    "link": "/docs/technical-overview.html#tech-design-overview",
+    "title": "Technical Overview"
+  },
+  "terms": {
+    "link": "/docs/terminology.html#terms",
+    "title": "Terminology"
+  },
+  "term-backup-snapshot": {
+    "link": "/docs/terminology.html#term-backup-snapshot",
+    "title": "Backup Snapshot"
   },
   "user-mgmt": {
     "link": "/docs/user-management.html#user-mgmt",
