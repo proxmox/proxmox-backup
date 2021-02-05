@@ -341,6 +341,36 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	    }).show();
 	},
 
+	inventory: function() {
+	    let me = this;
+	    let vm = me.getViewModel();
+	    let changer = vm.get('changer');
+	    if (changer === '') {
+		return;
+	    }
+
+	    Ext.create('Proxmox.window.Edit', {
+		title: gettext('Inventory'),
+		showTaskViewer: true,
+		method: 'PUT',
+		url: '/api2/extjs/tape/drive',
+		submitUrl: function(url, values) {
+		    let drive = values.drive;
+		    delete values.drive;
+		    return `${url}/${encodeURIComponent(drive)}/inventory`;
+		},
+
+		items: [
+		    {
+			xtype: 'pbsDriveSelector',
+			fieldLabel: gettext('Drive'),
+			name: 'drive',
+			changer: changer,
+		    },
+		],
+	    }).show();
+	},
+
 	reload: async function() {
 	    let me = this;
 	    let view = me.getView();
@@ -436,6 +466,15 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	    xtype: 'proxmoxButton',
 	    handler: 'barcodeLabel',
 	    iconCls: 'fa fa-barcode',
+	    bind: {
+		disabled: '{!changerSelected}',
+	    },
+	},
+	{
+	    text: gettext('Inventory'),
+	    xtype: 'proxmoxButton',
+	    handler: 'inventory',
+	    iconCls: 'fa fa-book',
 	    bind: {
 		disabled: '{!changerSelected}',
 	    },
