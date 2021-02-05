@@ -694,37 +694,25 @@ fn crypto_parameters(param: &Value) -> Result<CryptoParams, Error> {
         }
     };
 
-    Ok(match (keydata, master_pubkey_data, mode) {
-        // no parameters:
-        (None, None, None) => match key::read_optional_default_encryption_key()? {
-            None => CryptoParams { mode: CryptMode::None, enc_key: None, master_pubkey: None },
-            enc_key => {
-                eprintln!("Encrypting with default encryption key!");
-                let master_pubkey = key::read_optional_default_master_pubkey()?;
-                CryptoParams {
-                    mode: CryptMode::Encrypt,
-                    enc_key,
-                    master_pubkey,
-                }
+    let res = match mode {
+        // no crypt mode, enable encryption if keys are available
+        None => match (keydata, master_pubkey_data) {
+            // only default keys if available
+            (None, None) => match key::read_optional_default_encryption_key()? {
+                None => CryptoParams { mode: CryptMode::None, enc_key: None, master_pubkey: None },
+                enc_key => {
+                    eprintln!("Encrypting with default encryption key!");
+                    let master_pubkey = key::read_optional_default_master_pubkey()?;
+                    CryptoParams {
+                        mode: CryptMode::Encrypt,
+                        enc_key,
+                        master_pubkey,
+                    }
+                },
             },
-        },
 
-        // just --crypt-mode=none
-        (None, None, Some(CryptMode::None)) => CryptoParams { mode: CryptMode::None, enc_key: None, master_pubkey: None },
-
-        // --keyfile and --crypt-mode=none
-        (Some(_), _, Some(CryptMode::None)) => {
-            bail!("--keyfile/--keyfd and --crypt-mode=none are mutually exclusive");
-        },
-
-        // --master-pubkey-file and --crypt-mode=none
-        (_, Some(_), Some(CryptMode::None)) => {
-            bail!("--master-pubkey-file/--master-pubkey-fd and --crypt-mode=none are mutually exclusive");
-        },
-
-        // --master-pubkey-file and nothing else
-        (None, master_pubkey, None) => {
-            match key::read_optional_default_encryption_key()? {
+            // explicit master key, default enc key needed
+            (None, master_pubkey) => match key::read_optional_default_encryption_key()? {
                 None => bail!("--master-pubkey-file/--master-pubkey-fd specified, but no key available"),
                 enc_key => {
                     eprintln!("Encrypting with default encryption key!");
@@ -734,47 +722,60 @@ fn crypto_parameters(param: &Value) -> Result<CryptoParams, Error> {
                         master_pubkey,
                     }
                 },
-            }
+            },
+
+            // explicit keyfile, maybe default master key
+            (enc_key, None) => CryptoParams { mode: CryptMode::Encrypt, enc_key, master_pubkey: key::read_optional_default_master_pubkey()? },
+
+            // explicit keyfile and master key
+            (enc_key, master_pubkey) => CryptoParams { mode: CryptMode::Encrypt, enc_key, master_pubkey },
         },
 
-        // --crypt-mode other than none, without keyfile, with or without master key
-        (None, master_pubkey, Some(mode)) => match key::read_optional_default_encryption_key()? {
-            None => bail!("--crypt-mode without --keyfile and no default key file available"),
-            enc_key => {
-                eprintln!("Encrypting with default encryption key!");
+        // explicitly disabled encryption
+        Some(CryptMode::None) => match (keydata, master_pubkey_data) {
+            // no keys => OK, no encryption
+            (None, None) => CryptoParams { mode: CryptMode::None, enc_key: None, master_pubkey: None },
+
+            // --keyfile and --crypt-mode=none
+            (Some(_), _) => bail!("--keyfile/--keyfd and --crypt-mode=none are mutually exclusive"),
+
+            // --master-pubkey-file and --crypt-mode=none
+            (_, Some(_)) => bail!("--master-pubkey-file/--master-pubkey-fd and --crypt-mode=none are mutually exclusive"),
+        },
+
+        // explicitly enabled encryption
+        Some(mode) => match (keydata, master_pubkey_data) {
+            // no key, maybe master key
+            (None, master_pubkey) => match key::read_optional_default_encryption_key()? {
+                None => bail!("--crypt-mode without --keyfile and no default key file available"),
+                enc_key => {
+                    eprintln!("Encrypting with default encryption key!");
+                    let master_pubkey = match master_pubkey {
+                        None => key::read_optional_default_master_pubkey()?,
+                        master_pubkey => master_pubkey,
+                    };
+
+                    CryptoParams {
+                        mode,
+                        enc_key,
+                        master_pubkey,
+                    }
+                },
+            },
+
+            // --keyfile and --crypt-mode other than none
+            (enc_key, master_pubkey) => {
                 let master_pubkey = match master_pubkey {
                     None => key::read_optional_default_master_pubkey()?,
                     master_pubkey => master_pubkey,
                 };
 
-                CryptoParams {
-                    mode,
-                    enc_key,
-                    master_pubkey,
-                }
+                CryptoParams { mode, enc_key, master_pubkey }
             },
-        }
-
-        // just --keyfile
-        (enc_key, master_pubkey, None) => {
-            let master_pubkey = match master_pubkey {
-                None => key::read_optional_default_master_pubkey()?,
-                master_pubkey => master_pubkey,
-            };
-
-            CryptoParams { mode: CryptMode::Encrypt, enc_key, master_pubkey }
         },
+    };
 
-        // --keyfile and --crypt-mode other than none
-        (enc_key, master_pubkey, Some(mode)) => {
-            let master_pubkey = match master_pubkey {
-                None => key::read_optional_default_master_pubkey()?,
-                master_pubkey => master_pubkey,
-            };
-
-            CryptoParams { mode, enc_key, master_pubkey }
-        },
-    })
+    Ok(res)
 }
 
 #[test]
