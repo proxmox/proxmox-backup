@@ -1,16 +1,12 @@
-use std::path::PathBuf;
 use std::convert::TryFrom;
+use std::path::PathBuf;
 
 use anyhow::{bail, format_err, Error};
 use serde_json::Value;
 
 use proxmox::api::api;
 use proxmox::api::cli::{
-    ColumnConfig,
-    CliCommand,
-    CliCommandMap,
-    format_and_print_result_full,
-    get_output_format,
+    format_and_print_result_full, get_output_format, CliCommand, CliCommandMap, ColumnConfig,
     OUTPUT_FORMAT,
 };
 use proxmox::api::router::ReturnType;
@@ -18,40 +14,41 @@ use proxmox::sys::linux::tty;
 use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
 
 use proxmox_backup::{
-    tools::paperkey::{
-        PaperkeyFormat,
-        generate_paper_key,
-    },
-    api2::types::{
-        PASSWORD_HINT_SCHEMA,
-        KeyInfo,
-        Kdf,
-        RsaPubKeyInfo,
-    },
-    backup::{
-        rsa_decrypt_key_config,
-        KeyConfig,
-    },
+    api2::types::{Kdf, KeyInfo, RsaPubKeyInfo, PASSWORD_HINT_SCHEMA},
+    backup::{rsa_decrypt_key_config, KeyConfig},
     tools,
+    tools::paperkey::{generate_paper_key, PaperkeyFormat},
 };
 
 pub const DEFAULT_ENCRYPTION_KEY_FILE_NAME: &str = "encryption-key.json";
 pub const DEFAULT_MASTER_PUBKEY_FILE_NAME: &str = "master-public.pem";
 
 pub fn find_default_master_pubkey() -> Result<Option<PathBuf>, Error> {
-    super::find_xdg_file(DEFAULT_MASTER_PUBKEY_FILE_NAME, "default master public key file")
+    super::find_xdg_file(
+        DEFAULT_MASTER_PUBKEY_FILE_NAME,
+        "default master public key file",
+    )
 }
 
 pub fn place_default_master_pubkey() -> Result<PathBuf, Error> {
-    super::place_xdg_file(DEFAULT_MASTER_PUBKEY_FILE_NAME, "default master public key file")
+    super::place_xdg_file(
+        DEFAULT_MASTER_PUBKEY_FILE_NAME,
+        "default master public key file",
+    )
 }
 
 pub fn find_default_encryption_key() -> Result<Option<PathBuf>, Error> {
-    super::find_xdg_file(DEFAULT_ENCRYPTION_KEY_FILE_NAME, "default encryption key file")
+    super::find_xdg_file(
+        DEFAULT_ENCRYPTION_KEY_FILE_NAME,
+        "default encryption key file",
+    )
 }
 
 pub fn place_default_encryption_key() -> Result<PathBuf, Error> {
-    super::place_xdg_file(DEFAULT_ENCRYPTION_KEY_FILE_NAME, "default encryption key file")
+    super::place_xdg_file(
+        DEFAULT_ENCRYPTION_KEY_FILE_NAME,
+        "default encryption key file",
+    )
 }
 
 pub fn read_optional_default_encryption_key() -> Result<Option<Vec<u8>>, Error> {
@@ -100,11 +97,7 @@ pub fn get_encryption_key_password() -> Result<Vec<u8>, Error> {
     },
 )]
 /// Create a new encryption key.
-fn create(
-    kdf: Option<Kdf>,
-    path: Option<String>,
-    hint: Option<String>
-) -> Result<(), Error> {
+fn create(kdf: Option<Kdf>, path: Option<String>, hint: Option<String>) -> Result<(), Error> {
     let path = match path {
         Some(path) => PathBuf::from(path),
         None => {
@@ -196,8 +189,7 @@ async fn import_with_master_key(
     let master_key = file_get_contents(&master_keyfile)?;
     let password = tty::read_password("Master Key Password: ")?;
 
-    let master_key =
-        openssl::pkey::PKey::private_key_from_pem_passphrase(&master_key, &password)
+    let master_key = openssl::pkey::PKey::private_key_from_pem_passphrase(&master_key, &password)
         .map_err(|err| format_err!("failed to read PEM-formatted private key - {}", err))?
         .rsa()
         .map_err(|err| format_err!("not a valid private RSA key - {}", err))?;
@@ -216,7 +208,6 @@ async fn import_with_master_key(
             key_config.created = created; // keep original value
 
             key_config.store(path, true)?;
-
         }
         Kdf::Scrypt | Kdf::PBKDF2 => {
             let password = tty::read_and_verify_password("New Password: ")?;
@@ -259,10 +250,9 @@ fn change_passphrase(
     let path = match path {
         Some(path) => PathBuf::from(path),
         None => {
-            let path = find_default_encryption_key()?
-                .ok_or_else(|| {
-                    format_err!("no encryption file provided and no default file found")
-                })?;
+            let path = find_default_encryption_key()?.ok_or_else(|| {
+                format_err!("no encryption file provided and no default file found")
+            })?;
             println!("updating default key at: {:?}", path);
             path
         }
@@ -284,7 +274,7 @@ fn change_passphrase(
             }
 
             let mut key_config = KeyConfig::without_password(key)?;
-            key_config.created =  created; // keep original value
+            key_config.created = created; // keep original value
 
             key_config.store(&path, true)?;
         }
@@ -375,7 +365,7 @@ fn import_master_pubkey(path: String) -> Result<(), Error> {
             println!("Modulus: {}", info.modulus);
             println!("Exponent: {}", info.exponent);
             println!("Length: {}", info.length);
-        },
+        }
         Err(err) => bail!("Unable to decode PEM data - {}", err),
     };
 
@@ -400,10 +390,8 @@ fn create_master_key() -> Result<(), Error> {
     let bits = 4096;
     println!("Generating {}-bit RSA key..", bits);
     let rsa = openssl::rsa::Rsa::generate(bits)?;
-    let public = openssl::rsa::Rsa::from_public_components(
-        rsa.n().to_owned()?,
-        rsa.e().to_owned()?,
-    )?;
+    let public =
+        openssl::rsa::Rsa::from_public_components(rsa.n().to_owned()?, rsa.e().to_owned()?)?;
     let info = RsaPubKeyInfo::try_from(public)?;
     println!("Modulus: {}", info.modulus);
     println!("Exponent: {}", info.exponent);
@@ -419,7 +407,8 @@ fn create_master_key() -> Result<(), Error> {
     replace_file(filename_pub, pub_key.as_slice(), CreateOptions::new())?;
 
     let cipher = openssl::symm::Cipher::aes_256_cbc();
-    let priv_key: Vec<u8> = pkey.private_key_to_pem_pkcs8_passphrase(cipher, password.as_bytes())?;
+    let priv_key: Vec<u8> =
+        pkey.private_key_to_pem_pkcs8_passphrase(cipher, password.as_bytes())?;
 
     let filename_priv = "master-private.pem";
     println!("Writing private master key to {}", filename_priv);
