@@ -90,7 +90,18 @@ class ReflabelMapper(Builder):
                 if hasattr(node, 'expect_referenced_by_id') and len(node['ids']) > 1: # explicit labels
                     filename = self.env.doc2path(docname)
                     filename_html = re.sub('.rst', '.html', filename)
-                    labelid = node['ids'][1] # [0] is predefined by sphinx, we need [1] for explicit ones
+
+                    # node['ids'][0] contains a normalized version of the
+                    # headline.  If the ref and headline are the same
+                    # (normalized) sphinx will set the node['ids'][1] to a
+                    # generic id in the format `idX` where X is numeric. If the
+                    # ref and headline are not the same, the ref name will be
+                    # stored in node['ids'][1]
+                    if re.match('^id[0-9]*$', node['ids'][1]):
+                        labelid = node['ids'][0]
+                    else:
+                        labelid = node['ids'][1]
+
                     title = cast(nodes.title, node[0])
                     logger.info('traversing section {}'.format(title.astext()))
                     ref_name = getattr(title, 'rawsource', title.astext())
