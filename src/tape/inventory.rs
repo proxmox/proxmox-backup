@@ -346,7 +346,7 @@ impl Inventory {
 
         match last_pool {
             Some(pool) => Ok(pool.to_string()),
-            None => bail!("media set {} is incomplete - unable to lookup pool"),
+            None => bail!("media set {} is incomplete - unable to lookup pool", media_set_uuid),
         }
     }
 
