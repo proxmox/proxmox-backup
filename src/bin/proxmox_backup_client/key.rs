@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::convert::TryFrom;
 
 use anyhow::{bail, format_err, Error};
 use serde_json::Value;
@@ -25,6 +26,7 @@ use proxmox_backup::{
         PASSWORD_HINT_SCHEMA,
         KeyInfo,
         Kdf,
+        RsaPubKeyInfo,
     },
     backup::{
         rsa_decrypt_key_config,
@@ -366,9 +368,16 @@ fn show_key(path: Option<String>, param: Value) -> Result<(), Error> {
 fn import_master_pubkey(path: String) -> Result<(), Error> {
     let pem_data = file_get_contents(&path)?;
 
-    if let Err(err) = openssl::pkey::PKey::public_key_from_pem(&pem_data) {
-        bail!("Unable to decode PEM data - {}", err);
-    }
+    match openssl::pkey::PKey::public_key_from_pem(&pem_data) {
+        Ok(key) => {
+            let info = RsaPubKeyInfo::try_from(key.rsa()?)?;
+            println!("Found following key at {:?}", path);
+            println!("Modulus: {}", info.modulus);
+            println!("Exponent: {}", info.exponent);
+            println!("Length: {}", info.length);
+        },
+        Err(err) => bail!("Unable to decode PEM data - {}", err),
+    };
 
     let target_path = place_default_master_pubkey()?;
 
@@ -388,7 +397,18 @@ fn create_master_key() -> Result<(), Error> {
         bail!("unable to create master key - no tty");
     }
 
-    let rsa = openssl::rsa::Rsa::generate(4096)?;
+    let bits = 4096;
+    println!("Generating {}-bit RSA key..", bits);
+    let rsa = openssl::rsa::Rsa::generate(bits)?;
+    let public = openssl::rsa::Rsa::from_public_components(
+        rsa.n().to_owned()?,
+        rsa.e().to_owned()?,
+    )?;
+    let info = RsaPubKeyInfo::try_from(public)?;
+    println!("Modulus: {}", info.modulus);
+    println!("Exponent: {}", info.exponent);
+    println!();
+
     let pkey = openssl::pkey::PKey::from_rsa(rsa)?;
 
     let password = String::from_utf8(tty::read_and_verify_password("Master Key Password: ")?)?;
@@ -404,6 +424,56 @@ fn create_master_key() -> Result<(), Error> {
     let filename_priv = "master-private.pem";
     println!("Writing private master key to {}", filename_priv);
     replace_file(filename_priv, priv_key.as_slice(), CreateOptions::new())?;
+
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            path: {
+                description: "Path to the PEM formatted RSA public key. Default location will be used if not specified.",
+                optional: true,
+            },
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+        },
+    },
+)]
+/// List information about master key
+fn show_master_pubkey(path: Option<String>, param: Value) -> Result<(), Error> {
+    let path = match path {
+        Some(path) => PathBuf::from(path),
+        None => find_default_master_pubkey()?
+            .ok_or_else(|| format_err!("No path specified and no default master key available."))?,
+    };
+
+    let path = path.canonicalize()?;
+
+    let output_format = get_output_format(&param);
+
+    let pem_data = file_get_contents(path.clone())?;
+    let rsa = openssl::rsa::Rsa::public_key_from_pem(&pem_data)?;
+
+    let mut info = RsaPubKeyInfo::try_from(rsa)?;
+    info.path = Some(path.display().to_string());
+
+    let options = proxmox::api::cli::default_table_format_options()
+        .column(ColumnConfig::new("path"))
+        .column(ColumnConfig::new("modulus"))
+        .column(ColumnConfig::new("exponent"))
+        .column(ColumnConfig::new("length"));
+
+    let return_type = ReturnType::new(false, &RsaPubKeyInfo::API_SCHEMA);
+
+    format_and_print_result_full(
+        &mut serde_json::to_value(info)?,
+        &return_type,
+        &output_format,
+        &options,
+    );
 
     Ok(())
 }
@@ -467,6 +537,9 @@ pub fn cli() -> CliCommandMap {
     let key_import_master_pubkey_cmd_def = CliCommand::new(&API_METHOD_IMPORT_MASTER_PUBKEY)
         .arg_param(&["path"])
         .completion_cb("path", tools::complete_file_name);
+    let key_show_master_pubkey_cmd_def = CliCommand::new(&API_METHOD_SHOW_MASTER_PUBKEY)
+        .arg_param(&["path"])
+        .completion_cb("path", tools::complete_file_name);
 
     let key_show_cmd_def = CliCommand::new(&API_METHOD_SHOW_KEY)
         .arg_param(&["path"])
@@ -483,5 +556,6 @@ pub fn cli() -> CliCommandMap {
         .insert("import-master-pubkey", key_import_master_pubkey_cmd_def)
         .insert("change-passphrase", key_change_passphrase_cmd_def)
         .insert("show", key_show_cmd_def)
+        .insert("show-master-pubkey", key_show_master_pubkey_cmd_def)
         .insert("paperkey", paper_key_cmd_def)
 }
