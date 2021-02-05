@@ -784,6 +784,9 @@ fn test_crypto_parameters_handling() -> Result<(), Error> {
     let some_key = Some(vec![1;1]);
     let default_key = Some(vec![2;1]);
 
+    let some_master_key = Some(vec![3;1]);
+    let default_master_key = Some(vec![4;1]);
+
     let no_key_res = CryptoParams {
         enc_key: None,
         master_pubkey: None,
@@ -794,6 +797,17 @@ fn test_crypto_parameters_handling() -> Result<(), Error> {
         master_pubkey: None,
         mode: CryptMode::Encrypt,
     };
+    let some_key_some_master_res = CryptoParams {
+        enc_key: some_key.clone(),
+        master_pubkey: some_master_key.clone(),
+        mode: CryptMode::Encrypt,
+    };
+    let some_key_default_master_res = CryptoParams {
+        enc_key: some_key.clone(),
+        master_pubkey: default_master_key.clone(),
+        mode: CryptMode::Encrypt,
+    };
+
     let some_key_sign_res = CryptoParams {
         enc_key: some_key.clone(),
         master_pubkey: None,
@@ -812,6 +826,8 @@ fn test_crypto_parameters_handling() -> Result<(), Error> {
 
     let keypath = "./tests/keyfile.test";
     replace_file(&keypath, some_key.as_ref().unwrap(), CreateOptions::default())?;
+    let master_keypath = "./tests/masterkeyfile.test";
+    replace_file(&master_keypath, some_master_key.as_ref().unwrap(), CreateOptions::default())?;
     let invalid_keypath = "./tests/invalid_keyfile.test";
 
     // no params, no default key == no key
@@ -917,6 +933,52 @@ fn test_crypto_parameters_handling() -> Result<(), Error> {
     assert!(crypto_parameters(&json!({"keyfile": invalid_keypath, "crypt-mode": "none"})).is_err());
     assert!(crypto_parameters(&json!({"keyfile": invalid_keypath, "crypt-mode": "sign-only"})).is_err());
     assert!(crypto_parameters(&json!({"keyfile": invalid_keypath, "crypt-mode": "encrypt"})).is_err());
+
+    // now remove default key again
+    unsafe { key::set_test_encryption_key(Ok(None)); }
+    // set a default master key
+    unsafe { key::set_test_default_master_pubkey(Ok(default_master_key.clone())); }
+
+    // and use an explicit master key
+    assert!(crypto_parameters(&json!({"master-pubkey-file": master_keypath})).is_err());
+    // just a default == no key
+    let res = crypto_parameters(&json!({}));
+    assert_eq!(res.unwrap(), no_key_res);
+
+    // keyfile param == key from keyfile
+    let res = crypto_parameters(&json!({"keyfile": keypath, "master-pubkey-file": master_keypath}));
+    assert_eq!(res.unwrap(), some_key_some_master_res);
+    // same with fallback to default master key
+    let res = crypto_parameters(&json!({"keyfile": keypath}));
+    assert_eq!(res.unwrap(), some_key_default_master_res);
+
+    // crypt mode none == error
+    assert!(crypto_parameters(&json!({"crypt-mode": "none", "master-pubkey-file": master_keypath})).is_err());
+    // with just default master key == no key
+    let res = crypto_parameters(&json!({"crypt-mode": "none"}));
+    assert_eq!(res.unwrap(), no_key_res);
+
+    // crypt mode encrypt without enc key == error
+    assert!(crypto_parameters(&json!({"crypt-mode": "encrypt", "master-pubkey-file": master_keypath})).is_err());
+    assert!(crypto_parameters(&json!({"crypt-mode": "encrypt"})).is_err());
+
+    // crypt mode none with explicit key == Error
+    assert!(crypto_parameters(&json!({"crypt-mode": "none", "keyfile": keypath, "master-pubkey-file": master_keypath})).is_err());
+    assert!(crypto_parameters(&json!({"crypt-mode": "none", "keyfile": keypath})).is_err());
+
+    // crypt mode encrypt with keyfile == key from keyfile with correct mode
+    let res = crypto_parameters(&json!({"crypt-mode": "encrypt", "keyfile": keypath, "master-pubkey-file": master_keypath}));
+    assert_eq!(res.unwrap(), some_key_some_master_res);
+    let res = crypto_parameters(&json!({"crypt-mode": "encrypt", "keyfile": keypath}));
+    assert_eq!(res.unwrap(), some_key_default_master_res);
+
+    // invalid master keyfile parameter always errors when a key is passed, even with a valid
+    // default master key
+    assert!(crypto_parameters(&json!({"keyfile": keypath, "master-pubkey-file": invalid_keypath})).is_err());
+    assert!(crypto_parameters(&json!({"keyfile": keypath, "master-pubkey-file": invalid_keypath,"crypt-mode": "none"})).is_err());
+    assert!(crypto_parameters(&json!({"keyfile": keypath, "master-pubkey-file": invalid_keypath,"crypt-mode": "sign-only"})).is_err());
+    assert!(crypto_parameters(&json!({"keyfile": keypath, "master-pubkey-file": invalid_keypath,"crypt-mode": "encrypt"})).is_err());
+
     Ok(())
 }
 
