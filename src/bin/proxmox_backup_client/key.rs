@@ -51,10 +51,31 @@ pub fn place_default_encryption_key() -> Result<PathBuf, Error> {
     )
 }
 
+#[cfg(not(test))]
 pub fn read_optional_default_encryption_key() -> Result<Option<Vec<u8>>, Error> {
     find_default_encryption_key()?
         .map(file_get_contents)
         .transpose()
+}
+
+#[cfg(test)]
+static mut TEST_DEFAULT_ENCRYPTION_KEY: Result<Option<Vec<u8>>, Error> = Ok(None);
+
+#[cfg(test)]
+pub fn read_optional_default_encryption_key() -> Result<Option<Vec<u8>>, Error> {
+    // not safe when multiple concurrent test cases end up here!
+    unsafe {
+        match &TEST_DEFAULT_ENCRYPTION_KEY {
+            Ok(key) => Ok(key.clone()),
+            Err(_) => bail!("test error"),
+        }
+    }
+}
+
+#[cfg(test)]
+// not safe when multiple concurrent test cases end up here!
+pub unsafe fn set_test_encryption_key(value: Result<Option<Vec<u8>>, Error>) {
+    TEST_DEFAULT_ENCRYPTION_KEY = value;
 }
 
 pub fn get_encryption_key_password() -> Result<Vec<u8>, Error> {

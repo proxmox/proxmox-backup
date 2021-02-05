@@ -675,6 +675,129 @@ fn keyfile_parameters(param: &Value) -> Result<(Option<Vec<u8>>, CryptMode), Err
     })
 }
 
+#[test]
+// WARNING: there must only be one test for keyfile_parameters as the default key handling is not
+// safe w.r.t. concurrency
+fn test_keyfile_parameters_handling() -> Result<(), Error> {
+    let some_key = Some(vec![1;1]);
+    let default_key = Some(vec![2;1]);
+
+    let no_key_res: (Option<Vec<u8>>, CryptMode) = (None, CryptMode::None);
+    let some_key_res = (some_key.clone(), CryptMode::Encrypt);
+    let some_key_sign_res = (some_key.clone(), CryptMode::SignOnly);
+    let default_key_res = (default_key.clone(), CryptMode::Encrypt);
+    let default_key_sign_res = (default_key.clone(), CryptMode::SignOnly);
+
+    let keypath = "./tests/keyfile.test";
+    replace_file(&keypath, some_key.as_ref().unwrap(), CreateOptions::default())?;
+    let invalid_keypath = "./tests/invalid_keyfile.test";
+
+    // no params, no default key == no key
+    let res = keyfile_parameters(&json!({}));
+    assert_eq!(res.unwrap(), no_key_res);
+
+    // keyfile param == key from keyfile
+    let res = keyfile_parameters(&json!({"keyfile": keypath}));
+    assert_eq!(res.unwrap(), some_key_res);
+
+    // crypt mode none == no key
+    let res = keyfile_parameters(&json!({"crypt-mode": "none"}));
+    assert_eq!(res.unwrap(), no_key_res);
+
+    // crypt mode encrypt/sign-only, no keyfile, no default key == Error
+    assert!(keyfile_parameters(&json!({"crypt-mode": "sign-only"})).is_err());
+    assert!(keyfile_parameters(&json!({"crypt-mode": "encrypt"})).is_err());
+
+    // crypt mode none with explicit key == Error
+    assert!(keyfile_parameters(&json!({"crypt-mode": "none", "keyfile": keypath})).is_err());
+
+    // crypt mode sign-only/encrypt with keyfile == key from keyfile with correct mode
+    let res = keyfile_parameters(&json!({"crypt-mode": "sign-only", "keyfile": keypath}));
+    assert_eq!(res.unwrap(), some_key_sign_res);
+    let res = keyfile_parameters(&json!({"crypt-mode": "encrypt", "keyfile": keypath}));
+    assert_eq!(res.unwrap(), some_key_res);
+
+    // invalid keyfile parameter always errors
+    assert!(keyfile_parameters(&json!({"keyfile": invalid_keypath})).is_err());
+    assert!(keyfile_parameters(&json!({"keyfile": invalid_keypath, "crypt-mode": "none"})).is_err());
+    assert!(keyfile_parameters(&json!({"keyfile": invalid_keypath, "crypt-mode": "sign-only"})).is_err());
+    assert!(keyfile_parameters(&json!({"keyfile": invalid_keypath, "crypt-mode": "encrypt"})).is_err());
+
+    // now set a default key
+    unsafe { key::set_test_encryption_key(Ok(default_key.clone())); }
+
+    // and repeat
+
+    // no params but default key == default key
+    let res = keyfile_parameters(&json!({}));
+    assert_eq!(res.unwrap(), default_key_res);
+
+    // keyfile param == key from keyfile
+    let res = keyfile_parameters(&json!({"keyfile": keypath}));
+    assert_eq!(res.unwrap(), some_key_res);
+
+    // crypt mode none == no key
+    let res = keyfile_parameters(&json!({"crypt-mode": "none"}));
+    assert_eq!(res.unwrap(), no_key_res);
+
+    // crypt mode encrypt/sign-only, no keyfile, default key == default key with correct mode
+    let res = keyfile_parameters(&json!({"crypt-mode": "sign-only"}));
+    assert_eq!(res.unwrap(), default_key_sign_res);
+    let res = keyfile_parameters(&json!({"crypt-mode": "encrypt"}));
+    assert_eq!(res.unwrap(), default_key_res);
+
+    // crypt mode none with explicit key == Error
+    assert!(keyfile_parameters(&json!({"crypt-mode": "none", "keyfile": keypath})).is_err());
+
+    // crypt mode sign-only/encrypt with keyfile == key from keyfile with correct mode
+    let res = keyfile_parameters(&json!({"crypt-mode": "sign-only", "keyfile": keypath}));
+    assert_eq!(res.unwrap(), some_key_sign_res);
+    let res = keyfile_parameters(&json!({"crypt-mode": "encrypt", "keyfile": keypath}));
+    assert_eq!(res.unwrap(), some_key_res);
+
+    // invalid keyfile parameter always errors
+    assert!(keyfile_parameters(&json!({"keyfile": invalid_keypath})).is_err());
+    assert!(keyfile_parameters(&json!({"keyfile": invalid_keypath, "crypt-mode": "none"})).is_err());
+    assert!(keyfile_parameters(&json!({"keyfile": invalid_keypath, "crypt-mode": "sign-only"})).is_err());
+    assert!(keyfile_parameters(&json!({"keyfile": invalid_keypath, "crypt-mode": "encrypt"})).is_err());
+
+    // now make default key retrieval error
+    unsafe { key::set_test_encryption_key(Err(format_err!("test error"))); }
+
+    // and repeat
+
+    // no params, default key retrieval errors == Error
+    assert!(keyfile_parameters(&json!({})).is_err());
+
+    // keyfile param == key from keyfile
+    let res = keyfile_parameters(&json!({"keyfile": keypath}));
+    assert_eq!(res.unwrap(), some_key_res);
+
+    // crypt mode none == no key
+    let res = keyfile_parameters(&json!({"crypt-mode": "none"}));
+    assert_eq!(res.unwrap(), no_key_res);
+
+    // crypt mode encrypt/sign-only, no keyfile, default key error == Error
+    assert!(keyfile_parameters(&json!({"crypt-mode": "sign-only"})).is_err());
+    assert!(keyfile_parameters(&json!({"crypt-mode": "encrypt"})).is_err());
+
+    // crypt mode none with explicit key == Error
+    assert!(keyfile_parameters(&json!({"crypt-mode": "none", "keyfile": keypath})).is_err());
+
+    // crypt mode sign-only/encrypt with keyfile == key from keyfile with correct mode
+    let res = keyfile_parameters(&json!({"crypt-mode": "sign-only", "keyfile": keypath}));
+    assert_eq!(res.unwrap(), some_key_sign_res);
+    let res = keyfile_parameters(&json!({"crypt-mode": "encrypt", "keyfile": keypath}));
+    assert_eq!(res.unwrap(), some_key_res);
+
+    // invalid keyfile parameter always errors
+    assert!(keyfile_parameters(&json!({"keyfile": invalid_keypath})).is_err());
+    assert!(keyfile_parameters(&json!({"keyfile": invalid_keypath, "crypt-mode": "none"})).is_err());
+    assert!(keyfile_parameters(&json!({"keyfile": invalid_keypath, "crypt-mode": "sign-only"})).is_err());
+    assert!(keyfile_parameters(&json!({"keyfile": invalid_keypath, "crypt-mode": "encrypt"})).is_err());
+    Ok(())
+}
+
 #[api(
    input: {
        properties: {
