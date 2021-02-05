@@ -40,7 +40,10 @@ use proxmox_backup::{
         media_pool::complete_pool_name,
     },
     tape::{
-        drive::open_drive,
+        drive::{
+            open_drive,
+            lock_tape_device,
+        },
         complete_media_label_text,
         complete_media_set_uuid,
         file_formats::{
@@ -518,6 +521,9 @@ fn move_to_eom(param: Value) -> Result<(), Error> {
     let (config, _digest) = config::drive::config()?;
 
     let drive = lookup_drive_name(&param, &config)?;
+
+    let _lock = lock_tape_device(&config, &drive)?;
+
     let mut drive = open_drive(&config, &drive)?;
 
     drive.move_to_eom()?;
@@ -544,6 +550,9 @@ fn debug_scan(param: Value) -> Result<(), Error> {
     let (config, _digest) = config::drive::config()?;
 
     let drive = lookup_drive_name(&param, &config)?;
+
+    let _lock = lock_tape_device(&config, &drive)?;
+
     let mut drive = open_drive(&config, &drive)?;
 
     println!("rewinding tape");

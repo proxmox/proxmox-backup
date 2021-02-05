@@ -19,6 +19,8 @@ pub use linux_tape::*;
 mod mam;
 pub use mam::*;
 
+use std::os::unix::io::AsRawFd;
+
 use anyhow::{bail, format_err, Error};
 use ::serde::{Deserialize};
 use serde_json::Value;
@@ -27,6 +29,7 @@ use proxmox::{
     tools::{
         Uuid,
         io::ReadExt,
+        fs::fchown,
     },
     api::section_config::SectionConfigData,
 };
@@ -441,4 +444,55 @@ pub fn request_and_load_media(
             bail!("no such drive '{}'", drive);
         }
     }
+}
+
+/// Aquires an exclusive lock for the tape device
+///
+/// Basically calls lock_device_path() using the configured drive path.
+pub fn lock_tape_device(
+    config: &SectionConfigData,
+    drive: &str,
+) -> Result<DeviceLockGuard, Error> {
+
+    match config.sections.get(drive) {
+        Some((section_type_name, config)) => {
+            let path = match section_type_name.as_ref() {
+                "virtual" => {
+                    VirtualTapeDrive::deserialize(config)?.path
+                }
+                "linux" => {
+                    LinuxTapeDrive::deserialize(config)?.path
+                }
+                _ => bail!("unknown drive type '{}' - internal error"),
+            };
+            lock_device_path(&path)
+                .map_err(|err| format_err!("unable to lock drive '{}' - {}", drive, err))
+        }
+        None => {
+            bail!("no such drive '{}'", drive);
+        }
+    }
+}
+
+pub struct DeviceLockGuard(std::fs::File);
+
+// Aquires an exclusive lock on `device_path`
+//
+// Uses systemd escape_unit to compute a file name from `device_path`, the try
+// to lock `/var/lock/<name>`.
+fn lock_device_path(device_path: &str) -> Result<DeviceLockGuard, Error> {
+
+    let lock_name = crate::tools::systemd::escape_unit(device_path, true);
+
+    let mut path = std::path::PathBuf::from("/var/lock");
+    path.push(lock_name);
+
+    let timeout = std::time::Duration::new(10, 0);
+    let mut file = std::fs::OpenOptions::new().create(true).append(true).open(path)?;
+    proxmox::tools::fs::lock_file(&mut file, true, Some(timeout))?;
+
+    let backup_user = crate::backup::backup_user()?;
+    fchown(file.as_raw_fd(), Some(backup_user.uid), Some(backup_user.gid))?;
+
+    Ok(DeviceLockGuard(file))
 }

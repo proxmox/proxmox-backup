@@ -15,10 +15,7 @@ use proxmox::{
 
 use crate::{
     task_log,
-    config::{
-        self,
-        drive::check_drive_exists,
-    },
+    config,
     backup::{
         DataStore,
         BackupDir,
@@ -40,7 +37,10 @@ use crate::{
         PoolWriter,
         MediaPool,
         SnapshotReader,
-        drive::media_changer,
+        drive::{
+            media_changer,
+            lock_tape_device,
+        },
         changer::update_changer_online_status,
     },
 };
@@ -91,8 +91,9 @@ pub fn backup(
     let pool_config: MediaPoolConfig = config.lookup("pool", &pool)?;
 
     let (drive_config, _digest) = config::drive::config()?;
-    // early check before starting worker
-    check_drive_exists(&drive_config, &drive)?;
+
+    // early check/lock before starting worker
+    let drive_lock = lock_tape_device(&drive_config, &drive)?;
 
     let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
@@ -105,6 +106,7 @@ pub fn backup(
         auth_id,
         to_stdout,
         move |worker| {
+            let _drive_lock = drive_lock; // keep lock guard
             backup_worker(&worker, datastore, &drive, &pool_config, eject_media, export_media_set)?;
             Ok(())
         }

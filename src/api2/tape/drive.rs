@@ -12,6 +12,7 @@ use proxmox::{
     sys::error::SysError,
     api::{
         api,
+        section_config::SectionConfigData,
         RpcEnvironment,
         RpcEnvironmentType,
         Router,
@@ -20,10 +21,7 @@ use proxmox::{
 };
 
 use crate::{
-    config::{
-        self,
-        drive::check_drive_exists,
-    },
+    config,
     api2::{
         types::{
             UPID_SCHEMA,
@@ -59,9 +57,10 @@ use crate::{
             LinuxTapeHandle,
             Lp17VolumeStatistics,
             open_linux_tape_device,
-             media_changer,
+            media_changer,
             required_media_changer,
             open_drive,
+            lock_tape_device,
         },
         changer::update_changer_online_status,
     },
@@ -205,7 +204,8 @@ pub fn erase_media(
 
     let (config, _digest) = config::drive::config()?;
 
-    check_drive_exists(&config, &drive)?; // early check before starting worker
+    // early check/lock before starting worker
+    let lock_guard = lock_tape_device(&config, &drive)?;
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
@@ -217,6 +217,8 @@ pub fn erase_media(
         auth_id,
         to_stdout,
         move |_worker| {
+            let _lock_guard = lock_guard; // keep lock guard
+
             let mut drive = open_drive(&config, &drive)?;
             drive.erase_media(fast.unwrap_or(true))?;
             Ok(())
@@ -246,7 +248,8 @@ pub fn rewind(
 
     let (config, _digest) = config::drive::config()?;
 
-    check_drive_exists(&config, &drive)?; // early check before starting worker
+    // early check/lock before starting worker
+    let lock_guard = lock_tape_device(&config, &drive)?;
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
@@ -258,6 +261,7 @@ pub fn rewind(
         auth_id,
         to_stdout,
         move |_worker| {
+            let _lock_guard = lock_guard; // keep lock guard
             let mut drive = open_drive(&config, &drive)?;
             drive.rewind()?;
             Ok(())
@@ -287,7 +291,8 @@ pub fn eject_media(
 
     let (config, _digest) = config::drive::config()?;
 
-    check_drive_exists(&config, &drive)?; // early check before starting worker
+    // early check/lock before starting worker
+    let lock_guard = lock_tape_device(&config, &drive)?;
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
@@ -299,7 +304,9 @@ pub fn eject_media(
         auth_id,
         to_stdout,
         move |_worker| {
-            if let Some((mut changer, _)) = media_changer(&config, &drive)? {
+            let _lock_guard = lock_guard; // keep lock guard
+
+             if let Some((mut changer, _)) = media_changer(&config, &drive)? {
                 changer.unload_media(None)?;
             } else {
                 let mut drive = open_drive(&config, &drive)?;
@@ -355,6 +362,9 @@ pub fn label_media(
 
     let (config, _digest) = config::drive::config()?;
 
+    // early check/lock before starting worker
+    let lock_guard = lock_tape_device(&config, &drive)?;
+
     let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
     let upid_str = WorkerTask::new_thread(
@@ -363,6 +373,7 @@ pub fn label_media(
         auth_id,
         to_stdout,
         move |worker| {
+            let _lock_guard = lock_guard; // keep lock guard
 
             let mut drive = open_drive(&config, &drive)?;
 
@@ -479,7 +490,12 @@ pub async fn restore_key(
 
     let (config, _digest) = config::drive::config()?;
 
+    // early check/lock before starting worker
+    let lock_guard = lock_tape_device(&config, &drive)?;
+
     tokio::task::spawn_blocking(move || {
+        let _lock_guard = lock_guard; // keep lock guard
+
         let mut drive = open_drive(&config, &drive)?;
 
         let (_media_id, key_config) = drive.read_label()?;
@@ -520,7 +536,12 @@ pub async fn read_label(
 
     let (config, _digest) = config::drive::config()?;
 
+    // early check/lock before starting worker
+    let lock_guard = lock_tape_device(&config, &drive)?;
+
     tokio::task::spawn_blocking(move || {
+        let _lock_guard = lock_guard; // keep lock guard
+
         let mut drive = open_drive(&config, &drive)?;
 
         let (media_id, _key_config) = drive.read_label()?;
@@ -593,7 +614,8 @@ pub fn clean_drive(
 
     let (config, _digest) = config::drive::config()?;
 
-    check_drive_exists(&config, &drive)?; // early check before starting worker
+    // early check/lock before starting worker
+    let lock_guard = lock_tape_device(&config, &drive)?;
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
@@ -605,6 +627,7 @@ pub fn clean_drive(
         auth_id,
         to_stdout,
         move |worker| {
+            let _lock_guard = lock_guard; // keep lock guard
 
             let (mut changer, _changer_name) = required_media_changer(&config, &drive)?;
 
@@ -649,7 +672,12 @@ pub async fn inventory(
 
     let (config, _digest) = config::drive::config()?;
 
+    // early check/lock before starting worker
+    let lock_guard = lock_tape_device(&config, &drive)?;
+
     tokio::task::spawn_blocking(move || {
+        let _lock_guard = lock_guard; // keep lock guard
+
         let (mut changer, changer_name) = required_media_changer(&config, &drive)?;
 
         let label_text_list = changer.online_media_label_texts()?;
@@ -720,7 +748,8 @@ pub fn update_inventory(
 
     let (config, _digest) = config::drive::config()?;
 
-    check_drive_exists(&config, &drive)?; // early check before starting worker
+    // early check/lock before starting worker
+    let lock_guard = lock_tape_device(&config, &drive)?;
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
@@ -732,6 +761,7 @@ pub fn update_inventory(
         auth_id,
         to_stdout,
         move |worker| {
+            let _lock_guard = lock_guard; // keep lock guard
 
             let (mut changer, changer_name) = required_media_changer(&config, &drive)?;
 
@@ -822,6 +852,11 @@ pub fn barcode_label_media(
         }
     }
 
+    let (drive_config, _digest) = config::drive::config()?;
+
+    // early check/lock before starting worker
+    let lock_guard = lock_tape_device(&drive_config, &drive)?;
+
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
     let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
@@ -832,7 +867,8 @@ pub fn barcode_label_media(
         auth_id,
         to_stdout,
         move |worker| {
-            barcode_label_media_worker(worker, drive, pool)
+            let _lock_guard = lock_guard; // keep lock guard
+            barcode_label_media_worker(worker, drive, &drive_config, pool)
         }
     )?;
 
@@ -842,12 +878,11 @@ pub fn barcode_label_media(
 fn barcode_label_media_worker(
     worker: Arc<WorkerTask>,
     drive: String,
+    drive_config: &SectionConfigData,
     pool: Option<String>,
 ) -> Result<(), Error> {
 
-    let (config, _digest) = config::drive::config()?;
-
-    let (mut changer, changer_name) = required_media_changer(&config, &drive)?;
+    let (mut changer, changer_name) = required_media_changer(drive_config, &drive)?;
 
     let label_text_list = changer.online_media_label_texts()?;
 
@@ -855,7 +890,7 @@ fn barcode_label_media_worker(
 
     let mut inventory = Inventory::load(state_path)?;
 
-    update_changer_online_status(&config, &mut inventory, &changer_name, &label_text_list)?;
+    update_changer_online_status(drive_config, &mut inventory, &changer_name, &label_text_list)?;
 
     if label_text_list.is_empty() {
         bail!("changer device does not list any media labels");
@@ -877,7 +912,7 @@ fn barcode_label_media_worker(
             continue;
         }
 
-        let mut drive = open_drive(&config, &drive)?;
+        let mut drive = open_drive(drive_config, &drive)?;
         drive.rewind()?;
 
         match drive.read_next_file() {
@@ -930,6 +965,8 @@ pub fn cartridge_memory(drive: String) -> Result<Vec<MamAttribute>, Error> {
 
     let (config, _digest) = config::drive::config()?;
 
+    let _lock_guard = lock_tape_device(&config, &drive)?;
+
     let drive_config: LinuxTapeDrive = config.lookup("linux", &drive)?;
     let mut handle = drive_config.open()?;
 
@@ -953,6 +990,8 @@ pub fn volume_statistics(drive: String) -> Result<Lp17VolumeStatistics, Error> {
 
     let (config, _digest) = config::drive::config()?;
 
+    let _lock_guard = lock_tape_device(&config, &drive)?;
+
     let drive_config: LinuxTapeDrive = config.lookup("linux", &drive)?;
     let mut handle = drive_config.open()?;
 
@@ -975,6 +1014,8 @@ pub fn volume_statistics(drive: String) -> Result<Lp17VolumeStatistics, Error> {
 pub fn status(drive: String) -> Result<LinuxDriveAndMediaStatus, Error> {
 
     let (config, _digest) = config::drive::config()?;
+
+    let _lock_guard = lock_tape_device(&config, &drive)?;
 
     let drive_config: LinuxTapeDrive = config.lookup("linux", &drive)?;
 
@@ -1021,7 +1062,8 @@ pub fn catalog_media(
 
     let (config, _digest) = config::drive::config()?;
 
-    check_drive_exists(&config, &drive)?; // early check before starting worker
+    // early check/lock before starting worker
+    let lock_guard = lock_tape_device(&config, &drive)?;
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
@@ -1033,6 +1075,7 @@ pub fn catalog_media(
         auth_id,
         to_stdout,
         move |worker| {
+            let _lock_guard = lock_guard; // keep lock guard
 
             let mut drive = open_drive(&config, &drive)?;
 

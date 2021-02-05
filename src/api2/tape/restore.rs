@@ -34,10 +34,7 @@ use crate::{
         Authid,
         MediaPoolConfig,
     },
-    config::{
-        self,
-        drive::check_drive_exists,
-    },
+    config,
     backup::{
         archive_type,
         MANIFEST_BLOB_NAME,
@@ -71,7 +68,8 @@ use crate::{
         drive::{
             TapeDriver,
             request_and_load_media,
-        }
+            lock_tape_device,
+        },
     },
 };
 
@@ -122,8 +120,9 @@ pub fn restore(
     let _pool_config: MediaPoolConfig = config.lookup("pool", &pool)?;
 
     let (drive_config, _digest) = config::drive::config()?;
-    // early check before starting worker
-    check_drive_exists(&drive_config, &drive)?;
+
+    // early check/lock before starting worker
+    let drive_lock = lock_tape_device(&drive_config, &drive)?;
 
     let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
@@ -133,6 +132,7 @@ pub fn restore(
         auth_id.clone(),
         to_stdout,
         move |worker| {
+            let _drive_lock = drive_lock; // keep lock guard
 
             let _lock = MediaPool::lock(status_path, &pool)?;
 
