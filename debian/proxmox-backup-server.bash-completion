@@ -1,2 +1,3 @@
 debian/proxmox-backup-manager.bc proxmox-backup-manager
 debian/pmtx.bc pmtx
+debian/pmt.bc pmt

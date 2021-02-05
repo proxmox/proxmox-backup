@@ -922,6 +922,7 @@ fn main() -> Result<(), Error> {
     };
 
     let cmd_def = CliCommandMap::new()
+        .usage_skip_options(&["device", "drive", "output-format"])
         .insert("asf", std_cmd(&API_METHOD_ASF).arg_param(&["count"]))
         .insert("bsf", std_cmd(&API_METHOD_BSF).arg_param(&["count"]))
         .insert("bsfm", std_cmd(&API_METHOD_BSFM).arg_param(&["count"]))

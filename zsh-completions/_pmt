@@ -1,0 +1,13 @@
+#compdef _pmt() pmt
+
+function _pmt() {
+    local cwords line point cmd curr prev
+    cworkds=${#words[@]}
+    line=$words
+    point=${#line}
+    cmd=${words[1]}
+    curr=${words[cwords]}
+    prev=${words[cwords-1]}
+    compadd -- $(COMP_CWORD="$cwords" COMP_LINE="$line" COMP_POINT="$point" \
+        pmt bashcomplete "$cmd" "$curr" "$prev")
+}
