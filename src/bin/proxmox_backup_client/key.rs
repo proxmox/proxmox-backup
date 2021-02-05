@@ -34,14 +34,14 @@ use proxmox_backup::{
 };
 
 pub const DEFAULT_ENCRYPTION_KEY_FILE_NAME: &str = "encryption-key.json";
-pub const MASTER_PUBKEY_FILE_NAME: &str = "master-public.pem";
+pub const DEFAULT_MASTER_PUBKEY_FILE_NAME: &str = "master-public.pem";
 
-pub fn find_master_pubkey() -> Result<Option<PathBuf>, Error> {
-    super::find_xdg_file(MASTER_PUBKEY_FILE_NAME, "main public key file")
+pub fn find_default_master_pubkey() -> Result<Option<PathBuf>, Error> {
+    super::find_xdg_file(DEFAULT_MASTER_PUBKEY_FILE_NAME, "default master public key file")
 }
 
-pub fn place_master_pubkey() -> Result<PathBuf, Error> {
-    super::place_xdg_file(MASTER_PUBKEY_FILE_NAME, "main public key file")
+pub fn place_default_master_pubkey() -> Result<PathBuf, Error> {
+    super::place_xdg_file(DEFAULT_MASTER_PUBKEY_FILE_NAME, "default master public key file")
 }
 
 pub fn find_default_encryption_key() -> Result<Option<PathBuf>, Error> {
@@ -360,6 +360,9 @@ fn show_key(path: Option<String>, param: Value) -> Result<(), Error> {
 )]
 /// Import an RSA public key used to put an encrypted version of the symmetric backup encryption
 /// key onto the backup server along with each backup.
+///
+/// The imported key will be used as default master key for future invocations by the same local
+/// user.
 fn import_master_pubkey(path: String) -> Result<(), Error> {
     let pem_data = file_get_contents(&path)?;
 
@@ -367,7 +370,7 @@ fn import_master_pubkey(path: String) -> Result<(), Error> {
         bail!("Unable to decode PEM data - {}", err);
     }
 
-    let target_path = place_master_pubkey()?;
+    let target_path = place_default_master_pubkey()?;
 
     replace_file(&target_path, &pem_data, CreateOptions::new())?;
 

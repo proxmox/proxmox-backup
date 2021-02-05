@@ -896,7 +896,7 @@ async fn create_backup(
 
             let crypt_config = CryptConfig::new(key)?;
 
-            match key::find_master_pubkey()? {
+            match key::find_default_master_pubkey()? {
                 Some(ref path) if path.exists() => {
                     let pem_data = file_get_contents(path)?;
                     let rsa = openssl::rsa::Rsa::public_key_from_pem(&pem_data)?;
