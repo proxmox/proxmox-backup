@@ -25,30 +25,6 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	    }
 	},
 
-	onAdd: function() {
-	    let me = this;
-	    Ext.create('PBS.TapeManagement.ChangerEditWindow', {
-		listeners: {
-		    destroy: function() {
-			me.reloadList();
-		    },
-		},
-	    }).show();
-	},
-
-	onEdit: function() {
-	    let me = this;
-	    let vm = me.getViewModel();
-	    let changerid = vm.get('changer');
-	    Ext.create('PBS.TapeManagement.ChangerEditWindow', {
-		changerid,
-		autoLoad: true,
-		listeners: {
-		    destroy: () => me.reload(),
-		},
-	    }).show();
-	},
-
 	importTape: function(view, rI, cI, button, el, record) {
 	    let me = this;
 	    let vm = me.getViewModel();
@@ -453,40 +429,6 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	    xtype: 'proxmoxButton',
 	    handler: 'reload',
 	    selModel: false,
-	},
-	'-',
-	{
-	    text: gettext('Add'),
-	    xtype: 'proxmoxButton',
-	    handler: 'onAdd',
-	    selModel: false,
-	},
-	{
-	    text: gettext('Edit'),
-	    xtype: 'proxmoxButton',
-	    handler: 'onEdit',
-	    bind: {
-		disabled: '{!changerSelected}',
-	    },
-	},
-	{
-	    xtype: 'proxmoxStdRemoveButton',
-	    baseurl: '/api2/extjs/config/changer',
-	    callback: 'reloadList',
-	    selModel: false,
-	    getRecordName: function() {
-		let me = this;
-		let vm = me.up('panel').getViewModel();
-		return vm.get('changer');
-	    },
-	    getUrl: function() {
-		let me = this;
-		let vm = me.up('panel').getViewModel();
-		return `/api2/extjs/config/changer/${vm.get('changer')}`;
-	    },
-	    bind: {
-		disabled: '{!changerSelected}',
-	    },
 	},
 	'-',
 	{
