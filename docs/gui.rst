@@ -129,7 +129,7 @@ top panel to view:
 * **Content**: Information on the datastore's backup groups and their respective
   contents
 * **Prune & GC**: Schedule :ref:`pruning <backup-pruning>` and :ref:`garbage
-  collection <garbage-collection>` operations, and run garbage collection
+  collection <client_garbage-collection>` operations, and run garbage collection
   manually
 * **Sync Jobs**: Create, manage and run :ref:`syncjobs` from remote servers
 * **Verify Jobs**: Create, manage and run :ref:`maintenance_verification` jobs on the

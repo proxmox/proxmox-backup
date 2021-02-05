@@ -657,7 +657,7 @@ shows the list of existing snapshots and what actions prune would take.
 
 .. note:: Neither the ``prune`` command nor the ``forget`` command free space
    in the chunk-store. The chunk-store still contains the data blocks. To free
-   space you need to perform :ref:`garbage-collection`.
+   space you need to perform :ref:`client_garbage-collection`.
 
 
 .. _client_garbage-collection:

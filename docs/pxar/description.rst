@@ -80,7 +80,7 @@ These files must contain one pattern per line, again later patterns win over
 previous ones.
 The patterns control file exclusions of files present within the given directory
 or further below it in the tree.
-The behavior is the same as described in :ref:`creating-backups`.
+The behavior is the same as described in :ref:`client_creating_backups`.
 
 Extracting an Archive
 ^^^^^^^^^^^^^^^^^^^^^

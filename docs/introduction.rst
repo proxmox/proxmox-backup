@@ -15,7 +15,7 @@ encryption (AE_). Using :term:`Rust` as the implementation language guarantees h
 performance, low resource usage, and a safe, high-quality codebase.
 
 Proxmox Backup uses state of the art cryptography for both client-server
-communication and backup content :ref:`encryption <encryption>`. All
+communication and backup content :ref:`encryption <client_encryption>`. All
 client-server communication uses `TLS
 <https://en.wikipedia.org/wiki/Transport_Layer_Security>`_, and backup data can
 be encrypted on the client-side before sending, making it safer to back up data

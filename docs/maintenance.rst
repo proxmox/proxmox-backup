@@ -118,11 +118,11 @@ high, but you cannot recreate backup snapshots from the past.
 Garbage Collection
 ------------------
 
-You can monitor and run :ref:`garbage collection <garbage-collection>` on the
+You can monitor and run :ref:`garbage collection <client_garbage-collection>` on the
 Proxmox Backup Server using the ``garbage-collection`` subcommand of
 ``proxmox-backup-manager``. You can use the ``start`` subcommand to manually
 start garbage collection on an entire datastore and the ``status`` subcommand to
-see attributes relating to the :ref:`garbage collection <garbage-collection>`.
+see attributes relating to the :ref:`garbage collection <client_garbage-collection>`.
 
 This functionality can also be accessed in the GUI, by navigating to **Prune &
 GC** from the top panel. From here, you can edit the schedule at which garbage
@@ -142,7 +142,7 @@ Verification
 Proxmox Backup offers various verification options to ensure that backup data is
 intact.  Verification is generally carried out through the creation of verify
 jobs. These are scheduled tasks that run verification at a given interval (see
-:ref:`calendar-events`). With these, you can set whether already verified
+:ref:`calendar-event-scheduling`). With these, you can set whether already verified
 snapshots are ignored, as well as set a time period, after which verified jobs
 are checked again. The interface for creating verify jobs can be found under the
 **Verify Jobs** tab of the datastore.

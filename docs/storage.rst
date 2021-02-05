@@ -119,8 +119,8 @@ directory on the filesystem. Each datastore also has associated retention
 settings of how many backup snapshots for each interval of ``hourly``,
 ``daily``, ``weekly``, ``monthly``, ``yearly`` as well as a time-independent
 number of backups to keep in that store. :ref:`backup-pruning` and
-:ref:`garbage collection <garbage-collection>` can also be configured to run
-periodically based on a configured schedule (see :ref:`calendar-events`) per datastore.
+:ref:`garbage collection <client_garbage-collection>` can also be configured to run
+periodically based on a configured schedule (see :ref:`calendar-event-scheduling`) per datastore.
 
 
 .. _storage_datastore_create:

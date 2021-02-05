@@ -65,7 +65,7 @@ the ``proxmox-backup-manager sync-job`` command.  The configuration information
 for sync jobs is stored at ``/etc/proxmox-backup/sync.cfg``. To create a new
 sync job, click the add button in the GUI, or use the ``create`` subcommand.
 After creating a sync job, you can either start it manually from the GUI or
-provide it with a schedule (see :ref:`calendar-events`) to run regularly.
+provide it with a schedule (see :ref:`calendar-event-scheduling`) to run regularly.
 
 .. code-block:: console
 

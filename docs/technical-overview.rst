@@ -7,8 +7,8 @@ Datastores
 ----------
 
 A Datastore is the logical place where :ref:`Backup Snapshots
-<backup_snapshot>` and their chunks are stored. Snapshots consist of a
-manifest, blobs, dynamic- and fixed-indexes (see :ref:`terminology`), and are
+<term_backup_snapshot>` and their chunks are stored. Snapshots consist of a
+manifest, blobs, dynamic- and fixed-indexes (see :ref:`terms`), and are
 stored in the following directory structure:
 
  <datastore-root>/<type>/<id>/<time>/
