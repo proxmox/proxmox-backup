@@ -20,6 +20,8 @@ use proxmox_backup::{
     tools::paperkey::{generate_paper_key, PaperkeyFormat},
 };
 
+use crate::KeyWithSource;
+
 pub const DEFAULT_ENCRYPTION_KEY_FILE_NAME: &str = "encryption-key.json";
 pub const DEFAULT_MASTER_PUBKEY_FILE_NAME: &str = "master-public.pem";
 
@@ -52,16 +54,16 @@ pub fn place_default_encryption_key() -> Result<PathBuf, Error> {
 }
 
 #[cfg(not(test))]
-pub fn read_optional_default_encryption_key() -> Result<Option<Vec<u8>>, Error> {
+pub(crate) fn read_optional_default_encryption_key() -> Result<Option<KeyWithSource>, Error> {
     find_default_encryption_key()?
-        .map(file_get_contents)
+        .map(|path| file_get_contents(path).map(KeyWithSource::from_default))
         .transpose()
 }
 
 #[cfg(not(test))]
-pub fn read_optional_default_master_pubkey() -> Result<Option<Vec<u8>>, Error> {
+pub(crate) fn read_optional_default_master_pubkey() -> Result<Option<KeyWithSource>, Error> {
     find_default_master_pubkey()?
-        .map(file_get_contents)
+        .map(|path| file_get_contents(path).map(KeyWithSource::from_default))
         .transpose()
 }
 
@@ -69,11 +71,12 @@ pub fn read_optional_default_master_pubkey() -> Result<Option<Vec<u8>>, Error> {
 static mut TEST_DEFAULT_ENCRYPTION_KEY: Result<Option<Vec<u8>>, Error> = Ok(None);
 
 #[cfg(test)]
-pub fn read_optional_default_encryption_key() -> Result<Option<Vec<u8>>, Error> {
+pub(crate) fn read_optional_default_encryption_key() -> Result<Option<KeyWithSource>, Error> {
     // not safe when multiple concurrent test cases end up here!
     unsafe {
         match &TEST_DEFAULT_ENCRYPTION_KEY {
-            Ok(key) => Ok(key.clone()),
+            Ok(Some(key)) => Ok(Some(KeyWithSource::from_default(key.clone()))),
+            Ok(None) => Ok(None),
             Err(_) => bail!("test error"),
         }
     }
@@ -81,7 +84,7 @@ pub fn read_optional_default_encryption_key() -> Result<Option<Vec<u8>>, Error> 
 
 #[cfg(test)]
 // not safe when multiple concurrent test cases end up here!
-pub unsafe fn set_test_encryption_key(value: Result<Option<Vec<u8>>, Error>) {
+pub(crate) unsafe fn set_test_encryption_key(value: Result<Option<Vec<u8>>, Error>) {
     TEST_DEFAULT_ENCRYPTION_KEY = value;
 }
 
@@ -89,11 +92,12 @@ pub unsafe fn set_test_encryption_key(value: Result<Option<Vec<u8>>, Error>) {
 static mut TEST_DEFAULT_MASTER_PUBKEY: Result<Option<Vec<u8>>, Error> = Ok(None);
 
 #[cfg(test)]
-pub fn read_optional_default_master_pubkey() -> Result<Option<Vec<u8>>, Error> {
+pub(crate) fn read_optional_default_master_pubkey() -> Result<Option<KeyWithSource>, Error> {
     // not safe when multiple concurrent test cases end up here!
     unsafe {
         match &TEST_DEFAULT_MASTER_PUBKEY {
-            Ok(key) => Ok(key.clone()),
+            Ok(Some(key)) => Ok(Some(KeyWithSource::from_default(key.clone()))),
+            Ok(None) => Ok(None),
             Err(_) => bail!("test error"),
         }
     }
@@ -101,7 +105,7 @@ pub fn read_optional_default_master_pubkey() -> Result<Option<Vec<u8>>, Error> {
 
 #[cfg(test)]
 // not safe when multiple concurrent test cases end up here!
-pub unsafe fn set_test_default_master_pubkey(value: Result<Option<Vec<u8>>, Error>) {
+pub(crate) unsafe fn set_test_default_master_pubkey(value: Result<Option<Vec<u8>>, Error>) {
     TEST_DEFAULT_MASTER_PUBKEY = value;
 }
 

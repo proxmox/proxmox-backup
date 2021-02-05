@@ -606,12 +606,56 @@ fn spawn_catalog_upload(
     Ok(CatalogUploadResult { catalog_writer, result: catalog_result_rx })
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum KeySource {
+    DefaultKey,
+    Fd,
+    Path(String),
+}
+
+fn format_key_source(source: &KeySource, key_type: &str) -> String {
+    match source {
+        KeySource::DefaultKey => format!("Using default {} key..", key_type),
+        KeySource::Fd => format!("Using {} key from file descriptor..", key_type),
+        KeySource::Path(path) => format!("Using {} key from '{}'..", key_type, path),
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct KeyWithSource {
+    pub source: KeySource,
+    pub key: Vec<u8>,
+}
+
+impl KeyWithSource {
+    pub fn from_fd(key: Vec<u8>) -> Self {
+        Self {
+            source: KeySource::Fd,
+            key,
+        }
+    }
+
+    pub fn from_default(key: Vec<u8>) -> Self {
+        Self {
+            source: KeySource::DefaultKey,
+            key,
+        }
+    }
+
+    pub fn from_path(path: String, key: Vec<u8>) -> Self {
+        Self {
+            source: KeySource::Path(path),
+            key,
+        }
+    }
+}
+
 #[derive(Debug, Eq, PartialEq)]
 struct CryptoParams {
     mode: CryptMode,
-    enc_key: Option<Vec<u8>>,
+    enc_key: Option<KeyWithSource>,
     // FIXME switch to openssl::rsa::rsa<openssl::pkey::Public> once that is Eq?
-    master_pubkey: Option<Vec<u8>>,
+    master_pubkey: Option<KeyWithSource>,
 }
 
 fn crypto_parameters(param: &Value) -> Result<CryptoParams, Error> {
@@ -656,52 +700,47 @@ fn crypto_parameters(param: &Value) -> Result<CryptoParams, Error> {
         None => None,
     };
 
-    let keydata = match (keyfile, key_fd) {
+    let key = match (keyfile, key_fd) {
         (None, None) => None,
         (Some(_), Some(_)) => bail!("--keyfile and --keyfd are mutually exclusive"),
-        (Some(keyfile), None) => {
-            eprintln!("Using encryption key file: {}", keyfile);
-            Some(file_get_contents(keyfile)?)
-        },
+        (Some(keyfile), None) => Some(KeyWithSource::from_path(
+            keyfile.clone(),
+            file_get_contents(keyfile)?,
+        )),
         (None, Some(fd)) => {
             let input = unsafe { std::fs::File::from_raw_fd(fd) };
             let mut data = Vec::new();
-            let _len: usize = { input }.read_to_end(&mut data)
-                .map_err(|err| {
-                    format_err!("error reading encryption key from fd {}: {}", fd, err)
-                })?;
-            eprintln!("Using encryption key from file descriptor");
-            Some(data)
+            let _len: usize = { input }.read_to_end(&mut data).map_err(|err| {
+                format_err!("error reading encryption key from fd {}: {}", fd, err)
+            })?;
+            Some(KeyWithSource::from_fd(data))
         }
     };
 
-    let master_pubkey_data = match (master_pubkey_file, master_pubkey_fd) {
+    let master_pubkey = match (master_pubkey_file, master_pubkey_fd) {
         (None, None) => None,
         (Some(_), Some(_)) => bail!("--keyfile and --keyfd are mutually exclusive"),
-        (Some(keyfile), None) => {
-            eprintln!("Using master key from file: {}", keyfile);
-            Some(file_get_contents(keyfile)?)
-        },
+        (Some(keyfile), None) => Some(KeyWithSource::from_path(
+            keyfile.clone(),
+            file_get_contents(keyfile)?,
+        )),
         (None, Some(fd)) => {
             let input = unsafe { std::fs::File::from_raw_fd(fd) };
             let mut data = Vec::new();
-            let _len: usize = { input }.read_to_end(&mut data)
-                .map_err(|err| {
-                    format_err!("error reading master key from fd {}: {}", fd, err)
-                })?;
-            eprintln!("Using master key from file descriptor");
-            Some(data)
+            let _len: usize = { input }
+                .read_to_end(&mut data)
+                .map_err(|err| format_err!("error reading master key from fd {}: {}", fd, err))?;
+            Some(KeyWithSource::from_fd(data))
         }
     };
 
     let res = match mode {
         // no crypt mode, enable encryption if keys are available
-        None => match (keydata, master_pubkey_data) {
+        None => match (key, master_pubkey) {
             // only default keys if available
             (None, None) => match key::read_optional_default_encryption_key()? {
                 None => CryptoParams { mode: CryptMode::None, enc_key: None, master_pubkey: None },
                 enc_key => {
-                    eprintln!("Encrypting with default encryption key!");
                     let master_pubkey = key::read_optional_default_master_pubkey()?;
                     CryptoParams {
                         mode: CryptMode::Encrypt,
@@ -715,7 +754,6 @@ fn crypto_parameters(param: &Value) -> Result<CryptoParams, Error> {
             (None, master_pubkey) => match key::read_optional_default_encryption_key()? {
                 None => bail!("--master-pubkey-file/--master-pubkey-fd specified, but no key available"),
                 enc_key => {
-                    eprintln!("Encrypting with default encryption key!");
                     CryptoParams {
                         mode: CryptMode::Encrypt,
                         enc_key,
@@ -732,7 +770,7 @@ fn crypto_parameters(param: &Value) -> Result<CryptoParams, Error> {
         },
 
         // explicitly disabled encryption
-        Some(CryptMode::None) => match (keydata, master_pubkey_data) {
+        Some(CryptMode::None) => match (key, master_pubkey) {
             // no keys => OK, no encryption
             (None, None) => CryptoParams { mode: CryptMode::None, enc_key: None, master_pubkey: None },
 
@@ -744,7 +782,7 @@ fn crypto_parameters(param: &Value) -> Result<CryptoParams, Error> {
         },
 
         // explicitly enabled encryption
-        Some(mode) => match (keydata, master_pubkey_data) {
+        Some(mode) => match (key, master_pubkey) {
             // no key, maybe master key
             (None, master_pubkey) => match key::read_optional_default_encryption_key()? {
                 None => bail!("--crypt-mode without --keyfile and no default key file available"),
@@ -782,11 +820,15 @@ fn crypto_parameters(param: &Value) -> Result<CryptoParams, Error> {
 // WARNING: there must only be one test for crypto_parameters as the default key handling is not
 // safe w.r.t. concurrency
 fn test_crypto_parameters_handling() -> Result<(), Error> {
-    let some_key = Some(vec![1;1]);
-    let default_key = Some(vec![2;1]);
+    let some_key = vec![1;1];
+    let default_key = vec![2;1];
 
-    let some_master_key = Some(vec![3;1]);
-    let default_master_key = Some(vec![4;1]);
+    let some_master_key = vec![3;1];
+    let default_master_key = vec![4;1];
+
+    let keypath = "./tests/keyfile.test";
+    let master_keypath = "./tests/masterkeyfile.test";
+    let invalid_keypath = "./tests/invalid_keyfile.test";
 
     let no_key_res = CryptoParams {
         enc_key: None,
@@ -794,42 +836,54 @@ fn test_crypto_parameters_handling() -> Result<(), Error> {
         mode: CryptMode::None,
     };
     let some_key_res = CryptoParams {
-        enc_key: some_key.clone(),
+        enc_key: Some(KeyWithSource::from_path(
+            keypath.to_string(),
+            some_key.clone(),
+        )),
         master_pubkey: None,
         mode: CryptMode::Encrypt,
     };
     let some_key_some_master_res = CryptoParams {
-        enc_key: some_key.clone(),
-        master_pubkey: some_master_key.clone(),
+        enc_key: Some(KeyWithSource::from_path(
+            keypath.to_string(),
+            some_key.clone(),
+        )),
+        master_pubkey: Some(KeyWithSource::from_path(
+            master_keypath.to_string(),
+            some_master_key.clone(),
+        )),
         mode: CryptMode::Encrypt,
     };
     let some_key_default_master_res = CryptoParams {
-        enc_key: some_key.clone(),
-        master_pubkey: default_master_key.clone(),
+        enc_key: Some(KeyWithSource::from_path(
+            keypath.to_string(),
+            some_key.clone(),
+        )),
+        master_pubkey: Some(KeyWithSource::from_default(default_master_key.clone())),
         mode: CryptMode::Encrypt,
     };
 
     let some_key_sign_res = CryptoParams {
-        enc_key: some_key.clone(),
+        enc_key: Some(KeyWithSource::from_path(
+            keypath.to_string(),
+            some_key.clone(),
+        )),
         master_pubkey: None,
         mode: CryptMode::SignOnly,
     };
     let default_key_res = CryptoParams {
-        enc_key: default_key.clone(),
+        enc_key: Some(KeyWithSource::from_default(default_key.clone())),
         master_pubkey: None,
         mode: CryptMode::Encrypt,
     };
     let default_key_sign_res = CryptoParams {
-        enc_key: default_key.clone(),
+        enc_key: Some(KeyWithSource::from_default(default_key.clone())),
         master_pubkey: None,
         mode: CryptMode::SignOnly,
     };
 
-    let keypath = "./tests/keyfile.test";
-    replace_file(&keypath, some_key.as_ref().unwrap(), CreateOptions::default())?;
-    let master_keypath = "./tests/masterkeyfile.test";
-    replace_file(&master_keypath, some_master_key.as_ref().unwrap(), CreateOptions::default())?;
-    let invalid_keypath = "./tests/invalid_keyfile.test";
+    replace_file(&keypath, &some_key, CreateOptions::default())?;
+    replace_file(&master_keypath, &some_master_key, CreateOptions::default())?;
 
     // no params, no default key == no key
     let res = crypto_parameters(&json!({}));
@@ -863,7 +917,7 @@ fn test_crypto_parameters_handling() -> Result<(), Error> {
     assert!(crypto_parameters(&json!({"keyfile": invalid_keypath, "crypt-mode": "encrypt"})).is_err());
 
     // now set a default key
-    unsafe { key::set_test_encryption_key(Ok(default_key.clone())); }
+    unsafe { key::set_test_encryption_key(Ok(Some(default_key.clone()))); }
 
     // and repeat
 
@@ -938,7 +992,7 @@ fn test_crypto_parameters_handling() -> Result<(), Error> {
     // now remove default key again
     unsafe { key::set_test_encryption_key(Ok(None)); }
     // set a default master key
-    unsafe { key::set_test_default_master_pubkey(Ok(default_master_key.clone())); }
+    unsafe { key::set_test_default_master_pubkey(Ok(Some(default_master_key.clone()))); }
 
     // and use an explicit master key
     assert!(crypto_parameters(&json!({"master-pubkey-file": master_keypath})).is_err());
@@ -1206,15 +1260,23 @@ async fn create_backup(
 
     let (crypt_config, rsa_encrypted_key) = match crypto.enc_key {
         None => (None, None),
-        Some(key) => {
-            let (key, created, fingerprint) = decrypt_key(&key, &key::get_encryption_key_password)?;
+        Some(key_with_source) => {
+            println!(
+                "{}",
+                format_key_source(&key_with_source.source, "encryption")
+            );
+
+            let (key, created, fingerprint) =
+                decrypt_key(&key_with_source.key, &key::get_encryption_key_password)?;
             println!("Encryption key fingerprint: {}", fingerprint);
 
             let crypt_config = CryptConfig::new(key)?;
 
             match crypto.master_pubkey {
-                Some(pem_data) => {
-                    let rsa = openssl::rsa::Rsa::public_key_from_pem(&pem_data)?;
+                Some(pem_with_source) => {
+                    println!("{}", format_key_source(&pem_with_source.source, "master"));
+
+                    let rsa = openssl::rsa::Rsa::public_key_from_pem(&pem_with_source.key)?;
 
                     let mut key_config = KeyConfig::without_password(key)?;
                     key_config.created = created; // keep original value
@@ -1222,7 +1284,7 @@ async fn create_backup(
                     let enc_key = rsa_encrypt_key_config(rsa, &key_config)?;
 
                     (Some(Arc::new(crypt_config)), Some(enc_key))
-                }
+                },
                 _ => (Some(Arc::new(crypt_config)), None),
             }
         }
@@ -1574,9 +1636,12 @@ async fn restore(param: Value) -> Result<Value, Error> {
 
     let crypt_config = match crypto.enc_key {
         None => None,
-        Some(key) => {
-            let (key, _, fingerprint) = decrypt_key(&key, &key::get_encryption_key_password)?;
-            eprintln!("Encryption key fingerprint: '{}'", fingerprint);
+        Some(ref key) => {
+            let (key, _, _) =
+                decrypt_key(&key.key, &key::get_encryption_key_password).map_err(|err| {
+                    eprintln!("{}", format_key_source(&key.source, "encryption"));
+                    err
+                })?;
             Some(Arc::new(CryptConfig::new(key)?))
         }
     };
@@ -1598,6 +1663,14 @@ async fn restore(param: Value) -> Result<Value, Error> {
     if archive_name == ENCRYPTED_KEY_BLOB_NAME && crypt_config.is_none() {
         eprintln!("Restoring encrypted key blob without original key - skipping manifest fingerprint check!")
     } else {
+        if manifest.signature.is_some() {
+            if let Some(key) = &crypto.enc_key {
+                eprintln!("{}", format_key_source(&key.source, "encryption"));
+            }
+            if let Some(config) = &crypt_config {
+                eprintln!("Fingerprint: {}", config.fingerprint());
+            }
+        }
         manifest.check_fingerprint(crypt_config.as_ref().map(Arc::as_ref))?;
     }
 

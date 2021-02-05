@@ -15,6 +15,7 @@ use crate::{
     REPO_URL_SCHEMA,
     KEYFD_SCHEMA,
     extract_repository_from_value,
+    format_key_source,
     record_repository,
     key::get_encryption_key_password,
     decrypt_key,
@@ -73,7 +74,11 @@ async fn dump_catalog(param: Value) -> Result<Value, Error> {
     let crypt_config = match crypto.enc_key {
         None => None,
         Some(key) => {
-            let (key, _created, _fingerprint) = decrypt_key(&key, &get_encryption_key_password)?;
+            let (key, _created, _fingerprint) = decrypt_key(&key.key, &get_encryption_key_password)
+                .map_err(|err| {
+                    eprintln!("{}", format_key_source(&key.source, "encryption"));
+                    err
+                })?;
             let crypt_config = CryptConfig::new(key)?;
             Some(Arc::new(crypt_config))
         }
@@ -171,7 +176,11 @@ async fn catalog_shell(param: Value) -> Result<(), Error> {
     let crypt_config = match crypto.enc_key {
         None => None,
         Some(key) => {
-            let (key, _created, _fingerprint) = decrypt_key(&key, &get_encryption_key_password)?;
+            let (key, _created, _fingerprint) = decrypt_key(&key.key, &get_encryption_key_password)
+                .map_err(|err| {
+                    eprintln!("{}", format_key_source(&key.source, "encryption"));
+                    err
+                })?;
             let crypt_config = CryptConfig::new(key)?;
             Some(Arc::new(crypt_config))
         }
