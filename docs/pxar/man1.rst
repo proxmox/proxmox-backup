@@ -4,6 +4,9 @@ pxar
 
 .. include:: ../epilog.rst
 
+.. Avoid errors with sphinx ref role
+.. role:: ref(emphasis)
+
 -------------------------------------------------------------
 Proxmox File Archive Command Line Tool
 -------------------------------------------------------------
@@ -25,4 +28,3 @@ Description
 
 
 .. include:: ../pbs-copyright.rst
-

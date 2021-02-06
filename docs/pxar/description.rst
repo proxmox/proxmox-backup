@@ -1,6 +1,3 @@
-Description
-^^^^^^^^^^^
-
 ``pxar`` is a command line utility to create and manipulate archives in the
 :ref:`pxar-format`.
 It is inspired by `casync file archive format
