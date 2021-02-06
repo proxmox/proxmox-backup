@@ -25,10 +25,8 @@ use crate::{
 };
 
 fn create_testdir(name: &str) -> Result<PathBuf, Error> {
-    let mut testdir: PathBuf = std::env::var("CARGO_TARGET_DIR")
-        .unwrap_or(String::from("./target/debug"))
-        .into();
-    testdir.push(format!("{}.testout", std::module_path!()));
+    let mut testdir: PathBuf = String::from("./target/testout").into();
+    testdir.push(std::module_path!());
     testdir.push(name);
 
     let _ = std::fs::remove_dir_all(&testdir);
