@@ -436,6 +436,7 @@ fn main() -> Result<(), Error> {
 
 
     let cmd_def = CliCommandMap::new()
+        .usage_skip_options(&["device", "changer", "output-format"])
         .insert(
             "inquiry",
             CliCommand::new(&API_METHOD_INQUIRY)
