@@ -8,6 +8,8 @@ Ext.define('PBS.TapeManagement.LabelMediaWindow', {
     title: gettext('Label Media'),
     submitText: gettext('OK'),
 
+    method: 'POST',
+
     showProgress: true,
 
     items: [
