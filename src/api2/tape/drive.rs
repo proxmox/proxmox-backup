@@ -84,8 +84,11 @@ use crate::{
 pub async fn load_media(drive: String, label_text: String) -> Result<(), Error> {
 
     let (config, _digest) = config::drive::config()?;
+    let lock_guard = lock_tape_device(&config, &drive)?;
 
     tokio::task::spawn_blocking(move || {
+        let _lock_guard = lock_guard; // keep lock guard
+
         let (mut changer, _) = required_media_changer(&config, &drive)?;
         changer.load_media(&label_text)
     }).await?
@@ -110,8 +113,11 @@ pub async fn load_media(drive: String, label_text: String) -> Result<(), Error> 
 pub async fn load_slot(drive: String, source_slot: u64) -> Result<(), Error> {
 
     let (config, _digest) = config::drive::config()?;
+    let lock_guard = lock_tape_device(&config, &drive)?;
 
     tokio::task::spawn_blocking(move || {
+        let _lock_guard = lock_guard; // keep lock guard
+
         let (mut changer, _) = required_media_changer(&config, &drive)?;
         changer.load_media_from_slot(source_slot)
     }).await?
@@ -138,8 +144,11 @@ pub async fn load_slot(drive: String, source_slot: u64) -> Result<(), Error> {
 pub async fn export_media(drive: String, label_text: String) -> Result<u64, Error> {
 
     let (config, _digest) = config::drive::config()?;
+    let lock_guard = lock_tape_device(&config, &drive)?;
 
     tokio::task::spawn_blocking(move || {
+        let _lock_guard = lock_guard; // keep lock guard
+
         let (mut changer, changer_name) = required_media_changer(&config, &drive)?;
         match changer.export_media(&label_text)? {
             Some(slot) => Ok(slot),
@@ -170,8 +179,11 @@ pub async fn unload(
 ) -> Result<(), Error> {
 
     let (config, _digest) = config::drive::config()?;
+    let lock_guard = lock_tape_device(&config, &drive)?;
 
     tokio::task::spawn_blocking(move || {
+        let _lock_guard = lock_guard; // keep lock guard
+
         let (mut changer, _) = required_media_changer(&config, &drive)?;
         changer.unload_media(target_slot)
     }).await?
