@@ -25,7 +25,7 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 	    }
 
 	    let mediaset = selection[0].data.text;
-	    let uuid = selection[0].data.uuid;
+	    let uuid = selection[0].data['media-set-uuid'];
 	    Ext.create('PBS.TapeManagement.TapeRestoreWindow', {
 		mediaset,
 		uuid,
@@ -38,62 +38,47 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 	},
 
 	loadContent: async function() {
+	    let me = this;
 	    let content_response = await PBS.Async.api2({
-		url: '/api2/extjs/tape/media/content',
+		url: '/api2/extjs/tape/media/list',
 	    });
 	    let data = {};
 
 	    for (const entry of content_response.result.data) {
 		let pool = entry.pool;
-		let [type, group_id, id] = PBS.Utils.parse_snapshot_id(entry.snapshot);
-		let group = `${type}/${group_id}`;
 		let media_set = entry['media-set-name'];
-		let uuid = entry['media-set-uuid'];
-		let ctime = entry['media-set-ctime'];
 		if (data[pool] === undefined) {
 		    data[pool] = {};
 		}
 
-		if (data[pool][group] === undefined) {
-		    data[pool][group] = {};
+		if (data[pool][media_set] === undefined) {
+		    data[pool][media_set] = entry;
+		    data[pool][media_set].text = media_set;
+		    data[pool][media_set].tapes = 1;
+		    data[pool][media_set]['seq-nr'] = undefined;
+		    data[pool][media_set].is_media_set = true;
+		} else {
+		    data[pool][media_set].tapes++;
 		}
-
-		if (data[pool][group][id] === undefined) {
-		    data[pool][group][id] = [];
-		}
-		data[pool][group][id].push({
-		    text: media_set,
-		    uuid,
-		    ctime,
-		    leaf: true,
-		});
 	    }
 
 	    let list = [];
 
-	    for (const [pool, groups] of Object.entries(data)) {
-		let pool_entry = {
+	    for (const [pool, media_sets] of Object.entries(data)) {
+		let pool_entry = Ext.create('Ext.data.TreeModel', {
 		    text: pool,
 		    leaf: false,
-		    children: [],
-		};
-		for (const [group, ids] of Object.entries(groups)) {
-		    let group_entry = {
-			text: group,
-			iconCls: "fa " + PBS.Utils.get_type_icon_cls(group),
-			leaf: false,
-			children: [],
-		    };
-		    for (const [id, media_sets] of Object.entries(ids)) {
-			let id_entry = {
-			    text: `${group}/${id}`,
-			    leaf: false,
-			    children: media_sets,
-			};
-			group_entry.children.push(id_entry);
-		    }
-		    pool_entry.children.push(group_entry);
+		});
+
+		let children = [];
+
+		for (const media_set of Object.values(media_sets)) {
+		    let entry = Ext.create('Ext.data.TreeModel', media_set);
+		    entry.on('beforeexpand', (node) => me.beforeExpand(node));
+		    children.push(entry);
 		}
+
+		pool_entry.set('children', children);
 		list.push(pool_entry);
 	    }
 
@@ -119,6 +104,58 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 		Proxmox.Utils.setErrorMask(view, error.toString());
 	    }
 	},
+
+	loadMediaSet: async function(node) {
+	    let me = this;
+	    let view = me.getView();
+
+	    Proxmox.Utils.setErrorMask(view, true);
+	    const media_set = node.data['media-set-uuid'];
+
+	    try {
+		let list = await PBS.Async.api2({
+		    method: 'GET',
+		    url: `/api2/extjs/tape/media/content`,
+		    params: {
+			'media-set': media_set,
+		    },
+		});
+
+		list.result.data.sort((a, b) => a.snapshot.localeCompare(b.snapshot));
+
+		for (let entry of list.result.data) {
+		    entry.text = entry.snapshot;
+		    entry.leaf = true;
+		    entry.children = [];
+		    let iconCls = PBS.Utils.get_type_icon_cls(entry.snapshot);
+		    if (iconCls !== '') {
+			entry.iconCls = `fa ${iconCls}`;
+		    }
+		    node.appendChild(entry);
+		}
+
+		if (list.result.data.length === 0) {
+		    node.set('leaf', true);
+		}
+
+		node.set('loaded', true);
+		Proxmox.Utils.setErrorMask(view, false);
+		node.expand();
+	    } catch (error) {
+		Proxmox.Utils.setErrorMask(view, error.toString());
+	    }
+	},
+
+	beforeExpand: function(node, e) {
+	    let me = this;
+	    if (node.isLoaded()) {
+		return true;
+	    }
+
+	    me.loadMediaSet(node);
+
+	    return false;
+	},
     },
 
     listeners: {
@@ -128,8 +165,8 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
     store: {
 	data: [],
 	sorters: function(a, b) {
-	    if (a.data.leaf && b.data.leaf) {
-		return a.data.ctime - b.data.ctime;
+	    if (a.data.is_media_set && b.data.is_media_set) {
+		return a.data['media-set-ctime'] - b.data['media-set-ctime'];
 	    } else {
 		return a.data.text.localeCompare(b.data.text);
 	    }
@@ -161,14 +198,26 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
     columns: [
 	{
 	    xtype: 'treecolumn',
-	    text: gettext('Pool/Group/Snapshot/Media Set'),
+	    text: gettext('Pool/Media Set/Snapshot'),
 	    dataIndex: 'text',
 	    sortable: false,
 	    flex: 3,
 	},
 	{
+	    text: gettext('Number of Tapes'),
+	    dataIndex: 'tapes',
+	    sortable: false,
+	    flex: 1,
+	},
+	{
+	    text: gettext('Tape Number'),
+	    dataIndex: 'seq-nr',
+	    sortable: false,
+	    flex: 1,
+	},
+	{
 	    text: gettext('Media Set UUID'),
-	    dataIndex: 'uuid',
+	    dataIndex: 'media-set-uuid',
 	    sortable: false,
 	    flex: 1,
 	},
