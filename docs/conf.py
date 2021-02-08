@@ -246,10 +246,8 @@ html_js_files = [
 #
 # html_last_updated_fmt = None
 
-# If true, SmartyPants will be used to convert quotes and dashes to
-# typographically correct entities.
-#
-# html_use_smartypants = True
+# We need to disable smatquotes, else Option Lists do not display long options
+smartquotes = False
 
 # Additional templates that should be rendered to pages, maps page names to
 # template names.
