@@ -826,9 +826,9 @@ fn test_crypto_parameters_handling() -> Result<(), Error> {
     let some_master_key = vec![3;1];
     let default_master_key = vec![4;1];
 
-    let keypath = "./tests/keyfile.test";
-    let master_keypath = "./tests/masterkeyfile.test";
-    let invalid_keypath = "./tests/invalid_keyfile.test";
+    let keypath = "./target/testout/keyfile.test";
+    let master_keypath = "./target/testout/masterkeyfile.test";
+    let invalid_keypath = "./target/testout/invalid_keyfile.test";
 
     let no_key_res = CryptoParams {
         enc_key: None,
