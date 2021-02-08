@@ -19,6 +19,10 @@ Ext.define('PBS.TaskSummary', {
 	"verify",
     ],
 
+    typeFilterMap: {
+	'verify': 'verif', // some verify task start with 'verification''
+    },
+
     titles: {
 	"backup": gettext('Backups'),
 	"prune": gettext('Prunes'),
@@ -45,10 +49,15 @@ Ext.define('PBS.TaskSummary', {
 		let tasklist = view.tasklist;
 		let state = view.states[cellindex];
 		let type = view.types[rowindex];
+		let typefilter = type;
+		if (view.typeFilterMap[type] !== undefined) {
+		    typefilter = view.typeFilterMap[type];
+		}
+
 		let filterParam = {
 		    limit: 0,
 		    'statusfilter': state,
-		    'typefilter': type,
+		    'typefilter': typefilter,
 		};
 
 		if (me.since) {
