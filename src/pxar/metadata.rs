@@ -385,7 +385,7 @@ fn apply_flags(flags: Flags, fd: RawFd, entry_flags: u64) -> Result<(), Error> {
         match unsafe { fs::write_fat_attr_fd(fd, &fatattr) } {
             Ok(_) => (),
             Err(nix::Error::Sys(errno)) if errno_is_unsupported(errno) => (),
-            Err(err) => bail!("failed to set file attributes: {}", err),
+            Err(err) => bail!("failed to set file FAT attributes: {}", err),
         }
     }
 

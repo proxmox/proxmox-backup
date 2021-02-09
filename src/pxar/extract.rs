@@ -403,7 +403,8 @@ impl Extractor {
             metadata,
             file.as_raw_fd(),
             &mut self.on_error,
-        )?;
+        )
+        .map_err(|err| format_err!("failed to apply initial flags: {}", err))?;
 
         let extracted = io::copy(&mut *contents, &mut file)
             .map_err(|err| format_err!("failed to copy file contents: {}", err))?;
@@ -445,7 +446,8 @@ impl Extractor {
             metadata,
             file.as_raw_fd(),
             &mut self.on_error,
-        )?;
+        )
+        .map_err(|err| format_err!("failed to apply initial flags: {}", err))?;
 
         let extracted = tokio::io::copy(&mut *contents, &mut file)
             .await
