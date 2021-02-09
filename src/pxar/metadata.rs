@@ -133,10 +133,6 @@ pub fn apply(
         .or_else(&mut *on_error)?;
     }
 
-    if metadata.stat.flags != 0 {
-        apply_flags(flags, fd, metadata.stat.flags).or_else(&mut *on_error)?;
-    }
-
     let res = c_result!(unsafe {
         libc::utimensat(
             libc::AT_FDCWD,
@@ -155,6 +151,10 @@ pub fn apply(
                 err
             ))?;
         }
+    }
+
+    if metadata.stat.flags != 0 {
+        apply_flags(flags, fd, metadata.stat.flags).or_else(&mut *on_error)?;
     }
 
     Ok(())
