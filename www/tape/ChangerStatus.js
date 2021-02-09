@@ -405,7 +405,11 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 		let tapes = {};
 
 		for (const tape of tapes_list.result.data) {
-		    tapes[tape['label-text']] = true;
+		    tapes[tape['label-text']] = {
+			labeled: true,
+			pool: tape.pool,
+			status: tape.expired ? 'expired' : tape.status,
+		    };
 		}
 
 		let drive_entries = {};
@@ -421,7 +425,13 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 			entry = Ext.applyIf(entry, drive_entries[entry['entry-id']]);
 		    }
 
-		    entry['is-labeled'] = !!tapes[entry['label-text']];
+		    if (tapes[entry['label-text']] !== undefined) {
+			entry['is-labeled'] = true;
+			entry.pool = tapes[entry['label-text']].pool;
+			entry.status = tapes[entry['label-text']].status;
+		    } else {
+			entry['is-labeled'] = false;
+		    }
 
 		    data[type].push(entry);
 		}
@@ -516,9 +526,9 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 			    renderer: (value) => value || '',
 			},
 			{
-			    text: gettext('Labeled'),
+			    text: gettext('Inventory'),
 			    dataIndex: 'is-labeled',
-			    width: 80,
+			    flex: 1,
 			    renderer: function(value, mD, record) {
 				if (!record.data['label-text']) {
 				    return "";
@@ -528,7 +538,15 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 				    return "";
 				}
 
-				return Proxmox.Utils.format_boolean(value);
+				if (!value) {
+				    return gettext('Not Labeled');
+				}
+
+				let status = record.data.status;
+				if (record.data.pool) {
+				    return `${status} (${record.data.pool})`;
+				}
+				return status;
 			    },
 			},
 			{
