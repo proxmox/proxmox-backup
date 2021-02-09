@@ -363,6 +363,11 @@ fn apply_chattr(fd: RawFd, chattr: libc::c_long, mask: libc::c_long) -> Result<(
     }
 
     let attr = (chattr & mask) | (fattr & !mask);
+
+    if attr == fattr {
+        return Ok(());
+    }
+
     match unsafe { fs::write_attr_fd(fd, &attr) } {
         Ok(_) => Ok(()),
         Err(nix::Error::Sys(errno)) if errno_is_unsupported(errno) => Ok(()),
