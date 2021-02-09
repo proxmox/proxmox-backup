@@ -98,6 +98,9 @@ Ext.define('PBS.TapeManagement.TapeInventory', {
 	{
 	    text: gettext('Status'),
 	    dataIndex: 'status',
+	    renderer: function(value, mD, record) {
+		return record.data.expired ? 'expired' : value;
+	    },
 	    flex: 1,
 	},
     ],
