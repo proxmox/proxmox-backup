@@ -30,14 +30,15 @@ fn run_test(dir_name: &str) -> Result<(), Error> {
         ..PxarCreateOptions::default()
     };
 
-    create_archive(
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    rt.block_on(create_archive(
         dir,
         writer,
         Flags::DEFAULT,
         |_| Ok(()),
         None,
         options,
-    )?;
+    ))?;
 
     Command::new("cmp")
         .arg("--verbose")

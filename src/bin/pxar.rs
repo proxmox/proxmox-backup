@@ -295,7 +295,7 @@ fn extract_archive(
 )]
 /// Create a new .pxar archive.
 #[allow(clippy::too_many_arguments)]
-fn create_archive(
+async fn create_archive(
     archive: String,
     source: String,
     verbose: bool,
@@ -376,7 +376,7 @@ fn create_archive(
         dir,
         writer,
         feature_flags,
-        |path| {
+        move |path| {
             if verbose {
                 println!("{:?}", path);
             }
@@ -384,7 +384,7 @@ fn create_archive(
         },
         None,
         options,
-    )?;
+    ).await?;
 
     Ok(())
 }

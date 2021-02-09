@@ -4,10 +4,10 @@ use std::path::Path;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
-use std::thread;
 
 use anyhow::{format_err, Error};
 use futures::stream::Stream;
+use futures::future::{Abortable, AbortHandle};
 use nix::dir::Dir;
 use nix::fcntl::OFlag;
 use nix::sys::stat::Mode;
@@ -21,14 +21,14 @@ use crate::backup::CatalogWriter;
 /// consumer.
 pub struct PxarBackupStream {
     rx: Option<std::sync::mpsc::Receiver<Result<Vec<u8>, Error>>>,
-    child: Option<thread::JoinHandle<()>>,
+    handle: Option<AbortHandle>,
     error: Arc<Mutex<Option<String>>>,
 }
 
 impl Drop for PxarBackupStream {
     fn drop(&mut self) {
         self.rx = None;
-        self.child.take().unwrap().join().unwrap();
+        self.handle.take().unwrap().abort();
     }
 }
 
@@ -43,42 +43,41 @@ impl PxarBackupStream {
         let buffer_size = 256 * 1024;
 
         let error = Arc::new(Mutex::new(None));
-        let child = std::thread::Builder::new()
-            .name("PxarBackupStream".to_string())
-            .spawn({
-                let error = Arc::clone(&error);
-                move || {
-                    let mut catalog_guard = catalog.lock().unwrap();
-                    let writer = std::io::BufWriter::with_capacity(
-                        buffer_size,
-                        crate::tools::StdChannelWriter::new(tx),
-                    );
+        let error2 = Arc::clone(&error);
+        let handler = async move {
+            let writer = std::io::BufWriter::with_capacity(
+                buffer_size,
+                crate::tools::StdChannelWriter::new(tx),
+            );
 
-                    let verbose = options.verbose;
+            let verbose = options.verbose;
 
-                    let writer = pxar::encoder::sync::StandardWriter::new(writer);
-                    if let Err(err) = crate::pxar::create_archive(
-                        dir,
-                        writer,
-                        crate::pxar::Flags::DEFAULT,
-                        |path| {
-                            if verbose {
-                                println!("{:?}", path);
-                            }
-                            Ok(())
-                        },
-                        Some(&mut *catalog_guard),
-                        options,
-                    ) {
-                        let mut error = error.lock().unwrap();
-                        *error = Some(err.to_string());
+            let writer = pxar::encoder::sync::StandardWriter::new(writer);
+            if let Err(err) = crate::pxar::create_archive(
+                dir,
+                writer,
+                crate::pxar::Flags::DEFAULT,
+                move |path| {
+                    if verbose {
+                        println!("{:?}", path);
                     }
-                }
-            })?;
+                    Ok(())
+                },
+                Some(catalog),
+                options,
+            ).await {
+                let mut error = error2.lock().unwrap();
+                *error = Some(err.to_string());
+            }
+        };
+
+        let (handle, registration) = AbortHandle::new_pair();
+        let future = Abortable::new(handler, registration);
+        tokio::spawn(future);
 
         Ok(Self {
             rx: Some(rx),
-            child: Some(child),
+            handle: Some(handle),
             error,
         })
     }
