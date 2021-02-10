@@ -8,15 +8,19 @@ GENERATED_SYNOPSIS := 						\
 	pmtx/synopsis.rst					\
 	pmt/synopsis.rst					\
 	backup-protocol-api.rst					\
-	reader-protocol-api.rst
+	reader-protocol-api.rst					\
+	config/datastore/config.rst
 
-MANUAL_PAGES := 			\
+MAN1_PAGES := 				\
 	pxar.1				\
 	pmtx.1				\
 	pmt.1				\
 	proxmox-backup-proxy.1		\
 	proxmox-backup-client.1		\
 	proxmox-backup-manager.1
+
+MAN5_PAGES :=				\
+	datastore.cfg.5
 
 PRUNE_SIMULATOR_FILES := 					\
 	prune-simulator/index.html				\
@@ -53,7 +57,7 @@ endif
 # Sphinx internal variables.
 ALLSPHINXOPTS   = -d $(BUILDDIR)/doctrees $(SPHINXOPTS) .
 
-all: ${MANUAL_PAGES}
+all: ${MAN1_PAGES} ${MAN5_PAGES}
 
 # Extract backup protocol docs
 backup-protocol-api.rst: ${COMPILEDIR}/dump-backup-api
@@ -85,6 +89,11 @@ pmt/synopsis.rst: ${COMPILEDIR}/pmt
 pmt.1: pmt/man1.rst  pmt/description.rst pmt/synopsis.rst
 	rst2man $< >$@
 
+config/datastore/config.rst: ${COMPILEDIR}/docgen
+	${COMPILEDIR}/docgen datastore.cfg >$@
+
+datastore.cfg.5: config/datastore/man5.rst config/datastore/config.rst
+	rst2man $< >$@
 
 proxmox-backup-client/synopsis.rst: ${COMPILEDIR}/proxmox-backup-client
 	${COMPILEDIR}/proxmox-backup-client printdoc > proxmox-backup-client/synopsis.rst
@@ -139,9 +148,11 @@ clean:
 	rm -r -f *~ *.1 ${BUILDDIR} ${GENERATED_SYNOPSIS}
 
 
-install_manual_pages: ${MANUAL_PAGES}
+install_manual_pages: ${MAN1_PAGES} ${MAN5_PAGES}
 	install -dm755 $(DESTDIR)$(MAN1DIR)
-	for i in ${MANUAL_PAGES}; do install -m755 $$i $(DESTDIR)$(MAN1DIR)/ ; done
+	for i in ${MAN1_PAGES}; do install -m755 $$i $(DESTDIR)$(MAN1DIR)/ ; done
+	install -dm755 $(DESTDIR)$(MAN5DIR)
+	for i in ${MAN5_PAGES}; do install -m755 $$i $(DESTDIR)$(MAN5DIR)/ ; done
 
 install_html: html
 	install -dm755 $(DESTDIR)$(DOCDIR)
