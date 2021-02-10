@@ -20,7 +20,7 @@ use proxmox::tools::{fs::replace_file, fs::CreateOptions};
 use crate::api2::types::*;
 
 lazy_static! {
-    static ref CONFIG: SectionConfig = init();
+    pub static ref CONFIG: SectionConfig = init();
 }
 
 pub const ENABLE_USER_SCHEMA: Schema = BooleanSchema::new(
