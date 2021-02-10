@@ -18,3 +18,18 @@ Options
 ^^^^^^^
 
 .. include:: config/datastore/config.rst
+
+
+``user.cfg``
+~~~~~~~~~~~~~~~~~
+
+File Format
+^^^^^^^^^^^
+
+.. include:: config/user/format.rst
+
+
+Options
+^^^^^^^
+
+.. include:: config/user/config.rst

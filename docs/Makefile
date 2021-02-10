@@ -9,6 +9,7 @@ GENERATED_SYNOPSIS := 						\
 	pmt/synopsis.rst					\
 	backup-protocol-api.rst					\
 	reader-protocol-api.rst					\
+	config/user/config.rst					\
 	config/datastore/config.rst
 
 MAN1_PAGES := 				\
@@ -20,6 +21,7 @@ MAN1_PAGES := 				\
 	proxmox-backup-manager.1
 
 MAN5_PAGES :=				\
+	user.cfg.5			\
 	datastore.cfg.5
 
 PRUNE_SIMULATOR_FILES := 					\
@@ -93,6 +95,12 @@ config/datastore/config.rst: ${COMPILEDIR}/docgen
 	${COMPILEDIR}/docgen datastore.cfg >$@
 
 datastore.cfg.5: config/datastore/man5.rst config/datastore/config.rst
+	rst2man $< >$@
+
+config/user/config.rst: ${COMPILEDIR}/docgen
+	${COMPILEDIR}/docgen user.cfg >$@
+
+user.cfg.5: config/user/man5.rst config/user/config.rst
 	rst2man $< >$@
 
 proxmox-backup-client/synopsis.rst: ${COMPILEDIR}/proxmox-backup-client
