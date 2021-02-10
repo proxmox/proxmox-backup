@@ -45,6 +45,7 @@ in the section entitled "GNU Free Documentation License".
    :caption: Appendix
 
    command-syntax.rst
+   configuration-files.rst
    file-formats.rst
    backup-protocol.rst
    calendarevents.rst

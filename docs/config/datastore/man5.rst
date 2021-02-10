@@ -21,22 +21,9 @@ Backup Server. It contains the Datastore configuration.
 File Format
 ===========
 
-The file contains a list of datastore configuration sections. Each
-section starts with a header ``datastore: <name>``, followed by the
-datastore configuration options.
+.. include:: format.rst
 
-::
-  
-  datastore: <name1>
-     path <path1>
-     <option1> <value1>
-     ...
 
-  datastore: <name2>
-     path <path2>
-     ...
-
-     
 Options
 =======
 
