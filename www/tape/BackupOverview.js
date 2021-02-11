@@ -50,6 +50,9 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 		    continue; // pools not belonging to a pool cannot contain data
 		}
 		let media_set = entry['media-set-name'];
+		if (media_set === undefined) {
+		    continue; // tape does not belong to media-set (yet))
+		}
 		if (data[pool] === undefined) {
 		    data[pool] = {};
 		}
