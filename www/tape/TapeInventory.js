@@ -28,6 +28,48 @@ Ext.define('PBS.TapeManagement.TapeInventory', {
     controller: {
 	xclass: 'Ext.app.ViewController',
 
+	moveToVault: function() {
+	    let me = this;
+	    let view = me.getView();
+	    let selection = view.getSelection();
+	    if (!selection || selection.length < 1) {
+		return;
+	    }
+	    let label = selection[0].data['label-text'];
+	    let inVault = selection[0].data.location.startsWith('vault-');
+	    let vault = "";
+	    if (inVault) {
+		vault = selection[0].data.location.slice("vault-".length);
+	    }
+	    Ext.create('Proxmox.window.Edit', {
+		title: gettext('Set Tape Location'),
+		url: `/api2/extjs/tape/media/move`,
+		method: 'POST',
+		items: [
+		    {
+			xtype: 'displayfield',
+			name: 'label-text',
+			value: label,
+			submitValue: true,
+			fieldLabel: gettext('Media'),
+		    },
+		    {
+			xtype: 'proxmoxtextfield',
+			fieldLabel: gettext('Vault'),
+			name: 'vault-name',
+			value: vault,
+			emptyText: gettext('On-site'),
+			skipEmpty: true,
+		    },
+		],
+		listeners: {
+		    destroy: function() {
+			me.reload();
+		    },
+		},
+	    }).show();
+	},
+
 	reload: function() {
 	    this.getView().getStore().rstore.load();
 	},
@@ -57,6 +99,16 @@ Ext.define('PBS.TapeManagement.TapeInventory', {
 	sorters: 'label-text',
     },
 
+    tbar: [
+	{
+	    xtype: 'proxmoxButton',
+	    text: gettext('Set Tape Location'),
+	    disabled: true,
+	    handler: 'moveToVault',
+	    enableFn: (rec) => !rec.data.location.startsWith('online-'),
+	},
+    ],
+
     columns: [
 	{
 	    text: gettext('Label'),
@@ -83,7 +135,7 @@ Ext.define('PBS.TapeManagement.TapeInventory', {
 	    flex: 1,
 	    renderer: function(value) {
 		if (value === 'offline') {
-		    return `<i class="fa fa-circle-o"></i> ${gettext("Offline")}`;
+		    return `<i class="fa fa-circle-o"></i> ${gettext("Offline")} (${gettext('On-site')})`;
 		} else if (value.startsWith('online-')) {
 		    let location = value.substring(value.indexOf('-') + 1);
 		    return `<i class="fa fa-dot-circle-o"></i> ${gettext("Online")} - ${location}`;
