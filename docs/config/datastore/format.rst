@@ -13,3 +13,6 @@ datastore configuration options.
      path <path2>
      ...
 
+
+You can use the ``proxmox-backup-manager datastore`` command to manipulate
+this file.
