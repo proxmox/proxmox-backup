@@ -80,3 +80,18 @@ Options
 ^^^^^^^
 
 .. include:: config/sync/config.rst
+
+
+``verification.cfg``
+~~~~~~~~~~~~~~~~~
+
+File Format
+^^^^^^^^^^^
+
+.. include:: config/verification/format.rst
+
+
+Options
+^^^^^^^
+
+.. include:: config/verification/config.rst

@@ -34,6 +34,7 @@ fn main() -> Result<(), Error> {
             "user.cfg" => dump_section_config(&config::user::CONFIG),
             "remote.cfg" => dump_section_config(&config::remote::CONFIG),
             "sync.cfg" => dump_section_config(&config::sync::CONFIG),
+            "verification.cfg" => dump_section_config(&config::verify::CONFIG),
             "media-pool.cfg" => dump_section_config(&config::media_pool::CONFIG),
             "config::acl::Role" => dump_enum_properties(&config::acl::Role::API_SCHEMA)?,
             _ => bail!("docgen: got unknown type"),

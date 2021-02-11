@@ -12,6 +12,7 @@ GENERATED_SYNOPSIS := 						\
 	config/user/config.rst					\
 	config/remote/config.rst				\
 	config/sync/config.rst					\
+	config/verification/config.rst				\
 	config/acl/roles.rst					\
 	config/datastore/config.rst
 
@@ -28,6 +29,7 @@ MAN5_PAGES :=				\
 	user.cfg.5			\
 	remote.cfg.5			\
 	sync.cfg.5			\
+	verification.cfg.5		\
 	datastore.cfg.5
 
 PRUNE_SIMULATOR_FILES := 					\
@@ -119,6 +121,12 @@ config/sync/config.rst: ${COMPILEDIR}/docgen
 	${COMPILEDIR}/docgen sync.cfg >$@
 
 sync.cfg.5: config/sync/man5.rst config/sync/config.rst config/sync/format.rst
+	rst2man $< >$@
+
+config/verification/config.rst: ${COMPILEDIR}/docgen
+	${COMPILEDIR}/docgen verification.cfg >$@
+
+verification.cfg.5: config/verification/man5.rst config/verification/config.rst config/verification/format.rst
 	rst2man $< >$@
 
 config/acl/roles.rst: ${COMPILEDIR}/docgen
