@@ -42,7 +42,9 @@ pub fn lookup_changer_name(
         return Ok(String::from(name));
     }
 
-    if let Ok(drive) = crate::lookup_drive_name(&Value::Null, config) {
+    let mut empty = Value::Null;
+
+    if let Ok(drive) = crate::extract_drive_name(&mut empty, config) {
         if let Ok(Some((_, name))) = media_changer(config, &drive) {
             return Ok(name);
         }

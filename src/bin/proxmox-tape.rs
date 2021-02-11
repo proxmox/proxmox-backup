@@ -57,8 +57,8 @@ use proxmox_backup::{
 mod proxmox_tape;
 use proxmox_tape::*;
 
-pub fn lookup_drive_name(
-    param: &Value,
+pub fn extract_drive_name(
+    param: &mut Value,
     config: &SectionConfigData,
 ) -> Result<String, Error> {
 
@@ -84,6 +84,10 @@ pub fn lookup_drive_name(
         })
         .ok_or_else(|| format_err!("unable to get (default) drive name"))?;
 
+    if let Some(map) = param.as_object_mut() {
+        map.remove("drive");
+    }
+
     Ok(drive)
 }
 
@@ -108,13 +112,13 @@ pub fn lookup_drive_name(
     },
 )]
 /// Erase media
-async fn erase_media(param: Value) -> Result<(), Error> {
+async fn erase_media(mut param: Value) -> Result<(), Error> {
 
     let output_format = get_output_format(&param);
 
     let (config, _digest) = config::drive::config()?;
 
-    let drive = lookup_drive_name(&param, &config)?;
+    let drive = extract_drive_name(&mut param, &config)?;
 
     let mut client = connect_to_localhost()?;
 
@@ -141,13 +145,13 @@ async fn erase_media(param: Value) -> Result<(), Error> {
     },
 )]
 /// Rewind tape
-async fn rewind(param: Value) -> Result<(), Error> {
+async fn rewind(mut param: Value) -> Result<(), Error> {
 
     let output_format = get_output_format(&param);
 
     let (config, _digest) = config::drive::config()?;
 
-    let drive = lookup_drive_name(&param, &config)?;
+    let drive = extract_drive_name(&mut param, &config)?;
 
     let mut client = connect_to_localhost()?;
 
@@ -174,13 +178,13 @@ async fn rewind(param: Value) -> Result<(), Error> {
     },
 )]
 /// Eject/Unload drive media
-async fn eject_media(param: Value) -> Result<(), Error> {
+async fn eject_media(mut param: Value) -> Result<(), Error> {
 
     let output_format = get_output_format(&param);
 
     let (config, _digest) = config::drive::config()?;
 
-    let drive = lookup_drive_name(&param, &config)?;
+    let drive = extract_drive_name(&mut param, &config)?;
 
     let mut client = connect_to_localhost()?;
 
@@ -206,11 +210,11 @@ async fn eject_media(param: Value) -> Result<(), Error> {
     },
 )]
 /// Load media with specified label
-async fn load_media(param: Value) -> Result<(), Error> {
+async fn load_media(mut param: Value) -> Result<(), Error> {
 
     let (config, _digest) = config::drive::config()?;
 
-    let drive = lookup_drive_name(&param, &config)?;
+    let drive = extract_drive_name(&mut param, &config)?;
 
     let mut client = connect_to_localhost()?;
 
@@ -234,11 +238,11 @@ async fn load_media(param: Value) -> Result<(), Error> {
     },
 )]
 /// Export media with specified label
-async fn export_media(param: Value) -> Result<(), Error> {
+async fn export_media(mut param: Value) -> Result<(), Error> {
 
     let (config, _digest) = config::drive::config()?;
 
-    let drive = lookup_drive_name(&param, &config)?;
+    let drive = extract_drive_name(&mut param, &config)?;
 
     let mut client = connect_to_localhost()?;
 
@@ -264,11 +268,11 @@ async fn export_media(param: Value) -> Result<(), Error> {
     },
 )]
 /// Load media from the specified slot
-async fn load_media_from_slot(param: Value) -> Result<(), Error> {
+async fn load_media_from_slot(mut param: Value) -> Result<(), Error> {
 
     let (config, _digest) = config::drive::config()?;
 
-    let drive = lookup_drive_name(&param, &config)?;
+    let drive = extract_drive_name(&mut param, &config)?;
 
     let mut client = connect_to_localhost()?;
 
@@ -295,11 +299,11 @@ async fn load_media_from_slot(param: Value) -> Result<(), Error> {
     },
 )]
 /// Unload media via changer
-async fn unload_media(param: Value) -> Result<(), Error> {
+async fn unload_media(mut param: Value) -> Result<(), Error> {
 
     let (config, _digest) = config::drive::config()?;
 
-    let drive = lookup_drive_name(&param, &config)?;
+    let drive = extract_drive_name(&mut param, &config)?;
 
     let mut client = connect_to_localhost()?;
 
@@ -331,13 +335,13 @@ async fn unload_media(param: Value) -> Result<(), Error> {
     },
 )]
 /// Label media
-async fn label_media(param: Value) -> Result<(), Error> {
+async fn label_media(mut param: Value) -> Result<(), Error> {
 
     let output_format = get_output_format(&param);
 
     let (config, _digest) = config::drive::config()?;
 
-    let drive = lookup_drive_name(&param, &config)?;
+    let drive = extract_drive_name(&mut param, &config)?;
 
     let mut client = connect_to_localhost()?;
 
@@ -369,13 +373,13 @@ async fn label_media(param: Value) -> Result<(), Error> {
     },
 )]
 /// Read media label
-async fn read_label(param: Value) -> Result<(), Error> {
+async fn read_label(mut param: Value) -> Result<(), Error> {
 
     let output_format = get_output_format(&param);
 
     let (config, _digest) = config::drive::config()?;
 
-    let drive = lookup_drive_name(&param, &config)?;
+    let drive = extract_drive_name(&mut param, &config)?;
 
     let client = connect_to_localhost()?;
 
@@ -428,13 +432,13 @@ async fn read_label(param: Value) -> Result<(), Error> {
 async fn inventory(
     read_labels: Option<bool>,
     read_all_labels: Option<bool>,
-    param: Value,
+    mut param: Value,
 ) -> Result<(), Error> {
 
     let output_format = get_output_format(&param);
 
     let (config, _digest) = config::drive::config()?;
-    let drive = lookup_drive_name(&param, &config)?;
+    let drive = extract_drive_name(&mut param, &config)?;
 
     let do_read = read_labels.unwrap_or(false) || read_all_labels.unwrap_or(false);
 
@@ -487,13 +491,13 @@ async fn inventory(
     },
 )]
 /// Label media with barcodes from changer device
-async fn barcode_label_media(param: Value) -> Result<(), Error> {
+async fn barcode_label_media(mut param: Value) -> Result<(), Error> {
 
     let output_format = get_output_format(&param);
 
     let (config, _digest) = config::drive::config()?;
 
-    let drive = lookup_drive_name(&param, &config)?;
+    let drive = extract_drive_name(&mut param, &config)?;
 
     let mut client = connect_to_localhost()?;
 
@@ -516,11 +520,11 @@ async fn barcode_label_media(param: Value) -> Result<(), Error> {
     },
 )]
 /// Move to end of media (MTEOM, used to debug)
-fn move_to_eom(param: Value) -> Result<(), Error> {
+fn move_to_eom(mut param: Value) -> Result<(), Error> {
 
     let (config, _digest) = config::drive::config()?;
 
-    let drive = lookup_drive_name(&param, &config)?;
+    let drive = extract_drive_name(&mut param, &config)?;
 
     let _lock = lock_tape_device(&config, &drive)?;
 
@@ -545,11 +549,11 @@ fn move_to_eom(param: Value) -> Result<(), Error> {
 ///
 /// Note: This reads unless the driver returns an IO Error, so this
 /// method is expected to fails when we reach EOT.
-fn debug_scan(param: Value) -> Result<(), Error> {
+fn debug_scan(mut param: Value) -> Result<(), Error> {
 
     let (config, _digest) = config::drive::config()?;
 
-    let drive = lookup_drive_name(&param, &config)?;
+    let drive = extract_drive_name(&mut param, &config)?;
 
     let _lock = lock_tape_device(&config, &drive)?;
 
@@ -610,13 +614,13 @@ fn debug_scan(param: Value) -> Result<(), Error> {
     },
 )]
 /// Read Cartridge Memory (Medium auxiliary memory attributes)
-async fn cartridge_memory(param: Value) -> Result<(), Error> {
+async fn cartridge_memory(mut param: Value) -> Result<(), Error> {
 
     let output_format = get_output_format(&param);
 
     let (config, _digest) = config::drive::config()?;
 
-    let drive = lookup_drive_name(&param, &config)?;
+    let drive = extract_drive_name(&mut param, &config)?;
 
     let client = connect_to_localhost()?;
 
@@ -651,13 +655,13 @@ async fn cartridge_memory(param: Value) -> Result<(), Error> {
     },
 )]
 /// Read Volume Statistics (SCSI log page 17h)
-async fn volume_statistics(param: Value) -> Result<(), Error> {
+async fn volume_statistics(mut param: Value) -> Result<(), Error> {
 
     let output_format = get_output_format(&param);
 
     let (config, _digest) = config::drive::config()?;
 
-    let drive = lookup_drive_name(&param, &config)?;
+    let drive = extract_drive_name(&mut param, &config)?;
 
     let client = connect_to_localhost()?;
 
@@ -689,13 +693,13 @@ async fn volume_statistics(param: Value) -> Result<(), Error> {
     },
 )]
 /// Get drive/media status
-async fn status(param: Value) -> Result<(), Error> {
+async fn status(mut param: Value) -> Result<(), Error> {
 
     let output_format = get_output_format(&param);
 
     let (config, _digest) = config::drive::config()?;
 
-    let drive = lookup_drive_name(&param, &config)?;
+    let drive = extract_drive_name(&mut param, &config)?;
 
     let client = connect_to_localhost()?;
 
@@ -748,13 +752,13 @@ async fn status(param: Value) -> Result<(), Error> {
     },
 )]
 /// Clean drive
-async fn clean_drive(param: Value) -> Result<(), Error> {
+async fn clean_drive(mut param: Value) -> Result<(), Error> {
 
     let output_format = get_output_format(&param);
 
     let (config, _digest) = config::drive::config()?;
 
-    let drive = lookup_drive_name(&param, &config)?;
+    let drive = extract_drive_name(&mut param, &config)?;
 
     let mut client = connect_to_localhost()?;
 
@@ -803,7 +807,7 @@ async fn backup(mut param: Value) -> Result<(), Error> {
 
     let (config, _digest) = config::drive::config()?;
 
-    param["drive"] = lookup_drive_name(&param, &config)?.into();
+    param["drive"] = extract_drive_name(&mut param, &config)?.into();
 
     let mut client = connect_to_localhost()?;
 
@@ -842,7 +846,7 @@ async fn restore(mut param: Value) -> Result<(), Error> {
 
     let (config, _digest) = config::drive::config()?;
 
-    param["drive"] = lookup_drive_name(&param, &config)?.into();
+    param["drive"] = extract_drive_name(&mut param, &config)?.into();
 
     let mut client = connect_to_localhost()?;
 
@@ -878,13 +882,13 @@ async fn restore(mut param: Value) -> Result<(), Error> {
     },
 )]
 /// Scan media and record content
-async fn catalog_media(param: Value)  -> Result<(), Error> {
+async fn catalog_media(mut param: Value)  -> Result<(), Error> {
 
     let output_format = get_output_format(&param);
 
     let (config, _digest) = config::drive::config()?;
 
-    let drive = lookup_drive_name(&param, &config)?;
+    let drive = extract_drive_name(&mut param, &config)?;
 
     let mut client = connect_to_localhost()?;
 

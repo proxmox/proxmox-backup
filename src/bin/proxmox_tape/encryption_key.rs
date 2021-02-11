@@ -214,7 +214,7 @@ async fn restore_key(
 ) -> Result<(), Error> {
 
     let (config, _digest) = config::drive::config()?;
-    param["drive"] = crate::lookup_drive_name(&param, &config)?.into();
+    param["drive"] = crate::extract_drive_name(&mut param, &config)?.into();
 
     if !tty::stdin_isatty() {
         bail!("no password input mechanism available");
