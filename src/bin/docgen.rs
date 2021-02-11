@@ -9,31 +9,6 @@ use proxmox_backup::{
     config,
 };
 
-fn dump_section_config(config: &SectionConfig) -> String {
-
-    let mut res = String::new();
-
-    let plugin_count = config.plugins().len();
-    
-    for plugin in config.plugins().values() {
-
-        let name = plugin.type_name();
-        let properties = plugin.properties();
-        let skip = match plugin.id_property() {
-            Some(id) => vec![id],
-            None => Vec::new(),
-        };
-
-        if plugin_count > 1 {
-            res.push_str(&format!("\n**Section type** \'``{}``\'\n\n", name));
-        }
-        
-        res.push_str(&dump_api_parameters(properties, "", ParameterDisplayStyle::Config, &skip));
-    }
-    
-    res
-}
-
 fn get_args() -> (String, Vec<String>) {
 
     let mut args = std::env::args();
