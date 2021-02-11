@@ -33,3 +33,18 @@ Options
 ^^^^^^^
 
 .. include:: config/user/config.rst
+
+
+``remote.cfg``
+~~~~~~~~~~~~~~~~~
+
+File Format
+^^^^^^^^^^^
+
+.. include:: config/remote/format.rst
+
+
+Options
+^^^^^^^
+
+.. include:: config/remote/config.rst

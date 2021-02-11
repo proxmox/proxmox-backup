@@ -1,9 +1,6 @@
 use anyhow::{bail, Error};
 
-use proxmox::api::{
-    format::*,
-    section_config::*,
-};
+use proxmox::api::format::dump_section_config;
 
 use proxmox_backup::{
     config,
