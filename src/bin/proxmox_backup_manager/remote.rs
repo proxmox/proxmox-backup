@@ -30,7 +30,7 @@ fn list_remotes(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, 
     let options = default_table_format_options()
         .column(ColumnConfig::new("name"))
         .column(ColumnConfig::new("host"))
-        .column(ColumnConfig::new("userid"))
+        .column(ColumnConfig::new("auth-id"))
         .column(ColumnConfig::new("fingerprint"))
         .column(ColumnConfig::new("comment"));
 
