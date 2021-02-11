@@ -10,7 +10,8 @@ GENERATED_SYNOPSIS := 						\
 	backup-protocol-api.rst					\
 	reader-protocol-api.rst					\
 	config/user/config.rst					\
-	config/remote/config.rst					\
+	config/remote/config.rst				\
+	config/sync/config.rst					\
 	config/datastore/config.rst
 
 MAN1_PAGES := 				\
@@ -24,6 +25,7 @@ MAN1_PAGES := 				\
 MAN5_PAGES :=				\
 	user.cfg.5			\
 	remote.cfg.5			\
+	sync.cfg.5			\
 	datastore.cfg.5
 
 PRUNE_SIMULATOR_FILES := 					\
@@ -109,6 +111,12 @@ config/remote/config.rst: ${COMPILEDIR}/docgen
 	${COMPILEDIR}/docgen remote.cfg >$@
 
 remote.cfg.5: config/remote/man5.rst config/remote/config.rst config/remote/format.rst
+	rst2man $< >$@
+
+config/sync/config.rst: ${COMPILEDIR}/docgen
+	${COMPILEDIR}/docgen sync.cfg >$@
+
+sync.cfg.5: config/sync/man5.rst config/sync/config.rst config/sync/format.rst
 	rst2man $< >$@
 
 proxmox-backup-client/synopsis.rst: ${COMPILEDIR}/proxmox-backup-client

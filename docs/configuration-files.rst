@@ -48,3 +48,18 @@ Options
 ^^^^^^^
 
 .. include:: config/remote/config.rst
+
+
+``sync.cfg``
+~~~~~~~~~~~~~~~~~
+
+File Format
+^^^^^^^^^^^
+
+.. include:: config/sync/format.rst
+
+
+Options
+^^^^^^^
+
+.. include:: config/sync/config.rst
