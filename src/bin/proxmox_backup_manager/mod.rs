@@ -12,6 +12,8 @@ mod remote;
 pub use remote::*;
 mod sync;
 pub use sync::*;
+mod verify;
+pub use verify::*;
 mod user;
 pub use user::*;
 mod subscription;
