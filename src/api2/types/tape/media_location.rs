@@ -83,7 +83,7 @@ impl std::str::FromStr for MediaLocation {
             return Ok(MediaLocation::Online(changer.to_string()));
         }
         if let Some(vault) = s.strip_prefix("vault-") {
-            return Ok(MediaLocation::Online(vault.to_string()));
+            return Ok(MediaLocation::Vault(vault.to_string()));
         }
 
         bail!("MediaLocation parse error");
