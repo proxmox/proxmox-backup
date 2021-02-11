@@ -1,6 +1,9 @@
 use anyhow::{bail, Error};
 
-use proxmox::api::format::dump_section_config;
+use proxmox::api::format::{
+    dump_enum_properties,
+    dump_section_config,
+};
 
 use proxmox_backup::{
     config,
@@ -25,15 +28,17 @@ fn main() -> Result<(), Error> {
     }
     
     for arg in args.iter() {
-        match arg.as_ref() {
-            "datastore.cfg" => println!("{}", dump_section_config(&config::datastore::CONFIG)),
-            "tape.cfg" => println!("{}", dump_section_config(&config::drive::CONFIG)),
-            "user.cfg" => println!("{}", dump_section_config(&config::user::CONFIG)),
-            "remote.cfg" => println!("{}", dump_section_config(&config::remote::CONFIG)),
-            "sync.cfg" => println!("{}", dump_section_config(&config::sync::CONFIG)),
-            "media-pool.cfg" => println!("{}", dump_section_config(&config::media_pool::CONFIG)),
+        let text = match arg.as_ref() {
+            "datastore.cfg" => dump_section_config(&config::datastore::CONFIG),
+            "tape.cfg" => dump_section_config(&config::drive::CONFIG),
+            "user.cfg" => dump_section_config(&config::user::CONFIG),
+            "remote.cfg" => dump_section_config(&config::remote::CONFIG),
+            "sync.cfg" => dump_section_config(&config::sync::CONFIG),
+            "media-pool.cfg" => dump_section_config(&config::media_pool::CONFIG),
+            "config::acl::Role" => dump_enum_properties(&config::acl::Role::API_SCHEMA)?,
             _ => bail!("docgen: got unknown type"),
-        }
+        };
+        println!("{}", text);
     }
    
     Ok(())

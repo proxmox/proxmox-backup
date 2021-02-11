@@ -12,6 +12,7 @@ GENERATED_SYNOPSIS := 						\
 	config/user/config.rst					\
 	config/remote/config.rst				\
 	config/sync/config.rst					\
+	config/acl/roles.rst					\
 	config/datastore/config.rst
 
 MAN1_PAGES := 				\
@@ -23,6 +24,7 @@ MAN1_PAGES := 				\
 	proxmox-backup-manager.1
 
 MAN5_PAGES :=				\
+	acl.cfg.5			\
 	user.cfg.5			\
 	remote.cfg.5			\
 	sync.cfg.5			\
@@ -117,6 +119,12 @@ config/sync/config.rst: ${COMPILEDIR}/docgen
 	${COMPILEDIR}/docgen sync.cfg >$@
 
 sync.cfg.5: config/sync/man5.rst config/sync/config.rst config/sync/format.rst
+	rst2man $< >$@
+
+config/acl/roles.rst: ${COMPILEDIR}/docgen
+	${COMPILEDIR}/docgen "config::acl::Role" >$@
+
+acl.cfg.5: config/acl/man5.rst config/acl/roles.rst config/acl/format.rst
 	rst2man $< >$@
 
 proxmox-backup-client/synopsis.rst: ${COMPILEDIR}/proxmox-backup-client

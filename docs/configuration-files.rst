@@ -5,6 +5,23 @@ All Proxmox Backup Server configuration files resides inside directory
 ``/etc/proxmox-backup/``.
 
 
+``acl.cfg``
+~~~~~~~~~~~~~~~~~
+
+File Format
+^^^^^^^^^^^
+
+.. include:: config/acl/format.rst
+
+
+Roles
+^^^^^
+
+The following roles exist:
+
+.. include:: config/acl/roles.rst
+
+
 ``datastore.cfg``
 ~~~~~~~~~~~~~~~~~
 
