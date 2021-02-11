@@ -142,7 +142,9 @@ pub const ROLE_REMOTE_SYNC_OPERATOR: u64 = 0
 /// NoAccess can be used to remove privileges from specific (sub-)paths
 pub const ROLE_NAME_NO_ACCESS: &str = "NoAccess";
 
-#[api()]
+#[api(
+    type_text: "<role>",
+)]
 #[repr(u64)]
 #[derive(Serialize, Deserialize)]
 /// Enum representing roles via their [PRIVILEGES] combination.
