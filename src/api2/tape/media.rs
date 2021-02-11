@@ -24,6 +24,7 @@ use crate::{
         MediaListEntry,
         MediaStatus,
         MediaContentEntry,
+        VAULT_NAME_SCHEMA,
     },
     backup::{
         BackupDir,
@@ -160,6 +161,43 @@ pub async fn list_media(pool: Option<String>) -> Result<Vec<MediaListEntry>, Err
     }
 
     Ok(list)
+}
+
+#[api(
+    input: {
+        properties: {
+            "label-text": {
+                schema: MEDIA_LABEL_SCHEMA,
+            },
+            "vault-name": {
+                schema: VAULT_NAME_SCHEMA,
+                optional: true,
+            },
+        },
+    },
+)]
+/// Change Tape location to vault (if given), or offline.
+pub fn move_tape(
+    label_text: String,
+    vault_name: Option<String>,
+) -> Result<(), Error> {
+
+    let status_path = Path::new(TAPE_STATUS_DIR);
+    let mut inventory = Inventory::load(status_path)?;
+
+    let uuid = inventory.find_media_by_label_text(&label_text)
+        .ok_or_else(|| format_err!("no such media '{}'", label_text))?
+        .label
+        .uuid
+        .clone();
+
+    if let Some(vault_name) = vault_name {
+        inventory.set_media_location_vault(&uuid, &vault_name)?;
+    } else {
+        inventory.set_media_location_offline(&uuid)?;
+    }
+
+    Ok(())
 }
 
 #[api(
@@ -341,6 +379,11 @@ const SUBDIRS: SubdirMap = &[
         "list",
         &Router::new()
             .get(&API_METHOD_LIST_MEDIA)
+    ),
+    (
+        "move",
+        &Router::new()
+            .post(&API_METHOD_MOVE_TAPE)
     ),
 ];
 
