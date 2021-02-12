@@ -100,7 +100,7 @@ pmtx.1: pmtx/man1.rst  pmtx/description.rst pmtx/synopsis.rst
 pmt/synopsis.rst: ${COMPILEDIR}/pmt
 	${COMPILEDIR}/pmt printdoc > pmt/synopsis.rst
 
-pmt.1: pmt/man1.rst  pmt/description.rst pmt/synopsis.rst
+pmt.1: pmt/man1.rst  pmt/description.rst pmt/oprtions.rst pmt/synopsis.rst
 	rst2man $< >$@
 
 config/datastore/config.rst: ${COMPILEDIR}/docgen

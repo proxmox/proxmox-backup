@@ -764,3 +764,22 @@ Options
 ^^^^^^^
 
 .. include:: config/tape/config.rst
+
+
+Command Syntax
+--------------
+
+``pmt``
+--------
+
+.. include:: pmt/options.rst
+
+....
+
+.. include:: pmt/synopsis.rst
+
+
+``pmtx``
+--------
+
+.. include:: pmtx/synopsis.rst
