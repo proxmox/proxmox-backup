@@ -31,8 +31,8 @@ Ext.define('PageCalibration', {
 	scalex = 100/values.d_x;
 	scaley = 100/values.d_y;
 
-	let offsetx = ((50*scalex) - values.s_x)/scalex;
-	let offsety = ((50*scaley) - values.s_y)/scaley;
+	let offsetx = ((50 - values.s_x) - (50*scalex - 50))/scalex;
+	let offsety = ((50 - values.s_y) - (50*scaley - 50))/scaley;
 
 	return {
 	    scalex: scalex,
