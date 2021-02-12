@@ -1,6 +1,7 @@
 include ../defines.mk
 
 GENERATED_SYNOPSIS := 						\
+	proxmox-tape/synopsis.rst				\
 	proxmox-backup-client/synopsis.rst			\
 	proxmox-backup-client/catalog-shell-synopsis.rst 	\
 	proxmox-backup-manager/synopsis.rst			\
@@ -22,6 +23,7 @@ MAN1_PAGES := 				\
 	pxar.1				\
 	pmtx.1				\
 	pmt.1				\
+	proxmox-tape.1			\
 	proxmox-backup-proxy.1		\
 	proxmox-backup-client.1		\
 	proxmox-backup-manager.1
@@ -100,7 +102,7 @@ pmtx.1: pmtx/man1.rst  pmtx/description.rst pmtx/synopsis.rst
 pmt/synopsis.rst: ${COMPILEDIR}/pmt
 	${COMPILEDIR}/pmt printdoc > pmt/synopsis.rst
 
-pmt.1: pmt/man1.rst  pmt/description.rst pmt/oprtions.rst pmt/synopsis.rst
+pmt.1: pmt/man1.rst  pmt/description.rst pmt/options.rst pmt/synopsis.rst
 	rst2man $< >$@
 
 config/datastore/config.rst: ${COMPILEDIR}/docgen
@@ -149,6 +151,12 @@ config/tape/config.rst: ${COMPILEDIR}/docgen
 	${COMPILEDIR}/docgen tape.cfg >$@
 
 tape.cfg.5: config/tape/man5.rst config/tape/config.rst config/tape/format.rst
+	rst2man $< >$@
+
+proxmox-tape/synopsis.rst: ${COMPILEDIR}/proxmox-tape
+	${COMPILEDIR}/proxmox-tape printdoc > proxmox-tape/synopsis.rst
+
+proxmox-tape.1: proxmox-tape/man1.rst proxmox-tape/description.rst proxmox-tape/synopsis.rst
 	rst2man $< >$@
 
 proxmox-backup-client/synopsis.rst: ${COMPILEDIR}/proxmox-backup-client

@@ -769,6 +769,12 @@ Options
 Command Syntax
 --------------
 
+``proxmox-tape``
+----------------
+
+.. include:: proxmox-tape/synopsis.rst
+
+
 ``pmt``
 --------
 
