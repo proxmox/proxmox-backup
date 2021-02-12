@@ -9,7 +9,7 @@ GENERATED_SYNOPSIS := 						\
 	pmt/synopsis.rst					\
 	backup-protocol-api.rst					\
 	reader-protocol-api.rst					\
-	config/madia-pool/config.rst				\
+	config/media-pool/config.rst				\
 	config/tape/config.rst					\
 	config/user/config.rst					\
 	config/remote/config.rst				\
