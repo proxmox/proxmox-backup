@@ -9,6 +9,7 @@ GENERATED_SYNOPSIS := 						\
 	pmt/synopsis.rst					\
 	backup-protocol-api.rst					\
 	reader-protocol-api.rst					\
+	config/madia-pool/config.rst				\
 	config/user/config.rst					\
 	config/remote/config.rst				\
 	config/sync/config.rst					\
@@ -25,6 +26,7 @@ MAN1_PAGES := 				\
 	proxmox-backup-manager.1
 
 MAN5_PAGES :=				\
+	media-pool.cfg.5		\
 	acl.cfg.5			\
 	user.cfg.5			\
 	remote.cfg.5			\
@@ -133,6 +135,12 @@ config/acl/roles.rst: ${COMPILEDIR}/docgen
 	${COMPILEDIR}/docgen "config::acl::Role" >$@
 
 acl.cfg.5: config/acl/man5.rst config/acl/roles.rst config/acl/format.rst
+	rst2man $< >$@
+
+config/media-pool/config.rst: ${COMPILEDIR}/docgen
+	${COMPILEDIR}/docgen media-pool.cfg >$@
+
+media-pool.cfg.5: config/media-pool/man5.rst config/media-pool/config.rst config/media-pool/format.rst
 	rst2man $< >$@
 
 proxmox-backup-client/synopsis.rst: ${COMPILEDIR}/proxmox-backup-client

@@ -730,3 +730,22 @@ This command does the following:
 - run drive cleaning operation
 
 - unload the cleaning tape (to slot 3)
+
+
+
+Configuration Files
+-------------------
+
+``media-pool.cfg``
+~~~~~~~~~~~~~~~~~~
+
+File Format
+^^^^^^^^^^^
+
+.. include:: config/media-pool/format.rst
+
+
+Options
+^^^^^^^
+
+.. include:: config/media-pool/config.rst
