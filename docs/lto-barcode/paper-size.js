@@ -21,7 +21,7 @@ let paper_sizes = {
 	column_spacing: 0,
 	row_spacing: 0,
     },
-}
+};
 
 function paper_size_combo_data() {
     let data = [];

@@ -4,7 +4,6 @@ if (Ext.isFirefox) {
 }
 
 function draw_labels(target_id, label_list, page_layout, calibration) {
-
     let max_labels = compute_max_labels(page_layout);
 
     let count_fixed = 0;
@@ -44,20 +43,16 @@ function draw_labels(target_id, label_list, page_layout, calibration) {
 		count = fill_size;
 	    }
 	    rest -= count;
+	} else if (item.end <= item.start) {
+	    count = 1;
 	} else {
-	    if (item.end <= item.start) {
-		count = 1;
-	    } else {
-		count = (item.end - item.start) + 1;
-	    }
+	    count = (item.end - item.start) + 1;
 	}
 
 	for (j = 0; j < count; j++) {
-
 	    let id = item.start + j;
 
 	    if (item.prefix.length == 6) {
-
 		list.push({
 		    label: item.prefix,
 		    tape_type: item.tape_type,
@@ -66,9 +61,7 @@ function draw_labels(target_id, label_list, page_layout, calibration) {
 		});
 		rest += count - j - 1;
 		break;
-
 	    } else {
-
 		let pad_len = 6-item.prefix.length;
 		let label = item.prefix + id.toString().padStart(pad_len, 0);
 
@@ -115,10 +108,10 @@ Ext.define('MainView', {
 		label_list.push(record.data);
 	    });
 
-	    let page_layout_view =  view.down("pageLayoutPanel");
+	    let page_layout_view = view.down("pageLayoutPanel");
 	    let page_layout = page_layout_view.getValues();
 
-	    let calibration_view =  view.down("pageCalibration");
+	    let calibration_view = view.down("pageCalibration");
 	    let page_calibration = calibration_view.getValues();
 
 	    draw_labels("print_frame", label_list, page_layout, page_calibration);
@@ -127,10 +120,10 @@ Ext.define('MainView', {
 	update_calibration_preview: function() {
 	    let me = this;
 	    let view = me.getView();
-	    let page_layout_view =  view.down("pageLayoutPanel");
+	    let page_layout_view = view.down("pageLayoutPanel");
 	    let page_layout = page_layout_view.getValues();
 
-	    let calibration_view =  view.down("pageCalibration");
+	    let calibration_view = view.down("pageCalibration");
 	    let page_calibration = calibration_view.getValues();
 	    console.log(page_calibration);
 	    generate_calibration_page('print_frame', page_layout, page_calibration);
@@ -195,19 +188,18 @@ Ext.define('MainView', {
 	    border: false,
 	    flex: 1,
 	    scrollable: true,
-	    tools:[{
+	    tools: [{
 		type: 'print',
 		tooltip: 'Open Print Dialog',
 		handler: function(event, toolEl, panelHeader) {
 		    printBarcodePage();
-		}
+		},
 	    }],
 	},
     ],
 });
 
 Ext.onReady(function() {
-
     Ext.create('MainView', {
 	renderTo: Ext.getBody(),
     });

@@ -4,7 +4,7 @@ Ext.define('LabelList', {
 
     plugins: {
         ptype: 'cellediting',
-        clicksToEdit: 1
+        clicksToEdit: 1,
     },
 
     selModel: 'cellmodel',
@@ -44,7 +44,7 @@ Ext.define('LabelList', {
 		xtype: 'prefixfield',
 		allowBlank: false,
 	    },
-	    renderer: function (value, metaData, record) {
+	    renderer: function(value, metaData, record) {
 		console.log(record);
 		if (record.data.mode === 'placeholder') {
 		    return "-";
@@ -60,7 +60,7 @@ Ext.define('LabelList', {
 		xtype: 'ltoTapeType',
 		allowBlank: false,
 	    },
-	    renderer: function (value, metaData, record) {
+	    renderer: function(value, metaData, record) {
 		console.log(record);
 		if (record.data.mode === 'placeholder') {
 		    return "-";
@@ -133,7 +133,7 @@ Ext.define('LabelList', {
 		    handler: function(grid, rowIndex) {
 			grid.getStore().removeAt(rowIndex);
 		    },
-		}
+		},
 	    ],
 	},
     ],

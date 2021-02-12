@@ -139,4 +139,4 @@ Ext.define('PageCalibration', {
 	    ],
 	},
     ],
-})
+});

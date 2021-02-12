@@ -53,7 +53,7 @@ let code39_codes = {
     "0": ['b', 's', 'b', 'S', 'B', 's', 'B', 's', 'b'],
     "J": ['b', 's', 'b', 's', 'B', 'S', 'B', 's', 'b'],
     "T": ['b', 's', 'b', 's', 'B', 's', 'B', 'S', 'b'],
-    "*": ['b', 'S', 'b', 's', 'B', 's', 'B', 's', 'b']
+    "*": ['b', 'S', 'b', 's', 'B', 's', 'B', 's', 'b'],
 };
 
 let colors = [
@@ -66,25 +66,22 @@ let colors = [
     '#E27B99',
     '#67A945',
     '#F6B855',
-    '#705A81'
+    '#705A81',
 ];
 
 let lto_label_width = 70;
 let lto_label_height = 17;
 
 function foreach_label(page_layout, callback) {
-
     let count = 0;
     let row = 0;
     let height = page_layout.margin_top;
 
     while ((height + page_layout.label_height) <= page_layout.page_height) {
-
 	let column = 0;
 	let width = page_layout.margin_left;
 
 	while ((width + page_layout.label_width) <= page_layout.page_width) {
-
 	    callback(column, row, count, width, height);
 	    count += 1;
 
@@ -97,11 +94,9 @@ function foreach_label(page_layout, callback) {
 	height += page_layout.label_height;
 	height += page_layout.row_spacing;
     }
-
 }
 
 function compute_max_labels(page_layout) {
-
     let max_labels = 0;
     foreach_label(page_layout, function() { max_labels += 1; });
     return max_labels;
@@ -186,7 +181,6 @@ function svg_label(mode, label, label_type, pagex, pagey, label_borders) {
 	}
 
 	for (let c of code) {
-
 	    if (c === 's') {
 		xpos += small;
 		continue;
@@ -216,7 +210,7 @@ function html_page_header() {
     /* no page margins */
     html += "@page{margin-left: 0px;margin-right: 0px;margin-top: 0px;margin-bottom: 0px;}";
     /* to hide things on printed page */
-    html +=  "@media print { .unprintable { visibility: hidden;	} }";
+    html += "@media print { .unprintable { visibility: hidden;	} }";
 
     html += "</style>";
 
@@ -241,7 +235,6 @@ function printBarcodePage() {
 }
 
 function generate_barcode_page(target_id, page_layout, label_list, calibration) {
-
     let svg = svg_page_header(page_layout.page_width, page_layout.page_height);
 
     let c = calibration;
@@ -255,7 +248,6 @@ function generate_barcode_page(target_id, page_layout, label_list, calibration) 
     svg += '>';
 
     foreach_label(page_layout, function(column, row, count, xpos, ypos) {
-
 	if (count >= label_list.length) { return; }
 
 	let item = label_list[count];
@@ -297,12 +289,11 @@ function setupPrintFrame(frame, page_width, page_height) {
 }
 
 function generate_calibration_page(target_id, page_layout, calibration) {
-
     let frame = document.getElementById(target_id);
 
     setupPrintFrame(frame, page_layout.page_width, page_layout.page_height);
 
-    let svg = svg_page_header( page_layout.page_width,  page_layout.page_height);
+    let svg = svg_page_header(page_layout.page_width, page_layout.page_height);
 
     svg += "<defs>";
     svg += "<marker id='endarrow' markerWidth='10' markerHeight='7' ";
