@@ -10,6 +10,7 @@ GENERATED_SYNOPSIS := 						\
 	backup-protocol-api.rst					\
 	reader-protocol-api.rst					\
 	config/madia-pool/config.rst				\
+	config/tape/config.rst					\
 	config/user/config.rst					\
 	config/remote/config.rst				\
 	config/sync/config.rst					\
@@ -27,6 +28,7 @@ MAN1_PAGES := 				\
 
 MAN5_PAGES :=				\
 	media-pool.cfg.5		\
+	tape.cfg.5			\
 	acl.cfg.5			\
 	user.cfg.5			\
 	remote.cfg.5			\
@@ -141,6 +143,12 @@ config/media-pool/config.rst: ${COMPILEDIR}/docgen
 	${COMPILEDIR}/docgen media-pool.cfg >$@
 
 media-pool.cfg.5: config/media-pool/man5.rst config/media-pool/config.rst config/media-pool/format.rst
+	rst2man $< >$@
+
+config/tape/config.rst: ${COMPILEDIR}/docgen
+	${COMPILEDIR}/docgen tape.cfg >$@
+
+tape.cfg.5: config/tape/man5.rst config/tape/config.rst config/tape/format.rst
 	rst2man $< >$@
 
 proxmox-backup-client/synopsis.rst: ${COMPILEDIR}/proxmox-backup-client

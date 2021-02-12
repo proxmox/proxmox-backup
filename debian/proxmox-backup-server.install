@@ -27,6 +27,7 @@ usr/share/man/man5/remote.cfg.5
 usr/share/man/man5/sync.cfg.5
 usr/share/man/man5/verification.cfg.5
 usr/share/man/man5/media-pool.cfg.5
+usr/share/man/man5/tape.cfg.5
 usr/share/zsh/vendor-completions/_proxmox-backup-manager
 usr/share/zsh/vendor-completions/_pmtx
 usr/share/zsh/vendor-completions/_pmt

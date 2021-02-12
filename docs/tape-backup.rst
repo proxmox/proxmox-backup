@@ -749,3 +749,18 @@ Options
 ^^^^^^^
 
 .. include:: config/media-pool/config.rst
+
+
+``tape.cfg``
+~~~~~~~~~~~~~~~~~~
+
+File Format
+^^^^^^^^^^^
+
+.. include:: config/tape/format.rst
+
+
+Options
+^^^^^^^
+
+.. include:: config/tape/config.rst
