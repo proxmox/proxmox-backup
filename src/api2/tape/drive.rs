@@ -21,6 +21,7 @@ use proxmox::{
 };
 
 use crate::{
+    task_log,
     config,
     api2::{
         types::{
@@ -228,11 +229,38 @@ pub fn erase_media(
         Some(drive.clone()),
         auth_id,
         to_stdout,
-        move |_worker| {
+        move |worker| {
             let _lock_guard = lock_guard; // keep lock guard
 
             let mut drive = open_drive(&config, &drive)?;
-            drive.erase_media(fast.unwrap_or(true))?;
+
+            match drive.read_label() {
+                Err(err) => {
+                    /* assume drive contains no or unrelated data */
+                    task_log!(worker, "unable to read media label: {}", err);
+                    task_log!(worker, "erase anyways");
+                    drive.erase_media(fast.unwrap_or(true))?;
+                }
+                Ok((None, _)) => {
+                    task_log!(worker, "found empty media - erase anyways");
+                    drive.erase_media(fast.unwrap_or(true))?;
+                }
+                Ok((Some(media_id), _key_config)) => {
+                    task_log!(
+                        worker,
+                        "found media '{}' with uuid '{}'",
+                        media_id.label.label_text, media_id.label.uuid,
+                    );
+
+                    let status_path = Path::new(TAPE_STATUS_DIR);
+                    let mut inventory = Inventory::load(status_path)?;
+
+                    MediaCatalog::destroy(status_path, &media_id.label.uuid)?;
+                    inventory.remove_media(&media_id.label.uuid)?;
+                    drive.erase_media(fast.unwrap_or(true))?;
+                }
+            }
+
             Ok(())
         }
     )?;
