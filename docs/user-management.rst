@@ -286,6 +286,7 @@ you can use the ``proxmox-backup-manager user permission`` command:
   - Datastore.Backup (*)
 
 .. _user_tfa:
+
 Two-factor authentication
 -------------------------
 
@@ -338,6 +339,7 @@ Setup
 ~~~~~
 
 .. _user_tfa_setup_totp:
+
 TOTP
 ^^^^
 
@@ -350,6 +352,7 @@ smartphone (for example, `FreeOTP <https://freeotp.github.io/>`_) and use the
 Proxmox Backup Server web-interface to add a TOTP factor.
 
 .. _user_tfa_setup_webauthn:
+
 WebAuthn
 ^^^^^^^^
 
@@ -365,6 +368,7 @@ Once you fullfilled both of those requirements, you can add a WebAuthn
 configuration in the *Access Control* panel.
 
 .. _user_tfa_setup_recovery_keys:
+
 Recovery Keys
 ^^^^^^^^^^^^^
 
