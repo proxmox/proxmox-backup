@@ -83,7 +83,7 @@ Options
 
 
 ``verification.cfg``
-~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 
 File Format
 ^^^^^^^^^^^
