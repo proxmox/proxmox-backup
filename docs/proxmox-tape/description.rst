@@ -1,4 +1,1 @@
-This is just a test.
-
-.. NOTE:: No further info.
-
+This tool can configure and manage tape backups.

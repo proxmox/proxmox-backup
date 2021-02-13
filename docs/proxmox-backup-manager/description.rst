@@ -1,4 +1,2 @@
-This is just a test.
-
-.. NOTE:: No further info.
-
+This tool exposes the whole backup server management API on the
+command line.
