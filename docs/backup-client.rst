@@ -698,26 +698,30 @@ benchmark using the ``benchmark`` subcommand of ``proxmox-backup-client``:
 .. code-block:: console
 
   # proxmox-backup-client benchmark
-  Uploaded 656 chunks in 5 seconds.
-  Time per request: 7659 microseconds.
-  TLS speed: 547.60 MB/s
-  SHA256 speed: 585.76 MB/s
-  Compression speed: 1923.96 MB/s
-  Decompress speed: 7885.24 MB/s
-  AES256/GCM speed: 3974.03 MB/s
+  Uploaded 1517 chunks in 5 seconds.
+  Time per request: 3309 microseconds.
+  TLS speed: 1267.41 MB/s
+  SHA256 speed: 2066.73 MB/s
+  Compression speed: 775.11 MB/s
+  Decompress speed: 1233.35 MB/s
+  AES256/GCM speed: 3688.27 MB/s
+  Verify speed: 783.43 MB/s
   ┌───────────────────────────────────┬─────────────────────┐
   │ Name                              │ Value               │
   ╞═══════════════════════════════════╪═════════════════════╡
-  │ TLS (maximal backup upload speed) │ 547.60 MB/s (93%)   │
+  │ TLS (maximal backup upload speed) │ 1267.41 MB/s (103%) │
   ├───────────────────────────────────┼─────────────────────┤
-  │ SHA256 checksum computation speed │ 585.76 MB/s (28%)   │
+  │ SHA256 checksum computation speed │ 2066.73 MB/s (102%) │
   ├───────────────────────────────────┼─────────────────────┤
-  │ ZStd level 1 compression speed    │ 1923.96 MB/s (89%)  │
+  │ ZStd level 1 compression speed    │ 775.11 MB/s (103%)  │
   ├───────────────────────────────────┼─────────────────────┤
-  │ ZStd level 1 decompression speed  │ 7885.24 MB/s (98%)  │
+  │ ZStd level 1 decompression speed  │ 1233.35 MB/s (103%) │
   ├───────────────────────────────────┼─────────────────────┤
-  │ AES256 GCM encryption speed       │ 3974.03 MB/s (104%) │
+  │ Chunk verification speed          │ 783.43 MB/s (103%)  │
+  ├───────────────────────────────────┼─────────────────────┤
+  │ AES256 GCM encryption speed       │ 3688.27 MB/s (101%) │
   └───────────────────────────────────┴─────────────────────┘
+
 
 .. note:: The percentages given in the output table correspond to a
   comparison against a Ryzen 7 2700X. The TLS test connects to the
