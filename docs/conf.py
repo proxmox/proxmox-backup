@@ -107,10 +107,8 @@ today_fmt = '%A, %d %B %Y'
 # This patterns also effect to html_static_path and html_extra_path
 exclude_patterns = [
     '_build', 'Thumbs.db', '.DS_Store',
-    'proxmox-backup-client/man1.rst',
-    'proxmox-backup-manager/man1.rst',
-    'proxmox-backup-proxy/man1.rst',
-    'pxar/man1.rst',
+    '*/man1.rst',
+    'config/*/man5.rst',
     'epilog.rst',
     'pbs-copyright.rst',
     'local-zfs.rst'
