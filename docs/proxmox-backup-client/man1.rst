@@ -31,6 +31,12 @@ Those command are available when you start an intercative restore shell:
 .. include:: catalog-shell-synopsis.rst
 
 
+Common Options
+==============
+
+.. include:: ../output-format.rst
+
+
 Description
 ============
 

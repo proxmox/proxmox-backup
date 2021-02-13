@@ -60,30 +60,7 @@ Environment Variables
 Output Format
 -------------
 
-Most commands support the ``--output-format`` parameter. It accepts
-the following values:
-
-:``text``: Text format (default). Structured data is rendered as a table.
-
-:``json``: JSON (single line).
-
-:``json-pretty``: JSON (multiple lines, nicely formatted).
-
-
-Please use the following environment variables to modify output behavior:
-
-``PROXMOX_OUTPUT_FORMAT``
-  Defines the default output format.
-
-``PROXMOX_OUTPUT_NO_BORDER``
-  If set (to any value), do not render table borders.
-
-``PROXMOX_OUTPUT_NO_HEADER``
-  If set (to any value), do not render table headers.
-
-.. note:: The ``text`` format is designed to be human readable, and
-   not meant to be parsed by automation tools. Please use the ``json``
-   format if you need to process the output.
+.. include:: output-format.rst
 
 
 .. _client_creating_backups:
@@ -748,5 +725,3 @@ benchmark using the ``benchmark`` subcommand of ``proxmox-backup-client``:
 
 You can also pass the ``--output-format`` parameter to output stats in ``json``,
 rather than the default table format.
-
-
