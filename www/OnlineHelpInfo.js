@@ -122,5 +122,21 @@ const proxmoxOnlineHelpInfo = {
   "user-acl": {
     "link": "/docs/user-management.html#user-acl",
     "title": "Access Control"
+  },
+  "user-tfa": {
+    "link": "/docs/user-management.html#user-tfa",
+    "title": "Two-factor authentication"
+  },
+  "user-tfa-setup-totp": {
+    "link": "/docs/user-management.html#user-tfa-setup-totp",
+    "title": "TOTP"
+  },
+  "user-tfa-setup-webauthn": {
+    "link": "/docs/user-management.html#user-tfa-setup-webauthn",
+    "title": "WebAuthn"
+  },
+  "user-tfa-setup-recovery-keys": {
+    "link": "/docs/user-management.html#user-tfa-setup-recovery-keys",
+    "title": "Recovery Keys"
   }
 };
