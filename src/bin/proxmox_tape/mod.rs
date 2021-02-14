@@ -12,3 +12,6 @@ pub use media::*;
 
 mod encryption_key;
 pub use encryption_key::*;
+
+mod backup_job;
+pub use backup_job::*;
