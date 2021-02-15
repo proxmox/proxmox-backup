@@ -138,6 +138,7 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	    try {
 		await PBS.Async.api2({
 		    method: 'PUT',
+		    timeout: 5*60*1000,
 		    url: `/api2/extjs/tape/drive/${encodeURIComponent(drive)}/unload`,
 		});
 		Proxmox.Utils.setErrorMask(view);
@@ -156,6 +157,7 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	    method = method || 'GET';
 	    Proxmox.Utils.API2Request({
 		url: `/api2/extjs/tape/drive/${driveid}/${command}`,
+		timeout: 5*60*1000,
 		method,
 		waitMsgTarget: view,
 		params,
@@ -384,13 +386,16 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 		Proxmox.Utils.setErrorMask(view, true);
 		Proxmox.Utils.setErrorMask(me.lookup('content'));
 		let status_fut = PBS.Async.api2({
+		    timeout: 5*60*1000,
 		    url: `/api2/extjs/tape/changer/${encodeURIComponent(changer)}/status`,
 		});
 		let drives_fut = PBS.Async.api2({
+		    timeout: 5*60*1000,
 		    url: `/api2/extjs/tape/drive?changer=${encodeURIComponent(changer)}`,
 		});
 
 		let tapes_fut = PBS.Async.api2({
+		    timeout: 5*60*1000,
 		    url: '/api2/extjs/tape/media/list',
 		});
 
