@@ -5,6 +5,10 @@ use proxmox::api::{api, cli::*, RpcEnvironment, ApiHandler};
 
 use proxmox_backup::{
     config,
+    client::{
+        connect_to_localhost,
+        view_task_result,
+    },
     api2::{
         self,
         types::*,
@@ -75,12 +79,42 @@ fn show_tape_backup_job(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result
     Ok(Value::Null)
 }
 
+#[api(
+    input: {
+        properties: {
+            id: {
+                schema: JOB_ID_SCHEMA,
+            },
+        },
+    },
+)]
+/// Run THape Backup Job
+async fn run_tape_backup_job(mut param: Value) -> Result<(), Error> {
+
+    let output_format = get_output_format(&param);
+
+    let id = param["id"].take().as_str().unwrap().to_string();
+
+    let mut client = connect_to_localhost()?;
+
+    let result = client.post(&format!("api2/json/tape/backup/{}", id), Some(param)).await?;
+
+    view_task_result(&mut client, result, &output_format).await?;
+
+    Ok(())
+}
+
 pub fn backup_job_commands() -> CommandLineInterface {
 
     let cmd_def = CliCommandMap::new()
         .insert("list", CliCommand::new(&API_METHOD_LIST_TAPE_BACKUP_JOBS))
         .insert("show",
                 CliCommand::new(&API_METHOD_SHOW_TAPE_BACKUP_JOB)
+                .arg_param(&["id"])
+                .completion_cb("id", config::tape_job::complete_tape_job_id)
+        )
+        .insert("run",
+                CliCommand::new(&API_METHOD_RUN_TAPE_BACKUP_JOB)
                 .arg_param(&["id"])
                 .completion_cb("id", config::tape_job::complete_tape_job_id)
         )

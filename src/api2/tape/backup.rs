@@ -31,6 +31,7 @@ use crate::{
         MEDIA_POOL_NAME_SCHEMA,
         DRIVE_NAME_SCHEMA,
         UPID_SCHEMA,
+        JOB_ID_SCHEMA,
         MediaPoolConfig,
     },
     server::WorkerTask,
@@ -48,6 +49,13 @@ use crate::{
         changer::update_changer_online_status,
     },
 };
+
+const TAPE_BACKUP_JOB_ROUTER: Router = Router::new()
+    .post(&API_METHOD_RUN_TAPE_BACKUP_JOB);
+
+pub const ROUTER: Router = Router::new()
+    .post(&API_METHOD_BACKUP)
+    .match_all("id", &TAPE_BACKUP_JOB_ROUTER);
 
 pub fn do_tape_backup_job(
     mut job: Job,
@@ -114,6 +122,32 @@ pub fn do_tape_backup_job(
             job_result
         }
     )?;
+
+    Ok(upid_str)
+}
+
+#[api(
+    input: {
+        properties: {
+            id: {
+                schema: JOB_ID_SCHEMA,
+            },
+        },
+    },
+)]
+/// Runs a tape backup job manually.
+pub fn run_tape_backup_job(
+    id: String,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<String, Error> {
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+
+    let (config, _digest) = config::tape_job::config()?;
+    let backup_job: TapeBackupJobConfig = config.lookup("backup", &id)?;
+
+    let job = Job::new("tape-backup-job", &id)?;
+
+    let upid_str = do_tape_backup_job(job, backup_job, &auth_id, None)?;
 
     Ok(upid_str)
 }
@@ -189,10 +223,6 @@ pub fn backup(
 
     Ok(upid_str.into())
 }
-
-pub const ROUTER: Router = Router::new()
-    .post(&API_METHOD_BACKUP);
-
 
 fn backup_worker(
     worker: &WorkerTask,
