@@ -42,6 +42,16 @@ lazy_static! {
         drive: {
             schema: DRIVE_NAME_SCHEMA,
         },
+        "eject-media": {
+            description: "Eject media upon job completion.",
+            type: bool,
+            optional: true,
+        },
+        "export-media-set": {
+            description: "Export media set upon job completion.",
+            type: bool,
+            optional: true,
+        },
         comment: {
             optional: true,
             schema: SINGLE_LINE_COMMENT_SCHEMA,
@@ -61,6 +71,10 @@ pub struct TapeBackupJobConfig {
     pub store: String,
     pub pool: String,
     pub drive: String,
+    #[serde(skip_serializing_if="Option::is_none")]
+    eject_media: Option<bool>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    export_media_set: Option<bool>,
     #[serde(skip_serializing_if="Option::is_none")]
     pub comment: Option<String>,
     #[serde(skip_serializing_if="Option::is_none")]

@@ -15,7 +15,11 @@ use proxmox::{
 
 use crate::{
     task_log,
-    config,
+    config::{
+        self,
+        tape_job::TapeBackupJobConfig,
+    },
+    server::jobstate::Job,
     backup::{
         DataStore,
         BackupDir,
@@ -44,6 +48,75 @@ use crate::{
         changer::update_changer_online_status,
     },
 };
+
+pub fn do_tape_backup_job(
+    mut job: Job,
+    tape_job: TapeBackupJobConfig,
+    auth_id: &Authid,
+    schedule: Option<String>,
+) -> Result<String, Error> {
+
+    let job_id = format!("{}:{}:{}:{}",
+                         tape_job.store,
+                         tape_job.pool,
+                         tape_job.drive,
+                         job.jobname());
+
+    let worker_type = job.jobtype().to_string();
+
+    let datastore = DataStore::lookup_datastore(&tape_job.store)?;
+
+    let (config, _digest) = config::media_pool::config()?;
+    let pool_config: MediaPoolConfig = config.lookup("pool", &tape_job.pool)?;
+
+    let (drive_config, _digest) = config::drive::config()?;
+
+    // early check/lock before starting worker
+    let drive_lock = lock_tape_device(&drive_config, &tape_job.drive)?;
+
+    let upid_str = WorkerTask::new_thread(
+        &worker_type,
+        Some(job_id.clone()),
+        auth_id.clone(),
+        false,
+        move |worker| {
+            let _drive_lock = drive_lock; // keep lock guard
+
+            job.start(&worker.upid().to_string())?;
+
+            let eject_media = false;
+            let export_media_set = false;
+
+            task_log!(worker,"Starting tape backup job '{}'", job_id);
+            if let Some(event_str) = schedule {
+                task_log!(worker,"task triggered by schedule '{}'", event_str);
+            }
+
+            let job_result = backup_worker(
+                &worker,
+                datastore,
+                &tape_job.drive,
+                &pool_config,
+                eject_media,
+                export_media_set,
+            );
+
+            let status = worker.create_state(&job_result);
+
+            if let Err(err) = job.finish(status) {
+                eprintln!(
+                    "could not finish job state for {}: {}",
+                    job.jobtype().to_string(),
+                    err
+                );
+            }
+
+            job_result
+        }
+    )?;
+
+    Ok(upid_str)
+}
 
 #[api(
    input: {
@@ -100,9 +173,11 @@ pub fn backup(
     let eject_media = eject_media.unwrap_or(false);
     let export_media_set = export_media_set.unwrap_or(false);
 
+    let job_id = format!("{}:{}:{}", store, pool, drive);
+
     let upid_str = WorkerTask::new_thread(
         "tape-backup",
-        Some(store),
+        Some(job_id),
         auth_id,
         to_stdout,
         move |worker| {

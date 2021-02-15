@@ -49,6 +49,7 @@ use proxmox_backup::tools::{
 };
 
 use proxmox_backup::api2::pull::do_sync_job;
+use proxmox_backup::api2::tape::backup::do_tape_backup_job;
 use proxmox_backup::server::do_verification_job;
 use proxmox_backup::server::do_prune_job;
 
@@ -312,6 +313,7 @@ async fn schedule_tasks() -> Result<(), Error> {
     schedule_datastore_prune().await;
     schedule_datastore_sync_jobs().await;
     schedule_datastore_verify_jobs().await;
+    schedule_tape_backup_jobs().await;
     schedule_task_log_rotate().await;
 
     Ok(())
@@ -549,6 +551,48 @@ async fn schedule_datastore_verify_jobs() {
         };
     }
 }
+
+async fn schedule_tape_backup_jobs() {
+
+    use proxmox_backup::config::tape_job::{
+        self,
+        TapeBackupJobConfig,
+    };
+
+    let config = match tape_job::config() {
+        Err(err) => {
+            eprintln!("unable to read tape job config - {}", err);
+            return;
+        }
+        Ok((config, _digest)) => config,
+    };
+    for (job_id, (_, job_config)) in config.sections {
+        let job_config: TapeBackupJobConfig = match serde_json::from_value(job_config) {
+            Ok(c) => c,
+            Err(err) => {
+                eprintln!("tape backup job config from_value failed - {}", err);
+                continue;
+            }
+        };
+        let event_str = match job_config.schedule {
+            Some(ref event_str) => event_str.clone(),
+            None => continue,
+        };
+
+        let worker_type = "tape-backup-job";
+        let auth_id = Authid::root_auth_id().clone();
+        if check_schedule(worker_type, &event_str, &job_id) {
+            let job = match Job::new(&worker_type, &job_id) {
+                Ok(job) => job,
+                Err(_) => continue, // could not get lock
+            };
+            if let Err(err) = do_tape_backup_job(job, job_config, &auth_id, Some(event_str)) {
+                eprintln!("unable to start tape bvackup job {} - {}", &job_id, err);
+            }
+        };
+    }
+}
+
 
 async fn schedule_task_log_rotate() {
 

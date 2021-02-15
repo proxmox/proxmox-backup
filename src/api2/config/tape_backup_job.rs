@@ -74,6 +74,8 @@ pub fn create_tape_backup_job(
 
     config::tape_job::save_config(&config)?;
 
+    crate::server::jobstate::create_state_file("tape-backup-job", &job.id)?;
+
     Ok(())
 }
 
@@ -112,6 +114,10 @@ pub enum DeletableProperty {
     comment,
     /// Delete the job schedule.
     schedule,
+    /// Delete the eject-media property
+    eject_media,
+    /// Delete the export-media-set property
+    export_media_set,
 }
 
 #[api(
@@ -204,6 +210,8 @@ pub fn delete_tape_backup_job(
     };
 
     config::tape_job::save_config(&config)?;
+
+    crate::server::jobstate::remove_state_file("tape-backup-job", &id)?;
 
     Ok(())
 }

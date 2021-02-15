@@ -161,6 +161,17 @@ Ext.define('PBS.Utils', {
 	return `Datastore ${what} ${id}`;
     },
 
+    render_tape_backup_id: function(id, what) {
+	const res = id.match(/^(\S+?):(\S+?):(\S+?)(:(.+))?$/);
+	if (res) {
+	    let datastore = res[1];
+	    let pool = res[2];
+	    let drive = res[3];
+	    return `${what} ${datastore} (pool ${pool}, drive ${drive})`;
+	}
+	return `${what} ${id}`;
+    },
+
     // mimics Display trait in backend
     renderKeyID: function(fingerprint) {
 	return fingerprint.substring(0, 23);
@@ -295,7 +306,8 @@ Ext.define('PBS.Utils', {
 	// do whatever you want here
 	Proxmox.Utils.override_task_descriptions({
 	    backup: (type, id) => PBS.Utils.render_datastore_worker_id(id, gettext('Backup')),
-	    "tape-backup": ['Datastore', gettext('Tape Backup')],
+	    "tape-backup": (type, id) => PBS.Utils.render_tape_backup_id(id, gettext('Tape Backup')),
+	    "tape-backup-job": (type, id) => PBS.Utils.render_tape_backup_id(id, gettext('Tape Backup Job')),
 	    "tape-restore": ['Datastore', gettext('Tape Restore')],
 	    "barcode-label-media": [gettext('Drive'), gettext('Barcode label media')],
 	    dircreate: [gettext('Directory Storage'), gettext('Create')],
