@@ -29,6 +29,10 @@ Ext.define('PBS.TapeManagement.TapeInventory', {
     controller: {
 	xclass: 'Ext.app.ViewController',
 
+	addTape: function() {
+	    Ext.create('PBS.TapeManagement.LabelMediaWindow').show();
+	},
+
 	moveToVault: function() {
 	    let me = this;
 	    let view = me.getView();
@@ -92,6 +96,10 @@ Ext.define('PBS.TapeManagement.TapeInventory', {
 	    handler: 'reload',
 	},
 	'-',
+	{
+	    text: gettext('Add Tape'),
+	    handler: 'addTape',
+	},
 	{
 	    xtype: 'proxmoxButton',
 	    text: gettext('Set Tape Location'),
