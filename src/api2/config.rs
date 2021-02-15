@@ -22,8 +22,8 @@ const SUBDIRS: SubdirMap = &[
     ("media-pool", &media_pool::ROUTER),
     ("remote", &remote::ROUTER),
     ("sync", &sync::ROUTER),
-    ("tape-encryption-keys", &tape_encryption_keys::ROUTER),
     ("tape-backup-job", &tape_backup_job::ROUTER),
+    ("tape-encryption-keys", &tape_encryption_keys::ROUTER),
     ("verify", &verify::ROUTER),
 ];
 
