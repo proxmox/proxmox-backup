@@ -107,17 +107,16 @@ pub fn read_tape_backup_job(
 #[api()]
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all="kebab-case")]
-#[allow(non_camel_case_types)]
 /// Deletable property name
 pub enum DeletableProperty {
     /// Delete the comment property.
-    comment,
+    Comment,
     /// Delete the job schedule.
-    schedule,
+    Schedule,
     /// Delete the eject-media property
-    eject_media,
+    EjectMedia,
     /// Delete the export-media-set property
-    export_media_set,
+    ExportMediaSet,
 }
 
 #[api(
