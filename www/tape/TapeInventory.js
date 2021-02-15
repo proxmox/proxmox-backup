@@ -18,6 +18,7 @@ Ext.define('pbs-model-tapes', {
     proxy: {
 	type: 'proxmox',
 	url: '/api2/json/tape/media/list',
+	timeout: 5*60*1000,
     },
 });
 
@@ -71,35 +72,26 @@ Ext.define('PBS.TapeManagement.TapeInventory', {
 	},
 
 	reload: function() {
-	    this.getView().getStore().rstore.load();
-	},
-
-	stopStore: function() {
-	    this.getView().getStore().rstore.stopUpdate();
-	},
-
-	startStore: function() {
-	    this.getView().getStore().rstore.startUpdate();
+	    this.getView().getStore().load();
 	},
     },
 
     listeners: {
-	beforedestroy: 'stopStore',
-	deactivate: 'stopStore',
-	activate: 'startStore',
+	activate: 'reload',
     },
 
     store: {
-	type: 'diff',
-	rstore: {
-	    type: 'update',
-	    storeid: 'proxmox-tape-tapes',
-	    model: 'pbs-model-tapes',
-	},
+	storeid: 'proxmox-tape-tapes',
+	model: 'pbs-model-tapes',
 	sorters: 'label-text',
     },
 
     tbar: [
+	{
+	    text: gettext('Reload'),
+	    handler: 'reload',
+	},
+	'-',
 	{
 	    xtype: 'proxmoxButton',
 	    text: gettext('Set Tape Location'),
