@@ -12,12 +12,12 @@ Ext.define('PBS.TapeManagement', {
 
     items: [
 	{
-	    title: gettext('Backup'),
-	    itemId: 'backup',
+	    title: gettext('Content'),
+	    itemId: 'content',
 	    xtype: 'pbsBackupOverview',
 	},
 	{
-	    title: gettext('Tape Inventory'),
+	    title: gettext('Inventory'),
 	    itemId: 'inventory',
 	    xtype: 'pbsTapeInventory',
 	},
