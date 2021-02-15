@@ -134,18 +134,19 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	unload: async function(view, rI, cI, button, el, record) {
 	    let me = this;
 	    let drive = record.data.name;
-	    Proxmox.Utils.setErrorMask(view, true);
+	    let driveGrid = me.lookup('drives');
+	    Proxmox.Utils.setErrorMask(driveGrid, true);
 	    try {
 		await PBS.Async.api2({
 		    method: 'PUT',
 		    timeout: 5*60*1000,
 		    url: `/api2/extjs/tape/drive/${encodeURIComponent(drive)}/unload`,
 		});
-		Proxmox.Utils.setErrorMask(view);
+		Proxmox.Utils.setErrorMask(driveGrid);
 		me.reload();
 	    } catch (error) {
 		Ext.Msg.alert(gettext('Error'), error);
-		Proxmox.Utils.setErrorMask(view);
+		Proxmox.Utils.setErrorMask(driveGrid);
 		me.reload();
 	    }
 	},
