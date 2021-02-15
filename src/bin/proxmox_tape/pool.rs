@@ -133,7 +133,6 @@ fn get_config(
 
     let options = default_table_format_options()
         .column(ColumnConfig::new("name"))
-        .column(ColumnConfig::new("drive"))
         .column(ColumnConfig::new("allocation"))
         .column(ColumnConfig::new("retention"))
         .column(ColumnConfig::new("template"))
