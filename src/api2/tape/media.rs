@@ -45,6 +45,11 @@ use crate::{
                 schema: MEDIA_POOL_NAME_SCHEMA,
                 optional: true,
             },
+            "update-status": {
+                description: "Try to update tape library status (check what tapes are online).",
+                optional: true,
+                default: true,
+            },
         },
     },
     returns: {
@@ -56,17 +61,22 @@ use crate::{
     },
 )]
 /// List pool media
-pub async fn list_media(pool: Option<String>) -> Result<Vec<MediaListEntry>, Error> {
+pub async fn list_media(
+    pool: Option<String>,
+    update_status: bool,
+) -> Result<Vec<MediaListEntry>, Error> {
 
     let (config, _digest) = config::media_pool::config()?;
 
     let status_path = Path::new(TAPE_STATUS_DIR);
 
     let catalogs = tokio::task::spawn_blocking(move || {
-        // update online media status
-        if let Err(err) = update_online_status(status_path) {
-            eprintln!("{}", err);
-            eprintln!("update online media status failed - using old state");
+        if update_status {
+            // update online media status
+            if let Err(err) = update_online_status(status_path) {
+                eprintln!("{}", err);
+                eprintln!("update online media status failed - using old state");
+            }
         }
         // test what catalog files we have
         MediaCatalog::media_with_catalogs(status_path)

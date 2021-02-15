@@ -40,7 +40,7 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 	loadContent: async function() {
 	    let me = this;
 	    let content_response = await PBS.Async.api2({
-		url: '/api2/extjs/tape/media/list',
+		url: '/api2/extjs/tape/media/list?update-status=false',
 	    });
 	    let data = {};
 
