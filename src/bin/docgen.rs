@@ -31,6 +31,7 @@ fn main() -> Result<(), Error> {
         let text = match arg.as_ref() {
             "datastore.cfg" => dump_section_config(&config::datastore::CONFIG),
             "tape.cfg" => dump_section_config(&config::drive::CONFIG),
+            "tape-job.cfg" => dump_section_config(&config::tape_job::CONFIG),
             "user.cfg" => dump_section_config(&config::user::CONFIG),
             "remote.cfg" => dump_section_config(&config::remote::CONFIG),
             "sync.cfg" => dump_section_config(&config::sync::CONFIG),

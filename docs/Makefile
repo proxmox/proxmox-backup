@@ -12,6 +12,7 @@ GENERATED_SYNOPSIS := 						\
 	reader-protocol-api.rst					\
 	config/media-pool/config.rst				\
 	config/tape/config.rst					\
+	config/tape-job/config.rst				\
 	config/user/config.rst					\
 	config/remote/config.rst				\
 	config/sync/config.rst					\
@@ -31,6 +32,7 @@ MAN1_PAGES := 				\
 MAN5_PAGES :=				\
 	media-pool.cfg.5		\
 	tape.cfg.5			\
+	tape-job.cfg.5			\
 	acl.cfg.5			\
 	user.cfg.5			\
 	remote.cfg.5			\
@@ -151,6 +153,12 @@ config/tape/config.rst: ${COMPILEDIR}/docgen
 	${COMPILEDIR}/docgen tape.cfg >$@
 
 tape.cfg.5: config/tape/man5.rst config/tape/config.rst config/tape/format.rst
+	rst2man $< >$@
+
+config/tape-job/config.rst: ${COMPILEDIR}/docgen
+	${COMPILEDIR}/docgen tape-job.cfg >$@
+
+tape-job.cfg.5: config/tape-job/man5.rst config/tape-job/config.rst config/tape-job/format.rst
 	rst2man $< >$@
 
 proxmox-tape/synopsis.rst: ${COMPILEDIR}/proxmox-tape

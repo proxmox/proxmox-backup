@@ -766,6 +766,22 @@ Options
 .. include:: config/tape/config.rst
 
 
+``tape-job.cfg``
+~~~~~~~~~~~~~~~~~~
+
+File Format
+^^^^^^^^^^^
+
+.. include:: config/tape-job/format.rst
+
+
+Options
+^^^^^^^
+
+.. include:: config/tape-job/config.rst
+
+
+
 Command Syntax
 --------------
 
