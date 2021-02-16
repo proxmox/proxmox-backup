@@ -19,6 +19,9 @@ pub mod pipe_to_stream;
 mod http_client;
 pub use http_client::*;
 
+mod vsock_client;
+pub use vsock_client::*;
+
 mod task_log;
 pub use task_log::*;
 
