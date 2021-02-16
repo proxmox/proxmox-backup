@@ -260,12 +260,7 @@ span.snapshot-comment-column {
 {
     background-repeat: no-repeat;
     background-position: bottom;
-    vertical-align: bottom;
     padding: 0;
-}
-
-.pbs-icon-tape
-{
     background-size: 16px;
     height: 20px;
     background-image:url(../images/icon-tape.svg);
