@@ -41,40 +41,14 @@ Ext.define('PBS.TapeManagement.TapeInventory', {
 		return;
 	    }
 	    let label = selection[0].data['label-text'];
-	    Ext.create('Proxmox.window.Edit', {
-		title: gettext('Erase'),
-		url: `/api2/extjs/tape/drive`,
-		showProgress: true,
-		submitUrl: function(url, values) {
-		    let drive = values.drive;
-		    delete values.drive;
-		    return `${url}/${drive}/erase-media`;
-		},
-		method: 'POST',
-		items: [
-		    {
-			xtype: 'displayfield',
-			cls: 'pmx-hint',
-			value: gettext('Make sure to insert the tape into the selected drive.'),
-		    },
-		    {
-			xtype: 'pbsDriveSelector',
-			fieldLabel: gettext('Drive'),
-			name: 'drive',
-		    },
-		    {
-			xtype: 'displayfield',
-			name: 'label-text',
-			value: label,
-			submitValue: true,
-			fieldLabel: gettext('Media'),
-		    },
-		    {
-			xtype: 'proxmoxcheckbox',
-			fieldLabel: gettext('Fast Erase'),
-			name: 'fast',
-		    },
-		],
+	    let inChanger = selection[0].data.location.startsWith('online-');
+	    let changer;
+	    if (inChanger) {
+		changer = selection[0].data.location.slice("online-".length);
+	    }
+	    Ext.create('PBS.TapeManagement.EraseWindow', {
+		label,
+		changer,
 		listeners: {
 		    destroy: function() {
 			me.reload();

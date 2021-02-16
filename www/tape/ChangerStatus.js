@@ -91,6 +91,23 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	    }).show();
 	},
 
+	erase: function(view, rI, cI, button, el, record) {
+	    let me = this;
+	    let vm = me.getViewModel();
+	    let label = record.data['label-text'];
+
+	    let changer = vm.get('changer');
+	    Ext.create('PBS.TapeManagement.EraseWindow', {
+		label,
+		changer,
+		listeners: {
+		    destroy: function() {
+			me.reload();
+		    },
+		},
+	    }).show();
+	},
+
 	load: function(view, rI, cI, button, el, record) {
 	    let me = this;
 	    let vm = me.getViewModel();
@@ -564,6 +581,12 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 				    iconCls: 'fa fa-rotate-90 fa-exchange',
 				    handler: 'slotTransfer',
 				    tooltip: gettext('Transfer'),
+				    isDisabled: (v, r, c, i, rec) => !rec.data['label-text'],
+				},
+				{
+				    iconCls: 'fa fa-trash-o',
+				    handler: 'erase',
+				    tooltip: gettext('Erase'),
 				    isDisabled: (v, r, c, i, rec) => !rec.data['label-text'],
 				},
 				{

@@ -18,6 +18,7 @@ TAPE_UI_FILES=						\
 	tape/form/KeySelector.js			\
 	tape/window/ChangerEdit.js			\
 	tape/window/DriveEdit.js			\
+	tape/window/Erase.js			\
 	tape/window/EncryptionEdit.js			\
 	tape/window/LabelMedia.js			\
 	tape/window/PoolEdit.js				\
