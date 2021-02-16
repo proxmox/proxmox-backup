@@ -202,19 +202,23 @@ pub async fn unload(
                 optional: true,
                 default: true,
             },
+            "label-text": {
+                schema: MEDIA_LABEL_SCHEMA,
+                optional: true,
+            },
         },
     },
     returns: {
         schema: UPID_SCHEMA,
     },
 )]
-/// Erase media
+/// Erase media. Check for label-text if given (cancels if wrong media).
 pub fn erase_media(
     drive: String,
     fast: Option<bool>,
+    label_text: Option<String>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-
     let (config, _digest) = config::drive::config()?;
 
     // early check/lock before starting worker
@@ -236,16 +240,32 @@ pub fn erase_media(
 
             match drive.read_label() {
                 Err(err) => {
+                    if let Some(label) = label_text {
+                        bail!("expected label '{}', found unrelated data", label);
+                    }
                     /* assume drive contains no or unrelated data */
                     task_log!(worker, "unable to read media label: {}", err);
                     task_log!(worker, "erase anyways");
                     drive.erase_media(fast.unwrap_or(true))?;
                 }
                 Ok((None, _)) => {
+                    if let Some(label) = label_text {
+                        bail!("expected label '{}', found empty tape", label);
+                    }
                     task_log!(worker, "found empty media - erase anyways");
                     drive.erase_media(fast.unwrap_or(true))?;
                 }
                 Ok((Some(media_id), _key_config)) => {
+                    if let Some(label_text) = label_text {
+                        if media_id.label.label_text != label_text {
+                            bail!(
+                                "expected label '{}', found '{}', aborting",
+                                label_text,
+                                media_id.label.label_text
+                            );
+                        }
+                    }
+
                     task_log!(
                         worker,
                         "found media '{}' with uuid '{}'",
