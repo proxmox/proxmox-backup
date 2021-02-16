@@ -236,9 +236,16 @@ pub fn erase_media(
         move |worker| {
             let _lock_guard = lock_guard; // keep lock guard
 
-            let mut drive = open_drive(&config, &drive)?;
+            if let Some(ref label) = label_text {
+                task_log!(worker, "try to load media '{}'", label);
+                if let Some((mut changer, _)) = media_changer(&config, &drive)? {
+                    changer.load_media(label)?;
+                }
+            }
 
-            match drive.read_label() {
+            let mut handle = open_drive(&config, &drive)?;
+
+            match handle.read_label() {
                 Err(err) => {
                     if let Some(label) = label_text {
                         bail!("expected label '{}', found unrelated data", label);
@@ -246,14 +253,14 @@ pub fn erase_media(
                     /* assume drive contains no or unrelated data */
                     task_log!(worker, "unable to read media label: {}", err);
                     task_log!(worker, "erase anyways");
-                    drive.erase_media(fast.unwrap_or(true))?;
+                    handle.erase_media(fast.unwrap_or(true))?;
                 }
                 Ok((None, _)) => {
                     if let Some(label) = label_text {
                         bail!("expected label '{}', found empty tape", label);
                     }
                     task_log!(worker, "found empty media - erase anyways");
-                    drive.erase_media(fast.unwrap_or(true))?;
+                    handle.erase_media(fast.unwrap_or(true))?;
                 }
                 Ok((Some(media_id), _key_config)) => {
                     if let Some(label_text) = label_text {
@@ -277,7 +284,7 @@ pub fn erase_media(
 
                     MediaCatalog::destroy(status_path, &media_id.label.uuid)?;
                     inventory.remove_media(&media_id.label.uuid)?;
-                    drive.erase_media(fast.unwrap_or(true))?;
+                    handle.erase_media(fast.unwrap_or(true))?;
                 }
             }
 
