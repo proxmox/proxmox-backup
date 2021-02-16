@@ -1,0 +1,188 @@
+// Tape Media Pool tests - test allow_ritable_media() function
+//
+// # cargo test --release tape::test::alloc_writable_media
+
+use std::path::PathBuf;
+use anyhow::Error;
+
+use crate::{
+    tools::systemd::time::parse_time_span,
+    api2::types::{
+        MediaSetPolicy,
+        RetentionPolicy,
+    },
+    tape::{
+        Inventory,
+        MediaPool,
+    },
+};
+
+fn create_testdir(name: &str) -> Result<PathBuf, Error> {
+    let mut testdir: PathBuf = String::from("./target/testout").into();
+    testdir.push(std::module_path!());
+    testdir.push(name);
+
+    let _ = std::fs::remove_dir_all(&testdir);
+    let _ = std::fs::create_dir_all(&testdir);
+
+    Ok(testdir)
+}
+
+#[test]
+fn test_alloc_writable_media_1() -> Result<(), Error> {
+
+    let testdir = create_testdir("test_alloc_writable_media_1")?;
+
+    let mut ctime = 0;
+
+    let mut pool = MediaPool::new(
+        "p1",
+        &testdir,
+        MediaSetPolicy::ContinueCurrent,
+        RetentionPolicy::KeepForever,
+        None,
+        None,
+    )?;
+
+    ctime += 10;
+
+    pool.start_write_session(ctime)?;
+
+    // no media in pool
+    assert!(pool.alloc_writable_media(ctime).is_err());
+
+    Ok(())
+}
+
+#[test]
+fn test_alloc_writable_media_2() -> Result<(), Error> {
+
+    let testdir = create_testdir("test_alloc_writable_media_2")?;
+ 
+    let mut inventory = Inventory::load(&testdir)?;
+
+    // tape1: free, assigned to pool
+    let tape1_uuid = inventory.generate_assigned_tape("tape1", "p1", 0);
+
+    let mut pool = MediaPool::new(
+        "p1",
+        &testdir,
+        MediaSetPolicy::ContinueCurrent,
+        RetentionPolicy::KeepForever,
+        None,
+        None,
+    )?;
+
+    let ctime = 10;
+
+    pool.start_write_session(ctime)?;
+
+    // use free media
+    assert_eq!(pool.alloc_writable_media(ctime)?, tape1_uuid);
+    // call again, media is still writable
+    assert_eq!(pool.alloc_writable_media(ctime)?, tape1_uuid);
+
+    // mark tape1 a Full
+    pool.set_media_status_full(&tape1_uuid)?;
+
+    // next call fail because there is no free media
+    assert!(pool.alloc_writable_media(ctime).is_err());
+
+    Ok(())
+}
+
+#[test]
+fn test_alloc_writable_media_3() -> Result<(), Error> {
+
+    let testdir = create_testdir("test_alloc_writable_media_3")?;
+
+    let mut inventory = Inventory::load(&testdir)?;
+
+    // tape1: free, assigned to pool
+    let tape1_uuid = inventory.generate_assigned_tape("tape1", "p1", 0);
+    // tape2: free, assigned to pool
+    let tape2_uuid = inventory.generate_assigned_tape("tape1", "p1", 1);
+
+    let mut pool = MediaPool::new(
+        "p1",
+        &testdir,
+        MediaSetPolicy::ContinueCurrent,
+        RetentionPolicy::KeepForever,
+        None,
+        None,
+    )?;
+
+    let mut ctime = 10;
+
+    pool.start_write_session(ctime)?;
+
+    // use free media
+    assert_eq!(pool.alloc_writable_media(ctime)?, tape1_uuid);
+    // call again, media is still writable
+    ctime += 1;
+    assert_eq!(pool.alloc_writable_media(ctime)?, tape1_uuid);
+
+    // mark tape1 a Full
+    pool.set_media_status_full(&tape1_uuid)?;
+
+    // use next free media
+    ctime += 1;
+    assert_eq!(pool.alloc_writable_media(ctime)?, tape2_uuid);
+
+    // mark tape2 a Full
+    pool.set_media_status_full(&tape2_uuid)?;
+
+    // next call fail because there is no free media
+    ctime += 1;
+    assert!(pool.alloc_writable_media(ctime).is_err());
+
+    Ok(())
+}
+
+#[test]
+fn test_alloc_writable_media_4() -> Result<(), Error> {
+
+    let testdir = create_testdir("test_alloc_writable_media_4")?;
+
+    let mut inventory = Inventory::load(&testdir)?;
+
+    // tape1: free, assigned to pool
+    let tape1_uuid = inventory.generate_assigned_tape("tape1", "p1", 0);
+
+    let mut pool = MediaPool::new(
+        "p1",
+        &testdir,
+        MediaSetPolicy::AlwaysCreate,
+        RetentionPolicy::ProtectFor(parse_time_span("12s")?),
+        None,
+        None,
+    )?;
+
+    let start_time = 10;
+
+    pool.start_write_session(start_time)?;
+
+    // use free media
+    assert_eq!(pool.alloc_writable_media(start_time)?, tape1_uuid);
+    // call again, media is still writable
+    assert_eq!(pool.alloc_writable_media(start_time + 3)?, tape1_uuid);
+
+    // mark tape1 a Full
+    pool.set_media_status_full(&tape1_uuid)?;
+
+    // next call fail because there is no free media
+    assert!(pool.alloc_writable_media(start_time + 5).is_err());
+
+    // Create new nedia set, so that revious set can expire
+    pool.start_write_session(start_time + 10)?;
+
+    assert!(pool.alloc_writable_media(start_time + 10).is_err());
+    assert!(pool.alloc_writable_media(start_time + 11).is_err());
+    assert!(pool.alloc_writable_media(start_time + 12).is_err());
+    assert!(pool.alloc_writable_media(start_time + 13).is_err());
+
+    // tape1 is now expired
+    assert_eq!(pool.alloc_writable_media(start_time + 14)?, tape1_uuid);
+
+    Ok(())
+}
