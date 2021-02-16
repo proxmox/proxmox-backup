@@ -583,3 +583,125 @@ where
     })
 }
 
+
+pub async fn extract_sub_dir<T, DEST, PATH>(
+    destination: DEST,
+    mut decoder: Accessor<T>,
+    path: PATH,
+    verbose: bool,
+) -> Result<(), Error>
+where
+    T: Clone + pxar::accessor::ReadAt + Unpin + Send + Sync + 'static,
+    DEST: AsRef<Path>,
+    PATH: AsRef<Path>,
+{
+    let root = decoder.open_root().await?;
+
+    create_path(
+        &destination,
+        None,
+        Some(CreateOptions::new().perm(Mode::from_bits_truncate(0o700))),
+    )
+    .map_err(|err| format_err!("error creating directory {:?}: {}", destination.as_ref(), err))?;
+
+    let dir = Dir::open(
+        destination.as_ref(),
+        OFlag::O_DIRECTORY | OFlag::O_CLOEXEC,
+        Mode::empty(),
+    )
+    .map_err(|err| format_err!("unable to open target directory {:?}: {}", destination.as_ref(), err,))?;
+
+    let mut extractor =  Extractor::new(
+        dir,
+        root.lookup_self().await?.entry().metadata().clone(),
+        false,
+        Flags::DEFAULT,
+    );
+
+    let file = root
+        .lookup(&path).await?
+        .ok_or(format_err!("error opening '{:?}'", path.as_ref()))?;
+
+    recurse_files_extractor(&mut extractor, &mut decoder, file, verbose).await
+}
+
+fn recurse_files_extractor<'a, T>(
+    extractor: &'a mut Extractor,
+    decoder: &'a mut Accessor<T>,
+    file: FileEntry<T>,
+    verbose: bool,
+) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>>
+where
+    T: Clone + pxar::accessor::ReadAt + Unpin + Send + Sync + 'static,
+{
+    use pxar::EntryKind;
+    Box::pin(async move {
+        let metadata = file.entry().metadata();
+        let file_name_os = file.file_name();
+
+        // safety check: a file entry in an archive must never contain slashes:
+        if file_name_os.as_bytes().contains(&b'/') {
+            bail!("archive file entry contains slashes, which is invalid and a security concern");
+        }
+
+        let file_name = CString::new(file_name_os.as_bytes())
+            .map_err(|_| format_err!("encountered file name with null-bytes"))?;
+
+        if verbose {
+            eprintln!("extracting: {}", file.path().display());
+        }
+
+        match file.kind() {
+            EntryKind::Directory => {
+                extractor
+                    .enter_directory(file_name_os.to_owned(), metadata.clone(), true)
+                    .map_err(|err| format_err!("error at entry {:?}: {}", file_name_os, err))?;
+
+                let dir = file.enter_directory().await?;
+                let mut readdir = dir.read_dir();
+                while let Some(entry) = readdir.next().await {
+                    let entry = entry?.decode_entry().await?;
+                    let filename = entry.path().to_path_buf();
+
+                    // log errors and continue
+                    if let Err(err) = recurse_files_extractor(extractor, decoder, entry, verbose).await {
+                        eprintln!("error extracting {:?}: {}", filename.display(), err);
+                    }
+                }
+                extractor.leave_directory()?;
+            }
+            EntryKind::Symlink(link) => {
+                extractor.extract_symlink(&file_name, metadata, link.as_ref())?;
+            }
+            EntryKind::Hardlink(link) => {
+                extractor.extract_hardlink(&file_name, link.as_os_str())?;
+            }
+            EntryKind::Device(dev) => {
+                if extractor.contains_flags(Flags::WITH_DEVICE_NODES) {
+                    extractor.extract_device(&file_name, metadata, dev)?;
+                }
+            }
+            EntryKind::Fifo => {
+                if extractor.contains_flags(Flags::WITH_FIFOS) {
+                    extractor.extract_special(&file_name, metadata, 0)?;
+                }
+            }
+            EntryKind::Socket => {
+                if extractor.contains_flags(Flags::WITH_SOCKETS) {
+                    extractor.extract_special(&file_name, metadata, 0)?;
+                }
+            }
+            EntryKind::File { size, .. } => extractor.async_extract_file(
+                &file_name,
+                metadata,
+                *size,
+                &mut file.contents().await.map_err(|_| {
+                    format_err!("found regular file entry without contents in archive")
+                })?,
+            ).await?,
+            EntryKind::GoodbyeTable => {}, // ignore
+        }
+        Ok(())
+    })
+}
+
