@@ -107,6 +107,26 @@ impl tower_service::Service<&tokio::net::TcpStream> for RestServer {
     }
 }
 
+impl tower_service::Service<&tokio::net::UnixStream> for RestServer {
+    type Response = ApiService;
+    type Error = Error;
+    type Future = Pin<Box<dyn Future<Output = Result<ApiService, Error>> + Send>>;
+
+    fn poll_ready(&mut self, _cx: &mut Context) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn call(&mut self, _ctx: &tokio::net::UnixStream) -> Self::Future {
+        // TODO: Find a way to actually represent the vsock peer in the ApiService struct - for now
+        // it doesn't really matter, so just use a fake IP address
+        let fake_peer = "0.0.0.0:807".parse().unwrap();
+        future::ok(ApiService {
+            peer: fake_peer,
+            api_config: self.api_config.clone()
+        }).boxed()
+    }
+}
+
 pub struct ApiService {
     pub peer: std::net::SocketAddr,
     pub api_config: Arc<ApiConfig>,
