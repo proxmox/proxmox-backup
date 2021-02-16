@@ -1328,7 +1328,7 @@ pub fn catalog(
 
     let mut catalog_reader = CatalogReader::new(reader);
 
-    let path = if filepath != "root" {
+    let path = if filepath != "root" && filepath != "/" {
         base64::decode(filepath)?
     } else {
         vec![b'/']

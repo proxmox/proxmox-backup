@@ -185,6 +185,7 @@ Ext.define("PBS.window.FileBrowser", {
 	    store: {
 		autoLoad: false,
 		model: 'pbs-file-tree',
+		defaultRootId: '/',
 		nodeParam: 'filepath',
 		sorters: 'text',
 		proxy: {
