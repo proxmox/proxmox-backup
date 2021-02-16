@@ -5,9 +5,11 @@ use std::ffi::{CStr, CString, OsStr, OsString};
 use std::io;
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::io::{AsRawFd, FromRawFd, RawFd};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+use std::pin::Pin;
 
+use futures::future::Future;
 use anyhow::{bail, format_err, Error};
 use nix::dir::Dir;
 use nix::fcntl::OFlag;
@@ -16,6 +18,7 @@ use nix::sys::stat::Mode;
 use pathpatterns::{MatchEntry, MatchList, MatchType};
 use pxar::format::Device;
 use pxar::Metadata;
+use pxar::accessor::aio::{Accessor, FileContents, FileEntry};
 
 use proxmox::c_result;
 use proxmox::tools::fs::{create_path, CreateOptions};
@@ -23,6 +26,8 @@ use proxmox::tools::fs::{create_path, CreateOptions};
 use crate::pxar::dir_stack::PxarDirStack;
 use crate::pxar::metadata;
 use crate::pxar::Flags;
+
+use crate::tools::zip::{ZipEncoder, ZipEntry};
 
 pub struct PxarExtractOptions<'a> {
     pub match_list: &'a[MatchEntry],
@@ -465,3 +470,116 @@ impl Extractor {
         )
     }
 }
+
+pub async fn create_zip<T, W, P>(
+    output: W,
+    decoder: Accessor<T>,
+    path: P,
+    verbose: bool,
+) -> Result<(), Error>
+where
+    T: Clone + pxar::accessor::ReadAt + Unpin + Send + Sync + 'static,
+    W: tokio::io::AsyncWrite + Unpin + Send + 'static,
+    P: AsRef<Path>,
+{
+    let root = decoder.open_root().await?;
+    let file = root
+        .lookup(&path).await?
+        .ok_or(format_err!("error opening '{:?}'", path.as_ref()))?;
+
+    let mut prefix = PathBuf::new();
+    let mut components = file.entry().path().components();
+    components.next_back(); // discar last
+    for comp in components {
+        prefix.push(comp);
+    }
+
+    let mut zipencoder = ZipEncoder::new(output);
+    let mut decoder = decoder;
+    recurse_files_zip(&mut zipencoder, &mut decoder, &prefix, file, verbose)
+        .await
+        .map_err(|err| {
+            eprintln!("error during creating of zip: {}", err);
+            err
+        })?;
+
+    zipencoder
+        .finish()
+        .await
+        .map_err(|err| {
+            eprintln!("error during finishing of zip: {}", err);
+            err
+        })
+}
+
+fn recurse_files_zip<'a, T, W>(
+    zip: &'a mut ZipEncoder<W>,
+    decoder: &'a mut Accessor<T>,
+    prefix: &'a Path,
+    file: FileEntry<T>,
+    verbose: bool,
+) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>>
+where
+    T: Clone + pxar::accessor::ReadAt + Unpin + Send + Sync + 'static,
+    W: tokio::io::AsyncWrite + Unpin + Send + 'static,
+{
+    use pxar::EntryKind;
+    Box::pin(async move {
+        let metadata = file.entry().metadata();
+        let path = file.entry().path().strip_prefix(&prefix)?.to_path_buf();
+
+        match file.kind() {
+            EntryKind::File { .. } => {
+                if verbose {
+                    eprintln!("adding '{}' to zip", path.display());
+                }
+                let entry = ZipEntry::new(
+                    path,
+                    metadata.stat.mtime.secs,
+                    metadata.stat.mode as u16,
+                    true,
+                );
+                zip.add_entry(entry, Some(file.contents().await?))
+                   .await
+                   .map_err(|err| format_err!("could not send file entry: {}", err))?;
+            }
+            EntryKind::Hardlink(_) => {
+                let realfile = decoder.follow_hardlink(&file).await?;
+                if verbose {
+                    eprintln!("adding '{}' to zip", path.display());
+                }
+                let entry = ZipEntry::new(
+                    path,
+                    metadata.stat.mtime.secs,
+                    metadata.stat.mode as u16,
+                    true,
+                );
+                zip.add_entry(entry, Some(realfile.contents().await?))
+                   .await
+                   .map_err(|err| format_err!("could not send file entry: {}", err))?;
+            }
+            EntryKind::Directory => {
+                let dir = file.enter_directory().await?;
+                let mut readdir = dir.read_dir();
+                if verbose {
+                    eprintln!("adding '{}' to zip", path.display());
+                }
+                let entry = ZipEntry::new(
+                    path,
+                    metadata.stat.mtime.secs,
+                    metadata.stat.mode as u16,
+                    false,
+                );
+                zip.add_entry::<FileContents<T>>(entry, None).await?;
+                while let Some(entry) = readdir.next().await {
+                    let entry = entry?.decode_entry().await?;
+                    recurse_files_zip(zip, decoder, prefix, entry, verbose).await?;
+                }
+            }
+            _ => {} // ignore all else
+        };
+
+        Ok(())
+    })
+}
+

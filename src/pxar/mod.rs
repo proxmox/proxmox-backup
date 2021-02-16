@@ -59,7 +59,7 @@ mod flags;
 pub use flags::Flags;
 
 pub use create::{create_archive, PxarCreateOptions};
-pub use extract::{extract_archive, ErrorHandler, PxarExtractOptions};
+pub use extract::{create_zip, extract_archive, ErrorHandler, PxarExtractOptions};
 
 /// The format requires to build sorted directory lookup tables in
 /// memory, so we restrict the number of allowed entries to limit

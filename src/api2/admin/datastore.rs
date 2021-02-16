@@ -3,8 +3,6 @@
 use std::collections::HashSet;
 use std::ffi::OsStr;
 use std::os::unix::ffi::OsStrExt;
-use std::path::{Path, PathBuf};
-use std::pin::Pin;
 
 use anyhow::{bail, format_err, Error};
 use futures::*;
@@ -22,7 +20,7 @@ use proxmox::api::schema::*;
 use proxmox::tools::fs::{replace_file, CreateOptions};
 use proxmox::{http_err, identity, list_subdirs_api_method, sortable};
 
-use pxar::accessor::aio::{Accessor, FileContents, FileEntry};
+use pxar::accessor::aio::Accessor;
 use pxar::EntryKind;
 
 use crate::api2::types::*;
@@ -31,11 +29,11 @@ use crate::api2::helpers;
 use crate::backup::*;
 use crate::config::datastore;
 use crate::config::cached_user_info::CachedUserInfo;
+use crate::pxar::create_zip;
 
 use crate::server::{jobstate::Job, WorkerTask};
 use crate::tools::{
     self,
-    zip::{ZipEncoder, ZipEntry},
     AsyncChannelWriter, AsyncReaderStream, WrappedReaderStream,
 };
 
@@ -1337,66 +1335,6 @@ pub fn catalog(
     helpers::list_dir_content(&mut catalog_reader, &path)
 }
 
-fn recurse_files<'a, T, W>(
-    zip: &'a mut ZipEncoder<W>,
-    decoder: &'a mut Accessor<T>,
-    prefix: &'a Path,
-    file: FileEntry<T>,
-) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>>
-where
-    T: Clone + pxar::accessor::ReadAt + Unpin + Send + Sync + 'static,
-    W: tokio::io::AsyncWrite + Unpin + Send + 'static,
-{
-    Box::pin(async move {
-        let metadata = file.entry().metadata();
-        let path = file.entry().path().strip_prefix(&prefix)?.to_path_buf();
-
-        match file.kind() {
-            EntryKind::File { .. } => {
-                let entry = ZipEntry::new(
-                    path,
-                    metadata.stat.mtime.secs,
-                    metadata.stat.mode as u16,
-                    true,
-                );
-                zip.add_entry(entry, Some(file.contents().await?))
-                   .await
-                   .map_err(|err| format_err!("could not send file entry: {}", err))?;
-            }
-            EntryKind::Hardlink(_) => {
-                let realfile = decoder.follow_hardlink(&file).await?;
-                let entry = ZipEntry::new(
-                    path,
-                    metadata.stat.mtime.secs,
-                    metadata.stat.mode as u16,
-                    true,
-                );
-                zip.add_entry(entry, Some(realfile.contents().await?))
-                   .await
-                   .map_err(|err| format_err!("could not send file entry: {}", err))?;
-            }
-            EntryKind::Directory => {
-                let dir = file.enter_directory().await?;
-                let mut readdir = dir.read_dir();
-                let entry = ZipEntry::new(
-                    path,
-                    metadata.stat.mtime.secs,
-                    metadata.stat.mode as u16,
-                    false,
-                );
-                zip.add_entry::<FileContents<T>>(entry, None).await?;
-                while let Some(entry) = readdir.next().await {
-                    let entry = entry?.decode_entry().await?;
-                    recurse_files(zip, decoder, prefix, entry).await?;
-                }
-            }
-            _ => {} // ignore all else
-        };
-
-        Ok(())
-    })
-}
-
 #[sortable]
 pub const API_METHOD_PXAR_FILE_DOWNLOAD: ApiMethod = ApiMethod::new(
     &ApiHandler::AsyncHttp(&pxar_file_download),
@@ -1472,9 +1410,10 @@ pub fn pxar_file_download(
 
         let decoder = Accessor::new(reader, archive_size).await?;
         let root = decoder.open_root().await?;
+        let path = OsStr::from_bytes(file_path).to_os_string();
         let file = root
-            .lookup(OsStr::from_bytes(file_path)).await?
-            .ok_or_else(|| format_err!("error opening '{:?}'", file_path))?;
+            .lookup(&path).await?
+            .ok_or_else(|| format_err!("error opening '{:?}'", path))?;
 
         let body = match file.kind() {
             EntryKind::File { .. } => Body::wrap_stream(
@@ -1488,37 +1427,19 @@ pub fn pxar_file_download(
                     .map_err(move |err| {
                         eprintln!(
                             "error during streaming of hardlink '{:?}' - {}",
-                            filepath, err
+                            path, err
                         );
                         err
                     }),
             ),
             EntryKind::Directory => {
                 let (sender, receiver) = tokio::sync::mpsc::channel(100);
-                let mut prefix = PathBuf::new();
-                let mut components = file.entry().path().components();
-                components.next_back(); // discar last
-                for comp in components {
-                    prefix.push(comp);
-                }
-
                 let channelwriter = AsyncChannelWriter::new(sender, 1024 * 1024);
-
-                crate::server::spawn_internal_task(async move {
-                    let mut zipencoder = ZipEncoder::new(channelwriter);
-                    let mut decoder = decoder;
-                    recurse_files(&mut zipencoder, &mut decoder, &prefix, file)
-                        .await
-                        .map_err(|err| eprintln!("error during creating of zip: {}", err))?;
-
-                    zipencoder
-                        .finish()
-                        .await
-                        .map_err(|err| eprintln!("error during finishing of zip: {}", err))
-                });
-
+                crate::server::spawn_internal_task(
+                    create_zip(channelwriter, decoder, path.clone(), false)
+                );
                 Body::wrap_stream(ReceiverStream::new(receiver).map_err(move |err| {
-                    eprintln!("error during streaming of zip '{:?}' - {}", filepath, err);
+                    eprintln!("error during streaming of zip '{:?}' - {}", path, err);
                     err
                 }))
             }
