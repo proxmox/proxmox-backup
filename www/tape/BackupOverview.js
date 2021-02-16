@@ -129,6 +129,8 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 
 		list.result.data.sort((a, b) => a.snapshot.localeCompare(b.snapshot));
 
+		let tapes = {};
+
 		for (let entry of list.result.data) {
 		    entry.text = entry.snapshot;
 		    entry.leaf = true;
@@ -137,7 +139,23 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 		    if (iconCls !== '') {
 			entry.iconCls = `fa ${iconCls}`;
 		    }
-		    node.appendChild(entry);
+
+		    let tape = entry['label-text'];
+		    if (tapes[tape] === undefined) {
+			tapes[tape] = {
+			    text: tape,
+			    'media-set-uuid': entry['media-set-uuid'],
+			    'seq-nr': entry['seq-nr'],
+			    iconCls: 'pbs-icon-tape',
+			    expanded: true,
+			    children: [],
+			};
+		    }
+		    tapes[tape].children.push(entry);
+		}
+
+		for (const tape of Object.values(tapes)) {
+		    node.appendChild(tape);
 		}
 
 		if (list.result.data.length === 0) {
@@ -198,7 +216,7 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 	    text: gettext('Restore Media Set'),
 	    handler: 'restore',
 	    parentXType: 'treepanel',
-	    enableFn: (rec) => !!rec.data.uuid,
+	    enableFn: (rec) => !!rec.data['media-set-uuid'],
 	},
     ],
 
