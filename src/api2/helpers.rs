@@ -1,3 +1,4 @@
+use std::io::{Read, Seek};
 use std::path::PathBuf;
 
 use anyhow::Error;
@@ -5,6 +6,9 @@ use futures::stream::TryStreamExt;
 use hyper::{Body, Response, StatusCode, header};
 
 use proxmox::http_bail;
+
+use crate::api2::types::ArchiveEntry;
+use crate::backup::{CatalogReader, DirEntryAttribute};
 
 pub async fn create_download_response(path: PathBuf) -> Result<Response<Body>, Error> {
     let file = match tokio::fs::File::open(path.clone()).await {
@@ -26,4 +30,31 @@ pub async fn create_download_response(path: PathBuf) -> Result<Response<Body>, E
         .header(header::CONTENT_TYPE, "application/octet-stream")
         .body(body)
         .unwrap())
+}
+
+/// Returns the list of content of the given path
+pub fn list_dir_content<R: Read + Seek>(
+    reader: &mut CatalogReader<R>,
+    path: &[u8],
+) -> Result<Vec<ArchiveEntry>, Error> {
+    let dir = reader.lookup_recursive(path)?;
+    let mut res = vec![];
+    let mut path = path.to_vec();
+    if !path.is_empty() && path[0] == b'/' {
+        path.remove(0);
+    }
+
+    for direntry in reader.read_dir(&dir)? {
+        let mut components = path.clone();
+        components.push(b'/');
+        components.extend(&direntry.name);
+        let mut entry = ArchiveEntry::new(&components, &direntry.attr);
+        if let DirEntryAttribute::File { size, mtime } = direntry.attr {
+            entry.size = size.into();
+            entry.mtime = mtime.into();
+        }
+        res.push(entry);
+    }
+
+    Ok(res)
 }

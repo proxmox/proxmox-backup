@@ -27,6 +27,7 @@ use pxar::EntryKind;
 
 use crate::api2::types::*;
 use crate::api2::node::rrd::create_value_from_rrd;
+use crate::api2::helpers;
 use crate::backup::*;
 use crate::config::datastore;
 use crate::config::cached_user_info::CachedUserInfo;
@@ -1294,7 +1295,7 @@ pub fn catalog(
     backup_time: i64,
     filepath: String,
     rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Value, Error> {
+) -> Result<Vec<ArchiveEntry>, Error> {
     let datastore = DataStore::lookup_datastore(&store)?;
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
@@ -1326,52 +1327,14 @@ pub fn catalog(
     let reader = BufferedDynamicReader::new(index, chunk_reader);
 
     let mut catalog_reader = CatalogReader::new(reader);
-    let mut current = catalog_reader.root()?;
-    let mut components = vec![];
 
+    let path = if filepath != "root" {
+        base64::decode(filepath)?
+    } else {
+        vec![b'/']
+    };
 
-    if filepath != "root" {
-        components = base64::decode(filepath)?;
-        if !components.is_empty() && components[0] == b'/' {
-            components.remove(0);
-        }
-        for component in components.split(|c| *c == b'/') {
-            if let Some(entry) = catalog_reader.lookup(&current, component)? {
-                current = entry;
-            } else {
-                bail!("path {:?} not found in catalog", &String::from_utf8_lossy(&components));
-            }
-        }
-    }
-
-    let mut res = Vec::new();
-
-    for direntry in catalog_reader.read_dir(&current)? {
-        let mut components = components.clone();
-        components.push(b'/');
-        components.extend(&direntry.name);
-        let path = base64::encode(components);
-        let text = String::from_utf8_lossy(&direntry.name);
-        let mut entry = json!({
-            "filepath": path,
-            "text": text,
-            "type": CatalogEntryType::from(&direntry.attr).to_string(),
-            "leaf": true,
-        });
-        match direntry.attr {
-            DirEntryAttribute::Directory { start: _ } => {
-                entry["leaf"] = false.into();
-            },
-            DirEntryAttribute::File { size, mtime } => {
-                entry["size"] = size.into();
-                entry["mtime"] = mtime.into();
-            },
-            _ => {},
-        }
-        res.push(entry);
-    }
-
-    Ok(res.into())
+    helpers::list_dir_content(&mut catalog_reader, &path)
 }
 
 fn recurse_files<'a, T, W>(

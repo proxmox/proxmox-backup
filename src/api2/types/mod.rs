@@ -12,6 +12,8 @@ use crate::{
         CryptMode,
         Fingerprint,
         BACKUP_ID_REGEX,
+        DirEntryAttribute,
+        CatalogEntryType,
     },
     server::UPID,
     config::acl::Role,
@@ -1301,6 +1303,47 @@ pub struct DatastoreNotify {
     pub verify: Option<Notify>,
     /// Sync job setting
     pub sync: Option<Notify>,
+}
+
+/// An entry in a hierarchy of files for restore and listing.
+#[api()]
+#[derive(Serialize, Deserialize)]
+pub struct ArchiveEntry {
+    /// Base64-encoded full path to the file, including the filename
+    pub filepath: String,
+    /// Displayable filename text for UIs
+    pub text: String,
+    /// File or directory type of this entry
+    #[serde(rename = "type")]
+    pub entry_type: String,
+    /// Is this entry a leaf node, or does it have children (i.e. a directory)?
+    pub leaf: bool,
+    /// The file size, if entry_type is 'f' (file)
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub size: Option<u64>,
+    /// The file "last modified" time stamp, if entry_type is 'f' (file)
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub mtime: Option<i64>,
+}
+
+impl ArchiveEntry {
+    pub fn new(filepath: &[u8], entry_type: &DirEntryAttribute) -> Self {
+        Self {
+            filepath: base64::encode(filepath),
+            text: String::from_utf8_lossy(filepath.split(|x| *x == b'/').last().unwrap())
+                .to_string(),
+            entry_type: CatalogEntryType::from(entry_type).to_string(),
+            leaf: matches!(entry_type, DirEntryAttribute::Directory { .. }),
+            size: match entry_type {
+                DirEntryAttribute::File { size, .. } => Some(*size),
+                _ => None
+            },
+            mtime: match entry_type {
+                DirEntryAttribute::File { mtime, .. } => Some(*mtime),
+                _ => None
+            },
+        }
+    }
 }
 
 pub const DATASTORE_NOTIFY_STRING_SCHEMA: Schema = StringSchema::new(

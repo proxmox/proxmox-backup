@@ -468,6 +468,32 @@ impl <R: Read + Seek> CatalogReader<R> {
         Ok(entry_list)
     }
 
+    /// Lookup a DirEntry from an absolute path
+    pub fn lookup_recursive(
+        &mut self,
+        path: &[u8],
+    ) -> Result<DirEntry, Error> {
+        let mut current = self.root()?;
+        if path == b"/" {
+            return Ok(current);
+        }
+
+        let components = if !path.is_empty() && path[0] == b'/' {
+            &path[1..]
+        } else {
+            path
+        }.split(|c| *c == b'/');
+
+        for comp in components {
+            if let Some(entry) = self.lookup(&current, comp)? {
+                current = entry;
+            } else {
+                bail!("path {:?} not found in catalog", String::from_utf8_lossy(&path));
+            }
+        }
+        Ok(current)
+    }
+
     /// Lockup a DirEntry inside a parent directory
     pub fn lookup(
         &mut self,
