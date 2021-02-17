@@ -21,7 +21,10 @@ use pxar::Metadata;
 use pxar::accessor::aio::{Accessor, FileContents, FileEntry};
 
 use proxmox::c_result;
-use proxmox::tools::fs::{create_path, CreateOptions};
+use proxmox::tools::{
+    fs::{create_path, CreateOptions},
+    io::{sparse_copy, sparse_copy_async},
+};
 
 use crate::pxar::dir_stack::PxarDirStack;
 use crate::pxar::metadata;
@@ -411,10 +414,23 @@ impl Extractor {
         )
         .map_err(|err| format_err!("failed to apply initial flags: {}", err))?;
 
-        let extracted = io::copy(&mut *contents, &mut file)
+        let result = sparse_copy(&mut *contents, &mut file)
             .map_err(|err| format_err!("failed to copy file contents: {}", err))?;
-        if size != extracted {
-            bail!("extracted {} bytes of a file of {} bytes", extracted, size);
+
+        if size != result.written {
+            bail!(
+                "extracted {} bytes of a file of {} bytes",
+                result.written,
+                size
+            );
+        }
+
+        if result.seeked_last {
+            while match nix::unistd::ftruncate(file.as_raw_fd(), size as i64) {
+                Ok(_) => false,
+                Err(nix::Error::Sys(errno)) if errno == nix::errno::Errno::EINTR => true,
+                Err(err) => bail!("error setting file size: {}", err),
+            } {}
         }
 
         metadata::apply(
@@ -454,11 +470,24 @@ impl Extractor {
         )
         .map_err(|err| format_err!("failed to apply initial flags: {}", err))?;
 
-        let extracted = tokio::io::copy(&mut *contents, &mut file)
+        let result = sparse_copy_async(&mut *contents, &mut file)
             .await
             .map_err(|err| format_err!("failed to copy file contents: {}", err))?;
-        if size != extracted {
-            bail!("extracted {} bytes of a file of {} bytes", extracted, size);
+
+        if size != result.written {
+            bail!(
+                "extracted {} bytes of a file of {} bytes",
+                result.written,
+                size
+            );
+        }
+
+        if result.seeked_last {
+            while match nix::unistd::ftruncate(file.as_raw_fd(), size as i64) {
+                Ok(_) => false,
+                Err(nix::Error::Sys(errno)) if errno == nix::errno::Errno::EINTR => true,
+                Err(err) => bail!("error setting file size: {}", err),
+            } {}
         }
 
         metadata::apply(
