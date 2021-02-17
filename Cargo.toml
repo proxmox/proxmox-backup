@@ -52,7 +52,7 @@ proxmox = { version = "0.10.5", features = [ "sortable-macro", "api-macro", "web
 #proxmox = { git = "git://git.proxmox.com/git/proxmox", version = "0.1.2", features = [ "sortable-macro", "api-macro" ] }
 #proxmox = { path = "../proxmox/proxmox", features = [ "sortable-macro", "api-macro", "websocket" ] }
 proxmox-fuse = "0.1.1"
-pxar = { version = "0.8.0", features = [ "tokio-io" ] }
+pxar = { version = "0.9.0", features = [ "tokio-io" ] }
 #pxar = { path = "../pxar", features = [ "tokio-io" ] }
 regex = "1.2"
 rustyline = "7"
