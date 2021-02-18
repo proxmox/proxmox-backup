@@ -29,7 +29,12 @@ use proxmox::{
     tools::{
         Uuid,
         io::ReadExt,
-        fs::fchown,
+        fs::{
+            fchown,
+            file_read_optional_string,
+            replace_file,
+            CreateOptions,
+       }
     },
     api::section_config::SectionConfigData,
 };
@@ -453,7 +458,53 @@ pub fn lock_tape_device(
     config: &SectionConfigData,
     drive: &str,
 ) -> Result<DeviceLockGuard, Error> {
+    let path = tape_device_path(config, drive)?;
+    lock_device_path(&path)
+        .map_err(|err| format_err!("unable to lock drive '{}' - {}", drive, err))
+}
 
+/// Writes the given state for the specified drive
+///
+/// This function does not lock, so make sure the drive is locked
+pub fn set_tape_device_state(
+    drive: &str,
+    state: &str,
+) -> Result<(), Error> {
+    let mut path = "/run/proxmox-backup/drive-state".to_string();
+    std::fs::create_dir_all(&path)?;
+    use std::fmt::Write;
+    write!(path, "/{}", drive)?;
+
+    let backup_user = crate::backup::backup_user()?;
+    let mode = nix::sys::stat::Mode::from_bits_truncate(0o0644);
+    let options = CreateOptions::new()
+        .perm(mode)
+        .owner(backup_user.uid)
+        .group(backup_user.gid);
+
+    replace_file(path, state.as_bytes(), options)
+}
+
+/// Get the device state
+pub fn get_tape_device_state(
+    config: &SectionConfigData,
+    drive: &str,
+) -> Result<Option<String>, Error> {
+    let path = format!("/run/proxmox-backup/drive-state/{}", drive);
+    let state = file_read_optional_string(path)?;
+
+    let device_path = tape_device_path(config, drive)?;
+    if test_device_path_lock(&device_path)? {
+        Ok(state)
+    } else {
+        Ok(None)
+    }
+}
+
+fn tape_device_path(
+    config: &SectionConfigData,
+    drive: &str,
+) -> Result<String, Error> {
     match config.sections.get(drive) {
         Some((section_type_name, config)) => {
             let path = match section_type_name.as_ref() {
@@ -465,8 +516,7 @@ pub fn lock_tape_device(
                 }
                 _ => bail!("unknown drive type '{}' - internal error"),
             };
-            lock_device_path(&path)
-                .map_err(|err| format_err!("unable to lock drive '{}' - {}", drive, err))
+            Ok(path)
         }
         None => {
             bail!("no such drive '{}'", drive);
