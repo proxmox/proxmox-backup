@@ -9,7 +9,10 @@ Ext.define('pbs-model-tapes', {
 	'media-set-ctime',
 	'media-set-name',
 	'media-set-uuid',
-	'pool',
+	{
+	    name: 'pool',
+	    defaultValue: '',
+	},
 	'seq-nr',
 	'status',
 	'uuid',
