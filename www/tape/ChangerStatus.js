@@ -470,6 +470,26 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 		Proxmox.Utils.setErrorMask(me.lookup('content'), err);
 	    }
 	},
+
+	renderIsLabeled: function(value, mD, record) {
+	    if (!record.data['label-text']) {
+		return "";
+	    }
+
+	    if (record.data['label-text'].startsWith("CLN")) {
+		return "";
+	    }
+
+	    if (!value) {
+		return gettext('Not Labeled');
+	    }
+
+	    let status = record.data.status;
+	    if (record.data.pool) {
+		return `${status} (${record.data.pool})`;
+	    }
+	    return status;
+	},
     },
 
     listeners: {
@@ -551,26 +571,8 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 			{
 			    text: gettext('Inventory'),
 			    dataIndex: 'is-labeled',
+			    renderer: 'renderIsLabeled',
 			    flex: 1,
-			    renderer: function(value, mD, record) {
-				if (!record.data['label-text']) {
-				    return "";
-				}
-
-				if (record.data['label-text'].startsWith("CLN")) {
-				    return "";
-				}
-
-				if (!value) {
-				    return gettext('Not Labeled');
-				}
-
-				let status = record.data.status;
-				if (record.data.pool) {
-				    return `${status} (${record.data.pool})`;
-				}
-				return status;
-			    },
 			},
 			{
 			    text: gettext('Actions'),
@@ -625,6 +627,12 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 				    dataIndex: 'label-text',
 				    flex: 1,
 				    renderer: (value) => value || '',
+				},
+				{
+				    text: gettext('Inventory'),
+				    dataIndex: 'is-labeled',
+				    renderer: 'renderIsLabeled',
+				    flex: 1,
 				},
 				{
 				    text: gettext("Name"),
@@ -714,6 +722,12 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 				    text: gettext("Content"),
 				    dataIndex: 'label-text',
 				    renderer: (value) => value || '',
+				    flex: 1,
+				},
+				{
+				    text: gettext('Inventory'),
+				    dataIndex: 'is-labeled',
+				    renderer: 'renderIsLabeled',
 				    flex: 1,
 				},
 				{
