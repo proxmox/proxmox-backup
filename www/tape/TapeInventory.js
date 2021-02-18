@@ -112,6 +112,7 @@ Ext.define('PBS.TapeManagement.TapeInventory', {
 	storeid: 'proxmox-tape-tapes',
 	model: 'pbs-model-tapes',
 	sorters: 'label-text',
+	groupField: 'pool',
     },
 
     tbar: [
@@ -139,16 +140,28 @@ Ext.define('PBS.TapeManagement.TapeInventory', {
 	},
     ],
 
+    features: [
+	{
+	    ftype: 'grouping',
+	    groupHeaderTpl: [
+		'{name:this.formatName} ({rows.length} Item{[values.rows.length > 1 ? "s" : ""]})',
+		{
+		    formatName: function(pool) {
+			if (pool === "") {
+			    return "Free (no pool assignment)";
+			} else {
+			    return pool;
+			}
+		    }
+		}
+	    ]
+	}
+    ],
+
     columns: [
 	{
 	    text: gettext('Label'),
 	    dataIndex: 'label-text',
-	    flex: 1,
-	},
-	{
-	    text: gettext('Pool'),
-	    dataIndex: 'pool',
-	    sorter: (a, b) => (a.data.pool || "").localeCompare(b.data.pool || ""),
 	    flex: 1,
 	},
 	{
@@ -158,6 +171,13 @@ Ext.define('PBS.TapeManagement.TapeInventory', {
 	    sorter: function(a, b) {
 		return (a.data['media-set-ctime'] || 0) - (b.data['media-set-ctime'] || 0);
 	    },
+	    renderer: function(value) {
+		if (value === undefined) {
+		    return "-- empty --";
+		} else {
+		    return value;
+		}
+	    }
 	},
 	{
 	    text: gettext('Location'),
