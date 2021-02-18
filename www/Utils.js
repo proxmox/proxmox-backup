@@ -172,6 +172,17 @@ Ext.define('PBS.Utils', {
 	return `${what} ${id}`;
     },
 
+    render_drive_load_media_id: function(id, what) {
+	const res = id.match(/^(\S+?):(\S+?)$/);
+	if (res) {
+	    let drive = res[1];
+	    let label = res[2];
+	    return gettext('Drive') + ` ${drive} - ${what} '${label}'`;
+	}
+
+	return `${what} ${id}`;
+    },
+
     // mimics Display trait in backend
     renderKeyID: function(fingerprint) {
 	return fingerprint.substring(0, 23);
@@ -312,6 +323,8 @@ Ext.define('PBS.Utils', {
 	    "barcode-label-media": [gettext('Drive'), gettext('Barcode label media')],
 	    dircreate: [gettext('Directory Storage'), gettext('Create')],
 	    dirremove: [gettext('Directory'), gettext('Remove')],
+	    "load-media": (type, id) => PBS.Utils.render_drive_load_media_id(id, gettext('Load media')),
+	    "unload-media": [gettext('Drive'), gettext('Unload media')],
 	    "eject-media": [gettext('Drive'), gettext('Eject media')],
 	    "erase-media": [gettext('Drive'), gettext('Erase media')],
 	    garbage_collection: ['Datastore', gettext('Garbage collect')],
