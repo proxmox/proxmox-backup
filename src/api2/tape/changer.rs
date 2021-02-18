@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::Path;
 
 use anyhow::Error;
@@ -11,6 +12,7 @@ use crate::{
     api2::types::{
         CHANGER_NAME_SCHEMA,
         ChangerListEntry,
+        LinuxTapeDrive,
         MtxEntryKind,
         MtxStatusEntry,
         ScsiTapeChanger,
@@ -25,6 +27,7 @@ use crate::{
             ScsiMediaChange,
             mtx_status_to_online_set,
         },
+        drive::get_tape_device_state,
         lookup_device_identification,
     },
 };
@@ -66,9 +69,26 @@ pub async fn get_status(name: String) -> Result<Vec<MtxStatusEntry>, Error> {
 
     inventory.update_online_status(&map)?;
 
+    let drive_list: Vec<LinuxTapeDrive> = config.convert_to_typed_array("linux")?;
+    let mut drive_map: HashMap<u64, String> = HashMap::new();
+
+    for drive in drive_list {
+        if let Some(changer) = drive.changer {
+            if changer != name {
+                continue;
+            }
+            let num = drive.changer_drivenum.unwrap_or(0);
+            drive_map.insert(num, drive.name.clone());
+        }
+    }
+
     let mut list = Vec::new();
 
     for (id, drive_status) in status.drives.iter().enumerate() {
+        let mut state = None;
+        if let Some(drive) = drive_map.get(&(id as u64)) {
+            state = get_tape_device_state(&config, &drive)?;
+        }
         let entry = MtxStatusEntry {
             entry_kind: MtxEntryKind::Drive,
             entry_id: id as u64,
@@ -78,6 +98,7 @@ pub async fn get_status(name: String) -> Result<Vec<MtxStatusEntry>, Error> {
                 ElementStatus::VolumeTag(tag) => Some(tag.to_string()),
             },
             loaded_slot: drive_status.loaded_slot,
+            state,
         };
         list.push(entry);
     }
@@ -96,6 +117,7 @@ pub async fn get_status(name: String) -> Result<Vec<MtxStatusEntry>, Error> {
                 ElementStatus::VolumeTag(tag) => Some(tag.to_string()),
             },
             loaded_slot: None,
+            state: None,
         };
         list.push(entry);
     }

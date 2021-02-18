@@ -129,4 +129,7 @@ pub struct MtxStatusEntry {
     /// The slot the drive was loaded from
     #[serde(skip_serializing_if="Option::is_none")]
     pub loaded_slot: Option<u64>,
+    /// The current state of the drive
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub state: Option<String>,
 }
