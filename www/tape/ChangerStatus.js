@@ -421,7 +421,7 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 		    url: '/api2/extjs/tape/media/list',
 		    method: 'GET',
 		    params: {
-			"update-status-changer": changer,
+			"update-status": false,
 		    }
 		});
 
