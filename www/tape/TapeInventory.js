@@ -103,7 +103,15 @@ Ext.define('PBS.TapeManagement.TapeInventory', {
 	},
 
 	reload: function() {
-	    this.getView().getStore().load();
+	    this.getView().getStore().load({
+		params: { 'update-status': false }
+	    });
+	},
+
+	reload_update_status: function() {
+	    this.getView().getStore().load({
+		params: { 'update-status': true }
+	    });
 	},
     },
 
@@ -121,7 +129,7 @@ Ext.define('PBS.TapeManagement.TapeInventory', {
     tbar: [
 	{
 	    text: gettext('Reload'),
-	    handler: 'reload',
+	    handler: 'reload_update_status',
 	},
 	'-',
 	{
