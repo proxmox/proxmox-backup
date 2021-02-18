@@ -43,6 +43,7 @@ use proxmox_backup::{
         drive::{
             open_drive,
             lock_tape_device,
+            set_tape_device_state,
         },
         complete_media_label_text,
         complete_media_set_uuid,
@@ -543,6 +544,7 @@ fn move_to_eom(mut param: Value) -> Result<(), Error> {
     let drive = extract_drive_name(&mut param, &config)?;
 
     let _lock = lock_tape_device(&config, &drive)?;
+    set_tape_device_state(&drive, "moving to eom")?;
 
     let mut drive = open_drive(&config, &drive)?;
 
@@ -572,6 +574,7 @@ fn debug_scan(mut param: Value) -> Result<(), Error> {
     let drive = extract_drive_name(&mut param, &config)?;
 
     let _lock = lock_tape_device(&config, &drive)?;
+    set_tape_device_state(&drive, "debug scan")?;
 
     let mut drive = open_drive(&config, &drive)?;
 

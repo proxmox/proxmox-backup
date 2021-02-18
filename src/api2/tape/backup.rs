@@ -54,6 +54,7 @@ use crate::{
         drive::{
             media_changer,
             lock_tape_device,
+            set_tape_device_state,
         },
         changer::update_changer_online_status,
     },
@@ -139,6 +140,7 @@ pub fn do_tape_backup_job(
         move |worker| {
             let _drive_lock = drive_lock; // keep lock guard
 
+            set_tape_device_state(&tape_job.drive, &worker.upid().to_string())?;
             job.start(&worker.upid().to_string())?;
 
             let eject_media = false;
@@ -164,6 +166,14 @@ pub fn do_tape_backup_job(
                 eprintln!(
                     "could not finish job state for {}: {}",
                     job.jobtype().to_string(),
+                    err
+                );
+            }
+
+            if let Err(err) = set_tape_device_state(&tape_job.drive, "") {
+                eprintln!(
+                    "could not unset drive state for {}: {}",
+                    tape_job.drive,
                     err
                 );
             }
@@ -265,7 +275,10 @@ pub fn backup(
         to_stdout,
         move |worker| {
             let _drive_lock = drive_lock; // keep lock guard
+            set_tape_device_state(&drive, &worker.upid().to_string())?;
             backup_worker(&worker, datastore, &drive, &pool_config, eject_media, export_media_set)?;
+            // ignore errors
+            let _ = set_tape_device_state(&drive, "");
             Ok(())
         }
     )?;

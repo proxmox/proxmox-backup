@@ -69,6 +69,7 @@ use crate::{
             TapeDriver,
             request_and_load_media,
             lock_tape_device,
+            set_tape_device_state,
         },
     },
 };
@@ -134,6 +135,8 @@ pub fn restore(
         move |worker| {
             let _drive_lock = drive_lock; // keep lock guard
 
+            set_tape_device_state(&drive, &worker.upid().to_string())?;
+
             let _lock = MediaPool::lock(status_path, &pool)?;
 
             let members = inventory.compute_media_set_members(&media_set_uuid)?;
@@ -189,6 +192,16 @@ pub fn restore(
             }
 
             task_log!(worker, "Restore mediaset '{}' done", media_set);
+
+            if let Err(err) = set_tape_device_state(&drive, "") {
+                task_log!(
+                    worker,
+                    "could not unset drive state for {}: {}",
+                    drive,
+                    err
+                );
+            }
+
             Ok(())
         }
     )?;
