@@ -124,32 +124,20 @@ pub fn load_media(
     label_text: String,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-
-    let (config, _digest) = config::drive::config()?;
-
-    // early check/lock before starting worker
-    let lock_guard = lock_tape_device(&config, &drive)?;
-
-    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-
-    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
-
     let job_id = format!("{}:{}", drive, label_text);
 
-    let upid_str = WorkerTask::new_thread(
+    let upid_str = run_drive_worker(
+        rpcenv,
+        drive.clone(),
         "load-media",
         Some(job_id),
-        auth_id,
-        to_stdout,
-        move |worker| {
-            let _lock_guard = lock_guard; // keep lock guard
-
+        move |worker, config| {
             task_log!(worker, "loading media '{}' into drive '{}'", label_text, drive);
             let (mut changer, _) = required_media_changer(&config, &drive)?;
             changer.load_media(&label_text)?;
 
             Ok(())
-        }
+        },
     )?;
 
     Ok(upid_str.into())
@@ -241,29 +229,18 @@ pub fn unload(
     target_slot: Option<u64>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-
-    let (config, _digest) = config::drive::config()?;
-    // early check/lock before starting worker
-    let lock_guard = lock_tape_device(&config, &drive)?;
-
-    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-
-    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
-
-    let upid_str = WorkerTask::new_thread(
+    let upid_str = run_drive_worker(
+        rpcenv,
+        drive.clone(),
         "unload-media",
         Some(drive.clone()),
-        auth_id,
-        to_stdout,
-        move |worker| {
-            let _lock_guard = lock_guard; // keep lock guard
-
+        move |worker, config| {
             task_log!(worker, "unloading media from drive '{}'", drive);
 
             let (mut changer, _) = required_media_changer(&config, &drive)?;
             changer.unload_media(target_slot)?;
             Ok(())
-        }
+        },
     )?;
 
     Ok(upid_str.into())
@@ -298,23 +275,12 @@ pub fn erase_media(
     label_text: Option<String>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-    let (config, _digest) = config::drive::config()?;
-
-    // early check/lock before starting worker
-    let lock_guard = lock_tape_device(&config, &drive)?;
-
-    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-
-    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
-
-    let upid_str = WorkerTask::new_thread(
+    let upid_str = run_drive_worker(
+        rpcenv,
+        drive.clone(),
         "erase-media",
         Some(drive.clone()),
-        auth_id,
-        to_stdout,
-        move |worker| {
-            let _lock_guard = lock_guard; // keep lock guard
-
+        move |worker, config| {
             if let Some(ref label) = label_text {
                 task_log!(worker, "try to load media '{}'", label);
                 if let Some((mut changer, _)) = media_changer(&config, &drive)? {
@@ -368,7 +334,7 @@ pub fn erase_media(
             }
 
             Ok(())
-        }
+        },
     )?;
 
     Ok(upid_str.into())
@@ -391,27 +357,16 @@ pub fn rewind(
     drive: String,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-
-    let (config, _digest) = config::drive::config()?;
-
-    // early check/lock before starting worker
-    let lock_guard = lock_tape_device(&config, &drive)?;
-
-    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-
-    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
-
-    let upid_str = WorkerTask::new_thread(
+    let upid_str = run_drive_worker(
+        rpcenv,
+        drive.clone(),
         "rewind-media",
         Some(drive.clone()),
-        auth_id,
-        to_stdout,
-        move |_worker| {
-            let _lock_guard = lock_guard; // keep lock guard
+        move |_worker, config| {
             let mut drive = open_drive(&config, &drive)?;
             drive.rewind()?;
             Ok(())
-        }
+        },
     )?;
 
     Ok(upid_str.into())
@@ -434,32 +389,21 @@ pub fn eject_media(
     drive: String,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-
-    let (config, _digest) = config::drive::config()?;
-
-    // early check/lock before starting worker
-    let lock_guard = lock_tape_device(&config, &drive)?;
-
-    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-
-    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
-
-    let upid_str = WorkerTask::new_thread(
+    let upid_str = run_drive_worker(
+        rpcenv,
+        drive.clone(),
         "eject-media",
         Some(drive.clone()),
-        auth_id,
-        to_stdout,
-        move |_worker| {
-            let _lock_guard = lock_guard; // keep lock guard
-
-             if let Some((mut changer, _)) = media_changer(&config, &drive)? {
+        move |_worker, config| {
+            if let Some((mut changer, _)) = media_changer(&config, &drive)? {
                 changer.unload_media(None)?;
             } else {
                 let mut drive = open_drive(&config, &drive)?;
                 drive.eject_media()?;
             }
             Ok(())
-        })?;
+        },
+    )?;
 
     Ok(upid_str.into())
 }
@@ -495,9 +439,6 @@ pub fn label_media(
     label_text: String,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-
-    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-
     if let Some(ref pool) = pool {
         let (pool_config, _digest) = config::media_pool::config()?;
 
@@ -505,22 +446,12 @@ pub fn label_media(
             bail!("no such pool ('{}')", pool);
         }
     }
-
-    let (config, _digest) = config::drive::config()?;
-
-    // early check/lock before starting worker
-    let lock_guard = lock_tape_device(&config, &drive)?;
-
-    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
-
-    let upid_str = WorkerTask::new_thread(
+    let upid_str = run_drive_worker(
+        rpcenv,
+        drive.clone(),
         "label-media",
         Some(drive.clone()),
-        auth_id,
-        to_stdout,
-        move |worker| {
-            let _lock_guard = lock_guard; // keep lock guard
-
+        move |worker, config| {
             let mut drive = open_drive(&config, &drive)?;
 
             drive.rewind()?;
@@ -545,7 +476,7 @@ pub fn label_media(
             };
 
             write_media_label(worker, &mut drive, label, pool)
-        }
+        },
     )?;
 
     Ok(upid_str.into())
@@ -757,24 +688,12 @@ pub fn clean_drive(
     drive: String,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-
-    let (config, _digest) = config::drive::config()?;
-
-    // early check/lock before starting worker
-    let lock_guard = lock_tape_device(&config, &drive)?;
-
-    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-
-    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
-
-    let upid_str = WorkerTask::new_thread(
+    let upid_str = run_drive_worker(
+        rpcenv,
+        drive.clone(),
         "clean-drive",
         Some(drive.clone()),
-        auth_id,
-        to_stdout,
-        move |worker| {
-            let _lock_guard = lock_guard; // keep lock guard
-
+        move |worker, config| {
             let (mut changer, _changer_name) = required_media_changer(&config, &drive)?;
 
             worker.log("Starting drive clean");
@@ -784,7 +703,8 @@ pub fn clean_drive(
             worker.log("Drive cleaned sucessfully");
 
             Ok(())
-        })?;
+        },
+    )?;
 
     Ok(upid_str.into())
 }
@@ -891,24 +811,12 @@ pub fn update_inventory(
     read_all_labels: Option<bool>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-
-    let (config, _digest) = config::drive::config()?;
-
-    // early check/lock before starting worker
-    let lock_guard = lock_tape_device(&config, &drive)?;
-
-    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-
-    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
-
-    let upid_str = WorkerTask::new_thread(
+    let upid_str = run_drive_worker(
+        rpcenv,
+        drive.clone(),
         "inventory-update",
         Some(drive.clone()),
-        auth_id,
-        to_stdout,
-        move |worker| {
-            let _lock_guard = lock_guard; // keep lock guard
-
+        move |worker, config| {
             let (mut changer, changer_name) = required_media_changer(&config, &drive)?;
 
             let label_text_list = changer.online_media_label_texts()?;
@@ -960,7 +868,7 @@ pub fn update_inventory(
                 changer.unload_media(None)?;
             }
             Ok(())
-        }
+        },
     )?;
 
     Ok(upid_str.into())
@@ -989,7 +897,6 @@ pub fn barcode_label_media(
     pool: Option<String>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-
     if let Some(ref pool) = pool {
         let (pool_config, _digest) = config::media_pool::config()?;
 
@@ -998,24 +905,12 @@ pub fn barcode_label_media(
         }
     }
 
-    let (drive_config, _digest) = config::drive::config()?;
-
-    // early check/lock before starting worker
-    let lock_guard = lock_tape_device(&drive_config, &drive)?;
-
-    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-
-    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
-
-    let upid_str = WorkerTask::new_thread(
+    let upid_str = run_drive_worker(
+        rpcenv,
+        drive.clone(),
         "barcode-label-media",
         Some(drive.clone()),
-        auth_id,
-        to_stdout,
-        move |worker| {
-            let _lock_guard = lock_guard; // keep lock guard
-            barcode_label_media_worker(worker, drive, &drive_config, pool)
-        }
+        move |worker, config| barcode_label_media_worker(worker, drive, &config, pool),
     )?;
 
     Ok(upid_str.into())
@@ -1027,7 +922,6 @@ fn barcode_label_media_worker(
     drive_config: &SectionConfigData,
     pool: Option<String>,
 ) -> Result<(), Error> {
-
     let (mut changer, changer_name) = required_media_changer(drive_config, &drive)?;
 
     let label_text_list = changer.online_media_label_texts()?;
@@ -1202,27 +1096,15 @@ pub fn catalog_media(
     verbose: Option<bool>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-
     let verbose = verbose.unwrap_or(false);
     let force = force.unwrap_or(false);
 
-    let (config, _digest) = config::drive::config()?;
-
-    // early check/lock before starting worker
-    let lock_guard = lock_tape_device(&config, &drive)?;
-
-    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-
-    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
-
-    let upid_str = WorkerTask::new_thread(
+    let upid_str = run_drive_worker(
+        rpcenv,
+        drive.clone(),
         "catalog-media",
         Some(drive.clone()),
-        auth_id,
-        to_stdout,
-        move |worker| {
-            let _lock_guard = lock_guard; // keep lock guard
-
+        move |worker, config| {
             let mut drive = open_drive(&config, &drive)?;
 
             drive.rewind()?;
@@ -1279,8 +1161,7 @@ pub fn catalog_media(
             restore_media(&worker, &mut drive, &media_id, None, verbose)?;
 
             Ok(())
-
-        }
+        },
     )?;
 
     Ok(upid_str.into())
