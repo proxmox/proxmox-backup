@@ -206,11 +206,17 @@ async fn eject_media(mut param: Value) -> Result<(), Error> {
             "label-text": {
                 schema: MEDIA_LABEL_SCHEMA,
             },
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
         },
     },
 )]
 /// Load media with specified label
 async fn load_media(mut param: Value) -> Result<(), Error> {
+
+    let output_format = get_output_format(&param);
 
     let (config, _digest) = config::drive::config()?;
 
@@ -219,7 +225,9 @@ async fn load_media(mut param: Value) -> Result<(), Error> {
     let mut client = connect_to_localhost()?;
 
     let path = format!("api2/json/tape/drive/{}/load-media", drive);
-    client.put(&path, Some(param)).await?;
+    let result = client.post(&path, Some(param)).await?;
+
+    view_task_result(&mut client, result, &output_format).await?;
 
     Ok(())
 }
@@ -295,11 +303,17 @@ async fn load_media_from_slot(mut param: Value) -> Result<(), Error> {
                 minimum: 1,
                 optional: true,
             },
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
         },
     },
 )]
 /// Unload media via changer
 async fn unload_media(mut param: Value) -> Result<(), Error> {
+
+    let output_format = get_output_format(&param);
 
     let (config, _digest) = config::drive::config()?;
 
@@ -308,7 +322,9 @@ async fn unload_media(mut param: Value) -> Result<(), Error> {
     let mut client = connect_to_localhost()?;
 
     let path = format!("api2/json/tape/drive/{}/unload", drive);
-    client.put(&path, Some(param)).await?;
+    let result = client.post(&path, Some(param)).await?;
+
+    view_task_result(&mut client, result, &output_format).await?;
 
     Ok(())
 }

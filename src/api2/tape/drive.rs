@@ -78,21 +78,47 @@ use crate::{
             },
         },
     },
+    returns: {
+        schema: UPID_SCHEMA,
+    },
 )]
 /// Load media with specified label
 ///
 /// Issue a media load request to the associated changer device.
-pub async fn load_media(drive: String, label_text: String) -> Result<(), Error> {
+pub fn load_media(
+    drive: String,
+    label_text: String,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
 
     let (config, _digest) = config::drive::config()?;
+
+    // early check/lock before starting worker
     let lock_guard = lock_tape_device(&config, &drive)?;
 
-    tokio::task::spawn_blocking(move || {
-        let _lock_guard = lock_guard; // keep lock guard
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-        let (mut changer, _) = required_media_changer(&config, &drive)?;
-        changer.load_media(&label_text)
-    }).await?
+    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
+
+    let job_id = format!("{}:{}", drive, label_text);
+
+    let upid_str = WorkerTask::new_thread(
+        "load-media",
+        Some(job_id),
+        auth_id,
+        to_stdout,
+        move |worker| {
+            let _lock_guard = lock_guard; // keep lock guard
+
+            task_log!(worker, "loading media '{}' into drive '{}'", label_text, drive);
+            let (mut changer, _) = required_media_changer(&config, &drive)?;
+            changer.load_media(&label_text)?;
+
+            Ok(())
+        }
+    )?;
+
+    Ok(upid_str.into())
 }
 
 #[api(
@@ -171,23 +197,42 @@ pub async fn export_media(drive: String, label_text: String) -> Result<u64, Erro
             },
         },
     },
+    returns: {
+        schema: UPID_SCHEMA,
+    },
 )]
 /// Unload media via changer
-pub async fn unload(
+pub fn unload(
     drive: String,
     target_slot: Option<u64>,
-    _param: Value,
-) -> Result<(), Error> {
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
 
     let (config, _digest) = config::drive::config()?;
+    // early check/lock before starting worker
     let lock_guard = lock_tape_device(&config, &drive)?;
 
-    tokio::task::spawn_blocking(move || {
-        let _lock_guard = lock_guard; // keep lock guard
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-        let (mut changer, _) = required_media_changer(&config, &drive)?;
-        changer.unload_media(target_slot)
-    }).await?
+    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
+
+    let upid_str = WorkerTask::new_thread(
+        "unload-media",
+        Some(drive.clone()),
+        auth_id,
+        to_stdout,
+        move |worker| {
+            let _lock_guard = lock_guard; // keep lock guard
+
+            task_log!(worker, "unloading media from drive '{}'", drive);
+
+            let (mut changer, _) = required_media_changer(&config, &drive)?;
+            changer.unload_media(target_slot)?;
+            Ok(())
+        }
+    )?;
+
+    Ok(upid_str.into())
 }
 
 #[api(
@@ -1297,7 +1342,7 @@ pub const SUBDIRS: SubdirMap = &sorted!([
     (
         "load-media",
         &Router::new()
-            .put(&API_METHOD_LOAD_MEDIA)
+            .post(&API_METHOD_LOAD_MEDIA)
     ),
     (
         "load-slot",
@@ -1332,7 +1377,7 @@ pub const SUBDIRS: SubdirMap = &sorted!([
     (
         "unload",
         &Router::new()
-            .put(&API_METHOD_UNLOAD)
+            .post(&API_METHOD_UNLOAD)
     ),
 ]);
 
