@@ -496,3 +496,28 @@ fn lock_device_path(device_path: &str) -> Result<DeviceLockGuard, Error> {
 
     Ok(DeviceLockGuard(file))
 }
+
+// Same logic as lock_device_path, but uses a timeout of 0, making it
+// non-blocking, and returning if the file is locked or not
+fn test_device_path_lock(device_path: &str) -> Result<bool, Error> {
+
+    let lock_name = crate::tools::systemd::escape_unit(device_path, true);
+
+    let mut path = std::path::PathBuf::from("/var/lock");
+    path.push(lock_name);
+
+    let timeout = std::time::Duration::new(0, 0);
+    let mut file = std::fs::OpenOptions::new().create(true).append(true).open(path)?;
+    match proxmox::tools::fs::lock_file(&mut file, true, Some(timeout)) {
+        // file was not locked, continue
+        Ok(()) => {},
+        // file was locked, return true
+        Err(err) if err.kind() == std::io::ErrorKind::WouldBlock => return Ok(true),
+        Err(err) => bail!("{}", err),
+    }
+
+    let backup_user = crate::backup::backup_user()?;
+    fchown(file.as_raw_fd(), Some(backup_user.uid), Some(backup_user.gid))?;
+
+    Ok(false)
+}
