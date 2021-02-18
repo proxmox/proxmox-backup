@@ -1014,16 +1014,18 @@ fn barcode_label_media_worker(
     },
 )]
 /// Read Cartridge Memory (Medium auxiliary memory attributes)
-pub fn cartridge_memory(drive: String) -> Result<Vec<MamAttribute>, Error> {
+pub async fn cartridge_memory(drive: String) -> Result<Vec<MamAttribute>, Error> {
+    run_drive_blocking_task(
+        drive.clone(),
+        "reading cartridge memory".to_string(),
+        move |config| {
+            let drive_config: LinuxTapeDrive = config.lookup("linux", &drive)?;
+            let mut handle = drive_config.open()?;
 
-    let (config, _digest) = config::drive::config()?;
-
-    let _lock_guard = lock_tape_device(&config, &drive)?;
-
-    let drive_config: LinuxTapeDrive = config.lookup("linux", &drive)?;
-    let mut handle = drive_config.open()?;
-
-    handle.cartridge_memory()
+            handle.cartridge_memory()
+        }
+    )
+    .await
 }
 
 #[api(
@@ -1039,16 +1041,18 @@ pub fn cartridge_memory(drive: String) -> Result<Vec<MamAttribute>, Error> {
     },
 )]
 /// Read Volume Statistics (SCSI log page 17h)
-pub fn volume_statistics(drive: String) -> Result<Lp17VolumeStatistics, Error> {
+pub async fn volume_statistics(drive: String) -> Result<Lp17VolumeStatistics, Error> {
+    run_drive_blocking_task(
+        drive.clone(),
+        "reading volume statistics".to_string(),
+        move |config| {
+            let drive_config: LinuxTapeDrive = config.lookup("linux", &drive)?;
+            let mut handle = drive_config.open()?;
 
-    let (config, _digest) = config::drive::config()?;
-
-    let _lock_guard = lock_tape_device(&config, &drive)?;
-
-    let drive_config: LinuxTapeDrive = config.lookup("linux", &drive)?;
-    let mut handle = drive_config.open()?;
-
-    handle.volume_statistics()
+            handle.volume_statistics()
+        }
+    )
+    .await
 }
 
 #[api(
@@ -1064,20 +1068,22 @@ pub fn volume_statistics(drive: String) -> Result<Lp17VolumeStatistics, Error> {
     },
 )]
 /// Get drive/media status
-pub fn status(drive: String) -> Result<LinuxDriveAndMediaStatus, Error> {
+pub async fn status(drive: String) -> Result<LinuxDriveAndMediaStatus, Error> {
+    run_drive_blocking_task(
+        drive.clone(),
+        "reading drive status".to_string(),
+        move |config| {
+            let drive_config: LinuxTapeDrive = config.lookup("linux", &drive)?;
 
-    let (config, _digest) = config::drive::config()?;
+            // Note: use open_linux_tape_device, because this also works if no medium loaded
+            let file = open_linux_tape_device(&drive_config.path)?;
 
-    let _lock_guard = lock_tape_device(&config, &drive)?;
+            let mut handle = LinuxTapeHandle::new(file);
 
-    let drive_config: LinuxTapeDrive = config.lookup("linux", &drive)?;
-
-    // Note: use open_linux_tape_device, because this also works if no medium loaded
-    let file = open_linux_tape_device(&drive_config.path)?;
-
-    let mut handle = LinuxTapeHandle::new(file);
-
-    handle.get_drive_and_media_status()
+            handle.get_drive_and_media_status()
+        }
+    )
+    .await
 }
 
 #[api(
