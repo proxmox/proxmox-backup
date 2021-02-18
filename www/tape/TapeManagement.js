@@ -46,5 +46,10 @@ Ext.define('PBS.TapeManagement', {
 	    itemId: 'encryption-keys',
 	    xtype: 'pbsEncryptionKeys',
 	},
+	{
+	    title: gettext('Backup Jobs'),
+	    itemId: 'tape-backup-jobs',
+	    xtype: 'pbsTapeBackupJobView',
+	},
     ],
 });

@@ -31,6 +31,7 @@ TAPE_UI_FILES=						\
 	tape/EncryptionKeys.js				\
 	tape/PoolConfig.js				\
 	tape/TapeInventory.js				\
+	tape/BackupJobs.js				\
 	tape/TapeManagement.js				\
 
 endif
