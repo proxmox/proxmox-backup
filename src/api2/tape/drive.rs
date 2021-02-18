@@ -101,6 +101,26 @@ where
     })
 }
 
+async fn run_drive_blocking_task<F, R>(drive: String, state: String, f: F) -> Result<R, Error>
+where
+    F: Send + 'static + FnOnce(SectionConfigData) -> Result<R, Error>,
+    R: Send + 'static,
+{
+    // early check/lock before starting worker
+    let (config, _digest) = config::drive::config()?;
+    let lock_guard = lock_tape_device(&config, &drive)?;
+    tokio::task::spawn_blocking(move || {
+        let _lock_guard = lock_guard;
+        set_tape_device_state(&drive, &state)
+            .map_err(|err| format_err!("could not set tape device state: {}", err))?;
+        let result = f(config);
+        set_tape_device_state(&drive, "")
+            .map_err(|err| format_err!("could not unset tape device state: {}", err))?;
+        result
+    })
+    .await?
+}
+
 #[api(
     input: {
         properties: {
