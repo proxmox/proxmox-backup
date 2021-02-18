@@ -122,8 +122,8 @@ pub fn mtx_status_to_online_set(status: &MtxStatus, inventory: &Inventory) -> Ha
 
 /// Update online media status
 ///
-/// Simply ask all changer devices.
-pub fn update_online_status(state_path: &Path) -> Result<OnlineStatusMap, Error> {
+/// For a single 'changer', or else simply ask all changer devices.
+pub fn update_online_status(state_path: &Path, changer: Option<&str>) -> Result<OnlineStatusMap, Error> {
 
     let (config, _digest) = crate::config::drive::config()?;
 
@@ -133,21 +133,36 @@ pub fn update_online_status(state_path: &Path) -> Result<OnlineStatusMap, Error>
 
     let mut map = OnlineStatusMap::new(&config)?;
 
-    for mut changer in changers {
-        let status = match changer.status() {
+    let mut found_changer = false;
+
+    for mut changer_config in changers {
+        if let Some(changer) = changer {
+            if changer != &changer_config.name {
+                continue;
+            }
+            found_changer = true;
+        }
+        let status = match changer_config.status() {
             Ok(status) => status,
             Err(err) => {
-                eprintln!("unable to get changer '{}' status - {}", changer.name, err);
+                eprintln!("unable to get changer '{}' status - {}", changer_config.name, err);
                 continue;
             }
         };
 
         let online_set = mtx_status_to_online_set(&status, &inventory);
-        map.update_online_status(&changer.name, online_set)?;
+        map.update_online_status(&changer_config.name, online_set)?;
     }
 
     let vtapes: Vec<VirtualTapeDrive> = config.convert_to_typed_array("virtual")?;
     for mut vtape in vtapes {
+        if let Some(changer) = changer {
+            if changer != &vtape.name {
+                continue;
+            }
+            found_changer = true;
+        }
+
         let media_list = match vtape.online_media_label_texts() {
             Ok(media_list) => media_list,
             Err(err) => {
@@ -163,6 +178,12 @@ pub fn update_online_status(state_path: &Path) -> Result<OnlineStatusMap, Error>
             }
         }
         map.update_online_status(&vtape.name, online_set)?;
+    }
+
+    if let Some(changer) = changer {
+        if !found_changer {
+            bail!("update_online_status failed - no such changer '{}'", changer);
+        }
     }
 
     inventory.update_online_status(&map)?;

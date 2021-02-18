@@ -20,6 +20,7 @@ use crate::{
         MEDIA_LABEL_SCHEMA,
         MEDIA_UUID_SCHEMA,
         MEDIA_SET_UUID_SCHEMA,
+        CHANGER_NAME_SCHEMA,
         MediaPoolConfig,
         MediaListEntry,
         MediaStatus,
@@ -50,6 +51,11 @@ use crate::{
                 optional: true,
                 default: true,
             },
+            "update-status-changer": {
+                // only update status for a single changer
+                schema: CHANGER_NAME_SCHEMA,
+                optional: true,
+            },
         },
     },
     returns: {
@@ -64,6 +70,7 @@ use crate::{
 pub async fn list_media(
     pool: Option<String>,
     update_status: bool,
+    update_status_changer: Option<String>,
 ) -> Result<Vec<MediaListEntry>, Error> {
 
     let (config, _digest) = config::media_pool::config()?;
@@ -73,7 +80,7 @@ pub async fn list_media(
     let catalogs = tokio::task::spawn_blocking(move || {
         if update_status {
             // update online media status
-            if let Err(err) = update_online_status(status_path) {
+            if let Err(err) = update_online_status(status_path, update_status_changer.as_deref()) {
                 eprintln!("{}", err);
                 eprintln!("update online media status failed - using old state");
             }

@@ -15,11 +15,13 @@ use proxmox_backup::{
         self,
         types::{
             MEDIA_POOL_NAME_SCHEMA,
+            CHANGER_NAME_SCHEMA,
             MediaStatus,
             MediaListEntry,
         },
         tape::media::MediaContentListFilter,
     },
+    config::drive::complete_changer_name,
     tape::{
         complete_media_label_text,
         complete_media_uuid,
@@ -37,6 +39,7 @@ pub fn media_commands() -> CommandLineInterface {
             "list",
             CliCommand::new(&API_METHOD_LIST_MEDIA)
                 .completion_cb("pool", complete_pool_name)
+                .completion_cb("update-status-changer", complete_changer_name)
         )
         .insert(
             "destroy",
@@ -62,6 +65,17 @@ pub fn media_commands() -> CommandLineInterface {
         properties: {
             pool: {
                 schema: MEDIA_POOL_NAME_SCHEMA,
+                optional: true,
+            },
+            "update-status": {
+                description: "Try to update tape library status (check what tapes are online).",
+                type: bool,
+                optional: true,
+                default: true,
+            },
+            "update-status-changer": {
+                // only update status for a single changer
+                schema: CHANGER_NAME_SCHEMA,
                 optional: true,
             },
             "output-format": {
