@@ -419,6 +419,10 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 		let tapes_fut = PBS.Async.api2({
 		    timeout: 5*60*1000,
 		    url: '/api2/extjs/tape/media/list',
+		    method: 'GET',
+		    params: {
+			"update-status-changer": changer,
+		    }
 		});
 
 		let [status, drives, tapes_list] = await Promise.all([status_fut, drives_fut, tapes_fut]);
