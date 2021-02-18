@@ -117,9 +117,12 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 
 	    Ext.create('Proxmox.window.Edit', {
 		isCreate: true,
+		autoShow: true,
 		submitText: gettext('OK'),
 		title: gettext('Load Media into Drive'),
 		url: `/api2/extjs/tape/drive`,
+		showProgress: true,
+		method: 'POST',
 		submitUrl: function(url, values) {
 		    let drive = values.drive;
 		    delete values.drive;
@@ -145,25 +148,26 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 			me.reload();
 		    },
 		},
-	    }).show();
+	    });
 	},
 
 	unload: async function(view, rI, cI, button, el, record) {
 	    let me = this;
 	    let drive = record.data.name;
-	    let driveGrid = me.lookup('drives');
-	    Proxmox.Utils.setErrorMask(driveGrid, true);
 	    try {
-		await PBS.Async.api2({
-		    method: 'PUT',
+		let response = await PBS.Async.api2({
+		    method: 'POST',
 		    timeout: 5*60*1000,
 		    url: `/api2/extjs/tape/drive/${encodeURIComponent(drive)}/unload`,
 		});
-		Proxmox.Utils.setErrorMask(driveGrid);
-		me.reload();
+
+		Ext.create('Proxmox.window.TaskProgress', {
+		    autoShow: true,
+		    upid: response.result.data,
+		    taskDone: () => me.reload(),
+		});
 	    } catch (error) {
 		Ext.Msg.alert(gettext('Error'), error);
-		Proxmox.Utils.setErrorMask(driveGrid);
 		me.reload();
 	    }
 	},
