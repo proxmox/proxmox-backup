@@ -1,7 +1,8 @@
+use std::panic::UnwindSafe;
 use std::path::Path;
 use std::sync::Arc;
 
-use anyhow::{bail, Error};
+use anyhow::{bail, format_err, Error};
 use serde_json::Value;
 
 use proxmox::{
@@ -62,10 +63,43 @@ use crate::{
             required_media_changer,
             open_drive,
             lock_tape_device,
+            set_tape_device_state,
         },
         changer::update_changer_online_status,
     },
 };
+
+fn run_drive_worker<F>(
+    rpcenv: &dyn RpcEnvironment,
+    drive: String,
+    worker_type: &str,
+    job_id: Option<String>,
+    f: F,
+) -> Result<String, Error>
+where
+    F: Send
+        + UnwindSafe
+        + 'static
+        + FnOnce(Arc<WorkerTask>, SectionConfigData) -> Result<(), Error>,
+{
+    // early check/lock before starting worker
+    let (config, _digest) = config::drive::config()?;
+    let lock_guard = lock_tape_device(&config, &drive)?;
+
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
+
+    WorkerTask::new_thread(worker_type, job_id, auth_id, to_stdout, move |worker| {
+        let _lock_guard = lock_guard;
+        set_tape_device_state(&drive, &worker.upid().to_string())
+            .map_err(|err| format_err!("could not set tape device state: {}", err))?;
+
+        let result = f(worker, config);
+        set_tape_device_state(&drive, "")
+            .map_err(|err| format_err!("could not unset tape device state: {}", err))?;
+        result
+    })
+}
 
 #[api(
     input: {
