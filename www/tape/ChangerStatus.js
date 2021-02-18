@@ -498,6 +498,42 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	    }
 	    return status;
 	},
+
+	renderState: function(value, md, record) {
+	    if (!value) {
+		return gettext('Idle');
+	    }
+
+	    let icon = '<i class="fa fa-spinner fa-pulse fa-fw"></i>';
+
+	    if (value.startsWith("UPID")) {
+		let upid = Proxmox.Utils.parse_task_upid(value);
+		md.tdCls = "pointer";
+		return `${icon} ${upid.desc}`;
+	    }
+
+	    return `${icon} ${value}`;
+	},
+
+	control: {
+	    'grid[reference=drives]': {
+		cellclick: function(table, td, ci, rec, tr, ri, e) {
+		    if (!e.position.column.dataIndex === 'state') {
+			return;
+		    }
+
+		    let upid = rec.data.state;
+		    if (!upid || !upid.startsWith("UPID")) {
+			return;
+		    }
+
+		    Ext.create('Proxmox.window.TaskViewer', {
+			autoShow: true,
+			upid,
+		    });
+		},
+	    },
+	},
     },
 
     listeners: {
@@ -641,7 +677,7 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 				    text: gettext('Inventory'),
 				    dataIndex: 'is-labeled',
 				    renderer: 'renderIsLabeled',
-				    flex: 1,
+				    flex: 1.5,
 				},
 				{
 				    text: gettext("Name"),
@@ -651,9 +687,16 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 				    renderer: Ext.htmlEncode,
 				},
 				{
+				    text: gettext('State'),
+				    dataIndex: 'state',
+				    flex: 3,
+				    renderer: 'renderState',
+				},
+				{
 				    text: gettext("Vendor"),
 				    sortable: true,
 				    dataIndex: 'vendor',
+				    hidden: true,
 				    flex: 1,
 				    renderer: Ext.htmlEncode,
 				},
@@ -661,6 +704,7 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 				    text: gettext("Model"),
 				    sortable: true,
 				    dataIndex: 'model',
+				    hidden: true,
 				    flex: 1,
 				    renderer: Ext.htmlEncode,
 				},
@@ -668,6 +712,7 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 				    text: gettext("Serial"),
 				    sortable: true,
 				    dataIndex: 'serial',
+				    hidden: true,
 				    flex: 1,
 				    renderer: Ext.htmlEncode,
 				},
