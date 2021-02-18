@@ -558,7 +558,7 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 		    },
 		    columns: [
 			{
-			    text: gettext('Slot'),
+			    text: gettext('ID'),
 			    dataIndex: 'entry-id',
 			    width: 50,
 			},
@@ -618,8 +618,9 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 			    },
 			    columns: [
 				{
-				    text: gettext('Slot'),
+				    text: gettext('ID'),
 				    dataIndex: 'entry-id',
+				    hidden: true,
 				    width: 50,
 				},
 				{
@@ -711,10 +712,10 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 			    store: {
 				data: [],
 			    },
-			    title: gettext('Import-Export'),
+			    title: gettext('Import-Export Slots'),
 			    columns: [
 				{
-				    text: gettext('Slot'),
+				    text: gettext('ID'),
 				    dataIndex: 'entry-id',
 				    width: 50,
 				},
