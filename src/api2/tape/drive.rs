@@ -180,16 +180,15 @@ pub fn load_media(
 ///
 /// Issue a media load request to the associated changer device.
 pub async fn load_slot(drive: String, source_slot: u64) -> Result<(), Error> {
-
-    let (config, _digest) = config::drive::config()?;
-    let lock_guard = lock_tape_device(&config, &drive)?;
-
-    tokio::task::spawn_blocking(move || {
-        let _lock_guard = lock_guard; // keep lock guard
-
-        let (mut changer, _) = required_media_changer(&config, &drive)?;
-        changer.load_media_from_slot(source_slot)
-    }).await?
+    run_drive_blocking_task(
+        drive.clone(),
+        format!("load from slot {}", source_slot),
+        move |config| {
+            let (mut changer, _) = required_media_changer(&config, &drive)?;
+            changer.load_media_from_slot(source_slot)
+        },
+    )
+    .await
 }
 
 #[api(
@@ -211,19 +210,22 @@ pub async fn load_slot(drive: String, source_slot: u64) -> Result<(), Error> {
 )]
 /// Export media with specified label
 pub async fn export_media(drive: String, label_text: String) -> Result<u64, Error> {
-
-    let (config, _digest) = config::drive::config()?;
-    let lock_guard = lock_tape_device(&config, &drive)?;
-
-    tokio::task::spawn_blocking(move || {
-        let _lock_guard = lock_guard; // keep lock guard
-
-        let (mut changer, changer_name) = required_media_changer(&config, &drive)?;
-        match changer.export_media(&label_text)? {
-            Some(slot) => Ok(slot),
-            None => bail!("media '{}' is not online (via changer '{}')", label_text, changer_name),
+    run_drive_blocking_task(
+        drive.clone(),
+        format!("export media {}", label_text),
+        move |config| {
+            let (mut changer, changer_name) = required_media_changer(&config, &drive)?;
+            match changer.export_media(&label_text)? {
+                Some(slot) => Ok(slot),
+                None => bail!(
+                    "media '{}' is not online (via changer '{}')",
+                    label_text,
+                    changer_name
+                ),
+            }
         }
-    }).await?
+    )
+    .await
 }
 
 #[api(
@@ -584,29 +586,26 @@ pub async fn restore_key(
     drive: String,
     password: String,
 ) -> Result<(), Error> {
+    run_drive_blocking_task(
+        drive.clone(),
+        "restore key".to_string(),
+        move |config| {
+            let mut drive = open_drive(&config, &drive)?;
 
-    let (config, _digest) = config::drive::config()?;
+            let (_media_id, key_config) = drive.read_label()?;
 
-    // early check/lock before starting worker
-    let lock_guard = lock_tape_device(&config, &drive)?;
+            if let Some(key_config) = key_config {
+                let password_fn = || { Ok(password.as_bytes().to_vec()) };
+                let (key, ..) = key_config.decrypt(&password_fn)?;
+                config::tape_encryption_keys::insert_key(key, key_config, true)?;
+            } else {
+                bail!("media does not contain any encryption key configuration");
+            }
 
-    tokio::task::spawn_blocking(move || {
-        let _lock_guard = lock_guard; // keep lock guard
-
-        let mut drive = open_drive(&config, &drive)?;
-
-        let (_media_id, key_config) = drive.read_label()?;
-
-        if let Some(key_config) = key_config {
-            let password_fn = || { Ok(password.as_bytes().to_vec()) };
-            let (key, ..) = key_config.decrypt(&password_fn)?;
-            config::tape_encryption_keys::insert_key(key, key_config, true)?;
-        } else {
-            bail!("media does not contain any encryption key configuration");
+            Ok(())
         }
-
-        Ok(())
-    }).await?
+    )
+    .await
 }
 
  #[api(
@@ -630,65 +629,62 @@ pub async fn read_label(
     drive: String,
     inventorize: Option<bool>,
 ) -> Result<MediaIdFlat, Error> {
+    run_drive_blocking_task(
+        drive.clone(),
+        "reading label".to_string(),
+        move |config| {
+            let mut drive = open_drive(&config, &drive)?;
 
-    let (config, _digest) = config::drive::config()?;
+            let (media_id, _key_config) = drive.read_label()?;
 
-    // early check/lock before starting worker
-    let lock_guard = lock_tape_device(&config, &drive)?;
+            let media_id = match media_id {
+                Some(media_id) => {
+                    let mut flat = MediaIdFlat {
+                        uuid: media_id.label.uuid.clone(),
+                        label_text: media_id.label.label_text.clone(),
+                        ctime: media_id.label.ctime,
+                        media_set_ctime: None,
+                        media_set_uuid: None,
+                        encryption_key_fingerprint: None,
+                        pool: None,
+                        seq_nr: None,
+                    };
+                    if let Some(ref set) = media_id.media_set_label {
+                        flat.pool = Some(set.pool.clone());
+                        flat.seq_nr = Some(set.seq_nr);
+                        flat.media_set_uuid = Some(set.uuid.clone());
+                        flat.media_set_ctime = Some(set.ctime);
+                        flat.encryption_key_fingerprint = set
+                            .encryption_key_fingerprint
+                            .as_ref()
+                            .map(|fp| crate::tools::format::as_fingerprint(fp.bytes()));
 
-    tokio::task::spawn_blocking(move || {
-        let _lock_guard = lock_guard; // keep lock guard
+                        let encrypt_fingerprint = set.encryption_key_fingerprint.clone()
+                            .map(|fp| (fp, set.uuid.clone()));
 
-        let mut drive = open_drive(&config, &drive)?;
-
-        let (media_id, _key_config) = drive.read_label()?;
-
-        let media_id = match media_id {
-            Some(media_id) => {
-                let mut flat = MediaIdFlat {
-                    uuid: media_id.label.uuid.clone(),
-                    label_text: media_id.label.label_text.clone(),
-                    ctime: media_id.label.ctime,
-                    media_set_ctime: None,
-                    media_set_uuid: None,
-                    encryption_key_fingerprint: None,
-                    pool: None,
-                    seq_nr: None,
-                };
-                if let Some(ref set) = media_id.media_set_label {
-                    flat.pool = Some(set.pool.clone());
-                    flat.seq_nr = Some(set.seq_nr);
-                    flat.media_set_uuid = Some(set.uuid.clone());
-                    flat.media_set_ctime = Some(set.ctime);
-                    flat.encryption_key_fingerprint = set
-                        .encryption_key_fingerprint
-                        .as_ref()
-                        .map(|fp| crate::tools::format::as_fingerprint(fp.bytes()));
-
-                    let encrypt_fingerprint = set.encryption_key_fingerprint.clone()
-                        .map(|fp| (fp, set.uuid.clone()));
-
-                    if let Err(err) = drive.set_encryption(encrypt_fingerprint) {
-                        // try, but ignore errors. just log to stderr
-                        eprintln!("uable to load encryption key: {}", err);
+                        if let Err(err) = drive.set_encryption(encrypt_fingerprint) {
+                            // try, but ignore errors. just log to stderr
+                            eprintln!("uable to load encryption key: {}", err);
+                        }
                     }
+
+                    if let Some(true) = inventorize {
+                        let state_path = Path::new(TAPE_STATUS_DIR);
+                        let mut inventory = Inventory::load(state_path)?;
+                        inventory.store(media_id, false)?;
+                    }
+
+                    flat
                 }
-
-                if let Some(true) = inventorize {
-                    let state_path = Path::new(TAPE_STATUS_DIR);
-                    let mut inventory = Inventory::load(state_path)?;
-                    inventory.store(media_id, false)?;
+                None => {
+                    bail!("Media is empty (no label).");
                 }
+            };
 
-                flat
-            }
-            None => {
-                bail!("Media is empty (no label).");
-            }
-        };
-
-        Ok(media_id)
-    }).await?
+            Ok(media_id)
+        }
+    )
+    .await
 }
 
 #[api(
@@ -755,49 +751,46 @@ pub fn clean_drive(
 pub async fn inventory(
     drive: String,
 ) -> Result<Vec<LabelUuidMap>, Error> {
+    run_drive_blocking_task(
+        drive.clone(),
+        "inventorize".to_string(),
+        move |config| {
+            let (mut changer, changer_name) = required_media_changer(&config, &drive)?;
 
-    let (config, _digest) = config::drive::config()?;
+            let label_text_list = changer.online_media_label_texts()?;
 
-    // early check/lock before starting worker
-    let lock_guard = lock_tape_device(&config, &drive)?;
+            let state_path = Path::new(TAPE_STATUS_DIR);
 
-    tokio::task::spawn_blocking(move || {
-        let _lock_guard = lock_guard; // keep lock guard
+            let mut inventory = Inventory::load(state_path)?;
 
-        let (mut changer, changer_name) = required_media_changer(&config, &drive)?;
+            update_changer_online_status(
+                &config,
+                &mut inventory,
+                &changer_name,
+                &label_text_list,
+            )?;
 
-        let label_text_list = changer.online_media_label_texts()?;
+            let mut list = Vec::new();
 
-        let state_path = Path::new(TAPE_STATUS_DIR);
+            for label_text in label_text_list.iter() {
+                if label_text.starts_with("CLN") {
+                    // skip cleaning unit
+                    continue;
+                }
 
-        let mut inventory = Inventory::load(state_path)?;
+                let label_text = label_text.to_string();
 
-        update_changer_online_status(
-            &config,
-            &mut inventory,
-            &changer_name,
-            &label_text_list,
-        )?;
-
-        let mut list = Vec::new();
-
-        for label_text in label_text_list.iter() {
-            if label_text.starts_with("CLN") {
-                // skip cleaning unit
-                continue;
+                if let Some(media_id) = inventory.find_media_by_label_text(&label_text) {
+                    list.push(LabelUuidMap { label_text, uuid: Some(media_id.label.uuid.clone()) });
+                } else {
+                    list.push(LabelUuidMap { label_text, uuid: None });
+                }
             }
 
-            let label_text = label_text.to_string();
-
-            if let Some(media_id) = inventory.find_media_by_label_text(&label_text) {
-                list.push(LabelUuidMap { label_text, uuid: Some(media_id.label.uuid.clone()) });
-            } else {
-                list.push(LabelUuidMap { label_text, uuid: None });
-            }
+            Ok(list)
         }
-
-        Ok(list)
-    }).await?
+    )
+    .await
 }
 
 #[api(
