@@ -20,6 +20,7 @@ mod mam;
 pub use mam::*;
 
 use std::os::unix::io::AsRawFd;
+use std::path::PathBuf;
 
 use anyhow::{bail, format_err, Error};
 use ::serde::{Deserialize};
@@ -470,10 +471,9 @@ pub fn set_tape_device_state(
     drive: &str,
     state: &str,
 ) -> Result<(), Error> {
-    let mut path = "/run/proxmox-backup/drive-state".to_string();
-    std::fs::create_dir_all(&path)?;
-    use std::fmt::Write;
-    write!(path, "/{}", drive)?;
+
+    let mut path = PathBuf::from(crate::tape::DRIVE_STATE_DIR);
+    path.push(drive);
 
     let backup_user = crate::backup::backup_user()?;
     let mode = nix::sys::stat::Mode::from_bits_truncate(0o0644);

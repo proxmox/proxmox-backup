@@ -463,9 +463,11 @@ fn save_changer_state_cache(
     changer: &str,
     state: &MtxStatus,
 ) -> Result<(), Error> {
-    let mut path = PathBuf::from("/run/proxmox-backup/changer-state");
-    std::fs::create_dir_all(&path)?;
+
+    let mut path = PathBuf::from(crate::tape::CHANGER_STATE_DIR);
     path.push(changer);
+
+    let state = serde_json::to_string_pretty(state)?;
 
     let backup_user = crate::backup::backup_user()?;
     let mode = nix::sys::stat::Mode::from_bits_truncate(0o0644);
@@ -473,8 +475,6 @@ fn save_changer_state_cache(
         .perm(mode)
         .owner(backup_user.uid)
         .group(backup_user.gid);
-
-    let state = serde_json::to_string_pretty(state)?;
 
     replace_file(path, state.as_bytes(), options)
 }

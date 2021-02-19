@@ -39,6 +39,8 @@ async fn run() -> Result<(), Error> {
     proxmox_backup::rrd::create_rrdb_dir()?;
     proxmox_backup::server::jobstate::create_jobstate_dir()?;
     proxmox_backup::tape::create_tape_status_dir()?;
+    proxmox_backup::tape::create_drive_state_dir()?;
+    proxmox_backup::tape::create_changer_state_dir()?;
 
     if let Err(err) = generate_auth_key() {
         bail!("unable to generate auth key - {}", err);
