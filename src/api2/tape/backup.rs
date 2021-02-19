@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use anyhow::{bail, Error};
+use anyhow::{bail, format_err, Error};
 use serde_json::Value;
 
 use proxmox::{
@@ -17,9 +17,18 @@ use crate::{
     task_log,
     config::{
         self,
-        tape_job::TapeBackupJobConfig,
+        tape_job::{
+            TapeBackupJobConfig,
+            TapeBackupJobStatus,
+        },
     },
-    server::jobstate::Job,
+    server::{
+        jobstate::{
+            Job,
+            JobState,
+            compute_schedule_status,
+        },
+    },
     backup::{
         DataStore,
         BackupDir,
@@ -54,8 +63,48 @@ const TAPE_BACKUP_JOB_ROUTER: Router = Router::new()
     .post(&API_METHOD_RUN_TAPE_BACKUP_JOB);
 
 pub const ROUTER: Router = Router::new()
+    .get(&API_METHOD_LIST_TAPE_BACKUP_JOBS)
     .post(&API_METHOD_BACKUP)
     .match_all("id", &TAPE_BACKUP_JOB_ROUTER);
+
+#[api(
+    returns: {
+        description: "List configured thape backup jobs and their status",
+        type: Array,
+        items: { type: TapeBackupJobStatus },
+    },
+)]
+/// List all tape backup jobs
+pub fn list_tape_backup_jobs(
+    _param: Value,
+    mut rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Vec<TapeBackupJobStatus>, Error> {
+
+    let (config, digest) = config::tape_job::config()?;
+
+    let job_list_iter = config
+        .convert_to_typed_array("backup")?
+        .into_iter()
+        .filter(|_job: &TapeBackupJobConfig| {
+            // fixme: check access permission
+            true
+        });
+
+    let mut list = Vec::new();
+
+    for job in job_list_iter {
+        let last_state = JobState::load("tape-backup-job", &job.id)
+            .map_err(|err| format_err!("could not open statefile for {}: {}", &job.id, err))?;
+
+        let status = compute_schedule_status(&last_state, job.schedule.as_deref())?;
+
+        list.push(TapeBackupJobStatus { config: job, status });
+    }
+
+    rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
+
+    Ok(list)
+}
 
 pub fn do_tape_backup_job(
     mut job: Job,

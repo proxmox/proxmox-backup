@@ -22,6 +22,7 @@ use crate::api2::types::{
     MEDIA_POOL_NAME_SCHEMA,
     SINGLE_LINE_COMMENT_SCHEMA,
     SYNC_SCHEDULE_SCHEMA,
+    JobScheduleStatus,
 };
 
 lazy_static! {
@@ -79,6 +80,26 @@ pub struct TapeBackupJobConfig {
     pub comment: Option<String>,
     #[serde(skip_serializing_if="Option::is_none")]
     pub schedule: Option<String>,
+}
+
+#[api(
+    properties: {
+        config: {
+            type: TapeBackupJobConfig,
+        },
+        status: {
+            type: JobScheduleStatus,
+        },
+    },
+)]
+#[serde(rename_all="kebab-case")]
+#[derive(Serialize,Deserialize)]
+/// Status of Tape Backup Job
+pub struct TapeBackupJobStatus {
+    #[serde(flatten)]
+    pub config: TapeBackupJobConfig,
+    #[serde(flatten)]
+    pub status: JobScheduleStatus,
 }
 
 fn init() -> SectionConfig {
