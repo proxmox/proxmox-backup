@@ -71,98 +71,25 @@ pub struct SyncJobConfig {
     pub schedule: Option<String>,
 }
 
-impl From<&SyncJobStatus> for SyncJobConfig {
-    fn from(job_status: &SyncJobStatus) -> Self {
-        Self {
-            id: job_status.id.clone(),
-            store: job_status.store.clone(),
-            owner: job_status.owner.clone(),
-            remote: job_status.remote.clone(),
-            remote_store: job_status.remote_store.clone(),
-            remove_vanished: job_status.remove_vanished,
-            comment: job_status.comment.clone(),
-            schedule: job_status.schedule.clone(),
-        }
-    }
-}
-
-// FIXME: generate duplicate schemas/structs from one listing?
 #[api(
     properties: {
-        id: {
-            schema: JOB_ID_SCHEMA,
+        config: {
+            type: SyncJobConfig,
         },
-        store: {
-           schema: DATASTORE_SCHEMA,
+        status: {
+            type: JobScheduleStatus,
         },
-        owner: {
-            type: Authid,
-            optional: true,
-        },
-        remote: {
-            schema: REMOTE_ID_SCHEMA,
-        },
-        "remote-store": {
-            schema: DATASTORE_SCHEMA,
-        },
-        "remove-vanished": {
-            schema: REMOVE_VANISHED_BACKUPS_SCHEMA,
-            optional: true,
-        },
-        comment: {
-            optional: true,
-            schema: SINGLE_LINE_COMMENT_SCHEMA,
-        },
-        schedule: {
-            optional: true,
-            schema: SYNC_SCHEDULE_SCHEMA,
-        },
-        "next-run": {
-            description: "Estimated time of the next run (UNIX epoch).",
-            optional: true,
-            type: Integer,
-        },
-        "last-run-state": {
-            description: "Result of the last run.",
-            optional: true,
-            type: String,
-        },
-        "last-run-upid": {
-            description: "Task UPID of the last run.",
-            optional: true,
-            type: String,
-        },
-        "last-run-endtime": {
-            description: "Endtime of the last run.",
-            optional: true,
-            type: Integer,
-        },
-    }
+    },
 )]
+
 #[serde(rename_all="kebab-case")]
 #[derive(Serialize,Deserialize)]
 /// Status of Sync Job
 pub struct SyncJobStatus {
-    pub id: String,
-    pub store: String,
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub owner: Option<Authid>,
-    pub remote: String,
-    pub remote_store: String,
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub remove_vanished: Option<bool>,
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub comment: Option<String>,
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub schedule: Option<String>,
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub next_run: Option<i64>,
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub last_run_state: Option<String>,
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub last_run_upid: Option<String>,
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub last_run_endtime: Option<i64>,
+    #[serde(flatten)]
+    pub config: SyncJobConfig,
+    #[serde(flatten)]
+    pub status: JobScheduleStatus,
 }
 
 fn init() -> SectionConfig {

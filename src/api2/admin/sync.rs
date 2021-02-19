@@ -7,16 +7,35 @@ use proxmox::api::{api, ApiMethod, Permission, Router, RpcEnvironment};
 use proxmox::api::router::SubdirMap;
 use proxmox::{list_subdirs_api_method, sortable};
 
-use crate::api2::types::*;
-use crate::api2::pull::do_sync_job;
-use crate::api2::config::sync::{check_sync_job_modify_access, check_sync_job_read_access};
-
-use crate::config::cached_user_info::CachedUserInfo;
-use crate::config::sync::{self, SyncJobStatus, SyncJobConfig};
-use crate::server::UPID;
-use crate::server::jobstate::{Job, JobState};
-use crate::tools::systemd::time::{
-    parse_calendar_event, compute_next_event};
+use crate::{
+    api2::{
+        types::{
+            DATASTORE_SCHEMA,
+            JOB_ID_SCHEMA,
+            Authid,
+        },
+        pull::do_sync_job,
+        config::sync::{
+            check_sync_job_modify_access,
+            check_sync_job_read_access,
+        },
+    },
+    config::{
+        cached_user_info::CachedUserInfo,
+        sync::{
+            self,
+            SyncJobStatus,
+            SyncJobConfig,
+        },
+    },
+    server::{
+        jobstate::{
+            Job,
+            JobState,
+            compute_schedule_status,
+        },
+    },
+};
 
 #[api(
     input: {
@@ -30,7 +49,7 @@ use crate::tools::systemd::time::{
     returns: {
         description: "List configured jobs and their status.",
         type: Array,
-        items: { type: sync::SyncJobStatus },
+        items: { type: SyncJobStatus },
     },
     access: {
         description: "Limited to sync jobs where user has Datastore.Audit on target datastore, and Remote.Audit on source remote.",
@@ -49,48 +68,29 @@ pub fn list_sync_jobs(
 
     let (config, digest) = sync::config()?;
 
-    let mut list: Vec<SyncJobStatus> = config
+    let job_config_iter = config
         .convert_to_typed_array("sync")?
         .into_iter()
-        .filter(|job: &SyncJobStatus| {
+        .filter(|job: &SyncJobConfig| {
             if let Some(store) = &store {
                 &job.store == store
             } else {
                 true
             }
         })
-        .filter(|job: &SyncJobStatus| {
-            let as_config: SyncJobConfig = job.into();
-            check_sync_job_read_access(&user_info, &auth_id, &as_config)
-        }).collect();
+        .filter(|job: &SyncJobConfig| {
+            check_sync_job_read_access(&user_info, &auth_id, &job)
+        });
 
-    for job in &mut list {
+    let mut list = Vec::new();
+
+    for job in job_config_iter {
         let last_state = JobState::load("syncjob", &job.id)
             .map_err(|err| format_err!("could not open statefile for {}: {}", &job.id, err))?;
-        let (upid, endtime, state, starttime) = match last_state {
-            JobState::Created { time } => (None, None, None, time),
-            JobState::Started { upid } => {
-                let parsed_upid: UPID = upid.parse()?;
-                (Some(upid), None, None, parsed_upid.starttime)
-            },
-            JobState::Finished { upid, state } => {
-                let parsed_upid: UPID = upid.parse()?;
-                (Some(upid), Some(state.endtime()), Some(state.to_string()), parsed_upid.starttime)
-            },
-        };
 
-        job.last_run_upid = upid;
-        job.last_run_state = state;
-        job.last_run_endtime = endtime;
+        let status = compute_schedule_status(&last_state, job.schedule.as_deref())?;
 
-        let last = job.last_run_endtime.unwrap_or(starttime);
-
-        job.next_run = (|| -> Option<i64> {
-            let schedule = job.schedule.as_ref()?;
-            let event = parse_calendar_event(&schedule).ok()?;
-            // ignore errors
-            compute_next_event(&event, last, false).unwrap_or(None)
-        })();
+        list.push(SyncJobStatus { config: job, status });
     }
 
     rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
