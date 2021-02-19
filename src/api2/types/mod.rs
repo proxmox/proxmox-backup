@@ -1439,3 +1439,41 @@ impl std::convert::TryFrom<openssl::rsa::Rsa<openssl::pkey::Public>> for RsaPubK
         })
     }
 }
+
+#[api(
+    properties: {
+        "next-run": {
+            description: "Estimated time of the next run (UNIX epoch).",
+            optional: true,
+            type: Integer,
+        },
+        "last-run-state": {
+            description: "Result of the last run.",
+            optional: true,
+            type: String,
+        },
+        "last-run-upid": {
+            description: "Task UPID of the last run.",
+            optional: true,
+            type: String,
+        },
+        "last-run-endtime": {
+            description: "Endtime of the last run.",
+            optional: true,
+            type: Integer,
+        },
+    }
+)]
+#[serde(rename_all="kebab-case")]
+#[derive(Serialize,Deserialize,Default)]
+/// Job Scheduling Status
+pub struct JobScheduleStatus {
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub next_run: Option<i64>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub last_run_state: Option<String>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub last_run_upid: Option<String>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub last_run_endtime: Option<i64>,
+}
