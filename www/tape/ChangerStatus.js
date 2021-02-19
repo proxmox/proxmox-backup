@@ -422,7 +422,7 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 		    method: 'GET',
 		    params: {
 			"update-status": false,
-		    }
+		    },
 		});
 
 		let [status, drives, tapes_list] = await Promise.all([status_fut, drives_fut, tapes_fut]);

@@ -13,7 +13,7 @@ Ext.define('pbs-tape-backup-job-status', {
 		let task = Proxmox.Utils.parse_task_upid(data['last-run-upid']);
 		return endtime - task.starttime;
 	    },
-	}
+	},
     ],
     idProperty: 'id',
     proxy: {
@@ -42,7 +42,7 @@ Ext.define('PBS.config.TapeBackupJobView', {
 
 	init: function(view) {
 	    Proxmox.Utils.monStoreErrors(view, view.getStore().rstore);
-	}
+	},
     },
 
     listeners: {
@@ -143,5 +143,5 @@ Ext.define('PBS.config.TapeBackupJobView', {
 	let me = this;
 
 	me.callParent();
-    }
+    },
 });
