@@ -1,24 +1,40 @@
 //! Datastore Verify Job Management
 
 use anyhow::{format_err, Error};
+use serde_json::Value;
 
 use proxmox::api::router::SubdirMap;
 use proxmox::{list_subdirs_api_method, sortable};
 use proxmox::api::{api, ApiMethod, Permission, Router, RpcEnvironment};
 
-use crate::api2::types::*;
-use crate::server::do_verification_job;
-use crate::server::jobstate::{Job, JobState};
-use crate::config::acl::{
-    PRIV_DATASTORE_AUDIT,
-    PRIV_DATASTORE_VERIFY,
+use crate::{
+    api2::types::{
+        DATASTORE_SCHEMA,
+        JOB_ID_SCHEMA,
+        Authid,
+    },
+    server::{
+        do_verification_job,
+        jobstate::{
+            Job,
+            JobState,
+            compute_schedule_status,
+        },
+    },
+    config::{
+        acl::{
+            PRIV_DATASTORE_AUDIT,
+            PRIV_DATASTORE_VERIFY,
+        },
+        cached_user_info::CachedUserInfo,
+        verify::{
+            self,
+            VerificationJobConfig,
+            VerificationJobStatus,
+        },
+    },
 };
-use crate::config::cached_user_info::CachedUserInfo;
-use crate::config::verify;
-use crate::config::verify::{VerificationJobConfig, VerificationJobStatus};
-use serde_json::Value;
-use crate::tools::systemd::time::{parse_calendar_event, compute_next_event};
-use crate::server::UPID;
+
 
 #[api(
     input: {
@@ -52,10 +68,10 @@ pub fn list_verification_jobs(
 
     let (config, digest) = verify::config()?;
 
-    let mut list: Vec<VerificationJobStatus> = config
+    let job_config_iter = config
         .convert_to_typed_array("verification")?
         .into_iter()
-        .filter(|job: &VerificationJobStatus| {
+        .filter(|job: &VerificationJobConfig| {
             let privs = user_info.lookup_privs(&auth_id, &["datastore", &job.store]);
             if privs & required_privs == 0 {
                 return false;
@@ -66,36 +82,17 @@ pub fn list_verification_jobs(
             } else {
                 true
             }
-        }).collect();
+        });
 
-    for job in &mut list {
+    let mut list = Vec::new();
+
+    for job in job_config_iter {
         let last_state = JobState::load("verificationjob", &job.id)
             .map_err(|err| format_err!("could not open statefile for {}: {}", &job.id, err))?;
 
-        let (upid, endtime, state, starttime) = match last_state {
-            JobState::Created { time } => (None, None, None, time),
-            JobState::Started { upid } => {
-                let parsed_upid: UPID = upid.parse()?;
-                (Some(upid), None, None, parsed_upid.starttime)
-            },
-            JobState::Finished { upid, state } => {
-                let parsed_upid: UPID = upid.parse()?;
-                (Some(upid), Some(state.endtime()), Some(state.to_string()), parsed_upid.starttime)
-            },
-        };
+        let status = compute_schedule_status(&last_state, job.schedule.as_deref())?;
 
-        job.last_run_upid = upid;
-        job.last_run_state = state;
-        job.last_run_endtime = endtime;
-
-        let last = job.last_run_endtime.unwrap_or(starttime);
-
-        job.next_run = (|| -> Option<i64> {
-            let schedule = job.schedule.as_ref()?;
-            let event = parse_calendar_event(&schedule).ok()?;
-            // ignore errors
-            compute_next_event(&event, last, false).unwrap_or(None)
-        })();
+        list.push(VerificationJobStatus { config: job, status });
     }
 
     rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
