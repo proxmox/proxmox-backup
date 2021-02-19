@@ -217,6 +217,12 @@ fn get_config(
                 schema: CHANGER_NAME_SCHEMA,
                 optional: true,
             },
+            cache: {
+                description: "Use cached value.",
+                type: bool,
+                optional: true,
+                default: true,
+            },
         },
     },
 )]

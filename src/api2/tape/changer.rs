@@ -39,6 +39,11 @@ use crate::{
             name: {
                 schema: CHANGER_NAME_SCHEMA,
             },
+            cache: {
+                description: "Use cached value.",
+                optional: true,
+                default: true,
+            },
         },
     },
     returns: {
@@ -50,14 +55,17 @@ use crate::{
     },
 )]
 /// Get tape changer status
-pub async fn get_status(name: String) -> Result<Vec<MtxStatusEntry>, Error> {
+pub async fn get_status(
+    name: String,
+    cache: bool,
+) -> Result<Vec<MtxStatusEntry>, Error> {
 
     let (config, _digest) = config::drive::config()?;
 
     let mut changer_config: ScsiTapeChanger = config.lookup("changer", &name)?;
 
     let status = tokio::task::spawn_blocking(move || {
-        changer_config.status()
+        changer_config.status(cache)
     }).await??;
 
     let state_path = Path::new(TAPE_STATUS_DIR);

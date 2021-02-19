@@ -11,12 +11,20 @@ mod online_status_map;
 pub use online_status_map::*;
 
 use std::collections::HashSet;
+use std::path::PathBuf;
 
 use anyhow::{bail, Error};
 use serde::{Serialize, Deserialize};
 use serde_json::Value;
 
-use proxmox::api::schema::parse_property_string;
+use proxmox::{
+    api::schema::parse_property_string,
+    tools::fs::{
+        CreateOptions,
+        replace_file,
+        file_read_optional_string,
+    },
+};
 
 use crate::api2::types::{
     SLOT_ARRAY_SCHEMA,
@@ -158,7 +166,7 @@ impl MtxStatus {
 /// Interface to SCSI changer devices
 pub trait ScsiMediaChange {
 
-    fn status(&mut self) -> Result<MtxStatus, Error>;
+    fn status(&mut self, use_cache: bool) -> Result<MtxStatus, Error>;
 
     fn load_slot(&mut self, from_slot: u64, drivenum: u64) -> Result<(), Error>;
 
@@ -398,12 +406,29 @@ const USE_MTX: bool = false;
 
 impl ScsiMediaChange for ScsiTapeChanger {
 
-    fn status(&mut self)  -> Result<MtxStatus, Error> {
-        if USE_MTX {
+    fn status(&mut self, use_cache: bool)  -> Result<MtxStatus, Error> {
+        if use_cache {
+            if let Some(state) = load_changer_state_cache(&self.name)? {
+                return Ok(state);
+            }
+        }
+
+        let status = if USE_MTX {
             mtx::mtx_status(&self)
         } else {
             sg_pt_changer::status(&self)
+        };
+
+        match &status {
+            Ok(status) => {
+                save_changer_state_cache(&self.name, status)?;
+            }
+            Err(_) => {
+                delete_changer_state_cache(&self.name);
+            }
         }
+
+        status
     }
 
     fn load_slot(&mut self, from_slot: u64, drivenum: u64) -> Result<(), Error> {
@@ -432,6 +457,47 @@ impl ScsiMediaChange for ScsiTapeChanger {
             sg_pt_changer::transfer_medium(&mut file, from_slot, to_slot)
         }
     }
+}
+
+fn save_changer_state_cache(
+    changer: &str,
+    state: &MtxStatus,
+) -> Result<(), Error> {
+    let mut path = PathBuf::from("/run/proxmox-backup/changer-state");
+    std::fs::create_dir_all(&path)?;
+    path.push(changer);
+
+    let backup_user = crate::backup::backup_user()?;
+    let mode = nix::sys::stat::Mode::from_bits_truncate(0o0644);
+    let options = CreateOptions::new()
+        .perm(mode)
+        .owner(backup_user.uid)
+        .group(backup_user.gid);
+
+    let state = serde_json::to_string_pretty(state)?;
+
+    replace_file(path, state.as_bytes(), options)
+}
+
+fn delete_changer_state_cache(changer: &str) {
+    let mut path = PathBuf::from("/run/proxmox-backup/changer-state");
+    path.push(changer);
+
+    let _ = std::fs::remove_file(&path); // ignore errors
+}
+
+fn load_changer_state_cache(changer: &str) -> Result<Option<MtxStatus>, Error> {
+    let mut path = PathBuf::from("/run/proxmox-backup/changer-state");
+    path.push(changer);
+
+    let data = match file_read_optional_string(&path)? {
+        None => return Ok(None),
+        Some(data) => data,
+    };
+
+    let state = serde_json::from_str(&data)?;
+
+    Ok(Some(state))
 }
 
 /// Implements MediaChange using 'mtx' linux cli tool
@@ -469,7 +535,7 @@ impl MediaChange for MtxMediaChanger {
     }
 
     fn status(&mut self) -> Result<MtxStatus, Error> {
-        self.config.status()
+        self.config.status(false)
     }
 
     fn transfer_media(&mut self, from: u64, to: u64) -> Result<(), Error> {

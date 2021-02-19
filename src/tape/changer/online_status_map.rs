@@ -142,7 +142,7 @@ pub fn update_online_status(state_path: &Path, changer: Option<&str>) -> Result<
             }
             found_changer = true;
         }
-        let status = match changer_config.status() {
+        let status = match changer_config.status(false) {
             Ok(status) => status,
             Err(err) => {
                 eprintln!("unable to get changer '{}' status - {}", changer_config.name, err);
