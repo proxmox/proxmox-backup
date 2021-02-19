@@ -47,7 +47,19 @@ use proxmox::tools::fs::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::server::{upid_read_status, worker_is_active_local, TaskState, UPID};
+use crate::{
+   tools::systemd::time::{
+        parse_calendar_event,
+        compute_next_event,
+    },
+    api2::types::JobScheduleStatus,
+    server::{
+        UPID,
+        TaskState,
+        upid_read_status,
+        worker_is_active_local,
+    },
+};
 
 #[serde(rename_all = "kebab-case")]
 #[derive(Serialize, Deserialize)]
@@ -256,4 +268,38 @@ impl Job {
 
         replace_file(path, serialized.as_bytes(), options)
     }
+}
+
+pub fn compute_schedule_status(
+    job_state: &JobState,
+    schedule: Option<&str>,
+) -> Result<JobScheduleStatus, Error> {
+
+    let (upid, endtime, state, starttime) = match job_state {
+        JobState::Created { time } => (None, None, None, *time),
+        JobState::Started { upid } => {
+            let parsed_upid: UPID = upid.parse()?;
+            (Some(upid), None, None, parsed_upid.starttime)
+        },
+        JobState::Finished { upid, state } => {
+            let parsed_upid: UPID = upid.parse()?;
+            (Some(upid), Some(state.endtime()), Some(state.to_string()), parsed_upid.starttime)
+        },
+    };
+
+    let mut status = JobScheduleStatus::default();
+    status.last_run_upid = upid.map(String::from);
+    status.last_run_state = state;
+    status.last_run_endtime = endtime;
+
+    let last = endtime.unwrap_or(starttime);
+
+    if let Some(schedule) = schedule {
+        if let Ok(event) =  parse_calendar_event(&schedule) {
+            // ignore errors
+            status.next_run = compute_next_event(&event, last, false).unwrap_or(None);
+        }
+    }
+
+    Ok(status)
 }
