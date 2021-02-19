@@ -3,12 +3,22 @@ Ext.define('pbs-tape-backup-job-status', {
     fields: [
 	'id', 'store', 'pool', 'drive', 'store', 'schedule', 'comment',
 	{ name: 'eject-media', type: 'boolean' },
-	{ name: 'export-media-set', type: 'boolean' }
+	{ name: 'export-media-set', type: 'boolean' },
+	'next-run', 'last-run-upid', 'last-run-state', 'last-run-endtime',
+	{
+	    name: 'duration',
+	    calculate: function(data) {
+		let endtime = data['last-run-endtime'];
+		if (!endtime) return undefined;
+		let task = Proxmox.Utils.parse_task_upid(data['last-run-upid']);
+		return endtime - task.starttime;
+	    },
+	}
     ],
     idProperty: 'id',
     proxy: {
 	type: 'proxmox',
-	url: '/api2/json/config/tape-backup-job',
+	url: '/api2/json/tape/backup',
     },
 });
 
@@ -92,6 +102,32 @@ Ext.define('PBS.config.TapeBackupJobView', {
 	    maxWidth: 220,
 	    minWidth: 80,
 	    flex: 1,
+	    sortable: true,
+	},
+	{
+	    header: gettext('Last Backup'),
+	    dataIndex: 'last-run-endtime',
+	    renderer: PBS.Utils.render_optional_timestamp,
+	    width: 150,
+	    sortable: true,
+	},
+	{
+	    text: gettext('Duration'),
+	    dataIndex: 'duration',
+	    renderer: Proxmox.Utils.render_duration,
+	    width: 80,
+	},
+	{
+	    header: gettext('Status'),
+	    dataIndex: 'last-run-state',
+	    renderer: PBS.Utils.render_task_status,
+	    flex: 3,
+	},
+	{
+	    header: gettext('Next Run'),
+	    dataIndex: 'next-run',
+	    renderer: PBS.Utils.render_next_task_run,
+	    width: 150,
 	    sortable: true,
 	},
 	{
