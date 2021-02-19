@@ -70,6 +70,7 @@ JSSRC=							\
 	window/SyncJobEdit.js				\
 	window/UserEdit.js				\
 	window/UserPassword.js				\
+	window/Settings.js				\
 	window/TokenEdit.js				\
 	window/TfaEdit.js				\
 	window/VerifyJobEdit.js				\
