@@ -518,7 +518,7 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	control: {
 	    'grid[reference=drives]': {
 		cellclick: function(table, td, ci, rec, tr, ri, e) {
-		    if (!e.position.column.dataIndex === 'state') {
+		    if (e.position.column.dataIndex !== 'state') {
 			return;
 		    }
 
