@@ -30,6 +30,9 @@ Ext.define('PBS.window.Settings', {
 	    let username = sp.get('login-username') || Proxmox.Utils.noneText;
 	    me.lookupReference('savedUserName').setValue(Ext.String.htmlEncode(username));
 
+	    let userverification= sp.get('webauthn-user-verification') || '__default__';
+	    me.lookupReference('webauthnUserVerification').setValue(userverification);
+
 	    let settings = ['fontSize', 'fontFamily', 'letterSpacing', 'lineHeight'];
 	    settings.forEach(function(setting) {
 		let val = localStorage.getItem('pve-xterm-' + setting);
@@ -91,7 +94,7 @@ Ext.define('PBS.window.Settings', {
 	    },
 	    'button[name=reset]': {
 		click: function() {
-		    let blacklist = ['login-username'];
+		    let blacklist = ['login-username', 'webauthn-user-verification'];
 		    let sp = Ext.state.Manager.getProvider();
 		    for (const state of Object.values(sp.state)) {
 			if (blacklist.indexOf(state) !== -1) {
@@ -112,6 +115,14 @@ Ext.define('PBS.window.Settings', {
 
 		    usernamefield.setValue(Proxmox.Utils.noneText);
 		    sp.clear('login-username');
+		},
+	    },
+	    'field[reference=webauthnUserVerification]': {
+		change: function(e, v) {
+		    if (v === '__default__') {
+			v = undefined;
+		    }
+		    Ext.state.Manager.getProvider().set('webauthn-user-verification', v);
 		},
 	    },
 	},
@@ -172,6 +183,23 @@ Ext.define('PBS.window.Settings', {
 			tooltip: gettext('Reset all layout changes (for example, column widths)'),
 			name: 'reset',
 		    },
+		],
+	    },
+	    {
+		xtype: 'box',
+		autoEl: { tag: 'hr' },
+	    },
+	    {
+		xtype: 'proxmoxKVComboBox',
+		fieldLabel: gettext('WebAuthn User Verification') + ':',
+		labelWidth: 150,
+		stateId: 'webauthn-user-verification',
+		reference: 'webauthnUserVerification',
+		value: '__default__',
+		comboItems: [
+		    ['__default__', Proxmox.Utils.defaultText],
+		    ['discouraged', gettext('Discouraged')],
+		    ['preferred', gettext('Preferred')],
 		],
 	    },
 	],

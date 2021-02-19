@@ -79,6 +79,13 @@ Ext.define('PBS.window.AddWebauthn', {
 		// string to pass in the response:
 		let challenge_str = challenge_obj.publicKey.challenge;
 		challenge_obj.publicKey.challenge = PBS.Utils.base64url_to_bytes(challenge_str);
+		let userVerification = Ext.state.Manager.getProvider().get('webauthn-user-verification');
+		if (userVerification !== undefined) {
+		    challenge_obj.publicKey.authenticatorSelection = {
+			userVerification,
+		    };
+		}
+
 		challenge_obj.publicKey.user.id =
 		    PBS.Utils.base64url_to_bytes(challenge_obj.publicKey.user.id);
 

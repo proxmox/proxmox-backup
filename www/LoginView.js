@@ -390,6 +390,11 @@ Ext.define('PBS.login.TfaWindow', {
 		// Byte array fixup, keep challenge string:
 		challenge.string = challenge.publicKey.challenge;
 		challenge.publicKey.challenge = PBS.Utils.base64url_to_bytes(challenge.string);
+		let userVerification = Ext.state.Manager.getProvider().get('webauthn-user-verification');
+		if (userVerification !== undefined) {
+		    challenge.publicKey.userVerification = userVerification;
+		}
+
 		for (const cred of challenge.publicKey.allowCredentials) {
 		    cred.id = PBS.Utils.base64url_to_bytes(cred.id);
 		}
