@@ -154,7 +154,8 @@ pub fn load_media(
         move |worker, config| {
             task_log!(worker, "loading media '{}' into drive '{}'", label_text, drive);
             let (mut changer, _) = required_media_changer(&config, &drive)?;
-            changer.load_media(&label_text)
+            changer.load_media(&label_text)?;
+            Ok(())
         },
     )?;
 
@@ -183,7 +184,8 @@ pub async fn load_slot(drive: String, source_slot: u64) -> Result<(), Error> {
         format!("load from slot {}", source_slot),
         move |config| {
             let (mut changer, _) = required_media_changer(&config, &drive)?;
-            changer.load_media_from_slot(source_slot)
+            changer.load_media_from_slot(source_slot)?;
+            Ok(())
         },
     )
     .await
@@ -258,7 +260,8 @@ pub fn unload(
             task_log!(worker, "unloading media from drive '{}'", drive);
 
             let (mut changer, _) = required_media_changer(&config, &drive)?;
-            changer.unload_media(target_slot)
+            changer.unload_media(target_slot)?;
+            Ok(())
         },
     )?;
 

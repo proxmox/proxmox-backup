@@ -428,7 +428,7 @@ impl MediaChange for VirtualTapeHandle {
         Ok(MtxStatus { drives, slots, transports: Vec::new() })
     }
 
-    fn transfer_media(&mut self, _from: u64, _to: u64) -> Result<(), Error> {
+    fn transfer_media(&mut self, _from: u64, _to: u64) -> Result<MtxStatus, Error> {
         bail!("media tranfer is not implemented!");
     }
 
@@ -436,7 +436,7 @@ impl MediaChange for VirtualTapeHandle {
         bail!("media export is not implemented!");
     }
 
-    fn load_media_from_slot(&mut self, slot: u64) -> Result<(), Error> {
+    fn load_media_from_slot(&mut self, slot: u64) -> Result<MtxStatus, Error> {
         if slot < 1 {
             bail!("invalid slot ID {}", slot);
         }
@@ -454,7 +454,7 @@ impl MediaChange for VirtualTapeHandle {
     ///
     /// We automatically create an empty virtual tape here (if it does
     /// not exist already)
-    fn load_media(&mut self, label: &str) -> Result<(), Error> {
+    fn load_media(&mut self, label: &str) -> Result<MtxStatus, Error> {
         let name = format!("tape-{}.json", label);
         let mut path = self.path.clone();
         path.push(&name);
@@ -470,17 +470,20 @@ impl MediaChange for VirtualTapeHandle {
                 pos: 0,
             }),
         };
-        self.store_status(&status)
+        self.store_status(&status)?;
+
+        self.status()
     }
 
-    fn unload_media(&mut self, _target_slot: Option<u64>) -> Result<(), Error> {
+    fn unload_media(&mut self, _target_slot: Option<u64>) -> Result<MtxStatus, Error> {
         // Note: we currently simply ignore target_slot
         self.eject_media()?;
-        Ok(())
+        self.status()
     }
 
-    fn clean_drive(&mut self) -> Result<(), Error> {
-        Ok(())
+    fn clean_drive(&mut self) -> Result<MtxStatus, Error> {
+        // do nothing
+        self.status()
     }
 }
 
@@ -499,7 +502,7 @@ impl MediaChange for VirtualTapeDrive {
         handle.status()
     }
 
-    fn transfer_media(&mut self, from: u64, to: u64) -> Result<(), Error> {
+    fn transfer_media(&mut self, from: u64, to: u64) -> Result<MtxStatus, Error> {
         let mut handle = self.open()?;
         handle.transfer_media(from, to)
     }
@@ -509,20 +512,19 @@ impl MediaChange for VirtualTapeDrive {
         handle.export_media(label_text)
     }
 
-    fn load_media_from_slot(&mut self, slot: u64) -> Result<(), Error> {
+    fn load_media_from_slot(&mut self, slot: u64) -> Result<MtxStatus, Error> {
         let mut handle = self.open()?;
         handle.load_media_from_slot(slot)
     }
 
-    fn load_media(&mut self, label_text: &str) -> Result<(), Error> {
+    fn load_media(&mut self, label_text: &str) -> Result<MtxStatus, Error> {
         let mut handle = self.open()?;
         handle.load_media(label_text)
     }
 
-    fn unload_media(&mut self, target_slot: Option<u64>) -> Result<(), Error> {
+    fn unload_media(&mut self, target_slot: Option<u64>) -> Result<MtxStatus, Error> {
         let mut handle = self.open()?;
-        handle.unload_media(target_slot)?;
-        Ok(())
+        handle.unload_media(target_slot)
     }
 
     fn online_media_label_texts(&mut self) -> Result<Vec<String>, Error> {
@@ -530,8 +532,8 @@ impl MediaChange for VirtualTapeDrive {
         handle.online_media_label_texts()
     }
 
-    fn clean_drive(&mut self) -> Result<(), Error> {
-        Ok(())
+    fn clean_drive(&mut self) -> Result<MtxStatus, Error> {
+        let mut handle = self.open()?;
+        handle.clean_drive()
     }
-
 }

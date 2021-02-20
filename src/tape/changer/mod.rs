@@ -190,10 +190,10 @@ pub trait MediaChange {
     /// Transfer media from on slot to another (storage or import export slots)
     ///
     /// Target slot needs to be empty
-    fn transfer_media(&mut self, from: u64, to: u64) -> Result<(), Error>;
+    fn transfer_media(&mut self, from: u64, to: u64) -> Result<MtxStatus, Error>;
 
     /// Load media from storage slot into drive
-    fn load_media_from_slot(&mut self, slot: u64) -> Result<(), Error>;
+    fn load_media_from_slot(&mut self, slot: u64) -> Result<MtxStatus, Error>;
 
     /// Load media by label-text into drive
     ///
@@ -202,7 +202,7 @@ pub trait MediaChange {
     /// Note: This refuses to load media inside import/export
     /// slots. Also, you cannot load cleaning units with this
     /// interface.
-    fn load_media(&mut self, label_text: &str) -> Result<(), Error> {
+    fn load_media(&mut self, label_text: &str) -> Result<MtxStatus, Error> {
 
         if label_text.starts_with("CLN") {
             bail!("unable to load media '{}' (seems to be a cleaning unit)", label_text);
@@ -220,7 +220,7 @@ pub trait MediaChange {
                         bail!("unable to load media '{}' - media in wrong drive ({} != {})",
                               label_text, i, self.drive_number());
                     }
-                    return Ok(()) // already loaded
+                    return Ok(status) // already loaded
                 }
             }
             if i as u64 == self.drive_number() {
@@ -232,8 +232,7 @@ pub trait MediaChange {
         }
 
         if unload_drive {
-            self.unload_to_free_slot(status)?;
-            status = self.status()?;
+            status = self.unload_to_free_slot(status)?;
         }
 
         let mut slot = None;
@@ -258,7 +257,7 @@ pub trait MediaChange {
     }
 
     /// Unload media from drive (eject media if necessary)
-    fn unload_media(&mut self, target_slot: Option<u64>) -> Result<(), Error>;
+    fn unload_media(&mut self, target_slot: Option<u64>) -> Result<MtxStatus, Error>;
 
     /// List online media labels (label_text/barcodes)
     ///
@@ -290,7 +289,7 @@ pub trait MediaChange {
     ///
     /// This fail if there is no cleaning cartridge online. Any media
     /// inside the drive is automatically unloaded.
-    fn clean_drive(&mut self) -> Result<(), Error> {
+    fn clean_drive(&mut self) -> Result<MtxStatus, Error> {
         let status = self.status()?;
 
         let mut cleaning_cartridge_slot = None;
@@ -313,15 +312,13 @@ pub trait MediaChange {
         if let Some(drive_status) = status.drives.get(self.drive_number() as usize) {
             match drive_status.status {
                 ElementStatus::Empty => { /* OK */ },
-                _ => self.unload_to_free_slot(status)?,
+                _ => { self.unload_to_free_slot(status)?; }
             }
         }
 
         self.load_media_from_slot(cleaning_cartridge_slot)?;
 
-        self.unload_media(Some(cleaning_cartridge_slot))?;
-
-        Ok(())
+        self.unload_media(Some(cleaning_cartridge_slot))
     }
 
     /// Export media
@@ -381,8 +378,8 @@ pub trait MediaChange {
     ///
     /// If posible to the slot it was previously loaded from.
     ///
-    /// Note: This method consumes status - so please read again afterward.
-    fn unload_to_free_slot(&mut self, status: MtxStatus) -> Result<(), Error> {
+    /// Note: This method consumes status - so please use returned status afterward.
+    fn unload_to_free_slot(&mut self, status: MtxStatus) -> Result<MtxStatus, Error> {
 
         let drive_status = &status.drives[self.drive_number() as usize];
         if let Some(slot) = drive_status.loaded_slot {
@@ -556,23 +553,20 @@ impl MediaChange for MtxMediaChanger {
         self.config.status(false)
     }
 
-    fn transfer_media(&mut self, from: u64, to: u64) -> Result<(), Error> {
-        self.config.transfer(from, to)?;
-        Ok(())
+    fn transfer_media(&mut self, from: u64, to: u64) -> Result<MtxStatus, Error> {
+        self.config.transfer(from, to)
     }
 
-    fn load_media_from_slot(&mut self, slot: u64) -> Result<(), Error> {
-        self.config.load_slot(slot, self.drive_number)?;
-        Ok(())
+    fn load_media_from_slot(&mut self, slot: u64) -> Result<MtxStatus, Error> {
+        self.config.load_slot(slot, self.drive_number)
     }
 
-    fn unload_media(&mut self, target_slot: Option<u64>) -> Result<(), Error> {
+    fn unload_media(&mut self, target_slot: Option<u64>) -> Result<MtxStatus, Error> {
         if let Some(target_slot) = target_slot {
-            self.config.unload(target_slot, self.drive_number)?;
+            self.config.unload(target_slot, self.drive_number)
         } else {
             let status = self.status()?;
-            self.unload_to_free_slot(status)?;
+            self.unload_to_free_slot(status)
         }
-        Ok(())
     }
 }
