@@ -154,11 +154,7 @@ pub fn load_media(
         move |worker, config| {
             task_log!(worker, "loading media '{}' into drive '{}'", label_text, drive);
             let (mut changer, _) = required_media_changer(&config, &drive)?;
-            changer.load_media(&label_text)?;
-
-            let _ = changer.status(); // update status cache
-
-            Ok(())
+            changer.load_media(&label_text)
         },
     )?;
 
@@ -262,11 +258,7 @@ pub fn unload(
             task_log!(worker, "unloading media from drive '{}'", drive);
 
             let (mut changer, _) = required_media_changer(&config, &drive)?;
-            changer.unload_media(target_slot)?;
-
-            let _ = changer.status(); // update status cache
-
-            Ok(())
+            changer.unload_media(target_slot)
         },
     )?;
 
@@ -424,7 +416,6 @@ pub fn eject_media(
         move |_worker, config| {
             if let Some((mut changer, _)) = media_changer(&config, &drive)? {
                 changer.unload_media(None)?;
-                let _ = changer.status(); // update status cache
             } else {
                 let mut drive = open_drive(&config, &drive)?;
                 drive.eject_media()?;
@@ -867,8 +858,6 @@ pub fn update_inventory(
                     continue;
                 }
 
-                let _ = changer.status(); // update status cache
-
                 let mut drive = open_drive(&config, &drive)?;
                 match drive.read_label() {
                     Err(err) => {
@@ -887,7 +876,6 @@ pub fn update_inventory(
                     }
                 }
                 changer.unload_media(None)?;
-                let _ = changer.status(); // update status cache
             }
             Ok(())
         },

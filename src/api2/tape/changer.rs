@@ -163,7 +163,6 @@ pub async fn transfer(
 
     tokio::task::spawn_blocking(move || {
         changer_config.transfer(from, to)?;
-        let _ = changer_config.status(false); // update status cache
         Ok(())
     }).await?
 }

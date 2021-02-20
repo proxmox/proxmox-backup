@@ -168,11 +168,11 @@ pub trait ScsiMediaChange {
 
     fn status(&mut self, use_cache: bool) -> Result<MtxStatus, Error>;
 
-    fn load_slot(&mut self, from_slot: u64, drivenum: u64) -> Result<(), Error>;
+    fn load_slot(&mut self, from_slot: u64, drivenum: u64) -> Result<MtxStatus, Error>;
 
-    fn unload(&mut self, to_slot: u64, drivenum: u64) -> Result<(), Error>;
+    fn unload(&mut self, to_slot: u64, drivenum: u64) -> Result<MtxStatus, Error>;
 
-    fn transfer(&mut self, from_slot: u64, to_slot: u64) -> Result<(), Error>;
+    fn transfer(&mut self, from_slot: u64, to_slot: u64) -> Result<MtxStatus, Error>;
 }
 
 /// Interface to the media changer device for a single drive
@@ -431,31 +431,49 @@ impl ScsiMediaChange for ScsiTapeChanger {
         status
     }
 
-    fn load_slot(&mut self, from_slot: u64, drivenum: u64) -> Result<(), Error> {
-        if USE_MTX {
+    fn load_slot(&mut self, from_slot: u64, drivenum: u64) -> Result<MtxStatus, Error> {
+        let result = if USE_MTX {
             mtx::mtx_load(&self.path, from_slot, drivenum)
         } else {
             let mut file = sg_pt_changer::open(&self.path)?;
             sg_pt_changer::load_slot(&mut file, from_slot, drivenum)
-        }
+        };
+
+        let status = self.status(false)?; // always update status
+
+        result?; // check load result
+
+        Ok(status)
     }
 
-    fn unload(&mut self, to_slot: u64, drivenum: u64) -> Result<(), Error> {
-        if USE_MTX {
+    fn unload(&mut self, to_slot: u64, drivenum: u64) -> Result<MtxStatus, Error> {
+        let result = if USE_MTX {
             mtx::mtx_unload(&self.path, to_slot, drivenum)
         } else {
             let mut file = sg_pt_changer::open(&self.path)?;
             sg_pt_changer::unload(&mut file, to_slot, drivenum)
-        }
+        };
+
+        let status = self.status(false)?; // always update status
+
+        result?; // check unload result
+
+        Ok(status)
     }
 
-    fn transfer(&mut self, from_slot: u64, to_slot: u64) -> Result<(), Error> {
-        if USE_MTX {
+    fn transfer(&mut self, from_slot: u64, to_slot: u64) -> Result<MtxStatus, Error> {
+        let result = if USE_MTX {
             mtx::mtx_transfer(&self.path, from_slot, to_slot)
         } else {
             let mut file = sg_pt_changer::open(&self.path)?;
             sg_pt_changer::transfer_medium(&mut file, from_slot, to_slot)
-        }
+        };
+
+        let status = self.status(false)?; // always update status
+
+        result?; // check unload result
+
+        Ok(status)
     }
 }
 
@@ -539,19 +557,22 @@ impl MediaChange for MtxMediaChanger {
     }
 
     fn transfer_media(&mut self, from: u64, to: u64) -> Result<(), Error> {
-        self.config.transfer(from, to)
+        self.config.transfer(from, to)?;
+        Ok(())
     }
 
     fn load_media_from_slot(&mut self, slot: u64) -> Result<(), Error> {
-        self.config.load_slot(slot, self.drive_number)
+        self.config.load_slot(slot, self.drive_number)?;
+        Ok(())
     }
 
     fn unload_media(&mut self, target_slot: Option<u64>) -> Result<(), Error> {
         if let Some(target_slot) = target_slot {
-            self.config.unload(target_slot, self.drive_number)
+            self.config.unload(target_slot, self.drive_number)?;
         } else {
             let status = self.status()?;
-            self.unload_to_free_slot(status)
+            self.unload_to_free_slot(status)?;
         }
+        Ok(())
     }
 }
