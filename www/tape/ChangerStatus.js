@@ -395,7 +395,15 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	    }).show();
 	},
 
-	reload: async function() {
+	reload: function() {
+	    this.reload_full(true);
+	},
+
+	reload_no_cache: function() {
+	    this.reload_full(false);
+	},
+
+	reload_full: async function(use_cache) {
 	    let me = this;
 	    let view = me.getView();
 	    let vm = me.getViewModel();
@@ -409,7 +417,11 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 		Proxmox.Utils.setErrorMask(me.lookup('content'));
 		let status_fut = PBS.Async.api2({
 		    timeout: 5*60*1000,
+		    method: 'GET',
 		    url: `/api2/extjs/tape/changer/${encodeURIComponent(changer)}/status`,
+		    params: {
+			cache: use_cache,
+		    },
 		});
 		let drives_fut = PBS.Async.api2({
 		    timeout: 5*60*1000,
@@ -554,7 +566,7 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	{
 	    text: gettext('Reload'),
 	    xtype: 'proxmoxButton',
-	    handler: 'reload',
+	    handler: 'reload_no_cache',
 	    selModel: false,
 	},
 	'-',
