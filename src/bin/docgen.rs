@@ -7,10 +7,12 @@ use proxmox::{
             Schema,
             ObjectSchemaType,
             SchemaPropertyEntry,
+            ApiStringFormat,
         },
         format::{
             dump_enum_properties,
             dump_section_config,
+            get_property_string_type_text,
         },
         ApiMethod,
         ApiHandler,
@@ -123,6 +125,30 @@ pub fn dump_schema(schema: &Schema) -> Value {
             if let Some(type_text) = string_schema.type_text {
                 data["typetext"] = type_text.into();
             }
+            match string_schema.format {
+                None | Some(ApiStringFormat::VerifyFn(_)) => { /* do nothing */ }
+                Some(ApiStringFormat::Pattern(const_regex)) => {
+                    data["pattern"] = const_regex.regex_string.into();
+                }
+                Some(ApiStringFormat::Enum(variants)) => {
+                    let variants: Vec<String> = variants
+                        .iter()
+                        .map(|e| e.value.to_string())
+                        .collect();
+                    data["enum"] = serde_json::to_value(variants).unwrap();
+                }
+                Some(ApiStringFormat::PropertyString(subschema)) => {
+
+                    match subschema {
+                        Schema::Object(_) | Schema::Array(_) => {
+                            data["format"] = dump_schema(subschema);
+                            data["typetext"] = get_property_string_type_text(subschema)
+                                .into();
+                        }
+                        _ => { /* do nothing  - shouldnot happen */ }
+                    };
+                }
+            }
             // fixme: dump format
         }
         Schema::Integer(integer_schema) => {
@@ -158,6 +184,9 @@ pub fn dump_schema(schema: &Schema) -> Value {
         Schema::Object(object_schema) => {
             data = dump_property_schema(object_schema);
             data["type"] = "object".into();
+            if let Some(default_key) = object_schema.default_key {
+                data["default_key"] = default_key.into();
+            }
         }
         Schema::Array(array_schema) => {
             data = json!({
