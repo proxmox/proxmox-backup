@@ -128,7 +128,8 @@ pub fn dump_schema(schema: &Schema) -> Value {
             match string_schema.format {
                 None | Some(ApiStringFormat::VerifyFn(_)) => { /* do nothing */ }
                 Some(ApiStringFormat::Pattern(const_regex)) => {
-                    data["pattern"] = const_regex.regex_string.into();
+                    data["pattern"] = format!("/{}/", const_regex.regex_string)
+                        .into();
                 }
                 Some(ApiStringFormat::Enum(variants)) => {
                     let variants: Vec<String> = variants
