@@ -32,7 +32,7 @@ Ext.onReady(function() {
 	}),
         proxy: {
             type: 'memory',
-            data: pveapi
+            data: pbsapi
         },
         sorters: [{
             property: 'leaf',
@@ -127,7 +127,8 @@ Ext.onReady(function() {
 		var usage = "";
 
 		usage += "<table><tr><td>HTTP:&nbsp;&nbsp;&nbsp;</td><td>" + method + " /api2/json" + data.path + "</td></tr><tr><td>&nbsp</td></tr>";
-		usage += "<tr><td>CLI:</td><td>pvesh " + clicmdhash[method] + " " + data.path + "</td></tr></table>";
+
+		//usage += "<tr><td>CLI:</td><td>pvesh " + clicmdhash[method] + " " + data.path + "</td></tr></table>";
 
 		var sections = [
 		    {
