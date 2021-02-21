@@ -3,7 +3,11 @@ use serde_json::{json, Value};
 
 use proxmox::{
     api::{
-        schema::ObjectSchemaType,
+        schema::{
+            Schema,
+            ObjectSchemaType,
+            SchemaPropertyEntry,
+        },
         format::{
             dump_enum_properties,
             dump_section_config,
@@ -83,6 +87,124 @@ fn generate_api_tree() -> String {
     format!("var pbsapi = {};", serde_json::to_string_pretty(&tree).unwrap())
 }
 
+pub fn dump_schema(schema: &Schema) -> Value {
+
+    let mut data;
+
+    match schema {
+        Schema::Null => {
+            data = json!({
+                "type": "null",
+            });
+        }
+        Schema::Boolean(boolean_schema) => {
+            data = json!({
+                "type": "boolean",
+                "description": boolean_schema.description,
+            });
+            if let Some(default) = boolean_schema.default {
+                data["default"] = default.into();
+            }
+        }
+        Schema::String(string_schema) => {
+            data = json!({
+                "type": "string",
+                "description": string_schema.description,
+            });
+            if let Some(default) = string_schema.default {
+                data["default"] = default.into();
+            }
+            if let Some(min_length) = string_schema.min_length {
+                data["minLength"] = min_length.into();
+            }
+            if let Some(max_length) = string_schema.max_length {
+                data["maxLength"] = max_length.into();
+            }
+            if let Some(type_text) = string_schema.type_text {
+                data["typetext"] = type_text.into();
+            }
+            // fixme: dump format
+        }
+        Schema::Integer(integer_schema) => {
+           data = json!({
+                "type": "integer",
+                "description": integer_schema.description,
+            });
+            if let Some(default) = integer_schema.default {
+                data["default"] = default.into();
+            }
+            if let Some(minimum) = integer_schema.minimum {
+                data["minimum"] = minimum.into();
+            }
+            if let Some(maximum) = integer_schema.maximum {
+                data["maximum"] = maximum.into();
+            }
+        }
+        Schema::Number(number_schema) => {
+            data = json!({
+                "type": "number",
+                "description": number_schema.description,
+            });
+            if let Some(default) = number_schema.default {
+                data["default"] = default.into();
+            }
+            if let Some(minimum) = number_schema.minimum {
+                data["minimum"] = minimum.into();
+            }
+             if let Some(maximum) = number_schema.maximum {
+                data["maximum"] = maximum.into();
+            }
+        }
+        Schema::Object(object_schema) => {
+            data = dump_property_schema(object_schema);
+            data["type"] = "object".into();
+        }
+        Schema::Array(array_schema) => {
+            data = json!({
+                "type": "array",
+                "description": array_schema.description,
+                "items": dump_schema(array_schema.items),
+            });
+            if let Some(min_length) = array_schema.min_length {
+                data["minLength"] = min_length.into();
+            }
+             if let Some(max_length) = array_schema.min_length {
+                data["maxLength"] = max_length.into();
+            }
+        }
+        Schema::AllOf(alloff_schema) => {
+            data = dump_property_schema(alloff_schema);
+            data["type"] = "object".into();
+        }
+    };
+
+    data
+}
+
+pub fn dump_property_schema<I>(
+    param: &dyn ObjectSchemaType<PropertyIter = I>,
+) -> Value
+    where I: Iterator<Item = &'static SchemaPropertyEntry>,
+{
+    let mut properties = json!({});
+
+    for (prop, optional, schema) in param.properties() {
+        let mut property = dump_schema(schema);
+        if *optional {
+            property["optional"] = 1.into();
+        }
+        properties[prop] = property;
+    }
+
+    let data = json!({
+        "description": param.description(),
+        "additionalProperties": param.additional_properties(),
+        "properties": properties,
+    });
+
+    data
+}
+
 fn dump_api_method_schema(
     method: &str,
     api_method: &ApiMethod,
@@ -91,9 +213,13 @@ fn dump_api_method_schema(
         "description": api_method.parameters.description(),
     });
 
-    //let param_descr = dump_properties(&api_method.parameters, "", style, &[]);
+    data["parameters"] = dump_property_schema(&api_method.parameters);
 
-    //let return_descr = dump_api_return_schema(&api_method.returns, style);
+    let mut returns = dump_schema(&api_method.returns.schema);
+    if api_method.returns.optional {
+        returns["optional"] = 1.into();
+    }
+    data["returns"] = returns;
 
     let mut method = method;
 
