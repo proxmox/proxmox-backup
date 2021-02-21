@@ -10,7 +10,6 @@ local.mak
 *.old[0-9][0-9]
 *.5
 *.7
-*.html
 __pycache__/
 /etc/proxmox-backup.service
 /etc/proxmox-backup-proxy.service
