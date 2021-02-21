@@ -169,6 +169,7 @@ html_theme_options = {
     'extra_nav_links': {
         'Proxmox Homepage': 'https://proxmox.com',
         'PDF': 'proxmox-backup.pdf',
+        'API Viewer' : 'api-viewer/index.html',
         'Prune Simulator' : 'prune-simulator/index.html',
         'LTO Barcode Generator' : 'lto-barcode/index.html',
     },

@@ -1,3 +1,4 @@
 /usr/share/doc/proxmox-backup/proxmox-backup.pdf /usr/share/doc/proxmox-backup/html/proxmox-backup.pdf
 /usr/share/javascript/extjs /usr/share/doc/proxmox-backup/html/prune-simulator/extjs
 /usr/share/javascript/extjs /usr/share/doc/proxmox-backup/html/lto-barcode/extjs
+/usr/share/javascript/extjs /usr/share/doc/proxmox-backup/html/api-viewer/extjs

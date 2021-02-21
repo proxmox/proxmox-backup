@@ -59,6 +59,10 @@ LTO_BARCODE_FILES :=						\
 	lto-barcode/label-setup.js				\
 	lto-barcode/lto-barcode.js
 
+API_VIEWER_SOURCES=				\
+	api-viewer/index.html			\
+	api-viewer/apidoc.js
+
 # Sphinx documentation setup
 SPHINXOPTS    =
 SPHINXBUILD   = sphinx-build
@@ -191,14 +195,22 @@ onlinehelpinfo:
 	$(SPHINXBUILD) -b proxmox-scanrefs $(ALLSPHINXOPTS) $(BUILDDIR)/scanrefs
 	@echo "Build finished. OnlineHelpInfo.js is in $(BUILDDIR)/scanrefs."
 
+api-viewer/apidata.js: ${COMPILEDIR}/docgen
+	${COMPILEDIR}/docgen apidata.js >$@
+
+api-viewer/apidoc.js: api-viewer/apidata.js api-viewer/PBSAPI.js
+	cat api-viewer/apidata.js api-viewer/PBSAPI.js >$@
+
 .PHONY: html
-html: ${GENERATED_SYNOPSIS} images/proxmox-logo.svg custom.css conf.py ${PRUNE_SIMULATOR_FILES} ${LTO_BARCODE_FILES}
+html: ${GENERATED_SYNOPSIS} images/proxmox-logo.svg custom.css conf.py ${PRUNE_SIMULATOR_FILES} ${LTO_BARCODE_FILES} ${API_VIEWER_SOURCES}
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
 	install -m 0644 custom.js custom.css images/proxmox-logo.svg $(BUILDDIR)/html/_static/
 	install -dm 0755 $(BUILDDIR)/html/prune-simulator
 	install -m 0644 ${PRUNE_SIMULATOR_FILES} $(BUILDDIR)/html/prune-simulator
 	install -dm 0755 $(BUILDDIR)/html/lto-barcode
 	install -m 0644 ${LTO_BARCODE_FILES} $(BUILDDIR)/html/lto-barcode
+	install -dm 0755 $(BUILDDIR)/html/api-viewer
+	install -m 0644 ${API_VIEWER_SOURCES} $(BUILDDIR)/html/api-viewer
 	@echo
 	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html."
 
@@ -217,7 +229,7 @@ epub3: ${GENERATED_SYNOPSIS}
 	@echo "Build finished. The epub3 file is in $(BUILDDIR)/epub3."
 
 clean:
-	rm -r -f *~ *.1 ${BUILDDIR} ${GENERATED_SYNOPSIS}
+	rm -r -f *~ *.1 ${BUILDDIR} ${GENERATED_SYNOPSIS} api-viewer/apidata.js
 
 
 install_manual_pages: ${MAN1_PAGES} ${MAN5_PAGES}
