@@ -60,15 +60,24 @@ fn main() -> Result<(), Error> {
 
 fn generate_api_tree() -> String {
 
-    //let api = api2::reader::READER_API_ROUTER;
-    let api = api2::ROUTER;
-
     let mut tree = Vec::new();
-    let mut data = dump_api_schema(&api, ".");
+
+    let mut data = dump_api_schema(& api2::ROUTER, ".");
     data["path"] = "/".into();
-    data["text"] = "/".into();
+    // hack: add invisible space to sort as first entry
+    data["text"] = "&#x200b;Management API (HTTP)".into();
     data["expanded"] = true.into();
 
+    tree.push(data);
+
+    let mut data = dump_api_schema(&api2::backup::BACKUP_API_ROUTER, ".");
+    data["path"] = "/".into();
+    data["text"] = "Backup API (HTTP/2)".into();
+    tree.push(data);
+
+    let mut data = dump_api_schema(&api2::reader::READER_API_ROUTER, ".");
+    data["path"] = "/".into();
+    data["text"] = "Restore API (HTTP/2)".into();
     tree.push(data);
 
     format!("var pbsapi = {};", serde_json::to_string_pretty(&tree).unwrap())
