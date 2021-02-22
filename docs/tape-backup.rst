@@ -6,7 +6,7 @@ onto magnetic tapes. This increases data safety because you get:
 
 - an additional copy of the data
 - to a different media type (tape)
-- to an additional location (you can move tapes offsite)
+- to an additional location (you can move tapes off-site)
 
 In most restore jobs, only data from the last backup job is restored.
 Restore requests further decline the older the data
@@ -17,8 +17,8 @@ years.
 
 Tape backups do not provide random access to the stored data. Instead,
 you need to restore the data to disk before you can access it
-again. Also, if you store your tapes offsite (using some kind of tape
-vaulting service), you need to bring them onsite before you can do any
+again. Also, if you store your tapes off-site (using some kind of tape
+vaulting service), you need to bring them on-site before you can do any
 restore. So please consider that restores from tapes can take much
 longer than restores from disk.
 
@@ -30,7 +30,7 @@ Tape Technology Primer
 
 As of 2021, the only broadly available tape technology standard is
 `Linear Tape Open`_, and different vendors offers LTO Ultrium tape
-drives, autoloaders and LTO tape cartridges.
+drives, auto-loaders and LTO tape cartridges.
 
 There are a few vendors offering proprietary drives with
 slight advantages in performance and capacity, but they have
@@ -51,14 +51,14 @@ In general, LTO tapes offer the following advantages:
 - Multiple vendors (for both media and drives)
 - Build in AES-CGM Encryption engine
 
-Please note that `Proxmox Backup Server` already stores compressed
-data, so we do not need/use the tape compression feature.
+Note that `Proxmox Backup Server` already stores compressed data, so using the
+tape compression feature has no advantage.
 
 
 Supported Hardware
 ------------------
 
-Proxmox Backup Server supports `Linear Tape Open`_ genertion 4 (LTO4)
+Proxmox Backup Server supports `Linear Tape Open`_ generation 4 (LTO4)
 or later. In general, all SCSI2 tape drives supported by the Linux
 kernel should work, but feature like hardware encryptions needs LTO4
 or later.
@@ -70,7 +70,7 @@ tool. So any changer device supported by that tool should work.
 Drive Performance
 ~~~~~~~~~~~~~~~~~
 
-Current LTO-8 tapes provide read/write speeds up to 360MB/s. This means,
+Current LTO-8 tapes provide read/write speeds up to 360 MB/s. This means,
 that it still takes a minimum of 9 hours to completely write or
 read a single tape (even at maximum speed).
 
@@ -89,7 +89,7 @@ datastore is able to deliver that performance (e.g, by using SSDs).
 Terminology
 -----------
 
-:Tape Labels: are used to uniquely indentify a tape. You normally use
+:Tape Labels: are used to uniquely identify a tape. You normally use
    some sticky paper labels and apply them on the front of the
    cartridge. We additionally store the label text magnetically on the
    tape (first file on tape).
@@ -102,7 +102,7 @@ Terminology
 
 :Barcodes: are a special form of tape labels, which are electronically
    readable. Most LTO tape robots use an 8 character string encoded as
-   `Code 39`_, as definded in the `LTO Ultrium Cartridge Label
+   `Code 39`_, as defined in the `LTO Ultrium Cartridge Label
    Specification`_.
 
    You can either buy such barcode labels from your cartridge vendor,
@@ -122,7 +122,7 @@ Terminology
 :Media Set: A group of continuously written tapes (all from the same
    media pool).
 
-:Tape drive: The decive used to read and write data to the tape. There
+:Tape drive: The device used to read and write data to the tape. There
    are standalone drives, but drives often ship within tape libraries.
 
 :Tape changer: A device which can change the tapes inside a tape drive
@@ -135,7 +135,7 @@ Terminology
    identify tape cartridges and an automated method for loading tapes
    (a robot).
 
-   People als call this 'autoloader', 'tape robot' or 'tape jukebox'.
+   This is also commonly known as 'autoloader', 'tape robot' or 'tape jukebox'.
 
 :Inventory: The inventory stores the list of known tapes (with
    additional status information).
@@ -231,7 +231,7 @@ To test your setup, please query the status of the changer device with::
  └───────────────┴──────────┴────────────┴─────────────┘
 
 Tape libraries usually provide some special import/export slots (also
-called "mail slots"). Tapes inside those slots are acessible from
+called "mail slots"). Tapes inside those slots are accessible from
 outside, making it easy to add/remove tapes to/from the library. Those
 tapes are considered to be "offline", so backup jobs will not use
 them. Those special slots are auto-detected and marked as
@@ -303,7 +303,7 @@ changer device::
 
 The ``--changer-drivenum`` is only necessary if the tape library
 includes more than one drive (The changer status command lists all
-drivenums).
+drive numbers).
 
 You can show the final configuration with::
 
@@ -392,7 +392,7 @@ one media pool, so a job only uses tapes from that pool.
      ``--export`` option.
 
      .. NOTE:: Retention period starts with the existence of a newer
-	media set.
+        media set.
 
    - Always create a new media set.
 
@@ -417,7 +417,7 @@ one media pool, so a job only uses tapes from that pool.
      For example, the value ``weekly`` (or ``Mon *-*-* 00:00:00``)
      will create a new set each week.
 
-     This balances between space efficency and media count.
+     This balances between space efficiency and media count.
 
      .. NOTE:: Retention period starts when the calendar event
         triggers.
@@ -540,7 +540,7 @@ drive and run::
 You may omit the ``--pool`` argument to allow the tape to be used by any pool.
 
 .. Note:: For safety reasons, this command fails if the tape contain
-   any data. If you want to overwrite it anways, erase the tape first.
+   any data. If you want to overwrite it anyway, erase the tape first.
 
 You can verify success by reading back the label::
 
@@ -587,7 +587,7 @@ The following options are available:
 
 --export-media-set  Export media set upon job completion.
 
-  After a sucessful backup job, this moves all tapes from the used
+  After a successful backup job, this moves all tapes from the used
   media set into import-export slots. The operator can then pick up
   those tapes and move them to a media vault.
 
@@ -686,7 +686,7 @@ into the drive. Then run::
  Tepe Encryption Key Password: ***********
 
 If the password is correct, the key will get imported to the
-database. Further restore jobs automatically use any availbale key.
+database. Further restore jobs automatically use any available key.
 
 
 Tape Cleaning
@@ -752,7 +752,7 @@ Options
 
 
 ``tape.cfg``
-~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~
 
 File Format
 ^^^^^^^^^^^
@@ -767,7 +767,7 @@ Options
 
 
 ``tape-job.cfg``
-~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~
 
 File Format
 ^^^^^^^^^^^
@@ -792,7 +792,7 @@ Command Syntax
 
 
 ``pmt``
---------
+-------
 
 .. include:: pmt/options.rst
 
