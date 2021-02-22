@@ -40,11 +40,11 @@ pub const SLOT_ARRAY_SCHEMA: Schema = ArraySchema::new(
         .schema())
     .schema();
 
-pub const EXPORT_SLOT_LIST_SCHEMA: Schema = StringSchema::new(r###"\
+pub const EXPORT_SLOT_LIST_SCHEMA: Schema = StringSchema::new("\
 A list of slot numbers, comma separated. Those slots are reserved for
 Import/Export, i.e. any media in those slots are considered to be
 'offline'.
-"###)
+")
 .format(&ApiStringFormat::PropertyString(&SLOT_ARRAY_SCHEMA))
 .schema();
 
