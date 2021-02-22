@@ -14,7 +14,7 @@ use crate::{
     api2::types::{
         PROXMOX_CONFIG_DIGEST_SCHEMA,
         CHANGER_NAME_SCHEMA,
-        LINUX_DRIVE_PATH_SCHEMA,
+        SCSI_CHANGER_PATH_SCHEMA,
         SLOT_ARRAY_SCHEMA,
         EXPORT_SLOT_LIST_SCHEMA,
         ScsiTapeChanger,
@@ -34,7 +34,7 @@ use crate::{
                 schema: CHANGER_NAME_SCHEMA,
             },
             path: {
-                schema: LINUX_DRIVE_PATH_SCHEMA,
+                schema: SCSI_CHANGER_PATH_SCHEMA,
             },
             "export-slots": {
                 schema: EXPORT_SLOT_LIST_SCHEMA,
@@ -156,7 +156,7 @@ pub enum DeletableProperty {
                 schema: CHANGER_NAME_SCHEMA,
             },
             path: {
-                schema: LINUX_DRIVE_PATH_SCHEMA,
+                schema: SCSI_CHANGER_PATH_SCHEMA,
                 optional: true,
             },
             "export-slots": {
