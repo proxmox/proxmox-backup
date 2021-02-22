@@ -1,3 +1,16 @@
+Ext.define('pbs-slot-model', {
+    extend: 'Ext.data.Model',
+    fields: ['entry-id', 'label-text', 'is-labeled', ' model', 'name', 'vendor', 'serial', 'state',
+	{
+	    name: 'is-blocked',
+	    calculate: function(data) {
+		return data.state !== undefined;
+	    },
+	},
+    ],
+    idProperty: 'entry-id',
+});
+
 Ext.define('PBS.TapeManagement.ChangerStatus', {
     extend: 'Ext.panel.Panel',
     alias: 'widget.pbsChangerStatus',
@@ -500,10 +513,18 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 		    data[type].push(entry);
 		}
 
+		// the stores are diffstores and are only refreshed
+		// on a 'load' event, which does not trigger on 'setData'
+		// so we have to fire them ourselves
 
-		me.lookup('slots').getStore().setData(data.slot);
-		me.lookup('import_export').getStore().setData(data['import-export']);
-		me.lookup('drives').getStore().setData(data.drive);
+		me.lookup('slots').getStore().rstore.setData(data.slot);
+		me.lookup('slots').getStore().rstore.fireEvent('load', me, [], true);
+
+		me.lookup('import_export').getStore().rstore.setData(data['import-export']);
+		me.lookup('import_export').getStore().rstore.fireEvent('load', me, [], true);
+
+		me.lookup('drives').getStore().rstore.setData(data.drive);
+		me.lookup('drives').getStore().rstore.fireEvent('load', me, [], true);
 
 		if (!use_cache) {
 		    Proxmox.Utils.setErrorMask(view);
@@ -638,6 +659,11 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 		    padding: 5,
 		    flex: 1,
 		    store: {
+			type: 'diff',
+			rstore: {
+			    type: 'store',
+			    model: 'pbs-slot-model',
+			},
 			data: [],
 		    },
 		    columns: [
@@ -697,7 +723,11 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 			    reference: 'drives',
 			    title: gettext('Drives'),
 			    store: {
-				fields: ['entry-id', 'label-text', 'model', 'name', 'vendor', 'serial'],
+				type: 'diff',
+				rstore: {
+				    type: 'store',
+				    model: 'pbs-slot-model',
+				},
 				data: [],
 			    },
 			    columns: [
@@ -803,6 +833,11 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 			    xtype: 'grid',
 			    reference: 'import_export',
 			    store: {
+				type: 'diff',
+				rstore: {
+				    type: 'store',
+				    model: 'pbs-slot-model',
+				},
 				data: [],
 			    },
 			    title: gettext('Import-Export Slots'),
