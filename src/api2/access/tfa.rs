@@ -240,7 +240,7 @@ fn get_tfa_entry(userid: Userid, id: String) -> Result<TypedTfaInfo, Error> {
         ]),
     },
 )]
-/// Get a single TFA entry.
+/// Delete a single TFA entry.
 fn delete_tfa(
     userid: Userid,
     id: String,
