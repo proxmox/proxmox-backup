@@ -395,12 +395,31 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	    }).show();
 	},
 
+	scheduleReload: function(time) {
+	    let me = this;
+	    if (me.reloadTimeout === undefined) {
+		me.reloadTimeout = setTimeout(function() {
+		    me.reload();
+		}, time);
+	    }
+	},
+
 	reload: function() {
-	    this.reload_full(true);
+	    let me = this;
+	    if (me.reloadTimeout !== undefined) {
+		clearTimeout(me.reloadTimeout);
+		me.reloadTimeout = undefined;
+	    }
+	    me.reload_full(true);
 	},
 
 	reload_no_cache: function() {
-	    this.reload_full(false);
+	    let me = this;
+	    if (me.reloadTimeout !== undefined) {
+		clearTimeout(me.reloadTimeout);
+		me.reloadTimeout = undefined;
+	    }
+	    me.reload_full(false);
 	},
 
 	reload_full: async function(use_cache) {
@@ -496,6 +515,8 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 		}
 		Proxmox.Utils.setErrorMask(me.lookup('content'), err.toString());
 	    }
+
+	    me.scheduleReload(5000);
 	},
 
 	renderIsLabeled: function(value, mD, record) {
