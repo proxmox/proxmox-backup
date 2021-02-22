@@ -9,6 +9,9 @@ use proxmox::{
             SchemaPropertyEntry,
             ApiStringFormat,
         },
+        router::{
+             ApiAccess,
+        },
         format::{
             dump_enum_properties,
             dump_section_config,
@@ -18,12 +21,16 @@ use proxmox::{
         ApiHandler,
         Router,
         SubRoute,
+        Permission,
     },
 };
 
 use proxmox_backup::{
     api2,
-    config,
+    config::{
+        self,
+        acl::PRIVILEGES,
+    },
 };
 
 fn get_args() -> (String, Vec<String>) {
@@ -235,6 +242,51 @@ pub fn dump_property_schema<I>(
     data
 }
 
+fn dump_api_permission(permission: &Permission) -> Value {
+
+    match permission {
+        Permission::Superuser => json!({ "user": "root@pam" }),
+        Permission::User(user) => json!({ "user": user }),
+        Permission::Anybody => json!({ "user": "all" }),
+        Permission::World => json!({ "user": "world" }),
+        Permission::UserParam(param) => json!({ "userParam": param }),
+        Permission::Group(group) => json!({ "group": group }),
+        Permission::WithParam(param, sub_permission) => {
+            json!({
+                "withParam": {
+                    "name": param,
+                    "permissions": dump_api_permission(sub_permission),
+                },
+            })
+        }
+        Permission::Privilege(name, value, partial) => {
+
+            let mut privs = Vec::new();
+            for (name, v) in PRIVILEGES {
+                if (value & v) != 0 {
+                    privs.push(name.to_string());
+                }
+            }
+
+            json!({
+                "check": {
+                    "path": name,
+                    "privs": privs,
+                    "partial": partial,
+                }
+            })
+        }
+        Permission::And(list) => {
+            let list: Vec<Value> = list.iter().map(|p| dump_api_permission(p)).collect();
+            json!({ "and": list })
+        }
+        Permission::Or(list) => {
+            let list: Vec<Value> = list.iter().map(|p| dump_api_permission(p)).collect();
+            json!({ "or": list })
+        }
+    }
+}
+
 fn dump_api_method_schema(
     method: &str,
     api_method: &ApiMethod,
@@ -250,6 +302,19 @@ fn dump_api_method_schema(
         returns["optional"] = 1.into();
     }
     data["returns"] = returns;
+
+    match api_method.access {
+        ApiAccess { description: None, permission: Permission::Superuser } => {
+            // no need to output default
+        }
+        ApiAccess { description, permission } => {
+            let mut permissions = dump_api_permission(permission);
+            if let Some(description) = description {
+                permissions["description"] = description.into();
+            }
+            data["permissions"] = permissions;
+        }
+    }
 
     let mut method = method;
 

@@ -110,6 +110,45 @@ Ext.onReady(function() {
 	return path.replace(/^.*\/_upgrade_(\/)?/, "/");
     };
 
+    var permission_text = function(permission) {
+	let permhtml = "";
+
+	if (permission.user) {
+	    if (!permission.description) {
+		if (permission.user === 'world') {
+		    permhtml += "Accessible without any authentication.";
+		} else if (permission.user === 'all') {
+		    permhtml += "Accessible by all authenticated users.";
+		} else {
+		    permhtml += 'Onyl accessible by user "' +
+			permission.user + '"';
+		}
+	    }
+	} else if (permission.check) {
+	    permhtml += "<pre>Check: " +
+		Ext.htmlEncode(Ext.JSON.encode(permission.check))  + "</pre>";
+	} else if (permission.userParam) {
+	    permhtml += `<div>Check if user matches parameter '${permission.userParam}'`;
+	} else if (permission.or) {
+	    permhtml += "<div>Or<div style='padding-left: 10px;'>";
+	    Ext.Array.each(permission.or, function(sub_permission) {
+		permhtml += permission_text(sub_permission);
+	    })
+	    permhtml += "</div></div>";
+	} else if (permission.and) {
+	    permhtml += "<div>And<div style='padding-left: 10px;'>";
+	    Ext.Array.each(permission.and, function(sub_permission) {
+		permhtml += permission_text(sub_permission);
+	    })
+	    permhtml += "</div></div>";
+	} else {
+	    //console.log(permission);
+	    permhtml += "Unknown systax!";
+	}
+
+	return permhtml;
+    };
+
     var render_docu = function(data) {
 	var md = data.info;
 
@@ -339,28 +378,13 @@ Ext.onReady(function() {
 			permhtml += "<div style='white-space:pre-wrap;padding-bottom:10px;'>" +
 			    Ext.htmlEncode(info.permissions.description) + "</div>";
 		    }
+		    permhtml += permission_text(info.permissions);
+		}
 
-		    if (info.permissions.user) {
-			if (!info.permissions.description) {
-			    if (info.permissions.user === 'world') {
-				permhtml += "Accessible without any authentication.";
-			    } else if (info.permissions.user === 'all') {
-				permhtml += "Accessible by all authenticated users.";
-			    } else {
-				permhtml += 'Onyl accessible by user "' +
-				    info.permissions.user + '"';
-			    }
-			}
-		    } else if (info.permissions.check) {
-			permhtml += "<pre>Check: " +
-			    Ext.htmlEncode(Ext.JSON.encode(info.permissions.check))  + "</pre>";
-		    } else {
-			permhtml += "Unknown systax!";
-		    }
-		}
-		if (!info.allowtoken) {
-		    permhtml += "<br />This API endpoint is not available for API tokens."
-		}
+		// we do not have this information for PBS api
+		//if (!info.allowtoken) {
+		//    permhtml += "<br />This API endpoint is not available for API tokens."
+		//}
 
 		sections.push({
 		    title: 'Required permissions',
