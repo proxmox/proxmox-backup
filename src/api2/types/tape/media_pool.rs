@@ -34,7 +34,7 @@ pub const MEDIA_POOL_NAME_SCHEMA: Schema = StringSchema::new("Media pool name.")
     .schema();
 
 pub const MEDIA_SET_NAMING_TEMPLATE_SCHEMA: Schema = StringSchema::new(
-    "Media set naming template.")
+    "Media set naming template (may contain strftime() time format specifications).")
     .format(&SINGLE_LINE_COMMENT_FORMAT)
     .min_length(2)
     .max_length(64)
