@@ -106,6 +106,10 @@ Ext.onReady(function() {
 	return '';
     };
 
+    var real_path = function(path) {
+	return path.replace(/^.*\/_upgrade_(\/)?/, "/");
+    };
+
     var render_docu = function(data) {
 	var md = data.info;
 
@@ -126,9 +130,8 @@ Ext.onReady(function() {
 
 		var usage = "";
 
-		usage += "<table><tr><td>HTTP:&nbsp;&nbsp;&nbsp;</td><td>" + method + " /api2/json" + data.path + "</td></tr><tr><td>&nbsp</td></tr>";
-
-		//usage += "<tr><td>CLI:</td><td>pvesh " + clicmdhash[method] + " " + data.path + "</td></tr></table>";
+		usage += "<table><tr><td>HTTP:&nbsp;&nbsp;&nbsp;</td><td>"
+		    + method + " " + real_path("/api2/json" + data.path) + "</td></tr>";
 
 		var sections = [
 		    {
@@ -378,7 +381,7 @@ Ext.onReady(function() {
 	});
 
 	var ct = Ext.getCmp('docview');
-	ct.setTitle("Path: " + data.path);
+	ct.setTitle("Path: " +  real_path(data.path));
 	ct.removeAll(true);
 	ct.add(items);
 	ct.setActiveTab(0);

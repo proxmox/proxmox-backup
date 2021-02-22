@@ -76,13 +76,13 @@ fn generate_api_tree() -> String {
 
     tree.push(data);
 
-    let mut data = dump_api_schema(&api2::backup::BACKUP_API_ROUTER, ".");
-    data["path"] = "/".into();
+    let mut data = dump_api_schema(&api2::backup::BACKUP_API_ROUTER, "/backup/_upgrade_");
+    data["path"] = "/backup/_upgrade_".into();
     data["text"] = "Backup API (HTTP/2)".into();
     tree.push(data);
 
-    let mut data = dump_api_schema(&api2::reader::READER_API_ROUTER, ".");
-    data["path"] = "/".into();
+    let mut data = dump_api_schema(&api2::reader::READER_API_ROUTER, "/reader/_upgrade_");
+    data["path"] = "/reader/_upgrade_".into();
     data["text"] = "Restore API (HTTP/2)".into();
     tree.push(data);
 
