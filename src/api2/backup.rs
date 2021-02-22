@@ -268,7 +268,7 @@ async move {
     }.boxed()
 }
 
-pub const BACKUP_API_SUBDIRS: SubdirMap = &[
+const BACKUP_API_SUBDIRS: SubdirMap = &[
     (
         "blob", &Router::new()
             .upload(&API_METHOD_UPLOAD_BLOB)

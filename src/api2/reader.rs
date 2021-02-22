@@ -7,19 +7,61 @@ use hyper::http::request::Parts;
 use hyper::{Body, Response, Request, StatusCode};
 use serde_json::Value;
 
-use proxmox::{sortable, identity};
-use proxmox::api::{ApiResponseFuture, ApiHandler, ApiMethod, Router, RpcEnvironment, Permission};
-use proxmox::api::schema::*;
-use proxmox::http_err;
+use proxmox::{
+    http_err,
+    sortable,
+    identity,
+    list_subdirs_api_method,
+    api::{
+        ApiResponseFuture,
+        ApiHandler,
+        ApiMethod,
+        Router,
+        RpcEnvironment,
+        Permission,
+        router::SubdirMap,
+        schema::{
+            ObjectSchema,
+            BooleanSchema,
+        },
+    },
+};
 
-use crate::api2::types::*;
-use crate::backup::*;
-use crate::server::{WorkerTask, H2Service};
-use crate::tools;
-use crate::config::acl::{PRIV_DATASTORE_READ, PRIV_DATASTORE_BACKUP};
-use crate::config::cached_user_info::CachedUserInfo;
-use crate::api2::helpers;
-use crate::tools::fs::lock_dir_noblock_shared;
+use crate::{
+    api2::{
+        helpers,
+        types::{
+            DATASTORE_SCHEMA,
+            BACKUP_TYPE_SCHEMA,
+            BACKUP_TIME_SCHEMA,
+            BACKUP_ID_SCHEMA,
+            CHUNK_DIGEST_SCHEMA,
+            Authid,
+        },
+    },
+    backup::{
+        DataStore,
+        ArchiveType,
+        BackupDir,
+        IndexFile,
+        archive_type,
+    },
+    server::{
+        WorkerTask,
+        H2Service,
+    },
+    tools::{
+        self,
+        fs::lock_dir_noblock_shared,
+    },
+    config::{
+        acl::{
+            PRIV_DATASTORE_READ,
+            PRIV_DATASTORE_BACKUP,
+        },
+        cached_user_info::CachedUserInfo,
+    },
+};
 
 mod environment;
 use environment::*;
@@ -171,21 +213,24 @@ fn upgrade_to_backup_reader_protocol(
     }.boxed()
 }
 
+const READER_API_SUBDIRS: SubdirMap = &[
+    (
+        "chunk", &Router::new()
+            .download(&API_METHOD_DOWNLOAD_CHUNK)
+    ),
+    (
+        "download", &Router::new()
+            .download(&API_METHOD_DOWNLOAD_FILE)
+    ),
+    (
+        "speedtest", &Router::new()
+            .download(&API_METHOD_SPEEDTEST)
+    ),
+];
+
 pub const READER_API_ROUTER: Router = Router::new()
-    .subdirs(&[
-        (
-            "chunk", &Router::new()
-                .download(&API_METHOD_DOWNLOAD_CHUNK)
-        ),
-        (
-            "download", &Router::new()
-                .download(&API_METHOD_DOWNLOAD_FILE)
-        ),
-        (
-            "speedtest", &Router::new()
-                .download(&API_METHOD_SPEEDTEST)
-        ),
-    ]);
+    .get(&list_subdirs_api_method!(READER_API_SUBDIRS))
+    .subdirs(READER_API_SUBDIRS);
 
 #[sortable]
 pub const API_METHOD_DOWNLOAD_FILE: ApiMethod = ApiMethod::new(
@@ -216,7 +261,7 @@ fn download_file(
         path.push(&file_name);
 
         env.log(format!("download {:?}", path.clone()));
- 
+
         let index: Option<Box<dyn IndexFile + Send>> = match archive_type(&file_name)? {
             ArchiveType::FixedIndex => {
                 let index = env.datastore.open_fixed_reader(&path)?;
