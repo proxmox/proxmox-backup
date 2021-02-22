@@ -413,8 +413,10 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	    }
 
 	    try {
-		Proxmox.Utils.setErrorMask(view, true);
-		Proxmox.Utils.setErrorMask(me.lookup('content'));
+		if (!use_cache) {
+		    Proxmox.Utils.setErrorMask(view, true);
+		    Proxmox.Utils.setErrorMask(me.lookup('content'));
+		}
 		let status_fut = PBS.Async.api2({
 		    timeout: 5*60*1000,
 		    method: 'GET',
@@ -484,10 +486,15 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 		me.lookup('import_export').getStore().setData(data['import-export']);
 		me.lookup('drives').getStore().setData(data.drive);
 
-		Proxmox.Utils.setErrorMask(view);
+		if (!use_cache) {
+		    Proxmox.Utils.setErrorMask(view);
+		}
+		Proxmox.Utils.setErrorMask(me.lookup('content'));
 	    } catch (err) {
-		Proxmox.Utils.setErrorMask(view);
-		Proxmox.Utils.setErrorMask(me.lookup('content'), err);
+		if (!use_cache) {
+		    Proxmox.Utils.setErrorMask(view);
+		}
+		Proxmox.Utils.setErrorMask(me.lookup('content'), err.toString());
 	    }
 	},
 
