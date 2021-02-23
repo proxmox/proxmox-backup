@@ -1,4 +1,4 @@
-use anyhow::{bail, Error};
+use anyhow::{bail, format_err, Error};
 use serde_json::Value;
 use ::serde::{Deserialize, Serialize};
 
@@ -123,9 +123,6 @@ pub enum DeletableProperty {
     protected: true,
     input: {
         properties: {
-            id: {
-                schema: JOB_ID_SCHEMA,
-            },
             update: {
                 flatten: true,
                 type: TapeBackupJobConfigUpdater,
@@ -147,12 +144,13 @@ pub enum DeletableProperty {
 )]
 /// Update the tape backup job
 pub fn update_tape_backup_job(
-    id: String,
-    update: TapeBackupJobConfigUpdater,
+    mut update: TapeBackupJobConfigUpdater,
     delete: Option<Vec<String>>,
     digest: Option<String>,
 ) -> Result<(), Error> {
     let _lock = open_file_locked(TAPE_JOB_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
+
+    let id = update.id.take().ok_or_else(|| format_err!("no id given"))?;
 
     let (mut config, expected_digest) = config::tape_job::config()?;
 
