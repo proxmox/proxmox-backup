@@ -240,14 +240,8 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 
 	cleanDrive: function(view, rI, cI, button, el, record) {
 	    let me = this;
-	    let drive = record.data.name;
-	    me.driveCommand(drive, 'clean', function(response) {
-		Ext.create('Proxmox.window.TaskProgress', {
-		    upid: response.result.data,
-		    taskDone: function() {
-			me.reload();
-		    },
-		}).show();
+	    me.driveCommand(record.data.name, 'clean', function(response) {
+		me.reload();
 	    }, {}, 'PUT');
 	},
 
