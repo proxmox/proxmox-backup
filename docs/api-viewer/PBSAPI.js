@@ -370,28 +370,30 @@ Ext.onReady(function() {
 
 		}
 
-		var permhtml = '';
-		if (!info.permissions) {
-		    permhtml = "Root only.";
-		} else {
-		    if (info.permissions.description) {
-			permhtml += "<div style='white-space:pre-wrap;padding-bottom:10px;'>" +
-			    Ext.htmlEncode(info.permissions.description) + "</div>";
+		if (!data.path.match(/\/_upgrade_/)) {
+		    var permhtml = '';
+
+		    if (!info.permissions) {
+			permhtml = "Root only.";
+		    } else {
+			if (info.permissions.description) {
+			    permhtml += "<div style='white-space:pre-wrap;padding-bottom:10px;'>" +
+				Ext.htmlEncode(info.permissions.description) + "</div>";
+			}
+			permhtml += permission_text(info.permissions);
 		    }
-		    permhtml += permission_text(info.permissions);
+
+		    // we do not have this information for PBS api
+		    //if (!info.allowtoken) {
+		    //    permhtml += "<br />This API endpoint is not available for API tokens."
+		    //}
+
+		    sections.push({
+			title: 'Required permissions',
+			bodyPadding: 10,
+			html: permhtml
+		    });
 		}
-
-		// we do not have this information for PBS api
-		//if (!info.allowtoken) {
-		//    permhtml += "<br />This API endpoint is not available for API tokens."
-		//}
-
-		sections.push({
-		    title: 'Required permissions',
-		    bodyPadding: 10,
-		    html: permhtml
-		});
-
 
 		items.push({
 		    title: method,
