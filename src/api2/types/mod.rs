@@ -1333,7 +1333,7 @@ impl ArchiveEntry {
             text: String::from_utf8_lossy(filepath.split(|x| *x == b'/').last().unwrap())
                 .to_string(),
             entry_type: CatalogEntryType::from(entry_type).to_string(),
-            leaf: matches!(entry_type, DirEntryAttribute::Directory { .. }),
+            leaf: !matches!(entry_type, DirEntryAttribute::Directory { .. }),
             size: match entry_type {
                 DirEntryAttribute::File { size, .. } => Some(*size),
                 _ => None
