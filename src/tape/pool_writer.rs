@@ -7,6 +7,7 @@ use anyhow::{bail, Error};
 use proxmox::tools::Uuid;
 
 use crate::{
+    task_log,
     backup::{
         DataStore,
     },
@@ -203,11 +204,14 @@ impl PoolWriter {
             return Ok(media_uuid);
         }
 
+        task_log!(worker, "allocated new writable media '{}'", media.label_text());
+
         // remove read-only catalog (we store a writable version in status)
         self.media_set_catalog.remove_catalog(&media_uuid);
 
         if let Some(PoolWriterState {mut drive, catalog, .. }) = self.status.take() {
             self.media_set_catalog.append_catalog(catalog)?;
+            task_log!(worker, "eject current media");
             drive.eject_media()?;
         }
 

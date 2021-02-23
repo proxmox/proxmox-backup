@@ -363,6 +363,8 @@ pub fn request_and_load_media(
 
                     if drive_config.changer.is_some() {
 
+                        task_log!(worker, "loading media '{}' into drive '{}'", label_text, drive);
+
                         let mut changer = MtxMediaChanger::with_drive_config(&drive_config)?;
                         changer.load_media(&label_text)?;
 
