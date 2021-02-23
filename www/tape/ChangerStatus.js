@@ -249,6 +249,10 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	    let me = this;
 	    let drive = record.data.name;
 	    me.driveCommand(drive, 'volume-statistics', function(response) {
+		let list = [];
+		for (let [key, val] of Object.entries(response.result.data)) {
+		    list.push({ key: key, value: val });
+		}
 		Ext.create('Ext.window.Window', {
 		    title: gettext('Volume Statistics'),
 		    modal: true,
@@ -260,18 +264,13 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 			{
 			    xtype: 'grid',
 			    store: {
-				data: response.result.data,
+				data: list,
 			    },
 			    columns: [
 				{
-				    text: gettext('ID'),
-				    dataIndex: 'id',
-				    width: 60,
-				},
-				{
-				    text: gettext('Name'),
-				    dataIndex: 'name',
-				    flex: 2,
+				    text: gettext('Property'),
+				    dataIndex: 'key',
+				    flex: 1,
 				},
 				{
 				    text: gettext('Value'),
