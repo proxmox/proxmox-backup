@@ -134,7 +134,6 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 		submitText: gettext('OK'),
 		title: gettext('Load Media into Drive'),
 		url: `/api2/extjs/tape/drive`,
-		showProgress: true,
 		method: 'POST',
 		submitUrl: function(url, values) {
 		    let drive = values.drive;
@@ -168,21 +167,15 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	    let me = this;
 	    let drive = record.data.name;
 	    try {
-		let response = await PBS.Async.api2({
+		await PBS.Async.api2({
 		    method: 'POST',
 		    timeout: 5*60*1000,
 		    url: `/api2/extjs/tape/drive/${encodeURIComponent(drive)}/unload`,
 		});
-
-		Ext.create('Proxmox.window.TaskProgress', {
-		    autoShow: true,
-		    upid: response.result.data,
-		    taskDone: () => me.reload(),
-		});
 	    } catch (error) {
 		Ext.Msg.alert(gettext('Error'), error);
-		me.reload();
 	    }
+	    me.reload();
 	},
 
 	driveCommand: function(driveid, command, callback, params, method) {
