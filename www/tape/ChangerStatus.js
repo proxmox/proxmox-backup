@@ -289,18 +289,42 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	    let me = this;
 	    let drive = record.data.name;
 	    me.driveCommand(drive, 'read-label', function(response) {
-		let lines = [];
-		for (const [key, val] of Object.entries(response.result.data)) {
-		    lines.push(`${key}: ${val}`);
+		let list = [];
+		for (let [key, val] of Object.entries(response.result.data)) {
+		    if (key === 'ctime' || key === 'media-set-ctime') {
+			val = Proxmox.Utils.render_timestamp(val);
+		    }
+		    list.push({ key: key, value: val });
 		}
 
-		let txt = lines.join('<br>');
-
-		Ext.Msg.show({
+		Ext.create('Ext.window.Window', {
 		    title: gettext('Label Information'),
-		    message: txt,
-		    icon: undefined,
-		});
+		    modal: true,
+		    width: 600,
+		    height: 450,
+		    layout: 'fit',
+		    scrollable: true,
+		    items: [
+			{
+			    xtype: 'grid',
+			    store: {
+				data: list,
+			    },
+			    columns: [
+				{
+				    text: gettext('Property'),
+				    dataIndex: 'key',
+				    width: 120,
+				},
+				{
+				    text: gettext('Value'),
+				    dataIndex: 'value',
+				    flex: 1,
+				},
+			    ],
+			},
+		    ],
+		}).show();
 	    });
 	},
 
