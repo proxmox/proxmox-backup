@@ -1,6 +1,6 @@
 Ext.define('pbs-slot-model', {
     extend: 'Ext.data.Model',
-    fields: ['entry-id', 'label-text', 'is-labeled', ' model', 'name', 'vendor', 'serial', 'state',
+    fields: ['entry-id', 'label-text', 'is-labeled', ' model', 'name', 'vendor', 'serial', 'state', 'status', 'pool',
 	{
 	    name: 'is-blocked',
 	    calculate: function(data) {
