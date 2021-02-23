@@ -217,7 +217,7 @@ pub fn delete_tape_backup_job(
 
 const ITEM_ROUTER: Router = Router::new()
     .get(&API_METHOD_READ_TAPE_BACKUP_JOB)
-//.put(&API_METHOD_UPDATE_TAPE_BACKUP_JOB)
+    .put(&API_METHOD_UPDATE_TAPE_BACKUP_JOB)
     .delete(&API_METHOD_DELETE_TAPE_BACKUP_JOB);
 
 pub const ROUTER: Router = Router::new()
