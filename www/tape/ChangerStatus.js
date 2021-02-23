@@ -251,6 +251,15 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	    me.driveCommand(drive, 'volume-statistics', function(response) {
 		let list = [];
 		for (let [key, val] of Object.entries(response.result.data)) {
+		    if (key === 'total-native-capacity' ||
+			key === 'total-used-native-capacity' ||
+			key === 'lifetime-bytes-read' ||
+			key === 'lifetime-bytes-written' ||
+			key === 'last-mount-bytes-read' ||
+			key === 'last-mount-bytes-written')
+		    {
+			val = Proxmox.Utils.format_size(val);
+		    }
 		    list.push({ key: key, value: val });
 		}
 		Ext.create('Ext.window.Window', {
