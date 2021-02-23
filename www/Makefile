@@ -23,6 +23,7 @@ TAPE_UI_FILES=						\
 	tape/window/LabelMedia.js			\
 	tape/window/PoolEdit.js				\
 	tape/window/TapeBackup.js			\
+	tape/window/TapeBackupJob.js			\
 	tape/window/TapeRestore.js			\
 	tape/BackupOverview.js				\
 	tape/ChangerConfig.js				\

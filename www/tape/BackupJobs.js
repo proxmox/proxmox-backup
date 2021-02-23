@@ -34,6 +34,75 @@ Ext.define('PBS.config.TapeBackupJobView', {
     controller: {
 	xclass: 'Ext.app.ViewController',
 
+	addJob: function() {
+	    let me = this;
+	    Ext.create('PBS.TapeManagement.BackupJobEdit', {
+		autoShow: true,
+		listeners: {
+		    destroy: function() {
+			me.reload();
+		    },
+		},
+	    }).show();
+	},
+
+	editJob: function() {
+	    let me = this;
+	    let view = me.getView();
+	    let selection = view.getSelection();
+	    if (!selection || selection.length < 1) {
+		return;
+	    }
+
+	    Ext.create('PBS.TapeManagement.BackupJobEdit', {
+		id: selection[0].data.id,
+		autoShow: true,
+		listeners: {
+		    destroy: function() {
+			me.reload();
+		    },
+		},
+	    }).show();
+	},
+
+	openTaskLog: function() {
+	    let me = this;
+	    let view = me.getView();
+	    let selection = view.getSelection();
+	    if (selection.length < 1) return;
+
+	    let upid = selection[0].data['last-run-upid'];
+	    if (!upid) return;
+
+	    Ext.create('Proxmox.window.TaskViewer', {
+		upid,
+	    }).show();
+	},
+
+	runJob: function() {
+	    let me = this;
+	    let view = me.getView();
+	    let selection = view.getSelection();
+	    if (selection.length < 1) return;
+
+	    let id = selection[0].data.id;
+	    Proxmox.Utils.API2Request({
+		method: 'POST',
+		url: `/tape/backup/${id}`,
+		success: function(response, opt) {
+		    Ext.create('Proxmox.window.TaskViewer', {
+		        upid: response.result.data,
+		        taskDone: function(success) {
+			    me.reload();
+		        },
+		    }).show();
+		},
+		failure: function(response, opt) {
+		    Ext.Msg.alert(gettext('Error'), response.htmlStatus);
+		},
+	    });
+	},
+
 	startStore: function() { this.getView().getStore().rstore.startUpdate(); },
 
 	stopStore: function() { this.getView().getStore().rstore.stopUpdate(); },
@@ -48,7 +117,7 @@ Ext.define('PBS.config.TapeBackupJobView', {
     listeners: {
 	activate: 'startStore',
 	deactivate: 'stopStore',
-	//itemdblclick: 'editSyncJob',
+	itemdblclick: 'editJob',
     },
 
     store: {
@@ -67,6 +136,41 @@ Ext.define('PBS.config.TapeBackupJobView', {
     viewConfig: {
 	trackOver: false,
     },
+
+    tbar: [
+	{
+	    xtype: 'proxmoxButton',
+	    text: gettext('Add'),
+	    selModel: false,
+	    handler: 'addJob',
+	},
+	{
+	    xtype: 'proxmoxButton',
+	    text: gettext('Edit'),
+	    handler: 'editJob',
+	    disabled: true,
+	},
+	{
+	    xtype: 'proxmoxStdRemoveButton',
+	    baseurl: '/config/tape-backup-job/',
+	    confirmMsg: gettext('Remove entry?'),
+	    callback: 'reload',
+	},
+	'-',
+	{
+	    xtype: 'proxmoxButton',
+	    text: gettext('Show Log'),
+	    handler: 'openTaskLog',
+	    enableFn: (rec) => !!rec.data['last-run-upid'],
+	    disabled: true,
+	},
+	{
+	    xtype: 'proxmoxButton',
+	    text: gettext('Run now'),
+	    handler: 'runJob',
+	    disabled: true,
+	},
+    ],
 
     columns: [
 	{
