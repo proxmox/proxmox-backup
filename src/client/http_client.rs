@@ -30,8 +30,8 @@ use crate::tools::{
 };
 
 /// Timeout used for several HTTP operations that are expected to finish quickly but may block in
-/// certain error conditions.
-const HTTP_TIMEOUT: Duration = Duration::from_secs(20);
+/// certain error conditions. Keep it generous, to avoid false-positive under high load.
+const HTTP_TIMEOUT: Duration = Duration::from_secs(2 * 60);
 
 #[derive(Clone)]
 pub struct AuthInfo {
