@@ -218,11 +218,7 @@ pub fn dump_schema(schema: &Schema) -> Value {
     data
 }
 
-pub fn dump_property_schema<I>(
-    param: &dyn ObjectSchemaType<PropertyIter = I>,
-) -> Value
-    where I: Iterator<Item = &'static SchemaPropertyEntry>,
-{
+pub fn dump_property_schema(param: &dyn ObjectSchemaType) -> Value {
     let mut properties = json!({});
 
     for (prop, optional, schema) in param.properties() {
