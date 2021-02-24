@@ -53,6 +53,11 @@ lazy_static! {
             type: bool,
             optional: true,
         },
+        "latest-only": {
+            description: "Backup latest snapshots only.",
+            type: bool,
+            optional: true,
+        },
         comment: {
             optional: true,
             schema: SINGLE_LINE_COMMENT_SCHEMA,
@@ -76,6 +81,8 @@ pub struct TapeBackupJobConfig {
     eject_media: Option<bool>,
     #[serde(skip_serializing_if="Option::is_none")]
     export_media_set: Option<bool>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    latest_only: Option<bool>,
     #[serde(skip_serializing_if="Option::is_none")]
     pub comment: Option<String>,
     #[serde(skip_serializing_if="Option::is_none")]

@@ -4,6 +4,7 @@ Ext.define('pbs-tape-backup-job-status', {
 	'id', 'store', 'pool', 'drive', 'store', 'schedule', 'comment',
 	{ name: 'eject-media', type: 'boolean' },
 	{ name: 'export-media-set', type: 'boolean' },
+	{ name: 'latest-only', type: 'boolean' },
 	'next-run', 'last-run-upid', 'last-run-state', 'last-run-endtime',
 	{
 	    name: 'duration',
@@ -212,6 +213,12 @@ Ext.define('PBS.config.TapeBackupJobView', {
 	    dataIndex: 'export-media-set',
 	    renderer: Proxmox.Utils.format_boolean,
 	    width: 60,
+	    sortable: false,
+	},
+	{
+	    header: gettext('Latest Only'),
+	    dataIndex: 'latest-only',
+	    renderer: Proxmox.Utils.format_boolean,
 	    sortable: false,
 	},
 	{

@@ -117,6 +117,8 @@ pub enum DeletableProperty {
     EjectMedia,
     /// Delete the export-media-set property
     ExportMediaSet,
+    /// Delete the 'latest-only' property
+    LatestOnly,
 }
 
 #[api(

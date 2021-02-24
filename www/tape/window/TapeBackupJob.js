@@ -29,6 +29,14 @@ Ext.define('PBS.TapeManagement.BackupJobEdit', {
 
     items: {
 	xtype: 'inputpanel',
+	onGetValues: function(values) {
+	    let me = this;
+
+	    if (values['export-media-set'] && !me.up('pbsTapeBackupJobEdit').isCreate) {
+		Proxmox.Utils.assemble_field_data(values, { delete: 'eject-media' });
+	    }
+	    return values;
+	},
 	column1: [
 	    {
 		xtype: 'pmxDisplayEditField',
@@ -76,7 +84,7 @@ Ext.define('PBS.TapeManagement.BackupJobEdit', {
 		    deleteEmpty: '{!isCreate}',
 		},
 		listeners: {
-		    change1: function(cb, value) {
+		    change: function(cb, value) {
 			let me = this;
 			let eject = me.up('window').down('proxmoxcheckbox[name=eject-media]');
 			if (value) {
@@ -90,6 +98,14 @@ Ext.define('PBS.TapeManagement.BackupJobEdit', {
 		fieldLabel: gettext('Eject Media'),
 		xtype: 'proxmoxcheckbox',
 		name: 'eject-media',
+		cbind: {
+		    deleteEmpty: '{!isCreate}',
+		},
+	    },
+	    {
+		fieldLabel: gettext('Latest Only'),
+		xtype: 'proxmoxcheckbox',
+		name: 'latest-only',
 		cbind: {
 		    deleteEmpty: '{!isCreate}',
 		},
