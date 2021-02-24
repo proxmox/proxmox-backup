@@ -586,7 +586,7 @@ async fn schedule_tape_backup_jobs() {
                 Ok(job) => job,
                 Err(_) => continue, // could not get lock
             };
-            if let Err(err) = do_tape_backup_job(job, job_config, &auth_id, Some(event_str)) {
+            if let Err(err) = do_tape_backup_job(job, job_config.setup, &auth_id, Some(event_str)) {
                 eprintln!("unable to start tape bvackup job {} - {}", &job_id, err);
             }
         };

@@ -19,6 +19,7 @@ use crate::{
         self,
         tape_job::{
             TapeBackupJobConfig,
+            TapeBackupJobSetup,
             TapeBackupJobStatus,
         },
     },
@@ -36,9 +37,6 @@ use crate::{
     },
     api2::types::{
         Authid,
-        DATASTORE_SCHEMA,
-        MEDIA_POOL_NAME_SCHEMA,
-        DRIVE_NAME_SCHEMA,
         UPID_SCHEMA,
         JOB_ID_SCHEMA,
         MediaPoolConfig,
@@ -109,28 +107,28 @@ pub fn list_tape_backup_jobs(
 
 pub fn do_tape_backup_job(
     mut job: Job,
-    tape_job: TapeBackupJobConfig,
+    setup: TapeBackupJobSetup,
     auth_id: &Authid,
     schedule: Option<String>,
 ) -> Result<String, Error> {
 
     let job_id = format!("{}:{}:{}:{}",
-                         tape_job.store,
-                         tape_job.pool,
-                         tape_job.drive,
+                         setup.store,
+                         setup.pool,
+                         setup.drive,
                          job.jobname());
 
     let worker_type = job.jobtype().to_string();
 
-    let datastore = DataStore::lookup_datastore(&tape_job.store)?;
+    let datastore = DataStore::lookup_datastore(&setup.store)?;
 
     let (config, _digest) = config::media_pool::config()?;
-    let pool_config: MediaPoolConfig = config.lookup("pool", &tape_job.pool)?;
+    let pool_config: MediaPoolConfig = config.lookup("pool", &setup.pool)?;
 
     let (drive_config, _digest) = config::drive::config()?;
 
     // early check/lock before starting worker
-    let drive_lock = lock_tape_device(&drive_config, &tape_job.drive)?;
+    let drive_lock = lock_tape_device(&drive_config, &setup.drive)?;
 
     let upid_str = WorkerTask::new_thread(
         &worker_type,
@@ -140,7 +138,7 @@ pub fn do_tape_backup_job(
         move |worker| {
             let _drive_lock = drive_lock; // keep lock guard
 
-            set_tape_device_state(&tape_job.drive, &worker.upid().to_string())?;
+            set_tape_device_state(&setup.drive, &worker.upid().to_string())?;
             job.start(&worker.upid().to_string())?;
 
             task_log!(worker,"Starting tape backup job '{}'", job_id);
@@ -151,11 +149,8 @@ pub fn do_tape_backup_job(
             let job_result = backup_worker(
                 &worker,
                 datastore,
-                &tape_job.drive,
                 &pool_config,
-                tape_job.eject_media.unwrap_or(false),
-                tape_job.export_media_set.unwrap_or(false),
-                tape_job.latest_only.unwrap_or(false),
+                &setup,
             );
 
             let status = worker.create_state(&job_result);
@@ -168,10 +163,10 @@ pub fn do_tape_backup_job(
                 );
             }
 
-            if let Err(err) = set_tape_device_state(&tape_job.drive, "") {
+            if let Err(err) = set_tape_device_state(&setup.drive, "") {
                 eprintln!(
                     "could not unset drive state for {}: {}",
-                    tape_job.drive,
+                    setup.drive,
                     err
                 );
             }
@@ -204,7 +199,7 @@ pub fn run_tape_backup_job(
 
     let job = Job::new("tape-backup-job", &id)?;
 
-    let upid_str = do_tape_backup_job(job, backup_job, &auth_id, None)?;
+    let upid_str = do_tape_backup_job(job, backup_job.setup, &auth_id, None)?;
 
     Ok(upid_str)
 }
@@ -212,29 +207,9 @@ pub fn run_tape_backup_job(
 #[api(
     input: {
         properties: {
-            store: {
-                schema: DATASTORE_SCHEMA,
-            },
-            pool: {
-                schema: MEDIA_POOL_NAME_SCHEMA,
-            },
-            drive: {
-                schema: DRIVE_NAME_SCHEMA,
-            },
-            "eject-media": {
-                description: "Eject media upon job completion.",
-                type: bool,
-                optional: true,
-            },
-            "export-media-set": {
-                description: "Export media set upon job completion.",
-                type: bool,
-                optional: true,
-            },
-            "latest-only": {
-                description: "Backup latest snapshots only.",
-                type: bool,
-                optional: true,
+            setup: {
+                type: TapeBackupJobSetup,
+                flatten: true,
             },
         },
     },
@@ -244,34 +219,25 @@ pub fn run_tape_backup_job(
 )]
 /// Backup datastore to tape media pool
 pub fn backup(
-    store: String,
-    pool: String,
-    drive: String,
-    eject_media: Option<bool>,
-    export_media_set: Option<bool>,
-    latest_only: Option<bool>,
+    setup: TapeBackupJobSetup,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-    let datastore = DataStore::lookup_datastore(&store)?;
+    let datastore = DataStore::lookup_datastore(&setup.store)?;
 
     let (config, _digest) = config::media_pool::config()?;
-    let pool_config: MediaPoolConfig = config.lookup("pool", &pool)?;
+    let pool_config: MediaPoolConfig = config.lookup("pool", &setup.pool)?;
 
     let (drive_config, _digest) = config::drive::config()?;
 
     // early check/lock before starting worker
-    let drive_lock = lock_tape_device(&drive_config, &drive)?;
+    let drive_lock = lock_tape_device(&drive_config, &setup.drive)?;
 
     let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
-    let eject_media = eject_media.unwrap_or(false);
-    let export_media_set = export_media_set.unwrap_or(false);
-    let latest_only = latest_only.unwrap_or(false);
-
-    let job_id = format!("{}:{}:{}", store, pool, drive);
+    let job_id = format!("{}:{}:{}", setup.store, setup.pool, setup.drive);
 
     let upid_str = WorkerTask::new_thread(
         "tape-backup",
@@ -280,19 +246,16 @@ pub fn backup(
         to_stdout,
         move |worker| {
             let _drive_lock = drive_lock; // keep lock guard
-            set_tape_device_state(&drive, &worker.upid().to_string())?;
+            set_tape_device_state(&setup.drive, &worker.upid().to_string())?;
             backup_worker(
                 &worker,
                 datastore,
-                &drive,
                 &pool_config,
-                eject_media,
-                export_media_set,
-                latest_only,
+                &setup,
             )?;
 
             // ignore errors
-            let _ = set_tape_device_state(&drive, "");
+            let _ = set_tape_device_state(&setup.drive, "");
             Ok(())
         }
     )?;
@@ -303,11 +266,8 @@ pub fn backup(
 fn backup_worker(
     worker: &WorkerTask,
     datastore: Arc<DataStore>,
-    drive: &str,
     pool_config: &MediaPoolConfig,
-    eject_media: bool,
-    export_media_set: bool,
-    latest_only: bool,
+    setup: &TapeBackupJobSetup,
 ) -> Result<(), Error> {
 
     let status_path = Path::new(TAPE_STATUS_DIR);
@@ -315,20 +275,22 @@ fn backup_worker(
     let _lock = MediaPool::lock(status_path, &pool_config.name)?;
 
     task_log!(worker, "update media online status");
-    let changer_name = update_media_online_status(drive)?;
+    let changer_name = update_media_online_status(&setup.drive)?;
 
     let pool = MediaPool::with_config(status_path, &pool_config, changer_name)?;
 
-    let mut pool_writer = PoolWriter::new(pool, drive)?;
+    let mut pool_writer = PoolWriter::new(pool, &setup.drive)?;
 
     let mut group_list = BackupInfo::list_backup_groups(&datastore.base_path())?;
 
     group_list.sort_unstable();
 
+    let latest_only = setup.latest_only.unwrap_or(false);
+
     if latest_only {
         task_log!(worker, "latest-only: true (only considering latest snapshots)");
     }
-    
+
     for group in group_list {
         let mut snapshot_list = group.list_backups(&datastore.base_path())?;
 
@@ -355,9 +317,9 @@ fn backup_worker(
 
     pool_writer.commit()?;
 
-    if export_media_set {
+    if setup.export_media_set.unwrap_or(false) {
         pool_writer.export_media_set(worker)?;
-    } else if eject_media {
+    } else if setup.eject_media.unwrap_or(false) {
         pool_writer.eject_media(worker)?;
     }
 

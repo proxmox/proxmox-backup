@@ -6,7 +6,6 @@ use proxmox::{
         schema::{
             Schema,
             ObjectSchemaType,
-            SchemaPropertyEntry,
             ApiStringFormat,
         },
         router::{

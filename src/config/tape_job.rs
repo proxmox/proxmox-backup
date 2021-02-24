@@ -31,9 +31,6 @@ lazy_static! {
 
 #[api(
     properties: {
-        id: {
-            schema: JOB_ID_SCHEMA,
-        },
         store: {
            schema: DATASTORE_SCHEMA,
         },
@@ -58,6 +55,31 @@ lazy_static! {
             type: bool,
             optional: true,
         },
+    }
+)]
+#[serde(rename_all="kebab-case")]
+#[derive(Updater,Serialize,Deserialize,Clone)]
+/// Tape Backup Job Setup
+pub struct TapeBackupJobSetup {
+    pub store: String,
+    pub pool: String,
+    pub drive: String,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub eject_media: Option<bool>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub export_media_set: Option<bool>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub latest_only: Option<bool>,
+}
+
+#[api(
+    properties: {
+        id: {
+            schema: JOB_ID_SCHEMA,
+        },
+        setup: {
+            type: TapeBackupJobSetup,
+        },
         comment: {
             optional: true,
             schema: SINGLE_LINE_COMMENT_SCHEMA,
@@ -74,15 +96,8 @@ lazy_static! {
 pub struct TapeBackupJobConfig {
     #[updater(fixed)]
     pub id: String,
-    pub store: String,
-    pub pool: String,
-    pub drive: String,
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub eject_media: Option<bool>,
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub export_media_set: Option<bool>,
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub latest_only: Option<bool>,
+    #[serde(flatten)]
+    pub setup: TapeBackupJobSetup,
     #[serde(skip_serializing_if="Option::is_none")]
     pub comment: Option<String>,
     #[serde(skip_serializing_if="Option::is_none")]
@@ -111,7 +126,7 @@ pub struct TapeBackupJobStatus {
 
 fn init() -> SectionConfig {
     let obj_schema = match TapeBackupJobConfig::API_SCHEMA {
-        Schema::Object(ref obj_schema) => obj_schema,
+        Schema::AllOf(ref allof_schema) => allof_schema,
         _ => unreachable!(),
     };
 
