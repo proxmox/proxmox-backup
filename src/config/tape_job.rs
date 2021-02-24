@@ -78,11 +78,11 @@ pub struct TapeBackupJobConfig {
     pub pool: String,
     pub drive: String,
     #[serde(skip_serializing_if="Option::is_none")]
-    eject_media: Option<bool>,
+    pub eject_media: Option<bool>,
     #[serde(skip_serializing_if="Option::is_none")]
-    export_media_set: Option<bool>,
+    pub export_media_set: Option<bool>,
     #[serde(skip_serializing_if="Option::is_none")]
-    latest_only: Option<bool>,
+    pub latest_only: Option<bool>,
     #[serde(skip_serializing_if="Option::is_none")]
     pub comment: Option<String>,
     #[serde(skip_serializing_if="Option::is_none")]

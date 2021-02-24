@@ -143,9 +143,6 @@ pub fn do_tape_backup_job(
             set_tape_device_state(&tape_job.drive, &worker.upid().to_string())?;
             job.start(&worker.upid().to_string())?;
 
-            let eject_media = false;
-            let export_media_set = false;
-
             task_log!(worker,"Starting tape backup job '{}'", job_id);
             if let Some(event_str) = schedule {
                 task_log!(worker,"task triggered by schedule '{}'", event_str);
@@ -156,8 +153,9 @@ pub fn do_tape_backup_job(
                 datastore,
                 &tape_job.drive,
                 &pool_config,
-                eject_media,
-                export_media_set,
+                tape_job.eject_media.unwrap_or(false),
+                tape_job.export_media_set.unwrap_or(false),
+                tape_job.latest_only.unwrap_or(false),
             );
 
             let status = worker.create_state(&job_result);
@@ -212,7 +210,7 @@ pub fn run_tape_backup_job(
 }
 
 #[api(
-   input: {
+    input: {
         properties: {
             store: {
                 schema: DATASTORE_SCHEMA,
@@ -233,6 +231,11 @@ pub fn run_tape_backup_job(
                 type: bool,
                 optional: true,
             },
+            "latest-only": {
+                description: "Backup latest snapshots only.",
+                type: bool,
+                optional: true,
+            },
         },
     },
     returns: {
@@ -246,6 +249,7 @@ pub fn backup(
     drive: String,
     eject_media: Option<bool>,
     export_media_set: Option<bool>,
+    latest_only: Option<bool>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
@@ -265,6 +269,7 @@ pub fn backup(
 
     let eject_media = eject_media.unwrap_or(false);
     let export_media_set = export_media_set.unwrap_or(false);
+    let latest_only = latest_only.unwrap_or(false);
 
     let job_id = format!("{}:{}:{}", store, pool, drive);
 
@@ -276,7 +281,16 @@ pub fn backup(
         move |worker| {
             let _drive_lock = drive_lock; // keep lock guard
             set_tape_device_state(&drive, &worker.upid().to_string())?;
-            backup_worker(&worker, datastore, &drive, &pool_config, eject_media, export_media_set)?;
+            backup_worker(
+                &worker,
+                datastore,
+                &drive,
+                &pool_config,
+                eject_media,
+                export_media_set,
+                latest_only,
+            )?;
+
             // ignore errors
             let _ = set_tape_device_state(&drive, "");
             Ok(())
@@ -293,6 +307,7 @@ fn backup_worker(
     pool_config: &MediaPoolConfig,
     eject_media: bool,
     export_media_set: bool,
+    latest_only: bool,
 ) -> Result<(), Error> {
 
     let status_path = Path::new(TAPE_STATUS_DIR);
@@ -310,16 +325,31 @@ fn backup_worker(
 
     group_list.sort_unstable();
 
+    if latest_only {
+        task_log!(worker, "latest-only: true (only considering latest snapshots)");
+    }
+    
     for group in group_list {
         let mut snapshot_list = group.list_backups(&datastore.base_path())?;
+
         BackupInfo::sort_list(&mut snapshot_list, true); // oldest first
 
-        for info in snapshot_list {
-            if pool_writer.contains_snapshot(&info.backup_dir.to_string()) {
-                continue;
+        if latest_only {
+            if let Some(info) = snapshot_list.pop() {
+                if pool_writer.contains_snapshot(&info.backup_dir.to_string()) {
+                    continue;
+                }
+                task_log!(worker, "backup snapshot {}", info.backup_dir);
+                backup_snapshot(worker, &mut pool_writer, datastore.clone(), info.backup_dir)?;
             }
-            task_log!(worker, "backup snapshot {}", info.backup_dir);
-            backup_snapshot(worker, &mut pool_writer, datastore.clone(), info.backup_dir)?;
+        } else {
+            for info in snapshot_list {
+                if pool_writer.contains_snapshot(&info.backup_dir.to_string()) {
+                    continue;
+                }
+                task_log!(worker, "backup snapshot {}", info.backup_dir);
+                backup_snapshot(worker, &mut pool_writer, datastore.clone(), info.backup_dir)?;
+            }
         }
     }
 
