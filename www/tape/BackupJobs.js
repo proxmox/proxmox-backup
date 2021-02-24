@@ -201,6 +201,20 @@ Ext.define('PBS.config.TapeBackupJobView', {
 	    sortable: true,
 	},
 	{
+	    header: gettext('Eject'),
+	    dataIndex: 'eject-media',
+	    renderer: Proxmox.Utils.format_boolean,
+	    width: 60,
+	    sortable: false,
+	},
+	{
+	    header: gettext('Export'),
+	    dataIndex: 'export-media-set',
+	    renderer: Proxmox.Utils.format_boolean,
+	    width: 60,
+	    sortable: false,
+	},
+	{
 	    header: gettext('Schedule'),
 	    dataIndex: 'schedule',
 	    maxWidth: 220,

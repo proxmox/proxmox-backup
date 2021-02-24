@@ -29,15 +29,17 @@ Ext.define('PBS.TapeManagement.BackupJobEdit', {
 
     items: {
 	xtype: 'inputpanel',
-	onGetValues: function(values) {
-	    let me = this;
-
-	    if (!values.id && me.up('pbsTapeBackupJobEdit').isCreate) {
-		values.id = 's-' + Ext.data.identifier.Uuid.Global.generate().slice(0, 13);
-	    }
-	    return values;
-	},
 	column1: [
+	    {
+		xtype: 'pmxDisplayEditField',
+		name: 'id',
+		fieldLabel: gettext('Job ID'),
+		renderer: Ext.htmlEncode,
+		allowBlank: false,
+		cbind: {
+		    editable: '{isCreate}',
+		},
+	    },
 	    {
 		xtype: 'pbsDataStoreSelector',
 		fieldLabel: gettext('Local Datastore'),
@@ -64,6 +66,32 @@ Ext.define('PBS.TapeManagement.BackupJobEdit', {
 		cbind: {
 		    deleteEmpty: '{!isCreate}',
 		    value: '{scheduleValue}',
+		},
+	    },
+	    {
+		fieldLabel: gettext('Export Media Set'),
+		xtype: 'proxmoxcheckbox',
+		name: 'export-media-set',
+		cbind: {
+		    deleteEmpty: '{!isCreate}',
+		},
+		listeners: {
+		    change1: function(cb, value) {
+			let me = this;
+			let eject = me.up('window').down('proxmoxcheckbox[name=eject-media]');
+			if (value) {
+			    eject.setValue(false);
+			}
+			eject.setDisabled(!!value);
+		    },
+		},
+	    },
+	    {
+		fieldLabel: gettext('Eject Media'),
+		xtype: 'proxmoxcheckbox',
+		name: 'eject-media',
+		cbind: {
+		    deleteEmpty: '{!isCreate}',
 		},
 	    },
 	],
