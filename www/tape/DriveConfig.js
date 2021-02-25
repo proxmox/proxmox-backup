@@ -185,7 +185,7 @@ Ext.define('PBS.TapeManagement.DrivePanel', {
 	    });
 	},
 
-	labelMedia: function(view, rI, cI, button, el, record) {
+	labelMedia: function(button, event, record) {
 	    let me = this;
 	    let driveid = record.data.name;
 
@@ -246,6 +246,14 @@ Ext.define('PBS.TapeManagement.DrivePanel', {
 	    xtype: 'proxmoxStdRemoveButton',
 	    baseurl: '/api2/extjs/config/drive',
 	    callback: 'reload',
+	},
+	'-',
+	{
+	    text: gettext('Label Media'),
+	    xtype: 'proxmoxButton',
+	    handler: 'labelMedia',
+	    iconCls: 'fa fa-barcode',
+	    disabled: true,
 	},
     ],
     columns: [
@@ -323,11 +331,6 @@ Ext.define('PBS.TapeManagement.DrivePanel', {
 		    iconCls: 'fa fa-info-circle',
 		    handler: 'status',
 		    tooltip: gettext('Status'),
-		},
-		{
-		    iconCls: 'fa fa-pencil-square-o',
-		    handler: 'labelMedia',
-		    tooltip: gettext('Label Media'),
 		},
 	    ],
 	},
