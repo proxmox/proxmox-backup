@@ -47,7 +47,7 @@ Ext.define('PBS.TapeManagement.DrivePanel', {
 	    });
 	},
 
-	catalog: function(view, rI, cI, button, el, record) {
+	catalog: function(button, event, record) {
 	    let me = this;
 	    let drive = record.data.name;
 	    PBS.Utils.driveCommand(drive, 'catalog', {
@@ -179,6 +179,13 @@ Ext.define('PBS.TapeManagement.DrivePanel', {
 	    handler: 'ejectMedia',
 	    disabled: true,
 	},
+	{
+	    text: gettext('Catalog'),
+	    xtype: 'proxmoxButton',
+	    handler: 'catalog',
+	    iconCls: 'fa fa-book',
+	    disabled: true,
+	},
     ],
     columns: [
 	{
@@ -245,11 +252,6 @@ Ext.define('PBS.TapeManagement.DrivePanel', {
 		    iconCls: 'fa fa-tag',
 		    handler: 'readLabel',
 		    tooltip: gettext('Read Label'),
-		},
-		{
-		    iconCls: 'fa fa-book',
-		    handler: 'catalog',
-		    tooltip: gettext('Catalog'),
 		},
 		{
 		    iconCls: 'fa fa-info-circle',
