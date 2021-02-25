@@ -36,6 +36,7 @@ Ext.define('PBS.TapeManagement.LabelMediaWindow', {
 	{
 	    xtype: 'pmxDisplayEditField',
 	    fieldLabel: gettext('Drive'),
+	    submitValue: true,
 	    name: 'drive',
 	    editConfig: {
 		xtype: 'pbsDriveSelector',
