@@ -383,6 +383,7 @@ Ext.define('PBS.login.TfaWindow', {
 	    let view = me.getView();
 
 	    me.lookup('webAuthnWaiting').setVisible(true);
+	    me.lookup('webAuthnError').setVisible(false);
 
 	    let challenge = view.challenge.webauthn;
 
@@ -409,6 +410,10 @@ Ext.define('PBS.login.TfaWindow', {
 		// checking for error.code === DOMException.ABORT_ERR only works in firefox -.-
 		this.getViewModel().set('canConfirm', true);
 		// FIXME: better handling, show some message, ...?
+		me.lookup('webAuthnError').setData({
+		    error: Ext.htmlEncode(error.toString()),
+		});
+		me.lookup('webAuthnError').setVisible(true);
 		return;
 	    } finally {
 		let waitingMessage = me.lookup('webAuthnWaiting');
@@ -503,6 +508,15 @@ Ext.define('PBS.login.TfaWindow', {
 			xtype: 'box',
 			html: gettext('Waiting for second factor.') +`<i class="fa fa-refresh fa-spin fa-fw"></i>`,
 			reference: 'webAuthnWaiting',
+			hidden: true,
+		    },
+		    {
+			xtype: 'box',
+			data: {
+			    error: '',
+			},
+			tpl: '<i class="fa fa-warning warning"></i> {error}',
+			reference: 'webAuthnError',
 			hidden: true,
 		    },
 		],
