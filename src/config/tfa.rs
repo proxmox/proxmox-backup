@@ -803,9 +803,20 @@ impl TfaUserData {
         userid: &Userid,
         description: String,
     ) -> Result<String, Error> {
+        let cred_ids: Vec<_> = self
+            .enabled_webauthn_entries()
+            .map(|cred| cred.cred_id.clone())
+            .collect();
+
         let userid_str = userid.to_string();
-        let (challenge, state) = webauthn
-            .generate_challenge_register(&userid_str, Some(UserVerificationPolicy::Discouraged))?;
+        let (challenge, state) = webauthn.generate_challenge_register_options(
+            userid_str.as_bytes().to_vec(),
+            userid_str.clone(),
+            userid_str.clone(),
+            Some(cred_ids),
+            Some(UserVerificationPolicy::Discouraged),
+        )?;
+
         let challenge_string = challenge.public_key.challenge.to_string();
         let challenge = serde_json::to_string(&challenge)?;
 

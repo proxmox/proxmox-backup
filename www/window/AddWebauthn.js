@@ -82,13 +82,38 @@ Ext.define('PBS.window.AddWebauthn', {
 		challenge_obj.publicKey.user.id =
 		    PBS.Utils.base64url_to_bytes(challenge_obj.publicKey.user.id);
 
+		// convert existing authenticators structure
+		challenge_obj.publicKey.excludeCredentials =
+		    (challenge_obj.publicKey.excludeCredentials || []).map((cred) => ({
+			id: PBS.Utils.base64url_to_bytes(cred.id),
+			type: cred.type,
+		    }));
+
 		let msg = Ext.Msg.show({
 		    title: `Webauthn: ${gettext('Setup')}`,
 		    message: gettext('Please press the button on your Webauthn Device'),
 		    buttons: [],
 		});
 
-		let token_response = await navigator.credentials.create(challenge_obj);
+		let token_response;
+		try {
+		    token_response = await navigator.credentials.create(challenge_obj);
+		} catch (error) {
+		    let errmsg = `<i class="fa fa-warning warning"></i>
+			${error.name}: ${error.message}`;
+		    if (error.name === 'InvalidStateError') {
+			// probably a duplicate token
+			throw `${gettext('There was an error during authenticator registration.')}
+			    <br>
+			    ${gettext('This probably means that this authenticator is already registered.')}
+			    <br><br>
+			    ${errmsg}`;
+		    } else {
+			throw `${gettext('There was an error during token registration.')}
+			    <br><br>
+			    ${errmsg}`;
+		    }
+		}
 
 		// We cannot pass ArrayBuffers to the API, so extract & convert the data.
 		let response = {
