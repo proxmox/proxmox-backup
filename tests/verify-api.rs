@@ -39,6 +39,7 @@ fn verify_all_of_schema(schema: &AllOfSchema) -> Result<(), Error> {
     for entry in schema.list {
         match entry {
             Schema::Object(obj) => verify_object_schema(obj)?,
+            Schema::AllOf(allof) => verify_all_of_schema(allof)?,
             _ => bail!("AllOf schema with a non-object schema entry!"),
         }
     }
