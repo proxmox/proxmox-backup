@@ -13,7 +13,7 @@ use openssl::pkey::PKey;
 use openssl::sign::Signer;
 use serde::{de::Deserializer, Deserialize, Serialize};
 use serde_json::Value;
-use webauthn_rs::Webauthn;
+use webauthn_rs::{proto::UserVerificationPolicy, Webauthn};
 
 use webauthn_rs::proto::Credential as WebauthnCredential;
 
@@ -804,7 +804,8 @@ impl TfaUserData {
         description: String,
     ) -> Result<String, Error> {
         let userid_str = userid.to_string();
-        let (challenge, state) = webauthn.generate_challenge_register(&userid_str, None)?;
+        let (challenge, state) = webauthn
+            .generate_challenge_register(&userid_str, Some(UserVerificationPolicy::Discouraged))?;
         let challenge_string = challenge.public_key.challenge.to_string();
         let challenge = serde_json::to_string(&challenge)?;
 
@@ -923,7 +924,8 @@ impl TfaUserData {
             return Ok(None);
         }
 
-        let (challenge, state) = webauthn.generate_challenge_authenticate(creds, None)?;
+        let (challenge, state) = webauthn
+            .generate_challenge_authenticate(creds, Some(UserVerificationPolicy::Discouraged))?;
         let challenge_string = challenge.public_key.challenge.to_string();
         let mut data = TfaUserChallengeData::open(userid)?;
         data.inner
