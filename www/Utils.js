@@ -428,6 +428,179 @@ Ext.define('PBS.Utils', {
 	    .map(val => val.charCodeAt(0)),
 	);
     },
+
+    driveCommand: function(driveid, command, reqOpts) {
+	let params = Ext.apply(reqOpts, {
+	    url: `/api2/extjs/tape/drive/${driveid}/${command}`,
+	    timeout: 5*60*1000,
+	    failure: function(response) {
+		Ext.Msg.alert(gettext('Error'), response.htmlStatus);
+	    },
+	});
+
+	Proxmox.Utils.API2Request(params);
+    },
+
+    showMediaLabelWindow: function(response) {
+	let list = [];
+	for (let [key, val] of Object.entries(response.result.data)) {
+	    if (key === 'ctime' || key === 'media-set-ctime') {
+		val = Proxmox.Utils.render_timestamp(val);
+	    }
+	    list.push({ key: key, value: val });
+	}
+
+	Ext.create('Ext.window.Window', {
+	    title: gettext('Label Information'),
+	    modal: true,
+	    width: 600,
+	    height: 450,
+	    layout: 'fit',
+	    scrollable: true,
+	    items: [
+		{
+		    xtype: 'grid',
+		    store: {
+			data: list,
+		    },
+		    columns: [
+			{
+			    text: gettext('Property'),
+			    dataIndex: 'key',
+			    width: 120,
+			},
+			{
+			    text: gettext('Value'),
+			    dataIndex: 'value',
+			    flex: 1,
+			},
+		    ],
+		},
+	    ],
+	}).show();
+    },
+
+    showCartridgeMemoryWindow: function(response) {
+	Ext.create('Ext.window.Window', {
+	    title: gettext('Cartridge Memory'),
+	    modal: true,
+	    width: 600,
+	    height: 450,
+	    layout: 'fit',
+	    scrollable: true,
+	    items: [
+		{
+		    xtype: 'grid',
+		    store: {
+			data: response.result.data,
+		    },
+		    columns: [
+			{
+			    text: gettext('ID'),
+			    dataIndex: 'id',
+			    width: 60,
+			},
+			{
+			    text: gettext('Name'),
+			    dataIndex: 'name',
+			    flex: 2,
+			},
+			{
+			    text: gettext('Value'),
+			    dataIndex: 'value',
+			    flex: 1,
+			},
+		    ],
+		},
+	    ],
+	}).show();
+    },
+
+    showVolumeStatisticsWindow: function(response) {
+	let list = [];
+	for (let [key, val] of Object.entries(response.result.data)) {
+	    if (key === 'total-native-capacity' ||
+		key === 'total-used-native-capacity' ||
+		key === 'lifetime-bytes-read' ||
+		key === 'lifetime-bytes-written' ||
+		key === 'last-mount-bytes-read' ||
+		key === 'last-mount-bytes-written') {
+		val = Proxmox.Utils.format_size(val);
+	    }
+	    list.push({ key: key, value: val });
+	}
+	Ext.create('Ext.window.Window', {
+	    title: gettext('Volume Statistics'),
+	    modal: true,
+	    width: 600,
+	    height: 450,
+	    layout: 'fit',
+	    scrollable: true,
+	    items: [
+		{
+		    xtype: 'grid',
+		    store: {
+			data: list,
+		    },
+		    columns: [
+			{
+			    text: gettext('Property'),
+			    dataIndex: 'key',
+			    flex: 1,
+			},
+			{
+			    text: gettext('Value'),
+			    dataIndex: 'value',
+			    flex: 1,
+			},
+		    ],
+		},
+	    ],
+	}).show();
+    },
+
+    showDriveStatusWindow: function(response) {
+	let list = [];
+	for (let [key, val] of Object.entries(response.result.data)) {
+	    if (key === 'manufactured') {
+		val = Proxmox.Utils.render_timestamp(val);
+	    }
+	    if (key === 'bytes-read' || key === 'bytes-written') {
+		val = Proxmox.Utils.format_size(val);
+	    }
+	    list.push({ key: key, value: val });
+	}
+
+	Ext.create('Ext.window.Window', {
+	    title: gettext('Status'),
+	    modal: true,
+	    width: 600,
+	    height: 450,
+	    layout: 'fit',
+	    scrollable: true,
+	    items: [
+		{
+		    xtype: 'grid',
+		    store: {
+			data: list,
+		    },
+		    columns: [
+			{
+			    text: gettext('Property'),
+			    dataIndex: 'key',
+			    width: 120,
+			},
+			{
+			    text: gettext('Value'),
+			    dataIndex: 'value',
+			    flex: 1,
+			},
+		    ],
+		},
+	    ],
+	}).show();
+    },
+
 });
 
 Ext.define('PBS.Async', {

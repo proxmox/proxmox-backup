@@ -41,147 +41,51 @@ Ext.define('PBS.TapeManagement.DrivePanel', {
 	status: function(view, rI, cI, button, el, record) {
 	    let me = this;
 	    let drive = record.data.name;
-	    me.driveCommand(drive, 'status', function(response) {
-		let lines = [];
-		for (const [key, val] of Object.entries(response.result.data)) {
-		    lines.push(`${key}: ${val}`);
-		}
-
-		let txt = lines.join('<br>');
-
-		Ext.Msg.show({
-		    title: gettext('Label Information'),
-		    message: txt,
-		    icon: undefined,
-		});
+	    PBS.Utils.driveCommand(drive, 'status', {
+		waitMsgTarget: me.getView(),
+		success: PBS.Utils.showDriveStatusWindow,
 	    });
 	},
 
 	catalog: function(view, rI, cI, button, el, record) {
 	    let me = this;
 	    let drive = record.data.name;
-	    me.driveCommand(drive, 'catalog', function(response) {
-		Ext.create('Proxmox.window.TaskViewer', {
-		    upid: response.result.data,
-		}).show();
-	    }, {}, 'POST');
+	    PBS.Utils.driveCommand(drive, 'catalog', {
+		waitMsgTarget: me.getView(),
+		method: 'POST',
+		success: function(response) {
+		    Ext.create('Proxmox.window.TaskViewer', {
+			upid: response.result.data,
+		    }).show();
+		},
+	    });
 	},
 
 	readLabel: function(view, rI, cI, button, el, record) {
 	    let me = this;
 	    let drive = record.data.name;
-	    me.driveCommand(drive, 'read-label', function(response) {
-		let lines = [];
-		for (const [key, val] of Object.entries(response.result.data)) {
-		    lines.push(`${key}: ${val}`);
-		}
 
-		let txt = lines.join('<br>');
-
-		Ext.Msg.show({
-		    title: gettext('Label Information'),
-		    message: txt,
-		    icon: undefined,
-		});
+	    PBS.Utils.driveCommand(drive, 'read-label', {
+		waitMsgTarget: me.getView(),
+		success: PBS.Utils.showMediaLabelWindow,
 	    });
 	},
 
 	volumeStatistics: function(view, rI, cI, button, el, record) {
 	    let me = this;
 	    let drive = record.data.name;
-	    me.driveCommand(drive, 'volume-statistics', function(response) {
-		Ext.create('Ext.window.Window', {
-		    title: gettext('Volume Statistics'),
-		    modal: true,
-		    width: 600,
-		    height: 450,
-		    layout: 'fit',
-		    scrollable: true,
-		    items: [
-			{
-			    xtype: 'grid',
-			    store: {
-				data: response.result.data,
-			    },
-			    columns: [
-				{
-				    text: gettext('ID'),
-				    dataIndex: 'id',
-				    width: 60,
-				},
-				{
-				    text: gettext('Name'),
-				    dataIndex: 'name',
-				    flex: 2,
-				},
-				{
-				    text: gettext('Value'),
-				    dataIndex: 'value',
-				    flex: 1,
-				},
-			    ],
-			},
-		    ],
-		}).show();
+	    PBS.Utils.driveCommand(drive, 'volume-statistics', {
+		waitMsgTarget: me.getView(),
+		success: PBS.Utils.showVolumeStatisticsWindow,
 	    });
 	},
 
 	cartridgeMemory: function(view, rI, cI, button, el, record) {
 	    let me = this;
 	    let drive = record.data.name;
-	    me.driveCommand(drive, 'cartridge-memory', function(response) {
-		Ext.create('Ext.window.Window', {
-		    title: gettext('Cartridge Memory'),
-		    modal: true,
-		    width: 600,
-		    height: 450,
-		    layout: 'fit',
-		    scrollable: true,
-		    items: [
-			{
-			    xtype: 'grid',
-			    store: {
-				data: response.result.data,
-			    },
-			    columns: [
-				{
-				    text: gettext('ID'),
-				    dataIndex: 'id',
-				    width: 60,
-				},
-				{
-				    text: gettext('Name'),
-				    dataIndex: 'name',
-				    flex: 2,
-				},
-				{
-				    text: gettext('Value'),
-				    dataIndex: 'value',
-				    flex: 1,
-				},
-			    ],
-			},
-		    ],
-		}).show();
-	    });
-	},
-
-	driveCommand: function(driveid, command, callback, params, method) {
-	    let me = this;
-	    let view = me.getView();
-	    params = params || {};
-	    method = method || 'GET';
-	    Proxmox.Utils.API2Request({
-		url: `/api2/extjs/tape/drive/${driveid}/${command}`,
-		method,
-		waitMsgTarget: view,
-		params,
-		success: function(response) {
-		    callback(response);
-		},
-		failure: function(response) {
-		    Ext.Msg.alert(gettext('Error'), response.htmlStatus);
-		},
+	    PBS.Utils.driveCommand(drive, 'cartridge-memory', {
+		waitMsgTarget: me.getView(),
+		success: PBS.Utils.showCartridgeMemoryWindow,
 	    });
 	},
 
