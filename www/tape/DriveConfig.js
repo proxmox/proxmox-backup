@@ -98,6 +98,20 @@ Ext.define('PBS.TapeManagement.DrivePanel', {
 	    }).show();
 	},
 
+	ejectMedia: function(button, event, record) {
+	    let me = this;
+	    let driveid = record.data.name;
+	    PBS.Utils.driveCommand(driveid, 'eject-media', {
+		waitMsgTarget: me.getView(),
+		method: 'POST',
+		success: function(response) {
+		    Ext.create('Proxmox.window.TaskProgress', {
+			upid: response.result.data,
+		    }).show();
+		},
+	    });
+	},
+
 	reload: function() {
 	    this.getView().getStore().rstore.load();
 	},
@@ -157,6 +171,12 @@ Ext.define('PBS.TapeManagement.DrivePanel', {
 	    xtype: 'proxmoxButton',
 	    handler: 'labelMedia',
 	    iconCls: 'fa fa-barcode',
+	    disabled: true,
+	},
+	{
+	    text: gettext('Eject'),
+	    xtype: 'proxmoxButton',
+	    handler: 'ejectMedia',
 	    disabled: true,
 	},
     ],
