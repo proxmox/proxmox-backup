@@ -38,7 +38,6 @@ use proxmox_backup::{
         datastore::complete_datastore_name,
         drive::complete_drive_name,
         media_pool::complete_pool_name,
-        tape_job::TapeBackupJobSetup,
     },
     tape::{
         drive::{
@@ -793,9 +792,37 @@ async fn clean_drive(mut param: Value) -> Result<(), Error> {
 #[api(
     input: {
         properties: {
-            setup: {
-                type: TapeBackupJobSetup,
-                flatten: true,
+
+            // Note: We cannot use TapeBackupJobSetup, because drive needs to be optional here
+            //setup: {
+            //    type: TapeBackupJobSetup,
+            //    flatten: true,
+            //},
+
+            store: {
+                schema: DATASTORE_SCHEMA,
+            },
+            pool: {
+                schema: MEDIA_POOL_NAME_SCHEMA,
+            },
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+                optional: true,
+            },
+            "eject-media": {
+                description: "Eject media upon job completion.",
+                type: bool,
+                optional: true,
+            },
+            "export-media-set": {
+                description: "Export media set upon job completion.",
+                type: bool,
+                optional: true,
+            },
+            "latest-only": {
+                description: "Backup latest snapshots only.",
+                type: bool,
+                optional: true,
             },
             "output-format": {
                 schema: OUTPUT_FORMAT,
