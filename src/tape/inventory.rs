@@ -654,6 +654,11 @@ impl Inventory {
         self.set_media_status(uuid, Some(MediaStatus::Damaged))
     }
 
+    /// Lock database, reload database, set status to Retired, store database
+    pub fn set_media_status_retired(&mut self, uuid: &Uuid) -> Result<(), Error> {
+        self.set_media_status(uuid, Some(MediaStatus::Retired))
+    }
+
     /// Lock database, reload database, set status to None, store database
     pub fn clear_media_status(&mut self, uuid: &Uuid) -> Result<(), Error> {
         self.set_media_status(uuid, None)

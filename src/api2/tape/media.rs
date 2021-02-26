@@ -381,6 +381,76 @@ pub fn list_content(
     Ok(list)
 }
 
+#[api(
+    input: {
+        properties: {
+            uuid: {
+                schema: MEDIA_UUID_SCHEMA,
+            },
+        },
+    },
+)]
+/// Get current media status
+pub fn get_media_status(uuid: Uuid) -> Result<MediaStatus, Error> {
+
+    let status_path = Path::new(TAPE_STATUS_DIR);
+    let inventory = Inventory::load(status_path)?;
+
+    let (status, _location) = inventory.status_and_location(&uuid);
+
+    Ok(status)
+}
+
+#[api(
+    input: {
+        properties: {
+            uuid: {
+                schema: MEDIA_UUID_SCHEMA,
+            },
+            status: {
+                type: MediaStatus,
+                optional: true,
+            },
+        },
+    },
+)]
+/// Update media status (None, 'full', 'damaged' or 'retired')
+///
+/// It is not allowed to set status to 'writable' or 'unknown' (those
+/// are internaly managed states).
+pub fn update_media_status(uuid: Uuid, status: Option<MediaStatus>) -> Result<(), Error> {
+
+    let status_path = Path::new(TAPE_STATUS_DIR);
+    let mut inventory = Inventory::load(status_path)?;
+
+    match status {
+        None => inventory.clear_media_status(&uuid)?,
+        Some(MediaStatus::Retired) => inventory.set_media_status_retired(&uuid)?,
+        Some(MediaStatus::Damaged) => inventory.set_media_status_damaged(&uuid)?,
+        Some(MediaStatus::Full) => inventory.set_media_status_full(&uuid)?,
+        Some(status) => bail!("setting media status '{:?}' is not allowed", status),
+    }
+
+    Ok(())
+}
+
+const MEDIA_SUBDIRS: SubdirMap = &[
+    (
+        "status",
+        &Router::new()
+            .get(&API_METHOD_GET_MEDIA_STATUS)
+            .post(&API_METHOD_UPDATE_MEDIA_STATUS)
+    ),
+];
+
+pub const MEDIA_ROUTER: Router = Router::new()
+    .get(&list_subdirs_api_method!(MEDIA_SUBDIRS))
+    .subdirs(MEDIA_SUBDIRS);
+
+pub const MEDIA_LIST_ROUTER: Router = Router::new()
+    .get(&API_METHOD_LIST_MEDIA)
+    .match_all("uuid", &MEDIA_ROUTER);
+
 const SUBDIRS: SubdirMap = &[
     (
         "content",
@@ -392,11 +462,7 @@ const SUBDIRS: SubdirMap = &[
         &Router::new()
             .get(&API_METHOD_DESTROY_MEDIA)
     ),
-    (
-        "list",
-        &Router::new()
-            .get(&API_METHOD_LIST_MEDIA)
-    ),
+    ( "list", &MEDIA_LIST_ROUTER ),
     (
         "move",
         &Router::new()
