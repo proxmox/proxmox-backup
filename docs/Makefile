@@ -8,8 +8,6 @@ GENERATED_SYNOPSIS := 						\
 	pxar/synopsis.rst					\
 	pmtx/synopsis.rst					\
 	pmt/synopsis.rst					\
-	backup-protocol-api.rst					\
-	reader-protocol-api.rst					\
 	config/media-pool/config.rst				\
 	config/tape/config.rst					\
 	config/tape-job/config.rst				\
@@ -80,14 +78,6 @@ endif
 ALLSPHINXOPTS   = -d $(BUILDDIR)/doctrees $(SPHINXOPTS) .
 
 all: ${MAN1_PAGES} ${MAN5_PAGES}
-
-# Extract backup protocol docs
-backup-protocol-api.rst: ${COMPILEDIR}/dump-backup-api
-	${COMPILEDIR}/dump-backup-api >$@
-
-# Extract reader protocol docs
-reader-protocol-api.rst: ${COMPILEDIR}/dump-reader-api
-	${COMPILEDIR}/dump-backup-api >$@
 
 # Build manual pages using rst2man
 
