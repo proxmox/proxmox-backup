@@ -1,9 +1,9 @@
 Ext.define('pbs-model-tapes', {
     extend: 'Ext.data.Model',
     fields: [
-	'catalog',
+	{ name: 'catalog', type: 'boolean' },
 	'ctime',
-	'expired',
+	{ name: 'expired', type: 'boolean' },
 	'label-text',
 	'location',
 	'media-set-ctime',
@@ -104,13 +104,13 @@ Ext.define('PBS.TapeManagement.TapeInventory', {
 
 	reload: function() {
 	    this.getView().getStore().load({
-		params: { 'update-status': false }
+		params: { 'update-status': false },
 	    });
 	},
 
 	reload_update_status: function() {
 	    this.getView().getStore().load({
-		params: { 'update-status': true }
+		params: { 'update-status': true },
 	    });
 	},
     },
@@ -163,11 +163,20 @@ Ext.define('PBS.TapeManagement.TapeInventory', {
 			} else {
 			    return pool;
 			}
-		    }
-		}
-	    ]
-	}
+		    },
+		},
+	    ],
+	},
     ],
+
+    viewConfig: {
+	stripeRows: false, // does not work with getRowClass()
+
+	getRowClass: function(record, index) {
+	    let catalog = record.get('catalog');
+	    return catalog ? '' : "proxmox-invalid-row";
+	},
+    },
 
     columns: [
 	{
@@ -188,7 +197,14 @@ Ext.define('PBS.TapeManagement.TapeInventory', {
 		} else {
 		    return value;
 		}
-	    }
+	    },
+	},
+	{
+	    text: gettext('Catalog'),
+	    dataIndex: 'catalog',
+	    renderer: function(value, metaData, record) {
+		return value ? Proxmox.Utils.yesText : PBS.Utils.missingText;
+	    },
 	},
 	{
 	    text: gettext('Location'),

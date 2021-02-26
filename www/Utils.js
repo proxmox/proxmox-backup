@@ -5,6 +5,8 @@ console.log("Starting Backup Server GUI");
 Ext.define('PBS.Utils', {
     singleton: true,
 
+    missingText: gettext('missing'),
+
     updateLoginData: function(data) {
 	Proxmox.Utils.setAuthData(data);
     },
