@@ -225,6 +225,7 @@ impl PoolWriter {
             if !alert_flags.is_empty() {
                 worker.log(format!("TapeAlertFlags: {:?}", alert_flags));
                 if tape_alert_flags_critical(alert_flags) {
+                    self.pool.set_media_status_damaged(&media_uuid)?;
                     bail!("aborting due to critical tape alert flags: {:?}", alert_flags);
                 }
             }

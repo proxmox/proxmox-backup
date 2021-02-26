@@ -126,6 +126,9 @@ impl MediaPool {
         self.encrypt_fingerprint.clone()
     }
 
+    pub fn set_media_status_damaged(&mut self, uuid: &Uuid) -> Result<(), Error> {
+        self.inventory.set_media_status_damaged(uuid)
+    }
 
     fn compute_media_state(&self, media_id: &MediaId) -> (MediaStatus, MediaLocation) {
 
