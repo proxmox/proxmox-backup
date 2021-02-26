@@ -25,6 +25,23 @@ ul li.toctree-l1 > a {
     color: #000;
 }
 
+div.sphinxsidebar ul {
+    color: #444;
+}
+div.sphinxsidebar ul ul {
+    list-style: circle;
+}
+div.sphinxsidebar ul ul ul {
+    list-style: square;
+}
+
+div.sphinxsidebar ul a code {
+    font-weight: normal;
+}
+div.sphinxsidebar ul ul a {
+    border-bottom: 1px dotted #CCC;
+}
+
 div.sphinxsidebar form.search {
     margin-bottom: 5px;
 }
