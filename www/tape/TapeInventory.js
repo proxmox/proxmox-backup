@@ -74,7 +74,7 @@ Ext.define('PBS.TapeManagement.TapeInventory', {
 		vault = selection[0].data.location.slice("vault-".length);
 	    }
 	    Ext.create('Proxmox.window.Edit', {
-		title: gettext('Set Tape Location'),
+		title: gettext('Set Media Location'),
 		url: `/api2/extjs/tape/media/move`,
 		method: 'POST',
 		items: [
@@ -92,6 +92,53 @@ Ext.define('PBS.TapeManagement.TapeInventory', {
 			value: vault,
 			emptyText: gettext('On-site'),
 			skipEmpty: true,
+		    },
+		],
+		listeners: {
+		    destroy: function() {
+			me.reload();
+		    },
+		},
+	    }).show();
+	},
+
+	setStatus: function() {
+	    let me = this;
+	    let view = me.getView();
+	    let selection = view.getSelection();
+	    if (!selection || selection.length < 1) {
+		return;
+	    }
+	    let data = selection[0].data;
+
+	    let uuid = data.uuid;
+	    let label = data['label-text'];
+	    let status = data.status;
+
+	    Ext.create('Proxmox.window.Edit', {
+		title: gettext('Set Media Status'),
+		url: `/api2/extjs/tape/media/list/${uuid}/status`,
+		method: 'POST',
+		items: [
+		    {
+			xtype: 'displayfield',
+			name: 'label-text',
+			value: label,
+			fieldLabel: gettext('Media'),
+		    },
+		    {
+			xtype: 'proxmoxKVComboBox',
+			fieldLabel: gettext('Status'),
+			name: 'status',
+			value: status,
+			emptyText: gettext('Clear Status'),
+			comboItems: [
+			    ['__default__', gettext('Clear Status')],
+			    ['full', gettext('Full')],
+			    ['damaged', gettext('Damaged')],
+			    ['retired', gettext('Retired')],
+			],
+			deleteEmpty: false,
 		    },
 		],
 		listeners: {
@@ -138,10 +185,16 @@ Ext.define('PBS.TapeManagement.TapeInventory', {
 	},
 	{
 	    xtype: 'proxmoxButton',
-	    text: gettext('Set Tape Location'),
+	    text: gettext('Set Location'),
 	    disabled: true,
 	    handler: 'moveToVault',
 	    enableFn: (rec) => !rec.data.location.startsWith('online-'),
+	},
+	{
+	    xtype: 'proxmoxButton',
+	    text: gettext('Set Status'),
+	    disabled: true,
+	    handler: 'setStatus',
 	},
 	{
 	    xtype: 'proxmoxButton',
@@ -173,8 +226,12 @@ Ext.define('PBS.TapeManagement.TapeInventory', {
 	stripeRows: false, // does not work with getRowClass()
 
 	getRowClass: function(record, index) {
+	    let status = record.get('status');
+	    if (status === 'damaged') {
+		return "proxmox-invalid-row";
+	    }
 	    let catalog = record.get('catalog');
-	    return catalog ? '' : "proxmox-invalid-row";
+	    return catalog ? '' : "proxmox-warning-row";
 	},
     },
 
