@@ -38,6 +38,7 @@ Package: proxmox-backup-docs
 Build-Profiles: <!nodoc>
 Section: doc
 Depends: libjs-extjs,
+         libjs-mathjax,
          ${misc:Depends},
 Architecture: all
 Description: Proxmox Backup Documentation

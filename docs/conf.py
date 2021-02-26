@@ -464,3 +464,6 @@ epub_exclude_files = ['search.html']
 # If false, no index is generated.
 #
 # epub_use_index = True
+
+# use local mathjax package, symlink comes from debian/proxmox-backup-docs.links
+mathjax_path = "mathjax/MathJax.js?config=TeX-AMS-MML_HTMLorMML"

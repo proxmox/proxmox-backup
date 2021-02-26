@@ -2,3 +2,4 @@
 /usr/share/javascript/extjs /usr/share/doc/proxmox-backup/html/prune-simulator/extjs
 /usr/share/javascript/extjs /usr/share/doc/proxmox-backup/html/lto-barcode/extjs
 /usr/share/javascript/extjs /usr/share/doc/proxmox-backup/html/api-viewer/extjs
+/usr/share/javascript/mathjax /usr/share/doc/proxmox-backup/html/_static/mathjax
