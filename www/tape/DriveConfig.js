@@ -1,6 +1,14 @@
 Ext.define('pbs-model-drives', {
     extend: 'Ext.data.Model',
-    fields: ['path', 'model', 'name', 'serial', 'vendor', 'changer', 'changer-slot'],
+    fields: [
+	'path', 'model', 'name', 'serial', 'vendor',
+	{ name: 'changer', defaultValue: '' },
+	{
+	    name: 'changer-drivenum',
+	    defaultValue: 0,
+	},
+	'changer-slot',
+    ],
     idProperty: 'name',
 });
 
@@ -144,7 +152,26 @@ Ext.define('PBS.TapeManagement.DrivePanel', {
 	    },
 	},
 	sorters: 'name',
+	groupField: 'changer',
     },
+
+    features: [
+	{
+	    ftype: 'grouping',
+	    groupHeaderTpl: [
+		'{name:this.formatName} ({rows.length} Item{[values.rows.length > 1 ? "s" : ""]})',
+		{
+		    formatName: function(changer) {
+			if (changer === "") {
+			    return "Standalone Drives";
+			} else {
+			    return `Changer ${changer}`;
+			}
+		    },
+		},
+	    ],
+	},
+    ],
 
     tbar: [
 	{
@@ -214,24 +241,11 @@ Ext.define('PBS.TapeManagement.DrivePanel', {
 	    flex: 1,
 	},
 	{
-	    text: gettext('Changer'),
-	    flex: 1,
-	    dataIndex: 'changer',
+	    text: gettext('Drive Number'),
+	    dataIndex: 'changer-drivenum',
 	    renderer: function(value, mD, record) {
-		if (!value) {
-		    return "";
-		}
-		let drive_num = record.data['changer-drivenum'] || 0;
-		let drive_text = gettext("Drive {0}");
-		return `${value} (${Ext.String.format(drive_text, drive_num)})`;
-	    },
-	    sorter: function(a, b) {
-		let ch_a = a.data.changer || "";
-		let ch_b = b.data.changer || "";
-		let num_a = a.data['changer-drivenum'] || 0;
-		let num_b = b.data['changer-drivenum'] || 0;
-		return ch_a > ch_b ? -1 : ch_a < ch_b ? 1 : num_b - num_a;
-	    },
+		return record.data.changer ? value : '';
+	    }
 	},
 	{
 	    text: gettext('Actions'),
