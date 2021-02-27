@@ -53,7 +53,7 @@ Ext.define('PBS.TapeManagement.DriveEditWindow', {
 	    },
 	},
 	{
-	    fieldLabel: gettext('Changer Slot'),
+	    fieldLabel: gettext('Drive Number'),
 	    xtype: 'proxmoxintegerfield',
 	    name: 'changer-drivenum',
 	    disabled: true,
