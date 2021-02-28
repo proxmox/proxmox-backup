@@ -106,7 +106,7 @@ Ext.define('PageLayoutPanel', {
 		    xtype: 'numberfield',
 		    name: 'label_height',
 		    fieldLabel: 'Label height',
-		    minValue: 17,
+		    minValue: 15,
 		    allowBlank: false,
 		    value: 17,
 		},
