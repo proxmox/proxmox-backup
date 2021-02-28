@@ -69,8 +69,8 @@ let colors = [
     '#705A81',
 ];
 
-let lto_label_width = 70;
-let lto_label_height = 17;
+const lto_label_width = 70;
+const lto_label_height = 16.9;
 
 function foreach_label(page_layout, callback) {
     let count = 0;
