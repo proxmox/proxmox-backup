@@ -11,8 +11,8 @@ Proxmox File Archive Format (``.pxar``)
 
 .. _data-blob-format:
 
-Data Blob Format
-----------------
+Data Blob Format (``.blob``)
+----------------------------
 
 The data blob format is used to store small binary data. The magic number decides the exact format:
 
@@ -58,8 +58,8 @@ data:
 
 .. _fixed-index-format:
 
-Fixed Index Format
-------------------
+Fixed Index Format  (``.fidx``)
+-------------------------------
 
 All numbers are stored as little-endian.
 
@@ -89,8 +89,8 @@ All numbers are stored as little-endian.
 
 .. _dynamic-index-format:
 
-Dynamic Index Format
---------------------
+Dynamic Index Format (``.didx``)
+--------------------------------
 
 All numbers are stored as little-endian.
 
