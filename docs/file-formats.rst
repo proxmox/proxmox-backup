@@ -54,3 +54,65 @@ data:
    * - ``ÌV: [u8; 16]``
    * - ``TAG: [u8; 16]``
    * - ``Data: (max 16MiB)``
+
+
+.. _fixed-index-format:
+
+Fixed Index Format
+------------------
+
+All numbers are stored as little-endian.
+
+.. list-table::
+
+   * - ``MAGIC: [u8; 8]``
+     - ``[47, 127, 65, 237, 145, 253, 15, 205]``
+   * - ``uuid: [u8; 16]``,
+     - Unique ID
+   * - ``ctime: i64``,
+     - Creation Time (epoch)
+   * - ``index_csum: [u8; 32]``,
+     - Sha256 over the index (without header) ``SHA256(digest1||digest2||...)``
+   * - ``size: u64``,
+     - Image size
+   * - ``chunk_size: u64``,
+     - Chunk size
+   * - ``reserved: [u8; 4016]``,
+     - overall header size is one page (4096 bytes)
+   * - ``digest1: [u8; 32]``
+     - first chunk digest
+   * - ``digest2: [u8; 32]``
+     - next chunk
+   * - ...
+     - next chunk ...
+
+
+.. _dynamic-index-format:
+
+Dynamic Index Format
+--------------------
+
+All numbers are stored as little-endian.
+
+.. list-table::
+
+   * - ``MAGIC: [u8; 8]``
+     - ``[28, 145, 78, 165, 25, 186, 179, 205]``
+   * - ``uuid: [u8; 16]``,
+     - Unique ID
+   * - ``ctime: i64``,
+     - Creation Time (epoch)
+   * - ``index_csum: [u8; 32]``,
+     - Sha256 over the index (without header) ``SHA256(offset1||digest1||offset2||digest2||...)``
+   * - ``reserved: [u8; 4032]``,
+     - Overall header size is one page (4096 bytes)
+   * - ``offset1: u64``
+     - End of first chunk
+   * - ``digest1: [u8; 32]``
+     - first chunk digest
+   * - ``offset2: u64``
+     - End of second chunk
+   * - ``digest2: [u8; 32]``
+     - second chunk digest
+   * - ...
+     - next chunk offset/digest

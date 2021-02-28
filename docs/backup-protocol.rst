@@ -136,5 +136,5 @@ Download Index Files
 ~~~~~~~~~~~~~~~~~~~~
 
 Downloading index files is done using ``GET /download``. The HTTP body
-contains the data encoded as ``FixedIndex`` or ``DynamicIndex`` (see
-source code).
+contains the data encoded as :ref:`Fixed Index <fixed-index-format>`
+or :ref:`Dynamic Index <dynamic-index-format>`.
