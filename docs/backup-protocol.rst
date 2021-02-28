@@ -38,7 +38,7 @@ Upload Blobs
 ~~~~~~~~~~~~
 
 Uploading blobs is done using ``POST /blob``. The HTTP body contains the
-data encoded as ``DataBlob`` (see source code).
+data encoded as :ref:`Data Blob <data-blob-format>`).
 
 The file name needs to end with ``.blob``, and is automatically added
 to the backup manifest.
@@ -50,7 +50,7 @@ Upload Chunks
 Chunks belong to an index, so you first need to open an index (see
 below). After that, you can upload chunks using ``POST /fixed_chunk``
 and ``POST /dynamic_chunk``. The HTTP body contains the chunk data
-encoded as ``DataBlob`` (see source code).
+encoded as :ref:`Data Blob <data-blob-format>`).
 
 
 Upload Fixed Indexes
@@ -122,14 +122,14 @@ Download Blobs
 ~~~~~~~~~~~~~~
 
 Downloading blobs is done using ``GET /download``. The HTTP body contains the
-data encoded as ``DataBlob`` (see source code).
+data encoded as :ref:`Data Blob <data-blob-format>`.
 
 
 Download Chunks
 ~~~~~~~~~~~~~~~
 
 Downloading chunks is done using ``GET /chunk``. The HTTP body contains the
-data encoded as ``DataBlob`` (see source code).
+data encoded as :ref:`Data Blob <data-blob-format>`).
 
 
 Download Index Files
