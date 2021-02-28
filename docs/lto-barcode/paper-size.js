@@ -1,4 +1,4 @@
-let paper_sizes = {
+const paper_sizes = {
     a4: {
 	comment: 'A4 (plain)',
 	page_width: 210,

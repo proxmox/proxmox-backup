@@ -4,7 +4,7 @@
 // IBM LTO Ultrium Cartridge Label Specification
 // http://www-01.ibm.com/support/docview.wss?uid=ssg1S7000429
 
-let code39_codes = {
+const code39_codes = {
     "1": ['B', 's', 'b', 'S', 'b', 's', 'b', 's', 'B'],
     "A": ['B', 's', 'b', 's', 'b', 'S', 'b', 's', 'B'],
     "K": ['B', 's', 'b', 's', 'b', 's', 'b', 'S', 'B'],
@@ -56,7 +56,7 @@ let code39_codes = {
     "*": ['b', 'S', 'b', 's', 'B', 's', 'B', 's', 'b'],
 };
 
-let colors = [
+const colors = [
     '#BB282E',
     '#FAE54A',
     '#9AC653',
@@ -105,10 +105,10 @@ function compute_max_labels(page_layout) {
 function svg_label(mode, label, label_type, pagex, pagey, label_borders) {
     let svg = "";
 
-    if (label.length != 6) {
+    if (label.length !== 6) {
 	throw "wrong label length";
     }
-    if (label_type.length != 2) {
+    if (label_type.length !== 2) {
 	throw "wrong label_type length";
     }
 
@@ -121,20 +121,22 @@ function svg_label(mode, label, label_type, pagex, pagey, label_borders) {
     let xpos = pagex + code_width;
     let height = 12;
 
+    let label_rect = `x='${pagex}' y='${pagey}' width='${lto_label_width}' height='${lto_label_height}'`;
+
     if (mode === 'placeholder') {
 	if (label_borders) {
-	    svg += `<rect class='unprintable' x='${pagex}' y='${pagey}' width='${lto_label_width}' height='${lto_label_height}' fill='none' style='stroke:black;stroke-width:0.1;'/>`;
+	    svg += `<rect class='unprintable' ${label_rect} fill='none' style='stroke:black;stroke-width:0.1;'/>`;
 	}
 	return svg;
     }
     if (label_borders) {
-	svg += `<rect x='${pagex}' y='${pagey}' width='${lto_label_width}' height='${lto_label_height}' fill='none' style='stroke:black;stroke-width:0.1;'/>`;
+	svg += `<rect ${label_rect} fill='none' style='stroke:black;stroke-width:0.1;'/>`;
     }
 
-    if (mode === "color" || mode == "frame") {
+    if (mode === "color" || mode === "frame") {
 	let w = lto_label_width/8;
 	let h = lto_label_height - height;
-	for (var i = 0; i < 7; i++) {
+	for (let i = 0; i < 7; i++) {
 	    let textx = w/2 + pagex + i*w;
 	    let texty = pagey;
 
@@ -163,7 +165,7 @@ function svg_label(mode, label, label_type, pagex, pagey, label_borders) {
 
     let raw_label = `*${label}${label_type}*`;
 
-    for (var i = 0; i < raw_label.length; i++) {
+    for (let i = 0; i < raw_label.length; i++) {
 	let letter = raw_label.charAt(i);
 
 	let code = code39_codes[letter];
