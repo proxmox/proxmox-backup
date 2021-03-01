@@ -31,6 +31,18 @@ const proxmoxOnlineHelpInfo = {
     "link": "/docs/file-formats.html#pxar-format",
     "title": "Proxmox File Archive Format (``.pxar``)"
   },
+  "data-blob-format": {
+    "link": "/docs/file-formats.html#data-blob-format",
+    "title": "Data Blob Format (``.blob``)"
+  },
+  "fixed-index-format": {
+    "link": "/docs/file-formats.html#fixed-index-format",
+    "title": "Fixed Index Format  (``.fidx``)"
+  },
+  "dynamic-index-format": {
+    "link": "/docs/file-formats.html#dynamic-index-format",
+    "title": "Dynamic Index Format (``.didx``)"
+  },
   "sysadmin-package-repositories": {
     "link": "/docs/package-repositories.html#sysadmin-package-repositories",
     "title": "Debian Package Repositories"
