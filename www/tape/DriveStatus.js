@@ -15,12 +15,75 @@ Ext.define('PBS.TapeManagement.DriveStatus', {
 
     bodyPadding: 5,
 
+    viewModel: {
+	data: {
+	    online: false,
+	},
+    },
+
     controller: {
 	xclass: 'Ext.app.ViewController',
 
 	reload: function() {
 	    let me = this;
 	    me.lookup('statusgrid').rstore.load();
+	},
+
+	onLoad: function() {
+	    let me = this;
+	    let statusgrid = me.lookup('statusgrid');
+	    let statusFlags = (statusgrid.getObjectValue('status') || "").split(/\s+|\s+/);
+	    let online = statusFlags.indexOf('ONLINE') !== -1;
+	    let vm = me.getViewModel();
+	    vm.set('online', online);
+	},
+
+	labelMedia: function() {
+	    let me = this;
+	    Ext.create('PBS.TapeManagement.LabelMediaWindow', {
+		driveid: me.getView().drive,
+	    }).show();
+	},
+
+	eject: function() {
+	    let me = this;
+	    let view = me.getView();
+	    let driveid = view.drive;
+	    PBS.Utils.driveCommand(driveid, 'eject-media', {
+		waitMsgTarget: view,
+		method: 'POST',
+		success: function(response) {
+		    Ext.create('Proxmox.window.TaskProgress', {
+			upid: response.result.data,
+			taskDone: function() {
+			    me.reload();
+			},
+		    }).show();
+		},
+	    });
+	},
+
+	catalog: function() {
+	    let me = this;
+	    let view = me.getView();
+	    let drive = view.drive;
+	    PBS.Utils.driveCommand(drive, 'catalog', {
+		waitMsgTarget: view,
+		method: 'POST',
+		success: function(response) {
+		    Ext.create('Proxmox.window.TaskViewer', {
+			upid: response.result.data,
+			taskDone: function() {
+			    me.reload();
+			},
+		    }).show();
+		},
+	    });
+	},
+
+	init: function(view) {
+	    let me = this;
+	    me.mon(me.lookup('statusgrid').getStore().rstore, 'load', 'onLoad');
 	},
     },
 
@@ -33,6 +96,37 @@ Ext.define('PBS.TapeManagement.DriveStatus', {
 	    xtype: 'proxmoxButton',
 	    handler: 'reload',
 	    text: gettext('Reload'),
+	},
+	'-',
+	{
+	    text: gettext('Label Media'),
+	    xtype: 'proxmoxButton',
+	    handler: 'labelMedia',
+	    iconCls: 'fa fa-barcode',
+	    disabled: true,
+	    bind: {
+		disabled: '{!online}',
+	    },
+	},
+	{
+	    text: gettext('Eject'),
+	    xtype: 'proxmoxButton',
+	    handler: 'ejectMedia',
+	    iconCls: 'fa fa-eject',
+	    disabled: true,
+	    bind: {
+		disabled: '{!online}',
+	    },
+	},
+	{
+	    text: gettext('Catalog'),
+	    xtype: 'proxmoxButton',
+	    handler: 'catalog',
+	    iconCls: 'fa fa-book',
+	    disabled: true,
+	    bind: {
+		disabled: '{!online}',
+	    },
 	},
     ],
 
