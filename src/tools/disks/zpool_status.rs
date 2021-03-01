@@ -372,14 +372,20 @@ pub fn zpool_status(pool: &str) -> Result<Vec<(String, String)>, Error> {
 
 #[cfg(test)]
 fn test_parse(output: &str) -> Result<(), Error> {
+    let mut found_config = false;
+
     for (k, v) in parse_zpool_status(&output)? {
-        println!("{} => {}", k,v);
+        println!("<{}> => '{}'", k, v);
         if k == "config" {
             let vdev_list = parse_zpool_status_config_tree(&v)?;
             let _tree = vdev_list_to_tree(&vdev_list);
             found_config = true;
         }
     }
+    if !found_config {
+        bail!("got zpool status without config key");
+    }
+
     Ok(())
 }
 
@@ -389,21 +395,21 @@ fn test_zpool_status_parser() -> Result<(), Error> {
     let output = r###"  pool: tank
  state: DEGRADED
 status: One or more devices could not be opened.  Sufficient replicas exist for
-        the pool to continue functioning in a degraded state.
+	the pool to continue functioning in a degraded state.
 action: Attach the missing device and online it using 'zpool online'.
-   see: http://www.sun.com/msg/ZFS-8000-2Q
+	see: http://www.sun.com/msg/ZFS-8000-2Q
  scrub: none requested
 config:
 
-        NAME        STATE     READ WRITE CKSUM
-        tank        DEGRADED     0     0     0
-          mirror-0  DEGRADED     0     0     0
-            c1t0d0  ONLINE       0     0     0
-            c1t2d0  ONLINE       0     0     0
-            c1t1d0  UNAVAIL      0     0     0  cannot open
-          mirror-1  DEGRADED     0     0     0
-        tank1       DEGRADED     0     0     0
-        tank2       DEGRADED     0     0     0
+	NAME        STATE     READ WRITE CKSUM
+	tank        DEGRADED     0     0     0
+	  mirror-0  DEGRADED     0     0     0
+	    c1t0d0  ONLINE       0     0     0
+	    c1t2d0  ONLINE       0     0     0
+	    c1t1d0  UNAVAIL      0     0     0  cannot open
+	  mirror-1  DEGRADED     0     0     0
+	tank1       DEGRADED     0     0     0
+	tank2       DEGRADED     0     0     0
 
 errors: No known data errors
 "###;
