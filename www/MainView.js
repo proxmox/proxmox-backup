@@ -17,16 +17,27 @@ Ext.define('PBS.MainView', {
 	    },
 	},
 
+	parseRouterPath: function(path) {
+	    let xtype = path;
+	    let config = {};
+	    if (PBS.Utils.isDataStorePath(path)) {
+		config.datastore = PBS.Utils.getDataStoreFromPath(path);
+		xtype = 'pbsDataStorePanel';
+	    } else if (path.indexOf('Changer-') === 0) {
+		config.changer = path.slice('Changer-'.length);
+		xtype = 'pbsChangerStatus';
+	    } else if (path.indexOf('Drive-') === 0) {
+		config.drive = path.slice('Drive-'.length);
+		xtype = 'pbsDriveStatus';
+	    }
+
+	    return [xtype, config];
+	},
+
 	beforeChangePath: function(path, subpath, action) {
 	    var me = this;
 
-	    let xtype = path;
-	    let datastore;
-	    let isDataStore = PBS.Utils.isDataStorePath(path);
-	    if (isDataStore) {
-		xtype = 'pbsDataStorePanel';
-		datastore = PBS.Utils.getDataStoreFromPath(path);
-	    }
+	    let [xtype, config] = me.parseRouterPath(path);
 
 	    if (!Ext.ClassManager.getByAlias(`widget.${xtype}`)) {
 		console.warn(`xtype ${xtype} not found`);
@@ -36,27 +47,26 @@ Ext.define('PBS.MainView', {
 
 	    var lastpanel = me.lookupReference('contentpanel').getLayout().getActiveItem();
 	    if (lastpanel && lastpanel.xtype === xtype) {
-		if (isDataStore) {
-		    if (datastore === lastpanel.datastore) {
-			action.stop();
+		for (const [prop, value] of Object.entries(config)) {
+		    if (lastpanel[prop] !== value) {
+			action.resume();
 			return;
 		    }
-		} else {
-		    // we have the right component already,
-		    // we just need to select the correct tab
-		    // default to the first
-		    subpath = subpath || 0;
-		    if (lastpanel.getActiveTab) {
-			// we assume lastpanel is a tabpanel
-			if (lastpanel.getActiveTab().getItemId() !== subpath) {
-			    // set the active tab
-			    lastpanel.setActiveTab(subpath);
-			}
-			// else we are already there
-		    }
-		    action.stop();
-		    return;
 		}
+		// we have the right component already,
+		// we just need to select the correct tab
+		// default to the first
+		subpath = subpath || 0;
+		if (lastpanel.getActiveTab) {
+		    // we assume lastpanel is a tabpanel
+		    if (lastpanel.getActiveTab().getItemId() !== subpath) {
+			// set the active tab
+			lastpanel.setActiveTab(subpath);
+		    }
+		    // else we are already there
+		}
+		action.stop();
+		return;
 	    }
 
 	    action.resume();
@@ -79,12 +89,10 @@ Ext.define('PBS.MainView', {
 		me.redirectTo(newpath);
 	    };
 
-	    let xtype = path;
+	    let [xtype, config] = me.parseRouterPath(path);
 	    var obj;
-	    let datastore;
 	    if (PBS.Utils.isDataStorePath(path)) {
-		datastore = PBS.Utils.getDataStoreFromPath(path);
-		if (lastpanel && lastpanel.xtype === 'pbsDataStorePanel' && !subpath) {
+		if (lastpanel && lastpanel.xtype === xtype && !subpath) {
 		    let activeTab = lastpanel.getActiveTab();
 		    let newpath = path;
 		    if (lastpanel.items.indexOf(activeTab) !== 0) {
@@ -93,18 +101,16 @@ Ext.define('PBS.MainView', {
 		    }
 		    me.redirectTo(newpath);
 		}
-		xtype = 'pbsDataStorePanel';
 	    }
-	    obj = contentpanel.add({
+	    obj = contentpanel.add(Ext.apply(config, {
 		xtype,
-		datastore,
 		nodename: 'localhost',
 		border: false,
 		activeTab: subpath || 0,
 		listeners: {
 		    tabchange: tabChangeListener,
 		},
-	    });
+	    }));
 
 	    var treelist = me.lookupReference('navtree');
 
