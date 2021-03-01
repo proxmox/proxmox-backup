@@ -370,6 +370,19 @@ pub fn zpool_status(pool: &str) -> Result<Vec<(String, String)>, Error> {
     parse_zpool_status(&output)
 }
 
+#[cfg(test)]
+fn test_parse(output: &str) -> Result<(), Error> {
+    for (k, v) in parse_zpool_status(&output)? {
+        println!("{} => {}", k,v);
+        if k == "config" {
+            let vdev_list = parse_zpool_status_config_tree(&v)?;
+            let _tree = vdev_list_to_tree(&vdev_list);
+            found_config = true;
+        }
+    }
+    Ok(())
+}
+
 #[test]
 fn test_zpool_status_parser() -> Result<(), Error> {
 
@@ -395,17 +408,7 @@ config:
 errors: No known data errors
 "###;
 
-    let key_value_list = parse_zpool_status(&output)?;
-    for (k, v) in key_value_list {
-        println!("{} => {}", k,v);
-        if k == "config" {
-            let vdev_list = parse_zpool_status_config_tree(&v)?;
-            let _tree = vdev_list_to_tree(&vdev_list);
-            //println!("TREE1 {}", serde_json::to_string_pretty(&tree)?);
-        }
-    }
-
-    Ok(())
+    test_parse(output)
 }
 
 #[test]
@@ -430,18 +433,7 @@ config:
 
 errors: No known data errors
 "###;
-
-    let key_value_list = parse_zpool_status(&output)?;
-    for (k, v) in key_value_list {
-        println!("{} => {}", k,v);
-        if k == "config" {
-            let vdev_list = parse_zpool_status_config_tree(&v)?;
-            let _tree = vdev_list_to_tree(&vdev_list);
-            //println!("TREE1 {}", serde_json::to_string_pretty(&tree)?);
-        }
-    }
-
-    Ok(())
+    test_parse(output)
 }
 
 #[test]
@@ -466,17 +458,7 @@ config:
 errors: No known data errors
 "###;
 
-    let key_value_list = parse_zpool_status(&output)?;
-    for (k, v) in key_value_list {
-        println!("{} => {}", k,v);
-        if k == "config" {
-            let vdev_list = parse_zpool_status_config_tree(&v)?;
-            let _tree = vdev_list_to_tree(&vdev_list);
-            //println!("TREE1 {}", serde_json::to_string_pretty(&tree)?);
-        }
-    }
-
-    Ok(())
+    test_parse(output)
 }
 
 #[test]
@@ -504,14 +486,5 @@ config:
 errors: No known data errors
 "###;
 
-    let key_value_list = parse_zpool_status(&output)?;
-    for (k, v) in key_value_list {
-        println!("{} => {}", k,v);
-        if k == "config" {
-            let vdev_list = parse_zpool_status_config_tree(&v)?;
-            let _tree = vdev_list_to_tree(&vdev_list);
-        }
-    }
-
-    Ok(())
+    test_parse(output)
 }
