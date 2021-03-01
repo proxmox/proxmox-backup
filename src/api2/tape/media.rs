@@ -148,9 +148,9 @@ pub async fn list_media(
         }
     }
 
-    if pool.is_none() {
+    let inventory = Inventory::load(status_path)?;
 
-        let inventory = Inventory::load(status_path)?;
+    if pool.is_none() {
 
         for media_id in inventory.list_unassigned_media() {
 
@@ -176,6 +176,41 @@ pub async fn list_media(
             });
         }
     }
+
+    // add media with missing pool configuration
+    // set status to MediaStatus::Unknown
+    for uuid in inventory.media_list() {
+        let media_id = inventory.lookup_media(uuid).unwrap();
+        let media_set_label = match media_id.media_set_label {
+            Some(ref set) => set,
+            None => continue,
+        };
+
+        if config.sections.get(&media_set_label.pool).is_some() {
+            continue;
+        }
+
+        let (_status, location) = inventory.status_and_location(uuid);
+
+        let media_set_name = inventory.generate_media_set_name(&media_set_label.uuid, None)?;
+
+        list.push(MediaListEntry {
+            uuid: media_id.label.uuid.clone(),
+            label_text: media_id.label.label_text.clone(),
+            ctime: media_id.label.ctime,
+            pool: Some(media_set_label.pool.clone()),
+            location,
+            status: MediaStatus::Unknown,
+            catalog: catalogs.contains(uuid),
+            expired: false,
+            media_set_ctime: Some(media_set_label.ctime),
+            media_set_uuid: Some(media_set_label.uuid.clone()),
+            media_set_name: Some(media_set_name),
+            seq_nr: Some(media_set_label.seq_nr),
+        });
+
+    }
+
 
     Ok(list)
 }
@@ -346,10 +381,13 @@ pub fn list_content(
             if &set.uuid != media_set_uuid { continue; }
         }
 
-        let config: MediaPoolConfig = config.lookup("pool", &set.pool)?;
+        let template = match config.lookup::<MediaPoolConfig>("pool", &set.pool) {
+            Ok(pool_config) => pool_config.template.clone(),
+            _ => None, // simply use default if there is no pool config
+        };
 
         let media_set_name = inventory
-            .generate_media_set_name(&set.uuid, config.template.clone())
+            .generate_media_set_name(&set.uuid, template)
             .unwrap_or_else(|_| set.uuid.to_string());
 
         let catalog = MediaCatalog::open(status_path, &media_id.label.uuid, false, false)?;
