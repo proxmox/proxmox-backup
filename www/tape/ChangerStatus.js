@@ -285,12 +285,17 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	    }
 	},
 
-	reload: function() {
+	cancelReload: function() {
 	    let me = this;
 	    if (me.reloadTimeout !== undefined) {
 		clearTimeout(me.reloadTimeout);
 		me.reloadTimeout = undefined;
 	    }
+	},
+
+	reload: function() {
+	    let me = this;
+	    me.cancelReload();
 	    me.reload_full(true);
 	},
 
@@ -398,6 +403,10 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 		}
 		Proxmox.Utils.setErrorMask(me.lookup('content'));
 	    } catch (err) {
+		if (!view || view.isDestroyed) {
+		    return;
+		}
+
 		if (!use_cache) {
 		    Proxmox.Utils.setErrorMask(view);
 		}
@@ -470,11 +479,13 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	    }
 
 	    view.title = `${gettext("Changer")}: ${view.changer}`;
+	    me.reload();
 	},
     },
 
     listeners: {
-	activate: 'reload',
+	deactivate: 'cancelReload',
+	destroy: 'cancelReload',
     },
 
     tbar: [
