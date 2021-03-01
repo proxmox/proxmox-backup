@@ -29,6 +29,7 @@ TAPE_UI_FILES=						\
 	tape/ChangerConfig.js				\
 	tape/ChangerStatus.js				\
 	tape/DriveConfig.js				\
+	tape/DriveStatus.js				\
 	tape/EncryptionKeys.js				\
 	tape/PoolConfig.js				\
 	tape/TapeInventory.js				\
