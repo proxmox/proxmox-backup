@@ -151,7 +151,20 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 			    children: [],
 			};
 		    }
-		    tapes[tape].children.push(entry);
+		    let [type, group, _id] = PBS.Utils.parse_snapshot_id(entry.snapshot);
+
+		    let children = tapes[tape].children;
+		    let text = `${type}/${group}`;
+		    if (children.length < 1 || children[children.length - 1].text !== text) {
+			children.push({
+			    text,
+			    'media-set-uuid': entry['media-set-uuid'],
+			    leaf: false,
+			    iconCls: `fa ${iconCls}`,
+			    children: [],
+			});
+		    }
+		    children[children.length - 1].children.push(entry);
 		}
 
 		for (const tape of Object.values(tapes)) {
