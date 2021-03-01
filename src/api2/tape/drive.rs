@@ -1299,6 +1299,11 @@ pub const SUBDIRS: SubdirMap = &sorted!([
             .get(&API_METHOD_READ_LABEL)
     ),
     (
+        "restore-key",
+        &Router::new()
+            .post(&API_METHOD_RESTORE_KEY)
+    ),
+    (
         "rewind",
         &Router::new()
             .post(&API_METHOD_REWIND)

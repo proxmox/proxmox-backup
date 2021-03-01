@@ -29,6 +29,34 @@ Ext.define('PBS.TapeManagement.EncryptionPanel', {
 	    }).show();
 	},
 
+	onRestoreKey: function() {
+	    Ext.create('Proxmox.window.Edit', {
+		title: gettext('Restore Key'),
+		isCreate: true,
+		submitText: gettext('Restore'),
+		method: 'POST',
+		url: `/api2/extjs/tape/drive`,
+		submitUrl: function(url, values) {
+		    let drive = values.drive;
+		    delete values.drive;
+		    return `${url}/${drive}/restore-key`;
+		},
+		items: [
+		    {
+			xtype: 'pbsDriveSelector',
+			fieldLabel: gettext('Drive'),
+			name: 'drive',
+		    },
+		    {
+			xtype: 'textfield',
+			inputType: 'password',
+			fieldLabel: gettext('Password'),
+			name: 'password',
+		    },
+		],
+	    }).show();
+	},
+
 	reload: function() {
 	    this.getView().getStore().rstore.load();
 	},
@@ -74,6 +102,13 @@ Ext.define('PBS.TapeManagement.EncryptionPanel', {
 	    xtype: 'proxmoxStdRemoveButton',
 	    baseurl: '/api2/extjs/config/tape-encryption-keys',
 	    callback: 'reload',
+	},
+	'-',
+	{
+	    text: gettext('Restore Key'),
+	    xtype: 'proxmoxButton',
+	    handler: 'onRestoreKey',
+	    selModel: false,
 	},
     ],
     columns: [
