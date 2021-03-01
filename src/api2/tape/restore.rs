@@ -32,7 +32,6 @@ use crate::{
         DRIVE_NAME_SCHEMA,
         UPID_SCHEMA,
         Authid,
-        MediaPoolConfig,
     },
     config,
     backup::{
@@ -115,10 +114,6 @@ pub fn restore(
     let media_set_uuid = media_set.parse()?;
 
     let pool = inventory.lookup_media_set_pool(&media_set_uuid)?;
-
-    // check if pool exists
-    let (config, _digest) = config::media_pool::config()?;
-    let _pool_config: MediaPoolConfig = config.lookup("pool", &pool)?;
 
     let (drive_config, _digest) = config::drive::config()?;
 
