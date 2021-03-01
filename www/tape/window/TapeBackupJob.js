@@ -33,7 +33,7 @@ Ext.define('PBS.TapeManagement.BackupJobEdit', {
 	    let me = this;
 
 	    if (values['export-media-set'] && !me.up('pbsTapeBackupJobEdit').isCreate) {
-		Proxmox.Utils.assemble_field_data(values, { delete: 'eject-media' });
+		Proxmox.Utils.assemble_field_data(values, { "delete": 'eject-media' });
 	    }
 	    return values;
 	},

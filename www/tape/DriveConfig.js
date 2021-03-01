@@ -187,7 +187,7 @@ Ext.define('PBS.TapeManagement.DrivePanel', {
 	    dataIndex: 'changer-drivenum',
 	    renderer: function(value, mD, record) {
 		return record.data.changer ? value : '';
-	    }
+	    },
 	},
 	{
 	    text: gettext('Actions'),
