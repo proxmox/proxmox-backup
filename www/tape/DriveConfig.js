@@ -55,20 +55,6 @@ Ext.define('PBS.TapeManagement.DrivePanel', {
 	    });
 	},
 
-	catalog: function(button, event, record) {
-	    let me = this;
-	    let drive = record.data.name;
-	    PBS.Utils.driveCommand(drive, 'catalog', {
-		waitMsgTarget: me.getView(),
-		method: 'POST',
-		success: function(response) {
-		    Ext.create('Proxmox.window.TaskViewer', {
-			upid: response.result.data,
-		    }).show();
-		},
-	    });
-	},
-
 	readLabel: function(view, rI, cI, button, el, record) {
 	    let me = this;
 	    let drive = record.data.name;
@@ -94,29 +80,6 @@ Ext.define('PBS.TapeManagement.DrivePanel', {
 	    PBS.Utils.driveCommand(drive, 'cartridge-memory', {
 		waitMsgTarget: me.getView(),
 		success: PBS.Utils.showCartridgeMemoryWindow,
-	    });
-	},
-
-	labelMedia: function(button, event, record) {
-	    let me = this;
-	    let driveid = record.data.name;
-
-	    Ext.create('PBS.TapeManagement.LabelMediaWindow', {
-		driveid,
-	    }).show();
-	},
-
-	ejectMedia: function(button, event, record) {
-	    let me = this;
-	    let driveid = record.data.name;
-	    PBS.Utils.driveCommand(driveid, 'eject-media', {
-		waitMsgTarget: me.getView(),
-		method: 'POST',
-		success: function(response) {
-		    Ext.create('Proxmox.window.TaskProgress', {
-			upid: response.result.data,
-		    }).show();
-		},
 	    });
 	},
 
@@ -191,27 +154,6 @@ Ext.define('PBS.TapeManagement.DrivePanel', {
 	    xtype: 'proxmoxStdRemoveButton',
 	    baseurl: '/api2/extjs/config/drive',
 	    callback: 'reload',
-	},
-	'-',
-	{
-	    text: gettext('Label Media'),
-	    xtype: 'proxmoxButton',
-	    handler: 'labelMedia',
-	    iconCls: 'fa fa-barcode',
-	    disabled: true,
-	},
-	{
-	    text: gettext('Eject'),
-	    xtype: 'proxmoxButton',
-	    handler: 'ejectMedia',
-	    disabled: true,
-	},
-	{
-	    text: gettext('Catalog'),
-	    xtype: 'proxmoxButton',
-	    handler: 'catalog',
-	    iconCls: 'fa fa-book',
-	    disabled: true,
 	},
     ],
     columns: [
