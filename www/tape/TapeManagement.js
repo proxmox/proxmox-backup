@@ -22,11 +22,6 @@ Ext.define('PBS.TapeManagement', {
 	    xtype: 'pbsTapeInventory',
 	},
 	{
-	    title: gettext('Library'),
-	    itemId: 'library',
-	    xtype: 'pbsChangerStatus',
-	},
-	{
 	    title: gettext('Changers'),
 	    itemId: 'changers',
 	    xtype: 'pbsTapeChangerPanel',

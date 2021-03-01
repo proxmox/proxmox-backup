@@ -15,34 +15,14 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
     extend: 'Ext.panel.Panel',
     alias: 'widget.pbsChangerStatus',
 
-    viewModel: {
-	data: {
-	    changer: '',
-	},
-
-	formulas: {
-	    changerSelected: (get) => get('changer') !== '',
-	},
-    },
-
     controller: {
 	xclass: 'Ext.app.ViewController',
 
-	changerChange: function(field, value) {
+	importTape: function(v, rI, cI, button, el, record) {
 	    let me = this;
 	    let view = me.getView();
-	    let vm = me.getViewModel();
-	    vm.set('changer', value);
-	    if (view.rendered) {
-		me.reload();
-	    }
-	},
-
-	importTape: function(view, rI, cI, button, el, record) {
-	    let me = this;
-	    let vm = me.getViewModel();
 	    let from = record.data['entry-id'];
-	    let changer = encodeURIComponent(vm.get('changer'));
+	    let changer = encodeURIComponent(view.changer);
 	    Ext.create('Proxmox.window.Edit', {
 		title: gettext('Import'),
 		isCreate: true,
@@ -71,11 +51,11 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	    }).show();
 	},
 
-	slotTransfer: function(view, rI, cI, button, el, record) {
+	slotTransfer: function(v, rI, cI, button, el, record) {
 	    let me = this;
-	    let vm = me.getViewModel();
+	    let view = me.getView();
 	    let from = record.data['entry-id'];
-	    let changer = encodeURIComponent(vm.get('changer'));
+	    let changer = encodeURIComponent(view.changer);
 	    Ext.create('Proxmox.window.Edit', {
 		title: gettext('Transfer'),
 		isCreate: true,
@@ -104,12 +84,12 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	    }).show();
 	},
 
-	erase: function(view, rI, cI, button, el, record) {
+	erase: function(v, rI, cI, button, el, record) {
 	    let me = this;
-	    let vm = me.getViewModel();
+	    let view = me.getView();
 	    let label = record.data['label-text'];
 
-	    let changer = vm.get('changer');
+	    let changer = encodeURIComponent(view.changer);
 	    Ext.create('PBS.TapeManagement.EraseWindow', {
 		label,
 		changer,
@@ -121,12 +101,12 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	    }).show();
 	},
 
-	load: function(view, rI, cI, button, el, record) {
+	load: function(v, rI, cI, button, el, record) {
 	    let me = this;
-	    let vm = me.getViewModel();
+	    let view = me.getView();
 	    let label = record.data['label-text'];
 
-	    let changer = vm.get('changer');
+	    let changer = encodeURIComponent(view.changer);
 
 	    Ext.create('Proxmox.window.Edit', {
 		isCreate: true,
@@ -163,7 +143,7 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	    });
 	},
 
-	unload: async function(view, rI, cI, button, el, record) {
+	unload: async function(v, rI, cI, button, el, record) {
 	    let me = this;
 	    let drive = record.data.name;
 	    try {
@@ -231,8 +211,8 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 
 	barcodeLabel: function() {
 	    let me = this;
-	    let vm = me.getViewModel();
-	    let changer = vm.get('changer');
+	    let view = me.getView();
+	    let changer = view.changer;
 	    if (changer === '') {
 		return;
 	    }
@@ -268,8 +248,8 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 
 	inventory: function() {
 	    let me = this;
-	    let vm = me.getViewModel();
-	    let changer = vm.get('changer');
+	    let view = me.getView();
+	    let changer = view.changer;
 	    if (changer === '') {
 		return;
 	    }
@@ -326,8 +306,7 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	reload_full: async function(use_cache) {
 	    let me = this;
 	    let view = me.getView();
-	    let vm = me.getViewModel();
-	    let changer = vm.get('changer');
+	    let changer = view.changer;
 	    if (changer === '') {
 		return;
 	    }
@@ -483,6 +462,15 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 		},
 	    },
 	},
+
+	init: function(view) {
+	    let me = this;
+	    if (!view.changer) {
+		throw "no changer given";
+	    }
+
+	    view.title = `${gettext("Changer")}: ${view.changer}`;
+	},
     },
 
     listeners: {
@@ -490,16 +478,6 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
     },
 
     tbar: [
-	{
-	    fieldLabel: gettext('Changer'),
-	    xtype: 'pbsChangerSelector',
-	    reference: 'changerselector',
-	    autoSelect: true,
-	    listeners: {
-		change: 'changerChange',
-	    },
-	},
-	'-',
 	{
 	    text: gettext('Reload'),
 	    xtype: 'proxmoxButton',
@@ -512,18 +490,12 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	    xtype: 'proxmoxButton',
 	    handler: 'barcodeLabel',
 	    iconCls: 'fa fa-barcode',
-	    bind: {
-		disabled: '{!changerSelected}',
-	    },
 	},
 	{
 	    text: gettext('Inventory'),
 	    xtype: 'proxmoxButton',
 	    handler: 'inventory',
 	    iconCls: 'fa fa-book',
-	    bind: {
-		disabled: '{!changerSelected}',
-	    },
 	},
     ],
 
