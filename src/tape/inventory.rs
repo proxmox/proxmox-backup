@@ -230,6 +230,11 @@ impl Inventory {
         self.map.get(uuid).map(|entry| &entry.id)
     }
 
+    /// List all media Uuids
+    pub fn media_list(&self) -> Vec<&Uuid> {
+        self.map.keys().collect()
+    }
+
     /// find media by label_text
     pub fn find_media_by_label_text(&self, label_text: &str) -> Option<&MediaId> {
         self.map.values().find_map(|entry| {
