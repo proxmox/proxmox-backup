@@ -8,6 +8,16 @@ Ext.define('pbs-datastore-list', {
     idProperty: 'store',
 });
 
+Ext.define('pbs-tape-drive-list', {
+    extend: 'Ext.data.Model',
+    fields: ['name', 'changer'],
+    proxy: {
+        type: 'proxmox',
+        url: "/api2/json/tape/drive",
+    },
+    idProperty: 'name',
+});
+
 Ext.define('PBS.store.NavigationStore', {
     extend: 'Ext.data.TreeStore',
 
@@ -101,13 +111,91 @@ Ext.define('PBS.view.main.NavigationTree', {
 	    view.rstore = Ext.create('Proxmox.data.UpdateStore', {
 		autoStart: true,
 		interval: 15 * 1000,
-		storeId: 'pbs-datastore-list',
 		storeid: 'pbs-datastore-list',
 		model: 'pbs-datastore-list',
 	    });
 
 	    view.rstore.on('load', this.onLoad, this);
 	    view.on('destroy', view.rstore.stopUpdate);
+
+	    if (PBS.TapeManagement !== undefined) {
+		view.tapestore = Ext.create('Proxmox.data.UpdateStore', {
+		    autoStart: true,
+		    interval: 2 * 1000,
+		    storeid: 'pbs-tape-drive-list',
+		    model: 'pbs-tape-drive-list',
+		});
+
+		let root = view.getStore().getRoot();
+		root.insertChild(3, {
+		    text: "Tape Backup",
+		    iconCls: 'pbs-icon-tape',
+		    id: 'tape_management',
+		    path: 'pbsTapeManagement',
+		    expanded: true,
+		    children: [],
+		});
+
+		view.tapestore.on('load', this.onTapeDriveLoad, this);
+		view.on('destroy', view.tapestore.stopUpdate);
+	    }
+	},
+
+	onTapeDriveLoad: function(store, records, success) {
+	    if (!success) return;
+
+	    let view = this.getView();
+	    let root = view.getStore().getRoot();
+
+	    records.sort((a, b) => a.data.name.localeCompare(b.data.name));
+	    let list = root.findChild('id', 'tape_management', false);
+	    let newSet = {};
+
+	    for (const drive of records) {
+		let path, text, iconCls;
+		if (drive.data.changer !== undefined) {
+		    text = drive.data.changer;
+		    path = `Changer-${text}`;
+		    iconCls = 'fa fa-circle';
+		} else {
+		    text = drive.data.name;
+		    path = `Drive-${text}`;
+		    iconCls = 'fa fa-square';
+		}
+		newSet[path] = {
+		    text,
+		    path,
+		    iconCls,
+		    leaf: true,
+		};
+	    }
+
+	    let paths = Object.keys(newSet).sort();
+
+	    let oldIdx = 0;
+	    for (let newIdx = 0; newIdx < paths.length; newIdx++) {
+		let newPath = paths[newIdx];
+		// find index to insert
+		while (oldIdx < list.childNodes.length && newPath > list.getChildAt(oldIdx).data.path) {
+		    oldIdx++;
+		}
+
+		if (oldIdx >= list.childNodes.length || list.getChildAt(oldIdx).data.path !== newPath) {
+		    list.insertChild(oldIdx, newSet[newPath]);
+		}
+	    }
+
+	    list.eachChild((child) => {
+		if (!newSet[child.data.path]) {
+		    list.removeChild(child, true);
+		}
+	    });
+
+	    if (view.pathToSelect !== undefined) {
+		let path = view.pathToSelect;
+		delete view.pathToSelect;
+		view.select(path, true);
+	    }
 	},
 
 	onLoad: function(store, records, success) {
@@ -115,19 +203,6 @@ Ext.define('PBS.view.main.NavigationTree', {
 	    var view = this.getView();
 
 	    let root = view.getStore().getRoot();
-
-	    if (PBS.TapeManagement !== undefined) {
-		if (!root.findChild('id', 'tape_management', false)) {
-		    root.insertChild(3, {
-			text: "Tape Backup",
-			iconCls: 'pbs-icon-tape',
-			id: 'tape_management',
-			path: 'pbsTapeManagement',
-			expanded: true,
-			children: [],
-		    });
-		}
-	    }
 
 	    records.sort((a, b) => a.id.localeCompare(b.id));
 
@@ -191,7 +266,7 @@ Ext.define('PBS.view.main.NavigationTree', {
 
     select: function(path, silent) {
 	var me = this;
-	if (me.rstore.isLoaded()) {
+	if (me.rstore.isLoaded() && (!PBS.TapeManagement || me.tapestore.isLoaded())) {
 	    if (silent) {
 		me.suspendEvents(false);
 	    }
