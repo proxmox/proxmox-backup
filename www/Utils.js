@@ -277,7 +277,7 @@ Ext.define('PBS.Utils', {
     },
 
     render_estimate: function(value) {
-	if (!value) {
+	if (value === undefined) {
 	    return gettext('Not enough data');
 	}
 
