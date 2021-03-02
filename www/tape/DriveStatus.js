@@ -228,7 +228,16 @@ Ext.define('PBS.TapeManagement.DriveInfoPanel', {
     bodyPadding: 15,
 
     viewModel: {
-	data: {},
+	data: {
+	    drive: {},
+	},
+
+	formulas: {
+	    driveState: function(get) {
+		let drive = get('drive');
+		return PBS.Utils.renderDriveState(drive.state, {});
+	    },
+	},
     },
 
     items: [
@@ -237,7 +246,7 @@ Ext.define('PBS.TapeManagement.DriveInfoPanel', {
 	    title: gettext('Name'),
 	    bind: {
 		data: {
-		    text: '{name}',
+		    text: '{drive.name}',
 		},
 	    },
 	},
@@ -246,7 +255,7 @@ Ext.define('PBS.TapeManagement.DriveInfoPanel', {
 	    title: gettext('Vendor'),
 	    bind: {
 		data: {
-		    text: '{vendor}',
+		    text: '{drive.vendor}',
 		},
 	    },
 	},
@@ -255,7 +264,7 @@ Ext.define('PBS.TapeManagement.DriveInfoPanel', {
 	    title: gettext('Model'),
 	    bind: {
 		data: {
-		    text: '{model}',
+		    text: '{drive.model}',
 		},
 	    },
 	},
@@ -264,7 +273,7 @@ Ext.define('PBS.TapeManagement.DriveInfoPanel', {
 	    title: gettext('Serial'),
 	    bind: {
 		data: {
-		    text: '{serial}',
+		    text: '{drive.serial}',
 		},
 	    },
 	},
@@ -273,22 +282,34 @@ Ext.define('PBS.TapeManagement.DriveInfoPanel', {
 	    title: gettext('Path'),
 	    bind: {
 		data: {
-		    text: '{path}',
+		    text: '{drive.path}',
+		},
+	    },
+	},
+	{
+	    xtype: 'pmxInfoWidget',
+	    title: gettext('State'),
+	    bind: {
+		data: {
+		    text: '{driveState}',
 		},
 	    },
 	},
     ],
 
-    updateData: function(record) {
+    updateData: function(store) {
 	let me = this;
+	if (!store) {
+	    return;
+	}
+	let record = store.findRecord('name', me.drive, 0, false, true, true);
 	if (!record) {
 	    return;
 	}
 
 	let vm = me.getViewModel();
-	for (const [key, value] of Object.entries(record.data)) {
-	    vm.set(key, value);
-	}
+	vm.set('drive', record.data);
+	vm.notify();
     },
 
     initComponent: function() {
@@ -298,13 +319,9 @@ Ext.define('PBS.TapeManagement.DriveInfoPanel', {
 	}
 
 	let tapeStore = Ext.ComponentQuery.query('navigationtree')[0].tapestore;
-	me.mon(tapeStore, 'load', function() {
-	    let driveRecord = tapeStore.findRecord('name', me.drive, 0, false, true, true);
-	    me.updateData(driveRecord);
-	});
-	if (!tapeStore.isLoading) {
-	    let driveRecord = tapeStore.findRecord('name', me.drive, 0, false, true, true);
-	    me.updateData(driveRecord);
+	me.mon(tapeStore, 'load', me.updateData, me);
+	if (tapeStore.isLoaded()) {
+	    me.updateData(tapeStore);
 	}
 
 	me.callParent();
