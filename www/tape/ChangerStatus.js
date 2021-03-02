@@ -84,6 +84,14 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	    }).show();
 	},
 
+	labelMedia: function(button, event, record) {
+	    let me = this;
+
+	    Ext.create('PBS.TapeManagement.LabelMediaWindow', {
+		driveid: record.data.name,
+	    }).show();
+	},
+
 	erase: function(v, rI, cI, button, el, record) {
 	    let me = this;
 	    let view = me.getView();
@@ -601,6 +609,15 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 				},
 				data: [],
 			    },
+			    tbar: [
+				{
+				    text: gettext('Label Media'),
+				    xtype: 'proxmoxButton',
+				    handler: 'labelMedia',
+				    iconCls: 'fa fa-barcode',
+				    disabled: true,
+				},
+			    ],
 			    columns: [
 				{
 				    text: gettext('ID'),
