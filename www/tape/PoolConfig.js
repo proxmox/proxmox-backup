@@ -1,6 +1,15 @@
 Ext.define('pbs-model-media-pool', {
     extend: 'Ext.data.Model',
-    fields: ['name', 'allocation', 'retention', 'template', 'encrypt'],
+    fields: [
+	'name', 'allocation', 'retention', 'template', 'encrypt', 'comment',
+	{
+	    name: 'encryption',
+	    type: 'bool',
+	    calculate: function(data) {
+		return !!data.encrypt;
+	    },
+	},
+    ],
     idProperty: 'name',
 });
 
@@ -102,18 +111,26 @@ Ext.define('PBS.TapeManagement.PoolPanel', {
 	{
 	    text: gettext('Allocation'),
 	    dataIndex: 'allocation',
-	    flex: 1,
 	},
 	{
 	    text: gettext('Retention'),
 	    dataIndex: 'retention',
-	    flex: 1,
+	},
+	{
+	    text: gettext('Encryption'),
+	    dataIndex: 'encryption',
+	    renderer: Proxmox.Utils.format_boolean,
 	},
 	{
 	    text: gettext('Encryption Fingerprint'),
 	    dataIndex: 'encrypt',
+	    hidden: true,
+	    flex: 3,
+	},
+	{
+	    text: gettext('Comment'),
+	    dataIndex: 'comment',
 	    flex: 3,
 	},
     ],
 });
-

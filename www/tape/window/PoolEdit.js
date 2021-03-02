@@ -19,50 +19,66 @@ Ext.define('PBS.TapeManagement.PoolEditWindow', {
 	return { };
     },
 
-    items: [
-	{
-	    fieldLabel: gettext('Name'),
-	    name: 'name',
-	    xtype: 'pmxDisplayEditField',
-	    renderer: Ext.htmlEncode,
-	    allowBlank: false,
-	    cbind: {
-		editable: '{isCreate}',
+    items: {
+	xtype: 'inputpanel',
+	column1: [
+	    {
+		fieldLabel: gettext('Name'),
+		name: 'name',
+		xtype: 'pmxDisplayEditField',
+		renderer: Ext.htmlEncode,
+		allowBlank: false,
+		cbind: {
+		    editable: '{isCreate}',
+		},
 	    },
-	},
-	{
-	    fieldLabel: gettext('Allocation'),
-	    xtype: 'pbsAllocationSelector',
-	    name: 'allocation',
-	    skipEmptyText: true,
-	    allowBlank: true,
-	    autoSelect: false,
-	    cbind: {
-		deleteEmpty: '{!isCreate}',
+	    {
+		fieldLabel: gettext('Allocation'),
+		xtype: 'pbsAllocationSelector',
+		name: 'allocation',
+		skipEmptyText: true,
+		allowBlank: true,
+		autoSelect: false,
+		cbind: {
+		    deleteEmpty: '{!isCreate}',
+		},
 	    },
-	},
-	{
-	    fieldLabel: gettext('Retention'),
-	    xtype: 'pbsRetentionSelector',
-	    name: 'retention',
-	    skipEmptyText: true,
-	    allowBlank: true,
-	    autoSelect: false,
-	    cbind: {
-		deleteEmpty: '{!isCreate}',
+	    {
+		fieldLabel: gettext('Retention'),
+		xtype: 'pbsRetentionSelector',
+		name: 'retention',
+		skipEmptyText: true,
+		allowBlank: true,
+		autoSelect: false,
+		cbind: {
+		    deleteEmpty: '{!isCreate}',
+		},
 	    },
-	},
-	{
-	    fieldLabel: gettext('Encryption Key'),
-	    xtype: 'pbsTapeKeySelector',
-	    name: 'encrypt',
-	    allowBlank: true,
-	    skipEmptyText: true,
-	    autoSelect: false,
-	    cbind: {
-		deleteEmpty: '{!isCreate}',
-	    },
-	},
-    ],
-});
+	],
 
+	column2: [
+	    {
+		fieldLabel: gettext('Encryption Key'),
+		xtype: 'pbsTapeKeySelector',
+		name: 'encrypt',
+		allowBlank: true,
+		skipEmptyText: true,
+		autoSelect: false,
+		cbind: {
+		    deleteEmpty: '{!isCreate}',
+		},
+	    },
+	],
+
+	columnB: [
+	    {
+		fieldLabel: gettext('Comment'),
+		xtype: 'proxmoxtextfield',
+		name: 'comment',
+		cbind: {
+		    deleteEmpty: '{!isCreate}',
+		},
+	    },
+	],
+    },
+});
