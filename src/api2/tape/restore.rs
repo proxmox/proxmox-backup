@@ -378,7 +378,6 @@ fn restore_chunk_archive<'a>(
         while let Some((digest, blob)) = decoder.next_chunk()? {
 
             worker.check_abort()?;
-            crate::tools::fail_on_shutdown()?;
 
             if let Some(datastore) = datastore {
                 let chunk_exists = datastore.cond_touch_chunk(&digest, false)?;
@@ -478,7 +477,6 @@ fn try_restore_snapshot_archive<R: pxar::decoder::SeqRead>(
 
     loop {
         worker.check_abort()?;
-        crate::tools::fail_on_shutdown()?;
 
         let entry = match decoder.next() {
             None => break,

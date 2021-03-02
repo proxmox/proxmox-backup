@@ -386,7 +386,6 @@ pub fn request_and_load_media(
 
                     loop {
                         worker.check_abort()?;
-                        crate::tools::fail_on_shutdown()?;
 
                         let mut handle = match drive_config.open() {
                             Ok(handle) => handle,
@@ -398,7 +397,6 @@ pub fn request_and_load_media(
                                 }
                                 for _ in 0..50 { // delay 5 seconds
                                     worker.check_abort()?;
-                                    crate::tools::fail_on_shutdown()?;
                                     std::thread::sleep(std::time::Duration::from_millis(100));
                                 }
                                 continue;
@@ -443,7 +441,6 @@ pub fn request_and_load_media(
                         // eprintln!("read label failed -  test again in 5 secs");
                         for _ in 0..50 { // delay 5 seconds
                             worker.check_abort()?;
-                            crate::tools::fail_on_shutdown()?;
                             std::thread::sleep(std::time::Duration::from_millis(100));
                         }
                     }

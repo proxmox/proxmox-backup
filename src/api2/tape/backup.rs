@@ -366,7 +366,6 @@ pub fn backup_snapshot(
 
     loop {
         worker.check_abort()?;
-        crate::tools::fail_on_shutdown()?;
 
         // test is we have remaining chunks
         if chunk_iter.peek().is_none() {
@@ -376,7 +375,6 @@ pub fn backup_snapshot(
         let uuid = pool_writer.load_writable_media(worker)?;
 
         worker.check_abort()?;
-        crate::tools::fail_on_shutdown()?;
 
         let (leom, _bytes) = pool_writer.append_chunk_archive(worker, &datastore, &mut chunk_iter)?;
 
@@ -386,12 +384,10 @@ pub fn backup_snapshot(
     }
 
     worker.check_abort()?;
-    crate::tools::fail_on_shutdown()?;
 
     let uuid = pool_writer.load_writable_media(worker)?;
 
     worker.check_abort()?;
-    crate::tools::fail_on_shutdown()?;
 
     let (done, _bytes) = pool_writer.append_snapshot_archive(worker, &snapshot_reader)?;
 
@@ -400,7 +396,6 @@ pub fn backup_snapshot(
         pool_writer.set_media_status_full(&uuid)?;
 
         worker.check_abort()?;
-        crate::tools::fail_on_shutdown()?;
 
         pool_writer.load_writable_media(worker)?;
         let (done, _bytes) = pool_writer.append_snapshot_archive(worker, &snapshot_reader)?;
