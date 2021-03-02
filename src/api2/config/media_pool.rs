@@ -16,6 +16,7 @@ use crate::{
         MEDIA_SET_ALLOCATION_POLICY_SCHEMA,
         MEDIA_RETENTION_POLICY_SCHEMA,
         TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
+        SINGLE_LINE_COMMENT_SCHEMA,
         MediaPoolConfig,
     },
     config,
@@ -25,56 +26,29 @@ use crate::{
     protected: true,
     input: {
         properties: {
-            name: {
-                schema: MEDIA_POOL_NAME_SCHEMA,
-            },
-            allocation: {
-                schema: MEDIA_SET_ALLOCATION_POLICY_SCHEMA,
-                optional: true,
-            },
-            retention: {
-                schema: MEDIA_RETENTION_POLICY_SCHEMA,
-                optional: true,
-            },
-            template: {
-                schema: MEDIA_SET_NAMING_TEMPLATE_SCHEMA,
-                optional: true,
-            },
-            encrypt: {
-                schema: TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
-                optional: true,
+            config: {
+                type: MediaPoolConfig,
+                flatten: true,
             },
         },
     },
 )]
 /// Create a new media pool
 pub fn create_pool(
-    name: String,
-    allocation: Option<String>,
-    retention: Option<String>,
-    template: Option<String>,
-    encrypt: Option<String>,
+    config: MediaPoolConfig,
 ) -> Result<(), Error> {
 
     let _lock = config::media_pool::lock()?;
 
-    let (mut config, _digest) = config::media_pool::config()?;
+    let (mut section_config, _digest) = config::media_pool::config()?;
 
-    if config.sections.get(&name).is_some() {
-        bail!("Media pool '{}' already exists", name);
+    if section_config.sections.get(&config.name).is_some() {
+        bail!("Media pool '{}' already exists", config.name);
     }
 
-    let item = MediaPoolConfig {
-        name: name.clone(),
-        allocation,
-        retention,
-        template,
-        encrypt,
-    };
+    section_config.set_data(&config.name, "pool", &config)?;
 
-    config.set_data(&name, "pool", &item)?;
-
-    config::media_pool::save_config(&config)?;
+    config::media_pool::save_config(&section_config)?;
 
     Ok(())
 }
@@ -137,6 +111,8 @@ pub enum DeletableProperty {
     template,
     /// Delete encryption fingerprint
     encrypt,
+    /// Delete comment
+    comment,
 }
 
 #[api(
@@ -162,6 +138,10 @@ pub enum DeletableProperty {
                 schema: TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
                 optional: true,
             },
+            comment: {
+                optional: true,
+                schema: SINGLE_LINE_COMMENT_SCHEMA,
+            },
             delete: {
                 description: "List of properties to delete.",
                 type: Array,
@@ -180,6 +160,7 @@ pub fn update_pool(
     retention: Option<String>,
     template: Option<String>,
     encrypt: Option<String>,
+    comment: Option<String>,
     delete: Option<Vec<DeletableProperty>>,
 ) -> Result<(), Error> {
 
@@ -196,6 +177,7 @@ pub fn update_pool(
                 DeletableProperty::retention => { data.retention = None; },
                 DeletableProperty::template => { data.template = None; },
                 DeletableProperty::encrypt => { data.encrypt = None; },
+                DeletableProperty::comment => { data.comment = None; },
             }
         }
     }
@@ -204,6 +186,15 @@ pub fn update_pool(
     if retention.is_some() { data.retention = retention; }
     if template.is_some() { data.template = template; }
     if encrypt.is_some() { data.encrypt = encrypt; }
+
+    if let Some(comment) = comment {
+        let comment = comment.trim();
+        if comment.is_empty() {
+            data.comment = None;
+        } else {
+            data.comment = Some(comment.to_string());
+        }
+    }
 
     config.set_data(&name, "pool", &data)?;
 

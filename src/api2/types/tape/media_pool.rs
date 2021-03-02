@@ -23,6 +23,7 @@ use crate::{
     api2::types::{
         PROXMOX_SAFE_ID_FORMAT,
         SINGLE_LINE_COMMENT_FORMAT,
+        SINGLE_LINE_COMMENT_SCHEMA,
         TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
     },
 };
@@ -131,6 +132,10 @@ impl std::str::FromStr for RetentionPolicy {
             schema: TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
             optional: true,
         },
+        comment: {
+            optional: true,
+            schema: SINGLE_LINE_COMMENT_SCHEMA,
+        },
     },
 )]
 #[derive(Serialize,Deserialize)]
@@ -155,4 +160,6 @@ pub struct MediaPoolConfig {
     /// If set, encrypt all data using the specified key.
     #[serde(skip_serializing_if="Option::is_none")]
     pub encrypt: Option<String>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub comment: Option<String>,
 }
