@@ -156,7 +156,7 @@ Ext.define('PBS.view.main.NavigationTree', {
 		if (drive.data.changer !== undefined) {
 		    text = drive.data.changer;
 		    path = `Changer-${text}`;
-		    iconCls = 'fa fa-circle';
+		    iconCls = 'fa fa-navicon';
 		} else {
 		    text = drive.data.name;
 		    path = `Drive-${text}`;
