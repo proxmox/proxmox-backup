@@ -190,7 +190,7 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	    });
 	},
 
-	cleanDrive: function(view, rI, cI, button, el, record) {
+	cleanDrive: function(button, event, record) {
 	    let me = this;
 	    PBS.Utils.driveCommand(record.data.name, 'clean', {
 		waitMsgTarget: me.getView(),
@@ -639,6 +639,13 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 				    iconCls: 'fa fa-book',
 				    disabled: true,
 				},
+				{
+				    text: gettext('Clean Drive'),
+				    xtype: 'proxmoxButton',
+				    handler: 'cleanDrive',
+				    iconCls: 'fa fa-shower',
+				    disabled: true,
+				},
 			    ],
 			    columns: [
 				{
@@ -729,12 +736,6 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 					    iconCls: 'fa fa-info-circle',
 					    tooltip: gettext('Status'),
 					    handler: 'status',
-					    isDisabled: (v, r, c, i, rec) => rec.data['is-blocked'],
-					},
-					{
-					    iconCls: 'fa fa-shower',
-					    tooltip: gettext('Clean Drive'),
-					    handler: 'cleanDrive',
 					    isDisabled: (v, r, c, i, rec) => rec.data['is-blocked'],
 					},
 				    ],
