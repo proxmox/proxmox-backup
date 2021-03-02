@@ -18,6 +18,8 @@ Ext.define('PBS.TapeManagement.DriveStatus', {
     viewModel: {
 	data: {
 	    online: false,
+	    busy: true,
+	    loaded: false,
 	},
     },
 
@@ -36,6 +38,33 @@ Ext.define('PBS.TapeManagement.DriveStatus', {
 	    let online = statusFlags.indexOf('ONLINE') !== -1;
 	    let vm = me.getViewModel();
 	    vm.set('online', online);
+	},
+
+	onStateLoad: function(store) {
+	    let me = this;
+	    let view = me.getView();
+	    let vm = me.getViewModel();
+	    let driveRecord = store.findRecord('name', view.drive, 0, false, true, true);
+	    let busy = !!driveRecord.data.state;
+	    vm.set('busy', busy);
+	    let statusgrid = me.lookup('statusgrid');
+	    if (!vm.get('loaded')) {
+		if (busy) {
+		    // have to use a timeout so that the component can be rendered first
+		    // otherwise the 'mask' call errors out
+		    setTimeout(function() {
+			statusgrid.mask(gettext('Drive is busy'));
+		    }, 10);
+		} else {
+		    // have to use a timeout so that the component can be rendered first
+		    // otherwise the 'mask' call errors out
+		    setTimeout(function() {
+			statusgrid.unmask();
+		    }, 10);
+		    me.reload();
+		    vm.set('loaded', true);
+		}
+	    }
 	},
 
 	labelMedia: function() {
@@ -84,11 +113,12 @@ Ext.define('PBS.TapeManagement.DriveStatus', {
 	init: function(view) {
 	    let me = this;
 	    me.mon(me.lookup('statusgrid').getStore().rstore, 'load', 'onLoad');
+	    let tapeStore = Ext.ComponentQuery.query('navigationtree')[0].tapestore;
+	    me.mon(tapeStore, 'load', 'onStateLoad');
+	    if (tapeStore.isLoaded()) {
+		me.onStateLoad(tapeStore);
+	    }
 	},
-    },
-
-    listeners: {
-	activate: 'reload',
     },
 
     tbar: [
@@ -96,6 +126,10 @@ Ext.define('PBS.TapeManagement.DriveStatus', {
 	    xtype: 'proxmoxButton',
 	    handler: 'reload',
 	    text: gettext('Reload'),
+	    disabled: true,
+	    bind: {
+		disabled: '{busy}',
+	    },
 	},
 	'-',
 	{
