@@ -245,6 +245,12 @@ Ext.define('PBS.TapeManagement.DriveStatusGrid', {
 	},
 	'medium-wearout': {
 	    header: gettext('Tape Wearout'),
+	    renderer: function(value) {
+		if (value !== undefined) {
+		    return (value*100).toFixed(2) + "%";
+		}
+		return value;
+	    },
 	},
     },
 });
