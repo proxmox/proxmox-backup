@@ -86,9 +86,9 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 
 	labelMedia: function(button, event, record) {
 	    let me = this;
-
 	    Ext.create('PBS.TapeManagement.LabelMediaWindow', {
 		driveid: record.data.name,
+		label: record.data["label-text"],
 	    }).show();
 	},
 
@@ -421,6 +421,9 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 		me.lookup('drives').getStore().rstore.setData(data.drive);
 		me.lookup('drives').getStore().rstore.fireEvent('load', me, [], true);
 
+		// manually fire selectionchange to update button status
+		me.lookup('drives').getSelectionModel().fireEvent('selectionchange', me);
+
 		if (!use_cache) {
 		    Proxmox.Utils.setErrorMask(view);
 		}
@@ -631,6 +634,7 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 				    handler: 'labelMedia',
 				    iconCls: 'fa fa-barcode',
 				    disabled: true,
+				    enableFn: (rec) => rec.data["label-text"] !== undefined,
 				},
 				{
 				    text: gettext('Catalog'),
@@ -638,6 +642,7 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 				    handler: 'catalog',
 				    iconCls: 'fa fa-book',
 				    disabled: true,
+				    enableFn: (rec) => rec.data["label-text"] !== undefined,
 				},
 				{
 				    text: gettext('Clean Drive'),

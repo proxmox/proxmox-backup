@@ -14,6 +14,7 @@ Ext.define('PBS.TapeManagement.LabelMediaWindow', {
 	let me = this;
 	return {
 	    driveid: config.driveid,
+	    label: config.label,
 	};
     },
 
@@ -51,6 +52,9 @@ Ext.define('PBS.TapeManagement.LabelMediaWindow', {
 	    name: 'label-text',
 	    xtype: 'proxmoxtextfield',
 	    allowBlank: false,
+	    cbind: {
+		value: '{label}',
+	    },
 	},
 	{
 	    xtype: 'pbsMediaPoolSelector',
