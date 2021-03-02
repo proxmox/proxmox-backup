@@ -64,6 +64,7 @@ use crate::{
             open_drive,
             lock_tape_device,
             set_tape_device_state,
+            get_tape_device_state,
         },
         changer::update_changer_online_status,
     },
@@ -1223,7 +1224,8 @@ pub fn list_drives(
         }
 
         let info = lookup_device_identification(&linux_drives, &drive.path);
-        let entry = DriveListEntry { config: drive, info };
+        let state = get_tape_device_state(&config, &drive.name)?;
+        let entry = DriveListEntry { config: drive, info, state };
         list.push(entry);
     }
 

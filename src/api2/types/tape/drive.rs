@@ -99,6 +99,9 @@ pub struct DriveListEntry {
     pub config: LinuxTapeDrive,
     #[serde(flatten)]
     pub info: OptionalDeviceIdentification,
+    /// the state of the drive if locked
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub state: Option<String>,
 }
 
 #[api()]
