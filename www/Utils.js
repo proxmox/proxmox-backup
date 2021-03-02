@@ -603,6 +603,22 @@ Ext.define('PBS.Utils', {
 	}).show();
     },
 
+    renderDriveState: function(value, md) {
+	if (!value) {
+	    return gettext('Idle');
+	}
+
+	let icon = '<i class="fa fa-spinner fa-pulse fa-fw"></i>';
+
+	if (value.startsWith("UPID")) {
+	    let upid = Proxmox.Utils.parse_task_upid(value);
+	    md.tdCls = "pointer";
+	    return `${icon} ${upid.desc}`;
+	}
+
+	return `${icon} ${value}`;
+    },
+
 });
 
 Ext.define('PBS.Async', {

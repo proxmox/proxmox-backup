@@ -469,22 +469,6 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	    return status;
 	},
 
-	renderState: function(value, md, record) {
-	    if (!value) {
-		return gettext('Idle');
-	    }
-
-	    let icon = '<i class="fa fa-spinner fa-pulse fa-fw"></i>';
-
-	    if (value.startsWith("UPID")) {
-		let upid = Proxmox.Utils.parse_task_upid(value);
-		md.tdCls = "pointer";
-		return `${icon} ${upid.desc}`;
-	    }
-
-	    return `${icon} ${value}`;
-	},
-
 	control: {
 	    'grid[reference=drives]': {
 		cellclick: function(table, td, ci, rec, tr, ri, e) {
@@ -689,7 +673,7 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 				    text: gettext('State'),
 				    dataIndex: 'state',
 				    flex: 3,
-				    renderer: 'renderState',
+				    renderer: PBS.Utils.renderDriveState,
 				},
 				{
 				    text: gettext("Vendor"),
