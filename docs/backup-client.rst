@@ -460,16 +460,15 @@ subdirectory and add the corresponding pattern to the list for subsequent restor
 all files in the archive matching the patterns to ``/target/path`` on the local
 host. This will scan the whole archive.
 
-With ``restore /target/path`` you can restore the sub-archive given by the current
-working directory to the local target path ``/target/path`` on your host.
-By additionally passing a glob pattern with ``--pattern <glob>``, the restore is
-further limited to files matching the pattern.
-For example:
+The ``restore`` command can be used to restore all the files contained within
+the backup archive. This is most helpful when paired with the ``--pattern
+<glob>`` option, as it allows you to restore all files matching a specific
+pattern. For example, if you wanted to restore configuration files
+located in ``/etc``, you could do the following:
 
 .. code-block:: console
 
-  pxar:/ > cd /etc/
-  pxar:/etc/ > restore /target/ --pattern **/*.conf
+  pxar:/ > restore target/ --pattern etc/**/*.conf
   ...
 
 The above will scan trough all the directories below ``/etc`` and restore all
