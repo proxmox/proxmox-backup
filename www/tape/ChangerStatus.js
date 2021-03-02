@@ -194,7 +194,8 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	    let me = this;
 	    PBS.Utils.driveCommand(record.data.name, 'clean', {
 		waitMsgTarget: me.getView(),
-		callback: me.reload,
+		callback: this.reload,
+		scope: this,
 		method: 'PUT',
 	    });
 	},
