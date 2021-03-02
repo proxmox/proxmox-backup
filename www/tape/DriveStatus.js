@@ -206,6 +206,12 @@ Ext.define('PBS.TapeManagement.DriveStatusGrid', {
 	    header: gettext('Tape Written'),
 	    renderer: Proxmox.Utils.format_size,
 	},
+	'medium-passes': {
+	    header: gettext('Tape Passes'),
+	},
+	'medium-wearout': {
+	    header: gettext('Tape Wearout'),
+	},
     },
 });
 
