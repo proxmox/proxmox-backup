@@ -92,6 +92,21 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	    }).show();
 	},
 
+	catalog: function(button, event, record) {
+	    let me = this;
+
+	    let view = me.getView();
+	    PBS.Utils.driveCommand(record.data.name, 'catalog', {
+		waitMsgTarget: view,
+		method: 'POST',
+		success: function(response) {
+		    Ext.create('Proxmox.window.TaskViewer', {
+			upid: response.result.data,
+		    }).show();
+		},
+	    });
+	},
+
 	erase: function(v, rI, cI, button, el, record) {
 	    let me = this;
 	    let view = me.getView();
@@ -615,6 +630,13 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 				    xtype: 'proxmoxButton',
 				    handler: 'labelMedia',
 				    iconCls: 'fa fa-barcode',
+				    disabled: true,
+				},
+				{
+				    text: gettext('Catalog'),
+				    xtype: 'proxmoxButton',
+				    handler: 'catalog',
+				    iconCls: 'fa fa-book',
 				    disabled: true,
 				},
 			    ],
