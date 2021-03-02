@@ -194,9 +194,15 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	    let me = this;
 	    PBS.Utils.driveCommand(record.data.name, 'clean', {
 		waitMsgTarget: me.getView(),
-		callback: this.reload,
-		scope: this,
 		method: 'PUT',
+		success: function(response) {
+		    Ext.create('Proxmox.window.TaskProgress', {
+			upid: response.result.data,
+			taskDone: function() {
+			    me.reload();
+			},
+		    }).show();
+		},
 	    });
 	},
 
