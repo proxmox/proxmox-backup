@@ -86,6 +86,11 @@ async fn run() -> Result<(), Error> {
     let mut config = ApiConfig::new(
         buildcfg::JS_DIR, &proxmox_backup::api2::ROUTER, RpcEnvironmentType::PUBLIC)?;
 
+    // Enable experimental tape UI if tape.cfg exists
+    if Path::new("/etc/proxmox-backup/tape.cfg").exists() {
+        config.enable_tape_ui = true;
+    }
+
     config.add_alias("novnc", "/usr/share/novnc-pve");
     config.add_alias("extjs", "/usr/share/javascript/extjs");
     config.add_alias("qrcodejs", "/usr/share/javascript/qrcodejs");

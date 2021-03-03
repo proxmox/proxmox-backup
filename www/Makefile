@@ -5,9 +5,6 @@ IMAGES := \
 	images/logo-128.png 				\
 	images/proxmox_logo.png
 
-TAPE_UI_FILES=
-
-ifdef TEST_TAPE_GUI
 TAPE_UI_FILES=						\
 	tape/form/AllocationSelector.js			\
 	tape/form/ChangerSelector.js			\
@@ -18,7 +15,7 @@ TAPE_UI_FILES=						\
 	tape/form/KeySelector.js			\
 	tape/window/ChangerEdit.js			\
 	tape/window/DriveEdit.js			\
-	tape/window/Erase.js			\
+	tape/window/Erase.js				\
 	tape/window/EncryptionEdit.js			\
 	tape/window/LabelMedia.js			\
 	tape/window/PoolEdit.js				\
@@ -34,9 +31,7 @@ TAPE_UI_FILES=						\
 	tape/PoolConfig.js				\
 	tape/TapeInventory.js				\
 	tape/BackupJobs.js				\
-	tape/TapeManagement.js				\
-
-endif
+	tape/TapeManagement.js
 
 JSSRC=							\
 	Utils.js					\

@@ -118,7 +118,7 @@ Ext.define('PBS.view.main.NavigationTree', {
 	    view.rstore.on('load', this.onLoad, this);
 	    view.on('destroy', view.rstore.stopUpdate);
 
-	    if (PBS.TapeManagement !== undefined) {
+	    if (PBS.enableTapeUI) {
 		view.tapestore = Ext.create('Proxmox.data.UpdateStore', {
 		    autoStart: true,
 		    interval: 2 * 1000,
@@ -266,7 +266,7 @@ Ext.define('PBS.view.main.NavigationTree', {
 
     select: function(path, silent) {
 	var me = this;
-	if (me.rstore.isLoaded() && (!PBS.TapeManagement || me.tapestore.isLoaded())) {
+	if (me.rstore.isLoaded() && (!PBS.enableTapeUI || me.tapestore.isLoaded())) {
 	    if (silent) {
 		me.suspendEvents(false);
 	    }

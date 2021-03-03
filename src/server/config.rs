@@ -22,6 +22,7 @@ pub struct ApiConfig {
     templates: RwLock<Handlebars<'static>>,
     template_files: RwLock<HashMap<String, (SystemTime, PathBuf)>>,
     request_log: Option<Arc<Mutex<FileLogger>>>,
+    pub enable_tape_ui: bool,
 }
 
 impl ApiConfig {
@@ -35,7 +36,8 @@ impl ApiConfig {
             templates: RwLock::new(Handlebars::new()),
             template_files: RwLock::new(HashMap::new()),
             request_log: None,
-        })
+            enable_tape_ui: false,
+       })
     }
 
     pub fn find_method(

@@ -457,6 +457,7 @@ fn get_index(
         "CSRFPreventionToken": csrf_token,
         "language": lang,
         "debug": debug,
+        "enableTapeUI": api.enable_tape_ui,
     });
 
     let (ct, index) = match api.render_template(template_file, &data) {
