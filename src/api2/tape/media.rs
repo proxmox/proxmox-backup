@@ -4,7 +4,7 @@ use anyhow::{bail, format_err, Error};
 use serde::{Serialize, Deserialize};
 
 use proxmox::{
-    api::{api, Router, SubdirMap},
+    api::{api, Router, SubdirMap, RpcEnvironment, Permission},
     list_subdirs_api_method,
     tools::Uuid,
 };
@@ -12,8 +12,13 @@ use proxmox::{
 use crate::{
     config::{
         self,
+        cached_user_info::CachedUserInfo,
+        acl::{
+            PRIV_TAPE_AUDIT,
+        },
     },
     api2::types::{
+        Authid,
         BACKUP_ID_SCHEMA,
         BACKUP_TYPE_SCHEMA,
         MEDIA_POOL_NAME_SCHEMA,
@@ -65,13 +70,20 @@ use crate::{
             type: MediaListEntry,
         },
     },
+    access: {
+        description: "List of registered backup media filtered by Tape.Audit privileges on pool",
+        permission: &Permission::Anybody,
+    },
 )]
 /// List pool media
 pub async fn list_media(
     pool: Option<String>,
     update_status: bool,
     update_status_changer: Option<String>,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<MediaListEntry>, Error> {
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let user_info = CachedUserInfo::new()?;
 
     let (config, _digest) = config::media_pool::config()?;
 
@@ -100,6 +112,11 @@ pub async fn list_media(
             if name != pool_name {
                 continue;
             }
+        }
+
+        let privs = user_info.lookup_privs(&auth_id, &["tape", "pool", pool_name]);
+        if (privs & PRIV_TAPE_AUDIT) == 0  {
+            continue;
         }
 
         let config: MediaPoolConfig = config.lookup("pool", pool_name)?;
@@ -150,30 +167,33 @@ pub async fn list_media(
 
     let inventory = Inventory::load(status_path)?;
 
-    if pool.is_none() {
+    let privs = user_info.lookup_privs(&auth_id, &["tape", "pool"]);
+    if (privs & PRIV_TAPE_AUDIT) != 0  {
+        if pool.is_none() {
 
-        for media_id in inventory.list_unassigned_media() {
+            for media_id in inventory.list_unassigned_media() {
 
-            let (mut status, location) = inventory.status_and_location(&media_id.label.uuid);
+                let (mut status, location) = inventory.status_and_location(&media_id.label.uuid);
 
-            if status == MediaStatus::Unknown {
-                status = MediaStatus::Writable;
+                if status == MediaStatus::Unknown {
+                    status = MediaStatus::Writable;
+                }
+
+                list.push(MediaListEntry {
+                    uuid: media_id.label.uuid.clone(),
+                    ctime: media_id.label.ctime,
+                    label_text: media_id.label.label_text.to_string(),
+                    location,
+                    status,
+                    catalog: true, // empty, so we do not need a catalog
+                    expired: false,
+                    media_set_uuid: None,
+                    media_set_name: None,
+                    media_set_ctime: None,
+                    seq_nr: None,
+                    pool: None,
+                });
             }
-
-            list.push(MediaListEntry {
-                uuid: media_id.label.uuid.clone(),
-                ctime: media_id.label.ctime,
-                label_text: media_id.label.label_text.to_string(),
-                location,
-                status,
-                catalog: true, // empty, so we do not need a catalog
-                expired: false,
-                media_set_uuid: None,
-                media_set_name: None,
-                media_set_ctime: None,
-                seq_nr: None,
-                pool: None,
-            });
         }
     }
 
@@ -187,6 +207,11 @@ pub async fn list_media(
         };
 
         if config.sections.get(&media_set_label.pool).is_some() {
+            continue;
+        }
+
+        let privs = user_info.lookup_privs(&auth_id, &["tape", "pool", &media_set_label.pool]);
+        if (privs & PRIV_TAPE_AUDIT) == 0  {
             continue;
         }
 
@@ -349,11 +374,18 @@ pub struct MediaContentListFilter {
             type: MediaContentEntry,
         },
     },
+    access: {
+        description: "List content filtered by Tape.Audit privilege on pool",
+        permission: &Permission::Anybody,
+    },
 )]
 /// List media content
 pub fn list_content(
     filter: MediaContentListFilter,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<MediaContentEntry>, Error> {
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let user_info = CachedUserInfo::new()?;
 
     let (config, _digest) = config::media_pool::config()?;
 
@@ -371,6 +403,11 @@ pub fn list_content(
 
         if let Some(ref pool) = filter.pool {
             if &set.pool != pool { continue; }
+        }
+
+        let privs = user_info.lookup_privs(&auth_id, &["tape", "pool", &set.pool]);
+        if (privs & PRIV_TAPE_AUDIT) == 0  {
+            continue;
         }
 
         if let Some(ref media_uuid) = filter.media {
