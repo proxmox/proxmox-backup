@@ -99,20 +99,12 @@ Ext.define('PBS.window.AddWebauthn', {
 		try {
 		    token_response = await navigator.credentials.create(challenge_obj);
 		} catch (error) {
-		    let errmsg = `<i class="fa fa-warning warning"></i>
-			${error.name}: ${error.message}`;
+		    let errmsg = error.message;
 		    if (error.name === 'InvalidStateError') {
-			// probably a duplicate token
-			throw `${gettext('There was an error during authenticator registration.')}
-			    <br>
-			    ${gettext('This probably means that this authenticator is already registered.')}
-			    <br><br>
-			    ${errmsg}`;
-		    } else {
-			throw `${gettext('There was an error during token registration.')}
-			    <br><br>
-			    ${errmsg}`;
+			errmsg = gettext('Is this token already registered?');
 		    }
+		    throw gettext('An error occurred during token registration.') +
+			`<br>${error.name}: ${errmsg}`;
 		}
 
 		// We cannot pass ArrayBuffers to the API, so extract & convert the data.
