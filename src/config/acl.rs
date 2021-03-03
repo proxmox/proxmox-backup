@@ -63,6 +63,15 @@ constnamedbitmap! {
 
         /// Sys.Console allows access to the system's console
         PRIV_SYS_CONSOLE("Sys.Console");
+
+        /// Tape.Audit allows reading tape backup configuration and status
+        PRIV_TAPE_AUDIT("Tape.Audit");
+        /// Tape.Modify allows modifying tape backup configuration
+        PRIV_TAPE_MODIFY("Tape.Modify");
+        /// Tape.Write allows writing tape media
+        PRIV_TAPE_WRITE("Tape.Write");
+        /// Tape.Read allows reading tape backup configuration and media contents
+        PRIV_TAPE_READ("Tape.Read");
     }
 }
 
@@ -139,6 +148,36 @@ pub const ROLE_REMOTE_SYNC_OPERATOR: u64 = 0
     | PRIV_REMOTE_AUDIT
     | PRIV_REMOTE_READ;
 
+#[rustfmt::skip]
+#[allow(clippy::identity_op)]
+/// Tape.Audit can audit the tape backup configuration and media content
+pub const ROLE_TAPE_AUDIT: u64 = 0
+    | PRIV_TAPE_AUDIT;
+
+#[rustfmt::skip]
+#[allow(clippy::identity_op)]
+/// Tape.Admin can do anything on the tape backup
+pub const ROLE_TAPE_ADMIN: u64 = 0
+    | PRIV_TAPE_AUDIT
+    | PRIV_TAPE_MODIFY
+    | PRIV_TAPE_READ
+    | PRIV_TAPE_WRITE;
+
+#[rustfmt::skip]
+#[allow(clippy::identity_op)]
+/// Tape.Operator can do tape backup and restore (but no configuration changes)
+pub const ROLE_TAPE_OPERATOR: u64 = 0
+    | PRIV_TAPE_AUDIT
+    | PRIV_TAPE_READ
+    | PRIV_TAPE_WRITE;
+
+#[rustfmt::skip]
+#[allow(clippy::identity_op)]
+/// Tape.Reader can do read and inspect tape content
+pub const ROLE_TAPE_READER: u64 = 0
+    | PRIV_TAPE_AUDIT
+    | PRIV_TAPE_READ;
+
 /// NoAccess can be used to remove privileges from specific (sub-)paths
 pub const ROLE_NAME_NO_ACCESS: &str = "NoAccess";
 
@@ -174,6 +213,14 @@ pub enum Role {
     RemoteAdmin = ROLE_REMOTE_ADMIN,
     /// Syncronisation Opertator
     RemoteSyncOperator = ROLE_REMOTE_SYNC_OPERATOR,
+    /// Tape Auditor
+    TapeAudit = ROLE_TAPE_AUDIT,
+    /// Tape Administrator
+    TapeAdmin = ROLE_TAPE_ADMIN,
+    /// Tape Operator
+    TapeOperator = ROLE_TAPE_OPERATOR,
+    /// Tape Reader
+    TapeReader = ROLE_TAPE_READER,
 }
 
 impl FromStr for Role {
@@ -289,6 +336,32 @@ pub fn check_acl_path(path: &str) -> Result<(), Error> {
                             }
                         }
                         _ => {}
+                    }
+                }
+                _ => {}
+            }
+        }
+        "tape" => {
+            if components_len == 1 {
+                return Ok(());
+            }
+            match components[1] {
+                "drive" => {
+                    // /tape/drive/{name}
+                    if components_len <= 3 {
+                        return Ok(());
+                    }
+                }
+                "changer" => {
+                    // /tape/changer/{name}
+                    if components_len <= 3 {
+                        return Ok(());
+                    }
+                }
+                "pool" => {
+                    // /tape/pool/{name}
+                    if components_len <= 3 {
+                        return Ok(());
                     }
                 }
                 _ => {}
