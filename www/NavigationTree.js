@@ -119,25 +119,28 @@ Ext.define('PBS.view.main.NavigationTree', {
 	    view.on('destroy', view.rstore.stopUpdate);
 
 	    if (PBS.enableTapeUI) {
-		view.tapestore = Ext.create('Proxmox.data.UpdateStore', {
-		    autoStart: true,
-		    interval: 2 * 1000,
-		    storeid: 'pbs-tape-drive-list',
-		    model: 'pbs-tape-drive-list',
-		});
+		if (view.tapestore === undefined) {
+		    view.tapestore = Ext.create('Proxmox.data.UpdateStore', {
+			autoStart: true,
+			interval: 2 * 1000,
+			storeid: 'pbs-tape-drive-list',
+			model: 'pbs-tape-drive-list',
+		    });
+		    view.tapestore.on('load', this.onTapeDriveLoad, this);
+		    view.on('destroy', view.tapestore.stopUpdate);
+		}
 
 		let root = view.getStore().getRoot();
-		root.insertChild(3, {
-		    text: "Tape Backup",
-		    iconCls: 'pbs-icon-tape',
-		    id: 'tape_management',
-		    path: 'pbsTapeManagement',
-		    expanded: true,
-		    children: [],
-		});
-
-		view.tapestore.on('load', this.onTapeDriveLoad, this);
-		view.on('destroy', view.tapestore.stopUpdate);
+		if (root.findChild('id', 'tape_management', false) === null) {
+		    root.insertChild(3, {
+			text: "Tape Backup",
+			iconCls: 'pbs-icon-tape',
+			id: 'tape_management',
+			path: 'pbsTapeManagement',
+			expanded: true,
+			children: [],
+		    });
+		}
 	    }
 	},
 
