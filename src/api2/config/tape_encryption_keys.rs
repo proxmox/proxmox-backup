@@ -7,12 +7,17 @@ use proxmox::{
         ApiMethod,
         Router,
         RpcEnvironment,
+        Permission,
     },
     tools::fs::open_file_locked,
 };
 
 use crate::{
     config::{
+        acl::{
+            PRIV_TAPE_AUDIT,
+            PRIV_TAPE_MODIFY,
+        },
         tape_encryption_keys::{
             TAPE_KEYS_LOCKFILE,
             load_keys,
@@ -43,6 +48,9 @@ use crate::{
         description: "The list of tape encryption keys (with config digest).",
         type: Array,
         items: { type: KeyInfo },
+    },
+    access: {
+        permission: &Permission::Privilege(&["tape", "pool"], PRIV_TAPE_AUDIT, false),
     },
 )]
 /// List existing keys
@@ -92,6 +100,9 @@ pub fn list_keys(
                 schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
             },
         },
+    },
+    access: {
+        permission: &Permission::Privilege(&["tape", "pool"], PRIV_TAPE_MODIFY, false),
     },
 )]
 /// Change the encryption key's password (and password hint).
@@ -161,6 +172,9 @@ pub fn change_passphrase(
     returns: {
         schema: TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
     },
+    access: {
+        permission: &Permission::Privilege(&["tape", "pool"], PRIV_TAPE_MODIFY, false),
+    },
 )]
 /// Create a new encryption key
 pub fn create_key(
@@ -198,6 +212,9 @@ pub fn create_key(
     returns: {
         type: KeyInfo,
     },
+    access: {
+        permission: &Permission::Privilege(&["tape", "pool"], PRIV_TAPE_AUDIT, false),
+    },
 )]
 /// Get key config (public key part)
 pub fn read_key(
@@ -231,6 +248,9 @@ pub fn read_key(
                 schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
             },
         },
+    },
+    access: {
+        permission: &Permission::Privilege(&["tape", "pool"], PRIV_TAPE_MODIFY, false),
     },
 )]
 /// Remove a encryption key from the database
