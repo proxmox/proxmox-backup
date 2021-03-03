@@ -32,5 +32,6 @@ usr/share/man/man5/media-pool.cfg.5
 usr/share/man/man5/tape.cfg.5
 usr/share/man/man5/tape-job.cfg.5
 usr/share/zsh/vendor-completions/_proxmox-backup-manager
+usr/share/zsh/vendor-completions/_proxmox-tape
 usr/share/zsh/vendor-completions/_pmtx
 usr/share/zsh/vendor-completions/_pmt
