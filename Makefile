@@ -10,6 +10,7 @@ SUBDIRS := etc www docs
 USR_BIN := \
 	proxmox-backup-client 	\
 	pxar			\
+	proxmox-tape		\
 	pmtx			\
 	pmt
 

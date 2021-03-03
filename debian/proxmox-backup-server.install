@@ -12,6 +12,7 @@ usr/lib/x86_64-linux-gnu/proxmox-backup/sg-tape-cmd
 usr/sbin/proxmox-backup-manager
 usr/bin/pmtx
 usr/bin/pmt
+usr/bin/proxmox-tape
 usr/share/javascript/proxmox-backup/index.hbs
 usr/share/javascript/proxmox-backup/css/ext6-pbs.css
 usr/share/javascript/proxmox-backup/images
