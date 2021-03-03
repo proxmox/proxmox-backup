@@ -74,7 +74,7 @@ Ext.define('PBS.TapeManagement.DriveStatus', {
 	    }).show();
 	},
 
-	eject: function() {
+	ejectMedia: function() {
 	    let me = this;
 	    let view = me.getView();
 	    let driveid = view.drive;
