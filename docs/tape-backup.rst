@@ -1,6 +1,12 @@
 Tape Backup
 ===========
 
+.. CAUTION:: Tape Backup is a technical preview feature, not meant for
+   production usage. To enable the GUI, you need to issue the
+   following command (as root user on the console)::
+
+     # touch /etc/proxmox-backup/tape.cfg
+
 Proxmox tape backup provides an easy way to store datastore content
 onto magnetic tapes. This increases data safety because you get:
 
