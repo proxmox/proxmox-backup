@@ -375,17 +375,33 @@ pub fn request_and_load_media(
                         return Ok((handle, media_id));
                     }
 
-                    task_log!(worker, "Please insert media '{}' into drive '{}'", label_text, drive);
 
                     let to = "root@localhost"; // fixme
-
-                    send_load_media_email(drive, &label_text, to)?;
 
                     let mut last_media_uuid = None;
                     let mut last_error = None;
 
+                    let mut tried = false;
+                    let mut failure_reason = None;
+
                     loop {
                         worker.check_abort()?;
+
+                        if tried {
+                            if let Some(reason) = failure_reason {
+                                task_log!(worker, "Please insert media '{}' into drive '{}'", label_text, drive);
+                                send_load_media_email(drive, &label_text, to, Some(reason))?;
+                            }
+
+                            failure_reason = None;
+
+                            for _ in 0..50 { // delay 5 seconds
+                                worker.check_abort()?;
+                                std::thread::sleep(std::time::Duration::from_millis(100));
+                            }
+                        }
+
+                        tried = true;
 
                         let mut handle = match drive_config.open() {
                             Ok(handle) => handle,
@@ -394,10 +410,7 @@ pub fn request_and_load_media(
                                 if Some(err.clone()) != last_error {
                                     task_log!(worker, "tape open failed - {}", err);
                                     last_error = Some(err);
-                                }
-                                for _ in 0..50 { // delay 5 seconds
-                                    worker.check_abort()?;
-                                    std::thread::sleep(std::time::Duration::from_millis(100));
+                                    failure_reason = last_error.clone();
                                 }
                                 continue;
                             }
@@ -414,19 +427,22 @@ pub fn request_and_load_media(
                                     );
                                     return Ok((Box::new(handle), media_id));
                                 } else if Some(media_id.label.uuid.clone()) != last_media_uuid {
-                                    task_log!(
-                                        worker,
+                                    let err = format!(
                                         "wrong media label {} ({})",
                                         media_id.label.label_text,
                                         media_id.label.uuid.to_string(),
                                     );
+                                    task_log!(worker, "{}", err);
                                     last_media_uuid = Some(media_id.label.uuid);
+                                    failure_reason = Some(err);
                                 }
                             }
                             Ok((None, _)) => {
                                 if last_media_uuid.is_some() {
-                                    task_log!(worker, "found empty media without label (please label all tapes first)");
+                                    let err = "found empty media without label (please label all tapes first)";
+                                    task_log!(worker, "{}", err);
                                     last_media_uuid = None;
+                                    failure_reason = Some(err.to_string());
                                 }
                             }
                             Err(err) => {
@@ -434,14 +450,9 @@ pub fn request_and_load_media(
                                 if Some(err.clone()) != last_error {
                                     task_log!(worker, "tape open failed - {}", err);
                                     last_error = Some(err);
+                                    failure_reason = last_error.clone();
                                 }
                             }
-                        }
-
-                        // eprintln!("read label failed -  test again in 5 secs");
-                        for _ in 0..50 { // delay 5 seconds
-                            worker.check_abort()?;
-                            std::thread::sleep(std::time::Duration::from_millis(100));
                         }
                     }
                 }
