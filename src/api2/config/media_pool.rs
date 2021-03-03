@@ -6,11 +6,13 @@ use proxmox::{
         api,
         Router,
         RpcEnvironment,
+        Permission,
     },
 };
 
 use crate::{
     api2::types::{
+        Authid,
         MEDIA_POOL_NAME_SCHEMA,
         MEDIA_SET_NAMING_TEMPLATE_SCHEMA,
         MEDIA_SET_ALLOCATION_POLICY_SCHEMA,
@@ -19,7 +21,14 @@ use crate::{
         SINGLE_LINE_COMMENT_SCHEMA,
         MediaPoolConfig,
     },
-    config,
+    config::{
+        self,
+        cached_user_info::CachedUserInfo,
+        acl::{
+            PRIV_TAPE_AUDIT,
+            PRIV_TAPE_MODIFY,
+        },
+    },
 };
 
 #[api(
@@ -31,6 +40,9 @@ use crate::{
                 flatten: true,
             },
         },
+    },
+    access: {
+        permission: &Permission::Privilege(&["tape", "pool"], PRIV_TAPE_MODIFY, false),
     },
 )]
 /// Create a new media pool
@@ -61,15 +73,29 @@ pub fn create_pool(
             type: MediaPoolConfig,
         },
     },
+    access: {
+        description: "List configured media pools filtered by Tape.Audit privileges",
+        permission: &Permission::Anybody,
+    },
 )]
 /// List media pools
 pub fn list_pools(
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<MediaPoolConfig>, Error> {
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let user_info = CachedUserInfo::new()?;
 
     let (config, digest) = config::media_pool::config()?;
 
-    let list = config.convert_to_typed_array("pool")?;
+    let list = config.convert_to_typed_array::<MediaPoolConfig>("pool")?;
+
+     let list = list
+        .into_iter()
+        .filter(|pool| {
+            let privs = user_info.lookup_privs(&auth_id, &["tape", "pool", &pool.name]);
+            privs & PRIV_TAPE_AUDIT != 0
+        })
+        .collect();
 
     rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
 
@@ -86,6 +112,9 @@ pub fn list_pools(
     },
     returns: {
         type: MediaPoolConfig,
+    },
+    access: {
+        permission: &Permission::Privilege(&["tape", "pool", "{name}"], PRIV_TAPE_AUDIT, false),
     },
 )]
 /// Get media pool configuration
@@ -152,6 +181,9 @@ pub enum DeletableProperty {
             },
        },
     },
+    access: {
+        permission: &Permission::Privilege(&["tape", "pool", "{name}"], PRIV_TAPE_MODIFY, false),
+    },
 )]
 /// Update media pool settings
 pub fn update_pool(
@@ -211,6 +243,9 @@ pub fn update_pool(
                 schema: MEDIA_POOL_NAME_SCHEMA,
             },
         },
+    },
+    access: {
+        permission: &Permission::Privilege(&["tape", "pool", "{name}"], PRIV_TAPE_MODIFY, false),
     },
 )]
 /// Delete a media pool configuration

@@ -4,12 +4,19 @@ use std::path::Path;
 use anyhow::Error;
 use serde_json::Value;
 
-use proxmox::api::{api, Router, SubdirMap};
+use proxmox::api::{api, Router, SubdirMap, RpcEnvironment, Permission};
 use proxmox::list_subdirs_api_method;
 
 use crate::{
-    config,
+    config::{
+        self,
+        cached_user_info::CachedUserInfo,
+        acl::{
+            PRIV_TAPE_AUDIT,
+        },
+    },
     api2::types::{
+        Authid,
         CHANGER_NAME_SCHEMA,
         ChangerListEntry,
         LinuxTapeDrive,
@@ -178,11 +185,18 @@ pub async fn transfer(
             type: ChangerListEntry,
         },
     },
+    access: {
+        description: "List configured tape changer filtered by Tape.Audit privileges",
+        permission: &Permission::Anybody,
+    },
 )]
 /// List changers
 pub fn list_changers(
     _param: Value,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<ChangerListEntry>, Error> {
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let user_info = CachedUserInfo::new()?;
 
     let (config, _digest) = config::drive::config()?;
 
@@ -193,6 +207,11 @@ pub fn list_changers(
     let mut list = Vec::new();
 
     for changer in changer_list {
+        let privs = user_info.lookup_privs(&auth_id, &["tape", "changer", &changer.name]);
+        if (privs & PRIV_TAPE_AUDIT) == 0 {
+            continue;
+        }
+
         let info = lookup_device_identification(&linux_changers, &changer.path);
         let entry = ChangerListEntry { config: changer, info };
         list.push(entry);

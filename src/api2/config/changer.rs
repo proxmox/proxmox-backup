@@ -6,12 +6,21 @@ use proxmox::api::{
     api,
     Router,
     RpcEnvironment,
+    Permission,
     schema::parse_property_string,
 };
 
 use crate::{
-    config,
+    config::{
+        self,
+        cached_user_info::CachedUserInfo,
+        acl::{
+            PRIV_TAPE_AUDIT,
+            PRIV_TAPE_MODIFY,
+        },
+    },
     api2::types::{
+        Authid,
         PROXMOX_CONFIG_DIGEST_SCHEMA,
         CHANGER_NAME_SCHEMA,
         SCSI_CHANGER_PATH_SCHEMA,
@@ -41,6 +50,9 @@ use crate::{
                 optional: true,
             },
         },
+    },
+    access: {
+        permission: &Permission::Privilege(&["tape", "changer"], PRIV_TAPE_MODIFY, false),
     },
 )]
 /// Create a new changer device
@@ -94,7 +106,9 @@ pub fn create_changer(
     returns: {
         type: ScsiTapeChanger,
     },
-
+    access: {
+        permission: &Permission::Privilege(&["tape", "changer", "{name}"], PRIV_TAPE_AUDIT, false),
+    },
 )]
 /// Get tape changer configuration
 pub fn get_config(
@@ -123,16 +137,30 @@ pub fn get_config(
             type: ScsiTapeChanger,
         },
     },
+    access: {
+        description: "List configured tape changer filtered by Tape.Audit privileges",
+        permission: &Permission::Anybody,
+    },
 )]
 /// List changers
 pub fn list_changers(
     _param: Value,
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<ScsiTapeChanger>, Error> {
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let user_info = CachedUserInfo::new()?;
 
     let (config, digest) = config::drive::config()?;
 
     let list: Vec<ScsiTapeChanger> = config.convert_to_typed_array("changer")?;
+
+    let list = list
+        .into_iter()
+        .filter(|changer| {
+            let privs = user_info.lookup_privs(&auth_id, &["tape", "changer", &changer.name]);
+            privs & PRIV_TAPE_AUDIT != 0
+        })
+        .collect();
 
     rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
 
@@ -176,6 +204,9 @@ pub enum DeletableProperty {
                 optional: true,
             },
          },
+    },
+    access: {
+        permission: &Permission::Privilege(&["tape", "changer", "{name}"], PRIV_TAPE_MODIFY, false),
     },
 )]
 /// Update a tape changer configuration
@@ -250,6 +281,9 @@ pub fn update_changer(
                 schema: CHANGER_NAME_SCHEMA,
             },
         },
+    },
+    access: {
+        permission: &Permission::Privilege(&["tape", "changer", "{name}"], PRIV_TAPE_MODIFY, false),
     },
 )]
 /// Delete a tape changer configuration

@@ -2,11 +2,19 @@ use anyhow::{bail, Error};
 use ::serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use proxmox::api::{api, Router, RpcEnvironment};
+use proxmox::api::{api, Router, RpcEnvironment, Permission};
 
 use crate::{
-    config,
+    config::{
+        self,
+        cached_user_info::CachedUserInfo,
+        acl::{
+            PRIV_TAPE_AUDIT,
+            PRIV_TAPE_MODIFY,
+        },
+    },
     api2::types::{
+        Authid,
         PROXMOX_CONFIG_DIGEST_SCHEMA,
         DRIVE_NAME_SCHEMA,
         CHANGER_NAME_SCHEMA,
@@ -40,6 +48,9 @@ use crate::{
                 optional: true,
             },
         },
+    },
+    access: {
+        permission: &Permission::Privilege(&["tape", "drive"], PRIV_TAPE_MODIFY, false),
     },
 )]
 /// Create a new drive
@@ -84,6 +95,9 @@ pub fn create_drive(param: Value) -> Result<(), Error> {
     returns: {
         type: LinuxTapeDrive,
     },
+    access: {
+        permission: &Permission::Privilege(&["tape", "drive", "{name}"], PRIV_TAPE_AUDIT, false),
+    },
 )]
 /// Get drive configuration
 pub fn get_config(
@@ -112,16 +126,30 @@ pub fn get_config(
             type: LinuxTapeDrive,
         },
     },
+    access: {
+        description: "List configured tape drives filtered by Tape.Audit privileges",
+        permission: &Permission::Anybody,
+    },
 )]
 /// List drives
 pub fn list_drives(
     _param: Value,
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<LinuxTapeDrive>, Error> {
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let user_info = CachedUserInfo::new()?;
 
     let (config, digest) = config::drive::config()?;
 
     let drive_list: Vec<LinuxTapeDrive> = config.convert_to_typed_array("linux")?;
+
+    let drive_list = drive_list
+        .into_iter()
+        .filter(|drive| {
+            let privs = user_info.lookup_privs(&auth_id, &["tape", "drive", &drive.name]);
+            privs & PRIV_TAPE_AUDIT != 0
+        })
+        .collect();
 
     rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
 
@@ -172,6 +200,9 @@ pub enum DeletableProperty {
                 optional: true,
             },
        },
+    },
+    access: {
+        permission: &Permission::Privilege(&["tape", "drive", "{name}"], PRIV_TAPE_MODIFY, false),
     },
 )]
 /// Update a drive configuration
@@ -245,6 +276,9 @@ pub fn update_drive(
                 schema: DRIVE_NAME_SCHEMA,
             },
         },
+    },
+    access: {
+        permission: &Permission::Privilege(&["tape", "drive", "{name}"], PRIV_TAPE_MODIFY, false),
     },
 )]
 /// Delete a drive configuration

@@ -16,6 +16,7 @@ use proxmox::{
         section_config::SectionConfigData,
         RpcEnvironment,
         RpcEnvironmentType,
+        Permission,
         Router,
         SubdirMap,
     },
@@ -23,7 +24,13 @@ use proxmox::{
 
 use crate::{
     task_log,
-    config,
+    config::{
+        self,
+        cached_user_info::CachedUserInfo,
+        acl::{
+            PRIV_TAPE_AUDIT,
+        },
+    },
     api2::{
         types::{
             UPID_SCHEMA,
@@ -1203,12 +1210,19 @@ pub fn catalog_media(
             type: DriveListEntry,
         },
     },
+    access: {
+        description: "List configured tape drives filtered by Tape.Audit privileges",
+        permission: &Permission::Anybody,
+    },
 )]
 /// List drives
 pub fn list_drives(
     changer: Option<String>,
     _param: Value,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<DriveListEntry>, Error> {
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let user_info = CachedUserInfo::new()?;
 
     let (config, _) = config::drive::config()?;
 
@@ -1220,6 +1234,11 @@ pub fn list_drives(
 
     for drive in drive_list {
         if changer.is_some() && drive.changer != changer {
+            continue;
+        }
+
+        let privs = user_info.lookup_privs(&auth_id, &["tape", "drive", &drive.name]);
+        if (privs & PRIV_TAPE_AUDIT) == 0 {
             continue;
         }
 
