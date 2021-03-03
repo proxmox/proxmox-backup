@@ -124,13 +124,12 @@ fn space_indented_line(indent: usize) -> impl Fn(&str) -> IResult<&str, &str> {
         loop {
             if n.starts_with('\t') {
                 len += 8;
-                n = &n[1..];
             } else if n.starts_with(' ') {
                 len += 1;
-                n = &n[1..];
             } else {
                 break;
             }
+            n = &n[1..];
             if len >= indent { break; }
         };
         if len != indent {
