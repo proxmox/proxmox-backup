@@ -160,6 +160,10 @@ Ext.define('PBS.TapeManagement.TapeInventory', {
 		params: { 'update-status': true },
 	    });
 	},
+
+	init: function(view) {
+	    Proxmox.Utils.monStoreErrors(view, view.getStore());
+	},
     },
 
     listeners: {

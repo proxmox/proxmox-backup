@@ -94,6 +94,10 @@ Ext.define('PBS.TapeManagement.DrivePanel', {
 	startStore: function() {
 	    this.getView().getStore().rstore.startUpdate();
 	},
+
+	init: function(view) {
+	    Proxmox.Utils.monStoreErrors(view, view.getStore().rstore);
+	},
     },
 
     listeners: {

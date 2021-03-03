@@ -49,6 +49,10 @@ Ext.define('PBS.TapeManagement.ChangerPanel', {
 	startStore: function() {
 	    this.getView().getStore().rstore.startUpdate();
 	},
+
+	init: function(view) {
+	    Proxmox.Utils.monStoreErrors(view, view.getStore().rstore);
+	},
     },
 
     listeners: {

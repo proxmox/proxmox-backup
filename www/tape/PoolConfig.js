@@ -58,6 +58,10 @@ Ext.define('PBS.TapeManagement.PoolPanel', {
 	startStore: function() {
 	    this.getView().getStore().rstore.startUpdate();
 	},
+
+	init: function(view) {
+	    Proxmox.Utils.monStoreErrors(view, view.getStore().rstore);
+	},
     },
 
     listeners: {
