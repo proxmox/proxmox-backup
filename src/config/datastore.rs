@@ -192,6 +192,8 @@ pub fn complete_acl_path(_arg: &str, _param: &HashMap<String, String>) -> Vec<St
     list.push(String::from("/tape/changer/"));
     list.push(String::from("/tape/pool"));
     list.push(String::from("/tape/pool/"));
+    list.push(String::from("/tape/job"));
+    list.push(String::from("/tape/job/"));
 
     list
 }

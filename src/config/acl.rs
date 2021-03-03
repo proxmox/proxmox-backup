@@ -364,6 +364,12 @@ pub fn check_acl_path(path: &str) -> Result<(), Error> {
                         return Ok(());
                     }
                 }
+                "job" => {
+                    // /tape/job/{id}
+                    if components_len <= 3 {
+                        return Ok(());
+                    }
+                }
                 _ => {}
             }
         }
