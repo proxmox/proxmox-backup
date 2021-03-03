@@ -2,16 +2,22 @@ use anyhow::{bail, format_err, Error};
 use serde_json::Value;
 use ::serde::{Deserialize, Serialize};
 
-use proxmox::api::{api, Router, RpcEnvironment, schema::Updatable};
+use proxmox::api::{api, Router, RpcEnvironment, Permission, schema::Updatable};
 use proxmox::tools::fs::open_file_locked;
 
 use crate::{
     api2::types::{
+        Authid,
         JOB_ID_SCHEMA,
         PROXMOX_CONFIG_DIGEST_SCHEMA,
     },
     config::{
         self,
+        cached_user_info::CachedUserInfo,
+        acl::{
+            PRIV_TAPE_AUDIT,
+            PRIV_TAPE_MODIFY,
+        },
         tape_job::{
             TAPE_JOB_CFG_LOCKFILE,
             TapeBackupJobConfig,
@@ -29,16 +35,30 @@ use crate::{
         type: Array,
         items: { type: TapeBackupJobConfig },
     },
+    access: {
+        description: "List configured tape jobs filtered by Tape.Audit privileges",
+        permission: &Permission::Anybody,
+    },
 )]
 /// List all tape backup jobs
 pub fn list_tape_backup_jobs(
     _param: Value,
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<TapeBackupJobConfig>, Error> {
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let user_info = CachedUserInfo::new()?;
 
     let (config, digest) = config::tape_job::config()?;
 
-    let list = config.convert_to_typed_array("backup")?;
+    let list = config.convert_to_typed_array::<TapeBackupJobConfig>("backup")?;
+
+    let list = list
+        .into_iter()
+        .filter(|job| {
+            let privs = user_info.lookup_privs(&auth_id, &["tape", "job", &job.id]);
+            privs & PRIV_TAPE_AUDIT != 0
+        })
+        .collect();
 
     rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
 
@@ -54,6 +74,9 @@ pub fn list_tape_backup_jobs(
                 flatten: true,
             },
         },
+    },
+    access: {
+        permission: &Permission::Privilege(&["tape", "job"], PRIV_TAPE_MODIFY, false),
     },
 )]
 /// Create a new tape backup job.
@@ -88,6 +111,9 @@ pub fn create_tape_backup_job(
         },
     },
     returns: { type: TapeBackupJobConfig },
+    access: {
+        permission: &Permission::Privilege(&["tape", "job", "{id}"], PRIV_TAPE_AUDIT, false),
+    },
 )]
 /// Read a tape backup job configuration.
 pub fn read_tape_backup_job(
@@ -143,6 +169,9 @@ pub enum DeletableProperty {
             },
         },
     },
+    access: {
+        permission: &Permission::Privilege(&["tape", "job", "{id}"], PRIV_TAPE_MODIFY, false),
+    },
 )]
 /// Update the tape backup job
 pub fn update_tape_backup_job(
@@ -184,6 +213,9 @@ pub fn update_tape_backup_job(
                 schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
             },
         },
+    },
+    access: {
+        permission: &Permission::Privilege(&["tape", "job", "{id}"], PRIV_TAPE_MODIFY, false),
     },
 )]
 /// Remove a tape backup job configuration

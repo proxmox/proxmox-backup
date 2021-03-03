@@ -10,6 +10,7 @@ use proxmox::{
         RpcEnvironment,
         RpcEnvironmentType,
         Router,
+        Permission,
     },
 };
 
@@ -17,6 +18,10 @@ use crate::{
     task_log,
     config::{
         self,
+        cached_user_info::CachedUserInfo,
+        acl::{
+            PRIV_TAPE_AUDIT,
+        },
         tape_job::{
             TapeBackupJobConfig,
             TapeBackupJobSetup,
@@ -72,12 +77,18 @@ pub const ROUTER: Router = Router::new()
         type: Array,
         items: { type: TapeBackupJobStatus },
     },
+    access: {
+        description: "List configured tape jobs filtered by Tape.Audit privileges",
+        permission: &Permission::Anybody,
+    },
 )]
 /// List all tape backup jobs
 pub fn list_tape_backup_jobs(
     _param: Value,
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<TapeBackupJobStatus>, Error> {
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let user_info = CachedUserInfo::new()?;
 
     let (config, digest) = config::tape_job::config()?;
 
@@ -92,6 +103,11 @@ pub fn list_tape_backup_jobs(
     let mut list = Vec::new();
 
     for job in job_list_iter {
+        let privs = user_info.lookup_privs(&auth_id, &["tape", "job", &job.id]);
+        if (privs & PRIV_TAPE_AUDIT) == 0 {
+            continue;
+        }
+
         let last_state = JobState::load("tape-backup-job", &job.id)
             .map_err(|err| format_err!("could not open statefile for {}: {}", &job.id, err))?;
 
