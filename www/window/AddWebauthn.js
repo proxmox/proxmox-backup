@@ -73,20 +73,21 @@ Ext.define('PBS.window.AddWebauthn', {
 		    throw "server did not respond with a challenge";
 		}
 
-		let challenge_obj = JSON.parse(data.challenge);
+		let creds = JSON.parse(data.challenge);
 
 		// Fix this up before passing it to the browser, but keep a copy of the original
 		// string to pass in the response:
-		let challenge_str = challenge_obj.publicKey.challenge;
-		challenge_obj.publicKey.challenge = PBS.Utils.base64url_to_bytes(challenge_str);
-		challenge_obj.publicKey.user.id =
-		    PBS.Utils.base64url_to_bytes(challenge_obj.publicKey.user.id);
+		let challenge_str = creds.publicKey.challenge;
+		creds.publicKey.challenge = PBS.Utils.base64url_to_bytes(challenge_str);
+		creds.publicKey.user.id =
+		    PBS.Utils.base64url_to_bytes(creds.publicKey.user.id);
 
 		// convert existing authenticators structure
-		challenge_obj.publicKey.excludeCredentials =
-		    (challenge_obj.publicKey.excludeCredentials || []).map((cred) => ({
-			id: PBS.Utils.base64url_to_bytes(cred.id),
-			type: cred.type,
+		creds.publicKey.excludeCredentials =
+		    (creds.publicKey.excludeCredentials || [])
+		    .map((credential) => ({
+			id: PBS.Utils.base64url_to_bytes(credential.id),
+			type: credential.type,
 		    }));
 
 		let msg = Ext.Msg.show({
@@ -97,7 +98,7 @@ Ext.define('PBS.window.AddWebauthn', {
 
 		let token_response;
 		try {
-		    token_response = await navigator.credentials.create(challenge_obj);
+		    token_response = await navigator.credentials.create(creds);
 		} catch (error) {
 		    let errmsg = error.message;
 		    if (error.name === 'InvalidStateError') {
