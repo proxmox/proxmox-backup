@@ -293,20 +293,19 @@ Two-factor authentication
 Introduction
 ~~~~~~~~~~~~
 
-Simple authentication requires only secret piece of evidence (one factor) that
-a user can successfully claim a identiy (authenticate), for example, that you
-are allowed to login as `root@pam` on a specific Proxmox Backup Server.
-If the password gets stolen, or leaked in another way, anybody can use it to
-login - even if they should not be allowed to do so.
+With simple authentication, only a password (single factor) is required to
+successfully claim an identity (authenticate), for example, to be able to log in
+as `root@pam` on a specific instance of Proxmox Backup Server. In this case, if
+the password gets stolen or leaked, anybody can use it to log in - even if they
+should not be allowed to do so.
 
-With Two-factor authentication (TFA) a user is asked for an additional factor,
-to proof his authenticity. The extra factor is different from a password
-(something only the user knows), it is something only the user has, for example
-a piece of hardware (security key) or an secret saved on the users smartphone.
-
-This means that a remote user can never get hold on such a physical object. So,
-even if that user would know your password they cannot successfully
-authenticate as you, as your second factor is missing.
+With two-factor authentication (TFA), a user is asked for an additional factor
+to verify their authenticity. Rather than relying on something only the user
+knows (a password), this extra factor requires something only the user has, for
+example, a piece of hardware (security key) or a secret saved on the user's
+smartphone. This prevents a remote user from gaining unauthorized access to an
+account, as even if they have the password, they will not have access to the
+physical object (second factor).
 
 .. image:: images/screenshots/pbs-gui-tfa-login.png
   :align: right
@@ -315,24 +314,26 @@ authenticate as you, as your second factor is missing.
 Available Second Factors
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-You can setup more than one second factor to avoid that losing your smartphone
-or security key permanently locks you out from your account.
+You can set up multiple second factors, in order to avoid a situation in which
+losing your smartphone or security key locks you out of your account
+permanently.
 
-There are three different two-factor authentication methods supported:
+Proxmox Backup Server supports three different two-factor authentication
+methods:
 
 * TOTP (`Time-based One-Time Password <https://en.wikipedia.org/wiki/Time-based_One-Time_Password>`_).
-  A short code derived from a shared secret and the current time, it switches
+  A short code derived from a shared secret and the current time, it changes
   every 30 seconds.
 
 * WebAuthn (`Web Authentication <https://en.wikipedia.org/wiki/WebAuthn>`_).
   A general standard for authentication. It is implemented by various security
-  devices like hardware keys or trusted platform modules (TPM) from a computer
+  devices, like hardware keys or trusted platform modules (TPM) from a computer
   or smart phone.
 
 * Single use Recovery Keys. A list of keys which should either be printed out
-  and locked in a secure fault or saved digitally in a electronic vault.
-  Each key can be used only once, they are perfect for ensuring you are not
-  locked out even if all of your other second factors are lost or corrupt.
+  and locked in a secure place or saved digitally in an electronic vault.
+  Each key can be used only once. These are perfect for ensuring that you are
+  not locked out, even if all of your other second factors are lost or corrupt.
 
 
 Setup
@@ -347,7 +348,7 @@ TOTP
   :align: right
   :alt: Add a new user
 
-There is not server setup required, simply install a TOTP app on your
+There is no server setup required. Simply install a TOTP app on your
 smartphone (for example, `FreeOTP <https://freeotp.github.io/>`_) and use the
 Proxmox Backup Server web-interface to add a TOTP factor.
 
@@ -356,7 +357,7 @@ Proxmox Backup Server web-interface to add a TOTP factor.
 WebAuthn
 ^^^^^^^^
 
-For WebAuthn to work you need to have two things:
+For WebAuthn to work, you need to have two things:
 
 * a trusted HTTPS certificate (for example, by using `Let's Encrypt
   <https://pbs.proxmox.com/wiki/index.php/HTTPS_Certificate_Configuration>`_)
@@ -364,7 +365,7 @@ For WebAuthn to work you need to have two things:
 * setup the WebAuthn configuration (see *Configuration -> Authentication* in the
   Proxmox Backup Server web-interface). This can be auto-filled in most setups.
 
-Once you fullfilled both of those requirements, you can add a WebAuthn
+Once you have fulfilled both of these requirements, you can add a WebAuthn
 configuration in the *Access Control* panel.
 
 .. _user_tfa_setup_recovery_keys:
@@ -376,7 +377,7 @@ Recovery Keys
   :align: right
   :alt: Add a new user
 
-Recovery key codes do not need any preparation, you can simply create a set of
+Recovery key codes do not need any preparation; you can simply create a set of
 recovery keys in the *Access Control* panel.
 
 .. note:: There can only be one set of single-use recovery keys per user at any
@@ -385,7 +386,7 @@ recovery keys in the *Access Control* panel.
 TFA and Automated Access
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-Two-factor authentication is only implemented for the web-interface, you should
+Two-factor authentication is only implemented for the web-interface. You should
 use :ref:`API Tokens <user_tokens>` for all other use cases, especially
-non-interactive ones (for example, adding a Proxmox Backup server to Proxmox VE
+non-interactive ones (for example, adding a Proxmox Backup Server to Proxmox VE
 as a storage).
