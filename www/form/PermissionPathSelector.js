@@ -20,6 +20,11 @@ Ext.define('PBS.data.PermissionPathsStore', {
 	{ 'value': '/system/status' },
 	{ 'value': '/system/tasks' },
 	{ 'value': '/system/time' },
+	{ 'value': '/tape' },
+	{ 'value': '/tape/drive' },
+	{ 'value': '/tape/changer' },
+	{ 'value': '/tape/pool' },
+	{ 'value': '/tape/job' },
     ],
 
     constructor: function(config) {
