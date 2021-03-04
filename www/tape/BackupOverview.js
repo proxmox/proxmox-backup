@@ -242,22 +242,21 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 	    flex: 3,
 	},
 	{
-	    text: gettext('Number of Tapes'),
+	    text: gettext('Tapes'),
 	    dataIndex: 'tapes',
 	    sortable: false,
-	    flex: 1,
 	},
 	{
-	    text: gettext('Tape Number'),
+	    text: gettext('Seq. Nr.'),
 	    dataIndex: 'seq-nr',
 	    sortable: false,
-	    flex: 1,
 	},
 	{
 	    text: gettext('Media Set UUID'),
 	    dataIndex: 'media-set-uuid',
+	    hidden: true,
 	    sortable: false,
-	    flex: 1,
+	    width: 280,
 	},
     ],
 });
