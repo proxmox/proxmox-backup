@@ -505,20 +505,27 @@ impl Inventory {
             Some(time) => time,
         };
 
-        let max_use_time = match media_set_policy {
-            MediaSetPolicy::ContinueCurrent => {
-                match self.media_set_next_start_time(&set.uuid) {
-                    Some(next_start_time) => next_start_time,
-                    None => return i64::MAX,
-                }
+        let max_use_time = match self.media_set_next_start_time(&set.uuid) {
+            Some(next_start_time) => {
+               match media_set_policy {
+                   MediaSetPolicy::AlwaysCreate => set_start_time,
+                   _ => next_start_time,
+               }
             }
-            MediaSetPolicy::AlwaysCreate => {
-                set_start_time
-            }
-            MediaSetPolicy::CreateAt(ref event) => {
-                match compute_next_event(event, set_start_time, false) {
-                    Ok(Some(next)) => next,
-                    Ok(None) | Err(_) => return i64::MAX,
+            None => {
+                match media_set_policy {
+                    MediaSetPolicy::ContinueCurrent => {
+                        return i64::MAX;
+                    }
+                    MediaSetPolicy::AlwaysCreate => {
+                        set_start_time
+                    }
+                    MediaSetPolicy::CreateAt(ref event) => {
+                        match compute_next_event(event, set_start_time, false) {
+                            Ok(Some(next)) => next,
+                            Ok(None) | Err(_) => return i64::MAX,
+                        }
+                    }
                 }
             }
         };
