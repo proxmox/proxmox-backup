@@ -121,10 +121,15 @@ pub async fn list_media(
 
         let config: MediaPoolConfig = config.lookup("pool", pool_name)?;
 
-        let changer_name = None; // does not matter here
-        let pool = MediaPool::with_config(status_path, &config, changer_name)?;
+        let changer_name = None; // assume standalone drive
+        let mut pool = MediaPool::with_config(status_path, &config, changer_name)?;
 
         let current_time = proxmox::tools::time::epoch_i64();
+
+        // Call start_write_session, so that we show the same status a
+        // backup job would see.
+        pool.force_media_availability();
+        pool.start_write_session(current_time)?;
 
         for media in pool.list_media() {
             let expired = pool.media_is_expired(&media, current_time);

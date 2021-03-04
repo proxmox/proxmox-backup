@@ -46,6 +46,7 @@ pub struct MediaPool {
     retention: RetentionPolicy,
 
     changer_name: Option<String>,
+    force_media_availability: bool,
 
     encrypt_fingerprint: Option<Fingerprint>,
 
@@ -87,7 +88,15 @@ impl MediaPool {
             inventory,
             current_media_set,
             encrypt_fingerprint,
+            force_media_availability: false,
         })
+    }
+
+    /// Pretend all Online(x) and Offline media is available
+    ///
+    /// Only media in Vault(y) is considered unavailable.
+    pub fn force_media_availability(&mut self) {
+        self.force_media_availability = true;
     }
 
     /// Creates a new instance using the media pool configuration
@@ -218,6 +227,9 @@ impl MediaPool {
     ///
     /// If not, starts a new media set. Also creates a new
     /// set if media_set_policy implies it.
+    ///
+    /// Note: We also call this in list_media to compute correct media
+    /// status, so this must not change persistent/saved state.
     pub fn start_write_session(&mut self, current_time: i64) -> Result<(), Error> {
 
         let mut create_new_set = match self.current_set_usable() {
@@ -284,16 +296,24 @@ impl MediaPool {
     pub fn location_is_available(&self, location: &MediaLocation) -> bool {
         match location {
             MediaLocation::Online(name) => {
-                if let Some(ref changer_name) = self.changer_name {
-                    name == changer_name
+                if self.force_media_availability {
+                    true
                 } else {
-                    // a standalone drive cannot use media currently inside a library
-                    false
+                    if let Some(ref changer_name) = self.changer_name {
+                        name == changer_name
+                    } else {
+                        // a standalone drive cannot use media currently inside a library
+                        false
+                    }
                 }
             }
             MediaLocation::Offline => {
-                // consider available for standalone drives
-                self.changer_name.is_none()
+                if self.force_media_availability {
+                    true
+                } else {
+                    // consider available for standalone drives
+                    self.changer_name.is_none()
+                }
             }
             MediaLocation::Vault(_) => false,
         }
@@ -500,6 +520,7 @@ impl MediaPool {
                 _ => bail!("unable to use media set - wrong media status {:?}", media.status()),
             }
         }
+
         Ok(last_is_writable)
     }
 
