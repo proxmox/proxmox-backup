@@ -128,8 +128,10 @@ Ext.define('PBS.TapeManagement.EncryptionPanel', {
 	},
 	{
 	    text: gettext('Created'),
+	    xtype: 'datecolumn',
 	    dataIndex: 'created',
-	    flex: 2,
+	    width: 150,
+	    format: 'Y-m-d H:i:s',
 	},
     ],
 });
