@@ -513,7 +513,7 @@ impl Inventory {
                 }
             }
             MediaSetPolicy::AlwaysCreate => {
-                set_start_time + 1
+                set_start_time
             }
             MediaSetPolicy::CreateAt(ref event) => {
                 match compute_next_event(event, set_start_time, false) {

@@ -58,7 +58,7 @@ fn test_alloc_writable_media_1() -> Result<(), Error> {
 fn test_alloc_writable_media_2() -> Result<(), Error> {
 
     let testdir = create_testdir("test_alloc_writable_media_2")?;
- 
+
     let mut inventory = Inventory::load(&testdir)?;
 
     // tape1: free, assigned to pool
@@ -173,16 +173,14 @@ fn test_alloc_writable_media_4() -> Result<(), Error> {
     // next call fail because there is no free media
     assert!(pool.alloc_writable_media(start_time + 5).is_err());
 
-    // Create new nedia set, so that revious set can expire
+    // Create new nedia set, so that previous set can expire
     pool.start_write_session(start_time + 10)?;
 
     assert!(pool.alloc_writable_media(start_time + 10).is_err());
     assert!(pool.alloc_writable_media(start_time + 11).is_err());
-    assert!(pool.alloc_writable_media(start_time + 12).is_err());
-    assert!(pool.alloc_writable_media(start_time + 13).is_err());
 
     // tape1 is now expired
-    assert_eq!(pool.alloc_writable_media(start_time + 14)?, tape1_uuid);
+    assert_eq!(pool.alloc_writable_media(start_time + 12)?, tape1_uuid);
 
     Ok(())
 }

@@ -289,7 +289,7 @@ impl MediaPool {
         let expire_time = self.inventory.media_expire_time(
             media.id(), &self.media_set_policy, &self.retention);
 
-        current_time > expire_time
+        current_time >= expire_time
     }
 
     // check if a location is considered on site
