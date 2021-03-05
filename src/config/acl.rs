@@ -346,14 +346,8 @@ pub fn check_acl_path(path: &str) -> Result<(), Error> {
                 return Ok(());
             }
             match components[1] {
-                "drive" => {
-                    // /tape/drive/{name}
-                    if components_len <= 3 {
-                        return Ok(());
-                    }
-                }
-                "changer" => {
-                    // /tape/changer/{name}
+                "device" => {
+                    // /tape/device/{name}
                     if components_len <= 3 {
                         return Ok(());
                     }

@@ -52,7 +52,7 @@ use crate::{
         },
     },
     access: {
-        permission: &Permission::Privilege(&["tape", "changer"], PRIV_TAPE_MODIFY, false),
+        permission: &Permission::Privilege(&["tape", "device"], PRIV_TAPE_MODIFY, false),
     },
 )]
 /// Create a new changer device
@@ -107,7 +107,7 @@ pub fn create_changer(
         type: ScsiTapeChanger,
     },
     access: {
-        permission: &Permission::Privilege(&["tape", "changer", "{name}"], PRIV_TAPE_AUDIT, false),
+        permission: &Permission::Privilege(&["tape", "device", "{name}"], PRIV_TAPE_AUDIT, false),
     },
 )]
 /// Get tape changer configuration
@@ -157,7 +157,7 @@ pub fn list_changers(
     let list = list
         .into_iter()
         .filter(|changer| {
-            let privs = user_info.lookup_privs(&auth_id, &["tape", "changer", &changer.name]);
+            let privs = user_info.lookup_privs(&auth_id, &["tape", "device", &changer.name]);
             privs & PRIV_TAPE_AUDIT != 0
         })
         .collect();
@@ -206,7 +206,7 @@ pub enum DeletableProperty {
          },
     },
     access: {
-        permission: &Permission::Privilege(&["tape", "changer", "{name}"], PRIV_TAPE_MODIFY, false),
+        permission: &Permission::Privilege(&["tape", "device", "{name}"], PRIV_TAPE_MODIFY, false),
     },
 )]
 /// Update a tape changer configuration
@@ -283,7 +283,7 @@ pub fn update_changer(
         },
     },
     access: {
-        permission: &Permission::Privilege(&["tape", "changer", "{name}"], PRIV_TAPE_MODIFY, false),
+        permission: &Permission::Privilege(&["tape", "device", "{name}"], PRIV_TAPE_MODIFY, false),
     },
 )]
 /// Delete a tape changer configuration

@@ -50,7 +50,7 @@ use crate::{
         },
     },
     access: {
-        permission: &Permission::Privilege(&["tape", "drive"], PRIV_TAPE_MODIFY, false),
+        permission: &Permission::Privilege(&["tape", "device"], PRIV_TAPE_MODIFY, false),
     },
 )]
 /// Create a new drive
@@ -96,7 +96,7 @@ pub fn create_drive(param: Value) -> Result<(), Error> {
         type: LinuxTapeDrive,
     },
     access: {
-        permission: &Permission::Privilege(&["tape", "drive", "{name}"], PRIV_TAPE_AUDIT, false),
+        permission: &Permission::Privilege(&["tape", "device", "{name}"], PRIV_TAPE_AUDIT, false),
     },
 )]
 /// Get drive configuration
@@ -146,7 +146,7 @@ pub fn list_drives(
     let drive_list = drive_list
         .into_iter()
         .filter(|drive| {
-            let privs = user_info.lookup_privs(&auth_id, &["tape", "drive", &drive.name]);
+            let privs = user_info.lookup_privs(&auth_id, &["tape", "device", &drive.name]);
             privs & PRIV_TAPE_AUDIT != 0
         })
         .collect();
@@ -202,7 +202,7 @@ pub enum DeletableProperty {
        },
     },
     access: {
-        permission: &Permission::Privilege(&["tape", "drive", "{name}"], PRIV_TAPE_MODIFY, false),
+        permission: &Permission::Privilege(&["tape", "device", "{name}"], PRIV_TAPE_MODIFY, false),
     },
 )]
 /// Update a drive configuration
@@ -278,7 +278,7 @@ pub fn update_drive(
         },
     },
     access: {
-        permission: &Permission::Privilege(&["tape", "drive", "{name}"], PRIV_TAPE_MODIFY, false),
+        permission: &Permission::Privilege(&["tape", "device", "{name}"], PRIV_TAPE_MODIFY, false),
     },
 )]
 /// Delete a drive configuration
