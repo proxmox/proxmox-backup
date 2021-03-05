@@ -99,6 +99,11 @@ impl MediaPool {
         self.force_media_availability = true;
     }
 
+    /// Returns the Uuid of the current media set
+    pub fn current_media_set(&self) -> &Uuid {
+        self.current_media_set.uuid()
+    }
+
     /// Creates a new instance using the media pool configuration
     pub fn with_config(
         state_path: &Path,
@@ -230,27 +235,27 @@ impl MediaPool {
     ///
     /// Note: We also call this in list_media to compute correct media
     /// status, so this must not change persistent/saved state.
-    pub fn start_write_session(&mut self, current_time: i64) -> Result<(), Error> {
+    ///
+    /// Returns the reason why we started a new media set (if we do)
+    pub fn start_write_session(&mut self, current_time: i64) -> Result<Option<String>, Error> {
 
-        let mut create_new_set = match self.current_set_usable() {
-            Err(err) => {
-                eprintln!("unable to use current media set - {}", err);
-                true
-            }
-            Ok(usable) => !usable,
+         let mut create_new_set = match self.current_set_usable() {
+             Err(err) => {
+                 Some(err.to_string())
+             }
+             Ok(_) => None,
         };
 
-        if !create_new_set {
-
+        if create_new_set.is_none() {
             match &self.media_set_policy {
                 MediaSetPolicy::AlwaysCreate => {
-                    create_new_set = true;
+                    create_new_set = Some(String::from("policy is AlwaysCreate"));
                 }
                 MediaSetPolicy::CreateAt(event) => {
                     if let Some(set_start_time) = self.inventory.media_set_start_time(&self.current_media_set.uuid()) {
                         if let Ok(Some(alloc_time)) = compute_next_event(event, set_start_time as i64, false) {
-                             if current_time >= alloc_time {
-                                create_new_set = true;
+                            if current_time >= alloc_time {
+                                create_new_set = Some(String::from("policy CreateAt event triggered"));
                             }
                         }
                     }
@@ -259,13 +264,12 @@ impl MediaPool {
             }
         }
 
-        if create_new_set {
+        if create_new_set.is_some() {
             let media_set = MediaSet::new();
-            eprintln!("starting new media set {}", media_set.uuid());
             self.current_media_set = media_set;
         }
 
-        Ok(())
+        Ok(create_new_set)
     }
 
     /// List media in current media set

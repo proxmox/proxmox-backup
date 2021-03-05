@@ -68,11 +68,20 @@ pub struct PoolWriter {
 
 impl PoolWriter {
 
-    pub fn new(mut pool: MediaPool, drive_name: &str) -> Result<Self, Error> {
+    pub fn new(mut pool: MediaPool, drive_name: &str, worker: &WorkerTask) -> Result<Self, Error> {
 
         let current_time = proxmox::tools::time::epoch_i64();
 
-        pool.start_write_session(current_time)?;
+        let new_media_set_reason = pool.start_write_session(current_time)?;
+        if let Some(reason) = new_media_set_reason {
+            task_log!(
+                worker,
+                "starting new media set - reason: {}",
+                reason,
+            );
+        }
+
+        task_log!(worker, "media set uuid: {}", pool.current_media_set());
 
         let mut media_set_catalog = MediaSetCatalog::new();
 

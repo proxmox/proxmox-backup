@@ -295,7 +295,7 @@ fn backup_worker(
 
     let pool = MediaPool::with_config(status_path, &pool_config, changer_name)?;
 
-    let mut pool_writer = PoolWriter::new(pool, &setup.drive)?;
+    let mut pool_writer = PoolWriter::new(pool, &setup.drive, worker)?;
 
     let mut group_list = BackupInfo::list_backup_groups(&datastore.base_path())?;
 
