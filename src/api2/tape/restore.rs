@@ -11,6 +11,7 @@ use proxmox::{
         RpcEnvironment,
         RpcEnvironmentType,
         Router,
+        Permission,
         section_config::SectionConfigData,
     },
     tools::{
@@ -33,7 +34,14 @@ use crate::{
         UPID_SCHEMA,
         Authid,
     },
-    config,
+    config::{
+        self,
+        cached_user_info::CachedUserInfo,
+        acl::{
+            PRIV_DATASTORE_BACKUP,
+            PRIV_TAPE_READ,
+        },
+    },
     backup::{
         archive_type,
         MANIFEST_BLOB_NAME,
@@ -76,7 +84,6 @@ use crate::{
 pub const ROUTER: Router = Router::new()
     .post(&API_METHOD_RESTORE);
 
-
 #[api(
    input: {
         properties: {
@@ -95,6 +102,12 @@ pub const ROUTER: Router = Router::new()
     returns: {
         schema: UPID_SCHEMA,
     },
+    access: {
+        // Note: parameters are no uri parameter, so we need to test inside function body
+        description: "The user needs Tape.Read privilege on /tape/pool/{pool} \
+                      and /tape/drive/{drive}, Datastore.Backup privilege on /datastore/{store}.",
+        permission: &Permission::Anybody,
+    },
 )]
 /// Restore data from media-set
 pub fn restore(
@@ -104,9 +117,18 @@ pub fn restore(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
-    let datastore = DataStore::lookup_datastore(&store)?;
-
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let user_info = CachedUserInfo::new()?;
+
+    let privs = user_info.lookup_privs(&auth_id, &["datastore", &store]);
+    if (privs & PRIV_DATASTORE_BACKUP) == 0 {
+        bail!("no permissions on /datastore/{}", store);
+    }
+
+    let privs = user_info.lookup_privs(&auth_id, &["tape", "drive", &drive]);
+    if (privs & PRIV_TAPE_READ) == 0 {
+        bail!("no permissions on /tape/drive/{}", drive);
+    }
 
     let status_path = Path::new(TAPE_STATUS_DIR);
     let inventory = Inventory::load(status_path)?;
@@ -114,6 +136,13 @@ pub fn restore(
     let media_set_uuid = media_set.parse()?;
 
     let pool = inventory.lookup_media_set_pool(&media_set_uuid)?;
+
+    let privs = user_info.lookup_privs(&auth_id, &["tape", "pool", &pool]);
+    if (privs & PRIV_TAPE_READ) == 0 {
+        bail!("no permissions on /tape/pool/{}", pool);
+    }
+
+    let datastore = DataStore::lookup_datastore(&store)?;
 
     let (drive_config, _digest) = config::drive::config()?;
 

@@ -13,6 +13,7 @@ use crate::{
         cached_user_info::CachedUserInfo,
         acl::{
             PRIV_TAPE_AUDIT,
+            PRIV_TAPE_READ,
         },
     },
     api2::types::{
@@ -59,6 +60,9 @@ use crate::{
         items: {
             type: MtxStatusEntry,
         },
+    },
+    access: {
+        permission: &Permission::Privilege(&["tape", "device", "{name}"], PRIV_TAPE_AUDIT, false),
     },
 )]
 /// Get tape changer status
@@ -155,6 +159,9 @@ pub async fn get_status(
                 minimum: 1,
             },
         },
+    },
+    access: {
+        permission: &Permission::Privilege(&["tape", "device", "{name}"], PRIV_TAPE_READ, false),
     },
 )]
 /// Transfers media from one slot to another

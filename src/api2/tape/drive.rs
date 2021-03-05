@@ -29,6 +29,8 @@ use crate::{
         cached_user_info::CachedUserInfo,
         acl::{
             PRIV_TAPE_AUDIT,
+            PRIV_TAPE_READ,
+            PRIV_TAPE_WRITE,
         },
     },
     api2::{
@@ -143,6 +145,9 @@ where
     returns: {
         schema: UPID_SCHEMA,
     },
+    access: {
+        permission: &Permission::Privilege(&["tape", "device", "{drive}"], PRIV_TAPE_READ, false),
+    },
 )]
 /// Load media with specified label
 ///
@@ -182,6 +187,9 @@ pub fn load_media(
             },
         },
     },
+    access: {
+        permission: &Permission::Privilege(&["tape", "device", "{drive}"], PRIV_TAPE_READ, false),
+    },
 )]
 /// Load media from the specified slot
 ///
@@ -214,6 +222,9 @@ pub async fn load_slot(drive: String, source_slot: u64) -> Result<(), Error> {
         description: "The import-export slot number the media was transfered to.",
         type: u64,
         minimum: 1,
+    },
+    access: {
+        permission: &Permission::Privilege(&["tape", "device", "{drive}"], PRIV_TAPE_READ, false),
     },
 )]
 /// Export media with specified label
@@ -251,6 +262,9 @@ pub async fn export_media(drive: String, label_text: String) -> Result<u64, Erro
     },
     returns: {
         schema: UPID_SCHEMA,
+    },
+    access: {
+        permission: &Permission::Privilege(&["tape", "device", "{drive}"], PRIV_TAPE_READ, false),
     },
 )]
 /// Unload media via changer
@@ -296,6 +310,9 @@ pub fn unload(
     },
     returns: {
         schema: UPID_SCHEMA,
+    },
+    access: {
+        permission: &Permission::Privilege(&["tape", "device", "{drive}"], PRIV_TAPE_WRITE, false),
     },
 )]
 /// Erase media. Check for label-text if given (cancels if wrong media).
@@ -381,6 +398,9 @@ pub fn erase_media(
     returns: {
         schema: UPID_SCHEMA,
     },
+    access: {
+        permission: &Permission::Privilege(&["tape", "device", "{drive}"], PRIV_TAPE_READ, false),
+    },
 )]
 /// Rewind tape
 pub fn rewind(
@@ -412,6 +432,9 @@ pub fn rewind(
     },
     returns: {
         schema: UPID_SCHEMA,
+    },
+    access: {
+        permission: &Permission::Privilege(&["tape", "device", "{drive}"], PRIV_TAPE_READ, false),
     },
 )]
 /// Eject/Unload drive media
@@ -455,6 +478,9 @@ pub fn eject_media(
     },
     returns: {
         schema: UPID_SCHEMA,
+    },
+    access: {
+        permission: &Permission::Privilege(&["tape", "device", "{drive}"], PRIV_TAPE_WRITE, false),
     },
 )]
 /// Label media
@@ -588,6 +614,9 @@ fn write_media_label(
             },
         },
     },
+    access: {
+        permission: &Permission::Privilege(&["tape", "device", "{drive}"], PRIV_TAPE_READ, false),
+    },
 )]
 /// Try to restore a tape encryption key
 pub async fn restore_key(
@@ -630,6 +659,9 @@ pub async fn restore_key(
     },
     returns: {
         type: MediaIdFlat,
+    },
+    access: {
+        permission: &Permission::Privilege(&["tape", "device", "{drive}"], PRIV_TAPE_READ, false),
     },
 )]
 /// Read media label (optionally inventorize media)
@@ -706,6 +738,9 @@ pub async fn read_label(
     returns: {
         schema: UPID_SCHEMA,
     },
+    access: {
+        permission: &Permission::Privilege(&["tape", "device", "{drive}"], PRIV_TAPE_READ, false),
+    },
 )]
 /// Clean drive
 pub fn clean_drive(
@@ -747,6 +782,9 @@ pub fn clean_drive(
         items: {
             type: LabelUuidMap,
         },
+    },
+    access: {
+        permission: &Permission::Privilege(&["tape", "device", "{drive}"], PRIV_TAPE_READ, false),
     },
 )]
 /// List known media labels (Changer Inventory)
@@ -816,6 +854,9 @@ pub async fn inventory(
     },
     returns: {
         schema: UPID_SCHEMA,
+    },
+    access: {
+        permission: &Permission::Privilege(&["tape", "device", "{drive}"], PRIV_TAPE_READ, false),
     },
 )]
 /// Update inventory
@@ -910,6 +951,9 @@ pub fn update_inventory(
     },
     returns: {
         schema: UPID_SCHEMA,
+    },
+    access: {
+        permission: &Permission::Privilege(&["tape", "device", "{drive}"], PRIV_TAPE_WRITE, false),
     },
 )]
 /// Label media with barcodes from changer device
@@ -1020,6 +1064,9 @@ fn barcode_label_media_worker(
             type: MamAttribute,
         },
     },
+    access: {
+        permission: &Permission::Privilege(&["tape", "device", "{drive}"], PRIV_TAPE_AUDIT, false),
+    },
 )]
 /// Read Cartridge Memory (Medium auxiliary memory attributes)
 pub async fn cartridge_memory(drive: String) -> Result<Vec<MamAttribute>, Error> {
@@ -1047,6 +1094,9 @@ pub async fn cartridge_memory(drive: String) -> Result<Vec<MamAttribute>, Error>
     returns: {
         type: Lp17VolumeStatistics,
     },
+    access: {
+        permission: &Permission::Privilege(&["tape", "device", "{drive}"], PRIV_TAPE_AUDIT, false),
+    },
 )]
 /// Read Volume Statistics (SCSI log page 17h)
 pub async fn volume_statistics(drive: String) -> Result<Lp17VolumeStatistics, Error> {
@@ -1073,6 +1123,9 @@ pub async fn volume_statistics(drive: String) -> Result<Lp17VolumeStatistics, Er
     },
     returns: {
         type: LinuxDriveAndMediaStatus,
+    },
+    access: {
+        permission: &Permission::Privilege(&["tape", "device", "{drive}"], PRIV_TAPE_AUDIT, false),
     },
 )]
 /// Get drive/media status
@@ -1114,6 +1167,9 @@ pub async fn status(drive: String) -> Result<LinuxDriveAndMediaStatus, Error> {
     },
     returns: {
         schema: UPID_SCHEMA,
+    },
+    access: {
+        permission: &Permission::Privilege(&["tape", "device", "{drive}"], PRIV_TAPE_READ, false),
     },
 )]
 /// Scan media and record content

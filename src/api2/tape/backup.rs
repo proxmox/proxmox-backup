@@ -20,7 +20,9 @@ use crate::{
         self,
         cached_user_info::CachedUserInfo,
         acl::{
+            PRIV_DATASTORE_READ,
             PRIV_TAPE_AUDIT,
+            PRIV_TAPE_WRITE,
         },
         tape_job::{
             TapeBackupJobConfig,
@@ -70,6 +72,33 @@ pub const ROUTER: Router = Router::new()
     .get(&API_METHOD_LIST_TAPE_BACKUP_JOBS)
     .post(&API_METHOD_BACKUP)
     .match_all("id", &TAPE_BACKUP_JOB_ROUTER);
+
+fn check_backup_permission(
+    auth_id: &Authid,
+    store: &str,
+    pool: &str,
+    drive: &str,
+) -> Result<(), Error> {
+
+    let user_info = CachedUserInfo::new()?;
+
+    let privs = user_info.lookup_privs(auth_id, &["datastore", store]);
+    if (privs & PRIV_DATASTORE_READ) == 0 {
+        bail!("no permissions on /datastore/{}", store);
+    }
+
+    let privs = user_info.lookup_privs(auth_id, &["tape", "drive", drive]);
+    if (privs & PRIV_TAPE_WRITE) == 0 {
+        bail!("no permissions on /tape/drive/{}", drive);
+    }
+
+    let privs = user_info.lookup_privs(auth_id, &["tape", "pool", pool]);
+    if (privs & PRIV_TAPE_WRITE) == 0 {
+        bail!("no permissions on /tape/pool/{}", pool);
+    }
+
+    Ok(())
+}
 
 #[api(
     returns: {
@@ -202,6 +231,12 @@ pub fn do_tape_backup_job(
             },
         },
     },
+    access: {
+        // Note: parameters are from job config, so we need to test inside function body
+        description: "The user needs Tape.Write privilege on /tape/pool/{pool} \
+                      and /tape/drive/{drive}, Datastore.Read privilege on /datastore/{store}.",
+        permission: &Permission::Anybody,
+    },
 )]
 /// Runs a tape backup job manually.
 pub fn run_tape_backup_job(
@@ -212,6 +247,13 @@ pub fn run_tape_backup_job(
 
     let (config, _digest) = config::tape_job::config()?;
     let backup_job: TapeBackupJobConfig = config.lookup("backup", &id)?;
+
+    check_backup_permission(
+        &auth_id,
+        &backup_job.setup.store,
+        &backup_job.setup.pool,
+        &backup_job.setup.drive,
+    )?;
 
     let job = Job::new("tape-backup-job", &id)?;
 
@@ -232,6 +274,12 @@ pub fn run_tape_backup_job(
     returns: {
         schema: UPID_SCHEMA,
     },
+    access: {
+        // Note: parameters are no uri parameter, so we need to test inside function body
+        description: "The user needs Tape.Write privilege on /tape/pool/{pool} \
+                      and /tape/drive/{drive}, Datastore.Read privilege on /datastore/{store}.",
+        permission: &Permission::Anybody,
+    },
 )]
 /// Backup datastore to tape media pool
 pub fn backup(
@@ -240,6 +288,13 @@ pub fn backup(
 ) -> Result<Value, Error> {
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+
+    check_backup_permission(
+        &auth_id,
+        &setup.store,
+        &setup.pool,
+        &setup.drive,
+    )?;
 
     let datastore = DataStore::lookup_datastore(&setup.store)?;
 
