@@ -58,7 +58,7 @@ lazy_static! {
     }
 )]
 #[serde(rename_all="kebab-case")]
-#[derive(Updater,Serialize,Deserialize,Clone)]
+#[derive(Serialize,Deserialize,Clone)]
 /// Tape Backup Job Setup
 pub struct TapeBackupJobSetup {
     pub store: String,
@@ -91,10 +91,9 @@ pub struct TapeBackupJobSetup {
     }
 )]
 #[serde(rename_all="kebab-case")]
-#[derive(Updater,Serialize,Deserialize,Clone)]
+#[derive(Serialize,Deserialize,Clone)]
 /// Tape Backup Job
 pub struct TapeBackupJobConfig {
-    #[updater(fixed)]
     pub id: String,
     #[serde(flatten)]
     pub setup: TapeBackupJobSetup,

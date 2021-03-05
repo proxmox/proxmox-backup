@@ -1,15 +1,20 @@
-use anyhow::{bail, format_err, Error};
+use anyhow::{bail, Error};
 use serde_json::Value;
 use ::serde::{Deserialize, Serialize};
 
-use proxmox::api::{api, Router, RpcEnvironment, Permission, schema::Updatable};
+use proxmox::api::{api, Router, RpcEnvironment, Permission};
 use proxmox::tools::fs::open_file_locked;
 
 use crate::{
     api2::types::{
         Authid,
         JOB_ID_SCHEMA,
+        DATASTORE_SCHEMA,
+        DRIVE_NAME_SCHEMA,
         PROXMOX_CONFIG_DIGEST_SCHEMA,
+        SINGLE_LINE_COMMENT_SCHEMA,
+        MEDIA_POOL_NAME_SCHEMA,
+        SYNC_SCHEDULE_SCHEMA,
     },
     config::{
         self,
@@ -21,7 +26,6 @@ use crate::{
         tape_job::{
             TAPE_JOB_CFG_LOCKFILE,
             TapeBackupJobConfig,
-            TapeBackupJobConfigUpdater,
         }
     },
 };
@@ -151,9 +155,43 @@ pub enum DeletableProperty {
     protected: true,
     input: {
         properties: {
-            update: {
-                flatten: true,
-                type: TapeBackupJobConfigUpdater,
+            id: {
+                schema: JOB_ID_SCHEMA,
+            },
+            store: {
+                schema: DATASTORE_SCHEMA,
+                optional: true,
+            },
+            pool: {
+                schema: MEDIA_POOL_NAME_SCHEMA,
+                optional: true,
+            },
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+                optional: true,
+            },
+            "eject-media": {
+                description: "Eject media upon job completion.",
+                type: bool,
+                optional: true,
+            },
+            "export-media-set": {
+                description: "Export media set upon job completion.",
+                type: bool,
+                optional: true,
+            },
+            "latest-only": {
+                description: "Backup latest snapshots only.",
+                type: bool,
+                optional: true,
+            },
+            comment: {
+                optional: true,
+                schema: SINGLE_LINE_COMMENT_SCHEMA,
+            },
+            schedule: {
+                optional: true,
+                schema: SYNC_SCHEDULE_SCHEMA,
             },
             delete: {
                 description: "List of properties to delete.",
@@ -175,26 +213,61 @@ pub enum DeletableProperty {
 )]
 /// Update the tape backup job
 pub fn update_tape_backup_job(
-    mut update: TapeBackupJobConfigUpdater,
-    delete: Option<Vec<String>>,
+    id: String,
+    store: Option<String>,
+    pool: Option<String>,
+    drive: Option<String>,
+    eject_media: Option<bool>,
+    export_media_set: Option<bool>,
+    latest_only: Option<bool>,
+    comment: Option<String>,
+    schedule: Option<String>,
+    delete: Option<Vec<DeletableProperty>>,
     digest: Option<String>,
 ) -> Result<(), Error> {
     let _lock = open_file_locked(TAPE_JOB_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
 
-    let id = update.id.take().ok_or_else(|| format_err!("no id given"))?;
-
     let (mut config, expected_digest) = config::tape_job::config()?;
 
-    let mut job: TapeBackupJobConfig = config.lookup("backup", &id)?;
+    let mut data: TapeBackupJobConfig = config.lookup("backup", &id)?;
 
     if let Some(ref digest) = digest {
         let digest = proxmox::tools::hex_to_digest(digest)?;
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 
-    job.update_from(update, &delete.unwrap_or(Vec::new()))?;
+    if let Some(delete) = delete {
+        for delete_prop in delete {
+            match delete_prop {
+                DeletableProperty::EjectMedia => { data.setup.eject_media = None; },
+                DeletableProperty::ExportMediaSet => { data.setup.export_media_set = None; },
+                DeletableProperty::LatestOnly => { data.setup.latest_only = None; },
+                DeletableProperty::Schedule => { data.schedule = None; },
+                DeletableProperty::Comment => { data.comment = None; },
+            }
+        }
+    }
 
-    config.set_data(&job.id, "backup", &job)?;
+    if let Some(store) = store { data.setup.store = store; }
+    if let Some(pool) = pool { data.setup.pool = pool; }
+    if let Some(drive) = drive { data.setup.drive = drive; }
+
+    if eject_media.is_some() { data.setup.eject_media = eject_media; };
+    if export_media_set.is_some() { data.setup.export_media_set = export_media_set; }
+    if latest_only.is_some() { data.setup.latest_only = latest_only; }
+
+    if schedule.is_some() { data.schedule = schedule; }
+
+    if let Some(comment) = comment {
+        let comment = comment.trim();
+        if comment.is_empty() {
+            data.comment = None;
+        } else {
+            data.comment = Some(comment.to_string());
+        }
+    }
+
+    config.set_data(&id, "backup", &data)?;
 
     config::tape_job::save_config(&config)?;
 
