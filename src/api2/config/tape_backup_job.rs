@@ -8,6 +8,7 @@ use proxmox::tools::fs::open_file_locked;
 use crate::{
     api2::types::{
         Authid,
+        Userid,
         JOB_ID_SCHEMA,
         DATASTORE_SCHEMA,
         DRIVE_NAME_SCHEMA,
@@ -149,6 +150,8 @@ pub enum DeletableProperty {
     ExportMediaSet,
     /// Delete the 'latest-only' property
     LatestOnly,
+    /// Delete the 'notify-user' property
+    NotifyUser,
 }
 
 #[api(
@@ -185,6 +188,10 @@ pub enum DeletableProperty {
                 type: bool,
                 optional: true,
             },
+            "notify-user": {
+                optional: true,
+                type: Userid,
+            },
             comment: {
                 optional: true,
                 schema: SINGLE_LINE_COMMENT_SCHEMA,
@@ -220,6 +227,7 @@ pub fn update_tape_backup_job(
     eject_media: Option<bool>,
     export_media_set: Option<bool>,
     latest_only: Option<bool>,
+    notify_user: Option<Userid>,
     comment: Option<String>,
     schedule: Option<String>,
     delete: Option<Vec<DeletableProperty>>,
@@ -242,6 +250,7 @@ pub fn update_tape_backup_job(
                 DeletableProperty::EjectMedia => { data.setup.eject_media = None; },
                 DeletableProperty::ExportMediaSet => { data.setup.export_media_set = None; },
                 DeletableProperty::LatestOnly => { data.setup.latest_only = None; },
+                DeletableProperty::NotifyUser => { data.setup.notify_user = None; },
                 DeletableProperty::Schedule => { data.schedule = None; },
                 DeletableProperty::Comment => { data.comment = None; },
             }
@@ -255,6 +264,7 @@ pub fn update_tape_backup_job(
     if eject_media.is_some() { data.setup.eject_media = eject_media; };
     if export_media_set.is_some() { data.setup.export_media_set = export_media_set; }
     if latest_only.is_some() { data.setup.latest_only = latest_only; }
+    if notify_user.is_some() { data.setup.notify_user = notify_user; }
 
     if schedule.is_some() { data.schedule = schedule; }
 

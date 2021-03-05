@@ -16,6 +16,7 @@ use proxmox::api::{
 use proxmox::tools::{fs::replace_file, fs::CreateOptions};
 
 use crate::api2::types::{
+    Userid,
     JOB_ID_SCHEMA,
     DATASTORE_SCHEMA,
     DRIVE_NAME_SCHEMA,
@@ -55,6 +56,10 @@ lazy_static! {
             type: bool,
             optional: true,
         },
+        "notify-user": {
+            optional: true,
+            type: Userid,
+        },
     }
 )]
 #[serde(rename_all="kebab-case")]
@@ -70,6 +75,9 @@ pub struct TapeBackupJobSetup {
     pub export_media_set: Option<bool>,
     #[serde(skip_serializing_if="Option::is_none")]
     pub latest_only: Option<bool>,
+    /// Send job email notification to this user
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub notify_user: Option<Userid>,
 }
 
 #[api(
