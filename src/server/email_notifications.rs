@@ -397,7 +397,7 @@ pub fn send_updates_available(
 }
 
 /// Lookup users email address
-fn lookup_user_email(userid: &Userid) -> Option<String> {
+pub fn lookup_user_email(userid: &Userid) -> Option<String> {
 
     use crate::config::user::{self, User};
 

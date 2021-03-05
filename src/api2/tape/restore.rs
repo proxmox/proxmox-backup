@@ -33,6 +33,7 @@ use crate::{
         DRIVE_NAME_SCHEMA,
         UPID_SCHEMA,
         Authid,
+        Userid,
     },
     config::{
         self,
@@ -55,7 +56,10 @@ use crate::{
         DynamicIndexReader,
         FixedIndexReader,
     },
-    server::WorkerTask,
+    server::{
+        lookup_user_email,
+        WorkerTask,
+    },
     tape::{
         TAPE_STATUS_DIR,
         TapeRead,
@@ -97,6 +101,10 @@ pub const ROUTER: Router = Router::new()
                 description: "Media set UUID.",
                 type: String,
             },
+            "notify-user": {
+                type: Userid,
+                optional: true,
+            },
         },
     },
     returns: {
@@ -114,6 +122,7 @@ pub fn restore(
     store: String,
     drive: String,
     media_set: String,
+    notify_user: Option<Userid>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
@@ -212,6 +221,7 @@ pub fn restore(
                     &drive,
                     &datastore,
                     &auth_id,
+                    &notify_user,
                 )?;
             }
 
@@ -241,6 +251,7 @@ pub fn request_and_restore_media(
     drive_name: &str,
     datastore: &DataStore,
     authid: &Authid,
+    notify_user: &Option<Userid>,
 ) -> Result<(), Error> {
 
     let media_set_uuid = match media_id.media_set_label {
@@ -248,7 +259,12 @@ pub fn request_and_restore_media(
         Some(ref set) => &set.uuid,
     };
 
-    let (mut drive, info) = request_and_load_media(worker, &drive_config, &drive_name, &media_id.label)?;
+    let email = notify_user
+        .as_ref()
+        .and_then(|userid| lookup_user_email(userid))
+        .or_else(|| lookup_user_email(&authid.clone().into()));
+
+    let (mut drive, info) = request_and_load_media(worker, &drive_config, &drive_name, &media_id.label, &email)?;
 
     match info.media_set_label {
         None => {

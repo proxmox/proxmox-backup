@@ -64,11 +64,12 @@ pub struct PoolWriter {
     drive_name: String,
     status: Option<PoolWriterState>,
     media_set_catalog: MediaSetCatalog,
+    notify_email: Option<String>,
 }
 
 impl PoolWriter {
 
-    pub fn new(mut pool: MediaPool, drive_name: &str, worker: &WorkerTask) -> Result<Self, Error> {
+    pub fn new(mut pool: MediaPool, drive_name: &str, worker: &WorkerTask, notify_email: Option<String>) -> Result<Self, Error> {
 
         let current_time = proxmox::tools::time::epoch_i64();
 
@@ -101,6 +102,7 @@ impl PoolWriter {
             drive_name: drive_name.to_string(),
             status: None,
             media_set_catalog,
+            notify_email,
          })
     }
 
@@ -227,7 +229,7 @@ impl PoolWriter {
         let (drive_config, _digest) = crate::config::drive::config()?;
 
         let (mut drive, old_media_id) =
-            request_and_load_media(worker, &drive_config, &self.drive_name, media.label())?;
+            request_and_load_media(worker, &drive_config, &self.drive_name, media.label(), &self.notify_email)?;
 
         // test for critical tape alert flags
         if let Ok(alert_flags) = drive.tape_alert_flags() {

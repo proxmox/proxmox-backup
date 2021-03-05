@@ -31,6 +31,7 @@ use crate::{
         },
     },
     server::{
+        lookup_user_email,
         jobstate::{
             Job,
             JobState,
@@ -47,6 +48,7 @@ use crate::{
         UPID_SCHEMA,
         JOB_ID_SCHEMA,
         MediaPoolConfig,
+        Userid,
     },
     server::WorkerTask,
     task::TaskState,
@@ -350,7 +352,10 @@ fn backup_worker(
 
     let pool = MediaPool::with_config(status_path, &pool_config, changer_name)?;
 
-    let mut pool_writer = PoolWriter::new(pool, &setup.drive, worker)?;
+    let notify_user = setup.notify_user.as_ref().unwrap_or_else(|| &Userid::root_userid());
+    let email = lookup_user_email(notify_user);
+
+    let mut pool_writer = PoolWriter::new(pool, &setup.drive, worker, email)?;
 
     let mut group_list = BackupInfo::list_backup_groups(&datastore.base_path())?;
 

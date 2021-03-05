@@ -319,6 +319,7 @@ pub fn request_and_load_media(
     config: &SectionConfigData,
     drive: &str,
     label: &MediaLabel,
+    notify_email: &Option<String>,
 ) -> Result<(
     Box<dyn TapeDriver>,
     MediaId,
@@ -375,9 +376,6 @@ pub fn request_and_load_media(
                         return Ok((handle, media_id));
                     }
 
-
-                    let to = "root@localhost"; // fixme
-
                     let mut last_media_uuid = None;
                     let mut last_error = None;
 
@@ -390,7 +388,9 @@ pub fn request_and_load_media(
                         if tried {
                             if let Some(reason) = failure_reason {
                                 task_log!(worker, "Please insert media '{}' into drive '{}'", label_text, drive);
-                                send_load_media_email(drive, &label_text, to, Some(reason))?;
+                                if let Some(to) = notify_email {
+                                    send_load_media_email(drive, &label_text, to, Some(reason))?;
+                                }
                             }
 
                             failure_reason = None;
