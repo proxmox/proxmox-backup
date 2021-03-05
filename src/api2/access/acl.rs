@@ -15,19 +15,19 @@ fn extract_acl_node_data(
     path: &str,
     list: &mut Vec<AclListItem>,
     exact: bool,
-    token_user: &Option<Authid>,
+    auth_id_filter: &Option<Authid>,
 ) {
     // tokens can't have tokens, so we can early return
-    if let Some(token_user) = token_user {
-        if token_user.is_token() {
+    if let Some(auth_id_filter) = auth_id_filter {
+        if auth_id_filter.is_token() {
             return;
         }
     }
 
     for (user, roles) in &node.users {
-        if let Some(token_user) = token_user {
+        if let Some(auth_id_filter) = auth_id_filter {
             if !user.is_token()
-                || user.user() != token_user.user() {
+                || user.user() != auth_id_filter.user() {
                  continue;
             }
         }
@@ -43,7 +43,7 @@ fn extract_acl_node_data(
         }
     }
     for (group, roles) in &node.groups {
-        if token_user.is_some() {
+        if auth_id_filter.is_some() {
             continue;
         }
 
@@ -62,7 +62,7 @@ fn extract_acl_node_data(
     }
     for (comp, child) in &node.children {
         let new_path = format!("{}/{}", path, comp);
-        extract_acl_node_data(child, &new_path, list, exact, token_user);
+        extract_acl_node_data(child, &new_path, list, exact, auth_id_filter);
     }
 }
 
