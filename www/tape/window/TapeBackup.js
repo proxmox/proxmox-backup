@@ -49,5 +49,14 @@ Ext.define('PBS.TapeManagement.TapeBackupWindow', {
 	    name: 'eject-media',
 	    fieldLabel: gettext('Eject Media'),
 	},
+	{
+	    xtype: 'pbsUserSelector',
+	    name: 'notify-user',
+	    fieldLabel: gettext('Notify User'),
+	    emptyText: 'root@pam',
+	    value: null,
+	    allowBlank: true,
+	    renderer: Ext.String.htmlEncode,
+	},
     ],
 });

@@ -35,6 +35,7 @@ Ext.define('PBS.TapeManagement.BackupJobEdit', {
 	    if (values['export-media-set'] && !me.up('pbsTapeBackupJobEdit').isCreate) {
 		Proxmox.Utils.assemble_field_data(values, { "delete": 'eject-media' });
 	    }
+	    PBS.Utils.delete_if_default(values, 'notify-user');
 	    return values;
 	},
 	column1: [
@@ -62,6 +63,14 @@ Ext.define('PBS.TapeManagement.BackupJobEdit', {
 		xtype: 'pbsDriveSelector',
 		fieldLabel: gettext('Drive'),
 		name: 'drive',
+	    },
+	    {
+		xtype: 'pbsUserSelector',
+		name: 'notify-user',
+		fieldLabel: gettext('Notify User'),
+		emptyText: 'root@pam',
+		allowBlank: true,
+		renderer: Ext.String.htmlEncode,
 	    },
 	],
 

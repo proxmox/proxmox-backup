@@ -41,5 +41,14 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 	    fieldLabel: gettext('Drive'),
 	    name: 'drive',
 	},
+	{
+	    xtype: 'pbsUserSelector',
+	    name: 'notify-user',
+	    fieldLabel: gettext('Notify User'),
+	    emptyText: gettext('Current User'),
+	    value: null,
+	    allowBlank: true,
+	    renderer: Ext.String.htmlEncode,
+	},
     ],
 });
