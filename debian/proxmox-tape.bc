@@ -1,0 +1,3 @@
+# proxmox-tape bash completion
+
+complete -C 'proxmox-tape bashcomplete' proxmox-tape
