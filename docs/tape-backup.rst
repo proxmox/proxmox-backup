@@ -498,8 +498,83 @@ To list all configured pools use::
  └───────┴──────────┴────────────┴───────────┴──────────┘
 
 
-Tape Jobs
-~~~~~~~~~
+Tape Backup Jobs
+~~~~~~~~~~~~~~~~
+
+To automate tape backup, you can configure tape backup jobs which
+store datastore content to a media pool at a specific time
+schedule. Required settings are:
+
+- ``store``: The datastore you want to backup
+
+- ``pool``: The media pool - only tape cartridges from that pool are
+  used.
+
+- ``drive``: The tape drive.
+
+- ``schedule``: Job schedule (see :ref:`calendar-event-scheduling`)
+
+For example, to configure a tape backup job for datastore ``vmstore1``
+use:
+
+.. code-block:: console
+
+ # proxmox-tape backup-job create job2 --store vmstore1 \
+   --pool yourpool --drive yourdrive --schedule daily
+
+Backup includes all snapshot from a backup group by default. You can
+set the ``latest-only`` flag to include only the latest snapshots:
+
+.. code-block:: console
+
+ # proxmox-tape backup-job update job2 --latest-only
+
+Backup jobs can use email to send tape requests notifications or
+report errors. You can set the notification user with:
+
+.. code-block:: console
+
+ # proxmox-tape backup-job update job2 --notify-user root@pam
+
+.. Note:: The email address is a property of the user (see :ref:`user_mgmt`).
+
+It is sometimes useful to eject the tape from the drive after a
+backup. For a standalone drive, the ``eject-media`` option eject the
+tape, making sure that the following backup cannot use the tape
+(unless someone manually loads the tape again). For tape libraries,
+this option unloads the tape to a free slot, which provides better
+dust protection than inside a drive:
+
+.. code-block:: console
+
+ # proxmox-tape backup-job update job2 --eject-media
+
+.. Note:: For failed jobs, the tape remain in the drive.
+
+For tape libraries, the ``export-media`` options moves all tapes from
+the media set to an export slot, making sure that the following backup
+cannot use the tapes. An operator can pickup those tapes and move them
+to a vault.
+
+.. code-block:: console
+
+ # proxmox-tape backup-job update job2 --export-media
+
+.. Note:: The ``export-media`` option can be used to force the start
+   of a new media set, because tapes from the current set are no
+   longer online.
+
+It is also possible to run backup jobs manually:
+
+.. code-block:: console
+
+ # proxmox-tape backup-job run job2
+
+To remove a job, please use:
+
+.. code-block:: console
+
+ # proxmox-tape backup-job remove job2
 
 
 Administration
