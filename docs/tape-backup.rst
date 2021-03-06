@@ -3,7 +3,9 @@ Tape Backup
 
 .. CAUTION:: Tape Backup is a technical preview feature, not meant for
    production usage. To enable the GUI, you need to issue the
-   following command (as root user on the console)::
+   following command (as root user on the console):
+
+   .. code-block:: console
 
      # touch /etc/proxmox-backup/tape.cfg
 
@@ -176,7 +178,9 @@ Tape changers (robots) are part of a `Tape Library`_. You can skip
 this step if you are using a standalone drive.
 
 Linux is able to auto detect those devices, and you can get a list
-of available devices using::
+of available devices using:
+
+.. code-block:: console
 
  # proxmox-tape changer scan
  ┌─────────────────────────────┬─────────┬──────────────┬────────┐
@@ -186,7 +190,9 @@ of available devices using::
  └─────────────────────────────┴─────────┴──────────────┴────────┘
 
 In order to use that device with Proxmox, you need to create a
-configuration entry::
+configuration entry:
+
+.. code-block:: console
 
  # proxmox-tape changer create sl3 --path /dev/tape/by-id/scsi-CC2C52
 
@@ -196,7 +202,9 @@ Where ``sl3`` is an arbitrary name you can choose.
    ``/dev/tape/by-id/``. Names like ``/dev/sg0`` may point to a
    different device after reboot, and that is not what you want.
 
-You can show the final configuration with::
+You can show the final configuration with:
+
+.. code-block:: console
 
  # proxmox-tape changer config sl3
  ┌──────┬─────────────────────────────┐
@@ -207,7 +215,9 @@ You can show the final configuration with::
  │ path │ /dev/tape/by-id/scsi-CC2C52 │
  └──────┴─────────────────────────────┘
 
-Or simply list all configured changer devices::
+Or simply list all configured changer devices:
+
+.. code-block:: console
 
  # proxmox-tape changer list
  ┌──────┬─────────────────────────────┬─────────┬──────────────┬────────────┐
@@ -219,7 +229,9 @@ Or simply list all configured changer devices::
 The Vendor, Model and Serial number are auto detected, but only shown
 if the device is online.
 
-To test your setup, please query the status of the changer device with::
+To test your setup, please query the status of the changer device with:
+
+.. code-block:: console
 
  # proxmox-tape changer status sl3
  ┌───────────────┬──────────┬────────────┬─────────────┐
@@ -253,12 +265,16 @@ the status output.
 As a workaround, you can mark some of the normal slots as export
 slot. The software treats those slots like real ``import-export``
 slots, and the media inside those slots is considered to be 'offline'
-(not available for backup)::
+(not available for backup):
+
+.. code-block:: console
 
  # proxmox-tape changer update sl3 --export-slots 15,16
 
 After that, you can see those artificial ``import-export`` slots in
-the status output::
+the status output:
+
+.. code-block:: console
 
  # proxmox-tape changer status sl3
  ┌───────────────┬──────────┬────────────┬─────────────┐
@@ -284,7 +300,9 @@ Tape drives
 ~~~~~~~~~~~
 
 Linux is able to auto detect tape drives, and you can get a list
-of available tape drives using::
+of available tape drives using:
+
+.. code-block:: console
 
  # proxmox-tape drive scan
  ┌────────────────────────────────┬────────┬─────────────┬────────┐
@@ -294,7 +312,9 @@ of available tape drives using::
  └────────────────────────────────┴────────┴─────────────┴────────┘
 
 In order to use that drive with Proxmox, you need to create a
-configuration entry::
+configuration entry:
+
+.. code-block:: console
 
  # proxmox-tape drive create mydrive --path  /dev/tape/by-id/scsi-12345-nst
 
@@ -303,7 +323,9 @@ configuration entry::
    different device after reboot, and that is not what you want.
 
 If you have a tape library, you also need to set the associated
-changer device::
+changer device:
+
+.. code-block:: console
 
  # proxmox-tape drive update mydrive --changer sl3  --changer-drivenum 0
 
@@ -311,7 +333,9 @@ The ``--changer-drivenum`` is only necessary if the tape library
 includes more than one drive (The changer status command lists all
 drive numbers).
 
-You can show the final configuration with::
+You can show the final configuration with:
+
+.. code-block:: console
 
  # proxmox-tape drive config mydrive
  ┌─────────┬────────────────────────────────┐
@@ -327,7 +351,9 @@ You can show the final configuration with::
 .. NOTE:: The ``changer-drivenum`` value 0 is not stored in the
    configuration, because that is the default.
 
-To list all configured drives use::
+To list all configured drives use:
+
+.. code-block:: console
 
  # proxmox-tape drive list
  ┌──────────┬────────────────────────────────┬─────────┬────────┬─────────────┬────────┐
@@ -339,7 +365,9 @@ To list all configured drives use::
 The Vendor, Model and Serial number are auto detected, but only shown
 if the device is online.
 
-For testing, you can simply query the drive status with::
+For testing, you can simply query the drive status with:
+
+.. code-block:: console
 
  # proxmox-tape status --drive mydrive
  ┌───────────┬────────────────────────┐
@@ -476,19 +504,25 @@ one media pool, so a job only uses tapes from that pool.
    pools if the source is from a different name space)
 
 
-The following command creates a new media pool::
+The following command creates a new media pool:
+
+.. code-block:: console
 
  // proxmox-tape pool create <name> --drive <string> [OPTIONS]
 
  # proxmox-tape pool create daily --drive mydrive
 
 
-Additional option can be set later using the update command::
+Additional option can be set later using the update command:
+
+.. code-block:: console
 
  # proxmox-tape pool update daily --allocation daily --retention 7days
 
 
-To list all configured pools use::
+To list all configured pools use:
+
+.. code-block:: console
 
  # proxmox-tape pool list
  ┌───────┬──────────┬────────────┬───────────┬──────────┐
@@ -583,13 +617,17 @@ Administration
 Many sub-command of the ``proxmox-tape`` command line tools take a
 parameter called ``--drive``, which specifies the tape drive you want
 to work on. For convenience, you can set that in an environment
-variable::
+variable:
+
+.. code-block:: console
 
  # export PROXMOX_TAPE_DRIVE=mydrive
 
 You can then omit the ``--drive`` parameter from the command. If the
 drive has an associated changer device, you may also omit the changer
-parameter from commands that needs a changer device, for example::
+parameter from commands that needs a changer device, for example:
+
+.. code-block:: console
 
  # proxmox-tape changer status
 
@@ -614,7 +652,9 @@ Next, you need to write that same label text to the tape, so that the
 software can uniquely identify the tape too.
 
 For a standalone drive, manually insert the new tape cartidge into the
-drive and run::
+drive and run:
+
+.. code-block:: console
 
  # proxmox-tape label --changer-id <label-text> [--pool <pool-name>]
 
@@ -623,7 +663,9 @@ You may omit the ``--pool`` argument to allow the tape to be used by any pool.
 .. Note:: For safety reasons, this command fails if the tape contain
    any data. If you want to overwrite it anyway, erase the tape first.
 
-You can verify success by reading back the label::
+You can verify success by reading back the label:
+
+.. code-block:: console
 
  # proxmox-tape read-label
  ┌─────────────────┬──────────────────────────────────────┐
@@ -647,7 +689,9 @@ You can verify success by reading back the label::
 
 If you have a tape library, apply the sticky barcode label to the tape
 cartridges first. Then load those empty tapes into the library. You
-can then label all unlabeled tapes with a single command::
+can then label all unlabeled tapes with a single command:
+
+.. code-block:: console
 
  # proxmox-tape barcode-label [--pool <pool-name>]
 
@@ -655,7 +699,9 @@ can then label all unlabeled tapes with a single command::
 Run Tape Backups
 ~~~~~~~~~~~~~~~~
 
-To manually run a backup job use::
+To manually run a backup job use:
+
+.. code-block:: console
 
  # proxmox-tape backup <store> <pool> [OPTIONS]
 
@@ -683,7 +729,9 @@ catalogs, you need to restore them first. Please note that you need
 the catalog to find your data, but restoring a complete media-set does
 not need media catalogs.
 
-The following command shows the media content (from catalog)::
+The following command shows the media content (from catalog):
+
+.. code-block:: console
 
  # proxmox-tape media content
  ┌────────────┬──────┬──────────────────────────┬────────┬────────────────────────────────┬──────────────────────────────────────┐
@@ -696,7 +744,9 @@ The following command shows the media content (from catalog)::
 
 
 A restore job reads the data from the media set and moves it back to
-data disk (datastore)::
+data disk (datastore):
+
+.. code-block:: console
 
  // proxmox-tape restore <media-set-uuid> <datastore>
 
@@ -714,14 +764,18 @@ Restore Catalog
 Encryption Key Management
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Creating a new encryption key::
+Creating a new encryption key:
+
+.. code-block:: console
 
  # proxmox-tape key create --hint "tape pw 2020"
  Tape Encryption Key Password: **********
  Verify Password: **********
  "14:f8:79:b9:f5:13:e5:dc:bf:b6:f9:88:48:51:81:dc:79:bf:a0:22:68:47:d1:73:35:2d:b6:20:e1:7f:f5:0f"
 
-List existing encryption keys::
+List existing encryption keys:
+
+.. code-block:: console
 
  # proxmox-tape key list
  ┌───────────────────────────────────────────────────┬───────────────┐
@@ -730,7 +784,9 @@ List existing encryption keys::
  │ 14:f8:79:b9:f5:13:e5:dc: ...   :b6:20:e1:7f:f5:0f │ tape pw 2020  │
  └───────────────────────────────────────────────────┴───────────────┘
 
-To show encryption key details::
+To show encryption key details:
+
+.. code-block:: console
 
  # proxmox-tape key show 14:f8:79:b9:f5:13:e5:dc:...:b6:20:e1:7f:f5:0f
  ┌─────────────┬───────────────────────────────────────────────┐
@@ -749,7 +805,9 @@ To show encryption key details::
 
 The ``paperkey`` subcommand can be used to create a QR encoded
 version of a tape encryption key. The following command sends the output of the
-``paperkey`` command to a text file, for easy printing::
+``paperkey`` command to a text file, for easy printing:
+
+.. code-block:: console
 
  proxmox-tape key paperkey <fingerprint> --output-format text > qrkey.txt
 
@@ -761,7 +819,9 @@ Restoring Encryption Keys
 
 You can restore the encryption key from the tape, using the password
 used to generate the key. First, load the tape you want to restore
-into the drive. Then run::
+into the drive. Then run:
+
+.. code-block:: console
 
  # proxmox-tape key restore
  Tepe Encryption Key Password: ***********
@@ -779,7 +839,9 @@ standalone drives.
 
 For tape libraries, cleaning cartridges are identified using special
 labels starting with letters "CLN". For example, our tape library has a
-cleaning cartridge inside slot 3::
+cleaning cartridge inside slot 3:
+
+.. code-block:: console
 
  # proxmox-tape changer status sl3
  ┌───────────────┬──────────┬────────────┬─────────────┐
@@ -796,7 +858,9 @@ cleaning cartridge inside slot 3::
  │ ...           │      ... │            │             │
  └───────────────┴──────────┴────────────┴─────────────┘
 
-To initiate a cleaning operation simply run::
+To initiate a cleaning operation simply run:
+
+.. code-block:: console
 
  # proxmox-tape clean
 
