@@ -8,12 +8,17 @@ Ext.define('PBS.TapeManagement.DriveStatus', {
     cbindData: function(config) {
 	let me = this;
 	me.setTitle(`${gettext('Drive')}: ${me.drive}`);
+	let baseurl = `/api2/json/tape/drive/${me.drive}/`;
 	return {
-	    driveStatusUrl: `/api2/json/tape/drive/${me.drive}/status`,
+	    driveStatusUrl: `${baseurl}/status`,
+	    cartridgeMemoryUrl: `${baseurl}/cartridge-memory`,
 	};
     },
 
-    scrollable: true,
+    layout: {
+	type: 'vbox',
+	align: 'stretch',
+    },
 
     bodyPadding: 5,
 
@@ -40,6 +45,9 @@ Ext.define('PBS.TapeManagement.DriveStatus', {
 	    let online = statusFlags.indexOf('ONLINE') !== -1;
 	    let vm = me.getViewModel();
 	    vm.set('online', online);
+	    if (!online) {
+		me.lookup('cartridgegrid').getStore().removeAll();
+	    }
 	},
 
 	onStateLoad: function(store) {
@@ -193,6 +201,18 @@ Ext.define('PBS.TapeManagement.DriveStatus', {
 		},
 	    ],
 	},
+	{
+	    xtype: 'pbsDriveCartridgeMemoryGrid',
+	    flex: 1,
+	    padding: 5,
+	    reference: 'cartridgegrid',
+	    bind: {
+		disabled: '{!online}',
+	    },
+	    cbind: {
+		url: '{cartridgeMemoryUrl}',
+	    },
+	},
     ],
 });
 
@@ -255,6 +275,66 @@ Ext.define('PBS.TapeManagement.DriveStatusGrid', {
 	    },
 	},
     },
+});
+
+Ext.define('PBS.TapeManagement.CartridgeMemoryGrid', {
+    extend: 'Ext.grid.Panel',
+    alias: 'widget.pbsDriveCartridgeMemoryGrid',
+
+    title: gettext('Cartridge Memory'),
+
+    emptyText: gettext('Not Loaded yet'),
+    viewConfig: {
+	deferEmptyText: false,
+    },
+
+    controller: {
+	xclass: 'Ext.app.ViewController',
+
+	loadCartridgeMemory: function() {
+	    console.log(this);
+	    this.getView().getStore().load();
+	},
+
+	init: function(view) {
+	    if (!view.url) {
+		throw "no url given";
+	    }
+
+	    view.getStore().getProxy().setUrl(view.url);
+	},
+    },
+
+    store: {
+	proxy: {
+	    type: 'proxmox',
+	},
+    },
+
+    tbar: [
+	{
+	    text: gettext('Reload'),
+	    handler: 'loadCartridgeMemory',
+	},
+    ],
+
+    columns: [
+	{
+	    text: gettext('ID'),
+	    dataIndex: 'id',
+	    width: 60,
+	},
+	{
+	    text: gettext('Name'),
+	    dataIndex: 'name',
+	    flex: 2,
+	},
+	{
+	    text: gettext('Value'),
+	    dataIndex: 'value',
+	    flex: 1,
+	},
+    ],
 });
 
 Ext.define('PBS.TapeManagement.DriveInfoPanel', {
