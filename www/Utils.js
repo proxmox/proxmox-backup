@@ -499,6 +499,7 @@ Ext.define('PBS.Utils', {
 		    columns: [
 			{
 			    text: gettext('ID'),
+			    hidden: true,
 			    dataIndex: 'id',
 			    width: 60,
 			},

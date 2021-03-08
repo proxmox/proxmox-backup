@@ -141,6 +141,16 @@ Ext.define('PBS.TapeManagement.DriveStatus', {
 	    });
 	},
 
+	cartridgeMemory: function() {
+	    let me = this;
+	    let view = me.getView();
+	    let drive = view.drive;
+	    PBS.Utils.driveCommand(drive, 'cartridge-memory', {
+		waitMsgTarget: me.getView(),
+		success: PBS.Utils.showCartridgeMemoryWindow,
+	    });
+	},
+
 	init: function(view) {
 	    let me = this;
 	    me.mon(me.lookup('statusgrid').getStore().rstore, 'load', 'onLoad');
@@ -204,10 +214,20 @@ Ext.define('PBS.TapeManagement.DriveStatus', {
 	    },
 	},
 	{
-	    text: gettext('Show Volume Statistics'),
+	    text: gettext('Volume Statistics'),
 	    xtype: 'proxmoxButton',
 	    handler: 'volumeStatistics',
 	    iconCls: 'fa fa-line-chart',
+	    disabled: true,
+	    bind: {
+		disabled: '{!online}',
+	    },
+	},
+	{
+	    text: gettext('Cartridge Memory'),
+	    xtype: 'proxmoxButton',
+	    iconCls: 'fa fa-hdd-o',
+	    handler: 'cartridgeMemory',
 	    disabled: true,
 	    bind: {
 		disabled: '{!online}',
@@ -242,18 +262,6 @@ Ext.define('PBS.TapeManagement.DriveStatus', {
 		    },
 		},
 	    ],
-	},
-	{
-	    xtype: 'pbsDriveCartridgeMemoryGrid',
-	    flex: 1,
-	    padding: 5,
-	    reference: 'cartridgegrid',
-	    bind: {
-		disabled: '{!online}',
-	    },
-	    cbind: {
-		url: '{cartridgeMemoryUrl}',
-	    },
 	},
     ],
 });
@@ -317,66 +325,6 @@ Ext.define('PBS.TapeManagement.DriveStatusGrid', {
 	    },
 	},
     },
-});
-
-Ext.define('PBS.TapeManagement.CartridgeMemoryGrid', {
-    extend: 'Ext.grid.Panel',
-    alias: 'widget.pbsDriveCartridgeMemoryGrid',
-
-    title: gettext('Cartridge Memory'),
-
-    emptyText: gettext('Not Loaded yet'),
-    viewConfig: {
-	deferEmptyText: false,
-    },
-
-    controller: {
-	xclass: 'Ext.app.ViewController',
-
-	loadCartridgeMemory: function() {
-	    console.log(this);
-	    this.getView().getStore().load();
-	},
-
-	init: function(view) {
-	    if (!view.url) {
-		throw "no url given";
-	    }
-
-	    view.getStore().getProxy().setUrl(view.url);
-	},
-    },
-
-    store: {
-	proxy: {
-	    type: 'proxmox',
-	},
-    },
-
-    tbar: [
-	{
-	    text: gettext('Reload'),
-	    handler: 'loadCartridgeMemory',
-	},
-    ],
-
-    columns: [
-	{
-	    text: gettext('ID'),
-	    dataIndex: 'id',
-	    width: 60,
-	},
-	{
-	    text: gettext('Name'),
-	    dataIndex: 'name',
-	    flex: 2,
-	},
-	{
-	    text: gettext('Value'),
-	    dataIndex: 'value',
-	    flex: 1,
-	},
-    ],
 });
 
 Ext.define('PBS.TapeManagement.DriveInfoPanel', {
