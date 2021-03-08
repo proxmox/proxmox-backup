@@ -4,6 +4,8 @@ Ext.define('PBS.TapeManagement', {
 
     title: gettext('Tape Backup'),
 
+    tools: [PBS.Utils.get_help_tool("tape_backup")],
+
     border: true,
     defaults: {
 	border: false,

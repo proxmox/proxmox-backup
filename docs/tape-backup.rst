@@ -1,3 +1,5 @@
+.. _tape_backup:
+
 Tape Backup
 ===========
 
@@ -170,6 +172,7 @@ Please note that you can configure anything using the graphical user
 interface or the command line interface. Both methods results in the
 same configuration.
 
+.. _tape_changer_config:
 
 Tape changers
 ~~~~~~~~~~~~~
@@ -295,6 +298,7 @@ the status output:
  │ slot          │       14 │            │             │
  └───────────────┴──────────┴────────────┴─────────────┘
 
+.. _tape_drive_config:
 
 Tape drives
 ~~~~~~~~~~~
@@ -381,6 +385,8 @@ For testing, you can simply query the drive status with:
 .. NOTE:: Blocksize should always be 0 (variable block size
    mode). This is the default anyways.
 
+
+.. _tape_media_pool_config:
 
 Media Pools
 ~~~~~~~~~~~
@@ -494,7 +500,7 @@ one media pool, so a job only uses tapes from that pool.
       will be double encrypted.
 
    The password protected key is stored on each media, so it is
-   possbible to `restore the key <restore_encryption_key_>`_ using the password. Please make sure
+   possbible to `restore the key <tape_restore_encryption_key_>`_ using the password. Please make sure
    you remember the password in case you need to restore the key.
 
 
@@ -531,6 +537,7 @@ To list all configured pools use:
  │ daily │ mydrive  │ daily      │ 7days     │          │
  └───────┴──────────┴────────────┴───────────┴──────────┘
 
+.. _tape_backup_job_config:
 
 Tape Backup Jobs
 ~~~~~~~~~~~~~~~~
@@ -812,7 +819,7 @@ version of a tape encryption key. The following command sends the output of the
  proxmox-tape key paperkey <fingerprint> --output-format text > qrkey.txt
 
 
-.. _restore_encryption_key:
+.. _tape_restore_encryption_key:
 
 Restoring Encryption Keys
 ^^^^^^^^^^^^^^^^^^^^^^^^^

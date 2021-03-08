@@ -107,8 +107,28 @@ const proxmoxOnlineHelpInfo = {
     "link": "/docs/sysadmin.html#sysadmin-host-administration",
     "title": "Host System Administration"
   },
-  "restore-encryption-key": {
-    "link": "/docs/tape-backup.html#restore-encryption-key",
+  "tape-backup": {
+    "link": "/docs/tape-backup.html#tape-backup",
+    "title": "Tape Backup"
+  },
+  "tape-changer-config": {
+    "link": "/docs/tape-backup.html#tape-changer-config",
+    "title": "Tape changers"
+  },
+  "tape-drive-config": {
+    "link": "/docs/tape-backup.html#tape-drive-config",
+    "title": "Tape drives"
+  },
+  "tape-media-pool-config": {
+    "link": "/docs/tape-backup.html#tape-media-pool-config",
+    "title": "Media Pools"
+  },
+  "tape-backup-job-config": {
+    "link": "/docs/tape-backup.html#tape-backup-job-config",
+    "title": "Tape Backup Jobs"
+  },
+  "tape-restore-encryption-key": {
+    "link": "/docs/tape-backup.html#tape-restore-encryption-key",
     "title": "Restoring Encryption Keys"
   },
   "tech-design-overview": {
