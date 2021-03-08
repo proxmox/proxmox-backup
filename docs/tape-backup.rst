@@ -466,7 +466,7 @@ one media pool, so a job only uses tapes from that pool.
 
    - Required tape is offline (and you use a tape library).
 
-   - Current set contains damaged of retired tapes.
+   - Current set contains damaged or retired tapes.
 
    - Media pool encryption changed
 
@@ -504,10 +504,11 @@ one media pool, so a job only uses tapes from that pool.
    you remember the password in case you need to restore the key.
 
 
-.. NOTE:: FIXME: Add note about global content namespace. (We do not store
-   the source datastore, so it is impossible to distinguish
-   store1:/vm/100 from store2:/vm/100. Please use different media
-   pools if the source is from a different name space)
+.. NOTE:: We use global content namespace, i.e. we do not store the
+   source datastore, so it is impossible to distinguish store1:/vm/100
+   from store2:/vm/100. Please use different media pools if the
+   sources are from different name spaces with conflicting names
+   (E.g. if the sources are from different Proxmox VE clusters).
 
 
 The following command creates a new media pool:
