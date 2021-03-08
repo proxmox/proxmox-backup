@@ -290,7 +290,15 @@ pub trait MediaChange {
     /// This fail if there is no cleaning cartridge online. Any media
     /// inside the drive is automatically unloaded.
     fn clean_drive(&mut self) -> Result<MtxStatus, Error> {
-        let status = self.status()?;
+        let mut status = self.status()?;
+
+        // Unload drive first. Note: This also unloads a loaded cleaning tape
+        if let Some(drive_status) = status.drives.get(self.drive_number() as usize) {
+            match drive_status.status {
+                ElementStatus::Empty => { /* OK */ },
+                _ => { status = self.unload_to_free_slot(status)?; }
+            }
+        }
 
         let mut cleaning_cartridge_slot = None;
 
@@ -309,12 +317,6 @@ pub trait MediaChange {
             Some(cleaning_cartridge_slot) => cleaning_cartridge_slot as u64,
         };
 
-        if let Some(drive_status) = status.drives.get(self.drive_number() as usize) {
-            match drive_status.status {
-                ElementStatus::Empty => { /* OK */ },
-                _ => { self.unload_to_free_slot(status)?; }
-            }
-        }
 
         self.load_media_from_slot(cleaning_cartridge_slot)?;
 
