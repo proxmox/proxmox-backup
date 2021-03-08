@@ -444,7 +444,6 @@ impl TapeDriver for LinuxTapeHandle {
 
     fn sync(&mut self) -> Result<(), Error> {
 
-        println!("SYNC/FLUSH TAPE");
         // MTWEOF with count 0 => flush
         let cmd = mtop { mt_op: MTCmd::MTWEOF, mt_count: 0 };
 
@@ -654,7 +653,6 @@ impl TapeDriver for LinuxTapeHandle {
 /// Write a single EOF mark without flushing buffers
 fn tape_write_eof_mark(file: &File) -> Result<(), std::io::Error> {
 
-    println!("WRITE EOF MARK");
     let cmd = mtop { mt_op: MTCmd::MTWEOFI, mt_count: 1 };
 
     unsafe {
@@ -759,7 +757,6 @@ impl TapeWrite for TapeWriterHandle<'_> {
     }
 
     fn finish(&mut self, incomplete: bool) -> Result<bool, std::io::Error> {
-        println!("FINISH TAPE HANDLE");
         let leof = self.writer.finish(incomplete)?;
         tape_write_eof_mark(self.writer.writer_ref_mut())?;
         Ok(leof)
