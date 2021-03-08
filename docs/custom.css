@@ -14,6 +14,10 @@ pre {
     padding: 5px 10px;
 }
 
+div.topic {
+    background-color: #FAFAFA;
+}
+
 li a.current {
     font-weight: bold;
     border-bottom: 1px solid #000;
