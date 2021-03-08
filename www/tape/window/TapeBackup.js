@@ -56,6 +56,7 @@ Ext.define('PBS.TapeManagement.TapeBackupWindow', {
 	    emptyText: 'root@pam',
 	    value: null,
 	    allowBlank: true,
+	    skipEmptyText: true,
 	    renderer: Ext.String.htmlEncode,
 	},
     ],

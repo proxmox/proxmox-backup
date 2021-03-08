@@ -48,6 +48,7 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 	    emptyText: gettext('Current User'),
 	    value: null,
 	    allowBlank: true,
+	    skipEmptyText: true,
 	    renderer: Ext.String.htmlEncode,
 	},
     ],
