@@ -291,7 +291,7 @@ Ext.define('PBS.TapeManagement.DriveStatusGrid', {
 	    header: gettext('Tape Manufacture Date'),
 	    renderer: function(value) {
 		if (value) {
-		    return new Date(value*1000);
+		    return Ext.Date.format(new Date(value*1000), "Y-m-d");
 		}
 		return "";
 	    },
