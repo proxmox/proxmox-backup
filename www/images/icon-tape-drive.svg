@@ -7,11 +7,12 @@
     height="100"
     version="1.1">
 
-  <rect x="2.5" y="17.5" rx="1" ry="1" width="95" height="45" stroke="black" stroke-width="6" fill="none"/>
-  <rect x="12.5" y="30" rx="0" ry="0" width="60" height="20" stroke="black" stroke-width="1" fill="black"/>
+  <mask id="inner">
+    <!-- black pixels are masked (transparent), white not -->
+    <rect x="2.5" y="17.5" rx="1" ry="1" width="95" height="45" stroke="white" stroke-width="5" fill="white"/>
+    <rect x="12.5" y="30" rx="0" ry="0" width="60" height="20" stroke="black" stroke-width="1" fill="black"/>
+    <rect x="80" y="35" rx="0" ry="0" width="10" height="10" stroke="black" stroke-width="1" fill="black"/>
+  </mask>
 
-  <!--
-  <circle cx="85" cy="40" r="5" stroke="black" stroke-width="3" fill="black"/>
-  -->
-  <rect x="78.5" y="35" rx="0" ry="0" width="10" height="10" stroke="black" stroke-width="1" fill="black"/>
+  <rect x="2.5" y="17.5" rx="1" ry="1" width="95" height="45" stroke="black" stroke-width="5" fill="black" mask="url(#inner)" />
 </svg>
