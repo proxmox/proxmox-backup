@@ -3,6 +3,8 @@ Ext.define('PBS.TapeManagement.DriveStatus', {
     alias: 'widget.pbsDriveStatus',
     mixins: ['Proxmox.Mixin.CBind'],
 
+    tools: [PBS.Utils.get_help_tool("tape_backup")],
+
     cbindData: function(config) {
 	let me = this;
 	me.setTitle(`${gettext('Drive')}: ${me.drive}`);

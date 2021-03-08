@@ -15,6 +15,8 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
     extend: 'Ext.panel.Panel',
     alias: 'widget.pbsChangerStatus',
 
+    tools: [PBS.Utils.get_help_tool("tape_backup")],
+
     controller: {
 	xclass: 'Ext.app.ViewController',
 
