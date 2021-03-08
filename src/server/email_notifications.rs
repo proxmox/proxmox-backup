@@ -10,6 +10,7 @@ use crate::{
     config::datastore::DataStoreConfig,
     config::verify::VerificationJobConfig,
     config::sync::SyncJobConfig,
+    config::tape_job::TapeBackupJobSetup,
     api2::types::{
         APTUpdateInfo,
         GarbageCollectionStatus,
@@ -138,6 +139,43 @@ To upgrade visit the web interface:
 
 "###;
 
+const TAPE_BACKUP_OK_TEMPLATE: &str = r###"
+
+{{#if id ~}}
+Job ID:     {{id}}
+{{/if~}}
+Datastore:  {{job.store}}
+Tape Pool:  {{job.pool}}
+Tape Drive: {{job.drive}}
+
+
+Tape Backup successful.
+
+
+Please visit the web interface for futher details:
+
+<https://{{fqdn}}:{{port}}/#DataStore-{{job.store}}>
+
+"###;
+
+const TAPE_BACKUP_ERR_TEMPLATE: &str = r###"
+
+{{#if id ~}}
+Job ID:     {{id}}
+{{/if~}}
+Datastore:  {{job.store}}
+Tape Pool:  {{job.pool}}
+Tape Drive: {{job.drive}}
+
+
+Tape Backup failed: {{error}}
+
+
+Please visit the web interface for futher details:
+
+<https://{{fqdn}}:{{port}}/#pbsServerAdministration:tasks>
+
+"###;
 
 lazy_static::lazy_static!{
 
@@ -157,6 +195,9 @@ lazy_static::lazy_static!{
 
         hb.register_template_string("sync_ok_template", SYNC_OK_TEMPLATE).unwrap();
         hb.register_template_string("sync_err_template", SYNC_ERR_TEMPLATE).unwrap();
+
+        hb.register_template_string("tape_backup_ok_template", TAPE_BACKUP_OK_TEMPLATE).unwrap();
+        hb.register_template_string("tape_backup_err_template", TAPE_BACKUP_ERR_TEMPLATE).unwrap();
 
         hb.register_template_string("package_update_template", PACKAGE_UPDATES_TEMPLATE).unwrap();
 
@@ -348,6 +389,57 @@ pub fn send_sync_status(
             "Sync remote '{}' datastore '{}' failed",
             job.remote,
             job.remote_store,
+        ),
+    };
+
+    send_job_status_mail(email, &subject, &text)?;
+
+    Ok(())
+}
+
+pub fn send_tape_backup_status(
+    email: &str,
+    id: Option<&str>,
+    job: &TapeBackupJobSetup,
+    result: &Result<(), Error>,
+) -> Result<(), Error> {
+
+    let (fqdn, port) = get_server_url();
+    let mut data = json!({
+        "job": job,
+        "fqdn": fqdn,
+        "port": port,
+        "id": id,
+    });
+
+    let text = match result {
+        Ok(()) => {
+            HANDLEBARS.render("tape_backup_ok_template", &data)?
+        }
+        Err(err) => {
+            data["error"] = err.to_string().into();
+            HANDLEBARS.render("tape_backup_err_template", &data)?
+        }
+    };
+
+    let subject = match (result, id) {
+        (Ok(()), Some(id)) => format!(
+            "Tape Backup '{}' datastore '{}' successful",
+            id,
+            job.store,
+        ),
+        (Ok(()), None) => format!(
+            "Tape Backup datastore '{}' successful",
+            job.store,
+        ),
+        (Err(_), Some(id)) => format!(
+            "Tape Backup '{}' datastore '{}' failed",
+            id,
+            job.store,
+        ),
+        (Err(_), None) => format!(
+            "Tape Backup datastore '{}' failed",
+            job.store,
         ),
     };
 

@@ -193,14 +193,29 @@ pub fn do_tape_backup_job(
                 task_log!(worker,"task triggered by schedule '{}'", event_str);
             }
 
+            let notify_user = setup.notify_user.as_ref().unwrap_or_else(|| &Userid::root_userid());
+            let email = lookup_user_email(notify_user);
+
             let job_result = backup_worker(
                 &worker,
                 datastore,
                 &pool_config,
                 &setup,
+                email.clone(),
             );
 
             let status = worker.create_state(&job_result);
+
+            if let Some(email) = email {
+                if let Err(err) = crate::server::send_tape_backup_status(
+                    &email,
+                    Some(job.jobname()),
+                    &setup,
+                    &job_result,
+                ) {
+                    eprintln!("send tape backup notification failed: {}", err);
+                }
+            }
 
             if let Err(err) = job.finish(status) {
                 eprintln!(
@@ -312,6 +327,9 @@ pub fn backup(
 
     let job_id = format!("{}:{}:{}", setup.store, setup.pool, setup.drive);
 
+    let notify_user = setup.notify_user.as_ref().unwrap_or_else(|| &Userid::root_userid());
+    let email = lookup_user_email(notify_user);
+
     let upid_str = WorkerTask::new_thread(
         "tape-backup",
         Some(job_id),
@@ -320,16 +338,28 @@ pub fn backup(
         move |worker| {
             let _drive_lock = drive_lock; // keep lock guard
             set_tape_device_state(&setup.drive, &worker.upid().to_string())?;
-            backup_worker(
+            let job_result = backup_worker(
                 &worker,
                 datastore,
                 &pool_config,
                 &setup,
-            )?;
+                email.clone(),
+            );
+
+            if let Some(email) = email {
+                if let Err(err) = crate::server::send_tape_backup_status(
+                    &email,
+                    None,
+                    &setup,
+                    &job_result,
+                ) {
+                    eprintln!("send tape backup notification failed: {}", err);
+                }
+            }
 
             // ignore errors
             let _ = set_tape_device_state(&setup.drive, "");
-            Ok(())
+            job_result
         }
     )?;
 
@@ -341,6 +371,7 @@ fn backup_worker(
     datastore: Arc<DataStore>,
     pool_config: &MediaPoolConfig,
     setup: &TapeBackupJobSetup,
+    email: Option<String>,
 ) -> Result<(), Error> {
 
     let status_path = Path::new(TAPE_STATUS_DIR);
@@ -351,9 +382,6 @@ fn backup_worker(
     let changer_name = update_media_online_status(&setup.drive)?;
 
     let pool = MediaPool::with_config(status_path, &pool_config, changer_name)?;
-
-    let notify_user = setup.notify_user.as_ref().unwrap_or_else(|| &Userid::root_userid());
-    let email = lookup_user_email(notify_user);
 
     let mut pool_writer = PoolWriter::new(pool, &setup.drive, worker, email)?;
 
