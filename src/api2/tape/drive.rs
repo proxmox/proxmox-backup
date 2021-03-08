@@ -74,6 +74,7 @@ use crate::{
             lock_tape_device,
             set_tape_device_state,
             get_tape_device_state,
+            tape_alert_flags_critical,
         },
         changer::update_changer_online_status,
     },
@@ -758,6 +759,28 @@ pub fn clean_drive(
             worker.log("Starting drive clean");
 
             changer.clean_drive()?;
+
+             if let Ok(drive_config) = config.lookup::<LinuxTapeDrive>("linux", &drive) {
+                 // Note: clean_drive unloads the cleaning media, so we cannot use drive_config.open
+                 let mut handle = LinuxTapeHandle::new(open_linux_tape_device(&drive_config.path)?);
+
+                 // test for critical tape alert flags
+                 if let Ok(alert_flags) = handle.tape_alert_flags() {
+                     if !alert_flags.is_empty() {
+                         worker.log(format!("TapeAlertFlags: {:?}", alert_flags));
+                         if tape_alert_flags_critical(alert_flags) {
+                             bail!("found critical tape alert flags: {:?}", alert_flags);
+                         }
+                     }
+                 }
+
+                 // test wearout (max. 50 mounts)
+                 if let Ok(volume_stats) = handle.volume_statistics() {
+                     worker.log(format!("Volume mounts: {}", volume_stats.volume_mounts));
+                     let wearout = volume_stats.volume_mounts * 2; // (*100.0/50.0);
+                     worker.log(format!("Cleaning tape wearout: {}%", wearout));
+                 }
+             }
 
             worker.log("Drive cleaned sucessfully");
 
