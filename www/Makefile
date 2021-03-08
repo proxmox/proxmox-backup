@@ -2,6 +2,7 @@ include ../defines.mk
 
 IMAGES := \
 	images/icon-tape.svg 				\
+	images/icon-tape-drive.svg			\
 	images/logo-128.png 				\
 	images/proxmox_logo.png
 

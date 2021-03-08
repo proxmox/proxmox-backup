@@ -256,12 +256,20 @@ span.snapshot-comment-column {
 
 /*' PBS specific icons */
 
-.pbs-icon-tape
-{
+.pbs-icon-tape {
     background-repeat: no-repeat;
     background-position: bottom;
     padding: 0;
     background-size: 16px;
     height: 20px;
     background-image:url(../images/icon-tape.svg);
+}
+
+.pbs-icon-tape-drive {
+    background-repeat: no-repeat;
+    background-position: bottom;
+    padding: 0;
+    background-size: 16px;
+    height: 20px;
+    background-image:url(../images/icon-tape-drive.svg);
 }
