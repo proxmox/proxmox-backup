@@ -55,34 +55,6 @@ Ext.define('PBS.TapeManagement.DrivePanel', {
 	    });
 	},
 
-	readLabel: function(view, rI, cI, button, el, record) {
-	    let me = this;
-	    let drive = record.data.name;
-
-	    PBS.Utils.driveCommand(drive, 'read-label', {
-		waitMsgTarget: me.getView(),
-		success: PBS.Utils.showMediaLabelWindow,
-	    });
-	},
-
-	volumeStatistics: function(view, rI, cI, button, el, record) {
-	    let me = this;
-	    let drive = record.data.name;
-	    PBS.Utils.driveCommand(drive, 'volume-statistics', {
-		waitMsgTarget: me.getView(),
-		success: PBS.Utils.showVolumeStatisticsWindow,
-	    });
-	},
-
-	cartridgeMemory: function(view, rI, cI, button, el, record) {
-	    let me = this;
-	    let drive = record.data.name;
-	    PBS.Utils.driveCommand(drive, 'cartridge-memory', {
-		waitMsgTarget: me.getView(),
-		success: PBS.Utils.showCartridgeMemoryWindow,
-	    });
-	},
-
 	reload: function() {
 	    this.getView().getStore().rstore.load();
 	},
@@ -192,33 +164,6 @@ Ext.define('PBS.TapeManagement.DrivePanel', {
 	    renderer: function(value, mD, record) {
 		return record.data.changer ? value : '';
 	    },
-	},
-	{
-	    text: gettext('Actions'),
-	    width: 140,
-	    xtype: 'actioncolumn',
-	    items: [
-		{
-		    iconCls: 'fa fa-hdd-o',
-		    handler: 'cartridgeMemory',
-		    tooltip: gettext('Cartridge Memory'),
-		},
-		{
-		    iconCls: 'fa fa-line-chart',
-		    handler: 'volumeStatistics',
-		    tooltip: gettext('Volume Statistics'),
-		},
-		{
-		    iconCls: 'fa fa-tag',
-		    handler: 'readLabel',
-		    tooltip: gettext('Read Label'),
-		},
-		{
-		    iconCls: 'fa fa-info-circle',
-		    handler: 'status',
-		    tooltip: gettext('Status'),
-		},
-	    ],
 	},
     ],
 });

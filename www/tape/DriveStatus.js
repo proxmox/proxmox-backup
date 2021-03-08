@@ -120,6 +120,27 @@ Ext.define('PBS.TapeManagement.DriveStatus', {
 	    });
 	},
 
+	readLabel: function() {
+	    let me = this;
+	    let view = me.getView();
+	    let drive = view.drive;
+
+	    PBS.Utils.driveCommand(drive, 'read-label', {
+		waitMsgTarget: view,
+		success: PBS.Utils.showMediaLabelWindow,
+	    });
+	},
+
+	volumeStatistics: function() {
+	    let me = this;
+	    let view = me.getView();
+	    let drive = view.drive;
+	    PBS.Utils.driveCommand(drive, 'volume-statistics', {
+		waitMsgTarget: view,
+		success: PBS.Utils.showVolumeStatisticsWindow,
+	    });
+	},
+
 	init: function(view) {
 	    let me = this;
 	    me.mon(me.lookup('statusgrid').getStore().rstore, 'load', 'onLoad');
@@ -172,6 +193,27 @@ Ext.define('PBS.TapeManagement.DriveStatus', {
 		disabled: '{!online}',
 	    },
 	},
+	{
+	    text: gettext('Read Label'),
+	    xtype: 'proxmoxButton',
+	    handler: 'readLabel',
+	    iconCls: 'fa fa-tag',
+	    disabled: true,
+	    bind: {
+		disabled: '{!online}',
+	    },
+	},
+	{
+	    text: gettext('Show Volume Statistics'),
+	    xtype: 'proxmoxButton',
+	    handler: 'volumeStatistics',
+	    iconCls: 'fa fa-line-chart',
+	    disabled: true,
+	    bind: {
+		disabled: '{!online}',
+	    },
+	},
+
     ],
 
     items: [
