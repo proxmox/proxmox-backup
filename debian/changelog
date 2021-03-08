@@ -1,3 +1,40 @@
+rust-proxmox-backup (1.0.9-1) unstable; urgency=medium
+
+  * client: track key source, print when used
+
+  * fix #3026: pxar: metadata: apply flags _after_ updating mtime
+
+  * docs: add acl.cfg, datastore.cfg, remote.cfg, sync.cfg, user.cfg and
+    verification.cfg manual page pages
+
+  * docs: add API viewer
+
+  * proxmox-backup-manger: add verify-job command group with various sub
+    commands
+
+  * add experimental opt-in tape backup support
+
+  * lto-barcode: fix page offset calibration
+
+  * lto-barcode: fix avery 3420 paper format properties
+
+  * asyncify pxar create archive
+
+  * client: raise HTTP_TIMEOUT for simple requests to 120s
+
+  * docs: depend on mathjax library package from debian instead of CDN
+
+  * fix #3321: docs: client: fix interactive restore command explanation
+
+  * ui: use shorter datetime format for encryption key creation time
+
+  * docs: TFA: improve language
+
+  * config/TFA: webauthn: disallow registering the same token more than once,
+    that can lead to buggy behavior in some token/browser combinations.
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 08 Mar 2021 15:54:47 +0100
+
 rust-proxmox-backup (1.0.8-1) unstable; urgency=medium
 
   * Https Connector: use hostname instead of URL again to avoid certificate
