@@ -343,6 +343,55 @@ fn cartridge_memory(param: Value) -> Result<(), Error> {
                 schema: LINUX_DRIVE_PATH_SCHEMA,
                 optional: true,
             },
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+        },
+    },
+)]
+/// Read Tape Alert Flags
+fn tape_alert_flags(param: Value) -> Result<(), Error> {
+
+    let output_format = get_output_format(&param);
+
+    let mut handle = get_tape_handle(&param)?;
+    let result = handle.tape_alert_flags()
+        .map(|flags| format!("{:?}", flags));
+
+    if output_format == "json-pretty" {
+        let result = result.map_err(|err: Error| err.to_string());
+        println!("{}", serde_json::to_string_pretty(&result)?);
+        return Ok(());
+    }
+
+    if output_format == "json" {
+        let result = result.map_err(|err: Error| err.to_string());
+        println!("{}", serde_json::to_string(&result)?);
+        return Ok(());
+    }
+
+    if output_format != "text" {
+        bail!("unknown output format '{}'", output_format);
+    }
+
+    let flags = result?;
+    println!("Tape Alert Flags: {}", flags);
+
+    Ok(())
+}
+
+#[api(
+   input: {
+        properties: {
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+                optional: true,
+            },
+            device: {
+                schema: LINUX_DRIVE_PATH_SCHEMA,
+                optional: true,
+            },
        },
     },
 )]
@@ -943,6 +992,7 @@ fn main() -> Result<(), Error> {
         .insert("stoptions", std_cmd(&API_METHOD_ST_OPTIONS).arg_param(&["options"]))
         .insert("stsetoptions", std_cmd(&API_METHOD_ST_SET_OPTIONS).arg_param(&["options"]))
         .insert("stclearoptions", std_cmd(&API_METHOD_ST_CLEAR_OPTIONS).arg_param(&["options"]))
+        .insert("tape-alert-flags", std_cmd(&API_METHOD_TAPE_ALERT_FLAGS))
         .insert("unlock", std_cmd(&API_METHOD_UNLOCK))
         .insert("volume-statistics", std_cmd(&API_METHOD_VOLUME_STATISTICS))
         .insert("weof", std_cmd(&API_METHOD_WEOF).arg_param(&["count"]))
