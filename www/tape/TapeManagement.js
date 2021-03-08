@@ -14,24 +14,24 @@ Ext.define('PBS.TapeManagement', {
 
     items: [
 	{
+	    xtype: 'pbsBackupOverview',
 	    title: gettext('Content'),
 	    itemId: 'content',
-	    xtype: 'pbsBackupOverview',
 	},
 	{
+	    xtype: 'pbsTapeInventory',
 	    title: gettext('Inventory'),
 	    itemId: 'inventory',
-	    xtype: 'pbsTapeInventory',
 	},
 	{
+	    xtype: 'pbsTapeChangerPanel',
 	    title: gettext('Changers'),
 	    itemId: 'changers',
-	    xtype: 'pbsTapeChangerPanel',
 	},
 	{
+	    xtype: 'pbsTapeDrivePanel',
 	    title: gettext('Drives'),
 	    itemId: 'drives',
-	    xtype: 'pbsTapeDrivePanel',
 	},
 	{
 	    title: gettext('Media Pools'),
@@ -39,14 +39,14 @@ Ext.define('PBS.TapeManagement', {
 	    xtype: 'pbsMediaPoolPanel',
 	},
 	{
+	    xtype: 'pbsEncryptionKeys',
 	    title: gettext('Encryption Keys'),
 	    itemId: 'encryption-keys',
-	    xtype: 'pbsEncryptionKeys',
 	},
 	{
+	    xtype: 'pbsTapeBackupJobView',
 	    title: gettext('Backup Jobs'),
 	    itemId: 'tape-backup-jobs',
-	    xtype: 'pbsTapeBackupJobView',
 	},
     ],
 });
