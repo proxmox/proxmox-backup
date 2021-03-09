@@ -16,6 +16,7 @@ use proxmox::{
 
 use crate::{
     task_log,
+    task_warn,
     config::{
         self,
         cached_user_info::CachedUserInfo,
@@ -395,6 +396,8 @@ fn backup_worker(
         task_log!(worker, "latest-only: true (only considering latest snapshots)");
     }
 
+    let mut errors = false;
+
     for group in group_list {
         let mut snapshot_list = group.list_backups(&datastore.base_path())?;
 
@@ -406,7 +409,9 @@ fn backup_worker(
                     continue;
                 }
                 task_log!(worker, "backup snapshot {}", info.backup_dir);
-                backup_snapshot(worker, &mut pool_writer, datastore.clone(), info.backup_dir)?;
+                if !backup_snapshot(worker, &mut pool_writer, datastore.clone(), info.backup_dir)? {
+                    errors = true;
+                }
             }
         } else {
             for info in snapshot_list {
@@ -414,7 +419,9 @@ fn backup_worker(
                     continue;
                 }
                 task_log!(worker, "backup snapshot {}", info.backup_dir);
-                backup_snapshot(worker, &mut pool_writer, datastore.clone(), info.backup_dir)?;
+                if !backup_snapshot(worker, &mut pool_writer, datastore.clone(), info.backup_dir)? {
+                    errors = true;
+                }
             }
         }
     }
@@ -425,6 +432,10 @@ fn backup_worker(
         pool_writer.export_media_set(worker)?;
     } else if setup.eject_media.unwrap_or(false) {
         pool_writer.eject_media(worker)?;
+    }
+
+    if errors {
+        bail!("Tape backup finished with some errors. Please check the task log.");
     }
 
     Ok(())
@@ -460,11 +471,18 @@ pub fn backup_snapshot(
     pool_writer: &mut PoolWriter,
     datastore: Arc<DataStore>,
     snapshot: BackupDir,
-) -> Result<(), Error> {
+) -> Result<bool, Error> {
 
     task_log!(worker, "start backup {}:{}", datastore.name(), snapshot);
 
-    let snapshot_reader = SnapshotReader::new(datastore.clone(), snapshot.clone())?;
+    let snapshot_reader = match SnapshotReader::new(datastore.clone(), snapshot.clone()) {
+        Ok(reader) => reader,
+        Err(err) => {
+            // ignore missing snapshots and continue
+            task_warn!(worker, "failed opening snapshot '{}': {}", snapshot, err);
+            return Ok(false);
+        }
+    };
 
     let mut chunk_iter = snapshot_reader.chunk_iterator()?.peekable();
 
@@ -511,5 +529,5 @@ pub fn backup_snapshot(
 
     task_log!(worker, "end backup {}:{}", datastore.name(), snapshot);
 
-    Ok(())
+    Ok(true)
 }
