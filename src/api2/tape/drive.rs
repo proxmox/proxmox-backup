@@ -1012,7 +1012,10 @@ fn barcode_label_media_worker(
 ) -> Result<(), Error> {
     let (mut changer, changer_name) = required_media_changer(drive_config, &drive)?;
 
-    let label_text_list = changer.online_media_label_texts()?;
+    let mut label_text_list = changer.online_media_label_texts()?;
+
+    // make sure we label them in the right order
+    label_text_list.sort();
 
     let state_path = Path::new(TAPE_STATUS_DIR);
 

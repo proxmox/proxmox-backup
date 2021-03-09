@@ -386,7 +386,13 @@ impl MediaPool {
         }
 
         // sort empty_media, newest first -> oldest last
-        empty_media.sort_unstable_by(|a, b| b.label().ctime.cmp(&a.label().ctime));
+        empty_media.sort_unstable_by(|a, b| {
+            let mut res = b.label().ctime.cmp(&a.label().ctime);
+            if res == std::cmp::Ordering::Equal {
+                res = b.label().label_text.cmp(&a.label().label_text);
+            }
+            res
+        });
 
         if let Some(media) = empty_media.pop() {
             // found empty media, add to media set an use it
@@ -416,7 +422,11 @@ impl MediaPool {
 
         // sort expired_media, newest first -> oldest last
         expired_media.sort_unstable_by(|a, b| {
-            b.media_set_label().unwrap().ctime.cmp(&a.media_set_label().unwrap().ctime)
+            let mut res = b.media_set_label().unwrap().ctime.cmp(&a.media_set_label().unwrap().ctime);
+            if res == std::cmp::Ordering::Equal {
+                res = b.label().label_text.cmp(&a.label().label_text);
+            }
+            res
         });
 
         if let Some(media) = expired_media.pop() {
@@ -446,6 +456,15 @@ impl MediaPool {
 
             free_media.push(media_id);
         }
+
+        // sort free_media, newest first -> oldest last
+        free_media.sort_unstable_by(|a, b| {
+            let mut res = b.label.ctime.cmp(&a.label.ctime);
+            if res == std::cmp::Ordering::Equal {
+                res = b.label.label_text.cmp(&a.label.label_text);
+            }
+            res
+        });
 
         if let Some(media_id) = free_media.pop() {
             println!("use free media '{}'", media_id.label.label_text);

@@ -276,7 +276,7 @@ impl Inventory {
                         continue; // belong to another pool
                     }
 
-                    if set.uuid.as_ref() == [0u8;16] { // should we do this??
+                    if set.uuid.as_ref() == [0u8;16] {
                         list.push(MediaId {
                             label: entry.id.label.clone(),
                             media_set_label: None,
