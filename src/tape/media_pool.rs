@@ -7,7 +7,7 @@
 //!
 //!
 
-use std::path::Path;
+use std::path::{PathBuf, Path};
 use anyhow::{bail, Error};
 use ::serde::{Deserialize, Serialize};
 
@@ -41,6 +41,7 @@ pub struct MediaPoolLockGuard(std::fs::File);
 pub struct MediaPool {
 
     name: String,
+    state_path: PathBuf,
 
     media_set_policy: MediaSetPolicy,
     retention: RetentionPolicy,
@@ -82,6 +83,7 @@ impl MediaPool {
 
         Ok(MediaPool {
             name: String::from(name),
+            state_path: state_path.to_owned(),
             media_set_policy,
             retention,
             changer_name,
@@ -439,7 +441,12 @@ impl MediaPool {
         println!("no expired media in pool, try to find unassigned/free media");
 
         // try unassigned media
-        // fixme: lock free media pool to avoid races
+
+        // lock artificial "__UNASSIGNED__" pool to avoid races
+        let _lock = MediaPool::lock(&self.state_path, "__UNASSIGNED__")?;
+
+        self.inventory.reload()?;
+
         let mut free_media = Vec::new();
 
         for media_id in self.inventory.list_unassigned_media() {
@@ -557,7 +564,7 @@ impl MediaPool {
     }
 
     /// Lock the pool
-     pub fn lock(base_path: &Path, name: &str) -> Result<MediaPoolLockGuard, Error> {
+    pub fn lock(base_path: &Path, name: &str) -> Result<MediaPoolLockGuard, Error> {
         let mut path = base_path.to_owned();
         path.push(format!(".{}", name));
         path.set_extension("lck");
