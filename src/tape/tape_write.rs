@@ -67,7 +67,7 @@ pub trait TapeWrite {
 ///
 /// See: https://github.com/torvalds/linux/blob/master/Documentation/scsi/st.rst
 ///
-/// On sucess, this returns if we en countered a EOM condition.
+/// On success, this returns if we en countered a EOM condition.
 pub fn tape_device_write_block<W: Write>(
     writer: &mut W,
     data: &[u8],

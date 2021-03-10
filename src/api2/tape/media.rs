@@ -497,7 +497,7 @@ pub fn get_media_status(uuid: Uuid) -> Result<MediaStatus, Error> {
 /// Update media status (None, 'full', 'damaged' or 'retired')
 ///
 /// It is not allowed to set status to 'writable' or 'unknown' (those
-/// are internaly managed states).
+/// are internally managed states).
 pub fn update_media_status(uuid: Uuid, status: Option<MediaStatus>) -> Result<(), Error> {
 
     let status_path = Path::new(TAPE_STATUS_DIR);

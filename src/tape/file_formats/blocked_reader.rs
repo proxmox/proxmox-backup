@@ -77,7 +77,7 @@ impl <R: Read> BlockedReader<R> {
 
         if seq_nr != buffer.seq_nr() {
             proxmox::io_bail!(
-                "detected tape block with wrong seqence number ({} != {})",
+                "detected tape block with wrong sequence number ({} != {})",
                 seq_nr, buffer.seq_nr())
         }
 

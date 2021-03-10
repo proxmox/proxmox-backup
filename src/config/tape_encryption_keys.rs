@@ -4,10 +4,10 @@
 //! indexed by key fingerprint.
 //!
 //! We store the plain key (unencrypted), as well as a encrypted
-//! version protected by passowrd (see struct `KeyConfig`)
+//! version protected by password (see struct `KeyConfig`)
 //!
 //! Tape backups store the password protected version on tape, so that
-//! it is possible to retore the key from tape if you know the
+//! it is possible to restore the key from tape if you know the
 //! password.
 
 use std::collections::HashMap;

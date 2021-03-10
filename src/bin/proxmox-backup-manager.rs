@@ -330,7 +330,7 @@ async fn get_versions(verbose: bool, param: Value) -> Result<Value, Error> {
 
     let options = default_table_format_options()
         .disable_sort()
-        .noborder(true) // just not helpfull for version info which gets copy pasted often
+        .noborder(true) // just not helpful for version info which gets copy pasted often
         .column(ColumnConfig::new("Package"))
         .column(ColumnConfig::new("Version"))
         .column(ColumnConfig::new("ExtraInfo").header("Extra Info"))

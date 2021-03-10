@@ -429,7 +429,7 @@ impl MediaChange for VirtualTapeHandle {
     }
 
     fn transfer_media(&mut self, _from: u64, _to: u64) -> Result<MtxStatus, Error> {
-        bail!("media tranfer is not implemented!");
+        bail!("media transfer is not implemented!");
     }
 
     fn export_media(&mut self, _label_text: &str) -> Result<Option<u64>, Error> {

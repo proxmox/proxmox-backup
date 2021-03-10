@@ -1,4 +1,4 @@
-//! Wrapper around expernal `mtx` command line tool
+//! Wrapper around external `mtx` command line tool
 
 mod parse_mtx_status;
 pub use parse_mtx_status::*;

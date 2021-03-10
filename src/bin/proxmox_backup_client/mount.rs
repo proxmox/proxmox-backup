@@ -140,7 +140,7 @@ fn mount(
         return proxmox_backup::tools::runtime::main(mount_do(param, None));
     }
 
-    // Process should be deamonized.
+    // Process should be daemonized.
     // Make sure to fork before the async runtime is instantiated to avoid troubles.
     let (pr, pw) = proxmox_backup::tools::pipe()?;
     match unsafe { fork() } {

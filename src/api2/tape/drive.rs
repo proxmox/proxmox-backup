@@ -220,7 +220,7 @@ pub async fn load_slot(drive: String, source_slot: u64) -> Result<(), Error> {
         },
     },
     returns: {
-        description: "The import-export slot number the media was transfered to.",
+        description: "The import-export slot number the media was transferred to.",
         type: u64,
         minimum: 1,
     },
@@ -782,7 +782,7 @@ pub fn clean_drive(
                  }
              }
 
-            worker.log("Drive cleaned sucessfully");
+            worker.log("Drive cleaned successfully");
 
             Ok(())
         },
@@ -943,7 +943,7 @@ pub fn update_inventory(
                     }
                     Ok((Some(media_id), _key_config)) => {
                         if label_text != media_id.label.label_text {
-                            worker.warn(format!("label text missmatch ({} != {})", label_text, media_id.label.label_text));
+                            worker.warn(format!("label text mismatch ({} != {})", label_text, media_id.label.label_text));
                             continue;
                         }
                         worker.log(format!("inventorize media '{}' with uuid '{}'", label_text, media_id.label.uuid));

@@ -302,7 +302,7 @@ impl<K, V> LinkedList<K, V> {
         }
     }
 
-    /// Remove the node referenced by `node_ptr` from the linke list and return it.
+    /// Remove the node referenced by `node_ptr` from the linked list and return it.
     fn remove(&mut self, node_ptr: *mut CacheNode<K, V>) -> Box<CacheNode<K, V>> {
         let node = unsafe { Box::from_raw(node_ptr) };
 

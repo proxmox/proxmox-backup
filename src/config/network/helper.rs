@@ -82,7 +82,7 @@ pub fn check_netmask(mask: u8, is_v6: bool) -> Result<(), Error> {
     Ok(())
 }
 
-// parse ip address with otional cidr mask
+// parse ip address with optional cidr mask
 pub fn parse_address_or_cidr(cidr: &str) -> Result<(String, Option<u8>, bool), Error> {
 
     lazy_static! {

@@ -749,7 +749,7 @@ impl WorkerTask {
             match data.abort_listeners.pop() {
                 None => { break; },
                 Some(ch) => {
-                    let _ = ch.send(()); // ignore erros here
+                    let _ = ch.send(()); // ignore errors here
                 },
             }
         }

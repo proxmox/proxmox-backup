@@ -21,7 +21,7 @@ use crate::tape::{
 ///
 /// This ignores file attributes like ACLs and xattrs.
 ///
-/// Returns `Ok(Some(content_uuid))` on succees, and `Ok(None)` if
+/// Returns `Ok(Some(content_uuid))` on success, and `Ok(None)` if
 /// `LEOM` was detected before all data was written. The stream is
 /// marked inclomplete in that case and does not contain all data (The
 /// backup task must rewrite the whole file on the next media).

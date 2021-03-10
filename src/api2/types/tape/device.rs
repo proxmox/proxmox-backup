@@ -21,7 +21,7 @@ pub struct OptionalDeviceIdentification {
 #[api()]
 #[derive(Debug,Serialize,Deserialize)]
 #[serde(rename_all = "kebab-case")]
-/// Kind of devive
+/// Kind of device
 pub enum DeviceKind {
     /// Tape changer (Autoloader, Robot)
     Changer,

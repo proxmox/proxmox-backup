@@ -1,6 +1,6 @@
 /// Tape command implemented using scsi-generic raw commands
 ///
-/// SCSI-generic command needs root priviledges, so this binary need
+/// SCSI-generic command needs root privileges, so this binary need
 /// to be setuid root.
 ///
 /// This command can use STDIN as tape device handle.

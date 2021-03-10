@@ -119,7 +119,7 @@ pub fn change_passphrase(
     let kdf = kdf.unwrap_or_default();
 
     if let Kdf::None = kdf {
-        bail!("Please specify a key derivation  funktion (none is not allowed here).");
+        bail!("Please specify a key derivation function (none is not allowed here).");
     }
 
     let _lock = open_file_locked(
@@ -187,7 +187,7 @@ pub fn create_key(
     let kdf = kdf.unwrap_or_default();
 
     if let Kdf::None = kdf {
-        bail!("Please specify a key derivation  funktion (none is not allowed here).");
+        bail!("Please specify a key derivation function (none is not allowed here).");
     }
 
     let (key, mut key_config) = KeyConfig::new(password.as_bytes(), kdf)?;

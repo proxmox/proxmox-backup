@@ -86,7 +86,7 @@ impl tower_service::Service<Uri> for VsockConnector {
 
             Ok(connection)
         })
-        // unravel the thread JoinHandle to a useable future
+        // unravel the thread JoinHandle to a usable future
         .map(|res| match res {
             Ok(res) => res,
             Err(err) => Err(format_err!("thread join error on vsock connect: {}", err)),

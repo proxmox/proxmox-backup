@@ -448,7 +448,7 @@ impl DataStore {
             if !self.chunk_store.cond_touch_chunk(digest, false)? {
                 crate::task_warn!(
                     worker,
-                    "warning: unable to access non-existant chunk {}, required by {:?}",
+                    "warning: unable to access non-existent chunk {}, required by {:?}",
                     proxmox::tools::digest_to_hex(digest),
                     file_name,
                 );

@@ -138,10 +138,10 @@ impl<I: Send + 'static> ParallelHandler<I> {
             if let Err(panic) = handle.join() {
                 match panic.downcast::<&str>() {
                     Ok(panic_msg) => msg_list.push(
-                        format!("thread {} ({}) paniced: {}", self.name, i, panic_msg)
+                        format!("thread {} ({}) panicked: {}", self.name, i, panic_msg)
                     ),
                     Err(_) => msg_list.push(
-                        format!("thread {} ({}) paniced", self.name, i)
+                        format!("thread {} ({}) panicked", self.name, i)
                     ),
                 }
             }

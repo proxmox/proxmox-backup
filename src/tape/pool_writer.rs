@@ -271,7 +271,7 @@ impl PoolWriter {
         }
     }
 
-    /// Move to EOM (if not aleady there), then creates a new snapshot
+    /// Move to EOM (if not already there), then creates a new snapshot
     /// archive writing specified files (as .pxar) into it. On
     /// success, this return 'Ok(true)' and the media catalog gets
     /// updated.
@@ -330,7 +330,7 @@ impl PoolWriter {
         Ok((done, bytes_written))
     }
 
-    /// Move to EOM (if not aleady there), then creates a new chunk
+    /// Move to EOM (if not already there), then creates a new chunk
     /// archive and writes chunks from 'chunk_iter'. This stops when
     /// it detect LEOM or when we reach max archive size
     /// (4GB). Written chunks are registered in the media catalog.

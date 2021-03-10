@@ -246,7 +246,7 @@ pub fn unload(
     Ok(())
 }
 
-/// Tranfer medium from one storage slot to another
+/// Transfer medium from one storage slot to another
 pub fn transfer_medium<F: AsRawFd>(
     file: &mut F,
     from_slot: u64,
@@ -362,7 +362,7 @@ pub fn read_element_status<F: AsRawFd>(file: &mut F) -> Result<MtxStatus, Error>
         bail!("got wrong number of import/export elements");
     }
     if (setup.transfer_element_count as usize) != drives.len() {
-        bail!("got wrong number of tranfer elements");
+        bail!("got wrong number of transfer elements");
     }
 
     // create same virtual slot order as mtx(1)
@@ -428,7 +428,7 @@ struct SubHeader {
     element_type_code: u8,
     flags: u8,
     descriptor_length: u16,
-    reseved: u8,
+    reserved: u8,
     byte_count_of_descriptor_data_available: [u8;3],
 }
 

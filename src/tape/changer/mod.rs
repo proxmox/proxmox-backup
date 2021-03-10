@@ -35,7 +35,7 @@ use crate::api2::types::{
 /// Changer element status.
 ///
 /// Drive and slots may be `Empty`, or contain some media, either
-/// with knwon volume tag `VolumeTag(String)`, or without (`Full`).
+/// with known volume tag `VolumeTag(String)`, or without (`Full`).
 #[derive(Serialize, Deserialize, Debug)]
 pub enum ElementStatus {
     Empty,
@@ -87,7 +87,7 @@ pub struct MtxStatus {
     pub drives: Vec<DriveStatus>,
     /// List of known storage slots
     pub slots: Vec<StorageElementStatus>,
-    /// Tranport elements
+    /// Transport elements
     ///
     /// Note: Some libraries do not report transport elements.
     pub transports: Vec<TransportElementStatus>,
@@ -261,7 +261,7 @@ pub trait MediaChange {
 
     /// List online media labels (label_text/barcodes)
     ///
-    /// List acessible (online) label texts. This does not include
+    /// List accessible (online) label texts. This does not include
     /// media inside import-export slots or cleaning media.
     fn online_media_label_texts(&mut self) -> Result<Vec<String>, Error> {
         let status = self.status()?;
@@ -378,7 +378,7 @@ pub trait MediaChange {
 
     /// Unload media to a free storage slot
     ///
-    /// If posible to the slot it was previously loaded from.
+    /// If possible to the slot it was previously loaded from.
     ///
     /// Note: This method consumes status - so please use returned status afterward.
     fn unload_to_free_slot(&mut self, status: MtxStatus) -> Result<MtxStatus, Error> {

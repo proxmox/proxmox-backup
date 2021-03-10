@@ -4,7 +4,7 @@
 //!
 //! See: `/usr/include/scsi/sg_pt.h`
 //!
-//! The SCSI Commands Reference Manual also contains some usefull information.
+//! The SCSI Commands Reference Manual also contains some useful information.
 
 use std::os::unix::io::AsRawFd;
 use std::ptr::NonNull;

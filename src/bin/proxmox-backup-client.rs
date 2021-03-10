@@ -1453,7 +1453,7 @@ fn parse_archive_type(name: &str) -> (String, ArchiveType) {
                type: String,
                description: r###"Target directory path. Use '-' to write to standard output.
 
-We do not extraxt '.pxar' archives when writing to standard output.
+We do not extract '.pxar' archives when writing to standard output.
 
 "###
            },

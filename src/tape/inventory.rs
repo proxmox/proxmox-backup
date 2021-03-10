@@ -561,7 +561,7 @@ impl Inventory {
 
     // Helpers to simplify testing
 
-    /// Genreate and insert a new free tape (test helper)
+    /// Generate and insert a new free tape (test helper)
     pub fn generate_free_tape(&mut self, label_text: &str, ctime: i64) -> Uuid {
 
         let label = MediaLabel {
@@ -576,7 +576,7 @@ impl Inventory {
         uuid
     }
 
-    /// Genreate and insert a new tape assigned to a specific pool
+    /// Generate and insert a new tape assigned to a specific pool
     /// (test helper)
     pub fn generate_assigned_tape(
         &mut self,
@@ -600,7 +600,7 @@ impl Inventory {
         uuid
     }
 
-    /// Genreate and insert a used tape (test helper)
+    /// Generate and insert a used tape (test helper)
     pub fn generate_used_tape(
         &mut self,
         label_text: &str,

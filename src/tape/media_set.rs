@@ -48,7 +48,7 @@ impl MediaSet {
         let seq_nr = seq_nr as usize;
         if self.media_list.len() > seq_nr {
             if self.media_list[seq_nr].is_some() {
-                bail!("found duplicate squence number in media set '{}/{}'",
+                bail!("found duplicate sequence number in media set '{}/{}'",
                       self.uuid.to_string(), seq_nr);
             }
         } else {

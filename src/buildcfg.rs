@@ -16,11 +16,11 @@ pub const PROXMOX_BACKUP_RUN_DIR: &str = PROXMOX_BACKUP_RUN_DIR_M!();
 /// namespaced directory for persistent logging
 pub const PROXMOX_BACKUP_LOG_DIR: &str = PROXMOX_BACKUP_LOG_DIR_M!();
 
-/// logfile for all API reuests handled by the proxy and privileged API daemons. Note that not all
+/// logfile for all API requests handled by the proxy and privileged API daemons. Note that not all
 /// failed logins can be logged here with full information, use the auth log for that.
 pub const API_ACCESS_LOG_FN: &str = concat!(PROXMOX_BACKUP_LOG_DIR_M!(), "/api/access.log");
 
-/// logfile for any failed authentication, via ticket or via token, and new successfull ticket
+/// logfile for any failed authentication, via ticket or via token, and new successful ticket
 /// creations. This file can be useful for fail2ban.
 pub const API_AUTH_LOG_FN: &str = concat!(PROXMOX_BACKUP_LOG_DIR_M!(), "/api/auth.log");
 

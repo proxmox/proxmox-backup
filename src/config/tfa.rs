@@ -590,7 +590,7 @@ impl TfaUserChallengeData {
     }
 
     /// Save the current data. Note that we do not replace the file here since we lock the file
-    /// itself, as it is in `/run`, and the typicall error case for this particular situation
+    /// itself, as it is in `/run`, and the typical error case for this particular situation
     /// (machine loses power) simply prevents some login, but that'll probably fail anyway for
     /// other reasons then...
     ///

@@ -84,7 +84,7 @@ pub fn encryption_key_commands() -> CommandLineInterface {
                 schema: TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
             },
             subject: {
-                description: "Include the specified subject as titel text.",
+                description: "Include the specified subject as title text.",
                 optional: true,
             },
             "output-format": {
@@ -128,7 +128,7 @@ fn paper_key(
         },
     },
 )]
-/// Print tthe encryption key's metadata.
+/// Print the encryption key's metadata.
 fn show_key(
     param: Value,
     rpcenv: &mut dyn RpcEnvironment,

@@ -209,7 +209,7 @@ pub trait TapeDriver {
     /// Set or clear encryption key
     ///
     /// We use the media_set_uuid to XOR the secret key with the
-    /// uuid (first 16 bytes), so that each media set uses an uique
+    /// uuid (first 16 bytes), so that each media set uses an unique
     /// key for encryption.
     fn set_encryption(
         &mut self,
@@ -465,7 +465,7 @@ pub fn request_and_load_media(
     }
 }
 
-/// Aquires an exclusive lock for the tape device
+/// Acquires an exclusive lock for the tape device
 ///
 /// Basically calls lock_device_path() using the configured drive path.
 pub fn lock_tape_device(
@@ -539,7 +539,7 @@ fn tape_device_path(
 
 pub struct DeviceLockGuard(std::fs::File);
 
-// Aquires an exclusive lock on `device_path`
+// Acquires an exclusive lock on `device_path`
 //
 // Uses systemd escape_unit to compute a file name from `device_path`, the try
 // to lock `/var/lock/<name>`.

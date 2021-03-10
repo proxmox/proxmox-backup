@@ -173,7 +173,7 @@ fn test_alloc_writable_media_4() -> Result<(), Error> {
     // next call fail because there is no free media
     assert!(pool.alloc_writable_media(start_time + 5).is_err());
 
-    // Create new nedia set, so that previous set can expire
+    // Create new media set, so that previous set can expire
     pool.start_write_session(start_time + 10)?;
 
     assert!(pool.alloc_writable_media(start_time + 10).is_err());

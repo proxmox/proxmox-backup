@@ -25,7 +25,7 @@ use crate::tape::{
 ///
 /// A chunk archive consists of a `MediaContentHeader` followed by a
 /// list of chunks entries. Each chunk entry consists of a
-/// `ChunkArchiveEntryHeader` folowed by the chunk data (`DataBlob`).
+/// `ChunkArchiveEntryHeader` followed by the chunk data (`DataBlob`).
 ///
 /// `| MediaContentHeader | ( ChunkArchiveEntryHeader | DataBlob )* |`
 pub struct ChunkArchiveWriter<'a> {
@@ -153,7 +153,7 @@ impl <R: Read> ChunkArchiveDecoder<R> {
         Self { reader }
     }
 
-    /// Allow access to the underyling reader
+    /// Allow access to the underlying reader
     pub fn reader(&self) -> &R {
         &self.reader
     }

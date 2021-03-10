@@ -1,4 +1,4 @@
-//! Datastore Syncronization Job Management
+//! Datastore Synchronization Job Management
 
 use anyhow::{bail, format_err, Error};
 use serde_json::Value;

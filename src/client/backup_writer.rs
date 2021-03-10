@@ -509,7 +509,7 @@ impl BackupWriter {
     }
 
     // We have no `self` here for `h2` and `verbose`, the only other arg "common" with 1 other
-    // funciton in the same path is `wid`, so those 3 could be in a struct, but there's no real use
+    // function in the same path is `wid`, so those 3 could be in a struct, but there's no real use
     // since this is a private method.
     #[allow(clippy::too_many_arguments)]
     fn upload_chunk_info_stream(

@@ -85,7 +85,7 @@ impl SnapshotReader {
         Ok(file)
     }
 
-    /// Retunrs an iterator for all used chunks.
+    /// Returns an iterator for all used chunks.
     pub fn chunk_iterator(&self) -> Result<SnapshotChunkIterator, Error> {
         SnapshotChunkIterator::new(&self)
     }

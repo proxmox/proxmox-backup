@@ -181,7 +181,7 @@ fn get_tfa_entry(userid: Userid, id: String) -> Result<TypedTfaInfo, Error> {
 
     if let Some(user_data) = crate::config::tfa::read()?.users.remove(&userid) {
         match {
-            // scope to prevent the temprary iter from borrowing across the whole match
+            // scope to prevent the temporary iter from borrowing across the whole match
             let entry = tfa_id_iter(&user_data).find(|(_ty, _index, entry_id)| id == *entry_id);
             entry.map(|(ty, index, _)| (ty, index))
         } {
@@ -259,7 +259,7 @@ fn delete_tfa(
         .ok_or_else(|| http_err!(NOT_FOUND, "no such entry: {}/{}", userid, id))?;
 
     match {
-        // scope to prevent the temprary iter from borrowing across the whole match
+        // scope to prevent the temporary iter from borrowing across the whole match
         let entry = tfa_id_iter(&user_data).find(|(_, _, entry_id)| id == *entry_id);
         entry.map(|(ty, index, _)| (ty, index))
     } {

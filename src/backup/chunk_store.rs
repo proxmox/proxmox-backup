@@ -452,7 +452,7 @@ impl ChunkStore {
 #[test]
 fn test_chunk_store1() {
 
-    let mut path = std::fs::canonicalize(".").unwrap(); // we need absulute path
+    let mut path = std::fs::canonicalize(".").unwrap(); // we need absolute path
     path.push(".testdir");
 
     if let Err(_e) = std::fs::remove_dir_all(".testdir") { /* ignore */ }

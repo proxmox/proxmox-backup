@@ -75,7 +75,7 @@
 //!
 //! Since PBS allows multiple potentially interfering operations at the
 //! same time (e.g. garbage collect, prune, multiple backup creations
-//! (only in seperate groups), forget, ...), these need to lock against
+//! (only in separate groups), forget, ...), these need to lock against
 //! each other in certain scenarios. There is no overarching global lock
 //! though, instead always the finest grained lock possible is used,
 //! because running these operations concurrently is treated as a feature

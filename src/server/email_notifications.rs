@@ -43,7 +43,7 @@ Deduplication Factor: {{deduplication-factor}}
 Garbage collection successful.
 
 
-Please visit the web interface for futher details:
+Please visit the web interface for further details:
 
 <https://{{fqdn}}:{{port}}/#DataStore-{{datastore}}>
 
@@ -57,7 +57,7 @@ Datastore: {{datastore}}
 Garbage collection failed: {{error}}
 
 
-Please visit the web interface for futher details:
+Please visit the web interface for further details:
 
 <https://{{fqdn}}:{{port}}/#pbsServerAdministration:tasks>
 
@@ -71,7 +71,7 @@ Datastore: {{job.store}}
 Verification successful.
 
 
-Please visit the web interface for futher details:
+Please visit the web interface for further details:
 
 <https://{{fqdn}}:{{port}}/#DataStore-{{job.store}}>
 
@@ -89,7 +89,7 @@ Verification failed on these snapshots/groups:
 {{/each}}
 
 
-Please visit the web interface for futher details:
+Please visit the web interface for further details:
 
 <https://{{fqdn}}:{{port}}/#pbsServerAdministration:tasks>
 
@@ -105,7 +105,7 @@ Remote Store: {{job.remote-store}}
 Synchronization successful.
 
 
-Please visit the web interface for futher details:
+Please visit the web interface for further details:
 
 <https://{{fqdn}}:{{port}}/#DataStore-{{job.store}}>
 
@@ -121,7 +121,7 @@ Remote Store: {{job.remote-store}}
 Synchronization failed: {{error}}
 
 
-Please visit the web interface for futher details:
+Please visit the web interface for further details:
 
 <https://{{fqdn}}:{{port}}/#pbsServerAdministration:tasks>
 
@@ -152,7 +152,7 @@ Tape Drive: {{job.drive}}
 Tape Backup successful.
 
 
-Please visit the web interface for futher details:
+Please visit the web interface for further details:
 
 <https://{{fqdn}}:{{port}}/#DataStore-{{job.store}}>
 
@@ -171,7 +171,7 @@ Tape Drive: {{job.drive}}
 Tape Backup failed: {{error}}
 
 
-Please visit the web interface for futher details:
+Please visit the web interface for further details:
 
 <https://{{fqdn}}:{{port}}/#pbsServerAdministration:tasks>
 

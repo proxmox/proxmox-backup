@@ -85,7 +85,7 @@ fn do_apt_update(worker: &WorkerTask, quiet: bool) -> Result<(), Error> {
             },
             notify: {
                 type: bool,
-                description: r#"Send notification mail about new package updates availanle to the
+                description: r#"Send notification mail about new package updates available to the
                     email address configured for 'root@pam')."#,
                 default: false,
                 optional: true,

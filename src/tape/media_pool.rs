@@ -3,7 +3,7 @@
 //! A set of backup medias.
 //!
 //! This struct manages backup media state during backup. The main
-//! purpose is to allocate media sets and assing new tapes to it.
+//! purpose is to allocate media sets and assign new tapes to it.
 //!
 //!
 
@@ -137,7 +137,7 @@ impl MediaPool {
         &self.name
     }
 
-    /// Retruns encryption settings
+    /// Returns encryption settings
     pub fn encrypt_fingerprint(&self) -> Option<Fingerprint> {
         self.encrypt_fingerprint.clone()
     }
@@ -286,7 +286,7 @@ impl MediaPool {
         Ok(list)
     }
 
-    // tests if the media data is considered as expired at sepcified time
+    // tests if the media data is considered as expired at specified time
     pub fn media_is_expired(&self, media: &BackupMedia, current_time: i64) -> bool {
         if media.status() != &MediaStatus::Full {
             return false;

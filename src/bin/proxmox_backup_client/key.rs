@@ -527,7 +527,7 @@ fn show_master_pubkey(path: Option<String>, param: Value) -> Result<(), Error> {
                 optional: true,
             },
             subject: {
-                description: "Include the specified subject as titel text.",
+                description: "Include the specified subject as title text.",
                 optional: true,
             },
             "output-format": {

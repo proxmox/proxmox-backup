@@ -196,7 +196,7 @@ struct SspDataEncryptionCapabilityPage {
     page_code: u16,
     page_len: u16,
     extdecc_cfgp_byte: u8,
-    reserverd: [u8; 15],
+    reserved: [u8; 15],
 }
 
 #[derive(Endian)]
@@ -241,13 +241,13 @@ fn decode_spin_data_encryption_caps(data: &[u8]) -> Result<u8, Error> {
             let desc: SspDataEncryptionAlgorithmDescriptor =
                 unsafe { reader.read_be_value()? };
             if desc.descriptor_len != 0x14 {
-                bail!("got wrong key descriptior len");
+                bail!("got wrong key descriptor len");
             }
             if (desc.control_byte_4 & 0b00000011) != 2 {
-                continue; // cant encrypt in hardware
+                continue; // can't encrypt in hardware
             }
             if ((desc.control_byte_4 & 0b00001100) >> 2) != 2 {
-                continue; // cant decrypt in hardware
+                continue; // can't decrypt in hardware
             }
             if desc.algorithm_code == 0x00010014 && desc.key_size == 32 {
                 aes_cgm_index = Some(desc.algorythm_index);
@@ -276,7 +276,7 @@ struct SspDataEncryptionStatusPage {
     control_byte: u8,
     key_format: u8,
     key_len: u16,
-    reserverd: [u8; 8],
+    reserved: [u8; 8],
 }
 
 fn decode_spin_data_encryption_status(data: &[u8]) -> Result<DataEncryptionStatus, Error> {

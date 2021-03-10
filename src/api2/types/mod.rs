@@ -1272,7 +1272,7 @@ pub struct APTUpdateInfo {
 pub enum Notify {
     /// Never send notification
     Never,
-    /// Send notifications for failed and sucessful jobs
+    /// Send notifications for failed and successful jobs
     Always,
     /// Send notifications for failed jobs only
     Error,
