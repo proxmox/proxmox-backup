@@ -115,7 +115,7 @@ fn read_tape_mam<F: AsRawFd>(file: &mut F) -> Result<Vec<u8>, Error> {
         .map(|v| v.to_vec())
 }
 
-/// Read Medium auxiliary memory attributes (cartridge memory) using raw SCSI command. 
+/// Read Medium auxiliary memory attributes (cartridge memory) using raw SCSI command.
 pub fn read_mam_attributes<F: AsRawFd>(file: &mut F) -> Result<Vec<MamAttribute>, Error> {
 
     let data = read_tape_mam(file)?;
@@ -131,8 +131,12 @@ fn decode_mam_attributes(data: &[u8]) -> Result<Vec<MamAttribute>, Error> {
 
     let expected_len = data_len as usize;
 
-    if reader.len() != expected_len {
+
+    if reader.len() < expected_len {
         bail!("read_mam_attributes: got unexpected data len ({} != {})", reader.len(), expected_len);
+    } else if reader.len() > expected_len {
+        // Note: Quantum hh7 returns the allocation_length instead of real data_len
+        reader = &data[4..expected_len+4];
     }
 
     let mut list = Vec::new();

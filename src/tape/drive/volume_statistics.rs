@@ -27,8 +27,8 @@ pub fn read_volume_statistics<F: AsRawFd>(file: &mut F) ->  Result<Lp17VolumeSta
 
 fn sg_read_volume_statistics<F: AsRawFd>(file: &mut F) -> Result<Vec<u8>, Error> {
 
-    let buffer_size = 8192;
-    let mut sg_raw = SgRaw::new(file, buffer_size)?;
+    let alloc_len: u16 = 8192;
+    let mut sg_raw = SgRaw::new(file, alloc_len as usize)?;
 
     let mut cmd = Vec::new();
     cmd.push(0x4D); // LOG SENSE
@@ -38,7 +38,7 @@ fn sg_read_volume_statistics<F: AsRawFd>(file: &mut F) -> Result<Vec<u8>, Error>
     cmd.push(0);
     cmd.push(0);
     cmd.push(0);
-    cmd.push((buffer_size >> 8) as u8); cmd.push(0); // alloc len
+    cmd.extend(&alloc_len.to_be_bytes()); // alloc len
     cmd.push(0u8); // control byte
 
     sg_raw.do_command(&cmd)
@@ -142,8 +142,13 @@ fn decode_volume_statistics(data: &[u8]) -> Result<Lp17VolumeStatistics, Error> 
 
         let page_len: u16 = unsafe { reader.read_be_value()? };
 
-        if (page_len as usize + 4) != data.len() {
+        let page_len = page_len as usize;
+
+        if (page_len + 4) > data.len() {
             bail!("invalid page length");
+        } else {
+            // Note: Quantum hh7 returns the allocation_length instead of real data_len
+            reader = &data[4..page_len+4];
         }
 
         let mut stat = Lp17VolumeStatistics::default();
