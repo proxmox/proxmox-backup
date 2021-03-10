@@ -30,9 +30,6 @@ fn sg_read_volume_statistics<F: AsRawFd>(file: &mut F) -> Result<Vec<u8>, Error>
     let buffer_size = 8192;
     let mut sg_raw = SgRaw::new(file, buffer_size)?;
 
-    // Note: We cannjot use LP 2Eh TapeAlerts, because that clears flags on read.
-    // Instead, we use LP 12h TapeAlert Response. which does not clear the flags.
-
     let mut cmd = Vec::new();
     cmd.push(0x4D); // LOG SENSE
     cmd.push(0);
