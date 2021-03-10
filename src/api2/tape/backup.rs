@@ -43,6 +43,7 @@ use crate::{
         DataStore,
         BackupDir,
         BackupInfo,
+        StoreProgress,
     },
     api2::types::{
         Authid,
@@ -390,6 +391,11 @@ fn backup_worker(
 
     group_list.sort_unstable();
 
+    let group_count = group_list.len();
+    task_log!(worker, "found {} groups", group_count);
+
+    let mut progress = StoreProgress::new(group_count as u64);
+
     let latest_only = setup.latest_only.unwrap_or(false);
 
     if latest_only {
@@ -398,12 +404,17 @@ fn backup_worker(
 
     let mut errors = false;
 
-    for group in group_list {
+    for (group_number, group) in group_list.into_iter().enumerate() {
+        progress.done_groups = group_number as u64;
+        progress.done_snapshots = 0;
+        progress.group_snapshots = 0;
+
         let mut snapshot_list = group.list_backups(&datastore.base_path())?;
 
         BackupInfo::sort_list(&mut snapshot_list, true); // oldest first
 
         if latest_only {
+            progress.group_snapshots = 1;
             if let Some(info) = snapshot_list.pop() {
                 if pool_writer.contains_snapshot(&info.backup_dir.to_string()) {
                     continue;
@@ -412,9 +423,16 @@ fn backup_worker(
                 if !backup_snapshot(worker, &mut pool_writer, datastore.clone(), info.backup_dir)? {
                     errors = true;
                 }
+                progress.done_snapshots = 1;
+                task_log!(
+                    worker,
+                    "percentage done: {}",
+                    progress
+                );
             }
         } else {
-            for info in snapshot_list {
+            progress.group_snapshots = snapshot_list.len() as u64;
+            for (snapshot_number, info) in snapshot_list.into_iter().enumerate() {
                 if pool_writer.contains_snapshot(&info.backup_dir.to_string()) {
                     continue;
                 }
@@ -422,6 +440,12 @@ fn backup_worker(
                 if !backup_snapshot(worker, &mut pool_writer, datastore.clone(), info.backup_dir)? {
                     errors = true;
                 }
+                progress.done_snapshots = snapshot_number as u64 + 1;
+                task_log!(
+                    worker,
+                    "percentage done: {}",
+                    progress
+                );
             }
         }
     }
