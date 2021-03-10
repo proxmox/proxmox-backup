@@ -33,7 +33,7 @@ Ext.define('PBS.form.CalendarEvent', {
     config: {
 	deleteEmpty: true,
     },
-    // overide framework function to implement deleteEmpty behaviour
+    // override framework function to implement deleteEmpty behaviour
     getSubmitData: function() {
 	let me = this, data = null;
 	if (!me.disabled && me.submitValue) {
