@@ -6,7 +6,7 @@ set -e
 
 case "$1" in
     configure)
-	# need to have user backup in the tapoe group
+	# need to have user backup in the tape group
 	usermod -a -G tape backup
 
 	# modeled after dh_systemd_start output
