@@ -188,11 +188,13 @@ Ext.define('PBS.view.main.NavigationTree', {
 		}
 	    }
 
+	    let toremove = [];
 	    list.eachChild((child) => {
 		if (!newSet[child.data.path]) {
-		    list.removeChild(child, true);
+		    toremove.push(child);
 		}
 	    });
+	    toremove.forEach((child) => list.removeChild(child, true));
 
 	    if (view.pathToSelect !== undefined) {
 		let path = view.pathToSelect;
