@@ -122,7 +122,7 @@ Ext.define('PBS.view.main.NavigationTree', {
 		if (view.tapestore === undefined) {
 		    view.tapestore = Ext.create('Proxmox.data.UpdateStore', {
 			autoStart: true,
-			interval: 2 * 1000,
+			interval: 60 * 1000,
 			storeid: 'pbs-tape-drive-list',
 			model: 'pbs-tape-drive-list',
 		    });
@@ -267,6 +267,15 @@ Ext.define('PBS.view.main.NavigationTree', {
 	    }
 	    return true;
 	},
+    },
+
+    reloadTapeStore: function() {
+	let me = this;
+	if (!PBS.enableTapeUI) {
+	    return;
+	}
+
+	me.tapestore.load();
     },
 
     select: function(path, silent) {

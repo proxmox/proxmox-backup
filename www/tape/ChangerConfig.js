@@ -11,6 +11,11 @@ Ext.define('PBS.TapeManagement.ChangerPanel', {
     controller: {
 	xclass: 'Ext.app.ViewController',
 
+	reloadTapeStore: function() {
+	    let navtree = Ext.ComponentQuery.query('navigationtree')[0];
+	    navtree.reloadTapeStore();
+	},
+
 	onAdd: function() {
 	    let me = this;
 	    Ext.create('PBS.TapeManagement.ChangerEditWindow', {
@@ -40,6 +45,7 @@ Ext.define('PBS.TapeManagement.ChangerPanel', {
 
 	reload: function() {
 	    this.getView().getStore().rstore.load();
+	    this.reloadTapeStore();
 	},
 
 	stopStore: function() {
