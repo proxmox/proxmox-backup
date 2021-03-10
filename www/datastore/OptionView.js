@@ -42,7 +42,7 @@ Ext.define('PBS.Datastore.Options', {
     rows: {
 	"notify": {
 	    required: true,
-	    header: gettext('Notfiy'),
+	    header: gettext('Notify'),
 	    renderer: (value) => {
 		let notify = PBS.Utils.parsePropertyString(value);
 		let res = [];
@@ -59,7 +59,7 @@ Ext.define('PBS.Datastore.Options', {
 	"notify-user": {
 	    required: true,
 	    defaultValue: 'root@pam',
-	    header: gettext('Notfiy User'),
+	    header: gettext('Notify User'),
 	    editor: {
 		xtype: 'pbsNotifyOptionEdit',
 	    },
