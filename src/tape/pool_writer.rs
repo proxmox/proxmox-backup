@@ -374,7 +374,7 @@ impl PoolWriter {
 
         let elapsed =  start_time.elapsed()?.as_secs_f64();
         worker.log(format!(
-            "wrote {:.2} MB ({} MB/s)",
+            "wrote {:.2} MB ({:.2} MB/s)",
             bytes_written as f64 / (1024.0*1024.0),
             (bytes_written as f64)/(1024.0*1024.0*elapsed),
         ));
