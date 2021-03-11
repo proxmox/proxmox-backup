@@ -48,6 +48,11 @@ case "$1" in
 				        /etc/proxmox-backup/remote.cfg || true
 			fi
 		fi
+		# FIXME: remove with 2.0
+		if [ -d "/var/lib/proxmox-backup/tape" ] &&
+		   [ "$(stat --printf '%a' '/var/lib/proxmox-backup/tape')" != "750" ]; then
+			chmod 0750 /var/lib/proxmox-backup/tape || true
+		fi
 		# FIXME: Remove in future version once we're sure no broken entries remain in anyone's files
 		if grep -q -e ':termproxy::[^@]\+: ' /var/log/proxmox-backup/tasks/active; then
 			echo "Fixing up termproxy user id in task log..."
