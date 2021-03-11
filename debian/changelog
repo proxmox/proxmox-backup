@@ -1,3 +1,19 @@
+rust-proxmox-backup (1.0.10-1) unstable; urgency=medium
+
+  * tape: improve MediaPool allocation by sorting tapes by creation time and
+    label text
+
+  * api: tape backup: continue on vanishing snapshots, as a prune during long
+    running tape backup jobs is OK
+
+  * tape: fix scsi volume_statistics and cartridge_memory for quantum drives
+
+  * typo fixes all over the place
+
+  * d/postinst: restart, not reload, when updating from a to old version
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 11 Mar 2021 08:24:31 +0100
+
 rust-proxmox-backup (1.0.9-1) unstable; urgency=medium
 
   * client: track key source, print when used
