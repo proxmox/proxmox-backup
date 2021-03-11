@@ -12,7 +12,14 @@ case "$1" in
 	# modeled after dh_systemd_start output
 	systemctl --system daemon-reload >/dev/null || true
 	if [ -n "$2" ]; then
-		_dh_action=try-reload-or-restart
+		if dpkg --compare-versions "$2" 'lt' '1.0.7-1'; then
+			# there was an issue with reloading and systemd being confused in older daemon versions
+			# so restart instead of reload if upgrading from there, see commit 0ec79339f7aebf9
+			# FIXME: remove with PBS 2.1
+			_dh_action=try-restart
+		else
+			_dh_action=try-reload-or-restart
+		fi
 	else
 		_dh_action=start
 	fi
