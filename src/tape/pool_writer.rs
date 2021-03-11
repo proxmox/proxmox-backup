@@ -418,14 +418,17 @@ fn write_chunk_archive<'a>(
     let mut leom = false;
 
     loop {
-        let digest = match chunk_iter.next() {
+        let digest = match chunk_iter.peek() {
             None => break,
-            Some(digest) => digest?,
+            Some(Ok(digest)) => *digest,
+            Some(Err(err)) => bail!("{}", err),
         };
+
         if media_catalog.contains_chunk(&digest)
             || chunk_index.contains(&digest)
             || media_set_catalog.contains_chunk(&digest)
         {
+            chunk_iter.next(); // consume
             continue;
         }
 
@@ -433,11 +436,13 @@ fn write_chunk_archive<'a>(
         //println!("CHUNK {} size {}", proxmox::tools::digest_to_hex(&digest), blob.raw_size());
 
         match writer.try_write_chunk(&digest, &blob) {
-             Ok(true) => {
+            Ok(true) => {
+                chunk_iter.next(); // consume
                 chunk_index.insert(digest);
                 chunk_list.push(digest);
             }
             Ok(false) => {
+                // Note; we do not consume the chunk (no chunk_iter.next())
                 leom = true;
                 break;
             }

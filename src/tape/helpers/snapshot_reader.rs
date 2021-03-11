@@ -96,7 +96,6 @@ impl SnapshotReader {
 /// Note: The iterator returns a `Result`, and the iterator state is
 /// undefined after the first error. So it make no sense to continue
 /// iteration after the first error.
-#[derive(Clone)]
 pub struct SnapshotChunkIterator<'a> {
     snapshot_reader: &'a SnapshotReader,
     todo_list: Vec<String>,
