@@ -417,9 +417,9 @@ fn backup_worker(
             progress.group_snapshots = 1;
             if let Some(info) = snapshot_list.pop() {
                 if pool_writer.contains_snapshot(&info.backup_dir.to_string()) {
+                    task_log!(worker, "skip snapshot {}", info.backup_dir);
                     continue;
                 }
-                task_log!(worker, "backup snapshot {}", info.backup_dir);
                 if !backup_snapshot(worker, &mut pool_writer, datastore.clone(), info.backup_dir)? {
                     errors = true;
                 }
@@ -434,9 +434,9 @@ fn backup_worker(
             progress.group_snapshots = snapshot_list.len() as u64;
             for (snapshot_number, info) in snapshot_list.into_iter().enumerate() {
                 if pool_writer.contains_snapshot(&info.backup_dir.to_string()) {
+                    task_log!(worker, "skip snapshot {}", info.backup_dir);
                     continue;
                 }
-                task_log!(worker, "backup snapshot {}", info.backup_dir);
                 if !backup_snapshot(worker, &mut pool_writer, datastore.clone(), info.backup_dir)? {
                     errors = true;
                 }
@@ -497,7 +497,7 @@ pub fn backup_snapshot(
     snapshot: BackupDir,
 ) -> Result<bool, Error> {
 
-    task_log!(worker, "start backup {}:{}", datastore.name(), snapshot);
+    task_log!(worker, "backup snapshot {}", snapshot);
 
     let snapshot_reader = match SnapshotReader::new(datastore.clone(), snapshot.clone()) {
         Ok(reader) => reader,

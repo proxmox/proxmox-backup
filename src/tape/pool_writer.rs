@@ -374,7 +374,8 @@ impl PoolWriter {
 
         let elapsed =  start_time.elapsed()?.as_secs_f64();
         worker.log(format!(
-            "wrote {:.2} MB ({:.2} MB/s)",
+            "wrote {} chunks ({:.2} MiB at {:.2} MiB/s)",
+            saved_chunks.len(),
             bytes_written as f64 / (1024.0*1024.0),
             (bytes_written as f64)/(1024.0*1024.0*elapsed),
         ));
@@ -398,7 +399,7 @@ impl PoolWriter {
 
 /// write up to <max_size> of chunks
 fn write_chunk_archive<'a>(
-    worker: &WorkerTask,
+    _worker: &WorkerTask,
     writer: Box<dyn 'a + TapeWrite>,
     datastore: &DataStore,
     chunk_iter: &mut std::iter::Peekable<SnapshotChunkIterator>,
@@ -444,7 +445,7 @@ fn write_chunk_archive<'a>(
         }
 
         if writer.bytes_written() > max_size {
-            worker.log("Chunk Archive max size reached, closing archive".to_string());
+            //worker.log("Chunk Archive max size reached, closing archive".to_string());
             break;
         }
     }
