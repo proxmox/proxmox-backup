@@ -51,7 +51,10 @@ use crate::{
         VirtualTapeDrive,
         LinuxTapeDrive,
     },
-    server::WorkerTask,
+    server::{
+        send_load_media_email,
+        WorkerTask,
+    },
     tape::{
         TapeWrite,
         TapeRead,
@@ -66,7 +69,6 @@ use crate::{
         changer::{
             MediaChange,
             MtxMediaChanger,
-            send_load_media_email,
         },
     },
 };

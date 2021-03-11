@@ -1,8 +1,5 @@
 //! Media changer implementation (SCSI media changer)
 
-mod email;
-pub use email::*;
-
 pub mod sg_pt_changer;
 
 pub mod mtx;
