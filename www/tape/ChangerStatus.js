@@ -11,6 +11,29 @@ Ext.define('pbs-slot-model', {
     idProperty: 'entry-id',
 });
 
+Ext.define('PBS.TapeManagement.FreeSlotSelector', {
+    extend: 'Proxmox.form.ComboGrid',
+    alias: 'widget.pbsFreeSlotSelector',
+
+    valueField: 'id',
+    displayField: 'id',
+
+    listConfig: {
+	columns: [
+	    {
+		dataIndex: 'id',
+		text: gettext('ID'),
+		flex: 1,
+	    },
+	    {
+		dataIndex: 'type',
+		text: gettext('Type'),
+		flex: 1,
+	    },
+	],
+    },
+});
+
 Ext.define('PBS.TapeManagement.ChangerStatus', {
     extend: 'Ext.panel.Panel',
     alias: 'widget.pbsChangerStatus',
@@ -40,9 +63,12 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 			fieldLabel: gettext('From Slot'),
 		    },
 		    {
-			xtype: 'proxmoxintegerfield',
+			xtype: 'pbsFreeSlotSelector',
 			name: 'to',
 			fieldLabel: gettext('To Slot'),
+			store: {
+			    data: me.free_slots,
+			},
 		    },
 		],
 		listeners: {
@@ -73,9 +99,12 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 			fieldLabel: gettext('From Slot'),
 		    },
 		    {
-			xtype: 'proxmoxintegerfield',
+			xtype: 'pbsFreeSlotSelector',
 			name: 'to',
 			fieldLabel: gettext('To Slot'),
+			store: {
+			    data: me.free_slots.concat(me.free_ie_slots),
+			},
 		    },
 		],
 		listeners: {
@@ -340,6 +369,14 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	    me.reload_full(false);
 	},
 
+	free_slots: [],
+
+	updateFreeSlots: function(free_slots, free_ie_slots) {
+	    let me = this;
+	    me.free_slots = free_slots;
+	    me.free_ie_slots = free_ie_slots;
+	},
+
 	reload_full: async function(use_cache) {
 	    let me = this;
 	    let view = me.getView();
@@ -399,6 +436,9 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 		    drive_entries[entry['changer-drivenum'] || 0] = entry;
 		}
 
+		let free_slots = [];
+		let free_ie_slots = [];
+
 		for (let entry of status.result.data) {
 		    let type = entry['entry-kind'];
 
@@ -414,6 +454,19 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 			entry['is-labeled'] = false;
 		    }
 
+		    if (!entry['label-text'] && type !== 'drive') {
+			if (type === 'slot') {
+			    free_slots.push({
+				id: entry['entry-id'],
+				type,
+			    });
+			} else {
+			    free_ie_slots.push({
+				id: entry['entry-id'],
+				type,
+			    });
+			}
+		    }
 		    data[type].push(entry);
 		}
 
@@ -432,6 +485,8 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 
 		// manually fire selectionchange to update button status
 		me.lookup('drives').getSelectionModel().fireEvent('selectionchange', me);
+
+		me.updateFreeSlots(free_slots, free_ie_slots);
 
 		if (!use_cache) {
 		    Proxmox.Utils.setErrorMask(view);
