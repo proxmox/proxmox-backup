@@ -31,6 +31,7 @@ use proxmox_backup::{
             DRIVE_NAME_SCHEMA,
             MEDIA_LABEL_SCHEMA,
             MEDIA_POOL_NAME_SCHEMA,
+            Userid,
         },
     },
     config::{
@@ -862,6 +863,10 @@ async fn backup(mut param: Value) -> Result<(), Error> {
             "media-set": {
                 description: "Media set UUID.",
                 type: String,
+            },
+            "notify-user": {
+                type: Userid,
+                optional: true,
             },
             "output-format": {
                 schema: OUTPUT_FORMAT,
