@@ -752,10 +752,7 @@ fn get_metadata(fd: RawFd, stat: &FileStat, flags: Flags, fs_magic: i64) -> Resu
             flags: 0,
             uid: stat.st_uid,
             gid: stat.st_gid,
-            mtime: pxar::format::StatxTimestamp {
-                secs: stat.st_mtime,
-                nanos: stat.st_mtime_nsec as u32,
-            },
+            mtime: pxar::format::StatxTimestamp::new(stat.st_mtime, stat.st_mtime_nsec as u32),
         },
         ..Default::default()
     };
