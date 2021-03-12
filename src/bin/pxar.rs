@@ -130,22 +130,22 @@ fn extract_archive(
 ) -> Result<(), Error> {
     let mut feature_flags = Flags::DEFAULT;
     if no_xattrs {
-        feature_flags ^= Flags::WITH_XATTRS;
+        feature_flags.remove(Flags::WITH_XATTRS);
     }
     if no_fcaps {
-        feature_flags ^= Flags::WITH_FCAPS;
+        feature_flags.remove(Flags::WITH_FCAPS);
     }
     if no_acls {
-        feature_flags ^= Flags::WITH_ACL;
+        feature_flags.remove(Flags::WITH_ACL);
     }
     if no_device_nodes {
-        feature_flags ^= Flags::WITH_DEVICE_NODES;
+        feature_flags.remove(Flags::WITH_DEVICE_NODES);
     }
     if no_fifos {
-        feature_flags ^= Flags::WITH_FIFOS;
+        feature_flags.remove(Flags::WITH_FIFOS);
     }
     if no_sockets {
-        feature_flags ^= Flags::WITH_SOCKETS;
+        feature_flags.remove(Flags::WITH_SOCKETS);
     }
 
     let pattern = pattern.unwrap_or_else(Vec::new);
@@ -353,22 +353,22 @@ async fn create_archive(
     let writer = std::io::BufWriter::with_capacity(1024 * 1024, file);
     let mut feature_flags = Flags::DEFAULT;
     if no_xattrs {
-        feature_flags ^= Flags::WITH_XATTRS;
+        feature_flags.remove(Flags::WITH_XATTRS);
     }
     if no_fcaps {
-        feature_flags ^= Flags::WITH_FCAPS;
+        feature_flags.remove(Flags::WITH_FCAPS);
     }
     if no_acls {
-        feature_flags ^= Flags::WITH_ACL;
+        feature_flags.remove(Flags::WITH_ACL);
     }
     if no_device_nodes {
-        feature_flags ^= Flags::WITH_DEVICE_NODES;
+        feature_flags.remove(Flags::WITH_DEVICE_NODES);
     }
     if no_fifos {
-        feature_flags ^= Flags::WITH_FIFOS;
+        feature_flags.remove(Flags::WITH_FIFOS);
     }
     if no_sockets {
-        feature_flags ^= Flags::WITH_SOCKETS;
+        feature_flags.remove(Flags::WITH_SOCKETS);
     }
 
     let writer = pxar::encoder::sync::StandardWriter::new(writer);

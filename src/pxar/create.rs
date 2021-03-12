@@ -768,7 +768,7 @@ fn get_metadata(fd: RawFd, stat: &FileStat, flags: Flags, fs_magic: i64) -> Resu
 }
 
 fn get_fcaps(meta: &mut Metadata, fd: RawFd, flags: Flags) -> Result<(), Error> {
-    if flags.contains(Flags::WITH_FCAPS) {
+    if !flags.contains(Flags::WITH_FCAPS) {
         return Ok(());
     }
 
@@ -790,7 +790,7 @@ fn get_xattr_fcaps_acl(
     proc_path: &Path,
     flags: Flags,
 ) -> Result<(), Error> {
-    if flags.contains(Flags::WITH_XATTRS) {
+    if !flags.contains(Flags::WITH_XATTRS) {
         return Ok(());
     }
 
@@ -879,7 +879,7 @@ fn get_quota_project_id(
         return Ok(());
     }
 
-    if flags.contains(Flags::WITH_QUOTA_PROJID) {
+    if !flags.contains(Flags::WITH_QUOTA_PROJID) {
         return Ok(());
     }
 
@@ -914,7 +914,7 @@ fn get_quota_project_id(
 }
 
 fn get_acl(metadata: &mut Metadata, proc_path: &Path, flags: Flags) -> Result<(), Error> {
-    if flags.contains(Flags::WITH_ACL) {
+    if !flags.contains(Flags::WITH_ACL) {
         return Ok(());
     }
 
