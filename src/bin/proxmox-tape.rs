@@ -27,6 +27,7 @@ use proxmox_backup::{
     api2::{
         self,
         types::{
+            Authid,
             DATASTORE_SCHEMA,
             DRIVE_NAME_SCHEMA,
             MEDIA_LABEL_SCHEMA,
@@ -866,6 +867,10 @@ async fn backup(mut param: Value) -> Result<(), Error> {
             },
             "notify-user": {
                 type: Userid,
+                optional: true,
+            },
+            owner: {
+                type: Authid,
                 optional: true,
             },
             "output-format": {

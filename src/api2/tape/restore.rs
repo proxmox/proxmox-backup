@@ -40,6 +40,7 @@ use crate::{
         cached_user_info::CachedUserInfo,
         acl::{
             PRIV_DATASTORE_BACKUP,
+            PRIV_DATASTORE_MODIFY,
             PRIV_TAPE_READ,
         },
     },
@@ -105,6 +106,10 @@ pub const ROUTER: Router = Router::new()
                 type: Userid,
                 optional: true,
             },
+            owner: {
+                type: Authid,
+                optional: true,
+            },
         },
     },
     returns: {
@@ -123,6 +128,7 @@ pub fn restore(
     drive: String,
     media_set: String,
     notify_user: Option<Userid>,
+    owner: Option<Authid>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
@@ -132,6 +138,18 @@ pub fn restore(
     let privs = user_info.lookup_privs(&auth_id, &["datastore", &store]);
     if (privs & PRIV_DATASTORE_BACKUP) == 0 {
         bail!("no permissions on /datastore/{}", store);
+    }
+
+    if let Some(ref owner) = owner {
+        let correct_owner = owner == &auth_id
+                || (owner.is_token()
+                    && !auth_id.is_token()
+                    && owner.user() == auth_id.user());
+
+        // same permission as changing ownership after syncing
+        if !correct_owner && privs & PRIV_DATASTORE_MODIFY == 0 {
+            bail!("no permission to restore as '{}'", owner);
+        }
     }
 
     let privs = user_info.lookup_privs(&auth_id, &["tape", "drive", &drive]);
@@ -222,6 +240,7 @@ pub fn restore(
                     &datastore,
                     &auth_id,
                     &notify_user,
+                    &owner,
                 )?;
             }
 
@@ -252,6 +271,7 @@ pub fn request_and_restore_media(
     datastore: &DataStore,
     authid: &Authid,
     notify_user: &Option<Userid>,
+    owner: &Option<Authid>,
 ) -> Result<(), Error> {
 
     let media_set_uuid = match media_id.media_set_label {
@@ -284,7 +304,9 @@ pub fn request_and_restore_media(
         }
     }
 
-    restore_media(worker, &mut drive, &info, Some((datastore, authid)), false)
+    let restore_owner = owner.as_ref().unwrap_or(authid);
+
+    restore_media(worker, &mut drive, &info, Some((datastore, restore_owner)), false)
 }
 
 /// Restore complete media content and catalog
