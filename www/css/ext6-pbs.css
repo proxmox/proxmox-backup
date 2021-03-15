@@ -273,3 +273,7 @@ span.snapshot-comment-column {
     height: 20px;
     background-image:url(../images/icon-tape-drive.svg);
 }
+
+.info-pointer div.right-aligned {
+    cursor: pointer;
+}

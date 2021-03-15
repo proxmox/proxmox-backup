@@ -400,6 +400,7 @@ Ext.define('PBS.TapeManagement.DriveInfoPanel', {
 	},
 	{
 	    xtype: 'pmxInfoWidget',
+	    reference: 'statewidget',
 	    title: gettext('State'),
 	    bind: {
 		data: {
@@ -408,6 +409,23 @@ Ext.define('PBS.TapeManagement.DriveInfoPanel', {
 	    },
 	},
     ],
+
+    clickState: function(e, t, eOpts) {
+	let me = this;
+	let vm = me.getViewModel();
+	let drive = vm.get('drive');
+	if (t.classList.contains('right-aligned')) {
+	    let upid = drive.state;
+	    if (!upid || !upid.startsWith("UPID")) {
+		return;
+	    }
+
+	    Ext.create('Proxmox.window.TaskViewer', {
+		autoShow: true,
+		upid,
+	    });
+	}
+    },
 
     updateData: function(store) {
 	let me = this;
@@ -421,6 +439,16 @@ Ext.define('PBS.TapeManagement.DriveInfoPanel', {
 
 	let vm = me.getViewModel();
 	vm.set('drive', record.data);
+	let stateWidget = me.down('pmxInfoWidget[reference=statewidget]');
+	let stateEl = stateWidget.getEl();
+	stateEl.removeListener('click', me.clickState);
+	if (record.data.state) {
+	    stateEl.on('click', me.clickState, me);
+	    stateEl.addCls('info-pointer');
+	} else {
+	    stateEl.removeCls('info-pointer');
+	}
+
 	vm.notify();
     },
 
