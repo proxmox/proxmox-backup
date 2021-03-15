@@ -80,6 +80,7 @@ struct Zip64FieldWithOffset {
     uncompressed_size: u64,
     compressed_size: u64,
     offset: u64,
+    start_disk: u32,
 }
 
 #[derive(Endian)]
@@ -334,10 +335,11 @@ impl ZipEntry {
             &mut buf,
             Zip64FieldWithOffset {
                 field_type: 1,
-                field_size: 3 * 8,
+                field_size: 3 * 8 + 4,
                 uncompressed_size: self.uncompressed_size,
                 compressed_size: self.compressed_size,
                 offset: self.offset,
+                start_disk: 0,
             },
         )
         .await?;
