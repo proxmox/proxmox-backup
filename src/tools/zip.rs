@@ -301,9 +301,25 @@ impl ZipEntry {
         let filename_len = filename.len();
         let header_size = size_of::<CentralDirectoryFileHeader>();
         let zip_field_size = size_of::<Zip64FieldWithOffset>();
-        let size: usize = header_size + filename_len + zip_field_size;
+        let mut size: usize = header_size + filename_len;
 
         let (date, time) = epoch_to_dos(self.mtime);
+
+        let (compressed_size, uncompressed_size, offset, need_zip64) = if self.compressed_size
+            >= (u32::MAX as u64)
+            || self.uncompressed_size >= (u32::MAX as u64)
+            || self.offset >= (u32::MAX as u64)
+        {
+            size += zip_field_size;
+            (0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, true)
+        } else {
+            (
+                self.compressed_size as u32,
+                self.uncompressed_size as u32,
+                self.offset as u32,
+                false,
+            )
+        };
 
         write_struct(
             &mut buf,
@@ -316,33 +332,35 @@ impl ZipEntry {
                 time,
                 date,
                 crc32: self.crc32,
-                compressed_size: 0xFFFFFFFF,
-                uncompressed_size: 0xFFFFFFFF,
+                compressed_size,
+                uncompressed_size,
                 filename_len: filename_len as u16,
-                extra_field_len: zip_field_size as u16,
+                extra_field_len: if need_zip64 { zip_field_size as u16 } else { 0 },
                 comment_len: 0,
                 start_disk: 0,
                 internal_flags: 0,
                 external_flags: (self.mode as u32) << 16 | (!self.is_file as u32) << 4,
-                offset: 0xFFFFFFFF,
+                offset,
             },
         )
         .await?;
 
         buf.write_all(filename).await?;
 
-        write_struct(
-            &mut buf,
-            Zip64FieldWithOffset {
-                field_type: 1,
-                field_size: 3 * 8 + 4,
-                uncompressed_size: self.uncompressed_size,
-                compressed_size: self.compressed_size,
-                offset: self.offset,
-                start_disk: 0,
-            },
-        )
-        .await?;
+        if need_zip64 {
+            write_struct(
+                &mut buf,
+                Zip64FieldWithOffset {
+                    field_type: 1,
+                    field_size: 3 * 8 + 4,
+                    uncompressed_size: self.uncompressed_size,
+                    compressed_size: self.compressed_size,
+                    offset: self.offset,
+                    start_disk: 0,
+                },
+            )
+            .await?;
+        }
 
         Ok(size)
     }
