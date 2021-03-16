@@ -26,6 +26,7 @@ use crate::{
 /// This make it easy to iterate over all used chunks and files.
 pub struct SnapshotReader {
     snapshot: BackupDir,
+    datastore_name: String,
     file_list: Vec<String>,
     locked_dir: Dir,
 }
@@ -42,11 +43,13 @@ impl SnapshotReader {
             "snapshot",
             "locked by another operation")?;
 
+        let datastore_name = datastore.name().to_string();
+
         let manifest = match datastore.load_manifest(&snapshot) {
             Ok((manifest, _)) => manifest,
             Err(err) => {
                 bail!("manifest load error on datastore '{}' snapshot '{}' - {}",
-                      datastore.name(), snapshot, err);
+                      datastore_name, snapshot, err);
             }
         };
 
@@ -60,12 +63,17 @@ impl SnapshotReader {
             file_list.push(CLIENT_LOG_BLOB_NAME.to_string());
         }
 
-        Ok(Self { snapshot, file_list, locked_dir })
+        Ok(Self { snapshot, datastore_name, file_list, locked_dir })
     }
 
     /// Return the snapshot directory
     pub fn snapshot(&self) -> &BackupDir {
         &self.snapshot
+    }
+
+    /// Return the datastore name
+    pub fn datastore_name(&self) -> &str {
+        &self.datastore_name
     }
 
     /// Returns the list of files the snapshot refers to.
