@@ -69,6 +69,8 @@ Here, the output should be:
 
  f3f6c5a3a67baf38ad178e5ff1ee270c /etc/apt/trusted.gpg.d/proxmox-ve-release-6.x.gpg
 
+.. _sysadmin_package_repos_enterprise:
+
 `Proxmox Backup`_ Enterprise Repository
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

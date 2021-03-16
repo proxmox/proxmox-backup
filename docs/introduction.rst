@@ -76,15 +76,13 @@ Main Features
 :Open Source: No secrets. Proxmox Backup Server is free and open-source
    software. The source code is licensed under AGPL, v3.
 
-:Support: Proxmox Server Solutions GmbH offers enterprise support in the form of
-   `Proxmox Backup Server Subscription Plans
+:Enterprise Support: Proxmox Server Solutions GmbH offers enterprise support in
+   form of `Proxmox Backup Server Subscription Plans
    <https://www.proxmox.com/en/proxmox-backup-server/pricing>`_. Users at every
-   subscription level get access to the Proxmox Backup `Enterprise Repository
-   <https://192.168.23.140:8007/docs/package-repositories.html#proxmox-backup-enterprise-repository>`_.
-   In addition, with a Basic, Standard or Premium subscription, users have
-   access to the Proxmox Customer Portal. The Customer Portal provides support
-   with guaranteed response times from the Proxmox developers. For more
-   information or for volume discounts, please contact office@proxmox.com.
+   subscription level get access to the Proxmox Backup :ref:`Enterprise
+   Repository <sysadmin_package_repos_enterprise>`. In addition, with a Basic,
+   Standard or Premium subscription, users have access to the :ref:`Proxmox
+   Customer Portal <get_help_enterprise_support>`.
 
 
 Reasons for Data Backup?
@@ -140,6 +138,17 @@ language.
 
 Getting Help
 ------------
+
+.. _get_help_enterprise_support:
+
+Enterprise Support
+~~~~~~~~~~~~~~~~~~
+
+Users with a `Proxmox Backup Server Basic, Standard or Premium Subscription Plan
+<https://www.proxmox.com/en/proxmox-backup-server/pricing>`_ have access to the
+Proxmox Customer Portal. The Customer Portal provides support with guaranteed
+response times from the Proxmox developers.
+For more information or for volume discounts, please contact office@proxmox.com.
 
 Community Support Forum
 ~~~~~~~~~~~~~~~~~~~~~~~
