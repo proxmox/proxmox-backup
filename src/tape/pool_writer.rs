@@ -521,10 +521,10 @@ impl PoolWriter {
 
         let elapsed =  start_time.elapsed()?.as_secs_f64();
         worker.log(format!(
-            "wrote {} chunks ({:.2} MiB at {:.2} MiB/s)",
+            "wrote {} chunks ({:.2} MB at {:.2} MB/s)",
             saved_chunks.len(),
-            bytes_written as f64 / (1024.0*1024.0),
-            (bytes_written as f64)/(1024.0*1024.0*elapsed),
+            bytes_written as f64 /1_000_000.0,
+            (bytes_written as f64)/(1_000_000.0*elapsed),
         ));
 
         let request_sync = status.bytes_written >= COMMIT_BLOCK_SIZE;
