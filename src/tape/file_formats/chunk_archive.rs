@@ -14,9 +14,10 @@ use crate::tape::{
     TapeWrite,
     file_formats::{
         PROXMOX_TAPE_BLOCK_SIZE,
-        PROXMOX_BACKUP_CHUNK_ARCHIVE_MAGIC_1_0,
+        PROXMOX_BACKUP_CHUNK_ARCHIVE_MAGIC_1_1,
         PROXMOX_BACKUP_CHUNK_ARCHIVE_ENTRY_MAGIC_1_0,
         MediaContentHeader,
+        ChunkArchiveHeader,
         ChunkArchiveEntryHeader,
     },
 };
@@ -36,13 +37,20 @@ pub struct ChunkArchiveWriter<'a> {
 
 impl <'a> ChunkArchiveWriter<'a> {
 
-    pub const MAGIC: [u8; 8] = PROXMOX_BACKUP_CHUNK_ARCHIVE_MAGIC_1_0;
+    pub const MAGIC: [u8; 8] = PROXMOX_BACKUP_CHUNK_ARCHIVE_MAGIC_1_1;
 
     /// Creates a new instance
-    pub fn new(mut writer: Box<dyn TapeWrite + 'a>, close_on_leom: bool) -> Result<(Self,Uuid), Error> {
+    pub fn new(
+        mut writer: Box<dyn TapeWrite + 'a>,
+        store: &str,
+        close_on_leom: bool,
+    ) -> Result<(Self,Uuid), Error> {
 
-        let header = MediaContentHeader::new(Self::MAGIC, 0);
-        writer.write_header(&header, &[])?;
+        let archive_header = ChunkArchiveHeader { store: store.to_string() };
+        let header_data = serde_json::to_string_pretty(&archive_header)?.as_bytes().to_vec();
+
+        let header = MediaContentHeader::new(Self::MAGIC, header_data.len() as u32);
+        writer.write_header(&header, &header_data)?;
 
         let me = Self {
             writer: Some(writer),

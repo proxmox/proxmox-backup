@@ -402,6 +402,8 @@ fn backup_worker(
         task_log!(worker, "latest-only: true (only considering latest snapshots)");
     }
 
+    let datastore_name = datastore.name();
+
     let mut errors = false;
 
     for (group_number, group) in group_list.into_iter().enumerate() {
@@ -416,7 +418,7 @@ fn backup_worker(
         if latest_only {
             progress.group_snapshots = 1;
             if let Some(info) = snapshot_list.pop() {
-                if pool_writer.contains_snapshot(&info.backup_dir.to_string()) {
+                if pool_writer.contains_snapshot(datastore_name, &info.backup_dir.to_string()) {
                     task_log!(worker, "skip snapshot {}", info.backup_dir);
                     continue;
                 }
@@ -433,7 +435,7 @@ fn backup_worker(
         } else {
             progress.group_snapshots = snapshot_list.len() as u64;
             for (snapshot_number, info) in snapshot_list.into_iter().enumerate() {
-                if pool_writer.contains_snapshot(&info.backup_dir.to_string()) {
+                if pool_writer.contains_snapshot(datastore_name, &info.backup_dir.to_string()) {
                     task_log!(worker, "skip snapshot {}", info.backup_dir);
                     continue;
                 }
@@ -531,7 +533,7 @@ pub fn backup_snapshot(
 
         worker.check_abort()?;
 
-        let (leom, _bytes) = pool_writer.append_chunk_archive(worker, &mut chunk_iter)?;
+        let (leom, _bytes) = pool_writer.append_chunk_archive(worker, &mut chunk_iter, datastore.name())?;
 
         if leom {
             pool_writer.set_media_status_full(&uuid)?;

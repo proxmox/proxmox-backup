@@ -12,10 +12,12 @@ use crate::tape::{
     SnapshotReader,
     file_formats::{
         PROXMOX_TAPE_BLOCK_SIZE,
-        PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_0,
+        PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_1,
         MediaContentHeader,
+        SnapshotArchiveHeader,
     },
 };
+
 
 /// Write a set of files as `pxar` archive to the tape
 ///
@@ -31,12 +33,15 @@ pub fn tape_write_snapshot_archive<'a>(
 ) -> Result<Option<Uuid>, std::io::Error> {
 
     let snapshot = snapshot_reader.snapshot().to_string();
+    let store = snapshot_reader.datastore_name().to_string();
     let file_list = snapshot_reader.file_list();
 
-    let header_data = snapshot.as_bytes().to_vec();
+    let archive_header = SnapshotArchiveHeader { snapshot, store };
+
+    let header_data = serde_json::to_string_pretty(&archive_header)?.as_bytes().to_vec();
 
     let header = MediaContentHeader::new(
-        PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_0, header_data.len() as u32);
+        PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_1, header_data.len() as u32);
     let content_uuid = header.uuid.into();
 
     let root_metadata = pxar::Metadata::dir_builder(0o0664).build();

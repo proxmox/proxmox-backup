@@ -71,11 +71,15 @@ use crate::{
         file_formats::{
             PROXMOX_BACKUP_MEDIA_LABEL_MAGIC_1_0,
             PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_0,
+            PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_1,
             PROXMOX_BACKUP_MEDIA_SET_LABEL_MAGIC_1_0,
             PROXMOX_BACKUP_CONTENT_HEADER_MAGIC_1_0,
             PROXMOX_BACKUP_CHUNK_ARCHIVE_MAGIC_1_0,
+            PROXMOX_BACKUP_CHUNK_ARCHIVE_MAGIC_1_1,
             MediaContentHeader,
+            ChunkArchiveHeader,
             ChunkArchiveDecoder,
+            SnapshotArchiveHeader,
         },
         drive::{
             TapeDriver,
@@ -362,10 +366,18 @@ fn restore_archive<'a>(
             bail!("unexpected content magic (label)");
         }
         PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_0 => {
-            let snapshot = reader.read_exact_allocated(header.size as usize)?;
-            let snapshot = std::str::from_utf8(&snapshot)
-                .map_err(|_| format_err!("found snapshot archive with non-utf8 characters in name"))?;
-            task_log!(worker, "Found snapshot archive: {} {}", current_file_number, snapshot);
+            bail!("unexpected snapshot archive version (v1.0)");
+        }
+        PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_1 => {
+            let header_data = reader.read_exact_allocated(header.size as usize)?;
+
+            let archive_header: SnapshotArchiveHeader = serde_json::from_slice(&header_data)
+                .map_err(|err| format_err!("unable to parse snapshot archive header - {}", err))?;
+
+            let datastore_name = archive_header.store;
+            let snapshot = archive_header.snapshot;
+
+            task_log!(worker, "File {}: snapshot archive {}:{}", current_file_number, datastore_name, snapshot);
 
             let backup_dir: BackupDir = snapshot.parse()?;
 
@@ -393,7 +405,7 @@ fn restore_archive<'a>(
                             task_log!(worker, "skip incomplete snapshot {}", backup_dir);
                         }
                         Ok(true) => {
-                            catalog.register_snapshot(Uuid::from(header.uuid), current_file_number, snapshot)?;
+                            catalog.register_snapshot(Uuid::from(header.uuid), current_file_number, &datastore_name, &snapshot)?;
                             catalog.commit_if_large()?;
                         }
                     }
@@ -403,17 +415,26 @@ fn restore_archive<'a>(
 
             reader.skip_to_end()?; // read all data
             if let Ok(false) = reader.is_incomplete() {
-                catalog.register_snapshot(Uuid::from(header.uuid), current_file_number, snapshot)?;
+                catalog.register_snapshot(Uuid::from(header.uuid), current_file_number, &datastore_name, &snapshot)?;
                 catalog.commit_if_large()?;
             }
         }
         PROXMOX_BACKUP_CHUNK_ARCHIVE_MAGIC_1_0 => {
+            bail!("unexpected chunk archive version (v1.0)");
+        }
+        PROXMOX_BACKUP_CHUNK_ARCHIVE_MAGIC_1_1 => {
+            let header_data = reader.read_exact_allocated(header.size as usize)?;
 
-            task_log!(worker, "Found chunk archive: {}", current_file_number);
+            let archive_header: ChunkArchiveHeader = serde_json::from_slice(&header_data)
+                .map_err(|err| format_err!("unable to parse chunk archive header - {}", err))?;
+
+            let source_datastore = archive_header.store;
+
+            task_log!(worker, "File {}: chunk archive for datastore '{}'", current_file_number, source_datastore);
             let datastore = target.as_ref().map(|t| t.0);
 
             if let Some(chunks) = restore_chunk_archive(worker, reader, datastore, verbose)? {
-                catalog.start_chunk_archive(Uuid::from(header.uuid), current_file_number)?;
+                catalog.start_chunk_archive(Uuid::from(header.uuid), current_file_number, &source_datastore)?;
                 for digest in chunks.iter() {
                     catalog.register_chunk(&digest)?;
                 }

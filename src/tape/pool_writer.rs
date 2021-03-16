@@ -50,23 +50,23 @@ pub struct CatalogBuilder {
 impl CatalogBuilder {
 
     /// Test if the catalog already contains a snapshot
-    pub fn contains_snapshot(&self, snapshot: &str) -> bool {
+    pub fn contains_snapshot(&self, store: &str, snapshot: &str) -> bool {
         if let Some(ref catalog) = self.catalog {
-            if catalog.contains_snapshot(snapshot) {
+            if catalog.contains_snapshot(store, snapshot) {
                 return true;
             }
         }
-        self.media_set_catalog.contains_snapshot(snapshot)
+        self.media_set_catalog.contains_snapshot(store, snapshot)
     }
 
     /// Test if the catalog already contains a chunk
-    pub fn contains_chunk(&self, digest: &[u8;32]) -> bool {
+    pub fn contains_chunk(&self, store: &str, digest: &[u8;32]) -> bool {
         if let Some(ref catalog) = self.catalog {
-            if catalog.contains_chunk(digest) {
+            if catalog.contains_chunk(store, digest) {
                 return true;
             }
         }
-        self.media_set_catalog.contains_chunk(digest)
+        self.media_set_catalog.contains_chunk(store, digest)
     }
 
     /// Add a new catalog, move the old on to the read-only set
@@ -90,11 +90,12 @@ impl CatalogBuilder {
         &mut self,
         uuid: Uuid, // Uuid form MediaContentHeader
         file_number: u64,
+        store: &str,
         snapshot: &str,
     )  -> Result<(), Error> {
         match self.catalog {
             Some(ref mut catalog) => {
-                catalog.register_snapshot(uuid, file_number, snapshot)?;
+                catalog.register_snapshot(uuid, file_number, store, snapshot)?;
             }
             None => bail!("no catalog loaded - internal error"),
         }
@@ -106,11 +107,12 @@ impl CatalogBuilder {
         &mut self,
         uuid: Uuid, // Uuid form MediaContentHeader
         file_number: u64,
+        store: &str,
         chunk_list: &[[u8; 32]],
     ) -> Result<(), Error> {
         match self.catalog {
             Some(ref mut catalog) => {
-                catalog.start_chunk_archive(uuid, file_number)?;
+                catalog.start_chunk_archive(uuid, file_number, store)?;
                 for digest in chunk_list {
                     catalog.register_chunk(digest)?;
                 }
@@ -157,6 +159,8 @@ impl NewChunksIterator {
 
             let mut chunk_index: HashSet<[u8;32]> = HashSet::new();
 
+            let datastore_name = snapshot_reader.datastore_name();
+
             let result: Result<(), Error> = proxmox::try_block!({
 
                 let mut chunk_iter = snapshot_reader.chunk_iterator()?;
@@ -174,7 +178,7 @@ impl NewChunksIterator {
                         continue;
                     }
 
-                    if catalog_builder.lock().unwrap().contains_chunk(&digest) {
+                    if catalog_builder.lock().unwrap().contains_chunk(&datastore_name, &digest) {
                         continue;
                     };
 
@@ -279,8 +283,8 @@ impl PoolWriter {
         Ok(())
     }
 
-    pub fn contains_snapshot(&self, snapshot: &str) -> bool {
-        self.catalog_builder.lock().unwrap().contains_snapshot(snapshot)
+    pub fn contains_snapshot(&self, store: &str, snapshot: &str) -> bool {
+        self.catalog_builder.lock().unwrap().contains_snapshot(store, snapshot)
     }
 
     /// Eject media and drop PoolWriterState (close drive)
@@ -462,6 +466,7 @@ impl PoolWriter {
                     self.catalog_builder.lock().unwrap().register_snapshot(
                         content_uuid,
                         current_file_number,
+                        &snapshot_reader.datastore_name().to_string(),
                         &snapshot_reader.snapshot().to_string(),
                     )?;
                     (true, writer.bytes_written())
@@ -489,6 +494,7 @@ impl PoolWriter {
         &mut self,
         worker: &WorkerTask,
         chunk_iter: &mut std::iter::Peekable<NewChunksIterator>,
+        store: &str,
     ) -> Result<(bool, usize), Error> {
 
         let status = match self.status {
@@ -514,6 +520,7 @@ impl PoolWriter {
             worker,
             writer,
             chunk_iter,
+            store,
             MAX_CHUNK_ARCHIVE_SIZE,
         )?;
 
@@ -531,7 +538,7 @@ impl PoolWriter {
 
         // register chunks in media_catalog
         self.catalog_builder.lock().unwrap()
-            .register_chunk_archive(content_uuid, current_file_number, &saved_chunks)?;
+            .register_chunk_archive(content_uuid, current_file_number, store, &saved_chunks)?;
 
         if leom || request_sync {
             self.commit()?;
@@ -558,10 +565,11 @@ fn write_chunk_archive<'a>(
     _worker: &WorkerTask,
     writer: Box<dyn 'a + TapeWrite>,
     chunk_iter: &mut std::iter::Peekable<NewChunksIterator>,
+    store: &str,
     max_size: usize,
 ) -> Result<(Vec<[u8;32]>, Uuid, bool, usize), Error> {
 
-    let (mut writer, content_uuid) = ChunkArchiveWriter::new(writer, true)?;
+    let (mut writer, content_uuid) = ChunkArchiveWriter::new(writer, store, true)?;
 
     // we want to get the chunk list in correct order
     let mut chunk_list: Vec<[u8;32]> = Vec::new();

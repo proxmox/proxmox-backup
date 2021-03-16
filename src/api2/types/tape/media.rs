@@ -144,6 +144,8 @@ pub struct MediaContentEntry {
     pub seq_nr: u64,
     /// Media Pool
     pub pool: String,
+    /// Datastore Name
+    pub store: String,
     /// Backup snapshot
     pub snapshot: String,
     /// Snapshot creation time (epoch)
