@@ -661,7 +661,6 @@ fn update_media_set_label(
     }
 
     // todo: verify last content/media_catalog somehow?
-    drive.move_to_eom()?; // just to be sure
 
     Ok(media_catalog)
 }
