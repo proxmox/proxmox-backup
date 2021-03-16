@@ -65,10 +65,10 @@ Main Features
 :Compression: The ultra-fast Zstandard_ compression is able to compress
    several gigabytes of data per second.
 
-:Encryption: Backups can be encrypted on the client-side, using AES-256 in
-   Galois/Counter Mode (GCM_). This authenticated encryption (AE_) mode
-   provides very high performance on modern hardware. In addition to client-side
-   encryption, all data is transferred via a secure TLS connection.
+:Encryption: Backups can be encrypted on the client-side, using AES-256 GCM_.
+   This authenticated encryption (AE_) mode provides very high performance on
+   modern hardware. In addition to client-side encryption, all data is
+   transferred via a secure TLS connection.
 
 :Web interface: Manage the Proxmox Backup Server with the integrated, web-based
    user interface.
