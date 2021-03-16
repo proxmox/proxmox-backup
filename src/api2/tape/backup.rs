@@ -1,5 +1,5 @@
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Mutex, Arc};
 
 use anyhow::{bail, format_err, Error};
 use serde_json::Value;
@@ -508,25 +508,38 @@ pub fn backup_snapshot(
         }
     };
 
-    let mut chunk_iter = snapshot_reader.chunk_iterator()?.peekable();
+    let snapshot_reader = Arc::new(Mutex::new(snapshot_reader));
+
+    let (reader_thread, chunk_iter) = pool_writer.spawn_chunk_reader_thread(
+        datastore.clone(),
+        snapshot_reader.clone(),
+    )?;
+
+    let mut chunk_iter = chunk_iter.peekable();
 
     loop {
         worker.check_abort()?;
 
         // test is we have remaining chunks
-        if chunk_iter.peek().is_none() {
-            break;
+        match chunk_iter.peek() {
+            None => break,
+            Some(Ok(_)) => { /* Ok */ },
+            Some(Err(err)) => bail!("{}", err),
         }
 
         let uuid = pool_writer.load_writable_media(worker)?;
 
         worker.check_abort()?;
 
-        let (leom, _bytes) = pool_writer.append_chunk_archive(worker, &datastore, &mut chunk_iter)?;
+        let (leom, _bytes) = pool_writer.append_chunk_archive(worker, &mut chunk_iter)?;
 
         if leom {
             pool_writer.set_media_status_full(&uuid)?;
         }
+    }
+
+    if let Err(_) = reader_thread.join() {
+        bail!("chunk reader thread failed");
     }
 
     worker.check_abort()?;
@@ -534,6 +547,8 @@ pub fn backup_snapshot(
     let uuid = pool_writer.load_writable_media(worker)?;
 
     worker.check_abort()?;
+
+    let snapshot_reader = snapshot_reader.lock().unwrap();
 
     let (done, _bytes) = pool_writer.append_snapshot_archive(worker, &snapshot_reader)?;
 
