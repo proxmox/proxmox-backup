@@ -125,8 +125,8 @@ Proxmox Backup Server consists of multiple components:
 * A client CLI tool (`proxmox-backup-client`) to access the server easily from
   any `Linux amd64` environment
 
-Aside from the web interface, everything is written in the Rust programming
-language.
+Aside from the web interface, most parts of Proxmox Backup Server are written in
+the Rust programming language.
 
  "The Rust programming language helps you write faster, more reliable software.
  High-level ergonomics and low-level control are often at odds in programming
