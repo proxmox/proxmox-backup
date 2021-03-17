@@ -318,8 +318,11 @@ pub fn update_apt_auth(key: Option<String>, password: Option<String>) -> Result<
             replace_file(auth_conf, conf.as_bytes(), file_opts)
                 .map_err(|e| format_err!("Error saving apt auth config - {}", e))?;
         }
-        _ => nix::unistd::unlink(auth_conf)
-            .map_err(|e| format_err!("Error clearing apt auth config - {}", e))?,
+        _ => match nix::unistd::unlink(auth_conf) {
+            Ok(()) => Ok(()),
+            Err(nix::Error::Sys(nix::errno::Errno::ENOENT)) => Ok(()), // ignore not existing
+            Err(err) => Err(err),
+        }.map_err(|e| format_err!("Error clearing apt auth config - {}", e))?,
     }
     Ok(())
 }
