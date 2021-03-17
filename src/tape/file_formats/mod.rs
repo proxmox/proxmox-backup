@@ -58,6 +58,9 @@ pub const PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_0: [u8; 8] = [9, 182, 2, 31, 1
 // openssl::sha::sha256(b"Proxmox Backup Snapshot Archive v1.1")[0..8];
 pub const PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_1: [u8; 8] = [218, 22, 21, 208, 17, 226, 154, 98];
 
+// openssl::sha::sha256(b"Proxmox Backup Catalog Archive v1.0")[0..8];
+pub const PROXMOX_BACKUP_CATALOG_ARCHIVE_MAGIC_1_0: [u8; 8] = [183, 207, 199, 37, 158, 153, 30, 115];
+
 lazy_static::lazy_static!{
     // Map content magic numbers to human readable names.
     static ref PROXMOX_TAPE_CONTENT_NAME: HashMap<&'static [u8;8], &'static str> = {
@@ -68,6 +71,7 @@ lazy_static::lazy_static!{
         map.insert(&PROXMOX_BACKUP_CHUNK_ARCHIVE_MAGIC_1_1, "Proxmox Backup Chunk Archive v1.1");
         map.insert(&PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_0, "Proxmox Backup Snapshot Archive v1.0");
         map.insert(&PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_1, "Proxmox Backup Snapshot Archive v1.1");
+        map.insert(&PROXMOX_BACKUP_CATALOG_ARCHIVE_MAGIC_1_0, "Proxmox Backup Catalog Archive v1.0");
         map
     };
 }
