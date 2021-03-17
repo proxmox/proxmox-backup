@@ -469,17 +469,38 @@ Ext.define('PBS.TapeManagement.DriveInfoPanel', {
 
 	let vm = me.getViewModel();
 	vm.set('drive', record.data);
+	vm.notify();
+	me.updatePointer();
+    },
+
+    updatePointer: function() {
+	let me = this;
 	let stateWidget = me.down('pmxInfoWidget[reference=statewidget]');
 	let stateEl = stateWidget.getEl();
-	stateEl.removeListener('click', me.clickState);
-	if (record.data.state) {
-	    stateEl.on('click', me.clickState, me);
+	if (!stateEl) {
+	    setTimeout(function() {
+		me.updatePointer();
+	    }, 100);
+	    return;
+	}
+
+	let vm = me.getViewModel();
+	let drive = vm.get('drive');
+
+	if (drive.state) {
 	    stateEl.addCls('info-pointer');
 	} else {
 	    stateEl.removeCls('info-pointer');
 	}
+    },
 
-	vm.notify();
+    listeners: {
+	afterrender: function() {
+	    let me = this;
+	    let stateWidget = me.down('pmxInfoWidget[reference=statewidget]');
+	    let stateEl = stateWidget.getEl();
+	    stateEl.on('click', me.clickState, me);
+	},
     },
 
     initComponent: function() {
@@ -488,12 +509,12 @@ Ext.define('PBS.TapeManagement.DriveInfoPanel', {
 	    throw "no drive given";
 	}
 
+	me.callParent();
+
 	let tapeStore = Ext.ComponentQuery.query('navigationtree')[0].tapestore;
 	me.mon(tapeStore, 'load', me.updateData, me);
 	if (tapeStore.isLoaded()) {
 	    me.updateData(tapeStore);
 	}
-
-	me.callParent();
     },
 });
