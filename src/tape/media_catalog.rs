@@ -685,14 +685,18 @@ impl MediaCatalog {
                 b'S' => {
                     let entry: SnapshotEntry = unsafe { file.read_le_value()? };
                     let file_number = entry.file_number;
-                    let store_name_len = entry.store_name_len;
-                    let name_len = entry.name_len;
+                    let store_name_len = entry.store_name_len as usize;
+                    let name_len = entry.name_len as usize;
                     let uuid = Uuid::from(entry.uuid);
 
-                    let store = file.read_exact_allocated(store_name_len as usize + 1)?;
-                    let store = std::str::from_utf8(&store[..store_name_len as usize])?;
+                    let store = file.read_exact_allocated(store_name_len + 1)?;
+                    if store[store_name_len] != b':' {
+                        bail!("parse-error: missing separator in SnapshotEntry");
+                    }
 
-                    let snapshot = file.read_exact_allocated(name_len.into())?;
+                    let store = std::str::from_utf8(&store[..store_name_len])?;
+
+                    let snapshot = file.read_exact_allocated(name_len)?;
                     let snapshot = std::str::from_utf8(&snapshot)?;
 
                     self.check_register_snapshot(file_number, snapshot)?;
