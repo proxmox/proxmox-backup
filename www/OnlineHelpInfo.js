@@ -47,9 +47,17 @@ const proxmoxOnlineHelpInfo = {
     "link": "/docs/package-repositories.html#sysadmin-package-repositories",
     "title": "Debian Package Repositories"
   },
+  "sysadmin-package-repos-enterprise": {
+    "link": "/docs/package-repositories.html#sysadmin-package-repos-enterprise",
+    "title": "`Proxmox Backup`_ Enterprise Repository"
+  },
   "get-help": {
     "link": "/docs/introduction.html#get-help",
     "title": "Getting Help"
+  },
+  "get-help-enterprise-support": {
+    "link": "/docs/introduction.html#get-help-enterprise-support",
+    "title": "Enterprise Support"
   },
   "chapter-zfs": {
     "link": "/docs/sysadmin.html#chapter-zfs",
