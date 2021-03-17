@@ -84,6 +84,24 @@ Ext.define('PBS.TapeManagement.DriveStatus', {
 	    }).show();
 	},
 
+	erase: function() {
+	    let me = this;
+	    let view = me.getView();
+	    let driveid = view.drive;
+	    PBS.Utils.driveCommand(driveid, 'erase-media', {
+		waitMsgTarget: view,
+		method: 'POST',
+		success: function(response) {
+		    Ext.create('Proxmox.window.TaskProgress', {
+			upid: response.result.data,
+			taskDone: function() {
+			    me.reload();
+			},
+		    }).show();
+		},
+	    });
+	},
+
 	ejectMedia: function() {
 	    let me = this;
 	    let view = me.getView();
@@ -188,6 +206,18 @@ Ext.define('PBS.TapeManagement.DriveStatus', {
 	    xtype: 'proxmoxButton',
 	    handler: 'ejectMedia',
 	    iconCls: 'fa fa-eject',
+	    disabled: true,
+	    bind: {
+		disabled: '{!online}',
+	    },
+	},
+	{
+	    text: gettext('Erase'),
+	    xtype: 'proxmoxButton',
+	    handler: 'erase',
+	    iconCls: 'fa fa-trash-o',
+	    dangerous: true,
+	    confirmMsg: gettext('Are you sure you want to erase the inserted tape?'),
 	    disabled: true,
 	    bind: {
 		disabled: '{!online}',
