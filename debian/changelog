@@ -1,3 +1,16 @@
+rust-proxmox-backup (1.0.11-1) unstable; urgency=medium
+
+  * fix feature flag logic in pxar create
+
+  * tools/zip: add missing start_disk field for zip64 extension to improve
+    compatibility with some strict archive tools
+
+  * tape: speedup backup by doing read/write in parallel
+
+  * tape: store datastore name in tape archives and media catalog
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 18 Mar 2021 12:36:01 +0100
+
 rust-proxmox-backup (1.0.10-1) unstable; urgency=medium
 
   * tape: improve MediaPool allocation by sorting tapes by creation time and
