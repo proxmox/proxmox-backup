@@ -141,6 +141,88 @@ impl From<TimeSpan> for f64 {
     }
 }
 
+impl From<std::time::Duration> for TimeSpan {
+    fn from(duration: std::time::Duration) -> Self {
+        let mut duration = duration.as_nanos();
+        let nsec = (duration % 1000) as u64;
+        duration /= 1000;
+        let usec = (duration % 1000) as u64;
+        duration /= 1000;
+        let msec = (duration % 1000) as u64;
+        duration /= 1000;
+        let seconds = (duration % 60) as u64;
+        duration /= 60;
+        let minutes = (duration % 60) as u64;
+        duration /= 60;
+        let hours = (duration % 24) as u64;
+        duration /= 24;
+        let years = (duration as f64 / 365.25) as u64;
+        let ydays = (duration as f64 % 365.25) as u64;
+        let months = (ydays as f64 / 30.44) as u64;
+        let mdays = (ydays as f64 % 30.44) as u64;
+        let weeks = mdays / 7;
+        let days = mdays % 7;
+        Self {
+            nsec,
+            usec,
+            msec,
+            seconds,
+            minutes,
+            hours,
+            days,
+            weeks,
+            months,
+            years,
+        }
+    }
+}
+
+impl std::fmt::Display for TimeSpan {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        let mut first = true;
+        { // block scope for mutable borrows
+            let mut do_write = |v: u64, unit: &str| -> Result<(), std::fmt::Error> {
+                if !first {
+                    write!(f, " ")?;
+                }
+                first = false;
+                write!(f, "{}{}", v, unit)
+            };
+            if self.years > 0 {
+                do_write(self.years, "y")?;
+            }
+            if self.months > 0 {
+                do_write(self.months, "m")?;
+            }
+            if self.weeks > 0 {
+                do_write(self.weeks, "w")?;
+            }
+            if self.days > 0 {
+                do_write(self.days, "d")?;
+            }
+            if self.hours > 0 {
+                do_write(self.hours, "h")?;
+            }
+            if self.minutes > 0 {
+                do_write(self.minutes, "min")?;
+            }
+        }
+        if !first {
+            write!(f, " ")?;
+        }
+        let seconds = self.seconds as f64 + (self.msec as f64 / 1000.0);
+        if seconds >= 0.1 {
+            if seconds >= 1.0 || !first {
+                write!(f, "{:.0}s", seconds)?;
+            } else {
+                write!(f, "{:.1}s", seconds)?;
+            }
+        } else if first {
+            write!(f, "<0.1s")?;
+        }
+        Ok(())
+    }
+}
 
 pub fn verify_time_span(i: &str) -> Result<(), Error> {
     parse_time_span(i)?;
