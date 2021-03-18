@@ -253,9 +253,10 @@ impl PoolWriter {
 
         // load all catalogs read-only at start
         for media_uuid in pool.current_media_list()? {
+            let media_info = pool.lookup_media(media_uuid).unwrap();
             let media_catalog = MediaCatalog::open(
                 Path::new(TAPE_STATUS_DIR),
-                &media_uuid,
+                media_info.id(),
                 false,
                 false,
             )?;
@@ -655,7 +656,7 @@ fn update_media_set_label(
                 if new_set.encryption_key_fingerprint != media_set_label.encryption_key_fingerprint {
                     bail!("detected changed encryption fingerprint - internal error");
                 }
-                media_catalog = MediaCatalog::open(status_path, &media_id.label.uuid, true, false)?;
+                media_catalog = MediaCatalog::open(status_path, &media_id, true, false)?;
             } else {
                 worker.log(
                     format!("wrinting new media set label (overwrite '{}/{}')",

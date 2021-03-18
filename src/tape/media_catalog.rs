@@ -26,6 +26,7 @@ use crate::{
     backup::BackupDir,
     tape::{
         MediaId,
+        file_formats::MediaSetLabel,
     },
 };
 
@@ -136,10 +137,12 @@ impl MediaCatalog {
     /// Open a catalog database, load into memory
     pub fn open(
         base_path: &Path,
-        uuid: &Uuid,
+        media_id: &MediaId,
         write: bool,
         create: bool,
     ) -> Result<Self, Error> {
+
+        let uuid = &media_id.label.uuid;
 
         let mut path = base_path.to_owned();
         path.push(uuid.to_string());
@@ -169,7 +172,7 @@ impl MediaCatalog {
                 pending: Vec::new(),
             };
 
-            let found_magic_number = me.load_catalog(&mut file)?;
+            let found_magic_number = me.load_catalog(&mut file, media_id.media_set_label.as_ref())?;
 
             if !found_magic_number {
                 me.pending.extend(&Self::PROXMOX_BACKUP_MEDIA_CATALOG_MAGIC_1_1);
@@ -230,10 +233,10 @@ impl MediaCatalog {
 
             me.pending.extend(&Self::PROXMOX_BACKUP_MEDIA_CATALOG_MAGIC_1_1);
 
-            me.register_label(&media_id.label.uuid, 0)?;
+            me.register_label(&media_id.label.uuid, 0, 0)?;
 
             if let Some(ref set) = media_id.media_set_label {
-                me.register_label(&set.uuid, 1)?;
+                me.register_label(&set.uuid, set.seq_nr, 1)?;
             }
 
             me.commit()?;
@@ -364,10 +367,14 @@ impl MediaCatalog {
         }
     }
 
-    fn check_register_label(&self, file_number: u64) -> Result<(), Error> {
+    fn check_register_label(&self, file_number: u64, uuid: &Uuid) -> Result<(), Error> {
 
         if file_number >= 2 {
             bail!("register label failed: got wrong file number ({} >= 2)", file_number);
+        }
+
+        if file_number == 0 && uuid != &self.uuid {
+            bail!("register label failed: uuid does not match");
         }
 
         if self.current_archive.is_some() {
@@ -389,15 +396,21 @@ impl MediaCatalog {
     /// Register media labels (file 0 and 1)
     pub fn register_label(
         &mut self,
-        uuid: &Uuid, // Uuid form MediaContentHeader
+        uuid: &Uuid, // Media/MediaSet Uuid
+        seq_nr: u64, // onyl used for media set labels
         file_number: u64,
     ) -> Result<(), Error> {
 
-        self.check_register_label(file_number)?;
+        self.check_register_label(file_number, uuid)?;
+
+        if file_number == 0 && seq_nr != 0 {
+            bail!("register_label failed - seq_nr should be 0 - iternal error");
+        }
 
         let entry = LabelEntry {
             file_number,
             uuid: *uuid.as_bytes(),
+            seq_nr,
         };
 
         if self.log_to_stdout {
@@ -608,7 +621,11 @@ impl MediaCatalog {
         Ok(())
     }
 
-    fn load_catalog(&mut self, file: &mut File) -> Result<bool, Error> {
+    fn load_catalog(
+        &mut self,
+        file: &mut File,
+        media_set_label: Option<&MediaSetLabel>,
+    ) -> Result<bool, Error> {
 
         let mut file = BufReader::new(file);
         let mut found_magic_number = false;
@@ -713,7 +730,18 @@ impl MediaCatalog {
                     let file_number = entry.file_number;
                     let uuid = Uuid::from(entry.uuid);
 
-                    self.check_register_label(file_number)?;
+                    self.check_register_label(file_number, &uuid)?;
+
+                    if file_number == 1 {
+                        if let Some(set) = media_set_label {
+                            if set.uuid != uuid {
+                                bail!("got unexpected media set uuid");
+                            }
+                            if set.seq_nr != entry.seq_nr {
+                                bail!("got unexpected media set sequence number");
+                            }
+                        }
+                    }
 
                     self.last_entry = Some((uuid, file_number));
                 }
@@ -789,6 +817,7 @@ impl MediaSetCatalog {
 struct LabelEntry {
     file_number: u64,
     uuid: [u8;16],
+    seq_nr: u64, // only used for media set labels
 }
 
 #[derive(Endian)]

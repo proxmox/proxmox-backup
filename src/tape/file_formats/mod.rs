@@ -213,6 +213,17 @@ pub struct SnapshotArchiveHeader {
     pub store: String,
 }
 
+#[derive(Deserialize, Serialize)]
+/// Header for Catalog archives
+pub struct CatalogArchiveHeader {
+    /// The uuid of the media the catalog is for
+    pub uuid: Uuid,
+    /// The media set uuid the catalog is for
+    pub media_set_uuid: Uuid,
+    /// Media sequence number
+    pub seq_nr: u64,
+}
+
 #[derive(Serialize,Deserialize,Clone,Debug)]
 /// Media Label
 ///

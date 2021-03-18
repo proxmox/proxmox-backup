@@ -432,7 +432,7 @@ pub fn list_content(
             .generate_media_set_name(&set.uuid, template)
             .unwrap_or_else(|_| set.uuid.to_string());
 
-        let catalog = MediaCatalog::open(status_path, &media_id.label.uuid, false, false)?;
+        let catalog = MediaCatalog::open(status_path, &media_id, false, false)?;
 
         for (store, content) in catalog.content() {
             for snapshot in content.snapshot_index.keys() {
