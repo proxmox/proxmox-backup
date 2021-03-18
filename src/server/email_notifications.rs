@@ -185,6 +185,7 @@ lazy_static::lazy_static!{
         let result: Result<(), TemplateError> = try_block!({
 
             hb.set_strict_mode(true);
+            hb.register_escape_fn(handlebars::no_escape);
 
             hb.register_helper("human-bytes", Box::new(handlebars_humam_bytes_helper));
             hb.register_helper("relative-percentage", Box::new(handlebars_relative_percentage_helper));
