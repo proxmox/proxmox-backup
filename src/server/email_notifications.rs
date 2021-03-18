@@ -1,10 +1,11 @@
 use anyhow::Error;
 use serde_json::json;
 
-use handlebars::{Handlebars, Helper, Context, RenderError, RenderContext, Output, HelperResult};
+use handlebars::{Handlebars, Helper, Context, RenderError, RenderContext, Output, HelperResult, TemplateError};
 
 use proxmox::tools::email::sendmail;
 use proxmox::api::schema::parse_property_string;
+use proxmox::try_block;
 
 use crate::{
     config::datastore::DataStoreConfig,
@@ -181,25 +182,33 @@ lazy_static::lazy_static!{
 
     static ref HANDLEBARS: Handlebars<'static> = {
         let mut hb = Handlebars::new();
+        let result: Result<(), TemplateError> = try_block!({
 
-        hb.set_strict_mode(true);
+            hb.set_strict_mode(true);
 
-        hb.register_helper("human-bytes", Box::new(handlebars_humam_bytes_helper));
-        hb.register_helper("relative-percentage", Box::new(handlebars_relative_percentage_helper));
+            hb.register_helper("human-bytes", Box::new(handlebars_humam_bytes_helper));
+            hb.register_helper("relative-percentage", Box::new(handlebars_relative_percentage_helper));
 
-        hb.register_template_string("gc_ok_template", GC_OK_TEMPLATE).unwrap();
-        hb.register_template_string("gc_err_template", GC_ERR_TEMPLATE).unwrap();
+            hb.register_template_string("gc_ok_template", GC_OK_TEMPLATE)?;
+            hb.register_template_string("gc_err_template", GC_ERR_TEMPLATE)?;
 
-        hb.register_template_string("verify_ok_template", VERIFY_OK_TEMPLATE).unwrap();
-        hb.register_template_string("verify_err_template", VERIFY_ERR_TEMPLATE).unwrap();
+            hb.register_template_string("verify_ok_template", VERIFY_OK_TEMPLATE)?;
+            hb.register_template_string("verify_err_template", VERIFY_ERR_TEMPLATE)?;
 
-        hb.register_template_string("sync_ok_template", SYNC_OK_TEMPLATE).unwrap();
-        hb.register_template_string("sync_err_template", SYNC_ERR_TEMPLATE).unwrap();
+            hb.register_template_string("sync_ok_template", SYNC_OK_TEMPLATE)?;
+            hb.register_template_string("sync_err_template", SYNC_ERR_TEMPLATE)?;
 
-        hb.register_template_string("tape_backup_ok_template", TAPE_BACKUP_OK_TEMPLATE).unwrap();
-        hb.register_template_string("tape_backup_err_template", TAPE_BACKUP_ERR_TEMPLATE).unwrap();
+            hb.register_template_string("tape_backup_ok_template", TAPE_BACKUP_OK_TEMPLATE)?;
+            hb.register_template_string("tape_backup_err_template", TAPE_BACKUP_ERR_TEMPLATE)?;
 
-        hb.register_template_string("package_update_template", PACKAGE_UPDATES_TEMPLATE).unwrap();
+            hb.register_template_string("package_update_template", PACKAGE_UPDATES_TEMPLATE)?;
+
+            Ok(())
+        });
+
+        if let Err(err) = result {
+            eprintln!("error during template registration: {}", err);
+        }
 
         hb
     };
@@ -599,4 +608,24 @@ fn handlebars_relative_percentage_helper(
         out.write(&format!("{:.2}%", (param0*100.0)/param1))?;
     }
     Ok(())
+}
+
+#[test]
+fn test_template_register() {
+    HANDLEBARS.get_helper("human-bytes").unwrap();
+    HANDLEBARS.get_helper("relative-percentage").unwrap();
+
+    assert!(HANDLEBARS.has_template("gc_ok_template"));
+    assert!(HANDLEBARS.has_template("gc_err_template"));
+
+    assert!(HANDLEBARS.has_template("verify_ok_template"));
+    assert!(HANDLEBARS.has_template("verify_err_template"));
+
+    assert!(HANDLEBARS.has_template("sync_ok_template"));
+    assert!(HANDLEBARS.has_template("sync_err_template"));
+
+    assert!(HANDLEBARS.has_template("tape_backup_ok_template"));
+    assert!(HANDLEBARS.has_template("tape_backup_err_template"));
+
+    assert!(HANDLEBARS.has_template("package_update_template"));
 }
