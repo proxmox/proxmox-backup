@@ -287,6 +287,28 @@ impl PoolWriter {
         Ok(file)
     }
 
+    // Check it tape is loaded, then move to EOM (if not already there)
+    //
+    // Returns the tape position at EOM.
+    fn prepare_tape_write(
+        status: &mut PoolWriterState,
+        worker: &WorkerTask,
+    ) -> Result<u64, Error> {
+
+        if !status.at_eom {
+            worker.log(String::from("moving to end of media"));
+            status.drive.move_to_eom()?;
+            status.at_eom = true;
+        }
+
+        let current_file_number = status.drive.current_file_number()?;
+        if current_file_number < 2 {
+            bail!("got strange file position number from drive ({})", current_file_number);
+        }
+
+        Ok(current_file_number)
+    }
+
     /// Move to EOM (if not already there), then write the current
     /// catalog to the tape. On success, this return 'Ok(true)'.
 
@@ -304,16 +326,7 @@ impl PoolWriter {
             None => bail!("PoolWriter - no media loaded"),
         };
 
-        if !status.at_eom {
-            worker.log(String::from("moving to end of media"));
-            status.drive.move_to_eom()?;
-            status.at_eom = true;
-        }
-
-        let current_file_number = status.drive.current_file_number()?;
-        if current_file_number < 2 {
-            bail!("got strange file position number from drive ({})", current_file_number);
-        }
+        Self::prepare_tape_write(status, worker)?;
 
         let catalog_set = self.catalog_set.lock().unwrap();
 
@@ -372,16 +385,7 @@ impl PoolWriter {
             None => bail!("PoolWriter - no media loaded"),
         };
 
-        if !status.at_eom {
-            worker.log(String::from("moving to end of media"));
-            status.drive.move_to_eom()?;
-            status.at_eom = true;
-        }
-
-        let current_file_number = status.drive.current_file_number()?;
-        if current_file_number < 2 {
-            bail!("got strange file position number from drive ({})", current_file_number);
-        }
+        Self::prepare_tape_write(status, worker)?;
 
         for (seq_nr, uuid) in media_list.iter().enumerate() {
 
@@ -431,16 +435,7 @@ impl PoolWriter {
             None => bail!("PoolWriter - no media loaded"),
         };
 
-        if !status.at_eom {
-            worker.log(String::from("moving to end of media"));
-            status.drive.move_to_eom()?;
-            status.at_eom = true;
-        }
-
-        let current_file_number = status.drive.current_file_number()?;
-        if current_file_number < 2 {
-            bail!("got strange file position number from drive ({})", current_file_number);
-        }
+        let current_file_number = Self::prepare_tape_write(status, worker)?;
 
         let (done, bytes_written) = {
             let mut writer: Box<dyn TapeWrite> = status.drive.write_file()?;
@@ -486,16 +481,8 @@ impl PoolWriter {
             None => bail!("PoolWriter - no media loaded"),
         };
 
-        if !status.at_eom {
-            worker.log(String::from("moving to end of media"));
-            status.drive.move_to_eom()?;
-            status.at_eom = true;
-        }
+        let current_file_number = Self::prepare_tape_write(status, worker)?;
 
-        let current_file_number = status.drive.current_file_number()?;
-        if current_file_number < 2 {
-            bail!("got strange file position number from drive ({})", current_file_number);
-        }
         let writer = status.drive.write_file()?;
 
         let start_time = SystemTime::now();
