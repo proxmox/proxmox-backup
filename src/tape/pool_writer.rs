@@ -219,6 +219,8 @@ impl Iterator for NewChunksIterator {
 
 struct PoolWriterState {
     drive: Box<dyn TapeDriver>,
+    // Media Uuid from loaded media
+    media_uuid: Uuid,
     // tell if we already moved to EOM
     at_eom: bool,
     // bytes written after the last tape fush/sync
@@ -368,8 +370,8 @@ impl PoolWriter {
 
     /// Load a writable media into the drive
     pub fn load_writable_media(&mut self, worker: &WorkerTask) -> Result<Uuid, Error> {
-        let last_media_uuid = match self.catalog_set.lock().unwrap().catalog {
-            Some(ref catalog) => Some(catalog.uuid().clone()),
+        let last_media_uuid = match self.status {
+            Some(PoolWriterState { ref media_uuid, ..}) => Some(media_uuid.clone()),
             None => None,
         };
 
@@ -412,7 +414,7 @@ impl PoolWriter {
             }
         }
 
-        let (catalog, new_media) = update_media_set_label(
+        let (catalog, is_new_media) = update_media_set_label(
             worker,
             drive.as_mut(),
             old_media_id.media_set_label,
@@ -430,9 +432,14 @@ impl PoolWriter {
 
         drive.set_encryption(encrypt_fingerprint)?;
 
-        self.status = Some(PoolWriterState { drive, at_eom: false, bytes_written: 0 });
+        self.status = Some(PoolWriterState {
+            drive,
+            media_uuid: media_uuid.clone(),
+            at_eom: false,
+            bytes_written: 0,
+        });
 
-        if new_media {
+        if is_new_media {
             // add catalogs from previous media
             self.append_media_set_catalogs(worker)?;
         }
