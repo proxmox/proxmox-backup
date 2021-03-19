@@ -33,6 +33,7 @@ use crate::{
     },
     server::{
         lookup_user_email,
+        TapeBackupJobSummary,
         jobstate::{
             Job,
             JobState,
@@ -198,13 +199,16 @@ pub fn do_tape_backup_job(
             let notify_user = setup.notify_user.as_ref().unwrap_or_else(|| &Userid::root_userid());
             let email = lookup_user_email(notify_user);
 
-            let job_result = backup_worker(
+            let (job_result, summary) = match backup_worker(
                 &worker,
                 datastore,
                 &pool_config,
                 &setup,
                 email.clone(),
-            );
+            ) {
+                Ok(summary) => (Ok(()), summary),
+                Err(err) => (Err(err), Default::default()),
+            };
 
             let status = worker.create_state(&job_result);
 
@@ -214,6 +218,7 @@ pub fn do_tape_backup_job(
                     Some(job.jobname()),
                     &setup,
                     &job_result,
+                    summary,
                 ) {
                     eprintln!("send tape backup notification failed: {}", err);
                 }
@@ -340,13 +345,17 @@ pub fn backup(
         move |worker| {
             let _drive_lock = drive_lock; // keep lock guard
             set_tape_device_state(&setup.drive, &worker.upid().to_string())?;
-            let job_result = backup_worker(
+
+            let (job_result, summary) = match backup_worker(
                 &worker,
                 datastore,
                 &pool_config,
                 &setup,
                 email.clone(),
-            );
+            ) {
+                Ok(summary) => (Ok(()), summary),
+                Err(err) => (Err(err), Default::default()),
+            };
 
             if let Some(email) = email {
                 if let Err(err) = crate::server::send_tape_backup_status(
@@ -354,6 +363,7 @@ pub fn backup(
                     None,
                     &setup,
                     &job_result,
+                    summary,
                 ) {
                     eprintln!("send tape backup notification failed: {}", err);
                 }
@@ -374,9 +384,11 @@ fn backup_worker(
     pool_config: &MediaPoolConfig,
     setup: &TapeBackupJobSetup,
     email: Option<String>,
-) -> Result<(), Error> {
+) -> Result<TapeBackupJobSummary, Error> {
 
     let status_path = Path::new(TAPE_STATUS_DIR);
+    let start = std::time::Instant::now();
+    let mut summary: TapeBackupJobSummary = Default::default();
 
     let _lock = MediaPool::lock(status_path, &pool_config.name)?;
 
@@ -422,8 +434,11 @@ fn backup_worker(
                     task_log!(worker, "skip snapshot {}", info.backup_dir);
                     continue;
                 }
+                let snapshot_name = info.backup_dir.to_string();
                 if !backup_snapshot(worker, &mut pool_writer, datastore.clone(), info.backup_dir)? {
                     errors = true;
+                } else {
+                    summary.snapshot_list.push(snapshot_name);
                 }
                 progress.done_snapshots = 1;
                 task_log!(
@@ -439,8 +454,11 @@ fn backup_worker(
                     task_log!(worker, "skip snapshot {}", info.backup_dir);
                     continue;
                 }
+                let snapshot_name = info.backup_dir.to_string();
                 if !backup_snapshot(worker, &mut pool_writer, datastore.clone(), info.backup_dir)? {
                     errors = true;
+                } else {
+                    summary.snapshot_list.push(snapshot_name);
                 }
                 progress.done_snapshots = snapshot_number as u64 + 1;
                 task_log!(
@@ -478,7 +496,9 @@ fn backup_worker(
         bail!("Tape backup finished with some errors. Please check the task log.");
     }
 
-    Ok(())
+    summary.duration = start.elapsed();
+
+    Ok(summary)
 }
 
 // Try to update the the media online status

@@ -149,6 +149,14 @@ Datastore:  {{job.store}}
 Tape Pool:  {{job.pool}}
 Tape Drive: {{job.drive}}
 
+{{#if snapshot-list ~}}
+Snapshots included:
+
+{{#each snapshot-list~}}
+{{this}}
+{{/each~}}
+{{/if}}
+Duration: {{duration}}
 
 Tape Backup successful.
 
@@ -213,6 +221,15 @@ lazy_static::lazy_static!{
 
         hb
     };
+}
+
+/// Summary of a successful Tape Job
+#[derive(Default)]
+pub struct TapeBackupJobSummary {
+    /// The list of snaphots backed up
+    pub snapshot_list: Vec<String>,
+    /// The total time of the backup job
+    pub duration: std::time::Duration,
 }
 
 fn send_job_status_mail(
@@ -412,14 +429,18 @@ pub fn send_tape_backup_status(
     id: Option<&str>,
     job: &TapeBackupJobSetup,
     result: &Result<(), Error>,
+    summary: TapeBackupJobSummary,
 ) -> Result<(), Error> {
 
     let (fqdn, port) = get_server_url();
+    let duration: crate::tools::systemd::time::TimeSpan = summary.duration.into();
     let mut data = json!({
         "job": job,
         "fqdn": fqdn,
         "port": port,
         "id": id,
+        "snapshot-list": summary.snapshot_list,
+        "duration": duration.to_string(),
     });
 
     let text = match result {
