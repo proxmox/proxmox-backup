@@ -5,6 +5,7 @@ use anyhow::{bail, format_err, Error};
 use serde_json::Value;
 
 use proxmox::{
+    try_block,
     api::{
         api,
         RpcEnvironment,
@@ -177,8 +178,15 @@ pub fn do_tape_backup_job(
 
     let (drive_config, _digest) = config::drive::config()?;
 
-    // early check/lock before starting worker
-    let drive_lock = lock_tape_device(&drive_config, &setup.drive)?;
+    // for scheduled jobs we acquire the lock later in the worker
+    let drive_lock = if schedule.is_some() {
+        None
+    } else {
+        Some(lock_tape_device(&drive_config, &setup.drive)?)
+    };
+
+    let notify_user = setup.notify_user.as_ref().unwrap_or_else(|| &Userid::root_userid());
+    let email = lookup_user_email(notify_user);
 
     let upid_str = WorkerTask::new_thread(
         &worker_type,
@@ -186,26 +194,37 @@ pub fn do_tape_backup_job(
         auth_id.clone(),
         false,
         move |worker| {
-            let _drive_lock = drive_lock; // keep lock guard
-
-            set_tape_device_state(&setup.drive, &worker.upid().to_string())?;
             job.start(&worker.upid().to_string())?;
+            let mut drive_lock = drive_lock;
 
-            task_log!(worker,"Starting tape backup job '{}'", job_id);
-            if let Some(event_str) = schedule {
-                task_log!(worker,"task triggered by schedule '{}'", event_str);
-            }
+            let (job_result, summary) = match try_block!({
+                if schedule.is_some() {
+                    // for scheduled tape backup jobs, we wait indefinitely for the lock
+                    task_log!(worker, "waiting for drive lock...");
+                    loop {
+                        if let Ok(lock) = lock_tape_device(&drive_config, &setup.drive) {
+                            drive_lock = Some(lock);
+                            break;
+                        } // ignore errors
 
-            let notify_user = setup.notify_user.as_ref().unwrap_or_else(|| &Userid::root_userid());
-            let email = lookup_user_email(notify_user);
+                        worker.check_abort()?;
+                    }
+                }
+                set_tape_device_state(&setup.drive, &worker.upid().to_string())?;
 
-            let (job_result, summary) = match backup_worker(
-                &worker,
-                datastore,
-                &pool_config,
-                &setup,
-                email.clone(),
-            ) {
+                task_log!(worker,"Starting tape backup job '{}'", job_id);
+                if let Some(event_str) = schedule {
+                    task_log!(worker,"task triggered by schedule '{}'", event_str);
+                }
+
+                backup_worker(
+                    &worker,
+                    datastore,
+                    &pool_config,
+                    &setup,
+                    email.clone(),
+                )
+            }) {
                 Ok(summary) => (Ok(()), summary),
                 Err(err) => (Err(err), Default::default()),
             };
