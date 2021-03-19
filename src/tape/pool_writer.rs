@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::path::Path;
+use std::fs::File;
 use std::time::SystemTime;
 use std::sync::{Arc, Mutex};
 
@@ -28,6 +29,7 @@ use crate::{
             MediaSetLabel,
             ChunkArchiveWriter,
             tape_write_snapshot_archive,
+            tape_write_catalog,
         },
         drive::{
             TapeDriver,
@@ -234,7 +236,12 @@ pub struct PoolWriter {
 
 impl PoolWriter {
 
-    pub fn new(mut pool: MediaPool, drive_name: &str, worker: &WorkerTask, notify_email: Option<String>) -> Result<Self, Error> {
+    pub fn new(
+        mut pool: MediaPool,
+        drive_name: &str,
+        worker: &WorkerTask,
+        notify_email: Option<String>,
+    ) -> Result<Self, Error> {
 
         let current_time = proxmox::tools::time::epoch_i64();
 
@@ -247,7 +254,8 @@ impl PoolWriter {
             );
         }
 
-        task_log!(worker, "media set uuid: {}", pool.current_media_set());
+        let media_set_uuid = pool.current_media_set().uuid();
+        task_log!(worker, "media set uuid: {}", media_set_uuid);
 
         let mut media_set_catalog = MediaSetCatalog::new();
 
@@ -404,7 +412,7 @@ impl PoolWriter {
             }
         }
 
-        let catalog = update_media_set_label(
+        let (catalog, new_media) = update_media_set_label(
             worker,
             drive.as_mut(),
             old_media_id.media_set_label,
@@ -424,7 +432,149 @@ impl PoolWriter {
 
         self.status = Some(PoolWriterState { drive, at_eom: false, bytes_written: 0 });
 
+        if new_media {
+            // add catalogs from previous media
+            self.append_media_set_catalogs(worker)?;
+        }
+
         Ok(media_uuid)
+    }
+
+    fn open_catalog_file(uuid: &Uuid) -> Result<File, Error> {
+
+        let status_path = Path::new(TAPE_STATUS_DIR);
+        let mut path = status_path.to_owned();
+        path.push(uuid.to_string());
+        path.set_extension("log");
+
+        let file = std::fs::OpenOptions::new()
+            .read(true)
+            .open(&path)?;
+
+        Ok(file)
+    }
+
+    /// Move to EOM (if not already there), then write the current
+    /// catalog to the tape. On success, this return 'Ok(true)'.
+
+    /// Please note that this may fail when there is not enough space
+    /// on the media (return value 'Ok(false, _)'). In that case, the
+    /// archive is marked incomplete. The caller should mark the media
+    /// as full and try again using another media.
+    pub fn append_catalog_archive(
+        &mut self,
+        worker: &WorkerTask,
+    ) -> Result<bool, Error> {
+
+        let status = match self.status {
+            Some(ref mut status) => status,
+            None => bail!("PoolWriter - no media loaded"),
+        };
+
+        if !status.at_eom {
+            worker.log(String::from("moving to end of media"));
+            status.drive.move_to_eom()?;
+            status.at_eom = true;
+        }
+
+        let current_file_number = status.drive.current_file_number()?;
+        if current_file_number < 2 {
+            bail!("got strange file position number from drive ({})", current_file_number);
+        }
+
+        let catalog_builder = self.catalog_builder.lock().unwrap();
+
+        let catalog = match catalog_builder.catalog {
+            None => bail!("append_catalog_archive failed: no catalog - internal error"),
+            Some(ref catalog) => catalog,
+        };
+
+        let media_set = self.pool.current_media_set();
+
+        let media_list = media_set.media_list();
+        let uuid = match media_list.last() {
+            None => bail!("got empty media list - internal error"),
+            Some(None) => bail!("got incomplete media list - internal error"),
+            Some(Some(last_uuid)) => {
+                if last_uuid != catalog.uuid() {
+                    bail!("got wrong media - internal error");
+                }
+                last_uuid
+            }
+        };
+
+        let seq_nr = media_list.len() - 1;
+
+        let mut writer: Box<dyn TapeWrite> = status.drive.write_file()?;
+
+        let mut file = Self::open_catalog_file(uuid)?;
+
+        let done = tape_write_catalog(
+            writer.as_mut(),
+            uuid,
+            media_set.uuid(),
+            seq_nr,
+            &mut file,
+        )?.is_some();
+
+        Ok(done)
+    }
+
+    // Append catalogs for all previous media in set (without last)
+    fn append_media_set_catalogs(
+        &mut self,
+        worker: &WorkerTask,
+    ) -> Result<(), Error> {
+
+        let media_set = self.pool.current_media_set();
+
+        let mut media_list = &media_set.media_list()[..];
+        if media_list.len() < 2 {
+            return Ok(());
+        }
+        media_list = &media_list[..(media_list.len()-1)];
+
+        let status = match self.status {
+            Some(ref mut status) => status,
+            None => bail!("PoolWriter - no media loaded"),
+        };
+
+        if !status.at_eom {
+            worker.log(String::from("moving to end of media"));
+            status.drive.move_to_eom()?;
+            status.at_eom = true;
+        }
+
+        let current_file_number = status.drive.current_file_number()?;
+        if current_file_number < 2 {
+            bail!("got strange file position number from drive ({})", current_file_number);
+        }
+
+        for (seq_nr, uuid) in media_list.iter().enumerate() {
+
+            let uuid = match uuid {
+                None => bail!("got incomplete media list - internal error"),
+                Some(uuid) => uuid,
+            };
+
+            let mut writer: Box<dyn TapeWrite> = status.drive.write_file()?;
+
+            let mut file = Self::open_catalog_file(uuid)?;
+
+            task_log!(worker, "write catalog for previous media: {}", uuid);
+
+            if tape_write_catalog(
+                writer.as_mut(),
+                uuid,
+                media_set.uuid(),
+                seq_nr,
+                &mut file,
+            )?.is_none() {
+                bail!("got EOM while writing start catalog");
+            }
+        }
+
+        Ok(())
     }
 
     /// Move to EOM (if not already there), then creates a new snapshot
@@ -618,7 +768,7 @@ fn update_media_set_label(
     drive: &mut dyn TapeDriver,
     old_set: Option<MediaSetLabel>,
     media_id: &MediaId,
-) -> Result<MediaCatalog, Error> {
+) -> Result<(MediaCatalog, bool), Error> {
 
     let media_catalog;
 
@@ -641,11 +791,12 @@ fn update_media_set_label(
 
     let status_path = Path::new(TAPE_STATUS_DIR);
 
-    match old_set {
+    let new_media = match old_set {
         None => {
             worker.log("wrinting new media set label".to_string());
             drive.write_media_set_label(new_set, key_config.as_ref())?;
             media_catalog = MediaCatalog::overwrite(status_path, media_id, false)?;
+            true
         }
         Some(media_set_label) => {
             if new_set.uuid == media_set_label.uuid {
@@ -657,6 +808,10 @@ fn update_media_set_label(
                     bail!("detected changed encryption fingerprint - internal error");
                 }
                 media_catalog = MediaCatalog::open(status_path, &media_id, true, false)?;
+
+                // todo: verify last content/media_catalog somehow?
+
+                false
             } else {
                 worker.log(
                     format!("wrinting new media set label (overwrite '{}/{}')",
@@ -665,11 +820,10 @@ fn update_media_set_label(
 
                 drive.write_media_set_label(new_set, key_config.as_ref())?;
                 media_catalog = MediaCatalog::overwrite(status_path, media_id, false)?;
+                true
             }
         }
-    }
+    };
 
-    // todo: verify last content/media_catalog somehow?
-
-    Ok(media_catalog)
+    Ok((media_catalog, new_media))
 }

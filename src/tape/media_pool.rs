@@ -101,9 +101,9 @@ impl MediaPool {
         self.force_media_availability = true;
     }
 
-    /// Returns the Uuid of the current media set
-    pub fn current_media_set(&self) -> &Uuid {
-        self.current_media_set.uuid()
+    /// Returns the the current media set
+    pub fn current_media_set(&self) -> &MediaSet {
+        &self.current_media_set
     }
 
     /// Creates a new instance using the media pool configuration

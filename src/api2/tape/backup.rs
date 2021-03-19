@@ -454,6 +454,20 @@ fn backup_worker(
 
     pool_writer.commit()?;
 
+    task_log!(worker, "append media catalog");
+
+    let uuid = pool_writer.load_writable_media(worker)?;
+    let done = pool_writer.append_catalog_archive(worker)?;
+    if !done {
+        task_log!(worker, "catalog does not fit on tape, writing to next volume");
+        pool_writer.set_media_status_full(&uuid)?;
+        pool_writer.load_writable_media(worker)?;
+        let done = pool_writer.append_catalog_archive(worker)?;
+        if !done {
+            bail!("write_catalog_archive failed on second media");
+        }
+    }
+
     if setup.export_media_set.unwrap_or(false) {
         pool_writer.export_media_set(worker)?;
     } else if setup.eject_media.unwrap_or(false) {

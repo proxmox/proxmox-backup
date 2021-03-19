@@ -13,6 +13,9 @@ pub use chunk_archive::*;
 mod snapshot_archive;
 pub use snapshot_archive::*;
 
+mod catalog_archive;
+pub use catalog_archive::*;
+
 mod multi_volume_writer;
 pub use multi_volume_writer::*;
 
