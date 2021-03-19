@@ -42,14 +42,14 @@ use crate::{
 };
 
 /// Helper to build and query sets of catalogs
-pub struct CatalogBuilder {
+pub struct CatalogSet {
     // read only part
     media_set_catalog: MediaSetCatalog,
     // catalog to modify (latest in  set)
     catalog: Option<MediaCatalog>,
 }
 
-impl CatalogBuilder {
+impl CatalogSet {
 
     /// Test if the catalog already contains a snapshot
     pub fn contains_snapshot(&self, store: &str, snapshot: &str) -> bool {
@@ -150,7 +150,7 @@ impl NewChunksIterator {
     pub fn spawn(
         datastore: Arc<DataStore>,
         snapshot_reader: Arc<Mutex<SnapshotReader>>,
-        catalog_builder: Arc<Mutex<CatalogBuilder>>,
+        catalog_set: Arc<Mutex<CatalogSet>>,
     ) -> Result<(std::thread::JoinHandle<()>, Self), Error> {
 
         let (tx, rx) = std::sync::mpsc::sync_channel(3);
@@ -180,7 +180,7 @@ impl NewChunksIterator {
                         continue;
                     }
 
-                    if catalog_builder.lock().unwrap().contains_chunk(&datastore_name, &digest) {
+                    if catalog_set.lock().unwrap().contains_chunk(&datastore_name, &digest) {
                         continue;
                     };
 
@@ -230,7 +230,7 @@ pub struct PoolWriter {
     pool: MediaPool,
     drive_name: String,
     status: Option<PoolWriterState>,
-    catalog_builder: Arc<Mutex<CatalogBuilder>>,
+    catalog_set: Arc<Mutex<CatalogSet>>,
     notify_email: Option<String>,
 }
 
@@ -271,13 +271,13 @@ impl PoolWriter {
             media_set_catalog.append_catalog(media_catalog)?;
         }
 
-        let catalog_builder = CatalogBuilder { media_set_catalog, catalog: None };
+        let catalog_set = CatalogSet { media_set_catalog, catalog: None };
 
         Ok(Self {
             pool,
             drive_name: drive_name.to_string(),
             status: None,
-            catalog_builder: Arc::new(Mutex::new(catalog_builder)),
+            catalog_set: Arc::new(Mutex::new(catalog_set)),
             notify_email,
          })
     }
@@ -293,7 +293,7 @@ impl PoolWriter {
     }
 
     pub fn contains_snapshot(&self, store: &str, snapshot: &str) -> bool {
-        self.catalog_builder.lock().unwrap().contains_snapshot(store, snapshot)
+        self.catalog_set.lock().unwrap().contains_snapshot(store, snapshot)
     }
 
     /// Eject media and drop PoolWriterState (close drive)
@@ -362,13 +362,13 @@ impl PoolWriter {
          if let Some(PoolWriterState {ref mut drive, .. }) = self.status {
             drive.sync()?; // sync all data to the tape
         }
-        self.catalog_builder.lock().unwrap().commit()?; // then commit the catalog
+        self.catalog_set.lock().unwrap().commit()?; // then commit the catalog
         Ok(())
     }
 
     /// Load a writable media into the drive
     pub fn load_writable_media(&mut self, worker: &WorkerTask) -> Result<Uuid, Error> {
-        let last_media_uuid = match self.catalog_builder.lock().unwrap().catalog {
+        let last_media_uuid = match self.catalog_set.lock().unwrap().catalog {
             Some(ref catalog) => Some(catalog.uuid().clone()),
             None => None,
         };
@@ -419,7 +419,7 @@ impl PoolWriter {
             media.id(),
         )?;
 
-        self.catalog_builder.lock().unwrap().append_catalog(catalog)?;
+        self.catalog_set.lock().unwrap().append_catalog(catalog)?;
 
         let media_set = media.media_set_label().clone().unwrap();
 
@@ -482,9 +482,9 @@ impl PoolWriter {
             bail!("got strange file position number from drive ({})", current_file_number);
         }
 
-        let catalog_builder = self.catalog_builder.lock().unwrap();
+        let catalog_set = self.catalog_set.lock().unwrap();
 
-        let catalog = match catalog_builder.catalog {
+        let catalog = match catalog_set.catalog {
             None => bail!("append_catalog_archive failed: no catalog - internal error"),
             Some(ref catalog) => catalog,
         };
@@ -614,7 +614,7 @@ impl PoolWriter {
 
             match tape_write_snapshot_archive(writer.as_mut(), snapshot_reader)? {
                 Some(content_uuid) => {
-                    self.catalog_builder.lock().unwrap().register_snapshot(
+                    self.catalog_set.lock().unwrap().register_snapshot(
                         content_uuid,
                         current_file_number,
                         &snapshot_reader.datastore_name().to_string(),
@@ -688,7 +688,7 @@ impl PoolWriter {
         let request_sync = status.bytes_written >= COMMIT_BLOCK_SIZE;
 
         // register chunks in media_catalog
-        self.catalog_builder.lock().unwrap()
+        self.catalog_set.lock().unwrap()
             .register_chunk_archive(content_uuid, current_file_number, store, &saved_chunks)?;
 
         if leom || request_sync {
@@ -706,7 +706,7 @@ impl PoolWriter {
         NewChunksIterator::spawn(
             datastore,
             snapshot_reader,
-            Arc::clone(&self.catalog_builder),
+            Arc::clone(&self.catalog_set),
         )
     }
 }
