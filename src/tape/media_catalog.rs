@@ -313,6 +313,9 @@ impl MediaCatalog {
 
     /// Conditionally commit if in pending data is large (> 1Mb)
     pub fn commit_if_large(&mut self) -> Result<(), Error> {
+        if self.current_archive.is_some() {
+            bail!("can't commit catalog in the middle of an chunk archive");
+        }
         if self.pending.len() > 1024*1024 {
             self.commit()?;
         }
