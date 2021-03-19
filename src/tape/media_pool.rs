@@ -441,9 +441,7 @@ impl MediaPool {
         println!("no expired media in pool, try to find unassigned/free media");
 
         // try unassigned media
-
-        // lock artificial "__UNASSIGNED__" pool to avoid races
-        let _lock = MediaPool::lock(&self.state_path, "__UNASSIGNED__")?;
+        let _lock = Self::lock_unassigned_media_pool(&self.state_path)?;
 
         self.inventory.reload()?;
 
@@ -573,6 +571,12 @@ impl MediaPool {
         let lock = proxmox::tools::fs::open_file_locked(&path, timeout, true)?;
 
         Ok(MediaPoolLockGuard(lock))
+    }
+
+    /// Lock for media not assigned to any pool
+    pub fn lock_unassigned_media_pool(base_path: &Path)  -> Result<MediaPoolLockGuard, Error> {
+        // lock artificial "__UNASSIGNED__" pool to avoid races
+        MediaPool::lock(base_path, "__UNASSIGNED__")
     }
 }
 
