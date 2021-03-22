@@ -3,10 +3,30 @@
 //! The Inventory persistently stores the list of known backup
 //! media. A backup media is identified by its 'MediaId', which is the
 //! MediaLabel/MediaSetLabel combination.
+//!
+//! Inventory Locking
+//!
+//! The inventory itself has several methods to update single entries,
+//! but all of them can be considered atomic.
+//!
+//! Pool Locking
+//!
+//! To add/modify media assigned to a pool, we always do
+//! lock_media_pool(). For unassigned media, we call
+//! lock_unassigned_media_pool().
+//!
+//! MediaSet Locking
+//!
+//! To add/remove media from a media set, or to modify catalogs we
+//! always do lock_media_set(). Also, we aquire this lock during
+//! restore, to make sure it is not reused for backups.
+//!
 
 use std::collections::{HashMap, BTreeMap};
 use std::path::{Path, PathBuf};
 use std::os::unix::io::AsRawFd;
+use std::fs::File;
+use std::time::Duration;
 
 use anyhow::{bail, Error};
 use serde::{Serialize, Deserialize};
@@ -78,7 +98,8 @@ impl Inventory {
     pub const MEDIA_INVENTORY_FILENAME: &'static str = "inventory.json";
     pub const MEDIA_INVENTORY_LOCKFILE: &'static str = ".inventory.lck";
 
-    fn new(base_path: &Path) -> Self {
+    /// Create empty instance, no data loaded
+    pub fn new(base_path: &Path) -> Self {
 
         let mut inventory_path = base_path.to_owned();
         inventory_path.push(Self::MEDIA_INVENTORY_FILENAME);
@@ -127,7 +148,7 @@ impl Inventory {
     }
 
     /// Lock the database
-    pub fn lock(&self) -> Result<std::fs::File, Error> {
+    fn lock(&self) -> Result<std::fs::File, Error> {
         let file = open_file_locked(&self.lockfile_path, std::time::Duration::new(10, 0), true)?;
         if cfg!(test) {
             // We cannot use chown inside test environment (no permissions)
@@ -731,6 +752,52 @@ impl Inventory {
         Ok(())
     }
 
+}
+
+/// Lock a media pool
+pub fn lock_media_pool(base_path: &Path, name: &str) -> Result<File, Error> {
+    let mut path = base_path.to_owned();
+    path.push(format!(".pool-{}", name));
+    path.set_extension("lck");
+
+    let timeout = std::time::Duration::new(10, 0);
+    let lock = proxmox::tools::fs::open_file_locked(&path, timeout, true)?;
+
+    let backup_user = crate::backup::backup_user()?;
+    fchown(lock.as_raw_fd(), Some(backup_user.uid), Some(backup_user.gid))?;
+
+    Ok(lock)
+}
+
+/// Lock for media not assigned to any pool
+pub fn lock_unassigned_media_pool(base_path: &Path)  -> Result<File, Error> {
+    // lock artificial "__UNASSIGNED__" pool to avoid races
+    lock_media_pool(base_path, "__UNASSIGNED__")
+}
+
+/// Lock a media set
+///
+/// Timeout is 10 seconds by default
+pub fn lock_media_set(
+    base_path: &Path,
+    media_set_uuid: &Uuid,
+    timeout: Option<Duration>,
+) -> Result<File, Error> {
+    let mut path = base_path.to_owned();
+    path.push(format!(".media-set-{}", media_set_uuid));
+    path.set_extension("lck");
+
+    let timeout = timeout.unwrap_or(Duration::new(10, 0));
+    let file = open_file_locked(&path, timeout, true)?;
+    if cfg!(test) {
+        // We cannot use chown inside test environment (no permissions)
+        return Ok(file);
+    }
+
+    let backup_user = crate::backup::backup_user()?;
+    fchown(file.as_raw_fd(), Some(backup_user.uid), Some(backup_user.gid))?;
+
+    Ok(file)
 }
 
 // shell completion helper

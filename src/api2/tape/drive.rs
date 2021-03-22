@@ -53,10 +53,12 @@ use crate::{
     server::WorkerTask,
     tape::{
         TAPE_STATUS_DIR,
-        MediaPool,
         Inventory,
         MediaCatalog,
         MediaId,
+        lock_media_set,
+        lock_media_pool,
+        lock_unassigned_media_pool,
         linux_tape_device_list,
         lookup_device_identification,
         file_formats::{
@@ -373,10 +375,19 @@ pub fn erase_media(
                     );
 
                     let status_path = Path::new(TAPE_STATUS_DIR);
-                    let mut inventory = Inventory::load(status_path)?;
+                    let mut inventory = Inventory::new(status_path);
 
-                    MediaCatalog::destroy(status_path, &media_id.label.uuid)?;
-                    inventory.remove_media(&media_id.label.uuid)?;
+                    if let Some(MediaSetLabel { ref pool, ref uuid, ..}) =  media_id.media_set_label {
+                        let _pool_lock = lock_media_pool(status_path, pool)?;
+                        let _media_set_lock = lock_media_set(status_path, uuid, None)?;
+                        MediaCatalog::destroy(status_path, &media_id.label.uuid)?;
+                        inventory.remove_media(&media_id.label.uuid)?;
+                    } else {
+                        let _lock = lock_unassigned_media_pool(status_path)?;
+                        MediaCatalog::destroy(status_path, &media_id.label.uuid)?;
+                        inventory.remove_media(&media_id.label.uuid)?;
+                    };
+
                     handle.erase_media(fast.unwrap_or(true))?;
                 }
             }
@@ -548,28 +559,37 @@ fn write_media_label(
 
     drive.label_tape(&label)?;
 
-    let mut media_set_label = None;
+    let status_path = Path::new(TAPE_STATUS_DIR);
 
-    if let Some(ref pool) = pool {
+    let media_id = if let Some(ref pool) = pool {
         // assign media to pool by writing special media set label
         worker.log(format!("Label media '{}' for pool '{}'", label.label_text, pool));
         let set = MediaSetLabel::with_data(&pool, [0u8; 16].into(), 0, label.ctime, None);
 
         drive.write_media_set_label(&set, None)?;
-        media_set_label = Some(set);
+
+        let media_id = MediaId { label, media_set_label: Some(set) };
+
+        // Create the media catalog
+        MediaCatalog::overwrite(status_path, &media_id, false)?;
+
+        let mut inventory = Inventory::new(status_path);
+        inventory.store(media_id.clone(), false)?;
+
+        media_id
     } else {
         worker.log(format!("Label media '{}' (no pool assignment)", label.label_text));
-    }
 
-    let media_id = MediaId { label, media_set_label };
+        let media_id = MediaId { label, media_set_label: None };
 
-    let status_path = Path::new(TAPE_STATUS_DIR);
+        // Create the media catalog
+        MediaCatalog::overwrite(status_path, &media_id, false)?;
 
-    // Create the media catalog
-    MediaCatalog::overwrite(status_path, &media_id, false)?;
+        let mut inventory = Inventory::new(status_path);
+        inventory.store(media_id.clone(), false)?;
 
-    let mut inventory = Inventory::load(status_path)?;
-    inventory.store(media_id.clone(), false)?;
+        media_id
+    };
 
     drive.rewind()?;
 
@@ -705,14 +725,24 @@ pub async fn read_label(
 
                         if let Err(err) = drive.set_encryption(encrypt_fingerprint) {
                             // try, but ignore errors. just log to stderr
-                            eprintln!("uable to load encryption key: {}", err);
+                            eprintln!("unable to load encryption key: {}", err);
                         }
                     }
 
                     if let Some(true) = inventorize {
                         let state_path = Path::new(TAPE_STATUS_DIR);
-                        let mut inventory = Inventory::load(state_path)?;
-                        inventory.store(media_id, false)?;
+                        let mut inventory = Inventory::new(state_path);
+
+                        if let Some(MediaSetLabel { ref pool, ref uuid, ..}) =  media_id.media_set_label {
+                            let _pool_lock = lock_media_pool(state_path, pool)?;
+                            let _lock = lock_media_set(state_path, uuid, None)?;
+                            MediaCatalog::destroy_unrelated_catalog(state_path, &media_id)?;
+                            inventory.store(media_id, false)?;
+                        } else {
+                            let _lock = lock_unassigned_media_pool(state_path)?;
+                            MediaCatalog::destroy(state_path, &media_id.label.uuid)?;
+                            inventory.store(media_id, false)?;
+                        };
                     }
 
                     flat
@@ -947,7 +977,17 @@ pub fn update_inventory(
                             continue;
                         }
                         worker.log(format!("inventorize media '{}' with uuid '{}'", label_text, media_id.label.uuid));
-                        inventory.store(media_id, false)?;
+
+                        if let Some(MediaSetLabel { ref pool, ref uuid, ..}) =  media_id.media_set_label {
+                            let _pool_lock = lock_media_pool(state_path, pool)?;
+                            let _lock = lock_media_set(state_path, uuid, None)?;
+                            MediaCatalog::destroy_unrelated_catalog(state_path, &media_id)?;
+                            inventory.store(media_id, false)?;
+                        } else {
+                            let _lock = lock_unassigned_media_pool(state_path)?;
+                            MediaCatalog::destroy(state_path, &media_id.label.uuid)?;
+                            inventory.store(media_id, false)?;
+                        };
                     }
                 }
                 changer.unload_media(None)?;
@@ -1237,19 +1277,22 @@ pub fn catalog_media(
 
             let status_path = Path::new(TAPE_STATUS_DIR);
 
-            let mut inventory = Inventory::load(status_path)?;
-            inventory.store(media_id.clone(), false)?;
+            let mut inventory = Inventory::new(status_path);
 
-            let pool = match media_id.media_set_label {
+            let _media_set_lock = match media_id.media_set_label {
                 None => {
                     worker.log("media is empty");
+                    let _lock = lock_unassigned_media_pool(status_path)?;
                     MediaCatalog::destroy(status_path, &media_id.label.uuid)?;
+                    inventory.store(media_id.clone(), false)?;
                     return Ok(());
                 }
                 Some(ref set) => {
                     if set.uuid.as_ref() == [0u8;16] { // media is empty
                         worker.log("media is empty");
+                        let _lock = lock_unassigned_media_pool(status_path)?;
                         MediaCatalog::destroy(status_path, &media_id.label.uuid)?;
+                        inventory.store(media_id.clone(), false)?;
                         return Ok(());
                     }
                     let encrypt_fingerprint = set.encryption_key_fingerprint.clone()
@@ -1257,16 +1300,22 @@ pub fn catalog_media(
 
                     drive.set_encryption(encrypt_fingerprint)?;
 
-                    set.pool.clone()
+                    let _pool_lock = lock_media_pool(status_path, &set.pool)?;
+                    let media_set_lock = lock_media_set(status_path, &set.uuid, None)?;
+
+                    MediaCatalog::destroy_unrelated_catalog(status_path, &media_id)?;
+
+                    inventory.store(media_id.clone(), false)?;
+
+                    media_set_lock
                 }
             };
-
-            let _lock = MediaPool::lock(status_path, &pool)?;
 
             if MediaCatalog::exists(status_path, &media_id.label.uuid) && !force {
                 bail!("media catalog exists (please use --force to overwrite)");
             }
 
+             // fixme: implement fast catalog restore
             restore_media(&worker, &mut drive, &media_id, None, verbose)?;
 
             Ok(())

@@ -409,12 +409,10 @@ fn backup_worker(
     let start = std::time::Instant::now();
     let mut summary: TapeBackupJobSummary = Default::default();
 
-    let _lock = MediaPool::lock(status_path, &pool_config.name)?;
-
     task_log!(worker, "update media online status");
     let changer_name = update_media_online_status(&setup.drive)?;
 
-    let pool = MediaPool::with_config(status_path, &pool_config, changer_name)?;
+    let pool = MediaPool::with_config(status_path, &pool_config, changer_name, false)?;
 
     let mut pool_writer = PoolWriter::new(pool, &setup.drive, worker, email)?;
 

@@ -122,7 +122,7 @@ pub async fn list_media(
         let config: MediaPoolConfig = config.lookup("pool", pool_name)?;
 
         let changer_name = None; // assume standalone drive
-        let mut pool = MediaPool::with_config(status_path, &config, changer_name)?;
+        let mut pool = MediaPool::with_config(status_path, &config, changer_name, true)?;
 
         let current_time = proxmox::tools::time::epoch_i64();
 

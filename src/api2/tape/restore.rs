@@ -66,8 +66,8 @@ use crate::{
         TapeRead,
         MediaId,
         MediaCatalog,
-        MediaPool,
         Inventory,
+        lock_media_set,
         file_formats::{
             PROXMOX_BACKUP_MEDIA_LABEL_MAGIC_1_0,
             PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_0,
@@ -161,10 +161,13 @@ pub fn restore(
         bail!("no permissions on /tape/drive/{}", drive);
     }
 
-    let status_path = Path::new(TAPE_STATUS_DIR);
-    let inventory = Inventory::load(status_path)?;
-
     let media_set_uuid = media_set.parse()?;
+
+    let status_path = Path::new(TAPE_STATUS_DIR);
+
+    let _lock = lock_media_set(status_path, &media_set_uuid, None)?;
+
+    let inventory = Inventory::load(status_path)?;
 
     let pool = inventory.lookup_media_set_pool(&media_set_uuid)?;
 
@@ -191,8 +194,6 @@ pub fn restore(
             let _drive_lock = drive_lock; // keep lock guard
 
             set_tape_device_state(&drive, &worker.upid().to_string())?;
-
-            let _lock = MediaPool::lock(status_path, &pool)?;
 
             let members = inventory.compute_media_set_members(&media_set_uuid)?;
 
