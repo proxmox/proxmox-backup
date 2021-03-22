@@ -116,6 +116,59 @@ impl MediaCatalog {
         }
     }
 
+    /// Destroy the media catalog if media_set uuid does not match
+    pub fn destroy_unrelated_catalog(
+        base_path: &Path,
+        media_id: &MediaId,
+    ) -> Result<(), Error> {
+
+        let uuid = &media_id.label.uuid;
+
+        let mut path = base_path.to_owned();
+        path.push(uuid.to_string());
+        path.set_extension("log");
+
+        let mut file = match std::fs::OpenOptions::new().read(true).open(&path) {
+            Ok(file) => file,
+            Err(ref err) if err.kind() == std::io::ErrorKind::NotFound => {
+                return Ok(());
+            }
+            Err(err) => return Err(err.into()),
+        };
+
+        let expected_media_set_id = match media_id.media_set_label {
+            None => {
+                std::fs::remove_file(path)?;
+                return Ok(())
+            },
+            Some(ref set) => &set.uuid,
+        };
+
+        let mut me = Self {
+            uuid: uuid.clone(),
+            file: None,
+            log_to_stdout: false,
+            current_archive: None,
+            last_entry: None,
+            content: HashMap::new(),
+            pending: Vec::new(),
+        };
+
+        let (found_magic_number, media_set_uuid) = me.load_catalog(&mut file, None)?;
+
+        if !found_magic_number {
+            return Ok(());
+        }
+
+        if let Some(ref media_set_uuid) = media_set_uuid {
+            if media_set_uuid != expected_media_set_id {
+                std::fs::remove_file(path)?;
+            }
+        }
+
+        Ok(())
+    }
+
     /// Enable/Disable logging to stdout (disabled by default)
     pub fn log_to_stdout(&mut self, enable: bool) {
         self.log_to_stdout = enable;
@@ -172,7 +225,7 @@ impl MediaCatalog {
                 pending: Vec::new(),
             };
 
-            let found_magic_number = me.load_catalog(&mut file, media_id.media_set_label.as_ref())?;
+            let (found_magic_number, _) = me.load_catalog(&mut file, media_id.media_set_label.as_ref())?;
 
             if !found_magic_number {
                 me.pending.extend(&Self::PROXMOX_BACKUP_MEDIA_CATALOG_MAGIC_1_1);
@@ -628,10 +681,11 @@ impl MediaCatalog {
         &mut self,
         file: &mut File,
         media_set_label: Option<&MediaSetLabel>,
-    ) -> Result<bool, Error> {
+    ) -> Result<(bool, Option<Uuid>), Error> {
 
         let mut file = BufReader::new(file);
         let mut found_magic_number = false;
+        let mut media_set_uuid = None;
 
         loop {
             let pos = file.seek(SeekFrom::Current(0))?;
@@ -744,6 +798,7 @@ impl MediaCatalog {
                                 bail!("got unexpected media set sequence number");
                             }
                         }
+                        media_set_uuid = Some(uuid.clone());
                     }
 
                     self.last_entry = Some((uuid, file_number));
@@ -755,7 +810,7 @@ impl MediaCatalog {
 
         }
 
-        Ok(found_magic_number)
+        Ok((found_magic_number, media_set_uuid))
     }
 }
 
