@@ -48,7 +48,10 @@ use crate::{
             MamAttribute,
             LinuxDriveAndMediaStatus,
         },
-        tape::restore::restore_media,
+        tape::restore::{
+            fast_catalog_restore,
+            restore_media,
+        },
     },
     server::WorkerTask,
     tape::{
@@ -1279,7 +1282,7 @@ pub fn catalog_media(
 
             let mut inventory = Inventory::new(status_path);
 
-            let _media_set_lock = match media_id.media_set_label {
+            let (_media_set_lock, media_set_uuid) = match media_id.media_set_label {
                 None => {
                     worker.log("media is empty");
                     let _lock = lock_unassigned_media_pool(status_path)?;
@@ -1307,7 +1310,7 @@ pub fn catalog_media(
 
                     inventory.store(media_id.clone(), false)?;
 
-                    media_set_lock
+                    (media_set_lock, &set.uuid)
                 }
             };
 
@@ -1315,7 +1318,14 @@ pub fn catalog_media(
                 bail!("media catalog exists (please use --force to overwrite)");
             }
 
-             // fixme: implement fast catalog restore
+            let media_set = inventory.compute_media_set_members(media_set_uuid)?;
+
+            if fast_catalog_restore(&worker, &mut drive, &media_set, &media_id.label.uuid)? {
+                return Ok(())
+            }
+
+            task_log!(worker, "no catalog found - scaning entire media now");
+
             restore_media(&worker, &mut drive, &media_id, None, verbose)?;
 
             Ok(())

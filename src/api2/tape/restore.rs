@@ -1,6 +1,7 @@
 use std::path::Path;
 use std::ffi::OsStr;
 use std::convert::TryFrom;
+use std::io::{Seek, SeekFrom};
 
 use anyhow::{bail, format_err, Error};
 use serde_json::Value;
@@ -26,6 +27,7 @@ use proxmox::{
 
 use crate::{
     task_log,
+    task_warn,
     task::TaskState,
     tools::compute_file_csum,
     api2::types::{
@@ -65,6 +67,7 @@ use crate::{
         TAPE_STATUS_DIR,
         TapeRead,
         MediaId,
+        MediaSet,
         MediaCatalog,
         Inventory,
         lock_media_set,
@@ -76,10 +79,12 @@ use crate::{
             PROXMOX_BACKUP_CONTENT_HEADER_MAGIC_1_0,
             PROXMOX_BACKUP_CHUNK_ARCHIVE_MAGIC_1_0,
             PROXMOX_BACKUP_CHUNK_ARCHIVE_MAGIC_1_1,
+            PROXMOX_BACKUP_CATALOG_ARCHIVE_MAGIC_1_0,
             MediaContentHeader,
             ChunkArchiveHeader,
             ChunkArchiveDecoder,
             SnapshotArchiveHeader,
+            CatalogArchiveHeader,
         },
         drive::{
             TapeDriver,
@@ -660,4 +665,138 @@ fn try_restore_snapshot_archive<R: pxar::decoder::SeqRead>(
     }
 
     Ok(())
+}
+
+/// Try to restore media catalogs (form catalog_archives)
+pub fn fast_catalog_restore(
+    worker: &WorkerTask,
+    drive: &mut Box<dyn TapeDriver>,
+    media_set: &MediaSet,
+    uuid: &Uuid, // current media Uuid
+) ->  Result<bool, Error> {
+
+    let status_path = Path::new(TAPE_STATUS_DIR);
+
+    let current_file_number = drive.current_file_number()?;
+    if current_file_number != 2 {
+        bail!("fast_catalog_restore: wrong media position - internal error");
+    }
+
+    let mut found_catalog = false;
+
+    let mut moved_to_eom = false;
+
+    loop {
+        let current_file_number = drive.current_file_number()?;
+
+        { // limit reader scope
+            let mut reader = match drive.read_next_file()? {
+                None => {
+                    task_log!(worker, "detected EOT after {} files", current_file_number);
+                    break;
+                }
+                Some(reader) => reader,
+            };
+
+            let header: MediaContentHeader = unsafe { reader.read_le_value()? };
+            if header.magic != PROXMOX_BACKUP_CONTENT_HEADER_MAGIC_1_0 {
+                bail!("missing MediaContentHeader");
+            }
+
+            if header.content_magic == PROXMOX_BACKUP_CATALOG_ARCHIVE_MAGIC_1_0 {
+                task_log!(worker, "found catalog at pos {}", current_file_number);
+
+                let header_data = reader.read_exact_allocated(header.size as usize)?;
+
+                let archive_header: CatalogArchiveHeader = serde_json::from_slice(&header_data)
+                    .map_err(|err| format_err!("unable to parse catalog archive header - {}", err))?;
+
+                if &archive_header.media_set_uuid != media_set.uuid() {
+                    task_log!(worker, "skipping unrelated catalog at pos {}", current_file_number);
+                    reader.skip_to_end()?; // read all data
+                    continue;
+                }
+
+                let catalog_uuid = &archive_header.uuid;
+
+                let wanted = media_set
+                    .media_list()
+                    .iter()
+                    .find(|e| {
+                        match e {
+                            None => false,
+                            Some(uuid) => uuid == catalog_uuid,
+                        }
+                    })
+                    .is_some();
+
+                if !wanted {
+                    task_log!(worker, "skip catalog because media '{}' not inventarized", catalog_uuid);
+                    reader.skip_to_end()?; // read all data
+                    continue;
+                }
+
+                if catalog_uuid == uuid {
+                    // always restore and overwrite catalog
+                } else {
+                    // only restore if catalog does not exist
+                    if MediaCatalog::exists(status_path, catalog_uuid) {
+                        task_log!(worker, "catalog for media '{}' already exists", catalog_uuid);
+                        reader.skip_to_end()?; // read all data
+                        continue;
+                    }
+                }
+
+                let mut file = MediaCatalog::create_temporary_database_file(status_path, catalog_uuid)?;
+
+                std::io::copy(&mut reader, &mut file)?;
+
+                file.seek(SeekFrom::Start(0))?;
+
+                match MediaCatalog::parse_catalog_header(&mut file)? {
+                    (true, Some(media_uuid), Some(media_set_uuid)) => {
+                        if &media_uuid != catalog_uuid {
+                            task_log!(worker, "catalog uuid missmatch at pos {}", current_file_number);
+                            continue;
+                        }
+                        if media_set_uuid != archive_header.media_set_uuid {
+                            task_log!(worker, "catalog media_set missmatch at pos {}", current_file_number);
+                            continue;
+                        }
+
+                        MediaCatalog::finish_temporary_database(status_path, &media_uuid, true)?;
+
+                        if catalog_uuid == uuid {
+                            task_log!(worker, "successfully restored catalog");
+                            found_catalog = true
+                        } else {
+                            task_log!(worker, "successfully restored related catalog {}", media_uuid);
+                        }
+                    }
+                    _ => {
+                        task_warn!(worker, "got incomplete catalog header - skip file");
+                        continue;
+                    }
+                }
+
+                continue;
+            }
+        }
+
+        if moved_to_eom {
+            break; // already done - stop
+        }
+        moved_to_eom = true;
+
+        task_log!(worker, "searching for catalog at EOT (moving to EOT)");
+        drive.move_to_last_file()?;
+
+        let new_file_number = drive.current_file_number()?;
+
+        if new_file_number < (current_file_number + 1) {
+            break; // no new content - stop
+        }
+    }
+
+    Ok(found_catalog)
 }
