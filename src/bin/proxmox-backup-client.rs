@@ -32,7 +32,11 @@ use proxmox::{
 };
 use pxar::accessor::{MaybeReady, ReadAt, ReadAtOperation};
 
-use proxmox_backup::tools;
+use proxmox_backup::tools::{
+    self,
+    StdChannelWriter,
+    TokioWriterAdapter,
+};
 use proxmox_backup::api2::types::*;
 use proxmox_backup::api2::version;
 use proxmox_backup::client::*;
@@ -162,7 +166,7 @@ async fn backup_directory<P: AsRef<Path>>(
     dir_path: P,
     archive_name: &str,
     chunk_size: Option<usize>,
-    catalog: Arc<Mutex<CatalogWriter<crate::tools::StdChannelWriter>>>,
+    catalog: Arc<Mutex<CatalogWriter<TokioWriterAdapter<StdChannelWriter>>>>,
     pxar_create_options: proxmox_backup::pxar::PxarCreateOptions,
     upload_options: UploadOptions,
 ) -> Result<BackupStats, Error> {
@@ -460,7 +464,7 @@ async fn start_garbage_collection(param: Value) -> Result<Value, Error> {
 }
 
 struct CatalogUploadResult {
-    catalog_writer: Arc<Mutex<CatalogWriter<crate::tools::StdChannelWriter>>>,
+    catalog_writer: Arc<Mutex<CatalogWriter<TokioWriterAdapter<StdChannelWriter>>>>,
     result: tokio::sync::oneshot::Receiver<Result<BackupStats, Error>>,
 }
 
@@ -473,7 +477,7 @@ fn spawn_catalog_upload(
     let catalog_chunk_size = 512*1024;
     let catalog_chunk_stream = ChunkStream::new(catalog_stream, Some(catalog_chunk_size));
 
-    let catalog_writer = Arc::new(Mutex::new(CatalogWriter::new(crate::tools::StdChannelWriter::new(catalog_tx))?));
+    let catalog_writer = Arc::new(Mutex::new(CatalogWriter::new(TokioWriterAdapter::new(StdChannelWriter::new(catalog_tx)))?));
 
     let (catalog_result_tx, catalog_result_rx) = tokio::sync::oneshot::channel();
 

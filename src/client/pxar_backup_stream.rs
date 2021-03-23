@@ -13,6 +13,10 @@ use nix::fcntl::OFlag;
 use nix::sys::stat::Mode;
 
 use crate::backup::CatalogWriter;
+use crate::tools::{
+    StdChannelWriter,
+    TokioWriterAdapter,
+};
 
 /// Stream implementation to encode and upload .pxar archives.
 ///
@@ -45,10 +49,10 @@ impl PxarBackupStream {
         let error = Arc::new(Mutex::new(None));
         let error2 = Arc::clone(&error);
         let handler = async move {
-            let writer = std::io::BufWriter::with_capacity(
+            let writer = TokioWriterAdapter::new(std::io::BufWriter::with_capacity(
                 buffer_size,
-                crate::tools::StdChannelWriter::new(tx),
-            );
+                StdChannelWriter::new(tx),
+            ));
 
             let verbose = options.verbose;
 

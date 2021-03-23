@@ -57,6 +57,9 @@ pub use async_channel_writer::AsyncChannelWriter;
 mod std_channel_writer;
 pub use std_channel_writer::StdChannelWriter;
 
+mod tokio_writer_adapter;
+pub use tokio_writer_adapter::TokioWriterAdapter;
+
 mod process_locker;
 pub use process_locker::{ProcessLocker, ProcessLockExclusiveGuard, ProcessLockSharedGuard};
 
