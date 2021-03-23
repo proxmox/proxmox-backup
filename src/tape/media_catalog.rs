@@ -128,13 +128,15 @@ impl MediaCatalog {
         path.push(uuid.to_string());
         path.set_extension("log");
 
-        let mut file = match std::fs::OpenOptions::new().read(true).open(&path) {
+        let file = match std::fs::OpenOptions::new().read(true).open(&path) {
             Ok(file) => file,
             Err(ref err) if err.kind() == std::io::ErrorKind::NotFound => {
                 return Ok(());
             }
             Err(err) => return Err(err.into()),
         };
+
+        let mut file = BufReader::new(file);
 
         let expected_media_set_id = match media_id.media_set_label {
             None => {
@@ -144,20 +146,18 @@ impl MediaCatalog {
             Some(ref set) => &set.uuid,
         };
 
-        let mut me = Self {
-            uuid: uuid.clone(),
-            file: None,
-            log_to_stdout: false,
-            current_archive: None,
-            last_entry: None,
-            content: HashMap::new(),
-            pending: Vec::new(),
-        };
-
-        let (found_magic_number, media_set_uuid) = me.load_catalog(&mut file, None)?;
+        let (found_magic_number, media_uuid, media_set_uuid) =
+            Self::parse_catalog_header(&mut file)?;
 
         if !found_magic_number {
             return Ok(());
+        }
+
+        if let Some(ref media_uuid) = media_uuid {
+            if media_uuid != uuid {
+                std::fs::remove_file(path)?;
+                return Ok(());
+            }
         }
 
         if let Some(ref media_set_uuid) = media_set_uuid {
@@ -242,6 +242,32 @@ impl MediaCatalog {
         Ok(me)
     }
 
+    /// Creates a temporary empty catalog file
+    pub fn create_temporary_database_file(
+        base_path: &Path,
+        uuid: &Uuid,
+    ) -> Result<File, Error> {
+
+        Self::create_basedir(base_path)?;
+
+        let mut tmp_path = base_path.to_owned();
+        tmp_path.push(uuid.to_string());
+        tmp_path.set_extension("tmp");
+
+        let file = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(&tmp_path)?;
+
+        let backup_user = crate::backup::backup_user()?;
+        fchown(file.as_raw_fd(), Some(backup_user.uid), Some(backup_user.gid))
+            .map_err(|err| format_err!("fchown failed - {}", err))?;
+
+        Ok(file)
+    }
+
     /// Creates a temporary, empty catalog database
     ///
     /// Creates a new catalog file using a ".tmp" file extension.
@@ -259,18 +285,7 @@ impl MediaCatalog {
 
         let me = proxmox::try_block!({
 
-            Self::create_basedir(base_path)?;
-
-            let file = std::fs::OpenOptions::new()
-                .read(true)
-                .write(true)
-                .create(true)
-                .truncate(true)
-                .open(&tmp_path)?;
-
-            let backup_user = crate::backup::backup_user()?;
-            fchown(file.as_raw_fd(), Some(backup_user.uid), Some(backup_user.gid))
-                .map_err(|err| format_err!("fchown failed - {}", err))?;
+            let file = Self::create_temporary_database_file(base_path, uuid)?;
 
             let mut me = Self {
                 uuid: uuid.clone(),
@@ -677,6 +692,53 @@ impl MediaCatalog {
         Ok(())
     }
 
+    /// Parse the catalog header
+    pub fn parse_catalog_header<R: Read>(
+        reader: &mut R,
+    ) -> Result<(bool, Option<Uuid>, Option<Uuid>), Error> {
+
+        // read/check magic number
+        let mut magic = [0u8; 8];
+        if !reader.read_exact_or_eof(&mut magic)? {
+            /* EOF */
+            return Ok((false, None, None));
+        }
+
+        if magic == Self::PROXMOX_BACKUP_MEDIA_CATALOG_MAGIC_1_0 {
+            // only use in unreleased versions
+            bail!("old catalog format (v1.0) is no longer supported");
+        }
+        if magic != Self::PROXMOX_BACKUP_MEDIA_CATALOG_MAGIC_1_1 {
+            bail!("wrong magic number");
+        }
+
+        let mut entry_type = [0u8; 1];
+        if !reader.read_exact_or_eof(&mut entry_type)? {
+            /* EOF */
+            return Ok((true, None, None));
+        }
+
+        if entry_type[0] != b'L' {
+            bail!("got unexpected entry type");
+        }
+
+        let entry0: LabelEntry = unsafe { reader.read_le_value()? };
+
+        let mut entry_type = [0u8; 1];
+        if !reader.read_exact_or_eof(&mut entry_type)? {
+            /* EOF */
+            return Ok((true, Some(entry0.uuid.into()), None));
+        }
+
+        if entry_type[0] != b'L' {
+            bail!("got unexpected entry type");
+        }
+
+        let entry1: LabelEntry = unsafe { reader.read_le_value()? };
+
+        Ok((true, Some(entry0.uuid.into()), Some(entry1.uuid.into())))
+    }
+
     fn load_catalog(
         &mut self,
         file: &mut File,
@@ -688,7 +750,7 @@ impl MediaCatalog {
         let mut media_set_uuid = None;
 
         loop {
-            let pos = file.seek(SeekFrom::Current(0))?;
+            let pos = file.seek(SeekFrom::Current(0))?; // get current pos
 
             if pos == 0 { // read/check magic number
                 let mut magic = [0u8; 8];
