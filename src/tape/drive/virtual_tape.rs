@@ -305,6 +305,29 @@ impl TapeDriver for VirtualTapeHandle {
         }
     }
 
+    fn move_to_last_file(&mut self) -> Result<(), Error> {
+        let mut status = self.load_status()?;
+        match status.current_tape {
+            Some(VirtualTapeStatus { ref name, ref mut pos }) => {
+
+                let index = self.load_tape_index(name)
+                    .map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))?;
+
+                if index.files == 0 {
+                    bail!("move_to_last_file failed - media contains no data");
+                }
+
+                *pos = index.files - 1;
+
+                self.store_status(&status)
+                    .map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))?;
+
+                Ok(())
+            }
+            None => bail!("drive is empty (no tape loaded)."),
+        }
+    }
+
     fn rewind(&mut self) -> Result<(), Error> {
         let mut status = self.load_status()?;
         match status.current_tape {

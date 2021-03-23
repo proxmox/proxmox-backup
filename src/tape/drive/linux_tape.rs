@@ -467,6 +467,23 @@ impl TapeDriver for LinuxTapeHandle {
         Ok(())
     }
 
+    fn move_to_last_file(&mut self) -> Result<(), Error> {
+
+        let cmd = mtop { mt_op: MTCmd::MTEOM, mt_count: 1, };
+
+        unsafe {
+            mtioctop(self.file.as_raw_fd(), &cmd)
+        }.map_err(|err| format_err!("MTEOM failed - {}", err))?;
+
+        let cmd = mtop { mt_op: MTCmd::MTBSFM, mt_count: 2, };
+
+        unsafe {
+            mtioctop(self.file.as_raw_fd(), &cmd)
+        }.map_err(|err| format_err!("MTBSFM failed - {}", err))?;
+
+        Ok(())
+    }
+
     fn rewind(&mut self) -> Result<(), Error> {
 
         let cmd = mtop { mt_op: MTCmd::MTREW, mt_count: 1, };

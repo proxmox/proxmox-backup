@@ -87,6 +87,9 @@ pub trait TapeDriver {
     /// We assume this flushes the tape write buffer.
     fn move_to_eom(&mut self) -> Result<(), Error>;
 
+    /// Move to last file
+    fn move_to_last_file(&mut self) -> Result<(), Error>;
+
     /// Current file number
     fn current_file_number(&mut self) -> Result<u64, Error>;
 
