@@ -29,6 +29,7 @@ use proxmox_backup::{
         types::{
             Authid,
             DATASTORE_SCHEMA,
+            DATASTORE_MAP_LIST_SCHEMA,
             DRIVE_NAME_SCHEMA,
             MEDIA_LABEL_SCHEMA,
             MEDIA_POOL_NAME_SCHEMA,
@@ -855,7 +856,7 @@ async fn backup(mut param: Value) -> Result<(), Error> {
    input: {
         properties: {
             store: {
-                schema: DATASTORE_SCHEMA,
+                schema: DATASTORE_MAP_LIST_SCHEMA,
             },
             drive: {
                 schema: DRIVE_NAME_SCHEMA,
