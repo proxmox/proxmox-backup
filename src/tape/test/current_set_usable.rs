@@ -49,6 +49,7 @@ fn test_current_set_usable_1() -> Result<(), Error> {
         RetentionPolicy::KeepForever,
         None,
         None,
+        false,
     )?;
 
     assert_eq!(pool.current_set_usable()?, false);
@@ -75,6 +76,7 @@ fn test_current_set_usable_2() -> Result<(), Error> {
         RetentionPolicy::KeepForever,
         None,
         None,
+        false,
     )?;
 
     assert_eq!(pool.current_set_usable()?, false);
@@ -103,6 +105,7 @@ fn test_current_set_usable_3() -> Result<(), Error> {
         RetentionPolicy::KeepForever,
         Some(String::from("changer1")),
         None,
+        false,
     )?;
 
     assert_eq!(pool.current_set_usable()?, false);
@@ -131,6 +134,7 @@ fn test_current_set_usable_4() -> Result<(), Error> {
         RetentionPolicy::KeepForever,
         None,
         None,
+        false,
     )?;
 
     assert_eq!(pool.current_set_usable()?, true);
@@ -161,6 +165,7 @@ fn test_current_set_usable_5() -> Result<(), Error> {
         RetentionPolicy::KeepForever,
         None,
         None,
+        false,
     )?;
 
     assert_eq!(pool.current_set_usable()?, true);
@@ -189,6 +194,7 @@ fn test_current_set_usable_6() -> Result<(), Error> {
         RetentionPolicy::KeepForever,
         None,
         None,
+        false,
     )?;
 
     assert!(pool.current_set_usable().is_err());
@@ -223,6 +229,7 @@ fn test_current_set_usable_7() -> Result<(), Error> {
         RetentionPolicy::KeepForever,
         None,
         None,
+        false,
     )?;
 
     assert!(pool.current_set_usable().is_err());

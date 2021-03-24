@@ -42,6 +42,7 @@ fn test_alloc_writable_media_1() -> Result<(), Error> {
         RetentionPolicy::KeepForever,
         None,
         None,
+        false,
     )?;
 
     ctime += 10;
@@ -71,6 +72,7 @@ fn test_alloc_writable_media_2() -> Result<(), Error> {
         RetentionPolicy::KeepForever,
         None,
         None,
+        false,
     )?;
 
     let ctime = 10;
@@ -110,6 +112,7 @@ fn test_alloc_writable_media_3() -> Result<(), Error> {
         RetentionPolicy::KeepForever,
         None,
         None,
+        false,
     )?;
 
     let mut ctime = 10;
@@ -156,6 +159,7 @@ fn test_alloc_writable_media_4() -> Result<(), Error> {
         RetentionPolicy::ProtectFor(parse_time_span("12s")?),
         None,
         None,
+        false,
     )?;
 
     let start_time = 10;

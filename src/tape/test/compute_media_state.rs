@@ -69,6 +69,7 @@ fn test_compute_media_state() -> Result<(), Error> {
          RetentionPolicy::KeepForever,
          None,
          None,
+         false,
     )?;
 
     // tape1 is free
@@ -116,6 +117,7 @@ fn test_media_expire_time() -> Result<(), Error> {
         RetentionPolicy::ProtectFor(span),
         None,
         None,
+        false,
     )?;
 
     assert_eq!(pool.lookup_media(&tape0_uuid)?.status(), &MediaStatus::Full);

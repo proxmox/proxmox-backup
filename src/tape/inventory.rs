@@ -763,6 +763,11 @@ pub fn lock_media_pool(base_path: &Path, name: &str) -> Result<File, Error> {
     let timeout = std::time::Duration::new(10, 0);
     let lock = proxmox::tools::fs::open_file_locked(&path, timeout, true)?;
 
+    if cfg!(test) {
+        // We cannot use chown inside test environment (no permissions)
+        return Ok(lock);
+    }
+
     let backup_user = crate::backup::backup_user()?;
     fchown(lock.as_raw_fd(), Some(backup_user.uid), Some(backup_user.gid))?;
 
