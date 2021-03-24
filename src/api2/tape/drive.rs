@@ -1326,6 +1326,9 @@ pub fn catalog_media(
 
             task_log!(worker, "no catalog found - scaning entire media now");
 
+            drive.rewind()?;
+            drive.read_label()?; // skip over labels - we already read them above
+
             restore_media(&worker, &mut drive, &media_id, None, verbose)?;
 
             Ok(())
