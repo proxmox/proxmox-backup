@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 use std::os::unix::fs::OpenOptionsExt;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use anyhow::{bail, format_err, Error};
@@ -52,6 +52,7 @@ struct UploadStats {
     chunk_reused: usize,
     size: usize,
     size_reused: usize,
+    size_compressed: usize,
     duration: std::time::Duration,
     csum: [u8; 32],
 }
@@ -327,8 +328,8 @@ impl BackupWriter {
         )
         .await?;
 
-        let uploaded = upload_stats.size - upload_stats.size_reused;
-        let vsize_h: HumanByte = upload_stats.size.into();
+        let size_dirty = upload_stats.size - upload_stats.size_reused;
+        let size: HumanByte = upload_stats.size.into();
         let archive = if self.verbose {
             archive_name.to_string()
         } else {
@@ -336,18 +337,20 @@ impl BackupWriter {
         };
         if archive_name != CATALOG_NAME {
             let speed: HumanByte =
-                ((uploaded * 1_000_000) / (upload_stats.duration.as_micros() as usize)).into();
-            let uploaded: HumanByte = uploaded.into();
+                ((size_dirty * 1_000_000) / (upload_stats.duration.as_micros() as usize)).into();
+            let size_dirty: HumanByte = size_dirty.into();
+            let size_compressed: HumanByte = upload_stats.size_compressed.into();
             println!(
-                "{}: had to upload {} of {} in {:.2}s, average speed {}/s).",
+                "{}: had to backup {} of {} (compressed {}) in {:.2}s",
                 archive,
-                uploaded,
-                vsize_h,
-                upload_stats.duration.as_secs_f64(),
-                speed
+                size_dirty,
+                size,
+                size_compressed,
+                upload_stats.duration.as_secs_f64()
             );
+            println!("{}: average backup speed: {}/s", archive, speed);
         } else {
-            println!("Uploaded backup catalog ({})", vsize_h);
+            println!("Uploaded backup catalog ({})", size);
         }
 
         if upload_stats.size_reused > 0 && upload_stats.size > 1024 * 1024 {
@@ -633,6 +636,8 @@ impl BackupWriter {
 
         let stream_len = Arc::new(AtomicUsize::new(0));
         let stream_len2 = stream_len.clone();
+        let compressed_stream_len = Arc::new(AtomicU64::new(0));
+        let compressed_stream_len2 = compressed_stream_len.clone();
         let reused_len = Arc::new(AtomicUsize::new(0));
         let reused_len2 = reused_len.clone();
 
@@ -680,8 +685,10 @@ impl BackupWriter {
                     reused_len.fetch_add(chunk_len, Ordering::SeqCst);
                     future::ok(MergedChunkInfo::Known(vec![(offset, *digest)]))
                 } else {
+                    let compressed_stream_len2 = compressed_stream_len.clone();
                     known_chunks.insert(*digest);
                     future::ready(chunk_builder.build().map(move |(chunk, digest)| {
+                        compressed_stream_len2.fetch_add(chunk.raw_size(), Ordering::SeqCst);
                         MergedChunkInfo::New(ChunkInfo {
                             chunk,
                             digest,
@@ -754,6 +761,7 @@ impl BackupWriter {
                 let chunk_reused = known_chunk_count2.load(Ordering::SeqCst);
                 let size = stream_len2.load(Ordering::SeqCst);
                 let size_reused = reused_len2.load(Ordering::SeqCst);
+                let size_compressed = compressed_stream_len2.load(Ordering::SeqCst) as usize;
 
                 let mut guard = index_csum_2.lock().unwrap();
                 let csum = guard.take().unwrap().finish();
@@ -763,6 +771,7 @@ impl BackupWriter {
                     chunk_reused,
                     size,
                     size_reused,
+                    size_compressed,
                     duration,
                     csum,
                 })
