@@ -47,6 +47,15 @@ pub struct UploadOptions {
     pub fixed_size: Option<u64>,
 }
 
+struct UploadStats {
+    chunk_count: usize,
+    chunk_reused: usize,
+    size: usize,
+    size_reused: usize,
+    duration: std::time::Duration,
+    csum: [u8; 32],
+}
+
 type UploadQueueSender = mpsc::Sender<(MergedChunkInfo, Option<h2::client::ResponseFuture>)>;
 type UploadResultReceiver = oneshot::Receiver<Result<(), Error>>;
 
@@ -302,25 +311,24 @@ impl BackupWriter {
             .as_u64()
             .unwrap();
 
-        let (chunk_count, chunk_reused, size, size_reused, duration, csum) =
-            Self::upload_chunk_info_stream(
-                self.h2.clone(),
-                wid,
-                stream,
-                &prefix,
-                known_chunks.clone(),
-                if options.encrypt {
-                    self.crypt_config.clone()
-                } else {
-                    None
-                },
-                options.compress,
-                self.verbose,
-            )
-            .await?;
+        let upload_stats = Self::upload_chunk_info_stream(
+            self.h2.clone(),
+            wid,
+            stream,
+            &prefix,
+            known_chunks.clone(),
+            if options.encrypt {
+                self.crypt_config.clone()
+            } else {
+                None
+            },
+            options.compress,
+            self.verbose,
+        )
+        .await?;
 
-        let uploaded = size - size_reused;
-        let vsize_h: HumanByte = size.into();
+        let uploaded = upload_stats.size - upload_stats.size_reused;
+        let vsize_h: HumanByte = upload_stats.size.into();
         let archive = if self.verbose {
             archive_name.to_string()
         } else {
@@ -328,55 +336,55 @@ impl BackupWriter {
         };
         if archive_name != CATALOG_NAME {
             let speed: HumanByte =
-                ((uploaded * 1_000_000) / (duration.as_micros() as usize)).into();
+                ((uploaded * 1_000_000) / (upload_stats.duration.as_micros() as usize)).into();
             let uploaded: HumanByte = uploaded.into();
             println!(
                 "{}: had to upload {} of {} in {:.2}s, average speed {}/s).",
                 archive,
                 uploaded,
                 vsize_h,
-                duration.as_secs_f64(),
+                upload_stats.duration.as_secs_f64(),
                 speed
             );
         } else {
             println!("Uploaded backup catalog ({})", vsize_h);
         }
 
-        if size_reused > 0 && size > 1024 * 1024 {
-            let reused_percent = size_reused as f64 * 100. / size as f64;
-            let reused: HumanByte = size_reused.into();
+        if upload_stats.size_reused > 0 && upload_stats.size > 1024 * 1024 {
+            let reused_percent = upload_stats.size_reused as f64 * 100. / upload_stats.size as f64;
+            let reused: HumanByte = upload_stats.size_reused.into();
             println!(
                 "{}: backup was done incrementally, reused {} ({:.1}%)",
                 archive, reused, reused_percent
             );
         }
-        if self.verbose && chunk_count > 0 {
+        if self.verbose && upload_stats.chunk_count > 0 {
             println!(
                 "{}: Reused {} from {} chunks.",
-                archive, chunk_reused, chunk_count
+                archive, upload_stats.chunk_reused, upload_stats.chunk_count
             );
             println!(
                 "{}: Average chunk size was {}.",
                 archive,
-                HumanByte::from(size / chunk_count)
+                HumanByte::from(upload_stats.size / upload_stats.chunk_count)
             );
             println!(
                 "{}: Average time per request: {} microseconds.",
                 archive,
-                (duration.as_micros()) / (chunk_count as u128)
+                (upload_stats.duration.as_micros()) / (upload_stats.chunk_count as u128)
             );
         }
 
         let param = json!({
             "wid": wid ,
-            "chunk-count": chunk_count,
-            "size": size,
-            "csum": proxmox::tools::digest_to_hex(&csum),
+            "chunk-count": upload_stats.chunk_count,
+            "size": upload_stats.size,
+            "csum": proxmox::tools::digest_to_hex(&upload_stats.csum),
         });
         let _value = self.h2.post(&close_path, Some(param)).await?;
         Ok(BackupStats {
-            size: size as u64,
-            csum,
+            size: upload_stats.size as u64,
+            csum: upload_stats.csum,
         })
     }
 
@@ -617,8 +625,7 @@ impl BackupWriter {
         crypt_config: Option<Arc<CryptConfig>>,
         compress: bool,
         verbose: bool,
-    ) -> impl Future<Output = Result<(usize, usize, usize, usize, std::time::Duration, [u8; 32]), Error>>
-    {
+    ) -> impl Future<Output = Result<UploadStats, Error>> {
         let total_chunks = Arc::new(AtomicUsize::new(0));
         let total_chunks2 = total_chunks.clone();
         let known_chunk_count = Arc::new(AtomicUsize::new(0));
@@ -743,22 +750,22 @@ impl BackupWriter {
             .then(move |result| async move { upload_result.await?.and(result) }.boxed())
             .and_then(move |_| {
                 let duration = start_time.elapsed();
-                let total_chunks = total_chunks2.load(Ordering::SeqCst);
-                let known_chunk_count = known_chunk_count2.load(Ordering::SeqCst);
-                let stream_len = stream_len2.load(Ordering::SeqCst);
-                let reused_len = reused_len2.load(Ordering::SeqCst);
+                let chunk_count = total_chunks2.load(Ordering::SeqCst);
+                let chunk_reused = known_chunk_count2.load(Ordering::SeqCst);
+                let size = stream_len2.load(Ordering::SeqCst);
+                let size_reused = reused_len2.load(Ordering::SeqCst);
 
                 let mut guard = index_csum_2.lock().unwrap();
                 let csum = guard.take().unwrap().finish();
 
-                futures::future::ok((
-                    total_chunks,
-                    known_chunk_count,
-                    stream_len,
-                    reused_len,
+                futures::future::ok(UploadStats {
+                    chunk_count,
+                    chunk_reused,
+                    size,
+                    size_reused,
                     duration,
                     csum,
-                ))
+                })
             })
     }
 
