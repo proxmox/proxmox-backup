@@ -784,8 +784,8 @@ async fn clean_drive(mut param: Value) -> Result<(), Error> {
 
     let mut client = connect_to_localhost()?;
 
-    let path = format!("api2/json/tape/drive/{}/clean-drive", drive);
-    let result = client.post(&path, Some(param)).await?;
+    let path = format!("api2/json/tape/drive/{}/clean", drive);
+    let result = client.put(&path, Some(param)).await?;
 
     view_task_result(&mut client, result, &output_format).await?;
 
