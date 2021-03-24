@@ -67,7 +67,7 @@ div.sphinxsidebar h1.logo-name {
     div.sphinxsidebar span {
         color: #AAA;
     }
-    ul li.toctree-l1 > a {
+    .sphinxsidebar ul li.toctree-l1 > a {
         color: #FFF;
     }
 }
