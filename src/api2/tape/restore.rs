@@ -449,7 +449,17 @@ fn restore_archive<'a>(
                 catalog.commit_if_large()?;
             }
         }
-        _ =>  bail!("unknown content magic {:?}", header.content_magic),
+        PROXMOX_BACKUP_CATALOG_ARCHIVE_MAGIC_1_0 => {
+            let header_data = reader.read_exact_allocated(header.size as usize)?;
+
+            let archive_header: CatalogArchiveHeader = serde_json::from_slice(&header_data)
+                .map_err(|err| format_err!("unable to parse catalog archive header - {}", err))?;
+
+            task_log!(worker, "File {}: skip catalog '{}'", current_file_number, archive_header.uuid);
+
+            reader.skip_to_end()?; // read all data
+        }
+         _ =>  bail!("unknown content magic {:?}", header.content_magic),
     }
 
     catalog.commit()?;
