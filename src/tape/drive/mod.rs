@@ -88,7 +88,24 @@ pub trait TapeDriver {
     fn move_to_eom(&mut self) -> Result<(), Error>;
 
     /// Move to last file
-    fn move_to_last_file(&mut self) -> Result<(), Error>;
+    fn move_to_last_file(&mut self) -> Result<(), Error> {
+
+        self.move_to_eom()?;
+
+        if self.current_file_number()? == 0 {
+            bail!("move_to_last_file failed - media contains no data");
+        }
+
+        self.backward_space_count_files(2)?;
+
+        Ok(())
+    }
+
+    /// Forward space count files. The tape is positioned on the first block of the next file.
+    fn forward_space_count_files(&mut self, count: usize) -> Result<(), Error>;
+
+    /// Backward space count files.  The tape is positioned on the last block of the previous file.
+    fn backward_space_count_files(&mut self, count: usize) -> Result<(), Error>;
 
     /// Current file number
     fn current_file_number(&mut self) -> Result<u64, Error>;

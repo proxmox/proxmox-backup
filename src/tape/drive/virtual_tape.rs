@@ -296,6 +296,7 @@ impl TapeDriver for VirtualTapeHandle {
                     .map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))?;
 
                 *pos = index.files;
+
                 self.store_status(&status)
                     .map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))?;
 
@@ -305,7 +306,7 @@ impl TapeDriver for VirtualTapeHandle {
         }
     }
 
-    fn move_to_last_file(&mut self) -> Result<(), Error> {
+    fn forward_space_count_files(&mut self, count: usize) -> Result<(), Error> {
         let mut status = self.load_status()?;
         match status.current_tape {
             Some(VirtualTapeStatus { ref name, ref mut pos }) => {
@@ -313,11 +314,35 @@ impl TapeDriver for VirtualTapeHandle {
                 let index = self.load_tape_index(name)
                     .map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))?;
 
-                if index.files == 0 {
-                    bail!("move_to_last_file failed - media contains no data");
+                let new_pos = *pos + count;
+                if new_pos <= index.files {
+                    *pos = new_pos;
+                } else {
+                    bail!("forward_space_count_files failed: move beyond EOT");
                 }
 
-                *pos = index.files - 1;
+                self.store_status(&status)
+                    .map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))?;
+
+                Ok(())
+            }
+            None => bail!("drive is empty (no tape loaded)."),
+        }
+    }
+
+    fn backward_space_count_files(&mut self, count: usize) -> Result<(), Error> {
+        let mut status = self.load_status()?;
+        match status.current_tape {
+            Some(VirtualTapeStatus { ref name, ref mut pos }) => {
+
+                let index = self.load_tape_index(name)
+                    .map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))?;
+
+                if count <= *pos {
+                    *pos = *pos - count;
+                } else {
+                    bail!("backward_space_count_files failed: move before BOT");
+                }
 
                 self.store_status(&status)
                     .map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))?;

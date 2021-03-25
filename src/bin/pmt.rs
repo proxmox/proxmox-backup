@@ -180,7 +180,7 @@ fn get_tape_handle(param: &Value) -> Result<LinuxTapeHandle, Error> {
 ///
 /// Positioning is done by first rewinding the tape and then spacing
 /// forward over count file marks.
-fn asf(count: i32, param: Value) -> Result<(), Error> {
+fn asf(count: usize, param: Value) -> Result<(), Error> {
 
     let mut handle = get_tape_handle(&param)?;
 
@@ -212,7 +212,7 @@ fn asf(count: i32, param: Value) -> Result<(), Error> {
 /// Backward space count files (position before file mark).
 ///
 /// The tape is positioned on the last block of the previous file.
-fn bsf(count: i32, param: Value) -> Result<(), Error> {
+fn bsf(count: usize, param: Value) -> Result<(), Error> {
 
     let mut handle = get_tape_handle(&param)?;
 
@@ -478,7 +478,7 @@ fn erase(fast: Option<bool>, param: Value) -> Result<(), Error> {
 /// Forward space count files (position after file mark).
 ///
 /// The tape is positioned on the first block of the next file.
-fn fsf(count: i32, param: Value) -> Result<(), Error> {
+fn fsf(count: usize, param: Value) -> Result<(), Error> {
 
     let mut handle = get_tape_handle(&param)?;
 

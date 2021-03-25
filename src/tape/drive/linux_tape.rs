@@ -242,32 +242,6 @@ impl LinuxTapeHandle {
         Ok(())
     }
 
-    pub fn forward_space_count_files(&mut self, count: i32) -> Result<(), Error> {
-
-        let cmd = mtop { mt_op: MTCmd::MTFSF, mt_count: count, };
-
-        unsafe {
-            mtioctop(self.file.as_raw_fd(), &cmd)
-        }.map_err(|err| {
-            format_err!("forward space {} files failed - {}", count, err)
-        })?;
-
-        Ok(())
-    }
-
-    pub fn backward_space_count_files(&mut self, count: i32) -> Result<(), Error> {
-
-        let cmd = mtop { mt_op: MTCmd::MTBSF, mt_count: count, };
-
-        unsafe {
-            mtioctop(self.file.as_raw_fd(), &cmd)
-        }.map_err(|err| {
-            format_err!("backward space {} files failed - {}", count, err)
-        })?;
-
-        Ok(())
-    }
-
     /// Set tape compression feature
     pub fn set_compression(&self, on: bool) -> Result<(), Error> {
 
@@ -467,19 +441,28 @@ impl TapeDriver for LinuxTapeHandle {
         Ok(())
     }
 
-    fn move_to_last_file(&mut self) -> Result<(), Error> {
+    fn forward_space_count_files(&mut self, count: usize) -> Result<(), Error> {
 
-        let cmd = mtop { mt_op: MTCmd::MTEOM, mt_count: 1, };
-
-        unsafe {
-            mtioctop(self.file.as_raw_fd(), &cmd)
-        }.map_err(|err| format_err!("MTEOM failed - {}", err))?;
-
-        let cmd = mtop { mt_op: MTCmd::MTBSFM, mt_count: 2, };
+        let cmd = mtop { mt_op: MTCmd::MTFSF, mt_count: i32::try_from(count)? };
 
         unsafe {
             mtioctop(self.file.as_raw_fd(), &cmd)
-        }.map_err(|err| format_err!("MTBSFM failed - {}", err))?;
+        }.map_err(|err| {
+            format_err!("forward space {} files failed - {}", count, err)
+        })?;
+
+        Ok(())
+    }
+
+    fn backward_space_count_files(&mut self, count: usize) -> Result<(), Error> {
+
+        let cmd = mtop { mt_op: MTCmd::MTBSF, mt_count: i32::try_from(count)? };
+
+        unsafe {
+            mtioctop(self.file.as_raw_fd(), &cmd)
+        }.map_err(|err| {
+            format_err!("backward space {} files failed - {}", count, err)
+        })?;
 
         Ok(())
     }
