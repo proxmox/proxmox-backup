@@ -911,6 +911,11 @@ async fn restore(mut param: Value) -> Result<(), Error> {
                 type: bool,
                 optional: true,
             },
+            scan: {
+                description: "Re-read the whole tape to reconstruct the catalog instead of restoring saved versions.",
+                type: bool,
+                optional: true,
+            },
             verbose: {
                 description: "Verbose mode - log all found chunks.",
                 type: bool,

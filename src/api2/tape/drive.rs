@@ -1227,6 +1227,11 @@ pub async fn status(drive: String) -> Result<LinuxDriveAndMediaStatus, Error> {
                 type: bool,
                 optional: true,
             },
+            scan: {
+                description: "Re-read the whole tape to reconstruct the catalog instead of restoring saved versions.",
+                type: bool,
+                optional: true,
+            },
             verbose: {
                 description: "Verbose mode - log all found chunks.",
                 type: bool,
@@ -1245,11 +1250,13 @@ pub async fn status(drive: String) -> Result<LinuxDriveAndMediaStatus, Error> {
 pub fn catalog_media(
     drive: String,
     force: Option<bool>,
+    scan: Option<bool>,
     verbose: Option<bool>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
     let verbose = verbose.unwrap_or(false);
     let force = force.unwrap_or(false);
+    let scan = scan.unwrap_or(false);
 
     let upid_str = run_drive_worker(
         rpcenv,
@@ -1318,13 +1325,17 @@ pub fn catalog_media(
                 bail!("media catalog exists (please use --force to overwrite)");
             }
 
-            let media_set = inventory.compute_media_set_members(media_set_uuid)?;
+            if !scan {
+                let media_set = inventory.compute_media_set_members(media_set_uuid)?;
 
-            if fast_catalog_restore(&worker, &mut drive, &media_set, &media_id.label.uuid)? {
-                return Ok(())
+                if fast_catalog_restore(&worker, &mut drive, &media_set, &media_id.label.uuid)? {
+                    return Ok(())
+                }
+
+                task_log!(worker, "no catalog found");
             }
 
-            task_log!(worker, "no catalog found - scaning entire media now");
+            task_log!(worker, "scanning entire media to reconstruct catalog");
 
             drive.rewind()?;
             drive.read_label()?; // skip over labels - we already read them above
