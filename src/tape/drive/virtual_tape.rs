@@ -333,10 +333,7 @@ impl TapeDriver for VirtualTapeHandle {
     fn backward_space_count_files(&mut self, count: usize) -> Result<(), Error> {
         let mut status = self.load_status()?;
         match status.current_tape {
-            Some(VirtualTapeStatus { ref name, ref mut pos }) => {
-
-                let index = self.load_tape_index(name)
-                    .map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))?;
+            Some(VirtualTapeStatus { ref mut pos, .. }) => {
 
                 if count <= *pos {
                     *pos = *pos - count;
