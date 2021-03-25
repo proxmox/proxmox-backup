@@ -32,9 +32,6 @@ use crate::api2::types::{NODE_SCHEMA, SUBSCRIPTION_KEY_SCHEMA, Authid};
 pub fn check_subscription(
     force: bool,
 ) -> Result<(), Error> {
-    // FIXME: drop once proxmox-api-macro is bumped to >> 5.0.0-1
-    let _remove_me = API_METHOD_CHECK_SUBSCRIPTION_PARAM_DEFAULT_FORCE;
-
     let info = match subscription::read_subscription() {
         Err(err) => bail!("could not read subscription status: {}", err),
         Ok(Some(info)) => info,
