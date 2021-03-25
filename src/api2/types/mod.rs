@@ -365,6 +365,7 @@ pub const DATASTORE_MAP_SCHEMA: Schema = StringSchema::new("Datastore mapping.")
     .format(&DATASTORE_MAP_FORMAT)
     .min_length(3)
     .max_length(65)
+    .type_text("(<source>=)?<target>")
     .schema();
 
 pub const DATASTORE_MAP_ARRAY_SCHEMA: Schema = ArraySchema::new(
