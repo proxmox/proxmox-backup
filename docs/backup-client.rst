@@ -3,6 +3,7 @@ Backup Client Usage
 
 The command line client is called :command:`proxmox-backup-client`.
 
+.. _client_repository:
 
 Repository Locations
 --------------------
@@ -691,8 +692,15 @@ Benchmarking
 ------------
 
 The backup client also comes with a benchmarking tool. This tool measures
-various metrics relating to compression and encryption speeds. You can run a
-benchmark using the ``benchmark`` subcommand of ``proxmox-backup-client``:
+various metrics relating to compression and encryption speeds. If a Proxmox
+Backup repository (remote or local) is specified, the TLS upload speed will get
+measured too.
+
+You can run a benchmark using the ``benchmark`` subcommand of
+``proxmox-backup-client``:
+
+.. note:: The TLS speed test is only included if a :ref:`backup server
+  repository is specified <client_repository>`.
 
 .. code-block:: console
 
@@ -723,8 +731,7 @@ benchmark using the ``benchmark`` subcommand of ``proxmox-backup-client``:
 
 
 .. note:: The percentages given in the output table correspond to a
-  comparison against a Ryzen 7 2700X. The TLS test connects to the
-  local host, so there is no network involved.
+  comparison against a Ryzen 7 2700X.
 
 You can also pass the ``--output-format`` parameter to output stats in ``json``,
 rather than the default table format.
