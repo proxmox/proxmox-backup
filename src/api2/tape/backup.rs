@@ -435,6 +435,8 @@ fn backup_worker(
 
     let mut errors = false;
 
+    let mut need_catalog = false; // avoid writing catalog for empty jobs
+
     for (group_number, group) in group_list.into_iter().enumerate() {
         progress.done_groups = group_number as u64;
         progress.done_snapshots = 0;
@@ -451,6 +453,9 @@ fn backup_worker(
                     task_log!(worker, "skip snapshot {}", info.backup_dir);
                     continue;
                 }
+
+                need_catalog = true;
+
                 let snapshot_name = info.backup_dir.to_string();
                 if !backup_snapshot(worker, &mut pool_writer, datastore.clone(), info.backup_dir)? {
                     errors = true;
@@ -471,6 +476,9 @@ fn backup_worker(
                     task_log!(worker, "skip snapshot {}", info.backup_dir);
                     continue;
                 }
+
+                need_catalog = true;
+
                 let snapshot_name = info.backup_dir.to_string();
                 if !backup_snapshot(worker, &mut pool_writer, datastore.clone(), info.backup_dir)? {
                     errors = true;
@@ -489,17 +497,19 @@ fn backup_worker(
 
     pool_writer.commit()?;
 
-    task_log!(worker, "append media catalog");
+    if need_catalog {
+        task_log!(worker, "append media catalog");
 
-    let uuid = pool_writer.load_writable_media(worker)?;
-    let done = pool_writer.append_catalog_archive(worker)?;
-    if !done {
-        task_log!(worker, "catalog does not fit on tape, writing to next volume");
-        pool_writer.set_media_status_full(&uuid)?;
-        pool_writer.load_writable_media(worker)?;
+        let uuid = pool_writer.load_writable_media(worker)?;
         let done = pool_writer.append_catalog_archive(worker)?;
         if !done {
-            bail!("write_catalog_archive failed on second media");
+            task_log!(worker, "catalog does not fit on tape, writing to next volume");
+            pool_writer.set_media_status_full(&uuid)?;
+            pool_writer.load_writable_media(worker)?;
+            let done = pool_writer.append_catalog_archive(worker)?;
+            if !done {
+                bail!("write_catalog_archive failed on second media");
+            }
         }
     }
 
