@@ -372,7 +372,10 @@ pub const DATASTORE_MAP_ARRAY_SCHEMA: Schema = ArraySchema::new(
     .schema();
 
 pub const DATASTORE_MAP_LIST_SCHEMA: Schema = StringSchema::new(
-    "A list of Datastore mappings (or single datastore), comma separated.")
+    "A list of Datastore mappings (or single datastore), comma separated. \
+    For example 'a=b,e' maps the source datastore 'a' to target 'b and \
+    all other sources to the default 'e'. If no default is given, only the \
+    specified sources are mapped.")
     .format(&ApiStringFormat::PropertyString(&DATASTORE_MAP_ARRAY_SCHEMA))
     .schema();
 
