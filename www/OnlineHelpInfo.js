@@ -3,6 +3,10 @@ const proxmoxOnlineHelpInfo = {
     "link": "/docs/index.html",
     "title": "Proxmox Backup Server Documentation Index"
   },
+  "client-repository": {
+    "link": "/docs/backup-client.html#client-repository",
+    "title": "Repository Locations"
+  },
   "client-creating-backups": {
     "link": "/docs/backup-client.html#client-creating-backups",
     "title": "Creating Backups"
