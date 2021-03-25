@@ -24,11 +24,18 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 		return;
 	    }
 
-	    let mediaset = selection[0].data.text;
-	    let uuid = selection[0].data['media-set-uuid'];
+	    let node = selection[0];
+	    let mediaset = node.data.text;
+	    let uuid = node.data['media-set-uuid'];
+	    let datastores = node.data.datastores;
+	    while (!datastores && node.get('depth') > 2) {
+		node = node.parentNode;
+		datastores = node.data.datastores;
+	    }
 	    Ext.create('PBS.TapeManagement.TapeRestoreWindow', {
 		mediaset,
 		uuid,
+		datastores,
 		listeners: {
 		    destroy: function() {
 			me.reload();
@@ -185,6 +192,7 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 		}
 
 		let storeList = Object.values(stores);
+		let storeNameList = Object.keys(stores);
 		let expand = storeList.length === 1;
 		for (const store of storeList) {
 		    store.children = Object.values(store.tapes);
@@ -198,6 +206,7 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 		}
 
 		node.set('loaded', true);
+		node.set('datastores', storeNameList);
 		Proxmox.Utils.setErrorMask(view, false);
 		node.expand();
 	    } catch (error) {
