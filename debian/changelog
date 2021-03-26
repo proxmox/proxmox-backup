@@ -1,3 +1,21 @@
+rust-proxmox-backup (1.0.12-1) unstable; urgency=medium
+
+  * tape: write catalogs to tape (speedup catalog restore)
+
+  * tape: add --scan option for catalog restore
+
+  * tape: improve locking (lock media-sets)
+
+  * tape: ui: enable datastore mappings
+
+  * fix #3359: fix blocking writes in async code during pxar create
+
+  * api2/tape/backup: wait indefinitely for lock in scheduled backup jobs
+
+  * docu improvements
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 26 Mar 2021 14:08:47 +0100
+
 rust-proxmox-backup (1.0.11-1) unstable; urgency=medium
 
   * fix feature flag logic in pxar create
