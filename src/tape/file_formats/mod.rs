@@ -288,9 +288,12 @@ impl BlockHeader {
     pub fn new() -> Box<Self> {
         use std::alloc::{alloc_zeroed, Layout};
 
+        // align to PAGESIZE, so that we can use it with SG_IO
+        let page_size = unsafe { libc::sysconf(libc::_SC_PAGESIZE) } as usize;
+
         let mut buffer = unsafe {
             let ptr = alloc_zeroed(
-                Layout::from_size_align(Self::SIZE, std::mem::align_of::<u64>())
+                 Layout::from_size_align(Self::SIZE, page_size)
                     .unwrap(),
             );
             Box::from_raw(
