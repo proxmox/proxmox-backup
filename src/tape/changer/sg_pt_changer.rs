@@ -28,6 +28,7 @@ use crate::{
         SENSE_KEY_UNIT_ATTENTION,
         SENSE_KEY_NOT_READY,
         InquiryInfo,
+        ScsiError,
         scsi_ascii_to_string,
         scsi_inquiry,
     },
@@ -103,7 +104,7 @@ fn execute_scsi_command<F: AsRawFd>(
                 if !retry {
                     bail!("{} failed: {}", error_prefix, err);
                 }
-                if let Some(ref sense) = err.sense {
+                if let ScsiError::Sense(ref sense) = err {
 
                     if sense.sense_key == SENSE_KEY_NO_SENSE ||
                         sense.sense_key == SENSE_KEY_RECOVERED_ERROR ||

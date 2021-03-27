@@ -44,32 +44,38 @@ impl ToString for SenseInfo {
 }
 
 #[derive(Debug)]
-pub struct ScsiError {
-    pub error: Error,
-    pub sense: Option<SenseInfo>,
+pub enum ScsiError {
+    Error(Error),
+    Sense(SenseInfo),
 }
 
 impl std::fmt::Display for ScsiError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.error)
+        match self {
+            ScsiError::Error(err) => write!(f, "{}", err),
+            ScsiError::Sense(sense) =>  write!(f, "{}", sense.to_string()),
+        }
     }
 }
 
 impl std::error::Error for ScsiError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        self.error.source()
+         match self {
+             ScsiError::Error(err) => err.source(),
+             ScsiError::Sense(_) => None,
+         }
     }
 }
 
 impl From<anyhow::Error> for ScsiError {
     fn from(error: anyhow::Error) -> Self {
-        Self { error, sense: None }
+        Self::Error(error)
     }
 }
 
 impl From<std::io::Error> for ScsiError {
     fn from(error: std::io::Error) -> Self {
-        Self { error: error.into(), sense: None }
+        Self::Error(error.into())
     }
 }
 
@@ -483,10 +489,7 @@ impl <'a, F: AsRawFd> SgRaw<'a, F> {
                     }
                 };
 
-                return Err(ScsiError {
-                    error: format_err!("{}", sense.to_string()),
-                    sense: Some(sense),
-                });
+                return Err(ScsiError::Sense(sense));
             }
             SCSI_PT_RESULT_TRANSPORT_ERR => return Err(format_err!("scsi command failed: transport error").into()),
             SCSI_PT_RESULT_OS_ERR => {
