@@ -411,7 +411,7 @@ one media pool, so a job only uses tapes from that pool.
    The pool additionally defines how long backup jobs can append data
    to a media set. The following settings are possible:
 
-   - Try to use the current media set.
+   - Try to use the current media set (``continue``).
 
      This setting produces one large media set. While this is very
      space efficient (deduplication, no unused space), it can lead to
@@ -433,7 +433,7 @@ one media pool, so a job only uses tapes from that pool.
      .. NOTE:: Retention period starts with the existence of a newer
         media set.
 
-   - Always create a new media set.
+   - Always create a new media set (``always``).
 
      With this setting, each backup job creates a new media set. This
      is less space efficient, because the media from the last set
