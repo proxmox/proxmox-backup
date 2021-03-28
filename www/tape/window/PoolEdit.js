@@ -3,6 +3,8 @@ Ext.define('PBS.TapeManagement.PoolEditWindow', {
     alias: 'widget.pbsPoolEditWindow',
     mixins: ['Proxmox.Mixin.CBind'],
 
+    onlineHelp: 'tape_media_pool_config',
+
     isCreate: true,
     isAdd: true,
     subject: gettext('Media Pool'),
