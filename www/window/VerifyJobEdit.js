@@ -9,7 +9,7 @@ Ext.define('PBS.window.VerifyJobEdit', {
 
     isAdd: true,
 
-    subject: gettext('Verify Job'),
+    subject: gettext('Verification Job'),
 
     fieldDefaults: { labelWidth: 120 },
     defaultFocus: 'field[name="ignore-verified"]',
