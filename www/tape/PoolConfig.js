@@ -113,11 +113,11 @@ Ext.define('PBS.TapeManagement.PoolPanel', {
 	    flex: 1,
 	},
 	{
-	    text: gettext('Allocation'),
+	    text: gettext('Allocation Policy'),
 	    dataIndex: 'allocation',
 	},
 	{
-	    text: gettext('Retention'),
+	    text: gettext('Retention Policy'),
 	    dataIndex: 'retention',
 	},
 	{

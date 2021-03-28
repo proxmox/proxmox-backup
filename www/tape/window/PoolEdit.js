@@ -33,7 +33,7 @@ Ext.define('PBS.TapeManagement.PoolEditWindow', {
 		},
 	    },
 	    {
-		fieldLabel: gettext('Allocation'),
+		fieldLabel: gettext('Allocation Policy'),
 		xtype: 'pbsAllocationSelector',
 		name: 'allocation',
 		skipEmptyText: true,
@@ -44,7 +44,7 @@ Ext.define('PBS.TapeManagement.PoolEditWindow', {
 		},
 	    },
 	    {
-		fieldLabel: gettext('Retention'),
+		fieldLabel: gettext('Retention Policy'),
 		xtype: 'pbsRetentionSelector',
 		name: 'retention',
 		skipEmptyText: true,

@@ -27,11 +27,11 @@ Ext.define('PBS.TapeManagement.PoolSelector', {
 		dataIndex: 'drive',
 	    },
 	    {
-		text: gettext('Allocation'),
+		text: gettext('Allocation Policy'),
 		dataIndex: 'allocation',
 	    },
 	    {
-		text: gettext('Retention'),
+		text: gettext('Retention Policy'),
 		dataIndex: 'retention',
 	    },
 	    {
