@@ -305,7 +305,7 @@ Ext.define('PBS.TapeManagement.DriveStatusGrid', {
     rows: {
 	'blocksize': {
 	    required: true,
-	    header: gettext('Blocksize'),
+	    header: gettext('Block Size'),
 	    renderer: function(value) {
 		if (!value) {
 		    return gettext('Dynamic');
