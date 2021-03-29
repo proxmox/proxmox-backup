@@ -9,48 +9,42 @@ use std::task::{Context, Poll};
 use anyhow::{bail, format_err, Error};
 use futures::future::{self, FutureExt, TryFutureExt};
 use futures::stream::TryStreamExt;
-use hyper::header::{self, HeaderMap};
 use hyper::body::HttpBody;
+use hyper::header::{self, HeaderMap};
 use hyper::http::request::Parts;
 use hyper::{Body, Request, Response, StatusCode};
 use lazy_static::lazy_static;
+use percent_encoding::percent_decode_str;
+use regex::Regex;
 use serde_json::{json, Value};
 use tokio::fs::File;
 use tokio::time::Instant;
-use percent_encoding::percent_decode_str;
 use url::form_urlencoded;
-use regex::Regex;
 
-use proxmox::http_err;
-use proxmox::api::{
-    ApiHandler,
-    ApiMethod,
-    HttpError,
-    Permission,
-    RpcEnvironment,
-    RpcEnvironmentType,
-    check_api_permission,
-};
 use proxmox::api::schema::{
-    ObjectSchemaType,
+    parse_parameter_strings, parse_simple_value, verify_json_object, ObjectSchemaType,
     ParameterSchema,
-    parse_parameter_strings,
-    parse_simple_value,
-    verify_json_object,
 };
+use proxmox::api::{
+    check_api_permission, ApiHandler, ApiMethod, HttpError, Permission, RpcEnvironment,
+    RpcEnvironmentType,
+};
+use proxmox::http_err;
 
 use super::environment::RestEnvironment;
 use super::formatter::*;
 use super::ApiConfig;
 
-use crate::auth_helpers::*;
 use crate::api2::types::{Authid, Userid};
-use crate::tools;
-use crate::tools::FileLogger;
-use crate::tools::ticket::Ticket;
+use crate::auth_helpers::*;
 use crate::config::cached_user_info::CachedUserInfo;
+use crate::tools;
+use crate::tools::ticket::Ticket;
+use crate::tools::FileLogger;
 
-extern "C"  { fn tzset(); }
+extern "C" {
+    fn tzset();
+}
 
 pub struct RestServer {
     pub api_config: Arc<ApiConfig>,
@@ -59,13 +53,16 @@ pub struct RestServer {
 const MAX_URI_QUERY_LENGTH: usize = 3072;
 
 impl RestServer {
-
     pub fn new(api_config: ApiConfig) -> Self {
-        Self { api_config: Arc::new(api_config) }
+        Self {
+            api_config: Arc::new(api_config),
+        }
     }
 }
 
-impl tower_service::Service<&Pin<Box<tokio_openssl::SslStream<tokio::net::TcpStream>>>> for RestServer {
+impl tower_service::Service<&Pin<Box<tokio_openssl::SslStream<tokio::net::TcpStream>>>>
+    for RestServer
+{
     type Response = ApiService;
     type Error = Error;
     type Future = Pin<Box<dyn Future<Output = Result<ApiService, Error>> + Send>>;
@@ -74,14 +71,17 @@ impl tower_service::Service<&Pin<Box<tokio_openssl::SslStream<tokio::net::TcpStr
         Poll::Ready(Ok(()))
     }
 
-    fn call(&mut self, ctx: &Pin<Box<tokio_openssl::SslStream<tokio::net::TcpStream>>>) -> Self::Future {
+    fn call(
+        &mut self,
+        ctx: &Pin<Box<tokio_openssl::SslStream<tokio::net::TcpStream>>>,
+    ) -> Self::Future {
         match ctx.get_ref().peer_addr() {
-            Err(err) => {
-                future::err(format_err!("unable to get peer address - {}", err)).boxed()
-            }
-            Ok(peer) => {
-                future::ok(ApiService { peer, api_config: self.api_config.clone() }).boxed()
-            }
+            Err(err) => future::err(format_err!("unable to get peer address - {}", err)).boxed(),
+            Ok(peer) => future::ok(ApiService {
+                peer,
+                api_config: self.api_config.clone(),
+            })
+            .boxed(),
         }
     }
 }
@@ -97,12 +97,12 @@ impl tower_service::Service<&tokio::net::TcpStream> for RestServer {
 
     fn call(&mut self, ctx: &tokio::net::TcpStream) -> Self::Future {
         match ctx.peer_addr() {
-            Err(err) => {
-                future::err(format_err!("unable to get peer address - {}", err)).boxed()
-            }
-            Ok(peer) => {
-                future::ok(ApiService { peer, api_config: self.api_config.clone() }).boxed()
-            }
+            Err(err) => future::err(format_err!("unable to get peer address - {}", err)).boxed(),
+            Ok(peer) => future::ok(ApiService {
+                peer,
+                api_config: self.api_config.clone(),
+            })
+            .boxed(),
         }
     }
 }
@@ -122,8 +122,9 @@ impl tower_service::Service<&tokio::net::UnixStream> for RestServer {
         let fake_peer = "0.0.0.0:807".parse().unwrap();
         future::ok(ApiService {
             peer: fake_peer,
-            api_config: self.api_config.clone()
-        }).boxed()
+            api_config: self.api_config.clone(),
+        })
+        .boxed()
     }
 }
 
@@ -140,8 +141,9 @@ fn log_response(
     resp: &Response<Body>,
     user_agent: Option<String>,
 ) {
-
-    if resp.extensions().get::<NoLogExtension>().is_some() { return; };
+    if resp.extensions().get::<NoLogExtension>().is_some() {
+        return;
+    };
 
     // we also log URL-to-long requests, so avoid message bigger than PIPE_BUF (4k on Linux)
     // to profit from atomicty guarantees for O_APPEND opened logfiles
@@ -157,7 +159,15 @@ fn log_response(
             message = &data.0;
         }
 
-        log::error!("{} {}: {} {}: [client {}] {}", method.as_str(), path, status.as_str(), reason, peer, message);
+        log::error!(
+            "{} {}: {} {}: [client {}] {}",
+            method.as_str(),
+            path,
+            status.as_str(),
+            reason,
+            peer,
+            message
+        );
     }
     if let Some(logfile) = logfile {
         let auth_id = match resp.extensions().get::<Authid>() {
@@ -169,20 +179,17 @@ fn log_response(
         let datetime = proxmox::tools::time::strftime_local("%d/%m/%Y:%H:%M:%S %z", now)
             .unwrap_or_else(|_| "-".to_string());
 
-        logfile
-            .lock()
-            .unwrap()
-            .log(format!(
-                "{} - {} [{}] \"{} {}\" {} {} {}",
-                peer.ip(),
-                auth_id,
-                datetime,
-                method.as_str(),
-                path,
-                status.as_str(),
-                resp.body().size_hint().lower(),
-                user_agent.unwrap_or_else(|| "-".to_string()),
-            ));
+        logfile.lock().unwrap().log(format!(
+            "{} - {} [{}] \"{} {}\" {} {} {}",
+            peer.ip(),
+            auth_id,
+            datetime,
+            method.as_str(),
+            path,
+            status.as_str(),
+            resp.body().size_hint().lower(),
+            user_agent.unwrap_or_else(|| "-".to_string()),
+        ));
     }
 }
 pub fn auth_logger() -> Result<FileLogger, Error> {
@@ -208,11 +215,13 @@ fn get_proxied_peer(headers: &HeaderMap) -> Option<std::net::SocketAddr> {
 
 fn get_user_agent(headers: &HeaderMap) -> Option<String> {
     let agent = headers.get(header::USER_AGENT)?.to_str();
-    agent.map(|s| {
-        let mut s = s.to_owned();
-        s.truncate(128);
-        s
-    }).ok()
+    agent
+        .map(|s| {
+            let mut s = s.to_owned();
+            s.truncate(128);
+            s
+        })
+        .ok()
 }
 
 impl tower_service::Service<Request<Body>> for ApiService {
@@ -260,7 +269,6 @@ fn parse_query_parameters<S: 'static + BuildHasher + Send>(
     parts: &Parts,
     uri_param: &HashMap<String, String, S>,
 ) -> Result<Value, Error> {
-
     let mut param_list: Vec<(String, String)> = vec![];
 
     if !form.is_empty() {
@@ -271,7 +279,9 @@ fn parse_query_parameters<S: 'static + BuildHasher + Send>(
 
     if let Some(query_str) = parts.uri.query() {
         for (k, v) in form_urlencoded::parse(query_str.as_bytes()).into_owned() {
-            if k == "_dc" { continue; } // skip extjs "disable cache" parameter
+            if k == "_dc" {
+                continue;
+            } // skip extjs "disable cache" parameter
             param_list.push((k, v));
         }
     }
@@ -291,7 +301,6 @@ async fn get_request_parameters<S: 'static + BuildHasher + Send>(
     req_body: Body,
     uri_param: HashMap<String, String, S>,
 ) -> Result<Value, Error> {
-
     let mut is_json = false;
 
     if let Some(value) = parts.headers.get(header::CONTENT_TYPE) {
@@ -309,16 +318,18 @@ async fn get_request_parameters<S: 'static + BuildHasher + Send>(
     let body = req_body
         .map_err(|err| http_err!(BAD_REQUEST, "Promlems reading request body: {}", err))
         .try_fold(Vec::new(), |mut acc, chunk| async move {
-            if acc.len() + chunk.len() < 64*1024 { //fimxe: max request body size?
+            // FIXME: max request body size?
+            if acc.len() + chunk.len() < 64 * 1024 {
                 acc.extend_from_slice(&*chunk);
                 Ok(acc)
             } else {
                 Err(http_err!(BAD_REQUEST, "Request body too large"))
             }
-        }).await?;
+        })
+        .await?;
 
-    let utf8_data = std::str::from_utf8(&body)
-        .map_err(|err| format_err!("Request body not uft8: {}", err))?;
+    let utf8_data =
+        std::str::from_utf8(&body).map_err(|err| format_err!("Request body not uft8: {}", err))?;
 
     if is_json {
         let mut params: Value = serde_json::from_str(utf8_data)?;
@@ -342,7 +353,6 @@ async fn proxy_protected_request(
     req_body: Body,
     peer: &std::net::SocketAddr,
 ) -> Result<Response<Body>, Error> {
-
     let mut uri_parts = parts.uri.clone().into_parts();
 
     uri_parts.scheme = Some(http::uri::Scheme::HTTP);
@@ -352,9 +362,10 @@ async fn proxy_protected_request(
     parts.uri = new_uri;
 
     let mut request = Request::from_parts(parts, req_body);
-    request
-        .headers_mut()
-        .insert(header::FORWARDED, format!("for=\"{}\";", peer).parse().unwrap());
+    request.headers_mut().insert(
+        header::FORWARDED,
+        format!("for=\"{}\";", peer).parse().unwrap(),
+    );
 
     let reload_timezone = info.reload_timezone;
 
@@ -367,7 +378,11 @@ async fn proxy_protected_request(
         })
         .await?;
 
-    if reload_timezone { unsafe { tzset(); } }
+    if reload_timezone {
+        unsafe {
+            tzset();
+        }
+    }
 
     Ok(resp)
 }
@@ -380,7 +395,6 @@ pub async fn handle_api_request<Env: RpcEnvironment, S: 'static + BuildHasher + 
     req_body: Body,
     uri_param: HashMap<String, String, S>,
 ) -> Result<Response<Body>, Error> {
-
     let delay_unauth_time = std::time::Instant::now() + std::time::Duration::from_millis(3000);
 
     let result = match info.handler {
@@ -389,12 +403,13 @@ pub async fn handle_api_request<Env: RpcEnvironment, S: 'static + BuildHasher + 
             (handler)(parts, req_body, params, info, Box::new(rpcenv)).await
         }
         ApiHandler::Sync(handler) => {
-            let params = get_request_parameters(info.parameters, parts, req_body, uri_param).await?;
-            (handler)(params, info, &mut rpcenv)
-                .map(|data| (formatter.format_data)(data, &rpcenv))
+            let params =
+                get_request_parameters(info.parameters, parts, req_body, uri_param).await?;
+            (handler)(params, info, &mut rpcenv).map(|data| (formatter.format_data)(data, &rpcenv))
         }
         ApiHandler::Async(handler) => {
-            let params = get_request_parameters(info.parameters, parts, req_body, uri_param).await?;
+            let params =
+                get_request_parameters(info.parameters, parts, req_body, uri_param).await?;
             (handler)(params, info, &mut rpcenv)
                 .await
                 .map(|data| (formatter.format_data)(data, &rpcenv))
@@ -413,7 +428,11 @@ pub async fn handle_api_request<Env: RpcEnvironment, S: 'static + BuildHasher + 
         }
     };
 
-    if info.reload_timezone { unsafe { tzset(); } }
+    if info.reload_timezone {
+        unsafe {
+            tzset();
+        }
+    }
 
     Ok(resp)
 }
@@ -424,8 +443,7 @@ fn get_index(
     language: Option<String>,
     api: &Arc<ApiConfig>,
     parts: Parts,
-) ->  Response<Body> {
-
+) -> Response<Body> {
     let nodename = proxmox::tools::nodename();
     let user = userid.as_ref().map(|u| u.as_str()).unwrap_or("");
 
@@ -462,9 +480,7 @@ fn get_index(
 
     let (ct, index) = match api.render_template(template_file, &data) {
         Ok(index) => ("text/html", index),
-        Err(err) => {
-            ("text/plain", format!("Error rendering template: {}", err))
-        }
+        Err(err) => ("text/plain", format!("Error rendering template: {}", err)),
     };
 
     let mut resp = Response::builder()
@@ -481,7 +497,6 @@ fn get_index(
 }
 
 fn extension_to_content_type(filename: &Path) -> (&'static str, bool) {
-
     if let Some(ext) = filename.extension().and_then(|osstr| osstr.to_str()) {
         return match ext {
             "css" => ("text/css", false),
@@ -510,7 +525,6 @@ fn extension_to_content_type(filename: &Path) -> (&'static str, bool) {
 }
 
 async fn simple_static_file_download(filename: PathBuf) -> Result<Response<Body>, Error> {
-
     let (content_type, _nocomp) = extension_to_content_type(&filename);
 
     use tokio::io::AsyncReadExt;
@@ -527,7 +541,8 @@ async fn simple_static_file_download(filename: PathBuf) -> Result<Response<Body>
     let mut response = Response::new(data.into());
     response.headers_mut().insert(
         header::CONTENT_TYPE,
-        header::HeaderValue::from_static(content_type));
+        header::HeaderValue::from_static(content_type),
+    );
     Ok(response)
 }
 
@@ -542,22 +557,20 @@ async fn chuncked_static_file_download(filename: PathBuf) -> Result<Response<Bod
         .map_ok(|bytes| bytes.freeze());
     let body = Body::wrap_stream(payload);
 
-    // fixme: set other headers ?
+    // FIXME: set other headers ?
     Ok(Response::builder()
-       .status(StatusCode::OK)
-       .header(header::CONTENT_TYPE, content_type)
-       .body(body)
-       .unwrap()
-    )
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, content_type)
+        .body(body)
+        .unwrap())
 }
 
-async fn handle_static_file_download(filename: PathBuf) ->  Result<Response<Body>, Error> {
-
+async fn handle_static_file_download(filename: PathBuf) -> Result<Response<Body>, Error> {
     let metadata = tokio::fs::metadata(filename.clone())
         .map_err(|err| http_err!(BAD_REQUEST, "File access problems: {}", err))
         .await?;
 
-    if metadata.len() < 1024*32 {
+    if metadata.len() < 1024 * 32 {
         simple_static_file_download(filename).await
     } else {
         chuncked_static_file_download(filename).await
@@ -574,7 +587,7 @@ fn extract_lang_header(headers: &http::HeaderMap) -> Option<String> {
     None
 }
 
-struct UserAuthData{
+struct UserAuthData {
     ticket: String,
     csrf_token: Option<String>,
 }
@@ -592,10 +605,7 @@ fn extract_auth_data(headers: &http::HeaderMap) -> Option<AuthData> {
                     Some(Ok(v)) => Some(v.to_owned()),
                     _ => None,
                 };
-                return Some(AuthData::User(UserAuthData {
-                    ticket,
-                    csrf_token,
-                }));
+                return Some(AuthData::User(UserAuthData { ticket, csrf_token }));
             }
         }
     }
@@ -607,7 +617,7 @@ fn extract_auth_data(headers: &http::HeaderMap) -> Option<AuthData> {
             } else {
                 None
             }
-        },
+        }
         _ => None,
     }
 }
@@ -633,17 +643,24 @@ fn check_auth(
 
             if method != hyper::Method::GET {
                 if let Some(csrf_token) = &user_auth_data.csrf_token {
-                    verify_csrf_prevention_token(csrf_secret(), &userid, &csrf_token, -300, ticket_lifetime)?;
+                    verify_csrf_prevention_token(
+                        csrf_secret(),
+                        &userid,
+                        &csrf_token,
+                        -300,
+                        ticket_lifetime,
+                    )?;
                 } else {
                     bail!("missing CSRF prevention token");
                 }
             }
 
             Ok(auth_id)
-        },
+        }
         AuthData::ApiToken(api_token) => {
             let mut parts = api_token.splitn(2, ':');
-            let tokenid = parts.next()
+            let tokenid = parts
+                .next()
                 .ok_or_else(|| format_err!("failed to split API token header"))?;
             let tokenid: Authid = tokenid.parse()?;
 
@@ -651,7 +668,8 @@ fn check_auth(
                 bail!("user account or token disabled or expired.");
             }
 
-            let tokensecret = parts.next()
+            let tokensecret = parts
+                .next()
                 .ok_or_else(|| format_err!("failed to split API token header"))?;
             let tokensecret = percent_decode_str(tokensecret)
                 .decode_utf8()
@@ -669,7 +687,6 @@ async fn handle_request(
     req: Request<Body>,
     peer: &std::net::SocketAddr,
 ) -> Result<Response<Body>, Error> {
-
     let (parts, body) = req.into_parts();
     let method = parts.method.clone();
     let (path, components) = tools::normalize_uri_path(parts.uri.path())?;
@@ -695,15 +712,13 @@ async fn handle_request(
     let access_forbidden_time = std::time::Instant::now() + std::time::Duration::from_millis(500);
 
     if comp_len >= 1 && components[0] == "api2" {
-
         if comp_len >= 2 {
-
             let format = components[1];
 
             let formatter = match format {
                 "json" => &JSON_FORMATTER,
                 "extjs" => &EXTJS_FORMATTER,
-                _ =>  bail!("Unsupported output format '{}'.", format),
+                _ => bail!("Unsupported output format '{}'.", format),
             };
 
             let mut uri_param = HashMap::new();
@@ -725,8 +740,10 @@ async fn handle_request(
                     Ok(authid) => rpcenv.set_auth_id(Some(authid.to_string())),
                     Err(err) => {
                         let peer = peer.ip();
-                        auth_logger()?
-                            .log(format!("authentication failure; rhost={} msg={}", peer, err));
+                        auth_logger()?.log(format!(
+                            "authentication failure; rhost={} msg={}",
+                            peer, err
+                        ));
 
                         // always delay unauthorized calls by 3 seconds (from start of request)
                         let err = http_err!(UNAUTHORIZED, "authentication failed - {}", err);
@@ -743,7 +760,12 @@ async fn handle_request(
                 }
                 Some(api_method) => {
                     let auth_id = rpcenv.get_auth_id();
-                    if !check_api_permission(api_method.access.permission, auth_id.as_deref(), &uri_param, user_info.as_ref()) {
+                    if !check_api_permission(
+                        api_method.access.permission,
+                        auth_id.as_deref(),
+                        &uri_param,
+                        user_info.as_ref(),
+                    ) {
                         let err = http_err!(FORBIDDEN, "permission check failed");
                         tokio::time::sleep_until(Instant::from_std(access_forbidden_time)).await;
                         return Ok((formatter.format_error)(err));
@@ -752,7 +774,8 @@ async fn handle_request(
                     let result = if api_method.protected && env_type == RpcEnvironmentType::PUBLIC {
                         proxy_protected_request(api_method, parts, body, peer).await
                     } else {
-                        handle_api_request(rpcenv, api_method, formatter, parts, body, uri_param).await
+                        handle_api_request(rpcenv, api_method, formatter, parts, body, uri_param)
+                            .await
                     };
 
                     let mut response = match result {
@@ -768,9 +791,8 @@ async fn handle_request(
                     return Ok(response);
                 }
             }
-
         }
-     } else {
+    } else {
         // not Auth required for accessing files!
 
         if method != hyper::Method::GET {
@@ -784,8 +806,14 @@ async fn handle_request(
                     Ok(auth_id) if !auth_id.is_token() => {
                         let userid = auth_id.user();
                         let new_csrf_token = assemble_csrf_prevention_token(csrf_secret(), userid);
-                        return Ok(get_index(Some(userid.clone()), Some(new_csrf_token), language, &api, parts));
-                    },
+                        return Ok(get_index(
+                            Some(userid.clone()),
+                            Some(new_csrf_token),
+                            language,
+                            &api,
+                            parts,
+                        ));
+                    }
                     _ => {
                         tokio::time::sleep_until(Instant::from_std(delay_unauth_time)).await;
                         return Ok(get_index(None, None, language, &api, parts));
