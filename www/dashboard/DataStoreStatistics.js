@@ -73,6 +73,13 @@ Ext.define('PBS.DatastoreStatistics', {
 	    renderer: Proxmox.Utils.format_size,
 	},
 	{
+	    text: gettext('Available'),
+	    dataIndex: 'avail',
+	    sortable: true,
+	    width: 90,
+	    renderer: Proxmox.Utils.format_size,
+	},
+	{
 	    text: gettext('Usage %'),
 	    dataIndex: 'usage',
 	    sortable: true,
