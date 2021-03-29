@@ -315,18 +315,19 @@ async fn get_request_parameters<S: 'static + BuildHasher + Send>(
         }
     }
 
-    let body = req_body
-        .map_err(|err| http_err!(BAD_REQUEST, "Promlems reading request body: {}", err))
-        .try_fold(Vec::new(), |mut acc, chunk| async move {
-            // FIXME: max request body size?
-            if acc.len() + chunk.len() < 64 * 1024 {
-                acc.extend_from_slice(&*chunk);
-                Ok(acc)
-            } else {
-                Err(http_err!(BAD_REQUEST, "Request body too large"))
-            }
-        })
-        .await?;
+    let body = TryStreamExt::map_err(req_body, |err| {
+        http_err!(BAD_REQUEST, "Problems reading request body: {}", err)
+    })
+    .try_fold(Vec::new(), |mut acc, chunk| async move {
+        // FIXME: max request body size?
+        if acc.len() + chunk.len() < 64 * 1024 {
+            acc.extend_from_slice(&*chunk);
+            Ok(acc)
+        } else {
+            Err(http_err!(BAD_REQUEST, "Request body too large"))
+        }
+    })
+    .await?;
 
     let utf8_data =
         std::str::from_utf8(&body).map_err(|err| format_err!("Request body not uft8: {}", err))?;
