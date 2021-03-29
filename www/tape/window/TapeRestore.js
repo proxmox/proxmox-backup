@@ -30,8 +30,8 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 
 		if (values.mapping) {
 		    datastores.push(values.mapping);
-		    delete values.mapping;
 		}
+		delete values.mapping;
 
 		values.store = datastores.join(',');
 
