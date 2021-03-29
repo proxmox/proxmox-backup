@@ -23,12 +23,12 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 	    onGetValues: function(values) {
 		let me = this;
 		let datastores = [];
-		if (values.store && values.store !== "") {
+		if (values.store.toString() !== "") {
 		    datastores.push(values.store);
 		    delete values.store;
 		}
 
-		if (values.mapping) {
+		if (values.mapping.toString() !== "") {
 		    datastores.push(values.mapping);
 		}
 		delete values.mapping;
