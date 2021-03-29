@@ -222,8 +222,7 @@ impl TapeDriver for VirtualTapeHandle {
                 self.store_status(&status)
                     .map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))?;
 
-                let reader = Box::new(file);
-                let reader = Box::new(EmulateTapeReader::new(reader));
+                let reader = EmulateTapeReader::new(file);
 
                 match BlockedReader::open(reader)? {
                     Some(reader) => Ok(Some(Box::new(reader))),

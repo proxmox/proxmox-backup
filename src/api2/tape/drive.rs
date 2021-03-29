@@ -531,6 +531,7 @@ pub fn label_media(
                 Ok(Some(_file)) => bail!("media is not empty (erase first)"),
                 Ok(None) => { /* EOF mark at BOT, assume tape is empty */ },
                 Err(err) => {
+                    println!("TEST {:?}", err);
                     if err.is_errno(nix::errno::Errno::ENOSPC) || err.is_errno(nix::errno::Errno::EIO) {
                         /* assume tape is empty */
                     } else {

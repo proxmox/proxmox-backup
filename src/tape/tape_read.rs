@@ -15,31 +15,14 @@ pub trait TapeRead: Read {
     fn has_end_marker(&self) -> Result<bool, std::io::Error>;
 }
 
-/// Read a single block from a tape device
-///
-/// Assumes that 'reader' is a linux tape device.
-///
-/// Return true on success, false on EOD
-pub fn tape_device_read_block<R: Read>(
-    reader: &mut R,
-    buffer: &mut [u8],
-) -> Result<bool, std::io::Error> {
+pub enum BlockReadStatus {
+    Ok(usize),
+    EndOfFile,
+    EndOfStream,
+}
 
-    loop {
-        match reader.read(buffer) {
-            Ok(0) => { return Ok(false); /* EOD */ }
-            Ok(count) => {
-                if count == buffer.len() {
-                    return Ok(true);
-                }
-                proxmox::io_bail!("short block read ({} < {}). Tape drive uses wrong block size.",
-                                  count, buffer.len());
-            }
-            // handle interrupted system call
-            Err(err) if err.kind() == std::io::ErrorKind::Interrupted => {
-                continue;
-            }
-            Err(err) => return Err(err),
-        }
-    }
+/// Read streams of blocks
+pub trait BlockRead {
+    /// Read the next block (whole buffer)
+    fn read_block(&mut self, buffer: &mut [u8]) -> Result<BlockReadStatus, std::io::Error>;
 }

@@ -2,7 +2,8 @@ use std::io::Read;
 
 use crate::tape::{
     TapeRead,
-    tape_device_read_block,
+    BlockRead,
+    BlockReadStatus,
     file_formats::{
         PROXMOX_TAPE_BLOCK_HEADER_MAGIC_1_0,
         BlockHeader,
@@ -32,7 +33,7 @@ pub struct BlockedReader<R> {
     read_pos: usize,
 }
 
-impl <R: Read> BlockedReader<R> {
+impl <R: BlockRead> BlockedReader<R> {
 
     /// Create a new BlockedReader instance.
     ///
@@ -103,15 +104,41 @@ impl <R: Read> BlockedReader<R> {
             )
         };
 
-        tape_device_read_block(reader, data)
+        match reader.read_block(data) {
+            Ok(BlockReadStatus::Ok(bytes)) => {
+                if bytes != BlockHeader::SIZE {
+                    proxmox::io_bail!("got wrong block size");
+                }
+                Ok(true)
+            }
+            Ok(BlockReadStatus::EndOfFile) => {
+                Ok(false)
+            }
+            Ok(BlockReadStatus::EndOfStream) => {
+                return Err(std::io::Error::from_raw_os_error(nix::errno::Errno::ENOSPC as i32));
+            }
+            Err(err) => {
+                Err(err)
+            }
+        }
     }
 
     fn consume_eof_marker(reader: &mut R) -> Result<(), std::io::Error> {
         let mut tmp_buf = [0u8; 512]; // use a small buffer for testing EOF
-        if tape_device_read_block(reader, &mut tmp_buf)? {
-            proxmox::io_bail!("detected tape block after stream end marker");
+        match reader.read_block(&mut tmp_buf) {
+            Ok(BlockReadStatus::Ok(_)) => {
+                proxmox::io_bail!("detected tape block after block-stream end marker");
+            }
+            Ok(BlockReadStatus::EndOfFile) => {
+                return Ok(());
+            }
+            Ok(BlockReadStatus::EndOfStream) => {
+                proxmox::io_bail!("got unexpected end of tape");
+            }
+            Err(err) => {
+                return Err(err);
+            }
         }
-        Ok(())
     }
 
     fn read_block(&mut self) -> Result<usize, std::io::Error> {
@@ -141,7 +168,7 @@ impl <R: Read> BlockedReader<R> {
     }
 }
 
-impl <R: Read> TapeRead for BlockedReader<R> {
+impl <R: BlockRead> TapeRead for BlockedReader<R> {
 
     fn is_incomplete(&self) -> Result<bool, std::io::Error> {
         if !self.got_eod {
@@ -163,7 +190,7 @@ impl <R: Read> TapeRead for BlockedReader<R> {
     }
 }
 
-impl <R: Read> Read for BlockedReader<R> {
+impl <R: BlockRead> Read for BlockedReader<R> {
 
     fn read(&mut self, buffer: &mut [u8]) -> Result<usize, std::io::Error> {
 
@@ -207,6 +234,7 @@ mod test {
     use anyhow::Error;
     use crate::tape::{
         TapeWrite,
+        helpers::{EmulateTapeReader, EmulateTapeWriter},
         file_formats::{
             PROXMOX_TAPE_BLOCK_SIZE,
             BlockedReader,
@@ -218,11 +246,14 @@ mod test {
 
         let mut tape_data = Vec::new();
 
-        let mut writer = BlockedWriter::new(&mut tape_data);
+        {
+            let writer = EmulateTapeWriter::new(&mut tape_data, 1024*1024*10);
+            let mut writer = BlockedWriter::new(writer);
 
-        writer.write_all(data)?;
+            writer.write_all(data)?;
 
-        writer.finish(false)?;
+            writer.finish(false)?;
+        }
 
         assert_eq!(
             tape_data.len(),
@@ -231,6 +262,7 @@ mod test {
         );
 
         let reader = &mut &tape_data[..];
+        let reader = EmulateTapeReader::new(reader);
         let mut reader = BlockedReader::open(reader)?.unwrap();
 
         let mut read_data = Vec::with_capacity(PROXMOX_TAPE_BLOCK_SIZE);
@@ -263,6 +295,7 @@ mod test {
     fn no_data() -> Result<(), Error> {
         let tape_data = Vec::new();
         let reader = &mut &tape_data[..];
+        let reader = EmulateTapeReader::new(reader);
         let reader = BlockedReader::open(reader)?;
         assert!(reader.is_none());
 
@@ -273,13 +306,16 @@ mod test {
     fn no_end_marker() -> Result<(), Error> {
         let mut tape_data = Vec::new();
         {
-            let mut writer = BlockedWriter::new(&mut tape_data);
+            let writer = EmulateTapeWriter::new(&mut tape_data, 1024*1024);
+            let mut writer = BlockedWriter::new(writer);
             // write at least one block
             let data = proxmox::sys::linux::random_data(PROXMOX_TAPE_BLOCK_SIZE)?;
             writer.write_all(&data)?;
             // but do not call finish here
         }
+
         let reader = &mut &tape_data[..];
+        let reader = EmulateTapeReader::new(reader);
         let mut reader = BlockedReader::open(reader)?.unwrap();
 
         let mut data = Vec::with_capacity(PROXMOX_TAPE_BLOCK_SIZE);
@@ -292,13 +328,17 @@ mod test {
     fn small_read_buffer() -> Result<(), Error> {
         let mut tape_data = Vec::new();
 
-        let mut writer = BlockedWriter::new(&mut tape_data);
+        {
+            let writer = EmulateTapeWriter::new(&mut tape_data, 1024*1024);
+            let mut writer = BlockedWriter::new(writer);
 
-        writer.write_all(b"ABC")?;
+            writer.write_all(b"ABC")?;
 
-        writer.finish(false)?;
+            writer.finish(false)?;
+        }
 
         let reader = &mut &tape_data[..];
+        let reader = EmulateTapeReader::new(reader);
         let mut reader = BlockedReader::open(reader)?.unwrap();
 
         let mut buf = [0u8; 1];

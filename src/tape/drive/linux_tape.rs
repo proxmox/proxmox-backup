@@ -1,6 +1,7 @@
 //! Driver for Linux SCSI tapes
 
 use std::fs::{OpenOptions, File};
+use std::io::Read;
 use std::os::unix::fs::OpenOptionsExt;
 use std::os::unix::io::{AsRawFd, FromRawFd, RawFd};
 use std::convert::TryFrom;
@@ -24,6 +25,8 @@ use crate::{
         LinuxDriveAndMediaStatus,
     },
     tape::{
+        BlockRead,
+        BlockReadStatus,
         TapeRead,
         TapeWrite,
         drive::{
@@ -507,7 +510,8 @@ impl TapeDriver for LinuxTapeHandle {
     }
 
     fn read_next_file<'a>(&'a mut self) -> Result<Option<Box<dyn TapeRead + 'a>>, std::io::Error> {
-        match BlockedReader::open(&mut self.file)? {
+        let reader = LinuxTapeReader::new(&mut self.file);
+        match BlockedReader::open(reader)? {
             Some(reader) => Ok(Some(Box::new(reader))),
             None => Ok(None),
         }
@@ -764,5 +768,52 @@ impl TapeWrite for TapeWriterHandle<'_> {
 
     fn logical_end_of_media(&self) -> bool {
         self.writer.logical_end_of_media()
+    }
+}
+
+pub struct LinuxTapeReader<'a> {
+    /// Assumes that 'file' is a linux tape device.
+    file: &'a mut File,
+    got_eof: bool,
+}
+
+impl <'a> LinuxTapeReader<'a> {
+
+    pub fn new(file: &'a mut File) -> Self {
+        Self { file, got_eof: false }
+    }
+}
+
+impl <'a> BlockRead for LinuxTapeReader<'a> {
+
+    /// Read a single block from a linux tape device
+    ///
+    /// Return true on success, false on EOD
+    fn read_block(&mut self, buffer: &mut [u8]) -> Result<BlockReadStatus, std::io::Error> {
+        loop {
+            match self.file.read(buffer) {
+                Ok(0) => {
+                    let eod = self.got_eof;
+                    self.got_eof = true;
+                    if eod {
+                        return Ok(BlockReadStatus::EndOfStream);
+                    } else {
+                        return Ok(BlockReadStatus::EndOfFile);
+                    }
+                }
+                Ok(count) => {
+                    if count == buffer.len() {
+                        return Ok(BlockReadStatus::Ok(count));
+                    }
+                    proxmox::io_bail!("short block read ({} < {}). Tape drive uses wrong block size.",
+                                      count, buffer.len());
+                }
+                // handle interrupted system call
+                Err(err) if err.kind() == std::io::ErrorKind::Interrupted => {
+                    continue;
+                }
+                Err(err) => return Err(err),
+            }
+        }
     }
 }
