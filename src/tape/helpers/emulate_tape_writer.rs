@@ -1,6 +1,9 @@
 use std::io::{self, Write};
 
-use crate::tape::file_formats::PROXMOX_TAPE_BLOCK_SIZE;
+use crate::tape::{
+    BlockWrite,
+    file_formats::PROXMOX_TAPE_BLOCK_SIZE,
+};
 
 /// Emulate tape write behavior on a normal Writer
 ///
@@ -11,7 +14,7 @@ pub struct EmulateTapeWriter<W> {
     block_nr: usize,
     max_blocks: usize,
     writer: W,
-    leom_sent: bool,
+    wrote_eof: bool,
 }
 
 impl <W: Write> EmulateTapeWriter<W> {
@@ -27,16 +30,16 @@ impl <W: Write> EmulateTapeWriter<W> {
 
         Self {
             block_nr: 0,
-            leom_sent: false,
+            wrote_eof: false,
             writer,
             max_blocks,
         }
     }
 }
 
-impl <W: Write> Write for EmulateTapeWriter<W> {
+impl <W: Write> BlockWrite for EmulateTapeWriter<W> {
 
-    fn write(&mut self, buffer: &[u8]) -> Result<usize, io::Error> {
+    fn write_block(&mut self, buffer: &[u8]) -> Result<bool, io::Error> {
 
         if buffer.len() != PROXMOX_TAPE_BLOCK_SIZE {
             proxmox::io_bail!("EmulateTapeWriter: got write with wrong block size ({} != {}",
@@ -47,22 +50,22 @@ impl <W: Write> Write for EmulateTapeWriter<W> {
             return Err(io::Error::from_raw_os_error(nix::errno::Errno::ENOSPC as i32));
         }
 
-        if self.block_nr >= self.max_blocks {
-            if !self.leom_sent {
-                self.leom_sent = true;
-                return Err(io::Error::from_raw_os_error(nix::errno::Errno::ENOSPC as i32));
-            } else {
-                self.leom_sent = false;
-            }
-        }
-
         self.writer.write_all(buffer)?;
         self.block_nr += 1;
 
-        Ok(buffer.len())
+        if self.block_nr > self.max_blocks {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 
-    fn flush(&mut self) -> Result<(), io::Error> {
-        proxmox::io_bail!("EmulateTapeWriter does not support flush");
+    fn write_filemark(&mut self) -> Result<(), std::io::Error> {
+        if self.wrote_eof {
+            proxmox::io_bail!("EmulateTapeWriter: detected multiple EOF writes");
+        }
+        // do nothing, just record the call
+        self.wrote_eof = true;
+        Ok(())
     }
 }

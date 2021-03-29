@@ -1,7 +1,7 @@
 //! Driver for Linux SCSI tapes
 
 use std::fs::{OpenOptions, File};
-use std::io::Read;
+use std::io::{Read, Write};
 use std::os::unix::fs::OpenOptionsExt;
 use std::os::unix::io::{AsRawFd, FromRawFd, RawFd};
 use std::convert::TryFrom;
@@ -9,8 +9,10 @@ use std::convert::TryFrom;
 use anyhow::{bail, format_err, Error};
 use nix::fcntl::{fcntl, FcntlArg, OFlag};
 
-use proxmox::sys::error::SysResult;
-use proxmox::tools::Uuid;
+use proxmox::{
+    tools::Uuid,
+    sys::error::{SysError, SysResult},
+};
 
 use crate::{
     config,
@@ -25,6 +27,7 @@ use crate::{
         LinuxDriveAndMediaStatus,
     },
     tape::{
+        BlockWrite,
         BlockRead,
         BlockReadStatus,
         TapeRead,
@@ -257,10 +260,9 @@ impl LinuxTapeHandle {
         Ok(())
     }
 
-    /// Write a single EOF mark
-    pub fn write_eof_mark(&self) -> Result<(), Error> {
-        tape_write_eof_mark(&self.file)?;
-        Ok(())
+    /// Write a single EOF mark without flushing buffers
+    pub fn write_eof_mark(&mut self) -> Result<(), std::io::Error> {
+        tape_write_eof_mark(&mut self.file)
     }
 
     /// Set the drive's block length to the value specified.
@@ -519,10 +521,8 @@ impl TapeDriver for LinuxTapeHandle {
 
     fn write_file<'a>(&'a mut self) -> Result<Box<dyn TapeWrite + 'a>, std::io::Error> {
 
-        let handle = TapeWriterHandle {
-            writer: BlockedWriter::new(&mut self.file),
-        };
-
+        let writer = LinuxTapeWriter::new(&mut self.file);
+        let handle = BlockedWriter::new(writer);
         Ok(Box::new(handle))
     }
 
@@ -545,27 +545,27 @@ impl TapeDriver for LinuxTapeHandle {
 
         self.set_encryption(None)?;
 
-        let mut handle = TapeWriterHandle {
-            writer: BlockedWriter::new(&mut self.file),
-        };
+        { // limit handle scope
+            let mut handle = self.write_file()?;
 
-        let mut value = serde_json::to_value(media_set_label)?;
-        if media_set_label.encryption_key_fingerprint.is_some() {
-            match key_config {
-                Some(key_config) => {
-                    value["key-config"] = serde_json::to_value(key_config)?;
-                }
-                None => {
-                    bail!("missing encryption key config");
+            let mut value = serde_json::to_value(media_set_label)?;
+            if media_set_label.encryption_key_fingerprint.is_some() {
+                match key_config {
+                    Some(key_config) => {
+                        value["key-config"] = serde_json::to_value(key_config)?;
+                    }
+                    None => {
+                        bail!("missing encryption key config");
+                    }
                 }
             }
+
+            let raw = serde_json::to_string_pretty(&value)?;
+
+            let header = MediaContentHeader::new(PROXMOX_BACKUP_MEDIA_SET_LABEL_MAGIC_1_0, raw.len() as u32);
+            handle.write_header(&header, raw.as_bytes())?;
+            handle.finish(false)?;
         }
-
-        let raw = serde_json::to_string_pretty(&value)?;
-
-        let header = MediaContentHeader::new(PROXMOX_BACKUP_MEDIA_SET_LABEL_MAGIC_1_0, raw.len() as u32);
-        handle.write_header(&header, raw.as_bytes())?;
-        handle.finish(false)?;
 
         self.sync()?; // sync data to tape
 
@@ -655,7 +655,7 @@ impl TapeDriver for LinuxTapeHandle {
 }
 
 /// Write a single EOF mark without flushing buffers
-fn tape_write_eof_mark(file: &File) -> Result<(), std::io::Error> {
+fn tape_write_eof_mark(file: &mut File) -> Result<(), std::io::Error> {
 
     let cmd = mtop { mt_op: MTCmd::MTWEOFI, mt_count: 1 };
 
@@ -745,29 +745,67 @@ pub fn read_tapedev_options(file: &File) -> Result<SetDrvBufferOptions, Error> {
 }
 
 
-/// like BlockedWriter, but writes EOF mark on finish
-pub struct TapeWriterHandle<'a> {
-    writer: BlockedWriter<&'a mut File>,
+struct LinuxTapeWriter<'a> {
+    /// Assumes that 'file' is a linux tape device.
+    file: &'a mut File,
 }
 
-impl TapeWrite for TapeWriterHandle<'_> {
+impl <'a> LinuxTapeWriter<'a> {
+    pub fn new(file: &'a mut File) -> Self {
+        Self { file }
+    }
+}
 
-    fn write_all(&mut self, data: &[u8]) -> Result<bool, std::io::Error> {
-        self.writer.write_all(data)
+impl <'a> BlockWrite for LinuxTapeWriter<'a> {
+
+    /// Write a single block to a linux tape device
+    ///
+    /// EOM Behaviour on Linux: When the end of medium early warning is
+    /// encountered, the current write is finished and the number of bytes
+    /// is returned. The next write returns -1 and errno is set to
+    /// ENOSPC. To enable writing a trailer, the next write is allowed to
+    /// proceed and, if successful, the number of bytes is returned. After
+    /// this, -1 and the number of bytes are alternately returned until
+    /// the physical end of medium (or some other error) is encountered.
+    ///
+    /// See: https://github.com/torvalds/linux/blob/master/Documentation/scsi/st.rst
+    ///
+    /// On success, this returns if we en countered a EOM condition.
+    fn write_block(&mut self, data: &[u8]) -> Result<bool, std::io::Error> {
+
+        let mut leof = false;
+
+        loop {
+            match self.file.write(data) {
+                Ok(count) if count == data.len() => return Ok(leof),
+                Ok(count) if count > 0 => {
+                    proxmox::io_bail!(
+                        "short block write ({} < {}). Tape drive uses wrong block size.",
+                        count, data.len());
+                }
+                Ok(_) => { // count is 0 here, assume EOT
+                    return Err(std::io::Error::from_raw_os_error(nix::errno::Errno::ENOSPC as i32));
+                }
+                // handle interrupted system call
+                Err(err) if err.kind() == std::io::ErrorKind::Interrupted => {
+                    continue;
+                }
+                // detect and handle LEOM (early warning)
+                Err(err) if err.is_errno(nix::errno::Errno::ENOSPC) => {
+                    if leof {
+                        return Err(err);
+                    } else {
+                        leof = true;
+                        continue; // next write will succeed
+                    }
+                }
+                Err(err) => return Err(err),
+            }
+        }
     }
 
-    fn bytes_written(&self) -> usize {
-        self.writer.bytes_written()
-    }
-
-    fn finish(&mut self, incomplete: bool) -> Result<bool, std::io::Error> {
-        let leof = self.writer.finish(incomplete)?;
-        tape_write_eof_mark(self.writer.writer_ref_mut())?;
-        Ok(leof)
-    }
-
-    fn logical_end_of_media(&self) -> bool {
-        self.writer.logical_end_of_media()
+    fn write_filemark(&mut self) -> Result<(), std::io::Error> {
+        tape_write_eof_mark(&mut self.file)
     }
 }
 

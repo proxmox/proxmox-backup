@@ -276,8 +276,7 @@ impl TapeDriver for VirtualTapeHandle {
                     free_space = self.max_size - used_space;
                 }
 
-                let writer = Box::new(file);
-                let writer = Box::new(EmulateTapeWriter::new(writer, free_space));
+                let writer = EmulateTapeWriter::new(file, free_space);
                 let writer = Box::new(BlockedWriter::new(writer));
 
                 Ok(writer)

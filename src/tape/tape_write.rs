@@ -1,8 +1,4 @@
-use std::io::Write;
-
 use endian_trait::Endian;
-
-use proxmox::sys::error::SysError;
 
 use crate::tape::file_formats::MediaContentHeader;
 
@@ -53,53 +49,14 @@ pub trait TapeWrite {
     }
 }
 
-/// Write a single block to a tape device
-///
-/// Assumes that 'writer' is a linux tape device.
-///
-/// EOM Behaviour on Linux: When the end of medium early warning is
-/// encountered, the current write is finished and the number of bytes
-/// is returned. The next write returns -1 and errno is set to
-/// ENOSPC. To enable writing a trailer, the next write is allowed to
-/// proceed and, if successful, the number of bytes is returned. After
-/// this, -1 and the number of bytes are alternately returned until
-/// the physical end of medium (or some other error) is encountered.
-///
-/// See: https://github.com/torvalds/linux/blob/master/Documentation/scsi/st.rst
-///
-/// On success, this returns if we en countered a EOM condition.
-pub fn tape_device_write_block<W: Write>(
-    writer: &mut W,
-    data: &[u8],
-) -> Result<bool, std::io::Error> {
+/// Write streams of blocks
+pub trait BlockWrite {
+    /// Write a data block
+    ///
+    /// Returns true if the drive reached the Logical End Of Media
+    /// (early warning)
+    fn write_block(&mut self, buffer: &[u8]) -> Result<bool, std::io::Error>;
 
-    let mut leof = false;
-
-    loop {
-        match writer.write(data) {
-            Ok(count) if count == data.len() => return Ok(leof),
-            Ok(count) if count > 0 => {
-                proxmox::io_bail!(
-                    "short block write ({} < {}). Tape drive uses wrong block size.",
-                    count, data.len());
-            }
-            Ok(_) => { // count is 0 here, assume EOT
-                return Err(std::io::Error::from_raw_os_error(nix::errno::Errno::ENOSPC as i32));
-            }
-            // handle interrupted system call
-            Err(err) if err.kind() == std::io::ErrorKind::Interrupted => {
-                continue;
-            }
-            // detect and handle LEOM (early warning)
-            Err(err) if err.is_errno(nix::errno::Errno::ENOSPC) => {
-                if leof {
-                    return Err(err);
-                } else {
-                    leof = true;
-                    continue; // next write will succeed
-                }
-            }
-            Err(err) => return Err(err),
-        }
-    }
+    /// Write a filemark
+    fn write_filemark(&mut self) -> Result<(), std::io::Error>;
 }

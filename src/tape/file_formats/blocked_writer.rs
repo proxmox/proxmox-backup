@@ -1,10 +1,8 @@
-use std::io::Write;
-
 use proxmox::tools::vec;
 
 use crate::tape::{
     TapeWrite,
-    tape_device_write_block,
+    BlockWrite,
     file_formats::{
         BlockHeader,
         BlockHeaderFlags,
@@ -16,16 +14,27 @@ use crate::tape::{
 /// This type implement 'TapeWrite'. Data written is assembled to
 /// equally sized blocks (see 'BlockHeader'), which are then written
 /// to the underlying writer.
-pub struct BlockedWriter<W> {
+pub struct BlockedWriter<W: BlockWrite> {
     writer: W,
     buffer: Box<BlockHeader>,
     buffer_pos: usize,
     seq_nr: u32,
     logical_end_of_media: bool,
     bytes_written: usize,
+    wrote_eof: bool,
 }
 
-impl <W: Write> BlockedWriter<W> {
+impl <W: BlockWrite> Drop for BlockedWriter<W> {
+
+    // Try to make sure to end the file with a filemark
+    fn drop(&mut self) {
+        if !self.wrote_eof {
+            let _ = self.writer.write_filemark();
+        }
+    }
+}
+
+impl <W: BlockWrite> BlockedWriter<W> {
 
     /// Allow access to underlying writer
     pub fn writer_ref_mut(&mut self) -> &mut W {
@@ -41,6 +50,7 @@ impl <W: Write> BlockedWriter<W> {
             seq_nr: 0,
             logical_end_of_media: false,
             bytes_written: 0,
+            wrote_eof: false,
         }
     }
 
@@ -52,7 +62,16 @@ impl <W: Write> BlockedWriter<W> {
                 BlockHeader::SIZE,
             )
         };
-        tape_device_write_block(writer, data)
+        writer.write_block(data)
+    }
+
+    fn write_eof(&mut self) -> Result<(), std::io::Error> {
+        if self.wrote_eof {
+            proxmox::io_bail!("BlockedWriter: detected multiple EOF writes");
+        }
+        self.wrote_eof = true;
+
+        self.writer.write_filemark()
     }
 
     fn write(&mut self, data: &[u8]) -> Result<usize, std::io::Error> {
@@ -85,7 +104,7 @@ impl <W: Write> BlockedWriter<W> {
 
 }
 
-impl <W: Write> TapeWrite for BlockedWriter<W> {
+impl <W: BlockWrite> TapeWrite for BlockedWriter<W> {
 
     fn write_all(&mut self, mut data: &[u8]) -> Result<bool, std::io::Error> {
         while !data.is_empty() {
@@ -113,7 +132,9 @@ impl <W: Write> TapeWrite for BlockedWriter<W> {
         self.buffer.set_seq_nr(self.seq_nr);
         self.seq_nr += 1;
         self.bytes_written += BlockHeader::SIZE;
-        Self::write_block(&self.buffer, &mut self.writer)
+        let leom = Self::write_block(&self.buffer, &mut self.writer)?;
+        self.write_eof()?;
+        Ok(leom)
     }
 
     /// Returns if the writer already detected the logical end of media
