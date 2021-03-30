@@ -12,13 +12,13 @@ use crate::{
     tools::fs::scan_subdir,
 };
 
+lazy_static::lazy_static!{
+    static ref SCSI_GENERIC_NAME_REGEX: regex::Regex =
+        regex::Regex::new(r"^sg\d+$").unwrap();
+}
+
 /// List linux tape changer devices
 pub fn linux_tape_changer_list() -> Vec<TapeDeviceInfo> {
-
-    lazy_static::lazy_static!{
-        static ref SCSI_GENERIC_NAME_REGEX: regex::Regex =
-            regex::Regex::new(r"^sg\d+$").unwrap();
-    }
 
     let mut list = Vec::new();
 
@@ -111,20 +111,15 @@ pub fn linux_tape_changer_list() -> Vec<TapeDeviceInfo> {
     list
 }
 
-/// List linux tape devices (non-rewinding)
-pub fn linux_tape_device_list() -> Vec<TapeDeviceInfo> {
-
-    lazy_static::lazy_static!{
-        static ref NST_TAPE_NAME_REGEX: regex::Regex =
-            regex::Regex::new(r"^nst\d+$").unwrap();
-    }
+/// List LTO drives
+pub fn lto_tape_device_list() -> Vec<TapeDeviceInfo> {
 
     let mut list = Vec::new();
 
     let dir_iter = match scan_subdir(
         libc::AT_FDCWD,
-        "/sys/class/scsi_tape",
-        &NST_TAPE_NAME_REGEX)
+        "/sys/class/scsi_generic",
+        &SCSI_GENERIC_NAME_REGEX)
     {
         Err(_) => return list,
         Ok(iter) => iter,
@@ -138,7 +133,7 @@ pub fn linux_tape_device_list() -> Vec<TapeDeviceInfo> {
 
         let name = item.file_name().to_str().unwrap().to_string();
 
-        let mut sys_path = PathBuf::from("/sys/class/scsi_tape");
+        let mut sys_path = PathBuf::from("/sys/class/scsi_generic");
         sys_path.push(&name);
 
         let device = match udev::Device::from_syspath(&sys_path) {
@@ -150,6 +145,24 @@ pub fn linux_tape_device_list() -> Vec<TapeDeviceInfo> {
             None => continue,
             Some(devnum) => devnum,
         };
+
+        let parent = match device.parent() {
+            None => continue,
+            Some(parent) => parent,
+        };
+
+        match parent.attribute_value("type") {
+            Some(type_osstr) => {
+                if type_osstr != "1" {
+                    continue;
+                }
+            }
+            _ => { continue; }
+        }
+
+        // let mut test_path = sys_path.clone();
+        // test_path.push("device/scsi_tape");
+        // if !test_path.exists() { continue; }
 
         let _dev_path = match device.devnode().map(Path::to_owned) {
             None => continue,
@@ -174,7 +187,7 @@ pub fn linux_tape_device_list() -> Vec<TapeDeviceInfo> {
             .and_then(|s| if let Ok(s) = s.into_string() { Some(s) } else { None })
             .unwrap_or_else(|| String::from("unknown"));
 
-        let dev_path = format!("/dev/tape/by-id/scsi-{}-nst", serial);
+        let dev_path = format!("/dev/tape/by-id/scsi-{}-sg", serial);
 
         if PathBuf::from(&dev_path).exists() {
             list.push(TapeDeviceInfo {
@@ -230,13 +243,13 @@ pub fn lookup_device_identification<'a>(
     }
 }
 
-/// Make sure path is a linux tape device
+/// Make sure path is a lto tape device
 pub fn check_drive_path(
     drives: &[TapeDeviceInfo],
     path: &str,
 ) -> Result<(), Error> {
     if lookup_device(drives, path).is_none() {
-        bail!("path '{}' is not a linux (non-rewinding) tape device", path);
+        bail!("path '{}' is not a lto SCSI-generic tape device", path);
     }
     Ok(())
 }
@@ -250,5 +263,5 @@ pub fn complete_changer_path(_arg: &str, _param: &HashMap<String, String>) -> Ve
 
 /// List tape device paths
 pub fn complete_drive_path(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
-    linux_tape_device_list().iter().map(|v| v.path.clone()).collect()
+    lto_tape_device_list().iter().map(|v| v.path.clone()).collect()
 }

@@ -21,7 +21,7 @@ use proxmox_backup::{
     config::drive::{
         complete_drive_name,
         complete_changer_name,
-        complete_linux_drive_name,
+        complete_lto_drive_name,
     },
 };
 
@@ -33,13 +33,13 @@ pub fn drive_commands() -> CommandLineInterface {
         .insert("config",
                 CliCommand::new(&API_METHOD_GET_CONFIG)
                 .arg_param(&["name"])
-                .completion_cb("name", complete_linux_drive_name)
+                .completion_cb("name", complete_lto_drive_name)
         )
         .insert(
             "remove",
             CliCommand::new(&api2::config::drive::API_METHOD_DELETE_DRIVE)
                 .arg_param(&["name"])
-                .completion_cb("name", complete_linux_drive_name)
+                .completion_cb("name", complete_lto_drive_name)
         )
         .insert(
             "create",
@@ -53,7 +53,7 @@ pub fn drive_commands() -> CommandLineInterface {
             "update",
             CliCommand::new(&api2::config::drive::API_METHOD_UPDATE_DRIVE)
                 .arg_param(&["name"])
-                .completion_cb("name", complete_linux_drive_name)
+                .completion_cb("name", complete_lto_drive_name)
                 .completion_cb("path", complete_drive_path)
                 .completion_cb("changer", complete_changer_name)
         )

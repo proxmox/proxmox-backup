@@ -1,17 +1,17 @@
 /// Control magnetic tape drive operation
 ///
-/// This is a Rust implementation, meant to replace the 'mt' command
-/// line tool.
+/// This is a Rust implementation, using the Proxmox userspace tape
+/// driver. This is meant as replacement fot the 'mt' command line
+/// tool.
 ///
 /// Features:
 ///
 /// - written in Rust
+/// - use Proxmox userspace driver (using SG_IO)
 /// - optional json output format
 /// - support tape alert flags
 /// - support volume statistics
 /// - read cartridge memory
-
-use std::collections::HashMap;
 
 use anyhow::{bail, Error};
 use serde_json::Value;
@@ -43,7 +43,7 @@ pub const RECORD_COUNT_SCHEMA: Schema =
     .schema();
 
 pub const DRIVE_OPTION_SCHEMA: Schema = StringSchema::new(
-    "Linux Tape Driver Option, either numeric value or option name.")
+    "Lto Tape Driver Option, either numeric value or option name.")
     .schema();
 
 pub const DRIVE_OPTION_LIST_SCHEMA: Schema =
@@ -57,103 +57,60 @@ use proxmox_backup::{
         drive::complete_drive_name,
     },
     api2::types::{
-        LINUX_DRIVE_PATH_SCHEMA,
+        LTO_DRIVE_PATH_SCHEMA,
         DRIVE_NAME_SCHEMA,
-        LinuxTapeDrive,
+        LtoTapeDrive,
     },
     tape::{
         complete_drive_path,
-        linux_tape_device_list,
+        lto_tape_device_list,
         drive::{
-            linux_mtio::{MTCmd, SetDrvBufferOptions},
             TapeDriver,
-            LinuxTapeHandle,
-            open_linux_tape_device,
+            LtoTapeHandle,
+            open_lto_tape_device,
        },
     },
 };
 
-lazy_static::lazy_static!{
-
-    static ref DRIVE_OPTIONS: HashMap<String, SetDrvBufferOptions> = {
-        let mut map = HashMap::new();
-
-        for i in 0..31 {
-            let bit: i32 = 1 << i;
-            let flag = SetDrvBufferOptions::from_bits_truncate(bit);
-            if flag.bits() == 0 { continue; }
-            let name = format!("{:?}", flag)
-                .to_lowercase()
-                .replace("_", "-");
-
-            map.insert(name, flag);
-        }
-        map
-    };
-
-}
-
-fn parse_drive_options(options: Vec<String>) -> Result<SetDrvBufferOptions, Error> {
-
-    let mut value = SetDrvBufferOptions::empty();
-
-    for option in options.iter() {
-        if let Ok::<i32,_>(v) = option.parse() {
-            value |= SetDrvBufferOptions::from_bits_truncate(v);
-        } else if let Some(v) = DRIVE_OPTIONS.get(option) {
-            value |= *v;
-        } else {
-            let option = option.to_lowercase().replace("_", "-");
-            if let Some(v) = DRIVE_OPTIONS.get(&option) {
-                value |= *v;
-            } else {
-                bail!("unknown drive option {}", option);
-            }
-        }
-    }
-
-    Ok(value)
-}
-
-fn get_tape_handle(param: &Value) -> Result<LinuxTapeHandle, Error> {
+fn get_tape_handle(param: &Value) -> Result<LtoTapeHandle, Error> {
 
     if let Some(name) = param["drive"].as_str() {
         let (config, _digest) = config::drive::config()?;
-        let drive: LinuxTapeDrive = config.lookup("linux", &name)?;
+        let drive: LtoTapeDrive = config.lookup("lto", &name)?;
         eprintln!("using device {}", drive.path);
-        return Ok(LinuxTapeHandle::new(open_linux_tape_device(&drive.path)?))
+        return LtoTapeHandle::new(open_lto_tape_device(&drive.path)?);
     }
 
     if let Some(device) = param["device"].as_str() {
         eprintln!("using device {}", device);
-        return Ok(LinuxTapeHandle::new(open_linux_tape_device(&device)?))
+        return LtoTapeHandle::new(open_lto_tape_device(&device)?);
     }
 
     if let Ok(name) = std::env::var("PROXMOX_TAPE_DRIVE") {
         let (config, _digest) = config::drive::config()?;
-        let drive: LinuxTapeDrive = config.lookup("linux", &name)?;
+        let drive: LtoTapeDrive = config.lookup("lto", &name)?;
         eprintln!("using device {}", drive.path);
-        return Ok(LinuxTapeHandle::new(open_linux_tape_device(&drive.path)?))
+        return LtoTapeHandle::new(open_lto_tape_device(&drive.path)?);
     }
 
     if let Ok(device) = std::env::var("TAPE") {
         eprintln!("using device {}", device);
-        return Ok(LinuxTapeHandle::new(open_linux_tape_device(&device)?))
+        return LtoTapeHandle::new(open_lto_tape_device(&device)?);
     }
 
     let (config, _digest) = config::drive::config()?;
 
     let mut drive_names = Vec::new();
     for (name, (section_type, _)) in config.sections.iter() {
-        if section_type != "linux" { continue; }
+        if section_type != "lto" { continue; }
         drive_names.push(name);
     }
 
     if drive_names.len() == 1 {
         let name = drive_names[0];
-        let drive: LinuxTapeDrive = config.lookup("linux", &name)?;
+        let drive: LtoTapeDrive = config.lookup("lto", &name)?;
         eprintln!("using device {}", drive.path);
-        return Ok(LinuxTapeHandle::new(open_linux_tape_device(&drive.path)?))
+        return LtoTapeHandle::new(open_lto_tape_device(&drive.path)?);
     }
 
     bail!("no drive/device specified");
@@ -167,7 +124,7 @@ fn get_tape_handle(param: &Value) -> Result<LinuxTapeHandle, Error> {
                 optional: true,
             },
             device: {
-                schema: LINUX_DRIVE_PATH_SCHEMA,
+                schema: LTO_DRIVE_PATH_SCHEMA,
                 optional: true,
             },
             count: {
@@ -200,7 +157,7 @@ fn asf(count: usize, param: Value) -> Result<(), Error> {
                 optional: true,
             },
             device: {
-                schema: LINUX_DRIVE_PATH_SCHEMA,
+                schema: LTO_DRIVE_PATH_SCHEMA,
                 optional: true,
             },
             count: {
@@ -230,7 +187,7 @@ fn bsf(count: usize, param: Value) -> Result<(), Error> {
                 optional: true,
             },
             device: {
-                schema: LINUX_DRIVE_PATH_SCHEMA,
+                schema: LTO_DRIVE_PATH_SCHEMA,
                 optional: true,
             },
             count: {
@@ -243,11 +200,12 @@ fn bsf(count: usize, param: Value) -> Result<(), Error> {
 ///
 /// This leaves the tape positioned at the first block of the file
 /// that is count - 1 files before the current file.
-fn bsfm(count: i32, param: Value) -> Result<(), Error> {
+fn bsfm(count: usize, param: Value) -> Result<(), Error> {
 
     let mut handle = get_tape_handle(&param)?;
 
-    handle.mtop(MTCmd::MTBSFM, count, "bsfm")?;
+    handle.backward_space_count_files(count)?;
+    handle.forward_space_count_files(1)?;
 
     Ok(())
 }
@@ -261,7 +219,7 @@ fn bsfm(count: i32, param: Value) -> Result<(), Error> {
                 optional: true,
             },
             device: {
-                schema: LINUX_DRIVE_PATH_SCHEMA,
+                schema: LTO_DRIVE_PATH_SCHEMA,
                 optional: true,
             },
             count: {
@@ -275,7 +233,9 @@ fn bsr(count: i32, param: Value) -> Result<(), Error> {
 
     let mut handle = get_tape_handle(&param)?;
 
-    handle.mtop(MTCmd::MTBSR, count, "backward space records")?;
+    unimplemented!();
+
+    // fixme: handle.mtop(MTCmd::MTBSR, count, "backward space records")?;
 
     Ok(())
 }
@@ -289,7 +249,7 @@ fn bsr(count: i32, param: Value) -> Result<(), Error> {
                 optional: true,
             },
             device: {
-                schema: LINUX_DRIVE_PATH_SCHEMA,
+                schema: LTO_DRIVE_PATH_SCHEMA,
                 optional: true,
             },
             "output-format": {
@@ -340,7 +300,7 @@ fn cartridge_memory(param: Value) -> Result<(), Error> {
                 optional: true,
             },
             device: {
-                schema: LINUX_DRIVE_PATH_SCHEMA,
+                schema: LTO_DRIVE_PATH_SCHEMA,
                 optional: true,
             },
             "output-format": {
@@ -389,7 +349,7 @@ fn tape_alert_flags(param: Value) -> Result<(), Error> {
                 optional: true,
             },
             device: {
-                schema: LINUX_DRIVE_PATH_SCHEMA,
+                schema: LTO_DRIVE_PATH_SCHEMA,
                 optional: true,
             },
        },
@@ -413,7 +373,7 @@ fn eject(param: Value) -> Result<(), Error> {
                 optional: true,
             },
             device: {
-                schema: LINUX_DRIVE_PATH_SCHEMA,
+                schema: LTO_DRIVE_PATH_SCHEMA,
                 optional: true,
             },
        },
@@ -437,7 +397,7 @@ fn eod(param: Value) -> Result<(), Error> {
                 optional: true,
             },
             device: {
-                schema: LINUX_DRIVE_PATH_SCHEMA,
+                schema: LTO_DRIVE_PATH_SCHEMA,
                 optional: true,
             },
             fast: {
@@ -466,7 +426,7 @@ fn erase(fast: Option<bool>, param: Value) -> Result<(), Error> {
                 optional: true,
             },
             device: {
-                schema: LINUX_DRIVE_PATH_SCHEMA,
+                schema: LTO_DRIVE_PATH_SCHEMA,
                 optional: true,
             },
             count: {
@@ -495,7 +455,7 @@ fn fsf(count: usize, param: Value) -> Result<(), Error> {
                 optional: true,
             },
             device: {
-                schema: LINUX_DRIVE_PATH_SCHEMA,
+                schema: LTO_DRIVE_PATH_SCHEMA,
                 optional: true,
             },
             count: {
@@ -508,11 +468,12 @@ fn fsf(count: usize, param: Value) -> Result<(), Error> {
 ///
 /// This leaves the tape positioned at the last block of the file that
 /// is count - 1 files past the current file.
-fn fsfm(count: i32, param: Value) -> Result<(), Error> {
+fn fsfm(count: usize, param: Value) -> Result<(), Error> {
 
     let mut handle = get_tape_handle(&param)?;
 
-    handle.mtop(MTCmd::MTFSFM, count, "fsfm")?;
+    handle.forward_space_count_files(count)?;
+    handle.backward_space_count_files(1)?;
 
     Ok(())
 }
@@ -526,7 +487,7 @@ fn fsfm(count: i32, param: Value) -> Result<(), Error> {
                 optional: true,
             },
             device: {
-                schema: LINUX_DRIVE_PATH_SCHEMA,
+                schema: LTO_DRIVE_PATH_SCHEMA,
                 optional: true,
             },
             count: {
@@ -540,7 +501,8 @@ fn fsr(count: i32, param: Value) -> Result<(), Error> {
 
     let mut handle = get_tape_handle(&param)?;
 
-    handle.mtop(MTCmd::MTFSR, count, "forward space records")?;
+    unimplemented!();
+    // fixme: handle.mtop(MTCmd::MTFSR, count, "forward space records")?;
 
     Ok(())
 }
@@ -554,7 +516,7 @@ fn fsr(count: i32, param: Value) -> Result<(), Error> {
                 optional: true,
             },
             device: {
-                schema: LINUX_DRIVE_PATH_SCHEMA,
+                schema: LTO_DRIVE_PATH_SCHEMA,
                 optional: true,
             },
        },
@@ -564,7 +526,7 @@ fn fsr(count: i32, param: Value) -> Result<(), Error> {
 fn load(param: Value) -> Result<(), Error> {
 
     let mut handle = get_tape_handle(&param)?;
-    handle.mtload()?;
+    handle.load()?;
 
     Ok(())
 }
@@ -578,7 +540,7 @@ fn load(param: Value) -> Result<(), Error> {
                 optional: true,
             },
             device: {
-                schema: LINUX_DRIVE_PATH_SCHEMA,
+                schema: LTO_DRIVE_PATH_SCHEMA,
                 optional: true,
             },
        },
@@ -589,7 +551,8 @@ fn lock(param: Value) -> Result<(), Error> {
 
     let mut handle = get_tape_handle(&param)?;
 
-    handle.mtop(MTCmd::MTLOCK, 1, "lock tape drive door")?;
+    unimplemented!();
+    // fixme: handle.mtop(MTCmd::MTLOCK, 1, "lock tape drive door")?;
 
     Ok(())
 }
@@ -603,7 +566,7 @@ fn lock(param: Value) -> Result<(), Error> {
                 optional: true,
             },
             device: {
-                schema: LINUX_DRIVE_PATH_SCHEMA,
+                schema: LTO_DRIVE_PATH_SCHEMA,
                 optional: true,
             },
        },
@@ -634,7 +597,7 @@ fn scan(param: Value) -> Result<(), Error> {
 
     let output_format = get_output_format(&param);
 
-    let list = linux_tape_device_list();
+    let list = lto_tape_device_list();
 
     if output_format == "json-pretty" {
         println!("{}", serde_json::to_string_pretty(&list)?);
@@ -657,7 +620,6 @@ fn scan(param: Value) -> Result<(), Error> {
     Ok(())
 }
 
-
 #[api(
     input: {
         properties: {
@@ -666,36 +628,7 @@ fn scan(param: Value) -> Result<(), Error> {
                 optional: true,
             },
             device: {
-                schema: LINUX_DRIVE_PATH_SCHEMA,
-                optional: true,
-            },
-            size: {
-                description: "Block size in bytes.",
-                minimum: 0,
-            },
-        },
-    },
-)]
-/// Set the block size of the drive
-fn setblk(size: i32, param: Value) -> Result<(), Error> {
-
-    let mut handle = get_tape_handle(&param)?;
-
-    handle.mtop(MTCmd::MTSETBLK, size, "set block size")?;
-
-    Ok(())
-}
-
-
-#[api(
-    input: {
-        properties: {
-            drive: {
-                schema: DRIVE_NAME_SCHEMA,
-                optional: true,
-            },
-            device: {
-                schema: LINUX_DRIVE_PATH_SCHEMA,
+                schema: LTO_DRIVE_PATH_SCHEMA,
                 optional: true,
             },
             "output-format": {
@@ -738,122 +671,6 @@ fn status(param: Value) -> Result<(), Error> {
 
 
 #[api(
-    input: {
-        properties: {
-            drive: {
-                schema: DRIVE_NAME_SCHEMA,
-                optional: true,
-            },
-            device: {
-                schema: LINUX_DRIVE_PATH_SCHEMA,
-                optional: true,
-            },
-            options: {
-                schema: DRIVE_OPTION_LIST_SCHEMA,
-                optional: true,
-            },
-            defaults: {
-                description: "Set default options (buffer-writes async-writes read-ahead can-bsr).",
-                type: bool,
-                optional: true,
-            },
-        },
-    },
-)]
-/// Set device driver options (root only)
-fn st_options(
-    options: Option<Vec<String>>,
-    defaults: Option<bool>,
-    param: Value) -> Result<(), Error> {
-
-    let handle = get_tape_handle(&param)?;
-
-    let options = match defaults {
-        Some(true) => {
-            if options.is_some() {
-                bail!("option --defaults conflicts with specified options");
-            }
-            let mut list = Vec::new();
-            list.push(String::from("buffer-writes"));
-            list.push(String::from("async-writes"));
-            list.push(String::from("read-ahead"));
-            list.push(String::from("can-bsr"));
-            list
-        }
-        Some(false) | None => {
-            options.unwrap_or_else(|| Vec::new())
-        }
-    };
-
-    let value = parse_drive_options(options)?;
-
-    handle.set_drive_buffer_options(value)?;
-
-    Ok(())
-}
-
-
-#[api(
-    input: {
-        properties: {
-            drive: {
-                schema: DRIVE_NAME_SCHEMA,
-                optional: true,
-            },
-            device: {
-                schema: LINUX_DRIVE_PATH_SCHEMA,
-                optional: true,
-            },
-            options: {
-                schema: DRIVE_OPTION_LIST_SCHEMA,
-            },
-        },
-    },
-)]
-/// Set selected device driver options bits (root only)
-fn st_set_options(options: Vec<String>, param: Value) -> Result<(), Error> {
-
-    let handle = get_tape_handle(&param)?;
-
-    let value = parse_drive_options(options)?;
-
-    handle.drive_buffer_set_options(value)?;
-
-    Ok(())
-}
-
-
-#[api(
-    input: {
-        properties: {
-            drive: {
-                schema: DRIVE_NAME_SCHEMA,
-                optional: true,
-            },
-            device: {
-                schema: LINUX_DRIVE_PATH_SCHEMA,
-                optional: true,
-            },
-            options: {
-                schema: DRIVE_OPTION_LIST_SCHEMA,
-            },
-        },
-    },
-)]
-/// Clear selected device driver options bits (root only)
-fn st_clear_options(options: Vec<String>, param: Value) -> Result<(), Error> {
-
-    let handle = get_tape_handle(&param)?;
-
-    let value = parse_drive_options(options)?;
-
-    handle.drive_buffer_clear_options(value)?;
-
-    Ok(())
-}
-
-
-#[api(
    input: {
         properties: {
             drive: {
@@ -861,7 +678,7 @@ fn st_clear_options(options: Vec<String>, param: Value) -> Result<(), Error> {
                 optional: true,
             },
             device: {
-                schema: LINUX_DRIVE_PATH_SCHEMA,
+                schema: LTO_DRIVE_PATH_SCHEMA,
                 optional: true,
             },
        },
@@ -872,7 +689,8 @@ fn unlock(param: Value) -> Result<(), Error> {
 
     let mut handle = get_tape_handle(&param)?;
 
-    handle.mtop(MTCmd::MTUNLOCK, 1, "unlock tape drive door")?;
+    unimplemented!();
+    //handle.mtop(MTCmd::MTUNLOCK, 1, "unlock tape drive door")?;
 
     Ok(())
 }
@@ -886,7 +704,7 @@ fn unlock(param: Value) -> Result<(), Error> {
                 optional: true,
             },
             device: {
-                schema: LINUX_DRIVE_PATH_SCHEMA,
+                schema: LTO_DRIVE_PATH_SCHEMA,
                 optional: true,
             },
             "output-format": {
@@ -935,7 +753,7 @@ fn volume_statistics(param: Value) -> Result<(), Error> {
                 optional: true,
             },
             device: {
-                schema: LINUX_DRIVE_PATH_SCHEMA,
+                schema: LTO_DRIVE_PATH_SCHEMA,
                 optional: true,
             },
             count: {
@@ -946,10 +764,13 @@ fn volume_statistics(param: Value) -> Result<(), Error> {
     },
 )]
 /// Write count (default 1) EOF marks at current position.
-fn weof(count: Option<i32>, param: Value) -> Result<(), Error> {
+fn weof(count: Option<usize>, param: Value) -> Result<(), Error> {
+
+    let count = count.unwrap_or(1);
 
     let mut handle = get_tape_handle(&param)?;
-    handle.mtop(MTCmd::MTWEOF, count.unwrap_or(1), "write EOF mark")?;
+
+    handle.write_filemarks(count)?;
 
     Ok(())
 }
@@ -967,7 +788,6 @@ fn main() -> Result<(), Error> {
         CliCommand::new(method)
             .completion_cb("drive", complete_drive_name)
             .completion_cb("device", complete_drive_path)
-            .completion_cb("options", complete_option_name)
     };
 
     let cmd_def = CliCommandMap::new()
@@ -987,11 +807,7 @@ fn main() -> Result<(), Error> {
         .insert("lock", std_cmd(&API_METHOD_LOCK))
         .insert("rewind", std_cmd(&API_METHOD_REWIND))
         .insert("scan", CliCommand::new(&API_METHOD_SCAN))
-        .insert("setblk", CliCommand::new(&API_METHOD_SETBLK).arg_param(&["size"]))
         .insert("status", std_cmd(&API_METHOD_STATUS))
-        .insert("stoptions", std_cmd(&API_METHOD_ST_OPTIONS).arg_param(&["options"]))
-        .insert("stsetoptions", std_cmd(&API_METHOD_ST_SET_OPTIONS).arg_param(&["options"]))
-        .insert("stclearoptions", std_cmd(&API_METHOD_ST_CLEAR_OPTIONS).arg_param(&["options"]))
         .insert("tape-alert-flags", std_cmd(&API_METHOD_TAPE_ALERT_FLAGS))
         .insert("unlock", std_cmd(&API_METHOD_UNLOCK))
         .insert("volume-statistics", std_cmd(&API_METHOD_VOLUME_STATISTICS))
@@ -1004,12 +820,4 @@ fn main() -> Result<(), Error> {
     run_cli_command(cmd_def, rpcenv, None);
 
     Ok(())
-}
-
-// Completion  helpers
-pub fn complete_option_name(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
-    DRIVE_OPTIONS
-        .keys()
-        .map(String::from)
-        .collect()
 }

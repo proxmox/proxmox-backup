@@ -21,8 +21,8 @@ pub const DRIVE_NAME_SCHEMA: Schema = StringSchema::new("Drive Identifier.")
     .max_length(32)
     .schema();
 
-pub const LINUX_DRIVE_PATH_SCHEMA: Schema = StringSchema::new(
-    "The path to a LINUX non-rewinding SCSI tape device (i.e. '/dev/nst0')")
+pub const LTO_DRIVE_PATH_SCHEMA: Schema = StringSchema::new(
+    "The path to a LTO SCSI-generic tape device (i.e. '/dev/sg0')")
     .schema();
 
 pub const CHANGER_DRIVENUM_SCHEMA: Schema = IntegerSchema::new(
@@ -57,7 +57,7 @@ pub struct VirtualTapeDrive {
             schema: DRIVE_NAME_SCHEMA,
         },
         path: {
-            schema: LINUX_DRIVE_PATH_SCHEMA,
+            schema: LTO_DRIVE_PATH_SCHEMA,
         },
         changer: {
             schema: CHANGER_NAME_SCHEMA,
@@ -71,8 +71,8 @@ pub struct VirtualTapeDrive {
 )]
 #[derive(Serialize,Deserialize)]
 #[serde(rename_all = "kebab-case")]
-/// Linux SCSI tape driver
-pub struct LinuxTapeDrive {
+/// Lto SCSI tape driver
+pub struct LtoTapeDrive {
     pub name: String,
     pub path: String,
     #[serde(skip_serializing_if="Option::is_none")]
@@ -84,7 +84,7 @@ pub struct LinuxTapeDrive {
 #[api(
     properties: {
         config: {
-            type: LinuxTapeDrive,
+            type: LtoTapeDrive,
         },
         info: {
             type: OptionalDeviceIdentification,
@@ -96,7 +96,7 @@ pub struct LinuxTapeDrive {
 /// Drive list entry
 pub struct DriveListEntry {
     #[serde(flatten)]
-    pub config: LinuxTapeDrive,
+    pub config: LtoTapeDrive,
     #[serde(flatten)]
     pub info: OptionalDeviceIdentification,
     /// the state of the drive if locked
@@ -169,11 +169,11 @@ impl TryFrom<u8> for TapeDensity {
 )]
 #[derive(Serialize,Deserialize)]
 #[serde(rename_all = "kebab-case")]
-/// Drive/Media status for Linux SCSI drives.
+/// Drive/Media status for Lto SCSI drives.
 ///
 /// Media related data is optional - only set if there is a medium
 /// loaded.
-pub struct LinuxDriveAndMediaStatus {
+pub struct LtoDriveAndMediaStatus {
     /// Block size (0 is variable size)
     pub blocksize: u32,
     /// Tape density
@@ -181,17 +181,17 @@ pub struct LinuxDriveAndMediaStatus {
     pub density: Option<TapeDensity>,
     /// Status flags
     pub status: String,
-    /// Linux Driver Options
+    /// Lto Driver Options
     pub options: String,
     /// Tape Alert Flags
     #[serde(skip_serializing_if="Option::is_none")]
     pub alert_flags: Option<String>,
     /// Current file number
     #[serde(skip_serializing_if="Option::is_none")]
-    pub file_number: Option<u32>,
+    pub file_number: Option<u64>,
     /// Current block number
     #[serde(skip_serializing_if="Option::is_none")]
-    pub block_number: Option<u32>,
+    pub block_number: Option<u64>,
     /// Medium Manufacture Date (epoch)
     #[serde(skip_serializing_if="Option::is_none")]
     pub manufactured: Option<i64>,

@@ -26,7 +26,7 @@ use proxmox::{
 use crate::api2::types::{
     SLOT_ARRAY_SCHEMA,
     ScsiTapeChanger,
-    LinuxTapeDrive,
+    LtoTapeDrive,
 };
 
 /// Changer element status.
@@ -523,7 +523,7 @@ pub struct MtxMediaChanger {
 
 impl MtxMediaChanger {
 
-    pub fn with_drive_config(drive_config: &LinuxTapeDrive) -> Result<Self, Error> {
+    pub fn with_drive_config(drive_config: &LtoTapeDrive) -> Result<Self, Error> {
         let (config, _digest) = crate::config::drive::config()?;
         let changer_config: ScsiTapeChanger = match drive_config.changer {
             Some(ref changer) => config.lookup("changer", changer)?,

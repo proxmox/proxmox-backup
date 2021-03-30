@@ -33,7 +33,7 @@ use proxmox_backup::{
         SCSI_CHANGER_PATH_SCHEMA,
         CHANGER_NAME_SCHEMA,
         ScsiTapeChanger,
-        LinuxTapeDrive,
+        LtoTapeDrive,
     },
     tape::{
         linux_tape_changer_list,
@@ -67,7 +67,7 @@ fn get_changer_handle(param: &Value) -> Result<File, Error> {
 
     if let Ok(name) = std::env::var("PROXMOX_TAPE_DRIVE") {
         let (config, _digest) = config::drive::config()?;
-        let drive: LinuxTapeDrive = config.lookup("linux", &name)?;
+        let drive: LtoTapeDrive = config.lookup("lto", &name)?;
         if let Some(changer) = drive.changer {
             let changer_config: ScsiTapeChanger = config.lookup("changer", &changer)?;
             eprintln!("using device {}", changer_config.path);

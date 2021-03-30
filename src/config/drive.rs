@@ -1,12 +1,12 @@
 //! Tape drive/changer configuration
 //!
 //! This configuration module is based on [`SectionConfig`], and
-//! provides a type safe interface to store [`LinuxTapeDrive`],
+//! provides a type safe interface to store [`LtoTapeDrive`],
 //! [`VirtualTapeDrive`] and [`ScsiTapeChanger`] configurations.
 //!
 //! Drive type [`VirtualTapeDrive`] is only useful for debugging.
 //!
-//! [LinuxTapeDrive]: crate::api2::types::LinuxTapeDrive
+//! [LtoTapeDrive]: crate::api2::types::LtoTapeDrive
 //! [VirtualTapeDrive]: crate::api2::types::VirtualTapeDrive
 //! [ScsiTapeChanger]: crate::api2::types::ScsiTapeChanger
 //! [SectionConfig]: proxmox::api::section_config::SectionConfig
@@ -36,7 +36,7 @@ use crate::{
     api2::types::{
         DRIVE_NAME_SCHEMA,
         VirtualTapeDrive,
-        LinuxTapeDrive,
+        LtoTapeDrive,
         ScsiTapeChanger,
     },
 };
@@ -57,11 +57,11 @@ fn init() -> SectionConfig {
     let plugin = SectionConfigPlugin::new("virtual".to_string(), Some("name".to_string()), obj_schema);
     config.register_plugin(plugin);
 
-    let obj_schema = match LinuxTapeDrive::API_SCHEMA {
+    let obj_schema = match LtoTapeDrive::API_SCHEMA {
         Schema::Object(ref obj_schema) => obj_schema,
         _ => unreachable!(),
     };
-    let plugin = SectionConfigPlugin::new("linux".to_string(), Some("name".to_string()), obj_schema);
+    let plugin = SectionConfigPlugin::new("lto".to_string(), Some("name".to_string()), obj_schema);
     config.register_plugin(plugin);
 
     let obj_schema = match ScsiTapeChanger::API_SCHEMA {
@@ -116,7 +116,7 @@ pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
 pub fn check_drive_exists(config: &SectionConfigData, drive: &str) -> Result<(), Error> {
     match config.sections.get(drive) {
         Some((section_type, _)) => {
-            if !(section_type == "linux" || section_type == "virtual") {
+            if !(section_type == "lto" || section_type == "virtual") {
                 bail!("Entry '{}' exists, but is not a tape drive", drive);
             }
         }
@@ -138,12 +138,12 @@ pub fn complete_drive_name(_arg: &str, _param: &HashMap<String, String>) -> Vec<
     }
 }
 
-/// List Linux tape drives
-pub fn complete_linux_drive_name(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
+/// List Lto tape drives
+pub fn complete_lto_drive_name(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
     match config() {
         Ok((data, _digest)) => data.sections.iter()
             .filter(|(_id, (section_type, _))| {
-                section_type == "linux"
+                section_type == "lto"
             })
             .map(|(id, _)| id.to_string())
             .collect(),

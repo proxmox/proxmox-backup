@@ -42,11 +42,11 @@ use crate::{
             MEDIA_POOL_NAME_SCHEMA,
             Authid,
             DriveListEntry,
-            LinuxTapeDrive,
+            LtoTapeDrive,
             MediaIdFlat,
             LabelUuidMap,
             MamAttribute,
-            LinuxDriveAndMediaStatus,
+            LtoDriveAndMediaStatus,
         },
         tape::restore::{
             fast_catalog_restore,
@@ -62,7 +62,7 @@ use crate::{
         lock_media_set,
         lock_media_pool,
         lock_unassigned_media_pool,
-        linux_tape_device_list,
+        lto_tape_device_list,
         lookup_device_identification,
         file_formats::{
             MediaLabel,
@@ -70,9 +70,9 @@ use crate::{
         },
         drive::{
             TapeDriver,
-            LinuxTapeHandle,
+            LtoTapeHandle,
             Lp17VolumeStatistics,
-            open_linux_tape_device,
+            open_lto_tape_device,
             media_changer,
             required_media_changer,
             open_drive,
@@ -794,9 +794,9 @@ pub fn clean_drive(
 
             changer.clean_drive()?;
 
-             if let Ok(drive_config) = config.lookup::<LinuxTapeDrive>("linux", &drive) {
+             if let Ok(drive_config) = config.lookup::<LtoTapeDrive>("lto", &drive) {
                  // Note: clean_drive unloads the cleaning media, so we cannot use drive_config.open
-                 let mut handle = LinuxTapeHandle::new(open_linux_tape_device(&drive_config.path)?);
+                 let mut handle = LtoTapeHandle::new(open_lto_tape_device(&drive_config.path)?)?;
 
                  // test for critical tape alert flags
                  if let Ok(alert_flags) = handle.tape_alert_flags() {
@@ -1144,7 +1144,7 @@ pub async fn cartridge_memory(drive: String) -> Result<Vec<MamAttribute>, Error>
         drive.clone(),
         "reading cartridge memory".to_string(),
         move |config| {
-            let drive_config: LinuxTapeDrive = config.lookup("linux", &drive)?;
+            let drive_config: LtoTapeDrive = config.lookup("lto", &drive)?;
             let mut handle = drive_config.open()?;
 
             handle.cartridge_memory()
@@ -1174,7 +1174,7 @@ pub async fn volume_statistics(drive: String) -> Result<Lp17VolumeStatistics, Er
         drive.clone(),
         "reading volume statistics".to_string(),
         move |config| {
-            let drive_config: LinuxTapeDrive = config.lookup("linux", &drive)?;
+            let drive_config: LtoTapeDrive = config.lookup("lto", &drive)?;
             let mut handle = drive_config.open()?;
 
             handle.volume_statistics()
@@ -1192,24 +1192,24 @@ pub async fn volume_statistics(drive: String) -> Result<Lp17VolumeStatistics, Er
         },
     },
     returns: {
-        type: LinuxDriveAndMediaStatus,
+        type: LtoDriveAndMediaStatus,
     },
     access: {
         permission: &Permission::Privilege(&["tape", "device", "{drive}"], PRIV_TAPE_AUDIT, false),
     },
 )]
 /// Get drive/media status
-pub async fn status(drive: String) -> Result<LinuxDriveAndMediaStatus, Error> {
+pub async fn status(drive: String) -> Result<LtoDriveAndMediaStatus, Error> {
     run_drive_blocking_task(
         drive.clone(),
         "reading drive status".to_string(),
         move |config| {
-            let drive_config: LinuxTapeDrive = config.lookup("linux", &drive)?;
+            let drive_config: LtoTapeDrive = config.lookup("lto", &drive)?;
 
-            // Note: use open_linux_tape_device, because this also works if no medium loaded
-            let file = open_linux_tape_device(&drive_config.path)?;
+            // Note: use open_lto_tape_device, because this also works if no medium loaded
+            let file = open_lto_tape_device(&drive_config.path)?;
 
-            let mut handle = LinuxTapeHandle::new(file);
+            let mut handle = LtoTapeHandle::new(file)?;
 
             handle.get_drive_and_media_status()
         }
@@ -1382,9 +1382,9 @@ pub fn list_drives(
 
     let (config, _) = config::drive::config()?;
 
-    let linux_drives = linux_tape_device_list();
+    let lto_drives = lto_tape_device_list();
 
-    let drive_list: Vec<LinuxTapeDrive> = config.convert_to_typed_array("linux")?;
+    let drive_list: Vec<LtoTapeDrive> = config.convert_to_typed_array("lto")?;
 
     let mut list = Vec::new();
 
@@ -1398,7 +1398,7 @@ pub fn list_drives(
             continue;
         }
 
-        let info = lookup_device_identification(&linux_drives, &drive.path);
+        let info = lookup_device_identification(&lto_drives, &drive.path);
         let state = get_tape_device_state(&config, &drive.name)?;
         let entry = DriveListEntry { config: drive, info, state };
         list.push(entry);

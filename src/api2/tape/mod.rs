@@ -15,7 +15,7 @@ use proxmox::{
 use crate::{
     api2::types::TapeDeviceInfo,
     tape::{
-        linux_tape_device_list,
+        lto_tape_device_list,
         linux_tape_changer_list,
     },
 };
@@ -41,7 +41,7 @@ pub mod restore;
 /// Scan tape drives
 pub fn scan_drives(_param: Value) -> Result<Vec<TapeDeviceInfo>, Error> {
 
-    let list = linux_tape_device_list();
+    let list = lto_tape_device_list();
 
     Ok(list)
 }

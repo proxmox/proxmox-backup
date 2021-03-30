@@ -13,8 +13,8 @@ pub use volume_statistics::*;
 mod encryption;
 pub use encryption::*;
 
-mod linux_tape;
-pub use linux_tape::*;
+mod lto;
+pub use lto::*;
 
 mod mam;
 pub use mam::*;
@@ -49,7 +49,7 @@ use crate::{
     },
     api2::types::{
         VirtualTapeDrive,
-        LinuxTapeDrive,
+        LtoTapeDrive,
     },
     server::{
         send_load_media_email,
@@ -263,8 +263,8 @@ pub fn media_changer(
                     let tape = VirtualTapeDrive::deserialize(config)?;
                     Ok(Some((Box::new(tape), drive.to_string())))
                 }
-                "linux" => {
-                    let drive_config = LinuxTapeDrive::deserialize(config)?;
+                "lto" => {
+                    let drive_config = LtoTapeDrive::deserialize(config)?;
                     match drive_config.changer {
                         Some(ref changer_name) => {
                             let changer = MtxMediaChanger::with_drive_config(&drive_config)?;
@@ -317,8 +317,8 @@ pub fn open_drive(
                     let handle = tape.open()?;
                     Ok(Box::new(handle))
                 }
-                "linux" => {
-                    let tape = LinuxTapeDrive::deserialize(config)?;
+                "lto" => {
+                    let tape = LtoTapeDrive::deserialize(config)?;
                     let handle = tape.open()?;
                     Ok(Box::new(handle))
                 }
@@ -379,8 +379,8 @@ pub fn request_and_load_media(
 
                     Ok((handle, media_id))
                 }
-                "linux" => {
-                    let drive_config = LinuxTapeDrive::deserialize(config)?;
+                "lto" => {
+                    let drive_config = LtoTapeDrive::deserialize(config)?;
 
                     let label_text = label.label_text.clone();
 
@@ -546,8 +546,8 @@ fn tape_device_path(
                 "virtual" => {
                     VirtualTapeDrive::deserialize(config)?.path
                 }
-                "linux" => {
-                    LinuxTapeDrive::deserialize(config)?.path
+                "lto" => {
+                    LtoTapeDrive::deserialize(config)?.path
                 }
                 _ => bail!("unknown drive type '{}' - internal error"),
             };

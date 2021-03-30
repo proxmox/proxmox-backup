@@ -27,7 +27,7 @@ use crate::{
         SLOT_ARRAY_SCHEMA,
         EXPORT_SLOT_LIST_SCHEMA,
         ScsiTapeChanger,
-        LinuxTapeDrive,
+        LtoTapeDrive,
     },
     tape::{
         linux_tape_changer_list,
@@ -303,7 +303,7 @@ pub fn delete_changer(name: String, _param: Value) -> Result<(), Error> {
         None => bail!("Delete changer '{}' failed - no such entry", name),
     }
 
-    let drive_list: Vec<LinuxTapeDrive> = config.convert_to_typed_array("linux")?;
+    let drive_list: Vec<LtoTapeDrive> = config.convert_to_typed_array("lto")?;
     for drive in drive_list {
         if let Some(changer) = drive.changer {
             if changer == name {

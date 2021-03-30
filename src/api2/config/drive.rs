@@ -19,12 +19,12 @@ use crate::{
         DRIVE_NAME_SCHEMA,
         CHANGER_NAME_SCHEMA,
         CHANGER_DRIVENUM_SCHEMA,
-        LINUX_DRIVE_PATH_SCHEMA,
-        LinuxTapeDrive,
+        LTO_DRIVE_PATH_SCHEMA,
+        LtoTapeDrive,
         ScsiTapeChanger,
     },
     tape::{
-        linux_tape_device_list,
+        lto_tape_device_list,
         check_drive_path,
     },
 };
@@ -37,7 +37,7 @@ use crate::{
                 schema: DRIVE_NAME_SCHEMA,
             },
             path: {
-                schema: LINUX_DRIVE_PATH_SCHEMA,
+                schema: LTO_DRIVE_PATH_SCHEMA,
             },
             changer: {
                 schema: CHANGER_NAME_SCHEMA,
@@ -60,13 +60,13 @@ pub fn create_drive(param: Value) -> Result<(), Error> {
 
     let (mut config, _digest) = config::drive::config()?;
 
-    let item: LinuxTapeDrive = serde_json::from_value(param)?;
+    let item: LtoTapeDrive = serde_json::from_value(param)?;
 
-    let linux_drives = linux_tape_device_list();
+    let lto_drives = lto_tape_device_list();
 
-    check_drive_path(&linux_drives, &item.path)?;
+    check_drive_path(&lto_drives, &item.path)?;
 
-    let existing: Vec<LinuxTapeDrive> = config.convert_to_typed_array("linux")?;
+    let existing: Vec<LtoTapeDrive> = config.convert_to_typed_array("lto")?;
 
     for drive in existing {
         if drive.name == item.name {
@@ -77,7 +77,7 @@ pub fn create_drive(param: Value) -> Result<(), Error> {
         }
     }
 
-    config.set_data(&item.name, "linux", &item)?;
+    config.set_data(&item.name, "lto", &item)?;
 
     config::drive::save_config(&config)?;
 
@@ -93,7 +93,7 @@ pub fn create_drive(param: Value) -> Result<(), Error> {
         },
     },
     returns: {
-        type: LinuxTapeDrive,
+        type: LtoTapeDrive,
     },
     access: {
         permission: &Permission::Privilege(&["tape", "device", "{name}"], PRIV_TAPE_AUDIT, false),
@@ -104,11 +104,11 @@ pub fn get_config(
     name: String,
     _param: Value,
     mut rpcenv: &mut dyn RpcEnvironment,
-) -> Result<LinuxTapeDrive, Error> {
+) -> Result<LtoTapeDrive, Error> {
 
     let (config, digest) = config::drive::config()?;
 
-    let data: LinuxTapeDrive = config.lookup("linux", &name)?;
+    let data: LtoTapeDrive = config.lookup("lto", &name)?;
 
     rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
 
@@ -123,7 +123,7 @@ pub fn get_config(
         description: "The list of configured drives (with config digest).",
         type: Array,
         items: {
-            type: LinuxTapeDrive,
+            type: LtoTapeDrive,
         },
     },
     access: {
@@ -135,13 +135,13 @@ pub fn get_config(
 pub fn list_drives(
     _param: Value,
     mut rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Vec<LinuxTapeDrive>, Error> {
+) -> Result<Vec<LtoTapeDrive>, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
 
     let (config, digest) = config::drive::config()?;
 
-    let drive_list: Vec<LinuxTapeDrive> = config.convert_to_typed_array("linux")?;
+    let drive_list: Vec<LtoTapeDrive> = config.convert_to_typed_array("lto")?;
 
     let drive_list = drive_list
         .into_iter()
@@ -176,7 +176,7 @@ pub enum DeletableProperty {
                 schema: DRIVE_NAME_SCHEMA,
             },
             path: {
-                schema: LINUX_DRIVE_PATH_SCHEMA,
+                schema: LTO_DRIVE_PATH_SCHEMA,
                 optional: true,
             },
             changer: {
@@ -225,7 +225,7 @@ pub fn update_drive(
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 
-    let mut data: LinuxTapeDrive = config.lookup("linux", &name)?;
+    let mut data: LtoTapeDrive = config.lookup("lto", &name)?;
 
     if let Some(delete) = delete {
         for delete_prop in delete {
@@ -240,8 +240,8 @@ pub fn update_drive(
     }
 
     if let Some(path) = path {
-        let linux_drives = linux_tape_device_list();
-        check_drive_path(&linux_drives, &path)?;
+        let lto_drives = lto_tape_device_list();
+        check_drive_path(&lto_drives, &path)?;
         data.path = path;
     }
 
@@ -261,7 +261,7 @@ pub fn update_drive(
         }
     }
 
-    config.set_data(&name, "linux", &data)?;
+    config.set_data(&name, "lto", &data)?;
 
     config::drive::save_config(&config)?;
 
@@ -290,8 +290,8 @@ pub fn delete_drive(name: String, _param: Value) -> Result<(), Error> {
 
     match config.sections.get(&name) {
         Some((section_type, _)) => {
-            if section_type != "linux" {
-                bail!("Entry '{}' exists, but is not a linux tape drive", name);
+            if section_type != "lto" {
+                bail!("Entry '{}' exists, but is not a lto tape drive", name);
             }
             config.sections.remove(&name);
         },

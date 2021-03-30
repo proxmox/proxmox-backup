@@ -20,7 +20,7 @@ use crate::{
         Authid,
         CHANGER_NAME_SCHEMA,
         ChangerListEntry,
-        LinuxTapeDrive,
+        LtoTapeDrive,
         MtxEntryKind,
         MtxStatusEntry,
         ScsiTapeChanger,
@@ -88,7 +88,7 @@ pub async fn get_status(
 
     inventory.update_online_status(&map)?;
 
-    let drive_list: Vec<LinuxTapeDrive> = config.convert_to_typed_array("linux")?;
+    let drive_list: Vec<LtoTapeDrive> = config.convert_to_typed_array("lto")?;
     let mut drive_map: HashMap<u64, String> = HashMap::new();
 
     for drive in drive_list {
