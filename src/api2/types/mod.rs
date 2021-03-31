@@ -34,6 +34,9 @@ pub use userid::{PROXMOX_TOKEN_ID_SCHEMA, PROXMOX_TOKEN_NAME_SCHEMA, PROXMOX_GRO
 mod tape;
 pub use tape::*;
 
+mod file_restore;
+pub use file_restore::*;
+
 // File names: may not contain slashes, may not start with "."
 pub const FILENAME_FORMAT: ApiStringFormat = ApiStringFormat::VerifyFn(|name| {
     if name.starts_with('.') {

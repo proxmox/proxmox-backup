@@ -26,6 +26,10 @@ SERVICE_BIN := \
 	proxmox-backup-proxy \
 	proxmox-daily-update
 
+# Single file restore daemon
+RESTORE_BIN := \
+	proxmox-restore-daemon
+
 ifeq ($(BUILD_MODE), release)
 CARGO_BUILD_ARGS += --release
 COMPILEDIR := target/release
@@ -40,7 +44,7 @@ endif
 CARGO ?= cargo
 
 COMPILED_BINS := \
-	$(addprefix $(COMPILEDIR)/,$(USR_BIN) $(USR_SBIN) $(SERVICE_BIN))
+	$(addprefix $(COMPILEDIR)/,$(USR_BIN) $(USR_SBIN) $(SERVICE_BIN) $(RESTORE_BIN))
 
 export DEB_VERSION DEB_VERSION_UPSTREAM
 
@@ -148,6 +152,9 @@ install: $(COMPILED_BINS)
 	    install -m755 $(COMPILEDIR)/$(i) $(DESTDIR)$(SBINDIR)/ ; \
 	    install -m644 zsh-completions/_$(i) $(DESTDIR)$(ZSH_COMPL_DEST)/ ;)
 	install -dm755 $(DESTDIR)$(LIBEXECDIR)/proxmox-backup
+	install -dm755 $(DESTDIR)$(LIBEXECDIR)/proxmox-backup/file-restore
+	$(foreach i,$(RESTORE_BIN), \
+	    install -m755 $(COMPILEDIR)/$(i) $(DESTDIR)$(LIBEXECDIR)/proxmox-backup/file-restore/ ;)
 	# install sg-tape-cmd as setuid binary
 	install -m4755 -o root -g root $(COMPILEDIR)/sg-tape-cmd $(DESTDIR)$(LIBEXECDIR)/proxmox-backup/sg-tape-cmd
 	$(foreach i,$(SERVICE_BIN), \
