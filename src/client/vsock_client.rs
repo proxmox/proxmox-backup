@@ -12,7 +12,7 @@ use hyper::client::Client;
 use hyper::Body;
 use pin_project::pin_project;
 use serde_json::Value;
-use tokio::io::{ReadBuf, AsyncRead, AsyncWrite, AsyncWriteExt};
+use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt, ReadBuf};
 use tokio::net::UnixStream;
 
 use crate::tools;
@@ -151,13 +151,13 @@ impl VsockClient {
         self.api_request(req).await
     }
 
-    pub async fn post(&mut self, path: &str, data: Option<Value>) -> Result<Value, Error> {
+    pub async fn post(&self, path: &str, data: Option<Value>) -> Result<Value, Error> {
         let req = Self::request_builder(self.cid, self.port, "POST", path, data)?;
         self.api_request(req).await
     }
 
     pub async fn download(
-        &mut self,
+        &self,
         path: &str,
         data: Option<Value>,
         output: &mut (dyn AsyncWrite + Send + Unpin),
@@ -166,14 +166,13 @@ impl VsockClient {
 
         let client = self.client.clone();
 
-        let resp = client.request(req)
+        let resp = client
+            .request(req)
             .await
             .map_err(|_| format_err!("vsock download request timed out"))?;
         let status = resp.status();
         if !status.is_success() {
-            Self::api_response(resp)
-                .await
-                .map(|_| ())?
+            Self::api_response(resp).await.map(|_| ())?
         } else {
             resp.into_body()
                 .map_err(Error::from)
