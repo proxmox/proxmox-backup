@@ -9,6 +9,7 @@ use std::hash::BuildHasher;
 use std::pin::Pin;
 
 use proxmox_backup::backup::{BackupDir, BackupManifest};
+use proxmox_backup::api2::types::ArchiveEntry;
 use proxmox_backup::client::BackupRepository;
 
 use proxmox::api::{api, cli::*};
@@ -32,6 +33,14 @@ pub type Async<R> = Pin<Box<dyn Future<Output = R> + Send>>;
 
 /// An abstract implementation for retrieving data out of a block file backup
 pub trait BlockRestoreDriver {
+    /// List ArchiveEntrys for the given image file and path
+    fn data_list(
+        &self,
+        details: SnapRestoreDetails,
+        img_file: String,
+        path: Vec<u8>,
+    ) -> Async<Result<Vec<ArchiveEntry>, Error>>;
+
     /// Return status of all running/mapped images, result value is (id, extra data), where id must
     /// match with the ones returned from list()
     fn status(&self) -> Async<Result<Vec<DriverStatus>, Error>>;
@@ -59,6 +68,16 @@ impl BlockDriverType {
 
 const DEFAULT_DRIVER: BlockDriverType = BlockDriverType::Qemu;
 const ALL_DRIVERS: &[BlockDriverType] = &[BlockDriverType::Qemu];
+
+pub async fn data_list(
+    driver: Option<BlockDriverType>,
+    details: SnapRestoreDetails,
+    img_file: String,
+    path: Vec<u8>,
+) -> Result<Vec<ArchiveEntry>, Error> {
+    let driver = driver.unwrap_or(DEFAULT_DRIVER).resolve();
+    driver.data_list(details, img_file, path).await
+}
 
 #[api(
    input: {

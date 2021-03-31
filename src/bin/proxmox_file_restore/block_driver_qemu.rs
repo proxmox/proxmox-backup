@@ -9,6 +9,7 @@ use std::fs::{File, OpenOptions};
 use std::io::{prelude::*, SeekFrom};
 
 use proxmox::tools::fs::lock_file;
+use proxmox_backup::api2::types::ArchiveEntry;
 use proxmox_backup::backup::BackupDir;
 use proxmox_backup::client::*;
 use proxmox_backup::tools;
@@ -183,6 +184,26 @@ async fn start_vm(cid_request: i32, details: &SnapRestoreDetails) -> Result<VMSt
 }
 
 impl BlockRestoreDriver for QemuBlockDriver {
+    fn data_list(
+        &self,
+        details: SnapRestoreDetails,
+        img_file: String,
+        mut path: Vec<u8>,
+    ) -> Async<Result<Vec<ArchiveEntry>, Error>> {
+        async move {
+            let client = ensure_running(&details).await?;
+            if !path.is_empty() && path[0] != b'/' {
+                path.insert(0, b'/');
+            }
+            let path = base64::encode(img_file.bytes().chain(path).collect::<Vec<u8>>());
+            let mut result = client
+                .get("api2/json/list", Some(json!({ "path": path })))
+                .await?;
+            serde_json::from_value(result["data"].take()).map_err(|err| err.into())
+        }
+        .boxed()
+    }
+
     fn status(&self) -> Async<Result<Vec<DriverStatus>, Error>> {
         async move {
             let mut state_map = VMStateMap::load()?;

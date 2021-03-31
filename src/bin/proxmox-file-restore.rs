@@ -41,6 +41,7 @@ use proxmox_file_restore::*;
 enum ExtractPath {
     ListArchives,
     Pxar(String, Vec<u8>),
+    VM(String, Vec<u8>),
 }
 
 fn parse_path(path: String, base64: bool) -> Result<ExtractPath, Error> {
@@ -67,6 +68,8 @@ fn parse_path(path: String, base64: bool) -> Result<ExtractPath, Error> {
 
     if file.ends_with(".pxar.didx") {
         Ok(ExtractPath::Pxar(file, path))
+    } else if file.ends_with(".img.fidx") {
+        Ok(ExtractPath::VM(file, path))
     } else {
         bail!("'{}' is not supported for file-restore", file);
     }
@@ -103,6 +106,10 @@ fn parse_path(path: String, base64: bool) -> Result<ExtractPath, Error> {
            },
            "crypt-mode": {
                type: CryptMode,
+               optional: true,
+           },
+           "driver": {
+               type: BlockDriverType,
                optional: true,
            },
            "output-format": {
@@ -193,6 +200,18 @@ async fn list(
             fullpath.append(&mut path);
 
             helpers::list_dir_content(&mut catalog_reader, &fullpath)
+        }
+        ExtractPath::VM(file, path) => {
+            let details = SnapRestoreDetails {
+                manifest,
+                repo,
+                snapshot,
+            };
+            let driver: Option<BlockDriverType> = match param.get("driver") {
+                Some(drv) => Some(serde_json::from_value(drv.clone())?),
+                None => None,
+            };
+            data_list(driver, details, file, path).await
         }
     }?;
 
