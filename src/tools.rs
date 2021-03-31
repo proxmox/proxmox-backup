@@ -23,6 +23,7 @@ pub mod async_io;
 pub mod borrow;
 pub mod cert;
 pub mod compression;
+pub mod cpio;
 pub mod daemon;
 pub mod disks;
 pub mod format;
