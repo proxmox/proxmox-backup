@@ -18,7 +18,6 @@ use tokio::net::UnixStream;
 use crate::tools;
 use proxmox::api::error::HttpError;
 
-/// Port below 1024 is privileged, this is intentional so only root (on host) can connect
 pub const DEFAULT_VSOCK_PORT: u16 = 807;
 
 #[derive(Clone)]
