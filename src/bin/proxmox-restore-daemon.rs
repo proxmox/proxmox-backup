@@ -1,13 +1,14 @@
 ///! Daemon binary to run inside a micro-VM for secure single file restore of disk images
 use anyhow::{bail, format_err, Error};
 use log::error;
+use lazy_static::lazy_static;
 
 use std::os::unix::{
     io::{FromRawFd, RawFd},
     net,
 };
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
@@ -26,6 +27,13 @@ pub const MAX_PENDING: usize = 32;
 /// Will be present in base initramfs
 pub const VM_DETECT_FILE: &str = "/restore-vm-marker";
 
+lazy_static! {
+    /// The current disks state. Use for accessing data on the attached snapshots.
+    pub static ref DISK_STATE: Arc<Mutex<DiskState>> = {
+        Arc::new(Mutex::new(DiskState::scan().unwrap()))
+    };
+}
+
 /// This is expected to be run by 'proxmox-file-restore' within a mini-VM
 fn main() -> Result<(), Error> {
     if !Path::new(VM_DETECT_FILE).exists() {
@@ -40,6 +48,12 @@ fn main() -> Result<(), Error> {
     env_logger::from_env(env_logger::Env::default().default_filter_or("info"))
         .write_style(env_logger::WriteStyle::Never)
         .init();
+
+    // scan all attached disks now, before starting the API
+    // this will panic and stop the VM if anything goes wrong
+    {
+        let _disk_state = DISK_STATE.lock().unwrap();
+    }
 
     proxmox_backup::tools::runtime::main(run())
 }

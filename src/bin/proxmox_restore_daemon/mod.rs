@@ -6,3 +6,6 @@ pub mod auth;
 
 mod watchdog;
 pub use watchdog::*;
+
+mod disk;
+pub use disk::*;
