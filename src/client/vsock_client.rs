@@ -137,22 +137,28 @@ pub struct VsockClient {
     client: Client<VsockConnector>,
     cid: i32,
     port: u16,
+    auth: Option<String>,
 }
 
 impl VsockClient {
-    pub fn new(cid: i32, port: u16) -> Self {
+    pub fn new(cid: i32, port: u16, auth: Option<String>) -> Self {
         let conn = VsockConnector {};
         let client = Client::builder().build::<_, Body>(conn);
-        Self { client, cid, port }
+        Self {
+            client,
+            cid,
+            port,
+            auth,
+        }
     }
 
     pub async fn get(&self, path: &str, data: Option<Value>) -> Result<Value, Error> {
-        let req = Self::request_builder(self.cid, self.port, "GET", path, data)?;
+        let req = self.request_builder("GET", path, data)?;
         self.api_request(req).await
     }
 
     pub async fn post(&self, path: &str, data: Option<Value>) -> Result<Value, Error> {
-        let req = Self::request_builder(self.cid, self.port, "POST", path, data)?;
+        let req = self.request_builder("POST", path, data)?;
         self.api_request(req).await
     }
 
@@ -162,7 +168,7 @@ impl VsockClient {
         data: Option<Value>,
         output: &mut (dyn AsyncWrite + Send + Unpin),
     ) -> Result<(), Error> {
-        let req = Self::request_builder(self.cid, self.port, "GET", path, data)?;
+        let req = self.request_builder("GET", path, data)?;
 
         let client = self.client.clone();
 
@@ -210,47 +216,43 @@ impl VsockClient {
             .await
     }
 
-    pub fn request_builder(
-        cid: i32,
-        port: u16,
+    fn request_builder(
+        &self,
         method: &str,
         path: &str,
         data: Option<Value>,
     ) -> Result<Request<Body>, Error> {
         let path = path.trim_matches('/');
-        let url: Uri = format!("vsock://{}:{}/{}", cid, port, path).parse()?;
+        let url: Uri = format!("vsock://{}:{}/{}", self.cid, self.port, path).parse()?;
+
+        let make_builder = |content_type: &str, url: &Uri| {
+            let mut builder = Request::builder()
+                .method(method)
+                .uri(url)
+                .header(hyper::header::CONTENT_TYPE, content_type);
+            if let Some(auth) = &self.auth {
+                builder = builder.header(hyper::header::AUTHORIZATION, auth);
+            }
+            builder
+        };
 
         if let Some(data) = data {
             if method == "POST" {
-                let request = Request::builder()
-                    .method(method)
-                    .uri(url)
-                    .header(hyper::header::CONTENT_TYPE, "application/json")
-                    .body(Body::from(data.to_string()))?;
+                let builder = make_builder("application/json", &url);
+                let request = builder.body(Body::from(data.to_string()))?;
                 return Ok(request);
             } else {
                 let query = tools::json_object_to_query(data)?;
-                let url: Uri = format!("vsock://{}:{}/{}?{}", cid, port, path, query).parse()?;
-                let request = Request::builder()
-                    .method(method)
-                    .uri(url)
-                    .header(
-                        hyper::header::CONTENT_TYPE,
-                        "application/x-www-form-urlencoded",
-                    )
-                    .body(Body::empty())?;
+                let url: Uri =
+                    format!("vsock://{}:{}/{}?{}", self.cid, self.port, path, query).parse()?;
+                let builder = make_builder("application/x-www-form-urlencoded", &url);
+                let request = builder.body(Body::empty())?;
                 return Ok(request);
             }
         }
 
-        let request = Request::builder()
-            .method(method)
-            .uri(url)
-            .header(
-                hyper::header::CONTENT_TYPE,
-                "application/x-www-form-urlencoded",
-            )
-            .body(Body::empty())?;
+        let builder = make_builder("application/x-www-form-urlencoded", &url);
+        let request = builder.body(Body::empty())?;
 
         Ok(request)
     }
