@@ -43,6 +43,8 @@ use crate::{
     BufferedDynamicReadAt,
 };
 
+use crate::proxmox_client_tools::key_source::get_encryption_key_password;
+
 #[sortable]
 const API_METHOD_MOUNT: ApiMethod = ApiMethod::new(
     &ApiHandler::Sync(&mount),
@@ -182,7 +184,7 @@ async fn mount_do(param: Value, pipe: Option<Fd>) -> Result<Value, Error> {
         None => None,
         Some(path) => {
             println!("Encryption key file: '{:?}'", path);
-            let (key, _, fingerprint) = load_and_decrypt_key(&path, &crate::key::get_encryption_key_password)?;
+            let (key, _, fingerprint) = load_and_decrypt_key(&path, &get_encryption_key_password)?;
             println!("Encryption key fingerprint: '{}'", fingerprint);
             Some(Arc::new(CryptConfig::new(key)?))
         }

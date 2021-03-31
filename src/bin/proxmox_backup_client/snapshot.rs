@@ -35,6 +35,8 @@ use crate::{
     record_repository,
 };
 
+use crate::proxmox_client_tools::key_source::get_encryption_key_password;
+
 #[api(
    input: {
         properties: {
@@ -239,7 +241,7 @@ async fn upload_log(param: Value) -> Result<Value, Error> {
     let crypt_config = match crypto.enc_key {
         None => None,
         Some(key) => {
-            let (key, _created, _) = decrypt_key(&key.key, &crate::key::get_encryption_key_password)?;
+            let (key, _created, _) = decrypt_key(&key.key, &get_encryption_key_password)?;
             let crypt_config = CryptConfig::new(key)?;
             Some(Arc::new(crypt_config))
         }

@@ -17,7 +17,6 @@ use crate::{
     extract_repository_from_value,
     format_key_source,
     record_repository,
-    key::get_encryption_key_password,
     decrypt_key,
     api_datastore_latest_snapshot,
     complete_repository,
@@ -37,6 +36,8 @@ use crate::{
     IndexFile,
     Shell,
 };
+
+use crate::proxmox_client_tools::key_source::get_encryption_key_password;
 
 #[api(
    input: {

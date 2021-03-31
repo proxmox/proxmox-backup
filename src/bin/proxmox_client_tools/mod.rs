@@ -1,8 +1,7 @@
 //! Shared tools useful for common CLI clients.
-
 use std::collections::HashMap;
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{bail, format_err, Context, Error};
 use serde_json::{json, Value};
 use xdg::BaseDirectories;
 
@@ -17,6 +16,8 @@ use proxmox_backup::backup::BackupDir;
 use proxmox_backup::client::*;
 use proxmox_backup::tools;
 
+pub mod key_source;
+
 const ENV_VAR_PBS_FINGERPRINT: &str = "PBS_FINGERPRINT";
 const ENV_VAR_PBS_PASSWORD: &str = "PBS_PASSWORD";
 
@@ -24,24 +25,6 @@ pub const REPO_URL_SCHEMA: Schema = StringSchema::new("Repository URL.")
     .format(&BACKUP_REPO_URL)
     .max_length(256)
     .schema();
-
-pub const KEYFILE_SCHEMA: Schema =
-    StringSchema::new("Path to encryption key. All data will be encrypted using this key.")
-        .schema();
-
-pub const KEYFD_SCHEMA: Schema =
-    IntegerSchema::new("Pass an encryption key via an already opened file descriptor.")
-        .minimum(0)
-        .schema();
-
-pub const MASTER_PUBKEY_FILE_SCHEMA: Schema = StringSchema::new(
-    "Path to master public key. The encryption key used for a backup will be encrypted using this key and appended to the backup.")
-    .schema();
-
-pub const MASTER_PUBKEY_FD_SCHEMA: Schema =
-    IntegerSchema::new("Pass a master public key via an already opened file descriptor.")
-        .minimum(0)
-        .schema();
 
 pub const CHUNK_SIZE_SCHEMA: Schema = IntegerSchema::new("Chunk size in KB. Must be a power of 2.")
     .minimum(64)
@@ -363,4 +346,29 @@ pub fn complete_backup_source(arg: &str, param: &HashMap<String, String>) -> Vec
     }
 
     result
+}
+
+pub fn base_directories() -> Result<xdg::BaseDirectories, Error> {
+    xdg::BaseDirectories::with_prefix("proxmox-backup").map_err(Error::from)
+}
+
+/// Convenience helper for better error messages:
+pub fn find_xdg_file(
+    file_name: impl AsRef<std::path::Path>,
+    description: &'static str,
+) -> Result<Option<std::path::PathBuf>, Error> {
+    let file_name = file_name.as_ref();
+    base_directories()
+        .map(|base| base.find_config_file(file_name))
+        .with_context(|| format!("error searching for {}", description))
+}
+
+pub fn place_xdg_file(
+    file_name: impl AsRef<std::path::Path>,
+    description: &'static str,
+) -> Result<std::path::PathBuf, Error> {
+    let file_name = file_name.as_ref();
+    base_directories()
+        .and_then(|base| base.place_config_file(file_name).map_err(Error::from))
+        .with_context(|| format!("failed to place {} in xdg home", description))
 }
