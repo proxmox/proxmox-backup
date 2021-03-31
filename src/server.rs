@@ -89,3 +89,5 @@ mod report;
 pub use report::*;
 
 pub mod ticket;
+
+pub mod auth;
