@@ -16,9 +16,10 @@ use nix::fcntl::OFlag;
 use nix::sys::stat::Mode;
 
 use pathpatterns::{MatchEntry, MatchList, MatchType};
-use pxar::format::Device;
-use pxar::Metadata;
 use pxar::accessor::aio::{Accessor, FileContents, FileEntry};
+use pxar::decoder::aio::Decoder;
+use pxar::format::Device;
+use pxar::{Entry, EntryKind, Metadata};
 
 use proxmox::c_result;
 use proxmox::tools::{
@@ -93,8 +94,6 @@ where
     let mut err_path_stack = vec![OsString::from("/")];
     let mut current_match = options.extract_match_default;
     while let Some(entry) = decoder.next() {
-        use pxar::EntryKind;
-
         let entry = entry.map_err(|err| format_err!("error reading pxar archive: {}", err))?;
 
         let file_name_os = entry.file_name();
@@ -556,7 +555,6 @@ where
     T: Clone + pxar::accessor::ReadAt + Unpin + Send + Sync + 'static,
     W: tokio::io::AsyncWrite + Unpin + Send + 'static,
 {
-    use pxar::EntryKind;
     Box::pin(async move {
         let metadata = file.entry().metadata();
         let path = file.entry().path().strip_prefix(&prefix)?.to_path_buf();
@@ -616,10 +614,42 @@ where
     })
 }
 
+fn get_extractor<DEST>(destination: DEST, metadata: Metadata) -> Result<Extractor, Error>
+where
+    DEST: AsRef<Path>,
+{
+    create_path(
+        &destination,
+        None,
+        Some(CreateOptions::new().perm(Mode::from_bits_truncate(0o700))),
+    )
+    .map_err(|err| {
+        format_err!(
+            "error creating directory {:?}: {}",
+            destination.as_ref(),
+            err
+        )
+    })?;
+
+    let dir = Dir::open(
+        destination.as_ref(),
+        OFlag::O_DIRECTORY | OFlag::O_CLOEXEC,
+        Mode::empty(),
+    )
+    .map_err(|err| {
+        format_err!(
+            "unable to open target directory {:?}: {}",
+            destination.as_ref(),
+            err,
+        )
+    })?;
+
+    Ok(Extractor::new(dir, metadata, false, Flags::DEFAULT))
+}
 
 pub async fn extract_sub_dir<T, DEST, PATH>(
     destination: DEST,
-    mut decoder: Accessor<T>,
+    decoder: Accessor<T>,
     path: PATH,
     verbose: bool,
 ) -> Result<(), Error>
@@ -630,111 +660,205 @@ where
 {
     let root = decoder.open_root().await?;
 
-    create_path(
-        &destination,
-        None,
-        Some(CreateOptions::new().perm(Mode::from_bits_truncate(0o700))),
-    )
-    .map_err(|err| format_err!("error creating directory {:?}: {}", destination.as_ref(), err))?;
-
-    let dir = Dir::open(
-        destination.as_ref(),
-        OFlag::O_DIRECTORY | OFlag::O_CLOEXEC,
-        Mode::empty(),
-    )
-    .map_err(|err| format_err!("unable to open target directory {:?}: {}", destination.as_ref(), err,))?;
-
-    let mut extractor =  Extractor::new(
-        dir,
+    let mut extractor = get_extractor(
+        destination,
         root.lookup_self().await?.entry().metadata().clone(),
-        false,
-        Flags::DEFAULT,
-    );
+    )?;
 
     let file = root
-        .lookup(&path).await?
+        .lookup(&path)
+        .await?
         .ok_or(format_err!("error opening '{:?}'", path.as_ref()))?;
 
-    recurse_files_extractor(&mut extractor, &mut decoder, file, verbose).await
+    recurse_files_extractor(&mut extractor, file, verbose).await
 }
 
-fn recurse_files_extractor<'a, T>(
+pub async fn extract_sub_dir_seq<S, DEST>(
+    destination: DEST,
+    mut decoder: Decoder<S>,
+    verbose: bool,
+) -> Result<(), Error>
+where
+    S: pxar::decoder::SeqRead + Unpin + Send + 'static,
+    DEST: AsRef<Path>,
+{
+    decoder.enable_goodbye_entries(true);
+    let root = match decoder.next().await {
+        Some(Ok(root)) => root,
+        Some(Err(err)) => bail!("error getting root entry from pxar: {}", err),
+        None => bail!("cannot extract empty archive"),
+    };
+
+    let mut extractor = get_extractor(destination, root.metadata().clone())?;
+
+    if let Err(err) = seq_files_extractor(&mut extractor, decoder, verbose).await {
+        eprintln!("error extracting pxar archive: {}", err);
+    }
+
+    Ok(())
+}
+
+fn extract_special(
+    extractor: &mut Extractor,
+    entry: &Entry,
+    file_name: &CStr,
+) -> Result<(), Error> {
+    let metadata = entry.metadata();
+    match entry.kind() {
+        EntryKind::Symlink(link) => {
+            extractor.extract_symlink(file_name, metadata, link.as_ref())?;
+        }
+        EntryKind::Hardlink(link) => {
+            extractor.extract_hardlink(file_name, link.as_os_str())?;
+        }
+        EntryKind::Device(dev) => {
+            if extractor.contains_flags(Flags::WITH_DEVICE_NODES) {
+                extractor.extract_device(file_name, metadata, dev)?;
+            }
+        }
+        EntryKind::Fifo => {
+            if extractor.contains_flags(Flags::WITH_FIFOS) {
+                extractor.extract_special(file_name, metadata, 0)?;
+            }
+        }
+        EntryKind::Socket => {
+            if extractor.contains_flags(Flags::WITH_SOCKETS) {
+                extractor.extract_special(file_name, metadata, 0)?;
+            }
+        }
+        _ => bail!("extract_special used with unsupported entry kind"),
+    }
+    Ok(())
+}
+
+fn get_filename(entry: &Entry) -> Result<(OsString, CString), Error> {
+    let file_name_os = entry.file_name().to_owned();
+
+    // safety check: a file entry in an archive must never contain slashes:
+    if file_name_os.as_bytes().contains(&b'/') {
+        bail!("archive file entry contains slashes, which is invalid and a security concern");
+    }
+
+    let file_name = CString::new(file_name_os.as_bytes())
+        .map_err(|_| format_err!("encountered file name with null-bytes"))?;
+
+    Ok((file_name_os, file_name))
+}
+
+async fn recurse_files_extractor<'a, T>(
     extractor: &'a mut Extractor,
-    decoder: &'a mut Accessor<T>,
     file: FileEntry<T>,
     verbose: bool,
-) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>>
+) -> Result<(), Error>
 where
     T: Clone + pxar::accessor::ReadAt + Unpin + Send + Sync + 'static,
 {
-    use pxar::EntryKind;
-    Box::pin(async move {
-        let metadata = file.entry().metadata();
-        let file_name_os = file.file_name();
+    let entry = file.entry();
+    let metadata = entry.metadata();
+    let (file_name_os, file_name) = get_filename(entry)?;
 
-        // safety check: a file entry in an archive must never contain slashes:
-        if file_name_os.as_bytes().contains(&b'/') {
-            bail!("archive file entry contains slashes, which is invalid and a security concern");
+    if verbose {
+        eprintln!("extracting: {}", file.path().display());
+    }
+
+    match file.kind() {
+        EntryKind::Directory => {
+            extractor
+                .enter_directory(file_name_os.to_owned(), metadata.clone(), true)
+                .map_err(|err| format_err!("error at entry {:?}: {}", file_name_os, err))?;
+
+            let dir = file.enter_directory().await?;
+            let mut seq_decoder = dir.decode_full().await?;
+            seq_decoder.enable_goodbye_entries(true);
+            seq_files_extractor(extractor, seq_decoder, verbose).await?;
+            extractor.leave_directory()?;
         }
-
-        let file_name = CString::new(file_name_os.as_bytes())
-            .map_err(|_| format_err!("encountered file name with null-bytes"))?;
-
-        if verbose {
-            eprintln!("extracting: {}", file.path().display());
+        EntryKind::File { size, .. } => {
+            extractor
+                .async_extract_file(
+                    &file_name,
+                    metadata,
+                    *size,
+                    &mut file.contents().await.map_err(|_| {
+                        format_err!("found regular file entry without contents in archive")
+                    })?,
+                )
+                .await?
         }
-
-        match file.kind() {
-            EntryKind::Directory => {
-                extractor
-                    .enter_directory(file_name_os.to_owned(), metadata.clone(), true)
-                    .map_err(|err| format_err!("error at entry {:?}: {}", file_name_os, err))?;
-
-                let dir = file.enter_directory().await?;
-                let mut readdir = dir.read_dir();
-                while let Some(entry) = readdir.next().await {
-                    let entry = entry?.decode_entry().await?;
-                    let filename = entry.path().to_path_buf();
-
-                    // log errors and continue
-                    if let Err(err) = recurse_files_extractor(extractor, decoder, entry, verbose).await {
-                        eprintln!("error extracting {:?}: {}", filename.display(), err);
-                    }
-                }
-                extractor.leave_directory()?;
-            }
-            EntryKind::Symlink(link) => {
-                extractor.extract_symlink(&file_name, metadata, link.as_ref())?;
-            }
-            EntryKind::Hardlink(link) => {
-                extractor.extract_hardlink(&file_name, link.as_os_str())?;
-            }
-            EntryKind::Device(dev) => {
-                if extractor.contains_flags(Flags::WITH_DEVICE_NODES) {
-                    extractor.extract_device(&file_name, metadata, dev)?;
-                }
-            }
-            EntryKind::Fifo => {
-                if extractor.contains_flags(Flags::WITH_FIFOS) {
-                    extractor.extract_special(&file_name, metadata, 0)?;
-                }
-            }
-            EntryKind::Socket => {
-                if extractor.contains_flags(Flags::WITH_SOCKETS) {
-                    extractor.extract_special(&file_name, metadata, 0)?;
-                }
-            }
-            EntryKind::File { size, .. } => extractor.async_extract_file(
-                &file_name,
-                metadata,
-                *size,
-                &mut file.contents().await.map_err(|_| {
-                    format_err!("found regular file entry without contents in archive")
-                })?,
-            ).await?,
-            EntryKind::GoodbyeTable => {}, // ignore
-        }
-        Ok(())
-    })
+        EntryKind::GoodbyeTable => {} // ignore
+        _ => extract_special(extractor, entry, &file_name)?,
+    }
+    Ok(())
 }
 
+async fn seq_files_extractor<'a, T>(
+    extractor: &'a mut Extractor,
+    mut decoder: pxar::decoder::aio::Decoder<T>,
+    verbose: bool,
+) -> Result<(), Error>
+where
+    T: pxar::decoder::SeqRead,
+{
+    let mut dir_level = 0;
+    loop {
+        let entry = match decoder.next().await {
+            Some(entry) => entry?,
+            None => return Ok(()),
+        };
+
+        let metadata = entry.metadata();
+        let (file_name_os, file_name) = get_filename(&entry)?;
+
+        if verbose && !matches!(entry.kind(), EntryKind::GoodbyeTable) {
+            eprintln!("extracting: {}", entry.path().display());
+        }
+
+        if let Err(err) = async {
+            match entry.kind() {
+                EntryKind::Directory => {
+                    dir_level += 1;
+                    extractor
+                        .enter_directory(file_name_os.to_owned(), metadata.clone(), true)
+                        .map_err(|err| format_err!("error at entry {:?}: {}", file_name_os, err))?;
+                }
+                EntryKind::File { size, .. } => {
+                    extractor
+                        .async_extract_file(
+                            &file_name,
+                            metadata,
+                            *size,
+                            &mut decoder.contents().ok_or_else(|| {
+                                format_err!("found regular file entry without contents in archive")
+                            })?,
+                        )
+                        .await?
+                }
+                EntryKind::GoodbyeTable => {
+                    dir_level -= 1;
+                    extractor.leave_directory()?;
+                }
+                _ => extract_special(extractor, &entry, &file_name)?,
+            }
+            Ok(()) as Result<(), Error>
+        }
+        .await
+        {
+            let display = entry.path().display().to_string();
+            eprintln!(
+                "error extracting {}: {}",
+                if matches!(entry.kind(), EntryKind::GoodbyeTable) {
+                    "<directory>"
+                } else {
+                    &display
+                },
+                err
+            );
+        }
+
+        if dir_level < 0 {
+            // we've encountered one Goodbye more then Directory, meaning we've left the dir we
+            // started in - exit early, otherwise the extractor might panic
+            return Ok(());
+        }
+    }
+}
