@@ -12,6 +12,7 @@ use std::os::unix::ffi::OsStrExt;
 use std::path::{Component, Path, PathBuf};
 use std::pin::Pin;
 use std::task::{Context, Poll};
+use std::time::SystemTime;
 
 use anyhow::{format_err, Error, Result};
 use endian_trait::Endian;
@@ -591,4 +592,80 @@ impl<W: AsyncWrite + Unpin> ZipEncoder<W> {
 
         Ok(())
     }
+}
+
+/// Zip a local directory and write encoded data to target. "source" has to point to a valid
+/// directory, it's name will be the root of the zip file - e.g.:
+/// source:
+///         /foo/bar
+/// zip file:
+///         /bar/file1
+///         /bar/dir1
+///         /bar/dir1/file2
+///         ...
+/// ...except if "source" is the root directory
+pub async fn zip_directory<W>(target: W, source: &Path) -> Result<(), Error>
+where
+    W: AsyncWrite + Unpin + Send,
+{
+    use walkdir::WalkDir;
+    use std::os::unix::fs::MetadataExt;
+
+    let base_path = source.parent().unwrap_or_else(|| Path::new("/"));
+    let mut encoder = ZipEncoder::new(target);
+
+    for entry in WalkDir::new(&source).into_iter() {
+        match entry {
+            Ok(entry) => {
+                let entry_path = entry.path().to_owned();
+                let encoder = &mut encoder;
+
+                if let Err(err) = async move {
+                    let entry_path_no_base = entry.path().strip_prefix(base_path)?;
+                    let metadata = entry.metadata()?;
+                    let mtime = match metadata.modified().unwrap_or_else(|_| SystemTime::now()).duration_since(SystemTime::UNIX_EPOCH) {
+                        Ok(dur) => dur.as_secs() as i64,
+                        Err(time_error) => -(time_error.duration().as_secs() as i64)
+                    };
+                    let mode = metadata.mode() as u16;
+
+                    if entry.file_type().is_file() {
+                        let file = tokio::fs::File::open(entry.path()).await?;
+                        let ze = ZipEntry::new(
+                            &entry_path_no_base,
+                            mtime,
+                            mode,
+                            true,
+                        );
+                        encoder.add_entry(ze, Some(file)).await?;
+                    } else if entry.file_type().is_dir() {
+                        let ze = ZipEntry::new(
+                            &entry_path_no_base,
+                            mtime,
+                            mode,
+                            false,
+                        );
+                        let content: Option<tokio::fs::File> = None;
+                        encoder.add_entry(ze, content).await?;
+                    }
+                    // ignore other file types
+                    let ok: Result<(), Error> = Ok(());
+                    ok
+                }
+                .await
+                {
+                    eprintln!(
+                        "zip: error encoding file or directory '{}': {}",
+                        entry_path.display(),
+                        err
+                    );
+                }
+            }
+            Err(err) => {
+                eprintln!("zip: error reading directory entry: {}", err);
+            }
+        }
+    }
+
+    encoder.finish().await
 }
