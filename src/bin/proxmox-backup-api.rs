@@ -6,8 +6,11 @@ use proxmox::api::RpcEnvironmentType;
 
 //use proxmox_backup::tools;
 //use proxmox_backup::api_schema::config::*;
-use proxmox_backup::server::rest::*;
-use proxmox_backup::server;
+use proxmox_backup::server::{
+    self,
+    auth::default_api_auth,
+    rest::*,
+};
 use proxmox_backup::tools::daemon;
 use proxmox_backup::auth_helpers::*;
 use proxmox_backup::config;
@@ -53,7 +56,11 @@ async fn run() -> Result<(), Error> {
     let _ = csrf_secret(); // load with lazy_static
 
     let mut config = server::ApiConfig::new(
-        buildcfg::JS_DIR, &proxmox_backup::api2::ROUTER, RpcEnvironmentType::PRIVILEGED)?;
+        buildcfg::JS_DIR,
+        &proxmox_backup::api2::ROUTER,
+        RpcEnvironmentType::PRIVILEGED,
+        default_api_auth(),
+    )?;
 
     let mut commando_sock = server::CommandoSocket::new(server::our_ctrl_sock());
 

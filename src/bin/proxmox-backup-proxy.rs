@@ -14,6 +14,7 @@ use proxmox::api::RpcEnvironmentType;
 use proxmox_backup::{
     backup::DataStore,
     server::{
+        auth::default_api_auth,
         WorkerTask,
         ApiConfig,
         rest::*,
@@ -84,7 +85,11 @@ async fn run() -> Result<(), Error> {
     let _ = csrf_secret(); // load with lazy_static
 
     let mut config = ApiConfig::new(
-        buildcfg::JS_DIR, &proxmox_backup::api2::ROUTER, RpcEnvironmentType::PUBLIC)?;
+        buildcfg::JS_DIR,
+        &proxmox_backup::api2::ROUTER,
+        RpcEnvironmentType::PUBLIC,
+        default_api_auth(),
+    )?;
 
     // Enable experimental tape UI if tape.cfg exists
     if Path::new("/etc/proxmox-backup/tape.cfg").exists() {

@@ -30,10 +30,10 @@ use proxmox::api::{
 };
 use proxmox::http_err;
 
+use super::auth::AuthError;
 use super::environment::RestEnvironment;
 use super::formatter::*;
 use super::ApiConfig;
-use super::auth::{check_auth, extract_auth_data};
 
 use crate::api2::types::{Authid, Userid};
 use crate::auth_helpers::*;
@@ -678,6 +678,7 @@ async fn handle_request(
     rpcenv.set_client_ip(Some(*peer));
 
     let user_info = CachedUserInfo::new()?;
+    let auth = &api.api_auth;
 
     let delay_unauth_time = std::time::Instant::now() + std::time::Duration::from_millis(3000);
     let access_forbidden_time = std::time::Instant::now() + std::time::Duration::from_millis(500);
@@ -703,13 +704,15 @@ async fn handle_request(
             }
 
             if auth_required {
-                let auth_result = match extract_auth_data(&parts.headers) {
-                    Some(auth_data) => check_auth(&method, &auth_data, &user_info),
-                    None => Err(format_err!("no authentication credentials provided.")),
-                };
-                match auth_result {
+                match auth.check_auth(&parts.headers, &method, &user_info) {
                     Ok(authid) => rpcenv.set_auth_id(Some(authid.to_string())),
-                    Err(err) => {
+                    Err(auth_err) => {
+                        let err = match auth_err {
+                            AuthError::Generic(err) => err,
+                            AuthError::NoData => {
+                                format_err!("no authentication credentials provided.")
+                            }
+                        };
                         let peer = peer.ip();
                         auth_logger()?.log(format!(
                             "authentication failure; rhost={} msg={}",
@@ -772,9 +775,9 @@ async fn handle_request(
 
         if comp_len == 0 {
             let language = extract_lang_header(&parts.headers);
-            if let Some(auth_data) = extract_auth_data(&parts.headers) {
-                match check_auth(&method, &auth_data, &user_info) {
-                    Ok(auth_id) if !auth_id.is_token() => {
+            match auth.check_auth(&parts.headers, &method, &user_info) {
+                Ok(auth_id) => {
+                    if !auth_id.is_token() {
                         let userid = auth_id.user();
                         let new_csrf_token = assemble_csrf_prevention_token(csrf_secret(), userid);
                         return Ok(get_index(
@@ -785,14 +788,13 @@ async fn handle_request(
                             parts,
                         ));
                     }
-                    _ => {
-                        tokio::time::sleep_until(Instant::from_std(delay_unauth_time)).await;
-                        return Ok(get_index(None, None, language, &api, parts));
-                    }
                 }
-            } else {
-                return Ok(get_index(None, None, language, &api, parts));
+                Err(AuthError::Generic(_)) => {
+                    tokio::time::sleep_until(Instant::from_std(delay_unauth_time)).await;
+                }
+                Err(AuthError::NoData) => {}
             }
+            return Ok(get_index(None, None, language, &api, parts));
         } else {
             let filename = api.find_alias(&components);
             let compression = extract_compression_method(&parts.headers);

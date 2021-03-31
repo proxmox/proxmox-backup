@@ -13,6 +13,7 @@ use proxmox::api::{ApiMethod, Router, RpcEnvironmentType};
 use proxmox::tools::fs::{create_path, CreateOptions};
 
 use crate::tools::{FileLogger, FileLogOptions};
+use super::auth::ApiAuth;
 
 pub struct ApiConfig {
     basedir: PathBuf,
@@ -23,11 +24,16 @@ pub struct ApiConfig {
     template_files: RwLock<HashMap<String, (SystemTime, PathBuf)>>,
     request_log: Option<Arc<Mutex<FileLogger>>>,
     pub enable_tape_ui: bool,
+    pub api_auth: Arc<dyn ApiAuth + Send + Sync>,
 }
 
 impl ApiConfig {
-
-    pub fn new<B: Into<PathBuf>>(basedir: B, router: &'static Router, env_type: RpcEnvironmentType) -> Result<Self, Error> {
+    pub fn new<B: Into<PathBuf>>(
+        basedir: B,
+        router: &'static Router,
+        env_type: RpcEnvironmentType,
+        api_auth: Arc<dyn ApiAuth + Send + Sync>,
+    ) -> Result<Self, Error> {
         Ok(Self {
             basedir: basedir.into(),
             router,
@@ -37,7 +43,8 @@ impl ApiConfig {
             template_files: RwLock::new(HashMap::new()),
             request_log: None,
             enable_tape_ui: false,
-       })
+            api_auth,
+        })
     }
 
     pub fn find_method(
