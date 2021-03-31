@@ -8,6 +8,8 @@ use proxmox::list_subdirs_api_method;
 
 use proxmox_backup::api2::types::*;
 
+use super::{watchdog_remaining, watchdog_ping};
+
 // NOTE: All API endpoints must have Permission::Superuser, as the configs for authentication do
 // not exist within the restore VM. Safety is guaranteed by checking a ticket via a custom ApiAuth.
 
@@ -27,22 +29,32 @@ fn read_uptime() -> Result<f32, Error> {
 }
 
 #[api(
+    input: {
+        properties: {
+            "keep-timeout": {
+                type: bool,
+                description: "If true, do not reset the watchdog timer on this API call.",
+                default: false,
+                optional: true,
+            },
+        },
+    },
     access: {
-        description: "Permissions are handled outside restore VM.",
-        permission: &Permission::Superuser,
+        description: "Permissions are handled outside restore VM. This call can be made without a ticket, but keep-timeout is always assumed 'true' then.",
+        permission: &Permission::World,
     },
     returns: {
         type: RestoreDaemonStatus,
     }
 )]
 /// General status information
-fn status(
-    _param: Value,
-    _info: &ApiMethod,
-    _rpcenv: &mut dyn RpcEnvironment,
-) -> Result<RestoreDaemonStatus, Error> {
+fn status(rpcenv: &mut dyn RpcEnvironment, keep_timeout: bool) -> Result<RestoreDaemonStatus, Error> {
+    if !keep_timeout && rpcenv.get_auth_id().is_some() {
+        watchdog_ping();
+    }
     Ok(RestoreDaemonStatus {
         uptime: read_uptime()? as i64,
+        timeout: watchdog_remaining(),
     })
 }
 

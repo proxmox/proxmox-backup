@@ -45,6 +45,8 @@ fn main() -> Result<(), Error> {
 }
 
 async fn run() -> Result<(), Error> {
+    watchdog_init();
+
     let auth_config = Arc::new(
         auth::ticket_auth().map_err(|err| format_err!("reading ticket file failed: {}", err))?,
     );
