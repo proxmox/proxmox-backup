@@ -4,11 +4,14 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::{bail, format_err, Error};
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use proxmox::api::{
     api,
-    cli::{run_cli_command, CliCommand, CliCommandMap, CliEnvironment},
+    cli::{
+        default_table_format_options, format_and_print_result_full, get_output_format,
+        run_cli_command, CliCommand, CliCommandMap, CliEnvironment, ColumnConfig, OUTPUT_FORMAT,
+    },
 };
 use pxar::accessor::aio::Accessor;
 
@@ -99,6 +102,17 @@ fn parse_path(path: String, base64: bool) -> Result<ExtractPath, Error> {
                type: CryptMode,
                optional: true,
            },
+           "output-format": {
+               schema: OUTPUT_FORMAT,
+               optional: true,
+           },
+       }
+   },
+   returns: {
+       description: "A list of elements under the given path",
+       type: Array,
+       items: {
+           type: ArchiveEntry,
        }
    }
 )]
@@ -108,7 +122,7 @@ async fn list(
     path: String,
     base64: bool,
     param: Value,
-) -> Result<Vec<ArchiveEntry>, Error> {
+) -> Result<(), Error> {
     let repo = extract_repository_from_value(&param)?;
     let snapshot: BackupDir = snapshot.parse()?;
     let path = parse_path(path, base64)?;
@@ -141,7 +155,7 @@ async fn list(
     let (manifest, _) = client.download_manifest().await?;
     manifest.check_fingerprint(crypt_config.as_ref().map(Arc::as_ref))?;
 
-    match path {
+    let result = match path {
         ExtractPath::ListArchives => {
             let mut entries = vec![];
             for file in manifest.files() {
@@ -177,7 +191,25 @@ async fn list(
 
             helpers::list_dir_content(&mut catalog_reader, &fullpath)
         }
-    }
+    }?;
+
+    let options = default_table_format_options()
+        .sortby("type", false)
+        .sortby("text", false)
+        .column(ColumnConfig::new("type"))
+        .column(ColumnConfig::new("text").header("name"))
+        .column(ColumnConfig::new("mtime").header("last modified"))
+        .column(ColumnConfig::new("size"));
+
+    let output_format = get_output_format(&param);
+    format_and_print_result_full(
+        &mut json!(result),
+        &API_METHOD_LIST.returns,
+        &output_format,
+        &options,
+    );
+
+    Ok(())
 }
 
 #[api(
