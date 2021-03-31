@@ -6,6 +6,11 @@ Command Line Tools
 
 .. include:: proxmox-backup-client/description.rst
 
+``proxmox-file-restore``
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. include:: proxmox-file-restore/description.rst
+
 ``proxmox-backup-manager``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 

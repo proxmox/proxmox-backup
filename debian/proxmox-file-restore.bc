@@ -1,0 +1,8 @@
+# proxmox-file-restore bash completion
+
+# see http://tiswww.case.edu/php/chet/bash/FAQ
+# and __ltrim_colon_completions() in /usr/share/bash-completion/bash_completion
+# this modifies global var, but I found no better way
+COMP_WORDBREAKS=${COMP_WORDBREAKS//:}
+
+complete -C 'proxmox-file-restore bashcomplete' proxmox-file-restore

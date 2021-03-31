@@ -12,7 +12,7 @@ pub mod version;
 pub mod ping;
 pub mod pull;
 pub mod tape;
-mod helpers;
+pub mod helpers;
 
 use proxmox::api::router::SubdirMap;
 use proxmox::api::Router;
