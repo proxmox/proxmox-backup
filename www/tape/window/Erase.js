@@ -11,13 +11,13 @@ Ext.define('PBS.TapeManagement.EraseWindow', {
 	return {};
     },
 
-    title: gettext('Erase'),
+    title: gettext('Format/Erase'),
     url: `/api2/extjs/tape/drive`,
     showProgress: true,
     submitUrl: function(url, values) {
 	let drive = values.drive;
 	delete values.drive;
-	return `${url}/${drive}/erase-media`;
+	return `${url}/${drive}/format-media`;
     },
 
     method: 'POST',

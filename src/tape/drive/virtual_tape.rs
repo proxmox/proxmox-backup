@@ -360,7 +360,7 @@ impl TapeDriver for VirtualTapeHandle {
         }
     }
 
-    fn erase_media(&mut self, _fast: bool) -> Result<(), Error> {
+    fn format_media(&mut self, _fast: bool) -> Result<(), Error> {
         let mut status = self.load_status()?;
         match status.current_tape {
             Some(VirtualTapeStatus { ref name, ref mut pos }) => {

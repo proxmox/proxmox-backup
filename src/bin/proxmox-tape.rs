@@ -115,8 +115,8 @@ pub fn extract_drive_name(
        },
     },
 )]
-/// Erase media
-async fn erase_media(mut param: Value) -> Result<(), Error> {
+/// Format media
+async fn format_media(mut param: Value) -> Result<(), Error> {
 
     let output_format = get_output_format(&param);
 
@@ -126,7 +126,7 @@ async fn erase_media(mut param: Value) -> Result<(), Error> {
 
     let mut client = connect_to_localhost()?;
 
-    let path = format!("api2/json/tape/drive/{}/erase-media", drive);
+    let path = format!("api2/json/tape/drive/{}/format-media", drive);
     let result = client.post(&path, Some(param)).await?;
 
     view_task_result(&mut client, result, &output_format).await?;
@@ -992,8 +992,8 @@ fn main() {
                 .completion_cb("drive", complete_drive_name)
         )
         .insert(
-            "erase",
-            CliCommand::new(&API_METHOD_ERASE_MEDIA)
+            "format",
+            CliCommand::new(&API_METHOD_FORMAT_MEDIA)
                 .completion_cb("drive", complete_drive_name)
         )
         .insert(

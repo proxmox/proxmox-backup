@@ -100,9 +100,48 @@ impl SgTape {
         scsi_inquiry(&mut self.file)
     }
 
-    pub fn erase_media(&mut self, _fast: bool) -> Result<(), Error> {
-        // fixme:
-        unimplemented!();
+    /// Erase medium.
+    ///
+    /// EOD is written at the current position, which marks it as end
+    /// of data. After the command is successfully completed, the
+    /// drive is positioned immediately before End Of Data (not End Of
+    /// Tape).
+    pub fn erase_media(&mut self, fast: bool) -> Result<(), Error> {
+        let mut sg_raw = SgRaw::new(&mut self.file, 16)?;
+        sg_raw.set_timeout(Self::SCSI_TAPE_DEFAULT_TIMEOUT);
+        let mut cmd = Vec::new();
+        cmd.push(0x19);
+        if fast {
+            cmd.push(0); // LONG=0
+        } else {
+            cmd.push(1); // LONG=1
+        }
+        cmd.extend(&[0, 0, 0, 0]);
+
+        sg_raw.do_command(&cmd)
+            .map_err(|err| format_err!("erase failed - {}", err))?;
+
+        Ok(())
+    }
+
+    /// Format media, single partition
+    pub fn format_media(&mut self, fast: bool) -> Result<(), Error> {
+
+        self.rewind()?;
+
+        let mut sg_raw = SgRaw::new(&mut self.file, 16)?;
+        sg_raw.set_timeout(Self::SCSI_TAPE_DEFAULT_TIMEOUT);
+        let mut cmd = Vec::new();
+        cmd.extend(&[0x04, 0, 0, 0, 0, 0]);
+
+        sg_raw.do_command(&cmd)
+            .map_err(|err| format_err!("erase failed - {}", err))?;
+
+        if !fast {
+            self.erase_media(false)?; // overwrite everything
+        }
+
+        Ok(())
     }
 
     pub fn rewind(&mut self) -> Result<(), Error> {

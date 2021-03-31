@@ -409,11 +409,40 @@ fn eod(param: Value) -> Result<(), Error> {
         },
     },
 )]
-/// Erase media
+/// Erase media (from current position)
 fn erase(fast: Option<bool>, param: Value) -> Result<(), Error> {
 
     let mut handle = get_tape_handle(&param)?;
     handle.erase_media(fast.unwrap_or(true))?;
+
+    Ok(())
+}
+
+#[api(
+   input: {
+        properties: {
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+                optional: true,
+            },
+            device: {
+                schema: LTO_DRIVE_PATH_SCHEMA,
+                optional: true,
+            },
+            fast: {
+                description: "Use fast erase.",
+                type: bool,
+                optional: true,
+                default: true,
+            },
+        },
+    },
+)]
+/// Format media,  single partition
+fn format(fast: Option<bool>, param: Value) -> Result<(), Error> {
+
+    let mut handle = get_tape_handle(&param)?;
+    handle.format_media(fast.unwrap_or(true))?;
 
     Ok(())
 }
@@ -800,6 +829,7 @@ fn main() -> Result<(), Error> {
         .insert("eject", std_cmd(&API_METHOD_EJECT))
         .insert("eod", std_cmd(&API_METHOD_EOD))
         .insert("erase", std_cmd(&API_METHOD_ERASE))
+        .insert("format", std_cmd(&API_METHOD_FORMAT))
         .insert("fsf", std_cmd(&API_METHOD_FSF).arg_param(&["count"]))
         .insert("fsfm", std_cmd(&API_METHOD_FSFM).arg_param(&["count"]))
         .insert("fsr", std_cmd(&API_METHOD_FSR).arg_param(&["count"]))

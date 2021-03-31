@@ -111,7 +111,7 @@ pub trait TapeDriver {
     fn current_file_number(&mut self) -> Result<u64, Error>;
 
     /// Completely erase the media
-    fn erase_media(&mut self, fast: bool) -> Result<(), Error>;
+    fn format_media(&mut self, fast: bool) -> Result<(), Error>;
 
     /// Read/Open the next file
     fn read_next_file<'a>(&'a mut self) -> Result<Option<Box<dyn TapeRead + 'a>>, std::io::Error>;
@@ -122,11 +122,9 @@ pub trait TapeDriver {
     /// Write label to tape (erase tape content)
     fn label_tape(&mut self, label: &MediaLabel) -> Result<(), Error> {
 
-        self.rewind()?;
-
         self.set_encryption(None)?;
 
-        self.erase_media(true)?;
+        self.format_media(true)?; // this rewinds the tape
 
         let raw = serde_json::to_string_pretty(&serde_json::to_value(&label)?)?;
 

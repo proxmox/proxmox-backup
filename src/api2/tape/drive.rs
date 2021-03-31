@@ -321,8 +321,8 @@ pub fn unload(
         permission: &Permission::Privilege(&["tape", "device", "{drive}"], PRIV_TAPE_WRITE, false),
     },
 )]
-/// Erase media. Check for label-text if given (cancels if wrong media).
-pub fn erase_media(
+/// Format media. Check for label-text if given (cancels if wrong media).
+pub fn format_media(
     drive: String,
     fast: Option<bool>,
     label_text: Option<String>,
@@ -331,7 +331,7 @@ pub fn erase_media(
     let upid_str = run_drive_worker(
         rpcenv,
         drive.clone(),
-        "erase-media",
+        "format-media",
         Some(drive.clone()),
         move |worker, config| {
             if let Some(ref label) = label_text {
@@ -350,15 +350,15 @@ pub fn erase_media(
                     }
                     /* assume drive contains no or unrelated data */
                     task_log!(worker, "unable to read media label: {}", err);
-                    task_log!(worker, "erase anyways");
-                    handle.erase_media(fast.unwrap_or(true))?;
+                    task_log!(worker, "format anyways");
+                    handle.format_media(fast.unwrap_or(true))?;
                 }
                 Ok((None, _)) => {
                     if let Some(label) = label_text {
                         bail!("expected label '{}', found empty tape", label);
                     }
-                    task_log!(worker, "found empty media - erase anyways");
-                    handle.erase_media(fast.unwrap_or(true))?;
+                    task_log!(worker, "found empty media - format anyways");
+                    handle.format_media(fast.unwrap_or(true))?;
                 }
                 Ok((Some(media_id), _key_config)) => {
                     if let Some(label_text) = label_text {
@@ -391,7 +391,7 @@ pub fn erase_media(
                         inventory.remove_media(&media_id.label.uuid)?;
                     };
 
-                    handle.erase_media(fast.unwrap_or(true))?;
+                    handle.format_media(fast.unwrap_or(true))?;
                 }
             }
 
@@ -503,7 +503,7 @@ pub fn eject_media(
 /// Write a new media label to the media in 'drive'. The media is
 /// assigned to the specified 'pool', or else to the free media pool.
 ///
-/// Note: The media need to be empty (you may want to erase it first).
+/// Note: The media need to be empty (you may want to format it first).
 pub fn label_media(
     drive: String,
     pool: Option<String>,
@@ -528,7 +528,7 @@ pub fn label_media(
             drive.rewind()?;
 
             match drive.read_next_file() {
-                Ok(Some(_file)) => bail!("media is not empty (erase first)"),
+                Ok(Some(_file)) => bail!("media is not empty (format it first)"),
                 Ok(None) => { /* EOF mark at BOT, assume tape is empty */ },
                 Err(err) => {
                     println!("TEST {:?}", err);
@@ -1092,7 +1092,7 @@ fn barcode_label_media_worker(
 
         match drive.read_next_file() {
             Ok(Some(_file)) => {
-                worker.log(format!("media '{}' is not empty (erase first)", label_text));
+                worker.log(format!("media '{}' is not empty (format it first)", label_text));
                 continue;
             }
             Ok(None) => { /* EOF mark at BOT, assume tape is empty */ },
@@ -1100,7 +1100,7 @@ fn barcode_label_media_worker(
                 if err.is_errno(nix::errno::Errno::ENOSPC) || err.is_errno(nix::errno::Errno::EIO) {
                     /* assume tape is empty */
                 } else {
-                    worker.warn(format!("media '{}' read error (maybe not empty - erase first)", label_text));
+                    worker.warn(format!("media '{}' read error (maybe not empty - format it first)", label_text));
                     continue;
                 }
             }
@@ -1430,9 +1430,9 @@ pub const SUBDIRS: SubdirMap = &sorted!([
             .post(&API_METHOD_EJECT_MEDIA)
     ),
     (
-        "erase-media",
+        "format-media",
         &Router::new()
-            .post(&API_METHOD_ERASE_MEDIA)
+            .post(&API_METHOD_FORMAT_MEDIA)
     ),
     (
         "export-media",

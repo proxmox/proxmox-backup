@@ -179,6 +179,10 @@ impl LtoTapeHandle {
         Ok(status)
     }
 
+    pub fn erase_media(&mut self, fast: bool) -> Result<(), Error> {
+        self.sg_tape.erase_media(fast)
+    }
+
     pub fn load(&mut self) ->  Result<(), Error> {
         self.sg_tape.load()
     }
@@ -223,9 +227,8 @@ impl TapeDriver for LtoTapeHandle {
         self.sg_tape.current_file_number()
     }
 
-    fn erase_media(&mut self, fast: bool) -> Result<(), Error> {
-        self.rewind()?; // important - erase from BOT
-        self.sg_tape.erase_media(fast)
+    fn format_media(&mut self, fast: bool) -> Result<(), Error> {
+        self.sg_tape.format_media(fast)
     }
 
     fn read_next_file<'a>(&'a mut self) -> Result<Option<Box<dyn TapeRead + 'a>>, std::io::Error> {
