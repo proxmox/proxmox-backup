@@ -1,16 +1,29 @@
 ///! File-restore API running inside the restore VM
 use anyhow::{bail, Error};
+use futures::FutureExt;
+use hyper::http::request::Parts;
+use hyper::{header, Body, Response, StatusCode};
+use log::error;
+use pathpatterns::{MatchEntry, MatchPattern, MatchType, Pattern};
+use serde_json::Value;
+
 use std::ffi::OsStr;
 use std::fs;
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 
-use proxmox::api::{api, ApiMethod, Permission, Router, RpcEnvironment, SubdirMap};
-use proxmox::list_subdirs_api_method;
+use proxmox::api::{
+    api, schema::*, ApiHandler, ApiMethod, ApiResponseFuture, Permission, Router, RpcEnvironment,
+    SubdirMap,
+};
+use proxmox::{identity, list_subdirs_api_method, sortable};
 
 use proxmox_backup::api2::types::*;
 use proxmox_backup::backup::DirEntryAttribute;
-use proxmox_backup::tools::fs::read_subdir;
+use proxmox_backup::pxar::{create_archive, Flags, PxarCreateOptions, ENCODER_MAX_ENTRIES};
+use proxmox_backup::tools::{self, fs::read_subdir, zip::zip_directory};
+
+use pxar::encoder::aio::TokioWriter;
 
 use super::{disk::ResolveResult, watchdog_remaining, watchdog_ping};
 
@@ -18,6 +31,7 @@ use super::{disk::ResolveResult, watchdog_remaining, watchdog_ping};
 // not exist within the restore VM. Safety is guaranteed by checking a ticket via a custom ApiAuth.
 
 const SUBDIRS: SubdirMap = &[
+    ("extract", &Router::new().get(&API_METHOD_EXTRACT)),
     ("list", &Router::new().get(&API_METHOD_LIST)),
     ("status", &Router::new().get(&API_METHOD_STATUS)),
     ("stop", &Router::new().get(&API_METHOD_STOP)),
@@ -196,4 +210,160 @@ fn list(
     }
 
     Ok(res)
+}
+
+#[sortable]
+pub const API_METHOD_EXTRACT: ApiMethod = ApiMethod::new(
+    &ApiHandler::AsyncHttp(&extract),
+    &ObjectSchema::new(
+        "Extract a file or directory from the VM as a pxar archive.",
+        &sorted!([
+            (
+                "path",
+                false,
+                &StringSchema::new("base64-encoded path to list files and directories under")
+                    .schema()
+            ),
+            (
+                "pxar",
+                true,
+                &BooleanSchema::new(concat!(
+                    "if true, return a pxar archive, otherwise either the ",
+                    "file content or the directory as a zip file"
+                ))
+                .default(true)
+                .schema()
+            )
+        ]),
+    ),
+)
+.access(None, &Permission::Superuser);
+
+fn extract(
+    _parts: Parts,
+    _req_body: Body,
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: Box<dyn RpcEnvironment>,
+) -> ApiResponseFuture {
+    watchdog_ping();
+    async move {
+        let path = tools::required_string_param(&param, "path")?;
+        let mut path = base64::decode(path)?;
+        if let Some(b'/') = path.last() {
+            path.pop();
+        }
+        let path = Path::new(OsStr::from_bytes(&path[..]));
+
+        let pxar = param["pxar"].as_bool().unwrap_or(true);
+
+        let query_result = {
+            let mut disk_state = crate::DISK_STATE.lock().unwrap();
+            disk_state.resolve(&path)?
+        };
+
+        let vm_path = match query_result {
+            ResolveResult::Path(vm_path) => vm_path,
+            _ => bail!("invalid path, cannot restore meta-directory: {:?}", path),
+        };
+
+        // check here so we can return a real error message, failing in the async task will stop
+        // the transfer, but not return a useful message
+        if !vm_path.exists() {
+            bail!("file or directory {:?} does not exist", path);
+        }
+
+        let (mut writer, reader) = tokio::io::duplex(1024 * 64);
+
+        if pxar {
+            tokio::spawn(async move {
+                let result = async move {
+                    // pxar always expects a directory as it's root, so to accommodate files as
+                    // well we encode the parent dir with a filter only matching the target instead
+                    let mut patterns = vec![MatchEntry::new(
+                        MatchPattern::Pattern(Pattern::path(b"*").unwrap()),
+                        MatchType::Exclude,
+                    )];
+
+                    let name = match vm_path.file_name() {
+                        Some(name) => name,
+                        None => bail!("no file name found for path: {:?}", vm_path),
+                    };
+
+                    if vm_path.is_dir() {
+                        let mut pat = name.as_bytes().to_vec();
+                        patterns.push(MatchEntry::new(
+                            MatchPattern::Pattern(Pattern::path(pat.clone())?),
+                            MatchType::Include,
+                        ));
+                        pat.extend(b"/**/*".iter());
+                        patterns.push(MatchEntry::new(
+                            MatchPattern::Pattern(Pattern::path(pat)?),
+                            MatchType::Include,
+                        ));
+                    } else {
+                        patterns.push(MatchEntry::new(
+                            MatchPattern::Literal(name.as_bytes().to_vec()),
+                            MatchType::Include,
+                        ));
+                    }
+
+                    let dir_path = vm_path.parent().unwrap_or_else(|| Path::new("/"));
+                    let dir = nix::dir::Dir::open(
+                        dir_path,
+                        nix::fcntl::OFlag::O_NOFOLLOW,
+                        nix::sys::stat::Mode::empty(),
+                    )?;
+
+                    let options = PxarCreateOptions {
+                        entries_max: ENCODER_MAX_ENTRIES,
+                        device_set: None,
+                        patterns,
+                        verbose: false,
+                        skip_lost_and_found: false,
+                    };
+
+                    let pxar_writer = TokioWriter::new(writer);
+                    create_archive(dir, pxar_writer, Flags::DEFAULT, |_| Ok(()), None, options)
+                        .await
+                }
+                .await;
+                if let Err(err) = result {
+                    error!("pxar streaming task failed - {}", err);
+                }
+            });
+        } else {
+            tokio::spawn(async move {
+                let result = async move {
+                    if vm_path.is_dir() {
+                        zip_directory(&mut writer, &vm_path).await?;
+                        Ok(())
+                    } else if vm_path.is_file() {
+                        let mut file = tokio::fs::OpenOptions::new()
+                            .read(true)
+                            .open(vm_path)
+                            .await?;
+                        tokio::io::copy(&mut file, &mut writer).await?;
+                        Ok(())
+                    } else {
+                        bail!("invalid entry type for path: {:?}", vm_path);
+                    }
+                }
+                .await;
+                if let Err(err) = result {
+                    error!("file or dir streaming task failed - {}", err);
+                }
+            });
+        }
+
+        let stream = tokio_util::io::ReaderStream::new(reader);
+
+        let body = Body::wrap_stream(stream);
+        Ok(Response::builder()
+            .status(StatusCode::OK)
+            .header(header::CONTENT_TYPE, "application/octet-stream")
+            .body(body)
+            .unwrap())
+    }
+    .boxed()
 }

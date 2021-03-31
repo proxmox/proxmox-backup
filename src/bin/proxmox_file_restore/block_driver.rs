@@ -41,6 +41,19 @@ pub trait BlockRestoreDriver {
         path: Vec<u8>,
     ) -> Async<Result<Vec<ArchiveEntry>, Error>>;
 
+    /// pxar=true:
+    /// Attempt to create a pxar archive of the given file path and return a reader instance for it
+    /// pxar=false:
+    /// Attempt to read the file or folder at the given path and return the file content or a zip
+    /// file as a stream
+    fn data_extract(
+        &self,
+        details: SnapRestoreDetails,
+        img_file: String,
+        path: Vec<u8>,
+        pxar: bool,
+    ) -> Async<Result<Box<dyn tokio::io::AsyncRead + Unpin + Send>, Error>>;
+
     /// Return status of all running/mapped images, result value is (id, extra data), where id must
     /// match with the ones returned from list()
     fn status(&self) -> Async<Result<Vec<DriverStatus>, Error>>;
@@ -77,6 +90,17 @@ pub async fn data_list(
 ) -> Result<Vec<ArchiveEntry>, Error> {
     let driver = driver.unwrap_or(DEFAULT_DRIVER).resolve();
     driver.data_list(details, img_file, path).await
+}
+
+pub async fn data_extract(
+    driver: Option<BlockDriverType>,
+    details: SnapRestoreDetails,
+    img_file: String,
+    path: Vec<u8>,
+    pxar: bool,
+) -> Result<Box<dyn tokio::io::AsyncRead + Send + Unpin>, Error> {
+    let driver = driver.unwrap_or(DEFAULT_DRIVER).resolve();
+    driver.data_extract(details, img_file, path, pxar).await
 }
 
 #[api(

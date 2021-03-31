@@ -204,6 +204,38 @@ impl BlockRestoreDriver for QemuBlockDriver {
         .boxed()
     }
 
+    fn data_extract(
+        &self,
+        details: SnapRestoreDetails,
+        img_file: String,
+        mut path: Vec<u8>,
+        pxar: bool,
+    ) -> Async<Result<Box<dyn tokio::io::AsyncRead + Unpin + Send>, Error>> {
+        async move {
+            let client = ensure_running(&details).await?;
+            if !path.is_empty() && path[0] != b'/' {
+                path.insert(0, b'/');
+            }
+            let path = base64::encode(img_file.bytes().chain(path).collect::<Vec<u8>>());
+            let (mut tx, rx) = tokio::io::duplex(1024 * 4096);
+            tokio::spawn(async move {
+                if let Err(err) = client
+                    .download(
+                        "api2/json/extract",
+                        Some(json!({ "path": path, "pxar": pxar })),
+                        &mut tx,
+                    )
+                    .await
+                {
+                    eprintln!("reading file extraction stream failed - {}", err);
+                }
+            });
+
+            Ok(Box::new(rx) as Box<dyn tokio::io::AsyncRead + Unpin + Send>)
+        }
+        .boxed()
+    }
+
     fn status(&self) -> Async<Result<Vec<DriverStatus>, Error>> {
         async move {
             let mut state_map = VMStateMap::load()?;
