@@ -203,17 +203,17 @@ struct InquiryPage {
 
 #[repr(C, packed)]
 #[derive(Endian, Debug)]
-struct RequestSenseFixed {
-    response_code: u8,
+pub struct RequestSenseFixed {
+    pub response_code: u8,
     obsolete: u8,
-    flags2: u8,
-    information: [u8;4],
-    additional_sense_len: u8,
-    command_specific_information: [u8;4],
-    additional_sense_code: u8,
-    additional_sense_code_qualifier: u8,
-    field_replacable_unit_code: u8,
-    sense_key_specific: [u8; 3],
+    pub flags2: u8,
+    pub information: [u8;4],
+    pub additional_sense_len: u8,
+    pub command_specific_information: [u8;4],
+    pub additional_sense_code: u8,
+    pub additional_sense_code_qualifier: u8,
+    pub field_replacable_unit_code: u8,
+    pub sense_key_specific: [u8; 3],
 }
 
 #[repr(C, packed)]
@@ -575,15 +575,15 @@ impl <'a, F: AsRawFd> SgRaw<'a, F> {
     /// Run dataout command
     ///
     /// Note: use alloc_page_aligned_buffer to alloc data transfer buffer
-    pub fn do_out_command(&mut self, cmd: &[u8], data: &[u8]) -> Result<(), Error> {
+    pub fn do_out_command(&mut self, cmd: &[u8], data: &[u8]) -> Result<(), ScsiError> {
 
         if !unsafe { sg_is_scsi_cdb(cmd.as_ptr(), cmd.len() as c_int) } {
-            bail!("no valid SCSI command");
+            return Err(format_err!("no valid SCSI command").into());
         }
 
         let page_size = unsafe { libc::sysconf(libc::_SC_PAGESIZE) } as usize;
         if ((data.as_ptr() as usize) & (page_size -1)) != 0 {
-            bail!("wrong transfer buffer alignment");
+            return Err(format_err!("wrong transfer buffer alignment").into());
         }
 
         let mut ptvp = self.create_scsi_pt_obj()?;

@@ -75,6 +75,11 @@ impl SgTape {
         Ok(Self { file })
     }
 
+    // fixme: remove - only for testing
+    pub fn file_mut(&mut self) -> &mut File {
+        &mut self.file
+    }
+
     pub fn open<P: AsRef<Path>>(path: P) -> Result<SgTape, Error> {
         // do not wait for media, use O_NONBLOCK
         let file = OpenOptions::new()
@@ -195,9 +200,26 @@ impl SgTape {
         Ok(position.logical_file_id)
     }
 
-    pub fn locate(&mut self) ->  Result<(), Error> {
-        // fixme: impl LOCATE
-        unimplemented!();
+    // fixme: dont use - needs LTO5
+    pub fn locate_file(&mut self, position: u64) ->  Result<(), Error> {
+        let mut sg_raw = SgRaw::new(&mut self.file, 16)?;
+        sg_raw.set_timeout(Self::SCSI_TAPE_DEFAULT_TIMEOUT);
+        let mut cmd = Vec::new();
+        cmd.extend(&[0x92, 0b000_01_000, 0, 0]); // LOCATE(16) filemarks
+        cmd.extend(&position.to_be_bytes());
+        cmd.extend(&[0, 0, 0, 0]);
+
+        sg_raw.do_command(&cmd)
+            .map_err(|err| format_err!("locate file {} failed - {}", position, err))?;
+
+        // move to other side of filemark
+        cmd.truncate(0);
+        cmd.extend(&[0x11, 0x01, 0, 0, 1, 0]); // SPACE(6) one filemarks
+
+        sg_raw.do_command(&cmd)
+            .map_err(|err| format_err!("locate file {} (space) failed - {}", position, err))?;
+
+        Ok(())
     }
 
     pub fn move_to_eom(&mut self) ->  Result<(), Error> {
@@ -286,8 +308,15 @@ impl SgTape {
         cmd.extend(&[0, 0, count as u8]); // COUNT
         cmd.push(0); // control byte
 
-        sg_raw.do_command(&cmd)
-            .map_err(|err| proxmox::io_format_err!("write filemark failed - {}", err))?;
+        match sg_raw.do_command(&cmd) {
+            Ok(_) => { /* OK */ }
+            Err(ScsiError::Sense(SenseInfo { sense_key: 0, asc: 0, ascq: 2 })) => {
+                /* LEOM - ignore */
+            }
+            Err(err) => {
+                proxmox::io_bail!("write filemark  failed - {}", err);
+            }
+        }
 
         Ok(())
     }
@@ -360,7 +389,7 @@ impl SgTape {
 
         let transfer_len = data.len();
 
-        if transfer_len > 0xFFFFFF {
+        if transfer_len > 0x800000 {
            proxmox::io_bail!("write failed - data too large");
         }
 
@@ -379,12 +408,15 @@ impl SgTape {
         //println!("WRITE {:?}", cmd);
         //println!("WRITE {:?}", data);
 
-        sg_raw.do_out_command(&cmd, data)
-            .map_err(|err| proxmox::io_format_err!("write failed - {}", err))?;
-
-        // fixme: LEOM?
-
-        Ok(false)
+        match sg_raw.do_out_command(&cmd, data) {
+            Ok(()) => { return Ok(false) }
+            Err(ScsiError::Sense(SenseInfo { sense_key: 0, asc: 0, ascq: 2 })) => {
+                return Ok(true); // LEOM
+            }
+            Err(err) => {
+                proxmox::io_bail!("write failed - {}", err);
+            }
+        }
     }
 
     fn read_block(&mut self, buffer: &mut [u8]) -> Result<BlockReadStatus, std::io::Error> {
@@ -416,7 +448,6 @@ impl SgTape {
                 return Ok(BlockReadStatus::EndOfStream);
             }
             Err(err) => {
-                println!("READ ERR {:?}", err);
                 proxmox::io_bail!("read failed - {}", err);
             }
         };
