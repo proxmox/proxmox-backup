@@ -99,4 +99,3 @@ pub fn check_auth(
         }
     }
 }
-

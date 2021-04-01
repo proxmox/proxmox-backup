@@ -570,4 +570,3 @@ fn test_crypto_parameters_handling() -> Result<(), Error> {
 
     Ok(())
 }
-
