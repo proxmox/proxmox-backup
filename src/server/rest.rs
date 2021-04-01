@@ -14,7 +14,6 @@ use hyper::header::{self, HeaderMap};
 use hyper::http::request::Parts;
 use hyper::{Body, Request, Response, StatusCode};
 use lazy_static::lazy_static;
-use percent_encoding::percent_decode_str;
 use regex::Regex;
 use serde_json::{json, Value};
 use tokio::fs::File;
@@ -40,7 +39,6 @@ use crate::api2::types::{Authid, Userid};
 use crate::auth_helpers::*;
 use crate::config::cached_user_info::CachedUserInfo;
 use crate::tools;
-use crate::tools::ticket::Ticket;
 use crate::tools::FileLogger;
 
 extern "C" {
