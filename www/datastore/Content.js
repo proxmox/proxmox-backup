@@ -452,12 +452,15 @@ Ext.define('PBS.DataStoreContent', {
 	    let type = data['backup-type'];
 	    let timetext = PBS.Utils.render_datetime_utc(data["backup-time"]);
 
-	    Ext.create('PBS.window.FileBrowser', {
+	    Ext.create('Proxmox.window.FileBrowser', {
 		title: `${type}/${id}/${timetext}`,
-		datastore: view.datastore,
-		'backup-id': id,
-		'backup-time': (time.getTime()/1000).toFixed(0),
-		'backup-type': type,
+		listUrl: `/api2/json/admin/datastore/${view.datastore}/catalog`,
+		downloadUrl: `/api2/json/admin/datastore/${view.datastore}/pxar-file-download`,
+		extraParams: {
+		    'backup-id': id,
+		    'backup-time': (time.getTime()/1000).toFixed(0),
+		    'backup-type': type,
+		},
 		archive: rec.data.filename,
 	    }).show();
 	},
