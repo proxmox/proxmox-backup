@@ -13,6 +13,7 @@ use proxmox::{
 use proxmox_backup::api2::access::user::UserWithTokens;
 use proxmox_backup::api2::types::*;
 use proxmox_backup::backup::BackupDir;
+use proxmox_backup::buildcfg;
 use proxmox_backup::client::*;
 use proxmox_backup::tools;
 
@@ -371,4 +372,16 @@ pub fn place_xdg_file(
     base_directories()
         .and_then(|base| base.place_config_file(file_name).map_err(Error::from))
         .with_context(|| format!("failed to place {} in xdg home", description))
+}
+
+/// Returns a runtime dir owned by the current user.
+/// Note that XDG_RUNTIME_DIR is not always available, especially for non-login users like
+/// "www-data", so we use a custom one in /run/proxmox-backup/<uid> instead.
+pub fn get_user_run_dir() -> Result<std::path::PathBuf, Error> {
+    let uid = nix::unistd::Uid::current();
+    let mut path: std::path::PathBuf = buildcfg::PROXMOX_BACKUP_RUN_DIR.into();
+    path.push(uid.to_string());
+    tools::create_run_dir()?;
+    std::fs::create_dir_all(&path)?;
+    Ok(path)
 }

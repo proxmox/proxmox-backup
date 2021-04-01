@@ -35,6 +35,9 @@ use proxmox_client_tools::{
     REPO_URL_SCHEMA,
 };
 
+mod proxmox_file_restore;
+use proxmox_file_restore::*;
+
 enum ExtractPath {
     ListArchives,
     Pxar(String, Vec<u8>),
@@ -369,9 +372,16 @@ fn main() {
         .completion_cb("snapshot", complete_group_or_snapshot)
         .completion_cb("target", tools::complete_file_name);
 
+    let status_cmd_def = CliCommand::new(&API_METHOD_STATUS);
+    let stop_cmd_def = CliCommand::new(&API_METHOD_STOP)
+        .arg_param(&["name"])
+        .completion_cb("name", complete_block_driver_ids);
+
     let cmd_def = CliCommandMap::new()
         .insert("list", list_cmd_def)
-        .insert("extract", restore_cmd_def);
+        .insert("extract", restore_cmd_def)
+        .insert("status", status_cmd_def)
+        .insert("stop", stop_cmd_def);
 
     let rpcenv = CliEnvironment::new();
     run_cli_command(

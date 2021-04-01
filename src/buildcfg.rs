@@ -10,6 +10,14 @@ macro_rules! PROXMOX_BACKUP_RUN_DIR_M { () => ("/run/proxmox-backup") }
 #[macro_export]
 macro_rules! PROXMOX_BACKUP_LOG_DIR_M { () => ("/var/log/proxmox-backup") }
 
+#[macro_export]
+macro_rules! PROXMOX_BACKUP_CACHE_DIR_M { () => ("/var/cache/proxmox-backup") }
+
+#[macro_export]
+macro_rules! PROXMOX_BACKUP_FILE_RESTORE_BIN_DIR_M {
+    () => ("/usr/lib/x86_64-linux-gnu/proxmox-backup/file-restore")
+}
+
 /// namespaced directory for in-memory (tmpfs) run state
 pub const PROXMOX_BACKUP_RUN_DIR: &str = PROXMOX_BACKUP_RUN_DIR_M!();
 
@@ -29,6 +37,15 @@ pub const PROXMOX_BACKUP_PROXY_PID_FN: &str = concat!(PROXMOX_BACKUP_RUN_DIR_M!(
 
 /// the PID filename for the privileged api daemon
 pub const PROXMOX_BACKUP_API_PID_FN: &str = concat!(PROXMOX_BACKUP_RUN_DIR_M!(), "/api.pid");
+
+/// filename of the cached initramfs to use for booting single file restore VMs, this file is
+/// automatically created by APT hooks
+pub const PROXMOX_BACKUP_INITRAMFS_FN: &str =
+    concat!(PROXMOX_BACKUP_CACHE_DIR_M!(), "/file-restore-initramfs.img");
+
+/// filename of the kernel to use for booting single file restore VMs
+pub const PROXMOX_BACKUP_KERNEL_FN: &str =
+    concat!(PROXMOX_BACKUP_FILE_RESTORE_BIN_DIR_M!(), "/bzImage");
 
 /// Prepend configuration directory to a file name
 ///
