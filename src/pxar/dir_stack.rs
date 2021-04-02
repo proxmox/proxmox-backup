@@ -1,6 +1,6 @@
-use std::ffi::{OsStr, OsString};
+use std::ffi::OsString;
 use std::os::unix::io::{AsRawFd, RawFd};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::{bail, format_err, Error};
 use nix::dir::Dir;
@@ -78,10 +78,6 @@ impl PxarDir {
     pub fn metadata(&self) -> &Metadata {
         &self.metadata
     }
-
-    pub fn file_name(&self) -> &OsStr {
-        &self.file_name
-    }
 }
 
 pub struct PxarDirStack {
@@ -158,5 +154,9 @@ impl PxarDirStack {
         self.dirs[0]
             .try_as_borrowed_fd()
             .ok_or_else(|| format_err!("lost track of directory file descriptors"))
+    }
+
+    pub fn path(&self) -> &Path {
+        &self.path
     }
 }

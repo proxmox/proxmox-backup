@@ -1,5 +1,6 @@
 use std::ffi::{CStr, CString};
 use std::os::unix::io::{AsRawFd, FromRawFd, RawFd};
+use std::path::Path;
 
 use anyhow::{bail, format_err, Error};
 use nix::errno::Errno;
@@ -62,6 +63,7 @@ pub fn apply_at(
     metadata: &Metadata,
     parent: RawFd,
     file_name: &CStr,
+    path_info: &Path,
     on_error: &mut (dyn FnMut(Error) -> Result<(), Error> + Send),
 ) -> Result<(), Error> {
     let fd = proxmox::tools::fd::Fd::openat(
@@ -71,7 +73,7 @@ pub fn apply_at(
         Mode::empty(),
     )?;
 
-    apply(flags, metadata, fd.as_raw_fd(), file_name, on_error)
+    apply(flags, metadata, fd.as_raw_fd(), path_info, on_error)
 }
 
 pub fn apply_initial_flags(
@@ -94,7 +96,7 @@ pub fn apply(
     flags: Flags,
     metadata: &Metadata,
     fd: RawFd,
-    file_name: &CStr,
+    path_info: &Path,
     on_error: &mut (dyn FnMut(Error) -> Result<(), Error> + Send),
 ) -> Result<(), Error> {
     let c_proc_path = CString::new(format!("/proc/self/fd/{}", fd)).unwrap();
@@ -116,7 +118,7 @@ pub fn apply(
     apply_xattrs(flags, c_proc_path.as_ptr(), metadata, &mut skip_xattrs)
         .or_else(&mut *on_error)?;
     add_fcaps(flags, c_proc_path.as_ptr(), metadata, &mut skip_xattrs).or_else(&mut *on_error)?;
-    apply_acls(flags, &c_proc_path, metadata)
+    apply_acls(flags, &c_proc_path, metadata, path_info)
         .map_err(|err| format_err!("failed to apply acls: {}", err))
         .or_else(&mut *on_error)?;
     apply_quota_project_id(flags, fd, metadata).or_else(&mut *on_error)?;
@@ -147,7 +149,7 @@ pub fn apply(
         Err(err) => {
             on_error(format_err!(
                 "failed to restore mtime attribute on {:?}: {}",
-                file_name,
+                path_info,
                 err
             ))?;
         }
@@ -227,7 +229,12 @@ fn apply_xattrs(
     Ok(())
 }
 
-fn apply_acls(flags: Flags, c_proc_path: &CStr, metadata: &Metadata) -> Result<(), Error> {
+fn apply_acls(
+    flags: Flags,
+    c_proc_path: &CStr,
+    metadata: &Metadata,
+    path_info: &Path,
+) -> Result<(), Error> {
     if !flags.contains(Flags::WITH_ACL) || metadata.acl.is_empty() {
         return Ok(());
     }
@@ -257,11 +264,17 @@ fn apply_acls(flags: Flags, c_proc_path: &CStr, metadata: &Metadata) -> Result<(
             acl.add_entry_full(acl::ACL_GROUP_OBJ, None, group_obj.permissions.0)?;
         }
         None => {
-            acl.add_entry_full(
-                acl::ACL_GROUP_OBJ,
-                None,
-                acl::mode_group_to_acl_permissions(metadata.stat.mode),
-            )?;
+            let mode = acl::mode_group_to_acl_permissions(metadata.stat.mode);
+
+            acl.add_entry_full(acl::ACL_GROUP_OBJ, None, mode)?;
+
+            if !metadata.acl.users.is_empty() || !metadata.acl.groups.is_empty() {
+                eprintln!(
+                    "Warning: {:?}: Missing GROUP_OBJ entry in ACL, resetting to value of MASK",
+                    path_info,
+                );
+                acl.add_entry_full(acl::ACL_MASK, None, mode)?;
+            }
         }
     }
 

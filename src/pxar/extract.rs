@@ -285,6 +285,8 @@ impl Extractor {
 
     /// When done with a directory we can apply its metadata if it has been created.
     pub fn leave_directory(&mut self) -> Result<(), Error> {
+        let path_info = self.dir_stack.path().to_owned();
+
         let dir = self
             .dir_stack
             .pop()
@@ -296,7 +298,7 @@ impl Extractor {
                 self.feature_flags,
                 dir.metadata(),
                 fd.as_raw_fd(),
-                &CString::new(dir.file_name().as_bytes())?,
+                &path_info,
                 &mut self.on_error,
             )
             .map_err(|err| format_err!("failed to apply directory metadata: {}", err))?;
@@ -329,6 +331,7 @@ impl Extractor {
             metadata,
             parent,
             file_name,
+            self.dir_stack.path(),
             &mut self.on_error,
         )
     }
@@ -382,6 +385,7 @@ impl Extractor {
             metadata,
             parent,
             file_name,
+            self.dir_stack.path(),
             &mut self.on_error,
         )
     }
@@ -437,7 +441,7 @@ impl Extractor {
             self.feature_flags,
             metadata,
             file.as_raw_fd(),
-            file_name,
+            self.dir_stack.path(),
             &mut self.on_error,
         )
     }
@@ -494,7 +498,7 @@ impl Extractor {
             self.feature_flags,
             metadata,
             file.as_raw_fd(),
-            file_name,
+            self.dir_stack.path(),
             &mut self.on_error,
         )
     }
