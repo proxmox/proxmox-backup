@@ -1,3 +1,9 @@
+rust-proxmox-backup (1.0.13-1) unstable; urgency=medium
+
+  * pxar: improve handling ACL entries on create and restore
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 02 Apr 2021 15:32:01 +0200
+
 rust-proxmox-backup (1.0.12-1) unstable; urgency=medium
 
   * tape: write catalogs to tape (speedup catalog restore)
