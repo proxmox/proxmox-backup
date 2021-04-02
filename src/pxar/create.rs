@@ -1006,6 +1006,7 @@ fn process_acl(
 
             metadata.acl.users = acl_user;
             metadata.acl.groups = acl_group;
+            metadata.acl.group_obj = acl_group_obj;
         }
         acl::ACL_TYPE_DEFAULT => {
             if user_obj_permissions != None
@@ -1025,12 +1026,10 @@ fn process_acl(
 
             metadata.acl.default_users = acl_user;
             metadata.acl.default_groups = acl_group;
+            metadata.acl.default = acl_default;
         }
         _ => bail!("Unexpected ACL type encountered"),
     }
-
-    metadata.acl.group_obj = acl_group_obj;
-    metadata.acl.default = acl_default;
 
     Ok(())
 }
