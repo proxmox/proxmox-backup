@@ -49,7 +49,7 @@ PygmentsBridge.latex_formatter = CustomLatexFormatter
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 
-extensions = ["sphinx.ext.graphviz", "sphinx.ext.todo", "proxmox-scanrefs"]
+extensions = ["sphinx.ext.graphviz", 'sphinx.ext.mathjax', "sphinx.ext.todo", "proxmox-scanrefs"]
 
 todo_link_only = True
 
@@ -307,6 +307,9 @@ html_show_sourcelink = False
 # Output file base name for HTML help builder.
 htmlhelp_basename = 'ProxmoxBackupdoc'
 
+# use local mathjax package, symlink comes from debian/proxmox-backup-docs.links
+mathjax_path = "mathjax/MathJax.js?config=TeX-AMS-MML_HTMLorMML"
+
 # -- Options for LaTeX output ---------------------------------------------
 
 latex_engine = 'xelatex'
@@ -464,6 +467,3 @@ epub_exclude_files = ['search.html']
 # If false, no index is generated.
 #
 # epub_use_index = True
-
-# use local mathjax package, symlink comes from debian/proxmox-backup-docs.links
-mathjax_path = "mathjax/MathJax.js?config=TeX-AMS-MML_HTMLorMML"
