@@ -153,7 +153,7 @@ Terminology
 
 
 Tape Quick Start
----------------
+----------------
 
 1. Configure your tape hardware (drives and changers)
 
