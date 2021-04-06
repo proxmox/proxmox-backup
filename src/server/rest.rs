@@ -40,6 +40,7 @@ use crate::auth_helpers::*;
 use crate::config::cached_user_info::CachedUserInfo;
 use crate::tools;
 use crate::tools::compression::{CompressionMethod, DeflateEncoder, Level};
+use crate::tools::AsyncReaderStream;
 use crate::tools::FileLogger;
 
 extern "C" {
@@ -51,6 +52,7 @@ pub struct RestServer {
 }
 
 const MAX_URI_QUERY_LENGTH: usize = 3072;
+const CHUNK_SIZE_LIMIT: u64 = 32 * 1024;
 
 impl RestServer {
     pub fn new(api_config: ApiConfig) -> Self {
@@ -544,9 +546,11 @@ fn extension_to_content_type(filename: &Path) -> (&'static str, bool) {
     ("application/octet-stream", false)
 }
 
-async fn simple_static_file_download(filename: PathBuf) -> Result<Response<Body>, Error> {
-    let (content_type, _nocomp) = extension_to_content_type(&filename);
-
+async fn simple_static_file_download(
+    filename: PathBuf,
+    content_type: &'static str,
+    compression: Option<CompressionMethod>,
+) -> Result<Response<Body>, Error> {
     use tokio::io::AsyncReadExt;
 
     let mut file = File::open(filename)
@@ -554,46 +558,79 @@ async fn simple_static_file_download(filename: PathBuf) -> Result<Response<Body>
         .map_err(|err| http_err!(BAD_REQUEST, "File open failed: {}", err))?;
 
     let mut data: Vec<u8> = Vec::new();
-    file.read_to_end(&mut data)
-        .await
-        .map_err(|err| http_err!(BAD_REQUEST, "File read failed: {}", err))?;
 
-    let mut response = Response::new(data.into());
+    let mut response = match compression {
+        Some(CompressionMethod::Deflate) => {
+            let mut enc = DeflateEncoder::with_quality(data, Level::Fastest);
+            enc.compress_vec(&mut file, CHUNK_SIZE_LIMIT as usize).await?;
+            let mut response = Response::new(enc.into_inner().into());
+            response.headers_mut().insert(
+                header::CONTENT_ENCODING,
+                CompressionMethod::Deflate.content_encoding(),
+            );
+            response
+        }
+        None => {
+            file.read_to_end(&mut data)
+                .await
+                .map_err(|err| http_err!(BAD_REQUEST, "File read failed: {}", err))?;
+            Response::new(data.into())
+        }
+    };
+
     response.headers_mut().insert(
         header::CONTENT_TYPE,
         header::HeaderValue::from_static(content_type),
     );
+
     Ok(response)
 }
 
-async fn chuncked_static_file_download(filename: PathBuf) -> Result<Response<Body>, Error> {
-    let (content_type, _nocomp) = extension_to_content_type(&filename);
+async fn chuncked_static_file_download(
+    filename: PathBuf,
+    content_type: &'static str,
+    compression: Option<CompressionMethod>,
+) -> Result<Response<Body>, Error> {
+    let mut resp = Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, content_type);
 
     let file = File::open(filename)
         .await
         .map_err(|err| http_err!(BAD_REQUEST, "File open failed: {}", err))?;
 
-    let payload = tokio_util::codec::FramedRead::new(file, tokio_util::codec::BytesCodec::new())
-        .map_ok(|bytes| bytes.freeze());
-    let body = Body::wrap_stream(payload);
+    let body = match compression {
+        Some(CompressionMethod::Deflate) => {
+            resp = resp.header(
+                header::CONTENT_ENCODING,
+                CompressionMethod::Deflate.content_encoding(),
+            );
+            Body::wrap_stream(DeflateEncoder::with_quality(
+                AsyncReaderStream::new(file),
+                Level::Fastest,
+            ))
+        }
+        None => Body::wrap_stream(AsyncReaderStream::new(file)),
+    };
 
-    // FIXME: set other headers ?
-    Ok(Response::builder()
-        .status(StatusCode::OK)
-        .header(header::CONTENT_TYPE, content_type)
-        .body(body)
-        .unwrap())
+    Ok(resp.body(body).unwrap())
 }
 
-async fn handle_static_file_download(filename: PathBuf) -> Result<Response<Body>, Error> {
+async fn handle_static_file_download(
+    filename: PathBuf,
+    compression: Option<CompressionMethod>,
+) -> Result<Response<Body>, Error> {
     let metadata = tokio::fs::metadata(filename.clone())
         .map_err(|err| http_err!(BAD_REQUEST, "File access problems: {}", err))
         .await?;
 
-    if metadata.len() < 1024 * 32 {
-        simple_static_file_download(filename).await
+    let (content_type, nocomp) = extension_to_content_type(&filename);
+    let compression = if nocomp { None } else { compression };
+
+    if metadata.len() < CHUNK_SIZE_LIMIT {
+        simple_static_file_download(filename, content_type, compression).await
     } else {
-        chuncked_static_file_download(filename).await
+        chuncked_static_file_download(filename, content_type, compression).await
     }
 }
 
@@ -764,7 +801,8 @@ async fn handle_request(
             }
         } else {
             let filename = api.find_alias(&components);
-            return handle_static_file_download(filename).await;
+            let compression = extract_compression_method(&parts.headers);
+            return handle_static_file_download(filename, compression).await;
         }
     }
 
