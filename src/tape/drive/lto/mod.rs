@@ -179,6 +179,14 @@ impl LtoTapeHandle {
         Ok(status)
     }
 
+    pub fn forward_space_count_files(&mut self, count: usize) -> Result<(), Error> {
+        self.sg_tape.space_filemarks(isize::try_from(count)?)
+    }
+
+    pub fn backward_space_count_files(&mut self, count: usize) -> Result<(), Error> {
+        self.sg_tape.space_filemarks(-isize::try_from(count)?)
+    }
+
     pub fn erase_media(&mut self, fast: bool) -> Result<(), Error> {
         self.sg_tape.erase_media(fast)
     }
@@ -211,12 +219,25 @@ impl TapeDriver for LtoTapeHandle {
         self.sg_tape.move_to_eom()
     }
 
-    fn forward_space_count_files(&mut self, count: usize) -> Result<(), Error> {
-        self.sg_tape.space_filemarks(isize::try_from(count)?)
-    }
+    fn move_to_last_file(&mut self) -> Result<(), Error> {
 
-    fn backward_space_count_files(&mut self, count: usize) -> Result<(), Error> {
-        self.sg_tape.space_filemarks(-isize::try_from(count)?)
+        self.move_to_eom()?;
+
+        let pos = self.current_file_number()?;
+
+        if pos == 0 {
+            bail!("move_to_last_file failed - media contains no data");
+        }
+
+        if pos == 1 {
+            self.rewind()?;
+            return Ok(());
+        }
+
+        self.backward_space_count_files(2)?;
+        self.forward_space_count_files(1)?;
+
+        Ok(())
     }
 
     fn rewind(&mut self) -> Result<(), Error> {
