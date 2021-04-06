@@ -16,8 +16,8 @@ use endian_trait::Endian;
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
 
 use crc32fast::Hasher;
-use proxmox::tools::time::gmtime;
 use proxmox::tools::byte_buffer::ByteBuffer;
+use proxmox::tools::time::gmtime;
 
 const LOCAL_FH_SIG: u32 = 0x04034B50;
 const LOCAL_FF_SIG: u32 = 0x08074B50;
@@ -410,7 +410,7 @@ impl<W: AsyncWrite + Unpin> ZipEncoder<W> {
             byte_count: 0,
             files: Vec::new(),
             target,
-            buf: ByteBuffer::with_capacity(1024*1024),
+            buf: ByteBuffer::with_capacity(1024 * 1024),
         }
     }
 
@@ -425,7 +425,6 @@ impl<W: AsyncWrite + Unpin> ZipEncoder<W> {
             let mut hasher = Hasher::new();
             let mut size = 0;
             loop {
-
                 let count = self.buf.read_from_async(&mut content).await?;
 
                 // end of file
