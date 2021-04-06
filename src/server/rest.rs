@@ -39,7 +39,7 @@ use crate::api2::types::{Authid, Userid};
 use crate::auth_helpers::*;
 use crate::config::cached_user_info::CachedUserInfo;
 use crate::tools;
-use crate::tools::compression::CompressionMethod;
+use crate::tools::compression::{CompressionMethod, DeflateEncoder, Level};
 use crate::tools::FileLogger;
 
 extern "C" {
@@ -397,6 +397,7 @@ pub async fn handle_api_request<Env: RpcEnvironment, S: 'static + BuildHasher + 
     uri_param: HashMap<String, String, S>,
 ) -> Result<Response<Body>, Error> {
     let delay_unauth_time = std::time::Instant::now() + std::time::Duration::from_millis(3000);
+    let compression = extract_compression_method(&parts.headers);
 
     let result = match info.handler {
         ApiHandler::AsyncHttp(handler) => {
@@ -417,7 +418,7 @@ pub async fn handle_api_request<Env: RpcEnvironment, S: 'static + BuildHasher + 
         }
     };
 
-    let resp = match result {
+    let mut resp = match result {
         Ok(resp) => resp,
         Err(err) => {
             if let Some(httperr) = err.downcast_ref::<HttpError>() {
@@ -427,6 +428,24 @@ pub async fn handle_api_request<Env: RpcEnvironment, S: 'static + BuildHasher + 
             }
             (formatter.format_error)(err)
         }
+    };
+
+    let resp = match compression {
+        Some(CompressionMethod::Deflate) => {
+            resp.headers_mut().insert(
+                header::CONTENT_ENCODING,
+                CompressionMethod::Deflate.content_encoding(),
+            );
+            resp.map(|body| {
+                Body::wrap_stream(DeflateEncoder::with_quality(
+                    body.map_err(|err| {
+                        proxmox::io_format_err!("error during compression: {}", err)
+                    }),
+                    Level::Fastest,
+                ))
+            })
+        }
+        None => resp,
     };
 
     if info.reload_timezone {
