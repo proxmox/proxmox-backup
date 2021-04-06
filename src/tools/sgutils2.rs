@@ -242,6 +242,46 @@ pub struct InquiryInfo {
     pub revision: String,
 }
 
+#[repr(C, packed)]
+#[derive(Endian, Debug, Copy, Clone)]
+pub struct ModeParameterHeader {
+    pub mode_data_len: u16,
+    pub medium_type: u8,
+    pub flags3: u8,
+    reserved4: [u8;2],
+    pub block_descriptior_len: u16,
+}
+
+#[repr(C, packed)]
+#[derive(Endian, Debug, Copy, Clone)]
+/// SCSI ModeBlockDescriptor for Tape devices
+pub struct ModeBlockDescriptor {
+    pub density_code: u8,
+    pub number_of_blocks: [u8;3],
+    reserverd: u8,
+    pub block_length: [u8; 3],
+}
+
+impl ModeBlockDescriptor {
+
+    pub fn block_length(&self) -> u32 {
+        ((self.block_length[0] as u32) << 16) +
+            ((self.block_length[1] as u32) << 8) +
+            (self.block_length[2] as u32)
+
+    }
+
+    pub fn set_block_length(&mut self, length: u32) -> Result<(), Error> {
+        if length > 0x80_00_00 {
+            bail!("block length '{}' is too large", length);
+        }
+        self.block_length[0] = ((length & 0x00ff0000) >> 16) as u8;
+        self.block_length[1] = ((length & 0x0000ff00) >> 8) as u8;
+        self.block_length[2] = (length & 0x000000ff) as u8;
+        Ok(())
+    }
+}
+
 pub const SCSI_PT_DO_START_OK:c_int = 0;
 pub const SCSI_PT_DO_BAD_PARAMS:c_int = 1;
 pub const SCSI_PT_DO_TIMEOUT:c_int = 2;
@@ -653,4 +693,63 @@ pub fn scsi_inquiry<F: AsRawFd>(
 
         Ok(info)
     }).map_err(|err: Error| format_err!("decode inquiry page failed - {}", err))
+}
+
+/// Run SCSI Mode Sense
+///
+/// Warning: P needs to be repr(C, packed)]
+pub fn scsi_mode_sense<F: AsRawFd, P: Endian>(
+    file: &mut F,
+    disable_block_descriptor: bool,
+    page_code: u8,
+    sub_page_code: u8,
+) -> Result<(ModeParameterHeader, Option<ModeBlockDescriptor>, P), Error> {
+
+    let allocation_len: u16 = 4096;
+    let mut sg_raw = SgRaw::new(file, allocation_len as usize)?;
+
+    let mut cmd = Vec::new();
+    cmd.push(0x5A); // MODE SENSE(10)
+    if disable_block_descriptor {
+        cmd.push(8); // DBD=1 (Disable Block Descriptors)
+    } else {
+        cmd.push(0); // DBD=0 (Include Block Descriptors)
+    }
+    cmd.push(page_code & 63); // report current values for page_code
+    cmd.push(sub_page_code);
+
+    cmd.extend(&[0, 0, 0]); // reserved
+    cmd.extend(&allocation_len.to_be_bytes()); // allocation len
+    cmd.push(0); //control
+
+    let data = sg_raw.do_command(&cmd)
+        .map_err(|err| format_err!("mode sense failed - {}", err))?;
+
+    proxmox::try_block!({
+        let mut reader = &data[..];
+
+        let head: ModeParameterHeader = unsafe { reader.read_be_value()? };
+
+        if (head.mode_data_len as usize + 2) != data.len() {
+            bail!("wrong mode_data_len");
+        }
+
+        if disable_block_descriptor && head.block_descriptior_len != 0 {
+            bail!("wrong block_descriptior_len");
+        }
+
+        let mut block_descriptor: Option<ModeBlockDescriptor> = None;
+
+        if !disable_block_descriptor {
+            if head.block_descriptior_len != 8 {
+                bail!("wrong block_descriptior_len");
+            }
+
+            block_descriptor = Some(unsafe { reader.read_be_value()? });
+        }
+
+        let page: P = unsafe { reader.read_be_value()? };
+
+        Ok((head, block_descriptor, page))
+    }).map_err(|err: Error| format_err!("decode mode sense failed - {}", err))
 }
