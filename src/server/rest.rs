@@ -39,6 +39,7 @@ use crate::api2::types::{Authid, Userid};
 use crate::auth_helpers::*;
 use crate::config::cached_user_info::CachedUserInfo;
 use crate::tools;
+use crate::tools::compression::CompressionMethod;
 use crate::tools::FileLogger;
 
 extern "C" {
@@ -581,6 +582,21 @@ fn extract_lang_header(headers: &http::HeaderMap) -> Option<String> {
     if let Some(raw_cookie) = headers.get("COOKIE") {
         if let Ok(cookie) = raw_cookie.to_str() {
             return tools::extract_cookie(cookie, "PBSLangCookie");
+        }
+    }
+
+    None
+}
+
+// FIXME: support handling multiple compression methods
+fn extract_compression_method(headers: &http::HeaderMap) -> Option<CompressionMethod> {
+    if let Some(raw_encoding) = headers.get(header::ACCEPT_ENCODING) {
+        if let Ok(encoding) = raw_encoding.to_str() {
+            for encoding in encoding.split(&[',', ' '][..]) {
+                if let Ok(method) = encoding.parse() {
+                    return Some(method);
+                }
+            }
         }
     }
 
