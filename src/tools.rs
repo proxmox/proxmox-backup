@@ -22,6 +22,7 @@ pub mod apt;
 pub mod async_io;
 pub mod borrow;
 pub mod cert;
+pub mod compression;
 pub mod daemon;
 pub mod disks;
 pub mod format;
