@@ -249,7 +249,7 @@ impl TapeDriver for VirtualTapeHandle {
     /// Move to last file
     fn move_to_last_file(&mut self) -> Result<(), Error> {
 
-        self.move_to_eom()?;
+        self.move_to_eom(false)?;
 
         if self.current_file_number()? == 0 {
             bail!("move_to_last_file failed - media contains no data");
@@ -347,7 +347,7 @@ impl TapeDriver for VirtualTapeHandle {
         }
     }
 
-    fn move_to_eom(&mut self) -> Result<(), Error> {
+    fn move_to_eom(&mut self, _write_missing_eof: bool) -> Result<(), Error> {
         let mut status = self.load_status()?;
         match status.current_tape {
             Some(VirtualTapeStatus { ref name, ref mut pos }) => {

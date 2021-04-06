@@ -297,7 +297,7 @@ impl PoolWriter {
 
         if !status.at_eom {
             worker.log(String::from("moving to end of media"));
-            status.drive.move_to_eom()?;
+            status.drive.move_to_eom(true)?;
             status.at_eom = true;
         }
 

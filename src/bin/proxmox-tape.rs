@@ -551,7 +551,7 @@ fn move_to_eom(mut param: Value) -> Result<(), Error> {
 
     let mut drive = open_drive(&config, &drive)?;
 
-    drive.move_to_eom()?;
+    drive.move_to_eom(false)?;
 
     Ok(())
 }

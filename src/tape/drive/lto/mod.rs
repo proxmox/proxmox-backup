@@ -215,13 +215,15 @@ impl TapeDriver for LtoTapeHandle {
     }
 
     /// Go to the end of the recorded media (for appending files).
-    fn move_to_eom(&mut self) -> Result<(), Error> {
-        self.sg_tape.move_to_eom()
+    fn move_to_eom(&mut self, write_missing_eof: bool) -> Result<(), Error> {
+        self.sg_tape.move_to_eom(write_missing_eof)
     }
 
     fn move_to_last_file(&mut self) -> Result<(), Error> {
 
-        self.move_to_eom()?;
+        self.move_to_eom(false)?;
+
+        self.sg_tape.check_filemark()?;
 
         let pos = self.current_file_number()?;
 

@@ -190,8 +190,6 @@ impl SgTape {
             bail!("detecthed partitioned tape - not supported");
         }
 
-        println!("DATA: {:?}", page);
-
         Ok(page)
     }
 
@@ -222,7 +220,35 @@ impl SgTape {
         Ok(())
     }
 
-    pub fn move_to_eom(&mut self) ->  Result<(), Error> {
+    /// Check if we are positioned after a filemark (or BOT)
+    pub fn check_filemark(&mut self) -> Result<bool, Error> {
+
+        let pos = self.position()?;
+        if pos.logical_object_number == 0 {
+            // at BOT, Ok (no filemark required)
+            return Ok(true);
+        }
+
+        // Note: SPACE blocks returns Err at filemark
+        match self.space(-1, true) {
+            Ok(_) => {
+                self.space(1, true) // move back to end
+                    .map_err(|err| format_err!("check_filemark failed (space forward) - {}", err))?;
+                Ok(false)
+            }
+            Err(ScsiError::Sense(SenseInfo { sense_key: 0, asc: 0, ascq: 1 })) => {
+                // Filemark detected - good
+                self.space(1, false) // move to EOT side of filemark
+                    .map_err(|err| format_err!("check_filemark failed (move to EOT side of filemark) - {}", err))?;
+                Ok(true)
+            }
+            Err(err) => {
+                bail!("check_filemark failed - {:?}", err);
+            }
+        }
+    }
+
+    pub fn move_to_eom(&mut self, write_missing_eof: bool) ->  Result<(), Error> {
         let mut sg_raw = SgRaw::new(&mut self.file, 16)?;
         sg_raw.set_timeout(Self::SCSI_TAPE_DEFAULT_TIMEOUT);
         let mut cmd = Vec::new();
@@ -231,33 +257,58 @@ impl SgTape {
         sg_raw.do_command(&cmd)
             .map_err(|err| format_err!("move to EOD failed - {}", err))?;
 
+        if write_missing_eof {
+            if !self.check_filemark()? {
+                self.write_filemarks(1, false)?;
+            }
+        }
+
         Ok(())
     }
 
-    pub fn space_filemarks(&mut self, count: isize) ->  Result<(), Error> {
+    fn space(&mut self, count: isize, blocks: bool) ->  Result<(), ScsiError> {
         let mut sg_raw = SgRaw::new(&mut self.file, 16)?;
         sg_raw.set_timeout(Self::SCSI_TAPE_DEFAULT_TIMEOUT);
         let mut cmd = Vec::new();
 
         // Use short command if possible (supported by all drives)
         if (count <= 0x7fffff) && (count > -0x7fffff) {
-            cmd.extend(&[0x11, 0x01]); // SPACE(6) with filemarks
+            cmd.push(0x11); // SPACE(6)
+            if blocks {
+                cmd.push(0); // blocks
+            } else {
+                cmd.push(1); // filemarks
+            }
             cmd.push(((count >> 16) & 0xff) as u8);
             cmd.push(((count >> 8) & 0xff) as u8);
             cmd.push((count & 0xff) as u8);
             cmd.push(0); //control byte
         } else {
-
-            cmd.extend(&[0x91, 0x01, 0, 0]); // SPACE(16) with filemarks
+            cmd.push(0x91); // SPACE(16)
+            if blocks {
+                cmd.push(0); // blocks
+            } else {
+                cmd.push(1); // filemarks
+            }
+            cmd.extend(&[0, 0]); // reserved
             let count: i64 = count as i64;
             cmd.extend(&count.to_be_bytes());
-            cmd.extend(&[0, 0, 0, 0]);
+            cmd.extend(&[0, 0, 0, 0]); // reserved
         }
 
-        sg_raw.do_command(&cmd)
-            .map_err(|err| format_err!("space filemarks failed - {}", err))?;
+        sg_raw.do_command(&cmd)?;
 
         Ok(())
+    }
+
+    pub fn space_filemarks(&mut self, count: isize) ->  Result<(), Error> {
+        self.space(count, false)
+            .map_err(|err| format_err!("space filemarks failed - {}", err))
+    }
+
+    pub fn space_blocks(&mut self, count: isize) ->  Result<(), Error> {
+        self.space(count, true)
+            .map_err(|err| format_err!("space blocks failed - {}", err))
     }
 
     pub fn eject(&mut self) ->  Result<(), Error> {

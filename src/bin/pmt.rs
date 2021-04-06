@@ -383,7 +383,7 @@ fn eject(param: Value) -> Result<(), Error> {
 fn eod(param: Value) -> Result<(), Error> {
 
     let mut handle = get_tape_handle(&param)?;
-    handle.move_to_eom()?;
+    handle.move_to_eom(false)?;
 
     Ok(())
 }

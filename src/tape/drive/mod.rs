@@ -84,8 +84,10 @@ pub trait TapeDriver {
 
     /// Move to end of recorded data
     ///
-    /// We assume this flushes the tape write buffer.
-    fn move_to_eom(&mut self) -> Result<(), Error>;
+    /// We assume this flushes the tape write buffer. if
+    /// write_missing_eof is true, we verify that there is a filemark
+    /// at the end. If not, we write one.
+    fn move_to_eom(&mut self, write_missing_eof: bool) -> Result<(), Error>;
 
     /// Move to last file
     fn move_to_last_file(&mut self) -> Result<(), Error>;
