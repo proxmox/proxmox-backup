@@ -28,6 +28,14 @@ macro_rules! BACKUP_TIME_RE { () => (r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]
 
 #[rustfmt::skip]
 #[macro_export]
+macro_rules! BACKUP_NS_RE {
+    () => (
+        concat!(r"(:?", PROXMOX_SAFE_ID_REGEX_STR!(), r"/){0,7}", PROXMOX_SAFE_ID_REGEX_STR!())
+    );
+}
+
+#[rustfmt::skip]
+#[macro_export]
 macro_rules! SNAPSHOT_PATH_REGEX_STR {
     () => (
         concat!(r"(", BACKUP_TYPE_RE!(), ")/(", BACKUP_ID_RE!(), ")/(", BACKUP_TIME_RE!(), r")")

@@ -12,6 +12,7 @@ lazy_static = "1.4"
 percent-encoding = "2.1"
 regex = "1.5.5"
 serde = { version = "1.0", features = ["derive"] }
+serde_plain = "1"
 
 proxmox-lang = "1.0.0"
 proxmox-schema = { version = "1.2.1", features = [ "api-macro" ] }

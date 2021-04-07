@@ -1,4 +1,5 @@
 use std::fmt;
+use std::path::{Path, PathBuf};
 
 use anyhow::{bail, format_err, Error};
 use serde::{Deserialize, Serialize};
@@ -27,6 +28,8 @@ const_regex! {
 
     pub SNAPSHOT_PATH_REGEX = concat!(r"^", SNAPSHOT_PATH_REGEX_STR!(), r"$");
 
+    pub BACKUP_NAMESPACE_REGEX = concat!(r"^", BACKUP_NS_RE!(), r"$");
+
     pub DATASTORE_MAP_REGEX = concat!(r"(:?", PROXMOX_SAFE_ID_REGEX_STR!(), r"=)?", PROXMOX_SAFE_ID_REGEX_STR!());
 }
 
@@ -43,6 +46,8 @@ pub const BACKUP_ARCHIVE_NAME_SCHEMA: Schema = StringSchema::new("Backup archive
 
 pub const BACKUP_ID_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&BACKUP_ID_REGEX);
 pub const BACKUP_GROUP_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&GROUP_PATH_REGEX);
+pub const BACKUP_NAMESPACE_FORMAT: ApiStringFormat =
+    ApiStringFormat::Pattern(&BACKUP_NAMESPACE_REGEX);
 
 pub const BACKUP_ID_SCHEMA: Schema = StringSchema::new("Backup ID.")
     .format(&BACKUP_ID_FORMAT)
@@ -62,6 +67,13 @@ pub const BACKUP_TIME_SCHEMA: Schema = IntegerSchema::new("Backup time (Unix epo
 
 pub const BACKUP_GROUP_SCHEMA: Schema = StringSchema::new("Backup Group")
     .format(&BACKUP_GROUP_FORMAT)
+    .schema();
+
+pub const MAX_NAMESPACE_DEPTH: usize = 8;
+pub const MAX_BACKUP_NAMESPACE_LENGTH: usize = 32 * 8; // 256
+pub const BACKUP_NAMESPACE_SCHEMA: Schema = StringSchema::new("Namespace.")
+    .format(&BACKUP_NAMESPACE_FORMAT)
+    .max_length(MAX_BACKUP_NAMESPACE_LENGTH) // 256
     .schema();
 
 pub const DATASTORE_SCHEMA: Schema = StringSchema::new("Datastore name.")
@@ -424,6 +436,265 @@ pub struct SnapshotVerifyState {
     pub upid: UPID,
     /// State of the verification. Enum.
     pub state: VerifyState,
+}
+
+/// A namespace provides a logical separation between backup groups from different domains
+/// (cluster, sites, ...) where uniqueness cannot be guaranteed anymore. It allows users to share a
+/// datastore (i.e., one deduplication domain (chunk store)) with multiple (trusted) sites and
+/// allows to form a hierarchy, for easier management and avoiding clashes between backup_ids.
+///
+/// NOTE: Namespaces are a logical boundary only, they do not provide a full secure separation as
+/// the chunk store is still shared. So, users whom do not trust each other must not share a
+/// datastore.
+///
+/// Implementation note: The path a namespace resolves to is always prefixed with `/ns` to avoid
+/// clashes with backup group IDs and future backup_types and to have a clean separation between
+/// the namespace directories and the ones from a backup snapshot.
+#[derive(Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct BackupNamespace {
+    /// The namespace subdirectories without the `ns/` intermediate directories.
+    inner: Vec<String>,
+
+    /// Cache the total length for efficiency.
+    len: usize,
+}
+
+impl BackupNamespace {
+    /// Returns a root namespace reference.
+    pub const fn root() -> Self {
+        Self {
+            inner: Vec::new(),
+            len: 0,
+        }
+    }
+
+    /// True if this represents the root namespace.
+    pub fn is_root(&self) -> bool {
+        self.inner.is_empty()
+    }
+
+    /// Try to parse a string into a namespace.
+    pub fn new(name: &str) -> Result<Self, Error> {
+        let mut this = Self::root();
+        for name in name.split('/') {
+            this.push(name.to_string())?;
+        }
+        Ok(this)
+    }
+
+    /*
+    /// Try to parse a file system path (where each sub-namespace is separated by an `ns`
+    /// subdirectory) into a valid namespace.
+    pub fn from_path<T: AsRef<Path>>(path: T) -> Result<Self, Error> {
+        use std::path::Component;
+
+        let mut this = Self::root();
+        let mut next_is_ns = true;
+        for component in path.as_ref().components() {
+            match component {
+                Component::Normal(component) if next_is_ns => {
+                    if component.to_str() != Some("ns") {
+                        bail!("invalid component in path: {:?}", component);
+                    }
+                    next_is_ns = false;
+                }
+                Component::Normal(component) => {
+                    this.push(
+                        component
+                            .to_str()
+                            .ok_or_else(|| {
+                                format_err!("invalid component in path: {:?}", component)
+                            })?
+                            .to_string(),
+                    )?;
+                    next_is_ns = true;
+                }
+                Component::RootDir => {
+                    next_is_ns = true;
+                }
+                _ => bail!("invalid component in path: {:?}", component.as_os_str()),
+            }
+        }
+
+        Ok(this)
+    }
+    */
+
+    /// Try to parse a file path string (where each sub-namespace is separated by an `ns`
+    /// subdirectory) into a valid namespace.
+    pub fn from_path(mut path: &str) -> Result<Self, Error> {
+        let mut this = Self::root();
+        loop {
+            match path.strip_prefix("ns/") {
+                Some(next) => match next.find('/') {
+                    Some(pos) => {
+                        this.push(next[..pos].to_string())?;
+                        path = &next[(pos + 1)..];
+                    }
+                    None => {
+                        this.push(next.to_string())?;
+                        break;
+                    }
+                },
+                None if !path.is_empty() => {
+                    bail!("invalid component in namespace path at {:?}", path);
+                }
+                None => break,
+            }
+        }
+        Ok(this)
+    }
+
+    /// Create a new namespace directly from a vec.
+    ///
+    /// # Safety
+    ///
+    /// Invalid contents may lead to inaccessible backups.
+    pub unsafe fn from_vec_unchecked(components: Vec<String>) -> Self {
+        let mut this = Self {
+            inner: components,
+            len: 0,
+        };
+        this.recalculate_len();
+        this
+    }
+
+    /// Recalculate the length.
+    fn recalculate_len(&mut self) {
+        self.len = self.inner.len().max(1) - 1; // a slash between each component
+        for part in &self.inner {
+            self.len += part.len();
+        }
+    }
+
+    /// The hierarchical depth of the namespace, 0 means top-level.
+    pub fn depth(&self) -> usize {
+        self.inner.len()
+    }
+
+    /// The logical name and ID of the namespace.
+    pub fn name(&self) -> String {
+        self.to_string()
+    }
+
+    /// The actual relative backing path of the namespace on the datastore.
+    pub fn path(&self) -> PathBuf {
+        self.display_as_path().to_string().into()
+    }
+
+    /// Get the current namespace length.
+    ///
+    /// This includes separating slashes, but does not include the `ns/` intermediate directories.
+    /// This is not the *path* length, but rather the length that would be produced via
+    /// `.to_string()`.
+    #[inline]
+    pub fn name_len(&self) -> usize {
+        self.len
+    }
+
+    /// Get the current namespace path length.
+    ///
+    /// This includes the `ns/` subdirectory strings.
+    pub fn path_len(&self) -> usize {
+        self.name_len() + 3 * self.inner.len()
+    }
+
+    /// Enter a sub-namespace. Fails if nesting would become too deep or the name too long.
+    pub fn push(&mut self, subdir: String) -> Result<(), Error> {
+        if subdir.contains('/') {
+            bail!("namespace component contained a slash");
+        }
+
+        self.push_do(subdir)
+    }
+
+    /// Assumes `subdir` already does not contain any slashes.
+    /// Performs remaining checks and updates the length.
+    fn push_do(&mut self, subdir: String) -> Result<(), Error> {
+        if self.depth() >= MAX_NAMESPACE_DEPTH {
+            bail!(
+                "namespace to deep, {} > max {}",
+                self.inner.len(),
+                MAX_NAMESPACE_DEPTH
+            );
+        }
+
+        if self.len + subdir.len() + 1 > MAX_BACKUP_NAMESPACE_LENGTH {
+            bail!("namespace length exceeded");
+        }
+
+        if !crate::PROXMOX_SAFE_ID_REGEX.is_match(&subdir) {
+            bail!("not a valid namespace component");
+        }
+
+        if !self.inner.is_empty() {
+            self.len += 1; // separating slash
+        }
+        self.len += subdir.len();
+        self.inner.push(subdir);
+        Ok(())
+    }
+
+    /// Return an adapter which [`Display`]s as a path with `"ns/"` prefixes in front of every
+    /// component.
+    fn display_as_path(&self) -> BackupNamespacePath {
+        BackupNamespacePath(self)
+    }
+
+    /// Iterate over the subdirectories.
+    pub fn components(&self) -> impl Iterator<Item = &str> + '_ {
+        self.inner.iter().map(String::as_str)
+    }
+}
+
+impl fmt::Display for BackupNamespace {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use std::fmt::Write;
+
+        let mut parts = self.inner.iter();
+        if let Some(first) = parts.next() {
+            f.write_str(first)?;
+        }
+        for part in parts {
+            f.write_char('/')?;
+            f.write_str(part)?;
+        }
+        Ok(())
+    }
+}
+
+serde_plain::derive_deserialize_from_fromstr!(BackupNamespace, "valid backup namespace");
+
+impl std::str::FromStr for BackupNamespace {
+    type Err = Error;
+
+    fn from_str(name: &str) -> Result<Self, Self::Err> {
+        Self::new(name)
+    }
+}
+
+serde_plain::derive_serialize_from_display!(BackupNamespace);
+
+impl ApiType for BackupNamespace {
+    const API_SCHEMA: Schema = BACKUP_NAMESPACE_SCHEMA;
+}
+
+/// Helper to format a [`BackupNamespace`] as a path component of a [`BackupGroup`].
+///
+/// This implements [`Display`] such that it includes the `ns/` subdirectory prefix in front of
+/// every component.
+pub struct BackupNamespacePath<'a>(&'a BackupNamespace);
+
+impl fmt::Display for BackupNamespacePath<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut sep = "ns/";
+        for part in &self.0.inner {
+            f.write_str(sep)?;
+            sep = "/ns/";
+            f.write_str(part)?;
+        }
+        Ok(())
+    }
 }
 
 #[api]
