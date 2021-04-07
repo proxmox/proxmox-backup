@@ -36,6 +36,12 @@ pub const FILE_MARK_COUNT_SCHEMA: Schema =
     .maximum(i32::MAX as isize)
     .schema();
 
+pub const FILE_MARK_POSITION_SCHEMA: Schema =
+    IntegerSchema::new("File mark position (0 is BOT).")
+    .minimum(0)
+    .maximum(i32::MAX as isize)
+    .schema();
+
 pub const RECORD_COUNT_SCHEMA: Schema =
     IntegerSchema::new("Record count.")
     .minimum(1)
@@ -128,22 +134,18 @@ fn get_tape_handle(param: &Value) -> Result<LtoTapeHandle, Error> {
                 optional: true,
             },
             count: {
-                schema: FILE_MARK_COUNT_SCHEMA,
+                schema: FILE_MARK_POSITION_SCHEMA,
             },
        },
     },
 )]
-/// Position the tape at the beginning of the count file.
-///
-/// Positioning is done by first rewinding the tape and then spacing
-/// forward over count file marks.
-fn asf(count: usize, param: Value) -> Result<(), Error> {
+/// Position the tape at the beginning of the count file (after
+/// filemark count)
+fn asf(count: u64, param: Value) -> Result<(), Error> {
 
     let mut handle = get_tape_handle(&param)?;
 
-    handle.rewind()?;
-
-    handle.forward_space_count_files(count)?;
+    handle.locate_file(count)?;
 
     Ok(())
 }

@@ -17,7 +17,7 @@ pub use sg_tape::*;
 use std::fs::{OpenOptions, File};
 use std::os::unix::fs::OpenOptionsExt;
 use std::os::unix::io::{AsRawFd, FromRawFd, RawFd};
-use std::convert::TryFrom;
+use std::convert::TryInto;
 
 use anyhow::{bail, format_err, Error};
 use nix::fcntl::{fcntl, FcntlArg, OFlag};
@@ -38,7 +38,6 @@ use crate::{
         MamAttribute,
         LtoDriveAndMediaStatus,
         LtoTapeDrive,
-        TapeDensity,
     },
     tape::{
         TapeRead,
@@ -133,7 +132,7 @@ impl LtoTapeHandle {
             blocksize: drive_status.block_length,
             compression: drive_status.compression,
             buffer_mode: drive_status.buffer_mode,
-            density: TapeDensity::try_from(drive_status.density_code)?,
+            density: drive_status.density_code.try_into()?,
             alert_flags,
             write_protect: None,
             file_number: None,
@@ -188,19 +187,47 @@ impl LtoTapeHandle {
     }
 
     pub fn forward_space_count_files(&mut self, count: usize) -> Result<(), Error> {
-        self.sg_tape.space_filemarks(isize::try_from(count)?)
+        self.sg_tape.space_filemarks(count.try_into()?)
     }
 
     pub fn backward_space_count_files(&mut self, count: usize) -> Result<(), Error> {
-        self.sg_tape.space_filemarks(-isize::try_from(count)?)
+        self.sg_tape.space_filemarks(-count.try_into()?)
     }
 
     pub fn forward_space_count_records(&mut self, count: usize) -> Result<(), Error> {
-        self.sg_tape.space_blocks(isize::try_from(count)?)
+        self.sg_tape.space_blocks(count.try_into()?)
     }
 
     pub fn backward_space_count_records(&mut self, count: usize) -> Result<(), Error> {
-        self.sg_tape.space_blocks(-isize::try_from(count)?)
+        self.sg_tape.space_blocks(-count.try_into()?)
+    }
+
+    /// Position the tape after filemark count. Count 0 means BOT.
+    ///
+    /// Note: we dont use LOCATE(10), because that needs LTO5
+    pub fn locate_file(&mut self, position: u64) ->  Result<(), Error> {
+
+        if position == 0 {
+            return self.rewind();
+        }
+
+        let current_position = self.current_file_number()?;
+
+        if current_position == position {
+            // make sure we are immediated afer the filemark
+            self.sg_tape.space_filemarks(-1)?;
+            self.sg_tape.space_filemarks(1)?;
+        } else if current_position < position {
+            let diff = position - current_position;
+            self.sg_tape.space_filemarks(diff.try_into()?)?;
+        } else {
+            let diff = current_position - position + 1;
+            self.sg_tape.space_filemarks(-diff.try_into()?)?;
+            // move to EOT side of filemark
+            self.sg_tape.space_filemarks(1)?;
+        }
+
+        Ok(())
     }
 
     pub fn erase_media(&mut self, fast: bool) -> Result<(), Error> {
