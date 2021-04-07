@@ -195,6 +195,14 @@ impl LtoTapeHandle {
         self.sg_tape.space_filemarks(-isize::try_from(count)?)
     }
 
+    pub fn forward_space_count_records(&mut self, count: usize) -> Result<(), Error> {
+        self.sg_tape.space_blocks(isize::try_from(count)?)
+    }
+
+    pub fn backward_space_count_records(&mut self, count: usize) -> Result<(), Error> {
+        self.sg_tape.space_blocks(-isize::try_from(count)?)
+    }
+
     pub fn erase_media(&mut self, fast: bool) -> Result<(), Error> {
         self.sg_tape.erase_media(fast)
     }

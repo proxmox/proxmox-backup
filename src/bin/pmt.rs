@@ -229,13 +229,11 @@ fn bsfm(count: usize, param: Value) -> Result<(), Error> {
     },
 )]
 /// Backward space records.
-fn bsr(count: i32, param: Value) -> Result<(), Error> {
+fn bsr(count: usize, param: Value) -> Result<(), Error> {
 
     let mut handle = get_tape_handle(&param)?;
 
-    unimplemented!();
-
-    // fixme: handle.mtop(MTCmd::MTBSR, count, "backward space records")?;
+    handle.backward_space_count_records(count)?;
 
     Ok(())
 }
@@ -526,12 +524,11 @@ fn fsfm(count: usize, param: Value) -> Result<(), Error> {
     },
 )]
 /// Forward space records.
-fn fsr(count: i32, param: Value) -> Result<(), Error> {
+fn fsr(count: usize, param: Value) -> Result<(), Error> {
 
     let mut handle = get_tape_handle(&param)?;
 
-    unimplemented!();
-    // fixme: handle.mtop(MTCmd::MTFSR, count, "forward space records")?;
+    handle.forward_space_count_records(count)?;
 
     Ok(())
 }
