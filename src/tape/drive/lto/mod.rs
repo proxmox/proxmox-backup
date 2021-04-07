@@ -38,6 +38,7 @@ use crate::{
         MamAttribute,
         LtoDriveAndMediaStatus,
         LtoTapeDrive,
+        TapeDensity,
     },
     tape::{
         TapeRead,
@@ -82,8 +83,7 @@ impl LtoTapeDrive {
 
             handle.sg_tape.wait_until_ready()?;
 
-            // Only root can set driver options, so we cannot
-            // handle.set_default_options()?;
+            handle.set_default_options()?;
 
             Ok(handle)
         }).map_err(|err: Error| format_err!("open drive '{}' ({}) failed - {}", self.name, self.path, err))
@@ -104,8 +104,14 @@ impl LtoTapeHandle {
     }
 
     /// Set all options we need/want
-    pub fn set_default_options(&self) -> Result<(), Error> {
-        // fixme
+    pub fn set_default_options(&mut self) -> Result<(), Error> {
+
+        let compression = Some(true);
+        let block_length = Some(0); // variable length mode
+        let buffer_mode = Some(true); // Always use drive buffer
+
+        self.sg_tape.set_drive_options(compression, block_length, buffer_mode)?;
+
         Ok(())
     }
 
@@ -117,28 +123,21 @@ impl LtoTapeHandle {
     /// Get Tape and Media status
     pub fn get_drive_and_media_status(&mut self) -> Result<LtoDriveAndMediaStatus, Error>  {
 
-        let (file_number, block_number) = match self.sg_tape.position() {
-            Ok(position) => (
-                Some(position.logical_file_id),
-                Some(position.logical_object_number),
-            ),
-            Err(_) => (None, None),
-        };
-
-        let options = String::from("FIXME");
+        let drive_status = self.sg_tape.read_drive_status()?;
 
         let alert_flags = self.tape_alert_flags()
             .map(|flags| format!("{:?}", flags))
             .ok();
 
         let mut status = LtoDriveAndMediaStatus {
-            blocksize: 0, // fixme: remove
-            density: None, // fixme
-            status: String::from("FIXME"),
-            options,
+            blocksize: drive_status.block_length,
+            compression: drive_status.compression,
+            buffer_mode: drive_status.buffer_mode,
+            density: TapeDensity::try_from(drive_status.density_code)?,
             alert_flags,
-            file_number,
-            block_number,
+            write_protect: None,
+            file_number: None,
+            block_number: None,
             manufactured: None,
             bytes_read: None,
             bytes_written: None,
@@ -147,7 +146,16 @@ impl LtoTapeHandle {
             volume_mounts: None,
         };
 
-        if self.sg_tape.test_unit_ready()? {
+        if self.sg_tape.test_unit_ready().is_ok() {
+
+            if drive_status.write_protect {
+                status.write_protect = Some(drive_status.write_protect);
+            }
+
+            let position = self.sg_tape.position()?;
+
+            status.file_number = Some(position.logical_file_id);
+            status.block_number = Some(position.logical_object_number);
 
             if let Ok(mam) = self.cartridge_memory() {
 

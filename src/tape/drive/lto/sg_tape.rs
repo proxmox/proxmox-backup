@@ -10,7 +10,7 @@ use nix::fcntl::{fcntl, FcntlArg, OFlag};
 
 use proxmox::{
     sys::error::SysResult,
-    tools::io::ReadExt,
+    tools::io::{ReadExt, WriteExt},
 };
 
 use crate::{
@@ -39,7 +39,11 @@ use crate::{
         SenseInfo,
         ScsiError,
         InquiryInfo,
+        ModeParameterHeader,
+        ModeBlockDescriptor,
+        alloc_page_aligned_buffer,
         scsi_inquiry,
+        scsi_mode_sense,
     },
 };
 
@@ -52,6 +56,42 @@ pub struct ReadPositionLongPage {
     pub logical_object_number: u64,
     pub logical_file_id: u64,
     obsolete: [u8;8],
+}
+
+#[repr(C, packed)]
+#[derive(Endian, Debug, Copy, Clone)]
+struct DataCompressionModePage {
+    page_code: u8,   // 0x0f
+    page_length: u8,  // 0x0e
+    flags2: u8,
+    flags3: u8,
+    compression_algorithm: u32,
+    decompression_algorithm: u32,
+    reserved: [u8;4],
+}
+
+impl DataCompressionModePage {
+
+    pub fn set_compression(&mut self, enable: bool) {
+        if enable {
+            self.flags2 |= 128;
+        } else {
+            self.flags2 = self.flags2 & 127;
+        }
+    }
+
+    pub fn compression_enabled(&self) -> bool {
+        (self.flags2 & 0b1000_0000) != 0
+    }
+}
+
+#[derive(Debug)]
+pub struct LtoTapeStatus {
+    pub block_length: u32,
+    pub density_code: u8,
+    pub buffer_mode: u8,
+    pub write_protect: bool,
+    pub compression: bool,
 }
 
 pub struct SgTape {
@@ -378,19 +418,19 @@ impl SgTape {
         Ok(())
     }
 
-    pub fn test_unit_ready(&mut self) -> Result<bool, Error> {
+    pub fn test_unit_ready(&mut self) -> Result<(), Error> {
 
         let mut sg_raw = SgRaw::new(&mut self.file, 16)?;
         sg_raw.set_timeout(30); // use short timeout
         let mut cmd = Vec::new();
         cmd.extend(&[0x00, 0, 0, 0, 0, 0]); // TEST UNIT READY
 
-        // fixme: check sense
-        sg_raw.do_command(&cmd)
-            .map_err(|err| format_err!("unit not ready - {}", err))?;
-
-        Ok(true)
-
+        match sg_raw.do_command(&cmd) {
+            Ok(_) => Ok(()),
+            Err(err) => {
+                bail!("test_unit_ready failed - {}", err);
+            }
+        }
     }
 
     pub fn wait_until_ready(&mut self) -> Result<(), Error> {
@@ -400,7 +440,7 @@ impl SgTape {
 
         loop {
             match self.test_unit_ready() {
-                Ok(true) => return Ok(()),
+                Ok(()) => return Ok(()),
                 _ => {
                     std::thread::sleep(std::time::Duration::new(1, 0));
                     if start.elapsed()? > max_wait {
@@ -521,6 +561,101 @@ impl SgTape {
             Some(reader) => Ok(Some(reader)),
             None => Ok(None),
         }
+    }
+
+    /// Set important drive options
+    pub fn set_drive_options(
+        &mut self,
+        compression: Option<bool>,
+        block_length: Option<u32>,
+        buffer_mode: Option<bool>,
+    ) -> Result<(), Error> {
+
+        // Note: Read/Modify/Write
+
+        let (mut head, mut block_descriptor, mut page) = self.read_compression_page()?;
+
+        let mut sg_raw = SgRaw::new(&mut self.file, 0)?;
+        sg_raw.set_timeout(Self::SCSI_TAPE_DEFAULT_TIMEOUT);
+
+        head.mode_data_len = 0; // need to b e zero
+
+        if let Some(compression) = compression {
+            page.set_compression(compression);
+        }
+
+        if let Some(block_length) = block_length {
+            block_descriptor.set_block_length(block_length)?;
+        }
+
+        if let Some(buffer_mode) = buffer_mode {
+            let mut mode = head.flags3 & 0b1_000_1111;
+            if buffer_mode {
+                mode |= 0b0_001_0000;
+            }
+            head.flags3 = mode;
+        }
+
+        let mut data = Vec::new();
+        unsafe {
+            data.write_be_value(head)?;
+            data.write_be_value(block_descriptor)?;
+            data.write_be_value(page)?;
+        }
+
+        let mut cmd = Vec::new();
+        cmd.push(0x55); // MODE SELECT(10)
+        cmd.push(0b0001_0000); // PF=1
+        cmd.extend(&[0,0,0,0,0]); //reserved
+
+        let param_list_len: u16 = data.len() as u16;
+        cmd.extend(&param_list_len.to_be_bytes());
+        cmd.push(0); // control
+
+        let mut buffer = alloc_page_aligned_buffer(4096)?;
+
+        buffer[..data.len()].copy_from_slice(&data[..]);
+
+        sg_raw.do_out_command(&cmd, &buffer[..data.len()])
+            .map_err(|err| format_err!("set drive options failed - {}", err))?;
+
+        Ok(())
+    }
+
+    fn read_compression_page(
+        &mut self,
+    ) -> Result<(ModeParameterHeader, ModeBlockDescriptor, DataCompressionModePage), Error> {
+
+        let (head, block_descriptor, page): (_,_, DataCompressionModePage)
+            = scsi_mode_sense(&mut self.file, false, 0x0f, 0)?;
+
+        if !(page.page_code == 0x0f && page.page_length == 0x0e) {
+            bail!("read_compression_page: got strange page code/length");
+        }
+
+        let block_descriptor = match block_descriptor {
+            Some(block_descriptor) => block_descriptor,
+            None => bail!("read_compression_page failed: missing block descriptor"),
+        };
+
+        Ok((head, block_descriptor, page))
+    }
+
+    /// Read drive options/status
+    ///
+    /// We read the drive compression page, including the
+    /// block_descriptor. This is all information we need for now.
+    pub fn read_drive_status(&mut self) -> Result<LtoTapeStatus, Error> {
+
+        let (head, block_descriptor, page) = self.read_compression_page()?;
+
+        Ok(LtoTapeStatus {
+            block_length: block_descriptor.block_length(),
+            write_protect: (head.flags3 & 0b1000_0000) != 0,
+            buffer_mode: (head.flags3 & 0b0111_0000) >> 4,
+            compression: page.compression_enabled(),
+            density_code: block_descriptor.density_code,
+        })
     }
 }
 

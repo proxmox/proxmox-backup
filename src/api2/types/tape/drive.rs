@@ -176,13 +176,15 @@ impl TryFrom<u8> for TapeDensity {
 pub struct LtoDriveAndMediaStatus {
     /// Block size (0 is variable size)
     pub blocksize: u32,
+    /// Compression enabled
+    pub compression: bool,
+    /// Drive buffer mode
+    pub buffer_mode: u8,
     /// Tape density
+    pub density: TapeDensity,
+    /// Media is write protected
     #[serde(skip_serializing_if="Option::is_none")]
-    pub density: Option<TapeDensity>,
-    /// Status flags
-    pub status: String,
-    /// Lto Driver Options
-    pub options: String,
+    pub write_protect: Option<bool>,
     /// Tape Alert Flags
     #[serde(skip_serializing_if="Option::is_none")]
     pub alert_flags: Option<String>,
