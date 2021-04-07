@@ -577,8 +577,7 @@ fn lock(param: Value) -> Result<(), Error> {
 
     let mut handle = get_tape_handle(&param)?;
 
-    unimplemented!();
-    // fixme: handle.mtop(MTCmd::MTLOCK, 1, "lock tape drive door")?;
+    handle.lock()?;
 
     Ok(())
 }
@@ -715,8 +714,7 @@ fn unlock(param: Value) -> Result<(), Error> {
 
     let mut handle = get_tape_handle(&param)?;
 
-    unimplemented!();
-    //handle.mtop(MTCmd::MTUNLOCK, 1, "unlock tape drive door")?;
+    handle.unlock()?;
 
     Ok(())
 }

@@ -220,6 +220,18 @@ impl LtoTapeHandle {
     pub fn volume_statistics(&mut self) -> Result<Lp17VolumeStatistics, Error> {
         self.sg_tape.volume_statistics()
     }
+
+    /// Lock the drive door
+    pub fn lock(&mut self) -> Result<(), Error>  {
+        self.sg_tape.set_medium_removal(false)
+            .map_err(|err| format_err!("lock door failed - {}", err))
+    }
+
+    /// Unlock the drive door
+    pub fn unlock(&mut self) -> Result<(), Error>  {
+        self.sg_tape.set_medium_removal(true)
+            .map_err(|err| format_err!("unlock door failed - {}", err))
+    }
 }
 
 

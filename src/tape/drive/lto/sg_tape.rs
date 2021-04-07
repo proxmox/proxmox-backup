@@ -189,6 +189,25 @@ impl SgTape {
         Ok(())
     }
 
+    /// Lock/Unlock drive door
+    pub fn set_medium_removal(&mut self, allow: bool) -> Result<(), ScsiError> {
+
+        let mut sg_raw = SgRaw::new(&mut self.file, 16)?;
+        sg_raw.set_timeout(Self::SCSI_TAPE_DEFAULT_TIMEOUT);
+        let mut cmd = Vec::new();
+        cmd.extend(&[0x1E, 0, 0, 0]);
+        if allow {
+            cmd.push(0);
+        } else {
+            cmd.push(1);
+        }
+        cmd.push(0); // control
+
+        sg_raw.do_command(&cmd)?;
+
+        Ok(())
+    }
+
     pub fn rewind(&mut self) -> Result<(), Error> {
 
         let mut sg_raw = SgRaw::new(&mut self.file, 16)?;
