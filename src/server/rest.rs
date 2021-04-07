@@ -443,7 +443,7 @@ pub async fn handle_api_request<Env: RpcEnvironment, S: 'static + BuildHasher + 
                     body.map_err(|err| {
                         proxmox::io_format_err!("error during compression: {}", err)
                     }),
-                    Level::Fastest,
+                    Level::Default,
                 ))
             })
         }
@@ -561,7 +561,7 @@ async fn simple_static_file_download(
 
     let mut response = match compression {
         Some(CompressionMethod::Deflate) => {
-            let mut enc = DeflateEncoder::with_quality(data, Level::Fastest);
+            let mut enc = DeflateEncoder::with_quality(data, Level::Default);
             enc.compress_vec(&mut file, CHUNK_SIZE_LIMIT as usize).await?;
             let mut response = Response::new(enc.into_inner().into());
             response.headers_mut().insert(
@@ -607,7 +607,7 @@ async fn chuncked_static_file_download(
             );
             Body::wrap_stream(DeflateEncoder::with_quality(
                 AsyncReaderStream::new(file),
-                Level::Fastest,
+                Level::Default,
             ))
         }
         None => Body::wrap_stream(AsyncReaderStream::new(file)),
