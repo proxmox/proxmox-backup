@@ -800,6 +800,61 @@ fn weof(count: Option<usize>, param: Value) -> Result<(), Error> {
 
     Ok(())
 }
+#[api(
+   input: {
+        properties: {
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+                optional: true,
+            },
+            device: {
+                schema: LTO_DRIVE_PATH_SCHEMA,
+                optional: true,
+            },
+            compression: {
+                description: "Enable/disable compression.",
+                type: bool,
+                optional: true,
+            },
+            blocksize: {
+                description: "Set tape drive block_length (0 is variable length).",
+                type: u32,
+                minimum: 0,
+                maximum: 0x80_00_00,
+                optional: true,
+            },
+            buffer_mode: {
+                description: "Use drive buffer.",
+                type: bool,
+                optional: true,
+            },
+            defaults: {
+                description: "Set default options",
+                type: bool,
+                optional: true,
+            },
+        },
+    },
+)]
+/// Set varios drive options
+fn options(
+    compression: Option<bool>,
+    blocksize: Option<u32>,
+    buffer_mode: Option<bool>,
+    defaults: Option<bool>,
+    param: Value,
+) -> Result<(), Error> {
+
+    let mut handle = get_tape_handle(&param)?;
+
+    if let Some(true) = defaults {
+        handle.set_default_options()?;
+    }
+
+    handle.set_drive_options(compression, blocksize, buffer_mode)?;
+
+    Ok(())
+}
 
 fn main() -> Result<(), Error> {
 
@@ -832,6 +887,7 @@ fn main() -> Result<(), Error> {
         .insert("fsr", std_cmd(&API_METHOD_FSR).arg_param(&["count"]))
         .insert("load", std_cmd(&API_METHOD_LOAD))
         .insert("lock", std_cmd(&API_METHOD_LOCK))
+        .insert("options", std_cmd(&API_METHOD_OPTIONS))
         .insert("rewind", std_cmd(&API_METHOD_REWIND))
         .insert("scan", CliCommand::new(&API_METHOD_SCAN))
         .insert("status", std_cmd(&API_METHOD_STATUS))

@@ -109,9 +109,19 @@ impl LtoTapeHandle {
         let block_length = Some(0); // variable length mode
         let buffer_mode = Some(true); // Always use drive buffer
 
-        self.sg_tape.set_drive_options(compression, block_length, buffer_mode)?;
+        self.set_drive_options(compression, block_length, buffer_mode)?;
 
         Ok(())
+    }
+
+    /// Set driver options
+    pub fn set_drive_options(
+        &mut self,
+        compression: Option<bool>,
+        block_length: Option<u32>,
+        buffer_mode: Option<bool>,
+    ) -> Result<(), Error> {
+        self.sg_tape.set_drive_options(compression, block_length, buffer_mode)
     }
 
     /// Write a single EOF mark without flushing buffers
