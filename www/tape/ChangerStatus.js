@@ -370,6 +370,7 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	},
 
 	free_slots: [],
+	free_ie_slots: [],
 
 	updateFreeSlots: function(free_slots, free_ie_slots) {
 	    let me = this;
