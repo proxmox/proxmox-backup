@@ -6,6 +6,7 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use futures::stream::{Stream, TryStream};
+use futures::ready;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::net::TcpListener;
 use hyper::client::connect::Connection;
@@ -108,10 +109,15 @@ impl hyper::server::accept::Accept for StaticIncoming {
         self: Pin<&mut Self>,
         cx: &mut Context,
     ) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
-        match self.get_mut().0.poll_accept(cx) {
-            Poll::Pending => Poll::Pending,
-            Poll::Ready(Ok((conn, _addr))) => Poll::Ready(Some(Ok(conn))),
-            Poll::Ready(Err(err)) => Poll::Ready(Some(Err(err))),
+        let this = self.get_mut();
+        loop {
+            match ready!(this.0.poll_accept(cx)) {
+                Ok((conn, _addr)) => return Poll::Ready(Some(Ok(conn))),
+                Err(err) => {
+                    eprintln!("error accepting connection: {}", err);
+                    continue;
+                }
+            }
         }
     }
 }
