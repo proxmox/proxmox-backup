@@ -69,12 +69,16 @@ Supported Hardware
 ------------------
 
 Proxmox Backup Server supports `Linear Tape-Open`_ generation 4 (LTO-4)
-or later. In general, all SCSI-2 tape drives supported by the Linux
-kernel should work, but features like hardware encryption need LTO-4
 or later.
 
-Tape changing is carried out using the Linux 'mtx' command line
-tool, so any changer device supported by this tool should work.
+Tape changing is carried out using the SCSI Medium Changer protocol,
+so all modern tape libraries should work.
+
+.. Note:: We use a custom user space tape driver written in Rust_. This
+   driver directly communicates with the tape drive using the SCSI
+   generic interface. This may have bad side effects to the old Linux
+   kernel tape driver, so you should not use that driver while using
+   Proxmox tape backup.
 
 
 Drive Performance
@@ -311,7 +315,7 @@ of available tape drives using:
  ┌────────────────────────────────┬────────┬─────────────┬────────┐
  │ path                           │ vendor │ model       │ serial │
  ╞════════════════════════════════╪════════╪═════════════╪════════╡
- │ /dev/tape/by-id/scsi-12345-nst │ IBM    │ ULT3580-TD4 │  12345 │
+ │ /dev/tape/by-id/scsi-12345-sg  │ IBM    │ ULT3580-TD4 │  12345 │
  └────────────────────────────────┴────────┴─────────────┴────────┘
 
 In order to use that drive with Proxmox, you need to create a
@@ -319,10 +323,10 @@ configuration entry:
 
 .. code-block:: console
 
- # proxmox-tape drive create mydrive --path  /dev/tape/by-id/scsi-12345-nst
+ # proxmox-tape drive create mydrive --path  /dev/tape/by-id/scsi-12345-sg
 
 .. Note:: Please use the persistent device path names from inside
-   ``/dev/tape/by-id/``. Names like ``/dev/nst0`` may point to a
+   ``/dev/tape/by-id/``. Names like ``/dev/sg0`` may point to a
    different device after reboot, and that is not what you want.
 
 If you have a tape library, you also need to set the associated
@@ -346,7 +350,7 @@ You can display the final configuration with:
  ╞═════════╪════════════════════════════════╡
  │ name    │ mydrive                        │
  ├─────────┼────────────────────────────────┤
- │ path    │ /dev/tape/by-id/scsi-12345-nst │
+ │ path    │ /dev/tape/by-id/scsi-12345-sg  │
  ├─────────┼────────────────────────────────┤
  │ changer │ sl3                            │
  └─────────┴────────────────────────────────┘
@@ -362,7 +366,7 @@ To list all configured drives use:
  ┌──────────┬────────────────────────────────┬─────────┬────────┬─────────────┬────────┐
  │ name     │ path                           │ changer │ vendor │ model       │ serial │
  ╞══════════╪════════════════════════════════╪═════════╪════════╪═════════════╪════════╡
- │ mydrive  │ /dev/tape/by-id/scsi-12345-nst │ sl3     │ IBM    │ ULT3580-TD4 │ 12345  │
+ │ mydrive  │ /dev/tape/by-id/scsi-12345-sg  │ sl3     │ IBM    │ ULT3580-TD4 │ 12345  │
  └──────────┴────────────────────────────────┴─────────┴────────┴─────────────┴────────┘
 
 The Vendor, Model and Serial number are auto detected, but only shown
@@ -499,7 +503,7 @@ one media pool, so a job only uses tapes from that pool.
       will be double encrypted.
 
    The password protected key is stored on each medium, so that it is
-   possbible to `restore the key <tape_restore_encryption_key_>`_ using 
+   possbible to `restore the key <tape_restore_encryption_key_>`_ using
    the password. Please make sure to remember the password, in case
    you need to restore the key.
 
