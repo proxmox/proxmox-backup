@@ -144,9 +144,11 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	    let label = record.data['label-text'];
 
 	    let changer = encodeURIComponent(view.changer);
+	    let singleDrive = me.drives.length === 1 ? me.drives[0] : undefined;
 	    Ext.create('PBS.TapeManagement.EraseWindow', {
 		label,
 		changer,
+		singleDrive,
 		listeners: {
 		    destroy: function() {
 			me.reload();
