@@ -48,6 +48,16 @@ case "$1" in
 				        /etc/proxmox-backup/remote.cfg || true
 			fi
 		fi
+		if dpkg --compare-versions "$2" 'le' '1.0.14-1'; then
+			# FIXME: Remove with 2.0
+			if grep -s -q  -P -e '^linux:' /etc/proxmox-backup/tape.cfg; then
+				echo "========="
+				echo "= NOTE: You have now unsupported 'linux' tape drives configured."
+				echo "= * Execute 'udevadm control --reload-rules && udevadm trigger' to update /dev"
+				echo "= * Edit '/etc/proxmox-backup/tape.cfg', remove 'linux' entries and re-add over CLI/GUI"
+				echo "========="
+			fi
+		fi
 		# FIXME: remove with 2.0
 		if [ -d "/var/lib/proxmox-backup/tape" ] &&
 		   [ "$(stat --printf '%a' '/var/lib/proxmox-backup/tape')" != "750" ]; then
