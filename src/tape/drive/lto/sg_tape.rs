@@ -661,6 +661,14 @@ impl SgTape {
     }
 }
 
+impl Drop for SgTape {
+    fn drop(&mut self) {
+        // For security reasons, clear the encryption key
+        let _ = self.set_encryption(None);
+    }
+}
+
+
 pub struct SgTapeReader<'a> {
     sg_tape: &'a mut SgTape,
 }
