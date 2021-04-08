@@ -1,3 +1,23 @@
+rust-proxmox-backup (1.0.14-1) unstable; urgency=medium
+
+  * server: compress API call response and static files if client accepts that
+
+  * compress generated ZIP archives with deflate
+
+  * tape: implement LTO userspace driver
+
+  * docs: mention new user space tape driver, adopt device path names
+
+  * tape: always clear encryption key after backup (for security reasons)
+
+  * ui: improve changer status view
+
+  * add proxmox-file-restore package, providing a central file-restore binary
+    with preparations for restoring files also from block level backups using
+    QEMU for a safe encapsulation.
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 08 Apr 2021 16:35:11 +0200
+
 rust-proxmox-backup (1.0.13-1) unstable; urgency=medium
 
   * pxar: improve handling ACL entries on create and restore
