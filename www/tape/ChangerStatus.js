@@ -369,6 +369,13 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	    me.reload_full(false);
 	},
 
+	drives: [],
+
+	updateDrives: function(drives) {
+	    let me = this;
+	    me.drives = drives;
+	},
+
 	free_slots: [],
 	free_ie_slots: [],
 
@@ -440,11 +447,15 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 		let free_slots = [];
 		let free_ie_slots = [];
 
+		let valid_drives = [];
+
 		for (let entry of status.result.data) {
 		    let type = entry['entry-kind'];
+		    let id = entry['entry-id'];
 
-		    if (type === 'drive' && drive_entries[entry['entry-id']] !== undefined) {
-			entry = Ext.applyIf(entry, drive_entries[entry['entry-id']]);
+		    if (type === 'drive' && drive_entries[id] !== undefined) {
+			entry = Ext.applyIf(entry, drive_entries[id]);
+			valid_drives.push(drive_entries[id].name);
 		    }
 
 		    if (tapes[entry['label-text']] !== undefined) {
@@ -458,12 +469,12 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 		    if (!entry['label-text'] && type !== 'drive') {
 			if (type === 'slot') {
 			    free_slots.push({
-				id: entry['entry-id'],
+				id,
 				type,
 			    });
 			} else {
 			    free_ie_slots.push({
-				id: entry['entry-id'],
+				id,
 				type,
 			    });
 			}
@@ -488,6 +499,7 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 		me.lookup('drives').getSelectionModel().fireEvent('selectionchange', me);
 
 		me.updateFreeSlots(free_slots, free_ie_slots);
+		me.updateDrives(valid_drives);
 
 		if (!use_cache) {
 		    Proxmox.Utils.setErrorMask(view);
