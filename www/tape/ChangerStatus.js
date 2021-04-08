@@ -163,40 +163,62 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	    let label = record.data['label-text'];
 
 	    let changer = encodeURIComponent(view.changer);
+	    let singleDrive = me.drives.length === 1 ? me.drives[0] : undefined;
 
-	    Ext.create('Proxmox.window.Edit', {
-		isCreate: true,
-		autoShow: true,
-		submitText: gettext('OK'),
-		title: gettext('Load Media into Drive'),
-		url: `/api2/extjs/tape/drive`,
-		method: 'POST',
-		submitUrl: function(url, values) {
-		    let drive = values.drive;
-		    delete values.drive;
-		    return `${url}/${encodeURIComponent(drive)}/load-media`;
-		},
-		items: [
-		    {
-			xtype: 'displayfield',
-			name: 'label-text',
-			value: label,
-			submitValue: true,
-			fieldLabel: gettext('Media'),
+	    if (singleDrive !== undefined) {
+		Proxmox.Utils.API2Request({
+		    method: 'POST',
+		    params: {
+			'label-text': label,
 		    },
-		    {
-			xtype: 'pbsDriveSelector',
-			fieldLabel: gettext('Drive'),
-			changer: changer,
-			name: 'drive',
+		    url: `/api2/extjs/tape/drive/${singleDrive}/load-media`,
+		    success: function(response, opt) {
+			Ext.create('Proxmox.window.TaskProgress', {
+			    upid: response.result.data,
+			    taskDone: function(success) {
+				me.reload();
+			    },
+			}).show();
 		    },
-		],
-		listeners: {
-		    destroy: function() {
-			me.reload();
+		    failure: function(response, opt) {
+			Ext.Msg.alert(gettext('Error'), response.htmlStatus);
 		    },
-		},
-	    });
+		});
+	    } else {
+		Ext.create('Proxmox.window.Edit', {
+		    isCreate: true,
+		    autoShow: true,
+		    submitText: gettext('OK'),
+		    title: gettext('Load Media into Drive'),
+		    url: `/api2/extjs/tape/drive`,
+		    method: 'POST',
+		    submitUrl: function(url, values) {
+			let drive = values.drive;
+			delete values.drive;
+			return `${url}/${encodeURIComponent(drive)}/load-media`;
+		    },
+		    items: [
+			{
+			    xtype: 'displayfield',
+			    name: 'label-text',
+			    value: label,
+			    submitValue: true,
+			    fieldLabel: gettext('Media'),
+			},
+			{
+			    xtype: 'pbsDriveSelector',
+			    fieldLabel: gettext('Drive'),
+			    changer: changer,
+			    name: 'drive',
+			},
+		    ],
+		    listeners: {
+			destroy: function() {
+			    me.reload();
+			},
+		    },
+		});
+	    }
 	},
 
 	unload: async function(v, rI, cI, button, el, record) {
