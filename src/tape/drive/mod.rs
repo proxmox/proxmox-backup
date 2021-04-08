@@ -2,8 +2,6 @@
 
 mod virtual_tape;
 
-pub mod linux_mtio;
-
 mod tape_alert_flags;
 pub use tape_alert_flags::*;
 
