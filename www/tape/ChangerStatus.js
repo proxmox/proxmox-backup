@@ -302,6 +302,8 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 		return;
 	    }
 
+	    let singleDrive = me.drives.length === 1 ? me.drives[0] : undefined;
+
 	    Ext.create('Proxmox.window.Edit', {
 		title: gettext('Barcode Label'),
 		showTaskViewer: true,
@@ -315,9 +317,11 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 
 		items: [
 		    {
-			xtype: 'pbsDriveSelector',
+			xtype: singleDrive === undefined ? 'pbsDriveSelector' : 'displayfield',
 			fieldLabel: gettext('Drive'),
+			submitValue: true,
 			name: 'drive',
+			value: singleDrive,
 			changer: changer,
 		    },
 		    {
