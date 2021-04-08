@@ -339,26 +339,46 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 		return;
 	    }
 
-	    Ext.create('Proxmox.window.Edit', {
-		title: gettext('Inventory'),
-		showTaskViewer: true,
-		method: 'PUT',
-		url: '/api2/extjs/tape/drive',
-		submitUrl: function(url, values) {
-		    let drive = values.drive;
-		    delete values.drive;
-		    return `${url}/${encodeURIComponent(drive)}/inventory`;
-		},
+	    let singleDrive = me.drives.length === 1 ? me.drives[0] : undefined;
 
-		items: [
-		    {
-			xtype: 'pbsDriveSelector',
-			fieldLabel: gettext('Drive'),
-			name: 'drive',
-			changer: changer,
+	    if (singleDrive !== undefined) {
+		Proxmox.Utils.API2Request({
+		    method: 'PUT',
+		    url: `/api2/extjs/tape/drive/${singleDrive}/inventory`,
+		    success: function(response, opt) {
+			Ext.create('Proxmox.window.TaskViewer', {
+			    upid: response.result.data,
+			    taskDone: function(success) {
+				me.reload();
+			    },
+			}).show();
 		    },
-		],
-	    }).show();
+		    failure: function(response, opt) {
+			Ext.Msg.alert(gettext('Error'), response.htmlStatus);
+		    },
+		});
+	    } else {
+		Ext.create('Proxmox.window.Edit', {
+		    title: gettext('Inventory'),
+		    showTaskViewer: true,
+		    method: 'PUT',
+		    url: '/api2/extjs/tape/drive',
+		    submitUrl: function(url, values) {
+			let drive = values.drive;
+			delete values.drive;
+			return `${url}/${encodeURIComponent(drive)}/inventory`;
+		    },
+
+		    items: [
+			{
+			    xtype: 'pbsDriveSelector',
+			    fieldLabel: gettext('Drive'),
+			    name: 'drive',
+			    changer: changer,
+			},
+		    ],
+		}).show();
+	    }
 	},
 
 	scheduleReload: function(time) {
