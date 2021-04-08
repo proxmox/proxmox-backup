@@ -317,6 +317,7 @@ Ext.define('PBS.TapeManagement.DriveStatusGrid', {
 	    required: true,
 	    header: gettext('Write Protect'),
 	    defaultValue: false,
+	    renderer: Proxmox.Utils.format_boolean,
 	},
 	'buffer-mode': {
 	    required: true,
@@ -325,12 +326,23 @@ Ext.define('PBS.TapeManagement.DriveStatusGrid', {
 	'compression': {
 	    required: true,
 	    header: gettext('Compression'),
+	    renderer: Proxmox.Utils.format_boolean,
 	},
 	'file-number': {
-	    header: gettext('File Number'),
+	    header: gettext('Tape Position'),
+	    renderer: function(value, mD, r, rI, cI, store) {
+		let me = this;
+		let filenr = value;
+		let rec = store.getById('block-number');
+		if (rec) {
+		    let blocknr = rec.data.value;
+		    return `File ${filenr}, Block ${blocknr}`;
+		}
+		return `File ${filenr}`;
+	    },
 	},
 	'block-number': {
-	    header: gettext('Block Number'),
+	    visible: false,
 	},
 	'manufactured': {
 	    header: gettext('Tape Manufacture Date'),
@@ -360,6 +372,9 @@ Ext.define('PBS.TapeManagement.DriveStatusGrid', {
 		}
 		return value;
 	    },
+	},
+	'alert-flags': {
+	    header: gettext('Alert Flags'),
 	},
     },
 });
