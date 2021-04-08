@@ -139,6 +139,9 @@ impl LtoTapeHandle {
             .ok();
 
         let mut status = LtoDriveAndMediaStatus {
+            vendor: self.sg_tape.info().vendor.clone(),
+            product: self.sg_tape.info().product.clone(),
+            revision: self.sg_tape.info().revision.clone(),
             blocksize: drive_status.block_length,
             compression: drive_status.compression,
             buffer_mode: drive_status.buffer_mode,

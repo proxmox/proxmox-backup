@@ -174,6 +174,12 @@ impl TryFrom<u8> for TapeDensity {
 /// Media related data is optional - only set if there is a medium
 /// loaded.
 pub struct LtoDriveAndMediaStatus {
+    /// Vendor
+    pub vendor: String,
+    /// Product
+    pub product: String,
+    /// Revision
+    pub revision: String,
     /// Block size (0 is variable size)
     pub blocksize: u32,
     /// Compression enabled

@@ -96,6 +96,7 @@ pub struct LtoTapeStatus {
 
 pub struct SgTape {
     file: File,
+    info: InquiryInfo,
 }
 
 impl SgTape {
@@ -112,12 +113,16 @@ impl SgTape {
         if info.peripheral_type != 1 {
             bail!("not a tape device (peripheral_type = {})", info.peripheral_type);
         }
-        Ok(Self { file })
+        Ok(Self { file, info })
     }
 
-    // fixme: remove - only for testing
+    /// Access to file descriptor - useful for testing
     pub fn file_mut(&mut self) -> &mut File {
         &mut self.file
+    }
+
+    pub fn info(&self) -> &InquiryInfo {
+        &self.info
     }
 
     pub fn open<P: AsRef<Path>>(path: P) -> Result<SgTape, Error> {
