@@ -168,4 +168,4 @@ upload: ${SERVER_DEB} ${CLIENT_DEB} ${RESTORE_DEB} ${DOC_DEB}
 	git diff --exit-code --stat && git diff --exit-code --stat --staged
 	tar cf - ${SERVER_DEB} ${SERVER_DBG_DEB} ${DOC_DEB} | ssh -X repoman@repo.proxmox.com upload --product pbs --dist buster
 	tar cf - ${CLIENT_DEB} ${CLIENT_DBG_DEB} | ssh -X repoman@repo.proxmox.com upload --product "pbs,pve,pmg" --dist buster
-	tar cf - ${RESTORE_DEB} ${RESTORE_DBG_DEB} | ssh -X repoman@repo.proxmox.com upload --product "pbs,pve,pmg" --dist buster
+	tar cf - ${RESTORE_DEB} ${RESTORE_DBG_DEB} | ssh -X repoman@repo.proxmox.com upload --product "pve" --dist buster
