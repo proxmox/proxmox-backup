@@ -41,13 +41,9 @@ Ext.define('PBS.TapeManagement.DriveStatus', {
 	onLoad: function() {
 	    let me = this;
 	    let statusgrid = me.lookup('statusgrid');
-	    let statusFlags = (statusgrid.getObjectValue('status') || "").split(/\s+|\s+/);
-	    let online = statusFlags.indexOf('ONLINE') !== -1;
+	    let online = statusgrid.getObjectValue('file-number') !== undefined;
 	    let vm = me.getViewModel();
 	    vm.set('online', online);
-	    if (!online) {
-		me.lookup('cartridgegrid').getStore().removeAll();
-	    }
 	},
 
 	onStateLoad: function(store) {
@@ -303,6 +299,10 @@ Ext.define('PBS.TapeManagement.DriveStatusGrid', {
     title: gettext('Status'),
 
     rows: {
+	'density': {
+	    required: true,
+	    header: gettext('Tape Density'),
+	},
 	'blocksize': {
 	    required: true,
 	    header: gettext('Block Size'),
@@ -313,17 +313,24 @@ Ext.define('PBS.TapeManagement.DriveStatusGrid', {
 		return `${gettext('Fixed')} - ${Proxmox.Utils.format_size(value)}`;
 	    },
 	},
-	'options': {
+	'write-protect': {
 	    required: true,
-	    header: gettext('Options'),
-	    defaultValue: '',
+	    header: gettext('Write Protect'),
+	    defaultValue: false,
 	},
-	'status': {
+	'buffer-mode': {
 	    required: true,
-	    header: gettext('Status'),
+	    header: gettext('Buffer Mode'),
 	},
-	'density': {
-	    header: gettext('Tape Density'),
+	'compression': {
+	    required: true,
+	    header: gettext('Compression'),
+	},
+	'file-number': {
+	    header: gettext('File Number'),
+	},
+	'block-number': {
+	    header: gettext('Block Number'),
 	},
 	'manufactured': {
 	    header: gettext('Tape Manufacture Date'),
