@@ -97,6 +97,7 @@ pub struct LtoTapeStatus {
 pub struct SgTape {
     file: File,
     info: InquiryInfo,
+    encryption_key_loaded: bool,
 }
 
 impl SgTape {
@@ -113,7 +114,11 @@ impl SgTape {
         if info.peripheral_type != 1 {
             bail!("not a tape device (peripheral_type = {})", info.peripheral_type);
         }
-        Ok(Self { file, info })
+        Ok(Self {
+            file,
+            info,
+            encryption_key_loaded: false,
+        })
     }
 
     /// Access to file descriptor - useful for testing
@@ -472,6 +477,9 @@ impl SgTape {
         &mut self,
         key: Option<[u8; 32]>,
     ) -> Result<(), Error> {
+
+        self.encryption_key_loaded = key.is_some();
+
         set_encryption(&mut self.file, key)
     }
 
@@ -664,7 +672,9 @@ impl SgTape {
 impl Drop for SgTape {
     fn drop(&mut self) {
         // For security reasons, clear the encryption key
-        let _ = self.set_encryption(None);
+        if self.encryption_key_loaded {
+            let _ = self.set_encryption(None);
+        }
     }
 }
 
