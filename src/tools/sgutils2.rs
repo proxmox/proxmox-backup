@@ -753,3 +753,40 @@ pub fn scsi_mode_sense<F: AsRawFd, P: Endian>(
         Ok((head, block_descriptor, page))
     }).map_err(|err: Error| format_err!("decode mode sense failed - {}", err))
 }
+
+/// Resuqest Sense
+pub fn scsi_request_sense<F: AsRawFd>(
+    file: &mut F,
+) -> Result<RequestSenseFixed, ScsiError> {
+
+    // request 252 bytes, as mentioned in the Seagate SCSI reference
+    let allocation_len: u8 = 252;
+
+    let mut sg_raw = SgRaw::new(file,  allocation_len as usize)?;
+    sg_raw.set_timeout(30); // use short timeout
+    let mut cmd = Vec::new();
+    cmd.extend(&[0x03, 0, 0, 0, allocation_len, 0]); // REQUEST SENSE FIXED FORMAT
+
+    let data = sg_raw.do_command(&cmd)
+        .map_err(|err| format_err!("request sense failed - {}", err))?;
+
+    let sense = proxmox::try_block!({
+        let data_len = data.len();
+
+        if data_len < std::mem::size_of::<RequestSenseFixed>() {
+            bail!("got short data len ({})", data_len);
+        }
+        let code = data[0] & 0x7f;
+        if code != 0x70 {
+            bail!("received unexpected sense code '0x{:02x}'", code);
+        }
+
+        let mut reader = &data[..];
+
+        let sense: RequestSenseFixed = unsafe { reader.read_be_value()? };
+
+        Ok(sense)
+    }).map_err(|err: Error| format_err!("decode request sense failed - {}", err))?;
+
+    Ok(sense)
+}
