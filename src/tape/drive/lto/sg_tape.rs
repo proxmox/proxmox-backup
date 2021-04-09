@@ -8,6 +8,18 @@ use anyhow::{bail, format_err, Error};
 use endian_trait::Endian;
 use nix::fcntl::{fcntl, FcntlArg, OFlag};
 
+mod encryption;
+pub use encryption::*;
+
+mod volume_statistics;
+pub use volume_statistics::*;
+
+mod tape_alert_flags;
+pub use tape_alert_flags::*;
+
+mod mam;
+pub use mam::*;
+
 use proxmox::{
     sys::error::SysResult,
     tools::io::{ReadExt, WriteExt},
@@ -16,6 +28,7 @@ use proxmox::{
 use crate::{
     api2::types::{
         MamAttribute,
+        Lp17VolumeStatistics,
     },
     tape::{
         BlockRead,
@@ -24,14 +37,6 @@ use crate::{
         file_formats::{
             BlockedWriter,
             BlockedReader,
-        },
-        drive::{
-            TapeAlertFlags,
-            Lp17VolumeStatistics,
-            read_mam_attributes,
-            read_tape_alert_flags,
-            read_volume_statistics,
-            set_encryption,
         },
     },
     tools::sgutils2::{

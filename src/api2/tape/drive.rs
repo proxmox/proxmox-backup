@@ -47,6 +47,7 @@ use crate::{
             LabelUuidMap,
             MamAttribute,
             LtoDriveAndMediaStatus,
+            Lp17VolumeStatistics,
         },
         tape::restore::{
             fast_catalog_restore,
@@ -71,7 +72,6 @@ use crate::{
         drive::{
             TapeDriver,
             LtoTapeHandle,
-            Lp17VolumeStatistics,
             open_lto_tape_device,
             media_changer,
             required_media_changer,

@@ -11,7 +11,7 @@ use crate::{
     api2::types::MamAttribute,
     tools::sgutils2::SgRaw,
     tape::{
-        drive::TapeAlertFlags,
+        drive::lto::TapeAlertFlags,
     },
 };
 

@@ -2,20 +2,8 @@
 
 mod virtual_tape;
 
-mod tape_alert_flags;
-pub use tape_alert_flags::*;
-
-mod volume_statistics;
-pub use volume_statistics::*;
-
-mod encryption;
-pub use encryption::*;
-
 mod lto;
 pub use lto::*;
-
-mod mam;
-pub use mam::*;
 
 use std::os::unix::io::AsRawFd;
 use std::path::PathBuf;
@@ -57,6 +45,7 @@ use crate::{
         TapeWrite,
         TapeRead,
         MediaId,
+        drive::lto::TapeAlertFlags,
         file_formats::{
             PROXMOX_BACKUP_MEDIA_LABEL_MAGIC_1_0,
             PROXMOX_BACKUP_MEDIA_SET_LABEL_MAGIC_1_0,

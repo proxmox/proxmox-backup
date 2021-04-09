@@ -38,15 +38,13 @@ use crate::{
         MamAttribute,
         LtoDriveAndMediaStatus,
         LtoTapeDrive,
+        Lp17VolumeStatistics,
     },
     tape::{
         TapeRead,
         TapeWrite,
         drive::{
             TapeDriver,
-            TapeAlertFlags,
-            Lp17VolumeStatistics,
-            mam_extract_media_usage,
         },
         file_formats::{
             PROXMOX_BACKUP_MEDIA_SET_LABEL_MAGIC_1_0,
