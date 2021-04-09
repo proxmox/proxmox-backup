@@ -44,6 +44,7 @@ use crate::{
         alloc_page_aligned_buffer,
         scsi_inquiry,
         scsi_mode_sense,
+        scsi_request_sense,
     },
 };
 
@@ -656,6 +657,10 @@ impl SgTape {
     /// We read the drive compression page, including the
     /// block_descriptor. This is all information we need for now.
     pub fn read_drive_status(&mut self) -> Result<LtoTapeStatus, Error> {
+
+        // We do a Request Sense, but ignore the result.
+        // This clears deferred error or media changed events.
+        let _ = scsi_request_sense(&mut self.file);
 
         let (head, block_descriptor, page) = self.read_compression_page()?;
 
