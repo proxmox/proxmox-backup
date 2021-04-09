@@ -125,8 +125,8 @@ clean:
 	find . -name '*~' -exec rm {} ';'
 
 .PHONY: dinstall
-dinstall: ${DEBS}
-	dpkg -i ${DEBS}
+dinstall: ${SERVER_DEB} ${SERVER_DBG_DEB} ${CLIENT_DEB} ${CLIENT_DBG_DEB}
+	dpkg -i $^
 
 # make sure we build binaries before docs
 docs: cargo-build
