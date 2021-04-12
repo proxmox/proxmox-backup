@@ -145,9 +145,9 @@ Ext.define('PBS.view.main.NavigationTree', {
 	    let root = view.getStore().getRoot();
 
 	    records.sort((a, b) => a.data.name.localeCompare(b.data.name));
-	    let list = root.findChild('id', 'tape_management', false);
-	    let newSet = {};
 
+	    let list = root.findChild('id', 'tape_management', false);
+	    let existingChildren = {};
 	    for (const drive of records) {
 		let path, text, iconCls;
 		if (drive.data.changer !== undefined) {
@@ -159,7 +159,7 @@ Ext.define('PBS.view.main.NavigationTree', {
 		    path = `Drive-${text}`;
 		    iconCls = 'pbs-icon-tape-drive';
 		}
-		newSet[path] = {
+		existingChildren[path] = {
 		    text,
 		    path,
 		    iconCls,
@@ -167,7 +167,7 @@ Ext.define('PBS.view.main.NavigationTree', {
 		};
 	    }
 
-	    let paths = Object.keys(newSet).sort();
+	    let paths = Object.keys(existingChildren).sort();
 
 	    let oldIdx = 0;
 	    for (let newIdx = 0; newIdx < paths.length; newIdx++) {
@@ -178,17 +178,17 @@ Ext.define('PBS.view.main.NavigationTree', {
 		}
 
 		if (oldIdx >= list.childNodes.length || list.getChildAt(oldIdx).data.path !== newPath) {
-		    list.insertChild(oldIdx, newSet[newPath]);
+		    list.insertChild(oldIdx, existingChildren[newPath]);
 		}
 	    }
 
-	    let toremove = [];
+	    let toRemove = [];
 	    list.eachChild((child) => {
-		if (!newSet[child.data.path]) {
-		    toremove.push(child);
+		if (!existingChildren[child.data.path]) {
+		    toRemove.push(child);
 		}
 	    });
-	    toremove.forEach((child) => list.removeChild(child, true));
+	    toRemove.forEach((child) => list.removeChild(child, true));
 
 	    if (view.pathToSelect !== undefined) {
 		let path = view.pathToSelect;
@@ -198,27 +198,26 @@ Ext.define('PBS.view.main.NavigationTree', {
 	},
 
 	onLoad: function(store, records, success) {
-	    if (!success) return;
-	    var view = this.getView();
-
+	    if (!success) {
+		return;
+	    }
+	    let view = this.getView();
 	    let root = view.getStore().getRoot();
 
 	    records.sort((a, b) => a.id.localeCompare(b.id));
 
-	    var list = root.findChild('id', 'datastores', false);
-	    var length = records.length;
-	    var lookup_hash = {};
-	    let j = 0;
-	    for (let i = 0; i < length; i++) {
+	    let list = root.findChild('id', 'datastores', false);
+	    let getChildTextAt = i => list.getChildAt(i).data.text;
+	    let existingChildren = {};
+	    for (let i = 0, j = 0, length = records.length; i < length; i++) {
 		let name = records[i].id;
-		lookup_hash[name] = true;
+		existingChildren[name] = true;
 
-		while (name.localeCompare(list.getChildAt(j).data.text) > 0 &&
-		       (j + 1) < list.childNodes.length) {
+		while (name.localeCompare(getChildTextAt(j)) > 0 && (j+1) < list.childNodes.length) {
 		    j++;
 		}
 
-		if (list.getChildAt(j).data.text.localeCompare(name) !== 0) {
+		if (getChildTextAt(j).localeCompare(name) !== 0) {
 		    list.insertChild(j, {
 			text: name,
 			path: `DataStore-${name}`,
@@ -228,15 +227,14 @@ Ext.define('PBS.view.main.NavigationTree', {
 		}
 	    }
 
-	    var erase_list = [];
-	    list.eachChild(function(node) {
-		let name = node.data.text;
-		if (!lookup_hash[name] && node.data.id !== 'addbutton') {
-		    erase_list.push(node);
+	    // remove entries which are not existing anymore
+	    let toRemove = [];
+	    list.eachChild(child => {
+		if (!existingChildren[child.data.text] && child.data.id !== 'addbutton') {
+		    toRemove.push(child);
 		}
 	    });
-
-	    Ext.Array.forEach(erase_list, function(node) { list.removeChild(node, true); });
+	    toRemove.forEach(child => list.removeChild(child, true));
 
 	    if (view.pathToSelect !== undefined) {
 		let path = view.pathToSelect;
