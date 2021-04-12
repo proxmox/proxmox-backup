@@ -101,6 +101,7 @@ Ext.define('PBS.store.NavigationStore', {
 			iconCls: 'fa fa-plus-circle',
 			leaf: true,
 			id: 'addbutton',
+			virtualEntry: true,
 		    },
 		],
 	    },
@@ -230,7 +231,7 @@ Ext.define('PBS.view.main.NavigationTree', {
 	    // remove entries which are not existing anymore
 	    let toRemove = [];
 	    list.eachChild(child => {
-		if (!existingChildren[child.data.text] && child.data.id !== 'addbutton') {
+		if (!existingChildren[child.data.text] && !child.data.virtualEntry) {
 		    toRemove.push(child);
 		}
 	    });
