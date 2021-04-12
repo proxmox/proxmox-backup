@@ -17,16 +17,16 @@ use std::ffi::CStr;
 
 use proxmox::tools::io::ReadExt;
 
-#[derive(Debug)]
+#[derive(thiserror::Error, Debug)]
 pub struct SenseInfo {
     pub sense_key: u8,
     pub asc: u8,
     pub ascq: u8,
 }
 
-impl ToString for SenseInfo {
+impl std::fmt::Display for SenseInfo {
 
-    fn to_string(&self) -> String {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 
         let sense_text = SENSE_KEY_DESCRIPTIONS
             .get(self.sense_key as usize)
@@ -34,43 +34,20 @@ impl ToString for SenseInfo {
             .unwrap_or_else(|| format!("Invalid sense {:02X}", self.sense_key));
 
         if self.asc == 0 && self.ascq == 0 {
-            return sense_text;
+            write!(f, "{}", sense_text)
+        } else {
+            let additional_sense_text = get_asc_ascq_string(self.asc, self.ascq);
+            write!(f, "{}, {}", sense_text, additional_sense_text)
         }
-
-        let additional_sense_text = get_asc_ascq_string(self.asc, self.ascq);
-
-        format!("{}, {}", sense_text, additional_sense_text)
     }
 }
 
-#[derive(Debug)]
+#[derive(thiserror::Error, Debug)]
 pub enum ScsiError {
-    Error(Error),
-    Sense(SenseInfo),
-}
-
-impl std::fmt::Display for ScsiError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ScsiError::Error(err) => write!(f, "{}", err),
-            ScsiError::Sense(sense) =>  write!(f, "{}", sense.to_string()),
-        }
-    }
-}
-
-impl std::error::Error for ScsiError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-         match self {
-             ScsiError::Error(err) => err.source(),
-             ScsiError::Sense(_) => None,
-         }
-    }
-}
-
-impl From<anyhow::Error> for ScsiError {
-    fn from(error: anyhow::Error) -> Self {
-        Self::Error(error)
-    }
+    #[error("{0}")]
+    Error(#[from] Error),
+    #[error("{0}")]
+    Sense(#[from] SenseInfo),
 }
 
 impl From<std::io::Error> for ScsiError {
