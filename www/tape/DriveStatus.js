@@ -168,7 +168,7 @@ Ext.define('PBS.TapeManagement.DriveStatus', {
 	init: function(view) {
 	    let me = this;
 	    me.mon(me.lookup('statusgrid').getStore().rstore, 'load', 'onLoad');
-	    let tapeStore = Ext.ComponentQuery.query('navigationtree')[0].tapestore;
+	    let tapeStore = Ext.ComponentQuery.query('navigationtree')[0].tapeStore;
 	    me.mon(tapeStore, 'load', 'onStateLoad');
 	    if (tapeStore.isLoaded()) {
 		me.onStateLoad(tapeStore);
@@ -533,7 +533,7 @@ Ext.define('PBS.TapeManagement.DriveInfoPanel', {
 
 	me.callParent();
 
-	let tapeStore = Ext.ComponentQuery.query('navigationtree')[0].tapestore;
+	let tapeStore = Ext.ComponentQuery.query('navigationtree')[0].tapeStore;
 	me.mon(tapeStore, 'load', me.updateData, me);
 	if (tapeStore.isLoaded()) {
 	    me.updateData(tapeStore);

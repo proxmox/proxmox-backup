@@ -126,15 +126,15 @@ Ext.define('PBS.view.main.NavigationTree', {
 	    view.rstore.on('load', this.onLoad, this);
 	    view.on('destroy', view.rstore.stopUpdate);
 
-	    if (view.tapestore === undefined) {
-		view.tapestore = Ext.create('Proxmox.data.UpdateStore', {
+	    if (view.tapeStore === undefined) {
+		view.tapeStore = Ext.create('Proxmox.data.UpdateStore', {
 		    autoStart: true,
 		    interval: 60 * 1000,
 		    storeid: 'pbs-tape-drive-list',
 		    model: 'pbs-tape-drive-list',
 		});
-		view.tapestore.on('load', this.onTapeDriveLoad, this);
-		view.on('destroy', view.tapestore.stopUpdate);
+		view.tapeStore.on('load', this.onTapeDriveLoad, this);
+		view.on('destroy', view.tapeStore.stopUpdate);
 	    }
 	},
 
@@ -265,12 +265,12 @@ Ext.define('PBS.view.main.NavigationTree', {
 
     reloadTapeStore: function() {
 	let me = this;
-	me.tapestore.load();
+	me.tapeStore.load();
     },
 
     select: function(path, silent) {
 	var me = this;
-	if (me.rstore.isLoaded() && me.tapestore.isLoaded()) {
+	if (me.rstore.isLoaded() && me.tapeStore.isLoaded()) {
 	    if (silent) {
 		me.suspendEvents(false);
 	    }
