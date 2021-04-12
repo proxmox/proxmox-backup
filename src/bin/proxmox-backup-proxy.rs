@@ -41,6 +41,7 @@ use proxmox_backup::tools::{
     disks::{
         DiskManage,
         zfs_pool_stats,
+        get_pool_from_dataset,
     },
     logrotate::LogRotate,
     socket::{
@@ -865,8 +866,9 @@ fn gather_disk_stats(disk_manager: Arc<DiskManage>, path: &Path, rrd_prefix: &st
             let mut device_stat = None;
             match fs_type.as_str() {
                 "zfs" => {
-                    if let Some(pool) = source {
-                        match zfs_pool_stats(&pool) {
+                    if let Some(source) = source {
+                        let pool = get_pool_from_dataset(&source).unwrap_or(&source);
+                        match zfs_pool_stats(pool) {
                             Ok(stat) => device_stat = stat,
                             Err(err) => eprintln!("zfs_pool_stats({:?}) failed - {}", pool, err),
                         }

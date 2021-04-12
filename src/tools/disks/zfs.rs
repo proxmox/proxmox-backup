@@ -16,6 +16,17 @@ lazy_static!{
     };
 }
 
+/// returns pool from dataset path of the form 'rpool/ROOT/pbs-1'
+pub fn get_pool_from_dataset(dataset: &OsStr) -> Option<&OsStr> {
+    if let Some(dataset) = dataset.to_str() {
+        if let Some(idx) = dataset.find('/') {
+            return Some(&dataset[0..idx].as_ref());
+        }
+    }
+
+    None
+}
+
 /// Returns kernel IO-stats for zfs pools
 pub fn zfs_pool_stats(pool: &OsStr) -> Result<Option<BlockDevStat>, Error> {
 
