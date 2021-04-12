@@ -32,7 +32,7 @@ use crate::{
     },
     tape::{
         BlockRead,
-        BlockReadStatus,
+        BlockReadError,
         BlockWrite,
         file_formats::{
             BlockedWriter,
@@ -526,11 +526,13 @@ impl SgTape {
         }
     }
 
-    fn read_block(&mut self, buffer: &mut [u8]) -> Result<BlockReadStatus, std::io::Error> {
+    fn read_block(&mut self, buffer: &mut [u8]) -> Result<usize, BlockReadError> {
         let transfer_len = buffer.len();
 
         if transfer_len > 0xFFFFFF {
-            proxmox::io_bail!("read failed - buffer too large");
+            return Err(BlockReadError::Error(
+                proxmox::io_format_err!("read failed - buffer too large")
+            ));
         }
 
         let mut sg_raw = SgRaw::new(&mut self.file, 0)
@@ -549,21 +551,25 @@ impl SgTape {
         let data = match sg_raw.do_in_command(&cmd, buffer) {
             Ok(data) => data,
             Err(ScsiError::Sense(SenseInfo { sense_key: 0, asc: 0, ascq: 1 })) => {
-                return Ok(BlockReadStatus::EndOfFile);
+                return Err(BlockReadError::EndOfFile);
             }
             Err(ScsiError::Sense(SenseInfo { sense_key: 8, asc: 0, ascq: 5 })) => {
-                return Ok(BlockReadStatus::EndOfStream);
+                return Err(BlockReadError::EndOfStream);
             }
             Err(err) => {
-                proxmox::io_bail!("read failed - {}", err);
+                return Err(BlockReadError::Error(
+                    proxmox::io_format_err!("read failed - {}", err)
+                ));
             }
         };
 
         if data.len() != transfer_len {
-            proxmox::io_bail!("read failed - unexpected block len ({} != {})", data.len(), buffer.len())
+            return Err(BlockReadError::Error(
+                proxmox::io_format_err!("read failed - unexpected block len ({} != {})", data.len(), buffer.len())
+            ));
         }
 
-        Ok(BlockReadStatus::Ok(transfer_len))
+        Ok(transfer_len)
     }
 
     pub fn open_writer(&mut self) -> BlockedWriter<SgTapeWriter> {
@@ -571,12 +577,9 @@ impl SgTape {
         BlockedWriter::new(writer)
     }
 
-    pub fn open_reader(&mut self) -> Result<Option<BlockedReader<SgTapeReader>>, std::io::Error> {
+    pub fn open_reader(&mut self) -> Result<BlockedReader<SgTapeReader>, BlockReadError> {
         let reader = SgTapeReader::new(self);
-        match BlockedReader::open(reader)? {
-            Some(reader) => Ok(Some(reader)),
-            None => Ok(None),
-        }
+        BlockedReader::open(reader)
     }
 
     /// Set important drive options
@@ -702,7 +705,7 @@ impl <'a> SgTapeReader<'a> {
 
 impl <'a> BlockRead for SgTapeReader<'a> {
 
-    fn read_block(&mut self, buffer: &mut [u8]) -> Result<BlockReadStatus, std::io::Error> {
+    fn read_block(&mut self, buffer: &mut [u8]) -> Result<usize, BlockReadError> {
         self.sg_tape.read_block(buffer)
     }
 }

@@ -70,6 +70,7 @@ use crate::{
     tape::{
         TAPE_STATUS_DIR,
         TapeRead,
+        BlockReadError,
         MediaId,
         MediaSet,
         MediaCatalog,
@@ -418,12 +419,19 @@ pub fn restore_media(
 
     loop {
         let current_file_number = drive.current_file_number()?;
-        let reader = match drive.read_next_file()? {
-            None => {
+        let reader = match drive.read_next_file() {
+            Err(BlockReadError::EndOfFile) => {
+                task_log!(worker, "skip unexpected filemark at pos {}", current_file_number);
+                continue;
+            }
+            Err(BlockReadError::EndOfStream) => {
                 task_log!(worker, "detected EOT after {} files", current_file_number);
                 break;
             }
-            Some(reader) => reader,
+            Err(BlockReadError::Error(err)) => {
+                return Err(err.into());
+            }
+            Ok(reader) => reader,
         };
 
         restore_archive(worker, reader, current_file_number, target, &mut catalog, verbose)?;
@@ -811,12 +819,19 @@ pub fn fast_catalog_restore(
         let current_file_number = drive.current_file_number()?;
 
         { // limit reader scope
-            let mut reader = match drive.read_next_file()? {
-                None => {
+            let mut reader = match drive.read_next_file() {
+                Err(BlockReadError::EndOfFile) => {
+                    task_log!(worker, "skip unexpected filemark at pos {}", current_file_number);
+                    continue;
+                }
+                Err(BlockReadError::EndOfStream) => {
                     task_log!(worker, "detected EOT after {} files", current_file_number);
                     break;
                 }
-                Some(reader) => reader,
+                Err(BlockReadError::Error(err)) => {
+                    return Err(err.into());
+                }
+                Ok(reader) => reader,
             };
 
             let header: MediaContentHeader = unsafe { reader.read_le_value()? };

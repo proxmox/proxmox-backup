@@ -44,6 +44,7 @@ use crate::{
     tape::{
         TapeWrite,
         TapeRead,
+        BlockReadError,
         MediaId,
         drive::lto::TapeAlertFlags,
         file_formats::{
@@ -86,7 +87,7 @@ pub trait TapeDriver {
     fn format_media(&mut self, fast: bool) -> Result<(), Error>;
 
     /// Read/Open the next file
-    fn read_next_file<'a>(&'a mut self) -> Result<Option<Box<dyn TapeRead + 'a>>, std::io::Error>;
+    fn read_next_file<'a>(&'a mut self) -> Result<Box<dyn TapeRead + 'a>, BlockReadError>;
 
     /// Write/Append a new file
     fn write_file<'a>(&'a mut self) -> Result<Box<dyn TapeWrite + 'a>, std::io::Error>;
@@ -132,9 +133,17 @@ pub trait TapeDriver {
         self.rewind()?;
 
         let label = {
-            let mut reader = match self.read_next_file()? {
-                None => return Ok((None, None)), // tape is empty
-                Some(reader) => reader,
+            let mut reader = match self.read_next_file() {
+                Err(BlockReadError::EndOfStream) => {
+                    return Ok((None, None)); // tape is empty
+                }
+                Err(BlockReadError::EndOfFile) => {
+                    bail!("got unexpected filemark at BOT");
+                }
+                Err(BlockReadError::Error(err)) => {
+                    return Err(err.into());
+                }
+                Ok(reader) => reader,
             };
 
             let header: MediaContentHeader = unsafe { reader.read_le_value()? };
@@ -155,9 +164,17 @@ pub trait TapeDriver {
         let mut media_id = MediaId { label, media_set_label: None };
 
         // try to read MediaSet label
-        let mut reader = match self.read_next_file()? {
-            None => return Ok((Some(media_id), None)),
-            Some(reader) => reader,
+        let mut reader = match self.read_next_file() {
+            Err(BlockReadError::EndOfStream) => {
+                return Ok((Some(media_id), None));
+            }
+            Err(BlockReadError::EndOfFile) => {
+                bail!("got unexpected filemark after label");
+            }
+            Err(BlockReadError::Error(err)) => {
+                return Err(err.into());
+            }
+            Ok(reader) => reader,
         };
 
         let header: MediaContentHeader = unsafe { reader.read_le_value()? };

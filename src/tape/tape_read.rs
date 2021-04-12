@@ -15,14 +15,18 @@ pub trait TapeRead: Read {
     fn has_end_marker(&self) -> Result<bool, std::io::Error>;
 }
 
-pub enum BlockReadStatus {
-    Ok(usize),
+#[derive(thiserror::Error, Debug)]
+pub enum BlockReadError {
+    #[error("{0}")]
+    Error(#[from] std::io::Error),
+    #[error("end of file")]
     EndOfFile,
+    #[error("end of data stream")]
     EndOfStream,
 }
 
 /// Read streams of blocks
 pub trait BlockRead {
     /// Read the next block (whole buffer)
-    fn read_block(&mut self, buffer: &mut [u8]) -> Result<BlockReadStatus, std::io::Error>;
+    fn read_block(&mut self, buffer: &mut [u8]) -> Result<usize, BlockReadError>;
 }

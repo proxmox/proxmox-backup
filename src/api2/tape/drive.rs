@@ -10,7 +10,6 @@ use proxmox::{
     identity,
     list_subdirs_api_method,
     tools::Uuid,
-    sys::error::SysError,
     api::{
         api,
         section_config::SectionConfigData,
@@ -60,6 +59,7 @@ use crate::{
         Inventory,
         MediaCatalog,
         MediaId,
+        BlockReadError,
         lock_media_set,
         lock_media_pool,
         lock_unassigned_media_pool,
@@ -528,15 +528,11 @@ pub fn label_media(
             drive.rewind()?;
 
             match drive.read_next_file() {
-                Ok(Some(_file)) => bail!("media is not empty (format it first)"),
-                Ok(None) => { /* EOF mark at BOT, assume tape is empty */ },
+                Ok(_reader) => bail!("media is not empty (format it first)"),
+                Err(BlockReadError::EndOfFile) => { /* EOF mark at BOT, assume tape is empty */ },
+                Err(BlockReadError::EndOfStream) => { /* tape is empty */ },
                 Err(err) => {
-                    println!("TEST {:?}", err);
-                    if err.is_errno(nix::errno::Errno::ENOSPC) || err.is_errno(nix::errno::Errno::EIO) {
-                        /* assume tape is empty */
-                    } else {
-                        bail!("media read error - {}", err);
-                    }
+                    bail!("media read error - {}", err);
                 }
             }
 
@@ -1091,18 +1087,15 @@ fn barcode_label_media_worker(
         drive.rewind()?;
 
         match drive.read_next_file() {
-            Ok(Some(_file)) => {
+            Ok(_reader) => {
                 worker.log(format!("media '{}' is not empty (format it first)", label_text));
                 continue;
             }
-            Ok(None) => { /* EOF mark at BOT, assume tape is empty */ },
-            Err(err) => {
-                if err.is_errno(nix::errno::Errno::ENOSPC) || err.is_errno(nix::errno::Errno::EIO) {
-                    /* assume tape is empty */
-                } else {
-                    worker.warn(format!("media '{}' read error (maybe not empty - format it first)", label_text));
-                    continue;
-                }
+            Err(BlockReadError::EndOfFile) => { /* EOF mark at BOT, assume tape is empty */ },
+            Err(BlockReadError::EndOfStream) => { /* tape is empty */ },
+            Err(_err) => {
+                worker.warn(format!("media '{}' read error (maybe not empty - format it first)", label_text));
+                continue;
             }
         }
 

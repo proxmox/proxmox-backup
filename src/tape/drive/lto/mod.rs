@@ -43,6 +43,7 @@ use crate::{
     tape::{
         TapeRead,
         TapeWrite,
+        BlockReadError,
         drive::{
             TapeDriver,
         },
@@ -320,16 +321,9 @@ impl TapeDriver for LtoTapeHandle {
         self.sg_tape.format_media(fast)
     }
 
-    fn read_next_file<'a>(&'a mut self) -> Result<Option<Box<dyn TapeRead + 'a>>, std::io::Error> {
+    fn read_next_file<'a>(&'a mut self) -> Result<Box<dyn TapeRead + 'a>, BlockReadError> {
         let reader = self.sg_tape.open_reader()?;
-        let handle = match reader {
-            Some(reader) => {
-                let reader: Box<dyn TapeRead> = Box::new(reader);
-                Some(reader)
-            }
-            None => None,
-        };
-
+        let handle: Box<dyn TapeRead> = Box::new(reader);
         Ok(handle)
     }
 

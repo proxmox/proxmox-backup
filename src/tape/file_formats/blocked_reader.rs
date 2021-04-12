@@ -3,7 +3,7 @@ use std::io::Read;
 use crate::tape::{
     TapeRead,
     BlockRead,
-    BlockReadStatus,
+    BlockReadError,
     file_formats::{
         PROXMOX_TAPE_BLOCK_HEADER_MAGIC_1_0,
         BlockHeader,
@@ -37,15 +37,13 @@ impl <R: BlockRead> BlockedReader<R> {
 
     /// Create a new BlockedReader instance.
     ///
-    /// This tries to read the first block, and returns None if we are
-    /// at EOT.
-    pub fn open(mut reader: R) -> Result<Option<Self>, std::io::Error> {
+    /// This tries to read the first block. Please inspect the error
+    /// to detect EOF and EOT.
+    pub fn open(mut reader: R) -> Result<Self, BlockReadError> {
 
         let mut buffer = BlockHeader::new();
 
-        if !Self::read_block_frame(&mut buffer, &mut reader)? {
-            return Ok(None);
-        }
+        Self::read_block_frame(&mut buffer, &mut reader)?;
 
         let (_size, found_end_marker) = Self::check_buffer(&buffer, 0)?;
 
@@ -58,7 +56,7 @@ impl <R: BlockRead> BlockedReader<R> {
             got_eod = true;
         }
 
-        Ok(Some(Self {
+        Ok(Self {
             reader,
             buffer,
             found_end_marker,
@@ -67,7 +65,7 @@ impl <R: BlockRead> BlockedReader<R> {
             seq_nr: 1,
             read_error: false,
             read_pos: 0,
-        }))
+        })
     }
 
     fn check_buffer(buffer: &BlockHeader, seq_nr: u32) -> Result<(usize, bool), std::io::Error> {
@@ -95,7 +93,7 @@ impl <R: BlockRead> BlockedReader<R> {
         Ok((size, found_end_marker))
     }
 
-    fn read_block_frame(buffer: &mut BlockHeader, reader: &mut R) -> Result<bool, std::io::Error> {
+    fn read_block_frame(buffer: &mut BlockHeader, reader: &mut R) -> Result<(), BlockReadError> {
 
         let data = unsafe {
             std::slice::from_raw_parts_mut(
@@ -104,38 +102,28 @@ impl <R: BlockRead> BlockedReader<R> {
             )
         };
 
-        match reader.read_block(data) {
-            Ok(BlockReadStatus::Ok(bytes)) => {
-                if bytes != BlockHeader::SIZE {
-                    proxmox::io_bail!("got wrong block size");
-                }
-                Ok(true)
-            }
-            Ok(BlockReadStatus::EndOfFile) => {
-                Ok(false)
-            }
-            Ok(BlockReadStatus::EndOfStream) => {
-                return Err(std::io::Error::from_raw_os_error(nix::errno::Errno::ENOSPC as i32));
-            }
-            Err(err) => {
-                Err(err)
-            }
+        let bytes = reader.read_block(data)?;
+
+        if bytes != BlockHeader::SIZE {
+            return Err(proxmox::io_format_err!("got wrong block size").into());
         }
+
+        Ok(())
     }
 
     fn consume_eof_marker(reader: &mut R) -> Result<(), std::io::Error> {
         let mut tmp_buf = [0u8; 512]; // use a small buffer for testing EOF
         match reader.read_block(&mut tmp_buf) {
-            Ok(BlockReadStatus::Ok(_)) => {
+            Ok(_) => {
                 proxmox::io_bail!("detected tape block after block-stream end marker");
             }
-            Ok(BlockReadStatus::EndOfFile) => {
+            Err(BlockReadError::EndOfFile) => {
                 return Ok(());
             }
-            Ok(BlockReadStatus::EndOfStream) => {
+            Err(BlockReadError::EndOfStream) => {
                 proxmox::io_bail!("got unexpected end of tape");
             }
-            Err(err) => {
+            Err(BlockReadError::Error(err)) => {
                 return Err(err);
             }
         }
@@ -143,13 +131,22 @@ impl <R: BlockRead> BlockedReader<R> {
 
     fn read_block(&mut self) -> Result<usize, std::io::Error> {
 
-        if !Self::read_block_frame(&mut self.buffer, &mut self.reader)? {
-            self.got_eod = true;
-            self.read_pos = self.buffer.payload.len();
-            if !self.found_end_marker {
-                proxmox::io_bail!("detected tape stream without end marker");
+        match Self::read_block_frame(&mut self.buffer, &mut self.reader) {
+            Ok(()) => { /* ok */ }
+            Err(BlockReadError::EndOfFile) => {
+                self.got_eod = true;
+                self.read_pos = self.buffer.payload.len();
+                if !self.found_end_marker {
+                    proxmox::io_bail!("detected tape stream without end marker");
+                }
+                return Ok(0); // EOD
             }
-            return Ok(0); // EOD
+            Err(BlockReadError::EndOfStream) => {
+                proxmox::io_bail!("got unexpected end of tape");
+            }
+            Err(BlockReadError::Error(err)) => {
+                return Err(err);
+            }
         }
 
         let (size, found_end_marker) = Self::check_buffer(&self.buffer, self.seq_nr)?;

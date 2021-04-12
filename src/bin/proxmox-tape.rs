@@ -43,6 +43,7 @@ use proxmox_backup::{
         media_pool::complete_pool_name,
     },
     tape::{
+        BlockReadError,
         drive::{
             open_drive,
             lock_tape_device,
@@ -587,12 +588,19 @@ fn debug_scan(mut param: Value) -> Result<(), Error> {
     loop {
         let file_number = drive.current_file_number()?;
 
-        match drive.read_next_file()? {
-            None => {
-                println!("EOD");
+        match drive.read_next_file() {
+            Err(BlockReadError::EndOfFile) => {
+                println!("filemark number {}", file_number);
                 continue;
-            },
-            Some(mut reader) => {
+            }
+            Err(BlockReadError::EndOfStream) => {
+                println!("got EOT");
+                return Ok(());
+            }
+            Err(BlockReadError::Error(err)) => {
+                return Err(err.into());
+            }
+            Ok(mut reader) => {
                 println!("got file number {}", file_number);
 
                 let header: Result<MediaContentHeader, _> = unsafe { reader.read_le_value() };

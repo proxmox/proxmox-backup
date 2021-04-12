@@ -15,6 +15,7 @@ use crate::{
     tape::{
         TapeWrite,
         TapeRead,
+        BlockReadError,
         changer::{
             MediaChange,
             MtxStatus,
@@ -261,18 +262,18 @@ impl TapeDriver for VirtualTapeHandle {
     }
 
 
-    fn read_next_file(&mut self) -> Result<Option<Box<dyn TapeRead>>, io::Error> {
+    fn read_next_file(&mut self) -> Result<Box<dyn TapeRead>, BlockReadError> {
         let mut status = self.load_status()
-            .map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))?;
+            .map_err(|err| BlockReadError::Error(io::Error::new(io::ErrorKind::Other, err.to_string())))?;
 
         match status.current_tape {
             Some(VirtualTapeStatus { ref name, ref mut pos }) => {
 
                 let index = self.load_tape_index(name)
-                    .map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))?;
+                    .map_err(|err| BlockReadError::Error(io::Error::new(io::ErrorKind::Other, err.to_string())))?;
 
                 if *pos >= index.files {
-                    return Ok(None); // EOM
+                    return Err(BlockReadError::EndOfStream);
                 }
 
                 let path = self.tape_file_path(name, *pos);
@@ -282,16 +283,15 @@ impl TapeDriver for VirtualTapeHandle {
 
                 *pos += 1;
                 self.store_status(&status)
-                    .map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))?;
+                    .map_err(|err|  BlockReadError::Error(io::Error::new(io::ErrorKind::Other, err.to_string())))?;
 
                 let reader = EmulateTapeReader::new(file);
-
-                match BlockedReader::open(reader)? {
-                    Some(reader) => Ok(Some(Box::new(reader))),
-                    None => Ok(None),
-                }
+                let reader = BlockedReader::open(reader)?;
+                Ok(Box::new(reader))
             }
-            None => proxmox::io_bail!("drive is empty (no tape loaded)."),
+            None => {
+                return Err(BlockReadError::Error(proxmox::io_format_err!("drive is empty (no tape loaded).")));
+            }
         }
     }
 
