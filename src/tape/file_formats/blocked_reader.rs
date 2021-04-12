@@ -228,9 +228,10 @@ impl <R: BlockRead> Read for BlockedReader<R> {
 #[cfg(test)]
 mod test {
     use std::io::Read;
-    use anyhow::Error;
+    use anyhow::{bail, Error};
     use crate::tape::{
         TapeWrite,
+        BlockReadError,
         helpers::{EmulateTapeReader, EmulateTapeWriter},
         file_formats::{
             PROXMOX_TAPE_BLOCK_SIZE,
@@ -260,7 +261,7 @@ mod test {
 
         let reader = &mut &tape_data[..];
         let reader = EmulateTapeReader::new(reader);
-        let mut reader = BlockedReader::open(reader)?.unwrap();
+        let mut reader = BlockedReader::open(reader)?;
 
         let mut read_data = Vec::with_capacity(PROXMOX_TAPE_BLOCK_SIZE);
         reader.read_to_end(&mut read_data)?;
@@ -293,8 +294,10 @@ mod test {
         let tape_data = Vec::new();
         let reader = &mut &tape_data[..];
         let reader = EmulateTapeReader::new(reader);
-        let reader = BlockedReader::open(reader)?;
-        assert!(reader.is_none());
+        match BlockedReader::open(reader) {
+            Err(BlockReadError::EndOfFile) => { /* OK */ },
+            _ => bail!("expected EOF"),
+        }
 
         Ok(())
     }
@@ -313,7 +316,7 @@ mod test {
 
         let reader = &mut &tape_data[..];
         let reader = EmulateTapeReader::new(reader);
-        let mut reader = BlockedReader::open(reader)?.unwrap();
+        let mut reader = BlockedReader::open(reader)?;
 
         let mut data = Vec::with_capacity(PROXMOX_TAPE_BLOCK_SIZE);
         assert!(reader.read_to_end(&mut data).is_err());
@@ -336,7 +339,7 @@ mod test {
 
         let reader = &mut &tape_data[..];
         let reader = EmulateTapeReader::new(reader);
-        let mut reader = BlockedReader::open(reader)?.unwrap();
+        let mut reader = BlockedReader::open(reader)?;
 
         let mut buf = [0u8; 1];
         assert_eq!(reader.read(&mut buf)?, 1, "wrong byte count");
