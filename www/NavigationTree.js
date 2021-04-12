@@ -251,9 +251,7 @@ Ext.define('PBS.view.main.NavigationTree', {
 		let me = this;
 		Ext.create('PBS.DataStoreEdit', {
 		    listeners: {
-			destroy: function() {
-			    me.rstore.reload();
-			},
+			destroy: () => me.rstore.reload(),
 		    },
 		}).show();
 		return false;
