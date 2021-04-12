@@ -1385,7 +1385,7 @@ pub fn pxar_file_download(
 
         let mut split = components.splitn(2, |c| *c == b'/');
         let pxar_name = std::str::from_utf8(split.next().unwrap())?;
-        let file_path = split.next().ok_or_else(|| format_err!("filepath looks strange '{}'", filepath))?;
+        let file_path = split.next().unwrap_or(b"/");
         let (manifest, files) = read_backup_index(&datastore, &backup_dir)?;
         for file in files {
             if file.filename == pxar_name && file.crypt_mode == Some(CryptMode::Encrypt) {
