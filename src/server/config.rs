@@ -23,7 +23,6 @@ pub struct ApiConfig {
     templates: RwLock<Handlebars<'static>>,
     template_files: RwLock<HashMap<String, (SystemTime, PathBuf)>>,
     request_log: Option<Arc<Mutex<FileLogger>>>,
-    pub enable_tape_ui: bool,
     pub api_auth: Arc<dyn ApiAuth + Send + Sync>,
 }
 
@@ -42,7 +41,6 @@ impl ApiConfig {
             templates: RwLock::new(Handlebars::new()),
             template_files: RwLock::new(HashMap::new()),
             request_log: None,
-            enable_tape_ui: false,
             api_auth,
         })
     }

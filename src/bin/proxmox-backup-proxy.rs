@@ -91,11 +91,6 @@ async fn run() -> Result<(), Error> {
         default_api_auth(),
     )?;
 
-    // Enable experimental tape UI if tape.cfg exists
-    if Path::new("/etc/proxmox-backup/tape.cfg").exists() {
-        config.enable_tape_ui = true;
-    }
-
     config.add_alias("novnc", "/usr/share/novnc-pve");
     config.add_alias("extjs", "/usr/share/javascript/extjs");
     config.add_alias("qrcodejs", "/usr/share/javascript/qrcodejs");
