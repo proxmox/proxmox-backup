@@ -597,54 +597,53 @@ fn restore_chunk_archive<'a>(
 
     let mut decoder = ChunkArchiveDecoder::new(reader);
 
-    let result: Result<_, Error> = proxmox::try_block!({
-        while let Some((digest, blob)) = decoder.next_chunk()? {
+    loop {
+        let (digest, blob) = match decoder.next_chunk() {
+            Ok(Some((digest, blob))) => (digest, blob),
+            Ok(None) => break,
+            Err(err) => {
+                let reader = decoder.reader();
 
-            worker.check_abort()?;
-
-            if let Some(datastore) = datastore {
-                let chunk_exists = datastore.cond_touch_chunk(&digest, false)?;
-                if !chunk_exists {
-                    blob.verify_crc()?;
-
-                    if blob.crypt_mode()? == CryptMode::None {
-                        blob.decode(None, Some(&digest))?; // verify digest
-                    }
-                    if verbose {
-                        task_log!(worker, "Insert chunk: {}", proxmox::tools::digest_to_hex(&digest));
-                    }
-                    datastore.insert_chunk(&blob, &digest)?;
-                } else if verbose {
-                    task_log!(worker, "Found existing chunk: {}", proxmox::tools::digest_to_hex(&digest));
+                // check if this stream is marked incomplete
+                if let Ok(true) = reader.is_incomplete() {
+                    return Ok(Some(chunks));
                 }
+
+                // check if this is an aborted stream without end marker
+                if let Ok(false) = reader.has_end_marker() {
+                    worker.log("missing stream end marker".to_string());
+                    return Ok(None);
+                }
+
+                // else the archive is corrupt
+                return Err(err);
+            }
+        };
+
+        worker.check_abort()?;
+
+        if let Some(datastore) = datastore {
+            let chunk_exists = datastore.cond_touch_chunk(&digest, false)?;
+            if !chunk_exists {
+                blob.verify_crc()?;
+
+                if blob.crypt_mode()? == CryptMode::None {
+                    blob.decode(None, Some(&digest))?; // verify digest
+                }
+                if verbose {
+                    task_log!(worker, "Insert chunk: {}", proxmox::tools::digest_to_hex(&digest));
+                }
+                datastore.insert_chunk(&blob, &digest)?;
             } else if verbose {
-                task_log!(worker, "Found chunk: {}", proxmox::tools::digest_to_hex(&digest));
+                task_log!(worker, "Found existing chunk: {}", proxmox::tools::digest_to_hex(&digest));
             }
-            chunks.push(digest);
+        } else if verbose {
+            task_log!(worker, "Found chunk: {}", proxmox::tools::digest_to_hex(&digest));
         }
-        Ok(())
-    });
-
-    match result {
-        Ok(()) => Ok(Some(chunks)),
-        Err(err) => {
-            let reader = decoder.reader();
-
-            // check if this stream is marked incomplete
-            if let Ok(true) = reader.is_incomplete() {
-                return Ok(Some(chunks));
-            }
-
-            // check if this is an aborted stream without end marker
-            if let Ok(false) = reader.has_end_marker() {
-                worker.log("missing stream end marker".to_string());
-                return Ok(None);
-            }
-
-            // else the archive is corrupt
-            Err(err)
-        }
+        chunks.push(digest);
     }
+
+    Ok(Some(chunks))
 }
 
 fn restore_snapshot_archive<'a>(
