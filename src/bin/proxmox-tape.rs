@@ -622,8 +622,15 @@ fn debug_scan(mut param: Value) -> Result<(), Error> {
                         println!("unable to read content header - {}", err);
                     }
                 }
-                let bytes = reader.skip_to_end()?;
+                let bytes = reader.skip_data()?;
                 println!("skipped {}", HumanByte::from(bytes));
+                if let Ok(true) = reader.has_end_marker() {
+                    if reader.is_incomplete()? {
+                        println!("WARNING: file is incomplete");
+                    }
+                } else {
+                    println!("WARNING: file without end marker");
+                }
             }
         }
     }

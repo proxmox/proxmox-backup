@@ -525,7 +525,7 @@ fn restore_archive<'a>(
                 }
             }
 
-            reader.skip_to_end()?; // read all data
+            reader.skip_data()?; // read all data
             if let Ok(false) = reader.is_incomplete() {
                 catalog.register_snapshot(Uuid::from(header.uuid), current_file_number, &datastore_name, &snapshot)?;
                 catalog.commit_if_large()?;
@@ -566,7 +566,7 @@ fn restore_archive<'a>(
                 task_log!(worker, "skipping...");
             }
 
-            reader.skip_to_end()?; // read all data
+            reader.skip_data()?; // read all data
         }
         PROXMOX_BACKUP_CATALOG_ARCHIVE_MAGIC_1_0 => {
             let header_data = reader.read_exact_allocated(header.size as usize)?;
@@ -576,7 +576,7 @@ fn restore_archive<'a>(
 
             task_log!(worker, "File {}: skip catalog '{}'", current_file_number, archive_header.uuid);
 
-            reader.skip_to_end()?; // read all data
+            reader.skip_data()?; // read all data
         }
          _ =>  bail!("unknown content magic {:?}", header.content_magic),
     }
@@ -849,7 +849,7 @@ pub fn fast_catalog_restore(
 
                 if &archive_header.media_set_uuid != media_set.uuid() {
                     task_log!(worker, "skipping unrelated catalog at pos {}", current_file_number);
-                    reader.skip_to_end()?; // read all data
+                    reader.skip_data()?; // read all data
                     continue;
                 }
 
@@ -868,7 +868,7 @@ pub fn fast_catalog_restore(
 
                 if !wanted {
                     task_log!(worker, "skip catalog because media '{}' not inventarized", catalog_uuid);
-                    reader.skip_to_end()?; // read all data
+                    reader.skip_data()?; // read all data
                     continue;
                 }
 
@@ -878,7 +878,7 @@ pub fn fast_catalog_restore(
                     // only restore if catalog does not exist
                     if MediaCatalog::exists(status_path, catalog_uuid) {
                         task_log!(worker, "catalog for media '{}' already exists", catalog_uuid);
-                        reader.skip_to_end()?; // read all data
+                        reader.skip_data()?; // read all data
                         continue;
                     }
                 }

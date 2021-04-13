@@ -13,6 +13,12 @@ pub trait TapeRead: Read {
     ///
     /// Raises an error if you query this flag before reaching EOF.
     fn has_end_marker(&self) -> Result<bool, std::io::Error>;
+
+    /// Skip data by reading to EOF (position after EOF marker)
+    ///
+    // Returns the number of bytes skipped. This does not raise an
+    // error if the stream has no end marker.
+    fn skip_data(&mut self) -> Result<usize, std::io::Error>;
 }
 
 #[derive(thiserror::Error, Debug)]

@@ -129,14 +129,14 @@ impl <R: BlockRead> BlockedReader<R> {
         }
     }
 
-    fn read_block(&mut self) -> Result<usize, std::io::Error> {
+    fn read_block(&mut self, check_end_marker: bool) -> Result<usize, std::io::Error> {
 
         match Self::read_block_frame(&mut self.buffer, &mut self.reader) {
             Ok(()) => { /* ok */ }
             Err(BlockReadError::EndOfFile) => {
                 self.got_eod = true;
                 self.read_pos = self.buffer.payload.len();
-                if !self.found_end_marker {
+                if !self.found_end_marker && check_end_marker {
                     proxmox::io_bail!("detected tape stream without end marker");
                 }
                 return Ok(0); // EOD
@@ -185,6 +185,23 @@ impl <R: BlockRead> TapeRead for BlockedReader<R> {
 
         Ok(self.found_end_marker)
     }
+
+    // like ReadExt::skip_to_end(), but does not raise an error if the
+    // stream has no end marker.
+    fn skip_data(&mut self) -> Result<usize, std::io::Error> {
+        let mut bytes = 0;
+        let buffer_size = self.buffer.size();
+        let rest = (buffer_size as isize) - (self.read_pos as isize);
+        if rest > 0 {
+            bytes = rest as usize;
+        }
+        loop {
+            if self.got_eod {
+                return Ok(bytes);
+            }
+            bytes += self.read_block(false)?;
+        }
+    }
 }
 
 impl <R: BlockRead> Read for BlockedReader<R> {
@@ -199,7 +216,7 @@ impl <R: BlockRead> Read for BlockedReader<R> {
         let mut rest = (buffer_size as isize) - (self.read_pos as isize);
 
         if rest <= 0 && !self.got_eod { // try to refill buffer
-            buffer_size = match self.read_block() {
+            buffer_size = match self.read_block(true) {
                 Ok(len) => len,
                 err => {
                     self.read_error = true;
