@@ -149,8 +149,8 @@ Enterprise Support
 
 Users with a `Proxmox Backup Server Basic, Standard or Premium Subscription Plan
 <https://www.proxmox.com/en/proxmox-backup-server/pricing>`_ have access to the
-Proxmox Customer Portal. The Customer Portal provides support with guaranteed
-response times from the Proxmox developers.
+`Proxmox Customer Portal <https://my.proxmox.com>`_. The customer portal
+provides support with guaranteed response times from the Proxmox developers.
 For more information or for volume discounts, please contact office@proxmox.com.
 
 Community Support Forum
