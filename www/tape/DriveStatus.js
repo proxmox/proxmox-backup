@@ -44,6 +44,8 @@ Ext.define('PBS.TapeManagement.DriveStatus', {
 	    let online = statusgrid.getObjectValue('file-number') !== undefined;
 	    let vm = me.getViewModel();
 	    vm.set('online', online);
+	    let title = online ? gettext('Status') : gettext('Status (No Tape loaded)');
+	    statusgrid.setTitle(title);
 	},
 
 	onStateLoad: function(store) {
