@@ -11,9 +11,10 @@ update_initramfs() {
     # not want an unuseable image lying around
     rm -f "$CACHE_PATH"
 
-    [ -f "$INST_PATH/initramfs.img" ] || \
-        echo "proxmox-backup-restore-image is not installed correctly" >2 || \
-        exit 1
+    if [ ! -f "$INST_PATH/initramfs.img" ]; then
+        echo "proxmox-backup-restore-image is not installed correctly, skipping update" >&2
+        exit 0
+    fi
 
     echo "Updating file-restore initramfs..."
 
