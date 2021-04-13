@@ -29,6 +29,7 @@ use crate::{
         MediaId,
         MediaSet,
         Inventory,
+        MediaCatalog,
         lock_media_set,
         lock_media_pool,
         lock_unassigned_media_pool,
@@ -392,6 +393,7 @@ impl MediaPool {
 
         let uuid = media_id.label.uuid.clone();
 
+        MediaCatalog::overwrite(&self.state_path, &media_id, false)?; // overwite catalog
         let clear_media_status = true; // remove Full status
         self.inventory.store(media_id, clear_media_status)?; // store persistently
 
