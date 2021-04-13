@@ -694,19 +694,30 @@ impl Drop for SgTape {
 
 pub struct SgTapeReader<'a> {
     sg_tape: &'a mut SgTape,
+    end_of_file: bool,
 }
 
 impl <'a> SgTapeReader<'a> {
 
     pub fn new(sg_tape: &'a mut SgTape) -> Self {
-        Self { sg_tape }
+        Self { sg_tape, end_of_file: false, }
     }
 }
 
 impl <'a> BlockRead for SgTapeReader<'a> {
 
     fn read_block(&mut self, buffer: &mut [u8]) -> Result<usize, BlockReadError> {
-        self.sg_tape.read_block(buffer)
+        if self.end_of_file {
+            return Err(BlockReadError::Error(proxmox::io_format_err!("detected read after EOF!")));
+        }
+        match self.sg_tape.read_block(buffer) {
+            Ok(usize) => Ok(usize),
+            Err(BlockReadError::EndOfFile) => {
+                self.end_of_file = true;
+                Err(BlockReadError::EndOfFile)
+            },
+            Err(err) => Err(err),
+        }
     }
 }
 
