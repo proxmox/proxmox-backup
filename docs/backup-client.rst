@@ -5,8 +5,8 @@ The command line client is called :command:`proxmox-backup-client`.
 
 .. _client_repository:
 
-Repository Locations
---------------------
+Backup Repository Locations
+---------------------------
 
 The client uses the following notation to specify a datastore repository
 on the backup server.
