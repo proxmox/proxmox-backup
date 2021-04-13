@@ -159,13 +159,16 @@ fn verify_index_chunks(
         }
     );
 
-    for pos in 0..index.index_count() {
+    let index_count = index.index_count();
+    let mut chunk_list = Vec::with_capacity(index_count);
 
+    use std::os::unix::fs::MetadataExt;
+
+    for pos in 0..index_count {
         verify_worker.worker.check_abort()?;
         crate::tools::fail_on_shutdown()?;
 
         let info = index.chunk_info(pos).unwrap();
-        let size = info.size();
 
         if verify_worker.verified_chunks.lock().unwrap().contains(&info.digest) {
             continue; // already verified
@@ -178,15 +181,38 @@ fn verify_index_chunks(
             continue;
         }
 
+        match verify_worker.datastore.stat_chunk(&info.digest) {
+            Err(err) => {
+                verify_worker.corrupt_chunks.lock().unwrap().insert(info.digest);
+                task_log!(verify_worker.worker, "can't verify chunk, stat failed - {}", err);
+                errors.fetch_add(1, Ordering::SeqCst);
+                rename_corrupted_chunk(verify_worker.datastore.clone(), &info.digest, &verify_worker.worker);
+            }
+            Ok(metadata) => {
+                chunk_list.push((pos, metadata.ino()));
+            }
+        }
+    }
+
+    chunk_list.sort_unstable_by(|(_, ino_a), (_, ino_b)| {
+        ino_a.cmp(&ino_b)
+    });
+
+    for (pos, _) in chunk_list {
+        verify_worker.worker.check_abort()?;
+        crate::tools::fail_on_shutdown()?;
+
+        let info = index.chunk_info(pos).unwrap();
+
         match verify_worker.datastore.load_chunk(&info.digest) {
             Err(err) => {
                 verify_worker.corrupt_chunks.lock().unwrap().insert(info.digest);
                 task_log!(verify_worker.worker, "can't verify chunk, load failed - {}", err);
                 errors.fetch_add(1, Ordering::SeqCst);
                 rename_corrupted_chunk(verify_worker.datastore.clone(), &info.digest, &verify_worker.worker);
-                continue;
             }
             Ok(chunk) => {
+                let size = info.size();
                 read_bytes += chunk.raw_size();
                 decoder_pool.send((chunk, info.digest, size))?;
                 decoded_bytes += size;

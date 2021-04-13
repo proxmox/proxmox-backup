@@ -686,6 +686,11 @@ impl DataStore {
     }
 
 
+    pub fn stat_chunk(&self, digest: &[u8; 32]) -> Result<std::fs::Metadata, Error> {
+        let (chunk_path, _digest_str) = self.chunk_store.chunk_path(digest);
+        std::fs::metadata(chunk_path).map_err(Error::from)
+    }
+
     pub fn load_chunk(&self, digest: &[u8; 32]) -> Result<DataBlob, Error> {
 
         let (chunk_path, digest_str) = self.chunk_store.chunk_path(digest);
