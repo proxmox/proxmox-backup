@@ -1,3 +1,23 @@
+rust-proxmox-backup (1.1.0-1) unstable; urgency=medium
+
+  * enable tape backup as technology preview by default
+
+  * tape: read drive status: clear deferred error or media changed events.
+
+  * tape: improve end-of-tape (EOT) error handling
+
+  * tape: cleanup media catalog on tape reuse
+
+  * zfs: re-use underlying pool wide IO stats for datasets
+
+  * api daemon: only log error from accepting new connections to avoid opening
+    to many file descriptors
+
+  * api/datastore: allow downloading the entire archive as ZIP archive, not
+    only sub-paths
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 13 Apr 2021 14:42:18 +0200
+
 rust-proxmox-backup (1.0.14-1) unstable; urgency=medium
 
   * server: compress API call response and static files if client accepts that
