@@ -319,10 +319,6 @@ Ext.define('PBS.TapeManagement.DriveStatusGrid', {
 	    defaultValue: false,
 	    renderer: Proxmox.Utils.format_boolean,
 	},
-	'buffer-mode': {
-	    required: true,
-	    header: gettext('Buffer Mode'),
-	},
 	'compression': {
 	    required: true,
 	    header: gettext('Compression'),
