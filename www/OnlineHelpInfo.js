@@ -5,7 +5,7 @@ const proxmoxOnlineHelpInfo = {
   },
   "client-repository": {
     "link": "/docs/backup-client.html#client-repository",
-    "title": "Repository Locations"
+    "title": "Backup Repository Locations"
   },
   "client-creating-backups": {
     "link": "/docs/backup-client.html#client-creating-backups",
@@ -51,9 +51,21 @@ const proxmoxOnlineHelpInfo = {
     "link": "/docs/package-repositories.html#sysadmin-package-repositories",
     "title": "Debian Package Repositories"
   },
+  "package-repos-secure-apt": {
+    "link": "/docs/package-repositories.html#package-repos-secure-apt",
+    "title": "SecureApt"
+  },
   "sysadmin-package-repos-enterprise": {
     "link": "/docs/package-repositories.html#sysadmin-package-repos-enterprise",
     "title": "`Proxmox Backup`_ Enterprise Repository"
+  },
+  "package-repositories-client-only": {
+    "link": "/docs/package-repositories.html#package-repositories-client-only",
+    "title": "Proxmox Backup Client-only Repository"
+  },
+  "package-repositories-client-only-apt": {
+    "link": "/docs/package-repositories.html#package-repositories-client-only-apt",
+    "title": "APT-based Proxmox Backup Client Repository"
   },
   "get-help": {
     "link": "/docs/introduction.html#get-help",

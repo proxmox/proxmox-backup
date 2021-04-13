@@ -29,6 +29,8 @@ update``.
 In addition, you need a package repository from Proxmox to get Proxmox Backup
 updates.
 
+.. _package_repos_secure_apt:
+
 SecureApt
 ~~~~~~~~~
 
@@ -139,3 +141,40 @@ You can access this repository by adding the following line to
   :caption: sources.list entry for ``pbstest``
 
   deb http://download.proxmox.com/debian/pbs buster pbstest
+
+.. _package_repositories_client_only:
+
+Proxmox Backup Client-only Repository
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If you want to :ref:`use the the Proxmox Backup Client <client_creating_backups>`
+on systems using a Linux distribution not based on Proxmox projects, you can
+use the client-only repository.
+
+Currently there's only a client-repository for APT based systems.
+
+.. _package_repositories_client_only_apt:
+
+APT-based Proxmox Backup Client Repository
+++++++++++++++++++++++++++++++++++++++++++
+
+For modern Linux distributions using `apt` as package manager, like all Debian
+and Ubuntu Derivative do, you may be able to use the APT-based repository.
+
+This repository is tested with:
+
+- Debian Buster
+- Ubuntu 20.04 LTS
+
+It may work with older, and should work with more recent released versions.
+
+In order to configure this repository you need to first :ref:`setup the Proxmox
+release key <package_repos_secure_apt>`. After that, add the repository URL to
+the APT sources lists.
+Edit the file ``/etc/apt/sources.list.d/pbs-client.list`` and add the following
+snipped
+
+.. code-block:: sources.list
+  :caption: File: ``/etc/apt/sources.list``
+
+  deb http://download.proxmox.com/debian/pbs-client buster main

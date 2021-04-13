@@ -113,9 +113,9 @@ Client Installation
 Install `Proxmox Backup`_ Client on Debian
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Proxmox ships as a set of Debian packages to be installed on
-top of a standard Debian installation. After configuring the
-:ref:`sysadmin_package_repositories`, you need to run:
+Proxmox ships as a set of Debian packages to be installed on top of a standard
+Debian installation. After configuring the :ref:`package_repositories_client_only_apt`,
+you need to run:
 
 .. code-block:: console
 
@@ -123,12 +123,6 @@ top of a standard Debian installation. After configuring the
   # apt-get install proxmox-backup-client
 
 
-Installing from source
-~~~~~~~~~~~~~~~~~~~~~~
+.. note:: The client-only repository should be useable by most recent Debian
+   and Ubuntu derivatives.
 
-.. todo:: Add section "Installing from source"
-
-Installing statically linked binary
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. todo:: Add section "Installing statically linked binary"
