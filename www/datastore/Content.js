@@ -454,8 +454,8 @@ Ext.define('PBS.DataStoreContent', {
 
 	    Ext.create('Proxmox.window.FileBrowser', {
 		title: `${type}/${id}/${timetext}`,
-		listUrl: `/api2/json/admin/datastore/${view.datastore}/catalog`,
-		downloadUrl: `/api2/json/admin/datastore/${view.datastore}/pxar-file-download`,
+		listURL: `/api2/json/admin/datastore/${view.datastore}/catalog`,
+		downloadURL: `/api2/json/admin/datastore/${view.datastore}/pxar-file-download`,
 		extraParams: {
 		    'backup-id': id,
 		    'backup-time': (time.getTime()/1000).toFixed(0),
