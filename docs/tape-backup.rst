@@ -260,7 +260,7 @@ It's worth noting that some of the smaller tape libraries don't have
 such slots. While they have something called a "Mail Slot", that slot
 is just a way to grab the tape from the gripper. They are unable
 to hold media while the robot does other things. They also do not
-expose that "Mail Slot" over the SCSI interface, so you wont see them in
+expose that "Mail Slot" over the SCSI interface, so you won't see them in
 the status output.
 
 As a workaround, you can mark some of the normal slots as export

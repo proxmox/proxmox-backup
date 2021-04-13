@@ -148,7 +148,7 @@ are checked again. The interface for creating verify jobs can be found under the
 **Verify Jobs** tab of the datastore.
 
 .. Note:: It is recommended that you reverify all backups at least monthly, even
-  if a previous verification was successful. This is becuase physical drives
+  if a previous verification was successful. This is because physical drives
   are susceptible to damage over time, which can cause an old, working backup
   to become corrupted in a process known as `bit rot/data degradation
   <https://en.wikipedia.org/wiki/Data_degradation>`_. It is good practice to

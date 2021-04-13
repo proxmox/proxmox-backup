@@ -472,7 +472,7 @@ located in ``/etc``, you could do the following:
   pxar:/ > restore target/ --pattern etc/**/*.conf
   ...
 
-The above will scan trough all the directories below ``/etc`` and restore all
+The above will scan through all the directories below ``/etc`` and restore all
 files ending in ``.conf``.
 
 .. todo:: Explain interactive restore in more detail

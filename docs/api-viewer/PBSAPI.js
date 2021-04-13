@@ -143,7 +143,7 @@ Ext.onReady(function() {
 	    permhtml += "</div></div>";
 	} else {
 	    //console.log(permission);
-	    permhtml += "Unknown systax!";
+	    permhtml += "Unknown syntax!";
 	}
 
 	return permhtml;

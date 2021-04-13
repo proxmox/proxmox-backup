@@ -123,6 +123,6 @@ you need to run:
   # apt-get install proxmox-backup-client
 
 
-.. note:: The client-only repository should be useable by most recent Debian
-   and Ubuntu derivatives.
+.. note:: The client-only repository should be usable by most recent Debian and
+   Ubuntu derivatives.
 

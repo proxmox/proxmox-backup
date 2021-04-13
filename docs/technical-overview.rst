@@ -100,7 +100,7 @@ can be encrypted, and they are handled in a slightly different manner than
 normal chunks.
 
 The hashes of encrypted chunks are calculated not with the actual (encrypted)
-chunk content, but with the plaintext content concatenated with the encryption
+chunk content, but with the plain-text content concatenated with the encryption
 key. This way, two chunks of the same data encrypted with different keys
 generate two different checksums and no collisions occur for multiple
 encryption keys.
@@ -138,7 +138,7 @@ will see that the probability of a collision in that scenario is:
 
 For context, in a lottery game of guessing 6 out of 45, the chance to correctly
 guess all 6 numbers is only :math:`1.2277 * 10^{-7}`, that means the chance of
-collission is about the same as winning 13 such lotto games *in a row*.
+a collision is about the same as winning 13 such lotto games *in a row*.
 
 In conclusion, it is extremely unlikely that such a collision would occur by
 accident in a normal datastore.
