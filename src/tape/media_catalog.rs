@@ -261,6 +261,11 @@ impl MediaCatalog {
             .truncate(true)
             .open(&tmp_path)?;
 
+        if cfg!(test) {
+            // We cannot use chown inside test environment (no permissions)
+            return Ok(file);
+        }
+
         let backup_user = crate::backup::backup_user()?;
         fchown(file.as_raw_fd(), Some(backup_user.uid), Some(backup_user.gid))
             .map_err(|err| format_err!("fchown failed - {}", err))?;
