@@ -112,6 +112,18 @@ The administration menu item also contains a disk management subsection:
   * **Directory**: Create and view information on *ext4* and *xfs* disks
   * **ZFS**: Create and view information on *ZFS* disks 
 
+Tape Backup
+^^^^^^^^^^^
+
+.. image:: images/screenshots/pbs-gui-tape-changer-overview.png
+  :align: right
+  :alt: Tape Backup: Tape changer overview
+
+The `Tape Backup`_ section contains a top panel, managing tape media sets,
+inventories, drives, changers and the tape backup jobs itself.
+
+It also contains a subsection per standalone drive and per changer, with a
+status and management view for those devices.
 
 Datastore
 ^^^^^^^^^
