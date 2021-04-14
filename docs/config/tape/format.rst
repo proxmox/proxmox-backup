@@ -1,4 +1,4 @@
-Each drive configuration section starts with a header ``linux: <name>``,
+Each LTO drive configuration section starts with a header ``lto: <name>``,
 followed by the drive configuration options.
 
 Tape changer configurations starts with  ``changer: <name>``,
@@ -6,7 +6,7 @@ followed by the changer configuration options.
 
 ::
 
-  linux: hh8
+  lto: hh8
 	changer sl3
 	path /dev/tape/by-id/scsi-10WT065325-nst
 
