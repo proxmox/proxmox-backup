@@ -102,9 +102,10 @@ datastore is able to deliver that performance (for example, by using SSDs).
 Terminology
 -----------
 
-:Tape Labels: are used to uniquely identify a tape. You would normally apply a
-   sticky paper label to the front of the cartridge. We additionally store the
-   label text magnetically on the tape (first file on tape).
+**Tape Labels:**
+  are used to uniquely identify a tape. You would normally apply a
+  sticky paper label to the front of the cartridge. We additionally
+  store the label text magnetically on the tape (first file on tape).
 
 .. _Code 39: https://en.wikipedia.org/wiki/Code_39
 
@@ -112,47 +113,55 @@ Terminology
 
 .. _LTO Barcode Generator: lto-barcode/index.html
 
-:Barcodes: are a special form of tape labels, which are electronically
-   readable. Most LTO tape robots use an 8 character string encoded as
-   `Code 39`_, as defined in the `LTO Ultrium Cartridge Label
-   Specification`_.
+**Barcodes:**
+  are a special form of tape labels, which are electronically
+  readable. Most LTO tape robots use an 8 character string encoded as
+  `Code 39`_, as defined in the `LTO Ultrium Cartridge Label
+  Specification`_.
 
-   You can either buy such barcode labels from your cartridge vendor,
-   or print them yourself. You can use our `LTO Barcode Generator`_
-   app, if you would like to print them yourself.
+  You can either buy such barcode labels from your cartridge vendor,
+  or print them yourself. You can use our `LTO Barcode Generator`_
+  app, if you would like to print them yourself.
 
-.. Note:: Physical labels and the associated adhesive should have an
-   environmental performance to match or exceed the environmental
-   specifications of the cartridge to which it is applied.
+  .. Note:: Physical labels and the associated adhesive should have an
+     environmental performance to match or exceed the environmental
+     specifications of the cartridge to which it is applied.
 
-:Media Pools: A media pool is a logical container for tapes. A backup
-   job targets one media pool, so a job only uses tapes from that
-   pool. The pool additionally defines how long a backup job can
-   append data to tapes (allocation policy) and how long you want to
-   keep the data (retention policy).
+**Media Pools:**
+  A media pool is a logical container for tapes. A backup job targets
+  one media pool, so a job only uses tapes from that pool. The pool
+  additionally defines how long a backup job can append data to tapes
+  (allocation policy) and how long you want to keep the data
+  (retention policy).
 
-:Media Set: A group of continuously written tapes (all from the same
-   media pool).
+**Media Set:**
+  A group of continuously written tapes (all from the same media pool).
 
-:Tape drive: The device used to read and write data to the tape. There
-   are standalone drives, but drives are usually shipped within tape libraries.
+**Tape drive:**
+  The device used to read and write data to the tape. There are
+  standalone drives, but drives are usually shipped within tape
+  libraries.
 
-:Tape changer: A device which can change the tapes inside a tape drive
-   (tape robot). They are usually part of a tape library.
+**Tape changer:**
+  A device which can change the tapes inside a tape drive (tape
+  robot). They are usually part of a tape library.
 
 .. _Tape Library: https://en.wikipedia.org/wiki/Tape_library
 
-:`Tape library`_: A storage device that contains one or more tape drives,
-   a number of slots to hold tape cartridges, a barcode reader to
-   identify tape cartridges, and an automated method for loading tapes
-   (a robot).
+`Tape library`_:
+  A storage device that contains one or more tape drives, a number of
+  slots to hold tape cartridges, a barcode reader to identify tape
+  cartridges, and an automated method for loading tapes (a robot).
 
-   This is also commonly known as an 'autoloader', 'tape robot' or 'tape jukebox'.
+  This is also commonly known as an 'autoloader', 'tape robot' or
+  'tape jukebox'.
 
-:Inventory: The inventory stores the list of known tapes (with
-   additional status information).
+**Inventory:**
+  The inventory stores the list of known tapes (with additional status
+  information).
 
-:Catalog: A media catalog stores information about the media content.
+**Catalog:**
+  A media catalog stores information about the media content.
 
 
 Tape Quick Start
