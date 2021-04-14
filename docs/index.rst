@@ -25,14 +25,14 @@ in the section entitled "GNU Free Documentation License".
    terminology.rst
    gui.rst
    storage.rst
-   network-management.rst
    user-management.rst
-   managing-remotes.rst
-   maintenance.rst
    backup-client.rst
    pve-integration.rst
    pxar-tool.rst
+   managing-remotes.rst
+   maintenance.rst
    sysadmin.rst
+   network-management.rst
    technical-overview.rst
    faq.rst
 
