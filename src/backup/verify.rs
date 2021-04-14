@@ -205,6 +205,7 @@ fn verify_index_chunks(
         }
     }
 
+    // sorting by inode improves data locality, which makes it lots faster on spinners
     chunk_list.sort_unstable_by(|(_, ino_a), (_, ino_b)| ino_a.cmp(&ino_b));
 
     for (pos, _) in chunk_list {
