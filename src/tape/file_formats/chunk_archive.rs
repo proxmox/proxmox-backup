@@ -121,7 +121,6 @@ impl <'a> ChunkArchiveWriter<'a> {
                 self.write_all(&blob_data[start..end])?
             };
             if leom {
-                println!("WRITE DATA LEOM at pos {}", self.bytes_written());
                 if self.close_on_leom {
                     let mut writer = self.writer.take().unwrap();
                     writer.finish(false)?;
