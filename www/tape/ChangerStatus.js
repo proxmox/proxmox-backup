@@ -138,6 +138,24 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	    });
 	},
 
+	'format-inserted': function(button, event, record) {
+	    let me = this;
+
+	    let view = me.getView();
+	    PBS.Utils.driveCommand(record.data.name, 'format-media', {
+		waitMsgTarget: view,
+		method: 'POST',
+		success: function(response) {
+		    Ext.create('Proxmox.window.TaskProgress', {
+			upid: response.result.data,
+			taskDone: function() {
+			    me.reload();
+			},
+		    }).show();
+		},
+	    });
+	},
+
 	format: function(v, rI, cI, button, el, record) {
 	    let me = this;
 	    let view = me.getView();
@@ -753,6 +771,17 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 				    disabled: true,
 				    enableFn: (rec) => rec.data["label-text"] !== undefined,
 				},
+				{
+				    text: gettext('Format'),
+				    xtype: 'proxmoxButton',
+				    handler: 'format-inserted',
+				    iconCls: 'fa fa-trash-o',
+				    disabled: true,
+				    enableFn: (rec) => rec.data["label-text"] !== undefined,
+				    dangerous: true,
+				    confirmMsg: gettext('Are you sure you want to format the inserted tape?'),
+				},
+				'-',
 				{
 				    text: gettext('Clean Drive'),
 				    xtype: 'proxmoxButton',
