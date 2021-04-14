@@ -26,6 +26,27 @@ Those command are available when you start an interactive restore shell:
 .. include:: proxmox-backup-manager/synopsis.rst
 
 
+``proxmox-tape``
+----------------
+
+.. include:: proxmox-tape/synopsis.rst
+
+``pmt``
+-------
+
+.. include:: pmt/options.rst
+
+....
+
+.. include:: pmt/synopsis.rst
+
+
+``pmtx``
+--------
+
+.. include:: pmtx/synopsis.rst
+
+
 ``pxar``
 --------
 

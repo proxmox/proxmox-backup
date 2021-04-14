@@ -37,8 +37,53 @@ Options
 .. include:: config/datastore/config.rst
 
 
+``media-pool.cfg``
+~~~~~~~~~~~~~~~~~~
+
+File Format
+^^^^^^^^^^^
+
+.. include:: config/media-pool/format.rst
+
+
+Options
+^^^^^^^
+
+.. include:: config/media-pool/config.rst
+
+
+``tape.cfg``
+~~~~~~~~~~~~
+
+File Format
+^^^^^^^^^^^
+
+.. include:: config/tape/format.rst
+
+
+Options
+^^^^^^^
+
+.. include:: config/tape/config.rst
+
+
+``tape-job.cfg``
+~~~~~~~~~~~~~~~~
+
+File Format
+^^^^^^^^^^^
+
+.. include:: config/tape-job/format.rst
+
+
+Options
+^^^^^^^
+
+.. include:: config/tape-job/config.rst
+
+
 ``user.cfg``
-~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~
 
 File Format
 ^^^^^^^^^^^
