@@ -29,6 +29,7 @@ in the section entitled "GNU Free Documentation License".
    backup-client.rst
    pve-integration.rst
    pxar-tool.rst
+   tape-backup.rst
    managing-remotes.rst
    maintenance.rst
    sysadmin.rst
