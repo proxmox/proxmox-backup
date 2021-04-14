@@ -519,7 +519,11 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 		    let type = entry['entry-kind'];
 		    let id = entry['entry-id'];
 
-		    if (type === 'drive' && drive_entries[id] !== undefined) {
+		    if (type === 'drive') {
+			if (drive_entries[id] === undefined) {
+			    continue;
+			}
+
 			entry = Ext.applyIf(entry, drive_entries[id]);
 			valid_drives.push(drive_entries[id].name);
 		    }
