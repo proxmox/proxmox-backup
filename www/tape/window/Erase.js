@@ -11,7 +11,7 @@ Ext.define('PBS.TapeManagement.EraseWindow', {
 	return {
 	    singleDrive: me.singleDrive,
 	    hasSingleDrive: !!me.singleDrive,
-	    warning: Ext.String.format(gettext("Are you sure you want to erase tape '{0}' ?"), me.label),
+	    warning: Ext.String.format(gettext("Are you sure you want to format tape '{0}' ?"), me.label),
 	};
     },
 

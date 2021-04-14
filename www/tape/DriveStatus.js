@@ -215,7 +215,7 @@ Ext.define('PBS.TapeManagement.DriveStatus', {
 	    handler: 'format',
 	    iconCls: 'fa fa-trash-o',
 	    dangerous: true,
-	    confirmMsg: gettext('Are you sure you want to erase the inserted tape?'),
+	    confirmMsg: gettext('Are you sure you want to format the inserted tape?'),
 	    disabled: true,
 	    bind: {
 		disabled: '{!online}',

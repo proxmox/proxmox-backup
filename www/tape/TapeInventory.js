@@ -36,7 +36,7 @@ Ext.define('PBS.TapeManagement.TapeInventory', {
 	    Ext.create('PBS.TapeManagement.LabelMediaWindow').show();
 	},
 
-	erase: function() {
+	format: function() {
 	    let me = this;
 	    let view = me.getView();
 	    let selection = view.getSelection();
@@ -202,9 +202,9 @@ Ext.define('PBS.TapeManagement.TapeInventory', {
 	},
 	{
 	    xtype: 'proxmoxButton',
-	    text: gettext('Erase'),
+	    text: gettext('Format'),
 	    disabled: true,
-	    handler: 'erase',
+	    handler: 'format',
 	},
     ],
 

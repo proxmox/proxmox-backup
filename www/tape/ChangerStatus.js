@@ -138,7 +138,7 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	    });
 	},
 
-	erase: function(v, rI, cI, button, el, record) {
+	format: function(v, rI, cI, button, el, record) {
 	    let me = this;
 	    let view = me.getView();
 	    let label = record.data['label-text'];
@@ -703,8 +703,8 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 				},
 				{
 				    iconCls: 'fa fa-trash-o',
-				    handler: 'erase',
-				    tooltip: gettext('Erase'),
+				    handler: 'format',
+				    tooltip: gettext('Format'),
 				    isDisabled: (v, r, c, i, rec) => !rec.data['label-text'],
 				},
 				{
