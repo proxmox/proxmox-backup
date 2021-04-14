@@ -3,6 +3,26 @@
 `Proxmox VE`_ Integration
 -------------------------
 
+A Proxmox Backup Server can be integrated into a Proxmox VE setup by adding the
+former as a storage in a Proxmox VE standalone or cluster setup.
+
+See also the `Proxmox VE Storage - Proxmox Backup Server
+<https://pve.proxmox.com/pve-docs/pve-admin-guide.html#storage_pbs>`_ section
+of the Proxmox VE Administration Guide for Proxmox VE specific documentation.
+
+
+Using the Proxmox VE Web-Interface
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Proxmox VE has native API and web-interface integration of Proxmox Backup
+Server since the `Proxmox VE 6.3 release
+<https://pve.proxmox.com/wiki/Roadmap#Proxmox_VE_6.3>`_.
+
+A Proxmox Backup Server can be added under ``Datacenter -> Storage``.
+
+Using the Proxmox VE Command-Line
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 You need to define a new storage with type 'pbs' on your `Proxmox VE`_
 node. The following example uses ``store2`` as storage name, and
 assumes the server address is ``localhost``, and you want to connect
@@ -41,9 +61,9 @@ After that you should be able to see storage status with:
   Name             Type     Status           Total            Used       Available        %
   store2            pbs     active      3905109820      1336687816      2568422004   34.23%
 
-Having added the PBS datastore to `Proxmox VE`_, you can backup VMs and
-containers in the same way you would for any other storage device within the
-environment (see `PVE Admin Guide: Backup and Restore
+Having added the Proxmox Backup Server datastore to `Proxmox VE`_, you can
+backup VMs and containers in the same way you would for any other storage
+device within the environment (see `Proxmox VE Admin Guide: Backup and Restore
 <https://pve.proxmox.com/pve-docs/pve-admin-guide.html#chapter_vzdump>`_.
 
 
