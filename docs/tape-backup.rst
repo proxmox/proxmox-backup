@@ -183,8 +183,11 @@ Tape changers
   :align: right
   :alt: Tape Backup: Tape Changers
 
-Tape changers (robots) are part of a `Tape Library`_. You can skip
-this step if you are using a standalone drive.
+Tape changers (robots) are part of a `Tape Library`_. They contain a number of
+slots to hold tape cartridges, a barcode reader to identify tape cartridges and
+an automated method for loading tapes.
+
+You can skip this step if you are using a standalone drive.
 
 Linux is able to auto detect these devices, and you can get a list
 of available devices using:
