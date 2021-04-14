@@ -1,5 +1,5 @@
-Storage
-=======
+Backup Storage
+==============
 
 .. _storage_disk_management:
 
