@@ -14,6 +14,7 @@ use crate::api2::types::{Userid, UsernameRef, RealmRef};
 pub trait ProxmoxAuthenticator {
     fn authenticate_user(&self, username: &UsernameRef, password: &str) -> Result<(), Error>;
     fn store_password(&self, username: &UsernameRef, password: &str) -> Result<(), Error>;
+    fn remove_password(&self, username: &UsernameRef) -> Result<(), Error>;
 }
 
 pub struct PAM();
@@ -58,6 +59,11 @@ impl ProxmoxAuthenticator for PAM {
             );
         }
 
+        Ok(())
+    }
+
+    // do not remove password for pam users
+    fn remove_password(&self, _username: &UsernameRef) -> Result<(), Error> {
         Ok(())
     }
 }
@@ -120,6 +126,24 @@ impl ProxmoxAuthenticator for PBS {
         let enc_password = encrypt_pw(password)?;
         let mut data = proxmox::tools::fs::file_get_json(SHADOW_CONFIG_FILENAME, Some(json!({})))?;
         data[username.as_str()] = enc_password.into();
+
+        let mode = nix::sys::stat::Mode::from_bits_truncate(0o0600);
+        let options =  proxmox::tools::fs::CreateOptions::new()
+            .perm(mode)
+            .owner(nix::unistd::ROOT)
+            .group(nix::unistd::Gid::from_raw(0));
+
+        let data = serde_json::to_vec_pretty(&data)?;
+        proxmox::tools::fs::replace_file(SHADOW_CONFIG_FILENAME, &data, options)?;
+
+        Ok(())
+    }
+
+    fn remove_password(&self, username: &UsernameRef) -> Result<(), Error> {
+        let mut data = proxmox::tools::fs::file_get_json(SHADOW_CONFIG_FILENAME, Some(json!({})))?;
+        if let Some(map) = data.as_object_mut() {
+            map.remove(username.as_str());
+        }
 
         let mode = nix::sys::stat::Mode::from_bits_truncate(0o0600);
         let options =  proxmox::tools::fs::CreateOptions::new()

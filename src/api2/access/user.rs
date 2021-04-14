@@ -477,6 +477,17 @@ pub fn delete_user(userid: Userid, digest: Option<String>) -> Result<(), Error> 
 
     user::save_config(&config)?;
 
+    let authenticator = crate::auth::lookup_authenticator(userid.realm())?;
+    match authenticator.remove_password(userid.name()) {
+        Ok(()) => {},
+        Err(err) => {
+            eprintln!(
+                "error removing password after deleting user {:?}: {}",
+                userid, err
+            );
+        }
+    }
+
     match crate::config::tfa::read().and_then(|mut cfg| {
         let _: bool = cfg.remove_user(&userid);
         crate::config::tfa::write(&cfg)
