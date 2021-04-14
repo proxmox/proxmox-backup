@@ -1,3 +1,19 @@
+rust-proxmox-backup (1.1.1-1) unstable; urgency=medium
+
+  * docs: include tape in table of contents
+
+  * docs: tape: improve definition-list format and add screenshots
+
+  * docs: reorder maintenance and network chapters after client-usage/tools
+    chapters
+
+  * ui: tape changer status: add Format button to drive grid
+
+  * backup/verify: improve speed on disks with slow random-IO (spinners) by
+    iterating over chunks sorted by inode
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 14 Apr 2021 14:50:29 +0200
+
 rust-proxmox-backup (1.1.0-1) unstable; urgency=medium
 
   * enable tape backup as technology preview by default
