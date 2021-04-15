@@ -214,6 +214,12 @@ fn verify_index_chunks(
 
         let info = index.chunk_info(pos).unwrap();
 
+        // we must always recheck this here, the parallel worker below alter it!
+        // Else we miss skipping repeated chunks from the same index, and re-verify them all
+        if verify_worker.verified_chunks.lock().unwrap().contains(&info.digest) {
+            continue; // already verified
+        }
+
         match verify_worker.datastore.load_chunk(&info.digest) {
             Err(err) => {
                 verify_worker.corrupt_chunks.lock().unwrap().insert(info.digest);
