@@ -185,8 +185,10 @@ fn verify_index_chunks(
     use std::os::unix::fs::MetadataExt;
 
     for pos in 0..index_count {
-        verify_worker.worker.check_abort()?;
-        crate::tools::fail_on_shutdown()?;
+        if pos & 1023 == 0 {
+            verify_worker.worker.check_abort()?;
+            crate::tools::fail_on_shutdown()?;
+        }
 
         let info = index.chunk_info(pos).unwrap();
 
