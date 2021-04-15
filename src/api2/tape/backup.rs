@@ -442,7 +442,13 @@ fn backup_worker(
         progress.done_snapshots = 0;
         progress.group_snapshots = 0;
 
-        let mut snapshot_list = group.list_backups(&datastore.base_path())?;
+        let snapshot_list = group.list_backups(&datastore.base_path())?;
+
+        // filter out unfinished backups
+        let mut snapshot_list = snapshot_list
+            .into_iter()
+            .filter(|item| item.is_finished())
+            .collect();
 
         BackupInfo::sort_list(&mut snapshot_list, true); // oldest first
 
