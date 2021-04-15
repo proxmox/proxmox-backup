@@ -1,3 +1,12 @@
+rust-proxmox-backup (1.1.2-1) unstable; urgency=medium
+
+  * backup verify: always re-check if we can skip a chunk in the actual verify
+    loop.
+
+  * tape: do not try to backup unfinished backups
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 15 Apr 2021 13:26:52 +0200
+
 rust-proxmox-backup (1.1.1-1) unstable; urgency=medium
 
   * docs: include tape in table of contents
