@@ -18,7 +18,7 @@ use webauthn_rs::{proto::UserVerificationPolicy, Webauthn};
 use webauthn_rs::proto::Credential as WebauthnCredential;
 
 use proxmox::api::api;
-use proxmox::api::schema::{Updatable, Updater};
+use proxmox::api::schema::Updater;
 use proxmox::sys::error::SysError;
 use proxmox::tools::fs::CreateOptions;
 use proxmox::tools::tfa::totp::Totp;
