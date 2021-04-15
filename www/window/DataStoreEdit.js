@@ -16,7 +16,7 @@ Ext.define('PBS.panel.PruneInputPanel', {
 	{
 	    xtype: 'pbsPruneKeepInput',
 	    name: 'keep-last',
-	    fieldLabel: gettext('keep-last'),
+	    fieldLabel: gettext('Keep Last'),
 	    cbind: {
 		deleteEmpty: '{!isCreate}',
 	    },
