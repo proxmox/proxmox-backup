@@ -166,6 +166,19 @@ fn verify_index_chunks(
         }
     );
 
+    let skip_chunk = |digest: &[u8; 32]| -> bool {
+        if verify_worker.verified_chunks.lock().unwrap().contains(digest) {
+            true
+        } else if verify_worker.corrupt_chunks.lock().unwrap().contains(digest) {
+            let digest_str = proxmox::tools::digest_to_hex(digest);
+            task_log!(verify_worker.worker, "chunk {} was marked as corrupt", digest_str);
+            errors.fetch_add(1, Ordering::SeqCst);
+            true
+        } else {
+            false
+        }
+    };
+
     let index_count = index.index_count();
     let mut chunk_list = Vec::with_capacity(index_count);
 
@@ -177,15 +190,8 @@ fn verify_index_chunks(
 
         let info = index.chunk_info(pos).unwrap();
 
-        if verify_worker.verified_chunks.lock().unwrap().contains(&info.digest) {
-            continue; // already verified
-        }
-
-        if verify_worker.corrupt_chunks.lock().unwrap().contains(&info.digest) {
-            let digest_str = proxmox::tools::digest_to_hex(&info.digest);
-            task_log!(verify_worker.worker, "chunk {} was marked as corrupt", digest_str);
-            errors.fetch_add(1, Ordering::SeqCst);
-            continue;
+        if skip_chunk(&info.digest) {
+            continue; // already verified or marked corrupt
         }
 
         match verify_worker.datastore.stat_chunk(&info.digest) {
@@ -215,9 +221,8 @@ fn verify_index_chunks(
         let info = index.chunk_info(pos).unwrap();
 
         // we must always recheck this here, the parallel worker below alter it!
-        // Else we miss skipping repeated chunks from the same index, and re-verify them all
-        if verify_worker.verified_chunks.lock().unwrap().contains(&info.digest) {
-            continue; // already verified
+        if skip_chunk(&info.digest) {
+            continue; // already verified or marked corrupt
         }
 
         match verify_worker.datastore.load_chunk(&info.digest) {
