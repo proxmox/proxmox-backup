@@ -1,6 +1,7 @@
 use std::panic::UnwindSafe;
 use std::path::Path;
 use std::sync::Arc;
+use std::collections::HashMap;
 
 use anyhow::{bail, format_err, Error};
 use serde_json::Value;
@@ -1334,7 +1335,8 @@ pub fn catalog_media(
             drive.rewind()?;
             drive.read_label()?; // skip over labels - we already read them above
 
-            restore_media(&worker, &mut drive, &media_id, None, verbose)?;
+            let mut checked_chunks = HashMap::new();
+            restore_media(&worker, &mut drive, &media_id, None, &mut checked_chunks, verbose)?;
 
             Ok(())
         },
