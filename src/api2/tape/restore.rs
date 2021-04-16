@@ -516,7 +516,7 @@ fn restore_archive<'a>(
                     if is_new {
                         task_log!(worker, "restore snapshot {}", backup_dir);
 
-                        match restore_snapshot_archive(worker, reader, &path) {
+                        match restore_snapshot_archive(worker, reader, &path, &datastore) {
                             Err(err) => {
                                 std::fs::remove_dir_all(&path)?;
                                 bail!("restore snapshot {} failed - {}", backup_dir, err);
@@ -667,10 +667,11 @@ fn restore_snapshot_archive<'a>(
     worker: &WorkerTask,
     reader: Box<dyn 'a + TapeRead>,
     snapshot_path: &Path,
+    datastore: &DataStore,
 ) -> Result<bool, Error> {
 
     let mut decoder = pxar::decoder::sync::Decoder::from_std(reader)?;
-    match try_restore_snapshot_archive(worker, &mut decoder, snapshot_path) {
+    match try_restore_snapshot_archive(worker, &mut decoder, snapshot_path, datastore) {
         Ok(()) => Ok(true),
         Err(err) => {
             let reader = decoder.input();
@@ -695,6 +696,7 @@ fn try_restore_snapshot_archive<R: pxar::decoder::SeqRead>(
     worker: &WorkerTask,
     decoder: &mut pxar::decoder::sync::Decoder<R>,
     snapshot_path: &Path,
+    datastore: &DataStore,
 ) -> Result<(), Error> {
 
     let _root = match decoder.next() {
@@ -785,11 +787,13 @@ fn try_restore_snapshot_archive<R: pxar::decoder::SeqRead>(
                 let index = DynamicIndexReader::open(&archive_path)?;
                 let (csum, size) = index.compute_csum();
                 manifest.verify_file(&item.filename, &csum, size)?;
+                datastore.fast_index_verification(&index)?;
             }
             ArchiveType::FixedIndex => {
                 let index = FixedIndexReader::open(&archive_path)?;
                 let (csum, size) = index.compute_csum();
                 manifest.verify_file(&item.filename, &csum, size)?;
+                datastore.fast_index_verification(&index)?;
             }
             ArchiveType::Blob => {
                 let mut tmpfile = std::fs::File::open(&archive_path)?;
