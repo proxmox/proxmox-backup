@@ -320,6 +320,15 @@ pub fn restore(
                     .join(";")
             );
 
+            let mut datastore_locks = Vec::new();
+            for store_name in store_map.used_datastores() {
+                // explicit create shared lock to prevent GC on newly created chunks
+                if let Some(store) = store_map.get_datastore(store_name) {
+                    let shared_store_lock = store.try_shared_chunk_store_lock()?;
+                    datastore_locks.push(shared_store_lock);
+                }
+            }
+
             for media_id in media_id_list.iter() {
                 request_and_restore_media(
                     &worker,
@@ -332,6 +341,8 @@ pub fn restore(
                     &owner,
                 )?;
             }
+
+            drop(datastore_locks);
 
             task_log!(worker, "Restore mediaset '{}' done", media_set);
 
