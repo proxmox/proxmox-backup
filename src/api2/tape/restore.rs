@@ -305,11 +305,17 @@ pub fn restore(
                 task_log!(worker, "Encryption key fingerprint: {}", fingerprint);
             }
             task_log!(worker, "Pool: {}", pool);
-            task_log!(worker, "Datastore(s):");
-            store_map
-                .used_datastores()
-                .iter()
-                .for_each(|store| task_log!(worker, "\t{}", store));
+            task_log!(
+                worker,
+                "Datastore(s): {}",
+                store_map
+                    .used_datastores()
+                    .into_iter()
+                    .map(String::from)
+                    .collect::<Vec<String>>()
+                    .join(", "),
+            );
+
             task_log!(worker, "Drive: {}", drive);
             task_log!(
                 worker,
