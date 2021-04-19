@@ -244,6 +244,9 @@ Ext.define('PBS.DataStoreSummary', {
 	activate: function() { this.rrdstore.startUpdate(); },
 	deactivate: function() { this.rrdstore.stopUpdate(); },
 	destroy: function() { this.rrdstore.stopUpdate(); },
+	resize: function(panel) {
+	    Proxmox.Utils.updateColumns(panel);
+	},
     },
 
     initComponent: function() {
@@ -255,6 +258,14 @@ Ext.define('PBS.DataStoreSummary', {
 	});
 
 	me.callParent();
+
+	let sp = Ext.state.Manager.getProvider();
+	me.mon(sp, 'statechange', function(provider, key, value) {
+	    if (key !== 'summarycolumns') {
+		return;
+	    }
+	    Proxmox.Utils.updateColumns(me);
+	});
 
 	Proxmox.Utils.API2Request({
 	    url: `/config/datastore/${me.datastore}`,

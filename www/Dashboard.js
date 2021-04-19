@@ -111,6 +111,13 @@ Ext.define('PBS.Dashboard', {
 	    var sp = Ext.state.Manager.getProvider();
 	    var days = sp.get('dashboard-days') || 30;
 	    me.setDays(days, false);
+
+	    view.mon(sp, 'statechange', function(provider, key, value) {
+		if (key !== 'summarycolumns') {
+		    return;
+		}
+		Proxmox.Utils.updateColumns(view);
+	    });
 	},
     },
 
@@ -162,6 +169,12 @@ Ext.define('PBS.Dashboard', {
 	},
     },
 
+    listeners: {
+	resize: function(panel) {
+	    Proxmox.Utils.updateColumns(panel);
+	},
+    },
+
     title: gettext('Dashboard'),
 
     layout: {
@@ -169,6 +182,8 @@ Ext.define('PBS.Dashboard', {
     },
 
     bodyPadding: '20 0 0 20',
+
+    minWidth: 700,
 
     defaults: {
 	columnWidth: 0.49,

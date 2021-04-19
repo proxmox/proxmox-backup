@@ -30,6 +30,9 @@ Ext.define('PBS.window.Settings', {
 	    let username = sp.get('login-username') || Proxmox.Utils.noneText;
 	    me.lookupReference('savedUserName').setValue(Ext.String.htmlEncode(username));
 
+	    let summarycolumns = sp.get('summarycolumns', 'auto');
+	    me.lookup('summarycolumns').setValue(summarycolumns);
+
 	    let settings = ['fontSize', 'fontFamily', 'letterSpacing', 'lineHeight'];
 	    settings.forEach(function(setting) {
 		let val = localStorage.getItem('pve-xterm-' + setting);
@@ -114,6 +117,12 @@ Ext.define('PBS.window.Settings', {
 		    sp.clear('login-username');
 		},
 	    },
+	    'field[reference=summarycolumns]': {
+		change: function(el, newValue) {
+		    var sp = Ext.state.Manager.getProvider();
+		    sp.set('summarycolumns', newValue);
+		},
+	    },
 	},
     },
 
@@ -172,6 +181,23 @@ Ext.define('PBS.window.Settings', {
 			tooltip: gettext('Reset all layout changes (for example, column widths)'),
 			name: 'reset',
 		    },
+		],
+	    },
+	    {
+		xtype: 'box',
+		autoEl: { tag: 'hr' },
+	    },
+	    {
+		xtype: 'proxmoxKVComboBox',
+		fieldLabel: gettext('Summary/Dashboard columns') + ':',
+		labelWidth: 150,
+		stateId: 'summarycolumns',
+		reference: 'summarycolumns',
+		comboItems: [
+		    ['auto', 'auto'],
+		    ['1', '1'],
+		    ['2', '2'],
+		    ['3', '3'],
 		],
 	    },
 	],

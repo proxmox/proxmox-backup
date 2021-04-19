@@ -186,6 +186,11 @@ Ext.define('PBS.ServerStatus', {
 	    itemId: 'itemcontainer',
 	    layout: 'column',
 	    minWidth: 700,
+	    listeners: {
+		resize: function(panel) {
+		    Proxmox.Utils.updateColumns(panel);
+		},
+	    },
 	    defaults: {
 		minHeight: 320,
 		padding: 5,
@@ -267,6 +272,14 @@ Ext.define('PBS.ServerStatus', {
 	};
 
 	me.callParent();
+
+	let sp = Ext.state.Manager.getProvider();
+	me.mon(sp, 'statechange', function(provider, key, value) {
+	    if (key !== 'summarycolumns') {
+		return;
+	    }
+	    Proxmox.Utils.updateColumns(me.getComponent('itemcontainer'));
+	});
     },
 
 });
