@@ -82,6 +82,7 @@ JSSRC=							\
 	panel/AccessControl.js				\
 	panel/StorageAndDisks.js			\
 	panel/UsageChart.js				\
+	panel/NodeInfo.js				\
 	ZFSList.js					\
 	DirectoryList.js				\
 	LoginView.js					\

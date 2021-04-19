@@ -69,72 +69,6 @@ Ext.define('PBS.Dashboard', {
 	    me.lookup('subscription').setSubStatus(subStatus);
 	},
 
-	updateUsageStats: function(store, records, success) {
-	    if (!success) {
-		return;
-	    }
-	    if (records === undefined || records.length < 1) {
-		return;
-	    }
-	    let me = this;
-	    let viewmodel = me.getViewModel();
-
-	    let res = records[0].data;
-	    viewmodel.set('fingerprint', res.info.fingerprint || Proxmox.Utils.unknownText);
-
-	    let cpu = res.cpu,
-	        mem = res.memory,
-	        root = res.root;
-
-	    var cpuPanel = me.lookup('cpu');
-	    cpuPanel.updateValue(cpu);
-
-	    var memPanel = me.lookup('mem');
-	    memPanel.updateValue(mem.used / mem.total);
-
-	    var hdPanel = me.lookup('root');
-	    hdPanel.updateValue(root.used / root.total);
-	},
-
-	showFingerPrint: function() {
-	    let me = this;
-	    let vm = me.getViewModel();
-	    let fingerprint = vm.get('fingerprint');
-	    Ext.create('Ext.window.Window', {
-		modal: true,
-		width: 600,
-		title: gettext('Fingerprint'),
-		layout: 'form',
-		bodyPadding: '10 0',
-		items: [
-		    {
-			xtype: 'textfield',
-			inputId: 'fingerprintField',
-			value: fingerprint,
-			editable: false,
-		    },
-		],
-		buttons: [
-		    {
-			xtype: 'button',
-			iconCls: 'fa fa-clipboard',
-			handler: function(b) {
-			    var el = document.getElementById('fingerprintField');
-			    el.select();
-			    document.execCommand("copy");
-			},
-			text: gettext('Copy'),
-		    },
-		    {
-			text: gettext('Ok'),
-			handler: function() {
-			    this.up('window').close();
-			},
-		    },
-		],
-	    }).show();
-	},
-
 	updateTasks: function(store, records, success) {
 	    if (!success) return;
 	    let me = this;
@@ -182,31 +116,14 @@ Ext.define('PBS.Dashboard', {
 
     viewModel: {
 	data: {
-	    fingerprint: "",
 	    days: 30,
 	},
 
 	formulas: {
-	    disableFPButton: (get) => get('fingerprint') === "",
 	    sinceEpoch: (get) => (Date.now()/1000 - get('days') * 24*3600).toFixed(0),
 	},
 
 	stores: {
-	    usage: {
-		storeid: 'dash-usage',
-		type: 'update',
-		interval: 3000,
-		autoStart: true,
-		autoLoad: true,
-		autoDestroy: true,
-		proxy: {
-		    type: 'proxmox',
-		    url: '/api2/json/nodes/localhost/status',
-		},
-		listeners: {
-		    load: 'updateUsageStats',
-		},
-	    },
 	    subscription: {
 		storeid: 'dash-subscription',
 		type: 'update',
@@ -271,43 +188,11 @@ Ext.define('PBS.Dashboard', {
 
     items: [
 	{
+	    xtype: 'pbsNodeInfoPanel',
+	    bind: {
+		store: '{stores.usage}',
+	    },
 	    height: 250,
-	    iconCls: 'fa fa-tasks',
-	    title: gettext('Server Resources'),
-	    bodyPadding: '0 20 0 20',
-	    tools: [
-		{
-		    xtype: 'button',
-		    text: gettext('Show Fingerprint'),
-		    handler: 'showFingerPrint',
-		    bind: {
-			disabled: '{disableFPButton}',
-		    },
-		},
-	    ],
-	    layout: {
-		type: 'hbox',
-		align: 'center',
-	    },
-	    defaults: {
-		xtype: 'proxmoxGauge',
-		spriteFontSize: '20px',
-		flex: 1,
-	    },
-	    items: [
-		{
-		    title: gettext('CPU'),
-		    reference: 'cpu',
-		},
-		{
-		    title: gettext('Memory'),
-		    reference: 'mem',
-		},
-		{
-		    title: gettext('Root Disk'),
-		    reference: 'root',
-		},
-	    ],
 	},
 	{
 	    xtype: 'pbsDatastoresStatistics',
