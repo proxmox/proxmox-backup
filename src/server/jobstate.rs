@@ -69,8 +69,12 @@ pub enum JobState {
     Created { time: i64 },
     /// The Job was last started in 'upid',
     Started { upid: String },
-    /// The Job was last started in 'upid', which finished with 'state'
-    Finished { upid: String, state: TaskState },
+    /// The Job was last started in 'upid', which finished with 'state', and was last updated at 'updated'
+    Finished {
+        upid: String,
+        state: TaskState,
+        updated: Option<i64>,
+    },
 }
 
 /// Represents a Job and holds the correct lock
@@ -147,12 +151,46 @@ pub fn create_state_file(jobtype: &str, jobname: &str) -> Result<(), Error> {
     job.write_state()
 }
 
+/// Tries to update the state file with the current time
+/// if the job is currently running, does nothing,
+pub fn try_update_state_file(jobtype: &str, jobname: &str) -> Result<(), Error> {
+    let mut job = match Job::new(jobtype, jobname) {
+        Ok(job) => job,
+        Err(_) => return Ok(()), // was locked (running), so do not update
+    };
+    let time = proxmox::tools::time::epoch_i64();
+
+    job.state = match JobState::load(jobtype, jobname)? {
+        JobState::Created { .. } => JobState::Created { time },
+        JobState::Started { .. } => return Ok(()), // currently running (without lock?)
+        JobState::Finished {
+            upid,
+            state,
+            updated: _,
+        } => JobState::Finished {
+            upid,
+            state,
+            updated: Some(time),
+        },
+    };
+    job.write_state()
+}
+
 /// Returns the last run time of a job by reading the statefile
 /// Note that this is not locked
 pub fn last_run_time(jobtype: &str, jobname: &str) -> Result<i64, Error> {
     match JobState::load(jobtype, jobname)? {
         JobState::Created { time } => Ok(time),
-        JobState::Started { upid } | JobState::Finished { upid, .. } => {
+        JobState::Finished {
+            updated: Some(time),
+            ..
+        } => Ok(time),
+        JobState::Started { upid }
+        | JobState::Finished {
+            upid,
+            state: _,
+            updated: None,
+        } => {
             let upid: UPID = upid
                 .parse()
                 .map_err(|err| format_err!("could not parse upid from state: {}", err))?;
@@ -180,7 +218,11 @@ impl JobState {
                         let state = upid_read_status(&parsed)
                             .map_err(|err| format_err!("error reading upid log status: {}", err))?;
 
-                        Ok(JobState::Finished { upid, state })
+                        Ok(JobState::Finished {
+                            upid,
+                            state,
+                            updated: None,
+                        })
                     } else {
                         Ok(JobState::Started { upid })
                     }
@@ -240,7 +282,11 @@ impl Job {
         }
         .to_string();
 
-        self.state = JobState::Finished { upid, state };
+        self.state = JobState::Finished {
+            upid,
+            state,
+            updated: None,
+        };
 
         self.write_state()
     }
@@ -274,17 +320,25 @@ pub fn compute_schedule_status(
     job_state: &JobState,
     schedule: Option<&str>,
 ) -> Result<JobScheduleStatus, Error> {
-
-    let (upid, endtime, state, starttime) = match job_state {
+    let (upid, endtime, state, last) = match job_state {
         JobState::Created { time } => (None, None, None, *time),
         JobState::Started { upid } => {
             let parsed_upid: UPID = upid.parse()?;
             (Some(upid), None, None, parsed_upid.starttime)
-        },
-        JobState::Finished { upid, state } => {
-            let parsed_upid: UPID = upid.parse()?;
-            (Some(upid), Some(state.endtime()), Some(state.to_string()), parsed_upid.starttime)
-        },
+        }
+        JobState::Finished {
+            upid,
+            state,
+            updated,
+        } => {
+            let last = updated.unwrap_or_else(|| state.endtime());
+            (
+                Some(upid),
+                Some(state.endtime()),
+                Some(state.to_string()),
+                last,
+            )
+        }
     };
 
     let mut status = JobScheduleStatus::default();
@@ -292,10 +346,8 @@ pub fn compute_schedule_status(
     status.last_run_state = state;
     status.last_run_endtime = endtime;
 
-    let last = endtime.unwrap_or(starttime);
-
     if let Some(schedule) = schedule {
-        if let Ok(event) =  parse_calendar_event(&schedule) {
+        if let Ok(event) = parse_calendar_event(&schedule) {
             // ignore errors
             status.next_run = compute_next_event(&event, last, false).unwrap_or(None);
         }

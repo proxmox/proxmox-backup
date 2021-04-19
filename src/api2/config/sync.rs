@@ -333,6 +333,7 @@ pub fn update_sync_job(
     if let Some(remote_store) = remote_store { data.remote_store = remote_store; }
     if let Some(owner) = owner { data.owner = Some(owner); }
 
+    let schedule_changed = data.schedule != schedule;
     if schedule.is_some() { data.schedule = schedule; }
     if remove_vanished.is_some() { data.remove_vanished = remove_vanished; }
 
@@ -343,6 +344,10 @@ pub fn update_sync_job(
     config.set_data(&id, "sync", &data)?;
 
     sync::save_config(&config)?;
+
+    if schedule_changed {
+        crate::server::jobstate::try_update_state_file("syncjob", &id)?;
+    }
 
     Ok(())
 }

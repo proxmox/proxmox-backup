@@ -266,6 +266,7 @@ pub fn update_tape_backup_job(
     if latest_only.is_some() { data.setup.latest_only = latest_only; }
     if notify_user.is_some() { data.setup.notify_user = notify_user; }
 
+    let schedule_changed = data.schedule != schedule;
     if schedule.is_some() { data.schedule = schedule; }
 
     if let Some(comment) = comment {
@@ -280,6 +281,10 @@ pub fn update_tape_backup_job(
     config.set_data(&id, "backup", &data)?;
 
     config::tape_job::save_config(&config)?;
+
+    if schedule_changed {
+        crate::server::jobstate::try_update_state_file("tape-backup-job", &id)?;
+    }
 
     Ok(())
 }
