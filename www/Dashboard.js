@@ -189,14 +189,11 @@ Ext.define('PBS.Dashboard', {
     items: [
 	{
 	    xtype: 'pbsNodeInfoPanel',
-	    bind: {
-		store: '{stores.usage}',
-	    },
-	    height: 250,
+	    height: 280,
 	},
 	{
 	    xtype: 'pbsDatastoresStatistics',
-	    height: 250,
+	    height: 280,
 	},
 	{
 	    xtype: 'pbsLongestTasks',

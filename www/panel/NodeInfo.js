@@ -1,9 +1,24 @@
 Ext.define('PBS.NodeInfoPanel', {
-    extend: 'Ext.panel.Panel',
+    extend: 'Proxmox.panel.StatusView',
     alias: 'widget.pbsNodeInfoPanel',
 
-    iconCls: 'fa fa-tasks',
-    title: gettext('Server Resources'),
+    height: 300,
+    bodyPadding: '20 15 20 15',
+
+    layout: {
+	type: 'table',
+	columns: 2,
+	tableAttrs: {
+	    style: {
+		width: '100%',
+	    },
+	},
+    },
+
+    defaults: {
+	xtype: 'pmxInfoWidget',
+	padding: '0 15 5 15',
+    },
 
     controller: {
 	xclass: 'Ext.app.ViewController',
@@ -46,72 +61,7 @@ Ext.define('PBS.NodeInfoPanel', {
 		],
 	    }).show();
 	},
-
-	updateUsageStats: function(store, records, success) {
-	    if (!success) {
-		return;
-	    }
-	    if (records === undefined || records.length < 1) {
-		return;
-	    }
-	    let me = this;
-	    let view = me.getView();
-
-	    let res = records[0].data;
-	    view.fingerprint = res.info.fingerprint;
-
-	    me.lookup('fpButton').setDisabled(!view.fingerprint);
-
-	    let cpu = res.cpu,
-		mem = res.memory,
-		root = res.root;
-
-	    var cpuPanel = me.lookup('cpu');
-	    cpuPanel.updateValue(cpu);
-
-	    var memPanel = me.lookup('mem');
-	    memPanel.updateValue(mem.used / mem.total);
-
-	    var hdPanel = me.lookup('root');
-	    hdPanel.updateValue(root.used / root.total);
-	},
-
-	init: function(view) {
-	    let me = this;
-
-	    view.store = Ext.create('Proxmox.data.UpdateStore', {
-		interval: 3000,
-		proxy: {
-		    type: 'proxmox',
-		    url: '/api2/json/nodes/localhost/status',
-		},
-	    });
-
-	    me.mon(view.store, 'load', me.updateUsageStats, me);
-
-	    view.store.startUpdate();
-	},
-
-	startStore: function() {
-	    let me = this;
-	    let view = me.getView();
-	    view.store.startUpdate();
-	},
-
-	stopStore: function() {
-	    let me = this;
-	    let view = me.getView();
-	    view.store.stopUpdate();
-	},
     },
-
-    listeners: {
-	activate: 'startStore',
-	deactivate: 'stopStore',
-	destroy: 'stopStore',
-    },
-
-    bodyPadding: '0 20 0 20',
 
     tools: [
 	{
@@ -123,29 +73,108 @@ Ext.define('PBS.NodeInfoPanel', {
 	},
     ],
 
-    layout: {
-	type: 'hbox',
-	align: 'center',
-    },
-
-    defaults: {
-	xtype: 'proxmoxGauge',
-	spriteFontSize: '20px',
-	flex: 1,
-    },
-
     items: [
 	{
-	    title: gettext('CPU'),
-	    reference: 'cpu',
+	    itemId: 'cpu',
+	    iconCls: 'fa fa-fw pmx-itype-icon-processor pmx-icon',
+	    title: gettext('CPU usage'),
+	    valueField: 'cpu',
+	    maxField: 'cpuinfo',
+	    renderer: Proxmox.Utils.render_node_cpu_usage,
 	},
 	{
-	    title: gettext('Memory'),
-	    reference: 'mem',
+	    itemId: 'wait',
+	    iconCls: 'fa fa-fw fa-clock-o',
+	    title: gettext('IO delay'),
+	    valueField: 'wait',
 	},
 	{
-	    title: gettext('Root Disk'),
-	    reference: 'root',
+	    xtype: 'box',
+	    colspan: 2,
+	    padding: '0 0 20 0',
+	},
+	{
+	    iconCls: 'fa fa-fw pmx-itype-icon-memory pmx-icon',
+	    itemId: 'memory',
+	    title: gettext('RAM usage'),
+	    valueField: 'memory',
+	    maxField: 'memory',
+	    renderer: Proxmox.Utils.render_node_size_usage,
+	},
+	{
+	    itemId: 'load',
+	    iconCls: 'fa fa-fw fa-tasks',
+	    title: gettext('Load average'),
+	    printBar: false,
+	    textField: 'loadavg',
+	},
+	{
+	    iconCls: 'fa fa-fw fa-hdd-o',
+	    itemId: 'rootfs',
+	    title: gettext('HD space') + '(root)',
+	    valueField: 'root',
+	    maxField: 'root',
+	    renderer: Proxmox.Utils.render_node_size_usage,
+	},
+	{
+	    iconCls: 'fa fa-fw fa-refresh',
+	    itemId: 'swap',
+	    printSize: true,
+	    title: gettext('SWAP usage'),
+	    valueField: 'swap',
+	    maxField: 'swap',
+	    renderer: Proxmox.Utils.render_node_size_usage,
+	},
+	{
+	    xtype: 'box',
+	    colspan: 2,
+	    padding: '0 0 20 0',
+	},
+	{
+	    itemId: 'cpus',
+	    colspan: 2,
+	    printBar: false,
+	    title: gettext('CPU(s)'),
+	    textField: 'cpuinfo',
+	    renderer: Proxmox.Utils.render_cpu_model,
+	    value: '',
+	},
+	{
+	    itemId: 'kversion',
+	    colspan: 2,
+	    title: gettext('Kernel Version'),
+	    printBar: false,
+	    textField: 'kversion',
+	    value: '',
 	},
     ],
+
+    updateTitle: function() {
+	var me = this;
+	var uptime = Proxmox.Utils.render_uptime(me.getRecordValue('uptime'));
+	me.setTitle(Proxmox.NodeName + ' (' + gettext('Uptime') + ': ' + uptime + ')');
+    },
+
+    initComponent: function() {
+	let me = this;
+
+	me.rstore = Ext.create('Proxmox.data.ObjectStore', {
+	    interval: 3000,
+	    url: '/api2/json/nodes/localhost/status',
+	    autoStart: true,
+	});
+
+	me.callParent();
+
+	me.mon(me.rstore, 'load', function(store, records, success) {
+	    if (!success) {
+		return;
+	    }
+
+	    let info = me.getRecordValue('info');
+	    me.fingerprint = info.fingerprint;
+	    me.lookup('fpButton').setDisabled(!me.fingerprint);
+	});
+	me.on('destroy', function() { me.rstore.stopUpdate(); });
+    },
 });
