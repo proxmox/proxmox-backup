@@ -12,6 +12,16 @@ use crate::api2::types::*;
 use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_POWER_MANAGEMENT};
 use crate::tools::cert::CertInfo;
 
+impl std::convert::From<procfs::ProcFsCPUInfo> for NodeCpuInformation {
+    fn from(info: procfs::ProcFsCPUInfo) -> Self {
+        Self {
+            model: info.model,
+            sockets: info.sockets,
+            cpus: info.cpus,
+        }
+    }
+}
+
 #[api(
     input: {
         properties: {
@@ -40,13 +50,40 @@ fn get_status(
         free: meminfo.memfree,
     };
 
+    let swap = NodeSwapCounters {
+        total: meminfo.swaptotal,
+        used: meminfo.swapused,
+        free: meminfo.swapfree,
+    };
+
     let kstat: procfs::ProcFsStat = procfs::read_proc_stat()?;
     let cpu = kstat.cpu;
+    let wait = kstat.iowait_percent;
+
+    let loadavg = procfs::Loadavg::read()?;
+    let loadavg = [loadavg.one(), loadavg.five(), loadavg.fifteen()];
+
+    let cpuinfo = procfs::read_cpuinfo()?;
+    let cpuinfo = cpuinfo.into();
+
+    let uname = nix::sys::utsname::uname();
+    let kversion = format!(
+        "{} {} {}",
+        uname.sysname(),
+        uname.release(),
+        uname.version()
+    );
 
     Ok(NodeStatus {
         memory,
+        swap,
         root: crate::tools::disks::disk_usage(Path::new("/"))?,
+        uptime: procfs::read_proc_uptime()?.0 as u64,
+        loadavg,
+        kversion,
+        cpuinfo,
         cpu,
+        wait,
         info: NodeInformation {
             fingerprint: CertInfo::new()?.fingerprint()?,
         },
