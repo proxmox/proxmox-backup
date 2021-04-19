@@ -2,7 +2,7 @@ use std::process::Command;
 use std::path::Path;
 
 use anyhow::{Error, format_err, bail};
-use serde_json::{json, Value};
+use serde_json::Value;
 
 use proxmox::sys::linux::procfs;
 
@@ -21,43 +21,7 @@ use crate::tools::cert::CertInfo;
         },
     },
     returns: {
-        type: Object,
-        description: "Returns node memory, CPU and (root) disk usage",
-        properties: {
-            memory: {
-                type: Object,
-                description: "node memory usage counters",
-                properties: {
-                    total: {
-                        description: "total memory",
-                        type: Integer,
-                    },
-                    used: {
-                        description: "total memory",
-                        type: Integer,
-                    },
-                    free: {
-                        description: "free memory",
-                        type: Integer,
-                    },
-                },
-            },
-            cpu: {
-                type: Number,
-                description: "Total CPU usage since last query.",
-                optional: true,
-            },
-            info: {
-                type: Object,
-                description: "contains node information",
-                properties: {
-                    fingerprint: {
-                        description: "The SSL Fingerprint",
-                        type: String,
-                    },
-                },
-            },
-        },
+        type: NodeStatus,
     },
     access: {
         permission: &Permission::Privilege(&["system", "status"], PRIV_SYS_AUDIT, false),
@@ -68,32 +32,25 @@ fn get_status(
     _param: Value,
     _info: &ApiMethod,
     _rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Value, Error> {
-
+) -> Result<NodeStatus, Error> {
     let meminfo: procfs::ProcFsMemInfo = procfs::read_meminfo()?;
+    let memory = NodeMemoryCounters {
+        total: meminfo.memtotal,
+        used: meminfo.memused,
+        free: meminfo.memfree,
+    };
+
     let kstat: procfs::ProcFsStat = procfs::read_proc_stat()?;
-    let disk_usage = crate::tools::disks::disk_usage(Path::new("/"))?;
+    let cpu = kstat.cpu;
 
-    // get fingerprint
-    let cert = CertInfo::new()?;
-    let fp = cert.fingerprint()?;
-
-    Ok(json!({
-        "memory": {
-            "total": meminfo.memtotal,
-            "used": meminfo.memused,
-            "free": meminfo.memfree,
+    Ok(NodeStatus {
+        memory,
+        root: crate::tools::disks::disk_usage(Path::new("/"))?,
+        cpu,
+        info: NodeInformation {
+            fingerprint: CertInfo::new()?.fingerprint()?,
         },
-        "cpu": kstat.cpu,
-        "root": {
-            "total": disk_usage.total,
-            "used": disk_usage.used,
-            "free": disk_usage.avail,
-        },
-        "info": {
-            "fingerprint": fp,
-        },
-    }))
+    })
 }
 
 #[api(
