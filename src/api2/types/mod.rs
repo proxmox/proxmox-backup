@@ -751,9 +751,8 @@ impl Default for GarbageCollectionStatus {
     }
 }
 
-
 #[api()]
-#[derive(Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize)]
 /// Storage space usage information.
 pub struct StorageStatus {
     /// Total space (bytes).
@@ -1506,4 +1505,50 @@ pub struct JobScheduleStatus {
     pub last_run_upid: Option<String>,
     #[serde(skip_serializing_if="Option::is_none")]
     pub last_run_endtime: Option<i64>,
+}
+
+#[api]
+#[derive(Serialize, Deserialize, Default)]
+#[serde(rename_all = "kebab-case")]
+/// Node memory usage counters
+pub struct NodeMemoryCounters {
+    /// Total memory
+    pub total: u64,
+    /// Used memory
+    pub used: u64,
+    /// Free memory
+    pub free: u64,
+}
+
+#[api]
+#[derive(Serialize,Deserialize,Default)]
+#[serde(rename_all = "kebab-case")]
+/// Contains general node information such as the fingerprint`
+pub struct NodeInformation {
+    /// The SSL Fingerprint
+    pub fingerprint: String,
+}
+
+#[api(
+    properties: {
+        memory: {
+            type: NodeMemoryCounters,
+        },
+        root: {
+            type: StorageStatus,
+        },
+        info: {
+            type: NodeInformation,
+        }
+    },
+)]
+#[derive(Serialize, Deserialize, Default)]
+#[serde(rename_all = "kebab-case")]
+/// The Node status
+pub struct NodeStatus {
+    pub memory: NodeMemoryCounters,
+    pub root: StorageStatus,
+    /// Total CPU usage since last query.
+    pub cpu: f64,
+    pub info: NodeInformation,
 }
