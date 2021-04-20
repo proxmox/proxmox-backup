@@ -170,6 +170,10 @@ pub fn is_valid_xattr_name(c_name: &CStr) -> bool {
     if name.starts_with(b"user.") || name.starts_with(b"trusted.") {
         return true;
     }
+    // samba saves windows ACLs there
+    if name == b"security.NTACL" {
+        return true;
+    }
     is_security_capability(c_name)
 }
 
