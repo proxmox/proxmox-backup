@@ -48,7 +48,7 @@ pub fn list_dir_content<R: Read + Seek>(
         let mut components = path.clone();
         components.push(b'/');
         components.extend(&direntry.name);
-        let mut entry = ArchiveEntry::new(&components, &direntry.attr);
+        let mut entry = ArchiveEntry::new(&components, Some(&direntry.attr));
         if let DirEntryAttribute::File { size, mtime } = direntry.attr {
             entry.size = size.into();
             entry.mtime = mtime.into();

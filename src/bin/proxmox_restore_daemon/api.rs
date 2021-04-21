@@ -148,7 +148,7 @@ fn list(
             match root_entry {
                 DirEntryAttribute::File { .. } => {
                     // list on file, return details
-                    res.push(ArchiveEntry::new(&param_path, &root_entry));
+                    res.push(ArchiveEntry::new(&param_path, Some(&root_entry)));
                 }
                 DirEntryAttribute::Directory { .. } => {
                     // list on directory, return all contained files/dirs
@@ -176,7 +176,7 @@ fn list(
                             if let Ok(entry) = entry {
                                 res.push(ArchiveEntry::new(
                                     full_path.as_os_str().as_bytes(),
-                                    &entry,
+                                    Some(&entry),
                                 ));
                             }
                         }
@@ -192,7 +192,7 @@ fn list(
                 t_path.extend(t.as_bytes());
                 res.push(ArchiveEntry::new(
                     &t_path[..],
-                    &DirEntryAttribute::Directory { start: 0 },
+                    None,
                 ));
             }
         }
@@ -203,7 +203,8 @@ fn list(
                 c_path.extend(c.as_bytes());
                 res.push(ArchiveEntry::new(
                     &c_path[..],
-                    &DirEntryAttribute::Directory { start: 0 },
+                    // this marks the beginning of a filesystem, i.e. '/', so this is a Directory
+                    Some(&DirEntryAttribute::Directory { start: 0 }),
                 ));
             }
         }

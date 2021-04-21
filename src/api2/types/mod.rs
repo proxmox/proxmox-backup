@@ -1354,19 +1354,22 @@ pub struct ArchiveEntry {
 }
 
 impl ArchiveEntry {
-    pub fn new(filepath: &[u8], entry_type: &DirEntryAttribute) -> Self {
+    pub fn new(filepath: &[u8], entry_type: Option<&DirEntryAttribute>) -> Self {
         Self {
             filepath: base64::encode(filepath),
             text: String::from_utf8_lossy(filepath.split(|x| *x == b'/').last().unwrap())
                 .to_string(),
-            entry_type: CatalogEntryType::from(entry_type).to_string(),
-            leaf: !matches!(entry_type, DirEntryAttribute::Directory { .. }),
+            entry_type: match entry_type {
+                Some(entry_type) => CatalogEntryType::from(entry_type).to_string(),
+                None => "v".to_owned(),
+            },
+            leaf: !matches!(entry_type, None | Some(DirEntryAttribute::Directory { .. })),
             size: match entry_type {
-                DirEntryAttribute::File { size, .. } => Some(*size),
+                Some(DirEntryAttribute::File { size, .. }) => Some(*size),
                 _ => None
             },
             mtime: match entry_type {
-                DirEntryAttribute::File { mtime, .. } => Some(*mtime),
+                Some(DirEntryAttribute::File { mtime, .. }) => Some(*mtime),
                 _ => None
             },
         }

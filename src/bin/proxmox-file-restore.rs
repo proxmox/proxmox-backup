@@ -174,8 +174,13 @@ async fn list(
                     continue;
                 }
                 let path = format!("/{}", file.filename);
-                let attr = DirEntryAttribute::Directory { start: 0 };
-                entries.push(ArchiveEntry::new(path.as_bytes(), &attr));
+                let attr = if file.filename.ends_with(".pxar.didx") {
+                    // a pxar file is a file archive, so it's root is also a directory root
+                    Some(&DirEntryAttribute::Directory { start: 0 })
+                } else {
+                    None
+                };
+                entries.push(ArchiveEntry::new(path.as_bytes(), attr));
             }
 
             Ok(entries)
