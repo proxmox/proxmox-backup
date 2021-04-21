@@ -1,5 +1,4 @@
 use anyhow::{Error, format_err, bail};
-use lazy_static::lazy_static;
 use std::task::{Context, Poll};
 use std::os::unix::io::AsRawFd;
 use std::collections::HashMap;
@@ -21,68 +20,85 @@ use crate::tools::{
     },
 };
 
-lazy_static! {
-    static ref HTTP_CLIENT: Client<HttpsConnector, Body> = {
-        let connector = SslConnector::builder(SslMethod::tls()).unwrap().build();
-        let httpc = HttpConnector::new();
-        let https = HttpsConnector::with_connector(httpc, connector);
-        Client::builder().build(https)
-    };
+/// Asyncrounous HTTP client implementation
+pub struct SimpleHttp {
+    client: Client<HttpsConnector, Body>,
 }
 
-pub async fn get_string(uri: &str, extra_headers: Option<&HashMap<String, String>>) -> Result<String, Error> {
-    let mut request = Request::builder()
-        .method("GET")
-        .uri(uri)
-        .header("User-Agent", "proxmox-backup-client/1.0");
+impl SimpleHttp {
 
-    if let Some(hs) = extra_headers {
-        for (h, v) in hs.iter() {
-            request = request.header(h, v);
+    pub fn new() -> Self {
+        let ssl_connector = SslConnector::builder(SslMethod::tls()).unwrap().build();
+        Self::with_ssl_connector(ssl_connector)
+    }
+
+    pub fn with_ssl_connector(ssl_connector: SslConnector) -> Self {
+        let connector = HttpConnector::new();
+        let https = HttpsConnector::with_connector(connector, ssl_connector);
+        let client = Client::builder().build(https);
+        Self { client }
+    }
+
+    pub async fn post(
+        &mut self,
+        uri: &str,
+        body: Option<String>,
+        content_type: Option<&str>,
+    ) -> Result<Response<Body>, Error> {
+
+        let body = if let Some(body) = body {
+            Body::from(body)
+        } else {
+            Body::empty()
+        };
+        let content_type = content_type.unwrap_or("application/json");
+
+        let request = Request::builder()
+            .method("POST")
+            .uri(uri)
+            .header("User-Agent", "proxmox-backup-client/1.0")
+            .header(hyper::header::CONTENT_TYPE, content_type)
+            .body(body)?;
+
+        self.client.request(request)
+            .map_err(Error::from)
+            .await
+    }
+
+    pub async fn get_string(
+        &mut self,
+        uri: &str,
+        extra_headers: Option<&HashMap<String, String>>,
+    ) -> Result<String, Error> {
+
+        let mut request = Request::builder()
+            .method("GET")
+            .uri(uri)
+            .header("User-Agent", "proxmox-backup-client/1.0");
+
+        if let Some(hs) = extra_headers {
+            for (h, v) in hs.iter() {
+                request = request.header(h, v);
+            }
         }
+
+        let request = request.body(Body::empty())?;
+
+        let res = self.client.request(request).await?;
+
+        let status = res.status();
+        if !status.is_success() {
+            bail!("Got bad status '{}' from server", status)
+        }
+
+        Self::response_body_string(res).await
     }
 
-    let request = request.body(Body::empty())?;
-
-    let res = HTTP_CLIENT.request(request).await?;
-
-    let status = res.status();
-    if !status.is_success() {
-        bail!("Got bad status '{}' from server", status)
+    pub async fn response_body_string(res: Response<Body>) -> Result<String, Error> {
+        let buf = hyper::body::to_bytes(res).await?;
+        String::from_utf8(buf.to_vec())
+            .map_err(|err| format_err!("Error converting HTTP result data: {}", err))
     }
-
-    response_body_string(res).await
-}
-
-pub async fn response_body_string(res: Response<Body>) -> Result<String, Error> {
-    let buf = hyper::body::to_bytes(res).await?;
-    String::from_utf8(buf.to_vec())
-        .map_err(|err| format_err!("Error converting HTTP result data: {}", err))
-}
-
-pub async fn post(
-    uri: &str,
-    body: Option<String>,
-    content_type: Option<&str>,
-) -> Result<Response<Body>, Error> {
-    let body = if let Some(body) = body {
-        Body::from(body)
-    } else {
-        Body::empty()
-    };
-    let content_type = content_type.unwrap_or("application/json");
-
-    let request = Request::builder()
-        .method("POST")
-        .uri(uri)
-        .header("User-Agent", "proxmox-backup-client/1.0")
-        .header(hyper::header::CONTENT_TYPE, content_type)
-        .body(body)?;
-
-
-    HTTP_CLIENT.request(request)
-        .map_err(Error::from)
-        .await
 }
 
 #[derive(Clone)]

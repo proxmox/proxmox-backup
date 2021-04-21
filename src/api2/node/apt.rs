@@ -7,7 +7,7 @@ use proxmox::api::{api, RpcEnvironment, RpcEnvironmentType, Permission};
 use proxmox::api::router::{Router, SubdirMap};
 
 use crate::server::WorkerTask;
-use crate::tools::{apt, http, subscription};
+use crate::tools::{apt, http::SimpleHttp, subscription};
 
 use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 use crate::api2::types::{Authid, APTUpdateInfo, NODE_SCHEMA, UPID_SCHEMA};
@@ -194,10 +194,12 @@ fn apt_get_changelog(
         bail!("Package '{}' not found", name);
     }
 
+    let mut client = SimpleHttp::new();
+
     let changelog_url = &pkg_info[0].change_log_url;
     // FIXME: use 'apt-get changelog' for proxmox packages as well, once repo supports it
     if changelog_url.starts_with("http://download.proxmox.com/") {
-        let changelog = crate::tools::runtime::block_on(http::get_string(changelog_url, None))
+        let changelog = crate::tools::runtime::block_on(client.get_string(changelog_url, None))
             .map_err(|err| format_err!("Error downloading changelog from '{}': {}", changelog_url, err))?;
         Ok(json!(changelog))
 
@@ -221,7 +223,7 @@ fn apt_get_changelog(
         auth_header.insert("Authorization".to_owned(),
             format!("Basic {}", base64::encode(format!("{}:{}", key, id))));
 
-        let changelog = crate::tools::runtime::block_on(http::get_string(changelog_url, Some(&auth_header)))
+        let changelog = crate::tools::runtime::block_on(client.get_string(changelog_url, Some(&auth_header)))
             .map_err(|err| format_err!("Error downloading changelog from '{}': {}", changelog_url, err))?;
         Ok(json!(changelog))
 

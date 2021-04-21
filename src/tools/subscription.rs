@@ -6,8 +6,7 @@ use regex::Regex;
 
 use proxmox::api::api;
 
-use crate::tools;
-use crate::tools::http;
+use crate::tools::{self, http::SimpleHttp};
 use proxmox::tools::fs::{replace_file, CreateOptions};
 
 /// How long the local key is valid for in between remote checks
@@ -102,10 +101,13 @@ async fn register_subscription(
         "ip": "localhost",
         "check_token": challenge,
     });
+
+    let mut client = SimpleHttp::new();
+
     let uri = "https://shop.maurer-it.com/modules/servers/licensing/verify.php";
     let query = tools::json_object_to_query(params)?;
-    let response = http::post(uri, Some(query), Some("application/x-www-form-urlencoded")).await?;
-    let body = http::response_body_string(response).await?;
+    let response = client.post(uri, Some(query), Some("application/x-www-form-urlencoded")).await?;
+    let body = SimpleHttp::response_body_string(response).await?;
 
     Ok((body, challenge))
 }
