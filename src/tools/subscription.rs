@@ -102,7 +102,7 @@ async fn register_subscription(
         "check_token": challenge,
     });
 
-    let mut client = SimpleHttp::new();
+    let mut client = SimpleHttp::new(None); // TODO: pass proxy_config
 
     let uri = "https://shop.maurer-it.com/modules/servers/licensing/verify.php";
     let query = tools::json_object_to_query(params)?;

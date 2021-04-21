@@ -194,7 +194,7 @@ fn apt_get_changelog(
         bail!("Package '{}' not found", name);
     }
 
-    let mut client = SimpleHttp::new();
+    let mut client = SimpleHttp::new(None); // TODO: pass proxy_config
 
     let changelog_url = &pkg_info[0].change_log_url;
     // FIXME: use 'apt-get changelog' for proxmox packages as well, once repo supports it
