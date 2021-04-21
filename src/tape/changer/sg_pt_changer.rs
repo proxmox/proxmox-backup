@@ -593,6 +593,8 @@ fn decode_element_status_page(
                     break;
                 }
 
+                let len_before = reader.len();
+
                 match subhead.element_type_code {
                     1 => {
                         let desc: TrasnsportDescriptor = unsafe { reader.read_be_value()? };
@@ -692,6 +694,19 @@ fn decode_element_status_page(
                         result.drives.push(drive);
                     }
                     code => bail!("got unknown element type code {}", code),
+                }
+
+                // we have to consume the whole descriptor size, else
+                // our position in the reader is not correct
+                let len_after = reader.len();
+                let have_read = len_before - len_after;
+                let desc_len = subhead.descriptor_length as usize;
+                if desc_len > have_read {
+                    let mut left_to_read = desc_len - have_read;
+                    if left_to_read > len_after {
+                        left_to_read = len_after; // reader has not enough data?
+                    }
+                    let _ = reader.read_exact_allocated(left_to_read)?;
                 }
             }
         }
