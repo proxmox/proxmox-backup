@@ -94,7 +94,7 @@ async fn cleanup_map(map: &mut HashMap<String, VMState>) -> bool {
         if res.is_err() {
             // VM is not reachable, remove from map and inform user
             to_remove.push(name.clone());
-            println!(
+            eprintln!(
                 "VM '{}' (pid: {}, cid: {}) was not reachable, removing from map",
                 name, state.pid, state.cid
             );
@@ -129,7 +129,7 @@ async fn ensure_running(details: &SnapRestoreDetails) -> Result<VsockClient, Err
                     return Ok(client);
                 }
                 Err(err) => {
-                    println!("stale VM detected, restarting ({})", err);
+                    eprintln!("stale VM detected, restarting ({})", err);
                     // VM is dead, restart
                     let vms = start_vm(vm.cid, details).await?;
                     new_cid = vms.cid;
