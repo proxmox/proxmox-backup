@@ -3,6 +3,7 @@ use std::task::{Context, Poll};
 use std::os::unix::io::AsRawFd;
 use std::collections::HashMap;
 use std::pin::Pin;
+use std::sync::Arc;
 
 use hyper::{Uri, Body};
 use hyper::client::{Client, HttpConnector};
@@ -103,17 +104,16 @@ impl SimpleHttp {
 
 #[derive(Clone)]
 pub struct HttpsConnector {
-    http: HttpConnector,
-    ssl_connector: std::sync::Arc<SslConnector>,
+    connector: HttpConnector,
+    ssl_connector: Arc<SslConnector>,
 }
 
 impl HttpsConnector {
-    pub fn with_connector(mut http: HttpConnector, ssl_connector: SslConnector) -> Self {
-        http.enforce_http(false);
-
+    pub fn with_connector(mut connector: HttpConnector, ssl_connector: SslConnector) -> Self {
+        connector.enforce_http(false);
         Self {
-            http,
-            ssl_connector: std::sync::Arc::new(ssl_connector),
+            connector,
+            ssl_connector: Arc::new(ssl_connector),
         }
     }
 }
@@ -130,22 +130,20 @@ impl hyper::service::Service<Uri> for HttpsConnector {
     }
 
     fn call(&mut self, dst: Uri) -> Self::Future {
-        let mut this = self.clone();
+        let mut connector = self.connector.clone();
+        let ssl_connector = Arc::clone(&self.ssl_connector);
+        let is_https = dst.scheme() == Some(&http::uri::Scheme::HTTPS);
+        let host = match dst.host() {
+            Some(host) => host.to_owned(),
+            None => {
+                return futures::future::err(format_err!("missing URL scheme")).boxed();
+            }
+        };
+
         async move {
-            let is_https = dst
-                .scheme()
-                .ok_or_else(|| format_err!("missing URL scheme"))?
-                == "https";
-
-            let host = dst
-                .host()
-                .ok_or_else(|| format_err!("missing hostname in destination url?"))?
-                .to_string();
-
-            let config = this.ssl_connector.configure();
+            let config = ssl_connector.configure()?;
             let dst_str = dst.to_string(); // for error messages
-            let conn = this
-                .http
+            let conn = connector
                 .call(dst)
                 .await
                 .map_err(|err| format_err!("error connecting to {} - {}", dst_str, err))?;
@@ -153,7 +151,7 @@ impl hyper::service::Service<Uri> for HttpsConnector {
             let _ = set_tcp_keepalive(conn.as_raw_fd(), PROXMOX_BACKUP_TCP_KEEPALIVE_TIME);
 
             if is_https {
-                let mut conn: SslStream<TcpStream> = SslStream::new(config?.into_ssl(&host)?, conn)?;
+                let mut conn: SslStream<TcpStream> = SslStream::new(config.into_ssl(&host)?, conn)?;
                 Pin::new(&mut conn).connect().await?;
                 Ok(MaybeTlsStream::Secured(conn))
             } else {
