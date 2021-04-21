@@ -60,6 +60,32 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AsyncWrite for MaybeTlsStream<S> {
         }
     }
 
+    fn poll_write_vectored(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        bufs: &[io::IoSlice<'_>],
+    ) -> Poll<Result<usize, io::Error>> {
+        match self.get_mut() {
+            MaybeTlsStream::Normal(ref mut s) => {
+                Pin::new(s).poll_write_vectored(cx, bufs)
+            }
+            MaybeTlsStream::Proxied(ref mut s) => {
+                Pin::new(s).poll_write_vectored(cx, bufs)
+            }
+            MaybeTlsStream::Secured(ref mut s) => {
+                Pin::new(s).poll_write_vectored(cx, bufs)
+            }
+        }
+    }
+
+    fn is_write_vectored(&self) -> bool {
+        match self {
+            MaybeTlsStream::Normal(s) => s.is_write_vectored(),
+            MaybeTlsStream::Proxied(s) => s.is_write_vectored(),
+            MaybeTlsStream::Secured(s) => s.is_write_vectored(),
+        }
+    }
+
     fn poll_flush(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<(), io::Error>> {
         match self.get_mut() {
             MaybeTlsStream::Normal(ref mut s) => {
