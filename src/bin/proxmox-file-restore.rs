@@ -56,7 +56,7 @@ fn parse_path(path: String, base64: bool) -> Result<ExtractPath, Error> {
         return Ok(ExtractPath::ListArchives);
     }
 
-    while bytes.len() > 0 && bytes[0] == b'/' {
+    while !bytes.is_empty() && bytes[0] == b'/' {
         bytes.remove(0);
     }
 
@@ -170,10 +170,8 @@ async fn list(
         ExtractPath::ListArchives => {
             let mut entries = vec![];
             for file in manifest.files() {
-                match file.filename.rsplitn(2, '.').next().unwrap() {
-                    "didx" => {}
-                    "fidx" => {}
-                    _ => continue, // ignore all non fidx/didx
+                if !file.filename.ends_with(".pxar.didx") && !file.filename.ends_with(".img.fidx") {
+                    continue;
                 }
                 let path = format!("/{}", file.filename);
                 let attr = DirEntryAttribute::Directory { start: 0 };
