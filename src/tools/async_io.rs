@@ -1,4 +1,4 @@
-//! Generic AsyncRead/AsyncWrite utilities.
+//! AsyncRead/AsyncWrite utilities.
 
 use std::io;
 use std::os::unix::io::{AsRawFd, RawFd};
@@ -9,41 +9,52 @@ use futures::stream::{Stream, TryStream};
 use futures::ready;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::net::TcpListener;
-use hyper::client::connect::Connection;
+use tokio_openssl::SslStream;
+use hyper::client::connect::{Connection, Connected};
 
-pub enum EitherStream<L, R> {
-    Left(L),
-    Right(R),
+/// Asynchronous stream, possibly encrypted and proxied
+///
+/// Usefule for HTTP client implementations using hyper.
+pub enum MaybeTlsStream<S> {
+    Normal(S),
+    Proxied(S),
+    Secured(SslStream<S>),
 }
 
-impl<L: AsyncRead + Unpin, R: AsyncRead + Unpin> AsyncRead for EitherStream<L, R> {
+impl<S: AsyncRead + AsyncWrite + Unpin> AsyncRead for MaybeTlsStream<S> {
     fn poll_read(
         self: Pin<&mut Self>,
         cx: &mut Context,
         buf: &mut ReadBuf,
     ) -> Poll<Result<(), io::Error>> {
         match self.get_mut() {
-            EitherStream::Left(ref mut s) => {
+            MaybeTlsStream::Normal(ref mut s) => {
                 Pin::new(s).poll_read(cx, buf)
             }
-            EitherStream::Right(ref mut s) => {
+            MaybeTlsStream::Proxied(ref mut s) => {
+                Pin::new(s).poll_read(cx, buf)
+            }
+            MaybeTlsStream::Secured(ref mut s) => {
                 Pin::new(s).poll_read(cx, buf)
             }
         }
     }
 }
 
-impl<L: AsyncWrite + Unpin, R: AsyncWrite + Unpin> AsyncWrite for EitherStream<L, R> {
+impl<S: AsyncRead + AsyncWrite + Unpin> AsyncWrite for MaybeTlsStream<S> {
     fn poll_write(
         self: Pin<&mut Self>,
         cx: &mut Context,
         buf: &[u8],
     ) -> Poll<Result<usize, io::Error>> {
         match self.get_mut() {
-            EitherStream::Left(ref mut s) => {
+            MaybeTlsStream::Normal(ref mut s) => {
                 Pin::new(s).poll_write(cx, buf)
             }
-            EitherStream::Right(ref mut s) => {
+            MaybeTlsStream::Proxied(ref mut s) => {
+                Pin::new(s).poll_write(cx, buf)
+            }
+            MaybeTlsStream::Secured(ref mut s) => {
                 Pin::new(s).poll_write(cx, buf)
             }
         }
@@ -51,10 +62,13 @@ impl<L: AsyncWrite + Unpin, R: AsyncWrite + Unpin> AsyncWrite for EitherStream<L
 
     fn poll_flush(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<(), io::Error>> {
         match self.get_mut() {
-            EitherStream::Left(ref mut s) => {
+            MaybeTlsStream::Normal(ref mut s) => {
                 Pin::new(s).poll_flush(cx)
             }
-            EitherStream::Right(ref mut s) => {
+            MaybeTlsStream::Proxied(ref mut s) => {
+                Pin::new(s).poll_flush(cx)
+            }
+            MaybeTlsStream::Secured(ref mut s) => {
                 Pin::new(s).poll_flush(cx)
             }
         }
@@ -62,25 +76,27 @@ impl<L: AsyncWrite + Unpin, R: AsyncWrite + Unpin> AsyncWrite for EitherStream<L
 
     fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<(), io::Error>> {
         match self.get_mut() {
-            EitherStream::Left(ref mut s) => {
+            MaybeTlsStream::Normal(ref mut s) => {
                 Pin::new(s).poll_shutdown(cx)
             }
-            EitherStream::Right(ref mut s) => {
+            MaybeTlsStream::Proxied(ref mut s) => {
+                Pin::new(s).poll_shutdown(cx)
+            }
+            MaybeTlsStream::Secured(ref mut s) => {
                 Pin::new(s).poll_shutdown(cx)
             }
         }
     }
 }
 
-// we need this for crate::client::http_client:
-impl Connection for EitherStream<
-    tokio::net::TcpStream,
-    Pin<Box<tokio_openssl::SslStream<tokio::net::TcpStream>>>,
-> {
-    fn connected(&self) -> hyper::client::connect::Connected {
+// we need this for the hyper http client
+impl <S: Connection + AsyncRead + AsyncWrite + Unpin> Connection for MaybeTlsStream<S>
+{
+    fn connected(&self) -> Connected {
         match self {
-            EitherStream::Left(s) => s.connected(),
-            EitherStream::Right(s) => s.get_ref().connected(),
+            MaybeTlsStream::Normal(s) => s.connected(),
+            MaybeTlsStream::Proxied(s) => s.connected().proxy(true),
+            MaybeTlsStream::Secured(s) => s.get_ref().connected(),
         }
     }
 }

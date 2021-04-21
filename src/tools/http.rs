@@ -10,9 +10,11 @@ use hyper::client::{Client, HttpConnector};
 use http::{Request, Response};
 use openssl::ssl::{SslConnector, SslMethod};
 use futures::*;
+use tokio::net::TcpStream;
+use tokio_openssl::SslStream;
 
 use crate::tools::{
-    async_io::EitherStream,
+    async_io::MaybeTlsStream,
     socket::{
         set_tcp_keepalive,
         PROXMOX_BACKUP_TCP_KEEPALIVE_TIME,
@@ -100,13 +102,8 @@ impl HttpsConnector {
     }
 }
 
-type MaybeTlsStream = EitherStream<
-    tokio::net::TcpStream,
-    Pin<Box<tokio_openssl::SslStream<tokio::net::TcpStream>>>,
->;
-
 impl hyper::service::Service<Uri> for HttpsConnector {
-    type Response = MaybeTlsStream;
+    type Response = MaybeTlsStream<TcpStream>;
     type Error = Error;
     #[allow(clippy::type_complexity)]
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send + 'static>>;
@@ -140,12 +137,11 @@ impl hyper::service::Service<Uri> for HttpsConnector {
             let _ = set_tcp_keepalive(conn.as_raw_fd(), PROXMOX_BACKUP_TCP_KEEPALIVE_TIME);
 
             if is_https {
-                let conn: tokio_openssl::SslStream<tokio::net::TcpStream> = tokio_openssl::SslStream::new(config?.into_ssl(&host)?, conn)?;
-                let mut conn = Box::pin(conn);
-                conn.as_mut().connect().await?;
-                Ok(MaybeTlsStream::Right(conn))
+                let mut conn: SslStream<TcpStream> = SslStream::new(config?.into_ssl(&host)?, conn)?;
+                Pin::new(&mut conn).connect().await?;
+                Ok(MaybeTlsStream::Secured(conn))
             } else {
-                Ok(MaybeTlsStream::Left(conn))
+                Ok(MaybeTlsStream::Normal(conn))
             }
         }.boxed()
     }
