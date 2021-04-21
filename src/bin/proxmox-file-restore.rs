@@ -399,14 +399,16 @@ async fn extract_to_target<T>(
 where
     T: pxar::accessor::ReadAt + Clone + Send + Sync + Unpin + 'static,
 {
+    let path = if path.is_empty() { b"/" } else { path };
+
     let root = decoder.open_root().await?;
     let file = root
-        .lookup(OsStr::from_bytes(&path))
+        .lookup(OsStr::from_bytes(path))
         .await?
         .ok_or_else(|| format_err!("error opening '{:?}'", path))?;
 
     if let Some(target) = target {
-        extract_sub_dir(target, decoder, OsStr::from_bytes(&path), verbose).await?;
+        extract_sub_dir(target, decoder, OsStr::from_bytes(path), verbose).await?;
     } else {
         match file.kind() {
             pxar::EntryKind::File { .. } => {
@@ -416,7 +418,7 @@ where
                 create_zip(
                     tokio::io::stdout(),
                     decoder,
-                    OsStr::from_bytes(&path),
+                    OsStr::from_bytes(path),
                     verbose,
                 )
                 .await?;
