@@ -1,11 +1,31 @@
 use std::path::PathBuf;
+use std::mem::MaybeUninit;
 
-use anyhow::Error;
+use anyhow::{bail, format_err, Error};
+use foreign_types::ForeignTypeRef;
 use openssl::x509::{X509, GeneralName};
 use openssl::stack::Stack;
 use openssl::pkey::{Public, PKey};
 
 use crate::configdir;
+
+// C type:
+#[allow(non_camel_case_types)]
+type ASN1_TIME = <openssl::asn1::Asn1TimeRef as ForeignTypeRef>::CType;
+
+extern "C" {
+    fn ASN1_TIME_to_tm(s: *const ASN1_TIME, tm: *mut libc::tm) -> libc::c_int;
+}
+
+fn asn1_time_to_unix(time: &openssl::asn1::Asn1TimeRef) -> Result<i64, Error> {
+    let mut c_tm = MaybeUninit::<libc::tm>::uninit();
+    let rc = unsafe { ASN1_TIME_to_tm(time.as_ptr(), c_tm.as_mut_ptr()) };
+    if rc != 1 {
+        bail!("failed to parse ASN1 time");
+    }
+    let mut c_tm = unsafe { c_tm.assume_init() };
+    proxmox::tools::time::timegm(&mut c_tm)
+}
 
 pub struct CertInfo {
     x509: X509,
@@ -25,7 +45,11 @@ impl CertInfo {
     }
 
     pub fn from_path(path: PathBuf) -> Result<Self, Error> {
-        let cert_pem = proxmox::tools::fs::file_get_contents(&path)?;
+        Self::from_pem(&proxmox::tools::fs::file_get_contents(&path)?)
+            .map_err(|err| format_err!("failed to load certificate from {:?} - {}", path, err))
+    }
+
+    pub fn from_pem(cert_pem: &[u8]) -> Result<Self, Error> {
         let x509 = openssl::x509::X509::from_pem(&cert_pem)?;
         Ok(Self{
             x509
@@ -63,5 +87,13 @@ impl CertInfo {
 
     pub fn not_after(&self) -> &openssl::asn1::Asn1TimeRef {
         self.x509.not_after()
+    }
+
+    pub fn not_before_unix(&self) -> Result<i64, Error> {
+        asn1_time_to_unix(&self.not_before())
+    }
+
+    pub fn not_after_unix(&self) -> Result<i64, Error> {
+        asn1_time_to_unix(&self.not_after())
     }
 }
