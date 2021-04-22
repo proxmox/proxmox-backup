@@ -131,6 +131,17 @@ pub fn stop_unit(unit: &str) -> Result<(), Error> {
     Ok(())
 }
 
+pub fn reload_unit(unit: &str) -> Result<(), Error> {
+
+    let mut command = std::process::Command::new("systemctl");
+    command.arg("try-reload-or-restart");
+    command.arg(unit);
+
+    crate::tools::run_command(command, None)?;
+
+    Ok(())
+}
+
 #[test]
 fn test_escape_unit() -> Result<(), Error> {
 
