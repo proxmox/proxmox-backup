@@ -20,6 +20,9 @@ pub use tape_alert_flags::*;
 mod mam;
 pub use mam::*;
 
+mod report_density;
+pub use report_density::*;
+
 use proxmox::{
     sys::error::SysResult,
     tools::io::{ReadExt, WriteExt},
@@ -103,6 +106,7 @@ pub struct LtoTapeStatus {
 pub struct SgTape {
     file: File,
     info: InquiryInfo,
+    density_code: u8, // drive type
     encryption_key_loaded: bool,
 }
 
@@ -120,9 +124,13 @@ impl SgTape {
         if info.peripheral_type != 1 {
             bail!("not a tape device (peripheral_type = {})", info.peripheral_type);
         }
+
+        let density_code = report_density(&mut file)?;
+
         Ok(Self {
             file,
             info,
+            density_code,
             encryption_key_loaded: false,
         })
     }
@@ -194,18 +202,16 @@ impl SgTape {
         sg_raw.set_timeout(Self::SCSI_TAPE_DEFAULT_TIMEOUT);
         let mut cmd = Vec::new();
 
-        // Try FORMAT first (requires LTO5 or newer)
-        cmd.extend(&[0x04, 0, 0, 0, 0, 0]);
-
-        if let Err(err) = sg_raw.do_command(&cmd) {
-            eprintln!("format failed - using erase insead: {}", err);
-            // try rewind/erase instead
-            self.rewind()?;
-            self.erase_media(fast)?
-        } else {
+        if self.density_code >= 0x58 { // FORMAT requires LTO5 or newer)
+            cmd.extend(&[0x04, 0, 0, 0, 0, 0]);
+            sg_raw.do_command(&cmd)?;
             if !fast {
                 self.erase_media(false)?; // overwrite everything
             }
+        } else {
+            // try rewind/erase instead
+            self.rewind()?;
+            self.erase_media(fast)?
         }
 
         Ok(())
