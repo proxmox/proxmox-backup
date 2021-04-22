@@ -440,7 +440,7 @@ pub async fn handle_api_request<Env: RpcEnvironment, S: 'static + BuildHasher + 
             );
             resp.map(|body| {
                 Body::wrap_stream(DeflateEncoder::with_quality(
-                    body.map_err(|err| {
+                    TryStreamExt::map_err(body, |err| {
                         proxmox::io_format_err!("error during compression: {}", err)
                     }),
                     Level::Default,
