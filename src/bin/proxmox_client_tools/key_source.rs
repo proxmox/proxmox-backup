@@ -86,6 +86,14 @@ pub struct CryptoParams {
 }
 
 pub fn crypto_parameters(param: &Value) -> Result<CryptoParams, Error> {
+    do_crypto_parameters(param, false)
+}
+
+pub fn crypto_parameters_keep_fd(param: &Value) -> Result<CryptoParams, Error> {
+    do_crypto_parameters(param, true)
+}
+
+fn do_crypto_parameters(param: &Value, keep_keyfd_open: bool) -> Result<CryptoParams, Error> {
     let keyfile = match param.get("keyfile") {
         Some(Value::String(keyfile)) => Some(keyfile),
         Some(_) => bail!("bad --keyfile parameter type"),
@@ -135,11 +143,16 @@ pub fn crypto_parameters(param: &Value) -> Result<CryptoParams, Error> {
             file_get_contents(keyfile)?,
         )),
         (None, Some(fd)) => {
-            let input = unsafe { std::fs::File::from_raw_fd(fd) };
+            let mut input = unsafe { std::fs::File::from_raw_fd(fd) };
             let mut data = Vec::new();
-            let _len: usize = { input }.read_to_end(&mut data).map_err(|err| {
+            let _len: usize = input.read_to_end(&mut data).map_err(|err| {
                 format_err!("error reading encryption key from fd {}: {}", fd, err)
             })?;
+            if keep_keyfd_open {
+                // don't close fd if requested, and try to reset seek position
+                std::mem::forget(input);
+                unsafe { libc::lseek(fd, 0, libc::SEEK_SET); }
+            }
             Some(KeyWithSource::from_fd(data))
         }
     };
