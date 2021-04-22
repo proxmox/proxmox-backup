@@ -1,3 +1,20 @@
+rust-proxmox-backup (1.1.3-1) unstable; urgency=medium
+
+  * tape restore: improve datastore locking when GC runs at the same time
+
+  * tape restore: always do quick chunk verification
+
+  * tape: improve compatibillity with some changers
+
+  * tape: work-around missing format command on LTO-4 drives, fall-back to
+    slower rewind erease
+
+  * fix #3393: pxar: allow and safe the 'security.NTACL' extended attribute
+
+  * file-restore: support encrypted VM backups
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 22 Apr 2021 20:14:58 +0200
+
 rust-proxmox-backup (1.1.2-1) unstable; urgency=medium
 
   * backup verify: always re-check if we can skip a chunk in the actual verify
