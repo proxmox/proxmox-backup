@@ -19,9 +19,10 @@ use proxmox::tools::fs::{create_path, CreateOptions};
 use pxar::{EntryKind, Metadata};
 
 use crate::backup::catalog::{self, DirEntryAttribute};
-use crate::pxar::Flags;
 use crate::pxar::fuse::{Accessor, FileEntry};
+use crate::pxar::Flags;
 use crate::tools::runtime::block_in_place;
+use crate::tools::ControlFlow;
 
 type CatalogReader = crate::backup::CatalogReader<std::fs::File>;
 
@@ -998,11 +999,6 @@ impl Shell {
     }
 }
 
-enum LoopState {
-    Break,
-    Continue,
-}
-
 struct ExtractorState<'a> {
     path: Vec<u8>,
     path_len: usize,
@@ -1060,8 +1056,8 @@ impl<'a> ExtractorState<'a> {
             let entry = match self.read_dir.next() {
                 Some(entry) => entry,
                 None => match self.handle_end_of_directory()? {
-                    LoopState::Break => break, // done with root directory
-                    LoopState::Continue => continue,
+                    ControlFlow::Break(()) => break, // done with root directory
+                    ControlFlow::Continue(()) => continue,
                 },
             };
 
@@ -1079,11 +1075,11 @@ impl<'a> ExtractorState<'a> {
         Ok(())
     }
 
-    fn handle_end_of_directory(&mut self) -> Result<LoopState, Error> {
+    fn handle_end_of_directory(&mut self) -> Result<ControlFlow<()>, Error> {
         // go up a directory:
         self.read_dir = match self.read_dir_stack.pop() {
             Some(r) => r,
-            None => return Ok(LoopState::Break), // out of root directory
+            None => return Ok(ControlFlow::Break(())), // out of root directory
         };
 
         self.matches = self
@@ -1102,7 +1098,7 @@ impl<'a> ExtractorState<'a> {
 
         self.extractor.leave_directory()?;
 
-        Ok(LoopState::Continue)
+        Ok(ControlFlow::CONTINUE)
     }
 
     async fn handle_new_directory(
