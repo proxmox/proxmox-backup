@@ -96,4 +96,9 @@ impl CertInfo {
     pub fn not_after_unix(&self) -> Result<i64, Error> {
         asn1_time_to_unix(&self.not_after())
     }
+
+    /// Check if the certificate is expired at or after a specific unix epoch.
+    pub fn is_expired_after_epoch(&self, epoch: i64) -> Result<bool, Error> {
+        Ok(self.not_after_unix()? < epoch)
+    }
 }
