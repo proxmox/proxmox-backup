@@ -127,9 +127,6 @@ pub async fn start_vm(
     if let Err(_) = std::env::var("PBS_PASSWORD") {
         bail!("environment variable PBS_PASSWORD has to be set for QEMU VM restore");
     }
-    if let Err(_) = std::env::var("PBS_FINGERPRINT") {
-        bail!("environment variable PBS_FINGERPRINT has to be set for QEMU VM restore");
-    }
 
     let pid;
     let (pid_fd, pid_path) = make_tmp_file("/tmp/file-restore-qemu.pid.tmp", CreateOptions::new())?;
