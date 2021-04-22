@@ -98,10 +98,6 @@ pub fn create_configdir() -> Result<(), Error> {
 /// Update self signed node certificate.
 pub fn update_self_signed_cert(force: bool) -> Result<(), Error> {
 
-    let backup_user = crate::backup::backup_user()?;
-
-    create_configdir()?;
-
     let key_path = PathBuf::from(configdir!("/proxy.key"));
     let cert_path = PathBuf::from(configdir!("/proxy.pem"));
 
@@ -110,15 +106,6 @@ pub fn update_self_signed_cert(force: bool) -> Result<(), Error> {
     let rsa = Rsa::generate(4096).unwrap();
 
     let priv_pem = rsa.private_key_to_pem()?;
-
-    replace_file(
-        &key_path,
-        &priv_pem,
-        CreateOptions::new()
-            .perm(Mode::from_bits_truncate(0o0640))
-            .owner(nix::unistd::ROOT)
-            .group(backup_user.gid),
-    )?;
 
     let mut x509 = X509Builder::new()?;
 
@@ -198,14 +185,24 @@ pub fn update_self_signed_cert(force: bool) -> Result<(), Error> {
     let x509 = x509.build();
     let cert_pem = x509.to_pem()?;
 
-    replace_file(
-        &cert_path,
-        &cert_pem,
-        CreateOptions::new()
-            .perm(Mode::from_bits_truncate(0o0640))
-            .owner(nix::unistd::ROOT)
-            .group(backup_user.gid),
-    )?;
+    set_proxy_certificate(&cert_pem, &priv_pem)?;
 
+    Ok(())
+}
+
+pub(crate) fn set_proxy_certificate(cert_pem: &[u8], key_pem: &[u8]) -> Result<(), Error> {
+    let backup_user = crate::backup::backup_user()?;
+    let options = CreateOptions::new()
+        .perm(Mode::from_bits_truncate(0o0640))
+        .owner(nix::unistd::ROOT)
+        .group(backup_user.gid);
+    let key_path = PathBuf::from(configdir!("/proxy.key"));
+    let cert_path = PathBuf::from(configdir!("/proxy.pem"));
+
+    create_configdir()?;
+    replace_file(&key_path, &key_pem, options.clone())
+        .map_err(|err| format_err!("error writing certificate private key - {}", err))?;
+    replace_file(&cert_path, &cert_pem, options)
+        .map_err(|err| format_err!("error writing certificate file - {}", err))?;
     Ok(())
 }
