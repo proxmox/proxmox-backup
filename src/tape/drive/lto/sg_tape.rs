@@ -193,13 +193,19 @@ impl SgTape {
         let mut sg_raw = SgRaw::new(&mut self.file, 16)?;
         sg_raw.set_timeout(Self::SCSI_TAPE_DEFAULT_TIMEOUT);
         let mut cmd = Vec::new();
+
+        // Try FORMAT first (requires LTO5 or newer)
         cmd.extend(&[0x04, 0, 0, 0, 0, 0]);
 
-        sg_raw.do_command(&cmd)
-            .map_err(|err| format_err!("erase failed - {}", err))?;
-
-        if !fast {
-            self.erase_media(false)?; // overwrite everything
+        if let Err(err) = sg_raw.do_command(&cmd) {
+            eprintln!("format failed - using erase insead: {}", err);
+            // try rewind/erase instead
+            self.rewind()?;
+            self.erase_media(fast)?
+        } else {
+            if !fast {
+                self.erase_media(false)?; // overwrite everything
+            }
         }
 
         Ok(())
