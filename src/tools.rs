@@ -571,3 +571,14 @@ pub fn create_run_dir() -> Result<(), Error> {
     let _: bool = proxmox::tools::fs::create_path(PROXMOX_BACKUP_RUN_DIR_M!(), None, None)?;
     Ok(())
 }
+
+/// Modeled after the nightly `std::ops::ControlFlow`.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum ControlFlow<B, C = ()> {
+    Continue(C),
+    Break(B),
+}
+
+impl<B> ControlFlow<B> {
+    pub const CONTINUE: ControlFlow<B, ()> = ControlFlow::Continue(());
+}
