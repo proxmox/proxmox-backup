@@ -190,9 +190,14 @@ pub async fn start_vm(
             continue;
         }
         drives.push("-drive".to_owned());
+        let keyfile = if let Some(ref keyfile) = details.keyfile {
+            format!(",,keyfile={}", keyfile)
+        } else {
+            "".to_owned()
+        };
         drives.push(format!(
-            "file=pbs:repository={},,snapshot={},,archive={},read-only=on,if=none,id=drive{}",
-            details.repo, details.snapshot, file, id
+            "file=pbs:repository={},,snapshot={},,archive={}{},read-only=on,if=none,id=drive{}",
+            details.repo, details.snapshot, file, keyfile, id
         ));
         drives.push("-device".to_owned());
         // drive serial is used by VM to map .fidx files to /dev paths

@@ -21,6 +21,7 @@ pub struct SnapRestoreDetails {
     pub repo: BackupRepository,
     pub snapshot: BackupDir,
     pub manifest: BackupManifest,
+    pub keyfile: Option<String>,
 }
 
 /// Return value of a BlockRestoreDriver.status() call, 'id' must be valid for .stop(id)

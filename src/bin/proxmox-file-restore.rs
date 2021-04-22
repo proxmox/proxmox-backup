@@ -30,7 +30,7 @@ pub mod proxmox_client_tools;
 use proxmox_client_tools::{
     complete_group_or_snapshot, complete_repository, connect, extract_repository_from_value,
     key_source::{
-        crypto_parameters, format_key_source, get_encryption_key_password, KEYFD_SCHEMA,
+        crypto_parameters_keep_fd, format_key_source, get_encryption_key_password, KEYFD_SCHEMA,
         KEYFILE_SCHEMA,
     },
     REPO_URL_SCHEMA,
@@ -74,6 +74,18 @@ fn parse_path(path: String, base64: bool) -> Result<ExtractPath, Error> {
     } else {
         bail!("'{}' is not supported for file-restore", file);
     }
+}
+
+fn keyfile_path(param: &Value) -> Option<String> {
+    if let Some(Value::String(keyfile)) = param.get("keyfile") {
+        return Some(keyfile.to_owned());
+    }
+
+    if let Some(Value::Number(keyfd)) = param.get("keyfd") {
+        return Some(format!("/dev/fd/{}", keyfd));
+    }
+
+    None
 }
 
 #[api(
@@ -138,7 +150,8 @@ async fn list(
     let snapshot: BackupDir = snapshot.parse()?;
     let path = parse_path(path, base64)?;
 
-    let crypto = crypto_parameters(&param)?;
+    let keyfile = keyfile_path(&param);
+    let crypto = crypto_parameters_keep_fd(&param)?;
     let crypt_config = match crypto.enc_key {
         None => None,
         Some(ref key) => {
@@ -210,6 +223,7 @@ async fn list(
                 manifest,
                 repo,
                 snapshot,
+                keyfile,
             };
             let driver: Option<BlockDriverType> = match param.get("driver") {
                 Some(drv) => Some(serde_json::from_value(drv.clone())?),
@@ -309,7 +323,8 @@ async fn extract(
         None => Some(std::env::current_dir()?),
     };
 
-    let crypto = crypto_parameters(&param)?;
+    let keyfile = keyfile_path(&param);
+    let crypto = crypto_parameters_keep_fd(&param)?;
     let crypt_config = match crypto.enc_key {
         None => None,
         Some(ref key) => {
@@ -360,6 +375,7 @@ async fn extract(
                 manifest,
                 repo,
                 snapshot,
+                keyfile,
             };
             let driver: Option<BlockDriverType> = match param.get("driver") {
                 Some(drv) => Some(serde_json::from_value(drv.clone())?),
