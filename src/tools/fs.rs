@@ -117,7 +117,7 @@ pub fn scan_subdir<'a, P: ?Sized + nix::NixPath>(
     dirfd: RawFd,
     path: &P,
     regex: &'a regex::Regex,
-) -> Result<impl Iterator<Item = Result<ReadDirEntry, Error>> + 'a, Error> {
+) -> Result<impl Iterator<Item = Result<ReadDirEntry, Error>> + 'a, nix::Error> {
     Ok(read_subdir(dirfd, path)?.filter_file_name_regex(regex))
 }
 
