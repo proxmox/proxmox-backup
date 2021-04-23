@@ -223,10 +223,29 @@ pub struct InquiryInfo {
 #[derive(Endian, Debug, Copy, Clone)]
 pub struct ModeParameterHeader {
     pub mode_data_len: u16,
-    pub medium_type: u8,
+    pub medium_type: u8, // Note: medium_type amd density_code are not the same
     pub flags3: u8,
     reserved4: [u8;2],
     pub block_descriptior_len: u16,
+}
+
+impl ModeParameterHeader {
+
+    pub fn buffer_mode(&self) -> u8 {
+        (self.flags3 & 0b0111_0000) >> 4
+    }
+
+    pub fn set_buffer_mode(&mut self, buffer_mode: bool) {
+        let mut mode = self.flags3 & 0b1_000_1111;
+        if buffer_mode {
+            mode |= 0b0_001_0000;
+        }
+        self.flags3 = mode;
+    }
+
+    pub fn write_protect(&self) -> bool {
+        (self.flags3 & 0b1000_0000) != 0
+    }
 }
 
 #[repr(C, packed)]

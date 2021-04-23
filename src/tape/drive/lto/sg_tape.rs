@@ -106,7 +106,7 @@ pub struct LtoTapeStatus {
 pub struct SgTape {
     file: File,
     info: InquiryInfo,
-    density_code: u8, // drive type
+    max_density_code: u8, // drive type
     encryption_key_loaded: bool,
 }
 
@@ -125,12 +125,12 @@ impl SgTape {
             bail!("not a tape device (peripheral_type = {})", info.peripheral_type);
         }
 
-        let density_code = report_density(&mut file)?;
+        let max_density_code = report_density(&mut file)?;
 
         Ok(Self {
             file,
             info,
-            density_code,
+            max_density_code,
             encryption_key_loaded: false,
         })
     }
@@ -142,6 +142,10 @@ impl SgTape {
 
     pub fn info(&self) -> &InquiryInfo {
         &self.info
+    }
+
+    pub fn max_density_code(&self) -> u8 {
+        self.max_density_code
     }
 
     pub fn open<P: AsRef<Path>>(path: P) -> Result<SgTape, Error> {
@@ -198,11 +202,14 @@ impl SgTape {
 
         self.rewind()?;
 
+        // get info about loaded media first
+        let (head, _, _) = self.read_compression_page()?;
+
         let mut sg_raw = SgRaw::new(&mut self.file, 16)?;
         sg_raw.set_timeout(Self::SCSI_TAPE_DEFAULT_TIMEOUT);
         let mut cmd = Vec::new();
 
-        if self.density_code >= 0x58 { // FORMAT requires LTO5 or newer)
+        if head.medium_type >= 0x58 { // FORMAT requires LTO5 or newer)
             cmd.extend(&[0x04, 0, 0, 0, 0, 0]);
             sg_raw.do_command(&cmd)?;
             if !fast {
@@ -210,7 +217,6 @@ impl SgTape {
             }
         } else {
             // try rewind/erase instead
-            self.rewind()?;
             self.erase_media(fast)?
         }
 
@@ -620,11 +626,7 @@ impl SgTape {
         }
 
         if let Some(buffer_mode) = buffer_mode {
-            let mut mode = head.flags3 & 0b1_000_1111;
-            if buffer_mode {
-                mode |= 0b0_001_0000;
-            }
-            head.flags3 = mode;
+            head.set_buffer_mode(buffer_mode);
         }
 
         let mut data = Vec::new();
@@ -686,8 +688,8 @@ impl SgTape {
 
         Ok(LtoTapeStatus {
             block_length: block_descriptor.block_length(),
-            write_protect: (head.flags3 & 0b1000_0000) != 0,
-            buffer_mode: (head.flags3 & 0b0111_0000) >> 4,
+            write_protect: head.write_protect(),
+            buffer_mode: head.buffer_mode(),
             compression: page.compression_enabled(),
             density_code: block_descriptor.density_code,
         })
