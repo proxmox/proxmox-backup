@@ -1,3 +1,12 @@
+rust-proxmox-backup (1.1.3-2) unstable; urgency=medium
+
+  * improve check for LTO4 tapes
+
+  * api: node status: return further information about SWAP, IO-wait, CPU info
+    and Kernel version
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 23 Apr 2021 10:52:08 +0200
+
 rust-proxmox-backup (1.1.3-1) unstable; urgency=medium
 
   * tape restore: improve datastore locking when GC runs at the same time
