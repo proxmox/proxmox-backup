@@ -107,7 +107,6 @@ pub struct LtoTapeStatus {
 pub struct SgTape {
     file: File,
     info: InquiryInfo,
-    max_density_code: u8, // drive type
     encryption_key_loaded: bool,
 }
 
@@ -126,12 +125,9 @@ impl SgTape {
             bail!("not a tape device (peripheral_type = {})", info.peripheral_type);
         }
 
-        let max_density_code = report_density(&mut file)?;
-
         Ok(Self {
             file,
             info,
-            max_density_code,
             encryption_key_loaded: false,
         })
     }
@@ -145,8 +141,11 @@ impl SgTape {
         &self.info
     }
 
-    pub fn max_density_code(&self) -> u8 {
-        self.max_density_code
+    /// Return the maximum supported density code
+    ///
+    /// This can be used to detect the drive generation.
+    pub fn max_density_code(&mut self) -> Result<u8, Error> {
+        report_density(&mut self.file)
     }
 
     pub fn open<P: AsRef<Path>>(path: P) -> Result<SgTape, Error> {
