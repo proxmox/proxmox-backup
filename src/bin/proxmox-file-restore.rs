@@ -47,7 +47,7 @@ enum ExtractPath {
 
 fn parse_path(path: String, base64: bool) -> Result<ExtractPath, Error> {
     let mut bytes = if base64 {
-        base64::decode(path.clone())
+        base64::decode(&path)
             .map_err(|err| format_err!("Failed base64-decoding path '{}' - {}", path, err))?
     } else {
         path.into_bytes()
