@@ -176,7 +176,13 @@ Datastore:  {{job.store}}
 Tape Pool:  {{job.pool}}
 Tape Drive: {{job.drive}}
 
+{{#if snapshot-list ~}}
+Snapshots included:
 
+{{#each snapshot-list~}}
+{{this}}
+{{/each~}}
+{{/if}}
 Tape Backup failed: {{error}}
 
 

@@ -197,7 +197,8 @@ pub fn do_tape_backup_job(
             job.start(&worker.upid().to_string())?;
             let mut drive_lock = drive_lock;
 
-            let (job_result, summary) = match try_block!({
+            let mut summary = Default::default();
+            let job_result = try_block!({
                 if schedule.is_some() {
                     // for scheduled tape backup jobs, we wait indefinitely for the lock
                     task_log!(worker, "waiting for drive lock...");
@@ -217,17 +218,16 @@ pub fn do_tape_backup_job(
                     task_log!(worker,"task triggered by schedule '{}'", event_str);
                 }
 
+
                 backup_worker(
                     &worker,
                     datastore,
                     &pool_config,
                     &setup,
                     email.clone(),
+                    &mut summary,
                 )
-            }) {
-                Ok(summary) => (Ok(()), summary),
-                Err(err) => (Err(err), Default::default()),
-            };
+            });
 
             let status = worker.create_state(&job_result);
 
@@ -365,16 +365,15 @@ pub fn backup(
             let _drive_lock = drive_lock; // keep lock guard
             set_tape_device_state(&setup.drive, &worker.upid().to_string())?;
 
-            let (job_result, summary) = match backup_worker(
+            let mut summary = Default::default();
+            let job_result = backup_worker(
                 &worker,
                 datastore,
                 &pool_config,
                 &setup,
                 email.clone(),
-            ) {
-                Ok(summary) => (Ok(()), summary),
-                Err(err) => (Err(err), Default::default()),
-            };
+                &mut summary,
+            );
 
             if let Some(email) = email {
                 if let Err(err) = crate::server::send_tape_backup_status(
@@ -403,11 +402,11 @@ fn backup_worker(
     pool_config: &MediaPoolConfig,
     setup: &TapeBackupJobSetup,
     email: Option<String>,
-) -> Result<TapeBackupJobSummary, Error> {
+    summary: &mut TapeBackupJobSummary,
+) -> Result<(), Error> {
 
     let status_path = Path::new(TAPE_STATUS_DIR);
     let start = std::time::Instant::now();
-    let mut summary: TapeBackupJobSummary = Default::default();
 
     task_log!(worker, "update media online status");
     let changer_name = update_media_online_status(&setup.drive)?;
@@ -531,7 +530,7 @@ fn backup_worker(
 
     summary.duration = start.elapsed();
 
-    Ok(summary)
+    Ok(())
 }
 
 // Try to update the the media online status
