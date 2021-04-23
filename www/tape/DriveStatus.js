@@ -33,6 +33,10 @@ Ext.define('PBS.TapeManagement.DriveStatus', {
     controller: {
 	xclass: 'Ext.app.ViewController',
 
+	reloadTapeStore: function() {
+	    Ext.ComponentQuery.query('navigationtree')[0].reloadTapeStore();
+	},
+
 	reload: function() {
 	    let me = this;
 	    me.lookup('statusgrid').rstore.load();
@@ -46,6 +50,7 @@ Ext.define('PBS.TapeManagement.DriveStatus', {
 	    vm.set('online', online);
 	    let title = online ? gettext('Status') : gettext('Status (No Tape loaded)');
 	    statusgrid.setTitle(title);
+	    Ext.ComponentQuery.query('navigationtree')[0].reloadTapeStore();
 	},
 
 	onStateLoad: function(store) {
@@ -79,6 +84,11 @@ Ext.define('PBS.TapeManagement.DriveStatus', {
 	    let me = this;
 	    Ext.create('PBS.TapeManagement.LabelMediaWindow', {
 		driveid: me.getView().drive,
+		apiCallDone: function(success) {
+		    if (success) {
+			me.reloadTapeStore();
+		    }
+		},
 	    }).show();
 	},
 
@@ -90,6 +100,7 @@ Ext.define('PBS.TapeManagement.DriveStatus', {
 		waitMsgTarget: view,
 		method: 'POST',
 		success: function(response) {
+		    me.reloadTapeStore();
 		    Ext.create('Proxmox.window.TaskProgress', {
 			upid: response.result.data,
 			taskDone: function() {
@@ -108,6 +119,7 @@ Ext.define('PBS.TapeManagement.DriveStatus', {
 		waitMsgTarget: view,
 		method: 'POST',
 		success: function(response) {
+		    me.reloadTapeStore();
 		    Ext.create('Proxmox.window.TaskProgress', {
 			upid: response.result.data,
 			taskDone: function() {
@@ -126,6 +138,7 @@ Ext.define('PBS.TapeManagement.DriveStatus', {
 		waitMsgTarget: view,
 		method: 'POST',
 		success: function(response) {
+		    me.reloadTapeStore();
 		    Ext.create('Proxmox.window.TaskViewer', {
 			upid: response.result.data,
 			taskDone: function() {
@@ -143,7 +156,10 @@ Ext.define('PBS.TapeManagement.DriveStatus', {
 
 	    PBS.Utils.driveCommand(drive, 'read-label', {
 		waitMsgTarget: view,
-		success: PBS.Utils.showMediaLabelWindow,
+		success: function(response) {
+		    me.reloadTapeStore();
+		    PBS.Utils.showMediaLabelWindow(response);
+		},
 	    });
 	},
 
@@ -153,7 +169,10 @@ Ext.define('PBS.TapeManagement.DriveStatus', {
 	    let drive = view.drive;
 	    PBS.Utils.driveCommand(drive, 'volume-statistics', {
 		waitMsgTarget: view,
-		success: PBS.Utils.showVolumeStatisticsWindow,
+		success: function(response) {
+		    me.reloadTapeStore();
+		    PBS.Utils.showVolumeStatisticsWindow(response);
+		},
 	    });
 	},
 
@@ -163,7 +182,10 @@ Ext.define('PBS.TapeManagement.DriveStatus', {
 	    let drive = view.drive;
 	    PBS.Utils.driveCommand(drive, 'cartridge-memory', {
 		waitMsgTarget: me.getView(),
-		success: PBS.Utils.showCartridgeMemoryWindow,
+		success: function(response) {
+		    me.reloadTapeStore();
+		    PBS.Utils.showCartridgeMemoryWindow(response);
+		},
 	    });
 	},
 
