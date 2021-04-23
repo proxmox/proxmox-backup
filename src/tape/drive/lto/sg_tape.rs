@@ -201,27 +201,40 @@ impl SgTape {
     /// Format media, single partition
     pub fn format_media(&mut self, fast: bool) -> Result<(), Error> {
 
-        self.rewind()?;
-
         // get info about loaded media first
         let (head, _, _) = self.read_compression_page()?;
 
-        let mut sg_raw = SgRaw::new(&mut self.file, 16)?;
-        sg_raw.set_timeout(Self::SCSI_TAPE_DEFAULT_TIMEOUT);
-        let mut cmd = Vec::new();
+        if MediumType::is_worm(head.medium_type) {
+            // We cannot FORMAT WORM media! Instead we check if its empty.
 
-        if MediumType::is_lto5_or_newer(head.medium_type) { // FORMAT requires LTO5 or newer)
-            cmd.extend(&[0x04, 0, 0, 0, 0, 0]);
-            sg_raw.do_command(&cmd)?;
-            if !fast {
-                self.erase_media(false)?; // overwrite everything
+            self.move_to_eom(false)?;
+            let pos = self.position()?;
+            if pos.logical_object_number != 0 {
+                bail!("format failed - detected WORM media with data.");
             }
-        } else {
-            // try rewind/erase instead
-            self.erase_media(fast)?
-        }
 
-        Ok(())
+            Ok(())
+        } else {
+
+            self.rewind()?;
+
+            let mut sg_raw = SgRaw::new(&mut self.file, 16)?;
+            sg_raw.set_timeout(Self::SCSI_TAPE_DEFAULT_TIMEOUT);
+            let mut cmd = Vec::new();
+
+            if MediumType::is_lto5_or_newer(head.medium_type) { // FORMAT requires LTO5 or newer)
+                cmd.extend(&[0x04, 0, 0, 0, 0, 0]);
+                sg_raw.do_command(&cmd)?;
+                if !fast {
+                    self.erase_media(false)?; // overwrite everything
+                }
+            } else {
+                // try rewind/erase instead
+                self.erase_media(fast)?
+            }
+
+            Ok(())
+        }
     }
 
     /// Lock/Unlock drive door
