@@ -47,6 +47,7 @@ use crate::{
         SenseInfo,
         ScsiError,
         InquiryInfo,
+        MediumType,
         ModeParameterHeader,
         ModeBlockDescriptor,
         alloc_page_aligned_buffer,
@@ -209,7 +210,7 @@ impl SgTape {
         sg_raw.set_timeout(Self::SCSI_TAPE_DEFAULT_TIMEOUT);
         let mut cmd = Vec::new();
 
-        if head.medium_type >= 0x58 { // FORMAT requires LTO5 or newer)
+        if MediumType::is_lto5_or_newer(head.medium_type) { // FORMAT requires LTO5 or newer)
             cmd.extend(&[0x04, 0, 0, 0, 0, 0]);
             sg_raw.do_command(&cmd)?;
             if !fast {

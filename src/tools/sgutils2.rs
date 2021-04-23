@@ -219,6 +219,38 @@ pub struct InquiryInfo {
     pub revision: String,
 }
 
+#[repr(u8)]
+pub enum MediumType {
+    /// Unknown (no media loaded)
+    Unknown = 0x00,
+    Ultrium1Data = 0x18,
+    Ultrium2Data = 0x28,
+    Ultrium3Data = 0x38,
+    Ultrium3Worm = 0x3C,
+    Ultrium4Data = 0x48,
+    Ultrium4Worm = 0x4C,
+    Ultrium5Data = 0x58,
+    Ultrium5Worm = 0x5C,
+    Ultrium6Data = 0x68,
+    Ultrium6Worm = 0x6C,
+    Ultrium7Data = 0x78,
+    Ultrium7Worm = 0x7C,
+    Ultrium8Data = 0x88,
+    Ultrium8Worm = 0x8C,
+}
+
+impl MediumType {
+
+    pub fn is_lto5_or_newer(medium_type: u8) -> bool {
+        medium_type >= Self::Ultrium5Data as u8
+    }
+
+    pub fn is_worm(medium_type: u8) -> bool {
+        (medium_type & 0x0F) == 0x0C
+    }
+
+}
+
 #[repr(C, packed)]
 #[derive(Endian, Debug, Copy, Clone)]
 pub struct ModeParameterHeader {
