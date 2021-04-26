@@ -375,11 +375,11 @@ pub fn update_datastore(
     // we want to reset the statefiles, to avoid an immediate action in some cases
     // (e.g. going from monthly to weekly in the second week of the month)
     if gc_schedule_changed {
-        jobstate::create_state_file("garbage_collection", &name)?;
+        jobstate::update_job_last_run_time("garbage_collection", &name)?;
     }
 
     if prune_schedule_changed {
-        jobstate::create_state_file("prune", &name)?;
+        jobstate::update_job_last_run_time("prune", &name)?;
     }
 
     Ok(())
