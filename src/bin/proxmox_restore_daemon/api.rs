@@ -200,11 +200,12 @@ fn list(
             for c in comps {
                 let mut c_path = path.clone();
                 c_path.push(b'/');
-                c_path.extend(c.as_bytes());
-                res.push(ArchiveEntry::new(
+                c_path.extend(c.0.as_bytes());
+                res.push(ArchiveEntry::new_with_size(
                     &c_path[..],
                     // this marks the beginning of a filesystem, i.e. '/', so this is a Directory
                     Some(&DirEntryAttribute::Directory { start: 0 }),
+                    Some(c.1),
                 ));
             }
         }

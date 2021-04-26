@@ -194,7 +194,7 @@ async fn list(
                 } else {
                     None
                 };
-                entries.push(ArchiveEntry::new(path.as_bytes(), attr));
+                entries.push(ArchiveEntry::new_with_size(path.as_bytes(), attr, Some(file.size)));
             }
 
             Ok(entries)

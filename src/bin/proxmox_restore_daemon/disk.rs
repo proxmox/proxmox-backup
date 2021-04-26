@@ -36,13 +36,14 @@ lazy_static! {
 pub enum ResolveResult {
     Path(PathBuf),
     BucketTypes(Vec<&'static str>),
-    BucketComponents(Vec<String>),
+    BucketComponents(Vec<(String, u64)>),
 }
 
 struct PartitionBucketData {
     dev_node: String,
     number: i32,
     mountpoint: Option<PathBuf>,
+    size: u64,
 }
 
 /// A "Bucket" represents a mapping found on a disk, e.g. a partition, a zfs dataset or an LV. A
@@ -81,6 +82,12 @@ impl Bucket {
     fn component_string(&self) -> String {
         match self {
             Bucket::Partition(data) => data.number.to_string(),
+        }
+    }
+
+    fn size(&self) -> u64 {
+        match self {
+            Bucket::Partition(data) => data.size,
         }
     }
 }
@@ -209,15 +216,23 @@ impl DiskState {
                     .trim()
                     .parse::<i32>()?;
 
+                // this *always* contains the number of 512-byte sectors, regardless of the true
+                // blocksize of this disk - which should always be 512 here anyway
+                let size = fs::file_read_firstline(&format!("{}/size", part_path))?
+                    .trim()
+                    .parse::<u64>()?
+                    * 512;
+
                 info!(
-                    "drive '{}' ('{}'): found partition '{}' ({})",
-                    name, fidx, devnode, number
+                    "drive '{}' ('{}'): found partition '{}' ({}, {}B)",
+                    name, fidx, devnode, number, size
                 );
 
                 let bucket = Bucket::Partition(PartitionBucketData {
                     dev_node: devnode,
                     mountpoint: None,
                     number,
+                    size,
                 });
 
                 parts.push(bucket);
@@ -281,7 +296,7 @@ impl DiskState {
                 let comps = buckets
                     .iter()
                     .filter(|b| b.type_string() == bucket_type)
-                    .map(Bucket::component_string)
+                    .map(|b| (b.component_string(), b.size()))
                     .collect();
                 return Ok(ResolveResult::BucketComponents(comps));
             }

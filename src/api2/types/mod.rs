@@ -1354,6 +1354,18 @@ pub struct ArchiveEntry {
 
 impl ArchiveEntry {
     pub fn new(filepath: &[u8], entry_type: Option<&DirEntryAttribute>) -> Self {
+        let size = match entry_type {
+            Some(DirEntryAttribute::File { size, .. }) => Some(*size),
+            _ => None,
+        };
+        Self::new_with_size(filepath, entry_type, size)
+    }
+
+    pub fn new_with_size(
+        filepath: &[u8],
+        entry_type: Option<&DirEntryAttribute>,
+        size: Option<u64>,
+    ) -> Self {
         Self {
             filepath: base64::encode(filepath),
             text: String::from_utf8_lossy(filepath.split(|x| *x == b'/').last().unwrap())
@@ -1363,13 +1375,10 @@ impl ArchiveEntry {
                 None => "v".to_owned(),
             },
             leaf: !matches!(entry_type, None | Some(DirEntryAttribute::Directory { .. })),
-            size: match entry_type {
-                Some(DirEntryAttribute::File { size, .. }) => Some(*size),
-                _ => None
-            },
+            size,
             mtime: match entry_type {
                 Some(DirEntryAttribute::File { mtime, .. }) => Some(*mtime),
-                _ => None
+                _ => None,
             },
         }
     }
