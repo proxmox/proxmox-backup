@@ -759,18 +759,21 @@ pub fn scsi_mode_sense<F: AsRawFd, P: Endian>(
         let head: ModeParameterHeader = unsafe { reader.read_be_value()? };
 
         if (head.mode_data_len as usize + 2) != data.len() {
-            bail!("wrong mode_data_len");
+            let len = head.mode_data_len;
+            bail!("wrong mode_data_len: {}, expected {}", len, data.len() - 2);
         }
 
         if disable_block_descriptor && head.block_descriptior_len != 0 {
-            bail!("wrong block_descriptior_len");
+            let len = head.block_descriptior_len;
+            bail!("wrong block_descriptior_len: {}, expected 0", len);
         }
 
         let mut block_descriptor: Option<ModeBlockDescriptor> = None;
 
         if !disable_block_descriptor {
             if head.block_descriptior_len != 8 {
-                bail!("wrong block_descriptior_len");
+                let len = head.block_descriptior_len;
+                bail!("wrong block_descriptior_len: {}, expected 8", len);
             }
 
             block_descriptor = Some(unsafe { reader.read_be_value()? });
