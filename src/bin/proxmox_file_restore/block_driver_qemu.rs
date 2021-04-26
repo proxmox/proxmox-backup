@@ -228,6 +228,7 @@ impl BlockRestoreDriver for QemuBlockDriver {
                     .await
                 {
                     eprintln!("reading file extraction stream failed - {}", err);
+                    std::process::exit(1);
                 }
             });
 
