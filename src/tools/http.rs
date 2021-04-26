@@ -158,9 +158,16 @@ impl HttpsConnector {
         Ok(MaybeTlsStream::Secured(conn))
     }
 
-    async fn read_connect_response<R: AsyncRead +  Unpin>(
+    fn parse_status_line(status_line: &str) -> Result<(), Error> {
+        if !(status_line.starts_with("HTTP/1.1 200") || status_line.starts_with("HTTP/1.0 200")) {
+            bail!("proxy connect failed - invalid status: {}", status_line)
+        }
+        Ok(())
+    }
+
+    async fn parse_connect_response<R: AsyncRead +  Unpin>(
         stream: &mut R,
-    ) -> Result<String, Error> {
+    ) -> Result<(), Error> {
 
         let mut data: Vec<u8> = Vec::new();
         let mut buffer = [0u8; 256];
@@ -173,6 +180,13 @@ impl HttpsConnector {
             data.extend(&buffer[..n]);
             if data.len() >= END_MARK.len() {
                 if let Some(pos) = data[search_start..].windows(END_MARK.len()).position(|w| w == END_MARK) {
+                    let response = String::from_utf8_lossy(&data);
+                    let status_line = match response.split("\r\n").next() {
+                        Some(status) => status,
+                        None => bail!("missing newline"),
+                    };
+                    Self::parse_status_line(status_line)?;
+
                     if pos != data.len() - END_MARK.len() {
                         bail!("unexpected data after connect response");
                     }
@@ -183,26 +197,6 @@ impl HttpsConnector {
                 bail!("too many bytes");
             }
         }
-
-        let response = String::from_utf8_lossy(&data);
-
-        match response.split("\r\n").next() {
-            Some(status) => Ok(status.to_owned()),
-            None => bail!("missing newline"),
-        }
-    }
-
-    async fn parse_connect_status<R: AsyncRead +  Unpin>(
-        stream: &mut R,
-    ) -> Result<(), Error> {
-
-        let status_str = Self::read_connect_response(stream).await
-            .map_err(|err| format_err!("invalid connect response: {}", err))?;
-
-        if !(status_str.starts_with("HTTP/1.1 200") || status_str.starts_with("HTTP/1.0 200")) {
-            bail!("proxy connect failed - invalid status: {}", status_str)
-        }
-
         Ok(())
     }
 }
@@ -265,7 +259,7 @@ impl hyper::service::Service<Uri> for HttpsConnector {
                     tcp_stream.write_all(connect_request.as_bytes()).await?;
                     tcp_stream.flush().await?;
 
-                    Self::parse_connect_status(&mut tcp_stream).await?;
+                    Self::parse_connect_response(&mut tcp_stream).await?;
 
                     if is_https {
                         Self::secure_stream(tcp_stream, &ssl_connector, &host).await
