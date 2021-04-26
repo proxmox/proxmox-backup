@@ -152,8 +152,9 @@ pub fn create_state_file(jobtype: &str, jobname: &str) -> Result<(), Error> {
 }
 
 /// Tries to update the state file with the current time
-/// if the job is currently running, does nothing,
-pub fn try_update_state_file(jobtype: &str, jobname: &str) -> Result<(), Error> {
+/// if the job is currently running, does nothing.
+/// Intended for use when the schedule changes.
+pub fn update_job_last_run_time(jobtype: &str, jobname: &str) -> Result<(), Error> {
     let mut job = match Job::new(jobtype, jobname) {
         Ok(job) => job,
         Err(_) => return Ok(()), // was locked (running), so do not update

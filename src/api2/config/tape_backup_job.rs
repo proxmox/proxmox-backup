@@ -283,7 +283,7 @@ pub fn update_tape_backup_job(
     config::tape_job::save_config(&config)?;
 
     if schedule_changed {
-        crate::server::jobstate::try_update_state_file("tape-backup-job", &id)?;
+        crate::server::jobstate::update_job_last_run_time("tape-backup-job", &id)?;
     }
 
     Ok(())

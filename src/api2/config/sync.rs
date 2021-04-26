@@ -346,7 +346,7 @@ pub fn update_sync_job(
     sync::save_config(&config)?;
 
     if schedule_changed {
-        crate::server::jobstate::try_update_state_file("syncjob", &id)?;
+        crate::server::jobstate::update_job_last_run_time("syncjob", &id)?;
     }
 
     Ok(())
