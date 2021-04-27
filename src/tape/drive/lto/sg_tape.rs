@@ -47,7 +47,6 @@ use crate::{
         SenseInfo,
         ScsiError,
         InquiryInfo,
-        MediumType,
         ModeParameterHeader,
         ModeBlockDescriptor,
         alloc_page_aligned_buffer,
@@ -201,9 +200,10 @@ impl SgTape {
     pub fn format_media(&mut self, fast: bool) -> Result<(), Error> {
 
         // get info about loaded media first
-        let (head, _, _) = self.read_compression_page()?;
+        let (_head, block_descriptor, _) = self.read_compression_page()?;
 
-        if MediumType::is_worm(head.medium_type) {
+        /* todo: howto detect WORM media?
+        if MediumType::is_worm(xx) {
             // We cannot FORMAT WORM media! Instead we check if its empty.
 
             self.move_to_eom(false)?;
@@ -212,28 +212,28 @@ impl SgTape {
                 bail!("format failed - detected WORM media with data.");
             }
 
-            Ok(())
-        } else {
-
-            self.rewind()?;
-
-            let mut sg_raw = SgRaw::new(&mut self.file, 16)?;
-            sg_raw.set_timeout(Self::SCSI_TAPE_DEFAULT_TIMEOUT);
-            let mut cmd = Vec::new();
-
-            if MediumType::is_lto5_or_newer(head.medium_type) { // FORMAT requires LTO5 or newer)
-                cmd.extend(&[0x04, 0, 0, 0, 0, 0]);
-                sg_raw.do_command(&cmd)?;
-                if !fast {
-                    self.erase_media(false)?; // overwrite everything
-                }
-            } else {
-                // try rewind/erase instead
-                self.erase_media(fast)?
-            }
-
-            Ok(())
+            return Ok(());
         }
+        */
+
+        self.rewind()?;
+
+        let mut sg_raw = SgRaw::new(&mut self.file, 16)?;
+        sg_raw.set_timeout(Self::SCSI_TAPE_DEFAULT_TIMEOUT);
+        let mut cmd = Vec::new();
+
+        if block_descriptor.density_code >= 0x58 { // FORMAT requires LTO5 or newer
+            cmd.extend(&[0x04, 0, 0, 0, 0, 0]); // FORMAT
+            sg_raw.do_command(&cmd)?;
+            if !fast {
+                self.erase_media(false)?; // overwrite everything
+            }
+        } else {
+            // try rewind/erase instead
+            self.erase_media(fast)?
+        }
+
+        Ok(())
     }
 
     /// Lock/Unlock drive door
