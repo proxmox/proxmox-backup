@@ -1,3 +1,15 @@
+rust-proxmox-backup (1.1.5-1) unstable; urgency=medium
+
+  * tools/sgutils2: add size workaround for mode_sense
+
+  * tape: add read_medium_configuration_page() to detect WORM media
+
+  * file-restore: fix package name for kernel/initramfs image
+
+  * tape: remove MediumType struct, which is only valid on IBM drives
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 27 Apr 2021 12:20:04 +0200
+
 rust-proxmox-backup (1.1.4-1) unstable; urgency=medium
 
   * file-restore: add size to image files and components
