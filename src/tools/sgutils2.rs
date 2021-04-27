@@ -223,7 +223,10 @@ pub struct InquiryInfo {
 #[derive(Endian, Debug, Copy, Clone)]
 pub struct ModeParameterHeader {
     pub mode_data_len: u16,
-    pub medium_type: u8, // Note: medium_type amd density_code are not the same
+    // Note: medium_type and density_code are not the same. On HP
+    // drives, medium_type provides very limited information and is
+    // not compatible with IBM.
+    pub medium_type: u8,
     pub flags3: u8,
     reserved4: [u8;2],
     pub block_descriptior_len: u16,
