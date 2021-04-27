@@ -728,10 +728,15 @@ pub fn scsi_mode_sense<F: AsRawFd, P: Endian>(
         let mut reader = &data[..];
 
         let head: ModeParameterHeader = unsafe { reader.read_be_value()? };
+        let expected_len = head.mode_data_len as usize + 2;
 
-        if (head.mode_data_len as usize + 2) != data.len() {
-            let len = head.mode_data_len;
-            bail!("wrong mode_data_len: {}, expected {}", len, data.len() - 2);
+        if data.len() < expected_len {
+            bail!("wrong mode_data_len: got {}, expected {}", data.len(), expected_len);
+        } else if data.len() > expected_len {
+            // Note: Some hh7 drives returns the allocation_length
+            // instead of real data_len
+            let header_size = std::mem::size_of::<ModeParameterHeader>();
+            reader = &data[header_size..expected_len];
         }
 
         if disable_block_descriptor && head.block_descriptior_len != 0 {
