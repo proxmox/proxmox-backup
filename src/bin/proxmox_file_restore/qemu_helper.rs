@@ -51,7 +51,7 @@ fn validate_img_existance() -> Result<(), Error> {
     let kernel = PathBuf::from(buildcfg::PROXMOX_BACKUP_KERNEL_FN);
     let initramfs = PathBuf::from(buildcfg::PROXMOX_BACKUP_INITRAMFS_FN);
     if !kernel.exists() || !initramfs.exists() {
-        bail!("cannot run file-restore VM: package 'proxmox-file-restore' is not (correctly) installed");
+        bail!("cannot run file-restore VM: package 'proxmox-backup-restore-image' is not (correctly) installed");
     }
     Ok(())
 }
