@@ -268,7 +268,11 @@ impl DiskState {
             _ => bail!("no or invalid image in path"),
         };
 
-        let buckets = match self.disk_map.get_mut(req_fidx.as_ref()) {
+        let buckets = match self.disk_map.get_mut(
+            req_fidx
+                .strip_suffix(".img.fidx")
+                .unwrap_or_else(|| req_fidx.as_ref()),
+        ) {
             Some(x) => x,
             None => bail!("given image '{}' not found", req_fidx),
         };

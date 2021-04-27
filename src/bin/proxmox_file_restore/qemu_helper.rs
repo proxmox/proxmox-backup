@@ -201,7 +201,8 @@ pub async fn start_vm(
         ));
         drives.push("-device".to_owned());
         // drive serial is used by VM to map .fidx files to /dev paths
-        drives.push(format!("virtio-blk-pci,drive=drive{},serial={}", id, file));
+        let serial = file.strip_suffix(".img.fidx").unwrap_or(&file);
+        drives.push(format!("virtio-blk-pci,drive=drive{},serial={}", id, serial));
         id += 1;
     }
 
