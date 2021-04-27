@@ -94,6 +94,23 @@ impl DataCompressionModePage {
     }
 }
 
+#[repr(C, packed)]
+#[derive(Endian)]
+struct MediumConfigurationModePage {
+    page_code: u8,   // 0x1d
+    page_length: u8,  // 0x1e
+    flags2: u8,
+    reserved: [u8;29],
+}
+
+impl MediumConfigurationModePage {
+
+    pub fn is_worm(&self) -> bool {
+        (self.flags2 & 1) == 1
+    }
+
+}
+
 #[derive(Debug)]
 pub struct LtoTapeStatus {
     pub block_length: u32,
@@ -199,11 +216,21 @@ impl SgTape {
     /// Format media, single partition
     pub fn format_media(&mut self, fast: bool) -> Result<(), Error> {
 
-        // get info about loaded media first
-        let (_head, block_descriptor, _) = self.read_compression_page()?;
+        // try to get info about loaded media first
+        let (has_format, is_worm) = match self.read_medium_configuration_page() {
+            Ok((_head, block_descriptor, page)) => {
+                // FORMAT requires LTO5 or newer
+                let has_format = block_descriptor.density_code >= 0x58;
+                let is_worm = page.is_worm();
+                (has_format, is_worm)
+            }
+            Err(_) => {
+                // LTO3 and older do not supprt medium configuration mode page
+                (false, false)
+            }
+        };
 
-        /* todo: howto detect WORM media?
-        if MediumType::is_worm(xx) {
+        if is_worm {
             // We cannot FORMAT WORM media! Instead we check if its empty.
 
             self.move_to_eom(false)?;
@@ -212,28 +239,28 @@ impl SgTape {
                 bail!("format failed - detected WORM media with data.");
             }
 
-            return Ok(());
-        }
-        */
+            Ok(())
 
-        self.rewind()?;
-
-        let mut sg_raw = SgRaw::new(&mut self.file, 16)?;
-        sg_raw.set_timeout(Self::SCSI_TAPE_DEFAULT_TIMEOUT);
-        let mut cmd = Vec::new();
-
-        if block_descriptor.density_code >= 0x58 { // FORMAT requires LTO5 or newer
-            cmd.extend(&[0x04, 0, 0, 0, 0, 0]); // FORMAT
-            sg_raw.do_command(&cmd)?;
-            if !fast {
-                self.erase_media(false)?; // overwrite everything
-            }
         } else {
-            // try rewind/erase instead
-            self.erase_media(fast)?
-        }
+            self.rewind()?;
 
-        Ok(())
+            let mut sg_raw = SgRaw::new(&mut self.file, 16)?;
+            sg_raw.set_timeout(Self::SCSI_TAPE_DEFAULT_TIMEOUT);
+            let mut cmd = Vec::new();
+
+            if has_format {
+                cmd.extend(&[0x04, 0, 0, 0, 0, 0]); // FORMAT
+                sg_raw.do_command(&cmd)?;
+                if !fast {
+                    self.erase_media(false)?; // overwrite everything
+                }
+            } else {
+                // try rewind/erase instead
+                self.erase_media(fast)?
+            }
+
+            Ok(())
+        }
     }
 
     /// Lock/Unlock drive door
@@ -668,6 +695,30 @@ impl SgTape {
         Ok(())
     }
 
+    fn read_medium_configuration_page(
+        &mut self,
+    ) -> Result<(ModeParameterHeader, ModeBlockDescriptor, MediumConfigurationModePage), Error> {
+
+        let (head, block_descriptor, page): (_,_, MediumConfigurationModePage)
+            = scsi_mode_sense(&mut self.file, false, 0x1d, 0)?;
+
+        proxmox::try_block!({
+            if (page.page_code & 0b0011_1111) != 0x1d {
+                bail!("wrong page code {}", page.page_code);
+            }
+            if page.page_length != 0x1e {
+                bail!("wrong page length {}", page.page_length);
+            }
+
+            let block_descriptor = match block_descriptor {
+                Some(block_descriptor) => block_descriptor,
+                None => bail!("missing block descriptor"),
+            };
+
+            Ok((head, block_descriptor, page))
+        }).map_err(|err| format_err!("read_medium_configuration failed - {}", err))
+    }
+
     fn read_compression_page(
         &mut self,
     ) -> Result<(ModeParameterHeader, ModeBlockDescriptor, DataCompressionModePage), Error> {
@@ -675,16 +726,21 @@ impl SgTape {
         let (head, block_descriptor, page): (_,_, DataCompressionModePage)
             = scsi_mode_sense(&mut self.file, false, 0x0f, 0)?;
 
-        if !(page.page_code == 0x0f && page.page_length == 0x0e) {
-            bail!("read_compression_page: got strange page code/length");
-        }
+        proxmox::try_block!({
+            if (page.page_code & 0b0011_1111) != 0x0f {
+                bail!("wrong page code {}", page.page_code);
+            }
+            if page.page_length != 0x0e {
+                bail!("wrong page length {}", page.page_length);
+            }
 
-        let block_descriptor = match block_descriptor {
-            Some(block_descriptor) => block_descriptor,
-            None => bail!("read_compression_page failed: missing block descriptor"),
-        };
+            let block_descriptor = match block_descriptor {
+                Some(block_descriptor) => block_descriptor,
+                None => bail!("missing block descriptor"),
+            };
 
-        Ok((head, block_descriptor, page))
+            Ok((head, block_descriptor, page))
+        }).map_err(|err| format_err!("read_compression_page failed: {}", err))
     }
 
     /// Read drive options/status
