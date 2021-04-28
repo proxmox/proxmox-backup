@@ -103,6 +103,7 @@ impl ProxyConfig {
 pub struct SimpleHttp {
     client: Client<HttpsConnector, Body>,
     proxy_authorization: Option<String>, // Proxy-Authorization header value
+    user_agent: Option<String>,
 }
 
 impl SimpleHttp {
@@ -129,7 +130,12 @@ impl SimpleHttp {
             https.set_proxy(proxy_config);
         }
         let client = Client::builder().build(https);
-        Self { client, proxy_authorization}
+        Self { client, proxy_authorization, user_agent: None }
+    }
+
+    pub fn set_user_agent(&mut self, user_agent: &str) -> Result<(), Error> {
+        self.user_agent = Some(user_agent.to_owned());
+        Ok(())
     }
 
     fn add_proxy_headers(&self, request: &mut Request<Body>) -> Result<(), Error> {
@@ -147,11 +153,13 @@ impl SimpleHttp {
     }
 
     pub async fn request(&self, mut request: Request<Body>) -> Result<Response<Body>, Error> {
+        let user_agent = if let Some(ref user_agent) = self.user_agent {
+            HeaderValue::from_str(&user_agent)?
+        } else {
+            HeaderValue::from_str(Self::DEFAULT_USER_AGENT_STRING)?
+        };
 
-        request.headers_mut().insert(
-            hyper::header::USER_AGENT,
-            HeaderValue::from_str(Self::DEFAULT_USER_AGENT_STRING)?,
-        );
+        request.headers_mut().insert(hyper::header::USER_AGENT, user_agent);
 
         self.add_proxy_headers(&mut request)?;
 
