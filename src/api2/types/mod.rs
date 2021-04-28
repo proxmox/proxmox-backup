@@ -1610,3 +1610,14 @@ pub struct NodeStatus {
     pub cpuinfo: NodeCpuInformation,
     pub info: NodeInformation,
 }
+
+pub const HTTP_PROXY_SCHEMA: Schema = StringSchema::new(
+    "HTTP proxy configuration [http://]<host>[:port]")
+    .format(&ApiStringFormat::VerifyFn(|s| {
+        crate::tools::http::ProxyConfig::parse_proxy_url(s)?;
+        Ok(())
+    }))
+    .min_length(1)
+    .max_length(128)
+    .type_text("[http://]<host>[:port]")
+    .schema();
