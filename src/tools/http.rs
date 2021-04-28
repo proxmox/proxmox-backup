@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use hyper::{Uri, Body};
 use hyper::client::{Client, HttpConnector};
-use http::{Request, Response};
+use http::{Request, Response, HeaderValue};
 use openssl::ssl::{SslConnector, SslMethod};
 use futures::*;
 use tokio::{
@@ -33,12 +33,14 @@ use crate::tools::{
 pub struct ProxyConfig {
     pub host: String,
     pub port: u16,
+    pub authorization: Option<String>, // Proxy-Authorization header value
     pub force_connect: bool,
 }
 
 /// Asyncrounous HTTP client implementation
 pub struct SimpleHttp {
     client: Client<HttpsConnector, Body>,
+    proxy_authorization: Option<String>, // Proxy-Authorization header value
 }
 
 impl SimpleHttp {
@@ -49,16 +51,39 @@ impl SimpleHttp {
     }
 
     pub fn with_ssl_connector(ssl_connector: SslConnector, proxy_config: Option<ProxyConfig>) -> Self {
+
+        let mut proxy_authorization = None;
+        if let Some(ref proxy_config) = proxy_config {
+            if !proxy_config.force_connect {
+               proxy_authorization = proxy_config.authorization.clone();
+            }
+        }
+
         let connector = HttpConnector::new();
         let mut https = HttpsConnector::with_connector(connector, ssl_connector);
         if let Some(proxy_config) = proxy_config {
             https.set_proxy(proxy_config);
         }
         let client = Client::builder().build(https);
-        Self { client }
+        Self { client, proxy_authorization}
     }
 
-    pub async fn request(&self, request: Request<Body>) -> Result<Response<Body>, Error> {
+    fn add_proxy_headers(&self, request: &mut Request<Body>) -> Result<(), Error> {
+        if request.uri().scheme() != Some(&http::uri::Scheme::HTTPS) {
+            if let Some(ref authorization) = self.proxy_authorization {
+                request
+                    .headers_mut()
+                    .insert(
+                        http::header::PROXY_AUTHORIZATION,
+                        HeaderValue::from_str(authorization)?,
+                    );
+            }
+        }
+        Ok(())
+    }
+
+    pub async fn request(&self, mut request: Request<Body>) -> Result<Response<Body>, Error> {
+        self.add_proxy_headers(&mut request)?;
         self.client.request(request)
             .map_err(Error::from)
             .await
@@ -85,9 +110,7 @@ impl SimpleHttp {
             .header(hyper::header::CONTENT_TYPE, content_type)
             .body(body)?;
 
-        self.client.request(request)
-            .map_err(Error::from)
-            .await
+        self.request(request).await
     }
 
     pub async fn get_string(
@@ -109,7 +132,7 @@ impl SimpleHttp {
 
         let request = request.body(Body::empty())?;
 
-        let res = self.client.request(request).await?;
+        let res = self.request(request).await?;
 
         let status = res.status();
         if !status.is_success() {
@@ -240,6 +263,8 @@ impl hyper::service::Service<Uri> for HttpsConnector {
                 Err(err) => return futures::future::err(err.into()).boxed(),
             };
 
+            let authorization = proxy.authorization.clone();
+
             if use_connect {
                 async move {
 
@@ -250,11 +275,11 @@ impl hyper::service::Service<Uri> for HttpsConnector {
 
                     let _ = set_tcp_keepalive(tcp_stream.as_raw_fd(), PROXMOX_BACKUP_TCP_KEEPALIVE_TIME);
 
-                    let connect_request = format!(
-                        "CONNECT {0}:{1} HTTP/1.1\r\n\
-                         Host: {0}:{1}\r\n\r\n",
-                        host, port,
-                    );
+                    let mut connect_request = format!("CONNECT {0}:{1} HTTP/1.1\r\n", host, port);
+                    if let Some(authorization) = authorization {
+                        connect_request.push_str(&format!("Proxy-Authorization: {}\r\n", authorization));
+                    }
+                    connect_request.push_str(&format!("Host: {0}:{1}\r\n\r\n", host, port));
 
                     tcp_stream.write_all(connect_request.as_bytes()).await?;
                     tcp_stream.flush().await?;
