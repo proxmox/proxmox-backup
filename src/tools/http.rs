@@ -107,6 +107,8 @@ pub struct SimpleHttp {
 
 impl SimpleHttp {
 
+    pub const DEFAULT_USER_AGENT_STRING: &'static str = "proxmox-backup-client/1.0";
+
     pub fn new(proxy_config: Option<ProxyConfig>) -> Self {
         let ssl_connector = SslConnector::builder(SslMethod::tls()).unwrap().build();
         Self::with_ssl_connector(ssl_connector, proxy_config)
@@ -145,7 +147,14 @@ impl SimpleHttp {
     }
 
     pub async fn request(&self, mut request: Request<Body>) -> Result<Response<Body>, Error> {
+
+        request.headers_mut().insert(
+            hyper::header::USER_AGENT,
+            HeaderValue::from_str(Self::DEFAULT_USER_AGENT_STRING)?,
+        );
+
         self.add_proxy_headers(&mut request)?;
+
         self.client.request(request)
             .map_err(Error::from)
             .await
@@ -168,7 +177,6 @@ impl SimpleHttp {
         let request = Request::builder()
             .method("POST")
             .uri(uri)
-            .header("User-Agent", "proxmox-backup-client/1.0")
             .header(hyper::header::CONTENT_TYPE, content_type)
             .body(body)?;
 
@@ -183,8 +191,7 @@ impl SimpleHttp {
 
         let mut request = Request::builder()
             .method("GET")
-            .uri(uri)
-            .header("User-Agent", "proxmox-backup-client/1.0");
+            .uri(uri);
 
         if let Some(hs) = extra_headers {
             for (h, v) in hs.iter() {
