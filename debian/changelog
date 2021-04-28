@@ -1,3 +1,10 @@
+rust-proxmox-backup (1.1.5-2) stable; urgency=medium
+
+  * file-restore: strip .img.fidx suffix from drive serials to avoid running
+    in the 20 character limit SCSI serial values have.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 28 Apr 2021 11:15:08 +0200
+
 rust-proxmox-backup (1.1.5-1) unstable; urgency=medium
 
   * tools/sgutils2: add size workaround for mode_sense
