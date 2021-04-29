@@ -22,6 +22,8 @@ pub trait IndexFile {
     fn index_digest(&self, pos: usize) -> Option<&[u8; 32]>;
     fn index_bytes(&self) -> u64;
     fn chunk_info(&self, pos: usize) -> Option<ChunkReadInfo>;
+    fn index_ctime(&self) -> i64;
+    fn index_size(&self) -> usize;
 
     /// Get the chunk index and the relative offset within it for a byte offset
     fn chunk_from_offset(&self, offset: u64) -> Option<(usize, u64)>;

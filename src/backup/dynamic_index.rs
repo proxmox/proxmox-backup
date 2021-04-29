@@ -233,6 +233,14 @@ impl IndexFile for DynamicIndexReader {
         })
     }
 
+    fn index_ctime(&self) -> i64 {
+        self.ctime
+    }
+
+    fn index_size(&self) -> usize {
+        self.size as usize
+    }
+
     fn chunk_from_offset(&self, offset: u64) -> Option<(usize, u64)> {
         let end_idx = self.index.len() - 1;
         let end = self.chunk_end(end_idx);

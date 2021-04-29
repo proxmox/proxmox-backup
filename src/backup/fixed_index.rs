@@ -193,6 +193,14 @@ impl IndexFile for FixedIndexReader {
         })
     }
 
+    fn index_ctime(&self) -> i64 {
+        self.ctime
+    }
+
+    fn index_size(&self) -> usize {
+        self.size as usize
+    }
+
     fn compute_csum(&self) -> ([u8; 32], u64) {
         let mut csum = openssl::sha::Sha256::new();
         let mut chunk_end = 0;
