@@ -115,6 +115,8 @@ impl Filesystems {
             }
         }
 
+        info!("Supported FS: {}", supported_fs.join(", "));
+
         Ok(Self { supported_fs })
     }
 
