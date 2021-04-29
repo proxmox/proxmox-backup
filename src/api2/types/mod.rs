@@ -51,6 +51,11 @@ pub const FILENAME_FORMAT: ApiStringFormat = ApiStringFormat::VerifyFn(|name| {
 macro_rules! DNS_LABEL { () => (r"(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?)") }
 macro_rules! DNS_NAME { () => (concat!(r"(?:(?:", DNS_LABEL!() , r"\.)*", DNS_LABEL!(), ")")) }
 
+macro_rules! DNS_ALIAS_LABEL { () => (r"(?:[a-zA-Z0-9_](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?)") }
+macro_rules! DNS_ALIAS_NAME {
+    () => (concat!(r"(?:(?:", DNS_ALIAS_LABEL!() , r"\.)*", DNS_ALIAS_LABEL!(), ")"))
+}
+
 macro_rules! CIDR_V4_REGEX_STR { () => (concat!(r"(?:", IPV4RE!(), r"/\d{1,2})$")) }
 macro_rules! CIDR_V6_REGEX_STR { () => (concat!(r"(?:", IPV6RE!(), r"/\d{1,3})$")) }
 
@@ -86,6 +91,8 @@ const_regex!{
     pub HOSTNAME_REGEX = r"^(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?)$";
 
     pub DNS_NAME_REGEX =  concat!(r"^", DNS_NAME!(), r"$");
+
+    pub DNS_ALIAS_REGEX =  concat!(r"^", DNS_ALIAS_NAME!(), r"$");
 
     pub DNS_NAME_OR_IP_REGEX = concat!(r"^(?:", DNS_NAME!(), "|",  IPRE!(), r")$");
 
@@ -141,6 +148,9 @@ pub const HOSTNAME_FORMAT: ApiStringFormat =
 
 pub const DNS_NAME_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&DNS_NAME_REGEX);
+
+pub const DNS_ALIAS_FORMAT: ApiStringFormat =
+    ApiStringFormat::Pattern(&DNS_ALIAS_REGEX);
 
 pub const DNS_NAME_OR_IP_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&DNS_NAME_OR_IP_REGEX);
