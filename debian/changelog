@@ -1,3 +1,10 @@
+rust-proxmox-backup (1.1.5-3) stable; urgency=medium
+
+  * file-restore: use 'norecovery' for XFS filesystem to allow mounting
+    those which where not un-mounted during backup
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 29 Apr 2021 15:26:13 +0200
+
 rust-proxmox-backup (1.1.5-2) stable; urgency=medium
 
   * file-restore: strip .img.fidx suffix from drive serials to avoid running
