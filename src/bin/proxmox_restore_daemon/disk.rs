@@ -25,6 +25,8 @@ lazy_static! {
         m.insert("ext3", "noload");
         m.insert("ext4", "noload");
 
+        m.insert("xfs", "norecovery");
+
         // ufs2 is used as default since FreeBSD 5.0 released in 2003, so let's assume that
         // whatever the user is trying to restore is not using anything older...
         m.insert("ufs", "ufstype=ufs2");
