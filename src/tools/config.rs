@@ -149,23 +149,3 @@ fn object_to_writer(output: &mut dyn Write, object: &Object) -> Result<(), Error
     }
     Ok(())
 }
-
-#[test]
-fn test() {
-    // let's just reuse some schema we actually have available:
-    use crate::config::node::NodeConfig;
-
-    const NODE_CONFIG: &str = "\
-        acme: account=pebble\n\
-        acmedomain0: test1.invalid.local,plugin=power\n\
-        acmedomain1: test2.invalid.local\n\
-    ";
-
-    let data: NodeConfig = from_str(NODE_CONFIG, &NodeConfig::API_SCHEMA)
-        .expect("failed to parse simple node config");
-
-    let config = to_bytes(&data, &NodeConfig::API_SCHEMA)
-        .expect("failed to serialize node config");
-
-    assert_eq!(config, NODE_CONFIG.as_bytes());
-}
