@@ -7,6 +7,12 @@ Ext.define('pbs-slot-model', {
 		return data.state !== undefined;
 	    },
 	},
+	{
+	    name: 'is-empty',
+	    calculate: function(data) {
+		return data['label-text'] === undefined;
+	    },
+	},
     ],
     idProperty: 'entry-id',
 });
@@ -179,17 +185,19 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	    let me = this;
 	    let view = me.getView();
 	    let label = record.data['label-text'];
+	    let slot = record.data['entry-id'];
 
 	    let changer = encodeURIComponent(view.changer);
 	    let singleDrive = me.drives.length === 1 ? me.drives[0] : undefined;
 
+	    let apiCall = label !== "" ? 'load-media' : 'load-slot';
+	    let params = label !== "" ? { 'label-text': label } : { 'source-slot': slot };
+
 	    if (singleDrive !== undefined) {
 		Proxmox.Utils.API2Request({
 		    method: 'POST',
-		    params: {
-			'label-text': label,
-		    },
-		    url: `/api2/extjs/tape/drive/${singleDrive}/load-media`,
+		    params,
+		    url: `/api2/extjs/tape/drive/${singleDrive}/${apiCall}`,
 		    success: function(response, opt) {
 			Ext.create('Proxmox.window.TaskProgress', {
 			    upid: response.result.data,
@@ -213,15 +221,21 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 		    submitUrl: function(url, values) {
 			let drive = values.drive;
 			delete values.drive;
-			return `${url}/${encodeURIComponent(drive)}/load-media`;
+			return `${url}/${encodeURIComponent(drive)}/${apiCall}`;
 		    },
 		    items: [
-			{
+			label !== undefined ? {
 			    xtype: 'displayfield',
 			    name: 'label-text',
 			    value: label,
 			    submitValue: true,
 			    fieldLabel: gettext('Media'),
+			} : {
+			    xtype: 'displayfield',
+			    name: 'source-slot',
+			    value: slot,
+			    submitValue: true,
+			    fieldLabel: gettext('Source Slot'),
 			},
 			{
 			    xtype: 'pbsDriveSelector',
@@ -589,6 +603,18 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	    me.scheduleReload(5000);
 	},
 
+	renderLabel: function(value) {
+	    if (value === undefined) {
+		return '';
+	    }
+
+	    if (value === "") {
+		return Ext.htmlEncode("<no-barcode>");
+	    }
+
+	    return value;
+	},
+
 	renderIsLabeled: function(value, mD, record) {
 	    if (!record.data['label-text']) {
 		return "";
@@ -704,7 +730,7 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 			    text: gettext("Content"),
 			    dataIndex: 'label-text',
 			    flex: 1,
-			    renderer: (value) => value || '',
+			    renderer: 'renderLabel',
 			},
 			{
 			    text: gettext('Inventory'),
@@ -721,19 +747,19 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 				    iconCls: 'fa fa-rotate-90 fa-exchange',
 				    handler: 'slotTransfer',
 				    tooltip: gettext('Transfer'),
-				    isDisabled: (v, r, c, i, rec) => !rec.data['label-text'],
+				    isDisabled: (v, r, c, i, rec) => rec.data['is-empty'],
 				},
 				{
 				    iconCls: 'fa fa-trash-o',
 				    handler: 'format',
 				    tooltip: gettext('Format'),
-				    isDisabled: (v, r, c, i, rec) => !rec.data['label-text'],
+				    isDisabled: (v, r, c, i, rec) => rec.data['is-empty'],
 				},
 				{
 				    iconCls: 'fa fa-rotate-90 fa-upload',
 				    handler: 'load',
 				    tooltip: gettext('Load'),
-				    isDisabled: (v, r, c, i, rec) => !rec.data['label-text'],
+				    isDisabled: (v, r, c, i, rec) => rec.data['is-empty'],
 				},
 			    ],
 			},
@@ -765,7 +791,7 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 				    handler: 'labelMedia',
 				    iconCls: 'fa fa-barcode',
 				    disabled: true,
-				    enableFn: (rec) => rec.data["label-text"] !== undefined,
+				    enableFn: (rec) => !rec.data["is-empty"],
 				},
 				{
 				    text: gettext('Catalog'),
@@ -773,7 +799,7 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 				    handler: 'catalog',
 				    iconCls: 'fa fa-book',
 				    disabled: true,
-				    enableFn: (rec) => rec.data["label-text"] !== undefined,
+				    enableFn: (rec) => !rec.data["is-empty"],
 				},
 				{
 				    text: gettext('Format'),
@@ -781,7 +807,7 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 				    handler: 'format-inserted',
 				    iconCls: 'fa fa-trash-o',
 				    disabled: true,
-				    enableFn: (rec) => rec.data["label-text"] !== undefined,
+				    enableFn: (rec) => !rec.data["is-empty"],
 				    dangerous: true,
 				    confirmMsg: gettext('Are you sure you want to format the inserted tape?'),
 				},
@@ -805,7 +831,7 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 				    text: gettext("Content"),
 				    dataIndex: 'label-text',
 				    flex: 1,
-				    renderer: (value) => value || '',
+				    renderer: 'renderLabel',
 				},
 				{
 				    text: gettext('Inventory'),
@@ -859,25 +885,25 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 					    iconCls: 'fa fa-rotate-270 fa-upload',
 					    handler: 'unload',
 					    tooltip: gettext('Unload'),
-					    isDisabled: (v, r, c, i, rec) => !rec.data['label-text'] || rec.data['is-blocked'],
+					    isDisabled: (v, r, c, i, rec) => rec.data['is-empty'] || rec.data['is-blocked'],
 					},
 					{
 					    iconCls: 'fa fa-hdd-o',
 					    handler: 'cartridgeMemory',
 					    tooltip: gettext('Cartridge Memory'),
-					    isDisabled: (v, r, c, i, rec) => !rec.data['label-text'] || rec.data['is-blocked'],
+					    isDisabled: (v, r, c, i, rec) => rec.data['is-empty'] || rec.data['is-blocked'],
 					},
 					{
 					    iconCls: 'fa fa-line-chart',
 					    handler: 'volumeStatistics',
 					    tooltip: gettext('Volume Statistics'),
-					    isDisabled: (v, r, c, i, rec) => !rec.data['label-text'] || rec.data['is-blocked'],
+					    isDisabled: (v, r, c, i, rec) => rec.data['is-empty'] || rec.data['is-blocked'],
 					},
 					{
 					    iconCls: 'fa fa-tag',
 					    handler: 'readLabel',
 					    tooltip: gettext('Read Label'),
-					    isDisabled: (v, r, c, i, rec) => !rec.data['label-text'] || rec.data['is-blocked'],
+					    isDisabled: (v, r, c, i, rec) => rec.data['is-empty'] || rec.data['is-blocked'],
 					},
 					{
 					    iconCls: 'fa fa-info-circle',
@@ -910,7 +936,7 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 				{
 				    text: gettext("Content"),
 				    dataIndex: 'label-text',
-				    renderer: (value) => value || '',
+				    renderer: 'renderLabel',
 				    flex: 1,
 				},
 				{
@@ -927,7 +953,7 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 					    iconCls: 'fa fa-rotate-270 fa-upload',
 					    handler: 'importTape',
 					    tooltip: gettext('Import'),
-					    isDisabled: (v, r, c, i, rec) => !rec.data['label-text'],
+					    isDisabled: (v, r, c, i, rec) => rec.data['is-empty'],
 					},
 				    ],
 				    width: 80,

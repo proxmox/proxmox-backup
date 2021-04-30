@@ -1453,7 +1453,7 @@ pub const SUBDIRS: SubdirMap = &sorted!([
     (
         "load-slot",
         &Router::new()
-            .put(&API_METHOD_LOAD_SLOT)
+            .post(&API_METHOD_LOAD_SLOT)
     ),
     (
         "cartridge-memory",
