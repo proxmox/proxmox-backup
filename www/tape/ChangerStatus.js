@@ -224,7 +224,7 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 			return `${url}/${encodeURIComponent(drive)}/${apiCall}`;
 		    },
 		    items: [
-			label !== undefined ? {
+			label !== "" ? {
 			    xtype: 'displayfield',
 			    name: 'label-text',
 			    value: label,
