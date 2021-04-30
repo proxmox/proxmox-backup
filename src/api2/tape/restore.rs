@@ -32,7 +32,7 @@ use crate::{
     task_log,
     task_warn,
     task::TaskState,
-    tools::compute_file_csum,
+    tools::{compute_file_csum, ParallelHandler},
     api2::types::{
         DATASTORE_MAP_ARRAY_SCHEMA,
         DATASTORE_MAP_LIST_SCHEMA,
@@ -680,6 +680,24 @@ fn restore_chunk_archive<'a>(
 
     let mut decoder = ChunkArchiveDecoder::new(reader);
 
+    let datastore2 = datastore.clone();
+    let writer_pool = ParallelHandler::new(
+        "tape restore chunk writer",
+        4,
+        move |(chunk, digest): (DataBlob, [u8; 32])| {
+            // println!("verify and write {}", proxmox::tools::digest_to_hex(&digest));
+            chunk.verify_crc()?;
+            if chunk.crypt_mode()? == CryptMode::None {
+                chunk.decode(None, Some(&digest))?; // verify digest
+            }
+
+            datastore2.insert_chunk(&chunk, &digest)?;
+            Ok(())
+        },
+    );
+
+    let verify_and_write_channel = writer_pool.channel();
+
     loop {
         let (digest, blob) = match decoder.next_chunk() {
             Ok(Some((digest, blob))) => (digest, blob),
@@ -707,21 +725,20 @@ fn restore_chunk_archive<'a>(
 
         let chunk_exists = datastore.cond_touch_chunk(&digest, false)?;
         if !chunk_exists {
-            blob.verify_crc()?;
-
-            if blob.crypt_mode()? == CryptMode::None {
-                blob.decode(None, Some(&digest))?; // verify digest
-            }
-            if verbose {
+             if verbose {
                 task_log!(worker, "Insert chunk: {}", proxmox::tools::digest_to_hex(&digest));
             }
-            datastore.insert_chunk(&blob, &digest)?;
-        } else if verbose {
+            verify_and_write_channel.send((blob, digest.clone()))?;
+         } else if verbose {
             task_log!(worker, "Found existing chunk: {}", proxmox::tools::digest_to_hex(&digest));
         }
         checked_chunks.insert(digest.clone());
         chunks.push(digest);
     }
+
+    drop(verify_and_write_channel);
+
+    writer_pool.complete()?;
 
     Ok(Some(chunks))
 }
