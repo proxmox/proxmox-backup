@@ -698,6 +698,9 @@ fn restore_chunk_archive<'a>(
 
     let verify_and_write_channel = writer_pool.channel();
 
+    let start_time = std::time::SystemTime::now();
+    let mut bytes = 0;
+
     loop {
         let (digest, blob) = match decoder.next_chunk() {
             Ok(Some((digest, blob))) => (digest, blob),
@@ -728,6 +731,7 @@ fn restore_chunk_archive<'a>(
              if verbose {
                 task_log!(worker, "Insert chunk: {}", proxmox::tools::digest_to_hex(&digest));
             }
+            bytes += blob.raw_size();
             verify_and_write_channel.send((blob, digest.clone()))?;
          } else if verbose {
             task_log!(worker, "Found existing chunk: {}", proxmox::tools::digest_to_hex(&digest));
@@ -739,6 +743,15 @@ fn restore_chunk_archive<'a>(
     drop(verify_and_write_channel);
 
     writer_pool.complete()?;
+
+    let elapsed = start_time.elapsed()?.as_secs_f64();
+
+    task_log!(
+        worker,
+        "restored {} bytes ({:.2} MB/s)",
+        bytes,
+        (bytes as f64) / (1_000_000.0 * elapsed)
+    );
 
     Ok(Some(chunks))
 }
