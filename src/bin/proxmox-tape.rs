@@ -119,7 +119,7 @@ pub fn extract_drive_name(
 /// Format media
 async fn format_media(mut param: Value) -> Result<(), Error> {
 
-    let output_format = get_output_format(&param);
+    let output_format = extract_output_format(&mut param);
 
     let (config, _digest) = config::drive::config()?;
 
@@ -152,7 +152,7 @@ async fn format_media(mut param: Value) -> Result<(), Error> {
 /// Rewind tape
 async fn rewind(mut param: Value) -> Result<(), Error> {
 
-    let output_format = get_output_format(&param);
+    let output_format = extract_output_format(&mut param);
 
     let (config, _digest) = config::drive::config()?;
 
@@ -185,7 +185,7 @@ async fn rewind(mut param: Value) -> Result<(), Error> {
 /// Eject/Unload drive media
 async fn eject_media(mut param: Value) -> Result<(), Error> {
 
-    let output_format = get_output_format(&param);
+    let output_format = extract_output_format(&mut param);
 
     let (config, _digest) = config::drive::config()?;
 
@@ -221,7 +221,7 @@ async fn eject_media(mut param: Value) -> Result<(), Error> {
 /// Load media with specified label
 async fn load_media(mut param: Value) -> Result<(), Error> {
 
-    let output_format = get_output_format(&param);
+    let output_format = extract_output_format(&mut param);
 
     let (config, _digest) = config::drive::config()?;
 
@@ -318,7 +318,7 @@ async fn load_media_from_slot(mut param: Value) -> Result<(), Error> {
 /// Unload media via changer
 async fn unload_media(mut param: Value) -> Result<(), Error> {
 
-    let output_format = get_output_format(&param);
+    let output_format = extract_output_format(&mut param);
 
     let (config, _digest) = config::drive::config()?;
 
@@ -358,7 +358,7 @@ async fn unload_media(mut param: Value) -> Result<(), Error> {
 /// Label media
 async fn label_media(mut param: Value) -> Result<(), Error> {
 
-    let output_format = get_output_format(&param);
+    let output_format = extract_output_format(&mut param);
 
     let (config, _digest) = config::drive::config()?;
 
@@ -396,7 +396,7 @@ async fn label_media(mut param: Value) -> Result<(), Error> {
 /// Read media label
 async fn read_label(mut param: Value) -> Result<(), Error> {
 
-    let output_format = get_output_format(&param);
+    let output_format = extract_output_format(&mut param);
 
     let (config, _digest) = config::drive::config()?;
 
@@ -456,7 +456,7 @@ async fn inventory(
     mut param: Value,
 ) -> Result<(), Error> {
 
-    let output_format = get_output_format(&param);
+    let output_format = extract_output_format(&mut param);
 
     let (config, _digest) = config::drive::config()?;
     let drive = extract_drive_name(&mut param, &config)?;
@@ -514,7 +514,7 @@ async fn inventory(
 /// Label media with barcodes from changer device
 async fn barcode_label_media(mut param: Value) -> Result<(), Error> {
 
-    let output_format = get_output_format(&param);
+    let output_format = extract_output_format(&mut param);
 
     let (config, _digest) = config::drive::config()?;
 
@@ -653,7 +653,7 @@ fn debug_scan(mut param: Value) -> Result<(), Error> {
 /// Read Cartridge Memory (Medium auxiliary memory attributes)
 async fn cartridge_memory(mut param: Value) -> Result<(), Error> {
 
-    let output_format = get_output_format(&param);
+    let output_format = extract_output_format(&mut param);
 
     let (config, _digest) = config::drive::config()?;
 
@@ -694,7 +694,7 @@ async fn cartridge_memory(mut param: Value) -> Result<(), Error> {
 /// Read Volume Statistics (SCSI log page 17h)
 async fn volume_statistics(mut param: Value) -> Result<(), Error> {
 
-    let output_format = get_output_format(&param);
+    let output_format = extract_output_format(&mut param);
 
     let (config, _digest) = config::drive::config()?;
 
@@ -732,7 +732,7 @@ async fn volume_statistics(mut param: Value) -> Result<(), Error> {
 /// Get drive/media status
 async fn status(mut param: Value) -> Result<(), Error> {
 
-    let output_format = get_output_format(&param);
+    let output_format = extract_output_format(&mut param);
 
     let (config, _digest) = config::drive::config()?;
 
@@ -792,7 +792,7 @@ async fn status(mut param: Value) -> Result<(), Error> {
 /// Clean drive
 async fn clean_drive(mut param: Value) -> Result<(), Error> {
 
-    let output_format = get_output_format(&param);
+    let output_format = extract_output_format(&mut param);
 
     let (config, _digest) = config::drive::config()?;
 
@@ -853,7 +853,7 @@ async fn clean_drive(mut param: Value) -> Result<(), Error> {
 /// Backup datastore to tape media pool
 async fn backup(mut param: Value) -> Result<(), Error> {
 
-    let output_format = get_output_format(&param);
+    let output_format = extract_output_format(&mut param);
 
     let (config, _digest) = config::drive::config()?;
 
@@ -900,7 +900,7 @@ async fn backup(mut param: Value) -> Result<(), Error> {
 /// Restore data from media-set
 async fn restore(mut param: Value) -> Result<(), Error> {
 
-    let output_format = get_output_format(&param);
+    let output_format = extract_output_format(&mut param);
 
     let (config, _digest) = config::drive::config()?;
 
@@ -947,7 +947,7 @@ async fn restore(mut param: Value) -> Result<(), Error> {
 /// Scan media and record content
 async fn catalog_media(mut param: Value)  -> Result<(), Error> {
 
-    let output_format = get_output_format(&param);
+    let output_format = extract_output_format(&mut param);
 
     let (config, _digest) = config::drive::config()?;
 

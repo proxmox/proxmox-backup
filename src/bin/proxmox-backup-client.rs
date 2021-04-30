@@ -1266,13 +1266,12 @@ async fn prune_async(mut param: Value) -> Result<Value, Error> {
     let group = tools::required_string_param(&param, "group")?;
     let group: BackupGroup = group.parse()?;
 
-    let output_format = get_output_format(&param);
+    let output_format = extract_output_format(&mut param);
 
     let quiet = param["quiet"].as_bool().unwrap_or(false);
 
     param.as_object_mut().unwrap().remove("repository");
     param.as_object_mut().unwrap().remove("group");
-    param.as_object_mut().unwrap().remove("output-format");
     param.as_object_mut().unwrap().remove("quiet");
 
     param["backup-type"] = group.backup_type().into();
