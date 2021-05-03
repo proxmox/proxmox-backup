@@ -27,6 +27,7 @@ use crate::tools;
 use crate::tools::ticket::{self, Empty, Ticket};
 
 pub mod apt;
+pub mod certificates;
 pub mod disks;
 pub mod dns;
 pub mod network;
@@ -314,6 +315,7 @@ fn upgrade_to_websocket(
 
 pub const SUBDIRS: SubdirMap = &[
     ("apt", &apt::ROUTER),
+    ("certificates", &certificates::ROUTER),
     ("disks", &disks::ROUTER),
     ("dns", &dns::ROUTER),
     ("journal", &journal::ROUTER),
