@@ -32,7 +32,7 @@ use crate::{
     task_log,
     task_warn,
     task::TaskState,
-    tools::{compute_file_csum, ParallelHandler},
+    tools::ParallelHandler,
     api2::types::{
         DATASTORE_MAP_ARRAY_SCHEMA,
         DATASTORE_MAP_LIST_SCHEMA,
@@ -51,17 +51,12 @@ use crate::{
         },
     },
     backup::{
-        archive_type,
         MANIFEST_BLOB_NAME,
         CryptMode,
         DataStore,
         BackupDir,
         DataBlob,
         BackupManifest,
-        ArchiveType,
-        IndexFile,
-        DynamicIndexReader,
-        FixedIndexReader,
     },
     server::{
         lookup_user_email,
@@ -790,8 +785,8 @@ fn try_restore_snapshot_archive<R: pxar::decoder::SeqRead>(
     worker: &WorkerTask,
     decoder: &mut pxar::decoder::sync::Decoder<R>,
     snapshot_path: &Path,
-    datastore: &DataStore,
-    checked_chunks: &mut HashSet<[u8;32]>,
+    _datastore: &DataStore,
+    _checked_chunks: &mut HashSet<[u8;32]>,
 ) -> Result<(), Error> {
 
     let _root = match decoder.next() {
@@ -848,6 +843,16 @@ fn try_restore_snapshot_archive<R: pxar::decoder::SeqRead>(
         if filename == manifest_file_name {
 
             let blob = DataBlob::load_from_reader(&mut contents)?;
+            let mut old_manifest = BackupManifest::try_from(blob)?;
+
+            // Remove verify_state to indicate that this snapshot is not verified
+            old_manifest.unprotected
+                .as_object_mut()
+                .map(|m| m.remove("verify_state"));
+
+            let old_manifest = serde_json::to_string_pretty(&old_manifest)?;
+            let blob = DataBlob::encode(old_manifest.as_bytes(), None, true)?;
+
             let options = CreateOptions::new();
             replace_file(&tmp_path, blob.raw_data(), options)?;
 
@@ -868,35 +873,11 @@ fn try_restore_snapshot_archive<R: pxar::decoder::SeqRead>(
         }
     }
 
-    let manifest = match manifest {
-        None => bail!("missing manifest"),
-        Some(manifest) => manifest,
-    };
-
-    for item in manifest.files() {
-        let mut archive_path = snapshot_path.to_owned();
-        archive_path.push(&item.filename);
-
-        match archive_type(&item.filename)? {
-            ArchiveType::DynamicIndex => {
-                let index = DynamicIndexReader::open(&archive_path)?;
-                let (csum, size) = index.compute_csum();
-                manifest.verify_file(&item.filename, &csum, size)?;
-                datastore.fast_index_verification(&index, checked_chunks)?;
-            }
-            ArchiveType::FixedIndex => {
-                let index = FixedIndexReader::open(&archive_path)?;
-                let (csum, size) = index.compute_csum();
-                manifest.verify_file(&item.filename, &csum, size)?;
-                datastore.fast_index_verification(&index, checked_chunks)?;
-            }
-            ArchiveType::Blob => {
-                let mut tmpfile = std::fs::File::open(&archive_path)?;
-                let (csum, size) = compute_file_csum(&mut tmpfile)?;
-                manifest.verify_file(&item.filename, &csum, size)?;
-            }
-        }
+    if manifest.is_none() {
+        bail!("missing manifest");
     }
+
+    // Do not verify anything here, because this would be to slow (causes tape stops).
 
     // commit manifest
     let mut manifest_path = snapshot_path.to_owned();
