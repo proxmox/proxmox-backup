@@ -20,6 +20,7 @@ pub mod acme;
 pub mod cached_user_info;
 pub mod datastore;
 pub mod network;
+pub mod node;
 pub mod remote;
 pub mod sync;
 pub mod tfa;
