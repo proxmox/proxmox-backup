@@ -1,5 +1,7 @@
 mod acl;
 pub use acl::*;
+mod acme;
+pub use acme::*;
 mod cert;
 pub use cert::*;
 mod datastore;

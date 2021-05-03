@@ -355,6 +355,7 @@ fn main() {
         .insert("user", user_commands())
         .insert("remote", remote_commands())
         .insert("garbage-collection", garbage_collection_commands())
+        .insert("acme", acme_mgmt_cli())
         .insert("cert", cert_mgmt_cli())
         .insert("subscription", subscription_commands())
         .insert("sync-job", sync_job_commands())
