@@ -360,7 +360,9 @@ WebAuthn
 For WebAuthn to work, you need to have two things:
 
 * a trusted HTTPS certificate (for example, by using `Let's Encrypt
-  <https://pbs.proxmox.com/wiki/index.php/HTTPS_Certificate_Configuration>`_)
+  <https://pbs.proxmox.com/wiki/index.php/HTTPS_Certificate_Configuration>`_).
+  While it probably works with an untrusted certificate, some browsers may warn
+  or refuse WebAuthn operations if it is not trusted.
 
 * setup the WebAuthn configuration (see *Configuration -> Authentication* in the
   Proxmox Backup Server web-interface). This can be auto-filled in most setups.
