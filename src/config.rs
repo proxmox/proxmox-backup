@@ -16,6 +16,7 @@ use proxmox::try_block;
 use crate::buildcfg;
 
 pub mod acl;
+pub mod acme;
 pub mod cached_user_info;
 pub mod datastore;
 pub mod network;
