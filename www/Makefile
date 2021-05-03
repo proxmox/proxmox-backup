@@ -53,6 +53,7 @@ JSSRC=							\
 	config/SyncView.js				\
 	config/VerifyView.js				\
 	config/WebauthnView.js				\
+	config/CertificateView.js			\
 	window/ACLEdit.js				\
 	window/AddTfaRecovery.js			\
 	window/AddTotp.js				\

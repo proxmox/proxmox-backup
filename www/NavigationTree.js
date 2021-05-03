@@ -51,6 +51,12 @@ Ext.define('PBS.store.NavigationStore', {
 			leaf: true,
 		    },
 		    {
+			text: gettext('Certificates'),
+			iconCls: 'fa fa-certificate',
+			path: 'pbsCertificateConfiguration',
+			leaf: true,
+		    },
+		    {
 			text: gettext('Subscription'),
 			iconCls: 'fa fa-support',
 			path: 'pbsSubscription',
