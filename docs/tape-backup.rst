@@ -67,8 +67,10 @@ tape compression feature has no advantage.
 Supported Hardware
 ------------------
 
-Proxmox Backup Server supports `Linear Tape-Open`_ generation 4 (LTO-4)
-or later.
+Proxmox Backup Server supports `Linear Tape-Open`_ generation 5 (LTO-5)
+or later and has best-effort support for generation 4 (LTO-4). While
+many LTO-4 systems are known to work, some might need firmware updates or
+do not implement necessary features to work with Proxmox Backup Server.
 
 Tape changing is carried out using the SCSI Medium Changer protocol,
 so all modern tape libraries should work.
