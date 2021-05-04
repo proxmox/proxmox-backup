@@ -1336,7 +1336,7 @@ pub fn catalog_media(
             drive.read_label()?; // skip over labels - we already read them above
 
             let mut checked_chunks = HashMap::new();
-            restore_media(&worker, &mut drive, &media_id, None, &mut checked_chunks, verbose)?;
+            restore_media(worker, &mut drive, &media_id, None, &mut checked_chunks, verbose)?;
 
             Ok(())
         },
