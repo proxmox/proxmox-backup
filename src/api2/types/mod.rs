@@ -37,6 +37,9 @@ pub use tape::*;
 mod file_restore;
 pub use file_restore::*;
 
+mod acme;
+pub use acme::*;
+
 // File names: may not contain slashes, may not start with "."
 pub const FILENAME_FORMAT: ApiStringFormat = ApiStringFormat::VerifyFn(|name| {
     if name.starts_with('.') {

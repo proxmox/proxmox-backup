@@ -10,8 +10,8 @@ use proxmox::api::api;
 use proxmox::api::schema::{ApiStringFormat, Updater};
 use proxmox::tools::fs::{replace_file, CreateOptions};
 
+use crate::api2::types::{AcmeDomain, AcmeAccountName, ACME_DOMAIN_PROPERTY_SCHEMA};
 use crate::acme::AcmeClient;
-use crate::config::acme::{AccountName, AcmeDomain, ACME_DOMAIN_PROPERTY_SCHEMA};
 
 const CONF_FILE: &str = configdir!("/node.cfg");
 const LOCK_FILE: &str = configdir!("/.node.lck");
@@ -49,7 +49,7 @@ pub fn save_config(config: &NodeConfig) -> Result<(), Error> {
 
 #[api(
     properties: {
-        account: { type: AccountName },
+        account: { type: AcmeAccountName },
     }
 )]
 #[derive(Deserialize, Serialize)]
@@ -58,7 +58,7 @@ pub fn save_config(config: &NodeConfig) -> Result<(), Error> {
 /// Currently only contains the name of the account use.
 pub struct AcmeConfig {
     /// Account to use to acquire ACME certificates.
-    account: AccountName,
+    account: AcmeAccountName,
 }
 
 #[api(

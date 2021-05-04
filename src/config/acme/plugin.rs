@@ -15,6 +15,8 @@ use crate::api2::types::PROXMOX_SAFE_ID_FORMAT;
 
 pub const PLUGIN_ID_SCHEMA: Schema = StringSchema::new("ACME Challenge Plugin ID.")
     .format(&PROXMOX_SAFE_ID_FORMAT)
+    .min_length(1)
+    .max_length(32)
     .schema();
 
 lazy_static! {

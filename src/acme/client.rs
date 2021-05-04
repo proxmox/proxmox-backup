@@ -17,7 +17,8 @@ use proxmox_acme_rs::order::{Order, OrderData};
 use proxmox_acme_rs::Request as AcmeRequest;
 use proxmox_acme_rs::{Account, Authorization, Challenge, Directory, Error, ErrorResponse};
 
-use crate::config::acme::{account_path, AccountName};
+use crate::api2::types::AcmeAccountName;
+use crate::config::acme::account_path;
 use crate::tools::http::SimpleHttp;
 
 /// Our on-disk format inherited from PVE's proxmox-acme code.
@@ -76,7 +77,7 @@ impl AcmeClient {
     }
 
     /// Load an existing ACME account by name.
-    pub async fn load(account_name: &AccountName) -> Result<Self, anyhow::Error> {
+    pub async fn load(account_name: &AcmeAccountName) -> Result<Self, anyhow::Error> {
         Self::load_path(account_path(account_name.as_ref())).await
     }
 
@@ -98,7 +99,7 @@ impl AcmeClient {
 
     pub async fn new_account<'a>(
         &'a mut self,
-        account_name: &AccountName,
+        account_name: &AcmeAccountName,
         tos_agreed: bool,
         contact: Vec<String>,
         rsa_bits: Option<u32>,

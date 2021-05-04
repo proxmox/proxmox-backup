@@ -11,7 +11,7 @@ use tokio::process::Command;
 use proxmox_acme_rs::{Authorization, Challenge};
 
 use crate::acme::AcmeClient;
-use crate::config::acme::AcmeDomain;
+use crate::api2::types::AcmeDomain;
 use crate::server::WorkerTask;
 
 use crate::config::acme::plugin::{DnsPlugin, PluginData};

@@ -8,8 +8,9 @@ use proxmox::tools::fs::file_get_contents;
 
 use proxmox_backup::acme::AcmeClient;
 use proxmox_backup::api2;
+use proxmox_backup::api2::types::AcmeAccountName;
 use proxmox_backup::config::acme::plugin::DnsPluginCoreUpdater;
-use proxmox_backup::config::acme::{AccountName, KNOWN_ACME_DIRECTORIES};
+use proxmox_backup::config::acme::KNOWN_ACME_DIRECTORIES;
 
 pub fn acme_mgmt_cli() -> CommandLineInterface {
     let cmd_def = CliCommandMap::new()
@@ -49,7 +50,7 @@ fn list_accounts(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Er
 #[api(
     input: {
         properties: {
-            name: { type: AccountName },
+            name: { type: AcmeAccountName },
             "output-format": {
                 schema: OUTPUT_FORMAT,
                 optional: true,
@@ -83,7 +84,7 @@ async fn get_account(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<()
 #[api(
     input: {
         properties: {
-            name: { type: AccountName },
+            name: { type: AcmeAccountName },
             contact: {
                 description: "List of email addresses.",
             },
@@ -97,7 +98,7 @@ async fn get_account(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<()
 )]
 /// Register an ACME account.
 async fn register_account(
-    name: AccountName,
+    name: AcmeAccountName,
     contact: String,
     directory: Option<String>,
 ) -> Result<(), Error> {
@@ -169,7 +170,7 @@ async fn register_account(
 #[api(
     input: {
         properties: {
-            name: { type: AccountName },
+            name: { type: AcmeAccountName },
             contact: {
                 description: "List of email addresses.",
                 type: String,
@@ -194,7 +195,7 @@ async fn update_account(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result
 #[api(
     input: {
         properties: {
-            name: { type: AccountName },
+            name: { type: AcmeAccountName },
             force: {
                 description:
                     "Delete account data even if the server refuses to deactivate the account.",

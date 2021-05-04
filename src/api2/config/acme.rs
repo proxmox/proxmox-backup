@@ -14,12 +14,11 @@ use proxmox_acme_rs::account::AccountData as AcmeAccountData;
 use proxmox_acme_rs::Account;
 
 use crate::acme::AcmeClient;
-use crate::api2::types::Authid;
 use crate::config::acl::PRIV_SYS_MODIFY;
 use crate::config::acme::plugin::{
     DnsPlugin, DnsPluginCore, DnsPluginCoreUpdater, PLUGIN_ID_SCHEMA,
 };
-use crate::config::acme::{AccountName, KnownAcmeDirectory};
+use crate::api2::types::{Authid, KnownAcmeDirectory, AcmeAccountName};
 use crate::server::WorkerTask;
 use crate::tools::ControlFlow;
 
@@ -65,7 +64,7 @@ const PLUGIN_ITEM_ROUTER: Router = Router::new()
 
 #[api(
     properties: {
-        name: { type: AccountName },
+        name: { type: AcmeAccountName },
     },
 )]
 /// An ACME Account entry.
@@ -73,7 +72,7 @@ const PLUGIN_ITEM_ROUTER: Router = Router::new()
 /// Currently only contains a 'name' property.
 #[derive(Serialize)]
 pub struct AccountEntry {
-    name: AccountName,
+    name: AcmeAccountName,
 }
 
 #[api(
@@ -128,7 +127,7 @@ pub struct AccountInfo {
 #[api(
     input: {
         properties: {
-            name: { type: AccountName },
+            name: { type: AcmeAccountName },
         },
     },
     access: {
@@ -138,7 +137,7 @@ pub struct AccountInfo {
     protected: true,
 )]
 /// Return existing ACME account information.
-pub async fn get_account(name: AccountName) -> Result<AccountInfo, Error> {
+pub async fn get_account(name: AcmeAccountName) -> Result<AccountInfo, Error> {
     let client = AcmeClient::load(&name).await?;
     let account = client.account()?;
     Ok(AccountInfo {
@@ -162,7 +161,7 @@ fn account_contact_from_string(s: &str) -> Vec<String> {
     input: {
         properties: {
             name: {
-                type: AccountName,
+                type: AcmeAccountName,
                 optional: true,
             },
             contact: {
@@ -186,7 +185,7 @@ fn account_contact_from_string(s: &str) -> Vec<String> {
 )]
 /// Register an ACME account.
 fn register_account(
-    name: Option<AccountName>,
+    name: Option<AcmeAccountName>,
     // Todo: email & email-list schema
     contact: String,
     tos_url: Option<String>,
@@ -196,7 +195,7 @@ fn register_account(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
     let name = name
-        .unwrap_or_else(|| unsafe { AccountName::from_string_unchecked("default".to_string()) });
+        .unwrap_or_else(|| unsafe { AcmeAccountName::from_string_unchecked("default".to_string()) });
 
     if Path::new(&crate::config::acme::account_path(&name)).exists() {
         http_bail!(BAD_REQUEST, "account {:?} already exists", name);
@@ -233,7 +232,7 @@ fn register_account(
 
 pub async fn do_register_account<'a>(
     client: &'a mut AcmeClient,
-    name: &AccountName,
+    name: &AcmeAccountName,
     agree_to_tos: bool,
     contact: String,
     rsa_bits: Option<u32>,
@@ -247,7 +246,7 @@ pub async fn do_register_account<'a>(
 #[api(
     input: {
         properties: {
-            name: { type: AccountName },
+            name: { type: AcmeAccountName },
             contact: {
                 description: "List of email addresses.",
                 optional: true,
@@ -261,7 +260,7 @@ pub async fn do_register_account<'a>(
 )]
 /// Update an ACME account.
 pub fn update_account(
-    name: AccountName,
+    name: AcmeAccountName,
     // Todo: email & email-list schema
     contact: Option<String>,
     rpcenv: &mut dyn RpcEnvironment,
@@ -291,7 +290,7 @@ pub fn update_account(
 #[api(
     input: {
         properties: {
-            name: { type: AccountName },
+            name: { type: AcmeAccountName },
             force: {
                 description:
                     "Delete account data even if the server refuses to deactivate the account.",
@@ -307,7 +306,7 @@ pub fn update_account(
 )]
 /// Deactivate an ACME account.
 pub fn deactivate_account(
-    name: AccountName,
+    name: AcmeAccountName,
     force: bool,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
