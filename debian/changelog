@@ -1,3 +1,9 @@
+rust-proxmox-backup (1.1.6-2) unstable; urgency=medium
+
+  * fix permissions set in create_run_dir
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 04 May 2021 12:25:00 +0200
+
 rust-proxmox-backup (1.1.6-1) unstable; urgency=medium
 
   * tape restore: do not verify restored files
