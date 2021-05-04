@@ -16,6 +16,7 @@ use openssl::hash::{hash, DigestBytes, MessageDigest};
 use percent_encoding::{utf8_percent_encode, AsciiSet};
 
 pub use proxmox::tools::fd::Fd;
+use proxmox::tools::fs::{create_path, CreateOptions};
 
 pub mod acl;
 pub mod apt;
@@ -569,7 +570,11 @@ pub fn compute_file_csum(file: &mut File) -> Result<([u8; 32], u64), Error> {
 /// This exists to fixate the permissions for the run *base* directory while allowing intermediate
 /// directories after it to have different permissions.
 pub fn create_run_dir() -> Result<(), Error> {
-    let _: bool = proxmox::tools::fs::create_path(PROXMOX_BACKUP_RUN_DIR_M!(), None, None)?;
+    let backup_user = crate::backup::backup_user()?;
+    let opts = CreateOptions::new()
+        .owner(backup_user.uid)
+        .group(backup_user.gid);
+    let _: bool = create_path(PROXMOX_BACKUP_RUN_DIR_M!(), None, Some(opts))?;
     Ok(())
 }
 
