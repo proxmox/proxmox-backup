@@ -1,3 +1,26 @@
+rust-proxmox-backup (1.1.6-1) unstable; urgency=medium
+
+  * tape restore: do not verify restored files
+
+  * tape restore: add restore speed to logs
+
+  * tape restore: write datastore in separate thread
+
+  * add ACME support
+
+  * add node config
+
+  * docs: user-management: add note about untrusted certificates for
+    webauthn
+
+  * bin: use extract_output_format where necessary
+
+  * add ctime and size function to IndexFile trait
+
+  * ui: tape: handle tapes in changers without barcode
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 04 May 2021 12:09:25 +0200
+
 rust-proxmox-backup (1.1.5-3) stable; urgency=medium
 
   * file-restore: use 'norecovery' for XFS filesystem to allow mounting
