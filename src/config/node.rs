@@ -7,14 +7,14 @@ use nix::sys::stat::Mode;
 use serde::{Deserialize, Serialize};
 
 use proxmox::api::api;
-use proxmox::api::schema::{self, Updater};
+use proxmox::api::schema::{ApiStringFormat, Updater};
 use proxmox::tools::fs::{replace_file, CreateOptions};
 
 use crate::acme::AcmeClient;
-use crate::config::acme::{AccountName, AcmeDomain};
+use crate::config::acme::{AccountName, AcmeDomain, ACME_DOMAIN_PROPERTY_SCHEMA};
 
 const CONF_FILE: &str = configdir!("/node.cfg");
-const LOCK_FILE: &str = configdir!("/.node.cfg.lck");
+const LOCK_FILE: &str = configdir!("/.node.lck");
 const LOCK_TIMEOUT: Duration = Duration::from_secs(10);
 
 pub fn lock() -> Result<File, Error> {
@@ -66,32 +66,27 @@ pub struct AcmeConfig {
         acme: {
             optional: true,
             type: String,
-            format: &schema::ApiStringFormat::PropertyString(&AcmeConfig::API_SCHEMA),
+            format: &ApiStringFormat::PropertyString(&AcmeConfig::API_SCHEMA),
         },
         acmedomain0: {
-            type: String,
+            schema: ACME_DOMAIN_PROPERTY_SCHEMA,
             optional: true,
-            format: &schema::ApiStringFormat::PropertyString(&AcmeDomain::API_SCHEMA),
         },
         acmedomain1: {
-            type: String,
+            schema: ACME_DOMAIN_PROPERTY_SCHEMA,
             optional: true,
-            format: &schema::ApiStringFormat::PropertyString(&AcmeDomain::API_SCHEMA),
         },
         acmedomain2: {
-            type: String,
+            schema: ACME_DOMAIN_PROPERTY_SCHEMA,
             optional: true,
-            format: &schema::ApiStringFormat::PropertyString(&AcmeDomain::API_SCHEMA),
         },
         acmedomain3: {
-            type: String,
+            schema: ACME_DOMAIN_PROPERTY_SCHEMA,
             optional: true,
-            format: &schema::ApiStringFormat::PropertyString(&AcmeDomain::API_SCHEMA),
         },
         acmedomain4: {
-            type: String,
+            schema: ACME_DOMAIN_PROPERTY_SCHEMA,
             optional: true,
-            format: &schema::ApiStringFormat::PropertyString(&AcmeDomain::API_SCHEMA),
         },
     },
 )]
@@ -102,23 +97,18 @@ pub struct NodeConfig {
     #[serde(skip_serializing_if = "Updater::is_empty")]
     acme: Option<String>,
 
-    /// ACME domain to get a certificate for for this node.
     #[serde(skip_serializing_if = "Updater::is_empty")]
     acmedomain0: Option<String>,
 
-    /// ACME domain to get a certificate for for this node.
     #[serde(skip_serializing_if = "Updater::is_empty")]
     acmedomain1: Option<String>,
 
-    /// ACME domain to get a certificate for for this node.
     #[serde(skip_serializing_if = "Updater::is_empty")]
     acmedomain2: Option<String>,
 
-    /// ACME domain to get a certificate for for this node.
     #[serde(skip_serializing_if = "Updater::is_empty")]
     acmedomain3: Option<String>,
 
-    /// ACME domain to get a certificate for for this node.
     #[serde(skip_serializing_if = "Updater::is_empty")]
     acmedomain4: Option<String>,
 }

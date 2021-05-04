@@ -5,7 +5,7 @@ use std::path::Path;
 use anyhow::{bail, format_err, Error};
 use serde::{Deserialize, Serialize};
 
-use proxmox::api::{api, schema::Schema};
+use proxmox::api::{api, schema::{Schema, StringSchema, ApiStringFormat}};
 use proxmox::sys::error::SysError;
 use proxmox::tools::fs::CreateOptions;
 
@@ -77,6 +77,11 @@ pub struct AcmeDomain {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub plugin: Option<String>,
 }
+
+pub const ACME_DOMAIN_PROPERTY_SCHEMA: Schema = StringSchema::new(
+    "ACME domain configuration string")
+    .format(&ApiStringFormat::PropertyString(&AcmeDomain::API_SCHEMA))
+    .schema();
 
 #[api(
     properties: {
