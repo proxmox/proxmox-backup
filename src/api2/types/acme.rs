@@ -1,6 +1,3 @@
-use std::fmt;
-
-use anyhow::Error;
 use serde::{Deserialize, Serialize};
 
 use proxmox::api::{api, schema::{Schema, StringSchema, ApiStringFormat}};
@@ -64,63 +61,10 @@ pub struct KnownAcmeDirectory {
     pub url: &'static str,
 }
 
-#[api(format: &PROXMOX_SAFE_ID_FORMAT)]
-/// ACME account name.
-#[derive(Clone, Eq, PartialEq, Hash, Deserialize, Serialize)]
-#[serde(transparent)]
-pub struct AcmeAccountName(String);
-
-impl AcmeAccountName {
-    pub fn into_string(self) -> String {
-        self.0
-    }
-
-    pub fn from_string(name: String) -> Result<Self, Error> {
-        match &Self::API_SCHEMA {
-            Schema::String(s) => s.check_constraints(&name)?,
-            _ => unreachable!(),
-        }
-        Ok(Self(name))
-    }
-
-    pub unsafe fn from_string_unchecked(name: String) -> Self {
-        Self(name)
-    }
-}
-
-impl std::ops::Deref for AcmeAccountName {
-    type Target = str;
-
-    #[inline]
-    fn deref(&self) -> &str {
-        &self.0
-    }
-}
-
-impl std::ops::DerefMut for AcmeAccountName {
-    #[inline]
-    fn deref_mut(&mut self) -> &mut str {
-        &mut self.0
-    }
-}
-
-impl AsRef<str> for AcmeAccountName {
-    #[inline]
-    fn as_ref(&self) -> &str {
-        self.0.as_ref()
-    }
-}
-
-impl fmt::Debug for AcmeAccountName {
-    #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Debug::fmt(&self.0, f)
-    }
-}
-
-impl fmt::Display for AcmeAccountName {
-    #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(&self.0, f)
-    }
+proxmox::api_string_type! {
+    #[api(format: &PROXMOX_SAFE_ID_FORMAT)]
+    /// ACME account name.
+    #[derive(Clone, Eq, PartialEq, Hash, Deserialize, Serialize)]
+    #[serde(transparent)]
+    pub struct AcmeAccountName(String);
 }

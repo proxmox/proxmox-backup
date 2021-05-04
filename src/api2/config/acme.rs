@@ -198,7 +198,7 @@ fn register_account(
         .unwrap_or_else(|| unsafe { AcmeAccountName::from_string_unchecked("default".to_string()) });
 
     if Path::new(&crate::config::acme::account_path(&name)).exists() {
-        http_bail!(BAD_REQUEST, "account {:?} already exists", name);
+        http_bail!(BAD_REQUEST, "account {} already exists", name);
     }
 
     let directory = directory.unwrap_or_else(|| {
@@ -327,7 +327,7 @@ pub fn deactivate_account(
                 Err(err) if !force => return Err(err),
                 Err(err) => {
                     worker.warn(format!(
-                        "error deactivating account {:?}, proceedeing anyway - {}",
+                        "error deactivating account {}, proceedeing anyway - {}",
                         name, err,
                     ));
                 }
