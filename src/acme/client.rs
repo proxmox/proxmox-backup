@@ -57,7 +57,7 @@ pub struct AcmeClient {
     account: Option<Account>,
     directory: Option<Directory>,
     nonce: Option<String>,
-    http_client: Option<SimpleHttp>,
+    http_client: SimpleHttp,
 }
 
 impl AcmeClient {
@@ -71,7 +71,7 @@ impl AcmeClient {
             account: None,
             directory: None,
             nonce: None,
-            http_client: None,
+            http_client: SimpleHttp::new(None),
         }
     }
 
@@ -87,16 +87,13 @@ impl AcmeClient {
 
         let account = Account::from_parts(data.location, data.key, data.account);
 
-        Ok(Self {
-            directory_url: data.directory_url,
-            debug: data.debug,
-            account_path: Some(account_path),
-            tos: data.tos,
-            account: Some(account),
-            directory: None,
-            nonce: None,
-            http_client: None,
-        })
+        let mut me = Self::new(data.directory_url);
+        me.debug = data.debug;
+        me.account_path = Some(account_path);
+        me.tos = data.tos;
+        me.account = Some(account);
+
+        Ok(me)
     }
 
     pub async fn new_account<'a>(
@@ -468,7 +465,7 @@ impl AcmeResponse {
 impl AcmeClient {
     /// Non-self-borrowing run_request version for borrow workarounds.
     async fn execute(
-        http_client: &mut Option<SimpleHttp>,
+        http_client: &mut SimpleHttp,
         request: AcmeRequest,
         nonce: &mut Option<String>,
     ) -> Result<AcmeResponse, Error> {
@@ -485,7 +482,6 @@ impl AcmeClient {
         .map_err(|err| Error::Custom(format!("failed to create http request: {}", err)))?;
 
         let response = http_client
-            .get_or_insert_with(|| SimpleHttp::new(None))
             .request(http_request)
             .await
             .map_err(|err| Error::Custom(err.to_string()))?;
@@ -573,7 +569,7 @@ impl AcmeClient {
     }
 
     async fn get_directory<'a, 'b>(
-        http_client: &mut Option<SimpleHttp>,
+        http_client: &mut SimpleHttp,
         directory_url: &str,
         directory: &'a mut Option<Directory>,
         nonce: &'b mut Option<String>,
@@ -606,7 +602,7 @@ impl AcmeClient {
     /// Like `get_directory`, but if the directory provides no nonce, also performs a `HEAD`
     /// request on the new nonce URL.
     async fn get_dir_nonce<'a, 'b>(
-        http_client: &mut Option<SimpleHttp>,
+        http_client: &mut SimpleHttp,
         directory_url: &str,
         directory: &'a mut Option<Directory>,
         nonce: &'b mut Option<String>,
@@ -626,7 +622,7 @@ impl AcmeClient {
     }
 
     async fn get_nonce<'a>(
-        http_client: &mut Option<SimpleHttp>,
+        http_client: &mut SimpleHttp,
         nonce: &'a mut Option<String>,
         new_nonce_url: &str,
     ) -> Result<&'a str, Error> {
