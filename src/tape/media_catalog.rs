@@ -924,6 +924,16 @@ impl MediaSetCatalog {
         false
     }
 
+    /// Returns the media uuid and snapshot archive file number
+    pub fn lookup_snapshot(&self, store: &str, snapshot: &str) -> Option<(&Uuid, u64)> {
+        for (uuid, catalog) in self.catalog_list.iter() {
+            if let Some(nr) = catalog.lookup_snapshot(store, snapshot) {
+                return Some((uuid, nr));
+            }
+        }
+        None
+    }
+
     /// Test if the catalog already contain a chunk
     pub fn contains_chunk(&self, store: &str, digest: &[u8;32]) -> bool {
         for catalog in self.catalog_list.values() {
@@ -932,6 +942,16 @@ impl MediaSetCatalog {
             }
         }
         false
+    }
+
+    /// Returns the media uuid and chunk archive file number
+    pub fn lookup_chunk(&self, store: &str, digest: &[u8;32]) -> Option<(&Uuid, u64)> {
+        for (uuid, catalog) in self.catalog_list.iter() {
+            if let Some(nr) = catalog.lookup_chunk(store, digest) {
+                return Some((uuid, nr));
+            }
+        }
+        None
     }
 }
 
