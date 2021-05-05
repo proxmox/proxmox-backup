@@ -273,6 +273,26 @@ fn load_ticket_info(prefix: &str, server: &str, userid: &Userid) -> Option<(Stri
     }
 }
 
+fn build_uri(server: &str, port: u16, path: &str, query: Option<String>) -> Result<Uri, Error> {
+    let path = path.trim_matches('/');
+    let bytes = server.as_bytes();
+    let len = bytes.len();
+    let uri = if len > 3 && bytes.contains(&b':') && bytes[0] != b'[' && bytes[len-1] != b']' {
+        if let Some(query) = query {
+            format!("https://[{}]:{}/{}?{}", server, port, path, query)
+        } else {
+            format!("https://[{}]:{}/{}", server, port, path)
+        }
+    } else {
+        if let Some(query) = query {
+            format!("https://{}:{}/{}?{}", server, port, path, query)
+        } else {
+            format!("https://{}:{}/{}", server, port, path)
+        }
+    };
+    Ok(uri.parse()?)
+}
+
 impl HttpClient {
     pub fn new(
         server: &str,
@@ -614,16 +634,11 @@ impl HttpClient {
         data: Option<Value>,
     ) -> Result<Value, Error> {
 
-        let path = path.trim_matches('/');
-        let mut url = format!("https://{}:{}/{}", &self.server, self.port, path);
-
-        if let Some(data) = data {
-            let query = tools::json_object_to_query(data).unwrap();
-            url.push('?');
-            url.push_str(&query);
-        }
-
-        let url: Uri = url.parse().unwrap();
+        let query = match data {
+            Some(data) => Some(tools::json_object_to_query(data)?),
+            None => None,
+        };
+        let url = build_uri(&self.server, self.port, path, query)?;
 
         let req = Request::builder()
             .method("POST")
@@ -757,39 +772,38 @@ impl HttpClient {
     }
 
     pub fn request_builder(server: &str, port: u16, method: &str, path: &str, data: Option<Value>) -> Result<Request<Body>, Error> {
-        let path = path.trim_matches('/');
-        let url: Uri = format!("https://{}:{}/{}", server, port, path).parse()?;
-
         if let Some(data) = data {
             if method == "POST" {
+                let url = build_uri(server, port, path, None)?;
                 let request = Request::builder()
                     .method(method)
                     .uri(url)
                     .header("User-Agent", "proxmox-backup-client/1.0")
                     .header(hyper::header::CONTENT_TYPE, "application/json")
                     .body(Body::from(data.to_string()))?;
-                return Ok(request);
+                Ok(request)
             } else {
                 let query = tools::json_object_to_query(data)?;
-                let url: Uri = format!("https://{}:{}/{}?{}", server, port, path, query).parse()?;
+                let url = build_uri(server, port, path, Some(query))?;
                 let request = Request::builder()
                     .method(method)
                     .uri(url)
                     .header("User-Agent", "proxmox-backup-client/1.0")
                     .header(hyper::header::CONTENT_TYPE, "application/x-www-form-urlencoded")
                     .body(Body::empty())?;
-                return Ok(request);
+                Ok(request)
             }
+        } else {
+            let url = build_uri(server, port, path, None)?;
+            let request = Request::builder()
+                .method(method)
+                .uri(url)
+                .header("User-Agent", "proxmox-backup-client/1.0")
+                .header(hyper::header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+                .body(Body::empty())?;
+
+            Ok(request)
         }
-
-        let request = Request::builder()
-            .method(method)
-            .uri(url)
-            .header("User-Agent", "proxmox-backup-client/1.0")
-            .header(hyper::header::CONTENT_TYPE, "application/x-www-form-urlencoded")
-            .body(Body::empty())?;
-
-        Ok(request)
     }
 }
 
@@ -970,29 +984,25 @@ impl H2Client {
         let path = path.trim_matches('/');
 
         let content_type = content_type.unwrap_or("application/x-www-form-urlencoded");
+        let query = match param {
+            Some(param) => {
+                let query = tools::json_object_to_query(param)?;
+                // We detected problem with hyper around 6000 characters - so we try to keep on the safe side
+                if query.len() > 4096 {
+                    bail!("h2 query data too large ({} bytes) - please encode data inside body", query.len());
+                }
+                Some(query)
+            }
+            None => None,
+        };
 
-        if let Some(param) = param {
-            let query = tools::json_object_to_query(param)?;
-            // We detected problem with hyper around 6000 characters - seo we try to keep on the safe side
-            if query.len() > 4096 { bail!("h2 query data too large ({} bytes) - please encode data inside body", query.len()); }
-            let url: Uri = format!("https://{}:8007/{}?{}", server, path, query).parse()?;
-             let request = Request::builder()
-                .method(method)
-                .uri(url)
-                .header("User-Agent", "proxmox-backup-client/1.0")
-                .header(hyper::header::CONTENT_TYPE, content_type)
-                .body(())?;
-            Ok(request)
-        } else {
-            let url: Uri = format!("https://{}:8007/{}", server, path).parse()?;
-            let request = Request::builder()
-                .method(method)
-                .uri(url)
-                .header("User-Agent", "proxmox-backup-client/1.0")
-                .header(hyper::header::CONTENT_TYPE, content_type)
-                .body(())?;
-
-            Ok(request)
-        }
+        let url = build_uri(server, 8007, path, query)?;
+        let request = Request::builder()
+            .method(method)
+            .uri(url)
+            .header("User-Agent", "proxmox-backup-client/1.0")
+            .header(hyper::header::CONTENT_TYPE, content_type)
+            .body(())?;
+        Ok(request)
     }
 }
