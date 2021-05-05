@@ -309,6 +309,10 @@ impl TapeDriver for LtoTapeHandle {
         Ok(())
     }
 
+    fn move_to_file(&mut self, file: u64) -> Result<(), Error> {
+        self.locate_file(file)
+    }
+
     fn rewind(&mut self) -> Result<(), Error> {
         self.sg_tape.rewind()
     }

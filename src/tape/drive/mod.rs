@@ -80,6 +80,9 @@ pub trait TapeDriver {
     /// Move to last file
     fn move_to_last_file(&mut self) -> Result<(), Error>;
 
+    /// Move to given file nr
+    fn move_to_file(&mut self, file: u64) -> Result<(), Error>;
+
     /// Current file number
     fn current_file_number(&mut self) -> Result<u64, Error>;
 
