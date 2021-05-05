@@ -31,6 +31,8 @@ lazy_static! {
         // whatever the user is trying to restore is not using anything older...
         m.insert("ufs", "ufstype=ufs2");
 
+        m.insert("ntfs", "utf8");
+
         m
     };
 }
