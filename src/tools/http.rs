@@ -5,9 +5,9 @@ use std::collections::HashMap;
 use std::pin::Pin;
 use std::sync::Arc;
 
-use hyper::{Uri, Body};
+use hyper::Body;
 use hyper::client::{Client, HttpConnector};
-use http::{Request, Response, HeaderValue};
+use http::{Uri, uri::Authority, Request, Response, HeaderValue};
 use openssl::ssl::{SslConnector, SslMethod};
 use futures::*;
 use tokio::{
@@ -27,6 +27,18 @@ use crate::tools::{
         PROXMOX_BACKUP_TCP_KEEPALIVE_TIME,
     },
 };
+
+// Build a http::uri::Authority ("host:port"), use '[..]' around IPv6 addresses
+fn build_authority(host: &str, port: u16) -> Result<Authority, Error> {
+    let bytes = host.as_bytes();
+    let len = bytes.len();
+    let authority = if len > 3 && bytes.contains(&b':') && bytes[0] != b'[' && bytes[len-1] != b']' {
+        format!("[{}]:{}", host, port).parse()?
+    } else {
+        format!("{}:{}", host, port).parse()?
+    };
+    Ok(authority)
+}
 
 /// HTTP Proxy Configuration
 #[derive(Clone)]
@@ -329,10 +341,14 @@ impl hyper::service::Service<Uri> for HttpsConnector {
 
             let use_connect = is_https || proxy.force_connect;
 
-            let proxy_url = format!("{}:{}", proxy.host, proxy.port);
+            let proxy_authority = match build_authority(&proxy.host, proxy.port) {
+                Ok(authority) => authority,
+                Err(err) => return futures::future::err(err).boxed(),
+            };
+
             let proxy_uri = match Uri::builder()
                 .scheme("http")
-                .authority(proxy_url.as_str())
+                .authority(proxy_authority.as_str())
                 .path_and_query("/")
                 .build()
             {
@@ -348,7 +364,7 @@ impl hyper::service::Service<Uri> for HttpsConnector {
                     let mut tcp_stream = connector
                         .call(proxy_uri)
                         .await
-                        .map_err(|err| format_err!("error connecting to {} - {}", proxy_url, err))?;
+                        .map_err(|err| format_err!("error connecting to {} - {}", proxy_authority, err))?;
 
                     let _ = set_tcp_keepalive(tcp_stream.as_raw_fd(), PROXMOX_BACKUP_TCP_KEEPALIVE_TIME);
 
@@ -374,7 +390,7 @@ impl hyper::service::Service<Uri> for HttpsConnector {
                    let tcp_stream = connector
                        .call(proxy_uri)
                        .await
-                       .map_err(|err| format_err!("error connecting to {} - {}", proxy_url, err))?;
+                       .map_err(|err| format_err!("error connecting to {} - {}", proxy_authority, err))?;
 
                    let _ = set_tcp_keepalive(tcp_stream.as_raw_fd(), PROXMOX_BACKUP_TCP_KEEPALIVE_TIME);
 
