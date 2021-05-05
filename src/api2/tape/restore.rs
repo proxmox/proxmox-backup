@@ -503,8 +503,6 @@ fn restore_archive<'a>(
             let datastore_name = archive_header.store;
             let snapshot = archive_header.snapshot;
 
-            let checked_chunks = checked_chunks_map.entry(datastore_name.clone()).or_insert(HashSet::new());
-
             task_log!(worker, "File {}: snapshot archive {}:{}", current_file_number, datastore_name, snapshot);
 
             let backup_dir: BackupDir = snapshot.parse()?;
@@ -531,7 +529,7 @@ fn restore_archive<'a>(
                     if is_new {
                         task_log!(worker, "restore snapshot {}", backup_dir);
 
-                        match restore_snapshot_archive(worker.clone(), reader, &path, &datastore, checked_chunks) {
+                        match restore_snapshot_archive(worker.clone(), reader, &path) {
                             Err(err) => {
                                 std::fs::remove_dir_all(&path)?;
                                 bail!("restore snapshot {} failed - {}", backup_dir, err);
@@ -774,13 +772,11 @@ fn restore_snapshot_archive<'a>(
     worker: Arc<WorkerTask>,
     reader: Box<dyn 'a + TapeRead>,
     snapshot_path: &Path,
-    datastore: &DataStore,
-    checked_chunks: &mut HashSet<[u8;32]>,
 ) -> Result<bool, Error> {
 
     let mut decoder = pxar::decoder::sync::Decoder::from_std(reader)?;
-    match try_restore_snapshot_archive(worker, &mut decoder, snapshot_path, datastore, checked_chunks) {
-        Ok(()) => Ok(true),
+    match try_restore_snapshot_archive(worker, &mut decoder, snapshot_path) {
+        Ok(_) => Ok(true),
         Err(err) => {
             let reader = decoder.input();
 
@@ -804,8 +800,6 @@ fn try_restore_snapshot_archive<R: pxar::decoder::SeqRead>(
     worker: Arc<WorkerTask>,
     decoder: &mut pxar::decoder::sync::Decoder<R>,
     snapshot_path: &Path,
-    _datastore: &DataStore,
-    _checked_chunks: &mut HashSet<[u8;32]>,
 ) -> Result<(), Error> {
 
     let _root = match decoder.next() {
