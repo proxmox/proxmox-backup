@@ -157,6 +157,30 @@ impl DataStoreMap {
     }
 }
 
+fn check_datastore_privs(
+    user_info: &CachedUserInfo,
+    store: &str,
+    auth_id: &Authid,
+    owner: &Option<Authid>,
+) -> Result<(), Error> {
+    let privs = user_info.lookup_privs(&auth_id, &["datastore", &store]);
+    if (privs & PRIV_DATASTORE_BACKUP) == 0 {
+        bail!("no permissions on /datastore/{}", store);
+    }
+
+    if let Some(ref owner) = owner {
+        let correct_owner = owner == auth_id
+            || (owner.is_token() && !auth_id.is_token() && owner.user() == auth_id.user());
+
+        // same permission as changing ownership after syncing
+        if !correct_owner && privs & PRIV_DATASTORE_MODIFY == 0 {
+            bail!("no permission to restore as '{}'", owner);
+        }
+    }
+
+    Ok(())
+}
+
 pub const ROUTER: Router = Router::new().post(&API_METHOD_RESTORE);
 
 #[api(
@@ -212,20 +236,7 @@ pub fn restore(
     }
 
     for store in used_datastores.iter() {
-        let privs = user_info.lookup_privs(&auth_id, &["datastore", &store]);
-        if (privs & PRIV_DATASTORE_BACKUP) == 0 {
-            bail!("no permissions on /datastore/{}", store);
-        }
-
-        if let Some(ref owner) = owner {
-            let correct_owner = owner == &auth_id
-                || (owner.is_token() && !auth_id.is_token() && owner.user() == auth_id.user());
-
-            // same permission as changing ownership after syncing
-            if !correct_owner && privs & PRIV_DATASTORE_MODIFY == 0 {
-                bail!("no permission to restore as '{}'", owner);
-            }
-        }
+        check_datastore_privs(&user_info, &store, &auth_id, &owner)?;
     }
 
     let privs = user_info.lookup_privs(&auth_id, &["tape", "drive", &drive]);
