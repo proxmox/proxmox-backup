@@ -800,7 +800,7 @@ fn try_restore_snapshot_archive<R: pxar::decoder::SeqRead>(
     worker: Arc<WorkerTask>,
     decoder: &mut pxar::decoder::sync::Decoder<R>,
     snapshot_path: &Path,
-) -> Result<(), Error> {
+) -> Result<BackupManifest, Error> {
 
     let _root = match decoder.next() {
         None => bail!("missing root entry"),
@@ -886,9 +886,10 @@ fn try_restore_snapshot_archive<R: pxar::decoder::SeqRead>(
         }
     }
 
-    if manifest.is_none() {
-        bail!("missing manifest");
-    }
+    let manifest = match manifest {
+        None => bail!("missing manifest"),
+        Some(manifest) => manifest,
+    };
 
     // Do not verify anything here, because this would be to slow (causes tape stops).
 
@@ -902,7 +903,7 @@ fn try_restore_snapshot_archive<R: pxar::decoder::SeqRead>(
         bail!("Atomic rename manifest {:?} failed - {}", manifest_path, err);
     }
 
-    Ok(())
+    Ok(manifest)
 }
 
 /// Try to restore media catalogs (form catalog_archives)
