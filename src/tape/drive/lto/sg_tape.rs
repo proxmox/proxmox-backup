@@ -328,6 +328,9 @@ impl SgTape {
         let mut sg_raw = SgRaw::new(&mut self.file, 32)?;
         sg_raw.set_timeout(30); // use short timeout
         let mut cmd = Vec::new();
+        // READ POSITION LONG FORM works on LTO4 or newer (with recent
+        // firmware), although it is missing in the IBM LTO4 SSCI
+        // reference manual.
         cmd.extend(&[0x34, 0x06, 0, 0, 0, 0, 0, 0, 0, 0]); // READ POSITION LONG FORM
 
         let data = sg_raw.do_command(&cmd)
