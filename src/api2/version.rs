@@ -13,7 +13,7 @@ pub const PROXMOX_PKG_VERSION: &str =
         env!("CARGO_PKG_VERSION_MINOR"),
     );
 pub const PROXMOX_PKG_RELEASE: &str = env!("CARGO_PKG_VERSION_PATCH");
-pub const PROXMOX_PKG_REPOID: &str = env!("CARGO_PKG_REPOSITORY");
+pub const PROXMOX_PKG_REPOID: &str = env!("REPOID");
 
 fn get_version(
     _param: Value,
