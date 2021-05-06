@@ -43,6 +43,10 @@ pub const PROXMOX_BACKUP_API_PID_FN: &str = concat!(PROXMOX_BACKUP_RUN_DIR_M!(),
 pub const PROXMOX_BACKUP_INITRAMFS_FN: &str =
     concat!(PROXMOX_BACKUP_CACHE_DIR_M!(), "/file-restore-initramfs.img");
 
+/// filename of the cached initramfs to use for debugging single file restore
+pub const PROXMOX_BACKUP_INITRAMFS_DBG_FN: &str =
+    concat!(PROXMOX_BACKUP_CACHE_DIR_M!(), "/file-restore-initramfs-debug.img");
+
 /// filename of the kernel to use for booting single file restore VMs
 pub const PROXMOX_BACKUP_KERNEL_FN: &str =
     concat!(PROXMOX_BACKUP_FILE_RESTORE_BIN_DIR_M!(), "/bzImage");

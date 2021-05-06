@@ -6,6 +6,7 @@ update_initramfs() {
     # regenerate initramfs for single file restore VM
     INST_PATH="/usr/lib/x86_64-linux-gnu/proxmox-backup/file-restore"
     CACHE_PATH="/var/cache/proxmox-backup/file-restore-initramfs.img"
+    CACHE_PATH_DBG="/var/cache/proxmox-backup/file-restore-initramfs-debug.img"
 
     # cleanup first, in case proxmox-file-restore was uninstalled since we do
     # not want an unuseable image lying around
@@ -20,7 +21,7 @@ update_initramfs() {
 
     # avoid leftover temp file
     cleanup() {
-        rm -f "$CACHE_PATH.tmp"
+        rm -f "$CACHE_PATH.tmp" "$CACHE_PATH_DBG.tmp"
     }
     trap cleanup EXIT
 
@@ -33,6 +34,15 @@ update_initramfs() {
         printf "./proxmox-restore-daemon" \
         | cpio -o --format=newc -A -F "$CACHE_PATH.tmp" )
     mv -f "$CACHE_PATH.tmp" "$CACHE_PATH"
+
+    if [ -f "$INST_PATH/initramfs-debug.img" ]; then
+        echo "Updating file-restore debug initramfs..."
+        cp "$INST_PATH/initramfs-debug.img" "$CACHE_PATH_DBG.tmp"
+        ( cd "$INST_PATH"; \
+            printf "./proxmox-restore-daemon" \
+            | cpio -o --format=newc -A -F "$CACHE_PATH_DBG.tmp" )
+        mv -f "$CACHE_PATH_DBG.tmp" "$CACHE_PATH_DBG"
+    fi
 
     trap - EXIT
 }

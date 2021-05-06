@@ -47,9 +47,13 @@ fn create_restore_log_dir() -> Result<String, Error> {
     Ok(logpath)
 }
 
-fn validate_img_existance() -> Result<(), Error> {
+fn validate_img_existance(debug: bool) -> Result<(), Error> {
     let kernel = PathBuf::from(buildcfg::PROXMOX_BACKUP_KERNEL_FN);
-    let initramfs = PathBuf::from(buildcfg::PROXMOX_BACKUP_INITRAMFS_FN);
+    let initramfs = PathBuf::from(if debug {
+        buildcfg::PROXMOX_BACKUP_INITRAMFS_DBG_FN
+    } else {
+        buildcfg::PROXMOX_BACKUP_INITRAMFS_FN
+    });
     if !kernel.exists() || !initramfs.exists() {
         bail!("cannot run file-restore VM: package 'proxmox-backup-restore-image' is not (correctly) installed");
     }
@@ -79,7 +83,7 @@ pub fn try_kill_vm(pid: i32) -> Result<(), Error> {
     Ok(())
 }
 
-async fn create_temp_initramfs(ticket: &str) -> Result<(Fd, String), Error> {
+async fn create_temp_initramfs(ticket: &str, debug: bool) -> Result<(Fd, String), Error> {
     use std::ffi::CString;
     use tokio::fs::File;
 
@@ -88,8 +92,14 @@ async fn create_temp_initramfs(ticket: &str) -> Result<(Fd, String), Error> {
     nix::unistd::unlink(&tmp_path)?;
     tools::fd_change_cloexec(tmp_fd.0, false)?;
 
+    let initramfs = if debug {
+        buildcfg::PROXMOX_BACKUP_INITRAMFS_DBG_FN
+    } else {
+        buildcfg::PROXMOX_BACKUP_INITRAMFS_FN
+    };
+
     let mut f = File::from_std(unsafe { std::fs::File::from_raw_fd(tmp_fd.0) });
-    let mut base = File::open(buildcfg::PROXMOX_BACKUP_INITRAMFS_FN).await?;
+    let mut base = File::open(initramfs).await?;
 
     tokio::io::copy(&mut base, &mut f).await?;
 
@@ -122,18 +132,24 @@ pub async fn start_vm(
     files: impl Iterator<Item = String>,
     ticket: &str,
 ) -> Result<(i32, i32), Error> {
-    validate_img_existance()?;
-
     if let Err(_) = std::env::var("PBS_PASSWORD") {
         bail!("environment variable PBS_PASSWORD has to be set for QEMU VM restore");
     }
+
+    let debug = if let Ok(val) = std::env::var("PBS_QEMU_DEBUG") {
+        !val.is_empty()
+    } else {
+        false
+    };
+
+    validate_img_existance(debug)?;
 
     let pid;
     let (pid_fd, pid_path) = make_tmp_file("/tmp/file-restore-qemu.pid.tmp", CreateOptions::new())?;
     nix::unistd::unlink(&pid_path)?;
     tools::fd_change_cloexec(pid_fd.0, false)?;
 
-    let (_ramfs_pid, ramfs_path) = create_temp_initramfs(ticket).await?;
+    let (_ramfs_pid, ramfs_path) = create_temp_initramfs(ticket, debug).await?;
 
     let logpath = create_restore_log_dir()?;
     let logfile = &format!("{}/qemu.log", logpath);
@@ -172,7 +188,11 @@ pub async fn start_vm(
         "-initrd",
         &ramfs_path,
         "-append",
-        "quiet panic=1",
+        if debug {
+            "debug panic=1"
+        } else {
+            "quiet panic=1"
+        },
         "-daemonize",
         "-pidfile",
         &format!("/dev/fd/{}", pid_fd.as_raw_fd()),
@@ -240,6 +260,19 @@ pub async fn start_vm(
             cid
         ));
 
+        if debug {
+            let debug_args = [
+                "-chardev",
+                &format!(
+                    "socket,id=debugser,path=/run/proxmox-backup/file-restore-serial-{}.sock,server,nowait",
+                    cid
+                ),
+                "-serial",
+                "chardev:debugser",
+            ];
+            qemu_cmd.args(debug_args.iter());
+        }
+
         qemu_cmd.stdout(std::process::Stdio::null());
         qemu_cmd.stderr(std::process::Stdio::piped());
 
@@ -282,6 +315,12 @@ pub async fn start_vm(
         if let Ok(Ok(_)) =
             time::timeout(Duration::from_secs(2), client.get("api2/json/status", None)).await
         {
+            if debug {
+                eprintln!(
+                    "Connect to '/run/proxmox-backup/file-restore-serial-{}.sock' for shell access",
+                    cid
+                )
+            }
             return Ok((pid, cid as i32));
         }
         if kill(pid_t, None).is_err() {
