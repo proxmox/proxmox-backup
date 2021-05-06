@@ -32,6 +32,10 @@ pub mod format;
 pub mod fs;
 pub mod fuse_loop;
 pub mod http;
+
+mod simple_http_client;
+pub use simple_http_client::SimpleHttp;
+
 pub mod json;
 pub mod logrotate;
 pub mod loopdev;

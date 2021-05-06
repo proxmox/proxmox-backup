@@ -6,7 +6,7 @@ use regex::Regex;
 
 use proxmox::api::api;
 
-use crate::tools::{self, http::SimpleHttp};
+use crate::tools::{self, SimpleHttp};
 use proxmox::tools::fs::{replace_file, CreateOptions};
 
 /// How long the local key is valid for in between remote checks
