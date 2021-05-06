@@ -25,6 +25,13 @@ macro_rules! BACKUP_TIME_RE {
     };
 }
 
+#[macro_export]
+macro_rules! SNAPSHOT_PATH_REGEX_STR {
+    () => (
+        concat!(r"(", BACKUP_TYPE_RE!(), ")/(", BACKUP_ID_RE!(), ")/(", BACKUP_TIME_RE!(), r")")
+    );
+}
+
 const_regex! {
     BACKUP_FILE_REGEX = r"^.*\.([fd]idx|blob)$";
 
@@ -37,7 +44,7 @@ const_regex! {
     GROUP_PATH_REGEX = concat!(r"^(", BACKUP_TYPE_RE!(), ")/(", BACKUP_ID_RE!(), r")$");
 
     SNAPSHOT_PATH_REGEX = concat!(
-        r"^(", BACKUP_TYPE_RE!(), ")/(", BACKUP_ID_RE!(), ")/(", BACKUP_TIME_RE!(), r")$");
+        r"^", SNAPSHOT_PATH_REGEX_STR!(), r"$");
 }
 
 /// BackupGroup is a directory containing a list of BackupDir

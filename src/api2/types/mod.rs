@@ -114,6 +114,8 @@ const_regex!{
     pub UUID_REGEX = r"^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$";
 
     pub DATASTORE_MAP_REGEX = concat!(r"(:?", PROXMOX_SAFE_ID_REGEX_STR!(), r"=)?", PROXMOX_SAFE_ID_REGEX_STR!());
+
+    pub TAPE_RESTORE_SNAPSHOT_REGEX = concat!(r"^", PROXMOX_SAFE_ID_REGEX_STR!(), r":", SNAPSHOT_PATH_REGEX_STR!(), r"$");
 }
 
 pub const SYSTEMD_DATETIME_FORMAT: ApiStringFormat =
@@ -184,6 +186,9 @@ pub const BLOCKDEVICE_NAME_FORMAT: ApiStringFormat =
 
 pub const DATASTORE_MAP_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&DATASTORE_MAP_REGEX);
+
+pub const TAPE_RESTORE_SNAPSHOT_FORMAT: ApiStringFormat =
+    ApiStringFormat::Pattern(&TAPE_RESTORE_SNAPSHOT_REGEX);
 
 pub const PASSWORD_SCHEMA: Schema = StringSchema::new("Password.")
     .format(&PASSWORD_FORMAT)
@@ -394,6 +399,12 @@ pub const DATASTORE_MAP_LIST_SCHEMA: Schema = StringSchema::new(
     all other sources to the default 'e'. If no default is given, only the \
     specified sources are mapped.")
     .format(&ApiStringFormat::PropertyString(&DATASTORE_MAP_ARRAY_SCHEMA))
+    .schema();
+
+pub const TAPE_RESTORE_SNAPSHOT_SCHEMA: Schema = StringSchema::new(
+    "A snapshot in the format: 'store:type/id/time")
+    .format(&TAPE_RESTORE_SNAPSHOT_FORMAT)
+    .type_text("store:type/id/time")
     .schema();
 
 pub const MEDIA_SET_UUID_SCHEMA: Schema =

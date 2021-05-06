@@ -238,6 +238,7 @@ pub use fixed_index::*;
 mod dynamic_index;
 pub use dynamic_index::*;
 
+#[macro_use]
 mod backup_info;
 pub use backup_info::*;
 
