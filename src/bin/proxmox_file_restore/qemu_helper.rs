@@ -197,10 +197,21 @@ pub async fn start_vm(
             "file=pbs:repository={},,snapshot={},,archive={}{},read-only=on,if=none,id=drive{}",
             details.repo, details.snapshot, file, keyfile, id
         ));
+
+        // a PCI bus can only support 32 devices, so add a new one every 32
+        let bus = (id / 32) + 2;
+        if id % 32 == 0 {
+            drives.push("-device".to_owned());
+            drives.push(format!("pci-bridge,id=bridge{},chassis_nr={}", bus, bus));
+        }
+
         drives.push("-device".to_owned());
         // drive serial is used by VM to map .fidx files to /dev paths
         let serial = file.strip_suffix(".img.fidx").unwrap_or(&file);
-        drives.push(format!("virtio-blk-pci,drive=drive{},serial={}", id, serial));
+        drives.push(format!(
+            "virtio-blk-pci,drive=drive{},serial={},bus=bridge{}",
+            id, serial, bus
+        ));
         id += 1;
     }
 
