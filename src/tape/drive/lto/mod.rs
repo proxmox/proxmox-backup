@@ -215,31 +215,8 @@ impl LtoTapeHandle {
     }
 
     /// Position the tape after filemark count. Count 0 means BOT.
-    ///
-    /// Note: we dont use LOCATE(10), because that needs LTO5
     pub fn locate_file(&mut self, position: u64) ->  Result<(), Error> {
-
-        if position == 0 {
-            return self.rewind();
-        }
-
-        let current_position = self.current_file_number()?;
-
-        if current_position == position {
-            // make sure we are immediated afer the filemark
-            self.sg_tape.space_filemarks(-1)?;
-            self.sg_tape.space_filemarks(1)?;
-        } else if current_position < position {
-            let diff = position - current_position;
-            self.sg_tape.space_filemarks(diff.try_into()?)?;
-        } else {
-            let diff = current_position - position + 1;
-            self.sg_tape.space_filemarks(-diff.try_into()?)?;
-            // move to EOT side of filemark
-            self.sg_tape.space_filemarks(1)?;
-        }
-
-        Ok(())
+        self.sg_tape.locate_file(position)
     }
 
     pub fn erase_media(&mut self, fast: bool) -> Result<(), Error> {
