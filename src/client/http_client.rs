@@ -26,7 +26,10 @@ use crate::tools::{
     self,
     BroadcastFuture,
     DEFAULT_ENCODE_SET,
-    http::HttpsConnector,
+    http::{
+        build_authority,
+        HttpsConnector,
+    },
 };
 
 /// Timeout used for several HTTP operations that are expected to finish quickly but may block in
@@ -274,23 +277,15 @@ fn load_ticket_info(prefix: &str, server: &str, userid: &Userid) -> Option<(Stri
 }
 
 fn build_uri(server: &str, port: u16, path: &str, query: Option<String>) -> Result<Uri, Error> {
-    let path = path.trim_matches('/');
-    let bytes = server.as_bytes();
-    let len = bytes.len();
-    let uri = if len > 3 && bytes.contains(&b':') && bytes[0] != b'[' && bytes[len-1] != b']' {
-        if let Some(query) = query {
-            format!("https://[{}]:{}/{}?{}", server, port, path, query)
-        } else {
-            format!("https://[{}]:{}/{}", server, port, path)
-        }
-    } else {
-        if let Some(query) = query {
-            format!("https://{}:{}/{}?{}", server, port, path, query)
-        } else {
-            format!("https://{}:{}/{}", server, port, path)
-        }
-    };
-    Ok(uri.parse()?)
+    let builder = Uri::builder()
+        .scheme("https")
+        .authority(build_authority(server, port)?);
+    match query {
+        Some(query) => builder.path_and_query(format!("{}?{}", path, query)),
+        None => builder.path_and_query(path),
+    }
+    .build()
+    .map_err(Error::from)
 }
 
 impl HttpClient {
