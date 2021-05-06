@@ -167,8 +167,6 @@ pub async fn start_vm(
         "-vnc",
         "none",
         "-enable-kvm",
-        "-m",
-        "128",
         "-kernel",
         buildcfg::PROXMOX_BACKUP_KERNEL_FN,
         "-initrd",
@@ -206,11 +204,24 @@ pub async fn start_vm(
         id += 1;
     }
 
+    let ram = if debug {
+        1024
+    } else {
+        // add more RAM if many drives are given
+        match id {
+            f if f < 10 => 128,
+            f if f < 20 => 192,
+            _ => 256,
+        }
+    };
+
     // Try starting QEMU in a loop to retry if we fail because of a bad 'cid' value
     let mut attempts = 0;
     loop {
         let mut qemu_cmd = std::process::Command::new("qemu-system-x86_64");
         qemu_cmd.args(base_args.iter());
+        qemu_cmd.arg("-m");
+        qemu_cmd.arg(ram.to_string());
         qemu_cmd.args(&drives);
         qemu_cmd.arg("-device");
         qemu_cmd.arg(format!(
