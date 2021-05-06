@@ -4,6 +4,9 @@ use proxmox::tools::time::epoch_i64;
 
 const TIMEOUT: i64 = 600; // seconds
 static TRIGGERED: AtomicI64 = AtomicI64::new(0);
+static INHIBITORS: AtomicI64 = AtomicI64::new(0);
+
+pub struct WatchdogInhibitor {}
 
 fn handle_expired() -> ! {
     use nix::sys::reboot;
@@ -37,5 +40,24 @@ pub fn watchdog_ping() {
 
 /// Returns the remaining time before watchdog expiry in seconds
 pub fn watchdog_remaining() -> i64 {
-    TIMEOUT - (epoch_i64() - TRIGGERED.load(Ordering::Acquire))
+    if INHIBITORS.load(Ordering::Acquire) > 0 {
+        TIMEOUT
+    } else {
+        TIMEOUT - (epoch_i64() - TRIGGERED.load(Ordering::Acquire))
+    }
+}
+
+/// Returns an object that inhibts watchdog expiry for its lifetime, it will issue a ping on Drop
+pub fn watchdog_inhibit() -> WatchdogInhibitor {
+    let prev = INHIBITORS.fetch_add(1, Ordering::AcqRel);
+    log::info!("Inhibit added: {}", prev + 1);
+    WatchdogInhibitor {}
+}
+
+impl Drop for WatchdogInhibitor {
+    fn drop(&mut self) {
+        watchdog_ping();
+        let prev = INHIBITORS.fetch_sub(1, Ordering::AcqRel);
+        log::info!("Inhibit dropped: {}", prev - 1);
+    }
 }
