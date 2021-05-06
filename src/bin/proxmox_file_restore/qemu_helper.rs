@@ -56,7 +56,7 @@ fn validate_img_existance() -> Result<(), Error> {
     Ok(())
 }
 
-fn try_kill_vm(pid: i32) -> Result<(), Error> {
+pub fn try_kill_vm(pid: i32) -> Result<(), Error> {
     let pid = Pid::from_raw(pid);
     if let Ok(()) = kill(pid, None) {
         // process is running (and we could kill it), check if it is actually ours

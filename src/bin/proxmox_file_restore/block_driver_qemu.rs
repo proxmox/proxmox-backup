@@ -98,6 +98,7 @@ async fn cleanup_map(map: &mut HashMap<String, VMState>) -> bool {
                 "VM '{}' (pid: {}, cid: {}) was not reachable, removing from map",
                 name, state.pid, state.cid
             );
+            let _ = super::qemu_helper::try_kill_vm(state.pid);
         }
     }
 
@@ -131,6 +132,7 @@ async fn ensure_running(details: &SnapRestoreDetails) -> Result<VsockClient, Err
                 Err(err) => {
                     eprintln!("stale VM detected, restarting ({})", err);
                     // VM is dead, restart
+                    let _ = super::qemu_helper::try_kill_vm(vm.pid);
                     let vms = start_vm(vm.cid, details).await?;
                     new_cid = vms.cid;
                     state.map.insert(name, vms.clone());
