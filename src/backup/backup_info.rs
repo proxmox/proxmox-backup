@@ -5,47 +5,16 @@ use std::os::unix::io::RawFd;
 
 use std::path::{Path, PathBuf};
 
-use proxmox::const_regex;
+use crate::api2::types::{
+    BACKUP_ID_REGEX,
+    BACKUP_TYPE_REGEX,
+    BACKUP_DATE_REGEX,
+    GROUP_PATH_REGEX,
+    SNAPSHOT_PATH_REGEX,
+    BACKUP_FILE_REGEX,
+};
 
 use super::manifest::MANIFEST_BLOB_NAME;
-
-macro_rules! BACKUP_ID_RE {
-    () => {
-        r"[A-Za-z0-9_][A-Za-z0-9._\-]*"
-    };
-}
-macro_rules! BACKUP_TYPE_RE {
-    () => {
-        r"(?:host|vm|ct)"
-    };
-}
-macro_rules! BACKUP_TIME_RE {
-    () => {
-        r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z"
-    };
-}
-
-#[macro_export]
-macro_rules! SNAPSHOT_PATH_REGEX_STR {
-    () => (
-        concat!(r"(", BACKUP_TYPE_RE!(), ")/(", BACKUP_ID_RE!(), ")/(", BACKUP_TIME_RE!(), r")")
-    );
-}
-
-const_regex! {
-    BACKUP_FILE_REGEX = r"^.*\.([fd]idx|blob)$";
-
-    BACKUP_TYPE_REGEX = concat!(r"^(", BACKUP_TYPE_RE!(), r")$");
-
-    pub BACKUP_ID_REGEX = concat!(r"^", BACKUP_ID_RE!(), r"$");
-
-    BACKUP_DATE_REGEX = concat!(r"^", BACKUP_TIME_RE!() ,r"$");
-
-    GROUP_PATH_REGEX = concat!(r"^(", BACKUP_TYPE_RE!(), ")/(", BACKUP_ID_RE!(), r")$");
-
-    SNAPSHOT_PATH_REGEX = concat!(
-        r"^", SNAPSHOT_PATH_REGEX_STR!(), r"$");
-}
 
 /// BackupGroup is a directory containing a list of BackupDir
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]

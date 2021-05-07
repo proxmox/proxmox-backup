@@ -11,7 +11,6 @@ use crate::{
     backup::{
         CryptMode,
         Fingerprint,
-        BACKUP_ID_REGEX,
         DirEntryAttribute,
         CatalogEntryType,
     },
@@ -50,6 +49,17 @@ pub const FILENAME_FORMAT: ApiStringFormat = ApiStringFormat::VerifyFn(|name| {
     }
     Ok(())
 });
+
+macro_rules! BACKUP_ID_RE { () => (r"[A-Za-z0-9_][A-Za-z0-9._\-]*") }
+macro_rules! BACKUP_TYPE_RE { () => (r"(?:host|vm|ct)") }
+macro_rules! BACKUP_TIME_RE {
+    () => (r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z")
+}
+macro_rules! SNAPSHOT_PATH_REGEX_STR {
+    () => (
+        concat!(r"(", BACKUP_TYPE_RE!(), ")/(", BACKUP_ID_RE!(), ")/(", BACKUP_TIME_RE!(), r")")
+    );
+}
 
 macro_rules! DNS_LABEL { () => (r"(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?)") }
 macro_rules! DNS_NAME { () => (concat!(r"(?:(?:", DNS_LABEL!() , r"\.)*", DNS_LABEL!(), ")")) }
@@ -112,6 +122,18 @@ const_regex!{
     pub ZPOOL_NAME_REGEX = r"^[a-zA-Z][a-z0-9A-Z\-_.:]+$";
 
     pub UUID_REGEX = r"^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$";
+
+    pub BACKUP_TYPE_REGEX = concat!(r"^(", BACKUP_TYPE_RE!(), r")$");
+
+    pub BACKUP_ID_REGEX = concat!(r"^", BACKUP_ID_RE!(), r"$");
+
+    pub BACKUP_DATE_REGEX = concat!(r"^", BACKUP_TIME_RE!() ,r"$");
+
+    pub GROUP_PATH_REGEX = concat!(r"^(", BACKUP_TYPE_RE!(), ")/(", BACKUP_ID_RE!(), r")$");
+
+    pub SNAPSHOT_PATH_REGEX = concat!(r"^", SNAPSHOT_PATH_REGEX_STR!(), r"$");
+
+    pub BACKUP_FILE_REGEX = r"^.*\.([fd]idx|blob)$";
 
     pub DATASTORE_MAP_REGEX = concat!(r"(:?", PROXMOX_SAFE_ID_REGEX_STR!(), r"=)?", PROXMOX_SAFE_ID_REGEX_STR!());
 
