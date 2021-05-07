@@ -6,6 +6,7 @@ use regex::Regex;
 
 use proxmox::api::api;
 
+use crate::config::node;
 use crate::tools::{self, SimpleHttp};
 use proxmox::tools::fs::{replace_file, CreateOptions};
 
@@ -102,7 +103,13 @@ async fn register_subscription(
         "check_token": challenge,
     });
 
-    let mut client = SimpleHttp::new(None); // TODO: pass proxy_config
+    let proxy_config = if let Ok((node_config, _digest)) = node::config() {
+        node_config.http_proxy()
+    } else {
+        None
+    };
+
+    let mut client = SimpleHttp::new(proxy_config);
 
     let uri = "https://shop.maurer-it.com/modules/servers/licensing/verify.php";
     let query = tools::json_object_to_query(params)?;
