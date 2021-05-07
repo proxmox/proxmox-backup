@@ -6,6 +6,7 @@ use proxmox::list_subdirs_api_method;
 use proxmox::api::{api, RpcEnvironment, RpcEnvironmentType, Permission};
 use proxmox::api::router::{Router, SubdirMap};
 
+use crate::config::node;
 use crate::server::WorkerTask;
 use crate::tools::{apt, SimpleHttp, subscription};
 
@@ -194,7 +195,13 @@ fn apt_get_changelog(
         bail!("Package '{}' not found", name);
     }
 
-    let mut client = SimpleHttp::new(None); // TODO: pass proxy_config
+    let proxy_config = if let Ok((node_config, _digest)) = node::config() {
+        node_config.http_proxy()
+    } else {
+        None
+    };
+
+    let mut client = SimpleHttp::new(proxy_config);
 
     let changelog_url = &pkg_info[0].change_log_url;
     // FIXME: use 'apt-get changelog' for proxmox packages as well, once repo supports it
