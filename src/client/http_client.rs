@@ -277,15 +277,15 @@ fn load_ticket_info(prefix: &str, server: &str, userid: &Userid) -> Option<(Stri
 }
 
 fn build_uri(server: &str, port: u16, path: &str, query: Option<String>) -> Result<Uri, Error> {
-    let builder = Uri::builder()
+    Uri::builder()
         .scheme("https")
-        .authority(build_authority(server, port)?);
-    match query {
-        Some(query) => builder.path_and_query(format!("{}?{}", path, query)),
-        None => builder.path_and_query(path),
-    }
-    .build()
-    .map_err(Error::from)
+        .authority(build_authority(server, port)?)
+        .path_and_query(match query {
+            Some(query) => format!("/{}?{}", path, query),
+            None => format!("/{}", path),
+        })
+        .build()
+        .map_err(|err| format_err!("error building uri - {}", err))
 }
 
 impl HttpClient {
