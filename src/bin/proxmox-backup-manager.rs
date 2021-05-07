@@ -352,6 +352,7 @@ fn main() {
         .insert("disk", disk_commands())
         .insert("dns", dns_commands())
         .insert("network", network_commands())
+        .insert("node", node_commands())
         .insert("user", user_commands())
         .insert("remote", remote_commands())
         .insert("garbage-collection", garbage_collection_commands())

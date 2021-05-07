@@ -10,8 +10,14 @@ use proxmox::api::api;
 use proxmox::api::schema::{ApiStringFormat, Updater};
 use proxmox::tools::fs::{replace_file, CreateOptions};
 
-use crate::api2::types::{AcmeDomain, AcmeAccountName, ACME_DOMAIN_PROPERTY_SCHEMA};
+use crate::api2::types::{
+    AcmeDomain,
+    AcmeAccountName,
+    ACME_DOMAIN_PROPERTY_SCHEMA,
+    HTTP_PROXY_SCHEMA
+};
 use crate::acme::AcmeClient;
+use crate::tools::http::ProxyConfig;
 
 const CONF_FILE: &str = configdir!("/node.cfg");
 const LOCK_FILE: &str = configdir!("/.node.lck");
@@ -88,9 +94,14 @@ pub struct AcmeConfig {
             schema: ACME_DOMAIN_PROPERTY_SCHEMA,
             optional: true,
         },
+        "http-proxy": {
+            schema: HTTP_PROXY_SCHEMA,
+            optional: true,
+        },
     },
 )]
 #[derive(Deserialize, Serialize, Updater)]
+#[serde(rename_all = "kebab-case")]
 /// Node specific configuration.
 pub struct NodeConfig {
     /// The acme account to use on this node.
@@ -111,6 +122,9 @@ pub struct NodeConfig {
 
     #[serde(skip_serializing_if = "Updater::is_empty")]
     acmedomain4: Option<String>,
+
+    #[serde(skip_serializing_if = "Updater::is_empty")]
+    http_proxy: Option<String>,
 }
 
 impl NodeConfig {
@@ -135,6 +149,21 @@ impl NodeConfig {
 
     pub fn acme_domains(&self) -> AcmeDomainIter {
         AcmeDomainIter::new(self)
+    }
+
+    pub fn http_proxy(&self) -> Option<ProxyConfig> {
+        if let Some(http_proxy) = &self.http_proxy {
+            match ProxyConfig::parse_proxy_url(&http_proxy) {
+                Ok(proxy) => Some(proxy),
+                Err(_) => None,
+            }
+        } else {
+            None
+        }
+    }
+
+    pub fn set_proxy(&mut self, http_proxy: Option<String>) {
+        self.http_proxy = http_proxy;
     }
 
     /// Validate the configuration.
