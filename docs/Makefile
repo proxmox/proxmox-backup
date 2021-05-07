@@ -190,7 +190,7 @@ proxmox-file-restore.1: proxmox-file-restore/man1.rst  proxmox-file-restore/desc
 .PHONY: onlinehelpinfo
 onlinehelpinfo:
 	@echo "Generating OnlineHelpInfo.js..."
-	$(SPHINXBUILD) -b proxmox-scanrefs $(ALLSPHINXOPTS) $(BUILDDIR)/scanrefs
+	$(SPHINXBUILD) -b proxmox-scanrefs -Q $(ALLSPHINXOPTS) $(BUILDDIR)/scanrefs
 	@echo "Build finished. OnlineHelpInfo.js is in $(BUILDDIR)/scanrefs."
 
 api-viewer/apidata.js: ${COMPILEDIR}/docgen
