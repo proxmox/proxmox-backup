@@ -66,12 +66,13 @@ impl std::fmt::Display for StoreProgress {
         } else {
             write!(
                 f,
-                "{:.2}% ({} of {} groups, {} of {} group snapshots)",
+                "{:.2}% ({} of {} groups, {} of {} group #{}'s snapshots)",
                 self.percentage() * 100.0,
                 self.done_groups,
                 self.total_groups,
                 self.done_snapshots,
                 self.group_snapshots,
+                current_group,
             )
         }
     }
