@@ -86,13 +86,9 @@ Ext.onReady(function() {
 	return pdef['enum'] ? 'enum' : (pdef.type || 'string');
     };
 
-    var render_format = function(value, metaData, record) {
-	var pdef = record.data;
-
-	metaData.style = 'white-space:normal;'
-
+    let render_simple_format = function(pdef, type_fallback) {
 	if (pdef.typetext)
-	    return Ext.htmlEncode(pdef.typetext);
+	    return pdef.typetext;
 
 	if (pdef['enum'])
 	    return pdef['enum'].join(' | ');
@@ -101,9 +97,28 @@ Ext.onReady(function() {
 	    return pdef.format;
 
 	if (pdef.pattern)
-	    return Ext.htmlEncode(pdef.pattern);
+	    return pdef.pattern;
 
-	return '';
+	if (pdef.type === 'boolean')
+	    return `<true|false>`;
+
+	if (type_fallback && pdef.type)
+	    return `<${pdef.type}>`;
+
+	return;
+    };
+
+    let render_format = function(value, metaData, record) {
+	let pdef = record.data;
+
+	metaData.style = 'white-space:normal;'
+
+	if (pdef.type === 'array' && pdef.items) {
+	    let format = render_simple_format(pdef.items, true);
+	    return `[${Ext.htmlEncode(format)}, ...]`;
+	}
+
+	return Ext.htmlEncode(render_simple_format(pdef) || '');
     };
 
     var real_path = function(path) {
