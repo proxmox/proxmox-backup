@@ -343,7 +343,6 @@ pub fn plugin_cli() -> CommandLineInterface {
             "add",
             CliCommand::new(&API_METHOD_ADD_PLUGIN)
                 .arg_param(&["type", "id"])
-                .completion_cb("id", crate::config::acme::complete_acme_plugin)
                 .completion_cb("type", crate::config::acme::complete_acme_plugin_type),
         )
         .insert(
