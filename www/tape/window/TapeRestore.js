@@ -85,7 +85,7 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 		},
 		{
 		    xtype: 'pbsDataStoreSelector',
-		    fieldLabel: gettext('Datastore'),
+		    fieldLabel: gettext('Target Datastore'),
 		    reference: 'defaultDatastore',
 		    name: 'store',
 		    listeners: {
@@ -127,7 +127,7 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 	if (!datastores || datastores.length <= 1) {
 	    label.setVisible(false);
 	    grid.setVisible(false);
-	    defaultField.setFieldLabel(gettext('Datastore'));
+	    defaultField.setFieldLabel(gettext('Target Datastore'));
 	    defaultField.setAllowBlank(false);
 	    defaultField.setEmptyText("");
 	    return;
