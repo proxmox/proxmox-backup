@@ -182,6 +182,7 @@ Ext.define('PBS.window.SyncJobEdit', {
 		fieldLabel: gettext('Source Datastore'),
 		xtype: 'pbsRemoteStoreSelector',
 		allowBlank: false,
+		autoSelect: false,
 		name: 'remote-store',
 		disabled: true,
 	    },
