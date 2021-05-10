@@ -95,34 +95,6 @@ where
     }
 }
 
-/// Run a function for each DNS plugin ID.
-pub fn foreach_dns_plugin<F>(mut func: F) -> Result<(), Error>
-where
-    F: FnMut(&str) -> ControlFlow<Result<(), Error>>,
-{
-    match crate::tools::fs::read_subdir(-1, "/usr/share/proxmox-acme/dnsapi") {
-        Ok(files) => {
-            for file in files.filter_map(Result::ok) {
-                if let Some(id) = file
-                    .file_name()
-                    .to_str()
-                    .ok()
-                    .and_then(|name| name.strip_prefix("dns_"))
-                    .and_then(|name| name.strip_suffix(".sh"))
-                {
-                    if let ControlFlow::Break(result) = func(id) {
-                        return result;
-                    }
-                }
-            }
-
-            Ok(())
-        }
-        Err(err) if err.not_found() => Ok(()),
-        Err(err) => Err(err.into()),
-    }
-}
-
 pub fn mark_account_deactivated(name: &str) -> Result<(), Error> {
     let from = account_path(name);
     for i in 0..100 {
