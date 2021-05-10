@@ -14,11 +14,11 @@ use proxmox_acme_rs::account::AccountData as AcmeAccountData;
 use proxmox_acme_rs::Account;
 
 use crate::acme::AcmeClient;
+use crate::api2::types::{AcmeAccountName, Authid, KnownAcmeDirectory};
 use crate::config::acl::PRIV_SYS_MODIFY;
 use crate::config::acme::plugin::{
     DnsPlugin, DnsPluginCore, DnsPluginCoreUpdater, PLUGIN_ID_SCHEMA,
 };
-use crate::api2::types::{Authid, KnownAcmeDirectory, AcmeAccountName};
 use crate::server::WorkerTask;
 use crate::tools::ControlFlow;
 
@@ -194,8 +194,9 @@ fn register_account(
 ) -> Result<String, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-    let name = name
-        .unwrap_or_else(|| unsafe { AcmeAccountName::from_string_unchecked("default".to_string()) });
+    let name = name.unwrap_or_else(|| unsafe {
+        AcmeAccountName::from_string_unchecked("default".to_string())
+    });
 
     if Path::new(&crate::config::acme::account_path(&name)).exists() {
         http_bail!(BAD_REQUEST, "account {} already exists", name);
