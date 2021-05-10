@@ -516,9 +516,9 @@ impl HttpClient {
 
         // If we're on a TTY, query the user
         if interactive && tty::stdin_isatty() {
-            println!("fingerprint: {}", fp_string);
+            eprintln!("fingerprint: {}", fp_string);
             loop {
-                print!("Are you sure you want to continue connecting? (y/n): ");
+                eprint!("Are you sure you want to continue connecting? (y/n): ");
                 let _ = std::io::stdout().flush();
                 use std::io::{BufRead, BufReader};
                 let mut line = String::new();
