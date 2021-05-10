@@ -14,7 +14,7 @@ use proxmox_acme_rs::account::AccountData as AcmeAccountData;
 use proxmox_acme_rs::Account;
 
 use crate::acme::AcmeClient;
-use crate::api2::types::{AcmeAccountName, Authid, KnownAcmeDirectory};
+use crate::api2::types::{AcmeAccountName, AcmeChallengeSchema, Authid, KnownAcmeDirectory};
 use crate::config::acl::PRIV_SYS_MODIFY;
 use crate::config::acme::plugin::{
     DnsPlugin, DnsPluginCore, DnsPluginCoreUpdater, PLUGIN_ID_SCHEMA,
@@ -387,49 +387,20 @@ fn get_directories() -> Result<&'static [KnownAcmeDirectory], Error> {
 }
 
 #[api(
-    properties: {
-        schema: {
-            type: Object,
-            additional_properties: true,
-            properties: {},
-        },
-        type: {
-            type: String,
-        },
-    },
-)]
-#[derive(Serialize)]
-/// Schema for an ACME challenge plugin.
-pub struct ChallengeSchema {
-    /// Plugin ID.
-    id: String,
-
-    /// Human readable name, falls back to id.
-    name: String,
-
-    /// Plugin Type.
-    #[serde(rename = "type")]
-    ty: &'static str,
-
-    /// The plugin's parameter schema.
-    schema: Value,
-}
-
-#[api(
     access: {
         permission: &Permission::Anybody,
     },
     returns: {
         description: "ACME Challenge Plugin Shema.",
         type: Array,
-        items: { type: ChallengeSchema },
+        items: { type: AcmeChallengeSchema },
     },
 )]
 /// Get named known ACME directory endpoints.
-fn get_challenge_schema() -> Result<Vec<ChallengeSchema>, Error> {
+fn get_challenge_schema() -> Result<Vec<AcmeChallengeSchema>, Error> {
     let mut out = Vec::new();
     crate::config::acme::foreach_dns_plugin(|id| {
-        out.push(ChallengeSchema {
+        out.push(AcmeChallengeSchema {
             id: id.to_owned(),
             name: id.to_owned(),
             ty: "dns",

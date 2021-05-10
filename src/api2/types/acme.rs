@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use proxmox::api::{api, schema::{Schema, StringSchema, ApiStringFormat}};
 
@@ -67,4 +68,33 @@ proxmox::api_string_type! {
     #[derive(Clone, Eq, PartialEq, Hash, Deserialize, Serialize)]
     #[serde(transparent)]
     pub struct AcmeAccountName(String);
+}
+
+#[api(
+    properties: {
+        schema: {
+            type: Object,
+            additional_properties: true,
+            properties: {},
+        },
+        type: {
+            type: String,
+        },
+    },
+)]
+#[derive(Serialize)]
+/// Schema for an ACME challenge plugin.
+pub struct AcmeChallengeSchema {
+    /// Plugin ID.
+    pub id: String,
+
+    /// Human readable name, falls back to id.
+    pub name: String,
+
+    /// Plugin Type.
+    #[serde(rename = "type")]
+    pub ty: &'static str,
+
+    /// The plugin's parameter schema.
+    pub schema: Value,
 }
