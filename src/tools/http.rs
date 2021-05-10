@@ -43,7 +43,7 @@ pub(crate) fn build_authority(host: &str, port: u16) -> Result<Authority, Error>
 pub struct ProxyConfig {
     pub host: String,
     pub port: u16,
-    pub authorization: Option<String>, // Proxy-Authorization header value
+    pub authorization: Option<String>, // user:pass
     pub force_connect: bool,
 }
 
@@ -94,7 +94,7 @@ impl ProxyConfig {
 
             let authority_vec: Vec<&str> = proxy_authority.as_str().rsplitn(2, '@').collect();
             let authorization = if authority_vec.len() == 2 {
-                Some(format!("Basic {}", base64::encode(authority_vec[1])))
+                Some(authority_vec[1].to_string())
             } else {
                 None
             };
@@ -106,6 +106,15 @@ impl ProxyConfig {
                 force_connect: false,
             })
         }).map_err(|err| format_err!("parse_proxy_url failed: {}", err))
+    }
+
+    /// Assemble canonical proxy string (including scheme and port)
+    pub fn to_proxy_string(&self) -> Result<String, Error> {
+        let authority = build_authority(&self.host, self.port)?;
+        Ok(match self.authorization {
+            None => format!("http://{}", authority),
+            Some(ref authorization) => format!("http://{}@{}", authorization, authority)
+        })
     }
 }
 
@@ -241,7 +250,10 @@ impl hyper::service::Service<Uri> for HttpsConnector {
 
                     let mut connect_request = format!("CONNECT {0}:{1} HTTP/1.1\r\n", host, port);
                     if let Some(authorization) = authorization {
-                        connect_request.push_str(&format!("Proxy-Authorization: {}\r\n", authorization));
+                        connect_request.push_str(&format!(
+                            "Proxy-Authorization: Basic {}\r\n",
+                            base64::encode(authorization),
+                        ));
                     }
                     connect_request.push_str(&format!("Host: {0}:{1}\r\n\r\n", host, port));
 

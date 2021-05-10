@@ -4,6 +4,7 @@ use proxmox::api::schema::Updatable;
 use proxmox::api::{api, Permission, Router, RpcEnvironment};
 
 use crate::api2::types::NODE_SCHEMA;
+use crate::api2::node::apt::update_apt_proxy_config;
 use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 use crate::config::node::{NodeConfig, NodeConfigUpdater};
 
@@ -78,5 +79,9 @@ pub fn update_node_config(
 
     config.update_from(updater, &delete)?;
 
-    crate::config::node::save_config(&config)
+    crate::config::node::save_config(&config)?;
+
+    update_apt_proxy_config(config.http_proxy().as_ref())?;
+
+    Ok(())
 }

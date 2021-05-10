@@ -5,11 +5,11 @@ use std::collections::HashMap;
 use proxmox::list_subdirs_api_method;
 use proxmox::api::{api, RpcEnvironment, RpcEnvironmentType, Permission};
 use proxmox::api::router::{Router, SubdirMap};
+use proxmox::tools::fs::{replace_file, CreateOptions};
 
 use crate::config::node;
 use crate::server::WorkerTask;
-use crate::tools::{apt, SimpleHttp, subscription};
-
+use crate::tools::{apt, SimpleHttp, http::ProxyConfig, subscription};
 use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 use crate::api2::types::{Authid, APTUpdateInfo, NODE_SCHEMA, UPID_SCHEMA};
 
@@ -47,10 +47,38 @@ fn apt_update_available(_param: Value) -> Result<Value, Error> {
     Ok(json!(cache.package_status))
 }
 
+pub fn update_apt_proxy_config(proxy_config: Option<&ProxyConfig>) -> Result<(), Error> {
+
+    const PROXY_CFG_FN: &str = "/etc/apt/apt.conf.d/76pveproxy"; // use same file as PVE
+
+    if let Some(proxy_config) = proxy_config {
+        let proxy = proxy_config.to_proxy_string()?;
+        let data = format!("Acquire::http::Proxy \"{}\";\n", proxy);
+        replace_file(PROXY_CFG_FN, data.as_bytes(), CreateOptions::new())?;
+    } else {
+        std::fs::remove_file(PROXY_CFG_FN).map_err(|err| {
+            format_err!("failed to remove proxy config '{}' - {}", PROXY_CFG_FN, err)
+        })?;
+    }
+
+    Ok(())
+}
+
+fn read_and_update_proxy_config() -> Result<Option<ProxyConfig>, Error> {
+    let proxy_config = if let Ok((node_config, _digest)) = node::config() {
+        node_config.http_proxy()
+    } else {
+        None
+    };
+    update_apt_proxy_config(proxy_config.as_ref())?;
+
+    Ok(proxy_config)
+}
+
 fn do_apt_update(worker: &WorkerTask, quiet: bool) -> Result<(), Error> {
     if !quiet { worker.log("starting apt-get update") }
 
-    // TODO: set proxy /etc/apt/apt.conf.d/76pbsproxy like PVE
+    read_and_update_proxy_config()?;
 
     let mut command = std::process::Command::new("apt-get");
     command.arg("update");
@@ -153,6 +181,7 @@ pub fn apt_update_database(
 }
 
 #[api(
+    protected: true,
     input: {
         properties: {
             node: {
@@ -195,12 +224,7 @@ fn apt_get_changelog(
         bail!("Package '{}' not found", name);
     }
 
-    let proxy_config = if let Ok((node_config, _digest)) = node::config() {
-        node_config.http_proxy()
-    } else {
-        None
-    };
-
+    let proxy_config = read_and_update_proxy_config()?;
     let mut client = SimpleHttp::new(proxy_config);
 
     let changelog_url = &pkg_info[0].change_log_url;

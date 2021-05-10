@@ -147,6 +147,7 @@ impl NodeConfig {
         AcmeDomainIter::new(self)
     }
 
+    /// Returns the parsed ProxyConfig
     pub fn http_proxy(&self) -> Option<ProxyConfig> {
         if let Some(http_proxy) = &self.http_proxy {
             match ProxyConfig::parse_proxy_url(&http_proxy) {
@@ -158,7 +159,8 @@ impl NodeConfig {
         }
     }
 
-    pub fn set_proxy(&mut self, http_proxy: Option<String>) {
+    /// Sets the HTTP proxy configuration
+    pub fn set_http_proxy(&mut self, http_proxy: Option<String>) {
         self.http_proxy = http_proxy;
     }
 
