@@ -662,9 +662,10 @@ const fn retry() -> Retry {
 impl Retry {
     fn tick(&mut self) -> Result<(), Error> {
         if self.0 >= 3 {
-            Error::Client(format!("kept getting a badNonce error!"));
+            Err(Error::Client(format!("kept getting a badNonce error!")))
+        } else {
+            self.0 += 1;
+            Ok(())
         }
-        self.0 += 1;
-        Ok(())
     }
 }
