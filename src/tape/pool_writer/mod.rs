@@ -71,11 +71,12 @@ impl PoolWriter {
         drive_name: &str,
         worker: &WorkerTask,
         notify_email: Option<String>,
+        force_media_set: bool,
     ) -> Result<Self, Error> {
 
         let current_time = proxmox::tools::time::epoch_i64();
 
-        let new_media_set_reason = pool.start_write_session(current_time)?;
+        let new_media_set_reason = pool.start_write_session(current_time, force_media_set)?;
         if let Some(reason) = new_media_set_reason {
             task_log!(
                 worker,

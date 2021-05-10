@@ -226,6 +226,7 @@ pub fn do_tape_backup_job(
                     &setup,
                     email.clone(),
                     &mut summary,
+                    false,
                 )
             });
 
@@ -312,6 +313,12 @@ pub fn run_tape_backup_job(
                 type: TapeBackupJobSetup,
                 flatten: true,
             },
+            "force-media-set": {
+                description: "Ignore the allocation policy and start a new media-set.",
+                optional: true,
+                type: bool,
+                default: false,
+            },
         },
     },
     returns: {
@@ -327,6 +334,7 @@ pub fn run_tape_backup_job(
 /// Backup datastore to tape media pool
 pub fn backup(
     setup: TapeBackupJobSetup,
+    force_media_set: bool,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
@@ -373,6 +381,7 @@ pub fn backup(
                 &setup,
                 email.clone(),
                 &mut summary,
+                force_media_set,
             );
 
             if let Some(email) = email {
@@ -403,6 +412,7 @@ fn backup_worker(
     setup: &TapeBackupJobSetup,
     email: Option<String>,
     summary: &mut TapeBackupJobSummary,
+    force_media_set: bool,
 ) -> Result<(), Error> {
 
     let status_path = Path::new(TAPE_STATUS_DIR);
@@ -413,7 +423,13 @@ fn backup_worker(
 
     let pool = MediaPool::with_config(status_path, &pool_config, changer_name, false)?;
 
-    let mut pool_writer = PoolWriter::new(pool, &setup.drive, worker, email)?;
+    let mut pool_writer = PoolWriter::new(
+        pool,
+        &setup.drive,
+        worker,
+        email,
+        force_media_set
+    )?;
 
     let mut group_list = BackupInfo::list_backup_groups(&datastore.base_path())?;
 

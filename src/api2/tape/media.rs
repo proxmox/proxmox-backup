@@ -129,7 +129,7 @@ pub async fn list_media(
         // Call start_write_session, so that we show the same status a
         // backup job would see.
         pool.force_media_availability();
-        pool.start_write_session(current_time)?;
+        pool.start_write_session(current_time, false)?;
 
         for media in pool.list_media() {
             let expired = pool.media_is_expired(&media, current_time);

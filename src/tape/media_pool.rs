@@ -258,7 +258,7 @@ impl MediaPool {
     /// Make sure the current media set is usable for writing
     ///
     /// If not, starts a new media set. Also creates a new
-    /// set if media_set_policy implies it.
+    /// set if media_set_policy implies it, or if 'force' is true.
     ///
     /// Note: We also call this in list_media to compute correct media
     /// status, so this must not change persistent/saved state.
@@ -267,6 +267,7 @@ impl MediaPool {
     pub fn start_write_session(
         &mut self,
         current_time: i64,
+        force: bool,
     ) -> Result<Option<String>, Error> {
 
         let _pool_lock = if self.no_media_set_locking {
@@ -277,11 +278,15 @@ impl MediaPool {
 
         self.inventory.reload()?;
 
-        let mut create_new_set = match self.current_set_usable() {
-             Err(err) => {
-                 Some(err.to_string())
-             }
-             Ok(_) => None,
+        let mut create_new_set = if force {
+            Some(String::from("forced"))
+        } else {
+            match self.current_set_usable() {
+                Err(err) => {
+                    Some(err.to_string())
+                }
+                Ok(_) => None,
+            }
         };
 
         if create_new_set.is_none() {
