@@ -1,6 +1,10 @@
+use std::fs;
 use std::path::Path;
+use std::sync::{Arc, Mutex};
+use std::time::SystemTime;
 
 use anyhow::{bail, format_err, Error};
+use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
@@ -386,6 +390,43 @@ fn get_directories() -> Result<&'static [KnownAcmeDirectory], Error> {
     Ok(crate::config::acme::KNOWN_ACME_DIRECTORIES)
 }
 
+/// Wrapper for efficient Arc use when returning the ACME challenge-plugin schema for serializing
+struct ChallengeSchemaWrapper {
+    inner: Arc<Vec<AcmeChallengeSchema>>,
+}
+
+impl Serialize for ChallengeSchemaWrapper {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.inner.serialize(serializer)
+    }
+}
+
+fn get_cached_challenge_schemas() -> Result<ChallengeSchemaWrapper, Error> {
+    lazy_static! {
+        static ref CACHE: Mutex<Option<(Arc<Vec<AcmeChallengeSchema>>, SystemTime)>> =
+            Mutex::new(None);
+    }
+
+    // the actual loading code
+    let mut last = CACHE.lock().unwrap();
+
+    let actual_mtime = fs::metadata(crate::config::acme::ACME_DNS_SCHEMA_FN)?.modified()?;
+
+    let schema = match &*last {
+        Some((schema, cached_mtime)) if *cached_mtime >= actual_mtime => schema.clone(),
+        _ => {
+            let new_schema = Arc::new(crate::config::acme::load_dns_challenge_schema()?);
+            *last = Some((Arc::clone(&new_schema), actual_mtime));
+            new_schema
+        }
+    };
+
+    Ok(ChallengeSchemaWrapper { inner: schema })
+}
+
 #[api(
     access: {
         permission: &Permission::Anybody,
@@ -397,18 +438,8 @@ fn get_directories() -> Result<&'static [KnownAcmeDirectory], Error> {
     },
 )]
 /// Get named known ACME directory endpoints.
-fn get_challenge_schema() -> Result<Vec<AcmeChallengeSchema>, Error> {
-    let mut out = Vec::new();
-    crate::config::acme::foreach_dns_plugin(|id| {
-        out.push(AcmeChallengeSchema {
-            id: id.to_owned(),
-            name: id.to_owned(),
-            ty: "dns",
-            schema: Value::Object(Default::default()),
-        });
-        ControlFlow::Continue(())
-    })?;
-    Ok(out)
+fn get_challenge_schema() -> Result<ChallengeSchemaWrapper, Error> {
+    get_cached_challenge_schemas()
 }
 
 #[api]

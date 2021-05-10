@@ -2,12 +2,14 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use anyhow::{bail, format_err, Error};
+use serde_json::Value;
 
 use proxmox::sys::error::SysError;
-use proxmox::tools::fs::CreateOptions;
+use proxmox::tools::fs::{CreateOptions, file_read_string};
 
 use crate::api2::types::{
     PROXMOX_SAFE_ID_REGEX,
+    AcmeChallengeSchema,
     KnownAcmeDirectory,
     AcmeAccountName,
 };
@@ -15,6 +17,8 @@ use crate::tools::ControlFlow;
 
 pub(crate) const ACME_DIR: &str = configdir!("/acme");
 pub(crate) const ACME_ACCOUNT_DIR: &str = configdir!("/acme/accounts");
+
+pub(crate) const ACME_DNS_SCHEMA_FN: &str = "/usr/share/proxmox-acme/dns-challenge-schema.json";
 
 pub mod plugin;
 
@@ -139,6 +143,25 @@ pub fn mark_account_deactivated(name: &str) -> Result<(), Error> {
         from,
         ACME_ACCOUNT_DIR
     );
+}
+
+pub fn load_dns_challenge_schema() -> Result<Vec<AcmeChallengeSchema>, Error> {
+    let raw = file_read_string(&ACME_DNS_SCHEMA_FN)?;
+    let schemas: serde_json::Map<String, Value> = serde_json::from_str(&raw)?;
+
+    Ok(schemas
+        .iter()
+        .map(|(id, schema)| AcmeChallengeSchema {
+            id: id.to_owned(),
+            name: schema
+                .get("name")
+                .and_then(Value::as_str)
+                .unwrap_or(id)
+                .to_owned(),
+            ty: "dns",
+            schema: schema.to_owned(),
+        })
+        .collect())
 }
 
 pub fn complete_acme_account(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
