@@ -161,3 +161,14 @@ pub fn complete_acme_plugin_type(_arg: &str, _param: &HashMap<String, String>) -
         //"http".to_string(), // makes currently not realyl sense to create or the like
     ]
 }
+
+pub fn complete_acme_api_challenge_type(_arg: &str, param: &HashMap<String, String>) -> Vec<String> {
+    if param.get("type") == Some(&"dns".to_string()) {
+        match load_dns_challenge_schema() {
+            Ok(schema) => schema.into_iter().map(|s| s.id).collect(),
+            Err(_) => Vec::new(),
+        }
+    } else {
+        Vec::new()
+    }
+}
