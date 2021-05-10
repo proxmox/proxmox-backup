@@ -298,13 +298,13 @@ impl HttpClient {
 
         let verified_fingerprint = Arc::new(Mutex::new(None));
 
-        let mut fingerprint = options.fingerprint.take();
+        let mut expected_fingerprint = options.fingerprint.take();
 
-        if fingerprint.is_some() {
+        if expected_fingerprint.is_some() {
             // do not store fingerprints passed via options in cache
             options.fingerprint_cache = false;
         } else if options.fingerprint_cache && options.prefix.is_some() {
-            fingerprint = load_fingerprint(options.prefix.as_ref().unwrap(), server);
+            expected_fingerprint = load_fingerprint(options.prefix.as_ref().unwrap(), server);
         }
 
         let mut ssl_connector_builder = SslConnector::builder(SslMethod::tls()).unwrap();
@@ -316,7 +316,7 @@ impl HttpClient {
             let fingerprint_cache = options.fingerprint_cache;
             let prefix = options.prefix.clone();
             ssl_connector_builder.set_verify_callback(openssl::ssl::SslVerifyMode::PEER, move |valid, ctx| {
-                let (valid, fingerprint) = Self::verify_callback(valid, ctx, fingerprint.clone(), interactive);
+                let (valid, fingerprint) = Self::verify_callback(valid, ctx, expected_fingerprint.as_ref(), interactive);
                 if valid {
                     if let Some(fingerprint) = fingerprint {
                         if fingerprint_cache && prefix.is_some() {
@@ -474,9 +474,9 @@ impl HttpClient {
     }
 
     fn verify_callback(
-        valid: bool, ctx:
-        &mut X509StoreContextRef,
-        expected_fingerprint: Option<String>,
+        valid: bool,
+        ctx: &mut X509StoreContextRef,
+        expected_fingerprint: Option<&String>,
         interactive: bool,
     ) -> (bool, Option<String>) {
         if valid { return (true, None); }
