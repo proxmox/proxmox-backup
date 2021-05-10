@@ -51,7 +51,7 @@ impl NewChunksIterator {
                 loop {
                     let digest = match chunk_iter.next() {
                         None => {
-                            tx.send(Ok(None)).unwrap();
+                            let _ = tx.send(Ok(None)); // ignore send error
                             break;
                         }
                         Some(digest) => digest?,
@@ -67,7 +67,13 @@ impl NewChunksIterator {
 
                     let blob = datastore.load_chunk(&digest)?;
                     //println!("LOAD CHUNK {}", proxmox::tools::digest_to_hex(&digest));
-                    tx.send(Ok(Some((digest, blob)))).unwrap();
+                    match tx.send(Ok(Some((digest, blob)))) {
+                        Ok(()) => {},
+                        Err(err) => {
+                            eprintln!("could not send chunk to reader thread: {}", err);
+                            break;
+                        }
+                    }
 
                     chunk_index.insert(digest);
                 }
@@ -75,7 +81,9 @@ impl NewChunksIterator {
                 Ok(())
             });
             if let Err(err) = result {
-                tx.send(Err(err)).unwrap();
+                if let Err(err) = tx.send(Err(err)) {
+                    eprintln!("error sending result to reader thread: {}", err);
+                }
             }
         });
 
