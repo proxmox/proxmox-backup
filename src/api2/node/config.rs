@@ -1,12 +1,11 @@
 use anyhow::Error;
-use serde_json::Value;
 
 use proxmox::api::schema::Updatable;
 use proxmox::api::{api, Permission, Router, RpcEnvironment};
 
 use crate::api2::types::NODE_SCHEMA;
-use crate::config::acl::PRIV_SYS_MODIFY;
-use crate::config::node::NodeConfigUpdater;
+use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
+use crate::config::node::{NodeConfig, NodeConfigUpdater};
 
 pub const ROUTER: Router = Router::new()
     .get(&API_METHOD_GET_NODE_CONFIG)
@@ -19,14 +18,17 @@ pub const ROUTER: Router = Router::new()
         },
     },
     access: {
-        permission: &Permission::Privilege(&["system"], PRIV_SYS_MODIFY, false),
+        permission: &Permission::Privilege(&["system"], PRIV_SYS_AUDIT, false),
+    },
+    returns: {
+        type: NodeConfig,
     },
 )]
-/// Create a new changer device.
-pub fn get_node_config(mut rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
+/// Get the node configuration
+pub fn get_node_config(mut rpcenv: &mut dyn RpcEnvironment) -> Result<NodeConfig, Error> {
     let (config, digest) = crate::config::node::config()?;
     rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
-    Ok(serde_json::to_value(config)?)
+    Ok(config)
 }
 
 #[api(
@@ -52,7 +54,7 @@ pub fn get_node_config(mut rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Err
     },
     protected: true,
 )]
-/// Create a new changer device.
+/// Update the node configuration
 pub fn update_node_config(
     updater: NodeConfigUpdater,
     delete: Option<String>,
