@@ -498,10 +498,12 @@ impl HttpClient {
             .collect::<Vec<&str>>().join(":");
 
         if let Some(expected_fingerprint) = expected_fingerprint {
-            if expected_fingerprint.to_lowercase() == fp_string {
+            let expected_fingerprint = expected_fingerprint.to_lowercase();
+            if expected_fingerprint == fp_string {
                 return (true, Some(fp_string));
             } else {
-                return (false, None);
+                eprintln!("WARNING: certificate fingerprint does not match expected fingerprint!");
+                eprintln!("expected:    {}", expected_fingerprint);
             }
         }
 
