@@ -316,9 +316,9 @@ impl HttpClient {
             let fingerprint_cache = options.fingerprint_cache;
             let prefix = options.prefix.clone();
             ssl_connector_builder.set_verify_callback(openssl::ssl::SslVerifyMode::PEER, move |valid, ctx| {
-                let (valid, fingerprint) = Self::verify_callback(valid, ctx, expected_fingerprint.as_ref(), interactive);
-                if valid {
-                    if let Some(fingerprint) = fingerprint {
+                match Self::verify_callback(valid, ctx, expected_fingerprint.as_ref(), interactive) {
+                    Ok(None) => true,
+                    Ok(Some(fingerprint)) => {
                         if fingerprint_cache && prefix.is_some() {
                             if let Err(err) = store_fingerprint(
                                 prefix.as_ref().unwrap(), &server, &fingerprint) {
@@ -326,9 +326,13 @@ impl HttpClient {
                             }
                         }
                         *verified_fingerprint.lock().unwrap() = Some(fingerprint);
-                    }
+                        true
+                    },
+                    Err(err) => {
+                        eprintln!("certificate validation failed - {}", err);
+                        false
+                    },
                 }
-                valid
             });
         } else {
             ssl_connector_builder.set_verify(openssl::ssl::SslVerifyMode::NONE);
@@ -474,24 +478,27 @@ impl HttpClient {
     }
 
     fn verify_callback(
-        valid: bool,
+        openssl_valid: bool,
         ctx: &mut X509StoreContextRef,
         expected_fingerprint: Option<&String>,
         interactive: bool,
-    ) -> (bool, Option<String>) {
-        if valid { return (true, None); }
+    ) -> Result<Option<String>, Error> {
+
+        if openssl_valid {
+            return Ok(None);
+        }
 
         let cert = match ctx.current_cert() {
             Some(cert) => cert,
-            None => return (false, None),
+            None => bail!("context lacks current certificate."),
         };
 
         let depth = ctx.error_depth();
-        if depth != 0 { return (false, None); }
+        if depth != 0 { bail!("context depth != 0") }
 
         let fp = match cert.digest(openssl::hash::MessageDigest::sha256()) {
             Ok(fp) => fp,
-            Err(_) => return (false, None), // should not happen
+            Err(err) => bail!("failed to calculate certificate FP - {}", err), // should not happen
         };
         let fp_string = proxmox::tools::digest_to_hex(&fp);
         let fp_string = fp_string.as_bytes().chunks(2).map(|v| std::str::from_utf8(v).unwrap())
@@ -500,7 +507,7 @@ impl HttpClient {
         if let Some(expected_fingerprint) = expected_fingerprint {
             let expected_fingerprint = expected_fingerprint.to_lowercase();
             if expected_fingerprint == fp_string {
-                return (true, Some(fp_string));
+                return Ok(Some(fp_string));
             } else {
                 eprintln!("WARNING: certificate fingerprint does not match expected fingerprint!");
                 eprintln!("expected:    {}", expected_fingerprint);
@@ -519,18 +526,19 @@ impl HttpClient {
                     Ok(_) => {
                         let trimmed = line.trim();
                         if trimmed == "y" || trimmed == "Y" {
-                            return (true, Some(fp_string));
+                            return Ok(Some(fp_string));
                         } else if trimmed == "n" || trimmed == "N" {
-                            return (false, None);
+                            bail!("Certificate fingerprint was not confirmed.");
                         } else {
                             continue;
                         }
                     }
-                    Err(_) => return (false, None),
+                    Err(err) => bail!("Certificate fingerprint was not confirmed - {}.", err),
                 }
             }
         }
-        (false, None)
+
+        bail!("Certificate fingerprint was not confirmed.");
     }
 
     pub async fn request(&self, mut req: Request<Body>) -> Result<Value, Error> {
