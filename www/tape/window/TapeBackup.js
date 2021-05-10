@@ -10,7 +10,7 @@ Ext.define('PBS.TapeManagement.TapeBackupWindow', {
     isCreate: true,
 
     defaults: {
-	labelWidth: 120,
+	labelWidth: 150,
     },
 
     items: [
@@ -28,6 +28,11 @@ Ext.define('PBS.TapeManagement.TapeBackupWindow', {
 	    xtype: 'pbsDriveSelector',
 	    fieldLabel: gettext('Drive'),
 	    name: 'drive',
+	},
+	{
+	    xtype: 'proxmoxcheckbox',
+	    name: 'force-media-set',
+	    fieldLabel: gettext('Force new Media Set'),
 	},
 	{
 	    xtype: 'proxmoxcheckbox',
