@@ -231,7 +231,7 @@ async fn accept_connection(
             continue;
         }
 
-        let accept_counter = accept_counter.clone();
+        let accept_counter = Arc::clone(&accept_counter);
         tokio::spawn(async move {
             let accept_future = tokio::time::timeout(
                 Duration::new(10, 0), stream.as_mut().accept());
