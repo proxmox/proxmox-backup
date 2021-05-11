@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::fs::File;
 use std::time::Duration;
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{bail, Error};
 use nix::sys::stat::Mode;
 use serde::{Deserialize, Serialize};
 
@@ -138,13 +138,12 @@ impl NodeConfig {
     }
 
     pub async fn acme_client(&self) -> Result<AcmeClient, Error> {
-        AcmeClient::load(
-            &self
-                .acme_config()
-                .ok_or_else(|| format_err!("no acme client configured"))??
-                .account,
-        )
-        .await
+        let account = if let Some(cfg) = self.acme_config().transpose()? {
+            cfg.account
+        } else {
+            AcmeAccountName::from_string("default".to_string())? // should really not happen
+        };
+        AcmeClient::load(&account).await
     }
 
     pub fn acme_domains(&self) -> AcmeDomainIter {
