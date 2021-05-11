@@ -10,13 +10,10 @@ use proxmox::api::api;
 use proxmox::api::schema::{ApiStringFormat, Updater};
 use proxmox::tools::fs::{replace_file, CreateOptions};
 
-use crate::api2::types::{
-    AcmeDomain,
-    AcmeAccountName,
-    ACME_DOMAIN_PROPERTY_SCHEMA,
-    HTTP_PROXY_SCHEMA
-};
 use crate::acme::AcmeClient;
+use crate::api2::types::{
+    AcmeAccountName, AcmeDomain, ACME_DOMAIN_PROPERTY_SCHEMA, HTTP_PROXY_SCHEMA,
+};
 use crate::tools::http::ProxyConfig;
 
 const CONF_FILE: &str = configdir!("/node.cfg");
