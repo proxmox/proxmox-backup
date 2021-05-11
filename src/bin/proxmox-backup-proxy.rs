@@ -1,5 +1,6 @@
 use std::sync::Arc;
 use std::path::{Path, PathBuf};
+use std::pin::Pin;
 use std::os::unix::io::AsRawFd;
 
 use anyhow::{bail, format_err, Error};
@@ -7,6 +8,7 @@ use futures::*;
 
 use openssl::ssl::{SslMethod, SslAcceptor, SslFiletype};
 use tokio_stream::wrappers::ReceiverStream;
+use serde_json::Value;
 
 use proxmox::try_block;
 use proxmox::api::RpcEnvironmentType;
@@ -119,13 +121,24 @@ async fn run() -> Result<(), Error> {
     // certificate!
     let acceptor = make_tls_acceptor()?;
 
-    let acceptor = Arc::new(acceptor.build());
+    // to renew the acceptor we just let a command-socket handler trigger a Notify:
+    let notify_tls_cert_reload = Arc::new(tokio::sync::Notify::new());
+    commando_sock.register_command(
+        "reload-certificate".to_string(),
+        {
+            let notify_tls_cert_reload = Arc::clone(&notify_tls_cert_reload);
+            move |_value| -> Result<_, Error> {
+                notify_tls_cert_reload.notify_one();
+                Ok(Value::Null)
+            }
+        },
+    )?;
 
     let server = daemon::create_daemon(
         ([0,0,0,0,0,0,0,0], 8007).into(),
-        |listener, ready| {
+        move |listener, ready| {
 
-            let connections = accept_connections(listener, acceptor, debug);
+            let connections = accept_connections(listener, acceptor, debug, notify_tls_cert_reload);
             let connections = hyper::server::accept::from_stream(ReceiverStream::new(connections));
 
             Ok(ready
@@ -188,29 +201,60 @@ fn accept_connections(
     listener: tokio::net::TcpListener,
     acceptor: Arc<openssl::ssl::SslAcceptor>,
     debug: bool,
+    notify_tls_cert_reload: Arc<tokio::sync::Notify>,
 ) -> tokio::sync::mpsc::Receiver<ClientStreamResult> {
 
     let (sender, receiver) = tokio::sync::mpsc::channel(MAX_PENDING_ACCEPTS);
 
-    tokio::spawn(accept_connection(listener, acceptor, debug, sender));
+    tokio::spawn(accept_connection(listener, acceptor, debug, sender, notify_tls_cert_reload));
 
     receiver
 }
 
 async fn accept_connection(
     listener: tokio::net::TcpListener,
-    acceptor: Arc<openssl::ssl::SslAcceptor>,
+    mut acceptor: Arc<openssl::ssl::SslAcceptor>,
     debug: bool,
     sender: tokio::sync::mpsc::Sender<ClientStreamResult>,
+    notify_tls_cert_reload: Arc<tokio::sync::Notify>,
 ) {
     let accept_counter = Arc::new(());
 
+    // Note that these must not be moved out/modified directly, they get pinned in the loop and
+    // "rearmed" after waking up:
+    let mut reload_tls = notify_tls_cert_reload.notified();
+    let mut accept = listener.accept();
+
     loop {
-        let (sock, _addr) = match listener.accept().await {
-            Ok(conn) => conn,
-            Err(err) => {
-                eprintln!("error accepting tcp connection: {}", err);
+        let sock;
+
+        // normally we'd use `tokio::pin!()` but we need this to happen outside the loop and we
+        // need to be able to "rearm" the futures:
+        let reload_tls_pin = unsafe { Pin::new_unchecked(&mut reload_tls) };
+        let accept_pin = unsafe { Pin::new_unchecked(&mut accept) };
+        tokio::select! {
+            _ = reload_tls_pin => {
+                // rearm the notification:
+                reload_tls = notify_tls_cert_reload.notified();
+
+                log::info!("reloading certificate");
+                match make_tls_acceptor() {
+                    Err(err) => eprintln!("error reloading certificate: {}", err),
+                    Ok(new_acceptor) => acceptor = new_acceptor,
+                }
                 continue;
+            }
+            res = accept_pin => match res {
+                Err(err) => {
+                    eprintln!("error accepting tcp connection: {}", err);
+                    continue;
+                }
+                Ok((new_sock, _addr)) => {
+                    // rearm the accept future:
+                    accept = listener.accept();
+
+                    sock = new_sock;
+                }
             }
         };
 
