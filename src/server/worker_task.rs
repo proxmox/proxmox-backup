@@ -59,7 +59,7 @@ pub async fn worker_is_active(upid: &UPID) -> Result<bool, Error> {
             "upid": upid.to_string(),
         },
     });
-    let status = super::send_command(sock, cmd).await?;
+    let status = super::send_command(sock, &cmd).await?;
 
     if let Some(active) = status.as_bool() {
         Ok(active)
@@ -133,7 +133,7 @@ pub async fn abort_worker(upid: UPID) -> Result<(), Error> {
             "upid": upid.to_string(),
         },
     });
-    super::send_command(sock, cmd).map_ok(|_| ()).await
+    super::send_command(sock, &cmd).map_ok(|_| ()).await
 }
 
 fn parse_worker_status_line(line: &str) -> Result<(String, UPID, Option<TaskState>), Error> {
