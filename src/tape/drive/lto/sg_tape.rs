@@ -300,6 +300,8 @@ impl SgTape {
             return self.rewind();
         }
 
+        let position = position -1;
+
         let mut sg_raw = SgRaw::new(&mut self.file, 16)?;
         sg_raw.set_timeout(Self::SCSI_TAPE_DEFAULT_TIMEOUT);
         let mut cmd = Vec::new();
