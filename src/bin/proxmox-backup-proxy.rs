@@ -196,67 +196,68 @@ async fn accept_connection(
     let accept_counter = Arc::new(());
 
     loop {
-        match listener.accept().await {
+        let (sock, _addr) = match listener.accept().await {
+            Ok(conn) => conn,
             Err(err) => {
                 eprintln!("error accepting tcp connection: {}", err);
+                continue;
             }
-            Ok((sock, _addr)) =>  {
-                sock.set_nodelay(true).unwrap();
-                let _ = set_tcp_keepalive(sock.as_raw_fd(), PROXMOX_BACKUP_TCP_KEEPALIVE_TIME);
-                let acceptor = Arc::clone(&acceptor);
+        };
 
-                let ssl = match openssl::ssl::Ssl::new(acceptor.context()) {
-                    Ok(ssl) => ssl,
-                    Err(err) => {
-                        eprintln!("failed to create Ssl object from Acceptor context - {}", err);
-                        continue;
-                    },
-                };
-                let stream = match tokio_openssl::SslStream::new(ssl, sock) {
-                    Ok(stream) => stream,
-                    Err(err) => {
-                        eprintln!("failed to create SslStream using ssl and connection socket - {}", err);
-                        continue;
-                    },
-                };
+        sock.set_nodelay(true).unwrap();
+        let _ = set_tcp_keepalive(sock.as_raw_fd(), PROXMOX_BACKUP_TCP_KEEPALIVE_TIME);
+        let acceptor = Arc::clone(&acceptor);
 
-                let mut stream = Box::pin(stream);
-                let sender = sender.clone();
+        let ssl = match openssl::ssl::Ssl::new(acceptor.context()) {
+            Ok(ssl) => ssl,
+            Err(err) => {
+                eprintln!("failed to create Ssl object from Acceptor context - {}", err);
+                continue;
+            },
+        };
+        let stream = match tokio_openssl::SslStream::new(ssl, sock) {
+            Ok(stream) => stream,
+            Err(err) => {
+                eprintln!("failed to create SslStream using ssl and connection socket - {}", err);
+                continue;
+            },
+        };
 
-                if Arc::strong_count(&accept_counter) > MAX_PENDING_ACCEPTS {
-                    eprintln!("connection rejected - to many open connections");
-                    continue;
-                }
+        let mut stream = Box::pin(stream);
+        let sender = sender.clone();
 
-                let accept_counter = accept_counter.clone();
-                tokio::spawn(async move {
-                    let accept_future = tokio::time::timeout(
-                        Duration::new(10, 0), stream.as_mut().accept());
-
-                    let result = accept_future.await;
-
-                    match result {
-                        Ok(Ok(())) => {
-                            if sender.send(Ok(stream)).await.is_err() && debug {
-                                eprintln!("detect closed connection channel");
-                            }
-                        }
-                        Ok(Err(err)) => {
-                            if debug {
-                                eprintln!("https handshake failed - {}", err);
-                            }
-                        }
-                        Err(_) => {
-                            if debug {
-                                eprintln!("https handshake timeout");
-                            }
-                        }
-                    }
-
-                    drop(accept_counter); // decrease reference count
-                });
-            }
+        if Arc::strong_count(&accept_counter) > MAX_PENDING_ACCEPTS {
+            eprintln!("connection rejected - to many open connections");
+            continue;
         }
+
+        let accept_counter = accept_counter.clone();
+        tokio::spawn(async move {
+            let accept_future = tokio::time::timeout(
+                Duration::new(10, 0), stream.as_mut().accept());
+
+            let result = accept_future.await;
+
+            match result {
+                Ok(Ok(())) => {
+                    if sender.send(Ok(stream)).await.is_err() && debug {
+                        eprintln!("detect closed connection channel");
+                    }
+                }
+                Ok(Err(err)) => {
+                    if debug {
+                        eprintln!("https handshake failed - {}", err);
+                    }
+                }
+                Err(_) => {
+                    if debug {
+                        eprintln!("https handshake timeout");
+                    }
+                }
+            }
+
+            drop(accept_counter); // decrease reference count
+        });
     }
 }
 
