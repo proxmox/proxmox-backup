@@ -113,15 +113,11 @@ async fn run() -> Result<(), Error> {
     let rest_server = RestServer::new(config);
 
     //openssl req -x509 -newkey rsa:4096 -keyout /etc/proxmox-backup/proxy.key -out /etc/proxmox-backup/proxy.pem -nodes
-    let key_path = configdir!("/proxy.key");
-    let cert_path = configdir!("/proxy.pem");
 
-    let mut acceptor = SslAcceptor::mozilla_intermediate_v5(SslMethod::tls()).unwrap();
-    acceptor.set_private_key_file(key_path, SslFiletype::PEM)
-        .map_err(|err| format_err!("unable to read proxy key {} - {}", key_path, err))?;
-    acceptor.set_certificate_chain_file(cert_path)
-        .map_err(|err| format_err!("unable to read proxy cert {} - {}", cert_path, err))?;
-    acceptor.check_private_key().unwrap();
+    // we build the initial acceptor here as we cannot start if this fails - certificate reloads
+    // will be handled inside the accept loop and simply log an error if we cannot load the new
+    // certificate!
+    let acceptor = make_tls_acceptor()?;
 
     let acceptor = Arc::new(acceptor.build());
 
@@ -168,6 +164,20 @@ async fn run() -> Result<(), Error> {
     log::info!("done - exit server");
 
     Ok(())
+}
+
+fn make_tls_acceptor() -> Result<Arc<SslAcceptor>, Error> {
+    let key_path = configdir!("/proxy.key");
+    let cert_path = configdir!("/proxy.pem");
+
+    let mut acceptor = SslAcceptor::mozilla_intermediate_v5(SslMethod::tls()).unwrap();
+    acceptor.set_private_key_file(key_path, SslFiletype::PEM)
+        .map_err(|err| format_err!("unable to read proxy key {} - {}", key_path, err))?;
+    acceptor.set_certificate_chain_file(cert_path)
+        .map_err(|err| format_err!("unable to read proxy cert {} - {}", cert_path, err))?;
+    acceptor.check_private_key().unwrap();
+
+    Ok(Arc::new(acceptor.build()))
 }
 
 type ClientStreamResult =
