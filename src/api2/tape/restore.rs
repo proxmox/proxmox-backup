@@ -281,84 +281,26 @@ pub fn restore(
 
             set_tape_device_state(&drive, &worker.upid().to_string())?;
 
-            let members = inventory.compute_media_set_members(&media_set_uuid)?;
+            let restore_owner = owner.as_ref().unwrap_or(&auth_id);
 
-            let media_list = members.media_list();
+            let email = notify_user
+                .as_ref()
+                .and_then(|userid| lookup_user_email(userid))
+                .or_else(|| lookup_user_email(&auth_id.clone().into()));
 
-            let mut media_id_list = Vec::new();
-
-            let mut encryption_key_fingerprint = None;
-
-            for (seq_nr, media_uuid) in media_list.iter().enumerate() {
-                match media_uuid {
-                    None => {
-                        bail!("media set {} is incomplete (missing member {}).", media_set_uuid, seq_nr);
-                    }
-                    Some(media_uuid) => {
-                        let media_id = inventory.lookup_media(media_uuid).unwrap();
-                        if let Some(ref set) = media_id.media_set_label { // always true here
-                            if encryption_key_fingerprint.is_none() && set.encryption_key_fingerprint.is_some() {
-                                encryption_key_fingerprint = set.encryption_key_fingerprint.clone();
-                            }
-                        }
-                        media_id_list.push(media_id);
-                    }
-                }
-            }
 
             task_log!(worker, "Restore mediaset '{}'", media_set);
-            if let Some(fingerprint) = encryption_key_fingerprint {
-                task_log!(worker, "Encryption key fingerprint: {}", fingerprint);
-            }
             task_log!(worker, "Pool: {}", pool);
-            task_log!(
-                worker,
-                "Datastore(s): {}",
-                store_map
-                    .used_datastores()
-                    .into_iter()
-                    .map(String::from)
-                    .collect::<Vec<String>>()
-                    .join(", "),
+            let res = restore_worker(
+                worker.clone(),
+                inventory,
+                media_set_uuid,
+                drive_config,
+                &drive,
+                store_map,
+                restore_owner,
+                email
             );
-
-            task_log!(worker, "Drive: {}", drive);
-            task_log!(
-                worker,
-                "Required media list: {}",
-                media_id_list.iter()
-                    .map(|media_id| media_id.label.label_text.as_str())
-                    .collect::<Vec<&str>>()
-                    .join(";")
-            );
-
-            let mut datastore_locks = Vec::new();
-            for store_name in store_map.used_datastores() {
-                // explicit create shared lock to prevent GC on newly created chunks
-                if let Some(store) = store_map.get_datastore(store_name) {
-                    let shared_store_lock = store.try_shared_chunk_store_lock()?;
-                    datastore_locks.push(shared_store_lock);
-                }
-            }
-
-            let mut checked_chunks_map = HashMap::new();
-
-            for media_id in media_id_list.iter() {
-                request_and_restore_media(
-                    worker.clone(),
-                    media_id,
-                    &drive_config,
-                    &drive,
-                    &store_map,
-                    &mut checked_chunks_map,
-                    &auth_id,
-                    &notify_user,
-                    &owner,
-                )?;
-            }
-
-            drop(datastore_locks);
-
             task_log!(worker, "Restore mediaset '{}' done", media_set);
 
             if let Err(err) = set_tape_device_state(&drive, "") {
@@ -370,11 +312,98 @@ pub fn restore(
                 );
             }
 
-            Ok(())
+            res
         }
     )?;
 
     Ok(upid_str.into())
+}
+
+fn restore_worker(
+    worker: Arc<WorkerTask>,
+    inventory: Inventory,
+    media_set_uuid: Uuid,
+    drive_config: SectionConfigData,
+    drive_name: &str,
+    store_map: DataStoreMap,
+    restore_owner: &Authid,
+    email: Option<String>,
+) -> Result<(), Error> {
+    let members = inventory.compute_media_set_members(&media_set_uuid)?;
+
+    let media_list = members.media_list();
+
+    let mut media_id_list = Vec::new();
+
+    let mut encryption_key_fingerprint = None;
+
+    for (seq_nr, media_uuid) in media_list.iter().enumerate() {
+        match media_uuid {
+            None => {
+                bail!("media set {} is incomplete (missing member {}).", media_set_uuid, seq_nr);
+            }
+            Some(media_uuid) => {
+                let media_id = inventory.lookup_media(media_uuid).unwrap();
+                if let Some(ref set) = media_id.media_set_label { // always true here
+                    if encryption_key_fingerprint.is_none() && set.encryption_key_fingerprint.is_some() {
+                        encryption_key_fingerprint = set.encryption_key_fingerprint.clone();
+                    }
+                }
+                media_id_list.push(media_id);
+            }
+        }
+    }
+
+    if let Some(fingerprint) = encryption_key_fingerprint {
+        task_log!(worker, "Encryption key fingerprint: {}", fingerprint);
+    }
+
+    task_log!(
+        worker,
+        "Datastore(s): {}",
+        store_map
+        .used_datastores()
+        .into_iter()
+        .map(String::from)
+        .collect::<Vec<String>>()
+        .join(", "),
+    );
+
+    task_log!(worker, "Drive: {}", drive_name);
+    task_log!(
+        worker,
+        "Required media list: {}",
+        media_id_list.iter()
+        .map(|media_id| media_id.label.label_text.as_str())
+        .collect::<Vec<&str>>()
+        .join(";")
+    );
+
+    let mut datastore_locks = Vec::new();
+    for store_name in store_map.used_datastores() {
+        // explicit create shared lock to prevent GC on newly created chunks
+        if let Some(store) = store_map.get_datastore(store_name) {
+            let shared_store_lock = store.try_shared_chunk_store_lock()?;
+            datastore_locks.push(shared_store_lock);
+        }
+    }
+
+    let mut checked_chunks_map = HashMap::new();
+
+    for media_id in media_id_list.iter() {
+        request_and_restore_media(
+            worker.clone(),
+            media_id,
+            &drive_config,
+            drive_name,
+            &store_map,
+            &mut checked_chunks_map,
+            restore_owner,
+            &email,
+        )?;
+    }
+
+    Ok(())
 }
 
 /// Request and restore complete media without using existing catalog (create catalog instead)
@@ -385,21 +414,15 @@ pub fn request_and_restore_media(
     drive_name: &str,
     store_map: &DataStoreMap,
     checked_chunks_map: &mut HashMap<String, HashSet<[u8;32]>>,
-    authid: &Authid,
-    notify_user: &Option<Userid>,
-    owner: &Option<Authid>,
+    restore_owner: &Authid,
+    email: &Option<String>,
 ) -> Result<(), Error> {
     let media_set_uuid = match media_id.media_set_label {
         None => bail!("restore_media: no media set - internal error"),
         Some(ref set) => &set.uuid,
     };
 
-    let email = notify_user
-        .as_ref()
-        .and_then(|userid| lookup_user_email(userid))
-        .or_else(|| lookup_user_email(&authid.clone().into()));
-
-    let (mut drive, info) = request_and_load_media(&worker, &drive_config, &drive_name, &media_id.label, &email)?;
+    let (mut drive, info) = request_and_load_media(&worker, &drive_config, &drive_name, &media_id.label, email)?;
 
     match info.media_set_label {
         None => {
@@ -418,8 +441,6 @@ pub fn request_and_restore_media(
             drive.set_encryption(encrypt_fingerprint)?;
         }
     }
-
-    let restore_owner = owner.as_ref().unwrap_or(authid);
 
     restore_media(
         worker,
