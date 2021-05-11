@@ -34,6 +34,7 @@ use proxmox_backup::{
             MEDIA_LABEL_SCHEMA,
             MEDIA_POOL_NAME_SCHEMA,
             Userid,
+            TAPE_RESTORE_SNAPSHOT_SCHEMA,
         },
     },
     config::{
@@ -51,6 +52,7 @@ use proxmox_backup::{
         },
         complete_media_label_text,
         complete_media_set_uuid,
+        complete_media_set_snapshots,
         file_formats::{
             PROXMOX_BACKUP_CONTENT_HEADER_MAGIC_1_0,
             MediaContentHeader,
@@ -886,6 +888,14 @@ async fn backup(mut param: Value) -> Result<(), Error> {
                 type: Userid,
                 optional: true,
             },
+            "snapshots": {
+                description: "List of snapshots.",
+                type: Array,
+                optional: true,
+                items: {
+                    schema: TAPE_RESTORE_SNAPSHOT_SCHEMA,
+                },
+            },
             owner: {
                 type: Authid,
                 optional: true,
@@ -977,9 +987,10 @@ fn main() {
         .insert(
             "restore",
             CliCommand::new(&API_METHOD_RESTORE)
-                .arg_param(&["media-set", "store"])
+                .arg_param(&["media-set", "store", "snapshots"])
                 .completion_cb("store", complete_datastore_name)
                 .completion_cb("media-set", complete_media_set_uuid)
+                .completion_cb("snapshots", complete_media_set_snapshots)
         )
         .insert(
             "barcode-label",
