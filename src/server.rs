@@ -7,6 +7,7 @@
 use anyhow::{format_err, Error};
 use lazy_static::lazy_static;
 use nix::unistd::Pid;
+use serde_json::Value;
 
 use proxmox::sys::linux::procfs::PidStat;
 
@@ -91,3 +92,11 @@ pub use report::*;
 pub mod ticket;
 
 pub mod auth;
+
+pub(crate) async fn reload_proxy_certificate() -> Result<(), Error> {
+    let proxy_pid = crate::server::read_pid(buildcfg::PROXMOX_BACKUP_PROXY_PID_FN)?;
+    let sock = crate::server::ctrl_sock_from_pid(proxy_pid);
+    let _: Value = crate::server::send_raw_command(sock, "{\"command\":\"reload-certificate\"}\n")
+        .await?;
+    Ok(())
+}

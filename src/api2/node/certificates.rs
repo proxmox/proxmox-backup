@@ -175,12 +175,13 @@ pub fn get_info() -> Result<Vec<CertificateInfo>, Error> {
             node: { schema: NODE_SCHEMA },
             certificates: { description: "PEM encoded certificate (chain)." },
             key: { description: "PEM encoded private key." },
+            // FIXME: widget-toolkit should have an option to disable using these 2 parameters...
             restart: {
-                description: "Restart proxmox-backup-proxy",
+                description: "UI compatibility parameter, ignored",
+                type: Boolean,
                 optional: true,
                 default: false,
             },
-            // FIXME: widget-toolkit should have an option to disable using this parameter...
             force: {
                 description: "Force replacement of existing files.",
                 type: Boolean,
@@ -200,10 +201,9 @@ pub fn get_info() -> Result<Vec<CertificateInfo>, Error> {
     protected: true,
 )]
 /// Upload a custom certificate.
-pub fn upload_custom_certificate(
+pub async fn upload_custom_certificate(
     certificates: String,
     key: String,
-    restart: bool,
 ) -> Result<Vec<CertificateInfo>, Error> {
     let certificates = X509::stack_from_pem(certificates.as_bytes())
         .map_err(|err| format_err!("failed to decode certificate chain: {}", err))?;
@@ -223,7 +223,8 @@ pub fn upload_custom_certificate(
 
     let key = key.private_key_to_pem_pkcs8()?;
 
-    crate::config::set_proxy_certificate(&certificates, &key, restart)?;
+    crate::config::set_proxy_certificate(&certificates, &key)?;
+    crate::server::reload_proxy_certificate().await?;
 
     get_info()
 }
@@ -233,7 +234,8 @@ pub fn upload_custom_certificate(
         properties: {
             node: { schema: NODE_SCHEMA },
             restart: {
-                description: "Restart proxmox-backup-proxy",
+                description: "UI compatibility parameter, ignored",
+                type: Boolean,
                 optional: true,
                 default: false,
             },
@@ -245,7 +247,7 @@ pub fn upload_custom_certificate(
     protected: true,
 )]
 /// Delete the current certificate and regenerate a self signed one.
-pub fn delete_custom_certificate(restart: bool) -> Result<(), Error> {
+pub async fn delete_custom_certificate() -> Result<(), Error> {
     let cert_path = configdir!("/proxy.pem");
     // Here we fail since if this fails nothing else breaks anyway
     std::fs::remove_file(&cert_path)
@@ -263,10 +265,7 @@ pub fn delete_custom_certificate(restart: bool) -> Result<(), Error> {
     }
 
     crate::config::update_self_signed_cert(true)?;
-
-    if restart {
-        crate::config::reload_proxy()?;
-    }
+    crate::server::reload_proxy_certificate().await?;
 
     Ok(())
 }
@@ -535,7 +534,8 @@ fn spawn_certificate_worker(
 
     WorkerTask::spawn(name, None, auth_id, true, move |worker| async move {
         if let Some(cert) = order_certificate(worker, &node_config).await? {
-            crate::config::set_proxy_certificate(&cert.certificate, &cert.private_key_pem, true)?;
+            crate::config::set_proxy_certificate(&cert.certificate, &cert.private_key_pem)?;
+            crate::server::reload_proxy_certificate().await?;
         }
         Ok(())
     })
@@ -572,7 +572,7 @@ pub fn revoke_acme_cert(rpcenv: &mut dyn RpcEnvironment) -> Result<String, Error
             worker.log("Revoking old certificate");
             acme.revoke_certificate(cert_pem.as_bytes(), None).await?;
             worker.log("Deleting certificate and regenerating a self-signed one");
-            delete_custom_certificate(true)?;
+            delete_custom_certificate().await?;
             Ok(())
         },
     )

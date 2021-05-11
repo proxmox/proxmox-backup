@@ -187,16 +187,12 @@ pub fn update_self_signed_cert(force: bool) -> Result<(), Error> {
     let x509 = x509.build();
     let cert_pem = x509.to_pem()?;
 
-    set_proxy_certificate(&cert_pem, &priv_pem, false)?;
+    set_proxy_certificate(&cert_pem, &priv_pem)?;
 
     Ok(())
 }
 
-pub(crate) fn set_proxy_certificate(
-    cert_pem: &[u8],
-    key_pem: &[u8],
-    reload: bool,
-) -> Result<(), Error> {
+pub(crate) fn set_proxy_certificate(cert_pem: &[u8], key_pem: &[u8]) -> Result<(), Error> {
     let backup_user = crate::backup::backup_user()?;
     let options = CreateOptions::new()
         .perm(Mode::from_bits_truncate(0o0640))
@@ -211,14 +207,5 @@ pub(crate) fn set_proxy_certificate(
     replace_file(&cert_path, &cert_pem, options)
         .map_err(|err| format_err!("error writing certificate file - {}", err))?;
 
-    if reload {
-        reload_proxy()?;
-    }
-
     Ok(())
-}
-
-pub(crate) fn reload_proxy() -> Result<(), Error> {
-    crate::tools::systemd::reload_unit("proxmox-backup-proxy")
-        .map_err(|err| format_err!("error signaling reload to pbs proxy: {}", err))
 }
