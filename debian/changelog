@@ -1,3 +1,57 @@
+rust-proxmox-backup (1.1.7-1) unstable; urgency=medium
+
+  * client: use stderr for all fingerprint confirm msgs
+
+  * fix #3391: improve mismatched fingerprint handling
+
+  * tape: add single snapshot restore
+
+  * docs/api-viewer: improve rendering of array format
+
+  * tape/pool_writer: do not unwrap on channel send
+
+  * ui: window/SyncJobEdit: disable autoSelect for remote datastore
+
+  * ui: tape: rename 'Datastore' to 'Target Datastore'
+
+  * manager: acme plugin: auto-complete available DNS challenge types
+
+  * manager: acme plugin: remove ID completion helper from add command
+
+  * completion: ACME plugin type: comment out http type for now, not useful
+
+  * acme: use proxmox-acme-plugins and load schema from there
+
+  * fix 3296: add http_proxy to node config, and provide a cli
+
+  * fix #3331: improve progress for last snapshot in group
+
+  * file-restore: add debug mode with serial access
+
+  * file-restore: support more drives
+
+  * file-restore: add more RAM for VMs with many drives or debug
+
+  * file-restore: try to kill VM when stale
+
+  * make sure URI paths start with a slash
+
+  * tape: use LOCATE(16) SCSI command
+
+  * call create_run_dir() at daemon startup
+
+  * tape/drive: add 'move_to_file' to TapeDriver trait
+
+  * proxmox_restore_daemon: mount ntfs with 'utf8' option
+
+  * client/http_client: add necessary brackets for ipv6
+
+  * docs: tape: clarify LTO-4/5 support
+
+  * tape/restore: optimize chunk restore behaviour
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 11 May 2021 13:22:49 +0200
+
 rust-proxmox-backup (1.1.6-2) unstable; urgency=medium
 
   * fix permissions set in create_run_dir
