@@ -54,6 +54,7 @@ use crate::{
     tape::{
         TAPE_STATUS_DIR,
         MediaSet,
+        MediaCatalog,
         file_formats::{
             MediaLabel,
             MediaSetLabel,
@@ -849,4 +850,39 @@ pub fn complete_media_label_text(
     };
 
     inventory.map.values().map(|entry| entry.id.label.label_text.clone()).collect()
+}
+
+pub fn complete_media_set_snapshots(_arg: &str, param: &HashMap<String, String>) -> Vec<String> {
+    let media_set_uuid: Uuid = match param.get("media-set").and_then(|s| s.parse().ok()) {
+        Some(uuid) => uuid,
+        None => return Vec::new(),
+    };
+    let status_path = Path::new(TAPE_STATUS_DIR);
+    let inventory = match Inventory::load(&status_path) {
+        Ok(inventory) => inventory,
+        Err(_) => return Vec::new(),
+    };
+
+    let mut res = Vec::new();
+    let media_ids = inventory.list_used_media().into_iter().filter(|media| {
+        match &media.media_set_label {
+            Some(label) => label.uuid == media_set_uuid,
+            None => false,
+        }
+    });
+
+    for media_id in media_ids {
+        let catalog = match MediaCatalog::open(status_path, &media_id, false, false) {
+            Ok(catalog) => catalog,
+            Err(_) => continue,
+        };
+
+        for (store, content) in catalog.content() {
+            for snapshot in content.snapshot_index.keys() {
+                res.push(format!("{}:{}", store, snapshot));
+            }
+        }
+    }
+
+    res
 }
