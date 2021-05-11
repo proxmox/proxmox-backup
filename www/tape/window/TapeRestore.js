@@ -10,6 +10,18 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
     showTaskViewer: true,
     isCreate: true,
 
+    cbindData: function(config) {
+	let me = this;
+	me.isSingle = false;
+	me.listText = "";
+	if (me.list !== undefined) {
+	    me.isSingle = true;
+	    me.listText = me.list.join('<br>');
+	    me.title = gettext('Restore Snapshot');
+	}
+	return {};
+    },
+
     defaults: {
 	labelWidth: 120,
     },
@@ -33,6 +45,10 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 		}
 		delete values.mapping;
 
+		if (me.up('window').list !== undefined) {
+		    values.snapshots = me.up('window').list;
+		}
+
 		values.store = datastores.join(',');
 
 		return values;
@@ -53,6 +69,15 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 		    submitValue: true,
 		    cbind: {
 			value: '{uuid}',
+		    },
+		},
+		{
+		    xtype: 'displayfield',
+		    fieldLabel: gettext('Snapshot(s)'),
+		    submitValue: false,
+		    cbind: {
+			hidden: '{!isSingle}',
+			value: '{listText}',
 		    },
 		},
 		{

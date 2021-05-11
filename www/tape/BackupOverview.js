@@ -16,6 +16,38 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 	    }).show();
 	},
 
+	restoreSingle: function(button, record) {
+	    let me = this;
+	    let view = me.getView();
+	    let selection = view.getSelection();
+	    if (!selection || selection.length < 1) {
+		return;
+	    }
+
+	    let node = selection[0];
+	    if (node.data.restoreid === undefined) {
+		return;
+	    }
+	    let restoreid = node.data.restoreid;
+	    let mediaset = node.data.text;
+	    let uuid = node.data['media-set-uuid'];
+	    let datastores = [node.data.store];
+
+	    Ext.create('PBS.TapeManagement.TapeRestoreWindow', {
+		mediaset,
+		uuid,
+		list: [
+		    restoreid,
+		],
+		datastores,
+		listeners: {
+		    destroy: function() {
+			me.reload();
+		    },
+		},
+	    }).show();
+	},
+
 	restore: function(button, record) {
 	    let me = this;
 	    let view = me.getView();
@@ -149,6 +181,7 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 		    entry.text = entry.snapshot;
 		    entry.leaf = true;
 		    entry.children = [];
+		    entry.restoreid = `${entry.store}:${entry.snapshot}`;
 		    let iconCls = PBS.Utils.get_type_icon_cls(entry.snapshot);
 		    if (iconCls !== '') {
 			entry.iconCls = `fa ${iconCls}`;
@@ -261,6 +294,14 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 	    handler: 'restore',
 	    parentXType: 'treepanel',
 	    enableFn: (rec) => !!rec.data['media-set-uuid'],
+	},
+	{
+	    xtype: 'proxmoxButton',
+	    disabled: true,
+	    text: gettext('Restore Snapshot'),
+	    handler: 'restoreSingle',
+	    parentXType: 'treepanel',
+	    enableFn: (rec) => !!rec.data.restoreid,
 	},
     ],
 
