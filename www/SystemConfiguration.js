@@ -65,6 +65,11 @@ Ext.define('PBS.SystemConfiguration', {
 		},
 	    ],
 	},
+	{
+	    title: gettext('Options'),
+	    itemId: 'options',
+	    xtype: 'pbsNodeOptionView',
+	},
     ],
 
     initComponent: function() {
