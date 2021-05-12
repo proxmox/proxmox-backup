@@ -1,6 +1,5 @@
-use std::sync::Arc;
+use std::sync::{Mutex, Arc};
 use std::path::{Path, PathBuf};
-use std::pin::Pin;
 use std::os::unix::io::AsRawFd;
 
 use anyhow::{bail, format_err, Error};
@@ -116,19 +115,24 @@ async fn run() -> Result<(), Error> {
 
     //openssl req -x509 -newkey rsa:4096 -keyout /etc/proxmox-backup/proxy.key -out /etc/proxmox-backup/proxy.pem -nodes
 
-    // we build the initial acceptor here as we cannot start if this fails - certificate reloads
-    // will be handled inside the accept loop and simply log an error if we cannot load the new
-    // certificate!
+    // we build the initial acceptor here as we cannot start if this fails
     let acceptor = make_tls_acceptor()?;
+    let acceptor = Arc::new(Mutex::new(acceptor));
 
-    // to renew the acceptor we just let a command-socket handler trigger a Notify:
-    let notify_tls_cert_reload = Arc::new(tokio::sync::Notify::new());
+    // to renew the acceptor we just add a command-socket handler
     commando_sock.register_command(
         "reload-certificate".to_string(),
         {
-            let notify_tls_cert_reload = Arc::clone(&notify_tls_cert_reload);
+            let acceptor = Arc::clone(&acceptor);
             move |_value| -> Result<_, Error> {
-                notify_tls_cert_reload.notify_one();
+                log::info!("reloading certificate");
+                match make_tls_acceptor() {
+                    Err(err) => log::error!("error reloading certificate: {}", err),
+                    Ok(new_acceptor) => {
+                        let mut guard = acceptor.lock().unwrap();
+                        *guard = new_acceptor;
+                    }
+                }
                 Ok(Value::Null)
             }
         },
@@ -138,7 +142,7 @@ async fn run() -> Result<(), Error> {
         ([0,0,0,0,0,0,0,0], 8007).into(),
         move |listener, ready| {
 
-            let connections = accept_connections(listener, acceptor, debug, notify_tls_cert_reload);
+            let connections = accept_connections(listener, acceptor, debug);
             let connections = hyper::server::accept::from_stream(ReceiverStream::new(connections));
 
             Ok(ready
@@ -179,7 +183,7 @@ async fn run() -> Result<(), Error> {
     Ok(())
 }
 
-fn make_tls_acceptor() -> Result<Arc<SslAcceptor>, Error> {
+fn make_tls_acceptor() -> Result<SslAcceptor, Error> {
     let key_path = configdir!("/proxy.key");
     let cert_path = configdir!("/proxy.pem");
 
@@ -190,7 +194,7 @@ fn make_tls_acceptor() -> Result<Arc<SslAcceptor>, Error> {
         .map_err(|err| format_err!("unable to read proxy cert {} - {}", cert_path, err))?;
     acceptor.check_private_key().unwrap();
 
-    Ok(Arc::new(acceptor.build()))
+    Ok(acceptor.build())
 }
 
 type ClientStreamResult =
@@ -199,76 +203,50 @@ const MAX_PENDING_ACCEPTS: usize = 1024;
 
 fn accept_connections(
     listener: tokio::net::TcpListener,
-    acceptor: Arc<openssl::ssl::SslAcceptor>,
+    acceptor: Arc<Mutex<openssl::ssl::SslAcceptor>>,
     debug: bool,
-    notify_tls_cert_reload: Arc<tokio::sync::Notify>,
 ) -> tokio::sync::mpsc::Receiver<ClientStreamResult> {
 
     let (sender, receiver) = tokio::sync::mpsc::channel(MAX_PENDING_ACCEPTS);
 
-    tokio::spawn(accept_connection(listener, acceptor, debug, sender, notify_tls_cert_reload));
+    tokio::spawn(accept_connection(listener, acceptor, debug, sender));
 
     receiver
 }
 
 async fn accept_connection(
     listener: tokio::net::TcpListener,
-    mut acceptor: Arc<openssl::ssl::SslAcceptor>,
+    acceptor: Arc<Mutex<openssl::ssl::SslAcceptor>>,
     debug: bool,
     sender: tokio::sync::mpsc::Sender<ClientStreamResult>,
-    notify_tls_cert_reload: Arc<tokio::sync::Notify>,
 ) {
     let accept_counter = Arc::new(());
 
-    // Note that these must not be moved out/modified directly, they get pinned in the loop and
-    // "rearmed" after waking up:
-    let mut reload_tls = notify_tls_cert_reload.notified();
-    let mut accept = listener.accept();
-
     loop {
-        let sock;
-
-        // normally we'd use `tokio::pin!()` but we need this to happen outside the loop and we
-        // need to be able to "rearm" the futures:
-        let reload_tls_pin = unsafe { Pin::new_unchecked(&mut reload_tls) };
-        let accept_pin = unsafe { Pin::new_unchecked(&mut accept) };
-        tokio::select! {
-            _ = reload_tls_pin => {
-                // rearm the notification:
-                reload_tls = notify_tls_cert_reload.notified();
-
-                log::info!("reloading certificate");
-                match make_tls_acceptor() {
-                    Err(err) => eprintln!("error reloading certificate: {}", err),
-                    Ok(new_acceptor) => acceptor = new_acceptor,
-                }
+        let (sock, _addr) = match listener.accept().await {
+            Ok(conn) => conn,
+            Err(err) =>  {
+                eprintln!("error accepting tcp connection: {}", err);
                 continue;
-            }
-            res = accept_pin => match res {
-                Err(err) => {
-                    eprintln!("error accepting tcp connection: {}", err);
-                    continue;
-                }
-                Ok((new_sock, _addr)) => {
-                    // rearm the accept future:
-                    accept = listener.accept();
-
-                    sock = new_sock;
-                }
             }
         };
 
         sock.set_nodelay(true).unwrap();
         let _ = set_tcp_keepalive(sock.as_raw_fd(), PROXMOX_BACKUP_TCP_KEEPALIVE_TIME);
-        let acceptor = Arc::clone(&acceptor);
 
-        let ssl = match openssl::ssl::Ssl::new(acceptor.context()) {
-            Ok(ssl) => ssl,
-            Err(err) => {
-                eprintln!("failed to create Ssl object from Acceptor context - {}", err);
-                continue;
-            },
+        let ssl = { // limit acceptor_guard scope
+            // Acceptor can be reloaded using the command socket "reload-certificate" command
+            let acceptor_guard = acceptor.lock().unwrap();
+
+            match openssl::ssl::Ssl::new(acceptor_guard.context()) {
+                Ok(ssl) => ssl,
+                Err(err) => {
+                    eprintln!("failed to create Ssl object from Acceptor context - {}", err);
+                    continue;
+                },
+            }
         };
+
         let stream = match tokio_openssl::SslStream::new(ssl, sock) {
             Ok(stream) => stream,
             Err(err) => {
