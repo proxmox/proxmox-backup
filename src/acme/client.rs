@@ -4,7 +4,7 @@ use std::fs::OpenOptions;
 use std::io;
 use std::os::unix::fs::OpenOptionsExt;
 
-use anyhow::format_err;
+use anyhow::{bail, format_err};
 use bytes::Bytes;
 use hyper::{Body, Request};
 use nix::sys::stat::Mode;
@@ -78,13 +78,25 @@ impl AcmeClient {
 
     /// Load an existing ACME account by name.
     pub async fn load(account_name: &AcmeAccountName) -> Result<Self, anyhow::Error> {
-        Self::load_path(account_path(account_name.as_ref())).await
-    }
-
-    /// Load an existing ACME account by path.
-    async fn load_path(account_path: String) -> Result<Self, anyhow::Error> {
-        let data = tokio::fs::read(&account_path).await?;
-        let data: AccountData = serde_json::from_slice(&data)?;
+        let account_path = account_path(account_name.as_ref());
+        let data = match tokio::fs::read(&account_path).await {
+            Ok(data) => data,
+            Err(err) if err.kind() == io::ErrorKind::NotFound => {
+                bail!("acme account '{}' does not exist", account_name)
+            }
+            Err(err) => bail!(
+                "failed to load acme account from '{}' - {}",
+                account_path,
+                err
+            ),
+        };
+        let data: AccountData = serde_json::from_slice(&data).map_err(|err| {
+            format_err!(
+                "failed to parse acme account from '{}' - {}",
+                account_path,
+                err
+            )
+        })?;
 
         let account = Account::from_parts(data.location, data.key, data.account);
 
