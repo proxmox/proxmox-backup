@@ -5,6 +5,7 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 
     width: 800,
     title: gettext('Restore Media Set'),
+    submitText: gettext('Restore'),
     url: '/api2/extjs/tape/restore',
     method: 'POST',
     showTaskViewer: true,
