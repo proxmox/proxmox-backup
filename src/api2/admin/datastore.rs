@@ -231,6 +231,48 @@ pub fn list_groups(
             "backup-id": {
                 schema: BACKUP_ID_SCHEMA,
             },
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(
+            &["datastore", "{store}"],
+            PRIV_DATASTORE_MODIFY| PRIV_DATASTORE_PRUNE,
+            true),
+    },
+)]
+/// Delete backup group including all snapshots.
+pub fn delete_group(
+    store: String,
+    backup_type: String,
+    backup_id: String,
+    _info: &ApiMethod,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
+
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+
+    let group = BackupGroup::new(backup_type, backup_id);
+    let datastore = DataStore::lookup_datastore(&store)?;
+
+    check_priv_or_backup_owner(&datastore, &group, &auth_id, PRIV_DATASTORE_MODIFY)?;
+
+    datastore.remove_backup_group(&group)?;
+
+    Ok(Value::Null)
+}
+
+#[api(
+    input: {
+        properties: {
+            store: {
+                schema: DATASTORE_SCHEMA,
+            },
+            "backup-type": {
+                schema: BACKUP_TYPE_SCHEMA,
+            },
+            "backup-id": {
+                schema: BACKUP_ID_SCHEMA,
+            },
             "backup-time": {
                 schema: BACKUP_TIME_SCHEMA,
             },
@@ -1722,6 +1764,7 @@ const DATASTORE_INFO_SUBDIRS: SubdirMap = &[
         "groups",
         &Router::new()
             .get(&API_METHOD_LIST_GROUPS)
+            .delete(&API_METHOD_DELETE_GROUP)
     ),
     (
         "notes",
