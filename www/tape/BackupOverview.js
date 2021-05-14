@@ -29,7 +29,7 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 		return;
 	    }
 	    let restoreid = node.data.restoreid;
-	    let mediaset = node.data.text;
+	    let mediaset = node.data['media-set'];
 	    let uuid = node.data['media-set-uuid'];
 	    let datastores = [node.data.store];
 
@@ -155,14 +155,15 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 	    let view = me.getView();
 
 	    Proxmox.Utils.setErrorMask(view, true);
-	    const media_set = node.data['media-set-uuid'];
+	    const media_set_uuid = node.data['media-set-uuid'];
+	    const media_set = node.data.text;
 
 	    try {
 		let list = await PBS.Async.api2({
 		    method: 'GET',
 		    url: `/api2/extjs/tape/media/content`,
 		    params: {
-			'media-set': media_set,
+			'media-set': media_set_uuid,
 		    },
 		});
 
@@ -181,6 +182,7 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 		    entry.text = entry.snapshot;
 		    entry.leaf = true;
 		    entry.children = [];
+		    entry['media-set'] = media_set;
 		    entry.restoreid = `${entry.store}:${entry.snapshot}`;
 		    let iconCls = PBS.Utils.get_type_icon_cls(entry.snapshot);
 		    if (iconCls !== '') {
