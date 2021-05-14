@@ -16,58 +16,30 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 	    }).show();
 	},
 
-	restoreSingle: function(button, record) {
+	restore: function(view, rI, cI, item, e, rec) {
 	    let me = this;
-	    let view = me.getView();
-	    let selection = view.getSelection();
-	    if (!selection || selection.length < 1) {
-		return;
-	    }
 
-	    let node = selection[0];
-	    if (node.data.restoreid === undefined) {
-		return;
-	    }
-	    let restoreid = node.data.restoreid;
-	    let mediaset = node.data['media-set'];
+	    let node = rec;
+	    let mediaset = node.data.is_media_set ? node.data.text : node.data['media-set'];
 	    let uuid = node.data['media-set-uuid'];
-	    let datastores = [node.data.store];
 
-	    Ext.create('PBS.TapeManagement.TapeRestoreWindow', {
-		mediaset,
-		uuid,
-		list: [
-		    restoreid,
-		],
-		datastores,
-		listeners: {
-		    destroy: function() {
-			me.reload();
-		    },
-		},
-	    }).show();
-	},
-
-	restore: function(button, record) {
-	    let me = this;
-	    let view = me.getView();
-	    let selection = view.getSelection();
-	    if (!selection || selection.length < 1) {
-		return;
-	    }
-
-	    let node = selection[0];
-	    let mediaset = node.data.text;
-	    let uuid = node.data['media-set-uuid'];
-	    let datastores = node.data.datastores;
-	    while (!datastores && node.get('depth') > 2) {
-		node = node.parentNode;
+	    let list;
+	    let datastores;
+	    if (node.data.restoreid !== undefined) {
+		list = [node.data.restoreid];
+		datastores = [node.data.store];
+	    } else {
 		datastores = node.data.datastores;
+		while (!datastores && node.get('depth') > 2) {
+		    node = node.parentNode;
+		    datastores = node.data.datastores;
+		}
 	    }
 	    Ext.create('PBS.TapeManagement.TapeRestoreWindow', {
 		mediaset,
 		uuid,
 		datastores,
+		list,
 		listeners: {
 		    destroy: function() {
 			me.reload();
@@ -99,6 +71,7 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 		if (data[pool][media_set] === undefined) {
 		    data[pool][media_set] = entry;
 		    data[pool][media_set].text = media_set;
+		    data[pool][media_set].restore =true;
 		    data[pool][media_set].tapes = 1;
 		    data[pool][media_set]['seq-nr'] = undefined;
 		    data[pool][media_set].is_media_set = true;
@@ -180,6 +153,7 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 
 		for (let entry of list.result.data) {
 		    entry.text = entry.snapshot;
+		    entry.restore = true;
 		    entry.leaf = true;
 		    entry.children = [];
 		    entry['media-set'] = media_set;
@@ -289,22 +263,6 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 	    text: gettext('New Backup'),
 	    handler: 'backup',
 	},
-	{
-	    xtype: 'proxmoxButton',
-	    disabled: true,
-	    text: gettext('Restore Media Set'),
-	    handler: 'restore',
-	    parentXType: 'treepanel',
-	    enableFn: (rec) => !!rec.data['media-set-uuid'],
-	},
-	{
-	    xtype: 'proxmoxButton',
-	    disabled: true,
-	    text: gettext('Restore Snapshot'),
-	    handler: 'restoreSingle',
-	    parentXType: 'treepanel',
-	    enableFn: (rec) => !!rec.data.restoreid,
-	},
     ],
 
     columns: [
@@ -314,6 +272,18 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 	    dataIndex: 'text',
 	    sortable: false,
 	    flex: 3,
+	},
+	{
+	    header: gettext('Actions'),
+	    xtype: 'actioncolumn',
+	    items: [
+		{
+		    handler: 'restore',
+		    tooltip: gettext('Restore'),
+		    getClass: (v, m, rec) => rec.data.restore ? 'fa fa-fw fa-undo' : 'pmx-hidden',
+		    isDisabled: (v, r, c, i, rec) => !rec.data.restore,
+                },
+	    ],
 	},
 	{
 	    text: gettext('Tapes'),
