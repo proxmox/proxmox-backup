@@ -19,11 +19,9 @@ use tokio::{
 use tokio_openssl::SslStream;
 
 use proxmox::sys::linux::socket::set_tcp_keepalive;
+use proxmox_http::http::MaybeTlsStream;
 
-use crate::tools::{
-    PROXMOX_BACKUP_TCP_KEEPALIVE_TIME,
-    async_io::MaybeTlsStream,
-};
+use crate::tools::PROXMOX_BACKUP_TCP_KEEPALIVE_TIME;
 
 // Build a http::uri::Authority ("host:port"), use '[..]' around IPv6 addresses
 pub(crate) fn build_authority(host: &str, port: u16) -> Result<Authority, Error> {
