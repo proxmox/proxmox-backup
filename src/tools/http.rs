@@ -18,12 +18,11 @@ use tokio::{
 };
 use tokio_openssl::SslStream;
 
+use proxmox::sys::linux::socket::set_tcp_keepalive;
+
 use crate::tools::{
+    PROXMOX_BACKUP_TCP_KEEPALIVE_TIME,
     async_io::MaybeTlsStream,
-    socket::{
-        set_tcp_keepalive,
-        PROXMOX_BACKUP_TCP_KEEPALIVE_TIME,
-    },
 };
 
 // Build a http::uri::Authority ("host:port"), use '[..]' around IPv6 addresses

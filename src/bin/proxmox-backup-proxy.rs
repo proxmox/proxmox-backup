@@ -11,6 +11,7 @@ use serde_json::Value;
 
 use proxmox::try_block;
 use proxmox::api::RpcEnvironmentType;
+use proxmox::sys::linux::socket::set_tcp_keepalive;
 
 use proxmox_backup::{
     backup::DataStore,
@@ -38,6 +39,7 @@ use proxmox_backup::buildcfg;
 use proxmox_backup::server;
 use proxmox_backup::auth_helpers::*;
 use proxmox_backup::tools::{
+    PROXMOX_BACKUP_TCP_KEEPALIVE_TIME,
     daemon,
     disks::{
         DiskManage,
@@ -45,10 +47,6 @@ use proxmox_backup::tools::{
         get_pool_from_dataset,
     },
     logrotate::LogRotate,
-    socket::{
-        set_tcp_keepalive,
-        PROXMOX_BACKUP_TCP_KEEPALIVE_TIME,
-    },
 };
 
 use proxmox_backup::api2::pull::do_sync_job;

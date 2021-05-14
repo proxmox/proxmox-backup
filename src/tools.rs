@@ -43,7 +43,6 @@ pub mod lru_cache;
 pub mod nom;
 pub mod runtime;
 pub mod serde_filter;
-pub mod socket;
 pub mod statistics;
 pub mod subscription;
 pub mod systemd;
@@ -482,6 +481,9 @@ impl<T: Any> AsAny for T {
         self
     }
 }
+
+/// The default 2 hours are far too long for PBS
+pub const PROXMOX_BACKUP_TCP_KEEPALIVE_TIME: u32 = 120;
 
 /// This used to be: `SIMPLE_ENCODE_SET` plus space, `"`, `#`, `<`, `>`, backtick, `?`, `{`, `}`
 pub const DEFAULT_ENCODE_SET: &AsciiSet = &percent_encoding::CONTROLS // 0..1f and 7e
