@@ -382,10 +382,30 @@ Ext.define('PBS.DataStoreContent', {
 	    let data = rec.data;
 	    if (!view.datastore) return;
 
+	    let params;
+	    let message;
+	    let url;
+	    if (rec.parentNode.id !== 'root') {
+		message = Ext.String.format(gettext('Are you sure you want to remove snapshot {0}'), `'${data.text}'`);
+		url = `/admin/datastore/${view.datastore}/snapshots`;
+		params = {
+		    "backup-type": data["backup-type"],
+		    "backup-id": data["backup-id"],
+		    "backup-time": (data['backup-time'].getTime()/1000).toFixed(0),
+		};
+	    } else {
+		message = Ext.String.format(gettext('Are you sure you want to remove group {0}'), `'${data.text}'`);
+		url = `/admin/datastore/${view.datastore}/groups`;
+		params = {
+		    "backup-type": data.backup_type,
+		    "backup-id": data.backup_id,
+		};
+	    }
+
 	    Ext.Msg.show({
 		title: gettext('Confirm'),
 		icon: Ext.Msg.WARNING,
-		message: Ext.String.format(gettext('Are you sure you want to remove snapshot {0}'), `'${data.text}'`),
+		message,
 		buttons: Ext.Msg.YESNO,
 		defaultFocus: 'no',
 		callback: function(btn) {
@@ -394,12 +414,8 @@ Ext.define('PBS.DataStoreContent', {
 		    }
 
 		    Proxmox.Utils.API2Request({
-			params: {
-			    "backup-type": data["backup-type"],
-			    "backup-id": data["backup-id"],
-			    "backup-time": (data['backup-time'].getTime()/1000).toFixed(0),
-			},
-			url: `/admin/datastore/${view.datastore}/snapshots`,
+			url,
+			params,
 			method: 'DELETE',
 			waitMsgTarget: view,
 			failure: function(response, opts) {
@@ -617,8 +633,8 @@ Ext.define('PBS.DataStoreContent', {
 		{
 		    handler: 'onForget',
 		    getTip: (v, m, rec) => Ext.String.format(gettext("Permanently forget snapshot '{0}'"), v),
-		    getClass: (v, m, rec) => !rec.data.leaf && rec.parentNode.id !== 'root' ? 'fa critical fa-trash-o' : 'pmx-hidden',
-		    isDisabled: (v, r, c, i, rec) => rec.data.leaf || rec.parentNode.id === 'root',
+		    getClass: (v, m, rec) => !rec.data.leaf ? 'fa critical fa-trash-o' : 'pmx-hidden',
+		    isDisabled: (v, r, c, i, rec) => !!rec.data.leaf,
 		},
 		{
 		    handler: 'downloadFile',
