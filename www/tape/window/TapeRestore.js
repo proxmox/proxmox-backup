@@ -309,3 +309,113 @@ Ext.define('PBS.TapeManagement.DataStoreMappingGrid', {
 	},
     ],
 });
+
+Ext.define('PBS.TapeManagement.SnapshotGrid', {
+    extend: 'Ext.grid.Panel',
+    alias: 'widget.pbsTapeSnapshotGrid',
+    mixins: ['Ext.form.field.Field'],
+
+    getValue: function() {
+	let me = this;
+	let snapshots = [];
+
+	me.getSelection().forEach((rec) => {
+	    let id = rec.get('id');
+	    let store = rec.data.store;
+	    let snap = rec.data.snapshot;
+	    // only add if not filtered
+	    if (me.store.findExact('id', id) !== -1) {
+		snapshots.push(`${store}:${snap}`);
+	    }
+	});
+
+	return snapshots;
+    },
+
+    setValue: function(value) {
+	let me = this;
+	// not implemented
+	return me;
+    },
+
+    getErrors: function(value) {
+	let me = this;
+	if (me.getSelection() < 1) {
+	    me.addCls(['x-form-trigger-wrap-default', 'x-form-trigger-wrap-invalid']);
+	    let errorMsg = gettext("Need at least one snapshot");
+	    me.getActionEl().dom.setAttribute('data-errorqtip', errorMsg);
+
+	    return [errorMsg];
+	}
+	me.removeCls(['x-form-trigger-wrap-default', 'x-form-trigger-wrap-invalid']);
+	me.getActionEl().dom.setAttribute('data-errorqtip', "");
+	return [];
+    },
+
+    scrollable: true,
+    height: 350,
+    plugins: 'gridfilters',
+
+    viewConfig: {
+	emptyText: gettext('No Snapshots'),
+	markDirty: false,
+    },
+
+    selModel: 'checkboxmodel',
+    store: {
+	sorters: ['store', 'snapshot'],
+	data: [],
+	filters: [],
+    },
+
+    listeners: {
+	selectionchange: function() {
+	    // to trigger validity and error checks
+	    this.checkChange();
+	},
+    },
+
+    checkChangeEvents: [
+	'selectionchange',
+	'change',
+    ],
+
+    columns: [
+	{
+	    text: gettext('Source Datastore'),
+	    dataIndex: 'store',
+	    filter: {
+		type: 'list',
+	    },
+	    flex: 1,
+	},
+	{
+	    text: gettext('Snapshot'),
+	    dataIndex: 'snapshot',
+	    filter: {
+		type: 'string',
+	    },
+	    flex: 2,
+	},
+    ],
+
+    initComponent: function() {
+	let me = this;
+	me.callParent();
+	if (me.prefilter !== undefined) {
+	    me.store.filters.add(
+		{
+		    id: 'x-gridfilter-store',
+		    property: 'store',
+		    operator: 'in',
+		    value: [me.prefilter.store],
+		},
+		{
+		    id: 'x-gridfilter-snapshot',
+		    property: 'snapshot',
+		    value: me.prefilter.snapshot,
+		},
+	    );
+	}
+    },
+});
