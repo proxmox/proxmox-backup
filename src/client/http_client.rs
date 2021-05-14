@@ -26,6 +26,7 @@ use crate::tools::{
     self,
     BroadcastFuture,
     DEFAULT_ENCODE_SET,
+    PROXMOX_BACKUP_TCP_KEEPALIVE_TIME,
     http::{
         build_authority,
         HttpsConnector,
@@ -343,7 +344,7 @@ impl HttpClient {
         httpc.enforce_http(false); // we want https...
 
         httpc.set_connect_timeout(Some(std::time::Duration::new(10, 0)));
-        let https = HttpsConnector::with_connector(httpc, ssl_connector_builder.build());
+        let https = HttpsConnector::with_connector(httpc, ssl_connector_builder.build(), PROXMOX_BACKUP_TCP_KEEPALIVE_TIME);
 
         let client = Client::builder()
         //.http2_initial_stream_window_size( (1 << 31) - 2)

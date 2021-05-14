@@ -7,6 +7,7 @@ use http::{Request, Response, HeaderValue};
 use openssl::ssl::{SslConnector, SslMethod};
 use futures::*;
 
+use crate::tools::PROXMOX_BACKUP_TCP_KEEPALIVE_TIME;
 use crate::tools::http::{HttpsConnector, ProxyConfig};
 
 /// Asyncrounous HTTP client implementation
@@ -35,7 +36,7 @@ impl SimpleHttp {
         }
 
         let connector = HttpConnector::new();
-        let mut https = HttpsConnector::with_connector(connector, ssl_connector);
+        let mut https = HttpsConnector::with_connector(connector, ssl_connector, PROXMOX_BACKUP_TCP_KEEPALIVE_TIME);
         if let Some(proxy_config) = proxy_config {
             https.set_proxy(proxy_config);
         }

@@ -21,8 +21,6 @@ use tokio_openssl::SslStream;
 use proxmox::sys::linux::socket::set_tcp_keepalive;
 use proxmox_http::http::MaybeTlsStream;
 
-use crate::tools::PROXMOX_BACKUP_TCP_KEEPALIVE_TIME;
-
 // Build a http::uri::Authority ("host:port"), use '[..]' around IPv6 addresses
 pub(crate) fn build_authority(host: &str, port: u16) -> Result<Authority, Error> {
     let bytes = host.as_bytes();
@@ -120,15 +118,17 @@ pub struct HttpsConnector {
     connector: HttpConnector,
     ssl_connector: Arc<SslConnector>,
     proxy: Option<ProxyConfig>,
+    tcp_keepalive: u32,
 }
 
 impl HttpsConnector {
-    pub fn with_connector(mut connector: HttpConnector, ssl_connector: SslConnector) -> Self {
+    pub fn with_connector(mut connector: HttpConnector, ssl_connector: SslConnector, tcp_keepalive: u32) -> Self {
         connector.enforce_http(false);
         Self {
             connector,
             ssl_connector: Arc::new(ssl_connector),
             proxy: None,
+            tcp_keepalive,
         }
     }
 
@@ -213,6 +213,7 @@ impl hyper::service::Service<Uri> for HttpsConnector {
             }
         };
         let port = dst.port_u16().unwrap_or(if is_https { 443 } else { 80 });
+        let keepalive = self.tcp_keepalive;
 
         if let Some(ref proxy) = self.proxy {
 
@@ -243,7 +244,7 @@ impl hyper::service::Service<Uri> for HttpsConnector {
                         .await
                         .map_err(|err| format_err!("error connecting to {} - {}", proxy_authority, err))?;
 
-                    let _ = set_tcp_keepalive(tcp_stream.as_raw_fd(), PROXMOX_BACKUP_TCP_KEEPALIVE_TIME);
+                    let _ = set_tcp_keepalive(tcp_stream.as_raw_fd(), keepalive);
 
                     let mut connect_request = format!("CONNECT {0}:{1} HTTP/1.1\r\n", host, port);
                     if let Some(authorization) = authorization {
@@ -272,7 +273,7 @@ impl hyper::service::Service<Uri> for HttpsConnector {
                        .await
                        .map_err(|err| format_err!("error connecting to {} - {}", proxy_authority, err))?;
 
-                   let _ = set_tcp_keepalive(tcp_stream.as_raw_fd(), PROXMOX_BACKUP_TCP_KEEPALIVE_TIME);
+                   let _ = set_tcp_keepalive(tcp_stream.as_raw_fd(), keepalive);
 
                    Ok(MaybeTlsStream::Proxied(tcp_stream))
                }.boxed()
@@ -285,7 +286,7 @@ impl hyper::service::Service<Uri> for HttpsConnector {
                     .await
                     .map_err(|err| format_err!("error connecting to {} - {}", dst_str, err))?;
 
-                let _ = set_tcp_keepalive(tcp_stream.as_raw_fd(), PROXMOX_BACKUP_TCP_KEEPALIVE_TIME);
+                let _ = set_tcp_keepalive(tcp_stream.as_raw_fd(), keepalive);
 
                 if is_https {
                     Self::secure_stream(tcp_stream, &ssl_connector, &host).await
