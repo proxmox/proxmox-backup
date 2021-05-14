@@ -18,7 +18,11 @@ use percent_encoding::{utf8_percent_encode, AsciiSet};
 pub use proxmox::tools::fd::Fd;
 use proxmox::tools::fs::{create_path, CreateOptions};
 
-use proxmox_http::http::ProxyConfig;
+use proxmox_http::http::{
+    client::SimpleHttp,
+    client::SimpleHttpOptions,
+    ProxyConfig,
+};
 
 pub mod acl;
 pub mod apt;
@@ -33,10 +37,6 @@ pub mod disks;
 pub mod format;
 pub mod fs;
 pub mod fuse_loop;
-
-mod simple_http_client;
-pub use simple_http_client::SimpleHttp;
-pub use simple_http_client::SimpleHttpOptions;
 
 pub mod json;
 pub mod logrotate;

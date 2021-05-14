@@ -16,10 +16,11 @@ use proxmox_acme_rs::account::AccountData as AcmeAccountData;
 use proxmox_acme_rs::order::{Order, OrderData};
 use proxmox_acme_rs::Request as AcmeRequest;
 use proxmox_acme_rs::{Account, Authorization, Challenge, Directory, Error, ErrorResponse};
+use proxmox_http::http::client::SimpleHttp;
 
 use crate::api2::types::AcmeAccountName;
 use crate::config::acme::account_path;
-use crate::tools::{pbs_simple_http, SimpleHttp};
+use crate::tools::pbs_simple_http;
 
 /// Our on-disk format inherited from PVE's proxmox-acme code.
 #[derive(Deserialize, Serialize)]

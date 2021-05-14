@@ -10,9 +10,9 @@ use crate::config::node;
 use crate::tools::{
     self,
     pbs_simple_http,
-    SimpleHttp,
 };
 use proxmox::tools::fs::{replace_file, CreateOptions};
+use proxmox_http::http::client::SimpleHttp;
 
 /// How long the local key is valid for in between remote checks
 pub const MAX_LOCAL_KEY_AGE: i64 = 15 * 24 * 3600;
