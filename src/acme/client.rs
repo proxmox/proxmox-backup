@@ -19,7 +19,7 @@ use proxmox_acme_rs::{Account, Authorization, Challenge, Directory, Error, Error
 
 use crate::api2::types::AcmeAccountName;
 use crate::config::acme::account_path;
-use crate::tools::SimpleHttp;
+use crate::tools::{pbs_simple_http, SimpleHttp};
 
 /// Our on-disk format inherited from PVE's proxmox-acme code.
 #[derive(Deserialize, Serialize)]
@@ -72,7 +72,7 @@ impl AcmeClient {
             account: None,
             directory: None,
             nonce: None,
-            http_client: SimpleHttp::new(None),
+            http_client: pbs_simple_http(None),
         }
     }
 

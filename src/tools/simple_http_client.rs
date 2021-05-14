@@ -12,50 +12,65 @@ use proxmox_http::http::{
     client::HttpsConnector,
 };
 
-use crate::tools::PROXMOX_BACKUP_TCP_KEEPALIVE_TIME;
+/// Options for a SimpleHttp client.
+#[derive(Default)]
+pub struct SimpleHttpOptions {
+    /// Proxy configuration
+    pub proxy_config: Option<ProxyConfig>,
+    /// `User-Agent` header value, defaults to `proxmox-simple-http-client/0.1`
+    pub user_agent: Option<String>,
+    /// TCP keepalive time, defaults to 7200
+    pub tcp_keepalive: Option<u32>,
+}
+
+impl SimpleHttpOptions {
+    fn get_proxy_authorization(&self) -> Option<String> {
+        if let Some(ref proxy_config) = self.proxy_config {
+            if !proxy_config.force_connect {
+               return proxy_config.authorization.clone();
+            }
+        }
+
+        None
+    }
+}
 
 /// Asyncrounous HTTP client implementation
 pub struct SimpleHttp {
     client: Client<HttpsConnector, Body>,
-    proxy_authorization: Option<String>, // Proxy-Authorization header value
-    user_agent: Option<String>,
+    options: SimpleHttpOptions,
 }
 
 impl SimpleHttp {
+    pub const DEFAULT_USER_AGENT_STRING: &'static str = "proxmox-simple-http-client/0.1";
 
-    pub const DEFAULT_USER_AGENT_STRING: &'static str = "proxmox-backup-client/1.0";
-
-    pub fn new(proxy_config: Option<ProxyConfig>) -> Self {
-        let ssl_connector = SslConnector::builder(SslMethod::tls()).unwrap().build();
-        Self::with_ssl_connector(ssl_connector, proxy_config)
+    pub fn new() -> Self {
+        Self::with_options(SimpleHttpOptions::default())
     }
 
-    pub fn with_ssl_connector(ssl_connector: SslConnector, proxy_config: Option<ProxyConfig>) -> Self {
+    pub fn with_options(options: SimpleHttpOptions) -> Self {
+        let ssl_connector = SslConnector::builder(SslMethod::tls()).unwrap().build();
+        Self::with_ssl_connector(ssl_connector, options)
+    }
 
-        let mut proxy_authorization = None;
-        if let Some(ref proxy_config) = proxy_config {
-            if !proxy_config.force_connect {
-               proxy_authorization = proxy_config.authorization.clone();
-            }
-        }
-
+    pub fn with_ssl_connector(ssl_connector: SslConnector, options: SimpleHttpOptions) -> Self {
         let connector = HttpConnector::new();
-        let mut https = HttpsConnector::with_connector(connector, ssl_connector, PROXMOX_BACKUP_TCP_KEEPALIVE_TIME);
-        if let Some(proxy_config) = proxy_config {
-            https.set_proxy(proxy_config);
+        let mut https = HttpsConnector::with_connector(connector, ssl_connector, options.tcp_keepalive.unwrap_or(7200));
+        if let Some(ref proxy_config) = options.proxy_config {
+            https.set_proxy(proxy_config.clone());
         }
         let client = Client::builder().build(https);
-        Self { client, proxy_authorization, user_agent: None }
+        Self { client, options }
     }
 
     pub fn set_user_agent(&mut self, user_agent: &str) -> Result<(), Error> {
-        self.user_agent = Some(user_agent.to_owned());
+        self.options.user_agent = Some(user_agent.to_owned());
         Ok(())
     }
 
     fn add_proxy_headers(&self, request: &mut Request<Body>) -> Result<(), Error> {
         if request.uri().scheme() != Some(&http::uri::Scheme::HTTPS) {
-            if let Some(ref authorization) = self.proxy_authorization {
+            if let Some(ref authorization) = self.options.get_proxy_authorization() {
                 request
                     .headers_mut()
                     .insert(
@@ -68,7 +83,7 @@ impl SimpleHttp {
     }
 
     pub async fn request(&self, mut request: Request<Body>) -> Result<Response<Body>, Error> {
-        let user_agent = if let Some(ref user_agent) = self.user_agent {
+        let user_agent = if let Some(ref user_agent) = self.options.user_agent {
             HeaderValue::from_str(&user_agent)?
         } else {
             HeaderValue::from_str(Self::DEFAULT_USER_AGENT_STRING)?

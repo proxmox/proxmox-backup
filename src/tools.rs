@@ -18,6 +18,8 @@ use percent_encoding::{utf8_percent_encode, AsciiSet};
 pub use proxmox::tools::fd::Fd;
 use proxmox::tools::fs::{create_path, CreateOptions};
 
+use proxmox_http::http::ProxyConfig;
+
 pub mod acl;
 pub mod apt;
 pub mod async_io;
@@ -34,6 +36,7 @@ pub mod fuse_loop;
 
 mod simple_http_client;
 pub use simple_http_client::SimpleHttp;
+pub use simple_http_client::SimpleHttpOptions;
 
 pub mod json;
 pub mod logrotate;
@@ -483,6 +486,19 @@ impl<T: Any> AsAny for T {
 
 /// The default 2 hours are far too long for PBS
 pub const PROXMOX_BACKUP_TCP_KEEPALIVE_TIME: u32 = 120;
+pub const DEFAULT_USER_AGENT_STRING: &'static str = "proxmox-backup-client/1.0";
+
+/// Returns a new instance of `SimpleHttp` configured for PBS usage.
+pub fn pbs_simple_http(proxy_config: Option<ProxyConfig>) -> SimpleHttp {
+    let options = SimpleHttpOptions {
+        proxy_config,
+        user_agent: Some(DEFAULT_USER_AGENT_STRING.to_string()),
+        tcp_keepalive: Some(PROXMOX_BACKUP_TCP_KEEPALIVE_TIME),
+        ..Default::default()
+    };
+
+    SimpleHttp::with_options(options)
+}
 
 /// This used to be: `SIMPLE_ENCODE_SET` plus space, `"`, `#`, `<`, `>`, backtick, `?`, `{`, `}`
 pub const DEFAULT_ENCODE_SET: &AsciiSet = &percent_encoding::CONTROLS // 0..1f and 7e

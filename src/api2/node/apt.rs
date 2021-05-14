@@ -11,7 +11,11 @@ use proxmox_http::http::ProxyConfig;
 
 use crate::config::node;
 use crate::server::WorkerTask;
-use crate::tools::{apt, SimpleHttp, subscription};
+use crate::tools::{
+    apt,
+    pbs_simple_http,
+    subscription,
+};
 use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 use crate::api2::types::{Authid, APTUpdateInfo, NODE_SCHEMA, UPID_SCHEMA};
 
@@ -227,7 +231,7 @@ fn apt_get_changelog(
     }
 
     let proxy_config = read_and_update_proxy_config()?;
-    let mut client = SimpleHttp::new(proxy_config);
+    let mut client = pbs_simple_http(proxy_config);
 
     let changelog_url = &pkg_info[0].change_log_url;
     // FIXME: use 'apt-get changelog' for proxmox packages as well, once repo supports it

@@ -7,7 +7,11 @@ use regex::Regex;
 use proxmox::api::api;
 
 use crate::config::node;
-use crate::tools::{self, SimpleHttp};
+use crate::tools::{
+    self,
+    pbs_simple_http,
+    SimpleHttp,
+};
 use proxmox::tools::fs::{replace_file, CreateOptions};
 
 /// How long the local key is valid for in between remote checks
@@ -109,7 +113,7 @@ async fn register_subscription(
         None
     };
 
-    let mut client = SimpleHttp::new(proxy_config);
+    let mut client = pbs_simple_http(proxy_config);
 
     let uri = "https://shop.maurer-it.com/modules/servers/licensing/verify.php";
     let query = tools::json_object_to_query(params)?;
