@@ -47,7 +47,7 @@ fn test_alloc_writable_media_1() -> Result<(), Error> {
 
     ctime += 10;
 
-    pool.start_write_session(ctime)?;
+    pool.start_write_session(ctime, false)?;
 
     // no media in pool
     assert!(pool.alloc_writable_media(ctime).is_err());
@@ -77,7 +77,7 @@ fn test_alloc_writable_media_2() -> Result<(), Error> {
 
     let ctime = 10;
 
-    pool.start_write_session(ctime)?;
+    pool.start_write_session(ctime, false)?;
 
     // use free media
     assert_eq!(pool.alloc_writable_media(ctime)?, tape1_uuid);
@@ -117,7 +117,7 @@ fn test_alloc_writable_media_3() -> Result<(), Error> {
 
     let mut ctime = 10;
 
-    pool.start_write_session(ctime)?;
+    pool.start_write_session(ctime, false)?;
 
     // use free media
     assert_eq!(pool.alloc_writable_media(ctime)?, tape1_uuid);
@@ -164,7 +164,7 @@ fn test_alloc_writable_media_4() -> Result<(), Error> {
 
     let start_time = 10;
 
-    pool.start_write_session(start_time)?;
+    pool.start_write_session(start_time, false)?;
 
     // use free media
     assert_eq!(pool.alloc_writable_media(start_time)?, tape1_uuid);
@@ -178,7 +178,7 @@ fn test_alloc_writable_media_4() -> Result<(), Error> {
     assert!(pool.alloc_writable_media(start_time + 5).is_err());
 
     // Create new media set, so that previous set can expire
-    pool.start_write_session(start_time + 10)?;
+    pool.start_write_session(start_time + 10, false)?;
 
     assert!(pool.alloc_writable_media(start_time + 10).is_err());
     assert!(pool.alloc_writable_media(start_time + 11).is_err());
