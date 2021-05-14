@@ -7,9 +7,11 @@ use proxmox::api::{api, RpcEnvironment, RpcEnvironmentType, Permission};
 use proxmox::api::router::{Router, SubdirMap};
 use proxmox::tools::fs::{replace_file, CreateOptions};
 
+use proxmox_http::http::ProxyConfig;
+
 use crate::config::node;
 use crate::server::WorkerTask;
-use crate::tools::{apt, SimpleHttp, http::ProxyConfig, subscription};
+use crate::tools::{apt, SimpleHttp, subscription};
 use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 use crate::api2::types::{Authid, APTUpdateInfo, NODE_SCHEMA, UPID_SCHEMA};
 
