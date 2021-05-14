@@ -53,10 +53,11 @@ percent-encoding = "2.1"
 pin-utils = "0.1.0"
 pin-project = "1.0"
 pathpatterns = "0.1.2"
-proxmox = { version = "0.11.4", features = [ "sortable-macro", "api-macro", "websocket" ] }
+proxmox = { version = "0.11.5", features = [ "sortable-macro", "api-macro" ] }
 #proxmox = { git = "git://git.proxmox.com/git/proxmox", version = "0.1.2", features = [ "sortable-macro", "api-macro" ] }
-#proxmox = { path = "../proxmox/proxmox", features = [ "sortable-macro", "api-macro", "websocket" ] }
+#proxmox = { path = "../proxmox/proxmox", features = [ "sortable-macro", "api-macro" ] }
 proxmox-fuse = "0.1.1"
+proxmox-http = { version = "0.1.0", path = "../proxmox/proxmox-http", features = [ "websocket" ] }
 pxar = { version = "0.10.1", features = [ "tokio-io" ] }
 #pxar = { path = "../pxar", features = [ "tokio-io" ] }
 regex = "1.2"

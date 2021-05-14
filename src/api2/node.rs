@@ -17,7 +17,7 @@ use proxmox::api::{
     api, schema::*, ApiHandler, ApiMethod, ApiResponseFuture, Permission, RpcEnvironment,
 };
 use proxmox::list_subdirs_api_method;
-use proxmox::tools::websocket::WebSocket;
+use proxmox_http::websocket::WebSocket;
 use proxmox::{identity, sortable};
 
 use crate::api2::types::*;
