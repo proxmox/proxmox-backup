@@ -7,10 +7,12 @@ use http::{Request, Response, HeaderValue};
 use openssl::ssl::{SslConnector, SslMethod};
 use futures::*;
 
-use proxmox_http::http::ProxyConfig;
+use proxmox_http::http::{
+    ProxyConfig,
+    client::HttpsConnector,
+};
 
 use crate::tools::PROXMOX_BACKUP_TCP_KEEPALIVE_TIME;
-use crate::tools::http::HttpsConnector;
 
 /// Asyncrounous HTTP client implementation
 pub struct SimpleHttp {

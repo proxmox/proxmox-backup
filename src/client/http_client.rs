@@ -20,6 +20,9 @@ use proxmox::{
     tools::fs::{file_get_json, replace_file, CreateOptions},
 };
 
+use proxmox_http::http::client::HttpsConnector;
+use proxmox_http::http::helpers::build_authority;
+
 use super::pipe_to_stream::PipeToSendStream;
 use crate::api2::types::{Authid, Userid};
 use crate::tools::{
@@ -27,10 +30,6 @@ use crate::tools::{
     BroadcastFuture,
     DEFAULT_ENCODE_SET,
     PROXMOX_BACKUP_TCP_KEEPALIVE_TIME,
-    http::{
-        build_authority,
-        HttpsConnector,
-    },
 };
 
 /// Timeout used for several HTTP operations that are expected to finish quickly but may block in
