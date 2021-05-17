@@ -157,6 +157,7 @@ impl Filesystems {
                     info!("mounting '{}' succeeded, fstype: '{}'", source, fs);
                     return Ok(());
                 }
+                Err(nix::Error::Sys(nix::errno::Errno::EINVAL)) => {}
                 Err(err) => {
                     warn!("mount error on '{}' ({}) - {}", source, fs, err);
                 }
