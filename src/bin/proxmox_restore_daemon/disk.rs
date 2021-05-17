@@ -62,6 +62,7 @@ struct PartitionBucketData {
 /// e.g.: "/drive-scsi0/part/0/etc/passwd"
 enum Bucket {
     Partition(PartitionBucketData),
+    RawFs(PartitionBucketData),
 }
 
 impl Bucket {
@@ -79,12 +80,14 @@ impl Bucket {
                     false
                 }
             }
+            Bucket::RawFs(_) => ty == "raw",
         })
     }
 
     fn type_string(&self) -> &'static str {
         match self {
             Bucket::Partition(_) => "part",
+            Bucket::RawFs(_) => "raw",
         }
     }
 
@@ -100,19 +103,21 @@ impl Bucket {
         }
         Ok(match self {
             Bucket::Partition(data) => data.number.to_string(),
+            Bucket::RawFs(_) => "raw".to_owned(),
         })
     }
 
     fn component_depth(type_string: &str) -> Result<usize, Error> {
         Ok(match type_string {
             "part" => 1,
+            "raw" => 0,
             _ => bail!("invalid bucket type for component depth: {}", type_string),
         })
     }
 
     fn size(&self) -> u64 {
         match self {
-            Bucket::Partition(data) => data.size,
+            Bucket::Partition(data) | Bucket::RawFs(data) => data.size,
         }
     }
 }
@@ -145,8 +150,8 @@ impl Filesystems {
 
     fn ensure_mounted(&self, bucket: &mut Bucket) -> Result<PathBuf, Error> {
         match bucket {
-            Bucket::Partition(data) => {
-                // regular data partition à la "/dev/vdxN"
+            Bucket::Partition(data) | Bucket::RawFs(data) => {
+                // regular data partition à la "/dev/vdxN" or FS directly on a disk
                 if let Some(mp) = &data.mountpoint {
                     return Ok(mp.clone());
                 }
@@ -197,6 +202,8 @@ pub struct DiskState {
 impl DiskState {
     /// Scan all disks for supported buckets.
     pub fn scan() -> Result<Self, Error> {
+        let filesystems = Filesystems::scan()?;
+
         // create mapping for virtio drives and .fidx files (via serial description)
         // note: disks::DiskManager relies on udev, which we don't have
         let mut disk_map = HashMap::new();
@@ -223,6 +230,25 @@ impl DiskState {
                 }
             };
 
+            // attempt to mount device directly
+            let dev_node = format!("/dev/{}", name);
+            let size = Self::make_dev_node(&dev_node, &sys_path)?;
+            let mut dfs_bucket = Bucket::RawFs(PartitionBucketData {
+                dev_node: dev_node.clone(),
+                number: 0,
+                mountpoint: None,
+                size,
+            });
+            if let Ok(_) = filesystems.ensure_mounted(&mut dfs_bucket) {
+                // mount succeeded, add bucket and skip any other checks for the disk
+                info!(
+                    "drive '{}' ('{}', '{}') contains fs directly ({}B)",
+                    name, fidx, dev_node, size
+                );
+                disk_map.insert(fidx, vec![dfs_bucket]);
+                continue;
+            }
+
             let mut parts = Vec::new();
             for entry in proxmox_backup::tools::fs::scan_subdir(
                 libc::AT_FDCWD,
@@ -232,32 +258,23 @@ impl DiskState {
             .filter_map(Result::ok)
             {
                 let part_name = unsafe { entry.file_name_utf8_unchecked() };
-                let devnode = format!("/dev/{}", part_name);
+                let dev_node = format!("/dev/{}", part_name);
                 let part_path = format!("/sys/block/{}/{}", name, part_name);
 
                 // create partition device node for further use
-                let dev_num_str = fs::file_read_firstline(&format!("{}/dev", part_path))?;
-                let (major, minor) = dev_num_str.split_at(dev_num_str.find(':').unwrap());
-                Self::mknod_blk(&devnode, major.parse()?, minor[1..].trim_end().parse()?)?;
+                let size = Self::make_dev_node(&dev_node, &part_path)?;
 
                 let number = fs::file_read_firstline(&format!("{}/partition", part_path))?
                     .trim()
                     .parse::<i32>()?;
 
-                // this *always* contains the number of 512-byte sectors, regardless of the true
-                // blocksize of this disk - which should always be 512 here anyway
-                let size = fs::file_read_firstline(&format!("{}/size", part_path))?
-                    .trim()
-                    .parse::<u64>()?
-                    * 512;
-
                 info!(
                     "drive '{}' ('{}'): found partition '{}' ({}, {}B)",
-                    name, fidx, devnode, number, size
+                    name, fidx, dev_node, number, size
                 );
 
                 let bucket = Bucket::Partition(PartitionBucketData {
-                    dev_node: devnode,
+                    dev_node,
                     mountpoint: None,
                     number,
                     size,
@@ -266,11 +283,11 @@ impl DiskState {
                 parts.push(bucket);
             }
 
-            disk_map.insert(fidx.to_owned(), parts);
+            disk_map.insert(fidx, parts);
         }
 
         Ok(Self {
-            filesystems: Filesystems::scan()?,
+            filesystems,
             disk_map,
         })
     }
@@ -379,6 +396,21 @@ impl DiskState {
         }
 
         Ok(ResolveResult::Path(local_path))
+    }
+
+    fn make_dev_node(devnode: &str, sys_path: &str) -> Result<u64, Error> {
+        let dev_num_str = fs::file_read_firstline(&format!("{}/dev", sys_path))?;
+        let (major, minor) = dev_num_str.split_at(dev_num_str.find(':').unwrap());
+        Self::mknod_blk(&devnode, major.parse()?, minor[1..].trim_end().parse()?)?;
+
+        // this *always* contains the number of 512-byte sectors, regardless of the true
+        // blocksize of this disk - which should always be 512 here anyway
+        let size = fs::file_read_firstline(&format!("{}/size", sys_path))?
+            .trim()
+            .parse::<u64>()?
+            * 512;
+
+        Ok(size)
     }
 
     fn mknod_blk(path: &str, maj: u64, min: u64) -> Result<(), Error> {
