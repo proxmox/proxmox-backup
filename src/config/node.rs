@@ -10,7 +10,7 @@ use proxmox::api::api;
 use proxmox::api::schema::{ApiStringFormat, Updater};
 use proxmox::tools::fs::{replace_file, CreateOptions};
 
-use proxmox_http::http::ProxyConfig;
+use proxmox_http::ProxyConfig;
 
 use crate::acme::AcmeClient;
 use crate::api2::types::{

@@ -20,8 +20,8 @@ use proxmox::{
     tools::fs::{file_get_json, replace_file, CreateOptions},
 };
 
-use proxmox_http::http::client::HttpsConnector;
-use proxmox_http::http::helpers::build_authority;
+use proxmox_http::client::HttpsConnector;
+use proxmox_http::uri::build_authority;
 
 use super::pipe_to_stream::PipeToSendStream;
 use crate::api2::types::{Authid, Userid};

@@ -57,7 +57,8 @@ proxmox = { version = "0.11.5", features = [ "sortable-macro", "api-macro" ] }
 #proxmox = { git = "git://git.proxmox.com/git/proxmox", version = "0.1.2", features = [ "sortable-macro", "api-macro" ] }
 #proxmox = { path = "../proxmox/proxmox", features = [ "sortable-macro", "api-macro" ] }
 proxmox-fuse = "0.1.1"
-proxmox-http = { version = "0.1.0", path = "../proxmox/proxmox-http", features = [ "client", "http-helpers", "websocket" ] }
+proxmox-http = { version = "0.2.0", features = [ "client", "http-helpers", "websocket" ] }
+#proxmox-http = { version = "0.2.0", path = "../proxmox/proxmox-http", features = [ "client", "http-helpers", "websocket" ] }
 pxar = { version = "0.10.1", features = [ "tokio-io" ] }
 #pxar = { path = "../pxar", features = [ "tokio-io" ] }
 regex = "1.2"

@@ -18,7 +18,7 @@ use percent_encoding::{utf8_percent_encode, AsciiSet};
 pub use proxmox::tools::fd::Fd;
 use proxmox::tools::fs::{create_path, CreateOptions};
 
-use proxmox_http::http::{
+use proxmox_http::{
     client::SimpleHttp,
     client::SimpleHttpOptions,
     ProxyConfig,

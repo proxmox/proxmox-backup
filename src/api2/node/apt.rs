@@ -7,7 +7,7 @@ use proxmox::api::{api, RpcEnvironment, RpcEnvironmentType, Permission};
 use proxmox::api::router::{Router, SubdirMap};
 use proxmox::tools::fs::{replace_file, CreateOptions};
 
-use proxmox_http::http::ProxyConfig;
+use proxmox_http::ProxyConfig;
 
 use crate::config::node;
 use crate::server::WorkerTask;

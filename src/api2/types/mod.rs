@@ -1660,7 +1660,7 @@ pub struct NodeStatus {
 pub const HTTP_PROXY_SCHEMA: Schema = StringSchema::new(
     "HTTP proxy configuration [http://]<host>[:port]")
     .format(&ApiStringFormat::VerifyFn(|s| {
-        proxmox_http::http::ProxyConfig::parse_proxy_url(s)?;
+        proxmox_http::ProxyConfig::parse_proxy_url(s)?;
         Ok(())
     }))
     .min_length(1)
