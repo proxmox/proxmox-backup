@@ -632,7 +632,9 @@ Ext.define('PBS.DataStoreContent', {
 		},
 		{
 		    handler: 'onForget',
-		    getTip: (v, m, rec) => Ext.String.format(gettext("Permanently forget snapshot '{0}'"), v),
+		    getTip: (v, m, rec) => rec.parentNode.id !=='root'
+			? Ext.String.format(gettext("Permanently forget snapshot '{0}'"), v)
+			: Ext.String.format(gettext("Permanently forget group '{0}'"), v),
 		    getClass: (v, m, rec) => !rec.data.leaf ? 'fa critical fa-trash-o' : 'pmx-hidden',
 		    isDisabled: (v, r, c, i, rec) => !!rec.data.leaf,
 		},
