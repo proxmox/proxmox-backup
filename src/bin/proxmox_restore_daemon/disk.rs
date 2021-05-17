@@ -68,12 +68,17 @@ impl Bucket {
     fn filter_mut<'a, A: AsRef<str>, B: AsRef<str>>(
         haystack: &'a mut Vec<Bucket>,
         ty: A,
-        comp: B,
+        comp: &[B],
     ) -> Option<&'a mut Bucket> {
         let ty = ty.as_ref();
-        let comp = comp.as_ref();
         haystack.iter_mut().find(|b| match b {
-            Bucket::Partition(data) => ty == "part" && comp.parse::<i32>().unwrap() == data.number,
+            Bucket::Partition(data) => {
+                if let Some(comp) = comp.get(0) {
+                    ty == "part" && comp.as_ref().parse::<i32>().unwrap() == data.number
+                } else {
+                    false
+                }
+            }
         })
     }
 
@@ -83,10 +88,26 @@ impl Bucket {
         }
     }
 
-    fn component_string(&self) -> String {
-        match self {
-            Bucket::Partition(data) => data.number.to_string(),
+    fn component_string(&self, idx: usize) -> Result<String, Error> {
+        let max_depth = Self::component_depth(self.type_string())?;
+        if idx >= max_depth {
+            bail!(
+                "internal error: component index out of range {}/{} ({})",
+                idx,
+                max_depth,
+                self.type_string()
+            );
         }
+        Ok(match self {
+            Bucket::Partition(data) => data.number.to_string(),
+        })
+    }
+
+    fn component_depth(type_string: &str) -> Result<usize, Error> {
+        Ok(match type_string {
+            "part" => 1,
+            _ => bail!("invalid bucket type for component depth: {}", type_string),
+        })
     }
 
     fn size(&self) -> u64 {
@@ -299,27 +320,41 @@ impl DiskState {
             }
         };
 
-        let component = match cmp.next() {
-            Some(Component::Normal(x)) => x.to_string_lossy(),
-            Some(c) => bail!("invalid bucket component in path: {:?}", c),
-            None => {
-                // list bucket components available
-                let comps = buckets
-                    .iter()
-                    .filter(|b| b.type_string() == bucket_type)
-                    .map(|b| (b.component_string(), b.size()))
-                    .collect();
-                return Ok(ResolveResult::BucketComponents(comps));
-            }
-        };
+        let mut components = Vec::new();
+        let component_count = Bucket::component_depth(&bucket_type)?;
 
-        let mut bucket = match Bucket::filter_mut(buckets, &bucket_type, &component) {
+        while components.len() < component_count {
+            let component = match cmp.next() {
+                Some(Component::Normal(x)) => x.to_string_lossy(),
+                Some(c) => bail!("invalid bucket component in path: {:?}", c),
+                None => {
+                    // list bucket components available at this level
+                    let comps = buckets
+                        .iter()
+                        .filter_map(|b| {
+                            if b.type_string() != bucket_type {
+                                return None;
+                            }
+                            match b.component_string(components.len()) {
+                                Ok(cs) => Some((cs.to_owned(), b.size())),
+                                Err(_) => None,
+                            }
+                        })
+                        .collect();
+                    return Ok(ResolveResult::BucketComponents(comps));
+                }
+            };
+
+            components.push(component);
+        }
+
+        let mut bucket = match Bucket::filter_mut(buckets, &bucket_type, &components) {
             Some(bucket) => bucket,
             None => bail!(
-                "bucket/component path not found: {}/{}/{}",
+                "bucket/component path not found: {}/{}/{:?}",
                 req_fidx,
                 bucket_type,
-                component
+                components
             ),
         };
 
@@ -329,10 +364,10 @@ impl DiskState {
             .ensure_mounted(&mut bucket)
             .map_err(|err| {
                 format_err!(
-                    "mounting '{}/{}/{}' failed: {}",
+                    "mounting '{}/{}/{:?}' failed: {}",
                     req_fidx,
                     bucket_type,
-                    component,
+                    components,
                     err
                 )
             })?;
