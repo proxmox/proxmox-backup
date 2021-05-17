@@ -384,6 +384,7 @@ Ext.define('PBS.Utils', {
 	    dirremove: [gettext('Directory'), gettext('Remove')],
 	    'eject-media': [gettext('Drive'), gettext('Eject Media')],
 	    "format-media": [gettext('Drive'), gettext('Format media')],
+	    "forget-group": [gettext('Group'), gettext('Remove Group')],
 	    garbage_collection: ['Datastore', gettext('Garbage Collect')],
 	    'inventory-update': [gettext('Drive'), gettext('Inventory Update')],
 	    'label-media': [gettext('Drive'), gettext('Label Media')],

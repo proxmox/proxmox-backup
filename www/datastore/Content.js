@@ -374,38 +374,35 @@ Ext.define('PBS.DataStoreContent', {
 	    });
 	},
 
-	onForget: function(view, rI, cI, item, e, rec) {
+	forgetGroup: function(data) {
 	    let me = this;
-	    view = this.getView();
+	    let view = me.getView();
 
-	    if (!(rec && rec.data)) return;
-	    let data = rec.data;
-	    if (!view.datastore) return;
-
-	    let params;
-	    let message;
-	    let url;
-	    if (rec.parentNode.id !== 'root') {
-		message = Ext.String.format(gettext('Are you sure you want to remove snapshot {0}'), `'${data.text}'`);
-		url = `/admin/datastore/${view.datastore}/snapshots`;
-		params = {
-		    "backup-type": data["backup-type"],
-		    "backup-id": data["backup-id"],
-		    "backup-time": (data['backup-time'].getTime()/1000).toFixed(0),
-		};
-	    } else {
-		message = Ext.String.format(gettext('Are you sure you want to remove group {0}'), `'${data.text}'`);
-		url = `/admin/datastore/${view.datastore}/groups`;
-		params = {
+	    Ext.create('Proxmox.window.SafeDestroy', {
+		url: `/admin/datastore/${view.datastore}/groups`,
+		params: {
 		    "backup-type": data.backup_type,
 		    "backup-id": data.backup_id,
-		};
-	    }
+		},
+		item: {
+		    id: data.text,
+		},
+		autoShow: true,
+		taskName: 'forget-group',
+		listeners: {
+		    destroy: () => me.reload(),
+		},
+	    });
+	},
+
+	forgetSnapshot: function(data) {
+	    let me = this;
+	    let view = me.getView();
 
 	    Ext.Msg.show({
 		title: gettext('Confirm'),
 		icon: Ext.Msg.WARNING,
-		message,
+		message: Ext.String.format(gettext('Are you sure you want to remove snapshot {0}'), `'${data.text}'`),
 		buttons: Ext.Msg.YESNO,
 		defaultFocus: 'no',
 		callback: function(btn) {
@@ -414,8 +411,12 @@ Ext.define('PBS.DataStoreContent', {
 		    }
 
 		    Proxmox.Utils.API2Request({
-			url,
-			params,
+			url: `/admin/datastore/${view.datastore}/snapshots`,
+			params: {
+			    "backup-type": data["backup-type"],
+			    "backup-id": data["backup-id"],
+			    "backup-time": (data['backup-time'].getTime()/1000).toFixed(0),
+			},
 			method: 'DELETE',
 			waitMsgTarget: view,
 			failure: function(response, opts) {
@@ -425,6 +426,21 @@ Ext.define('PBS.DataStoreContent', {
 		    });
 		},
 	    });
+	},
+
+	onForget: function(view, rI, cI, item, e, rec) {
+	    let me = this;
+	    view = this.getView();
+
+	    if (!(rec && rec.data)) return;
+	    let data = rec.data;
+	    if (!view.datastore) return;
+
+	    if (rec.parentNode.id !== 'root') {
+		me.forgetSnapshot(data);
+	    } else {
+		me.forgetGroup(data);
+	    }
 	},
 
 	downloadFile: function(tV, rI, cI, item, e, rec) {
