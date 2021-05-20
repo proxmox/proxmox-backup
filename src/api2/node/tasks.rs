@@ -256,7 +256,7 @@ fn extract_upid(param: &Value) -> Result<UPID, Error> {
         },
     },
     access: {
-        description: "Users can access there own tasks, or need Sys.Audit on /system/tasks.",
+        description: "Users can access their own tasks, or need Sys.Audit on /system/tasks.",
         permission: &Permission::Anybody,
     },
 )]
@@ -326,7 +326,7 @@ async fn read_task_log(
         },
     },
     access: {
-        description: "Users can stop there own tasks, or need Sys.Modify on /system/tasks.",
+        description: "Users can stop their own tasks, or need Sys.Modify on /system/tasks.",
         permission: &Permission::Anybody,
     },
 )]
@@ -420,7 +420,7 @@ fn stop_task(
         items: { type: TaskListItem },
     },
     access: {
-        description: "Users can only see there own tasks, unless the have Sys.Audit on /system/tasks.",
+        description: "Users can only see their own tasks, unless they have Sys.Audit on /system/tasks.",
         permission: &Permission::Anybody,
     },
 )]
