@@ -435,12 +435,18 @@ Ext.define('PBS.TapeManagement.DataStoreMappingGrid', {
 	return datastores.join(',');
     },
 
-    // this determines if we need at least one valid mapping
-    needStores: false,
+    viewModel: {
+	data: {
+	    needStores: false, // this determines if we need at least one valid mapping
+	},
+	formulas: {
+	    emptyMeans: get => get('needStores') ? Proxmox.Utils.NoneText : Proxmox.Utils.defaultText,
+	},
+    },
 
     setNeedStores: function(needStores) {
 	let me = this;
-	me.needStores = needStores;
+	me.getViewModel().set('needStores', needStores);
 	me.checkChange();
 	me.validate();
     },
@@ -455,7 +461,7 @@ Ext.define('PBS.TapeManagement.DataStoreMappingGrid', {
 	let me = this;
 	let error = false;
 
-	if (me.needStores) {
+	if (me.getViewModel().get('needStores')) {
 	    error = true;
 	    me.getStore().each((rec) => {
 		if (rec.data.target) {
@@ -516,7 +522,9 @@ Ext.define('PBS.TapeManagement.DataStoreMappingGrid', {
 	    widget: {
 		xtype: 'pbsDataStoreSelector',
 		allowBlank: true,
-		emptyText: Proxmox.Utils.NoneText,
+		bind: {
+		    emptyText: '{emptyMeans}',
+		},
 		listeners: {
 		    change: function(selector, value) {
 			let me = this;
