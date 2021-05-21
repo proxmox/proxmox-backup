@@ -1,11 +1,11 @@
 Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
-    extend: 'Proxmox.window.Edit',
+    extend: 'Ext.window.Window',
     alias: 'widget.pbsTapeRestoreWindow',
     mixins: ['Proxmox.Mixin.CBind'],
 
     width: 800,
+    height: 500,
     title: gettext('Restore Media Set'),
-    submitText: gettext('Restore'),
     url: '/api2/extjs/tape/restore',
     method: 'POST',
     showTaskViewer: true,
@@ -13,188 +13,404 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 
     cbindData: function(config) {
 	let me = this;
-	me.isSingle = false;
-	me.listText = "";
-	if (me.list !== undefined) {
-	    me.isSingle = true;
-	    me.listText = me.list.join('<br>');
-	    me.title = gettext('Restore Snapshot');
+	if (me.prefilter !== undefined) {
+	    me.title = gettext('Restore Snapshot(s)');
 	}
 	return {};
     },
 
-    defaults: {
-	labelWidth: 120,
+    layout: 'fit',
+    bodyPadding: 0,
+
+    controller: {
+	xclass: 'Ext.app.ViewController',
+
+	panelIsValid: function(panel) {
+	    return panel.query('[isFormField]').every(field => field.isValid());
+	},
+
+	checkValidity: function() {
+	    let me = this;
+	    let tabpanel = me.lookup('tabpanel');
+	    let items = tabpanel.items;
+
+	    let checkValidity = true;
+
+	    let indexOfActiveTab = items.indexOf(tabpanel.getActiveTab());
+	    let indexOfLastValidTab = 0;
+
+	    items.each((panel) => {
+		if (checkValidity) {
+		    panel.setDisabled(false);
+		    indexOfLastValidTab = items.indexOf(panel);
+		    if (!me.panelIsValid(panel)) {
+			checkValidity = false;
+		    }
+		} else {
+		    panel.setDisabled(true);
+		}
+
+		return true;
+	    });
+
+	    if (indexOfLastValidTab < indexOfActiveTab) {
+		tabpanel.setActiveTab(indexOfLastValidTab);
+	    } else {
+		me.setButtonState(tabpanel.getActiveTab());
+	    }
+	},
+
+	setButtonState: function(panel) {
+	    let me = this;
+	    let isValid = me.panelIsValid(panel);
+	    let nextButton = me.lookup('nextButton');
+	    let finishButton = me.lookup('finishButton');
+	    nextButton.setDisabled(!isValid);
+	    finishButton.setDisabled(!isValid);
+	},
+
+	changeButtonVisibility: function(tabpanel, newItem) {
+	    let me = this;
+	    let items = tabpanel.items;
+
+	    let backButton = me.lookup('backButton');
+	    let nextButton = me.lookup('nextButton');
+	    let finishButton = me.lookup('finishButton');
+
+	    let isLast = items.last() === newItem;
+	    let isFirst = items.first() === newItem;
+
+	    backButton.setVisible(!isFirst);
+	    nextButton.setVisible(!isLast);
+	    finishButton.setVisible(isLast);
+
+	    me.setButtonState(newItem);
+	},
+
+	previousTab: function() {
+	    let me = this;
+	    let tabpanel = me.lookup('tabpanel');
+	    let index = tabpanel.items.indexOf(tabpanel.getActiveTab());
+	    tabpanel.setActiveTab(index - 1);
+	},
+
+	nextTab: function() {
+	    let me = this;
+	    let tabpanel = me.lookup('tabpanel');
+	    let index = tabpanel.items.indexOf(tabpanel.getActiveTab());
+	    tabpanel.setActiveTab(index + 1);
+	},
+
+	getValues: function() {
+	    let me = this;
+
+	    let values = {};
+
+	    let tabpanel = me.lookup('tabpanel');
+	    tabpanel
+		.query('inputpanel')
+		.forEach((panel) =>
+		    Proxmox.Utils.assemble_field_data(values, panel.getValues()));
+
+	    return values;
+	},
+
+	finish: function() {
+	    let me = this;
+	    let view = me.getView();
+
+	    let values = me.getValues();
+	    let url = view.url;
+	    let method = view.method;
+
+	    Proxmox.Utils.API2Request({
+		url,
+		waitMsgTarget: view,
+		method,
+		params: values,
+		failure: function(response, options) {
+		    Ext.Msg.alert(gettext('Error'), response.htmlStatus);
+		},
+		success: function(response, options) {
+			// stay around so we can trigger our close events
+			// when background action is completed
+			view.hide();
+
+			Ext.create('Proxmox.window.TaskViewer', {
+			    autoShow: true,
+			    upid: response.result.data,
+			    listeners: {
+				destroy: function() {
+				    view.close();
+				},
+			    },
+			});
+		},
+	    });
+	},
+
+	updateDatastores: function() {
+	    let me = this;
+	    let grid = me.lookup('snapshotGrid');
+	    let values = grid.getValue();
+	    if (values === 'all') {
+		values = [];
+	    }
+	    let datastores = {};
+	    values.forEach((snapshot) => {
+		const [datastore] = snapshot.split(':');
+		datastores[datastore] = true;
+	    });
+
+	    me.setDataStores(Object.keys(datastores));
+	},
+
+	setDataStores: function(datastores, initial) {
+	    let me = this;
+
+	    // save all datastores on the first setting, and
+	    // restore them if we selected all
+	    if (initial) {
+		me.datastores = datastores;
+	    } else if (datastores.length === 0) {
+		datastores = me.datastores;
+	    }
+
+	    let label = me.lookup('mappingLabel');
+	    let grid = me.lookup('mappingGrid');
+	    let defaultField = me.lookup('defaultDatastore');
+
+	    if (!datastores || datastores.length <= 1) {
+		label.setVisible(false);
+		grid.setVisible(false);
+		defaultField.setFieldLabel(gettext('Target Datastore'));
+		defaultField.setAllowBlank(false);
+		defaultField.setEmptyText("");
+		return;
+	    }
+
+	    label.setVisible(true);
+	    defaultField.setFieldLabel(gettext('Default Datastore'));
+	    defaultField.setAllowBlank(true);
+	    defaultField.setEmptyText(Proxmox.Utils.NoneText);
+
+	    grid.setDataStores(datastores);
+	    grid.setVisible(true);
+	},
+
+	updateSnapshots: function() {
+	    let me = this;
+	    let view = me.getView();
+	    let grid = me.lookup('snapshotGrid');
+
+	    Proxmox.Utils.API2Request({
+		waitMsgTarget: view,
+		url: `/tape/media/content?media-set=${view.uuid}`,
+		success: function(response, opt) {
+		    let datastores = {};
+		    for (const content of response.result.data) {
+			datastores[content.store] = true;
+		    }
+		    me.setDataStores(Object.keys(datastores), true);
+		    if (response.result.data.length > 0) {
+			grid.setDisabled(false);
+			grid.setVisible(true);
+			grid.getStore().setData(response.result.data);
+			grid.getSelectionModel().selectAll();
+			// we've shown a big list, center the window again
+			view.center();
+		    }
+		},
+		failure: function() {
+		    // ignore failing api call, maybe catalog is missing
+		    me.setDataStores([], true);
+		},
+	    });
+	},
+
+	control: {
+	    '[isFormField]': {
+		change: 'checkValidity',
+		validitychange: 'checkValidity',
+	    },
+	    'tabpanel': {
+		tabchange: 'changeButtonVisibility',
+	    },
+	},
     },
 
-    referenceHolder: true,
+    buttons: [
+	{
+	    text: gettext('Back'),
+	    reference: 'backButton',
+	    handler: 'previousTab',
+	    hidden: true,
+	},
+	{
+	    text: gettext('Next'),
+	    reference: 'nextButton',
+	    handler: 'nextTab',
+	},
+	{
+	    text: gettext('Restore'),
+	    reference: 'finishButton',
+	    handler: 'finish',
+	    hidden: true,
+	},
+    ],
 
     items: [
 	{
-	    xtype: 'inputpanel',
-
-	    onGetValues: function(values) {
-		let me = this;
-		let datastores = [];
-		if (values.store.toString() !== "") {
-		    datastores.push(values.store);
-		    delete values.store;
-		}
-
-		if (values.mapping.toString() !== "") {
-		    datastores.push(values.mapping);
-		}
-		delete values.mapping;
-
-		if (me.up('window').list !== undefined) {
-		    values.snapshots = me.up('window').list;
-		}
-
-		values.store = datastores.join(',');
-
-		return values;
-	    },
-
-	    column1: [
+	    xtype: 'tabpanel',
+	    reference: 'tabpanel',
+	    layout: 'fit',
+	    bodyPadding: 10,
+	    items: [
 		{
-		    xtype: 'displayfield',
-		    fieldLabel: gettext('Media Set'),
-		    cbind: {
-			value: '{mediaset}',
+		    title: gettext('Snapshot Selection'),
+		    xtype: 'inputpanel',
+		    onGetValues: function(values) {
+			let me = this;
+
+			if (values.snapshots === 'all') {
+			    delete values.snapshots;
+			} else if (Ext.isString(values.snapshots) && values.snapshots) {
+			    values.snapshots = values.snapshots.split(',');
+			}
+
+			return values;
 		    },
-		},
-		{
-		    xtype: 'displayfield',
-		    fieldLabel: gettext('Media Set UUID'),
-		    name: 'media-set',
-		    submitValue: true,
-		    cbind: {
-			value: '{uuid}',
-		    },
-		},
-		{
-		    xtype: 'displayfield',
-		    fieldLabel: gettext('Snapshot(s)'),
-		    submitValue: false,
-		    cbind: {
-			hidden: '{!isSingle}',
-			value: '{listText}',
-		    },
-		},
-		{
-		    xtype: 'pbsDriveSelector',
-		    fieldLabel: gettext('Drive'),
-		    name: 'drive',
-		},
-	    ],
 
-	    column2: [
-		{
-		    xtype: 'pbsUserSelector',
-		    name: 'notify-user',
-		    fieldLabel: gettext('Notify User'),
-		    emptyText: gettext('Current User'),
-		    value: null,
-		    allowBlank: true,
-		    skipEmptyText: true,
-		    renderer: Ext.String.htmlEncode,
-		},
-		{
-		    xtype: 'pbsUserSelector',
-		    name: 'owner',
-		    fieldLabel: gettext('Owner'),
-		    emptyText: gettext('Current User'),
-		    value: null,
-		    allowBlank: true,
-		    skipEmptyText: true,
-		    renderer: Ext.String.htmlEncode,
-		},
-		{
-		    xtype: 'pbsDataStoreSelector',
-		    fieldLabel: gettext('Target Datastore'),
-		    reference: 'defaultDatastore',
-		    name: 'store',
-		    listeners: {
-			change: function(field, value) {
-			    let me = this;
-			    let grid = me.up('window').lookup('mappingGrid');
-			    grid.setNeedStores(!value);
+		    column1: [
+			{
+			    xtype: 'displayfield',
+			    fieldLabel: gettext('Media Set'),
+			    cbind: {
+				value: '{mediaset}',
+			    },
 			},
-		    },
-		},
-	    ],
+		    ],
 
-	    columnB: [
-		{
-		    fieldLabel: gettext('Datastore Mapping'),
-		    labelWidth: 200,
-		    hidden: true,
-		    reference: 'mappingLabel',
-		    xtype: 'displayfield',
+		    column2: [
+			{
+			    xtype: 'displayfield',
+			    fieldLabel: gettext('Media Set UUID'),
+			    name: 'media-set',
+			    submitValue: true,
+			    cbind: {
+				value: '{uuid}',
+			    },
+			},
+		    ],
+
+		    columnB: [
+			{
+			    xtype: 'pbsTapeSnapshotGrid',
+			    reference: 'snapshotGrid',
+			    name: 'snapshots',
+			    height: 322,
+			    // will be shown/enabled on successful load
+			    disabled: true,
+			    hidden: true,
+			    listeners: {
+				change: 'updateDatastores',
+			    },
+			    cbind: {
+				prefilter: '{prefilter}',
+			    },
+			},
+		    ],
 		},
 		{
-		    xtype: 'pbsDataStoreMappingField',
-		    reference: 'mappingGrid',
-		    name: 'mapping',
-		    defaultBindProperty: 'value',
-		    hidden: true,
+		    title: gettext('Target'),
+		    xtype: 'inputpanel',
+		    onGetValues: function(values) {
+			let me = this;
+			let datastores = [];
+			if (values.store.toString() !== "") {
+			    datastores.push(values.store);
+			    delete values.store;
+			}
+
+			if (values.mapping.toString() !== "") {
+			    datastores.push(values.mapping);
+			}
+			delete values.mapping;
+
+			values.store = datastores.join(',');
+
+			return values;
+		    },
+		    column1: [
+			{
+			    xtype: 'pbsUserSelector',
+			    name: 'notify-user',
+			    fieldLabel: gettext('Notify User'),
+			    emptyText: gettext('Current User'),
+			    value: null,
+			    allowBlank: true,
+			    skipEmptyText: true,
+			    renderer: Ext.String.htmlEncode,
+			},
+			{
+			    xtype: 'pbsUserSelector',
+			    name: 'owner',
+			    fieldLabel: gettext('Owner'),
+			    emptyText: gettext('Current User'),
+			    value: null,
+			    allowBlank: true,
+			    skipEmptyText: true,
+			    renderer: Ext.String.htmlEncode,
+			},
+		    ],
+
+		    column2: [
+			{
+			    xtype: 'pbsDriveSelector',
+			    fieldLabel: gettext('Drive'),
+			    labelWidth: 120,
+			    name: 'drive',
+			},
+			{
+			    xtype: 'pbsDataStoreSelector',
+			    fieldLabel: gettext('Target Datastore'),
+			    labelWidth: 120,
+			    reference: 'defaultDatastore',
+			    name: 'store',
+			    listeners: {
+				change: function(field, value) {
+				    let me = this;
+				    let grid = me.up('window').lookup('mappingGrid');
+				    grid.setNeedStores(!value);
+				},
+			    },
+			},
+		    ],
+
+		    columnB: [
+			{
+			    fieldLabel: gettext('Datastore Mapping'),
+			    labelWidth: 200,
+			    hidden: true,
+			    reference: 'mappingLabel',
+			    xtype: 'displayfield',
+			},
+			{
+			    xtype: 'pbsDataStoreMappingField',
+			    reference: 'mappingGrid',
+			    name: 'mapping',
+			    height: 260,
+			    defaultBindProperty: 'value',
+			    hidden: true,
+			},
+		    ],
 		},
 	    ],
 	},
     ],
 
-    setDataStores: function(datastores) {
-	let me = this;
-
-	let label = me.lookup('mappingLabel');
-	let grid = me.lookup('mappingGrid');
-	let defaultField = me.lookup('defaultDatastore');
-
-	if (!datastores || datastores.length <= 1) {
-	    label.setVisible(false);
-	    grid.setVisible(false);
-	    defaultField.setFieldLabel(gettext('Target Datastore'));
-	    defaultField.setAllowBlank(false);
-	    defaultField.setEmptyText("");
-	    return;
-	}
-
-	label.setVisible(true);
-	defaultField.setFieldLabel(gettext('Default Datastore'));
-	defaultField.setAllowBlank(true);
-	defaultField.setEmptyText(Proxmox.Utils.NoneText);
-
-	grid.setDataStores(datastores);
-	grid.setVisible(true);
-    },
-
-    initComponent: function() {
-	let me = this;
-
-	me.callParent();
-	if (me.datastores) {
-	    me.setDataStores(me.datastores);
-	} else {
-	    // use timeout so that the window is rendered already
-	    // for correct masking
-	    setTimeout(function() {
-		Proxmox.Utils.API2Request({
-		    waitMsgTarget: me,
-		    url: `/tape/media/content?media-set=${me.uuid}`,
-		    success: function(response, opt) {
-			let datastores = {};
-			for (const content of response.result.data) {
-			    datastores[content.store] = true;
-			}
-			me.setDataStores(Object.keys(datastores));
-		    },
-		    failure: function() {
-			// ignore failing api call, maybe catalog is missing
-			me.setDataStores();
-		    },
-		});
-	    }, 10);
-	}
+    listeners: {
+	afterrender: 'updateSnapshots',
     },
 });
 

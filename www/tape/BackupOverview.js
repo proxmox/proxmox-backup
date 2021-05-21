@@ -19,27 +19,13 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 	restore: function(view, rI, cI, item, e, rec) {
 	    let me = this;
 
-	    let node = rec;
-	    let mediaset = node.data.is_media_set ? node.data.text : node.data['media-set'];
-	    let uuid = node.data['media-set-uuid'];
-
-	    let list;
-	    let datastores;
-	    if (node.data.restoreid !== undefined) {
-		list = [node.data.restoreid];
-		datastores = [node.data.store];
-	    } else {
-		datastores = node.data.datastores;
-		while (!datastores && node.get('depth') > 2) {
-		    node = node.parentNode;
-		    datastores = node.data.datastores;
-		}
-	    }
+	    let mediaset = rec.data.is_media_set ? rec.data.text : rec.data['media-set'];
+	    let uuid = rec.data['media-set-uuid'];
+	    let prefilter = rec.data.prefilter;
 	    Ext.create('PBS.TapeManagement.TapeRestoreWindow', {
 		mediaset,
 		uuid,
-		datastores,
-		list,
+		prefilter,
 		listeners: {
 		    destroy: function() {
 			me.reload();
@@ -157,7 +143,10 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 		    entry.leaf = true;
 		    entry.children = [];
 		    entry['media-set'] = media_set;
-		    entry.restoreid = `${entry.store}:${entry.snapshot}`;
+		    entry.prefilter = {
+			store: entry.store,
+			snapshot: entry.snapshot,
+		    };
 		    let iconCls = PBS.Utils.get_type_icon_cls(entry.snapshot);
 		    if (iconCls !== '') {
 			entry.iconCls = `fa ${iconCls}`;
