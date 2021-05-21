@@ -12,7 +12,7 @@ Ext.define('PBS.NodeOptionView', {
     cwidth1: 200,
 
     listeners: {
-	itemdblclick: function() { this.run_editor() },
+	itemdblclick: function() { this.run_editor(); },
     },
 
     tbar: [
@@ -20,18 +20,24 @@ Ext.define('PBS.NodeOptionView', {
 	    text: gettext('Edit'),
 	    xtype: 'proxmoxButton',
 	    disabled: true,
-	    handler: function() { this.up('grid').run_editor(); },
-	}
+	    handler: btn => btn.up('grid').run_editor(),
+	},
+    ],
+
+    gridRows: [
+	{
+	    xtype: 'text',
+	    name: 'http-proxy',
+	    text: gettext('HTTP proxy'),
+	    defaultValue: Proxmox.Utils.noneText,
+	    vtype: 'HttpProxy',
+	    deleteEmpty: true,
+	    onlineHelp: 'node_options_http_proxy',
+	},
     ],
 
     initComponent: function() {
 	let me = this;
-
-	me.add_text_row('http-proxy', gettext('HTTP proxy'), {
-	    defaultValue: Proxmox.Utils.noneText,
-	    vtype: 'HttpProxy',
-	    deleteEmpty: true,
-	});
 
 	me.callParent();
 
