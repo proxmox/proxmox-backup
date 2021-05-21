@@ -6,6 +6,9 @@ Ext.define('pbs-datastore-statistics', {
 	{
 	    name: 'history',
 	    convert: function(values) {
+		if (!values) {
+		    return [];
+		}
 		let last = null;
 		return values.map(v => {
 		    if (v !== undefined && v !== null) {
@@ -63,21 +66,21 @@ Ext.define('PBS.DatastoreStatistics', {
 	    dataIndex: 'total',
 	    sortable: true,
 	    width: 90,
-	    renderer: Proxmox.Utils.format_size,
+	    renderer: v => v === undefined || v < 0 ? '-' : Proxmox.Utils.format_size(v),
 	},
 	{
 	    text: gettext('Used'),
 	    dataIndex: 'used',
 	    sortable: true,
 	    width: 90,
-	    renderer: Proxmox.Utils.format_size,
+	    renderer: v => v === undefined || v < 0 ? '-' : Proxmox.Utils.format_size(v),
 	},
 	{
 	    text: gettext('Available'),
 	    dataIndex: 'avail',
 	    sortable: true,
 	    width: 90,
-	    renderer: Proxmox.Utils.format_size,
+	    renderer: v => v === undefined || v < 0 ? '-' : Proxmox.Utils.format_size(v),
 	},
 	{
 	    text: gettext('Usage %'),
