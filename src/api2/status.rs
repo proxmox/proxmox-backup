@@ -21,7 +21,7 @@ use crate::api2::types::{
     Authid,
 };
 
-use crate::backup::{DataStore};
+use crate::backup::DataStore;
 use crate::config::datastore;
 use crate::tools::statistics::{linear_regression};
 use crate::config::cached_user_info::CachedUserInfo;
@@ -110,24 +110,17 @@ pub fn datastore_status(
 
         let rrd_dir = format!("datastore/{}", store);
         let now = proxmox::tools::time::epoch_f64();
-        let rrd_resolution = RRDTimeFrameResolution::Month;
-        let rrd_mode = RRDMode::Average;
 
-        let total_res = crate::rrd::extract_cached_data(
+        let get_rrd = |what: &str| crate::rrd::extract_cached_data(
             &rrd_dir,
-            "total",
+            what,
             now,
-            rrd_resolution,
-            rrd_mode,
+            RRDTimeFrameResolution::Month,
+            RRDMode::Average,
         );
 
-        let used_res = crate::rrd::extract_cached_data(
-            &rrd_dir,
-            "used",
-            now,
-            rrd_resolution,
-            rrd_mode,
-        );
+        let total_res = get_rrd("total");
+        let used_res = get_rrd("used");
 
         if let (Some((start, reso, total_list)), Some((_, _, used_list))) = (total_res, used_res) {
             let mut usage_list: Vec<f64> = Vec::new();
