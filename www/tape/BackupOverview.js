@@ -13,20 +13,19 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 			me.reload();
 		    },
 		},
-	    }).show();
+		autoShow: true,
+	    });
 	},
 
-	restore: function(view, rI, cI, item, e, rec) {
+	restoreBackups: function(view, rI, cI, item, e, rec) {
 	    let me = this;
 
 	    let mediaset = rec.data.is_media_set ? rec.data.text : rec.data['media-set'];
-	    let uuid = rec.data['media-set-uuid'];
-	    let prefilter = rec.data.prefilter;
 	    Ext.create('PBS.TapeManagement.TapeRestoreWindow', {
 		autoShow: true,
+		uuid: rec.data['media-set-uuid'],
+		prefilter: rec.data.prefilter,
 		mediaset,
-		uuid,
-		prefilter,
 	    });
 	},
 
@@ -269,7 +268,7 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 	    xtype: 'actioncolumn',
 	    items: [
 		{
-		    handler: 'restore',
+		    handler: 'restoreBackups',
 		    tooltip: gettext('Restore'),
 		    getClass: (v, m, rec) => rec.data.restore ? 'fa fa-fw fa-undo' : 'pmx-hidden',
 		    isDisabled: (v, r, c, i, rec) => !rec.data.restore,

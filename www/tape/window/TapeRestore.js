@@ -34,11 +34,10 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 	    let tabpanel = me.lookup('tabpanel');
 	    let items = tabpanel.items;
 
-	    let checkValidity = true;
-
 	    let indexOfActiveTab = items.indexOf(tabpanel.getActiveTab());
 	    let indexOfLastValidTab = 0;
 
+	    let checkValidity = true;
 	    items.each((panel) => {
 		if (checkValidity) {
 		    panel.setDisabled(false);
@@ -168,8 +167,7 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 	setDataStores: function(datastores, initial) {
 	    let me = this;
 
-	    // save all datastores on the first setting, and
-	    // restore them if we selected all
+	    // save all datastores on the first setting, and restore them if we selected all
 	    if (initial) {
 		me.datastores = datastores;
 	    } else if (datastores.length === 0) {
@@ -309,8 +307,7 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 			    reference: 'snapshotGrid',
 			    name: 'snapshots',
 			    height: 322,
-			    // will be shown/enabled on successful load
-			    disabled: true,
+			    disabled: true, // will be shown/enabled on successful load
 			    hidden: true,
 			    listeners: {
 				change: 'updateDatastores',
@@ -367,9 +364,9 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 		    column2: [
 			{
 			    xtype: 'pbsDriveSelector',
+			    name: 'drive',
 			    fieldLabel: gettext('Drive'),
 			    labelWidth: 120,
-			    name: 'drive',
 			},
 			{
 			    xtype: 'pbsDataStoreSelector',
@@ -379,9 +376,7 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 			    name: 'store',
 			    listeners: {
 				change: function(field, value) {
-				    let me = this;
-				    let grid = me.up('window').lookup('mappingGrid');
-				    grid.setNeedStores(!value);
+				    this.up('window').lookup('mappingGrid').setNeedStores(!value);
 				},
 			    },
 			},
@@ -389,16 +384,16 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 
 		    columnB: [
 			{
+			    xtype: 'displayfield',
+			    reference: 'mappingLabel',
 			    fieldLabel: gettext('Datastore Mapping'),
 			    labelWidth: 200,
 			    hidden: true,
-			    reference: 'mappingLabel',
-			    xtype: 'displayfield',
 			},
 			{
 			    xtype: 'pbsDataStoreMappingField',
-			    reference: 'mappingGrid',
 			    name: 'mapping',
+			    reference: 'mappingGrid',
 			    height: 260,
 			    defaultBindProperty: 'value',
 			    hidden: true,
@@ -424,9 +419,8 @@ Ext.define('PBS.TapeManagement.DataStoreMappingGrid', {
     getValue: function() {
 	let me = this;
 	let datastores = [];
-	me.getStore().each((rec) => {
-	    let source = rec.data.source;
-	    let target = rec.data.target;
+	me.getStore().each(rec => {
+	    let { source, target } = rec.data;
 	    if (target && target !== "") {
 		datastores.push(`${source}=${target}`);
 	    }
@@ -463,7 +457,7 @@ Ext.define('PBS.TapeManagement.DataStoreMappingGrid', {
 
 	if (me.getViewModel().get('needStores')) {
 	    error = true;
-	    me.getStore().each((rec) => {
+	    me.getStore().each(rec => {
 		if (rec.data.target) {
 		    error = false;
 		}
@@ -489,9 +483,8 @@ Ext.define('PBS.TapeManagement.DataStoreMappingGrid', {
 
     setDataStores: function(datastores) {
 	let me = this;
-	let store = me.getStore();
-	let data = [];
 
+	let data = [];
 	for (const datastore of datastores) {
 	    data.push({
 		source: datastore,
@@ -499,7 +492,7 @@ Ext.define('PBS.TapeManagement.DataStoreMappingGrid', {
 	    });
 	}
 
-	store.setData(data);
+	me.getStore().setData(data);
     },
 
     viewConfig: {
