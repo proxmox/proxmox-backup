@@ -32,12 +32,12 @@ Ext.define('PBS.TapeManagement.TapeBackupWindow', {
 	{
 	    xtype: 'proxmoxcheckbox',
 	    name: 'force-media-set',
-	    fieldLabel: gettext('Force new Media Set'),
+	    fieldLabel: gettext('Force new Media-Set'),
 	},
 	{
 	    xtype: 'proxmoxcheckbox',
 	    name: 'export-media-set',
-	    fieldLabel: gettext('Export Media Set'),
+	    fieldLabel: gettext('Export Media-Set'),
 	    listeners: {
 		change: function(cb, value) {
 		    let me = this;

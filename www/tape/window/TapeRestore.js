@@ -3,11 +3,14 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
     alias: 'widget.pbsTapeRestoreWindow',
     mixins: ['Proxmox.Mixin.CBind'],
 
+    title: gettext('Restore Media-Set'),
+
     width: 800,
     height: 500,
-    title: gettext('Restore Media Set'),
+
     url: '/api2/extjs/tape/restore',
     method: 'POST',
+
     showTaskViewer: true,
     isCreate: true,
 
@@ -282,7 +285,7 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 		    column1: [
 			{
 			    xtype: 'displayfield',
-			    fieldLabel: gettext('Media Set'),
+			    fieldLabel: gettext('Media-Set'),
 			    cbind: {
 				value: '{mediaset}',
 			    },
@@ -292,7 +295,7 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 		    column2: [
 			{
 			    xtype: 'displayfield',
-			    fieldLabel: gettext('Media Set UUID'),
+			    fieldLabel: gettext('Media-Set UUID'),
 			    name: 'media-set',
 			    submitValue: true,
 			    cbind: {

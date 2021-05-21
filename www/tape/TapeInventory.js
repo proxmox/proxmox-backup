@@ -246,7 +246,7 @@ Ext.define('PBS.TapeManagement.TapeInventory', {
 	    flex: 1,
 	},
 	{
-	    text: gettext('Media Set'),
+	    text: gettext('Media-Set'),
 	    dataIndex: 'media-set-name',
 	    flex: 2,
 	    sorter: function(a, b) {

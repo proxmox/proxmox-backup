@@ -259,7 +259,7 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
     columns: [
 	{
 	    xtype: 'treecolumn',
-	    text: gettext('Pool/Media Set/Snapshot'),
+	    text: gettext('Pool/Media-Set/Snapshot'),
 	    dataIndex: 'text',
 	    sortable: false,
 	    flex: 3,
@@ -287,7 +287,7 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 	    sortable: false,
 	},
 	{
-	    text: gettext('Media Set UUID'),
+	    text: gettext('Media-Set UUID'),
 	    dataIndex: 'media-set-uuid',
 	    hidden: true,
 	    sortable: false,
