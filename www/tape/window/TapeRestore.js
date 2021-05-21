@@ -163,10 +163,8 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 	    });
 	},
 
-	updateDatastores: function() {
+	updateDatastores: function(grid, values) {
 	    let me = this;
-	    let grid = me.lookup('snapshotGrid');
-	    let values = grid.getValue();
 	    if (values === 'all') {
 		values = [];
 	    }
