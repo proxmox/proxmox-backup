@@ -246,6 +246,7 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
     tbar: [
 	{
 	    text: gettext('Reload'),
+	    iconCls: 'fa fa-refresh',
 	    handler: 'reload',
 	},
 	'-',
