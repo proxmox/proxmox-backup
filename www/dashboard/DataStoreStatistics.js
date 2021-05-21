@@ -2,7 +2,12 @@ Ext.define('pbs-datastore-statistics', {
     extend: 'Ext.data.Model',
 
     fields: [
-	'store', 'total', 'used', 'avail', 'estimated-full-date',
+	'store',
+	'total',
+	'used',
+	'avail',
+	'estimated-full-date',
+	'error',
 	{
 	    name: 'history',
 	    convert: function(values) {
@@ -60,6 +65,15 @@ Ext.define('PBS.DatastoreStatistics', {
 	    text: gettext('Name'),
 	    dataIndex: 'store',
 	    sortable: true,
+	    renderer: (value, metaData, record, rowIndex, colIndex, store) => {
+		let err = record.get('error');
+		if (err) {
+		    metaData.tdAttr = `data-qtip="${Ext.htmlEncode(err)}"`;
+		    metaData.tdCls = 'proxmox-invalid-row';
+		    return `${value || ''} <i class="fa fa-fw critical fa-exclamation-circle"><i>`;
+		}
+		return value;
+	    },
 	},
 	{
 	    text: gettext('Size'),
