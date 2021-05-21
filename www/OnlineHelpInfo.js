@@ -67,6 +67,10 @@ const proxmoxOnlineHelpInfo = {
     "link": "/docs/package-repositories.html#package-repositories-client-only-apt",
     "title": "APT-based Proxmox Backup Client Repository"
   },
+  "node-options-http-proxy": {
+    "link": "/docs/package-repositories.html#node-options-http-proxy",
+    "title": "Repository Access Behind HTTP Proxy"
+  },
   "get-help": {
     "link": "/docs/introduction.html#get-help",
     "title": "Getting Help"

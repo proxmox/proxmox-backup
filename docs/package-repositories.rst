@@ -178,3 +178,19 @@ snipped
   :caption: File: ``/etc/apt/sources.list``
 
   deb http://download.proxmox.com/debian/pbs-client buster main
+
+.. _node_options_http_proxy:
+
+Repository Access Behind HTTP Proxy
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Some setups have restricted access to the internet, sometimes only through a
+central proxy. You can setup a HTTP proxy through the Proxmox Backup Server's
+web-interface in the `Configuration -> Authentication` tab.
+
+Once configured this proxy will be used for apt network requests and for
+checking a Proxmox Backup Server support subscription.
+
+Standard HTTP proxy configurations are accepted, `[http://]<host>[:port]` where
+the `<host>` part may include an authorization, for example:
+`http://user:pass@proxy.example.org:12345`
