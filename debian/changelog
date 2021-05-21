@@ -1,3 +1,29 @@
+rust-proxmox-backup (1.1.8-1) stable; urgency=medium
+
+  * api-proxy: implement 'reload-certificate' command and hot-reload proxy
+    certificate when updating via the API
+
+  * ui: add task descriptions for ACME/Let's Encrypt related tasks
+
+  * correctly set apt proxy configuration
+
+  * ui: configuration: support setting a HTTP proxy for APT and subscription
+    checks.
+
+  * ui: tape: add 'Force new Media-Set' checkbox to manual backup
+
+  * ui: datastore/Content: add forget (delete) button for whole backup groups
+
+  * ui: tape: backup overview: move restore buttons inline to action-buttons,
+    making the UX more similar to the datastore content tree-view
+
+  * ui: tape restore: enabling selecting multiple snapshots
+
+  * ui: dashboards statistics: visualize datastores where querying the usage
+    failed
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 21 May 2021 18:21:28 +0200
+
 rust-proxmox-backup (1.1.7-1) unstable; urgency=medium
 
   * client: use stderr for all fingerprint confirm msgs
