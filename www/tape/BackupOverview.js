@@ -23,15 +23,11 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 	    let uuid = rec.data['media-set-uuid'];
 	    let prefilter = rec.data.prefilter;
 	    Ext.create('PBS.TapeManagement.TapeRestoreWindow', {
+		autoShow: true,
 		mediaset,
 		uuid,
 		prefilter,
-		listeners: {
-		    destroy: function() {
-			me.reload();
-		    },
-		},
-	    }).show();
+	    });
 	},
 
 	loadContent: async function() {
