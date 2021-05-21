@@ -182,6 +182,12 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 			    text,
 			    'media-set-uuid': entry['media-set-uuid'],
 			    leaf: false,
+			    restore: true,
+			    prefilter: {
+				store,
+				snapshot: `${type}/${group}/`,
+			    },
+			    'media-set': media_set,
 			    iconCls: `fa ${iconCls}`,
 			    children: [],
 			});
