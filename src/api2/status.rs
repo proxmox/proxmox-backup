@@ -160,13 +160,10 @@ pub fn datastore_status(
 
             // we skip the calculation for datastores with not enough data
             if usage_list.len() >= 7 {
-                entry["estimated-full-date"] = Value::from(0);
-                if let Some((a,b)) = linear_regression(&time_list, &usage_list) {
-                    if b != 0.0 {
-                        let estimate = (1.0 - a) / b;
-                        entry["estimated-full-date"] = Value::from(estimate.floor() as u64);
-                    }
-                }
+                entry["estimated-full-date"] = match linear_regression(&time_list, &usage_list) {
+                    Some((a, b)) if b != 0.0 => Value::from(((1.0 - a) / b).floor() as u64),
+                    _ => Value::from(0),
+                };
             }
         }
 
