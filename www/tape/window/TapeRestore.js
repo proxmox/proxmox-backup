@@ -336,6 +336,13 @@ Ext.define('PBS.TapeManagement.SnapshotGrid', {
 	    }
 	});
 
+	// getSource returns null if data is not filtered
+	let originalData = me.store.getData().getSource() || me.store.getData();
+
+	if (snapshots.length === originalData.length) {
+	    return "all";
+	}
+
 	return snapshots;
     },
 
@@ -347,20 +354,25 @@ Ext.define('PBS.TapeManagement.SnapshotGrid', {
 
     getErrors: function(value) {
 	let me = this;
-	if (me.getSelection() < 1) {
+	if (me.getSelection().length < 1) {
 	    me.addCls(['x-form-trigger-wrap-default', 'x-form-trigger-wrap-invalid']);
 	    let errorMsg = gettext("Need at least one snapshot");
-	    me.getActionEl().dom.setAttribute('data-errorqtip', errorMsg);
+	    let el = me.getActionEl();
+	    if (el) {
+		el.dom.setAttribute('data-errorqtip', errorMsg);
+	    }
 
 	    return [errorMsg];
 	}
 	me.removeCls(['x-form-trigger-wrap-default', 'x-form-trigger-wrap-invalid']);
-	me.getActionEl().dom.setAttribute('data-errorqtip', "");
+	let el = me.getActionEl();
+	if (el) {
+	    el.dom.setAttribute('data-errorqtip', "");
+	}
 	return [];
     },
 
     scrollable: true,
-    height: 350,
     plugins: 'gridfilters',
 
     viewConfig: {
@@ -424,5 +436,7 @@ Ext.define('PBS.TapeManagement.SnapshotGrid', {
 		},
 	    );
 	}
+
+	me.mon(me.store, 'filterchange', () => me.checkChange());
     },
 });
