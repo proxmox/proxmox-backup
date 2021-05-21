@@ -55,6 +55,7 @@ use crate::config::acl::{
                 },
                 history: {
                     type: Array,
+                    optional: true,
                     description: "A list of usages of the past (last Month).",
                     items: {
                         type: Number,
@@ -68,6 +69,11 @@ use crate::config::acl::{
                         This is calculated via a simple Linear Regression (Least Squares)\
                         of RRD data of the last Month. Missing if there are not enough data points yet.\
                         If the estimate lies in the past, the usage is decreasing.",
+                },
+                "error": {
+                    type: String,
+                    optional: true,
+                    description: "An error description, for example, when the datastore could not be looked up.",
                 },
             },
         },
@@ -97,7 +103,19 @@ pub fn datastore_status(
             continue;
         }
 
-        let datastore = DataStore::lookup_datastore(&store)?;
+        let datastore = match DataStore::lookup_datastore(&store) {
+            Ok(datastore) => datastore,
+            Err(err) => {
+                list.push(json!({
+                    "store": store,
+                    "total": -1,
+                    "used": -1,
+                    "avail": -1,
+                    "error": err.to_string()
+                }));
+                continue;
+            }
+        };
         let status = crate::tools::disks::disk_usage(&datastore.base_path())?;
 
         let mut entry = json!({
