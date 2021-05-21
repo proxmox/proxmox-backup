@@ -22,6 +22,17 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
     layout: 'fit',
     bodyPadding: 0,
 
+    viewModel: {
+	data: {
+	    singleDatastore: true,
+	},
+	formulas: {
+	    singleSelectorLabel: get =>
+		get('singleDatastore') ? gettext('Target Datastore') : gettext('Default Datastore'),
+	    singleSelectorEmptyText: get => get('singleDatastore') ? '' : Proxmox.Utils.NoneText,
+	},
+    },
+
     controller: {
 	xclass: 'Ext.app.ViewController',
 
@@ -31,7 +42,11 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 
 	checkValidity: function() {
 	    let me = this;
+
 	    let tabpanel = me.lookup('tabpanel');
+	    if (!tabpanel) {
+		return; // can get triggered early, when the tabpanel is not yet available
+	    }
 	    let items = tabpanel.items;
 
 	    let indexOfActiveTab = items.indexOf(tabpanel.getActiveTab());
@@ -174,26 +189,13 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 		datastores = me.datastores;
 	    }
 
-	    let label = me.lookup('mappingLabel');
+	    const singleDatastore = !datastores || datastores.length <= 1;
+	    me.getViewModel().set('singleDatastore', singleDatastore);
+
 	    let grid = me.lookup('mappingGrid');
-	    let defaultField = me.lookup('defaultDatastore');
-
-	    if (!datastores || datastores.length <= 1) {
-		label.setVisible(false);
-		grid.setVisible(false);
-		defaultField.setFieldLabel(gettext('Target Datastore'));
-		defaultField.setAllowBlank(false);
-		defaultField.setEmptyText("");
-		return;
+	    if (!singleDatastore && grid) {
+		grid.setDataStores(datastores);
 	    }
-
-	    label.setVisible(true);
-	    defaultField.setFieldLabel(gettext('Default Datastore'));
-	    defaultField.setAllowBlank(true);
-	    defaultField.setEmptyText(Proxmox.Utils.NoneText);
-
-	    grid.setDataStores(datastores);
-	    grid.setVisible(true);
 	},
 
 	updateSnapshots: function() {
@@ -370,10 +372,14 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 			},
 			{
 			    xtype: 'pbsDataStoreSelector',
-			    fieldLabel: gettext('Target Datastore'),
+			    name: 'store',
 			    labelWidth: 120,
 			    reference: 'defaultDatastore',
-			    name: 'store',
+			    bind: {
+				fieldLabel: '{singleSelectorLabel}',
+				emptyText: '{singleSelectorEmptyText}',
+				allowBlank: '{!singleDatastore}',
+			    },
 			    listeners: {
 				change: function(field, value) {
 				    this.up('window').lookup('mappingGrid').setNeedStores(!value);
@@ -388,7 +394,9 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 			    reference: 'mappingLabel',
 			    fieldLabel: gettext('Datastore Mapping'),
 			    labelWidth: 200,
-			    hidden: true,
+			    bind: {
+				hidden: '{singleDatastore}',
+			    },
 			},
 			{
 			    xtype: 'pbsDataStoreMappingField',
@@ -396,7 +404,9 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 			    reference: 'mappingGrid',
 			    height: 260,
 			    defaultBindProperty: 'value',
-			    hidden: true,
+			    bind: {
+				hidden: '{singleDatastore}',
+			    },
 			},
 		    ],
 		},
