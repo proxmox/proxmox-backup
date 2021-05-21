@@ -372,7 +372,6 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 			    xtype: 'pbsDataStoreSelector',
 			    name: 'store',
 			    labelWidth: 120,
-			    reference: 'defaultDatastore',
 			    bind: {
 				fieldLabel: '{singleSelectorLabel}',
 				emptyText: '{singleSelectorEmptyText}',
@@ -389,7 +388,6 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 		    columnB: [
 			{
 			    xtype: 'displayfield',
-			    reference: 'mappingLabel',
 			    fieldLabel: gettext('Datastore Mapping'),
 			    labelWidth: 200,
 			    bind: {
