@@ -203,6 +203,8 @@ Ext.define('PBS.TapeManagement.DataStoreMappingGrid', {
     alias: 'widget.pbsDataStoreMappingField',
     mixins: ['Ext.form.field.Field'],
 
+    scrollable: true,
+
     getValue: function() {
 	let me = this;
 	let datastores = [];
@@ -246,15 +248,20 @@ Ext.define('PBS.TapeManagement.DataStoreMappingGrid', {
 	    });
 	}
 
+	let el = me.getActionEl();
 	if (error) {
 	    me.addCls(['x-form-trigger-wrap-default', 'x-form-trigger-wrap-invalid']);
 	    let errorMsg = gettext("Need at least one mapping");
-	    me.getActionEl().dom.setAttribute('data-errorqtip', errorMsg);
+	    if (el) {
+		el.dom.setAttribute('data-errorqtip', errorMsg);
+	    }
 
 	    return [errorMsg];
 	}
 	me.removeCls(['x-form-trigger-wrap-default', 'x-form-trigger-wrap-invalid']);
-	me.getActionEl().dom.setAttribute('data-errorqtip', "");
+	if (el) {
+	    el.dom.setAttribute('data-errorqtip', "");
+	}
 	return [];
     },
 
