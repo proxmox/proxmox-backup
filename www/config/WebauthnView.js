@@ -33,10 +33,7 @@ Ext.define('PBS.WebauthnConfigView', {
     controller: {
 	xclass: 'Ext.app.ViewController',
 
-	runEditor: function() {
-	    let win = Ext.create('PBS.WebauthnConfigEdit');
-	    win.show();
-	},
+	runEditor: () => Ext.create('PBS.WebauthnConfigEdit', { autoShow: true }),
 
 	startStore: function() { this.getView().getStore().rstore.startUpdate(); },
 	stopStore: function() { this.getView().getStore().rstore.stopUpdate(); },
