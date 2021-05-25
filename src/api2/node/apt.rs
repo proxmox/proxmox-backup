@@ -60,14 +60,14 @@ pub fn update_apt_proxy_config(proxy_config: Option<&ProxyConfig>) -> Result<(),
     if let Some(proxy_config) = proxy_config {
         let proxy = proxy_config.to_proxy_string()?;
         let data = format!("Acquire::http::Proxy \"{}\";\n", proxy);
-        replace_file(PROXY_CFG_FN, data.as_bytes(), CreateOptions::new())?;
+        replace_file(PROXY_CFG_FN, data.as_bytes(), CreateOptions::new())
     } else {
-        std::fs::remove_file(PROXY_CFG_FN).map_err(|err| {
-            format_err!("failed to remove proxy config '{}' - {}", PROXY_CFG_FN, err)
-        })?;
+        match std::fs::remove_file(PROXY_CFG_FN) {
+            Ok(()) => Ok(()),
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(err) => bail!("failed to remove proxy config '{}' - {}", PROXY_CFG_FN, err),
+        }
     }
-
-    Ok(())
 }
 
 fn read_and_update_proxy_config() -> Result<Option<ProxyConfig>, Error> {
