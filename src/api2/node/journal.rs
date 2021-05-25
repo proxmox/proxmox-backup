@@ -60,36 +60,41 @@ use crate::config::acl::PRIV_SYS_AUDIT;
 )]
 /// Read syslog entries.
 fn get_journal(
-    param: Value,
+    since: Option<i64>,
+    until: Option<i64>,
+    lastentries: Option<u64>,
+    startcursor: Option<String>,
+    endcursor: Option<String>,
+    _param: Value,
     _info: &ApiMethod,
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let mut args = vec![];
 
-    if let Some(lastentries) = param["lastentries"].as_u64() {
+    if let Some(lastentries) = lastentries {
         args.push(String::from("-n"));
         args.push(format!("{}", lastentries));
     }
 
-    if let Some(since) = param["since"].as_str() {
+    if let Some(since) = since {
         args.push(String::from("-b"));
-        args.push(since.to_owned());
+        args.push(since.to_string());
     }
 
-    if let Some(until) = param["until"].as_str() {
+    if let Some(until) = until {
         args.push(String::from("-e"));
-        args.push(until.to_owned());
+        args.push(until.to_string());
     }
 
-    if let Some(startcursor) = param["startcursor"].as_str() {
+    if let Some(startcursor) = startcursor {
         args.push(String::from("-f"));
-        args.push(startcursor.to_owned());
+        args.push(startcursor);
     }
 
-    if let Some(endcursor) = param["endcursor"].as_str() {
+    if let Some(endcursor) = endcursor {
         args.push(String::from("-t"));
-        args.push(endcursor.to_owned());
+        args.push(endcursor);
     }
 
     let mut lines: Vec<String> = vec![];
