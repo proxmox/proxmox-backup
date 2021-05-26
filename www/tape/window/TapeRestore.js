@@ -160,17 +160,14 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 		    Ext.Msg.alert(gettext('Error'), response.htmlStatus);
 		},
 		success: function(response, options) {
-			// stay around so we can trigger our close events
-			// when background action is completed
+			// keep around so we can trigger our close events when background action completes
 			view.hide();
 
 			Ext.create('Proxmox.window.TaskViewer', {
 			    autoShow: true,
 			    upid: response.result.data,
 			    listeners: {
-				destroy: function() {
-				    view.close();
-				},
+				destroy: () => view.close(),
 			    },
 			});
 		},
