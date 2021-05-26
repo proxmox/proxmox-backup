@@ -261,7 +261,7 @@ Ext.define('PBS.MainView', {
 	    ],
 	},
 	{
-	    xtype: 'panel',
+	    xtype: 'container',
 	    scrollable: 'y',
 	    border: false,
 	    region: 'west',
@@ -286,7 +286,7 @@ Ext.define('PBS.MainView', {
 	    }],
 	},
 	{
-	    xtype: 'panel',
+	    xtype: 'container',
 	    layout: { type: 'card' },
 	    region: 'center',
 	    border: false,
