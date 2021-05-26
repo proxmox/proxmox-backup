@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::collections::HashSet;
 
 use anyhow::{bail, format_err, Error};
 use serde::{Serialize, Deserialize};
@@ -28,6 +29,7 @@ use crate::{
         CHANGER_NAME_SCHEMA,
         MediaPoolConfig,
         MediaListEntry,
+        MediaSetListEntry,
         MediaStatus,
         MediaContentEntry,
         VAULT_NAME_SCHEMA,
@@ -44,6 +46,74 @@ use crate::{
     },
 };
 
+#[api(
+    returns: {
+        description: "List of media sets.",
+        type: Array,
+        items: {
+            type: MediaSetListEntry,
+        },
+    },
+    access: {
+        description: "List of media sets filtered by Tape.Audit privileges on pool",
+        permission: &Permission::Anybody,
+    },
+)]
+/// List Media sets
+pub async fn list_media_sets(
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Vec<MediaSetListEntry>, Error> {
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let user_info = CachedUserInfo::new()?;
+
+    let (config, _digest) = config::media_pool::config()?;
+
+    let status_path = Path::new(TAPE_STATUS_DIR);
+
+    let mut media_sets: HashSet<Uuid> = HashSet::new();
+    let mut list = Vec::new();
+
+    for (_section_type, data) in config.sections.values() {
+        let pool_name = match data["name"].as_str() {
+            None => continue,
+            Some(name) => name,
+        };
+
+        let privs = user_info.lookup_privs(&auth_id, &["tape", "pool", pool_name]);
+        if (privs & PRIV_TAPE_AUDIT) == 0  {
+            continue;
+        }
+
+        let config: MediaPoolConfig = config.lookup("pool", pool_name)?;
+
+        let changer_name = None; // assume standalone drive
+        let pool = MediaPool::with_config(status_path, &config, changer_name, true)?;
+
+        for media in pool.list_media() {
+            if let Some(label) = media.media_set_label() {
+                if media_sets.contains(&label.uuid) {
+                    continue;
+                }
+
+                let media_set_uuid = label.uuid.clone();
+                let media_set_ctime = label.ctime;
+                let media_set_name = pool
+                    .generate_media_set_name(&media_set_uuid, config.template.clone())
+                    .unwrap_or_else(|_| media_set_uuid.to_string());
+
+                media_sets.insert(media_set_uuid.clone());
+                list.push(MediaSetListEntry {
+                    media_set_name,
+                    media_set_uuid,
+                    media_set_ctime,
+                    pool: pool_name.to_string(),
+                });
+            }
+        }
+    }
+
+    Ok(list)
+}
 #[api(
     input: {
         properties: {
@@ -546,6 +616,11 @@ const SUBDIRS: SubdirMap = &[
             .get(&API_METHOD_DESTROY_MEDIA)
     ),
     ( "list", &MEDIA_LIST_ROUTER ),
+    (
+        "media-sets",
+        &Router::new()
+        .get(&API_METHOD_LIST_MEDIA_SETS)
+    ),
     (
         "move",
         &Router::new()

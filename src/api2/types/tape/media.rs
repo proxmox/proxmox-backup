@@ -14,6 +14,26 @@ use crate::api2::types::{
 
 #[api(
     properties: {
+        "media-set-uuid": {
+            schema: MEDIA_SET_UUID_SCHEMA,
+        },
+    },
+)]
+#[derive(Serialize,Deserialize)]
+#[serde(rename_all = "kebab-case")]
+/// Media Set list entry
+pub struct MediaSetListEntry {
+    /// Media set name
+    pub media_set_name: String,
+    pub media_set_uuid: Uuid,
+    /// MediaSet creation time stamp
+    pub media_set_ctime: i64,
+    /// Media Pool
+    pub pool: String,
+}
+
+#[api(
+    properties: {
         location: {
             type: MediaLocation,
         },
