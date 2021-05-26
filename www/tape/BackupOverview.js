@@ -268,10 +268,13 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 	'-',
 	{
 	    text: gettext('New Backup'),
+	    iconCls: 'fa fa-floppy-o',
 	    handler: 'backup',
 	},
+	'-',
 	{
-	    text: gettext('Restore'),
+	    text: gettext('Restore Wizard'),
+	    iconCls: 'fa fa-undo',
 	    handler: 'restore',
 	},
     ],
