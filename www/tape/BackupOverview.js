@@ -66,6 +66,7 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 	    for (const [pool, media_sets] of Object.entries(data)) {
 		let pool_entry = Ext.create('Ext.data.TreeModel', {
 		    text: pool,
+		    expanded: true,
 		    leaf: false,
 		});
 
