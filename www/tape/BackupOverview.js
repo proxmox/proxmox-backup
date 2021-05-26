@@ -161,6 +161,11 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 			    text: store,
 			    'media-set-uuid': entry['media-set-uuid'],
 			    iconCls: 'fa fa-database',
+			    restore: true,
+			    'media-set': media_set,
+			    prefilter: {
+				store,
+			    },
 			    tapes: {},
 			};
 		    }

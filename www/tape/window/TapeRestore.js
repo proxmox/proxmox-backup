@@ -732,19 +732,26 @@ Ext.define('PBS.TapeManagement.SnapshotGrid', {
 	let me = this;
 	me.callParent();
 	if (me.prefilter !== undefined) {
-	    me.store.filters.add(
-		{
-		    id: 'x-gridfilter-store',
-		    property: 'store',
-		    operator: 'in',
-		    value: [me.prefilter.store],
-		},
-		{
-		    id: 'x-gridfilter-snapshot',
-		    property: 'snapshot',
-		    value: me.prefilter.snapshot,
-		},
-	    );
+	    if (me.prefilter.store !== undefined) {
+		me.store.filters.add(
+		    {
+			id: 'x-gridfilter-store',
+			property: 'store',
+			operator: 'in',
+			value: [me.prefilter.store],
+		    },
+		);
+	    }
+
+	    if (me.prefilter.snapshot !== undefined) {
+		me.store.filters.add(
+		    {
+			id: 'x-gridfilter-snapshot',
+			property: 'snapshot',
+			value: me.prefilter.snapshot,
+		    },
+		);
+	    }
 	}
 
 	me.mon(me.store, 'filterchange', () => me.checkChange());
