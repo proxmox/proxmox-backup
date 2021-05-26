@@ -272,6 +272,7 @@ Ext.define('PBS.MainView', {
 	    items: [{
 		xtype: 'navigationtree',
 		minWidth: 180,
+		ui: 'pve-nav',
 		reference: 'navtree',
 		// we have to define it here until extjs 6.2
 		// because of a bug where a viewcontroller does not detect
@@ -281,7 +282,7 @@ Ext.define('PBS.MainView', {
 		},
 	    }, {
 		xtype: 'box',
-		cls: 'x-treelist-nav',
+		cls: 'x-treelist-pve-nav',
 		flex: 1,
 	    }],
 	},
