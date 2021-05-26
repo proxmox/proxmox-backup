@@ -184,9 +184,13 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 		values = [];
 	    }
 	    let datastores = {};
-	    values.forEach((snapshot) => {
-		const [datastore] = snapshot.split(':');
-		datastores[datastore] = true;
+	    values.forEach((snapshotOrDatastore) => {
+		let datastore = snapshotOrDatastore;
+		if (snapshotOrDatastore.indexOf(':') !== -1) {
+		    let snapshot = snapshotOrDatastore;
+		    let match = snapshot.split(':');
+		    datastore = match[0];
+		} datastores[datastore] = true;
 	    });
 
 	    me.setDataStores(Object.keys(datastores));
@@ -230,7 +234,7 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 		    if (response.result.data.length > 0) {
 			grid.setDisabled(false);
 			grid.setVisible(true);
-			grid.getStore().setData(response.result.data);
+			grid.setData(response.result.data);
 			grid.getSelectionModel().selectAll();
 			// we've shown a big list, center the window again
 			view.center();
@@ -294,10 +298,14 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 		    onGetValues: function(values) {
 			let me = this;
 
-			if (values.snapshots === 'all') {
-			    delete values.snapshots;
-			} else if (Ext.isString(values.snapshots) && values.snapshots) {
+			if (values !== "all" &&
+			    Ext.isString(values.snapshots) &&
+			    values.snapshots &&
+			    values.snapshots.indexOf(':') !== -1
+			) {
 			    values.snapshots = values.snapshots.split(',');
+			} else {
+			    delete values.snapshots;
 			}
 
 			return values;
@@ -593,6 +601,8 @@ Ext.define('PBS.TapeManagement.SnapshotGrid', {
 	let me = this;
 	let snapshots = [];
 
+	let storeCounts = {};
+
 	me.getSelection().forEach((rec) => {
 	    let id = rec.get('id');
 	    let store = rec.data.store;
@@ -600,6 +610,10 @@ Ext.define('PBS.TapeManagement.SnapshotGrid', {
 	    // only add if not filtered
 	    if (me.store.findExact('id', id) !== -1) {
 		snapshots.push(`${store}:${snap}`);
+		if (storeCounts[store] === undefined) {
+		    storeCounts[store] = 0;
+		}
+		storeCounts[store]++;
 	    }
 	});
 
@@ -608,6 +622,21 @@ Ext.define('PBS.TapeManagement.SnapshotGrid', {
 
 	if (snapshots.length === originalData.length) {
 	    return "all";
+	}
+
+	let wholeStores = [];
+	let wholeStoresSelected = true;
+	for (const [store, count] of Object.entries(storeCounts)) {
+	    if (me.storeCounts[store] === count) {
+		wholeStores.push(store);
+	    } else {
+		wholeStoresSelected = false;
+		break;
+	    }
+	}
+
+	if (wholeStoresSelected) {
+	    return wholeStores;
 	}
 
 	return snapshots;
@@ -637,6 +666,20 @@ Ext.define('PBS.TapeManagement.SnapshotGrid', {
 	    el.dom.setAttribute('data-errorqtip', "");
 	}
 	return [];
+    },
+
+    setData: function(records) {
+	let me = this;
+	let storeCounts = {};
+	records.forEach((rec) => {
+	    let store = rec.store;
+	    if (storeCounts[store] === undefined) {
+		storeCounts[store] = 0;
+	    }
+	    storeCounts[store]++;
+	});
+	me.storeCounts = storeCounts;
+	me.getStore().setData(records);
     },
 
     scrollable: true,
