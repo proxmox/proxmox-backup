@@ -17,6 +17,12 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 	    });
 	},
 
+	restore: function() {
+	    Ext.create('PBS.TapeManagement.TapeRestoreWindow', {
+		autoShow: true,
+	    });
+	},
+
 	restoreBackups: function(view, rI, cI, item, e, rec) {
 	    let me = this;
 
@@ -254,6 +260,10 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 	{
 	    text: gettext('New Backup'),
 	    handler: 'backup',
+	},
+	{
+	    text: gettext('Restore'),
+	    handler: 'restore',
 	},
     ],
 
