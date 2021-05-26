@@ -86,7 +86,7 @@ Ext.define('PBS.DataStoreInfo', {
 
     listeners: {
 	activate: 'startStore',
-	destroy: 'stopStore',
+	beforedestroy: 'stopStore',
 	deactivate: 'stopStore',
     },
 

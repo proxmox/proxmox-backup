@@ -668,7 +668,7 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 
     listeners: {
 	deactivate: 'cancelReload',
-	destroy: 'cancelReload',
+	beforedestroy: 'cancelReload',
     },
 
     tbar: [
