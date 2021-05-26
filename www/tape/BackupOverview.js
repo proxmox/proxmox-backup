@@ -266,7 +266,7 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 	    flex: 3,
 	},
 	{
-	    header: gettext('Actions'),
+	    header: gettext('Restore'),
 	    xtype: 'actioncolumn',
 	    items: [
 		{
