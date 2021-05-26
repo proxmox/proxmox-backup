@@ -187,7 +187,7 @@ Ext.define('PBS.MainView', {
 
 	    // select treeitem and load page from url fragment, if set
 	    let token = Ext.util.History.getToken() || 'pbsDashboard';
-	    this.redirectTo(token, true);
+	    this.redirectTo(token, { force: true });
 	},
     },
 
