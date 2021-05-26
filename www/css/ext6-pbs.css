@@ -202,6 +202,7 @@ p.logs {
 
 .pmx-button-badge {
     display: inline-block;
+    text-align: center;
     font-weight: bold;
     border-radius: 4px;
     padding: 2px 3px;
