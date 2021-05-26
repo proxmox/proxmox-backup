@@ -312,6 +312,7 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 			    fieldLabel: gettext('Media-Set'),
 			    width: 350,
 			    submitValue: false,
+			    emptyText: gettext('Select Media-Set to restore'),
 			    bind: {
 				value: '{uuid}',
 			    },
