@@ -25,7 +25,6 @@ Ext.define('PBS.form.CalendarEvent', {
     editable: true,
 
     valueField: 'value',
-    displayField: 'text',
     queryMode: 'local',
 
     matchFieldWidth: false,
