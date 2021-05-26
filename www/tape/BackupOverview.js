@@ -302,7 +302,7 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 			return Ext.String.format(gettext("Open restore wizard for {0}"), v);
 		    },
 		    getClass: (v, m, rec) => rec.data.restore ? 'fa fa-fw fa-undo' : 'pmx-hidden',
-		    isDisabled: (v, r, c, i, rec) => !rec.data.restore,
+		    isActionDisabled: (v, r, c, i, rec) => !rec.data.restore,
                 },
 	    ],
 	},

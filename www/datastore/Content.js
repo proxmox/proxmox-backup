@@ -632,19 +632,19 @@ Ext.define('PBS.DataStoreContent', {
 		    handler: 'onVerify',
 		    getTip: (v, m, rec) => Ext.String.format(gettext("Verify '{0}'"), v),
 		    getClass: (v, m, rec) => rec.data.leaf ? 'pmx-hidden' : 'pve-icon-verify-lettering',
-		    isDisabled: (v, r, c, i, rec) => !!rec.data.leaf,
+		    isActionDisabled: (v, r, c, i, rec) => !!rec.data.leaf,
                 },
                 {
 		    handler: 'onChangeOwner',
 		    getClass: (v, m, rec) => rec.parentNode.id ==='root' ? 'fa fa-user' : 'pmx-hidden',
 		    getTip: (v, m, rec) => Ext.String.format(gettext("Change owner of '{0}'"), v),
-		    isDisabled: (v, r, c, i, rec) => rec.parentNode.id !=='root',
+		    isActionDisabled: (v, r, c, i, rec) => rec.parentNode.id !=='root',
                 },
 		{
 		    handler: 'onPrune',
 		    getTip: (v, m, rec) => Ext.String.format(gettext("Prune '{0}'"), v),
 		    getClass: (v, m, rec) => rec.parentNode.id ==='root' ? 'fa fa-scissors' : 'pmx-hidden',
-		    isDisabled: (v, r, c, i, rec) => rec.parentNode.id !=='root',
+		    isActionDisabled: (v, r, c, i, rec) => rec.parentNode.id !=='root',
 		},
 		{
 		    handler: 'onForget',
@@ -652,13 +652,13 @@ Ext.define('PBS.DataStoreContent', {
 			? Ext.String.format(gettext("Permanently forget snapshot '{0}'"), v)
 			: Ext.String.format(gettext("Permanently forget group '{0}'"), v),
 		    getClass: (v, m, rec) => !rec.data.leaf ? 'fa critical fa-trash-o' : 'pmx-hidden',
-		    isDisabled: (v, r, c, i, rec) => !!rec.data.leaf,
+		    isActionDisabled: (v, r, c, i, rec) => !!rec.data.leaf,
 		},
 		{
 		    handler: 'downloadFile',
 		    getTip: (v, m, rec) => Ext.String.format(gettext("Download '{0}'"), v),
 		    getClass: (v, m, rec) => rec.data.leaf && rec.data.filename ? 'fa fa-download' : 'pmx-hidden',
-		    isDisabled: (v, r, c, i, rec) => !rec.data.leaf || !rec.data.filename || rec.data['crypt-mode'] > 2,
+		    isActionDisabled: (v, r, c, i, rec) => !rec.data.leaf || !rec.data.filename || rec.data['crypt-mode'] > 2,
 		},
 		{
 		    handler: 'openPxarBrowser',
@@ -670,7 +670,7 @@ Ext.define('PBS.DataStoreContent', {
 			}
 			return 'pmx-hidden';
 		    },
-		    isDisabled: (v, r, c, i, rec) => {
+		    isActionDisabled: (v, r, c, i, rec) => {
 			let data = rec.data;
 			return !(data.leaf &&
 			    data.filename &&
