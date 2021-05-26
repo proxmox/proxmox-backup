@@ -229,7 +229,6 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 		    me.setDataStores(Object.keys(datastores), true);
 		    if (response.result.data.length > 0) {
 			grid.setDisabled(false);
-			grid.setVisible(true);
 			grid.setData(response.result.data);
 			grid.getSelectionModel().selectAll();
 			// we've shown a big list, center the window again
@@ -356,7 +355,6 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 			    name: 'snapshots',
 			    height: 322,
 			    disabled: true, // will be shown/enabled on successful load
-			    hidden: true,
 			    listeners: {
 				change: 'updateDatastores',
 			    },
