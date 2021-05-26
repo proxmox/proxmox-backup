@@ -666,3 +666,44 @@ Ext.define('PBS.TapeManagement.SnapshotGrid', {
 	me.mon(me.store, 'filterchange', () => me.checkChange());
     },
 });
+
+Ext.define('PBS.TapeManagement.MediaSetSelector', {
+    extend: 'Proxmox.form.ComboGrid',
+    alias: 'widget.pbsMediaSetSelector',
+
+    allowBlank: false,
+    displayField: 'media-set-name',
+    valueField: 'media-set-uuid',
+    autoSelect: false,
+
+    store: {
+	proxy: {
+	    type: 'proxmox',
+	    url: '/api2/json/tape/media/media-sets',
+	},
+	autoLoad: true,
+	idProperty: 'media-set-uuid',
+	sorters: ['pool', 'media-set-ctime'],
+    },
+
+    listConfig: {
+	width: 600,
+	columns: [
+	    {
+		text: gettext('Pool'),
+		dataIndex: 'pool',
+		flex: 1,
+	    },
+	    {
+		text: gettext('Name'),
+		dataIndex: 'media-set-name',
+		width: 180,
+	    },
+	    {
+		text: gettext('Media-Set UUID'),
+		dataIndex: 'media-set-uuid',
+		width: 280,
+	    },
+	],
+    },
+});
