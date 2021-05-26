@@ -11,8 +11,7 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
     url: '/api2/extjs/tape/restore',
     method: 'POST',
 
-    showTaskViewer: true,
-    isCreate: true,
+    modal: true,
 
     mediaset: undefined,
     prefilter: undefined,
