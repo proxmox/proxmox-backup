@@ -20,6 +20,7 @@ Ext.define('PBS.widget.UsageChart', {
 	{
 	    flex: 1,
 	    xtype: 'cartesian',
+	    downloadServerUrl: '-',
 	    height: '100%',
 	    itemId: 'chart',
 	    border: false,
