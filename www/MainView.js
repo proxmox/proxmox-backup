@@ -34,8 +34,14 @@ Ext.define('PBS.MainView', {
 	    return [xtype, config];
 	},
 
-	beforeChangePath: function(path, subpath, action) {
+	beforeChangePath: function(path, subpathOrAction, action) {
 	    var me = this;
+
+	    let subpath = subpathOrAction;
+	    if (!action) {
+		action = subpathOrAction;
+		subpath = undefined;
+	    }
 
 	    let [xtype, config] = me.parseRouterPath(path);
 
