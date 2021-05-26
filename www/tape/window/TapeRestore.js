@@ -14,6 +14,10 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
     showTaskViewer: true,
     isCreate: true,
 
+    mediaset: undefined,
+    prefilter: undefined,
+    uuid: undefined,
+
     cbindData: function(config) {
 	let me = this;
 	if (me.prefilter !== undefined) {
@@ -27,6 +31,7 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 
     viewModel: {
 	data: {
+	    uuid: "",
 	    singleDatastore: true,
 	},
 	formulas: {
@@ -41,6 +46,13 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 
 	panelIsValid: function(panel) {
 	    return panel.query('[isFormField]').every(field => field.isValid());
+	},
+
+	changeMediaSet: function(field, value) {
+	    let me = this;
+	    let vm = me.getViewModel();
+	    vm.set('uuid', value);
+	    me.updateSnapshots();
 	},
 
 	checkValidity: function() {
@@ -203,10 +215,12 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 	    let me = this;
 	    let view = me.getView();
 	    let grid = me.lookup('snapshotGrid');
+	    let vm = me.getViewModel();
+	    let uuid = vm.get('uuid');
 
 	    Proxmox.Utils.API2Request({
 		waitMsgTarget: view,
-		url: `/tape/media/content?media-set=${view.uuid}`,
+		url: `/tape/media/content?media-set=${uuid}`,
 		success: function(response, opt) {
 		    let datastores = {};
 		    for (const content of response.result.data) {
@@ -227,6 +241,13 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 		    me.setDataStores([], true);
 		},
 	    });
+	},
+
+	init: function(view) {
+	    let me = this;
+	    let vm = me.getViewModel();
+
+	    vm.set('uuid', view.uuid);
 	},
 
 	control: {
@@ -284,10 +305,28 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 
 		    column1: [
 			{
+			    xtype: 'pbsMediaSetSelector',
+			    fieldLabel: gettext('Media-Set'),
+			    width: 350,
+			    submitValue: false,
+			    bind: {
+				value: '{uuid}',
+			    },
+			    cbind: {
+				hidden: '{uuid}',
+				disabled: '{uuid}',
+			    },
+			    listeners: {
+				change: 'changeMediaSet',
+			    },
+			},
+			{
 			    xtype: 'displayfield',
 			    fieldLabel: gettext('Media-Set'),
 			    cbind: {
 				value: '{mediaset}',
+				hidden: '{!uuid}',
+				disabled: '{!uuid}',
 			    },
 			},
 		    ],
@@ -298,8 +337,10 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 			    fieldLabel: gettext('Media-Set UUID'),
 			    name: 'media-set',
 			    submitValue: true,
-			    cbind: {
+			    bind: {
 				value: '{uuid}',
+				hidden: '{!uuid}',
+				disabled: '{!uuid}',
 			    },
 			},
 		    ],
