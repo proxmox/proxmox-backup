@@ -49,6 +49,7 @@ Ext.define('PBS.DatastoreStatistics', {
     alias: 'widget.pbsDatastoresStatistics',
 
     title: gettext('Datastore Usage'),
+    disableSelection: true,
 
     emptyText: gettext('No Data'),
 
