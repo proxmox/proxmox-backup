@@ -246,7 +246,7 @@ fn decode_spin_data_encryption_caps(data: &[u8]) -> Result<u8, Error> {
 
         match aes_cgm_index {
             Some(index) => Ok(index),
-            None => bail!("drive dies not support AES-CGM encryption"),
+            None => bail!("drive does not support AES-CGM encryption"),
         }
     }).map_err(|err: Error| format_err!("decode data encryption caps page failed - {}", err))
 
