@@ -48,8 +48,8 @@ lazy_static! {
         },
     }
 )]
-#[serde(rename_all="kebab-case")]
 #[derive(Serialize,Deserialize)]
+#[serde(rename_all="kebab-case")]
 /// Verification Job
 pub struct VerificationJobConfig {
     /// unique ID to address this job
@@ -80,8 +80,8 @@ pub struct VerificationJobConfig {
         },
     },
 )]
-#[serde(rename_all="kebab-case")]
 #[derive(Serialize,Deserialize)]
+#[serde(rename_all="kebab-case")]
 /// Status of Verification Job
 pub struct VerificationJobStatus {
     #[serde(flatten)]

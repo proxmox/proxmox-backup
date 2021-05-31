@@ -82,8 +82,8 @@ pub const DIR_NAME_SCHEMA: Schema = StringSchema::new("Directory name").schema()
         },
     }
 )]
-#[serde(rename_all="kebab-case")]
 #[derive(Serialize,Deserialize)]
+#[serde(rename_all="kebab-case")]
 /// Datastore configuration properties.
 pub struct DataStoreConfig {
     pub name: String,

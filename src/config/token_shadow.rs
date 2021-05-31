@@ -14,8 +14,8 @@ const LOCK_FILE: &str = configdir!("/token.shadow.lock");
 const CONF_FILE: &str = configdir!("/token.shadow");
 const LOCK_TIMEOUT: Duration = Duration::from_secs(5);
 
-#[serde(rename_all="kebab-case")]
 #[derive(Serialize, Deserialize)]
+#[serde(rename_all="kebab-case")]
 /// ApiToken id / secret pair
 pub struct ApiTokenSecret {
     pub tokenid: Authid,

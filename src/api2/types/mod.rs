@@ -1548,8 +1548,8 @@ impl std::convert::TryFrom<openssl::rsa::Rsa<openssl::pkey::Public>> for RsaPubK
         },
     }
 )]
-#[serde(rename_all="kebab-case")]
 #[derive(Serialize,Deserialize,Default)]
+#[serde(rename_all="kebab-case")]
 /// Job Scheduling Status
 pub struct JobScheduleStatus {
     #[serde(skip_serializing_if="Option::is_none")]

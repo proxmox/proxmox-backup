@@ -61,8 +61,8 @@ use crate::{
     },
 };
 
-#[serde(rename_all = "kebab-case")]
 #[derive(Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 /// Represents the State of a specific Job
 pub enum JobState {
     /// A job was created at 'time', but never started/finished

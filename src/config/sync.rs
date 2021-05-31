@@ -53,8 +53,8 @@ lazy_static! {
         },
     }
 )]
-#[serde(rename_all="kebab-case")]
 #[derive(Serialize,Deserialize,Clone)]
+#[serde(rename_all="kebab-case")]
 /// Sync Job
 pub struct SyncJobConfig {
     pub id: String,
@@ -82,8 +82,8 @@ pub struct SyncJobConfig {
     },
 )]
 
-#[serde(rename_all="kebab-case")]
 #[derive(Serialize,Deserialize)]
+#[serde(rename_all="kebab-case")]
 /// Status of Sync Job
 pub struct SyncJobStatus {
     #[serde(flatten)]
