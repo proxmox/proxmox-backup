@@ -195,8 +195,7 @@ struct DataEncryptionStatus {
 struct SspDataEncryptionCapabilityPage {
     page_code: u16,
     page_len: u16,
-    extdecc_cfgp_byte: u8,
-    reserved: [u8; 15],
+    reserved: [u8; 16],
 }
 
 #[derive(Endian)]
@@ -222,17 +221,7 @@ fn decode_spin_data_encryption_caps(data: &[u8]) -> Result<u8, Error> {
 
     proxmox::try_block!({
         let mut reader = &data[..];
-        let page: SspDataEncryptionCapabilityPage = unsafe { reader.read_be_value()? };
-
-        let extdecc = (page.extdecc_cfgp_byte & 0b00001100) >> 2;
-        if extdecc != 2 {
-            bail!("not external data encryption control capable");
-        }
-
-        let cfg_p = page.extdecc_cfgp_byte & 0b00000011;
-        if cfg_p != 1 {
-            bail!("not allow to change logical block encryption parameters");
-        }
+        let _page: SspDataEncryptionCapabilityPage = unsafe { reader.read_be_value()? };
 
         let mut aes_cgm_index = None;
 
