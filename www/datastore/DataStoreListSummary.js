@@ -21,6 +21,7 @@ Ext.define('PBS.datastore.DataStoreListSummary', {
 	    full: "N/A",
 	    stillbad: 0,
 	    deduplication: 1.0,
+	    error: "",
 	},
     },
     setTasks: function(taskdata, since) {
@@ -31,6 +32,13 @@ Ext.define('PBS.datastore.DataStoreListSummary', {
     setStatus: function(statusData) {
 	let me = this;
 	let vm = me.getViewModel();
+
+	if (statusData.error !== undefined) {
+	    vm.set('error', statusData.error);
+	    return;
+	} else {
+	    vm.set('error', "");
+	}
 
 	let usage = statusData.used/statusData.total;
 	let usagetext = Ext.String.format(gettext('{0} of {1}'),
@@ -84,11 +92,33 @@ Ext.define('PBS.datastore.DataStoreListSummary', {
 
 	    items: [
 		{
+		    xtype: 'box',
+		    reference: 'errorBox',
+		    hidden: true,
+		    tpl: [
+			'<center>',
+			`<h3>${gettext("Error")}</h3>`,
+			'<i class="fa fa-5x fa-exclamation-circle critical"></i>',
+			'<br /><br/>',
+			'{text}',
+			'</center>',
+		    ],
+		    bind: {
+			visible: '{error}',
+			data: {
+			    text: '{error}',
+			},
+		    },
+		},
+		{
 		    xtype: 'proxmoxGauge',
 		    warningThreshold: 0.8,
 		    criticalThreshold: 0.95,
 		    flex: 1,
 		    reference: 'usage',
+		    bind: {
+			visible: '{!error}',
+		    },
 		},
 		{
 		    xtype: 'pmxInfoWidget',
@@ -99,6 +129,7 @@ Ext.define('PBS.datastore.DataStoreListSummary', {
 			data: {
 			    text: '{full}',
 			},
+			visible: '{!error}',
 		    },
 		},
 		{
@@ -110,6 +141,7 @@ Ext.define('PBS.datastore.DataStoreListSummary', {
 			data: {
 			    text: '{deduplication}',
 			},
+			visible: '{!error}',
 		    },
 		},
 		{
@@ -143,6 +175,9 @@ Ext.define('PBS.datastore.DataStoreListSummary', {
 		    reference: 'historychart',
 		    title: gettext('Usage History'),
 		    height: 100,
+		    bind: {
+			visible: '{!error}',
+		    },
 		},
 		{
 		    xtype: 'container',
