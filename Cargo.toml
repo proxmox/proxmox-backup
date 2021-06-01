@@ -1,6 +1,6 @@
 [package]
 name = "proxmox-backup"
-version = "1.1.8"
+version = "1.1.9"
 authors = [
     "Dietmar Maurer <dietmar@proxmox.com>",
     "Dominik Csapak <d.csapak@proxmox.com>",

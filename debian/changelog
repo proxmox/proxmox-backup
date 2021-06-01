@@ -1,3 +1,33 @@
+rust-proxmox-backup (1.1.9-1) unstable; urgency=medium
+
+  * lto/sg_tape/encryption: remove non lto-4 supported byte
+
+  * ui: improve tape restore
+
+  * ui: panel/UsageChart: change downloadServerUrl
+
+  * ui: css fixes and cleanups
+
+  * api2/tape: add api call to list media sets
+
+  * ui: tape/BackupOverview: expand pools by default
+
+  * api: node/journal: fix parameter extraction of /nodes/node/journal
+
+  * file-restore-daemon: limit concurrent download calls
+
+  * file-restore-daemon: watchdog: add inhibit for long downloads
+
+  * file-restore-daemon: work around tokio DuplexStream bug
+
+  * apt: fix removal of non-existant http-proxy config
+
+  * file-restore-daemon: disk: add RawFs bucket type
+
+  * file-restore-daemon: disk: ignore "invalid fs" error
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 01 Jun 2021 08:24:01 +0200
+
 rust-proxmox-backup (1.1.8-1) stable; urgency=medium
 
   * api-proxy: implement 'reload-certificate' command and hot-reload proxy
