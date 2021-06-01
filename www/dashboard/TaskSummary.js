@@ -75,6 +75,7 @@ Ext.define('PBS.TaskSummary', {
 		if (tasklist === undefined) {
 		    tasklist = Ext.create('Ext.grid.Panel', {
 			tools: [{
+			    type: 'close',
 			    handler: () => tasklist.setVisible(false),
 			}],
 			floating: true,
