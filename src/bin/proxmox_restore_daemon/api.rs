@@ -286,11 +286,7 @@ fn extract(
             bail!("file or directory {:?} does not exist", path);
         }
 
-        // FIXME: DuplexStream is currently broken and doesn't wake pending writers on close, i.e.
-        // this doesn't drop the WatchdogInhibitor if we encounter an error (client aborts, etc...)
-        // see: https://github.com/tokio-rs/tokio/pull/3756
-        // let (mut writer, reader) = tokio::io::duplex(1024 * 64);
-        let (mut writer, reader) = tokio::net::UnixStream::pair()?;
+        let (mut writer, reader) = tokio::io::duplex(1024 * 64);
 
         if pxar {
             tokio::spawn(async move {
