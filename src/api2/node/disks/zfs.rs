@@ -383,7 +383,7 @@ pub fn create_zpool(
                     bail!("datastore '{}' already exists.", datastore.name);
                 }
 
-                crate::api2::config::datastore::do_create_datastore(lock, config, datastore)?;
+                crate::api2::config::datastore::do_create_datastore(lock, config, datastore, Some(&worker))?;
             }
 
             Ok(())

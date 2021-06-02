@@ -54,11 +54,12 @@ pub(crate) fn do_create_datastore(
     _lock: std::fs::File,
     mut config: SectionConfigData,
     datastore: DataStoreConfig,
+    worker: Option<&dyn crate::task::TaskState>,
 ) -> Result<(), Error> {
     let path: PathBuf = datastore.path.clone().into();
 
     let backup_user = crate::backup::backup_user()?;
-    let _store = ChunkStore::create(&datastore.name, path, backup_user.uid, backup_user.gid)?;
+    let _store = ChunkStore::create(&datastore.name, path, backup_user.uid, backup_user.gid, worker)?;
 
     config.set_data(&datastore.name, "datastore", &datastore)?;
 
@@ -157,7 +158,7 @@ pub fn create_datastore(
         Some(datastore.name.to_string()),
         auth_id,
         false,
-        move |_worker| do_create_datastore(lock, config, datastore),
+        move |worker| do_create_datastore(lock, config, datastore, Some(&worker)),
     )
 }
 

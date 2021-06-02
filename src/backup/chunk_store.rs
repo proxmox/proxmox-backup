@@ -7,6 +7,7 @@ use std::os::unix::io::AsRawFd;
 
 use proxmox::tools::fs::{CreateOptions, create_path, create_dir};
 
+use crate::task_log;
 use crate::tools;
 use crate::api2::types::GarbageCollectionStatus;
 
@@ -61,7 +62,7 @@ impl ChunkStore {
         chunk_dir
     }
 
-    pub fn create<P>(name: &str, path: P, uid: nix::unistd::Uid, gid: nix::unistd::Gid) -> Result<Self, Error>
+    pub fn create<P>(name: &str, path: P, uid: nix::unistd::Uid, gid: nix::unistd::Gid, worker: Option<&dyn TaskState>) -> Result<Self, Error>
     where
         P: Into<PathBuf>,
     {
@@ -104,7 +105,9 @@ impl ChunkStore {
             }
             let percentage = (i*100)/(64*1024);
             if percentage != last_percentage {
-                // eprintln!("ChunkStore::create {}%", percentage);
+                if let Some(worker) = worker {
+                    task_log!(worker, "Chunkstore create: {}%", percentage)
+                }
                 last_percentage = percentage;
             }
         }
@@ -461,7 +464,7 @@ fn test_chunk_store1() {
     assert!(chunk_store.is_err());
 
     let user = nix::unistd::User::from_uid(nix::unistd::Uid::current()).unwrap().unwrap();
-    let chunk_store = ChunkStore::create("test", &path, user.uid, user.gid).unwrap();
+    let chunk_store = ChunkStore::create("test", &path, user.uid, user.gid, None).unwrap();
 
     let (chunk, digest) = super::DataChunkBuilder::new(&[0u8, 1u8]).build().unwrap();
 
@@ -472,7 +475,7 @@ fn test_chunk_store1() {
     assert!(exists);
 
 
-    let chunk_store = ChunkStore::create("test", &path, user.uid, user.gid);
+    let chunk_store = ChunkStore::create("test", &path, user.uid, user.gid, None);
     assert!(chunk_store.is_err());
 
     if let Err(_e) = std::fs::remove_dir_all(".testdir") { /* ignore */ }
