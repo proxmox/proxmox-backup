@@ -477,16 +477,34 @@ pub fn request_and_load_media(
     }
 }
 
+#[derive(thiserror::Error, Debug)]
+pub enum TapeLockError {
+    #[error("timeout while trying to lock")]
+    TimeOut,
+    #[error("{0}")]
+    Other(#[from] Error),
+}
+
+impl From<std::io::Error> for TapeLockError {
+    fn from(error: std::io::Error) -> Self {
+        Self::Other(error.into())
+    }
+}
+
 /// Acquires an exclusive lock for the tape device
 ///
 /// Basically calls lock_device_path() using the configured drive path.
 pub fn lock_tape_device(
     config: &SectionConfigData,
     drive: &str,
-) -> Result<DeviceLockGuard, Error> {
+) -> Result<DeviceLockGuard, TapeLockError> {
     let path = tape_device_path(config, drive)?;
-    lock_device_path(&path)
-        .map_err(|err| format_err!("unable to lock drive '{}' - {}", drive, err))
+    lock_device_path(&path).map_err(|err| match err {
+        TapeLockError::Other(err) => {
+            TapeLockError::Other(format_err!("unable to lock drive '{}' - {}", drive, err))
+        }
+        other => other,
+    })
 }
 
 /// Writes the given state for the specified drive
@@ -555,7 +573,7 @@ pub struct DeviceLockGuard(std::fs::File);
 //
 // Uses systemd escape_unit to compute a file name from `device_path`, the try
 // to lock `/var/lock/<name>`.
-fn lock_device_path(device_path: &str) -> Result<DeviceLockGuard, Error> {
+fn lock_device_path(device_path: &str) -> Result<DeviceLockGuard, TapeLockError> {
 
     let lock_name = crate::tools::systemd::escape_unit(device_path, true);
 
@@ -564,7 +582,13 @@ fn lock_device_path(device_path: &str) -> Result<DeviceLockGuard, Error> {
 
     let timeout = std::time::Duration::new(10, 0);
     let mut file = std::fs::OpenOptions::new().create(true).append(true).open(path)?;
-    proxmox::tools::fs::lock_file(&mut file, true, Some(timeout))?;
+    if let Err(err) =  proxmox::tools::fs::lock_file(&mut file, true, Some(timeout)) {
+        if err.kind() == std::io::ErrorKind::Interrupted {
+            return Err(TapeLockError::TimeOut);
+        } else {
+            return Err(err.into());
+        }
+    }
 
     let backup_user = crate::backup::backup_user()?;
     fchown(file.as_raw_fd(), Some(backup_user.uid), Some(backup_user.gid))?;

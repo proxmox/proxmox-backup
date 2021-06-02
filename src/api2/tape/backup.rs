@@ -65,6 +65,7 @@ use crate::{
         drive::{
             media_changer,
             lock_tape_device,
+            TapeLockError,
             set_tape_device_state,
         },
         changer::update_changer_online_status,
@@ -203,12 +204,15 @@ pub fn do_tape_backup_job(
                     // for scheduled tape backup jobs, we wait indefinitely for the lock
                     task_log!(worker, "waiting for drive lock...");
                     loop {
-                        if let Ok(lock) = lock_tape_device(&drive_config, &setup.drive) {
-                            drive_lock = Some(lock);
-                            break;
-                        } // ignore errors
-
                         worker.check_abort()?;
+                        match lock_tape_device(&drive_config, &setup.drive) {
+                            Ok(lock) => {
+                                drive_lock = Some(lock);
+                                break;
+                            }
+                            Err(TapeLockError::TimeOut) => continue,
+                            Err(TapeLockError::Other(err)) => return Err(err),
+                        }
                     }
                 }
                 set_tape_device_state(&setup.drive, &worker.upid().to_string())?;
