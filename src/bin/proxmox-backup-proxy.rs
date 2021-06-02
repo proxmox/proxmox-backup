@@ -136,6 +136,17 @@ async fn run() -> Result<(), Error> {
         },
     )?;
 
+    // to remove references for not configured datastores
+    commando_sock.register_command(
+        "datastore-removed".to_string(),
+        |_value| {
+            if let Err(err) = proxmox_backup::backup::DataStore::remove_unused_datastores() {
+                log::error!("could not refresh datastores: {}", err);
+            }
+            Ok(Value::Null)
+        }
+    )?;
+
     let server = daemon::create_daemon(
         ([0,0,0,0,0,0,0,0], 8007).into(),
         move |listener, ready| {

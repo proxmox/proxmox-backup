@@ -100,3 +100,11 @@ pub(crate) async fn reload_proxy_certificate() -> Result<(), Error> {
         .await?;
     Ok(())
 }
+
+pub(crate) async fn notify_datastore_removed() -> Result<(), Error> {
+    let proxy_pid = crate::server::read_pid(buildcfg::PROXMOX_BACKUP_PROXY_PID_FN)?;
+    let sock = crate::server::ctrl_sock_from_pid(proxy_pid);
+    let _: Value = crate::server::send_raw_command(sock, "{\"command\":\"datastore-removed\"}\n")
+        .await?;
+    Ok(())
+}

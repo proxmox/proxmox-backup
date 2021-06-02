@@ -403,7 +403,7 @@ pub fn update_datastore(
     },
 )]
 /// Remove a datastore configuration.
-pub fn delete_datastore(name: String, digest: Option<String>) -> Result<(), Error> {
+pub async fn delete_datastore(name: String, digest: Option<String>) -> Result<(), Error> {
 
     let _lock = open_file_locked(datastore::DATASTORE_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
 
@@ -424,6 +424,8 @@ pub fn delete_datastore(name: String, digest: Option<String>) -> Result<(), Erro
     // ignore errors
     let _ = jobstate::remove_state_file("prune", &name);
     let _ = jobstate::remove_state_file("garbage_collection", &name);
+
+    crate::server::notify_datastore_removed().await?;
 
     Ok(())
 }

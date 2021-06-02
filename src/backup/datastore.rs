@@ -69,6 +69,18 @@ impl DataStore {
         Ok(datastore)
     }
 
+    /// removes all datastores that are not configured anymore
+    pub fn remove_unused_datastores() -> Result<(), Error>{
+        let (config, _digest) = datastore::config()?;
+
+        let mut map = DATASTORE_MAP.lock().unwrap();
+        // removes all elements that are not in the config
+        map.retain(|key, _| {
+            config.sections.contains_key(key)
+        });
+        Ok(())
+    }
+
     fn open_with_path(store_name: &str, path: &Path, config: DataStoreConfig) -> Result<Self, Error> {
         let chunk_store = ChunkStore::open(store_name, path)?;
 
