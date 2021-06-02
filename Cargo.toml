@@ -78,7 +78,7 @@ url = "2.1"
 walkdir = "2"
 webauthn-rs = "0.2.5"
 xdg = "2.2"
-zstd = { version = "0.4", features = [ "bindgen" ] }
+zstd = { version = "0.6", features = [ "bindgen" ] }
 nom = "5.1"
 crossbeam-channel = "0.5"
 

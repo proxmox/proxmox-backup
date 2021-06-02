@@ -5,19 +5,19 @@ use proxmox::tools::io::WriteExt;
 
 use super::*;
 
-enum BlobWriterState<W: Write> {
+enum BlobWriterState<'writer, W: Write> {
     Uncompressed { csum_writer: ChecksumWriter<W> },
-    Compressed { compr: zstd::stream::write::Encoder<ChecksumWriter<W>> },
+    Compressed { compr: zstd::stream::write::Encoder<'writer, ChecksumWriter<W>> },
     Encrypted { crypt_writer: CryptWriter<ChecksumWriter<W>> },
-    EncryptedCompressed { compr: zstd::stream::write::Encoder<CryptWriter<ChecksumWriter<W>>> },
+    EncryptedCompressed { compr: zstd::stream::write::Encoder<'writer, CryptWriter<ChecksumWriter<W>>> },
 }
 
 /// Data blob writer
-pub struct DataBlobWriter<W: Write> {
-    state: BlobWriterState<W>,
+pub struct DataBlobWriter<'writer, W: Write> {
+    state: BlobWriterState<'writer, W>,
 }
 
-impl <W: Write + Seek> DataBlobWriter<W> {
+impl <W: Write + Seek> DataBlobWriter<'_, W> {
 
     pub fn new_uncompressed(mut writer: W) -> Result<Self, Error> {
         writer.seek(SeekFrom::Start(0))?;
@@ -133,7 +133,7 @@ impl <W: Write + Seek> DataBlobWriter<W> {
     }
 }
 
-impl <W: Write + Seek> Write for DataBlobWriter<W> {
+impl <W: Write + Seek> Write for DataBlobWriter<'_, W> {
 
     fn write(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
         match self.state {

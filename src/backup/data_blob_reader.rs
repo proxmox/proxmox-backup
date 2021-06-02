@@ -5,23 +5,23 @@ use proxmox::tools::io::ReadExt;
 
 use super::*;
 
-enum BlobReaderState<R: Read> {
+enum BlobReaderState<'reader, R: Read> {
     Uncompressed { expected_crc: u32, csum_reader: ChecksumReader<R> },
-    Compressed { expected_crc: u32, decompr: zstd::stream::read::Decoder<BufReader<ChecksumReader<R>>> },
+    Compressed { expected_crc: u32, decompr: zstd::stream::read::Decoder<'reader, BufReader<ChecksumReader<R>>> },
     Encrypted { expected_crc: u32, decrypt_reader: CryptReader<BufReader<ChecksumReader<R>>> },
-    EncryptedCompressed { expected_crc: u32, decompr: zstd::stream::read::Decoder<BufReader<CryptReader<BufReader<ChecksumReader<R>>>>> },
+    EncryptedCompressed { expected_crc: u32, decompr: zstd::stream::read::Decoder<'reader, BufReader<CryptReader<BufReader<ChecksumReader<R>>>>> },
 }
 
 /// Read data blobs
-pub struct DataBlobReader<R: Read> {
-    state: BlobReaderState<R>,
+pub struct DataBlobReader<'reader, R: Read> {
+    state: BlobReaderState<'reader, R>,
 }
 
 // zstd_safe::DCtx is not sync but we are, since
 // the only public interface is on mutable reference
-unsafe impl<R: Read> Sync for DataBlobReader<R> {}
+unsafe impl<R: Read> Sync for DataBlobReader<'_, R> {}
 
-impl <R: Read> DataBlobReader<R> {
+impl <R: Read> DataBlobReader<'_, R> {
 
     pub fn new(mut reader: R, config: Option<Arc<CryptConfig>>) -> Result<Self, Error> {
 
@@ -104,7 +104,7 @@ impl <R: Read> DataBlobReader<R> {
     }
 }
 
-impl <R: Read> Read for DataBlobReader<R> {
+impl <R: Read> Read for DataBlobReader<'_, R> {
 
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
         match &mut self.state {

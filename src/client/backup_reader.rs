@@ -148,7 +148,7 @@ impl BackupReader {
         &self,
         manifest: &BackupManifest,
         name: &str,
-    ) -> Result<DataBlobReader<File>, Error> {
+    ) -> Result<DataBlobReader<'_, File>, Error> {
 
         let mut tmpfile = std::fs::OpenOptions::new()
             .write(true)
