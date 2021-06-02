@@ -8,6 +8,7 @@ use crate::{
     server::jobstate::Job,
     server::WorkerTask,
     task_log,
+    task_warn,
 };
 
 pub fn do_prune_job(
@@ -67,7 +68,14 @@ pub fn do_prune_job(
                             info.backup_dir.backup_time_string()
                         );
                         if !keep {
-                            datastore.remove_backup_dir(&info.backup_dir, true)?;
+                            if let Err(err) = datastore.remove_backup_dir(&info.backup_dir, false) {
+                                task_warn!(
+                                    worker,
+                                    "failed to remove dir {:?}: {}",
+                                    info.backup_dir.relative_path(),
+                                    err,
+                                );
+                            }
                         }
                     }
                 }
