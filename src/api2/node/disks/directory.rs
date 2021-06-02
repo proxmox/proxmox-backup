@@ -5,6 +5,7 @@ use ::serde::{Deserialize, Serialize};
 use proxmox::api::{api, Permission, RpcEnvironment, RpcEnvironmentType};
 use proxmox::api::section_config::SectionConfigData;
 use proxmox::api::router::Router;
+use proxmox::tools::fs::open_file_locked;
 
 use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 use crate::tools::disks::{
@@ -16,7 +17,7 @@ use crate::tools::systemd::{self, types::*};
 use crate::server::WorkerTask;
 
 use crate::api2::types::*;
-use crate::config::datastore::DataStoreConfig;
+use crate::config::datastore::{self, DataStoreConfig};
 
 #[api(
     properties: {
@@ -179,7 +180,17 @@ pub fn create_datastore_disk(
             systemd::start_unit(&mount_unit_name)?;
 
             if add_datastore {
-                crate::api2::config::datastore::create_datastore(json!({ "name": name, "path": mount_point }))?
+                let lock = open_file_locked(datastore::DATASTORE_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
+                let datastore: DataStoreConfig =
+                    serde_json::from_value(json!({ "name": name, "path": mount_point }))?;
+
+                let (config, _digest) = datastore::config()?;
+
+                if config.sections.get(&datastore.name).is_some() {
+                    bail!("datastore '{}' already exists.", datastore.name);
+                }
+
+                crate::api2::config::datastore::create_datastore_impl(lock, config, datastore)?;
             }
 
             Ok(())

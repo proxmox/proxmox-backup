@@ -5,6 +5,7 @@ use serde_json::Value;
 use ::serde::{Deserialize, Serialize};
 
 use proxmox::api::{api, Router, RpcEnvironment, Permission};
+use proxmox::api::section_config::SectionConfigData;
 use proxmox::api::schema::parse_property_string;
 use proxmox::tools::fs::open_file_locked;
 
@@ -13,7 +14,7 @@ use crate::backup::*;
 use crate::config::cached_user_info::CachedUserInfo;
 use crate::config::datastore::{self, DataStoreConfig, DIR_NAME_SCHEMA};
 use crate::config::acl::{PRIV_DATASTORE_ALLOCATE, PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_MODIFY};
-use crate::server::jobstate;
+use crate::server::{jobstate, WorkerTask};
 
 #[api(
     input: {
@@ -50,6 +51,25 @@ pub fn list_datastores(
     Ok(list.into_iter().filter(filter_by_privs).collect())
 }
 
+pub(crate) fn do_create_datastore(
+    _lock: std::fs::File,
+    mut config: SectionConfigData,
+    datastore: DataStoreConfig,
+) -> Result<(), Error> {
+    let path: PathBuf = datastore.path.clone().into();
+
+    let backup_user = crate::backup::backup_user()?;
+    let _store = ChunkStore::create(&datastore.name, path, backup_user.uid, backup_user.gid)?;
+
+    config.set_data(&datastore.name, "datastore", &datastore)?;
+
+    datastore::save_config(&config)?;
+
+    jobstate::create_state_file("prune", &datastore.name)?;
+    jobstate::create_state_file("garbage_collection", &datastore.name)?;
+
+    Ok(())
+}
 
 // fixme: impl. const fn get_object_schema(datastore::DataStoreConfig::API_SCHEMA),
 // but this need support for match inside const fn
@@ -116,31 +136,30 @@ pub fn list_datastores(
     },
 )]
 /// Create new datastore config.
-pub fn create_datastore(param: Value) -> Result<(), Error> {
+pub fn create_datastore(
+    param: Value,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<String, Error> {
 
-    let _lock = open_file_locked(datastore::DATASTORE_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
+    let lock = open_file_locked(datastore::DATASTORE_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
 
     let datastore: datastore::DataStoreConfig = serde_json::from_value(param)?;
 
-    let (mut config, _digest) = datastore::config()?;
+    let (config, _digest) = datastore::config()?;
 
     if config.sections.get(&datastore.name).is_some() {
         bail!("datastore '{}' already exists.", datastore.name);
     }
 
-    let path: PathBuf = datastore.path.clone().into();
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-    let backup_user = crate::backup::backup_user()?;
-    let _store = ChunkStore::create(&datastore.name, path, backup_user.uid, backup_user.gid)?;
-
-    config.set_data(&datastore.name, "datastore", &datastore)?;
-
-    datastore::save_config(&config)?;
-
-    jobstate::create_state_file("prune", &datastore.name)?;
-    jobstate::create_state_file("garbage_collection", &datastore.name)?;
-
-    Ok(())
+    WorkerTask::new_thread(
+        "create-datastore",
+        Some(datastore.name.to_string()),
+        auth_id,
+        false,
+        move |_worker| do_create_datastore(lock, config, datastore),
+    )
 }
 
 #[api(

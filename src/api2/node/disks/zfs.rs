@@ -14,12 +14,14 @@ use proxmox::api::{
     },
 };
 use proxmox::api::router::Router;
+use proxmox::tools::fs::open_file_locked;
 
 use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 use crate::tools::disks::{
     zpool_list, zpool_status, parse_zpool_status_config_tree, vdev_list_to_tree,
     DiskUsageType,
 };
+use crate::config::datastore::{self, DataStoreConfig};
 
 use crate::server::WorkerTask;
 
@@ -372,7 +374,17 @@ pub fn create_zpool(
             }
 
             if add_datastore {
-                crate::api2::config::datastore::create_datastore(json!({ "name": name, "path": mount_point }))?
+                let lock = datastore::lock_config()?; 
+                let datastore: DataStoreConfig =
+                    serde_json::from_value(json!({ "name": name, "path": mount_point }))?;
+
+                let (config, _digest) = datastore::config()?;
+
+                if config.sections.get(&datastore.name).is_some() {
+                    bail!("datastore '{}' already exists.", datastore.name);
+                }
+
+                crate::api2::config::datastore::do_create_datastore(lock, config, datastore)?;
             }
 
             Ok(())

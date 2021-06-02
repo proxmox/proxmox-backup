@@ -75,6 +75,7 @@ Ext.define('PBS.DataStoreEdit', {
     isAdd: true,
 
     bodyPadding: 0,
+    showProgress: true,
 
     cbindData: function(initialConfig) {
 	var me = this;
