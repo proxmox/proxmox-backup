@@ -380,6 +380,7 @@ Ext.define('PBS.Utils', {
 	    backup: (type, id) => PBS.Utils.render_datastore_worker_id(id, gettext('Backup')),
 	    'barcode-label-media': [gettext('Drive'), gettext('Barcode-Label Media')],
 	    'catalog-media': [gettext('Drive'), gettext('Catalog Media')],
+	    'delete-datastore': [gettext('Datastore'), gettext('Remove Datastore')],
 	    dircreate: [gettext('Directory Storage'), gettext('Create')],
 	    dirremove: [gettext('Directory'), gettext('Remove')],
 	    'eject-media': [gettext('Drive'), gettext('Eject Media')],
