@@ -92,6 +92,8 @@ build:
 	sed -e '1,/^$$/ ! d' build/debian/control > build/debian/control.src
 	cat build/debian/control.src build/debian/control.in > build/debian/control
 	rm build/debian/control.in build/debian/control.src
+	# not yet settable via debcargo.toml, required for setuid binaries in `make install`
+	sed -i -e 's/^Rules-Requires-Root: no/Rules-Requires-Root: binary-targets/g' build/debian/control
 	cp build/debian/control debian/control
 	rm build/Cargo.lock
 	find build/debian -name "*.hint" -delete

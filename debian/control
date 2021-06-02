@@ -1,8 +1,8 @@
 Source: rust-proxmox-backup
 Section: admin
 Priority: optional
-Build-Depends: debhelper (>= 11),
- dh-cargo (>= 18),
+Build-Depends: debhelper (>= 12),
+ dh-cargo (>= 24),
  cargo:native,
  rustc:native,
  libstd-rust-dev,
@@ -106,10 +106,11 @@ Build-Depends: debhelper (>= 11),
  texlive-xetex <!nodoc>,
  xindy <!nodoc>
 Maintainer: Proxmox Support Team <support@proxmox.com>
-Standards-Version: 4.4.1
+Standards-Version: 4.5.1
 Vcs-Git: git://git.proxmox.com/git/proxmox-backup.git
 Vcs-Browser: https://git.proxmox.com/?p=proxmox-backup.git;a=summary
 Homepage: https://www.proxmox.com
+Rules-Requires-Root: binary-targets
 
 Package: proxmox-backup-server
 Architecture: any
