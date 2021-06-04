@@ -33,13 +33,11 @@ Ext.define('PBS.Datastore.Options', {
 		note: gettext('Configuration change only, no data will be deleted.'),
 		autoShow: true,
 		taskName: 'delete-datastore',
-		listeners: {
-		    destroy: () => {
-			let navtree = Ext.ComponentQuery.query('navigationtree')[0];
-			navtree.rstore.load();
-			let mainview = me.getView().up('mainview');
-			mainview.getController().redirectTo('pbsDataStores');
-		    },
+		apiCallDone: (success) => {
+		    let navtree = Ext.ComponentQuery.query('navigationtree')[0];
+		    navtree.rstore.load();
+		    let mainview = me.getView().up('mainview');
+		    mainview.getController().redirectTo('pbsDataStores');
 		},
 	    });
 	},
