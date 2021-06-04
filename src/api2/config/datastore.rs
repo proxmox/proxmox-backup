@@ -7,7 +7,6 @@ use ::serde::{Deserialize, Serialize};
 use proxmox::api::{api, Router, RpcEnvironment, Permission};
 use proxmox::api::section_config::SectionConfigData;
 use proxmox::api::schema::parse_property_string;
-use proxmox::tools::fs::open_file_locked;
 
 use crate::api2::types::*;
 use crate::backup::*;
@@ -141,7 +140,7 @@ pub fn create_datastore(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
 
-    let lock = open_file_locked(datastore::DATASTORE_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
+    let lock = datastore::lock_config()?;
 
     let datastore: datastore::DataStoreConfig = serde_json::from_value(param)?;
 
@@ -315,7 +314,7 @@ pub fn update_datastore(
     digest: Option<String>,
 ) -> Result<(), Error> {
 
-    let _lock = open_file_locked(datastore::DATASTORE_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
+    let _lock = datastore::lock_config()?;
 
     // pass/compare digest
     let (mut config, expected_digest) = datastore::config()?;
@@ -424,7 +423,7 @@ pub fn update_datastore(
 /// Remove a datastore configuration.
 pub async fn delete_datastore(name: String, digest: Option<String>) -> Result<(), Error> {
 
-    let _lock = open_file_locked(datastore::DATASTORE_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
+    let _lock = datastore::lock_config()?;
 
     let (mut config, expected_digest) = datastore::config()?;
 

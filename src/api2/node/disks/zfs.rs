@@ -14,7 +14,6 @@ use proxmox::api::{
     },
 };
 use proxmox::api::router::Router;
-use proxmox::tools::fs::open_file_locked;
 
 use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 use crate::tools::disks::{
