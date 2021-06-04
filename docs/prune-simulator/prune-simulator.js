@@ -37,7 +37,6 @@ Ext.onReady(function() {
 
 	editable: true,
 
-	displayField: 'text',
 	valueField: 'value',
 	queryMode: 'local',
 
