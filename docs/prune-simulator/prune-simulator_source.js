@@ -1,5 +1,5 @@
 // for Toolkit.js
-function gettxt(val) { return val; };
+function gettext(val) { return val; };
 
 Ext.onReady(function() {
     const NOW = new Date();

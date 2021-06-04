@@ -50,18 +50,22 @@ PRUNE_SIMULATOR_JS_SOURCE :=						\
 	/usr/share/javascript/proxmox-widget-toolkit-dev/Toolkit.js	\
 	prune-simulator/prune-simulator_source.js
 
+LTO_BARCODE_JS_SOURCE :=						\
+	/usr/share/javascript/proxmox-widget-toolkit-dev/Toolkit.js	\
+	lto-barcode/code39.js						\
+	lto-barcode/prefix-field.js					\
+	lto-barcode/label-style.js					\
+	lto-barcode/tape-type.js					\
+	lto-barcode/paper-size.js					\
+	lto-barcode/page-layout.js					\
+	lto-barcode/page-calibration.js					\
+	lto-barcode/label-list.js					\
+	lto-barcode/label-setup.js					\
+	lto-barcode/lto-barcode.js
+
 LTO_BARCODE_FILES :=						\
 	lto-barcode/index.html					\
-	lto-barcode/code39.js					\
-	lto-barcode/prefix-field.js				\
-	lto-barcode/label-style.js				\
-	lto-barcode/tape-type.js				\
-	lto-barcode/paper-size.js				\
-	lto-barcode/page-layout.js				\
-	lto-barcode/page-calibration.js				\
-	lto-barcode/label-list.js				\
-	lto-barcode/label-setup.js				\
-	lto-barcode/lto-barcode.js
+	lto-barcode/lto-barcode-generator.js
 
 API_VIEWER_SOURCES=				\
 	api-viewer/index.html			\
@@ -205,6 +209,10 @@ api-viewer/apidoc.js: api-viewer/apidata.js api-viewer/PBSAPI.js
 
 prune-simulator/prune-simulator.js: ${PRUNE_SIMULATOR_JS_SOURCE}
 	cat ${PRUNE_SIMULATOR_JS_SOURCE} >$@.tmp
+	mv $@.tmp $@
+
+lto-barcode/lto-barcode-generator.js: ${LTO_BARCODE_JS_SOURCE}
+	cat ${LTO_BARCODE_JS_SOURCE} >$@.tmp
 	mv $@.tmp $@
 
 .PHONY: html

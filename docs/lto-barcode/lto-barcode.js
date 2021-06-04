@@ -1,7 +1,5 @@
-// FIXME: HACK! Makes scrolling in number spinner work again. fixed in ExtJS >= 6.1
-if (Ext.isFirefox) {
-    Ext.$eventNameMap.DOMMouseScroll = 'DOMMouseScroll';
-}
+// for toolkit.js
+function gettext(val) { return val; };
 
 function draw_labels(target_id, label_list, page_layout, calibration) {
     let max_labels = compute_max_labels(page_layout);
