@@ -71,6 +71,10 @@ API_VIEWER_SOURCES=				\
 	api-viewer/index.html			\
 	api-viewer/apidoc.js
 
+API_VIEWER_FILES :=							\
+	api-viewer/apidata.js						\
+	/usr/share/javascript/proxmox-widget-toolkit-dev/APIViewer.js	\
+
 # Sphinx documentation setup
 SPHINXOPTS    =
 SPHINXBUILD   = sphinx-build
@@ -204,8 +208,9 @@ onlinehelpinfo:
 api-viewer/apidata.js: ${COMPILEDIR}/docgen
 	${COMPILEDIR}/docgen apidata.js >$@
 
-api-viewer/apidoc.js: api-viewer/apidata.js api-viewer/PBSAPI.js
-	cat api-viewer/apidata.js api-viewer/PBSAPI.js >$@
+api-viewer/apidoc.js: ${API_VIEWER_FILES}
+	cat ${API_VIEWER_FILES} >$@.tmp
+	mv $@.tmp $@
 
 prune-simulator/prune-simulator.js: ${PRUNE_SIMULATOR_JS_SOURCE}
 	cat ${PRUNE_SIMULATOR_JS_SOURCE} >$@.tmp

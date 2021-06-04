@@ -92,7 +92,7 @@ fn generate_api_tree() -> String {
     data["text"] = "Restore API (HTTP/2)".into();
     tree.push(data);
 
-    format!("var pbsapi = {};", serde_json::to_string_pretty(&tree).unwrap())
+    format!("var apiSchema = {};", serde_json::to_string_pretty(&tree).unwrap())
 }
 
 pub fn dump_schema(schema: &Schema) -> Value {
