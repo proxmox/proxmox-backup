@@ -17,6 +17,7 @@ build_depends = [
   "graphviz <!nodoc>",
   "latexmk <!nodoc>",
   "patchelf",
+  "proxmox-widget-toolkit-dev <!nodoc>",
   "pve-eslint (>= 7.18.0-1)",
   "python3-docutils",
   "python3-pygments",

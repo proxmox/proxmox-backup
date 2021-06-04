@@ -46,6 +46,10 @@ PRUNE_SIMULATOR_FILES := 					\
 	prune-simulator/clear-trigger.png			\
 	prune-simulator/prune-simulator.js
 
+PRUNE_SIMULATOR_JS_SOURCE :=						\
+	/usr/share/javascript/proxmox-widget-toolkit-dev/Toolkit.js	\
+	prune-simulator/prune-simulator_source.js
+
 LTO_BARCODE_FILES :=						\
 	lto-barcode/index.html					\
 	lto-barcode/code39.js					\
@@ -198,6 +202,10 @@ api-viewer/apidata.js: ${COMPILEDIR}/docgen
 
 api-viewer/apidoc.js: api-viewer/apidata.js api-viewer/PBSAPI.js
 	cat api-viewer/apidata.js api-viewer/PBSAPI.js >$@
+
+prune-simulator/prune-simulator.js: ${PRUNE_SIMULATOR_JS_SOURCE}
+	cat ${PRUNE_SIMULATOR_JS_SOURCE} >$@.tmp
+	mv $@.tmp $@
 
 .PHONY: html
 html: ${GENERATED_SYNOPSIS} images/proxmox-logo.svg custom.css conf.py ${PRUNE_SIMULATOR_FILES} ${LTO_BARCODE_FILES} ${API_VIEWER_SOURCES}
