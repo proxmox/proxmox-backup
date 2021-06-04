@@ -1,3 +1,6 @@
+use std::collections::{HashMap, HashSet};
+
+use lazy_static::lazy_static;
 use anyhow::{bail, Error};
 use ::serde::{Deserialize, Serialize};
 
@@ -95,10 +98,10 @@ pub fn get_smart_data(
     let mut wearout = None;
 
     let mut attributes = Vec::new();
+    let mut wearout_candidates = HashMap::new();
 
     // ATA devices
     if let Some(list) = output["ata_smart_attributes"]["table"].as_array() {
-        let wearout_id = lookup_vendor_wearout_id(disk);
         for item in list {
             let id = match item["id"].as_u64() {
                 Some(id) => id,
@@ -135,8 +138,8 @@ pub fn get_smart_data(
                 None => continue, // skip attributes without threshold entry
             };
 
-            if id == wearout_id {
-                wearout = Some(normalized);
+            if WEAROUT_FIELD_NAMES.contains(&name as &str) {
+                wearout_candidates.insert(name.clone(), normalized);
             }
 
             attributes.push(SmartAttribute {
@@ -148,6 +151,15 @@ pub fn get_smart_data(
                 worst: Some(worst),
                 threshold: Some(threshold),
             });
+        }
+    }
+
+    if !wearout_candidates.is_empty() {
+        for field in WEAROUT_FIELD_ORDER {
+            if let Some(value) = wearout_candidates.get(field as &str) {
+                wearout = Some(*value);
+                break;
+            }
         }
     }
 
@@ -186,27 +198,24 @@ pub fn get_smart_data(
     Ok(SmartData { status, wearout, attributes })
 }
 
-fn lookup_vendor_wearout_id(disk: &super::Disk) -> u64 {
+static WEAROUT_FIELD_ORDER: &[&'static str] = &[
+    "Media_Wearout_Indicator",
+    "SSD_Life_Left",
+    "Wear_Leveling_Count",
+    "Perc_Write/Erase_Ct_BC",
+    "Perc_Rated_Life_Remain",
+    "Remaining_Lifetime_Perc",
+    "Percent_Lifetime_Remain",
+    "Lifetime_Left",
+    "PCT_Life_Remaining",
+    "Lifetime_Remaining",
+    "Percent_Life_Remaining",
+    "Percent_Lifetime_Used",
+    "Perc_Rated_Life_Used"
+];
 
-    static VENDOR_MAP: &[(&str, u64)] = &[
-        ("kingston", 231),
-        ("samsung", 177),
-        ("intel", 233),
-        ("sandisk", 233),
-        ("crucial", 202),
-    ];
-
-    let result = 233; // default
-    let model = match disk.model() {
-        Some(model) => model.to_string_lossy().to_lowercase(),
-        None => return result,
+lazy_static! {
+    static ref WEAROUT_FIELD_NAMES: HashSet<&'static str> = {
+        WEAROUT_FIELD_ORDER.iter().cloned().collect()
     };
-
-    for (vendor, attr_id) in VENDOR_MAP {
-        if model.contains(vendor) {
-            return *attr_id;
-        }
-    }
-
-    result
 }
