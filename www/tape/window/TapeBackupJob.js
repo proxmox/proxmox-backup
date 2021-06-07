@@ -70,6 +70,7 @@ Ext.define('PBS.TapeManagement.BackupJobEdit', {
 		fieldLabel: gettext('Notify User'),
 		emptyText: 'root@pam',
 		allowBlank: true,
+		value: null,
 		renderer: Ext.String.htmlEncode,
 	    },
 	],
