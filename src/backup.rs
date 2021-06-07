@@ -259,3 +259,6 @@ pub use catalog_shell::*;
 
 mod async_index_reader;
 pub use async_index_reader::*;
+
+mod cached_chunk_reader;
+pub use cached_chunk_reader::*;
