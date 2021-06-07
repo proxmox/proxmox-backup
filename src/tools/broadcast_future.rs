@@ -166,4 +166,15 @@ fn test_broadcast_future() {
     let result = CHECKSUM.load(Ordering::SeqCst);
 
     assert_eq!(result, 3);
+
+    // the result stays available until the BroadcastFuture is dropped
+    rt.block_on(sender.listen()
+        .map_ok(|res| {
+            CHECKSUM.fetch_add(res*4, Ordering::SeqCst);
+        })
+        .map_err(|err| { panic!("got error {}", err); })
+        .map(|_| ()));
+
+    let result = CHECKSUM.load(Ordering::SeqCst);
+    assert_eq!(result, 7);
 }
