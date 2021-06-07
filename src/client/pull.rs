@@ -14,6 +14,7 @@ use crate::{
     backup::*,
     client::*,
     server::WorkerTask,
+    task_log,
     tools::{compute_file_csum, ParallelHandler},
 };
 use proxmox::api::error::{HttpError, StatusCode};
@@ -443,6 +444,51 @@ pub async fn pull_snapshot_from(
     Ok(())
 }
 
+struct SkipInfo {
+    oldest: i64,
+    newest: i64,
+    count: u64,
+}
+
+impl SkipInfo {
+    fn update(&mut self, backup_time: i64) {
+        self.count += 1;
+
+        if backup_time < self.oldest {
+            self.oldest = backup_time;
+        }
+
+        if backup_time > self.newest {
+            self.newest = backup_time;
+        }
+    }
+
+    fn affected(&self) -> Result<String, Error> {
+        match self.count {
+            0 => Ok(String::new()),
+            1 => proxmox::tools::time::epoch_to_rfc3339_utc(self.oldest),
+            _ => {
+                Ok(format!(
+                    "{} .. {}",
+                    proxmox::tools::time::epoch_to_rfc3339_utc(self.oldest)?,
+                    proxmox::tools::time::epoch_to_rfc3339_utc(self.newest)?,
+                ))
+            }
+        }
+    }
+}
+
+impl std::fmt::Display for SkipInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "skipped: {} snapshot(s) ({}) older than the newest local snapshot",
+            self.count,
+            self.affected().map_err(|_| std::fmt::Error)?
+        )
+    }
+}
+
 pub async fn pull_group(
     worker: &WorkerTask,
     client: &HttpClient,
@@ -477,6 +523,12 @@ pub async fn pull_group(
 
     progress.group_snapshots = list.len() as u64;
 
+    let mut skip_info = SkipInfo {
+        oldest: i64::MAX,
+        newest: i64::MIN,
+        count: 0,
+    };
+
     for (pos, item) in list.into_iter().enumerate() {
         let snapshot = BackupDir::new(item.backup_type, item.backup_id, item.backup_time)?;
 
@@ -495,6 +547,7 @@ pub async fn pull_group(
 
         if let Some(last_sync_time) = last_sync {
             if last_sync_time > backup_time {
+                skip_info.update(backup_time);
                 continue;
             }
         }
@@ -550,6 +603,10 @@ pub async fn pull_group(
             ));
             tgt_store.remove_backup_dir(&info.backup_dir, false)?;
         }
+    }
+
+    if skip_info.count > 0 {
+        task_log!(worker, "{}", skip_info);
     }
 
     Ok(())
