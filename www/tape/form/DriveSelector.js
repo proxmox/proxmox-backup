@@ -3,6 +3,8 @@ Ext.define('PBS.form.DriveSelector', {
     alias: 'widget.pbsDriveSelector',
 
     allowBlank: false,
+    autoSelect: false,
+
     displayField: 'name',
     valueField: 'name',
     value: null,
@@ -15,8 +17,6 @@ Ext.define('PBS.form.DriveSelector', {
 	autoLoad: true,
 	sorters: 'name',
     },
-
-    autoSelect: false,
 
     listConfig: {
 	columns: [
