@@ -19,33 +19,34 @@ Ext.define('PBS.form.DriveSelector', {
     },
 
     listConfig: {
+	width: 450,
 	columns: [
 	    {
 		text: gettext('Name'),
 		dataIndex: 'name',
 		sortable: true,
-		flex: 1,
+		flex: 3,
 		renderer: Ext.String.htmlEncode,
 	    },
 	    {
 		text: gettext('Vendor'),
 		dataIndex: 'vendor',
 		sortable: true,
-		flex: 1,
+		flex: 2,
 		renderer: Ext.String.htmlEncode,
 	    },
 	    {
 		text: gettext('Model'),
 		dataIndex: 'model',
 		sortable: true,
-		flex: 1,
+		flex: 3,
 		renderer: Ext.String.htmlEncode,
 	    },
 	    {
 		text: gettext('Serial'),
 		dataIndex: 'serial',
 		sortable: true,
-		flex: 1,
+		flex: 3,
 		renderer: Ext.String.htmlEncode,
 	    },
 	],
