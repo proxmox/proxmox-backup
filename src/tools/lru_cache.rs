@@ -106,6 +106,7 @@ unsafe impl<K: Send, V: Send> Send for LruCache<K, V> {}
 impl<K: std::cmp::Eq + std::hash::Hash + Copy, V> LruCache<K, V> {
     /// Create LRU cache instance which holds up to `capacity` nodes at once.
     pub fn new(capacity: usize) -> Self {
+        let capacity = capacity.min(1);
         Self {
             map: HashMap::with_capacity(capacity),
             list: LinkedList::new(),
