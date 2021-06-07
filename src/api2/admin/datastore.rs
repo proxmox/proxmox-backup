@@ -1182,7 +1182,7 @@ pub fn download_file_decoded(
                 manifest.verify_file(&file_name, &csum, size)?;
 
                 let chunk_reader = LocalChunkReader::new(datastore, None, CryptMode::None);
-                let reader = AsyncIndexReader::new(index, chunk_reader);
+                let reader = CachedChunkReader::new(chunk_reader, index, 1).seekable();
                 Body::wrap_stream(AsyncReaderStream::new(reader)
                     .map_err(move |err| {
                         eprintln!("error during streaming of '{:?}' - {}", path, err);
@@ -1197,7 +1197,7 @@ pub fn download_file_decoded(
                 manifest.verify_file(&file_name, &csum, size)?;
 
                 let chunk_reader = LocalChunkReader::new(datastore, None, CryptMode::None);
-                let reader = AsyncIndexReader::new(index, chunk_reader);
+                let reader = CachedChunkReader::new(chunk_reader, index, 1).seekable();
                 Body::wrap_stream(AsyncReaderStream::with_buffer_size(reader, 4*1024*1024)
                     .map_err(move |err| {
                         eprintln!("error during streaming of '{:?}' - {}", path, err);

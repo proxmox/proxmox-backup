@@ -25,7 +25,7 @@ use proxmox_backup::backup::{
     BackupDir,
     BackupGroup,
     BufferedDynamicReader,
-    AsyncIndexReader,
+    CachedChunkReader,
 };
 
 use proxmox_backup::client::*;
@@ -281,7 +281,7 @@ async fn mount_do(param: Value, pipe: Option<Fd>) -> Result<Value, Error> {
         let index = client.download_fixed_index(&manifest, &server_archive_name).await?;
         let size = index.index_bytes();
         let chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config, file_info.chunk_crypt_mode(), HashMap::new());
-        let reader = AsyncIndexReader::new(index, chunk_reader);
+        let reader = CachedChunkReader::new(chunk_reader, index, 8).seekable();
 
         let name = &format!("{}:{}/{}", repo.to_string(), path, archive_name);
         let name_escaped = tools::systemd::escape_unit(name, false);
