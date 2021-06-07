@@ -16,6 +16,8 @@ Ext.define('PBS.form.DriveSelector', {
 	sorters: 'name',
     },
 
+    autoSelect: false,
+
     listConfig: {
 	columns: [
 	    {
