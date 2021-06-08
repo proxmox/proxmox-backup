@@ -368,7 +368,10 @@ impl Flags {
                 Flags::WITH_SYMLINKS |
                 Flags::WITH_DEVICE_NODES |
                 Flags::WITH_FIFOS |
-                Flags::WITH_SOCKETS
+                Flags::WITH_SOCKETS |
+                Flags::WITH_XATTRS |
+                Flags::WITH_ACL |
+                Flags::WITH_FCAPS
             },
         }
     }
