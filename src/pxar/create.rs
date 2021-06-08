@@ -169,7 +169,7 @@ where
         bail!("refusing to backup a virtual file system");
     }
 
-    let fs_feature_flags = Flags::from_magic(fs_magic);
+    let mut fs_feature_flags = Flags::from_magic(fs_magic);
 
     let stat = nix::sys::stat::fstat(source_dir.as_raw_fd())?;
     let metadata = get_metadata(
@@ -177,6 +177,7 @@ where
         &stat,
         feature_flags & fs_feature_flags,
         fs_magic,
+        &mut fs_feature_flags,
     )
     .map_err(|err| format_err!("failed to get metadata for source directory: {}", err))?;
 
@@ -533,7 +534,7 @@ impl Archiver {
             None => return Ok(()),
         };
 
-        let metadata = get_metadata(fd.as_raw_fd(), &stat, self.flags(), self.fs_magic)?;
+        let metadata = get_metadata(fd.as_raw_fd(), &stat, self.flags(), self.fs_magic, &mut self.fs_feature_flags)?;
 
         if self
             .patterns
@@ -742,7 +743,7 @@ impl Archiver {
     }
 }
 
-fn get_metadata(fd: RawFd, stat: &FileStat, flags: Flags, fs_magic: i64) -> Result<Metadata, Error> {
+fn get_metadata(fd: RawFd, stat: &FileStat, flags: Flags, fs_magic: i64, fs_feature_flags: &mut Flags) -> Result<Metadata, Error> {
     // required for some of these
     let proc_path = Path::new("/proc/self/fd/").join(fd.to_string());
 
@@ -757,14 +758,14 @@ fn get_metadata(fd: RawFd, stat: &FileStat, flags: Flags, fs_magic: i64) -> Resu
         ..Default::default()
     };
 
-    get_xattr_fcaps_acl(&mut meta, fd, &proc_path, flags)?;
+    get_xattr_fcaps_acl(&mut meta, fd, &proc_path, flags, fs_feature_flags)?;
     get_chattr(&mut meta, fd)?;
     get_fat_attr(&mut meta, fd, fs_magic)?;
     get_quota_project_id(&mut meta, fd, flags, fs_magic)?;
     Ok(meta)
 }
 
-fn get_fcaps(meta: &mut Metadata, fd: RawFd, flags: Flags) -> Result<(), Error> {
+fn get_fcaps(meta: &mut Metadata, fd: RawFd, flags: Flags, fs_feature_flags: &mut Flags) -> Result<(), Error> {
     if !flags.contains(Flags::WITH_FCAPS) {
         return Ok(());
     }
@@ -775,7 +776,10 @@ fn get_fcaps(meta: &mut Metadata, fd: RawFd, flags: Flags) -> Result<(), Error> 
             Ok(())
         }
         Err(Errno::ENODATA) => Ok(()),
-        Err(Errno::EOPNOTSUPP) => Ok(()),
+        Err(Errno::EOPNOTSUPP) => {
+            fs_feature_flags.remove(Flags::WITH_FCAPS);
+            Ok(())
+        }
         Err(Errno::EBADF) => Ok(()), // symlinks
         Err(err) => bail!("failed to read file capabilities: {}", err),
     }
@@ -786,6 +790,7 @@ fn get_xattr_fcaps_acl(
     fd: RawFd,
     proc_path: &Path,
     flags: Flags,
+    fs_feature_flags: &mut Flags,
 ) -> Result<(), Error> {
     if !flags.contains(Flags::WITH_XATTRS) {
         return Ok(());
@@ -793,19 +798,22 @@ fn get_xattr_fcaps_acl(
 
     let xattrs = match xattr::flistxattr(fd) {
         Ok(names) => names,
-        Err(Errno::EOPNOTSUPP) => return Ok(()),
+        Err(Errno::EOPNOTSUPP) => {
+            fs_feature_flags.remove(Flags::WITH_XATTRS);
+            return Ok(());
+        },
         Err(Errno::EBADF) => return Ok(()), // symlinks
         Err(err) => bail!("failed to read xattrs: {}", err),
     };
 
     for attr in &xattrs {
         if xattr::is_security_capability(&attr) {
-            get_fcaps(meta, fd, flags)?;
+            get_fcaps(meta, fd, flags, fs_feature_flags)?;
             continue;
         }
 
         if xattr::is_acl(&attr) {
-            get_acl(meta, proc_path, flags)?;
+            get_acl(meta, proc_path, flags, fs_feature_flags)?;
             continue;
         }
 
@@ -910,7 +918,7 @@ fn get_quota_project_id(
     Ok(())
 }
 
-fn get_acl(metadata: &mut Metadata, proc_path: &Path, flags: Flags) -> Result<(), Error> {
+fn get_acl(metadata: &mut Metadata, proc_path: &Path, flags: Flags, fs_feature_flags: &mut Flags) -> Result<(), Error> {
     if !flags.contains(Flags::WITH_ACL) {
         return Ok(());
     }
@@ -919,10 +927,10 @@ fn get_acl(metadata: &mut Metadata, proc_path: &Path, flags: Flags) -> Result<()
         return Ok(());
     }
 
-    get_acl_do(metadata, proc_path, acl::ACL_TYPE_ACCESS)?;
+    get_acl_do(metadata, proc_path, acl::ACL_TYPE_ACCESS, fs_feature_flags)?;
 
     if metadata.is_dir() {
-        get_acl_do(metadata, proc_path, acl::ACL_TYPE_DEFAULT)?;
+        get_acl_do(metadata, proc_path, acl::ACL_TYPE_DEFAULT, fs_feature_flags)?;
     }
 
     Ok(())
@@ -932,6 +940,7 @@ fn get_acl_do(
     metadata: &mut Metadata,
     proc_path: &Path,
     acl_type: acl::ACLType,
+    fs_feature_flags: &mut Flags,
 ) -> Result<(), Error> {
     // In order to be able to get ACLs with type ACL_TYPE_DEFAULT, we have
     // to create a path for acl_get_file(). acl_get_fd() only allows to get
@@ -939,7 +948,10 @@ fn get_acl_do(
     let acl = match acl::ACL::get_file(&proc_path, acl_type) {
         Ok(acl) => acl,
         // Don't bail if underlying endpoint does not support acls
-        Err(Errno::EOPNOTSUPP) => return Ok(()),
+        Err(Errno::EOPNOTSUPP) => {
+            fs_feature_flags.remove(Flags::WITH_ACL);
+            return Ok(());
+        }
         // Don't bail if the endpoint cannot carry acls
         Err(Errno::EBADF) => return Ok(()),
         // Don't bail if there is no data
