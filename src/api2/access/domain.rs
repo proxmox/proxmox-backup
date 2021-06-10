@@ -18,8 +18,7 @@ use crate::api2::types::*;
             description: "User configuration (without password).",
             properties: {
                 realm: {
-                    description: "Realm ID.",
-                    type: String,
+                    schema: REALM_ID_SCHEMA,
                 },
                 comment: {
                     schema: SINGLE_LINE_COMMENT_SCHEMA,
