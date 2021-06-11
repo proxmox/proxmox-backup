@@ -31,6 +31,7 @@ pub mod drive;
 pub mod media_pool;
 pub mod tape_encryption_keys;
 pub mod tape_job;
+pub mod domains;
 
 /// Check configuration directory permissions
 ///
