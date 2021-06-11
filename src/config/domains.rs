@@ -118,3 +118,12 @@ pub fn complete_realm_name(_arg: &str, _param: &HashMap<String, String>) -> Vec<
         Err(_) => return vec![],
     }
 }
+
+pub fn complete_openid_realm_name(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
+    match config() {
+        Ok((data, _digest)) => data.sections.iter()
+            .filter_map(|(id, (t, _))| if t == "openid" { Some(id.to_string()) } else { None })
+            .collect(),
+        Err(_) => return vec![],
+    }
+}

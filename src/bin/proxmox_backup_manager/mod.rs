@@ -24,3 +24,5 @@ mod disk;
 pub use disk::*;
 mod node;
 pub use node::*;
+mod openid;
+pub use openid::*;

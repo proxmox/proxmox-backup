@@ -362,6 +362,7 @@ fn main() {
         .insert("network", network_commands())
         .insert("node", node_commands())
         .insert("user", user_commands())
+        .insert("openid", openid_commands())
         .insert("remote", remote_commands())
         .insert("garbage-collection", garbage_collection_commands())
         .insert("acme", acme_mgmt_cli())
