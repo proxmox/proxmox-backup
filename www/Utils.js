@@ -326,6 +326,14 @@ Ext.define('PBS.Utils', {
         };
     },
 
+    openid_login_param: function() {
+	let param = Ext.Object.fromQueryString(window.location.search);
+	if (param.state !== undefined && param.code !== undefined) {
+	    return param;
+	}
+	return undefined;
+    },
+
     calculate_dedup_factor: function(gcstatus) {
 	let dedup = 1.0;
 	if (gcstatus['disk-bytes'] > 0) {

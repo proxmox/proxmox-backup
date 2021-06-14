@@ -2,6 +2,21 @@ Ext.define('PBS.LoginView', {
     extend: 'Ext.container.Container',
     xtype: 'loginview',
 
+    viewModel: {
+	data: {
+	    openid: false,
+	},
+	formulas: {
+	    button_text: function(get) {
+		if (get("openid") === true) {
+		    return gettext("Login (OpenID redirect)");
+		} else {
+		    return gettext("Login");
+		}
+	    },
+	},
+    },
+
     controller: {
 	xclass: 'Ext.app.ViewController',
 
@@ -15,7 +30,32 @@ Ext.define('PBS.LoginView', {
 		return;
 	    }
 
+	    let redirect_url = location.origin;
+
 	    let params = loginForm.getValues();
+
+	    if (this.getViewModel().data.openid === true) {
+		let realm = params.realm;
+		try {
+		    let resp = await PBS.Async.api2({
+			url: '/api2/extjs/access/openid/auth-url',
+			params: {
+			    realm: realm,
+			    "redirect-url": redirect_url,
+			},
+			method: 'POST',
+		    });
+		    window.location = resp.result.data;
+		} catch (error) {
+		    Proxmox.Utils.authClear();
+		    loginForm.unmask();
+		    Ext.MessageBox.alert(
+			gettext('Error'),
+			gettext('OpenId redirect failed. Please try again<br>Error: ' + error),
+		    );
+		}
+		return;
+	    }
 
 	    params.username = params.username + '@' + params.realm;
 	    delete params.realm;
@@ -98,6 +138,14 @@ Ext.define('PBS.LoginView', {
 		    window.location.reload();
 		},
 	    },
+	    'field[name=realm]': {
+		change: function(f, value) {
+		    let record = f.store.getById(value);
+		    if (record === undefined) return;
+		    let data = record.data;
+		    this.getViewModel().set("openid", data.type === "openid");
+		},
+	    },
 	    'button[reference=loginButton]': {
 		click: 'submitForm',
 	    },
@@ -115,6 +163,43 @@ Ext.define('PBS.LoginView', {
 			unField.setValue(username);
 			var pwField = this.lookupReference('passwordField');
 			pwField.focus();
+		    }
+
+		    let param = PBS.Utils.openid_login_param();
+		    if (param !== undefined) {
+			Proxmox.Utils.authClear();
+
+			let loginForm = this.lookupReference('loginForm');
+			loginForm.mask(gettext('OpenID login - please wait...'), 'x-mask-loading');
+
+			let redirect_url = location.origin;
+
+			Proxmox.Utils.API2Request({
+			    url: '/api2/extjs/access/openid/login',
+			    params: {
+				state: param.state,
+				code: param.code,
+				"redirect-url": redirect_url,
+			    },
+			    method: 'POST',
+			    failure: function(response) {
+				loginForm.unmask();
+				Ext.MessageBox.alert(
+				    gettext('Error'),
+				    gettext('Login failed. Please try again<br>Error: ' + response.htmlStatus),
+				    function() {
+					window.location = redirect_url;
+				    },
+				);
+			    },
+			    success: function(response, options) {
+				loginForm.unmask();
+				let data = response.result.data;
+				PBS.Utils.updateLoginData(data);
+				PBS.app.changeView('mainview');
+				history.replaceState(null, '', redirect_url + '#pbsDashboard');
+			    },
+			});
 		    }
 		},
 	    },
@@ -191,6 +276,10 @@ Ext.define('PBS.LoginView', {
 			    itemId: 'usernameField',
 			    reference: 'usernameField',
 			    stateId: 'login-username',
+			    bind: {
+				visible: "{!openid}",
+				disabled: "{openid}",
+			    },
 			},
 			{
 			    xtype: 'textfield',
@@ -199,6 +288,10 @@ Ext.define('PBS.LoginView', {
 			    name: 'password',
 			    itemId: 'passwordField',
 			    reference: 'passwordField',
+			    bind: {
+				visible: "{!openid}",
+				disabled: "{openid}",
+			    },
 			},
 			{
 			    xtype: 'pmxRealmComboBox',
@@ -223,9 +316,14 @@ Ext.define('PBS.LoginView', {
 			    labelWidth: 250,
 			    labelAlign: 'right',
 			    submitValue: false,
+			    bind: {
+				visible: "{!openid}",
+			    },
 			},
 			{
-			    text: gettext('Login'),
+			    bind: {
+				text: "{button_text}",
+			    },
 			    reference: 'loginButton',
 			    formBind: true,
 			},
