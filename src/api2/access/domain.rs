@@ -60,9 +60,6 @@ fn list_domains() -> Result<Value, Error> {
     }
 
     Ok(list.into())
-
-
-
 }
 
 pub const ROUTER: Router = Router::new()

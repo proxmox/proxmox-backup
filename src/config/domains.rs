@@ -3,6 +3,8 @@ use lazy_static::lazy_static;
 use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
 
+use proxmox_openid::{OpenIdAuthenticator,  OpenIdConfig};
+
 use proxmox::api::{
     api,
     schema::*,
@@ -25,6 +27,22 @@ lazy_static! {
     pub static ref CONFIG: SectionConfig = init();
 }
 
+#[api()]
+#[derive(Eq, PartialEq, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+/// Use the value of this attribute/claim as unique user name. It is
+/// up to the identity provider to guarantee the uniqueness. The
+/// OpenID specification only guarantees that Subject ('sub') is unique. Also
+/// make sure that the user is not allowed to change that attribute by
+/// himself!
+pub enum OpenIdUserAttribute {
+    /// Subject (OpenId 'sub' claim)
+    Subject,
+    /// Username (OpenId 'preferred_username' claim)
+    Username,
+    /// Email (OpenId 'email' claim)
+    Email,
+}
 
 #[api(
     properties: {
@@ -48,6 +66,16 @@ lazy_static! {
             optional: true,
             schema: SINGLE_LINE_COMMENT_SCHEMA,
         },
+        autocreate: {
+            description: "Automatically create users if they do not exist.",
+            optional: true,
+            type: bool,
+            default: false,
+        },
+        "username-claim": {
+            type: OpenIdUserAttribute,
+            optional: true,
+        },
     },
 )]
 #[derive(Serialize,Deserialize)]
@@ -61,6 +89,22 @@ pub struct OpenIdRealmConfig {
     pub client_key: Option<String>,
     #[serde(skip_serializing_if="Option::is_none")]
     pub comment: Option<String>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub autocreate: Option<bool>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub username_claim: Option<OpenIdUserAttribute>,
+}
+
+impl OpenIdRealmConfig {
+
+    pub fn authenticator(&self, redirect_url: &str) -> Result<OpenIdAuthenticator, Error> {
+        let config = OpenIdConfig {
+            issuer_url: self.issuer_url.clone(),
+            client_id: self.client_id.clone(),
+            client_key: self.client_key.clone(),
+        };
+        OpenIdAuthenticator::discover(&config, redirect_url)
+    }
 }
 
 fn init() -> SectionConfig {

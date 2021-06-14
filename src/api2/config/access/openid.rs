@@ -153,6 +153,8 @@ pub enum DeletableProperty {
     client_key,
     /// Delete the comment property.
     comment,
+    /// Delete the autocreate property
+    autocreate,
 }
 
 #[api(
@@ -176,6 +178,11 @@ pub enum DeletableProperty {
                 description: "OpenID Client Key",
                 type: String,
                 optional: true,
+            },
+            autocreate: {
+                description: "Automatically create users if they do not exist.",
+                optional: true,
+                type: bool,
             },
             comment: {
                 schema: SINGLE_LINE_COMMENT_SCHEMA,
@@ -206,6 +213,7 @@ pub fn update_openid_realm(
     issuer_url: Option<String>,
     client_id: Option<String>,
     client_key: Option<String>,
+    autocreate: Option<bool>,
     comment: Option<String>,
     delete: Option<Vec<DeletableProperty>>,
     digest: Option<String>,
@@ -228,6 +236,7 @@ pub fn update_openid_realm(
             match delete_prop {
                 DeletableProperty::client_key => { config.client_key = None; },
                 DeletableProperty::comment => { config.comment = None; },
+                DeletableProperty::autocreate => { config.autocreate = None; },
             }
         }
     }
@@ -245,6 +254,7 @@ pub fn update_openid_realm(
     if let Some(client_id) = client_id { config.client_id = client_id; }
 
     if client_key.is_some() { config.client_key = client_key; }
+    if autocreate.is_some() { config.autocreate = autocreate; }
 
     domains.set_data(&realm, "openid", &config)?;
 

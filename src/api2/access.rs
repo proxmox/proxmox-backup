@@ -26,6 +26,7 @@ pub mod domain;
 pub mod role;
 pub mod tfa;
 pub mod user;
+pub mod openid;
 
 #[allow(clippy::large_enum_variant)]
 enum AuthResult {
@@ -335,7 +336,7 @@ pub fn list_permissions(
     let auth_id = match auth_id {
         Some(auth_id) if auth_id == current_auth_id => current_auth_id,
         Some(auth_id) => {
-            if user_privs & PRIV_SYS_AUDIT != 0 
+            if user_privs & PRIV_SYS_AUDIT != 0
                 || (auth_id.is_token()
                     && !current_auth_id.is_token()
                     && auth_id.user() == current_auth_id.user())
@@ -423,6 +424,7 @@ const SUBDIRS: SubdirMap = &sorted!([
         &Router::new().get(&API_METHOD_LIST_PERMISSIONS)
     ),
     ("ticket", &Router::new().post(&API_METHOD_CREATE_TICKET)),
+    ("openid", &openid::ROUTER),
     ("domains", &domain::ROUTER),
     ("roles", &role::ROUTER),
     ("users", &user::ROUTER),
