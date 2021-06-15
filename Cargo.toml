@@ -84,6 +84,8 @@ crossbeam-channel = "0.5"
 
 proxmox-acme-rs = "0.2.1"
 
+proxmox-openid = "0.6.0"
+
 [features]
 default = []
 #valgrind = ["valgrind_request"]
