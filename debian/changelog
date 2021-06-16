@@ -1,4 +1,32 @@
-rust-proxmox-backup (1.1.9-1) unstable; urgency=medium
+rust-proxmox-backup (1.1.10-1) buster; urgency=medium
+
+  * ui: datastore list summary: catch and show errors per datastore
+
+  * ui: dashboard: task summary: add a 'close' tool to the header
+
+  * ensure that backups which are currently being restored or backed up to a
+    tape won't get pruned
+
+  * improve error handling when locking a tape drive for a backup job
+
+  * client/pull: log snapshots that are skipped because of creation time being
+    older than last sync time
+
+  * ui: datastore options: add remove button to drop a datastore from the
+    configuration, without removing any actual data
+
+  * ui: tape: drive selector: do not autoselect the drive
+
+  * ui: tape: backup job: use correct default value for pbsUserSelector
+
+  * fix #3433: disks: port over Proxmox VE's S.M.A.R.T wearout logic
+
+  * backup: add helpers for async last recently used (LRU) caches for chunk
+    and index reading of backup snapshot
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 16 Jun 2021 09:46:15 +0200
+
+rust-proxmox-backup (1.1.9-1) stable; urgency=medium
 
   * lto/sg_tape/encryption: remove non lto-4 supported byte
 
