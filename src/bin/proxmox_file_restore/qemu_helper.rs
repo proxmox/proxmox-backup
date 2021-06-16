@@ -188,11 +188,10 @@ pub async fn start_vm(
         "-initrd",
         &ramfs_path,
         "-append",
-        if debug {
-            "debug panic=1"
-        } else {
-            "quiet panic=1"
-        },
+        &format!(
+            "{} panic=1 zfs_arc_min=0 zfs_arc_max=0",
+            if debug { "debug" } else { "quiet" }
+        ),
         "-daemonize",
         "-pidfile",
         &format!("/dev/fd/{}", pid_fd.as_raw_fd()),
@@ -240,9 +239,9 @@ pub async fn start_vm(
     } else {
         // add more RAM if many drives are given
         match id {
-            f if f < 10 => 128,
-            f if f < 20 => 192,
-            _ => 256,
+            f if f < 10 => 192,
+            f if f < 20 => 256,
+            _ => 384,
         }
     };
 
