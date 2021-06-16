@@ -65,10 +65,8 @@ impl CachedUserInfo {
         }
     }
 
-    /// Test if a authentication id is enabled and not expired
-    pub fn is_active_auth_id(&self, auth_id: &Authid) -> bool {
-        let userid = auth_id.user();
-
+    /// Test if a user_id is enabled and not expired
+    pub fn is_active_user_id(&self, userid: &Userid) -> bool {
         if let Ok(info) = self.user_cfg.lookup::<User>("user", userid.as_str()) {
             if !info.enable.unwrap_or(true) {
                 return false;
@@ -78,7 +76,17 @@ impl CachedUserInfo {
                     return false;
                 }
             }
+            true
         } else {
+            false
+        }
+    }
+
+    /// Test if a authentication id is enabled and not expired
+    pub fn is_active_auth_id(&self, auth_id: &Authid) -> bool {
+        let userid = auth_id.user();
+
+        if !self.is_active_user_id(userid) {
             return false;
         }
 
