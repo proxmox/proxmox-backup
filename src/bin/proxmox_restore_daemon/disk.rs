@@ -7,13 +7,17 @@ use std::collections::HashMap;
 use std::fs::{create_dir_all, File};
 use std::io::{BufRead, BufReader};
 use std::path::{Component, Path, PathBuf};
+use std::process::Command;
 
 use proxmox::const_regex;
 use proxmox::tools::fs;
 use proxmox_backup::api2::types::BLOCKDEVICE_NAME_REGEX;
+use proxmox_backup::tools::run_command;
 
 const_regex! {
     VIRTIO_PART_REGEX = r"^vd[a-z]+(\d+)$";
+    ZPOOL_POOL_NAME_REGEX = r"^ {3}pool: (.*)$";
+    ZPOOL_IMPORT_DISK_REGEX = r"^\t {2,4}(vd[a-z]+(?:\d+)?)\s+ONLINE$";
 }
 
 lazy_static! {
@@ -43,9 +47,17 @@ pub enum ResolveResult {
     BucketComponents(Vec<(String, u64)>),
 }
 
+#[derive(Clone)]
 struct PartitionBucketData {
     dev_node: String,
     number: i32,
+    mountpoint: Option<PathBuf>,
+    size: u64,
+}
+
+#[derive(Clone)]
+struct ZFSBucketData {
+    name: String,
     mountpoint: Option<PathBuf>,
     size: u64,
 }
@@ -60,9 +72,11 @@ struct PartitionBucketData {
 ///   path: relative path of the file on the filesystem indicated by the other parts, may contain
 ///         more subdirectories
 /// e.g.: "/drive-scsi0/part/0/etc/passwd"
+#[derive(Clone)]
 enum Bucket {
     Partition(PartitionBucketData),
     RawFs(PartitionBucketData),
+    ZPool(ZFSBucketData),
 }
 
 impl Bucket {
@@ -81,6 +95,13 @@ impl Bucket {
                 }
             }
             Bucket::RawFs(_) => ty == "raw",
+            Bucket::ZPool(data) => {
+                if let Some(ref comp) = comp.get(0) {
+                    ty == "zpool" && comp.as_ref() == &data.name
+                } else {
+                    false
+                }
+            }
         })
     }
 
@@ -88,6 +109,7 @@ impl Bucket {
         match self {
             Bucket::Partition(_) => "part",
             Bucket::RawFs(_) => "raw",
+            Bucket::ZPool(_) => "zpool",
         }
     }
 
@@ -104,6 +126,7 @@ impl Bucket {
         Ok(match self {
             Bucket::Partition(data) => data.number.to_string(),
             Bucket::RawFs(_) => "raw".to_owned(),
+            Bucket::ZPool(data) => data.name.clone(),
         })
     }
 
@@ -111,6 +134,7 @@ impl Bucket {
         Ok(match type_string {
             "part" => 1,
             "raw" => 0,
+            "zpool" => 1,
             _ => bail!("invalid bucket type for component depth: {}", type_string),
         })
     }
@@ -118,6 +142,7 @@ impl Bucket {
     fn size(&self) -> u64 {
         match self {
             Bucket::Partition(data) | Bucket::RawFs(data) => data.size,
+            Bucket::ZPool(data) => data.size,
         }
     }
 }
@@ -159,6 +184,59 @@ impl Filesystems {
                 let mp = format!("/mnt{}/", data.dev_node);
                 self.try_mount(&data.dev_node, &mp)?;
                 let mp = PathBuf::from(mp);
+                data.mountpoint = Some(mp.clone());
+                Ok(mp)
+            }
+            Bucket::ZPool(data) => {
+                if let Some(mp) = &data.mountpoint {
+                    return Ok(mp.clone());
+                }
+
+                let mntpath = format!("/mnt/{}", &data.name);
+                create_dir_all(&mntpath)?;
+
+                // call ZFS tools to import and mount the pool with the root mount at 'mntpath'
+                let mut cmd = Command::new("/sbin/zpool");
+                cmd.args(
+                    [
+                        "import",
+                        "-f",
+                        "-o",
+                        "readonly=on",
+                        "-d",
+                        "/dev",
+                        "-R",
+                        &mntpath,
+                        &data.name,
+                    ]
+                    .iter(),
+                );
+                if let Err(msg) = run_command(cmd, None) {
+                    // ignore double import, this may happen if a previous attempt failed further
+                    // down below - this way we can at least try again
+                    if !msg
+                        .to_string()
+                        .contains("a pool with that name already exists")
+                    {
+                        return Err(msg);
+                    }
+                }
+
+                // 'mount -a' simply mounts all datasets that haven't been automounted, which
+                // should only be ones that we've imported just now
+                let mut cmd = Command::new("/sbin/zfs");
+                cmd.args(["mount", "-a"].iter());
+                run_command(cmd, None)?;
+
+                // Now that we have imported the pool, we can also query the size
+                let mut cmd = Command::new("/sbin/zpool");
+                cmd.args(["list", "-o", "size", "-Hp", &data.name].iter());
+                let size = run_command(cmd, None)?;
+                if let Ok(size) = size.trim().parse::<u64>() {
+                    data.size = size;
+                }
+
+                let mp = PathBuf::from(mntpath);
                 data.mountpoint = Some(mp.clone());
                 Ok(mp)
             }
@@ -204,9 +282,11 @@ impl DiskState {
     pub fn scan() -> Result<Self, Error> {
         let filesystems = Filesystems::scan()?;
 
+        let mut disk_map = HashMap::new();
+        let mut drive_info = HashMap::new();
+
         // create mapping for virtio drives and .fidx files (via serial description)
         // note: disks::DiskManager relies on udev, which we don't have
-        let mut disk_map = HashMap::new();
         for entry in proxmox_backup::tools::fs::scan_subdir(
             libc::AT_FDCWD,
             "/sys/block",
@@ -229,6 +309,8 @@ impl DiskState {
                     continue;
                 }
             };
+
+            drive_info.insert(name.to_owned(), fidx.clone());
 
             // attempt to mount device directly
             let dev_node = format!("/dev/{}", name);
@@ -281,9 +363,53 @@ impl DiskState {
                 });
 
                 parts.push(bucket);
+
+                drive_info.insert(part_name.to_owned(), fidx.clone());
             }
 
             disk_map.insert(fidx, parts);
+        }
+
+        // After the above, every valid disk should have a device node in /dev, so we can query all
+        // of them for zpools
+        let mut cmd = Command::new("/sbin/zpool");
+        cmd.args(["import", "-d", "/dev"].iter());
+        let result = run_command(cmd, None).unwrap();
+        for (pool, disks) in Self::parse_zpool_import(&result) {
+            let mut bucket = Bucket::ZPool(ZFSBucketData {
+                name: pool.clone(),
+                size: 0,
+                mountpoint: None,
+            });
+
+            // anything more than 5 disks we assume to take too long to mount, so we don't
+            // automatically - this means that no size can be reported
+            if disks.len() <= 5 {
+                let mp = filesystems.ensure_mounted(&mut bucket);
+                info!(
+                    "zpool '{}' (on: {:?}) auto-mounted at '{:?}' (size: {}B)",
+                    &pool,
+                    &disks,
+                    mp,
+                    bucket.size()
+                );
+            } else {
+                info!(
+                    "zpool '{}' (on: {:?}) auto-mount skipped, too many disks",
+                    &pool, &disks
+                );
+            }
+
+            for disk in disks {
+                if let Some(fidx) = drive_info.get(&disk) {
+                    match disk_map.get_mut(fidx) {
+                        Some(v) => v.push(bucket.clone()),
+                        None => {
+                            disk_map.insert(fidx.to_owned(), vec![bucket.clone()]);
+                        }
+                    }
+                }
+            }
         }
 
         Ok(Self {
@@ -418,5 +544,30 @@ impl DiskState {
         let dev = stat::makedev(maj, min);
         stat::mknod(path, stat::SFlag::S_IFBLK, stat::Mode::S_IRWXU, dev)?;
         Ok(())
+    }
+
+    fn parse_zpool_import(data: &str) -> Vec<(String, Vec<String>)> {
+        let mut ret = Vec::new();
+        let mut disks = Vec::new();
+        let mut cur = "".to_string();
+        for line in data.lines() {
+            if let Some(groups) = (ZPOOL_POOL_NAME_REGEX.regex_obj)().captures(line) {
+                if let Some(name) = groups.get(1) {
+                    if !disks.is_empty() {
+                        ret.push((cur, disks.clone()));
+                    }
+                    disks.clear();
+                    cur = name.as_str().to_owned();
+                }
+            } else if let Some(groups) = (ZPOOL_IMPORT_DISK_REGEX.regex_obj)().captures(line) {
+                if let Some(disk) = groups.get(1) {
+                    disks.push(disk.as_str().to_owned());
+                }
+            }
+        }
+        if !disks.is_empty() && !cur.is_empty() {
+            ret.push((cur, disks));
+        }
+        ret
     }
 }
