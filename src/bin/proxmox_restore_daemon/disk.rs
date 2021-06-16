@@ -228,6 +228,34 @@ impl Filesystems {
                 cmd.args(["mount", "-a"].iter());
                 run_command(cmd, None)?;
 
+                // detect any datasets with 'legacy' mountpoints
+                let mut cmd = Command::new("/sbin/zfs");
+                cmd.args(["list", "-Hpro", "name,mountpoint", &data.name].iter());
+                let mps = run_command(cmd, None)?;
+                for subvol in mps.lines() {
+                    let subvol = subvol.splitn(2, '\t').collect::<Vec<&str>>();
+                    if subvol.len() != 2 {
+                        continue;
+                    }
+                    let name = subvol[0];
+                    let mp = subvol[1];
+
+                    if mp == "legacy" {
+                        let mut newmp = PathBuf::from(format!(
+                            "{}/legacy-{}",
+                            &mntpath,
+                            name.replace('/', "_")
+                        ));
+                        let mut i = 1;
+                        while newmp.exists() {
+                            newmp.set_extension(i.to_string());
+                            i += 1;
+                        }
+                        create_dir_all(&newmp)?;
+                        self.do_mount(Some(name), newmp.to_string_lossy().as_ref(), "zfs")?;
+                    }
+                }
+
                 // Now that we have imported the pool, we can also query the size
                 let mut cmd = Command::new("/sbin/zpool");
                 cmd.args(["list", "-o", "size", "-Hp", &data.name].iter());
@@ -244,19 +272,14 @@ impl Filesystems {
     }
 
     fn try_mount(&self, source: &str, target: &str) -> Result<(), Error> {
-        use nix::mount::*;
-
         create_dir_all(target)?;
 
         // try all supported fs until one works - this is the way Busybox's 'mount' does it too:
         // https://git.busybox.net/busybox/tree/util-linux/mount.c?id=808d93c0eca49e0b22056e23d965f0d967433fbb#n2152
         // note that ZFS is intentionally left out (see scan())
-        let flags =
-            MsFlags::MS_RDONLY | MsFlags::MS_NOEXEC | MsFlags::MS_NOSUID | MsFlags::MS_NODEV;
         for fs in &self.supported_fs {
             let fs: &str = fs.as_ref();
-            let opts = FS_OPT_MAP.get(fs).copied();
-            match mount(Some(source), target, Some(fs), flags, opts) {
+            match self.do_mount(Some(source), target, fs) {
                 Ok(()) => {
                     info!("mounting '{}' succeeded, fstype: '{}'", source, fs);
                     return Ok(());
@@ -269,6 +292,14 @@ impl Filesystems {
         }
 
         bail!("all mounts failed or no supported file system")
+    }
+
+    fn do_mount(&self, source: Option<&str>, target: &str, fs: &str) -> Result<(), nix::Error> {
+        use nix::mount::*;
+        let flags =
+            MsFlags::MS_RDONLY | MsFlags::MS_NOEXEC | MsFlags::MS_NOSUID | MsFlags::MS_NODEV;
+        let opts = FS_OPT_MAP.get(fs).copied();
+        mount(source, target, Some(fs), flags, opts)
     }
 }
 
