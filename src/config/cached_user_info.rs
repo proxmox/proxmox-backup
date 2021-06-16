@@ -7,6 +7,7 @@ use anyhow::{Error, bail};
 use proxmox::api::section_config::SectionConfigData;
 use lazy_static::lazy_static;
 use proxmox::api::UserInformation;
+use proxmox::tools::time::epoch_i64;
 
 use super::acl::{AclTree, ROLE_NAMES, ROLE_ADMIN};
 use super::user::{ApiToken, User};
@@ -17,8 +18,6 @@ pub struct CachedUserInfo {
     user_cfg: Arc<SectionConfigData>,
     acl_tree: Arc<AclTree>,
 }
-
-fn now() -> i64 { unsafe { libc::time(std::ptr::null_mut()) } }
 
 struct ConfigCache {
     data: Option<Arc<CachedUserInfo>>,
@@ -35,7 +34,7 @@ impl CachedUserInfo {
 
     /// Returns a cached instance (up to 5 seconds old).
     pub fn new() -> Result<Arc<Self>, Error> {
-        let now = now();
+        let now = epoch_i64();
         { // limit scope
             let cache = CACHED_CONFIG.read().unwrap();
             if (now - cache.last_update) < 5 {
@@ -68,15 +67,7 @@ impl CachedUserInfo {
     /// Test if a user_id is enabled and not expired
     pub fn is_active_user_id(&self, userid: &Userid) -> bool {
         if let Ok(info) = self.user_cfg.lookup::<User>("user", userid.as_str()) {
-            if !info.enable.unwrap_or(true) {
-                return false;
-            }
-            if let Some(expire) = info.expire {
-                if expire > 0 && expire <= now() {
-                    return false;
-                }
-            }
-            true
+            info.is_active()
         } else {
             false
         }
@@ -92,15 +83,7 @@ impl CachedUserInfo {
 
         if auth_id.is_token() {
             if let Ok(info) = self.user_cfg.lookup::<ApiToken>("token", &auth_id.to_string()) {
-                if !info.enable.unwrap_or(true) {
-                    return false;
-                }
-                if let Some(expire) = info.expire {
-                    if expire > 0 && expire <= now() {
-                        return false;
-                    }
-                }
-                return true;
+                return info.is_active();
             } else {
                 return false;
             }

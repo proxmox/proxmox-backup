@@ -83,6 +83,22 @@ pub struct ApiToken {
     pub expire: Option<i64>,
 }
 
+impl ApiToken {
+
+    pub fn is_active(&self) -> bool {
+        if !self.enable.unwrap_or(true) {
+            return false;
+        }
+        if let Some(expire) = self.expire {
+            let now =  proxmox::tools::time::epoch_i64();
+            if expire > 0 && expire <= now {
+                return false;
+            }
+        }
+        true
+    }
+}
+
 #[api(
     properties: {
         userid: {
@@ -130,6 +146,22 @@ pub struct User {
     pub lastname: Option<String>,
     #[serde(skip_serializing_if="Option::is_none")]
     pub email: Option<String>,
+}
+
+impl User {
+
+    pub fn is_active(&self) -> bool {
+        if !self.enable.unwrap_or(true) {
+            return false;
+        }
+        if let Some(expire) = self.expire {
+            let now =  proxmox::tools::time::epoch_i64();
+            if expire > 0 && expire <= now {
+                return false;
+            }
+        }
+        true
+    }
 }
 
 fn init() -> SectionConfig {
