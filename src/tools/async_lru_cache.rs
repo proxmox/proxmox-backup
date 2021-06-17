@@ -65,15 +65,16 @@ impl<K: std::cmp::Eq + std::hash::Hash + Copy, V: Clone + Send + 'static> AsyncL
         };
 
         let result = result_fut.await;
-        match result {
-            Ok(Some(ref value)) if owner => {
-                // this call was the one initiating the request, put into LRU and remove from map
-                let mut maps = self.maps.lock().unwrap();
+
+        if owner {
+            // this call was the one initiating the request, put into LRU and remove from map
+            let mut maps = self.maps.lock().unwrap();
+            if let Ok(Some(ref value)) = result {
                 maps.0.insert(key, value.clone());
-                maps.1.remove(&key);
             }
-            _ => {}
+            maps.1.remove(&key);
         }
+
         result
     }
 }
