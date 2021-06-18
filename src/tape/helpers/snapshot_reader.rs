@@ -107,7 +107,7 @@ impl SnapshotReader {
 pub struct SnapshotChunkIterator<'a> {
     snapshot_reader: &'a SnapshotReader,
     todo_list: Vec<String>,
-    current_index: Option<(Arc<Box<dyn IndexFile>>, usize)>,
+    current_index: Option<(Arc<Box<dyn IndexFile + Send>>, usize, Vec<(usize, u64)>)>,
 }
 
 impl <'a> Iterator for SnapshotChunkIterator<'a> {
@@ -119,20 +119,26 @@ impl <'a> Iterator for SnapshotChunkIterator<'a> {
                 if self.current_index.is_none() {
                     if let Some(filename) = self.todo_list.pop() {
                         let file = self.snapshot_reader.open_file(&filename)?;
-                        let index: Box<dyn IndexFile> = match archive_type(&filename)? {
+                        let index: Box<dyn IndexFile + Send> = match archive_type(&filename)? {
                             ArchiveType::FixedIndex => Box::new(FixedIndexReader::new(file)?),
                             ArchiveType::DynamicIndex => Box::new(DynamicIndexReader::new(file)?),
                             _ => bail!("SnapshotChunkIterator: got unknown file type - internal error"),
                         };
-                        self.current_index = Some((Arc::new(index), 0));
+
+                        let datastore =
+                            DataStore::lookup_datastore(self.snapshot_reader.datastore_name())?;
+                        let order = datastore.get_chunks_in_order(&index, |_| false, |_| Ok(()))?;
+
+                        self.current_index = Some((Arc::new(index), 0, order));
                     } else {
                         return Ok(None);
                     }
                 }
-                let (index, pos) = self.current_index.take().unwrap();
-                if pos < index.index_count() {
-                    let digest = *index.index_digest(pos).unwrap();
-                    self.current_index = Some((index, pos + 1));
+                let (index, pos, list) = self.current_index.take().unwrap();
+                if pos < list.len() {
+                    let (real_pos, _) = list[pos];
+                    let digest = *index.index_digest(real_pos).unwrap();
+                    self.current_index = Some((index, pos + 1, list));
                     return Ok(Some(digest));
                 } else {
                     // pop next index
