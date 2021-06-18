@@ -825,4 +825,42 @@ impl DataStore {
     pub fn verify_new(&self) -> bool {
         self.verify_new
     }
+
+    /// returns a list of chunks sorted by their inode number on disk
+    /// chunks that could not be stat'ed are at the end of the list
+    pub fn get_chunks_in_order<F, A>(
+        &self,
+        index: &Box<dyn IndexFile + Send>,
+        skip_chunk: F,
+        check_abort: A,
+    ) -> Result<Vec<(usize, u64)>, Error>
+    where
+        F: Fn(&[u8; 32]) -> bool,
+        A: Fn(usize) -> Result<(), Error>,
+    {
+        let index_count = index.index_count();
+        let mut chunk_list = Vec::with_capacity(index_count);
+        use std::os::unix::fs::MetadataExt;
+        for pos in 0..index_count {
+            check_abort(pos)?;
+
+            let info = index.chunk_info(pos).unwrap();
+
+            if skip_chunk(&info.digest) {
+                continue;
+            }
+
+            let ino = match self.stat_chunk(&info.digest) {
+                Err(_) => u64::MAX, // could not stat, move to end of list
+                Ok(metadata) => metadata.ino(),
+            };
+
+            chunk_list.push((pos, ino));
+        }
+
+        // sorting by inode improves data locality, which makes it lots faster on spinners
+        chunk_list.sort_unstable_by(|(_, ino_a), (_, ino_b)| ino_a.cmp(&ino_b));
+
+        Ok(chunk_list)
+    }
 }
