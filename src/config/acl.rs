@@ -283,8 +283,14 @@ pub fn check_acl_path(path: &str) -> Result<(), Error> {
                 return Ok(());
             }
             match components[1] {
-                "acl" | "users" => {
+                "acl" | "users" | "domains" => {
                     if components_len == 2 {
+                        return Ok(());
+                    }
+                }
+                // /access/openid/{endpoint}
+                "openid" => {
+                    if components_len <= 3 {
                         return Ok(());
                     }
                 }
