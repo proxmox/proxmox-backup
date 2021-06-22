@@ -269,6 +269,14 @@ async fn pull_datastore(
             "store": {
                 schema: DATASTORE_SCHEMA,
             },
+            "ignore-verified": {
+                schema: IGNORE_VERIFIED_BACKUPS_SCHEMA,
+                optional: true,
+            },
+            "outdated-after": {
+                schema: VERIFICATION_OUTDATED_AFTER_SCHEMA,
+                optional: true,
+            },
             "output-format": {
                 schema: OUTPUT_FORMAT,
                 optional: true,
@@ -279,14 +287,14 @@ async fn pull_datastore(
 /// Verify backups
 async fn verify(
     store: String,
-    param: Value,
+    mut param: Value,
 ) -> Result<Value, Error> {
 
-    let output_format = get_output_format(&param);
+    let output_format = extract_output_format(&mut param);
 
     let mut client = connect_to_localhost()?;
 
-    let args = json!({});
+    let args = json!(param);
 
     let path = format!("api2/json/admin/datastore/{}/verify", store);
 
