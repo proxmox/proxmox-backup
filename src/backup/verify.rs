@@ -575,3 +575,30 @@ pub fn verify_all_backups(
 
     Ok(errors)
 }
+
+/// Filter for the verification of snapshots
+pub fn verify_filter(
+    ignore_verified_snapshots: bool,
+    outdated_after: Option<i64>,
+    manifest: &BackupManifest,
+) -> bool {
+    if !ignore_verified_snapshots {
+        return true;
+    }
+
+    let raw_verify_state = manifest.unprotected["verify_state"].clone();
+    match serde_json::from_value::<SnapshotVerifyState>(raw_verify_state) {
+        Err(_) => true, // no last verification, always include
+        Ok(last_verify) => {
+            match outdated_after {
+                None => false, // never re-verify if ignored and no max age
+                Some(max_age) => {
+                    let now = proxmox::tools::time::epoch_i64();
+                    let days_since_last_verify = (now - last_verify.upid.starttime) / 86400;
+
+                    days_since_last_verify > max_age
+                }
+            }
+        }
+    }
+}

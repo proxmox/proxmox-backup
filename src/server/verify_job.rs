@@ -7,7 +7,7 @@ use crate::{
     config::verify::VerificationJobConfig,
     backup::{
         DataStore,
-        BackupManifest,
+        verify_filter,
         verify_all_backups,
     },
     task_log,
@@ -25,28 +25,6 @@ pub fn do_verification_job(
 
     let outdated_after = verification_job.outdated_after;
     let ignore_verified_snapshots = verification_job.ignore_verified.unwrap_or(true);
-
-    let filter = move |manifest: &BackupManifest| {
-        if !ignore_verified_snapshots {
-            return true;
-        }
-
-        let raw_verify_state = manifest.unprotected["verify_state"].clone();
-        match serde_json::from_value::<SnapshotVerifyState>(raw_verify_state) {
-            Err(_) => true, // no last verification, always include
-            Ok(last_verify) => {
-                match outdated_after {
-                    None => false, // never re-verify if ignored and no max age
-                    Some(max_age) => {
-                        let now = proxmox::tools::time::epoch_i64();
-                        let days_since_last_verify = (now - last_verify.upid.starttime) / 86400;
-
-                        days_since_last_verify > max_age
-                    }
-                }
-            }
-        }
-    };
 
     let (email, notify) = crate::server::lookup_datastore_notify_settings(&verification_job.store);
 
@@ -68,7 +46,14 @@ pub fn do_verification_job(
             }
 
             let verify_worker = crate::backup::VerifyWorker::new(worker.clone(), datastore);
-            let result = verify_all_backups(&verify_worker, worker.upid(), None, Some(&filter));
+            let result = verify_all_backups(
+                &verify_worker,
+                worker.upid(),
+                None,
+                Some(&move |manifest| {
+                    verify_filter(ignore_verified_snapshots, outdated_after, manifest)
+                }),
+            );
             let job_result = match result {
                 Ok(ref failed_dirs) if failed_dirs.is_empty() => Ok(()),
                 Ok(ref failed_dirs) => {
