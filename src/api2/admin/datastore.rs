@@ -646,6 +646,14 @@ pub fn status(
                 schema: BACKUP_ID_SCHEMA,
                 optional: true,
             },
+            "ignore-verified": {
+                schema: IGNORE_VERIFIED_BACKUPS_SCHEMA,
+                optional: true,
+            },
+            "outdated-after": {
+                schema: VERIFICATION_OUTDATED_AFTER_SCHEMA,
+                optional: true,
+            },
             "backup-time": {
                 schema: BACKUP_TIME_SCHEMA,
                 optional: true,
@@ -668,9 +676,12 @@ pub fn verify(
     backup_type: Option<String>,
     backup_id: Option<String>,
     backup_time: Option<i64>,
+    ignore_verified: Option<bool>,
+    outdated_after: Option<i64>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
     let datastore = DataStore::lookup_datastore(&store)?;
+    let ignore_verified = ignore_verified.unwrap_or(true);
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let worker_id;
@@ -719,7 +730,9 @@ pub fn verify(
                     &verify_worker,
                     &backup_dir,
                     worker.upid().clone(),
-                    None,
+                    Some(&move |manifest| {
+                        verify_filter(ignore_verified, outdated_after, manifest)
+                    }),
                 )? {
                     res.push(backup_dir.to_string());
                 }
@@ -730,7 +743,9 @@ pub fn verify(
                     &backup_group,
                     &mut StoreProgress::new(1),
                     worker.upid(),
-                    None,
+                    Some(&move |manifest| {
+                        verify_filter(ignore_verified, outdated_after, manifest)
+                    }),
                 )?;
                 failed_dirs
             } else {
@@ -743,7 +758,14 @@ pub fn verify(
                     None
                 };
 
-                verify_all_backups(&verify_worker, worker.upid(), owner, None)?
+                verify_all_backups(
+                    &verify_worker,
+                    worker.upid(),
+                    owner,
+                    Some(&move |manifest| {
+                        verify_filter(ignore_verified, outdated_after, manifest)
+                    }),
+                )?
             };
             if !failed_dirs.is_empty() {
                 worker.log("Failed to verify the following snapshots/groups:");
