@@ -61,12 +61,21 @@ Ext.define('PBS.ServerAdministration', {
 	    url: "/api2/extjs/nodes/localhost/journal",
 	},
 	{
-	    xtype: 'pbsNodeTasks',
+	    xtype: 'proxmoxNodeTasks',
 	    itemId: 'tasks',
 	    iconCls: 'fa fa-list-alt',
 	    title: gettext('Tasks'),
 	    height: 'auto',
 	    nodename: 'localhost',
+	    extraFilter: [
+		{
+		    xtype: 'pbsDataStoreSelector',
+		    fieldLabel: gettext('Datastore'),
+		    emptyText: gettext('All'),
+		    name: 'store',
+		    allowBlank: true,
+		},
+	    ],
 	},
     ],
 });

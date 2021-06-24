@@ -78,7 +78,6 @@ JSSRC=							\
 	dashboard/LongestTasks.js			\
 	dashboard/RunningTasks.js			\
 	dashboard/TaskSummary.js			\
-	panel/Tasks.js					\
 	panel/XtermJsConsole.js				\
 	panel/AccessControl.js				\
 	panel/StorageAndDisks.js			\
