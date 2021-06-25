@@ -38,6 +38,9 @@ pub mod format;
 pub mod fs;
 pub mod fuse_loop;
 
+mod memcom;
+pub use memcom::Memcom;
+
 pub mod json;
 pub mod logrotate;
 pub mod loopdev;

@@ -18,6 +18,7 @@ use proxmox::api::{
 use proxmox::tools::{fs::replace_file, fs::CreateOptions};
 
 use crate::api2::types::*;
+use crate::tools::Memcom;
 
 lazy_static! {
     pub static ref CONFIG: SectionConfig = init();
@@ -269,6 +270,11 @@ pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
         .group(backup_user.gid);
 
     replace_file(USER_CFG_FILENAME, raw.as_bytes(), options)?;
+
+    // increase user cache generation
+    // We use this in CachedUserInfo
+    let memcom = Memcom::new()?;
+    memcom.increase_user_cache_generation();
 
     Ok(())
 }

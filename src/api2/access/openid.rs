@@ -120,8 +120,6 @@ pub fn openid_login(
             }
             config.set_data(user.userid.as_str(), "user", &user)?;
             user::save_config(&config)?;
-            // fixme: replace sleep with shared memory change notification
-            std::thread::sleep(std::time::Duration::new(6, 0));
         } else {
             bail!("user account '{}' missing, disabled or expired.", user_id);
         }

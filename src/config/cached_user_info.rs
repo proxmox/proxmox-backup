@@ -12,6 +12,7 @@ use proxmox::tools::time::epoch_i64;
 use super::acl::{AclTree, ROLE_NAMES, ROLE_ADMIN};
 use super::user::{ApiToken, User};
 use crate::api2::types::{Authid, Userid};
+use crate::tools::Memcom;
 
 /// Cache User/Group/Token/Acl configuration data for fast permission tests
 pub struct CachedUserInfo {
@@ -22,11 +23,12 @@ pub struct CachedUserInfo {
 struct ConfigCache {
     data: Option<Arc<CachedUserInfo>>,
     last_update: i64,
+    last_user_cache_generation: usize,
 }
 
 lazy_static! {
     static ref CACHED_CONFIG: RwLock<ConfigCache> = RwLock::new(
-        ConfigCache { data: None, last_update: 0 }
+        ConfigCache { data: None, last_update: 0, last_user_cache_generation: 0 }
     );
 }
 
@@ -35,9 +37,15 @@ impl CachedUserInfo {
     /// Returns a cached instance (up to 5 seconds old).
     pub fn new() -> Result<Arc<Self>, Error> {
         let now = epoch_i64();
+
+        let memcom = Memcom::new()?;
+        let user_cache_generation = memcom.user_cache_generation();
+
         { // limit scope
             let cache = CACHED_CONFIG.read().unwrap();
-            if (now - cache.last_update) < 5 {
+            if (user_cache_generation == cache.last_user_cache_generation) &&
+                ((now - cache.last_update) < 5)
+            {
                 if let Some(ref config) = cache.data {
                     return Ok(config.clone());
                 }
@@ -51,6 +59,7 @@ impl CachedUserInfo {
 
         let mut cache = CACHED_CONFIG.write().unwrap();
         cache.last_update = now;
+        cache.last_user_cache_generation = user_cache_generation;
         cache.data = Some(config.clone());
 
         Ok(config)
