@@ -115,7 +115,9 @@ deb: build
 	lintian $(DEBS)
 
 .PHONY: deb-all
-deb-all: $(DOC_DEB) $(DEBS)
+deb-all: build
+	cd build; dpkg-buildpackage -b -us -uc --no-pre-clean
+	lintian $(DEBS) $(DOC_DEB)
 
 .PHONY: dsc
 dsc: $(DSC)
