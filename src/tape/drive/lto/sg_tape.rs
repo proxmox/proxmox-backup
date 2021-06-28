@@ -3,6 +3,7 @@ use std::fs::{File, OpenOptions};
 use std::os::unix::fs::OpenOptionsExt;
 use std::os::unix::io::AsRawFd;
 use std::path::Path;
+use std::convert::TryFrom;
 
 use anyhow::{bail, format_err, Error};
 use endian_trait::Endian;
@@ -122,6 +123,7 @@ pub struct LtoTapeStatus {
 
 pub struct SgTape {
     file: File,
+    locate_offset: Option<i64>,
     info: InquiryInfo,
     encryption_key_loaded: bool,
 }
@@ -145,6 +147,7 @@ impl SgTape {
             file,
             info,
             encryption_key_loaded: false,
+            locate_offset: None,
         })
     }
 
@@ -300,25 +303,75 @@ impl SgTape {
             return self.rewind();
         }
 
-        let position = position -1;
+        const SPACE_ONE_FILEMARK: &[u8] = &[0x11, 0x01, 0, 0, 1, 0];
+
+        // Special case for position 1, because LOCATE 0 does not work
+        if position == 1 {
+            self.rewind()?;
+            let mut sg_raw = SgRaw::new(&mut self.file, 16)?;
+            sg_raw.set_timeout(Self::SCSI_TAPE_DEFAULT_TIMEOUT);
+            sg_raw.do_command(SPACE_ONE_FILEMARK)
+                .map_err(|err| format_err!("locate file {} (space) failed - {}", position, err))?;
+            return Ok(());
+        }
 
         let mut sg_raw = SgRaw::new(&mut self.file, 16)?;
         sg_raw.set_timeout(Self::SCSI_TAPE_DEFAULT_TIMEOUT);
-        let mut cmd = Vec::new();
+
         // Note: LOCATE(16) works for LTO4 or newer
+        //
+        // It seems the LOCATE command behaves slightly different across vendors
+        // e.g. for IBM drives, LOCATE 1 moves to File #2, but
+        // for HP drives, LOCATE 1 move to File #1
+
+        let fixed_position = if let Some(locate_offset) = self.locate_offset {
+            if locate_offset < 0 {
+                position.saturating_sub((-locate_offset) as u64)
+            } else {
+                position.saturating_add(locate_offset as u64)
+            }
+        } else {
+            position
+        };
+        // always sub(1), so that it works for IBM drives without locate_offset
+        let fixed_position = fixed_position.saturating_sub(1);
+
+        let mut cmd = Vec::new();
         cmd.extend(&[0x92, 0b000_01_000, 0, 0]); // LOCATE(16) filemarks
-        cmd.extend(&position.to_be_bytes());
+        cmd.extend(&fixed_position.to_be_bytes());
         cmd.extend(&[0, 0, 0, 0]);
 
         sg_raw.do_command(&cmd)
             .map_err(|err| format_err!("locate file {} failed - {}", position, err))?;
 
-        // move to other side of filemark
-        cmd.truncate(0);
-        cmd.extend(&[0x11, 0x01, 0, 0, 1, 0]); // SPACE(6) one filemarks
-
-        sg_raw.do_command(&cmd)
+        // LOCATE always position at the BOT side of the filemark, so
+        // we need to move to other side of filemark
+        sg_raw.do_command(SPACE_ONE_FILEMARK)
             .map_err(|err| format_err!("locate file {} (space) failed - {}", position, err))?;
+
+        if self.locate_offset.is_none() {
+            // check if we landed at correct position
+            let current_file = self.current_file_number()?;
+            if current_file != position {
+                let offset: i64 =
+                    i64::try_from((position as i128) - (current_file as i128)).map_err(|err| {
+                        format_err!(
+                            "locate_file: offset between {} and {} invalid: {}",
+                            position,
+                            current_file,
+                            err
+                        )
+                    })?;
+                self.locate_offset = Some(offset);
+                self.locate_file(position)?;
+                let current_file = self.current_file_number()?;
+                if current_file != position {
+                    bail!("locate_file: compensating offset did not work, aborting...");
+                }
+            } else {
+                self.locate_offset = Some(0);
+            }
+        }
 
         Ok(())
     }
