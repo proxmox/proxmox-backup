@@ -72,7 +72,7 @@ pub struct DnsPluginCore {
     ///
     /// Allows to cope with long TTL of DNS records.
     #[serde(skip_serializing_if = "Option::is_none", default)]
-    validation_delay: Option<u32>,
+    pub(crate) validation_delay: Option<u32>,
 
     /// Flag to disable the config.
     #[serde(skip_serializing_if = "Option::is_none", default)]
