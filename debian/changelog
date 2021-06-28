@@ -2,7 +2,46 @@ rust-proxmox-backup (2.0.0-1) bullseye; urgency=medium
 
   * initial bump for Debian 11 Bullseye / Proxmox Backup Server 2.0
 
- -- Proxmox Support Team <support@proxmox.com>  Mon, 28 Jun 2021 19:07:33 +0200
+  * ui: datastore list summary: catch and show errors per datastore
+
+  * ui: dashboard: task summary: add a 'close' tool to the header
+
+  * ensure that backups which are currently being restored or backed up to a
+    tape won't get pruned
+
+  * improve error handling when locking a tape drive for a backup job
+
+  * client/pull: log snapshots that are skipped because of creation time being
+    older than last sync time
+
+  * ui: datastore options: add remove button to drop a datastore from the
+    configuration, without removing any actual data
+
+  * ui: tape: drive selector: do not auto select the drive
+
+  * ui: tape: backup job: use correct default value for pbsUserSelector
+
+  * fix #3433: disks: port over Proxmox VE's S.M.A.R.T wearout logic
+
+  * backup: add helpers for async last recently used (LRU) caches for chunk
+    and index reading of backup snapshot
+
+  * fix #3459: manager: add --ignore-verified and --outdated-after parameters
+
+  * proxmox-backup-manager: show task log on datastore create
+
+  * tape: snapshot reader: read chunks sorted by inode (per index) to improve
+    sequential reads when backing up data from slow spinning disks to tape.
+
+  * file-restore: support ZFS pools
+
+  * improve fix for #3393: pxar create: try to read xattrs/fcaps/acls by default
+
+  * fix compatibility with ExtJS 7.0
+
+  * docs: build api-viewer from widget-toolkit-dev
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 28 Jun 2021 19:35:40 +0200
 
 rust-proxmox-backup (1.1.9-1) stable; urgency=medium
 
