@@ -1,1 +1,1 @@
-deb https://enterprise.proxmox.com/debian/pbs buster pbs-enterprise
+deb https://enterprise.proxmox.com/debian/pbs bullseye pbs-enterprise
