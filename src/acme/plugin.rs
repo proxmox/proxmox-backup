@@ -2,6 +2,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::process::Stdio;
 use std::sync::Arc;
+use std::time::Duration;
 
 use anyhow::{bail, format_err, Error};
 use hyper::{Body, Request, Response};
@@ -180,7 +181,21 @@ impl AcmePlugin for DnsPlugin {
         domain: &'d AcmeDomain,
         task: Arc<WorkerTask>,
     ) -> Pin<Box<dyn Future<Output = Result<&'c str, Error>> + Send + 'fut>> {
-        Box::pin(self.action(client, authorization, domain, task, "setup"))
+        Box::pin(async move {
+            let result = self
+                .action(client, authorization, domain, task.clone(), "setup")
+                .await;
+            let validation_delay = self.core.validation_delay.unwrap_or(30) as u64;
+
+            if validation_delay > 0 {
+                task.log(format!(
+                    "Sleeping {} seconds to wait for TXT record propagation",
+                    validation_delay
+                ));
+                tokio::time::sleep(Duration::from_secs(validation_delay)).await;
+            }
+            result
+        })
     }
 
     fn teardown<'fut, 'a: 'fut, 'b: 'fut, 'c: 'fut, 'd: 'fut>(
