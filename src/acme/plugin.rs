@@ -68,7 +68,7 @@ fn extract_challenge<'a>(
         .challenges
         .iter()
         .find(|ch| ch.ty == ty)
-        .ok_or_else(|| format_err!("no supported challenge type (dns-01) found"))
+        .ok_or_else(|| format_err!("no supported challenge type ({}) found", ty))
 }
 
 async fn pipe_to_tasklog<T: AsyncRead + Unpin>(
