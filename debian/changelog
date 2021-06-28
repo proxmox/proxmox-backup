@@ -1,4 +1,10 @@
-rust-proxmox-backup (1.1.9-1) unstable; urgency=medium
+rust-proxmox-backup (2.0.0-1) bullseye; urgency=medium
+
+  * initial bump for Debian 11 Bullseye / Proxmox Backup Server 2.0
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 28 Jun 2021 19:07:33 +0200
+
+rust-proxmox-backup (1.1.9-1) stable; urgency=medium
 
   * lto/sg_tape/encryption: remove non lto-4 supported byte
 
