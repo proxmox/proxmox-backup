@@ -321,6 +321,37 @@ pub fn open_drive(
     }
 }
 
+#[derive(PartialEq, Eq)]
+enum TapeRequestError {
+    None,
+    EmptyTape,
+    OpenFailed(String),
+    WrongLabel(String),
+    ReadFailed(String),
+}
+
+impl std::fmt::Display for TapeRequestError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TapeRequestError::None => {
+                write!(f, "no error")
+            },
+            TapeRequestError::OpenFailed(reason) => {
+                write!(f, "tape open failed - {}", reason)
+            }
+            TapeRequestError::WrongLabel(label) => {
+                write!(f, "wrong media label {}", label)
+            }
+            TapeRequestError::EmptyTape => {
+                write!(f, "found empty media without label (please label all tapes first)")
+            }
+            TapeRequestError::ReadFailed(reason) => {
+                write!(f, "tape read failed - {}", reason)
+            }
+        }
+    }
+}
+
 /// Requests a specific 'media' to be inserted into 'drive'. Within a
 /// loop, this then tries to read the media label and waits until it
 /// finds the requested media.
@@ -388,84 +419,87 @@ pub fn request_and_load_media(
                         return Ok((handle, media_id));
                     }
 
-                    let mut last_media_uuid = None;
-                    let mut last_error = None;
+                    let mut last_error = TapeRequestError::None;
 
-                    let mut tried = false;
-                    let mut failure_reason = None;
+                    let update_and_log_request_error =
+                        |old: &mut TapeRequestError, new: TapeRequestError| -> Result<(), Error>
+                    {
+                        if new != *old {
+                            task_log!(worker, "{}", new);
+                            task_log!(
+                                worker,
+                                "Please insert media '{}' into drive '{}'",
+                                label_text,
+                                drive
+                            );
+                            if let Some(to) = notify_email {
+                                send_load_media_email(
+                                    drive,
+                                    &label_text,
+                                    to,
+                                    Some(new.to_string()),
+                                )?;
+                            }
+                            *old = new;
+                        }
+                        Ok(())
+                    };
 
                     loop {
                         worker.check_abort()?;
 
-                        if tried {
-                            if let Some(reason) = failure_reason {
-                                task_log!(worker, "Please insert media '{}' into drive '{}'", label_text, drive);
-                                if let Some(to) = notify_email {
-                                    send_load_media_email(drive, &label_text, to, Some(reason))?;
-                                }
-                            }
-
-                            failure_reason = None;
-
+                        if last_error != TapeRequestError::None {
                             for _ in 0..50 { // delay 5 seconds
                                 worker.check_abort()?;
                                 std::thread::sleep(std::time::Duration::from_millis(100));
                             }
+                        } else {
+                            task_log!(
+                                worker,
+                                "Checking for media '{}' in drive '{}'",
+                                label_text,
+                                drive
+                            );
                         }
-
-                        tried = true;
 
                         let mut handle = match drive_config.open() {
                             Ok(handle) => handle,
                             Err(err) => {
-                                let err = err.to_string();
-                                if Some(err.clone()) != last_error {
-                                    task_log!(worker, "tape open failed - {}", err);
-                                    last_error = Some(err);
-                                    failure_reason = last_error.clone();
-                                }
+                                update_and_log_request_error(
+                                    &mut last_error,
+                                    TapeRequestError::OpenFailed(err.to_string()),
+                                )?;
                                 continue;
                             }
                         };
 
-                        match handle.read_label() {
+                        let request_error = match handle.read_label() {
+                            Ok((Some(media_id), _)) if media_id.label.uuid == label.uuid => {
+                                task_log!(
+                                    worker,
+                                    "found media label {} ({})",
+                                    media_id.label.label_text,
+                                    media_id.label.uuid.to_string(),
+                                );
+                                return Ok((Box::new(handle), media_id));
+                            }
                             Ok((Some(media_id), _)) => {
-                                if media_id.label.uuid == label.uuid {
-                                    task_log!(
-                                        worker,
-                                        "found media label {} ({})",
-                                        media_id.label.label_text,
-                                        media_id.label.uuid.to_string(),
-                                    );
-                                    return Ok((Box::new(handle), media_id));
-                                } else if Some(media_id.label.uuid.clone()) != last_media_uuid {
-                                    let err = format!(
-                                        "wrong media label {} ({})",
-                                        media_id.label.label_text,
-                                        media_id.label.uuid.to_string(),
-                                    );
-                                    task_log!(worker, "{}", err);
-                                    last_media_uuid = Some(media_id.label.uuid);
-                                    failure_reason = Some(err);
-                                }
+                                let label_string = format!(
+                                    "{} ({})",
+                                    media_id.label.label_text,
+                                    media_id.label.uuid.to_string(),
+                                );
+                                TapeRequestError::WrongLabel(label_string)
                             }
                             Ok((None, _)) => {
-                                if last_media_uuid.is_some() {
-                                    let err = "found empty media without label (please label all tapes first)";
-                                    task_log!(worker, "{}", err);
-                                    last_media_uuid = None;
-                                    failure_reason = Some(err.to_string());
-                                }
+                                TapeRequestError::EmptyTape
                             }
                             Err(err) => {
-                                let err = err.to_string();
-                                if Some(err.clone()) != last_error {
-                                    task_log!(worker, "tape open failed - {}", err);
-                                    last_error = Some(err);
-                                    failure_reason = last_error.clone();
-                                }
+                                TapeRequestError::ReadFailed(err.to_string())
                             }
-                        }
+                        };
+
+                        update_and_log_request_error(&mut last_error, request_error)?;
                     }
                 }
                 _ => bail!("drive type '{}' not implemented!"),
