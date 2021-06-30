@@ -1,3 +1,15 @@
+rust-proxmox-backup (1.1.11-1) unstable; urgency=medium
+
+  * tape/drive: fix logging when requesting media
+
+  * tape: fix LTO locate_file for HP drives
+
+  * fix #3393 (again): pxar/create: try to read xattrs/fcaps/acls by default
+
+  * proxmox-backup-manager: show task log on datastore create
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 30 Jun 2021 11:24:20 +0200
+
 rust-proxmox-backup (1.1.10-1) buster; urgency=medium
 
   * ui: datastore list summary: catch and show errors per datastore
