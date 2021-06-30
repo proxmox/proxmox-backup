@@ -527,10 +527,10 @@ impl DiskState {
         let mut bucket = match Bucket::filter_mut(buckets, &bucket_type, &components) {
             Some(bucket) => bucket,
             None => bail!(
-                "bucket/component path not found: {}/{}/{:?}",
+                "bucket/component path not found: {}/{}/{}",
                 req_fidx,
                 bucket_type,
-                components
+                components.join("/")
             ),
         };
 
@@ -540,10 +540,10 @@ impl DiskState {
             .ensure_mounted(&mut bucket)
             .map_err(|err| {
                 format_err!(
-                    "mounting '{}/{}/{:?}' failed: {}",
+                    "mounting '{}/{}/{}' failed: {}",
                     req_fidx,
                     bucket_type,
-                    components,
+                    components.join("/"),
                     err
                 )
             })?;
