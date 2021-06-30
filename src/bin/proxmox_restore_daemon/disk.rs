@@ -192,7 +192,7 @@ impl Filesystems {
                     return Ok(mp.clone());
                 }
 
-                let mntpath = format!("/mnt/{}", &data.name);
+                let mntpath = format!("/mnt/zpool/{}", &data.name);
                 create_dir_all(&mntpath)?;
 
                 // call ZFS tools to import and mount the pool with the root mount at 'mntpath'
@@ -285,6 +285,7 @@ impl Filesystems {
                     return Ok(());
                 }
                 Err(nix::Error::Sys(nix::errno::Errno::EINVAL)) => {}
+                Err(nix::Error::Sys(nix::errno::Errno::EBUSY)) => return Ok(()),
                 Err(err) => {
                     warn!("mount error on '{}' ({}) - {}", source, fs, err);
                 }
