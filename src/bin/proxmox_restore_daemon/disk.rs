@@ -62,6 +62,14 @@ struct ZFSBucketData {
     size: Option<u64>,
 }
 
+#[derive(Clone)]
+struct LVMBucketData {
+    vg_name: String,
+    lv_name: String,
+    mountpoint: Option<PathBuf>,
+    size: u64,
+}
+
 /// A "Bucket" represents a mapping found on a disk, e.g. a partition, a zfs dataset or an LV. A
 /// uniquely identifying path to a file then consists of four components:
 /// "/disk/bucket/component/path"
@@ -77,6 +85,7 @@ enum Bucket {
     Partition(PartitionBucketData),
     RawFs(PartitionBucketData),
     ZPool(ZFSBucketData),
+    LVM(LVMBucketData),
 }
 
 impl Bucket {
@@ -102,6 +111,13 @@ impl Bucket {
                     false
                 }
             }
+            Bucket::LVM(data) => {
+                if let (Some(ref vg), Some(ref lv)) = (comp.get(0), comp.get(1)) {
+                    ty == "lvm" && vg.as_ref() == &data.vg_name && lv.as_ref() == &data.lv_name
+                } else {
+                    false
+                }
+            }
         })
     }
 
@@ -110,6 +126,7 @@ impl Bucket {
             Bucket::Partition(_) => "part",
             Bucket::RawFs(_) => "raw",
             Bucket::ZPool(_) => "zpool",
+            Bucket::LVM(_) => "lvm",
         }
     }
 
@@ -127,6 +144,13 @@ impl Bucket {
             Bucket::Partition(data) => data.number.to_string(),
             Bucket::RawFs(_) => "raw".to_owned(),
             Bucket::ZPool(data) => data.name.clone(),
+            Bucket::LVM(data) => {
+                if idx == 0 {
+                    data.vg_name.clone()
+                } else {
+                    data.lv_name.clone()
+                }
+            }
         })
     }
 
@@ -135,6 +159,7 @@ impl Bucket {
             "part" => 1,
             "raw" => 0,
             "zpool" => 1,
+            "lvm" => 2,
             _ => bail!("invalid bucket type for component depth: {}", type_string),
         })
     }
@@ -143,6 +168,13 @@ impl Bucket {
         match self {
             Bucket::Partition(data) | Bucket::RawFs(data) => Some(data.size),
             Bucket::ZPool(data) => data.size,
+            Bucket::LVM(data) => {
+                if idx == 1 {
+                    Some(data.size)
+                } else {
+                    None
+                }
+            }
         }
     }
 }
@@ -263,6 +295,21 @@ impl Filesystems {
                 if let Ok(size) = size.trim().parse::<u64>() {
                     data.size = Some(size);
                 }
+
+                let mp = PathBuf::from(mntpath);
+                data.mountpoint = Some(mp.clone());
+                Ok(mp)
+            }
+            Bucket::LVM(data) => {
+                if let Some(mp) = &data.mountpoint {
+                    return Ok(mp.clone());
+                }
+
+                let mntpath = format!("/mnt/lvm/{}/{}", &data.vg_name, &data.lv_name);
+                create_dir_all(&mntpath)?;
+
+                let mapper_path = format!("/dev/mapper/{}-{}", &data.vg_name, &data.lv_name);
+                self.try_mount(&mapper_path, &mntpath)?;
 
                 let mp = PathBuf::from(mntpath);
                 data.mountpoint = Some(mp.clone());
@@ -444,10 +491,152 @@ impl DiskState {
             }
         }
 
+        Self::scan_lvm(&mut disk_map, &drive_info)?;
+
         Ok(Self {
             filesystems,
             disk_map,
         })
+    }
+
+    /// scan for LVM volumes and create device nodes for them to later mount on demand
+    fn scan_lvm(
+        disk_map: &mut HashMap<String, Vec<Bucket>>,
+        drive_info: &HashMap<String, String>,
+    ) -> Result<(), Error> {
+        // first get mapping between devices and vgs
+        let mut pv_map: HashMap<String, Vec<String>> = HashMap::new();
+        let mut cmd = Command::new("/sbin/pvs");
+        cmd.args(["-o", "pv_name,vg_name", "--reportformat", "json"].iter());
+        let result = run_command(cmd, None).unwrap();
+        let result: serde_json::Value = serde_json::from_str(&result)?;
+        if let Some(result) = result["report"][0]["pv"].as_array() {
+            for pv in result {
+                let vg_name = pv["vg_name"].as_str().unwrap();
+                if vg_name.is_empty() {
+                    continue;
+                }
+                let pv_name = pv["pv_name"].as_str().unwrap();
+                // remove '/dev/' part
+                let pv_name = &pv_name[pv_name.rfind('/').map(|i| i + 1).unwrap_or(0)..];
+                if let Some(fidx) = drive_info.get(pv_name) {
+                    info!("LVM: found VG '{}' on '{}' ({})", vg_name, pv_name, fidx);
+                    match pv_map.get_mut(vg_name) {
+                        Some(list) => list.push(fidx.to_owned()),
+                        None => {
+                            pv_map.insert(vg_name.to_owned(), vec![fidx.to_owned()]);
+                        }
+                    }
+                }
+            }
+        }
+
+        let mknodes = || {
+            let mut cmd = Command::new("/sbin/vgscan");
+            cmd.arg("--mknodes");
+            if let Err(err) = run_command(cmd, None) {
+                warn!("LVM: 'vgscan --mknodes' failed: {}", err);
+            }
+        };
+
+        // then scan for LVs and assign their buckets to the correct disks
+        let mut cmd = Command::new("/sbin/lvs");
+        cmd.args(
+            [
+                "-o",
+                "vg_name,lv_name,lv_size,metadata_lv",
+                "--units",
+                "B",
+                "--reportformat",
+                "json",
+            ]
+            .iter(),
+        );
+        let result = run_command(cmd, None).unwrap();
+        let result: serde_json::Value = serde_json::from_str(&result)?;
+        let mut thinpools = Vec::new();
+        if let Some(result) = result["report"][0]["lv"].as_array() {
+            // first, look for thin-pools
+            for lv in result {
+                let metadata = lv["metadata_lv"].as_str().unwrap_or_default();
+                if !metadata.is_empty() {
+                    // this is a thin-pool, activate the metadata LV
+                    let vg_name = lv["vg_name"].as_str().unwrap();
+                    let metadata = metadata.trim_matches(&['[', ']'][..]);
+                    info!("LVM: attempting to activate thinpool '{}'", metadata);
+                    let mut cmd = Command::new("/sbin/lvchange");
+                    cmd.args(["-ay", "-y", &format!("{}/{}", vg_name, metadata)].iter());
+                    if let Err(err) = run_command(cmd, None) {
+                        // not critical, will simply mean its children can't be loaded
+                        warn!("LVM: activating thinpool failed: {}", err);
+                    } else {
+                        thinpools.push((vg_name, metadata));
+                    }
+                }
+            }
+
+            // now give the metadata LVs a device node
+            mknodes();
+
+            // cannot leave the metadata LV active, otherwise child-LVs won't activate
+            for (vg_name, metadata) in thinpools {
+                let mut cmd = Command::new("/sbin/lvchange");
+                cmd.args(["-an", "-y", &format!("{}/{}", vg_name, metadata)].iter());
+                let _ = run_command(cmd, None);
+            }
+
+            for lv in result {
+                let lv_name = lv["lv_name"].as_str().unwrap();
+                let vg_name = lv["vg_name"].as_str().unwrap();
+                let metadata = lv["metadata_lv"].as_str().unwrap_or_default();
+                if lv_name.is_empty() || vg_name.is_empty() || !metadata.is_empty() {
+                    continue;
+                }
+                let lv_size = lv["lv_size"].as_str().unwrap();
+                // lv_size is in bytes with a capital 'B' at the end
+                let lv_size = lv_size[..lv_size.len() - 1].parse::<u64>().unwrap_or(0);
+
+                let bucket = Bucket::LVM(LVMBucketData {
+                    vg_name: vg_name.to_owned(),
+                    lv_name: lv_name.to_owned(),
+                    size: lv_size,
+                    mountpoint: None,
+                });
+
+                // activate the LV so 'vgscan' can create a node later - this may fail, and if it
+                // does, we ignore it and continue
+                let mut cmd = Command::new("/sbin/lvchange");
+                cmd.args(["-ay", &format!("{}/{}", vg_name, lv_name)].iter());
+                if let Err(err) = run_command(cmd, None) {
+                    warn!(
+                        "LVM: LV '{}' on '{}' ({}B) failed to activate: {}",
+                        lv_name, vg_name, lv_size, err
+                    );
+                    continue;
+                }
+
+                info!(
+                    "LVM: found LV '{}' on '{}' ({}B)",
+                    lv_name, vg_name, lv_size
+                );
+
+                if let Some(drives) = pv_map.get(vg_name) {
+                    for fidx in drives {
+                        match disk_map.get_mut(fidx) {
+                            Some(v) => v.push(bucket.clone()),
+                            None => {
+                                disk_map.insert(fidx.to_owned(), vec![bucket.clone()]);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // now that we've imported and activated all LV's, we let vgscan create the dev nodes
+            mknodes();
+        }
+
+        Ok(())
     }
 
     /// Given a path like "/drive-scsi0.img.fidx/part/0/etc/passwd", this will mount the first
