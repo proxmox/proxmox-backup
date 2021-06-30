@@ -70,7 +70,7 @@ Ext.define('PBS.DatastoreStatistics', {
 		if (err) {
 		    metaData.tdAttr = `data-qtip="${Ext.htmlEncode(err)}"`;
 		    metaData.tdCls = 'proxmox-invalid-row';
-		    return `${value || ''} <i class="fa fa-fw critical fa-exclamation-circle"><i>`;
+		    return `${value || ''} <i class="fa fa-fw critical fa-exclamation-circle"></i>`;
 		}
 		return value;
 	    },
