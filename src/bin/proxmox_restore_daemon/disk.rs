@@ -44,7 +44,7 @@ lazy_static! {
 pub enum ResolveResult {
     Path(PathBuf),
     BucketTypes(Vec<&'static str>),
-    BucketComponents(Vec<(String, u64)>),
+    BucketComponents(Vec<(String, Option<u64>)>),
 }
 
 #[derive(Clone)]
@@ -59,7 +59,7 @@ struct PartitionBucketData {
 struct ZFSBucketData {
     name: String,
     mountpoint: Option<PathBuf>,
-    size: u64,
+    size: Option<u64>,
 }
 
 /// A "Bucket" represents a mapping found on a disk, e.g. a partition, a zfs dataset or an LV. A
@@ -139,9 +139,9 @@ impl Bucket {
         })
     }
 
-    fn size(&self) -> u64 {
+    fn size(&self, idx: usize) -> Option<u64> {
         match self {
-            Bucket::Partition(data) | Bucket::RawFs(data) => data.size,
+            Bucket::Partition(data) | Bucket::RawFs(data) => Some(data.size),
             Bucket::ZPool(data) => data.size,
         }
     }
@@ -261,7 +261,7 @@ impl Filesystems {
                 cmd.args(["list", "-o", "size", "-Hp", &data.name].iter());
                 let size = run_command(cmd, None)?;
                 if let Ok(size) = size.trim().parse::<u64>() {
-                    data.size = size;
+                    data.size = Some(size);
                 }
 
                 let mp = PathBuf::from(mntpath);
@@ -409,7 +409,7 @@ impl DiskState {
         for (pool, disks) in Self::parse_zpool_import(&result) {
             let mut bucket = Bucket::ZPool(ZFSBucketData {
                 name: pool.clone(),
-                size: 0,
+                size: None,
                 mountpoint: None,
             });
 
@@ -418,11 +418,11 @@ impl DiskState {
             if disks.len() <= 5 {
                 let mp = filesystems.ensure_mounted(&mut bucket);
                 info!(
-                    "zpool '{}' (on: {:?}) auto-mounted at '{:?}' (size: {}B)",
+                    "zpool '{}' (on: {:?}) auto-mounted at '{:?}' (size: {:?})",
                     &pool,
                     &disks,
                     mp,
-                    bucket.size()
+                    bucket.size(0)
                 );
             } else {
                 info!(
@@ -503,18 +503,20 @@ impl DiskState {
                 Some(c) => bail!("invalid bucket component in path: {:?}", c),
                 None => {
                     // list bucket components available at this level
-                    let comps = buckets
+                    let mut comps = buckets
                         .iter()
                         .filter_map(|b| {
                             if b.type_string() != bucket_type {
                                 return None;
                             }
                             match b.component_string(components.len()) {
-                                Ok(cs) => Some((cs.to_owned(), b.size())),
+                                Ok(cs) => Some((cs.to_owned(), b.size(components.len()))),
                                 Err(_) => None,
                             }
                         })
-                        .collect();
+                        .collect::<Vec<(String, Option<u64>)>>();
+                    comps.sort_by(|a, b| a.0.cmp(&b.0));
+                    comps.dedup();
                     return Ok(ResolveResult::BucketComponents(comps));
                 }
             };

@@ -208,7 +208,7 @@ fn list(
                     &c_path[..],
                     // this marks the beginning of a filesystem, i.e. '/', so this is a Directory
                     Some(&DirEntryAttribute::Directory { start: 0 }),
-                    Some(c.1),
+                    c.1,
                 ));
             }
         }
