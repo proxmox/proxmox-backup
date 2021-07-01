@@ -3,8 +3,6 @@ use lazy_static::lazy_static;
 use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
 
-use proxmox_openid::{OpenIdAuthenticator,  OpenIdConfig};
-
 use proxmox::api::{
     api,
     schema::*,
@@ -93,18 +91,6 @@ pub struct OpenIdRealmConfig {
     pub autocreate: Option<bool>,
     #[serde(skip_serializing_if="Option::is_none")]
     pub username_claim: Option<OpenIdUserAttribute>,
-}
-
-impl OpenIdRealmConfig {
-
-    pub fn authenticator(&self, redirect_url: &str) -> Result<OpenIdAuthenticator, Error> {
-        let config = OpenIdConfig {
-            issuer_url: self.issuer_url.clone(),
-            client_id: self.client_id.clone(),
-            client_key: self.client_key.clone(),
-        };
-        OpenIdAuthenticator::discover(&config, redirect_url)
-    }
 }
 
 fn init() -> SectionConfig {

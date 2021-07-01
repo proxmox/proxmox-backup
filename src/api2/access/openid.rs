@@ -11,7 +11,8 @@ use proxmox::{list_subdirs_api_method};
 use proxmox::{identity, sortable};
 use proxmox::tools::fs::open_file_locked;
 
-use proxmox_openid::OpenIdAuthenticator;
+use proxmox_openid::{OpenIdAuthenticator,  OpenIdConfig};
+
 
 use crate::server::ticket::ApiTicket;
 use crate::tools::ticket::Ticket;
@@ -21,6 +22,16 @@ use crate::config::cached_user_info::CachedUserInfo;
 
 use crate::api2::types::*;
 use crate::auth_helpers::*;
+
+fn openid_authenticator(realm_config: &OpenIdRealmConfig, redirect_url: &str) -> Result<OpenIdAuthenticator, Error> {
+    let config = OpenIdConfig {
+        issuer_url: realm_config.issuer_url.clone(),
+        client_id: realm_config.client_id.clone(),
+        client_key: realm_config.client_key.clone(),
+    };
+    OpenIdAuthenticator::discover(&config, redirect_url)
+}
+
 
 #[api(
     input: {
@@ -77,7 +88,7 @@ pub fn openid_login(
     let (domains, _digest) = crate::config::domains::config()?;
     let config: OpenIdRealmConfig = domains.lookup("openid", &realm)?;
 
-    let open_id = config.authenticator(&redirect_url)?;
+    let open_id = openid_authenticator(&config, &redirect_url)?;
 
     let info = open_id.verify_authorization_code(&code, &private_auth_state)?;
 
@@ -171,7 +182,7 @@ fn openid_auth_url(
     let (domains, _digest) = crate::config::domains::config()?;
     let config: OpenIdRealmConfig = domains.lookup("openid", &realm)?;
 
-    let open_id = config.authenticator(&redirect_url)?;
+    let open_id = openid_authenticator(&config, &redirect_url)?;
 
     let url = open_id.authorize_url(PROXMOX_BACKUP_RUN_DIR_M!(), &realm)?
         .to_string();
