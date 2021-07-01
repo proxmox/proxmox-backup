@@ -26,6 +26,8 @@ pub mod domain;
 pub mod role;
 pub mod tfa;
 pub mod user;
+
+#[cfg(openid)]
 pub mod openid;
 
 #[allow(clippy::large_enum_variant)]
@@ -415,6 +417,12 @@ pub fn list_permissions(
     Ok(map)
 }
 
+#[cfg(openid)]
+const OPENID_ROUTER: &Router = &openid::ROUTER;
+
+#[cfg(not(openid))]
+const OPENID_ROUTER: &Router = &Router::new();
+
 #[sortable]
 const SUBDIRS: SubdirMap = &sorted!([
     ("acl", &acl::ROUTER),
@@ -424,7 +432,7 @@ const SUBDIRS: SubdirMap = &sorted!([
         &Router::new().get(&API_METHOD_LIST_PERMISSIONS)
     ),
     ("ticket", &Router::new().post(&API_METHOD_CREATE_TICKET)),
-    ("openid", &openid::ROUTER),
+    ("openid", &OPENID_ROUTER),
     ("domains", &domain::ROUTER),
     ("roles", &role::ROUTER),
     ("users", &user::ROUTER),
