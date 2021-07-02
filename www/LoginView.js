@@ -51,7 +51,7 @@ Ext.define('PBS.LoginView', {
 		    loginForm.unmask();
 		    Ext.MessageBox.alert(
 			gettext('Error'),
-			gettext('OpenId redirect failed. Please try again<br>Error: ' + error),
+			gettext('OpenID redirect failed, please try again') + `<br>${error}`,
 		    );
 		}
 		return;
