@@ -19,7 +19,7 @@ for various management tasks such as disk management.
    `Proxmox Backup`_ without the server part.
 
 The disk image (ISO file) provided by Proxmox includes a complete Debian system
-("buster" for version 1.x) as well as all necessary packages for the `Proxmox Backup`_ server.
+as well as all necessary packages for the `Proxmox Backup`_ server.
 
 The installer will guide you through the setup process and allow
 you to partition the local disk(s), apply basic system configurations
