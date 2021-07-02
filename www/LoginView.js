@@ -30,18 +30,16 @@ Ext.define('PBS.LoginView', {
 		return;
 	    }
 
-	    let redirect_url = location.origin;
-
-	    let params = loginForm.getValues();
+	    let creds = loginForm.getValues();
 
 	    if (this.getViewModel().data.openid === true) {
-		let realm = params.realm;
+		const redirectURL = location.origin;
 		try {
 		    let resp = await PBS.Async.api2({
 			url: '/api2/extjs/access/openid/auth-url',
 			params: {
-			    realm: realm,
-			    "redirect-url": redirect_url,
+			    realm: creds.realm,
+			    "redirect-url": redirectURL,
 			},
 			method: 'POST',
 		    });
@@ -57,8 +55,8 @@ Ext.define('PBS.LoginView', {
 		return;
 	    }
 
-	    params.username = params.username + '@' + params.realm;
-	    delete params.realm;
+	    creds.username = `${creds.username}@${creds.realm}`;
+	    delete creds.realm;
 
 	    if (loginForm.isVisible()) {
 		loginForm.mask(gettext('Please wait...'), 'x-mask-loading');
@@ -76,7 +74,7 @@ Ext.define('PBS.LoginView', {
 	    try {
 		let resp = await PBS.Async.api2({
 		    url: '/api2/extjs/access/ticket',
-		    params: params,
+		    params: creds,
 		    method: 'POST',
 		});
 
@@ -165,21 +163,22 @@ Ext.define('PBS.LoginView', {
 			pwField.focus();
 		    }
 
-		    let param = PBS.Utils.openid_login_param();
-		    if (param !== undefined) {
+		    let auth = Proxmox.Utils.getOpenIDRedirectionAuthorization();
+		    if (auth !== undefined) {
 			Proxmox.Utils.authClear();
 
 			let loginForm = this.lookupReference('loginForm');
 			loginForm.mask(gettext('OpenID login - please wait...'), 'x-mask-loading');
 
-			let redirect_url = location.origin;
+			// openID checks the original redirection URL we used, so pass that too
+			const redirectURL = location.origin;
 
 			Proxmox.Utils.API2Request({
 			    url: '/api2/extjs/access/openid/login',
 			    params: {
-				state: param.state,
-				code: param.code,
-				"redirect-url": redirect_url,
+				state: auth.state,
+				code: auth.code,
+				"redirect-url": redirectURL,
 			    },
 			    method: 'POST',
 			    failure: function(response) {
@@ -193,10 +192,10 @@ Ext.define('PBS.LoginView', {
 			    },
 			    success: function(response, options) {
 				loginForm.unmask();
-				let data = response.result.data;
-				PBS.Utils.updateLoginData(data);
+				let creds = response.result.data;
+				PBS.Utils.updateLoginData(creds);
 				PBS.app.changeView('mainview');
-				history.replaceState(null, '', redirect_url + '#pbsDashboard');
+				history.replaceState(null, '', `${redirectURL}#pbsDashboard`);
 			    },
 			});
 		    }
