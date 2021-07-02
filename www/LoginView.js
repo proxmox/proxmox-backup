@@ -184,12 +184,11 @@ Ext.define('PBS.LoginView', {
 			    method: 'POST',
 			    failure: function(response) {
 				loginForm.unmask();
+				let error = response.htmlStatus;
 				Ext.MessageBox.alert(
 				    gettext('Error'),
-				    gettext('Login failed. Please try again<br>Error: ' + response.htmlStatus),
-				    function() {
-					window.location = redirect_url;
-				    },
+				    gettext('OpenID login failed, please try again') + `<br>${error}`,
+				    () => { window.location = redirectURL; },
 				);
 			    },
 			    success: function(response, options) {
