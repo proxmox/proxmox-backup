@@ -17,14 +17,12 @@ update``.
 .. code-block:: sources.list
   :caption: File: ``/etc/apt/sources.list``
 
-  deb http://ftp.debian.org/debian buster main contrib
-  deb http://ftp.debian.org/debian buster-updates main contrib
+  deb http://ftp.debian.org/debian bullseye main contrib
+  deb http://ftp.debian.org/debian bullseye-updates main contrib
 
   # security updates
-  deb http://security.debian.org/debian-security buster/updates main contrib
+  deb http://security.debian.org/debian-security bullseye-security main contrib
 
-
-.. FIXME for 7.0: change security update suite to bullseye-security
 
 In addition, you need a package repository from Proxmox to get Proxmox Backup
 updates.
@@ -45,31 +43,21 @@ key with the following commands:
 
 .. code-block:: console
 
- # wget http://download.proxmox.com/debian/proxmox-ve-release-6.x.gpg -O /etc/apt/trusted.gpg.d/proxmox-ve-release-6.x.gpg
+ # wget https://enterprise.proxmox.com/debian/proxmox-release-bullseye.gpg -O /etc/apt/trusted.gpg.d/proxmox-release-bullseye.gpg
 
-Verify the SHA512 checksum afterwards with:
-
-.. code-block:: console
-
- # sha512sum /etc/apt/trusted.gpg.d/proxmox-ve-release-6.x.gpg
-
-The output should be:
+Verify the SHA512 checksum afterwards with the expected output below:
 
 .. code-block:: console
 
- acca6f416917e8e11490a08a1e2842d500b3a5d9f322c6319db0927b2901c3eae23cfb5cd5df6facf2b57399d3cfa52ad7769ebdd75d9b204549ca147da52626 /etc/apt/trusted.gpg.d/proxmox-ve-release-6.x.gpg
+ # sha512sum /etc/apt/trusted.gpg.d/proxmox-release-bullseye.gpg
+ 7fb03ec8a1675723d2853b84aa4fdb49a46a3bb72b9951361488bfd19b29aab0a789a4f8c7406e71a69aabbc727c936d3549731c4659ffa1a08f44db8fdcebfa  /etc/apt/trusted.gpg.d/proxmox-release-bullseye.gpg
 
-and the md5sum:
-
-.. code-block:: console
-
- # md5sum /etc/apt/trusted.gpg.d/proxmox-ve-release-6.x.gpg
-
-Here, the output should be:
+and the md5sum, with the expected output below:
 
 .. code-block:: console
 
- f3f6c5a3a67baf38ad178e5ff1ee270c /etc/apt/trusted.gpg.d/proxmox-ve-release-6.x.gpg
+ # md5sum /etc/apt/trusted.gpg.d/proxmox-release-bullseye.gpg
+ bcc35c7173e0845c0d6ad6470b70f50e /etc/apt/trusted.gpg.d/proxmox-release-bullseye.gpg
 
 .. _sysadmin_package_repos_enterprise:
 
@@ -84,7 +72,7 @@ enabled by default:
 .. code-block:: sources.list
   :caption: File: ``/etc/apt/sources.list.d/pbs-enterprise.list``
 
-  deb https://enterprise.proxmox.com/debian/pbs buster pbs-enterprise
+  deb https://enterprise.proxmox.com/debian/pbs bullseye pbs-enterprise
 
 
 To never miss important security fixes, the superuser (``root@pam`` user) is
@@ -114,15 +102,15 @@ We recommend to configure this repository in ``/etc/apt/sources.list``.
 .. code-block:: sources.list
   :caption: File: ``/etc/apt/sources.list``
 
-  deb http://ftp.debian.org/debian buster main contrib
-  deb http://ftp.debian.org/debian buster-updates main contrib
+  deb http://ftp.debian.org/debian bullseye main contrib
+  deb http://ftp.debian.org/debian bullseye-updates main contrib
 
   # PBS pbs-no-subscription repository provided by proxmox.com,
   # NOT recommended for production use
-  deb http://download.proxmox.com/debian/pbs buster pbs-no-subscription
+  deb http://download.proxmox.com/debian/pbs bullseye pbs-no-subscription
 
   # security updates
-  deb http://security.debian.org/debian-security buster/updates main contrib
+  deb http://security.debian.org/debian-security bullseye-security main contrib
 
 
 `Proxmox Backup`_ Test Repository
@@ -140,7 +128,7 @@ You can access this repository by adding the following line to
 .. code-block:: sources.list
   :caption: sources.list entry for ``pbstest``
 
-  deb http://download.proxmox.com/debian/pbs buster pbstest
+  deb http://download.proxmox.com/debian/pbs bullseye pbstest
 
 .. _package_repositories_client_only:
 
@@ -161,6 +149,26 @@ APT-based Proxmox Backup Client Repository
 For modern Linux distributions using `apt` as package manager, like all Debian
 and Ubuntu Derivative do, you may be able to use the APT-based repository.
 
+In order to configure this repository you need to first :ref:`setup the Proxmox
+release key <package_repos_secure_apt>`. After that, add the repository URL to
+the APT sources lists.
+
+**Repositories for Debian 11 (Bullseye) based releases**
+
+This repository is tested with:
+
+- Debian Bullseye
+
+Edit the file ``/etc/apt/sources.list.d/pbs-client.list`` and add the following
+snipped
+
+.. code-block:: sources.list
+  :caption: File: ``/etc/apt/sources.list``
+
+  deb http://download.proxmox.com/debian/pbs-client bullseye main
+
+**Repositories for Debian 10 (Buster) based releases**
+
 This repository is tested with:
 
 - Debian Buster
@@ -168,9 +176,6 @@ This repository is tested with:
 
 It may work with older, and should work with more recent released versions.
 
-In order to configure this repository you need to first :ref:`setup the Proxmox
-release key <package_repos_secure_apt>`. After that, add the repository URL to
-the APT sources lists.
 Edit the file ``/etc/apt/sources.list.d/pbs-client.list`` and add the following
 snipped
 
