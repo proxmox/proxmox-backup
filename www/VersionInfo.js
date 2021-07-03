@@ -8,6 +8,11 @@ Ext.define('PBS.view.main.VersionInfo', {
 	version: false,
     },
 
+    style: {
+	'font-size': '14px',
+	'line-height': '18px',
+    },
+
     tpl: [
 	'Backup Server',
 	'<tpl if="version">',
