@@ -37,10 +37,9 @@ lazy_static! {
 /// This is expected to be run by 'proxmox-file-restore' within a mini-VM
 fn main() -> Result<(), Error> {
     if !Path::new(VM_DETECT_FILE).exists() {
-        bail!(concat!(
-            "This binary is not supposed to be run manually. ",
-            "Please use 'proxmox-file-restore' instead."
-        ));
+        bail!(
+            "This binary is not supposed to be run manually, use 'proxmox-file-restore' instead."
+        );
     }
 
     // don't have a real syslog (and no persistance), so use env_logger to print to a log file (via
