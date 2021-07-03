@@ -1,3 +1,9 @@
+rust-proxmox-backup (2.0.0-2) bullseye; urgency=medium
+
+  * file-restore-daemon/disk: add LVM (thin) support
+
+ -- Proxmox Support Team <support@proxmox.com>  Sat, 03 Jul 2021 02:15:16 +0200
+
 rust-proxmox-backup (2.0.0-1) bullseye; urgency=medium
 
   * initial bump for Debian 11 Bullseye / Proxmox Backup Server 2.0
