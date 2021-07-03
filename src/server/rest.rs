@@ -560,7 +560,8 @@ async fn simple_static_file_download(
     let mut response = match compression {
         Some(CompressionMethod::Deflate) => {
             let mut enc = DeflateEncoder::with_quality(data, Level::Default);
-            enc.compress_vec(&mut file, CHUNK_SIZE_LIMIT as usize).await?;
+            enc.compress_vec(&mut file, CHUNK_SIZE_LIMIT as usize)
+                .await?;
             let mut response = Response::new(enc.into_inner().into());
             response.headers_mut().insert(
                 header::CONTENT_ENCODING,
