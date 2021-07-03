@@ -1,4 +1,4 @@
-rust-proxmox-backup (2.0.1-1) bullseye; urgency=medium
+rust-proxmox-backup (2.0.1-2) bullseye; urgency=medium
 
   * file restore daemon: log basic startup steps
 
@@ -18,7 +18,7 @@ rust-proxmox-backup (2.0.1-1) bullseye; urgency=medium
 
   * docs: initial update to repositories for bullseye
 
- -- Proxmox Support Team <support@proxmox.com>  Sat, 03 Jul 2021 21:41:34 +0200
+ -- Proxmox Support Team <support@proxmox.com>  Sat, 03 Jul 2021 23:14:49 +0200
 
 rust-proxmox-backup (2.0.0-2) bullseye; urgency=medium
 
