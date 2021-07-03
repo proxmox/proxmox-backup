@@ -47,6 +47,7 @@ fn main() -> Result<(), Error> {
     // stdout to a serial terminal attached by QEMU)
     env_logger::from_env(env_logger::Env::default().default_filter_or("info"))
         .write_style(env_logger::WriteStyle::Never)
+        .format_timestamp_millis()
         .init();
 
     // the API may save some stuff there, e.g., the memcon tracking file
