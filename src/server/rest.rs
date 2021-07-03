@@ -253,7 +253,10 @@ impl tower_service::Service<Request<Body>> for ApiService {
                         Some(apierr) => (apierr.message.clone(), apierr.code),
                         _ => (err.to_string(), StatusCode::BAD_REQUEST),
                     };
-                    Response::builder().status(code).body(err.into())?
+                    Response::builder()
+                        .status(code)
+                        .extension(ErrorMessageExtension(err.to_string()))
+                        .body(err.into())?
                 }
             };
             let logger = config.get_file_log();
