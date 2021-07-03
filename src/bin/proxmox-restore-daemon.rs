@@ -1,7 +1,7 @@
 ///! Daemon binary to run inside a micro-VM for secure single file restore of disk images
 use anyhow::{bail, format_err, Error};
-use log::error;
 use lazy_static::lazy_static;
+use log::{info, error};
 
 use std::os::unix::{
     io::{FromRawFd, RawFd},
@@ -55,9 +55,12 @@ fn main() -> Result<(), Error> {
 
     // scan all attached disks now, before starting the API
     // this will panic and stop the VM if anything goes wrong
+    info!("scanning all disks...");
     {
         let _disk_state = DISK_STATE.lock().unwrap();
     }
+
+    info!("disk scan complete, starting main runtime...");
 
     proxmox_backup::tools::runtime::main(run())
 }
