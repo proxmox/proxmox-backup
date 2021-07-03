@@ -228,6 +228,7 @@ epub3: ${GENERATED_SYNOPSIS}
 
 clean:
 	rm -r -f *~ *.1 ${BUILDDIR} ${GENERATED_SYNOPSIS} api-viewer/apidata.js
+	rm -f api-viewer/apidoc.js lto-barcode/lto-barcode-generator.js prune-simulator/prune-simulator.js
 
 
 install_manual_pages: ${MAN1_PAGES} ${MAN5_PAGES}
