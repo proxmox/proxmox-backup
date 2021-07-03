@@ -49,16 +49,11 @@ Ext.define('PBS.Application', {
 	var provider = new Ext.state.LocalStorageProvider({ prefix: 'ext-pbs-' });
 	Ext.state.Manager.setProvider(provider);
 
-	let openid_login = false;
-	let param = PBS.Utils.openid_login_param();
-	if (param !== undefined) {
-	    openid_login = true;
-	}
+	let isOpenIDLogin = Proxmox.Utils.getOpenIDRedirectionAuthorization() !== undefined;
+	let alreadyLoggedIn = Proxmox.Utils.authOK();
 
-	// show login window if not loggedin
-	var loggedin = Proxmox.Utils.authOK();
-	if (openid_login || !loggedin) {
-	    me.changeView('loginview', true);
+	if (isOpenIDLogin || !alreadyLoggedIn) {
+	    me.changeView('loginview', true); // show login window if not loggedin
 	} else {
 	    me.changeView('mainview', true);
 	}
