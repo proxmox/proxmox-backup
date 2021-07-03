@@ -185,8 +185,8 @@ impl AcmePlugin for DnsPlugin {
             let result = self
                 .action(client, authorization, domain, task.clone(), "setup")
                 .await;
-            let validation_delay = self.core.validation_delay.unwrap_or(30) as u64;
 
+            let validation_delay = self.core.validation_delay.unwrap_or(30) as u64;
             if validation_delay > 0 {
                 task.log(format!(
                     "Sleeping {} seconds to wait for TXT record propagation",
