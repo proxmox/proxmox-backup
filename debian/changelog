@@ -1,3 +1,25 @@
+rust-proxmox-backup (2.0.1-1) bullseye; urgency=medium
+
+  * file restore daemon: log basic startup steps
+
+  * REST-API: set error message extension for bad-request response log to
+    ensure the actual error is logged in any (access) log, making debugging
+    such issues easier
+
+  * restore daemon: create /run/proxmox-backup on startup as there's now some
+    runtime state saved there, which failed all API requests to the restore
+    daemon otherwise
+
+  * restore daemon: use millisecond log resolution
+
+  * fix #3496: acme: plugin: actually sleep after setting the TXT record,
+    ensuring DNS propagation of that record. This makes it catch up with the
+    docs/web-interface, where the option was already available.
+
+  * docs: initial update to repositories for bullseye
+
+ -- Proxmox Support Team <support@proxmox.com>  Sat, 03 Jul 2021 21:41:34 +0200
+
 rust-proxmox-backup (2.0.0-2) bullseye; urgency=medium
 
   * file-restore-daemon/disk: add LVM (thin) support
