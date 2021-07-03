@@ -49,6 +49,10 @@ fn main() -> Result<(), Error> {
         .write_style(env_logger::WriteStyle::Never)
         .init();
 
+    // the API may save some stuff there, e.g., the memcon tracking file
+    // we do not care much, but it's way less headache to just create it
+    std::fs::create_dir_all("/run/proxmox-backup")?;
+
     // scan all attached disks now, before starting the API
     // this will panic and stop the VM if anything goes wrong
     {
