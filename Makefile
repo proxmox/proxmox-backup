@@ -30,6 +30,9 @@ SERVICE_BIN := \
 RESTORE_BIN := \
 	proxmox-restore-daemon
 
+SUBCRATES := \
+	pbs-buildcfg
+
 ifeq ($(BUILD_MODE), release)
 CARGO_BUILD_ARGS += --release
 COMPILEDIR := target/release
@@ -81,21 +84,14 @@ doc:
 .PHONY: build
 build:
 	rm -rf build
-	rm -f debian/control
-	debcargo package \
-	   --config debian/debcargo.toml \
-	   --changelog-ready \
-	   --no-overlay-write-back \
-	   --directory build \
-	   proxmox-backup \
-	   $(shell dpkg-parsechangelog -l debian/changelog -SVersion | sed -e 's/-.*//')
-	sed -e '1,/^$$/ ! d' build/debian/control > build/debian/control.src
-	cat build/debian/control.src build/debian/control.in > build/debian/control
-	rm build/debian/control.in build/debian/control.src
-	# not yet settable via debcargo.toml, required for setuid binaries in `make install`
-	sed -i -e 's/^Rules-Requires-Root: no/Rules-Requires-Root: binary-targets/g' build/debian/control
-	cp build/debian/control debian/control
-	rm build/Cargo.lock
+	mkdir build
+	cp -a debian \
+	  Cargo.toml build.rs src \
+	  $(SUBCRATES) \
+	  docs etc examples tests www zsh-completions \
+	  defines.mk Makefile \
+	  ./build/
+	rm -f build/Cargo.lock
 	find build/debian -name "*.hint" -delete
 	$(foreach i,$(SUBDIRS), \
 	    $(MAKE) -C build/$(i) clean ;)

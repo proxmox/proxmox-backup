@@ -91,7 +91,7 @@ proxmox-http = { version = "0.2.1", features = [ "client", "http-helpers", "webs
 #proxmox-http = { version = "0.2.0", path = "../proxmox/proxmox-http", features = [ "client", "http-helpers", "websocket" ] }
 proxmox-openid = "0.6.0"
 
-pbs-buildcfg = { path = "pbs-buildcfg" }
+pbs-buildcfg = { path = "pbs-buildcfg", version = "0.1" }
 
 [features]
 default = []
