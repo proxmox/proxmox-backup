@@ -9,12 +9,27 @@ use anyhow::{bail, format_err, Error};
 use pathpatterns::{MatchList, MatchType};
 use proxmox::tools::io::ReadExt;
 
-use crate::backup::file_formats::PROXMOX_CATALOG_FILE_MAGIC_1_0;
-use crate::pxar::catalog::BackupCatalogWriter;
+use crate::file_formats::PROXMOX_CATALOG_FILE_MAGIC_1_0;
+
+/// Trait for writing file list catalogs.
+///
+/// A file list catalog simply stores a directory tree. Such catalogs may be used as index to do a
+/// fast search for files.
+pub trait BackupCatalogWriter {
+    fn start_directory(&mut self, name: &CStr) -> Result<(), Error>;
+    fn end_directory(&mut self) -> Result<(), Error>;
+    fn add_file(&mut self, name: &CStr, size: u64, mtime: i64) -> Result<(), Error>;
+    fn add_symlink(&mut self, name: &CStr) -> Result<(), Error>;
+    fn add_hardlink(&mut self, name: &CStr) -> Result<(), Error>;
+    fn add_block_device(&mut self, name: &CStr) -> Result<(), Error>;
+    fn add_char_device(&mut self, name: &CStr) -> Result<(), Error>;
+    fn add_fifo(&mut self, name: &CStr) -> Result<(), Error>;
+    fn add_socket(&mut self, name: &CStr) -> Result<(), Error>;
+}
 
 #[repr(u8)]
 #[derive(Copy,Clone,PartialEq)]
-pub(crate) enum CatalogEntryType {
+pub enum CatalogEntryType {
     Directory = b'd',
     File = b'f',
     Symlink = b'l',

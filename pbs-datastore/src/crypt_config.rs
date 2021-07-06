@@ -1,6 +1,6 @@
 //! Wrappers for OpenSSL crypto functions
 //!
-//! We use this to encrypt and decryprt data chunks. Cipher is
+//! We use this to encrypt and decrypt data chunks. Cipher is
 //! AES_256_GCM, which is fast and provides authenticated encryption.
 //!
 //! See the Wikipedia Artikel for [Authenticated

@@ -32,6 +32,7 @@ RESTORE_BIN := \
 
 SUBCRATES := \
 	pbs-buildcfg \
+	pbs-datastore \
 	pbs-runtime \
 	pbs-tools
 

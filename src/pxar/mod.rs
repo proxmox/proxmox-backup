@@ -47,7 +47,6 @@
 //! (user, group, acl, ...) because this is already defined by the
 //! linked `ENTRY`.
 
-pub mod catalog;
 pub(crate) mod create;
 pub(crate) mod dir_stack;
 pub(crate) mod extract;

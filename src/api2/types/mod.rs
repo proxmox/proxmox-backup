@@ -7,12 +7,13 @@ use proxmox::api::{api, schema::*};
 use proxmox::const_regex;
 use proxmox::{IPRE, IPRE_BRACKET, IPV4RE, IPV6RE, IPV4OCTET, IPV6H16, IPV6LS32};
 
+use pbs_datastore::catalog::CatalogEntryType;
+
 use crate::{
     backup::{
         CryptMode,
         Fingerprint,
         DirEntryAttribute,
-        CatalogEntryType,
     },
     server::UPID,
     config::acl::Role,

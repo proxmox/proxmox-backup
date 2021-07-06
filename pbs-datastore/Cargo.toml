@@ -1,0 +1,22 @@
+[package]
+name = "pbs-datastore"
+version = "0.1.0"
+authors = ["Proxmox Support Team <support@proxmox.com>"]
+edition = "2018"
+description = "low level pbs data storage access"
+
+[dependencies]
+anyhow = "1.0"
+crc32fast = "1"
+endian_trait = { version = "0.6", features = [ "arrays" ] }
+nix = "0.19.1"
+openssl = "0.10"
+serde = { version = "1.0", features = ["derive"] }
+zstd = { version = "0.6", features = [ "bindgen" ] }
+
+pathpatterns = "0.1.2"
+pxar = { version = "0.10.1", features = [ "tokio-io" ] }
+
+proxmox = { version = "0.11.5", default-features = false, features = [ "api-macro" ] }
+
+pbs-tools = { path = "../pbs-tools" }

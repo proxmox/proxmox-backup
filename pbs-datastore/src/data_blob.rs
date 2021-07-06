@@ -1,5 +1,6 @@
-use anyhow::{bail, Error};
 use std::convert::TryInto;
+
+use anyhow::{bail, Error};
 
 use proxmox::tools::io::{ReadExt, WriteExt};
 

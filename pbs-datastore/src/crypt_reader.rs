@@ -1,6 +1,7 @@
-use anyhow::{bail, Error};
 use std::sync::Arc;
 use std::io::{Read, BufRead};
+
+use anyhow::{bail, Error};
 
 use super::CryptConfig;
 

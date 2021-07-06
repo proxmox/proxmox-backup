@@ -30,6 +30,8 @@ use proxmox::{
 };
 use pxar::accessor::{MaybeReady, ReadAt, ReadAtOperation};
 
+use pbs_datastore::catalog::BackupCatalogWriter;
+
 use proxmox_backup::tools::{
     self,
     StdChannelWriter,
@@ -38,7 +40,6 @@ use proxmox_backup::tools::{
 use proxmox_backup::api2::types::*;
 use proxmox_backup::api2::version;
 use proxmox_backup::client::*;
-use proxmox_backup::pxar::catalog::*;
 use proxmox_backup::backup::{
     archive_type,
     decrypt_key,

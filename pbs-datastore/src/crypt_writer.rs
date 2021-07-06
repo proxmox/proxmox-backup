@@ -1,6 +1,7 @@
-use anyhow::{Error};
 use std::sync::Arc;
 use std::io::Write;
+
+use anyhow::Error;
 
 use super::CryptConfig;
 
