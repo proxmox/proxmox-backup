@@ -397,7 +397,7 @@ fn main() {
     let mut rpcenv = CliEnvironment::new();
     rpcenv.set_auth_id(Some(String::from("root@pam")));
 
-   proxmox_backup::tools::runtime::main(run_async_cli_command(cmd_def, rpcenv));
+   pbs_runtime::main(run_async_cli_command(cmd_def, rpcenv));
 }
 
 // shell completion helper
@@ -408,7 +408,7 @@ pub fn complete_remote_datastore_name(_arg: &str, param: &HashMap<String, String
     let _ = proxmox::try_block!({
         let remote = param.get("remote").ok_or_else(|| format_err!("no remote"))?;
 
-        let data = crate::tools::runtime::block_on(async move {
+        let data = pbs_runtime::block_on(async move {
             crate::api2::config::remote::scan_remote_datastores(remote.clone()).await
         })?;
 

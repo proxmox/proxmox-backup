@@ -18,7 +18,7 @@ use proxmox_backup::config;
 fn main() {
     proxmox_backup::tools::setup_safe_path_env();
 
-    if let Err(err) = proxmox_backup::tools::runtime::main(run()) {
+    if let Err(err) = pbs_runtime::main(run()) {
         eprintln!("Error: {}", err);
         std::process::exit(-1);
     }

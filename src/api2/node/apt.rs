@@ -236,7 +236,7 @@ fn apt_get_changelog(
     let changelog_url = &pkg_info[0].change_log_url;
     // FIXME: use 'apt-get changelog' for proxmox packages as well, once repo supports it
     if changelog_url.starts_with("http://download.proxmox.com/") {
-        let changelog = crate::tools::runtime::block_on(client.get_string(changelog_url, None))
+        let changelog = pbs_runtime::block_on(client.get_string(changelog_url, None))
             .map_err(|err| format_err!("Error downloading changelog from '{}': {}", changelog_url, err))?;
         Ok(json!(changelog))
 
@@ -260,7 +260,7 @@ fn apt_get_changelog(
         auth_header.insert("Authorization".to_owned(),
             format!("Basic {}", base64::encode(format!("{}:{}", key, id))));
 
-        let changelog = crate::tools::runtime::block_on(client.get_string(changelog_url, Some(&auth_header)))
+        let changelog = pbs_runtime::block_on(client.get_string(changelog_url, Some(&auth_header)))
             .map_err(|err| format_err!("Error downloading changelog from '{}': {}", changelog_url, err))?;
         Ok(json!(changelog))
 

@@ -7,7 +7,7 @@ use tokio::io::{AsyncRead, ReadBuf};
 use futures::ready;
 use futures::stream::Stream;
 
-use crate::tools::runtime::block_in_place;
+use pbs_runtime::block_in_place;
 
 /// Wrapper struct to convert a Reader into a Stream
 pub struct WrappedReaderStream<R: Read + Unpin> {
@@ -108,7 +108,7 @@ mod test {
 
     #[test]
     fn test_wrapped_stream_reader() -> Result<(), Error> {
-        crate::tools::runtime::main(async {
+        pbs_runtime::main(async {
             run_wrapped_stream_reader_test().await
         })
     }

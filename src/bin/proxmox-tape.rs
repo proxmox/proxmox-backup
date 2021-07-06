@@ -1101,5 +1101,5 @@ fn main() {
     let mut rpcenv = CliEnvironment::new();
     rpcenv.set_auth_id(Some(String::from("root@pam")));
 
-    proxmox_backup::tools::runtime::main(run_async_cli_command(cmd_def, rpcenv));
+    pbs_runtime::main(run_async_cli_command(cmd_def, rpcenv));
 }

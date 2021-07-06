@@ -21,7 +21,7 @@ use pxar::{EntryKind, Metadata};
 use crate::backup::catalog::{self, DirEntryAttribute};
 use crate::pxar::fuse::{Accessor, FileEntry};
 use crate::pxar::Flags;
-use crate::tools::runtime::block_in_place;
+use pbs_runtime::block_in_place;
 use crate::tools::ControlFlow;
 
 type CatalogReader = crate::backup::CatalogReader<std::fs::File>;

@@ -1,0 +1,11 @@
+[package]
+name = "pbs-runtime"
+version = "0.1.0"
+authors = ["Proxmox Support Team <support@proxmox.com>"]
+edition = "2018"
+description = "tokio runtime related helpers required for binaries"
+
+[dependencies]
+lazy_static = "1.4"
+pin-utils = "0.1.0"
+tokio = { version = "1.6", features = [ "rt", "rt-multi-thread" ] }

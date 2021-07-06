@@ -1494,6 +1494,6 @@ fn main() {
 
     let rpcenv = CliEnvironment::new();
     run_cli_command(cmd_def, rpcenv, Some(|future| {
-        proxmox_backup::tools::runtime::main(future)
+        pbs_runtime::main(future)
     }));
 }

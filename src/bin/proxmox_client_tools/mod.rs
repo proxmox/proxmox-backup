@@ -107,7 +107,7 @@ pub async fn try_get(repo: &BackupRepository, url: &str) -> Value {
 }
 
 pub fn complete_backup_group(_arg: &str, param: &HashMap<String, String>) -> Vec<String> {
-    proxmox_backup::tools::runtime::main(async { complete_backup_group_do(param).await })
+    pbs_runtime::main(async { complete_backup_group_do(param).await })
 }
 
 pub async fn complete_backup_group_do(param: &HashMap<String, String>) -> Vec<String> {
@@ -137,7 +137,7 @@ pub async fn complete_backup_group_do(param: &HashMap<String, String>) -> Vec<St
 }
 
 pub fn complete_group_or_snapshot(arg: &str, param: &HashMap<String, String>) -> Vec<String> {
-    proxmox_backup::tools::runtime::main(async { complete_group_or_snapshot_do(arg, param).await })
+    pbs_runtime::main(async { complete_group_or_snapshot_do(arg, param).await })
 }
 
 pub async fn complete_group_or_snapshot_do(arg: &str, param: &HashMap<String, String>) -> Vec<String> {
@@ -156,7 +156,7 @@ pub async fn complete_group_or_snapshot_do(arg: &str, param: &HashMap<String, St
 }
 
 pub fn complete_backup_snapshot(_arg: &str, param: &HashMap<String, String>) -> Vec<String> {
-    proxmox_backup::tools::runtime::main(async { complete_backup_snapshot_do(param).await })
+    pbs_runtime::main(async { complete_backup_snapshot_do(param).await })
 }
 
 pub async fn complete_backup_snapshot_do(param: &HashMap<String, String>) -> Vec<String> {
@@ -188,7 +188,7 @@ pub async fn complete_backup_snapshot_do(param: &HashMap<String, String>) -> Vec
 }
 
 pub fn complete_server_file_name(_arg: &str, param: &HashMap<String, String>) -> Vec<String> {
-    proxmox_backup::tools::runtime::main(async { complete_server_file_name_do(param).await })
+    pbs_runtime::main(async { complete_server_file_name_do(param).await })
 }
 
 pub async fn complete_server_file_name_do(param: &HashMap<String, String>) -> Vec<String> {
@@ -279,7 +279,7 @@ pub fn complete_chunk_size(_arg: &str, _param: &HashMap<String, String>) -> Vec<
 }
 
 pub fn complete_auth_id(_arg: &str, param: &HashMap<String, String>) -> Vec<String> {
-    proxmox_backup::tools::runtime::main(async { complete_auth_id_do(param).await })
+    pbs_runtime::main(async { complete_auth_id_do(param).await })
 }
 
 pub async fn complete_auth_id_do(param: &HashMap<String, String>) -> Vec<String> {

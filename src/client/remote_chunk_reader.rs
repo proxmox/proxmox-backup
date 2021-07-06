@@ -7,7 +7,7 @@ use anyhow::{bail, Error};
 
 use super::BackupReader;
 use crate::backup::{AsyncReadChunk, CryptConfig, CryptMode, DataBlob, ReadChunk};
-use crate::tools::runtime::block_on;
+use pbs_runtime::block_on;
 
 /// Read chunks from remote host using ``BackupReader``
 #[derive(Clone)]

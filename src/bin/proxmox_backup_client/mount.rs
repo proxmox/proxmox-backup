@@ -139,7 +139,7 @@ fn mount(
     if verbose {
         // This will stay in foreground with debug output enabled as None is
         // passed for the RawFd.
-        return proxmox_backup::tools::runtime::main(mount_do(param, None));
+        return pbs_runtime::main(mount_do(param, None));
     }
 
     // Process should be daemonized.
@@ -155,7 +155,7 @@ fn mount(
         Ok(ForkResult::Child) => {
             drop(pr);
             nix::unistd::setsid().unwrap();
-            proxmox_backup::tools::runtime::main(mount_do(param, Some(pw)))
+            pbs_runtime::main(mount_do(param, Some(pw)))
         }
         Err(_) => bail!("failed to daemonize process"),
     }

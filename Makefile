@@ -31,7 +31,8 @@ RESTORE_BIN := \
 	proxmox-restore-daemon
 
 SUBCRATES := \
-	pbs-buildcfg
+	pbs-buildcfg \
+	pbs-runtime
 
 ifeq ($(BUILD_MODE), release)
 CARGO_BUILD_ARGS += --release

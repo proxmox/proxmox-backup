@@ -47,7 +47,6 @@ pub mod loopdev;
 pub mod lru_cache;
 pub mod async_lru_cache;
 pub mod nom;
-pub mod runtime;
 pub mod serde_filter;
 pub mod statistics;
 pub mod subscription;

@@ -113,7 +113,7 @@ impl Stream for PxarBackupStream {
             }
         }
 
-        match crate::tools::runtime::block_in_place(|| self.rx.as_ref().unwrap().recv()) {
+        match pbs_runtime::block_in_place(|| self.rx.as_ref().unwrap().recv()) {
             Ok(data) => Poll::Ready(Some(data)),
             Err(_) => {
                 let error = self.error.lock().unwrap();

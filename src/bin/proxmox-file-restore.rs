@@ -473,6 +473,6 @@ fn main() {
     run_cli_command(
         cmd_def,
         rpcenv,
-        Some(|future| proxmox_backup::tools::runtime::main(future)),
+        Some(|future| pbs_runtime::main(future)),
     );
 }
