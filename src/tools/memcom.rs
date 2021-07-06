@@ -31,7 +31,7 @@ struct Head {
 
 static INSTANCE: OnceCell<Arc<Memcom>> = OnceCell::new();
 
-const MEMCOM_FILE_PATH: &str = rundir!("/proxmox-backup-memcom");
+const MEMCOM_FILE_PATH: &str = pbs_buildcfg::rundir!("/proxmox-backup-memcom");
 
 impl Memcom {
     /// Open the memory based communication channel singleton.

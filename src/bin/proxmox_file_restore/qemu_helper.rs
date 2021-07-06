@@ -18,7 +18,7 @@ use proxmox::tools::{
 
 use proxmox_backup::backup::backup_user;
 use proxmox_backup::client::{VsockClient, DEFAULT_VSOCK_PORT};
-use proxmox_backup::{buildcfg, tools};
+use proxmox_backup::tools;
 
 use super::SnapRestoreDetails;
 
@@ -26,7 +26,7 @@ const PBS_VM_NAME: &str = "pbs-restore-vm";
 const MAX_CID_TRIES: u64 = 32;
 
 fn create_restore_log_dir() -> Result<String, Error> {
-    let logpath = format!("{}/file-restore", buildcfg::PROXMOX_BACKUP_LOG_DIR);
+    let logpath = format!("{}/file-restore", pbs_buildcfg::PROXMOX_BACKUP_LOG_DIR);
 
     proxmox::try_block!({
         let backup_user = backup_user()?;
@@ -38,7 +38,7 @@ fn create_restore_log_dir() -> Result<String, Error> {
             .owner(nix::unistd::ROOT)
             .group(nix::unistd::Gid::from_raw(0));
 
-        create_path(buildcfg::PROXMOX_BACKUP_LOG_DIR, None, Some(opts))?;
+        create_path(pbs_buildcfg::PROXMOX_BACKUP_LOG_DIR, None, Some(opts))?;
         create_path(&logpath, None, Some(opts_root))?;
         Ok(())
     })
@@ -48,11 +48,11 @@ fn create_restore_log_dir() -> Result<String, Error> {
 }
 
 fn validate_img_existance(debug: bool) -> Result<(), Error> {
-    let kernel = PathBuf::from(buildcfg::PROXMOX_BACKUP_KERNEL_FN);
+    let kernel = PathBuf::from(pbs_buildcfg::PROXMOX_BACKUP_KERNEL_FN);
     let initramfs = PathBuf::from(if debug {
-        buildcfg::PROXMOX_BACKUP_INITRAMFS_DBG_FN
+        pbs_buildcfg::PROXMOX_BACKUP_INITRAMFS_DBG_FN
     } else {
-        buildcfg::PROXMOX_BACKUP_INITRAMFS_FN
+        pbs_buildcfg::PROXMOX_BACKUP_INITRAMFS_FN
     });
     if !kernel.exists() || !initramfs.exists() {
         bail!("cannot run file-restore VM: package 'proxmox-backup-restore-image' is not (correctly) installed");
@@ -93,9 +93,9 @@ async fn create_temp_initramfs(ticket: &str, debug: bool) -> Result<(Fd, String)
     tools::fd_change_cloexec(tmp_fd.0, false)?;
 
     let initramfs = if debug {
-        buildcfg::PROXMOX_BACKUP_INITRAMFS_DBG_FN
+        pbs_buildcfg::PROXMOX_BACKUP_INITRAMFS_DBG_FN
     } else {
-        buildcfg::PROXMOX_BACKUP_INITRAMFS_FN
+        pbs_buildcfg::PROXMOX_BACKUP_INITRAMFS_FN
     };
 
     let mut f = File::from_std(unsafe { std::fs::File::from_raw_fd(tmp_fd.0) });
@@ -184,7 +184,7 @@ pub async fn start_vm(
         "none",
         "-enable-kvm",
         "-kernel",
-        buildcfg::PROXMOX_BACKUP_KERNEL_FN,
+        pbs_buildcfg::PROXMOX_BACKUP_KERNEL_FN,
         "-initrd",
         &ramfs_path,
         "-append",

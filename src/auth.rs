@@ -9,6 +9,8 @@ use std::ffi::{CString, CStr};
 use anyhow::{bail, format_err, Error};
 use serde_json::json;
 
+use pbs_buildcfg::configdir;
+
 use crate::api2::types::{Userid, UsernameRef, RealmRef};
 
 pub trait ProxmoxAuthenticator {

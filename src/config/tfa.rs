@@ -26,6 +26,8 @@ use proxmox::tools::tfa::u2f;
 use proxmox::tools::uuid::Uuid;
 use proxmox::tools::AsHex;
 
+use pbs_buildcfg::configdir;
+
 use crate::api2::types::Userid;
 
 /// Mapping of userid to TFA entry.
@@ -35,7 +37,7 @@ const CONF_FILE: &str = configdir!("/tfa.json");
 const LOCK_FILE: &str = configdir!("/tfa.json.lock");
 const LOCK_TIMEOUT: Duration = Duration::from_secs(5);
 
-const CHALLENGE_DATA_PATH: &str = rundir!("/tfa/challenges");
+const CHALLENGE_DATA_PATH: &str = pbs_buildcfg::rundir!("/tfa/challenges");
 
 /// U2F registration challenges time out after 2 minutes.
 const CHALLENGE_TIMEOUT: i64 = 2 * 60;

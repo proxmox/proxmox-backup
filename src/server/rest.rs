@@ -201,7 +201,7 @@ pub fn auth_logger() -> Result<FileLogger, Error> {
         owned_by_backup: true,
         ..Default::default()
     };
-    FileLogger::new(crate::buildcfg::API_AUTH_LOG_FN, logger_options)
+    FileLogger::new(pbs_buildcfg::API_AUTH_LOG_FN, logger_options)
 }
 
 fn get_proxied_peer(headers: &HeaderMap) -> Option<std::net::SocketAddr> {

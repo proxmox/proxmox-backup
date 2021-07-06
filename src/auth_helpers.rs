@@ -10,6 +10,8 @@ use std::path::PathBuf;
 use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
 use proxmox::try_block;
 
+use pbs_buildcfg::configdir;
+
 use crate::api2::types::Userid;
 
 fn compute_csrf_secret_digest(

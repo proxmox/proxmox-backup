@@ -70,6 +70,6 @@ macro_rules! configdir {
 #[macro_export]
 macro_rules! rundir {
     ($subdir:expr) => {
-        concat!(PROXMOX_BACKUP_RUN_DIR_M!(), $subdir)
+        concat!($crate::PROXMOX_BACKUP_RUN_DIR_M!(), $subdir)
     };
 }

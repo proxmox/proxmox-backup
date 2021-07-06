@@ -12,6 +12,8 @@ use proxmox::tools::fs::{replace_file, CreateOptions};
 
 use proxmox_http::ProxyConfig;
 
+use pbs_buildcfg::configdir;
+
 use crate::acme::AcmeClient;
 use crate::api2::types::{
     AcmeAccountName, AcmeDomain, ACME_DOMAIN_PROPERTY_SCHEMA, HTTP_PROXY_SCHEMA,

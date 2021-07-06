@@ -140,8 +140,8 @@ fn init() -> SectionConfig {
     config
 }
 
-const ACME_PLUGIN_CFG_FILENAME: &str = configdir!("/acme/plugins.cfg");
-const ACME_PLUGIN_CFG_LOCKFILE: &str = configdir!("/acme/.plugins.lck");
+const ACME_PLUGIN_CFG_FILENAME: &str = pbs_buildcfg::configdir!("/acme/plugins.cfg");
+const ACME_PLUGIN_CFG_LOCKFILE: &str = pbs_buildcfg::configdir!("/acme/.plugins.lck");
 const LOCK_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 
 pub fn lock() -> Result<std::fs::File, Error> {

@@ -18,14 +18,15 @@ use proxmox::tools::fs::{create_path, open_file_locked, replace_file, CreateOpti
 
 use super::UPID;
 
-use crate::buildcfg;
+use pbs_buildcfg;
+
 use crate::server;
 use crate::tools::logrotate::{LogRotate, LogRotateFiles};
 use crate::tools::{FileLogger, FileLogOptions};
 use crate::api2::types::{Authid, TaskStateType};
 
 macro_rules! taskdir {
-    ($subdir:expr) => (concat!(PROXMOX_BACKUP_LOG_DIR_M!(), "/tasks", $subdir))
+    ($subdir:expr) => (concat!(pbs_buildcfg::PROXMOX_BACKUP_LOG_DIR_M!(), "/tasks", $subdir))
 }
 pub const PROXMOX_BACKUP_TASK_DIR: &str = taskdir!("/");
 pub const PROXMOX_BACKUP_TASK_LOCK_FN: &str = taskdir!("/.active.lock");
@@ -162,9 +163,9 @@ pub fn create_task_log_dirs() -> Result<(), Error> {
             .owner(backup_user.uid)
             .group(backup_user.gid);
 
-        create_path(buildcfg::PROXMOX_BACKUP_LOG_DIR, None, Some(opts.clone()))?;
+        create_path(pbs_buildcfg::PROXMOX_BACKUP_LOG_DIR, None, Some(opts.clone()))?;
         create_path(PROXMOX_BACKUP_TASK_DIR, None, Some(opts.clone()))?;
-        create_path(buildcfg::PROXMOX_BACKUP_RUN_DIR, None, Some(opts))?;
+        create_path(pbs_buildcfg::PROXMOX_BACKUP_RUN_DIR, None, Some(opts))?;
         Ok(())
     }).map_err(|err: Error| format_err!("unable to create task log dir - {}", err))?;
 

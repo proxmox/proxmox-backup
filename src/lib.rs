@@ -6,9 +6,6 @@
 pub mod task;
 
 #[macro_use]
-pub mod buildcfg;
-
-#[macro_use]
 pub mod tools;
 
 #[macro_use]

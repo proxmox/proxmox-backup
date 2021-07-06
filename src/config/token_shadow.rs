@@ -10,8 +10,8 @@ use proxmox::tools::fs::{open_file_locked, CreateOptions};
 use crate::api2::types::Authid;
 use crate::auth;
 
-const LOCK_FILE: &str = configdir!("/token.shadow.lock");
-const CONF_FILE: &str = configdir!("/token.shadow");
+const LOCK_FILE: &str = pbs_buildcfg::configdir!("/token.shadow.lock");
+const CONF_FILE: &str = pbs_buildcfg::configdir!("/token.shadow");
 const LOCK_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[derive(Serialize, Deserialize)]

@@ -7,6 +7,8 @@ use proxmox::tools::fs::{
     CreateOptions,
 };
 
+use pbs_buildcfg::PROXMOX_BACKUP_RUN_DIR_M;
+
 #[cfg(test)]
 mod test;
 

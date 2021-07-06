@@ -599,7 +599,7 @@ pub fn create_run_dir() -> Result<(), Error> {
     let opts = CreateOptions::new()
         .owner(backup_user.uid)
         .group(backup_user.gid);
-    let _: bool = create_path(PROXMOX_BACKUP_RUN_DIR_M!(), None, Some(opts))?;
+    let _: bool = create_path(pbs_buildcfg::PROXMOX_BACKUP_RUN_DIR_M!(), None, Some(opts))?;
     Ok(())
 }
 

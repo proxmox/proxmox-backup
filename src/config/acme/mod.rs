@@ -15,8 +15,8 @@ use crate::api2::types::{
 };
 use crate::tools::ControlFlow;
 
-pub(crate) const ACME_DIR: &str = configdir!("/acme");
-pub(crate) const ACME_ACCOUNT_DIR: &str = configdir!("/acme/accounts");
+pub(crate) const ACME_DIR: &str = pbs_buildcfg::configdir!("/acme");
+pub(crate) const ACME_ACCOUNT_DIR: &str = pbs_buildcfg::configdir!("/acme/accounts");
 
 pub(crate) const ACME_DNS_SCHEMA_FN: &str = "/usr/share/proxmox-acme/dns-challenge-schema.json";
 

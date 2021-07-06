@@ -11,7 +11,7 @@ use serde_json::Value;
 
 use proxmox::sys::linux::procfs::PidStat;
 
-use crate::buildcfg;
+use pbs_buildcfg;
 
 lazy_static! {
     static ref PID: i32 = unsafe { libc::getpid() };
@@ -39,7 +39,7 @@ pub fn read_pid(pid_fn: &str) -> Result<i32, Error> {
 }
 
 pub fn ctrl_sock_from_pid(pid: i32) -> String {
-    format!("\0{}/control-{}.sock", buildcfg::PROXMOX_BACKUP_RUN_DIR, pid)
+    format!("\0{}/control-{}.sock", pbs_buildcfg::PROXMOX_BACKUP_RUN_DIR, pid)
 }
 
 pub fn our_ctrl_sock() -> String {
@@ -94,7 +94,7 @@ pub mod ticket;
 pub mod auth;
 
 pub(crate) async fn reload_proxy_certificate() -> Result<(), Error> {
-    let proxy_pid = crate::server::read_pid(buildcfg::PROXMOX_BACKUP_PROXY_PID_FN)?;
+    let proxy_pid = crate::server::read_pid(pbs_buildcfg::PROXMOX_BACKUP_PROXY_PID_FN)?;
     let sock = crate::server::ctrl_sock_from_pid(proxy_pid);
     let _: Value = crate::server::send_raw_command(sock, "{\"command\":\"reload-certificate\"}\n")
         .await?;
@@ -102,7 +102,7 @@ pub(crate) async fn reload_proxy_certificate() -> Result<(), Error> {
 }
 
 pub(crate) async fn notify_datastore_removed() -> Result<(), Error> {
-    let proxy_pid = crate::server::read_pid(buildcfg::PROXMOX_BACKUP_PROXY_PID_FN)?;
+    let proxy_pid = crate::server::read_pid(pbs_buildcfg::PROXMOX_BACKUP_PROXY_PID_FN)?;
     let sock = crate::server::ctrl_sock_from_pid(proxy_pid);
     let _: Value = crate::server::send_raw_command(sock, "{\"command\":\"datastore-removed\"}\n")
         .await?;

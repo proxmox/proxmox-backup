@@ -19,6 +19,11 @@ build = "build.rs"
 
 exclude = [ "build", "debian", "tests/catar_data/test_symlink/symlink1"]
 
+[workspace]
+members = [
+    "pbs-buildcfg",
+]
+
 [lib]
 name = "proxmox_backup"
 path = "src/lib.rs"
@@ -85,6 +90,8 @@ proxmox-fuse = "0.1.1"
 proxmox-http = { version = "0.2.1", features = [ "client", "http-helpers", "websocket" ] }
 #proxmox-http = { version = "0.2.0", path = "../proxmox/proxmox-http", features = [ "client", "http-helpers", "websocket" ] }
 proxmox-openid = "0.6.0"
+
+pbs-buildcfg = { path = "pbs-buildcfg" }
 
 [features]
 default = []

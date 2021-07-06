@@ -10,10 +10,11 @@ use proxmox::{
     tools::fs::file_get_json,
 };
 
+use pbs_buildcfg;
+
 use proxmox_backup::api2::access::user::UserWithTokens;
 use proxmox_backup::api2::types::*;
 use proxmox_backup::backup::BackupDir;
-use proxmox_backup::buildcfg;
 use proxmox_backup::client::*;
 use proxmox_backup::tools;
 
@@ -379,7 +380,7 @@ pub fn place_xdg_file(
 /// "www-data", so we use a custom one in /run/proxmox-backup/<uid> instead.
 pub fn get_user_run_dir() -> Result<std::path::PathBuf, Error> {
     let uid = nix::unistd::Uid::current();
-    let mut path: std::path::PathBuf = buildcfg::PROXMOX_BACKUP_RUN_DIR.into();
+    let mut path: std::path::PathBuf = pbs_buildcfg::PROXMOX_BACKUP_RUN_DIR.into();
     path.push(uid.to_string());
     tools::create_run_dir()?;
     std::fs::create_dir_all(&path)?;

@@ -13,7 +13,7 @@ use openssl::pkey::PKey;
 use proxmox::tools::fs::{CreateOptions, replace_file};
 use proxmox::try_block;
 
-use crate::buildcfg;
+use pbs_buildcfg::{self, configdir};
 
 pub mod acl;
 pub mod acme;
@@ -39,7 +39,7 @@ pub mod domains;
 /// * owned by 'backup' user/group
 /// * nobody else can read (mode 0700)
 pub fn check_configdir_permissions() -> Result<(), Error> {
-    let cfgdir = buildcfg::CONFIGDIR;
+    let cfgdir = pbs_buildcfg::CONFIGDIR;
 
     let backup_user = crate::backup::backup_user()?;
     let backup_uid = backup_user.uid.as_raw();
@@ -71,7 +71,7 @@ pub fn check_configdir_permissions() -> Result<(), Error> {
 }
 
 pub fn create_configdir() -> Result<(), Error> {
-    let cfgdir = buildcfg::CONFIGDIR;
+    let cfgdir = pbs_buildcfg::CONFIGDIR;
 
     match nix::unistd::mkdir(cfgdir, Mode::from_bits_truncate(0o700)) {
         Ok(()) => {}

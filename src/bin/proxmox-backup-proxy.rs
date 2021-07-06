@@ -32,10 +32,9 @@ use proxmox_backup::{
     },
 };
 
+use pbs_buildcfg::configdir;
 
 use proxmox_backup::api2::types::Authid;
-use proxmox_backup::configdir;
-use proxmox_backup::buildcfg;
 use proxmox_backup::server;
 use proxmox_backup::auth_helpers::*;
 use proxmox_backup::tools::{
@@ -85,7 +84,7 @@ async fn run() -> Result<(), Error> {
     let _ = csrf_secret(); // load with lazy_static
 
     let mut config = ApiConfig::new(
-        buildcfg::JS_DIR,
+        pbs_buildcfg::JS_DIR,
         &proxmox_backup::api2::ROUTER,
         RpcEnvironmentType::PUBLIC,
         default_api_auth(),
@@ -100,14 +99,14 @@ async fn run() -> Result<(), Error> {
     config.add_alias("widgettoolkit", "/usr/share/javascript/proxmox-widget-toolkit");
     config.add_alias("docs", "/usr/share/doc/proxmox-backup/html");
 
-    let mut indexpath = PathBuf::from(buildcfg::JS_DIR);
+    let mut indexpath = PathBuf::from(pbs_buildcfg::JS_DIR);
     indexpath.push("index.hbs");
     config.register_template("index", &indexpath)?;
     config.register_template("console", "/usr/share/pve-xtermjs/index.html.hbs")?;
 
     let mut commando_sock = server::CommandoSocket::new(server::our_ctrl_sock());
 
-    config.enable_file_log(buildcfg::API_ACCESS_LOG_FN, &mut commando_sock)?;
+    config.enable_file_log(pbs_buildcfg::API_ACCESS_LOG_FN, &mut commando_sock)?;
 
     let rest_server = RestServer::new(config);
 
@@ -167,7 +166,7 @@ async fn run() -> Result<(), Error> {
         "proxmox-backup-proxy.service",
     );
 
-    server::write_pid(buildcfg::PROXMOX_BACKUP_PROXY_PID_FN)?;
+    server::write_pid(pbs_buildcfg::PROXMOX_BACKUP_PROXY_PID_FN)?;
     daemon::systemd_notify(daemon::SystemdNotify::Ready)?;
 
     let init_result: Result<(), Error> = try_block!({
@@ -696,7 +695,7 @@ async fn schedule_task_log_rotate() {
 
                 let max_size = 32 * 1024 * 1024 - 1;
                 let max_files = 14;
-                let mut logrotate = LogRotate::new(buildcfg::API_ACCESS_LOG_FN, true)
+                let mut logrotate = LogRotate::new(pbs_buildcfg::API_ACCESS_LOG_FN, true)
                         .ok_or_else(|| format_err!("could not get API access log file names"))?;
 
                 if logrotate.rotate(max_size, None, Some(max_files))? {
@@ -707,7 +706,7 @@ async fn schedule_task_log_rotate() {
                     worker.log("API access log was not rotated".to_string());
                 }
 
-                let mut logrotate = LogRotate::new(buildcfg::API_AUTH_LOG_FN, true)
+                let mut logrotate = LogRotate::new(pbs_buildcfg::API_AUTH_LOG_FN, true)
                         .ok_or_else(|| format_err!("could not get API auth log file names"))?;
 
                 if logrotate.rotate(max_size, None, Some(max_files))? {
@@ -739,7 +738,7 @@ async fn command_reopen_logfiles() -> Result<(), Error> {
     let sock = server::our_ctrl_sock();
     let f1 = server::send_command(sock, "{\"command\":\"api-access-log-reopen\"}\n");
 
-    let pid = server::read_pid(buildcfg::PROXMOX_BACKUP_API_PID_FN)?;
+    let pid = server::read_pid(pbs_buildcfg::PROXMOX_BACKUP_API_PID_FN)?;
     let sock = server::ctrl_sock_from_pid(pid);
     let f2 = server::send_command(sock, "{\"command\":\"api-access-log-reopen\"}\n");
 

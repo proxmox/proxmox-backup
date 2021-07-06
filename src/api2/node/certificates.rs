@@ -11,6 +11,8 @@ use proxmox::api::router::SubdirMap;
 use proxmox::api::{api, Permission, Router, RpcEnvironment};
 use proxmox::list_subdirs_api_method;
 
+use pbs_buildcfg::configdir;
+
 use crate::acme::AcmeClient;
 use crate::api2::types::Authid;
 use crate::api2::types::NODE_SCHEMA;

@@ -14,7 +14,6 @@ use proxmox_backup::server::{
 use proxmox_backup::tools::daemon;
 use proxmox_backup::auth_helpers::*;
 use proxmox_backup::config;
-use proxmox_backup::buildcfg;
 
 fn main() {
     proxmox_backup::tools::setup_safe_path_env();
@@ -58,7 +57,7 @@ async fn run() -> Result<(), Error> {
     let _ = csrf_secret(); // load with lazy_static
 
     let mut config = server::ApiConfig::new(
-        buildcfg::JS_DIR,
+        pbs_buildcfg::JS_DIR,
         &proxmox_backup::api2::ROUTER,
         RpcEnvironmentType::PRIVILEGED,
         default_api_auth(),
@@ -66,7 +65,7 @@ async fn run() -> Result<(), Error> {
 
     let mut commando_sock = server::CommandoSocket::new(server::our_ctrl_sock());
 
-    config.enable_file_log(buildcfg::API_ACCESS_LOG_FN, &mut commando_sock)?;
+    config.enable_file_log(pbs_buildcfg::API_ACCESS_LOG_FN, &mut commando_sock)?;
 
     let rest_server = RestServer::new(config);
 
@@ -91,7 +90,7 @@ async fn run() -> Result<(), Error> {
         "proxmox-backup.service",
     );
 
-    server::write_pid(buildcfg::PROXMOX_BACKUP_API_PID_FN)?;
+    server::write_pid(pbs_buildcfg::PROXMOX_BACKUP_API_PID_FN)?;
     daemon::systemd_notify(daemon::SystemdNotify::Ready)?;
 
     let init_result: Result<(), Error> = try_block!({

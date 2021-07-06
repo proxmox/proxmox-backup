@@ -7,7 +7,7 @@ use openssl::x509::{X509, GeneralName};
 use openssl::stack::Stack;
 use openssl::pkey::{Public, PKey};
 
-use crate::configdir;
+use pbs_buildcfg::configdir;
 
 // C type:
 #[allow(non_camel_case_types)]
