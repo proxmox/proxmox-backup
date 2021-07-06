@@ -17,9 +17,9 @@ use openssl::pkcs5::pbkdf2_hmac;
 use openssl::symm::{decrypt_aead, Cipher, Crypter, Mode};
 use serde::{Deserialize, Serialize};
 
-use crate::tools::format::{as_fingerprint, bytes_as_fingerprint};
-
 use proxmox::api::api;
+
+use pbs_tools::format::{as_fingerprint, bytes_as_fingerprint};
 
 // openssl::sha::sha256(b"Proxmox Backup Encryption Key Fingerprint")
 /// This constant is used to compute fingerprints.

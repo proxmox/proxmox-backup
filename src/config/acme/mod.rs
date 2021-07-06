@@ -69,7 +69,7 @@ pub fn foreach_acme_account<F>(mut func: F) -> Result<(), Error>
 where
     F: FnMut(AcmeAccountName) -> ControlFlow<Result<(), Error>>,
 {
-    match crate::tools::fs::scan_subdir(-1, ACME_ACCOUNT_DIR, &PROXMOX_SAFE_ID_REGEX) {
+    match pbs_tools::fs::scan_subdir(-1, ACME_ACCOUNT_DIR, &PROXMOX_SAFE_ID_REGEX) {
         Ok(files) => {
             for file in files {
                 let file = file?;

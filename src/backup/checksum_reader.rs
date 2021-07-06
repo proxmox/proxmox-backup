@@ -2,8 +2,9 @@ use anyhow::{Error};
 use std::sync::Arc;
 use std::io::Read;
 
+use pbs_tools::borrow::Tied;
+
 use super::CryptConfig;
-use crate::tools::borrow::Tied;
 
 pub struct ChecksumReader<R> {
     reader: R,

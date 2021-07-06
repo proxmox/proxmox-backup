@@ -6,8 +6,9 @@ use std::fs::File;
 use anyhow::{bail, Error};
 use nix::dir::Dir;
 
+use pbs_tools::fs::lock_dir_noblock_shared;
+
 use crate::{
-    tools::fs::lock_dir_noblock_shared,
     backup::{
         DataStore,
         BackupDir,

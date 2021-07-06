@@ -14,9 +14,10 @@ use tokio_stream::wrappers::ReceiverStream;
 
 use proxmox::tools::digest_to_hex;
 
+use pbs_tools::format::HumanByte;
+
 use super::merge_known_chunks::{MergeKnownChunks, MergedChunkInfo};
 use crate::backup::*;
-use crate::tools::format::HumanByte;
 
 use super::{H2Client, HttpClient};
 
@@ -333,7 +334,7 @@ impl BackupWriter {
         let archive = if self.verbose {
             archive_name.to_string()
         } else {
-            crate::tools::format::strip_server_file_extension(archive_name)
+            pbs_tools::format::strip_server_file_extension(archive_name)
         };
         if archive_name != CATALOG_NAME {
             let speed: HumanByte =

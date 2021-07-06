@@ -485,7 +485,7 @@ impl Disk {
 
         let mut map = HashMap::new();
 
-        for item in crate::tools::fs::read_subdir(libc::AT_FDCWD, sys_path)? {
+        for item in pbs_tools::fs::read_subdir(libc::AT_FDCWD, sys_path)? {
             let item = item?;
             let name = match item.file_name().to_str() {
                 Ok(name) => name,
@@ -661,7 +661,7 @@ fn scan_partitions(
     let mut found_dm = false;
     let mut found_partitions = false;
 
-    for item in crate::tools::fs::read_subdir(libc::AT_FDCWD, &sys_path)? {
+    for item in pbs_tools::fs::read_subdir(libc::AT_FDCWD, &sys_path)? {
         let item = item?;
         let name = match item.file_name().to_str() {
             Ok(name) => name,
@@ -749,7 +749,7 @@ pub fn get_disks(
 
     let mut result = HashMap::new();
 
-    for item in crate::tools::fs::scan_subdir(libc::AT_FDCWD, "/sys/block", &BLOCKDEVICE_NAME_REGEX)? {
+    for item in pbs_tools::fs::scan_subdir(libc::AT_FDCWD, "/sys/block", &BLOCKDEVICE_NAME_REGEX)? {
         let item = item?;
 
         let name = item.file_name().to_str().unwrap().to_string();
@@ -959,7 +959,7 @@ pub fn create_file_system(disk: &Disk, fs_type: FileSystemType) -> Result<(), Er
 pub fn complete_disk_name(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
     let mut list = Vec::new();
 
-    let dir = match crate::tools::fs::scan_subdir(libc::AT_FDCWD, "/sys/block", &BLOCKDEVICE_NAME_REGEX) {
+    let dir = match pbs_tools::fs::scan_subdir(libc::AT_FDCWD, "/sys/block", &BLOCKDEVICE_NAME_REGEX) {
         Ok(dir) => dir,
         Err(_) => return list,
     };

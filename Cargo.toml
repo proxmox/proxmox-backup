@@ -23,6 +23,7 @@ exclude = [ "build", "debian", "tests/catar_data/test_symlink/symlink1"]
 members = [
     "pbs-buildcfg",
     "pbs-runtime",
+    "pbs-tools",
 ]
 
 [lib]
@@ -94,6 +95,7 @@ proxmox-openid = "0.6.0"
 
 pbs-buildcfg = { path = "pbs-buildcfg" }
 pbs-runtime = { path = "pbs-runtime" }
+pbs-tools = { path = "pbs-tools" }
 
 [features]
 default = []

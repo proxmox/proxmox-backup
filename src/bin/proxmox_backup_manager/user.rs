@@ -6,7 +6,6 @@ use std::collections::HashMap;
 use proxmox::api::{api, cli::*, RpcEnvironment, ApiHandler};
 
 use proxmox_backup::config;
-use proxmox_backup::tools;
 use proxmox_backup::api2;
 use proxmox_backup::api2::types::{ACL_PATH_SCHEMA, Authid, Userid};
 
@@ -52,7 +51,7 @@ fn list_users(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Er
         .column(ColumnConfig::new("userid"))
         .column(
             ColumnConfig::new("enable")
-                .renderer(tools::format::render_bool_with_default_true)
+                .renderer(pbs_tools::format::render_bool_with_default_true)
         )
         .column(
             ColumnConfig::new("expire")
@@ -96,7 +95,7 @@ fn list_tokens(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, E
         .column(ColumnConfig::new("tokenid"))
         .column(
             ColumnConfig::new("enable")
-                .renderer(tools::format::render_bool_with_default_true)
+                .renderer(pbs_tools::format::render_bool_with_default_true)
         )
         .column(
             ColumnConfig::new("expire")

@@ -366,7 +366,7 @@ impl DiskState {
 
         // create mapping for virtio drives and .fidx files (via serial description)
         // note: disks::DiskManager relies on udev, which we don't have
-        for entry in proxmox_backup::tools::fs::scan_subdir(
+        for entry in pbs_tools::fs::scan_subdir(
             libc::AT_FDCWD,
             "/sys/block",
             &BLOCKDEVICE_NAME_REGEX,
@@ -411,7 +411,7 @@ impl DiskState {
             }
 
             let mut parts = Vec::new();
-            for entry in proxmox_backup::tools::fs::scan_subdir(
+            for entry in pbs_tools::fs::scan_subdir(
                 libc::AT_FDCWD,
                 sys_path,
                 &VIRTIO_PART_REGEX,

@@ -100,7 +100,7 @@ impl From<&KeyConfig> for KeyInfo {
             fingerprint: key_config
                 .fingerprint
                 .as_ref()
-                .map(|fp| crate::tools::format::as_fingerprint(fp.bytes())),
+                .map(|fp| pbs_tools::format::as_fingerprint(fp.bytes())),
             hint: key_config.hint.clone(),
         }
     }

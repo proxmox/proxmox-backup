@@ -719,7 +719,7 @@ pub async fn read_label(
                         flat.encryption_key_fingerprint = set
                             .encryption_key_fingerprint
                             .as_ref()
-                            .map(|fp| crate::tools::format::as_fingerprint(fp.bytes()));
+                            .map(|fp| pbs_tools::format::as_fingerprint(fp.bytes()));
 
                         let encrypt_fingerprint = set.encryption_key_fingerprint.clone()
                             .map(|fp| (fp, set.uuid.clone()));

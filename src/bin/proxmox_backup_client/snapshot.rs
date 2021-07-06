@@ -87,7 +87,7 @@ async fn list_snapshots(param: Value) -> Result<Value, Error> {
         for file in &item.files {
             filenames.push(file.filename.to_string());
         }
-        Ok(tools::format::render_backup_file_list(&filenames[..]))
+        Ok(pbs_tools::format::render_backup_file_list(&filenames[..]))
     };
 
     let options = default_table_format_options()
@@ -95,7 +95,7 @@ async fn list_snapshots(param: Value) -> Result<Value, Error> {
         .sortby("backup-id", false)
         .sortby("backup-time", false)
         .column(ColumnConfig::new("backup-id").renderer(render_snapshot_path).header("snapshot"))
-        .column(ColumnConfig::new("size").renderer(tools::format::render_bytes_human_readable))
+        .column(ColumnConfig::new("size").renderer(pbs_tools::format::render_bytes_human_readable))
         .column(ColumnConfig::new("files").renderer(render_files))
         ;
 

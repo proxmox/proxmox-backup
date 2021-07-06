@@ -8,6 +8,8 @@ use std::collections::{HashSet, HashMap};
 use anyhow::{bail, format_err, Error};
 use endian_trait::Endian;
 
+use pbs_tools::fs::read_subdir;
+
 use proxmox::tools::{
     Uuid,
     fs::{
@@ -22,7 +24,6 @@ use proxmox::tools::{
 };
 
 use crate::{
-    tools::fs::read_subdir,
     backup::BackupDir,
     tape::{
         MediaId,

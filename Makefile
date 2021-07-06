@@ -32,7 +32,8 @@ RESTORE_BIN := \
 
 SUBCRATES := \
 	pbs-buildcfg \
-	pbs-runtime
+	pbs-runtime \
+	pbs-tools
 
 ifeq ($(BUILD_MODE), release)
 CARGO_BUILD_ARGS += --release

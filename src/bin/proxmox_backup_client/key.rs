@@ -272,8 +272,8 @@ fn show_key(path: Option<String>, param: Value) -> Result<(), Error> {
     let options = proxmox::api::cli::default_table_format_options()
         .column(ColumnConfig::new("path"))
         .column(ColumnConfig::new("kdf"))
-        .column(ColumnConfig::new("created").renderer(tools::format::render_epoch))
-        .column(ColumnConfig::new("modified").renderer(tools::format::render_epoch))
+        .column(ColumnConfig::new("created").renderer(pbs_tools::format::render_epoch))
+        .column(ColumnConfig::new("modified").renderer(pbs_tools::format::render_epoch))
         .column(ColumnConfig::new("fingerprint"))
         .column(ColumnConfig::new("hint"));
 

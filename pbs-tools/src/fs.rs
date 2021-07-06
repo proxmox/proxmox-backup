@@ -4,7 +4,7 @@ use std::borrow::{Borrow, BorrowMut};
 use std::ops::{Deref, DerefMut};
 use std::os::unix::io::{AsRawFd, RawFd};
 
-use anyhow::{format_err, Error};
+use anyhow::{bail, format_err, Error};
 use nix::dir;
 use nix::dir::Dir;
 use nix::fcntl::OFlag;
@@ -14,8 +14,7 @@ use regex::Regex;
 
 use proxmox::sys::error::SysError;
 
-
-use crate::tools::borrow::Tied;
+use crate::borrow::Tied;
 
 pub type DirLockGuard = Dir;
 
@@ -120,6 +119,39 @@ pub fn scan_subdir<'a, P: ?Sized + nix::NixPath>(
 ) -> Result<impl Iterator<Item = Result<ReadDirEntry, Error>> + 'a, nix::Error> {
     Ok(read_subdir(dirfd, path)?.filter_file_name_regex(regex))
 }
+
+/// Scan directory for matching file names with a callback.
+///
+/// Scan through all directory entries and call `callback()` function
+/// if the entry name matches the regular expression. This function
+/// used unix `openat()`, so you can pass absolute or relative file
+/// names. This function simply skips non-UTF8 encoded names.
+pub fn scandir<P, F>(
+    dirfd: RawFd,
+    path: &P,
+    regex: &regex::Regex,
+    mut callback: F,
+) -> Result<(), Error>
+where
+    F: FnMut(RawFd, &str, nix::dir::Type) -> Result<(), Error>,
+    P: ?Sized + nix::NixPath,
+{
+    for entry in scan_subdir(dirfd, path, regex)? {
+        let entry = entry?;
+        let file_type = match entry.file_type() {
+            Some(file_type) => file_type,
+            None => bail!("unable to detect file type"),
+        };
+
+        callback(
+            entry.parent_fd(),
+            unsafe { entry.file_name_utf8_unchecked() },
+            file_type,
+        )?;
+    }
+    Ok(())
+}
+
 
 /// Helper trait to provide a combinators for directory entry iterators.
 pub trait FileIterOps<T, E>

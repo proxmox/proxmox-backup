@@ -3,13 +3,14 @@ use std::collections::HashMap;
 
 use anyhow::{bail, Error};
 
+use pbs_tools::fs::scan_subdir;
+
 use crate::{
     api2::types::{
         DeviceKind,
         OptionalDeviceIdentification,
         TapeDeviceInfo,
     },
-    tools::fs::scan_subdir,
 };
 
 lazy_static::lazy_static!{

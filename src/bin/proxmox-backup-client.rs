@@ -280,7 +280,7 @@ async fn list_backup_groups(param: Value) -> Result<Value, Error> {
 
     let render_files = |_v: &Value, record: &Value| -> Result<String, Error> {
         let item: GroupListItem = serde_json::from_value(record.to_owned())?;
-        Ok(tools::format::render_backup_file_list(&item.files))
+        Ok(pbs_tools::format::render_backup_file_list(&item.files))
     };
 
     let options = default_table_format_options()
@@ -1300,7 +1300,7 @@ async fn prune_async(mut param: Value) -> Result<Value, Error> {
         .sortby("backup-id", false)
         .sortby("backup-time", false)
         .column(ColumnConfig::new("backup-id").renderer(render_snapshot_path).header("snapshot"))
-        .column(ColumnConfig::new("backup-time").renderer(tools::format::render_epoch).header("date"))
+        .column(ColumnConfig::new("backup-time").renderer(pbs_tools::format::render_epoch).header("date"))
         .column(ColumnConfig::new("keep").renderer(render_prune_action).header("action"))
         ;
 

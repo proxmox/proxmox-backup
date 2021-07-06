@@ -7,6 +7,8 @@ use proxmox::tools::email::sendmail;
 use proxmox::api::schema::parse_property_string;
 use proxmox::try_block;
 
+use pbs_tools::format::HumanByte;
+
 use crate::{
     config::datastore::DataStoreConfig,
     config::verify::VerificationJobConfig,
@@ -19,7 +21,6 @@ use crate::{
         Notify,
         DatastoreNotify,
     },
-    tools::format::HumanByte,
 };
 
 const GC_OK_TEMPLATE: &str = r###"

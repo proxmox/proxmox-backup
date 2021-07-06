@@ -190,7 +190,7 @@ impl ChunkStore {
     pub fn get_chunk_iterator(
         &self,
     ) -> Result<
-        impl Iterator<Item = (Result<tools::fs::ReadDirEntry, Error>, usize, bool)> + std::iter::FusedIterator,
+        impl Iterator<Item = (Result<pbs_tools::fs::ReadDirEntry, Error>, usize, bool)> + std::iter::FusedIterator,
         Error
     > {
         use nix::dir::Dir;
@@ -208,7 +208,7 @@ impl ChunkStore {
             })?;
 
         let mut done = false;
-        let mut inner: Option<tools::fs::ReadDir> = None;
+        let mut inner: Option<pbs_tools::fs::ReadDir> = None;
         let mut at = 0;
         let mut percentage = 0;
         Ok(std::iter::from_fn(move || {
@@ -252,7 +252,7 @@ impl ChunkStore {
                 let subdir: &str = &format!("{:04x}", at);
                 percentage = (at * 100) / 0x10000;
                 at += 1;
-                match tools::fs::read_subdir(base_handle.as_raw_fd(), subdir) {
+                match pbs_tools::fs::read_subdir(base_handle.as_raw_fd(), subdir) {
                     Ok(dir) => {
                         inner = Some(dir);
                         // start reading:

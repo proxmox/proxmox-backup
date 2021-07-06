@@ -12,6 +12,9 @@ use lazy_static::lazy_static;
 
 use proxmox::tools::fs::{replace_file, file_read_optional_string, CreateOptions, open_file_locked};
 
+use pbs_tools::format::HumanByte;
+use pbs_tools::fs::{lock_dir_noblock, DirLockGuard};
+
 use super::backup_info::{BackupGroup, BackupDir};
 use super::chunk_store::ChunkStore;
 use super::dynamic_index::{DynamicIndexReader, DynamicIndexWriter};
@@ -22,8 +25,6 @@ use super::{DataBlob, ArchiveType, archive_type};
 use crate::config::datastore::{self, DataStoreConfig};
 use crate::task::TaskState;
 use crate::tools;
-use crate::tools::format::HumanByte;
-use crate::tools::fs::{lock_dir_noblock, DirLockGuard};
 use crate::api2::types::{Authid, GarbageCollectionStatus};
 use crate::server::UPID;
 
@@ -110,7 +111,7 @@ impl DataStore {
     pub fn get_chunk_iterator(
         &self,
     ) -> Result<
-        impl Iterator<Item = (Result<tools::fs::ReadDirEntry, Error>, usize, bool)>,
+        impl Iterator<Item = (Result<pbs_tools::fs::ReadDirEntry, Error>, usize, bool)>,
         Error
     > {
         self.chunk_store.get_chunk_iterator()
@@ -215,7 +216,7 @@ impl DataStore {
         wanted_files.insert(CLIENT_LOG_BLOB_NAME.to_string());
         manifest.files().iter().for_each(|item| { wanted_files.insert(item.filename.clone()); });
 
-        for item in tools::fs::read_subdir(libc::AT_FDCWD, &full_path)? {
+        for item in pbs_tools::fs::read_subdir(libc::AT_FDCWD, &full_path)? {
             if let Ok(item) = item {
                 if let Some(file_type) = item.file_type() {
                     if file_type != nix::dir::Type::File { continue; }
@@ -254,7 +255,7 @@ impl DataStore {
 
         let full_path = self.group_path(backup_group);
 
-        let _guard = tools::fs::lock_dir_noblock(&full_path, "backup group", "possible running backup")?;
+        let _guard = pbs_tools::fs::lock_dir_noblock(&full_path, "backup group", "possible running backup")?;
 
         log::info!("removing backup group {:?}", full_path);
 

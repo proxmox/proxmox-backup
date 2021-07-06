@@ -2,7 +2,6 @@ use anyhow::{Error};
 use serde_json::Value;
 
 pub fn strip_server_file_extension(name: &str) -> String {
-
     if name.ends_with(".didx") || name.ends_with(".fidx") || name.ends_with(".blob") {
         name[..name.len()-5].to_owned()
     } else {
@@ -17,7 +16,7 @@ pub fn render_backup_file_list(files: &[String]) -> String {
 
     files.sort();
 
-    super::join(&files, ' ')
+    crate::str::join(&files, ' ')
 }
 
 pub fn render_epoch(value: &Value, _record: &Value) -> Result<String, Error> {
@@ -120,7 +119,7 @@ pub mod bytes_as_fingerprint {
     where
         S: Serializer,
     {
-        let s = crate::tools::format::as_fingerprint(bytes);
+        let s = super::as_fingerprint(bytes);
         serializer.serialize_str(&s)
     }
 

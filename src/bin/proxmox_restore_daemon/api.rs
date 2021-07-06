@@ -1,4 +1,9 @@
 ///! File-restore API running inside the restore VM
+use std::ffi::OsStr;
+use std::fs;
+use std::os::unix::ffi::OsStrExt;
+use std::path::{Path, PathBuf};
+
 use anyhow::{bail, Error};
 use futures::FutureExt;
 use hyper::http::request::Parts;
@@ -8,21 +13,18 @@ use pathpatterns::{MatchEntry, MatchPattern, MatchType, Pattern};
 use serde_json::Value;
 use tokio::sync::Semaphore;
 
-use std::ffi::OsStr;
-use std::fs;
-use std::os::unix::ffi::OsStrExt;
-use std::path::{Path, PathBuf};
-
 use proxmox::api::{
     api, schema::*, ApiHandler, ApiMethod, ApiResponseFuture, Permission, Router, RpcEnvironment,
     SubdirMap,
 };
 use proxmox::{identity, list_subdirs_api_method, sortable};
 
+use pbs_tools::fs::read_subdir;
+
 use proxmox_backup::api2::types::*;
 use proxmox_backup::backup::DirEntryAttribute;
 use proxmox_backup::pxar::{create_archive, Flags, PxarCreateOptions, ENCODER_MAX_ENTRIES};
-use proxmox_backup::tools::{self, fs::read_subdir, zip::zip_directory};
+use proxmox_backup::tools::{self, zip::zip_directory};
 
 use pxar::encoder::aio::TokioWriter;
 

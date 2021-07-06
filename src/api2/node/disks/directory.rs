@@ -73,7 +73,7 @@ pub fn  list_datastore_mounts() -> Result<Vec<DatastoreMountInfo>, Error> {
     let mut list = Vec::new();
 
     let basedir = "/etc/systemd/system";
-    for item in crate::tools::fs::scan_subdir(libc::AT_FDCWD, basedir, &MOUNT_NAME_REGEX)? {
+    for item in pbs_tools::fs::scan_subdir(libc::AT_FDCWD, basedir, &MOUNT_NAME_REGEX)? {
         let item = item?;
         let name = item.file_name().to_string_lossy().to_string();
 

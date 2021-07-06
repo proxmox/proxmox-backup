@@ -27,6 +27,8 @@ use proxmox::{
     },
 };
 
+use pbs_tools::fs::lock_dir_noblock_shared;
+
 use crate::{
     api2::{
         helpers,
@@ -50,10 +52,7 @@ use crate::{
         WorkerTask,
         H2Service,
     },
-    tools::{
-        self,
-        fs::lock_dir_noblock_shared,
-    },
+    tools,
     config::{
         acl::{
             PRIV_DATASTORE_READ,

@@ -24,11 +24,13 @@ use proxmox::sys::error::SysError;
 use proxmox::tools::fd::RawFdNum;
 use proxmox::tools::vec;
 
+use pbs_tools::fs;
+
 use crate::pxar::catalog::BackupCatalogWriter;
 use crate::pxar::metadata::errno_is_unsupported;
 use crate::pxar::Flags;
 use crate::pxar::tools::assert_single_path_component;
-use crate::tools::{acl, fs, xattr, Fd};
+use crate::tools::{acl, xattr, Fd};
 
 /// Pxar options for creating a pxar archive/stream
 #[derive(Default, Clone)]

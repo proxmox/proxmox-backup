@@ -139,11 +139,12 @@ async fn task_list(param: Value) -> Result<Value, Error> {
     let mut data = result["data"].take();
     let return_type = &api2::node::tasks::API_METHOD_LIST_TASKS.returns;
 
+    use pbs_tools::format::{render_epoch, render_task_status};
     let options = default_table_format_options()
-        .column(ColumnConfig::new("starttime").right_align(false).renderer(tools::format::render_epoch))
-        .column(ColumnConfig::new("endtime").right_align(false).renderer(tools::format::render_epoch))
+        .column(ColumnConfig::new("starttime").right_align(false).renderer(render_epoch))
+        .column(ColumnConfig::new("endtime").right_align(false).renderer(render_epoch))
         .column(ColumnConfig::new("upid"))
-        .column(ColumnConfig::new("status").renderer(tools::format::render_task_status));
+        .column(ColumnConfig::new("status").renderer(render_task_status));
 
     format_and_print_result_full(&mut data, return_type, &output_format, &options);
 

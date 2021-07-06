@@ -14,12 +14,13 @@ use proxmox::{
     },
 };
 
+use pbs_tools::format::{
+    HumanByte,
+    render_epoch,
+    render_bytes_human_readable,
+};
+
 use proxmox_backup::{
-    tools::format::{
-        HumanByte,
-        render_epoch,
-        render_bytes_human_readable,
-    },
     client::{
         connect_to_localhost,
         view_task_result,

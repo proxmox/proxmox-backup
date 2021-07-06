@@ -2,7 +2,6 @@
 //!
 //! This is a collection of small and useful tools.
 use std::any::Any;
-use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::hash::BuildHasher;
 use std::fs::File;
@@ -27,15 +26,12 @@ use proxmox_http::{
 pub mod acl;
 pub mod apt;
 pub mod async_io;
-pub mod borrow;
 pub mod cert;
 pub mod compression;
 pub mod config;
 pub mod cpio;
 pub mod daemon;
 pub mod disks;
-pub mod format;
-pub mod fs;
 pub mod fuse_loop;
 
 mod memcom;
@@ -235,38 +231,6 @@ where
     result
 }
 
-/// Scan directory for matching file names.
-///
-/// Scan through all directory entries and call `callback()` function
-/// if the entry name matches the regular expression. This function
-/// used unix `openat()`, so you can pass absolute or relative file
-/// names. This function simply skips non-UTF8 encoded names.
-pub fn scandir<P, F>(
-    dirfd: RawFd,
-    path: &P,
-    regex: &regex::Regex,
-    mut callback: F,
-) -> Result<(), Error>
-where
-    F: FnMut(RawFd, &str, nix::dir::Type) -> Result<(), Error>,
-    P: ?Sized + nix::NixPath,
-{
-    for entry in self::fs::scan_subdir(dirfd, path, regex)? {
-        let entry = entry?;
-        let file_type = match entry.file_type() {
-            Some(file_type) => file_type,
-            None => bail!("unable to detect file type"),
-        };
-
-        callback(
-            entry.parent_fd(),
-            unsafe { entry.file_name_utf8_unchecked() },
-            file_type,
-        )?;
-    }
-    Ok(())
-}
-
 /// Shortcut for md5 sums.
 pub fn md5sum(data: &[u8]) -> Result<DigestBytes, Error> {
     hash(MessageDigest::md5(), data).map_err(Error::from)
@@ -315,19 +279,6 @@ pub fn extract_cookie(cookie: &str, cookie_name: &str) -> Option<String> {
 /// percent encode a url component
 pub fn percent_encode_component(comp: &str) -> String {
     utf8_percent_encode(comp, percent_encoding::NON_ALPHANUMERIC).to_string()
-}
-
-pub fn join<S: Borrow<str>>(data: &[S], sep: char) -> String {
-    let mut list = String::new();
-
-    for item in data {
-        if !list.is_empty() {
-            list.push(sep);
-        }
-        list.push_str(item.borrow());
-    }
-
-    list
 }
 
 /// Detect modified configuration files

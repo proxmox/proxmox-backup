@@ -1,0 +1,17 @@
+[package]
+name = "pbs-tools"
+version = "0.1.0"
+authors = ["Proxmox Support Team <support@proxmox.com>"]
+edition = "2018"
+description = "common tools used throughout pbs"
+
+# This must not depend on any subcrates more closely related to pbs itself.
+[dependencies]
+anyhow = "1.0"
+libc = "0.2"
+nix = "0.19.1"
+regex = "1.2"
+serde = "1.0"
+serde_json = "1.0"
+
+proxmox = { version = "0.11.5", default-features = false, features = [] }

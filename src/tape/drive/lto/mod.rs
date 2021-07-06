@@ -409,7 +409,7 @@ impl TapeDriver for LtoTapeHandle {
         }
 
         let output = if let Some((fingerprint, uuid)) = key_fingerprint {
-            let fingerprint = crate::tools::format::as_fingerprint(fingerprint.bytes());
+            let fingerprint = pbs_tools::format::as_fingerprint(fingerprint.bytes());
             run_sg_tape_cmd("encryption", &[
                 "--fingerprint", &fingerprint,
                 "--uuid", &uuid.to_string(),

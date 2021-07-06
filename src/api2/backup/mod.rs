@@ -12,13 +12,14 @@ use proxmox::api::{ApiResponseFuture, ApiHandler, ApiMethod, Router, RpcEnvironm
 use proxmox::api::router::SubdirMap;
 use proxmox::api::schema::*;
 
+use pbs_tools::fs::lock_dir_noblock_shared;
+
 use crate::tools;
 use crate::server::{WorkerTask, H2Service};
 use crate::backup::*;
 use crate::api2::types::*;
 use crate::config::acl::PRIV_DATASTORE_BACKUP;
 use crate::config::cached_user_info::CachedUserInfo;
-use crate::tools::fs::lock_dir_noblock_shared;
 
 mod environment;
 use environment::*;

@@ -19,7 +19,6 @@ use proxmox::const_regex;
 use proxmox::tools::time;
 use proxmox_fuse::{*, requests::FuseRequest};
 use super::loopdev;
-use super::fs;
 
 const RUN_DIR: &str = "/run/pbs-loopdev";
 
@@ -356,7 +355,7 @@ fn unmap_from_backing(backing_file: &Path, loopdev: Option<&str>) -> Result<(), 
 pub fn find_all_mappings() -> Result<impl Iterator<Item = (String, Option<String>)>, Error> {
     // get map of all /dev/loop mappings belonging to us
     let mut loopmap = HashMap::new();
-    for ent in fs::scan_subdir(libc::AT_FDCWD, Path::new("/dev/"), &LOOPDEV_REGEX)? {
+    for ent in pbs_tools::fs::scan_subdir(libc::AT_FDCWD, Path::new("/dev/"), &LOOPDEV_REGEX)? {
         if let Ok(ent) = ent {
             let loopdev = format!("/dev/{}", ent.file_name().to_string_lossy());
             if let Ok(file) = get_backing_file(&loopdev) {
@@ -366,7 +365,7 @@ pub fn find_all_mappings() -> Result<impl Iterator<Item = (String, Option<String
         }
     }
 
-    Ok(fs::read_subdir(libc::AT_FDCWD, Path::new(RUN_DIR))?
+    Ok(pbs_tools::fs::read_subdir(libc::AT_FDCWD, Path::new(RUN_DIR))?
         .filter_map(move |ent| {
             match ent {
                 Ok(ent) => {

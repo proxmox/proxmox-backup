@@ -1,9 +1,7 @@
-use crate::tools;
+use std::os::unix::io::RawFd;
+use std::path::{Path, PathBuf};
 
 use anyhow::{bail, format_err, Error};
-use std::os::unix::io::RawFd;
-
-use std::path::{Path, PathBuf};
 
 use crate::api2::types::{
     BACKUP_ID_REGEX,
@@ -81,7 +79,7 @@ impl BackupGroup {
         let mut path = base_path.to_owned();
         path.push(self.group_path());
 
-        tools::scandir(
+        pbs_tools::fs::scandir(
             libc::AT_FDCWD,
             &path,
             &BACKUP_DATE_REGEX,
@@ -108,7 +106,7 @@ impl BackupGroup {
         let mut path = base_path.to_owned();
         path.push(self.group_path());
 
-        tools::scandir(
+        pbs_tools::fs::scandir(
             libc::AT_FDCWD,
             &path,
             &BACKUP_DATE_REGEX,
@@ -342,7 +340,7 @@ impl BackupInfo {
     pub fn list_backup_groups(base_path: &Path) -> Result<Vec<BackupGroup>, Error> {
         let mut list = Vec::new();
 
-        tools::scandir(
+        pbs_tools::fs::scandir(
             libc::AT_FDCWD,
             base_path,
             &BACKUP_TYPE_REGEX,
@@ -350,7 +348,7 @@ impl BackupInfo {
                 if file_type != nix::dir::Type::Directory {
                     return Ok(());
                 }
-                tools::scandir(
+                pbs_tools::fs::scandir(
                     l0_fd,
                     backup_type,
                     &BACKUP_ID_REGEX,
@@ -384,7 +382,7 @@ fn list_backup_files<P: ?Sized + nix::NixPath>(
 ) -> Result<Vec<String>, Error> {
     let mut files = vec![];
 
-    tools::scandir(dirfd, path, &BACKUP_FILE_REGEX, |_, filename, file_type| {
+    pbs_tools::fs::scandir(dirfd, path, &BACKUP_FILE_REGEX, |_, filename, file_type| {
         if file_type != nix::dir::Type::File {
             return Ok(());
         }
