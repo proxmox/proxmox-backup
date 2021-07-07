@@ -1,5 +1,7 @@
 use anyhow::{format_err, Error};
 
+use pbs_datastore::task_log;
+
 use crate::{
     server::WorkerTask,
     api2::types::*,
@@ -10,7 +12,6 @@ use crate::{
         verify_filter,
         verify_all_backups,
     },
-    task_log,
 };
 
 /// Runs a verification job.

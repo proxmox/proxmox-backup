@@ -186,6 +186,8 @@ pub use pbs_datastore::checksum_reader;
 pub use pbs_datastore::checksum_reader::*;
 pub use pbs_datastore::checksum_writer;
 pub use pbs_datastore::checksum_writer::*;
+pub use pbs_datastore::chunk_store;
+pub use pbs_datastore::chunk_store::*;
 pub use pbs_datastore::chunker;
 pub use pbs_datastore::chunker::*;
 pub use pbs_datastore::crypt_config;
@@ -217,9 +219,6 @@ pub use chunk_stat::*;
 
 mod read_chunk;
 pub use read_chunk::*;
-
-mod chunk_store;
-pub use chunk_store::*;
 
 mod fixed_index;
 pub use fixed_index::*;

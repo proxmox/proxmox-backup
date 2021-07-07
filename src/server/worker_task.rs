@@ -789,7 +789,7 @@ impl WorkerTask {
     }
 }
 
-impl crate::task::TaskState for WorkerTask {
+impl pbs_datastore::task::TaskState for WorkerTask {
     fn check_abort(&self) -> Result<(), Error> {
         self.fail_on_abort()
     }

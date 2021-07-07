@@ -6,6 +6,8 @@ use std::time::Instant;
 
 use anyhow::{bail, format_err, Error};
 
+use pbs_datastore::task_log;
+use pbs_datastore::task::TaskState;
 use pbs_tools::fs::lock_dir_noblock_shared;
 
 use crate::{
@@ -25,8 +27,6 @@ use crate::{
         archive_type,
     },
     server::UPID,
-    task::TaskState,
-    task_log,
     tools::ParallelHandler,
 };
 

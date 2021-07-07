@@ -22,8 +22,9 @@ use proxmox::{
     },
 };
 
+use pbs_datastore::task_log;
+
 use crate::{
-    task_log,
     config::{
         self,
         cached_user_info::CachedUserInfo,

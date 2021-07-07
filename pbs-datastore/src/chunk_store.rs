@@ -1,17 +1,17 @@
-use anyhow::{bail, format_err, Error};
-
-use std::path::{Path, PathBuf};
 use std::io::Write;
-use std::sync::{Arc, Mutex};
 use std::os::unix::io::AsRawFd;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
+
+use anyhow::{bail, format_err, Error};
 
 use proxmox::tools::fs::{CreateOptions, create_path, create_dir};
 
-use crate::task_log;
-use crate::tools;
-use crate::api2::types::GarbageCollectionStatus;
+use pbs_api_types::GarbageCollectionStatus;
+use pbs_tools::process_locker::{self, ProcessLocker};
 
-use super::DataBlob;
+use crate::DataBlob;
+use crate::task_log;
 use crate::task::TaskState;
 
 /// File system based chunk store
@@ -20,7 +20,7 @@ pub struct ChunkStore {
     pub (crate) base: PathBuf,
     chunk_dir: PathBuf,
     mutex: Mutex<()>,
-    locker: Arc<Mutex<tools::ProcessLocker>>,
+    locker: Arc<Mutex<ProcessLocker>>,
 }
 
 // TODO: what about sysctl setting vm.vfs_cache_pressure (0 - 100) ?
@@ -60,6 +60,10 @@ impl ChunkStore {
         chunk_dir.push(".chunks");
 
         chunk_dir
+    }
+
+    pub fn base(&self) -> &Path {
+        &self.base
     }
 
     pub fn create<P>(name: &str, path: P, uid: nix::unistd::Uid, gid: nix::unistd::Gid, worker: Option<&dyn TaskState>) -> Result<Self, Error>
@@ -139,7 +143,7 @@ impl ChunkStore {
 
         let lockfile_path = Self::lockfile_path(&base);
 
-        let locker = tools::ProcessLocker::new(&lockfile_path)?;
+        let locker = ProcessLocker::new(&lockfile_path)?;
 
         Ok(ChunkStore {
             name: name.to_owned(),
@@ -274,15 +278,16 @@ impl ChunkStore {
     }
 
     pub fn oldest_writer(&self) -> Option<i64> {
-        tools::ProcessLocker::oldest_shared_lock(self.locker.clone())
+        ProcessLocker::oldest_shared_lock(self.locker.clone())
     }
 
-    pub fn sweep_unused_chunks(
+    pub fn sweep_unused_chunks<F: Fn() -> Result<(), Error>>(
         &self,
         oldest_writer: i64,
         phase1_start_time: i64,
         status: &mut GarbageCollectionStatus,
         worker: &dyn TaskState,
+        fail_on_shutdown: F,
     ) -> Result<(), Error> {
         use nix::sys::stat::fstatat;
         use nix::unistd::{unlinkat, UnlinkatFlags};
@@ -310,7 +315,7 @@ impl ChunkStore {
             }
 
             worker.check_abort()?;
-            tools::fail_on_shutdown()?;
+            fail_on_shutdown()?;
 
             let (dirfd, entry) = match entry {
                 Ok(entry) => (entry.parent_fd(), entry),
@@ -442,12 +447,12 @@ impl ChunkStore {
         self.base.clone()
     }
 
-    pub fn try_shared_lock(&self) -> Result<tools::ProcessLockSharedGuard, Error> {
-        tools::ProcessLocker::try_shared_lock(self.locker.clone())
+    pub fn try_shared_lock(&self) -> Result<process_locker::ProcessLockSharedGuard, Error> {
+        ProcessLocker::try_shared_lock(self.locker.clone())
     }
 
-    pub fn try_exclusive_lock(&self) -> Result<tools::ProcessLockExclusiveGuard, Error> {
-        tools::ProcessLocker::try_exclusive_lock(self.locker.clone())
+    pub fn try_exclusive_lock(&self) -> Result<process_locker::ProcessLockExclusiveGuard, Error> {
+        ProcessLocker::try_exclusive_lock(self.locker.clone())
     }
 }
 
@@ -466,7 +471,7 @@ fn test_chunk_store1() {
     let user = nix::unistd::User::from_uid(nix::unistd::Uid::current()).unwrap().unwrap();
     let chunk_store = ChunkStore::create("test", &path, user.uid, user.gid, None).unwrap();
 
-    let (chunk, digest) = super::DataChunkBuilder::new(&[0u8, 1u8]).build().unwrap();
+    let (chunk, digest) = crate::data_blob::DataChunkBuilder::new(&[0u8, 1u8]).build().unwrap();
 
     let (exists, _) = chunk_store.insert_chunk(&chunk, &digest).unwrap();
     assert!(!exists);

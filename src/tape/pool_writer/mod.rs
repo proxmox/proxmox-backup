@@ -13,8 +13,9 @@ use anyhow::{bail, Error};
 
 use proxmox::tools::Uuid;
 
+use pbs_datastore::task_log;
+
 use crate::{
-    task_log,
     backup::{
         DataStore,
     },

@@ -26,9 +26,10 @@ use proxmox::{
     api::section_config::SectionConfigData,
 };
 
+use pbs_datastore::task_log;
+use pbs_datastore::task::TaskState;
+
 use crate::{
-    task_log,
-    task::TaskState,
     backup::{
         Fingerprint,
         KeyConfig,

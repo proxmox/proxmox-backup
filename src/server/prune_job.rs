@@ -2,13 +2,13 @@ use anyhow::Error;
 
 use proxmox::try_block;
 
+use pbs_datastore::{task_log, task_warn};
+
 use crate::{
     api2::types::*,
     backup::{compute_prune_info, BackupInfo, DataStore, PruneOptions},
     server::jobstate::Job,
     server::WorkerTask,
-    task_log,
-    task_warn,
 };
 
 pub fn do_prune_job(

@@ -3,8 +3,6 @@
 //! The [backup](backup/index.html) module contains some detailed information
 //! on the inner workings of the backup server regarding data storage.
 
-pub mod task;
-
 #[macro_use]
 pub mod tools;
 

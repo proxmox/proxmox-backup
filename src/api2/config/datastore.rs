@@ -8,6 +8,8 @@ use proxmox::api::{api, Router, RpcEnvironment, Permission};
 use proxmox::api::section_config::SectionConfigData;
 use proxmox::api::schema::parse_property_string;
 
+use pbs_datastore::task::TaskState;
+
 use crate::api2::types::*;
 use crate::backup::*;
 use crate::config::cached_user_info::CachedUserInfo;
@@ -54,7 +56,7 @@ pub(crate) fn do_create_datastore(
     _lock: std::fs::File,
     mut config: SectionConfigData,
     datastore: DataStoreConfig,
-    worker: Option<&dyn crate::task::TaskState>,
+    worker: Option<&dyn TaskState>,
 ) -> Result<(), Error> {
     let path: PathBuf = datastore.path.clone().into();
 

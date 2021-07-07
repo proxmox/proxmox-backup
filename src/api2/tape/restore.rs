@@ -28,10 +28,10 @@ use proxmox::{
     },
 };
 
+use pbs_datastore::{task_log, task_warn};
+use pbs_datastore::task::TaskState;
+
 use crate::{
-    task_log,
-    task_warn,
-    task::TaskState,
     tools::ParallelHandler,
     api2::types::{
         DATASTORE_MAP_ARRAY_SCHEMA,

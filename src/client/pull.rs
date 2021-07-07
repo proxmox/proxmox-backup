@@ -1,7 +1,5 @@
 //! Sync datastore from remote server
 
-use anyhow::{bail, format_err, Error};
-use serde_json::json;
 use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
 use std::io::{Seek, SeekFrom};
@@ -9,15 +7,20 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
 
+use anyhow::{bail, format_err, Error};
+use serde_json::json;
+
+use proxmox::api::error::{HttpError, StatusCode};
+
+use pbs_datastore::task_log;
+
 use crate::{
     api2::types::*,
     backup::*,
     client::*,
     server::WorkerTask,
-    task_log,
     tools::{compute_file_csum, ParallelHandler},
 };
-use proxmox::api::error::{HttpError, StatusCode};
 
 // fixme: implement filters
 // fixme: delete vanished groups

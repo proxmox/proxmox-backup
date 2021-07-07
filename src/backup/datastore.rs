@@ -12,6 +12,8 @@ use lazy_static::lazy_static;
 
 use proxmox::tools::fs::{replace_file, file_read_optional_string, CreateOptions, open_file_locked};
 
+use pbs_datastore::{task_log, task_warn};
+use pbs_datastore::task::TaskState;
 use pbs_tools::format::HumanByte;
 use pbs_tools::fs::{lock_dir_noblock, DirLockGuard};
 
@@ -23,7 +25,6 @@ use super::manifest::{MANIFEST_BLOB_NAME, MANIFEST_LOCK_NAME, CLIENT_LOG_BLOB_NA
 use super::index::*;
 use super::{DataBlob, ArchiveType, archive_type};
 use crate::config::datastore::{self, DataStoreConfig};
-use crate::task::TaskState;
 use crate::tools;
 use crate::api2::types::{Authid, GarbageCollectionStatus};
 use crate::server::UPID;
@@ -55,7 +56,7 @@ impl DataStore {
 
         if let Some(datastore) = map.get(name) {
             // Compare Config - if changed, create new Datastore object!
-            if datastore.chunk_store.base == path &&
+            if datastore.chunk_store.base() == path &&
                 datastore.verify_new == config.verify_new.unwrap_or(false)
             {
                 return Ok(datastore.clone());
@@ -487,7 +488,7 @@ impl DataStore {
             tools::fail_on_shutdown()?;
             let digest = index.index_digest(pos).unwrap();
             if !self.chunk_store.cond_touch_chunk(digest, false)? {
-                crate::task_warn!(
+                task_warn!(
                     worker,
                     "warning: unable to access non-existent chunk {}, required by {:?}",
                     proxmox::tools::digest_to_hex(digest),
@@ -558,7 +559,7 @@ impl DataStore {
 
             let percentage = (i + 1) * 100 / image_count;
             if percentage > last_percentage {
-                crate::task_log!(
+                task_log!(
                     worker,
                     "marked {}% ({} of {} index files)",
                     percentage,
@@ -570,7 +571,7 @@ impl DataStore {
         }
 
         if strange_paths_count > 0 {
-            crate::task_log!(
+            task_log!(
                 worker,
                 "found (and marked) {} index files outside of expected directory scheme",
                 strange_paths_count,
@@ -604,26 +605,27 @@ impl DataStore {
             let mut gc_status = GarbageCollectionStatus::default();
             gc_status.upid = Some(upid.to_string());
 
-            crate::task_log!(worker, "Start GC phase1 (mark used chunks)");
+            task_log!(worker, "Start GC phase1 (mark used chunks)");
 
             self.mark_used_chunks(&mut gc_status, worker)?;
 
-            crate::task_log!(worker, "Start GC phase2 (sweep unused chunks)");
+            task_log!(worker, "Start GC phase2 (sweep unused chunks)");
             self.chunk_store.sweep_unused_chunks(
                 oldest_writer,
                 phase1_start_time,
                 &mut gc_status,
                 worker,
+                crate::tools::fail_on_shutdown,
             )?;
 
-            crate::task_log!(
+            task_log!(
                 worker,
                 "Removed garbage: {}",
                 HumanByte::from(gc_status.removed_bytes),
             );
-            crate::task_log!(worker, "Removed chunks: {}", gc_status.removed_chunks);
+            task_log!(worker, "Removed chunks: {}", gc_status.removed_chunks);
             if gc_status.pending_bytes > 0 {
-                crate::task_log!(
+                task_log!(
                     worker,
                     "Pending removals: {} (in {} chunks)",
                     HumanByte::from(gc_status.pending_bytes),
@@ -631,14 +633,14 @@ impl DataStore {
                 );
             }
             if gc_status.removed_bad > 0 {
-                crate::task_log!(worker, "Removed bad chunks: {}", gc_status.removed_bad);
+                task_log!(worker, "Removed bad chunks: {}", gc_status.removed_bad);
             }
 
             if gc_status.still_bad > 0 {
-                crate::task_log!(worker, "Leftover bad chunks: {}", gc_status.still_bad);
+                task_log!(worker, "Leftover bad chunks: {}", gc_status.still_bad);
             }
 
-            crate::task_log!(
+            task_log!(
                 worker,
                 "Original data usage: {}",
                 HumanByte::from(gc_status.index_data_bytes),
@@ -646,7 +648,7 @@ impl DataStore {
 
             if gc_status.index_data_bytes > 0 {
                 let comp_per = (gc_status.disk_bytes as f64 * 100.)/gc_status.index_data_bytes as f64;
-                crate::task_log!(
+                task_log!(
                     worker,
                     "On-Disk usage: {} ({:.2}%)",
                     HumanByte::from(gc_status.disk_bytes),
@@ -654,7 +656,7 @@ impl DataStore {
                 );
             }
 
-            crate::task_log!(worker, "On-Disk chunks: {}", gc_status.disk_chunks);
+            task_log!(worker, "On-Disk chunks: {}", gc_status.disk_chunks);
 
             let deduplication_factor = if gc_status.disk_bytes > 0 {
                 (gc_status.index_data_bytes as f64)/(gc_status.disk_bytes as f64)
@@ -662,11 +664,11 @@ impl DataStore {
                 1.0
             };
 
-            crate::task_log!(worker, "Deduplication factor: {:.2}", deduplication_factor);
+            task_log!(worker, "Deduplication factor: {:.2}", deduplication_factor);
 
             if gc_status.disk_chunks > 0 {
                 let avg_chunk = gc_status.disk_bytes/(gc_status.disk_chunks as u64);
-                crate::task_log!(worker, "Average chunk size: {}", HumanByte::from(avg_chunk));
+                task_log!(worker, "Average chunk size: {}", HumanByte::from(avg_chunk));
             }
 
             if let Ok(serialized) = serde_json::to_string(&gc_status) {

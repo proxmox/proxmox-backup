@@ -15,9 +15,10 @@ use proxmox::{
     },
 };
 
+use pbs_datastore::{task_log, task_warn};
+use pbs_datastore::task::TaskState;
+
 use crate::{
-    task_log,
-    task_warn,
     config::{
         self,
         cached_user_info::CachedUserInfo,
@@ -55,7 +56,6 @@ use crate::{
         Userid,
     },
     server::WorkerTask,
-    task::TaskState,
     tape::{
         TAPE_STATUS_DIR,
         Inventory,
