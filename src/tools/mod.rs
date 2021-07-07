@@ -26,6 +26,9 @@ use proxmox_http::{
 pub use pbs_tools::json;
 pub use pbs_tools::nom;
 pub use pbs_tools::{run_command, command_output, command_output_as_string};
+pub use pbs_tools::process_locker::{
+    ProcessLocker, ProcessLockExclusiveGuard, ProcessLockSharedGuard
+};
 
 pub mod acl;
 pub mod apt;
@@ -69,9 +72,6 @@ pub use std_channel_writer::StdChannelWriter;
 
 mod tokio_writer_adapter;
 pub use tokio_writer_adapter::TokioWriterAdapter;
-
-mod process_locker;
-pub use process_locker::{ProcessLocker, ProcessLockExclusiveGuard, ProcessLockSharedGuard};
 
 mod file_logger;
 pub use file_logger::{FileLogger, FileLogOptions};

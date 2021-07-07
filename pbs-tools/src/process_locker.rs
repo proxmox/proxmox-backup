@@ -7,11 +7,11 @@
 //! the timestamp for the oldest open lock with
 //! `oldest_shared_lock()`.
 
-use anyhow::{bail, Error};
-
-use std::sync::{Arc, Mutex};
-use std::os::unix::io::AsRawFd;
 use std::collections::HashMap;
+use std::os::unix::io::AsRawFd;
+use std::sync::{Arc, Mutex};
+
+use anyhow::{bail, Error};
 
 // fixme: use F_OFD_ locks when implemented with nix::fcntl
 
@@ -34,16 +34,17 @@ pub struct ProcessLockSharedGuard {
     locker: Arc<Mutex<ProcessLocker>>,
 }
 
-impl  Drop for ProcessLockSharedGuard {
+impl Drop for ProcessLockSharedGuard {
     fn drop(&mut self) {
         let mut data = self.locker.lock().unwrap();
 
-        if data.writers == 0 { panic!("unexpected ProcessLocker state"); }
+        if data.writers == 0 {
+            panic!("unexpected ProcessLocker state");
+        }
 
         data.shared_guard_list.remove(&self.guard_id);
 
         if data.writers == 1 && !data.exclusive {
-
             let op = libc::flock {
                 l_type: libc::F_UNLCK as i16,
                 l_whence: libc::SEEK_SET as i16,
@@ -52,7 +53,9 @@ impl  Drop for ProcessLockSharedGuard {
                 l_pid: 0,
             };
 
-            if let Err(err) = nix::fcntl::fcntl(data.file.as_raw_fd(), nix::fcntl::FcntlArg::F_SETLKW(&op)) {
+            if let Err(err) =
+                nix::fcntl::fcntl(data.file.as_raw_fd(), nix::fcntl::FcntlArg::F_SETLKW(&op))
+            {
                 panic!("unable to drop writer lock - {}", err);
             }
         }
@@ -69,13 +72,19 @@ pub struct ProcessLockExclusiveGuard {
     locker: Arc<Mutex<ProcessLocker>>,
 }
 
-impl  Drop for ProcessLockExclusiveGuard {
+impl Drop for ProcessLockExclusiveGuard {
     fn drop(&mut self) {
         let mut data = self.locker.lock().unwrap();
 
-        if !data.exclusive { panic!("unexpected ProcessLocker state"); }
+        if !data.exclusive {
+            panic!("unexpected ProcessLocker state");
+        }
 
-        let ltype = if data.writers != 0 { libc::F_RDLCK } else { libc::F_UNLCK };
+        let ltype = if data.writers != 0 {
+            libc::F_RDLCK
+        } else {
+            libc::F_UNLCK
+        };
         let op = libc::flock {
             l_type: ltype as i16,
             l_whence: libc::SEEK_SET as i16,
@@ -84,7 +93,9 @@ impl  Drop for ProcessLockExclusiveGuard {
             l_pid: 0,
         };
 
-        if let Err(err) = nix::fcntl::fcntl(data.file.as_raw_fd(), nix::fcntl::FcntlArg::F_SETLKW(&op)) {
+        if let Err(err) =
+            nix::fcntl::fcntl(data.file.as_raw_fd(), nix::fcntl::FcntlArg::F_SETLKW(&op))
+        {
             panic!("unable to drop exclusive lock - {}", err);
         }
 
@@ -93,12 +104,10 @@ impl  Drop for ProcessLockExclusiveGuard {
 }
 
 impl ProcessLocker {
-
     /// Create a new instance for the specified file.
     ///
     /// This simply creates the file if it does not exist.
     pub fn new<P: AsRef<std::path::Path>>(lockfile: P) -> Result<Arc<Mutex<Self>>, Error> {
-
         let file = std::fs::OpenOptions::new()
             .create(true)
             .read(true)
@@ -115,7 +124,6 @@ impl ProcessLocker {
     }
 
     fn try_lock(file: &std::fs::File, ltype: i32) -> Result<(), Error> {
-
         let op = libc::flock {
             l_type: ltype as i16,
             l_whence: libc::SEEK_SET as i16,
@@ -133,7 +141,6 @@ impl ProcessLocker {
     ///
     /// On success, this makes sure that no other process can get an exclusive lock for the file.
     pub fn try_shared_lock(locker: Arc<Mutex<Self>>) -> Result<ProcessLockSharedGuard, Error> {
-
         let mut data = locker.lock().unwrap();
 
         if data.writers == 0 && !data.exclusive {
@@ -144,7 +151,10 @@ impl ProcessLocker {
 
         data.writers += 1;
 
-        let guard = ProcessLockSharedGuard { locker: locker.clone(), guard_id: data.next_guard_id };
+        let guard = ProcessLockSharedGuard {
+            locker: locker.clone(),
+            guard_id: data.next_guard_id,
+        };
         data.next_guard_id += 1;
 
         let now = unsafe { libc::time(std::ptr::null_mut()) };
@@ -163,7 +173,13 @@ impl ProcessLocker {
         for v in data.shared_guard_list.values() {
             result = match result {
                 None => Some(*v),
-                Some(x) => if x < *v { Some(x) } else { Some(*v) },
+                Some(x) => {
+                    if x < *v {
+                        Some(x)
+                    } else {
+                        Some(*v)
+                    }
+                }
             };
         }
 
@@ -173,8 +189,9 @@ impl ProcessLocker {
     /// Try to acquire a exclusive lock
     ///
     /// Make sure the we are the only process which has locks for this file (shared or exclusive).
-    pub fn try_exclusive_lock(locker: Arc<Mutex<Self>>) -> Result<ProcessLockExclusiveGuard, Error> {
-
+    pub fn try_exclusive_lock(
+        locker: Arc<Mutex<Self>>,
+    ) -> Result<ProcessLockExclusiveGuard, Error> {
         let mut data = locker.lock().unwrap();
 
         if data.exclusive {
@@ -187,6 +204,8 @@ impl ProcessLocker {
 
         data.exclusive = true;
 
-        Ok(ProcessLockExclusiveGuard { locker: locker.clone() })
+        Ok(ProcessLockExclusiveGuard {
+            locker: locker.clone(),
+        })
     }
 }

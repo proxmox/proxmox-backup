@@ -3,6 +3,7 @@ pub mod format;
 pub mod fs;
 pub mod json;
 pub mod nom;
+pub mod process_locker;
 pub mod str;
 
 mod command;
