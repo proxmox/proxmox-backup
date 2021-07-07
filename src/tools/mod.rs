@@ -23,6 +23,7 @@ use proxmox_http::{
     ProxyConfig,
 };
 
+pub use pbs_tools::nom;
 pub use pbs_tools::{run_command, command_output, command_output_as_string};
 
 pub mod acl;
@@ -44,7 +45,6 @@ pub mod logrotate;
 pub mod loopdev;
 pub mod lru_cache;
 pub mod async_lru_cache;
-pub mod nom;
 pub mod serde_filter;
 pub mod statistics;
 pub mod subscription;
