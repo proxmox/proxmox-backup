@@ -13,7 +13,7 @@ use crate::tools;
 use crate::api2::types::*;
 use crate::api2::pull::check_pull_privs;
 
-use crate::server::{self, UPID, TaskState, TaskListInfoIterator};
+use crate::server::{self, UPID, UPIDExt, TaskState, TaskListInfoIterator};
 use crate::config::acl::{
     PRIV_DATASTORE_MODIFY,
     PRIV_DATASTORE_VERIFY,

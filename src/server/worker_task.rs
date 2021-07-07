@@ -16,7 +16,7 @@ use proxmox::sys::linux::procfs;
 use proxmox::try_block;
 use proxmox::tools::fs::{create_path, open_file_locked, replace_file, CreateOptions};
 
-use super::UPID;
+use super::{UPID, UPIDExt};
 
 use pbs_buildcfg;
 

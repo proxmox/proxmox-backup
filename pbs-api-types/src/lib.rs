@@ -36,6 +36,8 @@ pub use userid::{Tokenname, TokennameRef};
 pub use userid::{Username, UsernameRef};
 pub use userid::{PROXMOX_GROUP_ID_SCHEMA, PROXMOX_TOKEN_ID_SCHEMA, PROXMOX_TOKEN_NAME_SCHEMA};
 
+pub mod upid;
+
 const_regex! {
     pub BACKUP_TYPE_REGEX = concat!(r"^(", BACKUP_TYPE_RE!(), r")$");
 
