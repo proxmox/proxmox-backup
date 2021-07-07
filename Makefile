@@ -71,6 +71,8 @@ DSC = rust-${PACKAGE}_${DEB_VERSION}.dsc
 
 DESTDIR=
 
+tests ?= --workspace
+
 all: cargo-build $(SUBDIRS)
 
 .PHONY: $(SUBDIRS)
@@ -83,7 +85,7 @@ test:
 	$(CARGO) test $(tests) $(CARGO_BUILD_ARGS)
 
 doc:
-	$(CARGO) doc --no-deps $(CARGO_BUILD_ARGS)
+	$(CARGO) doc --workspace --no-deps $(CARGO_BUILD_ARGS)
 
 # always re-create this dir
 .PHONY: build
