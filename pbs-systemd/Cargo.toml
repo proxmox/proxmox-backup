@@ -1,0 +1,16 @@
+[package]
+name = "pbs-systemd"
+version = "0.1.0"
+authors = ["Proxmox Support Team <support@proxmox.com>"]
+edition = "2018"
+description = "common systemd-related helpers, but no unit parsing"
+
+[dependencies]
+anyhow = "1.0"
+bitflags = "1.2.1"
+lazy_static = "1.4"
+nom = "5.1"
+
+proxmox = { version = "0.11.5", default-features = false }
+
+pbs-tools = { path = "../pbs-tools" }

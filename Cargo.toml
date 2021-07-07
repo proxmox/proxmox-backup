@@ -24,6 +24,7 @@ members = [
     "pbs-buildcfg",
     "pbs-datastore",
     "pbs-runtime",
+    "pbs-systemd",
     "pbs-tools",
 ]
 
@@ -98,6 +99,7 @@ pbs-api-types = { path = "pbs-api-types" }
 pbs-buildcfg = { path = "pbs-buildcfg" }
 pbs-datastore = { path = "pbs-datastore" }
 pbs-runtime = { path = "pbs-runtime" }
+pbs-systemd = { path = "pbs-systemd" }
 pbs-tools = { path = "pbs-tools" }
 
 [features]

@@ -35,6 +35,7 @@ SUBCRATES := \
 	pbs-buildcfg \
 	pbs-datastore \
 	pbs-runtime \
+	pbs-systemd \
 	pbs-tools
 
 ifeq ($(BUILD_MODE), release)

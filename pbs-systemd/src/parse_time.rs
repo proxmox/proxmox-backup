@@ -5,7 +5,7 @@ use lazy_static::lazy_static;
 
 use super::time::*;
 
-use crate::tools::nom::{
+use pbs_tools::nom::{
     parse_complete_line, parse_u64, parse_error, IResult,
 };
 
