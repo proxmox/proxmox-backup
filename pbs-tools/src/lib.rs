@@ -1,8 +1,9 @@
 pub mod borrow;
 pub mod format;
 pub mod fs;
+pub mod json;
 pub mod nom;
 pub mod str;
 
 mod command;
-pub use command::{run_command, command_output, command_output_as_string};
+pub use command::{command_output, command_output_as_string, run_command};
