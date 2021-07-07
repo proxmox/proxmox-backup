@@ -40,10 +40,15 @@ use super::PROXMOX_SAFE_ID_REGEX_STR;
 // colon separated lists)!
 // slash is not allowed because it is used as pve API delimiter
 // also see "man useradd"
+#[macro_export]
 macro_rules! USER_NAME_REGEX_STR { () => (r"(?:[^\s:/[:cntrl:]]+)") }
+#[macro_export]
 macro_rules! GROUP_NAME_REGEX_STR { () => (USER_NAME_REGEX_STR!()) }
+#[macro_export]
 macro_rules! TOKEN_NAME_REGEX_STR { () => (PROXMOX_SAFE_ID_REGEX_STR!()) }
+#[macro_export]
 macro_rules! USER_ID_REGEX_STR { () => (concat!(USER_NAME_REGEX_STR!(), r"@", PROXMOX_SAFE_ID_REGEX_STR!())) }
+#[macro_export]
 macro_rules! APITOKEN_ID_REGEX_STR { () => (concat!(USER_ID_REGEX_STR!() , r"!", TOKEN_NAME_REGEX_STR!())) }
 
 const_regex! {

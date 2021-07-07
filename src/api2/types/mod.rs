@@ -19,15 +19,6 @@ use crate::{
     config::acl::Role,
 };
 
-#[macro_use]
-mod userid;
-pub use userid::{Realm, RealmRef};
-pub use userid::{Tokenname, TokennameRef};
-pub use userid::{Username, UsernameRef};
-pub use userid::Userid;
-pub use userid::Authid;
-pub use userid::{PROXMOX_TOKEN_ID_SCHEMA, PROXMOX_TOKEN_NAME_SCHEMA, PROXMOX_GROUP_ID_SCHEMA};
-
 mod tape;
 pub use tape::*;
 
@@ -37,17 +28,7 @@ pub use file_restore::*;
 mod acme;
 pub use acme::*;
 
-pub use pbs_api_types::{
-    CERT_FINGERPRINT_SHA256_SCHEMA,
-    FINGERPRINT_SHA256_FORMAT,
-    FINGERPRINT_SHA256_REGEX,
-    PROXMOX_SAFE_ID_FORMAT,
-    PROXMOX_SAFE_ID_REGEX,
-    PROXMOX_SAFE_ID_REGEX_STR,
-    SINGLE_LINE_COMMENT_FORMAT,
-    SINGLE_LINE_COMMENT_REGEX,
-    SINGLE_LINE_COMMENT_SCHEMA,
-};
+pub use pbs_api_types::*;
 
 // File names: may not contain slashes, may not start with "."
 pub const FILENAME_FORMAT: ApiStringFormat = ApiStringFormat::VerifyFn(|name| {

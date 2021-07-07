@@ -3,6 +3,15 @@
 use proxmox::api::schema::{ApiStringFormat, Schema, StringSchema};
 use proxmox::const_regex;
 
+#[macro_use]
+mod userid;
+pub use userid::Authid;
+pub use userid::Userid;
+pub use userid::{Realm, RealmRef};
+pub use userid::{Tokenname, TokennameRef};
+pub use userid::{Username, UsernameRef};
+pub use userid::{PROXMOX_GROUP_ID_SCHEMA, PROXMOX_TOKEN_ID_SCHEMA, PROXMOX_TOKEN_NAME_SCHEMA};
+
 #[macro_export]
 macro_rules! PROXMOX_SAFE_ID_REGEX_STR {
     () => {
