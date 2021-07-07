@@ -20,9 +20,6 @@ use crate::{
 };
 
 #[macro_use]
-mod macros;
-
-#[macro_use]
 mod userid;
 pub use userid::{Realm, RealmRef};
 pub use userid::{Tokenname, TokennameRef};
@@ -44,6 +41,12 @@ pub use pbs_api_types::{
     CERT_FINGERPRINT_SHA256_SCHEMA,
     FINGERPRINT_SHA256_FORMAT,
     FINGERPRINT_SHA256_REGEX,
+    PROXMOX_SAFE_ID_FORMAT,
+    PROXMOX_SAFE_ID_REGEX,
+    PROXMOX_SAFE_ID_REGEX_STR,
+    SINGLE_LINE_COMMENT_FORMAT,
+    SINGLE_LINE_COMMENT_REGEX,
+    SINGLE_LINE_COMMENT_SCHEMA,
 };
 
 // File names: may not contain slashes, may not start with "."
@@ -92,21 +95,10 @@ const_regex!{
 
     pub PASSWORD_REGEX = r"^[[:^cntrl:]]*$"; // everything but control characters
 
-    /// Regex for safe identifiers.
-    ///
-    /// This
-    /// [article](https://dwheeler.com/essays/fixing-unix-linux-filenames.html)
-    /// contains further information why it is reasonable to restict
-    /// names this way. This is not only useful for filenames, but for
-    /// any identifier command line tools work with.
-    pub PROXMOX_SAFE_ID_REGEX = concat!(r"^", PROXMOX_SAFE_ID_REGEX_STR!(), r"$");
-
     /// Regex for verification jobs 'DATASTORE:ACTUAL_JOB_ID'
     pub VERIFICATION_JOB_WORKER_ID_REGEX = concat!(r"^(", PROXMOX_SAFE_ID_REGEX_STR!(), r"):");
     /// Regex for sync jobs 'REMOTE:REMOTE_DATASTORE:LOCAL_DATASTORE:ACTUAL_JOB_ID'
     pub SYNC_JOB_WORKER_ID_REGEX = concat!(r"^(", PROXMOX_SAFE_ID_REGEX_STR!(), r"):(", PROXMOX_SAFE_ID_REGEX_STR!(), r"):(", PROXMOX_SAFE_ID_REGEX_STR!(), r"):");
-
-    pub SINGLE_LINE_COMMENT_REGEX = r"^[[:^cntrl:]]*$";
 
     pub HOSTNAME_REGEX = r"^(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?)$";
 
@@ -160,17 +152,11 @@ pub const IP_FORMAT: ApiStringFormat =
 pub const PVE_CONFIG_DIGEST_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&SHA256_HEX_REGEX);
 
-pub const PROXMOX_SAFE_ID_FORMAT: ApiStringFormat =
-    ApiStringFormat::Pattern(&PROXMOX_SAFE_ID_REGEX);
-
 pub const BACKUP_ID_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&BACKUP_ID_REGEX);
 
 pub const UUID_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&UUID_REGEX);
-
-pub const SINGLE_LINE_COMMENT_FORMAT: ApiStringFormat =
-    ApiStringFormat::Pattern(&SINGLE_LINE_COMMENT_REGEX);
 
 pub const HOSTNAME_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&HOSTNAME_REGEX);
@@ -484,10 +470,6 @@ pub const IGNORE_VERIFIED_BACKUPS_SCHEMA: Schema = BooleanSchema::new(
 pub const VERIFICATION_OUTDATED_AFTER_SCHEMA: Schema = IntegerSchema::new(
     "Days after that a verification becomes outdated")
     .minimum(1)
-    .schema();
-
-pub const SINGLE_LINE_COMMENT_SCHEMA: Schema = StringSchema::new("Comment (single line).")
-    .format(&SINGLE_LINE_COMMENT_FORMAT)
     .schema();
 
 pub const HOSTNAME_SCHEMA: Schema = StringSchema::new("Hostname (as defined in RFC1123).")

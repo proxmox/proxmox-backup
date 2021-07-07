@@ -33,6 +33,8 @@ use proxmox::api::api;
 use proxmox::api::schema::{ApiStringFormat, Schema, StringSchema};
 use proxmox::const_regex;
 
+use super::PROXMOX_SAFE_ID_REGEX_STR;
+
 // we only allow a limited set of characters
 // colon is not allowed, because we store usernames in
 // colon separated lists)!
