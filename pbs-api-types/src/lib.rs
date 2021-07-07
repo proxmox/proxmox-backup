@@ -1,3 +1,5 @@
+//! Basic API types used by most of the PBS code.
+
 use proxmox::api::schema::{ApiStringFormat, Schema, StringSchema};
 use proxmox::const_regex;
 

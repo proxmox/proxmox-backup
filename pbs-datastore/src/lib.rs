@@ -191,6 +191,7 @@ pub mod data_blob_writer;
 pub mod file_formats;
 pub mod index;
 pub mod key_derivation;
+pub mod task;
 
 pub use checksum_reader::ChecksumReader;
 pub use checksum_writer::ChecksumWriter;

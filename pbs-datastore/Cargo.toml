@@ -9,6 +9,7 @@ description = "low level pbs data storage access"
 anyhow = "1.0"
 crc32fast = "1"
 endian_trait = { version = "0.6", features = [ "arrays" ] }
+log = "0.4"
 nix = "0.19.1"
 openssl = "0.10"
 serde = { version = "1.0", features = ["derive"] }
