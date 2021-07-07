@@ -178,6 +178,8 @@ pub fn backup_group() -> Result<nix::unistd::Group, Error> {
     }
 }
 
+pub use pbs_datastore::backup_info;
+pub use pbs_datastore::backup_info::*;
 pub use pbs_datastore::catalog;
 pub use pbs_datastore::catalog::*;
 pub use pbs_datastore::checksum_reader;
@@ -204,9 +206,8 @@ pub use pbs_datastore::index;
 pub use pbs_datastore::index::*;
 pub use pbs_datastore::key_derivation;
 pub use pbs_datastore::key_derivation::*;
-
-mod manifest;
-pub use manifest::*;
+pub use pbs_datastore::manifest;
+pub use pbs_datastore::manifest::*;
 
 mod chunk_stream;
 pub use chunk_stream::*;
@@ -225,10 +226,6 @@ pub use fixed_index::*;
 
 mod dynamic_index;
 pub use dynamic_index::*;
-
-#[macro_use]
-mod backup_info;
-pub use backup_info::*;
 
 mod prune;
 pub use prune::*;

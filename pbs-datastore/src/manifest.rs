@@ -1,11 +1,12 @@
-use anyhow::{bail, format_err, Error};
 use std::convert::TryFrom;
 use std::path::Path;
 
-use serde_json::{json, Value};
-use ::serde::{Deserialize, Serialize};
+use anyhow::{bail, format_err, Error};
 
-use crate::backup::{BackupDir, CryptMode, CryptConfig, Fingerprint};
+use serde_json::{json, Value};
+use serde::{Deserialize, Serialize};
+
+use crate::{BackupDir, CryptMode, CryptConfig, Fingerprint};
 
 pub const MANIFEST_BLOB_NAME: &str = "index.json.blob";
 pub const MANIFEST_LOCK_NAME: &str = ".index.json.lck";
@@ -149,7 +150,7 @@ impl BackupManifest {
 
     // Generate canonical json
     fn to_canonical_json(value: &Value) -> Result<Vec<u8>, Error> {
-        crate::tools::json::to_canonical_json(value)
+        pbs_tools::json::to_canonical_json(value)
     }
 
     /// Compute manifest signature

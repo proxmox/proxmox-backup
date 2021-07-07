@@ -23,6 +23,7 @@ use proxmox_http::{
     ProxyConfig,
 };
 
+pub use pbs_tools::json;
 pub use pbs_tools::nom;
 pub use pbs_tools::{run_command, command_output, command_output_as_string};
 
@@ -40,7 +41,6 @@ pub mod fuse_loop;
 mod memcom;
 pub use memcom::Memcom;
 
-pub mod json;
 pub mod logrotate;
 pub mod loopdev;
 pub mod lru_cache;

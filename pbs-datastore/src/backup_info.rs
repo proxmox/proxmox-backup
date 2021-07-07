@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{bail, format_err, Error};
 
-use crate::api2::types::{
+use pbs_api_types::{
     BACKUP_ID_REGEX,
     BACKUP_TYPE_REGEX,
     BACKUP_DATE_REGEX,
@@ -372,7 +372,7 @@ impl BackupInfo {
         // backup is considered unfinished if there is no manifest
         self.files
             .iter()
-            .any(|name| name == super::MANIFEST_BLOB_NAME)
+            .any(|name| name == MANIFEST_BLOB_NAME)
     }
 }
 

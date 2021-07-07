@@ -178,6 +178,7 @@ pub fn backup_group() -> Result<nix::unistd::Group, Error> {
         .ok_or_else(|| format_err!("Unable to lookup backup user."))
 }
 
+pub mod backup_info;
 pub mod catalog;
 pub mod checksum_reader;
 pub mod checksum_writer;
@@ -191,15 +192,19 @@ pub mod data_blob_writer;
 pub mod file_formats;
 pub mod index;
 pub mod key_derivation;
+pub mod manifest;
 pub mod task;
 
+pub use backup_info::{BackupDir, BackupGroup, BackupInfo};
 pub use checksum_reader::ChecksumReader;
 pub use checksum_writer::ChecksumWriter;
 pub use chunker::Chunker;
-pub use crypt_config::{CryptConfig, CryptMode};
+pub use crypt_config::{CryptConfig, CryptMode, Fingerprint};
 pub use crypt_reader::CryptReader;
 pub use crypt_writer::CryptWriter;
+pub use data_blob::DataBlob;
 pub use key_derivation::{
     decrypt_key, load_and_decrypt_key, rsa_decrypt_key_config, rsa_encrypt_key_config,
 };
 pub use key_derivation::{Kdf, KeyConfig, KeyDerivationConfig, KeyInfo};
+pub use manifest::BackupManifest;
