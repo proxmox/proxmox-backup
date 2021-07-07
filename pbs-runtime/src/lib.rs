@@ -49,7 +49,8 @@ lazy_static! {
     static ref RUNTIME: Mutex<Weak<Runtime>> = Mutex::new(Weak::new());
 }
 
-extern {
+#[link(name = "crypto")]
+extern "C" {
     fn OPENSSL_thread_stop();
 }
 
