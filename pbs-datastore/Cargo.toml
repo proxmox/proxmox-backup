@@ -12,6 +12,7 @@ endian_trait = { version = "0.6", features = [ "arrays" ] }
 nix = "0.19.1"
 openssl = "0.10"
 serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 zstd = { version = "0.6", features = [ "bindgen" ] }
 
 pathpatterns = "0.1.2"
@@ -19,4 +20,5 @@ pxar = { version = "0.10.1", features = [ "tokio-io" ] }
 
 proxmox = { version = "0.11.5", default-features = false, features = [ "api-macro" ] }
 
+pbs-api-types = { path = "../pbs-api-types" }
 pbs-tools = { path = "../pbs-tools" }

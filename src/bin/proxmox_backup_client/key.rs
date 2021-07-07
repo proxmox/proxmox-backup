@@ -13,8 +13,10 @@ use proxmox::api::router::ReturnType;
 use proxmox::sys::linux::tty;
 use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
 
+use pbs_datastore::{KeyInfo, Kdf};
+
 use proxmox_backup::{
-    api2::types::{Kdf, KeyInfo, RsaPubKeyInfo, PASSWORD_HINT_SCHEMA},
+    api2::types::{RsaPubKeyInfo, PASSWORD_HINT_SCHEMA},
     backup::{rsa_decrypt_key_config, KeyConfig},
     tools,
     tools::paperkey::{generate_paper_key, PaperkeyFormat},

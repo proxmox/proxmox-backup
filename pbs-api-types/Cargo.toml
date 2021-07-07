@@ -1,0 +1,12 @@
+[package]
+name = "pbs-api-types"
+version = "0.1.0"
+authors = ["Proxmox Support Team <support@proxmox.com>"]
+edition = "2018"
+description = "general API type helpers for PBS"
+
+[dependencies]
+lazy_static = "1.4"
+regex = "1.2"
+
+proxmox = { version = "0.11.5", default-features = false, features = [ "api-macro" ] }

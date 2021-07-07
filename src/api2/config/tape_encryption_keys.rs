@@ -12,6 +12,8 @@ use proxmox::{
     tools::fs::open_file_locked,
 };
 
+use pbs_datastore::{KeyInfo, Kdf};
+
 use crate::{
     config::{
         acl::{
@@ -31,8 +33,6 @@ use crate::{
         TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
         PROXMOX_CONFIG_DIGEST_SCHEMA,
         PASSWORD_HINT_SCHEMA,
-        KeyInfo,
-        Kdf,
     },
     backup::{
         KeyConfig,

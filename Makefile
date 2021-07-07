@@ -31,6 +31,7 @@ RESTORE_BIN := \
 	proxmox-restore-daemon
 
 SUBCRATES := \
+	pbs-api-types \
 	pbs-buildcfg \
 	pbs-datastore \
 	pbs-runtime \

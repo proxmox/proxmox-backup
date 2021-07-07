@@ -11,6 +11,8 @@ use proxmox::{
     sys::linux::tty,
 };
 
+use pbs_datastore::Kdf;
+
 use proxmox_backup::{
     tools::{
         paperkey::{
@@ -25,7 +27,6 @@ use proxmox_backup::{
             DRIVE_NAME_SCHEMA,
             TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
             PASSWORD_HINT_SCHEMA,
-            Kdf,
         },
     },
     backup::Fingerprint,

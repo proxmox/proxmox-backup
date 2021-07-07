@@ -178,12 +178,14 @@ pub fn backup_group() -> Result<nix::unistd::Group, Error> {
     }
 }
 
-pub use pbs_datastore::catalog::*;
 pub use pbs_datastore::catalog;
-pub use pbs_datastore::file_formats::*;
-pub use pbs_datastore::file_formats;
-pub use pbs_datastore::index::*;
-pub use pbs_datastore::index;
+pub use pbs_datastore::catalog::*;
+pub use pbs_datastore::checksum_reader;
+pub use pbs_datastore::checksum_reader::*;
+pub use pbs_datastore::checksum_writer;
+pub use pbs_datastore::checksum_writer::*;
+pub use pbs_datastore::chunker;
+pub use pbs_datastore::chunker::*;
 pub use pbs_datastore::crypt_config;
 pub use pbs_datastore::crypt_config::*;
 pub use pbs_datastore::crypt_reader;
@@ -196,15 +198,12 @@ pub use pbs_datastore::data_blob_reader;
 pub use pbs_datastore::data_blob_reader::*;
 pub use pbs_datastore::data_blob_writer;
 pub use pbs_datastore::data_blob_writer::*;
-pub use pbs_datastore::checksum_reader;
-pub use pbs_datastore::checksum_reader::*;
-pub use pbs_datastore::checksum_writer;
-pub use pbs_datastore::checksum_writer::*;
-pub use pbs_datastore::chunker;
-pub use pbs_datastore::chunker::*;
-
-mod key_derivation;
-pub use key_derivation::*;
+pub use pbs_datastore::file_formats;
+pub use pbs_datastore::file_formats::*;
+pub use pbs_datastore::index;
+pub use pbs_datastore::index::*;
+pub use pbs_datastore::key_derivation;
+pub use pbs_datastore::key_derivation::*;
 
 mod manifest;
 pub use manifest::*;

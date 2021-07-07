@@ -40,6 +40,12 @@ pub use file_restore::*;
 mod acme;
 pub use acme::*;
 
+pub use pbs_api_types::{
+    CERT_FINGERPRINT_SHA256_SCHEMA,
+    FINGERPRINT_SHA256_FORMAT,
+    FINGERPRINT_SHA256_REGEX,
+};
+
 // File names: may not contain slashes, may not start with "."
 pub const FILENAME_FORMAT: ApiStringFormat = ApiStringFormat::VerifyFn(|name| {
     if name.starts_with('.') {
@@ -112,8 +118,6 @@ const_regex!{
 
     pub BACKUP_REPO_URL_REGEX = concat!(r"^^(?:(?:(", USER_ID_REGEX_STR!(), "|", APITOKEN_ID_REGEX_STR!(), ")@)?(", DNS_NAME!(), "|",  IPRE_BRACKET!() ,"):)?(?:([0-9]{1,5}):)?(", PROXMOX_SAFE_ID_REGEX_STR!(), r")$");
 
-    pub FINGERPRINT_SHA256_REGEX = r"^(?:[0-9a-fA-F][0-9a-fA-F])(?::[0-9a-fA-F][0-9a-fA-F]){31}$";
-
     pub ACL_PATH_REGEX = concat!(r"^(?:/|", r"(?:/", PROXMOX_SAFE_ID_REGEX_STR!(), ")+", r")$");
 
     pub SUBSCRIPTION_KEY_REGEX = concat!(r"^pbs(?:[cbsp])-[0-9a-f]{10}$");
@@ -155,9 +159,6 @@ pub const IP_FORMAT: ApiStringFormat =
 
 pub const PVE_CONFIG_DIGEST_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&SHA256_HEX_REGEX);
-
-pub const FINGERPRINT_SHA256_FORMAT: ApiStringFormat =
-    ApiStringFormat::Pattern(&FINGERPRINT_SHA256_REGEX);
 
 pub const PROXMOX_SAFE_ID_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&PROXMOX_SAFE_ID_REGEX);
@@ -223,12 +224,6 @@ pub const PBS_PASSWORD_SCHEMA: Schema = StringSchema::new("User Password.")
     .format(&PASSWORD_FORMAT)
     .min_length(5)
     .max_length(64)
-    .schema();
-
-pub const CERT_FINGERPRINT_SHA256_SCHEMA: Schema = StringSchema::new(
-    "X509 certificate fingerprint (sha256)."
-)
-    .format(&FINGERPRINT_SHA256_FORMAT)
     .schema();
 
 pub const TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA: Schema = StringSchema::new(
@@ -1448,56 +1443,6 @@ pub const PASSWORD_HINT_SCHEMA: Schema = StringSchema::new("Password hint.")
     .min_length(1)
     .max_length(64)
     .schema();
-
-#[api(default: "scrypt")]
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "lowercase")]
-/// Key derivation function for password protected encryption keys.
-pub enum Kdf {
-    /// Do not encrypt the key.
-    None,
-    /// Encrypt they key with a password using SCrypt.
-    Scrypt,
-    /// Encrtypt the Key with a password using PBKDF2
-    PBKDF2,
-}
-
-impl Default for Kdf {
-    #[inline]
-    fn default() -> Self {
-        Kdf::Scrypt
-    }
-}
-
-#[api(
-    properties: {
-        kdf: {
-            type: Kdf,
-        },
-        fingerprint: {
-            schema: CERT_FINGERPRINT_SHA256_SCHEMA,
-            optional: true,
-        },
-    },
-)]
-#[derive(Deserialize, Serialize)]
-/// Encryption Key Information
-pub struct KeyInfo {
-    /// Path to key (if stored in a file)
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub path: Option<String>,
-    pub kdf: Kdf,
-    /// Key creation time
-    pub created: i64,
-    /// Key modification time
-    pub modified: i64,
-    /// Key fingerprint
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub fingerprint: Option<String>,
-    /// Password hint
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub hint: Option<String>,
-}
 
 #[api]
 #[derive(Deserialize, Serialize)]
