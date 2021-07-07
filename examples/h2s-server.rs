@@ -6,10 +6,10 @@ use hyper::{Body, Request, Response};
 use openssl::ssl::{SslAcceptor, SslFiletype, SslMethod};
 use tokio::net::{TcpListener, TcpStream};
 
-use proxmox_backup::configdir;
+use pbs_buildcfg::configdir;
 
 fn main() -> Result<(), Error> {
-    proxmox_backup::tools::runtime::main(run())
+    pbs_runtime::main(run())
 }
 
 async fn run() -> Result<(), Error> {

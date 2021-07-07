@@ -13,7 +13,7 @@ use proxmox_backup::backup::*;
 // Note: I can currently get about 830MB/s
 
 fn main() {
-    if let Err(err) = proxmox_backup::tools::runtime::main(run()) {
+    if let Err(err) = pbs_runtime::main(run()) {
         panic!("ERROR: {}", err);
     }
 }

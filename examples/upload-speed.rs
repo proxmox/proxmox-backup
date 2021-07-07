@@ -27,7 +27,7 @@ async fn upload_speed() -> Result<f64, Error> {
 }
 
 fn main()  {
-    match proxmox_backup::tools::runtime::main(upload_speed()) {
+    match pbs_runtime::main(upload_speed()) {
         Ok(mbs) => {
             println!("average upload speed: {} MB/s", mbs);
         }

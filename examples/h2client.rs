@@ -69,7 +69,7 @@ fn send_request(
 }
 
 fn main() -> Result<(), Error> {
-    proxmox_backup::tools::runtime::main(run())
+    pbs_runtime::main(run())
 }
 
 async fn run() -> Result<(), Error> {
