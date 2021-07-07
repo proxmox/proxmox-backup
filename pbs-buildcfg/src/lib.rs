@@ -56,7 +56,7 @@ pub const PROXMOX_BACKUP_KERNEL_FN: &str =
 /// This is a simply way to get the full path for configuration files.
 /// #### Example:
 /// ```
-/// # #[macro_use] extern crate proxmox_backup;
+/// use pbs_buildcfg::configdir;
 /// let cert_path = configdir!("/proxy.pfx");
 /// ```
 #[macro_export]

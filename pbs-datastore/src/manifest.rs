@@ -278,7 +278,7 @@ impl TryFrom<super::DataBlob> for BackupManifest {
 #[test]
 fn test_manifest_signature() -> Result<(), Error> {
 
-    use crate::backup::{KeyDerivationConfig};
+    use crate::{KeyDerivationConfig};
 
     let pw = b"test";
 

@@ -379,8 +379,8 @@ mod test {
         Ok(())
     }
 
-    const fn make_test_time(mday: i32, hour: i32, min: i32) -> libc::time_t {
-        (mday*3600*24 + hour*3600 + min*60) as libc::time_t
+    const fn make_test_time(mday: i32, hour: i32, min: i32) -> i64 {
+        (mday*3600*24 + hour*3600 + min*60) as i64
     }
 
     #[test]
