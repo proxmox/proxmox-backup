@@ -567,6 +567,7 @@ Ext.define('PBS.TapeManagement.DataStoreMappingGrid', {
 	    flex: 1,
 	    widget: {
 		xtype: 'pbsDataStoreSelector',
+		isFormField: false,
 		allowBlank: true,
 		bind: {
 		    emptyText: '{emptyMeans}',
