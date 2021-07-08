@@ -1,18 +1,17 @@
-use anyhow::{bail, format_err, Error};
-use std::io::{Seek, SeekFrom};
-
-use super::chunk_stat::*;
-use super::chunk_store::*;
-use super::{ChunkReadInfo, IndexFile};
-use crate::tools;
-
 use std::fs::File;
 use std::io::Write;
 use std::os::unix::io::AsRawFd;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::io::{Seek, SeekFrom};
 
-use super::ChunkInfo;
+use anyhow::{bail, format_err, Error};
+
+use pbs_datastore::chunk_stat::ChunkStat;
+use pbs_datastore::chunk_store::ChunkStore;
+use pbs_datastore::data_blob::ChunkInfo;
+use pbs_datastore::index::{ChunkReadInfo, IndexFile};
+use pbs_tools::process_locker::ProcessLockSharedGuard;
 
 use proxmox::tools::io::ReadExt;
 use proxmox::tools::Uuid;
@@ -229,7 +228,7 @@ impl IndexFile for FixedIndexReader {
 pub struct FixedIndexWriter {
     store: Arc<ChunkStore>,
     file: File,
-    _lock: tools::ProcessLockSharedGuard,
+    _lock: ProcessLockSharedGuard,
     filename: PathBuf,
     tmp_filename: PathBuf,
     chunk_size: usize,

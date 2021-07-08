@@ -14,14 +14,13 @@ use proxmox::tools::uuid::Uuid;
 use proxmox::tools::mmap::Mmap;
 use pxar::accessor::{MaybeReady, ReadAt, ReadAtOperation};
 
-use super::chunk_stat::ChunkStat;
-use super::chunk_store::ChunkStore;
-use super::index::ChunkReadInfo;
-use super::read_chunk::ReadChunk;
-use super::Chunker;
-use super::IndexFile;
-use super::{DataBlob, DataChunkBuilder};
-use crate::tools;
+use pbs_datastore::Chunker;
+use pbs_datastore::index::{IndexFile, ChunkReadInfo};
+use pbs_datastore::chunk_stat::ChunkStat;
+use pbs_datastore::data_blob::{DataBlob, DataChunkBuilder};
+use pbs_datastore::chunk_store::ChunkStore;
+use pbs_datastore::read_chunk::ReadChunk;
+use pbs_tools::process_locker::ProcessLockSharedGuard;
 
 /// Header format definition for dynamic index files (`.dixd`)
 #[repr(C)]
@@ -480,7 +479,7 @@ impl<R: ReadChunk> ReadAt for LocalDynamicReadAt<R> {
 /// Create dynamic index files (`.dixd`)
 pub struct DynamicIndexWriter {
     store: Arc<ChunkStore>,
-    _lock: tools::ProcessLockSharedGuard,
+    _lock: ProcessLockSharedGuard,
     writer: BufWriter<File>,
     closed: bool,
     filename: PathBuf,

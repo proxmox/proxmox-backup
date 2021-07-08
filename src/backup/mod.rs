@@ -149,12 +149,16 @@ pub const CATALOG_NAME: &str = "catalog.pcat1.didx";
 
 #[macro_export]
 macro_rules! PROXMOX_BACKUP_PROTOCOL_ID_V1 {
-    () =>  { "proxmox-backup-protocol-v1" }
+    () => {
+        "proxmox-backup-protocol-v1"
+    };
 }
 
 #[macro_export]
 macro_rules! PROXMOX_BACKUP_READER_PROTOCOL_ID_V1 {
-    () =>  { "proxmox-backup-reader-protocol-v1" }
+    () => {
+        "proxmox-backup-reader-protocol-v1"
+    };
 }
 
 /// Unix system user used by proxmox-backup-proxy
@@ -186,6 +190,8 @@ pub use pbs_datastore::checksum_reader;
 pub use pbs_datastore::checksum_reader::*;
 pub use pbs_datastore::checksum_writer;
 pub use pbs_datastore::checksum_writer::*;
+pub use pbs_datastore::chunk_stat;
+pub use pbs_datastore::chunk_stat::*;
 pub use pbs_datastore::chunk_store;
 pub use pbs_datastore::chunk_store::*;
 pub use pbs_datastore::chunker;
@@ -210,13 +216,12 @@ pub use pbs_datastore::key_derivation;
 pub use pbs_datastore::key_derivation::*;
 pub use pbs_datastore::manifest;
 pub use pbs_datastore::manifest::*;
+pub use pbs_datastore::read_chunk::*;
 
 mod chunk_stream;
 pub use chunk_stream::*;
 
-mod chunk_stat;
-pub use chunk_stat::*;
-
+// Split
 mod read_chunk;
 pub use read_chunk::*;
 
@@ -238,6 +243,7 @@ pub use store_progress::*;
 mod verify;
 pub use verify::*;
 
+// Move to client
 mod catalog_shell;
 pub use catalog_shell::*;
 

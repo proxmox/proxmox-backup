@@ -4,18 +4,11 @@ use std::sync::Arc;
 
 use anyhow::{bail, Error};
 
-use super::crypt_config::{CryptConfig, CryptMode};
-use super::data_blob::DataBlob;
+use pbs_datastore::crypt_config::{CryptConfig, CryptMode};
+use pbs_datastore::data_blob::DataBlob;
+use pbs_datastore::read_chunk::{ReadChunk, AsyncReadChunk};
+
 use super::datastore::DataStore;
-
-/// The ReadChunk trait allows reading backup data chunks (local or remote)
-pub trait ReadChunk {
-    /// Returns the encoded chunk data
-    fn read_raw_chunk(&self, digest: &[u8; 32]) -> Result<DataBlob, Error>;
-
-    /// Returns the decoded chunk data
-    fn read_chunk(&self, digest: &[u8; 32]) -> Result<Vec<u8>, Error>;
-}
 
 #[derive(Clone)]
 pub struct LocalChunkReader {
@@ -65,20 +58,6 @@ impl ReadChunk for LocalChunkReader {
 
         Ok(raw_data)
     }
-}
-
-pub trait AsyncReadChunk: Send {
-    /// Returns the encoded chunk data
-    fn read_raw_chunk<'a>(
-        &'a self,
-        digest: &'a [u8; 32],
-    ) -> Pin<Box<dyn Future<Output = Result<DataBlob, Error>> + Send + 'a>>;
-
-    /// Returns the decoded chunk data
-    fn read_chunk<'a>(
-        &'a self,
-        digest: &'a [u8; 32],
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, Error>> + Send + 'a>>;
 }
 
 impl AsyncReadChunk for LocalChunkReader {

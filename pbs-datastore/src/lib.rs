@@ -182,6 +182,7 @@ pub mod backup_info;
 pub mod catalog;
 pub mod checksum_reader;
 pub mod checksum_writer;
+pub mod chunk_stat;
 pub mod chunk_store;
 pub mod chunker;
 pub mod crypt_config;
@@ -194,6 +195,7 @@ pub mod file_formats;
 pub mod index;
 pub mod key_derivation;
 pub mod manifest;
+pub mod read_chunk;
 pub mod task;
 
 pub use backup_info::{BackupDir, BackupGroup, BackupInfo};

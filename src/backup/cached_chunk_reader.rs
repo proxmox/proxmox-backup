@@ -1,19 +1,21 @@
 //! An async and concurrency safe data reader backed by a local LRU cache.
 
-use anyhow::Error;
-use futures::future::Future;
-use futures::ready;
-use tokio::io::{AsyncRead, AsyncSeek, ReadBuf};
-
+use std::future::Future;
 use std::io::SeekFrom;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
-use super::{AsyncReadChunk, IndexFile};
-use crate::tools::async_lru_cache::{AsyncCacher, AsyncLruCache};
+use anyhow::Error;
+use futures::ready;
+use tokio::io::{AsyncRead, AsyncSeek, ReadBuf};
+
 use proxmox::io_format_err;
 use proxmox::sys::error::io_err_other;
+
+use pbs_datastore::read_chunk::AsyncReadChunk;
+use super::IndexFile;
+use crate::tools::async_lru_cache::{AsyncCacher, AsyncLruCache};
 
 struct AsyncChunkCacher<T> {
     reader: Arc<T>,
