@@ -10,6 +10,12 @@ use proxmox::api::schema::parse_property_string;
 
 use pbs_datastore::task::TaskState;
 
+use crate::api2::config::sync::delete_sync_job;
+use crate::api2::config::verify::delete_verification_job;
+use crate::api2::admin::{
+    sync::list_sync_jobs,
+    verify::list_verification_jobs,
+};
 use crate::api2::types::*;
 use crate::backup::*;
 use crate::config::cached_user_info::CachedUserInfo;
@@ -413,6 +419,12 @@ pub fn update_datastore(
             name: {
                 schema: DATASTORE_SCHEMA,
             },
+            "keep-job-configs": {
+                description: "If enabled, the job configurations related to this datastore will be kept.",
+                type: bool,
+                optional: true,
+                default: false,
+            },
             digest: {
                 optional: true,
                 schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
@@ -424,7 +436,12 @@ pub fn update_datastore(
     },
 )]
 /// Remove a datastore configuration.
-pub async fn delete_datastore(name: String, digest: Option<String>) -> Result<(), Error> {
+pub async fn delete_datastore(
+    name: String,
+    keep_job_configs: bool,
+    digest: Option<String>,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<(), Error> {
 
     let _lock = datastore::lock_config()?;
 
@@ -438,6 +455,15 @@ pub async fn delete_datastore(name: String, digest: Option<String>) -> Result<()
     match config.sections.get(&name) {
         Some(_) => { config.sections.remove(&name); },
         None => bail!("datastore '{}' does not exist.", name),
+    }
+
+    if !keep_job_configs {
+        for job in list_verification_jobs(Some(name.clone()), Value::Null, rpcenv)? {
+            delete_verification_job(job.config.id, None, rpcenv)?
+        }
+        for job in list_sync_jobs(Some(name.clone()), Value::Null, rpcenv)? {
+            delete_sync_job(job.config.id, None, rpcenv)?
+        }
     }
 
     datastore::save_config(&config)?;
