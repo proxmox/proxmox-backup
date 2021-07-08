@@ -54,6 +54,14 @@ Ext.define('PBS.ServerAdministration', {
 	    nodename: 'localhost',
 	},
 	{
+	    xtype: 'proxmoxNodeAPTRepositories',
+	    title: gettext('Repositories'),
+	    iconCls: 'fa fa-files-o',
+	    itemId: 'aptrepositories',
+	    nodename: 'localhost',
+	    product: 'Proxmox Backup Server',
+	},
+	{
 	    xtype: 'proxmoxJournalView',
 	    itemId: 'logs',
 	    iconCls: 'fa fa-list',
