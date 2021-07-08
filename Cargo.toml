@@ -90,6 +90,7 @@ proxmox = { version = "0.11.5", features = [ "sortable-macro", "api-macro" ] }
 #proxmox = { git = "git://git.proxmox.com/git/proxmox", version = "0.1.2", features = [ "sortable-macro", "api-macro" ] }
 #proxmox = { path = "../proxmox/proxmox", features = [ "sortable-macro", "api-macro" ] }
 proxmox-acme-rs = "0.2.1"
+proxmox-apt = "0.4.0"
 proxmox-fuse = "0.1.1"
 proxmox-http = { version = "0.2.1", features = [ "client", "http-helpers", "websocket" ] }
 #proxmox-http = { version = "0.2.0", path = "../proxmox/proxmox-http", features = [ "client", "http-helpers", "websocket" ] }
