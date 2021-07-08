@@ -125,6 +125,29 @@ Ext.define('PBS.DataStoreContent', {
 	    return groups;
 	},
 
+	updateGroupNotes: function(view) {
+	    Proxmox.Utils.API2Request({
+		url: `/api2/extjs/admin/datastore/${view.datastore}/groups`,
+		method: 'GET',
+		success: function(response) {
+		    let groups = response.result.data;
+		    let map = {};
+		    for (const group of groups) {
+			map[`${group["backup-type"]}/${group["backup-id"]}`] = group["comment"];
+		    }
+		    view.getRootNode().cascade(node => {
+			if (node.parentNode && node.parentNode.id === 'root') {
+			    node.set(
+				'comment',
+				map[`${node.data.backup_type}/${node.data.backup_id}`],
+				{ dirty: false },
+			    );
+			}
+		    });
+		},
+	    });
+	},
+
 	onLoad: function(store, records, success, operation) {
 	    let me = this;
 	    let view = this.getView();
@@ -242,6 +265,8 @@ Ext.define('PBS.DataStoreContent', {
 		children: children,
 	    });
 
+	    this.updateGroupNotes(view);
+
 	    if (selected !== undefined) {
 		let selection = view.getRootNode().findChildBy(function(item) {
 		    let id = item.data.text;
@@ -358,19 +383,31 @@ Ext.define('PBS.DataStoreContent', {
 	    });
 	},
 
-	onNotesEdit: function(view, data) {
+	onNotesEdit: function(view, data, isGroup) {
 	    let me = this;
 
-	    let url = `/admin/datastore/${view.datastore}/notes`;
+	    let url = `/admin/datastore/${view.datastore}/`;
+	    url += isGroup ? 'group-notes' : 'notes';
+
+	    let params;
+	    if (isGroup) {
+		params = {
+		    "backup-type": data.backup_type,
+		    "backup-id": data.backup_id,
+		};
+	    } else {
+		params = {
+		    "backup-type": data["backup-type"],
+		    "backup-id": data["backup-id"],
+		    "backup-time": (data['backup-time'].getTime()/1000).toFixed(0),
+		};
+	    }
+
 	    Ext.create('PBS.window.NotesEdit', {
 		url: url,
 		autoShow: true,
 		apiCallDone: () => me.reload(), // FIXME: do something more efficient?
-		extraRequestParams: {
-		    "backup-type": data["backup-type"],
-		    "backup-id": data["backup-id"],
-		    "backup-time": (data['backup-time'].getTime()/1000).toFixed(0),
-		},
+		extraRequestParams: params,
 	    });
 	},
 
@@ -585,7 +622,7 @@ Ext.define('PBS.DataStoreContent', {
 	    flex: 1,
 	    renderer: (v, meta, record) => {
 		let data = record.data;
-		if (!data || data.leaf || record.parentNode.id === 'root') {
+		if (!data || data.leaf) {
 		    return '';
 		}
 		if (v === undefined || v === null) {
@@ -608,17 +645,17 @@ Ext.define('PBS.DataStoreContent', {
 			}
 			let view = tree.up();
 			let controller = view.controller;
-			controller.onNotesEdit(view, rec.data);
+			controller.onNotesEdit(view, rec.data, rec.parentNode.id === 'root');
 		    });
 		},
 		dblclick: function(tree, el, row, col, ev, rec) {
 		    let data = rec.data || {};
-		    if (data.leaf || rec.parentNode.id === 'root') {
+		    if (data.leaf) {
 			return;
 		    }
 		    let view = tree.up();
 		    let controller = view.controller;
-		    controller.onNotesEdit(view, rec.data);
+		    controller.onNotesEdit(view, rec.data, rec.parentNode.id === 'root');
 		},
 	    },
 	},
