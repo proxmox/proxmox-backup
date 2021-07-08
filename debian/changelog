@@ -1,3 +1,19 @@
+rust-proxmox-backup (2.0.2-1) bullseye; urgency=medium
+
+  * ui: use task list component from widget toolkit
+
+  * api: add keep-job-configs flag to datastore remove endpoint
+
+  * api: config: delete datastore: also remove tape backup jobs
+
+  * ui: tape restore: mark datastore selector as 'not a form field' to fix
+    compatibility with ExtJS 7.0
+
+  * ui: datastore removal: only navigate away when the user actually confirmed
+    the removal of that datastore
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 08 Jul 2021 14:44:12 +0200
+
 rust-proxmox-backup (2.0.1-2) bullseye; urgency=medium
 
   * file restore daemon: log basic startup steps
