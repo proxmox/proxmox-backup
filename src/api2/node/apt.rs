@@ -8,7 +8,8 @@ use proxmox::api::router::{Router, SubdirMap};
 use proxmox::tools::fs::{replace_file, CreateOptions};
 
 use proxmox_apt::repositories::{
-    APTRepositoryFile, APTRepositoryFileError, APTRepositoryInfo, APTStandardRepository,
+    APTRepositoryFile, APTRepositoryFileError, APTRepositoryHandle, APTRepositoryInfo,
+    APTStandardRepository,
 };
 use proxmox_http::ProxyConfig;
 
@@ -456,9 +457,156 @@ pub fn get_repositories() -> Result<Value, Error> {
     }))
 }
 
+#[api(
+    input: {
+        properties: {
+            node: {
+                schema: NODE_SCHEMA,
+            },
+            handle: {
+                type: APTRepositoryHandle,
+            },
+            digest: {
+                schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
+                optional: true,
+            },
+        },
+    },
+    protected: true,
+    access: {
+        permission: &Permission::Privilege(&[], PRIV_SYS_MODIFY, false),
+    },
+)]
+/// Add the repository identified by the `handle`.
+/// If the repository is already configured, it will be set to enabled.
+///
+/// The `digest` parameter asserts that the configuration has not been modified.
+pub fn add_repository(handle: APTRepositoryHandle, digest: Option<String>) -> Result<(), Error> {
+    let (mut files, errors, current_digest) = proxmox_apt::repositories::repositories()?;
+
+    if let Some(expected_digest) = digest {
+        let current_digest = proxmox::tools::digest_to_hex(&current_digest);
+        crate::tools::assert_if_modified(&expected_digest, &current_digest)?;
+    }
+
+    // check if it's already configured first
+    for file in files.iter_mut() {
+        for repo in file.repositories.iter_mut() {
+            if repo.is_referenced_repository(handle, "pbs") {
+                if repo.enabled {
+                    return Ok(());
+                }
+
+                repo.set_enabled(true);
+                file.write()?;
+
+                return Ok(());
+            }
+        }
+    }
+
+    let (repo, path) = proxmox_apt::repositories::get_standard_repository(handle, "pbs")?;
+
+    if let Some(error) = errors.iter().find(|error| error.path == path) {
+        bail!(
+            "unable to parse existing file {} - {}",
+            error.path,
+            error.error,
+        );
+    }
+
+    if let Some(file) = files.iter_mut().find(|file| file.path == path) {
+        file.repositories.push(repo);
+
+        file.write()?;
+    } else {
+        let mut file = match APTRepositoryFile::new(&path)? {
+            Some(file) => file,
+            None => bail!("invalid path - {}", path),
+        };
+
+        file.repositories.push(repo);
+
+        file.write()?;
+    }
+
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            node: {
+                schema: NODE_SCHEMA,
+            },
+            path: {
+                description: "Path to the containing file.",
+                type: String,
+            },
+            index: {
+                description: "Index within the file (starting from 0).",
+                type: usize,
+            },
+            enabled: {
+                description: "Whether the repository should be enabled or not.",
+                type: bool,
+                optional: true,
+            },
+            digest: {
+                schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
+                optional: true,
+            },
+        },
+    },
+    protected: true,
+    access: {
+        permission: &Permission::Privilege(&[], PRIV_SYS_MODIFY, false),
+    },
+)]
+/// Change the properties of the specified repository.
+///
+/// The `digest` parameter asserts that the configuration has not been modified.
+pub fn change_repository(
+    path: String,
+    index: usize,
+    enabled: Option<bool>,
+    digest: Option<String>,
+) -> Result<(), Error> {
+    let (mut files, errors, current_digest) = proxmox_apt::repositories::repositories()?;
+
+    if let Some(expected_digest) = digest {
+        let current_digest = proxmox::tools::digest_to_hex(&current_digest);
+        crate::tools::assert_if_modified(&expected_digest, &current_digest)?;
+    }
+
+    if let Some(error) = errors.iter().find(|error| error.path == path) {
+        bail!("unable to parse file {} - {}", error.path, error.error);
+    }
+
+    if let Some(file) = files.iter_mut().find(|file| file.path == path) {
+        if let Some(repo) = file.repositories.get_mut(index) {
+            if let Some(enabled) = enabled {
+                repo.set_enabled(enabled);
+            }
+
+            file.write()?;
+        } else {
+            bail!("invalid index - {}", index);
+        }
+    } else {
+        bail!("invalid path - {}", path);
+    }
+
+    Ok(())
+}
+
 const SUBDIRS: SubdirMap = &[
     ("changelog", &Router::new().get(&API_METHOD_APT_GET_CHANGELOG)),
-    ("repositories", &Router::new().get(&API_METHOD_GET_REPOSITORIES)),
+    ("repositories", &Router::new()
+        .get(&API_METHOD_GET_REPOSITORIES)
+        .post(&API_METHOD_CHANGE_REPOSITORY)
+        .put(&API_METHOD_ADD_REPOSITORY)
+    ),
     ("update", &Router::new()
         .get(&API_METHOD_APT_UPDATE_AVAILABLE)
         .post(&API_METHOD_APT_UPDATE_DATABASE)
