@@ -12,6 +12,7 @@ use pbs_datastore::task::TaskState;
 
 use crate::api2::config::sync::delete_sync_job;
 use crate::api2::config::verify::delete_verification_job;
+use crate::api2::config::tape_backup_job::{list_tape_backup_jobs, delete_tape_backup_job};
 use crate::api2::admin::{
     sync::list_sync_jobs,
     verify::list_verification_jobs,
@@ -463,6 +464,11 @@ pub async fn delete_datastore(
         }
         for job in list_sync_jobs(Some(name.clone()), Value::Null, rpcenv)? {
             delete_sync_job(job.config.id, None, rpcenv)?
+        }
+
+        let tape_jobs = list_tape_backup_jobs(Value::Null, rpcenv)?;
+        for job_config in  tape_jobs.into_iter().filter(|config| config.setup.store == name) {
+            delete_tape_backup_job(job_config.id, None, rpcenv)?;
         }
     }
 
