@@ -195,8 +195,12 @@ pub mod file_formats;
 pub mod index;
 pub mod key_derivation;
 pub mod manifest;
+pub mod prune;
 pub mod read_chunk;
 pub mod task;
+
+pub mod dynamic_index;
+pub mod fixed_index;
 
 pub use backup_info::{BackupDir, BackupGroup, BackupInfo};
 pub use checksum_reader::ChecksumReader;

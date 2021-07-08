@@ -12,22 +12,26 @@ use lazy_static::lazy_static;
 
 use proxmox::tools::fs::{replace_file, file_read_optional_string, CreateOptions, open_file_locked};
 
+use pbs_api_types::upid::UPID;
+use pbs_api_types::{Authid, GarbageCollectionStatus};
 use pbs_datastore::{task_log, task_warn};
+use pbs_datastore::DataBlob;
+use pbs_datastore::backup_info::{BackupGroup, BackupDir};
+use pbs_datastore::chunk_store::ChunkStore;
+use pbs_datastore::dynamic_index::{DynamicIndexReader, DynamicIndexWriter};
+use pbs_datastore::fixed_index::{FixedIndexReader, FixedIndexWriter};
+use pbs_datastore::index::IndexFile;
+use pbs_datastore::manifest::{
+    MANIFEST_BLOB_NAME, MANIFEST_LOCK_NAME, CLIENT_LOG_BLOB_NAME,
+    ArchiveType, BackupManifest,
+    archive_type,
+};
 use pbs_datastore::task::TaskState;
 use pbs_tools::format::HumanByte;
 use pbs_tools::fs::{lock_dir_noblock, DirLockGuard};
 
-use super::backup_info::{BackupGroup, BackupDir};
-use super::chunk_store::ChunkStore;
-use super::dynamic_index::{DynamicIndexReader, DynamicIndexWriter};
-use super::fixed_index::{FixedIndexReader, FixedIndexWriter};
-use super::manifest::{MANIFEST_BLOB_NAME, MANIFEST_LOCK_NAME, CLIENT_LOG_BLOB_NAME, BackupManifest};
-use super::index::*;
-use super::{DataBlob, ArchiveType, archive_type};
 use crate::config::datastore::{self, DataStoreConfig};
 use crate::tools;
-use crate::api2::types::{Authid, GarbageCollectionStatus};
-use crate::server::UPID;
 
 lazy_static! {
     static ref DATASTORE_MAP: Mutex<HashMap<String, Arc<DataStore>>> = Mutex::new(HashMap::new());

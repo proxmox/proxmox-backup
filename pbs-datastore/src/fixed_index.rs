@@ -7,14 +7,16 @@ use std::io::{Seek, SeekFrom};
 
 use anyhow::{bail, format_err, Error};
 
-use pbs_datastore::chunk_stat::ChunkStat;
-use pbs_datastore::chunk_store::ChunkStore;
-use pbs_datastore::data_blob::ChunkInfo;
-use pbs_datastore::index::{ChunkReadInfo, IndexFile};
 use pbs_tools::process_locker::ProcessLockSharedGuard;
 
 use proxmox::tools::io::ReadExt;
 use proxmox::tools::Uuid;
+
+use crate::chunk_stat::ChunkStat;
+use crate::chunk_store::ChunkStore;
+use crate::data_blob::ChunkInfo;
+use crate::file_formats;
+use crate::index::{ChunkReadInfo, IndexFile};
 
 /// Header format definition for fixed index files (`.fidx`)
 #[repr(C)]
@@ -81,7 +83,7 @@ impl FixedIndexReader {
 
         let header: Box<FixedIndexHeader> = unsafe { file.read_host_value_boxed()? };
 
-        if header.magic != super::FIXED_SIZED_CHUNK_INDEX_1_0 {
+        if header.magic != file_formats::FIXED_SIZED_CHUNK_INDEX_1_0 {
             bail!("got unknown magic number");
         }
 
@@ -286,7 +288,7 @@ impl FixedIndexWriter {
         let buffer = vec![0u8; header_size];
         let header = unsafe { &mut *(buffer.as_ptr() as *mut FixedIndexHeader) };
 
-        header.magic = super::FIXED_SIZED_CHUNK_INDEX_1_0;
+        header.magic = file_formats::FIXED_SIZED_CHUNK_INDEX_1_0;
         header.ctime = i64::to_le(ctime);
         header.size = u64::to_le(size as u64);
         header.chunk_size = u64::to_le(chunk_size as u64);
