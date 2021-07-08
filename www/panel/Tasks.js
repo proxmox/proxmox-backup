@@ -372,14 +372,7 @@ Ext.define('PBS.node.Tasks', {
 		    return '';
 		}
 
-		let parsed = Proxmox.Utils.parse_task_status(value);
-		switch (parsed) {
-		    case 'unknown': return Proxmox.Utils.unknownText;
-		    case 'error': return Proxmox.Utils.errorText + ': ' + value;
-		    case 'ok': // fall-through
-		    case 'warning': // fall-through
-		    default: return value;
-		}
+		return Proxmox.Utils.format_task_status(value);
 	    },
 	},
     ],
