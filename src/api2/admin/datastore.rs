@@ -3,6 +3,7 @@
 use std::collections::HashSet;
 use std::ffi::OsStr;
 use std::os::unix::ffi::OsStrExt;
+use std::path::PathBuf;
 
 use anyhow::{bail, format_err, Error};
 use futures::*;
@@ -17,7 +18,9 @@ use proxmox::api::{
 };
 use proxmox::api::router::{ReturnType, SubdirMap};
 use proxmox::api::schema::*;
-use proxmox::tools::fs::{replace_file, CreateOptions};
+use proxmox::tools::fs::{
+    file_read_firstline, file_read_optional_string, replace_file, CreateOptions,
+};
 use proxmox::{http_err, identity, list_subdirs_api_method, sortable};
 
 use pxar::accessor::aio::Accessor;
@@ -45,6 +48,15 @@ use crate::config::acl::{
     PRIV_DATASTORE_BACKUP,
     PRIV_DATASTORE_VERIFY,
 };
+
+const GROUP_NOTES_FILE_NAME: &str = "notes";
+
+fn get_group_note_path(store: &DataStore, group: &BackupGroup) -> PathBuf {
+    let mut note_path = store.base_path();
+    note_path.push(group.group_path());
+    note_path.push(GROUP_NOTES_FILE_NAME);
+    note_path
+}
 
 fn check_priv_or_backup_owner(
     store: &DataStore,
@@ -204,6 +216,9 @@ pub fn list_groups(
                 })
                 .to_owned();
 
+            let note_path = get_group_note_path(&datastore, &group);
+            let comment = file_read_firstline(&note_path).ok();
+
             group_info.push(GroupListItem {
                 backup_type: group.backup_type().to_string(),
                 backup_id: group.backup_id().to_string(),
@@ -211,6 +226,7 @@ pub fn list_groups(
                 owner: Some(owner),
                 backup_count,
                 files: last_backup.files,
+                comment,
             });
 
             group_info
@@ -1570,6 +1586,86 @@ pub fn get_rrd_stats(
             "backup-id": {
                 schema: BACKUP_ID_SCHEMA,
             },
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_BACKUP, true),
+    },
+)]
+/// Get "notes" for a backup group
+pub fn get_group_notes(
+    store: String,
+    backup_type: String,
+    backup_id: String,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<String, Error> {
+    let datastore = DataStore::lookup_datastore(&store)?;
+
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let backup_group = BackupGroup::new(backup_type, backup_id);
+
+    check_priv_or_backup_owner(&datastore, &backup_group, &auth_id, PRIV_DATASTORE_AUDIT)?;
+
+    let note_path = get_group_note_path(&datastore, &backup_group);
+    Ok(file_read_optional_string(note_path)?.unwrap_or_else(|| "".to_owned()))
+}
+
+#[api(
+    input: {
+        properties: {
+            store: {
+                schema: DATASTORE_SCHEMA,
+            },
+            "backup-type": {
+                schema: BACKUP_TYPE_SCHEMA,
+            },
+            "backup-id": {
+                schema: BACKUP_ID_SCHEMA,
+            },
+            notes: {
+                description: "A multiline text.",
+            },
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&["datastore", "{store}"],
+                                           PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_BACKUP,
+                                           true),
+    },
+)]
+/// Set "notes" for a backup group
+pub fn set_group_notes(
+    store: String,
+    backup_type: String,
+    backup_id: String,
+    notes: String,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<(), Error> {
+    let datastore = DataStore::lookup_datastore(&store)?;
+
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let backup_group = BackupGroup::new(backup_type, backup_id);
+
+    check_priv_or_backup_owner(&datastore, &backup_group, &auth_id, PRIV_DATASTORE_MODIFY)?;
+
+    let note_path = get_group_note_path(&datastore, &backup_group);
+    replace_file(note_path, notes.as_bytes(), CreateOptions::new())?;
+
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            store: {
+                schema: DATASTORE_SCHEMA,
+            },
+            "backup-type": {
+                schema: BACKUP_TYPE_SCHEMA,
+            },
+            "backup-id": {
+                schema: BACKUP_ID_SCHEMA,
+            },
             "backup-time": {
                 schema: BACKUP_TIME_SCHEMA,
             },
@@ -1781,6 +1877,12 @@ const DATASTORE_INFO_SUBDIRS: SubdirMap = &[
         &Router::new()
             .get(&API_METHOD_GARBAGE_COLLECTION_STATUS)
             .post(&API_METHOD_START_GARBAGE_COLLECTION)
+    ),
+    (
+        "group-notes",
+        &Router::new()
+            .get(&API_METHOD_GET_GROUP_NOTES)
+            .put(&API_METHOD_SET_GROUP_NOTES)
     ),
     (
         "groups",

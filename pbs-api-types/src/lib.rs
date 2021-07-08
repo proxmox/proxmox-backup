@@ -380,6 +380,9 @@ pub struct GroupListItem {
     /// The owner of group
     #[serde(skip_serializing_if = "Option::is_none")]
     pub owner: Option<Authid>,
+    /// The first line from group "notes"
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub comment: Option<String>,
 }
 
 #[api(
