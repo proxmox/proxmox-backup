@@ -7,6 +7,9 @@ use proxmox::api::{api, RpcEnvironment, RpcEnvironmentType, Permission};
 use proxmox::api::router::{Router, SubdirMap};
 use proxmox::tools::fs::{replace_file, CreateOptions};
 
+use proxmox_apt::repositories::{
+    APTRepositoryFile, APTRepositoryFileError, APTRepositoryInfo, APTStandardRepository,
+};
 use proxmox_http::ProxyConfig;
 
 use crate::config::node;
@@ -17,7 +20,7 @@ use crate::tools::{
     subscription,
 };
 use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
-use crate::api2::types::{Authid, APTUpdateInfo, NODE_SCHEMA, UPID_SCHEMA};
+use crate::api2::types::{Authid, APTUpdateInfo, NODE_SCHEMA, PROXMOX_CONFIG_DIGEST_SCHEMA, UPID_SCHEMA};
 
 #[api(
     input: {
@@ -389,8 +392,73 @@ pub fn get_versions() -> Result<Vec<APTUpdateInfo>, Error> {
     Ok(packages)
 }
 
+#[api(
+    input: {
+        properties: {
+            node: {
+                schema: NODE_SCHEMA,
+            },
+        },
+    },
+    returns: {
+        type: Object,
+        description: "Result from parsing the APT repository files in /etc/apt/.",
+        properties: {
+            files: {
+                description: "List of parsed repository files.",
+                type: Array,
+                items: {
+                    type: APTRepositoryFile,
+                },
+            },
+            errors: {
+                description: "List of problematic files.",
+                type: Array,
+                items: {
+                    type: APTRepositoryFileError,
+                },
+            },
+            digest: {
+                schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
+            },
+            infos: {
+                description: "List of additional information/warnings about the repositories.",
+                items: {
+                    type: APTRepositoryInfo,
+                },
+            },
+            "standard-repos": {
+                description: "List of standard repositories and their configuration status.",
+                items: {
+                    type: APTStandardRepository,
+                },
+            },
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&[], PRIV_SYS_AUDIT, false),
+    },
+)]
+/// Get APT repository information.
+pub fn get_repositories() -> Result<Value, Error> {
+    let (files, errors, digest) = proxmox_apt::repositories::repositories()?;
+    let digest = proxmox::tools::digest_to_hex(&digest);
+
+    let infos = proxmox_apt::repositories::check_repositories(&files)?;
+    let standard_repos = proxmox_apt::repositories::standard_repositories("pbs", &files);
+
+    Ok(json!({
+        "files": files,
+        "errors": errors,
+        "digest": digest,
+        "infos": infos,
+        "standard-repos": standard_repos,
+    }))
+}
+
 const SUBDIRS: SubdirMap = &[
     ("changelog", &Router::new().get(&API_METHOD_APT_GET_CHANGELOG)),
+    ("repositories", &Router::new().get(&API_METHOD_GET_REPOSITORIES)),
     ("update", &Router::new()
         .get(&API_METHOD_APT_UPDATE_AVAILABLE)
         .post(&API_METHOD_APT_UPDATE_DATABASE)
