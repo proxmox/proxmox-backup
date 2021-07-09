@@ -406,6 +406,15 @@ Ext.define('PBS.Utils', {
 	    verify_snapshot: ['Snapshot', gettext('Verification')],
 	    zfscreate: [gettext('ZFS Storage'), gettext('Create')],
 	});
+
+	Proxmox.Utils.overrideAuthSchema({
+	    pbs: {
+		name: 'Proxmox Backup authentication server',
+		add: false,
+		edit: false,
+		pwchange: true,
+	    },
+	});
     },
 
     // Convert an ArrayBuffer to a base64url encoded string.
