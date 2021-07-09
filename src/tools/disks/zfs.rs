@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::os::unix::fs::MetadataExt;
 
 use anyhow::{bail, Error};
@@ -67,12 +67,11 @@ pub fn zfs_pool_stats(pool: &OsStr) -> Result<Option<BlockDevStat>, Error> {
     Ok(Some(stat))
 }
 
-
 /// Get set of devices used by zfs (or a specific zfs pool)
 ///
 /// The set is indexed by using the unix raw device number (dev_t is u64)
 pub fn zfs_devices(
-    partition_type_map: &HashMap<String, Vec<String>>,
+    lsblk_info: &[LsblkInfo],
     pool: Option<String>,
 ) -> Result<HashSet<u64>, Error> {
 
@@ -86,12 +85,12 @@ pub fn zfs_devices(
         }
     }
 
-    for device_list in partition_type_map.iter()
-        .filter_map(|(uuid, list)| if ZFS_UUIDS.contains(uuid.as_str()) { Some(list) } else { None })
-    {
-        for device in device_list {
-            let meta = std::fs::metadata(device)?;
-            device_set.insert(meta.rdev());
+    for info in lsblk_info.iter() {
+        if let Some(partition_type) = &info.partition_type {
+            if ZFS_UUIDS.contains(partition_type.as_str()) {
+                let meta = std::fs::metadata(&info.path)?;
+                device_set.insert(meta.rdev());
+            }
         }
     }
 
