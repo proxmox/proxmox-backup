@@ -12,13 +12,20 @@ use serde_json::json;
 
 use proxmox::api::error::{HttpError, StatusCode};
 
-use pbs_datastore::task_log;
+use pbs_api_types::{Authid, SnapshotListItem, GroupListItem};
+use pbs_datastore::{task_log, BackupInfo, BackupDir, BackupGroup, StoreProgress};
+use pbs_datastore::data_blob::DataBlob;
+use pbs_datastore::dynamic_index::DynamicIndexReader;
+use pbs_datastore::fixed_index::FixedIndexReader;
+use pbs_datastore::index::IndexFile;
+use pbs_datastore::manifest::{
+    CLIENT_LOG_BLOB_NAME, MANIFEST_BLOB_NAME, ArchiveType, BackupManifest, FileInfo, archive_type
+};
 use pbs_tools::sha::sha256;
 
 use crate::{
-    api2::types::*,
-    backup::*,
-    client::*,
+    backup::DataStore,
+    client::{BackupReader, BackupRepository, HttpClient, HttpClientOptions, RemoteChunkReader},
     server::WorkerTask,
     tools::ParallelHandler,
 };

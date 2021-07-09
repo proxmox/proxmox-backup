@@ -77,6 +77,8 @@ pub use pbs_datastore::manifest::*;
 pub use pbs_datastore::prune;
 pub use pbs_datastore::prune::*;
 
+pub use pbs_datastore::store_progress::StoreProgress;
+
 pub use pbs_datastore::dynamic_index::*;
 pub use pbs_datastore::fixed_index;
 pub use pbs_datastore::fixed_index::*;
@@ -96,9 +98,6 @@ pub use dynamic_index::*;
 
 mod datastore;
 pub use datastore::*;
-
-mod store_progress;
-pub use store_progress::*;
 
 mod verify;
 pub use verify::*;

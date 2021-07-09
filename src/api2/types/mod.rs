@@ -9,12 +9,7 @@ use proxmox::const_regex;
 use pbs_datastore::catalog::CatalogEntryType;
 
 use crate::{
-    backup::{
-        CryptMode,
-        Fingerprint,
-        DirEntryAttribute,
-    },
-    server::UPID,
+    backup::DirEntryAttribute,
     config::acl::Role,
 };
 
@@ -244,37 +239,8 @@ pub struct AclListItem {
     pub roleid: String,
 }
 
-pub const BACKUP_ARCHIVE_NAME_SCHEMA: Schema =
-    StringSchema::new("Backup archive name.")
-    .format(&PROXMOX_SAFE_ID_FORMAT)
-    .schema();
-
-pub const BACKUP_TYPE_SCHEMA: Schema =
-    StringSchema::new("Backup type.")
-    .format(&ApiStringFormat::Enum(&[
-        EnumEntry::new("vm", "Virtual Machine Backup"),
-        EnumEntry::new("ct", "Container Backup"),
-        EnumEntry::new("host", "Host Backup")]))
-    .schema();
-
-pub const BACKUP_ID_SCHEMA: Schema =
-    StringSchema::new("Backup ID.")
-    .format(&BACKUP_ID_FORMAT)
-    .schema();
-
-pub const BACKUP_TIME_SCHEMA: Schema =
-    IntegerSchema::new("Backup time (Unix epoch.)")
-    .minimum(1_547_797_308)
-    .schema();
-
 pub const UPID_SCHEMA: Schema = StringSchema::new("Unique Process/Task ID.")
     .max_length(256)
-    .schema();
-
-pub const DATASTORE_SCHEMA: Schema = StringSchema::new("Datastore name.")
-    .format(&PROXMOX_SAFE_ID_FORMAT)
-    .min_length(3)
-    .max_length(32)
     .schema();
 
 pub const DATASTORE_MAP_SCHEMA: Schema = StringSchema::new("Datastore mapping.")
@@ -391,180 +357,6 @@ pub const REALM_ID_SCHEMA: Schema = StringSchema::new("Realm name.")
 
 // Complex type definitions
 
-#[api(
-    properties: {
-        store: {
-            schema: DATASTORE_SCHEMA,
-        },
-        comment: {
-            optional: true,
-            schema: SINGLE_LINE_COMMENT_SCHEMA,
-        },
-    },
-)]
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all="kebab-case")]
-/// Basic information about a datastore.
-pub struct DataStoreListItem {
-    pub store: String,
-    pub comment: Option<String>,
-}
-
-#[api(
-    properties: {
-        "backup-type": {
-            schema: BACKUP_TYPE_SCHEMA,
-        },
-        "backup-id": {
-            schema: BACKUP_ID_SCHEMA,
-        },
-        "last-backup": {
-            schema: BACKUP_TIME_SCHEMA,
-        },
-        "backup-count": {
-            type: Integer,
-        },
-        files: {
-            items: {
-                schema: BACKUP_ARCHIVE_NAME_SCHEMA
-            },
-        },
-        owner: {
-            type: Authid,
-            optional: true,
-        },
-    },
-)]
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all="kebab-case")]
-/// Basic information about a backup group.
-pub struct GroupListItem {
-    pub backup_type: String, // enum
-    pub backup_id: String,
-    pub last_backup: i64,
-    /// Number of contained snapshots
-    pub backup_count: u64,
-    /// List of contained archive files.
-    pub files: Vec<String>,
-    /// The owner of group
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub owner: Option<Authid>,
-}
-
-#[api()]
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-/// Result of a verify operation.
-pub enum VerifyState {
-    /// Verification was successful
-    Ok,
-    /// Verification reported one or more errors
-    Failed,
-}
-
-#[api(
-    properties: {
-        upid: {
-            schema: UPID_SCHEMA
-        },
-        state: {
-            type: VerifyState
-        },
-    },
-)]
-#[derive(Serialize, Deserialize)]
-/// Task properties.
-pub struct SnapshotVerifyState {
-    /// UPID of the verify task
-    pub upid: UPID,
-    /// State of the verification. Enum.
-    pub state: VerifyState,
-}
-
-#[api(
-    properties: {
-        "backup-type": {
-            schema: BACKUP_TYPE_SCHEMA,
-        },
-        "backup-id": {
-            schema: BACKUP_ID_SCHEMA,
-        },
-        "backup-time": {
-            schema: BACKUP_TIME_SCHEMA,
-        },
-        comment: {
-            schema: SINGLE_LINE_COMMENT_SCHEMA,
-            optional: true,
-        },
-        verification: {
-            type: SnapshotVerifyState,
-            optional: true,
-        },
-        fingerprint: {
-            type: String,
-            optional: true,
-        },
-        files: {
-            items: {
-                schema: BACKUP_ARCHIVE_NAME_SCHEMA
-            },
-        },
-        owner: {
-            type: Authid,
-            optional: true,
-        },
-    },
-)]
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all="kebab-case")]
-/// Basic information about backup snapshot.
-pub struct SnapshotListItem {
-    pub backup_type: String, // enum
-    pub backup_id: String,
-    pub backup_time: i64,
-    /// The first line from manifest "notes"
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub comment: Option<String>,
-    /// The result of the last run verify task
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub verification: Option<SnapshotVerifyState>,
-    /// Fingerprint of encryption key
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub fingerprint: Option<Fingerprint>,
-    /// List of contained archive files.
-    pub files: Vec<BackupContent>,
-    /// Overall snapshot size (sum of all archive sizes).
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub size: Option<u64>,
-    /// The owner of the snapshots group
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub owner: Option<Authid>,
-}
-
-#[api(
-    properties: {
-        "backup-type": {
-            schema: BACKUP_TYPE_SCHEMA,
-        },
-        "backup-id": {
-            schema: BACKUP_ID_SCHEMA,
-        },
-        "backup-time": {
-            schema: BACKUP_TIME_SCHEMA,
-        },
-    },
-)]
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all="kebab-case")]
-/// Prune result.
-pub struct PruneListItem {
-    pub backup_type: String, // enum
-    pub backup_id: String,
-    pub backup_time: i64,
-    /// Keep snapshot
-    pub keep: bool,
-}
-
 pub const PRUNE_SCHEMA_KEEP_DAILY: Schema = IntegerSchema::new(
     "Number of daily backups to keep.")
     .minimum(1)
@@ -594,30 +386,6 @@ pub const PRUNE_SCHEMA_KEEP_YEARLY: Schema = IntegerSchema::new(
     "Number of yearly backups to keep.")
     .minimum(1)
     .schema();
-
-#[api(
-    properties: {
-        "filename": {
-            schema: BACKUP_ARCHIVE_NAME_SCHEMA,
-        },
-        "crypt-mode": {
-            type: CryptMode,
-            optional: true,
-        },
-    },
-)]
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all="kebab-case")]
-/// Basic information about archive files inside a backup snapshot.
-pub struct BackupContent {
-    pub filename: String,
-    /// Info if file is encrypted, signed, or neither.
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub crypt_mode: Option<CryptMode>,
-    /// Archive size (from backup manifest).
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub size: Option<u64>,
-}
 
 #[api()]
 #[derive(Default, Serialize, Deserialize)]

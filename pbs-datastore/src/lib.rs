@@ -197,6 +197,7 @@ pub mod key_derivation;
 pub mod manifest;
 pub mod prune;
 pub mod read_chunk;
+pub mod store_progress;
 pub mod task;
 
 pub mod dynamic_index;
@@ -216,3 +217,4 @@ pub use key_derivation::{
 };
 pub use key_derivation::{Kdf, KeyConfig, KeyDerivationConfig, KeyInfo};
 pub use manifest::BackupManifest;
+pub use store_progress::StoreProgress;

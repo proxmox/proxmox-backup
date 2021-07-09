@@ -85,20 +85,25 @@ pub enum ArchiveType {
     Blob,
 }
 
+impl ArchiveType {
+    pub fn from_path(archive_name: impl AsRef<Path>) -> Result<Self, Error> {
+        let archive_name = archive_name.as_ref();
+        let archive_type = match archive_name.extension().and_then(|ext| ext.to_str()) {
+            Some("didx") => ArchiveType::DynamicIndex,
+            Some("fidx") => ArchiveType::FixedIndex,
+            Some("blob") => ArchiveType::Blob,
+            _ => bail!("unknown archive type: {:?}", archive_name),
+        };
+        Ok(archive_type)
+    }
+}
+
+//#[deprecated(note = "use ArchivType::from_path instead")] later...
 pub fn archive_type<P: AsRef<Path>>(
     archive_name: P,
 ) -> Result<ArchiveType, Error> {
-
-    let archive_name = archive_name.as_ref();
-    let archive_type = match archive_name.extension().and_then(|ext| ext.to_str()) {
-        Some("didx") => ArchiveType::DynamicIndex,
-        Some("fidx") => ArchiveType::FixedIndex,
-        Some("blob") => ArchiveType::Blob,
-        _ => bail!("unknown archive type: {:?}", archive_name),
-    };
-    Ok(archive_type)
+    ArchiveType::from_path(archive_name)
 }
-
 
 impl BackupManifest {
 
@@ -114,7 +119,7 @@ impl BackupManifest {
     }
 
     pub fn add_file(&mut self, filename: String, size: u64, csum: [u8; 32], crypt_mode: CryptMode) -> Result<(), Error> {
-        let _archive_type = archive_type(&filename)?; // check type
+        let _archive_type = ArchiveType::from_path(&filename)?; // check type
         self.files.push(FileInfo { filename, size, csum, crypt_mode });
         Ok(())
     }
