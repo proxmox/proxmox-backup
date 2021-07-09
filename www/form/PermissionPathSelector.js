@@ -8,6 +8,7 @@ Ext.define('PBS.data.PermissionPathsStore', {
 	{ 'value': '/access' },
 	{ 'value': '/access/acl' },
 	{ 'value': '/access/users' },
+	{ 'value': '/access/domains' },
 	{ 'value': '/datastore' },
 	{ 'value': '/remote' },
 	{ 'value': '/system' },
