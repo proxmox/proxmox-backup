@@ -93,6 +93,8 @@ pub mod ticket;
 
 pub mod auth;
 
+pub mod pull;
+
 pub(crate) async fn reload_proxy_certificate() -> Result<(), Error> {
     let proxy_pid = crate::server::read_pid(pbs_buildcfg::PROXMOX_BACKUP_PROXY_PID_FN)?;
     let sock = crate::server::ctrl_sock_from_pid(proxy_pid);

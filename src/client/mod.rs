@@ -43,8 +43,6 @@ pub use backup_repo::*;
 mod backup_specification;
 pub use backup_specification::*;
 
-pub mod pull;
-
 /// Connect to localhost:8007 as root@pam
 ///
 /// This automatically creates a ticket if run as 'root' user.

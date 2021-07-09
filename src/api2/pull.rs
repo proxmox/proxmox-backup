@@ -7,10 +7,12 @@ use futures::{select, future::FutureExt};
 use proxmox::api::api;
 use proxmox::api::{ApiMethod, Router, RpcEnvironment, Permission};
 
-use crate::server::{WorkerTask, jobstate::Job};
+use crate::server::{WorkerTask, jobstate::Job, pull::pull_store};
 use crate::backup::DataStore;
-use crate::client::{HttpClient, BackupRepository, pull::pull_store};
-use crate::api2::types::*;
+use crate::client::{HttpClient, BackupRepository};
+use crate::api2::types::{
+    DATASTORE_SCHEMA, REMOTE_ID_SCHEMA, REMOVE_VANISHED_BACKUPS_SCHEMA, Authid,
+};
 use crate::config::{
     remote,
     sync::SyncJobConfig,
@@ -98,7 +100,7 @@ pub fn do_sync_job(
                 worker.log(format!("Sync datastore '{}' from '{}/{}'",
                         sync_job.store, sync_job.remote, sync_job.remote_store));
 
-                crate::client::pull::pull_store(&worker, &client, &src_repo, tgt_store.clone(), delete, sync_owner).await?;
+                pull_store(&worker, &client, &src_repo, tgt_store.clone(), delete, sync_owner).await?;
 
                 worker.log(format!("sync job '{}' end", &job_id));
 
