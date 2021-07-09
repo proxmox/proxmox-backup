@@ -20,6 +20,37 @@ Ext.define('PBS.NodeInfoPanel', {
 	padding: '0 15 5 15',
     },
 
+    viewModel: {
+	data: {
+	    subscriptionActive: '',
+	    noSubscriptionRepo: '',
+	    enterpriseRepo: '',
+	    testRepo: '',
+	},
+	formulas: {
+	    repoStatus: function(get) {
+		if (get('subscriptionActive') === '' || get('enterpriseRepo') === '') {
+		    return '';
+		}
+
+		if (get('noSubscriptionRepo') || get('testRepo')) {
+		    return 'non-production';
+		} else if (get('subscriptionActive') && get('enterpriseRepo')) {
+		    return 'ok';
+		} else if (!get('subscriptionActive') && get('enterpriseRepo')) {
+		    return 'no-sub';
+		} else if (!get('enterpriseRepo') || !get('noSubscriptionRepo') || !get('testRepo')) {
+		    return 'no-repo';
+		}
+		return 'unknown';
+	    },
+	    repoStatusMessage: function(get) {
+		const status = get('repoStatus');
+		return Proxmox.Utils.formatNodeRepoStatus(status, 'Proxmox Backup Server');
+	    },
+	},
+    },
+
     controller: {
 	xclass: 'Ext.app.ViewController',
 
@@ -147,12 +178,49 @@ Ext.define('PBS.NodeInfoPanel', {
 	    textField: 'kversion',
 	    value: '',
 	},
+	{
+	    itemId: 'repositoryStatus',
+	    colspan: 2,
+	    printBar: false,
+	    title: gettext('Repository Status'),
+	    setValue: function(value) { // for binding below
+		this.updateValue(value);
+	    },
+	    bind: {
+		value: '{repoStatusMessage}',
+	    },
+	},
     ],
 
     updateTitle: function() {
 	var me = this;
 	var uptime = Proxmox.Utils.render_uptime(me.getRecordValue('uptime'));
 	me.setTitle(Proxmox.NodeName + ' (' + gettext('Uptime') + ': ' + uptime + ')');
+    },
+
+    setRepositoryInfo: function(standardRepos) {
+	let me = this;
+	let vm = me.getViewModel();
+
+	for (const standardRepo of standardRepos) {
+	    const handle = standardRepo.handle;
+	    const status = standardRepo.status;
+
+	    if (handle === "enterprise") {
+		vm.set('enterpriseRepo', status);
+	    } else if (handle === "no-subscription") {
+		vm.set('noSubscriptionRepo', status);
+	    } else if (handle === "test") {
+		vm.set('testRepo', status);
+	    }
+	}
+    },
+
+    setSubscriptionStatus: function(status) {
+	let me = this;
+	let vm = me.getViewModel();
+
+	vm.set('subscriptionActive', status);
     },
 
     initComponent: function() {

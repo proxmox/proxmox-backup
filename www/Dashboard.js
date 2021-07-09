@@ -59,6 +59,11 @@ Ext.define('PBS.Dashboard', {
 	    }
 	},
 
+	updateRepositoryStatus: function(store, records, success) {
+	    if (!success) { return; }
+	    let me = this;
+	    me.lookup('nodeInfo').setRepositoryInfo(records[0].data['standard-repos']);
+	},
 
 	updateSubscription: function(store, records, success) {
 	    if (!success) { return; }
@@ -67,6 +72,7 @@ Ext.define('PBS.Dashboard', {
 	    // 2 = all good, 1 = different leves, 0 = none
 	    let subStatus = status.toLowerCase() === 'active' ? 2 : 0;
 	    me.lookup('subscription').setSubStatus(subStatus);
+	    me.lookup('nodeInfo').setSubscriptionStatus(subStatus);
 	},
 
 	updateTasks: function(store, records, success) {
@@ -131,6 +137,21 @@ Ext.define('PBS.Dashboard', {
 	},
 
 	stores: {
+	    repositories: {
+		storeid: 'dash-repositories',
+		type: 'update',
+		interval: 15000,
+		autoStart: true,
+		autoLoad: true,
+		autoDestroy: true,
+		proxy: {
+		    type: 'proxmox',
+		    url: '/api2/json/nodes/localhost/apt/repositories',
+		},
+		listeners: {
+		    load: 'updateRepositoryStatus',
+		},
+	    },
 	    subscription: {
 		storeid: 'dash-subscription',
 		type: 'update',
@@ -204,6 +225,7 @@ Ext.define('PBS.Dashboard', {
     items: [
 	{
 	    xtype: 'pbsNodeInfoPanel',
+	    reference: 'nodeInfo',
 	    height: 280,
 	},
 	{
