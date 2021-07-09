@@ -10,12 +10,12 @@ use proxmox::{
     tools::fs::file_get_json,
 };
 
+use pbs_api_types::{BACKUP_REPO_URL, Authid};
 use pbs_buildcfg;
 
 use proxmox_backup::api2::access::user::UserWithTokens;
-use proxmox_backup::api2::types::*;
 use proxmox_backup::backup::BackupDir;
-use proxmox_backup::client::*;
+use proxmox_backup::client::{BackupRepository, HttpClient, HttpClientOptions};
 use proxmox_backup::tools;
 
 pub mod key_source;

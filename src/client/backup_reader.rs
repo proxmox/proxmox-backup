@@ -9,10 +9,15 @@ use serde_json::{json, Value};
 
 use proxmox::tools::digest_to_hex;
 
-use crate::{
-    tools::compute_file_csum,
-    backup::*,
-};
+use pbs_datastore::{CryptConfig, BackupManifest};
+use pbs_datastore::data_blob::DataBlob;
+use pbs_datastore::data_blob_reader::DataBlobReader;
+use pbs_datastore::dynamic_index::DynamicIndexReader;
+use pbs_datastore::fixed_index::FixedIndexReader;
+use pbs_datastore::index::IndexFile;
+use pbs_datastore::manifest::MANIFEST_BLOB_NAME;
+
+use crate::tools::compute_file_csum;
 
 use super::{HttpClient, H2Client};
 

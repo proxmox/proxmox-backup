@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 
 use proxmox::api::{api, schema::*};
 use proxmox::const_regex;
-use proxmox::{IPRE, IPRE_BRACKET, IPV4RE, IPV6RE, IPV4OCTET, IPV6H16, IPV6LS32};
 
 use pbs_datastore::catalog::CatalogEntryType;
 
@@ -41,44 +40,13 @@ pub const FILENAME_FORMAT: ApiStringFormat = ApiStringFormat::VerifyFn(|name| {
     Ok(())
 });
 
-macro_rules! DNS_LABEL { () => (r"(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?)") }
-macro_rules! DNS_NAME { () => (concat!(r"(?:(?:", DNS_LABEL!() , r"\.)*", DNS_LABEL!(), ")")) }
-
-macro_rules! DNS_ALIAS_LABEL { () => (r"(?:[a-zA-Z0-9_](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?)") }
-macro_rules! DNS_ALIAS_NAME {
-    () => (concat!(r"(?:(?:", DNS_ALIAS_LABEL!() , r"\.)*", DNS_ALIAS_LABEL!(), ")"))
-}
-
-macro_rules! CIDR_V4_REGEX_STR { () => (concat!(r"(?:", IPV4RE!(), r"/\d{1,2})$")) }
-macro_rules! CIDR_V6_REGEX_STR { () => (concat!(r"(?:", IPV6RE!(), r"/\d{1,3})$")) }
-
 const_regex!{
-    pub IP_V4_REGEX = concat!(r"^", IPV4RE!(), r"$");
-    pub IP_V6_REGEX = concat!(r"^", IPV6RE!(), r"$");
-    pub IP_REGEX = concat!(r"^", IPRE!(), r"$");
-    pub CIDR_V4_REGEX =  concat!(r"^", CIDR_V4_REGEX_STR!(), r"$");
-    pub CIDR_V6_REGEX =  concat!(r"^", CIDR_V6_REGEX_STR!(), r"$");
-    pub CIDR_REGEX =  concat!(r"^(?:", CIDR_V4_REGEX_STR!(), "|",  CIDR_V6_REGEX_STR!(), r")$");
-
-    pub SHA256_HEX_REGEX = r"^[a-f0-9]{64}$"; // fixme: define in common_regex ?
     pub SYSTEMD_DATETIME_REGEX = r"^\d{4}-\d{2}-\d{2}( \d{2}:\d{2}(:\d{2})?)?$"; //  fixme: define in common_regex ?
-
-    pub PASSWORD_REGEX = r"^[[:^cntrl:]]*$"; // everything but control characters
 
     /// Regex for verification jobs 'DATASTORE:ACTUAL_JOB_ID'
     pub VERIFICATION_JOB_WORKER_ID_REGEX = concat!(r"^(", PROXMOX_SAFE_ID_REGEX_STR!(), r"):");
     /// Regex for sync jobs 'REMOTE:REMOTE_DATASTORE:LOCAL_DATASTORE:ACTUAL_JOB_ID'
     pub SYNC_JOB_WORKER_ID_REGEX = concat!(r"^(", PROXMOX_SAFE_ID_REGEX_STR!(), r"):(", PROXMOX_SAFE_ID_REGEX_STR!(), r"):(", PROXMOX_SAFE_ID_REGEX_STR!(), r"):");
-
-    pub HOSTNAME_REGEX = r"^(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?)$";
-
-    pub DNS_NAME_REGEX =  concat!(r"^", DNS_NAME!(), r"$");
-
-    pub DNS_ALIAS_REGEX =  concat!(r"^", DNS_ALIAS_NAME!(), r"$");
-
-    pub DNS_NAME_OR_IP_REGEX = concat!(r"^(?:", DNS_NAME!(), "|",  IPRE!(), r")$");
-
-    pub BACKUP_REPO_URL_REGEX = concat!(r"^^(?:(?:(", USER_ID_REGEX_STR!(), "|", APITOKEN_ID_REGEX_STR!(), ")@)?(", DNS_NAME!(), "|",  IPRE_BRACKET!() ,"):)?(?:([0-9]{1,5}):)?(", PROXMOX_SAFE_ID_REGEX_STR!(), r")$");
 
     pub ACL_PATH_REGEX = concat!(r"^(?:/|", r"(?:/", PROXMOX_SAFE_ID_REGEX_STR!(), ")+", r")$");
 
@@ -88,8 +56,6 @@ const_regex!{
 
     pub ZPOOL_NAME_REGEX = r"^[a-zA-Z][a-z0-9A-Z\-_.:]+$";
 
-    pub UUID_REGEX = r"^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$";
-
     pub DATASTORE_MAP_REGEX = concat!(r"(:?", PROXMOX_SAFE_ID_REGEX_STR!(), r"=)?", PROXMOX_SAFE_ID_REGEX_STR!());
 
     pub TAPE_RESTORE_SNAPSHOT_REGEX = concat!(r"^", PROXMOX_SAFE_ID_REGEX_STR!(), r":", SNAPSHOT_PATH_REGEX_STR!(), r"$");
@@ -97,21 +63,6 @@ const_regex!{
 
 pub const SYSTEMD_DATETIME_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&SYSTEMD_DATETIME_REGEX);
-
-pub const IP_V4_FORMAT: ApiStringFormat =
-    ApiStringFormat::Pattern(&IP_V4_REGEX);
-
-pub const IP_V6_FORMAT: ApiStringFormat =
-    ApiStringFormat::Pattern(&IP_V6_REGEX);
-
-pub const IP_FORMAT: ApiStringFormat =
-    ApiStringFormat::Pattern(&IP_REGEX);
-
-pub const PVE_CONFIG_DIGEST_FORMAT: ApiStringFormat =
-    ApiStringFormat::Pattern(&SHA256_HEX_REGEX);
-
-pub const UUID_FORMAT: ApiStringFormat =
-    ApiStringFormat::Pattern(&UUID_REGEX);
 
 pub const HOSTNAME_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&HOSTNAME_REGEX);
@@ -125,23 +76,11 @@ pub const DNS_ALIAS_FORMAT: ApiStringFormat =
 pub const DNS_NAME_OR_IP_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&DNS_NAME_OR_IP_REGEX);
 
-pub const PASSWORD_FORMAT: ApiStringFormat =
-    ApiStringFormat::Pattern(&PASSWORD_REGEX);
-
 pub const ACL_PATH_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&ACL_PATH_REGEX);
 
 pub const NETWORK_INTERFACE_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&PROXMOX_SAFE_ID_REGEX);
-
-pub const CIDR_V4_FORMAT: ApiStringFormat =
-    ApiStringFormat::Pattern(&CIDR_V4_REGEX);
-
-pub const CIDR_V6_FORMAT: ApiStringFormat =
-    ApiStringFormat::Pattern(&CIDR_V6_REGEX);
-
-pub const CIDR_FORMAT: ApiStringFormat =
-    ApiStringFormat::Pattern(&CIDR_REGEX);
 
 pub const SUBSCRIPTION_KEY_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&SUBSCRIPTION_KEY_REGEX);
@@ -180,9 +119,6 @@ pub const PROXMOX_CONFIG_DIGEST_SCHEMA: Schema = StringSchema::new(
 )
     .format(&PVE_CONFIG_DIGEST_FORMAT) .schema();
 
-
-pub const CHUNK_DIGEST_FORMAT: ApiStringFormat =
-    ApiStringFormat::Pattern(&SHA256_HEX_REGEX);
 
 pub const CHUNK_DIGEST_SCHEMA: Schema = StringSchema::new("Chunk digest (SHA256).")
     .format(&CHUNK_DIGEST_FORMAT)

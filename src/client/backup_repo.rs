@@ -3,12 +3,7 @@ use std::fmt;
 
 use anyhow::{format_err, Error};
 
-use proxmox::api::schema::*;
-
-use crate::api2::types::*;
-
-/// API schema format definition for repository URLs
-pub const BACKUP_REPO_URL: ApiStringFormat = ApiStringFormat::Pattern(&BACKUP_REPO_URL_REGEX);
+use pbs_api_types::{BACKUP_REPO_URL_REGEX, IP_V6_REGEX, Authid, Userid};
 
 /// Reference remote backup locations
 ///
