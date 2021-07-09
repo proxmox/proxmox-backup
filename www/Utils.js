@@ -407,7 +407,7 @@ Ext.define('PBS.Utils', {
 	    zfscreate: [gettext('ZFS Storage'), gettext('Create')],
 	});
 
-	Proxmox.Utils.overrideAuthSchema({
+	Proxmox.Schema.overrideAuthDomains({
 	    pbs: {
 		name: 'Proxmox Backup authentication server',
 		add: false,
