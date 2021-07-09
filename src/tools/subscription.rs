@@ -258,15 +258,27 @@ pub fn read_subscription() -> Result<Option<SubscriptionInfo>, Error> {
     let new_checksum = base64::encode(tools::md5sum(new_checksum.as_bytes())?);
 
     if checksum != new_checksum {
-        bail!("stored checksum doesn't matches computed one '{}' != '{}'", checksum, new_checksum);
+        return Ok(Some( SubscriptionInfo {
+            status: SubscriptionStatus::INVALID,
+            message: Some("checksum mismatch".to_string()),
+            ..info
+        }));
     }
 
     let age = proxmox::tools::time::epoch_i64() - info.checktime.unwrap_or(0);
     if age < -5400 { // allow some delta for DST changes or time syncs, 1.5h
-        bail!("Last check time to far in the future.");
+        return Ok(Some( SubscriptionInfo {
+            status: SubscriptionStatus::INVALID,
+            message: Some("last check date too far in the future".to_string()),
+            ..info
+        }));
     } else if age > MAX_LOCAL_KEY_AGE + MAX_KEY_CHECK_FAILURE_AGE {
         if let SubscriptionStatus::ACTIVE = info.status {
-            bail!("subscription information too old");
+            return Ok(Some( SubscriptionInfo {
+                status: SubscriptionStatus::INVALID,
+                message: Some("subscription information too old".to_string()),
+                ..info
+            }));
         }
     }
 
