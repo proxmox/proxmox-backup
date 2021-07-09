@@ -72,6 +72,9 @@ constnamedbitmap! {
         PRIV_TAPE_WRITE("Tape.Write");
         /// Tape.Read allows reading tape backup configuration and media contents
         PRIV_TAPE_READ("Tape.Read");
+
+        /// Realm.Allocate allows viewing, creating, modifying and deleting realms
+        PRIV_REALM_ALLOCATE("Realm.Allocate");
     }
 }
 
