@@ -641,28 +641,3 @@ Ext.define('PBS.Utils', {
     },
 
 });
-
-Ext.define('PBS.Async', {
-    singleton: true,
-
-    // Returns a Promise resolving to the result of an `API2Request`.
-    api2: function(reqOpts) {
-	return new Promise((resolve, reject) => {
-	    delete reqOpts.callback; // not allowed in this api
-	    reqOpts.success = response => resolve(response);
-	    reqOpts.failure = response => {
-		if (response.result && response.result.message) {
-		    reject(response.result.message);
-		} else {
-		    reject("api call failed");
-		}
-	    };
-	    Proxmox.Utils.API2Request(reqOpts);
-	});
-    },
-
-    // Delay for a number of milliseconds.
-    sleep: function(millis) {
-	return new Promise((resolve, _reject) => setTimeout(resolve, millis));
-    },
-});

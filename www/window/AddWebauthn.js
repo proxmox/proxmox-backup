@@ -62,7 +62,7 @@ Ext.define('PBS.window.AddWebauthn', {
 	    me.getView().mask(gettext('Please wait...'), 'x-mask-loading');
 
 	    try {
-		let register_response = await PBS.Async.api2({
+		let register_response = await Proxmox.Async.api2({
 		    url: `/api2/extjs/access/tfa/${userid}`,
 		    method: 'POST',
 		    params: values,
@@ -135,12 +135,13 @@ Ext.define('PBS.window.AddWebauthn', {
 		    params.password = values.password;
 		}
 
-		await PBS.Async.api2({
+		await Proxmox.Async.api2({
 		    url: `/api2/extjs/access/tfa/${userid}`,
 		    method: 'POST',
 		    params,
 		});
-	    } catch (error) {
+	    } catch (response) {
+		let error = response.result.message;
 		console.error(error); // for debugging if it's not displayable...
 		Ext.Msg.alert(gettext('Error'), error);
 	    }

@@ -51,12 +51,12 @@ Ext.define('PBS.window.AddTfaRecovery', {
 	    let view = me.getView();
 
 	    try {
-		await PBS.Async.api2({
+		await Proxmox.Async.api2({
 		    url: `${view.url}/${userid}/recovery`,
 		    method: 'GET',
 		});
 		return true;
-	    } catch (_ex) {
+	    } catch (_response) {
 		return false;
 	    }
 	},

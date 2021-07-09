@@ -37,7 +37,7 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 
 	loadContent: async function() {
 	    let me = this;
-	    let content_response = await PBS.Async.api2({
+	    let content_response = await Proxmox.Async.api2({
 		url: '/api2/extjs/tape/media/list?update-status=false',
 	    });
 	    let data = {};
@@ -122,7 +122,7 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 	    const media_set = node.data.text;
 
 	    try {
-		let list = await PBS.Async.api2({
+		let list = await Proxmox.Async.api2({
 		    method: 'GET',
 		    url: `/api2/extjs/tape/media/content`,
 		    params: {
@@ -224,9 +224,9 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 		node.set('datastores', storeNameList);
 		Proxmox.Utils.setErrorMask(view, false);
 		node.expand();
-	    } catch (error) {
+	    } catch (response) {
 		Proxmox.Utils.setErrorMask(view, false);
-		Ext.Msg.alert('Error', error.toString());
+		Ext.Msg.alert('Error', response.result.message.toString());
 	    }
 	},
 

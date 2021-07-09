@@ -161,14 +161,14 @@ Ext.define('PBS.config.TfaView', {
 
 	    try {
 		me.getView().mask(gettext('Please wait...'), 'x-mask-loading');
-		await PBS.Async.api2({
+		await Proxmox.Async.api2({
 		    url: `/api2/extjs/access/tfa/${record.id}`,
 		    method: 'DELETE',
 		    params,
 		});
 		me.reload();
-	    } catch (error) {
-		Ext.Msg.alert(gettext('Error'), error);
+	    } catch (response) {
+		Ext.Msg.alert(gettext('Error'), response.result.message);
 	    } finally {
 		me.getView().unmask();
             }

@@ -35,7 +35,7 @@ Ext.define('PBS.LoginView', {
 	    if (this.getViewModel().data.openid === true) {
 		const redirectURL = location.origin;
 		try {
-		    let resp = await PBS.Async.api2({
+		    let resp = await Proxmox.Async.api2({
 			url: '/api2/extjs/access/openid/auth-url',
 			params: {
 			    realm: creds.realm,
@@ -44,12 +44,12 @@ Ext.define('PBS.LoginView', {
 			method: 'POST',
 		    });
 		    window.location = resp.result.data;
-		} catch (error) {
+		} catch (response) {
 		    Proxmox.Utils.authClear();
 		    loginForm.unmask();
 		    Ext.MessageBox.alert(
 			gettext('Error'),
-			gettext('OpenID redirect failed, please try again') + `<br>${error}`,
+			gettext('OpenID redirect failed, please try again') + `<br>${response.result.message}`,
 		    );
 		}
 		return;
@@ -72,7 +72,7 @@ Ext.define('PBS.LoginView', {
 	    sp.set(saveunField.getStateId(), saveunField.getValue());
 
 	    try {
-		let resp = await PBS.Async.api2({
+		let resp = await Proxmox.Async.api2({
 		    url: '/api2/extjs/access/ticket',
 		    params: creds,
 		    method: 'POST',
@@ -566,7 +566,7 @@ Ext.define('PBS.login.TfaWindow', {
 	    let reject = view.onReject;
 	    view.close();
 
-	    return PBS.Async.api2({
+	    return Proxmox.Async.api2({
 		url: '/api2/extjs/access/ticket',
 		method: 'POST',
 		params,
