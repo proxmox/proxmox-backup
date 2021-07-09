@@ -5,7 +5,7 @@ use std::any::Any;
 use std::collections::HashMap;
 use std::hash::BuildHasher;
 use std::fs::File;
-use std::io::{self, BufRead, Read, Seek, SeekFrom};
+use std::io::{self, BufRead};
 use std::os::unix::io::RawFd;
 use std::path::Path;
 
@@ -455,33 +455,6 @@ pub fn strip_ascii_whitespace(line: &[u8]) -> &[u8] {
         Some(n) => &line[..(line.len() - n)],
         None => &[],
     }
-}
-
-/// Seeks to start of file and computes the SHA256 hash
-pub fn compute_file_csum(file: &mut File) -> Result<([u8; 32], u64), Error> {
-
-    file.seek(SeekFrom::Start(0))?;
-
-    let mut hasher = openssl::sha::Sha256::new();
-    let mut buffer = proxmox::tools::vec::undefined(256*1024);
-    let mut size: u64 = 0;
-
-    loop {
-        let count = match file.read(&mut buffer) {
-            Ok(0) => break,
-            Ok(count) => count,
-            Err(ref err) if err.kind() == std::io::ErrorKind::Interrupted => {
-                continue;
-            }
-            Err(err) => return Err(err.into()),
-        };
-        size += count as u64;
-        hasher.update(&buffer[..count]);
-    }
-
-    let csum = hasher.finish();
-
-    Ok((csum, size))
 }
 
 /// Create the base run-directory.

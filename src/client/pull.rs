@@ -13,13 +13,14 @@ use serde_json::json;
 use proxmox::api::error::{HttpError, StatusCode};
 
 use pbs_datastore::task_log;
+use pbs_tools::sha::sha256;
 
 use crate::{
     api2::types::*,
     backup::*,
     client::*,
     server::WorkerTask,
-    tools::{compute_file_csum, ParallelHandler},
+    tools::ParallelHandler,
 };
 
 // fixme: implement filters
@@ -215,7 +216,8 @@ async fn pull_single_archive(
             .await?;
         }
         ArchiveType::Blob => {
-            let (csum, size) = compute_file_csum(&mut tmpfile)?;
+            tmpfile.seek(SeekFrom::Start(0))?;
+            let (csum, size) = sha256(&mut tmpfile)?;
             verify_archive(archive_info, &csum, size)?;
         }
     }
@@ -357,7 +359,7 @@ async fn pull_snapshot(
                 }
                 ArchiveType::Blob => {
                     let mut tmpfile = std::fs::File::open(&path)?;
-                    let (csum, size) = compute_file_csum(&mut tmpfile)?;
+                    let (csum, size) = sha256(&mut tmpfile)?;
                     match manifest.verify_file(&item.filename, &csum, size) {
                         Ok(_) => continue,
                         Err(err) => {

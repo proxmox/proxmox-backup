@@ -16,8 +16,7 @@ use pbs_datastore::dynamic_index::DynamicIndexReader;
 use pbs_datastore::fixed_index::FixedIndexReader;
 use pbs_datastore::index::IndexFile;
 use pbs_datastore::manifest::MANIFEST_BLOB_NAME;
-
-use crate::tools::compute_file_csum;
+use pbs_tools::sha::sha256;
 
 use super::{HttpClient, H2Client};
 
@@ -163,7 +162,8 @@ impl BackupReader {
 
         self.download(name, &mut tmpfile).await?;
 
-        let (csum, size) = compute_file_csum(&mut tmpfile)?;
+        tmpfile.seek(SeekFrom::Start(0))?;
+        let (csum, size) = sha256(&mut tmpfile)?;
         manifest.verify_file(name, &csum, size)?;
 
         tmpfile.seek(SeekFrom::Start(0))?;
