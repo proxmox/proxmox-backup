@@ -1,9 +1,11 @@
-use std::collections::{HashSet, HashMap};
+use std::collections::HashSet;
 use std::os::unix::fs::MetadataExt;
 
 use anyhow::{Error};
 use serde_json::Value;
 use lazy_static::lazy_static;
+
+use super::LsblkInfo;
 
 lazy_static!{
     static ref LVM_UUIDS: HashSet<&'static str> = {
@@ -17,7 +19,7 @@ lazy_static!{
 ///
 /// The set is indexed by using the unix raw device number (dev_t is u64)
 pub fn get_lvm_devices(
-    partition_type_map: &HashMap<String, Vec<String>>,
+    lsblk_info: &[LsblkInfo],
 ) -> Result<HashSet<u64>, Error> {
 
     const PVS_BIN_PATH: &str = "pvs";
@@ -29,12 +31,12 @@ pub fn get_lvm_devices(
 
     let mut device_set: HashSet<u64> = HashSet::new();
 
-    for device_list in partition_type_map.iter()
-        .filter_map(|(uuid, list)| if LVM_UUIDS.contains(uuid.as_str()) { Some(list) } else { None })
-    {
-        for device in device_list {
-            let meta = std::fs::metadata(device)?;
-            device_set.insert(meta.rdev());
+    for info in lsblk_info.iter() {
+        if let Some(partition_type) = &info.partition_type {
+            if LVM_UUIDS.contains(partition_type.as_str()) {
+                let meta = std::fs::metadata(&info.path)?;
+                device_set.insert(meta.rdev());
+            }
         }
     }
 
