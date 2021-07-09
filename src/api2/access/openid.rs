@@ -13,6 +13,7 @@ use proxmox::tools::fs::open_file_locked;
 
 use proxmox_openid::{OpenIdAuthenticator,  OpenIdConfig};
 
+use pbs_buildcfg::PROXMOX_BACKUP_RUN_DIR_M;
 
 use crate::server::ticket::ApiTicket;
 use crate::tools::ticket::Ticket;
