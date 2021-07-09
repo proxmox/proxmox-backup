@@ -1,3 +1,15 @@
+rust-proxmox-backup (1.1.12-1) unstable; urgency=medium
+
+  * subscription: set higher-level error to message instead of bailing out, to
+    ensure a force-check gets through
+
+  * ui: dashboard: datastore stats: fix closing <i> tag
+
+  * ui: datastore: option view: only navigate up when we actually removed the
+    datastore
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 09 Jul 2021 12:56:35 +0200
+
 rust-proxmox-backup (1.1.11-1) unstable; urgency=medium
 
   * tape/drive: fix logging when requesting media
