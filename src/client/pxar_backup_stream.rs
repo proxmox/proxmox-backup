@@ -12,7 +12,8 @@ use nix::dir::Dir;
 use nix::fcntl::OFlag;
 use nix::sys::stat::Mode;
 
-use crate::backup::CatalogWriter;
+use pbs_datastore::catalog::CatalogWriter;
+
 use crate::tools::{
     StdChannelWriter,
     TokioWriterAdapter,

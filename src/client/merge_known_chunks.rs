@@ -1,11 +1,11 @@
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use anyhow::{Error};
-use futures::*;
+use anyhow::Error;
+use futures::{ready, Stream};
 use pin_project::pin_project;
 
-use crate::backup::ChunkInfo;
+use pbs_datastore::data_blob::ChunkInfo;
 
 pub enum MergedChunkInfo {
     Known(Vec<(u64, [u8; 32])>),

@@ -23,8 +23,9 @@ use proxmox::{
 use proxmox_http::client::HttpsConnector;
 use proxmox_http::uri::build_authority;
 
+use pbs_api_types::{Authid, Userid};
+
 use super::pipe_to_stream::PipeToSendStream;
-use crate::api2::types::{Authid, Userid};
 use crate::tools::{
     self,
     BroadcastFuture,

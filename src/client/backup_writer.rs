@@ -1,12 +1,12 @@
 use std::collections::HashSet;
+use std::future::Future;
 use std::os::unix::fs::OpenOptionsExt;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use anyhow::{bail, format_err, Error};
-use futures::future::AbortHandle;
-use futures::stream::Stream;
-use futures::*;
+use futures::future::{self, AbortHandle, Either, FutureExt, TryFutureExt};
+use futures::stream::{Stream, StreamExt, TryStreamExt};
 use serde_json::{json, Value};
 use tokio::io::AsyncReadExt;
 use tokio::sync::{mpsc, oneshot};
@@ -453,7 +453,7 @@ impl BackupWriter {
                 .and_then(move |(merged_chunk_info, response): (MergedChunkInfo, Option<h2::client::ResponseFuture>)| {
                     match (response, merged_chunk_info) {
                         (Some(response), MergedChunkInfo::Known(list)) => {
-                            future::Either::Left(
+                            Either::Left(
                                 response
                                     .map_err(Error::from)
                                     .and_then(H2Client::h2api_response)
@@ -463,7 +463,7 @@ impl BackupWriter {
                             )
                         }
                         (None, MergedChunkInfo::Known(list)) => {
-                            future::Either::Right(future::ok(MergedChunkInfo::Known(list)))
+                            Either::Right(future::ok(MergedChunkInfo::Known(list)))
                         }
                         _ => unreachable!(),
                     }
@@ -736,7 +736,7 @@ impl BackupWriter {
 
                     let new_info = MergedChunkInfo::Known(vec![(offset, digest)]);
 
-                    future::Either::Left(h2.send_request(request, upload_data).and_then(
+                    Either::Left(h2.send_request(request, upload_data).and_then(
                         move |response| async move {
                             upload_queue
                                 .send((new_info, Some(response)))
@@ -747,7 +747,7 @@ impl BackupWriter {
                         },
                     ))
                 } else {
-                    future::Either::Right(async move {
+                    Either::Right(async move {
                         upload_queue
                             .send((merged_chunk_info, None))
                             .await

@@ -5,9 +5,13 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::{bail, Error};
 
-use super::BackupReader;
-use crate::backup::{AsyncReadChunk, CryptConfig, CryptMode, DataBlob, ReadChunk};
+use pbs_datastore::{CryptConfig, CryptMode};
+use pbs_datastore::data_blob::DataBlob;
+use pbs_datastore::read_chunk::ReadChunk;
 use pbs_runtime::block_on;
+
+use super::BackupReader;
+use crate::backup::AsyncReadChunk;
 
 /// Read chunks from remote host using ``BackupReader``
 #[derive(Clone)]
