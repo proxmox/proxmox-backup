@@ -45,11 +45,6 @@ override_dh_installsystemd:
 override_dh_fixperms:
 	dh_fixperms --exclude sg-tape-cmd
 
-# workaround https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=933541
-# TODO: remove once available (Debian 11 ?)
-override_dh_dwz:
-	dh_dwz --no-dwz-multifile
-
 override_dh_strip:
 	dh_strip
 	for exe in $$(find \
