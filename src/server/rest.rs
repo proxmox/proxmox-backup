@@ -152,14 +152,13 @@ fn log_response(
     let path = &path_query[..MAX_URI_QUERY_LENGTH.min(path_query.len())];
 
     let status = resp.status();
-
     if !(status.is_success() || status.is_informational()) {
         let reason = status.canonical_reason().unwrap_or("unknown reason");
 
-        let mut message = "request failed";
-        if let Some(data) = resp.extensions().get::<ErrorMessageExtension>() {
-            message = &data.0;
-        }
+        let message = match resp.extensions().get::<ErrorMessageExtension>() {
+            Some(data) => &data.0,
+            None => "request failed",
+        };
 
         log::error!(
             "{} {}: {} {}: [client {}] {}",
