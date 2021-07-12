@@ -149,7 +149,20 @@ docs: cargo-build
 
 .PHONY: cargo-build
 cargo-build:
-	$(CARGO) build $(CARGO_BUILD_ARGS)
+	RUSTFLAGS="--cfg openid" $(CARGO) build $(CARGO_BUILD_ARGS) \
+	    --bin proxmox-backup-api --bin proxmox-backup-proxy \
+	    --bin proxmox-backup-manager --bin docgen
+	$(CARGO) build $(CARGO_BUILD_ARGS) \
+	    --bin dump-catalog-shell-cli \
+	    --bin pmt --bin pmtx \
+	    --bin proxmox-backup-banner \
+	    --bin proxmox-backup-client \
+	    --bin proxmox-daily-update \
+	    --bin proxmox-file-restore \
+	    --bin proxmox-restore-daemon \
+	    --bin proxmox-tape \
+	    --bin pxar \
+	    --bin sg-tape-cmd
 
 $(COMPILED_BINS): cargo-build
 
