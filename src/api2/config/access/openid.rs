@@ -271,4 +271,4 @@ const ITEM_ROUTER: Router = Router::new()
 pub const ROUTER: Router = Router::new()
     .get(&API_METHOD_LIST_OPENID_REALMS)
     .post(&API_METHOD_CREATE_OPENID_REALM)
-    .match_all("id", &ITEM_ROUTER);
+    .match_all("realm", &ITEM_ROUTER);
