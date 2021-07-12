@@ -278,24 +278,93 @@ pub fn transfer_medium<F: AsRawFd>(
     Ok(())
 }
 
+#[repr(u8)]
+#[derive(Clone, Copy)]
+enum ElementType {
+    MediumTransport = 1,
+    Storage = 2,
+    ImportExport = 3,
+    DataTransfer = 4,
+}
+
 fn scsi_read_element_status_cdb(
     start_element_address: u16,
+    number_of_elements: u16,
+    element_type: ElementType,
     allocation_len: u32,
 ) -> Vec<u8> {
 
     let mut cmd = Vec::new();
     cmd.push(0xB8); // READ ELEMENT STATUS (B8h)
-    cmd.push(1u8<<4); // report all types and volume tags
+    cmd.push(1u8<<4 | (element_type as u8)); // volume tags and given type
     cmd.extend(&start_element_address.to_be_bytes());
 
-    let number_of_elements: u16 = 0xffff;
     cmd.extend(&number_of_elements.to_be_bytes());
-    cmd.push(0b001); //  Mixed=0,CurData=0,DVCID=1
+    let byte6 = match element_type {
+        ElementType::DataTransfer => 0b001, //  Mixed=0,CurData=0,DVCID=1
+        _ => 0b000, // Mixed=0,CurData=0,DVCID=0
+    };
+    cmd.push(byte6);
     cmd.extend(&allocation_len.to_be_bytes()[1..4]);
     cmd.push(0);
     cmd.push(0);
 
     cmd
+}
+
+// query a single element type from the changer
+fn get_element<F: AsRawFd>(
+    inquiry: &InquiryInfo,
+    sg_raw: &mut SgRaw<F>,
+    element_type: ElementType,
+    allocation_len: u32,
+    mut retry: bool,
+) -> Result<DecodedStatusPage, Error> {
+
+    let mut start_element_address = 0;
+    let number_of_elements: u16 = 1000; // some changers limit the query
+
+    let mut result = DecodedStatusPage {
+        last_element_address: None,
+        transports: Vec::new(),
+        drives: Vec::new(),
+        storage_slots: Vec::new(),
+        import_export_slots: Vec::new(),
+    };
+
+    loop {
+        let cmd = scsi_read_element_status_cdb(start_element_address, number_of_elements, element_type, allocation_len);
+
+        let data = execute_scsi_command(sg_raw, &cmd, "read element status (B8h)", retry)?;
+
+        let page = decode_element_status_page(&inquiry, &data, start_element_address)?;
+
+        retry = false; // only retry the first command
+
+        let returned_number_of_elements = page.transports.len()
+            + page.drives.len()
+            + page.storage_slots.len()
+            + page.import_export_slots.len();
+
+        result.transports.extend(page.transports);
+        result.drives.extend(page.drives);
+        result.storage_slots.extend(page.storage_slots);
+        result.import_export_slots.extend(page.import_export_slots);
+        result.last_element_address = page.last_element_address;
+
+        if let Some(last_element_address) = page.last_element_address {
+            if last_element_address < start_element_address {
+                bail!("got strange element address");
+            }
+            if returned_number_of_elements >= (number_of_elements as usize) {
+                start_element_address = last_element_address + 1;
+                continue; // we possibly have to read additional elements
+            }
+        }
+        break;
+    }
+
+    Ok(result)
 }
 
 /// Read element status.
@@ -315,43 +384,22 @@ pub fn read_element_status<F: AsRawFd>(file: &mut F) -> Result<MtxStatus, Error>
     let mut sg_raw = SgRaw::new(file, allocation_len as usize)?;
     sg_raw.set_timeout(SCSI_CHANGER_DEFAULT_TIMEOUT);
 
-    let mut start_element_address = 0;
-
     let mut drives = Vec::new();
     let mut storage_slots = Vec::new();
     let mut import_export_slots = Vec::new();
     let mut transports = Vec::new();
 
-    let mut retry = true;
+    let page = get_element(&inquiry, &mut sg_raw, ElementType::Storage, allocation_len, true)?;
+    storage_slots.extend(page.storage_slots);
 
-    loop {
-        let cmd = scsi_read_element_status_cdb(start_element_address, allocation_len);
+    let page = get_element(&inquiry, &mut sg_raw, ElementType::ImportExport, allocation_len, false)?;
+    import_export_slots.extend(page.import_export_slots);
 
-        let data = execute_scsi_command(&mut sg_raw, &cmd, "read element status (B8h)", retry)?;
+    let page = get_element(&inquiry, &mut sg_raw, ElementType::DataTransfer, allocation_len, false)?;
+    drives.extend(page.drives);
 
-        let page = decode_element_status_page(&inquiry, &data, start_element_address)?;
-
-        retry = false; // only retry the first command
-
-        transports.extend(page.transports);
-        drives.extend(page.drives);
-        storage_slots.extend(page.storage_slots);
-        import_export_slots.extend(page.import_export_slots);
-
-        if data.len() < (allocation_len as usize) {
-            break;
-        }
-
-        if let Some(last_element_address) = page.last_element_address {
-            if last_element_address >= start_element_address {
-                start_element_address = last_element_address + 1;
-            } else {
-                bail!("got strange element address");
-            }
-        } else {
-            break;
-        }
-    }
+    let page = get_element(&inquiry, &mut sg_raw, ElementType::MediumTransport, allocation_len, false)?;
+    transports.extend(page.transports);
 
     if (setup.transport_element_count as usize) != transports.len() {
         bail!("got wrong number of transport elements");
