@@ -7,7 +7,7 @@ use ::serde::{Deserialize, Serialize};
 use proxmox::api::{api, Permission, Router, RpcEnvironment};
 
 use crate::config::domains::{self, OpenIdRealmConfig};
-use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_PERMISSIONS_MODIFY};
+use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_REALM_ALLOCATE};
 use crate::api2::types::*;
 
 #[api(
@@ -20,7 +20,7 @@ use crate::api2::types::*;
         items: { type: OpenIdRealmConfig },
     },
     access: {
-        permission: &Permission::Privilege(&["access", "domains"], PRIV_SYS_AUDIT, false),
+        permission: &Permission::Privilege(&["access", "domains"], PRIV_REALM_ALLOCATE, false),
     },
 )]
 /// List configured OpenId realms
@@ -49,7 +49,7 @@ pub fn list_openid_realms(
         },
     },
     access: {
-        permission: &Permission::Privilege(&["access", "domains"], PRIV_PERMISSIONS_MODIFY, false),
+        permission: &Permission::Privilege(&["access", "domains"], PRIV_REALM_ALLOCATE, false),
     },
 )]
 /// Create a new OpenId realm
@@ -87,7 +87,7 @@ pub fn create_openid_realm(config: OpenIdRealmConfig) -> Result<(), Error> {
         },
     },
     access: {
-        permission: &Permission::Privilege(&["access", "domains"], PRIV_PERMISSIONS_MODIFY, false),
+        permission: &Permission::Privilege(&["access", "domains"], PRIV_REALM_ALLOCATE, false),
     },
 )]
 /// Remove a OpenID realm configuration
@@ -204,7 +204,7 @@ pub enum DeletableProperty {
     },
     returns:  { type: OpenIdRealmConfig },
     access: {
-        permission: &Permission::Privilege(&["access", "domains"], PRIV_PERMISSIONS_MODIFY, false),
+        permission: &Permission::Privilege(&["access", "domains"], PRIV_REALM_ALLOCATE, false),
     },
 )]
 /// Update an OpenID realm configuration
