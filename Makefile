@@ -36,7 +36,8 @@ SUBCRATES := \
 	pbs-datastore \
 	pbs-runtime \
 	pbs-systemd \
-	pbs-tools
+	pbs-tools \
+	proxmox-backup-banner
 
 ifeq ($(BUILD_MODE), release)
 CARGO_BUILD_ARGS += --release
@@ -159,9 +160,11 @@ $(COMPILED_BINS) $(COMPILEDIR)/dump-catalog-shell-cli $(COMPILEDIR)/docgen: .do-
 	    --bin proxmox-backup-api --bin proxmox-backup-proxy \
 	    --bin proxmox-backup-manager --bin docgen
 	$(CARGO) build $(CARGO_BUILD_ARGS) \
+	    --package proxmox-backup-banner \
+	    --bin proxmox-backup-banner \
+	    --package proxmox-backup \
 	    --bin dump-catalog-shell-cli \
 	    --bin pmt --bin pmtx \
-	    --bin proxmox-backup-banner \
 	    --bin proxmox-backup-client \
 	    --bin proxmox-daily-update \
 	    --bin proxmox-file-restore \

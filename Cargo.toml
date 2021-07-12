@@ -26,6 +26,8 @@ members = [
     "pbs-runtime",
     "pbs-systemd",
     "pbs-tools",
+
+    "proxmox-backup-banner",
 ]
 
 [lib]
