@@ -125,27 +125,24 @@ Ext.define('PBS.DataStoreContent', {
 	    return groups;
 	},
 
-	updateGroupNotes: function(view) {
-	    Proxmox.Utils.API2Request({
-		url: `/api2/extjs/admin/datastore/${view.datastore}/groups`,
-		method: 'GET',
-		success: function(response) {
-		    let groups = response.result.data;
-		    let map = {};
-		    for (const group of groups) {
-			map[`${group["backup-type"]}/${group["backup-id"]}`] = group["comment"];
+	updateGroupNotes: async function(view) {
+	    try {
+		let { result: { data: groups } } = await Proxmox.Async.api2({
+		    url: `/api2/extjs/admin/datastore/${view.datastore}/groups`,
+		});
+		let map = {};
+		for (const group of groups) {
+		    map[`${group["backup-type"]}/${group["backup-id"]}`] = group.comment;
+		}
+		view.getRootNode().cascade(node => {
+		    if (node.parentNode && node.parentNode.id === 'root') {
+			let group = `${node.data.backup_type}/${node.data.backup_id}`;
+			node.set('comment', map[group], { dirty: false });
 		    }
-		    view.getRootNode().cascade(node => {
-			if (node.parentNode && node.parentNode.id === 'root') {
-			    node.set(
-				'comment',
-				map[`${node.data.backup_type}/${node.data.backup_id}`],
-				{ dirty: false },
-			    );
-			}
-		    });
-		},
-	    });
+		});
+	    } catch (err) {
+		console.debug(err);
+	    }
 	},
 
 	onLoad: function(store, records, success, operation) {
