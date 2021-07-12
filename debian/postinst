@@ -26,43 +26,7 @@ case "$1" in
 	fi
 	deb-systemd-invoke $_dh_action proxmox-backup.service proxmox-backup-proxy.service >/dev/null || true
 
-	# FIXME: Remove with 1.1
 	if test -n "$2"; then
-		if dpkg --compare-versions "$2" 'lt' '0.9.4-1'; then
-			if grep -s -q  -P -e '^\s+verify-schedule ' /etc/proxmox-backup/datastore.cfg; then
-				echo "NOTE: drop all verify schedules from datastore config."
-				echo "You can now add more flexible verify jobs"
-				flock -w 30 /etc/proxmox-backup/.datastore.lck \
-				    sed -i '/^\s\+verify-schedule /d' /etc/proxmox-backup/datastore.cfg || true
-			fi
-		fi
-		if dpkg --compare-versions "$2" 'le' '0.9.5-1'; then
-			chown --quiet backup:backup /var/log/proxmox-backup/api/auth.log || true
-		fi
-		if dpkg --compare-versions "$2" 'le' '0.9.7-1'; then
-			if [ -e /etc/proxmox-backup/remote.cfg ]; then
-				echo "NOTE: Switching over remote.cfg to new field names.."
-				flock -w 30 /etc/proxmox-backup/.remote.lck \
-				    sed -i \
-				        -e 's/^\s\+userid /\tauth-id /g' \
-				        /etc/proxmox-backup/remote.cfg || true
-			fi
-		fi
-		if dpkg --compare-versions "$2" 'le' '1.0.14-1'; then
-			# FIXME: Remove with 2.0
-			if grep -s -q  -P -e '^linux:' /etc/proxmox-backup/tape.cfg; then
-				echo "========="
-				echo "= NOTE: You have now unsupported 'linux' tape drives configured."
-				echo "= * Execute 'udevadm control --reload-rules && udevadm trigger' to update /dev"
-				echo "= * Edit '/etc/proxmox-backup/tape.cfg', remove 'linux' entries and re-add over CLI/GUI"
-				echo "========="
-			fi
-		fi
-		# FIXME: remove with 2.0
-		if [ -d "/var/lib/proxmox-backup/tape" ] &&
-		   [ "$(stat --printf '%a' '/var/lib/proxmox-backup/tape')" != "750" ]; then
-			chmod 0750 /var/lib/proxmox-backup/tape || true
-		fi
 		# FIXME: Remove in future version once we're sure no broken entries remain in anyone's files
 		if grep -q -e ':termproxy::[^@]\+: ' /var/log/proxmox-backup/tasks/active; then
 			echo "Fixing up termproxy user id in task log..."
