@@ -9,7 +9,6 @@ use proxmox::api::{api, Permission, Router, RpcEnvironment};
 
 use crate::config;
 use crate::api2::types::*;
-use crate::config::domains::{OpenIdRealmConfig, OpenIdUserAttribute};
 
 #[api]
 #[derive(Deserialize, Serialize, PartialEq, Eq)]
@@ -52,70 +51,6 @@ pub struct BasicRealmInfo {
     pub comment: Option<String>,
 }
 
-#[api(
-    properties: {
-        "issuer-url": {
-            description: "OpenID Issuer Url",
-            type: String,
-            optional: true,
-        },
-        "client-id": {
-            description: "OpenID Client ID",
-            type: String,
-            optional: true,
-        },
-        "client-key": {
-            description: "OpenID Client Key",
-            type: String,
-            optional: true,
-        },
-        autocreate: {
-            description: "Automatically create users if they do not exist.",
-            optional: true,
-            type: bool,
-            default: false,
-        },
-        "username-claim": {
-            type: OpenIdUserAttribute,
-            optional: true,
-        },
-    },
-)]
-#[derive(Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
-/// Extra Information about a realm
-pub struct ExtraRealmInfo {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub issuer_url: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub client_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub client_key: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub autocreate: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub username_claim: Option<OpenIdUserAttribute>,
-}
-
-#[api(
-    properties: {
-        "info": {
-            type: BasicRealmInfo,
-        },
-        "extra": {
-            type: ExtraRealmInfo,
-        },
-    },
-)]
-#[derive(Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
-/// Information about a realm
-pub struct RealmInfo {
-    #[serde(flatten)]
-    pub info: BasicRealmInfo,
-    #[serde(flatten)]
-    pub extra: ExtraRealmInfo,
-}
 
 #[api(
     returns: {
