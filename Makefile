@@ -73,7 +73,7 @@ DESTDIR=
 
 tests ?= --workspace
 
-all: cargo-build $(SUBDIRS)
+all: $(SUBDIRS)
 
 .PHONY: $(SUBDIRS)
 $(SUBDIRS):
@@ -134,6 +134,7 @@ clean: clean-deb
 	$(foreach i,$(SUBDIRS), \
 	    $(MAKE) -C $(i) clean ;)
 	$(CARGO) clean
+	rm -f .do-cargo-build
 	find . -name '*~' -exec rm {} ';'
 
 # allows one to avoid running cargo clean when one just wants to tidy up after a packgae build
@@ -145,10 +146,15 @@ dinstall: ${SERVER_DEB} ${SERVER_DBG_DEB} ${CLIENT_DEB} ${CLIENT_DBG_DEB}
 	dpkg -i $^
 
 # make sure we build binaries before docs
-docs: cargo-build
+docs: $(COMPILEDIR)/dump-catalog-shell-cli $(COMPILEDIR)/docgen
 
 .PHONY: cargo-build
 cargo-build:
+	rm -f .do-cargo-build
+	$(MAKE) $(COMPILED_BINS)
+
+$(COMPILED_BINS) $(COMPILEDIR)/dump-catalog-shell-cli $(COMPILEDIR)/docgen: .do-cargo-build
+.do-cargo-build:
 	RUSTFLAGS="--cfg openid" $(CARGO) build $(CARGO_BUILD_ARGS) \
 	    --bin proxmox-backup-api --bin proxmox-backup-proxy \
 	    --bin proxmox-backup-manager --bin docgen
@@ -163,8 +169,8 @@ cargo-build:
 	    --bin proxmox-tape \
 	    --bin pxar \
 	    --bin sg-tape-cmd
+	touch "$@"
 
-$(COMPILED_BINS): cargo-build
 
 .PHONY: lint
 lint:
