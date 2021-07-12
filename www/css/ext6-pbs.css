@@ -51,6 +51,12 @@
     font-size: 14px;
 }
 
+.pmx-icon-size {
+    height: 14px;
+    font-size: 14px;
+}
+
+
 /* displayfield minheight is wrong */
 .x-form-display-field-default {
     min-height: 20px;

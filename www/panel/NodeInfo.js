@@ -115,7 +115,7 @@ Ext.define('PBS.NodeInfoPanel', {
 	},
 	{
 	    itemId: 'wait',
-	    iconCls: 'fa fa-fw fa-clock-o',
+	    iconCls: 'pmx-icon-size fa fa-fw fa-clock-o',
 	    title: gettext('IO delay'),
 	    valueField: 'wait',
 	},
@@ -134,13 +134,13 @@ Ext.define('PBS.NodeInfoPanel', {
 	},
 	{
 	    itemId: 'load',
-	    iconCls: 'fa fa-fw fa-tasks',
+	    iconCls: 'pmx-icon-size fa fa-fw fa-tasks',
 	    title: gettext('Load average'),
 	    printBar: false,
 	    textField: 'loadavg',
 	},
 	{
-	    iconCls: 'fa fa-fw fa-hdd-o',
+	    iconCls: 'pmx-icon-size fa fa-fw fa-hdd-o',
 	    itemId: 'rootfs',
 	    title: gettext('HD space') + '(root)',
 	    valueField: 'root',
@@ -148,7 +148,7 @@ Ext.define('PBS.NodeInfoPanel', {
 	    renderer: Proxmox.Utils.render_node_size_usage,
 	},
 	{
-	    iconCls: 'fa fa-fw fa-refresh',
+	    iconCls: 'pmx-icon-size fa fa-fw fa-refresh',
 	    itemId: 'swap',
 	    printSize: true,
 	    title: gettext('SWAP usage'),
