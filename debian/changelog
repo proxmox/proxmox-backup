@@ -1,3 +1,14 @@
+rust-proxmox-backup (2.0.4-1) bullseye; urgency=medium
+
+  * change tape drive lock path to avoid issues with sticky bit on tmpfs
+    mountpoint
+
+  * tape: changer: query transport-element types separately
+
+  * auth: improve thread safety of 'crypt' C-library
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 12 Jul 2021 18:51:21 +0200
+
 rust-proxmox-backup (2.0.3-1) bullseye; urgency=medium
 
   * api: apt: add repositories info and update calls
