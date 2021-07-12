@@ -1,3 +1,29 @@
+rust-proxmox-backup (2.0.3-1) bullseye; urgency=medium
+
+  * api: apt: add repositories info and update calls
+
+  * ui: administration: add APT repositories status and update panel
+
+  * api: access domains: add get/create/update/delete endpoints for realms
+
+  * ui: access control: add 'Realm' tab for adding and editing OpenID Connect
+    identity provider
+
+  * fix #3447: ui: Dashboard: disallow selection of datastore statistics row
+
+  * ui: tapeRestore: make window non-resizable
+
+  * ui: dashboard: rework resource-load panel to a more detailed status panel,
+    showing, among other things, uptime, Kernel version, CPU info and
+    repository status.
+
+  * ui: adminsitration/dashboard: auto-scale columns count and add
+    browser-local setting to override that to a fixed value of columns.
+
+  * fix #3212: api, ui: add support for notes on backup groups
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 12 Jul 2021 08:07:41 +0200
+
 rust-proxmox-backup (2.0.2-1) bullseye; urgency=medium
 
   * ui: use task list component from widget toolkit
