@@ -15,7 +15,6 @@ use serde_json::Value;
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt, ReadBuf};
 use tokio::net::UnixStream;
 
-use crate::tools;
 use proxmox::api::error::HttpError;
 
 pub const DEFAULT_VSOCK_PORT: u16 = 807;
@@ -242,7 +241,7 @@ impl VsockClient {
                 let request = builder.body(Body::from(data.to_string()))?;
                 return Ok(request);
             } else {
-                let query = tools::json_object_to_query(data)?;
+                let query = pbs_tools::json::json_object_to_query(data)?;
                 let url: Uri =
                     format!("vsock://{}:{}/{}?{}", self.cid, self.port, path, query).parse()?;
                 let builder = make_builder("application/x-www-form-urlencoded", &url);

@@ -12,9 +12,10 @@ use proxmox::{
 
 use pbs_api_types::{BACKUP_REPO_URL, Authid};
 use pbs_buildcfg;
+use pbs_datastore::BackupDir;
+use pbs_tools::json::json_object_to_query;
 
 use proxmox_backup::api2::access::user::UserWithTokens;
-use proxmox_backup::backup::BackupDir;
 use proxmox_backup::client::{BackupRepository, HttpClient, HttpClientOptions};
 use proxmox_backup::tools;
 
@@ -210,7 +211,7 @@ pub async fn complete_server_file_name_do(param: &HashMap<String, String>) -> Ve
         _ => return result,
     };
 
-    let query = tools::json_object_to_query(json!({
+    let query = json_object_to_query(json!({
         "backup-type": snapshot.group().backup_type(),
         "backup-id": snapshot.group().backup_id(),
         "backup-time": snapshot.backup_time(),

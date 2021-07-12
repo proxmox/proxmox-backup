@@ -5,13 +5,13 @@
 
 use anyhow::Error;
 
+use pbs_api_types::{Authid, Userid};
+use pbs_tools::ticket::Ticket;
+
 use crate::{
-    api2::types::{Userid, Authid},
-    tools::ticket::Ticket,
+    tools::cert::CertInfo,
     auth_helpers::private_auth_key,
 };
-
-
 
 mod merge_known_chunks;
 pub mod pipe_to_stream;
@@ -53,7 +53,7 @@ pub fn connect_to_localhost() -> Result<HttpClient, Error> {
     let client = if uid.is_root()  {
         let ticket = Ticket::new("PBS", Userid::root_userid())?
             .sign(private_auth_key(), None)?;
-        let fingerprint = crate::tools::cert::CertInfo::new()?.fingerprint()?;
+        let fingerprint = CertInfo::new()?.fingerprint()?;
         let options = HttpClientOptions::new_non_interactive(ticket, Some(fingerprint));
 
         HttpClient::new("localhost", 8007, Authid::root_auth_id(), options)?

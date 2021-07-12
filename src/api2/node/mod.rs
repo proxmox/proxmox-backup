@@ -20,11 +20,12 @@ use proxmox::list_subdirs_api_method;
 use proxmox_http::websocket::WebSocket;
 use proxmox::{identity, sortable};
 
+use pbs_tools::ticket::{self, Empty, Ticket};
+
 use crate::api2::types::*;
 use crate::config::acl::PRIV_SYS_CONSOLE;
 use crate::server::WorkerTask;
 use crate::tools;
-use crate::tools::ticket::{self, Empty, Ticket};
 
 pub mod apt;
 pub mod certificates;
@@ -121,7 +122,7 @@ async fn termproxy(
     let ticket = Ticket::new(ticket::TERM_PREFIX, &Empty)?
         .sign(
             crate::auth_helpers::private_auth_key(),
-            Some(&ticket::term_aad(&userid, &path, port)),
+            Some(&tools::ticket::term_aad(&userid, &path, port)),
         )?;
 
     let mut command = Vec::new();
@@ -294,7 +295,7 @@ fn upgrade_to_websocket(
             .verify(
                 crate::auth_helpers::public_auth_key(),
                 ticket::TERM_PREFIX,
-                Some(&ticket::term_aad(&userid, "/system", port)),
+                Some(&tools::ticket::term_aad(&userid, "/system", port)),
             )?;
 
         let (ws, response) = WebSocket::new(parts.headers.clone())?;

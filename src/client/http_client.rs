@@ -24,10 +24,11 @@ use proxmox_http::client::HttpsConnector;
 use proxmox_http::uri::build_authority;
 
 use pbs_api_types::{Authid, Userid};
+use pbs_tools::json::json_object_to_query;
+use pbs_tools::ticket;
 
 use super::pipe_to_stream::PipeToSendStream;
 use crate::tools::{
-    self,
     BroadcastFuture,
     DEFAULT_ENCODE_SET,
     PROXMOX_BACKUP_TCP_KEEPALIVE_TIME,
@@ -237,7 +238,7 @@ fn store_ticket_info(prefix: &str, server: &str, username: &str, ticket: &str, t
 
     let mut new_data = json!({});
 
-    let ticket_lifetime = tools::ticket::TICKET_LIFETIME - 60;
+    let ticket_lifetime = ticket::TICKET_LIFETIME - 60;
 
     let empty = serde_json::map::Map::new();
     for (server, info) in data.as_object().unwrap_or(&empty) {
@@ -263,7 +264,7 @@ fn load_ticket_info(prefix: &str, server: &str, userid: &Userid) -> Option<(Stri
     let path = base.place_runtime_file("tickets").ok()?;
     let data = file_get_json(&path, None).ok()?;
     let now = proxmox::tools::time::epoch_i64();
-    let ticket_lifetime = tools::ticket::TICKET_LIFETIME - 60;
+    let ticket_lifetime = ticket::TICKET_LIFETIME - 60;
     let uinfo = data[server][userid.as_str()].as_object()?;
     let timestamp = uinfo["timestamp"].as_i64()?;
     let age = now - timestamp;
@@ -641,7 +642,7 @@ impl HttpClient {
     ) -> Result<Value, Error> {
 
         let query = match data {
-            Some(data) => Some(tools::json_object_to_query(data)?),
+            Some(data) => Some(json_object_to_query(data)?),
             None => None,
         };
         let url = build_uri(&self.server, self.port, path, query)?;
@@ -789,7 +790,7 @@ impl HttpClient {
                     .body(Body::from(data.to_string()))?;
                 Ok(request)
             } else {
-                let query = tools::json_object_to_query(data)?;
+                let query = json_object_to_query(data)?;
                 let url = build_uri(server, port, path, Some(query))?;
                 let request = Request::builder()
                     .method(method)
@@ -992,7 +993,7 @@ impl H2Client {
         let content_type = content_type.unwrap_or("application/x-www-form-urlencoded");
         let query = match param {
             Some(param) => {
-                let query = tools::json_object_to_query(param)?;
+                let query = json_object_to_query(param)?;
                 // We detected problem with hyper around 6000 characters - so we try to keep on the safe side
                 if query.len() > 4096 {
                     bail!("h2 query data too large ({} bytes) - please encode data inside body", query.len());

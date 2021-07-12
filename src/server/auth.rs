@@ -3,11 +3,12 @@ use anyhow::{format_err, Error};
 
 use std::sync::Arc;
 
+use pbs_tools::ticket::{self, Ticket};
+
 use crate::api2::types::{Authid, Userid};
 use crate::auth_helpers::*;
 use crate::config::cached_user_info::CachedUserInfo;
 use crate::tools;
-use crate::tools::ticket::Ticket;
 
 use hyper::header;
 use percent_encoding::percent_decode_str;
@@ -85,7 +86,7 @@ impl ApiAuth for UserApiAuth {
         match auth_data {
             Some(AuthData::User(user_auth_data)) => {
                 let ticket = user_auth_data.ticket.clone();
-                let ticket_lifetime = tools::ticket::TICKET_LIFETIME;
+                let ticket_lifetime = ticket::TICKET_LIFETIME;
 
                 let userid: Userid = Ticket::<super::ticket::ApiTicket>::parse(&ticket)?
                     .verify_with_time_frame(public_auth_key(), "PBS", None, -300..ticket_lifetime)?

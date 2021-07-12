@@ -11,10 +11,11 @@ use proxmox::api::{api, Permission, RpcEnvironment};
 use proxmox::{http_err, list_subdirs_api_method};
 use proxmox::{identity, sortable};
 
+use pbs_tools::ticket::{self, Empty, Ticket};
+
 use crate::api2::types::*;
 use crate::auth_helpers::*;
 use crate::server::ticket::ApiTicket;
-use crate::tools::ticket::{self, Empty, Ticket};
 
 use crate::config::acl as acl_config;
 use crate::config::acl::{PRIVILEGES, PRIV_PERMISSIONS_MODIFY, PRIV_SYS_AUDIT};
@@ -84,7 +85,7 @@ fn authenticate_user(
             ticket.verify(
                 public_auth_key(),
                 ticket::TERM_PREFIX,
-                Some(&ticket::term_aad(userid, &path, port)),
+                Some(&crate::tools::ticket::term_aad(userid, &path, port)),
             )
         }) {
             for (name, privilege) in PRIVILEGES {

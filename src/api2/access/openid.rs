@@ -14,9 +14,9 @@ use proxmox::tools::fs::open_file_locked;
 use proxmox_openid::{OpenIdAuthenticator,  OpenIdConfig};
 
 use pbs_buildcfg::PROXMOX_BACKUP_RUN_DIR_M;
+use pbs_tools::ticket::Ticket;
 
 use crate::server::ticket::ApiTicket;
-use crate::tools::ticket::Ticket;
 
 use crate::config::domains::{OpenIdUserAttribute, OpenIdRealmConfig};
 use crate::config::cached_user_info::CachedUserInfo;

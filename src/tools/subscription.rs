@@ -1,18 +1,21 @@
 use anyhow::{Error, format_err, bail};
 use lazy_static::lazy_static;
-use serde_json::json;
-use serde::{Deserialize, Serialize};
 use regex::Regex;
+use serde::{Deserialize, Serialize};
+use serde_json::json;
 
 use proxmox::api::api;
+
+use proxmox::tools::fs::{replace_file, CreateOptions};
+use proxmox_http::client::SimpleHttp;
+
+use pbs_tools::json::json_object_to_query;
 
 use crate::config::node;
 use crate::tools::{
     self,
     pbs_simple_http,
 };
-use proxmox::tools::fs::{replace_file, CreateOptions};
-use proxmox_http::client::SimpleHttp;
 
 /// How long the local key is valid for in between remote checks
 pub const MAX_LOCAL_KEY_AGE: i64 = 15 * 24 * 3600;
@@ -116,7 +119,7 @@ async fn register_subscription(
     let mut client = pbs_simple_http(proxy_config);
 
     let uri = "https://shop.maurer-it.com/modules/servers/licensing/verify.php";
-    let query = tools::json_object_to_query(params)?;
+    let query = json_object_to_query(params)?;
     let response = client.post(uri, Some(query), Some("application/x-www-form-urlencoded")).await?;
     let body = SimpleHttp::response_body_string(response).await?;
 
