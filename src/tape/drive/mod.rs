@@ -568,7 +568,7 @@ pub fn get_tape_device_state(
     config: &SectionConfigData,
     drive: &str,
 ) -> Result<Option<String>, Error> {
-    let path = format!("/run/proxmox-backup/drive-state/{}", drive);
+    let path = format!("{}/{}", crate::tape::DRIVE_STATE_DIR, drive);
     let state = file_read_optional_string(path)?;
 
     let device_path = tape_device_path(config, drive)?;
@@ -612,7 +612,7 @@ fn lock_device_path(device_path: &str) -> Result<DeviceLockGuard, TapeLockError>
 
     let lock_name = crate::tools::systemd::escape_unit(device_path, true);
 
-    let mut path = std::path::PathBuf::from("/var/lock");
+    let mut path = std::path::PathBuf::from(crate::tape::DRIVE_LOCK_DIR);
     path.push(lock_name);
 
     let timeout = std::time::Duration::new(10, 0);
@@ -637,7 +637,7 @@ fn test_device_path_lock(device_path: &str) -> Result<bool, Error> {
 
     let lock_name = crate::tools::systemd::escape_unit(device_path, true);
 
-    let mut path = std::path::PathBuf::from("/var/lock");
+    let mut path = std::path::PathBuf::from(crate::tape::DRIVE_LOCK_DIR);
     path.push(lock_name);
 
     let timeout = std::time::Duration::new(0, 0);
