@@ -130,7 +130,7 @@ $(DSC): build
 
 .PHONY: clean distclean deb clean
 distclean: clean
-clean: clean-debs
+clean: clean-deb
 	$(foreach i,$(SUBDIRS), \
 	    $(MAKE) -C $(i) clean ;)
 	$(CARGO) clean
