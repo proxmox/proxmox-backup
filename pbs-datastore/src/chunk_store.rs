@@ -401,12 +401,26 @@ impl ChunkStore {
         let mut tmp_path = chunk_path.clone();
         tmp_path.set_extension("tmp");
 
-        let mut file = std::fs::File::create(&tmp_path)?;
+        let mut file = std::fs::File::create(&tmp_path).map_err(|err| {
+            format_err!(
+                "creating temporary chunk on store '{}' failed for {} - {}",
+                self.name,
+                digest_str,
+                err
+            )
+        })?;
 
         let raw_data = chunk.raw_data();
         let encoded_size = raw_data.len() as u64;
 
-        file.write_all(raw_data)?;
+        file.write_all(raw_data).map_err(|err| {
+            format_err!(
+                "writing temporary chunk on store '{}' failed for {} - {}",
+                self.name,
+                digest_str,
+                err
+            )
+        })?;
 
         if let Err(err) = std::fs::rename(&tmp_path, &chunk_path) {
             if std::fs::remove_file(&tmp_path).is_err()  { /* ignore */ }
