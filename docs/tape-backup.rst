@@ -3,9 +3,6 @@
 Tape Backup
 ===========
 
-.. CAUTION:: Tape Backup is a technical preview feature, not meant for
-   production use.
-
 .. image:: images/screenshots/pbs-gui-tape-changer-overview.png
   :align: right
   :alt: Tape Backup: Tape changer overview
