@@ -308,7 +308,11 @@ impl Filesystems {
                 let mntpath = format!("/mnt/lvm/{}/{}", &data.vg_name, &data.lv_name);
                 create_dir_all(&mntpath)?;
 
-                let mapper_path = format!("/dev/mapper/{}-{}", &data.vg_name, &data.lv_name);
+                let mapper_path = format!(
+                    "/dev/mapper/{}-{}",
+                    &data.vg_name.replace('-', "--"),
+                    &data.lv_name.replace('-', "--")
+                );
                 self.try_mount(&mapper_path, &mntpath)?;
 
                 let mp = PathBuf::from(mntpath);
