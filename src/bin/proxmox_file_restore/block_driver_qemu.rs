@@ -50,7 +50,7 @@ impl VMStateMap {
     /// Acquire a lock on the state map and retrieve a deserialized version
     fn load() -> Result<Self, Error> {
         let mut file = Self::open_file_raw(true)?;
-        lock_file(&mut file, true, Some(std::time::Duration::from_secs(5)))?;
+        lock_file(&mut file, true, Some(std::time::Duration::from_secs(120)))?;
         let map = serde_json::from_reader(&file).unwrap_or_default();
         Ok(Self { map, file })
     }
