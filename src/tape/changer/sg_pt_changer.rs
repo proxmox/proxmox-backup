@@ -23,9 +23,6 @@ use crate::{
     },
     tools::sgutils2::{
         SgRaw,
-        SENSE_KEY_NO_SENSE,
-        SENSE_KEY_RECOVERED_ERROR,
-        SENSE_KEY_UNIT_ATTENTION,
         SENSE_KEY_NOT_READY,
         InquiryInfo,
         ScsiError,
@@ -77,11 +74,10 @@ struct AddressAssignmentPage {
 }
 
 /// Execute scsi commands, optionally repeat the command until
-/// successful (sleep 1 second between invovations)
+/// successful or timeout (sleep 1 second between invovations)
 ///
-/// Any Sense key other than NO_SENSE, RECOVERED_ERROR, NOT_READY and
-/// UNIT_ATTENTION aborts the loop and returns an error. If the device
-/// reports "Not Ready - becoming ready", we wait up to 5 minutes.
+/// Timeout is 5 seconds. If the device reports "Not Ready - becoming
+/// ready", we wait up to 5 minutes.
 ///
 /// Skipped errors are printed on stderr.
 fn execute_scsi_command<F: AsRawFd>(
@@ -100,42 +96,33 @@ fn execute_scsi_command<F: AsRawFd>(
     loop {
         match sg_raw.do_command(&cmd) {
             Ok(data) => return Ok(data.to_vec()),
+            Err(err) if !retry => bail!("{} failed: {}", error_prefix, err),
             Err(err) => {
-                if !retry {
-                    bail!("{} failed: {}", error_prefix, err);
+                let msg = err.to_string();
+                if let Some(ref last) = last_msg {
+                    if &msg != last {
+                        eprintln!("{}", err);
+                        last_msg = Some(msg);
+                    }
+                } else {
+                    eprintln!("{}", err);
+                    last_msg = Some(msg);
                 }
+
                 if let ScsiError::Sense(ref sense) = err {
-
-                    if sense.sense_key == SENSE_KEY_NO_SENSE ||
-                        sense.sense_key == SENSE_KEY_RECOVERED_ERROR ||
-                        sense.sense_key == SENSE_KEY_UNIT_ATTENTION ||
-                        sense.sense_key == SENSE_KEY_NOT_READY
-                    {
-                        let msg = err.to_string();
-                        if let Some(ref last) = last_msg {
-                            if &msg != last {
-                                eprintln!("{}", err);
-                                last_msg = Some(msg);
-                            }
-                        } else {
-                            eprintln!("{}", err);
-                            last_msg = Some(msg);
-                        }
-
-                        // Not Ready - becoming ready
-                        if sense.sense_key == SENSE_KEY_NOT_READY && sense.asc == 0x04 && sense.ascq == 1 {
-                            // wait up to 5 minutes, long enough to finish inventorize
-                            timeout = std::time::Duration::new(5*60, 0);
-                        }
-
-                        if start.elapsed()? > timeout {
-                            bail!("{} failed: {}", error_prefix, err);
-                        }
-
-                        std::thread::sleep(std::time::Duration::new(1, 0));
-                        continue; // try again
+                    // Not Ready - becoming ready
+                    if sense.sense_key == SENSE_KEY_NOT_READY && sense.asc == 0x04 && sense.ascq == 1 {
+                        // wait up to 5 minutes, long enough to finish inventorize
+                        timeout = std::time::Duration::new(5*60, 0);
                     }
                 }
+
+                if start.elapsed()? > timeout {
+                    bail!("{} failed: {}", error_prefix, err);
+                }
+
+                std::thread::sleep(std::time::Duration::new(1, 0));
+                continue; // try again
             }
         }
    }
