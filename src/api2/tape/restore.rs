@@ -647,6 +647,10 @@ fn restore_list_worker(
         Ok(())
     });
 
+    if res.is_err() {
+        task_warn!(worker, "Error during restore, partially restored snapshots will NOT be cleaned up");
+    }
+
     match std::fs::remove_dir_all(&base_path) {
         Ok(()) => {}
         Err(err) => task_warn!(worker, "error cleaning up: {}", err),
