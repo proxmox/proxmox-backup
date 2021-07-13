@@ -125,6 +125,9 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 		let list = await Proxmox.Async.api2({
 		    method: 'GET',
 		    url: `/api2/extjs/tape/media/content`,
+		    // a big media-set with large catalogs can take a while to load
+		    // so we give a big (5min) timeout
+		    timeout: 5*60*1000,
 		    params: {
 			'media-set': media_set_uuid,
 		    },
