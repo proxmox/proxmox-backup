@@ -60,6 +60,7 @@ Ext.define('PBS.ServerAdministration', {
 	    itemId: 'aptrepositories',
 	    nodename: 'localhost',
 	    product: 'Proxmox Backup Server',
+	    onlineHelp: 'sysadmin_package_repositories',
 	},
 	{
 	    xtype: 'proxmoxJournalView',
