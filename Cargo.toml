@@ -86,9 +86,9 @@ pathpatterns = "0.1.2"
 pxar = { version = "0.10.1", features = [ "tokio-io" ] }
 #pxar = { path = "../pxar", features = [ "tokio-io" ] }
 
-proxmox = { version = "0.11.6", features = [ "sortable-macro", "api-macro" ] }
-#proxmox = { git = "git://git.proxmox.com/git/proxmox", version = "0.1.2", features = [ "sortable-macro", "api-macro" ] }
-#proxmox = { path = "../proxmox/proxmox", features = [ "sortable-macro", "api-macro" ] }
+proxmox = { version = "0.11.6", features = [ "sortable-macro", "api-macro", "cli", "router", "tfa" ] }
+#proxmox = { git = "git://git.proxmox.com/git/proxmox", version = "0.1.2", features = [ "sortable-macro", "api-macro", "cli", "router", "tfa" ] }
+#proxmox = { path = "../proxmox/proxmox", features = [ "sortable-macro", "api-macro", "cli", "router", "tfa" ] }
 proxmox-acme-rs = "0.2.1"
 proxmox-apt = "0.4.0"
 proxmox-fuse = "0.1.1"
