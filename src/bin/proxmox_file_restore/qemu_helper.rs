@@ -1,7 +1,7 @@
 //! Helper to start a QEMU VM for single file restore.
 use std::fs::{File, OpenOptions};
 use std::io::prelude::*;
-use std::os::unix::io::{AsRawFd, FromRawFd};
+use std::os::unix::io::AsRawFd;
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -11,10 +11,7 @@ use tokio::time;
 use nix::sys::signal::{kill, Signal};
 use nix::unistd::Pid;
 
-use proxmox::tools::{
-    fd::Fd,
-    fs::{create_path, file_read_string, make_tmp_file, CreateOptions},
-};
+use proxmox::tools::fs::{create_path, file_read_string, make_tmp_file, CreateOptions};
 
 use proxmox_backup::backup::backup_user;
 use proxmox_backup::client::{VsockClient, DEFAULT_VSOCK_PORT};
@@ -83,14 +80,14 @@ pub fn try_kill_vm(pid: i32) -> Result<(), Error> {
     Ok(())
 }
 
-async fn create_temp_initramfs(ticket: &str, debug: bool) -> Result<(Fd, String), Error> {
+async fn create_temp_initramfs(ticket: &str, debug: bool) -> Result<(File, String), Error> {
     use std::ffi::CString;
     use tokio::fs::File;
 
-    let (tmp_fd, tmp_path) =
+    let (tmp_file, tmp_path) =
         make_tmp_file("/tmp/file-restore-qemu.initramfs.tmp", CreateOptions::new())?;
     nix::unistd::unlink(&tmp_path)?;
-    tools::fd_change_cloexec(tmp_fd.0, false)?;
+    tools::fd_change_cloexec(tmp_file.as_raw_fd(), false)?;
 
     let initramfs = if debug {
         pbs_buildcfg::PROXMOX_BACKUP_INITRAMFS_DBG_FN
@@ -98,7 +95,7 @@ async fn create_temp_initramfs(ticket: &str, debug: bool) -> Result<(Fd, String)
         pbs_buildcfg::PROXMOX_BACKUP_INITRAMFS_FN
     };
 
-    let mut f = File::from_std(unsafe { std::fs::File::from_raw_fd(tmp_fd.0) });
+    let mut f = File::from_std(tmp_file);
     let mut base = File::open(initramfs).await?;
 
     tokio::io::copy(&mut base, &mut f).await?;
@@ -118,11 +115,10 @@ async fn create_temp_initramfs(ticket: &str, debug: bool) -> Result<(Fd, String)
     .await?;
     tools::cpio::append_trailer(&mut f).await?;
 
-    // forget the tokio file, we close the file descriptor via the returned Fd
-    std::mem::forget(f);
+    let tmp_file = f.into_std().await;
+    let path = format!("/dev/fd/{}", &tmp_file.as_raw_fd());
 
-    let path = format!("/dev/fd/{}", &tmp_fd.0);
-    Ok((tmp_fd, path))
+    Ok((tmp_file, path))
 }
 
 pub async fn start_vm(
@@ -145,9 +141,9 @@ pub async fn start_vm(
     validate_img_existance(debug)?;
 
     let pid;
-    let (pid_fd, pid_path) = make_tmp_file("/tmp/file-restore-qemu.pid.tmp", CreateOptions::new())?;
+    let (mut pid_file, pid_path) = make_tmp_file("/tmp/file-restore-qemu.pid.tmp", CreateOptions::new())?;
     nix::unistd::unlink(&pid_path)?;
-    tools::fd_change_cloexec(pid_fd.0, false)?;
+    tools::fd_change_cloexec(pid_file.as_raw_fd(), false)?;
 
     let (_ramfs_pid, ramfs_path) = create_temp_initramfs(ticket, debug).await?;
 
@@ -194,7 +190,7 @@ pub async fn start_vm(
         ),
         "-daemonize",
         "-pidfile",
-        &format!("/dev/fd/{}", pid_fd.as_raw_fd()),
+        &format!("/dev/fd/{}", pid_file.as_raw_fd()),
         "-name",
         PBS_VM_NAME,
     ];
@@ -281,8 +277,6 @@ pub async fn start_vm(
             // at this point QEMU is already daemonized and running, so if anything fails we
             // technically leave behind a zombie-VM... this shouldn't matter, as it will stop
             // itself soon enough (timer), and the following operations are unlikely to fail
-            let mut pid_file = unsafe { File::from_raw_fd(pid_fd.as_raw_fd()) };
-            std::mem::forget(pid_fd); // FD ownership is now in pid_fd/File
             let mut pidstr = String::new();
             pid_file.read_to_string(&mut pidstr)?;
             pid = pidstr.trim_end().parse().map_err(|err| {
