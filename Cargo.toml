@@ -75,16 +75,18 @@ crossbeam-channel = "0.5"
 
 pathpatterns = "0.1.2"
 pxar = { version = "0.10.1", features = [ "tokio-io" ] }
-#pxar = { path = "../pxar", features = [ "tokio-io" ] }
 
-proxmox = { version = "0.11.5", features = [ "sortable-macro", "api-macro" ] }
-#proxmox = { git = "git://git.proxmox.com/git/proxmox", version = "0.1.2", features = [ "sortable-macro", "api-macro" ] }
-#proxmox = { path = "../proxmox/proxmox", features = [ "sortable-macro", "api-macro" ] }
+proxmox = { version = "0.11.5", features = [ "sortable-macro", "api-macro", "cli", "router", "tfa" ] }
 proxmox-acme-rs = "0.2.1"
 proxmox-fuse = "0.1.1"
 proxmox-http = { version = "0.2.1", features = [ "client", "http-helpers", "websocket" ] }
-#proxmox-http = { version = "0.2.0", path = "../proxmox/proxmox-http", features = [ "client", "http-helpers", "websocket" ] }
-proxmox-openid = "0.6.0"
+
+# Local path overrides
+# NOTE: You must run `cargo update` after changing this for it to take effect!
+[patch.crates-io]
+#proxmox = { path = "../proxmox/proxmox", features = [ "sortable-macro", "api-macro", "cli", "router", "tfa" ] }
+#proxmox-http = { path = "../proxmox/proxmox-http", features = [ "client", "http-helpers", "websocket" ] }
+#pxar = { path = "../pxar", features = [ "tokio-io" ] }
 
 [features]
 default = []
