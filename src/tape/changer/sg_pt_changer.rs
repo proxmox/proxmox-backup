@@ -265,13 +265,34 @@ pub fn transfer_medium<F: AsRawFd>(
     Ok(())
 }
 
-#[repr(u8)]
 #[derive(Clone, Copy)]
 enum ElementType {
-    MediumTransport = 1,
-    Storage = 2,
-    ImportExport = 3,
-    DataTransfer = 4,
+    MediumTransport,
+    Storage,
+    ImportExport,
+    DataTransfer,
+    DataTransferWithDVCID,
+}
+
+impl ElementType {
+    fn byte1(&self) -> u8 {
+        let volume_tag_bit = 1u8 << 4;
+        match *self {
+            ElementType::MediumTransport => volume_tag_bit | 1,
+            ElementType::Storage => volume_tag_bit | 2,
+            ElementType::ImportExport => volume_tag_bit | 3,
+            ElementType::DataTransfer => volume_tag_bit | 4,
+            // some changers cannot get voltag + dvcid at the same time
+            ElementType::DataTransferWithDVCID => 4,
+        }
+    }
+
+    fn byte6(&self) -> u8 {
+        match *self {
+            ElementType::DataTransferWithDVCID => 0b001, //  Mixed=0,CurData=0,DVCID=1
+            _ => 0b000, // Mixed=0,CurData=0,DVCID=0
+        }
+    }
 }
 
 fn scsi_read_element_status_cdb(
@@ -283,15 +304,11 @@ fn scsi_read_element_status_cdb(
 
     let mut cmd = Vec::new();
     cmd.push(0xB8); // READ ELEMENT STATUS (B8h)
-    cmd.push(1u8<<4 | (element_type as u8)); // volume tags and given type
+    cmd.push(element_type.byte1());
     cmd.extend(&start_element_address.to_be_bytes());
 
     cmd.extend(&number_of_elements.to_be_bytes());
-    let byte6 = match element_type {
-        ElementType::DataTransfer => 0b001, //  Mixed=0,CurData=0,DVCID=1
-        _ => 0b000, // Mixed=0,CurData=0,DVCID=0
-    };
-    cmd.push(byte6);
+    cmd.push(element_type.byte6());
     cmd.extend(&allocation_len.to_be_bytes()[1..4]);
     cmd.push(0);
     cmd.push(0);
@@ -384,6 +401,21 @@ pub fn read_element_status<F: AsRawFd>(file: &mut F) -> Result<MtxStatus, Error>
 
     let page = get_element(&inquiry, &mut sg_raw, ElementType::DataTransfer, allocation_len, false)?;
     drives.extend(page.drives);
+
+    // get the serial + vendor + model,
+    // some changer require this to be an extra scsi command
+    let page = get_element(&inquiry, &mut sg_raw, ElementType::DataTransferWithDVCID, allocation_len, false)?;
+    // should be in same order and same count, but be on the safe side.
+    // there should not be too many drives normally
+    for drive in drives.iter_mut() {
+        for drive2 in &page.drives {
+            if drive2.element_address == drive.element_address {
+                drive.vendor = drive2.vendor.clone();
+                drive.model = drive2.model.clone();
+                drive.drive_serial_number = drive2.drive_serial_number.clone();
+            }
+        }
+    }
 
     let page = get_element(&inquiry, &mut sg_raw, ElementType::MediumTransport, allocation_len, false)?;
     transports.extend(page.transports);
