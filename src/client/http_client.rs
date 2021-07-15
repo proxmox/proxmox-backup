@@ -24,15 +24,13 @@ use proxmox_http::client::HttpsConnector;
 use proxmox_http::uri::build_authority;
 
 use pbs_api_types::{Authid, Userid};
+use pbs_tools::broadcast_future::BroadcastFuture;
 use pbs_tools::json::json_object_to_query;
 use pbs_tools::ticket;
+use pbs_tools::percent_encoding::DEFAULT_ENCODE_SET;
 
 use super::pipe_to_stream::PipeToSendStream;
-use crate::tools::{
-    BroadcastFuture,
-    DEFAULT_ENCODE_SET,
-    PROXMOX_BACKUP_TCP_KEEPALIVE_TIME,
-};
+use super::PROXMOX_BACKUP_TCP_KEEPALIVE_TIME;
 
 /// Timeout used for several HTTP operations that are expected to finish quickly but may block in
 /// certain error conditions. Keep it generous, to avoid false-positive under high load.

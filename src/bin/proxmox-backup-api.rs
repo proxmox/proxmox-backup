@@ -4,8 +4,8 @@ use futures::*;
 use proxmox::try_block;
 use proxmox::api::RpcEnvironmentType;
 
-//use proxmox_backup::tools;
-//use proxmox_backup::api_schema::config::*;
+use pbs_tools::auth::private_auth_key;
+
 use proxmox_backup::server::{
     self,
     auth::default_api_auth,

@@ -28,12 +28,9 @@ use proxmox::{
 use pxar::accessor::{MaybeReady, ReadAt, ReadAtOperation};
 
 use pbs_datastore::catalog::BackupCatalogWriter;
+use pbs_tools::sync::StdChannelWriter;
+use pbs_tools::tokio::TokioWriterAdapter;
 
-use proxmox_backup::tools::{
-    self,
-    StdChannelWriter,
-    TokioWriterAdapter,
-};
 use proxmox_backup::api2::types::*;
 use proxmox_backup::api2::version;
 use proxmox_backup::client::*;
@@ -64,6 +61,7 @@ use proxmox_backup::backup::{
     Shell,
     PruneOptions,
 };
+use proxmox_backup::tools;
 
 mod proxmox_backup_client;
 use proxmox_backup_client::*;

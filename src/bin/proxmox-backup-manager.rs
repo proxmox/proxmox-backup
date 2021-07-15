@@ -6,6 +6,8 @@ use serde_json::{json, Value};
 
 use proxmox::api::{api, cli::*, RpcEnvironment};
 
+use pbs_tools::percent_encoding::percent_encode_component;
+
 use proxmox_backup::tools;
 use proxmox_backup::config;
 use proxmox_backup::api2::{self, types::* };
@@ -188,7 +190,7 @@ async fn task_stop(param: Value) -> Result<Value, Error> {
 
     let mut client = connect_to_localhost()?;
 
-    let path = format!("api2/json/nodes/localhost/tasks/{}", tools::percent_encode_component(upid_str));
+    let path = format!("api2/json/nodes/localhost/tasks/{}", percent_encode_component(upid_str));
     let _ = client.delete(&path, None).await?;
 
     Ok(Value::Null)

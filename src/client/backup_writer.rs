@@ -14,10 +14,15 @@ use tokio_stream::wrappers::ReceiverStream;
 
 use proxmox::tools::digest_to_hex;
 
+use pbs_datastore::{CATALOG_NAME, CryptConfig};
+use pbs_datastore::data_blob::{ChunkInfo, DataBlob, DataChunkBuilder};
+use pbs_datastore::dynamic_index::DynamicIndexReader;
+use pbs_datastore::fixed_index::FixedIndexReader;
+use pbs_datastore::index::IndexFile;
+use pbs_datastore::manifest::{ArchiveType, BackupManifest, MANIFEST_BLOB_NAME};
 use pbs_tools::format::HumanByte;
 
 use super::merge_known_chunks::{MergeKnownChunks, MergedChunkInfo};
-use crate::backup::*;
 
 use super::{H2Client, HttpClient};
 
@@ -283,7 +288,7 @@ impl BackupWriter {
 
         if let Some(manifest) = options.previous_manifest {
             // try, but ignore errors
-            match archive_type(archive_name) {
+            match ArchiveType::from_path(archive_name) {
                 Ok(ArchiveType::FixedIndex) => {
                     let _ = self
                         .download_previous_fixed_index(

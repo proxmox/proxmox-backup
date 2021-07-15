@@ -11,6 +11,7 @@ use proxmox::api::{api, Permission, RpcEnvironment};
 use proxmox::{http_err, list_subdirs_api_method};
 use proxmox::{identity, sortable};
 
+use pbs_tools::auth::private_auth_key;
 use pbs_tools::ticket::{self, Empty, Ticket};
 
 use crate::api2::types::*;

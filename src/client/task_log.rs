@@ -7,15 +7,10 @@ use futures::*;
 
 use proxmox::api::cli::format_and_print_result;
 
-use super::HttpClient;
-use crate::{
-    server::{
-        worker_is_active_local,
-        UPID,
-    },
-    tools,
-};
+use pbs_tools::percent_encoding::percent_encode_component;
 
+use super::HttpClient;
+use crate::server::{UPID, worker_is_active_local};
 
 /// Display task log on console
 ///
@@ -54,13 +49,13 @@ pub async fn display_task_log(
 
             let abort = abort_count.load(Ordering::Relaxed);
             if abort > 0 {
-                let path = format!("api2/json/nodes/localhost/tasks/{}", tools::percent_encode_component(upid_str));
+                let path = format!("api2/json/nodes/localhost/tasks/{}", percent_encode_component(upid_str));
                 let _ = client.delete(&path, None).await?;
             }
 
             let param = json!({ "start": start, "limit": limit, "test-status": true });
 
-            let path = format!("api2/json/nodes/localhost/tasks/{}/log", tools::percent_encode_component(upid_str));
+            let path = format!("api2/json/nodes/localhost/tasks/{}/log", percent_encode_component(upid_str));
             let result = client.get(&path, Some(param)).await?;
 
             let active = result["active"].as_bool().unwrap();

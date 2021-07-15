@@ -20,6 +20,7 @@ use proxmox::list_subdirs_api_method;
 use proxmox_http::websocket::WebSocket;
 use proxmox::{identity, sortable};
 
+use pbs_tools::auth::private_auth_key;
 use pbs_tools::ticket::{self, Empty, Ticket};
 
 use crate::api2::types::*;
@@ -121,7 +122,7 @@ async fn termproxy(
 
     let ticket = Ticket::new(ticket::TERM_PREFIX, &Empty)?
         .sign(
-            crate::auth_helpers::private_auth_key(),
+            private_auth_key(),
             Some(&tools::ticket::term_aad(&userid, &path, port)),
         )?;
 

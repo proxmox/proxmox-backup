@@ -1,10 +1,8 @@
+use std::pin::Pin;
+use std::task::{Context, Poll};
+
 use anyhow::{bail, format_err, Error};
 use futures::*;
-
-use core::task::Context;
-use std::pin::Pin;
-use std::task::Poll;
-
 use http::Uri;
 use http::{Request, Response};
 use hyper::client::connect::{Connected, Connection};

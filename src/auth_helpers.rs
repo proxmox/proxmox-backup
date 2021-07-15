@@ -1,18 +1,16 @@
+use std::path::PathBuf;
+
 use anyhow::{bail, format_err, Error};
 use lazy_static::lazy_static;
-
-use openssl::rsa::{Rsa};
-use openssl::pkey::{PKey, Public, Private};
+use openssl::pkey::{PKey, Public};
+use openssl::rsa::Rsa;
 use openssl::sha;
-
-use std::path::PathBuf;
 
 use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
 use proxmox::try_block;
 
 use pbs_buildcfg::configdir;
-
-use crate::api2::types::Userid;
+use pbs_api_types::Userid;
 
 fn compute_csrf_secret_digest(
     timestamp: i64,
@@ -153,24 +151,6 @@ pub fn csrf_secret() -> &'static [u8] {
     }
 
     &SECRET
-}
-
-fn load_private_auth_key() -> Result<PKey<Private>, Error> {
-
-    let pem = file_get_contents(configdir!("/authkey.key"))?;
-    let rsa = Rsa::private_key_from_pem(&pem)?;
-    let key = PKey::from_rsa(rsa)?;
-
-    Ok(key)
-}
-
-pub fn private_auth_key() -> &'static PKey<Private> {
-
-    lazy_static! {
-        static ref KEY: PKey<Private> = load_private_auth_key().unwrap();
-    }
-
-    &KEY
 }
 
 fn load_public_auth_key() -> Result<PKey<Public>, Error> {

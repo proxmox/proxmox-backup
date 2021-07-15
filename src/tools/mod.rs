@@ -12,7 +12,6 @@ use std::path::Path;
 use anyhow::{bail, format_err, Error};
 use serde_json::Value;
 use openssl::hash::{hash, DigestBytes, MessageDigest};
-use percent_encoding::{utf8_percent_encode, AsciiSet};
 
 pub use proxmox::tools::fd::Fd;
 use proxmox::tools::fs::{create_path, CreateOptions};
@@ -33,7 +32,6 @@ pub use pbs_tools::process_locker::{
 pub mod acl;
 pub mod apt;
 pub mod async_io;
-pub mod cert;
 pub mod compression;
 pub mod config;
 pub mod cpio;
@@ -67,17 +65,10 @@ pub use wrapped_reader_stream::{AsyncReaderStream, StdChannelStream, WrappedRead
 mod async_channel_writer;
 pub use async_channel_writer::AsyncChannelWriter;
 
-mod std_channel_writer;
-pub use std_channel_writer::StdChannelWriter;
-
-mod tokio_writer_adapter;
-pub use tokio_writer_adapter::TokioWriterAdapter;
-
 mod file_logger;
 pub use file_logger::{FileLogger, FileLogOptions};
 
-mod broadcast_future;
-pub use broadcast_future::{BroadcastData, BroadcastFuture};
+pub use pbs_tools::broadcast_future::{BroadcastData, BroadcastFuture};
 
 /// The `BufferedRead` trait provides a single function
 /// `buffered_read`. It returns a reference to an internal buffer. The
@@ -235,11 +226,6 @@ pub fn extract_cookie(cookie: &str, cookie_name: &str) -> Option<String> {
     None
 }
 
-/// percent encode a url component
-pub fn percent_encode_component(comp: &str) -> String {
-    utf8_percent_encode(comp, percent_encoding::NON_ALPHANUMERIC).to_string()
-}
-
 /// Detect modified configuration files
 ///
 /// This function fails with a reasonable error message if checksums do not match.
@@ -354,22 +340,6 @@ pub fn pbs_simple_http(proxy_config: Option<ProxyConfig>) -> SimpleHttp {
 
     SimpleHttp::with_options(options)
 }
-
-/// This used to be: `SIMPLE_ENCODE_SET` plus space, `"`, `#`, `<`, `>`, backtick, `?`, `{`, `}`
-pub const DEFAULT_ENCODE_SET: &AsciiSet = &percent_encoding::CONTROLS // 0..1f and 7e
-    // The SIMPLE_ENCODE_SET adds space and anything >= 0x7e (7e itself is already included above)
-    .add(0x20)
-    .add(0x7f)
-    // the DEFAULT_ENCODE_SET added:
-    .add(b' ')
-    .add(b'"')
-    .add(b'#')
-    .add(b'<')
-    .add(b'>')
-    .add(b'`')
-    .add(b'?')
-    .add(b'{')
-    .add(b'}');
 
 /// Get an iterator over lines of a file, skipping empty lines and comments (lines starting with a
 /// `#`).

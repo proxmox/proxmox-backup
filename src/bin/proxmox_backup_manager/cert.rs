@@ -2,9 +2,10 @@ use anyhow::{bail, Error};
 
 use proxmox::api::{api, cli::*};
 
+use pbs_tools::cert::CertInfo;
+
 use proxmox_backup::config;
 use proxmox_backup::auth_helpers::*;
-use proxmox_backup::tools::cert::CertInfo;
 
 #[api]
 /// Display node certificate information.

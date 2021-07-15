@@ -13,11 +13,8 @@ use nix::fcntl::OFlag;
 use nix::sys::stat::Mode;
 
 use pbs_datastore::catalog::CatalogWriter;
-
-use crate::tools::{
-    StdChannelWriter,
-    TokioWriterAdapter,
-};
+use pbs_tools::sync::StdChannelWriter;
+use pbs_tools::tokio::TokioWriterAdapter;
 
 /// Stream implementation to encode and upload .pxar archives.
 ///

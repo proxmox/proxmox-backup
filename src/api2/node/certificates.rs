@@ -12,6 +12,7 @@ use proxmox::api::{api, Permission, Router, RpcEnvironment};
 use proxmox::list_subdirs_api_method;
 
 use pbs_buildcfg::configdir;
+use pbs_tools::cert;
 
 use crate::acme::AcmeClient;
 use crate::api2::types::Authid;
@@ -20,7 +21,6 @@ use crate::api2::types::AcmeDomain;
 use crate::config::acl::PRIV_SYS_MODIFY;
 use crate::config::node::NodeConfig;
 use crate::server::WorkerTask;
-use crate::tools::cert;
 
 pub const ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(SUBDIRS))

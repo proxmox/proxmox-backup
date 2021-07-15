@@ -7,11 +7,8 @@ use anyhow::Error;
 
 use pbs_api_types::{Authid, Userid};
 use pbs_tools::ticket::Ticket;
-
-use crate::{
-    tools::cert::CertInfo,
-    auth_helpers::private_auth_key,
-};
+use pbs_tools::cert::CertInfo;
+use pbs_tools::auth::private_auth_key;
 
 mod merge_known_chunks;
 pub mod pipe_to_stream;
@@ -42,6 +39,8 @@ pub use backup_repo::*;
 
 mod backup_specification;
 pub use backup_specification::*;
+
+pub const PROXMOX_BACKUP_TCP_KEEPALIVE_TIME: u32 = 120;
 
 /// Connect to localhost:8007 as root@pam
 ///
