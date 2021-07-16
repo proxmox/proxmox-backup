@@ -16,7 +16,7 @@ use proxmox::api::{
     api, ApiResponseFuture, ApiHandler, ApiMethod, Router,
     RpcEnvironment, RpcEnvironmentType, Permission
 };
-use proxmox::api::router::{ReturnType, SubdirMap};
+use proxmox::api::router::SubdirMap;
 use proxmox::api::schema::*;
 use proxmox::tools::fs::{
     file_read_firstline, file_read_optional_string, replace_file, CreateOptions,
@@ -797,106 +797,61 @@ pub fn verify(
     Ok(json!(upid_str))
 }
 
-#[macro_export]
-macro_rules! add_common_prune_prameters {
-    ( [ $( $list1:tt )* ] ) => {
-        add_common_prune_prameters!([$( $list1 )* ] ,  [])
-    };
-    ( [ $( $list1:tt )* ] ,  [ $( $list2:tt )* ] ) => {
-        [
-            $( $list1 )*
-            (
-                "keep-daily",
-                true,
-                &PRUNE_SCHEMA_KEEP_DAILY,
-            ),
-            (
-                "keep-hourly",
-                true,
-                &PRUNE_SCHEMA_KEEP_HOURLY,
-            ),
-            (
-                "keep-last",
-                true,
-                &PRUNE_SCHEMA_KEEP_LAST,
-            ),
-            (
-                "keep-monthly",
-                true,
-                &PRUNE_SCHEMA_KEEP_MONTHLY,
-            ),
-            (
-                "keep-weekly",
-                true,
-                &PRUNE_SCHEMA_KEEP_WEEKLY,
-            ),
-            (
-                "keep-yearly",
-                true,
-                &PRUNE_SCHEMA_KEEP_YEARLY,
-            ),
-            $( $list2 )*
-        ]
-    }
-}
-
-pub const API_RETURN_SCHEMA_PRUNE: Schema = ArraySchema::new(
-    "Returns the list of snapshots and a flag indicating if there are kept or removed.",
-    &PruneListItem::API_SCHEMA
-).schema();
-
-pub const API_METHOD_PRUNE: ApiMethod = ApiMethod::new(
-    &ApiHandler::Sync(&prune),
-    &ObjectSchema::new(
-        "Prune the datastore.",
-        &add_common_prune_prameters!([
-            ("backup-id", false, &BACKUP_ID_SCHEMA),
-            ("backup-type", false, &BACKUP_TYPE_SCHEMA),
-            ("dry-run", true, &BooleanSchema::new(
-                "Just show what prune would do, but do not delete anything.")
-             .schema()
-            ),
-        ],[
-            ("store", false, &DATASTORE_SCHEMA),
-        ])
-    ))
-    .returns(ReturnType::new(false, &API_RETURN_SCHEMA_PRUNE))
-    .access(None, &Permission::Privilege(
-    &["datastore", "{store}"],
-    PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_PRUNE,
-    true)
-);
-
+#[api(
+    input: {
+        properties: {
+            "backup-id": {
+                schema: BACKUP_ID_SCHEMA,
+            },
+            "backup-type": {
+                schema: BACKUP_TYPE_SCHEMA,
+            },
+            "dry-run": {
+                optional: true,
+                type: bool,
+                default: false,
+                description: "Just show what prune would do, but do not delete anything.",
+            },
+            "prune-options": {
+                type: PruneOptions,
+                flatten: true,
+            },
+            store: {
+                schema: DATASTORE_SCHEMA,
+            },
+        },
+    },
+    returns: {
+        type: Array,
+        description: "Returns the list of snapshots and a flag indicating if there are kept or removed.",
+        items: {
+            type: PruneListItem,
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_PRUNE, true),
+    },
+)]
+/// Prune the datastore
 pub fn prune(
-    param: Value,
-    _info: &ApiMethod,
+    backup_id: String,
+    backup_type: String,
+    dry_run: bool,
+    prune_options: PruneOptions,
+    store: String,
+    _param: Value,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
-    let store = tools::required_string_param(&param, "store")?;
-    let backup_type = tools::required_string_param(&param, "backup-type")?;
-    let backup_id = tools::required_string_param(&param, "backup-id")?;
-
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-    let dry_run = param["dry-run"].as_bool().unwrap_or(false);
-
-    let group = BackupGroup::new(backup_type, backup_id);
+    let group = BackupGroup::new(&backup_type, &backup_id);
 
     let datastore = DataStore::lookup_datastore(&store)?;
 
     check_priv_or_backup_owner(&datastore, &group, &auth_id, PRIV_DATASTORE_MODIFY)?;
 
-    let prune_options = PruneOptions {
-        keep_last: param["keep-last"].as_u64(),
-        keep_hourly: param["keep-hourly"].as_u64(),
-        keep_daily: param["keep-daily"].as_u64(),
-        keep_weekly: param["keep-weekly"].as_u64(),
-        keep_monthly: param["keep-monthly"].as_u64(),
-        keep_yearly: param["keep-yearly"].as_u64(),
-    };
-
-    let worker_id = format!("{}:{}/{}", store, backup_type, backup_id);
+    let worker_id = format!("{}:{}/{}", store, &backup_type, &backup_id);
 
     let mut prune_result = Vec::new();
 
