@@ -19,8 +19,13 @@ pub fn prune_datastore(
     prune_options: PruneOptions,
     store: &str,
     datastore: Arc<DataStore>,
+    dry_run: bool,
 ) -> Result<(), Error> {
     task_log!(worker, "Starting datastore prune on store \"{}\"", store);
+
+    if dry_run {
+        task_log!(worker, "(dry test run)");
+    }
 
     let keep_all = !prune_options.keeps_something();
 
@@ -69,7 +74,7 @@ pub fn prune_datastore(
                 group.backup_id(),
                 info.backup_dir.backup_time_string()
             );
-            if !keep {
+            if !keep && !dry_run {
                 if let Err(err) = datastore.remove_backup_dir(&info.backup_dir, false) {
                     task_warn!(
                         worker,
@@ -108,7 +113,7 @@ pub fn do_prune_job(
                 task_log!(worker, "task triggered by schedule '{}'", event_str);
             }
 
-            let result = prune_datastore(worker.clone(), auth_id, prune_options, &store, datastore);
+            let result = prune_datastore(worker.clone(), auth_id, prune_options, &store, datastore, false);
 
             let status = worker.create_state(&result);
 

@@ -820,7 +820,7 @@ pub fn verify(
         permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_PRUNE, true),
     },
 )]
-/// Prune the datastore
+/// Prune a group on the datastore
 pub fn prune(
     backup_id: String,
     backup_type: String,
@@ -920,6 +920,62 @@ pub fn prune(
     worker.log_result(&Ok(()));
 
     Ok(json!(prune_result))
+}
+
+#[api(
+    input: {
+        properties: {
+            "dry-run": {
+                optional: true,
+                type: bool,
+                default: false,
+                description: "Just show what prune would do, but do not delete anything.",
+            },
+            "prune-options": {
+                type: PruneOptions,
+                flatten: true,
+            },
+            store: {
+                schema: DATASTORE_SCHEMA,
+            },
+        },
+    },
+    returns: {
+        schema: UPID_SCHEMA,
+    },
+    access: {
+        permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_PRUNE, true),
+    },
+)]
+/// Prune the datastore
+pub fn prune_datastore(
+    dry_run: bool,
+    prune_options: PruneOptions,
+    store: String,
+    _param: Value,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<String, Error> {
+
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+
+    let datastore = DataStore::lookup_datastore(&store)?;
+
+    let upid_str = WorkerTask::new_thread(
+        "prune",
+        Some(store.clone()),
+        auth_id.clone(),
+        false,
+        move |worker| crate::server::prune_datastore(
+            worker.clone(),
+            auth_id,
+            prune_options,
+            &store,
+            datastore,
+            dry_run
+        ),
+    )?;
+
+    Ok(upid_str)
 }
 
 #[api(
@@ -1843,6 +1899,11 @@ const DATASTORE_INFO_SUBDIRS: SubdirMap = &[
         "prune",
         &Router::new()
             .post(&API_METHOD_PRUNE)
+    ),
+    (
+        "prune-datastore",
+        &Router::new()
+            .post(&API_METHOD_PRUNE_DATASTORE)
     ),
     (
         "pxar-file-download",
