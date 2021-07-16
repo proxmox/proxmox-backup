@@ -251,7 +251,7 @@ Ext.define('PBS.DataStorePrune', {
 
 	Ext.apply(me, {
 	    url: '/api2/extjs/admin/datastore/' + me.datastore + "/prune",
-	    title: "Prune Datastore '" + me.datastore + "'",
+	    title: `Prune Group '${me.datastore}:${me.backup_type}/${me.backup_id}'`,
 	    items: [{
 		xtype: 'pbsDataStorePruneInputPanel',
 		url: '/api2/extjs/admin/datastore/' + me.datastore + "/prune",
