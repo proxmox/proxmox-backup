@@ -6,7 +6,6 @@ use std::sync::{Arc, Mutex};
 use std::task::Context;
 
 use anyhow::{bail, format_err, Error};
-use futures::future::FutureExt;
 use futures::stream::{StreamExt, TryStreamExt};
 use serde_json::{json, Value};
 use tokio::sync::mpsc;
@@ -21,10 +20,8 @@ use proxmox::{
     },
     api::{
         api,
-        ApiHandler,
         ApiMethod,
         RpcEnvironment,
-        schema::*,
         cli::*,
     },
 };
@@ -65,6 +62,7 @@ use proxmox_backup::backup::{
     IndexFile,
     MANIFEST_BLOB_NAME,
     Shell,
+    PruneOptions,
 };
 
 mod proxmox_backup_client;
@@ -1225,60 +1223,65 @@ async fn restore(param: Value) -> Result<Value, Error> {
     Ok(Value::Null)
 }
 
-const API_METHOD_PRUNE: ApiMethod = ApiMethod::new(
-    &ApiHandler::Async(&prune),
-    &ObjectSchema::new(
-        "Prune a backup repository.",
-        &proxmox_backup::add_common_prune_prameters!([
-            ("dry-run", true, &BooleanSchema::new(
-                "Just show what prune would do, but do not delete anything.")
-             .schema()),
-            ("group", false, &StringSchema::new("Backup group.").schema()),
-        ], [
-            ("output-format", true, &OUTPUT_FORMAT),
-            (
-                "quiet",
-                true,
-                &BooleanSchema::new("Minimal output - only show removals.")
-                    .schema()
-            ),
-            ("repository", true, &REPO_URL_SCHEMA),
-        ])
-    )
-);
-
-fn prune<'a>(
-    param: Value,
-    _info: &ApiMethod,
-    _rpcenv: &'a mut dyn RpcEnvironment,
-) -> proxmox::api::ApiFuture<'a> {
-    async move {
-        prune_async(param).await
-    }.boxed()
-}
-
-async fn prune_async(mut param: Value) -> Result<Value, Error> {
+#[api(
+    input: {
+        properties: {
+            "dry-run": {
+                type: bool,
+                optional: true,
+                description: "Just show what prune would do, but do not delete anything.",
+            },
+            group: {
+                type: String,
+                description: "Backup group",
+            },
+            "prune-options": {
+                type: PruneOptions,
+                flatten: true,
+            },
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+            quiet: {
+                type: bool,
+                optional: true,
+                default: false,
+                description: "Minimal output - only show removals.",
+            },
+            repository: {
+                schema: REPO_URL_SCHEMA,
+                optional: true,
+            },
+        },
+    },
+)]
+/// Prune a backup repository.
+async fn prune(
+    dry_run: Option<bool>,
+    group: String,
+    prune_options: PruneOptions,
+    quiet: bool,
+    mut param: Value
+) -> Result<Value, Error> {
     let repo = extract_repository_from_value(&param)?;
 
     let mut client = connect(&repo)?;
 
     let path = format!("api2/json/admin/datastore/{}/prune", repo.store());
 
-    let group = tools::required_string_param(&param, "group")?;
     let group: BackupGroup = group.parse()?;
 
     let output_format = extract_output_format(&mut param);
 
-    let quiet = param["quiet"].as_bool().unwrap_or(false);
+    let mut api_param = serde_json::to_value(prune_options)?;
+    if let Some(dry_run) = dry_run {
+        api_param["dry-run"] = dry_run.into();
+    }
+    api_param["backup-type"] = group.backup_type().into();
+    api_param["backup-id"] = group.backup_id().into();
 
-    param.as_object_mut().unwrap().remove("repository");
-    param.as_object_mut().unwrap().remove("group");
-    param.as_object_mut().unwrap().remove("quiet");
-
-    param["backup-type"] = group.backup_type().into();
-    param["backup-id"] = group.backup_id().into();
-
-    let mut result = client.post(&path, Some(param)).await?;
+    let mut result = client.post(&path, Some(api_param)).await?;
 
     record_repository(&repo);
 
