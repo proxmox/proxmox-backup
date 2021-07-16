@@ -6,6 +6,8 @@ use pbs_datastore::{task_log, task_warn};
 
 use crate::{
     api2::types::*,
+    config::acl::PRIV_DATASTORE_MODIFY,
+    config::cached_user_info::CachedUserInfo,
     backup::{compute_prune_info, BackupInfo, DataStore, PruneOptions},
     server::jobstate::Job,
     server::WorkerTask,
@@ -13,6 +15,7 @@ use crate::{
 
 pub fn prune_datastore(
     worker: Arc<WorkerTask>,
+    auth_id: Authid,
     prune_options: PruneOptions,
     store: &str,
     datastore: Arc<DataStore>,
@@ -31,11 +34,20 @@ pub fn prune_datastore(
         );
     }
 
+    let user_info = CachedUserInfo::new()?;
+    let privs = user_info.lookup_privs(&auth_id, &["datastore", store]);
+    let has_privs = privs & PRIV_DATASTORE_MODIFY != 0;
+
     let base_path = datastore.base_path();
 
     let groups = BackupInfo::list_backup_groups(&base_path)?;
     for group in groups {
         let list = group.list_backups(&base_path)?;
+
+        if !has_privs && !datastore.owns_backup(&group, &auth_id)? {
+            continue;
+        }
+
         let mut prune_info = compute_prune_info(list, &prune_options)?;
         prune_info.reverse(); // delete older snapshots first
 
@@ -83,6 +95,7 @@ pub fn do_prune_job(
     let datastore = DataStore::lookup_datastore(&store)?;
 
     let worker_type = job.jobtype().to_string();
+    let auth_id = auth_id.clone();
     let upid_str = WorkerTask::new_thread(
         &worker_type,
         Some(job.jobname().to_string()),
@@ -95,7 +108,7 @@ pub fn do_prune_job(
                 task_log!(worker, "task triggered by schedule '{}'", event_str);
             }
 
-            let result = prune_datastore(worker.clone(), prune_options, &store, datastore);
+            let result = prune_datastore(worker.clone(), auth_id, prune_options, &store, datastore);
 
             let status = worker.create_state(&result);
 

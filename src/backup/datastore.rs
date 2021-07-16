@@ -355,7 +355,7 @@ impl DataStore {
     pub fn owns_backup(&self, backup_group: &BackupGroup, auth_id: &Authid) -> Result<bool, Error> {
         let owner = self.get_owner(backup_group)?;
 
-        Ok(check_backup_owner(owner, auth_id).is_ok())
+        Ok(check_backup_owner(&owner, auth_id).is_ok())
     }
 
     /// Set the backup owner.
