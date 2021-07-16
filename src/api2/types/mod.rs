@@ -357,36 +357,6 @@ pub const REALM_ID_SCHEMA: Schema = StringSchema::new("Realm name.")
 
 // Complex type definitions
 
-pub const PRUNE_SCHEMA_KEEP_DAILY: Schema = IntegerSchema::new(
-    "Number of daily backups to keep.")
-    .minimum(1)
-    .schema();
-
-pub const PRUNE_SCHEMA_KEEP_HOURLY: Schema = IntegerSchema::new(
-    "Number of hourly backups to keep.")
-    .minimum(1)
-    .schema();
-
-pub const PRUNE_SCHEMA_KEEP_LAST: Schema = IntegerSchema::new(
-    "Number of backups to keep.")
-    .minimum(1)
-    .schema();
-
-pub const PRUNE_SCHEMA_KEEP_MONTHLY: Schema = IntegerSchema::new(
-    "Number of monthly backups to keep.")
-    .minimum(1)
-    .schema();
-
-pub const PRUNE_SCHEMA_KEEP_WEEKLY: Schema = IntegerSchema::new(
-    "Number of weekly backups to keep.")
-    .minimum(1)
-    .schema();
-
-pub const PRUNE_SCHEMA_KEEP_YEARLY: Schema = IntegerSchema::new(
-    "Number of yearly backups to keep.")
-    .minimum(1)
-    .schema();
-
 #[api()]
 #[derive(Default, Serialize, Deserialize)]
 /// Storage space usage information.
