@@ -19,11 +19,17 @@ pub fn prune_datastore(
 ) -> Result<(), Error> {
     task_log!(worker, "Starting datastore prune on store \"{}\"", store);
 
-    task_log!(
-        worker,
-        "retention options: {}",
-        prune_options.cli_options_string()
-    );
+    let keep_all = !prune_options.keeps_something();
+
+    if keep_all {
+        task_log!(worker, "No prune selection - keeping all files.");
+    } else {
+        task_log!(
+            worker,
+            "retention options: {}",
+            prune_options.cli_options_string()
+        );
+    }
 
     let base_path = datastore.base_path();
 
@@ -41,7 +47,8 @@ pub fn prune_datastore(
             group.backup_id()
         );
 
-        for (info, keep) in prune_info {
+        for (info, mut keep) in prune_info {
+            if keep_all { keep = true; }
             task_log!(
                 worker,
                 "{} {}/{}/{}",
