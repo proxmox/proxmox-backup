@@ -74,18 +74,6 @@ fn check_priv_or_backup_owner(
     Ok(())
 }
 
-fn check_backup_owner(
-    owner: &Authid,
-    auth_id: &Authid,
-) -> Result<(), Error> {
-    let correct_owner = owner == auth_id
-        || (owner.is_token() && &Authid::from(owner.user().clone()) == auth_id);
-    if !correct_owner {
-        bail!("backup owner check failed ({} != {})", auth_id, owner);
-    }
-    Ok(())
-}
-
 fn read_backup_index(
     store: &DataStore,
     backup_dir: &BackupDir,

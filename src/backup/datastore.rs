@@ -37,6 +37,20 @@ lazy_static! {
     static ref DATASTORE_MAP: Mutex<HashMap<String, Arc<DataStore>>> = Mutex::new(HashMap::new());
 }
 
+/// checks if auth_id is owner, or, if owner is a token, if
+/// auth_id is the user of the token
+pub fn check_backup_owner(
+    owner: &Authid,
+    auth_id: &Authid,
+) -> Result<(), Error> {
+    let correct_owner = owner == auth_id
+        || (owner.is_token() && &Authid::from(owner.user().clone()) == auth_id);
+    if !correct_owner {
+        bail!("backup owner check failed ({} != {})", auth_id, owner);
+    }
+    Ok(())
+}
+
 /// Datastore Management
 ///
 /// A Datastore can store severals backups, and provides the
@@ -336,6 +350,12 @@ impl DataStore {
         full_path.push("owner");
         let owner = proxmox::tools::fs::file_read_firstline(full_path)?;
         Ok(owner.trim_end().parse()?) // remove trailing newline
+    }
+
+    pub fn owns_backup(&self, backup_group: &BackupGroup, auth_id: &Authid) -> Result<bool, Error> {
+        let owner = self.get_owner(backup_group)?;
+
+        Ok(check_backup_owner(owner, auth_id).is_ok())
     }
 
     /// Set the backup owner.
