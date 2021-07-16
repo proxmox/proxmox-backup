@@ -2,6 +2,18 @@ use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
 use anyhow::{Error};
+use serde::{Deserialize, Serialize};
+
+use proxmox::api::api;
+
+use pbs_api_types::{
+    PRUNE_SCHEMA_KEEP_LAST,
+    PRUNE_SCHEMA_KEEP_HOURLY,
+    PRUNE_SCHEMA_KEEP_DAILY,
+    PRUNE_SCHEMA_KEEP_WEEKLY,
+    PRUNE_SCHEMA_KEEP_MONTHLY,
+    PRUNE_SCHEMA_KEEP_YEARLY,
+};
 
 use super::BackupInfo;
 
@@ -68,13 +80,49 @@ fn remove_incomplete_snapshots(
     }
 }
 
-#[derive(Default)]
+#[api(
+    properties: {
+        "keep-last": {
+            schema: PRUNE_SCHEMA_KEEP_LAST,
+            optional: true,
+        },
+        "keep-hourly": {
+            schema: PRUNE_SCHEMA_KEEP_HOURLY,
+            optional: true,
+        },
+        "keep-daily": {
+            schema: PRUNE_SCHEMA_KEEP_DAILY,
+            optional: true,
+        },
+        "keep-weekly": {
+            schema: PRUNE_SCHEMA_KEEP_WEEKLY,
+            optional: true,
+        },
+        "keep-monthly": {
+            schema: PRUNE_SCHEMA_KEEP_MONTHLY,
+            optional: true,
+        },
+        "keep-yearly": {
+            schema: PRUNE_SCHEMA_KEEP_YEARLY,
+            optional: true,
+        },
+    }
+)]
+#[derive(Serialize, Deserialize, Default)]
+#[serde(rename_all = "kebab-case")]
+/// Common pruning options
 pub struct PruneOptions {
+    #[serde(skip_serializing_if="Option::is_none")]
     pub keep_last: Option<u64>,
+    #[serde(skip_serializing_if="Option::is_none")]
     pub keep_hourly: Option<u64>,
+    #[serde(skip_serializing_if="Option::is_none")]
     pub keep_daily: Option<u64>,
+    #[serde(skip_serializing_if="Option::is_none")]
     pub keep_weekly: Option<u64>,
+    #[serde(skip_serializing_if="Option::is_none")]
     pub keep_monthly: Option<u64>,
+    #[serde(skip_serializing_if="Option::is_none")]
     pub keep_yearly: Option<u64>,
 }
 
