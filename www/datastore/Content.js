@@ -340,6 +340,35 @@ Ext.define('PBS.DataStoreContent', {
 	    });
 	},
 
+	pruneAll: function() {
+	    let me = this;
+	    let view = me.getView();
+
+	    if (!view.datastore) return;
+
+	    Ext.create('Proxmox.window.Edit', {
+		title: `Prune Datastore '${view.datastore}'`,
+		onlineHelp: 'maintenance_pruning',
+
+		method: 'POST',
+		submitText: "Prune",
+		autoShow: true,
+		isCreate: true,
+		showTaskViewer: true,
+
+		taskDone: () => me.reload(),
+
+		url: `/api2/extjs/admin/datastore/${view.datastore}/prune-datastore`,
+
+		items: [
+		    {
+			xtype: 'pbsPruneInputPanel',
+			dryrun: true,
+		    },
+		],
+	    });
+	},
+
 	onVerify: function(view, rI, cI, item, e, rec) {
 	    let me = this;
 	    view = me.getView();
@@ -864,6 +893,11 @@ Ext.define('PBS.DataStoreContent', {
 	    text: gettext('Verify All'),
 	    confirmMsg: gettext('Do you want to verify all snapshots now?'),
 	    handler: 'verifyAll',
+	},
+	{
+	    xtype: 'proxmoxButton',
+	    text: gettext('Prune All'),
+	    handler: 'pruneAll',
 	},
 	'->',
 	{

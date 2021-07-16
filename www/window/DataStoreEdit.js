@@ -6,6 +6,9 @@ Ext.define('PBS.panel.PruneInputPanel', {
 
     onlineHelp: 'maintenance_pruning',
 
+    // show/hide dry-run field
+    dryrun: false,
+
     cbindData: function() {
 	let me = this;
 	me.isCreate = !!me.isCreate;
@@ -61,6 +64,18 @@ Ext.define('PBS.panel.PruneInputPanel', {
 	    fieldLabel: gettext('Keep Yearly'),
 	    cbind: {
 		deleteEmpty: '{!isCreate}',
+	    },
+	},
+    ],
+
+    columnB: [
+	{
+	    xtype: 'proxmoxcheckbox',
+	    name: 'dry-run',
+	    fieldLabel: gettext('Dry Run'),
+	    cbind: {
+		hidden: '{!dryrun}',
+		disabled: '{!dryrun}',
 	    },
 	},
     ],
