@@ -96,7 +96,7 @@ build:
 	rm -rf build
 	mkdir build
 	cp -a debian \
-	  Cargo.toml build.rs src \
+	  Cargo.toml src \
 	  $(SUBCRATES) \
 	  docs etc examples tests www zsh-completions \
 	  defines.mk Makefile \
