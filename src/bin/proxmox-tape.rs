@@ -14,6 +14,7 @@ use proxmox::{
     },
 };
 
+use pbs_client::{connect_to_localhost, view_task_result};
 use pbs_tools::format::{
     HumanByte,
     render_epoch,
@@ -21,10 +22,6 @@ use pbs_tools::format::{
 };
 
 use proxmox_backup::{
-    client::{
-        connect_to_localhost,
-        view_task_result,
-    },
     api2::{
         self,
         types::{

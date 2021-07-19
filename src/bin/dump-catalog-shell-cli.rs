@@ -3,7 +3,7 @@ use anyhow::{Error};
 use proxmox::api::format::*;
 use proxmox::api::cli::*;
 
-use proxmox_backup::backup::catalog_shell_cli;
+use pbs_client::catalog_shell::catalog_shell_cli;
 
 fn main() -> Result<(), Error> {
 

@@ -6,12 +6,12 @@ use serde_json::{json, Value};
 
 use proxmox::api::{api, cli::*, RpcEnvironment};
 
+use pbs_client::{connect_to_localhost, display_task_log, view_task_result};
 use pbs_tools::percent_encoding::percent_encode_component;
 
 use proxmox_backup::tools;
 use proxmox_backup::config;
 use proxmox_backup::api2::{self, types::* };
-use proxmox_backup::client::*;
 use proxmox_backup::server::wait_for_local_worker;
 
 mod proxmox_backup_manager;

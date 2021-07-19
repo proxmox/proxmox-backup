@@ -18,13 +18,14 @@ use proxmox::api::cli::{self, CliCommand, CliCommandMap, CliHelper, CommandLineI
 use proxmox::tools::fs::{create_path, CreateOptions};
 use pxar::{EntryKind, Metadata};
 
-use crate::backup::catalog::{self, DirEntryAttribute};
-use crate::pxar::fuse::{Accessor, FileEntry};
-use crate::pxar::Flags;
 use pbs_runtime::block_in_place;
-use crate::tools::ControlFlow;
+use pbs_datastore::catalog::{self, DirEntryAttribute};
+use pbs_tools::ops::ControlFlow;
 
-type CatalogReader = crate::backup::CatalogReader<std::fs::File>;
+use crate::pxar::Flags;
+use crate::pxar::fuse::{Accessor, FileEntry};
+
+type CatalogReader = pbs_datastore::catalog::CatalogReader<std::fs::File>;
 
 const MAX_SYMLINK_COUNT: usize = 40;
 
@@ -78,13 +79,13 @@ pub fn catalog_shell_cli() -> CommandLineInterface {
                 "restore-selected",
                 CliCommand::new(&API_METHOD_RESTORE_SELECTED_COMMAND)
                     .arg_param(&["target"])
-                    .completion_cb("target", crate::tools::complete_file_name),
+                    .completion_cb("target", pbs_tools::fs::complete_file_name),
             )
             .insert(
                 "restore",
                 CliCommand::new(&API_METHOD_RESTORE_COMMAND)
                     .arg_param(&["target"])
-                    .completion_cb("target", crate::tools::complete_file_name),
+                    .completion_cb("target", pbs_tools::fs::complete_file_name),
             )
             .insert(
                 "find",
@@ -985,7 +986,8 @@ impl Shell {
             .metadata()
             .clone();
 
-        let extractor = crate::pxar::extract::Extractor::new(rootdir, root_meta, true, Flags::DEFAULT);
+        let extractor =
+            crate::pxar::extract::Extractor::new(rootdir, root_meta, true, Flags::DEFAULT);
 
         let mut extractor = ExtractorState::new(
             &mut self.catalog,

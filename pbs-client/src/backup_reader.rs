@@ -9,7 +9,7 @@ use serde_json::{json, Value};
 
 use proxmox::tools::digest_to_hex;
 
-use pbs_datastore::{CryptConfig, BackupManifest};
+use pbs_datastore::{PROXMOX_BACKUP_READER_PROTOCOL_ID_V1, CryptConfig, BackupManifest};
 use pbs_datastore::data_blob::DataBlob;
 use pbs_datastore::data_blob_reader::DataBlobReader;
 use pbs_datastore::dynamic_index::DynamicIndexReader;

@@ -50,8 +50,8 @@
 pub(crate) mod create;
 pub(crate) mod dir_stack;
 pub(crate) mod extract;
-pub(crate) mod metadata;
 pub mod fuse;
+pub(crate) mod metadata;
 pub(crate) mod tools;
 
 mod flags;

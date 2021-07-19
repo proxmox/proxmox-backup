@@ -1,7 +1,8 @@
+use std::process::Command;
+
 use anyhow::{Error};
 
-use std::process::Command;
-use proxmox_backup::pxar::*;
+use pbs_client::pxar::*;
 
 fn run_test(dir_name: &str) -> Result<(), Error> {
 

@@ -22,7 +22,7 @@ use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt, ReadBuf};
 use crc32fast::Hasher;
 use proxmox::tools::time::gmtime;
 
-use crate::tools::compression::{DeflateEncoder, Level};
+use crate::compression::{DeflateEncoder, Level};
 
 const LOCAL_FH_SIG: u32 = 0x04034B50;
 const LOCAL_FF_SIG: u32 = 0x08074B50;

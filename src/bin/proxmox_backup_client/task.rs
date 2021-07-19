@@ -4,10 +4,10 @@ use serde_json::{json, Value};
 use proxmox::api::{api, cli::*};
 
 use pbs_tools::percent_encoding::percent_encode_component;
+use pbs_client::display_task_log;
 
 use proxmox_backup::tools;
 
-use proxmox_backup::client::*;
 use proxmox_backup::api2::types::UPID_SCHEMA;
 
 use crate::{

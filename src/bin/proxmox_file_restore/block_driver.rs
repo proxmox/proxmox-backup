@@ -1,18 +1,19 @@
 //! Abstraction layer over different methods of accessing a block backup
-use anyhow::{bail, Error};
-use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
-
 use std::collections::HashMap;
 use std::future::Future;
 use std::hash::BuildHasher;
 use std::pin::Pin;
 
-use proxmox_backup::backup::{BackupDir, BackupManifest};
-use proxmox_backup::api2::types::ArchiveEntry;
-use proxmox_backup::client::BackupRepository;
+use anyhow::{bail, Error};
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
 
 use proxmox::api::{api, cli::*};
+
+use pbs_client::BackupRepository;
+
+use proxmox_backup::backup::{BackupDir, BackupManifest};
+use proxmox_backup::api2::types::ArchiveEntry;
 
 use super::block_driver_qemu::QemuBlockDriver;
 

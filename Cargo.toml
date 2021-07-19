@@ -22,6 +22,7 @@ exclude = [ "build", "debian", "tests/catar_data/test_symlink/symlink1"]
 [workspace]
 members = [
     "pbs-buildcfg",
+    "pbs-client",
     "pbs-datastore",
     "pbs-runtime",
     "pbs-systemd",
@@ -95,6 +96,7 @@ proxmox-openid = "0.6.0"
 
 pbs-api-types = { path = "pbs-api-types" }
 pbs-buildcfg = { path = "pbs-buildcfg" }
+pbs-client = { path = "pbs-client" }
 pbs-datastore = { path = "pbs-datastore" }
 pbs-runtime = { path = "pbs-runtime" }
 pbs-systemd = { path = "pbs-systemd" }

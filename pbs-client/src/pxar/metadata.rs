@@ -13,11 +13,10 @@ use proxmox::c_result;
 use proxmox::sys::error::SysError;
 use proxmox::tools::fd::RawFdNum;
 
-use pbs_tools::fs;
+use pbs_tools::{acl, fs, xattr};
 
 use crate::pxar::tools::perms_from_metadata;
 use crate::pxar::Flags;
-use crate::tools::{acl, xattr};
 
 //
 // utility functions

@@ -22,10 +22,10 @@ use pbs_datastore::manifest::{
     CLIENT_LOG_BLOB_NAME, MANIFEST_BLOB_NAME, ArchiveType, BackupManifest, FileInfo, archive_type
 };
 use pbs_tools::sha::sha256;
+use pbs_client::{BackupReader, BackupRepository, HttpClient, HttpClientOptions, RemoteChunkReader};
 
 use crate::{
     backup::DataStore,
-    client::{BackupReader, BackupRepository, HttpClient, HttpClientOptions, RemoteChunkReader},
     server::WorkerTask,
     tools::ParallelHandler,
 };

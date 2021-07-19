@@ -13,8 +13,9 @@ use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
+use pbs_client::DEFAULT_VSOCK_PORT;
+
 use proxmox::api::RpcEnvironmentType;
-use proxmox_backup::client::DEFAULT_VSOCK_PORT;
 use proxmox_backup::server::{rest::*, ApiConfig};
 
 mod proxmox_restore_daemon;

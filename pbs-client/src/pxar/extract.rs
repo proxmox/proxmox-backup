@@ -27,11 +27,11 @@ use proxmox::tools::{
     io::{sparse_copy, sparse_copy_async},
 };
 
+use pbs_tools::zip::{ZipEncoder, ZipEntry};
+
 use crate::pxar::dir_stack::PxarDirStack;
 use crate::pxar::metadata;
 use crate::pxar::Flags;
-
-use crate::tools::zip::{ZipEncoder, ZipEntry};
 
 pub struct PxarExtractOptions<'a> {
     pub match_list: &'a[MatchEntry],
@@ -215,7 +215,7 @@ where
 }
 
 /// Common state for file extraction.
-pub(crate) struct Extractor {
+pub struct Extractor {
     feature_flags: Flags,
     allow_existing_dirs: bool,
     dir_stack: PxarDirStack,

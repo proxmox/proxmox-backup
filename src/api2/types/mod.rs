@@ -107,14 +107,6 @@ pub const TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA: Schema = StringSchema::new(
     .format(&FINGERPRINT_SHA256_FORMAT)
     .schema();
 
-pub const PROXMOX_CONFIG_DIGEST_SCHEMA: Schema = StringSchema::new(
-    "Prevent changes if current configuration file has different \
-    SHA256 digest. This can be used to prevent concurrent \
-    modifications."
-)
-    .format(&PVE_CONFIG_DIGEST_FORMAT) .schema();
-
-
 pub const CHUNK_DIGEST_SCHEMA: Schema = StringSchema::new("Chunk digest (SHA256).")
     .format(&CHUNK_DIGEST_FORMAT)
     .schema();

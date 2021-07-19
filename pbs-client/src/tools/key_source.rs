@@ -10,7 +10,7 @@ use proxmox::api::schema::*;
 use proxmox::sys::linux::tty;
 use proxmox::tools::fs::file_get_contents;
 
-use proxmox_backup::backup::CryptMode;
+use pbs_api_types::CryptMode;
 
 pub const DEFAULT_ENCRYPTION_KEY_FILE_NAME: &str = "encryption-key.json";
 pub const DEFAULT_MASTER_PUBKEY_FILE_NAME: &str = "master-public.pem";

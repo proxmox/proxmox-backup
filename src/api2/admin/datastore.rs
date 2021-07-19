@@ -26,13 +26,14 @@ use proxmox::{http_err, identity, list_subdirs_api_method, sortable};
 use pxar::accessor::aio::Accessor;
 use pxar::EntryKind;
 
+use pbs_client::pxar::create_zip;
+
 use crate::api2::types::*;
 use crate::api2::node::rrd::create_value_from_rrd;
 use crate::api2::helpers;
 use crate::backup::*;
 use crate::config::datastore;
 use crate::config::cached_user_info::CachedUserInfo;
-use crate::pxar::create_zip;
 
 use crate::server::{jobstate::Job, WorkerTask};
 use crate::tools::{

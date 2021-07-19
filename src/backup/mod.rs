@@ -5,20 +5,6 @@ use anyhow::{bail, Error};
 // Note: .pcat1 => Proxmox Catalog Format version 1
 pub const CATALOG_NAME: &str = "catalog.pcat1.didx";
 
-#[macro_export]
-macro_rules! PROXMOX_BACKUP_PROTOCOL_ID_V1 {
-    () => {
-        "proxmox-backup-protocol-v1"
-    };
-}
-
-#[macro_export]
-macro_rules! PROXMOX_BACKUP_READER_PROTOCOL_ID_V1 {
-    () => {
-        "proxmox-backup-reader-protocol-v1"
-    };
-}
-
 /// Unix system user used by proxmox-backup-proxy
 pub const BACKUP_USER_NAME: &str = "backup";
 /// Unix system group used by proxmox-backup-proxy
@@ -101,10 +87,6 @@ pub use datastore::*;
 
 mod verify;
 pub use verify::*;
-
-// Move to client
-mod catalog_shell;
-pub use catalog_shell::*;
 
 mod cached_chunk_reader;
 pub use cached_chunk_reader::*;

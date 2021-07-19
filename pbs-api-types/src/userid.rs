@@ -98,7 +98,6 @@ pub const PROXMOX_AUTH_REALM_STRING_SCHEMA: StringSchema =
         .max_length(32);
 pub const PROXMOX_AUTH_REALM_SCHEMA: Schema = PROXMOX_AUTH_REALM_STRING_SCHEMA.schema();
 
-
 #[api(
     type: String,
     format: &PROXMOX_USER_NAME_FORMAT,

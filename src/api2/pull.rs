@@ -7,9 +7,10 @@ use futures::{select, future::FutureExt};
 use proxmox::api::api;
 use proxmox::api::{ApiMethod, Router, RpcEnvironment, Permission};
 
+use pbs_client::{HttpClient, BackupRepository};
+
 use crate::server::{WorkerTask, jobstate::Job, pull::pull_store};
 use crate::backup::DataStore;
-use crate::client::{HttpClient, BackupRepository};
 use crate::api2::types::{
     DATASTORE_SCHEMA, REMOTE_ID_SCHEMA, REMOVE_VANISHED_BACKUPS_SCHEMA, Authid,
 };

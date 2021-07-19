@@ -10,6 +10,10 @@ use pbs_tools::ticket::Ticket;
 use pbs_tools::cert::CertInfo;
 use pbs_tools::auth::private_auth_key;
 
+pub mod catalog_shell;
+pub mod pxar;
+pub mod tools;
+
 mod merge_known_chunks;
 pub mod pipe_to_stream;
 

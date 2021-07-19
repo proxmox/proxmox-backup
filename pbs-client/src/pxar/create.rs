@@ -23,14 +23,15 @@ use proxmox::c_str;
 use proxmox::sys::error::SysError;
 use proxmox::tools::fd::RawFdNum;
 use proxmox::tools::vec;
+use proxmox::tools::fd::Fd;
 
 use pbs_datastore::catalog::BackupCatalogWriter;
-use pbs_tools::fs;
+use pbs_tools::{acl, fs, xattr};
+use pbs_tools::str::strip_ascii_whitespace;
 
 use crate::pxar::metadata::errno_is_unsupported;
 use crate::pxar::Flags;
 use crate::pxar::tools::assert_single_path_component;
-use crate::tools::{acl, xattr, Fd};
 
 /// Pxar options for creating a pxar archive/stream
 #[derive(Default, Clone)]
@@ -362,7 +363,7 @@ impl Archiver {
                 }
             };
 
-            let line = crate::tools::strip_ascii_whitespace(&line);
+            let line = strip_ascii_whitespace(&line);
 
             if line.is_empty() || line[0] == b'#' {
                 continue;

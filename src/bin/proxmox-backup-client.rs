@@ -27,47 +27,24 @@ use proxmox::{
 };
 use pxar::accessor::{MaybeReady, ReadAt, ReadAtOperation};
 
-use pbs_datastore::catalog::BackupCatalogWriter;
-use pbs_tools::sync::StdChannelWriter;
-use pbs_tools::tokio::TokioWriterAdapter;
-
-use proxmox_backup::api2::types::*;
-use proxmox_backup::api2::version;
-use proxmox_backup::client::*;
-use proxmox_backup::backup::{
-    archive_type,
-    decrypt_key,
-    rsa_encrypt_key_config,
-    verify_chunk_size,
-    ArchiveType,
-    AsyncReadChunk,
-    BackupDir,
-    BackupGroup,
-    BackupManifest,
-    BufferedDynamicReader,
-    CATALOG_NAME,
-    CatalogReader,
-    CatalogWriter,
-    ChunkStream,
-    CryptConfig,
-    CryptMode,
-    DynamicIndexReader,
-    ENCRYPTED_KEY_BLOB_NAME,
-    FixedChunkStream,
-    FixedIndexReader,
-    KeyConfig,
-    IndexFile,
-    MANIFEST_BLOB_NAME,
-    Shell,
-    PruneOptions,
+use pbs_api_types::CryptMode;
+use pbs_client::{
+    BACKUP_SOURCE_SCHEMA,
+    BackupReader,
+    BackupRepository,
+    BackupSpecificationType,
+    BackupStats,
+    BackupWriter,
+    HttpClient,
+    PxarBackupStream,
+    RemoteChunkReader,
+    UploadOptions,
+    delete_ticket_info,
+    parse_backup_specification,
+    view_task_result,
 };
-use proxmox_backup::tools;
-
-mod proxmox_backup_client;
-use proxmox_backup_client::*;
-
-pub mod proxmox_client_tools;
-use proxmox_client_tools::{
+use pbs_client::catalog_shell::Shell;
+use pbs_client::tools::{
     complete_archive_name, complete_auth_id, complete_backup_group, complete_backup_snapshot,
     complete_backup_source, complete_chunk_size, complete_group_or_snapshot,
     complete_img_archive_name, complete_pxar_archive_name, complete_repository, connect,
@@ -78,6 +55,37 @@ use proxmox_client_tools::{
     },
     CHUNK_SIZE_SCHEMA, REPO_URL_SCHEMA,
 };
+use pbs_datastore::CryptConfig;
+use pbs_datastore::backup_info::{BackupDir, BackupGroup};
+use pbs_datastore::catalog::BackupCatalogWriter;
+use pbs_datastore::dynamic_index::DynamicIndexReader;
+use pbs_datastore::fixed_index::FixedIndexReader;
+use pbs_datastore::index::IndexFile;
+use pbs_datastore::manifest::{MANIFEST_BLOB_NAME, ArchiveType, BackupManifest, archive_type};
+use pbs_datastore::read_chunk::AsyncReadChunk;
+use pbs_tools::sync::StdChannelWriter;
+use pbs_tools::tokio::TokioWriterAdapter;
+
+use proxmox_backup::api2::types::*;
+use proxmox_backup::api2::version;
+use proxmox_backup::backup::{
+    decrypt_key,
+    rsa_encrypt_key_config,
+    verify_chunk_size,
+    BufferedDynamicReader,
+    CATALOG_NAME,
+    CatalogReader,
+    CatalogWriter,
+    ChunkStream,
+    ENCRYPTED_KEY_BLOB_NAME,
+    FixedChunkStream,
+    KeyConfig,
+    PruneOptions,
+};
+use proxmox_backup::tools;
+
+mod proxmox_backup_client;
+use proxmox_backup_client::*;
 
 fn record_repository(repo: &BackupRepository) {
 
@@ -172,7 +180,7 @@ async fn backup_directory<P: AsRef<Path>>(
     archive_name: &str,
     chunk_size: Option<usize>,
     catalog: Arc<Mutex<CatalogWriter<TokioWriterAdapter<StdChannelWriter>>>>,
-    pxar_create_options: proxmox_backup::pxar::PxarCreateOptions,
+    pxar_create_options: pbs_client::pxar::PxarCreateOptions,
     upload_options: UploadOptions,
 ) -> Result<BackupStats, Error> {
 
@@ -589,7 +597,7 @@ fn spawn_catalog_upload(
                type: Integer,
                description: "Max number of entries to hold in memory.",
                optional: true,
-               default: proxmox_backup::pxar::ENCODER_MAX_ENTRIES as isize,
+               default: pbs_client::pxar::ENCODER_MAX_ENTRIES as isize,
            },
            "verbose": {
                type: Boolean,
@@ -633,7 +641,7 @@ async fn create_backup(
     let include_dev = param["include-dev"].as_array();
 
     let entries_max = param["entries-max"].as_u64()
-        .unwrap_or(proxmox_backup::pxar::ENCODER_MAX_ENTRIES as u64);
+        .unwrap_or(pbs_client::pxar::ENCODER_MAX_ENTRIES as u64);
 
     let empty = Vec::new();
     let exclude_args = param["exclude"].as_array().unwrap_or(&empty);
@@ -856,7 +864,7 @@ async fn create_backup(
                 println!("Upload directory '{}' to '{}' as {}", filename, repo, target);
                 catalog.lock().unwrap().start_directory(std::ffi::CString::new(target.as_str())?.as_c_str())?;
 
-                let pxar_options = proxmox_backup::pxar::PxarCreateOptions {
+                let pxar_options = pbs_client::pxar::PxarCreateOptions {
                     device_set: devices.clone(),
                     patterns: pattern_list.clone(),
                     entries_max: entries_max as usize,
@@ -1168,7 +1176,7 @@ async fn restore(param: Value) -> Result<Value, Error> {
 
         let mut reader = BufferedDynamicReader::new(index, chunk_reader);
 
-        let options = proxmox_backup::pxar::PxarExtractOptions {
+        let options = pbs_client::pxar::PxarExtractOptions {
             match_list: &[],
             extract_match_default: true,
             allow_existing_dirs,
@@ -1176,10 +1184,10 @@ async fn restore(param: Value) -> Result<Value, Error> {
         };
 
         if let Some(target) = target {
-            proxmox_backup::pxar::extract_archive(
+            pbs_client::pxar::extract_archive(
                 pxar::decoder::Decoder::from_std(reader)?,
                 Path::new(target),
-                proxmox_backup::pxar::Flags::DEFAULT,
+                pbs_client::pxar::Flags::DEFAULT,
                 |path| {
                     if verbose {
                         println!("{:?}", path);
@@ -1377,7 +1385,6 @@ async fn status(param: Value) -> Result<Value, Error> {
     Ok(Value::Null)
 }
 
-use proxmox_backup::client::RemoteChunkReader;
 /// This is a workaround until we have cleaned up the chunk/reader/... infrastructure for better
 /// async use!
 ///
@@ -1424,13 +1431,13 @@ fn main() {
         .arg_param(&["backupspec"])
         .completion_cb("repository", complete_repository)
         .completion_cb("backupspec", complete_backup_source)
-        .completion_cb("keyfile", tools::complete_file_name)
-        .completion_cb("master-pubkey-file", tools::complete_file_name)
+        .completion_cb("keyfile", pbs_tools::fs::complete_file_name)
+        .completion_cb("master-pubkey-file", pbs_tools::fs::complete_file_name)
         .completion_cb("chunk-size", complete_chunk_size);
 
     let benchmark_cmd_def = CliCommand::new(&API_METHOD_BENCHMARK)
         .completion_cb("repository", complete_repository)
-        .completion_cb("keyfile", tools::complete_file_name);
+        .completion_cb("keyfile", pbs_tools::fs::complete_file_name);
 
     let list_cmd_def = CliCommand::new(&API_METHOD_LIST_BACKUP_GROUPS)
         .completion_cb("repository", complete_repository);
@@ -1443,7 +1450,7 @@ fn main() {
         .completion_cb("repository", complete_repository)
         .completion_cb("snapshot", complete_group_or_snapshot)
         .completion_cb("archive-name", complete_archive_name)
-        .completion_cb("target", tools::complete_file_name);
+        .completion_cb("target", pbs_tools::fs::complete_file_name);
 
     let prune_cmd_def = CliCommand::new(&API_METHOD_PRUNE)
         .arg_param(&["group"])

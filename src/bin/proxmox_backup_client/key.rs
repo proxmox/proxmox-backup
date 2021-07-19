@@ -14,17 +14,16 @@ use proxmox::sys::linux::tty;
 use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
 
 use pbs_datastore::{KeyInfo, Kdf};
+use pbs_client::tools::key_source::{
+    find_default_encryption_key, find_default_master_pubkey, get_encryption_key_password,
+    place_default_encryption_key, place_default_master_pubkey,
+};
+
 
 use proxmox_backup::{
     api2::types::{RsaPubKeyInfo, PASSWORD_HINT_SCHEMA},
     backup::{rsa_decrypt_key_config, KeyConfig},
-    tools,
     tools::paperkey::{generate_paper_key, PaperkeyFormat},
-};
-
-use crate::proxmox_client_tools::key_source::{
-    find_default_encryption_key, find_default_master_pubkey, get_encryption_key_password,
-    place_default_encryption_key, place_default_master_pubkey,
 };
 
 #[api(
@@ -458,35 +457,35 @@ fn paper_key(
 pub fn cli() -> CliCommandMap {
     let key_create_cmd_def = CliCommand::new(&API_METHOD_CREATE)
         .arg_param(&["path"])
-        .completion_cb("path", tools::complete_file_name);
+        .completion_cb("path", pbs_tools::fs::complete_file_name);
 
     let key_import_with_master_key_cmd_def = CliCommand::new(&API_METHOD_IMPORT_WITH_MASTER_KEY)
         .arg_param(&["master-keyfile"])
-        .completion_cb("master-keyfile", tools::complete_file_name)
+        .completion_cb("master-keyfile", pbs_tools::fs::complete_file_name)
         .arg_param(&["encrypted-keyfile"])
-        .completion_cb("encrypted-keyfile", tools::complete_file_name)
+        .completion_cb("encrypted-keyfile", pbs_tools::fs::complete_file_name)
         .arg_param(&["path"])
-        .completion_cb("path", tools::complete_file_name);
+        .completion_cb("path", pbs_tools::fs::complete_file_name);
 
     let key_change_passphrase_cmd_def = CliCommand::new(&API_METHOD_CHANGE_PASSPHRASE)
         .arg_param(&["path"])
-        .completion_cb("path", tools::complete_file_name);
+        .completion_cb("path", pbs_tools::fs::complete_file_name);
 
     let key_create_master_key_cmd_def = CliCommand::new(&API_METHOD_CREATE_MASTER_KEY);
     let key_import_master_pubkey_cmd_def = CliCommand::new(&API_METHOD_IMPORT_MASTER_PUBKEY)
         .arg_param(&["path"])
-        .completion_cb("path", tools::complete_file_name);
+        .completion_cb("path", pbs_tools::fs::complete_file_name);
     let key_show_master_pubkey_cmd_def = CliCommand::new(&API_METHOD_SHOW_MASTER_PUBKEY)
         .arg_param(&["path"])
-        .completion_cb("path", tools::complete_file_name);
+        .completion_cb("path", pbs_tools::fs::complete_file_name);
 
     let key_show_cmd_def = CliCommand::new(&API_METHOD_SHOW_KEY)
         .arg_param(&["path"])
-        .completion_cb("path", tools::complete_file_name);
+        .completion_cb("path", pbs_tools::fs::complete_file_name);
 
     let paper_key_cmd_def = CliCommand::new(&API_METHOD_PAPER_KEY)
         .arg_param(&["path"])
-        .completion_cb("path", tools::complete_file_name);
+        .completion_cb("path", pbs_tools::fs::complete_file_name);
 
     CliCommandMap::new()
         .insert("create", key_create_cmd_def)

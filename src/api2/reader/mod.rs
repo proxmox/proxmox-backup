@@ -28,6 +28,7 @@ use proxmox::{
 };
 
 use pbs_tools::fs::lock_dir_noblock_shared;
+use pbs_datastore::PROXMOX_BACKUP_READER_PROTOCOL_ID_V1;
 
 use crate::{
     api2::{

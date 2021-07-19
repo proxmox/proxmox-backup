@@ -17,6 +17,9 @@ use proxmox::{sortable, identity};
 use proxmox::api::{ApiHandler, ApiMethod, RpcEnvironment, schema::*, cli::*};
 use proxmox::tools::fd::Fd;
 
+use pbs_client::tools::key_source::get_encryption_key_password;
+use pbs_client::{BackupReader, RemoteChunkReader};
+
 use proxmox_backup::tools;
 use proxmox_backup::backup::{
     load_and_decrypt_key,
@@ -27,8 +30,6 @@ use proxmox_backup::backup::{
     BufferedDynamicReader,
     CachedChunkReader,
 };
-
-use proxmox_backup::client::*;
 
 use crate::{
     REPO_URL_SCHEMA,
@@ -42,8 +43,6 @@ use crate::{
     api_datastore_latest_snapshot,
     BufferedDynamicReadAt,
 };
-
-use crate::proxmox_client_tools::key_source::get_encryption_key_password;
 
 #[sortable]
 const API_METHOD_MOUNT: ApiMethod = ApiMethod::new(
@@ -98,7 +97,7 @@ pub fn mount_cmd_def() -> CliCommand {
         .completion_cb("repository", complete_repository)
         .completion_cb("snapshot", complete_group_or_snapshot)
         .completion_cb("archive-name", complete_pxar_archive_name)
-        .completion_cb("target", tools::complete_file_name)
+        .completion_cb("target", pbs_tools::fs::complete_file_name)
 }
 
 pub fn map_cmd_def() -> CliCommand {
@@ -257,11 +256,11 @@ async fn mount_do(param: Value, pipe: Option<Fd>) -> Result<Value, Error> {
         let chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config, file_info.chunk_crypt_mode(), most_used);
         let reader = BufferedDynamicReader::new(index, chunk_reader);
         let archive_size = reader.archive_size();
-        let reader: proxmox_backup::pxar::fuse::Reader =
+        let reader: pbs_client::pxar::fuse::Reader =
             Arc::new(BufferedDynamicReadAt::new(reader));
-        let decoder = proxmox_backup::pxar::fuse::Accessor::new(reader, archive_size).await?;
+        let decoder = pbs_client::pxar::fuse::Accessor::new(reader, archive_size).await?;
 
-        let session = proxmox_backup::pxar::fuse::Session::mount(
+        let session = pbs_client::pxar::fuse::Session::mount(
             decoder,
             &options,
             false,

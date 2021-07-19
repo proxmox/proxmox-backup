@@ -3,12 +3,10 @@ use serde_json::Value;
 
 use proxmox::api::{api, cli::*, RpcEnvironment, ApiHandler};
 
+use pbs_client::{connect_to_localhost, view_task_result};
+
 use proxmox_backup::{
     config,
-    client::{
-        connect_to_localhost,
-        view_task_result,
-    },
     api2::{
         self,
         types::*,

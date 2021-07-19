@@ -40,6 +40,13 @@ pub use userid::{Tokenname, TokennameRef};
 pub use userid::{Username, UsernameRef};
 pub use userid::{PROXMOX_GROUP_ID_SCHEMA, PROXMOX_TOKEN_ID_SCHEMA, PROXMOX_TOKEN_NAME_SCHEMA};
 
+#[macro_use]
+mod user;
+pub use user::{ApiToken, User, UserWithTokens};
+pub use user::{
+    EMAIL_SCHEMA, ENABLE_USER_SCHEMA, EXPIRE_USER_SCHEMA, FIRST_NAME_SCHEMA, LAST_NAME_SCHEMA,
+};
+
 pub mod upid;
 pub use upid::UPID;
 
@@ -146,35 +153,33 @@ pub const CERT_FINGERPRINT_SHA256_SCHEMA: Schema =
         .format(&FINGERPRINT_SHA256_FORMAT)
         .schema();
 
-pub const PRUNE_SCHEMA_KEEP_DAILY: Schema = IntegerSchema::new(
-    "Number of daily backups to keep.")
+pub const PRUNE_SCHEMA_KEEP_DAILY: Schema = IntegerSchema::new("Number of daily backups to keep.")
     .minimum(1)
     .schema();
 
-pub const PRUNE_SCHEMA_KEEP_HOURLY: Schema = IntegerSchema::new(
-    "Number of hourly backups to keep.")
+pub const PRUNE_SCHEMA_KEEP_HOURLY: Schema =
+    IntegerSchema::new("Number of hourly backups to keep.")
+        .minimum(1)
+        .schema();
+
+pub const PRUNE_SCHEMA_KEEP_LAST: Schema = IntegerSchema::new("Number of backups to keep.")
     .minimum(1)
     .schema();
 
-pub const PRUNE_SCHEMA_KEEP_LAST: Schema = IntegerSchema::new(
-    "Number of backups to keep.")
-    .minimum(1)
-    .schema();
+pub const PRUNE_SCHEMA_KEEP_MONTHLY: Schema =
+    IntegerSchema::new("Number of monthly backups to keep.")
+        .minimum(1)
+        .schema();
 
-pub const PRUNE_SCHEMA_KEEP_MONTHLY: Schema = IntegerSchema::new(
-    "Number of monthly backups to keep.")
-    .minimum(1)
-    .schema();
+pub const PRUNE_SCHEMA_KEEP_WEEKLY: Schema =
+    IntegerSchema::new("Number of weekly backups to keep.")
+        .minimum(1)
+        .schema();
 
-pub const PRUNE_SCHEMA_KEEP_WEEKLY: Schema = IntegerSchema::new(
-    "Number of weekly backups to keep.")
-    .minimum(1)
-    .schema();
-
-pub const PRUNE_SCHEMA_KEEP_YEARLY: Schema = IntegerSchema::new(
-    "Number of yearly backups to keep.")
-    .minimum(1)
-    .schema();
+pub const PRUNE_SCHEMA_KEEP_YEARLY: Schema =
+    IntegerSchema::new("Number of yearly backups to keep.")
+        .minimum(1)
+        .schema();
 
 pub const PROXMOX_SAFE_ID_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&PROXMOX_SAFE_ID_REGEX);
@@ -185,6 +190,14 @@ pub const SINGLE_LINE_COMMENT_FORMAT: ApiStringFormat =
 pub const SINGLE_LINE_COMMENT_SCHEMA: Schema = StringSchema::new("Comment (single line).")
     .format(&SINGLE_LINE_COMMENT_FORMAT)
     .schema();
+
+pub const PROXMOX_CONFIG_DIGEST_SCHEMA: Schema = StringSchema::new(
+    "Prevent changes if current configuration file has different \
+    SHA256 digest. This can be used to prevent concurrent \
+    modifications.",
+)
+.format(&PVE_CONFIG_DIGEST_FORMAT)
+.schema();
 
 pub const BACKUP_ID_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&BACKUP_ID_REGEX);
 
@@ -411,7 +424,7 @@ pub struct GroupListItem {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub owner: Option<Authid>,
     /// The first line from group "notes"
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
 }
 

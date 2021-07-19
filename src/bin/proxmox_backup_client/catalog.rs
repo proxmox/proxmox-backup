@@ -7,9 +7,10 @@ use serde_json::Value;
 
 use proxmox::api::{api, cli::*};
 
-use proxmox_backup::tools;
+use pbs_client::tools::key_source::get_encryption_key_password;
+use pbs_client::{BackupReader, RemoteChunkReader};
 
-use proxmox_backup::client::*;
+use proxmox_backup::tools;
 
 use crate::{
     REPO_URL_SCHEMA,
@@ -36,8 +37,6 @@ use crate::{
     IndexFile,
     Shell,
 };
-
-use crate::proxmox_client_tools::key_source::get_encryption_key_password;
 
 #[api(
    input: {
@@ -219,9 +218,9 @@ async fn catalog_shell(param: Value) -> Result<(), Error> {
     let chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config.clone(), file_info.chunk_crypt_mode(), most_used);
     let reader = BufferedDynamicReader::new(index, chunk_reader);
     let archive_size = reader.archive_size();
-    let reader: proxmox_backup::pxar::fuse::Reader =
+    let reader: pbs_client::pxar::fuse::Reader =
         Arc::new(BufferedDynamicReadAt::new(reader));
-    let decoder = proxmox_backup::pxar::fuse::Accessor::new(reader, archive_size).await?;
+    let decoder = pbs_client::pxar::fuse::Accessor::new(reader, archive_size).await?;
 
     client.download(CATALOG_NAME, &mut tmpfile).await?;
     let index = DynamicIndexReader::new(tmpfile)

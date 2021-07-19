@@ -2,8 +2,6 @@
 //!
 //! This is a collection of small and useful tools.
 use std::any::Any;
-use std::collections::HashMap;
-use std::hash::BuildHasher;
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::os::unix::io::RawFd;
@@ -29,7 +27,6 @@ pub use pbs_tools::process_locker::{
     ProcessLocker, ProcessLockExclusiveGuard, ProcessLockSharedGuard
 };
 
-pub mod acl;
 pub mod apt;
 pub mod async_io;
 pub mod compression;
@@ -51,8 +48,6 @@ pub mod statistics;
 pub mod subscription;
 pub mod systemd;
 pub mod ticket;
-pub mod xattr;
-pub mod zip;
 pub mod sgutils2;
 pub mod paperkey;
 
@@ -69,6 +64,7 @@ mod file_logger;
 pub use file_logger::{FileLogger, FileLogOptions};
 
 pub use pbs_tools::broadcast_future::{BroadcastData, BroadcastFuture};
+pub use pbs_tools::ops::ControlFlow;
 
 /// The `BufferedRead` trait provides a single function
 /// `buffered_read`. It returns a reference to an internal buffer. The
@@ -120,65 +116,6 @@ pub fn required_array_property<'a>(param: &'a Value, name: &str) -> Result<&'a [
         Some(s) => Ok(&s),
         None => bail!("missing property '{}'", name),
     }
-}
-
-pub fn complete_file_name<S>(arg: &str, _param: &HashMap<String, String, S>) -> Vec<String>
-where
-    S: BuildHasher,
-{
-    let mut result = vec![];
-
-    use nix::fcntl::AtFlags;
-    use nix::fcntl::OFlag;
-    use nix::sys::stat::Mode;
-
-    let mut dirname = std::path::PathBuf::from(if arg.is_empty() { "./" } else { arg });
-
-    let is_dir = match nix::sys::stat::fstatat(libc::AT_FDCWD, &dirname, AtFlags::empty()) {
-        Ok(stat) => (stat.st_mode & libc::S_IFMT) == libc::S_IFDIR,
-        Err(_) => false,
-    };
-
-    if !is_dir {
-        if let Some(parent) = dirname.parent() {
-            dirname = parent.to_owned();
-        }
-    }
-
-    let mut dir =
-        match nix::dir::Dir::openat(libc::AT_FDCWD, &dirname, OFlag::O_DIRECTORY, Mode::empty()) {
-            Ok(d) => d,
-            Err(_) => return result,
-        };
-
-    for item in dir.iter() {
-        if let Ok(entry) = item {
-            if let Ok(name) = entry.file_name().to_str() {
-                if name == "." || name == ".." {
-                    continue;
-                }
-                let mut newpath = dirname.clone();
-                newpath.push(name);
-
-                if let Ok(stat) =
-                    nix::sys::stat::fstatat(libc::AT_FDCWD, &newpath, AtFlags::empty())
-                {
-                    if (stat.st_mode & libc::S_IFMT) == libc::S_IFDIR {
-                        newpath.push("");
-                        if let Some(newpath) = newpath.to_str() {
-                            result.push(newpath.to_owned());
-                        }
-                        continue;
-                    }
-                }
-                if let Some(newpath) = newpath.to_str() {
-                    result.push(newpath.to_owned());
-                }
-            }
-        }
-    }
-
-    result
 }
 
 /// Shortcut for md5 sums.
@@ -373,17 +310,6 @@ pub fn setup_safe_path_env() {
     }
 }
 
-pub fn strip_ascii_whitespace(line: &[u8]) -> &[u8] {
-    let line = match line.iter().position(|&b| !b.is_ascii_whitespace()) {
-        Some(n) => &line[n..],
-        None => return &[],
-    };
-    match line.iter().rev().position(|&b| !b.is_ascii_whitespace()) {
-        Some(n) => &line[..(line.len() - n)],
-        None => &[],
-    }
-}
-
 /// Create the base run-directory.
 ///
 /// This exists to fixate the permissions for the run *base* directory while allowing intermediate
@@ -395,15 +321,4 @@ pub fn create_run_dir() -> Result<(), Error> {
         .group(backup_user.gid);
     let _: bool = create_path(pbs_buildcfg::PROXMOX_BACKUP_RUN_DIR_M!(), None, Some(opts))?;
     Ok(())
-}
-
-/// Modeled after the nightly `std::ops::ControlFlow`.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum ControlFlow<B, C = ()> {
-    Continue(C),
-    Break(B),
-}
-
-impl<B> ControlFlow<B> {
-    pub const CONTINUE: ControlFlow<B, ()> = ControlFlow::Continue(());
 }

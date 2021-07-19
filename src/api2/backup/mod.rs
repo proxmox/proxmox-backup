@@ -13,6 +13,7 @@ use proxmox::api::router::SubdirMap;
 use proxmox::api::schema::*;
 
 use pbs_tools::fs::lock_dir_noblock_shared;
+use pbs_datastore::PROXMOX_BACKUP_PROTOCOL_ID_V1;
 
 use crate::tools;
 use crate::server::{WorkerTask, H2Service};

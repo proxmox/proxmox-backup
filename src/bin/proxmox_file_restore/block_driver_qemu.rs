@@ -1,21 +1,23 @@
 //! Block file access via a small QEMU restore VM using the PBS block driver in QEMU
+use std::collections::HashMap;
+use std::fs::{File, OpenOptions};
+use std::io::{prelude::*, SeekFrom};
+
 use anyhow::{bail, Error};
 use futures::FutureExt;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use std::collections::HashMap;
-use std::fs::{File, OpenOptions};
-use std::io::{prelude::*, SeekFrom};
-
 use proxmox::tools::fs::lock_file;
+
+use pbs_client::{DEFAULT_VSOCK_PORT, BackupRepository, VsockClient};
+
 use proxmox_backup::api2::types::ArchiveEntry;
 use proxmox_backup::backup::BackupDir;
-use proxmox_backup::client::*;
 use proxmox_backup::tools;
 
 use super::block_driver::*;
-use crate::proxmox_client_tools::get_user_run_dir;
+use crate::get_user_run_dir;
 
 const RESTORE_VM_MAP: &str = "restore-vm-map.json";
 

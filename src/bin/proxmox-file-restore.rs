@@ -16,18 +16,10 @@ use proxmox::api::{
 use pxar::accessor::aio::Accessor;
 use pxar::decoder::aio::Decoder;
 
-use proxmox_backup::api2::{helpers, types::ArchiveEntry};
-use proxmox_backup::backup::{
-    decrypt_key, BackupDir, BufferedDynamicReader, CatalogReader, CryptConfig, CryptMode,
-    DirEntryAttribute, IndexFile, LocalDynamicReadAt, CATALOG_NAME,
-};
-use proxmox_backup::client::{BackupReader, RemoteChunkReader};
-use proxmox_backup::pxar::{create_zip, extract_sub_dir, extract_sub_dir_seq};
-use proxmox_backup::tools;
-
-// use "pub" so rust doesn't complain about "unused" functions in the module
-pub mod proxmox_client_tools;
-use proxmox_client_tools::{
+use pbs_datastore::index::IndexFile;
+use pbs_client::{BackupReader, RemoteChunkReader};
+use pbs_client::pxar::{create_zip, extract_sub_dir, extract_sub_dir_seq};
+use pbs_client::tools::{
     complete_group_or_snapshot, complete_repository, connect, extract_repository_from_value,
     key_source::{
         crypto_parameters_keep_fd, format_key_source, get_encryption_key_password, KEYFD_SCHEMA,
@@ -35,6 +27,13 @@ use proxmox_client_tools::{
     },
     REPO_URL_SCHEMA,
 };
+
+use proxmox_backup::api2::{helpers, types::ArchiveEntry};
+use proxmox_backup::backup::{
+    decrypt_key, BackupDir, BufferedDynamicReader, CatalogReader, CryptConfig, CryptMode,
+    DirEntryAttribute, LocalDynamicReadAt, CATALOG_NAME,
+};
+use proxmox_backup::tools;
 
 mod proxmox_file_restore;
 use proxmox_file_restore::*;
@@ -456,7 +455,7 @@ fn main() {
         .arg_param(&["snapshot", "path", "target"])
         .completion_cb("repository", complete_repository)
         .completion_cb("snapshot", complete_group_or_snapshot)
-        .completion_cb("target", tools::complete_file_name);
+        .completion_cb("target", pbs_tools::fs::complete_file_name);
 
     let status_cmd_def = CliCommand::new(&API_METHOD_STATUS);
     let stop_cmd_def = CliCommand::new(&API_METHOD_STOP)
@@ -475,4 +474,16 @@ fn main() {
         rpcenv,
         Some(|future| pbs_runtime::main(future)),
     );
+}
+
+/// Returns a runtime dir owned by the current user.
+/// Note that XDG_RUNTIME_DIR is not always available, especially for non-login users like
+/// "www-data", so we use a custom one in /run/proxmox-backup/<uid> instead.
+pub fn get_user_run_dir() -> Result<std::path::PathBuf, Error> {
+    let uid = nix::unistd::Uid::current();
+    let mut path: std::path::PathBuf = pbs_buildcfg::PROXMOX_BACKUP_RUN_DIR.into();
+    path.push(uid.to_string());
+    tools::create_run_dir()?;
+    std::fs::create_dir_all(&path)?;
+    Ok(path)
 }

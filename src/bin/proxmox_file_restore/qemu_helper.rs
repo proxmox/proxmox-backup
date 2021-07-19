@@ -13,8 +13,9 @@ use nix::unistd::Pid;
 
 use proxmox::tools::fs::{create_path, file_read_string, make_tmp_file, CreateOptions};
 
+use pbs_client::{VsockClient, DEFAULT_VSOCK_PORT};
+
 use proxmox_backup::backup::backup_user;
-use proxmox_backup::client::{VsockClient, DEFAULT_VSOCK_PORT};
 use proxmox_backup::tools;
 
 use super::SnapRestoreDetails;

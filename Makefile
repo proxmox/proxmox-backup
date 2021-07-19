@@ -33,6 +33,7 @@ RESTORE_BIN := \
 SUBCRATES := \
 	pbs-api-types \
 	pbs-buildcfg \
+	pbs-client \
 	pbs-datastore \
 	pbs-runtime \
 	pbs-systemd \

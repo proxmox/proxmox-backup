@@ -8,6 +8,8 @@ use proxmox::{
     tools::fs::file_get_contents,
 };
 
+use pbs_client::tools::key_source::get_encryption_key_password;
+
 use proxmox_backup::{
     tools,
     api2::types::*,
@@ -34,8 +36,6 @@ use crate::{
     extract_repository_from_value,
     record_repository,
 };
-
-use crate::proxmox_client_tools::key_source::get_encryption_key_password;
 
 #[api(
    input: {
@@ -412,8 +412,8 @@ pub fn snapshot_mgtm_cli() -> CliCommandMap {
             CliCommand::new(&API_METHOD_UPLOAD_LOG)
                 .arg_param(&["snapshot", "logfile"])
                 .completion_cb("snapshot", complete_backup_snapshot)
-                .completion_cb("logfile", tools::complete_file_name)
-                .completion_cb("keyfile", tools::complete_file_name)
+                .completion_cb("logfile", pbs_tools::fs::complete_file_name)
+                .completion_cb("keyfile", pbs_tools::fs::complete_file_name)
                 .completion_cb("repository", complete_repository)
         )
 }

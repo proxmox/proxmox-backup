@@ -12,12 +12,10 @@ use futures::select;
 use tokio::signal::unix::{signal, SignalKind};
 
 use pathpatterns::{MatchEntry, MatchType, PatternFlag};
+use pbs_client::pxar::{fuse, format_single_line_entry, ENCODER_MAX_ENTRIES, Flags, PxarExtractOptions};
 
 use proxmox::api::cli::*;
 use proxmox::api::api;
-
-use proxmox_backup::tools;
-use proxmox_backup::pxar::{fuse, format_single_line_entry, ENCODER_MAX_ENTRIES, Flags, PxarExtractOptions};
 
 fn extract_archive_from_reader<R: std::io::Read>(
     reader: &mut R,
@@ -26,8 +24,7 @@ fn extract_archive_from_reader<R: std::io::Read>(
     verbose: bool,
     options: PxarExtractOptions,
 ) -> Result<(), Error> {
-
-    proxmox_backup::pxar::extract_archive(
+    pbs_client::pxar::extract_archive(
         pxar::decoder::Decoder::from_std(reader)?,
         Path::new(target),
         feature_flags,
@@ -327,7 +324,7 @@ async fn create_archive(
         Some(HashSet::new())
     };
 
-    let options = proxmox_backup::pxar::PxarCreateOptions {
+    let options = pbs_client::pxar::PxarCreateOptions {
         entries_max: entries_max as usize,
         device_set,
         patterns,
@@ -372,7 +369,7 @@ async fn create_archive(
     }
 
     let writer = pxar::encoder::sync::StandardWriter::new(writer);
-    proxmox_backup::pxar::create_archive(
+    pbs_client::pxar::create_archive(
         dir,
         writer,
         feature_flags,
@@ -464,29 +461,29 @@ fn main() {
             "create",
             CliCommand::new(&API_METHOD_CREATE_ARCHIVE)
                 .arg_param(&["archive", "source"])
-                .completion_cb("archive", tools::complete_file_name)
-                .completion_cb("source", tools::complete_file_name),
+                .completion_cb("archive", pbs_tools::fs::complete_file_name)
+                .completion_cb("source", pbs_tools::fs::complete_file_name),
         )
         .insert(
             "extract",
             CliCommand::new(&API_METHOD_EXTRACT_ARCHIVE)
                 .arg_param(&["archive", "target"])
-                .completion_cb("archive", tools::complete_file_name)
-                .completion_cb("target", tools::complete_file_name)
-                .completion_cb("files-from", tools::complete_file_name),
+                .completion_cb("archive", pbs_tools::fs::complete_file_name)
+                .completion_cb("target", pbs_tools::fs::complete_file_name)
+                .completion_cb("files-from", pbs_tools::fs::complete_file_name),
         )
         .insert(
             "mount",
             CliCommand::new(&API_METHOD_MOUNT_ARCHIVE)
                 .arg_param(&["archive", "mountpoint"])
-                .completion_cb("archive", tools::complete_file_name)
-                .completion_cb("mountpoint", tools::complete_file_name),
+                .completion_cb("archive", pbs_tools::fs::complete_file_name)
+                .completion_cb("mountpoint", pbs_tools::fs::complete_file_name),
         )
         .insert(
             "list",
             CliCommand::new(&API_METHOD_DUMP_ARCHIVE)
                 .arg_param(&["archive"])
-                .completion_cb("archive", tools::complete_file_name),
+                .completion_cb("archive", pbs_tools::fs::complete_file_name),
         );
 
     let rpcenv = CliEnvironment::new();

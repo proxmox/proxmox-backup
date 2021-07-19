@@ -6,8 +6,9 @@ use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};
 use proxmox::http_err;
 use proxmox::tools::fs::open_file_locked;
 
+use pbs_client::{HttpClient, HttpClientOptions};
+
 use crate::api2::types::*;
-use crate::client::{HttpClient, HttpClientOptions};
 use crate::config::cached_user_info::CachedUserInfo;
 use crate::config::remote;
 use crate::config::acl::{PRIV_REMOTE_AUDIT, PRIV_REMOTE_MODIFY};
