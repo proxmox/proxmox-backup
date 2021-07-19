@@ -2,10 +2,12 @@ use std::fmt::Write;
 use std::fs;
 use std::net::ToSocketAddrs;
 
-use proxmox::tools;
+use nix::sys::utsname::uname;
 
 fn main() {
-    let nodename = tools::nodename();
+    let uname = uname(); // save on stack to avoid to_owned() allocation below
+    let nodename = uname.nodename().split('.').next().unwrap();
+
     let addr = format!("{}:8007", nodename);
 
     let mut banner = format!(
