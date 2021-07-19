@@ -349,61 +349,6 @@ pub const REALM_ID_SCHEMA: Schema = StringSchema::new("Realm name.")
 
 // Complex type definitions
 
-#[api()]
-#[derive(Default, Serialize, Deserialize)]
-/// Storage space usage information.
-pub struct StorageStatus {
-    /// Total space (bytes).
-    pub total: u64,
-    /// Used space (bytes).
-    pub used: u64,
-    /// Available space (bytes).
-    pub avail: u64,
-}
-
-#[api()]
-#[derive(Serialize, Deserialize, Default)]
-/// Backup Type group/snapshot counts.
-pub struct TypeCounts {
-    /// The number of groups of the type.
-    pub groups: u64,
-    /// The number of snapshots of the type.
-    pub snapshots: u64,
-}
-
-#[api(
-    properties: {
-        ct: {
-            type: TypeCounts,
-            optional: true,
-        },
-        host: {
-            type: TypeCounts,
-            optional: true,
-        },
-        vm: {
-            type: TypeCounts,
-            optional: true,
-        },
-        other: {
-            type: TypeCounts,
-            optional: true,
-        },
-    },
-)]
-#[derive(Serialize, Deserialize, Default)]
-/// Counts of groups/snapshots per BackupType.
-pub struct Counts {
-    /// The counts for CT backups
-    pub ct: Option<TypeCounts>,
-    /// The counts for Host backups
-    pub host: Option<TypeCounts>,
-    /// The counts for VM backups
-    pub vm: Option<TypeCounts>,
-    /// The counts for other backup types
-    pub other: Option<TypeCounts>,
-}
-
 #[api(
     properties: {
         "gc-status": {

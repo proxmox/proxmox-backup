@@ -27,7 +27,10 @@ use proxmox::{
 };
 use pxar::accessor::{MaybeReady, ReadAt, ReadAtOperation};
 
-use pbs_api_types::CryptMode;
+use pbs_api_types::{
+    BACKUP_ID_SCHEMA, BACKUP_TIME_SCHEMA, BACKUP_TYPE_SCHEMA, Authid, CryptMode, GroupListItem,
+    PruneListItem, SnapshotListItem, StorageStatus,
+};
 use pbs_client::{
     BACKUP_SOURCE_SCHEMA,
     BackupReader,
@@ -55,32 +58,25 @@ use pbs_client::tools::{
     },
     CHUNK_SIZE_SCHEMA, REPO_URL_SCHEMA,
 };
-use pbs_datastore::CryptConfig;
+use pbs_datastore::{CATALOG_NAME, CryptConfig, KeyConfig, decrypt_key, rsa_encrypt_key_config};
 use pbs_datastore::backup_info::{BackupDir, BackupGroup};
-use pbs_datastore::catalog::BackupCatalogWriter;
+use pbs_datastore::catalog::{BackupCatalogWriter, CatalogReader, CatalogWriter};
+use pbs_datastore::chunk_store::verify_chunk_size;
 use pbs_datastore::dynamic_index::DynamicIndexReader;
 use pbs_datastore::fixed_index::FixedIndexReader;
 use pbs_datastore::index::IndexFile;
-use pbs_datastore::manifest::{MANIFEST_BLOB_NAME, ArchiveType, BackupManifest, archive_type};
+use pbs_datastore::manifest::{
+    ENCRYPTED_KEY_BLOB_NAME, MANIFEST_BLOB_NAME, ArchiveType, BackupManifest, archive_type,
+};
 use pbs_datastore::read_chunk::AsyncReadChunk;
+use pbs_datastore::prune::PruneOptions;
 use pbs_tools::sync::StdChannelWriter;
 use pbs_tools::tokio::TokioWriterAdapter;
 
-use proxmox_backup::api2::types::*;
-use proxmox_backup::api2::version;
 use proxmox_backup::backup::{
-    decrypt_key,
-    rsa_encrypt_key_config,
-    verify_chunk_size,
     BufferedDynamicReader,
-    CATALOG_NAME,
-    CatalogReader,
-    CatalogWriter,
     ChunkStream,
-    ENCRYPTED_KEY_BLOB_NAME,
     FixedChunkStream,
-    KeyConfig,
-    PruneOptions,
 };
 use proxmox_backup::tools;
 
