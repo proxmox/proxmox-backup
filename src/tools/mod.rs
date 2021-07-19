@@ -2,10 +2,7 @@
 //!
 //! This is a collection of small and useful tools.
 use std::any::Any;
-use std::fs::File;
-use std::io::{self, BufRead};
 use std::os::unix::io::RawFd;
-use std::path::Path;
 
 use anyhow::{bail, format_err, Error};
 use serde_json::Value;
