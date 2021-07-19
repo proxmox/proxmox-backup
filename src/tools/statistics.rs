@@ -79,8 +79,8 @@ where
     Some(covariance/(len_x as f64))
 }
 
-/// Returns the factors (a,b) of a linear regression y = a + bx
-/// for the variables [x,y] or None if the lists are not the same length
+/// Returns the factors `(a,b)` of a linear regression `y = a + bx`
+/// for the variables `[x,y]` or `None` if the lists are not the same length
 /// ```
 /// # use proxmox_backup::tools::statistics::linear_regression;
 ///

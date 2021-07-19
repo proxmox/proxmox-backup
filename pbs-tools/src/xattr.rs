@@ -191,7 +191,7 @@ mod tests {
 
     #[test]
     fn test_fsetxattr_fgetxattr() {
-        let path = "./tests/xattrs.txt";
+        let path = "./test-xattrs.txt";
         let file = OpenOptions::new()
             .write(true)
             .create(true)

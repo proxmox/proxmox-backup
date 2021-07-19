@@ -32,3 +32,6 @@ walkdir = "2"
 proxmox = { version = "0.11.5", default-features = false, features = [ "tokio" ] }
 
 pbs-buildcfg = { path = "../pbs-buildcfg" }
+
+[dev-dependencies]
+tokio = { version = "1.6", features = [ "macros" ] }

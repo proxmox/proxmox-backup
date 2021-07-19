@@ -418,9 +418,10 @@ where
 /// 'add_entry'. To Finish the file, call 'finish'
 /// Example:
 /// ```no_run
-/// use proxmox_backup::tools::zip::*;
-/// use tokio::fs::File;
 /// use anyhow::{Error, Result};
+/// use tokio::fs::File;
+///
+/// use pbs_tools::zip::{ZipEncoder, ZipEntry};
 ///
 /// #[tokio::main]
 /// async fn main() -> Result<(), Error> {

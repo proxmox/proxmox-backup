@@ -360,6 +360,18 @@ pub fn get_encryption_key_password() -> Result<Vec<u8>, Error> {
     bail!("no password input mechanism available");
 }
 
+#[cfg(test)]
+fn create_testdir(name: &str) -> Result<String, Error> {
+    let mut testdir: PathBuf = String::from("./target/testout").into();
+    testdir.push(std::module_path!());
+    testdir.push(name);
+
+    let _ = std::fs::remove_dir_all(&testdir);
+    let _ = std::fs::create_dir_all(&testdir);
+
+    Ok(testdir.to_str().unwrap().to_string())
+}
+
 #[test]
 // WARNING: there must only be one test for crypto_parameters as the default key handling is not
 // safe w.r.t. concurrency
@@ -373,9 +385,11 @@ fn test_crypto_parameters_handling() -> Result<(), Error> {
     let some_master_key = vec![3;1];
     let default_master_key = vec![4;1];
 
-    let keypath = "./target/testout/keyfile.test";
-    let master_keypath = "./target/testout/masterkeyfile.test";
-    let invalid_keypath = "./target/testout/invalid_keyfile.test";
+    let testdir = create_testdir("key_source")?;
+
+    let keypath = format!("{}/keyfile.test", testdir);
+    let master_keypath = format!("{}/masterkeyfile.test", testdir);
+    let invalid_keypath = format!("{}/invalid_keyfile.test", testdir);
 
     let no_key_res = CryptoParams {
         enc_key: None,
