@@ -362,7 +362,9 @@ pub fn get_encryption_key_password() -> Result<Vec<u8>, Error> {
 
 #[cfg(test)]
 fn create_testdir(name: &str) -> Result<String, Error> {
-    let mut testdir: PathBuf = String::from("./target/testout").into();
+    // FIXME:
+    //let mut testdir: PathBuf = format!("{}/testout", env!("CARGO_TARGET_TMPDIR")).into();
+    let mut testdir: PathBuf = "./target/testout".to_string().into();
     testdir.push(std::module_path!());
     testdir.push(name);
 
