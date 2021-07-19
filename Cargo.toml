@@ -28,6 +28,7 @@ members = [
     "pbs-tools",
 
     "proxmox-backup-banner",
+    "pxar-bin",
 ]
 
 [lib]

@@ -278,30 +278,6 @@ pub fn pbs_simple_http(proxy_config: Option<ProxyConfig>) -> SimpleHttp {
     SimpleHttp::with_options(options)
 }
 
-/// Get an iterator over lines of a file, skipping empty lines and comments (lines starting with a
-/// `#`).
-pub fn file_get_non_comment_lines<P: AsRef<Path>>(
-    path: P,
-) -> Result<impl Iterator<Item = io::Result<String>>, Error> {
-    let path = path.as_ref();
-
-    Ok(io::BufReader::new(
-        File::open(path).map_err(|err| format_err!("error opening {:?}: {}", path, err))?,
-    )
-    .lines()
-    .filter_map(|line| match line {
-        Ok(line) => {
-            let line = line.trim();
-            if line.is_empty() || line.starts_with('#') {
-                None
-            } else {
-                Some(Ok(line.to_string()))
-            }
-        }
-        Err(err) => Some(Err(err)),
-    }))
-}
-
 pub fn setup_safe_path_env() {
     std::env::set_var("PATH", "/sbin:/bin:/usr/sbin:/usr/bin");
     // Make %ENV safer - as suggested by https://perldoc.perl.org/perlsec.html

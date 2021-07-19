@@ -38,7 +38,8 @@ SUBCRATES := \
 	pbs-runtime \
 	pbs-systemd \
 	pbs-tools \
-	proxmox-backup-banner
+	proxmox-backup-banner \
+	pxar-bin
 
 ifeq ($(BUILD_MODE), release)
 CARGO_BUILD_ARGS += --release
@@ -163,6 +164,8 @@ $(COMPILED_BINS) $(COMPILEDIR)/dump-catalog-shell-cli $(COMPILEDIR)/docgen: .do-
 	$(CARGO) build $(CARGO_BUILD_ARGS) \
 	    --package proxmox-backup-banner \
 	    --bin proxmox-backup-banner \
+	    --package pxar-bin \
+	    --bin pxar \
 	    --package proxmox-backup \
 	    --bin dump-catalog-shell-cli \
 	    --bin pmt --bin pmtx \
