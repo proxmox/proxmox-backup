@@ -20,13 +20,8 @@ use proxmox::api::{
 
 use pbs_client::tools::key_source::get_encryption_key_password;
 use pbs_client::{BackupRepository, BackupWriter};
-
-use proxmox_backup::backup::{
-    load_and_decrypt_key,
-    CryptConfig,
-    KeyDerivationConfig,
-    DataChunkBuilder,
-};
+use pbs_datastore::{CryptConfig, KeyDerivationConfig, load_and_decrypt_key};
+use pbs_datastore::data_blob::DataChunkBuilder;
 
 use crate::{
     KEYFILE_SCHEMA, REPO_URL_SCHEMA,
