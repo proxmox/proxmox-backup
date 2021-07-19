@@ -6,15 +6,6 @@ use serde_json::{json, Value};
 use proxmox::api::{ApiHandler, ApiMethod, Router, RpcEnvironment, Permission};
 use proxmox::api::schema::ObjectSchema;
 
-pub const PROXMOX_PKG_VERSION: &str =
-    concat!(
-        env!("CARGO_PKG_VERSION_MAJOR"),
-        ".",
-        env!("CARGO_PKG_VERSION_MINOR"),
-    );
-pub const PROXMOX_PKG_RELEASE: &str = env!("CARGO_PKG_VERSION_PATCH");
-pub const PROXMOX_PKG_REPOID: &str = env!("REPOID");
-
 fn get_version(
     _param: Value,
     _info: &ApiMethod,
@@ -22,9 +13,9 @@ fn get_version(
 ) -> Result<Value, Error> {
 
     Ok(json!({
-        "version": PROXMOX_PKG_VERSION,
-        "release": PROXMOX_PKG_RELEASE,
-        "repoid": PROXMOX_PKG_REPOID
+        "version": pbs_buildcfg::PROXMOX_PKG_VERSION,
+        "release": pbs_buildcfg::PROXMOX_PKG_RELEASE,
+        "repoid": pbs_buildcfg::PROXMOX_PKG_REPOID
     }))
 }
 

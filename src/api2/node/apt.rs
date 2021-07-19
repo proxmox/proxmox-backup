@@ -352,8 +352,8 @@ pub fn get_versions() -> Result<Vec<APTUpdateInfo>, Error> {
         packages.push(unknown_package("proxmox-backup".into(), Some(running_kernel)));
     }
 
-    let version = crate::api2::version::PROXMOX_PKG_VERSION;
-    let release = crate::api2::version::PROXMOX_PKG_RELEASE;
+    let version = pbs_buildcfg::PROXMOX_PKG_VERSION;
+    let release = pbs_buildcfg::PROXMOX_PKG_RELEASE;
     let daemon_version_info = Some(format!("running version: {}.{}", version, release));
     if let Some(pkg) = pbs_packages.iter().find(|pkg| pkg.package == "proxmox-backup-server") {
         let mut pkg = pkg.clone();

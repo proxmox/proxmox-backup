@@ -413,9 +413,9 @@ async fn api_version(param: Value) -> Result<(), Error> {
 
     let mut version_info = json!({
         "client": {
-            "version": version::PROXMOX_PKG_VERSION,
-            "release": version::PROXMOX_PKG_RELEASE,
-            "repoid": version::PROXMOX_PKG_REPOID,
+            "version": pbs_buildcfg::PROXMOX_PKG_VERSION,
+            "release": pbs_buildcfg::PROXMOX_PKG_RELEASE,
+            "repoid": pbs_buildcfg::PROXMOX_PKG_REPOID,
         }
     });
 
@@ -429,7 +429,11 @@ async fn api_version(param: Value) -> Result<(), Error> {
         }
     }
     if output_format == "text" {
-        println!("client version: {}.{}", version::PROXMOX_PKG_VERSION, version::PROXMOX_PKG_RELEASE);
+        println!(
+            "client version: {}.{}",
+            pbs_buildcfg::PROXMOX_PKG_VERSION,
+            pbs_buildcfg::PROXMOX_PKG_RELEASE,
+        );
         if let Some(server) = version_info["server"].as_object() {
             let server_version = server["version"].as_str().unwrap();
             let server_release = server["release"].as_str().unwrap();

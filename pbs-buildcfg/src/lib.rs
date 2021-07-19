@@ -1,5 +1,15 @@
 //! Exports configuration data from the build system
 
+pub const PROXMOX_PKG_VERSION: &str =
+    concat!(
+        env!("CARGO_PKG_VERSION_MAJOR"),
+        ".",
+        env!("CARGO_PKG_VERSION_MINOR"),
+    );
+pub const PROXMOX_PKG_RELEASE: &str = env!("CARGO_PKG_VERSION_PATCH");
+pub const PROXMOX_PKG_REPOID: &str = env!("REPOID");
+
+
 /// The configured configuration directory
 pub const CONFIGDIR: &str = "/etc/proxmox-backup";
 pub const JS_DIR: &str = "/usr/share/javascript/proxmox-backup";
