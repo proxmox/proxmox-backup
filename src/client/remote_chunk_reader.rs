@@ -8,10 +8,10 @@ use anyhow::{bail, Error};
 use pbs_datastore::{CryptConfig, CryptMode};
 use pbs_datastore::data_blob::DataBlob;
 use pbs_datastore::read_chunk::ReadChunk;
+use pbs_datastore::read_chunk::AsyncReadChunk;
 use pbs_runtime::block_on;
 
 use super::BackupReader;
-use crate::backup::AsyncReadChunk;
 
 /// Read chunks from remote host using ``BackupReader``
 #[derive(Clone)]

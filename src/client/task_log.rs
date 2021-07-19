@@ -10,7 +10,6 @@ use proxmox::api::cli::format_and_print_result;
 use pbs_tools::percent_encoding::percent_encode_component;
 
 use super::HttpClient;
-use crate::server::{UPID, worker_is_active_local};
 
 /// Display task log on console
 ///
@@ -114,25 +113,5 @@ pub async fn view_task_result(
         format_and_print_result(&data, &output_format);
     }
 
-    Ok(())
-}
-
-/// Wait for a locally spanned worker task
-///
-/// Note: local workers should print logs to stdout, so there is no
-/// need to fetch/display logs. We just wait for the worker to finish.
-pub async fn wait_for_local_worker(upid_str: &str) -> Result<(), Error> {
-
-    let upid: UPID = upid_str.parse()?;
-
-    let sleep_duration = core::time::Duration::new(0, 100_000_000);
-
-    loop {
-        if worker_is_active_local(&upid) {
-            tokio::time::sleep(sleep_duration).await;
-        } else {
-            break;
-        }
-    }
     Ok(())
 }
