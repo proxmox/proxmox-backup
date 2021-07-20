@@ -3,7 +3,7 @@ use futures::*;
 
 extern crate proxmox_backup;
 
-use proxmox_backup::backup::*;
+use pbs_client::ChunkStream;
 
 // Test Chunker with real data read from a file.
 //
