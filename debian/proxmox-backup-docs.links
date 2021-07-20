@@ -1,5 +1,6 @@
 /usr/share/doc/proxmox-backup/proxmox-backup.pdf /usr/share/doc/proxmox-backup/html/proxmox-backup.pdf
 /usr/share/javascript/extjs /usr/share/doc/proxmox-backup/html/prune-simulator/extjs
 /usr/share/javascript/extjs /usr/share/doc/proxmox-backup/html/lto-barcode/extjs
+/usr/share/fonts-font-awesome/ /usr/share/doc/proxmox-backup/html/lto-barcode/font-awesome
 /usr/share/javascript/extjs /usr/share/doc/proxmox-backup/html/api-viewer/extjs
 /usr/share/javascript/mathjax /usr/share/doc/proxmox-backup/html/_static/mathjax
