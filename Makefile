@@ -159,8 +159,10 @@ cargo-build:
 $(COMPILED_BINS) $(COMPILEDIR)/dump-catalog-shell-cli $(COMPILEDIR)/docgen: .do-cargo-build
 .do-cargo-build:
 	RUSTFLAGS="--cfg openid" $(CARGO) build $(CARGO_BUILD_ARGS) \
-	    --bin proxmox-backup-api --bin proxmox-backup-proxy \
-	    --bin proxmox-backup-manager --bin docgen
+	    --bin proxmox-backup-api \
+	    --bin proxmox-backup-proxy \
+	    --bin proxmox-backup-manager \
+	    --bin docgen
 	$(CARGO) build $(CARGO_BUILD_ARGS) \
 	    --package proxmox-backup-banner \
 	    --bin proxmox-backup-banner \
