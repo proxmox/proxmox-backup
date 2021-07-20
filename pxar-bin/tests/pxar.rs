@@ -4,13 +4,13 @@ use std::process::{Command, Stdio};
 // Test if xattrs are correctly archived and restored
 #[test]
 fn pxar_create_and_extract() {
-    let src_dir = "./tests/catar_data/test_xattrs_src/";
-    let dest_dir = "./tests/catar_data/test_xattrs_dest/";
+    let src_dir = "../tests/catar_data/test_xattrs_src/";
+    let dest_dir = "../tests/catar_data/test_xattrs_dest/";
 
     let exec_path = if cfg!(debug_assertions) {
-        "./target/debug/pxar"
+        "../target/debug/pxar"
     } else {
-        "./target/release/pxar"
+        "../target/release/pxar"
     };
 
     println!("run '{} create archive.pxar {}'", exec_path, src_dir);
