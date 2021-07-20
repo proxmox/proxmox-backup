@@ -1,3 +1,27 @@
+rust-proxmox-backup (2.0.5-1) bullseye; urgency=medium
+
+  * ui: tape: backup overview: increase timeout for media-set content
+
+  * tape: changer: always retry until timeout
+
+  * file-restore: increase lock timeout on QEMU map
+
+  * fix #3515: file-restore-daemon: allow LVs/PVs with dash in name
+
+  * fix #3526: correctly filter tasks with 'since' and 'until'
+
+  * tape: changer: make scsi request for DVCID a separate one, as some
+    libraries cannot handle requesting that combined with volume tags in one
+    go
+
+  * api, ui: datastore: add new 'prune-datastore' api call and expose it with
+    a 'Prune All' button
+
+  * make creating log files more robust so that theys are always owned by the
+    less privileged `backup` user
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 20 Jul 2021 19:08:00 +0200
+
 rust-proxmox-backup (2.0.4-1) bullseye; urgency=medium
 
   * change tape drive lock path to avoid issues with sticky bit on tmpfs
