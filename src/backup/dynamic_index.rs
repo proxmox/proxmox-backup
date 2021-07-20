@@ -11,6 +11,7 @@ use pxar::accessor::{MaybeReady, ReadAt, ReadAtOperation};
 use pbs_datastore::dynamic_index::DynamicIndexReader;
 use pbs_datastore::read_chunk::ReadChunk;
 use pbs_datastore::index::IndexFile;
+use pbs_tools::lru_cache::LruCache;
 
 struct CachedChunk {
     range: Range<u64>,
@@ -39,7 +40,7 @@ pub struct BufferedDynamicReader<S> {
     buffered_chunk_idx: usize,
     buffered_chunk_start: u64,
     read_offset: u64,
-    lru_cache: crate::tools::lru_cache::LruCache<usize, CachedChunk>,
+    lru_cache: LruCache<usize, CachedChunk>,
 }
 
 struct ChunkCacher<'a, S> {
@@ -47,7 +48,7 @@ struct ChunkCacher<'a, S> {
     index: &'a DynamicIndexReader,
 }
 
-impl<'a, S: ReadChunk> crate::tools::lru_cache::Cacher<usize, CachedChunk> for ChunkCacher<'a, S> {
+impl<'a, S: ReadChunk> pbs_tools::lru_cache::Cacher<usize, CachedChunk> for ChunkCacher<'a, S> {
     fn fetch(&mut self, index: usize) -> Result<Option<CachedChunk>, Error> {
         let info = match self.index.chunk_info(index) {
             Some(info) => info,
@@ -70,7 +71,7 @@ impl<S: ReadChunk> BufferedDynamicReader<S> {
             buffered_chunk_idx: 0,
             buffered_chunk_start: 0,
             read_offset: 0,
-            lru_cache: crate::tools::lru_cache::LruCache::new(32),
+            lru_cache: LruCache::new(32),
         }
     }
 

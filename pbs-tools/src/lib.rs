@@ -19,5 +19,8 @@ pub mod tokio;
 pub mod xattr;
 pub mod zip;
 
+pub mod async_lru_cache;
+pub mod lru_cache;
+
 mod command;
 pub use command::{command_output, command_output_as_string, run_command};
