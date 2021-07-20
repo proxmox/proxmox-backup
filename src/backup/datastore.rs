@@ -5,12 +5,11 @@ use std::sync::{Arc, Mutex};
 use std::convert::TryFrom;
 use std::str::FromStr;
 use std::time::Duration;
-use std::fs::File;
 
 use anyhow::{bail, format_err, Error};
 use lazy_static::lazy_static;
 
-use proxmox::tools::fs::{replace_file, file_read_optional_string, CreateOptions, open_file_locked};
+use proxmox::tools::fs::{replace_file, file_read_optional_string, CreateOptions};
 
 use pbs_api_types::upid::UPID;
 use pbs_api_types::{Authid, GarbageCollectionStatus};
@@ -32,6 +31,8 @@ use pbs_tools::fs::{lock_dir_noblock, DirLockGuard};
 
 use crate::config::datastore::{self, DataStoreConfig};
 use crate::tools;
+use crate::backup::{open_backup_lockfile, BackupLockGuard};
+
 
 lazy_static! {
     static ref DATASTORE_MAP: Mutex<HashMap<String, Arc<DataStore>>> = Mutex::new(HashMap::new());
@@ -797,12 +798,12 @@ impl DataStore {
     fn lock_manifest(
         &self,
         backup_dir: &BackupDir,
-    ) -> Result<File, Error> {
+    ) -> Result<BackupLockGuard, Error> {
         let path = self.manifest_lock_path(backup_dir)?;
 
         // update_manifest should never take a long time, so if someone else has
         // the lock we can simply block a bit and should get it soon
-        open_file_locked(&path, Duration::from_secs(5), true)
+        open_backup_lockfile(&path, Some(Duration::from_secs(5)), true)
             .map_err(|err| {
                 format_err!(
                     "unable to acquire manifest lock {:?} - {}", &path, err

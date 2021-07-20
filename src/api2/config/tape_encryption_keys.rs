@@ -9,7 +9,6 @@ use proxmox::{
         RpcEnvironment,
         Permission,
     },
-    tools::fs::open_file_locked,
 };
 
 use pbs_datastore::{KeyInfo, Kdf};
@@ -35,6 +34,7 @@ use crate::{
         PASSWORD_HINT_SCHEMA,
     },
     backup::{
+        open_backup_lockfile,
         KeyConfig,
         Fingerprint,
     },
@@ -122,11 +122,7 @@ pub fn change_passphrase(
         bail!("Please specify a key derivation function (none is not allowed here).");
     }
 
-    let _lock = open_file_locked(
-        TAPE_KEYS_LOCKFILE,
-        std::time::Duration::new(10, 0),
-        true,
-    )?;
+    let _lock = open_backup_lockfile(TAPE_KEYS_LOCKFILE, None, true)?;
 
     let (mut config_map, expected_digest) = load_key_configs()?;
 
@@ -261,12 +257,7 @@ pub fn delete_key(
     digest: Option<String>,
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
-
-    let _lock = open_file_locked(
-        TAPE_KEYS_LOCKFILE,
-        std::time::Duration::new(10, 0),
-        true,
-    )?;
+    let _lock = open_backup_lockfile(TAPE_KEYS_LOCKFILE, None, true)?;
 
     let (mut config_map, expected_digest) = load_key_configs()?;
     let (mut key_map, _) = load_keys()?;

@@ -26,13 +26,13 @@ use proxmox::{
         },
     },
     tools::fs::{
-        open_file_locked,
         replace_file,
         CreateOptions,
     },
 };
 
 use crate::{
+    backup::{open_backup_lockfile, BackupLockGuard},
     api2::types::{
         DRIVE_NAME_SCHEMA,
         VirtualTapeDrive,
@@ -79,8 +79,8 @@ pub const DRIVE_CFG_FILENAME: &str = "/etc/proxmox-backup/tape.cfg";
 pub const DRIVE_CFG_LOCKFILE: &str = "/etc/proxmox-backup/.tape.lck";
 
 /// Get exclusive lock
-pub fn lock() -> Result<std::fs::File, Error> {
-    open_file_locked(DRIVE_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)
+pub fn lock() -> Result<BackupLockGuard, Error> {
+    open_backup_lockfile(DRIVE_CFG_LOCKFILE, None, true)
 }
 
 /// Read and parse the configuration file

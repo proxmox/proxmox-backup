@@ -37,18 +37,17 @@
 //! # }
 //!
 //! ```
-use std::fs::File;
 use std::path::{Path, PathBuf};
-use std::time::Duration;
 
 use anyhow::{bail, format_err, Error};
 use proxmox::tools::fs::{
-    create_path, file_read_optional_string, open_file_locked, replace_file, CreateOptions,
+    create_path, file_read_optional_string, replace_file, CreateOptions,
 };
 use serde::{Deserialize, Serialize};
 
 use crate::{
-   tools::systemd::time::{
+    backup::{open_backup_lockfile, BackupLockGuard},
+    tools::systemd::time::{
         parse_calendar_event,
         compute_next_event,
     },
@@ -83,7 +82,7 @@ pub struct Job {
     jobname: String,
     /// The State of the job
     pub state: JobState,
-    _lock: File,
+    _lock: BackupLockGuard,
 }
 
 const JOB_STATE_BASEDIR: &str = "/var/lib/proxmox-backup/jobstates";
@@ -107,16 +106,13 @@ fn get_path(jobtype: &str, jobname: &str) -> PathBuf {
     path
 }
 
-fn get_lock<P>(path: P) -> Result<File, Error>
+fn get_lock<P>(path: P) -> Result<BackupLockGuard, Error>
 where
     P: AsRef<Path>,
 {
     let mut path = path.as_ref().to_path_buf();
     path.set_extension("lck");
-    let lock = open_file_locked(&path, Duration::new(10, 0), true)?;
-    let backup_user = crate::backup::backup_user()?;
-    nix::unistd::chown(&path, Some(backup_user.uid), Some(backup_user.gid))?;
-    Ok(lock)
+    open_backup_lockfile(&path, None, true)
 }
 
 /// Removes the statefile of a job, this is useful if we delete a job

@@ -1,6 +1,4 @@
 use std::collections::HashSet;
-use std::fs::File;
-use std::time::Duration;
 
 use anyhow::{bail, Error};
 use nix::sys::stat::Mode;
@@ -14,6 +12,7 @@ use proxmox_http::ProxyConfig;
 
 use pbs_buildcfg::configdir;
 
+use crate::backup::{open_backup_lockfile, BackupLockGuard};
 use crate::acme::AcmeClient;
 use crate::api2::types::{
     AcmeAccountName, AcmeDomain, ACME_DOMAIN_PROPERTY_SCHEMA, HTTP_PROXY_SCHEMA,
@@ -21,10 +20,9 @@ use crate::api2::types::{
 
 const CONF_FILE: &str = configdir!("/node.cfg");
 const LOCK_FILE: &str = configdir!("/.node.lck");
-const LOCK_TIMEOUT: Duration = Duration::from_secs(10);
 
-pub fn lock() -> Result<File, Error> {
-    proxmox::tools::fs::open_file_locked(LOCK_FILE, LOCK_TIMEOUT, true)
+pub fn lock() -> Result<BackupLockGuard, Error> {
+    open_backup_lockfile(LOCK_FILE, None, true)
 }
 
 /// Read the Node Config.

@@ -18,12 +18,12 @@ use serde::{Deserialize, Serialize};
 use proxmox::tools::fs::{
     file_read_optional_string,
     replace_file,
-    open_file_locked,
     CreateOptions,
 };
 
 use crate::{
     backup::{
+        open_backup_lockfile,
         Fingerprint,
         KeyConfig,
     },
@@ -187,11 +187,7 @@ pub fn save_key_configs(map: HashMap<Fingerprint, KeyConfig>) -> Result<(), Erro
 /// Get the lock, load both files, insert the new key, store files.
 pub fn insert_key(key: [u8;32], key_config: KeyConfig, force: bool) -> Result<(), Error> {
 
-    let _lock = open_file_locked(
-        TAPE_KEYS_LOCKFILE,
-        std::time::Duration::new(10, 0),
-        true,
-    )?;
+    let _lock = open_backup_lockfile(TAPE_KEYS_LOCKFILE, None, true)?;
 
     let (mut key_map, _) = load_keys()?;
     let (mut config_map, _) = load_key_configs()?;

@@ -1,18 +1,17 @@
 use std::collections::HashMap;
-use std::time::Duration;
 
 use anyhow::{bail, format_err, Error};
 use serde::{Serialize, Deserialize};
 use serde_json::{from_value, Value};
 
-use proxmox::tools::fs::{open_file_locked, CreateOptions};
+use proxmox::tools::fs::CreateOptions;
 
 use crate::api2::types::Authid;
 use crate::auth;
+use crate::backup::open_backup_lockfile;
 
 const LOCK_FILE: &str = pbs_buildcfg::configdir!("/token.shadow.lock");
 const CONF_FILE: &str = pbs_buildcfg::configdir!("/token.shadow");
-const LOCK_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all="kebab-case")]
@@ -65,7 +64,7 @@ pub fn set_secret(tokenid: &Authid, secret: &str) -> Result<(), Error> {
         bail!("not an API token ID");
     }
 
-    let _guard = open_file_locked(LOCK_FILE, LOCK_TIMEOUT, true)?;
+    let _guard = open_backup_lockfile(LOCK_FILE, None, true)?;
 
     let mut data = read_file()?;
     let hashed_secret = auth::encrypt_pw(secret)?;
@@ -81,7 +80,7 @@ pub fn delete_secret(tokenid: &Authid) -> Result<(), Error> {
         bail!("not an API token ID");
     }
 
-    let _guard = open_file_locked(LOCK_FILE, LOCK_TIMEOUT, true)?;
+    let _guard = open_backup_lockfile(LOCK_FILE, None, true)?;
 
     let mut data = read_file()?;
     data.remove(tokenid);

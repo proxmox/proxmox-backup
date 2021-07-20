@@ -5,19 +5,21 @@ mod virtual_tape;
 mod lto;
 pub use lto::*;
 
-use std::os::unix::io::AsRawFd;
 use std::path::PathBuf;
 
 use anyhow::{bail, format_err, Error};
 use ::serde::{Deserialize};
 use serde_json::Value;
+use nix::fcntl::OFlag;
+use nix::sys::stat::Mode;
 
 use proxmox::{
     tools::{
         Uuid,
         io::ReadExt,
         fs::{
-            fchown,
+            lock_file,
+            atomic_open_or_create_file,
             file_read_optional_string,
             replace_file,
             CreateOptions,
@@ -604,29 +606,40 @@ fn tape_device_path(
 
 pub struct DeviceLockGuard(std::fs::File);
 
-// Acquires an exclusive lock on `device_path`
-//
 // Uses systemd escape_unit to compute a file name from `device_path`, the try
 // to lock `/var/lock/<name>`.
-fn lock_device_path(device_path: &str) -> Result<DeviceLockGuard, TapeLockError> {
-
+fn open_device_lock(device_path: &str) -> Result<std::fs::File, Error> {
     let lock_name = crate::tools::systemd::escape_unit(device_path, true);
 
     let mut path = std::path::PathBuf::from(crate::tape::DRIVE_LOCK_DIR);
     path.push(lock_name);
 
+    let user = crate::backup::backup_user()?;
+    let options = CreateOptions::new()
+        .perm(Mode::from_bits_truncate(0o660))
+        .owner(user.uid)
+        .group(user.gid);
+
+    atomic_open_or_create_file(
+        path,
+        OFlag::O_RDWR | OFlag::O_CLOEXEC | OFlag::O_APPEND,
+        &[],
+        options,
+    )
+}
+
+// Acquires an exclusive lock on `device_path`
+//
+fn lock_device_path(device_path: &str) -> Result<DeviceLockGuard, TapeLockError> {
+    let mut file = open_device_lock(device_path)?; 
     let timeout = std::time::Duration::new(10, 0);
-    let mut file = std::fs::OpenOptions::new().create(true).append(true).open(path)?;
-    if let Err(err) =  proxmox::tools::fs::lock_file(&mut file, true, Some(timeout)) {
+    if let Err(err) = lock_file(&mut file, true, Some(timeout)) {
         if err.kind() == std::io::ErrorKind::Interrupted {
             return Err(TapeLockError::TimeOut);
         } else {
             return Err(err.into());
         }
     }
-
-    let backup_user = crate::backup::backup_user()?;
-    fchown(file.as_raw_fd(), Some(backup_user.uid), Some(backup_user.gid))?;
 
     Ok(DeviceLockGuard(file))
 }
@@ -635,23 +648,16 @@ fn lock_device_path(device_path: &str) -> Result<DeviceLockGuard, TapeLockError>
 // non-blocking, and returning if the file is locked or not
 fn test_device_path_lock(device_path: &str) -> Result<bool, Error> {
 
-    let lock_name = crate::tools::systemd::escape_unit(device_path, true);
-
-    let mut path = std::path::PathBuf::from(crate::tape::DRIVE_LOCK_DIR);
-    path.push(lock_name);
+    let mut file = open_device_lock(device_path)?; 
 
     let timeout = std::time::Duration::new(0, 0);
-    let mut file = std::fs::OpenOptions::new().create(true).append(true).open(path)?;
-    match proxmox::tools::fs::lock_file(&mut file, true, Some(timeout)) {
+    match lock_file(&mut file, true, Some(timeout)) {
         // file was not locked, continue
         Ok(()) => {},
         // file was locked, return true
         Err(err) if err.kind() == std::io::ErrorKind::WouldBlock => return Ok(true),
         Err(err) => bail!("{}", err),
     }
-
-    let backup_user = crate::backup::backup_user()?;
-    fchown(file.as_raw_fd(), Some(backup_user.uid), Some(backup_user.gid))?;
 
     Ok(false)
 }

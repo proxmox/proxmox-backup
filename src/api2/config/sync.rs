@@ -3,7 +3,6 @@ use serde_json::Value;
 use ::serde::{Deserialize, Serialize};
 
 use proxmox::api::{api, Permission, Router, RpcEnvironment};
-use proxmox::tools::fs::open_file_locked;
 
 use crate::api2::types::*;
 
@@ -18,6 +17,7 @@ use crate::config::acl::{
 
 use crate::config::cached_user_info::CachedUserInfo;
 use crate::config::sync::{self, SyncJobConfig};
+use crate::backup::open_backup_lockfile;
 
 pub fn check_sync_job_read_access(
     user_info: &CachedUserInfo,
@@ -152,7 +152,7 @@ pub fn create_sync_job(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
 
-    let _lock = open_file_locked(sync::SYNC_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
+    let _lock = open_backup_lockfile(sync::SYNC_CFG_LOCKFILE, None, true)?;
 
     let sync_job: sync::SyncJobConfig = serde_json::from_value(param)?;
     if !check_sync_job_modify_access(&user_info, &auth_id, &sync_job) {
@@ -296,7 +296,7 @@ pub fn update_sync_job(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
 
-    let _lock = open_file_locked(sync::SYNC_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
+    let _lock = open_backup_lockfile(sync::SYNC_CFG_LOCKFILE, None, true)?;
 
     // pass/compare digest
     let (mut config, expected_digest) = sync::config()?;
@@ -379,7 +379,7 @@ pub fn delete_sync_job(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
 
-    let _lock = open_file_locked(sync::SYNC_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
+    let _lock = open_backup_lockfile(sync::SYNC_CFG_LOCKFILE, None, true)?;
 
     let (mut config, expected_digest) = sync::config()?;
 

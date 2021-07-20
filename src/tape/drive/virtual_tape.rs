@@ -49,8 +49,9 @@ impl VirtualTapeDrive {
             let mut lock_path = std::path::PathBuf::from(&self.path);
             lock_path.push(".drive.lck");
 
+            let options = CreateOptions::new();
             let timeout = std::time::Duration::new(10, 0);
-            let lock = proxmox::tools::fs::open_file_locked(&lock_path, timeout, true)?;
+            let lock = proxmox::tools::fs::open_file_locked(&lock_path, timeout, true, options)?;
 
             Ok(VirtualTapeHandle {
                 _lock: lock,

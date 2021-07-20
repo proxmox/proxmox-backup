@@ -4,7 +4,6 @@ use ::serde::{Deserialize, Serialize};
 
 use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};
 use proxmox::http_err;
-use proxmox::tools::fs::open_file_locked;
 
 use pbs_client::{HttpClient, HttpClientOptions};
 
@@ -12,6 +11,7 @@ use crate::api2::types::*;
 use crate::config::cached_user_info::CachedUserInfo;
 use crate::config::remote;
 use crate::config::acl::{PRIV_REMOTE_AUDIT, PRIV_REMOTE_MODIFY};
+use crate::backup::open_backup_lockfile;
 
 #[api(
     input: {
@@ -95,7 +95,7 @@ pub fn list_remotes(
 /// Create new remote.
 pub fn create_remote(password: String, param: Value) -> Result<(), Error> {
 
-    let _lock = open_file_locked(remote::REMOTE_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
+    let _lock = open_backup_lockfile(remote::REMOTE_CFG_LOCKFILE, None, true)?;
 
     let mut data = param;
     data["password"] = Value::from(base64::encode(password.as_bytes()));
@@ -217,7 +217,7 @@ pub fn update_remote(
     digest: Option<String>,
 ) -> Result<(), Error> {
 
-    let _lock = open_file_locked(remote::REMOTE_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
+    let _lock = open_backup_lockfile(remote::REMOTE_CFG_LOCKFILE, None, true)?;
 
     let (mut config, expected_digest) = remote::config()?;
 
@@ -291,7 +291,7 @@ pub fn delete_remote(name: String, digest: Option<String>) -> Result<(), Error> 
         }
     }
 
-    let _lock = open_file_locked(remote::REMOTE_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
+    let _lock = open_backup_lockfile(remote::REMOTE_CFG_LOCKFILE, None, true)?;
 
     let (mut config, expected_digest) = remote::config()?;
 

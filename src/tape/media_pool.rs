@@ -8,7 +8,6 @@
 //!
 
 use std::path::{PathBuf, Path};
-use std::fs::File;
 
 use anyhow::{bail, Error};
 use ::serde::{Deserialize, Serialize};
@@ -16,7 +15,7 @@ use ::serde::{Deserialize, Serialize};
 use proxmox::tools::Uuid;
 
 use crate::{
-    backup::Fingerprint,
+    backup::{Fingerprint, BackupLockGuard},
     api2::types::{
         MediaStatus,
         MediaLocation,
@@ -61,7 +60,7 @@ pub struct MediaPool {
     inventory: Inventory,
 
     current_media_set: MediaSet,
-    current_media_set_lock: Option<File>,
+    current_media_set_lock: Option<BackupLockGuard>,
 }
 
 impl MediaPool {

@@ -4,7 +4,6 @@ use std::io::{self, Read, Seek, SeekFrom};
 use std::os::unix::fs::OpenOptionsExt;
 use std::os::unix::io::AsRawFd;
 use std::path::PathBuf;
-use std::time::Duration;
 
 use anyhow::{bail, format_err, Error};
 use nix::sys::stat::Mode;
@@ -29,25 +28,25 @@ use proxmox::tools::AsHex;
 use pbs_buildcfg::configdir;
 
 use crate::api2::types::Userid;
+use crate::backup::{open_backup_lockfile, BackupLockGuard};
 
 /// Mapping of userid to TFA entry.
 pub type TfaUsers = HashMap<Userid, TfaUserData>;
 
 const CONF_FILE: &str = configdir!("/tfa.json");
 const LOCK_FILE: &str = configdir!("/tfa.json.lock");
-const LOCK_TIMEOUT: Duration = Duration::from_secs(5);
 
 const CHALLENGE_DATA_PATH: &str = pbs_buildcfg::rundir!("/tfa/challenges");
 
 /// U2F registration challenges time out after 2 minutes.
 const CHALLENGE_TIMEOUT: i64 = 2 * 60;
 
-pub fn read_lock() -> Result<File, Error> {
-    proxmox::tools::fs::open_file_locked(LOCK_FILE, LOCK_TIMEOUT, false)
+pub fn read_lock() -> Result<BackupLockGuard, Error> {
+    open_backup_lockfile(LOCK_FILE, None, false)
 }
 
-pub fn write_lock() -> Result<File, Error> {
-    proxmox::tools::fs::open_file_locked(LOCK_FILE, LOCK_TIMEOUT, true)
+pub fn write_lock() -> Result<BackupLockGuard, Error> {
+    open_backup_lockfile(LOCK_FILE, None, true)
 }
 
 /// Read the TFA entries.

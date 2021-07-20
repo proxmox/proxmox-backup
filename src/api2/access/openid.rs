@@ -9,7 +9,6 @@ use proxmox::api::router::{Router, SubdirMap};
 use proxmox::api::{api, Permission, RpcEnvironment};
 use proxmox::{list_subdirs_api_method};
 use proxmox::{identity, sortable};
-use proxmox::tools::fs::open_file_locked;
 
 use proxmox_openid::{OpenIdAuthenticator,  OpenIdConfig};
 
@@ -21,6 +20,8 @@ use crate::server::ticket::ApiTicket;
 
 use crate::config::domains::{OpenIdUserAttribute, OpenIdRealmConfig};
 use crate::config::cached_user_info::CachedUserInfo;
+
+use crate::backup::open_backup_lockfile;
 
 use crate::api2::types::*;
 use crate::auth_helpers::*;
@@ -117,7 +118,7 @@ pub fn openid_login(
     if !user_info.is_active_user_id(&user_id) {
         if config.autocreate.unwrap_or(false) {
             use crate::config::user;
-            let _lock = open_file_locked(user::USER_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
+            let _lock = open_backup_lockfile(user::USER_CFG_LOCKFILE, None, true)?;
             let user = user::User {
                 userid: user_id.clone(),
                 comment: None,

@@ -3,12 +3,12 @@
 use anyhow::{bail, Error};
 
 use proxmox::api::{api, Router, RpcEnvironment, Permission};
-use proxmox::tools::fs::open_file_locked;
 
 use crate::api2::types::*;
 use crate::config::acl;
 use crate::config::acl::{Role, PRIV_SYS_AUDIT, PRIV_PERMISSIONS_MODIFY};
 use crate::config::cached_user_info::CachedUserInfo;
+use crate::backup::open_backup_lockfile;
 
 fn extract_acl_node_data(
     node: &acl::AclTreeNode,
@@ -200,7 +200,7 @@ pub fn update_acl(
         };
     }
 
-    let _lock = open_file_locked(acl::ACL_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
+    let _lock = open_backup_lockfile(acl::ACL_CFG_LOCKFILE, None, true)?;
 
     let (mut tree, expected_digest) = acl::config()?;
 

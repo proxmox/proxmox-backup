@@ -3,7 +3,6 @@ use serde_json::Value;
 use ::serde::{Deserialize, Serialize};
 
 use proxmox::api::{api, Router, RpcEnvironment, Permission};
-use proxmox::tools::fs::open_file_locked;
 
 use crate::{
     api2::types::{
@@ -17,6 +16,7 @@ use crate::{
         MEDIA_POOL_NAME_SCHEMA,
         SYNC_SCHEDULE_SCHEMA,
     },
+    backup::open_backup_lockfile,
     config::{
         self,
         cached_user_info::CachedUserInfo,
@@ -89,8 +89,7 @@ pub fn create_tape_backup_job(
     job: TapeBackupJobConfig,
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
-
-    let _lock = open_file_locked(TAPE_JOB_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
+    let _lock = open_backup_lockfile(TAPE_JOB_CFG_LOCKFILE, None, true)?;
 
     let (mut config, _digest) = config::tape_job::config()?;
 
@@ -233,7 +232,7 @@ pub fn update_tape_backup_job(
     delete: Option<Vec<DeletableProperty>>,
     digest: Option<String>,
 ) -> Result<(), Error> {
-    let _lock = open_file_locked(TAPE_JOB_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
+    let _lock = open_backup_lockfile(TAPE_JOB_CFG_LOCKFILE, None, true)?;
 
     let (mut config, expected_digest) = config::tape_job::config()?;
 
@@ -312,7 +311,7 @@ pub fn delete_tape_backup_job(
     digest: Option<String>,
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
-    let _lock = open_file_locked(TAPE_JOB_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
+    let _lock = open_backup_lockfile(TAPE_JOB_CFG_LOCKFILE, None, true)?;
 
     let (mut config, expected_digest) = config::tape_job::config()?;
 

@@ -8,7 +8,6 @@ use std::collections::HashMap;
 use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};
 use proxmox::api::router::SubdirMap;
 use proxmox::api::schema::{Schema, StringSchema};
-use proxmox::tools::fs::open_file_locked;
 
 use pbs_api_types::{
     PASSWORD_FORMAT, PROXMOX_CONFIG_DIGEST_SCHEMA, SINGLE_LINE_COMMENT_SCHEMA, Authid,
@@ -19,6 +18,7 @@ use crate::config::user;
 use crate::config::token_shadow;
 use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_PERMISSIONS_MODIFY};
 use crate::config::cached_user_info::CachedUserInfo;
+use crate::backup::open_backup_lockfile;
 
 pub const PBS_PASSWORD_SCHEMA: Schema = StringSchema::new("User Password.")
     .format(&PASSWORD_FORMAT)
@@ -169,7 +169,7 @@ pub fn create_user(
     rpcenv: &mut dyn RpcEnvironment
 ) -> Result<(), Error> {
 
-    let _lock = open_file_locked(user::USER_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
+    let _lock = open_backup_lockfile(user::USER_CFG_LOCKFILE, None, true)?;
 
     let user: user::User = serde_json::from_value(param)?;
 
@@ -311,7 +311,7 @@ pub fn update_user(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
 
-    let _lock = open_file_locked(user::USER_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
+    let _lock = open_backup_lockfile(user::USER_CFG_LOCKFILE, None, true)?;
 
     let (mut config, expected_digest) = user::config()?;
 
@@ -404,7 +404,7 @@ pub fn update_user(
 pub fn delete_user(userid: Userid, digest: Option<String>) -> Result<(), Error> {
 
     let _tfa_lock = crate::config::tfa::write_lock()?;
-    let _lock = open_file_locked(user::USER_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
+    let _lock = open_backup_lockfile(user::USER_CFG_LOCKFILE, None, true)?;
 
     let (mut config, expected_digest) = user::config()?;
 
@@ -540,7 +540,7 @@ pub fn generate_token(
     digest: Option<String>,
 ) -> Result<Value, Error> {
 
-    let _lock = open_file_locked(user::USER_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
+    let _lock = open_backup_lockfile(user::USER_CFG_LOCKFILE, None, true)?;
 
     let (mut config, expected_digest) = user::config()?;
 
@@ -621,7 +621,7 @@ pub fn update_token(
     digest: Option<String>,
 ) -> Result<(), Error> {
 
-    let _lock = open_file_locked(user::USER_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
+    let _lock = open_backup_lockfile(user::USER_CFG_LOCKFILE, None, true)?;
 
     let (mut config, expected_digest) = user::config()?;
 
@@ -689,7 +689,7 @@ pub fn delete_token(
     digest: Option<String>,
 ) -> Result<(), Error> {
 
-    let _lock = open_file_locked(user::USER_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
+    let _lock = open_backup_lockfile(user::USER_CFG_LOCKFILE, None, true)?;
 
     let (mut config, expected_digest) = user::config()?;
 

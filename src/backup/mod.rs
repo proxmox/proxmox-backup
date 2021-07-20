@@ -87,3 +87,29 @@ pub use verify::*;
 
 mod cached_chunk_reader;
 pub use cached_chunk_reader::*;
+
+pub struct BackupLockGuard(std::fs::File);
+
+/// Open or create a lock file owned by user "backup" and lock it.
+///
+/// Owner/Group of the file is set to backup/backup.
+/// File mode is 0660.
+/// Default timeout is 10 seconds.
+///
+/// Note: This method needs to be called by user "root" or "backup".
+pub fn open_backup_lockfile<P: AsRef<std::path::Path>>(
+    path: P,
+    timeout: Option<std::time::Duration>,
+    exclusive: bool,
+) -> Result<BackupLockGuard, Error> {
+    let user = backup_user()?;
+    let options = proxmox::tools::fs::CreateOptions::new()
+        .perm(nix::sys::stat::Mode::from_bits_truncate(0o660))
+        .owner(user.uid)
+        .group(user.gid);
+
+    let timeout = timeout.unwrap_or(std::time::Duration::new(10, 0));
+
+    let file = proxmox::tools::fs::open_file_locked(&path, timeout, exclusive, options)?;
+    Ok(BackupLockGuard(file))
+}

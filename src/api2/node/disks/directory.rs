@@ -5,7 +5,6 @@ use ::serde::{Deserialize, Serialize};
 use proxmox::api::{api, Permission, RpcEnvironment, RpcEnvironmentType};
 use proxmox::api::section_config::SectionConfigData;
 use proxmox::api::router::Router;
-use proxmox::tools::fs::open_file_locked;
 
 use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 use crate::tools::disks::{
@@ -18,6 +17,7 @@ use crate::server::WorkerTask;
 
 use crate::api2::types::*;
 use crate::config::datastore::{self, DataStoreConfig};
+use crate::backup::open_backup_lockfile;
 
 #[api(
     properties: {
@@ -180,7 +180,7 @@ pub fn create_datastore_disk(
             systemd::start_unit(&mount_unit_name)?;
 
             if add_datastore {
-                let lock = open_file_locked(datastore::DATASTORE_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
+                let lock = open_backup_lockfile(datastore::DATASTORE_CFG_LOCKFILE, None, true)?;
                 let datastore: DataStoreConfig =
                     serde_json::from_value(json!({ "name": name, "path": mount_point }))?;
 

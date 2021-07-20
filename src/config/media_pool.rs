@@ -21,13 +21,13 @@ use proxmox::{
         }
     },
     tools::fs::{
-        open_file_locked,
         replace_file,
         CreateOptions,
     },
 };
 
 use crate::{
+    backup::{open_backup_lockfile, BackupLockGuard},
     api2::types::{
         MEDIA_POOL_NAME_SCHEMA,
         MediaPoolConfig,
@@ -59,8 +59,8 @@ pub const MEDIA_POOL_CFG_LOCKFILE: &str = "/etc/proxmox-backup/.media-pool.lck";
 
 
 /// Get exclusive lock
-pub fn lock() -> Result<std::fs::File, Error> {
-    open_file_locked(MEDIA_POOL_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)
+pub fn lock() -> Result<BackupLockGuard, Error> {
+    open_backup_lockfile(MEDIA_POOL_CFG_LOCKFILE, None, true)
 }
 
 /// Read and parse the configuration file

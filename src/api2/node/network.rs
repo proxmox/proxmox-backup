@@ -4,12 +4,12 @@ use ::serde::{Deserialize, Serialize};
 
 use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};
 use proxmox::api::schema::parse_property_string;
-use proxmox::tools::fs::open_file_locked;
 
 use crate::config::network::{self, NetworkConfig};
 use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 use crate::api2::types::*;
 use crate::server::{WorkerTask};
+use crate::backup::open_backup_lockfile;
 
 fn split_interface_list(list: &str) -> Result<Vec<String>, Error> {
     let value = parse_property_string(&list, &NETWORK_INTERFACE_ARRAY_SCHEMA)?;
@@ -238,7 +238,7 @@ pub fn create_interface(
     let interface_type = pbs_tools::json::required_string_param(&param, "type")?;
     let interface_type: NetworkInterfaceType = serde_json::from_value(interface_type.into())?;
 
-    let _lock = open_file_locked(network::NETWORK_LOCKFILE, std::time::Duration::new(10, 0), true)?;
+    let _lock = open_backup_lockfile(network::NETWORK_LOCKFILE, None, true)?;
 
     let (mut config, _digest) = network::config()?;
 
@@ -502,7 +502,7 @@ pub fn update_interface(
     param: Value,
 ) -> Result<(), Error> {
 
-    let _lock = open_file_locked(network::NETWORK_LOCKFILE, std::time::Duration::new(10, 0), true)?;
+    let _lock = open_backup_lockfile(network::NETWORK_LOCKFILE, None, true)?;
 
     let (mut config, expected_digest) = network::config()?;
 
@@ -642,8 +642,7 @@ pub fn update_interface(
 )]
 /// Remove network interface configuration.
 pub fn delete_interface(iface: String, digest: Option<String>) -> Result<(), Error> {
-
-    let _lock = open_file_locked(network::NETWORK_LOCKFILE, std::time::Duration::new(10, 0), true)?;
+    let _lock = open_backup_lockfile(network::NETWORK_LOCKFILE, None, true)?;
 
     let (mut config, expected_digest) = network::config()?;
 

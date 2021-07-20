@@ -24,8 +24,6 @@
 
 use std::collections::{HashMap, BTreeMap};
 use std::path::{Path, PathBuf};
-use std::os::unix::io::AsRawFd;
-use std::fs::File;
 use std::time::Duration;
 
 use anyhow::{bail, Error};
@@ -35,9 +33,7 @@ use serde_json::json;
 use proxmox::tools::{
     Uuid,
     fs::{
-        open_file_locked,
         replace_file,
-        fchown,
         file_get_json,
         CreateOptions,
     },
@@ -51,6 +47,7 @@ use crate::{
         MediaStatus,
         MediaLocation,
     },
+    backup::{open_backup_lockfile, BackupLockGuard},
     tape::{
         TAPE_STATUS_DIR,
         MediaSet,
@@ -149,17 +146,8 @@ impl Inventory {
     }
 
     /// Lock the database
-    fn lock(&self) -> Result<std::fs::File, Error> {
-        let file = open_file_locked(&self.lockfile_path, std::time::Duration::new(10, 0), true)?;
-        if cfg!(test) {
-            // We cannot use chown inside test environment (no permissions)
-            return Ok(file);
-        }
-
-        let backup_user = crate::backup::backup_user()?;
-        fchown(file.as_raw_fd(), Some(backup_user.uid), Some(backup_user.gid))?;
-
-        Ok(file)
+    fn lock(&self) -> Result<BackupLockGuard, Error> {
+        open_backup_lockfile(&self.lockfile_path, None, true)
     }
 
     fn load_media_db(path: &Path) -> Result<BTreeMap<Uuid, MediaStateEntry>, Error> {
@@ -756,27 +744,16 @@ impl Inventory {
 }
 
 /// Lock a media pool
-pub fn lock_media_pool(base_path: &Path, name: &str) -> Result<File, Error> {
+pub fn lock_media_pool(base_path: &Path, name: &str) -> Result<BackupLockGuard, Error> {
     let mut path = base_path.to_owned();
     path.push(format!(".pool-{}", name));
     path.set_extension("lck");
 
-    let timeout = std::time::Duration::new(10, 0);
-    let lock = proxmox::tools::fs::open_file_locked(&path, timeout, true)?;
-
-    if cfg!(test) {
-        // We cannot use chown inside test environment (no permissions)
-        return Ok(lock);
-    }
-
-    let backup_user = crate::backup::backup_user()?;
-    fchown(lock.as_raw_fd(), Some(backup_user.uid), Some(backup_user.gid))?;
-
-    Ok(lock)
+    open_backup_lockfile(&path, None, true)
 }
 
 /// Lock for media not assigned to any pool
-pub fn lock_unassigned_media_pool(base_path: &Path)  -> Result<File, Error> {
+pub fn lock_unassigned_media_pool(base_path: &Path)  -> Result<BackupLockGuard, Error> {
     // lock artificial "__UNASSIGNED__" pool to avoid races
     lock_media_pool(base_path, "__UNASSIGNED__")
 }
@@ -788,22 +765,12 @@ pub fn lock_media_set(
     base_path: &Path,
     media_set_uuid: &Uuid,
     timeout: Option<Duration>,
-) -> Result<File, Error> {
+) -> Result<BackupLockGuard, Error> {
     let mut path = base_path.to_owned();
     path.push(format!(".media-set-{}", media_set_uuid));
     path.set_extension("lck");
 
-    let timeout = timeout.unwrap_or(Duration::new(10, 0));
-    let file = open_file_locked(&path, timeout, true)?;
-    if cfg!(test) {
-        // We cannot use chown inside test environment (no permissions)
-        return Ok(file);
-    }
-
-    let backup_user = crate::backup::backup_user()?;
-    fchown(file.as_raw_fd(), Some(backup_user.uid), Some(backup_user.gid))?;
-
-    Ok(file)
+    open_backup_lockfile(&path, timeout, true)
 }
 
 // shell completion helper

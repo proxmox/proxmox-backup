@@ -12,6 +12,7 @@ use proxmox::api::{
 use proxmox::tools::{fs::replace_file, fs::CreateOptions};
 
 use crate::api2::types::PROXMOX_SAFE_ID_FORMAT;
+use crate::backup::{open_backup_lockfile, BackupLockGuard};
 
 pub const PLUGIN_ID_SCHEMA: Schema = StringSchema::new("ACME Challenge Plugin ID.")
     .format(&PROXMOX_SAFE_ID_FORMAT)
@@ -142,11 +143,10 @@ fn init() -> SectionConfig {
 
 const ACME_PLUGIN_CFG_FILENAME: &str = pbs_buildcfg::configdir!("/acme/plugins.cfg");
 const ACME_PLUGIN_CFG_LOCKFILE: &str = pbs_buildcfg::configdir!("/acme/.plugins.lck");
-const LOCK_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 
-pub fn lock() -> Result<std::fs::File, Error> {
+pub fn lock() -> Result<BackupLockGuard, Error> {
     super::make_acme_dir()?;
-    proxmox::tools::fs::open_file_locked(ACME_PLUGIN_CFG_LOCKFILE, LOCK_TIMEOUT, true)
+    open_backup_lockfile(ACME_PLUGIN_CFG_LOCKFILE, None, true)
 }
 
 pub fn config() -> Result<(PluginData, [u8; 32]), Error> {

@@ -14,12 +14,12 @@ use proxmox::api::{
 };
 
 use proxmox::tools::fs::{
-    open_file_locked,
     replace_file,
     CreateOptions,
 };
 
 use crate::api2::types::*;
+use crate::backup::{open_backup_lockfile, BackupLockGuard};
 
 lazy_static! {
     pub static ref CONFIG: SectionConfig = init();
@@ -138,8 +138,8 @@ pub const DATASTORE_CFG_FILENAME: &str = "/etc/proxmox-backup/datastore.cfg";
 pub const DATASTORE_CFG_LOCKFILE: &str = "/etc/proxmox-backup/.datastore.lck";
 
 /// Get exclusive lock
-pub fn lock_config() -> Result<std::fs::File, Error> {
-    open_file_locked(DATASTORE_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)
+pub fn lock_config() -> Result<BackupLockGuard, Error> {
+    open_backup_lockfile(DATASTORE_CFG_LOCKFILE, None, true)
 }
 
 pub fn config() -> Result<(SectionConfigData, [u8;32]), Error> {

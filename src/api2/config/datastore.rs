@@ -60,7 +60,7 @@ pub fn list_datastores(
 }
 
 pub(crate) fn do_create_datastore(
-    _lock: std::fs::File,
+    _lock: BackupLockGuard,
     mut config: SectionConfigData,
     datastore: DataStoreConfig,
     worker: Option<&dyn TaskState>,

@@ -14,7 +14,7 @@ use tokio::sync::oneshot;
 
 use proxmox::sys::linux::procfs;
 use proxmox::try_block;
-use proxmox::tools::fs::{create_path, open_file_locked, replace_file, CreateOptions};
+use proxmox::tools::fs::{create_path, replace_file, CreateOptions};
 
 use super::{UPID, UPIDExt};
 
@@ -24,6 +24,7 @@ use crate::server;
 use crate::tools::logrotate::{LogRotate, LogRotateFiles};
 use crate::tools::{FileLogger, FileLogOptions};
 use crate::api2::types::{Authid, TaskStateType};
+use crate::backup::{open_backup_lockfile, BackupLockGuard};
 
 macro_rules! taskdir {
     ($subdir:expr) => (concat!(pbs_buildcfg::PROXMOX_BACKUP_LOG_DIR_M!(), "/tasks", $subdir))
@@ -313,13 +314,8 @@ pub struct TaskListInfo {
     pub state: Option<TaskState>, // endtime, status
 }
 
-fn lock_task_list_files(exclusive: bool) -> Result<std::fs::File, Error> {
-    let backup_user = crate::backup::backup_user()?;
-
-    let lock = open_file_locked(PROXMOX_BACKUP_TASK_LOCK_FN, std::time::Duration::new(10, 0), exclusive)?;
-    nix::unistd::chown(PROXMOX_BACKUP_TASK_LOCK_FN, Some(backup_user.uid), Some(backup_user.gid))?;
-
-    Ok(lock)
+fn lock_task_list_files(exclusive: bool) -> Result<BackupLockGuard, Error> {
+    open_backup_lockfile(PROXMOX_BACKUP_TASK_LOCK_FN, None, exclusive)
 }
 
 /// checks if the Task Archive is bigger that 'size_threshold' bytes, and
@@ -481,7 +477,7 @@ pub struct TaskListInfoIterator {
     list: VecDeque<TaskListInfo>,
     end: bool,
     archive: Option<LogRotateFiles>,
-    lock: Option<File>,
+    lock: Option<BackupLockGuard>,
 }
 
 impl TaskListInfoIterator {

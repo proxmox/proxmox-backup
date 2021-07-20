@@ -3,7 +3,6 @@ use serde_json::Value;
 use ::serde::{Deserialize, Serialize};
 
 use proxmox::api::{api, Permission, Router, RpcEnvironment};
-use proxmox::tools::fs::open_file_locked;
 
 use crate::api2::types::*;
 
@@ -13,8 +12,8 @@ use crate::config::acl::{
 };
 
 use crate::config::cached_user_info::CachedUserInfo;
-
 use crate::config::verify::{self, VerificationJobConfig};
+use crate::backup::open_backup_lockfile;
 
 #[api(
     input: {
@@ -102,7 +101,7 @@ pub fn create_verification_job(
 
     user_info.check_privs(&auth_id, &["datastore", &verification_job.store], PRIV_DATASTORE_VERIFY, false)?;
 
-    let _lock = open_file_locked(verify::VERIFICATION_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
+    let _lock = open_backup_lockfile(verify::VERIFICATION_CFG_LOCKFILE, None, true)?;
 
     let (mut config, _digest) = verify::config()?;
 
@@ -230,7 +229,7 @@ pub fn update_verification_job(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
 
-    let _lock = open_file_locked(verify::VERIFICATION_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
+    let _lock = open_backup_lockfile(verify::VERIFICATION_CFG_LOCKFILE, None, true)?;
 
     // pass/compare digest
     let (mut config, expected_digest) = verify::config()?;
@@ -315,7 +314,7 @@ pub fn delete_verification_job(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
 
-    let _lock = open_file_locked(verify::VERIFICATION_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
+    let _lock = open_backup_lockfile(verify::VERIFICATION_CFG_LOCKFILE, None, true)?;
 
     let (mut config, expected_digest) = verify::config()?;
 
