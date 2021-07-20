@@ -998,6 +998,8 @@ pub fn restore_media(
         restore_archive(worker.clone(), reader, current_file_number, target, &mut catalog, checked_chunks_map, verbose)?;
     }
 
+    catalog.commit()?;
+
     MediaCatalog::finish_temporary_database(status_path, &media_id.label.uuid, true)?;
 
     Ok(())
@@ -1149,8 +1151,6 @@ fn restore_archive<'a>(
         }
          _ =>  bail!("unknown content magic {:?}", header.content_magic),
     }
-
-    catalog.commit()?;
 
     Ok(())
 }
