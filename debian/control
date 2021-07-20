@@ -156,7 +156,8 @@ Description: Proxmox Backup Client tools
 Package: proxmox-backup-docs
 Build-Profiles: <!nodoc>
 Section: doc
-Depends: libjs-extjs,
+Depends: fonts-font-awesome,
+         libjs-extjs,
          libjs-mathjax,
          ${misc:Depends},
 Architecture: all
