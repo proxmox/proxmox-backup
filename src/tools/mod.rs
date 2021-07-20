@@ -48,12 +48,6 @@ pub mod paperkey;
 pub mod parallel_handler;
 pub use parallel_handler::ParallelHandler;
 
-mod wrapped_reader_stream;
-pub use wrapped_reader_stream::{AsyncReaderStream, StdChannelStream, WrappedReaderStream};
-
-mod async_channel_writer;
-pub use async_channel_writer::AsyncChannelWriter;
-
 mod file_logger;
 pub use file_logger::{FileLogger, FileLogOptions};
 

@@ -31,6 +31,7 @@ use proxmox::api::{
 use proxmox::http_err;
 
 use pbs_tools::compression::{DeflateEncoder, Level};
+use pbs_tools::stream::AsyncReaderStream;
 
 use super::auth::AuthError;
 use super::environment::RestEnvironment;
@@ -42,7 +43,6 @@ use crate::auth_helpers::*;
 use crate::config::cached_user_info::CachedUserInfo;
 use crate::tools;
 use crate::tools::compression::CompressionMethod;
-use crate::tools::AsyncReaderStream;
 use crate::tools::FileLogger;
 
 extern "C" {

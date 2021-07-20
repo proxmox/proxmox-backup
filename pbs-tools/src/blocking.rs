@@ -1,10 +1,10 @@
+//! Async wrappers for blocking I/O (adding `block_in_place` around channels/readers)
+
 use std::io::{self, Read};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::sync::mpsc::Receiver;
 
-use tokio::io::{AsyncRead, ReadBuf};
-use futures::ready;
 use futures::stream::Stream;
 
 use pbs_runtime::block_in_place;
@@ -31,48 +31,6 @@ impl<R: Read + Unpin> Stream for WrappedReaderStream<R> {
         let this = self.get_mut();
         match block_in_place(|| this.reader.read(&mut this.buffer)) {
             Ok(n) => {
-                if n == 0 {
-                    // EOF
-                    Poll::Ready(None)
-                } else {
-                    Poll::Ready(Some(Ok(this.buffer[..n].to_vec())))
-                }
-            }
-            Err(err) => Poll::Ready(Some(Err(err))),
-        }
-    }
-}
-
-/// Wrapper struct to convert an AsyncReader into a Stream
-pub struct AsyncReaderStream<R: AsyncRead + Unpin> {
-    reader: R,
-    buffer: Vec<u8>,
-}
-
-impl <R: AsyncRead + Unpin> AsyncReaderStream<R> {
-
-    pub fn new(reader: R) -> Self {
-        let mut buffer = Vec::with_capacity(64*1024);
-        unsafe { buffer.set_len(buffer.capacity()); }
-        Self { reader, buffer }
-    }
-
-    pub fn with_buffer_size(reader: R, buffer_size: usize) -> Self {
-        let mut buffer = Vec::with_capacity(buffer_size);
-        unsafe { buffer.set_len(buffer.capacity()); }
-        Self { reader, buffer }
-    }
-}
-
-impl<R: AsyncRead + Unpin> Stream for AsyncReaderStream<R> {
-    type Item = Result<Vec<u8>, io::Error>;
-
-    fn poll_next(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
-        let this = self.get_mut();
-        let mut read_buf = ReadBuf::new(&mut this.buffer);
-        match ready!(Pin::new(&mut this.reader).poll_read(cx, &mut read_buf)) {
-            Ok(()) => {
-                let n = read_buf.filled().len();
                 if n == 0 {
                     // EOF
                     Poll::Ready(None)

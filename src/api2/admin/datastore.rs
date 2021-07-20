@@ -27,6 +27,8 @@ use pxar::accessor::aio::Accessor;
 use pxar::EntryKind;
 
 use pbs_client::pxar::create_zip;
+use pbs_tools::blocking::WrappedReaderStream;
+use pbs_tools::stream::{AsyncReaderStream, AsyncChannelWriter};
 use pbs_tools::json::{required_integer_param, required_string_param};
 
 use crate::api2::types::*;
@@ -37,7 +39,6 @@ use crate::config::datastore;
 use crate::config::cached_user_info::CachedUserInfo;
 
 use crate::server::{jobstate::Job, WorkerTask};
-use crate::tools::{AsyncChannelWriter, AsyncReaderStream, WrappedReaderStream};
 
 use crate::config::acl::{
     PRIV_DATASTORE_AUDIT,

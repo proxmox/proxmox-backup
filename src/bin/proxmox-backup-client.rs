@@ -79,7 +79,6 @@ use pbs_tools::json;
 use proxmox_backup::backup::{
     BufferedDynamicReader,
 };
-use proxmox_backup::tools;
 
 mod proxmox_backup_client;
 use proxmox_backup_client::*;
@@ -487,7 +486,7 @@ fn spawn_catalog_upload(
     encrypt: bool,
 ) -> Result<CatalogUploadResult, Error> {
     let (catalog_tx, catalog_rx) = std::sync::mpsc::sync_channel(10); // allow to buffer 10 writes
-    let catalog_stream = tools::StdChannelStream(catalog_rx);
+    let catalog_stream = pbs_tools::blocking::StdChannelStream(catalog_rx);
     let catalog_chunk_size = 512*1024;
     let catalog_chunk_stream = ChunkStream::new(catalog_stream, Some(catalog_chunk_size));
 
