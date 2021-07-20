@@ -220,7 +220,7 @@ fn apt_get_changelog(
     param: Value,
 ) -> Result<Value, Error> {
 
-    let name = crate::tools::required_string_param(&param, "name")?.to_owned();
+    let name = pbs_tools::json::required_string_param(&param, "name")?.to_owned();
     let version = param["version"].as_str();
 
     let pkg_info = apt::list_installed_apt_packages(|data| {

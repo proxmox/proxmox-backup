@@ -12,9 +12,10 @@ use proxmox::{sortable, identity};
 use proxmox::api::{ApiResponseFuture, ApiHandler, ApiMethod, RpcEnvironment};
 use proxmox::api::schema::*;
 
+use pbs_tools::json::{required_integer_param, required_string_param};
+
 use crate::api2::types::*;
 use crate::backup::*;
-use crate::tools;
 
 use super::environment::*;
 
@@ -121,11 +122,11 @@ fn upload_fixed_chunk(
 ) -> ApiResponseFuture {
 
     async move {
-        let wid = tools::required_integer_param(&param, "wid")? as usize;
-        let size = tools::required_integer_param(&param, "size")? as u32;
-        let encoded_size = tools::required_integer_param(&param, "encoded-size")? as u32;
+        let wid = required_integer_param(&param, "wid")? as usize;
+        let size = required_integer_param(&param, "size")? as u32;
+        let encoded_size = required_integer_param(&param, "encoded-size")? as u32;
 
-        let digest_str = tools::required_string_param(&param, "digest")?;
+        let digest_str = required_string_param(&param, "digest")?;
         let digest = proxmox::tools::hex_to_digest(digest_str)?;
 
         let env: &BackupEnvironment = rpcenv.as_ref();
@@ -179,11 +180,11 @@ fn upload_dynamic_chunk(
 ) -> ApiResponseFuture {
 
     async move {
-        let wid = tools::required_integer_param(&param, "wid")? as usize;
-        let size = tools::required_integer_param(&param, "size")? as u32;
-        let encoded_size = tools::required_integer_param(&param, "encoded-size")? as u32;
+        let wid = required_integer_param(&param, "wid")? as usize;
+        let size = required_integer_param(&param, "size")? as u32;
+        let encoded_size = required_integer_param(&param, "encoded-size")? as u32;
 
-        let digest_str = tools::required_string_param(&param, "digest")?;
+        let digest_str = required_string_param(&param, "digest")?;
         let digest = proxmox::tools::hex_to_digest(digest_str)?;
 
         let env: &BackupEnvironment = rpcenv.as_ref();
@@ -263,8 +264,8 @@ fn upload_blob(
 ) -> ApiResponseFuture {
 
     async move {
-        let file_name = tools::required_string_param(&param, "file-name")?.to_owned();
-        let encoded_size = tools::required_integer_param(&param, "encoded-size")? as usize;
+        let file_name = required_string_param(&param, "file-name")?.to_owned();
+        let encoded_size = required_integer_param(&param, "encoded-size")? as usize;
 
         let env: &BackupEnvironment = rpcenv.as_ref();
 

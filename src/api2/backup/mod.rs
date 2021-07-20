@@ -13,9 +13,9 @@ use proxmox::api::router::SubdirMap;
 use proxmox::api::schema::*;
 
 use pbs_tools::fs::lock_dir_noblock_shared;
+use pbs_tools::json::{required_array_param, required_integer_param, required_string_param};
 use pbs_datastore::PROXMOX_BACKUP_PROTOCOL_ID_V1;
 
-use crate::tools;
 use crate::server::{WorkerTask, H2Service};
 use crate::backup::*;
 use crate::api2::types::*;
@@ -65,16 +65,16 @@ async move {
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-    let store = tools::required_string_param(&param, "store")?.to_owned();
+    let store = required_string_param(&param, "store")?.to_owned();
 
     let user_info = CachedUserInfo::new()?;
     user_info.check_privs(&auth_id, &["datastore", &store], PRIV_DATASTORE_BACKUP, false)?;
 
     let datastore = DataStore::lookup_datastore(&store)?;
 
-    let backup_type = tools::required_string_param(&param, "backup-type")?;
-    let backup_id = tools::required_string_param(&param, "backup-id")?;
-    let backup_time = tools::required_integer_param(&param, "backup-time")?;
+    let backup_type = required_string_param(&param, "backup-type")?;
+    let backup_id = required_string_param(&param, "backup-id")?;
+    let backup_time = required_integer_param(&param, "backup-time")?;
 
     let protocols = parts
         .headers
@@ -347,7 +347,7 @@ fn create_dynamic_index(
 
     let env: &BackupEnvironment = rpcenv.as_ref();
 
-    let name = tools::required_string_param(&param, "archive-name")?.to_owned();
+    let name = required_string_param(&param, "archive-name")?.to_owned();
 
     let archive_name = name.clone();
     if !archive_name.ends_with(".didx") {
@@ -390,8 +390,8 @@ fn create_fixed_index(
 
     let env: &BackupEnvironment = rpcenv.as_ref();
 
-    let name = tools::required_string_param(&param, "archive-name")?.to_owned();
-    let size = tools::required_integer_param(&param, "size")? as usize;
+    let name = required_string_param(&param, "archive-name")?.to_owned();
+    let size = required_integer_param(&param, "size")? as usize;
     let reuse_csum = param["reuse-csum"].as_str();
 
     let archive_name = name.clone();
@@ -488,9 +488,9 @@ fn dynamic_append (
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
-    let wid = tools::required_integer_param(&param, "wid")? as usize;
-    let digest_list = tools::required_array_param(&param, "digest-list")?;
-    let offset_list = tools::required_array_param(&param, "offset-list")?;
+    let wid = required_integer_param(&param, "wid")? as usize;
+    let digest_list = required_array_param(&param, "digest-list")?;
+    let offset_list = required_array_param(&param, "offset-list")?;
 
     if offset_list.len() != digest_list.len() {
         bail!("offset list has wrong length ({} != {})", offset_list.len(), digest_list.len());
@@ -553,9 +553,9 @@ fn fixed_append (
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
-    let wid = tools::required_integer_param(&param, "wid")? as usize;
-    let digest_list = tools::required_array_param(&param, "digest-list")?;
-    let offset_list = tools::required_array_param(&param, "offset-list")?;
+    let wid = required_integer_param(&param, "wid")? as usize;
+    let digest_list = required_array_param(&param, "digest-list")?;
+    let offset_list = required_array_param(&param, "offset-list")?;
 
     if offset_list.len() != digest_list.len() {
         bail!("offset list has wrong length ({} != {})", offset_list.len(), digest_list.len());
@@ -618,10 +618,10 @@ fn close_dynamic_index (
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
-    let wid = tools::required_integer_param(&param, "wid")? as usize;
-    let chunk_count = tools::required_integer_param(&param, "chunk-count")? as u64;
-    let size = tools::required_integer_param(&param, "size")? as u64;
-    let csum_str = tools::required_string_param(&param, "csum")?;
+    let wid = required_integer_param(&param, "wid")? as usize;
+    let chunk_count = required_integer_param(&param, "chunk-count")? as u64;
+    let size = required_integer_param(&param, "size")? as u64;
+    let csum_str = required_string_param(&param, "csum")?;
     let csum = proxmox::tools::hex_to_digest(csum_str)?;
 
     let env: &BackupEnvironment = rpcenv.as_ref();
@@ -672,10 +672,10 @@ fn close_fixed_index (
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
-    let wid = tools::required_integer_param(&param, "wid")? as usize;
-    let chunk_count = tools::required_integer_param(&param, "chunk-count")? as u64;
-    let size = tools::required_integer_param(&param, "size")? as u64;
-    let csum_str = tools::required_string_param(&param, "csum")?;
+    let wid = required_integer_param(&param, "wid")? as usize;
+    let chunk_count = required_integer_param(&param, "chunk-count")? as u64;
+    let size = required_integer_param(&param, "size")? as u64;
+    let csum_str = required_string_param(&param, "csum")?;
     let csum = proxmox::tools::hex_to_digest(csum_str)?;
 
     let env: &BackupEnvironment = rpcenv.as_ref();
@@ -745,7 +745,7 @@ fn download_previous(
     async move {
         let env: &BackupEnvironment = rpcenv.as_ref();
 
-        let archive_name = tools::required_string_param(&param, "archive-name")?.to_owned();
+        let archive_name = required_string_param(&param, "archive-name")?.to_owned();
 
         let last_backup = match &env.last_backup {
             Some(info) => info,

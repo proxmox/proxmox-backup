@@ -5,7 +5,6 @@ use std::any::Any;
 use std::os::unix::io::RawFd;
 
 use anyhow::{bail, format_err, Error};
-use serde_json::Value;
 use openssl::hash::{hash, DigestBytes, MessageDigest};
 
 pub use proxmox::tools::fd::Fd;
@@ -69,48 +68,6 @@ pub trait BufferedRead {
     /// returns a reference to the available data. It returns an empty
     /// buffer if `offset` points to the end of the file.
     fn buffered_read(&mut self, offset: u64) -> Result<&[u8], Error>;
-}
-
-pub fn required_string_param<'a>(param: &'a Value, name: &str) -> Result<&'a str, Error> {
-    match param[name].as_str() {
-        Some(s) => Ok(s),
-        None => bail!("missing parameter '{}'", name),
-    }
-}
-
-pub fn required_string_property<'a>(param: &'a Value, name: &str) -> Result<&'a str, Error> {
-    match param[name].as_str() {
-        Some(s) => Ok(s),
-        None => bail!("missing property '{}'", name),
-    }
-}
-
-pub fn required_integer_param(param: &Value, name: &str) -> Result<i64, Error> {
-    match param[name].as_i64() {
-        Some(s) => Ok(s),
-        None => bail!("missing parameter '{}'", name),
-    }
-}
-
-pub fn required_integer_property(param: &Value, name: &str) -> Result<i64, Error> {
-    match param[name].as_i64() {
-        Some(s) => Ok(s),
-        None => bail!("missing property '{}'", name),
-    }
-}
-
-pub fn required_array_param<'a>(param: &'a Value, name: &str) -> Result<&'a [Value], Error> {
-    match param[name].as_array() {
-        Some(s) => Ok(&s),
-        None => bail!("missing parameter '{}'", name),
-    }
-}
-
-pub fn required_array_property<'a>(param: &'a Value, name: &str) -> Result<&'a [Value], Error> {
-    match param[name].as_array() {
-        Some(s) => Ok(&s),
-        None => bail!("missing property '{}'", name),
-    }
 }
 
 /// Shortcut for md5 sums.

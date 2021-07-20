@@ -288,8 +288,8 @@ fn upgrade_to_websocket(
         }
 
         let userid = auth_id.user();
-        let ticket = tools::required_string_param(&param, "vncticket")?;
-        let port: u16 = tools::required_integer_param(&param, "port")? as u16;
+        let ticket = pbs_tools::json::required_string_param(&param, "vncticket")?;
+        let port: u16 = pbs_tools::json::required_integer_param(&param, "port")? as u16;
 
         // will be checked again by termproxy
         Ticket::<Empty>::parse(ticket)?

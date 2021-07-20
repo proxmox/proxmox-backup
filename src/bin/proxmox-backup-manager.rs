@@ -8,8 +8,8 @@ use proxmox::api::{api, cli::*, RpcEnvironment};
 
 use pbs_client::{connect_to_localhost, display_task_log, view_task_result};
 use pbs_tools::percent_encoding::percent_encode_component;
+use pbs_tools::json::required_string_param;
 
-use proxmox_backup::tools;
 use proxmox_backup::config;
 use proxmox_backup::api2::{self, types::* };
 use proxmox_backup::server::wait_for_local_worker;
@@ -35,7 +35,7 @@ async fn start_garbage_collection(param: Value) -> Result<Value, Error> {
 
     let output_format = get_output_format(&param);
 
-    let store = tools::required_string_param(&param, "store")?;
+    let store = required_string_param(&param, "store")?;
 
     let mut client = connect_to_localhost()?;
 
@@ -66,7 +66,7 @@ async fn garbage_collection_status(param: Value) -> Result<Value, Error> {
 
     let output_format = get_output_format(&param);
 
-    let store = tools::required_string_param(&param, "store")?;
+    let store = required_string_param(&param, "store")?;
 
     let client = connect_to_localhost()?;
 
@@ -166,7 +166,7 @@ async fn task_list(param: Value) -> Result<Value, Error> {
 /// Display the task log.
 async fn task_log(param: Value) -> Result<Value, Error> {
 
-    let upid = tools::required_string_param(&param, "upid")?;
+    let upid = required_string_param(&param, "upid")?;
 
     let mut client = connect_to_localhost()?;
 
@@ -187,7 +187,7 @@ async fn task_log(param: Value) -> Result<Value, Error> {
 /// Try to stop a specific task.
 async fn task_stop(param: Value) -> Result<Value, Error> {
 
-    let upid_str = tools::required_string_param(&param, "upid")?;
+    let upid_str = required_string_param(&param, "upid")?;
 
     let mut client = connect_to_localhost()?;
 

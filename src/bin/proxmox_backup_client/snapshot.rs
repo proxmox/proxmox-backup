@@ -9,9 +9,9 @@ use proxmox::{
 };
 
 use pbs_client::tools::key_source::get_encryption_key_password;
+use pbs_tools::json::required_string_param;
 
 use proxmox_backup::{
-    tools,
     api2::types::*,
     backup::{
         CryptMode,
@@ -129,7 +129,7 @@ async fn list_snapshot_files(param: Value) -> Result<Value, Error> {
 
     let repo = extract_repository_from_value(&param)?;
 
-    let path = tools::required_string_param(&param, "snapshot")?;
+    let path = required_string_param(&param, "snapshot")?;
     let snapshot: BackupDir = path.parse()?;
 
     let output_format = get_output_format(&param);
@@ -177,7 +177,7 @@ async fn forget_snapshots(param: Value) -> Result<Value, Error> {
 
     let repo = extract_repository_from_value(&param)?;
 
-    let path = tools::required_string_param(&param, "snapshot")?;
+    let path = required_string_param(&param, "snapshot")?;
     let snapshot: BackupDir = path.parse()?;
 
     let mut client = connect(&repo)?;
@@ -228,10 +228,10 @@ async fn forget_snapshots(param: Value) -> Result<Value, Error> {
 /// Upload backup log file.
 async fn upload_log(param: Value) -> Result<Value, Error> {
 
-    let logfile = tools::required_string_param(&param, "logfile")?;
+    let logfile = required_string_param(&param, "logfile")?;
     let repo = extract_repository_from_value(&param)?;
 
-    let snapshot = tools::required_string_param(&param, "snapshot")?;
+    let snapshot = required_string_param(&param, "snapshot")?;
     let snapshot: BackupDir = snapshot.parse()?;
 
     let mut client = connect(&repo)?;
@@ -291,7 +291,7 @@ async fn upload_log(param: Value) -> Result<Value, Error> {
 /// Show notes
 async fn show_notes(param: Value) -> Result<Value, Error> {
     let repo = extract_repository_from_value(&param)?;
-    let path = tools::required_string_param(&param, "snapshot")?;
+    let path = required_string_param(&param, "snapshot")?;
 
     let snapshot: BackupDir = path.parse()?;
     let client = connect(&repo)?;
@@ -347,8 +347,8 @@ async fn show_notes(param: Value) -> Result<Value, Error> {
 /// Update Notes
 async fn update_notes(param: Value) -> Result<Value, Error> {
     let repo = extract_repository_from_value(&param)?;
-    let path = tools::required_string_param(&param, "snapshot")?;
-    let notes = tools::required_string_param(&param, "notes")?;
+    let path = required_string_param(&param, "snapshot")?;
+    let notes = required_string_param(&param, "notes")?;
 
     let snapshot: BackupDir = path.parse()?;
     let mut client = connect(&repo)?;

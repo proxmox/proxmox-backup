@@ -235,7 +235,7 @@ pub fn create_interface(
     param: Value,
 ) -> Result<(), Error> {
 
-    let interface_type = crate::tools::required_string_param(&param, "type")?;
+    let interface_type = pbs_tools::json::required_string_param(&param, "type")?;
     let interface_type: NetworkInterfaceType = serde_json::from_value(interface_type.into())?;
 
     let _lock = open_file_locked(network::NETWORK_LOCKFILE, std::time::Duration::new(10, 0), true)?;

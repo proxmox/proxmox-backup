@@ -28,6 +28,7 @@ use proxmox::{
 };
 
 use pbs_tools::fs::lock_dir_noblock_shared;
+use pbs_tools::json::{required_integer_param, required_string_param};
 use pbs_datastore::PROXMOX_BACKUP_READER_PROTOCOL_ID_V1;
 
 use crate::{
@@ -53,7 +54,6 @@ use crate::{
         WorkerTask,
         H2Service,
     },
-    tools,
     config::{
         acl::{
             PRIV_DATASTORE_READ,
@@ -100,7 +100,7 @@ fn upgrade_to_backup_reader_protocol(
         let debug = param["debug"].as_bool().unwrap_or(false);
 
         let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-        let store = tools::required_string_param(&param, "store")?.to_owned();
+        let store = required_string_param(&param, "store")?.to_owned();
 
         let user_info = CachedUserInfo::new()?;
         let privs = user_info.lookup_privs(&auth_id, &["datastore", &store]);
@@ -115,9 +115,9 @@ fn upgrade_to_backup_reader_protocol(
 
         let datastore = DataStore::lookup_datastore(&store)?;
 
-        let backup_type = tools::required_string_param(&param, "backup-type")?;
-        let backup_id = tools::required_string_param(&param, "backup-id")?;
-        let backup_time = tools::required_integer_param(&param, "backup-time")?;
+        let backup_type = required_string_param(&param, "backup-type")?;
+        let backup_id = required_string_param(&param, "backup-id")?;
+        let backup_time = required_integer_param(&param, "backup-time")?;
 
         let protocols = parts
             .headers
@@ -254,7 +254,7 @@ fn download_file(
     async move {
         let env: &ReaderEnvironment = rpcenv.as_ref();
 
-        let file_name = tools::required_string_param(&param, "file-name")?.to_owned();
+        let file_name = required_string_param(&param, "file-name")?.to_owned();
 
         let mut path = env.datastore.base_path();
         path.push(env.backup_dir.relative_path());
@@ -309,7 +309,7 @@ fn download_chunk(
     async move {
         let env: &ReaderEnvironment = rpcenv.as_ref();
 
-        let digest_str = tools::required_string_param(&param, "digest")?;
+        let digest_str = required_string_param(&param, "digest")?;
         let digest = proxmox::tools::hex_to_digest(digest_str)?;
 
         if !env.check_chunk_access(digest) {
@@ -348,7 +348,7 @@ fn download_chunk_old(
     let env: &ReaderEnvironment = rpcenv.as_ref();
     let env2 = env.clone();
 
-    let digest_str = tools::required_string_param(&param, "digest")?;
+    let digest_str = required_string_param(&param, "digest")?;
     let digest = proxmox::tools::hex_to_digest(digest_str)?;
 
     let (path, _) = env.datastore.chunk_path(&digest);

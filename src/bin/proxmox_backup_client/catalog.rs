@@ -9,8 +9,7 @@ use proxmox::api::{api, cli::*};
 
 use pbs_client::tools::key_source::get_encryption_key_password;
 use pbs_client::{BackupReader, RemoteChunkReader};
-
-use proxmox_backup::tools;
+use pbs_tools::json::required_string_param;
 
 use crate::{
     REPO_URL_SCHEMA,
@@ -66,7 +65,7 @@ async fn dump_catalog(param: Value) -> Result<Value, Error> {
 
     let repo = extract_repository_from_value(&param)?;
 
-    let path = tools::required_string_param(&param, "snapshot")?;
+    let path = required_string_param(&param, "snapshot")?;
     let snapshot: BackupDir = path.parse()?;
 
     let crypto = crypto_parameters(&param)?;
@@ -160,8 +159,8 @@ async fn dump_catalog(param: Value) -> Result<Value, Error> {
 async fn catalog_shell(param: Value) -> Result<(), Error> {
     let repo = extract_repository_from_value(&param)?;
     let client = connect(&repo)?;
-    let path = tools::required_string_param(&param, "snapshot")?;
-    let archive_name = tools::required_string_param(&param, "archive-name")?;
+    let path = required_string_param(&param, "snapshot")?;
+    let archive_name = required_string_param(&param, "archive-name")?;
 
     let (backup_type, backup_id, backup_time) = if path.matches('/').count() == 1 {
         let group: BackupGroup = path.parse()?;

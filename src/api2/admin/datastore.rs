@@ -27,6 +27,7 @@ use pxar::accessor::aio::Accessor;
 use pxar::EntryKind;
 
 use pbs_client::pxar::create_zip;
+use pbs_tools::json::{required_integer_param, required_string_param};
 
 use crate::api2::types::*;
 use crate::api2::node::rrd::create_value_from_rrd;
@@ -36,10 +37,7 @@ use crate::config::datastore;
 use crate::config::cached_user_info::CachedUserInfo;
 
 use crate::server::{jobstate::Job, WorkerTask};
-use crate::tools::{
-    self,
-    AsyncChannelWriter, AsyncReaderStream, WrappedReaderStream,
-};
+use crate::tools::{AsyncChannelWriter, AsyncReaderStream, WrappedReaderStream};
 
 use crate::config::acl::{
     PRIV_DATASTORE_AUDIT,
@@ -1112,16 +1110,16 @@ pub fn download_file(
 ) -> ApiResponseFuture {
 
     async move {
-        let store = tools::required_string_param(&param, "store")?;
+        let store = required_string_param(&param, "store")?;
         let datastore = DataStore::lookup_datastore(store)?;
 
         let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-        let file_name = tools::required_string_param(&param, "file-name")?.to_owned();
+        let file_name = required_string_param(&param, "file-name")?.to_owned();
 
-        let backup_type = tools::required_string_param(&param, "backup-type")?;
-        let backup_id = tools::required_string_param(&param, "backup-id")?;
-        let backup_time = tools::required_integer_param(&param, "backup-time")?;
+        let backup_type = required_string_param(&param, "backup-type")?;
+        let backup_id = required_string_param(&param, "backup-id")?;
+        let backup_time = required_integer_param(&param, "backup-time")?;
 
         let backup_dir = BackupDir::new(backup_type, backup_id, backup_time)?;
 
@@ -1182,16 +1180,16 @@ pub fn download_file_decoded(
 ) -> ApiResponseFuture {
 
     async move {
-        let store = tools::required_string_param(&param, "store")?;
+        let store = required_string_param(&param, "store")?;
         let datastore = DataStore::lookup_datastore(store)?;
 
         let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-        let file_name = tools::required_string_param(&param, "file-name")?.to_owned();
+        let file_name = required_string_param(&param, "file-name")?.to_owned();
 
-        let backup_type = tools::required_string_param(&param, "backup-type")?;
-        let backup_id = tools::required_string_param(&param, "backup-id")?;
-        let backup_time = tools::required_integer_param(&param, "backup-time")?;
+        let backup_type = required_string_param(&param, "backup-type")?;
+        let backup_id = required_string_param(&param, "backup-id")?;
+        let backup_time = required_integer_param(&param, "backup-time")?;
 
         let backup_dir = BackupDir::new(backup_type, backup_id, backup_time)?;
 
@@ -1296,14 +1294,14 @@ pub fn upload_backup_log(
 ) -> ApiResponseFuture {
 
     async move {
-        let store = tools::required_string_param(&param, "store")?;
+        let store = required_string_param(&param, "store")?;
         let datastore = DataStore::lookup_datastore(store)?;
 
         let file_name =  CLIENT_LOG_BLOB_NAME;
 
-        let backup_type = tools::required_string_param(&param, "backup-type")?;
-        let backup_id = tools::required_string_param(&param, "backup-id")?;
-        let backup_time = tools::required_integer_param(&param, "backup-time")?;
+        let backup_type = required_string_param(&param, "backup-type")?;
+        let backup_id = required_string_param(&param, "backup-id")?;
+        let backup_time = required_integer_param(&param, "backup-time")?;
 
         let backup_dir = BackupDir::new(backup_type, backup_id, backup_time)?;
 
@@ -1443,16 +1441,16 @@ pub fn pxar_file_download(
 ) -> ApiResponseFuture {
 
     async move {
-        let store = tools::required_string_param(&param, "store")?;
+        let store = required_string_param(&param, "store")?;
         let datastore = DataStore::lookup_datastore(&store)?;
 
         let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-        let filepath = tools::required_string_param(&param, "filepath")?.to_owned();
+        let filepath = required_string_param(&param, "filepath")?.to_owned();
 
-        let backup_type = tools::required_string_param(&param, "backup-type")?;
-        let backup_id = tools::required_string_param(&param, "backup-id")?;
-        let backup_time = tools::required_integer_param(&param, "backup-time")?;
+        let backup_type = required_string_param(&param, "backup-type")?;
+        let backup_id = required_string_param(&param, "backup-id")?;
+        let backup_time = required_integer_param(&param, "backup-time")?;
 
         let backup_dir = BackupDir::new(backup_type, backup_id, backup_time)?;
 

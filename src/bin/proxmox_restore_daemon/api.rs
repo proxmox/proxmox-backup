@@ -21,11 +21,11 @@ use proxmox::{identity, list_subdirs_api_method, sortable};
 
 use pbs_client::pxar::{create_archive, Flags, PxarCreateOptions, ENCODER_MAX_ENTRIES};
 use pbs_tools::fs::read_subdir;
+use pbs_tools::json::required_string_param;
 use pbs_tools::zip::zip_directory;
 
 use proxmox_backup::api2::types::*;
 use proxmox_backup::backup::DirEntryAttribute;
-use proxmox_backup::tools;
 
 use pxar::encoder::aio::TokioWriter;
 
@@ -264,7 +264,7 @@ fn extract(
             Err(_) => bail!("maximum concurrent download limit reached, please wait for another restore to finish before attempting a new one"),
         };
 
-        let path = tools::required_string_param(&param, "path")?;
+        let path = required_string_param(&param, "path")?;
         let mut path = base64::decode(path)?;
         if let Some(b'/') = path.last() {
             path.pop();

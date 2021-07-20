@@ -8,8 +8,6 @@ use proxmox::api::{api, Router, RpcEnvironment, Permission};
 use proxmox::api::router::SubdirMap;
 use proxmox::{identity, list_subdirs_api_method, sortable};
 
-use crate::tools;
-
 use crate::api2::types::*;
 use crate::api2::pull::check_pull_privs;
 
@@ -222,7 +220,7 @@ async fn get_task_status(
 
 fn extract_upid(param: &Value) -> Result<UPID, Error> {
 
-    let upid_str = tools::required_string_param(&param, "upid")?;
+    let upid_str = pbs_tools::json::required_string_param(&param, "upid")?;
 
     upid_str.parse::<UPID>()
 }

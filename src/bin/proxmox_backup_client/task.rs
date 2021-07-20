@@ -3,10 +3,9 @@ use serde_json::{json, Value};
 
 use proxmox::api::{api, cli::*};
 
-use pbs_tools::percent_encoding::percent_encode_component;
 use pbs_client::display_task_log;
-
-use proxmox_backup::tools;
+use pbs_tools::percent_encoding::percent_encode_component;
+use pbs_tools::json::required_string_param;
 
 use proxmox_backup::api2::types::UPID_SCHEMA;
 
@@ -97,7 +96,7 @@ async fn task_list(param: Value) -> Result<Value, Error> {
 async fn task_log(param: Value) -> Result<Value, Error> {
 
     let repo = extract_repository_from_value(&param)?;
-    let upid =  tools::required_string_param(&param, "upid")?;
+    let upid =  required_string_param(&param, "upid")?;
 
     let mut client = connect(&repo)?;
 
@@ -123,7 +122,7 @@ async fn task_log(param: Value) -> Result<Value, Error> {
 async fn task_stop(param: Value) -> Result<Value, Error> {
 
     let repo = extract_repository_from_value(&param)?;
-    let upid_str =  tools::required_string_param(&param, "upid")?;
+    let upid_str =  required_string_param(&param, "upid")?;
 
     let mut client = connect(&repo)?;
 

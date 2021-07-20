@@ -19,6 +19,7 @@ use proxmox::tools::fd::Fd;
 
 use pbs_client::tools::key_source::get_encryption_key_password;
 use pbs_client::{BackupReader, RemoteChunkReader};
+use pbs_tools::json::required_string_param;
 
 use proxmox_backup::tools;
 use proxmox_backup::backup::{
@@ -162,14 +163,14 @@ fn mount(
 
 async fn mount_do(param: Value, pipe: Option<Fd>) -> Result<Value, Error> {
     let repo = extract_repository_from_value(&param)?;
-    let archive_name = tools::required_string_param(&param, "archive-name")?;
+    let archive_name = required_string_param(&param, "archive-name")?;
     let client = connect(&repo)?;
 
     let target = param["target"].as_str();
 
     record_repository(&repo);
 
-    let path = tools::required_string_param(&param, "snapshot")?;
+    let path = required_string_param(&param, "snapshot")?;
     let (backup_type, backup_id, backup_time) = if path.matches('/').count() == 1 {
         let group: BackupGroup = path.parse()?;
         api_datastore_latest_snapshot(&client, repo.store(), group).await?

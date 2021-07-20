@@ -74,6 +74,7 @@ use pbs_datastore::read_chunk::AsyncReadChunk;
 use pbs_datastore::prune::PruneOptions;
 use pbs_tools::sync::StdChannelWriter;
 use pbs_tools::tokio::TokioWriterAdapter;
+use pbs_tools::json;
 
 use proxmox_backup::backup::{
     BufferedDynamicReader,
@@ -486,7 +487,7 @@ fn spawn_catalog_upload(
     encrypt: bool,
 ) -> Result<CatalogUploadResult, Error> {
     let (catalog_tx, catalog_rx) = std::sync::mpsc::sync_channel(10); // allow to buffer 10 writes
-    let catalog_stream = crate::tools::StdChannelStream(catalog_rx);
+    let catalog_stream = tools::StdChannelStream(catalog_rx);
     let catalog_chunk_size = 512*1024;
     let catalog_chunk_stream = ChunkStream::new(catalog_stream, Some(catalog_chunk_size));
 
@@ -616,7 +617,7 @@ async fn create_backup(
 
     let repo = extract_repository_from_value(&param)?;
 
-    let backupspec_list = tools::required_array_param(&param, "backupspec")?;
+    let backupspec_list = json::required_array_param(&param, "backupspec")?;
 
     let all_file_systems = param["all-file-systems"].as_bool().unwrap_or(false);
 
@@ -1071,13 +1072,13 @@ async fn restore(param: Value) -> Result<Value, Error> {
 
     let allow_existing_dirs = param["allow-existing-dirs"].as_bool().unwrap_or(false);
 
-    let archive_name = tools::required_string_param(&param, "archive-name")?;
+    let archive_name = json::required_string_param(&param, "archive-name")?;
 
     let client = connect(&repo)?;
 
     record_repository(&repo);
 
-    let path = tools::required_string_param(&param, "snapshot")?;
+    let path = json::required_string_param(&param, "snapshot")?;
 
     let (backup_type, backup_id, backup_time) = if path.matches('/').count() == 1 {
         let group: BackupGroup = path.parse()?;
@@ -1087,7 +1088,7 @@ async fn restore(param: Value) -> Result<Value, Error> {
         (snapshot.group().backup_type().to_owned(), snapshot.group().backup_id().to_owned(), snapshot.backup_time())
     };
 
-    let target = tools::required_string_param(&param, "target")?;
+    let target = json::required_string_param(&param, "target")?;
     let target = if target == "-" { None } else { Some(target) };
 
     let crypto = crypto_parameters(&param)?;
