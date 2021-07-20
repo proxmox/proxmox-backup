@@ -12,10 +12,12 @@ fn git_command(args: &[&str]) -> String {
 }
 
 fn main() {
+    let repo_path = git_command(&["rev-parse", "--show-toplevel"]);
     let repoid = match env::var("REPOID") {
         Ok(repoid) => repoid,
         Err(_) => git_command(&["rev-parse", "HEAD"]),
     };
 
     println!("cargo:rustc-env=REPOID={}", repoid);
+    println!("cargo:rerun-if-changed={}/.git/HEAD", repo_path);
 }
