@@ -30,7 +30,7 @@ xdg = "2.2"
 pathpatterns = "0.1.2"
 proxmox = { version = "0.12.0", default-features = false, features = [ "cli" ] }
 proxmox-fuse = "0.1.1"
-proxmox-http = { version = "0.2.1", features = [ "client", "http-helpers", "websocket" ] }
+proxmox-http = { version = "0.3.0", features = [ "client", "http-helpers", "websocket" ] }
 pxar = { version = "0.10.1", features = [ "tokio-io" ] }
 
 pbs-api-types = { path = "../pbs-api-types" }
