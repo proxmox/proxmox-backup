@@ -45,7 +45,7 @@ impl<K, V> CacheNode<K, V> {
 ///
 /// # Examples:
 /// ```
-/// # use self::proxmox_backup::tools::lru_cache::{Cacher, LruCache};
+/// # use pbs_tools::lru_cache::{Cacher, LruCache};
 /// # fn main() -> Result<(), anyhow::Error> {
 /// struct LruCacher {};
 ///
