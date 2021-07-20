@@ -113,3 +113,44 @@ pub fn open_backup_lockfile<P: AsRef<std::path::Path>>(
     let file = proxmox::tools::fs::open_file_locked(&path, timeout, exclusive, options)?;
     Ok(BackupLockGuard(file))
 }
+
+/// Atomically write data to file owned by "root:backup" with permission "0640"
+///
+/// Only the superuser can write those files, but group 'backup' can read them.
+pub fn replace_backup_config<P: AsRef<std::path::Path>>(
+    path: P,
+    data: &[u8],
+) -> Result<(), Error> {
+    let backup_user = backup_user()?;
+    let mode = nix::sys::stat::Mode::from_bits_truncate(0o0640);
+    // set the correct owner/group/permissions while saving file
+    // owner(rw) = root, group(r)= backup
+    let options = proxmox::tools::fs::CreateOptions::new()
+        .perm(mode)
+        .owner(nix::unistd::ROOT)
+        .group(backup_user.gid);
+
+    proxmox::tools::fs::replace_file(path, data, options)?;
+
+    Ok(())
+}
+
+/// Atomically write data to file owned by "root:root" with permission "0600"
+///
+/// Only the superuser can read and write those files.
+pub fn replace_secret_config<P: AsRef<std::path::Path>>(
+    path: P,
+    data: &[u8],
+) -> Result<(), Error> {
+    let mode = nix::sys::stat::Mode::from_bits_truncate(0o0600);
+    // set the correct owner/group/permissions while saving file
+    // owner(rw) = root, group(r)= root
+    let options = proxmox::tools::fs::CreateOptions::new()
+        .perm(mode)
+        .owner(nix::unistd::ROOT)
+        .group(nix::unistd::Gid::from_raw(0));
+
+    proxmox::tools::fs::replace_file(path, data, options)?;
+
+    Ok(())
+}

@@ -1,12 +1,10 @@
 use std::collections::HashSet;
 
 use anyhow::{bail, Error};
-use nix::sys::stat::Mode;
 use serde::{Deserialize, Serialize};
 
 use proxmox::api::api;
 use proxmox::api::schema::{ApiStringFormat, Updater};
-use proxmox::tools::fs::{replace_file, CreateOptions};
 
 use proxmox_http::ProxyConfig;
 
@@ -41,14 +39,7 @@ pub fn save_config(config: &NodeConfig) -> Result<(), Error> {
     config.validate()?;
 
     let raw = crate::tools::config::to_bytes(config, &NodeConfig::API_SCHEMA)?;
-
-    let backup_user = crate::backup::backup_user()?;
-    let options = CreateOptions::new()
-        .perm(Mode::from_bits_truncate(0o0640))
-        .owner(nix::unistd::ROOT)
-        .group(backup_user.gid);
-
-    replace_file(CONF_FILE, &raw, options)
+    crate::backup::replace_backup_config(CONF_FILE, &raw)
 }
 
 #[api(

@@ -10,7 +10,6 @@ use openssl::rsa::{Rsa};
 use openssl::x509::{X509Builder};
 use openssl::pkey::PKey;
 
-use proxmox::tools::fs::{CreateOptions, replace_file};
 use proxmox::try_block;
 
 use pbs_buildcfg::{self, configdir};
@@ -194,18 +193,13 @@ pub fn update_self_signed_cert(force: bool) -> Result<(), Error> {
 }
 
 pub(crate) fn set_proxy_certificate(cert_pem: &[u8], key_pem: &[u8]) -> Result<(), Error> {
-    let backup_user = crate::backup::backup_user()?;
-    let options = CreateOptions::new()
-        .perm(Mode::from_bits_truncate(0o0640))
-        .owner(nix::unistd::ROOT)
-        .group(backup_user.gid);
     let key_path = PathBuf::from(configdir!("/proxy.key"));
     let cert_path = PathBuf::from(configdir!("/proxy.pem"));
 
     create_configdir()?;
-    replace_file(&key_path, &key_pem, options.clone())
+    crate::backup::replace_backup_config(&key_path, key_pem)
         .map_err(|err| format_err!("error writing certificate private key - {}", err))?;
-    replace_file(&cert_path, &cert_pem, options)
+    crate::backup::replace_backup_config(&cert_path, &cert_pem)
         .map_err(|err| format_err!("error writing certificate file - {}", err))?;
 
     Ok(())

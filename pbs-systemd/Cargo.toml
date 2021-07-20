@@ -11,6 +11,6 @@ bitflags = "1.2.1"
 lazy_static = "1.4"
 nom = "5.1"
 
-proxmox = { version = "0.11.5", default-features = false }
+proxmox = { version = "0.12.0", default-features = false }
 
 pbs-tools = { path = "../pbs-tools" }

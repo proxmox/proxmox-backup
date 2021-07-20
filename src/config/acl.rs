@@ -13,7 +13,6 @@ use serde::de::{value, IntoDeserializer};
 
 use proxmox::api::{api, schema::*};
 use proxmox::constnamedbitmap;
-use proxmox::tools::{fs::replace_file, fs::CreateOptions};
 
 use crate::api2::types::{Authid, Userid};
 
@@ -912,18 +911,7 @@ pub fn save_config(acl: &AclTree) -> Result<(), Error> {
 
     acl.write_config(&mut raw)?;
 
-    let backup_user = crate::backup::backup_user()?;
-    let mode = nix::sys::stat::Mode::from_bits_truncate(0o0640);
-    // set the correct owner/group/permissions while saving file
-    // owner(rw) = root, group(r)= backup
-    let options = CreateOptions::new()
-        .perm(mode)
-        .owner(nix::unistd::ROOT)
-        .group(backup_user.gid);
-
-    replace_file(ACL_CFG_FILENAME, &raw, options)?;
-
-    Ok(())
+    crate::backup::replace_backup_config(ACL_CFG_FILENAME, &raw)
 }
 
 #[cfg(test)]

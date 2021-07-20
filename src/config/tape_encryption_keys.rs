@@ -15,11 +15,7 @@ use std::collections::HashMap;
 use anyhow::{bail, Error};
 use serde::{Deserialize, Serialize};
 
-use proxmox::tools::fs::{
-    file_read_optional_string,
-    replace_file,
-    CreateOptions,
-};
+use proxmox::tools::fs::file_read_optional_string;
 
 use crate::{
     backup::{
@@ -143,18 +139,7 @@ pub fn save_keys(map: HashMap<Fingerprint, EncryptionKeyInfo>) -> Result<(), Err
     }
 
     let raw = serde_json::to_string_pretty(&list)?;
-
-    let mode = nix::sys::stat::Mode::from_bits_truncate(0o0600);
-    // set the correct owner/group/permissions while saving file
-    // owner(rw) = root, group(r)= root
-    let options = CreateOptions::new()
-        .perm(mode)
-        .owner(nix::unistd::ROOT)
-        .group(nix::unistd::Gid::from_raw(0));
-
-    replace_file(TAPE_KEYS_FILENAME, raw.as_bytes(), options)?;
-
-    Ok(())
+    crate::backup::replace_secret_config(TAPE_KEYS_FILENAME, raw.as_bytes())
 }
 
 /// Store tape encryption key configurations (password protected keys)
@@ -167,19 +152,7 @@ pub fn save_key_configs(map: HashMap<Fingerprint, KeyConfig>) -> Result<(), Erro
     }
 
     let raw = serde_json::to_string_pretty(&list)?;
-
-    let backup_user = crate::backup::backup_user()?;
-    let mode = nix::sys::stat::Mode::from_bits_truncate(0o0640);
-    // set the correct owner/group/permissions while saving file
-    // owner(rw) = root, group(r)= backup
-    let options = CreateOptions::new()
-        .perm(mode)
-        .owner(nix::unistd::ROOT)
-        .group(backup_user.gid);
-
-    replace_file(TAPE_KEY_CONFIG_FILENAME, raw.as_bytes(), options)?;
-
-    Ok(())
+    crate::backup::replace_backup_config(TAPE_KEY_CONFIG_FILENAME, raw.as_bytes())
 }
 
 /// Insert a new key
