@@ -71,9 +71,6 @@ pub use pbs_datastore::fixed_index::*;
 
 pub use pbs_datastore::read_chunk::*;
 
-mod chunk_stream;
-pub use chunk_stream::*;
-
 // Split
 mod read_chunk;
 pub use read_chunk::*;

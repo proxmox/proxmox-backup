@@ -6,7 +6,7 @@ use anyhow::{Error};
 use futures::ready;
 use futures::stream::{Stream, TryStream};
 
-use super::Chunker;
+use pbs_datastore::Chunker;
 
 /// Split input stream into dynamic sized chunks
 pub struct ChunkStream<S: Unpin> {

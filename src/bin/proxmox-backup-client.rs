@@ -38,6 +38,8 @@ use pbs_client::{
     BackupSpecificationType,
     BackupStats,
     BackupWriter,
+    ChunkStream,
+    FixedChunkStream,
     HttpClient,
     PxarBackupStream,
     RemoteChunkReader,
@@ -75,8 +77,6 @@ use pbs_tools::tokio::TokioWriterAdapter;
 
 use proxmox_backup::backup::{
     BufferedDynamicReader,
-    ChunkStream,
-    FixedChunkStream,
 };
 use proxmox_backup::tools;
 

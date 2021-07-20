@@ -44,6 +44,9 @@ pub use backup_repo::*;
 mod backup_specification;
 pub use backup_specification::*;
 
+mod chunk_stream;
+pub use chunk_stream::{ChunkStream, FixedChunkStream};
+
 pub const PROXMOX_BACKUP_TCP_KEEPALIVE_TIME: u32 = 120;
 
 /// Connect to localhost:8007 as root@pam
