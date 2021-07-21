@@ -536,7 +536,7 @@ impl SubHeader {
 
 #[repr(C, packed)]
 #[derive(Endian)]
-struct TrasnsportDescriptor { // Robot/Griper
+struct TransportDescriptor { // Robot/Griper
     element_address: u16,
     flags1: u8,
     reserved_3: u8,
@@ -665,7 +665,7 @@ fn decode_element_status_page(
 
                 match subhead.element_type_code {
                     1 => {
-                        let desc: TrasnsportDescriptor = unsafe { reader.read_be_value()? };
+                        let desc: TransportDescriptor = unsafe { reader.read_be_value()? };
 
                         let full = (desc.flags1 & 1) != 0;
                         let volume_tag = subhead.parse_optional_volume_tag(&mut reader, full)?;
