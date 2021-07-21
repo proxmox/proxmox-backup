@@ -206,7 +206,9 @@ install: $(COMPILED_BINS)
 	    install -m755 $(COMPILEDIR)/$(i) $(DESTDIR)$(LIBEXECDIR)/proxmox-backup/ ;)
 	$(MAKE) -C www install
 	$(MAKE) -C docs install
+ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
 	$(MAKE) test # HACK, only test now to avoid clobbering build files with wrong config
+endif
 
 .PHONY: upload
 upload: ${SERVER_DEB} ${CLIENT_DEB} ${RESTORE_DEB} ${DOC_DEB}
