@@ -20,11 +20,10 @@ use proxmox::tools::fd::Fd;
 use pbs_datastore::{BackupDir, BackupGroup, CryptConfig, load_and_decrypt_key};
 use pbs_datastore::index::IndexFile;
 use pbs_datastore::dynamic_index::BufferedDynamicReader;
+use pbs_datastore::cached_chunk_reader::CachedChunkReader;
 use pbs_client::tools::key_source::get_encryption_key_password;
 use pbs_client::{BackupReader, RemoteChunkReader};
 use pbs_tools::json::required_string_param;
-
-use proxmox_backup::backup::CachedChunkReader;
 
 use crate::{
     REPO_URL_SCHEMA,

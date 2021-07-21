@@ -180,6 +180,7 @@ pub fn backup_group() -> Result<nix::unistd::Group, Error> {
 
 pub mod backup_info;
 pub mod catalog;
+pub mod cached_chunk_reader;
 pub mod checksum_reader;
 pub mod checksum_writer;
 pub mod chunk_stat;

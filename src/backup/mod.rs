@@ -75,6 +75,7 @@ pub use pbs_datastore::prune::*;
 
 pub use pbs_datastore::store_progress::StoreProgress;
 
+pub use pbs_datastore::cached_chunk_reader::*;
 pub use pbs_datastore::dynamic_index::*;
 pub use pbs_datastore::fixed_index;
 pub use pbs_datastore::fixed_index::*;
@@ -90,9 +91,6 @@ pub use datastore::*;
 
 mod verify;
 pub use verify::*;
-
-mod cached_chunk_reader;
-pub use cached_chunk_reader::*;
 
 pub struct BackupLockGuard(std::fs::File);
 
