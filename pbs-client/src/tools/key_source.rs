@@ -343,13 +343,8 @@ pub(crate) unsafe fn set_test_default_master_pubkey(value: Result<Option<Vec<u8>
 pub fn get_encryption_key_password() -> Result<Vec<u8>, Error> {
     // fixme: implement other input methods
 
-    use std::env::VarError::*;
-    match std::env::var("PBS_ENCRYPTION_PASSWORD") {
-        Ok(p) => return Ok(p.as_bytes().to_vec()),
-        Err(NotUnicode(_)) => bail!("PBS_ENCRYPTION_PASSWORD contains bad characters"),
-        Err(NotPresent) => {
-            // Try another method
-        }
+    if let Some(password) = super::get_secret_from_env("PBS_ENCRYPTION_PASSWORD")? {
+        return Ok(password.as_bytes().to_vec());
     }
 
     // If we're on a TTY, query the user for a password

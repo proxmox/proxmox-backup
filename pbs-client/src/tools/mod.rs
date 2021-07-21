@@ -1,5 +1,10 @@
 //! Shared tools useful for common CLI clients.
 use std::collections::HashMap;
+use std::fs::File;
+use std::os::unix::io::FromRawFd;
+use std::env::VarError::{NotUnicode, NotPresent};
+use std::io::{BufReader, BufRead};
+use std::process::Command;
 
 use anyhow::{bail, format_err, Context, Error};
 use serde_json::{json, Value};
@@ -7,6 +12,7 @@ use xdg::BaseDirectories;
 
 use proxmox::{
     api::schema::*,
+    api::cli::shellword_split,
     tools::fs::file_get_json,
 };
 
@@ -31,6 +37,80 @@ pub const CHUNK_SIZE_SCHEMA: Schema = IntegerSchema::new("Chunk size in KB. Must
     .maximum(4096)
     .default(4096)
     .schema();
+
+/// Helper to read a secret through a environment variable (ENV).
+///
+/// Tries the following variable names in order and returns the value
+/// it will resolve for the first defined one:
+///
+/// BASE_NAME => use value from ENV(BASE_NAME) directly as secret
+/// BASE_NAME_FD => read the secret from the specified file descriptor
+/// BASE_NAME_FILE => read the secret from the specified file name
+/// BASE_NAME_CMD => read the secret from specified command first line of output on stdout
+///
+/// Only return the first line of data (without CRLF).
+pub fn get_secret_from_env(base_name: &str) -> Result<Option<String>, Error> {
+
+    let firstline = |data: String| -> String {
+        match data.lines().next() {
+            Some(line) => line.to_string(),
+            None => String::new(),
+        }
+    };
+
+    let firstline_file = |file: &mut File| -> Result<String, Error> {
+        let reader = BufReader::new(file);
+        match reader.lines().next() {
+            Some(Ok(line)) => Ok(line),
+            Some(Err(err)) => Err(err.into()),
+            None => Ok(String::new()),
+        }
+    };
+
+    match std::env::var(base_name) {
+        Ok(p) => return Ok(Some(firstline(p))),
+        Err(NotUnicode(_)) => bail!(format!("{} contains bad characters", base_name)),
+        Err(NotPresent) => {},
+    };
+
+    let env_name = format!("{}_FD", base_name);
+    match std::env::var(&env_name) {
+        Ok(fd_str) => {
+            let fd: i32 = fd_str.parse()
+                .map_err(|err| format_err!("unable to parse file descriptor in ENV({}): {}", env_name, err))?;
+            let mut file = unsafe { File::from_raw_fd(fd) };
+            return Ok(Some(firstline_file(&mut file)?));
+        }
+        Err(NotUnicode(_)) => bail!(format!("{} contains bad characters", env_name)),
+        Err(NotPresent) => {},
+    }
+
+    let env_name = format!("{}_FILE", base_name);
+    match std::env::var(&env_name) {
+        Ok(filename) => {
+            let mut file = std::fs::File::open(filename)
+                .map_err(|err| format_err!("unable to open file in ENV({}): {}", env_name, err))?;
+            return Ok(Some(firstline_file(&mut file)?));
+        }
+        Err(NotUnicode(_)) => bail!(format!("{} contains bad characters", env_name)),
+        Err(NotPresent) => {},
+    }
+
+    let env_name = format!("{}_CMD", base_name);
+    match std::env::var(&env_name) {
+        Ok(ref command) => {
+            let args = shellword_split(command)?;
+            let mut command = Command::new(&args[0]);
+            command.args(&args[1..]);
+            let output = pbs_tools::run_command(command, None)?;
+            return Ok(Some(firstline(output)));
+        }
+        Err(NotUnicode(_)) => bail!(format!("{} contains bad characters", env_name)),
+        Err(NotPresent) => {},
+    }
+
+    Ok(None)
+}
 
 pub fn get_default_repository() -> Option<String> {
     std::env::var("PBS_REPOSITORY").ok()
@@ -64,13 +144,7 @@ pub fn connect(repo: &BackupRepository) -> Result<HttpClient, Error> {
 fn connect_do(server: &str, port: u16, auth_id: &Authid) -> Result<HttpClient, Error> {
     let fingerprint = std::env::var(ENV_VAR_PBS_FINGERPRINT).ok();
 
-    use std::env::VarError::*;
-    let password = match std::env::var(ENV_VAR_PBS_PASSWORD) {
-        Ok(p) => Some(p),
-        Err(NotUnicode(_)) => bail!(format!("{} contains bad characters", ENV_VAR_PBS_PASSWORD)),
-        Err(NotPresent) => None,
-    };
-
+    let password = get_secret_from_env(ENV_VAR_PBS_PASSWORD)?;
     let options = HttpClientOptions::new_interactive(password, fingerprint);
 
     HttpClient::new(server, port, auth_id, options)
@@ -80,7 +154,7 @@ fn connect_do(server: &str, port: u16, auth_id: &Authid) -> Result<HttpClient, E
 pub async fn try_get(repo: &BackupRepository, url: &str) -> Value {
 
     let fingerprint = std::env::var(ENV_VAR_PBS_FINGERPRINT).ok();
-    let password = std::env::var(ENV_VAR_PBS_PASSWORD).ok();
+    let password = get_secret_from_env(ENV_VAR_PBS_PASSWORD).unwrap_or(None);
 
     // ticket cache, but no questions asked
     let options = HttpClientOptions::new_interactive(password, fingerprint)
