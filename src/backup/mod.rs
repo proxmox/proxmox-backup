@@ -12,17 +12,27 @@ pub const BACKUP_GROUP_NAME: &str = "backup";
 
 /// Return User info for the 'backup' user (``getpwnam_r(3)``)
 pub fn backup_user() -> Result<nix::unistd::User, Error> {
-    match nix::unistd::User::from_name(BACKUP_USER_NAME)? {
-        Some(user) => Ok(user),
-        None => bail!("Unable to lookup backup user."),
+    if cfg!(test) {
+        // fix permission problems with regressions test (when run as non-root).
+        Ok(nix::unistd::User::from_uid(nix::unistd::Uid::current())?.unwrap())
+    } else {
+        match nix::unistd::User::from_name(BACKUP_USER_NAME)? {
+            Some(user) => Ok(user),
+            None => bail!("Unable to lookup backup user."),
+        }
     }
 }
 
 /// Return Group info for the 'backup' group (``getgrnam(3)``)
 pub fn backup_group() -> Result<nix::unistd::Group, Error> {
-    match nix::unistd::Group::from_name(BACKUP_GROUP_NAME)? {
-        Some(group) => Ok(group),
-        None => bail!("Unable to lookup backup user."),
+    if cfg!(test) {
+        // fix permission problems with regressions test (when run as non-root).
+        Ok(nix::unistd::Group::from_gid(nix::unistd::Gid::current())?.unwrap())
+    } else {
+        match nix::unistd::Group::from_name(BACKUP_GROUP_NAME)? {
+            Some(group) => Ok(group),
+            None => bail!("Unable to lookup backup user."),
+        }
     }
 }
 
