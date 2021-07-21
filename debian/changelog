@@ -1,4 +1,4 @@
-rust-proxmox-backup (2.0.5-1) bullseye; urgency=medium
+rust-proxmox-backup (2.0.5-2) bullseye; urgency=medium
 
   * ui: tape: backup overview: increase timeout for media-set content
 
@@ -20,7 +20,7 @@ rust-proxmox-backup (2.0.5-1) bullseye; urgency=medium
   * make creating log files more robust so that theys are always owned by the
     less privileged `backup` user
 
- -- Proxmox Support Team <support@proxmox.com>  Tue, 20 Jul 2021 19:08:00 +0200
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 21 Jul 2021 09:12:39 +0200
 
 rust-proxmox-backup (2.0.4-1) bullseye; urgency=medium
 
