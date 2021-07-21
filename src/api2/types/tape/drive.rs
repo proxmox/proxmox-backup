@@ -28,7 +28,7 @@ pub const LTO_DRIVE_PATH_SCHEMA: Schema = StringSchema::new(
 pub const CHANGER_DRIVENUM_SCHEMA: Schema = IntegerSchema::new(
     "Associated changer drive number (requires option changer)")
     .minimum(0)
-    .maximum(8)
+    .maximum(255)
     .default(0)
     .schema();
 
