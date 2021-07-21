@@ -1421,7 +1421,7 @@ impl ReadAt for BufferedDynamicReadAt {
         self: Pin<&'a Self>,
         _op: ReadAtOperation<'a>,
     ) -> MaybeReady<io::Result<usize>, ReadAtOperation<'a>> {
-        panic!("LocalDynamicReadAt::start_read_at returned Pending");
+        panic!("BufferedDynamicReadAt::start_read_at returned Pending");
     }
 }
 
