@@ -11,6 +11,7 @@ use pbs_tools::cert::CertInfo;
 use pbs_tools::auth::private_auth_key;
 
 pub mod catalog_shell;
+pub mod dynamic_index;
 pub mod pxar;
 pub mod tools;
 

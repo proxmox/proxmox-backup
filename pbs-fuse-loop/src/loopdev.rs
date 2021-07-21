@@ -1,9 +1,10 @@
 //! Helpers to work with /dev/loop* devices
 
-use anyhow::Error;
 use std::fs::{File, OpenOptions};
 use std::path::Path;
 use std::os::unix::io::{RawFd, AsRawFd};
+
+use anyhow::Error;
 
 const LOOP_CONTROL: &str = "/dev/loop-control";
 const LOOP_NAME: &str = "/dev/loop";

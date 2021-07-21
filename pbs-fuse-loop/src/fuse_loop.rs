@@ -295,7 +295,7 @@ fn emerg_cleanup (loopdev: Option<&str>, mut backing_file: PathBuf) {
     let mut command = std::process::Command::new("fusermount");
     command.arg("-u");
     command.arg(&backing_file);
-    let _ = crate::tools::run_command(command, None);
+    let _ = pbs_tools::run_command(command, None);
 
     let _ = remove_file(&backing_file);
     backing_file.set_extension("pid");

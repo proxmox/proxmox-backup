@@ -85,10 +85,6 @@ pub use pbs_datastore::read_chunk::*;
 mod read_chunk;
 pub use read_chunk::*;
 
-// Split
-mod dynamic_index;
-pub use dynamic_index::*;
-
 mod datastore;
 pub use datastore::*;
 

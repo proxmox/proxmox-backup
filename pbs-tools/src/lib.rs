@@ -7,6 +7,7 @@ pub mod cert;
 pub mod compression;
 pub mod format;
 pub mod fs;
+pub mod io;
 pub mod json;
 pub mod lru_cache;
 pub mod nom;

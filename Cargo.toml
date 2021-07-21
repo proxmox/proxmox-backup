@@ -23,6 +23,7 @@ members = [
     "pbs-buildcfg",
     "pbs-client",
     "pbs-datastore",
+    "pbs-fuse-loop",
     "pbs-runtime",
     "pbs-systemd",
     "pbs-tools",
@@ -90,7 +91,6 @@ pxar = { version = "0.10.1", features = [ "tokio-io" ] }
 proxmox = { version = "0.12.0", features = [ "sortable-macro", "api-macro", "cli", "router", "tfa" ] }
 proxmox-acme-rs = "0.2.1"
 proxmox-apt = "0.5.1"
-proxmox-fuse = "0.1.1"
 proxmox-http = { version = "0.3.0", features = [ "client", "http-helpers", "websocket" ] }
 proxmox-openid = "0.6.1"
 
@@ -98,6 +98,7 @@ pbs-api-types = { path = "pbs-api-types" }
 pbs-buildcfg = { path = "pbs-buildcfg" }
 pbs-client = { path = "pbs-client" }
 pbs-datastore = { path = "pbs-datastore" }
+pbs-fuse-loop = { path = "pbs-fuse-loop" }
 pbs-runtime = { path = "pbs-runtime" }
 pbs-systemd = { path = "pbs-systemd" }
 pbs-tools = { path = "pbs-tools" }

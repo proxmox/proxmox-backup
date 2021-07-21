@@ -8,19 +8,11 @@ use proxmox::{
     tools::fs::file_get_contents,
 };
 
+use pbs_api_types::SnapshotListItem;
 use pbs_client::tools::key_source::get_encryption_key_password;
+use pbs_datastore::{BackupGroup, CryptMode, CryptConfig, decrypt_key};
+use pbs_datastore::data_blob::DataBlob;
 use pbs_tools::json::required_string_param;
-
-use proxmox_backup::{
-    api2::types::*,
-    backup::{
-        CryptMode,
-        CryptConfig,
-        DataBlob,
-        BackupGroup,
-        decrypt_key,
-    }
-};
 
 use crate::{
     REPO_URL_SCHEMA,

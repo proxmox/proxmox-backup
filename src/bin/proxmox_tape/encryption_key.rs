@@ -12,14 +12,9 @@ use proxmox::{
 };
 
 use pbs_datastore::Kdf;
+use pbs_datastore::paperkey::{PaperkeyFormat, generate_paper_key};
 
 use proxmox_backup::{
-    tools::{
-        paperkey::{
-            PaperkeyFormat,
-            generate_paper_key,
-        },
-    },
     config,
     api2::{
         self,

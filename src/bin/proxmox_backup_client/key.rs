@@ -13,17 +13,12 @@ use proxmox::api::router::ReturnType;
 use proxmox::sys::linux::tty;
 use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
 
-use pbs_datastore::{KeyInfo, Kdf};
+use pbs_api_types::{RsaPubKeyInfo, PASSWORD_HINT_SCHEMA};
+use pbs_datastore::{KeyConfig, KeyInfo, Kdf, rsa_decrypt_key_config};
+use pbs_datastore::paperkey::{generate_paper_key, PaperkeyFormat};
 use pbs_client::tools::key_source::{
     find_default_encryption_key, find_default_master_pubkey, get_encryption_key_password,
     place_default_encryption_key, place_default_master_pubkey,
-};
-
-
-use proxmox_backup::{
-    api2::types::{RsaPubKeyInfo, PASSWORD_HINT_SCHEMA},
-    backup::{rsa_decrypt_key_config, KeyConfig},
-    tools::paperkey::{generate_paper_key, PaperkeyFormat},
 };
 
 #[api(

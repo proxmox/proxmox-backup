@@ -7,7 +7,7 @@ use pbs_client::display_task_log;
 use pbs_tools::percent_encoding::percent_encode_component;
 use pbs_tools::json::required_string_param;
 
-use proxmox_backup::api2::types::UPID_SCHEMA;
+use pbs_api_types::UPID;
 
 use crate::{
     REPO_URL_SCHEMA,
@@ -87,7 +87,7 @@ async fn task_list(param: Value) -> Result<Value, Error> {
                 optional: true,
             },
             upid: {
-                schema: UPID_SCHEMA,
+                type: UPID,
             },
         }
     }
@@ -113,7 +113,7 @@ async fn task_log(param: Value) -> Result<Value, Error> {
                 optional: true,
             },
             upid: {
-                schema: UPID_SCHEMA,
+                type: UPID,
             },
         }
     }

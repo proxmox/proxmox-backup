@@ -64,7 +64,7 @@ use pbs_datastore::{CATALOG_NAME, CryptConfig, KeyConfig, decrypt_key, rsa_encry
 use pbs_datastore::backup_info::{BackupDir, BackupGroup};
 use pbs_datastore::catalog::{BackupCatalogWriter, CatalogReader, CatalogWriter};
 use pbs_datastore::chunk_store::verify_chunk_size;
-use pbs_datastore::dynamic_index::DynamicIndexReader;
+use pbs_datastore::dynamic_index::{BufferedDynamicReader, DynamicIndexReader};
 use pbs_datastore::fixed_index::FixedIndexReader;
 use pbs_datastore::index::IndexFile;
 use pbs_datastore::manifest::{
@@ -75,10 +75,6 @@ use pbs_datastore::prune::PruneOptions;
 use pbs_tools::sync::StdChannelWriter;
 use pbs_tools::tokio::TokioWriterAdapter;
 use pbs_tools::json;
-
-use proxmox_backup::backup::{
-    BufferedDynamicReader,
-};
 
 mod proxmox_backup_client;
 use proxmox_backup_client::*;

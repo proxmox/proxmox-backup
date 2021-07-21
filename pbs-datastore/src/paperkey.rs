@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use proxmox::api::api;
 
-use crate::backup::KeyConfig;
+use crate::KeyConfig;
 
 #[api()]
 #[derive(Debug, Serialize, Deserialize)]
@@ -247,7 +247,7 @@ fn generate_qr_code(output_type: &str, lines: &[String]) -> Result<Vec<u8>, Erro
         .wait_with_output()
         .map_err(|_| format_err!("Failed to read stdout"))?;
 
-    let output = crate::tools::command_output(output, None)?;
+    let output = pbs_tools::command_output(output, None)?;
 
     Ok(output)
 }

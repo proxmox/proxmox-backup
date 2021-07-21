@@ -101,7 +101,7 @@ impl<S: ReadChunk> BufferedDynamicReader<S> {
     }
 }
 
-impl<S: ReadChunk> crate::tools::BufferedRead for BufferedDynamicReader<S> {
+impl<S: ReadChunk> pbs_tools::io::BufferedRead for BufferedDynamicReader<S> {
     fn buffered_read(&mut self, offset: u64) -> Result<&[u8], Error> {
         if offset == self.archive_size {
             return Ok(&self.read_buffer[0..0]);
@@ -141,7 +141,7 @@ impl<S: ReadChunk> crate::tools::BufferedRead for BufferedDynamicReader<S> {
 
 impl<S: ReadChunk> std::io::Read for BufferedDynamicReader<S> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
-        use crate::tools::BufferedRead;
+        use pbs_tools::io::BufferedRead;
         use std::io::{Error, ErrorKind};
 
         let data = match self.buffered_read(self.read_offset) {
