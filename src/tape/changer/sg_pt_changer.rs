@@ -33,6 +33,7 @@ use crate::{
 };
 
 const SCSI_CHANGER_DEFAULT_TIMEOUT: usize = 60*5; // 5 minutes
+const SCSI_VOLUME_TAG_LEN: usize = 36;
 
 /// Initialize element status (Inventory)
 pub fn initialize_element_status<F: AsRawFd>(file: &mut F) -> Result<(), Error> {
@@ -509,7 +510,7 @@ impl SubHeader {
     ) -> Result<Option<String>, Error> {
 
         if (self.flags & 128) != 0 { // has PVolTag
-            let tmp = reader.read_exact_allocated(36)?;
+            let tmp = reader.read_exact_allocated(SCSI_VOLUME_TAG_LEN)?;
             if full {
                 let volume_tag = scsi_ascii_to_string(&tmp);
                 return Ok(Some(volume_tag));
@@ -526,7 +527,7 @@ impl SubHeader {
     ) -> Result<Option<String>, Error> {
 
         if (self.flags & 64) != 0 { // has AVolTag
-            let _tmp = reader.read_exact_allocated(36)?;
+            let _tmp = reader.read_exact_allocated(SCSI_VOLUME_TAG_LEN)?;
         }
 
         Ok(None)
