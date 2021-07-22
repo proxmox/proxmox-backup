@@ -651,17 +651,9 @@ fn decode_element_status_page(
             }
 
             let descr_data = reader.read_exact_allocated(len)?;
-            let mut reader = &descr_data[..];
 
-            loop {
-                if reader.is_empty() {
-                    break;
-                }
-                if reader.len() < (subhead.descriptor_length as usize) {
-                    break;
-                }
-
-                let len_before = reader.len();
+            for descriptor in descr_data.chunks_exact(subhead.descriptor_length as usize) {
+                let mut reader = &descriptor[..];
 
                 match subhead.element_type_code {
                     1 => {
@@ -671,9 +663,6 @@ fn decode_element_status_page(
                         let volume_tag = subhead.parse_optional_volume_tag(&mut reader, full)?;
 
                         subhead.skip_alternate_volume_tag(&mut reader)?;
-
-                        let mut reserved = [0u8; 4];
-                        reader.read_exact(&mut reserved)?;
 
                         result.last_element_address = Some(desc.element_address);
 
@@ -690,9 +679,6 @@ fn decode_element_status_page(
                         let volume_tag = subhead.parse_optional_volume_tag(&mut reader, full)?;
 
                         subhead.skip_alternate_volume_tag(&mut reader)?;
-
-                        let mut reserved = [0u8; 4];
-                        reader.read_exact(&mut reserved)?;
 
                         result.last_element_address = Some(desc.element_address);
 
@@ -762,19 +748,6 @@ fn decode_element_status_page(
                         result.drives.push(drive);
                     }
                     code => bail!("got unknown element type code {}", code),
-                }
-
-                // we have to consume the whole descriptor size, else
-                // our position in the reader is not correct
-                let len_after = reader.len();
-                let have_read = len_before - len_after;
-                let desc_len = subhead.descriptor_length as usize;
-                if desc_len > have_read {
-                    let mut left_to_read = desc_len - have_read;
-                    if left_to_read > len_after {
-                        left_to_read = len_after; // reader has not enough data?
-                    }
-                    let _ = reader.read_exact_allocated(left_to_read)?;
                 }
             }
         }
