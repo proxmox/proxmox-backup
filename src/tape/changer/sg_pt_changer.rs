@@ -421,17 +421,38 @@ pub fn read_element_status<F: AsRawFd>(file: &mut F) -> Result<MtxStatus, Error>
     let page = get_element(&inquiry, &mut sg_raw, ElementType::MediumTransport, allocation_len, false)?;
     transports.extend(page.transports);
 
-    if (setup.transport_element_count as usize) != transports.len() {
-        bail!("got wrong number of transport elements");
+    let transport_count = setup.transport_element_count as usize;
+    let storage_count = setup.storage_element_count as usize;
+    let import_export_count = setup.import_export_element_count as usize;
+    let transfer_count = setup.transfer_element_count as usize;
+
+    if transport_count != transports.len() {
+        bail!(
+            "got wrong number of transport elements: expoected {}, got{}",
+            transport_count,
+            transports.len()
+        );
     }
-    if (setup.storage_element_count as usize) != storage_slots.len() {
-        bail!("got wrong number of storage elements");
+    if storage_count != storage_slots.len() {
+        bail!(
+            "got wrong number of storage elements: expected {}, got {}",
+            storage_count,
+            storage_slots.len(),
+        );
     }
-    if (setup.import_export_element_count as usize) != import_export_slots.len() {
-        bail!("got wrong number of import/export elements");
+    if import_export_count != import_export_slots.len() {
+        bail!(
+            "got wrong number of import/export elements: expected {}, got {}",
+            import_export_count,
+            import_export_slots.len(),
+        );
     }
-    if (setup.transfer_element_count as usize) != drives.len() {
-        bail!("got wrong number of transfer elements");
+    if transfer_count != drives.len() {
+        bail!(
+            "got wrong number of transfer elements: expected {}, got {}",
+            transfer_count,
+            drives.len(),
+        );
     }
 
     // create same virtual slot order as mtx(1)
