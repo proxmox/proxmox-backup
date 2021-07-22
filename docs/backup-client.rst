@@ -49,36 +49,19 @@ Environment Variables
   When set, this value is used for the password required for the backup server.
   You can also set this to a API token secret.
 
-  .. Note:: if not set, we also query ``PBS_PASSWORD_FD``,
-     ``PBS_PASSWORD_FILE`` and ``PBS_PASSWORD_CMD`` (in that order)
-     and return the first value set.
-
-``PBS_PASSWORD_FD``
-  Like ``PBS_PASSWORD``, but read data from Unix file descriptor.
-
-``PBS_PASSWORD_FILE``
-  Like ``PBS_PASSWORD``, but read data from specified file name.
-
-``PBS_PASSWORD_CMD``
-  Like ``PBS_PASSWORD``, but read data from specified command (stdout).
+``PBS_PASSWORD_FD``, ``PBS_PASSWORD_FILE``, ``PBS_PASSWORD_CMD``
+  Like ``PBS_PASSWORD``, but read data from an open file descriptor, a file
+  name or from the `stdout` of a command, respectively. The first defined
+  environment variable from the order above is preferred.
 
 ``PBS_ENCRYPTION_PASSWORD``
   When set, this value is used to access the secret encryption key (if
   protected by password).
 
-  .. Note:: if not set, we also query ``PBS_ENCRYPTION_PASSWORD_FD``,
-     ``PBS_ENCRYPTION_PASSWORD_FILE`` and
-     ``PBS_ENCRYPTION_PASSWORD_CMD`` (in that order) and return the
-     first value set.
-
-``PBS_ENCRYPTION_PASSWORD_FD``
-  Like ``PBS_ENCRYPTION_PASSWORD``, but read data from Unix file descriptor.
-
-``PBS_ENCRYPTION_PASSWORD_FILE``
-  Like ``PBS_ENCRYPTION_PASSWORD``, but read data from specified file name.
-
-``PBS_ENCRYPTION_PASSWORD_CMD``
-  Like ``PBS_ENCRYPTION_PASSWORD``, but read data from specified command (stdout).
+``PBS_ENCRYPTION_PASSWORD_FD``, ``PBS_ENCRYPTION_PASSWORD_FILE``, ``PBS_ENCRYPTION_PASSWORD_CMD``
+  Like ``PBS_ENCRYPTION_PASSWORD``, but read data from an open file descriptor,
+  a file name or from the `stdout` of a command, respectively. The first
+  defined environment variable from the order above is preferred.
 
 ``PBS_FINGERPRINT`` When set, this value is used to verify the server
   certificate (only used if the system CA certificates cannot validate the
