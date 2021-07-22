@@ -97,11 +97,7 @@ impl CatalogSet {
     ) -> Result<(), Error> {
         match self.catalog {
             Some(ref mut catalog) => {
-                catalog.start_chunk_archive(uuid, file_number, store)?;
-                for digest in chunk_list {
-                    catalog.register_chunk(digest)?;
-                }
-                catalog.end_chunk_archive()?;
+                catalog.register_chunk_archive(uuid, file_number, store, chunk_list)?;
             }
             None => bail!("no catalog loaded - internal error"),
         }

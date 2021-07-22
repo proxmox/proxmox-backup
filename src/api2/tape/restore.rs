@@ -1121,16 +1121,13 @@ fn restore_archive<'a>(
                 };
 
                 if let Some(chunks) = chunks {
-                    catalog.start_chunk_archive(
+                    catalog.register_chunk_archive(
                         Uuid::from(header.uuid),
                         current_file_number,
                         &source_datastore,
+                        &chunks[..],
                     )?;
-                    for digest in chunks.iter() {
-                        catalog.register_chunk(&digest)?;
-                    }
                     task_log!(worker, "register {} chunks", chunks.len());
-                    catalog.end_chunk_archive()?;
                     catalog.commit_if_large()?;
                 }
                 return Ok(());

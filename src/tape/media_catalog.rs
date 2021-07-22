@@ -503,10 +503,26 @@ impl MediaCatalog {
         Ok(())
     }
 
+    /// Register a chunk archive
+    pub fn register_chunk_archive(
+        &mut self,
+        uuid: Uuid, // Uuid form MediaContentHeader
+        file_number: u64,
+        store: &str,
+        chunk_list: &[[u8; 32]],
+    ) -> Result<(), Error> {
+        self.start_chunk_archive(uuid, file_number, store)?;
+        for digest in chunk_list {
+            self.register_chunk(digest)?;
+        }
+        self.end_chunk_archive()?;
+        Ok(())
+    }
+
     /// Register a chunk
     ///
     /// Only valid after start_chunk_archive.
-    pub fn register_chunk(
+    fn register_chunk(
         &mut self,
         digest: &[u8;32],
     ) -> Result<(), Error> {
@@ -557,7 +573,7 @@ impl MediaCatalog {
     }
 
     /// Start a chunk archive section
-    pub fn start_chunk_archive(
+    fn start_chunk_archive(
         &mut self,
         uuid: Uuid, // Uuid form MediaContentHeader
         file_number: u64,
@@ -606,7 +622,7 @@ impl MediaCatalog {
     }
 
     /// End a chunk archive section
-    pub fn end_chunk_archive(&mut self) -> Result<(), Error> {
+    fn end_chunk_archive(&mut self) -> Result<(), Error> {
 
         match self.current_archive.take() {
             None => bail!("end_chunk_archive failed: not started"),
