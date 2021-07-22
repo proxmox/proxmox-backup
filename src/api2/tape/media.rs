@@ -42,6 +42,7 @@ use crate::{
         Inventory,
         MediaPool,
         MediaCatalog,
+        media_catalog_snapshot_list,
         changer::update_online_status,
     },
 };
@@ -502,32 +503,28 @@ pub fn list_content(
             .generate_media_set_name(&set.uuid, template)
             .unwrap_or_else(|_| set.uuid.to_string());
 
-        let catalog = MediaCatalog::open(status_path, &media_id, false, false)?;
+        for (store, snapshot) in media_catalog_snapshot_list(status_path, &media_id)? {
+            let backup_dir: BackupDir = snapshot.parse()?;
 
-        for (store, content) in catalog.content() {
-            for snapshot in content.snapshot_index.keys() {
-                let backup_dir: BackupDir = snapshot.parse()?;
-
-                if let Some(ref backup_type) = filter.backup_type {
-                    if backup_dir.group().backup_type() != backup_type { continue; }
-                }
-                if let Some(ref backup_id) = filter.backup_id {
-                    if backup_dir.group().backup_id() != backup_id { continue; }
-                }
-
-                list.push(MediaContentEntry {
-                    uuid: media_id.label.uuid.clone(),
-                    label_text: media_id.label.label_text.to_string(),
-                    pool: set.pool.clone(),
-                    media_set_name: media_set_name.clone(),
-                    media_set_uuid: set.uuid.clone(),
-                    media_set_ctime: set.ctime,
-                    seq_nr: set.seq_nr,
-                    snapshot: snapshot.to_owned(),
-                    store: store.to_owned(),
-                    backup_time: backup_dir.backup_time(),
-                });
+            if let Some(ref backup_type) = filter.backup_type {
+                if backup_dir.group().backup_type() != backup_type { continue; }
             }
+            if let Some(ref backup_id) = filter.backup_id {
+                if backup_dir.group().backup_id() != backup_id { continue; }
+            }
+
+            list.push(MediaContentEntry {
+                uuid: media_id.label.uuid.clone(),
+                label_text: media_id.label.label_text.to_string(),
+                pool: set.pool.clone(),
+                media_set_name: media_set_name.clone(),
+                media_set_uuid: set.uuid.clone(),
+                media_set_ctime: set.ctime,
+                seq_nr: set.seq_nr,
+                snapshot: snapshot.to_owned(),
+                store: store.to_owned(),
+                backup_time: backup_dir.backup_time(),
+            });
         }
     }
 
