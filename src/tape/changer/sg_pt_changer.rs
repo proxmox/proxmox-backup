@@ -630,6 +630,43 @@ fn create_element_status(full: bool, volume_tag: Option<String>) -> ElementStatu
     }
 }
 
+struct DvcidInfo {
+    vendor: Option<String>,
+    model: Option<String>,
+    serial: Option<String>,
+}
+
+fn decode_dvcid_info<R: Read>(reader: &mut R) -> Result<DvcidInfo, Error> {
+    let dvcid: DvcidHead = unsafe { reader.read_be_value()? };
+
+    let (serial, vendor, model) = match (dvcid.code_set, dvcid.identifier_type) {
+        (2, 0) => { // Serial number only (Quantum Superloader3 uses this)
+            let serial = reader.read_exact_allocated(dvcid.identifier_len as usize)?;
+            let serial = scsi_ascii_to_string(&serial);
+            (Some(serial), None, None)
+        }
+        (2, 1) => {
+            if dvcid.identifier_len != 34 {
+                bail!("got wrong DVCID length");
+            }
+            let vendor = reader.read_exact_allocated(8)?;
+            let vendor = scsi_ascii_to_string(&vendor);
+            let model = reader.read_exact_allocated(16)?;
+            let model = scsi_ascii_to_string(&model);
+            let serial = reader.read_exact_allocated(10)?;
+            let serial = scsi_ascii_to_string(&serial);
+            (Some(serial), Some(vendor), Some(model))
+        }
+        _ => (None, None, None),
+    };
+
+    Ok(DvcidInfo {
+        vendor,
+        model,
+        serial,
+    })
+}
+
 fn decode_element_status_page(
     _info: &InquiryInfo,
     data: &[u8],
@@ -733,37 +770,20 @@ fn decode_element_status_page(
 
                         subhead.skip_alternate_volume_tag(&mut reader)?;
 
-                        let dvcid: DvcidHead = unsafe { reader.read_be_value()? };
-
-                        let (drive_serial_number, vendor, model) = match (dvcid.code_set, dvcid.identifier_type) {
-                            (2, 0) => { // Serial number only (Quantum Superloader3 uses this)
-                                let serial = reader.read_exact_allocated(dvcid.identifier_len as usize)?;
-                                let serial = scsi_ascii_to_string(&serial);
-                                (Some(serial), None, None)
-                            }
-                            (2, 1) => {
-                                if dvcid.identifier_len != 34 {
-                                    bail!("got wrong DVCID length");
-                                }
-                                let vendor = reader.read_exact_allocated(8)?;
-                                let vendor = scsi_ascii_to_string(&vendor);
-                                let model = reader.read_exact_allocated(16)?;
-                                let model = scsi_ascii_to_string(&model);
-                                let serial = reader.read_exact_allocated(10)?;
-                                let serial = scsi_ascii_to_string(&serial);
-                                (Some(serial), Some(vendor), Some(model))
-                            }
-                            _ => (None, None, None),
-                        };
+                        let dvcid = decode_dvcid_info(&mut reader).unwrap_or(DvcidInfo {
+                            vendor: None,
+                            model: None,
+                            serial: None,
+                        });
 
                         result.last_element_address = Some(desc.element_address);
 
                         let drive = DriveStatus {
                             loaded_slot,
                             status: create_element_status(full, volume_tag),
-                            drive_serial_number,
-                            vendor,
-                            model,
+                            drive_serial_number: dvcid.serial,
+                            vendor: dvcid.vendor,
+                            model: dvcid.model,
                             element_address: desc.element_address,
                         };
                         result.drives.push(drive);
