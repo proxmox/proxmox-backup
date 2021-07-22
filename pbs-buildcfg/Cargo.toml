@@ -1,6 +1,6 @@
 [package]
 name = "pbs-buildcfg"
-version = "2.0.5"
+version = "2.0.6"
 authors = ["Proxmox Support Team <support@proxmox.com>"]
 edition = "2018"
 description = "macros used for pbs related paths such as configdir and rundir"

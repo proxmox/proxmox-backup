@@ -1,3 +1,16 @@
+rust-proxmox-backup (2.0.6-1) bullseye; urgency=medium
+
+  * increase maximum drives per changer to 255
+
+  * allow one to pass a secret not only directly through the environment value,
+    but also indirectly through a file path, an open file descriptor or a
+    command that can write the secret to standard out.
+
+  * pull in new proxmox library version to improve the file system
+    comaptibility on creation of atomic files, e.g., lock files.
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 22 Jul 2021 10:22:19 +0200
+
 rust-proxmox-backup (2.0.5-2) bullseye; urgency=medium
 
   * ui: tape: backup overview: increase timeout for media-set content
