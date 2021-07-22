@@ -200,22 +200,12 @@ mod tests {
 
         let fd = file.as_raw_fd();
 
-        let mut name = b"user.".to_vec();
-        for _ in 0..260 {
-            name.push(b'a');
-        }
-
-        let invalid_name = CString::new(name).unwrap();
-
         assert!(fsetxattr(fd, c_str!("user.attribute0"), b"value0").is_ok());
         assert!(fsetxattr(fd, c_str!("user.empty"), b"").is_ok());
 
         if nix::unistd::Uid::current() != nix::unistd::ROOT {
             assert_eq!(fsetxattr(fd, c_str!("trusted.attribute0"), b"value0"), Err(Errno::EPERM));
         }
-
-        assert_eq!(fsetxattr(fd, c_str!("garbage.attribute0"), b"value"), Err(Errno::EOPNOTSUPP));
-        assert_eq!(fsetxattr(fd, &invalid_name, b"err"), Err(Errno::ERANGE));
 
         let v0 = fgetxattr(fd, c_str!("user.attribute0")).unwrap();
         let v1 = fgetxattr(fd, c_str!("user.empty")).unwrap();
