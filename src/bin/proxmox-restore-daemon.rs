@@ -53,7 +53,8 @@ fn main() -> Result<(), Error> {
         .format_timestamp_millis()
         .init();
 
-    setup_system_env()?;
+    info!("setup basic system environment...");
+    setup_system_env().map_err(|err| format_err!("system environment setup failed: {}", err))?;
 
     // scan all attached disks now, before starting the API
     // this will panic and stop the VM if anything goes wrong
