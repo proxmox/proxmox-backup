@@ -7,7 +7,7 @@ use pbs_client::{connect_to_localhost, view_task_result};
 
 use proxmox_backup::config;
 use proxmox_backup::api2::{self, types::* };
-use proxmox_backup::config::datastore::DIR_NAME_SCHEMA;
+use proxmox_backup::config::datastore::DataStoreConfig;
 
 #[api(
     input: {
@@ -74,55 +74,9 @@ fn show_datastore(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value
     protected: true,
     input: {
         properties: {
-            name: {
-                schema: DATASTORE_SCHEMA,
-            },
-            path: {
-                schema: DIR_NAME_SCHEMA,
-            },
-            comment: {
-                optional: true,
-                schema: SINGLE_LINE_COMMENT_SCHEMA,
-            },
-            "notify-user": {
-                optional: true,
-                type: Userid,
-            },
-            "notify": {
-                optional: true,
-                schema: DATASTORE_NOTIFY_STRING_SCHEMA,
-            },
-            "gc-schedule": {
-                optional: true,
-                schema: GC_SCHEDULE_SCHEMA,
-            },
-            "prune-schedule": {
-                optional: true,
-                schema: PRUNE_SCHEDULE_SCHEMA,
-            },
-            "keep-last": {
-                optional: true,
-                schema: PRUNE_SCHEMA_KEEP_LAST,
-            },
-            "keep-hourly": {
-                optional: true,
-                schema: PRUNE_SCHEMA_KEEP_HOURLY,
-            },
-            "keep-daily": {
-                optional: true,
-                schema: PRUNE_SCHEMA_KEEP_DAILY,
-            },
-            "keep-weekly": {
-                optional: true,
-                schema: PRUNE_SCHEMA_KEEP_WEEKLY,
-            },
-            "keep-monthly": {
-                optional: true,
-                schema: PRUNE_SCHEMA_KEEP_MONTHLY,
-            },
-            "keep-yearly": {
-                optional: true,
-                schema: PRUNE_SCHEMA_KEEP_YEARLY,
+            config: {
+                type: DataStoreConfig,
+                flatten: true,
             },
             "output-format": {
                 schema: OUTPUT_FORMAT,

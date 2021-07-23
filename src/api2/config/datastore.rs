@@ -7,7 +7,6 @@ use ::serde::{Deserialize, Serialize};
 use proxmox::api::{api, Router, RpcEnvironment, Permission};
 use proxmox::api::section_config::SectionConfigData;
 use proxmox::api::schema::parse_property_string;
-
 use pbs_datastore::task::TaskState;
 
 use crate::api2::config::sync::delete_sync_job;
@@ -20,7 +19,7 @@ use crate::api2::admin::{
 use crate::api2::types::*;
 use crate::backup::*;
 use crate::config::cached_user_info::CachedUserInfo;
-use crate::config::datastore::{self, DataStoreConfig, DIR_NAME_SCHEMA};
+use crate::config::datastore::{self, DataStoreConfig};
 use crate::config::acl::{PRIV_DATASTORE_ALLOCATE, PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_MODIFY};
 use crate::server::{jobstate, WorkerTask};
 
@@ -31,7 +30,7 @@ use crate::server::{jobstate, WorkerTask};
     returns: {
         description: "List the configured datastores (with config digest).",
         type: Array,
-        items: { type: datastore::DataStoreConfig },
+        items: { type: DataStoreConfig },
     },
     access: {
         permission: &Permission::Anybody,
@@ -80,63 +79,13 @@ pub(crate) fn do_create_datastore(
     Ok(())
 }
 
-// fixme: impl. const fn get_object_schema(datastore::DataStoreConfig::API_SCHEMA),
-// but this need support for match inside const fn
-// see: https://github.com/rust-lang/rust/issues/49146
-
 #[api(
     protected: true,
     input: {
         properties: {
-            name: {
-                schema: DATASTORE_SCHEMA,
-            },
-            path: {
-                schema: DIR_NAME_SCHEMA,
-            },
-            comment: {
-                optional: true,
-                schema: SINGLE_LINE_COMMENT_SCHEMA,
-            },
-            "notify-user": {
-                optional: true,
-                type: Userid,
-            },
-            "notify": {
-                optional: true,
-                schema: DATASTORE_NOTIFY_STRING_SCHEMA,
-            },
-            "gc-schedule": {
-                optional: true,
-                schema: GC_SCHEDULE_SCHEMA,
-            },
-            "prune-schedule": {
-                optional: true,
-                schema: PRUNE_SCHEDULE_SCHEMA,
-            },
-            "keep-last": {
-                optional: true,
-                schema: PRUNE_SCHEMA_KEEP_LAST,
-            },
-            "keep-hourly": {
-                optional: true,
-                schema: PRUNE_SCHEMA_KEEP_HOURLY,
-            },
-            "keep-daily": {
-                optional: true,
-                schema: PRUNE_SCHEMA_KEEP_DAILY,
-            },
-            "keep-weekly": {
-                optional: true,
-                schema: PRUNE_SCHEMA_KEEP_WEEKLY,
-            },
-            "keep-monthly": {
-                optional: true,
-                schema: PRUNE_SCHEMA_KEEP_MONTHLY,
-            },
-            "keep-yearly": {
-                optional: true,
-                schema: PRUNE_SCHEMA_KEEP_YEARLY,
+            config: {
+                type: DataStoreConfig,
+                flatten: true,
             },
         },
     },
@@ -146,28 +95,26 @@ pub(crate) fn do_create_datastore(
 )]
 /// Create new datastore config.
 pub fn create_datastore(
-    param: Value,
+    config: DataStoreConfig,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
 
     let lock = datastore::lock_config()?;
 
-    let datastore: datastore::DataStoreConfig = serde_json::from_value(param)?;
+    let (section_config, _digest) = datastore::config()?;
 
-    let (config, _digest) = datastore::config()?;
-
-    if config.sections.get(&datastore.name).is_some() {
-        bail!("datastore '{}' already exists.", datastore.name);
+    if section_config.sections.get(&config.name).is_some() {
+        bail!("datastore '{}' already exists.", config.name);
     }
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
     WorkerTask::new_thread(
         "create-datastore",
-        Some(datastore.name.to_string()),
+        Some(config.name.to_string()),
         auth_id,
         false,
-        move |worker| do_create_datastore(lock, config, datastore, Some(&worker)),
+        move |worker| do_create_datastore(lock, section_config, config, Some(&worker)),
     )
 }
 
@@ -179,7 +126,7 @@ pub fn create_datastore(
             },
         },
     },
-    returns: { type: datastore::DataStoreConfig },
+    returns: { type: DataStoreConfig },
     access: {
         permission: &Permission::Privilege(&["datastore", "{name}"], PRIV_DATASTORE_AUDIT, false),
     },
@@ -334,7 +281,7 @@ pub fn update_datastore(
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 
-    let mut data: datastore::DataStoreConfig = config.lookup("datastore", &name)?;
+    let mut data: DataStoreConfig = config.lookup("datastore", &name)?;
 
      if let Some(delete) = delete {
         for delete_prop in delete {

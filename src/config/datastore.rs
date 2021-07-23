@@ -5,7 +5,7 @@ use serde::{Serialize, Deserialize};
 
 use proxmox::api::{
     api,
-    schema::*,
+    schema::{Schema, StringSchema},
     section_config::{
         SectionConfig,
         SectionConfigData,
@@ -76,6 +76,7 @@ pub const DIR_NAME_SCHEMA: Schema = StringSchema::new("Directory name").schema()
             schema: PRUNE_SCHEMA_KEEP_YEARLY,
         },
         "verify-new": {
+            description: "If enabled, all new backups will be verified right after completion.",
             optional: true,
             type: bool,
         },
