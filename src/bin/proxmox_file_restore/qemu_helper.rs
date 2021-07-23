@@ -317,8 +317,7 @@ pub async fn start_vm(
             }
             return Ok((pid, cid as i32));
         }
-        if kill(pid_t, None).is_err() {
-            // QEMU exited
+        if kill(pid_t, None).is_err() { // check if QEMU process exited in between
             bail!("VM exited before connection could be established");
         }
         time::sleep(Duration::from_millis(200)).await;
