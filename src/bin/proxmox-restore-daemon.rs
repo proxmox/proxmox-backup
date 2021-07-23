@@ -50,9 +50,7 @@ fn main() -> Result<(), Error> {
         .format_timestamp_millis()
         .init();
 
-    // the API may save some stuff there, e.g., the memcon tracking file
-    // we do not care much, but it's way less headache to just create it
-    std::fs::create_dir_all("/run/proxmox-backup")?;
+    setup_system_env()?;
 
     // scan all attached disks now, before starting the API
     // this will panic and stop the VM if anything goes wrong
@@ -64,6 +62,15 @@ fn main() -> Result<(), Error> {
     info!("disk scan complete, starting main runtime...");
 
     pbs_runtime::main(run())
+}
+
+/// ensure we have our /run dirs, system users and stuff like that setup
+fn setup_system_env() -> Result<(), Error> {
+    // the API may save some stuff there, e.g., the memcon tracking file
+    // we do not care much, but it's way less headache to just create it
+    std::fs::create_dir_all("/run/proxmox-backup")?;
+
+    Ok(())
 }
 
 async fn run() -> Result<(), Error> {
