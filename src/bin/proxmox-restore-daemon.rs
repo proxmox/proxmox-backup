@@ -1,7 +1,7 @@
 ///! Daemon binary to run inside a micro-VM for secure single file restore of disk images
 use anyhow::{bail, format_err, Error};
 use lazy_static::lazy_static;
-use log::{info, error};
+use log::{error, info};
 
 use std::os::unix::{
     io::{FromRawFd, RawFd},
