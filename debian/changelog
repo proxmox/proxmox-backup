@@ -1,3 +1,16 @@
+rust-proxmox-backup (2.0.7-1) bullseye; urgency=medium
+
+  * tape changer: better cope with models that are not following spec
+    proposals when returning the status page
+
+  * tape changer: make DVCID information optional, not all devices return it
+
+  * restore daemon: setup the 'backup' system user and group in the minimal
+    restore environment, as we like to ensure that all state files are ownend
+    by them.
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 23 Jul 2021 08:43:51 +0200
+
 rust-proxmox-backup (2.0.6-1) bullseye; urgency=medium
 
   * increase maximum drives per changer to 255
