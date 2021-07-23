@@ -693,9 +693,8 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	},
     ],
 
-    layout: 'auto',
+    layout: 'fit',
     bodyPadding: 5,
-    scrollable: true,
 
     items: [
 	{
@@ -703,7 +702,7 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 	    reference: 'content',
 	    layout: {
 		type: 'hbox',
-		aling: 'stretch',
+		align: 'stretch',
 	    },
 	    items: [
 		{
@@ -711,6 +710,7 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 		    reference: 'slots',
 		    title: gettext('Slots'),
 		    padding: 5,
+		    srollable: true,
 		    flex: 1,
 		    store: {
 			type: 'diff',
@@ -771,10 +771,16 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 		    defaults: {
 			padding: 5,
 		    },
+		    layout: {
+			type: 'vbox',
+			align: 'stretch',
+		    },
 		    items: [
 			{
 			    xtype: 'grid',
 			    reference: 'drives',
+			    scrollable: true,
+			    maxHeight: 350, // ~10 drives
 			    title: gettext('Drives'),
 			    store: {
 				type: 'diff',
@@ -918,6 +924,8 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 			{
 			    xtype: 'grid',
 			    reference: 'import_export',
+			    flex: 1,
+			    srollable: true,
 			    store: {
 				type: 'diff',
 				rstore: {
