@@ -1,3 +1,23 @@
+rust-proxmox-backup (1.1.13-1) unstable; urgency=medium
+
+  * auth: improve thread safety of 'crypt' C-library
+
+  * file-restore: increase lock timeout on QEMU map
+
+  * file restore daemon: log basic startup steps
+
+  * REST-API: set error message extension for bad-request response log to
+    ensure the actual error is logged in any (access) log, making debugging
+    such issues easier.
+
+  * restore daemon: use millisecond log resolution
+
+  * fix #3496: acme: plugin: actually sleep after setting the TXT record,
+    ensuring DNS propagation of that record. This makes it catch up with the
+    docs/web-interface, where the option was already available.
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 23 Jul 2021 12:34:29 +0200
+
 rust-proxmox-backup (1.1.12-1) unstable; urgency=medium
 
   * subscription: set higher-level error to message instead of bailing out, to
