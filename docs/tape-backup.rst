@@ -845,6 +845,17 @@ Update Inventory
 Restore Catalog
 ~~~~~~~~~~~~~~~
 
+To restore a catalog from an existing tape, just insert the tape into the drive
+and execute:
+
+.. code-block:: console
+
+  # proxmox-tape catalog
+
+
+You can restore from a tape even without an existing catalog, but only the
+whole media set. If you do this, the catalog will be automatically created.
+
 
 Encryption Key Management
 ~~~~~~~~~~~~~~~~~~~~~~~~~
