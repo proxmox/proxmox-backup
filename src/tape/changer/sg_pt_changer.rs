@@ -710,7 +710,13 @@ fn decode_element_status_page(
 
             let descr_data = reader.read_exact_allocated(len)?;
 
-            for descriptor in descr_data.chunks_exact(subhead.descriptor_length as usize) {
+            let descr_len = subhead.descriptor_length as usize;
+
+            if descr_len == 0 {
+                bail!("got elements, but descriptor length 0");
+            }
+
+            for descriptor in descr_data.chunks_exact(descr_len) {
                 let mut reader = &descriptor[..];
 
                 match subhead.element_type_code {
