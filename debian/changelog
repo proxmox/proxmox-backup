@@ -1,4 +1,11 @@
-rust-proxmox-backup (1.1.13-1) unstable; urgency=medium
+rust-proxmox-backup (1.1.13-2) buster; urgency=medium
+
+  * revert "auth: improve thread safety of 'crypt' C-library", not safe for
+    Debian buster based releases.
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 26 Jul 2021 16:40:07 +0200
+
+rust-proxmox-backup (1.1.13-1) buster; urgency=medium
 
   * auth: improve thread safety of 'crypt' C-library
 
@@ -18,7 +25,7 @@ rust-proxmox-backup (1.1.13-1) unstable; urgency=medium
 
  -- Proxmox Support Team <support@proxmox.com>  Fri, 23 Jul 2021 12:34:29 +0200
 
-rust-proxmox-backup (1.1.12-1) unstable; urgency=medium
+rust-proxmox-backup (1.1.12-1) buster; urgency=medium
 
   * subscription: set higher-level error to message instead of bailing out, to
     ensure a force-check gets through
@@ -30,7 +37,7 @@ rust-proxmox-backup (1.1.12-1) unstable; urgency=medium
 
  -- Proxmox Support Team <support@proxmox.com>  Fri, 09 Jul 2021 12:56:35 +0200
 
-rust-proxmox-backup (1.1.11-1) unstable; urgency=medium
+rust-proxmox-backup (1.1.11-1) buster; urgency=medium
 
   * tape/drive: fix logging when requesting media
 
