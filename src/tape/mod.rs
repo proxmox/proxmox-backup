@@ -42,6 +42,9 @@ pub use media_pool::*;
 mod media_catalog;
 pub use media_catalog::*;
 
+mod media_catalog_cache;
+pub use media_catalog_cache::*;
+
 mod pool_writer;
 pub use pool_writer::*;
 
