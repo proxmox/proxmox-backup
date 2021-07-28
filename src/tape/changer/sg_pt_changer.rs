@@ -692,6 +692,15 @@ fn decode_element_status_page(
             bail!("got wrong first_element_address_reported"); // sanity check
         }
 
+        let len = head.byte_count_of_report_available;
+        let len = ((len[0] as usize) << 16) + ((len[1] as usize) << 8) + (len[2] as usize);
+
+        if len < reader.len() {
+            reader = &reader[..len];
+        } else if len > reader.len() {
+            bail!("wrong amount of data: expected {}, got {}", len, reader.len());
+        }
+
         loop {
             if reader.is_empty() {
                 break;
