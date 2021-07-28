@@ -24,7 +24,6 @@ use crate::{
     tools::sgutils2::{
         SgRaw,
         SENSE_KEY_NOT_READY,
-        InquiryInfo,
         ScsiError,
         scsi_ascii_to_string,
         scsi_inquiry,
@@ -319,7 +318,6 @@ fn scsi_read_element_status_cdb(
 
 // query a single element type from the changer
 fn get_element<F: AsRawFd>(
-    inquiry: &InquiryInfo,
     sg_raw: &mut SgRaw<F>,
     element_type: ElementType,
     allocation_len: u32,
@@ -342,7 +340,7 @@ fn get_element<F: AsRawFd>(
 
         let data = execute_scsi_command(sg_raw, &cmd, "read element status (B8h)", retry)?;
 
-        let page = decode_element_status_page(&inquiry, &data, start_element_address)?;
+        let page = decode_element_status_page(&data, start_element_address)?;
 
         retry = false; // only retry the first command
 
@@ -394,18 +392,18 @@ pub fn read_element_status<F: AsRawFd>(file: &mut F) -> Result<MtxStatus, Error>
     let mut import_export_slots = Vec::new();
     let mut transports = Vec::new();
 
-    let page = get_element(&inquiry, &mut sg_raw, ElementType::Storage, allocation_len, true)?;
+    let page = get_element(&mut sg_raw, ElementType::Storage, allocation_len, true)?;
     storage_slots.extend(page.storage_slots);
 
-    let page = get_element(&inquiry, &mut sg_raw, ElementType::ImportExport, allocation_len, false)?;
+    let page = get_element(&mut sg_raw, ElementType::ImportExport, allocation_len, false)?;
     import_export_slots.extend(page.import_export_slots);
 
-    let page = get_element(&inquiry, &mut sg_raw, ElementType::DataTransfer, allocation_len, false)?;
+    let page = get_element(&mut sg_raw, ElementType::DataTransfer, allocation_len, false)?;
     drives.extend(page.drives);
 
     // get the serial + vendor + model,
     // some changer require this to be an extra scsi command
-    let page = get_element(&inquiry, &mut sg_raw, ElementType::DataTransferWithDVCID, allocation_len, false)?;
+    let page = get_element(&mut sg_raw, ElementType::DataTransferWithDVCID, allocation_len, false)?;
     // should be in same order and same count, but be on the safe side.
     // there should not be too many drives normally
     for drive in drives.iter_mut() {
@@ -418,7 +416,7 @@ pub fn read_element_status<F: AsRawFd>(file: &mut F) -> Result<MtxStatus, Error>
         }
     }
 
-    let page = get_element(&inquiry, &mut sg_raw, ElementType::MediumTransport, allocation_len, false)?;
+    let page = get_element(&mut sg_raw, ElementType::MediumTransport, allocation_len, false)?;
     transports.extend(page.transports);
 
     let transport_count = setup.transport_element_count as usize;
@@ -668,7 +666,6 @@ fn decode_dvcid_info<R: Read>(reader: &mut R) -> Result<DvcidInfo, Error> {
 }
 
 fn decode_element_status_page(
-    _info: &InquiryInfo,
     data: &[u8],
     start_element_address: u16,
 ) -> Result<DecodedStatusPage, Error> {
