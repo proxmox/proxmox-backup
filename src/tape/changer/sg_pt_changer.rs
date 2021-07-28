@@ -818,3 +818,141 @@ pub fn open<P: AsRef<Path>>(path: P) -> Result<File, Error> {
 
     Ok(file)
 }
+
+#[cfg(test)]
+mod test {
+    use anyhow::Error;
+    use super::*;
+
+    struct StorageDesc {
+        address: u16,
+        pvoltag: Option<String>,
+    }
+
+    fn build_element_status_page(
+        descriptors: Vec<StorageDesc>,
+        trailing: &[u8],
+        element_type: u8,
+    ) -> Vec<u8> {
+        let descs: Vec<Vec<u8>> = descriptors.iter().map(|desc| {
+            build_storage_descriptor(&desc, trailing)
+        }).collect();
+
+        let (desc_len, address) = if let Some(el) = descs.get(0) {
+            (el.len() as u16, descriptors[0].address)
+        } else {
+            (0u16, 0u16)
+        };
+
+        let descriptor_byte_count = desc_len * descs.len() as u16;
+        let byte_count = 8 + descriptor_byte_count;
+
+        let mut res = Vec::new();
+
+        res.extend_from_slice(&address.to_be_bytes());
+        res.extend_from_slice(&(descs.len() as u16).to_be_bytes());
+        res.push(0);
+        let byte_count = byte_count as u32;
+        res.extend_from_slice(&byte_count.to_be_bytes()[1..]);
+
+        res.push(element_type);
+        res.push(0x80);
+        res.extend_from_slice(&desc_len.to_be_bytes());
+        res.push(0);
+        let descriptor_byte_count = descriptor_byte_count as u32;
+        res.extend_from_slice(&descriptor_byte_count.to_be_bytes()[1..]);
+
+        for desc in descs {
+            res.extend_from_slice(&desc);
+        }
+
+        res.extend_from_slice(trailing);
+
+        res
+    }
+
+    fn build_storage_descriptor(
+        desc: &StorageDesc,
+        trailing: &[u8],
+    ) -> Vec<u8> {
+        let mut res = Vec::new();
+        res.push(((desc.address >> 8) & 0xFF) as u8);
+        res.push((desc.address & 0xFF) as u8);
+        if desc.pvoltag.is_some() {
+            res.push(0x01); // full
+        } else {
+            res.push(0x00); // full
+        }
+
+        res.extend_from_slice(&[0,0,0,0,0,0,0x80]);
+        res.push(((desc.address >> 8) & 0xFF) as u8);
+        res.push((desc.address & 0xFF) as u8);
+
+        if let Some(voltag) = &desc.pvoltag {
+            res.extend_from_slice(voltag.as_bytes());
+            let rem = SCSI_VOLUME_TAG_LEN - voltag.as_bytes().len();
+            if rem > 0 {
+                res.resize(res.len() + rem, 0);
+            }
+        }
+
+        res.extend_from_slice(trailing);
+
+        res
+    }
+
+    #[test]
+    fn status_page_valid() -> Result<(), Error> {
+        let descs = vec![
+            StorageDesc {
+                address: 0,
+                pvoltag: Some("0123456789".to_string()),
+            },
+            StorageDesc {
+                address: 1,
+                pvoltag: Some("1234567890".to_string()),
+            },
+        ];
+        let test_data = build_element_status_page(descs, &[], 0x2);
+        let page = decode_element_status_page(&test_data, 0)?;
+        assert_eq!(page.storage_slots.len(), 2);
+        Ok(())
+    }
+
+    #[test]
+    fn status_page_too_short() -> Result<(), Error> {
+        let descs = vec![
+            StorageDesc {
+                address: 0,
+                pvoltag: Some("0123456789".to_string()),
+            },
+            StorageDesc {
+                address: 1,
+                pvoltag: Some("1234567890".to_string()),
+            },
+        ];
+        let test_data = build_element_status_page(descs, &[], 0x2);
+        let len = test_data.len();
+        let res = decode_element_status_page(&test_data[..(len - 10)], 0);
+        assert!(res.is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn status_page_too_large() -> Result<(), Error> {
+        let descs = vec![
+            StorageDesc {
+                address: 0,
+                pvoltag: Some("0123456789".to_string()),
+            },
+            StorageDesc {
+                address: 1,
+                pvoltag: Some("1234567890".to_string()),
+            },
+        ];
+        let test_data = build_element_status_page(descs, &[0,0,0,0,0], 0x2);
+        let page = decode_element_status_page(&test_data, 0)?;
+        assert_eq!(page.storage_slots.len(), 2);
+        Ok(())
+    }
+}
