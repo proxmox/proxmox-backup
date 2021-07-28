@@ -2,7 +2,7 @@ use std::convert::TryFrom;
 use std::fs::File;
 use std::io::{Write, Read, BufReader, Seek, SeekFrom};
 use std::os::unix::io::AsRawFd;
-use std::path::Path;
+use std::path::{PathBuf, Path};
 use std::collections::{HashSet, HashMap};
 
 use anyhow::{bail, format_err, Error};
@@ -95,20 +95,29 @@ impl MediaCatalog {
         Ok(catalogs)
     }
 
-    /// Test if a catalog exists
-    pub fn exists(base_path: &Path, uuid: &Uuid) -> bool {
+    pub fn catalog_path(base_path: &Path, uuid: &Uuid) -> PathBuf {
         let mut path = base_path.to_owned();
         path.push(uuid.to_string());
         path.set_extension("log");
-        path.exists()
+        path
+    }
+
+    fn tmp_catalog_path(base_path: &Path, uuid: &Uuid) -> PathBuf {
+        let mut path = base_path.to_owned();
+        path.push(uuid.to_string());
+        path.set_extension("tmp");
+        path
+    }
+
+    /// Test if a catalog exists
+    pub fn exists(base_path: &Path, uuid: &Uuid) -> bool {
+        Self::catalog_path(base_path, uuid).exists()
     }
 
     /// Destroy the media catalog (remove all files)
     pub fn destroy(base_path: &Path, uuid: &Uuid) -> Result<(), Error> {
 
-        let mut path = base_path.to_owned();
-        path.push(uuid.to_string());
-        path.set_extension("log");
+        let path = Self::catalog_path(base_path, uuid);
 
         match std::fs::remove_file(path) {
             Ok(()) => Ok(()),
@@ -125,9 +134,7 @@ impl MediaCatalog {
 
         let uuid = &media_id.label.uuid;
 
-        let mut path = base_path.to_owned();
-        path.push(uuid.to_string());
-        path.set_extension("log");
+        let path = Self::catalog_path(base_path, uuid);
 
         let file = match std::fs::OpenOptions::new().read(true).open(&path) {
             Ok(file) => file,
@@ -198,9 +205,7 @@ impl MediaCatalog {
 
         let uuid = &media_id.label.uuid;
 
-        let mut path = base_path.to_owned();
-        path.push(uuid.to_string());
-        path.set_extension("log");
+        let path = Self::catalog_path(base_path, uuid);
 
         let me = proxmox::try_block!({
 
@@ -251,9 +256,7 @@ impl MediaCatalog {
 
         Self::create_basedir(base_path)?;
 
-        let mut tmp_path = base_path.to_owned();
-        tmp_path.push(uuid.to_string());
-        tmp_path.set_extension("tmp");
+        let tmp_path = Self::tmp_catalog_path(base_path, uuid);
 
         let file = std::fs::OpenOptions::new()
             .read(true)
@@ -285,9 +288,7 @@ impl MediaCatalog {
 
         let uuid = &media_id.label.uuid;
 
-        let mut tmp_path = base_path.to_owned();
-        tmp_path.push(uuid.to_string());
-        tmp_path.set_extension("tmp");
+        let tmp_path = Self::tmp_catalog_path(base_path, uuid);
 
         let me = proxmox::try_block!({
 
@@ -333,9 +334,7 @@ impl MediaCatalog {
         commit: bool,
     ) -> Result<(), Error> {
 
-        let mut tmp_path = base_path.to_owned();
-        tmp_path.push(uuid.to_string());
-        tmp_path.set_extension("tmp");
+        let tmp_path = Self::tmp_catalog_path(base_path, uuid);
 
         if commit {
             let mut catalog_path = tmp_path.clone();
