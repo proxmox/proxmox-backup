@@ -231,7 +231,12 @@ impl MediaCatalog {
                 pending: Vec::new(),
             };
 
-            let (found_magic_number, _) = me.load_catalog(&mut file, media_id.media_set_label.as_ref())?;
+            // Note: lock file, to get a consistent view with load_catalog
+            nix::fcntl::flock(file.as_raw_fd(), nix::fcntl::FlockArg::LockExclusive)?;
+            let result = me.load_catalog(&mut file, media_id.media_set_label.as_ref());
+            nix::fcntl::flock(file.as_raw_fd(), nix::fcntl::FlockArg::Unlock)?;
+
+            let (found_magic_number, _) = result?;
 
             if !found_magic_number {
                 me.pending.extend(&Self::PROXMOX_BACKUP_MEDIA_CATALOG_MAGIC_1_1);
@@ -372,9 +377,18 @@ impl MediaCatalog {
 
         match self.file {
             Some(ref mut file) => {
-                file.write_all(&self.pending)?;
-                file.flush()?;
-                file.sync_data()?;
+                let pending = &self.pending;
+                // Note: lock file, to get a consistent view with load_catalog
+                nix::fcntl::flock(file.as_raw_fd(), nix::fcntl::FlockArg::LockExclusive)?;
+                let result: Result<(), Error> = proxmox::try_block!({
+                    file.write_all(pending)?;
+                    file.flush()?;
+                    file.sync_data()?;
+                    Ok(())
+                });
+                nix::fcntl::flock(file.as_raw_fd(), nix::fcntl::FlockArg::Unlock)?;
+
+                result?;
             }
             None => bail!("media catalog not writable (opened read only)"),
         }
