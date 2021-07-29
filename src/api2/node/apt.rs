@@ -447,9 +447,8 @@ pub fn get_repositories() -> Result<Value, Error> {
 
     let suite = proxmox_apt::repositories::get_current_release_codename()?;
 
-    let infos = proxmox_apt::repositories::check_repositories(&files)?;
-    let standard_repos =
-        proxmox_apt::repositories::standard_repositories(&files, "pbs", &suite);
+    let infos = proxmox_apt::repositories::check_repositories(&files, suite);
+    let standard_repos = proxmox_apt::repositories::standard_repositories(&files, "pbs", suite);
 
     Ok(json!({
         "files": files,
@@ -497,7 +496,7 @@ pub fn add_repository(handle: APTRepositoryHandle, digest: Option<String>) -> Re
     // check if it's already configured first
     for file in files.iter_mut() {
         for repo in file.repositories.iter_mut() {
-            if repo.is_referenced_repository(handle, "pbs", &suite) {
+            if repo.is_referenced_repository(handle, "pbs", &suite.to_string()) {
                 if repo.enabled {
                     return Ok(());
                 }
@@ -510,8 +509,7 @@ pub fn add_repository(handle: APTRepositoryHandle, digest: Option<String>) -> Re
         }
     }
 
-    let (repo, path) =
-        proxmox_apt::repositories::get_standard_repository(handle, "pbs", &suite);
+    let (repo, path) = proxmox_apt::repositories::get_standard_repository(handle, "pbs", suite);
 
     if let Some(error) = errors.iter().find(|error| error.path == path) {
         bail!(
