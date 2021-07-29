@@ -445,8 +445,11 @@ pub fn get_repositories() -> Result<Value, Error> {
     let (files, errors, digest) = proxmox_apt::repositories::repositories()?;
     let digest = proxmox::tools::digest_to_hex(&digest);
 
+    let suite = proxmox_apt::repositories::get_current_release_codename()?;
+
     let infos = proxmox_apt::repositories::check_repositories(&files)?;
-    let standard_repos = proxmox_apt::repositories::standard_repositories("pbs", &files);
+    let standard_repos =
+        proxmox_apt::repositories::standard_repositories(&files, "pbs", &suite);
 
     Ok(json!({
         "files": files,
@@ -484,6 +487,8 @@ pub fn get_repositories() -> Result<Value, Error> {
 pub fn add_repository(handle: APTRepositoryHandle, digest: Option<String>) -> Result<(), Error> {
     let (mut files, errors, current_digest) = proxmox_apt::repositories::repositories()?;
 
+    let suite = proxmox_apt::repositories::get_current_release_codename()?;
+
     if let Some(expected_digest) = digest {
         let current_digest = proxmox::tools::digest_to_hex(&current_digest);
         crate::tools::assert_if_modified(&expected_digest, &current_digest)?;
@@ -492,7 +497,7 @@ pub fn add_repository(handle: APTRepositoryHandle, digest: Option<String>) -> Re
     // check if it's already configured first
     for file in files.iter_mut() {
         for repo in file.repositories.iter_mut() {
-            if repo.is_referenced_repository(handle, "pbs") {
+            if repo.is_referenced_repository(handle, "pbs", &suite) {
                 if repo.enabled {
                     return Ok(());
                 }
@@ -505,7 +510,8 @@ pub fn add_repository(handle: APTRepositoryHandle, digest: Option<String>) -> Re
         }
     }
 
-    let (repo, path) = proxmox_apt::repositories::get_standard_repository(handle, "pbs")?;
+    let (repo, path) =
+        proxmox_apt::repositories::get_standard_repository(handle, "pbs", &suite);
 
     if let Some(error) = errors.iter().find(|error| error.path == path) {
         bail!(
