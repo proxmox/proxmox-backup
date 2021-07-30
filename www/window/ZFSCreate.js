@@ -60,6 +60,7 @@ Ext.define('PBS.window.CreateZFS', {
 			['lz4', 'lz4'],
 			['lzjb', 'lzjb'],
 			['zle', 'zle'],
+			['zstd', 'zstd'],
 		    ],
 		},
 		{

@@ -63,6 +63,8 @@ pub enum ZfsCompressionType {
     Lzjb,
     /// ZLE
     Zle,
+    /// ZStd
+    ZStd,
     /// Enable compression using the default algorithm.
     On,
     /// Disable compression.
