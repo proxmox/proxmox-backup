@@ -1,3 +1,33 @@
+rust-proxmox-backup (2.0.8-1) bullseye; urgency=medium
+
+  * use proxmox-apt to 0.6
+
+  * api: apt: adapt to proxmox-apt back-end changes
+
+  * api/ui: allow zstd compression for new zpools
+
+  * tape: media_catalog: add snapshot list cache for catalog
+
+  * api2: tape: media: use MediaCatalog::snapshot_list for content listing
+
+  * tape: lock media_catalog file to to get a consistent view with load_catalog
+
+  * tape: changer: handle libraries that sends wrong amount of data
+
+  * tape: changer: remove unnecesary inquiry parameter
+
+  * api2: tape/restore: commit temporary catalog at the end
+
+  * docs: tape: add instructions on how to restore the catalog
+
+  * ui: tape/ChangerStatus: improve layout for large libraries
+
+  * tape: changer: handle invalid descriptor data from library in status page
+
+  * datastore config: cleanup code (use flatten attribute)
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 02 Aug 2021 10:34:55 +0200
+
 rust-proxmox-backup (2.0.7-1) bullseye; urgency=medium
 
   * tape changer: better cope with models that are not following spec
