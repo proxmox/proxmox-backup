@@ -130,7 +130,7 @@ pub struct SgTape {
 
 impl SgTape {
 
-    const SCSI_TAPE_DEFAULT_TIMEOUT: usize = 60*2; // 2 minutes
+    const SCSI_TAPE_DEFAULT_TIMEOUT: usize = 60*10; // 10 minutes
 
     /// Create a new instance
     ///
