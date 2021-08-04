@@ -5,7 +5,7 @@ Ext.define('pbs-tape-backup-job-status', {
 	{ name: 'eject-media', type: 'boolean' },
 	{ name: 'export-media-set', type: 'boolean' },
 	{ name: 'latest-only', type: 'boolean' },
-	'next-run', 'last-run-upid', 'last-run-state', 'last-run-endtime',
+	'next-run', 'next-media-label', 'last-run-upid', 'last-run-state', 'last-run-endtime',
 	{
 	    name: 'duration',
 	    calculate: function(data) {
@@ -253,6 +253,12 @@ Ext.define('PBS.config.TapeBackupJobView', {
 	    dataIndex: 'next-run',
 	    renderer: PBS.Utils.render_next_task_run,
 	    width: 150,
+	    sortable: true,
+	},
+	{
+	    header: gettext('Next Media'),
+	    dataIndex: 'next-media-label',
+	    width: 100,
 	    sortable: true,
 	},
 	{
