@@ -468,21 +468,13 @@ impl MediaPool {
 
     // Get next expired media
     pub fn next_expired_media(&self, current_time: i64, media_list: &[BackupMedia]) -> Option<MediaId> {
-        let mut used_media = Vec::new();
+        let mut expired_media = Vec::new();
 
         for media in media_list.into_iter() {
             if !self.location_is_available(media.location()) {
                 continue;
             }
             // already part of a media set?
-            if media.media_set_label().is_some() {
-                used_media.push(media);
-            }
-        }
-
-        let mut expired_media = Vec::new();
-
-        for media in used_media.into_iter() {
             if let Some(set) = media.media_set_label() {
                 if &set.uuid == self.current_media_set.uuid() {
                     continue;
