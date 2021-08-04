@@ -126,9 +126,11 @@ pub fn list_tape_backup_jobs(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
 
-    let (config, digest) = config::tape_job::config()?;
+    let (job_config, digest) = config::tape_job::config()?;
+    let (pool_config, _pool_digest) = config::media_pool::config()?;
+    let (drive_config, _digest) = config::drive::config()?;
 
-    let job_list_iter = config
+    let job_list_iter = job_config
         .convert_to_typed_array("backup")?
         .into_iter()
         .filter(|_job: &TapeBackupJobConfig| {
@@ -137,6 +139,8 @@ pub fn list_tape_backup_jobs(
         });
 
     let mut list = Vec::new();
+    let status_path = Path::new(TAPE_STATUS_DIR);
+    let current_time = proxmox::tools::time::epoch_i64();
 
     for job in job_list_iter {
         let privs = user_info.lookup_privs(&auth_id, &["tape", "job", &job.id]);
@@ -149,7 +153,25 @@ pub fn list_tape_backup_jobs(
 
         let status = compute_schedule_status(&last_state, job.schedule.as_deref())?;
 
-        list.push(TapeBackupJobStatus { config: job, status });
+        let next_run = status.next_run.unwrap_or(current_time);
+
+        let mut next_media_label = None;
+
+        if let Ok(pool) = pool_config.lookup::<MediaPoolConfig>("pool", &job.setup.pool) {
+            let mut changer_name = None;
+            if let Ok(Some((_, name))) = media_changer(&drive_config, &job.setup.drive) {
+                changer_name = Some(name);
+            }
+            if let Ok(mut pool) = MediaPool::with_config(status_path, &pool, changer_name, true) {
+                if pool.start_write_session(next_run, false).is_ok() {
+                    if let Ok(media_id) = pool.guess_next_writable_media(next_run) {
+                        next_media_label = Some(media_id.label.label_text);
+                    }
+                }
+            }
+        }
+
+        list.push(TapeBackupJobStatus { config: job, status, next_media_label });
     }
 
     rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();

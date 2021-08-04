@@ -127,6 +127,9 @@ pub struct TapeBackupJobStatus {
     pub config: TapeBackupJobConfig,
     #[serde(flatten)]
     pub status: JobScheduleStatus,
+    /// Next tape used (best guess)
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub next_media_label: Option<String>,
 }
 
 fn init() -> SectionConfig {
