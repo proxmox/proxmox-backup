@@ -486,10 +486,15 @@ fn backup_worker(
         let snapshot_list = group.list_backups(&datastore.base_path())?;
 
         // filter out unfinished backups
-        let mut snapshot_list = snapshot_list
+        let mut snapshot_list: Vec<_> = snapshot_list
             .into_iter()
             .filter(|item| item.is_finished())
             .collect();
+
+        if snapshot_list.is_empty() {
+            task_log!(worker, "group {} was empty", group);
+            continue;
+        }
 
         BackupInfo::sort_list(&mut snapshot_list, true); // oldest first
 
