@@ -615,7 +615,7 @@ fn update_media_set_label(
 
     let new_media = match old_set {
         None => {
-            worker.log("wrinting new media set label".to_string());
+            worker.log("writing new media set label".to_string());
             drive.write_media_set_label(new_set, key_config.as_ref())?;
             media_catalog = MediaCatalog::overwrite(status_path, media_id, false)?;
             true
@@ -636,7 +636,7 @@ fn update_media_set_label(
                 false
             } else {
                 worker.log(
-                    format!("wrinting new media set label (overwrite '{}/{}')",
+                    format!("writing new media set label (overwrite '{}/{}')",
                             media_set_label.uuid.to_string(), media_set_label.seq_nr)
                 );
 
