@@ -1,3 +1,18 @@
+rust-proxmox-backup (2.0.9-1) unstable; urgency=medium
+
+  * tape backup: mention groups that were empty
+
+  * tape: compute next-media-label for each tape backup job
+
+  * tape: lto: increase default timeout to 10 minutes
+
+  * ui: display next-media-label for tape backup jobs
+
+  * cli: proxmox-tape backup-job list: use status api and display next-run
+    and next-media-label
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 09 Aug 2021 09:53:29 +0200
+
 rust-proxmox-backup (2.0.8-1) bullseye; urgency=medium
 
   * use proxmox-apt to 0.6
