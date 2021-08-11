@@ -42,17 +42,7 @@ pub enum OpenIdUserAttribute {
         realm: {
             schema: REALM_ID_SCHEMA,
         },
-        "issuer-url": {
-            description: "OpenID Issuer Url",
-            type: String,
-        },
-        "client-id": {
-            description: "OpenID Client ID",
-            type: String,
-        },
         "client-key": {
-            description: "OpenID Client Key",
-            type: String,
             optional: true,
         },
         comment: {
@@ -60,9 +50,7 @@ pub enum OpenIdUserAttribute {
             schema: SINGLE_LINE_COMMENT_SCHEMA,
         },
         autocreate: {
-            description: "Automatically create users if they do not exist.",
             optional: true,
-            type: bool,
             default: false,
         },
         "username-claim": {
@@ -71,19 +59,25 @@ pub enum OpenIdUserAttribute {
         },
     },
 )]
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize,Deserialize,Updater)]
 #[serde(rename_all="kebab-case")]
 /// OpenID configuration properties.
 pub struct OpenIdRealmConfig {
+    #[updater(skip)]
     pub realm: String,
+    /// OpenID Issuer Url
     pub issuer_url: String,
+    /// OpenID Client ID
     pub client_id: String,
+    /// OpenID Client Key
     #[serde(skip_serializing_if="Option::is_none")]
     pub client_key: Option<String>,
     #[serde(skip_serializing_if="Option::is_none")]
     pub comment: Option<String>,
+    /// Automatically create users if they do not exist.
     #[serde(skip_serializing_if="Option::is_none")]
     pub autocreate: Option<bool>,
+    #[updater(skip)]
     #[serde(skip_serializing_if="Option::is_none")]
     pub username_claim: Option<OpenIdUserAttribute>,
 }

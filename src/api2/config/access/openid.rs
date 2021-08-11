@@ -6,7 +6,7 @@ use ::serde::{Deserialize, Serialize};
 
 use proxmox::api::{api, Permission, Router, RpcEnvironment};
 
-use crate::config::domains::{self, OpenIdRealmConfig};
+use crate::config::domains::{self, OpenIdRealmConfig, OpenIdRealmConfigUpdater};
 use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_REALM_ALLOCATE};
 use crate::api2::types::*;
 
@@ -164,29 +164,9 @@ pub enum DeletableProperty {
             realm: {
                 schema: REALM_ID_SCHEMA,
             },
-            "issuer-url": {
-                description: "OpenID Issuer Url",
-                type: String,
-                optional: true,
-            },
-            "client-id": {
-                description: "OpenID Client ID",
-                type: String,
-                optional: true,
-            },
-            "client-key": {
-                description: "OpenID Client Key",
-                type: String,
-                optional: true,
-            },
-            autocreate: {
-                description: "Automatically create users if they do not exist.",
-                optional: true,
-                type: bool,
-            },
-            comment: {
-                schema: SINGLE_LINE_COMMENT_SCHEMA,
-                optional: true,
+            update: {
+                type: OpenIdRealmConfigUpdater,
+                flatten: true,
             },
             delete: {
                 description: "List of properties to delete.",
@@ -210,11 +190,7 @@ pub enum DeletableProperty {
 /// Update an OpenID realm configuration
 pub fn update_openid_realm(
     realm: String,
-    issuer_url: Option<String>,
-    client_id: Option<String>,
-    client_key: Option<String>,
-    autocreate: Option<bool>,
-    comment: Option<String>,
+    update: OpenIdRealmConfigUpdater,
     delete: Option<Vec<DeletableProperty>>,
     digest: Option<String>,
     _rpcenv: &mut dyn RpcEnvironment,
@@ -241,7 +217,7 @@ pub fn update_openid_realm(
         }
     }
 
-    if let Some(comment) = comment {
+    if let Some(comment) = update.comment {
         let comment = comment.trim().to_string();
         if comment.is_empty() {
             config.comment = None;
@@ -250,11 +226,11 @@ pub fn update_openid_realm(
         }
     }
 
-    if let Some(issuer_url) = issuer_url { config.issuer_url = issuer_url; }
-    if let Some(client_id) = client_id { config.client_id = client_id; }
+    if let Some(issuer_url) = update.issuer_url { config.issuer_url = issuer_url; }
+    if let Some(client_id) = update.client_id { config.client_id = client_id; }
 
-    if client_key.is_some() { config.client_key = client_key; }
-    if autocreate.is_some() { config.autocreate = autocreate; }
+    if update.client_key.is_some() { config.client_key = update.client_key; }
+    if update.autocreate.is_some() { config.autocreate = update.autocreate; }
 
     domains.set_data(&realm, "openid", &config)?;
 
