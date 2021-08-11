@@ -17,10 +17,8 @@ use crate::{
         Authid,
         PROXMOX_CONFIG_DIGEST_SCHEMA,
         DRIVE_NAME_SCHEMA,
-        CHANGER_NAME_SCHEMA,
-        CHANGER_DRIVENUM_SCHEMA,
-        LTO_DRIVE_PATH_SCHEMA,
         LtoTapeDrive,
+        LtoTapeDriveUpdater,
         ScsiTapeChanger,
     },
     tape::{
@@ -33,19 +31,9 @@ use crate::{
     protected: true,
     input: {
         properties: {
-            name: {
-                schema: DRIVE_NAME_SCHEMA,
-            },
-            path: {
-                schema: LTO_DRIVE_PATH_SCHEMA,
-            },
-            changer: {
-                schema: CHANGER_NAME_SCHEMA,
-                optional: true,
-            },
-            "changer-drivenum": {
-                schema: CHANGER_DRIVENUM_SCHEMA,
-                optional: true,
+            config: {
+                type: LtoTapeDrive,
+                flatten: true,
             },
         },
     },
@@ -54,32 +42,30 @@ use crate::{
     },
 )]
 /// Create a new drive
-pub fn create_drive(param: Value) -> Result<(), Error> {
+pub fn create_drive(config: LtoTapeDrive) -> Result<(), Error> {
 
     let _lock = config::drive::lock()?;
 
-    let (mut config, _digest) = config::drive::config()?;
-
-    let item: LtoTapeDrive = serde_json::from_value(param)?;
+    let (mut section_config, _digest) = config::drive::config()?;
 
     let lto_drives = lto_tape_device_list();
 
-    check_drive_path(&lto_drives, &item.path)?;
+    check_drive_path(&lto_drives, &config.path)?;
 
-    let existing: Vec<LtoTapeDrive> = config.convert_to_typed_array("lto")?;
+    let existing: Vec<LtoTapeDrive> = section_config.convert_to_typed_array("lto")?;
 
     for drive in existing {
-        if drive.name == item.name {
-            bail!("Entry '{}' already exists", item.name);
+        if drive.name == config.name {
+            bail!("Entry '{}' already exists", config.name);
         }
-        if drive.path == item.path {
-            bail!("Path '{}' already used in drive '{}'", item.path, drive.name);
+        if drive.path == config.path {
+            bail!("Path '{}' already used in drive '{}'", config.path, drive.name);
         }
     }
 
-    config.set_data(&item.name, "lto", &item)?;
+    section_config.set_data(&config.name, "lto", &config)?;
 
-    config::drive::save_config(&config)?;
+    config::drive::save_config(&section_config)?;
 
     Ok(())
 }
@@ -175,17 +161,9 @@ pub enum DeletableProperty {
             name: {
                 schema: DRIVE_NAME_SCHEMA,
             },
-            path: {
-                schema: LTO_DRIVE_PATH_SCHEMA,
-                optional: true,
-            },
-            changer: {
-                schema: CHANGER_NAME_SCHEMA,
-                optional: true,
-            },
-            "changer-drivenum": {
-                schema: CHANGER_DRIVENUM_SCHEMA,
-                optional: true,
+            update: {
+                type: LtoTapeDriveUpdater,
+                flatten: true,
             },
             delete: {
                 description: "List of properties to delete.",
@@ -208,9 +186,7 @@ pub enum DeletableProperty {
 /// Update a drive configuration
 pub fn update_drive(
     name: String,
-    path: Option<String>,
-    changer: Option<String>,
-    changer_drivenum: Option<u64>,
+    update: LtoTapeDriveUpdater,
     delete: Option<Vec<DeletableProperty>>,
     digest: Option<String>,
    _param: Value,
@@ -239,18 +215,18 @@ pub fn update_drive(
         }
     }
 
-    if let Some(path) = path {
+    if let Some(path) = update.path {
         let lto_drives = lto_tape_device_list();
         check_drive_path(&lto_drives, &path)?;
         data.path = path;
     }
 
-    if let Some(changer) = changer {
+    if let Some(changer) = update.changer {
         let _: ScsiTapeChanger = config.lookup("changer", &changer)?;
         data.changer = Some(changer);
     }
 
-    if let Some(changer_drivenum) = changer_drivenum {
+    if let Some(changer_drivenum) = update.changer_drivenum {
         if changer_drivenum == 0 {
             data.changer_drivenum = None;
         } else {

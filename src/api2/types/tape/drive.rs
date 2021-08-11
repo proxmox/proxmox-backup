@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use proxmox::api::{
     api,
-    schema::{Schema, IntegerSchema, StringSchema},
+    schema::{Schema, IntegerSchema, StringSchema, Updater},
 };
 
 use crate::api2::types::{
@@ -69,10 +69,11 @@ pub struct VirtualTapeDrive {
         },
     }
 )]
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize,Deserialize,Updater)]
 #[serde(rename_all = "kebab-case")]
 /// Lto SCSI tape driver
 pub struct LtoTapeDrive {
+    #[updater(skip)]
     pub name: String,
     pub path: String,
     #[serde(skip_serializing_if="Option::is_none")]
