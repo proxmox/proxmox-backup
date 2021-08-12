@@ -25,11 +25,14 @@ pub const REMOTE_PASSWORD_SCHEMA: Schema = StringSchema::new("Password or auth t
     .max_length(1024)
     .schema();
 
+pub const REMOTE_PASSWORD_BASE64_SCHEMA: Schema = StringSchema::new("Password or auth token for remote host (stored as base64 string).")
+    .format(&PASSWORD_FORMAT)
+    .min_length(1)
+    .max_length(1024)
+    .schema();
+
 #[api(
     properties: {
-        name: {
-            schema: REMOTE_ID_SCHEMA,
-        },
         comment: {
             optional: true,
             schema: SINGLE_LINE_COMMENT_SCHEMA,
@@ -45,36 +48,55 @@ pub const REMOTE_PASSWORD_SCHEMA: Schema = StringSchema::new("Password or auth t
         "auth-id": {
             type: Authid,
         },
-        password: {
-            schema: REMOTE_PASSWORD_SCHEMA,
-        },
         fingerprint: {
             optional: true,
             schema: CERT_FINGERPRINT_SHA256_SCHEMA,
         },
-    }
+    },
 )]
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize,Deserialize,Updater)]
 #[serde(rename_all = "kebab-case")]
-/// Remote properties.
-pub struct Remote {
-    pub name: String,
+/// Remote configuration properties.
+pub struct RemoteConfig {
     #[serde(skip_serializing_if="Option::is_none")]
     pub comment: Option<String>,
     pub host: String,
     #[serde(skip_serializing_if="Option::is_none")]
     pub port: Option<u16>,
     pub auth_id: Authid,
-    #[serde(skip_serializing_if="String::is_empty")]
-    #[serde(with = "proxmox::tools::serde::string_as_base64")]
-    pub password: String,
     #[serde(skip_serializing_if="Option::is_none")]
     pub fingerprint: Option<String>,
 }
 
+#[api(
+    properties: {
+        name: {
+            schema: REMOTE_ID_SCHEMA,
+        },
+        config: {
+            type: RemoteConfig,
+        },
+        password: {
+            schema: REMOTE_PASSWORD_BASE64_SCHEMA,
+        },
+    },
+)]
+#[derive(Serialize,Deserialize)]
+#[serde(rename_all = "kebab-case")]
+/// Remote properties.
+pub struct Remote {
+    pub name: String,
+    // Note: The stored password is base64 encoded
+    #[serde(skip_serializing_if="String::is_empty")]
+    #[serde(with = "proxmox::tools::serde::string_as_base64")]
+    pub password: String,
+    #[serde(flatten)]
+    pub config: RemoteConfig,
+}
+
 fn init() -> SectionConfig {
     let obj_schema = match Remote::API_SCHEMA {
-        Schema::Object(ref obj_schema) => obj_schema,
+        Schema::AllOf(ref allof_schema) => allof_schema,
         _ => unreachable!(),
     };
 

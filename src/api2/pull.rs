@@ -53,7 +53,12 @@ pub async fn get_pull_parameters(
     let (remote_config, _digest) = remote::config()?;
     let remote: remote::Remote = remote_config.lookup("remote", remote)?;
 
-    let src_repo = BackupRepository::new(Some(remote.auth_id.clone()), Some(remote.host.clone()), remote.port, remote_store.to_string());
+    let src_repo = BackupRepository::new(
+        Some(remote.config.auth_id.clone()),
+        Some(remote.config.host.clone()),
+        remote.config.port,
+        remote_store.to_string(),
+    );
 
     let client = crate::api2::config::remote::remote_client(remote).await?;
 

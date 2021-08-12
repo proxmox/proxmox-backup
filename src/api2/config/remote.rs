@@ -63,28 +63,13 @@ pub fn list_remotes(
             name: {
                 schema: REMOTE_ID_SCHEMA,
             },
-            comment: {
-                optional: true,
-                schema: SINGLE_LINE_COMMENT_SCHEMA,
-            },
-            host: {
-                schema: DNS_NAME_OR_IP_SCHEMA,
-            },
-            port: {
-                description: "The (optional) port.",
-                type: u16,
-                optional: true,
-                default: 8007,
-            },
-            "auth-id": {
-                type: Authid,
+            config: {
+                type: remote::RemoteConfig,
+                flatten: true,
             },
             password: {
+                // We expect the plain password here (not base64 encoded)
                 schema: remote::REMOTE_PASSWORD_SCHEMA,
-            },
-            fingerprint: {
-                optional: true,
-                schema: CERT_FINGERPRINT_SHA256_SCHEMA,
             },
         },
     },
@@ -93,23 +78,25 @@ pub fn list_remotes(
     },
 )]
 /// Create new remote.
-pub fn create_remote(password: String, param: Value) -> Result<(), Error> {
+pub fn create_remote(
+    name: String,
+    config: remote::RemoteConfig,
+    password: String,
+) -> Result<(), Error> {
 
     let _lock = open_backup_lockfile(remote::REMOTE_CFG_LOCKFILE, None, true)?;
 
-    let mut data = param;
-    data["password"] = Value::from(base64::encode(password.as_bytes()));
-    let remote: remote::Remote = serde_json::from_value(data)?;
+    let (mut section_config, _digest) = remote::config()?;
 
-    let (mut config, _digest) = remote::config()?;
-
-    if config.sections.get(&remote.name).is_some() {
-        bail!("remote '{}' already exists.", remote.name);
+    if section_config.sections.get(&name).is_some() {
+        bail!("remote '{}' already exists.", name);
     }
 
-    config.set_data(&remote.name, "remote", &remote)?;
+    let remote = remote::Remote { name: name.clone(), config, password };
 
-    remote::save_config(&config)?;
+    section_config.set_data(&name, "remote", &remote)?;
+
+    remote::save_config(&section_config)?;
 
     Ok(())
 }
@@ -160,30 +147,14 @@ pub enum DeletableProperty {
             name: {
                 schema: REMOTE_ID_SCHEMA,
             },
-            comment: {
-                optional: true,
-                schema: SINGLE_LINE_COMMENT_SCHEMA,
-            },
-            host: {
-                optional: true,
-                schema: DNS_NAME_OR_IP_SCHEMA,
-            },
-            port: {
-                description: "The (optional) port.",
-                type: u16,
-                optional: true,
-            },
-            "auth-id": {
-                optional: true,
-                type: Authid,
+            update: {
+                type: remote::RemoteConfigUpdater,
+                flatten: true,
             },
             password: {
+                // We expect the plain password here (not base64 encoded)
                 optional: true,
                 schema: remote::REMOTE_PASSWORD_SCHEMA,
-            },
-            fingerprint: {
-                optional: true,
-                schema: CERT_FINGERPRINT_SHA256_SCHEMA,
             },
             delete: {
                 description: "List of properties to delete.",
@@ -204,15 +175,10 @@ pub enum DeletableProperty {
     },
 )]
 /// Update remote configuration.
-#[allow(clippy::too_many_arguments)]
 pub fn update_remote(
     name: String,
-    comment: Option<String>,
-    host: Option<String>,
-    port: Option<u16>,
-    auth_id: Option<Authid>,
+    update: remote::RemoteConfigUpdater,
     password: Option<String>,
-    fingerprint: Option<String>,
     delete: Option<Vec<DeletableProperty>>,
     digest: Option<String>,
 ) -> Result<(), Error> {
@@ -231,27 +197,27 @@ pub fn update_remote(
     if let Some(delete) = delete {
         for delete_prop in delete {
             match delete_prop {
-                DeletableProperty::comment => { data.comment = None; },
-                DeletableProperty::fingerprint => { data.fingerprint = None; },
-                DeletableProperty::port => { data.port = None; },
+                DeletableProperty::comment => { data.config.comment = None; },
+                DeletableProperty::fingerprint => { data.config.fingerprint = None; },
+                DeletableProperty::port => { data.config.port = None; },
             }
         }
     }
 
-    if let Some(comment) = comment {
+    if let Some(comment) = update.comment {
         let comment = comment.trim().to_string();
         if comment.is_empty() {
-            data.comment = None;
+            data.config.comment = None;
         } else {
-            data.comment = Some(comment);
+            data.config.comment = Some(comment);
         }
     }
-    if let Some(host) = host { data.host = host; }
-    if port.is_some() { data.port = port; }
-    if let Some(auth_id) = auth_id { data.auth_id = auth_id; }
+    if let Some(host) = update.host { data.config.host = host; }
+    if update.port.is_some() { data.config.port = update.port; }
+    if let Some(auth_id) = update.auth_id { data.config.auth_id = auth_id; }
     if let Some(password) = password { data.password = password; }
 
-    if let Some(fingerprint) = fingerprint { data.fingerprint = Some(fingerprint); }
+    if update.fingerprint.is_some() { data.config.fingerprint = update.fingerprint; }
 
     config.set_data(&name, "remote", &data)?;
 
@@ -312,16 +278,16 @@ pub fn delete_remote(name: String, digest: Option<String>) -> Result<(), Error> 
 
 /// Helper to get client for remote.cfg entry
 pub async fn remote_client(remote: remote::Remote) -> Result<HttpClient, Error> {
-    let options = HttpClientOptions::new_non_interactive(remote.password.clone(), remote.fingerprint.clone());
+    let options = HttpClientOptions::new_non_interactive(remote.password.clone(), remote.config.fingerprint.clone());
 
     let client = HttpClient::new(
-        &remote.host,
-        remote.port.unwrap_or(8007),
-        &remote.auth_id,
+        &remote.config.host,
+        remote.config.port.unwrap_or(8007),
+        &remote.config.auth_id,
         options)?;
     let _auth_info = client.login() // make sure we can auth
         .await
-        .map_err(|err| format_err!("remote connection to '{}' failed - {}", remote.host, err))?;
+        .map_err(|err| format_err!("remote connection to '{}' failed - {}", remote.config.host, err))?;
 
     Ok(client)
 }
