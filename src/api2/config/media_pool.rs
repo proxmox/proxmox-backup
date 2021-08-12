@@ -14,12 +14,8 @@ use crate::{
     api2::types::{
         Authid,
         MEDIA_POOL_NAME_SCHEMA,
-        MEDIA_SET_NAMING_TEMPLATE_SCHEMA,
-        MEDIA_SET_ALLOCATION_POLICY_SCHEMA,
-        MEDIA_RETENTION_POLICY_SCHEMA,
-        TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
-        SINGLE_LINE_COMMENT_SCHEMA,
         MediaPoolConfig,
+        MediaPoolConfigUpdater,
     },
     config::{
         self,
@@ -151,25 +147,9 @@ pub enum DeletableProperty {
             name: {
                 schema: MEDIA_POOL_NAME_SCHEMA,
             },
-            allocation: {
-                schema: MEDIA_SET_ALLOCATION_POLICY_SCHEMA,
-                optional: true,
-            },
-            retention: {
-                schema: MEDIA_RETENTION_POLICY_SCHEMA,
-                optional: true,
-            },
-            template: {
-                schema: MEDIA_SET_NAMING_TEMPLATE_SCHEMA,
-                optional: true,
-            },
-            encrypt: {
-                schema: TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
-                optional: true,
-            },
-            comment: {
-                optional: true,
-                schema: SINGLE_LINE_COMMENT_SCHEMA,
+            update: {
+                type: MediaPoolConfigUpdater,
+                flatten: true,
             },
             delete: {
                 description: "List of properties to delete.",
@@ -188,11 +168,7 @@ pub enum DeletableProperty {
 /// Update media pool settings
 pub fn update_pool(
     name: String,
-    allocation: Option<String>,
-    retention: Option<String>,
-    template: Option<String>,
-    encrypt: Option<String>,
-    comment: Option<String>,
+    update: MediaPoolConfigUpdater,
     delete: Option<Vec<DeletableProperty>>,
 ) -> Result<(), Error> {
 
@@ -214,12 +190,12 @@ pub fn update_pool(
         }
     }
 
-    if allocation.is_some() { data.allocation = allocation; }
-    if retention.is_some() { data.retention = retention; }
-    if template.is_some() { data.template = template; }
-    if encrypt.is_some() { data.encrypt = encrypt; }
+    if update.allocation.is_some() { data.allocation = update.allocation; }
+    if update.retention.is_some() { data.retention = update.retention; }
+    if update.template.is_some() { data.template = update.template; }
+    if update.encrypt.is_some() { data.encrypt = update.encrypt; }
 
-    if let Some(comment) = comment {
+    if let Some(comment) = update.comment {
         let comment = comment.trim();
         if comment.is_empty() {
             data.comment = None;

@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use proxmox::api::{
     api,
-    schema::{Schema, StringSchema, ApiStringFormat},
+    schema::{Schema, StringSchema, ApiStringFormat, Updater},
 };
 
 use crate::{
@@ -138,10 +138,11 @@ impl std::str::FromStr for RetentionPolicy {
         },
     },
 )]
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize,Deserialize,Updater)]
 /// Media pool configuration
 pub struct MediaPoolConfig {
     /// The pool name
+    #[updater(skip)]
     pub name: String,
     /// Media Set allocation policy
     #[serde(skip_serializing_if="Option::is_none")]
