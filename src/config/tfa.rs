@@ -96,18 +96,18 @@ pub struct WebauthnConfig {
     /// Relying party name. Any text identifier.
     ///
     /// Changing this *may* break existing credentials.
-    rp: String,
+    pub rp: String,
 
     /// Site origin. Must be a `https://` URL (or `http://localhost`). Should contain the address
     /// users type in their browsers to access the web interface.
     ///
     /// Changing this *may* break existing credentials.
-    origin: String,
+    pub origin: String,
 
     /// Relying part ID. Must be the domain name without protocol, port or location.
     ///
     /// Changing this *will* break existing credentials.
-    id: String,
+    pub id: String,
 }
 
 impl WebauthnConfig {

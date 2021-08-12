@@ -1,6 +1,6 @@
 use anyhow::Error;
+use ::serde::{Deserialize, Serialize};
 
-use proxmox::api::schema::Updatable;
 use proxmox::api::{api, Permission, Router, RpcEnvironment};
 
 use crate::api2::types::NODE_SCHEMA;
@@ -32,6 +32,28 @@ pub fn get_node_config(mut rpcenv: &mut dyn RpcEnvironment) -> Result<NodeConfig
     Ok(config)
 }
 
+#[api()]
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all="kebab-case")]
+#[allow(non_camel_case_types)]
+/// Deletable property name
+pub enum DeletableProperty {
+    /// Delete the acme property.
+    acme,
+    /// Delete the acmedomain0 property.
+    acmedomain0,
+    /// Delete the acmedomain1 property.
+    acmedomain1,
+    /// Delete the acmedomain2 property.
+    acmedomain2,
+    /// Delete the acmedomain3 property.
+    acmedomain3,
+    /// Delete the acmedomain4 property.
+    acmedomain4,
+    /// Delete the http-proxy property.
+    http_proxy,
+}
+
 #[api(
     input: {
         properties: {
@@ -40,13 +62,17 @@ pub fn get_node_config(mut rpcenv: &mut dyn RpcEnvironment) -> Result<NodeConfig
                 description: "Digest to protect against concurrent updates",
                 optional: true,
             },
-            updater: {
+            update: {
                 type: NodeConfigUpdater,
                 flatten: true,
             },
             delete: {
-                description: "Options to remove from the configuration",
+                description: "List of properties to delete.",
+                type: Array,
                 optional: true,
+                items: {
+                    type: DeletableProperty,
+                }
             },
         },
     },
@@ -57,8 +83,9 @@ pub fn get_node_config(mut rpcenv: &mut dyn RpcEnvironment) -> Result<NodeConfig
 )]
 /// Update the node configuration
 pub fn update_node_config(
-    updater: NodeConfigUpdater,
-    delete: Option<String>,
+    // node: String, // not used
+    update: NodeConfigUpdater,
+    delete: Option<Vec<DeletableProperty>>,
     digest: Option<String>,
 ) -> Result<(), Error> {
     let _lock = crate::config::node::lock()?;
@@ -71,13 +98,27 @@ pub fn update_node_config(
         }
     }
 
-    let delete: Vec<&str> = delete
-        .as_deref()
-        .unwrap_or("")
-        .split(&[' ', ',', ';', '\0'][..])
-        .collect();
+    if let Some(delete) = delete {
+        for delete_prop in delete {
+            match delete_prop {
+                DeletableProperty::acme => { config.acme = None; },
+                DeletableProperty::acmedomain0 => { config.acmedomain0 = None; },
+                DeletableProperty::acmedomain1 => { config.acmedomain1 = None; },
+                DeletableProperty::acmedomain2 => { config.acmedomain2 = None; },
+                DeletableProperty::acmedomain3 => { config.acmedomain3 = None; },
+                DeletableProperty::acmedomain4 => { config.acmedomain4 = None; },
+                DeletableProperty::http_proxy => { config.http_proxy = None; },
+            }
+        }
+    }
 
-    config.update_from(updater, &delete)?;
+    if update.acme.is_some() { config.acme = update.acme; }
+    if update.acmedomain0.is_some() { config.acmedomain0 = update.acmedomain0; }
+    if update.acmedomain1.is_some() { config.acmedomain1 = update.acmedomain1; }
+    if update.acmedomain2.is_some() { config.acmedomain2 = update.acmedomain2; }
+    if update.acmedomain3.is_some() { config.acmedomain3 = update.acmedomain3; }
+    if update.acmedomain4.is_some() { config.acmedomain4 = update.acmedomain4; }
+    if update.http_proxy.is_some() { config.http_proxy = update.http_proxy; }
 
     crate::config::node::save_config(&config)?;
 

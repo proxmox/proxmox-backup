@@ -30,7 +30,7 @@ use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 
 use proxmox::api::api;
-use proxmox::api::schema::{ApiStringFormat, Schema, StringSchema};
+use proxmox::api::schema::{ApiStringFormat, Schema, StringSchema, Updatable};
 use proxmox::const_regex;
 
 // we only allow a limited set of characters
@@ -401,6 +401,12 @@ impl<'a> TryFrom<&'a str> for &'a TokennameRef {
 pub struct Userid {
     data: String,
     name_len: usize,
+}
+
+impl Updatable for Userid {
+    type Updater = Option<Userid>;
+
+    const UPDATER_IS_OPTION: bool = true;
 }
 
 impl Userid {

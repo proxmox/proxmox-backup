@@ -9,7 +9,7 @@ use proxmox::tools::fs::file_get_contents;
 use proxmox_backup::acme::AcmeClient;
 use proxmox_backup::api2;
 use proxmox_backup::api2::types::AcmeAccountName;
-use proxmox_backup::config::acme::plugin::DnsPluginCoreUpdater;
+use proxmox_backup::config::acme::plugin::DnsPluginCore;
 use proxmox_backup::config::acme::KNOWN_ACME_DIRECTORIES;
 
 pub fn acme_mgmt_cli() -> CommandLineInterface {
@@ -312,7 +312,7 @@ fn get_plugin(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error
                 description: "The ACME challenge plugin type.",
             },
             core: {
-                type: DnsPluginCoreUpdater,
+                type: DnsPluginCore,
                 flatten: true,
             },
             data: {
@@ -323,7 +323,7 @@ fn get_plugin(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error
     }
 )]
 /// Show acme account information.
-fn add_plugin(r#type: String, core: DnsPluginCoreUpdater, data: String) -> Result<(), Error> {
+fn add_plugin(r#type: String, core: DnsPluginCore, data: String) -> Result<(), Error> {
     let data = base64::encode(&file_get_contents(&data)?);
     api2::config::acme::add_plugin(r#type, core, data)?;
     Ok(())

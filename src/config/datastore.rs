@@ -5,7 +5,7 @@ use serde::{Serialize, Deserialize};
 
 use proxmox::api::{
     api,
-    schema::{Schema, StringSchema},
+    schema::{Schema, StringSchema, Updater},
     section_config::{
         SectionConfig,
         SectionConfigData,
@@ -82,14 +82,16 @@ pub const DIR_NAME_SCHEMA: Schema = StringSchema::new("Directory name").schema()
         },
     }
 )]
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize,Deserialize,Updater)]
 #[serde(rename_all="kebab-case")]
 /// Datastore configuration properties.
 pub struct DataStoreConfig {
+    #[updater(skip)]
     pub name: String,
+    #[updater(skip)]
+    pub path: String,
     #[serde(skip_serializing_if="Option::is_none")]
     pub comment: Option<String>,
-    pub path: String,
     #[serde(skip_serializing_if="Option::is_none")]
     pub gc_schedule: Option<String>,
     #[serde(skip_serializing_if="Option::is_none")]

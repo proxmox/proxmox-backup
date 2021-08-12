@@ -9,7 +9,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use proxmox::api::router::SubdirMap;
-use proxmox::api::schema::Updatable;
 use proxmox::api::{api, Permission, Router, RpcEnvironment};
 use proxmox::http_bail;
 use proxmox::list_subdirs_api_method;
@@ -21,7 +20,7 @@ use crate::acme::AcmeClient;
 use crate::api2::types::{AcmeAccountName, AcmeChallengeSchema, Authid, KnownAcmeDirectory};
 use crate::config::acl::PRIV_SYS_MODIFY;
 use crate::config::acme::plugin::{
-    DnsPlugin, DnsPluginCore, DnsPluginCoreUpdater, PLUGIN_ID_SCHEMA,
+    self, DnsPlugin, DnsPluginCore, DnsPluginCoreUpdater, PLUGIN_ID_SCHEMA,
 };
 use crate::server::WorkerTask;
 use crate::tools::ControlFlow;
@@ -464,7 +463,7 @@ pub struct PluginConfig {
     ///
     /// Allows to cope with long TTL of DNS records.
     #[serde(skip_serializing_if = "Option::is_none", default)]
-    validation_delay: Option<u32>,
+    alidation_delay: Option<u32>,
 
     /// Flag to disable the config.
     #[serde(skip_serializing_if = "Option::is_none", default)]
@@ -515,8 +514,6 @@ fn modify_cfg_for_api(id: &str, ty: &str, data: &Value) -> PluginConfig {
 )]
 /// List ACME challenge plugins.
 pub fn list_plugins(mut rpcenv: &mut dyn RpcEnvironment) -> Result<Vec<PluginConfig>, Error> {
-    use crate::config::acme::plugin;
-
     let (plugins, digest) = plugin::config()?;
     rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
     Ok(plugins
@@ -539,8 +536,6 @@ pub fn list_plugins(mut rpcenv: &mut dyn RpcEnvironment) -> Result<Vec<PluginCon
 )]
 /// List ACME challenge plugins.
 pub fn get_plugin(id: String, mut rpcenv: &mut dyn RpcEnvironment) -> Result<PluginConfig, Error> {
-    use crate::config::acme::plugin;
-
     let (plugins, digest) = plugin::config()?;
     rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
 
@@ -562,7 +557,7 @@ pub fn get_plugin(id: String, mut rpcenv: &mut dyn RpcEnvironment) -> Result<Plu
                 description: "The ACME challenge plugin type.",
             },
             core: {
-                type: DnsPluginCoreUpdater,
+                type: DnsPluginCore,
                 flatten: true,
             },
             data: {
@@ -578,9 +573,7 @@ pub fn get_plugin(id: String, mut rpcenv: &mut dyn RpcEnvironment) -> Result<Plu
     protected: true,
 )]
 /// Add ACME plugin configuration.
-pub fn add_plugin(r#type: String, core: DnsPluginCoreUpdater, data: String) -> Result<(), Error> {
-    use crate::config::acme::plugin;
-
+pub fn add_plugin(r#type: String, core: DnsPluginCore, data: String) -> Result<(), Error> {
     // Currently we only support DNS plugins and the standalone plugin is "fixed":
     if r#type != "dns" {
         bail!("invalid ACME plugin type: {:?}", r#type);
@@ -588,13 +581,8 @@ pub fn add_plugin(r#type: String, core: DnsPluginCoreUpdater, data: String) -> R
 
     let data = String::from_utf8(base64::decode(&data)?)
         .map_err(|_| format_err!("data must be valid UTF-8"))?;
-    //core.api_fixup()?;
 
-    // FIXME: Solve the Updater with non-optional fields thing...
-    let id = core
-        .id
-        .clone()
-        .ok_or_else(|| format_err!("missing required 'id' parameter"))?;
+    let id = core.id.clone();
 
     let _lock = plugin::lock()?;
 
@@ -603,10 +591,7 @@ pub fn add_plugin(r#type: String, core: DnsPluginCoreUpdater, data: String) -> R
         bail!("ACME plugin ID {:?} already exists", id);
     }
 
-    let plugin = serde_json::to_value(DnsPlugin {
-        core: DnsPluginCore::try_build_from(core)?,
-        data,
-    })?;
+    let plugin = serde_json::to_value(DnsPlugin { core, data })?;
 
     plugins.insert(id, r#type, plugin);
 
@@ -628,8 +613,6 @@ pub fn add_plugin(r#type: String, core: DnsPluginCoreUpdater, data: String) -> R
 )]
 /// Delete an ACME plugin configuration.
 pub fn delete_plugin(id: String) -> Result<(), Error> {
-    use crate::config::acme::plugin;
-
     let _lock = plugin::lock()?;
 
     let (mut plugins, _digest) = plugin::config()?;
@@ -641,10 +624,23 @@ pub fn delete_plugin(id: String) -> Result<(), Error> {
     Ok(())
 }
 
+#[api()]
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all="kebab-case")]
+#[allow(non_camel_case_types)]
+/// Deletable property name
+pub enum DeletableProperty {
+    /// Delete the disable property
+    disable,
+    /// Delete the validation-delay property
+    validation_delay,
+}
+
 #[api(
     input: {
         properties: {
-            core_update: {
+            id: { schema: PLUGIN_ID_SCHEMA },
+            update: {
                 type: DnsPluginCoreUpdater,
                 flatten: true,
             },
@@ -654,12 +650,16 @@ pub fn delete_plugin(id: String) -> Result<(), Error> {
                 // This is different in the API!
                 description: "DNS plugin data (base64 encoded with padding).",
             },
+            delete: {
+                description: "List of properties to delete.",
+                type: Array,
+                optional: true,
+                items: {
+                    type: DeletableProperty,
+                }
+            },
             digest: {
                 description: "Digest to protect against concurrent updates",
-                optional: true,
-            },
-            delete: {
-                description: "Options to remove from the configuration",
                 optional: true,
             },
         },
@@ -671,13 +671,12 @@ pub fn delete_plugin(id: String) -> Result<(), Error> {
 )]
 /// Update an ACME plugin configuration.
 pub fn update_plugin(
-    core_update: DnsPluginCoreUpdater,
+    id: String,
+    update: DnsPluginCoreUpdater,
     data: Option<String>,
-    delete: Option<String>,
+    delete: Option<Vec<DeletableProperty>>,
     digest: Option<String>,
 ) -> Result<(), Error> {
-    use crate::config::acme::plugin;
-
     let data = data
         .as_deref()
         .map(base64::decode)
@@ -685,16 +684,6 @@ pub fn update_plugin(
         .map(String::from_utf8)
         .transpose()
         .map_err(|_| format_err!("data must be valid UTF-8"))?;
-    //core_update.api_fixup()?;
-
-    // unwrap: the id is matched by this method's API path
-    let id = core_update.id.clone().unwrap();
-
-    let delete: Vec<&str> = delete
-        .as_deref()
-        .unwrap_or("")
-        .split(&[' ', ',', ';', '\0'][..])
-        .collect();
 
     let _lock = plugin::lock()?;
 
@@ -712,10 +701,21 @@ pub fn update_plugin(
             }
 
             let mut plugin: DnsPlugin = serde_json::from_value(entry.clone())?;
-            plugin.core.update_from(core_update, &delete)?;
-            if let Some(data) = data {
-                plugin.data = data;
+
+            if let Some(delete) = delete {
+                for delete_prop in delete {
+                    match delete_prop {
+                        DeletableProperty::validation_delay => { plugin.core.validation_delay = None; },
+                        DeletableProperty::disable => { plugin.core.disable = None; },
+                    }
+                }
             }
+            if let Some(data) = data { plugin.data = data; }
+            if let Some(api) = update.api { plugin.core.api = api; }
+            if update.validation_delay.is_some() { plugin.core.validation_delay = update.validation_delay; }
+            if update.disable.is_some() { plugin.core.disable = update.disable; }
+
+
             *entry = serde_json::to_value(plugin)?;
         }
         None => http_bail!(NOT_FOUND, "no such plugin"),

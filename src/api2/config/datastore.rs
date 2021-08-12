@@ -19,7 +19,7 @@ use crate::api2::admin::{
 use crate::api2::types::*;
 use crate::backup::*;
 use crate::config::cached_user_info::CachedUserInfo;
-use crate::config::datastore::{self, DataStoreConfig};
+use crate::config::datastore::{self, DataStoreConfig, DataStoreConfigUpdater};
 use crate::config::acl::{PRIV_DATASTORE_ALLOCATE, PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_MODIFY};
 use crate::server::{jobstate, WorkerTask};
 
@@ -183,55 +183,9 @@ pub enum DeletableProperty {
             name: {
                 schema: DATASTORE_SCHEMA,
             },
-            comment: {
-                optional: true,
-                schema: SINGLE_LINE_COMMENT_SCHEMA,
-            },
-            "notify-user": {
-                optional: true,
-                type: Userid,
-            },
-            "notify": {
-                optional: true,
-                schema: DATASTORE_NOTIFY_STRING_SCHEMA,
-            },
-            "gc-schedule": {
-                optional: true,
-                schema: GC_SCHEDULE_SCHEMA,
-            },
-            "prune-schedule": {
-                optional: true,
-                schema: PRUNE_SCHEDULE_SCHEMA,
-            },
-            "keep-last": {
-                optional: true,
-                schema: PRUNE_SCHEMA_KEEP_LAST,
-            },
-            "keep-hourly": {
-                optional: true,
-                schema: PRUNE_SCHEMA_KEEP_HOURLY,
-            },
-            "keep-daily": {
-                optional: true,
-                schema: PRUNE_SCHEMA_KEEP_DAILY,
-            },
-            "keep-weekly": {
-                optional: true,
-                schema: PRUNE_SCHEMA_KEEP_WEEKLY,
-            },
-            "keep-monthly": {
-                optional: true,
-                schema: PRUNE_SCHEMA_KEEP_MONTHLY,
-            },
-            "keep-yearly": {
-                optional: true,
-                schema: PRUNE_SCHEMA_KEEP_YEARLY,
-            },
-            "verify-new": {
-                description: "If enabled, all new backups will be verified right after completion.",
-                type: bool,
-                optional: true,
-                default: false,
+            update: {
+                type: DataStoreConfigUpdater,
+                flatten: true,
             },
             delete: {
                 description: "List of properties to delete.",
@@ -252,21 +206,9 @@ pub enum DeletableProperty {
     },
 )]
 /// Update datastore config.
-#[allow(clippy::too_many_arguments)]
 pub fn update_datastore(
+    update: DataStoreConfigUpdater,
     name: String,
-    comment: Option<String>,
-    gc_schedule: Option<String>,
-    prune_schedule: Option<String>,
-    keep_last: Option<u64>,
-    keep_hourly: Option<u64>,
-    keep_daily: Option<u64>,
-    keep_weekly: Option<u64>,
-    keep_monthly: Option<u64>,
-    keep_yearly: Option<u64>,
-    verify_new: Option<bool>,
-    notify: Option<String>,
-    notify_user: Option<Userid>,
     delete: Option<Vec<DeletableProperty>>,
     digest: Option<String>,
 ) -> Result<(), Error> {
@@ -302,7 +244,7 @@ pub fn update_datastore(
         }
     }
 
-    if let Some(comment) = comment {
+    if let Some(comment) = update.comment {
         let comment = comment.trim().to_string();
         if comment.is_empty() {
             data.comment = None;
@@ -312,25 +254,25 @@ pub fn update_datastore(
     }
 
     let mut gc_schedule_changed = false;
-    if gc_schedule.is_some() {
-        gc_schedule_changed = data.gc_schedule != gc_schedule;
-        data.gc_schedule = gc_schedule;
+    if update.gc_schedule.is_some() {
+        gc_schedule_changed = data.gc_schedule != update.gc_schedule;
+        data.gc_schedule = update.gc_schedule;
     }
 
     let mut prune_schedule_changed = false;
-    if prune_schedule.is_some() {
-        prune_schedule_changed = data.prune_schedule != prune_schedule;
-        data.prune_schedule = prune_schedule;
+    if update.prune_schedule.is_some() {
+        prune_schedule_changed = data.prune_schedule != update.prune_schedule;
+        data.prune_schedule = update.prune_schedule;
     }
 
-    if keep_last.is_some() { data.keep_last = keep_last; }
-    if keep_hourly.is_some() { data.keep_hourly = keep_hourly; }
-    if keep_daily.is_some() { data.keep_daily = keep_daily; }
-    if keep_weekly.is_some() { data.keep_weekly = keep_weekly; }
-    if keep_monthly.is_some() { data.keep_monthly = keep_monthly; }
-    if keep_yearly.is_some() { data.keep_yearly = keep_yearly; }
+    if update.keep_last.is_some() { data.keep_last = update.keep_last; }
+    if update.keep_hourly.is_some() { data.keep_hourly = update.keep_hourly; }
+    if update.keep_daily.is_some() { data.keep_daily = update.keep_daily; }
+    if update.keep_weekly.is_some() { data.keep_weekly = update.keep_weekly; }
+    if update.keep_monthly.is_some() { data.keep_monthly = update.keep_monthly; }
+    if update.keep_yearly.is_some() { data.keep_yearly = update.keep_yearly; }
 
-    if let Some(notify_str) = notify {
+    if let Some(notify_str) = update.notify {
         let value = parse_property_string(&notify_str, &DatastoreNotify::API_SCHEMA)?;
         let notify: DatastoreNotify = serde_json::from_value(value)?;
         if let  DatastoreNotify { gc: None, verify: None, sync: None } = notify {
@@ -339,9 +281,9 @@ pub fn update_datastore(
             data.notify = Some(notify_str);
         }
     }
-    if verify_new.is_some() { data.verify_new = verify_new; }
+    if update.verify_new.is_some() { data.verify_new = update.verify_new; }
 
-    if notify_user.is_some() { data.notify_user = notify_user; }
+    if update.notify_user.is_some() { data.notify_user = update.notify_user; }
 
     config.set_data(&name, "datastore", &data)?;
 

@@ -5,7 +5,6 @@ use anyhow::Error;
 
 use crate::api2::types::PROXMOX_CONFIG_DIGEST_SCHEMA;
 use proxmox::api::{api, Permission, Router, RpcEnvironment, SubdirMap};
-use proxmox::api::schema::Updatable;
 use proxmox::list_subdirs_api_method;
 
 use crate::config::tfa::{self, WebauthnConfig, WebauthnConfigUpdater};
@@ -74,9 +73,14 @@ pub fn update_webauthn_config(
             let digest = proxmox::tools::hex_to_digest(digest)?;
             crate::tools::detect_modified_configuration_file(&digest, &wa.digest()?)?;
         }
-        wa.update_from::<&str>(webauthn, &[])?;
+        if let Some(ref rp) = webauthn.rp { wa.rp = rp.clone(); }
+        if let Some(ref origin) = webauthn.rp { wa.origin = origin.clone(); }
+        if let Some(ref id) = webauthn.id { wa.id = id.clone(); }
     } else {
-        tfa.webauthn = Some(WebauthnConfig::try_build_from(webauthn)?);
+        let rp = webauthn.rp.unwrap();
+        let origin = webauthn.origin.unwrap();
+        let id = webauthn.id.unwrap();
+        tfa.webauthn = Some(WebauthnConfig { rp, origin, id });
     }
 
     tfa::write(&tfa)?;

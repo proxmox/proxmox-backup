@@ -62,20 +62,21 @@ impl Default for StandalonePlugin {
 #[serde(rename_all = "kebab-case")]
 pub struct DnsPluginCore {
     /// Plugin ID.
-    pub(crate) id: String,
+    #[updater(skip)]
+    pub id: String,
 
     /// DNS API Plugin Id.
-    pub(crate) api: String,
+    pub api: String,
 
     /// Extra delay in seconds to wait before requesting validation.
     ///
     /// Allows to cope with long TTL of DNS records.
     #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub(crate) validation_delay: Option<u32>,
+    pub validation_delay: Option<u32>,
 
     /// Flag to disable the config.
     #[serde(skip_serializing_if = "Option::is_none", default)]
-    disable: Option<bool>,
+    pub disable: Option<bool>,
 }
 
 #[api(
@@ -88,17 +89,12 @@ pub struct DnsPluginCore {
 #[serde(rename_all = "kebab-case")]
 pub struct DnsPlugin {
     #[serde(flatten)]
-    pub(crate) core: DnsPluginCore,
+    pub core: DnsPluginCore,
 
-    // FIXME: The `Updater` should allow:
-    //   * having different descriptions for this and the Updater version
-    //   * having different `#[serde]` attributes for the Updater
-    //   * or, well, leaving fields out completely in teh Updater but this means we may need to
-    //     separate Updater and Builder deriving.
     // We handle this property separately in the API calls.
     /// DNS plugin data (base64url encoded without padding).
     #[serde(with = "proxmox::tools::serde::string_as_base64url_nopad")]
-    pub(crate) data: String,
+    pub data: String,
 }
 
 impl DnsPlugin {

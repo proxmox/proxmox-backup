@@ -94,26 +94,26 @@ pub struct AcmeConfig {
 /// Node specific configuration.
 pub struct NodeConfig {
     /// The acme account to use on this node.
-    #[serde(skip_serializing_if = "Updater::is_empty")]
-    acme: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub acme: Option<String>,
 
-    #[serde(skip_serializing_if = "Updater::is_empty")]
-    acmedomain0: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub acmedomain0: Option<String>,
 
-    #[serde(skip_serializing_if = "Updater::is_empty")]
-    acmedomain1: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub acmedomain1: Option<String>,
 
-    #[serde(skip_serializing_if = "Updater::is_empty")]
-    acmedomain2: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub acmedomain2: Option<String>,
 
-    #[serde(skip_serializing_if = "Updater::is_empty")]
-    acmedomain3: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub acmedomain3: Option<String>,
 
-    #[serde(skip_serializing_if = "Updater::is_empty")]
-    acmedomain4: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub acmedomain4: Option<String>,
 
-    #[serde(skip_serializing_if = "Updater::is_empty")]
-    http_proxy: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub http_proxy: Option<String>,
 }
 
 impl NodeConfig {
