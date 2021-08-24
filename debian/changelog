@@ -1,4 +1,4 @@
-rust-proxmox-backup (2.0.9-1) unstable; urgency=medium
+rust-proxmox-backup (2.0.9-2) bullseye; urgency=medium
 
   * tape backup: mention groups that were empty
 
@@ -11,7 +11,7 @@ rust-proxmox-backup (2.0.9-1) unstable; urgency=medium
   * cli: proxmox-tape backup-job list: use status api and display next-run
     and next-media-label
 
- -- Proxmox Support Team <support@proxmox.com>  Mon, 09 Aug 2021 09:53:29 +0200
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 24 Aug 2021 14:44:12 +0200
 
 rust-proxmox-backup (2.0.8-1) bullseye; urgency=medium
 
