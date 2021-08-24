@@ -92,7 +92,7 @@ proxmox = { version = "0.13.0", features = [ "sortable-macro", "api-macro", "cli
 proxmox-acme-rs = "0.2.1"
 proxmox-apt = "0.7.0"
 proxmox-http = { version = "0.4.0", features = [ "client", "http-helpers", "websocket" ] }
-proxmox-openid = "0.6.1"
+proxmox-openid = "0.7.0"
 
 pbs-api-types = { path = "pbs-api-types" }
 pbs-buildcfg = { path = "pbs-buildcfg" }
