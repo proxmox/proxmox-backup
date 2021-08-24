@@ -30,7 +30,7 @@ use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 
 use proxmox::api::api;
-use proxmox::api::schema::{ApiStringFormat, ApiType, Schema, StringSchema, Updatable};
+use proxmox::api::schema::{ApiStringFormat, ApiType, Schema, StringSchema, UpdaterType};
 use proxmox::const_regex;
 
 // we only allow a limited set of characters
@@ -397,16 +397,10 @@ impl<'a> TryFrom<&'a str> for &'a TokennameRef {
 }
 
 /// A complete user id consisting of a user name and a realm
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, UpdaterType)]
 pub struct Userid {
     data: String,
     name_len: usize,
-}
-
-impl Updatable for Userid {
-    type Updater = Option<Userid>;
-
-    const UPDATER_IS_OPTION: bool = true;
 }
 
 impl ApiType for Userid {
@@ -534,17 +528,10 @@ impl PartialEq<String> for Userid {
 }
 
 /// A complete authentication id consisting of a user id and an optional token name.
-#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash, UpdaterType)]
 pub struct Authid {
     user: Userid,
     tokenname: Option<Tokenname>
-}
-
-
-impl Updatable for Authid {
-    type Updater = Option<Authid>;
-
-    const UPDATER_IS_OPTION: bool = true;
 }
 
 impl ApiType for Authid {
