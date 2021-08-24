@@ -88,10 +88,10 @@ crossbeam-channel = "0.5"
 pathpatterns = "0.1.2"
 pxar = { version = "0.10.1", features = [ "tokio-io" ] }
 
-proxmox = { version = "0.12.1", features = [ "sortable-macro", "api-macro", "cli", "router", "tfa" ] }
+proxmox = { version = "0.13.0", features = [ "sortable-macro", "api-macro", "cli", "router", "tfa" ] }
 proxmox-acme-rs = "0.2.1"
-proxmox-apt = "0.6.0"
-proxmox-http = { version = "0.3.0", features = [ "client", "http-helpers", "websocket" ] }
+proxmox-apt = "0.7.0"
+proxmox-http = { version = "0.4.0", features = [ "client", "http-helpers", "websocket" ] }
 proxmox-openid = "0.6.1"
 
 pbs-api-types = { path = "pbs-api-types" }

@@ -29,7 +29,7 @@ tokio = { version = "1.6", features = [ "fs", "io-util", "rt", "rt-multi-thread"
 url = "2.1"
 walkdir = "2"
 
-proxmox = { version = "0.12.1", default-features = false, features = [ "tokio" ] }
+proxmox = { version = "0.13.0", default-features = false, features = [ "tokio" ] }
 
 pbs-buildcfg = { path = "../pbs-buildcfg" }
 pbs-runtime = { path = "../pbs-runtime" }
