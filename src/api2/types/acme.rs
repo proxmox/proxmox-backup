@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use proxmox::api::{api, schema::{Schema, StringSchema, ApiStringFormat}};
+use proxmox::api::{api, schema::{ApiType, Schema, StringSchema, ApiStringFormat}};
 
 use crate::api2::types::{
     DNS_ALIAS_FORMAT, DNS_NAME_FORMAT, PROXMOX_SAFE_ID_FORMAT,

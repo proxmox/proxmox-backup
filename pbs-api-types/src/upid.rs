@@ -2,7 +2,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use anyhow::{bail, Error};
 
-use proxmox::api::schema::{ApiStringFormat, Schema, StringSchema};
+use proxmox::api::schema::{ApiStringFormat, ApiType, Schema, StringSchema};
 use proxmox::const_regex;
 use proxmox::sys::linux::procfs;
 
@@ -54,13 +54,15 @@ const_regex! {
 pub const PROXMOX_UPID_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&PROXMOX_UPID_REGEX);
 
-impl UPID {
-    pub const API_SCHEMA: Schema = StringSchema::new("Unique Process/Task Identifier")
+impl ApiType for UPID {
+    const API_SCHEMA: Schema = StringSchema::new("Unique Process/Task Identifier")
         .min_length("UPID:N:12345678:12345678:12345678:::".len())
         .max_length(128) // arbitrary
         .format(&PROXMOX_UPID_FORMAT)
         .schema();
+}
 
+impl UPID {
     /// Create a new UPID
     pub fn new(
         worker_type: &str,

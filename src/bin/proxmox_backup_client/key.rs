@@ -10,6 +10,7 @@ use proxmox::api::cli::{
     OUTPUT_FORMAT,
 };
 use proxmox::api::router::ReturnType;
+use proxmox::api::schema::ApiType;
 use proxmox::sys::linux::tty;
 use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
 

@@ -4,6 +4,7 @@ use serde_json::{json, Value};
 use proxmox::{
     api::{
         schema::{
+            ApiType,
             Schema,
             ObjectSchemaType,
             ApiStringFormat,

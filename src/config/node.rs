@@ -4,7 +4,7 @@ use anyhow::{bail, Error};
 use serde::{Deserialize, Serialize};
 
 use proxmox::api::api;
-use proxmox::api::schema::{ApiStringFormat, Updater};
+use proxmox::api::schema::{ApiStringFormat, ApiType, Updater};
 
 use proxmox_http::ProxyConfig;
 

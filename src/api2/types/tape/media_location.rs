@@ -35,8 +35,8 @@ pub enum MediaLocation {
 proxmox::forward_deserialize_to_from_str!(MediaLocation);
 proxmox::forward_serialize_to_display!(MediaLocation);
 
-impl MediaLocation {
-    pub const API_SCHEMA: Schema = StringSchema::new(
+impl proxmox::api::schema::ApiType for MediaLocation {
+    const API_SCHEMA: Schema = StringSchema::new(
         "Media location (e.g. 'offline', 'online-<changer_name>', 'vault-<vault_name>')")
         .format(&ApiStringFormat::VerifyFn(|text| {
             let location: MediaLocation = text.parse()?;

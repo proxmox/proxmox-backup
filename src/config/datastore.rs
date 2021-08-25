@@ -5,7 +5,7 @@ use serde::{Serialize, Deserialize};
 
 use proxmox::api::{
     api,
-    schema::{Schema, StringSchema, Updater},
+    schema::{ApiType, Schema, StringSchema, Updater},
     section_config::{
         SectionConfig,
         SectionConfigData,

@@ -16,6 +16,7 @@ use proxmox::api::{
         default_table_format_options,
     },
     router::ReturnType,
+    schema::ApiType,
 };
 
 use pbs_client::tools::key_source::get_encryption_key_password;

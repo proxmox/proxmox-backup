@@ -152,6 +152,8 @@ fn object_to_writer(output: &mut dyn Write, object: &Object) -> Result<(), Error
 
 #[test]
 fn test() {
+    use proxmox::api::schema::ApiType;
+
     // let's just reuse some schema we actually have available:
     use crate::config::node::NodeConfig;
 

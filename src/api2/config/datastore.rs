@@ -6,7 +6,7 @@ use ::serde::{Deserialize, Serialize};
 
 use proxmox::api::{api, Router, RpcEnvironment, Permission};
 use proxmox::api::section_config::SectionConfigData;
-use proxmox::api::schema::parse_property_string;
+use proxmox::api::schema::{ApiType, parse_property_string};
 use pbs_datastore::task::TaskState;
 
 use crate::api2::config::sync::delete_sync_job;

@@ -30,7 +30,7 @@ use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 
 use proxmox::api::api;
-use proxmox::api::schema::{ApiStringFormat, Schema, StringSchema, Updatable};
+use proxmox::api::schema::{ApiStringFormat, ApiType, Schema, StringSchema, Updatable};
 use proxmox::const_regex;
 
 // we only allow a limited set of characters
@@ -409,13 +409,15 @@ impl Updatable for Userid {
     const UPDATER_IS_OPTION: bool = true;
 }
 
-impl Userid {
-    pub const API_SCHEMA: Schema = StringSchema::new("User ID")
+impl ApiType for Userid {
+    const API_SCHEMA: Schema = StringSchema::new("User ID")
         .format(&PROXMOX_USER_ID_FORMAT)
         .min_length(3)
         .max_length(64)
         .schema();
+}
 
+impl Userid {
     const fn new(data: String, name_len: usize) -> Self {
         Self { data, name_len }
     }
@@ -538,13 +540,22 @@ pub struct Authid {
     tokenname: Option<Tokenname>
 }
 
-impl Authid {
-    pub const API_SCHEMA: Schema = StringSchema::new("Authentication ID")
+
+impl Updatable for Authid {
+    type Updater = Option<Authid>;
+
+    const UPDATER_IS_OPTION: bool = true;
+}
+
+impl ApiType for Authid {
+    const API_SCHEMA: Schema = StringSchema::new("Authentication ID")
         .format(&PROXMOX_AUTH_ID_FORMAT)
         .min_length(3)
         .max_length(64)
         .schema();
+}
 
+impl Authid {
     const fn new(user: Userid, tokenname: Option<Tokenname>) -> Self {
         Self { user, tokenname }
     }
