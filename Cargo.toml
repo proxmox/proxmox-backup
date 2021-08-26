@@ -106,9 +106,9 @@ pbs-tools = { path = "pbs-tools" }
 # Local path overrides
 # NOTE: You must run `cargo update` after changing this for it to take effect!
 [patch.crates-io]
-#proxmox = { path = "../proxmox/proxmox", features = [ "sortable-macro", "api-macro", "cli", "router", "tfa" ] }
-#proxmox-http = { path = "../proxmox/proxmox-http", features = [ "client", "http-helpers", "websocket" ] }
-#pxar = { path = "../pxar", features = [ "tokio-io" ] }
+#proxmox = { path = "../proxmox/proxmox" }
+#proxmox-http = { path = "../proxmox/proxmox-http" }
+#pxar = { path = "../pxar" }
 
 [features]
 default = []
