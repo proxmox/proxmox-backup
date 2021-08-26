@@ -29,6 +29,7 @@ members = [
     "pbs-tools",
 
     "proxmox-backup-banner",
+    "proxmox-backup-client",
     "pxar-bin",
 ]
 
@@ -98,7 +99,6 @@ pbs-api-types = { path = "pbs-api-types" }
 pbs-buildcfg = { path = "pbs-buildcfg" }
 pbs-client = { path = "pbs-client" }
 pbs-datastore = { path = "pbs-datastore" }
-pbs-fuse-loop = { path = "pbs-fuse-loop" }
 pbs-runtime = { path = "pbs-runtime" }
 pbs-systemd = { path = "pbs-systemd" }
 pbs-tools = { path = "pbs-tools" }

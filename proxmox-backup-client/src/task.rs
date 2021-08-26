@@ -65,7 +65,7 @@ async fn task_list(param: Value) -> Result<Value, Error> {
     let mut result = client.get("api2/json/nodes/localhost/tasks", Some(args)).await?;
     let mut data = result["data"].take();
 
-    let return_type = &proxmox_backup::api2::node::tasks::API_METHOD_LIST_TASKS.returns;
+    let return_type = &pbs_api_types::NODE_TASKS_LIST_TASKS_RETURN_TYPE;
 
     use pbs_tools::format::{render_epoch, render_task_status};
     let options = default_table_format_options()

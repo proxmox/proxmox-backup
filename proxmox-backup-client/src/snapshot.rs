@@ -91,7 +91,7 @@ async fn list_snapshots(param: Value) -> Result<Value, Error> {
         .column(ColumnConfig::new("files").renderer(render_files))
         ;
 
-    let return_type = &proxmox_backup::api2::admin::datastore::API_METHOD_LIST_SNAPSHOTS.returns;
+    let return_type = &pbs_api_types::ADMIN_DATASTORE_LIST_SNAPSHOTS_RETURN_TYPE;
 
     format_and_print_result_full(&mut data, return_type, &output_format, &options);
 
@@ -138,8 +138,7 @@ async fn list_snapshot_files(param: Value) -> Result<Value, Error> {
 
     record_repository(&repo);
 
-    let return_type =
-        &proxmox_backup::api2::admin::datastore::API_METHOD_LIST_SNAPSHOT_FILES.returns;
+    let return_type = &pbs_api_types::ADMIN_DATASTORE_LIST_SNAPSHOT_FILES_RETURN_TYPE;
 
     let mut data: Value = result["data"].take();
 

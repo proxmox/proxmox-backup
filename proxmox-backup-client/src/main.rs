@@ -76,8 +76,17 @@ use pbs_tools::sync::StdChannelWriter;
 use pbs_tools::tokio::TokioWriterAdapter;
 use pbs_tools::json;
 
-mod proxmox_backup_client;
-use proxmox_backup_client::*;
+mod benchmark;
+pub use benchmark::*;
+mod mount;
+pub use mount::*;
+mod task;
+pub use task::*;
+mod catalog;
+pub use catalog::*;
+mod snapshot;
+pub use snapshot::*;
+pub mod key;
 
 fn record_repository(repo: &BackupRepository) {
 
@@ -295,7 +304,7 @@ async fn list_backup_groups(param: Value) -> Result<Value, Error> {
 
     let mut data: Value = result["data"].take();
 
-    let return_type = &proxmox_backup::api2::admin::datastore::API_METHOD_LIST_GROUPS.returns;
+    let return_type = &pbs_api_types::ADMIN_DATASTORE_LIST_GROUPS_RETURN_TYPE;
 
     format_and_print_result_full(&mut data, return_type, &output_format, &options);
 
@@ -1310,7 +1319,7 @@ async fn prune(
         .column(ColumnConfig::new("keep").renderer(render_prune_action).header("action"))
         ;
 
-    let return_type = &proxmox_backup::api2::admin::datastore::API_METHOD_PRUNE.returns;
+    let return_type = &pbs_api_types::ADMIN_DATASTORE_PRUNE_RETURN_TYPE;
 
     let mut data = result["data"].take();
 

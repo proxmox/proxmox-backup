@@ -40,6 +40,7 @@ SUBCRATES := \
 	pbs-systemd \
 	pbs-tools \
 	proxmox-backup-banner \
+	proxmox-backup-client \
 	pxar-bin
 
 ifeq ($(BUILD_MODE), release)
@@ -167,12 +168,13 @@ $(COMPILED_BINS) $(COMPILEDIR)/dump-catalog-shell-cli $(COMPILEDIR)/docgen: .do-
 	$(CARGO) build $(CARGO_BUILD_ARGS) \
 	    --package proxmox-backup-banner \
 	    --bin proxmox-backup-banner \
+	    --package proxmox-backup-client \
+	    --bin proxmox-backup-client \
 	    --package pxar-bin \
 	    --bin pxar \
 	    --package proxmox-backup \
 	    --bin dump-catalog-shell-cli \
 	    --bin pmt --bin pmtx \
-	    --bin proxmox-backup-client \
 	    --bin proxmox-daily-update \
 	    --bin proxmox-file-restore \
 	    --bin proxmox-restore-daemon \
