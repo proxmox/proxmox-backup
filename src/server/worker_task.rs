@@ -314,6 +314,27 @@ pub struct TaskListInfo {
     pub state: Option<TaskState>, // endtime, status
 }
 
+impl Into<pbs_api_types::TaskListItem> for TaskListInfo {
+    fn into(self) -> pbs_api_types::TaskListItem {
+        let (endtime, status) = self
+            .state
+            .map_or_else(|| (None, None), |a| (Some(a.endtime()), Some(a.to_string())));
+
+        pbs_api_types::TaskListItem {
+            upid: self.upid_str,
+            node: "localhost".to_string(),
+            pid: self.upid.pid as i64,
+            pstart: self.upid.pstart,
+            starttime: self.upid.starttime,
+            worker_type: self.upid.worker_type,
+            worker_id: self.upid.worker_id,
+            user: self.upid.auth_id,
+            endtime,
+            status,
+        }
+    }
+}
+
 fn lock_task_list_files(exclusive: bool) -> Result<BackupLockGuard, Error> {
     open_backup_lockfile(PROXMOX_BACKUP_TASK_LOCK_FN, None, exclusive)
 }

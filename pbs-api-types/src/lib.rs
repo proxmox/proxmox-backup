@@ -3,7 +3,10 @@
 use serde::{Deserialize, Serialize};
 
 use proxmox::api::api;
-use proxmox::api::schema::{ApiStringFormat, EnumEntry, IntegerSchema, Schema, StringSchema};
+use proxmox::api::schema::{
+    ApiStringFormat, ApiType, ArraySchema, EnumEntry, IntegerSchema, ReturnType, Schema,
+    StringSchema,
+};
 use proxmox::const_regex;
 use proxmox::{IPRE, IPRE_BRACKET, IPV4OCTET, IPV4RE, IPV6H16, IPV6LS32, IPV6RE};
 
@@ -564,3 +567,74 @@ impl std::convert::TryFrom<openssl::rsa::Rsa<openssl::pkey::Public>> for RsaPubK
         })
     }
 }
+
+#[api(
+    properties: {
+        upid: { schema: UPID::API_SCHEMA },
+    },
+)]
+#[derive(Serialize, Deserialize)]
+/// Task properties.
+pub struct TaskListItem {
+    pub upid: String,
+    /// The node name where the task is running on.
+    pub node: String,
+    /// The Unix PID
+    pub pid: i64,
+    /// The task start time (Epoch)
+    pub pstart: u64,
+    /// The task start time (Epoch)
+    pub starttime: i64,
+    /// Worker type (arbitrary ASCII string)
+    pub worker_type: String,
+    /// Worker ID (arbitrary ASCII string)
+    pub worker_id: Option<String>,
+    /// The authenticated entity who started the task
+    pub user: Authid,
+    /// The task end time (Epoch)
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub endtime: Option<i64>,
+    /// Task end status
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub status: Option<String>,
+}
+
+pub const ADMIN_DATASTORE_LIST_SNAPSHOTS_RETURN_TYPE: ReturnType = ReturnType {
+    optional: false,
+    schema: &ArraySchema::new(
+        "Returns the list of snapshots.",
+        &SnapshotListItem::API_SCHEMA,
+    ).schema(),
+};
+
+pub const ADMIN_DATASTORE_LIST_SNAPSHOT_FILES_RETURN_TYPE: ReturnType = ReturnType {
+    optional: false,
+    schema: &ArraySchema::new(
+        "Returns the list of archive files inside a backup snapshots.",
+        &BackupContent::API_SCHEMA,
+    ).schema(),
+};
+
+pub const ADMIN_DATASTORE_LIST_GROUPS_RETURN_TYPE: ReturnType = ReturnType {
+    optional: false,
+    schema: &ArraySchema::new(
+        "Returns the list of backup groups.",
+        &GroupListItem::API_SCHEMA,
+    ).schema(),
+};
+
+pub const ADMIN_DATASTORE_PRUNE_RETURN_TYPE: ReturnType = ReturnType {
+    optional: false,
+    schema: &ArraySchema::new(
+        "Returns the list of snapshots and a flag indicating if there are kept or removed.",
+        &PruneListItem::API_SCHEMA,
+    ).schema(),
+};
+
+pub const NODE_TASKS_LIST_TASKS_RETURN_TYPE: ReturnType = ReturnType {
+    optional: false,
+    schema: &ArraySchema::new(
+        "A list of tasks.",
+        &TaskListItem::API_SCHEMA,
+    ).schema(),
+};

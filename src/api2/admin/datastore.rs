@@ -134,13 +134,7 @@ fn get_all_snapshot_files(
             },
         },
     },
-    returns: {
-        type: Array,
-        description: "Returns the list of backup groups.",
-        items: {
-            type: GroupListItem,
-        }
-    },
+    returns: pbs_api_types::ADMIN_DATASTORE_LIST_GROUPS_RETURN_TYPE,
     access: {
         permission: &Permission::Privilege(
             &["datastore", "{store}"],
@@ -282,13 +276,7 @@ pub fn delete_group(
             },
         },
     },
-    returns: {
-        type: Array,
-        description: "Returns the list of archive files inside a backup snapshots.",
-        items: {
-            type: BackupContent,
-        }
-    },
+    returns: pbs_api_types::ADMIN_DATASTORE_LIST_SNAPSHOT_FILES_RETURN_TYPE,
     access: {
         permission: &Permission::Privilege(
             &["datastore", "{store}"],
@@ -382,13 +370,7 @@ pub fn delete_snapshot(
             },
         },
     },
-    returns: {
-        type: Array,
-        description: "Returns the list of snapshots.",
-        items: {
-            type: SnapshotListItem,
-        }
-    },
+    returns: pbs_api_types::ADMIN_DATASTORE_LIST_SNAPSHOTS_RETURN_TYPE,
     access: {
         permission: &Permission::Privilege(
             &["datastore", "{store}"],
@@ -809,13 +791,7 @@ pub fn verify(
             },
         },
     },
-    returns: {
-        type: Array,
-        description: "Returns the list of snapshots and a flag indicating if there are kept or removed.",
-        items: {
-            type: PruneListItem,
-        },
-    },
+    returns: pbs_api_types::ADMIN_DATASTORE_PRUNE_RETURN_TYPE,
     access: {
         permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_PRUNE, true),
     },

@@ -412,11 +412,7 @@ fn stop_task(
             },
         },
     },
-    returns: {
-        description: "A list of tasks.",
-        type: Array,
-        items: { type: TaskListItem },
-    },
+    returns: pbs_api_types::NODE_TASKS_LIST_TASKS_RETURN_TYPE,
     access: {
         description: "Users can only see their own tasks, unless they have Sys.Audit on /system/tasks.",
         permission: &Permission::Anybody,

@@ -379,59 +379,6 @@ pub struct DataStoreStatus {
     pub counts: Option<Counts>,
 }
 
-#[api(
-    properties: {
-        upid: { schema: UPID_SCHEMA },
-        user: { type: Authid },
-    },
-)]
-#[derive(Serialize, Deserialize)]
-/// Task properties.
-pub struct TaskListItem {
-    pub upid: String,
-    /// The node name where the task is running on.
-    pub node: String,
-    /// The Unix PID
-    pub pid: i64,
-    /// The task start time (Epoch)
-    pub pstart: u64,
-    /// The task start time (Epoch)
-    pub starttime: i64,
-    /// Worker type (arbitrary ASCII string)
-    pub worker_type: String,
-    /// Worker ID (arbitrary ASCII string)
-    pub worker_id: Option<String>,
-    /// The authenticated entity who started the task
-    pub user: Authid,
-    /// The task end time (Epoch)
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub endtime: Option<i64>,
-    /// Task end status
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub status: Option<String>,
-}
-
-impl From<crate::server::TaskListInfo> for TaskListItem {
-    fn from(info: crate::server::TaskListInfo) -> Self {
-        let (endtime, status) = info
-            .state
-            .map_or_else(|| (None, None), |a| (Some(a.endtime()), Some(a.to_string())));
-
-        TaskListItem {
-            upid: info.upid_str,
-            node: "localhost".to_string(),
-            pid: info.upid.pid as i64,
-            pstart: info.upid.pstart,
-            starttime: info.upid.starttime,
-            worker_type: info.upid.worker_type,
-            worker_id: info.upid.worker_id,
-            user: info.upid.auth_id,
-            endtime,
-            status,
-        }
-    }
-}
-
 #[api()]
 #[derive(Eq, PartialEq, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
