@@ -1,6 +1,9 @@
+use std::collections::HashSet;
+use std::fs::File;
+use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;
 
-use anyhow::{format_err, Error};
+use anyhow::{bail, format_err, Error};
 use proxmox::api::cli::{
     format_and_print_result, get_output_format, CliCommand, CliCommandMap, CommandLineInterface,
 };
@@ -10,6 +13,8 @@ use walkdir::WalkDir;
 
 use proxmox_backup::backup::{
     load_and_decrypt_key, CryptConfig, DataBlob, DynamicIndexReader, FixedIndexReader, IndexFile,
+    COMPRESSED_BLOB_MAGIC_1_0, DYNAMIC_SIZED_CHUNK_INDEX_1_0, ENCRYPTED_BLOB_MAGIC_1_0,
+    ENCR_COMPR_BLOB_MAGIC_1_0, FIXED_SIZED_CHUNK_INDEX_1_0, UNCOMPRESSED_BLOB_MAGIC_1_0,
 };
 
 use pbs_client::tools::key_source::get_encryption_key_password;
@@ -203,11 +208,128 @@ fn inspect_chunk(
     Ok(())
 }
 
+#[api(
+    input: {
+        properties: {
+            file: {
+                description: "Path to the file.",
+                type: String,
+            },
+            "decode": {
+                description: "Path to the file to which the file should be decoded, '-' -> decode to stdout.",
+                type: String,
+                optional: true,
+            },
+            "keyfile": {
+                description: "Path to the keyfile with which the file was encrypted.",
+                type: String,
+                optional: true,
+            },
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+        }
+    }
+)]
+/// Inspect a file, for blob file without decode only the size and encryption mode is printed
+fn inspect_file(
+    file: String,
+    decode: Option<String>,
+    keyfile: Option<String>,
+    param: Value,
+) -> Result<(), Error> {
+    let output_format = get_output_format(&param);
+
+    let mut file = File::open(Path::new(&file))?;
+    let mut magic = [0; 8];
+    file.read_exact(&mut magic)?;
+    file.seek(SeekFrom::Start(0))?;
+    let val = match magic {
+        UNCOMPRESSED_BLOB_MAGIC_1_0
+        | COMPRESSED_BLOB_MAGIC_1_0
+        | ENCRYPTED_BLOB_MAGIC_1_0
+        | ENCR_COMPR_BLOB_MAGIC_1_0 => {
+            let data_blob = DataBlob::load_from_reader(&mut file)?;
+            let key_file_path = keyfile.as_ref().map(Path::new);
+
+            let decode_output_path = decode.as_ref().map(Path::new);
+
+            if decode_output_path.is_some() {
+                decode_blob(decode_output_path, key_file_path, None, &data_blob)?;
+            }
+
+            let crypt_mode = data_blob.crypt_mode()?;
+            json!({
+                "encryption": crypt_mode,
+                "size": data_blob.raw_size(),
+            })
+        }
+        FIXED_SIZED_CHUNK_INDEX_1_0 | DYNAMIC_SIZED_CHUNK_INDEX_1_0 => {
+            let index: Box<dyn IndexFile> = match magic {
+                FIXED_SIZED_CHUNK_INDEX_1_0 => {
+                    Box::new(FixedIndexReader::new(file)?) as Box<dyn IndexFile>
+                }
+                DYNAMIC_SIZED_CHUNK_INDEX_1_0 => {
+                    Box::new(DynamicIndexReader::new(file)?) as Box<dyn IndexFile>
+                }
+                _ => bail!(format_err!("This is technically not possible")),
+            };
+
+            let mut ctime_str = index.index_ctime().to_string();
+            if let Ok(s) = proxmox::tools::time::strftime_local("%c", index.index_ctime()) {
+                ctime_str = s;
+            }
+
+            let mut chunk_digests = HashSet::new();
+
+            for pos in 0..index.index_count() {
+                let digest = index.index_digest(pos).unwrap();
+                chunk_digests.insert(proxmox::tools::digest_to_hex(digest));
+            }
+
+            json!({
+                "size": index.index_size(),
+                "ctime": ctime_str,
+                "chunk-digests": chunk_digests
+            })
+        }
+        _ => bail!(format_err!(
+            "Only .blob, .fidx and .didx files may be inspected"
+        )),
+    };
+
+    if output_format == "text" {
+        println!("size: {}", val["size"]);
+        if let Some(encryption) = val["encryption"].as_str() {
+            println!("encryption: {}", encryption);
+        }
+        if let Some(ctime) = val["ctime"].as_str() {
+            println!("creation time: {}", ctime);
+        }
+        if let Some(chunks) = val["chunk-digests"].as_array() {
+            println!("chunks:");
+            for chunk in chunks {
+                println!("  {}", chunk);
+            }
+        }
+    } else {
+        format_and_print_result(&val, &output_format);
+    }
+
+    Ok(())
+}
+
 pub fn inspect_commands() -> CommandLineInterface {
-    let cmd_def = CliCommandMap::new().insert(
-        "chunk",
-        CliCommand::new(&API_METHOD_INSPECT_CHUNK).arg_param(&["chunk"]),
-    );
+    let cmd_def = CliCommandMap::new()
+        .insert(
+            "chunk",
+            CliCommand::new(&API_METHOD_INSPECT_CHUNK).arg_param(&["chunk"]),
+        )
+        .insert(
+            "file",
+            CliCommand::new(&API_METHOD_INSPECT_FILE).arg_param(&["file"]),
+        );
 
     cmd_def.into()
 }
