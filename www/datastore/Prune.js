@@ -86,7 +86,7 @@ Ext.define('PBS.Datastore.PruneInputPanel', {
 		let counter = {};
 
 		backups.sort(function(a, b) {
-		    return a["backup-time"] < b["backup-time"];
+		    return b["backup-time"] - a["backup-time"];
 		});
 
 		let ruleIndex = -1;
