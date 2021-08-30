@@ -17,7 +17,8 @@ USR_BIN := \
 
 # Binaries usable by admins
 USR_SBIN := \
-	proxmox-backup-manager
+	proxmox-backup-manager \
+	proxmox-backup-debug \
 
 # Binaries for services:
 SERVICE_BIN := \

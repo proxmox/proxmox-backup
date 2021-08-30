@@ -2,7 +2,10 @@
 //!
 //! This is a collection of small and useful tools.
 use std::any::Any;
+use std::fs::File;
+use std::io::{stdout, Write};
 use std::os::unix::io::RawFd;
+use std::path::Path;
 
 use anyhow::{bail, format_err, Error};
 use openssl::hash::{hash, DigestBytes, MessageDigest};
@@ -223,4 +226,14 @@ pub fn create_run_dir() -> Result<(), Error> {
         .group(backup_user.gid);
     let _: bool = create_path(pbs_buildcfg::PROXMOX_BACKUP_RUN_DIR_M!(), None, Some(opts))?;
     Ok(())
+}
+
+/// Returns either a new file, if a path is given, or stdout, if no path is given.
+pub fn outfile_or_stdout<P: AsRef<Path>>(path: Option<P>) -> Result<Box<dyn Write>, Error> {
+    if let Some(path) = path {
+        let f = File::create(path)?;
+        Ok(Box::new(f) as Box<dyn Write>)
+    } else {
+        Ok(Box::new(stdout()) as Box<dyn Write>)
+    }
 }
