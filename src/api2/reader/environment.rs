@@ -5,8 +5,10 @@ use serde_json::{json, Value};
 
 use proxmox::api::{RpcEnvironment, RpcEnvironmentType};
 
+use pbs_datastore::backup_info::BackupDir;
+
 use crate::api2::types::Authid;
-use crate::backup::*;
+use crate::backup::DataStore;
 use crate::server::formatter::*;
 use crate::server::WorkerTask;
 

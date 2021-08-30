@@ -3,12 +3,14 @@ use std::sync::Arc;
 use anyhow::Error;
 
 use pbs_datastore::{task_log, task_warn};
+use pbs_datastore::backup_info::BackupInfo;
+use pbs_datastore::prune::{compute_prune_info, PruneOptions};
 
 use crate::{
     api2::types::*,
     config::acl::PRIV_DATASTORE_MODIFY,
     config::cached_user_info::CachedUserInfo,
-    backup::{compute_prune_info, BackupInfo, DataStore, PruneOptions},
+    backup::DataStore,
     server::jobstate::Job,
     server::WorkerTask,
 };

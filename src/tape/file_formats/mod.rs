@@ -1,6 +1,17 @@
 //! File format definitions and implementations for data written to
 //! tapes
 
+use std::collections::HashMap;
+
+use anyhow::{bail, Error};
+use bitflags::bitflags;
+use endian_trait::Endian;
+use serde::{Deserialize, Serialize};
+
+use proxmox::tools::Uuid;
+
+use pbs_api_types::Fingerprint;
+
 mod blocked_reader;
 pub use blocked_reader::*;
 
@@ -21,17 +32,6 @@ pub use multi_volume_writer::*;
 
 mod multi_volume_reader;
 pub use multi_volume_reader::*;
-
-use std::collections::HashMap;
-
-use anyhow::{bail, Error};
-use ::serde::{Deserialize, Serialize};
-use endian_trait::Endian;
-use bitflags::bitflags;
-
-use proxmox::tools::Uuid;
-
-use crate::backup::Fingerprint;
 
 /// We use 256KB blocksize (always)
 pub const PROXMOX_TAPE_BLOCK_SIZE: usize = 256*1024;

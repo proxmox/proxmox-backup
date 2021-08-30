@@ -10,6 +10,8 @@ use proxmox::{
     tools::Uuid,
 };
 
+use pbs_datastore::backup_info::BackupDir;
+
 use crate::{
     config::{
         self,
@@ -33,9 +35,6 @@ use crate::{
         MediaStatus,
         MediaContentEntry,
         VAULT_NAME_SCHEMA,
-    },
-    backup::{
-        BackupDir,
     },
     tape::{
         TAPE_STATUS_DIR,

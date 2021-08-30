@@ -6,26 +6,17 @@ use std::time::Instant;
 
 use anyhow::{bail, format_err, Error};
 
-use pbs_datastore::task_log;
+use pbs_api_types::CryptMode;
+use pbs_datastore::{task_log, DataBlob, StoreProgress};
+use pbs_datastore::backup_info::{BackupGroup, BackupDir, BackupInfo};
+use pbs_datastore::index::IndexFile;
+use pbs_datastore::manifest::{archive_type, ArchiveType, BackupManifest, FileInfo};
 use pbs_datastore::task::TaskState;
 use pbs_tools::fs::lock_dir_noblock_shared;
 
 use crate::{
     api2::types::*,
-    backup::{
-        DataStore,
-        StoreProgress,
-        DataBlob,
-        BackupGroup,
-        BackupDir,
-        BackupInfo,
-        BackupManifest,
-        IndexFile,
-        CryptMode,
-        FileInfo,
-        ArchiveType,
-        archive_type,
-    },
+    backup::DataStore,
     server::UPID,
     tools::ParallelHandler,
 };

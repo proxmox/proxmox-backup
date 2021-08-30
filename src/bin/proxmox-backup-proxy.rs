@@ -462,10 +462,8 @@ async fn schedule_datastore_garbage_collection() {
 
 async fn schedule_datastore_prune() {
 
+    use pbs_datastore::prune::PruneOptions;
     use proxmox_backup::{
-        backup::{
-            PruneOptions,
-        },
         config::datastore::{
             self,
             DataStoreConfig,

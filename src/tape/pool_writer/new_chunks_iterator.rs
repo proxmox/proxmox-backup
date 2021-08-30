@@ -3,15 +3,13 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::{format_err, Error};
 
+use pbs_datastore::DataBlob;
+
 use crate::{
-    backup::{
-        DataStore,
-        DataBlob,
-    },
+    backup::DataStore,
     tape::{
         CatalogSet,
         SnapshotReader,
-
     },
 };
 

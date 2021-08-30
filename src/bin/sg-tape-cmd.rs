@@ -18,9 +18,10 @@ use proxmox::{
     tools::Uuid,
 };
 
+use pbs_api_types::Fingerprint;
+
 use proxmox_backup::{
     config,
-    backup::Fingerprint,
     api2::types::{
         LTO_DRIVE_PATH_SCHEMA,
         DRIVE_NAME_SCHEMA,

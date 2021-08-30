@@ -15,9 +15,12 @@ use proxmox::api::schema::*;
 use pbs_tools::fs::lock_dir_noblock_shared;
 use pbs_tools::json::{required_array_param, required_integer_param, required_string_param};
 use pbs_datastore::PROXMOX_BACKUP_PROTOCOL_ID_V1;
+use pbs_datastore::backup_info::{BackupDir, BackupGroup, BackupInfo};
+use pbs_datastore::index::IndexFile;
+use pbs_datastore::manifest::{archive_type, ArchiveType};
 
 use crate::server::{WorkerTask, H2Service};
-use crate::backup::*;
+use crate::backup::DataStore;
 use crate::api2::types::*;
 use crate::config::acl::PRIV_DATASTORE_BACKUP;
 use crate::config::cached_user_info::CachedUserInfo;

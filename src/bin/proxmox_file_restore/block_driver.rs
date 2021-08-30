@@ -11,8 +11,9 @@ use serde_json::{json, Value};
 use proxmox::api::{api, cli::*};
 
 use pbs_client::BackupRepository;
+use pbs_datastore::backup_info::BackupDir;
+use pbs_datastore::manifest::BackupManifest;
 
-use proxmox_backup::backup::{BackupDir, BackupManifest};
 use proxmox_backup::api2::types::ArchiveEntry;
 
 use super::block_driver_qemu::QemuBlockDriver;

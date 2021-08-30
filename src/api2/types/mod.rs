@@ -6,12 +6,9 @@ use serde::{Deserialize, Serialize};
 use proxmox::api::{api, schema::*};
 use proxmox::const_regex;
 
-use pbs_datastore::catalog::CatalogEntryType;
+use pbs_datastore::catalog::{CatalogEntryType, DirEntryAttribute};
 
-use crate::{
-    backup::DirEntryAttribute,
-    config::acl::Role,
-};
+use crate::config::acl::Role;
 
 mod tape;
 pub use tape::*;

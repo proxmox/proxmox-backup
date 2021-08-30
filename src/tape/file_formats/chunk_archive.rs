@@ -8,7 +8,7 @@ use proxmox::tools::{
     io::ReadExt,
 };
 
-use crate::backup::DataBlob;
+use pbs_datastore::DataBlob;
 
 use crate::tape::{
     TapeWrite,

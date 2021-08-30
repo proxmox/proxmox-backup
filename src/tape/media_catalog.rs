@@ -9,6 +9,7 @@ use anyhow::{bail, format_err, Error};
 use endian_trait::Endian;
 
 use pbs_tools::fs::read_subdir;
+use pbs_datastore::backup_info::BackupDir;
 
 use proxmox::tools::{
     Uuid,
@@ -24,7 +25,6 @@ use proxmox::tools::{
 };
 
 use crate::{
-    backup::BackupDir,
     tape::{
         MediaId,
         file_formats::MediaSetLabel,

@@ -16,7 +16,13 @@ use proxmox::api::{
 use pxar::accessor::aio::Accessor;
 use pxar::decoder::aio::Decoder;
 
+use pbs_api_types::CryptMode;
+use pbs_datastore::{CryptConfig, CATALOG_NAME};
+use pbs_datastore::backup_info::BackupDir;
+use pbs_datastore::catalog::{CatalogReader, DirEntryAttribute};
+use pbs_datastore::dynamic_index::{BufferedDynamicReader, LocalDynamicReadAt};
 use pbs_datastore::index::IndexFile;
+use pbs_datastore::key_derivation::decrypt_key;
 use pbs_client::{BackupReader, RemoteChunkReader};
 use pbs_client::pxar::{create_zip, extract_sub_dir, extract_sub_dir_seq};
 use pbs_client::tools::{
@@ -29,10 +35,6 @@ use pbs_client::tools::{
 };
 
 use proxmox_backup::api2::{helpers, types::ArchiveEntry};
-use proxmox_backup::backup::{
-    decrypt_key, BackupDir, BufferedDynamicReader, CatalogReader, CryptConfig, CryptMode,
-    DirEntryAttribute, LocalDynamicReadAt, CATALOG_NAME,
-};
 use proxmox_backup::tools;
 
 mod proxmox_file_restore;

@@ -12,10 +12,12 @@ use proxmox::{sortable, identity};
 use proxmox::api::{ApiResponseFuture, ApiHandler, ApiMethod, RpcEnvironment};
 use proxmox::api::schema::*;
 
+use pbs_datastore::DataBlob;
+use pbs_datastore::file_formats::{DataBlobHeader, EncryptedDataBlobHeader};
 use pbs_tools::json::{required_integer_param, required_string_param};
 
 use crate::api2::types::*;
-use crate::backup::*;
+use crate::backup::DataStore;
 
 use super::environment::*;
 

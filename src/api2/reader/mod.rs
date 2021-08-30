@@ -30,6 +30,9 @@ use proxmox::{
 use pbs_tools::fs::lock_dir_noblock_shared;
 use pbs_tools::json::{required_integer_param, required_string_param};
 use pbs_datastore::PROXMOX_BACKUP_READER_PROTOCOL_ID_V1;
+use pbs_datastore::backup_info::BackupDir;
+use pbs_datastore::index::IndexFile;
+use pbs_datastore::manifest::{archive_type, ArchiveType};
 
 use crate::{
     api2::{
@@ -43,13 +46,7 @@ use crate::{
             Authid,
         },
     },
-    backup::{
-        DataStore,
-        ArchiveType,
-        BackupDir,
-        IndexFile,
-        archive_type,
-    },
+    backup::DataStore,
     server::{
         WorkerTask,
         H2Service,

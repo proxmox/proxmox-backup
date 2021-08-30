@@ -20,12 +20,12 @@ use proxmox::api::{
 use proxmox::{identity, list_subdirs_api_method, sortable};
 
 use pbs_client::pxar::{create_archive, Flags, PxarCreateOptions, ENCODER_MAX_ENTRIES};
+use pbs_datastore::catalog::DirEntryAttribute;
 use pbs_tools::fs::read_subdir;
 use pbs_tools::json::required_string_param;
 use pbs_tools::zip::zip_directory;
 
 use proxmox_backup::api2::types::*;
-use proxmox_backup::backup::DirEntryAttribute;
 
 use pxar::encoder::aio::TokioWriter;
 

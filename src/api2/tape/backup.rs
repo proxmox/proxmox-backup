@@ -15,7 +15,9 @@ use proxmox::{
     },
 };
 
-use pbs_datastore::{task_log, task_warn};
+use pbs_api_types::{Authid, Userid};
+use pbs_datastore::{task_log, task_warn, StoreProgress};
+use pbs_datastore::backup_info::{BackupDir, BackupInfo};
 use pbs_datastore::task::TaskState;
 
 use crate::{
@@ -42,18 +44,11 @@ use crate::{
             compute_schedule_status,
         },
     },
-    backup::{
-        DataStore,
-        BackupDir,
-        BackupInfo,
-        StoreProgress,
-    },
+    backup::DataStore,
     api2::types::{
-        Authid,
         UPID_SCHEMA,
         JOB_ID_SCHEMA,
         MediaPoolConfig,
-        Userid,
     },
     server::WorkerTask,
     tape::{

@@ -7,8 +7,9 @@ use hyper::{Body, Response, StatusCode, header};
 
 use proxmox::http_bail;
 
+use pbs_datastore::catalog::{CatalogReader, DirEntryAttribute};
+
 use crate::api2::types::ArchiveEntry;
-use crate::backup::{CatalogReader, DirEntryAttribute};
 
 pub async fn create_download_response(path: PathBuf) -> Result<Response<Body>, Error> {
     let file = match tokio::fs::File::open(path.clone()).await {

@@ -27,13 +27,12 @@ use proxmox::{
     sys::error::SysResult,
 };
 
+use pbs_api_types::Fingerprint;
+use pbs_datastore::key_derivation::KeyConfig;
+
 use crate::{
     config,
     tools::run_command,
-    backup::{
-        Fingerprint,
-        KeyConfig,
-    },
     api2::types::{
         MamAttribute,
         LtoDriveAndMediaStatus,

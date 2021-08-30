@@ -28,7 +28,13 @@ use proxmox::{
     },
 };
 
-use pbs_datastore::{task_log, task_warn};
+use pbs_api_types::CryptMode;
+use pbs_datastore::{task_log, task_warn, DataBlob};
+use pbs_datastore::backup_info::BackupDir;
+use pbs_datastore::dynamic_index::DynamicIndexReader;
+use pbs_datastore::fixed_index::FixedIndexReader;
+use pbs_datastore::index::IndexFile;
+use pbs_datastore::manifest::{archive_type, ArchiveType, BackupManifest, MANIFEST_BLOB_NAME};
 use pbs_datastore::task::TaskState;
 
 use crate::{
@@ -51,19 +57,7 @@ use crate::{
             PRIV_TAPE_READ,
         },
     },
-    backup::{
-        ArchiveType,
-        archive_type,
-        IndexFile,
-        MANIFEST_BLOB_NAME,
-        CryptMode,
-        DataStore,
-        DynamicIndexReader,
-        FixedIndexReader,
-        BackupDir,
-        DataBlob,
-        BackupManifest,
-    },
+    backup::DataStore,
     server::{
         lookup_user_email,
         WorkerTask,

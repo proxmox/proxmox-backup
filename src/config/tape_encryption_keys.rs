@@ -16,14 +16,10 @@ use anyhow::{bail, Error};
 use serde::{Deserialize, Serialize};
 
 use proxmox::tools::fs::file_read_optional_string;
+use pbs_api_types::Fingerprint;
+use pbs_datastore::key_derivation::KeyConfig;
 
-use crate::{
-    backup::{
-        open_backup_lockfile,
-        Fingerprint,
-        KeyConfig,
-    },
-};
+use crate::backup::open_backup_lockfile;
 
 mod hex_key {
     use serde::{self, Deserialize, Serializer, Deserializer};

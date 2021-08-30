@@ -10,12 +10,14 @@
 use std::path::{PathBuf, Path};
 
 use anyhow::{bail, Error};
-use ::serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 use proxmox::tools::Uuid;
 
+use pbs_api_types::Fingerprint;
+
 use crate::{
-    backup::{Fingerprint, BackupLockGuard},
+    backup::BackupLockGuard,
     api2::types::{
         MediaStatus,
         MediaLocation,
