@@ -52,7 +52,6 @@ use crate::api2::types::{
     VERIFICATION_OUTDATED_AFTER_SCHEMA
 };
 use crate::api2::node::rrd::create_value_from_rrd;
-use crate::api2::helpers;
 use crate::backup::{
     check_backup_owner, verify_all_backups, verify_backup_group, verify_backup_dir, verify_filter,
     DataStore, LocalChunkReader,
@@ -1409,7 +1408,7 @@ pub fn catalog(
         vec![b'/']
     };
 
-    helpers::list_dir_content(&mut catalog_reader, &path)
+    catalog_reader.list_dir_contents(&path)
 }
 
 #[sortable]

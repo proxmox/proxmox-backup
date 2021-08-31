@@ -34,7 +34,6 @@ use pbs_client::tools::{
     REPO_URL_SCHEMA,
 };
 
-use proxmox_backup::api2::helpers;
 use proxmox_backup::tools;
 
 mod proxmox_file_restore;
@@ -218,7 +217,7 @@ async fn list(
             let mut fullpath = file.into_bytes();
             fullpath.append(&mut path);
 
-            helpers::list_dir_content(&mut catalog_reader, &fullpath)
+            catalog_reader.list_dir_contents(&fullpath)
         }
         ExtractPath::VM(file, path) => {
             let details = SnapRestoreDetails {

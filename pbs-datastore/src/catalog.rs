@@ -622,6 +622,30 @@ impl <R: Read + Seek> CatalogReader<R> {
 
         Ok(())
     }
+
+    /// Returns the list of content of the given path
+    pub fn list_dir_contents(&mut self, path: &[u8]) -> Result<Vec<ArchiveEntry>, Error> {
+        let dir = self.lookup_recursive(path)?;
+        let mut res = vec![];
+        let mut path = path.to_vec();
+        if !path.is_empty() && path[0] == b'/' {
+            path.remove(0);
+        }
+
+        for direntry in self.read_dir(&dir)? {
+            let mut components = path.clone();
+            components.push(b'/');
+            components.extend(&direntry.name);
+            let mut entry = ArchiveEntry::new(&components, Some(&direntry.attr));
+            if let DirEntryAttribute::File { size, mtime } = direntry.attr {
+                entry.size = size.into();
+                entry.mtime = mtime.into();
+            }
+            res.push(entry);
+        }
+
+        Ok(res)
+    }
 }
 
 /// Serialize i64 as short, variable length byte sequence
