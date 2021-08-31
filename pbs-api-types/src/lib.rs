@@ -56,6 +56,8 @@ pub use upid::UPID;
 mod crypto;
 pub use crypto::{CryptMode, Fingerprint};
 
+pub mod file_restore;
+
 #[rustfmt::skip]
 #[macro_use]
 mod local_macros {

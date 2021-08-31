@@ -6,15 +6,10 @@ use serde::{Deserialize, Serialize};
 use proxmox::api::{api, schema::*};
 use proxmox::const_regex;
 
-use pbs_datastore::catalog::{CatalogEntryType, DirEntryAttribute};
-
 use crate::config::acl::Role;
 
 mod tape;
 pub use tape::*;
-
-mod file_restore;
-pub use file_restore::*;
 
 mod acme;
 pub use acme::*;
@@ -816,59 +811,6 @@ pub struct DatastoreNotify {
     pub verify: Option<Notify>,
     /// Sync job setting
     pub sync: Option<Notify>,
-}
-
-/// An entry in a hierarchy of files for restore and listing.
-#[api()]
-#[derive(Serialize, Deserialize)]
-pub struct ArchiveEntry {
-    /// Base64-encoded full path to the file, including the filename
-    pub filepath: String,
-    /// Displayable filename text for UIs
-    pub text: String,
-    /// File or directory type of this entry
-    #[serde(rename = "type")]
-    pub entry_type: String,
-    /// Is this entry a leaf node, or does it have children (i.e. a directory)?
-    pub leaf: bool,
-    /// The file size, if entry_type is 'f' (file)
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub size: Option<u64>,
-    /// The file "last modified" time stamp, if entry_type is 'f' (file)
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub mtime: Option<i64>,
-}
-
-impl ArchiveEntry {
-    pub fn new(filepath: &[u8], entry_type: Option<&DirEntryAttribute>) -> Self {
-        let size = match entry_type {
-            Some(DirEntryAttribute::File { size, .. }) => Some(*size),
-            _ => None,
-        };
-        Self::new_with_size(filepath, entry_type, size)
-    }
-
-    pub fn new_with_size(
-        filepath: &[u8],
-        entry_type: Option<&DirEntryAttribute>,
-        size: Option<u64>,
-    ) -> Self {
-        Self {
-            filepath: base64::encode(filepath),
-            text: String::from_utf8_lossy(filepath.split(|x| *x == b'/').last().unwrap())
-                .to_string(),
-            entry_type: match entry_type {
-                Some(entry_type) => CatalogEntryType::from(entry_type).to_string(),
-                None => "v".to_owned(),
-            },
-            leaf: !matches!(entry_type, None | Some(DirEntryAttribute::Directory { .. })),
-            size,
-            mtime: match entry_type {
-                Some(DirEntryAttribute::File { mtime, .. }) => Some(*mtime),
-                _ => None,
-            },
-        }
-    }
 }
 
 pub const DATASTORE_NOTIFY_STRING_SCHEMA: Schema = StringSchema::new(

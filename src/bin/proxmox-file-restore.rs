@@ -19,7 +19,7 @@ use pxar::decoder::aio::Decoder;
 use pbs_api_types::CryptMode;
 use pbs_datastore::{CryptConfig, CATALOG_NAME};
 use pbs_datastore::backup_info::BackupDir;
-use pbs_datastore::catalog::{CatalogReader, DirEntryAttribute};
+use pbs_datastore::catalog::{ArchiveEntry, CatalogReader, DirEntryAttribute};
 use pbs_datastore::dynamic_index::{BufferedDynamicReader, LocalDynamicReadAt};
 use pbs_datastore::index::IndexFile;
 use pbs_datastore::key_derivation::decrypt_key;
@@ -34,7 +34,7 @@ use pbs_client::tools::{
     REPO_URL_SCHEMA,
 };
 
-use proxmox_backup::api2::{helpers, types::ArchiveEntry};
+use proxmox_backup::api2::helpers;
 use proxmox_backup::tools;
 
 mod proxmox_file_restore;

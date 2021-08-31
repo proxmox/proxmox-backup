@@ -5,8 +5,10 @@ use std::io::{Read, Write, Seek, SeekFrom};
 use std::os::unix::ffi::OsStrExt;
 
 use anyhow::{bail, format_err, Error};
+use serde::{Deserialize, Serialize};
 
 use pathpatterns::{MatchList, MatchType};
+use proxmox::api::api;
 use proxmox::tools::io::ReadExt;
 
 use crate::file_formats::PROXMOX_CATALOG_FILE_MAGIC_1_0;
@@ -807,4 +809,57 @@ fn test_catalog_i64_compatibility() {
     test_encode_decode((1<<20)-1);
     test_encode_decode((1<<50)-1);
     test_encode_decode(u64::MAX);
+}
+
+/// An entry in a hierarchy of files for restore and listing.
+#[api]
+#[derive(Serialize, Deserialize)]
+pub struct ArchiveEntry {
+    /// Base64-encoded full path to the file, including the filename
+    pub filepath: String,
+    /// Displayable filename text for UIs
+    pub text: String,
+    /// File or directory type of this entry
+    #[serde(rename = "type")]
+    pub entry_type: String,
+    /// Is this entry a leaf node, or does it have children (i.e. a directory)?
+    pub leaf: bool,
+    /// The file size, if entry_type is 'f' (file)
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub size: Option<u64>,
+    /// The file "last modified" time stamp, if entry_type is 'f' (file)
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub mtime: Option<i64>,
+}
+
+impl ArchiveEntry {
+    pub fn new(filepath: &[u8], entry_type: Option<&DirEntryAttribute>) -> Self {
+        let size = match entry_type {
+            Some(DirEntryAttribute::File { size, .. }) => Some(*size),
+            _ => None,
+        };
+        Self::new_with_size(filepath, entry_type, size)
+    }
+
+    pub fn new_with_size(
+        filepath: &[u8],
+        entry_type: Option<&DirEntryAttribute>,
+        size: Option<u64>,
+    ) -> Self {
+        Self {
+            filepath: base64::encode(filepath),
+            text: String::from_utf8_lossy(filepath.split(|x| *x == b'/').last().unwrap())
+                .to_string(),
+            entry_type: match entry_type {
+                Some(entry_type) => CatalogEntryType::from(entry_type).to_string(),
+                None => "v".to_owned(),
+            },
+            leaf: !matches!(entry_type, None | Some(DirEntryAttribute::Directory { .. })),
+            size,
+            mtime: match entry_type {
+                Some(DirEntryAttribute::File { mtime, .. }) => Some(*mtime),
+                _ => None,
+            },
+        }
+    }
 }

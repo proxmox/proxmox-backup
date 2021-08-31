@@ -35,7 +35,7 @@ use pbs_client::pxar::create_zip;
 use pbs_datastore::{BackupDir, BackupGroup, StoreProgress, CATALOG_NAME};
 use pbs_datastore::backup_info::BackupInfo;
 use pbs_datastore::cached_chunk_reader::CachedChunkReader;
-use pbs_datastore::catalog::CatalogReader;
+use pbs_datastore::catalog::{ArchiveEntry, CatalogReader};
 use pbs_datastore::data_blob::DataBlob;
 use pbs_datastore::data_blob_reader::DataBlobReader;
 use pbs_datastore::dynamic_index::{BufferedDynamicReader, DynamicIndexReader, LocalDynamicReadAt};
@@ -48,8 +48,8 @@ use pbs_tools::stream::{AsyncReaderStream, AsyncChannelWriter};
 use pbs_tools::json::{required_integer_param, required_string_param};
 
 use crate::api2::types::{
-    ArchiveEntry, DataStoreStatus, RRDMode, RRDTimeFrameResolution,
-    IGNORE_VERIFIED_BACKUPS_SCHEMA, UPID_SCHEMA, VERIFICATION_OUTDATED_AFTER_SCHEMA
+    DataStoreStatus, RRDMode, RRDTimeFrameResolution, IGNORE_VERIFIED_BACKUPS_SCHEMA, UPID_SCHEMA,
+    VERIFICATION_OUTDATED_AFTER_SCHEMA
 };
 use crate::api2::node::rrd::create_value_from_rrd;
 use crate::api2::helpers;
