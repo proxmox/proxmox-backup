@@ -91,7 +91,9 @@ pub fn get_smart_data(
     };
     command.arg(disk_path);
 
-    let output = pbs_tools::run_command(command, None)?;
+    let output = pbs_tools::run_command(command, Some(|exitcode|
+        (exitcode & 0b0111) == 0 // only bits 0-2 are fatal errors
+    ))?;
 
     let output: serde_json::Value = output.parse()?;
 
