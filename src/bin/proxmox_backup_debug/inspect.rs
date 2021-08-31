@@ -4,18 +4,22 @@ use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;
 
 use anyhow::{bail, format_err, Error};
+use serde_json::{json, Value};
+use walkdir::WalkDir;
+
 use proxmox::api::cli::{
     format_and_print_result, get_output_format, CliCommand, CliCommandMap, CommandLineInterface,
 };
 use proxmox::api::{api, cli::*};
-use serde_json::{json, Value};
-use walkdir::WalkDir;
 
-use proxmox_backup::backup::{
-    load_and_decrypt_key, CryptConfig, DataBlob, DynamicIndexReader, FixedIndexReader, IndexFile,
+use pbs_datastore::dynamic_index::DynamicIndexReader;
+use pbs_datastore::file_formats::{
     COMPRESSED_BLOB_MAGIC_1_0, DYNAMIC_SIZED_CHUNK_INDEX_1_0, ENCRYPTED_BLOB_MAGIC_1_0,
     ENCR_COMPR_BLOB_MAGIC_1_0, FIXED_SIZED_CHUNK_INDEX_1_0, UNCOMPRESSED_BLOB_MAGIC_1_0,
 };
+use pbs_datastore::fixed_index::FixedIndexReader;
+use pbs_datastore::index::IndexFile;
+use pbs_datastore::{load_and_decrypt_key, CryptConfig, DataBlob};
 
 use pbs_client::tools::key_source::get_encryption_key_password;
 
