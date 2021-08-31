@@ -26,13 +26,10 @@ use proxmox_backup::{
         },
         rotate_task_log_archive,
     },
-    tools::systemd::time::{
-        parse_calendar_event,
-        compute_next_event,
-    },
 };
 
 use pbs_buildcfg::configdir;
+use pbs_systemd::time::{compute_next_event, parse_calendar_event};
 
 use proxmox_backup::api2::types::Authid;
 use proxmox_backup::server;

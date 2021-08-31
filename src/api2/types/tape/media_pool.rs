@@ -4,8 +4,9 @@
 //! so we cannot use them directly for the API. Instead, we represent
 //! them as String.
 
-use anyhow::Error;
 use std::str::FromStr;
+
+use anyhow::Error;
 use serde::{Deserialize, Serialize};
 
 use proxmox::api::{
@@ -13,19 +14,13 @@ use proxmox::api::{
     schema::{Schema, StringSchema, ApiStringFormat, Updater},
 };
 
-use crate::{
-    tools::systemd::time::{
-        CalendarEvent,
-        TimeSpan,
-        parse_time_span,
-        parse_calendar_event,
-    },
-    api2::types::{
-        PROXMOX_SAFE_ID_FORMAT,
-        SINGLE_LINE_COMMENT_FORMAT,
-        SINGLE_LINE_COMMENT_SCHEMA,
-        TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
-    },
+use pbs_systemd::time::{parse_calendar_event, parse_time_span, CalendarEvent, TimeSpan};
+
+use crate::api2::types::{
+    PROXMOX_SAFE_ID_FORMAT,
+    SINGLE_LINE_COMMENT_FORMAT,
+    SINGLE_LINE_COMMENT_SCHEMA,
+    TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
 };
 
 pub const MEDIA_POOL_NAME_SCHEMA: Schema = StringSchema::new("Media pool name.")

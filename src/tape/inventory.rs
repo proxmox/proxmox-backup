@@ -39,8 +39,9 @@ use proxmox::tools::{
     },
 };
 
+use pbs_systemd::time::compute_next_event;
+
 use crate::{
-    tools::systemd::time::compute_next_event,
     api2::types::{
         MediaSetPolicy,
         RetentionPolicy,

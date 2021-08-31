@@ -14,8 +14,6 @@ use pbs_client::{DEFAULT_VSOCK_PORT, BackupRepository, VsockClient};
 use pbs_datastore::backup_info::BackupDir;
 use pbs_datastore::catalog::ArchiveEntry;
 
-use proxmox_backup::tools;
-
 use super::block_driver::*;
 use crate::get_user_run_dir;
 
@@ -82,7 +80,7 @@ impl VMStateMap {
 
 fn make_name(repo: &BackupRepository, snap: &BackupDir) -> String {
     let full = format!("qemu_{}/{}", repo, snap);
-    tools::systemd::escape_unit(&full, false)
+    pbs_systemd::escape_unit(&full, false)
 }
 
 /// remove non-responsive VMs from given map, returns 'true' if map was modified
@@ -259,7 +257,7 @@ impl BlockRestoreDriver for QemuBlockDriver {
                 let resp = client
                     .get("api2/json/status", Some(json!({"keep-timeout": true})))
                     .await;
-                let name = tools::systemd::unescape_unit(n)
+                let name = pbs_systemd::unescape_unit(n)
                     .unwrap_or_else(|_| "<invalid name>".to_owned());
                 let mut extra = json!({"pid": s.pid, "cid": s.cid});
 
@@ -297,7 +295,7 @@ impl BlockRestoreDriver for QemuBlockDriver {
 
     fn stop(&self, id: String) -> Async<Result<(), Error>> {
         async move {
-            let name = tools::systemd::escape_unit(&id, false);
+            let name = pbs_systemd::escape_unit(&id, false);
             let mut map = VMStateMap::load()?;
             let map_mod = cleanup_map(&mut map.map).await;
             match map.map.get(&name) {
@@ -327,7 +325,7 @@ impl BlockRestoreDriver for QemuBlockDriver {
         match VMStateMap::load_read_only() {
             Ok(state) => state
                 .iter()
-                .filter_map(|(name, _)| tools::systemd::unescape_unit(&name).ok())
+                .filter_map(|(name, _)| pbs_systemd::unescape_unit(&name).ok())
                 .collect(),
             Err(_) => Vec::new(),
         }

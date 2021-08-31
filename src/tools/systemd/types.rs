@@ -248,10 +248,10 @@ pub enum ServiceStartup {
 
 pub const SYSTEMD_TIMESPAN_SCHEMA: Schema = StringSchema::new(
     "systemd time span")
-    .format(&ApiStringFormat::VerifyFn(super::time::verify_time_span))
+    .format(&ApiStringFormat::VerifyFn(pbs_systemd::time::verify_time_span))
     .schema();
 
 pub const SYSTEMD_CALENDAR_EVENT_SCHEMA: Schema = StringSchema::new(
     "systemd calendar event")
-    .format(&ApiStringFormat::VerifyFn(super::time::verify_calendar_event))
+    .format(&ApiStringFormat::VerifyFn(pbs_systemd::time::verify_calendar_event))
     .schema();

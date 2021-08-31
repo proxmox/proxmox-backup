@@ -26,8 +26,6 @@ use crate::server::WorkerTask;
 
 use crate::api2::types::*;
 
-use crate::tools::systemd;
-
 pub const DISK_ARRAY_SCHEMA: Schema = ArraySchema::new(
     "Disk name list.", &BLOCKDEVICE_NAME_SCHEMA)
     .schema();
@@ -362,8 +360,8 @@ pub fn create_zpool(
             worker.log(output);
 
             if std::path::Path::new("/lib/systemd/system/zfs-import@.service").exists() {
-                let import_unit = format!("zfs-import@{}.service", systemd::escape_unit(&name, false));
-                systemd::enable_unit(&import_unit)?;
+                let import_unit = format!("zfs-import@{}.service", pbs_systemd::escape_unit(&name, false));
+                pbs_systemd::enable_unit(&import_unit)?;
             }
 
             if let Some(compression) = compression {

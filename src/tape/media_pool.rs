@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 use proxmox::tools::Uuid;
 
 use pbs_api_types::Fingerprint;
+use pbs_systemd::time::compute_next_event;
 
 use crate::{
     backup::BackupLockGuard,
@@ -25,7 +26,6 @@ use crate::{
         RetentionPolicy,
         MediaPoolConfig,
     },
-    tools::systemd::time::compute_next_event,
     tape::{
         MediaId,
         MediaSet,
