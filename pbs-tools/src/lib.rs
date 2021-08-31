@@ -4,6 +4,7 @@ pub mod blocking;
 pub mod borrow;
 pub mod broadcast_future;
 pub mod cert;
+pub mod cli;
 pub mod compression;
 pub mod format;
 pub mod fs;

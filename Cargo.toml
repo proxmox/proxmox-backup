@@ -30,6 +30,7 @@ members = [
 
     "proxmox-backup-banner",
     "proxmox-backup-client",
+    "proxmox-backup-debug",
     "pxar-bin",
 ]
 

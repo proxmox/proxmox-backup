@@ -23,7 +23,7 @@ use pbs_datastore::{load_and_decrypt_key, CryptConfig, DataBlob};
 
 use pbs_client::tools::key_source::get_encryption_key_password;
 
-use proxmox_backup::tools::outfile_or_stdout;
+use pbs_tools::cli::outfile_or_stdout;
 
 /// Decodes a blob and writes its content either to stdout or into a file
 fn decode_blob(
