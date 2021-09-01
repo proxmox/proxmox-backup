@@ -29,10 +29,10 @@ use proxmox::{
 
 use pbs_api_types::Fingerprint;
 use pbs_datastore::key_derivation::KeyConfig;
+use pbs_tools::run_command;
 
 use crate::{
     config,
-    tools::run_command,
     api2::types::{
         MamAttribute,
         LtoDriveAndMediaStatus,

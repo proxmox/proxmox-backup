@@ -244,7 +244,7 @@ pub fn delete_datastore_disk(name: String) -> Result<(), Error> {
     // try to unmount, if that fails tell the user to reboot or unmount manually
     let mut command = std::process::Command::new("umount");
     command.arg(&path);
-    match crate::tools::run_command(command, None) {
+    match pbs_tools::run_command(command, None) {
         Err(_) => bail!(
             "Could not umount '{}' since it is busy. It will stay mounted \
              until the next reboot or until unmounted manually!",

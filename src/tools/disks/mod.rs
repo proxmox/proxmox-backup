@@ -19,7 +19,7 @@ use proxmox::sys::linux::procfs::{MountInfo, mountinfo::Device};
 use proxmox::{io_bail, io_format_err};
 use proxmox::api::api;
 
-use crate::api2::types::{BLOCKDEVICE_NAME_REGEX, StorageStatus};
+use pbs_api_types::{BLOCKDEVICE_NAME_REGEX, StorageStatus};
 
 mod zfs;
 pub use zfs::*;
@@ -574,7 +574,7 @@ pub fn get_lsblk_info() -> Result<Vec<LsblkInfo>, Error> {
     let mut command = std::process::Command::new("lsblk");
     command.args(&["--json", "-o", "path,parttype,fstype"]);
 
-    let output = crate::tools::run_command(command, None)?;
+    let output = pbs_tools::run_command(command, None)?;
 
     let mut output: serde_json::Value = output.parse()?;
 
@@ -886,7 +886,7 @@ pub fn reread_partition_table(disk: &Disk) -> Result<(), Error> {
     command.arg("--rereadpt");
     command.arg(disk_path);
 
-    crate::tools::run_command(command, None)?;
+    pbs_tools::run_command(command, None)?;
 
     Ok(())
 }
@@ -905,7 +905,7 @@ pub fn inititialize_gpt_disk(disk: &Disk, uuid: Option<&str>) -> Result<(), Erro
     command.arg(disk_path);
     command.args(&["-U", uuid]);
 
-    crate::tools::run_command(command, None)?;
+    pbs_tools::run_command(command, None)?;
 
     Ok(())
 }
@@ -922,7 +922,7 @@ pub fn create_single_linux_partition(disk: &Disk) -> Result<Disk, Error> {
     command.args(&["-n1", "-t1:8300"]);
     command.arg(disk_path);
 
-    crate::tools::run_command(command, None)?;
+    pbs_tools::run_command(command, None)?;
 
     let mut partitions = disk.partitions()?;
 
@@ -975,7 +975,7 @@ pub fn create_file_system(disk: &Disk, fs_type: FileSystemType) -> Result<(), Er
     command.args(&["-t", &fs_type]);
     command.arg(disk_path);
 
-    crate::tools::run_command(command, None)?;
+    pbs_tools::run_command(command, None)?;
 
     Ok(())
 }
@@ -1013,7 +1013,7 @@ pub fn get_fs_uuid(disk: &Disk) -> Result<String, Error> {
     command.args(&["-o", "export"]);
     command.arg(disk_path);
 
-    let output = crate::tools::run_command(command, None)?;
+    let output = pbs_tools::run_command(command, None)?;
 
     for line in output.lines() {
         if let Some(uuid) = line.strip_prefix("UUID=") {

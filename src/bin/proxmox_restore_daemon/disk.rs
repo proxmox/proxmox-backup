@@ -1,18 +1,19 @@
 //! Low-level disk (image) access functions for file restore VMs.
-use anyhow::{bail, format_err, Error};
-use lazy_static::lazy_static;
-use log::{info, warn};
-
 use std::collections::HashMap;
 use std::fs::{create_dir_all, File};
 use std::io::{BufRead, BufReader};
 use std::path::{Component, Path, PathBuf};
 use std::process::Command;
 
+use anyhow::{bail, format_err, Error};
+use lazy_static::lazy_static;
+use log::{info, warn};
+
 use proxmox::const_regex;
 use proxmox::tools::fs;
-use proxmox_backup::api2::types::BLOCKDEVICE_NAME_REGEX;
-use proxmox_backup::tools::run_command;
+
+use pbs_api_types::BLOCKDEVICE_NAME_REGEX;
+use pbs_tools::run_command;
 
 const_regex! {
     VIRTIO_PART_REGEX = r"^vd[a-z]+(\d+)$";

@@ -1,8 +1,6 @@
 ///! Daemon binary to run inside a micro-VM for secure single file restore of disk images
-use anyhow::{bail, format_err, Error};
-use lazy_static::lazy_static;
-use log::{error, info};
-
+use std::fs::File;
+use std::io::prelude::*;
 use std::os::unix::{
     io::{FromRawFd, RawFd},
     net,
@@ -10,16 +8,16 @@ use std::os::unix::{
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
+use anyhow::{bail, format_err, Error};
+use lazy_static::lazy_static;
+use log::{error, info};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
-
-use pbs_client::DEFAULT_VSOCK_PORT;
 
 use proxmox::api::RpcEnvironmentType;
 use proxmox_backup::server::{rest::*, ApiConfig};
 
-use std::fs::File;
-use std::io::prelude::*;
+use pbs_client::DEFAULT_VSOCK_PORT;
 
 mod proxmox_restore_daemon;
 use proxmox_restore_daemon::*;

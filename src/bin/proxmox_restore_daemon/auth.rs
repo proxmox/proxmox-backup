@@ -1,10 +1,11 @@
 //! Authentication via a static ticket file
-use anyhow::{bail, format_err, Error};
-
 use std::fs::File;
 use std::io::prelude::*;
 
-use proxmox_backup::api2::types::Authid;
+use anyhow::{bail, format_err, Error};
+
+use pbs_api_types::Authid;
+
 use proxmox_backup::config::cached_user_info::CachedUserInfo;
 use proxmox_backup::server::auth::{ApiAuth, AuthError};
 

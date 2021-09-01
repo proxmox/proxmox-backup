@@ -121,6 +121,8 @@ const_regex! {
         DNS_NAME!(), "|",  IPRE_BRACKET!(),
         "):)?(?:([0-9]{1,5}):)?(", PROXMOX_SAFE_ID_REGEX_STR!(), r")$"
     );
+
+    pub BLOCKDEVICE_NAME_REGEX = r"^(:?(:?h|s|x?v)d[a-z]+)|(:?nvme\d+n\d+)$";
 }
 
 pub const IP_V4_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&IP_V4_REGEX);

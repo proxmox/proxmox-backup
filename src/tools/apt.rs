@@ -101,7 +101,7 @@ fn get_changelog_url(
         command.arg("changelog");
         command.arg("--print-uris");
         command.arg(package);
-        let output = crate::tools::run_command(command, None)?; // format: 'http://foo/bar' package.changelog
+        let output = pbs_tools::run_command(command, None)?; // format: 'http://foo/bar' package.changelog
         let output = match output.splitn(2, ' ').next() {
             Some(output) => {
                 if output.len() < 2 {

@@ -1,5 +1,6 @@
 //! Tokio-based watchdog that shuts down the VM if not pinged for TIMEOUT
 use std::sync::atomic::{AtomicI64, Ordering};
+
 use proxmox::tools::time::epoch_i64;
 
 const TIMEOUT: i64 = 600; // seconds

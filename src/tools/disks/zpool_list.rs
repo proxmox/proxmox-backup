@@ -147,7 +147,7 @@ pub fn zpool_list(pool: Option<String>, verbose: bool) -> Result<Vec<ZFSPoolInfo
 
     if let Some(pool) = pool { command.arg(pool); }
 
-    let output = crate::tools::run_command(command, None)?;
+    let output = pbs_tools::run_command(command, None)?;
 
     parse_zpool_list(&output)
 }

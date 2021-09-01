@@ -1,7 +1,8 @@
 use anyhow::Error;
 
+use pbs_tools::run_command;
+
 use crate::{
-    tools::run_command,
     api2::types::ScsiTapeChanger,
     tape::changer::{
         MtxStatus,

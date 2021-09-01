@@ -364,7 +364,7 @@ pub fn zpool_status(pool: &str) -> Result<Vec<(String, String)>, Error> {
     let mut command = std::process::Command::new("zpool");
     command.args(&["status", "-p", "-P", pool]);
 
-    let output = crate::tools::run_command(command, None)?;
+    let output = pbs_tools::run_command(command, None)?;
 
     parse_zpool_status(&output)
 }

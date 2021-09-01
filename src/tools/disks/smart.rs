@@ -91,7 +91,7 @@ pub fn get_smart_data(
     };
     command.arg(disk_path);
 
-    let output = crate::tools::run_command(command, None)?;
+    let output = pbs_tools::run_command(command, None)?;
 
     let output: serde_json::Value = output.parse()?;
 

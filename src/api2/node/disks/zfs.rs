@@ -356,7 +356,7 @@ pub fn create_zpool(
 
             worker.log(format!("# {:?}", command));
 
-            let output = crate::tools::run_command(command, None)?;
+            let output = pbs_tools::run_command(command, None)?;
             worker.log(output);
 
             if std::path::Path::new("/lib/systemd/system/zfs-import@.service").exists() {
@@ -368,7 +368,7 @@ pub fn create_zpool(
                 let mut command = std::process::Command::new("zfs");
                 command.args(&["set", &format!("compression={}", compression), &name]);
                 worker.log(format!("# {:?}", command));
-                let output = crate::tools::run_command(command, None)?;
+                let output = pbs_tools::run_command(command, None)?;
                 worker.log(output);
             }
 

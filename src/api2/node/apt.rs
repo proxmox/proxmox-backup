@@ -273,7 +273,7 @@ fn apt_get_changelog(
         command.arg("changelog");
         command.arg("-qq"); // don't display download progress
         command.arg(name);
-        let output = crate::tools::run_command(command, None)?;
+        let output = pbs_tools::run_command(command, None)?;
         Ok(json!(output))
     }
 }

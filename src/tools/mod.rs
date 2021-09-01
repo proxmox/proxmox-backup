@@ -17,7 +17,6 @@ use proxmox_http::{
 
 pub use pbs_tools::json;
 pub use pbs_tools::nom;
-pub use pbs_tools::{run_command, command_output, command_output_as_string};
 pub use pbs_tools::process_locker::{
     ProcessLocker, ProcessLockExclusiveGuard, ProcessLockSharedGuard
 };
