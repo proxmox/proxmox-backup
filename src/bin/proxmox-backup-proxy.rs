@@ -30,6 +30,7 @@ use proxmox_backup::{
 
 use pbs_buildcfg::configdir;
 use pbs_systemd::time::{compute_next_event, parse_calendar_event};
+use pbs_tools::logrotate::LogRotate;
 
 use proxmox_backup::api2::types::Authid;
 use proxmox_backup::server;
@@ -42,7 +43,6 @@ use proxmox_backup::tools::{
         zfs_pool_stats,
         get_pool_from_dataset,
     },
-    logrotate::LogRotate,
 };
 
 use proxmox_backup::api2::pull::do_sync_job;

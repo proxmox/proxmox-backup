@@ -14,6 +14,11 @@ pub const PROXMOX_PKG_REPOID: &str = env!("REPOID");
 pub const CONFIGDIR: &str = "/etc/proxmox-backup";
 pub const JS_DIR: &str = "/usr/share/javascript/proxmox-backup";
 
+/// Unix system user used by proxmox-backup-proxy
+pub const BACKUP_USER_NAME: &str = "backup";
+/// Unix system group used by proxmox-backup-proxy
+pub const BACKUP_GROUP_NAME: &str = "backup";
+
 #[macro_export]
 macro_rules! PROXMOX_BACKUP_RUN_DIR_M { () => ("/run/proxmox-backup") }
 

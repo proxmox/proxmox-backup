@@ -1,39 +1,22 @@
 //! Server/client-specific parts for what's otherwise in pbs-datastore.
 
-use anyhow::{bail, Error};
+use anyhow::{format_err, Error};
 
 // Note: .pcat1 => Proxmox Catalog Format version 1
 pub const CATALOG_NAME: &str = "catalog.pcat1.didx";
 
-/// Unix system user used by proxmox-backup-proxy
-pub const BACKUP_USER_NAME: &str = "backup";
-/// Unix system group used by proxmox-backup-proxy
-pub const BACKUP_GROUP_NAME: &str = "backup";
+pub use pbs_buildcfg::{BACKUP_USER_NAME, BACKUP_GROUP_NAME};
 
 /// Return User info for the 'backup' user (``getpwnam_r(3)``)
 pub fn backup_user() -> Result<nix::unistd::User, Error> {
-    if cfg!(test) {
-        // fix permission problems with regressions test (when run as non-root).
-        Ok(nix::unistd::User::from_uid(nix::unistd::Uid::current())?.unwrap())
-    } else {
-        match nix::unistd::User::from_name(BACKUP_USER_NAME)? {
-            Some(user) => Ok(user),
-            None => bail!("Unable to lookup backup user."),
-        }
-    }
+    pbs_tools::sys::query_user(BACKUP_USER_NAME)?
+        .ok_or_else(|| format_err!("Unable to lookup '{}' user.", BACKUP_USER_NAME))
 }
 
 /// Return Group info for the 'backup' group (``getgrnam(3)``)
 pub fn backup_group() -> Result<nix::unistd::Group, Error> {
-    if cfg!(test) {
-        // fix permission problems with regressions test (when run as non-root).
-        Ok(nix::unistd::Group::from_gid(nix::unistd::Gid::current())?.unwrap())
-    } else {
-        match nix::unistd::Group::from_name(BACKUP_GROUP_NAME)? {
-            Some(group) => Ok(group),
-            None => bail!("Unable to lookup backup user."),
-        }
-    }
+    pbs_tools::sys::query_group(BACKUP_GROUP_NAME)?
+        .ok_or_else(|| format_err!("Unable to lookup '{}' group.", BACKUP_GROUP_NAME))
 }
 
 // Split

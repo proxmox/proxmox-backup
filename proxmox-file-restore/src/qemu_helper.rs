@@ -15,9 +15,7 @@ use proxmox::tools::fs::{create_path, file_read_string, make_tmp_file, CreateOpt
 
 use pbs_client::{VsockClient, DEFAULT_VSOCK_PORT};
 
-use proxmox_backup::backup::backup_user;
-use proxmox_backup::tools;
-
+use crate::{cpio, backup_user};
 use super::SnapRestoreDetails;
 
 const PBS_VM_NAME: &str = "pbs-restore-vm";
@@ -88,7 +86,7 @@ async fn create_temp_initramfs(ticket: &str, debug: bool) -> Result<(File, Strin
     let (tmp_file, tmp_path) =
         make_tmp_file("/tmp/file-restore-qemu.initramfs.tmp", CreateOptions::new())?;
     nix::unistd::unlink(&tmp_path)?;
-    tools::fd_change_cloexec(tmp_file.as_raw_fd(), false)?;
+    pbs_tools::fd::fd_change_cloexec(tmp_file.as_raw_fd(), false)?;
 
     let initramfs = if debug {
         pbs_buildcfg::PROXMOX_BACKUP_INITRAMFS_DBG_FN
@@ -102,7 +100,7 @@ async fn create_temp_initramfs(ticket: &str, debug: bool) -> Result<(File, Strin
     tokio::io::copy(&mut base, &mut f).await?;
 
     let name = CString::new("ticket").unwrap();
-    tools::cpio::append_file(
+    cpio::append_file(
         &mut f,
         ticket.as_bytes(),
         &name,
@@ -114,7 +112,7 @@ async fn create_temp_initramfs(ticket: &str, debug: bool) -> Result<(File, Strin
         ticket.len() as u32,
     )
     .await?;
-    tools::cpio::append_trailer(&mut f).await?;
+    cpio::append_trailer(&mut f).await?;
 
     let tmp_file = f.into_std().await;
     let path = format!("/dev/fd/{}", &tmp_file.as_raw_fd());
@@ -144,13 +142,13 @@ pub async fn start_vm(
     let pid;
     let (mut pid_file, pid_path) = make_tmp_file("/tmp/file-restore-qemu.pid.tmp", CreateOptions::new())?;
     nix::unistd::unlink(&pid_path)?;
-    tools::fd_change_cloexec(pid_file.as_raw_fd(), false)?;
+    pbs_tools::fd::fd_change_cloexec(pid_file.as_raw_fd(), false)?;
 
     let (_ramfs_pid, ramfs_path) = create_temp_initramfs(ticket, debug).await?;
 
     let logpath = create_restore_log_dir()?;
     let logfile = &format!("{}/qemu.log", logpath);
-    let mut logrotate = tools::logrotate::LogRotate::new(logfile, false)
+    let mut logrotate = pbs_tools::logrotate::LogRotate::new(logfile, false)
         .ok_or_else(|| format_err!("could not get QEMU log file names"))?;
 
     if let Err(err) = logrotate.do_rotate(CreateOptions::default(), Some(16)) {
@@ -161,7 +159,7 @@ pub async fn start_vm(
         .append(true)
         .create_new(true)
         .open(logfile)?;
-    tools::fd_change_cloexec(logfd.as_raw_fd(), false)?;
+    pbs_tools::fd::fd_change_cloexec(logfd.as_raw_fd(), false)?;
 
     // preface log file with start timestamp so one can see how long QEMU took to start
     writeln!(logfd, "[{}] PBS file restore VM log", {

@@ -8,7 +8,6 @@ use anyhow::{bail, format_err, Error};
 use openssl::hash::{hash, DigestBytes, MessageDigest};
 
 pub use proxmox::tools::fd::Fd;
-use proxmox::tools::fs::{create_path, CreateOptions};
 
 use proxmox_http::{
     client::SimpleHttp,
@@ -27,14 +26,12 @@ pub mod apt;
 pub mod async_io;
 pub mod compression;
 pub mod config;
-pub mod cpio;
 pub mod daemon;
 pub mod disks;
 
 mod memcom;
 pub use memcom::Memcom;
 
-pub mod logrotate;
 pub mod serde_filter;
 pub mod statistics;
 pub mod subscription;
@@ -210,17 +207,4 @@ pub fn setup_safe_path_env() {
     for name in &["IFS", "CDPATH", "ENV", "BASH_ENV"] {
         std::env::remove_var(name);
     }
-}
-
-/// Create the base run-directory.
-///
-/// This exists to fixate the permissions for the run *base* directory while allowing intermediate
-/// directories after it to have different permissions.
-pub fn create_run_dir() -> Result<(), Error> {
-    let backup_user = crate::backup::backup_user()?;
-    let opts = CreateOptions::new()
-        .owner(backup_user.uid)
-        .group(backup_user.gid);
-    let _: bool = create_path(pbs_buildcfg::PROXMOX_BACKUP_RUN_DIR_M!(), None, Some(opts))?;
-    Ok(())
 }

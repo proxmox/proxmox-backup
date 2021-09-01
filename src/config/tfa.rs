@@ -497,7 +497,7 @@ impl TfaUserChallengeData {
     /// Load the user's current challenges with the intent to create a challenge (create the file
     /// if it does not exist), and keep a lock on the file.
     fn open(userid: &Userid) -> Result<Self, Error> {
-        crate::tools::create_run_dir()?;
+        crate::server::create_run_dir()?;
         let options = CreateOptions::new().perm(Mode::from_bits_truncate(0o0600));
         proxmox::tools::fs::create_path(CHALLENGE_DATA_PATH, Some(options.clone()), Some(options))
             .map_err(|err| {

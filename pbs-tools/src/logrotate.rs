@@ -3,7 +3,7 @@ use std::fs::{File, rename};
 use std::os::unix::io::{FromRawFd, IntoRawFd};
 use std::io::Read;
 
-use anyhow::{bail, Error};
+use anyhow::{bail, format_err, Error};
 use nix::unistd;
 
 use proxmox::tools::fs::{CreateOptions, make_tmp_file};
@@ -12,18 +12,37 @@ use proxmox::tools::fs::{CreateOptions, make_tmp_file};
 pub struct LogRotate {
     base_path: PathBuf,
     compress: bool,
+
+    /// User logs should be reowned to.
+    owner: Option<String>,
 }
 
 impl LogRotate {
-    /// Creates a new instance if the path given is a valid file name
-    /// (iow. does not end with ..)
-    /// 'compress' decides if compresses files will be created on
-    /// rotation, and if it will search '.zst' files when iterating
-    pub fn new<P: AsRef<Path>>(path: P, compress: bool) -> Option<Self> {
+    /// Creates a new instance if the path given is a valid file name (iow. does not end with ..)
+    /// 'compress' decides if compresses files will be created on rotation, and if it will search
+    /// '.zst' files when iterating
+    ///
+    /// By default, newly created files will be owned by the backup user. See [`new_with_user`] for
+    /// a way to opt out of this behavior.
+    pub fn new<P: AsRef<Path>>(
+        path: P,
+        compress: bool,
+    ) -> Option<Self> {
+        Self::new_with_user(path, compress, Some(pbs_buildcfg::BACKUP_USER_NAME.to_owned()))
+    }
+
+    /// See [`new`]. Additionally this also takes a user which should by default be used to reown
+    /// new files to.
+    pub fn new_with_user<P: AsRef<Path>>(
+        path: P,
+        compress: bool,
+        owner: Option<String>,
+    ) -> Option<Self> {
         if path.as_ref().file_name().is_some() {
             Some(Self {
                 base_path: path.as_ref().to_path_buf(),
                 compress,
+                owner,
             })
         } else {
             None
@@ -133,10 +152,16 @@ impl LogRotate {
 
         let options = match options {
             Some(options) => options,
-            None => {
-                let backup_user = crate::backup::backup_user()?;
-                CreateOptions::new().owner(backup_user.uid).group(backup_user.gid)
-            },
+            None => match self.owner.as_deref() {
+                Some(owner) => {
+                    let user = crate::sys::query_user(owner)?
+                        .ok_or_else(|| {
+                            format_err!("failed to lookup owning user '{}' for logs", owner)
+                        })?;
+                    CreateOptions::new().owner(user.uid).group(user.gid)
+                }
+                None => CreateOptions::new(),
+            }
         };
 
         let metadata = match self.base_path.metadata() {

@@ -13,6 +13,7 @@ use proxmox::api::{
         run_cli_command, CliCommand, CliCommandMap, CliEnvironment, ColumnConfig, OUTPUT_FORMAT,
     },
 };
+use proxmox::tools::fs::{create_path, CreateOptions};
 use pxar::accessor::aio::Accessor;
 use pxar::decoder::aio::Decoder;
 
@@ -34,10 +35,13 @@ use pbs_client::tools::{
     REPO_URL_SCHEMA,
 };
 
-use proxmox_backup::tools;
+pub mod block_driver;
+pub use block_driver::*;
 
-mod proxmox_file_restore;
-use proxmox_file_restore::*;
+pub mod cpio;
+
+mod qemu_helper;
+mod block_driver_qemu;
 
 enum ExtractPath {
     ListArchives,
@@ -484,7 +488,24 @@ pub fn get_user_run_dir() -> Result<std::path::PathBuf, Error> {
     let uid = nix::unistd::Uid::current();
     let mut path: std::path::PathBuf = pbs_buildcfg::PROXMOX_BACKUP_RUN_DIR.into();
     path.push(uid.to_string());
-    tools::create_run_dir()?;
+    create_run_dir()?;
     std::fs::create_dir_all(&path)?;
     Ok(path)
 }
+
+/// FIXME: proxmox-file-restore should not depend on this!
+fn create_run_dir() -> Result<(), Error> {
+    let backup_user = backup_user()?;
+    let opts = CreateOptions::new()
+        .owner(backup_user.uid)
+        .group(backup_user.gid);
+    let _: bool = create_path(pbs_buildcfg::PROXMOX_BACKUP_RUN_DIR_M!(), None, Some(opts))?;
+    Ok(())
+}
+
+/// Return User info for the 'backup' user (``getpwnam_r(3)``)
+pub fn backup_user() -> Result<nix::unistd::User, Error> {
+    pbs_tools::sys::query_user(pbs_buildcfg::BACKUP_USER_NAME)?
+        .ok_or_else(|| format_err!("Unable to lookup '{}' user.", pbs_buildcfg::BACKUP_USER_NAME))
+}
+

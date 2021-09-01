@@ -43,6 +43,7 @@ SUBCRATES := \
 	proxmox-backup-banner \
 	proxmox-backup-client \
 	proxmox-backup-debug \
+	proxmox-file-restore \
 	pxar-bin
 
 ifeq ($(BUILD_MODE), release)
@@ -174,6 +175,8 @@ $(COMPILED_BINS) $(COMPILEDIR)/dump-catalog-shell-cli $(COMPILEDIR)/docgen: .do-
 	    --bin proxmox-backup-client \
 	    --package proxmox-backup-debug \
 	    --bin proxmox-backup-debug \
+	    --package proxmox-file-restore \
+	    --bin proxmox-file-restore \
 	    --package pxar-bin \
 	    --bin pxar \
 	    --package proxmox-backup \

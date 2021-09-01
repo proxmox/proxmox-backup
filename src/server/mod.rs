@@ -10,6 +10,7 @@ use nix::unistd::Pid;
 use serde_json::Value;
 
 use proxmox::sys::linux::procfs::PidStat;
+use proxmox::tools::fs::{create_path, CreateOptions};
 
 use pbs_buildcfg;
 
@@ -28,8 +29,7 @@ pub fn pstart() -> u64 {
 
 pub fn write_pid(pid_fn: &str) -> Result<(), Error> {
     let pid_str = format!("{}\n", *PID);
-    let opts = proxmox::tools::fs::CreateOptions::new();
-    proxmox::tools::fs::replace_file(pid_fn, pid_str.as_bytes(), opts)
+    proxmox::tools::fs::replace_file(pid_fn, pid_str.as_bytes(), CreateOptions::new())
 }
 
 pub fn read_pid(pid_fn: &str) -> Result<i32, Error> {
@@ -108,5 +108,18 @@ pub(crate) async fn notify_datastore_removed() -> Result<(), Error> {
     let sock = crate::server::ctrl_sock_from_pid(proxy_pid);
     let _: Value = crate::server::send_raw_command(sock, "{\"command\":\"datastore-removed\"}\n")
         .await?;
+    Ok(())
+}
+
+/// Create the base run-directory.
+///
+/// This exists to fixate the permissions for the run *base* directory while allowing intermediate
+/// directories after it to have different permissions.
+pub fn create_run_dir() -> Result<(), Error> {
+    let backup_user = crate::backup::backup_user()?;
+    let opts = CreateOptions::new()
+        .owner(backup_user.uid)
+        .group(backup_user.gid);
+    let _: bool = create_path(pbs_buildcfg::PROXMOX_BACKUP_RUN_DIR_M!(), None, Some(opts))?;
     Ok(())
 }

@@ -3,8 +3,9 @@
 //! https://www.kernel.org/doc/html/latest/driver-api/early-userspace/buffer-format.html
 //! This does not provide full support for the format, only what is needed to include files in an
 //! initramfs intended for a linux kernel.
-use anyhow::{bail, Error};
 use std::ffi::{CString, CStr};
+
+use anyhow::{bail, Error};
 use tokio::io::{copy, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 /// Write a cpio file entry to an AsyncWrite.

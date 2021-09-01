@@ -28,6 +28,7 @@ serde_json = "1.0"
 tokio = { version = "1.6", features = [ "fs", "io-util", "rt", "rt-multi-thread", "sync" ] }
 url = "2.1"
 walkdir = "2"
+zstd = { version = "0.6", features = [ "bindgen" ] }
 
 proxmox = { version = "0.13.0", default-features = false, features = [ "tokio" ] }
 

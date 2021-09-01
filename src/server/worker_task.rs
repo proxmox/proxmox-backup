@@ -16,12 +16,12 @@ use proxmox::sys::linux::procfs;
 use proxmox::try_block;
 use proxmox::tools::fs::{create_path, replace_file, CreateOptions};
 
+use pbs_buildcfg;
+use pbs_tools::logrotate::{LogRotate, LogRotateFiles};
+
 use super::{UPID, UPIDExt};
 
-use pbs_buildcfg;
-
 use crate::server;
-use crate::tools::logrotate::{LogRotate, LogRotateFiles};
 use crate::tools::{FileLogger, FileLogOptions};
 use crate::api2::types::{Authid, TaskStateType};
 use crate::backup::{open_backup_lockfile, BackupLockGuard};
