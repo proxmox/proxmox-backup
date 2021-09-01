@@ -5,8 +5,9 @@
 use std::path::PathBuf;
 use anyhow::Error;
 
+use pbs_systemd::time::parse_time_span;
+
 use crate::{
-    tools::systemd::time::parse_time_span,
     api2::types::{
         MediaSetPolicy,
         RetentionPolicy,

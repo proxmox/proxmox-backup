@@ -87,6 +87,9 @@ xdg = "2.2"
 nom = "5.1"
 crossbeam-channel = "0.5"
 
+# Used only by examples currently:
+zstd = { version = "0.6", features = [ "bindgen" ] }
+
 pathpatterns = "0.1.2"
 pxar = { version = "0.10.1", features = [ "tokio-io" ] }
 

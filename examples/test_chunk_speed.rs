@@ -1,7 +1,6 @@
 extern crate proxmox_backup;
 
-//use proxmox_backup::backup::chunker::*;
-use proxmox_backup::backup::*;
+use pbs_datastore::Chunker;
 
 fn main() {
 

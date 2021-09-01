@@ -5,7 +5,7 @@ extern crate proxmox_backup;
 use anyhow::{Error};
 use std::io::{Read, Write};
 
-use proxmox_backup::backup::*;
+use pbs_datastore::Chunker;
 
 struct ChunkWriter {
     chunker: Chunker,

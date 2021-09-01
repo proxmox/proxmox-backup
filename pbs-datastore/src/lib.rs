@@ -214,6 +214,8 @@ pub use crypt_config::{CryptConfig, CryptMode, Fingerprint};
 pub use crypt_reader::CryptReader;
 pub use crypt_writer::CryptWriter;
 pub use data_blob::DataBlob;
+pub use data_blob_reader::DataBlobReader;
+pub use data_blob_writer::DataBlobWriter;
 pub use key_derivation::{
     decrypt_key, load_and_decrypt_key, rsa_decrypt_key_config, rsa_encrypt_key_config,
 };

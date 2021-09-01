@@ -1,7 +1,9 @@
 use anyhow::{Error};
 use std::path::PathBuf;
 
-use proxmox_backup::backup::*;
+use pbs_datastore::manifest::MANIFEST_BLOB_NAME;
+use pbs_datastore::prune::{compute_prune_info, PruneOptions};
+use pbs_datastore::{BackupDir, BackupInfo};
 
 fn get_prune_list(
     list: Vec<BackupInfo>,

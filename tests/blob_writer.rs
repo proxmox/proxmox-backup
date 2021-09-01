@@ -4,7 +4,7 @@ use std::io::Cursor;
 use std::io::{Read, Write, Seek, SeekFrom };
 use lazy_static::lazy_static;
 
-use proxmox_backup::backup::*;
+use pbs_datastore::{CryptConfig, DataBlob, DataBlobReader, DataBlobWriter};
 
 lazy_static! {
     static ref TEST_DATA: Vec<u8> = {
