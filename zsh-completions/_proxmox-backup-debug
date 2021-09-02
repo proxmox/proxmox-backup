@@ -1,0 +1,13 @@
+#compdef _proxmox-backup-debug() proxmox-backup-debug
+
+function _proxmox-backup-debug() {
+    local cwords line point cmd curr prev
+    cworkds=${#words[@]}
+    line=$words
+    point=${#line}
+    cmd=${words[1]}
+    curr=${words[cwords]}
+    prev=${words[cwords-1]}
+    compadd -- $(COMP_CWORD="$cwords" COMP_LINE="$line" COMP_POINT="$point" \
+        proxmox-backup-debug bashcomplete "$cmd" "$curr" "$prev")
+}

@@ -5,6 +5,7 @@ GENERATED_SYNOPSIS := 						\
 	proxmox-backup-client/synopsis.rst			\
 	proxmox-backup-client/catalog-shell-synopsis.rst 	\
 	proxmox-backup-manager/synopsis.rst			\
+	proxmox-backup-debug/synopsis.rst			\
 	proxmox-file-restore/synopsis.rst			\
 	pxar/synopsis.rst					\
 	pmtx/synopsis.rst					\
@@ -27,7 +28,8 @@ MAN1_PAGES := 				\
 	proxmox-backup-proxy.1		\
 	proxmox-backup-client.1		\
 	proxmox-backup-manager.1	\
-	proxmox-file-restore.1
+	proxmox-file-restore.1		\
+	proxmox-backup-debug.1
 
 MAN5_PAGES :=				\
 	media-pool.cfg.5		\
@@ -197,6 +199,12 @@ proxmox-file-restore/synopsis.rst: ${COMPILEDIR}/proxmox-file-restore
 	${COMPILEDIR}/proxmox-file-restore printdoc > proxmox-file-restore/synopsis.rst
 
 proxmox-file-restore.1: proxmox-file-restore/man1.rst  proxmox-file-restore/description.rst proxmox-file-restore/synopsis.rst
+	rst2man $< >$@
+
+proxmox-backup-debug/synopsis.rst: ${COMPILEDIR}/proxmox-backup-debug
+	${COMPILEDIR}/proxmox-backup-debug printdoc > proxmox-backup-debug/synopsis.rst
+
+proxmox-backup-debug.1: proxmox-backup-debug/man1.rst  proxmox-backup-debug/description.rst proxmox-backup-debug/synopsis.rst
 	rst2man $< >$@
 
 .PHONY: onlinehelpinfo
