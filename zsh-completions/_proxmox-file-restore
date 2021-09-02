@@ -1,8 +1,8 @@
-#compdef _proxmox-backup-client() proxmox-backup-client
+#compdef _proxmox-file-restore() proxmox-file-restore
 
-function _proxmox-backup-client() {
+function _proxmox-file-restore() {
     local cwords line point cmd curr prev
-    cworkds=${#words[@]}
+    cwords=${#words[@]}
     line=$words
     point=${#line}
     cmd=${words[1]}

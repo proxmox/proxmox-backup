@@ -2,7 +2,7 @@
 
 function _pxar() {
     local cwords line point cmd curr prev
-    cworkds=${#words[@]}
+    cwords=${#words[@]}
     line=$words
     point=${#line}
     cmd=${words[1]}
