@@ -91,7 +91,7 @@ fn write_snapshot_cache(
         }
     }
 
-    let backup_user = crate::backup::backup_user()?;
+    let backup_user = pbs_config::backup_user()?;
     let mode = nix::sys::stat::Mode::from_bits_truncate(0o0640);
     let options = CreateOptions::new()
         .perm(mode)

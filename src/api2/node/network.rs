@@ -9,7 +9,7 @@ use crate::config::network::{self, NetworkConfig};
 use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 use crate::api2::types::*;
 use crate::server::{WorkerTask};
-use crate::backup::open_backup_lockfile;
+use pbs_config::open_backup_lockfile;
 
 fn split_interface_list(list: &str) -> Result<Vec<String>, Error> {
     let value = parse_property_string(&list, &NETWORK_INTERFACE_ARRAY_SCHEMA)?;

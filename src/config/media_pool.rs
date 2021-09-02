@@ -22,8 +22,9 @@ use proxmox::{
     },
 };
 
+use pbs_config::{open_backup_lockfile, BackupLockGuard};
+
 use crate::{
-    backup::{open_backup_lockfile, BackupLockGuard},
     api2::types::{
         MEDIA_POOL_NAME_SCHEMA,
         MediaPoolConfig,
@@ -72,7 +73,7 @@ pub fn config() -> Result<(SectionConfigData, [u8;32]), Error> {
 /// Save the configuration file
 pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
     let raw = CONFIG.write(MEDIA_POOL_CFG_FILENAME, &config)?;
-    crate::backup::replace_backup_config(MEDIA_POOL_CFG_FILENAME, raw.as_bytes())
+    pbs_config::replace_backup_config(MEDIA_POOL_CFG_FILENAME, raw.as_bytes())
 }
 
 // shell completion helper

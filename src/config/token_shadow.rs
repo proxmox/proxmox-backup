@@ -8,7 +8,7 @@ use proxmox::tools::fs::CreateOptions;
 
 use crate::api2::types::Authid;
 use crate::auth;
-use crate::backup::open_backup_lockfile;
+use pbs_config::open_backup_lockfile;
 
 const LOCK_FILE: &str = pbs_buildcfg::configdir!("/token.shadow.lock");
 const CONF_FILE: &str = pbs_buildcfg::configdir!("/token.shadow");
@@ -33,7 +33,7 @@ fn read_file() -> Result<HashMap<Authid, String>, Error> {
 }
 
 fn write_file(data: HashMap<Authid, String>) -> Result<(), Error> {
-    let backup_user = crate::backup::backup_user()?;
+    let backup_user = pbs_config::backup_user()?;
     let options = CreateOptions::new()
         .perm(nix::sys::stat::Mode::from_bits_truncate(0o0640))
         .owner(backup_user.uid)

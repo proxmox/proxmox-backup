@@ -10,6 +10,7 @@ use proxmox::api::schema::{ApiType, parse_property_string};
 
 use pbs_datastore::chunk_store::ChunkStore;
 use pbs_datastore::task::TaskState;
+use pbs_config::BackupLockGuard;
 
 use crate::api2::config::sync::delete_sync_job;
 use crate::api2::config::verify::delete_verification_job;
@@ -19,7 +20,6 @@ use crate::api2::admin::{
     verify::list_verification_jobs,
 };
 use crate::api2::types::*;
-use crate::backup::BackupLockGuard;
 use crate::config::cached_user_info::CachedUserInfo;
 use crate::config::datastore::{self, DataStoreConfig, DataStoreConfigUpdater};
 use crate::config::acl::{PRIV_DATASTORE_ALLOCATE, PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_MODIFY};
@@ -68,7 +68,7 @@ pub(crate) fn do_create_datastore(
 ) -> Result<(), Error> {
     let path: PathBuf = datastore.path.clone().into();
 
-    let backup_user = crate::backup::backup_user()?;
+    let backup_user = pbs_config::backup_user()?;
     let _store = ChunkStore::create(&datastore.name, path, backup_user.uid, backup_user.gid, worker)?;
 
     config.set_data(&datastore.name, "datastore", &datastore)?;

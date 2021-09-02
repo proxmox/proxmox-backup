@@ -53,8 +53,8 @@ use proxmox_backup::server::do_prune_job;
 fn main() -> Result<(), Error> {
     proxmox_backup::tools::setup_safe_path_env();
 
-    let backup_uid = proxmox_backup::backup::backup_user()?.uid;
-    let backup_gid = proxmox_backup::backup::backup_group()?.gid;
+    let backup_uid = pbs_config::backup_user()?.uid;
+    let backup_gid = pbs_config::backup_group()?.gid;
     let running_uid = nix::unistd::Uid::effective();
     let running_gid = nix::unistd::Gid::effective();
 

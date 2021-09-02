@@ -26,9 +26,9 @@ use proxmox::tools::uuid::Uuid;
 use proxmox::tools::AsHex;
 
 use pbs_buildcfg::configdir;
+use pbs_config::{open_backup_lockfile, BackupLockGuard};
 
 use crate::api2::types::Userid;
-use crate::backup::{open_backup_lockfile, BackupLockGuard};
 
 /// Mapping of userid to TFA entry.
 pub type TfaUsers = HashMap<Userid, TfaUserData>;

@@ -6,7 +6,7 @@ use ::serde::{Deserialize, Serialize};
 
 use proxmox::api::{api, Permission, Router, RpcEnvironment};
 
-use crate::config::domains::{self, OpenIdRealmConfig, OpenIdRealmConfigUpdater};
+use pbs_config::domains::{self, OpenIdRealmConfig, OpenIdRealmConfigUpdater};
 use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_REALM_ALLOCATE};
 use crate::api2::types::*;
 

@@ -16,9 +16,9 @@ use proxmox::tools::Uuid;
 
 use pbs_api_types::Fingerprint;
 use pbs_systemd::time::compute_next_event;
+use pbs_config::BackupLockGuard;
 
 use crate::{
-    backup::BackupLockGuard,
     api2::types::{
         MediaStatus,
         MediaLocation,

@@ -303,7 +303,7 @@ impl RRD {
             std::slice::from_raw_parts(self as *const _ as *const u8, std::mem::size_of::<RRD>())
         };
 
-        let backup_user = crate::backup::backup_user()?;
+        let backup_user = pbs_config::backup_user()?;
         let mode = nix::sys::stat::Mode::from_bits_truncate(0o0644);
         // set the correct owner/group/permissions while saving file
         // owner(rw) = backup, group(r)= backup

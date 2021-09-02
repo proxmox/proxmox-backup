@@ -30,7 +30,6 @@ pub mod drive;
 pub mod media_pool;
 pub mod tape_encryption_keys;
 pub mod tape_job;
-pub mod domains;
 
 /// Check configuration directory permissions
 ///
@@ -40,7 +39,7 @@ pub mod domains;
 pub fn check_configdir_permissions() -> Result<(), Error> {
     let cfgdir = pbs_buildcfg::CONFIGDIR;
 
-    let backup_user = crate::backup::backup_user()?;
+    let backup_user = pbs_config::backup_user()?;
     let backup_uid = backup_user.uid.as_raw();
     let backup_gid = backup_user.gid.as_raw();
 
@@ -85,7 +84,7 @@ pub fn create_configdir() -> Result<(), Error> {
         ),
     }
 
-    let backup_user = crate::backup::backup_user()?;
+    let backup_user = pbs_config::backup_user()?;
 
     nix::unistd::chown(cfgdir, Some(backup_user.uid), Some(backup_user.gid))
         .map_err(|err| {
@@ -197,9 +196,9 @@ pub(crate) fn set_proxy_certificate(cert_pem: &[u8], key_pem: &[u8]) -> Result<(
     let cert_path = PathBuf::from(configdir!("/proxy.pem"));
 
     create_configdir()?;
-    crate::backup::replace_backup_config(&key_path, key_pem)
+    pbs_config::replace_backup_config(&key_path, key_pem)
         .map_err(|err| format_err!("error writing certificate private key - {}", err))?;
-    crate::backup::replace_backup_config(&cert_path, &cert_pem)
+    pbs_config::replace_backup_config(&cert_path, &cert_pem)
         .map_err(|err| format_err!("error writing certificate file - {}", err))?;
 
     Ok(())

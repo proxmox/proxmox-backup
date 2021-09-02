@@ -11,7 +11,7 @@ use crate::api2::types::*;
 use crate::config::cached_user_info::CachedUserInfo;
 use crate::config::remote;
 use crate::config::acl::{PRIV_REMOTE_AUDIT, PRIV_REMOTE_MODIFY};
-use crate::backup::open_backup_lockfile;
+use pbs_config::open_backup_lockfile;
 
 #[api(
     input: {

@@ -31,7 +31,7 @@ use pbs_tools::fs::{lock_dir_noblock, DirLockGuard};
 
 use crate::config::datastore::{self, DataStoreConfig};
 use crate::tools;
-use crate::backup::{open_backup_lockfile, BackupLockGuard};
+use pbs_config::{open_backup_lockfile, BackupLockGuard};
 
 
 lazy_static! {
@@ -700,7 +700,7 @@ impl DataStore {
                 let mut path = self.base_path();
                 path.push(".gc-status");
 
-                let backup_user = crate::backup::backup_user()?;
+                let backup_user = pbs_config::backup_user()?;
                 let mode = nix::sys::stat::Mode::from_bits_truncate(0o0644);
                 // set the correct owner/group/permissions while saving file
                 // owner(rw) = backup, group(r)= backup

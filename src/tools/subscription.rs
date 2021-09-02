@@ -304,7 +304,7 @@ pub fn write_subscription(info: SubscriptionInfo) -> Result<(), Error> {
         format!("{}\n{}\n{}\n", info.key.unwrap(), csum, encoded)
     };
 
-    let backup_user = crate::backup::backup_user()?;
+    let backup_user = pbs_config::backup_user()?;
     let mode = nix::sys::stat::Mode::from_bits_truncate(0o0640);
     let file_opts = CreateOptions::new()
         .perm(mode)

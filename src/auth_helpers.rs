@@ -95,7 +95,7 @@ pub fn generate_csrf_key() -> Result<(), Error> {
 
     use nix::sys::stat::Mode;
 
-    let backup_user = crate::backup::backup_user()?;
+    let backup_user = pbs_config::backup_user()?;
 
     replace_file(
         &path,
@@ -129,7 +129,7 @@ pub fn generate_auth_key() -> Result<(), Error> {
 
     let public_pem = rsa.public_key_to_pem()?;
 
-    let backup_user = crate::backup::backup_user()?;
+    let backup_user = pbs_config::backup_user()?;
 
     replace_file(
         &public_path,

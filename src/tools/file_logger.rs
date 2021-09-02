@@ -91,7 +91,7 @@ impl FileLogger {
             .open(&file_name)?;
 
         if options.owned_by_backup {
-            let backup_user = crate::backup::backup_user()?;
+            let backup_user = pbs_config::backup_user()?;
             nix::unistd::chown(file_name.as_ref(), Some(backup_user.uid), Some(backup_user.gid))?;
         }
 

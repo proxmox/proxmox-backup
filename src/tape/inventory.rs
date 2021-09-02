@@ -40,6 +40,7 @@ use proxmox::tools::{
 };
 
 use pbs_systemd::time::compute_next_event;
+use pbs_config::{open_backup_lockfile, BackupLockGuard};
 
 use crate::{
     api2::types::{
@@ -48,7 +49,6 @@ use crate::{
         MediaStatus,
         MediaLocation,
     },
-    backup::{open_backup_lockfile, BackupLockGuard},
     tape::{
         TAPE_STATUS_DIR,
         MediaSet,
@@ -174,7 +174,7 @@ impl Inventory {
             // We cannot use chown inside test environment (no permissions)
             CreateOptions::new().perm(mode)
         } else {
-            let backup_user = crate::backup::backup_user()?;
+            let backup_user = pbs_config::backup_user()?;
             CreateOptions::new()
                 .perm(mode)
                 .owner(backup_user.uid)

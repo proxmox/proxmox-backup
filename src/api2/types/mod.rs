@@ -331,12 +331,6 @@ pub const BLOCKDEVICE_NAME_SCHEMA: Schema = StringSchema::new("Block device name
     .max_length(64)
     .schema();
 
-pub const REALM_ID_SCHEMA: Schema = StringSchema::new("Realm name.")
-    .format(&PROXMOX_SAFE_ID_FORMAT)
-    .min_length(2)
-    .max_length(32)
-    .schema();
-
 // Complex type definitions
 
 #[api(

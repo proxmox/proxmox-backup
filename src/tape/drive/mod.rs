@@ -553,7 +553,7 @@ pub fn set_tape_device_state(
     let mut path = PathBuf::from(crate::tape::DRIVE_STATE_DIR);
     path.push(drive);
 
-    let backup_user = crate::backup::backup_user()?;
+    let backup_user = pbs_config::backup_user()?;
     let mode = nix::sys::stat::Mode::from_bits_truncate(0o0644);
     let options = CreateOptions::new()
         .perm(mode)
@@ -612,7 +612,7 @@ fn open_device_lock(device_path: &str) -> Result<std::fs::File, Error> {
     let mut path = std::path::PathBuf::from(crate::tape::DRIVE_LOCK_DIR);
     path.push(lock_name);
 
-    let user = crate::backup::backup_user()?;
+    let user = pbs_config::backup_user()?;
     let options = CreateOptions::new()
         .perm(Mode::from_bits_truncate(0o660))
         .owner(user.uid)

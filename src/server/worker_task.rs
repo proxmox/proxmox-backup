@@ -24,7 +24,7 @@ use super::{UPID, UPIDExt};
 use crate::server;
 use crate::tools::{FileLogger, FileLogOptions};
 use crate::api2::types::{Authid, TaskStateType};
-use crate::backup::{open_backup_lockfile, BackupLockGuard};
+use pbs_config::{open_backup_lockfile, BackupLockGuard};
 
 macro_rules! taskdir {
     ($subdir:expr) => (concat!(pbs_buildcfg::PROXMOX_BACKUP_LOG_DIR_M!(), "/tasks", $subdir))
@@ -159,7 +159,7 @@ fn parse_worker_status_line(line: &str) -> Result<(String, UPID, Option<TaskStat
 pub fn create_task_log_dirs() -> Result<(), Error> {
 
     try_block!({
-        let backup_user = crate::backup::backup_user()?;
+        let backup_user = pbs_config::backup_user()?;
         let opts = CreateOptions::new()
             .owner(backup_user.uid)
             .group(backup_user.gid);
@@ -354,7 +354,7 @@ pub fn rotate_task_log_archive(size_threshold: u64, compress: bool, max_files: O
 // new_upid is added to the list when specified.
 fn update_active_workers(new_upid: Option<&UPID>) -> Result<(), Error> {
 
-    let backup_user = crate::backup::backup_user()?;
+    let backup_user = pbs_config::backup_user()?;
 
     let lock = lock_task_list_files(true)?;
 
@@ -611,7 +611,7 @@ impl WorkerTask {
 
         path.push(format!("{:02X}", upid.pstart & 255));
 
-        let backup_user = crate::backup::backup_user()?;
+        let backup_user = pbs_config::backup_user()?;
 
         create_path(&path, None, Some(CreateOptions::new().owner(backup_user.uid).group(backup_user.gid)))?;
 

@@ -142,8 +142,8 @@ fn set_encryption(
 fn main() -> Result<(), Error> {
 
     // check if we are user root or backup
-    let backup_uid = proxmox_backup::backup::backup_user()?.uid;
-    let backup_gid = proxmox_backup::backup::backup_group()?.gid;
+    let backup_uid = pbs_config::backup_user()?.uid;
+    let backup_gid = pbs_config::backup_group()?.gid;
     let running_uid = nix::unistd::Uid::current();
     let running_gid = nix::unistd::Gid::current();
 

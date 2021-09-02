@@ -9,8 +9,8 @@ use proxmox::api::{
     section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin},
 };
 
-use crate::api2::types::PROXMOX_SAFE_ID_FORMAT;
-use crate::backup::{open_backup_lockfile, BackupLockGuard};
+use pbs_config::{open_backup_lockfile, BackupLockGuard};
+use pbs_api_types::PROXMOX_SAFE_ID_FORMAT;
 
 pub const PLUGIN_ID_SCHEMA: Schema = StringSchema::new("ACME Challenge Plugin ID.")
     .format(&PROXMOX_SAFE_ID_FORMAT)
@@ -162,7 +162,7 @@ pub fn config() -> Result<(PluginData, [u8; 32]), Error> {
 pub fn save_config(config: &PluginData) -> Result<(), Error> {
     super::make_acme_dir()?;
     let raw = CONFIG.write(ACME_PLUGIN_CFG_FILENAME, &config.data)?;
-    crate::backup::replace_backup_config(ACME_PLUGIN_CFG_FILENAME, raw.as_bytes())
+    pbs_config::replace_backup_config(ACME_PLUGIN_CFG_FILENAME, raw.as_bytes())
 }
 
 pub struct PluginData {

@@ -18,7 +18,7 @@ use crate::config::user;
 use crate::config::token_shadow;
 use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_PERMISSIONS_MODIFY};
 use crate::config::cached_user_info::CachedUserInfo;
-use crate::backup::open_backup_lockfile;
+use pbs_config::open_backup_lockfile;
 
 pub const PBS_PASSWORD_SCHEMA: Schema = StringSchema::new("User Password.")
     .format(&PASSWORD_FORMAT)

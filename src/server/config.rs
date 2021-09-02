@@ -142,7 +142,7 @@ impl ApiConfig {
         let path: PathBuf = path.into();
         if let Some(base) = path.parent() {
             if !base.exists() {
-                let backup_user = crate::backup::backup_user()?;
+                let backup_user = pbs_config::backup_user()?;
                 let opts = CreateOptions::new().owner(backup_user.uid).group(backup_user.gid);
                 create_path(base, None, Some(opts)).map_err(|err| format_err!("{}", err))?;
             }

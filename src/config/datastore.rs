@@ -13,8 +13,9 @@ use proxmox::api::{
     }
 };
 
+use pbs_config::{open_backup_lockfile, BackupLockGuard};
+
 use crate::api2::types::*;
-use crate::backup::{open_backup_lockfile, BackupLockGuard};
 
 lazy_static! {
     pub static ref CONFIG: SectionConfig = init();
@@ -152,7 +153,7 @@ pub fn config() -> Result<(SectionConfigData, [u8;32]), Error> {
 
 pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
     let raw = CONFIG.write(DATASTORE_CFG_FILENAME, &config)?;
-    crate::backup::replace_backup_config(DATASTORE_CFG_FILENAME, raw.as_bytes())
+    pbs_config::replace_backup_config(DATASTORE_CFG_FILENAME, raw.as_bytes())
 }
 
 // shell completion helper

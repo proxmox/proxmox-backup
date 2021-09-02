@@ -14,6 +14,7 @@ use proxmox::{
 use pbs_api_types::Fingerprint;
 use pbs_datastore::{KeyInfo, Kdf};
 use pbs_datastore::key_derivation::KeyConfig;
+use pbs_config::open_backup_lockfile;
 
 use crate::{
     config::{
@@ -35,7 +36,6 @@ use crate::{
         PROXMOX_CONFIG_DIGEST_SCHEMA,
         PASSWORD_HINT_SCHEMA,
     },
-    backup::open_backup_lockfile,
 };
 
 #[api(

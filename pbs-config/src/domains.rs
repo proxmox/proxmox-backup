@@ -13,8 +13,8 @@ use proxmox::api::{
     }
 };
 
-use crate::api2::types::*;
-use crate::backup::{open_backup_lockfile, BackupLockGuard};
+use pbs_api_types::{REALM_ID_SCHEMA, SINGLE_LINE_COMMENT_SCHEMA};
+use crate::{open_backup_lockfile, replace_backup_config, BackupLockGuard};
 
 lazy_static! {
     pub static ref CONFIG: SectionConfig = init();
@@ -115,7 +115,7 @@ pub fn config() -> Result<(SectionConfigData, [u8;32]), Error> {
 
 pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
     let raw = CONFIG.write(DOMAINS_CFG_FILENAME, &config)?;
-    crate::backup::replace_backup_config(DOMAINS_CFG_FILENAME, raw.as_bytes())
+    replace_backup_config(DOMAINS_CFG_FILENAME, raw.as_bytes())
 }
 
 // shell completion helper

@@ -8,7 +8,7 @@ use crate::api2::types::*;
 use crate::config::acl;
 use crate::config::acl::{Role, PRIV_SYS_AUDIT, PRIV_PERMISSIONS_MODIFY};
 use crate::config::cached_user_info::CachedUserInfo;
-use crate::backup::open_backup_lockfile;
+use pbs_config::open_backup_lockfile;
 
 fn extract_acl_node_data(
     node: &acl::AclTreeNode,

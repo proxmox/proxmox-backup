@@ -22,7 +22,7 @@ lazy_static!{
 /// Create rrdd stat dir with correct permission
 pub fn create_rrdb_dir() -> Result<(), Error> {
 
-    let backup_user = crate::backup::backup_user()?;
+    let backup_user = pbs_config::backup_user()?;
     let opts = CreateOptions::new()
         .owner(backup_user.uid)
         .group(backup_user.gid);

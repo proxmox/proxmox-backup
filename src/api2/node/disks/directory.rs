@@ -17,7 +17,7 @@ use crate::server::WorkerTask;
 
 use crate::api2::types::*;
 use crate::config::datastore::{self, DataStoreConfig};
-use crate::backup::open_backup_lockfile;
+use pbs_config::open_backup_lockfile;
 
 #[api(
     properties: {

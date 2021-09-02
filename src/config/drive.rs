@@ -27,8 +27,9 @@ use proxmox::{
     },
 };
 
+use pbs_config::{open_backup_lockfile, BackupLockGuard};
+
 use crate::{
-    backup::{open_backup_lockfile, BackupLockGuard},
     api2::types::{
         DRIVE_NAME_SCHEMA,
         VirtualTapeDrive,
@@ -93,7 +94,7 @@ pub fn config() -> Result<(SectionConfigData, [u8;32]), Error> {
 /// Save the configuration file
 pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
     let raw = CONFIG.write(DRIVE_CFG_FILENAME, &config)?;
-    crate::backup::replace_backup_config(DRIVE_CFG_FILENAME, raw.as_bytes())
+    pbs_config::replace_backup_config(DRIVE_CFG_FILENAME, raw.as_bytes())
 }
 
 /// Check if the specified drive name exists in the config.

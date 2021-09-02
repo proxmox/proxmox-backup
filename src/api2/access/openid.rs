@@ -15,13 +15,13 @@ use proxmox_openid::{OpenIdAuthenticator,  OpenIdConfig};
 use pbs_buildcfg::PROXMOX_BACKUP_RUN_DIR_M;
 use pbs_tools::auth::private_auth_key;
 use pbs_tools::ticket::Ticket;
+use pbs_config::domains::{OpenIdUserAttribute, OpenIdRealmConfig};
 
 use crate::server::ticket::ApiTicket;
 
-use crate::config::domains::{OpenIdUserAttribute, OpenIdRealmConfig};
 use crate::config::cached_user_info::CachedUserInfo;
 
-use crate::backup::open_backup_lockfile;
+use pbs_config::open_backup_lockfile;
 
 use crate::api2::types::*;
 use crate::auth_helpers::*;
@@ -88,7 +88,7 @@ pub fn openid_login(
     let (realm, private_auth_state) =
         OpenIdAuthenticator::verify_public_auth_state(PROXMOX_BACKUP_RUN_DIR_M!(), &state)?;
 
-    let (domains, _digest) = crate::config::domains::config()?;
+    let (domains, _digest) = pbs_config::domains::config()?;
     let config: OpenIdRealmConfig = domains.lookup("openid", &realm)?;
 
     let open_id = openid_authenticator(&config, &redirect_url)?;
@@ -182,7 +182,7 @@ fn openid_auth_url(
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
 
-    let (domains, _digest) = crate::config::domains::config()?;
+    let (domains, _digest) = pbs_config::domains::config()?;
     let config: OpenIdRealmConfig = domains.lookup("openid", &realm)?;
 
     let open_id = openid_authenticator(&config, &redirect_url)?;

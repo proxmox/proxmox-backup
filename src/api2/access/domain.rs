@@ -7,8 +7,7 @@ use serde_json::{json, Value};
 
 use proxmox::api::{api, Permission, Router, RpcEnvironment};
 
-use crate::config;
-use crate::api2::types::*;
+use pbs_api_types::{REALM_ID_SCHEMA, SINGLE_LINE_COMMENT_SCHEMA};
 
 #[api]
 #[derive(Deserialize, Serialize, PartialEq, Eq)]
@@ -81,7 +80,7 @@ fn list_domains(mut rpcenv: &mut dyn RpcEnvironment) -> Result<Vec<BasicRealmInf
         "comment": "Proxmox Backup authentication server",
     }))?);
 
-    let (config, digest) = config::domains::config()?;
+    let (config, digest) = pbs_config::domains::config()?;
 
     for (_, (section_type, v)) in config.sections.iter() {
         let mut entry = v.clone();

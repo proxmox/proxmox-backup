@@ -35,6 +35,7 @@ SUBCRATES := \
 	pbs-api-types \
 	pbs-buildcfg \
 	pbs-client \
+	pbs-config \
 	pbs-datastore \
 	pbs-fuse-loop \
 	pbs-runtime \

@@ -19,7 +19,7 @@ where
 {
     let path: PathBuf = path.into();
 
-    let backup_user = crate::backup::backup_user()?;
+    let backup_user = pbs_config::backup_user()?;
     let backup_gid = backup_user.gid.as_raw();
 
     let socket = UnixListener::bind(&path)?;

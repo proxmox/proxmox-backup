@@ -183,7 +183,7 @@ impl MediaCatalog {
     }
 
     fn create_basedir(base_path: &Path) -> Result<(), Error> {
-        let backup_user = crate::backup::backup_user()?;
+        let backup_user = pbs_config::backup_user()?;
         let mode = nix::sys::stat::Mode::from_bits_truncate(0o0640);
         let opts = CreateOptions::new()
             .perm(mode)
@@ -217,7 +217,7 @@ impl MediaCatalog {
                 .create(create)
                 .open(&path)?;
 
-            let backup_user = crate::backup::backup_user()?;
+            let backup_user = pbs_config::backup_user()?;
             fchown(file.as_raw_fd(), Some(backup_user.uid), Some(backup_user.gid))
                 .map_err(|err| format_err!("fchown failed - {}", err))?;
 
@@ -275,7 +275,7 @@ impl MediaCatalog {
             return Ok(file);
         }
 
-        let backup_user = crate::backup::backup_user()?;
+        let backup_user = pbs_config::backup_user()?;
         fchown(file.as_raw_fd(), Some(backup_user.uid), Some(backup_user.gid))
             .map_err(|err| format_err!("fchown failed - {}", err))?;
 

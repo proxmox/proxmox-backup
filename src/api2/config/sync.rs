@@ -17,7 +17,7 @@ use crate::config::acl::{
 
 use crate::config::cached_user_info::CachedUserInfo;
 use crate::config::sync::{self, SyncJobConfig};
-use crate::backup::open_backup_lockfile;
+use pbs_config::open_backup_lockfile;
 
 pub fn check_sync_job_read_access(
     user_info: &CachedUserInfo,

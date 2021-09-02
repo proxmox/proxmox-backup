@@ -3,6 +3,7 @@ use serde_json::Value;
 use ::serde::{Deserialize, Serialize};
 
 use proxmox::api::{api, Router, RpcEnvironment, Permission};
+use pbs_config::open_backup_lockfile;
 
 use crate::{
     api2::types::{
@@ -16,7 +17,6 @@ use crate::{
         MEDIA_POOL_NAME_SCHEMA,
         SYNC_SCHEDULE_SCHEMA,
     },
-    backup::open_backup_lockfile,
     config::{
         self,
         cached_user_info::CachedUserInfo,

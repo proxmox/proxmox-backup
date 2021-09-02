@@ -19,7 +19,7 @@ use proxmox::tools::fs::file_read_optional_string;
 use pbs_api_types::Fingerprint;
 use pbs_datastore::key_derivation::KeyConfig;
 
-use crate::backup::open_backup_lockfile;
+use pbs_config::{open_backup_lockfile, replace_secret_config};
 
 mod hex_key {
     use serde::{self, Deserialize, Serializer, Deserializer};
@@ -135,7 +135,7 @@ pub fn save_keys(map: HashMap<Fingerprint, EncryptionKeyInfo>) -> Result<(), Err
     }
 
     let raw = serde_json::to_string_pretty(&list)?;
-    crate::backup::replace_secret_config(TAPE_KEYS_FILENAME, raw.as_bytes())
+    replace_secret_config(TAPE_KEYS_FILENAME, raw.as_bytes())
 }
 
 /// Store tape encryption key configurations (password protected keys)
@@ -148,7 +148,7 @@ pub fn save_key_configs(map: HashMap<Fingerprint, KeyConfig>) -> Result<(), Erro
     }
 
     let raw = serde_json::to_string_pretty(&list)?;
-    crate::backup::replace_backup_config(TAPE_KEY_CONFIG_FILENAME, raw.as_bytes())
+    pbs_config::replace_backup_config(TAPE_KEY_CONFIG_FILENAME, raw.as_bytes())
 }
 
 /// Insert a new key

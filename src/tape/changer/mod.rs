@@ -483,7 +483,7 @@ fn save_changer_state_cache(
 
     let state = serde_json::to_string_pretty(state)?;
 
-    let backup_user = crate::backup::backup_user()?;
+    let backup_user = pbs_config::backup_user()?;
     let mode = nix::sys::stat::Mode::from_bits_truncate(0o0644);
     let options = CreateOptions::new()
         .perm(mode)

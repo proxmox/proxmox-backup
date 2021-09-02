@@ -71,7 +71,7 @@ pub const COMMIT_BLOCK_SIZE: usize = 128*1024*1024*1024; // 128 GiB
 
 /// Create tape status dir with correct permission
 pub fn create_tape_status_dir() -> Result<(), Error> {
-    let backup_user = crate::backup::backup_user()?;
+    let backup_user = pbs_config::backup_user()?;
     let mode = nix::sys::stat::Mode::from_bits_truncate(0o0750);
     let options = CreateOptions::new()
         .perm(mode)
@@ -86,7 +86,7 @@ pub fn create_tape_status_dir() -> Result<(), Error> {
 
 /// Create drive lock dir with correct permission
 pub fn create_drive_lock_dir() -> Result<(), Error> {
-    let backup_user = crate::backup::backup_user()?;
+    let backup_user = pbs_config::backup_user()?;
     let mode = nix::sys::stat::Mode::from_bits_truncate(0o0750);
     let options = CreateOptions::new()
         .perm(mode)
@@ -101,7 +101,7 @@ pub fn create_drive_lock_dir() -> Result<(), Error> {
 
 /// Create drive state dir with correct permission
 pub fn create_drive_state_dir() -> Result<(), Error> {
-    let backup_user = crate::backup::backup_user()?;
+    let backup_user = pbs_config::backup_user()?;
     let mode = nix::sys::stat::Mode::from_bits_truncate(0o0750);
     let options = CreateOptions::new()
         .perm(mode)
@@ -116,7 +116,7 @@ pub fn create_drive_state_dir() -> Result<(), Error> {
 
 /// Create changer state cache dir with correct permission
 pub fn create_changer_state_dir() -> Result<(), Error> {
-    let backup_user = crate::backup::backup_user()?;
+    let backup_user = pbs_config::backup_user()?;
     let mode = nix::sys::stat::Mode::from_bits_truncate(0o0750);
     let options = CreateOptions::new()
         .perm(mode)

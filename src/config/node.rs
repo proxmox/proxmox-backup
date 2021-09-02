@@ -9,8 +9,8 @@ use proxmox::api::schema::{ApiStringFormat, ApiType, Updater};
 use proxmox_http::ProxyConfig;
 
 use pbs_buildcfg::configdir;
+use pbs_config::{open_backup_lockfile, BackupLockGuard};
 
-use crate::backup::{open_backup_lockfile, BackupLockGuard};
 use crate::acme::AcmeClient;
 use crate::api2::types::{
     AcmeAccountName, AcmeDomain, ACME_DOMAIN_PROPERTY_SCHEMA, HTTP_PROXY_SCHEMA,
@@ -39,7 +39,7 @@ pub fn save_config(config: &NodeConfig) -> Result<(), Error> {
     config.validate()?;
 
     let raw = crate::tools::config::to_bytes(config, &NodeConfig::API_SCHEMA)?;
-    crate::backup::replace_backup_config(CONF_FILE, &raw)
+    pbs_config::replace_backup_config(CONF_FILE, &raw)
 }
 
 #[api(

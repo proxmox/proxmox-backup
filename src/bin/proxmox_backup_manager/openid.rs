@@ -3,7 +3,9 @@ use serde_json::Value;
 
 use proxmox::api::{api, cli::*, RpcEnvironment, ApiHandler};
 
-use proxmox_backup::{config, api2, api2::types::REALM_ID_SCHEMA};
+use pbs_api_types::REALM_ID_SCHEMA;
+
+use proxmox_backup::api2;
 
 
 #[api(
@@ -73,25 +75,25 @@ pub fn openid_commands() -> CommandLineInterface {
         .insert("list", CliCommand::new(&&API_METHOD_LIST_OPENID_REALMS))
         .insert("show", CliCommand::new(&&API_METHOD_SHOW_OPENID_REALM)
                 .arg_param(&["realm"])
-                .completion_cb("realm", config::domains::complete_openid_realm_name)
+                .completion_cb("realm", pbs_config::domains::complete_openid_realm_name)
         )
         .insert("create",
                 CliCommand::new(&api2::config::access::openid::API_METHOD_CREATE_OPENID_REALM)
                 .arg_param(&["realm"])
                 .arg_param(&["realm"])
-                .completion_cb("realm", config::domains::complete_openid_realm_name)
+                .completion_cb("realm", pbs_config::domains::complete_openid_realm_name)
         )
         .insert("update",
                 CliCommand::new(&api2::config::access::openid::API_METHOD_UPDATE_OPENID_REALM)
                 .arg_param(&["realm"])
                 .arg_param(&["realm"])
-                .completion_cb("realm", config::domains::complete_openid_realm_name)
+                .completion_cb("realm", pbs_config::domains::complete_openid_realm_name)
         )
         .insert("delete",
                 CliCommand::new(&api2::config::access::openid::API_METHOD_DELETE_OPENID_REALM)
                 .arg_param(&["realm"])
                 .arg_param(&["realm"])
-                .completion_cb("realm", config::domains::complete_openid_realm_name)
+                .completion_cb("realm", pbs_config::domains::complete_openid_realm_name)
         )
         ;
 

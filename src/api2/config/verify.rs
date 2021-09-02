@@ -13,7 +13,7 @@ use crate::config::acl::{
 
 use crate::config::cached_user_info::CachedUserInfo;
 use crate::config::verify::{self, VerificationJobConfig};
-use crate::backup::open_backup_lockfile;
+use pbs_config::open_backup_lockfile;
 
 #[api(
     input: {

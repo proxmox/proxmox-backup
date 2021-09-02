@@ -911,7 +911,7 @@ pub fn save_config(acl: &AclTree) -> Result<(), Error> {
 
     acl.write_config(&mut raw)?;
 
-    crate::backup::replace_backup_config(ACL_CFG_FILENAME, &raw)
+    pbs_config::replace_backup_config(ACL_CFG_FILENAME, &raw)
 }
 
 #[cfg(test)]

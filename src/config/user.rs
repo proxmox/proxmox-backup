@@ -119,7 +119,7 @@ pub fn cached_config() -> Result<Arc<SectionConfigData>, Error> {
 
 pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
     let raw = CONFIG.write(USER_CFG_FILENAME, &config)?;
-    crate::backup::replace_backup_config(USER_CFG_FILENAME, raw.as_bytes())?;
+    pbs_config::replace_backup_config(USER_CFG_FILENAME, raw.as_bytes())?;
 
     // increase user cache generation
     // We use this in CachedUserInfo

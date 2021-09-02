@@ -116,7 +116,7 @@ pub(crate) async fn notify_datastore_removed() -> Result<(), Error> {
 /// This exists to fixate the permissions for the run *base* directory while allowing intermediate
 /// directories after it to have different permissions.
 pub fn create_run_dir() -> Result<(), Error> {
-    let backup_user = crate::backup::backup_user()?;
+    let backup_user = pbs_config::backup_user()?;
     let opts = CreateOptions::new()
         .owner(backup_user.uid)
         .group(backup_user.gid);

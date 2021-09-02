@@ -47,9 +47,9 @@ use proxmox::tools::fs::{
 };
 
 use pbs_systemd::time::{compute_next_event, parse_calendar_event};
+use pbs_config::{open_backup_lockfile, BackupLockGuard};
 
 use crate::{
-    backup::{open_backup_lockfile, BackupLockGuard},
     api2::types::JobScheduleStatus,
     server::{
         UPID,
@@ -88,7 +88,7 @@ const JOB_STATE_BASEDIR: &str = "/var/lib/proxmox-backup/jobstates";
 
 /// Create jobstate stat dir with correct permission
 pub fn create_jobstate_dir() -> Result<(), Error> {
-    let backup_user = crate::backup::backup_user()?;
+    let backup_user = pbs_config::backup_user()?;
     let opts = CreateOptions::new()
         .owner(backup_user.uid)
         .group(backup_user.gid);
@@ -299,7 +299,7 @@ impl Job {
         let serialized = serde_json::to_string(&self.state)?;
         let path = get_path(&self.jobtype, &self.jobname);
 
-        let backup_user = crate::backup::backup_user()?;
+        let backup_user = pbs_config::backup_user()?;
         let mode = nix::sys::stat::Mode::from_bits_truncate(0o0644);
         // set the correct owner/group/permissions while saving file
         // owner(rw) = backup, group(r)= backup

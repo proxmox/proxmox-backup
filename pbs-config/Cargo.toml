@@ -1,0 +1,20 @@
+[package]
+name = "pbs-config"
+version = "0.1.0"
+authors = ["Proxmox Support Team <support@proxmox.com>"]
+edition = "2018"
+description = "Configuration file management for PBS"
+
+[dependencies]
+anyhow = "1.0"
+lazy_static = "1.4"
+serde = { version = "1.0", features = ["derive"] }
+openssl = "0.10"
+nix = "0.19.1"
+
+
+proxmox = { version = "0.13.0", default-features = false, features = [ "cli" ] }
+
+pbs-api-types = { path = "../pbs-api-types" }
+pbs-buildcfg = { path = "../pbs-buildcfg" }
+pbs-tools = { path = "../pbs-tools" }
