@@ -380,7 +380,7 @@ fn main() {
             CliCommand::new(&API_METHOD_PULL_DATASTORE)
                 .arg_param(&["remote", "remote-store", "local-store"])
                 .completion_cb("local-store", config::datastore::complete_datastore_name)
-                .completion_cb("remote", config::remote::complete_remote_name)
+                .completion_cb("remote", pbs_config::remote::complete_remote_name)
                 .completion_cb("remote-store", complete_remote_datastore_name)
         )
         .insert(

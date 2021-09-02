@@ -85,7 +85,7 @@ pub fn sync_job_commands() -> CommandLineInterface {
                 .completion_cb("id", config::sync::complete_sync_job_id)
                 .completion_cb("schedule", config::datastore::complete_calendar_event)
                 .completion_cb("store", config::datastore::complete_datastore_name)
-                .completion_cb("remote", config::remote::complete_remote_name)
+                .completion_cb("remote", pbs_config::remote::complete_remote_name)
                 .completion_cb("remote-store", crate::complete_remote_datastore_name)
         )
         .insert("update",

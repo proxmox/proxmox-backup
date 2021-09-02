@@ -58,6 +58,9 @@ pub use crypto::{CryptMode, Fingerprint};
 
 pub mod file_restore;
 
+mod remote;
+pub use remote::*;
+
 #[rustfmt::skip]
 #[macro_use]
 mod local_macros {
@@ -131,6 +134,16 @@ pub const IP_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&IP_REGEX);
 pub const CIDR_V4_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&CIDR_V4_REGEX);
 pub const CIDR_V6_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&CIDR_V6_REGEX);
 pub const CIDR_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&CIDR_REGEX);
+
+pub const DNS_NAME_FORMAT: ApiStringFormat =
+    ApiStringFormat::Pattern(&DNS_NAME_REGEX);
+
+pub const DNS_NAME_OR_IP_FORMAT: ApiStringFormat =
+    ApiStringFormat::Pattern(&DNS_NAME_OR_IP_REGEX);
+
+pub const DNS_NAME_OR_IP_SCHEMA: Schema = StringSchema::new("DNS name or IP address.")
+    .format(&DNS_NAME_OR_IP_FORMAT)
+    .schema();
 
 pub const BACKUP_ID_SCHEMA: Schema = StringSchema::new("Backup ID.")
     .format(&BACKUP_ID_FORMAT)

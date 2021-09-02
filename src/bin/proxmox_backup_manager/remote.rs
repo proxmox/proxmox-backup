@@ -3,8 +3,10 @@ use serde_json::Value;
 
 use proxmox::api::{api, cli::*, RpcEnvironment, ApiHandler};
 
-use proxmox_backup::config;
-use proxmox_backup::api2::{self, types::* };
+use pbs_api_types::REMOTE_ID_SCHEMA;
+
+use proxmox_backup::api2;
+
 
 #[api(
     input: {
@@ -77,7 +79,7 @@ pub fn remote_commands() -> CommandLineInterface {
             "show",
             CliCommand::new(&API_METHOD_SHOW_REMOTE)
                 .arg_param(&["name"])
-                .completion_cb("name", config::remote::complete_remote_name)
+                .completion_cb("name", pbs_config::remote::complete_remote_name)
         )
         .insert(
             "create",
@@ -89,13 +91,13 @@ pub fn remote_commands() -> CommandLineInterface {
             "update",
             CliCommand::new(&api2::config::remote::API_METHOD_UPDATE_REMOTE)
                 .arg_param(&["name"])
-                .completion_cb("name", config::remote::complete_remote_name)
+                .completion_cb("name", pbs_config::remote::complete_remote_name)
         )
         .insert(
             "remove",
             CliCommand::new(&api2::config::remote::API_METHOD_DELETE_REMOTE)
                 .arg_param(&["name"])
-                .completion_cb("name", config::remote::complete_remote_name)
+                .completion_cb("name", pbs_config::remote::complete_remote_name)
         );
 
     cmd_def.into()

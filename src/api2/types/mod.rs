@@ -52,14 +52,8 @@ pub const SYSTEMD_DATETIME_FORMAT: ApiStringFormat =
 pub const HOSTNAME_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&HOSTNAME_REGEX);
 
-pub const DNS_NAME_FORMAT: ApiStringFormat =
-    ApiStringFormat::Pattern(&DNS_NAME_REGEX);
-
 pub const DNS_ALIAS_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&DNS_ALIAS_REGEX);
-
-pub const DNS_NAME_OR_IP_FORMAT: ApiStringFormat =
-    ApiStringFormat::Pattern(&DNS_NAME_OR_IP_REGEX);
 
 pub const ACL_PATH_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&ACL_PATH_REGEX);
@@ -284,12 +278,6 @@ pub const VERIFICATION_SCHEDULE_SCHEMA: Schema = StringSchema::new(
     .type_text("<calendar-event>")
     .schema();
 
-pub const REMOTE_ID_SCHEMA: Schema = StringSchema::new("Remote ID.")
-    .format(&PROXMOX_SAFE_ID_FORMAT)
-    .min_length(3)
-    .max_length(32)
-    .schema();
-
 pub const JOB_ID_SCHEMA: Schema = StringSchema::new("Job ID.")
     .format(&PROXMOX_SAFE_ID_FORMAT)
     .min_length(3)
@@ -313,10 +301,6 @@ pub const VERIFICATION_OUTDATED_AFTER_SCHEMA: Schema = IntegerSchema::new(
 
 pub const HOSTNAME_SCHEMA: Schema = StringSchema::new("Hostname (as defined in RFC1123).")
     .format(&HOSTNAME_FORMAT)
-    .schema();
-
-pub const DNS_NAME_OR_IP_SCHEMA: Schema = StringSchema::new("DNS name or IP address.")
-    .format(&DNS_NAME_OR_IP_FORMAT)
     .schema();
 
 pub const SUBSCRIPTION_KEY_SCHEMA: Schema = StringSchema::new("Proxmox Backup Server subscription key.")

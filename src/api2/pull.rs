@@ -8,19 +8,19 @@ use proxmox::api::api;
 use proxmox::api::{ApiMethod, Router, RpcEnvironment, Permission};
 
 use pbs_client::{HttpClient, BackupRepository};
+use pbs_api_types::{
+    Remote, DATASTORE_SCHEMA, REMOTE_ID_SCHEMA, Authid,
+};
 
 use crate::server::{WorkerTask, jobstate::Job, pull::pull_store};
 use crate::backup::DataStore;
-use crate::api2::types::{
-    DATASTORE_SCHEMA, REMOTE_ID_SCHEMA, REMOVE_VANISHED_BACKUPS_SCHEMA, Authid,
-};
+use crate::api2::types::REMOVE_VANISHED_BACKUPS_SCHEMA;
+
 use crate::config::{
-    remote,
     sync::SyncJobConfig,
     acl::{PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_PRUNE, PRIV_REMOTE_READ},
     cached_user_info::CachedUserInfo,
 };
-
 
 pub fn check_pull_privs(
     auth_id: &Authid,
@@ -50,8 +50,8 @@ pub async fn get_pull_parameters(
 
     let tgt_store = DataStore::lookup_datastore(store)?;
 
-    let (remote_config, _digest) = remote::config()?;
-    let remote: remote::Remote = remote_config.lookup("remote", remote)?;
+    let (remote_config, _digest) = pbs_config::remote::config()?;
+    let remote: Remote = remote_config.lookup("remote", remote)?;
 
     let src_repo = BackupRepository::new(
         Some(remote.config.auth_id.clone()),

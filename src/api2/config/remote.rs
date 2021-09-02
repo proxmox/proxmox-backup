@@ -6,12 +6,13 @@ use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};
 use proxmox::http_err;
 
 use pbs_client::{HttpClient, HttpClientOptions};
+use pbs_api_types::{
+    REMOTE_ID_SCHEMA, REMOTE_PASSWORD_SCHEMA, Remote, RemoteConfig, RemoteConfigUpdater,
+    Authid, PROXMOX_CONFIG_DIGEST_SCHEMA, DataStoreListItem,
+};
 
-use crate::api2::types::*;
 use crate::config::cached_user_info::CachedUserInfo;
-use crate::config::remote;
 use crate::config::acl::{PRIV_REMOTE_AUDIT, PRIV_REMOTE_MODIFY};
-use pbs_config::open_backup_lockfile;
 
 #[api(
     input: {
@@ -20,7 +21,7 @@ use pbs_config::open_backup_lockfile;
     returns: {
         description: "The list of configured remotes (with config digest).",
         type: Array,
-        items: { type: remote::Remote },
+        items: { type: Remote },
     },
     access: {
         description: "List configured remotes filtered by Remote.Audit privileges",
@@ -32,13 +33,13 @@ pub fn list_remotes(
     _param: Value,
     _info: &ApiMethod,
     mut rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Vec<remote::Remote>, Error> {
+) -> Result<Vec<Remote>, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
 
-    let (config, digest) = remote::config()?;
+    let (config, digest) = pbs_config::remote::config()?;
 
-    let mut list: Vec<remote::Remote> = config.convert_to_typed_array("remote")?;
+    let mut list: Vec<Remote> = config.convert_to_typed_array("remote")?;
     // don't return password in api
     for remote in &mut list {
         remote.password = "".to_string();
@@ -64,12 +65,12 @@ pub fn list_remotes(
                 schema: REMOTE_ID_SCHEMA,
             },
             config: {
-                type: remote::RemoteConfig,
+                type: RemoteConfig,
                 flatten: true,
             },
             password: {
                 // We expect the plain password here (not base64 encoded)
-                schema: remote::REMOTE_PASSWORD_SCHEMA,
+                schema: REMOTE_PASSWORD_SCHEMA,
             },
         },
     },
@@ -80,23 +81,23 @@ pub fn list_remotes(
 /// Create new remote.
 pub fn create_remote(
     name: String,
-    config: remote::RemoteConfig,
+    config: RemoteConfig,
     password: String,
 ) -> Result<(), Error> {
 
-    let _lock = open_backup_lockfile(remote::REMOTE_CFG_LOCKFILE, None, true)?;
+    let _lock = pbs_config::remote::config()?;
 
-    let (mut section_config, _digest) = remote::config()?;
+    let (mut section_config, _digest) = pbs_config::remote::config()?;
 
     if section_config.sections.get(&name).is_some() {
         bail!("remote '{}' already exists.", name);
     }
 
-    let remote = remote::Remote { name: name.clone(), config, password };
+    let remote = Remote { name: name.clone(), config, password };
 
     section_config.set_data(&name, "remote", &remote)?;
 
-    remote::save_config(&section_config)?;
+    pbs_config::remote::save_config(&section_config)?;
 
     Ok(())
 }
@@ -109,7 +110,7 @@ pub fn create_remote(
             },
         },
     },
-    returns: { type: remote::Remote },
+    returns: { type: Remote },
     access: {
         permission: &Permission::Privilege(&["remote", "{name}"], PRIV_REMOTE_AUDIT, false),
     }
@@ -119,9 +120,9 @@ pub fn read_remote(
     name: String,
     _info: &ApiMethod,
     mut rpcenv: &mut dyn RpcEnvironment,
-) -> Result<remote::Remote, Error> {
-    let (config, digest) = remote::config()?;
-    let mut data: remote::Remote = config.lookup("remote", &name)?;
+) -> Result<Remote, Error> {
+    let (config, digest) = pbs_config::remote::config()?;
+    let mut data: Remote = config.lookup("remote", &name)?;
     data.password = "".to_string(); // do not return password in api
     rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
     Ok(data)
@@ -148,13 +149,13 @@ pub enum DeletableProperty {
                 schema: REMOTE_ID_SCHEMA,
             },
             update: {
-                type: remote::RemoteConfigUpdater,
+                type: RemoteConfigUpdater,
                 flatten: true,
             },
             password: {
                 // We expect the plain password here (not base64 encoded)
                 optional: true,
-                schema: remote::REMOTE_PASSWORD_SCHEMA,
+                schema: REMOTE_PASSWORD_SCHEMA,
             },
             delete: {
                 description: "List of properties to delete.",
@@ -177,22 +178,22 @@ pub enum DeletableProperty {
 /// Update remote configuration.
 pub fn update_remote(
     name: String,
-    update: remote::RemoteConfigUpdater,
+    update: RemoteConfigUpdater,
     password: Option<String>,
     delete: Option<Vec<DeletableProperty>>,
     digest: Option<String>,
 ) -> Result<(), Error> {
 
-    let _lock = open_backup_lockfile(remote::REMOTE_CFG_LOCKFILE, None, true)?;
+    let _lock = pbs_config::remote::config()?;
 
-    let (mut config, expected_digest) = remote::config()?;
+    let (mut config, expected_digest) = pbs_config::remote::config()?;
 
     if let Some(ref digest) = digest {
         let digest = proxmox::tools::hex_to_digest(digest)?;
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 
-    let mut data: remote::Remote = config.lookup("remote", &name)?;
+    let mut data: Remote = config.lookup("remote", &name)?;
 
     if let Some(delete) = delete {
         for delete_prop in delete {
@@ -221,7 +222,7 @@ pub fn update_remote(
 
     config.set_data(&name, "remote", &data)?;
 
-    remote::save_config(&config)?;
+    pbs_config::remote::save_config(&config)?;
 
     Ok(())
 }
@@ -257,9 +258,9 @@ pub fn delete_remote(name: String, digest: Option<String>) -> Result<(), Error> 
         }
     }
 
-    let _lock = open_backup_lockfile(remote::REMOTE_CFG_LOCKFILE, None, true)?;
+    let _lock = pbs_config::remote::config()?;
 
-    let (mut config, expected_digest) = remote::config()?;
+    let (mut config, expected_digest) = pbs_config::remote::config()?;
 
     if let Some(ref digest) = digest {
         let digest = proxmox::tools::hex_to_digest(digest)?;
@@ -271,13 +272,13 @@ pub fn delete_remote(name: String, digest: Option<String>) -> Result<(), Error> 
         None => bail!("remote '{}' does not exist.", name),
     }
 
-    remote::save_config(&config)?;
+    pbs_config::remote::save_config(&config)?;
 
     Ok(())
 }
 
 /// Helper to get client for remote.cfg entry
-pub async fn remote_client(remote: remote::Remote) -> Result<HttpClient, Error> {
+pub async fn remote_client(remote: Remote) -> Result<HttpClient, Error> {
     let options = HttpClientOptions::new_non_interactive(remote.password.clone(), remote.config.fingerprint.clone());
 
     let client = HttpClient::new(
@@ -312,8 +313,8 @@ pub async fn remote_client(remote: remote::Remote) -> Result<HttpClient, Error> 
 )]
 /// List datastores of a remote.cfg entry
 pub async fn scan_remote_datastores(name: String) -> Result<Vec<DataStoreListItem>, Error> {
-    let (remote_config, _digest) = remote::config()?;
-    let remote: remote::Remote = remote_config.lookup("remote", &name)?;
+    let (remote_config, _digest) = pbs_config::remote::config()?;
+    let remote: Remote = remote_config.lookup("remote", &name)?;
 
     let map_remote_err = |api_err| {
         http_err!(INTERNAL_SERVER_ERROR,
