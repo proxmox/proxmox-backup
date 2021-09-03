@@ -125,7 +125,7 @@ pub fn mtx_status_to_online_set(status: &MtxStatus, inventory: &Inventory) -> Ha
 /// For a single 'changer', or else simply ask all changer devices.
 pub fn update_online_status(state_path: &Path, changer: Option<&str>) -> Result<OnlineStatusMap, Error> {
 
-    let (config, _digest) = crate::config::drive::config()?;
+    let (config, _digest) = pbs_config::drive::config()?;
 
     let mut inventory = Inventory::load(state_path)?;
 

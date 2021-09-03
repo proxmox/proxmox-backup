@@ -133,7 +133,7 @@ impl PoolWriter {
             None => return Ok(()), // no media loaded
         };
 
-        let (drive_config, _digest) = crate::config::drive::config()?;
+        let (drive_config, _digest) = pbs_config::drive::config()?;
 
         if let Some((mut changer, _)) = media_changer(&drive_config, &self.drive_name)? {
             worker.log("eject media");
@@ -153,7 +153,7 @@ impl PoolWriter {
     pub fn export_media_set(&mut self, worker: &WorkerTask) -> Result<(), Error> {
         let mut status = self.status.take();
 
-        let (drive_config, _digest) = crate::config::drive::config()?;
+        let (drive_config, _digest) = pbs_config::drive::config()?;
 
         if let Some((mut changer, _)) = media_changer(&drive_config, &self.drive_name)? {
 
@@ -226,7 +226,7 @@ impl PoolWriter {
             }
         }
 
-        let (drive_config, _digest) = crate::config::drive::config()?;
+        let (drive_config, _digest) = pbs_config::drive::config()?;
 
         let (mut drive, old_media_id) =
             request_and_load_media(worker, &drive_config, &self.drive_name, media.label(), &self.notify_email)?;

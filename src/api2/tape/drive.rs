@@ -75,6 +75,7 @@ use crate::{
             TapeDriver,
             LtoTapeHandle,
             open_lto_tape_device,
+            open_lto_tape_drive,
             media_changer,
             required_media_changer,
             open_drive,
@@ -101,7 +102,7 @@ where
         + FnOnce(Arc<WorkerTask>, SectionConfigData) -> Result<(), Error>,
 {
     // early check/lock before starting worker
-    let (config, _digest) = config::drive::config()?;
+    let (config, _digest) = pbs_config::drive::config()?;
     let lock_guard = lock_tape_device(&config, &drive)?;
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
@@ -125,7 +126,7 @@ where
     R: Send + 'static,
 {
     // early check/lock before starting worker
-    let (config, _digest) = config::drive::config()?;
+    let (config, _digest) = pbs_config::drive::config()?;
     let lock_guard = lock_tape_device(&config, &drive)?;
     tokio::task::spawn_blocking(move || {
         let _lock_guard = lock_guard;
@@ -1140,7 +1141,7 @@ pub async fn cartridge_memory(drive: String) -> Result<Vec<MamAttribute>, Error>
         "reading cartridge memory".to_string(),
         move |config| {
             let drive_config: LtoTapeDrive = config.lookup("lto", &drive)?;
-            let mut handle = drive_config.open()?;
+            let mut handle = open_lto_tape_drive(&drive_config)?;
 
             handle.cartridge_memory()
         }
@@ -1170,7 +1171,7 @@ pub async fn volume_statistics(drive: String) -> Result<Lp17VolumeStatistics, Er
         "reading volume statistics".to_string(),
         move |config| {
             let drive_config: LtoTapeDrive = config.lookup("lto", &drive)?;
-            let mut handle = drive_config.open()?;
+            let mut handle = open_lto_tape_drive(&drive_config)?;
 
             handle.volume_statistics()
         }
@@ -1376,7 +1377,7 @@ pub fn list_drives(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
 
-    let (config, _) = config::drive::config()?;
+    let (config, _) = pbs_config::drive::config()?;
 
     let lto_drives = lto_tape_device_list();
 

@@ -49,7 +49,6 @@ use crate::{
         TAPE_RESTORE_SNAPSHOT_SCHEMA,
     },
     config::{
-        self,
         cached_user_info::CachedUserInfo,
         acl::{
             PRIV_DATASTORE_BACKUP,
@@ -271,7 +270,7 @@ pub fn restore(
         bail!("no permissions on /tape/pool/{}", pool);
     }
 
-    let (drive_config, _digest) = config::drive::config()?;
+    let (drive_config, _digest) = pbs_config::drive::config()?;
 
     // early check/lock before starting worker
     let drive_lock = lock_tape_device(&drive_config, &drive)?;

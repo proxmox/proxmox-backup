@@ -16,7 +16,7 @@ use proxmox::api::{
 
 use pbs_systemd::time::{parse_calendar_event, parse_time_span, CalendarEvent, TimeSpan};
 
-use crate::api2::types::{
+use crate::{
     PROXMOX_SAFE_ID_FORMAT,
     SINGLE_LINE_COMMENT_FORMAT,
     SINGLE_LINE_COMMENT_SCHEMA,

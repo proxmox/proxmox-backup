@@ -54,37 +54,34 @@ use crate::{
     },
 };
 
-impl LtoTapeDrive {
+/// Open a tape device
+///
+/// This does additional checks:
+///
+/// - check if it is a non-rewinding tape device
+/// - check if drive is ready (tape loaded)
+/// - check block size
+/// - for autoloader only, try to reload ejected tapes
+pub fn open_lto_tape_drive(config: &LtoTapeDrive) -> Result<LtoTapeHandle, Error> {
 
-    /// Open a tape device
-    ///
-    /// This does additional checks:
-    ///
-    /// - check if it is a non-rewinding tape device
-    /// - check if drive is ready (tape loaded)
-    /// - check block size
-    /// - for autoloader only, try to reload ejected tapes
-    pub fn open(&self) -> Result<LtoTapeHandle, Error> {
+    proxmox::try_block!({
+        let file = open_lto_tape_device(&config.path)?;
 
-        proxmox::try_block!({
-            let file = open_lto_tape_device(&self.path)?;
+        let mut handle = LtoTapeHandle::new(file)?;
 
-            let mut handle = LtoTapeHandle::new(file)?;
-
-            if !handle.sg_tape.test_unit_ready().is_ok() {
-                // for autoloader only, try to reload ejected tapes
-                if self.changer.is_some() {
-                    let _ = handle.sg_tape.load(); // just try, ignore error
-                }
+        if !handle.sg_tape.test_unit_ready().is_ok() {
+            // for autoloader only, try to reload ejected tapes
+            if config.changer.is_some() {
+                let _ = handle.sg_tape.load(); // just try, ignore error
             }
+        }
 
-            handle.sg_tape.wait_until_ready()?;
+        handle.sg_tape.wait_until_ready()?;
 
-            handle.set_default_options()?;
+        handle.set_default_options()?;
 
-            Ok(handle)
-        }).map_err(|err: Error| format_err!("open drive '{}' ({}) failed - {}", self.name, self.path, err))
-    }
+        Ok(handle)
+    }).map_err(|err: Error| format_err!("open drive '{}' ({}) failed - {}", config.name, config.path, err))
 }
 
 /// Lto Tape device handle

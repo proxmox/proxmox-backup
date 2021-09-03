@@ -524,7 +524,7 @@ pub struct MtxMediaChanger {
 impl MtxMediaChanger {
 
     pub fn with_drive_config(drive_config: &LtoTapeDrive) -> Result<Self, Error> {
-        let (config, _digest) = crate::config::drive::config()?;
+        let (config, _digest) = pbs_config::drive::config()?;
         let changer_config: ScsiTapeChanger = match drive_config.changer {
             Some(ref changer) => config.lookup("changer", changer)?,
             None => bail!("drive '{}' has no associated changer", drive_config.name),

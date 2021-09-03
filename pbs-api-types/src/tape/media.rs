@@ -1,16 +1,25 @@
 use ::serde::{Deserialize, Serialize};
 
 use proxmox::{
-    api::api,
+    api::{api, schema::*},
     tools::Uuid,
 };
 
-use crate::api2::types::{
-    MEDIA_UUID_SCHEMA,
-    MEDIA_SET_UUID_SCHEMA,
+use crate::{
+    UUID_FORMAT,
     MediaStatus,
     MediaLocation,
 };
+
+pub const MEDIA_SET_UUID_SCHEMA: Schema =
+    StringSchema::new("MediaSet Uuid (We use the all-zero Uuid to reseve an empty media for a specific pool).")
+    .format(&UUID_FORMAT)
+    .schema();
+
+pub const MEDIA_UUID_SCHEMA: Schema =
+    StringSchema::new("Media Uuid.")
+    .format(&UUID_FORMAT)
+    .schema();
 
 #[api(
     properties: {

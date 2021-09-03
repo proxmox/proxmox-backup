@@ -11,6 +11,11 @@ use proxmox::{
     },
 };
 
+use pbs_config::drive::{
+    complete_drive_name,
+    complete_changer_name,
+};
+
 use proxmox_backup::{
     api2::{
         self,
@@ -20,16 +25,7 @@ use proxmox_backup::{
     },
     tape::{
         complete_changer_path,
-        drive::{
-            media_changer,
-        },
-    },
-    config::{
-        self,
-        drive::{
-            complete_drive_name,
-            complete_changer_name,
-        }
+        drive::media_changer,
     },
 };
 
@@ -232,7 +228,7 @@ async fn get_status(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
 
-    let (config, _digest) = config::drive::config()?;
+    let (config, _digest) = pbs_config::drive::config()?;
 
     param["name"] = lookup_changer_name(&param, &config)?.into();
 
@@ -295,7 +291,7 @@ pub async fn transfer(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
 
-    let (config, _digest) = config::drive::config()?;
+    let (config, _digest) = pbs_config::drive::config()?;
 
     param["name"] = lookup_changer_name(&param, &config)?.into();
 

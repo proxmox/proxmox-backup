@@ -25,7 +25,6 @@ pub mod tfa;
 pub mod token_shadow;
 pub mod user;
 pub mod verify;
-pub mod drive;
 pub mod media_pool;
 pub mod tape_encryption_keys;
 pub mod tape_job;

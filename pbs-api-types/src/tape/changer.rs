@@ -13,7 +13,7 @@ use proxmox::api::{
     },
 };
 
-use crate::api2::types::{
+use crate::{
     PROXMOX_SAFE_ID_FORMAT,
     OptionalDeviceIdentification,
 };

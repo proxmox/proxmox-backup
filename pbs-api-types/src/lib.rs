@@ -61,6 +61,9 @@ pub mod file_restore;
 mod remote;
 pub use remote::*;
 
+mod tape;
+pub use tape::*;
+
 #[rustfmt::skip]
 #[macro_use]
 mod local_macros {

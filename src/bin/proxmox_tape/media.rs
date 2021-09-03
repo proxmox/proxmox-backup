@@ -10,18 +10,14 @@ use proxmox::{
     },
 };
 
+use pbs_api_types::{
+    MEDIA_POOL_NAME_SCHEMA, CHANGER_NAME_SCHEMA, MediaStatus, MediaListEntry,
+    MediaContentListFilter,
+};
+use pbs_config::drive::complete_changer_name;
+
 use proxmox_backup::{
-    api2::{
-        self,
-        types::{
-            MEDIA_POOL_NAME_SCHEMA,
-            CHANGER_NAME_SCHEMA,
-            MediaStatus,
-            MediaListEntry,
-        },
-        tape::media::MediaContentListFilter,
-    },
-    config::drive::complete_changer_name,
+    api2,
     tape::{
         complete_media_label_text,
         complete_media_uuid,

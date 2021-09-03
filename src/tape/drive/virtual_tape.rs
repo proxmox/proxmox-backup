@@ -42,26 +42,23 @@ use crate::{
     },
 };
 
-impl VirtualTapeDrive {
+/// This needs to lock the drive
+pub fn open_virtual_tape_drive(config: &VirtualTapeDrive) -> Result<VirtualTapeHandle, Error> {
+    proxmox::try_block!({
+        let mut lock_path = std::path::PathBuf::from(&config.path);
+        lock_path.push(".drive.lck");
 
-    /// This needs to lock the drive
-    pub fn open(&self) -> Result<VirtualTapeHandle, Error> {
-        proxmox::try_block!({
-            let mut lock_path = std::path::PathBuf::from(&self.path);
-            lock_path.push(".drive.lck");
+        let options = CreateOptions::new();
+        let timeout = std::time::Duration::new(10, 0);
+        let lock = proxmox::tools::fs::open_file_locked(&lock_path, timeout, true, options)?;
 
-            let options = CreateOptions::new();
-            let timeout = std::time::Duration::new(10, 0);
-            let lock = proxmox::tools::fs::open_file_locked(&lock_path, timeout, true, options)?;
-
-            Ok(VirtualTapeHandle {
-                _lock: lock,
-                drive_name: self.name.clone(),
-                max_size: self.max_size.unwrap_or(64*1024*1024),
-                path: std::path::PathBuf::from(&self.path),
-            })
-        }).map_err(|err: Error| format_err!("open drive '{}' ({}) failed - {}", self.name, self.path, err))
-    }
+        Ok(VirtualTapeHandle {
+            _lock: lock,
+            drive_name: config.name.clone(),
+            max_size: config.max_size.unwrap_or(64*1024*1024),
+            path: std::path::PathBuf::from(&config.path),
+        })
+    }).map_err(|err: Error| format_err!("open drive '{}' ({}) failed - {}", config.name, config.path, err))
 }
 
 #[derive(Serialize,Deserialize)]
@@ -583,42 +580,42 @@ impl MediaChange for VirtualTapeDrive {
     }
 
     fn status(&mut self) -> Result<MtxStatus, Error> {
-        let mut handle = self.open()?;
+        let mut handle = open_virtual_tape_drive(self)?;
         handle.status()
     }
 
     fn transfer_media(&mut self, from: u64, to: u64) -> Result<MtxStatus, Error> {
-        let mut handle = self.open()?;
+        let mut handle = open_virtual_tape_drive(self)?;
         handle.transfer_media(from, to)
     }
 
     fn export_media(&mut self, label_text: &str) -> Result<Option<u64>, Error> {
-        let mut handle = self.open()?;
+        let mut handle = open_virtual_tape_drive(self)?;
         handle.export_media(label_text)
     }
 
     fn load_media_from_slot(&mut self, slot: u64) -> Result<MtxStatus, Error> {
-        let mut handle = self.open()?;
+        let mut handle = open_virtual_tape_drive(self)?;
         handle.load_media_from_slot(slot)
     }
 
     fn load_media(&mut self, label_text: &str) -> Result<MtxStatus, Error> {
-        let mut handle = self.open()?;
+        let mut handle = open_virtual_tape_drive(self)?;
         handle.load_media(label_text)
     }
 
     fn unload_media(&mut self, target_slot: Option<u64>) -> Result<MtxStatus, Error> {
-        let mut handle = self.open()?;
+        let mut handle = open_virtual_tape_drive(self)?;
         handle.unload_media(target_slot)
     }
 
     fn online_media_label_texts(&mut self) -> Result<Vec<String>, Error> {
-        let handle = self.open()?;
+        let handle = open_virtual_tape_drive(self)?;
         handle.online_media_label_texts()
     }
 
     fn clean_drive(&mut self) -> Result<MtxStatus, Error> {
-        let mut handle = self.open()?;
+        let mut handle = open_virtual_tape_drive(self)?;
         handle.clean_drive()
     }
 }

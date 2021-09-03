@@ -4,22 +4,22 @@ use serde_json::Value;
 
 use proxmox::api::{api, Router, RpcEnvironment, Permission};
 
+use pbs_api_types::{
+    Authid,
+    PROXMOX_CONFIG_DIGEST_SCHEMA,
+    DRIVE_NAME_SCHEMA,
+    LtoTapeDrive,
+    LtoTapeDriveUpdater,
+    ScsiTapeChanger,
+};
+
 use crate::{
     config::{
-        self,
         cached_user_info::CachedUserInfo,
         acl::{
             PRIV_TAPE_AUDIT,
             PRIV_TAPE_MODIFY,
         },
-    },
-    api2::types::{
-        Authid,
-        PROXMOX_CONFIG_DIGEST_SCHEMA,
-        DRIVE_NAME_SCHEMA,
-        LtoTapeDrive,
-        LtoTapeDriveUpdater,
-        ScsiTapeChanger,
     },
     tape::{
         lto_tape_device_list,
@@ -44,9 +44,9 @@ use crate::{
 /// Create a new drive
 pub fn create_drive(config: LtoTapeDrive) -> Result<(), Error> {
 
-    let _lock = config::drive::lock()?;
+    let _lock = pbs_config::drive::lock()?;
 
-    let (mut section_config, _digest) = config::drive::config()?;
+    let (mut section_config, _digest) = pbs_config::drive::config()?;
 
     let lto_drives = lto_tape_device_list();
 
@@ -65,7 +65,7 @@ pub fn create_drive(config: LtoTapeDrive) -> Result<(), Error> {
 
     section_config.set_data(&config.name, "lto", &config)?;
 
-    config::drive::save_config(&section_config)?;
+    pbs_config::drive::save_config(&section_config)?;
 
     Ok(())
 }
@@ -92,7 +92,7 @@ pub fn get_config(
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<LtoTapeDrive, Error> {
 
-    let (config, digest) = config::drive::config()?;
+    let (config, digest) = pbs_config::drive::config()?;
 
     let data: LtoTapeDrive = config.lookup("lto", &name)?;
 
@@ -125,7 +125,7 @@ pub fn list_drives(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
 
-    let (config, digest) = config::drive::config()?;
+    let (config, digest) = pbs_config::drive::config()?;
 
     let drive_list: Vec<LtoTapeDrive> = config.convert_to_typed_array("lto")?;
 
@@ -192,9 +192,9 @@ pub fn update_drive(
    _param: Value,
 ) -> Result<(), Error> {
 
-    let _lock = config::drive::lock()?;
+    let _lock = pbs_config::drive::lock()?;
 
-    let (mut config, expected_digest) = config::drive::config()?;
+    let (mut config, expected_digest) = pbs_config::drive::config()?;
 
     if let Some(ref digest) = digest {
         let digest = proxmox::tools::hex_to_digest(digest)?;
@@ -239,7 +239,7 @@ pub fn update_drive(
 
     config.set_data(&name, "lto", &data)?;
 
-    config::drive::save_config(&config)?;
+    pbs_config::drive::save_config(&config)?;
 
     Ok(())
 }
@@ -260,9 +260,9 @@ pub fn update_drive(
 /// Delete a drive configuration
 pub fn delete_drive(name: String, _param: Value) -> Result<(), Error> {
 
-    let _lock = config::drive::lock()?;
+    let _lock = pbs_config::drive::lock()?;
 
-    let (mut config, _digest) = config::drive::config()?;
+    let (mut config, _digest) = pbs_config::drive::config()?;
 
     match config.sections.get(&name) {
         Some((section_type, _)) => {
@@ -274,7 +274,7 @@ pub fn delete_drive(name: String, _param: Value) -> Result<(), Error> {
         None => bail!("Delete drive '{}' failed - no such drive", name),
     }
 
-    config::drive::save_config(&config)?;
+    pbs_config::drive::save_config(&config)?;
 
     Ok(())
 }

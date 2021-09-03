@@ -27,16 +27,12 @@ use proxmox::{
     },
 };
 
-use pbs_config::{open_backup_lockfile, BackupLockGuard};
+use crate::{open_backup_lockfile, replace_backup_config, BackupLockGuard};
 
-use crate::{
-    api2::types::{
-        DRIVE_NAME_SCHEMA,
-        VirtualTapeDrive,
-        LtoTapeDrive,
-        ScsiTapeChanger,
-    },
+use pbs_api_types::{
+    DRIVE_NAME_SCHEMA, VirtualTapeDrive, LtoTapeDrive, ScsiTapeChanger,
 };
+
 
 lazy_static! {
     /// Static [`SectionConfig`] to access parser/writer functions.
@@ -94,7 +90,7 @@ pub fn config() -> Result<(SectionConfigData, [u8;32]), Error> {
 /// Save the configuration file
 pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
     let raw = CONFIG.write(DRIVE_CFG_FILENAME, &config)?;
-    pbs_config::replace_backup_config(DRIVE_CFG_FILENAME, raw.as_bytes())
+    replace_backup_config(DRIVE_CFG_FILENAME, raw.as_bytes())
 }
 
 /// Check if the specified drive name exists in the config.

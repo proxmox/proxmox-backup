@@ -9,7 +9,6 @@ use proxmox::list_subdirs_api_method;
 
 use crate::{
     config::{
-        self,
         cached_user_info::CachedUserInfo,
         acl::{
             PRIV_TAPE_AUDIT,
@@ -71,7 +70,7 @@ pub async fn get_status(
     cache: bool,
 ) -> Result<Vec<MtxStatusEntry>, Error> {
 
-    let (config, _digest) = config::drive::config()?;
+    let (config, _digest) = pbs_config::drive::config()?;
 
     let mut changer_config: ScsiTapeChanger = config.lookup("changer", &name)?;
 
@@ -171,7 +170,7 @@ pub async fn transfer(
     to: u64,
 ) -> Result<(), Error> {
 
-    let (config, _digest) = config::drive::config()?;
+    let (config, _digest) = pbs_config::drive::config()?;
 
     let mut changer_config: ScsiTapeChanger = config.lookup("changer", &name)?;
 
@@ -205,7 +204,7 @@ pub fn list_changers(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
 
-    let (config, _digest) = config::drive::config()?;
+    let (config, _digest) = pbs_config::drive::config()?;
 
     let linux_changers = linux_tape_changer_list();
 

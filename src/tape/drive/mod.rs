@@ -32,12 +32,9 @@ use pbs_api_types::Fingerprint;
 use pbs_datastore::key_derivation::KeyConfig;
 use pbs_datastore::task::TaskState;
 use pbs_datastore::task_log;
+use pbs_api_types::{VirtualTapeDrive, LtoTapeDrive};
 
 use crate::{
-    api2::types::{
-        VirtualTapeDrive,
-        LtoTapeDrive,
-    },
     server::{
         send_load_media_email,
         WorkerTask,
@@ -47,7 +44,10 @@ use crate::{
         TapeRead,
         BlockReadError,
         MediaId,
-        drive::lto::TapeAlertFlags,
+        drive::{
+            virtual_tape::open_virtual_tape_drive,
+            lto::TapeAlertFlags,
+        },
         file_formats::{
             PROXMOX_BACKUP_MEDIA_LABEL_MAGIC_1_0,
             PROXMOX_BACKUP_MEDIA_SET_LABEL_MAGIC_1_0,
@@ -305,12 +305,12 @@ pub fn open_drive(
             match section_type_name.as_ref() {
                 "virtual" => {
                     let tape = VirtualTapeDrive::deserialize(config)?;
-                    let handle = tape.open()?;
+                    let handle = open_virtual_tape_drive(&tape)?;
                     Ok(Box::new(handle))
                 }
                 "lto" => {
                     let tape = LtoTapeDrive::deserialize(config)?;
-                    let handle = tape.open()?;
+                    let handle = open_lto_tape_drive(&tape)?;
                     Ok(Box::new(handle))
                 }
                 _ => bail!("unknown drive type '{}' - internal error"),
@@ -395,7 +395,7 @@ pub fn request_and_load_media(
 
                     tape.load_media(&label_text)?;
 
-                    let mut handle: Box<dyn TapeDriver> = Box::new(tape.open()?);
+                    let mut handle: Box<dyn TapeDriver> = Box::new(open_virtual_tape_drive(&tape)?);
 
                     let media_id = check_label(handle.as_mut(), &label.uuid)?;
 
@@ -413,7 +413,7 @@ pub fn request_and_load_media(
                         let mut changer = MtxMediaChanger::with_drive_config(&drive_config)?;
                         changer.load_media(&label_text)?;
 
-                        let mut handle: Box<dyn TapeDriver> = Box::new(drive_config.open()?);
+                        let mut handle: Box<dyn TapeDriver> = Box::new(open_lto_tape_drive(&drive_config)?);
 
                         let media_id = check_label(handle.as_mut(), &label.uuid)?;
 
@@ -463,7 +463,7 @@ pub fn request_and_load_media(
                             );
                         }
 
-                        let mut handle = match drive_config.open() {
+                        let mut handle = match open_lto_tape_drive(&drive_config) {
                             Ok(handle) => handle,
                             Err(err) => {
                                 update_and_log_request_error(

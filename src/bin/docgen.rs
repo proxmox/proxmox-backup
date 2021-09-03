@@ -55,7 +55,7 @@ fn main() -> Result<(), Error> {
         let text = match arg.as_ref() {
             "apidata.js" => generate_api_tree(),
             "datastore.cfg" => dump_section_config(&config::datastore::CONFIG),
-            "tape.cfg" => dump_section_config(&config::drive::CONFIG),
+            "tape.cfg" => dump_section_config(&pbs_config::drive::CONFIG),
             "tape-job.cfg" => dump_section_config(&config::tape_job::CONFIG),
             "user.cfg" => dump_section_config(&config::user::CONFIG),
             "remote.cfg" => dump_section_config(&pbs_config::remote::CONFIG),

@@ -30,6 +30,23 @@ use proxmox::{
     },
 };
 
+use pbs_api_types::{
+    LTO_DRIVE_PATH_SCHEMA, DRIVE_NAME_SCHEMA, LtoTapeDrive,
+};
+use pbs_config::drive::complete_drive_name;
+
+use proxmox_backup::{
+    tape::{
+        complete_drive_path,
+        lto_tape_device_list,
+        drive::{
+            TapeDriver,
+            LtoTapeHandle,
+            open_lto_tape_device,
+       },
+    },
+};
+
 pub const FILE_MARK_COUNT_SCHEMA: Schema =
     IntegerSchema::new("File mark count.")
     .minimum(1)
@@ -57,31 +74,10 @@ pub const DRIVE_OPTION_LIST_SCHEMA: Schema =
     .min_length(1)
     .schema();
 
-use proxmox_backup::{
-    config::{
-        self,
-        drive::complete_drive_name,
-    },
-    api2::types::{
-        LTO_DRIVE_PATH_SCHEMA,
-        DRIVE_NAME_SCHEMA,
-        LtoTapeDrive,
-    },
-    tape::{
-        complete_drive_path,
-        lto_tape_device_list,
-        drive::{
-            TapeDriver,
-            LtoTapeHandle,
-            open_lto_tape_device,
-       },
-    },
-};
-
 fn get_tape_handle(param: &Value) -> Result<LtoTapeHandle, Error> {
 
     if let Some(name) = param["drive"].as_str() {
-        let (config, _digest) = config::drive::config()?;
+        let (config, _digest) = pbs_config::drive::config()?;
         let drive: LtoTapeDrive = config.lookup("lto", &name)?;
         eprintln!("using device {}", drive.path);
         return LtoTapeHandle::new(open_lto_tape_device(&drive.path)?);
@@ -93,7 +89,7 @@ fn get_tape_handle(param: &Value) -> Result<LtoTapeHandle, Error> {
     }
 
     if let Ok(name) = std::env::var("PROXMOX_TAPE_DRIVE") {
-        let (config, _digest) = config::drive::config()?;
+        let (config, _digest) = pbs_config::drive::config()?;
         let drive: LtoTapeDrive = config.lookup("lto", &name)?;
         eprintln!("using device {}", drive.path);
         return LtoTapeHandle::new(open_lto_tape_device(&drive.path)?);
@@ -104,7 +100,7 @@ fn get_tape_handle(param: &Value) -> Result<LtoTapeHandle, Error> {
         return LtoTapeHandle::new(open_lto_tape_device(&device)?);
     }
 
-    let (config, _digest) = config::drive::config()?;
+    let (config, _digest) = pbs_config::drive::config()?;
 
     let mut drive_names = Vec::new();
     for (name, (section_type, _)) in config.sections.iter() {

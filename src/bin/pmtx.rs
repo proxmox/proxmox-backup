@@ -25,6 +25,8 @@ use proxmox::{
     },
 };
 
+use pbs_config::drive::complete_changer_name;
+
 use proxmox_backup::{
     tools::sgutils2::{
         scsi_inquiry,
@@ -43,18 +45,12 @@ use proxmox_backup::{
             sg_pt_changer,
         },
     },
-    config::{
-        self,
-        drive::{
-            complete_changer_name,
-        }
-    },
 };
 
 fn get_changer_handle(param: &Value) -> Result<File, Error> {
 
     if let Some(name) = param["changer"].as_str() {
-        let (config, _digest) = config::drive::config()?;
+        let (config, _digest) = pbs_config::drive::config()?;
         let changer_config: ScsiTapeChanger = config.lookup("changer", &name)?;
         eprintln!("using device {}", changer_config.path);
         return sg_pt_changer::open(&changer_config.path);
@@ -66,7 +62,7 @@ fn get_changer_handle(param: &Value) -> Result<File, Error> {
     }
 
     if let Ok(name) = std::env::var("PROXMOX_TAPE_DRIVE") {
-        let (config, _digest) = config::drive::config()?;
+        let (config, _digest) = pbs_config::drive::config()?;
         let drive: LtoTapeDrive = config.lookup("lto", &name)?;
         if let Some(changer) = drive.changer {
             let changer_config: ScsiTapeChanger = config.lookup("changer", &changer)?;

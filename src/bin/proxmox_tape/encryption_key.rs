@@ -16,7 +16,6 @@ use pbs_datastore::Kdf;
 use pbs_datastore::paperkey::{PaperkeyFormat, generate_paper_key};
 
 use proxmox_backup::{
-    config,
     api2::{
         self,
         types::{
@@ -208,7 +207,7 @@ async fn restore_key(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
 
-    let (config, _digest) = config::drive::config()?;
+    let (config, _digest) = pbs_config::drive::config()?;
     param["drive"] = crate::extract_drive_name(&mut param, &config)?.into();
 
     if !tty::stdin_isatty() {

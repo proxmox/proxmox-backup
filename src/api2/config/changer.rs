@@ -10,24 +10,24 @@ use proxmox::api::{
     schema::parse_property_string,
 };
 
+use pbs_api_types::{
+    Authid,
+    PROXMOX_CONFIG_DIGEST_SCHEMA,
+    CHANGER_NAME_SCHEMA,
+    SCSI_CHANGER_PATH_SCHEMA,
+    SLOT_ARRAY_SCHEMA,
+    EXPORT_SLOT_LIST_SCHEMA,
+    ScsiTapeChanger,
+    LtoTapeDrive,
+};
+
 use crate::{
     config::{
-        self,
         cached_user_info::CachedUserInfo,
         acl::{
             PRIV_TAPE_AUDIT,
             PRIV_TAPE_MODIFY,
         },
-    },
-    api2::types::{
-        Authid,
-        PROXMOX_CONFIG_DIGEST_SCHEMA,
-        CHANGER_NAME_SCHEMA,
-        SCSI_CHANGER_PATH_SCHEMA,
-        SLOT_ARRAY_SCHEMA,
-        EXPORT_SLOT_LIST_SCHEMA,
-        ScsiTapeChanger,
-        LtoTapeDrive,
     },
     tape::{
         linux_tape_changer_list,
@@ -62,9 +62,9 @@ pub fn create_changer(
     export_slots: Option<String>,
 ) -> Result<(), Error> {
 
-    let _lock = config::drive::lock()?;
+    let _lock = pbs_config::drive::lock()?;
 
-    let (mut config, _digest) = config::drive::config()?;
+    let (mut config, _digest) = pbs_config::drive::config()?;
 
     let linux_changers = linux_tape_changer_list();
 
@@ -90,7 +90,7 @@ pub fn create_changer(
 
     config.set_data(&name, "changer", &item)?;
 
-    config::drive::save_config(&config)?;
+    pbs_config::drive::save_config(&config)?;
 
     Ok(())
 }
@@ -117,7 +117,7 @@ pub fn get_config(
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<ScsiTapeChanger, Error> {
 
-    let (config, digest) = config::drive::config()?;
+    let (config, digest) = pbs_config::drive::config()?;
 
     let data: ScsiTapeChanger = config.lookup("changer", &name)?;
 
@@ -150,7 +150,7 @@ pub fn list_changers(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
 
-    let (config, digest) = config::drive::config()?;
+    let (config, digest) = pbs_config::drive::config()?;
 
     let list: Vec<ScsiTapeChanger> = config.convert_to_typed_array("changer")?;
 
@@ -219,9 +219,9 @@ pub fn update_changer(
     _param: Value,
 ) -> Result<(), Error> {
 
-    let _lock = config::drive::lock()?;
+    let _lock = pbs_config::drive::lock()?;
 
-    let (mut config, expected_digest) = config::drive::config()?;
+    let (mut config, expected_digest) = pbs_config::drive::config()?;
 
     if let Some(ref digest) = digest {
         let digest = proxmox::tools::hex_to_digest(digest)?;
@@ -268,7 +268,7 @@ pub fn update_changer(
 
     config.set_data(&name, "changer", &data)?;
 
-    config::drive::save_config(&config)?;
+    pbs_config::drive::save_config(&config)?;
 
     Ok(())
 }
@@ -289,9 +289,9 @@ pub fn update_changer(
 /// Delete a tape changer configuration
 pub fn delete_changer(name: String, _param: Value) -> Result<(), Error> {
 
-    let _lock = config::drive::lock()?;
+    let _lock = pbs_config::drive::lock()?;
 
-    let (mut config, _digest) = config::drive::config()?;
+    let (mut config, _digest) = pbs_config::drive::config()?;
 
     match config.sections.get(&name) {
         Some((section_type, _)) => {
@@ -312,7 +312,7 @@ pub fn delete_changer(name: String, _param: Value) -> Result<(), Error> {
         }
     }
 
-    config::drive::save_config(&config)?;
+    pbs_config::drive::save_config(&config)?;
 
     Ok(())
 }

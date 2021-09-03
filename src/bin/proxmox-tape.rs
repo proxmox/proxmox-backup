@@ -21,6 +21,8 @@ use pbs_tools::format::{
     render_bytes_human_readable,
 };
 
+use pbs_config::drive::complete_drive_name;
+
 use proxmox_backup::{
     api2::{
         self,
@@ -36,9 +38,7 @@ use proxmox_backup::{
         },
     },
     config::{
-        self,
         datastore::complete_datastore_name,
-        drive::complete_drive_name,
         media_pool::complete_pool_name,
     },
     tape::{
@@ -121,7 +121,7 @@ async fn format_media(mut param: Value) -> Result<(), Error> {
 
     let output_format = extract_output_format(&mut param);
 
-    let (config, _digest) = config::drive::config()?;
+    let (config, _digest) = pbs_config::drive::config()?;
 
     let drive = extract_drive_name(&mut param, &config)?;
 
@@ -154,7 +154,7 @@ async fn rewind(mut param: Value) -> Result<(), Error> {
 
     let output_format = extract_output_format(&mut param);
 
-    let (config, _digest) = config::drive::config()?;
+    let (config, _digest) = pbs_config::drive::config()?;
 
     let drive = extract_drive_name(&mut param, &config)?;
 
@@ -187,7 +187,7 @@ async fn eject_media(mut param: Value) -> Result<(), Error> {
 
     let output_format = extract_output_format(&mut param);
 
-    let (config, _digest) = config::drive::config()?;
+    let (config, _digest) = pbs_config::drive::config()?;
 
     let drive = extract_drive_name(&mut param, &config)?;
 
@@ -223,7 +223,7 @@ async fn load_media(mut param: Value) -> Result<(), Error> {
 
     let output_format = extract_output_format(&mut param);
 
-    let (config, _digest) = config::drive::config()?;
+    let (config, _digest) = pbs_config::drive::config()?;
 
     let drive = extract_drive_name(&mut param, &config)?;
 
@@ -253,7 +253,7 @@ async fn load_media(mut param: Value) -> Result<(), Error> {
 /// Export media with specified label
 async fn export_media(mut param: Value) -> Result<(), Error> {
 
-    let (config, _digest) = config::drive::config()?;
+    let (config, _digest) = pbs_config::drive::config()?;
 
     let drive = extract_drive_name(&mut param, &config)?;
 
@@ -283,7 +283,7 @@ async fn export_media(mut param: Value) -> Result<(), Error> {
 /// Load media from the specified slot
 async fn load_media_from_slot(mut param: Value) -> Result<(), Error> {
 
-    let (config, _digest) = config::drive::config()?;
+    let (config, _digest) = pbs_config::drive::config()?;
 
     let drive = extract_drive_name(&mut param, &config)?;
 
@@ -320,7 +320,7 @@ async fn unload_media(mut param: Value) -> Result<(), Error> {
 
     let output_format = extract_output_format(&mut param);
 
-    let (config, _digest) = config::drive::config()?;
+    let (config, _digest) = pbs_config::drive::config()?;
 
     let drive = extract_drive_name(&mut param, &config)?;
 
@@ -360,7 +360,7 @@ async fn label_media(mut param: Value) -> Result<(), Error> {
 
     let output_format = extract_output_format(&mut param);
 
-    let (config, _digest) = config::drive::config()?;
+    let (config, _digest) = pbs_config::drive::config()?;
 
     let drive = extract_drive_name(&mut param, &config)?;
 
@@ -398,7 +398,7 @@ async fn read_label(mut param: Value) -> Result<(), Error> {
 
     let output_format = extract_output_format(&mut param);
 
-    let (config, _digest) = config::drive::config()?;
+    let (config, _digest) = pbs_config::drive::config()?;
 
     let drive = extract_drive_name(&mut param, &config)?;
 
@@ -458,7 +458,7 @@ async fn inventory(
 
     let output_format = extract_output_format(&mut param);
 
-    let (config, _digest) = config::drive::config()?;
+    let (config, _digest) = pbs_config::drive::config()?;
     let drive = extract_drive_name(&mut param, &config)?;
 
     let do_read = read_labels.unwrap_or(false) || read_all_labels.unwrap_or(false);
@@ -516,7 +516,7 @@ async fn barcode_label_media(mut param: Value) -> Result<(), Error> {
 
     let output_format = extract_output_format(&mut param);
 
-    let (config, _digest) = config::drive::config()?;
+    let (config, _digest) = pbs_config::drive::config()?;
 
     let drive = extract_drive_name(&mut param, &config)?;
 
@@ -543,7 +543,7 @@ async fn barcode_label_media(mut param: Value) -> Result<(), Error> {
 /// Move to end of media (MTEOM, used to debug)
 fn move_to_eom(mut param: Value) -> Result<(), Error> {
 
-    let (config, _digest) = config::drive::config()?;
+    let (config, _digest) = pbs_config::drive::config()?;
 
     let drive = extract_drive_name(&mut param, &config)?;
 
@@ -573,7 +573,7 @@ fn move_to_eom(mut param: Value) -> Result<(), Error> {
 /// method is expected to fails when we reach EOT.
 fn debug_scan(mut param: Value) -> Result<(), Error> {
 
-    let (config, _digest) = config::drive::config()?;
+    let (config, _digest) = pbs_config::drive::config()?;
 
     let drive = extract_drive_name(&mut param, &config)?;
 
@@ -655,7 +655,7 @@ async fn cartridge_memory(mut param: Value) -> Result<(), Error> {
 
     let output_format = extract_output_format(&mut param);
 
-    let (config, _digest) = config::drive::config()?;
+    let (config, _digest) = pbs_config::drive::config()?;
 
     let drive = extract_drive_name(&mut param, &config)?;
 
@@ -696,7 +696,7 @@ async fn volume_statistics(mut param: Value) -> Result<(), Error> {
 
     let output_format = extract_output_format(&mut param);
 
-    let (config, _digest) = config::drive::config()?;
+    let (config, _digest) = pbs_config::drive::config()?;
 
     let drive = extract_drive_name(&mut param, &config)?;
 
@@ -734,7 +734,7 @@ async fn status(mut param: Value) -> Result<(), Error> {
 
     let output_format = extract_output_format(&mut param);
 
-    let (config, _digest) = config::drive::config()?;
+    let (config, _digest) = pbs_config::drive::config()?;
 
     let drive = extract_drive_name(&mut param, &config)?;
 
@@ -794,7 +794,7 @@ async fn clean_drive(mut param: Value) -> Result<(), Error> {
 
     let output_format = extract_output_format(&mut param);
 
-    let (config, _digest) = config::drive::config()?;
+    let (config, _digest) = pbs_config::drive::config()?;
 
     let drive = extract_drive_name(&mut param, &config)?;
 
@@ -855,7 +855,7 @@ async fn backup(mut param: Value) -> Result<(), Error> {
 
     let output_format = extract_output_format(&mut param);
 
-    let (config, _digest) = config::drive::config()?;
+    let (config, _digest) = pbs_config::drive::config()?;
 
     param["drive"] = extract_drive_name(&mut param, &config)?.into();
 
@@ -910,7 +910,7 @@ async fn restore(mut param: Value) -> Result<(), Error> {
 
     let output_format = extract_output_format(&mut param);
 
-    let (config, _digest) = config::drive::config()?;
+    let (config, _digest) = pbs_config::drive::config()?;
 
     param["drive"] = extract_drive_name(&mut param, &config)?.into();
 
@@ -957,7 +957,7 @@ async fn catalog_media(mut param: Value)  -> Result<(), Error> {
 
     let output_format = extract_output_format(&mut param);
 
-    let (config, _digest) = config::drive::config()?;
+    let (config, _digest) = pbs_config::drive::config()?;
 
     let drive = extract_drive_name(&mut param, &config)?;
 

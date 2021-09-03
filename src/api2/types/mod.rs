@@ -8,9 +8,6 @@ use proxmox::const_regex;
 
 use crate::config::acl::Role;
 
-mod tape;
-pub use tape::*;
-
 mod acme;
 pub use acme::*;
 
@@ -43,7 +40,6 @@ const_regex!{
 
     pub DATASTORE_MAP_REGEX = concat!(r"(:?", PROXMOX_SAFE_ID_REGEX_STR!(), r"=)?", PROXMOX_SAFE_ID_REGEX_STR!());
 
-    pub TAPE_RESTORE_SNAPSHOT_REGEX = concat!(r"^", PROXMOX_SAFE_ID_REGEX_STR!(), r":", SNAPSHOT_PATH_REGEX_STR!(), r"$");
 }
 
 pub const SYSTEMD_DATETIME_FORMAT: ApiStringFormat =
@@ -70,9 +66,6 @@ pub const BLOCKDEVICE_NAME_FORMAT: ApiStringFormat =
 pub const DATASTORE_MAP_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&DATASTORE_MAP_REGEX);
 
-pub const TAPE_RESTORE_SNAPSHOT_FORMAT: ApiStringFormat =
-    ApiStringFormat::Pattern(&TAPE_RESTORE_SNAPSHOT_REGEX);
-
 pub const PASSWORD_SCHEMA: Schema = StringSchema::new("Password.")
     .format(&PASSWORD_FORMAT)
     .min_length(1)
@@ -83,12 +76,6 @@ pub const PBS_PASSWORD_SCHEMA: Schema = StringSchema::new("User Password.")
     .format(&PASSWORD_FORMAT)
     .min_length(5)
     .max_length(64)
-    .schema();
-
-pub const TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA: Schema = StringSchema::new(
-    "Tape encryption key fingerprint (sha256)."
-)
-    .format(&FINGERPRINT_SHA256_FORMAT)
     .schema();
 
 pub const CHUNK_DIGEST_SCHEMA: Schema = StringSchema::new("Chunk digest (SHA256).")
@@ -236,22 +223,6 @@ pub const DATASTORE_MAP_LIST_SCHEMA: Schema = StringSchema::new(
     all other sources to the default 'e'. If no default is given, only the \
     specified sources are mapped.")
     .format(&ApiStringFormat::PropertyString(&DATASTORE_MAP_ARRAY_SCHEMA))
-    .schema();
-
-pub const TAPE_RESTORE_SNAPSHOT_SCHEMA: Schema = StringSchema::new(
-    "A snapshot in the format: 'store:type/id/time")
-    .format(&TAPE_RESTORE_SNAPSHOT_FORMAT)
-    .type_text("store:type/id/time")
-    .schema();
-
-pub const MEDIA_SET_UUID_SCHEMA: Schema =
-    StringSchema::new("MediaSet Uuid (We use the all-zero Uuid to reseve an empty media for a specific pool).")
-    .format(&UUID_FORMAT)
-    .schema();
-
-pub const MEDIA_UUID_SCHEMA: Schema =
-    StringSchema::new("Media Uuid.")
-    .format(&UUID_FORMAT)
     .schema();
 
 pub const SYNC_SCHEDULE_SCHEMA: Schema = StringSchema::new(

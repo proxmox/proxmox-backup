@@ -9,7 +9,7 @@ use proxmox::api::{
     schema::{Schema, IntegerSchema, StringSchema, Updater},
 };
 
-use crate::api2::types::{
+use crate::{
     PROXMOX_SAFE_ID_FORMAT,
     CHANGER_NAME_SCHEMA,
     OptionalDeviceIdentification,

@@ -2,7 +2,6 @@ use std::path::Path;
 use std::collections::HashSet;
 
 use anyhow::{bail, format_err, Error};
-use serde::{Serialize, Deserialize};
 
 use proxmox::{
     api::{api, Router, SubdirMap, RpcEnvironment, Permission},
@@ -11,6 +10,11 @@ use proxmox::{
 };
 
 use pbs_datastore::backup_info::BackupDir;
+use pbs_api_types::{
+    MEDIA_POOL_NAME_SCHEMA, MEDIA_LABEL_SCHEMA, MEDIA_UUID_SCHEMA, CHANGER_NAME_SCHEMA,
+    VAULT_NAME_SCHEMA, Authid, MediaPoolConfig, MediaListEntry, MediaSetListEntry,
+    MediaStatus, MediaContentEntry, MediaContentListFilter,
+};
 
 use crate::{
     config::{
@@ -20,23 +24,7 @@ use crate::{
             PRIV_TAPE_AUDIT,
         },
     },
-    api2::types::{
-        Authid,
-        BACKUP_ID_SCHEMA,
-        BACKUP_TYPE_SCHEMA,
-        MEDIA_POOL_NAME_SCHEMA,
-        MEDIA_LABEL_SCHEMA,
-        MEDIA_UUID_SCHEMA,
-        MEDIA_SET_UUID_SCHEMA,
-        CHANGER_NAME_SCHEMA,
-        MediaPoolConfig,
-        MediaListEntry,
-        MediaSetListEntry,
-        MediaStatus,
-        MediaContentEntry,
-        VAULT_NAME_SCHEMA,
-    },
-    tape::{
+     tape::{
         TAPE_STATUS_DIR,
         Inventory,
         MediaPool,
@@ -391,46 +379,6 @@ pub fn destroy_media(label_text: String, force: Option<bool>,) -> Result<(), Err
     inventory.remove_media(&uuid)?;
 
     Ok(())
-}
-
-#[api(
-    properties: {
-        pool: {
-            schema: MEDIA_POOL_NAME_SCHEMA,
-            optional: true,
-        },
-        "label-text": {
-            schema: MEDIA_LABEL_SCHEMA,
-            optional: true,
-        },
-        "media": {
-            schema: MEDIA_UUID_SCHEMA,
-            optional: true,
-        },
-        "media-set": {
-            schema: MEDIA_SET_UUID_SCHEMA,
-            optional: true,
-        },
-        "backup-type": {
-            schema: BACKUP_TYPE_SCHEMA,
-            optional: true,
-        },
-        "backup-id": {
-            schema: BACKUP_ID_SCHEMA,
-            optional: true,
-        },
-    },
-)]
-#[derive(Serialize,Deserialize)]
-#[serde(rename_all="kebab-case")]
-/// Content list filter parameters
-pub struct MediaContentListFilter {
-    pub pool: Option<String>,
-    pub label_text: Option<String>,
-    pub media: Option<Uuid>,
-    pub media_set: Option<Uuid>,
-    pub backup_type: Option<String>,
-    pub backup_id: Option<String>,
 }
 
 #[api(

@@ -123,7 +123,7 @@ pub fn list_tape_backup_jobs(
 
     let (job_config, digest) = config::tape_job::config()?;
     let (pool_config, _pool_digest) = config::media_pool::config()?;
-    let (drive_config, _digest) = config::drive::config()?;
+    let (drive_config, _digest) = pbs_config::drive::config()?;
 
     let job_list_iter = job_config
         .convert_to_typed_array("backup")?
@@ -194,7 +194,7 @@ pub fn do_tape_backup_job(
     let (config, _digest) = config::media_pool::config()?;
     let pool_config: MediaPoolConfig = config.lookup("pool", &setup.pool)?;
 
-    let (drive_config, _digest) = config::drive::config()?;
+    let (drive_config, _digest) = pbs_config::drive::config()?;
 
     // for scheduled jobs we acquire the lock later in the worker
     let drive_lock = if schedule.is_some() {
@@ -373,7 +373,7 @@ pub fn backup(
     let (config, _digest) = config::media_pool::config()?;
     let pool_config: MediaPoolConfig = config.lookup("pool", &setup.pool)?;
 
-    let (drive_config, _digest) = config::drive::config()?;
+    let (drive_config, _digest) = pbs_config::drive::config()?;
 
     // early check/lock before starting worker
     let drive_lock = lock_tape_device(&drive_config, &setup.drive)?;
@@ -578,7 +578,7 @@ fn backup_worker(
 // Try to update the the media online status
 fn update_media_online_status(drive: &str) -> Result<Option<String>, Error> {
 
-    let (config, _digest) = config::drive::config()?;
+    let (config, _digest) = pbs_config::drive::config()?;
 
     if let Ok(Some((mut changer, changer_name))) = media_changer(&config, drive) {
 
