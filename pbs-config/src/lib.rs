@@ -18,7 +18,13 @@ pub fn backup_group() -> Result<nix::unistd::Group, Error> {
     pbs_tools::sys::query_group(BACKUP_GROUP_NAME)?
         .ok_or_else(|| format_err!("Unable to lookup '{}' group.", BACKUP_GROUP_NAME))
 }
-pub struct BackupLockGuard(std::fs::File);
+pub struct BackupLockGuard(Option<std::fs::File>);
+
+#[doc(hidden)]
+/// Note: do not use for production code, this is only intended for tests
+pub unsafe fn create_mocked_lock() -> BackupLockGuard {
+    BackupLockGuard(None)
+}
 
 /// Open or create a lock file owned by user "backup" and lock it.
 ///
@@ -41,7 +47,7 @@ pub fn open_backup_lockfile<P: AsRef<std::path::Path>>(
     let timeout = timeout.unwrap_or(std::time::Duration::new(10, 0));
 
     let file = proxmox::tools::fs::open_file_locked(&path, timeout, exclusive, options)?;
-    Ok(BackupLockGuard(file))
+    Ok(BackupLockGuard(Some(file)))
 }
 
 /// Atomically write data to file owned by "root:backup" with permission "0640"
