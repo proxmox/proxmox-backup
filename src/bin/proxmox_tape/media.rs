@@ -15,6 +15,7 @@ use pbs_api_types::{
     MediaContentListFilter,
 };
 use pbs_config::drive::complete_changer_name;
+use pbs_config::media_pool::complete_pool_name;
 
 use proxmox_backup::{
     api2,
@@ -22,9 +23,6 @@ use proxmox_backup::{
         complete_media_label_text,
         complete_media_uuid,
         complete_media_set_uuid,
-    },
-    config::{
-        media_pool::complete_pool_name,
     },
 };
 

@@ -10,6 +10,8 @@ use proxmox::{
     },
 };
 
+use pbs_config::media_pool::complete_pool_name;
+
 use proxmox_backup::{
     api2::{
         self,
@@ -18,9 +20,6 @@ use proxmox_backup::{
         },
     },
     config::{
-        media_pool::{
-            complete_pool_name,
-        },
         tape_encryption_keys:: {
             complete_key_fingerprint,
         },

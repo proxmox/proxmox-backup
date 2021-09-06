@@ -10,15 +10,15 @@ use proxmox::{
     },
 };
 
+use pbs_api_types::{
+    Authid,
+    MEDIA_POOL_NAME_SCHEMA,
+    MediaPoolConfig,
+    MediaPoolConfigUpdater,
+};
+
 use crate::{
-    api2::types::{
-        Authid,
-        MEDIA_POOL_NAME_SCHEMA,
-        MediaPoolConfig,
-        MediaPoolConfigUpdater,
-    },
     config::{
-        self,
         cached_user_info::CachedUserInfo,
         acl::{
             PRIV_TAPE_AUDIT,
@@ -46,9 +46,9 @@ pub fn create_pool(
     config: MediaPoolConfig,
 ) -> Result<(), Error> {
 
-    let _lock = config::media_pool::lock()?;
+    let _lock = pbs_config::media_pool::lock()?;
 
-    let (mut section_config, _digest) = config::media_pool::config()?;
+    let (mut section_config, _digest) = pbs_config::media_pool::config()?;
 
     if section_config.sections.get(&config.name).is_some() {
         bail!("Media pool '{}' already exists", config.name);
@@ -56,7 +56,7 @@ pub fn create_pool(
 
     section_config.set_data(&config.name, "pool", &config)?;
 
-    config::media_pool::save_config(&section_config)?;
+    pbs_config::media_pool::save_config(&section_config)?;
 
     Ok(())
 }
@@ -81,7 +81,7 @@ pub fn list_pools(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
 
-    let (config, digest) = config::media_pool::config()?;
+    let (config, digest) = pbs_config::media_pool::config()?;
 
     let list = config.convert_to_typed_array::<MediaPoolConfig>("pool")?;
 
@@ -116,7 +116,7 @@ pub fn list_pools(
 /// Get media pool configuration
 pub fn get_config(name: String) -> Result<MediaPoolConfig, Error> {
 
-    let (config, _digest) = config::media_pool::config()?;
+    let (config, _digest) = pbs_config::media_pool::config()?;
 
     let data: MediaPoolConfig = config.lookup("pool", &name)?;
 
@@ -172,9 +172,9 @@ pub fn update_pool(
     delete: Option<Vec<DeletableProperty>>,
 ) -> Result<(), Error> {
 
-    let _lock = config::media_pool::lock()?;
+    let _lock = pbs_config::media_pool::lock()?;
 
-    let (mut config, _digest) = config::media_pool::config()?;
+    let (mut config, _digest) = pbs_config::media_pool::config()?;
 
     let mut data: MediaPoolConfig = config.lookup("pool", &name)?;
 
@@ -206,7 +206,7 @@ pub fn update_pool(
 
     config.set_data(&name, "pool", &data)?;
 
-    config::media_pool::save_config(&config)?;
+    pbs_config::media_pool::save_config(&config)?;
 
     Ok(())
 }
@@ -227,16 +227,16 @@ pub fn update_pool(
 /// Delete a media pool configuration
 pub fn delete_pool(name: String) -> Result<(), Error> {
 
-    let _lock = config::media_pool::lock()?;
+    let _lock = pbs_config::media_pool::lock()?;
 
-    let (mut config, _digest) = config::media_pool::config()?;
+    let (mut config, _digest) = pbs_config::media_pool::config()?;
 
     match config.sections.get(&name) {
         Some(_) => { config.sections.remove(&name); },
         None => bail!("delete pool '{}' failed - no such pool", name),
     }
 
-    config::media_pool::save_config(&config)?;
+    pbs_config::media_pool::save_config(&config)?;
 
     Ok(())
 }

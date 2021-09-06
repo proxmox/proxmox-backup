@@ -18,13 +18,12 @@ use pbs_api_types::{
 
 use crate::{
     config::{
-        self,
         cached_user_info::CachedUserInfo,
         acl::{
             PRIV_TAPE_AUDIT,
         },
     },
-     tape::{
+    tape::{
         TAPE_STATUS_DIR,
         Inventory,
         MediaPool,
@@ -54,7 +53,7 @@ pub async fn list_media_sets(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
 
-    let (config, _digest) = config::media_pool::config()?;
+    let (config, _digest) = pbs_config::media_pool::config()?;
 
     let status_path = Path::new(TAPE_STATUS_DIR);
 
@@ -143,7 +142,7 @@ pub async fn list_media(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
 
-    let (config, _digest) = config::media_pool::config()?;
+    let (config, _digest) = pbs_config::media_pool::config()?;
 
     let status_path = Path::new(TAPE_STATUS_DIR);
 
@@ -410,7 +409,7 @@ pub fn list_content(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
 
-    let (config, _digest) = config::media_pool::config()?;
+    let (config, _digest) = pbs_config::media_pool::config()?;
 
     let status_path = Path::new(TAPE_STATUS_DIR);
     let inventory = Inventory::load(status_path)?;

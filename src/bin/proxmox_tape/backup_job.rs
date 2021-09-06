@@ -125,7 +125,7 @@ pub fn backup_job_commands() -> CommandLineInterface {
                 .completion_cb("id", config::tape_job::complete_tape_job_id)
                 .completion_cb("schedule", config::datastore::complete_calendar_event)
                 .completion_cb("store", config::datastore::complete_datastore_name)
-                .completion_cb("pool", config::media_pool::complete_pool_name)
+                .completion_cb("pool", pbs_config::media_pool::complete_pool_name)
                 .completion_cb("drive", crate::complete_drive_name)
         )
         .insert("update",
@@ -134,7 +134,7 @@ pub fn backup_job_commands() -> CommandLineInterface {
                 .completion_cb("id", config::tape_job::complete_tape_job_id)
                 .completion_cb("schedule", config::datastore::complete_calendar_event)
                 .completion_cb("store", config::datastore::complete_datastore_name)
-                .completion_cb("pool", config::media_pool::complete_pool_name)
+                .completion_cb("pool", pbs_config::media_pool::complete_pool_name)
                 .completion_cb("drive", crate::complete_drive_name)
         )
         .insert("remove",

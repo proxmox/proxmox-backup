@@ -1,5 +1,6 @@
 pub mod domains;
 pub mod drive;
+pub mod media_pool;
 pub mod remote;
 
 use anyhow::{format_err, Error};

@@ -61,7 +61,7 @@ fn main() -> Result<(), Error> {
             "remote.cfg" => dump_section_config(&pbs_config::remote::CONFIG),
             "sync.cfg" => dump_section_config(&config::sync::CONFIG),
             "verification.cfg" => dump_section_config(&config::verify::CONFIG),
-            "media-pool.cfg" => dump_section_config(&config::media_pool::CONFIG),
+            "media-pool.cfg" => dump_section_config(&pbs_config::media_pool::CONFIG),
             "config::acl::Role" => dump_enum_properties(&config::acl::Role::API_SCHEMA)?,
             _ => bail!("docgen: got unknown type"),
         };

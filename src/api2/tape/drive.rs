@@ -514,7 +514,7 @@ pub fn label_media(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
     if let Some(ref pool) = pool {
-        let (pool_config, _digest) = config::media_pool::config()?;
+        let (pool_config, _digest) = pbs_config::media_pool::config()?;
 
         if pool_config.sections.get(pool).is_none() {
             bail!("no such pool ('{}')", pool);
@@ -1029,7 +1029,7 @@ pub fn barcode_label_media(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
     if let Some(ref pool) = pool {
-        let (pool_config, _digest) = config::media_pool::config()?;
+        let (pool_config, _digest) = pbs_config::media_pool::config()?;
 
         if pool_config.sections.get(pool).is_none() {
             bail!("no such pool ('{}')", pool);

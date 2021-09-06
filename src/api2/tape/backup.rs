@@ -122,7 +122,7 @@ pub fn list_tape_backup_jobs(
     let user_info = CachedUserInfo::new()?;
 
     let (job_config, digest) = config::tape_job::config()?;
-    let (pool_config, _pool_digest) = config::media_pool::config()?;
+    let (pool_config, _pool_digest) = pbs_config::media_pool::config()?;
     let (drive_config, _digest) = pbs_config::drive::config()?;
 
     let job_list_iter = job_config
@@ -191,7 +191,7 @@ pub fn do_tape_backup_job(
 
     let datastore = DataStore::lookup_datastore(&setup.store)?;
 
-    let (config, _digest) = config::media_pool::config()?;
+    let (config, _digest) = pbs_config::media_pool::config()?;
     let pool_config: MediaPoolConfig = config.lookup("pool", &setup.pool)?;
 
     let (drive_config, _digest) = pbs_config::drive::config()?;
@@ -370,7 +370,7 @@ pub fn backup(
 
     let datastore = DataStore::lookup_datastore(&setup.store)?;
 
-    let (config, _digest) = config::media_pool::config()?;
+    let (config, _digest) = pbs_config::media_pool::config()?;
     let pool_config: MediaPoolConfig = config.lookup("pool", &setup.pool)?;
 
     let (drive_config, _digest) = pbs_config::drive::config()?;
