@@ -34,6 +34,9 @@ macro_rules! SNAPSHOT_PATH_REGEX_STR {
     );
 }
 
+mod key_derivation;
+pub use key_derivation::{Kdf, KeyInfo};
+
 #[macro_use]
 mod userid;
 pub use userid::Authid;

@@ -219,6 +219,6 @@ pub use data_blob_writer::DataBlobWriter;
 pub use key_derivation::{
     decrypt_key, load_and_decrypt_key, rsa_decrypt_key_config, rsa_encrypt_key_config,
 };
-pub use key_derivation::{Kdf, KeyConfig, KeyDerivationConfig, KeyInfo};
+pub use key_derivation::{KeyConfig, KeyDerivationConfig};
 pub use manifest::BackupManifest;
 pub use store_progress::StoreProgress;

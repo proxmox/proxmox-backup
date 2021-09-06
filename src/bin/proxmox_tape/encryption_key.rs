@@ -11,8 +11,7 @@ use proxmox::{
     sys::linux::tty,
 };
 
-use pbs_api_types::Fingerprint;
-use pbs_datastore::Kdf;
+use pbs_api_types::{Fingerprint, Kdf};
 use pbs_datastore::paperkey::{PaperkeyFormat, generate_paper_key};
 
 use proxmox_backup::{

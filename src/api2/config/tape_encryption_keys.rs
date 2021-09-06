@@ -11,8 +11,7 @@ use proxmox::{
     },
 };
 
-use pbs_api_types::Fingerprint;
-use pbs_datastore::{KeyInfo, Kdf};
+use pbs_api_types::{Fingerprint, KeyInfo, Kdf};
 use pbs_datastore::key_derivation::KeyConfig;
 use pbs_config::open_backup_lockfile;
 
