@@ -40,7 +40,20 @@ use proxmox::tools::{
 };
 
 use pbs_systemd::time::compute_next_event;
-use pbs_config::{open_backup_lockfile, BackupLockGuard};
+use pbs_config::BackupLockGuard;
+
+#[cfg(not(test))]
+use pbs_config::open_backup_lockfile;
+
+#[cfg(test)]
+fn open_backup_lockfile<P: AsRef<std::path::Path>>(
+    _path: P,
+    _timeout: Option<std::time::Duration>,
+    _exclusive: bool,
+) -> Result<pbs_config::BackupLockGuard, anyhow::Error> {
+    Ok(unsafe { pbs_config::create_mocked_lock() })
+}
+
 
 use crate::{
     api2::types::{
