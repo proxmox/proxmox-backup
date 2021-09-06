@@ -22,7 +22,7 @@ use proxmox::api::{
 use pbs_client::tools::key_source::get_encryption_key_password;
 use pbs_client::{BackupRepository, BackupWriter};
 use pbs_datastore::{CryptConfig, KeyDerivationConfig, load_and_decrypt_key};
-use pbs_datastore::data_blob::DataChunkBuilder;
+use pbs_datastore::data_blob::{DataBlob, DataChunkBuilder};
 
 use crate::{
     KEYFILE_SCHEMA, REPO_URL_SCHEMA,
@@ -333,7 +333,7 @@ fn test_crypt_speed(
     let mut bytes = 0;
     loop  {
         let mut out = Vec::new();
-        crypt_config.encrypt_to(&random_data, &mut out)?;
+        DataBlob::encrypt_benchmark(&crypt_config, &random_data, &mut out)?;
         bytes += random_data.len();
         if start_time.elapsed().as_micros() > 1_000_000 { break; }
     }

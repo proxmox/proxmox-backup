@@ -1,6 +1,8 @@
 use std::convert::TryInto;
+use std::io::Write;
 
 use anyhow::{bail, Error};
+use openssl::symm::{decrypt_aead, Mode};
 
 use proxmox::tools::io::{ReadExt, WriteExt};
 
@@ -119,7 +121,7 @@ impl DataBlob {
                 raw_data.write_le_value(dummy_head)?;
             }
 
-            let (iv, tag) = config.encrypt_to(data, &mut raw_data)?;
+            let (iv, tag) = Self::encrypt_to(&config, data, &mut raw_data)?;
 
             let head = EncryptedDataBlobHeader {
                 head: DataBlobHeader { magic, crc: [0; 4] }, iv, tag,
@@ -215,9 +217,9 @@ impl DataBlob {
 
             if let Some(config) = config  {
                 let data = if magic == &ENCR_COMPR_BLOB_MAGIC_1_0 {
-                    config.decode_compressed_chunk(&self.raw_data[header_len..], &head.iv, &head.tag)?
+                    Self::decode_compressed_chunk(config, &self.raw_data[header_len..], &head.iv, &head.tag)?
                 } else {
-                    config.decode_uncompressed_chunk(&self.raw_data[header_len..], &head.iv, &head.tag)?
+                    Self::decode_uncompressed_chunk(config, &self.raw_data[header_len..], &head.iv, &head.tag)?
                 };
                 if let Some(digest) = digest {
                     Self::verify_digest(&data, Some(config), digest)?;
@@ -322,6 +324,122 @@ impl DataBlob {
 
         Ok(())
     }
+
+    /// Benchmark encryption speed
+    pub fn encrypt_benchmark<W: Write>(
+        config: &CryptConfig,
+        data: &[u8],
+        output: W,
+    ) -> Result<(), Error> {
+        let _ = Self::encrypt_to(config, data, output)?;
+        Ok(())
+    }
+
+    // Encrypt data using a random 16 byte IV.
+    //
+    // Writes encrypted data to ``output``, Return the used IV and computed MAC.
+    fn encrypt_to<W: Write>(
+        config: &CryptConfig,
+        data: &[u8],
+        mut output: W,
+    ) -> Result<([u8;16], [u8;16]), Error> {
+
+        let mut iv = [0u8; 16];
+        proxmox::sys::linux::fill_with_random_data(&mut iv)?;
+
+        let mut tag = [0u8; 16];
+
+        let mut c = config.data_crypter(&iv, Mode::Encrypt)?;
+
+        const BUFFER_SIZE: usize = 32*1024;
+
+        let mut encr_buf = [0u8; BUFFER_SIZE];
+        let max_encoder_input = BUFFER_SIZE - config.cipher().block_size();
+
+        let mut start = 0;
+        loop {
+            let mut end = start + max_encoder_input;
+            if end > data.len() { end = data.len(); }
+            if end > start {
+                let count = c.update(&data[start..end], &mut encr_buf)?;
+                output.write_all(&encr_buf[..count])?;
+                start = end;
+            } else {
+                break;
+            }
+        }
+
+        let rest = c.finalize(&mut encr_buf)?;
+        if rest > 0 { output.write_all(&encr_buf[..rest])?; }
+
+        output.flush()?;
+
+        c.get_tag(&mut tag)?;
+
+        Ok((iv, tag))
+    }
+
+    // Decompress and decrypt data, verify MAC.
+    fn decode_compressed_chunk(
+        config: &CryptConfig,
+        data: &[u8],
+        iv: &[u8; 16],
+        tag: &[u8; 16],
+    ) -> Result<Vec<u8>, Error> {
+
+        let dec = Vec::with_capacity(1024*1024);
+
+        let mut decompressor = zstd::stream::write::Decoder::new(dec)?;
+
+        let mut c = config.data_crypter(iv, Mode::Decrypt)?;
+
+        const BUFFER_SIZE: usize = 32*1024;
+
+        let mut decr_buf = [0u8; BUFFER_SIZE];
+        let max_decoder_input = BUFFER_SIZE - config.cipher().block_size();
+
+        let mut start = 0;
+        loop {
+            let mut end = start + max_decoder_input;
+            if end > data.len() { end = data.len(); }
+            if end > start {
+                let count = c.update(&data[start..end], &mut decr_buf)?;
+                decompressor.write_all(&decr_buf[0..count])?;
+                start = end;
+            } else {
+                break;
+            }
+        }
+
+        c.set_tag(tag)?;
+        let rest = c.finalize(&mut decr_buf)?;
+        if rest > 0 { decompressor.write_all(&decr_buf[..rest])?; }
+
+        decompressor.flush()?;
+
+        Ok(decompressor.into_inner())
+    }
+
+    // Decrypt data, verify tag.
+    fn decode_uncompressed_chunk(
+        config: &CryptConfig,
+        data: &[u8],
+        iv: &[u8; 16],
+        tag: &[u8; 16],
+    ) -> Result<Vec<u8>, Error> {
+
+        let decr_data = decrypt_aead(
+            *config.cipher(),
+            config.enc_key(),
+            Some(iv),
+            b"", //??
+            data,
+            tag,
+        )?;
+
+        Ok(decr_data)
+    }
+
 }
 
 /// Builder for chunk DataBlobs
