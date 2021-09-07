@@ -11,23 +11,15 @@ use proxmox::{
     sys::linux::tty,
 };
 
-use pbs_api_types::{Fingerprint, Kdf};
-use pbs_datastore::paperkey::{PaperkeyFormat, generate_paper_key};
-
-use proxmox_backup::{
-    api2::{
-        self,
-        types::{
-            DRIVE_NAME_SCHEMA,
-            TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
-            PASSWORD_HINT_SCHEMA,
-        },
-    },
-    config::tape_encryption_keys::{
-        load_key_configs,
-        complete_key_fingerprint,
-    },
+use pbs_api_types::{
+    Fingerprint, Kdf, DRIVE_NAME_SCHEMA, TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
+    PASSWORD_HINT_SCHEMA,
 };
+
+use pbs_datastore::paperkey::{PaperkeyFormat, generate_paper_key};
+use pbs_config::tape_encryption_keys::{load_key_configs,complete_key_fingerprint};
+
+use proxmox_backup::api2;
 
 pub fn encryption_key_commands() -> CommandLineInterface {
 

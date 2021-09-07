@@ -11,9 +11,22 @@ use proxmox::{
     },
 };
 
-use pbs_api_types::{Fingerprint, KeyInfo, Kdf};
+use pbs_api_types::{
+    Fingerprint, KeyInfo, Kdf,
+    TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
+    PROXMOX_CONFIG_DIGEST_SCHEMA, PASSWORD_HINT_SCHEMA,
+};
+
 use pbs_config::key_config::KeyConfig;
 use pbs_config::open_backup_lockfile;
+use pbs_config::tape_encryption_keys::{
+    TAPE_KEYS_LOCKFILE,
+    load_keys,
+    load_key_configs,
+    save_keys,
+    save_key_configs,
+    insert_key,
+};
 
 use crate::{
     config::{
@@ -21,19 +34,6 @@ use crate::{
             PRIV_TAPE_AUDIT,
             PRIV_TAPE_MODIFY,
         },
-        tape_encryption_keys::{
-            TAPE_KEYS_LOCKFILE,
-            load_keys,
-            load_key_configs,
-            save_keys,
-            save_key_configs,
-            insert_key,
-        },
-    },
-    api2::types::{
-        TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
-        PROXMOX_CONFIG_DIGEST_SCHEMA,
-        PASSWORD_HINT_SCHEMA,
     },
 };
 

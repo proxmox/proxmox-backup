@@ -27,18 +27,13 @@ use proxmox::{
     sys::error::SysResult,
 };
 
-use pbs_api_types::Fingerprint;
+use pbs_api_types::{
+    Fingerprint, MamAttribute, LtoDriveAndMediaStatus, LtoTapeDrive, Lp17VolumeStatistics,
+};
 use pbs_config::key_config::KeyConfig;
 use pbs_tools::run_command;
 
 use crate::{
-    config,
-    api2::types::{
-        MamAttribute,
-        LtoDriveAndMediaStatus,
-        LtoTapeDrive,
-        Lp17VolumeStatistics,
-    },
     tape::{
         TapeRead,
         TapeWrite,
@@ -378,7 +373,7 @@ impl TapeDriver for LtoTapeHandle {
 
             if let Some((ref key_fingerprint, ref uuid)) = key_fingerprint {
 
-                let (key_map, _digest) = config::tape_encryption_keys::load_keys()?;
+                let (key_map, _digest) = pbs_config::tape_encryption_keys::load_keys()?;
                 match key_map.get(key_fingerprint) {
                     Some(item) => {
 

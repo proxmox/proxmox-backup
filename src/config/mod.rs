@@ -25,7 +25,6 @@ pub mod tfa;
 pub mod token_shadow;
 pub mod user;
 pub mod verify;
-pub mod tape_encryption_keys;
 pub mod tape_job;
 
 /// Check configuration directory permissions

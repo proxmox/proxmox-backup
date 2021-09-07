@@ -10,21 +10,11 @@ use proxmox::{
     },
 };
 
+use pbs_api_types::MEDIA_POOL_NAME_SCHEMA;
 use pbs_config::media_pool::complete_pool_name;
+use pbs_config::tape_encryption_keys::complete_key_fingerprint;
 
-use proxmox_backup::{
-    api2::{
-        self,
-        types::{
-            MEDIA_POOL_NAME_SCHEMA,
-        },
-    },
-    config::{
-        tape_encryption_keys:: {
-            complete_key_fingerprint,
-        },
-    },
-};
+use proxmox_backup::api2;
 
 pub fn pool_commands() -> CommandLineInterface {
 

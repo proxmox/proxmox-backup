@@ -14,6 +14,7 @@ use anyhow::{bail, Error};
 use proxmox::tools::Uuid;
 
 use pbs_datastore::task_log;
+use pbs_config::tape_encryption_keys::load_key_configs;
 
 use crate::{
     backup::{
@@ -42,7 +43,6 @@ use crate::{
             media_changer,
         },
     },
-    config::tape_encryption_keys::load_key_configs,
 };
 
 
