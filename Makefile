@@ -101,6 +101,9 @@ doc:
 # always re-create this dir
 .PHONY: build
 build:
+	@echo "Setting pkg-buildcfg version to: $(DEB_VERSION_UPSTREAM)"
+	sed -i -e 's/^version =.*$$/version = "$(DEB_VERSION_UPSTREAM)"/' \
+	  pbs-buildcfg/Cargo.toml
 	rm -rf build
 	mkdir build
 	cp -a debian \
