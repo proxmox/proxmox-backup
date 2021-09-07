@@ -12,8 +12,6 @@ use openssl::hash::MessageDigest;
 use openssl::pkcs5::pbkdf2_hmac;
 use openssl::symm::{Cipher, Crypter, Mode};
 
-pub use pbs_api_types::{CryptMode, Fingerprint};
-
 // openssl::sha::sha256(b"Proxmox Backup Encryption Key Fingerprint")
 /// This constant is used to compute fingerprints.
 const FINGERPRINT_INPUT: [u8; 32] = [
@@ -104,8 +102,8 @@ impl CryptConfig {
     ///
     /// This computes a digest using the derived key (id_key) in order
     /// to hinder brute force attacks.
-    pub fn fingerprint(&self) -> Fingerprint {
-        Fingerprint::new(self.compute_digest(&FINGERPRINT_INPUT))
+    pub fn fingerprint(&self) -> [u8; 32] {
+        self.compute_digest(&FINGERPRINT_INPUT)
     }
 
     /// Returns an openssl Crypter using AES_256_GCM,

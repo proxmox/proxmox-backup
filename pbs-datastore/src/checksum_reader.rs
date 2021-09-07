@@ -3,8 +3,7 @@ use std::sync::Arc;
 use std::io::Read;
 
 use pbs_tools::borrow::Tied;
-
-use super::CryptConfig;
+use pbs_tools::crypt_config::CryptConfig;
 
 pub struct ChecksumReader<R> {
     reader: R,

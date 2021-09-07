@@ -28,7 +28,7 @@ use proxmox::{
 };
 
 use pbs_api_types::Fingerprint;
-use pbs_datastore::key_derivation::KeyConfig;
+use pbs_config::key_config::KeyConfig;
 use pbs_tools::run_command;
 
 use crate::{

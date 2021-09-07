@@ -3,7 +3,7 @@ use std::io::{Read, BufRead};
 
 use anyhow::{bail, Error};
 
-use super::CryptConfig;
+use pbs_tools::crypt_config::CryptConfig;
 
 pub struct CryptReader<R> {
     reader: R,

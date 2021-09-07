@@ -3,7 +3,7 @@ use std::io::Write;
 
 use anyhow::Error;
 
-use super::CryptConfig;
+use pbs_tools::crypt_config::CryptConfig;
 
 pub struct CryptWriter<W> {
     writer: W,

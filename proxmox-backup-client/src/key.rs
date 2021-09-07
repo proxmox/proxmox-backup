@@ -15,7 +15,7 @@ use proxmox::sys::linux::tty;
 use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
 
 use pbs_api_types::{RsaPubKeyInfo, PASSWORD_HINT_SCHEMA, Kdf, KeyInfo};
-use pbs_datastore::{KeyConfig, rsa_decrypt_key_config};
+use pbs_config::key_config::{KeyConfig, rsa_decrypt_key_config};
 use pbs_datastore::paperkey::{generate_paper_key, PaperkeyFormat};
 use pbs_client::tools::key_source::{
     find_default_encryption_key, find_default_master_pubkey, get_encryption_key_password,

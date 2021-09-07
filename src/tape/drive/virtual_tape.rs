@@ -10,7 +10,7 @@ use proxmox::tools::{
     fs::{replace_file, CreateOptions},
 };
 
-use pbs_datastore::key_derivation::KeyConfig;
+use pbs_config::key_config::KeyConfig;
 
 use crate::{
     tape::{

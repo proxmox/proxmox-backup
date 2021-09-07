@@ -9,14 +9,15 @@ use serde_json::{json, Value};
 
 use proxmox::tools::digest_to_hex;
 
-use pbs_datastore::{PROXMOX_BACKUP_READER_PROTOCOL_ID_V1, CryptConfig, BackupManifest};
+use pbs_tools::crypt_config::CryptConfig;
+use pbs_tools::sha::sha256;
+use pbs_datastore::{PROXMOX_BACKUP_READER_PROTOCOL_ID_V1, BackupManifest};
 use pbs_datastore::data_blob::DataBlob;
 use pbs_datastore::data_blob_reader::DataBlobReader;
 use pbs_datastore::dynamic_index::DynamicIndexReader;
 use pbs_datastore::fixed_index::FixedIndexReader;
 use pbs_datastore::index::IndexFile;
 use pbs_datastore::manifest::MANIFEST_BLOB_NAME;
-use pbs_tools::sha::sha256;
 
 use super::{HttpClient, H2Client};
 

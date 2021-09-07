@@ -27,3 +27,4 @@ proxmox = { version = "0.13.0", default-features = false, features = [ "api-macr
 
 pbs-api-types = { path = "../pbs-api-types" }
 pbs-tools = { path = "../pbs-tools" }
+pbs-config = { path = "../pbs-config" }

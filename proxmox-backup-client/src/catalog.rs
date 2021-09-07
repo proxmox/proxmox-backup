@@ -10,6 +10,7 @@ use proxmox::api::{api, cli::*};
 use pbs_client::tools::key_source::get_encryption_key_password;
 use pbs_client::{BackupReader, RemoteChunkReader};
 use pbs_tools::json::required_string_param;
+use pbs_tools::crypt_config::CryptConfig;
 
 use crate::{
     REPO_URL_SCHEMA,
@@ -31,7 +32,6 @@ use crate::{
     BufferedDynamicReadAt,
     CatalogReader,
     CATALOG_NAME,
-    CryptConfig,
     DynamicIndexReader,
     IndexFile,
     Shell,

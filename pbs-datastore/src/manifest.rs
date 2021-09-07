@@ -6,7 +6,10 @@ use anyhow::{bail, format_err, Error};
 use serde_json::{json, Value};
 use serde::{Deserialize, Serialize};
 
-use crate::{BackupDir, CryptMode, CryptConfig, Fingerprint};
+use pbs_tools::crypt_config::CryptConfig;
+use pbs_api_types::{CryptMode, Fingerprint};
+
+use crate::BackupDir;
 
 pub const MANIFEST_BLOB_NAME: &str = "index.json.blob";
 pub const MANIFEST_LOCK_NAME: &str = ".index.json.lck";
@@ -188,7 +191,7 @@ impl BackupManifest {
         if let Some(crypt_config) = crypt_config {
             let sig = self.signature(crypt_config)?;
             manifest["signature"] = proxmox::tools::digest_to_hex(&sig).into();
-            let fingerprint = &crypt_config.fingerprint();
+            let fingerprint = &Fingerprint::new(crypt_config.fingerprint());
             manifest["unprotected"]["key-fingerprint"] = serde_json::to_value(fingerprint)?;
         }
 
@@ -215,7 +218,7 @@ impl BackupManifest {
                     fingerprint,
                 ),
                 Some(crypt_config) => {
-                    let config_fp = crypt_config.fingerprint();
+                    let config_fp = Fingerprint::new(crypt_config.fingerprint());
                     if config_fp != fingerprint {
                         bail!(
                             "wrong key - manifest's key {} does not match provided key {}",
@@ -242,7 +245,7 @@ impl BackupManifest {
                 let fingerprint = &json["unprotected"]["key-fingerprint"];
                 if fingerprint != &Value::Null {
                     let fingerprint = serde_json::from_value(fingerprint.clone())?;
-                    let config_fp = crypt_config.fingerprint();
+                    let config_fp = Fingerprint::new(crypt_config.fingerprint());
                     if config_fp != fingerprint {
                         bail!(
                             "wrong key - unable to verify signature since manifest's key {} does not match provided key {}",
@@ -283,7 +286,7 @@ impl TryFrom<super::DataBlob> for BackupManifest {
 #[test]
 fn test_manifest_signature() -> Result<(), Error> {
 
-    use crate::{KeyDerivationConfig};
+    use pbs_config::key_config::KeyDerivationConfig;
 
     let pw = b"test";
 

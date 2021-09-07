@@ -29,7 +29,7 @@ use pxar::accessor::{MaybeReady, ReadAt, ReadAtOperation};
 
 use pbs_api_types::{
     BACKUP_ID_SCHEMA, BACKUP_TIME_SCHEMA, BACKUP_TYPE_SCHEMA, Authid, CryptMode, GroupListItem,
-    PruneListItem, SnapshotListItem, StorageStatus,
+    PruneListItem, SnapshotListItem, StorageStatus, Fingerprint,
 };
 use pbs_client::{
     BACKUP_SOURCE_SCHEMA,
@@ -60,7 +60,8 @@ use pbs_client::tools::{
     },
     CHUNK_SIZE_SCHEMA, REPO_URL_SCHEMA,
 };
-use pbs_datastore::{CATALOG_NAME, CryptConfig, KeyConfig, decrypt_key, rsa_encrypt_key_config};
+use pbs_config::key_config::{KeyConfig, decrypt_key, rsa_encrypt_key_config};
+use pbs_datastore::CATALOG_NAME;
 use pbs_datastore::backup_info::{BackupDir, BackupGroup};
 use pbs_datastore::catalog::{BackupCatalogWriter, CatalogReader, CatalogWriter};
 use pbs_datastore::chunk_store::verify_chunk_size;
@@ -75,6 +76,7 @@ use pbs_datastore::prune::PruneOptions;
 use pbs_tools::sync::StdChannelWriter;
 use pbs_tools::tokio::TokioWriterAdapter;
 use pbs_tools::json;
+use pbs_tools::crypt_config::CryptConfig;
 
 mod benchmark;
 pub use benchmark::*;
@@ -1131,7 +1133,7 @@ async fn restore(param: Value) -> Result<Value, Error> {
                 eprintln!("{}", format_key_source(&key.source, "encryption"));
             }
             if let Some(config) = &crypt_config {
-                eprintln!("Fingerprint: {}", config.fingerprint());
+                eprintln!("Fingerprint: {}", Fingerprint::new(config.fingerprint()));
             }
         }
         manifest.check_fingerprint(crypt_config.as_ref().map(Arc::as_ref))?;

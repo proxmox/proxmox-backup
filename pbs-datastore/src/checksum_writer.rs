@@ -4,8 +4,7 @@ use std::io::Write;
 use anyhow::{Error};
 
 use pbs_tools::borrow::Tied;
-
-use super::CryptConfig;
+use pbs_tools::crypt_config::CryptConfig;
 
 pub struct ChecksumWriter<W> {
     writer: W,

@@ -17,8 +17,7 @@ use serde::{Deserialize, Serialize};
 
 use proxmox::tools::fs::file_read_optional_string;
 use pbs_api_types::Fingerprint;
-use pbs_datastore::key_derivation::KeyConfig;
-
+use pbs_config::key_config::KeyConfig;
 use pbs_config::{open_backup_lockfile, replace_secret_config};
 
 mod hex_key {

@@ -20,6 +20,7 @@ proxmox = { version = "0.13.0", features = [ "api-macro", "cli" ] }
 
 pbs-api-types = { path = "../pbs-api-types" }
 pbs-buildcfg = { path = "../pbs-buildcfg" }
+pbs-config = { path = "../pbs-config" }
 pbs-client = { path = "../pbs-client" }
 pbs-datastore = { path = "../pbs-datastore" }
 pbs-runtime = { path = "../pbs-runtime" }

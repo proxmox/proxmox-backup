@@ -4,8 +4,9 @@ use std::sync::Arc;
 use anyhow::{bail, format_err, Error};
 use proxmox::tools::io::ReadExt;
 
+use pbs_tools::crypt_config::CryptConfig;
+
 use crate::checksum_reader::ChecksumReader;
-use crate::crypt_config::CryptConfig;
 use crate::crypt_reader::CryptReader;
 use crate::file_formats::{self, DataBlobHeader};
 

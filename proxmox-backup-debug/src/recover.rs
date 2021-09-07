@@ -7,16 +7,16 @@ use serde_json::Value;
 
 use proxmox::api::api;
 use proxmox::api::cli::{CliCommand, CliCommandMap, CommandLineInterface};
+use proxmox::tools::digest_to_hex;
 
+use pbs_tools::crypt_config::CryptConfig;
 use pbs_datastore::dynamic_index::DynamicIndexReader;
 use pbs_datastore::file_formats::{DYNAMIC_SIZED_CHUNK_INDEX_1_0, FIXED_SIZED_CHUNK_INDEX_1_0};
 use pbs_datastore::fixed_index::FixedIndexReader;
 use pbs_datastore::index::IndexFile;
-use pbs_datastore::{load_and_decrypt_key, CryptConfig, DataBlob};
-
+use pbs_datastore::DataBlob;
+use pbs_config::key_config::load_and_decrypt_key;
 use pbs_client::tools::key_source::get_encryption_key_password;
-
-use proxmox::tools::digest_to_hex;
 
 #[api(
     input: {

@@ -17,7 +17,9 @@ use proxmox::{sortable, identity};
 use proxmox::api::{ApiHandler, ApiMethod, RpcEnvironment, schema::*, cli::*};
 use proxmox::tools::fd::Fd;
 
-use pbs_datastore::{BackupDir, BackupGroup, CryptConfig, load_and_decrypt_key};
+use pbs_tools::crypt_config::CryptConfig;
+use pbs_config::key_config::load_and_decrypt_key;
+use pbs_datastore::{BackupDir, BackupGroup, };
 use pbs_datastore::index::IndexFile;
 use pbs_datastore::dynamic_index::BufferedDynamicReader;
 use pbs_datastore::cached_chunk_reader::CachedChunkReader;

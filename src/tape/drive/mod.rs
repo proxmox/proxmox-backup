@@ -28,11 +28,10 @@ use proxmox::{
     api::section_config::SectionConfigData,
 };
 
-use pbs_api_types::Fingerprint;
-use pbs_datastore::key_derivation::KeyConfig;
+use pbs_api_types::{VirtualTapeDrive, LtoTapeDrive, Fingerprint};
+use pbs_config::key_config::KeyConfig;
 use pbs_datastore::task::TaskState;
 use pbs_datastore::task_log;
-use pbs_api_types::{VirtualTapeDrive, LtoTapeDrive};
 
 use crate::{
     server::{

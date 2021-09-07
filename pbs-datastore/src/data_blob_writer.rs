@@ -3,8 +3,9 @@ use proxmox::tools::io::WriteExt;
 use std::io::{Seek, SeekFrom, Write};
 use std::sync::Arc;
 
+use pbs_tools::crypt_config::CryptConfig;
+
 use crate::checksum_writer::ChecksumWriter;
-use crate::crypt_config::CryptConfig;
 use crate::crypt_writer::CryptWriter;
 use crate::file_formats::{self, DataBlobHeader, EncryptedDataBlobHeader};
 

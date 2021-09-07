@@ -6,8 +6,10 @@ use openssl::symm::{decrypt_aead, Mode};
 
 use proxmox::tools::io::{ReadExt, WriteExt};
 
+use pbs_tools::crypt_config::CryptConfig;
+use pbs_api_types::CryptMode;
+
 use super::file_formats::*;
-use super::{CryptConfig, CryptMode};
 
 const MAX_BLOB_SIZE: usize = 128*1024*1024;
 

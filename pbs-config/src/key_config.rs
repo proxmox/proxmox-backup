@@ -7,9 +7,9 @@ use serde::{Deserialize, Serialize};
 use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
 use proxmox::try_block;
 
-use pbs_api_types::{Kdf, KeyInfo};
+use pbs_api_types::{Kdf, KeyInfo, Fingerprint};
 
-use crate::crypt_config::{CryptConfig, Fingerprint};
+use pbs_tools::crypt_config::CryptConfig;
 
 /// Key derivation function configuration
 #[derive(Deserialize, Serialize, Clone, Debug)]
@@ -120,7 +120,7 @@ impl KeyConfig  {
     pub fn without_password(raw_key: [u8; 32]) -> Result<Self, Error> {
         // always compute fingerprint
         let crypt_config = CryptConfig::new(raw_key.clone())?;
-        let fingerprint = Some(crypt_config.fingerprint());
+        let fingerprint = Some(Fingerprint::new(crypt_config.fingerprint()));
 
         let created = proxmox::tools::time::epoch_i64();
         Ok(Self {
@@ -187,7 +187,7 @@ impl KeyConfig  {
 
         // always compute fingerprint
         let crypt_config = CryptConfig::new(raw_key.clone())?;
-        let fingerprint = Some(crypt_config.fingerprint());
+        let fingerprint = Some(Fingerprint::new(crypt_config.fingerprint()));
 
         Ok(Self {
             kdf: Some(kdf),
@@ -258,7 +258,7 @@ impl KeyConfig  {
         result.copy_from_slice(&key);
 
         let crypt_config = CryptConfig::new(result.clone())?;
-        let fingerprint = crypt_config.fingerprint();
+        let fingerprint = Fingerprint::new(crypt_config.fingerprint());
         if let Some(ref stored_fingerprint) = self.fingerprint {
             if &fingerprint != stored_fingerprint {
                 bail!(
