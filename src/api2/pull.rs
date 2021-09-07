@@ -14,10 +14,10 @@ use pbs_api_types::{
 
 use crate::server::{WorkerTask, jobstate::Job, pull::pull_store};
 use crate::backup::DataStore;
-use crate::api2::types::REMOVE_VANISHED_BACKUPS_SCHEMA;
+
+use pbs_api_types::{SyncJobConfig, REMOVE_VANISHED_BACKUPS_SCHEMA};
 
 use crate::config::{
-    sync::SyncJobConfig,
     acl::{PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_PRUNE, PRIV_REMOTE_READ},
     cached_user_info::CachedUserInfo,
 };

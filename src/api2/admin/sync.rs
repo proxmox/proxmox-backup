@@ -7,13 +7,10 @@ use proxmox::api::{api, ApiMethod, Permission, Router, RpcEnvironment};
 use proxmox::api::router::SubdirMap;
 use proxmox::{list_subdirs_api_method, sortable};
 
+use pbs_api_types::{DATASTORE_SCHEMA, JOB_ID_SCHEMA, Authid, SyncJobConfig, SyncJobStatus};
+
 use crate::{
     api2::{
-        types::{
-            DATASTORE_SCHEMA,
-            JOB_ID_SCHEMA,
-            Authid,
-        },
         pull::do_sync_job,
         config::sync::{
             check_sync_job_modify_access,
@@ -22,11 +19,7 @@ use crate::{
     },
     config::{
         cached_user_info::CachedUserInfo,
-        sync::{
-            self,
-            SyncJobStatus,
-            SyncJobConfig,
-        },
+        sync,
     },
     server::{
         jobstate::{

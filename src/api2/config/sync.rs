@@ -4,7 +4,11 @@ use ::serde::{Deserialize, Serialize};
 
 use proxmox::api::{api, Permission, Router, RpcEnvironment};
 
-use crate::api2::types::*;
+use pbs_api_types::{
+    Authid, SyncJobConfig,
+    SINGLE_LINE_COMMENT_SCHEMA, JOB_ID_SCHEMA, REMOTE_ID_SCHEMA, DATASTORE_SCHEMA,
+    REMOVE_VANISHED_BACKUPS_SCHEMA, SYNC_SCHEDULE_SCHEMA, PROXMOX_CONFIG_DIGEST_SCHEMA,
+};
 
 use crate::config::acl::{
     PRIV_DATASTORE_AUDIT,
@@ -15,8 +19,7 @@ use crate::config::acl::{
     PRIV_REMOTE_READ,
 };
 
-use crate::config::cached_user_info::CachedUserInfo;
-use crate::config::sync::{self, SyncJobConfig};
+use crate::config::{sync, cached_user_info::CachedUserInfo};
 use pbs_config::open_backup_lockfile;
 
 pub fn check_sync_job_read_access(
@@ -77,7 +80,7 @@ pub fn check_sync_job_modify_access(
     returns: {
         description: "List configured jobs.",
         type: Array,
-        items: { type: sync::SyncJobConfig },
+        items: { type: SyncJobConfig },
     },
     access: {
         description: "Limited to sync job entries where user has Datastore.Audit on target datastore, and Remote.Audit on source remote.",
@@ -154,7 +157,7 @@ pub fn create_sync_job(
 
     let _lock = open_backup_lockfile(sync::SYNC_CFG_LOCKFILE, None, true)?;
 
-    let sync_job: sync::SyncJobConfig = serde_json::from_value(param)?;
+    let sync_job: SyncJobConfig = serde_json::from_value(param)?;
     if !check_sync_job_modify_access(&user_info, &auth_id, &sync_job) {
         bail!("permission check failed");
     }
@@ -182,7 +185,7 @@ pub fn create_sync_job(
             },
         },
     },
-    returns: { type: sync::SyncJobConfig },
+    returns: { type: SyncJobConfig },
     access: {
         description: "Limited to sync job entries where user has Datastore.Audit on target datastore, and Remote.Audit on source remote.",
         permission: &Permission::Anybody,
@@ -306,7 +309,7 @@ pub fn update_sync_job(
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 
-    let mut data: sync::SyncJobConfig = config.lookup("sync", &id)?;
+    let mut data: SyncJobConfig = config.lookup("sync", &id)?;
 
      if let Some(delete) = delete {
         for delete_prop in delete {

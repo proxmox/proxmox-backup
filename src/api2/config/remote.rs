@@ -8,11 +8,12 @@ use proxmox::http_err;
 use pbs_client::{HttpClient, HttpClientOptions};
 use pbs_api_types::{
     REMOTE_ID_SCHEMA, REMOTE_PASSWORD_SCHEMA, Remote, RemoteConfig, RemoteConfigUpdater,
-    Authid, PROXMOX_CONFIG_DIGEST_SCHEMA, DataStoreListItem,
+    Authid, PROXMOX_CONFIG_DIGEST_SCHEMA, DataStoreListItem, SyncJobConfig,
 };
 
 use crate::config::cached_user_info::CachedUserInfo;
 use crate::config::acl::{PRIV_REMOTE_AUDIT, PRIV_REMOTE_MODIFY};
+use crate::config::sync;
 
 #[api(
     input: {
@@ -246,8 +247,6 @@ pub fn update_remote(
 )]
 /// Remove a remote from the configuration file.
 pub fn delete_remote(name: String, digest: Option<String>) -> Result<(), Error> {
-
-    use crate::config::sync::{self, SyncJobConfig};
 
     let (sync_jobs, _) = sync::config()?;
 

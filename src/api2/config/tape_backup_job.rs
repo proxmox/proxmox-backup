@@ -3,31 +3,27 @@ use serde_json::Value;
 use ::serde::{Deserialize, Serialize};
 
 use proxmox::api::{api, Router, RpcEnvironment, Permission};
-use pbs_config::open_backup_lockfile;
+
+use pbs_api_types::{
+    Authid,
+    Userid,
+    TapeBackupJobConfig,
+    JOB_ID_SCHEMA,
+    DATASTORE_SCHEMA,
+    DRIVE_NAME_SCHEMA,
+    PROXMOX_CONFIG_DIGEST_SCHEMA,
+    SINGLE_LINE_COMMENT_SCHEMA,
+    MEDIA_POOL_NAME_SCHEMA,
+    SYNC_SCHEDULE_SCHEMA,
+};
 
 use crate::{
-    api2::types::{
-        Authid,
-        Userid,
-        JOB_ID_SCHEMA,
-        DATASTORE_SCHEMA,
-        DRIVE_NAME_SCHEMA,
-        PROXMOX_CONFIG_DIGEST_SCHEMA,
-        SINGLE_LINE_COMMENT_SCHEMA,
-        MEDIA_POOL_NAME_SCHEMA,
-        SYNC_SCHEDULE_SCHEMA,
-    },
     config::{
-        self,
         cached_user_info::CachedUserInfo,
         acl::{
             PRIV_TAPE_AUDIT,
             PRIV_TAPE_MODIFY,
         },
-        tape_job::{
-            TAPE_JOB_CFG_LOCKFILE,
-            TapeBackupJobConfig,
-        }
     },
 };
 
@@ -53,7 +49,7 @@ pub fn list_tape_backup_jobs(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
 
-    let (config, digest) = config::tape_job::config()?;
+    let (config, digest) = pbs_config::tape_job::config()?;
 
     let list = config.convert_to_typed_array::<TapeBackupJobConfig>("backup")?;
 
@@ -89,9 +85,9 @@ pub fn create_tape_backup_job(
     job: TapeBackupJobConfig,
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
-    let _lock = open_backup_lockfile(TAPE_JOB_CFG_LOCKFILE, None, true)?;
+    let _lock = pbs_config::tape_job::lock()?;
 
-    let (mut config, _digest) = config::tape_job::config()?;
+    let (mut config, _digest) = pbs_config::tape_job::config()?;
 
     if config.sections.get(&job.id).is_some() {
         bail!("job '{}' already exists.", job.id);
@@ -99,7 +95,7 @@ pub fn create_tape_backup_job(
 
     config.set_data(&job.id, "backup", &job)?;
 
-    config::tape_job::save_config(&config)?;
+    pbs_config::tape_job::save_config(&config)?;
 
     crate::server::jobstate::create_state_file("tape-backup-job", &job.id)?;
 
@@ -125,7 +121,7 @@ pub fn read_tape_backup_job(
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<TapeBackupJobConfig, Error> {
 
-    let (config, digest) = config::tape_job::config()?;
+    let (config, digest) = pbs_config::tape_job::config()?;
 
     let job = config.lookup("backup", &id)?;
 
@@ -232,9 +228,9 @@ pub fn update_tape_backup_job(
     delete: Option<Vec<DeletableProperty>>,
     digest: Option<String>,
 ) -> Result<(), Error> {
-    let _lock = open_backup_lockfile(TAPE_JOB_CFG_LOCKFILE, None, true)?;
+    let _lock = pbs_config::tape_job::lock()?;
 
-    let (mut config, expected_digest) = config::tape_job::config()?;
+    let (mut config, expected_digest) = pbs_config::tape_job::config()?;
 
     let mut data: TapeBackupJobConfig = config.lookup("backup", &id)?;
 
@@ -279,7 +275,7 @@ pub fn update_tape_backup_job(
 
     config.set_data(&id, "backup", &data)?;
 
-    config::tape_job::save_config(&config)?;
+    pbs_config::tape_job::save_config(&config)?;
 
     if schedule_changed {
         crate::server::jobstate::update_job_last_run_time("tape-backup-job", &id)?;
@@ -311,9 +307,9 @@ pub fn delete_tape_backup_job(
     digest: Option<String>,
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
-    let _lock = open_backup_lockfile(TAPE_JOB_CFG_LOCKFILE, None, true)?;
+    let _lock = pbs_config::tape_job::lock()?;
 
-    let (mut config, expected_digest) = config::tape_job::config()?;
+    let (mut config, expected_digest) = pbs_config::tape_job::config()?;
 
     if let Some(ref digest) = digest {
         let digest = proxmox::tools::hex_to_digest(digest)?;
@@ -327,7 +323,7 @@ pub fn delete_tape_backup_job(
         Err(_) => { bail!("job '{}' does not exist.", id) },
     };
 
-    config::tape_job::save_config(&config)?;
+    pbs_config::tape_job::save_config(&config)?;
 
     crate::server::jobstate::remove_state_file("tape-backup-job", &id)?;
 

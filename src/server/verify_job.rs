@@ -1,12 +1,11 @@
 use anyhow::{format_err, Error};
 
 use pbs_datastore::task_log;
+use pbs_api_types::{Authid, VerificationJobConfig};
 
 use crate::{
     server::WorkerTask,
-    api2::types::*,
     server::jobstate::Job,
-    config::verify::VerificationJobConfig,
     backup::{
         DataStore,
         verify_filter,

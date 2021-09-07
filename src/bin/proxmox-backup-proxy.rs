@@ -32,7 +32,7 @@ use pbs_buildcfg::configdir;
 use pbs_systemd::time::{compute_next_event, parse_calendar_event};
 use pbs_tools::logrotate::LogRotate;
 
-use proxmox_backup::api2::types::Authid;
+use pbs_api_types::{Authid, TapeBackupJobConfig, VerificationJobConfig, SyncJobConfig};
 use proxmox_backup::server;
 use proxmox_backup::auth_helpers::*;
 use proxmox_backup::tools::{
@@ -520,12 +520,8 @@ async fn schedule_datastore_prune() {
 
 async fn schedule_datastore_sync_jobs() {
 
-    use proxmox_backup::config::sync::{
-        self,
-        SyncJobConfig,
-    };
 
-    let config = match sync::config() {
+    let config = match proxmox_backup::config::sync::config() {
         Err(err) => {
             eprintln!("unable to read sync job config - {}", err);
             return;
@@ -564,12 +560,7 @@ async fn schedule_datastore_sync_jobs() {
 
 async fn schedule_datastore_verify_jobs() {
 
-    use proxmox_backup::config::verify::{
-        self,
-        VerificationJobConfig,
-    };
-
-    let config = match verify::config() {
+    let config = match proxmox_backup::config::verify::config() {
         Err(err) => {
             eprintln!("unable to read verification job config - {}", err);
             return;
@@ -605,12 +596,7 @@ async fn schedule_datastore_verify_jobs() {
 
 async fn schedule_tape_backup_jobs() {
 
-    use proxmox_backup::config::tape_job::{
-        self,
-        TapeBackupJobConfig,
-    };
-
-    let config = match tape_job::config() {
+    let config = match pbs_config::tape_job::config() {
         Err(err) => {
             eprintln!("unable to read tape job config - {}", err);
             return;

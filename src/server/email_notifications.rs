@@ -8,19 +8,14 @@ use proxmox::api::schema::{ApiType, parse_property_string};
 use proxmox::try_block;
 
 use pbs_tools::format::HumanByte;
+use pbs_api_types::{
+    TapeBackupJobSetup, SyncJobConfig, VerificationJobConfig,
+    APTUpdateInfo, GarbageCollectionStatus,
+    Userid, Notify, DatastoreNotify,
+};
 
 use crate::{
     config::datastore::DataStoreConfig,
-    config::verify::VerificationJobConfig,
-    config::sync::SyncJobConfig,
-    config::tape_job::TapeBackupJobSetup,
-    api2::types::{
-        APTUpdateInfo,
-        GarbageCollectionStatus,
-        Userid,
-        Notify,
-        DatastoreNotify,
-    },
 };
 
 const GC_OK_TEMPLATE: &str = r###"

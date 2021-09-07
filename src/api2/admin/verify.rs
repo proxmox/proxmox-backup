@@ -7,11 +7,11 @@ use proxmox::api::router::SubdirMap;
 use proxmox::{list_subdirs_api_method, sortable};
 use proxmox::api::{api, ApiMethod, Permission, Router, RpcEnvironment};
 
+use pbs_api_types::{VerificationJobConfig, VerificationJobStatus, JOB_ID_SCHEMA, Authid};
+
 use crate::{
     api2::types::{
         DATASTORE_SCHEMA,
-        JOB_ID_SCHEMA,
-        Authid,
     },
     server::{
         do_verification_job,
@@ -22,16 +22,12 @@ use crate::{
         },
     },
     config::{
+        verify,
         acl::{
             PRIV_DATASTORE_AUDIT,
             PRIV_DATASTORE_VERIFY,
         },
         cached_user_info::CachedUserInfo,
-        verify::{
-            self,
-            VerificationJobConfig,
-            VerificationJobStatus,
-        },
     },
 };
 
@@ -48,7 +44,7 @@ use crate::{
     returns: {
         description: "List configured jobs and their status (filtered by access)",
         type: Array,
-        items: { type: verify::VerificationJobStatus },
+        items: { type: VerificationJobStatus },
     },
     access: {
         permission: &Permission::Anybody,

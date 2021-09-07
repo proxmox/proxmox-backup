@@ -15,24 +15,22 @@ use proxmox::{
     },
 };
 
-use pbs_api_types::{Authid, Userid};
+use pbs_api_types::{
+    Authid, Userid, TapeBackupJobConfig, TapeBackupJobSetup, TapeBackupJobStatus, MediaPoolConfig,
+    UPID_SCHEMA, JOB_ID_SCHEMA,
+};
+
 use pbs_datastore::{task_log, task_warn, StoreProgress};
 use pbs_datastore::backup_info::{BackupDir, BackupInfo};
 use pbs_datastore::task::TaskState;
 
 use crate::{
     config::{
-        self,
         cached_user_info::CachedUserInfo,
         acl::{
             PRIV_DATASTORE_READ,
             PRIV_TAPE_AUDIT,
             PRIV_TAPE_WRITE,
-        },
-        tape_job::{
-            TapeBackupJobConfig,
-            TapeBackupJobSetup,
-            TapeBackupJobStatus,
         },
     },
     server::{
@@ -45,11 +43,6 @@ use crate::{
         },
     },
     backup::DataStore,
-    api2::types::{
-        UPID_SCHEMA,
-        JOB_ID_SCHEMA,
-        MediaPoolConfig,
-    },
     server::WorkerTask,
     tape::{
         TAPE_STATUS_DIR,
@@ -121,7 +114,7 @@ pub fn list_tape_backup_jobs(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
 
-    let (job_config, digest) = config::tape_job::config()?;
+    let (job_config, digest) = pbs_config::tape_job::config()?;
     let (pool_config, _pool_digest) = pbs_config::media_pool::config()?;
     let (drive_config, _digest) = pbs_config::drive::config()?;
 
@@ -310,7 +303,7 @@ pub fn run_tape_backup_job(
 ) -> Result<String, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-    let (config, _digest) = config::tape_job::config()?;
+    let (config, _digest) = pbs_config::tape_job::config()?;
     let backup_job: TapeBackupJobConfig = config.lookup("backup", &id)?;
 
     check_backup_permission(

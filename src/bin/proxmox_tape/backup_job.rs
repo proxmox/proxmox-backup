@@ -3,14 +3,12 @@ use serde_json::Value;
 
 use proxmox::api::{api, cli::*, RpcEnvironment, ApiHandler};
 
+use pbs_api_types::JOB_ID_SCHEMA;
 use pbs_client::{connect_to_localhost, view_task_result};
 
 use proxmox_backup::{
     config,
-    api2::{
-        self,
-        types::*,
-    },
+    api2,
 };
 
 #[api(
@@ -112,17 +110,17 @@ pub fn backup_job_commands() -> CommandLineInterface {
         .insert("show",
                 CliCommand::new(&API_METHOD_SHOW_TAPE_BACKUP_JOB)
                 .arg_param(&["id"])
-                .completion_cb("id", config::tape_job::complete_tape_job_id)
+                .completion_cb("id", pbs_config::tape_job::complete_tape_job_id)
         )
         .insert("run",
                 CliCommand::new(&API_METHOD_RUN_TAPE_BACKUP_JOB)
                 .arg_param(&["id"])
-                .completion_cb("id", config::tape_job::complete_tape_job_id)
+                .completion_cb("id", pbs_config::tape_job::complete_tape_job_id)
         )
         .insert("create",
                 CliCommand::new(&api2::config::tape_backup_job::API_METHOD_CREATE_TAPE_BACKUP_JOB)
                 .arg_param(&["id"])
-                .completion_cb("id", config::tape_job::complete_tape_job_id)
+                .completion_cb("id", pbs_config::tape_job::complete_tape_job_id)
                 .completion_cb("schedule", config::datastore::complete_calendar_event)
                 .completion_cb("store", config::datastore::complete_datastore_name)
                 .completion_cb("pool", pbs_config::media_pool::complete_pool_name)
@@ -131,7 +129,7 @@ pub fn backup_job_commands() -> CommandLineInterface {
         .insert("update",
                 CliCommand::new(&api2::config::tape_backup_job::API_METHOD_UPDATE_TAPE_BACKUP_JOB)
                 .arg_param(&["id"])
-                .completion_cb("id", config::tape_job::complete_tape_job_id)
+                .completion_cb("id", pbs_config::tape_job::complete_tape_job_id)
                 .completion_cb("schedule", config::datastore::complete_calendar_event)
                 .completion_cb("store", config::datastore::complete_datastore_name)
                 .completion_cb("pool", pbs_config::media_pool::complete_pool_name)
@@ -140,7 +138,7 @@ pub fn backup_job_commands() -> CommandLineInterface {
         .insert("remove",
                 CliCommand::new(&api2::config::tape_backup_job::API_METHOD_DELETE_TAPE_BACKUP_JOB)
                 .arg_param(&["id"])
-                .completion_cb("id", config::tape_job::complete_tape_job_id)
+                .completion_cb("id", pbs_config::tape_job::complete_tape_job_id)
         );
 
     cmd_def.into()

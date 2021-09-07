@@ -4,7 +4,12 @@ use ::serde::{Deserialize, Serialize};
 
 use proxmox::api::{api, Permission, Router, RpcEnvironment};
 
-use crate::api2::types::*;
+use pbs_api_types::{
+    Authid, VerificationJobConfig,
+    SINGLE_LINE_COMMENT_SCHEMA, JOB_ID_SCHEMA, IGNORE_VERIFIED_BACKUPS_SCHEMA,
+    VERIFICATION_OUTDATED_AFTER_SCHEMA, VERIFICATION_SCHEDULE_SCHEMA,
+    DATASTORE_SCHEMA, PROXMOX_CONFIG_DIGEST_SCHEMA,
+};
 
 use crate::config::acl::{
     PRIV_DATASTORE_AUDIT,
@@ -12,7 +17,7 @@ use crate::config::acl::{
 };
 
 use crate::config::cached_user_info::CachedUserInfo;
-use crate::config::verify::{self, VerificationJobConfig};
+use crate::config::verify;
 use pbs_config::open_backup_lockfile;
 
 #[api(
@@ -22,7 +27,7 @@ use pbs_config::open_backup_lockfile;
     returns: {
         description: "List configured jobs.",
         type: Array,
-        items: { type: verify::VerificationJobConfig },
+        items: { type: VerificationJobConfig },
     },
     access: {
         permission: &Permission::Anybody,
@@ -97,7 +102,7 @@ pub fn create_verification_job(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
 
-    let verification_job: verify::VerificationJobConfig = serde_json::from_value(param)?;
+    let verification_job: VerificationJobConfig = serde_json::from_value(param)?;
 
     user_info.check_privs(&auth_id, &["datastore", &verification_job.store], PRIV_DATASTORE_VERIFY, false)?;
 
@@ -126,7 +131,7 @@ pub fn create_verification_job(
             },
         },
     },
-    returns: { type: verify::VerificationJobConfig },
+    returns: { type: VerificationJobConfig },
     access: {
         permission: &Permission::Anybody,
         description: "Requires Datastore.Audit or Datastore.Verify on job's datastore.",
@@ -142,7 +147,7 @@ pub fn read_verification_job(
 
     let (config, digest) = verify::config()?;
 
-    let verification_job: verify::VerificationJobConfig = config.lookup("verification", &id)?;
+    let verification_job: VerificationJobConfig = config.lookup("verification", &id)?;
 
     let required_privs = PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_VERIFY;
     user_info.check_privs(&auth_id, &["datastore", &verification_job.store], required_privs, true)?;
@@ -239,7 +244,7 @@ pub fn update_verification_job(
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 
-    let mut data: verify::VerificationJobConfig = config.lookup("verification", &id)?;
+    let mut data: VerificationJobConfig = config.lookup("verification", &id)?;
 
     // check existing store
     user_info.check_privs(&auth_id, &["datastore", &data.store], PRIV_DATASTORE_VERIFY, true)?;
@@ -318,7 +323,7 @@ pub fn delete_verification_job(
 
     let (mut config, expected_digest) = verify::config()?;
 
-    let job: verify::VerificationJobConfig = config.lookup("verification", &id)?;
+    let job: VerificationJobConfig = config.lookup("verification", &id)?;
     user_info.check_privs(&auth_id, &["datastore", &job.store], PRIV_DATASTORE_VERIFY, true)?;
 
     if let Some(ref digest) = digest {

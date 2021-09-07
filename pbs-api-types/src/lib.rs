@@ -34,6 +34,9 @@ macro_rules! SNAPSHOT_PATH_REGEX_STR {
     );
 }
 
+mod jobs;
+pub use jobs::*;
+
 mod key_derivation;
 pub use key_derivation::{Kdf, KeyInfo};
 
@@ -667,3 +670,33 @@ pub const NODE_TASKS_LIST_TASKS_RETURN_TYPE: ReturnType = ReturnType {
         &TaskListItem::API_SCHEMA,
     ).schema(),
 };
+
+#[api()]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+/// Describes a package for which an update is available.
+pub struct APTUpdateInfo {
+    /// Package name
+    pub package: String,
+    /// Package title
+    pub title: String,
+    /// Package architecture
+    pub arch: String,
+    /// Human readable package description
+    pub description: String,
+    /// New version to be updated to
+    pub version: String,
+    /// Old version currently installed
+    pub old_version: String,
+    /// Package origin
+    pub origin: String,
+    /// Package priority in human-readable form
+    pub priority: String,
+    /// Package section
+    pub section: String,
+    /// URL under which the package's changelog can be retrieved
+    pub change_log_url: String,
+    /// Custom extra field for additional package information
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub extra_info: Option<String>,
+}
