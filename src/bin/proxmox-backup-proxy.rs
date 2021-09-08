@@ -521,7 +521,7 @@ async fn schedule_datastore_prune() {
 async fn schedule_datastore_sync_jobs() {
 
 
-    let config = match proxmox_backup::config::sync::config() {
+    let config = match pbs_config::sync::config() {
         Err(err) => {
             eprintln!("unable to read sync job config - {}", err);
             return;

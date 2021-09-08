@@ -8,6 +8,7 @@ use proxmox::api::router::SubdirMap;
 use proxmox::{list_subdirs_api_method, sortable};
 
 use pbs_api_types::{DATASTORE_SCHEMA, JOB_ID_SCHEMA, Authid, SyncJobConfig, SyncJobStatus};
+use pbs_config::sync;
 
 use crate::{
     api2::{
@@ -19,7 +20,6 @@ use crate::{
     },
     config::{
         cached_user_info::CachedUserInfo,
-        sync,
     },
     server::{
         jobstate::{

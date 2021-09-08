@@ -13,6 +13,8 @@ use proxmox::api::{
 
 use pbs_api_types::{JOB_ID_SCHEMA, SyncJobConfig};
 
+use crate::{open_backup_lockfile, replace_backup_config, BackupLockGuard};
+
 lazy_static! {
     pub static ref CONFIG: SectionConfig = init();
 }
@@ -34,6 +36,11 @@ fn init() -> SectionConfig {
 pub const SYNC_CFG_FILENAME: &str = "/etc/proxmox-backup/sync.cfg";
 pub const SYNC_CFG_LOCKFILE: &str = "/etc/proxmox-backup/.sync.lck";
 
+/// Get exclusive lock
+pub fn lock_config() -> Result<BackupLockGuard, Error> {
+    open_backup_lockfile(SYNC_CFG_LOCKFILE, None, true)
+}
+
 pub fn config() -> Result<(SectionConfigData, [u8;32]), Error> {
 
     let content = proxmox::tools::fs::file_read_optional_string(SYNC_CFG_FILENAME)?
@@ -46,7 +53,7 @@ pub fn config() -> Result<(SectionConfigData, [u8;32]), Error> {
 
 pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
     let raw = CONFIG.write(SYNC_CFG_FILENAME, &config)?;
-    pbs_config::replace_backup_config(SYNC_CFG_FILENAME, raw.as_bytes())
+    replace_backup_config(SYNC_CFG_FILENAME, raw.as_bytes())
 }
 
 // shell completion helper

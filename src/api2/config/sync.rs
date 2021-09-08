@@ -9,6 +9,7 @@ use pbs_api_types::{
     SINGLE_LINE_COMMENT_SCHEMA, JOB_ID_SCHEMA, REMOTE_ID_SCHEMA, DATASTORE_SCHEMA,
     REMOVE_VANISHED_BACKUPS_SCHEMA, SYNC_SCHEDULE_SCHEMA, PROXMOX_CONFIG_DIGEST_SCHEMA,
 };
+use pbs_config::sync;
 
 use crate::config::acl::{
     PRIV_DATASTORE_AUDIT,
@@ -19,8 +20,7 @@ use crate::config::acl::{
     PRIV_REMOTE_READ,
 };
 
-use crate::config::{sync, cached_user_info::CachedUserInfo};
-use pbs_config::open_backup_lockfile;
+use crate::config::cached_user_info::CachedUserInfo;
 
 pub fn check_sync_job_read_access(
     user_info: &CachedUserInfo,
@@ -155,7 +155,7 @@ pub fn create_sync_job(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
 
-    let _lock = open_backup_lockfile(sync::SYNC_CFG_LOCKFILE, None, true)?;
+    let _lock = sync::lock_config()?;
 
     let sync_job: SyncJobConfig = serde_json::from_value(param)?;
     if !check_sync_job_modify_access(&user_info, &auth_id, &sync_job) {
@@ -299,7 +299,7 @@ pub fn update_sync_job(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
 
-    let _lock = open_backup_lockfile(sync::SYNC_CFG_LOCKFILE, None, true)?;
+    let _lock = sync::lock_config()?;
 
     // pass/compare digest
     let (mut config, expected_digest) = sync::config()?;
@@ -382,7 +382,7 @@ pub fn delete_sync_job(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
 
-    let _lock = open_backup_lockfile(sync::SYNC_CFG_LOCKFILE, None, true)?;
+    let _lock = sync::lock_config()?;
 
     let (mut config, expected_digest) = sync::config()?;
 

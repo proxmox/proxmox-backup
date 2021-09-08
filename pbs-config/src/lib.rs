@@ -3,6 +3,7 @@ pub mod drive;
 pub mod key_config;
 pub mod media_pool;
 pub mod remote;
+pub mod sync;
 pub mod tape_encryption_keys;
 pub mod tape_job;
 

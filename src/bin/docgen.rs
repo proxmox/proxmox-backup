@@ -59,7 +59,7 @@ fn main() -> Result<(), Error> {
             "tape-job.cfg" => dump_section_config(&pbs_config::tape_job::CONFIG),
             "user.cfg" => dump_section_config(&config::user::CONFIG),
             "remote.cfg" => dump_section_config(&pbs_config::remote::CONFIG),
-            "sync.cfg" => dump_section_config(&config::sync::CONFIG),
+            "sync.cfg" => dump_section_config(&pbs_config::sync::CONFIG),
             "verification.cfg" => dump_section_config(&config::verify::CONFIG),
             "media-pool.cfg" => dump_section_config(&pbs_config::media_pool::CONFIG),
             "config::acl::Role" => dump_enum_properties(&config::acl::Role::API_SCHEMA)?,

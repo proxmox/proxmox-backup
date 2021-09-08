@@ -20,7 +20,6 @@ pub mod cached_user_info;
 pub mod datastore;
 pub mod network;
 pub mod node;
-pub mod sync;
 pub mod tfa;
 pub mod token_shadow;
 pub mod user;
