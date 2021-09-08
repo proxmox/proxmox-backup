@@ -17,7 +17,9 @@ pub use lexer::*;
 mod parser;
 pub use parser::*;
 
-use crate::api2::types::{Interface, NetworkConfigMethod, NetworkInterfaceType, LinuxBondMode, BondXmitHashPolicy};
+use pbs_api_types::{Interface, NetworkConfigMethod, NetworkInterfaceType, LinuxBondMode, BondXmitHashPolicy};
+
+use crate::{open_backup_lockfile, BackupLockGuard};
 
 lazy_static!{
     static ref PHYSICAL_NIC_REGEX: Regex = Regex::new(r"^(?:eth\d+|en[^:.]+|ib\d+)$").unwrap();
@@ -57,258 +59,150 @@ pub fn bond_xmit_hash_policy_to_str(policy: &BondXmitHashPolicy) -> &'static str
     }
 }
 
-impl Interface {
+// Write attributes not depending on address family
+fn write_iface_attributes(iface: &Interface, w: &mut dyn Write) -> Result<(), Error> {
 
-    pub fn new(name: String) -> Self {
-        Self {
-            name,
-            interface_type: NetworkInterfaceType::Unknown,
-            autostart: false,
-            active: false,
-            method: None,
-            method6: None,
-            cidr: None,
-            gateway: None,
-            cidr6: None,
-            gateway6: None,
-            options: Vec::new(),
-            options6: Vec::new(),
-            comments: None,
-            comments6: None,
-            mtu: None,
-            bridge_ports: None,
-            bridge_vlan_aware: None,
-            slaves: None,
-            bond_mode: None,
-            bond_primary: None,
-            bond_xmit_hash_policy: None,
+    static EMPTY_LIST: Vec<String> = Vec::new();
+
+    match iface.interface_type {
+        NetworkInterfaceType::Bridge => {
+            if let Some(true) = iface.bridge_vlan_aware {
+                writeln!(w, "\tbridge-vlan-aware yes")?;
+            }
+            let ports = iface.bridge_ports.as_ref().unwrap_or(&EMPTY_LIST);
+            if ports.is_empty() {
+                writeln!(w, "\tbridge-ports none")?;
+            } else {
+                writeln!(w, "\tbridge-ports {}", ports.join(" "))?;
+            }
         }
-    }
-
-    fn set_method_v4(&mut self, method: NetworkConfigMethod) -> Result<(), Error> {
-        if self.method.is_none() {
-            self.method = Some(method);
-        } else {
-            bail!("inet configuration method already set.");
-        }
-        Ok(())
-    }
-
-    fn set_method_v6(&mut self, method: NetworkConfigMethod) -> Result<(), Error> {
-        if self.method6.is_none() {
-            self.method6 = Some(method);
-        } else {
-            bail!("inet6 configuration method already set.");
-        }
-        Ok(())
-    }
-
-    fn set_cidr_v4(&mut self, address: String) -> Result<(), Error> {
-        if self.cidr.is_none() {
-            self.cidr = Some(address);
-        } else {
-            bail!("duplicate IPv4 address.");
-        }
-        Ok(())
-    }
-
-    fn set_gateway_v4(&mut self, gateway: String) -> Result<(), Error> {
-        if self.gateway.is_none() {
-            self.gateway = Some(gateway);
-        } else {
-            bail!("duplicate IPv4 gateway.");
-        }
-        Ok(())
-    }
-
-    fn set_cidr_v6(&mut self, address: String) -> Result<(), Error> {
-        if self.cidr6.is_none() {
-            self.cidr6 = Some(address);
-        } else {
-            bail!("duplicate IPv6 address.");
-        }
-        Ok(())
-    }
-
-    fn set_gateway_v6(&mut self, gateway: String) -> Result<(), Error> {
-        if self.gateway6.is_none() {
-            self.gateway6 = Some(gateway);
-        } else {
-            bail!("duplicate IPv4 gateway.");
-        }
-        Ok(())
-    }
-
-    fn set_interface_type(&mut self, interface_type: NetworkInterfaceType) -> Result<(), Error> {
-        if self.interface_type == NetworkInterfaceType::Unknown {
-            self.interface_type = interface_type;
-        } else if self.interface_type != interface_type {
-            bail!("interface type already defined - cannot change from {:?} to {:?}", self.interface_type, interface_type);
-        }
-        Ok(())
-    }
-
-    pub(crate) fn set_bridge_ports(&mut self, ports: Vec<String>) -> Result<(), Error> {
-        if self.interface_type != NetworkInterfaceType::Bridge {
-            bail!("interface '{}' is no bridge (type is {:?})", self.name, self.interface_type);
-        }
-        self.bridge_ports = Some(ports);
-        Ok(())
-    }
-
-    pub(crate) fn set_bond_slaves(&mut self, slaves: Vec<String>) -> Result<(), Error> {
-        if self.interface_type != NetworkInterfaceType::Bond {
-            bail!("interface '{}' is no bond (type is {:?})", self.name, self.interface_type);
-        }
-        self.slaves = Some(slaves);
-        Ok(())
-    }
-
-    /// Write attributes not depending on address family
-    fn write_iface_attributes(&self, w: &mut dyn Write) -> Result<(), Error> {
-
-        static EMPTY_LIST: Vec<String> = Vec::new();
-
-        match self.interface_type {
-            NetworkInterfaceType::Bridge => {
-                if let Some(true) = self.bridge_vlan_aware {
-                    writeln!(w, "\tbridge-vlan-aware yes")?;
-                }
-                let ports = self.bridge_ports.as_ref().unwrap_or(&EMPTY_LIST);
-                if ports.is_empty() {
-                    writeln!(w, "\tbridge-ports none")?;
-                } else {
-                    writeln!(w, "\tbridge-ports {}", ports.join(" "))?;
+        NetworkInterfaceType::Bond => {
+            let mode = iface.bond_mode.unwrap_or(LinuxBondMode::balance_rr);
+            writeln!(w, "\tbond-mode {}", bond_mode_to_str(mode))?;
+            if let Some(primary) = &iface.bond_primary {
+                if mode == LinuxBondMode::active_backup {
+                    writeln!(w, "\tbond-primary {}", primary)?;
                 }
             }
-            NetworkInterfaceType::Bond => {
-                let mode = self.bond_mode.unwrap_or(LinuxBondMode::balance_rr);
-                writeln!(w, "\tbond-mode {}", bond_mode_to_str(mode))?;
-                if let Some(primary) = &self.bond_primary {
-                    if mode == LinuxBondMode::active_backup {
-                        writeln!(w, "\tbond-primary {}", primary)?;
-                    }
-                }
 
-                if let Some(xmit_policy) = &self.bond_xmit_hash_policy {
-                    if mode == LinuxBondMode::ieee802_3ad ||
-                       mode == LinuxBondMode::balance_xor
-                    {
-                        writeln!(w, "\tbond_xmit_hash_policy {}", bond_xmit_hash_policy_to_str(xmit_policy))?;
-                    }
-                }
-
-                let slaves = self.slaves.as_ref().unwrap_or(&EMPTY_LIST);
-                if slaves.is_empty() {
-                    writeln!(w, "\tbond-slaves none")?;
-                } else {
-                    writeln!(w, "\tbond-slaves {}", slaves.join(" "))?;
+            if let Some(xmit_policy) = &iface.bond_xmit_hash_policy {
+                if mode == LinuxBondMode::ieee802_3ad ||
+                    mode == LinuxBondMode::balance_xor
+                {
+                    writeln!(w, "\tbond_xmit_hash_policy {}", bond_xmit_hash_policy_to_str(xmit_policy))?;
                 }
             }
-            _ => {}
-        }
 
-        if let Some(mtu) = self.mtu {
-            writeln!(w, "\tmtu {}", mtu)?;
+            let slaves = iface.slaves.as_ref().unwrap_or(&EMPTY_LIST);
+            if slaves.is_empty() {
+                writeln!(w, "\tbond-slaves none")?;
+            } else {
+                writeln!(w, "\tbond-slaves {}", slaves.join(" "))?;
+            }
         }
-
-        Ok(())
+        _ => {}
     }
 
-    /// Write attributes depending on address family inet (IPv4)
-    fn write_iface_attributes_v4(&self, w: &mut dyn Write, method: NetworkConfigMethod) -> Result<(), Error> {
-        if method == NetworkConfigMethod::Static {
-            if let Some(address) = &self.cidr {
-                writeln!(w, "\taddress {}", address)?;
-            }
-            if let Some(gateway) = &self.gateway {
-                writeln!(w, "\tgateway {}", gateway)?;
-            }
-        }
-
-        for option in &self.options {
-            writeln!(w, "\t{}", option)?;
-        }
-
-        if let Some(ref comments) = self.comments {
-            for comment in comments.lines() {
-                writeln!(w, "#{}", comment)?;
-            }
-        }
-
-        Ok(())
+    if let Some(mtu) = iface.mtu {
+        writeln!(w, "\tmtu {}", mtu)?;
     }
 
-    /// Write attributes depending on address family inet6 (IPv6)
-    fn write_iface_attributes_v6(&self, w: &mut dyn Write, method: NetworkConfigMethod) -> Result<(), Error> {
-        if method == NetworkConfigMethod::Static {
-            if let Some(address) = &self.cidr6 {
-                writeln!(w, "\taddress {}", address)?;
-            }
-            if let Some(gateway) = &self.gateway6 {
-                writeln!(w, "\tgateway {}", gateway)?;
-            }
-        }
+    Ok(())
+}
 
-        for option in &self.options6 {
-            writeln!(w, "\t{}", option)?;
+// Write attributes depending on address family inet (IPv4)
+fn write_iface_attributes_v4(iface: &Interface, w: &mut dyn Write, method: NetworkConfigMethod) -> Result<(), Error> {
+    if method == NetworkConfigMethod::Static {
+        if let Some(address) = &iface.cidr {
+            writeln!(w, "\taddress {}", address)?;
         }
-
-        if let Some(ref comments) = self.comments6 {
-            for comment in comments.lines() {
-                writeln!(w, "#{}", comment)?;
-            }
+        if let Some(gateway) = &iface.gateway {
+            writeln!(w, "\tgateway {}", gateway)?;
         }
-
-        Ok(())
     }
 
-    fn write_iface(&self, w: &mut dyn Write) -> Result<(), Error> {
+    for option in &iface.options {
+        writeln!(w, "\t{}", option)?;
+    }
 
-        fn method_to_str(method: NetworkConfigMethod) -> &'static str {
-            match method {
-                NetworkConfigMethod::Static => "static",
-                NetworkConfigMethod::Loopback => "loopback",
-                NetworkConfigMethod::Manual => "manual",
-                NetworkConfigMethod::DHCP => "dhcp",
+    if let Some(ref comments) = iface.comments {
+        for comment in comments.lines() {
+            writeln!(w, "#{}", comment)?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Write attributes depending on address family inet6 (IPv6)
+fn write_iface_attributes_v6(iface: &Interface, w: &mut dyn Write, method: NetworkConfigMethod) -> Result<(), Error> {
+    if method == NetworkConfigMethod::Static {
+        if let Some(address) = &iface.cidr6 {
+            writeln!(w, "\taddress {}", address)?;
+        }
+        if let Some(gateway) = &iface.gateway6 {
+            writeln!(w, "\tgateway {}", gateway)?;
+        }
+    }
+
+    for option in &iface.options6 {
+        writeln!(w, "\t{}", option)?;
+    }
+
+    if let Some(ref comments) = iface.comments6 {
+        for comment in comments.lines() {
+            writeln!(w, "#{}", comment)?;
+        }
+    }
+
+    Ok(())
+}
+
+fn write_iface(iface: &Interface, w: &mut dyn Write) -> Result<(), Error> {
+
+    fn method_to_str(method: NetworkConfigMethod) -> &'static str {
+        match method {
+            NetworkConfigMethod::Static => "static",
+            NetworkConfigMethod::Loopback => "loopback",
+            NetworkConfigMethod::Manual => "manual",
+            NetworkConfigMethod::DHCP => "dhcp",
+        }
+    }
+
+    if iface.method.is_none() && iface.method6.is_none() { return Ok(()); }
+
+    if iface.autostart {
+        writeln!(w, "auto {}", iface.name)?;
+    }
+
+    if let Some(method) = iface.method {
+        writeln!(w, "iface {} inet {}", iface.name, method_to_str(method))?;
+        write_iface_attributes_v4(iface, w, method)?;
+        write_iface_attributes(iface, w)?;
+        writeln!(w)?;
+    }
+
+    if let Some(method6) = iface.method6 {
+        let mut skip_v6 = false; // avoid empty inet6 manual entry
+        if iface.method.is_some()
+            && method6 == NetworkConfigMethod::Manual
+            && iface.comments6.is_none()
+            && iface.options6.is_empty()
+        {
+            skip_v6 = true;
+        }
+
+        if !skip_v6 {
+            writeln!(w, "iface {} inet6 {}", iface.name, method_to_str(method6))?;
+            write_iface_attributes_v6(iface, w, method6)?;
+            if iface.method.is_none() { // only write common attributes once
+                write_iface_attributes(iface, w)?;
             }
-        }
-
-        if self.method.is_none() && self.method6.is_none() { return Ok(()); }
-
-        if self.autostart {
-            writeln!(w, "auto {}", self.name)?;
-        }
-
-        if let Some(method) = self.method {
-            writeln!(w, "iface {} inet {}", self.name, method_to_str(method))?;
-            self.write_iface_attributes_v4(w, method)?;
-            self.write_iface_attributes(w)?;
             writeln!(w)?;
         }
-
-        if let Some(method6) = self.method6 {
-            let mut skip_v6 = false; // avoid empty inet6 manual entry
-            if self.method.is_some()
-                && method6 == NetworkConfigMethod::Manual
-                && self.comments6.is_none()
-                && self.options6.is_empty()
-            {
-                skip_v6 = true;
-            }
-
-            if !skip_v6 {
-                writeln!(w, "iface {} inet6 {}", self.name, method_to_str(method6))?;
-                self.write_iface_attributes_v6(w, method6)?;
-                if self.method.is_none() { // only write common attributes once
-                    self.write_iface_attributes(w)?;
-                }
-                writeln!(w)?;
-            }
-        }
-
-        Ok(())
     }
+
+    Ok(())
 }
 
 #[derive(Debug)]
@@ -492,14 +386,14 @@ impl NetworkConfig {
                     if done.contains(name) { continue; }
                     done.insert(name);
 
-                    interface.write_iface(w)?;
+                    write_iface(interface, w)?;
                 }
             }
         }
 
         for (name, interface) in &self.interfaces {
             if done.contains(name) { continue; }
-            interface.write_iface(w)?;
+            write_iface(interface, w)?;
         }
         Ok(())
     }
@@ -508,6 +402,10 @@ impl NetworkConfig {
 pub const NETWORK_INTERFACES_FILENAME: &str = "/etc/network/interfaces";
 pub const NETWORK_INTERFACES_NEW_FILENAME: &str = "/etc/network/interfaces.new";
 pub const NETWORK_LOCKFILE: &str = "/var/lock/pve-network.lck";
+
+pub fn lock_config() -> Result<BackupLockGuard, Error> {
+    open_backup_lockfile(NETWORK_LOCKFILE, None, true)
+}
 
 pub fn config() -> Result<(NetworkConfig, [u8;32]), Error> {
 

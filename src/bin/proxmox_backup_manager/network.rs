@@ -3,7 +3,6 @@ use serde_json::Value;
 
 use proxmox::api::{api, cli::*, RpcEnvironment, ApiHandler};
 
-use proxmox_backup::config;
 use proxmox_backup::api2;
 
 #[api(
@@ -127,25 +126,25 @@ pub fn network_commands() -> CommandLineInterface {
             CliCommand::new(&api2::node::network::API_METHOD_CREATE_INTERFACE)
                 .fixed_param("node", String::from("localhost"))
                 .arg_param(&["iface"])
-                .completion_cb("iface", config::network::complete_interface_name)
-                .completion_cb("bridge_ports", config::network::complete_port_list)
-                .completion_cb("slaves", config::network::complete_port_list)
+                .completion_cb("iface", pbs_config::network::complete_interface_name)
+                .completion_cb("bridge_ports", pbs_config::network::complete_port_list)
+                .completion_cb("slaves", pbs_config::network::complete_port_list)
         )
         .insert(
             "update",
             CliCommand::new(&api2::node::network::API_METHOD_UPDATE_INTERFACE)
                 .fixed_param("node", String::from("localhost"))
                 .arg_param(&["iface"])
-                .completion_cb("iface", config::network::complete_interface_name)
-                .completion_cb("bridge_ports", config::network::complete_port_list)
-                .completion_cb("slaves", config::network::complete_port_list)
+                .completion_cb("iface", pbs_config::network::complete_interface_name)
+                .completion_cb("bridge_ports", pbs_config::network::complete_port_list)
+                .completion_cb("slaves", pbs_config::network::complete_port_list)
         )
         .insert(
             "remove",
             CliCommand::new(&api2::node::network::API_METHOD_DELETE_INTERFACE)
                 .fixed_param("node", String::from("localhost"))
                 .arg_param(&["iface"])
-                .completion_cb("iface", config::network::complete_interface_name)
+                .completion_cb("iface", pbs_config::network::complete_interface_name)
         )
         .insert(
             "revert",

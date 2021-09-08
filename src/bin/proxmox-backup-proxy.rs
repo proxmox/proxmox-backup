@@ -794,7 +794,7 @@ async fn generate_host_stats(save: bool) {
 
         match read_proc_net_dev() {
             Ok(netdev) => {
-                use proxmox_backup::config::network::is_physical_nic;
+                use pbs_config::network::is_physical_nic;
                 let mut netin = 0;
                 let mut netout = 0;
                 for item in netdev {

@@ -11,6 +11,69 @@ use super::lexer::*;
 
 use super::{NetworkConfig, NetworkOrderEntry, Interface, NetworkConfigMethod, NetworkInterfaceType, bond_mode_from_str, bond_xmit_hash_policy_from_str};
 
+fn set_method_v4(iface: &mut Interface, method: NetworkConfigMethod) -> Result<(), Error> {
+    if iface.method.is_none() {
+        iface.method = Some(method);
+    } else {
+        bail!("inet configuration method already set.");
+    }
+    Ok(())
+}
+
+fn set_method_v6(iface: &mut Interface, method: NetworkConfigMethod) -> Result<(), Error> {
+    if iface.method6.is_none() {
+        iface.method6 = Some(method);
+    } else {
+        bail!("inet6 configuration method already set.");
+    }
+    Ok(())
+}
+
+fn set_cidr_v4(iface: &mut Interface, address: String) -> Result<(), Error> {
+    if iface.cidr.is_none() {
+        iface.cidr = Some(address);
+    } else {
+        bail!("duplicate IPv4 address.");
+    }
+    Ok(())
+}
+
+fn set_gateway_v4(iface: &mut Interface, gateway: String) -> Result<(), Error> {
+    if iface.gateway.is_none() {
+        iface.gateway = Some(gateway);
+    } else {
+        bail!("duplicate IPv4 gateway.");
+    }
+    Ok(())
+}
+
+fn set_cidr_v6(iface: &mut Interface, address: String) -> Result<(), Error> {
+    if iface.cidr6.is_none() {
+        iface.cidr6 = Some(address);
+    } else {
+        bail!("duplicate IPv6 address.");
+    }
+    Ok(())
+}
+
+fn set_gateway_v6(iface: &mut Interface, gateway: String) -> Result<(), Error> {
+    if iface.gateway6.is_none() {
+        iface.gateway6 = Some(gateway);
+    } else {
+        bail!("duplicate IPv4 gateway.");
+    }
+    Ok(())
+}
+
+fn set_interface_type(iface: &mut Interface, interface_type: NetworkInterfaceType) -> Result<(), Error> {
+    if iface.interface_type == NetworkInterfaceType::Unknown {
+        iface.interface_type = interface_type;
+    } else if iface.interface_type != interface_type {
+        bail!("interface type already defined - cannot change from {:?} to {:?}", iface.interface_type, interface_type);
+    }
+    Ok(())
+}
+
 pub struct NetworkParser<R: BufRead> {
     input: Peekable<Lexer<R>>,
     line_nr: usize,
@@ -123,9 +186,9 @@ impl <R: BufRead> NetworkParser<R> {
 
         if proxmox::tools::common_regex::IP_REGEX.is_match(&gateway) {
             if gateway.contains(':') {
-                interface.set_gateway_v6(gateway)?;
+                set_gateway_v6(interface, gateway)?;
             } else {
-                interface.set_gateway_v4(gateway)?;
+                set_gateway_v4(interface, gateway)?;
             }
         } else {
             bail!("unable to parse gateway address");
@@ -254,13 +317,13 @@ impl <R: BufRead> NetworkParser<R> {
                     self.eat(Token::BridgePorts)?;
                     let ports = self.parse_iface_list()?;
                     interface.bridge_ports = Some(ports);
-                    interface.set_interface_type(NetworkInterfaceType::Bridge)?;
+                    set_interface_type(interface, NetworkInterfaceType::Bridge)?;
                 }
                 Token::BondSlaves => {
                     self.eat(Token::BondSlaves)?;
                     let slaves = self.parse_iface_list()?;
                     interface.slaves = Some(slaves);
-                    interface.set_interface_type(NetworkInterfaceType::Bond)?;
+                    set_interface_type(interface, NetworkInterfaceType::Bond)?;
                 }
                 Token::BondMode => {
                     self.eat(Token::BondMode)?;
@@ -306,9 +369,9 @@ impl <R: BufRead> NetworkParser<R> {
                     cidr.push_str(&format!("/{}", netmask));
                 }
                 if is_v6 {
-                    interface.set_cidr_v6(cidr)?;
+                    set_cidr_v6(interface, cidr)?;
                 } else {
-                    interface.set_cidr_v4(cidr)?;
+                    set_cidr_v4(interface, cidr)?;
                 }
             } else {
                 // no address - simply ignore useless netmask
@@ -319,9 +382,9 @@ impl <R: BufRead> NetworkParser<R> {
                     bail!("missing netmask in '{}'", cidr);
                 }
                 if is_v6 {
-                    interface.set_cidr_v6(cidr)?;
+                    set_cidr_v6(interface, cidr)?;
                 } else {
-                    interface.set_cidr_v4(cidr)?;
+                    set_cidr_v4(interface, cidr)?;
                 }
             }
         }
@@ -360,20 +423,20 @@ impl <R: BufRead> NetworkParser<R> {
 
         if let Some(mut interface) = config.interfaces.get_mut(&iface) {
             if address_family_v4 {
-                interface.set_method_v4(config_method)?;
+                set_method_v4(interface, config_method)?;
             }
             if address_family_v6 {
-                interface.set_method_v6(config_method)?;
+                set_method_v6(interface, config_method)?;
             }
 
             self.parse_iface_attributes(&mut interface, address_family_v4, address_family_v6)?;
         } else {
             let mut interface = Interface::new(iface.clone());
             if address_family_v4 {
-                interface.set_method_v4(config_method)?;
+                set_method_v4(&mut interface, config_method)?;
             }
             if address_family_v6 {
-                interface.set_method_v6(config_method)?;
+                set_method_v6(&mut interface, config_method)?;
             }
 
             self.parse_iface_attributes(&mut interface, address_family_v4, address_family_v6)?;
@@ -445,7 +508,7 @@ impl <R: BufRead> NetworkParser<R> {
                     }
                 } else if super::is_physical_nic(iface) { // also add all physical NICs
                     let mut interface = Interface::new(iface.clone());
-                    interface.set_method_v4(NetworkConfigMethod::Manual)?;
+                    set_method_v4(&mut interface, NetworkConfigMethod::Manual)?;
                     interface.interface_type = NetworkInterfaceType::Eth;
                     interface.active = *active;
                     config.interfaces.insert(interface.name.clone(), interface);
@@ -476,7 +539,7 @@ impl <R: BufRead> NetworkParser<R> {
 
         if config.interfaces.get("lo").is_none() {
             let mut interface = Interface::new(String::from("lo"));
-            interface.set_method_v4(NetworkConfigMethod::Loopback)?;
+            set_method_v4(&mut interface, NetworkConfigMethod::Loopback)?;
             interface.interface_type = NetworkInterfaceType::Loopback;
             interface.autostart = true;
             config.interfaces.insert(interface.name.clone(), interface);

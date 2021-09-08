@@ -40,6 +40,9 @@ pub use jobs::*;
 mod key_derivation;
 pub use key_derivation::{Kdf, KeyInfo};
 
+mod network;
+pub use network::*;
+
 #[macro_use]
 mod userid;
 pub use userid::Authid;

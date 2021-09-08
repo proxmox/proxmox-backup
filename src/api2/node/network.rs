@@ -5,11 +5,16 @@ use ::serde::{Deserialize, Serialize};
 use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};
 use proxmox::api::schema::parse_property_string;
 
-use crate::config::network::{self, NetworkConfig};
+use pbs_api_types::{
+    Authid, Interface, NetworkInterfaceType, LinuxBondMode, NetworkConfigMethod, BondXmitHashPolicy,
+    NETWORK_INTERFACE_ARRAY_SCHEMA, NETWORK_INTERFACE_LIST_SCHEMA, NETWORK_INTERFACE_NAME_SCHEMA,
+    CIDR_V4_SCHEMA, CIDR_V6_SCHEMA, IP_V4_SCHEMA, IP_V6_SCHEMA, PROXMOX_CONFIG_DIGEST_SCHEMA,
+};
+use pbs_config::network::{self, NetworkConfig};
+
 use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
-use crate::api2::types::*;
 use crate::server::{WorkerTask};
-use pbs_config::open_backup_lockfile;
+use crate::api2::types::NODE_SCHEMA;
 
 fn split_interface_list(list: &str) -> Result<Vec<String>, Error> {
     let value = parse_property_string(&list, &NETWORK_INTERFACE_ARRAY_SCHEMA)?;
@@ -41,6 +46,23 @@ fn check_duplicate_gateway_v6(config: &NetworkConfig, iface: &str) -> Result<(),
             bail!("Default IPv6 gateway already exists on interface '{}'", current_gateway_v6);
         }
     }
+    Ok(())
+}
+
+
+fn set_bridge_ports(iface: &mut Interface, ports: Vec<String>) -> Result<(), Error> {
+    if iface.interface_type != NetworkInterfaceType::Bridge {
+        bail!("interface '{}' is no bridge (type is {:?})", iface.name, iface.interface_type);
+    }
+    iface.bridge_ports = Some(ports);
+    Ok(())
+}
+
+fn set_bond_slaves(iface: &mut Interface, slaves: Vec<String>) -> Result<(), Error> {
+    if iface.interface_type != NetworkInterfaceType::Bond {
+        bail!("interface '{}' is no bond (type is {:?})", iface.name, iface.interface_type);
+    }
+    iface.slaves = Some(slaves);
     Ok(())
 }
 
@@ -238,7 +260,7 @@ pub fn create_interface(
     let interface_type = pbs_tools::json::required_string_param(&param, "type")?;
     let interface_type: NetworkInterfaceType = serde_json::from_value(interface_type.into())?;
 
-    let _lock = open_backup_lockfile(network::NETWORK_LOCKFILE, None, true)?;
+    let _lock = network::lock_config()?;
 
     let (mut config, _digest) = network::config()?;
 
@@ -286,7 +308,7 @@ pub fn create_interface(
         NetworkInterfaceType::Bridge => {
             if let Some(ports) = bridge_ports {
                 let ports = split_interface_list(&ports)?;
-                interface.set_bridge_ports(ports)?;
+                set_bridge_ports(&mut interface, ports)?;
             }
             if bridge_vlan_aware.is_some() { interface.bridge_vlan_aware = bridge_vlan_aware; }
         }
@@ -310,7 +332,7 @@ pub fn create_interface(
             }
             if let Some(slaves) = slaves {
                 let slaves = split_interface_list(&slaves)?;
-                interface.set_bond_slaves(slaves)?;
+                set_bond_slaves(&mut interface, slaves)?;
             }
         }
         _ => bail!("creating network interface type '{:?}' is not supported", interface_type),
@@ -502,7 +524,7 @@ pub fn update_interface(
     param: Value,
 ) -> Result<(), Error> {
 
-    let _lock = open_backup_lockfile(network::NETWORK_LOCKFILE, None, true)?;
+    let _lock = network::lock_config()?;
 
     let (mut config, expected_digest) = network::config()?;
 
@@ -536,9 +558,9 @@ pub fn update_interface(
                 DeletableProperty::comments6 => { interface.comments6 = None; },
                 DeletableProperty::mtu => { interface.mtu = None; },
                 DeletableProperty::autostart => { interface.autostart = false; },
-                DeletableProperty::bridge_ports => { interface.set_bridge_ports(Vec::new())?; }
+                DeletableProperty::bridge_ports => { set_bridge_ports(interface, Vec::new())?; }
                 DeletableProperty::bridge_vlan_aware => { interface.bridge_vlan_aware = None; }
-                DeletableProperty::slaves => { interface.set_bond_slaves(Vec::new())?; }
+                DeletableProperty::slaves => { set_bond_slaves(interface, Vec::new())?; }
                 DeletableProperty::bond_primary => { interface.bond_primary = None; }
                 DeletableProperty::bond_xmit_hash_policy => { interface.bond_xmit_hash_policy = None }
             }
@@ -551,12 +573,12 @@ pub fn update_interface(
     if mtu.is_some() { interface.mtu = mtu; }
     if let Some(ports) = bridge_ports {
         let ports = split_interface_list(&ports)?;
-        interface.set_bridge_ports(ports)?;
+        set_bridge_ports(interface, ports)?;
     }
     if bridge_vlan_aware.is_some() { interface.bridge_vlan_aware = bridge_vlan_aware; }
     if let Some(slaves) = slaves {
         let slaves = split_interface_list(&slaves)?;
-        interface.set_bond_slaves(slaves)?;
+        set_bond_slaves(interface, slaves)?;
     }
     if let Some(mode) = bond_mode {
         interface.bond_mode = bond_mode;
@@ -642,7 +664,7 @@ pub fn update_interface(
 )]
 /// Remove network interface configuration.
 pub fn delete_interface(iface: String, digest: Option<String>) -> Result<(), Error> {
-    let _lock = open_backup_lockfile(network::NETWORK_LOCKFILE, None, true)?;
+    let _lock = network::lock_config()?;
 
     let (mut config, expected_digest) = network::config()?;
 

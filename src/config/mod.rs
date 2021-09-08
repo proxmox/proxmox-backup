@@ -18,7 +18,6 @@ pub mod acl;
 pub mod acme;
 pub mod cached_user_info;
 pub mod datastore;
-pub mod network;
 pub mod node;
 pub mod tfa;
 pub mod token_shadow;
