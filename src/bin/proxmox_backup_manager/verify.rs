@@ -77,19 +77,19 @@ pub fn verify_job_commands() -> CommandLineInterface {
         .insert("show",
                 CliCommand::new(&API_METHOD_SHOW_VERIFICATION_JOB)
                 .arg_param(&["id"])
-                .completion_cb("id", config::verify::complete_verification_job_id)
+                .completion_cb("id", pbs_config::verify::complete_verification_job_id)
         )
         .insert("create",
                 CliCommand::new(&api2::config::verify::API_METHOD_CREATE_VERIFICATION_JOB)
                 .arg_param(&["id"])
-                .completion_cb("id", config::verify::complete_verification_job_id)
+                .completion_cb("id", pbs_config::verify::complete_verification_job_id)
                 .completion_cb("schedule", config::datastore::complete_calendar_event)
                 .completion_cb("store", config::datastore::complete_datastore_name)
         )
         .insert("update",
                 CliCommand::new(&api2::config::verify::API_METHOD_UPDATE_VERIFICATION_JOB)
                 .arg_param(&["id"])
-                .completion_cb("id", config::verify::complete_verification_job_id)
+                .completion_cb("id", pbs_config::verify::complete_verification_job_id)
                 .completion_cb("schedule", config::datastore::complete_calendar_event)
                 .completion_cb("store", config::datastore::complete_datastore_name)
                 .completion_cb("remote-store", crate::complete_remote_datastore_name)
@@ -97,7 +97,7 @@ pub fn verify_job_commands() -> CommandLineInterface {
         .insert("remove",
                 CliCommand::new(&api2::config::verify::API_METHOD_DELETE_VERIFICATION_JOB)
                 .arg_param(&["id"])
-                .completion_cb("id", config::verify::complete_verification_job_id)
+                .completion_cb("id", pbs_config::verify::complete_verification_job_id)
         );
 
     cmd_def.into()

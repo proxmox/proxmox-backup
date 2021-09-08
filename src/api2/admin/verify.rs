@@ -8,6 +8,7 @@ use proxmox::{list_subdirs_api_method, sortable};
 use proxmox::api::{api, ApiMethod, Permission, Router, RpcEnvironment};
 
 use pbs_api_types::{VerificationJobConfig, VerificationJobStatus, JOB_ID_SCHEMA, Authid};
+use pbs_config::verify;
 
 use crate::{
     api2::types::{
@@ -22,7 +23,6 @@ use crate::{
         },
     },
     config::{
-        verify,
         acl::{
             PRIV_DATASTORE_AUDIT,
             PRIV_DATASTORE_VERIFY,

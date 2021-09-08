@@ -23,7 +23,6 @@ pub mod node;
 pub mod tfa;
 pub mod token_shadow;
 pub mod user;
-pub mod verify;
 
 /// Check configuration directory permissions
 ///

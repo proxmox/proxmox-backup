@@ -560,7 +560,7 @@ async fn schedule_datastore_sync_jobs() {
 
 async fn schedule_datastore_verify_jobs() {
 
-    let config = match proxmox_backup::config::verify::config() {
+    let config = match pbs_config::verify::config() {
         Err(err) => {
             eprintln!("unable to read verification job config - {}", err);
             return;
