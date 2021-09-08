@@ -10,6 +10,7 @@ use proxmox::api::{
         ArraySchema,
         IntegerSchema,
         StringSchema,
+        Updater,
     },
 };
 
@@ -62,10 +63,11 @@ Import/Export, i.e. any media in those slots are considered to be
         },
     },
 )]
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize,Deserialize,Updater)]
 #[serde(rename_all = "kebab-case")]
 /// SCSI tape changer
 pub struct ScsiTapeChanger {
+    #[updater(skip)]
     pub name: String,
     pub path: String,
     #[serde(skip_serializing_if="Option::is_none")]

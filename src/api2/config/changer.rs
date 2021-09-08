@@ -14,10 +14,9 @@ use pbs_api_types::{
     Authid,
     PROXMOX_CONFIG_DIGEST_SCHEMA,
     CHANGER_NAME_SCHEMA,
-    SCSI_CHANGER_PATH_SCHEMA,
     SLOT_ARRAY_SCHEMA,
-    EXPORT_SLOT_LIST_SCHEMA,
     ScsiTapeChanger,
+    ScsiTapeChangerUpdater,
     LtoTapeDrive,
 };
 
@@ -39,15 +38,9 @@ use crate::{
     protected: true,
     input: {
         properties: {
-            name: {
-                schema: CHANGER_NAME_SCHEMA,
-            },
-            path: {
-                schema: SCSI_CHANGER_PATH_SCHEMA,
-            },
-            "export-slots": {
-                schema: EXPORT_SLOT_LIST_SCHEMA,
-                optional: true,
+            config: {
+                type: ScsiTapeChanger,
+                flatten: true,
             },
         },
     },
@@ -56,41 +49,31 @@ use crate::{
     },
 )]
 /// Create a new changer device
-pub fn create_changer(
-    name: String,
-    path: String,
-    export_slots: Option<String>,
-) -> Result<(), Error> {
+pub fn create_changer(config: ScsiTapeChanger) -> Result<(), Error> {
 
     let _lock = pbs_config::drive::lock()?;
 
-    let (mut config, _digest) = pbs_config::drive::config()?;
+    let (mut section_config, _digest) = pbs_config::drive::config()?;
 
     let linux_changers = linux_tape_changer_list();
 
-    check_drive_path(&linux_changers, &path)?;
+    check_drive_path(&linux_changers, &config.path)?;
 
-    let existing: Vec<ScsiTapeChanger> = config.convert_to_typed_array("changer")?;
+    let existing: Vec<ScsiTapeChanger> = section_config.convert_to_typed_array("changer")?;
 
     for changer in existing {
-        if changer.name == name {
-            bail!("Entry '{}' already exists", name);
+        if changer.name == config.name {
+            bail!("Entry '{}' already exists", config.name);
         }
 
-        if changer.path == path {
-            bail!("Path '{}' already in use by '{}'", path, changer.name);
+        if changer.path == config.path {
+            bail!("Path '{}' already in use by '{}'", config.path, changer.name);
         }
     }
 
-    let item = ScsiTapeChanger {
-        name: name.clone(),
-        path,
-        export_slots,
-    };
+    section_config.set_data(&config.name, "changer", &config)?;
 
-    config.set_data(&name, "changer", &item)?;
-
-    pbs_config::drive::save_config(&config)?;
+    pbs_config::drive::save_config(&section_config)?;
 
     Ok(())
 }
@@ -183,13 +166,9 @@ pub enum DeletableProperty {
             name: {
                 schema: CHANGER_NAME_SCHEMA,
             },
-            path: {
-                schema: SCSI_CHANGER_PATH_SCHEMA,
-                optional: true,
-            },
-            "export-slots": {
-                schema: EXPORT_SLOT_LIST_SCHEMA,
-                optional: true,
+            update: {
+                type: ScsiTapeChangerUpdater,
+                flatten: true,
             },
             delete: {
                 description: "List of properties to delete.",
@@ -212,8 +191,7 @@ pub enum DeletableProperty {
 /// Update a tape changer configuration
 pub fn update_changer(
     name: String,
-    path: Option<String>,
-    export_slots: Option<String>,
+    update: ScsiTapeChangerUpdater,
     delete: Option<Vec<DeletableProperty>>,
     digest: Option<String>,
     _param: Value,
@@ -240,13 +218,13 @@ pub fn update_changer(
         }
     }
 
-    if let Some(path) = path {
+    if let Some(path) = update.path {
         let changers = linux_tape_changer_list();
         check_drive_path(&changers, &path)?;
         data.path = path;
     }
 
-    if let Some(export_slots) = export_slots {
+    if let Some(export_slots) = update.export_slots {
         let slots: Value = parse_property_string(
             &export_slots, &SLOT_ARRAY_SCHEMA
         )?;
