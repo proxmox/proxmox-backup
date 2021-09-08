@@ -353,10 +353,11 @@ pub struct TapeBackupJobStatus {
         },
     }
 )]
-#[derive(Serialize,Deserialize,Clone)]
+#[derive(Serialize,Deserialize,Clone,Updater)]
 #[serde(rename_all="kebab-case")]
 /// Sync Job
 pub struct SyncJobConfig {
+    #[updater(skip)]
     pub id: String,
     pub store: String,
     #[serde(skip_serializing_if="Option::is_none")]

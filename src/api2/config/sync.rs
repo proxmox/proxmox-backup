@@ -5,9 +5,7 @@ use ::serde::{Deserialize, Serialize};
 use proxmox::api::{api, Permission, Router, RpcEnvironment};
 
 use pbs_api_types::{
-    Authid, SyncJobConfig,
-    SINGLE_LINE_COMMENT_SCHEMA, JOB_ID_SCHEMA, REMOTE_ID_SCHEMA, DATASTORE_SCHEMA,
-    REMOVE_VANISHED_BACKUPS_SCHEMA, SYNC_SCHEDULE_SCHEMA, PROXMOX_CONFIG_DIGEST_SCHEMA,
+    Authid, SyncJobConfig, SyncJobConfigUpdater, JOB_ID_SCHEMA, PROXMOX_CONFIG_DIGEST_SCHEMA,
 };
 use pbs_config::sync;
 
@@ -112,33 +110,9 @@ pub fn list_sync_jobs(
     protected: true,
     input: {
         properties: {
-            id: {
-                schema: JOB_ID_SCHEMA,
-            },
-            store: {
-                schema: DATASTORE_SCHEMA,
-            },
-            owner: {
-                type: Authid,
-                optional: true,
-            },
-            remote: {
-                schema: REMOTE_ID_SCHEMA,
-            },
-            "remote-store": {
-                schema: DATASTORE_SCHEMA,
-            },
-            "remove-vanished": {
-                schema: REMOVE_VANISHED_BACKUPS_SCHEMA,
-                optional: true,
-            },
-            comment: {
-                optional: true,
-                schema: SINGLE_LINE_COMMENT_SCHEMA,
-            },
-            schedule: {
-                optional: true,
-                schema: SYNC_SCHEDULE_SCHEMA,
+            config: {
+                type: SyncJobConfig,
+                flatten: true,
             },
         },
     },
@@ -149,7 +123,7 @@ pub fn list_sync_jobs(
 )]
 /// Create a new sync job.
 pub fn create_sync_job(
-    param: Value,
+    config: SyncJobConfig,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
@@ -157,22 +131,21 @@ pub fn create_sync_job(
 
     let _lock = sync::lock_config()?;
 
-    let sync_job: SyncJobConfig = serde_json::from_value(param)?;
-    if !check_sync_job_modify_access(&user_info, &auth_id, &sync_job) {
+    if !check_sync_job_modify_access(&user_info, &auth_id, &config) {
         bail!("permission check failed");
     }
 
-    let (mut config, _digest) = sync::config()?;
+    let (mut section_config, _digest) = sync::config()?;
 
-    if config.sections.get(&sync_job.id).is_some() {
-        bail!("job '{}' already exists.", sync_job.id);
+    if section_config.sections.get(&config.id).is_some() {
+        bail!("job '{}' already exists.", config.id);
     }
 
-    config.set_data(&sync_job.id, "sync", &sync_job)?;
+    section_config.set_data(&config.id, "sync", &config)?;
 
-    sync::save_config(&config)?;
+    sync::save_config(&section_config)?;
 
-    crate::server::jobstate::create_state_file("syncjob", &sync_job.id)?;
+    crate::server::jobstate::create_state_file("syncjob", &config.id)?;
 
     Ok(())
 }
@@ -234,33 +207,9 @@ pub enum DeletableProperty {
             id: {
                 schema: JOB_ID_SCHEMA,
             },
-            store: {
-                schema: DATASTORE_SCHEMA,
-                optional: true,
-            },
-            owner: {
-                type: Authid,
-                optional: true,
-            },
-            remote: {
-                schema: REMOTE_ID_SCHEMA,
-                optional: true,
-            },
-            "remote-store": {
-                schema: DATASTORE_SCHEMA,
-                optional: true,
-            },
-            "remove-vanished": {
-                schema: REMOVE_VANISHED_BACKUPS_SCHEMA,
-                optional: true,
-            },
-            comment: {
-                optional: true,
-                schema: SINGLE_LINE_COMMENT_SCHEMA,
-            },
-            schedule: {
-                optional: true,
-                schema: SYNC_SCHEDULE_SCHEMA,
+            update: {
+                type: SyncJobConfigUpdater,
+                flatten: true,
             },
             delete: {
                 description: "List of properties to delete.",
@@ -285,13 +234,7 @@ pub enum DeletableProperty {
 #[allow(clippy::too_many_arguments)]
 pub fn update_sync_job(
     id: String,
-    store: Option<String>,
-    owner: Option<Authid>,
-    remote: Option<String>,
-    remote_store: Option<String>,
-    remove_vanished: Option<bool>,
-    comment: Option<String>,
-    schedule: Option<String>,
+    update: SyncJobConfigUpdater,
     delete: Option<Vec<DeletableProperty>>,
     digest: Option<String>,
     rpcenv: &mut dyn RpcEnvironment,
@@ -301,7 +244,6 @@ pub fn update_sync_job(
 
     let _lock = sync::lock_config()?;
 
-    // pass/compare digest
     let (mut config, expected_digest) = sync::config()?;
 
     if let Some(ref digest) = digest {
@@ -322,7 +264,7 @@ pub fn update_sync_job(
         }
     }
 
-    if let Some(comment) = comment {
+    if let Some(comment) = update.comment {
         let comment = comment.trim().to_string();
         if comment.is_empty() {
             data.comment = None;
@@ -331,14 +273,14 @@ pub fn update_sync_job(
         }
     }
 
-    if let Some(store) = store { data.store = store; }
-    if let Some(remote) = remote { data.remote = remote; }
-    if let Some(remote_store) = remote_store { data.remote_store = remote_store; }
-    if let Some(owner) = owner { data.owner = Some(owner); }
+    if let Some(store) = update.store { data.store = store; }
+    if let Some(remote) = update.remote { data.remote = remote; }
+    if let Some(remote_store) = update.remote_store { data.remote_store = remote_store; }
+    if let Some(owner) = update.owner { data.owner = Some(owner); }
 
-    let schedule_changed = data.schedule != schedule;
-    if schedule.is_some() { data.schedule = schedule; }
-    if remove_vanished.is_some() { data.remove_vanished = remove_vanished; }
+    let schedule_changed = data.schedule != update.schedule;
+    if update.schedule.is_some() { data.schedule = update.schedule; }
+    if update.remove_vanished.is_some() { data.remove_vanished = update.remove_vanished; }
 
     if !check_sync_job_modify_access(&user_info, &auth_id, &data) {
         bail!("permission check failed");
