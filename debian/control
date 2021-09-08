@@ -175,10 +175,3 @@ Description: Proxmox Backup single file restore tools for pxar and block device 
  This package contains the Proxmox Backup single file restore client for
  restoring individual files and folders from both host/container and VM/block
  device backups. It includes a block device restore driver using QEMU.
-
-Package: proxmox-backup-debug
-Architecture: any
-Depends: ${misc:Depends},
-         ${shlibs:Depends},
-Description: Proxmox Backup debug tool
- Provides a tool to inspect the files of a Proxmox Backup datastore.

@@ -71,8 +71,6 @@ CLIENT_DEB=${PACKAGE}-client_${DEB_VERSION}_${ARCH}.deb
 CLIENT_DBG_DEB=${PACKAGE}-client-dbgsym_${DEB_VERSION}_${ARCH}.deb
 RESTORE_DEB=proxmox-backup-file-restore_${DEB_VERSION}_${ARCH}.deb
 RESTORE_DBG_DEB=proxmox-backup-file-restore-dbgsym_${DEB_VERSION}_${ARCH}.deb
-DEBUG_DEB=${PACKAGE}-debug_${DEB_VERSION}_${ARCH}.deb
-DEBUG_DBG_DEB=${PACKAGE}-debug-dbgsym_${DEB_VERSION}_${ARCH}.deb
 DOC_DEB=${PACKAGE}-docs_${DEB_VERSION}_all.deb
 
 DEBS=${SERVER_DEB} ${SERVER_DBG_DEB} ${CLIENT_DEB} ${CLIENT_DBG_DEB} \

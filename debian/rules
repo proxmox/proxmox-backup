@@ -54,7 +54,6 @@ override_dh_strip:
 	    debian/proxmox-backup-client/usr \
 	    debian/proxmox-backup-server/usr \
 	    debian/proxmox-backup-file-restore \
-	    debian/proxmox-backup-debug/usr \
 	    -executable -type f); do \
 	  debian/scripts/elf-strip-unused-dependencies.sh "$$exe" || true; \
 	done

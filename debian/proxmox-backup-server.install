@@ -9,6 +9,7 @@ usr/lib/x86_64-linux-gnu/proxmox-backup/proxmox-backup-proxy
 usr/lib/x86_64-linux-gnu/proxmox-backup/proxmox-backup-banner
 usr/lib/x86_64-linux-gnu/proxmox-backup/proxmox-daily-update
 usr/lib/x86_64-linux-gnu/proxmox-backup/sg-tape-cmd
+usr/sbin/proxmox-backup-debug
 usr/sbin/proxmox-backup-manager
 usr/bin/pmtx
 usr/bin/pmt
@@ -17,6 +18,7 @@ usr/share/javascript/proxmox-backup/index.hbs
 usr/share/javascript/proxmox-backup/css/ext6-pbs.css
 usr/share/javascript/proxmox-backup/images
 usr/share/javascript/proxmox-backup/js/proxmox-backup-gui.js
+usr/share/man/man1/proxmox-backup-debug.1
 usr/share/man/man1/proxmox-backup-manager.1
 usr/share/man/man1/proxmox-backup-proxy.1
 usr/share/man/man1/proxmox-tape.1
@@ -31,6 +33,7 @@ usr/share/man/man5/verification.cfg.5
 usr/share/man/man5/media-pool.cfg.5
 usr/share/man/man5/tape.cfg.5
 usr/share/man/man5/tape-job.cfg.5
+usr/share/zsh/vendor-completions/_proxmox-backup-debug
 usr/share/zsh/vendor-completions/_proxmox-backup-manager
 usr/share/zsh/vendor-completions/_proxmox-tape
 usr/share/zsh/vendor-completions/_pmtx
