@@ -142,8 +142,6 @@
 //! * / = no interaction
 //! * shared/exclusive from POV of 'starting' process
 
-use anyhow::{format_err, Error};
-
 // Note: .pcat1 => Proxmox Catalog Format version 1
 pub const CATALOG_NAME: &str = "catalog.pcat1.didx";
 
@@ -159,23 +157,6 @@ macro_rules! PROXMOX_BACKUP_READER_PROTOCOL_ID_V1 {
     () => {
         "proxmox-backup-reader-protocol-v1"
     };
-}
-
-/// Unix system user used by proxmox-backup-proxy
-pub const BACKUP_USER_NAME: &str = "backup";
-/// Unix system group used by proxmox-backup-proxy
-pub const BACKUP_GROUP_NAME: &str = "backup";
-
-/// Return User info for the 'backup' user (``getpwnam_r(3)``)
-pub fn backup_user() -> Result<nix::unistd::User, Error> {
-    nix::unistd::User::from_name(BACKUP_USER_NAME)?
-        .ok_or_else(|| format_err!("Unable to lookup backup user."))
-}
-
-/// Return Group info for the 'backup' group (``getgrnam(3)``)
-pub fn backup_group() -> Result<nix::unistd::Group, Error> {
-    nix::unistd::Group::from_name(BACKUP_GROUP_NAME)?
-        .ok_or_else(|| format_err!("Unable to lookup backup user."))
 }
 
 pub mod backup_info;
