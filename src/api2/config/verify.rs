@@ -5,10 +5,8 @@ use ::serde::{Deserialize, Serialize};
 use proxmox::api::{api, Permission, Router, RpcEnvironment};
 
 use pbs_api_types::{
-    Authid, VerificationJobConfig,
-    SINGLE_LINE_COMMENT_SCHEMA, JOB_ID_SCHEMA, IGNORE_VERIFIED_BACKUPS_SCHEMA,
-    VERIFICATION_OUTDATED_AFTER_SCHEMA, VERIFICATION_SCHEDULE_SCHEMA,
-    DATASTORE_SCHEMA, PROXMOX_CONFIG_DIGEST_SCHEMA,
+    Authid, VerificationJobConfig, VerificationJobConfigUpdater, JOB_ID_SCHEMA,
+    PROXMOX_CONFIG_DIGEST_SCHEMA,
 };
 use pbs_config::verify;
 
@@ -64,29 +62,11 @@ pub fn list_verification_jobs(
     protected: true,
     input: {
         properties: {
-            id: {
-                schema: JOB_ID_SCHEMA,
+            config: {
+                type: VerificationJobConfig,
+                flatten: true,
             },
-            store: {
-                schema: DATASTORE_SCHEMA,
-            },
-            "ignore-verified": {
-                optional: true,
-                schema: IGNORE_VERIFIED_BACKUPS_SCHEMA,
-            },
-            "outdated-after": {
-                optional: true,
-                schema: VERIFICATION_OUTDATED_AFTER_SCHEMA,
-            },
-            comment: {
-                optional: true,
-                schema: SINGLE_LINE_COMMENT_SCHEMA,
-            },
-            schedule: {
-                optional: true,
-                schema: VERIFICATION_SCHEDULE_SCHEMA,
-            },
-        }
+        },
     },
     access: {
         permission: &Permission::Anybody,
@@ -95,29 +75,27 @@ pub fn list_verification_jobs(
 )]
 /// Create a new verification job.
 pub fn create_verification_job(
-    param: Value,
+    config: VerificationJobConfig,
     rpcenv: &mut dyn RpcEnvironment
 ) -> Result<(), Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
 
-    let verification_job: VerificationJobConfig = serde_json::from_value(param)?;
-
-    user_info.check_privs(&auth_id, &["datastore", &verification_job.store], PRIV_DATASTORE_VERIFY, false)?;
+    user_info.check_privs(&auth_id, &["datastore", &config.store], PRIV_DATASTORE_VERIFY, false)?;
 
     let _lock = verify::lock_config()?;
 
-    let (mut config, _digest) = verify::config()?;
+    let (mut section_config, _digest) = verify::config()?;
 
-    if config.sections.get(&verification_job.id).is_some() {
-        bail!("job '{}' already exists.", verification_job.id);
+    if section_config.sections.get(&config.id).is_some() {
+        bail!("job '{}' already exists.", config.id);
     }
 
-    config.set_data(&verification_job.id, "verification", &verification_job)?;
+    section_config.set_data(&config.id, "verification", &config)?;
 
-    verify::save_config(&config)?;
+    verify::save_config(&section_config)?;
 
-    crate::server::jobstate::create_state_file("verificationjob", &verification_job.id)?;
+    crate::server::jobstate::create_state_file("verificationjob", &config.id)?;
 
     Ok(())
 }
@@ -178,25 +156,9 @@ pub enum DeletableProperty {
             id: {
                 schema: JOB_ID_SCHEMA,
             },
-            store: {
-                optional: true,
-                schema: DATASTORE_SCHEMA,
-            },
-            "ignore-verified": {
-                optional: true,
-                schema: IGNORE_VERIFIED_BACKUPS_SCHEMA,
-            },
-            "outdated-after": {
-                optional: true,
-                schema: VERIFICATION_OUTDATED_AFTER_SCHEMA,
-            },
-            comment: {
-                optional: true,
-                schema: SINGLE_LINE_COMMENT_SCHEMA,
-            },
-            schedule: {
-                optional: true,
-                schema: VERIFICATION_SCHEDULE_SCHEMA,
+            update: {
+                type: VerificationJobConfigUpdater,
+                flatten: true,
             },
             delete: {
                 description: "List of properties to delete.",
@@ -221,11 +183,7 @@ pub enum DeletableProperty {
 #[allow(clippy::too_many_arguments)]
 pub fn update_verification_job(
     id: String,
-    store: Option<String>,
-    ignore_verified: Option<bool>,
-    outdated_after: Option<i64>,
-    comment: Option<String>,
-    schedule: Option<String>,
+    update: VerificationJobConfigUpdater,
     delete: Option<Vec<DeletableProperty>>,
     digest: Option<String>,
     rpcenv: &mut dyn RpcEnvironment,
@@ -259,7 +217,7 @@ pub fn update_verification_job(
         }
     }
 
-    if let Some(comment) = comment {
+    if let Some(comment) = update.comment {
         let comment = comment.trim().to_string();
         if comment.is_empty() {
             data.comment = None;
@@ -268,17 +226,17 @@ pub fn update_verification_job(
         }
     }
 
-    if let Some(store) = store {
+    if let Some(store) = update.store {
         // check new store
         user_info.check_privs(&auth_id, &["datastore", &store], PRIV_DATASTORE_VERIFY, true)?;
         data.store = store;
     }
 
 
-    if ignore_verified.is_some() { data.ignore_verified = ignore_verified; }
-    if outdated_after.is_some() { data.outdated_after = outdated_after; }
-    let schedule_changed = data.schedule != schedule;
-    if schedule.is_some() { data.schedule = schedule; }
+    if update.ignore_verified.is_some() { data.ignore_verified = update.ignore_verified; }
+    if update.outdated_after.is_some() { data.outdated_after = update.outdated_after; }
+    let schedule_changed = data.schedule != update.schedule;
+    if update.schedule.is_some() { data.schedule = update.schedule; }
 
     config.set_data(&id, "verification", &data)?;
 

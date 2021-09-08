@@ -175,11 +175,12 @@ pub const VERIFICATION_OUTDATED_AFTER_SCHEMA: Schema = IntegerSchema::new(
         },
     }
 )]
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize,Deserialize,Updater)]
 #[serde(rename_all="kebab-case")]
 /// Verification Job
 pub struct VerificationJobConfig {
     /// unique ID to address this job
+    #[updater(skip)]
     pub id: String,
     /// the datastore ID this verificaiton job affects
     pub store: String,
