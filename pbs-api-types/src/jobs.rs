@@ -250,7 +250,7 @@ pub struct VerificationJobStatus {
         },
     }
 )]
-#[derive(Serialize,Deserialize,Clone)]
+#[derive(Serialize,Deserialize,Clone,Updater)]
 #[serde(rename_all="kebab-case")]
 /// Tape Backup Job Setup
 pub struct TapeBackupJobSetup {
@@ -286,10 +286,11 @@ pub struct TapeBackupJobSetup {
         },
     }
 )]
-#[derive(Serialize,Deserialize,Clone)]
+#[derive(Serialize,Deserialize,Clone,Updater)]
 #[serde(rename_all="kebab-case")]
 /// Tape Backup Job
 pub struct TapeBackupJobConfig {
+    #[updater(skip)]
     pub id: String,
     #[serde(flatten)]
     pub setup: TapeBackupJobSetup,

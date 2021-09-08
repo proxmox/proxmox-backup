@@ -5,16 +5,8 @@ use ::serde::{Deserialize, Serialize};
 use proxmox::api::{api, Router, RpcEnvironment, Permission};
 
 use pbs_api_types::{
-    Authid,
-    Userid,
-    TapeBackupJobConfig,
-    JOB_ID_SCHEMA,
-    DATASTORE_SCHEMA,
-    DRIVE_NAME_SCHEMA,
-    PROXMOX_CONFIG_DIGEST_SCHEMA,
-    SINGLE_LINE_COMMENT_SCHEMA,
-    MEDIA_POOL_NAME_SCHEMA,
-    SYNC_SCHEDULE_SCHEMA,
+    Authid, TapeBackupJobConfig, TapeBackupJobConfigUpdater,
+    JOB_ID_SCHEMA, PROXMOX_CONFIG_DIGEST_SCHEMA,
 };
 
 use crate::{
@@ -156,44 +148,9 @@ pub enum DeletableProperty {
             id: {
                 schema: JOB_ID_SCHEMA,
             },
-            store: {
-                schema: DATASTORE_SCHEMA,
-                optional: true,
-            },
-            pool: {
-                schema: MEDIA_POOL_NAME_SCHEMA,
-                optional: true,
-            },
-            drive: {
-                schema: DRIVE_NAME_SCHEMA,
-                optional: true,
-            },
-            "eject-media": {
-                description: "Eject media upon job completion.",
-                type: bool,
-                optional: true,
-            },
-            "export-media-set": {
-                description: "Export media set upon job completion.",
-                type: bool,
-                optional: true,
-            },
-            "latest-only": {
-                description: "Backup latest snapshots only.",
-                type: bool,
-                optional: true,
-            },
-            "notify-user": {
-                optional: true,
-                type: Userid,
-            },
-            comment: {
-                optional: true,
-                schema: SINGLE_LINE_COMMENT_SCHEMA,
-            },
-            schedule: {
-                optional: true,
-                schema: SYNC_SCHEDULE_SCHEMA,
+            update: {
+                type: TapeBackupJobConfigUpdater,
+                flatten: true,
             },
             delete: {
                 description: "List of properties to delete.",
@@ -216,15 +173,7 @@ pub enum DeletableProperty {
 /// Update the tape backup job
 pub fn update_tape_backup_job(
     id: String,
-    store: Option<String>,
-    pool: Option<String>,
-    drive: Option<String>,
-    eject_media: Option<bool>,
-    export_media_set: Option<bool>,
-    latest_only: Option<bool>,
-    notify_user: Option<Userid>,
-    comment: Option<String>,
-    schedule: Option<String>,
+    update: TapeBackupJobConfigUpdater,
     delete: Option<Vec<DeletableProperty>>,
     digest: Option<String>,
 ) -> Result<(), Error> {
@@ -252,19 +201,19 @@ pub fn update_tape_backup_job(
         }
     }
 
-    if let Some(store) = store { data.setup.store = store; }
-    if let Some(pool) = pool { data.setup.pool = pool; }
-    if let Some(drive) = drive { data.setup.drive = drive; }
+    if let Some(store) = update.setup.store { data.setup.store = store; }
+    if let Some(pool) = update.setup.pool { data.setup.pool = pool; }
+    if let Some(drive) = update.setup.drive { data.setup.drive = drive; }
 
-    if eject_media.is_some() { data.setup.eject_media = eject_media; };
-    if export_media_set.is_some() { data.setup.export_media_set = export_media_set; }
-    if latest_only.is_some() { data.setup.latest_only = latest_only; }
-    if notify_user.is_some() { data.setup.notify_user = notify_user; }
+    if update.setup.eject_media.is_some() { data.setup.eject_media = update.setup.eject_media; };
+    if update.setup.export_media_set.is_some() { data.setup.export_media_set = update.setup.export_media_set; }
+    if update.setup.latest_only.is_some() { data.setup.latest_only = update.setup.latest_only; }
+    if update.setup.notify_user.is_some() { data.setup.notify_user = update.setup.notify_user; }
 
-    let schedule_changed = data.schedule != schedule;
-    if schedule.is_some() { data.schedule = schedule; }
+    let schedule_changed = data.schedule != update.schedule;
+    if update.schedule.is_some() { data.schedule = update.schedule; }
 
-    if let Some(comment) = comment {
+    if let Some(comment) = update.comment {
         let comment = comment.trim();
         if comment.is_empty() {
             data.comment = None;
