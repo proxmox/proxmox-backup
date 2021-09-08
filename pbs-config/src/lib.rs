@@ -7,6 +7,7 @@ pub mod remote;
 pub mod sync;
 pub mod tape_encryption_keys;
 pub mod tape_job;
+pub mod token_shadow;
 pub mod verify;
 
 use anyhow::{format_err, Error};

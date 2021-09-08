@@ -4,6 +4,7 @@ use anyhow::{format_err, Error};
 use std::sync::Arc;
 
 use pbs_tools::ticket::{self, Ticket};
+use pbs_config::token_shadow;
 
 use crate::api2::types::{Authid, Userid};
 use crate::auth_helpers::*;
@@ -131,7 +132,7 @@ impl ApiAuth for UserApiAuth {
                     .decode_utf8()
                     .map_err(|_| format_err!("failed to decode API token header"))?;
 
-                crate::config::token_shadow::verify_secret(&tokenid, &tokensecret)?;
+                token_shadow::verify_secret(&tokenid, &tokensecret)?;
 
                 Ok(tokenid)
             }

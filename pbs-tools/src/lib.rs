@@ -6,6 +6,7 @@ pub mod broadcast_future;
 pub mod cert;
 pub mod cli;
 pub mod compression;
+pub mod crypt;
 pub mod crypt_config;
 pub mod format;
 pub mod fd;

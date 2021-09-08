@@ -20,7 +20,6 @@ pub mod cached_user_info;
 pub mod datastore;
 pub mod node;
 pub mod tfa;
-pub mod token_shadow;
 pub mod user;
 
 /// Check configuration directory permissions

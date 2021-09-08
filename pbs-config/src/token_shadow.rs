@@ -6,9 +6,9 @@ use serde_json::{from_value, Value};
 
 use proxmox::tools::fs::CreateOptions;
 
-use crate::api2::types::Authid;
-use crate::auth;
-use pbs_config::open_backup_lockfile;
+use pbs_api_types::Authid;
+//use crate::auth;
+use crate::{open_backup_lockfile, BackupLockGuard};
 
 const LOCK_FILE: &str = pbs_buildcfg::configdir!("/token.shadow.lock");
 const CONF_FILE: &str = pbs_buildcfg::configdir!("/token.shadow");
@@ -19,6 +19,11 @@ const CONF_FILE: &str = pbs_buildcfg::configdir!("/token.shadow");
 pub struct ApiTokenSecret {
     pub tokenid: Authid,
     pub secret: String,
+}
+
+// Get exclusive lock
+fn lock_config() -> Result<BackupLockGuard, Error> {
+    open_backup_lockfile(LOCK_FILE, None, true)
 }
 
 fn read_file() -> Result<HashMap<Authid, String>, Error> {
@@ -33,7 +38,7 @@ fn read_file() -> Result<HashMap<Authid, String>, Error> {
 }
 
 fn write_file(data: HashMap<Authid, String>) -> Result<(), Error> {
-    let backup_user = pbs_config::backup_user()?;
+    let backup_user = crate::backup_user()?;
     let options = CreateOptions::new()
         .perm(nix::sys::stat::Mode::from_bits_truncate(0o0640))
         .owner(backup_user.uid)
@@ -42,6 +47,7 @@ fn write_file(data: HashMap<Authid, String>) -> Result<(), Error> {
     let json = serde_json::to_vec(&data)?;
     proxmox::tools::fs::replace_file(CONF_FILE, &json, options)
 }
+
 
 /// Verifies that an entry for given tokenid / API token secret exists
 pub fn verify_secret(tokenid: &Authid, secret: &str) -> Result<(), Error> {
@@ -52,7 +58,7 @@ pub fn verify_secret(tokenid: &Authid, secret: &str) -> Result<(), Error> {
     let data = read_file()?;
     match data.get(tokenid) {
         Some(hashed_secret) => {
-            auth::verify_crypt_pw(secret, &hashed_secret)
+            pbs_tools::crypt::verify_crypt_pw(secret, &hashed_secret)
         },
         None => bail!("invalid API token"),
     }
@@ -64,10 +70,10 @@ pub fn set_secret(tokenid: &Authid, secret: &str) -> Result<(), Error> {
         bail!("not an API token ID");
     }
 
-    let _guard = open_backup_lockfile(LOCK_FILE, None, true)?;
+    let _guard = lock_config()?;
 
     let mut data = read_file()?;
-    let hashed_secret = auth::encrypt_pw(secret)?;
+    let hashed_secret = pbs_tools::crypt::encrypt_pw(secret)?;
     data.insert(tokenid.clone(), hashed_secret);
     write_file(data)?;
 
@@ -80,7 +86,7 @@ pub fn delete_secret(tokenid: &Authid) -> Result<(), Error> {
         bail!("not an API token ID");
     }
 
-    let _guard = open_backup_lockfile(LOCK_FILE, None, true)?;
+    let _guard = lock_config()?;
 
     let mut data = read_file()?;
     data.remove(tokenid);
