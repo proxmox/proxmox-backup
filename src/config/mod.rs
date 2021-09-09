@@ -14,7 +14,6 @@ use proxmox::try_block;
 
 use pbs_buildcfg::{self, configdir};
 
-pub mod acl;
 pub mod acme;
 pub mod cached_user_info;
 pub mod datastore;

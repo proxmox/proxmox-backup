@@ -7,23 +7,13 @@ use serde_json::Value;
 use proxmox::api::{api, Router, SubdirMap, RpcEnvironment, Permission};
 use proxmox::list_subdirs_api_method;
 
+use pbs_api_types::{
+    Authid, ChangerListEntry, LtoTapeDrive, MtxEntryKind, MtxStatusEntry, ScsiTapeChanger,
+    CHANGER_NAME_SCHEMA, PRIV_TAPE_AUDIT, PRIV_TAPE_READ,
+};
+
 use crate::{
-    config::{
-        cached_user_info::CachedUserInfo,
-        acl::{
-            PRIV_TAPE_AUDIT,
-            PRIV_TAPE_READ,
-        },
-    },
-    api2::types::{
-        Authid,
-        CHANGER_NAME_SCHEMA,
-        ChangerListEntry,
-        LtoTapeDrive,
-        MtxEntryKind,
-        MtxStatusEntry,
-        ScsiTapeChanger,
-    },
+    config::cached_user_info::CachedUserInfo,
     tape::{
         TAPE_STATUS_DIR,
         Inventory,

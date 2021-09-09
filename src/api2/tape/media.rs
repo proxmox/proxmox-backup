@@ -14,15 +14,11 @@ use pbs_api_types::{
     MEDIA_POOL_NAME_SCHEMA, MEDIA_LABEL_SCHEMA, MEDIA_UUID_SCHEMA, CHANGER_NAME_SCHEMA,
     VAULT_NAME_SCHEMA, Authid, MediaPoolConfig, MediaListEntry, MediaSetListEntry,
     MediaStatus, MediaContentEntry, MediaContentListFilter,
+    PRIV_TAPE_AUDIT,
 };
 
 use crate::{
-    config::{
-        cached_user_info::CachedUserInfo,
-        acl::{
-            PRIV_TAPE_AUDIT,
-        },
-    },
+    config::cached_user_info::CachedUserInfo,
     tape::{
         TAPE_STATUS_DIR,
         Inventory,

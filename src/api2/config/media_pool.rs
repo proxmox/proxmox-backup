@@ -11,21 +11,11 @@ use proxmox::{
 };
 
 use pbs_api_types::{
-    Authid,
-    MEDIA_POOL_NAME_SCHEMA,
-    MediaPoolConfig,
-    MediaPoolConfigUpdater,
+    Authid, MediaPoolConfig, MediaPoolConfigUpdater, MEDIA_POOL_NAME_SCHEMA,
+    PRIV_TAPE_AUDIT, PRIV_TAPE_MODIFY,
 };
 
-use crate::{
-    config::{
-        cached_user_info::CachedUserInfo,
-        acl::{
-            PRIV_TAPE_AUDIT,
-            PRIV_TAPE_MODIFY,
-        },
-    },
-};
+use crate::config::cached_user_info::CachedUserInfo;
 
 #[api(
     protected: true,

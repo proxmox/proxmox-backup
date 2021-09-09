@@ -9,12 +9,11 @@ use pbs_api_types::{
     Authid, Interface, NetworkInterfaceType, LinuxBondMode, NetworkConfigMethod, BondXmitHashPolicy,
     NETWORK_INTERFACE_ARRAY_SCHEMA, NETWORK_INTERFACE_LIST_SCHEMA, NETWORK_INTERFACE_NAME_SCHEMA,
     CIDR_V4_SCHEMA, CIDR_V6_SCHEMA, IP_V4_SCHEMA, IP_V6_SCHEMA, PROXMOX_CONFIG_DIGEST_SCHEMA,
+    NODE_SCHEMA, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY,
 };
 use pbs_config::network::{self, NetworkConfig};
 
-use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 use crate::server::{WorkerTask};
-use crate::api2::types::NODE_SCHEMA;
 
 fn split_interface_list(list: &str) -> Result<Vec<String>, Error> {
     let value = parse_property_string(&list, &NETWORK_INTERFACE_ARRAY_SCHEMA)?;

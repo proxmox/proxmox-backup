@@ -4,14 +4,18 @@ use anyhow::{bail, Error};
 
 use proxmox::api::{api, Router, RpcEnvironment, Permission};
 
-use crate::api2::types::*;
-use crate::config::acl;
-use crate::config::acl::{Role, PRIV_SYS_AUDIT, PRIV_PERMISSIONS_MODIFY};
+use pbs_api_types::{
+    Authid, AclListItem, Role, 
+    ACL_PATH_SCHEMA, PROXMOX_CONFIG_DIGEST_SCHEMA, PROXMOX_GROUP_ID_SCHEMA,
+    ACL_PROPAGATE_SCHEMA, PRIV_SYS_AUDIT, PRIV_PERMISSIONS_MODIFY,
+};
+
+use pbs_config::acl::AclTreeNode;
+
 use crate::config::cached_user_info::CachedUserInfo;
-use pbs_config::open_backup_lockfile;
 
 fn extract_acl_node_data(
-    node: &acl::AclTreeNode,
+    node: &AclTreeNode,
     path: &str,
     list: &mut Vec<AclListItem>,
     exact: bool,
@@ -110,7 +114,7 @@ pub fn read_acl(
         None
     };
 
-    let (mut tree, digest) = acl::config()?;
+    let (mut tree, digest) = pbs_config::acl::config()?;
 
     let mut list: Vec<AclListItem> = Vec::new();
     if let Some(path) = &path {
@@ -200,9 +204,9 @@ pub fn update_acl(
         };
     }
 
-    let _lock = open_backup_lockfile(acl::ACL_CFG_LOCKFILE, None, true)?;
+    let _lock = pbs_config::acl::lock_config()?;
 
-    let (mut tree, expected_digest) = acl::config()?;
+    let (mut tree, expected_digest) = pbs_config::acl::config()?;
 
     if let Some(ref digest) = digest {
         let digest = proxmox::tools::hex_to_digest(digest)?;
@@ -228,7 +232,7 @@ pub fn update_acl(
     }
 
     if !delete { // Note: we allow to delete entries with invalid path
-        acl::check_acl_path(&path)?;
+        pbs_config::acl::check_acl_path(&path)?;
     }
 
     if let Some(auth_id) = auth_id {
@@ -245,7 +249,7 @@ pub fn update_acl(
         }
     }
 
-    acl::save_config(&tree)?;
+    pbs_config::acl::save_config(&tree)?;
 
     Ok(())
 }

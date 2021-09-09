@@ -28,7 +28,12 @@ use proxmox::{
     },
 };
 
-use pbs_api_types::CryptMode;
+use pbs_api_types::{
+    Authid, Userid, CryptMode,
+    DATASTORE_MAP_ARRAY_SCHEMA, DATASTORE_MAP_LIST_SCHEMA, DRIVE_NAME_SCHEMA,
+    UPID_SCHEMA, TAPE_RESTORE_SNAPSHOT_SCHEMA,
+    PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY, PRIV_TAPE_READ,
+};
 use pbs_datastore::{task_log, task_warn, DataBlob};
 use pbs_datastore::backup_info::BackupDir;
 use pbs_datastore::dynamic_index::DynamicIndexReader;
@@ -39,23 +44,7 @@ use pbs_datastore::task::TaskState;
 
 use crate::{
     tools::ParallelHandler,
-    api2::types::{
-        DATASTORE_MAP_ARRAY_SCHEMA,
-        DATASTORE_MAP_LIST_SCHEMA,
-        DRIVE_NAME_SCHEMA,
-        UPID_SCHEMA,
-        Authid,
-        Userid,
-        TAPE_RESTORE_SNAPSHOT_SCHEMA,
-    },
-    config::{
-        cached_user_info::CachedUserInfo,
-        acl::{
-            PRIV_DATASTORE_BACKUP,
-            PRIV_DATASTORE_MODIFY,
-            PRIV_TAPE_READ,
-        },
-    },
+    config::cached_user_info::CachedUserInfo,
     backup::DataStore,
     server::{
         lookup_user_email,

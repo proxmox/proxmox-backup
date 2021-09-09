@@ -1,21 +1,19 @@
 use anyhow::{bail, Error};
 use serde_json::{json, Value};
-use serde::{Deserialize, Serialize};
 
 use proxmox::api::{
     api, Permission, RpcEnvironment, RpcEnvironmentType,
-    schema::{
-        Schema,
-        StringSchema,
-        ArraySchema,
-        IntegerSchema,
-        ApiStringFormat,
-        parse_property_string,
-    },
+    schema::parse_property_string,
 };
 use proxmox::api::router::Router;
 
-use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
+use pbs_api_types::{
+    Authid, ZpoolListItem, ZfsRaidLevel, ZfsCompressionType,
+    NODE_SCHEMA, ZPOOL_NAME_SCHEMA, DATASTORE_SCHEMA, DISK_ARRAY_SCHEMA,
+    DISK_LIST_SCHEMA, ZFS_ASHIFT_SCHEMA, UPID_SCHEMA,
+    PRIV_SYS_AUDIT, PRIV_SYS_MODIFY,
+};
+
 use crate::tools::disks::{
     zpool_list, zpool_status, parse_zpool_status_config_tree, vdev_list_to_tree,
     DiskUsageType,
@@ -23,92 +21,6 @@ use crate::tools::disks::{
 use crate::config::datastore::{self, DataStoreConfig};
 
 use crate::server::WorkerTask;
-
-use crate::api2::types::*;
-
-pub const DISK_ARRAY_SCHEMA: Schema = ArraySchema::new(
-    "Disk name list.", &BLOCKDEVICE_NAME_SCHEMA)
-    .schema();
-
-pub const DISK_LIST_SCHEMA: Schema = StringSchema::new(
-    "A list of disk names, comma separated.")
-    .format(&ApiStringFormat::PropertyString(&DISK_ARRAY_SCHEMA))
-    .schema();
-
-pub const ZFS_ASHIFT_SCHEMA: Schema = IntegerSchema::new(
-    "Pool sector size exponent.")
-    .minimum(9)
-    .maximum(16)
-    .default(12)
-    .schema();
-
-pub const ZPOOL_NAME_SCHEMA: Schema =StringSchema::new("ZFS Pool Name")
-    .format(&ApiStringFormat::Pattern(&ZPOOL_NAME_REGEX))
-    .schema();
-
-#[api(
-    default: "On",
-)]
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-/// The ZFS compression algorithm to use.
-pub enum ZfsCompressionType {
-    /// Gnu Zip
-    Gzip,
-    /// LZ4
-    Lz4,
-    /// LZJB
-    Lzjb,
-    /// ZLE
-    Zle,
-    /// ZStd
-    ZStd,
-    /// Enable compression using the default algorithm.
-    On,
-    /// Disable compression.
-    Off,
-}
-
-#[api()]
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-/// The ZFS RAID level to use.
-pub enum ZfsRaidLevel {
-    /// Single Disk
-    Single,
-    /// Mirror
-    Mirror,
-    /// Raid10
-    Raid10,
-    /// RaidZ
-    RaidZ,
-    /// RaidZ2
-    RaidZ2,
-    /// RaidZ3
-    RaidZ3,
-}
-
-
-#[api()]
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all="kebab-case")]
-/// zpool list item
-pub struct ZpoolListItem {
-    /// zpool name
-    pub name: String,
-    /// Health
-    pub health: String,
-    /// Total size
-    pub size: u64,
-    /// Used size
-    pub alloc: u64,
-    /// Free space
-    pub free: u64,
-    /// ZFS fragnentation level
-    pub frag: u64,
-    /// ZFS deduplication ratio
-    pub dedup: f64,
-}
 
 
 #[api(

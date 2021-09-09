@@ -3,20 +3,17 @@ use serde_json::Value;
 
 use proxmox::api::{api, cli::*, RpcEnvironment, ApiHandler};
 
+use pbs_api_types::{
+    DISK_LIST_SCHEMA, ZFS_ASHIFT_SCHEMA, ZfsRaidLevel, ZfsCompressionType,
+    BLOCKDEVICE_NAME_SCHEMA, DATASTORE_SCHEMA, 
+};
 use proxmox_backup::tools::disks::{
     FileSystemType,
     SmartAttribute,
     complete_disk_name,
 };
 
-use proxmox_backup::api2::node::disks::{
-    zfs::DISK_LIST_SCHEMA,
-    zfs::ZFS_ASHIFT_SCHEMA,
-    zfs::ZfsRaidLevel,
-    zfs::ZfsCompressionType,
-};
-
-use proxmox_backup::api2::{self, types::* };
+use proxmox_backup::api2;
 
 #[api(
     input: {

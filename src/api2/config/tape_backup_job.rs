@@ -7,17 +7,10 @@ use proxmox::api::{api, Router, RpcEnvironment, Permission};
 use pbs_api_types::{
     Authid, TapeBackupJobConfig, TapeBackupJobConfigUpdater,
     JOB_ID_SCHEMA, PROXMOX_CONFIG_DIGEST_SCHEMA,
+    PRIV_TAPE_AUDIT, PRIV_TAPE_MODIFY,
 };
 
-use crate::{
-    config::{
-        cached_user_info::CachedUserInfo,
-        acl::{
-            PRIV_TAPE_AUDIT,
-            PRIV_TAPE_MODIFY,
-        },
-    },
-};
+use crate::config::cached_user_info::CachedUserInfo;
 
 #[api(
     input: {

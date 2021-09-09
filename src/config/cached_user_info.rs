@@ -9,9 +9,10 @@ use lazy_static::lazy_static;
 use proxmox::api::UserInformation;
 use proxmox::tools::time::epoch_i64;
 
-use super::acl::{AclTree, ROLE_NAMES, ROLE_ADMIN};
+use pbs_api_types::{Authid, Userid, ROLE_ADMIN};
+use pbs_config::acl::{AclTree, ROLE_NAMES};
+
 use super::user::{ApiToken, User};
-use crate::api2::types::{Authid, Userid};
 use crate::tools::Memcom;
 
 /// Cache User/Group/Token/Acl configuration data for fast permission tests
@@ -54,7 +55,7 @@ impl CachedUserInfo {
 
         let config = Arc::new(CachedUserInfo {
             user_cfg: super::user::cached_config()?,
-            acl_tree: super::acl::cached_config()?,
+            acl_tree: pbs_config::acl::cached_config()?,
         });
 
         let mut cache = CACHED_CONFIG.write().unwrap();

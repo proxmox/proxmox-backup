@@ -3,8 +3,8 @@ use serde_json::{Value, json};
 
 use proxmox::api::{api, Permission, Router};
 
-use crate::api2::types::*;
-use crate::config::acl::PRIV_SYS_AUDIT;
+use pbs_api_types::{RRDMode, RRDTimeFrameResolution, NODE_SCHEMA, PRIV_SYS_AUDIT};
+
 use crate::rrd::{extract_cached_data, RRD_DATA_ENTRIES};
 
 pub fn create_value_from_rrd(

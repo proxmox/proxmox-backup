@@ -27,6 +27,10 @@ use proxmox::{
     },
 };
 
+use pbs_api_types::{
+    Authid, DATASTORE_SCHEMA, BACKUP_TYPE_SCHEMA, BACKUP_TIME_SCHEMA, BACKUP_ID_SCHEMA,
+    CHUNK_DIGEST_SCHEMA, PRIV_DATASTORE_READ, PRIV_DATASTORE_BACKUP,
+};
 use pbs_tools::fs::lock_dir_noblock_shared;
 use pbs_tools::json::{required_integer_param, required_string_param};
 use pbs_datastore::PROXMOX_BACKUP_READER_PROTOCOL_ID_V1;
@@ -35,29 +39,13 @@ use pbs_datastore::index::IndexFile;
 use pbs_datastore::manifest::{archive_type, ArchiveType};
 
 use crate::{
-    api2::{
-        helpers,
-        types::{
-            DATASTORE_SCHEMA,
-            BACKUP_TYPE_SCHEMA,
-            BACKUP_TIME_SCHEMA,
-            BACKUP_ID_SCHEMA,
-            CHUNK_DIGEST_SCHEMA,
-            Authid,
-        },
-    },
+    api2::helpers,
     backup::DataStore,
     server::{
         WorkerTask,
         H2Service,
     },
-    config::{
-        acl::{
-            PRIV_DATASTORE_READ,
-            PRIV_DATASTORE_BACKUP,
-        },
-        cached_user_info::CachedUserInfo,
-    },
+    config::cached_user_info::CachedUserInfo,
 };
 
 mod environment;

@@ -11,15 +11,17 @@ use proxmox::api::{api, Permission, RpcEnvironment};
 use proxmox::{http_err, list_subdirs_api_method};
 use proxmox::{identity, sortable};
 
+use pbs_api_types::{
+    Userid, Authid, PASSWORD_SCHEMA, ACL_PATH_SCHEMA, 
+    PRIVILEGES, PRIV_PERMISSIONS_MODIFY, PRIV_SYS_AUDIT,
+};
 use pbs_tools::auth::private_auth_key;
 use pbs_tools::ticket::{self, Empty, Ticket};
+use pbs_config::acl::AclTreeNode;
 
-use crate::api2::types::*;
 use crate::auth_helpers::*;
 use crate::server::ticket::ApiTicket;
 
-use crate::config::acl as acl_config;
-use crate::config::acl::{PRIVILEGES, PRIV_PERMISSIONS_MODIFY, PRIV_SYS_AUDIT};
 use crate::config::cached_user_info::CachedUserInfo;
 use crate::config::tfa::TfaChallenge;
 
@@ -355,7 +357,7 @@ pub fn list_permissions(
 
     fn populate_acl_paths(
         mut paths: HashSet<String>,
-        node: acl_config::AclTreeNode,
+        node: AclTreeNode,
         path: &str,
     ) -> HashSet<String> {
         for (sub_path, child_node) in node.children {
@@ -375,7 +377,7 @@ pub fn list_permissions(
         None => {
             let mut paths = HashSet::new();
 
-            let (acl_tree, _) = acl_config::config()?;
+            let (acl_tree, _) = pbs_config::acl::config()?;
             paths = populate_acl_paths(paths, acl_tree.root, "");
 
             // default paths, returned even if no ACL exists
@@ -392,7 +394,7 @@ pub fn list_permissions(
     let map = paths.into_iter().fold(
         HashMap::new(),
         |mut map: HashMap<String, HashMap<String, bool>>, path: String| {
-            let split_path = acl_config::split_acl_path(path.as_str());
+            let split_path = pbs_config::acl::split_acl_path(path.as_str());
             let (privs, propagated_privs) = user_info.lookup_privs_details(&auth_id, &split_path);
 
             match privs {

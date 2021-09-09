@@ -7,8 +7,8 @@ use proxmox::api::{api, Permission, Router, RpcEnvironment};
 use proxmox::tools::tfa::totp::Totp;
 use proxmox::{http_bail, http_err};
 
-use crate::api2::types::{Authid, Userid, PASSWORD_SCHEMA};
-use crate::config::acl::{PRIV_PERMISSIONS_MODIFY, PRIV_SYS_AUDIT};
+use pbs_api_types::{Authid, Userid, PASSWORD_SCHEMA, PRIV_PERMISSIONS_MODIFY, PRIV_SYS_AUDIT};
+
 use crate::config::cached_user_info::CachedUserInfo;
 use crate::config::tfa::{TfaInfo, TfaUserData};
 

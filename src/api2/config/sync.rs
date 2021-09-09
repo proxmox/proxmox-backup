@@ -6,17 +6,10 @@ use proxmox::api::{api, Permission, Router, RpcEnvironment};
 
 use pbs_api_types::{
     Authid, SyncJobConfig, SyncJobConfigUpdater, JOB_ID_SCHEMA, PROXMOX_CONFIG_DIGEST_SCHEMA,
+    PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY, PRIV_DATASTORE_PRUNE,
+    PRIV_REMOTE_AUDIT, PRIV_REMOTE_READ,
 };
 use pbs_config::sync;
-
-use crate::config::acl::{
-    PRIV_DATASTORE_AUDIT,
-    PRIV_DATASTORE_BACKUP,
-    PRIV_DATASTORE_MODIFY,
-    PRIV_DATASTORE_PRUNE,
-    PRIV_REMOTE_AUDIT,
-    PRIV_REMOTE_READ,
-};
 
 use crate::config::cached_user_info::CachedUserInfo;
 
@@ -371,7 +364,7 @@ user: read@pbs
 user: write@pbs
 
 "###).expect("test user.cfg is not parsable");
-    let acl_tree = crate::config::acl::AclTree::from_raw(r###"
+    let acl_tree = pbs_config::acl::AclTree::from_raw(r###"
 acl:1:/datastore/localstore1:read@pbs,write@pbs:DatastoreAudit
 acl:1:/datastore/localstore1:write@pbs:DatastoreBackup
 acl:1:/datastore/localstore2:write@pbs:DatastorePowerUser

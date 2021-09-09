@@ -6,14 +6,16 @@ use proxmox::api::router::{Router, SubdirMap};
 use proxmox::{sortable, identity};
 use proxmox::{list_subdirs_api_method};
 
-use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
+use pbs_api_types::{
+    Authid, UPID_SCHEMA, NODE_SCHEMA, BLOCKDEVICE_NAME_SCHEMA,
+    PRIV_SYS_AUDIT, PRIV_SYS_MODIFY,
+};
+
 use crate::tools::disks::{
     DiskUsageInfo, DiskUsageType, DiskManage, SmartData,
     get_disks, get_smart_data, get_disk_usage_info, inititialize_gpt_disk,
 };
 use crate::server::WorkerTask;
-
-use crate::api2::types::{Authid, UPID_SCHEMA, NODE_SCHEMA, BLOCKDEVICE_NAME_SCHEMA};
 
 pub mod directory;
 pub mod zfs;

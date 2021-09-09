@@ -25,13 +25,9 @@ use proxmox::{
     },
 };
 
-use proxmox_backup::{
-    api2,
-    config::{
-        self,
-        acl::PRIVILEGES,
-    },
-};
+use pbs_api_types::PRIVILEGES;
+
+use proxmox_backup::{api2, config};
 
 fn get_args() -> (String, Vec<String>) {
 
@@ -62,7 +58,7 @@ fn main() -> Result<(), Error> {
             "sync.cfg" => dump_section_config(&pbs_config::sync::CONFIG),
             "verification.cfg" => dump_section_config(&pbs_config::verify::CONFIG),
             "media-pool.cfg" => dump_section_config(&pbs_config::media_pool::CONFIG),
-            "config::acl::Role" => dump_enum_properties(&config::acl::Role::API_SCHEMA)?,
+            "config::acl::Role" => dump_enum_properties(&pbs_api_types::Role::API_SCHEMA)?,
             _ => bail!("docgen: got unknown type"),
         };
         println!("{}", text);

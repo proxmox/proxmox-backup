@@ -6,7 +6,11 @@ use proxmox::api::{api, Permission, RpcEnvironment, RpcEnvironmentType};
 use proxmox::api::section_config::SectionConfigData;
 use proxmox::api::router::Router;
 
-use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
+use pbs_api_types::{
+    Authid, NODE_SCHEMA, BLOCKDEVICE_NAME_SCHEMA, DATASTORE_SCHEMA, UPID_SCHEMA,
+    PRIV_SYS_AUDIT, PRIV_SYS_MODIFY,
+};
+
 use crate::tools::disks::{
     DiskManage, FileSystemType, DiskUsageType,
     create_file_system, create_single_linux_partition, get_fs_uuid, get_disk_usage_info,
@@ -15,7 +19,6 @@ use crate::tools::systemd::{self, types::*};
 
 use crate::server::WorkerTask;
 
-use crate::api2::types::*;
 use crate::config::datastore::{self, DataStoreConfig};
 use pbs_config::open_backup_lockfile;
 

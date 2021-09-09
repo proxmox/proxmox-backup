@@ -3,9 +3,9 @@ use ::serde::{Deserialize, Serialize};
 
 use proxmox::api::{api, Permission, Router, RpcEnvironment};
 
-use crate::api2::types::NODE_SCHEMA;
+use pbs_api_types::{NODE_SCHEMA, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
+
 use crate::api2::node::apt::update_apt_proxy_config;
-use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 use crate::config::node::{NodeConfig, NodeConfigUpdater};
 
 pub const ROUTER: Router = Router::new()

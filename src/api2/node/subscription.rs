@@ -3,11 +3,14 @@ use serde_json::Value;
 
 use proxmox::api::{api, Router, RpcEnvironment, Permission};
 
+use pbs_api_types::{
+    NODE_SCHEMA, SUBSCRIPTION_KEY_SCHEMA, Authid,
+    PRIV_SYS_AUDIT,PRIV_SYS_MODIFY,
+};
+
 use crate::tools;
 use crate::tools::subscription::{self, SubscriptionStatus, SubscriptionInfo};
-use crate::config::acl::{PRIV_SYS_AUDIT,PRIV_SYS_MODIFY};
 use crate::config::cached_user_info::CachedUserInfo;
-use crate::api2::types::{NODE_SCHEMA, SUBSCRIPTION_KEY_SCHEMA, Authid};
 
 #[api(
     input: {

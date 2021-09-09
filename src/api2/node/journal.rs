@@ -6,8 +6,7 @@ use std::io::{BufRead,BufReader};
 
 use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};
 
-use crate::api2::types::*;
-use crate::config::acl::PRIV_SYS_AUDIT;
+use pbs_api_types::{NODE_SCHEMA, PRIV_SYS_AUDIT};
 
 #[api(
     protected: true,

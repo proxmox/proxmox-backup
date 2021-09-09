@@ -20,11 +20,10 @@ use proxmox::list_subdirs_api_method;
 use proxmox_http::websocket::WebSocket;
 use proxmox::{identity, sortable};
 
+use pbs_api_types::{Authid, NODE_SCHEMA, PRIV_SYS_CONSOLE};
 use pbs_tools::auth::private_auth_key;
 use pbs_tools::ticket::{self, Empty, Ticket};
 
-use crate::api2::types::*;
-use crate::config::acl::PRIV_SYS_CONSOLE;
 use crate::server::WorkerTask;
 use crate::tools;
 

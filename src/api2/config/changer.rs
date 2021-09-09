@@ -11,23 +11,13 @@ use proxmox::api::{
 };
 
 use pbs_api_types::{
-    Authid,
-    PROXMOX_CONFIG_DIGEST_SCHEMA,
-    CHANGER_NAME_SCHEMA,
-    SLOT_ARRAY_SCHEMA,
-    ScsiTapeChanger,
-    ScsiTapeChangerUpdater,
-    LtoTapeDrive,
+    Authid, ScsiTapeChanger, ScsiTapeChangerUpdater, LtoTapeDrive,
+    PROXMOX_CONFIG_DIGEST_SCHEMA, CHANGER_NAME_SCHEMA, SLOT_ARRAY_SCHEMA,
+    PRIV_TAPE_AUDIT, PRIV_TAPE_MODIFY,
 };
 
 use crate::{
-    config::{
-        cached_user_info::CachedUserInfo,
-        acl::{
-            PRIV_TAPE_AUDIT,
-            PRIV_TAPE_MODIFY,
-        },
-    },
+    config::cached_user_info::CachedUserInfo,
     tape::{
         linux_tape_changer_list,
         check_drive_path,

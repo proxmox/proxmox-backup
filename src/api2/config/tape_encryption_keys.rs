@@ -15,6 +15,7 @@ use pbs_api_types::{
     Fingerprint, KeyInfo, Kdf,
     TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
     PROXMOX_CONFIG_DIGEST_SCHEMA, PASSWORD_HINT_SCHEMA,
+    PRIV_TAPE_AUDIT, PRIV_TAPE_MODIFY,
 };
 
 use pbs_config::key_config::KeyConfig;
@@ -26,15 +27,6 @@ use pbs_config::tape_encryption_keys::{
     save_keys,
     save_key_configs,
     insert_key,
-};
-
-use crate::{
-    config::{
-        acl::{
-            PRIV_TAPE_AUDIT,
-            PRIV_TAPE_MODIFY,
-        },
-    },
 };
 
 #[api(

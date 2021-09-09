@@ -11,8 +11,11 @@ use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};
 use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
 use proxmox::{IPRE, IPV4RE, IPV6RE, IPV4OCTET, IPV6H16, IPV6LS32};
 
-use crate::api2::types::*;
-use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
+use pbs_api_types::{
+    PROXMOX_CONFIG_DIGEST_SCHEMA, FIRST_DNS_SERVER_SCHEMA, SECOND_DNS_SERVER_SCHEMA,
+    THIRD_DNS_SERVER_SCHEMA, NODE_SCHEMA, SEARCH_DOMAIN_SCHEMA,
+    PRIV_SYS_AUDIT, PRIV_SYS_MODIFY,
+};
 
 static RESOLV_CONF_FN: &str = "/etc/resolv.conf";
 

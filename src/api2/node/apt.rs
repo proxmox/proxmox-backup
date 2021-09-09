@@ -13,6 +13,11 @@ use proxmox_apt::repositories::{
 };
 use proxmox_http::ProxyConfig;
 
+use pbs_api_types::{
+    Authid, APTUpdateInfo, NODE_SCHEMA, PROXMOX_CONFIG_DIGEST_SCHEMA, UPID_SCHEMA,
+    PRIV_SYS_AUDIT, PRIV_SYS_MODIFY,
+};
+
 use crate::config::node;
 use crate::server::WorkerTask;
 use crate::tools::{
@@ -20,8 +25,6 @@ use crate::tools::{
     pbs_simple_http,
     subscription,
 };
-use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
-use crate::api2::types::{Authid, APTUpdateInfo, NODE_SCHEMA, PROXMOX_CONFIG_DIGEST_SCHEMA, UPID_SCHEMA};
 
 #[api(
     input: {

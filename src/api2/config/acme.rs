@@ -16,9 +16,10 @@ use proxmox::list_subdirs_api_method;
 use proxmox_acme_rs::account::AccountData as AcmeAccountData;
 use proxmox_acme_rs::Account;
 
+use pbs_api_types::{Authid, PRIV_SYS_MODIFY};
+
 use crate::acme::AcmeClient;
-use crate::api2::types::{AcmeAccountName, AcmeChallengeSchema, Authid, KnownAcmeDirectory};
-use crate::config::acl::PRIV_SYS_MODIFY;
+use crate::api2::types::{AcmeAccountName, AcmeChallengeSchema, KnownAcmeDirectory};
 use crate::config::acme::plugin::{
     self, DnsPlugin, DnsPluginCore, DnsPluginCoreUpdater, PLUGIN_ID_SCHEMA,
 };

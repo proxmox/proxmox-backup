@@ -7,7 +7,10 @@ use proxmox::api::router::SubdirMap;
 use proxmox::{list_subdirs_api_method, sortable};
 use proxmox::api::{api, ApiMethod, Permission, Router, RpcEnvironment};
 
-use pbs_api_types::{VerificationJobConfig, VerificationJobStatus, JOB_ID_SCHEMA, Authid};
+use pbs_api_types::{
+    VerificationJobConfig, VerificationJobStatus, JOB_ID_SCHEMA, Authid,
+    PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_VERIFY,
+};
 use pbs_config::verify;
 
 use crate::{
@@ -22,15 +25,8 @@ use crate::{
             compute_schedule_status,
         },
     },
-    config::{
-        acl::{
-            PRIV_DATASTORE_AUDIT,
-            PRIV_DATASTORE_VERIFY,
-        },
-        cached_user_info::CachedUserInfo,
-    },
+    config::cached_user_info::CachedUserInfo,
 };
-
 
 #[api(
     input: {

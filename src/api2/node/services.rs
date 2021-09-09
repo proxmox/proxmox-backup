@@ -6,10 +6,9 @@ use serde_json::{json, Value};
 use proxmox::{sortable, identity, list_subdirs_api_method};
 use proxmox::api::{api, Router, Permission, RpcEnvironment};
 use proxmox::api::router::SubdirMap;
-use proxmox::api::schema::*;
 
-use crate::api2::types::*;
-use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
+use pbs_api_types::{Authid, NODE_SCHEMA, SERVICE_ID_SCHEMA, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
+
 use crate::server::WorkerTask;
 
 static SERVICE_NAME_LIST: [&str; 7] = [
@@ -345,11 +344,6 @@ fn reload_service(
 
     run_service_command(&service, "reload", auth_id)
 }
-
-
-const SERVICE_ID_SCHEMA: Schema = StringSchema::new("Service ID.")
-    .max_length(256)
-    .schema();
 
 #[sortable]
 const SERVICE_SUBDIRS: SubdirMap = &sorted!([

@@ -88,7 +88,7 @@ fn verify_access_permissions(permission: &Permission) -> Result<(), Error> {
         }
         Permission::Privilege(path_comp, ..)=> {
             let path = format!("/{}", path_comp.join("/"));
-            proxmox_backup::config::acl::check_acl_path(&path)?;
+            pbs_config::acl::check_acl_path(&path)?;
         }
         _ => {}
     }

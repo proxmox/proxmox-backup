@@ -8,16 +8,16 @@ use proxmox::api::{api, Router, RpcEnvironment, Permission};
 use proxmox::api::router::SubdirMap;
 use proxmox::{identity, list_subdirs_api_method, sortable};
 
-use crate::api2::types::*;
-use crate::api2::pull::check_pull_privs;
-
-use crate::server::{self, UPID, UPIDExt, TaskState, TaskListInfoIterator};
-use crate::config::acl::{
-    PRIV_DATASTORE_MODIFY,
-    PRIV_DATASTORE_VERIFY,
-    PRIV_SYS_AUDIT,
-    PRIV_SYS_MODIFY,
+use pbs_api_types::{
+    Userid, Authid, Tokenname, TaskListItem,
+    NODE_SCHEMA, UPID_SCHEMA, VERIFICATION_JOB_WORKER_ID_REGEX,
+    SYNC_JOB_WORKER_ID_REGEX, DATASTORE_SCHEMA,
+    PRIV_DATASTORE_MODIFY, PRIV_DATASTORE_VERIFY, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY,
 };
+
+use crate::api2::types::TaskStateType;
+use crate::api2::pull::check_pull_privs;
+use crate::server::{self, UPID, UPIDExt, TaskState, TaskListInfoIterator};
 use crate::config::cached_user_info::CachedUserInfo;
 
 // matches respective job execution privileges

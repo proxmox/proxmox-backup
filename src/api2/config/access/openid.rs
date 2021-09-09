@@ -6,9 +6,10 @@ use ::serde::{Deserialize, Serialize};
 
 use proxmox::api::{api, Permission, Router, RpcEnvironment};
 
+use pbs_api_types::{
+    PROXMOX_CONFIG_DIGEST_SCHEMA, REALM_ID_SCHEMA, PRIV_SYS_AUDIT, PRIV_REALM_ALLOCATE,
+};
 use pbs_config::domains::{self, OpenIdRealmConfig, OpenIdRealmConfigUpdater};
-use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_REALM_ALLOCATE};
-use crate::api2::types::*;
 
 #[api(
     input: {

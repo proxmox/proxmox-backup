@@ -22,37 +22,20 @@ use proxmox::{
     },
 };
 
+use pbs_api_types::{
+    UPID_SCHEMA, CHANGER_NAME_SCHEMA, DRIVE_NAME_SCHEMA, MEDIA_LABEL_SCHEMA, MEDIA_POOL_NAME_SCHEMA,
+    Authid, DriveListEntry, LtoTapeDrive, MediaIdFlat, LabelUuidMap, MamAttribute,
+    LtoDriveAndMediaStatus, Lp17VolumeStatistics,
+};
+ 
 use pbs_datastore::task_log;
+use pbs_api_types::{PRIV_TAPE_AUDIT, PRIV_TAPE_READ, PRIV_TAPE_WRITE};
 
 use crate::{
-    config::{
-        cached_user_info::CachedUserInfo,
-        acl::{
-            PRIV_TAPE_AUDIT,
-            PRIV_TAPE_READ,
-            PRIV_TAPE_WRITE,
-        },
-    },
-    api2::{
-        types::{
-            UPID_SCHEMA,
-            CHANGER_NAME_SCHEMA,
-            DRIVE_NAME_SCHEMA,
-            MEDIA_LABEL_SCHEMA,
-            MEDIA_POOL_NAME_SCHEMA,
-            Authid,
-            DriveListEntry,
-            LtoTapeDrive,
-            MediaIdFlat,
-            LabelUuidMap,
-            MamAttribute,
-            LtoDriveAndMediaStatus,
-            Lp17VolumeStatistics,
-        },
-        tape::restore::{
-            fast_catalog_restore,
-            restore_media,
-        },
+    config::cached_user_info::CachedUserInfo,
+    api2::tape::restore::{
+        fast_catalog_restore,
+        restore_media,
     },
     server::WorkerTask,
     tape::{

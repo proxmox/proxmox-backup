@@ -6,14 +6,9 @@ use proxmox::api::{api, Permission, Router, RpcEnvironment};
 
 use pbs_api_types::{
     Authid, VerificationJobConfig, VerificationJobConfigUpdater, JOB_ID_SCHEMA,
-    PROXMOX_CONFIG_DIGEST_SCHEMA,
+    PROXMOX_CONFIG_DIGEST_SCHEMA, PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_VERIFY,
 };
 use pbs_config::verify;
-
-use crate::config::acl::{
-    PRIV_DATASTORE_AUDIT,
-    PRIV_DATASTORE_VERIFY,
-};
 
 use crate::config::cached_user_info::CachedUserInfo;
 

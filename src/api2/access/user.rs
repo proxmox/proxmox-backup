@@ -11,14 +11,13 @@ use proxmox::api::schema::{Schema, StringSchema};
 
 use pbs_api_types::{
     PASSWORD_FORMAT, PROXMOX_CONFIG_DIGEST_SCHEMA, SINGLE_LINE_COMMENT_SCHEMA, Authid,
-    Tokenname, UserWithTokens, Userid,
+    Tokenname, UserWithTokens, Userid, PRIV_SYS_AUDIT, PRIV_PERMISSIONS_MODIFY,
 };
 use pbs_config::token_shadow;
+use pbs_config::open_backup_lockfile;
 
 use crate::config::user;
-use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_PERMISSIONS_MODIFY};
 use crate::config::cached_user_info::CachedUserInfo;
-use pbs_config::open_backup_lockfile;
 
 pub const PBS_PASSWORD_SCHEMA: Schema = StringSchema::new("User Password.")
     .format(&PASSWORD_FORMAT)

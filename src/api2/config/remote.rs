@@ -9,11 +9,11 @@ use pbs_client::{HttpClient, HttpClientOptions};
 use pbs_api_types::{
     REMOTE_ID_SCHEMA, REMOTE_PASSWORD_SCHEMA, Remote, RemoteConfig, RemoteConfigUpdater,
     Authid, PROXMOX_CONFIG_DIGEST_SCHEMA, DataStoreListItem, SyncJobConfig,
+    PRIV_REMOTE_AUDIT, PRIV_REMOTE_MODIFY,
 };
 use pbs_config::sync;
 
 use crate::config::cached_user_info::CachedUserInfo;
-use crate::config::acl::{PRIV_REMOTE_AUDIT, PRIV_REMOTE_MODIFY};
 
 #[api(
     input: {

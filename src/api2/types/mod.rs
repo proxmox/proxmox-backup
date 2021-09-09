@@ -4,9 +4,6 @@ use anyhow::bail;
 use serde::{Deserialize, Serialize};
 
 use proxmox::api::{api, schema::*};
-use proxmox::const_regex;
-
-use crate::config::acl::Role;
 
 mod acme;
 pub use acme::*;
@@ -24,177 +21,6 @@ pub const FILENAME_FORMAT: ApiStringFormat = ApiStringFormat::VerifyFn(|name| {
     Ok(())
 });
 
-const_regex!{
-    pub SYSTEMD_DATETIME_REGEX = r"^\d{4}-\d{2}-\d{2}( \d{2}:\d{2}(:\d{2})?)?$"; //  fixme: define in common_regex ?
-
-    pub ACL_PATH_REGEX = concat!(r"^(?:/|", r"(?:/", PROXMOX_SAFE_ID_REGEX_STR!(), ")+", r")$");
-
-    pub SUBSCRIPTION_KEY_REGEX = concat!(r"^pbs(?:[cbsp])-[0-9a-f]{10}$");
-
-    pub ZPOOL_NAME_REGEX = r"^[a-zA-Z][a-z0-9A-Z\-_.:]+$";
-
-    pub DATASTORE_MAP_REGEX = concat!(r"(:?", PROXMOX_SAFE_ID_REGEX_STR!(), r"=)?", PROXMOX_SAFE_ID_REGEX_STR!());
-
-}
-
-pub const SYSTEMD_DATETIME_FORMAT: ApiStringFormat =
-    ApiStringFormat::Pattern(&SYSTEMD_DATETIME_REGEX);
-
-pub const HOSTNAME_FORMAT: ApiStringFormat =
-    ApiStringFormat::Pattern(&HOSTNAME_REGEX);
-
-pub const DNS_ALIAS_FORMAT: ApiStringFormat =
-    ApiStringFormat::Pattern(&DNS_ALIAS_REGEX);
-
-pub const ACL_PATH_FORMAT: ApiStringFormat =
-    ApiStringFormat::Pattern(&ACL_PATH_REGEX);
-
-
-pub const SUBSCRIPTION_KEY_FORMAT: ApiStringFormat =
-    ApiStringFormat::Pattern(&SUBSCRIPTION_KEY_REGEX);
-
-pub const BLOCKDEVICE_NAME_FORMAT: ApiStringFormat =
-    ApiStringFormat::Pattern(&BLOCKDEVICE_NAME_REGEX);
-
-pub const DATASTORE_MAP_FORMAT: ApiStringFormat =
-    ApiStringFormat::Pattern(&DATASTORE_MAP_REGEX);
-
-pub const PASSWORD_SCHEMA: Schema = StringSchema::new("Password.")
-    .format(&PASSWORD_FORMAT)
-    .min_length(1)
-    .max_length(1024)
-    .schema();
-
-pub const PBS_PASSWORD_SCHEMA: Schema = StringSchema::new("User Password.")
-    .format(&PASSWORD_FORMAT)
-    .min_length(5)
-    .max_length(64)
-    .schema();
-
-pub const CHUNK_DIGEST_SCHEMA: Schema = StringSchema::new("Chunk digest (SHA256).")
-    .format(&CHUNK_DIGEST_FORMAT)
-    .schema();
-
-pub const NODE_SCHEMA: Schema = StringSchema::new("Node name (or 'localhost')")
-    .format(&ApiStringFormat::VerifyFn(|node| {
-        if node == "localhost" || node == proxmox::tools::nodename() {
-            Ok(())
-        } else {
-            bail!("no such node '{}'", node);
-        }
-    }))
-    .schema();
-
-pub const SEARCH_DOMAIN_SCHEMA: Schema =
-    StringSchema::new("Search domain for host-name lookup.").schema();
-
-pub const FIRST_DNS_SERVER_SCHEMA: Schema =
-    StringSchema::new("First name server IP address.")
-    .format(&IP_FORMAT)
-    .schema();
-
-pub const SECOND_DNS_SERVER_SCHEMA: Schema =
-    StringSchema::new("Second name server IP address.")
-    .format(&IP_FORMAT)
-    .schema();
-
-pub const THIRD_DNS_SERVER_SCHEMA: Schema =
-    StringSchema::new("Third name server IP address.")
-    .format(&IP_FORMAT)
-    .schema();
-
-
-pub const TIME_ZONE_SCHEMA: Schema = StringSchema::new(
-    "Time zone. The file '/usr/share/zoneinfo/zone.tab' contains the list of valid names.")
-    .format(&SINGLE_LINE_COMMENT_FORMAT)
-    .min_length(2)
-    .max_length(64)
-    .schema();
-
-pub const ACL_PATH_SCHEMA: Schema = StringSchema::new(
-    "Access control path.")
-    .format(&ACL_PATH_FORMAT)
-    .min_length(1)
-    .max_length(128)
-    .schema();
-
-pub const ACL_PROPAGATE_SCHEMA: Schema = BooleanSchema::new(
-    "Allow to propagate (inherit) permissions.")
-    .default(true)
-    .schema();
-
-pub const ACL_UGID_TYPE_SCHEMA: Schema = StringSchema::new(
-    "Type of 'ugid' property.")
-    .format(&ApiStringFormat::Enum(&[
-        EnumEntry::new("user", "User"),
-        EnumEntry::new("group", "Group")]))
-    .schema();
-
-#[api(
-    properties: {
-        propagate: {
-            schema: ACL_PROPAGATE_SCHEMA,
-        },
-	path: {
-            schema: ACL_PATH_SCHEMA,
-        },
-        ugid_type: {
-            schema: ACL_UGID_TYPE_SCHEMA,
-        },
-	ugid: {
-            type: String,
-            description: "User or Group ID.",
-        },
-	roleid: {
-            type: Role,
-        }
-    }
-)]
-#[derive(Serialize, Deserialize)]
-/// ACL list entry.
-pub struct AclListItem {
-    pub path: String,
-    pub ugid: String,
-    pub ugid_type: String,
-    pub propagate: bool,
-    pub roleid: String,
-}
-
-pub const DATASTORE_MAP_SCHEMA: Schema = StringSchema::new("Datastore mapping.")
-    .format(&DATASTORE_MAP_FORMAT)
-    .min_length(3)
-    .max_length(65)
-    .type_text("(<source>=)?<target>")
-    .schema();
-
-pub const DATASTORE_MAP_ARRAY_SCHEMA: Schema = ArraySchema::new(
-    "Datastore mapping list.", &DATASTORE_MAP_SCHEMA)
-    .schema();
-
-pub const DATASTORE_MAP_LIST_SCHEMA: Schema = StringSchema::new(
-    "A list of Datastore mappings (or single datastore), comma separated. \
-    For example 'a=b,e' maps the source datastore 'a' to target 'b and \
-    all other sources to the default 'e'. If no default is given, only the \
-    specified sources are mapped.")
-    .format(&ApiStringFormat::PropertyString(&DATASTORE_MAP_ARRAY_SCHEMA))
-    .schema();
-
-
-pub const HOSTNAME_SCHEMA: Schema = StringSchema::new("Hostname (as defined in RFC1123).")
-    .format(&HOSTNAME_FORMAT)
-    .schema();
-
-pub const SUBSCRIPTION_KEY_SCHEMA: Schema = StringSchema::new("Proxmox Backup Server subscription key.")
-    .format(&SUBSCRIPTION_KEY_FORMAT)
-    .min_length(15)
-    .max_length(16)
-    .schema();
-
-pub const BLOCKDEVICE_NAME_SCHEMA: Schema = StringSchema::new("Block device name (/sys/block/<name>).")
-    .format(&BLOCKDEVICE_NAME_FORMAT)
-    .min_length(3)
-    .max_length(64)
-    .schema();
 
 // Complex type definitions
 
@@ -240,17 +66,6 @@ pub enum TaskStateType {
     Error,
     /// Unknown
     Unknown,
-}
-
-#[api()]
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-/// Node Power command type.
-pub enum NodePowerCommand {
-    /// Restart the server
-    Reboot,
-    /// Shutdown the server
-    Shutdown,
 }
 
 // Regression tests
@@ -338,34 +153,6 @@ fn test_proxmox_user_id_schema() -> Result<(), anyhow::Error> {
     }
 
     Ok(())
-}
-
-#[api()]
-#[derive(Copy, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "UPPERCASE")]
-pub enum RRDMode {
-    /// Maximum
-    Max,
-    /// Average
-    Average,
-}
-
-
-#[api()]
-#[repr(u64)]
-#[derive(Copy, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum RRDTimeFrameResolution {
-    ///  1 min => last 70 minutes
-    Hour = 60,
-    /// 30 min => last 35 hours
-    Day = 60*30,
-    /// 3 hours => about 8 days
-    Week = 60*180,
-    /// 12 hours => last 35 days
-    Month = 60*720,
-    /// 1 week => last 490 days
-    Year = 60*10080,
 }
 
 #[api]

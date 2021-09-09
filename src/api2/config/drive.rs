@@ -5,22 +5,12 @@ use serde_json::Value;
 use proxmox::api::{api, Router, RpcEnvironment, Permission};
 
 use pbs_api_types::{
-    Authid,
-    PROXMOX_CONFIG_DIGEST_SCHEMA,
-    DRIVE_NAME_SCHEMA,
-    LtoTapeDrive,
-    LtoTapeDriveUpdater,
-    ScsiTapeChanger,
+    Authid, LtoTapeDrive, LtoTapeDriveUpdater, ScsiTapeChanger,
+    PROXMOX_CONFIG_DIGEST_SCHEMA, DRIVE_NAME_SCHEMA, PRIV_TAPE_AUDIT, PRIV_TAPE_MODIFY,
 };
 
 use crate::{
-    config::{
-        cached_user_info::CachedUserInfo,
-        acl::{
-            PRIV_TAPE_AUDIT,
-            PRIV_TAPE_MODIFY,
-        },
-    },
+    config::cached_user_info::CachedUserInfo,
     tape::{
         lto_tape_device_list,
         check_drive_path,

@@ -2,8 +2,8 @@ use anyhow::Error;
 use proxmox::api::{api, ApiMethod, Permission, Router, RpcEnvironment};
 use serde_json::{json, Value};
 
-use crate::api2::types::*;
-use crate::config::acl::PRIV_SYS_AUDIT;
+use pbs_api_types::{NODE_SCHEMA, PRIV_SYS_AUDIT};
+
 use crate::server::generate_report;
 
 #[api(

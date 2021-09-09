@@ -14,21 +14,15 @@ use proxmox::api::{
     SubdirMap,
 };
 
-use crate::api2::types::{
-    DATASTORE_SCHEMA,
-    RRDMode,
-    RRDTimeFrameResolution,
-    Authid,
+use pbs_api_types::{
+    DATASTORE_SCHEMA, RRDMode, RRDTimeFrameResolution, Authid,
+    PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP,
 };
 
 use crate::backup::DataStore;
 use crate::config::datastore;
 use crate::tools::statistics::{linear_regression};
 use crate::config::cached_user_info::CachedUserInfo;
-use crate::config::acl::{
-    PRIV_DATASTORE_AUDIT,
-    PRIV_DATASTORE_BACKUP,
-};
 
 #[api(
     returns: {

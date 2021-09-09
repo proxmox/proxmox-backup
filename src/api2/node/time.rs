@@ -4,8 +4,7 @@ use serde_json::{json, Value};
 use proxmox::api::{api, Router, Permission};
 use proxmox::tools::fs::{file_read_firstline, replace_file, CreateOptions};
 
-use crate::config::acl::PRIV_SYS_MODIFY;
-use crate::api2::types::*;
+use pbs_api_types::{NODE_SCHEMA, TIME_ZONE_SCHEMA, PRIV_SYS_MODIFY};
 
 fn read_etc_localtime() -> Result<String, Error> {
     // use /etc/timezone

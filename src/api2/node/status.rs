@@ -9,9 +9,11 @@ use proxmox::sys::linux::procfs;
 use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};
 
 use pbs_tools::cert::CertInfo;
+use pbs_api_types::{NODE_SCHEMA, NodePowerCommand, PRIV_SYS_AUDIT, PRIV_SYS_POWER_MANAGEMENT};
 
-use crate::api2::types::*;
-use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_POWER_MANAGEMENT};
+use crate::api2::types::{
+    NodeCpuInformation, NodeStatus, NodeMemoryCounters, NodeSwapCounters, NodeInformation,
+};
 
 impl std::convert::From<procfs::ProcFsCPUInfo> for NodeCpuInformation {
     fn from(info: procfs::ProcFsCPUInfo) -> Self {
