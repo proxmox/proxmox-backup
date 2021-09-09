@@ -7,7 +7,7 @@ use proxmox::api::{api, Permission, Router, RpcEnvironment};
 use proxmox::tools::tfa::totp::Totp;
 use proxmox::{http_bail, http_err};
 
-use pbs_api_types::{Authid, Userid, PASSWORD_SCHEMA, PRIV_PERMISSIONS_MODIFY, PRIV_SYS_AUDIT};
+use pbs_api_types::{Authid, Userid, User, PASSWORD_SCHEMA, PRIV_PERMISSIONS_MODIFY, PRIV_SYS_AUDIT};
 
 use crate::config::cached_user_info::CachedUserInfo;
 use crate::config::tfa::{TfaInfo, TfaUserData};
@@ -37,7 +37,7 @@ fn tfa_update_auth(
         let (config, _digest) = crate::config::user::config()?;
 
         if config
-            .lookup::<crate::config::user::User>("user", userid.as_str())
+            .lookup::<User>("user", userid.as_str())
             .is_err()
         {
             http_bail!(UNAUTHORIZED, "user '{}' does not exists.", userid);

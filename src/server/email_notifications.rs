@@ -9,7 +9,7 @@ use proxmox::try_block;
 
 use pbs_tools::format::HumanByte;
 use pbs_api_types::{
-    TapeBackupJobSetup, SyncJobConfig, VerificationJobConfig,
+    User, TapeBackupJobSetup, SyncJobConfig, VerificationJobConfig,
     APTUpdateInfo, GarbageCollectionStatus,
     Userid, Notify, DatastoreNotify,
 };
@@ -548,9 +548,7 @@ pub fn send_updates_available(
 /// Lookup users email address
 pub fn lookup_user_email(userid: &Userid) -> Option<String> {
 
-    use crate::config::user::{self, User};
-
-    if let Ok(user_config) = user::cached_config() {
+    if let Ok(user_config) = crate::config::user::cached_config() {
         if let Ok(user) = user_config.lookup::<User>("user", userid.as_str()) {
             return user.email;
         }

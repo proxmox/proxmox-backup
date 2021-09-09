@@ -9,10 +9,9 @@ use lazy_static::lazy_static;
 use proxmox::api::UserInformation;
 use proxmox::tools::time::epoch_i64;
 
-use pbs_api_types::{Authid, Userid, ROLE_ADMIN};
+use pbs_api_types::{Authid, Userid, User, ApiToken, ROLE_ADMIN};
 use pbs_config::acl::{AclTree, ROLE_NAMES};
 
-use super::user::{ApiToken, User};
 use crate::tools::Memcom;
 
 /// Cache User/Group/Token/Acl configuration data for fast permission tests

@@ -13,11 +13,10 @@ use proxmox::api::{
     }
 };
 
-use pbs_api_types::{Authid, Userid};
-pub use pbs_api_types::{ApiToken, User};
-pub use pbs_api_types::{
-    EMAIL_SCHEMA, ENABLE_USER_SCHEMA, EXPIRE_USER_SCHEMA, FIRST_NAME_SCHEMA, LAST_NAME_SCHEMA,
+use pbs_api_types::{
+    Authid, Userid, ApiToken, User,
 };
+use pbs_config::{open_backup_lockfile, replace_backup_config, BackupLockGuard};
 
 use crate::tools::Memcom;
 
@@ -47,6 +46,11 @@ fn init() -> SectionConfig {
 
 pub const USER_CFG_FILENAME: &str = "/etc/proxmox-backup/user.cfg";
 pub const USER_CFG_LOCKFILE: &str = "/etc/proxmox-backup/.user.lck";
+
+/// Get exclusive lock
+pub fn lock_config() -> Result<BackupLockGuard, Error> {
+    open_backup_lockfile(USER_CFG_LOCKFILE, None, true)
+}
 
 pub fn config() -> Result<(SectionConfigData, [u8;32]), Error> {
 
@@ -119,7 +123,7 @@ pub fn cached_config() -> Result<Arc<SectionConfigData>, Error> {
 
 pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
     let raw = CONFIG.write(USER_CFG_FILENAME, &config)?;
-    pbs_config::replace_backup_config(USER_CFG_FILENAME, raw.as_bytes())?;
+    replace_backup_config(USER_CFG_FILENAME, raw.as_bytes())?;
 
     // increase user cache generation
     // We use this in CachedUserInfo

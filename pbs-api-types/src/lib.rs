@@ -61,10 +61,7 @@ pub use userid::{PROXMOX_GROUP_ID_SCHEMA, PROXMOX_TOKEN_ID_SCHEMA, PROXMOX_TOKEN
 
 #[macro_use]
 mod user;
-pub use user::{ApiToken, User, UserWithTokens};
-pub use user::{
-    EMAIL_SCHEMA, ENABLE_USER_SCHEMA, EXPIRE_USER_SCHEMA, FIRST_NAME_SCHEMA, LAST_NAME_SCHEMA,
-};
+pub use user::*;
 
 pub mod upid;
 pub use upid::UPID;

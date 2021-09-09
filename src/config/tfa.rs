@@ -27,8 +27,7 @@ use proxmox::tools::AsHex;
 
 use pbs_buildcfg::configdir;
 use pbs_config::{open_backup_lockfile, BackupLockGuard};
-
-use crate::api2::types::Userid;
+use pbs_api_types::{Userid, User};
 
 /// Mapping of userid to TFA entry.
 pub type TfaUsers = HashMap<Userid, TfaUserData>;
@@ -278,7 +277,6 @@ impl TfaConfig {
 
     /// Remove non-existent users.
     pub fn cleanup_users(&mut self, config: &proxmox::api::section_config::SectionConfigData) {
-        use crate::config::user::User;
         self.users
             .retain(|user, _| config.lookup::<User>("user", user.as_str()).is_ok());
     }

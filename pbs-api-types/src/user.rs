@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
 
 use proxmox::api::api;
-use proxmox::api::schema::{BooleanSchema, IntegerSchema, Schema, StringSchema};
+use proxmox::api::schema::{
+    BooleanSchema, IntegerSchema, Schema, StringSchema, Updater,
+};
 
 use super::{SINGLE_LINE_COMMENT_FORMAT, SINGLE_LINE_COMMENT_SCHEMA};
 use super::userid::{Authid, Userid, PROXMOX_TOKEN_ID_SCHEMA};
@@ -171,9 +173,10 @@ impl ApiToken {
         },
     }
 )]
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize,Deserialize,Updater)]
 /// User properties.
 pub struct User {
+    #[updater(skip)]
     pub userid: Userid,
     #[serde(skip_serializing_if="Option::is_none")]
     pub comment: Option<String>,
