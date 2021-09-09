@@ -315,6 +315,12 @@ fn upgrade_to_websocket(
     .boxed()
 }
 
+#[api]
+/// List Nodes (only for compatiblity)
+fn list_nodes() -> Result<Value, Error> {
+    Ok(json!([ { "node": proxmox::tools::nodename().to_string() } ]))
+}
+
 pub const SUBDIRS: SubdirMap = &[
     ("apt", &apt::ROUTER),
     ("certificates", &certificates::ROUTER),
@@ -338,6 +344,10 @@ pub const SUBDIRS: SubdirMap = &[
     ),
 ];
 
-pub const ROUTER: Router = Router::new()
+pub const ITEM_ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(SUBDIRS))
     .subdirs(SUBDIRS);
+
+pub const ROUTER: Router = Router::new()
+    .get(&API_METHOD_LIST_NODES)
+    .match_all("node", &ITEM_ROUTER);

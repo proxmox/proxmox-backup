@@ -18,14 +18,12 @@ use proxmox::api::router::SubdirMap;
 use proxmox::api::Router;
 use proxmox::list_subdirs_api_method;
 
-const NODES_ROUTER: Router = Router::new().match_all("node", &node::ROUTER);
-
 const SUBDIRS: SubdirMap = &[
     ("access", &access::ROUTER),
     ("admin", &admin::ROUTER),
     ("backup", &backup::ROUTER),
     ("config", &config::ROUTER),
-    ("nodes", &NODES_ROUTER),
+    ("nodes", &node::ROUTER),
     ("ping", &ping::ROUTER),
     ("pull", &pull::ROUTER),
     ("reader", &reader::ROUTER),
