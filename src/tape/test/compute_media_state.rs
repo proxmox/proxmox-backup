@@ -9,18 +9,13 @@ use proxmox::tools::{
     Uuid,
 };
 
-use crate::{
-    api2::types::{
-        MediaStatus,
-        MediaSetPolicy,
-        RetentionPolicy,
-    },
-    tape::{
-        Inventory,
-        MediaPool,
-        file_formats::{
-            MediaSetLabel,
-        },
+use pbs_api_types::{MediaStatus, MediaSetPolicy, RetentionPolicy};
+
+use crate::tape::{
+    Inventory,
+    MediaPool,
+    file_formats::{
+        MediaSetLabel,
     },
 };
 

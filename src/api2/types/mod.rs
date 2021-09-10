@@ -22,15 +22,12 @@ pub const FILENAME_FORMAT: ApiStringFormat = ApiStringFormat::VerifyFn(|name| {
 });
 
 
-// Complex type definitions
-
-
 // Regression tests
 
 #[test]
 fn test_cert_fingerprint_schema() -> Result<(), anyhow::Error> {
 
-    let schema = CERT_FINGERPRINT_SHA256_SCHEMA;
+    let schema = pbs_api_types::CERT_FINGERPRINT_SHA256_SCHEMA;
 
     let invalid_fingerprints = [
         "86:88:7c:be:26:77:a5:62:67:d9:06:f5:e4::61:3e:20:dc:cd:43:92:07:7f:fb:65:54:6c:ff:d2:96:36:f8",
@@ -70,6 +67,9 @@ fn test_cert_fingerprint_schema() -> Result<(), anyhow::Error> {
 
 #[test]
 fn test_proxmox_user_id_schema() -> Result<(), anyhow::Error> {
+
+    use pbs_api_types::Userid;
+
     let invalid_user_ids = [
         "x", // too short
         "xx", // too short

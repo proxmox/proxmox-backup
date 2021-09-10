@@ -5,19 +5,14 @@
 use std::path::PathBuf;
 use anyhow::Error;
 
-use proxmox::tools::{
-    Uuid,
-};
+use proxmox::tools::Uuid;
+
+use pbs_api_types::{RetentionPolicy, MediaSetPolicy};
 
 use crate::{
-    api2::types::{
-        MediaSetPolicy,
-        RetentionPolicy,
-    },
     tape::{
         Inventory,
         MediaPool,
-
         file_formats::{
             MediaSetLabel,
         },

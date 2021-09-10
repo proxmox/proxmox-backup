@@ -8,6 +8,8 @@ extern crate nix;
 
 use proxmox::try_block;
 
+use pbs_api_types::{Authid, UPID};
+
 use proxmox_backup::server;
 use proxmox_backup::tools;
 
@@ -59,7 +61,7 @@ fn worker_task_abort() -> Result<(), Error> {
         let res = server::WorkerTask::new_thread(
             "garbage_collection",
             None,
-            proxmox_backup::api2::types::Authid::root_auth_id().clone(),
+            Authid::root_auth_id().clone(),
             true,
             move |worker| {
                 println!("WORKER {}", worker);
@@ -84,7 +86,7 @@ fn worker_task_abort() -> Result<(), Error> {
             }
             Ok(wid) => {
                 println!("WORKER: {}", wid);
-                server::abort_worker_async(wid.parse::<server::UPID>().unwrap());
+                server::abort_worker_async(wid.parse::<UPID>().unwrap());
             }
         }
     });

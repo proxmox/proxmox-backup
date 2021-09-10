@@ -9,11 +9,9 @@ use proxmox::tools::{
     Uuid,
 };
 
+use pbs_api_types::{MediaLocation, MediaStatus};
+
 use crate::{
-    api2::types::{
-        MediaLocation,
-        MediaStatus,
-    },
     tape::{
         Inventory,
         file_formats::{

@@ -6,17 +6,9 @@ use std::path::PathBuf;
 use anyhow::Error;
 
 use pbs_systemd::time::parse_time_span;
+use pbs_api_types::{RetentionPolicy, MediaSetPolicy};
 
-use crate::{
-    api2::types::{
-        MediaSetPolicy,
-        RetentionPolicy,
-    },
-    tape::{
-        Inventory,
-        MediaPool,
-    },
-};
+use crate::tape::{Inventory, MediaPool};
 
 fn create_testdir(name: &str) -> Result<PathBuf, Error> {
     let mut testdir: PathBuf = String::from("./target/testout").into();
