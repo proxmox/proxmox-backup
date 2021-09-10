@@ -841,6 +841,12 @@ async fn clean_drive(mut param: Value) -> Result<(), Error> {
                 type: bool,
                 optional: true,
             },
+            "force-media-set": {
+                description: "Ignore the allocation policy and start a new media-set.",
+                optional: true,
+                type: bool,
+                default: false,
+            },
             "output-format": {
                 schema: OUTPUT_FORMAT,
                 optional: true,
