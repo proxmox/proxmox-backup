@@ -19,7 +19,7 @@ use pbs_tools::ticket::Ticket;
 use pbs_config::domains::{OpenIdUserAttribute, OpenIdRealmConfig};
 
 use crate::server::ticket::ApiTicket;
-use crate::config::cached_user_info::CachedUserInfo;
+use pbs_config::CachedUserInfo;
 
 use pbs_config::open_backup_lockfile;
 
@@ -116,7 +116,7 @@ pub fn openid_login(
 
     if !user_info.is_active_user_id(&user_id) {
         if config.autocreate.unwrap_or(false) {
-            use crate::config::user;
+            use pbs_config::user;
             let _lock = open_backup_lockfile(user::USER_CFG_LOCKFILE, None, true)?;
             let user = User {
                 userid: user_id.clone(),

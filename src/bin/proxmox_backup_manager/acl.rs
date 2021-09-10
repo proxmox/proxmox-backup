@@ -60,7 +60,7 @@ pub fn acl_commands() -> CommandLineInterface {
             "update",
             CliCommand::new(&api2::access::acl::API_METHOD_UPDATE_ACL)
                 .arg_param(&["path", "role"])
-                .completion_cb("auth-id", config::user::complete_authid)
+                .completion_cb("auth-id", pbs_config::user::complete_authid)
                 .completion_cb("path", config::datastore::complete_acl_path)
 
         );

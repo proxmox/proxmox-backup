@@ -10,7 +10,7 @@ use pbs_api_types::{
 
 use crate::tools;
 use crate::tools::subscription::{self, SubscriptionStatus, SubscriptionInfo};
-use crate::config::cached_user_info::CachedUserInfo;
+use pbs_config::CachedUserInfo;
 
 #[api(
     input: {

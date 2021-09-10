@@ -548,7 +548,7 @@ pub fn send_updates_available(
 /// Lookup users email address
 pub fn lookup_user_email(userid: &Userid) -> Option<String> {
 
-    if let Ok(user_config) = crate::config::user::cached_config() {
+    if let Ok(user_config) = pbs_config::user::cached_config() {
         if let Ok(user) = user_config.lookup::<User>("user", userid.as_str()) {
             return user.email;
         }

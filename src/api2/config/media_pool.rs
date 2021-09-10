@@ -15,7 +15,7 @@ use pbs_api_types::{
     PRIV_TAPE_AUDIT, PRIV_TAPE_MODIFY,
 };
 
-use crate::config::cached_user_info::CachedUserInfo;
+use pbs_config::CachedUserInfo;
 
 #[api(
     protected: true,

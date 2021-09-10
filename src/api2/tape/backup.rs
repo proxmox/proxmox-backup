@@ -23,9 +23,9 @@ use pbs_api_types::{
 use pbs_datastore::{task_log, task_warn, StoreProgress};
 use pbs_datastore::backup_info::{BackupDir, BackupInfo};
 use pbs_datastore::task::TaskState;
+use pbs_config::CachedUserInfo;
 
 use crate::{
-    config::cached_user_info::CachedUserInfo,
     server::{
         lookup_user_email,
         TapeBackupJobSummary,

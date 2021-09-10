@@ -18,7 +18,7 @@ use pbs_api_types::{
 use crate::api2::types::TaskStateType;
 use crate::api2::pull::check_pull_privs;
 use crate::server::{self, UPID, UPIDExt, TaskState, TaskListInfoIterator};
-use crate::config::cached_user_info::CachedUserInfo;
+use pbs_config::CachedUserInfo;
 
 // matches respective job execution privileges
 fn check_job_privs(auth_id: &Authid, user_info: &CachedUserInfo, upid: &UPID) -> Result<(), Error> {

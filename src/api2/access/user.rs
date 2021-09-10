@@ -16,7 +16,7 @@ use pbs_api_types::{
 };
 use pbs_config::token_shadow;
 
-use crate::config::cached_user_info::CachedUserInfo;
+use pbs_config::CachedUserInfo;
 
 fn new_user_with_tokens(user: User) -> UserWithTokens {
     UserWithTokens {
@@ -59,7 +59,7 @@ pub fn list_users(
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<UserWithTokens>, Error> {
 
-    let (config, digest) = crate::config::user::config()?;
+    let (config, digest) = pbs_config::user::config()?;
 
     let auth_id: Authid = rpcenv
         .get_auth_id()
@@ -138,9 +138,9 @@ pub fn create_user(
     rpcenv: &mut dyn RpcEnvironment
 ) -> Result<(), Error> {
 
-    let _lock = crate::config::user::lock_config()?;
+    let _lock = pbs_config::user::lock_config()?;
 
-    let (mut section_config, _digest) = crate::config::user::config()?;
+    let (mut section_config, _digest) = pbs_config::user::config()?;
 
     if section_config.sections.get(config.userid.as_str()).is_some() {
         bail!("user '{}' already exists.", config.userid);
@@ -153,7 +153,7 @@ pub fn create_user(
     // Fails if realm does not exist!
     let authenticator = crate::auth::lookup_authenticator(realm)?;
 
-    crate::config::user::save_config(&section_config)?;
+    pbs_config::user::save_config(&section_config)?;
 
     if let Some(password) = password {
         let user_info = CachedUserInfo::new()?;
@@ -185,7 +185,7 @@ pub fn create_user(
 )]
 /// Read user configuration data.
 pub fn read_user(userid: Userid, mut rpcenv: &mut dyn RpcEnvironment) -> Result<User, Error> {
-    let (config, digest) = crate::config::user::config()?;
+    let (config, digest) = pbs_config::user::config()?;
     let user = config.lookup("user", userid.as_str())?;
     rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
     Ok(user)
@@ -253,9 +253,9 @@ pub fn update_user(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
 
-    let _lock = crate::config::user::lock_config()?;
+    let _lock = pbs_config::user::lock_config()?;
 
-    let (mut config, expected_digest) = crate::config::user::config()?;
+    let (mut config, expected_digest) = pbs_config::user::config()?;
 
     if let Some(ref digest) = digest {
         let digest = proxmox::tools::hex_to_digest(digest)?;
@@ -317,7 +317,7 @@ pub fn update_user(
 
     config.set_data(userid.as_str(), "user", &data)?;
 
-    crate::config::user::save_config(&config)?;
+    pbs_config::user::save_config(&config)?;
 
     Ok(())
 }
@@ -345,10 +345,10 @@ pub fn update_user(
 /// Remove a user from the configuration file.
 pub fn delete_user(userid: Userid, digest: Option<String>) -> Result<(), Error> {
 
-    let _lock = crate::config::user::lock_config()?;
+    let _lock = pbs_config::user::lock_config()?;
     let _tfa_lock = crate::config::tfa::write_lock()?;
  
-    let (mut config, expected_digest) = crate::config::user::config()?;
+    let (mut config, expected_digest) = pbs_config::user::config()?;
 
     if let Some(ref digest) = digest {
         let digest = proxmox::tools::hex_to_digest(digest)?;
@@ -360,7 +360,7 @@ pub fn delete_user(userid: Userid, digest: Option<String>) -> Result<(), Error> 
         None => bail!("user '{}' does not exist.", userid),
     }
 
-    crate::config::user::save_config(&config)?;
+    pbs_config::user::save_config(&config)?;
 
     let authenticator = crate::auth::lookup_authenticator(userid.realm())?;
     match authenticator.remove_password(userid.name()) {
@@ -416,7 +416,7 @@ pub fn read_token(
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<ApiToken, Error> {
 
-    let (config, digest) = crate::config::user::config()?;
+    let (config, digest) = pbs_config::user::config()?;
 
     let tokenid = Authid::from((userid, Some(tokenname)));
 
@@ -482,9 +482,9 @@ pub fn generate_token(
     digest: Option<String>,
 ) -> Result<Value, Error> {
 
-    let _lock = crate::config::user::lock_config()?;
+    let _lock = pbs_config::user::lock_config()?;
 
-    let (mut config, expected_digest) = crate::config::user::config()?;
+    let (mut config, expected_digest) = pbs_config::user::config()?;
 
     if let Some(ref digest) = digest {
         let digest = proxmox::tools::hex_to_digest(digest)?;
@@ -510,7 +510,7 @@ pub fn generate_token(
 
     config.set_data(&tokenid_string, "token", &token)?;
 
-    crate::config::user::save_config(&config)?;
+    pbs_config::user::save_config(&config)?;
 
     Ok(json!({
         "tokenid": tokenid_string,
@@ -563,9 +563,9 @@ pub fn update_token(
     digest: Option<String>,
 ) -> Result<(), Error> {
 
-    let _lock = crate::config::user::lock_config()?;
+    let _lock = pbs_config::user::lock_config()?;
 
-    let (mut config, expected_digest) = crate::config::user::config()?;
+    let (mut config, expected_digest) = pbs_config::user::config()?;
 
     if let Some(ref digest) = digest {
         let digest = proxmox::tools::hex_to_digest(digest)?;
@@ -596,7 +596,7 @@ pub fn update_token(
 
     config.set_data(&tokenid_string, "token", &data)?;
 
-    crate::config::user::save_config(&config)?;
+    pbs_config::user::save_config(&config)?;
 
     Ok(())
 }
@@ -631,9 +631,9 @@ pub fn delete_token(
     digest: Option<String>,
 ) -> Result<(), Error> {
 
-    let _lock = crate::config::user::lock_config()?;
+    let _lock = pbs_config::user::lock_config()?;
 
-    let (mut config, expected_digest) = crate::config::user::config()?;
+    let (mut config, expected_digest) = pbs_config::user::config()?;
 
     if let Some(ref digest) = digest {
         let digest = proxmox::tools::hex_to_digest(digest)?;
@@ -650,7 +650,7 @@ pub fn delete_token(
 
     token_shadow::delete_secret(&tokenid)?;
 
-    crate::config::user::save_config(&config)?;
+    pbs_config::user::save_config(&config)?;
 
     Ok(())
 }
@@ -682,7 +682,7 @@ pub fn list_tokens(
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<ApiToken>, Error> {
 
-    let (config, digest) = crate::config::user::config()?;
+    let (config, digest) = pbs_config::user::config()?;
 
     let list:Vec<ApiToken> = config.convert_to_typed_array("token")?;
 

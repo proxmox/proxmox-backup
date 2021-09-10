@@ -30,9 +30,9 @@ use pbs_api_types::{
  
 use pbs_datastore::task_log;
 use pbs_api_types::{PRIV_TAPE_AUDIT, PRIV_TAPE_READ, PRIV_TAPE_WRITE};
+use pbs_config::CachedUserInfo;
 
 use crate::{
-    config::cached_user_info::CachedUserInfo,
     api2::tape::restore::{
         fast_catalog_restore,
         restore_media,

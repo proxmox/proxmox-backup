@@ -12,6 +12,7 @@ use pbs_api_types::{
     PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_VERIFY,
 };
 use pbs_config::verify;
+use pbs_config::CachedUserInfo;
 
 use crate::{
     api2::types::{
@@ -25,7 +26,6 @@ use crate::{
             compute_schedule_status,
         },
     },
-    config::cached_user_info::CachedUserInfo,
 };
 
 #[api(

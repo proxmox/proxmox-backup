@@ -38,7 +38,7 @@ impl Memcom {
 
     // Actual work of `new`:
     fn open() -> Result<Arc<Self>, Error> {
-        let user = pbs_config::backup_user()?;
+        let user = crate::backup_user()?;
         let options = CreateOptions::new()
             .perm(Mode::from_bits_truncate(0o660))
             .owner(user.uid)

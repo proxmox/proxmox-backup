@@ -53,7 +53,7 @@ fn main() -> Result<(), Error> {
             "datastore.cfg" => dump_section_config(&config::datastore::CONFIG),
             "tape.cfg" => dump_section_config(&pbs_config::drive::CONFIG),
             "tape-job.cfg" => dump_section_config(&pbs_config::tape_job::CONFIG),
-            "user.cfg" => dump_section_config(&config::user::CONFIG),
+            "user.cfg" => dump_section_config(&pbs_config::user::CONFIG),
             "remote.cfg" => dump_section_config(&pbs_config::remote::CONFIG),
             "sync.cfg" => dump_section_config(&pbs_config::sync::CONFIG),
             "verification.cfg" => dump_section_config(&pbs_config::verify::CONFIG),

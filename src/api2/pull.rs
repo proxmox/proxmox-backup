@@ -16,7 +16,7 @@ use pbs_api_types::{
 
 use crate::server::{WorkerTask, jobstate::Job, pull::pull_store};
 use crate::backup::DataStore;
-use crate::config::cached_user_info::CachedUserInfo;
+use pbs_config::CachedUserInfo;
 
 pub fn check_pull_privs(
     auth_id: &Authid,

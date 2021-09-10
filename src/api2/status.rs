@@ -22,7 +22,7 @@ use pbs_api_types::{
 use crate::backup::DataStore;
 use crate::config::datastore;
 use crate::tools::statistics::{linear_regression};
-use crate::config::cached_user_info::CachedUserInfo;
+use pbs_config::CachedUserInfo;
 
 #[api(
     returns: {

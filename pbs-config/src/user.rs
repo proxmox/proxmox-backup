@@ -16,9 +16,10 @@ use proxmox::api::{
 use pbs_api_types::{
     Authid, Userid, ApiToken, User,
 };
-use pbs_config::{open_backup_lockfile, replace_backup_config, BackupLockGuard};
 
-use crate::tools::Memcom;
+use crate::memcom::Memcom;
+
+use crate::{open_backup_lockfile, replace_backup_config, BackupLockGuard};
 
 lazy_static! {
     pub static ref CONFIG: SectionConfig = init();
@@ -133,8 +134,9 @@ pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(test)]
-pub(crate) fn test_cfg_from_str(raw: &str) -> Result<(SectionConfigData, [u8;32]), Error> {
+/// Only exposed for testing
+#[doc(hidden)]
+pub fn test_cfg_from_str(raw: &str) -> Result<(SectionConfigData, [u8;32]), Error> {
     let cfg = init();
     let parsed = cfg.parse("test_user_cfg", raw)?;
 

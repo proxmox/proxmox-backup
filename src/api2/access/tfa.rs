@@ -9,7 +9,7 @@ use proxmox::{http_bail, http_err};
 
 use pbs_api_types::{Authid, Userid, User, PASSWORD_SCHEMA, PRIV_PERMISSIONS_MODIFY, PRIV_SYS_AUDIT};
 
-use crate::config::cached_user_info::CachedUserInfo;
+use pbs_config::CachedUserInfo;
 use crate::config::tfa::{TfaInfo, TfaUserData};
 
 /// Perform first-factor (password) authentication only. Ignore password for the root user.
@@ -34,7 +34,7 @@ fn tfa_update_auth(
 
     // After authentication, verify that the to-be-modified user actually exists:
     if must_exist && authid.user() != userid {
-        let (config, _digest) = crate::config::user::config()?;
+        let (config, _digest) = pbs_config::user::config()?;
 
         if config
             .lookup::<User>("user", userid.as_str())

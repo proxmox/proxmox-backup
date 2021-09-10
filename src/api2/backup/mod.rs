@@ -26,7 +26,7 @@ use pbs_datastore::manifest::{archive_type, ArchiveType};
 
 use crate::server::{WorkerTask, H2Service};
 use crate::backup::DataStore;
-use crate::config::cached_user_info::CachedUserInfo;
+use pbs_config::CachedUserInfo;
 
 mod environment;
 use environment::*;

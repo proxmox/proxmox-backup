@@ -24,7 +24,7 @@ use crate::api2::admin::{
     sync::list_sync_jobs,
     verify::list_verification_jobs,
 };
-use crate::config::cached_user_info::CachedUserInfo;
+use pbs_config::CachedUserInfo;
 use crate::config::datastore::{self, DataStoreConfig, DataStoreConfigUpdater};
 use crate::server::{jobstate, WorkerTask};
 

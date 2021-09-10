@@ -10,9 +10,9 @@ use proxmox::api::UserInformation;
 use proxmox::tools::time::epoch_i64;
 
 use pbs_api_types::{Authid, Userid, User, ApiToken, ROLE_ADMIN};
-use pbs_config::acl::{AclTree, ROLE_NAMES};
 
-use crate::tools::Memcom;
+use crate::acl::{AclTree, ROLE_NAMES};
+use crate::memcom::Memcom;
 
 /// Cache User/Group/Token/Acl configuration data for fast permission tests
 pub struct CachedUserInfo {
@@ -53,8 +53,8 @@ impl CachedUserInfo {
         }
 
         let config = Arc::new(CachedUserInfo {
-            user_cfg: super::user::cached_config()?,
-            acl_tree: pbs_config::acl::cached_config()?,
+            user_cfg: crate::user::cached_config()?,
+            acl_tree: crate::acl::cached_config()?,
         });
 
         let mut cache = CACHED_CONFIG.write().unwrap();
@@ -65,8 +65,9 @@ impl CachedUserInfo {
         Ok(config)
     }
 
-    #[cfg(test)]
-    pub(crate) fn test_new(user_cfg: SectionConfigData, acl_tree: AclTree) -> Self {
+    /// Only exposed for testing
+    #[doc(hidden)]
+    pub fn test_new(user_cfg: SectionConfigData, acl_tree: AclTree) -> Self {
         Self {
             user_cfg: Arc::new(user_cfg),
             acl_tree: Arc::new(acl_tree),

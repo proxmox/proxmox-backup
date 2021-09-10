@@ -41,10 +41,10 @@ use pbs_datastore::fixed_index::FixedIndexReader;
 use pbs_datastore::index::IndexFile;
 use pbs_datastore::manifest::{archive_type, ArchiveType, BackupManifest, MANIFEST_BLOB_NAME};
 use pbs_datastore::task::TaskState;
+use pbs_config::CachedUserInfo;
 
 use crate::{
     tools::ParallelHandler,
-    config::cached_user_info::CachedUserInfo,
     backup::DataStore,
     server::{
         lookup_user_email,

@@ -9,6 +9,7 @@ use proxmox::{list_subdirs_api_method, sortable};
 
 use pbs_api_types::{DATASTORE_SCHEMA, JOB_ID_SCHEMA, Authid, SyncJobConfig, SyncJobStatus};
 use pbs_config::sync;
+use pbs_config::CachedUserInfo;
 
 use crate::{
     api2::{
@@ -17,9 +18,6 @@ use crate::{
             check_sync_job_modify_access,
             check_sync_job_read_access,
         },
-    },
-    config::{
-        cached_user_info::CachedUserInfo,
     },
     server::{
         jobstate::{

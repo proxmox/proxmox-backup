@@ -6,7 +6,7 @@ use anyhow::{bail, format_err, Error};
 
 use pbs_api_types::Authid;
 
-use proxmox_backup::config::cached_user_info::CachedUserInfo;
+use pbs_config::CachedUserInfo;
 use proxmox_backup::server::auth::{ApiAuth, AuthError};
 
 const TICKET_FILE: &str = "/ticket";

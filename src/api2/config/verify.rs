@@ -10,7 +10,7 @@ use pbs_api_types::{
 };
 use pbs_config::verify;
 
-use crate::config::cached_user_info::CachedUserInfo;
+use pbs_config::CachedUserInfo;
 
 #[api(
     input: {

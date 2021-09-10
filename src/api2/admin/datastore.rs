@@ -58,7 +58,7 @@ use crate::backup::{
     DataStore, LocalChunkReader,
 };
 use crate::config::datastore;
-use crate::config::cached_user_info::CachedUserInfo;
+use pbs_config::CachedUserInfo;
 
 use crate::server::{jobstate::Job, WorkerTask};
 

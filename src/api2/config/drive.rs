@@ -8,9 +8,9 @@ use pbs_api_types::{
     Authid, LtoTapeDrive, LtoTapeDriveUpdater, ScsiTapeChanger,
     PROXMOX_CONFIG_DIGEST_SCHEMA, DRIVE_NAME_SCHEMA, PRIV_TAPE_AUDIT, PRIV_TAPE_MODIFY,
 };
+use pbs_config::CachedUserInfo;
 
 use crate::{
-    config::cached_user_info::CachedUserInfo,
     tape::{
         lto_tape_device_list,
         check_drive_path,

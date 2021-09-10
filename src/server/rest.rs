@@ -40,7 +40,7 @@ use super::ApiConfig;
 
 use crate::api2::types::{Authid, Userid};
 use crate::auth_helpers::*;
-use crate::config::cached_user_info::CachedUserInfo;
+use pbs_config::CachedUserInfo;
 use crate::tools;
 use crate::tools::compression::CompressionMethod;
 use crate::tools::FileLogger;

@@ -8,7 +8,7 @@ use pbs_config::token_shadow;
 
 use crate::api2::types::{Authid, Userid};
 use crate::auth_helpers::*;
-use crate::config::cached_user_info::CachedUserInfo;
+use pbs_config::CachedUserInfo;
 use crate::tools;
 
 use hyper::header;

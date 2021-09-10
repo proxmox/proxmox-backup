@@ -37,6 +37,7 @@ use pbs_datastore::PROXMOX_BACKUP_READER_PROTOCOL_ID_V1;
 use pbs_datastore::backup_info::BackupDir;
 use pbs_datastore::index::IndexFile;
 use pbs_datastore::manifest::{archive_type, ArchiveType};
+use pbs_config::CachedUserInfo;
 
 use crate::{
     api2::helpers,
@@ -45,7 +46,6 @@ use crate::{
         WorkerTask,
         H2Service,
     },
-    config::cached_user_info::CachedUserInfo,
 };
 
 mod environment;

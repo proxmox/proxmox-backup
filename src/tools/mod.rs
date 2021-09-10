@@ -28,9 +28,6 @@ pub mod config;
 pub mod daemon;
 pub mod disks;
 
-mod memcom;
-pub use memcom::Memcom;
-
 pub mod serde_filter;
 pub mod statistics;
 pub mod subscription;

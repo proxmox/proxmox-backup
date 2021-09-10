@@ -12,7 +12,7 @@ use pbs_api_types::{
 
 use pbs_config::acl::AclTreeNode;
 
-use crate::config::cached_user_info::CachedUserInfo;
+use pbs_config::CachedUserInfo;
 
 fn extract_acl_node_data(
     node: &AclTreeNode,
@@ -221,7 +221,7 @@ pub fn update_acl(
         bail!("parameter 'group' - groups are currently not supported.");
     } else if let Some(ref auth_id) = auth_id {
         if !delete { // Note: we allow to delete non-existent users
-            let user_cfg = crate::config::user::cached_config()?;
+            let user_cfg = pbs_config::user::cached_config()?;
             if user_cfg.sections.get(&auth_id.to_string()).is_none() {
                 bail!(format!("no such {}.",
                               if auth_id.is_token() { "API token" } else { "user" }));

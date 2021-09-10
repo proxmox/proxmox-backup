@@ -6,9 +6,9 @@ use pbs_datastore::{task_log, task_warn};
 use pbs_datastore::backup_info::BackupInfo;
 use pbs_datastore::prune::{compute_prune_info, PruneOptions};
 use pbs_api_types::{Authid, PRIV_DATASTORE_MODIFY};
+use pbs_config::CachedUserInfo;
 
 use crate::{
-    config::cached_user_info::CachedUserInfo,
     backup::DataStore,
     server::jobstate::Job,
     server::WorkerTask,

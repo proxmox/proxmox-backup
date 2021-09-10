@@ -22,7 +22,7 @@ use pbs_config::acl::AclTreeNode;
 use crate::auth_helpers::*;
 use crate::server::ticket::ApiTicket;
 
-use crate::config::cached_user_info::CachedUserInfo;
+use pbs_config::CachedUserInfo;
 use crate::config::tfa::TfaChallenge;
 
 pub mod acl;

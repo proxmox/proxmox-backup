@@ -1,4 +1,6 @@
 pub mod acl;
+mod cached_user_info;
+pub use cached_user_info::CachedUserInfo;
 pub mod domains;
 pub mod drive;
 pub mod key_config;
@@ -9,7 +11,10 @@ pub mod sync;
 pub mod tape_encryption_keys;
 pub mod tape_job;
 pub mod token_shadow;
+pub mod user;
 pub mod verify;
+
+pub(crate) mod memcom;
 
 use anyhow::{format_err, Error};
 

@@ -11,7 +11,7 @@ use pbs_api_types::{
 };
 use pbs_config::sync;
 
-use crate::config::cached_user_info::CachedUserInfo;
+use pbs_config::CachedUserInfo;
 
 pub fn check_sync_job_read_access(
     user_info: &CachedUserInfo,
@@ -356,7 +356,7 @@ pub const ROUTER: Router = Router::new()
 
 #[test]
 fn sync_job_access_test() -> Result<(), Error> {
-    let (user_cfg, _) = crate::config::user::test_cfg_from_str(r###"
+    let (user_cfg, _) = pbs_config::user::test_cfg_from_str(r###"
 user: noperm@pbs
 
 user: read@pbs

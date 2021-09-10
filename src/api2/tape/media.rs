@@ -16,9 +16,9 @@ use pbs_api_types::{
     MediaStatus, MediaContentEntry, MediaContentListFilter,
     PRIV_TAPE_AUDIT,
 };
+use pbs_config::CachedUserInfo;
 
 use crate::{
-    config::cached_user_info::CachedUserInfo,
     tape::{
         TAPE_STATUS_DIR,
         Inventory,

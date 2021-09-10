@@ -181,38 +181,38 @@ pub fn user_commands() -> CommandLineInterface {
             "update",
             CliCommand::new(&api2::access::user::API_METHOD_UPDATE_USER)
                 .arg_param(&["userid"])
-                .completion_cb("userid", config::user::complete_userid)
+                .completion_cb("userid", pbs_config::user::complete_userid)
         )
         .insert(
             "remove",
             CliCommand::new(&api2::access::user::API_METHOD_DELETE_USER)
                 .arg_param(&["userid"])
-                .completion_cb("userid", config::user::complete_userid)
+                .completion_cb("userid", pbs_config::user::complete_userid)
         )
         .insert(
             "list-tokens",
             CliCommand::new(&&API_METHOD_LIST_TOKENS)
                 .arg_param(&["userid"])
-                .completion_cb("userid", config::user::complete_userid)
+                .completion_cb("userid", pbs_config::user::complete_userid)
         )
         .insert(
             "generate-token",
             CliCommand::new(&api2::access::user::API_METHOD_GENERATE_TOKEN)
                 .arg_param(&["userid", "tokenname"])
-                .completion_cb("userid", config::user::complete_userid)
+                .completion_cb("userid", pbs_config::user::complete_userid)
         )
         .insert(
             "delete-token",
             CliCommand::new(&api2::access::user::API_METHOD_DELETE_TOKEN)
                 .arg_param(&["userid", "tokenname"])
-                .completion_cb("userid", config::user::complete_userid)
-                .completion_cb("tokenname", config::user::complete_token_name)
+                .completion_cb("userid", pbs_config::user::complete_userid)
+                .completion_cb("tokenname", pbs_config::user::complete_token_name)
         )
         .insert(
             "permissions",
             CliCommand::new(&&API_METHOD_LIST_PERMISSIONS)
                 .arg_param(&["auth-id"])
-                .completion_cb("auth-id", config::user::complete_authid)
+                .completion_cb("auth-id", pbs_config::user::complete_authid)
                 .completion_cb("path", config::datastore::complete_acl_path)
         );
 
