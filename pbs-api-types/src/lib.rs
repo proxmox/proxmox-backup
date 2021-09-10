@@ -5,8 +5,7 @@ use anyhow::bail;
 
 use proxmox::api::api;
 use proxmox::api::schema::{
-    ApiStringFormat, ApiType, ArraySchema, IntegerSchema, ReturnType, Schema,
-    StringSchema,
+    ApiStringFormat, ApiType, ArraySchema, ReturnType, Schema, StringSchema,
 };
 use proxmox::const_regex;
 use proxmox::{IPRE, IPRE_BRACKET, IPV4OCTET, IPV4RE, IPV6H16, IPV6LS32, IPV6RE};
@@ -244,34 +243,6 @@ pub const FINGERPRINT_SHA256_FORMAT: ApiStringFormat =
 pub const CERT_FINGERPRINT_SHA256_SCHEMA: Schema =
     StringSchema::new("X509 certificate fingerprint (sha256).")
         .format(&FINGERPRINT_SHA256_FORMAT)
-        .schema();
-
-pub const PRUNE_SCHEMA_KEEP_DAILY: Schema = IntegerSchema::new("Number of daily backups to keep.")
-    .minimum(1)
-    .schema();
-
-pub const PRUNE_SCHEMA_KEEP_HOURLY: Schema =
-    IntegerSchema::new("Number of hourly backups to keep.")
-        .minimum(1)
-        .schema();
-
-pub const PRUNE_SCHEMA_KEEP_LAST: Schema = IntegerSchema::new("Number of backups to keep.")
-    .minimum(1)
-    .schema();
-
-pub const PRUNE_SCHEMA_KEEP_MONTHLY: Schema =
-    IntegerSchema::new("Number of monthly backups to keep.")
-        .minimum(1)
-        .schema();
-
-pub const PRUNE_SCHEMA_KEEP_WEEKLY: Schema =
-    IntegerSchema::new("Number of weekly backups to keep.")
-        .minimum(1)
-        .schema();
-
-pub const PRUNE_SCHEMA_KEEP_YEARLY: Schema =
-    IntegerSchema::new("Number of yearly backups to keep.")
-        .minimum(1)
         .schema();
 
 pub const PROXMOX_SAFE_ID_FORMAT: ApiStringFormat =

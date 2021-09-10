@@ -15,6 +15,7 @@ use pbs_api_types::{
     Authid, DatastoreNotify,
     DATASTORE_SCHEMA, PROXMOX_CONFIG_DIGEST_SCHEMA,
     PRIV_DATASTORE_ALLOCATE, PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_MODIFY,
+    DataStoreConfig, DataStoreConfigUpdater,
 };
 
 use crate::api2::config::sync::delete_sync_job;
@@ -25,7 +26,7 @@ use crate::api2::admin::{
     verify::list_verification_jobs,
 };
 use pbs_config::CachedUserInfo;
-use crate::config::datastore::{self, DataStoreConfig, DataStoreConfigUpdater};
+
 use crate::server::{jobstate, WorkerTask};
 
 #[api(
@@ -47,7 +48,7 @@ pub fn list_datastores(
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<DataStoreConfig>, Error> {
 
-    let (config, digest) = datastore::config()?;
+    let (config, digest) = pbs_config::datastore::config()?;
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
@@ -76,7 +77,7 @@ pub(crate) fn do_create_datastore(
 
     config.set_data(&datastore.name, "datastore", &datastore)?;
 
-    datastore::save_config(&config)?;
+    pbs_config::datastore::save_config(&config)?;
 
     jobstate::create_state_file("prune", &datastore.name)?;
     jobstate::create_state_file("garbage_collection", &datastore.name)?;
@@ -104,9 +105,9 @@ pub fn create_datastore(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
 
-    let lock = datastore::lock_config()?;
+    let lock = pbs_config::datastore::lock_config()?;
 
-    let (section_config, _digest) = datastore::config()?;
+    let (section_config, _digest) = pbs_config::datastore::config()?;
 
     if section_config.sections.get(&config.name).is_some() {
         bail!("datastore '{}' already exists.", config.name);
@@ -141,7 +142,7 @@ pub fn read_datastore(
     name: String,
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<DataStoreConfig, Error> {
-    let (config, digest) = datastore::config()?;
+    let (config, digest) = pbs_config::datastore::config()?;
 
     let store_config = config.lookup("datastore", &name)?;
     rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
@@ -218,10 +219,10 @@ pub fn update_datastore(
     digest: Option<String>,
 ) -> Result<(), Error> {
 
-    let _lock = datastore::lock_config()?;
+    let _lock = pbs_config::datastore::lock_config()?;
 
     // pass/compare digest
-    let (mut config, expected_digest) = datastore::config()?;
+    let (mut config, expected_digest) = pbs_config::datastore::config()?;
 
     if let Some(ref digest) = digest {
         let digest = proxmox::tools::hex_to_digest(digest)?;
@@ -292,7 +293,7 @@ pub fn update_datastore(
 
     config.set_data(&name, "datastore", &data)?;
 
-    datastore::save_config(&config)?;
+    pbs_config::datastore::save_config(&config)?;
 
     // we want to reset the statefiles, to avoid an immediate action in some cases
     // (e.g. going from monthly to weekly in the second week of the month)
@@ -338,9 +339,9 @@ pub async fn delete_datastore(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
 
-    let _lock = datastore::lock_config()?;
+    let _lock = pbs_config::datastore::lock_config()?;
 
-    let (mut config, expected_digest) = datastore::config()?;
+    let (mut config, expected_digest) = pbs_config::datastore::config()?;
 
     if let Some(ref digest) = digest {
         let digest = proxmox::tools::hex_to_digest(digest)?;
@@ -366,7 +367,7 @@ pub async fn delete_datastore(
         }
     }
 
-    datastore::save_config(&config)?;
+    pbs_config::datastore::save_config(&config)?;
 
     // ignore errors
     let _ = jobstate::remove_state_file("prune", &name);

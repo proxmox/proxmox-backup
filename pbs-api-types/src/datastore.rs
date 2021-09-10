@@ -3,14 +3,16 @@ use serde::{Deserialize, Serialize};
 use proxmox::api::api;
 use proxmox::api::schema::{
     ApiStringFormat, ApiType, ArraySchema, EnumEntry, IntegerSchema, ReturnType, Schema,
-    StringSchema,
+    StringSchema, Updater,
 };
 
 use proxmox::const_regex;
 
 use crate::{
     PROXMOX_SAFE_ID_FORMAT, SHA256_HEX_REGEX, SINGLE_LINE_COMMENT_SCHEMA, CryptMode, UPID,
-    Fingerprint, Authid,
+    Fingerprint, Userid, Authid,
+    GC_SCHEDULE_SCHEMA, DATASTORE_NOTIFY_STRING_SCHEMA, PRUNE_SCHEDULE_SCHEMA,
+
 };
 
 const_regex!{
@@ -30,6 +32,11 @@ const_regex!{
 }
 
 pub const CHUNK_DIGEST_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&SHA256_HEX_REGEX);
+
+pub const DIR_NAME_SCHEMA: Schema = StringSchema::new("Directory name")
+    .min_length(1)
+    .max_length(4096)
+    .schema();
 
 pub const BACKUP_ARCHIVE_NAME_SCHEMA: Schema = StringSchema::new("Backup archive name.")
     .format(&PROXMOX_SAFE_ID_FORMAT)
@@ -83,6 +90,130 @@ pub const DATASTORE_MAP_LIST_SCHEMA: Schema = StringSchema::new(
     specified sources are mapped.")
     .format(&ApiStringFormat::PropertyString(&DATASTORE_MAP_ARRAY_SCHEMA))
     .schema();
+
+pub const PRUNE_SCHEMA_KEEP_DAILY: Schema = IntegerSchema::new("Number of daily backups to keep.")
+    .minimum(1)
+    .schema();
+
+pub const PRUNE_SCHEMA_KEEP_HOURLY: Schema =
+    IntegerSchema::new("Number of hourly backups to keep.")
+        .minimum(1)
+        .schema();
+
+pub const PRUNE_SCHEMA_KEEP_LAST: Schema = IntegerSchema::new("Number of backups to keep.")
+    .minimum(1)
+    .schema();
+
+pub const PRUNE_SCHEMA_KEEP_MONTHLY: Schema =
+    IntegerSchema::new("Number of monthly backups to keep.")
+        .minimum(1)
+        .schema();
+
+pub const PRUNE_SCHEMA_KEEP_WEEKLY: Schema =
+    IntegerSchema::new("Number of weekly backups to keep.")
+        .minimum(1)
+        .schema();
+
+pub const PRUNE_SCHEMA_KEEP_YEARLY: Schema =
+    IntegerSchema::new("Number of yearly backups to keep.")
+        .minimum(1)
+        .schema();
+
+#[api(
+    properties: {
+        name: {
+            schema: DATASTORE_SCHEMA,
+        },
+        path: {
+            schema: DIR_NAME_SCHEMA,
+        },
+        "notify-user": {
+            optional: true,
+            type: Userid,
+        },
+        "notify": {
+            optional: true,
+            schema: DATASTORE_NOTIFY_STRING_SCHEMA,
+        },
+        comment: {
+            optional: true,
+            schema: SINGLE_LINE_COMMENT_SCHEMA,
+        },
+        "gc-schedule": {
+            optional: true,
+            schema: GC_SCHEDULE_SCHEMA,
+        },
+        "prune-schedule": {
+            optional: true,
+            schema: PRUNE_SCHEDULE_SCHEMA,
+        },
+        "keep-last": {
+            optional: true,
+            schema: PRUNE_SCHEMA_KEEP_LAST,
+        },
+        "keep-hourly": {
+            optional: true,
+            schema: PRUNE_SCHEMA_KEEP_HOURLY,
+        },
+        "keep-daily": {
+            optional: true,
+            schema: PRUNE_SCHEMA_KEEP_DAILY,
+        },
+        "keep-weekly": {
+            optional: true,
+            schema: PRUNE_SCHEMA_KEEP_WEEKLY,
+        },
+        "keep-monthly": {
+            optional: true,
+            schema: PRUNE_SCHEMA_KEEP_MONTHLY,
+        },
+        "keep-yearly": {
+            optional: true,
+            schema: PRUNE_SCHEMA_KEEP_YEARLY,
+        },
+        "verify-new": {
+            description: "If enabled, all new backups will be verified right after completion.",
+            optional: true,
+            type: bool,
+        },
+    }
+)]
+#[derive(Serialize,Deserialize,Updater)]
+#[serde(rename_all="kebab-case")]
+/// Datastore configuration properties.
+pub struct DataStoreConfig {
+    #[updater(skip)]
+    pub name: String,
+    #[updater(skip)]
+    pub path: String,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub comment: Option<String>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub gc_schedule: Option<String>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub prune_schedule: Option<String>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub keep_last: Option<u64>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub keep_hourly: Option<u64>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub keep_daily: Option<u64>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub keep_weekly: Option<u64>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub keep_monthly: Option<u64>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub keep_yearly: Option<u64>,
+    /// If enabled, all backups will be verified right after completion.
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub verify_new: Option<bool>,
+    /// Send job email notification to this user
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub notify_user: Option<Userid>,
+    /// Send notification only for job errors
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub notify: Option<String>,
+}
 
 #[api(
     properties: {

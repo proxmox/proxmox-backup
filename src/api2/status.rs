@@ -20,7 +20,6 @@ use pbs_api_types::{
 };
 
 use crate::backup::DataStore;
-use crate::config::datastore;
 use crate::tools::statistics::{linear_regression};
 use pbs_config::CachedUserInfo;
 
@@ -83,7 +82,7 @@ pub fn datastore_status(
     rpcenv: &mut dyn RpcEnvironment,
     ) -> Result<Value, Error> {
 
-    let (config, _digest) = datastore::config()?;
+    let (config, _digest) = pbs_config::datastore::config()?;
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;

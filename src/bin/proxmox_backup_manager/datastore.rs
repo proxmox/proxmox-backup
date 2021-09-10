@@ -4,10 +4,9 @@ use serde_json::Value;
 use proxmox::api::{api, cli::*, RpcEnvironment, ApiHandler};
 
 use pbs_client::{connect_to_localhost, view_task_result};
+use pbs_api_types::{DataStoreConfig, DATASTORE_SCHEMA};
 
-use proxmox_backup::config;
-use proxmox_backup::api2::{self, types::* };
-use proxmox_backup::config::datastore::DataStoreConfig;
+use proxmox_backup::api2;
 
 #[api(
     input: {
@@ -106,7 +105,7 @@ pub fn datastore_commands() -> CommandLineInterface {
         .insert("show",
                 CliCommand::new(&API_METHOD_SHOW_DATASTORE)
                 .arg_param(&["name"])
-                .completion_cb("name", config::datastore::complete_datastore_name)
+                .completion_cb("name", pbs_config::datastore::complete_datastore_name)
         )
         .insert("create",
                 CliCommand::new(&API_METHOD_CREATE_DATASTORE)
@@ -115,14 +114,14 @@ pub fn datastore_commands() -> CommandLineInterface {
         .insert("update",
                 CliCommand::new(&api2::config::datastore::API_METHOD_UPDATE_DATASTORE)
                 .arg_param(&["name"])
-                .completion_cb("name", config::datastore::complete_datastore_name)
-                .completion_cb("gc-schedule", config::datastore::complete_calendar_event)
-                .completion_cb("prune-schedule", config::datastore::complete_calendar_event)
+                .completion_cb("name", pbs_config::datastore::complete_datastore_name)
+                .completion_cb("gc-schedule", pbs_config::datastore::complete_calendar_event)
+                .completion_cb("prune-schedule", pbs_config::datastore::complete_calendar_event)
         )
         .insert("remove",
                 CliCommand::new(&api2::config::datastore::API_METHOD_DELETE_DATASTORE)
                 .arg_param(&["name"])
-                .completion_cb("name", config::datastore::complete_datastore_name)
+                .completion_cb("name", pbs_config::datastore::complete_datastore_name)
         );
 
     cmd_def.into()

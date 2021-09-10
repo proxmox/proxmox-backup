@@ -5,9 +5,9 @@ use std::collections::HashMap;
 
 use proxmox::api::{api, cli::*, RpcEnvironment, ApiHandler};
 
-use proxmox_backup::config;
+use pbs_api_types::{ACL_PATH_SCHEMA, Authid, Userid};
+
 use proxmox_backup::api2;
-use proxmox_backup::api2::types::{ACL_PATH_SCHEMA, Authid, Userid};
 
 fn render_expire(value: &Value, _record: &Value) -> Result<String, Error> {
     let never = String::from("never");
@@ -213,7 +213,7 @@ pub fn user_commands() -> CommandLineInterface {
             CliCommand::new(&&API_METHOD_LIST_PERMISSIONS)
                 .arg_param(&["auth-id"])
                 .completion_cb("auth-id", pbs_config::user::complete_authid)
-                .completion_cb("path", config::datastore::complete_acl_path)
+                .completion_cb("path", pbs_config::datastore::complete_acl_path)
         );
 
     cmd_def.into()

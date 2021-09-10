@@ -11,8 +11,7 @@ use lazy_static::lazy_static;
 
 use proxmox::tools::fs::{replace_file, file_read_optional_string, CreateOptions};
 
-use pbs_api_types::upid::UPID;
-use pbs_api_types::{Authid, GarbageCollectionStatus};
+use pbs_api_types::{UPID, DataStoreConfig, Authid, GarbageCollectionStatus};
 use pbs_datastore::{task_log, task_warn};
 use pbs_datastore::DataBlob;
 use pbs_datastore::backup_info::{BackupGroup, BackupDir};
@@ -29,7 +28,6 @@ use pbs_datastore::task::TaskState;
 use pbs_tools::format::HumanByte;
 use pbs_tools::fs::{lock_dir_noblock, DirLockGuard};
 
-use crate::config::datastore::{self, DataStoreConfig};
 use crate::tools;
 use pbs_config::{open_backup_lockfile, BackupLockGuard};
 
@@ -67,8 +65,8 @@ impl DataStore {
 
     pub fn lookup_datastore(name: &str) -> Result<Arc<DataStore>, Error> {
 
-        let (config, _digest) = datastore::config()?;
-        let config: datastore::DataStoreConfig = config.lookup("datastore", name)?;
+        let (config, _digest) = pbs_config::datastore::config()?;
+        let config: DataStoreConfig = config.lookup("datastore", name)?;
         let path = PathBuf::from(&config.path);
 
         let mut map = DATASTORE_MAP.lock().unwrap();
@@ -92,7 +90,7 @@ impl DataStore {
 
     /// removes all datastores that are not configured anymore
     pub fn remove_unused_datastores() -> Result<(), Error>{
-        let (config, _digest) = datastore::config()?;
+        let (config, _digest) = pbs_config::datastore::config()?;
 
         let mut map = DATASTORE_MAP.lock().unwrap();
         // removes all elements that are not in the config

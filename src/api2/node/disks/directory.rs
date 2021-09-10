@@ -7,8 +7,8 @@ use proxmox::api::section_config::SectionConfigData;
 use proxmox::api::router::Router;
 
 use pbs_api_types::{
-    Authid, NODE_SCHEMA, BLOCKDEVICE_NAME_SCHEMA, DATASTORE_SCHEMA, UPID_SCHEMA,
-    PRIV_SYS_AUDIT, PRIV_SYS_MODIFY,
+    Authid, DataStoreConfig, NODE_SCHEMA, BLOCKDEVICE_NAME_SCHEMA,
+    DATASTORE_SCHEMA, UPID_SCHEMA, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY,
 };
 
 use crate::tools::disks::{
@@ -18,9 +18,6 @@ use crate::tools::disks::{
 use crate::tools::systemd::{self, types::*};
 
 use crate::server::WorkerTask;
-
-use crate::config::datastore::{self, DataStoreConfig};
-use pbs_config::open_backup_lockfile;
 
 #[api(
     properties: {
@@ -183,11 +180,11 @@ pub fn create_datastore_disk(
             pbs_systemd::start_unit(&mount_unit_name)?;
 
             if add_datastore {
-                let lock = open_backup_lockfile(datastore::DATASTORE_CFG_LOCKFILE, None, true)?;
+                let lock = pbs_config::datastore::lock_config()?;
                 let datastore: DataStoreConfig =
                     serde_json::from_value(json!({ "name": name, "path": mount_point }))?;
 
-                let (config, _digest) = datastore::config()?;
+                let (config, _digest) = pbs_config::datastore::config()?;
 
                 if config.sections.get(&datastore.name).is_some() {
                     bail!("datastore '{}' already exists.", datastore.name);
@@ -223,7 +220,7 @@ pub fn delete_datastore_disk(name: String) -> Result<(), Error> {
 
     let path = format!("/mnt/datastore/{}", name);
     // path of datastore cannot be changed
-    let (config, _) = crate::config::datastore::config()?;
+    let (config, _) = pbs_config::datastore::config()?;
     let datastores: Vec<DataStoreConfig> = config.convert_to_typed_array("datastore")?;
     let conflicting_datastore: Option<DataStoreConfig> = datastores.into_iter()
         .find(|ds| ds.path == path);

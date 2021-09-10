@@ -6,10 +6,7 @@ use proxmox::api::{api, cli::*, RpcEnvironment, ApiHandler};
 use pbs_api_types::JOB_ID_SCHEMA;
 use pbs_client::{connect_to_localhost, view_task_result};
 
-use proxmox_backup::{
-    config,
-    api2,
-};
+use proxmox_backup::api2;
 
 #[api(
     input: {
@@ -121,8 +118,8 @@ pub fn backup_job_commands() -> CommandLineInterface {
                 CliCommand::new(&api2::config::tape_backup_job::API_METHOD_CREATE_TAPE_BACKUP_JOB)
                 .arg_param(&["id"])
                 .completion_cb("id", pbs_config::tape_job::complete_tape_job_id)
-                .completion_cb("schedule", config::datastore::complete_calendar_event)
-                .completion_cb("store", config::datastore::complete_datastore_name)
+                .completion_cb("schedule", pbs_config::datastore::complete_calendar_event)
+                .completion_cb("store", pbs_config::datastore::complete_datastore_name)
                 .completion_cb("pool", pbs_config::media_pool::complete_pool_name)
                 .completion_cb("drive", crate::complete_drive_name)
         )
@@ -130,8 +127,8 @@ pub fn backup_job_commands() -> CommandLineInterface {
                 CliCommand::new(&api2::config::tape_backup_job::API_METHOD_UPDATE_TAPE_BACKUP_JOB)
                 .arg_param(&["id"])
                 .completion_cb("id", pbs_config::tape_job::complete_tape_job_id)
-                .completion_cb("schedule", config::datastore::complete_calendar_event)
-                .completion_cb("store", config::datastore::complete_datastore_name)
+                .completion_cb("schedule", pbs_config::datastore::complete_calendar_event)
+                .completion_cb("store", pbs_config::datastore::complete_datastore_name)
                 .completion_cb("pool", pbs_config::media_pool::complete_pool_name)
                 .completion_cb("drive", crate::complete_drive_name)
         )

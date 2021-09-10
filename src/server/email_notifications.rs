@@ -11,11 +11,7 @@ use pbs_tools::format::HumanByte;
 use pbs_api_types::{
     User, TapeBackupJobSetup, SyncJobConfig, VerificationJobConfig,
     APTUpdateInfo, GarbageCollectionStatus,
-    Userid, Notify, DatastoreNotify,
-};
-
-use crate::{
-    config::datastore::DataStoreConfig,
+    Userid, Notify, DatastoreNotify, DataStoreConfig,
 };
 
 const GC_OK_TEMPLATE: &str = r###"
@@ -566,7 +562,7 @@ pub fn lookup_datastore_notify_settings(
 
     let notify = DatastoreNotify { gc: None, verify: None, sync: None };
 
-    let (config, _digest) = match crate::config::datastore::config() {
+    let (config, _digest) = match pbs_config::datastore::config() {
         Ok(result) => result,
         Err(_) => return (email, notify),
     };

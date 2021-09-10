@@ -1,6 +1,7 @@
 pub mod acl;
 mod cached_user_info;
 pub use cached_user_info::CachedUserInfo;
+pub mod datastore;
 pub mod domains;
 pub mod drive;
 pub mod key_config;

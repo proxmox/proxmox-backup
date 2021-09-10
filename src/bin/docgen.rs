@@ -27,7 +27,7 @@ use proxmox::{
 
 use pbs_api_types::PRIVILEGES;
 
-use proxmox_backup::{api2, config};
+use proxmox_backup::api2;
 
 fn get_args() -> (String, Vec<String>) {
 
@@ -50,7 +50,7 @@ fn main() -> Result<(), Error> {
     for arg in args.iter() {
         let text = match arg.as_ref() {
             "apidata.js" => generate_api_tree(),
-            "datastore.cfg" => dump_section_config(&config::datastore::CONFIG),
+            "datastore.cfg" => dump_section_config(&pbs_config::datastore::CONFIG),
             "tape.cfg" => dump_section_config(&pbs_config::drive::CONFIG),
             "tape-job.cfg" => dump_section_config(&pbs_config::tape_job::CONFIG),
             "user.cfg" => dump_section_config(&pbs_config::user::CONFIG),

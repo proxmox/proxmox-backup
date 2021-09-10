@@ -89,12 +89,12 @@ fn garbage_collection_commands() -> CommandLineInterface {
         .insert("status",
                 CliCommand::new(&API_METHOD_GARBAGE_COLLECTION_STATUS)
                 .arg_param(&["store"])
-                .completion_cb("store", config::datastore::complete_datastore_name)
+                .completion_cb("store", pbs_config::datastore::complete_datastore_name)
         )
         .insert("start",
                 CliCommand::new(&API_METHOD_START_GARBAGE_COLLECTION)
                 .arg_param(&["store"])
-                .completion_cb("store", config::datastore::complete_datastore_name)
+                .completion_cb("store", pbs_config::datastore::complete_datastore_name)
         );
 
     cmd_def.into()
@@ -379,7 +379,7 @@ fn main() {
             "pull",
             CliCommand::new(&API_METHOD_PULL_DATASTORE)
                 .arg_param(&["remote", "remote-store", "local-store"])
-                .completion_cb("local-store", config::datastore::complete_datastore_name)
+                .completion_cb("local-store", pbs_config::datastore::complete_datastore_name)
                 .completion_cb("remote", pbs_config::remote::complete_remote_name)
                 .completion_cb("remote-store", complete_remote_datastore_name)
         )
@@ -387,7 +387,7 @@ fn main() {
             "verify",
             CliCommand::new(&API_METHOD_VERIFY)
                 .arg_param(&["store"])
-                .completion_cb("store", config::datastore::complete_datastore_name)
+                .completion_cb("store", pbs_config::datastore::complete_datastore_name)
         )
         .insert("report",
             CliCommand::new(&API_METHOD_REPORT)

@@ -3,7 +3,6 @@ use serde_json::Value;
 
 use proxmox::api::{api, cli::*, RpcEnvironment, ApiHandler};
 
-use proxmox_backup::config;
 use proxmox_backup::api2;
 
 #[api(
@@ -61,7 +60,7 @@ pub fn acl_commands() -> CommandLineInterface {
             CliCommand::new(&api2::access::acl::API_METHOD_UPDATE_ACL)
                 .arg_param(&["path", "role"])
                 .completion_cb("auth-id", pbs_config::user::complete_authid)
-                .completion_cb("path", config::datastore::complete_acl_path)
+                .completion_cb("path", pbs_config::datastore::complete_acl_path)
 
         );
 

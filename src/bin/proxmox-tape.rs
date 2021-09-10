@@ -23,6 +23,7 @@ use pbs_tools::format::{
 
 use pbs_config::drive::complete_drive_name;
 use pbs_config::media_pool::complete_pool_name;
+use pbs_config::datastore::complete_datastore_name;
 
 use proxmox_backup::{
     api2::{
@@ -37,9 +38,6 @@ use proxmox_backup::{
             Userid,
             TAPE_RESTORE_SNAPSHOT_SCHEMA,
         },
-    },
-    config::{
-        datastore::complete_datastore_name,
     },
     tape::{
         BlockReadError,

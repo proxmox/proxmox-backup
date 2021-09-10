@@ -15,7 +15,6 @@ use proxmox::try_block;
 use pbs_buildcfg::{self, configdir};
 
 pub mod acme;
-pub mod datastore;
 pub mod node;
 pub mod tfa;
 

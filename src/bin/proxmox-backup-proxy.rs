@@ -32,7 +32,9 @@ use pbs_buildcfg::configdir;
 use pbs_systemd::time::{compute_next_event, parse_calendar_event};
 use pbs_tools::logrotate::LogRotate;
 
-use pbs_api_types::{Authid, TapeBackupJobConfig, VerificationJobConfig, SyncJobConfig};
+use pbs_api_types::{Authid, TapeBackupJobConfig, VerificationJobConfig, SyncJobConfig, DataStoreConfig};
+use pbs_datastore::prune::PruneOptions;
+
 use proxmox_backup::server;
 use proxmox_backup::auth_helpers::*;
 use proxmox_backup::tools::{
@@ -44,6 +46,7 @@ use proxmox_backup::tools::{
         get_pool_from_dataset,
     },
 };
+
 
 use proxmox_backup::api2::pull::do_sync_job;
 use proxmox_backup::api2::tape::backup::do_tape_backup_job;
@@ -374,14 +377,7 @@ async fn schedule_tasks() -> Result<(), Error> {
 
 async fn schedule_datastore_garbage_collection() {
 
-    use proxmox_backup::config::{
-        datastore::{
-            self,
-            DataStoreConfig,
-        },
-    };
-
-    let config = match datastore::config() {
+    let config = match pbs_config::datastore::config() {
         Err(err) => {
             eprintln!("unable to read datastore config - {}", err);
             return;
@@ -459,15 +455,7 @@ async fn schedule_datastore_garbage_collection() {
 
 async fn schedule_datastore_prune() {
 
-    use pbs_datastore::prune::PruneOptions;
-    use proxmox_backup::{
-        config::datastore::{
-            self,
-            DataStoreConfig,
-        },
-    };
-
-    let config = match datastore::config() {
+    let config = match pbs_config::datastore::config() {
         Err(err) => {
             eprintln!("unable to read datastore config - {}", err);
             return;
@@ -765,8 +753,6 @@ fn rrd_update_derive(name: &str, value: f64, save: bool) {
 async fn generate_host_stats(save: bool) {
     use proxmox::sys::linux::procfs::{
         read_meminfo, read_proc_stat, read_proc_net_dev, read_loadavg};
-    use proxmox_backup::config::datastore;
-
 
     pbs_runtime::block_in_place(move || {
 
@@ -823,9 +809,9 @@ async fn generate_host_stats(save: bool) {
 
         gather_disk_stats(disk_manager.clone(), Path::new("/"), "host", save);
 
-        match datastore::config() {
+        match pbs_config::datastore::config() {
             Ok((config, _)) => {
-                let datastore_list: Vec<datastore::DataStoreConfig> =
+                let datastore_list: Vec<DataStoreConfig> =
                     config.convert_to_typed_array("datastore").unwrap_or_default();
 
                 for config in datastore_list {

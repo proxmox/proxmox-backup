@@ -50,6 +50,7 @@ use pbs_datastore::prune::{compute_prune_info, PruneOptions};
 use pbs_tools::blocking::WrappedReaderStream;
 use pbs_tools::stream::{AsyncReaderStream, AsyncChannelWriter};
 use pbs_tools::json::{required_integer_param, required_string_param};
+use pbs_config::CachedUserInfo;
 
 use crate::api2::types::{DataStoreStatus, RRDMode, RRDTimeFrameResolution};
 use crate::api2::node::rrd::create_value_from_rrd;
@@ -57,8 +58,6 @@ use crate::backup::{
     check_backup_owner, verify_all_backups, verify_backup_group, verify_backup_dir, verify_filter,
     DataStore, LocalChunkReader,
 };
-use crate::config::datastore;
-use pbs_config::CachedUserInfo;
 
 use crate::server::{jobstate::Job, WorkerTask};
 
@@ -1050,7 +1049,7 @@ pub fn get_datastore_list(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<DataStoreListItem>, Error> {
 
-    let (config, _digest) = datastore::config()?;
+    let (config, _digest) = pbs_config::datastore::config()?;
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
