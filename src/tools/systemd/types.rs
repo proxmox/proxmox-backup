@@ -1,7 +1,7 @@
 use serde::{Serialize, Deserialize};
 
 use proxmox::api::{ api, schema::* };
-use crate::api2::types::SINGLE_LINE_COMMENT_FORMAT;
+use pbs_api_types::SINGLE_LINE_COMMENT_FORMAT;
 
 pub const SYSTEMD_SECTION_NAME_SCHEMA: Schema = StringSchema::new(
     "Section name")

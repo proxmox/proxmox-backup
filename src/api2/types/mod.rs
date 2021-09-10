@@ -5,10 +5,10 @@ use serde::{Deserialize, Serialize};
 
 use proxmox::api::{api, schema::*};
 
+use pbs_api_types::StorageStatus;
+
 mod acme;
 pub use acme::*;
-
-pub use pbs_api_types::*;
 
 // File names: may not contain slashes, may not start with "."
 pub const FILENAME_FORMAT: ApiStringFormat = ApiStringFormat::VerifyFn(|name| {
@@ -24,49 +24,6 @@ pub const FILENAME_FORMAT: ApiStringFormat = ApiStringFormat::VerifyFn(|name| {
 
 // Complex type definitions
 
-#[api(
-    properties: {
-        "gc-status": {
-            type: GarbageCollectionStatus,
-            optional: true,
-        },
-        counts: {
-            type: Counts,
-            optional: true,
-        },
-    },
-)]
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all="kebab-case")]
-/// Overall Datastore status and useful information.
-pub struct DataStoreStatus {
-    /// Total space (bytes).
-    pub total: u64,
-    /// Used space (bytes).
-    pub used: u64,
-    /// Available space (bytes).
-    pub avail: u64,
-    /// Status of last GC
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub gc_status: Option<GarbageCollectionStatus>,
-    /// Group/Snapshot counts
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub counts: Option<Counts>,
-}
-
-#[api()]
-#[derive(Eq, PartialEq, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum TaskStateType {
-    /// Ok
-    OK,
-    /// Warning
-    Warning,
-    /// Error
-    Error,
-    /// Unknown
-    Unknown,
-}
 
 // Regression tests
 

@@ -18,13 +18,13 @@ use proxmox::tools::fs::{create_path, replace_file, CreateOptions};
 
 use pbs_buildcfg;
 use pbs_tools::logrotate::{LogRotate, LogRotateFiles};
+use pbs_api_types::{Authid, TaskStateType, UPID};
+use pbs_config::{open_backup_lockfile, BackupLockGuard};
 
-use super::{UPID, UPIDExt};
+use super::UPIDExt;
 
 use crate::server;
 use crate::tools::{FileLogger, FileLogOptions};
-use crate::api2::types::{Authid, TaskStateType};
-use pbs_config::{open_backup_lockfile, BackupLockGuard};
 
 macro_rules! taskdir {
     ($subdir:expr) => (concat!(pbs_buildcfg::PROXMOX_BACKUP_LOG_DIR_M!(), "/tasks", $subdir))

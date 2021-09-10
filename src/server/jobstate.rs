@@ -48,15 +48,12 @@ use proxmox::tools::fs::{
 
 use pbs_systemd::time::{compute_next_event, parse_calendar_event};
 use pbs_config::{open_backup_lockfile, BackupLockGuard};
+use pbs_api_types::{UPID, JobScheduleStatus};
 
-use crate::{
-    api2::types::JobScheduleStatus,
-    server::{
-        UPID,
-        TaskState,
-        upid_read_status,
-        worker_is_active_local,
-    },
+use crate::server::{
+    TaskState,
+    upid_read_status,
+    worker_is_active_local,
 };
 
 #[derive(Serialize, Deserialize)]

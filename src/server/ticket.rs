@@ -3,7 +3,8 @@ use std::fmt;
 use anyhow::{bail, Error};
 use serde::{Deserialize, Serialize};
 
-use crate::api2::types::Userid;
+use pbs_api_types::Userid;
+
 use crate::config::tfa;
 
 #[derive(Deserialize, Serialize)]

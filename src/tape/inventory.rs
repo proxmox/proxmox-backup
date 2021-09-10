@@ -41,6 +41,7 @@ use proxmox::tools::{
 
 use pbs_systemd::time::compute_next_event;
 use pbs_config::BackupLockGuard;
+use pbs_api_types::{MediaSetPolicy, RetentionPolicy, MediaStatus, MediaLocation};
 
 #[cfg(not(test))]
 use pbs_config::open_backup_lockfile;
@@ -56,12 +57,6 @@ fn open_backup_lockfile<P: AsRef<std::path::Path>>(
 
 
 use crate::{
-    api2::types::{
-        MediaSetPolicy,
-        RetentionPolicy,
-        MediaStatus,
-        MediaLocation,
-    },
     tape::{
         TAPE_STATUS_DIR,
         MediaSet,

@@ -7,12 +7,11 @@ use endian_trait::Endian;
 
 use proxmox::tools::io::ReadExt;
 
+use pbs_api_types::MamAttribute;
+
 use crate::{
-    api2::types::MamAttribute,
     tools::sgutils2::SgRaw,
-    tape::{
-        drive::lto::TapeAlertFlags,
-    },
+    tape::drive::lto::TapeAlertFlags,
 };
 
 // Read Medium auxiliary memory attributes (MAM)

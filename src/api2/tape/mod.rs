@@ -12,8 +12,9 @@ use proxmox::{
     list_subdirs_api_method,
 };
 
+use pbs_api_types::TapeDeviceInfo;
+
 use crate::{
-    api2::types::TapeDeviceInfo,
     tape::{
         lto_tape_device_list,
         linux_tape_changer_list,

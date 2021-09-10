@@ -7,7 +7,7 @@ use proxmox_backup::api2;
 use proxmox_backup::tools::subscription;
 
 async fn wait_for_local_worker(upid_str: &str) -> Result<(), Error> {
-    let upid: proxmox_backup::server::UPID = upid_str.parse()?;
+    let upid: pbs_api_types::UPID = upid_str.parse()?;
     let sleep_duration = core::time::Duration::new(0, 100_000_000);
 
     loop {

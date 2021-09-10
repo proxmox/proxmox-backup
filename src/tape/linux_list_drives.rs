@@ -4,14 +4,7 @@ use std::collections::HashMap;
 use anyhow::{bail, Error};
 
 use pbs_tools::fs::scan_subdir;
-
-use crate::{
-    api2::types::{
-        DeviceKind,
-        OptionalDeviceIdentification,
-        TapeDeviceInfo,
-    },
-};
+use pbs_api_types::{DeviceKind, OptionalDeviceIdentification, TapeDeviceInfo};
 
 lazy_static::lazy_static!{
     static ref SCSI_GENERIC_NAME_REGEX: regex::Regex =

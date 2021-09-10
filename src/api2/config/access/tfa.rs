@@ -3,9 +3,10 @@
 
 use anyhow::Error;
 
-use crate::api2::types::PROXMOX_CONFIG_DIGEST_SCHEMA;
 use proxmox::api::{api, Permission, Router, RpcEnvironment, SubdirMap};
 use proxmox::list_subdirs_api_method;
+
+use pbs_api_types::PROXMOX_CONFIG_DIGEST_SCHEMA;
 
 use crate::config::tfa::{self, WebauthnConfig, WebauthnConfigUpdater};
 

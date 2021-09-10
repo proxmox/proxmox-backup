@@ -32,13 +32,13 @@ use proxmox::http_err;
 
 use pbs_tools::compression::{DeflateEncoder, Level};
 use pbs_tools::stream::AsyncReaderStream;
+use pbs_api_types::{Authid, Userid};
 
 use super::auth::AuthError;
 use super::environment::RestEnvironment;
 use super::formatter::*;
 use super::ApiConfig;
 
-use crate::api2::types::{Authid, Userid};
 use crate::auth_helpers::*;
 use pbs_config::CachedUserInfo;
 use crate::tools;

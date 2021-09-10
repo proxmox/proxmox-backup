@@ -14,8 +14,8 @@ use pbs_datastore::DataBlob;
 use pbs_datastore::backup_info::{BackupDir, BackupInfo};
 use pbs_datastore::dynamic_index::DynamicIndexWriter;
 use pbs_datastore::fixed_index::FixedIndexWriter;
+use pbs_api_types::Authid;
 
-use crate::api2::types::Authid;
 use crate::backup::{verify_backup_dir_with_lock, DataStore};
 use crate::server::WorkerTask;
 use crate::server::formatter::*;

@@ -30,6 +30,7 @@ use proxmox::{
 use pbs_api_types::{
     Authid, DATASTORE_SCHEMA, BACKUP_TYPE_SCHEMA, BACKUP_TIME_SCHEMA, BACKUP_ID_SCHEMA,
     CHUNK_DIGEST_SCHEMA, PRIV_DATASTORE_READ, PRIV_DATASTORE_BACKUP,
+    BACKUP_ARCHIVE_NAME_SCHEMA,
 };
 use pbs_tools::fs::lock_dir_noblock_shared;
 use pbs_tools::json::{required_integer_param, required_string_param};
@@ -223,7 +224,7 @@ pub const API_METHOD_DOWNLOAD_FILE: ApiMethod = ApiMethod::new(
     &ObjectSchema::new(
         "Download specified file.",
         &sorted!([
-            ("file-name", false, &crate::api2::types::BACKUP_ARCHIVE_NAME_SCHEMA),
+            ("file-name", false, &BACKUP_ARCHIVE_NAME_SCHEMA),
         ]),
     )
 );

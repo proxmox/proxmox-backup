@@ -3,7 +3,7 @@ use serde_json::Value;
 
 use proxmox::api::{api, schema::{ApiType, Schema, StringSchema, ApiStringFormat}};
 
-use crate::api2::types::{
+use pbs_api_types::{
     DNS_ALIAS_FORMAT, DNS_NAME_FORMAT, PROXMOX_SAFE_ID_FORMAT,
 };
 

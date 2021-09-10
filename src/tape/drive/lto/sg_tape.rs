@@ -29,11 +29,9 @@ use proxmox::{
     tools::io::{ReadExt, WriteExt},
 };
 
+use pbs_api_types::{MamAttribute, Lp17VolumeStatistics};
+
 use crate::{
-    api2::types::{
-        MamAttribute,
-        Lp17VolumeStatistics,
-    },
     tape::{
         BlockRead,
         BlockReadError,

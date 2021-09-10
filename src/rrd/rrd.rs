@@ -3,7 +3,7 @@ use std::path::Path;
 
 use anyhow::Error;
 
-use crate::api2::types::{RRDMode, RRDTimeFrameResolution};
+use pbs_api_types::{RRDMode, RRDTimeFrameResolution};
 
 pub const RRD_DATA_ENTRIES: usize = 70;
 

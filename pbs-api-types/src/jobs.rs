@@ -17,10 +17,6 @@ const_regex!{
     pub SYNC_JOB_WORKER_ID_REGEX = concat!(r"^(", PROXMOX_SAFE_ID_REGEX_STR!(), r"):(", PROXMOX_SAFE_ID_REGEX_STR!(), r"):(", PROXMOX_SAFE_ID_REGEX_STR!(), r"):");
 }
 
-pub const UPID_SCHEMA: Schema = StringSchema::new("Unique Process/Task ID.")
-    .max_length(256)
-    .schema();
-
 pub const JOB_ID_SCHEMA: Schema = StringSchema::new("Job ID.")
     .format(&PROXMOX_SAFE_ID_FORMAT)
     .min_length(3)

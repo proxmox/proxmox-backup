@@ -14,31 +14,25 @@ use serde::{Deserialize, Serialize};
 
 use proxmox::tools::Uuid;
 
-use pbs_api_types::Fingerprint;
+use pbs_api_types::{
+    Fingerprint, MediaStatus, MediaLocation, MediaSetPolicy, RetentionPolicy,
+    MediaPoolConfig,
+};
 use pbs_systemd::time::compute_next_event;
 use pbs_config::BackupLockGuard;
 
-use crate::{
-    api2::types::{
-        MediaStatus,
-        MediaLocation,
-        MediaSetPolicy,
-        RetentionPolicy,
-        MediaPoolConfig,
+use crate::tape::{
+    MediaId,
+    MediaSet,
+    Inventory,
+    MediaCatalog,
+    lock_media_set,
+    lock_media_pool,
+    lock_unassigned_media_pool,
+    file_formats::{
+        MediaLabel,
+        MediaSetLabel,
     },
-    tape::{
-        MediaId,
-        MediaSet,
-        Inventory,
-        MediaCatalog,
-        lock_media_set,
-        lock_media_pool,
-        lock_unassigned_media_pool,
-        file_formats::{
-            MediaLabel,
-            MediaSetLabel,
-        },
-    }
 };
 
 /// Media Pool

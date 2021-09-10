@@ -11,6 +11,8 @@ use endian_trait::Endian;
 
 use proxmox::tools::io::ReadExt;
 
+use pbs_api_types::ScsiTapeChanger;
+
 use crate::{
     tape::{
         changer::{
@@ -28,7 +30,6 @@ use crate::{
         scsi_ascii_to_string,
         scsi_inquiry,
     },
-    api2::types::ScsiTapeChanger,
 };
 
 const SCSI_CHANGER_DEFAULT_TIMEOUT: usize = 60*5; // 5 minutes

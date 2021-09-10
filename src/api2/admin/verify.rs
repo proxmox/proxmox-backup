@@ -9,15 +9,12 @@ use proxmox::api::{api, ApiMethod, Permission, Router, RpcEnvironment};
 
 use pbs_api_types::{
     VerificationJobConfig, VerificationJobStatus, JOB_ID_SCHEMA, Authid,
-    PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_VERIFY,
+    PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_VERIFY, DATASTORE_SCHEMA,
 };
 use pbs_config::verify;
 use pbs_config::CachedUserInfo;
 
 use crate::{
-    api2::types::{
-        DATASTORE_SCHEMA,
-    },
     server::{
         do_verification_job,
         jobstate::{

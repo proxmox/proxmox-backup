@@ -6,11 +6,9 @@ use anyhow::{bail, Error};
 use proxmox::tools::Uuid;
 use proxmox::api::section_config::SectionConfigData;
 
+use pbs_api_types::{VirtualTapeDrive, ScsiTapeChanger};
+
 use crate::{
-    api2::types::{
-        VirtualTapeDrive,
-        ScsiTapeChanger,
-    },
     tape::{
         Inventory,
         changer::{

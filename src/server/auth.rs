@@ -4,11 +4,10 @@ use anyhow::{format_err, Error};
 use std::sync::Arc;
 
 use pbs_tools::ticket::{self, Ticket};
-use pbs_config::token_shadow;
+use pbs_config::{token_shadow, CachedUserInfo};
+use pbs_api_types::{Authid, Userid};
 
-use crate::api2::types::{Authid, Userid};
 use crate::auth_helpers::*;
-use pbs_config::CachedUserInfo;
 use crate::tools;
 
 use hyper::header;

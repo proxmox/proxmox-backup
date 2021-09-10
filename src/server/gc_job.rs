@@ -1,9 +1,10 @@
 use std::sync::Arc;
 use anyhow::Error;
 
+use pbs_api_types::Authid;
+
 use crate::{
     server::WorkerTask,
-    api2::types::*,
     server::jobstate::Job,
     backup::DataStore,
 };

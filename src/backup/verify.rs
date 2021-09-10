@@ -6,7 +6,7 @@ use std::time::Instant;
 
 use anyhow::{bail, format_err, Error};
 
-use pbs_api_types::CryptMode;
+use pbs_api_types::{Authid, CryptMode, VerifyState, UPID, SnapshotVerifyState};
 use pbs_datastore::{task_log, DataBlob, StoreProgress};
 use pbs_datastore::backup_info::{BackupGroup, BackupDir, BackupInfo};
 use pbs_datastore::index::IndexFile;
@@ -15,9 +15,7 @@ use pbs_datastore::task::TaskState;
 use pbs_tools::fs::lock_dir_noblock_shared;
 
 use crate::{
-    api2::types::*,
     backup::DataStore,
-    server::UPID,
     tools::ParallelHandler,
 };
 

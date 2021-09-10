@@ -6,10 +6,9 @@ use endian_trait::Endian;
 
 use proxmox::tools::io::ReadExt;
 
-use crate::{
-    api2::types::Lp17VolumeStatistics,
-    tools::sgutils2::SgRaw,
-};
+use pbs_api_types::Lp17VolumeStatistics;
+
+use crate::tools::sgutils2::SgRaw;
 
 /// SCSI command to query volume statistics
 ///

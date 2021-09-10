@@ -23,11 +23,7 @@ use proxmox::{
     },
 };
 
-use crate::api2::types::{
-    SLOT_ARRAY_SCHEMA,
-    ScsiTapeChanger,
-    LtoTapeDrive,
-};
+use pbs_api_types::{SLOT_ARRAY_SCHEMA, ScsiTapeChanger, LtoTapeDrive};
 
 /// Changer element status.
 ///

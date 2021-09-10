@@ -7,7 +7,7 @@ use lazy_static::lazy_static;
 
 use proxmox::tools::fs::{create_path, CreateOptions};
 
-use crate::api2::types::{RRDMode, RRDTimeFrameResolution};
+use pbs_api_types::{RRDMode, RRDTimeFrameResolution};
 
 use super::*;
 

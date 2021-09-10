@@ -7,8 +7,9 @@ use serde_json::Value;
 use proxmox::sys::error::SysError;
 use proxmox::tools::fs::{CreateOptions, file_read_string};
 
+use pbs_api_types::PROXMOX_SAFE_ID_REGEX;
+
 use crate::api2::types::{
-    PROXMOX_SAFE_ID_REGEX,
     AcmeChallengeSchema,
     KnownAcmeDirectory,
     AcmeAccountName,

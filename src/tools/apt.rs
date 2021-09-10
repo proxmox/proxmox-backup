@@ -7,7 +7,7 @@ use apt_pkg_native::Cache;
 use proxmox::const_regex;
 use proxmox::tools::fs::{file_read_optional_string, replace_file, CreateOptions};
 
-use crate::api2::types::APTUpdateInfo;
+use pbs_api_types::APTUpdateInfo;
 
 const APT_PKG_STATE_FN: &str = "/var/lib/proxmox-backup/pkg-state.json";
 

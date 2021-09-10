@@ -15,8 +15,8 @@ use proxmox::api::schema::*;
 use pbs_datastore::DataBlob;
 use pbs_datastore::file_formats::{DataBlobHeader, EncryptedDataBlobHeader};
 use pbs_tools::json::{required_integer_param, required_string_param};
+use pbs_api_types::{CHUNK_DIGEST_SCHEMA, BACKUP_ARCHIVE_NAME_SCHEMA};
 
-use crate::api2::types::*;
 use crate::backup::DataStore;
 
 use super::environment::*;
@@ -247,7 +247,7 @@ pub const API_METHOD_UPLOAD_BLOB: ApiMethod = ApiMethod::new(
     &ObjectSchema::new(
         "Upload binary blob file.",
         &sorted!([
-            ("file-name", false, &crate::api2::types::BACKUP_ARCHIVE_NAME_SCHEMA),
+            ("file-name", false, &BACKUP_ARCHIVE_NAME_SCHEMA),
             ("encoded-size", false, &IntegerSchema::new("Encoded blob size.")
              .minimum(std::mem::size_of::<DataBlobHeader>() as isize)
              .maximum(1024*1024*16+(std::mem::size_of::<EncryptedDataBlobHeader>() as isize))

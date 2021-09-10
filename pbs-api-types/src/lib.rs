@@ -4,9 +4,7 @@ use serde::{Deserialize, Serialize};
 use anyhow::bail;
 
 use proxmox::api::api;
-use proxmox::api::schema::{
-    ApiStringFormat, ApiType, ArraySchema, ReturnType, Schema, StringSchema,
-};
+use proxmox::api::schema::{ApiStringFormat, ArraySchema, Schema, StringSchema};
 use proxmox::const_regex;
 use proxmox::{IPRE, IPRE_BRACKET, IPV4OCTET, IPV4RE, IPV6H16, IPV6LS32, IPV6RE};
 
@@ -63,7 +61,7 @@ mod user;
 pub use user::*;
 
 pub mod upid;
-pub use upid::UPID;
+pub use upid::*;
 
 mod crypto;
 pub use crypto::{CryptMode, Fingerprint};
@@ -276,58 +274,6 @@ pub const PROXMOX_CONFIG_DIGEST_SCHEMA: Schema = StringSchema::new(
 /// API schema format definition for repository URLs
 pub const BACKUP_REPO_URL: ApiStringFormat = ApiStringFormat::Pattern(&BACKUP_REPO_URL_REGEX);
 
-#[api(
-    properties: {
-        "upid": {
-            optional: true,
-            type: UPID,
-        },
-    },
-)]
-#[derive(Clone, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-/// Garbage collection status.
-pub struct GarbageCollectionStatus {
-    pub upid: Option<String>,
-    /// Number of processed index files.
-    pub index_file_count: usize,
-    /// Sum of bytes referred by index files.
-    pub index_data_bytes: u64,
-    /// Bytes used on disk.
-    pub disk_bytes: u64,
-    /// Chunks used on disk.
-    pub disk_chunks: usize,
-    /// Sum of removed bytes.
-    pub removed_bytes: u64,
-    /// Number of removed chunks.
-    pub removed_chunks: usize,
-    /// Sum of pending bytes (pending removal - kept for safety).
-    pub pending_bytes: u64,
-    /// Number of pending chunks (pending removal - kept for safety).
-    pub pending_chunks: usize,
-    /// Number of chunks marked as .bad by verify that have been removed by GC.
-    pub removed_bad: usize,
-    /// Number of chunks still marked as .bad after garbage collection.
-    pub still_bad: usize,
-}
-
-impl Default for GarbageCollectionStatus {
-    fn default() -> Self {
-        GarbageCollectionStatus {
-            upid: None,
-            index_file_count: 0,
-            index_data_bytes: 0,
-            disk_bytes: 0,
-            disk_chunks: 0,
-            removed_bytes: 0,
-            removed_chunks: 0,
-            pending_bytes: 0,
-            pending_chunks: 0,
-            removed_bad: 0,
-            still_bad: 0,
-        }
-    }
-}
 
 // Complex type definitions
 
@@ -382,46 +328,6 @@ impl std::convert::TryFrom<openssl::rsa::Rsa<openssl::pkey::Public>> for RsaPubK
         })
     }
 }
-
-#[api(
-    properties: {
-        upid: { schema: UPID::API_SCHEMA },
-    },
-)]
-#[derive(Serialize, Deserialize)]
-/// Task properties.
-pub struct TaskListItem {
-    pub upid: String,
-    /// The node name where the task is running on.
-    pub node: String,
-    /// The Unix PID
-    pub pid: i64,
-    /// The task start time (Epoch)
-    pub pstart: u64,
-    /// The task start time (Epoch)
-    pub starttime: i64,
-    /// Worker type (arbitrary ASCII string)
-    pub worker_type: String,
-    /// Worker ID (arbitrary ASCII string)
-    pub worker_id: Option<String>,
-    /// The authenticated entity who started the task
-    pub user: Authid,
-    /// The task end time (Epoch)
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub endtime: Option<i64>,
-    /// Task end status
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub status: Option<String>,
-}
-
-
-pub const NODE_TASKS_LIST_TASKS_RETURN_TYPE: ReturnType = ReturnType {
-    optional: false,
-    schema: &ArraySchema::new(
-        "A list of tasks.",
-        &TaskListItem::API_SCHEMA,
-    ).schema(),
-};
 
 #[api()]
 #[derive(Debug, Clone, Serialize, Deserialize)]

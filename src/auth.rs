@@ -9,8 +9,7 @@ use anyhow::{bail, format_err, Error};
 use serde_json::json;
 
 use pbs_buildcfg::configdir;
-
-use crate::api2::types::{Userid, UsernameRef, RealmRef};
+use pbs_api_types::{Userid, UsernameRef, RealmRef};
 
 pub trait ProxmoxAuthenticator {
     fn authenticate_user(&self, username: &UsernameRef, password: &str) -> Result<(), Error>;

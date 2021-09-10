@@ -9,9 +9,13 @@ use proxmox::api::{api, cli::*, RpcEnvironment};
 use pbs_client::{connect_to_localhost, display_task_log, view_task_result};
 use pbs_tools::percent_encoding::percent_encode_component;
 use pbs_tools::json::required_string_param;
+use pbs_api_types::{
+    DATASTORE_SCHEMA, UPID_SCHEMA, REMOTE_ID_SCHEMA, REMOVE_VANISHED_BACKUPS_SCHEMA,
+    IGNORE_VERIFIED_BACKUPS_SCHEMA, VERIFICATION_OUTDATED_AFTER_SCHEMA,
+};
 
 use proxmox_backup::config;
-use proxmox_backup::api2::{self, types::* };
+use proxmox_backup::api2;
 use proxmox_backup::server::wait_for_local_worker;
 
 mod proxmox_backup_manager;

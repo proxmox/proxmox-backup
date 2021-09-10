@@ -1,8 +1,10 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use anyhow::{bail, Error};
+use serde::{Deserialize, Serialize};
 
-use proxmox::api::schema::{ApiStringFormat, ApiType, Schema, StringSchema};
+use proxmox::api::api;
+use proxmox::api::schema::{ApiStringFormat, ApiType, Schema, StringSchema, ArraySchema, ReturnType};
 use proxmox::const_regex;
 use proxmox::sys::linux::procfs;
 
@@ -54,12 +56,14 @@ const_regex! {
 pub const PROXMOX_UPID_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&PROXMOX_UPID_REGEX);
 
+pub const UPID_SCHEMA: Schema = StringSchema::new("Unique Process/Task Identifier")
+    .min_length("UPID:N:12345678:12345678:12345678:::".len())
+    .max_length(128) // arbitrary
+    .format(&PROXMOX_UPID_FORMAT)
+    .schema();
+
 impl ApiType for UPID {
-    const API_SCHEMA: Schema = StringSchema::new("Unique Process/Task Identifier")
-        .min_length("UPID:N:12345678:12345678:12345678:::".len())
-        .max_length(128) // arbitrary
-        .format(&PROXMOX_UPID_FORMAT)
-        .schema();
+    const API_SCHEMA: Schema = UPID_SCHEMA;
 }
 
 impl UPID {
@@ -143,3 +147,57 @@ impl std::fmt::Display for UPID {
                self.node, self.pid, self.pstart, self.task_id, self.starttime, self.worker_type, wid, self.auth_id)
     }
 }
+
+#[api()]
+#[derive(Eq, PartialEq, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum TaskStateType {
+    /// Ok
+    OK,
+    /// Warning
+    Warning,
+    /// Error
+    Error,
+    /// Unknown
+    Unknown,
+}
+
+#[api(
+    properties: {
+        upid: { schema: UPID::API_SCHEMA },
+    },
+)]
+#[derive(Serialize, Deserialize)]
+/// Task properties.
+pub struct TaskListItem {
+    pub upid: String,
+    /// The node name where the task is running on.
+    pub node: String,
+    /// The Unix PID
+    pub pid: i64,
+    /// The task start time (Epoch)
+    pub pstart: u64,
+    /// The task start time (Epoch)
+    pub starttime: i64,
+    /// Worker type (arbitrary ASCII string)
+    pub worker_type: String,
+    /// Worker ID (arbitrary ASCII string)
+    pub worker_id: Option<String>,
+    /// The authenticated entity who started the task
+    pub user: Authid,
+    /// The task end time (Epoch)
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub endtime: Option<i64>,
+    /// Task end status
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub status: Option<String>,
+}
+
+pub const NODE_TASKS_LIST_TASKS_RETURN_TYPE: ReturnType = ReturnType {
+    optional: false,
+    schema: &ArraySchema::new(
+        "A list of tasks.",
+        &TaskListItem::API_SCHEMA,
+    ).schema(),
+};
+

@@ -25,20 +25,14 @@ use pbs_config::drive::complete_drive_name;
 use pbs_config::media_pool::complete_pool_name;
 use pbs_config::datastore::complete_datastore_name;
 
+use pbs_api_types::{
+    Userid, Authid, DATASTORE_SCHEMA, DATASTORE_MAP_LIST_SCHEMA,
+    DRIVE_NAME_SCHEMA, MEDIA_LABEL_SCHEMA, MEDIA_POOL_NAME_SCHEMA,
+    TAPE_RESTORE_SNAPSHOT_SCHEMA,
+};
+
 use proxmox_backup::{
-    api2::{
-        self,
-        types::{
-            Authid,
-            DATASTORE_SCHEMA,
-            DATASTORE_MAP_LIST_SCHEMA,
-            DRIVE_NAME_SCHEMA,
-            MEDIA_LABEL_SCHEMA,
-            MEDIA_POOL_NAME_SCHEMA,
-            Userid,
-            TAPE_RESTORE_SNAPSHOT_SCHEMA,
-        },
-    },
+    api2,
     tape::{
         BlockReadError,
         drive::{

@@ -16,13 +16,10 @@ use pbs_config::drive::{
     complete_changer_name,
 };
 
+use pbs_api_types::CHANGER_NAME_SCHEMA;
+
 use proxmox_backup::{
-    api2::{
-        self,
-        types::{
-            CHANGER_NAME_SCHEMA,
-        },
-    },
+    api2,
     tape::{
         complete_changer_path,
         drive::media_changer,

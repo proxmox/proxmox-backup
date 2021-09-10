@@ -15,7 +15,7 @@ use proxmox::api::schema::*;
 use pbs_api_types::{
     Authid, VerifyState, SnapshotVerifyState,
     BACKUP_ID_SCHEMA, BACKUP_TIME_SCHEMA, BACKUP_TYPE_SCHEMA, DATASTORE_SCHEMA,
-    CHUNK_DIGEST_SCHEMA, PRIV_DATASTORE_BACKUP,
+    CHUNK_DIGEST_SCHEMA, PRIV_DATASTORE_BACKUP, BACKUP_ARCHIVE_NAME_SCHEMA,
 };
 use pbs_tools::fs::lock_dir_noblock_shared;
 use pbs_tools::json::{required_array_param, required_integer_param, required_string_param};
@@ -340,7 +340,7 @@ pub const API_METHOD_CREATE_DYNAMIC_INDEX: ApiMethod = ApiMethod::new(
     &ObjectSchema::new(
         "Create dynamic chunk index file.",
         &sorted!([
-            ("archive-name", false, &crate::api2::types::BACKUP_ARCHIVE_NAME_SCHEMA),
+            ("archive-name", false, &BACKUP_ARCHIVE_NAME_SCHEMA),
         ]),
     )
 );
@@ -377,7 +377,7 @@ pub const API_METHOD_CREATE_FIXED_INDEX: ApiMethod = ApiMethod::new(
     &ObjectSchema::new(
         "Create fixed chunk index file.",
         &sorted!([
-            ("archive-name", false, &crate::api2::types::BACKUP_ARCHIVE_NAME_SCHEMA),
+            ("archive-name", false, &BACKUP_ARCHIVE_NAME_SCHEMA),
             ("size", false, &IntegerSchema::new("File size.")
              .minimum(1)
              .schema()
@@ -735,7 +735,7 @@ pub const API_METHOD_DOWNLOAD_PREVIOUS: ApiMethod = ApiMethod::new(
     &ObjectSchema::new(
         "Download archive from previous backup.",
         &sorted!([
-            ("archive-name", false, &crate::api2::types::BACKUP_ARCHIVE_NAME_SCHEMA)
+            ("archive-name", false, &BACKUP_ARCHIVE_NAME_SCHEMA)
         ]),
     )
 );

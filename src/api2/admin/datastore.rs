@@ -29,6 +29,7 @@ use pxar::EntryKind;
 use pbs_api_types::{ Authid, BackupContent, Counts, CryptMode,
     DataStoreListItem, GarbageCollectionStatus, GroupListItem,
     SnapshotListItem, SnapshotVerifyState, PruneOptions,
+    DataStoreStatus, RRDMode, RRDTimeFrameResolution,
     BACKUP_ARCHIVE_NAME_SCHEMA, BACKUP_ID_SCHEMA, BACKUP_TIME_SCHEMA,
     BACKUP_TYPE_SCHEMA, DATASTORE_SCHEMA,
     IGNORE_VERIFIED_BACKUPS_SCHEMA, UPID_SCHEMA,
@@ -54,7 +55,6 @@ use pbs_tools::stream::{AsyncReaderStream, AsyncChannelWriter};
 use pbs_tools::json::{required_integer_param, required_string_param};
 use pbs_config::CachedUserInfo;
 
-use crate::api2::types::{DataStoreStatus, RRDMode, RRDTimeFrameResolution};
 use crate::api2::node::rrd::create_value_from_rrd;
 use crate::backup::{
     check_backup_owner, verify_all_backups, verify_backup_group, verify_backup_dir, verify_filter,
