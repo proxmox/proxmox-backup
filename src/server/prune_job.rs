@@ -4,8 +4,8 @@ use anyhow::Error;
 
 use pbs_datastore::{task_log, task_warn};
 use pbs_datastore::backup_info::BackupInfo;
-use pbs_datastore::prune::{compute_prune_info, PruneOptions};
-use pbs_api_types::{Authid, PRIV_DATASTORE_MODIFY};
+use pbs_datastore::prune::compute_prune_info;
+use pbs_api_types::{Authid, PRIV_DATASTORE_MODIFY, PruneOptions};
 use pbs_config::CachedUserInfo;
 
 use crate::{
@@ -28,7 +28,7 @@ pub fn prune_datastore(
         task_log!(worker, "(dry test run)");
     }
 
-    let keep_all = !prune_options.keeps_something();
+    let keep_all = !pbs_datastore::prune::keeps_something(&prune_options);
 
     if keep_all {
         task_log!(worker, "No prune selection - keeping all files.");
@@ -36,7 +36,7 @@ pub fn prune_datastore(
         task_log!(
             worker,
             "retention options: {}",
-            prune_options.cli_options_string()
+            pbs_datastore::prune::cli_options_string(&prune_options)
         );
     }
 

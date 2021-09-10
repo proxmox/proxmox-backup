@@ -32,8 +32,10 @@ use pbs_buildcfg::configdir;
 use pbs_systemd::time::{compute_next_event, parse_calendar_event};
 use pbs_tools::logrotate::LogRotate;
 
-use pbs_api_types::{Authid, TapeBackupJobConfig, VerificationJobConfig, SyncJobConfig, DataStoreConfig};
-use pbs_datastore::prune::PruneOptions;
+use pbs_api_types::{
+    Authid, TapeBackupJobConfig, VerificationJobConfig, SyncJobConfig, DataStoreConfig,
+    PruneOptions,
+};
 
 use proxmox_backup::server;
 use proxmox_backup::auth_helpers::*;
@@ -487,7 +489,7 @@ async fn schedule_datastore_prune() {
             keep_yearly: store_config.keep_yearly,
         };
 
-        if !prune_options.keeps_something() { // no prune settings - keep all
+        if !pbs_datastore::prune::keeps_something(&prune_options) { // no prune settings - keep all
             continue;
         }
 

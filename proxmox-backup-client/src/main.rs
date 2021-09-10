@@ -29,7 +29,7 @@ use pxar::accessor::{MaybeReady, ReadAt, ReadAtOperation};
 
 use pbs_api_types::{
     BACKUP_ID_SCHEMA, BACKUP_TIME_SCHEMA, BACKUP_TYPE_SCHEMA, Authid, CryptMode, GroupListItem,
-    PruneListItem, SnapshotListItem, StorageStatus, Fingerprint,
+    PruneListItem, SnapshotListItem, StorageStatus, Fingerprint, PruneOptions,
 };
 use pbs_client::{
     BACKUP_SOURCE_SCHEMA,
@@ -72,7 +72,6 @@ use pbs_datastore::manifest::{
     ENCRYPTED_KEY_BLOB_NAME, MANIFEST_BLOB_NAME, ArchiveType, BackupManifest, archive_type,
 };
 use pbs_datastore::read_chunk::AsyncReadChunk;
-use pbs_datastore::prune::PruneOptions;
 use pbs_tools::sync::StdChannelWriter;
 use pbs_tools::tokio::TokioWriterAdapter;
 use pbs_tools::json;

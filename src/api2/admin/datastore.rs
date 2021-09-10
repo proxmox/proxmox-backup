@@ -26,12 +26,14 @@ use proxmox::{http_err, identity, list_subdirs_api_method, sortable};
 use pxar::accessor::aio::Accessor;
 use pxar::EntryKind;
 
-use pbs_api_types::{
-    Authid, BackupContent, Counts, CryptMode, DataStoreListItem, GarbageCollectionStatus,
-    GroupListItem, SnapshotListItem, SnapshotVerifyState, BACKUP_ARCHIVE_NAME_SCHEMA,
-    BACKUP_ID_SCHEMA, BACKUP_TIME_SCHEMA, BACKUP_TYPE_SCHEMA, DATASTORE_SCHEMA,
-    IGNORE_VERIFIED_BACKUPS_SCHEMA, UPID_SCHEMA, VERIFICATION_OUTDATED_AFTER_SCHEMA,
-    PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_MODIFY, PRIV_DATASTORE_READ, PRIV_DATASTORE_PRUNE,
+use pbs_api_types::{ Authid, BackupContent, Counts, CryptMode,
+    DataStoreListItem, GarbageCollectionStatus, GroupListItem,
+    SnapshotListItem, SnapshotVerifyState, PruneOptions,
+    BACKUP_ARCHIVE_NAME_SCHEMA, BACKUP_ID_SCHEMA, BACKUP_TIME_SCHEMA,
+    BACKUP_TYPE_SCHEMA, DATASTORE_SCHEMA,
+    IGNORE_VERIFIED_BACKUPS_SCHEMA, UPID_SCHEMA,
+    VERIFICATION_OUTDATED_AFTER_SCHEMA, PRIV_DATASTORE_AUDIT,
+    PRIV_DATASTORE_MODIFY, PRIV_DATASTORE_READ, PRIV_DATASTORE_PRUNE,
     PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_VERIFY,
 
 };
@@ -46,7 +48,7 @@ use pbs_datastore::dynamic_index::{BufferedDynamicReader, DynamicIndexReader, Lo
 use pbs_datastore::fixed_index::{FixedIndexReader};
 use pbs_datastore::index::IndexFile;
 use pbs_datastore::manifest::{BackupManifest, CLIENT_LOG_BLOB_NAME, MANIFEST_BLOB_NAME};
-use pbs_datastore::prune::{compute_prune_info, PruneOptions};
+use pbs_datastore::prune::compute_prune_info;
 use pbs_tools::blocking::WrappedReaderStream;
 use pbs_tools::stream::{AsyncReaderStream, AsyncChannelWriter};
 use pbs_tools::json::{required_integer_param, required_string_param};
@@ -838,7 +840,7 @@ pub fn prune(
 
     prune_info.reverse(); // delete older snapshots first
 
-    let keep_all = !prune_options.keeps_something();
+    let keep_all = !pbs_datastore::prune::keeps_something(&prune_options);
 
     if dry_run {
         for (info, mut keep) in prune_info {
@@ -864,7 +866,7 @@ pub fn prune(
     if keep_all {
         worker.log("No prune selection - keeping all files.");
     } else {
-        worker.log(format!("retention options: {}", prune_options.cli_options_string()));
+        worker.log(format!("retention options: {}", pbs_datastore::prune::cli_options_string(&prune_options)));
         worker.log(format!("Starting prune on store \"{}\" group \"{}/{}\"",
                             store, backup_type, backup_id));
     }

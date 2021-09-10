@@ -2,18 +2,8 @@ use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
 use anyhow::{Error};
-use serde::{Deserialize, Serialize};
 
-use proxmox::api::api;
-
-use pbs_api_types::{
-    PRUNE_SCHEMA_KEEP_LAST,
-    PRUNE_SCHEMA_KEEP_HOURLY,
-    PRUNE_SCHEMA_KEEP_DAILY,
-    PRUNE_SCHEMA_KEEP_WEEKLY,
-    PRUNE_SCHEMA_KEEP_MONTHLY,
-    PRUNE_SCHEMA_KEEP_YEARLY,
-};
+use pbs_api_types::PruneOptions;
 
 use super::BackupInfo;
 
@@ -80,142 +70,52 @@ fn remove_incomplete_snapshots(
     }
 }
 
-#[api(
-    properties: {
-        "keep-last": {
-            schema: PRUNE_SCHEMA_KEEP_LAST,
-            optional: true,
-        },
-        "keep-hourly": {
-            schema: PRUNE_SCHEMA_KEEP_HOURLY,
-            optional: true,
-        },
-        "keep-daily": {
-            schema: PRUNE_SCHEMA_KEEP_DAILY,
-            optional: true,
-        },
-        "keep-weekly": {
-            schema: PRUNE_SCHEMA_KEEP_WEEKLY,
-            optional: true,
-        },
-        "keep-monthly": {
-            schema: PRUNE_SCHEMA_KEEP_MONTHLY,
-            optional: true,
-        },
-        "keep-yearly": {
-            schema: PRUNE_SCHEMA_KEEP_YEARLY,
-            optional: true,
-        },
-    }
-)]
-#[derive(Serialize, Deserialize, Default)]
-#[serde(rename_all = "kebab-case")]
-/// Common pruning options
-pub struct PruneOptions {
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub keep_last: Option<u64>,
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub keep_hourly: Option<u64>,
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub keep_daily: Option<u64>,
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub keep_weekly: Option<u64>,
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub keep_monthly: Option<u64>,
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub keep_yearly: Option<u64>,
+pub fn keeps_something(options: &PruneOptions) -> bool {
+    let mut keep_something = false;
+    if let Some(count) = options.keep_last { if count > 0 { keep_something = true; } }
+    if let Some(count) = options.keep_hourly { if count > 0 { keep_something = true; } }
+    if let Some(count) = options.keep_daily { if count > 0 { keep_something = true; } }
+    if let Some(count) = options.keep_weekly { if count > 0 { keep_something = true; } }
+    if let Some(count) = options.keep_monthly { if count > 0 { keep_something = true; } }
+    if let Some(count) = options.keep_yearly { if count > 0 { keep_something = true; } }
+    keep_something
 }
 
-impl PruneOptions {
+pub fn cli_options_string(options: &PruneOptions) -> String {
+    let mut opts = Vec::new();
 
-    pub fn new() -> Self {
-        Self {
-            keep_last: None,
-            keep_hourly: None,
-            keep_daily: None,
-            keep_weekly: None,
-            keep_monthly: None,
-            keep_yearly: None,
+    if let Some(count) = options.keep_last {
+        if count > 0 {
+            opts.push(format!("--keep-last {}", count));
+        }
+    }
+    if let Some(count) = options.keep_hourly {
+        if count > 0 {
+            opts.push(format!("--keep-hourly {}", count));
+        }
+    }
+    if let Some(count) = options.keep_daily {
+        if count > 0 {
+            opts.push(format!("--keep-daily {}", count));
+        }
+    }
+    if let Some(count) = options.keep_weekly {
+        if count > 0 {
+            opts.push(format!("--keep-weekly {}", count));
+        }
+    }
+    if let Some(count) = options.keep_monthly {
+        if count > 0 {
+            opts.push(format!("--keep-monthly {}", count));
+        }
+    }
+    if let Some(count) = options.keep_yearly {
+        if count > 0 {
+            opts.push(format!("--keep-yearly {}", count));
         }
     }
 
-    pub fn keep_hourly(mut self, value: Option<u64>) -> Self {
-        self.keep_hourly = value;
-        self
-    }
-
-    pub fn keep_last(mut self, value: Option<u64>) -> Self {
-        self.keep_last = value;
-        self
-    }
-
-    pub fn keep_daily(mut self, value: Option<u64>) -> Self {
-        self.keep_daily = value;
-        self
-    }
-
-    pub fn keep_weekly(mut self, value: Option<u64>) -> Self {
-        self.keep_weekly = value;
-        self
-    }
-
-    pub fn keep_monthly(mut self, value: Option<u64>) -> Self {
-        self.keep_monthly = value;
-        self
-    }
-
-    pub fn keep_yearly(mut self, value: Option<u64>) -> Self {
-        self.keep_yearly = value;
-        self
-    }
-
-    pub fn keeps_something(&self) -> bool {
-        let mut keep_something = false;
-        if let Some(count) = self.keep_last { if count > 0 { keep_something = true; } }
-        if let Some(count) = self.keep_hourly { if count > 0 { keep_something = true; } }
-        if let Some(count) = self.keep_daily { if count > 0 { keep_something = true; } }
-        if let Some(count) = self.keep_weekly { if count > 0 { keep_something = true; } }
-        if let Some(count) = self.keep_monthly { if count > 0 { keep_something = true; } }
-        if let Some(count) = self.keep_yearly { if count > 0 { keep_something = true; } }
-        keep_something
-    }
-
-    pub fn cli_options_string(&self) -> String {
-        let mut opts = Vec::new();
-
-        if let Some(count) = self.keep_last {
-            if count > 0 {
-                opts.push(format!("--keep-last {}", count));
-            }
-        }
-        if let Some(count) = self.keep_hourly {
-            if count > 0 {
-                opts.push(format!("--keep-hourly {}", count));
-            }
-        }
-        if let Some(count) = self.keep_daily {
-            if count > 0 {
-                opts.push(format!("--keep-daily {}", count));
-            }
-        }
-        if let Some(count) = self.keep_weekly {
-            if count > 0 {
-                opts.push(format!("--keep-weekly {}", count));
-            }
-        }
-        if let Some(count) = self.keep_monthly {
-            if count > 0 {
-                opts.push(format!("--keep-monthly {}", count));
-            }
-        }
-        if let Some(count) = self.keep_yearly {
-            if count > 0 {
-                opts.push(format!("--keep-yearly {}", count));
-            }
-        }
-
-        opts.join(" ")
-    }
+    opts.join(" ")
 }
 
 pub fn compute_prune_info(
