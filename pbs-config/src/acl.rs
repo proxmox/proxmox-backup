@@ -175,8 +175,8 @@ pub struct AclTree {
 /// Node representing ACLs for a certain ACL path.
 #[derive(Default)]
 pub struct AclTreeNode {
-    /// [User](crate::config::user::User) or
-    /// [Token](crate::config::user::ApiToken) ACLs for this node.
+    /// [User](pbs_api_types::User) or
+    /// [Token](pbs_api_types::ApiToken) ACLs for this node.
     pub users: HashMap<Authid, HashMap<String, bool>>,
     /// `Group` ACLs for this node (not yet implemented)
     pub groups: HashMap<String, HashMap<String, bool>>,
@@ -195,9 +195,9 @@ impl AclTreeNode {
     }
 
     /// Returns applicable [Role] and their propagation status for a given
-    /// [Authid](crate::api2::types::Authid).
+    /// [Authid](pbs_api_types::Authid).
     ///
-    /// If the `Authid` is a [User](crate::config::user::User) that has no specific `Roles` configured on this node,
+    /// If the `Authid` is a [User](pbs_api_types::User) that has no specific `Roles` configured on this node,
     /// applicable `Group` roles will be returned instead.
     ///
     /// If `leaf` is `false`, only those roles where the propagate flag in the ACL is set to `true`
