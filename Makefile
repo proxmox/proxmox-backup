@@ -191,7 +191,6 @@ $(COMPILED_BINS) $(COMPILEDIR)/dump-catalog-shell-cli $(COMPILEDIR)/docgen: .do-
 	    --bin proxmox-file-restore \
 	    --bin proxmox-restore-daemon \
 	    --bin proxmox-tape \
-	    --bin pxar \
 	    --bin sg-tape-cmd
 	touch "$@"
 
