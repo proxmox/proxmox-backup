@@ -35,6 +35,8 @@ const BASE_MOUNT_DIR: &str = "/mnt/datastore/";
 pub struct DatastoreMountInfo {
     /// The path of the mount unit.
     pub unitfile: String,
+    /// The name of the mount
+    pub name: String,
     /// The mount path.
     pub path: String,
     /// The mounted device.
@@ -83,8 +85,15 @@ pub fn  list_datastore_mounts() -> Result<Vec<DatastoreMountInfo>, Error> {
         let config = systemd::config::parse_systemd_mount(&unitfile)?;
         let data: SystemdMountSection = config.lookup("Mount", "Mount")?;
 
+        let name = data
+            .Where
+            .strip_prefix(BASE_MOUNT_DIR)
+            .unwrap_or_else(|| &data.Where)
+            .to_string();
+
         list.push(DatastoreMountInfo {
             unitfile,
+            name,
             device: data.What,
             path: data.Where,
             filesystem: data.Type,
