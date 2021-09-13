@@ -1,9 +1,6 @@
 use std::io::{self, Write};
 
-use crate::tape::{
-    BlockWrite,
-    file_formats::PROXMOX_TAPE_BLOCK_SIZE,
-};
+use crate::{BlockWrite, PROXMOX_TAPE_BLOCK_SIZE};
 
 /// Emulate tape write behavior on a normal Writer
 ///

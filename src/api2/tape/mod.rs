@@ -13,13 +13,7 @@ use proxmox::{
 };
 
 use pbs_api_types::TapeDeviceInfo;
-
-use crate::{
-    tape::{
-        lto_tape_device_list,
-        linux_tape_changer_list,
-    },
-};
+use pbs_tape::linux_list_drives::{lto_tape_device_list, linux_tape_changer_list};
 
 pub mod drive;
 pub mod changer;

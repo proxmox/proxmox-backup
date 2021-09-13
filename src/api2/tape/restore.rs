@@ -42,6 +42,10 @@ use pbs_datastore::index::IndexFile;
 use pbs_datastore::manifest::{archive_type, ArchiveType, BackupManifest, MANIFEST_BLOB_NAME};
 use pbs_datastore::task::TaskState;
 use pbs_config::CachedUserInfo;
+use pbs_tape::{
+    TapeRead, BlockReadError, MediaContentHeader,
+    PROXMOX_BACKUP_CONTENT_HEADER_MAGIC_1_0,
+};
 
 use crate::{
     tools::ParallelHandler,
@@ -52,8 +56,6 @@ use crate::{
     },
     tape::{
         TAPE_STATUS_DIR,
-        TapeRead,
-        BlockReadError,
         MediaId,
         MediaSet,
         MediaCatalog,
@@ -65,11 +67,9 @@ use crate::{
             PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_0,
             PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_1,
             PROXMOX_BACKUP_MEDIA_SET_LABEL_MAGIC_1_0,
-            PROXMOX_BACKUP_CONTENT_HEADER_MAGIC_1_0,
             PROXMOX_BACKUP_CHUNK_ARCHIVE_MAGIC_1_0,
             PROXMOX_BACKUP_CHUNK_ARCHIVE_MAGIC_1_1,
             PROXMOX_BACKUP_CATALOG_ARCHIVE_MAGIC_1_0,
-            MediaContentHeader,
             ChunkArchiveHeader,
             ChunkArchiveDecoder,
             SnapshotArchiveHeader,

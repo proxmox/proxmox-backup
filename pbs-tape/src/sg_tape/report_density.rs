@@ -5,7 +5,7 @@ use std::os::unix::io::AsRawFd;
 
 use proxmox::tools::io::ReadExt;
 
-use crate::tools::sgutils2::SgRaw;
+use crate::sgutils2::SgRaw;
 
 #[repr(C, packed)]
 #[derive(Endian)]

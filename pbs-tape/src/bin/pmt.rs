@@ -13,6 +13,8 @@
 /// - support volume statistics
 /// - read cartridge memory
 
+use std::convert::TryInto;
+
 use anyhow::{bail, Error};
 use serde_json::Value;
 
@@ -34,17 +36,9 @@ use pbs_api_types::{
     LTO_DRIVE_PATH_SCHEMA, DRIVE_NAME_SCHEMA, LtoTapeDrive,
 };
 use pbs_config::drive::complete_drive_name;
-
-use proxmox_backup::{
-    tape::{
-        complete_drive_path,
-        lto_tape_device_list,
-        drive::{
-            TapeDriver,
-            LtoTapeHandle,
-            open_lto_tape_device,
-       },
-    },
+use pbs_tape::{
+    sg_tape::SgTape,
+    linux_list_drives::{complete_drive_path, lto_tape_device_list, open_lto_tape_device},
 };
 
 pub const FILE_MARK_COUNT_SCHEMA: Schema =
@@ -74,30 +68,30 @@ pub const DRIVE_OPTION_LIST_SCHEMA: Schema =
     .min_length(1)
     .schema();
 
-fn get_tape_handle(param: &Value) -> Result<LtoTapeHandle, Error> {
+fn get_tape_handle(param: &Value) -> Result<SgTape, Error> {
 
     if let Some(name) = param["drive"].as_str() {
         let (config, _digest) = pbs_config::drive::config()?;
         let drive: LtoTapeDrive = config.lookup("lto", &name)?;
         eprintln!("using device {}", drive.path);
-        return LtoTapeHandle::new(open_lto_tape_device(&drive.path)?);
+        return SgTape::new(open_lto_tape_device(&drive.path)?);
     }
 
     if let Some(device) = param["device"].as_str() {
         eprintln!("using device {}", device);
-        return LtoTapeHandle::new(open_lto_tape_device(&device)?);
+        return SgTape::new(open_lto_tape_device(&device)?);
     }
 
     if let Ok(name) = std::env::var("PROXMOX_TAPE_DRIVE") {
         let (config, _digest) = pbs_config::drive::config()?;
         let drive: LtoTapeDrive = config.lookup("lto", &name)?;
         eprintln!("using device {}", drive.path);
-        return LtoTapeHandle::new(open_lto_tape_device(&drive.path)?);
+        return SgTape::new(open_lto_tape_device(&drive.path)?);
     }
 
     if let Ok(device) = std::env::var("TAPE") {
         eprintln!("using device {}", device);
-        return LtoTapeHandle::new(open_lto_tape_device(&device)?);
+        return SgTape::new(open_lto_tape_device(&device)?);
     }
 
     let (config, _digest) = pbs_config::drive::config()?;
@@ -112,7 +106,7 @@ fn get_tape_handle(param: &Value) -> Result<LtoTapeHandle, Error> {
         let name = drive_names[0];
         let drive: LtoTapeDrive = config.lookup("lto", &name)?;
         eprintln!("using device {}", drive.path);
-        return LtoTapeHandle::new(open_lto_tape_device(&drive.path)?);
+        return SgTape::new(open_lto_tape_device(&drive.path)?);
     }
 
     bail!("no drive/device specified");
@@ -171,7 +165,7 @@ fn bsf(count: usize, param: Value) -> Result<(), Error> {
 
     let mut handle = get_tape_handle(&param)?;
 
-    handle.backward_space_count_files(count)?;
+    handle.space_filemarks(-count.try_into()?)?;
 
     Ok(())
 }
@@ -202,8 +196,8 @@ fn bsfm(count: usize, param: Value) -> Result<(), Error> {
 
     let mut handle = get_tape_handle(&param)?;
 
-    handle.backward_space_count_files(count)?;
-    handle.forward_space_count_files(1)?;
+    handle.space_filemarks(-count.try_into()?)?;
+    handle.space_filemarks(1)?;
 
     Ok(())
 }
@@ -231,7 +225,7 @@ fn bsr(count: usize, param: Value) -> Result<(), Error> {
 
     let mut handle = get_tape_handle(&param)?;
 
-    handle.backward_space_count_records(count)?;
+    handle.space_blocks(-count.try_into()?)?;
 
     Ok(())
 }
@@ -355,7 +349,7 @@ fn tape_alert_flags(param: Value) -> Result<(), Error> {
 fn eject(param: Value) -> Result<(), Error> {
 
     let mut handle = get_tape_handle(&param)?;
-    handle.eject_media()?;
+    handle.eject()?;
 
     Ok(())
 }
@@ -467,7 +461,7 @@ fn fsf(count: usize, param: Value) -> Result<(), Error> {
 
     let mut handle = get_tape_handle(&param)?;
 
-    handle.forward_space_count_files(count)?;
+    handle.space_filemarks(count.try_into()?)?;
 
     Ok(())
 }
@@ -497,8 +491,8 @@ fn fsfm(count: usize, param: Value) -> Result<(), Error> {
 
     let mut handle = get_tape_handle(&param)?;
 
-    handle.forward_space_count_files(count)?;
-    handle.backward_space_count_files(1)?;
+    handle.space_filemarks(count.try_into()?)?;
+    handle.space_filemarks(-1)?;
 
     Ok(())
 }
@@ -526,7 +520,7 @@ fn fsr(count: usize, param: Value) -> Result<(), Error> {
 
     let mut handle = get_tape_handle(&param)?;
 
-    handle.forward_space_count_records(count)?;
+    handle.space_blocks(count.try_into()?)?;
 
     Ok(())
 }
@@ -575,7 +569,7 @@ fn lock(param: Value) -> Result<(), Error> {
 
     let mut handle = get_tape_handle(&param)?;
 
-    handle.lock()?;
+    handle.set_medium_removal(false)?;
 
     Ok(())
 }
@@ -667,6 +661,7 @@ fn status(param: Value) -> Result<(), Error> {
     let output_format = get_output_format(&param);
 
     let mut handle = get_tape_handle(&param)?;
+
     let result = handle.get_drive_and_media_status();
 
     if output_format == "json-pretty" {
@@ -712,7 +707,7 @@ fn unlock(param: Value) -> Result<(), Error> {
 
     let mut handle = get_tape_handle(&param)?;
 
-    handle.unlock()?;
+    handle.set_medium_removal(true)?;
 
     Ok(())
 }
@@ -792,7 +787,7 @@ fn weof(count: Option<usize>, param: Value) -> Result<(), Error> {
 
     let mut handle = get_tape_handle(&param)?;
 
-    handle.write_filemarks(count)?;
+    handle.write_filemarks(count, false)?;
 
     Ok(())
 }

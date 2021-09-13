@@ -29,17 +29,11 @@ use pbs_config::drive::complete_changer_name;
 use pbs_api_types::{
     SCSI_CHANGER_PATH_SCHEMA, CHANGER_NAME_SCHEMA, ScsiTapeChanger, LtoTapeDrive,
 };
-
-use proxmox_backup::{
-    tools::sgutils2::scsi_inquiry,
-    tape::{
-        linux_tape_changer_list,
-        complete_changer_path,
-        changer::{
-            ElementStatus,
-            sg_pt_changer,
-        },
-    },
+use pbs_tape::{
+    sgutils2::scsi_inquiry,
+    ElementStatus,
+    sg_pt_changer,
+    linux_list_drives::{complete_changer_path, linux_tape_changer_list},
 };
 
 fn get_changer_handle(param: &Value) -> Result<File, Error> {

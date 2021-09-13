@@ -14,12 +14,6 @@ mod test;
 
 pub mod file_formats;
 
-mod tape_write;
-pub use tape_write::*;
-
-mod tape_read;
-pub use tape_read::*;
-
 mod helpers;
 pub use helpers::*;
 
@@ -28,9 +22,6 @@ pub use media_set::*;
 
 mod inventory;
 pub use inventory::*;
-
-mod linux_list_drives;
-pub use linux_list_drives::*;
 
 pub mod changer;
 

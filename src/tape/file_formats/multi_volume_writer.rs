@@ -2,10 +2,7 @@ use anyhow::Error;
 
 use proxmox::tools::Uuid;
 
-use crate::tape::{
-    TapeWrite,
-    file_formats::MediaContentHeader,
-};
+use pbs_tape::{TapeWrite, MediaContentHeader};
 
 /// Writes data streams using multiple volumes
 ///

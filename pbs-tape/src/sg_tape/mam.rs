@@ -9,10 +9,9 @@ use proxmox::tools::io::ReadExt;
 
 use pbs_api_types::MamAttribute;
 
-use crate::{
-    tools::sgutils2::SgRaw,
-    tape::drive::lto::TapeAlertFlags,
-};
+use crate::sgutils2::SgRaw;
+
+use super::TapeAlertFlags;
 
 // Read Medium auxiliary memory attributes (MAM)
 // see IBM SCSI reference: https://www-01.ibm.com/support/docview.wss?uid=ssg1S7003556&aid=1

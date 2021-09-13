@@ -6,10 +6,7 @@ use endian_trait::Endian;
 
 use proxmox::tools::io::{ReadExt, WriteExt};
 
-use crate::tools::sgutils2::{
-    SgRaw,
-    alloc_page_aligned_buffer,
-};
+use crate::sgutils2::{SgRaw, alloc_page_aligned_buffer};
 
 /// Test if drive supports hardware encryption
 ///

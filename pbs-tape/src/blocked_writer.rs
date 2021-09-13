@@ -1,12 +1,10 @@
 use proxmox::tools::vec;
 
-use crate::tape::{
+use crate::{
     TapeWrite,
     BlockWrite,
-    file_formats::{
-        BlockHeader,
-        BlockHeaderFlags,
-    },
+    BlockHeader,
+    BlockHeaderFlags,
 };
 
 /// Assemble and write blocks of data

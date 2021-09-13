@@ -1,5 +1,4 @@
 //! SCSI changer implementation using libsgutil2
-
 use std::os::unix::prelude::AsRawFd;
 use std::io::Read;
 use std::collections::HashMap;
@@ -14,16 +13,8 @@ use proxmox::tools::io::ReadExt;
 use pbs_api_types::ScsiTapeChanger;
 
 use crate::{
-    tape::{
-        changer::{
-            DriveStatus,
-            ElementStatus,
-            StorageElementStatus,
-            TransportElementStatus,
-            MtxStatus,
-        },
-    },
-    tools::sgutils2::{
+    ElementStatus,MtxStatus,TransportElementStatus,DriveStatus,StorageElementStatus,
+    sgutils2::{
         SgRaw,
         SENSE_KEY_NOT_READY,
         ScsiError,

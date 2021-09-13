@@ -7,13 +7,15 @@ use proxmox::{
     tools::Uuid,
 };
 
+use pbs_tape::{
+    PROXMOX_TAPE_BLOCK_SIZE,
+    TapeWrite, MediaContentHeader,
+};
+
 use crate::tape::{
-    TapeWrite,
     SnapshotReader,
     file_formats::{
-        PROXMOX_TAPE_BLOCK_SIZE,
         PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_1,
-        MediaContentHeader,
         SnapshotArchiveHeader,
     },
 };

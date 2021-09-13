@@ -11,41 +11,29 @@
 //!
 //! - unability to detect EOT (you just get EIO)
 
-mod sg_tape;
-pub use sg_tape::*;
-
-use std::fs::{OpenOptions, File};
-use std::os::unix::fs::OpenOptionsExt;
+use std::fs::File;
 use std::os::unix::io::{AsRawFd, FromRawFd, RawFd};
 use std::convert::TryInto;
 
 use anyhow::{bail, format_err, Error};
-use nix::fcntl::{fcntl, FcntlArg, OFlag};
 
-use proxmox::{
-    tools::Uuid,
-    sys::error::SysResult,
-};
+use proxmox::tools::Uuid;
 
 use pbs_api_types::{
     Fingerprint, MamAttribute, LtoDriveAndMediaStatus, LtoTapeDrive, Lp17VolumeStatistics,
 };
 use pbs_config::key_config::KeyConfig;
 use pbs_tools::run_command;
+use pbs_tape::{
+    TapeWrite, TapeRead, BlockReadError, MediaContentHeader,
+    sg_tape::{SgTape, TapeAlertFlags},
+    linux_list_drives::open_lto_tape_device,
+};
 
 use crate::{
     tape::{
-        TapeRead,
-        TapeWrite,
-        BlockReadError,
-        drive::{
-            TapeDriver,
-        },
-        file_formats::{
-            PROXMOX_BACKUP_MEDIA_SET_LABEL_MAGIC_1_0,
-            MediaSetLabel,
-            MediaContentHeader,
-        },
+        drive::TapeDriver,
+        file_formats::{PROXMOX_BACKUP_MEDIA_SET_LABEL_MAGIC_1_0, MediaSetLabel},
     },
 };
 
@@ -94,13 +82,7 @@ impl LtoTapeHandle {
 
     /// Set all options we need/want
     pub fn set_default_options(&mut self) -> Result<(), Error> {
-
-        let compression = Some(true);
-        let block_length = Some(0); // variable length mode
-        let buffer_mode = Some(true); // Always use drive buffer
-
-        self.set_drive_options(compression, block_length, buffer_mode)?;
-
+        self.sg_tape.set_default_options()?;
         Ok(())
     }
 
@@ -121,72 +103,7 @@ impl LtoTapeHandle {
 
     /// Get Tape and Media status
     pub fn get_drive_and_media_status(&mut self) -> Result<LtoDriveAndMediaStatus, Error>  {
-
-        let drive_status = self.sg_tape.read_drive_status()?;
-
-        let alert_flags = self.tape_alert_flags()
-            .map(|flags| format!("{:?}", flags))
-            .ok();
-
-        let mut status = LtoDriveAndMediaStatus {
-            vendor: self.sg_tape.info().vendor.clone(),
-            product: self.sg_tape.info().product.clone(),
-            revision: self.sg_tape.info().revision.clone(),
-            blocksize: drive_status.block_length,
-            compression: drive_status.compression,
-            buffer_mode: drive_status.buffer_mode,
-            density: drive_status.density_code.try_into()?,
-            alert_flags,
-            write_protect: None,
-            file_number: None,
-            block_number: None,
-            manufactured: None,
-            bytes_read: None,
-            bytes_written: None,
-            medium_passes: None,
-            medium_wearout: None,
-            volume_mounts: None,
-        };
-
-        if self.sg_tape.test_unit_ready().is_ok() {
-
-            if drive_status.write_protect {
-                status.write_protect = Some(drive_status.write_protect);
-            }
-
-            let position = self.sg_tape.position()?;
-
-            status.file_number = Some(position.logical_file_id);
-            status.block_number = Some(position.logical_object_number);
-
-            if let Ok(mam) = self.cartridge_memory() {
-
-                let usage = mam_extract_media_usage(&mam)?;
-
-                status.manufactured = Some(usage.manufactured);
-                status.bytes_read = Some(usage.bytes_read);
-                status.bytes_written = Some(usage.bytes_written);
-
-                if let Ok(volume_stats) = self.volume_statistics() {
-
-                    let passes = std::cmp::max(
-                        volume_stats.beginning_of_medium_passes,
-                        volume_stats.middle_of_tape_passes,
-                    );
-
-                    // assume max. 16000 medium passes
-                    // see: https://en.wikipedia.org/wiki/Linear_Tape-Open
-                    let wearout: f64 = (passes as f64)/(16000.0 as f64);
-
-                    status.medium_passes = Some(passes);
-                    status.medium_wearout = Some(wearout);
-
-                    status.volume_mounts = Some(volume_stats.volume_mounts);
-                }
-            }
-        }
-
-        Ok(status)
+        self.sg_tape.get_drive_and_media_status()
     }
 
     pub fn forward_space_count_files(&mut self, count: usize) -> Result<(), Error> {
@@ -411,59 +328,6 @@ impl TapeDriver for LtoTapeHandle {
         let result: Result<(), String> = serde_json::from_str(&output)?;
         result.map_err(|err| format_err!("{}", err))
     }
-}
-
-/// Check for correct Major/Minor numbers
-pub fn check_tape_is_lto_tape_device(file: &File) -> Result<(), Error> {
-
-    let stat = nix::sys::stat::fstat(file.as_raw_fd())?;
-
-    let devnum = stat.st_rdev;
-
-    let major = unsafe { libc::major(devnum) };
-    let _minor = unsafe { libc::minor(devnum) };
-
-    if major == 9 {
-        bail!("not a scsi-generic tape device (cannot use linux tape devices)");
-    }
-
-    if major != 21 {
-        bail!("not a scsi-generic tape device");
-    }
-
-    Ok(())
-}
-
-/// Opens a Lto tape device
-///
-/// The open call use O_NONBLOCK, but that flag is cleard after open
-/// succeeded. This also checks if the device is a non-rewinding tape
-/// device.
-pub fn open_lto_tape_device(
-    path: &str,
-) -> Result<File, Error> {
-
-    let file = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .custom_flags(libc::O_NONBLOCK)
-        .open(path)?;
-
-    // clear O_NONBLOCK from now on.
-
-    let flags = fcntl(file.as_raw_fd(), FcntlArg::F_GETFL)
-        .into_io_result()?;
-
-    let mut flags = OFlag::from_bits_truncate(flags);
-    flags.remove(OFlag::O_NONBLOCK);
-
-    fcntl(file.as_raw_fd(), FcntlArg::F_SETFL(flags))
-        .into_io_result()?;
-
-    check_tape_is_lto_tape_device(&file)
-        .map_err(|err| format_err!("device type check {:?} failed - {}", path, err))?;
-
-    Ok(file)
 }
 
 fn run_sg_tape_cmd(subcmd: &str, args: &[&str], fd: RawFd) -> Result<String, Error> {

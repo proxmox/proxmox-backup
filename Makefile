@@ -40,6 +40,7 @@ SUBCRATES := \
 	pbs-fuse-loop \
 	pbs-runtime \
 	pbs-systemd \
+	pbs-tape \
 	pbs-tools \
 	proxmox-backup-banner \
 	proxmox-backup-client \
@@ -184,9 +185,11 @@ $(COMPILED_BINS) $(COMPILEDIR)/dump-catalog-shell-cli $(COMPILEDIR)/docgen: .do-
 	    --bin proxmox-file-restore \
 	    --package pxar-bin \
 	    --bin pxar \
+	    --package pbs-tape \
+	    --bin pmt \
+	    --bin pmtx \
 	    --package proxmox-backup \
 	    --bin dump-catalog-shell-cli \
-	    --bin pmt --bin pmtx \
 	    --bin proxmox-daily-update \
 	    --bin proxmox-file-restore \
 	    --bin proxmox-restore-daemon \

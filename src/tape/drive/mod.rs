@@ -33,26 +33,26 @@ use pbs_config::key_config::KeyConfig;
 use pbs_datastore::task::TaskState;
 use pbs_datastore::task_log;
 
+use pbs_tape::{
+    TapeWrite, TapeRead, BlockReadError, MediaContentHeader,
+    sg_tape::TapeAlertFlags,
+};
+
 use crate::{
     server::{
         send_load_media_email,
         WorkerTask,
     },
     tape::{
-        TapeWrite,
-        TapeRead,
-        BlockReadError,
         MediaId,
         drive::{
             virtual_tape::open_virtual_tape_drive,
-            lto::TapeAlertFlags,
         },
         file_formats::{
             PROXMOX_BACKUP_MEDIA_LABEL_MAGIC_1_0,
             PROXMOX_BACKUP_MEDIA_SET_LABEL_MAGIC_1_0,
             MediaLabel,
             MediaSetLabel,
-            MediaContentHeader,
         },
         changer::{
             MediaChange,

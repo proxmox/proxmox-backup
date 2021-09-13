@@ -1,7 +1,13 @@
 use std::path::{Path, PathBuf};
 use std::collections::HashMap;
+use std::fs::{OpenOptions, File};
+use std::os::unix::fs::OpenOptionsExt;
+use std::os::unix::io::AsRawFd;
 
-use anyhow::{bail, Error};
+use anyhow::{bail, format_err, Error};
+use nix::fcntl::{fcntl, FcntlArg, OFlag};
+
+use proxmox::sys::error::SysResult;
 
 use pbs_tools::fs::scan_subdir;
 use pbs_api_types::{DeviceKind, OptionalDeviceIdentification, TapeDeviceInfo};
@@ -247,6 +253,61 @@ pub fn check_drive_path(
     }
     Ok(())
 }
+
+
+/// Check for correct Major/Minor numbers
+pub fn check_tape_is_lto_tape_device(file: &File) -> Result<(), Error> {
+
+    let stat = nix::sys::stat::fstat(file.as_raw_fd())?;
+
+    let devnum = stat.st_rdev;
+
+    let major = unsafe { libc::major(devnum) };
+    let _minor = unsafe { libc::minor(devnum) };
+
+    if major == 9 {
+        bail!("not a scsi-generic tape device (cannot use linux tape devices)");
+    }
+
+    if major != 21 {
+        bail!("not a scsi-generic tape device");
+    }
+
+    Ok(())
+}
+
+/// Opens a Lto tape device
+///
+/// The open call use O_NONBLOCK, but that flag is cleard after open
+/// succeeded. This also checks if the device is a non-rewinding tape
+/// device.
+pub fn open_lto_tape_device(
+    path: &str,
+) -> Result<File, Error> {
+
+    let file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .custom_flags(libc::O_NONBLOCK)
+        .open(path)?;
+
+    // clear O_NONBLOCK from now on.
+
+    let flags = fcntl(file.as_raw_fd(), FcntlArg::F_GETFL)
+        .into_io_result()?;
+
+    let mut flags = OFlag::from_bits_truncate(flags);
+    flags.remove(OFlag::O_NONBLOCK);
+
+    fcntl(file.as_raw_fd(), FcntlArg::F_SETFL(flags))
+        .into_io_result()?;
+
+    check_tape_is_lto_tape_device(&file)
+        .map_err(|err| format_err!("device type check {:?} failed - {}", path, err))?;
+
+    Ok(file)
+}
+
 
 // shell completion helper
 

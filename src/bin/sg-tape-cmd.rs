@@ -23,14 +23,14 @@ use pbs_api_types::{
     MEDIA_SET_UUID_SCHEMA, LtoTapeDrive,
 };
 
+use pbs_tape::linux_list_drives::{open_lto_tape_device, check_tape_is_lto_tape_device};
+
 use proxmox_backup::{
     tape::{
         drive::{
             TapeDriver,
             LtoTapeHandle,
-            open_lto_tape_device,
             open_lto_tape_drive,
-            check_tape_is_lto_tape_device,
         },
     },
 };

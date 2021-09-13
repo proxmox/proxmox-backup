@@ -4,6 +4,7 @@ use std::os::unix::fs::OpenOptionsExt;
 use std::os::unix::io::AsRawFd;
 use std::path::Path;
 use std::convert::TryFrom;
+use std::convert::TryInto;
 
 use anyhow::{bail, format_err, Error};
 use endian_trait::Endian;
@@ -29,19 +30,15 @@ use proxmox::{
     tools::io::{ReadExt, WriteExt},
 };
 
-use pbs_api_types::{MamAttribute, Lp17VolumeStatistics};
+use pbs_api_types::{MamAttribute, Lp17VolumeStatistics, LtoDriveAndMediaStatus};
 
 use crate::{
-    tape::{
-        BlockRead,
-        BlockReadError,
-        BlockWrite,
-        file_formats::{
-            BlockedWriter,
-            BlockedReader,
-        },
-    },
-    tools::sgutils2::{
+    BlockRead,
+    BlockReadError,
+    BlockWrite,
+    BlockedWriter,
+    BlockedReader,
+    sgutils2::{
         SgRaw,
         SenseInfo,
         ScsiError,
@@ -722,6 +719,18 @@ impl SgTape {
         BlockedReader::open(reader)
     }
 
+    /// Set all options we need/want
+    pub fn set_default_options(&mut self) -> Result<(), Error> {
+
+        let compression = Some(true);
+        let block_length = Some(0); // variable length mode
+        let buffer_mode = Some(true); // Always use drive buffer
+
+        self.set_drive_options(compression, block_length, buffer_mode)?;
+
+        Ok(())
+    }
+
     /// Set important drive options
     pub fn set_drive_options(
         &mut self,
@@ -845,6 +854,77 @@ impl SgTape {
             density_code: block_descriptor.density_code,
         })
     }
+
+    /// Get Tape and Media status
+    pub fn get_drive_and_media_status(&mut self) -> Result<LtoDriveAndMediaStatus, Error>  {
+
+        let drive_status = self.read_drive_status()?;
+
+        let alert_flags = self.tape_alert_flags()
+            .map(|flags| format!("{:?}", flags))
+            .ok();
+
+        let mut status = LtoDriveAndMediaStatus {
+            vendor: self.info().vendor.clone(),
+            product: self.info().product.clone(),
+            revision: self.info().revision.clone(),
+            blocksize: drive_status.block_length,
+            compression: drive_status.compression,
+            buffer_mode: drive_status.buffer_mode,
+            density: drive_status.density_code.try_into()?,
+            alert_flags,
+            write_protect: None,
+            file_number: None,
+            block_number: None,
+            manufactured: None,
+            bytes_read: None,
+            bytes_written: None,
+            medium_passes: None,
+            medium_wearout: None,
+            volume_mounts: None,
+        };
+
+        if self.test_unit_ready().is_ok() {
+
+            if drive_status.write_protect {
+                status.write_protect = Some(drive_status.write_protect);
+            }
+
+            let position = self.position()?;
+
+            status.file_number = Some(position.logical_file_id);
+            status.block_number = Some(position.logical_object_number);
+
+            if let Ok(mam) = self.cartridge_memory() {
+
+                let usage = mam_extract_media_usage(&mam)?;
+
+                status.manufactured = Some(usage.manufactured);
+                status.bytes_read = Some(usage.bytes_read);
+                status.bytes_written = Some(usage.bytes_written);
+
+                if let Ok(volume_stats) = self.volume_statistics() {
+
+                    let passes = std::cmp::max(
+                        volume_stats.beginning_of_medium_passes,
+                        volume_stats.middle_of_tape_passes,
+                    );
+
+                    // assume max. 16000 medium passes
+                    // see: https://en.wikipedia.org/wiki/Linear_Tape-Open
+                    let wearout: f64 = (passes as f64)/(16000.0 as f64);
+
+                    status.medium_passes = Some(passes);
+                    status.medium_wearout = Some(wearout);
+
+                    status.volume_mounts = Some(volume_stats.volume_mounts);
+                }
+            }
+        }
+
+        Ok(status)
+    }
+
 }
 
 impl Drop for SgTape {

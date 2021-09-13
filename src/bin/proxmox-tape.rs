@@ -30,11 +30,13 @@ use pbs_api_types::{
     DRIVE_NAME_SCHEMA, MEDIA_LABEL_SCHEMA, MEDIA_POOL_NAME_SCHEMA,
     TAPE_RESTORE_SNAPSHOT_SCHEMA,
 };
+use pbs_tape::{
+    PROXMOX_BACKUP_CONTENT_HEADER_MAGIC_1_0, BlockReadError, MediaContentHeader,
+};
 
 use proxmox_backup::{
     api2,
     tape::{
-        BlockReadError,
         drive::{
             open_drive,
             lock_tape_device,
@@ -44,8 +46,6 @@ use proxmox_backup::{
         complete_media_set_uuid,
         complete_media_set_snapshots,
         file_formats::{
-            PROXMOX_BACKUP_CONTENT_HEADER_MAGIC_1_0,
-            MediaContentHeader,
             proxmox_tape_magic_to_text,
         },
     },

@@ -2,11 +2,11 @@ use anyhow::Error;
 
 use pbs_tools::run_command;
 use pbs_api_types::ScsiTapeChanger;
+use pbs_tape::MtxStatus;
 
 use crate::{
     tape::changer::{
-        MtxStatus,
-        mtx::parse_mtx_status,
+         mtx::parse_mtx_status,
     },
 };
 

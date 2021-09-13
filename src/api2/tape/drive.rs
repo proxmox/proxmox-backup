@@ -31,6 +31,11 @@ use pbs_api_types::{
 use pbs_datastore::task_log;
 use pbs_api_types::{PRIV_TAPE_AUDIT, PRIV_TAPE_READ, PRIV_TAPE_WRITE};
 use pbs_config::CachedUserInfo;
+use pbs_tape::{
+    BlockReadError,
+    sg_tape::tape_alert_flags_critical,
+    linux_list_drives::{lto_tape_device_list, lookup_device_identification, open_lto_tape_device},
+};
 
 use crate::{
     api2::tape::restore::{
@@ -43,12 +48,9 @@ use crate::{
         Inventory,
         MediaCatalog,
         MediaId,
-        BlockReadError,
         lock_media_set,
         lock_media_pool,
         lock_unassigned_media_pool,
-        lto_tape_device_list,
-        lookup_device_identification,
         file_formats::{
             MediaLabel,
             MediaSetLabel,
@@ -56,7 +58,6 @@ use crate::{
         drive::{
             TapeDriver,
             LtoTapeHandle,
-            open_lto_tape_device,
             open_lto_tape_drive,
             media_changer,
             required_media_changer,
@@ -64,7 +65,6 @@ use crate::{
             lock_tape_device,
             set_tape_device_state,
             get_tape_device_state,
-            tape_alert_flags_critical,
         },
         changer::update_changer_online_status,
     },

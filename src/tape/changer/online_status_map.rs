@@ -7,18 +7,10 @@ use proxmox::tools::Uuid;
 use proxmox::api::section_config::SectionConfigData;
 
 use pbs_api_types::{VirtualTapeDrive, ScsiTapeChanger};
+use pbs_tape::{ElementStatus, MtxStatus};
 
-use crate::{
-    tape::{
-        Inventory,
-        changer::{
-            MediaChange,
-            MtxStatus,
-            ElementStatus,
-            ScsiMediaChange,
-        },
-    },
-};
+use crate::tape::Inventory;
+use crate::tape::changer::{MediaChange, ScsiMediaChange};
 
 /// Helper to update media online status
 ///

@@ -5,7 +5,7 @@ use anyhow::{bail, format_err, Error};
 
 use proxmox::tools::io::ReadExt;
 
-use crate::tools::sgutils2::SgRaw;
+use crate::sgutils2::SgRaw;
 
 bitflags::bitflags!{
 

@@ -10,12 +10,7 @@ use pbs_api_types::{
 };
 use pbs_config::CachedUserInfo;
 
-use crate::{
-    tape::{
-        lto_tape_device_list,
-        check_drive_path,
-    },
-};
+use pbs_tape::linux_list_drives::{lto_tape_device_list, check_drive_path};
 
 #[api(
     protected: true,

@@ -1,160 +1,19 @@
 //! Media changer implementation (SCSI media changer)
 
-pub mod sg_pt_changer;
-
 pub mod mtx;
 
 mod online_status_map;
 pub use online_status_map::*;
 
-use std::collections::HashSet;
 use std::path::PathBuf;
 
 use anyhow::{bail, Error};
-use serde::{Serialize, Deserialize};
-use serde_json::Value;
 
-use proxmox::{
-    api::schema::parse_property_string,
-    tools::fs::{
-        CreateOptions,
-        replace_file,
-        file_read_optional_string,
-    },
-};
+use proxmox::tools::fs::{CreateOptions, replace_file, file_read_optional_string};
 
-use pbs_api_types::{SLOT_ARRAY_SCHEMA, ScsiTapeChanger, LtoTapeDrive};
+use pbs_api_types::{ScsiTapeChanger, LtoTapeDrive};
 
-/// Changer element status.
-///
-/// Drive and slots may be `Empty`, or contain some media, either
-/// with known volume tag `VolumeTag(String)`, or without (`Full`).
-#[derive(Serialize, Deserialize, Debug)]
-pub enum ElementStatus {
-    Empty,
-    Full,
-    VolumeTag(String),
-}
-
-/// Changer drive status.
-#[derive(Serialize, Deserialize)]
-pub struct DriveStatus {
-    /// The slot the element was loaded from (if known).
-    pub loaded_slot: Option<u64>,
-    /// The status.
-    pub status: ElementStatus,
-    /// Drive Identifier (Serial number)
-    pub drive_serial_number: Option<String>,
-    /// Drive Vendor
-    pub vendor: Option<String>,
-    /// Drive Model
-    pub model: Option<String>,
-    /// Element Address
-    pub element_address: u16,
-}
-
-/// Storage element status.
-#[derive(Serialize, Deserialize)]
-pub struct StorageElementStatus {
-    /// Flag for Import/Export slots
-    pub import_export: bool,
-    /// The status.
-    pub status: ElementStatus,
-    /// Element Address
-    pub element_address: u16,
-}
-
-/// Transport element status.
-#[derive(Serialize, Deserialize)]
-pub struct TransportElementStatus {
-    /// The status.
-    pub status: ElementStatus,
-    /// Element Address
-    pub element_address: u16,
-}
-
-/// Changer status - show drive/slot usage
-#[derive(Serialize, Deserialize)]
-pub struct MtxStatus {
-    /// List of known drives
-    pub drives: Vec<DriveStatus>,
-    /// List of known storage slots
-    pub slots: Vec<StorageElementStatus>,
-    /// Transport elements
-    ///
-    /// Note: Some libraries do not report transport elements.
-    pub transports: Vec<TransportElementStatus>,
-}
-
-impl MtxStatus {
-
-    pub fn slot_address(&self, slot: u64) -> Result<u16, Error> {
-        if slot == 0 {
-            bail!("invalid slot number '{}' (slots numbers starts at 1)", slot);
-        }
-        if slot > (self.slots.len() as u64) {
-            bail!("invalid slot number '{}' (max {} slots)", slot, self.slots.len());
-        }
-
-        Ok(self.slots[(slot -1) as usize].element_address)
-    }
-
-    pub fn drive_address(&self, drivenum: u64) -> Result<u16, Error> {
-        if drivenum >= (self.drives.len() as u64) {
-            bail!("invalid drive number '{}'", drivenum);
-        }
-
-        Ok(self.drives[drivenum as usize].element_address)
-    }
-
-    pub fn transport_address(&self) -> u16 {
-        // simply use first transport
-        // (are there changers exposing more than one?)
-        // defaults to 0 for changer that do not report transports
-        self
-            .transports
-            .get(0)
-            .map(|t| t.element_address)
-        .unwrap_or(0u16)
-    }
-
-    pub fn find_free_slot(&self, import_export: bool) -> Option<u64> {
-        let mut free_slot = None;
-        for (i, slot_info) in self.slots.iter().enumerate() {
-            if slot_info.import_export != import_export {
-                continue; // skip slots of wrong type
-            }
-            if let ElementStatus::Empty = slot_info.status {
-                free_slot = Some((i+1) as u64);
-                break;
-            }
-        }
-        free_slot
-    }
-
-    pub fn mark_import_export_slots(&mut self, config: &ScsiTapeChanger) -> Result<(), Error>{
-        let mut export_slots: HashSet<u64> = HashSet::new();
-
-        if let Some(slots) = &config.export_slots {
-            let slots: Value = parse_property_string(&slots, &SLOT_ARRAY_SCHEMA)?;
-            export_slots = slots
-                .as_array()
-                .unwrap()
-                .iter()
-                .filter_map(|v| v.as_u64())
-                .collect();
-        }
-
-        for (i, entry) in self.slots.iter_mut().enumerate() {
-            let slot = i as u64 + 1;
-            if export_slots.contains(&slot) {
-                entry.import_export = true; // mark as IMPORT/EXPORT
-            }
-        }
-
-        Ok(())
-    }
-}
+use pbs_tape::{sg_pt_changer, MtxStatus, ElementStatus};
 
 /// Interface to SCSI changer devices
 pub trait ScsiMediaChange {

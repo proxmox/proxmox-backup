@@ -12,20 +12,21 @@ use pbs_api_types::{
     CHANGER_NAME_SCHEMA, PRIV_TAPE_AUDIT, PRIV_TAPE_READ,
 };
 use pbs_config::CachedUserInfo;
+use pbs_tape::{
+    ElementStatus,
+    linux_list_drives::{lookup_device_identification, linux_tape_changer_list},
+};
 
 use crate::{
     tape::{
         TAPE_STATUS_DIR,
         Inventory,
-        linux_tape_changer_list,
         changer::{
             OnlineStatusMap,
-            ElementStatus,
             ScsiMediaChange,
             mtx_status_to_online_set,
         },
         drive::get_tape_device_state,
-        lookup_device_identification,
     },
 };
 

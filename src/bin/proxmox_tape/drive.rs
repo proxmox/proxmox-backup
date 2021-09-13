@@ -18,7 +18,9 @@ use pbs_config::drive::{
     complete_lto_drive_name,
 };
 
-use proxmox_backup::{api2, tape::complete_drive_path};
+use pbs_tape::linux_list_drives::{complete_drive_path};
+
+use proxmox_backup::api2;
 
 pub fn drive_commands() -> CommandLineInterface {
 

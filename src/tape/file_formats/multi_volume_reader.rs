@@ -4,10 +4,7 @@ use anyhow::{bail, Error};
 
 use proxmox::tools::io::ReadExt;
 
-use crate::tape::{
-    TapeRead,
-    file_formats::MediaContentHeader,
-};
+use pbs_tape::{TapeRead, MediaContentHeader};
 
 /// Read multi volume data streams written by `MultiVolumeWriter`
 ///

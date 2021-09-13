@@ -9,17 +9,16 @@ use proxmox::tools::{
 };
 
 use pbs_datastore::DataBlob;
+use pbs_tape::{
+    PROXMOX_TAPE_BLOCK_SIZE,
+    TapeWrite, MediaContentHeader,
+};
 
-use crate::tape::{
-    TapeWrite,
-    file_formats::{
-        PROXMOX_TAPE_BLOCK_SIZE,
-        PROXMOX_BACKUP_CHUNK_ARCHIVE_MAGIC_1_1,
-        PROXMOX_BACKUP_CHUNK_ARCHIVE_ENTRY_MAGIC_1_0,
-        MediaContentHeader,
-        ChunkArchiveHeader,
-        ChunkArchiveEntryHeader,
-    },
+use crate::tape::file_formats::{
+    PROXMOX_BACKUP_CHUNK_ARCHIVE_MAGIC_1_1,
+    PROXMOX_BACKUP_CHUNK_ARCHIVE_ENTRY_MAGIC_1_0,
+    ChunkArchiveHeader,
+    ChunkArchiveEntryHeader,
 };
 
 /// Writes chunk archives to tape.

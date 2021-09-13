@@ -18,13 +18,9 @@ use pbs_config::drive::{
 
 use pbs_api_types::CHANGER_NAME_SCHEMA;
 
-use proxmox_backup::{
-    api2,
-    tape::{
-        complete_changer_path,
-        drive::media_changer,
-    },
-};
+use pbs_tape::linux_list_drives::{complete_changer_path};
+
+use proxmox_backup::{api2, tape::drive::media_changer};
 
 pub fn lookup_changer_name(
     param: &Value,

@@ -33,7 +33,6 @@ pub mod statistics;
 pub mod subscription;
 pub mod systemd;
 pub mod ticket;
-pub mod sgutils2;
 
 pub mod parallel_handler;
 pub use parallel_handler::ParallelHandler;

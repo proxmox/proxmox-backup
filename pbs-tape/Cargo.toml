@@ -1,0 +1,25 @@
+[package]
+name = "pbs-tape"
+version = "0.1.0"
+authors = ["Proxmox Support Team <support@proxmox.com>"]
+edition = "2018"
+description = "LTO tage support"
+
+[dependencies]
+lazy_static = "1.4"
+libc = "0.2"
+anyhow = "1.0"
+thiserror = "1.0"
+endian_trait = { version = "0.6", features = ["arrays"] }
+nix = "0.19.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+bitflags = "1.2.1"
+regex = "1.2"
+udev = ">= 0.3, <0.5"
+
+proxmox = { version = "0.13.0", default-features = false, features = [] }
+
+pbs-api-types = { path = "../pbs-api-types" }
+pbs-tools = { path = "../pbs-tools" }
+pbs-config = { path = "../pbs-config" }

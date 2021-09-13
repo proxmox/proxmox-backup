@@ -8,7 +8,7 @@ use proxmox::tools::io::ReadExt;
 
 use pbs_api_types::Lp17VolumeStatistics;
 
-use crate::tools::sgutils2::SgRaw;
+use crate::sgutils2::SgRaw;
 
 /// SCSI command to query volume statistics
 ///

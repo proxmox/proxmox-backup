@@ -1,6 +1,6 @@
 use endian_trait::Endian;
 
-use crate::tape::file_formats::MediaContentHeader;
+use crate::MediaContentHeader;
 
 /// Write trait for tape devices
 ///

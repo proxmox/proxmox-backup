@@ -15,6 +15,10 @@ use proxmox::tools::Uuid;
 
 use pbs_datastore::task_log;
 use pbs_config::tape_encryption_keys::load_key_configs;
+use pbs_tape::{
+    TapeWrite,
+    sg_tape::tape_alert_flags_critical,
+};
 
 use crate::{
     backup::{
@@ -25,7 +29,6 @@ use crate::{
         TAPE_STATUS_DIR,
         MAX_CHUNK_ARCHIVE_SIZE,
         COMMIT_BLOCK_SIZE,
-        TapeWrite,
         SnapshotReader,
         MediaPool,
         MediaId,
@@ -39,7 +42,6 @@ use crate::{
         drive::{
             TapeDriver,
             request_and_load_media,
-            tape_alert_flags_critical,
             media_changer,
         },
     },

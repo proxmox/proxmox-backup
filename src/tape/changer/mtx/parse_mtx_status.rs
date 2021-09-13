@@ -1,20 +1,12 @@
 use anyhow::Error;
 
-use nom::{
-    bytes::complete::{take_while, tag},
-};
+use nom::bytes::complete::{take_while, tag};
 
-use crate::{
-    tools::nom::{
-        parse_complete, multispace0, multispace1, parse_u64,
-        parse_failure, parse_error, IResult,
-    },
-    tape::changer::{
-        ElementStatus,
-        MtxStatus,
-        DriveStatus,
-        StorageElementStatus,
-    },
+use pbs_tape::{ElementStatus, MtxStatus, DriveStatus, StorageElementStatus};
+
+use crate::tools::nom::{
+    parse_complete, multispace0, multispace1, parse_u64,
+    parse_failure, parse_error, IResult,
 };
 
 

@@ -16,13 +16,7 @@ use pbs_api_types::{
     PRIV_TAPE_AUDIT, PRIV_TAPE_MODIFY,
 };
 use pbs_config::CachedUserInfo;
-
-use crate::{
-    tape::{
-        linux_tape_changer_list,
-        check_drive_path,
-    },
-};
+use pbs_tape::linux_list_drives::{linux_tape_changer_list, check_drive_path};
 
 #[api(
     protected: true,

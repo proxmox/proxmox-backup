@@ -2,11 +2,7 @@ use std::io::Read;
 
 use proxmox::tools::io::ReadExt;
 
-use crate::tape::{
-    BlockRead,
-    BlockReadError,
-    file_formats::PROXMOX_TAPE_BLOCK_SIZE,
-};
+use crate::{BlockRead, BlockReadError, PROXMOX_TAPE_BLOCK_SIZE};
 
 /// Emulate tape read behavior on a normal Reader
 ///

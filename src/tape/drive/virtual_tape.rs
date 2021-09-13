@@ -11,33 +11,31 @@ use proxmox::tools::{
 };
 
 use pbs_config::key_config::KeyConfig;
+use pbs_tape::{
+    TapeWrite,
+    TapeRead,
+    BlockedReader,
+    BlockedWriter,
+    BlockReadError,
+    MtxStatus,
+    DriveStatus,
+    ElementStatus,
+    StorageElementStatus,
+    MediaContentHeader,
+    EmulateTapeReader,
+    EmulateTapeWriter,
+};
 
 use crate::{
     tape::{
-        TapeWrite,
-        TapeRead,
-        BlockReadError,
-        changer::{
-            MediaChange,
-            MtxStatus,
-            DriveStatus,
-            ElementStatus,
-            StorageElementStatus,
-        },
-        drive::{
-            VirtualTapeDrive,
-            TapeDriver,
+       drive::{
+           VirtualTapeDrive,
+           TapeDriver,
+           MediaChange,
         },
         file_formats::{
             MediaSetLabel,
-            MediaContentHeader,
             PROXMOX_BACKUP_MEDIA_SET_LABEL_MAGIC_1_0,
-            BlockedReader,
-            BlockedWriter,
-        },
-        helpers::{
-            EmulateTapeReader,
-            EmulateTapeWriter,
         },
     },
 };
