@@ -19,6 +19,8 @@ use crate::tools::systemd::{self, types::*};
 
 use crate::server::WorkerTask;
 
+const BASE_MOUNT_DIR: &str = "/mnt/datastore/";
+
 #[api(
     properties: {
         "filesystem": {
@@ -143,7 +145,7 @@ pub fn create_datastore_disk(
         bail!("disk '{}' is already in use.", disk);
     }
 
-    let mount_point = format!("/mnt/datastore/{}", &name);
+    let mount_point = format!("{}{}", BASE_MOUNT_DIR, &name);
 
     // check if the default path does exist already and bail if it does
     let default_path = std::path::PathBuf::from(&mount_point);
@@ -218,7 +220,7 @@ pub fn create_datastore_disk(
 /// Remove a Filesystem mounted under '/mnt/datastore/<name>'.".
 pub fn delete_datastore_disk(name: String) -> Result<(), Error> {
 
-    let path = format!("/mnt/datastore/{}", name);
+    let path = format!("{}{}", BASE_MOUNT_DIR, name);
     // path of datastore cannot be changed
     let (config, _) = pbs_config::datastore::config()?;
     let datastores: Vec<DataStoreConfig> = config.convert_to_typed_array("datastore")?;
