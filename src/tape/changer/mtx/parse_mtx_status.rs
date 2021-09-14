@@ -4,7 +4,7 @@ use nom::bytes::complete::{take_while, tag};
 
 use pbs_tape::{ElementStatus, MtxStatus, DriveStatus, StorageElementStatus};
 
-use crate::tools::nom::{
+use pbs_tools::nom::{
     parse_complete, multispace0, multispace1, parse_u64,
     parse_failure, parse_error, IResult,
 };

@@ -111,7 +111,7 @@ pub struct WebauthnConfig {
 
 impl WebauthnConfig {
     pub fn digest(&self) -> Result<[u8; 32], Error> {
-        let digest_data = crate::tools::json::to_canonical_json(&serde_json::to_value(self)?)?;
+        let digest_data = pbs_tools::json::to_canonical_json(&serde_json::to_value(self)?)?;
         Ok(openssl::sha::sha256(&digest_data))
     }
 }

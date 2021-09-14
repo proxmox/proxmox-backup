@@ -17,6 +17,7 @@ use proxmox_acme_rs::account::AccountData as AcmeAccountData;
 use proxmox_acme_rs::Account;
 
 use pbs_api_types::{Authid, PRIV_SYS_MODIFY};
+use pbs_tools::ops::ControlFlow;
 
 use crate::acme::AcmeClient;
 use crate::api2::types::{AcmeAccountName, AcmeChallengeSchema, KnownAcmeDirectory};
@@ -24,7 +25,6 @@ use crate::config::acme::plugin::{
     self, DnsPlugin, DnsPluginCore, DnsPluginCoreUpdater, PLUGIN_ID_SCHEMA,
 };
 use crate::server::WorkerTask;
-use crate::tools::ControlFlow;
 
 pub(crate) const ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(SUBDIRS))

@@ -6,7 +6,7 @@ use futures::*;
 
 use tokio::signal::unix::{signal, SignalKind};
 
-use crate::tools::{self, BroadcastData};
+use pbs_tools::broadcast_future::BroadcastData;
 
 #[derive(PartialEq, Copy, Clone, Debug)]
 pub enum ServerMode {
@@ -42,7 +42,7 @@ pub fn server_state_init() -> Result<(), Error> {
         while stream.recv().await.is_some() {
             println!("got shutdown request (SIGINT)");
             SERVER_STATE.lock().unwrap().reload_request = false;
-            tools::request_shutdown();
+            crate::tools::request_shutdown();
         }
     }.boxed();
 
@@ -57,7 +57,7 @@ pub fn server_state_init() -> Result<(), Error> {
         while stream.recv().await.is_some() {
             println!("got reload request (SIGHUP)");
             SERVER_STATE.lock().unwrap().reload_request = true;
-            tools::request_shutdown();
+            crate::tools::request_shutdown();
         }
     }.boxed();
 

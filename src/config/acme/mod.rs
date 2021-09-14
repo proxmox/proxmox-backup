@@ -14,7 +14,7 @@ use crate::api2::types::{
     KnownAcmeDirectory,
     AcmeAccountName,
 };
-use crate::tools::ControlFlow;
+use pbs_tools::ops::ControlFlow;
 
 pub(crate) const ACME_DIR: &str = pbs_buildcfg::configdir!("/acme");
 pub(crate) const ACME_ACCOUNT_DIR: &str = pbs_buildcfg::configdir!("/acme/accounts");

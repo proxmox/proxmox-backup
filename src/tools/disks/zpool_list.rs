@@ -1,6 +1,6 @@
 use anyhow::{bail, Error};
 
-use crate::tools::nom::{
+use pbs_tools::nom::{
     multispace0, multispace1, notspace1, IResult,
 };
 

@@ -27,10 +27,10 @@ use pbs_datastore::manifest::{
 use pbs_datastore::task::TaskState;
 use pbs_tools::format::HumanByte;
 use pbs_tools::fs::{lock_dir_noblock, DirLockGuard};
-
-use crate::tools;
+use pbs_tools::process_locker::ProcessLockSharedGuard;
 use pbs_config::{open_backup_lockfile, BackupLockGuard};
 
+use crate::tools::fail_on_shutdown;
 
 lazy_static! {
     static ref DATASTORE_MAP: Mutex<HashMap<String, Arc<DataStore>>> = Mutex::new(HashMap::new());
@@ -508,7 +508,7 @@ impl DataStore {
 
         for pos in 0..index.index_count() {
             worker.check_abort()?;
-            tools::fail_on_shutdown()?;
+            fail_on_shutdown()?;
             let digest = index.index_digest(pos).unwrap();
             if !self.chunk_store.cond_touch_chunk(digest, false)? {
                 task_warn!(
@@ -549,7 +549,7 @@ impl DataStore {
         for (i, img) in image_list.into_iter().enumerate() {
 
             worker.check_abort()?;
-            tools::fail_on_shutdown()?;
+            fail_on_shutdown()?;
 
             if let Some(backup_dir_path) = img.parent() {
                 let backup_dir_path = backup_dir_path.strip_prefix(self.base_path())?;
@@ -638,7 +638,7 @@ impl DataStore {
                 phase1_start_time,
                 &mut gc_status,
                 worker,
-                crate::tools::fail_on_shutdown,
+                fail_on_shutdown,
             )?;
 
             task_log!(
@@ -720,7 +720,7 @@ impl DataStore {
         Ok(())
     }
 
-    pub fn try_shared_chunk_store_lock(&self) -> Result<tools::ProcessLockSharedGuard, Error> {
+    pub fn try_shared_chunk_store_lock(&self) -> Result<ProcessLockSharedGuard, Error> {
         self.chunk_store.try_shared_lock()
     }
 
