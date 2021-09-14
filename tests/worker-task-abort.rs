@@ -31,7 +31,8 @@ fn garbage_collection(worker: &server::WorkerTask) -> Result<(), Error> {
 }
 
 
-#[test] #[ignore]
+#[test]
+#[ignore]
 fn worker_task_abort() -> Result<(), Error> {
 
     server::create_task_log_dirs()?;
@@ -54,6 +55,11 @@ fn worker_task_abort() -> Result<(), Error> {
 
         if let Err(err) = init_result {
             eprintln!("unable to start daemon - {}", err);
+            return;
+        }
+
+       if let Err(err) = commando_sock.spawn() {
+            eprintln!("unable to spawn command socket - {}", err);
             return;
         }
 
@@ -87,7 +93,8 @@ fn worker_task_abort() -> Result<(), Error> {
             Ok(wid) => {
                 println!("WORKER: {}", wid);
                 server::abort_worker_async(wid.parse::<UPID>().unwrap());
-            }
+                server::wait_for_local_worker(&wid).await.unwrap();
+             }
         }
     });
 
