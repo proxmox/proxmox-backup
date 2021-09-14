@@ -12,12 +12,11 @@ use pbs_tape::{
     TapeWrite, MediaContentHeader,
 };
 
-use crate::tape::{
-    SnapshotReader,
-    file_formats::{
-        PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_1,
-        SnapshotArchiveHeader,
-    },
+use crate::backup::SnapshotReader;
+
+use crate::tape::file_formats::{
+    PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_1,
+    SnapshotArchiveHeader,
 };
 
 

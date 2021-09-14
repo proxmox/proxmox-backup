@@ -21,15 +21,12 @@ use pbs_tape::{
 };
 
 use crate::{
-    backup::{
-        DataStore,
-    },
+    backup::{DataStore, SnapshotReader},
     server::WorkerTask,
     tape::{
         TAPE_STATUS_DIR,
         MAX_CHUNK_ARCHIVE_SIZE,
         COMMIT_BLOCK_SIZE,
-        SnapshotReader,
         MediaPool,
         MediaId,
         MediaCatalog,

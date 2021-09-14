@@ -5,13 +5,8 @@ use anyhow::{format_err, Error};
 
 use pbs_datastore::DataBlob;
 
-use crate::{
-    backup::DataStore,
-    tape::{
-        CatalogSet,
-        SnapshotReader,
-    },
-};
+use crate::backup::{DataStore, SnapshotReader};
+use crate::tape::CatalogSet;
 
 /// Chunk iterator which use a separate thread to read chunks
 ///

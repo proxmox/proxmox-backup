@@ -35,14 +35,13 @@ use crate::{
             compute_schedule_status,
         },
     },
-    backup::DataStore,
+    backup::{DataStore, SnapshotReader},
     server::WorkerTask,
     tape::{
         TAPE_STATUS_DIR,
         Inventory,
         PoolWriter,
         MediaPool,
-        SnapshotReader,
         drive::{
             media_changer,
             lock_tape_device,
