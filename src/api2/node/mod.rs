@@ -17,8 +17,8 @@ use proxmox::api::{
     api, schema::*, ApiHandler, ApiMethod, ApiResponseFuture, Permission, RpcEnvironment,
 };
 use proxmox::list_subdirs_api_method;
-use proxmox_http::websocket::WebSocket;
 use proxmox::{identity, sortable};
+use proxmox_http::websocket::WebSocket;
 
 use pbs_api_types::{Authid, NODE_SCHEMA, PRIV_SYS_CONSOLE};
 use pbs_tools::auth::private_auth_key;
@@ -33,17 +33,17 @@ pub mod config;
 pub mod disks;
 pub mod dns;
 pub mod network;
-pub mod tasks;
 pub mod subscription;
+pub mod tasks;
 
 pub(crate) mod rrd;
 
 mod journal;
+mod report;
 pub(crate) mod services;
 mod status;
 mod syslog;
 mod time;
-mod report;
 
 pub const SHELL_CMD_SCHEMA: Schema = StringSchema::new("The command to run.")
     .format(&ApiStringFormat::Enum(&[
@@ -93,10 +93,7 @@ pub const SHELL_CMD_SCHEMA: Schema = StringSchema::new("The command to run.")
     }
 )]
 /// Call termproxy and return shell ticket
-async fn termproxy(
-    cmd: Option<String>,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Value, Error> {
+async fn termproxy(cmd: Option<String>, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
     // intentionally user only for now
     let auth_id: Authid = rpcenv
         .get_auth_id()
@@ -119,11 +116,10 @@ async fn termproxy(
     let listener = TcpListener::bind("localhost:0")?;
     let port = listener.local_addr()?.port();
 
-    let ticket = Ticket::new(ticket::TERM_PREFIX, &Empty)?
-        .sign(
-            private_auth_key(),
-            Some(&tools::ticket::term_aad(&userid, &path, port)),
-        )?;
+    let ticket = Ticket::new(ticket::TERM_PREFIX, &Empty)?.sign(
+        private_auth_key(),
+        Some(&tools::ticket::term_aad(&userid, &path, port)),
+    )?;
 
     let mut command = Vec::new();
     match cmd.as_deref() {
@@ -202,7 +198,7 @@ async fn termproxy(
             };
 
             let mut needs_kill = false;
-            let res = tokio::select!{
+            let res = tokio::select! {
                 res = child.wait() => {
                     let exit_code = res?;
                     if !exit_code.success() {
@@ -291,17 +287,19 @@ fn upgrade_to_websocket(
         let port: u16 = pbs_tools::json::required_integer_param(&param, "port")? as u16;
 
         // will be checked again by termproxy
-        Ticket::<Empty>::parse(ticket)?
-            .verify(
-                crate::auth_helpers::public_auth_key(),
-                ticket::TERM_PREFIX,
-                Some(&tools::ticket::term_aad(&userid, "/system", port)),
-            )?;
+        Ticket::<Empty>::parse(ticket)?.verify(
+            crate::auth_helpers::public_auth_key(),
+            ticket::TERM_PREFIX,
+            Some(&tools::ticket::term_aad(&userid, "/system", port)),
+        )?;
 
         let (ws, response) = WebSocket::new(parts.headers.clone())?;
 
         crate::server::spawn_internal_task(async move {
-            let conn: Upgraded = match hyper::upgrade::on(Request::from_parts(parts, req_body)).map_err(Error::from).await {
+            let conn: Upgraded = match hyper::upgrade::on(Request::from_parts(parts, req_body))
+                .map_err(Error::from)
+                .await
+            {
                 Ok(upgraded) => upgraded,
                 _ => bail!("error"),
             };
