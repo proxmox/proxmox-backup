@@ -1,0 +1,9 @@
+[package]
+name = "proxmox-rest-server"
+version = "0.1.0"
+authors = ["Proxmox Support Team <support@proxmox.com>"]
+edition = "2018"
+description = "REST server implementation"
+
+[dependencies]
+anyhow = "1.0"

@@ -26,6 +26,7 @@ members = [
     "pbs-datastore",
     "pbs-fuse-loop",
     "pbs-runtime",
+    "proxmox-rest-server",
     "pbs-systemd",
     "pbs-tape",
     "pbs-tools",
@@ -107,6 +108,7 @@ pbs-client = { path = "pbs-client" }
 pbs-config = { path = "pbs-config" }
 pbs-datastore = { path = "pbs-datastore" }
 pbs-runtime = { path = "pbs-runtime" }
+proxmox-rest-server = { path = "proxmox-rest-server" }
 pbs-systemd = { path = "pbs-systemd" }
 pbs-tools = { path = "pbs-tools" }
 pbs-tape = { path = "pbs-tape" }

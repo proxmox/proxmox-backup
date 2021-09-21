@@ -39,6 +39,7 @@ SUBCRATES := \
 	pbs-datastore \
 	pbs-fuse-loop \
 	pbs-runtime \
+	proxmox-rest-server \
 	pbs-systemd \
 	pbs-tape \
 	pbs-tools \
