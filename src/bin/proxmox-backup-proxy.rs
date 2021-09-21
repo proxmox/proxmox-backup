@@ -39,11 +39,12 @@ use pbs_api_types::{
     PruneOptions,
 };
 
+use proxmox_rest_server::daemon;
+
 use proxmox_backup::server;
 use proxmox_backup::auth_helpers::*;
 use proxmox_backup::tools::{
     PROXMOX_BACKUP_TCP_KEEPALIVE_TIME,
-    daemon,
     disks::{
         DiskManage,
         zfs_pool_stats,

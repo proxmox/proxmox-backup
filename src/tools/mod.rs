@@ -2,12 +2,9 @@
 //!
 //! This is a collection of small and useful tools.
 use std::any::Any;
-use std::os::unix::io::RawFd;
 
 use anyhow::{bail, format_err, Error};
 use openssl::hash::{hash, DigestBytes, MessageDigest};
-
-pub use proxmox::tools::fd::Fd;
 
 use proxmox_http::{
     client::SimpleHttp,
@@ -19,7 +16,6 @@ pub mod apt;
 pub mod async_io;
 pub mod compression;
 pub mod config;
-pub mod daemon;
 pub mod disks;
 
 pub mod serde_filter;
@@ -110,29 +106,6 @@ pub fn normalize_uri_path(path: &str) -> Result<(String, Vec<&str>), Error> {
 
     Ok((path, components))
 }
-
-pub fn fd_change_cloexec(fd: RawFd, on: bool) -> Result<(), Error> {
-    use nix::fcntl::{fcntl, FdFlag, F_GETFD, F_SETFD};
-    let mut flags = FdFlag::from_bits(fcntl(fd, F_GETFD)?)
-        .ok_or_else(|| format_err!("unhandled file flags"))?; // nix crate is stupid this way...
-    flags.set(FdFlag::FD_CLOEXEC, on);
-    fcntl(fd, F_SETFD(flags))?;
-    Ok(())
-}
-
-/// safe wrapper for `nix::sys::socket::socketpair` defaulting to `O_CLOEXEC` and guarding the file
-/// descriptors.
-pub fn socketpair() -> Result<(Fd, Fd), Error> {
-    use nix::sys::socket;
-    let (pa, pb) = socket::socketpair(
-        socket::AddressFamily::Unix,
-        socket::SockType::Stream,
-        None,
-        socket::SockFlag::SOCK_CLOEXEC,
-    )?;
-    Ok((Fd(pa), Fd(pb)))
-}
-
 
 /// An easy way to convert types to Any
 ///

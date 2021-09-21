@@ -13,7 +13,8 @@ use proxmox_backup::server::{
     auth::default_api_auth,
     rest::*,
 };
-use proxmox_backup::tools::daemon;
+use proxmox_rest_server::daemon;
+
 use proxmox_backup::auth_helpers::*;
 use proxmox_backup::config;
 

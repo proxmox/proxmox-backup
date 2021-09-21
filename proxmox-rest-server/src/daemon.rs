@@ -15,8 +15,9 @@ use anyhow::{bail, format_err, Error};
 use futures::future::{self, Either};
 
 use proxmox::tools::io::{ReadExt, WriteExt};
+use proxmox::tools::fd::Fd;
 
-use crate::tools::{fd_change_cloexec, self};
+use crate::fd_change_cloexec;
 
 #[link(name = "systemd")]
 extern "C" {
@@ -218,7 +219,7 @@ impl Reloadable for tokio::net::TcpListener {
     // FIXME: We could become "independent" of the TcpListener and its reference to the file
     // descriptor by `dup()`ing it (and check if the listener still exists via kcmp()?)
     fn get_store_func(&self) -> Result<BoxedStoreFunc, Error> {
-        let mut fd_opt = Some(tools::Fd(
+        let mut fd_opt = Some(Fd(
             nix::fcntl::fcntl(self.as_raw_fd(), nix::fcntl::FcntlArg::F_DUPFD_CLOEXEC(0))?
         ));
         Ok(Box::new(move || {
@@ -273,11 +274,11 @@ where
     ).await?;
 
     let server_future = create_service(listener, NotifyReady)?;
-    let shutdown_future = proxmox_rest_server::shutdown_future();
+    let shutdown_future = crate::shutdown_future();
 
     let finish_future = match future::select(server_future, shutdown_future).await {
         Either::Left((_, _)) => {
-            proxmox_rest_server::request_shutdown(); // make sure we are in shutdown mode
+            crate::request_shutdown(); // make sure we are in shutdown mode
             None
         }
         Either::Right((_, server_future)) => Some(server_future),
@@ -285,7 +286,7 @@ where
 
     let mut reloader = Some(reloader);
 
-    if proxmox_rest_server::is_reload_request() {
+    if crate::is_reload_request() {
         log::info!("daemon reload...");
         if let Err(e) = systemd_notify(SystemdNotify::Reloading) {
             log::error!("failed to notify systemd about the state change: {}", e);
@@ -304,7 +305,7 @@ where
     }
 
     // FIXME: this is a hack, replace with sd_notify_barrier when available
-    if proxmox_rest_server::is_reload_request() {
+    if crate::is_reload_request() {
         wait_service_is_not_state(service_name, "reloading").await?;
     }
 
