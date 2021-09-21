@@ -21,3 +21,7 @@ Command Line Tools
 
 .. include:: pxar/description.rst
 
+``proxmox-backup-debug``
+~~~~~~~~
+
+.. include:: proxmox-backup-debug/description.rst
