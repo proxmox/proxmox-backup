@@ -33,7 +33,7 @@ use proxmox::tools::fs::CreateOptions;
 
 use pbs_tools::compression::{DeflateEncoder, Level};
 use pbs_tools::stream::AsyncReaderStream;
-use pbs_api_types::{Authid, Userid};
+use pbs_api_types::Authid;
 use proxmox_rest_server::{
     ApiConfig, FileLogger, FileLogOptions, AuthError, RestEnvironment, CompressionMethod,
     extract_cookie, normalize_uri_path,
@@ -469,12 +469,27 @@ pub async fn handle_api_request<Env: RpcEnvironment, S: 'static + BuildHasher + 
 }
 
 fn get_index(
-    userid: Option<Userid>,
-    csrf_token: Option<String>,
+    auth_id: Option<String>,
     language: Option<String>,
     api: &Arc<ApiConfig>,
     parts: Parts,
 ) -> Response<Body> {
+
+    let (userid, csrf_token) = match auth_id {
+        Some(auth_id) => {
+            let auth_id = auth_id.parse::<Authid>();
+            match auth_id {
+                Ok(auth_id) if !auth_id.is_token() => {
+                    let userid = auth_id.user().clone();
+                    let new_csrf_token = assemble_csrf_prevention_token(csrf_secret(), &userid);
+                    (Some(userid), Some(new_csrf_token))
+                }
+                _ => (None, None)
+            }
+        }
+        None => (None, None),
+    };
+
     let nodename = proxmox::tools::nodename();
     let user = userid.as_ref().map(|u| u.as_str()).unwrap_or("");
 
@@ -787,25 +802,14 @@ async fn handle_request(
             let language = extract_lang_header(&parts.headers);
             match auth.check_auth(&parts.headers, &method) {
                 Ok(auth_id) => {
-                    let auth_id: Authid = auth_id.parse()?;
-                    if !auth_id.is_token() {
-                        let userid = auth_id.user();
-                        let new_csrf_token = assemble_csrf_prevention_token(csrf_secret(), userid);
-                        return Ok(get_index(
-                            Some(userid.clone()),
-                            Some(new_csrf_token),
-                            language,
-                            &api,
-                            parts,
-                        ));
-                    }
+                    return Ok(get_index(Some(auth_id), language, &api, parts));
                 }
                 Err(AuthError::Generic(_)) => {
                     tokio::time::sleep_until(Instant::from_std(delay_unauth_time)).await;
                 }
                 Err(AuthError::NoData) => {}
             }
-            return Ok(get_index(None, None, language, &api, parts));
+            return Ok(get_index(None, language, &api, parts));
         } else {
             let filename = api.find_alias(&components);
             let compression = extract_compression_method(&parts.headers);
