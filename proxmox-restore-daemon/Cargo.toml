@@ -1,0 +1,36 @@
+[package]
+name = "proxmox-restore-daemon"
+version = "0.1.0"
+authors = ["Proxmox Support Team <support@proxmox.com>"]
+edition = "2018"
+description = "Proxmox Restore Daemon"
+
+[dependencies]
+anyhow = "1.0"
+base64 = "0.12"
+env_logger = "0.7"
+futures = "0.3"
+http = "0.2"
+hyper = { version = "0.14", features = [ "full" ] }
+lazy_static = "1.4"
+libc = "0.2"
+log = "0.4"
+nix = "0.19.1"
+regex = "1.2"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.6", features = ["parking_lot", "sync"] }
+tokio-stream = "0.1.0"
+tokio-util = { version = "0.6", features = [ "codec", "io" ] }
+
+pathpatterns = "0.1.2"
+pxar = { version = "0.10.1", features = [ "tokio-io" ] }
+
+proxmox = { version = "0.13.3", features = [ "router", "sortable-macro" ] }
+
+pbs-api-types = { path = "../pbs-api-types" }
+pbs-runtime = { path = "../pbs-runtime" }
+pbs-tools = { path = "../pbs-tools" }
+pbs-datastore = { path = "../pbs-datastore" }
+proxmox-rest-server = { path = "../proxmox-rest-server" }
+pbs-client = { path = "../pbs-client" }

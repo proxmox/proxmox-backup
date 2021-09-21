@@ -47,6 +47,7 @@ SUBCRATES := \
 	proxmox-backup-client \
 	proxmox-backup-debug \
 	proxmox-file-restore \
+	proxmox-restore-daemon \
 	pxar-bin
 
 ifeq ($(BUILD_MODE), release)
@@ -189,11 +190,12 @@ $(COMPILED_BINS) $(COMPILEDIR)/dump-catalog-shell-cli $(COMPILEDIR)/docgen: .do-
 	    --package pbs-tape \
 	    --bin pmt \
 	    --bin pmtx \
+	    --package proxmox-restore-daemon \
+	    --bin proxmox-restore-daemon \
 	    --package proxmox-backup \
 	    --bin dump-catalog-shell-cli \
 	    --bin proxmox-daily-update \
 	    --bin proxmox-file-restore \
-	    --bin proxmox-restore-daemon \
 	    --bin proxmox-tape \
 	    --bin sg-tape-cmd
 	touch "$@"
