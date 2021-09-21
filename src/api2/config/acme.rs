@@ -215,7 +215,7 @@ fn register_account(
     WorkerTask::spawn(
         "acme-register",
         Some(name.to_string()),
-        auth_id,
+        auth_id.to_string(),
         true,
         move |worker| async move {
             let mut client = AcmeClient::new(directory);
@@ -275,7 +275,7 @@ pub fn update_account(
     WorkerTask::spawn(
         "acme-update",
         Some(name.to_string()),
-        auth_id,
+        auth_id.to_string(),
         true,
         move |_worker| async move {
             let data = match contact {
@@ -320,7 +320,7 @@ pub fn deactivate_account(
     WorkerTask::spawn(
         "acme-deactivate",
         Some(name.to_string()),
-        auth_id,
+        auth_id.to_string(),
         true,
         move |worker| async move {
             match AcmeClient::load(&name)

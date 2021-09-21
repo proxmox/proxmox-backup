@@ -7,7 +7,7 @@ use proxmox::api::section_config::SectionConfigData;
 use proxmox::api::router::Router;
 
 use pbs_api_types::{
-    Authid, DataStoreConfig, NODE_SCHEMA, BLOCKDEVICE_NAME_SCHEMA,
+    DataStoreConfig, NODE_SCHEMA, BLOCKDEVICE_NAME_SCHEMA,
     DATASTORE_SCHEMA, UPID_SCHEMA, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY,
 };
 
@@ -146,7 +146,7 @@ pub fn create_datastore_disk(
 
     let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
-    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let auth_id = rpcenv.get_auth_id().unwrap();
 
     let info = get_disk_usage_info(&disk, true)?;
 

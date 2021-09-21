@@ -18,7 +18,7 @@ use proxmox::tools::fs::{create_path, replace_file, CreateOptions};
 
 use pbs_buildcfg;
 use pbs_tools::logrotate::{LogRotate, LogRotateFiles};
-use pbs_api_types::{Authid, UPID};
+use pbs_api_types::UPID;
 use pbs_config::{open_backup_lockfile, BackupLockGuard};
 use proxmox_rest_server::{CommandoSocket, FileLogger, FileLogOptions};
 
@@ -589,7 +589,7 @@ struct WorkerTaskData {
 
 impl WorkerTask {
 
-    pub fn new(worker_type: &str, worker_id: Option<String>, auth_id: Authid, to_stdout: bool) -> Result<Arc<Self>, Error> {
+    pub fn new(worker_type: &str, worker_id: Option<String>, auth_id: String, to_stdout: bool) -> Result<Arc<Self>, Error> {
         let upid = UPID::new(worker_type, worker_id, auth_id)?;
         let task_id = upid.task_id;
 
@@ -640,7 +640,7 @@ impl WorkerTask {
     pub fn spawn<F, T>(
         worker_type: &str,
         worker_id: Option<String>,
-        auth_id: Authid,
+        auth_id: String,
         to_stdout: bool,
         f: F,
     ) -> Result<String, Error>
@@ -662,7 +662,7 @@ impl WorkerTask {
     pub fn new_thread<F>(
         worker_type: &str,
         worker_id: Option<String>,
-        auth_id: Authid,
+        auth_id: String,
         to_stdout: bool,
         f: F,
     ) -> Result<String, Error>

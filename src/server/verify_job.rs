@@ -36,7 +36,7 @@ pub fn do_verification_job(
     let upid_str = WorkerTask::new_thread(
         &worker_type,
         Some(job_id.clone()),
-        auth_id.clone(),
+        auth_id.to_string(),
         to_stdout,
         move |worker| {
             job.start(&worker.upid().to_string())?;

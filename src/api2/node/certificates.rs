@@ -11,7 +11,7 @@ use proxmox::api::router::SubdirMap;
 use proxmox::api::{api, Permission, Router, RpcEnvironment};
 use proxmox::list_subdirs_api_method;
 
-use pbs_api_types::{Authid, NODE_SCHEMA, PRIV_SYS_MODIFY};
+use pbs_api_types::{NODE_SCHEMA, PRIV_SYS_MODIFY};
 use pbs_buildcfg::configdir;
 use pbs_tools::cert;
 
@@ -530,7 +530,7 @@ fn spawn_certificate_worker(
 
     let (node_config, _digest) = crate::config::node::config()?;
 
-    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let auth_id = rpcenv.get_auth_id().unwrap();
 
     WorkerTask::spawn(name, None, auth_id, true, move |worker| async move {
         if let Some(cert) = order_certificate(worker, &node_config).await? {
@@ -559,7 +559,7 @@ pub fn revoke_acme_cert(rpcenv: &mut dyn RpcEnvironment) -> Result<String, Error
 
     let cert_pem = get_certificate_pem()?;
 
-    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let auth_id = rpcenv.get_auth_id().unwrap();
 
     WorkerTask::spawn(
         "acme-revoke-cert",

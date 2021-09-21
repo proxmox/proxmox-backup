@@ -14,7 +14,7 @@ use proxmox_apt::repositories::{
 use proxmox_http::ProxyConfig;
 
 use pbs_api_types::{
-    Authid, APTUpdateInfo, NODE_SCHEMA, PROXMOX_CONFIG_DIGEST_SCHEMA, UPID_SCHEMA,
+    APTUpdateInfo, NODE_SCHEMA, PROXMOX_CONFIG_DIGEST_SCHEMA, UPID_SCHEMA,
     PRIV_SYS_AUDIT, PRIV_SYS_MODIFY,
 };
 
@@ -154,7 +154,7 @@ pub fn apt_update_database(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
 
-    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let auth_id = rpcenv.get_auth_id().unwrap();
     let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
     let upid_str = WorkerTask::new_thread("aptupdate", None, auth_id, to_stdout, move |worker| {

@@ -7,7 +7,7 @@ use proxmox::{sortable, identity};
 use proxmox::{list_subdirs_api_method};
 
 use pbs_api_types::{
-    Authid, UPID_SCHEMA, NODE_SCHEMA, BLOCKDEVICE_NAME_SCHEMA,
+    UPID_SCHEMA, NODE_SCHEMA, BLOCKDEVICE_NAME_SCHEMA,
     PRIV_SYS_AUDIT, PRIV_SYS_MODIFY,
 };
 
@@ -144,7 +144,7 @@ pub fn initialize_disk(
 
     let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
-    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let auth_id = rpcenv.get_auth_id().unwrap();
 
     let info = get_disk_usage_info(&disk, true)?;
 

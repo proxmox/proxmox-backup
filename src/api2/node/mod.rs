@@ -146,7 +146,7 @@ async fn termproxy(cmd: Option<String>, rpcenv: &mut dyn RpcEnvironment) -> Resu
     let upid = WorkerTask::spawn(
         "termproxy",
         None,
-        auth_id,
+        auth_id.to_string(),
         false,
         move |worker| async move {
             // move inside the worker so that it survives and does not close the port

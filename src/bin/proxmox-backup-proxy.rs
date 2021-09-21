@@ -745,7 +745,7 @@ async fn schedule_task_log_rotate() {
     if let Err(err) = WorkerTask::new_thread(
         worker_type,
         None,
-        Authid::root_auth_id().clone(),
+        Authid::root_auth_id().to_string(),
         false,
         move |worker| {
             job.start(&worker.upid().to_string())?;

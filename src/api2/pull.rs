@@ -81,7 +81,7 @@ pub fn do_sync_job(
     let upid_str = WorkerTask::spawn(
         &worker_type,
         Some(job_id.clone()),
-        auth_id.clone(),
+        auth_id.to_string(),
         to_stdout,
         move |worker| async move {
 
@@ -183,7 +183,7 @@ async fn pull (
     let (client, src_repo, tgt_store) = get_pull_parameters(&store, &remote, &remote_store).await?;
 
     // fixme: set to_stdout to false?
-    let upid_str = WorkerTask::spawn("sync", Some(store.clone()), auth_id.clone(), true, move |worker| async move {
+    let upid_str = WorkerTask::spawn("sync", Some(store.clone()), auth_id.to_string(), true, move |worker| async move {
 
         worker.log(format!("sync datastore '{}' start", store));
 

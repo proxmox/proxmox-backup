@@ -722,7 +722,7 @@ pub fn verify(
     let upid_str = WorkerTask::new_thread(
         worker_type,
         Some(worker_id),
-        auth_id.clone(),
+        auth_id.to_string(),
         to_stdout,
         move |worker| {
             let verify_worker = crate::backup::VerifyWorker::new(worker.clone(), datastore);
@@ -862,7 +862,7 @@ pub fn prune(
 
 
     // We use a WorkerTask just to have a task log, but run synchrounously
-    let worker = WorkerTask::new("prune", Some(worker_id), auth_id, true)?;
+    let worker = WorkerTask::new("prune", Some(worker_id), auth_id.to_string(), true)?;
 
     if keep_all {
         worker.log("No prune selection - keeping all files.");
@@ -957,7 +957,7 @@ pub fn prune_datastore(
     let upid_str = WorkerTask::new_thread(
         "prune",
         Some(store.clone()),
-        auth_id.clone(),
+        auth_id.to_string(),
         to_stdout,
         move |worker| crate::server::prune_datastore(
             worker.clone(),

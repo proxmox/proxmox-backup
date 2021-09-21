@@ -26,7 +26,7 @@ pub fn do_garbage_collection_job(
     let upid_str = WorkerTask::new_thread(
         &worker_type,
         Some(store.clone()),
-        auth_id.clone(),
+        auth_id.to_string(),
         to_stdout,
         move |worker| {
             job.start(&worker.upid().to_string())?;

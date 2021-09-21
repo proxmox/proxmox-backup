@@ -525,7 +525,7 @@ impl BackupEnvironment {
         WorkerTask::new_thread(
             "verify",
             Some(worker_id),
-            self.auth_id.clone(),
+            self.auth_id.to_string(),
             false,
             move |worker| {
                 worker.log("Automatically verifying newly added snapshot");

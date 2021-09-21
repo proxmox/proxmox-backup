@@ -195,7 +195,7 @@ fn run_service_command(service: &str, cmd: &str, auth_id: Authid) -> Result<Valu
     let upid = WorkerTask::new_thread(
         &workerid,
         Some(service.clone()),
-        auth_id,
+        auth_id.to_string(),
         false,
         move |_worker| {
 

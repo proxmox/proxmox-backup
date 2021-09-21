@@ -195,7 +195,7 @@ pub fn do_tape_backup_job(
     let upid_str = WorkerTask::new_thread(
         &worker_type,
         Some(job_id.clone()),
-        auth_id.clone(),
+        auth_id.to_string(),
         to_stdout,
         move |worker| {
             job.start(&worker.upid().to_string())?;
@@ -376,7 +376,7 @@ pub fn backup(
     let upid_str = WorkerTask::new_thread(
         "tape-backup",
         Some(job_id),
-        auth_id,
+        auth_id.to_string(),
         to_stdout,
         move |worker| {
             let _drive_lock = drive_lock; // keep lock guard

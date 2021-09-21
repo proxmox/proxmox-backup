@@ -87,7 +87,7 @@ where
     let (config, _digest) = pbs_config::drive::config()?;
     let lock_guard = lock_tape_device(&config, &drive)?;
 
-    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let auth_id = rpcenv.get_auth_id().unwrap();
     let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
     WorkerTask::new_thread(worker_type, job_id, auth_id, to_stdout, move |worker| {

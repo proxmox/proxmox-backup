@@ -8,7 +8,7 @@ use proxmox::api::{
 use proxmox::api::router::Router;
 
 use pbs_api_types::{
-    Authid, ZpoolListItem, ZfsRaidLevel, ZfsCompressionType, DataStoreConfig,
+    ZpoolListItem, ZfsRaidLevel, ZfsCompressionType, DataStoreConfig,
     NODE_SCHEMA, ZPOOL_NAME_SCHEMA, DATASTORE_SCHEMA, DISK_ARRAY_SCHEMA,
     DISK_LIST_SCHEMA, ZFS_ASHIFT_SCHEMA, UPID_SCHEMA,
     PRIV_SYS_AUDIT, PRIV_SYS_MODIFY,
@@ -168,7 +168,7 @@ pub fn create_zpool(
 
     let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
-    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let auth_id = rpcenv.get_auth_id().unwrap();
 
     let add_datastore = add_datastore.unwrap_or(false);
 

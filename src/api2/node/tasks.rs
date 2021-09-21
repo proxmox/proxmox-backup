@@ -99,8 +99,8 @@ fn check_job_store(upid: &UPID, store: &str) -> bool {
 }
 
 fn check_task_access(auth_id: &Authid, upid: &UPID) -> Result<(), Error> {
-    let task_auth_id = &upid.auth_id;
-    if auth_id == task_auth_id
+    let task_auth_id: Authid = upid.auth_id.parse()?;
+    if auth_id == &task_auth_id
         || (task_auth_id.is_token() && &Authid::from(task_auth_id.user().clone()) == auth_id) {
         // task owner can always read
         Ok(())
@@ -200,6 +200,8 @@ async fn get_task_status(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     check_task_access(&auth_id, &upid)?;
 
+    let task_auth_id: Authid = upid.auth_id.parse()?;
+
     let mut result = json!({
         "upid": param["upid"],
         "node": upid.node,
@@ -208,11 +210,11 @@ async fn get_task_status(
         "starttime": upid.starttime,
         "type": upid.worker_type,
         "id": upid.worker_id,
-        "user": upid.auth_id.user(),
+        "user": task_auth_id.user(),
     });
 
-    if upid.auth_id.is_token() {
-        result["tokenid"] = Value::from(upid.auth_id.tokenname().unwrap().as_str());
+    if task_auth_id.is_token() {
+        result["tokenid"] = Value::from(task_auth_id.tokenname().unwrap().as_str());
     }
 
     if crate::server::worker_is_active(&upid).await? {
@@ -344,10 +346,11 @@ fn stop_task(
 
     let upid = extract_upid(&param)?;
 
-    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let auth_id = rpcenv.get_auth_id().unwrap();
 
     if auth_id != upid.auth_id {
         let user_info = CachedUserInfo::new()?;
+        let auth_id: Authid = auth_id.parse()?;
         user_info.check_privs(&auth_id, &["system", "tasks"], PRIV_SYS_MODIFY, false)?;
     }
 

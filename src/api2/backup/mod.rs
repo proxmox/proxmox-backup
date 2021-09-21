@@ -166,7 +166,7 @@ async move {
     if !is_new { bail!("backup directory already exists."); }
 
 
-    WorkerTask::spawn(worker_type, Some(worker_id), auth_id.clone(), true, move |worker| {
+    WorkerTask::spawn(worker_type, Some(worker_id), auth_id.to_string(), true, move |worker| {
         let mut env = BackupEnvironment::new(
             env_type, auth_id, worker.clone(), datastore, backup_dir);
 

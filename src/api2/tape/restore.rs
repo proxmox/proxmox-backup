@@ -275,7 +275,7 @@ pub fn restore(
     let upid_str = WorkerTask::new_thread(
         "tape-restore",
         Some(taskid),
-        auth_id.clone(),
+        auth_id.to_string(),
         to_stdout,
         move |worker| {
             let _drive_lock = drive_lock; // keep lock guard

@@ -8,8 +8,6 @@ use proxmox::api::schema::{ApiStringFormat, ApiType, Schema, StringSchema, Array
 use proxmox::const_regex;
 use proxmox::sys::linux::procfs;
 
-use crate::Authid;
-
 /// Unique Process/Task Identifier
 ///
 /// We use this to uniquely identify worker task. UPIDs have a short
@@ -37,7 +35,7 @@ pub struct UPID {
     /// Worker ID (arbitrary ASCII string)
     pub worker_id: Option<String>,
     /// The authenticated entity who started the task
-    pub auth_id: Authid,
+    pub auth_id: String,
     /// The node name.
     pub node: String,
 }
@@ -71,7 +69,7 @@ impl UPID {
     pub fn new(
         worker_type: &str,
         worker_id: Option<String>,
-        auth_id: Authid,
+        auth_id: String,
     ) -> Result<Self, Error> {
 
         let pid = unsafe { libc::getpid() };
@@ -80,6 +78,10 @@ impl UPID {
 
         if worker_type.contains(bad) {
             bail!("illegal characters in worker type '{}'", worker_type);
+        }
+
+        if auth_id.contains(bad) {
+            bail!("illegal characters in auth_id '{}'", auth_id);
         }
 
         static WORKER_TASK_NEXT_ID: AtomicUsize = AtomicUsize::new(0);
@@ -184,7 +186,7 @@ pub struct TaskListItem {
     /// Worker ID (arbitrary ASCII string)
     pub worker_id: Option<String>,
     /// The authenticated entity who started the task
-    pub user: Authid,
+    pub user: String,
     /// The task end time (Epoch)
     #[serde(skip_serializing_if="Option::is_none")]
     pub endtime: Option<i64>,
@@ -200,4 +202,3 @@ pub const NODE_TASKS_LIST_TASKS_RETURN_TYPE: ReturnType = ReturnType {
         &TaskListItem::API_SCHEMA,
     ).schema(),
 };
-

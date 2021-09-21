@@ -105,7 +105,7 @@ pub fn do_prune_job(
     let upid_str = WorkerTask::new_thread(
         &worker_type,
         Some(job.jobname().to_string()),
-        auth_id.clone(),
+        auth_id.to_string(),
         false,
         move |worker| {
             job.start(&worker.upid().to_string())?;

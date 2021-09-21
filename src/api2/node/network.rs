@@ -703,7 +703,7 @@ pub async fn reload_network_config(
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-    let upid_str = WorkerTask::spawn("srvreload", Some(String::from("networking")), auth_id, true, |_worker| async {
+    let upid_str = WorkerTask::spawn("srvreload", Some(String::from("networking")), auth_id.to_string(), true, |_worker| async {
 
         let _ = std::fs::rename(network::NETWORK_INTERFACES_NEW_FILENAME, network::NETWORK_INTERFACES_FILENAME);
 

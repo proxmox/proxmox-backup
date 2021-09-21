@@ -143,7 +143,7 @@ fn upgrade_to_backup_reader_protocol(
 
         let worker_id = format!("{}:{}/{}/{:08X}", store, backup_type, backup_id, backup_dir.backup_time());
 
-        WorkerTask::spawn("reader", Some(worker_id), auth_id.clone(), true, move |worker| async move {
+        WorkerTask::spawn("reader", Some(worker_id), auth_id.to_string(), true, move |worker| async move {
             let _guard = _guard;
 
             let mut env = ReaderEnvironment::new(

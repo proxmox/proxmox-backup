@@ -119,9 +119,9 @@ pub fn create_datastore(
     WorkerTask::new_thread(
         "create-datastore",
         Some(config.name.to_string()),
-        auth_id,
+        auth_id.to_string(),
         to_stdout,
-        move |worker| do_create_datastore(lock, section_config, config, Some(&worker)),
+       move |worker| do_create_datastore(lock, section_config, config, Some(&worker)),
     )
 }
 
