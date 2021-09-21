@@ -4,6 +4,9 @@ use anyhow::{bail, format_err, Error};
 
 use proxmox::tools::fd::Fd;
 
+mod compression;
+pub use compression::*;
+
 pub mod daemon;
 pub mod formatter;
 

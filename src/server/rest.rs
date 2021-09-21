@@ -34,13 +34,15 @@ use proxmox::tools::fs::CreateOptions;
 use pbs_tools::compression::{DeflateEncoder, Level};
 use pbs_tools::stream::AsyncReaderStream;
 use pbs_api_types::{Authid, Userid};
-use proxmox_rest_server::{ApiConfig, FileLogger, FileLogOptions, AuthError, RestEnvironment};
+use proxmox_rest_server::{
+    ApiConfig, FileLogger, FileLogOptions, AuthError, RestEnvironment, CompressionMethod,
+};
 use proxmox_rest_server::formatter::*;
 
-use crate::auth_helpers::*;
 use pbs_config::CachedUserInfo;
+
+use crate::auth_helpers::*;
 use crate::tools;
-use crate::tools::compression::CompressionMethod;
 
 extern "C" {
     fn tzset();
