@@ -9,7 +9,7 @@ anyhow = "1.0"
 walkdir = "2"
 serde_json = "1.0"
 
-proxmox = { version = "0.13.0", features = [ "api-macro", "cli" ] }
+proxmox = { version = "0.13.3", features = [ "api-macro", "cli" ] }
 
 pbs-config = { path = "../pbs-config" }
 pbs-client = { path = "../pbs-client" }

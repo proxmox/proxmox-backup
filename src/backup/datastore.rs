@@ -29,8 +29,7 @@ use pbs_tools::format::HumanByte;
 use pbs_tools::fs::{lock_dir_noblock, DirLockGuard};
 use pbs_tools::process_locker::ProcessLockSharedGuard;
 use pbs_config::{open_backup_lockfile, BackupLockGuard};
-
-use crate::tools::fail_on_shutdown;
+use proxmox_rest_server::fail_on_shutdown;
 
 lazy_static! {
     static ref DATASTORE_MAP: Mutex<HashMap<String, Arc<DataStore>>> = Mutex::new(HashMap::new());

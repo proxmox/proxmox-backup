@@ -42,7 +42,7 @@ pub fn server_state_init() -> Result<(), Error> {
         while stream.recv().await.is_some() {
             println!("got shutdown request (SIGINT)");
             SERVER_STATE.lock().unwrap().reload_request = false;
-            crate::tools::request_shutdown();
+            crate::request_shutdown();
         }
     }.boxed();
 
@@ -57,7 +57,7 @@ pub fn server_state_init() -> Result<(), Error> {
         while stream.recv().await.is_some() {
             println!("got reload request (SIGHUP)");
             SERVER_STATE.lock().unwrap().reload_request = true;
-            crate::tools::request_shutdown();
+            crate::request_shutdown();
         }
     }.boxed();
 

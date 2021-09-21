@@ -16,7 +16,6 @@ use futures::future::{self, Either};
 
 use proxmox::tools::io::{ReadExt, WriteExt};
 
-use crate::server;
 use crate::tools::{fd_change_cloexec, self};
 
 #[link(name = "systemd")]
@@ -274,11 +273,11 @@ where
     ).await?;
 
     let server_future = create_service(listener, NotifyReady)?;
-    let shutdown_future = server::shutdown_future();
+    let shutdown_future = proxmox_rest_server::shutdown_future();
 
     let finish_future = match future::select(server_future, shutdown_future).await {
         Either::Left((_, _)) => {
-            crate::tools::request_shutdown(); // make sure we are in shutdown mode
+            proxmox_rest_server::request_shutdown(); // make sure we are in shutdown mode
             None
         }
         Either::Right((_, server_future)) => Some(server_future),
@@ -286,7 +285,7 @@ where
 
     let mut reloader = Some(reloader);
 
-    if server::is_reload_request() {
+    if proxmox_rest_server::is_reload_request() {
         log::info!("daemon reload...");
         if let Err(e) = systemd_notify(SystemdNotify::Reloading) {
             log::error!("failed to notify systemd about the state change: {}", e);
@@ -305,7 +304,7 @@ where
     }
 
     // FIXME: this is a hack, replace with sd_notify_barrier when available
-    if server::is_reload_request() {
+    if proxmox_rest_server::is_reload_request() {
         wait_service_is_not_state(service_name, "reloading").await?;
     }
 

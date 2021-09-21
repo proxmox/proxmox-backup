@@ -1505,7 +1505,7 @@ pub fn pxar_file_download(
             EntryKind::Directory => {
                 let (sender, receiver) = tokio::sync::mpsc::channel(100);
                 let channelwriter = AsyncChannelWriter::new(sender, 1024 * 1024);
-                crate::server::spawn_internal_task(
+                proxmox_rest_server::spawn_internal_task(
                     create_zip(channelwriter, decoder, path.clone(), false)
                 );
                 Body::wrap_stream(ReceiverStream::new(receiver).map_err(move |err| {

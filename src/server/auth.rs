@@ -1,37 +1,18 @@
 //! Provides authentication primitives for the HTTP server
-use anyhow::{format_err, Error};
+use anyhow::format_err;
 
 use std::sync::Arc;
 
 use pbs_tools::ticket::{self, Ticket};
 use pbs_config::{token_shadow, CachedUserInfo};
 use pbs_api_types::{Authid, Userid};
+use proxmox_rest_server::{ApiAuth, AuthError};
 
 use crate::auth_helpers::*;
 use crate::tools;
 
 use hyper::header;
 use percent_encoding::percent_decode_str;
-
-pub enum AuthError {
-    Generic(Error),
-    NoData,
-}
-
-impl From<Error> for AuthError {
-    fn from(err: Error) -> Self {
-        AuthError::Generic(err)
-    }
-}
-
-pub trait ApiAuth {
-    fn check_auth(
-        &self,
-        headers: &http::HeaderMap,
-        method: &hyper::Method,
-        user_info: &CachedUserInfo,
-    ) -> Result<Authid, AuthError>;
-}
 
 struct UserAuthData {
     ticket: String,
@@ -80,8 +61,10 @@ impl ApiAuth for UserApiAuth {
         &self,
         headers: &http::HeaderMap,
         method: &hyper::Method,
-        user_info: &CachedUserInfo,
-    ) -> Result<Authid, AuthError> {
+    ) -> Result<String, AuthError> {
+
+        let user_info = CachedUserInfo::new()?;
+
         let auth_data = Self::extract_auth_data(headers);
         match auth_data {
             Some(AuthData::User(user_auth_data)) => {
@@ -111,7 +94,7 @@ impl ApiAuth for UserApiAuth {
                     }
                 }
 
-                Ok(auth_id)
+                Ok(auth_id.to_string())
             }
             Some(AuthData::ApiToken(api_token)) => {
                 let mut parts = api_token.splitn(2, ':');
@@ -133,7 +116,7 @@ impl ApiAuth for UserApiAuth {
 
                 token_shadow::verify_secret(&tokenid, &tokensecret)?;
 
-                Ok(tokenid)
+                Ok(tokenid.to_string())
             }
             None => Err(AuthError::NoData),
         }

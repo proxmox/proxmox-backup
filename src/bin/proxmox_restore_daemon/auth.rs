@@ -4,10 +4,7 @@ use std::io::prelude::*;
 
 use anyhow::{bail, format_err, Error};
 
-use pbs_api_types::Authid;
-
-use pbs_config::CachedUserInfo;
-use proxmox_backup::server::auth::{ApiAuth, AuthError};
+use proxmox_rest_server::{ApiAuth, AuthError};
 
 const TICKET_FILE: &str = "/ticket";
 
@@ -20,11 +17,10 @@ impl ApiAuth for StaticAuth {
         &self,
         headers: &http::HeaderMap,
         _method: &hyper::Method,
-        _user_info: &CachedUserInfo,
-    ) -> Result<Authid, AuthError> {
+    ) -> Result<String, AuthError> {
         match headers.get(hyper::header::AUTHORIZATION) {
             Some(header) if header.to_str().unwrap_or("") == &self.ticket => {
-                Ok(Authid::root_auth_id().to_owned())
+                Ok(String::from("root@pam"))
             }
             _ => {
                 return Err(AuthError::Generic(format_err!(

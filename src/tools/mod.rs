@@ -31,9 +31,6 @@ pub mod ticket;
 pub mod parallel_handler;
 pub use parallel_handler::ParallelHandler;
 
-mod file_logger;
-pub use file_logger::{FileLogger, FileLogOptions};
-
 /// Shortcut for md5 sums.
 pub fn md5sum(data: &[u8]) -> Result<DigestBytes, Error> {
     hash(MessageDigest::md5(), data).map_err(Error::from)
@@ -120,27 +117,6 @@ pub fn fd_change_cloexec(fd: RawFd, on: bool) -> Result<(), Error> {
         .ok_or_else(|| format_err!("unhandled file flags"))?; // nix crate is stupid this way...
     flags.set(FdFlag::FD_CLOEXEC, on);
     fcntl(fd, F_SETFD(flags))?;
-    Ok(())
-}
-
-static mut SHUTDOWN_REQUESTED: bool = false;
-
-pub fn request_shutdown() {
-    unsafe {
-        SHUTDOWN_REQUESTED = true;
-    }
-    crate::server::server_shutdown();
-}
-
-#[inline(always)]
-pub fn shutdown_requested() -> bool {
-    unsafe { SHUTDOWN_REQUESTED }
-}
-
-pub fn fail_on_shutdown() -> Result<(), Error> {
-    if shutdown_requested() {
-        bail!("Server shutdown requested - aborting task");
-    }
     Ok(())
 }
 

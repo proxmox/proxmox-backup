@@ -3,8 +3,10 @@ use futures::*;
 
 use proxmox::try_block;
 use proxmox::api::RpcEnvironmentType;
+use proxmox::tools::fs::CreateOptions;
 
 use pbs_tools::auth::private_auth_key;
+use proxmox_rest_server::ApiConfig;
 
 use proxmox_backup::server::{
     self,
@@ -57,16 +59,25 @@ async fn run() -> Result<(), Error> {
     }
     let _ = csrf_secret(); // load with lazy_static
 
-    let mut config = server::ApiConfig::new(
+    let mut config = ApiConfig::new(
         pbs_buildcfg::JS_DIR,
         &proxmox_backup::api2::ROUTER,
         RpcEnvironmentType::PRIVILEGED,
         default_api_auth(),
     )?;
 
-    let mut commando_sock = server::CommandoSocket::new(server::our_ctrl_sock());
+    let backup_user = pbs_config::backup_user()?;
+    let mut commando_sock = proxmox_rest_server::CommandoSocket::new(crate::server::our_ctrl_sock(), backup_user.gid);
 
-    config.enable_file_log(pbs_buildcfg::API_ACCESS_LOG_FN, &mut commando_sock)?;
+    let dir_opts = CreateOptions::new().owner(backup_user.uid).group(backup_user.gid);
+    let file_opts = CreateOptions::new().owner(backup_user.uid).group(backup_user.gid);
+
+    config.enable_file_log(
+        pbs_buildcfg::API_ACCESS_LOG_FN,
+        Some(dir_opts),
+        Some(file_opts),
+        &mut commando_sock,
+    )?;
 
     let rest_server = RestServer::new(config);
 
@@ -78,7 +89,7 @@ async fn run() -> Result<(), Error> {
             Ok(ready
                 .and_then(|_| hyper::Server::builder(incoming)
                     .serve(rest_server)
-                    .with_graceful_shutdown(server::shutdown_future())
+                    .with_graceful_shutdown(proxmox_rest_server::shutdown_future())
                     .map_err(Error::from)
                 )
                 .map(|e| {
@@ -97,7 +108,7 @@ async fn run() -> Result<(), Error> {
     let init_result: Result<(), Error> = try_block!({
         server::register_task_control_commands(&mut commando_sock)?;
         commando_sock.spawn()?;
-        server::server_state_init()?;
+        proxmox_rest_server::server_state_init()?;
         Ok(())
     });
 
@@ -107,7 +118,7 @@ async fn run() -> Result<(), Error> {
 
     server.await?;
     log::info!("server shutting down, waiting for active workers to complete");
-    proxmox_backup::server::last_worker_future().await?;
+    proxmox_rest_server::last_worker_future().await?;
 
     log::info!("done - exit server");
 

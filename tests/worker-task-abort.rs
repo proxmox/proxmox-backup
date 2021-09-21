@@ -1,6 +1,5 @@
 use anyhow::{bail, Error};
 
-#[macro_use]
 extern crate proxmox_backup;
 
 extern crate tokio;
@@ -10,8 +9,8 @@ use proxmox::try_block;
 
 use pbs_api_types::{Authid, UPID};
 
+use proxmox_rest_server::{flog, CommandoSocket};
 use proxmox_backup::server;
-use proxmox_backup::tools;
 
 fn garbage_collection(worker: &server::WorkerTask) -> Result<(), Error> {
 
@@ -45,11 +44,11 @@ fn worker_task_abort() -> Result<(), Error> {
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(async move {
 
-        let mut commando_sock = server::CommandoSocket::new(server::our_ctrl_sock());
+        let mut commando_sock = CommandoSocket::new(server::our_ctrl_sock(), nix::unistd::Gid::current());
 
         let init_result: Result<(), Error> = try_block!({
             server::register_task_control_commands(&mut commando_sock)?;
-            server::server_state_init()?;
+            proxmox_rest_server::server_state_init()?;
             Ok(())
         });
 
@@ -73,7 +72,7 @@ fn worker_task_abort() -> Result<(), Error> {
                 println!("WORKER {}", worker);
 
                 let result = garbage_collection(&worker);
-                tools::request_shutdown();
+                proxmox_rest_server::request_shutdown();
 
                 if let Err(err) = result {
                     println!("got expected error: {}", err);

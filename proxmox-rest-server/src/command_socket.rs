@@ -10,17 +10,17 @@ use tokio::net::UnixListener;
 use serde::Serialize;
 use serde_json::Value;
 use nix::sys::socket;
+use nix::unistd::Gid;
 
-/// Listens on a Unix Socket to handle simple command asynchronously
-fn create_control_socket<P, F>(path: P, func: F) -> Result<impl Future<Output = ()>, Error>
+// Listens on a Unix Socket to handle simple command asynchronously
+fn create_control_socket<P, F>(path: P, gid: Gid, func: F) -> Result<impl Future<Output = ()>, Error>
 where
     P: Into<PathBuf>,
     F: Fn(Value) -> Result<Value, Error> + Send + Sync + 'static,
 {
     let path: PathBuf = path.into();
 
-    let backup_user = pbs_config::backup_user()?;
-    let backup_gid = backup_user.gid.as_raw();
+    let gid = gid.as_raw();
 
     let socket = UnixListener::bind(&path)?;
 
@@ -47,7 +47,7 @@ where
 
             // check permissions (same gid, root user, or backup group)
             let mygid = unsafe { libc::getgid() };
-            if !(cred.uid() == 0 || cred.gid() == mygid || cred.gid() == backup_gid) {
+            if !(cred.uid() == 0 || cred.gid() == mygid || cred.gid() == gid) {
                 eprintln!("no permissions for {:?}", cred);
                 continue;
             }
@@ -93,7 +93,7 @@ where
         }
     }.boxed();
 
-    let abort_future = super::last_worker_future().map_err(|_| {});
+    let abort_future = crate::last_worker_future().map_err(|_| {});
     let task = futures::future::select(
         control_future,
         abort_future,
@@ -154,15 +154,17 @@ pub type CommandoSocketFn = Box<(dyn Fn(Option<&Value>) -> Result<Value, Error> 
 /// You need to call `spawn()` to make the socket active.
 pub struct CommandoSocket {
     socket: PathBuf,
+    gid: Gid,
     commands: HashMap<String, CommandoSocketFn>,
 }
 
 impl CommandoSocket {
-    pub fn new<P>(path: P) -> Self
+    pub fn new<P>(path: P, gid: Gid) -> Self
         where P: Into<PathBuf>,
     {
         CommandoSocket {
             socket: path.into(),
+            gid,
             commands: HashMap::new(),
         }
     }
@@ -170,7 +172,7 @@ impl CommandoSocket {
     /// Spawn the socket and consume self, meaning you cannot register commands anymore after
     /// calling this.
     pub fn spawn(self) -> Result<(), Error> {
-        let control_future = create_control_socket(self.socket.to_owned(), move |param| {
+        let control_future = create_control_socket(self.socket.to_owned(), self.gid, move |param| {
             let param = param
                 .as_object()
                 .ok_or_else(|| format_err!("unable to parse parameters (expected json object)"))?;

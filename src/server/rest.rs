@@ -29,21 +29,20 @@ use proxmox::api::{
     RpcEnvironmentType,
 };
 use proxmox::http_err;
+use proxmox::tools::fs::CreateOptions;
 
 use pbs_tools::compression::{DeflateEncoder, Level};
 use pbs_tools::stream::AsyncReaderStream;
 use pbs_api_types::{Authid, Userid};
+use proxmox_rest_server::{ApiConfig, FileLogger, FileLogOptions, AuthError};
 
-use super::auth::AuthError;
 use super::environment::RestEnvironment;
 use super::formatter::*;
-use super::ApiConfig;
 
 use crate::auth_helpers::*;
 use pbs_config::CachedUserInfo;
 use crate::tools;
 use crate::tools::compression::CompressionMethod;
-use crate::tools::FileLogger;
 
 extern "C" {
     fn tzset();
@@ -196,10 +195,16 @@ fn log_response(
     }
 }
 pub fn auth_logger() -> Result<FileLogger, Error> {
-    let logger_options = tools::FileLogOptions {
+    let backup_user = pbs_config::backup_user()?;
+
+    let file_opts = CreateOptions::new()
+        .owner(backup_user.uid)
+        .group(backup_user.gid);
+
+    let logger_options = FileLogOptions {
         append: true,
         prefix_time: true,
-        owned_by_backup: true,
+        file_opts,
         ..Default::default()
     };
     FileLogger::new(pbs_buildcfg::API_AUTH_LOG_FN, logger_options)
@@ -681,7 +686,6 @@ async fn handle_request(
 
     rpcenv.set_client_ip(Some(*peer));
 
-    let user_info = CachedUserInfo::new()?;
     let auth = &api.api_auth;
 
     let delay_unauth_time = std::time::Instant::now() + std::time::Duration::from_millis(3000);
@@ -708,8 +712,8 @@ async fn handle_request(
             }
 
             if auth_required {
-                match auth.check_auth(&parts.headers, &method, &user_info) {
-                    Ok(authid) => rpcenv.set_auth_id(Some(authid.to_string())),
+                match auth.check_auth(&parts.headers, &method) {
+                    Ok(authid) => rpcenv.set_auth_id(Some(authid)),
                     Err(auth_err) => {
                         let err = match auth_err {
                             AuthError::Generic(err) => err,
@@ -738,6 +742,8 @@ async fn handle_request(
                 }
                 Some(api_method) => {
                     let auth_id = rpcenv.get_auth_id();
+                    let user_info = CachedUserInfo::new()?;
+
                     if !check_api_permission(
                         api_method.access.permission,
                         auth_id.as_deref(),
@@ -779,8 +785,9 @@ async fn handle_request(
 
         if comp_len == 0 {
             let language = extract_lang_header(&parts.headers);
-            match auth.check_auth(&parts.headers, &method, &user_info) {
+            match auth.check_auth(&parts.headers, &method) {
                 Ok(auth_id) => {
+                    let auth_id: Authid = auth_id.parse()?;
                     if !auth_id.is_token() {
                         let userid = auth_id.user();
                         let new_csrf_token = assemble_csrf_prevention_token(csrf_secret(), userid);

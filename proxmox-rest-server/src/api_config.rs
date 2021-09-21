@@ -12,8 +12,7 @@ use serde::Serialize;
 use proxmox::api::{ApiMethod, Router, RpcEnvironmentType};
 use proxmox::tools::fs::{create_path, CreateOptions};
 
-use crate::tools::{FileLogger, FileLogOptions};
-use super::auth::ApiAuth;
+use crate::{ApiAuth, FileLogger, FileLogOptions, CommandoSocket};
 
 pub struct ApiConfig {
     basedir: PathBuf,
@@ -134,7 +133,9 @@ impl ApiConfig {
     pub fn enable_file_log<P>(
         &mut self,
         path: P,
-        commando_sock: &mut super::CommandoSocket,
+        dir_opts: Option<CreateOptions>,
+        file_opts: Option<CreateOptions>,
+        commando_sock: &mut CommandoSocket,
     ) -> Result<(), Error>
     where
         P: Into<PathBuf>
@@ -142,15 +143,13 @@ impl ApiConfig {
         let path: PathBuf = path.into();
         if let Some(base) = path.parent() {
             if !base.exists() {
-                let backup_user = pbs_config::backup_user()?;
-                let opts = CreateOptions::new().owner(backup_user.uid).group(backup_user.gid);
-                create_path(base, None, Some(opts)).map_err(|err| format_err!("{}", err))?;
+                create_path(base, None, dir_opts).map_err(|err| format_err!("{}", err))?;
             }
         }
 
         let logger_options = FileLogOptions {
             append: true,
-            owned_by_backup: true,
+            file_opts: file_opts.unwrap_or(CreateOptions::default()),
             ..Default::default()
         };
         let request_log = Arc::new(Mutex::new(FileLogger::new(&path, logger_options)?));

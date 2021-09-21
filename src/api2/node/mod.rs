@@ -295,12 +295,12 @@ fn upgrade_to_websocket(
 
         let (ws, response) = WebSocket::new(parts.headers.clone())?;
 
-        crate::server::spawn_internal_task(async move {
+        proxmox_rest_server::spawn_internal_task(async move {
             let conn: Upgraded = match hyper::upgrade::on(Request::from_parts(parts, req_body))
                 .map_err(Error::from)
                 .await
             {
-                Ok(upgraded) => upgraded,
+               Ok(upgraded) => upgraded,
                 _ => bail!("error"),
             };
 

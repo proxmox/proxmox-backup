@@ -12,13 +12,15 @@ use serde_json::Value;
 use proxmox::try_block;
 use proxmox::api::RpcEnvironmentType;
 use proxmox::sys::linux::socket::set_tcp_keepalive;
+use proxmox::tools::fs::CreateOptions;
+
+use proxmox_rest_server::ApiConfig;
 
 use proxmox_backup::{
     backup::DataStore,
     server::{
         auth::default_api_auth,
         WorkerTask,
-        ApiConfig,
         rest::*,
         jobstate::{
             self,
@@ -106,9 +108,18 @@ async fn run() -> Result<(), Error> {
     config.register_template("index", &indexpath)?;
     config.register_template("console", "/usr/share/pve-xtermjs/index.html.hbs")?;
 
-    let mut commando_sock = server::CommandoSocket::new(server::our_ctrl_sock());
+    let backup_user = pbs_config::backup_user()?;
+    let mut commando_sock = proxmox_rest_server::CommandoSocket::new(crate::server::our_ctrl_sock(), backup_user.gid);
 
-    config.enable_file_log(pbs_buildcfg::API_ACCESS_LOG_FN, &mut commando_sock)?;
+    let dir_opts = CreateOptions::new().owner(backup_user.uid).group(backup_user.gid);
+    let file_opts = CreateOptions::new().owner(backup_user.uid).group(backup_user.gid);
+
+    config.enable_file_log(
+        pbs_buildcfg::API_ACCESS_LOG_FN,
+        Some(dir_opts),
+        Some(file_opts),
+        &mut commando_sock,
+    )?;
 
     let rest_server = RestServer::new(config);
 
@@ -158,7 +169,7 @@ async fn run() -> Result<(), Error> {
             Ok(ready
                .and_then(|_| hyper::Server::builder(connections)
                     .serve(rest_server)
-                    .with_graceful_shutdown(server::shutdown_future())
+                    .with_graceful_shutdown(proxmox_rest_server::shutdown_future())
                     .map_err(Error::from)
                 )
                 .map_err(|err| eprintln!("server error: {}", err))
@@ -174,7 +185,7 @@ async fn run() -> Result<(), Error> {
     let init_result: Result<(), Error> = try_block!({
         server::register_task_control_commands(&mut commando_sock)?;
         commando_sock.spawn()?;
-        server::server_state_init()?;
+        proxmox_rest_server::server_state_init()?;
         Ok(())
     });
 
@@ -187,7 +198,7 @@ async fn run() -> Result<(), Error> {
 
     server.await?;
     log::info!("server shutting down, waiting for active workers to complete");
-    proxmox_backup::server::last_worker_future().await?;
+    proxmox_rest_server::last_worker_future().await?;
     log::info!("done - exit server");
 
     Ok(())
@@ -304,14 +315,14 @@ async fn accept_connection(
 }
 
 fn start_stat_generator() {
-    let abort_future = server::shutdown_future();
+    let abort_future = proxmox_rest_server::shutdown_future();
     let future = Box::pin(run_stat_generator());
     let task = futures::future::select(future, abort_future);
     tokio::spawn(task.map(|_| ()));
 }
 
 fn start_task_scheduler() {
-    let abort_future = server::shutdown_future();
+    let abort_future = proxmox_rest_server::shutdown_future();
     let future = Box::pin(run_task_scheduler());
     let task = futures::future::select(future, abort_future);
     tokio::spawn(task.map(|_| ()));
@@ -706,12 +717,12 @@ async fn schedule_task_log_rotate() {
 async fn command_reopen_logfiles() -> Result<(), Error> {
     // only care about the most recent daemon instance for each, proxy & api, as other older ones
     // should not respond to new requests anyway, but only finish their current one and then exit.
-    let sock = server::our_ctrl_sock();
-    let f1 = server::send_command(sock, "{\"command\":\"api-access-log-reopen\"}\n");
+    let sock = crate::server::our_ctrl_sock();
+    let f1 = proxmox_rest_server::send_command(sock, "{\"command\":\"api-access-log-reopen\"}\n");
 
-    let pid = server::read_pid(pbs_buildcfg::PROXMOX_BACKUP_API_PID_FN)?;
-    let sock = server::ctrl_sock_from_pid(pid);
-    let f2 = server::send_command(sock, "{\"command\":\"api-access-log-reopen\"}\n");
+    let pid = crate::server::read_pid(pbs_buildcfg::PROXMOX_BACKUP_API_PID_FN)?;
+    let sock = crate::server::ctrl_sock_from_pid(pid);
+    let f2 = proxmox_rest_server::send_command(sock, "{\"command\":\"api-access-log-reopen\"}\n");
 
     match futures::join!(f1, f2) {
         (Err(e1), Err(e2)) => Err(format_err!("reopen commands failed, proxy: {}; api: {}", e1, e2)),

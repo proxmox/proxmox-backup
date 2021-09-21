@@ -20,11 +20,9 @@ use pbs_buildcfg;
 use pbs_tools::logrotate::{LogRotate, LogRotateFiles};
 use pbs_api_types::{Authid, TaskStateType, UPID};
 use pbs_config::{open_backup_lockfile, BackupLockGuard};
+use proxmox_rest_server::{CommandoSocket, FileLogger, FileLogOptions};
 
 use super::UPIDExt;
-
-use crate::server;
-use crate::tools::{FileLogger, FileLogOptions};
 
 macro_rules! taskdir {
     ($subdir:expr) => (concat!(pbs_buildcfg::PROXMOX_BACKUP_LOG_DIR_M!(), "/tasks", $subdir))
@@ -41,7 +39,7 @@ lazy_static! {
 
 /// checks if the task UPID refers to a worker from this process
 fn is_local_worker(upid: &UPID) -> bool {
-    upid.pid == server::pid() && upid.pstart == server::pstart()
+    upid.pid == crate::server::pid() && upid.pstart == crate::server::pstart()
 }
 
 /// Test if the task is still running
@@ -54,14 +52,14 @@ pub async fn worker_is_active(upid: &UPID) -> Result<bool, Error> {
         return Ok(false);
     }
 
-    let sock = server::ctrl_sock_from_pid(upid.pid);
+    let sock = crate::server::ctrl_sock_from_pid(upid.pid);
     let cmd = json!({
         "command": "worker-task-status",
         "args": {
             "upid": upid.to_string(),
         },
     });
-    let status = super::send_command(sock, &cmd).await?;
+    let status = proxmox_rest_server::send_command(sock, &cmd).await?;
 
     if let Some(active) = status.as_bool() {
         Ok(active)
@@ -84,7 +82,7 @@ pub fn worker_is_active_local(upid: &UPID) -> bool {
 }
 
 pub fn register_task_control_commands(
-    commando_sock: &mut super::CommandoSocket,
+    commando_sock: &mut CommandoSocket,
 ) -> Result<(), Error> {
     fn get_upid(args: Option<&Value>) -> Result<UPID, Error> {
         let args = if let Some(args) = args { args } else { bail!("missing args") };
@@ -128,14 +126,14 @@ pub fn abort_worker_async(upid: UPID) {
 
 pub async fn abort_worker(upid: UPID) -> Result<(), Error> {
 
-    let sock = server::ctrl_sock_from_pid(upid.pid);
+    let sock = crate::server::ctrl_sock_from_pid(upid.pid);
     let cmd = json!({
         "command": "worker-task-abort",
         "args": {
             "upid": upid.to_string(),
         },
     });
-    super::send_command(sock, &cmd).map_ok(|_| ()).await
+    proxmox_rest_server::send_command(sock, &cmd).map_ok(|_| ()).await
 }
 
 fn parse_worker_status_line(line: &str) -> Result<(String, UPID, Option<TaskState>), Error> {
@@ -579,7 +577,6 @@ impl Iterator for TaskListInfoIterator {
 /// task/future. Each task can `log()` messages, which are stored
 /// persistently to files. Task should poll the `abort_requested`
 /// flag, and stop execution when requested.
-#[derive(Debug)]
 pub struct WorkerTask {
     upid: UPID,
     data: Mutex<WorkerTaskData>,
@@ -593,7 +590,6 @@ impl std::fmt::Display for WorkerTask {
     }
 }
 
-#[derive(Debug)]
 struct WorkerTaskData {
     logger: FileLogger,
     progress: f64, // 0..1
@@ -642,7 +638,7 @@ impl WorkerTask {
         {
             let mut hash = WORKER_TASK_LIST.lock().unwrap();
             hash.insert(task_id, worker.clone());
-            super::set_worker_count(hash.len());
+            proxmox_rest_server::set_worker_count(hash.len());
         }
 
         update_active_workers(Some(&upid))?;
@@ -729,7 +725,7 @@ impl WorkerTask {
 
         WORKER_TASK_LIST.lock().unwrap().remove(&self.upid.task_id);
         let _ = update_active_workers(None);
-        super::set_worker_count(WORKER_TASK_LIST.lock().unwrap().len());
+        proxmox_rest_server::set_worker_count(WORKER_TASK_LIST.lock().unwrap().len());
     }
 
     /// Log a message.

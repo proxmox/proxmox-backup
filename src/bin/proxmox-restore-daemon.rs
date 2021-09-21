@@ -15,9 +15,11 @@ use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
 use proxmox::api::RpcEnvironmentType;
-use proxmox_backup::server::{rest::*, ApiConfig};
 
 use pbs_client::DEFAULT_VSOCK_PORT;
+use proxmox_rest_server::ApiConfig;
+
+use proxmox_backup::server::rest::*;
 
 mod proxmox_restore_daemon;
 use proxmox_restore_daemon::*;

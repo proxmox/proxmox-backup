@@ -1,5 +1,9 @@
-use anyhow::Error;
 use std::io::Write;
+
+use anyhow::Error;
+use nix::fcntl::OFlag;
+
+use proxmox::tools::fs::{CreateOptions, atomic_open_or_create_file};
 
 /// Log messages with optional automatically added timestamps into files
 ///
@@ -9,8 +13,7 @@ use std::io::Write;
 /// #### Example:
 /// ```
 /// # use anyhow::{bail, format_err, Error};
-/// use proxmox_backup::flog;
-/// use proxmox_backup::tools::{FileLogger, FileLogOptions};
+/// use proxmox_rest_server::{flog, FileLogger, FileLogOptions};
 ///
 /// # std::fs::remove_file("test.log");
 /// let options = FileLogOptions {
@@ -23,7 +26,7 @@ use std::io::Write;
 /// # std::fs::remove_file("test.log");
 /// ```
 
-#[derive(Debug, Default)]
+#[derive(Default)]
 /// Options to control the behavior of a ['FileLogger'] instance
 pub struct FileLogOptions {
     /// Open underlying log file in append mode, useful when multiple concurrent processes
@@ -39,13 +42,11 @@ pub struct FileLogOptions {
     pub to_stdout: bool,
     /// Prefix messages logged to the file with the current local time as RFC 3339
     pub prefix_time: bool,
-    /// if set, the file is tried to be chowned by the backup:backup user/group
-    /// Note, this is not designed race free as anybody could set it to another user afterwards
-    /// anyway. It must thus be used by all processes which doe not run as backup uid/gid.
-    pub owned_by_backup: bool,
+    /// File owner/group and mode
+    pub file_opts: CreateOptions,
+
 }
 
-#[derive(Debug)]
 pub struct FileLogger {
     file: std::fs::File,
     file_name: std::path::PathBuf,
@@ -82,18 +83,23 @@ impl FileLogger {
         file_name: P,
         options: &FileLogOptions,
     ) -> Result<std::fs::File, Error> {
-        let file = std::fs::OpenOptions::new()
-            .read(options.read)
-            .write(true)
-            .append(options.append)
-            .create_new(options.exclusive)
-            .create(!options.exclusive)
-            .open(&file_name)?;
 
-        if options.owned_by_backup {
-            let backup_user = pbs_config::backup_user()?;
-            nix::unistd::chown(file_name.as_ref(), Some(backup_user.uid), Some(backup_user.gid))?;
+        let mut flags = OFlag::O_CLOEXEC;
+
+        if options.read  {
+            flags |=  OFlag::O_RDWR;
+        } else {
+            flags |=  OFlag::O_WRONLY;
         }
+
+        if options.append {
+            flags |=  OFlag::O_APPEND;
+        }
+        if options.exclusive {
+            flags |=  OFlag::O_EXCL;
+        }
+
+        let file = atomic_open_or_create_file(&file_name, flags, &[], options.file_opts.clone())?;
 
         Ok(file)
     }
