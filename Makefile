@@ -45,7 +45,6 @@ SUBCRATES := \
 	pbs-tools \
 	proxmox-backup-banner \
 	proxmox-backup-client \
-	proxmox-backup-debug \
 	proxmox-file-restore \
 	proxmox-restore-daemon \
 	pxar-bin
@@ -180,7 +179,6 @@ $(COMPILED_BINS) $(COMPILEDIR)/dump-catalog-shell-cli $(COMPILEDIR)/docgen: .do-
 	    --bin proxmox-backup-banner \
 	    --package proxmox-backup-client \
 	    --bin proxmox-backup-client \
-	    --package proxmox-backup-debug \
 	    --bin proxmox-backup-debug \
 	    --package proxmox-file-restore \
 	    --bin proxmox-file-restore \

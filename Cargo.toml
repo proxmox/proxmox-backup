@@ -33,7 +33,6 @@ members = [
 
     "proxmox-backup-banner",
     "proxmox-backup-client",
-    "proxmox-backup-debug",
     "proxmox-file-restore",
     "proxmox-restore-daemon",
     "pxar-bin",

@@ -1,7 +1,7 @@
 use proxmox::api::cli::{run_cli_command, CliCommandMap, CliEnvironment};
 
-mod inspect;
-mod recover;
+mod proxmox_backup_debug;
+use proxmox_backup_debug::*;
 
 fn main() {
     let cmd_def = CliCommandMap::new()
