@@ -100,9 +100,8 @@ pub fn register_task_control_commands(
     commando_sock.register_command("worker-task-abort".into(), move |args| {
         let upid = get_upid(args)?;
 
-        if let Some(ref worker) = WORKER_TASK_LIST.lock().unwrap().get(&upid.task_id) {
-            worker.request_abort();
-        }
+        abort_local_worker(upid);
+
         Ok(Value::Null)
     })?;
     commando_sock.register_command("worker-task-status".into(), move |args| {
@@ -827,4 +826,11 @@ pub async fn wait_for_local_worker(upid_str: &str) -> Result<(), Error> {
         }
     }
     Ok(())
+}
+
+/// Request abort of a local worker (if existing and running)
+pub fn abort_local_worker(upid: UPID) {
+    if let Some(ref worker) = WORKER_TASK_LIST.lock().unwrap().get(&upid.task_id) {
+        worker.request_abort();
+    }
 }
