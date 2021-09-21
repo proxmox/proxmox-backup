@@ -952,11 +952,13 @@ pub fn prune_datastore(
 
     let datastore = DataStore::lookup_datastore(&store)?;
 
+    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
+
     let upid_str = WorkerTask::new_thread(
         "prune",
         Some(store.clone()),
         auth_id.clone(),
-        false,
+        to_stdout,
         move |worker| crate::server::prune_datastore(
             worker.clone(),
             auth_id,

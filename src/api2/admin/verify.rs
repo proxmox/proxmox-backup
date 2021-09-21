@@ -5,7 +5,7 @@ use serde_json::Value;
 
 use proxmox::api::router::SubdirMap;
 use proxmox::{list_subdirs_api_method, sortable};
-use proxmox::api::{api, ApiMethod, Permission, Router, RpcEnvironment};
+use proxmox::api::{api, ApiMethod, Permission, Router, RpcEnvironment, RpcEnvironmentType};
 
 use pbs_api_types::{
     VerificationJobConfig, VerificationJobStatus, JOB_ID_SCHEMA, Authid,
@@ -117,8 +117,9 @@ pub fn run_verification_job(
     user_info.check_privs(&auth_id, &["datastore", &verification_job.store], PRIV_DATASTORE_VERIFY, true)?;
 
     let job = Job::new("verificationjob", &id)?;
+    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
-    let upid_str = do_verification_job(job, verification_job, &auth_id, None)?;
+    let upid_str = do_verification_job(job, verification_job, &auth_id, None, to_stdout)?;
 
     Ok(upid_str)
 }

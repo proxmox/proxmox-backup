@@ -19,6 +19,7 @@ pub fn do_verification_job(
     verification_job: VerificationJobConfig,
     auth_id: &Authid,
     schedule: Option<String>,
+    to_stdout: bool,
 ) -> Result<String, Error> {
 
     let datastore = DataStore::lookup_datastore(&verification_job.store)?;
@@ -36,7 +37,7 @@ pub fn do_verification_job(
         &worker_type,
         Some(job_id.clone()),
         auth_id.clone(),
-        false,
+        to_stdout,
         move |worker| {
             job.start(&worker.upid().to_string())?;
 

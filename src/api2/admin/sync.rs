@@ -3,7 +3,7 @@
 use anyhow::{bail, format_err, Error};
 use serde_json::Value;
 
-use proxmox::api::{api, ApiMethod, Permission, Router, RpcEnvironment};
+use proxmox::api::{api, ApiMethod, Permission, Router, RpcEnvironment, RpcEnvironmentType};
 use proxmox::api::router::SubdirMap;
 use proxmox::{list_subdirs_api_method, sortable};
 
@@ -120,7 +120,9 @@ pub fn run_sync_job(
 
     let job = Job::new("syncjob", &id)?;
 
-    let upid_str = do_sync_job(job, sync_job, &auth_id, None)?;
+    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
+
+    let upid_str = do_sync_job(job, sync_job, &auth_id, None, to_stdout)?;
 
     Ok(upid_str)
 }

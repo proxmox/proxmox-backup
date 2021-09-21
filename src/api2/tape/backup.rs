@@ -164,6 +164,7 @@ pub fn do_tape_backup_job(
     setup: TapeBackupJobSetup,
     auth_id: &Authid,
     schedule: Option<String>,
+    to_stdout: bool,
 ) -> Result<String, Error> {
 
     let job_id = format!("{}:{}:{}:{}",
@@ -195,7 +196,7 @@ pub fn do_tape_backup_job(
         &worker_type,
         Some(job_id.clone()),
         auth_id.clone(),
-        false,
+        to_stdout,
         move |worker| {
             job.start(&worker.upid().to_string())?;
             let mut drive_lock = drive_lock;
@@ -307,7 +308,9 @@ pub fn run_tape_backup_job(
 
     let job = Job::new("tape-backup-job", &id)?;
 
-    let upid_str = do_tape_backup_job(job, backup_job.setup, &auth_id, None)?;
+    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
+
+    let upid_str = do_tape_backup_job(job, backup_job.setup, &auth_id, None, to_stdout)?;
 
     Ok(upid_str)
 }

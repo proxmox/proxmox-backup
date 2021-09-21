@@ -638,7 +638,7 @@ async fn schedule_datastore_sync_jobs() {
             };
 
             let auth_id = Authid::root_auth_id().clone();
-            if let Err(err) = do_sync_job(job, job_config, &auth_id, Some(event_str)) {
+            if let Err(err) = do_sync_job(job, job_config, &auth_id, Some(event_str), false) {
                 eprintln!("unable to start datastore sync job {} - {}", &job_id, err);
             }
         };
@@ -674,7 +674,7 @@ async fn schedule_datastore_verify_jobs() {
                 Ok(job) => job,
                 Err(_) => continue, // could not get lock
             };
-            if let Err(err) = do_verification_job(job, job_config, &auth_id, Some(event_str)) {
+            if let Err(err) = do_verification_job(job, job_config, &auth_id, Some(event_str), false) {
                 eprintln!("unable to start datastore verification job {} - {}", &job_id, err);
             }
         };
@@ -710,7 +710,7 @@ async fn schedule_tape_backup_jobs() {
                 Ok(job) => job,
                 Err(_) => continue, // could not get lock
             };
-            if let Err(err) = do_tape_backup_job(job, job_config.setup, &auth_id, Some(event_str)) {
+            if let Err(err) = do_tape_backup_job(job, job_config.setup, &auth_id, Some(event_str), false) {
                 eprintln!("unable to start tape backup job {} - {}", &job_id, err);
             }
         };

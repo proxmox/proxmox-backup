@@ -66,6 +66,7 @@ pub fn do_sync_job(
     sync_job: SyncJobConfig,
     auth_id: &Authid,
     schedule: Option<String>,
+    to_stdout: bool,
 ) -> Result<String, Error> {
 
     let job_id = format!("{}:{}:{}:{}",
@@ -81,7 +82,7 @@ pub fn do_sync_job(
         &worker_type,
         Some(job_id.clone()),
         auth_id.clone(),
-        false,
+        to_stdout,
         move |worker| async move {
 
             job.start(&worker.upid().to_string())?;

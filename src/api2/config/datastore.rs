@@ -4,7 +4,7 @@ use anyhow::{bail, Error};
 use serde_json::Value;
 use ::serde::{Deserialize, Serialize};
 
-use proxmox::api::{api, Router, RpcEnvironment, Permission};
+use proxmox::api::{api, Router, RpcEnvironment, RpcEnvironmentType, Permission};
 use proxmox::api::section_config::SectionConfigData;
 use proxmox::api::schema::{ApiType, parse_property_string};
 
@@ -114,12 +114,13 @@ pub fn create_datastore(
     }
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
     WorkerTask::new_thread(
         "create-datastore",
         Some(config.name.to_string()),
         auth_id,
-        false,
+        to_stdout,
         move |worker| do_create_datastore(lock, section_config, config, Some(&worker)),
     )
 }
