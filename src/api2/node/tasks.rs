@@ -116,6 +116,15 @@ fn check_task_access(auth_id: &Authid, upid: &UPID) -> Result<(), Error> {
     }
 }
 
+pub fn tasktype(state: &TaskState) -> TaskStateType {
+    match state {
+        TaskState::OK { .. } => TaskStateType::OK,
+        TaskState::Unknown { .. } => TaskStateType::Unknown,
+        TaskState::Error { .. } => TaskStateType::Error,
+        TaskState::Warning { .. } => TaskStateType::Warning,
+    }
+}
+
 #[api(
     input: {
         properties: {
@@ -492,7 +501,7 @@ pub fn list_tasks(
             (Some(_), _) if running => continue,
             (Some(crate::server::TaskState::OK { .. }), _) if errors => continue,
             (Some(state), Some(filters)) => {
-                if !filters.contains(&state.tasktype()) {
+                if !filters.contains(&tasktype(state)) {
                     continue;
                 }
             },

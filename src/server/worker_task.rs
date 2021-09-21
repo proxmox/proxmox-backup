@@ -18,7 +18,7 @@ use proxmox::tools::fs::{create_path, replace_file, CreateOptions};
 
 use pbs_buildcfg;
 use pbs_tools::logrotate::{LogRotate, LogRotateFiles};
-use pbs_api_types::{Authid, TaskStateType, UPID};
+use pbs_api_types::{Authid, UPID};
 use pbs_config::{open_backup_lockfile, BackupLockGuard};
 use proxmox_rest_server::{CommandoSocket, FileLogger, FileLogOptions};
 
@@ -240,15 +240,6 @@ impl TaskState {
             TaskState::OK { endtime } => endtime,
             TaskState::Warning { endtime, .. } => endtime,
             TaskState::Error { endtime, .. } => endtime,
-        }
-    }
-
-    pub fn tasktype(&self) -> TaskStateType {
-        match self {
-            TaskState::OK { .. } => TaskStateType::OK,
-            TaskState::Unknown { .. } => TaskStateType::Unknown,
-            TaskState::Error { .. } => TaskStateType::Error,
-            TaskState::Warning { .. } => TaskStateType::Warning,
         }
     }
 
