@@ -55,8 +55,6 @@ pub use worker_task::*;
 mod h2service;
 pub use h2service::*;
 
-pub mod formatter;
-
 #[macro_use]
 pub mod rest;
 

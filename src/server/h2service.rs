@@ -11,8 +11,9 @@ use hyper::{Body, Request, Response, StatusCode};
 use proxmox::api::{ApiResponseFuture, HttpError, Router, RpcEnvironment};
 use proxmox::http_err;
 
+use proxmox_rest_server::formatter::*;
+
 use crate::tools;
-use crate::server::formatter::*;
 use crate::server::WorkerTask;
 
 /// Hyper Service implementation to handle stateful H2 connections.

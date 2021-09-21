@@ -5,6 +5,7 @@ use anyhow::{bail, format_err, Error};
 use proxmox::tools::fd::Fd;
 
 pub mod daemon;
+pub mod formatter;
 
 mod environment;
 pub use environment::*;

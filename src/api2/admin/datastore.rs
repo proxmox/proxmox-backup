@@ -54,6 +54,7 @@ use pbs_tools::blocking::WrappedReaderStream;
 use pbs_tools::stream::{AsyncReaderStream, AsyncChannelWriter};
 use pbs_tools::json::{required_integer_param, required_string_param};
 use pbs_config::CachedUserInfo;
+use proxmox_rest_server::formatter;
 
 use crate::api2::node::rrd::create_value_from_rrd;
 use crate::backup::{
@@ -1326,7 +1327,7 @@ pub fn upload_backup_log(
         replace_file(&path, blob.raw_data(), CreateOptions::new())?;
 
         // fixme: use correct formatter
-        Ok(crate::server::formatter::json_response(Ok(Value::Null)))
+        Ok(formatter::json_response(Ok(Value::Null)))
     }.boxed()
 }
 

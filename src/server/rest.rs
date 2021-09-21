@@ -35,8 +35,7 @@ use pbs_tools::compression::{DeflateEncoder, Level};
 use pbs_tools::stream::AsyncReaderStream;
 use pbs_api_types::{Authid, Userid};
 use proxmox_rest_server::{ApiConfig, FileLogger, FileLogOptions, AuthError, RestEnvironment};
-
-use super::formatter::*;
+use proxmox_rest_server::formatter::*;
 
 use crate::auth_helpers::*;
 use pbs_config::CachedUserInfo;
