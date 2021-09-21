@@ -3,6 +3,7 @@ use std::os::unix::io::RawFd;
 use anyhow::{bail, format_err, Error};
 
 use proxmox::tools::fd::Fd;
+use proxmox::api::UserInformation;
 
 mod compression;
 pub use compression::*;
@@ -41,7 +42,7 @@ pub trait ApiAuth {
         &self,
         headers: &http::HeaderMap,
         method: &hyper::Method,
-    ) -> Result<String, AuthError>;
+    ) -> Result<(String, Box<dyn UserInformation + Sync + Send>), AuthError>;
 }
 
 static mut SHUTDOWN_REQUESTED: bool = false;

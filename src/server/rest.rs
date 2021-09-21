@@ -26,7 +26,7 @@ use proxmox::api::schema::{
 };
 use proxmox::api::{
     check_api_permission, ApiHandler, ApiMethod, HttpError, Permission, RpcEnvironment,
-    RpcEnvironmentType,
+    RpcEnvironmentType, UserInformation,
 };
 use proxmox::http_err;
 use proxmox::tools::fs::CreateOptions;
@@ -40,10 +40,16 @@ use proxmox_rest_server::{
 };
 use proxmox_rest_server::formatter::*;
 
-use pbs_config::CachedUserInfo;
-
 extern "C" {
     fn tzset();
+}
+
+struct EmptyUserInformation {}
+
+impl UserInformation for EmptyUserInformation {
+    fn is_superuser(&self, _userid: &str) -> bool { false }
+    fn is_group_member(&self, _userid: &str, _group: &str) -> bool { false }
+    fn lookup_privs(&self, _userid: &str, _path: &[&str]) -> u64 { 0 }
 }
 
 pub struct RestServer {
@@ -652,9 +658,14 @@ async fn handle_request(
                 }
             }
 
+            let mut user_info: Box<dyn UserInformation + Send + Sync> = Box::new(EmptyUserInformation {});
+
             if auth_required {
                 match auth.check_auth(&parts.headers, &method) {
-                    Ok(authid) => rpcenv.set_auth_id(Some(authid)),
+                    Ok((authid, info)) => {
+                        rpcenv.set_auth_id(Some(authid));
+                        user_info = info;
+                    }
                     Err(auth_err) => {
                         let err = match auth_err {
                             AuthError::Generic(err) => err,
@@ -683,7 +694,7 @@ async fn handle_request(
                 }
                 Some(api_method) => {
                     let auth_id = rpcenv.get_auth_id();
-                    let user_info = CachedUserInfo::new()?;
+                    let user_info = user_info;
 
                     if !check_api_permission(
                         api_method.access.permission,
@@ -727,7 +738,7 @@ async fn handle_request(
         if comp_len == 0 {
             let language = extract_lang_header(&parts.headers);
             match auth.check_auth(&parts.headers, &method) {
-                Ok(auth_id) => {
+                Ok((auth_id, _user_info)) => {
                     return Ok(api.get_index(Some(auth_id), language, parts));
                 }
                 Err(AuthError::Generic(_)) => {

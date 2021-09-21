@@ -3,6 +3,8 @@ use anyhow::format_err;
 
 use std::sync::Arc;
 
+use proxmox::api::UserInformation;
+
 use pbs_tools::ticket::{self, Ticket};
 use pbs_config::{token_shadow, CachedUserInfo};
 use pbs_api_types::{Authid, Userid};
@@ -56,11 +58,12 @@ impl UserApiAuth {
 }
 
 impl ApiAuth for UserApiAuth {
+
     fn check_auth(
         &self,
         headers: &http::HeaderMap,
         method: &hyper::Method,
-    ) -> Result<String, AuthError> {
+    ) -> Result<(String, Box<dyn UserInformation + Sync + Send>), AuthError> {
 
         let user_info = CachedUserInfo::new()?;
 
@@ -93,7 +96,7 @@ impl ApiAuth for UserApiAuth {
                     }
                 }
 
-                Ok(auth_id.to_string())
+                Ok((auth_id.to_string(), Box::new(user_info)))
             }
             Some(AuthData::ApiToken(api_token)) => {
                 let mut parts = api_token.splitn(2, ':');
@@ -115,7 +118,7 @@ impl ApiAuth for UserApiAuth {
 
                 token_shadow::verify_secret(&tokenid, &tokensecret)?;
 
-                Ok(tokenid.to_string())
+                Ok((tokenid.to_string(), Box::new(user_info)))
             }
             None => Err(AuthError::NoData),
         }

@@ -4,9 +4,21 @@ use std::io::prelude::*;
 
 use anyhow::{bail, format_err, Error};
 
+use proxmox::api::UserInformation;
+
 use proxmox_rest_server::{ApiAuth, AuthError};
 
 const TICKET_FILE: &str = "/ticket";
+
+struct SimpleUserInformation {}
+
+impl UserInformation for SimpleUserInformation {
+    fn is_superuser(&self, userid: &str) -> bool {
+        userid == "root@pam"
+    }
+    fn is_group_member(&self, _userid: &str, _group: &str) -> bool { false }
+    fn lookup_privs(&self, _userid: &str, _path: &[&str]) -> u64 { 0 }
+}
 
 pub struct StaticAuth {
     ticket: String,
@@ -17,10 +29,10 @@ impl ApiAuth for StaticAuth {
         &self,
         headers: &http::HeaderMap,
         _method: &hyper::Method,
-    ) -> Result<String, AuthError> {
+    ) -> Result<(String, Box<dyn UserInformation + Send + Sync>),  AuthError> {
         match headers.get(hyper::header::AUTHORIZATION) {
             Some(header) if header.to_str().unwrap_or("") == &self.ticket => {
-                Ok(String::from("root@pam"))
+                Ok((String::from("root@pam"), Box::new(SimpleUserInformation {})))
             }
             _ => {
                 return Err(AuthError::Generic(format_err!(
