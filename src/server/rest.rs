@@ -33,7 +33,6 @@ use proxmox::tools::fs::CreateOptions;
 
 use pbs_tools::compression::{DeflateEncoder, Level};
 use pbs_tools::stream::AsyncReaderStream;
-use pbs_api_types::Authid;
 use proxmox_rest_server::{
     ApiConfig, FileLogger, FileLogOptions, AuthError, RestEnvironment, CompressionMethod,
     extract_cookie, normalize_uri_path,
@@ -43,6 +42,8 @@ use proxmox_rest_server::formatter::*;
 extern "C" {
     fn tzset();
 }
+
+struct AuthStringExtension(String);
 
 struct EmptyUserInformation {}
 
@@ -176,8 +177,8 @@ fn log_response(
         );
     }
     if let Some(logfile) = logfile {
-        let auth_id = match resp.extensions().get::<Authid>() {
-            Some(auth_id) => auth_id.to_string(),
+        let auth_id = match resp.extensions().get::<AuthStringExtension>() {
+            Some(AuthStringExtension(auth_id)) => auth_id.clone(),
             None => "-".to_string(),
         };
         let now = proxmox::tools::time::epoch_i64();
@@ -198,6 +199,7 @@ fn log_response(
         ));
     }
 }
+
 pub fn auth_logger() -> Result<FileLogger, Error> {
     let backup_user = pbs_config::backup_user()?;
 
@@ -720,8 +722,7 @@ async fn handle_request(
                     };
 
                     if let Some(auth_id) = auth_id {
-                        let auth_id: Authid = auth_id.parse()?;
-                        response.extensions_mut().insert(auth_id);
+                        response.extensions_mut().insert(AuthStringExtension(auth_id));
                     }
 
                     return Ok(response);
