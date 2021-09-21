@@ -196,6 +196,13 @@ async fn run() -> Result<(), Error> {
 
     config.enable_file_log(
         pbs_buildcfg::API_ACCESS_LOG_FN,
+        Some(dir_opts.clone()),
+        Some(file_opts.clone()),
+        &mut commando_sock,
+    )?;
+
+    config.enable_auth_log(
+        pbs_buildcfg::API_AUTH_LOG_FN,
         Some(dir_opts),
         Some(file_opts),
         &mut commando_sock,
@@ -762,7 +769,7 @@ async fn schedule_task_log_rotate() {
 
                 if logrotate.rotate(max_size, None, Some(max_files))? {
                     println!("rotated access log, telling daemons to re-open log file");
-                    pbs_runtime::block_on(command_reopen_logfiles())?;
+                    pbs_runtime::block_on(command_reopen_access_logfiles())?;
                     worker.log("API access log was rotated".to_string());
                 } else {
                     worker.log("API access log was not rotated".to_string());
@@ -772,6 +779,8 @@ async fn schedule_task_log_rotate() {
                         .ok_or_else(|| format_err!("could not get API auth log file names"))?;
 
                 if logrotate.rotate(max_size, None, Some(max_files))? {
+                    println!("rotated auth log, telling daemons to re-open log file");
+                    pbs_runtime::block_on(command_reopen_auth_logfiles())?;
                     worker.log("API authentication log was rotated".to_string());
                 } else {
                     worker.log("API authentication log was not rotated".to_string());
@@ -794,7 +803,7 @@ async fn schedule_task_log_rotate() {
 
 }
 
-async fn command_reopen_logfiles() -> Result<(), Error> {
+async fn command_reopen_access_logfiles() -> Result<(), Error> {
     // only care about the most recent daemon instance for each, proxy & api, as other older ones
     // should not respond to new requests anyway, but only finish their current one and then exit.
     let sock = crate::server::our_ctrl_sock();
@@ -803,6 +812,24 @@ async fn command_reopen_logfiles() -> Result<(), Error> {
     let pid = crate::server::read_pid(pbs_buildcfg::PROXMOX_BACKUP_API_PID_FN)?;
     let sock = crate::server::ctrl_sock_from_pid(pid);
     let f2 = proxmox_rest_server::send_command(sock, "{\"command\":\"api-access-log-reopen\"}\n");
+
+    match futures::join!(f1, f2) {
+        (Err(e1), Err(e2)) => Err(format_err!("reopen commands failed, proxy: {}; api: {}", e1, e2)),
+        (Err(e1), Ok(_)) => Err(format_err!("reopen commands failed, proxy: {}", e1)),
+        (Ok(_), Err(e2)) => Err(format_err!("reopen commands failed, api: {}", e2)),
+        _ => Ok(()),
+    }
+}
+
+async fn command_reopen_auth_logfiles() -> Result<(), Error> {
+    // only care about the most recent daemon instance for each, proxy & api, as other older ones
+    // should not respond to new requests anyway, but only finish their current one and then exit.
+    let sock = crate::server::our_ctrl_sock();
+    let f1 = proxmox_rest_server::send_command(sock, "{\"command\":\"api-auth-log-reopen\"}\n");
+
+    let pid = crate::server::read_pid(pbs_buildcfg::PROXMOX_BACKUP_API_PID_FN)?;
+    let sock = crate::server::ctrl_sock_from_pid(pid);
+    let f2 = proxmox_rest_server::send_command(sock, "{\"command\":\"api-auth-log-reopen\"}\n");
 
     match futures::join!(f1, f2) {
         (Err(e1), Err(e2)) => Err(format_err!("reopen commands failed, proxy: {}; api: {}", e1, e2)),

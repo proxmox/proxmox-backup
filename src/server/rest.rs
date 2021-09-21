@@ -29,12 +29,11 @@ use proxmox::api::{
     RpcEnvironmentType, UserInformation,
 };
 use proxmox::http_err;
-use proxmox::tools::fs::CreateOptions;
 
 use pbs_tools::compression::{DeflateEncoder, Level};
 use pbs_tools::stream::AsyncReaderStream;
 use proxmox_rest_server::{
-    ApiConfig, FileLogger, FileLogOptions, AuthError, RestEnvironment, CompressionMethod,
+    ApiConfig, FileLogger, AuthError, RestEnvironment, CompressionMethod,
     extract_cookie, normalize_uri_path,
 };
 use proxmox_rest_server::formatter::*;
@@ -200,22 +199,6 @@ fn log_response(
     }
 }
 
-pub fn auth_logger() -> Result<FileLogger, Error> {
-    let backup_user = pbs_config::backup_user()?;
-
-    let file_opts = CreateOptions::new()
-        .owner(backup_user.uid)
-        .group(backup_user.gid);
-
-    let logger_options = FileLogOptions {
-        append: true,
-        prefix_time: true,
-        file_opts,
-        ..Default::default()
-    };
-    FileLogger::new(pbs_buildcfg::API_AUTH_LOG_FN, logger_options)
-}
-
 fn get_proxied_peer(headers: &HeaderMap) -> Option<std::net::SocketAddr> {
     lazy_static! {
         static ref RE: Regex = Regex::new(r#"for="([^"]+)""#).unwrap();
@@ -272,7 +255,7 @@ impl tower_service::Service<Request<Body>> for ApiService {
                         .body(err.into())?
                 }
             };
-            let logger = config.get_file_log();
+            let logger = config.get_access_log();
             log_response(logger, &peer, method, &path, &response, user_agent);
             Ok(response)
         }
@@ -631,7 +614,7 @@ async fn handle_request(
     }
 
     let env_type = api.env_type();
-    let mut rpcenv = RestEnvironment::new(env_type);
+    let mut rpcenv = RestEnvironment::new(env_type, Arc::clone(&api));
 
     rpcenv.set_client_ip(Some(*peer));
 
@@ -675,11 +658,8 @@ async fn handle_request(
                                 format_err!("no authentication credentials provided.")
                             }
                         };
-                        let peer = peer.ip();
-                        auth_logger()?.log(format!(
-                            "authentication failure; rhost={} msg={}",
-                            peer, err
-                        ));
+                        // fixme: log Username??
+                        rpcenv.log_failed_auth(None, &err.to_string());
 
                         // always delay unauthorized calls by 3 seconds (from start of request)
                         let err = http_err!(UNAUTHORIZED, "authentication failed - {}", err);

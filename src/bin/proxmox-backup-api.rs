@@ -96,10 +96,18 @@ async fn run() -> Result<(), Error> {
 
     config.enable_file_log(
         pbs_buildcfg::API_ACCESS_LOG_FN,
+        Some(dir_opts.clone()),
+        Some(file_opts.clone()),
+        &mut commando_sock,
+    )?;
+
+    config.enable_auth_log(
+        pbs_buildcfg::API_AUTH_LOG_FN,
         Some(dir_opts),
         Some(file_opts),
         &mut commando_sock,
     )?;
+
 
     let rest_server = RestServer::new(config);
 

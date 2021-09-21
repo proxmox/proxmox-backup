@@ -26,6 +26,7 @@ pub struct ApiConfig {
     templates: RwLock<Handlebars<'static>>,
     template_files: RwLock<HashMap<String, (SystemTime, PathBuf)>>,
     request_log: Option<Arc<Mutex<FileLogger>>>,
+    auth_log: Option<Arc<Mutex<FileLogger>>>,
     pub api_auth: Arc<dyn ApiAuth + Send + Sync>,
     get_index_fn: GetIndexFn,
 }
@@ -46,6 +47,7 @@ impl ApiConfig {
             templates: RwLock::new(Handlebars::new()),
             template_files: RwLock::new(HashMap::new()),
             request_log: None,
+            auth_log: None,
             api_auth,
             get_index_fn,
         })
@@ -172,7 +174,7 @@ impl ApiConfig {
         self.request_log = Some(Arc::clone(&request_log));
 
         commando_sock.register_command("api-access-log-reopen".into(), move |_args| {
-            println!("re-opening log file");
+            println!("re-opening access-log file");
             request_log.lock().unwrap().reopen()?;
             Ok(serde_json::Value::Null)
         })?;
@@ -180,7 +182,46 @@ impl ApiConfig {
         Ok(())
     }
 
-    pub fn get_file_log(&self) -> Option<&Arc<Mutex<FileLogger>>> {
+    pub fn enable_auth_log<P>(
+        &mut self,
+        path: P,
+        dir_opts: Option<CreateOptions>,
+        file_opts: Option<CreateOptions>,
+        commando_sock: &mut CommandoSocket,
+    ) -> Result<(), Error>
+    where
+        P: Into<PathBuf>
+    {
+        let path: PathBuf = path.into();
+        if let Some(base) = path.parent() {
+            if !base.exists() {
+                create_path(base, None, dir_opts).map_err(|err| format_err!("{}", err))?;
+            }
+        }
+
+        let logger_options = FileLogOptions {
+            append: true,
+            prefix_time: true,
+            file_opts: file_opts.unwrap_or(CreateOptions::default()),
+            ..Default::default()
+        };
+        let auth_log = Arc::new(Mutex::new(FileLogger::new(&path, logger_options)?));
+        self.auth_log = Some(Arc::clone(&auth_log));
+
+        commando_sock.register_command("api-auth-log-reopen".into(), move |_args| {
+            println!("re-opening auth-log file");
+            auth_log.lock().unwrap().reopen()?;
+            Ok(serde_json::Value::Null)
+        })?;
+
+        Ok(())
+    }
+
+    pub fn get_access_log(&self) -> Option<&Arc<Mutex<FileLogger>>> {
         self.request_log.as_ref()
+    }
+
+    pub fn get_auth_log(&self) -> Option<&Arc<Mutex<FileLogger>>> {
+        self.auth_log.as_ref()
     }
 }

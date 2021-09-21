@@ -12,7 +12,7 @@ use proxmox::{http_err, list_subdirs_api_method};
 use proxmox::{identity, sortable};
 
 use pbs_api_types::{
-    Userid, Authid, PASSWORD_SCHEMA, ACL_PATH_SCHEMA, 
+    Userid, Authid, PASSWORD_SCHEMA, ACL_PATH_SCHEMA,
     PRIVILEGES, PRIV_PERMISSIONS_MODIFY, PRIV_SYS_AUDIT,
 };
 use pbs_tools::auth::private_auth_key;
@@ -196,6 +196,12 @@ pub fn create_ticket(
     tfa_challenge: Option<String>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
+
+    use proxmox_rest_server::RestEnvironment;
+
+    let env: &RestEnvironment = rpcenv.as_any().downcast_ref::<RestEnvironment>()
+        .ok_or_else(|| format_err!("detected worng RpcEnvironment type"))?;
+
     match authenticate_user(&username, &password, path, privs, port, tfa_challenge) {
         Ok(AuthResult::Success) => Ok(json!({ "username": username })),
         Ok(AuthResult::CreateTicket) => {
@@ -203,8 +209,7 @@ pub fn create_ticket(
             let ticket = Ticket::new("PBS", &api_ticket)?.sign(private_auth_key(), None)?;
             let token = assemble_csrf_prevention_token(csrf_secret(), &username);
 
-            crate::server::rest::auth_logger()?
-                .log(format!("successful auth for user '{}'", username));
+            env.log_auth(username.as_str());
 
             Ok(json!({
                 "username": username,
@@ -223,20 +228,7 @@ pub fn create_ticket(
             }))
         }
         Err(err) => {
-            let client_ip = match rpcenv.get_client_ip().map(|addr| addr.ip()) {
-                Some(ip) => format!("{}", ip),
-                None => "unknown".into(),
-            };
-
-            let msg = format!(
-                "authentication failure; rhost={} user={} msg={}",
-                client_ip,
-                username,
-                err.to_string()
-            );
-            crate::server::rest::auth_logger()?.log(&msg);
-            log::error!("{}", msg);
-
+            env.log_failed_auth(Some(username.to_string()), &err.to_string());
             Err(http_err!(UNAUTHORIZED, "permission check failed."))
         }
     }

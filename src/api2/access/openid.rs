@@ -1,14 +1,13 @@
 //! OpenID redirect/login API
 use std::convert::TryFrom;
 
-use anyhow::{bail, Error};
+use anyhow::{bail, format_err, Error};
 
 use serde_json::{json, Value};
 
 use proxmox::api::router::{Router, SubdirMap};
 use proxmox::api::{api, Permission, RpcEnvironment};
-use proxmox::{list_subdirs_api_method};
-use proxmox::{identity, sortable};
+use proxmox::{http_err, list_subdirs_api_method, identity, sortable};
 
 use proxmox_openid::{OpenIdAuthenticator,  OpenIdConfig};
 
@@ -80,76 +79,95 @@ pub fn openid_login(
     state: String,
     code: String,
     redirect_url: String,
-    _rpcenv: &mut dyn RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
+    use proxmox_rest_server::RestEnvironment;
+
+    let env: &RestEnvironment = rpcenv.as_any().downcast_ref::<RestEnvironment>()
+        .ok_or_else(|| format_err!("detected worng RpcEnvironment type"))?;
+
     let user_info = CachedUserInfo::new()?;
 
-    let (realm, private_auth_state) =
-        OpenIdAuthenticator::verify_public_auth_state(PROXMOX_BACKUP_RUN_DIR_M!(), &state)?;
+    let mut tested_username = None;
 
-    let (domains, _digest) = pbs_config::domains::config()?;
-    let config: OpenIdRealmConfig = domains.lookup("openid", &realm)?;
+    let result = proxmox::try_block!({
 
-    let open_id = openid_authenticator(&config, &redirect_url)?;
+        let (realm, private_auth_state) =
+            OpenIdAuthenticator::verify_public_auth_state(PROXMOX_BACKUP_RUN_DIR_M!(), &state)?;
 
-    let info = open_id.verify_authorization_code(&code, &private_auth_state)?;
+        let (domains, _digest) = pbs_config::domains::config()?;
+        let config: OpenIdRealmConfig = domains.lookup("openid", &realm)?;
 
-    // eprintln!("VERIFIED {} {:?} {:?}", info.subject().as_str(), info.name(), info.email());
+        let open_id = openid_authenticator(&config, &redirect_url)?;
 
-    let unique_name = match config.username_claim {
-        None | Some(OpenIdUserAttribute::Subject) => info.subject().as_str(),
-        Some(OpenIdUserAttribute::Username) => {
-            match info.preferred_username() {
-                Some(name) => name.as_str(),
-                None => bail!("missing claim 'preferred_name'"),
+        let info = open_id.verify_authorization_code(&code, &private_auth_state)?;
+
+        // eprintln!("VERIFIED {} {:?} {:?}", info.subject().as_str(), info.name(), info.email());
+
+        let unique_name = match config.username_claim {
+            None | Some(OpenIdUserAttribute::Subject) => info.subject().as_str(),
+            Some(OpenIdUserAttribute::Username) => {
+                match info.preferred_username() {
+                    Some(name) => name.as_str(),
+                    None => bail!("missing claim 'preferred_name'"),
+                }
+            }
+            Some(OpenIdUserAttribute::Email) => {
+                match info.email() {
+                    Some(name) => name.as_str(),
+                    None => bail!("missing claim 'email'"),
+                }
+            }
+        };
+
+
+        let user_id = Userid::try_from(format!("{}@{}", unique_name, realm))?;
+        tested_username = Some(unique_name.to_string());
+
+        if !user_info.is_active_user_id(&user_id) {
+            if config.autocreate.unwrap_or(false) {
+                use pbs_config::user;
+                let _lock = open_backup_lockfile(user::USER_CFG_LOCKFILE, None, true)?;
+                let user = User {
+                    userid: user_id.clone(),
+                    comment: None,
+                    enable: None,
+                    expire: None,
+                    firstname: info.given_name().and_then(|n| n.get(None)).map(|n| n.to_string()),
+                    lastname: info.family_name().and_then(|n| n.get(None)).map(|n| n.to_string()),
+                    email: info.email().map(|e| e.to_string()),
+                };
+                let (mut config, _digest) = user::config()?;
+                if config.sections.get(user.userid.as_str()).is_some() {
+                    bail!("autocreate user failed - '{}' already exists.", user.userid);
+                }
+                config.set_data(user.userid.as_str(), "user", &user)?;
+                user::save_config(&config)?;
+            } else {
+                bail!("user account '{}' missing, disabled or expired.", user_id);
             }
         }
-        Some(OpenIdUserAttribute::Email) => {
-            match info.email() {
-                Some(name) => name.as_str(),
-                None => bail!("missing claim 'email'"),
-            }
-        }
-    };
 
-    let user_id = Userid::try_from(format!("{}@{}", unique_name, realm))?;
+        let api_ticket = ApiTicket::full(user_id.clone());
+        let ticket = Ticket::new("PBS", &api_ticket)?.sign(private_auth_key(), None)?;
+        let token = assemble_csrf_prevention_token(csrf_secret(), &user_id);
 
-    if !user_info.is_active_user_id(&user_id) {
-        if config.autocreate.unwrap_or(false) {
-            use pbs_config::user;
-            let _lock = open_backup_lockfile(user::USER_CFG_LOCKFILE, None, true)?;
-            let user = User {
-                userid: user_id.clone(),
-                comment: None,
-                enable: None,
-                expire: None,
-                firstname: info.given_name().and_then(|n| n.get(None)).map(|n| n.to_string()),
-                lastname: info.family_name().and_then(|n| n.get(None)).map(|n| n.to_string()),
-                email: info.email().map(|e| e.to_string()),
-            };
-            let (mut config, _digest) = user::config()?;
-            if config.sections.get(user.userid.as_str()).is_some() {
-                bail!("autocreate user failed - '{}' already exists.", user.userid);
-            }
-            config.set_data(user.userid.as_str(), "user", &user)?;
-            user::save_config(&config)?;
-        } else {
-            bail!("user account '{}' missing, disabled or expired.", user_id);
-        }
+        env.log_auth(user_id.as_str());
+
+        Ok(json!({
+            "username": user_id,
+            "ticket": ticket,
+            "CSRFPreventionToken": token,
+        }))
+    });
+
+    if let Err(ref err) = result {
+        let msg = err.to_string();
+        env.log_failed_auth(tested_username, &msg);
+        return Err(http_err!(UNAUTHORIZED, "{}", msg))
     }
 
-    let api_ticket = ApiTicket::full(user_id.clone());
-    let ticket = Ticket::new("PBS", &api_ticket)?.sign(private_auth_key(), None)?;
-    let token = assemble_csrf_prevention_token(csrf_secret(), &user_id);
-
-    crate::server::rest::auth_logger()?
-        .log(format!("successful auth for user '{}'", user_id));
-
-    Ok(json!({
-        "username": user_id,
-        "ticket": ticket,
-        "CSRFPreventionToken": token,
-    }))
+    result
 }
 
 #[api(
