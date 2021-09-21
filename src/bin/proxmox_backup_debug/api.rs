@@ -424,6 +424,7 @@ async fn get_api_children(
             path: {
                 type: String,
                 description: "API path.",
+                optional: true,
             },
             "output-format": {
                 schema: OUTPUT_FORMAT,
@@ -433,7 +434,7 @@ async fn get_api_children(
     },
 )]
 /// Get API usage information for <path>
-async fn ls(path: String, mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
+async fn ls(path: Option<String>, mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
     let output_format = extract_output_format(&mut param);
 
     let options = TableFormatOptions::new()
@@ -441,7 +442,7 @@ async fn ls(path: String, mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> 
         .noheader(true)
         .sortby("name", false);
 
-    let res = get_api_children(path, rpcenv).await?;
+    let res = get_api_children(path.unwrap_or(String::from("/")), rpcenv).await?;
 
     format_and_print_result_full(
         &mut serde_json::to_value(res)?,
