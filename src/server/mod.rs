@@ -46,9 +46,6 @@ pub fn our_ctrl_sock() -> String {
     ctrl_sock_from_pid(*PID)
 }
 
-mod environment;
-pub use environment::*;
-
 mod upid;
 pub use upid::*;
 

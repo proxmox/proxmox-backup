@@ -6,6 +6,9 @@ use proxmox::tools::fd::Fd;
 
 pub mod daemon;
 
+mod environment;
+pub use environment::*;
+
 mod state;
 pub use state::*;
 
