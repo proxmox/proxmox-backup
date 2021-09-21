@@ -11,9 +11,9 @@ use hyper::{Body, Request, Response, StatusCode};
 use proxmox::api::{ApiResponseFuture, HttpError, Router, RpcEnvironment};
 use proxmox::http_err;
 
+use proxmox_rest_server::normalize_uri_path;
 use proxmox_rest_server::formatter::*;
 
-use crate::tools;
 use crate::server::WorkerTask;
 
 /// Hyper Service implementation to handle stateful H2 connections.
@@ -44,7 +44,7 @@ impl <E: RpcEnvironment + Clone> H2Service<E> {
 
         let method = parts.method.clone();
 
-        let (path, components) = match tools::normalize_uri_path(parts.uri.path()) {
+        let (path, components) = match normalize_uri_path(parts.uri.path()) {
             Ok((p,c)) => (p, c),
             Err(err) => return future::err(http_err!(BAD_REQUEST, "{}", err)).boxed(),
         };

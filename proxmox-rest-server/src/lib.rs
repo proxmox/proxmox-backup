@@ -88,3 +88,50 @@ pub fn socketpair() -> Result<(Fd, Fd), Error> {
     Ok((Fd(pa), Fd(pb)))
 }
 
+
+/// Extract a specific cookie from cookie header.
+/// We assume cookie_name is already url encoded.
+pub fn extract_cookie(cookie: &str, cookie_name: &str) -> Option<String> {
+    for pair in cookie.split(';') {
+        let (name, value) = match pair.find('=') {
+            Some(i) => (pair[..i].trim(), pair[(i + 1)..].trim()),
+            None => return None, // Cookie format error
+        };
+
+        if name == cookie_name {
+            use percent_encoding::percent_decode;
+            if let Ok(value) = percent_decode(value.as_bytes()).decode_utf8() {
+                return Some(value.into());
+            } else {
+                return None; // Cookie format error
+            }
+        }
+    }
+
+    None
+}
+
+/// normalize uri path
+///
+/// Do not allow ".", "..", or hidden files ".XXXX"
+/// Also remove empty path components
+pub fn normalize_uri_path(path: &str) -> Result<(String, Vec<&str>), Error> {
+    let items = path.split('/');
+
+    let mut path = String::new();
+    let mut components = vec![];
+
+    for name in items {
+        if name.is_empty() {
+            continue;
+        }
+        if name.starts_with('.') {
+            bail!("Path contains illegal components.");
+        }
+        path.push('/');
+        path.push_str(name);
+        components.push(name);
+    }
+
+    Ok((path, components))
+}

@@ -36,13 +36,13 @@ use pbs_tools::stream::AsyncReaderStream;
 use pbs_api_types::{Authid, Userid};
 use proxmox_rest_server::{
     ApiConfig, FileLogger, FileLogOptions, AuthError, RestEnvironment, CompressionMethod,
+    extract_cookie, normalize_uri_path,
 };
 use proxmox_rest_server::formatter::*;
 
 use pbs_config::CachedUserInfo;
 
 use crate::auth_helpers::*;
-use crate::tools;
 
 extern "C" {
     fn tzset();
@@ -645,7 +645,7 @@ async fn handle_static_file_download(
 
 fn extract_lang_header(headers: &http::HeaderMap) -> Option<String> {
     if let Some(Ok(cookie)) = headers.get("COOKIE").map(|v| v.to_str()) {
-        return tools::extract_cookie(cookie, "PBSLangCookie");
+        return extract_cookie(cookie, "PBSLangCookie");
     }
     None
 }
@@ -669,7 +669,7 @@ async fn handle_request(
 ) -> Result<Response<Body>, Error> {
     let (parts, body) = req.into_parts();
     let method = parts.method.clone();
-    let (path, components) = tools::normalize_uri_path(parts.uri.path())?;
+    let (path, components) = normalize_uri_path(parts.uri.path())?;
 
     let comp_len = components.len();
 

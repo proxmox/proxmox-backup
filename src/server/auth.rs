@@ -6,10 +6,9 @@ use std::sync::Arc;
 use pbs_tools::ticket::{self, Ticket};
 use pbs_config::{token_shadow, CachedUserInfo};
 use pbs_api_types::{Authid, Userid};
-use proxmox_rest_server::{ApiAuth, AuthError};
+use proxmox_rest_server::{ApiAuth, AuthError, extract_cookie};
 
 use crate::auth_helpers::*;
-use crate::tools;
 
 use hyper::header;
 use percent_encoding::percent_decode_str;
@@ -33,7 +32,7 @@ impl UserApiAuth {
     fn extract_auth_data(headers: &http::HeaderMap) -> Option<AuthData> {
         if let Some(raw_cookie) = headers.get(header::COOKIE) {
             if let Ok(cookie) = raw_cookie.to_str() {
-                if let Some(ticket) = tools::extract_cookie(cookie, "PBSAuthCookie") {
+                if let Some(ticket) = extract_cookie(cookie, "PBSAuthCookie") {
                     let csrf_token = match headers.get("CSRFPreventionToken").map(|v| v.to_str()) {
                         Some(Ok(v)) => Some(v.to_owned()),
                         _ => None,
