@@ -40,7 +40,7 @@ SUBCRATES := \
 	pbs-fuse-loop \
 	pbs-runtime \
 	proxmox-rest-server \
-	pbs-systemd \
+	proxmox-systemd \
 	pbs-tape \
 	pbs-tools \
 	proxmox-backup-banner \

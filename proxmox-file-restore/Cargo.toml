@@ -24,5 +24,5 @@ pbs-config = { path = "../pbs-config" }
 pbs-client = { path = "../pbs-client" }
 pbs-datastore = { path = "../pbs-datastore" }
 pbs-runtime = { path = "../pbs-runtime" }
-pbs-systemd = { path = "../pbs-systemd" }
+proxmox-systemd = { path = "../proxmox-systemd" }
 pbs-tools = { path = "../pbs-tools" }

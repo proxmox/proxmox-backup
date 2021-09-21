@@ -102,8 +102,8 @@ fn test_media_expire_time() -> Result<(), Error> {
     let sl2= MediaSetLabel::with_data("p1", Uuid::generate(), 0, ctime + 120, None);
     let tape2_uuid = inventory.generate_used_tape("tape2", sl2, 0);
 
-    let event = pbs_systemd::time::parse_calendar_event("*:0/2")?;
-    let span = pbs_systemd::time::parse_time_span("120 seconds")?;
+    let event = proxmox_systemd::time::parse_calendar_event("*:0/2")?;
+    let span = proxmox_systemd::time::parse_time_span("120 seconds")?;
 
     let pool = MediaPool::new(
         "p1",

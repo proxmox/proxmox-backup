@@ -109,7 +109,7 @@ impl std::str::FromStr for UPID {
             let worker_id = if cap["wid"].is_empty() {
                 None
             } else {
-                let wid = pbs_systemd::unescape_unit(&cap["wid"])?;
+                let wid = proxmox_systemd::unescape_unit(&cap["wid"])?;
                 Some(wid)
             };
 
@@ -135,7 +135,7 @@ impl std::fmt::Display for UPID {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 
         let wid = if let Some(ref id) = self.worker_id {
-            pbs_systemd::escape_unit(id, false)
+            proxmox_systemd::escape_unit(id, false)
         } else {
             String::new()
         };

@@ -1,5 +1,5 @@
 [package]
-name = "pbs-systemd"
+name = "proxmox-systemd"
 version = "0.1.0"
 authors = ["Proxmox Support Team <support@proxmox.com>"]
 edition = "2018"

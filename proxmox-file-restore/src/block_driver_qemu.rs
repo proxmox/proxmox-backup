@@ -80,7 +80,7 @@ impl VMStateMap {
 
 fn make_name(repo: &BackupRepository, snap: &BackupDir) -> String {
     let full = format!("qemu_{}/{}", repo, snap);
-    pbs_systemd::escape_unit(&full, false)
+    proxmox_systemd::escape_unit(&full, false)
 }
 
 /// remove non-responsive VMs from given map, returns 'true' if map was modified
@@ -257,7 +257,7 @@ impl BlockRestoreDriver for QemuBlockDriver {
                 let resp = client
                     .get("api2/json/status", Some(json!({"keep-timeout": true})))
                     .await;
-                let name = pbs_systemd::unescape_unit(n)
+                let name = proxmox_systemd::unescape_unit(n)
                     .unwrap_or_else(|_| "<invalid name>".to_owned());
                 let mut extra = json!({"pid": s.pid, "cid": s.cid});
 
@@ -295,7 +295,7 @@ impl BlockRestoreDriver for QemuBlockDriver {
 
     fn stop(&self, id: String) -> Async<Result<(), Error>> {
         async move {
-            let name = pbs_systemd::escape_unit(&id, false);
+            let name = proxmox_systemd::escape_unit(&id, false);
             let mut map = VMStateMap::load()?;
             let map_mod = cleanup_map(&mut map.map).await;
             match map.map.get(&name) {
@@ -325,7 +325,7 @@ impl BlockRestoreDriver for QemuBlockDriver {
         match VMStateMap::load_read_only() {
             Ok(state) => state
                 .iter()
-                .filter_map(|(name, _)| pbs_systemd::unescape_unit(&name).ok())
+                .filter_map(|(name, _)| proxmox_systemd::unescape_unit(&name).ok())
                 .collect(),
             Err(_) => Vec::new(),
         }

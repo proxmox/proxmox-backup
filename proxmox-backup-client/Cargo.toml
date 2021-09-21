@@ -31,5 +31,5 @@ pbs-client = { path = "../pbs-client" }
 pbs-datastore = { path = "../pbs-datastore" }
 pbs-fuse-loop = { path = "../pbs-fuse-loop" }
 pbs-runtime = { path = "../pbs-runtime" }
-pbs-systemd = { path = "../pbs-systemd" }
+proxmox-systemd = { path = "../proxmox-systemd" }
 pbs-tools = { path = "../pbs-tools" }

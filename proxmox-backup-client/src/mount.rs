@@ -118,7 +118,7 @@ fn complete_mapping_names<S: BuildHasher>(_arg: &str, _param: &HashMap<String, S
     match pbs_fuse_loop::find_all_mappings() {
         Ok(mappings) => mappings
             .filter_map(|(name, _)| {
-                pbs_systemd::unescape_unit(&name).ok()
+                proxmox_systemd::unescape_unit(&name).ok()
             }).collect(),
         Err(_) => Vec::new()
     }
@@ -279,7 +279,7 @@ async fn mount_do(param: Value, pipe: Option<Fd>) -> Result<Value, Error> {
         let reader = CachedChunkReader::new(chunk_reader, index, 8).seekable();
 
         let name = &format!("{}:{}/{}", repo.to_string(), path, archive_name);
-        let name_escaped = pbs_systemd::escape_unit(name, false);
+        let name_escaped = proxmox_systemd::escape_unit(name, false);
 
         let mut session = pbs_fuse_loop::FuseLoopSession::map_loop(size, reader, &name_escaped, options).await?;
         let loopdev = session.loopdev_path.clone();
@@ -341,7 +341,7 @@ fn unmap(
             pbs_fuse_loop::cleanup_unused_run_files(None);
             let mut any = false;
             for (backing, loopdev) in pbs_fuse_loop::find_all_mappings()? {
-                let name = pbs_systemd::unescape_unit(&backing)?;
+                let name = proxmox_systemd::unescape_unit(&backing)?;
                 println!("{}:\t{}", loopdev.unwrap_or_else(|| "(unmapped)".to_string()), name);
                 any = true;
             }
@@ -360,7 +360,7 @@ fn unmap(
     if name.starts_with("/dev/loop") {
         pbs_fuse_loop::unmap_loopdev(name)?;
     } else {
-        let name = pbs_systemd::escape_unit(&name, false);
+        let name = proxmox_systemd::escape_unit(&name, false);
         pbs_fuse_loop::unmap_name(name)?;
     }
 

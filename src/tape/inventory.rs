@@ -39,7 +39,7 @@ use proxmox::tools::{
     },
 };
 
-use pbs_systemd::time::compute_next_event;
+use proxmox_systemd::time::compute_next_event;
 use pbs_config::BackupLockGuard;
 use pbs_api_types::{MediaSetPolicy, RetentionPolicy, MediaStatus, MediaLocation};
 

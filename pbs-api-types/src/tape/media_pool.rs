@@ -14,7 +14,7 @@ use proxmox::api::{
     schema::{Schema, StringSchema, ApiStringFormat, Updater},
 };
 
-use pbs_systemd::time::{parse_calendar_event, parse_time_span, CalendarEvent, TimeSpan};
+use proxmox_systemd::time::{parse_calendar_event, parse_time_span, CalendarEvent, TimeSpan};
 
 use crate::{
     PROXMOX_SAFE_ID_FORMAT,

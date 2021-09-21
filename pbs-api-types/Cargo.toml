@@ -16,5 +16,5 @@ serde = { version = "1.0", features = ["derive"] }
 
 proxmox = { version = "0.13.3", default-features = false, features = [ "api-macro" ] }
 
-pbs-systemd = { path = "../pbs-systemd" }
+proxmox-systemd = { path = "../proxmox-systemd" }
 pbs-tools = { path = "../pbs-tools" }
