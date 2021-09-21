@@ -1,6 +1,38 @@
-use anyhow::{bail, Error};
+use std::process::Command;
 
-use pbs_tools::run_command;
+use anyhow::{bail, format_err, Error};
+
+fn run_command(mut command: Command) -> Result<(), Error> {
+    let output = command
+        .output()
+        .map_err(|err| format_err!("failed to execute {:?} - {}", command, err))?;
+
+    proxmox::try_block!({
+        if !output.status.success() {
+            match output.status.code() {
+                Some(code) => {
+                    if code != 0 {
+                        let msg = String::from_utf8(output.stderr)
+                            .map(|m| {
+                                if m.is_empty() {
+                                    String::from("no error message")
+                                } else {
+                                    m
+                                }
+                            })
+                            .unwrap_or_else(|_| String::from("non utf8 error message (suppressed)"));
+
+                        bail!("status code: {} - {}", code, msg);
+                    }
+                }
+                None => bail!("terminated by signal"),
+            }
+        }
+        Ok(())
+    }).map_err(|err| format_err!("command {:?} failed - {}", command, err))?;
+
+    Ok(())
+}
 
 /// Escape strings for usage in systemd unit names
 pub fn escape_unit(mut unit: &str, is_path: bool) -> String {
@@ -88,7 +120,7 @@ pub fn reload_daemon() -> Result<(), Error> {
     let mut command = std::process::Command::new("systemctl");
     command.arg("daemon-reload");
 
-    run_command(command, None)?;
+    run_command(command)?;
 
     Ok(())
 }
@@ -98,7 +130,7 @@ pub fn disable_unit(unit: &str) -> Result<(), Error> {
     command.arg("disable");
     command.arg(unit);
 
-    run_command(command, None)?;
+    run_command(command)?;
 
     Ok(())
 }
@@ -108,7 +140,7 @@ pub fn enable_unit(unit: &str) -> Result<(), Error> {
     command.arg("enable");
     command.arg(unit);
 
-    run_command(command, None)?;
+    run_command(command)?;
 
     Ok(())
 }
@@ -118,7 +150,7 @@ pub fn start_unit(unit: &str) -> Result<(), Error> {
     command.arg("start");
     command.arg(unit);
 
-    run_command(command, None)?;
+    run_command(command)?;
 
     Ok(())
 }
@@ -128,7 +160,7 @@ pub fn stop_unit(unit: &str) -> Result<(), Error> {
     command.arg("stop");
     command.arg(unit);
 
-    run_command(command, None)?;
+    run_command(command)?;
 
     Ok(())
 }
@@ -138,7 +170,7 @@ pub fn reload_unit(unit: &str) -> Result<(), Error> {
     command.arg("try-reload-or-restart");
     command.arg(unit);
 
-    run_command(command, None)?;
+    run_command(command)?;
 
     Ok(())
 }
