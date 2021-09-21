@@ -5,7 +5,9 @@ use std::fs::metadata;
 use std::sync::{Arc, Mutex, RwLock};
 
 use anyhow::{bail, Error, format_err};
-use hyper::Method;
+use hyper::{Method, Body, Response};
+use hyper::http::request::Parts;
+
 use handlebars::Handlebars;
 use serde::Serialize;
 
@@ -13,6 +15,8 @@ use proxmox::api::{ApiMethod, Router, RpcEnvironmentType};
 use proxmox::tools::fs::{create_path, CreateOptions};
 
 use crate::{ApiAuth, FileLogger, FileLogOptions, CommandoSocket};
+
+pub type GetIndexFn = fn(Option<String>, Option<String>, &ApiConfig, Parts) -> Response<Body>;
 
 pub struct ApiConfig {
     basedir: PathBuf,
@@ -23,6 +27,7 @@ pub struct ApiConfig {
     template_files: RwLock<HashMap<String, (SystemTime, PathBuf)>>,
     request_log: Option<Arc<Mutex<FileLogger>>>,
     pub api_auth: Arc<dyn ApiAuth + Send + Sync>,
+    get_index_fn: GetIndexFn,
 }
 
 impl ApiConfig {
@@ -31,6 +36,7 @@ impl ApiConfig {
         router: &'static Router,
         env_type: RpcEnvironmentType,
         api_auth: Arc<dyn ApiAuth + Send + Sync>,
+        get_index_fn: GetIndexFn,
     ) -> Result<Self, Error> {
         Ok(Self {
             basedir: basedir.into(),
@@ -41,7 +47,17 @@ impl ApiConfig {
             template_files: RwLock::new(HashMap::new()),
             request_log: None,
             api_auth,
+            get_index_fn,
         })
+    }
+
+    pub fn get_index(
+        &self,
+        auth_id: Option<String>,
+        language: Option<String>,
+        parts: Parts,
+    ) -> Response<Body> {
+        (self.get_index_fn)(auth_id, language, self, parts)
     }
 
     pub fn find_method(

@@ -1,5 +1,9 @@
 use anyhow::{bail, Error};
 use futures::*;
+use http::request::Parts;
+use http::Response;
+use hyper::{Body, StatusCode};
+use hyper::header;
 
 use proxmox::try_block;
 use proxmox::api::RpcEnvironmentType;
@@ -25,6 +29,22 @@ fn main() {
         eprintln!("Error: {}", err);
         std::process::exit(-1);
     }
+}
+
+fn get_index(
+    _auth_id: Option<String>,
+    _language: Option<String>,
+    _api: &ApiConfig,
+    _parts: Parts,
+) -> Response<Body> {
+
+    let index = "<center><h1>Proxmox Backup API Server</h1></center>";
+
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "text/html")
+        .body(index.into())
+        .unwrap()
 }
 
 async fn run() -> Result<(), Error> {
@@ -65,6 +85,7 @@ async fn run() -> Result<(), Error> {
         &proxmox_backup::api2::ROUTER,
         RpcEnvironmentType::PRIVILEGED,
         default_api_auth(),
+        get_index,
     )?;
 
     let backup_user = pbs_config::backup_user()?;

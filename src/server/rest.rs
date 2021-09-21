@@ -15,7 +15,7 @@ use hyper::http::request::Parts;
 use hyper::{Body, Request, Response, StatusCode};
 use lazy_static::lazy_static;
 use regex::Regex;
-use serde_json::{json, Value};
+use serde_json::Value;
 use tokio::fs::File;
 use tokio::time::Instant;
 use url::form_urlencoded;
@@ -41,8 +41,6 @@ use proxmox_rest_server::{
 use proxmox_rest_server::formatter::*;
 
 use pbs_config::CachedUserInfo;
-
-use crate::auth_helpers::*;
 
 extern "C" {
     fn tzset();
@@ -468,78 +466,6 @@ pub async fn handle_api_request<Env: RpcEnvironment, S: 'static + BuildHasher + 
     Ok(resp)
 }
 
-fn get_index(
-    auth_id: Option<String>,
-    language: Option<String>,
-    api: &Arc<ApiConfig>,
-    parts: Parts,
-) -> Response<Body> {
-
-    let (userid, csrf_token) = match auth_id {
-        Some(auth_id) => {
-            let auth_id = auth_id.parse::<Authid>();
-            match auth_id {
-                Ok(auth_id) if !auth_id.is_token() => {
-                    let userid = auth_id.user().clone();
-                    let new_csrf_token = assemble_csrf_prevention_token(csrf_secret(), &userid);
-                    (Some(userid), Some(new_csrf_token))
-                }
-                _ => (None, None)
-            }
-        }
-        None => (None, None),
-    };
-
-    let nodename = proxmox::tools::nodename();
-    let user = userid.as_ref().map(|u| u.as_str()).unwrap_or("");
-
-    let csrf_token = csrf_token.unwrap_or_else(|| String::from(""));
-
-    let mut debug = false;
-    let mut template_file = "index";
-
-    if let Some(query_str) = parts.uri.query() {
-        for (k, v) in form_urlencoded::parse(query_str.as_bytes()).into_owned() {
-            if k == "debug" && v != "0" && v != "false" {
-                debug = true;
-            } else if k == "console" {
-                template_file = "console";
-            }
-        }
-    }
-
-    let mut lang = String::from("");
-    if let Some(language) = language {
-        if Path::new(&format!("/usr/share/pbs-i18n/pbs-lang-{}.js", language)).exists() {
-            lang = language;
-        }
-    }
-
-    let data = json!({
-        "NodeName": nodename,
-        "UserName": user,
-        "CSRFPreventionToken": csrf_token,
-        "language": lang,
-        "debug": debug,
-    });
-
-    let (ct, index) = match api.render_template(template_file, &data) {
-        Ok(index) => ("text/html", index),
-        Err(err) => ("text/plain", format!("Error rendering template: {}", err)),
-    };
-
-    let mut resp = Response::builder()
-        .status(StatusCode::OK)
-        .header(header::CONTENT_TYPE, ct)
-        .body(index.into())
-        .unwrap();
-
-    if let Some(userid) = userid {
-        resp.extensions_mut().insert(Authid::from((userid, None)));
-    }
-
-    resp
-}
 
 fn extension_to_content_type(filename: &Path) -> (&'static str, bool) {
     if let Some(ext) = filename.extension().and_then(|osstr| osstr.to_str()) {
@@ -802,14 +728,14 @@ async fn handle_request(
             let language = extract_lang_header(&parts.headers);
             match auth.check_auth(&parts.headers, &method) {
                 Ok(auth_id) => {
-                    return Ok(get_index(Some(auth_id), language, &api, parts));
+                    return Ok(api.get_index(Some(auth_id), language, parts));
                 }
                 Err(AuthError::Generic(_)) => {
                     tokio::time::sleep_until(Instant::from_std(delay_unauth_time)).await;
                 }
                 Err(AuthError::NoData) => {}
             }
-            return Ok(get_index(None, language, &api, parts));
+            return Ok(api.get_index(None, language, parts));
         } else {
             let filename = api.find_alias(&components);
             let compression = extract_compression_method(&parts.headers);

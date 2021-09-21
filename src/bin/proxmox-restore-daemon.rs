@@ -13,6 +13,10 @@ use lazy_static::lazy_static;
 use log::{error, info};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
+use http::request::Parts;
+use http::Response;
+use hyper::{Body, StatusCode};
+use hyper::header;
 
 use proxmox::api::RpcEnvironmentType;
 
@@ -89,13 +93,29 @@ fn setup_system_env() -> Result<(), Error> {
     Ok(())
 }
 
+fn get_index(
+    _auth_id: Option<String>,
+    _language: Option<String>,
+    _api: &ApiConfig,
+    _parts: Parts,
+) -> Response<Body> {
+
+    let index = "<center><h1>Proxmox Backup Restore Daemon/h1></center>";
+
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "text/html")
+        .body(index.into())
+        .unwrap()
+}
+
 async fn run() -> Result<(), Error> {
     watchdog_init();
 
     let auth_config = Arc::new(
         auth::ticket_auth().map_err(|err| format_err!("reading ticket file failed: {}", err))?,
     );
-    let config = ApiConfig::new("", &ROUTER, RpcEnvironmentType::PUBLIC, auth_config)?;
+    let config = ApiConfig::new("", &ROUTER, RpcEnvironmentType::PUBLIC, auth_config, get_index)?;
     let rest_server = RestServer::new(config);
 
     let vsock_fd = get_vsock_fd()?;

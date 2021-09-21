@@ -4,10 +4,15 @@ use std::os::unix::io::AsRawFd;
 
 use anyhow::{bail, format_err, Error};
 use futures::*;
+use http::request::Parts;
+use http::Response;
+use hyper::{Body, StatusCode};
+use hyper::header;
+use url::form_urlencoded;
 
 use openssl::ssl::{SslMethod, SslAcceptor, SslFiletype};
 use tokio_stream::wrappers::ReceiverStream;
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use proxmox::try_block;
 use proxmox::api::RpcEnvironmentType;
@@ -73,6 +78,79 @@ fn main() -> Result<(), Error> {
     pbs_runtime::main(run())
 }
 
+fn get_index(
+    auth_id: Option<String>,
+    language: Option<String>,
+    api: &ApiConfig,
+    parts: Parts,
+) -> Response<Body> {
+
+    let (userid, csrf_token) = match auth_id {
+        Some(auth_id) => {
+            let auth_id = auth_id.parse::<Authid>();
+            match auth_id {
+                Ok(auth_id) if !auth_id.is_token() => {
+                    let userid = auth_id.user().clone();
+                    let new_csrf_token = assemble_csrf_prevention_token(csrf_secret(), &userid);
+                    (Some(userid), Some(new_csrf_token))
+                }
+                _ => (None, None)
+            }
+        }
+        None => (None, None),
+    };
+
+    let nodename = proxmox::tools::nodename();
+    let user = userid.as_ref().map(|u| u.as_str()).unwrap_or("");
+
+    let csrf_token = csrf_token.unwrap_or_else(|| String::from(""));
+
+    let mut debug = false;
+    let mut template_file = "index";
+
+    if let Some(query_str) = parts.uri.query() {
+        for (k, v) in form_urlencoded::parse(query_str.as_bytes()).into_owned() {
+            if k == "debug" && v != "0" && v != "false" {
+                debug = true;
+            } else if k == "console" {
+                template_file = "console";
+            }
+        }
+    }
+
+    let mut lang = String::from("");
+    if let Some(language) = language {
+        if Path::new(&format!("/usr/share/pbs-i18n/pbs-lang-{}.js", language)).exists() {
+            lang = language;
+        }
+    }
+
+    let data = json!({
+        "NodeName": nodename,
+        "UserName": user,
+        "CSRFPreventionToken": csrf_token,
+        "language": lang,
+        "debug": debug,
+    });
+
+    let (ct, index) = match api.render_template(template_file, &data) {
+        Ok(index) => ("text/html", index),
+        Err(err) => ("text/plain", format!("Error rendering template: {}", err)),
+    };
+
+    let mut resp = Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, ct)
+        .body(index.into())
+        .unwrap();
+
+    if let Some(userid) = userid {
+        resp.extensions_mut().insert(Authid::from((userid, None)));
+    }
+
+    resp
+}
+
 async fn run() -> Result<(), Error> {
     if let Err(err) = syslog::init(
         syslog::Facility::LOG_DAEMON,
@@ -93,6 +171,7 @@ async fn run() -> Result<(), Error> {
         &proxmox_backup::api2::ROUTER,
         RpcEnvironmentType::PUBLIC,
         default_api_auth(),
+        get_index,
     )?;
 
     config.add_alias("novnc", "/usr/share/novnc-pve");
