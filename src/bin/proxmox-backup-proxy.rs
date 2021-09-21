@@ -19,14 +19,13 @@ use proxmox::api::RpcEnvironmentType;
 use proxmox::sys::linux::socket::set_tcp_keepalive;
 use proxmox::tools::fs::CreateOptions;
 
-use proxmox_rest_server::ApiConfig;
+use proxmox_rest_server::{ApiConfig, RestServer};
 
 use proxmox_backup::{
     backup::DataStore,
     server::{
         auth::default_api_auth,
         WorkerTask,
-        rest::*,
         jobstate::{
             self,
             Job,

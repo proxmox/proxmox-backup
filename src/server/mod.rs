@@ -55,9 +55,6 @@ pub use worker_task::*;
 mod h2service;
 pub use h2service::*;
 
-#[macro_use]
-pub mod rest;
-
 pub mod jobstate;
 
 mod verify_job;

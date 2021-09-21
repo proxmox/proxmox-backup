@@ -61,7 +61,7 @@ impl <E: RpcEnvironment + Clone> H2Service<E> {
                 future::ok((formatter.format_error)(err)).boxed()
             }
             Some(api_method) => {
-                crate::server::rest::handle_api_request(
+                proxmox_rest_server::handle_api_request(
                     self.rpcenv.clone(), api_method, formatter, parts, body, uri_param).boxed()
             }
         }

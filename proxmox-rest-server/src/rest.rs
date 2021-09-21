@@ -32,11 +32,11 @@ use proxmox::http_err;
 
 use pbs_tools::compression::{DeflateEncoder, Level};
 use pbs_tools::stream::AsyncReaderStream;
-use proxmox_rest_server::{
+
+use crate::{
     ApiConfig, FileLogger, AuthError, RestEnvironment, CompressionMethod,
-    extract_cookie, normalize_uri_path,
+    extract_cookie, normalize_uri_path, formatter::*,
 };
-use proxmox_rest_server::formatter::*;
 
 extern "C" {
     fn tzset();

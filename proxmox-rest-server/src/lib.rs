@@ -26,6 +26,9 @@ pub use file_logger::{FileLogger, FileLogOptions};
 mod api_config;
 pub use api_config::ApiConfig;
 
+mod rest;
+pub use rest::{RestServer, handle_api_request};
+
 pub enum AuthError {
     Generic(Error),
     NoData,

@@ -10,12 +10,11 @@ use proxmox::api::RpcEnvironmentType;
 use proxmox::tools::fs::CreateOptions;
 
 use pbs_tools::auth::private_auth_key;
-use proxmox_rest_server::ApiConfig;
+use proxmox_rest_server::{ApiConfig, RestServer};
 
 use proxmox_backup::server::{
     self,
     auth::default_api_auth,
-    rest::*,
 };
 use proxmox_rest_server::daemon;
 

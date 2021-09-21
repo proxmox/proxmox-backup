@@ -16,9 +16,13 @@ libc = "0.2"
 log = "0.4"
 nix = "0.19.1"
 percent-encoding = "2.1"
+regex = "1.2"
 serde = { version = "1.0", features = [] }
 serde_json = "1.0"
 tokio = { version = "1.6", features = ["signal", "process"] }
+tokio-openssl = "0.6.1"
+tower-service = "0.3.0"
+url = "2.1"
 
 proxmox = { version = "0.13.3", features = [ "router"] }
 

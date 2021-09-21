@@ -21,9 +21,7 @@ use hyper::header;
 use proxmox::api::RpcEnvironmentType;
 
 use pbs_client::DEFAULT_VSOCK_PORT;
-use proxmox_rest_server::ApiConfig;
-
-use proxmox_backup::server::rest::*;
+use proxmox_rest_server::{ApiConfig, RestServer};
 
 mod proxmox_restore_daemon;
 use proxmox_restore_daemon::*;
