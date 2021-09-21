@@ -198,15 +198,15 @@ pub fn user_commands() -> CommandLineInterface {
         .insert(
             "generate-token",
             CliCommand::new(&api2::access::user::API_METHOD_GENERATE_TOKEN)
-                .arg_param(&["userid", "tokenname"])
+                .arg_param(&["userid", "token-name"])
                 .completion_cb("userid", pbs_config::user::complete_userid)
         )
         .insert(
             "delete-token",
             CliCommand::new(&api2::access::user::API_METHOD_DELETE_TOKEN)
-                .arg_param(&["userid", "tokenname"])
+                .arg_param(&["userid", "token-name"])
                 .completion_cb("userid", pbs_config::user::complete_userid)
-                .completion_cb("tokenname", pbs_config::user::complete_token_name)
+                .completion_cb("token-name", pbs_config::user::complete_token_name)
         )
         .insert(
             "permissions",

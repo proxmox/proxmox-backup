@@ -395,7 +395,7 @@ pub fn delete_user(userid: Userid, digest: Option<String>) -> Result<(), Error> 
             userid: {
                 type: Userid,
             },
-            tokenname: {
+            "token-name": {
                 type: Tokenname,
             },
         },
@@ -411,14 +411,14 @@ pub fn delete_user(userid: Userid, digest: Option<String>) -> Result<(), Error> 
 /// Read user's API token metadata
 pub fn read_token(
     userid: Userid,
-    tokenname: Tokenname,
+    token_name: Tokenname,
     _info: &ApiMethod,
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<ApiToken, Error> {
 
     let (config, digest) = pbs_config::user::config()?;
 
-    let tokenid = Authid::from((userid, Some(tokenname)));
+    let tokenid = Authid::from((userid, Some(token_name)));
 
     rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
     config.lookup("token", &tokenid.to_string())
@@ -431,7 +431,7 @@ pub fn read_token(
             userid: {
                 type: Userid,
             },
-            tokenname: {
+            "token-name": {
                 type: Tokenname,
             },
             comment: {
@@ -475,7 +475,7 @@ pub fn read_token(
 /// Generate a new API token with given metadata
 pub fn generate_token(
     userid: Userid,
-    tokenname: Tokenname,
+    token_name: Tokenname,
     comment: Option<String>,
     enable: Option<bool>,
     expire: Option<i64>,
@@ -491,11 +491,11 @@ pub fn generate_token(
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 
-    let tokenid = Authid::from((userid.clone(), Some(tokenname.clone())));
+    let tokenid = Authid::from((userid.clone(), Some(token_name.clone())));
     let tokenid_string = tokenid.to_string();
 
     if config.sections.get(&tokenid_string).is_some() {
-        bail!("token '{}' for user '{}' already exists.", tokenname.as_str(), userid);
+        bail!("token '{}' for user '{}' already exists.", token_name.as_str(), userid);
     }
 
     let secret = format!("{:x}", proxmox::tools::uuid::Uuid::generate());
@@ -525,7 +525,7 @@ pub fn generate_token(
             userid: {
                 type: Userid,
             },
-            tokenname: {
+            "token-name": {
                 type: Tokenname,
             },
             comment: {
@@ -556,7 +556,7 @@ pub fn generate_token(
 /// Update user's API token metadata
 pub fn update_token(
     userid: Userid,
-    tokenname: Tokenname,
+    token_name: Tokenname,
     comment: Option<String>,
     enable: Option<bool>,
     expire: Option<i64>,
@@ -572,7 +572,7 @@ pub fn update_token(
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 
-    let tokenid = Authid::from((userid, Some(tokenname)));
+    let tokenid = Authid::from((userid, Some(token_name)));
     let tokenid_string = tokenid.to_string();
 
     let mut data: ApiToken = config.lookup("token", &tokenid_string)?;
@@ -608,7 +608,7 @@ pub fn update_token(
             userid: {
                 type: Userid,
             },
-            tokenname: {
+            "token-name": {
                 type: Tokenname,
             },
             digest: {
@@ -627,7 +627,7 @@ pub fn update_token(
 /// Delete a user's API token
 pub fn delete_token(
     userid: Userid,
-    tokenname: Tokenname,
+    token_name: Tokenname,
     digest: Option<String>,
 ) -> Result<(), Error> {
 
@@ -640,12 +640,12 @@ pub fn delete_token(
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 
-    let tokenid = Authid::from((userid.clone(), Some(tokenname.clone())));
+    let tokenid = Authid::from((userid.clone(), Some(token_name.clone())));
     let tokenid_string = tokenid.to_string();
 
     match config.sections.get(&tokenid_string) {
         Some(_) => { config.sections.remove(&tokenid_string); },
-        None => bail!("token '{}' of user '{}' does not exist.", tokenname.as_str(), userid),
+        None => bail!("token '{}' of user '{}' does not exist.", token_name.as_str(), userid),
     }
 
     token_shadow::delete_secret(&tokenid)?;
@@ -653,6 +653,22 @@ pub fn delete_token(
     pbs_config::user::save_config(&config)?;
 
     Ok(())
+}
+
+#[api(
+    properties: {
+        "token-name": { type: Tokenname },
+        token: { type: ApiToken },
+    }
+)]
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all="kebab-case")]
+/// A Token Entry that contains the token-name
+pub struct TokenApiEntry {
+    /// The Token name
+    pub token_name: Tokenname,
+    #[serde(flatten)]
+    pub token: ApiToken,
 }
 
 #[api(
@@ -666,7 +682,7 @@ pub fn delete_token(
     returns: {
         description: "List user's API tokens (with config digest).",
         type: Array,
-        items: { type: ApiToken },
+        items: { type: TokenApiEntry },
     },
     access: {
         permission: &Permission::Or(&[
@@ -680,7 +696,7 @@ pub fn list_tokens(
     userid: Userid,
     _info: &ApiMethod,
     mut rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Vec<ApiToken>, Error> {
+) -> Result<Vec<TokenApiEntry>, Error> {
 
     let (config, digest) = pbs_config::user::config()?;
 
@@ -688,15 +704,21 @@ pub fn list_tokens(
 
     rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
 
-    let filter_by_owner = |token: &ApiToken| {
-        if token.tokenid.is_token() {
-           token.tokenid.user() == &userid
+    let filter_by_owner = |token: ApiToken| {
+        if token.tokenid.is_token() && token.tokenid.user() == &userid {
+            let token_name = token.tokenid.tokenname().unwrap().to_owned();
+            Some(TokenApiEntry {
+                token_name,
+                token,
+            })
         } else {
-            false
+            None
         }
     };
 
-    Ok(list.into_iter().filter(filter_by_owner).collect())
+    let res = list.into_iter().filter_map(filter_by_owner).collect();
+
+    Ok(res)
 }
 
 const TOKEN_ITEM_ROUTER: Router = Router::new()
@@ -707,7 +729,7 @@ const TOKEN_ITEM_ROUTER: Router = Router::new()
 
 const TOKEN_ROUTER: Router = Router::new()
     .get(&API_METHOD_LIST_TOKENS)
-    .match_all("tokenname", &TOKEN_ITEM_ROUTER);
+    .match_all("token-name", &TOKEN_ITEM_ROUTER);
 
 const USER_SUBDIRS: SubdirMap = &[
     ("token", &TOKEN_ROUTER),
