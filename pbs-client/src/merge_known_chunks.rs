@@ -3,7 +3,7 @@ use std::task::{Context, Poll};
 
 use anyhow::Error;
 use futures::{ready, Stream};
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
 use pbs_datastore::data_blob::ChunkInfo;
 
@@ -16,11 +16,12 @@ pub trait MergeKnownChunks: Sized {
     fn merge_known_chunks(self) -> MergeKnownChunksQueue<Self>;
 }
 
-#[pin_project]
-pub struct MergeKnownChunksQueue<S> {
-    #[pin]
-    input: S,
-    buffer: Option<MergedChunkInfo>,
+pin_project! {
+    pub struct MergeKnownChunksQueue<S> {
+        #[pin]
+        input: S,
+        buffer: Option<MergedChunkInfo>,
+    }
 }
 
 impl<S> MergeKnownChunks for S

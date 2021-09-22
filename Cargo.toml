@@ -68,8 +68,6 @@ openssl = "0.10"
 pam = "0.7"
 pam-sys = "0.5"
 percent-encoding = "2.1"
-pin-utils = "0.1.0"
-pin-project = "1.0"
 regex = "1.2"
 rustyline = "7"
 serde = { version = "1.0", features = ["derive"] }

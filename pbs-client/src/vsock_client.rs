@@ -8,7 +8,7 @@ use http::{Request, Response};
 use hyper::client::connect::{Connected, Connection};
 use hyper::client::Client;
 use hyper::Body;
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 use serde_json::Value;
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt, ReadBuf};
 use tokio::net::UnixStream;
@@ -20,11 +20,12 @@ pub const DEFAULT_VSOCK_PORT: u16 = 807;
 #[derive(Clone)]
 struct VsockConnector;
 
-#[pin_project]
-/// Wrapper around UnixStream so we can implement hyper::client::connect::Connection
-struct UnixConnection {
-    #[pin]
-    stream: UnixStream,
+pin_project! {
+    /// Wrapper around UnixStream so we can implement hyper::client::connect::Connection
+    struct UnixConnection {
+        #[pin]
+        stream: UnixStream,
+    }
 }
 
 impl tower_service::Service<Uri> for VsockConnector {
