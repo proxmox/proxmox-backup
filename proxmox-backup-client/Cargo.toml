@@ -22,7 +22,7 @@ zstd = { version = "0.6", features = [ "bindgen" ] }
 pathpatterns = "0.1.2"
 pxar = { version = "0.10.1", features = [ "tokio-io" ] }
 
-proxmox = { version = "0.13.3", features = [ "sortable-macro", "api-macro", "cli", "router" ] }
+proxmox = { version = "0.13.4", features = [ "sortable-macro", "api-macro", "cli", "router" ] }
 
 pbs-api-types = { path = "../pbs-api-types" }
 pbs-buildcfg = { path = "../pbs-buildcfg" }
@@ -31,5 +31,4 @@ pbs-client = { path = "../pbs-client" }
 pbs-datastore = { path = "../pbs-datastore" }
 pbs-fuse-loop = { path = "../pbs-fuse-loop" }
 pbs-runtime = { path = "../pbs-runtime" }
-proxmox-systemd = { path = "../proxmox-systemd" }
 pbs-tools = { path = "../pbs-tools" }

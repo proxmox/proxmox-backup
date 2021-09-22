@@ -23,7 +23,7 @@ zstd = { version = "0.6", features = [ "bindgen" ] }
 pathpatterns = "0.1.2"
 pxar = "0.10.1"
 
-proxmox = { version = "0.13.3", default-features = false, features = [ "api-macro" ] }
+proxmox = { version = "0.13.4", default-features = false, features = [ "api-macro" ] }
 
 pbs-api-types = { path = "../pbs-api-types" }
 pbs-tools = { path = "../pbs-tools" }

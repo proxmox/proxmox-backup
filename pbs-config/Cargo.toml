@@ -16,7 +16,7 @@ nix = "0.19.1"
 regex = "1.2"
 once_cell = "1.3.1"
 
-proxmox = { version = "0.13.3", default-features = false, features = [ "cli" ] }
+proxmox = { version = "0.13.4", default-features = false, features = [ "cli" ] }
 
 pbs-api-types = { path = "../pbs-api-types" }
 pbs-buildcfg = { path = "../pbs-buildcfg" }

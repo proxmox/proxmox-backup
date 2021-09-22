@@ -26,7 +26,7 @@ tokio-util = { version = "0.6", features = [ "codec", "io" ] }
 pathpatterns = "0.1.2"
 pxar = { version = "0.10.1", features = [ "tokio-io" ] }
 
-proxmox = { version = "0.13.3", features = [ "router", "sortable-macro" ] }
+proxmox = { version = "0.13.4", features = [ "router", "sortable-macro" ] }
 
 pbs-api-types = { path = "../pbs-api-types" }
 pbs-runtime = { path = "../pbs-runtime" }

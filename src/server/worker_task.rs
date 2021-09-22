@@ -18,9 +18,9 @@ use once_cell::sync::OnceCell;
 use proxmox::sys::linux::procfs;
 use proxmox::try_block;
 use proxmox::tools::fs::{create_path, replace_file, atomic_open_or_create_file, CreateOptions};
+use proxmox::api::upid::UPID;
 
 use pbs_tools::logrotate::{LogRotate, LogRotateFiles};
-use pbs_api_types::UPID;
 use proxmox_rest_server::{CommandoSocket, FileLogger, FileLogOptions};
 
 struct TaskListLockGuard(File);

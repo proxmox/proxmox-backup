@@ -271,7 +271,7 @@ pub fn create_zpool(
             worker.log(output);
 
             if std::path::Path::new("/lib/systemd/system/zfs-import@.service").exists() {
-                let import_unit = format!("zfs-import@{}.service", proxmox_systemd::escape_unit(&name, false));
+                let import_unit = format!("zfs-import@{}.service", proxmox::tools::systemd::escape_unit(&name, false));
                 proxmox_systemd::enable_unit(&import_unit)?;
             }
 
