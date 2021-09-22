@@ -171,10 +171,6 @@ cargo-build:
 $(COMPILED_BINS) $(COMPILEDIR)/dump-catalog-shell-cli $(COMPILEDIR)/docgen: .do-cargo-build
 .do-cargo-build:
 	$(CARGO) build $(CARGO_BUILD_ARGS) \
-	    --bin proxmox-backup-api \
-	    --bin proxmox-backup-proxy \
-	    --bin proxmox-backup-manager \
-	    --bin docgen \
 	    --package proxmox-backup-banner \
 	    --bin proxmox-backup-banner \
 	    --package proxmox-backup-client \
@@ -191,6 +187,10 @@ $(COMPILED_BINS) $(COMPILEDIR)/dump-catalog-shell-cli $(COMPILEDIR)/docgen: .do-
 	    --package proxmox-restore-daemon \
 	    --bin proxmox-restore-daemon \
 	    --package proxmox-backup \
+	    --bin docgen \
+	    --bin proxmox-backup-api \
+	    --bin proxmox-backup-manager \
+	    --bin proxmox-backup-proxy \
 	    --bin proxmox-daily-update \
 	    --bin proxmox-file-restore \
 	    --bin proxmox-tape \
