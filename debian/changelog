@@ -1,3 +1,25 @@
+rust-proxmox-backup (2.0.10-1) UNRELEASED; urgency=medium
+
+  * ui: fix order of prune keep reasons
+
+  * server: add proxmox-backup-debug binary with chunk/file inspection, an API
+    shell with completion support
+
+  * restructured code base to reduce linkage and libraray ABI version
+    constraints for all non-server binaries (client, pxar, file-restore)
+
+  * zsh: fix passign parameters in auto-completion scripts
+
+  * tape: also add 'force-media-set' to availablea CLI options
+
+  * api: nodes: add missing node list (index) api endpoint
+
+  * docs: proxmox-backup-debug: add info about the  new 'api' subcommand
+
+  * docs/technical-overview: add troubleshooting section
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 21 Sep 2021 14:00:48 +0200
+
 rust-proxmox-backup (2.0.9-2) bullseye; urgency=medium
 
   * tape backup: mention groups that were empty
