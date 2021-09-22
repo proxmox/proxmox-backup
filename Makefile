@@ -179,6 +179,7 @@ $(COMPILED_BINS) $(COMPILEDIR)/dump-catalog-shell-cli $(COMPILEDIR)/docgen: .do-
 	    --bin proxmox-backup-banner \
 	    --package proxmox-backup-client \
 	    --bin proxmox-backup-client \
+	    --bin dump-catalog-shell-cli \
 	    --bin proxmox-backup-debug \
 	    --package proxmox-file-restore \
 	    --bin proxmox-file-restore \
@@ -190,7 +191,6 @@ $(COMPILED_BINS) $(COMPILEDIR)/dump-catalog-shell-cli $(COMPILEDIR)/docgen: .do-
 	    --package proxmox-restore-daemon \
 	    --bin proxmox-restore-daemon \
 	    --package proxmox-backup \
-	    --bin dump-catalog-shell-cli \
 	    --bin proxmox-daily-update \
 	    --bin proxmox-file-restore \
 	    --bin proxmox-tape \
