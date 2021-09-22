@@ -46,9 +46,6 @@ pub fn our_ctrl_sock() -> String {
     ctrl_sock_from_pid(*PID)
 }
 
-mod upid;
-pub use upid::*;
-
 mod worker_task;
 pub use worker_task::*;
 

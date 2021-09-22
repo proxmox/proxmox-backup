@@ -16,7 +16,7 @@ use pbs_api_types::{
 };
 
 use crate::api2::pull::check_pull_privs;
-use crate::server::{self, UPIDExt, TaskState, TaskListInfoIterator};
+use crate::server::{self, upid_log_path, upid_read_status, TaskState, TaskListInfoIterator};
 use pbs_config::CachedUserInfo;
 
 // matches respective job execution privileges
@@ -220,7 +220,7 @@ async fn get_task_status(
     if crate::server::worker_is_active(&upid).await? {
         result["status"] = Value::from("running");
     } else {
-        let exitstatus = crate::server::upid_read_status(&upid).unwrap_or(TaskState::Unknown { endtime: 0 });
+        let exitstatus = upid_read_status(&upid).unwrap_or(TaskState::Unknown { endtime: 0 });
         result["status"] = Value::from("stopped");
         result["exitstatus"] = Value::from(exitstatus.to_string());
     };
@@ -287,7 +287,7 @@ async fn read_task_log(
 
     let mut count: u64 = 0;
 
-    let path = upid.log_path();
+    let path = upid_log_path(&upid)?;
 
     let file = File::open(path)?;
 

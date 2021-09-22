@@ -202,12 +202,13 @@ async fn run() -> Result<(), Error> {
 
     config.enable_auth_log(
         pbs_buildcfg::API_AUTH_LOG_FN,
-        Some(dir_opts),
-        Some(file_opts),
+        Some(dir_opts.clone()),
+        Some(file_opts.clone()),
         &mut commando_sock,
     )?;
 
     let rest_server = RestServer::new(config);
+    proxmox_backup::server::init_worker_tasks(pbs_buildcfg::PROXMOX_BACKUP_LOG_DIR_M!().into(), file_opts.clone())?;
 
     //openssl req -x509 -newkey rsa:4096 -keyout /etc/proxmox-backup/proxy.key -out /etc/proxmox-backup/proxy.pem -nodes
 
