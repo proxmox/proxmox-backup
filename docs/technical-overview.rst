@@ -168,20 +168,21 @@ verify its content against it. Instead only the CRC-32 checksum gets checked.
 Troubleshooting
 ---------------
 
-Index files(.fidx, .didx) contain information about how to rebuild a file, more precisely, they
-contain an ordered list of references to the chunks the original file was split up
-in. If there is something wrong with a snapshot it might be useful to find out
-which chunks are referenced in this specific snapshot, and check wheather all of
-them are present and intact. The command for getting the list of referenced chunks
-could look something like this:
+Index files(.fidx, .didx) contain information about how to rebuild a file, more
+precisely, they contain an ordered list of references to the chunks the original
+file was split up in. If there is something wrong with a snapshot it might be
+useful to find out which chunks are referenced in this specific snapshot, and
+check wheather all of them are present and intact. The command for getting the
+list of referenced chunks could look something like this:
 
 .. code-block:: console
 
     # proxmox-backup-debug inspect file drive-scsi0.img.fidx
 
-The same command can be used to look at .blob file, without ``--decode`` just the size
-and the encryption type, if any, is printed. If ``--decode`` is set the blob file is
-decoded into the specified file('-' will decode it directly into stdout).
+The same command can be used to look at .blob file, without ``--decode`` just
+the size and the encryption type, if any, is printed. If ``--decode`` is set the
+blob file is decoded into the specified file('-' will decode it directly into
+stdout).
 
 .. code-block:: console
 
@@ -196,29 +197,33 @@ with:
 
 .. code-block:: console
 
-    # proxmox-backup-debug inspect chunk b531d3ffc9bd7c65748a61198c060678326a431db7eded874c327b7986e595e0 --reference-filter ../../
+    # proxmox-backup-debug inspect chunk b531d3ffc9bd7c65748a61198c060678326a431db7eded874c327b7986e595e0 --reference-filter /path/in/a/datastore/directory
 
-Here ``--reference-filter`` specifies where index files should be searched, this can be an
-arbitrary path. If, for some reason, the filename of the chunk was changed you can explicitly
-specify the digest using ``--digest``, by default the chunk filename is used as the digest
-to look for. Specifying no ``--reference-filter`` will just print the CRC and encryption status
-of the chunk. You can also decode chunks, to do so ``--decode`` has to be set. If the chunk
-is encrypted a ``--keyfile`` has to be provided for decoding.
+Here ``--reference-filter`` specifies where index files should be searched, this
+can be an arbitrary path. If, for some reason, the filename of the chunk was
+changed you can explicitly specify the digest using ``--digest``, by default the
+chunk filename is used as the digest to look for. Specifying no
+``--reference-filter`` will just print the CRC and encryption status of the
+chunk. You can also decode chunks, to do so ``--decode`` has to be set. If the
+chunk is encrypted a ``--keyfile`` has to be provided for decoding.
 
 Restore without a running PBS
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-It is possible to restore snapshots even without a running PBS, assuming you have
-access to the index and chunk files, if encrypted you'll also need the keyfile
-it was encrypted with.
+It is possible to restore spefiic files of snapshots without a running PBS using
+the `recover` sub-command, provided you have access to the intact index and
+chunk files. Note that you also need the corresponding key file if the backup
+was encrypted.
 
 .. code-block:: console
 
-    # proxmox-backup-debug recover index drive-scsi0.img.fidx ../../../.chunks
+    # proxmox-backup-debug recover index drive-scsi0.img.fidx /path/to/.chunks
 
-where `../../../.chunks` is the path to the directory that contains contains the
-chunks and `drive-scsi0.img.fidx` is the index-file of the file you'd lile to
-restore. Both paths can be absolute or relative. With ``--skip-crc`` it is possible to
-disable the crc checks of the chunks, this will speed up the process, however should
-probably only be used for testing.
+In above example the `/path/to/.chunks` argument is the path to the directory
+that contains contains the chunks, and `drive-scsi0.img.fidx` is the index-file
+of the file you'd lile to restore. Both paths can be absolute or relative. With
+``--skip-crc`` it is possible to disable the crc checks of the chunks, this will
+speed up the process slightly and allows for trying to restore (partially)
+corrupt chunks. It's recommended to always try without the skip-CRC option
+first.
 
