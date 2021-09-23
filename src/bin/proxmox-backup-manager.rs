@@ -5,6 +5,7 @@ use anyhow::{format_err, Error};
 use serde_json::{json, Value};
 
 use proxmox::api::{api, cli::*, RpcEnvironment};
+use proxmox::tools::fs::CreateOptions;
 
 use pbs_client::{connect_to_localhost, display_task_log, view_task_result};
 use pbs_tools::percent_encoding::percent_encode_component;
@@ -359,9 +360,7 @@ async fn get_versions(verbose: bool, param: Value) -> Result<Value, Error> {
     Ok(Value::Null)
 }
 
-fn main() {
-
-    proxmox_backup::tools::setup_safe_path_env();
+async fn run() -> Result<(), Error> {
 
     let cmd_def = CliCommandMap::new()
         .insert("acl", acl_commands())
@@ -401,12 +400,27 @@ fn main() {
             CliCommand::new(&API_METHOD_GET_VERSIONS)
         );
 
+    let backup_user = pbs_config::backup_user()?;
+    let file_opts = CreateOptions::new().owner(backup_user.uid).group(backup_user.gid);
+    proxmox_rest_server::init_worker_tasks(pbs_buildcfg::PROXMOX_BACKUP_LOG_DIR_M!().into(), file_opts.clone())?;
 
+    let mut commando_sock = proxmox_rest_server::CommandoSocket::new(proxmox_rest_server::our_ctrl_sock(), backup_user.gid);
+    proxmox_rest_server::register_task_control_commands(&mut commando_sock)?;
+    commando_sock.spawn()?;
 
     let mut rpcenv = CliEnvironment::new();
     rpcenv.set_auth_id(Some(String::from("root@pam")));
 
-   pbs_runtime::main(run_async_cli_command(cmd_def, rpcenv));
+    run_async_cli_command(cmd_def, rpcenv).await; // this call exit(-1) on error
+
+    Ok(())
+}
+
+fn main() -> Result<(), Error> {
+
+    proxmox_backup::tools::setup_safe_path_env();
+
+    pbs_runtime::main(run())
 }
 
 // shell completion helper
