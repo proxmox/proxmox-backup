@@ -39,15 +39,9 @@ use pbs_datastore::backup_info::BackupDir;
 use pbs_datastore::index::IndexFile;
 use pbs_datastore::manifest::{archive_type, ArchiveType};
 use pbs_config::CachedUserInfo;
-use proxmox_rest_server::WorkerTask;
+use proxmox_rest_server::{WorkerTask, H2Service};
 
-use crate::{
-    api2::helpers,
-    backup::DataStore,
-    server::{
-        H2Service,
-    },
-};
+use crate::{api2::helpers, backup::DataStore};
 
 mod environment;
 use environment::*;

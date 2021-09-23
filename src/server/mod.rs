@@ -11,9 +11,6 @@ use proxmox::tools::fs::{create_path, CreateOptions};
 
 use pbs_buildcfg;
 
-mod h2service;
-pub use h2service::*;
-
 pub mod jobstate;
 
 mod verify_job;

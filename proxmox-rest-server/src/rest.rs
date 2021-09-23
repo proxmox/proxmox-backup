@@ -388,7 +388,7 @@ async fn proxy_protected_request(
     Ok(resp)
 }
 
-pub async fn handle_api_request<Env: RpcEnvironment, S: 'static + BuildHasher + Send>(
+pub(crate) async fn handle_api_request<Env: RpcEnvironment, S: 'static + BuildHasher + Send>(
     mut rpcenv: Env,
     info: &'static ApiMethod,
     formatter: &'static OutputFormatter,

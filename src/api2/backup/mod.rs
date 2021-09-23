@@ -23,9 +23,8 @@ use pbs_datastore::PROXMOX_BACKUP_PROTOCOL_ID_V1;
 use pbs_datastore::backup_info::{BackupDir, BackupGroup, BackupInfo};
 use pbs_datastore::index::IndexFile;
 use pbs_datastore::manifest::{archive_type, ArchiveType};
-use proxmox_rest_server::WorkerTask;
+use proxmox_rest_server::{WorkerTask, H2Service};
 
-use crate::server::H2Service;
 use crate::backup::DataStore;
 use pbs_config::CachedUserInfo;
 

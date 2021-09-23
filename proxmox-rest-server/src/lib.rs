@@ -30,10 +30,13 @@ mod api_config;
 pub use api_config::ApiConfig;
 
 mod rest;
-pub use rest::{RestServer, handle_api_request};
+pub use rest::RestServer;
 
 mod worker_task;
 pub use worker_task::*;
+
+mod h2service;
+pub use h2service::*;
 
 pub enum AuthError {
     Generic(Error),
