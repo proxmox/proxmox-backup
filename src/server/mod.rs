@@ -4,50 +4,12 @@
 //! services. We want async IO, so this is built on top of
 //! tokio/hyper.
 
-use anyhow::{format_err, Error};
-use lazy_static::lazy_static;
-use nix::unistd::Pid;
+use anyhow::Error;
 use serde_json::Value;
 
-use proxmox::sys::linux::procfs::PidStat;
 use proxmox::tools::fs::{create_path, CreateOptions};
 
 use pbs_buildcfg;
-
-lazy_static! {
-    static ref PID: i32 = unsafe { libc::getpid() };
-    static ref PSTART: u64 = PidStat::read_from_pid(Pid::from_raw(*PID)).unwrap().starttime;
-}
-
-pub fn pid() -> i32 {
-    *PID
-}
-
-pub fn pstart() -> u64 {
-    *PSTART
-}
-
-pub fn write_pid(pid_fn: &str) -> Result<(), Error> {
-    let pid_str = format!("{}\n", *PID);
-    proxmox::tools::fs::replace_file(pid_fn, pid_str.as_bytes(), CreateOptions::new())
-}
-
-pub fn read_pid(pid_fn: &str) -> Result<i32, Error> {
-    let pid = proxmox::tools::fs::file_get_contents(pid_fn)?;
-    let pid = std::str::from_utf8(&pid)?.trim();
-    pid.parse().map_err(|err| format_err!("could not parse pid - {}", err))
-}
-
-pub fn ctrl_sock_from_pid(pid: i32) -> String {
-    format!("\0{}/control-{}.sock", pbs_buildcfg::PROXMOX_BACKUP_RUN_DIR, pid)
-}
-
-pub fn our_ctrl_sock() -> String {
-    ctrl_sock_from_pid(*PID)
-}
-
-mod worker_task;
-pub use worker_task::*;
 
 mod h2service;
 pub use h2service::*;
@@ -76,16 +38,16 @@ pub mod auth;
 pub mod pull;
 
 pub(crate) async fn reload_proxy_certificate() -> Result<(), Error> {
-    let proxy_pid = crate::server::read_pid(pbs_buildcfg::PROXMOX_BACKUP_PROXY_PID_FN)?;
-    let sock = crate::server::ctrl_sock_from_pid(proxy_pid);
+    let proxy_pid = proxmox_rest_server::read_pid(pbs_buildcfg::PROXMOX_BACKUP_PROXY_PID_FN)?;
+    let sock = proxmox_rest_server::ctrl_sock_from_pid(proxy_pid);
     let _: Value = proxmox_rest_server::send_raw_command(sock, "{\"command\":\"reload-certificate\"}\n")
         .await?;
     Ok(())
 }
 
 pub(crate) async fn notify_datastore_removed() -> Result<(), Error> {
-    let proxy_pid = crate::server::read_pid(pbs_buildcfg::PROXMOX_BACKUP_PROXY_PID_FN)?;
-    let sock = crate::server::ctrl_sock_from_pid(proxy_pid);
+    let proxy_pid = proxmox_rest_server::read_pid(pbs_buildcfg::PROXMOX_BACKUP_PROXY_PID_FN)?;
+    let sock = proxmox_rest_server::ctrl_sock_from_pid(proxy_pid);
     let _: Value = proxmox_rest_server::send_raw_command(sock, "{\"command\":\"datastore-removed\"}\n")
         .await?;
     Ok(())

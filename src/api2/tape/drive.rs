@@ -28,7 +28,6 @@ use pbs_api_types::{
     LtoDriveAndMediaStatus, Lp17VolumeStatistics,
 };
  
-use pbs_datastore::task_log;
 use pbs_api_types::{PRIV_TAPE_AUDIT, PRIV_TAPE_READ, PRIV_TAPE_WRITE};
 use pbs_config::CachedUserInfo;
 use pbs_tape::{
@@ -36,13 +35,14 @@ use pbs_tape::{
     sg_tape::tape_alert_flags_critical,
     linux_list_drives::{lto_tape_device_list, lookup_device_identification, open_lto_tape_device},
 };
+use pbs_tools::task_log;
+use proxmox_rest_server::WorkerTask;
 
 use crate::{
     api2::tape::restore::{
         fast_catalog_restore,
         restore_media,
     },
-    server::WorkerTask,
     tape::{
         TAPE_STATUS_DIR,
         Inventory,

@@ -13,16 +13,16 @@ use anyhow::{bail, Error};
 
 use proxmox::tools::Uuid;
 
-use pbs_datastore::task_log;
+use pbs_tools::task_log;
 use pbs_config::tape_encryption_keys::load_key_configs;
 use pbs_tape::{
     TapeWrite,
     sg_tape::tape_alert_flags_critical,
 };
+use proxmox_rest_server::WorkerTask;
 
 use crate::{
     backup::{DataStore, SnapshotReader},
-    server::WorkerTask,
     tape::{
         TAPE_STATUS_DIR,
         MAX_CHUNK_ARCHIVE_SIZE,

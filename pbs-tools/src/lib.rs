@@ -24,6 +24,7 @@ pub mod str;
 pub mod stream;
 pub mod sync;
 pub mod sys;
+pub mod task;
 pub mod ticket;
 pub mod tokio;
 pub mod xattr;

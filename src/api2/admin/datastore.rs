@@ -54,7 +54,7 @@ use pbs_tools::blocking::WrappedReaderStream;
 use pbs_tools::stream::{AsyncReaderStream, AsyncChannelWriter};
 use pbs_tools::json::{required_integer_param, required_string_param};
 use pbs_config::CachedUserInfo;
-use proxmox_rest_server::formatter;
+use proxmox_rest_server::{WorkerTask, formatter};
 
 use crate::api2::node::rrd::create_value_from_rrd;
 use crate::backup::{
@@ -62,7 +62,7 @@ use crate::backup::{
     DataStore, LocalChunkReader,
 };
 
-use crate::server::{jobstate::Job, WorkerTask};
+use crate::server::jobstate::Job;
 
 
 const GROUP_NOTES_FILE_NAME: &str = "notes";

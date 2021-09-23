@@ -24,7 +24,7 @@ use pbs_api_types::{Authid, NODE_SCHEMA, PRIV_SYS_CONSOLE};
 use pbs_tools::auth::private_auth_key;
 use pbs_tools::ticket::{self, Empty, Ticket};
 
-use crate::server::WorkerTask;
+use proxmox_rest_server::WorkerTask;
 use crate::tools;
 
 pub mod apt;

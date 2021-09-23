@@ -19,7 +19,7 @@ use crate::tools::disks::{
     DiskUsageType,
 };
 
-use crate::server::WorkerTask;
+use proxmox_rest_server::WorkerTask;
 
 
 #[api(

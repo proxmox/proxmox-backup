@@ -9,10 +9,9 @@ use proxmox::tools::fs::{CreateOptions, create_path, create_dir};
 
 use pbs_api_types::GarbageCollectionStatus;
 use pbs_tools::process_locker::{self, ProcessLocker};
+use pbs_tools::{task_log, task::TaskState};
 
 use crate::DataBlob;
-use crate::task_log;
-use crate::task::TaskState;
 
 /// File system based chunk store
 pub struct ChunkStore {
@@ -306,7 +305,7 @@ impl ChunkStore {
         for (entry, percentage, bad) in self.get_chunk_iterator()? {
             if last_percentage != percentage {
                 last_percentage = percentage;
-                crate::task_log!(
+                task_log!(
                     worker,
                     "processed {}% ({} chunks)",
                     percentage,

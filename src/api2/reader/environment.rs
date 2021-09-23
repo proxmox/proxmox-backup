@@ -10,7 +10,7 @@ use pbs_api_types::Authid;
 use proxmox_rest_server::formatter::*;
 
 use crate::backup::DataStore;
-use crate::server::WorkerTask;
+use proxmox_rest_server::WorkerTask;
 
 //use proxmox::tools;
 

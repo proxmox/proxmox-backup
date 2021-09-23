@@ -13,8 +13,9 @@ use pbs_api_types::{
     DATASTORE_SCHEMA, REMOTE_ID_SCHEMA, REMOVE_VANISHED_BACKUPS_SCHEMA,
     PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_PRUNE, PRIV_REMOTE_READ,
 };
+use proxmox_rest_server::WorkerTask;
 
-use crate::server::{WorkerTask, jobstate::Job, pull::pull_store};
+use crate::server::{jobstate::Job, pull::pull_store};
 use crate::backup::DataStore;
 use pbs_config::CachedUserInfo;
 

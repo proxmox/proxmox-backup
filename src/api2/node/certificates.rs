@@ -18,7 +18,7 @@ use pbs_tools::cert;
 use crate::acme::AcmeClient;
 use crate::api2::types::AcmeDomain;
 use crate::config::node::NodeConfig;
-use crate::server::WorkerTask;
+use proxmox_rest_server::WorkerTask;
 
 pub const ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(SUBDIRS))

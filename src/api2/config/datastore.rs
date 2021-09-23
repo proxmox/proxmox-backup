@@ -9,7 +9,6 @@ use proxmox::api::section_config::SectionConfigData;
 use proxmox::api::schema::{ApiType, parse_property_string};
 
 use pbs_datastore::chunk_store::ChunkStore;
-use pbs_datastore::task::TaskState;
 use pbs_config::BackupLockGuard;
 use pbs_api_types::{
     Authid, DatastoreNotify,
@@ -17,6 +16,7 @@ use pbs_api_types::{
     PRIV_DATASTORE_ALLOCATE, PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_MODIFY,
     DataStoreConfig, DataStoreConfigUpdater,
 };
+use pbs_tools::task::TaskState;
 
 use crate::api2::config::sync::delete_sync_job;
 use crate::api2::config::verify::delete_verification_job;
@@ -26,8 +26,9 @@ use crate::api2::admin::{
     verify::list_verification_jobs,
 };
 use pbs_config::CachedUserInfo;
+use proxmox_rest_server::WorkerTask;
 
-use crate::server::{jobstate, WorkerTask};
+use crate::server::jobstate;
 
 #[api(
     input: {

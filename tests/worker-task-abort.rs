@@ -6,13 +6,13 @@ extern crate tokio;
 extern crate nix;
 
 use proxmox::try_block;
+use proxmox::tools::fs::CreateOptions;
 
 use pbs_api_types::{Authid, UPID};
 
-use proxmox_rest_server::{flog, CommandoSocket};
-use proxmox_backup::server;
+use proxmox_rest_server::{flog, CommandoSocket, WorkerTask};
 
-fn garbage_collection(worker: &server::WorkerTask) -> Result<(), Error> {
+fn garbage_collection(worker: &WorkerTask) -> Result<(), Error> {
 
     worker.log("start garbage collection");
 
@@ -33,9 +33,12 @@ fn garbage_collection(worker: &server::WorkerTask) -> Result<(), Error> {
 #[test]
 #[ignore]
 fn worker_task_abort() -> Result<(), Error> {
-
-    server::create_task_log_dirs()?;
-
+    let uid = nix::unistd::Uid::current();
+    let gid = nix::unistd::Gid::current();
+        
+    let file_opts = CreateOptions::new().owner(uid).group(gid);
+    proxmox_rest_server::init_worker_tasks("./target/tasklogtestdir".into(), file_opts.clone())?;
+ 
     use std::sync::{Arc, Mutex};
 
     let errmsg: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
@@ -44,10 +47,11 @@ fn worker_task_abort() -> Result<(), Error> {
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(async move {
 
-        let mut commando_sock = CommandoSocket::new(server::our_ctrl_sock(), nix::unistd::Gid::current());
+        let mut commando_sock = CommandoSocket::new(
+            proxmox_rest_server::our_ctrl_sock(), nix::unistd::Gid::current());
 
         let init_result: Result<(), Error> = try_block!({
-            server::register_task_control_commands(&mut commando_sock)?;
+            proxmox_rest_server::register_task_control_commands(&mut commando_sock)?;
             proxmox_rest_server::server_state_init()?;
             Ok(())
         });
@@ -63,10 +67,10 @@ fn worker_task_abort() -> Result<(), Error> {
         }
 
         let errmsg = errmsg1.clone();
-        let res = server::WorkerTask::new_thread(
+        let res = WorkerTask::new_thread(
             "garbage_collection",
             None,
-            Authid::root_auth_id().clone(),
+            Authid::root_auth_id().to_string(),
             true,
             move |worker| {
                 println!("WORKER {}", worker);
@@ -91,8 +95,8 @@ fn worker_task_abort() -> Result<(), Error> {
             }
             Ok(wid) => {
                 println!("WORKER: {}", wid);
-                server::abort_worker_async(wid.parse::<UPID>().unwrap());
-                server::wait_for_local_worker(&wid).await.unwrap();
+                proxmox_rest_server::abort_worker_async(wid.parse::<UPID>().unwrap());
+                proxmox_rest_server::wait_for_local_worker(&wid).await.unwrap();
              }
         }
     });

@@ -179,7 +179,6 @@ pub mod paperkey;
 pub mod prune;
 pub mod read_chunk;
 pub mod store_progress;
-pub mod task;
 
 pub mod dynamic_index;
 pub mod fixed_index;

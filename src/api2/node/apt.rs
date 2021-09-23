@@ -19,7 +19,7 @@ use pbs_api_types::{
 };
 
 use crate::config::node;
-use crate::server::WorkerTask;
+use proxmox_rest_server::WorkerTask;
 use crate::tools::{
     apt,
     pbs_simple_http,

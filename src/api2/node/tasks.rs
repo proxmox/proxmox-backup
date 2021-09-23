@@ -16,7 +16,8 @@ use pbs_api_types::{
 };
 
 use crate::api2::pull::check_pull_privs;
-use crate::server::{self, upid_log_path, upid_read_status, TaskState, TaskListInfoIterator};
+
+use proxmox_rest_server::{upid_log_path, upid_read_status, TaskState, TaskListInfoIterator};
 use pbs_config::CachedUserInfo;
 
 // matches respective job execution privileges
@@ -125,6 +126,25 @@ pub fn tasktype(state: &TaskState) -> TaskStateType {
     }
 }
 
+fn into_task_list_item(info: proxmox_rest_server::TaskListInfo) -> pbs_api_types::TaskListItem {
+    let (endtime, status) = info
+        .state
+        .map_or_else(|| (None, None), |a| (Some(a.endtime()), Some(a.to_string())));
+
+    pbs_api_types::TaskListItem {
+        upid: info.upid_str,
+        node: "localhost".to_string(),
+        pid: info.upid.pid as i64,
+        pstart: info.upid.pstart,
+        starttime: info.upid.starttime,
+        worker_type: info.upid.worker_type,
+        worker_id: info.upid.worker_id,
+        user: info.upid.auth_id,
+        endtime,
+        status,
+    }
+}
+
 #[api(
     input: {
         properties: {
@@ -217,7 +237,7 @@ async fn get_task_status(
         result["tokenid"] = Value::from(task_auth_id.tokenname().unwrap().as_str());
     }
 
-    if crate::server::worker_is_active(&upid).await? {
+    if proxmox_rest_server::worker_is_active(&upid).await? {
         result["status"] = Value::from("running");
     } else {
         let exitstatus = upid_read_status(&upid).unwrap_or(TaskState::Unknown { endtime: 0 });
@@ -314,7 +334,7 @@ async fn read_task_log(
     rpcenv["total"] = Value::from(count);
 
     if test_status {
-        let active = crate::server::worker_is_active(&upid).await?;
+        let active = proxmox_rest_server::worker_is_active(&upid).await?;
         rpcenv["active"] = Value::from(active);
     }
 
@@ -354,7 +374,7 @@ fn stop_task(
         user_info.check_privs(&auth_id, &["system", "tasks"], PRIV_SYS_MODIFY, false)?;
     }
 
-    server::abort_worker_async(upid);
+    proxmox_rest_server::abort_worker_async(upid);
 
     Ok(Value::Null)
 }
@@ -502,7 +522,7 @@ pub fn list_tasks(
 
         match (&info.state, &statusfilter) {
             (Some(_), _) if running => continue,
-            (Some(crate::server::TaskState::OK { .. }), _) if errors => continue,
+            (Some(TaskState::OK { .. }), _) if errors => continue,
             (Some(state), Some(filters)) => {
                 if !filters.contains(&tasktype(state)) {
                     continue;
@@ -517,7 +537,7 @@ pub fn list_tasks(
             continue;
         }
 
-        result.push(info.into());
+        result.push(into_task_list_item(info));
 
         if result.len() >= limit {
             break;

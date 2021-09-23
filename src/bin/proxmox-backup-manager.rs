@@ -14,9 +14,10 @@ use pbs_api_types::{
     IGNORE_VERIFIED_BACKUPS_SCHEMA, VERIFICATION_OUTDATED_AFTER_SCHEMA,
 };
 
+use proxmox_rest_server::wait_for_local_worker;
+
 use proxmox_backup::config;
 use proxmox_backup::api2;
-use proxmox_backup::server::wait_for_local_worker;
 
 mod proxmox_backup_manager;
 use proxmox_backup_manager::*;

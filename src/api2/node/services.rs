@@ -9,7 +9,7 @@ use proxmox::api::router::SubdirMap;
 
 use pbs_api_types::{Authid, NODE_SCHEMA, SERVICE_ID_SCHEMA, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 
-use crate::server::WorkerTask;
+use proxmox_rest_server::WorkerTask;
 
 static SERVICE_NAME_LIST: [&str; 7] = [
     "proxmox-backup",

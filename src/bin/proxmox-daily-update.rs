@@ -11,7 +11,7 @@ async fn wait_for_local_worker(upid_str: &str) -> Result<(), Error> {
     let sleep_duration = core::time::Duration::new(0, 100_000_000);
 
     loop {
-        if !proxmox_backup::server::worker_is_active_local(&upid) {
+        if !proxmox_rest_server::worker_is_active_local(&upid) {
             break;
         }
         tokio::time::sleep(sleep_duration).await;

@@ -14,7 +14,7 @@
 //! an example usage would be
 //! ```no_run
 //! # use anyhow::{bail, Error};
-//! # use proxmox_backup::server::TaskState;
+//! # use proxmox_rest_server::TaskState;
 //! # use proxmox_backup::server::jobstate::*;
 //! # fn some_code() -> TaskState { TaskState::OK { endtime: 0 } }
 //! # fn code() -> Result<(), Error> {
@@ -50,11 +50,7 @@ use proxmox_systemd::time::{compute_next_event, parse_calendar_event};
 use pbs_config::{open_backup_lockfile, BackupLockGuard};
 use pbs_api_types::{UPID, JobScheduleStatus};
 
-use crate::server::{
-    TaskState,
-    upid_read_status,
-    worker_is_active_local,
-};
+use proxmox_rest_server::{upid_read_status, worker_is_active_local, TaskState};
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]

@@ -1,9 +1,12 @@
 use std::os::unix::io::RawFd;
 
 use anyhow::{bail, format_err, Error};
+use nix::unistd::Pid;
 
 use proxmox::tools::fd::Fd;
+use proxmox::sys::linux::procfs::PidStat;
 use proxmox::api::UserInformation;
+use proxmox::tools::fs::CreateOptions;
 
 mod compression;
 pub use compression::*;
@@ -29,6 +32,9 @@ pub use api_config::ApiConfig;
 mod rest;
 pub use rest::{RestServer, handle_api_request};
 
+mod worker_task;
+pub use worker_task::*;
+
 pub enum AuthError {
     Generic(Error),
     NoData,
@@ -46,6 +52,40 @@ pub trait ApiAuth {
         headers: &http::HeaderMap,
         method: &hyper::Method,
     ) -> Result<(String, Box<dyn UserInformation + Sync + Send>), AuthError>;
+}
+
+lazy_static::lazy_static!{
+    static ref PID: i32 = unsafe { libc::getpid() };
+    static ref PSTART: u64 = PidStat::read_from_pid(Pid::from_raw(*PID)).unwrap().starttime;
+}
+
+pub fn pid() -> i32 {
+    *PID
+}
+
+pub fn pstart() -> u64 {
+    *PSTART
+}
+
+pub fn write_pid(pid_fn: &str) -> Result<(), Error> {
+    let pid_str = format!("{}\n", *PID);
+    proxmox::tools::fs::replace_file(pid_fn, pid_str.as_bytes(), CreateOptions::new())
+}
+
+pub fn read_pid(pid_fn: &str) -> Result<i32, Error> {
+    let pid = proxmox::tools::fs::file_get_contents(pid_fn)?;
+    let pid = std::str::from_utf8(&pid)?.trim();
+    pid.parse().map_err(|err| format_err!("could not parse pid - {}", err))
+}
+
+pub fn ctrl_sock_from_pid(pid: i32) -> String {
+    // Note: The control socket always uses @/run/proxmox-backup/ as prefix
+    // for historc reason.
+    format!("\0{}/control-{}.sock", "/run/proxmox-backup", pid)
+}
+
+pub fn our_ctrl_sock() -> String {
+    ctrl_sock_from_pid(*PID)
 }
 
 static mut SHUTDOWN_REQUESTED: bool = false;

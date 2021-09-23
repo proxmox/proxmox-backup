@@ -10,14 +10,9 @@ use proxmox::api::RpcEnvironmentType;
 use proxmox::tools::fs::CreateOptions;
 
 use pbs_tools::auth::private_auth_key;
-use proxmox_rest_server::{ApiConfig, RestServer};
+use proxmox_rest_server::{daemon, ApiConfig, RestServer};
 
-use proxmox_backup::server::{
-    self,
-    auth::default_api_auth,
-};
-use proxmox_rest_server::daemon;
-
+use proxmox_backup::server::auth::default_api_auth;
 use proxmox_backup::auth_helpers::*;
 use proxmox_backup::config;
 
@@ -86,7 +81,7 @@ async fn run() -> Result<(), Error> {
     )?;
 
     let backup_user = pbs_config::backup_user()?;
-    let mut commando_sock = proxmox_rest_server::CommandoSocket::new(crate::server::our_ctrl_sock(), backup_user.gid);
+    let mut commando_sock = proxmox_rest_server::CommandoSocket::new(proxmox_rest_server::our_ctrl_sock(), backup_user.gid);
 
     let dir_opts = CreateOptions::new().owner(backup_user.uid).group(backup_user.gid);
     let file_opts = CreateOptions::new().owner(backup_user.uid).group(backup_user.gid);
@@ -107,7 +102,7 @@ async fn run() -> Result<(), Error> {
 
 
     let rest_server = RestServer::new(config);
-    proxmox_backup::server::init_worker_tasks(pbs_buildcfg::PROXMOX_BACKUP_LOG_DIR_M!().into(), file_opts.clone())?;
+    proxmox_rest_server::init_worker_tasks(pbs_buildcfg::PROXMOX_BACKUP_LOG_DIR_M!().into(), file_opts.clone())?;
 
     // http server future:
     let server = daemon::create_daemon(
@@ -130,11 +125,11 @@ async fn run() -> Result<(), Error> {
         "proxmox-backup.service",
     );
 
-    server::write_pid(pbs_buildcfg::PROXMOX_BACKUP_API_PID_FN)?;
+    proxmox_rest_server::write_pid(pbs_buildcfg::PROXMOX_BACKUP_API_PID_FN)?;
     daemon::systemd_notify(daemon::SystemdNotify::Ready)?;
 
     let init_result: Result<(), Error> = try_block!({
-        server::register_task_control_commands(&mut commando_sock)?;
+        proxmox_rest_server::register_task_control_commands(&mut commando_sock)?;
         commando_sock.spawn()?;
         proxmox_rest_server::server_state_init()?;
         Ok(())

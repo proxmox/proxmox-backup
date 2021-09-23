@@ -13,7 +13,7 @@ use proxmox_acme_rs::{Authorization, Challenge};
 
 use crate::acme::AcmeClient;
 use crate::api2::types::AcmeDomain;
-use crate::server::WorkerTask;
+use proxmox_rest_server::WorkerTask;
 
 use crate::config::acme::plugin::{DnsPlugin, PluginData};
 

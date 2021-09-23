@@ -13,7 +13,7 @@ use pbs_api_types::{
 };
 use pbs_config::network::{self, NetworkConfig};
 
-use crate::server::{WorkerTask};
+use proxmox_rest_server::WorkerTask;
 
 fn split_interface_list(list: &str) -> Result<Vec<String>, Error> {
     let value = parse_property_string(&list, &NETWORK_INTERFACE_ARRAY_SCHEMA)?;

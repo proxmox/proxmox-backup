@@ -7,12 +7,12 @@ use std::time::Instant;
 use anyhow::{bail, format_err, Error};
 
 use pbs_api_types::{Authid, CryptMode, VerifyState, UPID, SnapshotVerifyState};
-use pbs_datastore::{task_log, DataBlob, StoreProgress};
+use pbs_datastore::{DataBlob, StoreProgress};
 use pbs_datastore::backup_info::{BackupGroup, BackupDir, BackupInfo};
 use pbs_datastore::index::IndexFile;
 use pbs_datastore::manifest::{archive_type, ArchiveType, BackupManifest, FileInfo};
-use pbs_datastore::task::TaskState;
 use pbs_tools::fs::lock_dir_noblock_shared;
+use pbs_tools::{task_log, task::TaskState};
 
 use crate::{
     backup::DataStore,

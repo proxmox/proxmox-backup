@@ -17,7 +17,7 @@ use crate::tools::disks::{
 };
 use crate::tools::systemd::{self, types::*};
 
-use crate::server::WorkerTask;
+use proxmox_rest_server::WorkerTask;
 
 const BASE_MOUNT_DIR: &str = "/mnt/datastore/";
 

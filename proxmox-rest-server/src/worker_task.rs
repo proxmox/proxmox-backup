@@ -21,7 +21,8 @@ use proxmox::tools::fs::{create_path, replace_file, atomic_open_or_create_file, 
 use proxmox::api::upid::UPID;
 
 use pbs_tools::logrotate::{LogRotate, LogRotateFiles};
-use proxmox_rest_server::{CommandoSocket, FileLogger, FileLogOptions};
+
+use crate::{CommandoSocket, FileLogger, FileLogOptions};
 
 struct TaskListLockGuard(File);
 
@@ -280,7 +281,7 @@ lazy_static! {
 
 /// checks if the task UPID refers to a worker from this process
 fn is_local_worker(upid: &UPID) -> bool {
-    upid.pid == crate::server::pid() && upid.pstart == crate::server::pstart()
+    upid.pid == crate::pid() && upid.pstart == crate::pstart()
 }
 
 /// Test if the task is still running
@@ -293,14 +294,14 @@ pub async fn worker_is_active(upid: &UPID) -> Result<bool, Error> {
         return Ok(false);
     }
 
-    let sock = crate::server::ctrl_sock_from_pid(upid.pid);
+    let sock = crate::ctrl_sock_from_pid(upid.pid);
     let cmd = json!({
         "command": "worker-task-status",
         "args": {
             "upid": upid.to_string(),
         },
     });
-    let status = proxmox_rest_server::send_command(sock, &cmd).await?;
+    let status = crate::send_command(sock, &cmd).await?;
 
     if let Some(active) = status.as_bool() {
         Ok(active)
@@ -366,14 +367,14 @@ pub fn abort_worker_async(upid: UPID) {
 
 pub async fn abort_worker(upid: UPID) -> Result<(), Error> {
 
-    let sock = crate::server::ctrl_sock_from_pid(upid.pid);
+    let sock = crate::ctrl_sock_from_pid(upid.pid);
     let cmd = json!({
         "command": "worker-task-abort",
         "args": {
             "upid": upid.to_string(),
         },
     });
-    proxmox_rest_server::send_command(sock, &cmd).map_ok(|_| ()).await
+    crate::send_command(sock, &cmd).map_ok(|_| ()).await
 }
 
 fn parse_worker_status_line(line: &str) -> Result<(String, UPID, Option<TaskState>), Error> {
@@ -474,27 +475,6 @@ pub struct TaskListInfo {
     pub upid_str: String,
     /// Task `(endtime, status)` if already finished
     pub state: Option<TaskState>, // endtime, status
-}
-
-impl Into<pbs_api_types::TaskListItem> for TaskListInfo {
-    fn into(self) -> pbs_api_types::TaskListItem {
-        let (endtime, status) = self
-            .state
-            .map_or_else(|| (None, None), |a| (Some(a.endtime()), Some(a.to_string())));
-
-        pbs_api_types::TaskListItem {
-            upid: self.upid_str,
-            node: "localhost".to_string(),
-            pid: self.upid.pid as i64,
-            pstart: self.upid.pstart,
-            starttime: self.upid.starttime,
-            worker_type: self.upid.worker_type,
-            worker_id: self.upid.worker_id,
-            user: self.upid.auth_id,
-            endtime,
-            status,
-        }
-    }
 }
 
 fn render_task_line(info: &TaskListInfo) -> String {
@@ -715,7 +695,7 @@ impl WorkerTask {
         {
             let mut hash = WORKER_TASK_LIST.lock().unwrap();
             hash.insert(task_id, worker.clone());
-            proxmox_rest_server::set_worker_count(hash.len());
+            crate::set_worker_count(hash.len());
         }
 
         setup.update_active_workers(Some(&upid))?;
@@ -802,7 +782,7 @@ impl WorkerTask {
 
         WORKER_TASK_LIST.lock().unwrap().remove(&self.upid.task_id);
         let _ = self.setup.update_active_workers(None);
-        proxmox_rest_server::set_worker_count(WORKER_TASK_LIST.lock().unwrap().len());
+        crate::set_worker_count(WORKER_TASK_LIST.lock().unwrap().len());
     }
 
     /// Log a message.
@@ -879,7 +859,7 @@ impl WorkerTask {
     }
 }
 
-impl pbs_datastore::task::TaskState for WorkerTask {
+impl pbs_tools::task::TaskState for WorkerTask {
     fn check_abort(&self) -> Result<(), Error> {
         self.fail_on_abort()
     }

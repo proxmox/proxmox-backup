@@ -2,9 +2,9 @@ use std::sync::Arc;
 use anyhow::Error;
 
 use pbs_api_types::Authid;
+use proxmox_rest_server::WorkerTask;
 
 use crate::{
-    server::WorkerTask,
     server::jobstate::Job,
     backup::DataStore,
 };

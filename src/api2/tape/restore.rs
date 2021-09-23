@@ -34,26 +34,24 @@ use pbs_api_types::{
     UPID_SCHEMA, TAPE_RESTORE_SNAPSHOT_SCHEMA,
     PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY, PRIV_TAPE_READ,
 };
-use pbs_datastore::{task_log, task_warn, DataBlob};
+use pbs_datastore::DataBlob;
 use pbs_datastore::backup_info::BackupDir;
 use pbs_datastore::dynamic_index::DynamicIndexReader;
 use pbs_datastore::fixed_index::FixedIndexReader;
 use pbs_datastore::index::IndexFile;
 use pbs_datastore::manifest::{archive_type, ArchiveType, BackupManifest, MANIFEST_BLOB_NAME};
-use pbs_datastore::task::TaskState;
 use pbs_config::CachedUserInfo;
 use pbs_tape::{
     TapeRead, BlockReadError, MediaContentHeader,
     PROXMOX_BACKUP_CONTENT_HEADER_MAGIC_1_0,
 };
+use pbs_tools::{task_log, task_warn, task::TaskState};
+use proxmox_rest_server::WorkerTask;
 
 use crate::{
     tools::ParallelHandler,
     backup::DataStore,
-    server::{
-        lookup_user_email,
-        WorkerTask,
-    },
+    server::lookup_user_email,
     tape::{
         TAPE_STATUS_DIR,
         MediaId,

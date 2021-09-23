@@ -30,19 +30,16 @@ use proxmox::{
 
 use pbs_api_types::{VirtualTapeDrive, LtoTapeDrive, Fingerprint};
 use pbs_config::key_config::KeyConfig;
-use pbs_datastore::task::TaskState;
-use pbs_datastore::task_log;
+use pbs_tools::{task_log, task::TaskState};
 
 use pbs_tape::{
     TapeWrite, TapeRead, BlockReadError, MediaContentHeader,
     sg_tape::TapeAlertFlags,
 };
+use proxmox_rest_server::WorkerTask;
 
 use crate::{
-    server::{
-        send_load_media_email,
-        WorkerTask,
-    },
+    server::send_load_media_email,
     tape::{
         MediaId,
         drive::{

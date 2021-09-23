@@ -20,10 +20,11 @@ use pbs_api_types::{
     UPID_SCHEMA, JOB_ID_SCHEMA, PRIV_DATASTORE_READ, PRIV_TAPE_AUDIT, PRIV_TAPE_WRITE,
 };
 
-use pbs_datastore::{task_log, task_warn, StoreProgress};
+use pbs_datastore::StoreProgress;
 use pbs_datastore::backup_info::{BackupDir, BackupInfo};
-use pbs_datastore::task::TaskState;
+use pbs_tools::{task_log, task_warn, task::TaskState};
 use pbs_config::CachedUserInfo;
+use proxmox_rest_server::WorkerTask;
 
 use crate::{
     server::{
@@ -36,7 +37,6 @@ use crate::{
         },
     },
     backup::{DataStore, SnapshotReader},
-    server::WorkerTask,
     tape::{
         TAPE_STATUS_DIR,
         Inventory,

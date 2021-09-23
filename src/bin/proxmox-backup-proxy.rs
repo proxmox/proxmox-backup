@@ -19,18 +19,16 @@ use proxmox::api::RpcEnvironmentType;
 use proxmox::sys::linux::socket::set_tcp_keepalive;
 use proxmox::tools::fs::CreateOptions;
 
-use proxmox_rest_server::{ApiConfig, RestServer};
+use proxmox_rest_server::{rotate_task_log_archive, ApiConfig, RestServer, WorkerTask};
 
 use proxmox_backup::{
     backup::DataStore,
     server::{
         auth::default_api_auth,
-        WorkerTask,
         jobstate::{
             self,
             Job,
         },
-        rotate_task_log_archive,
     },
 };
 
@@ -188,7 +186,7 @@ async fn run() -> Result<(), Error> {
     config.register_template("console", "/usr/share/pve-xtermjs/index.html.hbs")?;
 
     let backup_user = pbs_config::backup_user()?;
-    let mut commando_sock = proxmox_rest_server::CommandoSocket::new(crate::server::our_ctrl_sock(), backup_user.gid);
+    let mut commando_sock = proxmox_rest_server::CommandoSocket::new(proxmox_rest_server::our_ctrl_sock(), backup_user.gid);
 
     let dir_opts = CreateOptions::new().owner(backup_user.uid).group(backup_user.gid);
     let file_opts = CreateOptions::new().owner(backup_user.uid).group(backup_user.gid);
@@ -208,7 +206,7 @@ async fn run() -> Result<(), Error> {
     )?;
 
     let rest_server = RestServer::new(config);
-    proxmox_backup::server::init_worker_tasks(pbs_buildcfg::PROXMOX_BACKUP_LOG_DIR_M!().into(), file_opts.clone())?;
+    proxmox_rest_server::init_worker_tasks(pbs_buildcfg::PROXMOX_BACKUP_LOG_DIR_M!().into(), file_opts.clone())?;
 
     //openssl req -x509 -newkey rsa:4096 -keyout /etc/proxmox-backup/proxy.key -out /etc/proxmox-backup/proxy.pem -nodes
 
@@ -266,11 +264,11 @@ async fn run() -> Result<(), Error> {
         "proxmox-backup-proxy.service",
     );
 
-    server::write_pid(pbs_buildcfg::PROXMOX_BACKUP_PROXY_PID_FN)?;
+    proxmox_rest_server::write_pid(pbs_buildcfg::PROXMOX_BACKUP_PROXY_PID_FN)?;
     daemon::systemd_notify(daemon::SystemdNotify::Ready)?;
 
     let init_result: Result<(), Error> = try_block!({
-        server::register_task_control_commands(&mut commando_sock)?;
+        proxmox_rest_server::register_task_control_commands(&mut commando_sock)?;
         commando_sock.spawn()?;
         proxmox_rest_server::server_state_init()?;
         Ok(())
@@ -806,11 +804,11 @@ async fn schedule_task_log_rotate() {
 async fn command_reopen_access_logfiles() -> Result<(), Error> {
     // only care about the most recent daemon instance for each, proxy & api, as other older ones
     // should not respond to new requests anyway, but only finish their current one and then exit.
-    let sock = crate::server::our_ctrl_sock();
+    let sock = proxmox_rest_server::our_ctrl_sock();
     let f1 = proxmox_rest_server::send_command(sock, "{\"command\":\"api-access-log-reopen\"}\n");
 
-    let pid = crate::server::read_pid(pbs_buildcfg::PROXMOX_BACKUP_API_PID_FN)?;
-    let sock = crate::server::ctrl_sock_from_pid(pid);
+    let pid = proxmox_rest_server::read_pid(pbs_buildcfg::PROXMOX_BACKUP_API_PID_FN)?;
+    let sock = proxmox_rest_server::ctrl_sock_from_pid(pid);
     let f2 = proxmox_rest_server::send_command(sock, "{\"command\":\"api-access-log-reopen\"}\n");
 
     match futures::join!(f1, f2) {
@@ -824,11 +822,11 @@ async fn command_reopen_access_logfiles() -> Result<(), Error> {
 async fn command_reopen_auth_logfiles() -> Result<(), Error> {
     // only care about the most recent daemon instance for each, proxy & api, as other older ones
     // should not respond to new requests anyway, but only finish their current one and then exit.
-    let sock = crate::server::our_ctrl_sock();
+    let sock = proxmox_rest_server::our_ctrl_sock();
     let f1 = proxmox_rest_server::send_command(sock, "{\"command\":\"api-auth-log-reopen\"}\n");
 
-    let pid = crate::server::read_pid(pbs_buildcfg::PROXMOX_BACKUP_API_PID_FN)?;
-    let sock = crate::server::ctrl_sock_from_pid(pid);
+    let pid = proxmox_rest_server::read_pid(pbs_buildcfg::PROXMOX_BACKUP_API_PID_FN)?;
+    let sock = proxmox_rest_server::ctrl_sock_from_pid(pid);
     let f2 = proxmox_rest_server::send_command(sock, "{\"command\":\"api-auth-log-reopen\"}\n");
 
     match futures::join!(f1, f2) {

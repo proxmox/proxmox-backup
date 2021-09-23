@@ -235,12 +235,12 @@ async fn handle_worker(upid_str: &str) -> Result<(), Error> {
     let abort_future = async move {
         while signal_stream.recv().await.is_some() {
             println!("got shutdown request (SIGINT)");
-            proxmox_backup::server::abort_local_worker(upid.clone());
+            proxmox_rest_server::abort_local_worker(upid.clone());
         }
         Ok::<_, Error>(())
     };
 
-    let result_future = proxmox_backup::server::wait_for_local_worker(upid_str);
+    let result_future = proxmox_rest_server::wait_for_local_worker(upid_str);
 
     futures::select! {
         result = result_future.fuse() => result?,

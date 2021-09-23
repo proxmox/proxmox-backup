@@ -15,7 +15,7 @@ use crate::tools::disks::{
     DiskUsageInfo, DiskUsageType, DiskManage, SmartData,
     get_disks, get_smart_data, get_disk_usage_info, inititialize_gpt_disk,
 };
-use crate::server::WorkerTask;
+use proxmox_rest_server::WorkerTask;
 
 pub mod directory;
 pub mod zfs;

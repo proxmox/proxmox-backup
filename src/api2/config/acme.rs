@@ -24,7 +24,7 @@ use crate::api2::types::{AcmeAccountName, AcmeChallengeSchema, KnownAcmeDirector
 use crate::config::acme::plugin::{
     self, DnsPlugin, DnsPluginCore, DnsPluginCoreUpdater, PLUGIN_ID_SCHEMA,
 };
-use crate::server::WorkerTask;
+use proxmox_rest_server::WorkerTask;
 
 pub(crate) const ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(SUBDIRS))
