@@ -13,7 +13,7 @@ use proxmox::list_subdirs_api_method;
 
 use pbs_api_types::{NODE_SCHEMA, PRIV_SYS_MODIFY};
 use pbs_buildcfg::configdir;
-use pbs_tools::cert;
+use pbs_tools::{task_log, task_warn, cert};
 
 use crate::acme::AcmeClient;
 use crate::api2::types::AcmeDomain;
@@ -303,7 +303,7 @@ async fn order_certificate(
     };
 
     if domains.is_empty() {
-        worker.log("No domains configured to be ordered from an ACME server.");
+        task_log!(worker, "No domains configured to be ordered from an ACME server.");
         return Ok(None);
     }
 
@@ -311,11 +311,11 @@ async fn order_certificate(
 
     let mut acme = node_config.acme_client().await?;
 
-    worker.log("Placing ACME order");
+    task_log!(worker, "Placing ACME order");
     let order = acme
         .new_order(domains.iter().map(|d| d.domain.to_ascii_lowercase()))
         .await?;
-    worker.log(format!("Order URL: {}", order.location));
+    task_log!(worker, "Order URL: {}", order.location);
 
     let identifiers: Vec<String> = order
         .data
@@ -327,7 +327,7 @@ async fn order_certificate(
         .collect();
 
     for auth_url in &order.data.authorizations {
-        worker.log(format!("Getting authorization details from '{}'", auth_url));
+        task_log!(worker, "Getting authorization details from '{}'", auth_url);
         let mut auth = acme.get_authorization(&auth_url).await?;
 
         let domain = match &mut auth.identifier {
@@ -335,11 +335,11 @@ async fn order_certificate(
         };
 
         if auth.status == Status::Valid {
-            worker.log(format!("{} is already validated!", domain));
+            task_log!(worker, "{} is already validated!", domain);
             continue;
         }
 
-        worker.log(format!("The validation for {} is pending", domain));
+        task_log!(worker, "The validation for {} is pending", domain);
         let domain_config: &AcmeDomain = get_domain_config(&domain)?;
         let plugin_id = domain_config.plugin.as_deref().unwrap_or("standalone");
         let mut plugin_cfg =
@@ -347,7 +347,7 @@ async fn order_certificate(
                 format_err!("plugin '{}' for domain '{}' not found!", plugin_id, domain)
             })?;
 
-        worker.log("Setting up validation plugin");
+        task_log!(worker, "Setting up validation plugin");
         let validation_url = plugin_cfg
             .setup(&mut acme, &auth, domain_config, Arc::clone(&worker))
             .await?;
@@ -358,17 +358,18 @@ async fn order_certificate(
             .teardown(&mut acme, &auth, domain_config, Arc::clone(&worker))
             .await
         {
-            worker.warn(format!(
+            task_warn!(
+                worker,
                 "Failed to teardown plugin '{}' for domain '{}' - {}",
                 plugin_id, domain, err
-            ));
+            );
         }
 
         let _: () = result?;
     }
 
-    worker.log("All domains validated");
-    worker.log("Creating CSR");
+    task_log!(worker, "All domains validated");
+    task_log!(worker, "Creating CSR");
 
     let csr = proxmox_acme_rs::util::Csr::generate(&identifiers, &Default::default())?;
     let mut finalize_error_cnt = 0u8;
@@ -381,7 +382,7 @@ async fn order_certificate(
 
         match order.status {
             Status::Pending => {
-                worker.log("still pending, trying to finalize anyway");
+                task_log!(worker, "still pending, trying to finalize anyway");
                 let finalize = order
                     .finalize
                     .as_deref()
@@ -396,7 +397,7 @@ async fn order_certificate(
                 tokio::time::sleep(Duration::from_secs(5)).await;
             }
             Status::Ready => {
-                worker.log("order is ready, finalizing");
+                task_log!(worker, "order is ready, finalizing");
                 let finalize = order
                     .finalize
                     .as_deref()
@@ -405,18 +406,18 @@ async fn order_certificate(
                 tokio::time::sleep(Duration::from_secs(5)).await;
             }
             Status::Processing => {
-                worker.log("still processing, trying again in 30 seconds");
+                task_log!(worker, "still processing, trying again in 30 seconds");
                 tokio::time::sleep(Duration::from_secs(30)).await;
             }
             Status::Valid => {
-                worker.log("valid");
+                task_log!(worker, "valid");
                 break;
             }
             other => bail!("order status: {:?}", other),
         }
     }
 
-    worker.log("Downloading certificate");
+    task_log!(worker, "Downloading certificate");
     let certificate = acme
         .get_certificate(
             order
@@ -438,10 +439,10 @@ async fn request_validation(
     auth_url: &str,
     validation_url: &str,
 ) -> Result<(), Error> {
-    worker.log("Triggering validation");
+    task_log!(worker, "Triggering validation");
     acme.request_challenge_validation(&validation_url).await?;
 
-    worker.log("Sleeping for 5 seconds");
+    task_log!(worker, "Sleeping for 5 seconds");
     tokio::time::sleep(Duration::from_secs(5)).await;
 
     loop {
@@ -450,7 +451,7 @@ async fn request_validation(
         let auth = acme.get_authorization(&auth_url).await?;
         match auth.status {
             Status::Pending => {
-                worker.log("Status is still 'pending', trying again in 10 seconds");
+                task_log!(worker, "Status is still 'pending', trying again in 10 seconds");
                 tokio::time::sleep(Duration::from_secs(10)).await;
             }
             Status::Valid => return Ok(()),
@@ -567,11 +568,11 @@ pub fn revoke_acme_cert(rpcenv: &mut dyn RpcEnvironment) -> Result<String, Error
         auth_id,
         true,
         move |worker| async move {
-            worker.log("Loading ACME account");
+            task_log!(worker, "Loading ACME account");
             let mut acme = node_config.acme_client().await?;
-            worker.log("Revoking old certificate");
+            task_log!(worker, "Revoking old certificate");
             acme.revoke_certificate(cert_pem.as_bytes(), None).await?;
-            worker.log("Deleting certificate and regenerating a self-signed one");
+            task_log!(worker, "Deleting certificate and regenerating a self-signed one");
             delete_custom_certificate().await?;
             Ok(())
         },

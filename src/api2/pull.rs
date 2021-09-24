@@ -13,11 +13,12 @@ use pbs_api_types::{
     DATASTORE_SCHEMA, REMOTE_ID_SCHEMA, REMOVE_VANISHED_BACKUPS_SCHEMA,
     PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_PRUNE, PRIV_REMOTE_READ,
 };
+use pbs_tools::task_log;
 use proxmox_rest_server::WorkerTask;
+use pbs_config::CachedUserInfo;
 
 use crate::server::{jobstate::Job, pull::pull_store};
 use crate::backup::DataStore;
-use pbs_config::CachedUserInfo;
 
 pub fn check_pull_privs(
     auth_id: &Authid,
@@ -97,16 +98,21 @@ pub fn do_sync_job(
                 let sync_owner = sync_job.owner.unwrap_or_else(|| Authid::root_auth_id().clone());
                 let (client, src_repo, tgt_store) = get_pull_parameters(&sync_job.store, &sync_job.remote, &sync_job.remote_store).await?;
 
-                worker.log(format!("Starting datastore sync job '{}'", job_id));
+                task_log!(worker, "Starting datastore sync job '{}'", job_id);
                 if let Some(event_str) = schedule {
-                    worker.log(format!("task triggered by schedule '{}'", event_str));
+                    task_log!(worker, "task triggered by schedule '{}'", event_str);
                 }
-                worker.log(format!("Sync datastore '{}' from '{}/{}'",
-                        sync_job.store, sync_job.remote, sync_job.remote_store));
+                task_log!(
+                    worker,
+                    "sync datastore '{}' from '{}/{}'",
+                    sync_job.store,
+                    sync_job.remote,
+                    sync_job.remote_store,
+                );
 
                 pull_store(&worker, &client, &src_repo, tgt_store.clone(), delete, sync_owner).await?;
 
-                worker.log(format!("sync job '{}' end", &job_id));
+                task_log!(worker, "sync job '{}' end", &job_id);
 
                 Ok(())
             };
@@ -186,7 +192,7 @@ async fn pull (
     // fixme: set to_stdout to false?
     let upid_str = WorkerTask::spawn("sync", Some(store.clone()), auth_id.to_string(), true, move |worker| async move {
 
-        worker.log(format!("sync datastore '{}' start", store));
+        task_log!(worker, "sync datastore '{}' start", store);
 
         let pull_future = pull_store(&worker, &client, &src_repo, tgt_store.clone(), delete, auth_id);
         let future = select!{
@@ -196,7 +202,7 @@ async fn pull (
 
         let _ = future?;
 
-        worker.log(format!("sync datastore '{}' end", store));
+        task_log!(worker, "sync datastore '{}' end", store);
 
         Ok(())
     })?;

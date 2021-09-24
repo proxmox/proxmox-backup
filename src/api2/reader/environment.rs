@@ -52,11 +52,11 @@ impl ReaderEnvironment {
     }
 
     pub fn log<S: AsRef<str>>(&self, msg: S) {
-        self.worker.log(msg);
+        self.worker.log_message(msg);
     }
 
     pub fn debug<S: AsRef<str>>(&self, msg: S) {
-        if self.debug { self.worker.log(msg); }
+        if self.debug { self.worker.log_message(msg); }
     }
 
 

@@ -10,6 +10,7 @@ use pbs_api_types::{
     DataStoreConfig, NODE_SCHEMA, BLOCKDEVICE_NAME_SCHEMA,
     DATASTORE_SCHEMA, UPID_SCHEMA, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY,
 };
+use pbs_tools::task_log;
 
 use crate::tools::disks::{
     DiskManage, FileSystemType, DiskUsageType,
@@ -169,7 +170,7 @@ pub fn create_datastore_disk(
     let upid_str = WorkerTask::new_thread(
         "dircreate", Some(name.clone()), auth_id, to_stdout, move |worker|
         {
-            worker.log(format!("create datastore '{}' on disk {}", name, disk));
+            task_log!(worker, "create datastore '{}' on disk {}", name, disk);
 
             let add_datastore = add_datastore.unwrap_or(false);
             let filesystem = filesystem.unwrap_or(FileSystemType::Ext4);

@@ -16,6 +16,7 @@ use crate::tools::disks::{
     get_disks, get_smart_data, get_disk_usage_info, inititialize_gpt_disk,
 };
 use proxmox_rest_server::WorkerTask;
+use pbs_tools::task_log;
 
 pub mod directory;
 pub mod zfs;
@@ -155,7 +156,7 @@ pub fn initialize_disk(
     let upid_str = WorkerTask::new_thread(
         "diskinit", Some(disk.clone()), auth_id, to_stdout, move |worker|
         {
-            worker.log(format!("initialize disk {}", disk));
+            task_log!(worker, "initialize disk {}", disk);
 
             let disk_manager = DiskManage::new();
             let disk_info = disk_manager.disk_by_name(&disk)?;

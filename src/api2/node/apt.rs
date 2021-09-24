@@ -89,7 +89,7 @@ fn read_and_update_proxy_config() -> Result<Option<ProxyConfig>, Error> {
 }
 
 fn do_apt_update(worker: &WorkerTask, quiet: bool) -> Result<(), Error> {
-    if !quiet { worker.log("starting apt-get update") }
+    if !quiet { worker.log_message("starting apt-get update") }
 
     read_and_update_proxy_config()?;
 
@@ -101,7 +101,7 @@ fn do_apt_update(worker: &WorkerTask, quiet: bool) -> Result<(), Error> {
         .map_err(|err| format_err!("failed to execute {:?} - {}", command, err))?;
 
     if !quiet {
-        worker.log(String::from_utf8(output.stdout)?);
+        worker.log_message(String::from_utf8(output.stdout)?);
     }
 
     // TODO: improve run_command to allow outputting both, stderr and stdout
@@ -110,7 +110,7 @@ fn do_apt_update(worker: &WorkerTask, quiet: bool) -> Result<(), Error> {
             let msg = String::from_utf8(output.stderr)
                 .map(|m| if m.is_empty() { String::from("no error message") } else { m })
                 .unwrap_or_else(|_| String::from("non utf8 error message (suppressed)"));
-            worker.warn(msg);
+            worker.log_warning(msg);
         } else {
             bail!("terminated by signal");
         }

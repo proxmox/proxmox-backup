@@ -2,6 +2,7 @@ use std::sync::Arc;
 use anyhow::Error;
 
 use pbs_api_types::Authid;
+use pbs_tools::task_log;
 use proxmox_rest_server::WorkerTask;
 
 use crate::{
@@ -31,9 +32,9 @@ pub fn do_garbage_collection_job(
         move |worker| {
             job.start(&worker.upid().to_string())?;
 
-            worker.log(format!("starting garbage collection on store {}", store));
+            task_log!(worker, "starting garbage collection on store {}", store);
             if let Some(event_str) = schedule {
-                worker.log(format!("task triggered by schedule '{}'", event_str));
+                task_log!(worker, "task triggered by schedule '{}'", event_str);
             }
 
             let result = datastore.garbage_collection(&*worker, worker.upid());

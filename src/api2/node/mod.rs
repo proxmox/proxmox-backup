@@ -183,7 +183,7 @@ async fn termproxy(cmd: Option<String>, rpcenv: &mut dyn RpcEnvironment) -> Resu
             let stdout_fut = async move {
                 let mut reader = BufReader::new(stdout).lines();
                 while let Some(line) = reader.next_line().await? {
-                    worker_stdout.log(line);
+                    worker_stdout.log_message(line);
                 }
                 Ok::<(), Error>(())
             };
@@ -192,7 +192,7 @@ async fn termproxy(cmd: Option<String>, rpcenv: &mut dyn RpcEnvironment) -> Resu
             let stderr_fut = async move {
                 let mut reader = BufReader::new(stderr).lines();
                 while let Some(line) = reader.next_line().await? {
-                    worker_stderr.warn(line);
+                    worker_stderr.log_warning(line);
                 }
                 Ok::<(), Error>(())
             };
@@ -224,9 +224,9 @@ async fn termproxy(cmd: Option<String>, rpcenv: &mut dyn RpcEnvironment) -> Resu
                 }
 
                 if let Err(err) = child.kill().await {
-                    worker.warn(format!("error killing termproxy: {}", err));
+                    worker.log_warning(format!("error killing termproxy: {}", err));
                 } else if let Err(err) = child.wait().await {
-                    worker.warn(format!("error awaiting termproxy: {}", err));
+                    worker.log_warning(format!("error awaiting termproxy: {}", err));
                 }
             }
 

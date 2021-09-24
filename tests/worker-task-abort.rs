@@ -9,22 +9,23 @@ use proxmox::try_block;
 use proxmox::tools::fs::CreateOptions;
 
 use pbs_api_types::{Authid, UPID};
+use pbs_tools::task_log;
 
-use proxmox_rest_server::{flog, CommandoSocket, WorkerTask};
+use proxmox_rest_server::{CommandoSocket, WorkerTask};
 
 fn garbage_collection(worker: &WorkerTask) -> Result<(), Error> {
 
-    worker.log("start garbage collection");
+    task_log!(worker, "start garbage collection");
 
     for i in 0..50 {
         worker.check_abort()?;
 
-        flog!(worker, "progress {}", i);
+        task_log!(worker, "progress {}", i);
 
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
 
-    worker.log("end garbage collection");
+    task_log!(worker, "end garbage collection");
 
     Ok(())
 }
@@ -35,10 +36,10 @@ fn garbage_collection(worker: &WorkerTask) -> Result<(), Error> {
 fn worker_task_abort() -> Result<(), Error> {
     let uid = nix::unistd::Uid::current();
     let gid = nix::unistd::Gid::current();
-        
+
     let file_opts = CreateOptions::new().owner(uid).group(gid);
     proxmox_rest_server::init_worker_tasks("./target/tasklogtestdir".into(), file_opts.clone())?;
- 
+
     use std::sync::{Arc, Mutex};
 
     let errmsg: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));

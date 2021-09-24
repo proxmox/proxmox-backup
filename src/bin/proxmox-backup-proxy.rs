@@ -20,6 +20,7 @@ use proxmox::sys::linux::socket::set_tcp_keepalive;
 use proxmox::tools::fs::CreateOptions;
 
 use proxmox_rest_server::{rotate_task_log_archive, ApiConfig, RestServer, WorkerTask};
+use pbs_tools::task_log;
 
 use proxmox_backup::{
     backup::DataStore,
@@ -748,16 +749,16 @@ async fn schedule_task_log_rotate() {
         false,
         move |worker| {
             job.start(&worker.upid().to_string())?;
-            worker.log("starting task log rotation".to_string());
+            task_log!(worker, "starting task log rotation");
 
             let result = try_block!({
                 let max_size = 512 * 1024 - 1; // an entry has ~ 100b, so > 5000 entries/file
                 let max_files = 20; // times twenty files gives > 100000 task entries
                 let has_rotated = rotate_task_log_archive(max_size, true, Some(max_files))?;
                 if has_rotated {
-                    worker.log("task log archive was rotated".to_string());
+                    task_log!(worker, "task log archive was rotated");
                 } else {
-                    worker.log("task log archive was not rotated".to_string());
+                    task_log!(worker, "task log archive was not rotated");
                 }
 
                 let max_size = 32 * 1024 * 1024 - 1;
@@ -768,9 +769,9 @@ async fn schedule_task_log_rotate() {
                 if logrotate.rotate(max_size, None, Some(max_files))? {
                     println!("rotated access log, telling daemons to re-open log file");
                     pbs_runtime::block_on(command_reopen_access_logfiles())?;
-                    worker.log("API access log was rotated".to_string());
+                    task_log!(worker, "API access log was rotated");
                 } else {
-                    worker.log("API access log was not rotated".to_string());
+                    task_log!(worker, "API access log was not rotated");
                 }
 
                 let mut logrotate = LogRotate::new(pbs_buildcfg::API_AUTH_LOG_FN, true)
@@ -779,9 +780,9 @@ async fn schedule_task_log_rotate() {
                 if logrotate.rotate(max_size, None, Some(max_files))? {
                     println!("rotated auth log, telling daemons to re-open log file");
                     pbs_runtime::block_on(command_reopen_auth_logfiles())?;
-                    worker.log("API authentication log was rotated".to_string());
+                    task_log!(worker, "API authentication log was rotated");
                 } else {
-                    worker.log("API authentication log was not rotated".to_string());
+                    task_log!(worker, "API authentication log was not rotated");
                 }
 
                 Ok(())

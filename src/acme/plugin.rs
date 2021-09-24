@@ -82,7 +82,7 @@ async fn pipe_to_tasklog<T: AsyncRead + Unpin>(
         line.clear();
         match pipe.read_line(&mut line).await {
             Ok(0) => return Ok(()),
-            Ok(_) => task.log(line.as_str()),
+            Ok(_) => task.log_message(line.as_str()),
             Err(err) => return Err(err),
         }
     }
@@ -150,7 +150,7 @@ impl DnsPlugin {
             Ok(((), (), ())) => (),
             Err(err) => {
                 if let Err(err) = child.kill().await {
-                    task.log(format!(
+                    task.log_message(format!(
                         "failed to kill '{} {}' command: {}",
                         PROXMOX_ACME_SH_PATH, action, err
                     ));
@@ -188,7 +188,7 @@ impl AcmePlugin for DnsPlugin {
 
             let validation_delay = self.core.validation_delay.unwrap_or(30) as u64;
             if validation_delay > 0 {
-                task.log(format!(
+                task.log_message(format!(
                     "Sleeping {} seconds to wait for TXT record propagation",
                     validation_delay
                 ));

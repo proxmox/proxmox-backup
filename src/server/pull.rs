@@ -89,10 +89,10 @@ async fn pull_index_chunks<I: IndexFile>(
                     target.cond_touch_chunk(&info.digest, false)
                 })?;
                 if chunk_exists {
-                    //worker.log(format!("chunk {} exists {}", pos, proxmox::tools::digest_to_hex(digest)));
+                    //task_log!(worker, "chunk {} exists {}", pos, proxmox::tools::digest_to_hex(digest));
                     return Ok::<_, Error>(());
                 }
-                //worker.log(format!("sync {} chunk {}", pos, proxmox::tools::digest_to_hex(digest)));
+                //task_log!(worker, "sync {} chunk {}", pos, proxmox::tools::digest_to_hex(digest));
                 let chunk = chunk_reader.read_raw_chunk(&info.digest).await?;
                 let raw_size = chunk.raw_size() as usize;
 
@@ -118,11 +118,12 @@ async fn pull_index_chunks<I: IndexFile>(
 
     let bytes = bytes.load(Ordering::SeqCst);
 
-    worker.log(format!(
+    task_log!(
+        worker, 
         "downloaded {} bytes ({:.2} MiB/s)",
         bytes,
         (bytes as f64) / (1024.0 * 1024.0 * elapsed)
-    ));
+    );
 
     Ok(())
 }
@@ -181,7 +182,8 @@ async fn pull_single_archive(
     let mut tmp_path = path.clone();
     tmp_path.set_extension("tmp");
 
-    worker.log(format!("sync archive {}", archive_name));
+    task_log!(worker, "sync archive {}", archive_name);
+
     let mut tmpfile = std::fs::OpenOptions::new()
         .write(true)
         .create(true)
@@ -256,7 +258,7 @@ async fn try_client_log_download(
         if let Err(err) = std::fs::rename(&tmp_path, &path) {
             bail!("Atomic rename file {:?} failed - {}", path, err);
         }
-        worker.log(format!("got backup log file {:?}", CLIENT_LOG_BLOB_NAME));
+        task_log!(worker, "got backup log file {:?}", CLIENT_LOG_BLOB_NAME);
     }
 
     Ok(())
@@ -287,10 +289,11 @@ async fn pull_snapshot(
             match err.downcast_ref::<HttpError>() {
                 Some(HttpError { code, message }) => match *code {
                     StatusCode::NOT_FOUND => {
-                        worker.log(format!(
+                        task_log!(
+                            worker,
                             "skipping snapshot {} - vanished since start of sync",
                             snapshot
-                        ));
+                        );
                         return Ok(());
                     }
                     _ => {
@@ -330,7 +333,7 @@ async fn pull_snapshot(
             if !client_log_name.exists() {
                 try_client_log_download(worker, reader, &client_log_name).await?;
             }
-            worker.log("no data changes");
+            task_log!(worker, "no data changes");
             let _ = std::fs::remove_file(&tmp_manifest_name);
             return Ok(()); // nothing changed
         }
@@ -351,7 +354,7 @@ async fn pull_snapshot(
                     match manifest.verify_file(&item.filename, &csum, size) {
                         Ok(_) => continue,
                         Err(err) => {
-                            worker.log(format!("detected changed file {:?} - {}", path, err));
+                            task_log!(worker, "detected changed file {:?} - {}", path, err);
                         }
                     }
                 }
@@ -361,7 +364,7 @@ async fn pull_snapshot(
                     match manifest.verify_file(&item.filename, &csum, size) {
                         Ok(_) => continue,
                         Err(err) => {
-                            worker.log(format!("detected changed file {:?} - {}", path, err));
+                            task_log!(worker, "detected changed file {:?} - {}", path, err);
                         }
                     }
                 }
@@ -371,7 +374,7 @@ async fn pull_snapshot(
                     match manifest.verify_file(&item.filename, &csum, size) {
                         Ok(_) => continue,
                         Err(err) => {
-                            worker.log(format!("detected changed file {:?} - {}", path, err));
+                            task_log!(worker, "detected changed file {:?} - {}", path, err);
                         }
                     }
                 }
@@ -421,7 +424,7 @@ pub async fn pull_snapshot_from(
     let (_path, is_new, _snap_lock) = tgt_store.create_locked_backup_dir(&snapshot)?;
 
     if is_new {
-        worker.log(format!("sync snapshot {:?}", snapshot.relative_path()));
+        task_log!(worker, "sync snapshot {:?}", snapshot.relative_path());
 
         if let Err(err) = pull_snapshot(
             worker,
@@ -433,13 +436,13 @@ pub async fn pull_snapshot_from(
         .await
         {
             if let Err(cleanup_err) = tgt_store.remove_backup_dir(&snapshot, true) {
-                worker.log(format!("cleanup error - {}", cleanup_err));
+                task_log!(worker, "cleanup error - {}", cleanup_err);
             }
             return Err(err);
         }
-        worker.log(format!("sync snapshot {:?} done", snapshot.relative_path()));
+        task_log!(worker, "sync snapshot {:?} done", snapshot.relative_path());
     } else {
-        worker.log(format!("re-sync snapshot {:?}", snapshot.relative_path()));
+        task_log!(worker, "re-sync snapshot {:?}", snapshot.relative_path());
         pull_snapshot(
             worker,
             reader,
@@ -448,10 +451,7 @@ pub async fn pull_snapshot_from(
             downloaded_chunks,
         )
         .await?;
-        worker.log(format!(
-            "re-sync snapshot {:?} done",
-            snapshot.relative_path()
-        ));
+        task_log!(worker, "re-sync snapshot {:?} done", snapshot.relative_path());
     }
 
     Ok(())
@@ -547,10 +547,7 @@ pub async fn pull_group(
 
         // in-progress backups can't be synced
         if item.size.is_none() {
-            worker.log(format!(
-                "skipping snapshot {} - in-progress backup",
-                snapshot
-            ));
+            task_log!(worker, "skipping snapshot {} - in-progress backup", snapshot);
             continue;
         }
 
@@ -598,7 +595,7 @@ pub async fn pull_group(
         .await;
 
         progress.done_snapshots = pos as u64 + 1;
-        worker.log(format!("percentage done: {}", progress));
+        task_log!(worker, "percentage done: {}", progress);
 
         result?; // stop on error
     }
@@ -610,10 +607,7 @@ pub async fn pull_group(
             if remote_snapshots.contains(&backup_time) {
                 continue;
             }
-            worker.log(format!(
-                "delete vanished snapshot {:?}",
-                info.backup_dir.relative_path()
-            ));
+            task_log!(worker, "delete vanished snapshot {:?}", info.backup_dir.relative_path());
             tgt_store.remove_backup_dir(&info.backup_dir, false)?;
         }
     }
@@ -645,7 +639,7 @@ pub async fn pull_store(
 
     let mut list: Vec<GroupListItem> = serde_json::from_value(result["data"].take())?;
 
-    worker.log(format!("found {} groups to sync", list.len()));
+    task_log!(worker, "found {} groups to sync", list.len());
 
     list.sort_unstable_by(|a, b| {
         let type_order = a.backup_type.cmp(&b.backup_type);
@@ -675,10 +669,11 @@ pub async fn pull_store(
         let (owner, _lock_guard) = match tgt_store.create_locked_backup_group(&group, &auth_id) {
             Ok(result) => result,
             Err(err) => {
-                worker.log(format!(
+                task_log!(
+                    worker,
                     "sync group {}/{} failed - group lock failed: {}",
                     item.backup_type, item.backup_id, err
-                ));
+                );
                 errors = true; // do not stop here, instead continue
                 continue;
             }
@@ -687,10 +682,11 @@ pub async fn pull_store(
         // permission check
         if auth_id != owner {
             // only the owner is allowed to create additional snapshots
-            worker.log(format!(
+            task_log!(
+                worker,
                 "sync group {}/{} failed - owner check failed ({} != {})",
                 item.backup_type, item.backup_id, auth_id, owner
-            ));
+            );
             errors = true; // do not stop here, instead continue
         } else if let Err(err) = pull_group(
             worker,
@@ -703,10 +699,11 @@ pub async fn pull_store(
         )
         .await
         {
-            worker.log(format!(
+            task_log!(
+                worker,
                 "sync group {}/{} failed - {}",
                 item.backup_type, item.backup_id, err,
-            ));
+            );
             errors = true; // do not stop here, instead continue
         }
     }
@@ -718,20 +715,21 @@ pub async fn pull_store(
                 if new_groups.contains(&local_group) {
                     continue;
                 }
-                worker.log(format!(
+                task_log!(
+                    worker,
                     "delete vanished group '{}/{}'",
                     local_group.backup_type(),
                     local_group.backup_id()
-                ));
+                );
                 if let Err(err) = tgt_store.remove_backup_group(&local_group) {
-                    worker.log(err.to_string());
+                    task_log!(worker, "{}", err.to_string());
                     errors = true;
                 }
             }
             Ok(())
         });
         if let Err(err) = result {
-            worker.log(format!("error during cleanup: {}", err));
+            task_log!(worker, "error during cleanup: {}", err);
             errors = true;
         };
     }

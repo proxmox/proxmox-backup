@@ -18,6 +18,7 @@ use proxmox_acme_rs::Account;
 
 use pbs_api_types::{Authid, PRIV_SYS_MODIFY};
 use pbs_tools::ops::ControlFlow;
+use pbs_tools::{task_log, task_warn};
 
 use crate::acme::AcmeClient;
 use crate::api2::types::{AcmeAccountName, AcmeChallengeSchema, KnownAcmeDirectory};
@@ -220,15 +221,16 @@ fn register_account(
         move |worker| async move {
             let mut client = AcmeClient::new(directory);
 
-            worker.log(format!("Registering ACME account '{}'...", &name));
+            task_log!(worker, "Registering ACME account '{}'...", &name);
 
             let account =
                 do_register_account(&mut client, &name, tos_url.is_some(), contact, None).await?;
 
-            worker.log(format!(
+            task_log!(
+                worker,
                 "Registration successful, account URL: {}",
                 account.location
-            ));
+            );
 
             Ok(())
         },
@@ -331,10 +333,11 @@ pub fn deactivate_account(
                 Ok(_account) => (),
                 Err(err) if !force => return Err(err),
                 Err(err) => {
-                    worker.warn(format!(
+                    task_warn!(
+                        worker,
                         "error deactivating account {}, proceedeing anyway - {}",
                         name, err,
-                    ));
+                    );
                 }
             }
             crate::config::acme::mark_account_deactivated(&name)?;

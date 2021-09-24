@@ -33,7 +33,7 @@ impl <E: RpcEnvironment + Clone> H2Service<E> {
     }
 
     pub fn debug<S: AsRef<str>>(&self, msg: S) {
-        if self.debug { self.worker.log(msg); }
+        if self.debug { self.worker.log_message(msg); }
     }
 
     fn handle_request(&self, req: Request<Body>) -> ApiResponseFuture {
@@ -77,7 +77,14 @@ impl <E: RpcEnvironment + Clone> H2Service<E> {
                 message = &data.0;
             }
 
-            worker.log(format!("{} {}: {} {}: {}", method.as_str(), path, status.as_str(), reason, message));
+            worker.log_message(format!(
+                "{} {}: {} {}: {}",
+                method.as_str(),
+                path,
+                status.as_str(),
+                reason,
+                message
+            ));
         }
     }
 }

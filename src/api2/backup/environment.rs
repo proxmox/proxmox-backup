@@ -528,7 +528,7 @@ impl BackupEnvironment {
             self.auth_id.to_string(),
             false,
             move |worker| {
-                worker.log("Automatically verifying newly added snapshot");
+                worker.log_message("Automatically verifying newly added snapshot");
 
 
                 let verify_worker = crate::backup::VerifyWorker::new(worker.clone(), datastore);
@@ -548,11 +548,11 @@ impl BackupEnvironment {
     }
 
     pub fn log<S: AsRef<str>>(&self, msg: S) {
-        self.worker.log(msg);
+        self.worker.log_message(msg);
     }
 
     pub fn debug<S: AsRef<str>>(&self, msg: S) {
-        if self.debug { self.worker.log(msg); }
+        if self.debug { self.worker.log_message(msg); }
     }
 
     pub fn format_response(&self, result: Result<Value, Error>) -> Response<Body> {

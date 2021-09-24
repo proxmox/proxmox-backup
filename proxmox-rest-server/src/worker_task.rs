@@ -779,7 +779,7 @@ impl WorkerTask {
     /// Log task result, remove task from running list
     pub fn log_result(&self, result: &Result<(), Error>) {
         let state = self.create_state(result);
-        self.log(state.result_text());
+        self.log_message(state.result_text());
 
         WORKER_TASK_LIST.lock().unwrap().remove(&self.upid.task_id);
         let _ = self.setup.update_active_workers(None);
@@ -787,13 +787,13 @@ impl WorkerTask {
     }
 
     /// Log a message.
-    pub fn log<S: AsRef<str>>(&self, msg: S) {
+    pub fn log_message<S: AsRef<str>>(&self, msg: S) {
         let mut data = self.data.lock().unwrap();
         data.logger.log(msg);
     }
 
     /// Log a message as warning.
-    pub fn warn<S: AsRef<str>>(&self, msg: S) {
+    pub fn log_warning<S: AsRef<str>>(&self, msg: S) {
         let mut data = self.data.lock().unwrap();
         data.logger.log(format!("WARN: {}", msg.as_ref()));
         data.warn_count += 1;
@@ -815,7 +815,7 @@ impl WorkerTask {
 
         let prev_abort = self.abort_requested.swap(true, Ordering::SeqCst);
         if !prev_abort { // log abort one time
-            self.log(format!("received abort request ..."));
+            self.log_message(format!("received abort request ..."));
         }
         // noitify listeners
         let mut data = self.data.lock().unwrap();
@@ -867,11 +867,11 @@ impl WorkerTaskContext for WorkerTask {
 
     fn log(&self, level: log::Level, message: &std::fmt::Arguments) {
         match level {
-            log::Level::Error => self.warn(&message.to_string()),
-            log::Level::Warn => self.warn(&message.to_string()),
-            log::Level::Info => self.log(&message.to_string()),
-            log::Level::Debug => self.log(&format!("DEBUG: {}", message)),
-            log::Level::Trace => self.log(&format!("TRACE: {}", message)),
+            log::Level::Error => self.log_warning(&message.to_string()),
+            log::Level::Warn => self.log_warning(&message.to_string()),
+            log::Level::Info => self.log_message(&message.to_string()),
+            log::Level::Debug => self.log_message(&format!("DEBUG: {}", message)),
+            log::Level::Trace => self.log_message(&format!("TRACE: {}", message)),
         }
     }
 }

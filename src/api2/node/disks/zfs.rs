@@ -13,6 +13,7 @@ use pbs_api_types::{
     DISK_LIST_SCHEMA, ZFS_ASHIFT_SCHEMA, UPID_SCHEMA,
     PRIV_SYS_AUDIT, PRIV_SYS_MODIFY,
 };
+use pbs_tools::task_log;
 
 use crate::tools::disks::{
     zpool_list, zpool_status, parse_zpool_status_config_tree, vdev_list_to_tree,
@@ -231,7 +232,7 @@ pub fn create_zpool(
      let upid_str = WorkerTask::new_thread(
         "zfscreate", Some(name.clone()), auth_id, to_stdout, move |worker|
         {
-            worker.log(format!("create {:?} zpool '{}' on devices '{}'", raidlevel, name, devices_text));
+            task_log!(worker, "create {:?} zpool '{}' on devices '{}'", raidlevel, name, devices_text);
 
 
             let mut command = std::process::Command::new("zpool");
@@ -265,10 +266,10 @@ pub fn create_zpool(
                 }
             }
 
-            worker.log(format!("# {:?}", command));
+            task_log!(worker, "# {:?}", command);
 
             let output = pbs_tools::run_command(command, None)?;
-            worker.log(output);
+            task_log!(worker, "{}", output);
 
             if std::path::Path::new("/lib/systemd/system/zfs-import@.service").exists() {
                 let import_unit = format!("zfs-import@{}.service", proxmox::tools::systemd::escape_unit(&name, false));
@@ -278,9 +279,9 @@ pub fn create_zpool(
             if let Some(compression) = compression {
                 let mut command = std::process::Command::new("zfs");
                 command.args(&["set", &format!("compression={}", compression), &name]);
-                worker.log(format!("# {:?}", command));
+                task_log!(worker, "# {:?}", command);
                 let output = pbs_tools::run_command(command, None)?;
-                worker.log(output);
+                task_log!(worker, "{}", output);
             }
 
             if add_datastore {

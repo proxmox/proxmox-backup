@@ -53,6 +53,7 @@ use pbs_datastore::prune::compute_prune_info;
 use pbs_tools::blocking::WrappedReaderStream;
 use pbs_tools::stream::{AsyncReaderStream, AsyncChannelWriter};
 use pbs_tools::json::{required_integer_param, required_string_param};
+use pbs_tools::{task_log, task_warn};
 use pbs_config::CachedUserInfo;
 use proxmox_rest_server::{WorkerTask, formatter};
 
@@ -770,9 +771,9 @@ pub fn verify(
                 )?
             };
             if !failed_dirs.is_empty() {
-                worker.log("Failed to verify the following snapshots/groups:");
+                task_log!(worker, "Failed to verify the following snapshots/groups:");
                 for dir in failed_dirs {
-                    worker.log(format!("\t{}", dir));
+                    task_log!(worker, "\t{}", dir);
                 }
                 bail!("verification failed - please check the log for details");
             }
@@ -865,11 +866,11 @@ pub fn prune(
     let worker = WorkerTask::new("prune", Some(worker_id), auth_id.to_string(), true)?;
 
     if keep_all {
-        worker.log("No prune selection - keeping all files.");
+        task_log!(worker, "No prune selection - keeping all files.");
     } else {
-        worker.log(format!("retention options: {}", pbs_datastore::prune::cli_options_string(&prune_options)));
-        worker.log(format!("Starting prune on store \"{}\" group \"{}/{}\"",
-                            store, backup_type, backup_id));
+        task_log!(worker, "retention options: {}", pbs_datastore::prune::cli_options_string(&prune_options));
+        task_log!(worker, "Starting prune on store \"{}\" group \"{}/{}\"",
+                  store, backup_type, backup_id);
     }
 
     for (info, mut keep) in prune_info {
@@ -888,7 +889,7 @@ pub fn prune(
             if keep { "keep" } else { "remove" },
         );
 
-        worker.log(msg);
+        task_log!(worker, "{}", msg);
 
         prune_result.push(json!({
             "backup-type": group.backup_type(),
@@ -899,11 +900,11 @@ pub fn prune(
 
         if !(dry_run || keep) {
             if let Err(err) = datastore.remove_backup_dir(&info.backup_dir, false) {
-                worker.warn(
-                    format!(
-                        "failed to remove dir {:?}: {}",
-                        info.backup_dir.relative_path(), err
-                    )
+                task_warn!(
+                    worker,
+                    "failed to remove dir {:?}: {}",
+                    info.backup_dir.relative_path(),
+                    err,
                 );
             }
         }

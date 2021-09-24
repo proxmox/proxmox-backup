@@ -13,7 +13,7 @@ use anyhow::{bail, Error};
 
 use proxmox::tools::Uuid;
 
-use pbs_tools::task_log;
+use pbs_tools::{task_log, task_warn};
 use pbs_config::tape_encryption_keys::load_key_configs;
 use pbs_tape::{
     TapeWrite,
@@ -135,13 +135,13 @@ impl PoolWriter {
         let (drive_config, _digest) = pbs_config::drive::config()?;
 
         if let Some((mut changer, _)) = media_changer(&drive_config, &self.drive_name)? {
-            worker.log("eject media");
+            task_log!(worker, "eject media");
             status.drive.eject_media()?; // rewind and eject early, so that unload_media is faster
             drop(status); // close drive
-            worker.log("unload media");
+            task_log!(worker, "unload media");
             changer.unload_media(None)?; //eject and unload
         } else {
-            worker.log("standalone drive - ejecting media");
+            task_log!(worker, "standalone drive - ejecting media");
             status.drive.eject_media()?;
         }
 
@@ -157,26 +157,26 @@ impl PoolWriter {
         if let Some((mut changer, _)) = media_changer(&drive_config, &self.drive_name)? {
 
             if let Some(ref mut status) = status {
-                worker.log("eject media");
+                task_log!(worker, "eject media");
                 status.drive.eject_media()?; // rewind and eject early, so that unload_media is faster
             }
             drop(status); // close drive
 
-            worker.log("unload media");
+            task_log!(worker, "unload media");
             changer.unload_media(None)?;
 
             for media_uuid in self.pool.current_media_list()? {
                 let media = self.pool.lookup_media(media_uuid)?;
                 let label_text = media.label_text();
                 if let Some(slot) = changer.export_media(label_text)? {
-                    worker.log(format!("exported media '{}' to import/export slot {}", label_text, slot));
+                    task_log!(worker, "exported media '{}' to import/export slot {}", label_text, slot);
                 } else {
-                    worker.warn(format!("export failed - media '{}' is not online", label_text));
+                    task_warn!(worker, "export failed - media '{}' is not online", label_text);
                 }
             }
 
         } else if let Some(mut status) = status {
-            worker.log("standalone drive - ejecting media instead of export");
+            task_log!(worker, "standalone drive - ejecting media instead of export");
             status.drive.eject_media()?;
         }
 
@@ -233,7 +233,7 @@ impl PoolWriter {
         // test for critical tape alert flags
         if let Ok(alert_flags) = drive.tape_alert_flags() {
             if !alert_flags.is_empty() {
-                worker.log(format!("TapeAlertFlags: {:?}", alert_flags));
+                task_log!(worker, "TapeAlertFlags: {:?}", alert_flags);
                 if tape_alert_flags_critical(alert_flags) {
                     self.pool.set_media_status_damaged(&media_uuid)?;
                     bail!("aborting due to critical tape alert flags: {:?}", alert_flags);
@@ -297,7 +297,7 @@ impl PoolWriter {
     ) -> Result<u64, Error> {
 
         if !status.at_eom {
-            worker.log(String::from("moving to end of media"));
+            task_log!(worker, "moving to end of media");
             status.drive.move_to_eom(true)?;
             status.at_eom = true;
         }
@@ -499,12 +499,13 @@ impl PoolWriter {
         status.bytes_written += bytes_written;
 
         let elapsed =  start_time.elapsed()?.as_secs_f64();
-        worker.log(format!(
+        task_log!(
+            worker,
             "wrote {} chunks ({:.2} MB at {:.2} MB/s)",
             saved_chunks.len(),
             bytes_written as f64 /1_000_000.0,
             (bytes_written as f64)/(1_000_000.0*elapsed),
-        ));
+        );
 
         let request_sync = status.bytes_written >= COMMIT_BLOCK_SIZE;
 
@@ -571,7 +572,7 @@ fn write_chunk_archive<'a>(
         }
 
         if writer.bytes_written() > max_size {
-            //worker.log("Chunk Archive max size reached, closing archive".to_string());
+            //task_log!(worker, "Chunk Archive max size reached, closing archive");
             break;
         }
     }
@@ -614,7 +615,7 @@ fn update_media_set_label(
 
     let new_media = match old_set {
         None => {
-            worker.log("writing new media set label".to_string());
+            task_log!(worker, "writing new media set label");
             drive.write_media_set_label(new_set, key_config.as_ref())?;
             media_catalog = MediaCatalog::overwrite(status_path, media_id, false)?;
             true
@@ -634,9 +635,11 @@ fn update_media_set_label(
 
                 false
             } else {
-                worker.log(
-                    format!("writing new media set label (overwrite '{}/{}')",
-                            media_set_label.uuid.to_string(), media_set_label.seq_nr)
+                task_log!(
+                    worker,
+                    "writing new media set label (overwrite '{}/{}')",
+                    media_set_label.uuid.to_string(),
+                    media_set_label.seq_nr,
                 );
 
                 drive.write_media_set_label(new_set, key_config.as_ref())?;
