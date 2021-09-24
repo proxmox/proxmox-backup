@@ -400,13 +400,18 @@ async fn run() -> Result<(), Error> {
             CliCommand::new(&API_METHOD_GET_VERSIONS)
         );
 
-    let backup_user = pbs_config::backup_user()?;
-    let file_opts = CreateOptions::new().owner(backup_user.uid).group(backup_user.gid);
-    proxmox_rest_server::init_worker_tasks(pbs_buildcfg::PROXMOX_BACKUP_LOG_DIR_M!().into(), file_opts.clone())?;
+    let args: Vec<String> = std::env::args().take(2).collect();
+    let avoid_init = args.len() >= 2 && (args[1] == "bashcomplete" || args[1] == "printdoc");
 
-    let mut commando_sock = proxmox_rest_server::CommandoSocket::new(proxmox_rest_server::our_ctrl_sock(), backup_user.gid);
-    proxmox_rest_server::register_task_control_commands(&mut commando_sock)?;
-    commando_sock.spawn()?;
+    if !avoid_init {
+        let backup_user = pbs_config::backup_user()?;
+        let file_opts = CreateOptions::new().owner(backup_user.uid).group(backup_user.gid);
+        proxmox_rest_server::init_worker_tasks(pbs_buildcfg::PROXMOX_BACKUP_LOG_DIR_M!().into(), file_opts.clone())?;
+
+        let mut commando_sock = proxmox_rest_server::CommandoSocket::new(proxmox_rest_server::our_ctrl_sock(), backup_user.gid);
+        proxmox_rest_server::register_task_control_commands(&mut commando_sock)?;
+        commando_sock.spawn()?;
+    }
 
     let mut rpcenv = CliEnvironment::new();
     rpcenv.set_auth_id(Some(String::from("root@pam")));
