@@ -829,19 +829,6 @@ impl WorkerTask {
         }
     }
 
-    /// Test if abort was requested.
-    pub fn abort_requested(&self) -> bool {
-        self.abort_requested.load(Ordering::SeqCst)
-    }
-
-    /// Fail if abort was requested.
-    pub fn check_abort(&self) -> Result<(), Error> {
-        if self.abort_requested() {
-            bail!("abort requested - aborting task");
-        }
-        Ok(())
-    }
-
     /// Get a future which resolves on task abort
     pub fn abort_future(&self) ->  oneshot::Receiver<()> {
         let (tx, rx) = oneshot::channel::<()>();
@@ -861,8 +848,9 @@ impl WorkerTask {
 }
 
 impl WorkerTaskContext for WorkerTask {
-    fn check_abort(&self) -> Result<(), Error> {
-        self.check_abort()
+
+    fn abort_requested(&self) -> bool {
+        self.abort_requested.load(Ordering::SeqCst)
     }
 
     fn log(&self, level: log::Level, message: &std::fmt::Arguments) {

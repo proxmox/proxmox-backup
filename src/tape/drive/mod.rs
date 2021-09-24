@@ -30,13 +30,12 @@ use proxmox::{
 
 use pbs_api_types::{VirtualTapeDrive, LtoTapeDrive, Fingerprint};
 use pbs_config::key_config::KeyConfig;
-use pbs_tools::task_log;
+use pbs_tools::{task_log, task::WorkerTaskContext};
 
 use pbs_tape::{
     TapeWrite, TapeRead, BlockReadError, MediaContentHeader,
     sg_tape::TapeAlertFlags,
 };
-use proxmox_rest_server::WorkerTask;
 
 use crate::{
     server::send_load_media_email,
@@ -355,7 +354,7 @@ impl std::fmt::Display for TapeRequestError {
 ///
 /// Returns a handle to the opened drive and the media labels.
 pub fn request_and_load_media(
-    worker: &WorkerTask,
+    worker: &dyn WorkerTaskContext,
     config: &SectionConfigData,
     drive: &str,
     label: &MediaLabel,

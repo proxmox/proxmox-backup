@@ -22,7 +22,7 @@ use pbs_api_types::{
 
 use pbs_datastore::StoreProgress;
 use pbs_datastore::backup_info::{BackupDir, BackupInfo};
-use pbs_tools::{task_log, task_warn};
+use pbs_tools::{task_log, task_warn, task::WorkerTaskContext};
 use pbs_config::CachedUserInfo;
 use proxmox_rest_server::WorkerTask;
 

@@ -1,9 +1,20 @@
-use anyhow::Error;
+use anyhow::{bail, Error};
 
-/// `WorkerTask` methods commonly used from contexts otherwise not related to the API server.
+/// Worker task abstraction
+///
+/// A worker task is a long running task, which usually logs output into a separate file.
 pub trait WorkerTaskContext {
+
+    /// Test if there was a request to abort the task.
+    fn abort_requested(&self) -> bool;
+
     /// If the task should be aborted, this should fail with a reasonable error message.
-    fn check_abort(&self) -> Result<(), Error>;
+    fn check_abort(&self) -> Result<(), Error> {
+        if self.abort_requested() {
+            bail!("abort requested - aborting task");
+        }
+        Ok(())
+    }
 
     /// Create a log message for this task.
     fn log(&self, level: log::Level, message: &std::fmt::Arguments);
@@ -11,6 +22,10 @@ pub trait WorkerTaskContext {
 
 /// Convenience implementation:
 impl<T: WorkerTaskContext + ?Sized> WorkerTaskContext for std::sync::Arc<T> {
+    fn abort_requested(&self) -> bool {
+        <T as WorkerTaskContext>::abort_requested(&*self)
+    }
+
     fn check_abort(&self) -> Result<(), Error> {
         <T as WorkerTaskContext>::check_abort(&*self)
     }
