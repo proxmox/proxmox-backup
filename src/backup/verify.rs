@@ -172,7 +172,7 @@ fn verify_index_chunks(
     let check_abort = |pos: usize| -> Result<(), Error> {
         if pos & 1023 == 0 {
             verify_worker.worker.check_abort()?;
-            proxmox_rest_server::fail_on_shutdown()?;
+            verify_worker.worker.fail_on_shutdown()?;
         }
         Ok(())
     };
@@ -184,7 +184,7 @@ fn verify_index_chunks(
 
     for (pos, _) in chunk_list {
         verify_worker.worker.check_abort()?;
-        proxmox_rest_server::fail_on_shutdown()?;
+        verify_worker.worker.fail_on_shutdown()?;
 
         let info = index.chunk_info(pos).unwrap();
 
@@ -376,7 +376,7 @@ pub fn verify_backup_dir_with_lock(
         });
 
         verify_worker.worker.check_abort()?;
-        proxmox_rest_server::fail_on_shutdown()?;
+        verify_worker.worker.fail_on_shutdown()?;
 
         if let Err(err) = result {
             task_log!(

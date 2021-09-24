@@ -28,7 +28,6 @@ use pbs_tools::fs::{lock_dir_noblock, DirLockGuard};
 use pbs_tools::process_locker::ProcessLockSharedGuard;
 use pbs_tools::{task_log, task_warn, task::WorkerTaskContext};
 use pbs_config::{open_backup_lockfile, BackupLockGuard};
-use proxmox_rest_server::fail_on_shutdown;
 
 lazy_static! {
     static ref DATASTORE_MAP: Mutex<HashMap<String, Arc<DataStore>>> = Mutex::new(HashMap::new());
@@ -506,7 +505,7 @@ impl DataStore {
 
         for pos in 0..index.index_count() {
             worker.check_abort()?;
-            fail_on_shutdown()?;
+            worker.fail_on_shutdown()?;
             let digest = index.index_digest(pos).unwrap();
             if !self.chunk_store.cond_touch_chunk(digest, false)? {
                 task_warn!(
@@ -547,7 +546,7 @@ impl DataStore {
         for (i, img) in image_list.into_iter().enumerate() {
 
             worker.check_abort()?;
-            fail_on_shutdown()?;
+            worker.fail_on_shutdown()?;
 
             if let Some(backup_dir_path) = img.parent() {
                 let backup_dir_path = backup_dir_path.strip_prefix(self.base_path())?;
@@ -636,7 +635,6 @@ impl DataStore {
                 phase1_start_time,
                 &mut gc_status,
                 worker,
-                fail_on_shutdown,
             )?;
 
             task_log!(

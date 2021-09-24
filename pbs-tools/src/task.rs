@@ -16,6 +16,19 @@ pub trait WorkerTaskContext {
         Ok(())
     }
 
+    /// Test if there was a request to shutdown the server.
+    fn shutdown_requested(&self) -> bool;
+
+
+    /// This should fail with a reasonable error message if there was
+    /// a request to shutdown the server.
+    fn fail_on_shutdown(&self) -> Result<(), Error> {
+        if self.shutdown_requested() {
+            bail!("Server shutdown requested - aborting task");
+        }
+        Ok(())
+    }
+
     /// Create a log message for this task.
     fn log(&self, level: log::Level, message: &std::fmt::Arguments);
 }
@@ -28,6 +41,14 @@ impl<T: WorkerTaskContext + ?Sized> WorkerTaskContext for std::sync::Arc<T> {
 
     fn check_abort(&self) -> Result<(), Error> {
         <T as WorkerTaskContext>::check_abort(&*self)
+    }
+
+    fn shutdown_requested(&self) -> bool {
+        <T as WorkerTaskContext>::shutdown_requested(&*self)
+    }
+
+    fn fail_on_shutdown(&self) -> Result<(), Error> {
+        <T as WorkerTaskContext>::fail_on_shutdown(&*self)
     }
 
     fn log(&self, level: log::Level, message: &std::fmt::Arguments) {

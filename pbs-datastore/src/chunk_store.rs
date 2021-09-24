@@ -280,13 +280,12 @@ impl ChunkStore {
         ProcessLocker::oldest_shared_lock(self.locker.clone())
     }
 
-    pub fn sweep_unused_chunks<F: Fn() -> Result<(), Error>>(
+    pub fn sweep_unused_chunks(
         &self,
         oldest_writer: i64,
         phase1_start_time: i64,
         status: &mut GarbageCollectionStatus,
         worker: &dyn WorkerTaskContext,
-        fail_on_shutdown: F,
     ) -> Result<(), Error> {
         use nix::sys::stat::fstatat;
         use nix::unistd::{unlinkat, UnlinkatFlags};
@@ -314,7 +313,7 @@ impl ChunkStore {
             }
 
             worker.check_abort()?;
-            fail_on_shutdown()?;
+            worker.fail_on_shutdown()?;
 
             let (dirfd, entry) = match entry {
                 Ok(entry) => (entry.parent_fd(), entry),

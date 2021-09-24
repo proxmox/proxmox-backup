@@ -9,7 +9,7 @@ use proxmox::try_block;
 use proxmox::tools::fs::CreateOptions;
 
 use pbs_api_types::{Authid, UPID};
-use pbs_tools::task_log;
+use pbs_tools::{task_log, task::WorkerTaskContext};
 
 use proxmox_rest_server::{CommandoSocket, WorkerTask};
 

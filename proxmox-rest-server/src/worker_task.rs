@@ -853,6 +853,14 @@ impl WorkerTaskContext for WorkerTask {
         self.abort_requested.load(Ordering::SeqCst)
     }
 
+    fn shutdown_requested(&self) -> bool {
+        crate::shutdown_requested()
+    }
+
+    fn fail_on_shutdown(&self) -> Result<(), Error> {
+        crate::fail_on_shutdown()
+    }
+
     fn log(&self, level: log::Level, message: &std::fmt::Arguments) {
         match level {
             log::Level::Error => self.log_warning(&message.to_string()),
