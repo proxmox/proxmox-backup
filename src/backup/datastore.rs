@@ -26,7 +26,7 @@ use pbs_datastore::manifest::{
 use pbs_tools::format::HumanByte;
 use pbs_tools::fs::{lock_dir_noblock, DirLockGuard};
 use pbs_tools::process_locker::ProcessLockSharedGuard;
-use pbs_tools::{task_log, task_warn, task::TaskState};
+use pbs_tools::{task_log, task_warn, task::WorkerTaskContext};
 use pbs_config::{open_backup_lockfile, BackupLockGuard};
 use proxmox_rest_server::fail_on_shutdown;
 
@@ -498,7 +498,7 @@ impl DataStore {
         index: I,
         file_name: &Path, // only used for error reporting
         status: &mut GarbageCollectionStatus,
-        worker: &dyn TaskState,
+        worker: &dyn WorkerTaskContext,
     ) -> Result<(), Error> {
 
         status.index_file_count += 1;
@@ -534,7 +534,7 @@ impl DataStore {
     fn mark_used_chunks(
         &self,
         status: &mut GarbageCollectionStatus,
-        worker: &dyn TaskState,
+        worker: &dyn WorkerTaskContext,
     ) -> Result<(), Error> {
 
         let image_list = self.list_images()?;
@@ -611,7 +611,7 @@ impl DataStore {
         !matches!(self.gc_mutex.try_lock(), Ok(_))
     }
 
-    pub fn garbage_collection(&self, worker: &dyn TaskState, upid: &UPID) -> Result<(), Error> {
+    pub fn garbage_collection(&self, worker: &dyn WorkerTaskContext, upid: &UPID) -> Result<(), Error> {
 
         if let Ok(ref mut _mutex) = self.gc_mutex.try_lock() {
 

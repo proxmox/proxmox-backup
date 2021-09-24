@@ -45,7 +45,7 @@ use pbs_tape::{
     TapeRead, BlockReadError, MediaContentHeader,
     PROXMOX_BACKUP_CONTENT_HEADER_MAGIC_1_0,
 };
-use pbs_tools::{task_log, task_warn, task::TaskState};
+use pbs_tools::{task_log, task_warn};
 use proxmox_rest_server::WorkerTask;
 
 use crate::{

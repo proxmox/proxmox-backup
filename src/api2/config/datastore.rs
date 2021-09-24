@@ -16,7 +16,6 @@ use pbs_api_types::{
     PRIV_DATASTORE_ALLOCATE, PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_MODIFY,
     DataStoreConfig, DataStoreConfigUpdater,
 };
-use pbs_tools::task::TaskState;
 
 use crate::api2::config::sync::delete_sync_job;
 use crate::api2::config::verify::delete_verification_job;
@@ -26,6 +25,8 @@ use crate::api2::admin::{
     verify::list_verification_jobs,
 };
 use pbs_config::CachedUserInfo;
+use pbs_tools::task::WorkerTaskContext;
+
 use proxmox_rest_server::WorkerTask;
 
 use crate::server::jobstate;
@@ -69,7 +70,7 @@ pub(crate) fn do_create_datastore(
     _lock: BackupLockGuard,
     mut config: SectionConfigData,
     datastore: DataStoreConfig,
-    worker: Option<&dyn TaskState>,
+    worker: Option<&dyn WorkerTaskContext>,
 ) -> Result<(), Error> {
     let path: PathBuf = datastore.path.clone().into();
 

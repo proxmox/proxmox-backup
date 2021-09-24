@@ -17,7 +17,7 @@ fn garbage_collection(worker: &WorkerTask) -> Result<(), Error> {
     worker.log("start garbage collection");
 
     for i in 0..50 {
-        worker.fail_on_abort()?;
+        worker.check_abort()?;
 
         flog!(worker, "progress {}", i);
 

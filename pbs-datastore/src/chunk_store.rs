@@ -9,7 +9,7 @@ use proxmox::tools::fs::{CreateOptions, create_path, create_dir};
 
 use pbs_api_types::GarbageCollectionStatus;
 use pbs_tools::process_locker::{self, ProcessLocker};
-use pbs_tools::{task_log, task::TaskState};
+use pbs_tools::{task_log, task::WorkerTaskContext};
 
 use crate::DataBlob;
 
@@ -65,7 +65,7 @@ impl ChunkStore {
         &self.base
     }
 
-    pub fn create<P>(name: &str, path: P, uid: nix::unistd::Uid, gid: nix::unistd::Gid, worker: Option<&dyn TaskState>) -> Result<Self, Error>
+    pub fn create<P>(name: &str, path: P, uid: nix::unistd::Uid, gid: nix::unistd::Gid, worker: Option<&dyn WorkerTaskContext>) -> Result<Self, Error>
     where
         P: Into<PathBuf>,
     {
@@ -285,7 +285,7 @@ impl ChunkStore {
         oldest_writer: i64,
         phase1_start_time: i64,
         status: &mut GarbageCollectionStatus,
-        worker: &dyn TaskState,
+        worker: &dyn WorkerTaskContext,
         fail_on_shutdown: F,
     ) -> Result<(), Error> {
         use nix::sys::stat::fstatat;

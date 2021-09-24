@@ -20,6 +20,7 @@ use proxmox::try_block;
 use proxmox::tools::fs::{create_path, replace_file, atomic_open_or_create_file, CreateOptions};
 use proxmox::api::upid::UPID;
 
+use pbs_tools::task::WorkerTaskContext;
 use pbs_tools::logrotate::{LogRotate, LogRotateFiles};
 
 use crate::{CommandoSocket, FileLogger, FileLogOptions};
@@ -834,7 +835,7 @@ impl WorkerTask {
     }
 
     /// Fail if abort was requested.
-    pub fn fail_on_abort(&self) -> Result<(), Error> {
+    pub fn check_abort(&self) -> Result<(), Error> {
         if self.abort_requested() {
             bail!("abort requested - aborting task");
         }
@@ -859,9 +860,9 @@ impl WorkerTask {
     }
 }
 
-impl pbs_tools::task::TaskState for WorkerTask {
+impl WorkerTaskContext for WorkerTask {
     fn check_abort(&self) -> Result<(), Error> {
-        self.fail_on_abort()
+        self.check_abort()
     }
 
     fn log(&self, level: log::Level, message: &std::fmt::Arguments) {

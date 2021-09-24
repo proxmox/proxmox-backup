@@ -12,7 +12,7 @@ use pbs_datastore::backup_info::{BackupGroup, BackupDir, BackupInfo};
 use pbs_datastore::index::IndexFile;
 use pbs_datastore::manifest::{archive_type, ArchiveType, BackupManifest, FileInfo};
 use pbs_tools::fs::lock_dir_noblock_shared;
-use pbs_tools::{task_log, task::TaskState};
+use pbs_tools::{task_log, task::WorkerTaskContext};
 
 use crate::{
     backup::DataStore,
@@ -22,7 +22,7 @@ use crate::{
 /// A VerifyWorker encapsulates a task worker, datastore and information about which chunks have
 /// already been verified or detected as corrupt.
 pub struct VerifyWorker {
-    worker: Arc<dyn TaskState + Send + Sync>,
+    worker: Arc<dyn WorkerTaskContext + Send + Sync>,
     datastore: Arc<DataStore>,
     verified_chunks: Arc<Mutex<HashSet<[u8; 32]>>>,
     corrupt_chunks: Arc<Mutex<HashSet<[u8; 32]>>>,
@@ -30,7 +30,7 @@ pub struct VerifyWorker {
 
 impl VerifyWorker {
     /// Creates a new VerifyWorker for a given task worker and datastore.
-    pub fn new(worker: Arc<dyn TaskState + Send + Sync>, datastore: Arc<DataStore>) -> Self {
+    pub fn new(worker: Arc<dyn WorkerTaskContext + Send + Sync>, datastore: Arc<DataStore>) -> Self {
         Self {
             worker,
             datastore,
@@ -73,7 +73,7 @@ fn verify_blob(
 fn rename_corrupted_chunk(
     datastore: Arc<DataStore>,
     digest: &[u8;32],
-    worker: &dyn TaskState,
+    worker: &dyn WorkerTaskContext,
 ) {
     let (path, digest_str) = datastore.chunk_path(digest);
 
