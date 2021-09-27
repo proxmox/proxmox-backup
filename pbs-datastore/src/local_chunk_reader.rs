@@ -6,9 +6,10 @@ use anyhow::{bail, Error};
 
 use pbs_tools::crypt_config::CryptConfig;
 use pbs_api_types::CryptMode;
-use pbs_datastore::data_blob::DataBlob;
-use pbs_datastore::read_chunk::{ReadChunk, AsyncReadChunk};
-use pbs_datastore::DataStore;
+
+use crate::data_blob::DataBlob;
+use crate::read_chunk::{ReadChunk, AsyncReadChunk};
+use crate::DataStore;
 
 #[derive(Clone)]
 pub struct LocalChunkReader {

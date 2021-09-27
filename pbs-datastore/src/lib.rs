@@ -201,3 +201,6 @@ pub use datastore::{check_backup_owner, DataStore};
 
 mod snapshot_reader;
 pub use snapshot_reader::SnapshotReader;
+
+mod local_chunk_reader;
+pub use local_chunk_reader::LocalChunkReader;
