@@ -19,11 +19,11 @@ use proxmox::api::RpcEnvironmentType;
 use proxmox::sys::linux::socket::set_tcp_keepalive;
 use proxmox::tools::fs::CreateOptions;
 
-use proxmox_rest_server::{rotate_task_log_archive, ApiConfig, RestServer, WorkerTask};
 use pbs_tools::task_log;
+use pbs_datastore::DataStore;
+use proxmox_rest_server::{rotate_task_log_archive, ApiConfig, RestServer, WorkerTask};
 
 use proxmox_backup::{
-    backup::DataStore,
     server::{
         auth::default_api_auth,
         jobstate::{
@@ -238,7 +238,7 @@ async fn run() -> Result<(), Error> {
     commando_sock.register_command(
         "datastore-removed".to_string(),
         |_value| {
-            if let Err(err) = proxmox_backup::backup::DataStore::remove_unused_datastores() {
+            if let Err(err) = DataStore::remove_unused_datastores() {
                 log::error!("could not refresh datastores: {}", err);
             }
             Ok(Value::Null)

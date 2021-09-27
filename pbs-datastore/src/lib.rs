@@ -195,3 +195,6 @@ pub use data_blob_reader::DataBlobReader;
 pub use data_blob_writer::DataBlobWriter;
 pub use manifest::BackupManifest;
 pub use store_progress::StoreProgress;
+
+mod datastore;
+pub use datastore::{check_backup_owner, DataStore};

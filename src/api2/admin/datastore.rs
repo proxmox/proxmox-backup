@@ -39,7 +39,7 @@ use pbs_api_types::{ Authid, BackupContent, Counts, CryptMode,
 
 };
 use pbs_client::pxar::create_zip;
-use pbs_datastore::{BackupDir, BackupGroup, StoreProgress, CATALOG_NAME};
+use pbs_datastore::{check_backup_owner, DataStore, BackupDir, BackupGroup, StoreProgress, CATALOG_NAME};
 use pbs_datastore::backup_info::BackupInfo;
 use pbs_datastore::cached_chunk_reader::CachedChunkReader;
 use pbs_datastore::catalog::{ArchiveEntry, CatalogReader};
@@ -59,8 +59,8 @@ use proxmox_rest_server::{WorkerTask, formatter};
 
 use crate::api2::node::rrd::create_value_from_rrd;
 use crate::backup::{
-    check_backup_owner, verify_all_backups, verify_backup_group, verify_backup_dir, verify_filter,
-    DataStore, LocalChunkReader,
+    verify_all_backups, verify_backup_group, verify_backup_dir, verify_filter,
+    LocalChunkReader,
 };
 
 use crate::server::jobstate::Job;

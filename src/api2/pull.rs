@@ -16,9 +16,9 @@ use pbs_api_types::{
 use pbs_tools::task_log;
 use proxmox_rest_server::WorkerTask;
 use pbs_config::CachedUserInfo;
+use pbs_datastore::DataStore;
 
 use crate::server::{jobstate::Job, pull::pull_store};
-use crate::backup::DataStore;
 
 pub fn check_pull_privs(
     auth_id: &Authid,

@@ -4,15 +4,13 @@ use anyhow::Error;
 
 use pbs_datastore::backup_info::BackupInfo;
 use pbs_datastore::prune::compute_prune_info;
+use pbs_datastore::DataStore;
 use pbs_api_types::{Authid, PRIV_DATASTORE_MODIFY, PruneOptions};
 use pbs_config::CachedUserInfo;
 use pbs_tools::{task_log, task_warn};
 use proxmox_rest_server::WorkerTask;
 
-use crate::{
-    backup::DataStore,
-    server::jobstate::Job,
- };
+use crate::server::jobstate::Job;
 
 pub fn prune_datastore(
     worker: Arc<WorkerTask>,

@@ -3,12 +3,10 @@ use anyhow::Error;
 
 use pbs_api_types::Authid;
 use pbs_tools::task_log;
+use pbs_datastore::DataStore;
 use proxmox_rest_server::WorkerTask;
 
-use crate::{
-    server::jobstate::Job,
-    backup::DataStore,
-};
+use crate::server::jobstate::Job;
 
 /// Runs a garbage collection job.
 pub fn do_garbage_collection_job(

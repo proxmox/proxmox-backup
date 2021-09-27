@@ -13,7 +13,7 @@ use serde_json::json;
 use proxmox::api::error::{HttpError, StatusCode};
 
 use pbs_api_types::{Authid, SnapshotListItem, GroupListItem};
-use pbs_datastore::{BackupInfo, BackupDir, BackupGroup, StoreProgress};
+use pbs_datastore::{DataStore, BackupInfo, BackupDir, BackupGroup, StoreProgress};
 use pbs_datastore::data_blob::DataBlob;
 use pbs_datastore::dynamic_index::DynamicIndexReader;
 use pbs_datastore::fixed_index::FixedIndexReader;
@@ -26,10 +26,7 @@ use pbs_tools::task_log;
 use pbs_client::{BackupReader, BackupRepository, HttpClient, HttpClientOptions, RemoteChunkReader};
 use proxmox_rest_server::WorkerTask;
 
-use crate::{
-    backup::DataStore,
-    tools::ParallelHandler,
-};
+use crate::tools::ParallelHandler;
 
 // fixme: implement filters
 // fixme: delete vanished groups

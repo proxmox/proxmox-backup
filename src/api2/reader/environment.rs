@@ -6,13 +6,10 @@ use serde_json::{json, Value};
 use proxmox::api::{RpcEnvironment, RpcEnvironmentType};
 
 use pbs_datastore::backup_info::BackupDir;
+use pbs_datastore::DataStore;
 use pbs_api_types::Authid;
 use proxmox_rest_server::formatter::*;
-
-use crate::backup::DataStore;
 use proxmox_rest_server::WorkerTask;
-
-//use proxmox::tools;
 
 /// `RpcEnvironmet` implementation for backup reader service
 #[derive(Clone)]

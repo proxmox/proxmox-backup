@@ -18,10 +18,10 @@ use pbs_api_types::{
     DATASTORE_SCHEMA, RRDMode, RRDTimeFrameResolution, Authid,
     PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP,
 };
-
-use crate::backup::DataStore;
-use crate::tools::statistics::{linear_regression};
+use pbs_datastore::DataStore;
 use pbs_config::CachedUserInfo;
+
+use crate::tools::statistics::{linear_regression};
 
 #[api(
     returns: {

@@ -11,9 +11,8 @@ use pbs_datastore::index::IndexFile;
 use pbs_datastore::fixed_index::FixedIndexReader;
 use pbs_datastore::dynamic_index::DynamicIndexReader;
 use pbs_datastore::manifest::{archive_type, ArchiveType, CLIENT_LOG_BLOB_NAME, MANIFEST_BLOB_NAME};
+use pbs_datastore::DataStore;
 use pbs_tools::fs::lock_dir_noblock_shared;
-
-use crate::backup::DataStore;
 
 /// Helper to access the contents of a datastore backup snapshot
 ///

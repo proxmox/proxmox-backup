@@ -7,9 +7,6 @@ pub const CATALOG_NAME: &str = "catalog.pcat1.didx";
 mod read_chunk;
 pub use read_chunk::*;
 
-mod datastore;
-pub use datastore::*;
-
 mod verify;
 pub use verify::*;
 

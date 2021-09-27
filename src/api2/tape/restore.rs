@@ -34,7 +34,7 @@ use pbs_api_types::{
     UPID_SCHEMA, TAPE_RESTORE_SNAPSHOT_SCHEMA,
     PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY, PRIV_TAPE_READ,
 };
-use pbs_datastore::DataBlob;
+use pbs_datastore::{DataStore, DataBlob};
 use pbs_datastore::backup_info::BackupDir;
 use pbs_datastore::dynamic_index::DynamicIndexReader;
 use pbs_datastore::fixed_index::FixedIndexReader;
@@ -50,7 +50,6 @@ use proxmox_rest_server::WorkerTask;
 
 use crate::{
     tools::ParallelHandler,
-    backup::DataStore,
     server::lookup_user_email,
     tape::{
         TAPE_STATUS_DIR,

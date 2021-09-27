@@ -10,14 +10,14 @@ use proxmox::tools::digest_to_hex;
 use proxmox::tools::fs::{replace_file, CreateOptions};
 use proxmox::api::{RpcEnvironment, RpcEnvironmentType};
 
-use pbs_datastore::DataBlob;
+use pbs_datastore::{DataStore, DataBlob};
 use pbs_datastore::backup_info::{BackupDir, BackupInfo};
 use pbs_datastore::dynamic_index::DynamicIndexWriter;
 use pbs_datastore::fixed_index::FixedIndexWriter;
 use pbs_api_types::Authid;
 use proxmox_rest_server::{WorkerTask, formatter::*};
 
-use crate::backup::{verify_backup_dir_with_lock, DataStore};
+use crate::backup::verify_backup_dir_with_lock;
 
 use hyper::{Body, Response};
 
