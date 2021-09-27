@@ -51,12 +51,12 @@ impl <E: RpcEnvironment + Clone> H2Service<E> {
 
         let mut uri_param = HashMap::new();
 
-        let formatter = &JSON_FORMATTER;
+        let formatter = JSON_FORMATTER;
 
         match self.router.find_method(&components, method, &mut uri_param) {
             None => {
                 let err = http_err!(NOT_FOUND, "Path '{}' not found.", path);
-                future::ok((formatter.format_error)(err)).boxed()
+                future::ok(formatter.format_error(err)).boxed()
             }
             Some(api_method) => {
                 crate::rest::handle_api_request(

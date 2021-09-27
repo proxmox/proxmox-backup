@@ -18,7 +18,7 @@ pub struct ReaderEnvironment {
     result_attributes: Value,
     auth_id: Authid,
     pub debug: bool,
-    pub formatter: &'static OutputFormatter,
+    pub formatter: &'static dyn OutputFormatter,
     pub worker: Arc<WorkerTask>,
     pub datastore: Arc<DataStore>,
     pub backup_dir: BackupDir,
@@ -42,7 +42,7 @@ impl ReaderEnvironment {
             worker,
             datastore,
             debug: false,
-            formatter: &JSON_FORMATTER,
+            formatter: JSON_FORMATTER,
             backup_dir,
             allowed_chunks: Arc::new(RwLock::new(HashSet::new())),
         }

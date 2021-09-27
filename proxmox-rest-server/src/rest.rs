@@ -391,7 +391,7 @@ async fn proxy_protected_request(
 pub(crate) async fn handle_api_request<Env: RpcEnvironment, S: 'static + BuildHasher + Send>(
     mut rpcenv: Env,
     info: &'static ApiMethod,
-    formatter: &'static OutputFormatter,
+    formatter: &'static dyn OutputFormatter,
     parts: Parts,
     req_body: Body,
     uri_param: HashMap<String, String, S>,
@@ -407,14 +407,14 @@ pub(crate) async fn handle_api_request<Env: RpcEnvironment, S: 'static + BuildHa
         ApiHandler::Sync(handler) => {
             let params =
                 get_request_parameters(info.parameters, parts, req_body, uri_param).await?;
-            (handler)(params, info, &mut rpcenv).map(|data| (formatter.format_data)(data, &rpcenv))
+            (handler)(params, info, &mut rpcenv).map(|data| formatter.format_data(data, &rpcenv))
         }
         ApiHandler::Async(handler) => {
             let params =
                 get_request_parameters(info.parameters, parts, req_body, uri_param).await?;
             (handler)(params, info, &mut rpcenv)
                 .await
-                .map(|data| (formatter.format_data)(data, &rpcenv))
+                .map(|data| formatter.format_data(data, &rpcenv))
         }
     };
 
@@ -426,7 +426,7 @@ pub(crate) async fn handle_api_request<Env: RpcEnvironment, S: 'static + BuildHa
                     tokio::time::sleep_until(Instant::from_std(delay_unauth_time)).await;
                 }
             }
-            (formatter.format_error)(err)
+            formatter.format_error(err)
         }
     };
 
@@ -627,9 +627,9 @@ async fn handle_request(
         if comp_len >= 2 {
             let format = components[1];
 
-            let formatter = match format {
-                "json" => &JSON_FORMATTER,
-                "extjs" => &EXTJS_FORMATTER,
+            let formatter: &dyn OutputFormatter = match format {
+                "json" => JSON_FORMATTER,
+                "extjs" => EXTJS_FORMATTER,
                 _ => bail!("Unsupported output format '{}'.", format),
             };
 
@@ -664,7 +664,7 @@ async fn handle_request(
                         // always delay unauthorized calls by 3 seconds (from start of request)
                         let err = http_err!(UNAUTHORIZED, "authentication failed - {}", err);
                         tokio::time::sleep_until(Instant::from_std(delay_unauth_time)).await;
-                        return Ok((formatter.format_error)(err));
+                        return Ok(formatter.format_error(err));
                     }
                 }
             }
@@ -672,7 +672,7 @@ async fn handle_request(
             match api_method {
                 None => {
                     let err = http_err!(NOT_FOUND, "Path '{}' not found.", path);
-                    return Ok((formatter.format_error)(err));
+                    return Ok(formatter.format_error(err));
                 }
                 Some(api_method) => {
                     let auth_id = rpcenv.get_auth_id();
@@ -686,7 +686,7 @@ async fn handle_request(
                     ) {
                         let err = http_err!(FORBIDDEN, "permission check failed");
                         tokio::time::sleep_until(Instant::from_std(access_forbidden_time)).await;
-                        return Ok((formatter.format_error)(err));
+                        return Ok(formatter.format_error(err));
                     }
 
                     let result = if api_method.protected && env_type == RpcEnvironmentType::PUBLIC {
@@ -698,7 +698,7 @@ async fn handle_request(
 
                     let mut response = match result {
                         Ok(resp) => resp,
-                        Err(err) => (formatter.format_error)(err),
+                        Err(err) => formatter.format_error(err),
                     };
 
                     if let Some(auth_id) = auth_id {

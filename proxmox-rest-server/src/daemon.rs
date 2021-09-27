@@ -1,4 +1,4 @@
-//! Helpers for daemons/services.
+//! Helpers to implement restartable daemons/services.
 
 use std::ffi::CString;
 use std::future::Future;
@@ -351,6 +351,7 @@ extern "C" {
     fn sd_notify(unset_environment: c_int, state: *const c_char) -> c_int;
 }
 
+/// Systemd sercice startup states (see: ``man sd_notify``)
 pub enum SystemdNotify {
     Ready,
     Reloading,
@@ -359,6 +360,7 @@ pub enum SystemdNotify {
     MainPid(nix::unistd::Pid),
 }
 
+/// Tells systemd the startup state of the service (see: ``man sd_notify``)
 pub fn systemd_notify(state: SystemdNotify) -> Result<(), Error> {
     let message = match state {
         SystemdNotify::Ready => CString::new("READY=1"),

@@ -1332,7 +1332,7 @@ pub fn upload_backup_log(
         replace_file(&path, blob.raw_data(), CreateOptions::new())?;
 
         // fixme: use correct formatter
-        Ok(formatter::json_response(Ok(Value::Null)))
+        Ok(formatter::JSON_FORMATTER.format_data(Value::Null, &*rpcenv))
     }.boxed()
 }
 

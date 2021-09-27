@@ -111,7 +111,7 @@ pub struct BackupEnvironment {
     result_attributes: Value,
     auth_id: Authid,
     pub debug: bool,
-    pub formatter: &'static OutputFormatter,
+    pub formatter: &'static dyn OutputFormatter,
     pub worker: Arc<WorkerTask>,
     pub datastore: Arc<DataStore>,
     pub backup_dir: BackupDir,
@@ -146,7 +146,7 @@ impl BackupEnvironment {
             worker,
             datastore,
             debug: false,
-            formatter: &JSON_FORMATTER,
+            formatter: JSON_FORMATTER,
             backup_dir,
             last_backup: None,
             state: Arc::new(Mutex::new(state)),
@@ -556,10 +556,7 @@ impl BackupEnvironment {
     }
 
     pub fn format_response(&self, result: Result<Value, Error>) -> Response<Body> {
-        match result {
-            Ok(data) => (self.formatter.format_data)(data, self),
-            Err(err) => (self.formatter.format_error)(err),
-        }
+        self.formatter.format_result(result, self)
     }
 
     /// Raise error if finished flag is not set

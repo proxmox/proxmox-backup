@@ -12,6 +12,7 @@ mod compression;
 pub use compression::*;
 
 pub mod daemon;
+
 pub mod formatter;
 
 mod environment;
