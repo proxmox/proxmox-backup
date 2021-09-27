@@ -3,7 +3,7 @@ use anyhow::{bail, Error};
 /// Worker task abstraction
 ///
 /// A worker task is a long running task, which usually logs output into a separate file.
-pub trait WorkerTaskContext {
+pub trait WorkerTaskContext: Send + Sync {
 
     /// Test if there was a request to abort the task.
     fn abort_requested(&self) -> bool;

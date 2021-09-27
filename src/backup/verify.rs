@@ -19,7 +19,7 @@ use crate::tools::ParallelHandler;
 /// A VerifyWorker encapsulates a task worker, datastore and information about which chunks have
 /// already been verified or detected as corrupt.
 pub struct VerifyWorker {
-    worker: Arc<dyn WorkerTaskContext + Send + Sync>,
+    worker: Arc<dyn WorkerTaskContext>,
     datastore: Arc<DataStore>,
     verified_chunks: Arc<Mutex<HashSet<[u8; 32]>>>,
     corrupt_chunks: Arc<Mutex<HashSet<[u8; 32]>>>,
@@ -27,7 +27,7 @@ pub struct VerifyWorker {
 
 impl VerifyWorker {
     /// Creates a new VerifyWorker for a given task worker and datastore.
-    pub fn new(worker: Arc<dyn WorkerTaskContext + Send + Sync>, datastore: Arc<DataStore>) -> Self {
+    pub fn new(worker: Arc<dyn WorkerTaskContext>, datastore: Arc<DataStore>) -> Self {
         Self {
             worker,
             datastore,
