@@ -19,11 +19,10 @@ use pbs_tape::{
     TapeWrite,
     sg_tape::tape_alert_flags_critical,
 };
-use pbs_datastore::DataStore;
+use pbs_datastore::{DataStore, SnapshotReader};
 use proxmox_rest_server::WorkerTask;
 
 use crate::{
-    backup::SnapshotReader,
     tape::{
         TAPE_STATUS_DIR,
         MAX_CHUNK_ARCHIVE_SIZE,

@@ -11,8 +11,7 @@ use pbs_tape::{
     PROXMOX_TAPE_BLOCK_SIZE,
     TapeWrite, MediaContentHeader,
 };
-
-use crate::backup::SnapshotReader;
+use pbs_datastore::SnapshotReader;
 
 use crate::tape::file_formats::{
     PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_1,

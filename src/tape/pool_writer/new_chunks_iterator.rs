@@ -3,9 +3,8 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::{format_err, Error};
 
-use pbs_datastore::{DataStore, DataBlob};
+use pbs_datastore::{DataStore, DataBlob, SnapshotReader};
 
-use crate::backup::SnapshotReader;
 use crate::tape::CatalogSet;
 
 /// Chunk iterator which use a separate thread to read chunks

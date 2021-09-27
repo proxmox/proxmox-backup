@@ -20,7 +20,7 @@ use pbs_api_types::{
     UPID_SCHEMA, JOB_ID_SCHEMA, PRIV_DATASTORE_READ, PRIV_TAPE_AUDIT, PRIV_TAPE_WRITE,
 };
 
-use pbs_datastore::{DataStore, StoreProgress};
+use pbs_datastore::{DataStore, StoreProgress, SnapshotReader};
 use pbs_datastore::backup_info::{BackupDir, BackupInfo};
 use pbs_tools::{task_log, task_warn, task::WorkerTaskContext};
 use pbs_config::CachedUserInfo;
@@ -36,7 +36,6 @@ use crate::{
             compute_schedule_status,
         },
     },
-    backup::SnapshotReader,
     tape::{
         TAPE_STATUS_DIR,
         Inventory,

@@ -9,6 +9,3 @@ pub use read_chunk::*;
 
 mod verify;
 pub use verify::*;
-
-mod snapshot_reader;
-pub use snapshot_reader::SnapshotReader;

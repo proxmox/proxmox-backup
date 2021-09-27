@@ -198,3 +198,6 @@ pub use store_progress::StoreProgress;
 
 mod datastore;
 pub use datastore::{check_backup_owner, DataStore};
+
+mod snapshot_reader;
+pub use snapshot_reader::SnapshotReader;
