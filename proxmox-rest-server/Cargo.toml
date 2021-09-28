@@ -25,7 +25,7 @@ tokio-openssl = "0.6.1"
 tower-service = "0.3.0"
 url = "2.1"
 
-proxmox = { version = "0.13.4", features = [ "router"] }
+proxmox = { version = "0.13.5", features = [ "router"] }
 
 # fixme: remove this dependency (pbs_tools::broadcast_future)
 pbs-tools = { path = "../pbs-tools" }

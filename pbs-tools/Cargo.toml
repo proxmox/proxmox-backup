@@ -31,7 +31,7 @@ url = "2.1"
 walkdir = "2"
 zstd = { version = "0.6", features = [ "bindgen" ] }
 
-proxmox = { version = "0.13.4", default-features = false, features = [ "tokio" ] }
+proxmox = { version = "0.13.5", default-features = false, features = [ "tokio" ] }
 
 pbs-buildcfg = { path = "../pbs-buildcfg" }
 pbs-runtime = { path = "../pbs-runtime" }

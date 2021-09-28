@@ -6,7 +6,7 @@ use serde_json::{json, Value};
 use hyper::{Body, Response, StatusCode};
 use hyper::header;
 
-use proxmox::api::{HttpError, RpcEnvironment};
+use proxmox::api::{HttpError, schema::ParameterError, RpcEnvironment};
 
 /// Extension to set error message for server side logging
 pub(crate) struct ErrorMessageExtension(pub String);
@@ -60,6 +60,12 @@ fn add_result_attributes(result: &mut Value, rpcenv: &dyn RpcEnvironment)
 struct JsonFormatter();
 
 /// Format data as ``application/json``
+///
+/// The returned json object contains the following properties:
+///
+/// * ``data``: The result data (on success)
+///
+/// Any result attributes set on ``rpcenv`` are also added to the object.
 ///
 /// Errors generates a BAD_REQUEST containing the error
 /// message as string.
@@ -136,10 +142,18 @@ impl  OutputFormatter for ExtJsFormatter {
 
     fn format_error(&self, err: Error) -> Response<Body> {
 
-        let mut errors = vec![];
+        let message: String;
+        let errors;
 
-        let message = err.to_string();
-        errors.push(&message);
+        if let Some(param_err) = err.downcast_ref::<ParameterError>() {
+            errors = param_err.errors().iter()
+                .map(|(name, err)| format!("parameter '{}': {}", name, err))
+                .collect();
+            message = String::from("parameter verification errors");
+        } else {
+            errors = vec![];
+            message = err.to_string();
+        }
 
         let result = json!({
             "message": message,
