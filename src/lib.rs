@@ -3,6 +3,11 @@
 //! The [backup](backup/index.html) module contains some detailed information
 //! on the inner workings of the backup server regarding data storage.
 
+use std::path::PathBuf;
+
+use pbs_buildcfg::configdir;
+use pbs_tools::cert::CertInfo;
+
 #[macro_use]
 pub mod tools;
 
@@ -27,3 +32,8 @@ pub mod tape;
 pub mod acme;
 
 pub mod client_helpers;
+
+/// Get the server's certificate info (from `proxy.pem`).
+pub fn cert_info() -> Result<CertInfo, anyhow::Error> {
+    CertInfo::from_path(PathBuf::from(configdir!("/proxy.pem")))
+}

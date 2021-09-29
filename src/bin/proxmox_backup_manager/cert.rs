@@ -2,8 +2,6 @@ use anyhow::{bail, Error};
 
 use proxmox::api::{api, cli::*};
 
-use pbs_tools::cert::CertInfo;
-
 use proxmox_backup::config;
 use proxmox_backup::auth_helpers::*;
 
@@ -11,7 +9,7 @@ use proxmox_backup::auth_helpers::*;
 /// Display node certificate information.
 fn cert_info() -> Result<(), Error> {
 
-    let cert = CertInfo::new()?;
+    let cert = proxmox_backup::cert_info()?;
 
     println!("Subject: {}", cert.subject_name()?);
 

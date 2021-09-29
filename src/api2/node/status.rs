@@ -8,7 +8,6 @@ use proxmox::sys::linux::procfs;
 
 use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};
 
-use pbs_tools::cert::CertInfo;
 use pbs_api_types::{NODE_SCHEMA, NodePowerCommand, PRIV_SYS_AUDIT, PRIV_SYS_POWER_MANAGEMENT};
 
 use crate::api2::types::{
@@ -88,7 +87,7 @@ fn get_status(
         cpu,
         wait,
         info: NodeInformation {
-            fingerprint: CertInfo::new()?.fingerprint()?,
+            fingerprint: crate::cert_info()?.fingerprint()?,
         },
     })
 }

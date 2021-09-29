@@ -1,3 +1,5 @@
+//! Deals with the server's current certificates (proxy.pem).
+
 use std::path::PathBuf;
 use std::mem::MaybeUninit;
 
@@ -6,8 +8,6 @@ use foreign_types::ForeignTypeRef;
 use openssl::x509::{X509, GeneralName};
 use openssl::stack::Stack;
 use openssl::pkey::{Public, PKey};
-
-use pbs_buildcfg::configdir;
 
 // C type:
 #[allow(non_camel_case_types)]
@@ -40,10 +40,6 @@ fn x509name_to_string(name: &openssl::x509::X509NameRef) -> Result<String, Error
 }
 
 impl CertInfo {
-    pub fn new() -> Result<Self, Error> {
-        Self::from_path(PathBuf::from(configdir!("/proxy.pem")))
-    }
-
     pub fn from_path(path: PathBuf) -> Result<Self, Error> {
         Self::from_pem(&proxmox::tools::fs::file_get_contents(&path)?)
             .map_err(|err| format_err!("failed to load certificate from {:?} - {}", path, err))
