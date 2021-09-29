@@ -3,13 +3,6 @@
 //! This library implements the client side to access the backups
 //! server using https.
 
-use anyhow::Error;
-use openssl::pkey::{PKey, Private};
-
-use pbs_api_types::{Authid, Userid};
-use pbs_tools::ticket::Ticket;
-use pbs_tools::cert::CertInfo;
-
 pub mod catalog_shell;
 pub mod dynamic_index;
 pub mod pxar;
@@ -49,19 +42,3 @@ mod chunk_stream;
 pub use chunk_stream::{ChunkStream, FixedChunkStream};
 
 pub const PROXMOX_BACKUP_TCP_KEEPALIVE_TIME: u32 = 120;
-
-/// Connect to localhost:8007 as root@pam
-///
-/// This automatically creates a ticket if run as 'root' user.
-pub fn connect_to_localhost(auth_key: Option<&PKey<Private>>) -> Result<HttpClient, Error> {
-    let options = if let Some(auth_key) = auth_key {
-        let ticket = Ticket::new("PBS", Userid::root_userid())?
-            .sign(auth_key, None)?;
-        let fingerprint = CertInfo::new()?.fingerprint()?;
-        HttpClientOptions::new_non_interactive(ticket, Some(fingerprint))
-    } else {
-        HttpClientOptions::new_interactive(None, None)
-    };
-
-    HttpClient::new("localhost", 8007, Authid::root_auth_id(), options)
-}

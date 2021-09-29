@@ -1,13 +1,24 @@
 use anyhow::Error;
 
+use pbs_api_types::{Authid, Userid};
+use pbs_client::{HttpClient, HttpClientOptions};
+use pbs_tools::cert::CertInfo;
+use pbs_tools::ticket::Ticket;
+
 use crate::auth_helpers::private_auth_key;
 
-/// As root we have access to the private key file and can use it directly. Otherwise the connect
-/// call will interactively query the password.
+/// Connect to localhost:8007 as root@pam
+///
+/// This automatically creates a ticket if run as 'root' user.
 pub fn connect_to_localhost() -> Result<pbs_client::HttpClient, Error> {
-    pbs_client::connect_to_localhost(if nix::unistd::Uid::current().is_root() {
-        Some(private_auth_key())
+    let options = if nix::unistd::Uid::current().is_root() {
+        let auth_key = private_auth_key();
+        let ticket = Ticket::new("PBS", Userid::root_userid())?.sign(auth_key, None)?;
+        let fingerprint = CertInfo::new()?.fingerprint()?;
+        HttpClientOptions::new_non_interactive(ticket, Some(fingerprint))
     } else {
-        None
-    })
+        HttpClientOptions::new_interactive(None, None)
+    };
+
+    HttpClient::new("localhost", 8007, Authid::root_auth_id(), options)
 }
