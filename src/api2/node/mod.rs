@@ -20,12 +20,13 @@ use proxmox::list_subdirs_api_method;
 use proxmox::{identity, sortable};
 use proxmox_http::websocket::WebSocket;
 
+use proxmox_rest_server::WorkerTask;
+
 use pbs_api_types::{Authid, NODE_SCHEMA, PRIV_SYS_CONSOLE};
-use pbs_tools::auth::private_auth_key;
 use pbs_tools::ticket::{self, Empty, Ticket};
 
-use proxmox_rest_server::WorkerTask;
 use crate::tools;
+use crate::auth_helpers::private_auth_key;
 
 pub mod apt;
 pub mod certificates;

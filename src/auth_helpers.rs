@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::{bail, format_err, Error};
 use lazy_static::lazy_static;
-use openssl::pkey::{PKey, Public};
+use openssl::pkey::{PKey, Private, Public};
 use openssl::rsa::Rsa;
 use openssl::sha;
 
@@ -166,6 +166,22 @@ pub fn public_auth_key() -> &'static PKey<Public> {
 
     lazy_static! {
         static ref KEY: PKey<Public> = load_public_auth_key().unwrap();
+    }
+
+    &KEY
+}
+
+fn load_private_auth_key() -> Result<PKey<Private>, Error> {
+    let pem = file_get_contents(configdir!("/authkey.key"))?;
+    let rsa = Rsa::private_key_from_pem(&pem)?;
+    let key = PKey::from_rsa(rsa)?;
+
+    Ok(key)
+}
+
+pub fn private_auth_key() -> &'static PKey<Private> {
+    lazy_static! {
+        static ref KEY: PKey<Private> = load_private_auth_key().unwrap();
     }
 
     &KEY

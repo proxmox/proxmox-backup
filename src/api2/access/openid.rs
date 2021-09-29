@@ -13,16 +13,14 @@ use proxmox_openid::{OpenIdAuthenticator,  OpenIdConfig};
 
 use pbs_api_types::{Userid, User, REALM_ID_SCHEMA};
 use pbs_buildcfg::PROXMOX_BACKUP_RUN_DIR_M;
-use pbs_tools::auth::private_auth_key;
 use pbs_tools::ticket::Ticket;
 use pbs_config::domains::{OpenIdUserAttribute, OpenIdRealmConfig};
 
-use crate::server::ticket::ApiTicket;
 use pbs_config::CachedUserInfo;
-
 use pbs_config::open_backup_lockfile;
 
 use crate::auth_helpers::*;
+use crate::server::ticket::ApiTicket;
 
 fn openid_authenticator(realm_config: &OpenIdRealmConfig, redirect_url: &str) -> Result<OpenIdAuthenticator, Error> {
     let config = OpenIdConfig {

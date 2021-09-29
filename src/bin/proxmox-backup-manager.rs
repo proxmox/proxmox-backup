@@ -7,7 +7,7 @@ use serde_json::{json, Value};
 use proxmox::api::{api, cli::*, RpcEnvironment};
 use proxmox::tools::fs::CreateOptions;
 
-use pbs_client::{connect_to_localhost, display_task_log, view_task_result};
+use pbs_client::{display_task_log, view_task_result};
 use pbs_tools::percent_encoding::percent_encode_component;
 use pbs_tools::json::required_string_param;
 use pbs_api_types::{
@@ -17,8 +17,9 @@ use pbs_api_types::{
 
 use proxmox_rest_server::wait_for_local_worker;
 
-use proxmox_backup::config;
 use proxmox_backup::api2;
+use proxmox_backup::client_helpers::connect_to_localhost;
+use proxmox_backup::config;
 
 mod proxmox_backup_manager;
 use proxmox_backup_manager::*;

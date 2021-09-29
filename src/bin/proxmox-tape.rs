@@ -14,7 +14,7 @@ use proxmox::{
     },
 };
 
-use pbs_client::{connect_to_localhost, view_task_result};
+use pbs_client::view_task_result;
 use pbs_tools::format::{
     HumanByte,
     render_epoch,
@@ -49,6 +49,7 @@ use proxmox_backup::{
             proxmox_tape_magic_to_text,
         },
     },
+    client_helpers::connect_to_localhost,
 };
 
 mod proxmox_tape;

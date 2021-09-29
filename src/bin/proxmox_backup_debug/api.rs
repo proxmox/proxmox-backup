@@ -16,8 +16,10 @@ use proxmox::api::{
 };
 
 use pbs_api_types::{PROXMOX_UPID_REGEX, UPID};
-use pbs_client::{connect_to_localhost, view_task_result};
+use pbs_client::view_task_result;
 use proxmox_rest_server::normalize_uri_path;
+
+use proxmox_backup::client_helpers::connect_to_localhost;
 
 const PROG_NAME: &str = "proxmox-backup-debug api";
 const URL_ASCIISET: percent_encoding::AsciiSet = percent_encoding::NON_ALPHANUMERIC.remove(b'/');

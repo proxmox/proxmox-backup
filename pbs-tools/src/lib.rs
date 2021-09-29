@@ -1,5 +1,4 @@
 pub mod acl;
-pub mod auth;
 pub mod blocking;
 pub mod borrow;
 pub mod broadcast_future;

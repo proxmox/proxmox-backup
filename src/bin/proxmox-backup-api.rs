@@ -9,7 +9,6 @@ use proxmox::try_block;
 use proxmox::api::RpcEnvironmentType;
 use proxmox::tools::fs::CreateOptions;
 
-use pbs_tools::auth::private_auth_key;
 use proxmox_rest_server::{daemon, ApiConfig, RestServer};
 
 use proxmox_backup::server::auth::default_api_auth;

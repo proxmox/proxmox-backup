@@ -25,3 +25,5 @@ pub mod rrd;
 pub mod tape;
 
 pub mod acme;
+
+pub mod client_helpers;

@@ -15,15 +15,13 @@ use pbs_api_types::{
     Userid, Authid, PASSWORD_SCHEMA, ACL_PATH_SCHEMA,
     PRIVILEGES, PRIV_PERMISSIONS_MODIFY, PRIV_SYS_AUDIT,
 };
-use pbs_tools::auth::private_auth_key;
 use pbs_tools::ticket::{self, Empty, Ticket};
 use pbs_config::acl::AclTreeNode;
+use pbs_config::CachedUserInfo;
 
 use crate::auth_helpers::*;
-use crate::server::ticket::ApiTicket;
-
-use pbs_config::CachedUserInfo;
 use crate::config::tfa::TfaChallenge;
+use crate::server::ticket::ApiTicket;
 
 pub mod acl;
 pub mod domain;
