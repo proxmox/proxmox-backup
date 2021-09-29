@@ -247,20 +247,20 @@ async fn run() -> Result<(), Error> {
 
     let server = daemon::create_daemon(
         ([0,0,0,0,0,0,0,0], 8007).into(),
-        move |listener, ready| {
+        move |listener| {
 
             let connections = accept_connections(listener, acceptor, debug);
             let connections = hyper::server::accept::from_stream(ReceiverStream::new(connections));
 
-            Ok(ready
-               .and_then(|_| hyper::Server::builder(connections)
+            Ok(async {
+                daemon::systemd_notify(daemon::SystemdNotify::Ready)?;
+
+                hyper::Server::builder(connections)
                     .serve(rest_server)
                     .with_graceful_shutdown(proxmox_rest_server::shutdown_future())
                     .map_err(Error::from)
-                )
-                .map_err(|err| eprintln!("server error: {}", err))
-                .map(|_| ())
-            )
+                    .await
+            })
         },
         "proxmox-backup-proxy.service",
     );

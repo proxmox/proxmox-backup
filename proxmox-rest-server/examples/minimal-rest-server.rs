@@ -2,13 +2,11 @@ use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 
 use anyhow::{bail, format_err, Error};
-use futures::{FutureExt, TryFutureExt};
 use lazy_static::lazy_static;
 
 use proxmox::api::{api, router::SubdirMap, Router, RpcEnvironmentType, UserInformation};
 use proxmox::list_subdirs_api_method;
 use proxmox_rest_server::{ApiAuth, ApiConfig, AuthError, RestServer};
-
 // Create a Dummy User info and auth system
 // Normally this would check and authenticate the user
 struct DummyUserInfo;
@@ -197,16 +195,17 @@ async fn run() -> Result<(), Error> {
     // the api to clients
     proxmox_rest_server::daemon::create_daemon(
         ([127, 0, 0, 1], 65000).into(),
-        move |listener, ready| {
+        move |listener| {
             let incoming = hyper::server::conn::AddrIncoming::from_listener(listener)?;
 
-            Ok(ready
-                .and_then(|_| hyper::Server::builder(incoming)
+            Ok(async move {
+
+                hyper::Server::builder(incoming)
                     .serve(rest_server)
-                    .map_err(Error::from)
-                )
-                .map_err(|err| eprintln!("ERR: {}", err))
-                .map(|test| println!("OK: {}", test.is_ok())))
+                    .await?;
+
+                Ok(())
+            })
         },
         "example_server",
     ).await?;

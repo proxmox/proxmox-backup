@@ -7,8 +7,6 @@ use std::os::raw::{c_char, c_uchar, c_int};
 use std::os::unix::io::{AsRawFd, FromRawFd, IntoRawFd, RawFd};
 use std::os::unix::ffi::OsStrExt;
 use std::panic::UnwindSafe;
-use std::pin::Pin;
-use std::task::{Context, Poll};
 use std::path::PathBuf;
 
 use anyhow::{bail, format_err, Error};
@@ -240,31 +238,21 @@ impl Reloadable for tokio::net::TcpListener {
     }
 }
 
-pub struct NotifyReady;
-
-impl Future for NotifyReady {
-    type Output = Result<(), Error>;
-
-    fn poll(self: Pin<&mut Self>, _cx: &mut Context) -> Poll<Result<(), Error>> {
-        systemd_notify(SystemdNotify::Ready)?;
-        Poll::Ready(Ok(()))
-    }
-}
-
 /// This creates a future representing a daemon which reloads itself when receiving a SIGHUP.
 /// If this is started regularly, a listening socket is created. In this case, the file descriptor
 /// number will be remembered in `PROXMOX_BACKUP_LISTEN_FD`.
 /// If the variable already exists, its contents will instead be used to restore the listening
 /// socket.  The finished listening socket is then passed to the `create_service` function which
-/// can be used to setup the TLS and the HTTP daemon.
+/// can be used to setup the TLS and the HTTP daemon. The returned future has to call
+/// [systemd_notify] with [SystemdNotify::Ready] when the service is ready.
 pub async fn create_daemon<F, S>(
     address: std::net::SocketAddr,
     create_service: F,
     service_name: &str,
 ) -> Result<(), Error>
 where
-    F: FnOnce(tokio::net::TcpListener, NotifyReady) -> Result<S, Error>,
-    S: Future<Output = ()> + Unpin,
+    F: FnOnce(tokio::net::TcpListener) -> Result<S, Error>,
+    S: Future<Output = Result<(), Error>>,
 {
     let mut reloader = Reloader::new()?;
 
@@ -273,7 +261,15 @@ where
         move || async move { Ok(tokio::net::TcpListener::bind(&address).await?) },
     ).await?;
 
-    let server_future = create_service(listener, NotifyReady)?;
+    let service = create_service(listener)?;
+
+    let service = async move {
+        if let Err(err) = service.await {
+            log::error!("server error: {}", err);
+        }
+    };
+
+    let server_future = Box::pin(service);
     let shutdown_future = crate::shutdown_future();
 
     let finish_future = match future::select(server_future, shutdown_future).await {

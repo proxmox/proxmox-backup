@@ -106,21 +106,18 @@ async fn run() -> Result<(), Error> {
     // http server future:
     let server = daemon::create_daemon(
         ([127,0,0,1], 82).into(),
-        move |listener, ready| {
+        move |listener| {
             let incoming = hyper::server::conn::AddrIncoming::from_listener(listener)?;
 
-            Ok(ready
-                .and_then(|_| hyper::Server::builder(incoming)
+            Ok(async {
+                daemon::systemd_notify(daemon::SystemdNotify::Ready)?;
+
+                hyper::Server::builder(incoming)
                     .serve(rest_server)
                     .with_graceful_shutdown(proxmox_rest_server::shutdown_future())
                     .map_err(Error::from)
-                )
-                .map(|e| {
-                    if let Err(e) = e {
-                        eprintln!("server error: {}", e);
-                    }
-                })
-            )
+                    .await
+            })
         },
         "proxmox-backup.service",
     );
