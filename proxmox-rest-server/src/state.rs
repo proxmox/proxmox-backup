@@ -34,13 +34,18 @@ lazy_static! {
     });
 }
 
-pub fn server_state_init() -> Result<(), Error> {
+/// Listen to ``SIGINT`` and ``SIGHUP`` signals
+///
+/// * ``SIGINT``: start server shutdown
+///
+/// * ``SIGHUP``: start server reload
+pub fn catch_shutdown_and_reload_signals() -> Result<(), Error> {
 
     let mut stream = signal(SignalKind::interrupt())?;
 
     let future = async move {
         while stream.recv().await.is_some() {
-            println!("got shutdown request (SIGINT)");
+            log::info!("got shutdown request (SIGINT)");
             SERVER_STATE.lock().unwrap().reload_request = false;
             crate::request_shutdown();
         }
@@ -55,7 +60,7 @@ pub fn server_state_init() -> Result<(), Error> {
 
     let future = async move {
         while stream.recv().await.is_some() {
-            println!("got reload request (SIGHUP)");
+            log::info!("got reload request (SIGHUP)");
             SERVER_STATE.lock().unwrap().reload_request = true;
             crate::request_shutdown();
         }
@@ -78,7 +83,7 @@ pub fn is_reload_request() -> bool {
 pub fn server_shutdown() {
     let mut data = SERVER_STATE.lock().unwrap();
 
-    println!("SET SHUTDOWN MODE");
+    log::info!("request_shutdown");
 
     data.mode = ServerMode::Shutdown;
 

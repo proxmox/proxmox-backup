@@ -152,9 +152,9 @@ impl Reloader {
                             self.do_reexec(new_args)
                         })
                         {
-                            Ok(Ok(())) => eprintln!("do_reexec returned!"),
-                            Ok(Err(err)) => eprintln!("do_reexec failed: {}", err),
-                            Err(_) => eprintln!("panic in re-exec"),
+                            Ok(Ok(())) => log::error!("do_reexec returned!"),
+                            Ok(Err(err)) => log::error!("do_reexec failed: {}", err),
+                            Err(_) => log::error!("panic in re-exec"),
                         }
                     }
                     Ok(ForkResult::Parent { child }) => {
@@ -307,7 +307,7 @@ where
         wait_service_is_not_state(service_name, "reloading").await?;
     }
 
-    log::info!("daemon shut down...");
+    log::info!("daemon shut down.");
     Ok(())
 }
 
@@ -360,6 +360,11 @@ pub enum SystemdNotify {
 
 /// Tells systemd the startup state of the service (see: ``man sd_notify``)
 pub fn systemd_notify(state: SystemdNotify) -> Result<(), Error> {
+
+    if let SystemdNotify::Ready = &state  {
+        log::info!("service is ready");
+    }
+
     let message = match state {
         SystemdNotify::Ready => CString::new("READY=1"),
         SystemdNotify::Reloading => CString::new("RELOADING=1"),
@@ -374,5 +379,6 @@ pub fn systemd_notify(state: SystemdNotify) -> Result<(), Error> {
             std::io::Error::from_raw_os_error(-rc),
         );
     }
+
     Ok(())
 }

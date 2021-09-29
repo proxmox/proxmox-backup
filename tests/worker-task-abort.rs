@@ -53,7 +53,7 @@ fn worker_task_abort() -> Result<(), Error> {
 
         let init_result: Result<(), Error> = try_block!({
             proxmox_rest_server::register_task_control_commands(&mut commando_sock)?;
-            proxmox_rest_server::server_state_init()?;
+            proxmox_rest_server::catch_shutdown_and_reload_signals()?;
             Ok(())
         });
 

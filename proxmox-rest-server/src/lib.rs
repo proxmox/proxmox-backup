@@ -96,7 +96,6 @@ pub fn our_ctrl_sock() -> String {
 static SHUTDOWN_REQUESTED: AtomicBool = AtomicBool::new(false);
 
 pub fn request_shutdown() {
-    println!("request_shutdown");
     SHUTDOWN_REQUESTED.store(true, Ordering::SeqCst);
     crate::server_shutdown();
 }
