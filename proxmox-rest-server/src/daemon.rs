@@ -25,7 +25,7 @@ extern "C" {
 }
 
 // Unfortunately FnBox is nightly-only and Box<FnOnce> is unusable, so just use Box<Fn>...
-pub type BoxedStoreFunc = Box<dyn FnMut() -> Result<String, Error> + UnwindSafe + Send>;
+type BoxedStoreFunc = Box<dyn FnMut() -> Result<String, Error> + UnwindSafe + Send>;
 
 /// Helper trait to "store" something in the environment to be re-used after re-executing the
 /// service on a reload.
