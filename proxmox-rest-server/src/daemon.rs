@@ -274,7 +274,9 @@ where
 
     let finish_future = match future::select(server_future, shutdown_future).await {
         Either::Left((_, _)) => {
-            crate::request_shutdown(); // make sure we are in shutdown mode
+            if !crate::shutdown_requested() {
+                crate::request_shutdown(); // make sure we are in shutdown mode
+            }
             None
         }
         Either::Right((_, server_future)) => Some(server_future),

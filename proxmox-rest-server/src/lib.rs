@@ -1,4 +1,5 @@
 use std::os::unix::io::RawFd;
+use std::sync::atomic::{Ordering, AtomicBool};
 
 use anyhow::{bail, format_err, Error};
 use nix::unistd::Pid;
@@ -92,18 +93,17 @@ pub fn our_ctrl_sock() -> String {
     ctrl_sock_from_pid(*PID)
 }
 
-static mut SHUTDOWN_REQUESTED: bool = false;
+static SHUTDOWN_REQUESTED: AtomicBool = AtomicBool::new(false);
 
 pub fn request_shutdown() {
-    unsafe {
-        SHUTDOWN_REQUESTED = true;
-    }
+    println!("request_shutdown");
+    SHUTDOWN_REQUESTED.store(true, Ordering::SeqCst);
     crate::server_shutdown();
 }
 
 #[inline(always)]
 pub fn shutdown_requested() -> bool {
-    unsafe { SHUTDOWN_REQUESTED }
+    SHUTDOWN_REQUESTED.load(Ordering::SeqCst)
 }
 
 pub fn fail_on_shutdown() -> Result<(), Error> {
