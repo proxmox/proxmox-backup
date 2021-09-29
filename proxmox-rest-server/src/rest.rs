@@ -93,7 +93,7 @@ impl tower_service::Service<&Pin<Box<tokio_openssl::SslStream<tokio::net::TcpStr
     }
 }
 
-impl tower_service::Service<&tokio::net::TcpStream> for RestServer {
+impl tower_service::Service<&hyper::server::conn::AddrStream> for RestServer {
     type Response = ApiService;
     type Error = Error;
     type Future = Pin<Box<dyn Future<Output = Result<ApiService, Error>> + Send>>;
@@ -102,15 +102,13 @@ impl tower_service::Service<&tokio::net::TcpStream> for RestServer {
         Poll::Ready(Ok(()))
     }
 
-    fn call(&mut self, ctx: &tokio::net::TcpStream) -> Self::Future {
-        match ctx.peer_addr() {
-            Err(err) => future::err(format_err!("unable to get peer address - {}", err)).boxed(),
-            Ok(peer) => future::ok(ApiService {
-                peer,
-                api_config: self.api_config.clone(),
-            })
-            .boxed(),
-        }
+    fn call(&mut self, ctx: &hyper::server::conn::AddrStream) -> Self::Future {
+        let peer =  ctx.remote_addr();
+        future::ok(ApiService {
+            peer,
+            api_config: self.api_config.clone(),
+        })
+        .boxed()
     }
 }
 

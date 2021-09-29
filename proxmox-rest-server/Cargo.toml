@@ -10,7 +10,7 @@ anyhow = "1.0"
 futures = "0.3"
 handlebars = "3.0"
 http = "0.2"
-hyper = { version = "0.14", features = [ "full" ] }
+hyper = { version = "0.14.5", features = [ "full" ] }
 lazy_static = "1.4"
 libc = "0.2"
 log = "0.4"
