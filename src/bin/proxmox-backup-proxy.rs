@@ -266,7 +266,6 @@ async fn run() -> Result<(), Error> {
     );
 
     proxmox_rest_server::write_pid(pbs_buildcfg::PROXMOX_BACKUP_PROXY_PID_FN)?;
-    daemon::systemd_notify(daemon::SystemdNotify::Ready)?;
 
     let init_result: Result<(), Error> = try_block!({
         proxmox_rest_server::register_task_control_commands(&mut commando_sock)?;
