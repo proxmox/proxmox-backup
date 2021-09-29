@@ -13,7 +13,6 @@ use proxmox_http::{
 };
 
 pub mod apt;
-pub mod async_io;
 pub mod config;
 pub mod disks;
 
