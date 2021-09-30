@@ -18,6 +18,7 @@ use crate::{ApiAuth, FileLogger, FileLogOptions, CommandoSocket};
 
 pub type GetIndexFn = fn(Option<String>, Option<String>, &ApiConfig, Parts) -> Response<Body>;
 
+/// REST server configuration
 pub struct ApiConfig {
     basedir: PathBuf,
     router: &'static Router,
@@ -27,11 +28,25 @@ pub struct ApiConfig {
     template_files: RwLock<HashMap<String, (SystemTime, PathBuf)>>,
     request_log: Option<Arc<Mutex<FileLogger>>>,
     auth_log: Option<Arc<Mutex<FileLogger>>>,
-    pub api_auth: Arc<dyn ApiAuth + Send + Sync>,
+    pub(crate) api_auth: Arc<dyn ApiAuth + Send + Sync>,
     get_index_fn: GetIndexFn,
 }
 
 impl ApiConfig {
+    /// Creates a new instance
+    ///
+    /// `basedir` - File lookups are relative to this directory.
+    ///
+    /// `router` - The REST API definition.
+    ///
+    /// `env_type` - The environment type.
+    ///
+    /// `api_auth` - The Authentification handler
+    ///
+    /// `get_index_fn` - callback to generate the root page
+    /// (index). Please note that this fuctions gets a reference to
+    /// the [ApiConfig], so it can use [Handlebars] templates
+    /// ([render_template](Self::render_template) to generate pages.
     pub fn new<B: Into<PathBuf>>(
         basedir: B,
         router: &'static Router,
@@ -53,7 +68,7 @@ impl ApiConfig {
         })
     }
 
-    pub fn get_index(
+    pub(crate) fn get_index(
         &self,
         auth_id: Option<String>,
         language: Option<String>,
@@ -62,7 +77,7 @@ impl ApiConfig {
         (self.get_index_fn)(auth_id, language, self, parts)
     }
 
-    pub fn find_method(
+    pub(crate) fn find_method(
         &self,
         components: &[&str],
         method: Method,
@@ -72,7 +87,7 @@ impl ApiConfig {
         self.router.find_method(components, method, uri_param)
     }
 
-    pub fn find_alias(&self, components: &[&str]) -> PathBuf {
+    pub(crate) fn find_alias(&self, components: &[&str]) -> PathBuf {
 
         let mut prefix = String::new();
         let mut filename = self.basedir.clone();
@@ -89,6 +104,18 @@ impl ApiConfig {
         filename
     }
 
+    /// Register a path alias
+    ///
+    /// This can be used to redirect file lookups to a specific
+    /// directory, e.g.:
+    ///
+    /// ```
+    /// use proxmox_rest_server::ApiConfig;
+    /// // let mut config = ApiConfig::new(...);
+    /// # fn fake(config: &mut ApiConfig) {
+    /// config.add_alias("extjs", "/usr/share/javascript/extjs");
+    /// # }
+    /// ```
     pub fn add_alias<S, P>(&mut self, alias: S, path: P)
         where S: Into<String>,
               P: Into<PathBuf>,
@@ -96,10 +123,13 @@ impl ApiConfig {
         self.aliases.insert(alias.into(), path.into());
     }
 
-    pub fn env_type(&self) -> RpcEnvironmentType {
+    pub(crate) fn env_type(&self) -> RpcEnvironmentType {
         self.env_type
     }
 
+    /// Register a [Handlebars] template file
+    ///
+    /// Those templates cane be use with [render_template](Self::render_template) to generate pages.
     pub fn register_template<P>(&self, name: &str, path: P) -> Result<(), Error>
     where
         P: Into<PathBuf>
@@ -148,7 +178,12 @@ impl ApiConfig {
         }
     }
 
-    pub fn enable_file_log<P>(
+    /// Enable the access log feature
+    ///
+    /// When enabled, all requests are logged to the specified file.
+    /// This function also registers a `api-access-log-reopen`
+    /// command one the [CommandoSocket].
+    pub fn enable_access_log<P>(
         &mut self,
         path: P,
         dir_opts: Option<CreateOptions>,
@@ -182,6 +217,11 @@ impl ApiConfig {
         Ok(())
     }
 
+    /// Enable the authentification log feature
+    ///
+    /// When enabled, all authentification requests are logged to the
+    /// specified file. This function also registers a
+    /// `api-auth-log-reopen` command one the [CommandoSocket].
     pub fn enable_auth_log<P>(
         &mut self,
         path: P,
@@ -217,11 +257,11 @@ impl ApiConfig {
         Ok(())
     }
 
-    pub fn get_access_log(&self) -> Option<&Arc<Mutex<FileLogger>>> {
+    pub(crate) fn get_access_log(&self) -> Option<&Arc<Mutex<FileLogger>>> {
         self.request_log.as_ref()
     }
 
-    pub fn get_auth_log(&self) -> Option<&Arc<Mutex<FileLogger>>> {
+    pub(crate) fn get_auth_log(&self) -> Option<&Arc<Mutex<FileLogger>>> {
         self.auth_log.as_ref()
     }
 }

@@ -52,8 +52,9 @@ impl UserInformation for EmptyUserInformation {
     fn lookup_privs(&self, _userid: &str, _path: &[&str]) -> u64 { 0 }
 }
 
+/// REST server implementation (configured with [ApiConfig])
 pub struct RestServer {
-    pub api_config: Arc<ApiConfig>,
+    api_config: Arc<ApiConfig>,
 }
 
 const MAX_URI_QUERY_LENGTH: usize = 3072;

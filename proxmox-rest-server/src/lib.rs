@@ -73,14 +73,14 @@ lazy_static::lazy_static!{
 /// Retruns the current process ID (see [libc::getpid])
 ///
 /// The value is cached at startup (so it is invalid after a fork)
-pub fn pid() -> i32 {
+pub(crate) fn pid() -> i32 {
     *PID
 }
 
 /// Returns the starttime of the process (see [PidStat])
 ///
 /// The value is cached at startup (so it is invalid after a fork)
-pub fn pstart() -> u64 {
+pub(crate) fn pstart() -> u64 {
     *PSTART
 }
 

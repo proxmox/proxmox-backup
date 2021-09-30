@@ -85,7 +85,7 @@ async fn run() -> Result<(), Error> {
     let dir_opts = CreateOptions::new().owner(backup_user.uid).group(backup_user.gid);
     let file_opts = CreateOptions::new().owner(backup_user.uid).group(backup_user.gid);
 
-    config.enable_file_log(
+    config.enable_access_log(
         pbs_buildcfg::API_ACCESS_LOG_FN,
         Some(dir_opts.clone()),
         Some(file_opts.clone()),

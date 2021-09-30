@@ -134,8 +134,8 @@ pub(crate) fn check_last_worker() {
 }
 
 /// Spawns a tokio task that will be tracked for reload
-/// and if it is finished, notify the last_worker_listener if we
-/// are in shutdown mode
+/// and if it is finished, notify the [last_worker_future] if we
+/// are in shutdown mode.
 pub fn spawn_internal_task<T>(task: T)
 where
     T: Future + Send + 'static,
