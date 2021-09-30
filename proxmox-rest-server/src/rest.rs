@@ -139,6 +139,10 @@ impl Service<&tokio::net::UnixStream> for RestServer {
     }
 }
 
+/// Helper [Service] containing the peer Address
+///
+/// The lower level connection [Service] implementation on
+/// [RestServer] extracts the peer address and return an [ApiService].
 pub struct ApiService {
     pub peer: std::net::SocketAddr,
     pub api_config: Arc<ApiConfig>,
