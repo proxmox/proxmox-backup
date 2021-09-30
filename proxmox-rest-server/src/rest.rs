@@ -19,6 +19,7 @@ use serde_json::Value;
 use tokio::fs::File;
 use tokio::time::Instant;
 use url::form_urlencoded;
+use tower_service::Service;
 
 use proxmox::api::schema::{
     parse_parameter_strings, parse_simple_value, verify_json_object, ObjectSchemaType,
@@ -53,6 +54,9 @@ impl UserInformation for EmptyUserInformation {
 }
 
 /// REST server implementation (configured with [ApiConfig])
+///
+/// This struct implements the [Service] trait in order to use it with
+/// [hyper::server::Builder::serve].
 pub struct RestServer {
     api_config: Arc<ApiConfig>,
 }
@@ -61,6 +65,7 @@ const MAX_URI_QUERY_LENGTH: usize = 3072;
 const CHUNK_SIZE_LIMIT: u64 = 32 * 1024;
 
 impl RestServer {
+    /// Creates a new instance.
     pub fn new(api_config: ApiConfig) -> Self {
         Self {
             api_config: Arc::new(api_config),
@@ -68,7 +73,7 @@ impl RestServer {
     }
 }
 
-impl tower_service::Service<&Pin<Box<tokio_openssl::SslStream<tokio::net::TcpStream>>>>
+impl Service<&Pin<Box<tokio_openssl::SslStream<tokio::net::TcpStream>>>>
     for RestServer
 {
     type Response = ApiService;
@@ -94,7 +99,7 @@ impl tower_service::Service<&Pin<Box<tokio_openssl::SslStream<tokio::net::TcpStr
     }
 }
 
-impl tower_service::Service<&hyper::server::conn::AddrStream> for RestServer {
+impl Service<&hyper::server::conn::AddrStream> for RestServer {
     type Response = ApiService;
     type Error = Error;
     type Future = Pin<Box<dyn Future<Output = Result<ApiService, Error>> + Send>>;
@@ -113,7 +118,7 @@ impl tower_service::Service<&hyper::server::conn::AddrStream> for RestServer {
     }
 }
 
-impl tower_service::Service<&tokio::net::UnixStream> for RestServer {
+impl Service<&tokio::net::UnixStream> for RestServer {
     type Response = ApiService;
     type Error = Error;
     type Future = Pin<Box<dyn Future<Output = Result<ApiService, Error>> + Send>>;
@@ -220,7 +225,7 @@ fn get_user_agent(headers: &HeaderMap) -> Option<String> {
         .ok()
 }
 
-impl tower_service::Service<Request<Body>> for ApiService {
+impl Service<Request<Body>> for ApiService {
     type Response = Response<Body>;
     type Error = Error;
     #[allow(clippy::type_complexity)]

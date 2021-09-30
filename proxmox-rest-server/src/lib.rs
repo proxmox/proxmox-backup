@@ -1,3 +1,21 @@
+//! # Proxmox REST server
+//!
+//! This module provides convenient building blocks to implement a
+//! REST server.
+//!
+//! ## Features
+//!
+//! * HTTP and HTTP2
+//! * highly threaded code, uses Rust async
+//! * static API definitions using schemas
+//! * restartable systemd daemons using `systemd_notify`
+//! * support for long running worker tasks (threads or async tokio tasks)
+//! * supports separate access and authentification log files
+//! * separate control socket to trigger management operations
+//!   - logfile rotation
+//!   - worker task management
+//! * generic interface to authenticate user
+
 use std::sync::atomic::{Ordering, AtomicBool};
 
 use anyhow::{bail, format_err, Error};
