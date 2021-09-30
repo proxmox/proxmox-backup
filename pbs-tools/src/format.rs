@@ -16,7 +16,7 @@ pub fn render_backup_file_list(files: &[String]) -> String {
 
     files.sort();
 
-    crate::str::join(&files, ' ')
+    files.join(" ")
 }
 
 pub fn render_epoch(value: &Value, _record: &Value) -> Result<String, Error> {
