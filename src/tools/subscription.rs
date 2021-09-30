@@ -118,7 +118,7 @@ async fn register_subscription(
 
     let mut client = pbs_simple_http(proxy_config);
 
-    let uri = "https://shop.maurer-it.com/modules/servers/licensing/verify.php";
+    let uri = "https://shop.proxmox.com/modules/servers/licensing/verify.php";
     let query = json_object_to_query(params)?;
     let response = client.post(uri, Some(query), Some("application/x-www-form-urlencoded")).await?;
     let body = SimpleHttp::response_body_string(response).await?;
