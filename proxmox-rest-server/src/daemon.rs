@@ -11,6 +11,7 @@ use std::path::PathBuf;
 
 use anyhow::{bail, format_err, Error};
 use futures::future::{self, Either};
+use nix::unistd::{fork, ForkResult};
 
 use proxmox::tools::io::{ReadExt, WriteExt};
 use proxmox::tools::fd::Fd;
@@ -25,8 +26,8 @@ extern "C" {
 // Unfortunately FnBox is nightly-only and Box<FnOnce> is unusable, so just use Box<Fn>...
 type BoxedStoreFunc = Box<dyn FnMut() -> Result<String, Error> + UnwindSafe + Send>;
 
-/// Helper trait to "store" something in the environment to be re-used after re-executing the
-/// service on a reload.
+// Helper trait to "store" something in the environment to be re-used after re-executing the
+// service on a reload.
 trait Reloadable: Sized {
     fn restore(var: &str) -> Result<Self, Error>;
     fn get_store_func(&self) -> Result<BoxedStoreFunc, Error>;
@@ -99,7 +100,6 @@ impl Reloader {
         let (pold, pnew) = super::socketpair()?;
 
         // Start ourselves in the background:
-        use nix::unistd::{fork, ForkResult};
         match unsafe { fork() } {
             Ok(ForkResult::Child) => {
                 // Double fork so systemd can supervise us without nagging...
