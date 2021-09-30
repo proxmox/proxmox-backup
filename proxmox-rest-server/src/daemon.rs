@@ -16,7 +16,7 @@ use nix::unistd::{fork, ForkResult};
 use proxmox::tools::io::{ReadExt, WriteExt};
 use proxmox::tools::fd::Fd;
 
-use crate::fd_change_cloexec;
+use pbs_tools::fd::fd_change_cloexec;
 
 #[link(name = "systemd")]
 extern "C" {

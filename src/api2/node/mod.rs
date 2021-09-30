@@ -152,7 +152,7 @@ async fn termproxy(cmd: Option<String>, rpcenv: &mut dyn RpcEnvironment) -> Resu
         move |worker| async move {
             // move inside the worker so that it survives and does not close the port
             // remove CLOEXEC from listenere so that we can reuse it in termproxy
-            proxmox_rest_server::fd_change_cloexec(listener.as_raw_fd(), false)?;
+            pbs_tools::fd::fd_change_cloexec(listener.as_raw_fd(), false)?;
 
             let mut arguments: Vec<&str> = Vec::new();
             let fd_string = listener.as_raw_fd().to_string();

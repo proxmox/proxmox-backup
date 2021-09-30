@@ -1,4 +1,3 @@
-use std::os::unix::io::RawFd;
 use std::sync::atomic::{Ordering, AtomicBool};
 
 use anyhow::{bail, format_err, Error};
@@ -132,16 +131,6 @@ pub fn fail_on_shutdown() -> Result<(), Error> {
     if shutdown_requested() {
         bail!("Server shutdown requested - aborting task");
     }
-    Ok(())
-}
-
-/// Helper to set/clear the FD_CLOEXEC flag on file descriptors
-pub fn fd_change_cloexec(fd: RawFd, on: bool) -> Result<(), Error> {
-    use nix::fcntl::{fcntl, FdFlag, F_GETFD, F_SETFD};
-    let mut flags = FdFlag::from_bits(fcntl(fd, F_GETFD)?)
-        .ok_or_else(|| format_err!("unhandled file flags"))?; // nix crate is stupid this way...
-    flags.set(FdFlag::FD_CLOEXEC, on);
-    fcntl(fd, F_SETFD(flags))?;
     Ok(())
 }
 
