@@ -5,29 +5,8 @@ use nix::fcntl::OFlag;
 
 use proxmox::tools::fs::{CreateOptions, atomic_open_or_create_file};
 
-/// Log messages with optional automatically added timestamps into files
-///
-/// Logs messages to file, and optionally to standard output.
-///
-///
-/// #### Example:
-/// ```
-/// # use anyhow::{bail, format_err, Error};
-/// use proxmox_rest_server::{flog, FileLogger, FileLogOptions};
-///
-/// # std::fs::remove_file("test.log");
-/// let options = FileLogOptions {
-///     to_stdout: true,
-///     exclusive: true,
-///     ..Default::default()
-/// };
-/// let mut log = FileLogger::new("test.log", options).unwrap();
-/// flog!(log, "A simple log: {}", "Hello!");
-/// # std::fs::remove_file("test.log");
-/// ```
-
+/// Options to control the behavior of a [FileLogger] instance
 #[derive(Default)]
-/// Options to control the behavior of a ['FileLogger'] instance
 pub struct FileLogOptions {
     /// Open underlying log file in append mode, useful when multiple concurrent processes
     /// want to log to the same file (e.g., HTTP access log). Note that it is only atomic
@@ -47,13 +26,30 @@ pub struct FileLogOptions {
 
 }
 
+/// Log messages with optional automatically added timestamps into files
+///
+/// #### Example:
+/// ```
+/// # use anyhow::{bail, format_err, Error};
+/// use proxmox_rest_server::{flog, FileLogger, FileLogOptions};
+///
+/// # std::fs::remove_file("test.log");
+/// let options = FileLogOptions {
+///     to_stdout: true,
+///     exclusive: true,
+///     ..Default::default()
+/// };
+/// let mut log = FileLogger::new("test.log", options).unwrap();
+/// flog!(log, "A simple log: {}", "Hello!");
+/// # std::fs::remove_file("test.log");
+/// ```
 pub struct FileLogger {
     file: std::fs::File,
     file_name: std::path::PathBuf,
     options: FileLogOptions,
 }
 
-/// Log messages to [`FileLogger`](tools/struct.FileLogger.html)
+/// Log messages to [FileLogger] - ``println`` like macro
 #[macro_export]
 macro_rules! flog {
     ($log:expr, $($arg:tt)*) => ({
