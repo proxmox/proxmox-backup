@@ -374,7 +374,7 @@ fn stop_task(
         user_info.check_privs(&auth_id, &["system", "tasks"], PRIV_SYS_MODIFY, false)?;
     }
 
-    proxmox_rest_server::abort_worker_async(upid);
+    proxmox_rest_server::abort_worker_nowait(upid);
 
     Ok(Value::Null)
 }

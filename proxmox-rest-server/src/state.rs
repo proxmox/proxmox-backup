@@ -8,6 +8,8 @@ use tokio::signal::unix::{signal, SignalKind};
 
 use pbs_tools::broadcast_future::BroadcastData;
 
+use crate::request_shutdown;
+
 #[derive(PartialEq, Copy, Clone, Debug)]
 enum ServerMode {
     Normal,
@@ -35,6 +37,8 @@ lazy_static! {
 }
 
 /// Listen to ``SIGINT`` for server shutdown
+///
+/// This calls [request_shutdown] when receiving the signal.
 pub fn catch_shutdown_signal() -> Result<(), Error> {
 
     let mut stream = signal(SignalKind::interrupt())?;
@@ -43,7 +47,7 @@ pub fn catch_shutdown_signal() -> Result<(), Error> {
         while stream.recv().await.is_some() {
             log::info!("got shutdown request (SIGINT)");
             SERVER_STATE.lock().unwrap().reload_request = false;
-            crate::request_shutdown();
+            request_shutdown();
         }
     }.boxed();
 
@@ -56,6 +60,9 @@ pub fn catch_shutdown_signal() -> Result<(), Error> {
 }
 
 /// Listen to ``SIGHUP`` for server reload
+///
+/// This calls [request_shutdown] when receiving the signal, and tries
+/// to restart the server.
 pub fn catch_reload_signal() -> Result<(), Error> {
 
     let mut stream = signal(SignalKind::hangup())?;
@@ -76,13 +83,14 @@ pub fn catch_reload_signal() -> Result<(), Error> {
     Ok(())
 }
 
-pub fn is_reload_request() -> bool {
+pub(crate) fn is_reload_request() -> bool {
     let data = SERVER_STATE.lock().unwrap();
 
     data.mode == ServerMode::Shutdown && data.reload_request
 }
 
-pub fn server_shutdown() {
+
+pub(crate) fn server_shutdown() {
     let mut data = SERVER_STATE.lock().unwrap();
 
     log::info!("request_shutdown");
@@ -96,6 +104,7 @@ pub fn server_shutdown() {
     check_last_worker();
 }
 
+/// Future to signal server shutdown
 pub fn shutdown_future() -> impl Future<Output = ()> {
     let mut data = SERVER_STATE.lock().unwrap();
     data
@@ -104,18 +113,19 @@ pub fn shutdown_future() -> impl Future<Output = ()> {
         .map(|_| ())
 }
 
+/// Future to signal when last worker task finished
 pub fn last_worker_future() ->  impl Future<Output = Result<(), Error>> {
     let mut data = SERVER_STATE.lock().unwrap();
     data.last_worker_listeners.listen()
 }
 
-pub fn set_worker_count(count: usize) {
+pub(crate) fn set_worker_count(count: usize) {
     SERVER_STATE.lock().unwrap().worker_count = count;
 
     check_last_worker();
 }
 
-pub fn check_last_worker() {
+pub(crate) fn check_last_worker() {
     let mut data = SERVER_STATE.lock().unwrap();
 
     if !(data.mode == ServerMode::Shutdown && data.worker_count == 0 && data.internal_task_count == 0) { return; }

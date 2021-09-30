@@ -95,7 +95,7 @@ fn worker_task_abort() -> Result<(), Error> {
             }
             Ok(wid) => {
                 println!("WORKER: {}", wid);
-                proxmox_rest_server::abort_worker_async(wid.parse::<UPID>().unwrap());
+                proxmox_rest_server::abort_worker_nowait(wid.parse::<UPID>().unwrap());
                 proxmox_rest_server::wait_for_local_worker(&wid).await.unwrap();
              }
         }

@@ -40,6 +40,7 @@ pub use worker_task::*;
 mod h2service;
 pub use h2service::*;
 
+/// Authentification Error
 pub enum AuthError {
     Generic(Error),
     NoData,
@@ -51,7 +52,12 @@ impl From<Error> for AuthError {
     }
 }
 
+/// User Authentification trait
 pub trait ApiAuth {
+    /// Extract user credentials from headers and check them.
+    ///
+    /// If credenthials are valid, returns the username and a
+    /// [UserInformation] object to query additional user data.
     fn check_auth(
         &self,
         headers: &http::HeaderMap,
@@ -64,47 +70,64 @@ lazy_static::lazy_static!{
     static ref PSTART: u64 = PidStat::read_from_pid(Pid::from_raw(*PID)).unwrap().starttime;
 }
 
+/// Retruns the current process ID (see [libc::getpid])
+///
+/// The value is cached at startup (so it is invalid after a fork)
 pub fn pid() -> i32 {
     *PID
 }
 
+/// Returns the starttime of the process (see [PidStat])
+///
+/// The value is cached at startup (so it is invalid after a fork)
 pub fn pstart() -> u64 {
     *PSTART
 }
 
+/// Helper to write the PID into a file
 pub fn write_pid(pid_fn: &str) -> Result<(), Error> {
     let pid_str = format!("{}\n", *PID);
     proxmox::tools::fs::replace_file(pid_fn, pid_str.as_bytes(), CreateOptions::new())
 }
 
+/// Helper to read the PID from a file
 pub fn read_pid(pid_fn: &str) -> Result<i32, Error> {
     let pid = proxmox::tools::fs::file_get_contents(pid_fn)?;
     let pid = std::str::from_utf8(&pid)?.trim();
     pid.parse().map_err(|err| format_err!("could not parse pid - {}", err))
 }
 
+/// Returns the control socket path for a specific process ID.
+///
+/// Note: The control socket always uses @/run/proxmox-backup/ as
+/// prefix for historic reason. This does not matter because the
+/// generated path is unique for each ``pid`` anyways.
 pub fn ctrl_sock_from_pid(pid: i32) -> String {
     // Note: The control socket always uses @/run/proxmox-backup/ as prefix
     // for historc reason.
     format!("\0{}/control-{}.sock", "/run/proxmox-backup", pid)
 }
 
+/// Returns the control socket path for this server.
 pub fn our_ctrl_sock() -> String {
     ctrl_sock_from_pid(*PID)
 }
 
 static SHUTDOWN_REQUESTED: AtomicBool = AtomicBool::new(false);
 
+/// Request a server shutdown (usually called from [catch_shutdown_signal])
 pub fn request_shutdown() {
     SHUTDOWN_REQUESTED.store(true, Ordering::SeqCst);
     crate::server_shutdown();
 }
 
+/// Returns true if there was a shutdown request.
 #[inline(always)]
 pub fn shutdown_requested() -> bool {
     SHUTDOWN_REQUESTED.load(Ordering::SeqCst)
 }
 
+/// Raise an error if there was a shutdown request.
 pub fn fail_on_shutdown() -> Result<(), Error> {
     if shutdown_requested() {
         bail!("Server shutdown requested - aborting task");

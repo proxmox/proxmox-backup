@@ -324,6 +324,14 @@ pub fn worker_is_active_local(upid: &UPID) -> bool {
     }
 }
 
+/// Register task control command on a [CommandoSocket].
+///
+/// This create two commands:
+///
+/// * ``worker-task-abort <UPID>``: calls [abort_local_worker]
+///
+/// * ``worker-task-status <UPID>``: return true of false, depending on
+/// whether the worker is running or stopped.
 pub fn register_task_control_commands(
     commando_sock: &mut CommandoSocket,
 ) -> Result<(), Error> {
@@ -358,14 +366,20 @@ pub fn register_task_control_commands(
     Ok(())
 }
 
-pub fn abort_worker_async(upid: UPID) {
+/// Try to abort a worker task, but do no wait
+///
+/// Errors (if any) are simply logged.
+pub fn abort_worker_nowait(upid: UPID) {
     tokio::spawn(async move {
         if let Err(err) = abort_worker(upid).await {
-            eprintln!("abort worker failed - {}", err);
+            log::error!("abort worker task failed - {}", err);
         }
     });
 }
 
+/// Abort a worker task
+///
+/// By sending ``worker-task-abort`` to the control socket.
 pub async fn abort_worker(upid: UPID) -> Result<(), Error> {
 
     let sock = crate::ctrl_sock_from_pid(upid.pid);
@@ -513,7 +527,7 @@ fn read_task_file<R: Read>(reader: R) -> Result<Vec<TaskListInfo>, Error>
                 state
             }),
             Err(err) => {
-                eprintln!("unable to parse worker status '{}' - {}", line, err);
+                log::warn!("unable to parse worker status '{}' - {}", line, err);
                 continue;
             }
         };
@@ -536,6 +550,7 @@ where
     read_task_file(file)
 }
 
+/// Iterate over existing/active worker tasks
 pub struct TaskListInfoIterator {
     list: VecDeque<TaskListInfo>,
     end: bool,
@@ -544,6 +559,7 @@ pub struct TaskListInfoIterator {
 }
 
 impl TaskListInfoIterator {
+    /// Creates a new iterator instance.
     pub fn new(active_only: bool) -> Result<Self, Error> {
 
         let setup = worker_task_setup()?;
@@ -811,8 +827,6 @@ impl WorkerTask {
 
     /// Request abort
     pub fn request_abort(&self) {
-        eprintln!("set abort flag for worker {}", self.upid);
-
         let prev_abort = self.abort_requested.swap(true, Ordering::SeqCst);
         if !prev_abort { // log abort one time
             self.log_message(format!("received abort request ..."));

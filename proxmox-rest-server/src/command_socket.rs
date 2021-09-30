@@ -102,7 +102,7 @@ where
     Ok(task)
 }
 
-
+/// Send a command to the specified socket
 pub async fn send_command<P, T>(path: P, params: &T) -> Result<Value, Error>
 where
     P: AsRef<Path>,
@@ -113,6 +113,7 @@ where
     send_raw_command(path.as_ref(), &command_string).await
 }
 
+/// Send a raw command (string) to the specified socket
 pub async fn send_raw_command<P>(path: P, command_string: &str) -> Result<Value, Error>
 where
     P: AsRef<Path>,
@@ -146,11 +147,12 @@ where
     }
 }
 
-/// A callback for a specific commando socket.
-pub type CommandoSocketFn = Box<(dyn Fn(Option<&Value>) -> Result<Value, Error> + Send + Sync + 'static)>;
+// A callback for a specific commando socket.
+type CommandoSocketFn = Box<(dyn Fn(Option<&Value>) -> Result<Value, Error> + Send + Sync + 'static)>;
 
-/// Tooling to get a single control command socket where one can register multiple commands
-/// dynamically.
+/// Tooling to get a single control command socket where one can
+/// register multiple commands dynamically.
+///
 /// You need to call `spawn()` to make the socket active.
 pub struct CommandoSocket {
     socket: PathBuf,
