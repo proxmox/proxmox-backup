@@ -1,17 +1,19 @@
+use std::borrow::Borrow;
+
 use anyhow::{Error};
 use serde_json::Value;
 
-pub fn strip_server_file_extension(name: &str) -> String {
+pub fn strip_server_file_extension(name: &str) -> &str {
     if name.ends_with(".didx") || name.ends_with(".fidx") || name.ends_with(".blob") {
-        name[..name.len()-5].to_owned()
+        &name[..name.len()-5]
     } else {
-        name.to_owned() // should not happen
+        name // should not happen
     }
 }
 
-pub fn render_backup_file_list(files: &[String]) -> String {
-    let mut files: Vec<String> = files.iter()
-        .map(|v| strip_server_file_extension(&v))
+pub fn render_backup_file_list<S: Borrow<str>>(files: &[S]) -> String {
+    let mut files: Vec<&str> = files.iter()
+        .map(|v| strip_server_file_extension(v.borrow()))
         .collect();
 
     files.sort();

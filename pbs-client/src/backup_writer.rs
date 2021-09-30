@@ -338,7 +338,7 @@ impl BackupWriter {
         let size_dirty = upload_stats.size - upload_stats.size_reused;
         let size: HumanByte = upload_stats.size.into();
         let archive = if self.verbose {
-            archive_name.to_string()
+            archive_name
         } else {
             pbs_tools::format::strip_server_file_extension(archive_name)
         };

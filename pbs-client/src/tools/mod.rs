@@ -306,7 +306,7 @@ pub async fn complete_server_file_name_do(param: &HashMap<String, String>) -> Ve
 pub fn complete_archive_name(arg: &str, param: &HashMap<String, String>) -> Vec<String> {
     complete_server_file_name(arg, param)
         .iter()
-        .map(|v| pbs_tools::format::strip_server_file_extension(&v))
+        .map(|v| pbs_tools::format::strip_server_file_extension(&v).to_owned())
         .collect()
 }
 
@@ -315,7 +315,7 @@ pub fn complete_pxar_archive_name(arg: &str, param: &HashMap<String, String>) ->
         .iter()
         .filter_map(|name| {
             if name.ends_with(".pxar.didx") {
-                Some(pbs_tools::format::strip_server_file_extension(name))
+                Some(pbs_tools::format::strip_server_file_extension(name).to_owned())
             } else {
                 None
             }
@@ -328,7 +328,7 @@ pub fn complete_img_archive_name(arg: &str, param: &HashMap<String, String>) -> 
         .iter()
         .filter_map(|name| {
             if name.ends_with(".img.fidx") {
-                Some(pbs_tools::format::strip_server_file_extension(name))
+                Some(pbs_tools::format::strip_server_file_extension(name).to_owned())
             } else {
                 None
             }
