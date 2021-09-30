@@ -186,6 +186,9 @@ impl Reloader {
                 if let Err(e) = systemd_notify(SystemdNotify::MainPid(child)) {
                     log::error!("failed to notify systemd about the new main pid: {}", e);
                 }
+                if let Err(e) = systemd_notify_barrier() {
+                    log::error!("failed to wait on systemd-processing: {}", e);
+                }
 
                 // notify child that it is now the new main process:
                 if let Err(e) = pold.write_all(&[1u8]) {
@@ -248,7 +251,6 @@ impl Reloadable for tokio::net::TcpListener {
 pub async fn create_daemon<F, S>(
     address: std::net::SocketAddr,
     create_service: F,
-    service_name: &str,
 ) -> Result<(), Error>
 where
     F: FnOnce(tokio::net::TcpListener) -> Result<S, Error>,
@@ -289,7 +291,10 @@ where
         if let Err(e) = systemd_notify(SystemdNotify::Reloading) {
             log::error!("failed to notify systemd about the state change: {}", e);
         }
-        wait_service_is_state(service_name, "reloading").await?;
+        if let Err(e) = systemd_notify_barrier() {
+            log::error!("failed to wait on systemd-processing: {}", e);
+        }
+
         if let Err(e) = reloader.take().unwrap().fork_restart() {
             log::error!("error during reload: {}", e);
             let _ = systemd_notify(SystemdNotify::Status("error during reload".to_string()));
@@ -302,51 +307,14 @@ where
         future.await;
     }
 
-    // FIXME: this is a hack, replace with sd_notify_barrier when available
-    if crate::is_reload_request() {
-        wait_service_is_not_state(service_name, "reloading").await?;
-    }
-
     log::info!("daemon shut down.");
-    Ok(())
-}
-
-// hack, do not use if unsure!
-async fn get_service_state(service: &str) -> Result<String, Error> {
-    let text = match tokio::process::Command::new("systemctl")
-        .args(&["is-active", service])
-        .output()
-        .await
-    {
-        Ok(output) => match String::from_utf8(output.stdout) {
-            Ok(text) => text,
-            Err(err) => bail!("output of 'systemctl is-active' not valid UTF-8 - {}", err),
-        },
-        Err(err) => bail!("executing 'systemctl is-active' failed - {}", err),
-    };
-
-    Ok(text.trim().trim_start().to_string())
-}
-
-async fn wait_service_is_state(service: &str, state: &str) -> Result<(), Error> {
-    tokio::time::sleep(std::time::Duration::new(1, 0)).await;
-    while get_service_state(service).await? != state {
-        tokio::time::sleep(std::time::Duration::new(5, 0)).await;
-    }
-    Ok(())
-}
-
-async fn wait_service_is_not_state(service: &str, state: &str) -> Result<(), Error> {
-    tokio::time::sleep(std::time::Duration::new(1, 0)).await;
-    while get_service_state(service).await? == state {
-        tokio::time::sleep(std::time::Duration::new(5, 0)).await;
-    }
     Ok(())
 }
 
 #[link(name = "systemd")]
 extern "C" {
     fn sd_notify(unset_environment: c_int, state: *const c_char) -> c_int;
+    fn sd_notify_barrier(unset_environment: c_int, timeout: u64) -> c_int;
 }
 
 /// Systemd sercice startup states (see: ``man sd_notify``)
@@ -356,6 +324,19 @@ pub enum SystemdNotify {
     Stopping,
     Status(String),
     MainPid(nix::unistd::Pid),
+}
+
+/// Waits until all previously sent messages with sd_notify are processed
+pub fn systemd_notify_barrier() -> Result<(), Error> {
+    let rc = unsafe { sd_notify_barrier(0, u64::MAX) }; // infinite timeout
+    if rc < 0 {
+        bail!(
+            "systemd_notify_barrier failed: {}",
+            std::io::Error::from_raw_os_error(-rc),
+        );
+    }
+
+    Ok(())
 }
 
 /// Tells systemd the startup state of the service (see: ``man sd_notify``)

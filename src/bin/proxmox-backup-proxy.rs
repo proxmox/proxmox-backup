@@ -275,7 +275,6 @@ async fn run() -> Result<(), Error> {
                     .await
             })
         },
-        "proxmox-backup-proxy.service",
     );
 
     proxmox_rest_server::write_pid(pbs_buildcfg::PROXMOX_BACKUP_PROXY_PID_FN)?;

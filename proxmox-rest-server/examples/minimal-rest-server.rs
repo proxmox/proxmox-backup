@@ -213,7 +213,6 @@ async fn run() -> Result<(), Error> {
                 Ok(())
             })
         },
-        "example_server",
     ).await?;
 
     Ok(())
