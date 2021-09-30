@@ -148,23 +148,25 @@ where
 }
 
 // A callback for a specific commando socket.
-type CommandoSocketFn = Box<(dyn Fn(Option<&Value>) -> Result<Value, Error> + Send + Sync + 'static)>;
+type CommandSocketFn = Box<(dyn Fn(Option<&Value>) -> Result<Value, Error> + Send + Sync + 'static)>;
 
 /// Tooling to get a single control command socket where one can
 /// register multiple commands dynamically.
 ///
-/// You need to call `spawn()` to make the socket active.
-pub struct CommandoSocket {
+/// The socket is activated by calling [spawn](CommandSocket::spawn),
+/// which spawns an async tokio task to process the commands.
+pub struct CommandSocket {
     socket: PathBuf,
     gid: Gid,
-    commands: HashMap<String, CommandoSocketFn>,
+    commands: HashMap<String, CommandSocketFn>,
 }
 
-impl CommandoSocket {
+impl CommandSocket {
+    /// Creates a new instance.
     pub fn new<P>(path: P, gid: Gid) -> Self
         where P: Into<PathBuf>,
     {
-        CommandoSocket {
+        CommandSocket {
             socket: path.into(),
             gid,
             commands: HashMap::new(),

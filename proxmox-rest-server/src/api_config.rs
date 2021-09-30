@@ -14,7 +14,7 @@ use serde::Serialize;
 use proxmox::api::{ApiMethod, Router, RpcEnvironmentType};
 use proxmox::tools::fs::{create_path, CreateOptions};
 
-use crate::{ApiAuth, FileLogger, FileLogOptions, CommandoSocket};
+use crate::{ApiAuth, FileLogger, FileLogOptions, CommandSocket};
 
 pub type GetIndexFn = fn(Option<String>, Option<String>, &ApiConfig, Parts) -> Response<Body>;
 
@@ -182,13 +182,13 @@ impl ApiConfig {
     ///
     /// When enabled, all requests are logged to the specified file.
     /// This function also registers a `api-access-log-reopen`
-    /// command one the [CommandoSocket].
+    /// command one the [CommandSocket].
     pub fn enable_access_log<P>(
         &mut self,
         path: P,
         dir_opts: Option<CreateOptions>,
         file_opts: Option<CreateOptions>,
-        commando_sock: &mut CommandoSocket,
+        commando_sock: &mut CommandSocket,
     ) -> Result<(), Error>
     where
         P: Into<PathBuf>
@@ -221,13 +221,13 @@ impl ApiConfig {
     ///
     /// When enabled, all authentification requests are logged to the
     /// specified file. This function also registers a
-    /// `api-auth-log-reopen` command one the [CommandoSocket].
+    /// `api-auth-log-reopen` command one the [CommandSocket].
     pub fn enable_auth_log<P>(
         &mut self,
         path: P,
         dir_opts: Option<CreateOptions>,
         file_opts: Option<CreateOptions>,
-        commando_sock: &mut CommandoSocket,
+        commando_sock: &mut CommandSocket,
     ) -> Result<(), Error>
     where
         P: Into<PathBuf>

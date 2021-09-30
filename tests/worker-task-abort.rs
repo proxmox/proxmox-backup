@@ -11,7 +11,7 @@ use proxmox::tools::fs::CreateOptions;
 use pbs_api_types::{Authid, UPID};
 use pbs_tools::{task_log, task::WorkerTaskContext};
 
-use proxmox_rest_server::{CommandoSocket, WorkerTask};
+use proxmox_rest_server::{CommandSocket, WorkerTask};
 
 fn garbage_collection(worker: &WorkerTask) -> Result<(), Error> {
 
@@ -48,7 +48,7 @@ fn worker_task_abort() -> Result<(), Error> {
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(async move {
 
-        let mut commando_sock = CommandoSocket::new(
+        let mut commando_sock = CommandSocket::new(
             proxmox_rest_server::our_ctrl_sock(), nix::unistd::Gid::current());
 
         let init_result: Result<(), Error> = try_block!({

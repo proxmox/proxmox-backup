@@ -23,7 +23,7 @@ use proxmox::api::upid::UPID;
 use pbs_tools::task::WorkerTaskContext;
 use pbs_tools::logrotate::{LogRotate, LogRotateFiles};
 
-use crate::{CommandoSocket, FileLogger, FileLogOptions};
+use crate::{CommandSocket, FileLogger, FileLogOptions};
 
 struct TaskListLockGuard(File);
 
@@ -324,7 +324,7 @@ pub fn worker_is_active_local(upid: &UPID) -> bool {
     }
 }
 
-/// Register task control command on a [CommandoSocket].
+/// Register task control command on a [CommandSocket].
 ///
 /// This create two commands:
 ///
@@ -333,7 +333,7 @@ pub fn worker_is_active_local(upid: &UPID) -> bool {
 /// * ``worker-task-status <UPID>``: return true of false, depending on
 /// whether the worker is running or stopped.
 pub fn register_task_control_commands(
-    commando_sock: &mut CommandoSocket,
+    commando_sock: &mut CommandSocket,
 ) -> Result<(), Error> {
     fn get_upid(args: Option<&Value>) -> Result<UPID, Error> {
         let args = if let Some(args) = args { args } else { bail!("missing args") };

@@ -187,7 +187,7 @@ async fn run() -> Result<(), Error> {
     config.register_template("console", "/usr/share/pve-xtermjs/index.html.hbs")?;
 
     let backup_user = pbs_config::backup_user()?;
-    let mut commando_sock = proxmox_rest_server::CommandoSocket::new(proxmox_rest_server::our_ctrl_sock(), backup_user.gid);
+    let mut commando_sock = proxmox_rest_server::CommandSocket::new(proxmox_rest_server::our_ctrl_sock(), backup_user.gid);
 
     let dir_opts = CreateOptions::new().owner(backup_user.uid).group(backup_user.gid);
     let file_opts = CreateOptions::new().owner(backup_user.uid).group(backup_user.gid);

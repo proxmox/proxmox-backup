@@ -91,7 +91,7 @@ async fn run(rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
     let file_opts = CreateOptions::new().owner(backup_user.uid).group(backup_user.gid);
     proxmox_rest_server::init_worker_tasks(pbs_buildcfg::PROXMOX_BACKUP_LOG_DIR_M!().into(), file_opts.clone())?;
 
-    let mut commando_sock = proxmox_rest_server::CommandoSocket::new(proxmox_rest_server::our_ctrl_sock(), backup_user.gid);
+    let mut commando_sock = proxmox_rest_server::CommandSocket::new(proxmox_rest_server::our_ctrl_sock(), backup_user.gid);
     proxmox_rest_server::register_task_control_commands(&mut commando_sock)?;
     commando_sock.spawn()?;
 
