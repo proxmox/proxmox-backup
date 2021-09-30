@@ -127,7 +127,8 @@ async fn run() -> Result<(), Error> {
     let init_result: Result<(), Error> = try_block!({
         proxmox_rest_server::register_task_control_commands(&mut commando_sock)?;
         commando_sock.spawn()?;
-        proxmox_rest_server::catch_shutdown_and_reload_signals()?;
+        proxmox_rest_server::catch_shutdown_signal()?;
+        proxmox_rest_server::catch_reload_signal()?;
         Ok(())
     });
 

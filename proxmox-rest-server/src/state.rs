@@ -9,18 +9,18 @@ use tokio::signal::unix::{signal, SignalKind};
 use pbs_tools::broadcast_future::BroadcastData;
 
 #[derive(PartialEq, Copy, Clone, Debug)]
-pub enum ServerMode {
+enum ServerMode {
     Normal,
     Shutdown,
 }
 
-pub struct ServerState {
-    pub mode: ServerMode,
-    pub shutdown_listeners: BroadcastData<()>,
-    pub last_worker_listeners: BroadcastData<()>,
-    pub worker_count: usize,
-    pub internal_task_count: usize,
-    pub reload_request: bool,
+struct ServerState {
+    mode: ServerMode,
+    shutdown_listeners: BroadcastData<()>,
+    last_worker_listeners: BroadcastData<()>,
+    worker_count: usize,
+    internal_task_count: usize,
+    reload_request: bool,
 }
 
 lazy_static! {
@@ -34,12 +34,8 @@ lazy_static! {
     });
 }
 
-/// Listen to ``SIGINT`` and ``SIGHUP`` signals
-///
-/// * ``SIGINT``: start server shutdown
-///
-/// * ``SIGHUP``: start server reload
-pub fn catch_shutdown_and_reload_signals() -> Result<(), Error> {
+/// Listen to ``SIGINT`` for server shutdown
+pub fn catch_shutdown_signal() -> Result<(), Error> {
 
     let mut stream = signal(SignalKind::interrupt())?;
 
@@ -55,6 +51,12 @@ pub fn catch_shutdown_and_reload_signals() -> Result<(), Error> {
     let task = futures::future::select(future, abort_future);
 
     tokio::spawn(task.map(|_| ()));
+
+    Ok(())
+}
+
+/// Listen to ``SIGHUP`` for server reload
+pub fn catch_reload_signal() -> Result<(), Error> {
 
     let mut stream = signal(SignalKind::hangup())?;
 
