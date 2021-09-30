@@ -27,15 +27,15 @@ type BoxedStoreFunc = Box<dyn FnMut() -> Result<String, Error> + UnwindSafe + Se
 
 /// Helper trait to "store" something in the environment to be re-used after re-executing the
 /// service on a reload.
-pub trait Reloadable: Sized {
+trait Reloadable: Sized {
     fn restore(var: &str) -> Result<Self, Error>;
     fn get_store_func(&self) -> Result<BoxedStoreFunc, Error>;
 }
 
-/// Manages things to be stored and reloaded upon reexec.
-/// Anything which should be restorable should be instantiated via this struct's `restore` method,
+// Manages things to be stored and reloaded upon reexec.
+// Anything which should be restorable should be instantiated via this struct's `restore` method,
 #[derive(Default)]
-pub struct Reloader {
+struct Reloader {
     pre_exec: Vec<PreExecEntry>,
     self_exe: PathBuf,
 }
