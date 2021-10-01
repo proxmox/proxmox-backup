@@ -654,7 +654,7 @@ async fn handle_request(
             let mut user_info: Box<dyn UserInformation + Send + Sync> = Box::new(EmptyUserInformation {});
 
             if auth_required {
-                match auth.check_auth(&parts.headers, &method) {
+                match auth.check_auth(&parts.headers, &method).await {
                     Ok((authid, info)) => {
                         rpcenv.set_auth_id(Some(authid));
                         user_info = info;
@@ -726,7 +726,7 @@ async fn handle_request(
 
         if comp_len == 0 {
             let language = extract_lang_header(&parts.headers);
-            match auth.check_auth(&parts.headers, &method) {
+            match auth.check_auth(&parts.headers, &method).await {
                 Ok((auth_id, _user_info)) => {
                     return Ok(api.get_index(Some(auth_id), language, parts));
                 }

@@ -1,7 +1,10 @@
 //! Provides authentication primitives for the HTTP server
-use anyhow::format_err;
 
 use std::sync::Arc;
+use std::future::Future;
+use std::pin::Pin;
+
+use anyhow::format_err;
 
 use proxmox::api::UserInformation;
 
@@ -55,15 +58,14 @@ impl UserApiAuth {
             _ => None,
         }
     }
-}
 
-impl ApiAuth for UserApiAuth {
-
-    fn check_auth(
+    async fn check_auth_async(
         &self,
         headers: &http::HeaderMap,
         method: &hyper::Method,
     ) -> Result<(String, Box<dyn UserInformation + Sync + Send>), AuthError> {
+
+        // fixme: make all IO async
 
         let user_info = CachedUserInfo::new()?;
 
@@ -122,5 +124,15 @@ impl ApiAuth for UserApiAuth {
             }
             None => Err(AuthError::NoData),
         }
+    }
+}
+
+impl ApiAuth for UserApiAuth {
+    fn check_auth<'a>(
+        &'a self,
+        headers: &'a http::HeaderMap,
+        method: &'a hyper::Method,
+    ) -> Pin<Box<dyn Future<Output = Result<(String, Box<dyn UserInformation + Sync + Send>), AuthError>> + Send + 'a>> {
+        Box::pin(self.check_auth_async(headers, method))
     }
 }

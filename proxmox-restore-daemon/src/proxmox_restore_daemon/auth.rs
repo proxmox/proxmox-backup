@@ -1,6 +1,8 @@
 //! Authentication via a static ticket file
 use std::fs::File;
 use std::io::prelude::*;
+use std::future::Future;
+use std::pin::Pin;
 
 use anyhow::{bail, format_err, Error};
 
@@ -25,21 +27,25 @@ pub struct StaticAuth {
 }
 
 impl ApiAuth for StaticAuth {
-    fn check_auth(
-        &self,
-        headers: &http::HeaderMap,
-        _method: &hyper::Method,
-    ) -> Result<(String, Box<dyn UserInformation + Send + Sync>),  AuthError> {
-        match headers.get(hyper::header::AUTHORIZATION) {
-            Some(header) if header.to_str().unwrap_or("") == &self.ticket => {
-                Ok((String::from("root@pam"), Box::new(SimpleUserInformation {})))
+    fn check_auth<'a>(
+        &'a self,
+        headers: &'a http::HeaderMap,
+        _method: &'a hyper::Method,
+    ) -> Pin<Box<dyn Future<Output = Result<(String, Box<dyn UserInformation + Sync + Send>), AuthError>> + Send + 'a>> {
+        Box::pin(async move {
+
+            match headers.get(hyper::header::AUTHORIZATION) {
+                Some(header) if header.to_str().unwrap_or("") == &self.ticket => {
+                    let user_info: Box<dyn UserInformation + Send + Sync> = Box::new(SimpleUserInformation {});
+                    Ok((String::from("root@pam"), user_info))
+                }
+                _ => {
+                    return Err(AuthError::Generic(format_err!(
+                        "invalid file restore ticket provided"
+                    )));
+                }
             }
-            _ => {
-                return Err(AuthError::Generic(format_err!(
-                    "invalid file restore ticket provided"
-                )));
-            }
-        }
+        })
     }
 }
 

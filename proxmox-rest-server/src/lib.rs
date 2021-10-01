@@ -16,6 +16,8 @@
 //! * generic interface to authenticate user
 
 use std::sync::atomic::{Ordering, AtomicBool};
+use std::future::Future;
+use std::pin::Pin;
 
 use anyhow::{bail, format_err, Error};
 use nix::unistd::Pid;
@@ -74,11 +76,11 @@ pub trait ApiAuth {
     ///
     /// If credenthials are valid, returns the username and a
     /// [UserInformation] object to query additional user data.
-    fn check_auth(
-        &self,
-        headers: &http::HeaderMap,
-        method: &hyper::Method,
-    ) -> Result<(String, Box<dyn UserInformation + Sync + Send>), AuthError>;
+    fn check_auth<'a>(
+        &'a self,
+        headers: &'a http::HeaderMap,
+        method: &'a hyper::Method,
+    ) -> Pin<Box<dyn Future<Output = Result<(String, Box<dyn UserInformation + Sync + Send>), AuthError>> + Send + 'a>>;
 }
 
 lazy_static::lazy_static!{

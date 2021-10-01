@@ -1,5 +1,7 @@
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
 
 use anyhow::{bail, format_err, Error};
 use lazy_static::lazy_static;
@@ -26,15 +28,17 @@ impl UserInformation for DummyUserInfo {
 struct DummyAuth;
 
 impl ApiAuth for DummyAuth {
-    fn check_auth(
-        &self,
-        _headers: &http::HeaderMap,
-        _method: &hyper::Method,
-    ) -> Result<(String, Box<dyn UserInformation + Sync + Send>), AuthError> {
-        // get some global/cached userinfo
-        let userinfo = DummyUserInfo;
-        // Do some user checks, e.g. cookie/csrf
-        Ok(("User".to_string(), Box::new(userinfo)))
+    fn check_auth<'a>(
+        &'a self,
+        _headers: &'a http::HeaderMap,
+        _method: &'a hyper::Method,
+    ) -> Pin<Box<dyn Future<Output = Result<(String, Box<dyn UserInformation + Sync + Send>), AuthError>> + Send + 'a>> {
+        Box::pin(async move {
+            // get some global/cached userinfo
+            let userinfo: Box<dyn UserInformation + Sync + Send> = Box::new(DummyUserInfo);
+            // Do some user checks, e.g. cookie/csrf
+            Ok(("User".to_string(), userinfo))
+        })
     }
 }
 
