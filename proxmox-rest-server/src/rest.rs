@@ -139,10 +139,14 @@ impl Service<&tokio::net::UnixStream> for RestServer {
     }
 }
 
-/// Helper [Service] containing the peer Address
-///
-/// The lower level connection [Service] implementation on
-/// [RestServer] extracts the peer address and return an [ApiService].
+// Helper [Service] containing the peer Address
+//
+// The lower level connection [Service] implementation on
+// [RestServer] extracts the peer address and return an [ApiService].
+//
+// Rust wants this type 'pub' here (else we get 'private type `ApiService`
+// in public interface'). The type is still private because the crate does
+// not export it.
 pub struct ApiService {
     pub peer: std::net::SocketAddr,
     pub api_config: Arc<ApiConfig>,
