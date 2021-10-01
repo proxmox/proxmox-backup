@@ -261,6 +261,10 @@ Ext.define('PBS.DataStoreContent', {
 		children: children,
 	    });
 
+	    if (!children.length) {
+		view.setEmptyText(gettext('No Snapshots found'));
+	    }
+
 	    this.updateGroupNotes(view);
 
 	    if (selected !== undefined) {
