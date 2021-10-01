@@ -328,19 +328,6 @@ pub enum SystemdNotify {
     MainPid(nix::unistd::Pid),
 }
 
-/// Waits until all previously sent messages with sd_notify are processed
-pub fn systemd_notify_barrier(timeout: u64) -> Result<(), Error> {
-    let rc = unsafe { sd_notify_barrier(0, timeout) };
-    if rc < 0 {
-        bail!(
-            "systemd_notify_barrier failed: {}",
-            std::io::Error::from_raw_os_error(-rc),
-        );
-    }
-
-    Ok(())
-}
-
 /// Tells systemd the startup state of the service (see: ``man sd_notify``)
 pub fn systemd_notify(state: SystemdNotify) -> Result<(), Error> {
 
@@ -363,5 +350,14 @@ pub fn systemd_notify(state: SystemdNotify) -> Result<(), Error> {
         );
     }
 
+    Ok(())
+}
+
+/// Waits until all previously sent messages with sd_notify are processed
+pub fn systemd_notify_barrier(timeout: u64) -> Result<(), Error> {
+    let rc = unsafe { sd_notify_barrier(0, timeout) };
+    if rc < 0 {
+        bail!("systemd_notify_barrier failed: {}", std::io::Error::from_raw_os_error(-rc));
+    }
     Ok(())
 }
