@@ -73,7 +73,6 @@ Ext.define('PBS.DataStoreContent', {
 		'backup-time',
 	    ]);
 	    Proxmox.Utils.monStoreErrors(view, this.store);
-	    this.reload(); // initial load
 	},
 
 	reload: function() {
@@ -622,6 +621,17 @@ Ext.define('PBS.DataStoreContent', {
 		store.filter((item) => !!item.get('matchesFilter'));
 		Proxmox.Utils.setErrorMask(view, false);
 	    }, 10);
+	},
+    },
+
+    listeners: {
+	activate: function() {
+	    let me = this;
+	    // only load on first activate to not load every tab switch
+	    if (!me.firstLoad) {
+		me.getController().reload();
+		me.firstLoad = true;
+	    }
 	},
     },
 
