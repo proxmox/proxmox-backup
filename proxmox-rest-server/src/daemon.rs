@@ -330,13 +330,11 @@ pub enum SystemdNotify {
 
 /// Tells systemd the startup state of the service (see: ``man sd_notify``)
 pub fn systemd_notify(state: SystemdNotify) -> Result<(), Error> {
-
-    if let SystemdNotify::Ready = &state  {
-        log::info!("service is ready");
-    }
-
     let message = match state {
-        SystemdNotify::Ready => CString::new("READY=1"),
+        SystemdNotify::Ready => {
+            log::info!("service is ready");
+            CString::new("READY=1")
+        },
         SystemdNotify::Reloading => CString::new("RELOADING=1"),
         SystemdNotify::Stopping => CString::new("STOPPING=1"),
         SystemdNotify::Status(msg) => CString::new(format!("STATUS={}", msg)),
@@ -344,10 +342,7 @@ pub fn systemd_notify(state: SystemdNotify) -> Result<(), Error> {
     }?;
     let rc = unsafe { sd_notify(0, message.as_ptr()) };
     if rc < 0 {
-        bail!(
-            "systemd_notify failed: {}",
-            std::io::Error::from_raw_os_error(-rc),
-        );
+        bail!("systemd_notify failed: {}", std::io::Error::from_raw_os_error(-rc));
     }
 
     Ok(())
