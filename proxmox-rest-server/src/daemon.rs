@@ -186,6 +186,8 @@ impl Reloader {
                 if let Err(e) = systemd_notify(SystemdNotify::MainPid(child)) {
                     log::error!("failed to notify systemd about the new main pid: {}", e);
                 }
+                // ensure systemd got the message about the new main PID before continuing, else it
+                // will get confused if the new main process sends its READY signal before that
                 if let Err(e) = systemd_notify_barrier() {
                     log::error!("failed to wait on systemd-processing: {}", e);
                 }
