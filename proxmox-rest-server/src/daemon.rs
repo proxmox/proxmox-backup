@@ -188,7 +188,7 @@ impl Reloader {
                 }
                 // ensure systemd got the message about the new main PID before continuing, else it
                 // will get confused if the new main process sends its READY signal before that
-                if let Err(e) = systemd_notify_barrier() {
+                if let Err(e) = systemd_notify_barrier(u64::MAX) {
                     log::error!("failed to wait on systemd-processing: {}", e);
                 }
 
@@ -293,7 +293,7 @@ where
         if let Err(e) = systemd_notify(SystemdNotify::Reloading) {
             log::error!("failed to notify systemd about the state change: {}", e);
         }
-        if let Err(e) = systemd_notify_barrier() {
+        if let Err(e) = systemd_notify_barrier(u64::MAX) {
             log::error!("failed to wait on systemd-processing: {}", e);
         }
 
@@ -329,8 +329,8 @@ pub enum SystemdNotify {
 }
 
 /// Waits until all previously sent messages with sd_notify are processed
-pub fn systemd_notify_barrier() -> Result<(), Error> {
-    let rc = unsafe { sd_notify_barrier(0, u64::MAX) }; // infinite timeout
+pub fn systemd_notify_barrier(timeout: u64) -> Result<(), Error> {
+    let rc = unsafe { sd_notify_barrier(0, timeout) };
     if rc < 0 {
         bail!(
             "systemd_notify_barrier failed: {}",
