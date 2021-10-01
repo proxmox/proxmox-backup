@@ -41,7 +41,7 @@ impl ApiConfig {
     ///
     /// `env_type` - The environment type.
     ///
-    /// `api_auth` - The Authentification handler
+    /// `api_auth` - The Authentication handler
     ///
     /// `get_index_fn` - callback to generate the root page
     /// (index). Please note that this fuctions gets a reference to
@@ -217,9 +217,9 @@ impl ApiConfig {
         Ok(())
     }
 
-    /// Enable the authentification log feature
+    /// Enable the authentication log feature
     ///
-    /// When enabled, all authentification requests are logged to the
+    /// When enabled, all authentication requests are logged to the
     /// specified file. This function also registers a
     /// `api-auth-log-reopen` command one the [CommandSocket].
     pub fn enable_auth_log<P>(
