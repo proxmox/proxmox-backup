@@ -1,6 +1,8 @@
 use std::sync::{Mutex, Arc};
 use std::path::{Path, PathBuf};
 use std::os::unix::io::AsRawFd;
+use std::future::Future;
+use std::pin::Pin;
 
 use anyhow::{bail, format_err, Error};
 use futures::*;
@@ -76,12 +78,23 @@ fn main() -> Result<(), Error> {
     pbs_runtime::main(run())
 }
 
-fn get_index(
+fn get_index<'a>(
+    auth_id: Option<String>,
+    language: Option<String>,
+    api: &'a ApiConfig,
+    parts: Parts,
+) -> Pin<Box<dyn Future<Output = Response<Body>> + Send + 'a>> {
+    Box::pin(get_index_future(auth_id, language, api, parts))
+}
+
+async fn get_index_future(
     auth_id: Option<String>,
     language: Option<String>,
     api: &ApiConfig,
     parts: Parts,
 ) -> Response<Body> {
+
+    // fixme: make all IO async
 
     let (userid, csrf_token) = match auth_id {
         Some(auth_id) => {
@@ -169,7 +182,7 @@ async fn run() -> Result<(), Error> {
         &proxmox_backup::api2::ROUTER,
         RpcEnvironmentType::PUBLIC,
         default_api_auth(),
-        get_index,
+        &get_index,
     )?;
 
     config.add_alias("novnc", "/usr/share/novnc-pve");

@@ -45,16 +45,18 @@ impl ApiAuth for DummyAuth {
 // this should return the index page of the webserver
 // iow. what the user browses to
 
-fn get_index(
+fn get_index<'a>(
     _auth_id: Option<String>,
     _language: Option<String>,
-    _api: &ApiConfig,
+    _api: &'a ApiConfig,
     _parts: http::request::Parts,
-) -> http::Response<hyper::Body> {
-    // build an index page
-    http::Response::builder()
-        .body("hello world".into())
-        .unwrap()
+) -> Pin<Box<dyn Future<Output = http::Response<hyper::Body>> + Send + 'a>> {
+    Box::pin(async move {
+        // build an index page
+        http::Response::builder()
+            .body("hello world".into())
+            .unwrap()
+    })
 }
 
 // a few examples on how to do api calls with the Router
@@ -191,7 +193,7 @@ async fn run() -> Result<(), Error> {
         &ROUTER,
         RpcEnvironmentType::PUBLIC,
         Arc::new(DummyAuth {}),
-        get_index,
+        &get_index,
     )?;
     let rest_server = RestServer::new(config);
 

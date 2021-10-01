@@ -732,14 +732,14 @@ async fn handle_request(
             let language = extract_lang_header(&parts.headers);
             match auth.check_auth(&parts.headers, &method).await {
                 Ok((auth_id, _user_info)) => {
-                    return Ok(api.get_index(Some(auth_id), language, parts));
+                    return Ok(api.get_index(Some(auth_id), language, parts).await);
                 }
                 Err(AuthError::Generic(_)) => {
                     tokio::time::sleep_until(Instant::from_std(delay_unauth_time)).await;
                 }
                 Err(AuthError::NoData) => {}
             }
-            return Ok(api.get_index(None, language, parts));
+            return Ok(api.get_index(None, language, parts).await);
         } else {
             let filename = api.find_alias(&components);
             let compression = extract_compression_method(&parts.headers);

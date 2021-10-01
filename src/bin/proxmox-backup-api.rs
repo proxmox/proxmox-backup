@@ -1,3 +1,6 @@
+use std::future::Future;
+use std::pin::Pin;
+
 use anyhow::{bail, Error};
 use futures::*;
 use http::request::Parts;
@@ -24,20 +27,22 @@ fn main() {
     }
 }
 
-fn get_index(
+fn get_index<'a>(
     _auth_id: Option<String>,
     _language: Option<String>,
-    _api: &ApiConfig,
+    _api: &'a ApiConfig,
     _parts: Parts,
-) -> Response<Body> {
+) -> Pin<Box<dyn Future<Output = Response<Body>> + Send + 'a>> {
+    Box::pin(async move {
 
-    let index = "<center><h1>Proxmox Backup API Server</h1></center>";
+        let index = "<center><h1>Proxmox Backup API Server</h1></center>";
 
-    Response::builder()
-        .status(StatusCode::OK)
-        .header(header::CONTENT_TYPE, "text/html")
-        .body(index.into())
-        .unwrap()
+        Response::builder()
+            .status(StatusCode::OK)
+            .header(header::CONTENT_TYPE, "text/html")
+            .body(index.into())
+            .unwrap()
+    })
 }
 
 async fn run() -> Result<(), Error> {
@@ -76,7 +81,7 @@ async fn run() -> Result<(), Error> {
         &proxmox_backup::api2::ROUTER,
         RpcEnvironmentType::PRIVILEGED,
         default_api_auth(),
-        get_index,
+        &get_index,
     )?;
 
     let backup_user = pbs_config::backup_user()?;

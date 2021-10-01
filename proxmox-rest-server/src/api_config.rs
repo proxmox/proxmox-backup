@@ -3,6 +3,8 @@ use std::path::PathBuf;
 use std::time::SystemTime;
 use std::fs::metadata;
 use std::sync::{Arc, Mutex, RwLock};
+use std::future::Future;
+use std::pin::Pin;
 
 use anyhow::{bail, Error, format_err};
 use hyper::{Method, Body, Response};
@@ -16,7 +18,7 @@ use proxmox::tools::fs::{create_path, CreateOptions};
 
 use crate::{ApiAuth, FileLogger, FileLogOptions, CommandSocket};
 
-pub type GetIndexFn = fn(Option<String>, Option<String>, &ApiConfig, Parts) -> Response<Body>;
+pub type GetIndexFn = &'static (dyn for<'a> Fn(Option<String>, Option<String>, &'a ApiConfig, Parts) -> Pin<Box<dyn Future<Output = Response<Body>> + Send + 'a>> + Send + Sync);
 
 /// REST server configuration
 pub struct ApiConfig {
@@ -68,13 +70,13 @@ impl ApiConfig {
         })
     }
 
-    pub(crate) fn get_index(
+    pub(crate) async fn get_index(
         &self,
         auth_id: Option<String>,
         language: Option<String>,
         parts: Parts,
     ) -> Response<Body> {
-        (self.get_index_fn)(auth_id, language, self, parts)
+        (self.get_index_fn)(auth_id, language, self, parts).await
     }
 
     pub(crate) fn find_method(

@@ -7,6 +7,8 @@ use std::os::unix::{
 };
 use std::path::Path;
 use std::sync::{Arc, Mutex};
+use std::future::Future;
+use std::pin::Pin;
 
 use anyhow::{bail, format_err, Error};
 use lazy_static::lazy_static;
@@ -91,20 +93,22 @@ fn setup_system_env() -> Result<(), Error> {
     Ok(())
 }
 
-fn get_index(
+fn get_index<'a>(
     _auth_id: Option<String>,
     _language: Option<String>,
-    _api: &ApiConfig,
+    _api: &'a ApiConfig,
     _parts: Parts,
-) -> Response<Body> {
+) -> Pin<Box<dyn Future<Output = http::Response<Body>> + Send + 'a>> {
+    Box::pin(async move {
 
-    let index = "<center><h1>Proxmox Backup Restore Daemon/h1></center>";
+        let index = "<center><h1>Proxmox Backup Restore Daemon/h1></center>";
 
-    Response::builder()
-        .status(StatusCode::OK)
-        .header(header::CONTENT_TYPE, "text/html")
-        .body(index.into())
-        .unwrap()
+        Response::builder()
+            .status(StatusCode::OK)
+            .header(header::CONTENT_TYPE, "text/html")
+            .body(index.into())
+            .unwrap()
+    })
 }
 
 async fn run() -> Result<(), Error> {
@@ -113,7 +117,7 @@ async fn run() -> Result<(), Error> {
     let auth_config = Arc::new(
         auth::ticket_auth().map_err(|err| format_err!("reading ticket file failed: {}", err))?,
     );
-    let config = ApiConfig::new("", &ROUTER, RpcEnvironmentType::PUBLIC, auth_config, get_index)?;
+    let config = ApiConfig::new("", &ROUTER, RpcEnvironmentType::PUBLIC, auth_config, &get_index)?;
     let rest_server = RestServer::new(config);
 
     let vsock_fd = get_vsock_fd()?;
