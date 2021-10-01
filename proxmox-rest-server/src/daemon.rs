@@ -18,11 +18,6 @@ use proxmox::tools::fd::Fd;
 
 use pbs_tools::fd::fd_change_cloexec;
 
-#[link(name = "systemd")]
-extern "C" {
-    fn sd_journal_stream_fd(identifier: *const c_uchar, priority: c_int, level_prefix: c_int) -> c_int;
-}
-
 // Unfortunately FnBox is nightly-only and Box<FnOnce> is unusable, so just use Box<Fn>...
 type BoxedStoreFunc = Box<dyn FnMut() -> Result<String, Error> + UnwindSafe + Send>;
 
@@ -315,6 +310,7 @@ where
 
 #[link(name = "systemd")]
 extern "C" {
+    fn sd_journal_stream_fd(identifier: *const c_uchar, priority: c_int, level_prefix: c_int) -> c_int;
     fn sd_notify(unset_environment: c_int, state: *const c_char) -> c_int;
     fn sd_notify_barrier(unset_environment: c_int, timeout: u64) -> c_int;
 }
