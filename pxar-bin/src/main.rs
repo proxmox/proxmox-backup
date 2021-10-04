@@ -285,7 +285,7 @@ fn extract_archive(
                 optional: true,
                 default: ENCODER_MAX_ENTRIES as isize,
                 minimum: 0,
-                maximum: std::isize::MAX,
+                maximum: isize::MAX,
             },
         },
     },

@@ -344,7 +344,7 @@ impl SessionImpl {
                 Err(err) => return self.handle_err(request, err, err_sender).await,
             },
             Request::Getattr(request) => match self.getattr(request.inode).await {
-                Ok(stat) => request.reply(&stat, std::f64::MAX).map_err(Error::from),
+                Ok(stat) => request.reply(&stat, f64::MAX).map_err(Error::from),
                 Err(err) => return self.handle_err(request, err, err_sender).await,
             },
             Request::ReaddirPlus(mut request) => match self.readdirplus(&mut request).await {
@@ -539,7 +539,7 @@ impl SessionImpl {
             let file = file?.decode_entry().await?;
             let stat = to_stat(to_inode(&file), &file)?;
             let name = file.file_name();
-            match request.add_entry(name, &stat, next, 1, std::f64::MAX, std::f64::MAX)? {
+            match request.add_entry(name, &stat, next, 1, f64::MAX, f64::MAX)? {
                 ReplyBufState::Ok => (),
                 ReplyBufState::Full => return Ok(lookups),
             }
@@ -551,7 +551,7 @@ impl SessionImpl {
             let file = dir.lookup_self().await?;
             let stat = to_stat(to_inode(&file), &file)?;
             let name = OsStr::new(".");
-            match request.add_entry(name, &stat, next, 1, std::f64::MAX, std::f64::MAX)? {
+            match request.add_entry(name, &stat, next, 1, f64::MAX, f64::MAX)? {
                 ReplyBufState::Ok => (),
                 ReplyBufState::Full => return Ok(lookups),
             }
@@ -565,7 +565,7 @@ impl SessionImpl {
             let file = parent_dir.lookup_self().await?;
             let stat = to_stat(to_inode(&file), &file)?;
             let name = OsStr::new("..");
-            match request.add_entry(name, &stat, next, 1, std::f64::MAX, std::f64::MAX)? {
+            match request.add_entry(name, &stat, next, 1, f64::MAX, f64::MAX)? {
                 ReplyBufState::Ok => (),
                 ReplyBufState::Full => return Ok(lookups),
             }

@@ -76,7 +76,7 @@ constnamedbitmap! {
 
 /// Admin always has all privileges. It can do everything except a few actions
 /// which are limited to the 'root@pam` superuser
-pub const ROLE_ADMIN: u64 = std::u64::MAX;
+pub const ROLE_ADMIN: u64 = u64::MAX;
 
 /// NoAccess can be used to remove privileges from specific (sub-)paths
 pub const ROLE_NO_ACCESS: u64 = 0;

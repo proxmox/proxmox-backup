@@ -176,7 +176,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin> FuseLoopSession<R> {
                             req.reply(&entry)
                         },
                         Some(Request::Getattr(req)) => {
-                            req.reply(&self.stat, std::f64::MAX)
+                            req.reply(&self.stat, f64::MAX)
                         },
                         Some(Request::Read(req)) => {
                             match self.reader.seek(SeekFrom::Start(req.offset)).await {
