@@ -23,7 +23,7 @@ use hyper::header;
 use proxmox::api::RpcEnvironmentType;
 
 use pbs_client::DEFAULT_VSOCK_PORT;
-use proxmox_rest_server::{ApiConfig, RestServer};
+use proxmox_rest_server::{ApiConfig, RestServer, RestEnvironment};
 
 mod proxmox_restore_daemon;
 use proxmox_restore_daemon::*;
@@ -94,9 +94,7 @@ fn setup_system_env() -> Result<(), Error> {
 }
 
 fn get_index<'a>(
-    _auth_id: Option<String>,
-    _language: Option<String>,
-    _api: &'a ApiConfig,
+    _env: RestEnvironment,
     _parts: Parts,
 ) -> Pin<Box<dyn Future<Output = http::Response<Body>> + Send + 'a>> {
     Box::pin(async move {

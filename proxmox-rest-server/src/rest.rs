@@ -36,7 +36,7 @@ use pbs_tools::stream::AsyncReaderStream;
 
 use crate::{
     ApiConfig, FileLogger, AuthError, RestEnvironment, CompressionMethod,
-    extract_cookie, normalize_uri_path, formatter::*,
+    normalize_uri_path, formatter::*,
 };
 
 extern "C" {
@@ -587,13 +587,6 @@ async fn handle_static_file_download(
     }
 }
 
-fn extract_lang_header(headers: &http::HeaderMap) -> Option<String> {
-    if let Some(Ok(cookie)) = headers.get("COOKIE").map(|v| v.to_str()) {
-        return extract_cookie(cookie, "PBSLangCookie");
-    }
-    None
-}
-
 // FIXME: support handling multiple compression methods
 fn extract_compression_method(headers: &http::HeaderMap) -> Option<CompressionMethod> {
     if let Some(Ok(encodings)) = headers.get(header::ACCEPT_ENCODING).map(|v| v.to_str()) {
@@ -727,17 +720,17 @@ async fn handle_request(
         }
 
         if comp_len == 0 {
-            let language = extract_lang_header(&parts.headers);
             match api.check_auth(&parts.headers, &method).await {
                 Ok((auth_id, _user_info)) => {
-                    return Ok(api.get_index(Some(auth_id), language, parts).await);
+                    rpcenv.set_auth_id(Some(auth_id));
+                    return Ok(api.get_index(rpcenv, parts).await);
                 }
                 Err(AuthError::Generic(_)) => {
                     tokio::time::sleep_until(Instant::from_std(delay_unauth_time)).await;
                 }
                 Err(AuthError::NoData) => {}
             }
-            return Ok(api.get_index(None, language, parts).await);
+            return Ok(api.get_index(rpcenv, parts).await);
         } else {
             let filename = api.find_alias(&components);
             let compression = extract_compression_method(&parts.headers);

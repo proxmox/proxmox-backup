@@ -12,7 +12,7 @@ use proxmox::try_block;
 use proxmox::api::RpcEnvironmentType;
 use proxmox::tools::fs::CreateOptions;
 
-use proxmox_rest_server::{daemon, ApiConfig, RestServer};
+use proxmox_rest_server::{daemon, ApiConfig, RestServer, RestEnvironment};
 
 use proxmox_backup::server::auth::default_api_auth;
 use proxmox_backup::auth_helpers::*;
@@ -28,9 +28,7 @@ fn main() {
 }
 
 fn get_index<'a>(
-    _auth_id: Option<String>,
-    _language: Option<String>,
-    _api: &'a ApiConfig,
+    _env: RestEnvironment,
     _parts: Parts,
 ) -> Pin<Box<dyn Future<Output = Response<Body>> + Send + 'a>> {
     Box::pin(async move {

@@ -16,9 +16,9 @@ use serde::Serialize;
 use proxmox::api::{ApiMethod, Router, RpcEnvironmentType, UserInformation};
 use proxmox::tools::fs::{create_path, CreateOptions};
 
-use crate::{ApiAuth, AuthError, FileLogger, FileLogOptions, CommandSocket};
+use crate::{ApiAuth, AuthError, FileLogger, FileLogOptions, CommandSocket, RestEnvironment};
 
-pub type GetIndexFn = &'static (dyn for<'a> Fn(Option<String>, Option<String>, &'a ApiConfig, Parts) -> Pin<Box<dyn Future<Output = Response<Body>> + Send + 'a>> + Send + Sync);
+pub type GetIndexFn = &'static (dyn Fn(RestEnvironment, Parts) -> Pin<Box<dyn Future<Output = Response<Body>> + Send>> + Send + Sync);
 
 /// REST server configuration
 pub struct ApiConfig {
@@ -72,11 +72,10 @@ impl ApiConfig {
 
     pub(crate) async fn get_index(
         &self,
-        auth_id: Option<String>,
-        language: Option<String>,
+        rest_env: RestEnvironment,
         parts: Parts,
     ) -> Response<Body> {
-        (self.get_index_fn)(auth_id, language, self, parts).await
+        (self.get_index_fn)(rest_env, parts).await
     }
 
     pub(crate) async fn check_auth(

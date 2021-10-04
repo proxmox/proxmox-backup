@@ -8,7 +8,7 @@ use lazy_static::lazy_static;
 
 use proxmox::api::{api, router::SubdirMap, Router, RpcEnvironmentType, UserInformation};
 use proxmox::list_subdirs_api_method;
-use proxmox_rest_server::{ApiAuth, ApiConfig, AuthError, RestServer};
+use proxmox_rest_server::{ApiAuth, ApiConfig, AuthError, RestServer, RestEnvironment};
 // Create a Dummy User info and auth system
 // Normally this would check and authenticate the user
 struct DummyUserInfo;
@@ -46,9 +46,7 @@ impl ApiAuth for DummyAuth {
 // iow. what the user browses to
 
 fn get_index<'a>(
-    _auth_id: Option<String>,
-    _language: Option<String>,
-    _api: &'a ApiConfig,
+    _env: RestEnvironment,
     _parts: http::request::Parts,
 ) -> Pin<Box<dyn Future<Output = http::Response<hyper::Body>> + Send + 'a>> {
     Box::pin(async move {

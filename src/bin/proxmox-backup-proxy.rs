@@ -17,13 +17,15 @@ use tokio_stream::wrappers::ReceiverStream;
 use serde_json::{json, Value};
 
 use proxmox::try_block;
-use proxmox::api::RpcEnvironmentType;
+use proxmox::api::{RpcEnvironment, RpcEnvironmentType};
 use proxmox::sys::linux::socket::set_tcp_keepalive;
 use proxmox::tools::fs::CreateOptions;
 
 use pbs_tools::task_log;
 use pbs_datastore::DataStore;
-use proxmox_rest_server::{rotate_task_log_archive, ApiConfig, RestServer, WorkerTask};
+use proxmox_rest_server::{
+    rotate_task_log_archive, extract_cookie , ApiConfig, RestServer, RestEnvironment, WorkerTask,
+};
 
 use proxmox_backup::{
     server::{
@@ -78,23 +80,31 @@ fn main() -> Result<(), Error> {
     pbs_runtime::main(run())
 }
 
+
+fn extract_lang_header(headers: &http::HeaderMap) -> Option<String> {
+    if let Some(Ok(cookie)) = headers.get("COOKIE").map(|v| v.to_str()) {
+        return extract_cookie(cookie, "PBSLangCookie");
+    }
+    None
+}
+
 fn get_index<'a>(
-    auth_id: Option<String>,
-    language: Option<String>,
-    api: &'a ApiConfig,
+    env: RestEnvironment,
     parts: Parts,
 ) -> Pin<Box<dyn Future<Output = Response<Body>> + Send + 'a>> {
-    Box::pin(get_index_future(auth_id, language, api, parts))
+    Box::pin(get_index_future(env, parts))
 }
 
 async fn get_index_future(
-    auth_id: Option<String>,
-    language: Option<String>,
-    api: &ApiConfig,
+    env: RestEnvironment,
     parts: Parts,
 ) -> Response<Body> {
 
-    // fixme: make all IO async
+    let auth_id = env.get_auth_id();
+    let api = env.api_config();
+    let language = extract_lang_header(&parts.headers);
+
+     // fixme: make all IO async
 
     let (userid, csrf_token) = match auth_id {
         Some(auth_id) => {
