@@ -13,10 +13,10 @@ use hyper::http::request::Parts;
 use handlebars::Handlebars;
 use serde::Serialize;
 
-use proxmox::api::{ApiMethod, Router, RpcEnvironmentType};
+use proxmox::api::{ApiMethod, Router, RpcEnvironmentType, UserInformation};
 use proxmox::tools::fs::{create_path, CreateOptions};
 
-use crate::{ApiAuth, FileLogger, FileLogOptions, CommandSocket};
+use crate::{ApiAuth, AuthError, FileLogger, FileLogOptions, CommandSocket};
 
 pub type GetIndexFn = &'static (dyn for<'a> Fn(Option<String>, Option<String>, &'a ApiConfig, Parts) -> Pin<Box<dyn Future<Output = Response<Body>> + Send + 'a>> + Send + Sync);
 
@@ -30,7 +30,7 @@ pub struct ApiConfig {
     template_files: RwLock<HashMap<String, (SystemTime, PathBuf)>>,
     request_log: Option<Arc<Mutex<FileLogger>>>,
     auth_log: Option<Arc<Mutex<FileLogger>>>,
-    pub(crate) api_auth: Arc<dyn ApiAuth + Send + Sync>,
+    api_auth: Arc<dyn ApiAuth + Send + Sync>,
     get_index_fn: GetIndexFn,
 }
 
@@ -77,6 +77,14 @@ impl ApiConfig {
         parts: Parts,
     ) -> Response<Body> {
         (self.get_index_fn)(auth_id, language, self, parts).await
+    }
+
+    pub(crate) async fn check_auth(
+        &self,
+        headers: &http::HeaderMap,
+        method: &hyper::Method,
+    ) -> Result<(String, Box<dyn UserInformation + Sync + Send>), AuthError> {
+        self.api_auth.check_auth(headers, method).await
     }
 
     pub(crate) fn find_method(
