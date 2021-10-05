@@ -1,3 +1,25 @@
+rust-proxmox-backup (2.0.11-1) bullseye; urgency=medium
+
+  * drop aritifical limits for task-UPID length
+
+  * tools: smart: only throw error for the fatal usage errors of smartctl
+
+  * api: improve returning errors for extjs formatter
+
+  * proxmox-rest-server: improve logging
+
+  * subscription: switch verification domain over to shop.proxmox.com
+
+  * rest-server/daemon: use new sd_notify_barrier helper for handling
+    synchronization with systemd on service reloading
+
+  * ui: datastore/Content: add empty text for no snapshots
+
+  * ui: datastore/Content: move first store-load into activate listener to
+    ensure we've a proper loading mask for better UX
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 05 Oct 2021 16:34:14 +0200
+
 rust-proxmox-backup (2.0.10-1) bullseye; urgency=medium
 
   * ui: fix order of prune keep reasons
