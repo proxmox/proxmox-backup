@@ -1,4 +1,4 @@
-rust-proxmox-backup (2.0.10-1) UNRELEASED; urgency=medium
+rust-proxmox-backup (2.0.10-1) bullseye; urgency=medium
 
   * ui: fix order of prune keep reasons
 
