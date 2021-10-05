@@ -5,16 +5,17 @@ use anyhow::{bail, Error};
 use futures::*;
 use http::request::Parts;
 use http::Response;
-use hyper::{Body, StatusCode};
-use hyper::header;
+use hyper::{Body, Method, StatusCode};
+use http::HeaderMap;
 
 use proxmox::try_block;
 use proxmox::api::RpcEnvironmentType;
 use proxmox::tools::fs::CreateOptions;
+use proxmox::api::UserInformation;
 
-use proxmox_rest_server::{daemon, ApiConfig, RestServer, RestEnvironment};
+use proxmox_rest_server::{daemon, AuthError, ApiConfig, RestServer, RestEnvironment, ServerAdapter};
 
-use proxmox_backup::server::auth::default_api_auth;
+use proxmox_backup::server::auth::check_pbs_auth;
 use proxmox_backup::auth_helpers::*;
 use proxmox_backup::config;
 
@@ -27,20 +28,36 @@ fn main() {
     }
 }
 
-fn get_index<'a>(
-    _env: RestEnvironment,
-    _parts: Parts,
-) -> Pin<Box<dyn Future<Output = Response<Body>> + Send + 'a>> {
-    Box::pin(async move {
+struct ProxmoxBackupApiAdapter;
 
-        let index = "<center><h1>Proxmox Backup API Server</h1></center>";
+impl ServerAdapter for ProxmoxBackupApiAdapter {
 
-        Response::builder()
-            .status(StatusCode::OK)
-            .header(header::CONTENT_TYPE, "text/html")
-            .body(index.into())
-            .unwrap()
-    })
+    fn get_index(
+        &self,
+        _env: RestEnvironment,
+        _parts: Parts,
+    ) -> Pin<Box<dyn Future<Output = Response<Body>> + Send>> {
+        Box::pin(async move {
+
+            let index = "<center><h1>Proxmox Backup API Server</h1></center>";
+
+            Response::builder()
+                .status(StatusCode::OK)
+                .header(hyper::header::CONTENT_TYPE, "text/html")
+                .body(index.into())
+                .unwrap()
+        })
+    }
+
+    fn check_auth<'a>(
+        &'a self,
+        headers: &'a HeaderMap,
+        method: &'a Method,
+    ) -> Pin<Box<dyn Future<Output = Result<(String, Box<dyn UserInformation + Sync + Send>), AuthError>> + Send + 'a>> {
+        Box::pin(async move {
+            check_pbs_auth(headers, method).await
+        })
+    }
 }
 
 async fn run() -> Result<(), Error> {
@@ -78,8 +95,7 @@ async fn run() -> Result<(), Error> {
         pbs_buildcfg::JS_DIR,
         &proxmox_backup::api2::ROUTER,
         RpcEnvironmentType::PRIVILEGED,
-        default_api_auth(),
-        &get_index,
+        ProxmoxBackupApiAdapter,
     )?;
 
     let backup_user = pbs_config::backup_user()?;

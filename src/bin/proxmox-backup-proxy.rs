@@ -15,21 +15,23 @@ use url::form_urlencoded;
 use openssl::ssl::{SslMethod, SslAcceptor, SslFiletype};
 use tokio_stream::wrappers::ReceiverStream;
 use serde_json::{json, Value};
+use http::{Method, HeaderMap};
 
 use proxmox::try_block;
-use proxmox::api::{RpcEnvironment, RpcEnvironmentType};
+use proxmox::api::{RpcEnvironment, RpcEnvironmentType, UserInformation};
 use proxmox::sys::linux::socket::set_tcp_keepalive;
 use proxmox::tools::fs::CreateOptions;
 
 use pbs_tools::task_log;
 use pbs_datastore::DataStore;
 use proxmox_rest_server::{
-    rotate_task_log_archive, extract_cookie , ApiConfig, RestServer, RestEnvironment, WorkerTask,
+    rotate_task_log_archive, extract_cookie , AuthError, ApiConfig, RestServer, RestEnvironment,
+    ServerAdapter, WorkerTask,
 };
 
 use proxmox_backup::{
     server::{
-        auth::default_api_auth,
+        auth::check_pbs_auth,
         jobstate::{
             self,
             Job,
@@ -81,18 +83,34 @@ fn main() -> Result<(), Error> {
 }
 
 
+struct ProxmoxBackupProxyAdapter;
+
+impl ServerAdapter for ProxmoxBackupProxyAdapter {
+
+    fn get_index(
+        &self,
+        env: RestEnvironment,
+        parts: Parts,
+    ) -> Pin<Box<dyn Future<Output = Response<Body>> + Send>> {
+        Box::pin(get_index_future(env, parts))
+    }
+
+    fn check_auth<'a>(
+        &'a self,
+        headers: &'a HeaderMap,
+        method: &'a Method,
+    ) -> Pin<Box<dyn Future<Output = Result<(String, Box<dyn UserInformation + Sync + Send>), AuthError>> + Send + 'a>> {
+        Box::pin(async move {
+            check_pbs_auth(headers, method).await
+        })
+    }
+}
+
 fn extract_lang_header(headers: &http::HeaderMap) -> Option<String> {
     if let Some(Ok(cookie)) = headers.get("COOKIE").map(|v| v.to_str()) {
         return extract_cookie(cookie, "PBSLangCookie");
     }
     None
-}
-
-fn get_index<'a>(
-    env: RestEnvironment,
-    parts: Parts,
-) -> Pin<Box<dyn Future<Output = Response<Body>> + Send + 'a>> {
-    Box::pin(get_index_future(env, parts))
 }
 
 async fn get_index_future(
@@ -191,8 +209,7 @@ async fn run() -> Result<(), Error> {
         pbs_buildcfg::JS_DIR,
         &proxmox_backup::api2::ROUTER,
         RpcEnvironmentType::PUBLIC,
-        default_api_auth(),
-        &get_index,
+        ProxmoxBackupProxyAdapter,
     )?;
 
     config.add_alias("novnc", "/usr/share/novnc-pve");

@@ -3,7 +3,6 @@ use std::path::PathBuf;
 use std::time::SystemTime;
 use std::fs::metadata;
 use std::sync::{Arc, Mutex, RwLock};
-use std::future::Future;
 use std::pin::Pin;
 
 use anyhow::{bail, Error, format_err};
@@ -16,9 +15,8 @@ use serde::Serialize;
 use proxmox::api::{ApiMethod, Router, RpcEnvironmentType, UserInformation};
 use proxmox::tools::fs::{create_path, CreateOptions};
 
-use crate::{ApiAuth, AuthError, FileLogger, FileLogOptions, CommandSocket, RestEnvironment};
+use crate::{ServerAdapter, AuthError, FileLogger, FileLogOptions, CommandSocket, RestEnvironment};
 
-pub type GetIndexFn = &'static (dyn Fn(RestEnvironment, Parts) -> Pin<Box<dyn Future<Output = Response<Body>> + Send>> + Send + Sync);
 
 /// REST server configuration
 pub struct ApiConfig {
@@ -30,8 +28,7 @@ pub struct ApiConfig {
     template_files: RwLock<HashMap<String, (SystemTime, PathBuf)>>,
     request_log: Option<Arc<Mutex<FileLogger>>>,
     auth_log: Option<Arc<Mutex<FileLogger>>>,
-    api_auth: Arc<dyn ApiAuth + Send + Sync>,
-    get_index_fn: GetIndexFn,
+    adapter: Pin<Box<dyn ServerAdapter + Send + Sync>>,
 }
 
 impl ApiConfig {
@@ -53,8 +50,7 @@ impl ApiConfig {
         basedir: B,
         router: &'static Router,
         env_type: RpcEnvironmentType,
-        api_auth: Arc<dyn ApiAuth + Send + Sync>,
-        get_index_fn: GetIndexFn,
+        adapter: impl ServerAdapter + 'static,
     ) -> Result<Self, Error> {
         Ok(Self {
             basedir: basedir.into(),
@@ -65,8 +61,7 @@ impl ApiConfig {
             template_files: RwLock::new(HashMap::new()),
             request_log: None,
             auth_log: None,
-            api_auth,
-            get_index_fn,
+            adapter: Box::pin(adapter),
         })
     }
 
@@ -75,7 +70,7 @@ impl ApiConfig {
         rest_env: RestEnvironment,
         parts: Parts,
     ) -> Response<Body> {
-        (self.get_index_fn)(rest_env, parts).await
+        self.adapter.get_index(rest_env, parts).await
     }
 
     pub(crate) async fn check_auth(
@@ -83,7 +78,7 @@ impl ApiConfig {
         headers: &http::HeaderMap,
         method: &hyper::Method,
     ) -> Result<(String, Box<dyn UserInformation + Sync + Send>), AuthError> {
-        self.api_auth.check_auth(headers, method).await
+        self.adapter.check_auth(headers, method).await
     }
 
     pub(crate) fn find_method(

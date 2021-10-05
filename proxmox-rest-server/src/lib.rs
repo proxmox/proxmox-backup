@@ -21,6 +21,9 @@ use std::pin::Pin;
 
 use anyhow::{bail, format_err, Error};
 use nix::unistd::Pid;
+use hyper::{Body, Response, Method};
+use http::request::Parts;
+use http::HeaderMap;
 
 use proxmox::tools::fd::Fd;
 use proxmox::sys::linux::procfs::PidStat;
@@ -70,17 +73,26 @@ impl From<Error> for AuthError {
     }
 }
 
-/// User Authentication trait
-pub trait ApiAuth {
+/// User Authentication and index/root page generation methods
+pub trait ServerAdapter: Send + Sync {
+
+    /// Returns the index/root page
+    fn get_index(
+        &self,
+        rest_env: RestEnvironment,
+        parts: Parts,
+    ) -> Pin<Box<dyn Future<Output = Response<Body>> + Send>>;
+
     /// Extract user credentials from headers and check them.
     ///
     /// If credenthials are valid, returns the username and a
     /// [UserInformation] object to query additional user data.
     fn check_auth<'a>(
         &'a self,
-        headers: &'a http::HeaderMap,
-        method: &'a hyper::Method,
+        headers: &'a HeaderMap,
+        method: &'a Method,
     ) -> Pin<Box<dyn Future<Output = Result<(String, Box<dyn UserInformation + Sync + Send>), AuthError>> + Send + 'a>>;
+
 }
 
 lazy_static::lazy_static!{

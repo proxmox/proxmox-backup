@@ -5,10 +5,13 @@ use std::future::Future;
 use std::pin::Pin;
 
 use anyhow::{bail, format_err, Error};
+use hyper::{Body, Response, Method, StatusCode};
+use http::request::Parts;
+use http::HeaderMap;
 
 use proxmox::api::UserInformation;
 
-use proxmox_rest_server::{ApiAuth, AuthError};
+use proxmox_rest_server::{ServerAdapter, AuthError, RestEnvironment};
 
 const TICKET_FILE: &str = "/ticket";
 
@@ -22,15 +25,30 @@ impl UserInformation for SimpleUserInformation {
     fn lookup_privs(&self, _userid: &str, _path: &[&str]) -> u64 { 0 }
 }
 
-pub struct StaticAuth {
+pub struct StaticAuthAdapter {
     ticket: String,
 }
 
-impl ApiAuth for StaticAuth {
+impl StaticAuthAdapter {
+
+    pub fn new() -> Result<Self, Error> {
+        let mut ticket_file = File::open(TICKET_FILE)?;
+        let mut ticket = String::new();
+        let len = ticket_file.read_to_string(&mut ticket)?;
+        if len <= 0 {
+            bail!("invalid ticket: cannot be empty");
+        }
+        Ok(StaticAuthAdapter { ticket })
+    }
+}
+
+
+impl ServerAdapter for StaticAuthAdapter {
+
     fn check_auth<'a>(
         &'a self,
-        headers: &'a http::HeaderMap,
-        _method: &'a hyper::Method,
+        headers: &'a HeaderMap,
+        _method: &'a Method,
     ) -> Pin<Box<dyn Future<Output = Result<(String, Box<dyn UserInformation + Sync + Send>), AuthError>> + Send + 'a>> {
         Box::pin(async move {
 
@@ -47,14 +65,21 @@ impl ApiAuth for StaticAuth {
             }
         })
     }
-}
 
-pub fn ticket_auth() -> Result<StaticAuth, Error> {
-    let mut ticket_file = File::open(TICKET_FILE)?;
-    let mut ticket = String::new();
-    let len = ticket_file.read_to_string(&mut ticket)?;
-    if len <= 0 {
-        bail!("invalid ticket: cannot be empty");
+    fn get_index(
+        &self,
+        _env: RestEnvironment,
+        _parts: Parts,
+    ) -> Pin<Box<dyn Future<Output = http::Response<Body>> + Send>> {
+        Box::pin(async move {
+
+            let index = "<center><h1>Proxmox Backup Restore Daemon/h1></center>";
+
+            Response::builder()
+                .status(StatusCode::OK)
+                .header(hyper::header::CONTENT_TYPE, "text/html")
+                .body(index.into())
+                .unwrap()
+        })
     }
-    Ok(StaticAuth { ticket })
 }

@@ -7,23 +7,17 @@ use std::os::unix::{
 };
 use std::path::Path;
 use std::sync::{Arc, Mutex};
-use std::future::Future;
-use std::pin::Pin;
 
 use anyhow::{bail, format_err, Error};
 use lazy_static::lazy_static;
 use log::{error, info};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
-use http::request::Parts;
-use http::Response;
-use hyper::{Body, StatusCode};
-use hyper::header;
 
 use proxmox::api::RpcEnvironmentType;
 
 use pbs_client::DEFAULT_VSOCK_PORT;
-use proxmox_rest_server::{ApiConfig, RestServer, RestEnvironment};
+use proxmox_rest_server::{ApiConfig, RestServer};
 
 mod proxmox_restore_daemon;
 use proxmox_restore_daemon::*;
@@ -93,29 +87,14 @@ fn setup_system_env() -> Result<(), Error> {
     Ok(())
 }
 
-fn get_index<'a>(
-    _env: RestEnvironment,
-    _parts: Parts,
-) -> Pin<Box<dyn Future<Output = http::Response<Body>> + Send + 'a>> {
-    Box::pin(async move {
-
-        let index = "<center><h1>Proxmox Backup Restore Daemon/h1></center>";
-
-        Response::builder()
-            .status(StatusCode::OK)
-            .header(header::CONTENT_TYPE, "text/html")
-            .body(index.into())
-            .unwrap()
-    })
-}
 
 async fn run() -> Result<(), Error> {
     watchdog_init();
 
-    let auth_config = Arc::new(
-        auth::ticket_auth().map_err(|err| format_err!("reading ticket file failed: {}", err))?,
-    );
-    let config = ApiConfig::new("", &ROUTER, RpcEnvironmentType::PUBLIC, auth_config, &get_index)?;
+    let adaptor = StaticAuthAdapter::new()
+        .map_err(|err| format_err!("reading ticket file failed: {}", err))?;
+
+    let config = ApiConfig::new("", &ROUTER, RpcEnvironmentType::PUBLIC, adaptor)?;
     let rest_server = RestServer::new(config);
 
     let vsock_fd = get_vsock_fd()?;

@@ -1,20 +1,24 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
 
 use anyhow::{bail, format_err, Error};
 use lazy_static::lazy_static;
+use hyper::{Body, Response, Method};
+use http::request::Parts;
+use http::HeaderMap;
 
 use proxmox::api::{api, router::SubdirMap, Router, RpcEnvironmentType, UserInformation};
 use proxmox::list_subdirs_api_method;
-use proxmox_rest_server::{ApiAuth, ApiConfig, AuthError, RestServer, RestEnvironment};
-// Create a Dummy User info and auth system
-// Normally this would check and authenticate the user
+use proxmox_rest_server::{ServerAdapter, ApiConfig, AuthError, RestServer, RestEnvironment};
+
+// Create a Dummy User information system
 struct DummyUserInfo;
 
 impl UserInformation for DummyUserInfo {
     fn is_superuser(&self, _userid: &str) -> bool {
+        // Always return true here, so we have access to everthing
         true
     }
     fn is_group_member(&self, _userid: &str, group: &str) -> bool {
@@ -25,14 +29,17 @@ impl UserInformation for DummyUserInfo {
     }
 }
 
-struct DummyAuth;
+struct MinimalServer;
 
-impl ApiAuth for DummyAuth {
-    fn check_auth<'a>(
-        &'a self,
-        _headers: &'a http::HeaderMap,
-        _method: &'a hyper::Method,
-    ) -> Pin<Box<dyn Future<Output = Result<(String, Box<dyn UserInformation + Sync + Send>), AuthError>> + Send + 'a>> {
+// implement the server adapter
+impl ServerAdapter for MinimalServer {
+
+    // normally this would check and authenticate the user
+    fn check_auth(
+        &self,
+        _headers: &HeaderMap,
+        _method: &Method,
+    ) -> Pin<Box<dyn Future<Output = Result<(String, Box<dyn UserInformation + Sync + Send>), AuthError>> + Send>> {
         Box::pin(async move {
             // get some global/cached userinfo
             let userinfo: Box<dyn UserInformation + Sync + Send> = Box::new(DummyUserInfo);
@@ -40,21 +47,21 @@ impl ApiAuth for DummyAuth {
             Ok(("User".to_string(), userinfo))
         })
     }
-}
 
-// this should return the index page of the webserver
-// iow. what the user browses to
-
-fn get_index<'a>(
-    _env: RestEnvironment,
-    _parts: http::request::Parts,
-) -> Pin<Box<dyn Future<Output = http::Response<hyper::Body>> + Send + 'a>> {
-    Box::pin(async move {
-        // build an index page
-        http::Response::builder()
-            .body("hello world".into())
-            .unwrap()
-    })
+    // this should return the index page of the webserver
+    // iow. what the user browses to
+    fn get_index(
+        &self,
+        _env: RestEnvironment,
+        _parts: Parts,
+    ) -> Pin<Box<dyn Future<Output = Response<Body>> + Send>> {
+        Box::pin(async move {
+            // build an index page
+            http::Response::builder()
+                .body("hello world".into())
+                .unwrap()
+        })
+    }
 }
 
 // a few examples on how to do api calls with the Router
@@ -190,8 +197,7 @@ async fn run() -> Result<(), Error> {
         "/var/tmp/",
         &ROUTER,
         RpcEnvironmentType::PUBLIC,
-        Arc::new(DummyAuth {}),
-        &get_index,
+        MinimalServer,
     )?;
     let rest_server = RestServer::new(config);
 
