@@ -72,7 +72,7 @@ impl RRDCache {
                 Ok(rrd) => rrd,
                 Err(err) => {
                     if err.kind() != std::io::ErrorKind::NotFound {
-                        eprintln!("overwriting RRD file {:?}, because of load error: {}", path, err);
+                        log::warn!("overwriting RRD file {:?}, because of load error: {}", path, err);
                     }
                     RRD::new(dst)
                 },

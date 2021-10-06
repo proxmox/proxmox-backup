@@ -8,6 +8,7 @@ description = "Simple RRD database implementation."
 [dependencies]
 anyhow = "1.0"
 bitflags = "1.2.1"
+log = "0.4"
 
 proxmox = { version = "0.13.5", features = ["api-macro"] }
 

@@ -118,7 +118,7 @@ impl RRA {
                 (last_value*(self.last_count as f64))/(new_count as f64)
                     + value/(new_count as f64)
             } else {
-                eprintln!("rrdb update failed - unknown CF");
+                log::error!("rrdb update failed - unknown CF");
                 return;
             };
             self.data[index] = new_value;
@@ -127,15 +127,18 @@ impl RRA {
         self.last_update = time;
     }
 
-    fn update(&mut self, time: f64, mut value: f64) {
+    fn update(&mut self, time: f64, mut value: f64, log_time_in_past: &mut bool) {
 
         if time <= self.last_update {
-            eprintln!("rrdb update failed - time in past ({} < {})", time, self.last_update);
+            if *log_time_in_past {
+                log::warn!("rrdb update failed - time in past ({} < {})", time, self.last_update);
+                *log_time_in_past = false; // avoid logging this multiple times inside a RRD
+            }
             return;
         }
 
         if value.is_nan() {
-            eprintln!("rrdb update failed - new value is NAN");
+            log::warn!("rrdb update failed - new value is NAN");
             return;
         }
 
@@ -147,12 +150,12 @@ impl RRA {
             let diff = if self.counter_value.is_nan() {
                 0.0
             } else if is_counter && value < 0.0 {
-                eprintln!("rrdb update failed - got negative value for counter");
+                log::warn!("rrdb update failed - got negative value for counter");
                 return;
             } else if is_counter && value < self.counter_value {
                 // Note: We do not try automatic overflow corrections
                 self.counter_value = value;
-                eprintln!("rrdb update failed - conter overflow/reset detected");
+                log::warn!("rrdb update failed - conter overflow/reset detected");
                 return;
             } else {
                 value - self.counter_value
@@ -339,19 +342,27 @@ impl RRD {
     ///
     /// Note: This does not call [Self::save].
     pub fn update(&mut self, time: f64, value: f64) {
-        self.hour_avg.update(time, value);
-        self.hour_max.update(time, value);
 
-        self.day_avg.update(time, value);
-        self.day_max.update(time, value);
+        if value.is_nan() {
+            log::warn!("rrdb update failed - new value is NAN");
+            return;
+        }
 
-        self.week_avg.update(time, value);
-        self.week_max.update(time, value);
+        let mut log_time_in_past = true;
 
-        self.month_avg.update(time, value);
-        self.month_max.update(time, value);
+        self.hour_avg.update(time, value, &mut log_time_in_past);
+        self.hour_max.update(time, value, &mut log_time_in_past);
 
-        self.year_avg.update(time, value);
-        self.year_max.update(time, value);
+        self.day_avg.update(time, value, &mut log_time_in_past);
+        self.day_max.update(time, value, &mut log_time_in_past);
+
+        self.week_avg.update(time, value, &mut log_time_in_past);
+        self.week_max.update(time, value, &mut log_time_in_past);
+
+        self.month_avg.update(time, value, &mut log_time_in_past);
+        self.month_max.update(time, value, &mut log_time_in_past);
+
+        self.year_avg.update(time, value, &mut log_time_in_past);
+        self.year_max.update(time, value, &mut log_time_in_past);
     }
 }
