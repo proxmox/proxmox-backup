@@ -4,7 +4,6 @@
 //! server using https.
 
 pub mod catalog_shell;
-pub mod dynamic_index;
 pub mod pxar;
 pub mod tools;
 
