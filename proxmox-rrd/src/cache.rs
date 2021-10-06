@@ -6,7 +6,7 @@ use anyhow::{format_err, Error};
 
 use proxmox::tools::fs::{create_path, CreateOptions};
 
-use crate::{RRDMode, RRDTimeFrameResolution};
+use proxmox_rrd_api_types::{RRDMode, RRDTimeFrameResolution};
 
 use super::*;
 

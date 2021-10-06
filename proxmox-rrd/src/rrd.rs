@@ -5,7 +5,7 @@ use anyhow::Error;
 
 use proxmox::tools::{fs::replace_file, fs::CreateOptions};
 
-use crate::{RRDMode, RRDTimeFrameResolution};
+use proxmox_rrd_api_types::{RRDMode, RRDTimeFrameResolution};
 
 /// The number of data entries per RRA
 pub const RRD_DATA_ENTRIES: usize = 70;

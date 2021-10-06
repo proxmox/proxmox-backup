@@ -3,8 +3,11 @@ use serde_json::{Value, json};
 
 use proxmox::api::{api, Permission, Router};
 
-use pbs_api_types::{NODE_SCHEMA, PRIV_SYS_AUDIT};
-use proxmox_rrd::{RRDMode, RRDTimeFrameResolution, RRD_DATA_ENTRIES};
+use pbs_api_types::{
+    NODE_SCHEMA, RRDMode, RRDTimeFrameResolution, PRIV_SYS_AUDIT,
+};
+
+use proxmox_rrd::RRD_DATA_ENTRIES;
 
 use crate::RRD_CACHE;
 

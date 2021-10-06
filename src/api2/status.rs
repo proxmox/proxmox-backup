@@ -15,9 +15,9 @@ use proxmox::api::{
 };
 
 use pbs_api_types::{
-    Authid, DATASTORE_SCHEMA, PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP,
+    Authid, DATASTORE_SCHEMA, RRDMode, RRDTimeFrameResolution,
+    PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP,
 };
-use proxmox_rrd::{RRDMode, RRDTimeFrameResolution};
 
 use pbs_datastore::DataStore;
 use pbs_config::CachedUserInfo;

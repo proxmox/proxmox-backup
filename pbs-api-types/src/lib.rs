@@ -423,3 +423,5 @@ pub const NODE_TASKS_LIST_TASKS_RETURN_TYPE: ReturnType = ReturnType {
         &TaskListItem::API_SCHEMA,
     ).schema(),
 };
+
+pub use proxmox_rrd_api_types::{RRDMode, RRDTimeFrameResolution};
