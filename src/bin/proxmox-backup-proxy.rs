@@ -24,12 +24,15 @@ use proxmox::tools::fs::CreateOptions;
 
 use pbs_tools::task_log;
 use pbs_datastore::DataStore;
+use proxmox_rrd::DST;
+
 use proxmox_rest_server::{
     rotate_task_log_archive, extract_cookie , AuthError, ApiConfig, RestServer, RestEnvironment,
     ServerAdapter, WorkerTask,
 };
 
 use proxmox_backup::{
+    RRD_CACHE,
     server::{
         auth::check_pbs_auth,
         jobstate::{
@@ -895,15 +898,13 @@ async fn run_stat_generator() {
 }
 
 fn rrd_update_gauge(name: &str, value: f64, save: bool) {
-    use proxmox_backup::rrd;
-    if let Err(err) = rrd::update_value(name, value, rrd::DST::Gauge, save) {
+    if let Err(err) = RRD_CACHE.update_value(name, value, DST::Gauge, save) {
         eprintln!("rrd::update_value '{}' failed - {}", name, err);
     }
 }
 
 fn rrd_update_derive(name: &str, value: f64, save: bool) {
-    use proxmox_backup::rrd;
-    if let Err(err) = rrd::update_value(name, value, rrd::DST::Derive, save) {
+    if let Err(err) = RRD_CACHE.update_value(name, value, DST::Derive, save) {
         eprintln!("rrd::update_value '{}' failed - {}", name, err);
     }
 }

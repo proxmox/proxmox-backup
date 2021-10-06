@@ -15,13 +15,15 @@ use proxmox::api::{
 };
 
 use pbs_api_types::{
-    DATASTORE_SCHEMA, RRDMode, RRDTimeFrameResolution, Authid,
-    PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP,
+    Authid, DATASTORE_SCHEMA, PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP,
 };
+use proxmox_rrd::{RRDMode, RRDTimeFrameResolution};
+
 use pbs_datastore::DataStore;
 use pbs_config::CachedUserInfo;
 
 use crate::tools::statistics::{linear_regression};
+use crate::RRD_CACHE;
 
 #[api(
     returns: {
@@ -122,7 +124,7 @@ pub fn datastore_status(
         let rrd_dir = format!("datastore/{}", store);
         let now = proxmox::tools::time::epoch_f64();
 
-        let get_rrd = |what: &str| crate::rrd::extract_cached_data(
+        let get_rrd = |what: &str| RRD_CACHE.extract_cached_data(
             &rrd_dir,
             what,
             now,

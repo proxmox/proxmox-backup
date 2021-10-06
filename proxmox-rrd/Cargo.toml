@@ -1,0 +1,13 @@
+[package]
+name = "proxmox-rrd"
+version = "0.1.0"
+authors = ["Dietmar Maurer <dietmar@proxmox.com>"]
+edition = "2018"
+description = "Simple RRD database implementation."
+
+[dependencies]
+anyhow = "1.0"
+bitflags = "1.2.1"
+serde = { version = "1.0", features = [] }
+
+proxmox = { version = "0.13.5", features = ["api-macro"] }

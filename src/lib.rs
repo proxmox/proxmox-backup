@@ -5,8 +5,11 @@
 
 use std::path::PathBuf;
 
+use proxmox::tools::fs::CreateOptions;
+
 use pbs_buildcfg::configdir;
 use pbs_tools::cert::CertInfo;
+use proxmox_rrd::RRDCache;
 
 #[macro_use]
 pub mod tools;
@@ -25,8 +28,6 @@ pub mod auth_helpers;
 
 pub mod auth;
 
-pub mod rrd;
-
 pub mod tape;
 
 pub mod acme;
@@ -36,4 +37,24 @@ pub mod client_helpers;
 /// Get the server's certificate info (from `proxy.pem`).
 pub fn cert_info() -> Result<CertInfo, anyhow::Error> {
     CertInfo::from_path(PathBuf::from(configdir!("/proxy.pem")))
+}
+
+lazy_static::lazy_static!{
+    /// Proxmox Backup Server RRD cache instance
+    pub static ref RRD_CACHE: RRDCache = {
+        let backup_user = pbs_config::backup_user().unwrap();
+        let file_options = CreateOptions::new()
+            .owner(backup_user.uid)
+            .group(backup_user.gid);
+
+       let dir_options = CreateOptions::new()
+            .owner(backup_user.uid)
+            .group(backup_user.gid);
+
+        RRDCache::new(
+            "/var/lib/proxmox-backup/rrdb",
+            Some(file_options),
+            Some(dir_options),
+        )
+    };
 }

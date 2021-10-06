@@ -3,17 +3,21 @@ use std::path::Path;
 
 use anyhow::Error;
 
-use pbs_api_types::{RRDMode, RRDTimeFrameResolution};
+use proxmox::tools::{fs::replace_file, fs::CreateOptions};
 
+use crate::{RRDMode, RRDTimeFrameResolution};
+
+/// The number of data entries per RRA
 pub const RRD_DATA_ENTRIES: usize = 70;
 
+/// Proxmox RRD file magic number
 // openssl::sha::sha256(b"Proxmox Round Robin Database file v1.0")[0..8];
 pub const PROXMOX_RRD_MAGIC_1_0: [u8; 8] =  [206, 46, 26, 212, 172, 158, 5, 186];
 
 use bitflags::bitflags;
 
 bitflags!{
-    pub struct RRAFlags: u64 {
+    struct RRAFlags: u64 {
         // Data Source Types
         const DST_GAUGE  = 1;
         const DST_DERIVE = 2;
@@ -27,6 +31,7 @@ bitflags!{
     }
 }
 
+/// RRD data source tyoe
 pub enum DST {
     Gauge,
     Derive,
@@ -227,6 +232,7 @@ impl RRD {
         timeframe: RRDTimeFrameResolution,
         mode: RRDMode,
     ) -> (u64, u64, Vec<Option<f64>>) {
+
         let epoch = time as u64;
         let reso = timeframe as u64;
 
@@ -296,25 +302,11 @@ impl RRD {
         Self::from_raw(&raw)
     }
 
-    pub fn save(&self, filename: &Path) -> Result<(), Error> {
-        use proxmox::tools::{fs::replace_file, fs::CreateOptions};
-
+    pub fn save(&self, filename: &Path, options: CreateOptions) -> Result<(), Error> {
         let rrd_slice = unsafe {
             std::slice::from_raw_parts(self as *const _ as *const u8, std::mem::size_of::<RRD>())
         };
-
-        let backup_user = pbs_config::backup_user()?;
-        let mode = nix::sys::stat::Mode::from_bits_truncate(0o0644);
-        // set the correct owner/group/permissions while saving file
-        // owner(rw) = backup, group(r)= backup
-        let options = CreateOptions::new()
-            .perm(mode)
-            .owner(backup_user.uid)
-            .group(backup_user.gid);
-
-        replace_file(filename, rrd_slice, options)?;
-
-        Ok(())
+        replace_file(filename, rrd_slice, options)
     }
 
 

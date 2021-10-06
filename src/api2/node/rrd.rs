@@ -3,9 +3,10 @@ use serde_json::{Value, json};
 
 use proxmox::api::{api, Permission, Router};
 
-use pbs_api_types::{RRDMode, RRDTimeFrameResolution, NODE_SCHEMA, PRIV_SYS_AUDIT};
+use pbs_api_types::{NODE_SCHEMA, PRIV_SYS_AUDIT};
+use proxmox_rrd::{RRDMode, RRDTimeFrameResolution, RRD_DATA_ENTRIES};
 
-use crate::rrd::{extract_cached_data, RRD_DATA_ENTRIES};
+use crate::RRD_CACHE;
 
 pub fn create_value_from_rrd(
     basedir: &str,
@@ -18,7 +19,7 @@ pub fn create_value_from_rrd(
     let now = proxmox::tools::time::epoch_f64();
 
     for name in list {
-        let (start, reso, list) = match extract_cached_data(basedir, name, now, timeframe, cf) {
+        let (start, reso, list) = match RRD_CACHE.extract_cached_data(basedir, name, now, timeframe, cf) {
             Some(result) => result,
             None => continue,
         };

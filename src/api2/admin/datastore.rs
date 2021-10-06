@@ -26,10 +26,11 @@ use proxmox::{http_err, identity, list_subdirs_api_method, sortable};
 use pxar::accessor::aio::Accessor;
 use pxar::EntryKind;
 
+use proxmox_rrd::{RRDMode, RRDTimeFrameResolution};
 use pbs_api_types::{ Authid, BackupContent, Counts, CryptMode,
     DataStoreListItem, GarbageCollectionStatus, GroupListItem,
     SnapshotListItem, SnapshotVerifyState, PruneOptions,
-    DataStoreStatus, RRDMode, RRDTimeFrameResolution,
+    DataStoreStatus,
     BACKUP_ARCHIVE_NAME_SCHEMA, BACKUP_ID_SCHEMA, BACKUP_TIME_SCHEMA,
     BACKUP_TYPE_SCHEMA, DATASTORE_SCHEMA,
     IGNORE_VERIFIED_BACKUPS_SCHEMA, UPID_SCHEMA,
