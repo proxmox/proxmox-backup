@@ -131,6 +131,7 @@ impl RRA {
 
         if time <= self.last_update {
             eprintln!("rrdb update failed - time in past ({} < {})", time, self.last_update);
+            return;
         }
 
         if value.is_nan() {
