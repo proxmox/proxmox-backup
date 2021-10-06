@@ -8,7 +8,7 @@ use proxmox::tools::fs::{create_path, CreateOptions};
 
 use proxmox_rrd_api_types::{RRDMode, RRDTimeFrameResolution};
 
-use super::*;
+use crate::{DST, rrd::RRD};
 
 /// RRD cache - keep RRD data in RAM, but write updates to disk
 ///

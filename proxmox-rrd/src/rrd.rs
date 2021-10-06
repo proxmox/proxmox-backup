@@ -1,7 +1,10 @@
+//! # Round Robin Database file format
+
 use std::io::Read;
 use std::path::Path;
 
 use anyhow::Error;
+use bitflags::bitflags;
 
 use proxmox::tools::{fs::replace_file, fs::CreateOptions};
 
@@ -14,10 +17,11 @@ pub const RRD_DATA_ENTRIES: usize = 70;
 // openssl::sha::sha256(b"Proxmox Round Robin Database file v1.0")[0..8];
 pub const PROXMOX_RRD_MAGIC_1_0: [u8; 8] =  [206, 46, 26, 212, 172, 158, 5, 186];
 
-use bitflags::bitflags;
+use crate::DST;
 
 bitflags!{
-    struct RRAFlags: u64 {
+    /// Flags to specify the data soure type and consolidation function
+    pub struct RRAFlags: u64 {
         // Data Source Types
         const DST_GAUGE  = 1;
         const DST_DERIVE = 2;
@@ -31,20 +35,24 @@ bitflags!{
     }
 }
 
-/// RRD data source tyoe
-pub enum DST {
-    Gauge,
-    Derive,
-}
-
+/// Round Robin Archive with [RRD_DATA_ENTRIES] data slots.
+///
+/// This data structure is used inside [RRD] and directly written to the
+/// RRD files.
 #[repr(C)]
-struct RRA {
-    flags: RRAFlags,
-    resolution: u64,
-    last_update: f64,
-    last_count: u64,
-    counter_value: f64, // used for derive/counters
-    data: [f64; RRD_DATA_ENTRIES],
+pub struct RRA {
+    /// Defined the data soure type and consolidation function
+    pub flags: RRAFlags,
+    /// Resulution (seconds) from [RRDTimeFrameResolution]
+    pub resolution: u64,
+    /// Last update time (epoch)
+    pub last_update: f64,
+    /// Count values computed inside this update interval
+    pub last_count: u64,
+    /// Stores the last value, used to compute differential value for derive/counters
+    pub counter_value: f64,
+    /// Data slots
+    pub data: [f64; RRD_DATA_ENTRIES],
 }
 
 impl RRA {
@@ -157,24 +165,37 @@ impl RRA {
     }
 }
 
+/// Round Robin Database file format with fixed number of [RRA]s
 #[repr(C)]
 // Note: Avoid alignment problems by using 8byte types only
 pub struct RRD {
-    magic: [u8; 8],
-    hour_avg: RRA,
-    hour_max: RRA,
-    day_avg: RRA,
-    day_max: RRA,
-    week_avg: RRA,
-    week_max: RRA,
-    month_avg: RRA,
-    month_max: RRA,
-    year_avg: RRA,
-    year_max: RRA,
+    /// The magic number to identify the file type
+    pub magic: [u8; 8],
+    /// Hourly data (average values)
+    pub hour_avg: RRA,
+    /// Hourly data (maximum values)
+    pub hour_max: RRA,
+    /// Dayly data (average values)
+    pub day_avg: RRA,
+    /// Dayly data (maximum values)
+    pub day_max: RRA,
+    /// Weekly data (average values)
+    pub week_avg: RRA,
+    /// Weekly data (maximum values)
+    pub week_max: RRA,
+    /// Monthly data (average values)
+    pub month_avg: RRA,
+    /// Monthly data (maximum values)
+    pub month_max: RRA,
+    /// Yearly data (average values)
+    pub year_avg: RRA,
+    /// Yearly data (maximum values)
+    pub year_max: RRA,
 }
 
 impl RRD {
 
+    /// Create a new empty instance
     pub fn new(dst: DST) -> Self {
         let flags = match dst {
             DST::Gauge => RRAFlags::DST_GAUGE,
@@ -226,6 +247,7 @@ impl RRD {
         }
     }
 
+    /// Extract data from the archive
     pub fn extract_data(
         &self,
         time: f64,
@@ -276,6 +298,7 @@ impl RRD {
         (start, reso, list)
     }
 
+    /// Create instance from raw data, testing data len and magic number
     pub fn from_raw(mut raw: &[u8]) -> Result<Self, std::io::Error> {
         let expected_len = std::mem::size_of::<RRD>();
         if raw.len() != expected_len {
@@ -297,11 +320,13 @@ impl RRD {
         Ok(rrd)
     }
 
+    /// Load data from a file
     pub fn load(path: &Path) -> Result<Self, std::io::Error> {
         let raw = std::fs::read(path)?;
         Self::from_raw(&raw)
     }
 
+    /// Store data into a file (atomic replace file)
     pub fn save(&self, filename: &Path, options: CreateOptions) -> Result<(), Error> {
         let rrd_slice = unsafe {
             std::slice::from_raw_parts(self as *const _ as *const u8, std::mem::size_of::<RRD>())
@@ -309,7 +334,9 @@ impl RRD {
         replace_file(filename, rrd_slice, options)
     }
 
-
+    /// Update the value (in memory)
+    ///
+    /// Note: This does not call [Self::save].
     pub fn update(&mut self, time: f64, value: f64) {
         self.hour_avg.update(time, value);
         self.hour_max.update(time, value);

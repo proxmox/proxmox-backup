@@ -7,7 +7,7 @@ use pbs_api_types::{
     NODE_SCHEMA, RRDMode, RRDTimeFrameResolution, PRIV_SYS_AUDIT,
 };
 
-use proxmox_rrd::RRD_DATA_ENTRIES;
+use proxmox_rrd::rrd::RRD_DATA_ENTRIES;
 
 use crate::RRD_CACHE;
 
