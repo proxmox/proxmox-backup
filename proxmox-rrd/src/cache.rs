@@ -37,9 +37,6 @@ impl RRDCache {
             cache: RwLock::new(HashMap::new()),
         }
     }
-}
-
-impl RRDCache {
 
     /// Create rrdd stat dir with correct permission
     pub fn create_rrdb_dir(&self) -> Result<(), Error> {
@@ -62,7 +59,7 @@ impl RRDCache {
         let mut path = self.basedir.clone();
         path.push(rel_path);
 
-        std::fs::create_dir_all(path.parent().unwrap())?; // fixme??
+        create_path(path.parent().unwrap(), Some(self.dir_options.clone()), Some(self.file_options.clone()))?;
 
         let mut map = self.cache.write().unwrap();
         let now = proxmox::tools::time::epoch_f64();
@@ -107,5 +104,4 @@ impl RRDCache {
             None => None,
         }
     }
-
 }
