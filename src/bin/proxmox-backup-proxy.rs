@@ -22,13 +22,13 @@ use proxmox::api::{RpcEnvironment, RpcEnvironmentType, UserInformation};
 use proxmox::sys::linux::socket::set_tcp_keepalive;
 use proxmox::tools::fs::CreateOptions;
 
-use pbs_tools::task_log;
+use pbs_tools::{task_log, task_warn};
 use pbs_datastore::DataStore;
 use proxmox_rrd::DST;
 
 use proxmox_rest_server::{
     rotate_task_log_archive, extract_cookie , AuthError, ApiConfig, RestServer, RestEnvironment,
-    ServerAdapter, WorkerTask,
+    ServerAdapter, WorkerTask, cleanup_old_tasks,
 };
 
 use proxmox_backup::{
@@ -825,6 +825,13 @@ async fn schedule_task_log_rotate() {
                     task_log!(worker, "API authentication log was rotated");
                 } else {
                     task_log!(worker, "API authentication log was not rotated");
+                }
+
+                if has_rotated {
+                    task_log!(worker, "cleaning up old task logs");
+                    if let Err(err) = cleanup_old_tasks(true) {
+                        task_warn!(worker, "could not completely cleanup old tasks: {}", err);
+                    }
                 }
 
                 Ok(())
