@@ -5,6 +5,7 @@ use std::io::{Read, Write, BufRead, BufReader};
 use std::panic::UnwindSafe;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
+use std::time::{SystemTime, Duration};
 
 use anyhow::{bail, format_err, Error};
 use futures::*;
@@ -216,6 +217,63 @@ pub fn rotate_task_log_archive(size_threshold: u64, compress: bool, max_files: O
             .ok_or_else(|| format_err!("could not get archive file names"))?;
 
     logrotate.rotate(size_threshold, None, max_files)
+}
+
+/// removes all task logs that are older than the oldest task entry in the
+/// task archive
+pub fn cleanup_old_tasks(compressed: bool) -> Result<(), Error> {
+    let setup = worker_task_setup()?;
+
+    let _lock = setup.lock_task_list_files(true)?;
+
+    let logrotate = LogRotate::new(&setup.task_archive_fn, compressed)
+            .ok_or_else(|| format_err!("could not get archive file names"))?;
+
+    let mut timestamp = None;
+    if let Some(last_file) = logrotate.files().last() {
+        let reader = BufReader::new(last_file);
+        for line in reader.lines() {
+            let line = line?;
+            if let Ok((_, _, Some(state))) = parse_worker_status_line(&line) {
+                timestamp = Some(state.endtime());
+                break;
+            }
+        }
+    }
+
+    fn get_modified(entry: std::fs::DirEntry) -> Result<SystemTime, std::io::Error> {
+        entry.metadata()?.modified()
+    }
+
+    if let Some(timestamp) = timestamp {
+        let cutoff_time = if timestamp > 0 {
+            SystemTime::UNIX_EPOCH.checked_add(Duration::from_secs(timestamp as u64))
+        } else {
+            SystemTime::UNIX_EPOCH.checked_sub(Duration::from_secs(-timestamp as u64))
+        }.ok_or_else(|| format_err!("could not calculate cutoff time"))?;
+
+        for i in 0..256 {
+            let mut path = setup.taskdir.clone();
+            path.push(format!("{:02X}", i));
+            for file in std::fs::read_dir(path)? {
+                let file = file?;
+                let path = file.path();
+
+                let modified = get_modified(file)
+                    .map_err(|err| format_err!("error getting mtime for {:?}: {}", path, err))?;
+
+                if modified < cutoff_time {
+                    match std::fs::remove_file(path) {
+                        Ok(()) => {},
+                        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {},
+                        Err(err) => bail!("could not remove file: {}", err),
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(())
 }
 
 
