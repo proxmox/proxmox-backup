@@ -41,7 +41,7 @@ impl RRDCache {
     /// Create rrdd stat dir with correct permission
     pub fn create_rrdb_dir(&self) -> Result<(), Error> {
 
-        create_path(&self.basedir, Some(self.dir_options.clone()), Some(self.file_options.clone()))
+        create_path(&self.basedir, Some(self.dir_options.clone()), Some(self.dir_options.clone()))
             .map_err(|err: Error| format_err!("unable to create rrdb stat dir - {}", err))?;
 
         Ok(())
