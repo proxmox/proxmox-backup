@@ -3,7 +3,7 @@
 use std::io::Read;
 use std::path::Path;
 
-use anyhow::Error;
+use anyhow::{bail, Error};
 use bitflags::bitflags;
 
 use proxmox::tools::{fs::replace_file, fs::CreateOptions};
@@ -127,19 +127,15 @@ impl RRA {
         self.last_update = time;
     }
 
-    fn update(&mut self, time: f64, mut value: f64, log_time_in_past: &mut bool) {
+    // Note: This may update the state even in case of errors (see counter overflow)
+    fn update(&mut self, time: f64, mut value: f64) -> Result<(), Error> {
 
         if time <= self.last_update {
-            if *log_time_in_past {
-                log::warn!("rrdb update failed - time in past ({} < {})", time, self.last_update);
-                *log_time_in_past = false; // avoid logging this multiple times inside a RRD
-            }
-            return;
+            bail!("time in past ({} < {})", time, self.last_update);
         }
 
         if value.is_nan() {
-            log::warn!("rrdb update failed - new value is NAN");
-            return;
+            bail!("new value is NAN");
         }
 
         // derive counter value
@@ -150,13 +146,13 @@ impl RRA {
             let diff = if self.counter_value.is_nan() {
                 0.0
             } else if is_counter && value < 0.0 {
-                log::warn!("rrdb update failed - got negative value for counter");
-                return;
+                bail!("got negative value for counter");
             } else if is_counter && value < self.counter_value {
-                // Note: We do not try automatic overflow corrections
+                // Note: We do not try automatic overflow corrections, but
+                // we update counter_value anyways, so that we can compute the diff
+                // next time.
                 self.counter_value = value;
-                log::warn!("rrdb update failed - conter overflow/reset detected");
-                return;
+                bail!("conter overflow/reset detected");
             } else {
                 value - self.counter_value
             };
@@ -166,6 +162,8 @@ impl RRA {
 
         self.delete_old(time);
         self.compute_new_value(time, value);
+
+        Ok(())
     }
 }
 
@@ -343,26 +341,32 @@ impl RRD {
     /// Note: This does not call [Self::save].
     pub fn update(&mut self, time: f64, value: f64) {
 
-        if value.is_nan() {
-            log::warn!("rrdb update failed - new value is NAN");
-            return;
-        }
+        let mut log_error = true;
 
-        let mut log_time_in_past = true;
+        let mut update_rra = |rra: &mut RRA| {
+            if let Err(err) = rra.update(time, value) {
+                if log_error {
+                    log::error!("rrd update failed: {}", err);
+                    // we only log the first error, because it is very
+                    // likely other calls produce the same error
+                    log_error = false;
+                }
+            }
+        };
 
-        self.hour_avg.update(time, value, &mut log_time_in_past);
-        self.hour_max.update(time, value, &mut log_time_in_past);
+        update_rra(&mut self.hour_avg);
+        update_rra(&mut self.hour_max);
 
-        self.day_avg.update(time, value, &mut log_time_in_past);
-        self.day_max.update(time, value, &mut log_time_in_past);
+        update_rra(&mut self.day_avg);
+        update_rra(&mut self.day_max);
 
-        self.week_avg.update(time, value, &mut log_time_in_past);
-        self.week_max.update(time, value, &mut log_time_in_past);
+        update_rra(&mut self.week_avg);
+        update_rra(&mut self.week_max);
 
-        self.month_avg.update(time, value, &mut log_time_in_past);
-        self.month_max.update(time, value, &mut log_time_in_past);
+        update_rra(&mut self.month_avg);
+        update_rra(&mut self.month_max);
 
-        self.year_avg.update(time, value, &mut log_time_in_past);
-        self.year_max.update(time, value, &mut log_time_in_past);
+        update_rra(&mut self.year_avg);
+        update_rra(&mut self.year_max);
     }
 }
