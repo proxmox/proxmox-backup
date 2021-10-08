@@ -7,25 +7,12 @@ use hyper::http::request::Parts;
 use hyper::{Body, Response, Request, StatusCode};
 use serde_json::Value;
 
-use proxmox::{
-    http_err,
-    sortable,
-    identity,
-    list_subdirs_api_method,
-    api::{
-        ApiResponseFuture,
-        ApiHandler,
-        ApiMethod,
-        Router,
-        RpcEnvironment,
-        Permission,
-        router::SubdirMap,
-        schema::{
-            ObjectSchema,
-            BooleanSchema,
-        },
-    },
+use proxmox::{identity, sortable};
+use proxmox_router::{
+    http_err, list_subdirs_api_method, ApiHandler, ApiMethod, ApiResponseFuture, Permission,
+    Router, RpcEnvironment, SubdirMap,
 };
+use proxmox_schema::{BooleanSchema, ObjectSchema};
 
 use pbs_api_types::{
     Authid, DATASTORE_SCHEMA, BACKUP_TYPE_SCHEMA, BACKUP_TIME_SCHEMA, BACKUP_ID_SCHEMA,

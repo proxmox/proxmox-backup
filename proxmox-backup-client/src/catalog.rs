@@ -5,7 +5,8 @@ use std::sync::Arc;
 use anyhow::{bail, format_err, Error};
 use serde_json::Value;
 
-use proxmox::api::{api, cli::*};
+use proxmox_schema::api;
+use proxmox_router::cli::*;
 
 use pbs_client::tools::key_source::get_encryption_key_password;
 use pbs_client::{BackupReader, RemoteChunkReader};

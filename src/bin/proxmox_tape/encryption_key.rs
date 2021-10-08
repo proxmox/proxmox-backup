@@ -1,15 +1,9 @@
 use anyhow::{bail, Error};
 use serde_json::Value;
 
-use proxmox::{
-    api::{
-        api,
-        cli::*,
-        RpcEnvironment,
-        ApiHandler,
-    },
-    sys::linux::tty,
-};
+use proxmox_router::{cli::*, ApiHandler, RpcEnvironment};
+use proxmox_schema::api;
+use proxmox::sys::linux::tty;
 
 use pbs_api_types::{
     Fingerprint, Kdf, DRIVE_NAME_SCHEMA, TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
@@ -127,7 +121,7 @@ fn show_key(
         _ => unreachable!(),
     };
 
-    let options = proxmox::api::cli::default_table_format_options()
+    let options = proxmox_router::cli::default_table_format_options()
         .column(ColumnConfig::new("kdf"))
         .column(ColumnConfig::new("created").renderer(pbs_tools::format::render_epoch))
         .column(ColumnConfig::new("modified").renderer(pbs_tools::format::render_epoch))

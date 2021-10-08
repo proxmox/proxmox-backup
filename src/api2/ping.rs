@@ -3,7 +3,8 @@
 use anyhow::{Error};
 use serde_json::{json, Value};
 
-use proxmox::api::{api, Router, Permission};
+use proxmox_router::{Router, Permission};
+use proxmox_schema::api;
 
 #[api(
     returns: {

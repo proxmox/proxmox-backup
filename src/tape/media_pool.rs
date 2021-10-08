@@ -12,7 +12,7 @@ use std::path::{PathBuf, Path};
 use anyhow::{bail, Error};
 use serde::{Deserialize, Serialize};
 
-use proxmox::tools::Uuid;
+use proxmox_uuid::Uuid;
 
 use pbs_api_types::{
     Fingerprint, MediaStatus, MediaLocation, MediaSetPolicy, RetentionPolicy,

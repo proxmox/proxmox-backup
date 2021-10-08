@@ -107,7 +107,7 @@ impl <'a> Iterator for SnapshotChunkIterator<'a> {
     type Item = Result<[u8; 32], Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        proxmox::try_block!({
+        proxmox_lang::try_block!({
             loop {
                 if self.current_index.is_none() {
                     if let Some(filename) = self.todo_list.pop() {

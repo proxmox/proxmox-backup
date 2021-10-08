@@ -1,29 +1,10 @@
 use anyhow::{bail, Error};
 use serde_json::{json, Value};
 
-use proxmox::{
-    api::{
-        schema::{
-            ApiType,
-            Schema,
-            ObjectSchemaType,
-            ApiStringFormat,
-        },
-        router::{
-             ApiAccess,
-        },
-        format::{
-            dump_enum_properties,
-            dump_section_config,
-            get_property_string_type_text,
-        },
-        ApiMethod,
-        ApiHandler,
-        Router,
-        SubRoute,
-        Permission,
-    },
-};
+use proxmox_router::{ApiAccess, ApiHandler, ApiMethod, Permission, Router, SubRoute};
+use proxmox_schema::format::{dump_enum_properties, get_property_string_type_text};
+use proxmox_schema::{ApiStringFormat, ApiType, ObjectSchemaType, Schema};
+use proxmox_section_config::dump_section_config;
 
 use pbs_api_types::PRIVILEGES;
 

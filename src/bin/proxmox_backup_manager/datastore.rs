@@ -1,7 +1,8 @@
 use anyhow::Error;
 use serde_json::Value;
 
-use proxmox::api::{api, cli::*, RpcEnvironment, ApiHandler};
+use proxmox_router::{cli::*, ApiHandler, RpcEnvironment};
+use proxmox_schema::api;
 
 use pbs_client::view_task_result;
 use pbs_api_types::{DataStoreConfig, DATASTORE_SCHEMA};

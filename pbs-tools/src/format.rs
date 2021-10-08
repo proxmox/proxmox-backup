@@ -25,7 +25,7 @@ pub fn render_epoch(value: &Value, _record: &Value) -> Result<String, Error> {
     if value.is_null() { return Ok(String::new()); }
     let text = match value.as_i64() {
         Some(epoch) => {
-            if let Ok(epoch_string) = proxmox::tools::time::strftime_local("%c", epoch as i64) {
+            if let Ok(epoch_string) = proxmox_time::strftime_local("%c", epoch as i64) {
                 epoch_string
             } else {
                 epoch.to_string()
@@ -104,14 +104,16 @@ impl From<u64> for HumanByte {
 }
 
 pub fn as_fingerprint(bytes: &[u8]) -> String {
-    proxmox::tools::digest_to_hex(bytes)
+    hex::encode(bytes)
         .as_bytes()
         .chunks(2)
-        .map(|v| std::str::from_utf8(v).unwrap())
+        .map(|v| unsafe { std::str::from_utf8_unchecked(v) }) // it's a hex string
         .collect::<Vec<&str>>().join(":")
 }
 
 pub mod bytes_as_fingerprint {
+    use std::mem::MaybeUninit;
+
     use serde::{Deserialize, Serializer, Deserializer};
 
     pub fn serialize<S>(
@@ -131,9 +133,14 @@ pub mod bytes_as_fingerprint {
     where
         D: Deserializer<'de>,
     {
+        // TODO: more efficiently implement with a Visitor implementing visit_str using split() and
+        // hex::decode by-byte
         let mut s = String::deserialize(deserializer)?;
         s.retain(|c| c != ':');
-        proxmox::tools::hex_to_digest(&s).map_err(serde::de::Error::custom)
+        let mut out = MaybeUninit::<[u8; 32]>::uninit();
+        hex::decode_to_slice(s.as_bytes(), unsafe { &mut (*out.as_mut_ptr())[..] })
+            .map_err(serde::de::Error::custom)?;
+        Ok(unsafe { out.assume_init() })
     }
 }
 

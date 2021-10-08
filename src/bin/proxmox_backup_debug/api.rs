@@ -7,13 +7,9 @@ use tokio::signal::unix::{signal, SignalKind};
 
 use std::collections::HashMap;
 
-use proxmox::api::{
-    api,
-    cli::*,
-    format::DocumentationFormat,
-    schema::{parse_parameter_strings, ApiType, ParameterSchema, Schema},
-    ApiHandler, ApiMethod, RpcEnvironment, SubRoute,
-};
+use proxmox_router::{cli::*, ApiHandler, ApiMethod, RpcEnvironment, SubRoute};
+use proxmox_schema::{api, parse_parameter_strings, ApiType, ParameterSchema, Schema};
+use proxmox_schema::format::DocumentationFormat;
 
 use pbs_api_types::{PROXMOX_UPID_REGEX, UPID};
 use pbs_client::view_task_result;
@@ -381,8 +377,8 @@ struct ApiDirEntry {
     capabilities: String,
 }
 
-const LS_SCHEMA: &proxmox::api::schema::Schema =
-    &proxmox::api::schema::ArraySchema::new("List of child links", &ApiDirEntry::API_SCHEMA)
+const LS_SCHEMA: &proxmox_schema::Schema =
+    &proxmox_schema::ArraySchema::new("List of child links", &ApiDirEntry::API_SCHEMA)
         .schema();
 
 async fn get_api_children(
@@ -448,7 +444,7 @@ async fn ls(path: Option<String>, mut param: Value, rpcenv: &mut dyn RpcEnvironm
 
     format_and_print_result_full(
         &mut serde_json::to_value(res)?,
-        &proxmox::api::schema::ReturnType {
+        &proxmox_schema::ReturnType {
             optional: false,
             schema: &LS_SCHEMA,
         },

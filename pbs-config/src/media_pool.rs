@@ -4,23 +4,15 @@
 //! provides a type safe interface to store [`MediaPoolConfig`],
 //!
 //! [MediaPoolConfig]: crate::api2::types::MediaPoolConfig
-//! [SectionConfig]: proxmox::api::section_config::SectionConfig
+//! [SectionConfig]: proxmox_section_config::SectionConfig
 
 use std::collections::HashMap;
 
 use anyhow::Error;
 use lazy_static::lazy_static;
 
-use proxmox::{
-    api::{
-        schema::*,
-        section_config::{
-            SectionConfig,
-            SectionConfigData,
-            SectionConfigPlugin,
-        }
-    },
-};
+use proxmox_schema::*;
+use proxmox_section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin};
 
 use pbs_api_types::{MEDIA_POOL_NAME_SCHEMA, MediaPoolConfig};
 

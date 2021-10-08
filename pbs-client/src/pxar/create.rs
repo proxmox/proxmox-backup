@@ -19,11 +19,11 @@ use pathpatterns::{MatchEntry, MatchFlag, MatchList, MatchType, PatternFlag};
 use pxar::Metadata;
 use pxar::encoder::{SeqWrite, LinkOffset};
 
-use proxmox::c_str;
 use proxmox::sys::error::SysError;
 use proxmox::tools::fd::RawFdNum;
-use proxmox::tools::vec;
 use proxmox::tools::fd::Fd;
+use proxmox_io::vec;
+use proxmox_lang::c_str;
 
 use pbs_datastore::catalog::BackupCatalogWriter;
 use pbs_tools::{acl, fs, xattr};

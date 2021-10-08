@@ -4,7 +4,8 @@ use anyhow::{Error};
 use serde_json::{json, Value};
 use std::io::{BufRead,BufReader};
 
-use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};
+use proxmox_router::{ApiMethod, Router, RpcEnvironment, Permission};
+use proxmox_schema::api;
 
 use pbs_api_types::{NODE_SCHEMA, PRIV_SYS_AUDIT};
 

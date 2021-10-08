@@ -1,9 +1,7 @@
 use ::serde::{Deserialize, Serialize};
 
-use proxmox::{
-    api::{api, schema::*},
-    tools::Uuid,
-};
+use proxmox_schema::*;
+use proxmox_uuid::Uuid;
 
 use crate::{
     UUID_FORMAT,

@@ -3,7 +3,8 @@ use std::process::{Command, Stdio};
 use anyhow::{Error};
 use serde_json::{json, Value};
 
-use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};
+use proxmox_router::{ApiMethod, Router, RpcEnvironment, Permission};
+use proxmox_schema::api;
 
 use pbs_api_types::{NODE_SCHEMA, SYSTEMD_DATETIME_FORMAT, PRIV_SYS_AUDIT};
 

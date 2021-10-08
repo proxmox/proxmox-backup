@@ -2,8 +2,8 @@ use anyhow::{Error, bail};
 use serde_json::{Value, to_value};
 use ::serde::{Deserialize, Serialize};
 
-use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};
-use proxmox::api::schema::parse_property_string;
+use proxmox_router::{ApiMethod, Router, RpcEnvironment, Permission};
+use proxmox_schema::{api, parse_property_string};
 
 use pbs_api_types::{
     Authid, Interface, NetworkInterfaceType, LinuxBondMode, NetworkConfigMethod, BondXmitHashPolicy,

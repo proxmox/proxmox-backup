@@ -3,11 +3,9 @@ use std::collections::HashSet;
 
 use anyhow::{bail, format_err, Error};
 
-use proxmox::{
-    api::{api, Router, SubdirMap, RpcEnvironment, Permission},
-    list_subdirs_api_method,
-    tools::Uuid,
-};
+use proxmox_router::{list_subdirs_api_method, Router, SubdirMap, RpcEnvironment, Permission};
+use proxmox_schema::api;
+use proxmox_uuid::Uuid;
 
 use pbs_datastore::backup_info::BackupDir;
 use pbs_api_types::{
@@ -177,7 +175,7 @@ pub async fn list_media(
         let changer_name = None; // assume standalone drive
         let mut pool = MediaPool::with_config(status_path, &config, changer_name, true)?;
 
-        let current_time = proxmox::tools::time::epoch_i64();
+        let current_time = proxmox_time::epoch_i64();
 
         // Call start_write_session, so that we show the same status a
         // backup job would see.

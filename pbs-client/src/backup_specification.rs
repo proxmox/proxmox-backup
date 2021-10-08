@@ -1,8 +1,8 @@
 use anyhow::{bail, Error};
 
-use proxmox::api::schema::*;
+use proxmox_schema::*;
 
-proxmox::const_regex! {
+const_regex! {
     BACKUPSPEC_REGEX = r"^([a-zA-Z0-9_-]+\.(pxar|img|conf|log)):(.+)$";
 }
 

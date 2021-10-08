@@ -2,10 +2,11 @@ use anyhow::{Error, bail, format_err};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 
-use proxmox::list_subdirs_api_method;
-use proxmox::api::{api, RpcEnvironment, RpcEnvironmentType, Permission};
-use proxmox::api::router::{Router, SubdirMap};
 use proxmox::tools::fs::{replace_file, CreateOptions};
+use proxmox_router::{
+    list_subdirs_api_method, RpcEnvironment, RpcEnvironmentType, Permission, Router, SubdirMap
+};
+use proxmox_schema::api;
 
 use proxmox_apt::repositories::{
     APTRepositoryFile, APTRepositoryFileError, APTRepositoryHandle, APTRepositoryInfo,

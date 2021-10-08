@@ -13,7 +13,7 @@ use serde_json::Value;
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt, ReadBuf};
 use tokio::net::UnixStream;
 
-use proxmox::api::error::HttpError;
+use proxmox_router::HttpError;
 
 pub const DEFAULT_VSOCK_PORT: u16 = 807;
 

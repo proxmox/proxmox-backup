@@ -6,14 +6,12 @@ use std::sync::Arc;
 use anyhow::{bail, format_err, Error};
 use serde_json::{json, Value};
 
-use proxmox::api::{
-    api,
-    cli::{
-        default_table_format_options, format_and_print_result_full, get_output_format,
-        run_cli_command, CliCommand, CliCommandMap, CliEnvironment, ColumnConfig, OUTPUT_FORMAT,
-    },
-};
 use proxmox::tools::fs::{create_path, CreateOptions};
+use proxmox_router::cli::{
+    default_table_format_options, format_and_print_result_full, get_output_format,
+    run_cli_command, CliCommand, CliCommandMap, CliEnvironment, ColumnConfig, OUTPUT_FORMAT,
+};
+use proxmox_schema::api;
 use pxar::accessor::aio::Accessor;
 use pxar::decoder::aio::Decoder;
 

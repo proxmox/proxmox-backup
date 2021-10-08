@@ -1,18 +1,8 @@
 use anyhow::{bail, Error};
 
-use proxmox::api::{
-    schema::{
-        Schema,
-        StringSchema,
-        ApiStringFormat,
-        parse_simple_value,
-    },
-};
+use proxmox_schema::{parse_simple_value, ApiStringFormat, Schema, StringSchema};
 
-use crate::{
-    PROXMOX_SAFE_ID_FORMAT,
-    CHANGER_NAME_SCHEMA,
-};
+use crate::{CHANGER_NAME_SCHEMA, PROXMOX_SAFE_ID_FORMAT};
 
 pub const VAULT_NAME_SCHEMA: Schema = StringSchema::new("Vault name.")
     .format(&PROXMOX_SAFE_ID_FORMAT)
@@ -35,28 +25,27 @@ pub enum MediaLocation {
 proxmox::forward_deserialize_to_from_str!(MediaLocation);
 proxmox::forward_serialize_to_display!(MediaLocation);
 
-impl proxmox::api::schema::ApiType for MediaLocation {
+impl proxmox_schema::ApiType for MediaLocation {
     const API_SCHEMA: Schema = StringSchema::new(
-        "Media location (e.g. 'offline', 'online-<changer_name>', 'vault-<vault_name>')")
-        .format(&ApiStringFormat::VerifyFn(|text| {
-            let location: MediaLocation = text.parse()?;
-            match location {
-                MediaLocation::Online(ref changer) => {
-                    parse_simple_value(changer, &CHANGER_NAME_SCHEMA)?;
-                }
-                MediaLocation::Vault(ref vault) => {
-                    parse_simple_value(vault, &VAULT_NAME_SCHEMA)?;
-                }
-                MediaLocation::Offline => { /* OK */}
+        "Media location (e.g. 'offline', 'online-<changer_name>', 'vault-<vault_name>')",
+    )
+    .format(&ApiStringFormat::VerifyFn(|text| {
+        let location: MediaLocation = text.parse()?;
+        match location {
+            MediaLocation::Online(ref changer) => {
+                parse_simple_value(changer, &CHANGER_NAME_SCHEMA)?;
             }
-            Ok(())
-        }))
-        .schema();
+            MediaLocation::Vault(ref vault) => {
+                parse_simple_value(vault, &VAULT_NAME_SCHEMA)?;
+            }
+            MediaLocation::Offline => { /* OK */ }
+        }
+        Ok(())
+    }))
+    .schema();
 }
 
-
 impl std::fmt::Display for MediaLocation {
-
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             MediaLocation::Offline => {

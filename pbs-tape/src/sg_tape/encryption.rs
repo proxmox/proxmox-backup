@@ -4,7 +4,7 @@ use std::io::Write;
 use anyhow::{bail, format_err, Error};
 use endian_trait::Endian;
 
-use proxmox::tools::io::{ReadExt, WriteExt};
+use proxmox_io::{ReadExt, WriteExt};
 
 use crate::sgutils2::{SgRaw, alloc_page_aligned_buffer};
 
@@ -216,7 +216,7 @@ struct SspDataEncryptionAlgorithmDescriptor {
 // Returns the algorythm_index for AES-CGM
 fn decode_spin_data_encryption_caps(data: &[u8]) -> Result<u8, Error> {
 
-    proxmox::try_block!({
+    proxmox_lang::try_block!({
         let mut reader = &data[..];
         let _page: SspDataEncryptionCapabilityPage = unsafe { reader.read_be_value()? };
 
@@ -267,7 +267,7 @@ struct SspDataEncryptionStatusPage {
 
 fn decode_spin_data_encryption_status(data: &[u8]) -> Result<DataEncryptionStatus, Error> {
 
-    proxmox::try_block!({
+    proxmox_lang::try_block!({
         let mut reader = &data[..];
         let page: SspDataEncryptionStatusPage = unsafe { reader.read_be_value()? };
 

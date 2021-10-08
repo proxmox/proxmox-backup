@@ -1,8 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-use proxmox::api::api;
-use proxmox::api::schema::{
-    BooleanSchema, IntegerSchema, Schema, StringSchema, Updater,
+use proxmox_schema::{
+    api, BooleanSchema, IntegerSchema, Schema, StringSchema, Updater,
 };
 
 use super::{SINGLE_LINE_COMMENT_FORMAT, SINGLE_LINE_COMMENT_SCHEMA};
@@ -133,7 +132,7 @@ impl ApiToken {
             return false;
         }
         if let Some(expire) = self.expire {
-            let now =  proxmox::tools::time::epoch_i64();
+            let now =  proxmox_time::epoch_i64();
             if expire > 0 && expire <= now {
                 return false;
             }
@@ -198,7 +197,7 @@ impl User {
             return false;
         }
         if let Some(expire) = self.expire {
-            let now =  proxmox::tools::time::epoch_i64();
+            let now =  proxmox_time::epoch_i64();
             if expire > 0 && expire <= now {
                 return false;
             }

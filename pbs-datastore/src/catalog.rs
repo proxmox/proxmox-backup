@@ -8,8 +8,9 @@ use anyhow::{bail, format_err, Error};
 use serde::{Deserialize, Serialize};
 
 use pathpatterns::{MatchList, MatchType};
-use proxmox::api::api;
-use proxmox::tools::io::ReadExt;
+
+use proxmox_io::ReadExt;
+use proxmox_schema::api;
 
 use crate::file_formats::PROXMOX_CATALOG_FILE_MAGIC_1_0;
 
@@ -570,7 +571,7 @@ impl <R: Read + Seek> CatalogReader<R> {
                 }
                 CatalogEntryType::File => {
                     let mut mtime_string = mtime.to_string();
-                    if let Ok(s) = proxmox::tools::time::strftime_local("%FT%TZ", mtime as i64) {
+                    if let Ok(s) = proxmox_time::strftime_local("%FT%TZ", mtime as i64) {
                         mtime_string = s;
                     }
 

@@ -17,7 +17,7 @@ use ::serde::{Deserialize, Serialize};
 use proxmox::sys::error::io_err_other;
 use proxmox::sys::linux::procfs::{MountInfo, mountinfo::Device};
 use proxmox::{io_bail, io_format_err};
-use proxmox::api::api;
+use proxmox_schema::api;
 
 use pbs_api_types::{BLOCKDEVICE_NAME_REGEX, StorageStatus};
 

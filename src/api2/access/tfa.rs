@@ -3,9 +3,9 @@
 use anyhow::{bail, format_err, Error};
 use serde::{Deserialize, Serialize};
 
-use proxmox::api::{api, Permission, Router, RpcEnvironment};
-use proxmox::tools::tfa::totp::Totp;
-use proxmox::{http_bail, http_err};
+use proxmox_router::{http_bail, http_err, Router, RpcEnvironment, Permission};
+use proxmox_schema::api;
+use proxmox_tfa::totp::Totp;
 
 use pbs_api_types::{Authid, Userid, User, PASSWORD_SCHEMA, PRIV_PERMISSIONS_MODIFY, PRIV_SYS_AUDIT};
 

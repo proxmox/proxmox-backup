@@ -13,9 +13,9 @@ use nix::fcntl::OFlag;
 use nix::sys::stat::Mode;
 
 use pathpatterns::{MatchEntry, MatchList, MatchPattern, MatchType, PatternFlag};
-use proxmox::api::api;
-use proxmox::api::cli::{self, CliCommand, CliCommandMap, CliHelper, CommandLineInterface};
 use proxmox::tools::fs::{create_path, CreateOptions};
+use proxmox_router::cli::{self, CliCommand, CliCommandMap, CliHelper, CommandLineInterface};
+use proxmox_schema::api;
 use pxar::{EntryKind, Metadata};
 
 use pbs_runtime::block_in_place;

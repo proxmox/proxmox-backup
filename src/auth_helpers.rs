@@ -7,7 +7,7 @@ use openssl::rsa::Rsa;
 use openssl::sha;
 
 use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
-use proxmox::try_block;
+use proxmox_lang::try_block;
 
 use pbs_buildcfg::configdir;
 use pbs_api_types::Userid;
@@ -31,7 +31,7 @@ pub fn assemble_csrf_prevention_token(
     userid: &Userid,
 ) -> String {
 
-    let epoch = proxmox::tools::time::epoch_i64();
+    let epoch = proxmox_time::epoch_i64();
 
     let digest = compute_csrf_secret_digest(epoch, secret, userid);
 
@@ -68,7 +68,7 @@ pub fn verify_csrf_prevention_token(
             bail!("invalid signature.");
         }
 
-        let now = proxmox::tools::time::epoch_i64();
+        let now = proxmox_time::epoch_i64();
 
         let age = now - ttime;
         if age < min_age {

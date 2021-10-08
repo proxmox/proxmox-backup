@@ -4,9 +4,9 @@ use std::io::{BufRead, BufReader};
 use anyhow::{bail, Error};
 use serde_json::{json, Value};
 
-use proxmox::api::{api, Router, RpcEnvironment, Permission};
-use proxmox::api::router::SubdirMap;
-use proxmox::{identity, list_subdirs_api_method, sortable};
+use proxmox::{identity, sortable};
+use proxmox_router::{list_subdirs_api_method, Router, RpcEnvironment, Permission, SubdirMap};
+use proxmox_schema::api;
 
 use pbs_api_types::{
     Userid, Authid, Tokenname, TaskListItem, TaskStateType, UPID,

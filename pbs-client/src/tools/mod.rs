@@ -10,11 +10,9 @@ use anyhow::{bail, format_err, Context, Error};
 use serde_json::{json, Value};
 use xdg::BaseDirectories;
 
-use proxmox::{
-    api::schema::*,
-    api::cli::shellword_split,
-    tools::fs::file_get_json,
-};
+use proxmox_schema::*;
+use proxmox_router::cli::shellword_split;
+use proxmox::tools::fs::file_get_json;
 
 use pbs_api_types::{BACKUP_REPO_URL, Authid, UserWithTokens};
 use pbs_datastore::BackupDir;

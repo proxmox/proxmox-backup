@@ -8,8 +8,8 @@ use std::task::{Context, Poll};
 use futures::*;
 use hyper::{Body, Request, Response, StatusCode};
 
-use proxmox::api::{ApiResponseFuture, HttpError, Router, RpcEnvironment};
-use proxmox::http_err;
+use proxmox_router::{ApiResponseFuture, HttpError, Router, RpcEnvironment};
+use proxmox_router::http_err;
 
 use crate::{normalize_uri_path, WorkerTask};
 use crate::formatter::*;

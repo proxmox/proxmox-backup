@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::{bail, Error};
 
-use proxmox::tools::Uuid;
+use proxmox_uuid::Uuid;
 
 use pbs_tools::{task_log, task_warn};
 use pbs_config::tape_encryption_keys::load_key_configs;
@@ -74,7 +74,7 @@ impl PoolWriter {
         force_media_set: bool,
     ) -> Result<Self, Error> {
 
-        let current_time = proxmox::tools::time::epoch_i64();
+        let current_time = proxmox_time::epoch_i64();
 
         let new_media_set_reason = pool.start_write_session(current_time, force_media_set)?;
         if let Some(reason) = new_media_set_reason {
@@ -202,7 +202,7 @@ impl PoolWriter {
             None => None,
         };
 
-        let current_time = proxmox::tools::time::epoch_i64();
+        let current_time = proxmox_time::epoch_i64();
         let media_uuid = self.pool.alloc_writable_media(current_time)?;
 
         let media = self.pool.lookup_media(&media_uuid).unwrap();

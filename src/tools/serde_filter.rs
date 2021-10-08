@@ -34,7 +34,7 @@ use serde::Deserialize;
 /// where
 ///     D: Deserializer<'de>,
 /// {
-///     let expire_before = proxmox::tools::time::epoch_i64() - CHALLENGE_TIMEOUT;
+///     let expire_before = proxmox_time::epoch_i64() - CHALLENGE_TIMEOUT;
 ///
 ///     Ok(deserializer.deserialize_seq(
 ///         FilteredVecVisitor::new(

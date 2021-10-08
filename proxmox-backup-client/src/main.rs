@@ -13,18 +13,10 @@ use tokio_stream::wrappers::ReceiverStream;
 use xdg::BaseDirectories;
 
 use pathpatterns::{MatchEntry, MatchType, PatternFlag};
-use proxmox::{
-    tools::{
-        time::{strftime_local, epoch_i64},
-        fs::{file_get_json, replace_file, CreateOptions, image_size},
-    },
-    api::{
-        api,
-        ApiMethod,
-        RpcEnvironment,
-        cli::*,
-    },
-};
+use proxmox::tools::fs::{file_get_json, replace_file, CreateOptions, image_size};
+use proxmox_router::{ApiMethod, RpcEnvironment, cli::*};
+use proxmox_schema::api;
+use proxmox_time::{strftime_local, epoch_i64};
 use pxar::accessor::{MaybeReady, ReadAt, ReadAtOperation};
 
 use pbs_api_types::{

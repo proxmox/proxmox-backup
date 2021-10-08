@@ -8,7 +8,7 @@ use serde_json::{json, Value};
 
 use proxmox::tools::digest_to_hex;
 use proxmox::tools::fs::{replace_file, CreateOptions};
-use proxmox::api::{RpcEnvironment, RpcEnvironmentType};
+use proxmox_router::{RpcEnvironment, RpcEnvironmentType};
 
 use pbs_datastore::{DataStore, DataBlob};
 use pbs_datastore::backup_info::{BackupDir, BackupInfo};

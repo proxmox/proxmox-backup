@@ -1,6 +1,6 @@
 use std::io::Read;
 
-use proxmox::tools::io::ReadExt;
+use proxmox_io::ReadExt;
 
 use crate::{BlockRead, BlockReadError, PROXMOX_TAPE_BLOCK_SIZE};
 

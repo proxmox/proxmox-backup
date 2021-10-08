@@ -4,8 +4,9 @@ use std::io::{self, Write};
 use anyhow::{format_err, Error};
 use serde_json::{json, Value};
 
-use proxmox::api::{api, cli::*, RpcEnvironment};
 use proxmox::tools::fs::CreateOptions;
+use proxmox_router::{cli::*, RpcEnvironment};
+use proxmox_schema::api;
 
 use pbs_client::{display_task_log, view_task_result};
 use pbs_tools::percent_encoding::percent_encode_component;
@@ -434,7 +435,7 @@ pub fn complete_remote_datastore_name(_arg: &str, param: &HashMap<String, String
 
     let mut list = Vec::new();
 
-    let _ = proxmox::try_block!({
+    let _ = proxmox_lang::try_block!({
         let remote = param.get("remote").ok_or_else(|| format_err!("no remote"))?;
 
         let data = pbs_runtime::block_on(async move {

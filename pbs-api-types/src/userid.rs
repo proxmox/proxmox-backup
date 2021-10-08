@@ -29,9 +29,9 @@ use anyhow::{bail, format_err, Error};
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 
-use proxmox::api::api;
-use proxmox::api::schema::{ApiStringFormat, ApiType, Schema, StringSchema, UpdaterType};
-use proxmox::const_regex;
+use proxmox_schema::{
+    api, const_regex, ApiStringFormat, ApiType, Schema, StringSchema, UpdaterType,
+};
 
 // we only allow a limited set of characters
 // colon is not allowed, because we store usernames in

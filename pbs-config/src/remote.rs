@@ -1,15 +1,10 @@
-use anyhow::{Error};
-use lazy_static::lazy_static;
 use std::collections::HashMap;
 
-use proxmox::api::{
-    schema::*,
-    section_config::{
-        SectionConfig,
-        SectionConfigData,
-        SectionConfigPlugin,
-    }
-};
+use anyhow::Error;
+use lazy_static::lazy_static;
+
+use proxmox_schema::*;
+use proxmox_section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin};
 
 use pbs_api_types::{Remote, REMOTE_ID_SCHEMA};
 

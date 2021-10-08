@@ -9,8 +9,8 @@ use anyhow::{bail, format_err, Error};
 use lazy_static::lazy_static;
 use log::{info, warn};
 
-use proxmox::const_regex;
 use proxmox::tools::fs;
+use proxmox_schema::const_regex;
 
 use pbs_api_types::BLOCKDEVICE_NAME_REGEX;
 use pbs_tools::run_command;

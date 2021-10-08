@@ -25,10 +25,8 @@ pub use mam::*;
 mod report_density;
 pub use report_density::*;
 
-use proxmox::{
-    sys::error::SysResult,
-    tools::io::{ReadExt, WriteExt},
-};
+use proxmox::sys::error::SysResult;
+use proxmox_io::{ReadExt, WriteExt};
 
 use pbs_api_types::{MamAttribute, Lp17VolumeStatistics, LtoDriveAndMediaStatus};
 
@@ -386,7 +384,7 @@ impl SgTape {
         let data = sg_raw.do_command(&cmd)
             .map_err(|err| format_err!("read position failed - {}", err))?;
 
-        let page = proxmox::try_block!({
+        let page = proxmox_lang::try_block!({
             if data.len() != expected_size {
                 bail!("got unexpected data len ({} != {}", data.len(), expected_size);
             }
@@ -793,7 +791,7 @@ impl SgTape {
         let (head, block_descriptor, page): (_,_, MediumConfigurationModePage)
             = scsi_mode_sense(&mut self.file, false, 0x1d, 0)?;
 
-        proxmox::try_block!({
+        proxmox_lang::try_block!({
             if (page.page_code & 0b0011_1111) != 0x1d {
                 bail!("wrong page code {}", page.page_code);
             }
@@ -817,7 +815,7 @@ impl SgTape {
         let (head, block_descriptor, page): (_,_, DataCompressionModePage)
             = scsi_mode_sense(&mut self.file, false, 0x0f, 0)?;
 
-        proxmox::try_block!({
+        proxmox_lang::try_block!({
             if (page.page_code & 0b0011_1111) != 0x0f {
                 bail!("wrong page code {}", page.page_code);
             }

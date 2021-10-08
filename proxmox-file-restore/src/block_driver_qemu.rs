@@ -110,7 +110,7 @@ async fn cleanup_map(map: &mut HashMap<String, VMState>) -> bool {
 }
 
 fn new_ticket() -> String {
-    proxmox::tools::Uuid::generate().to_string()
+    proxmox_uuid::Uuid::generate().to_string()
 }
 
 async fn ensure_running(details: &SnapRestoreDetails) -> Result<VsockClient, Error> {

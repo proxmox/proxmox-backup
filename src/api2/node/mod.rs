@@ -12,12 +12,12 @@ use hyper::Request;
 use serde_json::{json, Value};
 use tokio::io::{AsyncBufReadExt, BufReader};
 
-use proxmox::api::router::{Router, SubdirMap};
-use proxmox::api::{
-    api, schema::*, ApiHandler, ApiMethod, ApiResponseFuture, Permission, RpcEnvironment,
-};
-use proxmox::list_subdirs_api_method;
 use proxmox::{identity, sortable};
+use proxmox_router::{
+    ApiHandler, ApiMethod, ApiResponseFuture, Permission, RpcEnvironment, Router, SubdirMap,
+};
+use proxmox_schema::*;
+use proxmox_router::list_subdirs_api_method;
 use proxmox_http::websocket::WebSocket;
 
 use proxmox_rest_server::WorkerTask;

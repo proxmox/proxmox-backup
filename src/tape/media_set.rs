@@ -1,7 +1,7 @@
 use anyhow::{bail, Error};
 use serde::{Serialize, Deserialize};
 
-use proxmox::tools::Uuid;
+use proxmox_uuid::Uuid;
 
 /// MediaSet - Ordered group of media
 #[derive(Debug, Serialize, Deserialize)]

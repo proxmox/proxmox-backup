@@ -3,10 +3,8 @@ use std::io::Read;
 use anyhow::{bail, Error};
 use endian_trait::Endian;
 
-use proxmox::tools::{
-    Uuid,
-    io::ReadExt,
-};
+use proxmox_io::ReadExt;
+use proxmox_uuid::Uuid;
 
 use pbs_datastore::DataBlob;
 use pbs_tape::{

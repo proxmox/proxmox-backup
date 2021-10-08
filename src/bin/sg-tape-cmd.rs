@@ -9,14 +9,9 @@ use std::os::unix::io::{AsRawFd, FromRawFd};
 use anyhow::{bail, Error};
 use serde_json::Value;
 
-use proxmox::{
-    api::{
-        api,
-        cli::*,
-        RpcEnvironment,
-    },
-    tools::Uuid,
-};
+use proxmox_router::{cli::*, RpcEnvironment};
+use proxmox_schema::api;
+use proxmox_uuid::Uuid;
 
 use pbs_api_types::{
     Fingerprint, LTO_DRIVE_PATH_SCHEMA, DRIVE_NAME_SCHEMA, TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
@@ -112,7 +107,7 @@ fn set_encryption(
     param: Value,
 ) -> Result<(), Error> {
 
-    let result = proxmox::try_block!({
+    let result = proxmox_lang::try_block!({
         let mut handle = get_tape_handle(&param)?;
 
         match (fingerprint, uuid) {

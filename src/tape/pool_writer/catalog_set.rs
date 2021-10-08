@@ -1,6 +1,6 @@
 use anyhow::{bail, Error};
 
-use proxmox::tools::Uuid;
+use proxmox_uuid::Uuid;
 
 use crate::{
     tape::{

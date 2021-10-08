@@ -1,17 +1,11 @@
+use std::collections::HashMap;
+
 use anyhow::{Error};
 use lazy_static::lazy_static;
-use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
 
-use proxmox::api::{
-    api,
-    schema::*,
-    section_config::{
-        SectionConfig,
-        SectionConfigData,
-        SectionConfigPlugin,
-    }
-};
+use proxmox_schema::{api, ApiType, Updater, Schema};
+use proxmox_section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin};
 
 use pbs_api_types::{REALM_ID_SCHEMA, SINGLE_LINE_COMMENT_SCHEMA};
 use crate::{open_backup_lockfile, replace_backup_config, BackupLockGuard};
@@ -59,7 +53,7 @@ pub enum OpenIdUserAttribute {
         },
     },
 )]
-#[derive(Serialize,Deserialize,Updater)]
+#[derive(Serialize, Deserialize, Updater)]
 #[serde(rename_all="kebab-case")]
 /// OpenID configuration properties.
 pub struct OpenIdRealmConfig {

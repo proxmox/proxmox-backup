@@ -4,7 +4,8 @@ use anyhow::{bail, Error};
 use serde_json::Value;
 use ::serde::{Deserialize, Serialize};
 
-use proxmox::api::{api, Permission, Router, RpcEnvironment};
+use proxmox_router::{Router, RpcEnvironment, Permission};
+use proxmox_schema::api;
 
 use pbs_api_types::{
     PROXMOX_CONFIG_DIGEST_SCHEMA, REALM_ID_SCHEMA, PRIV_SYS_AUDIT, PRIV_REALM_ALLOCATE,

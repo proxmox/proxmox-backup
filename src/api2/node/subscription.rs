@@ -1,7 +1,8 @@
 use anyhow::{Error, format_err, bail};
 use serde_json::Value;
 
-use proxmox::api::{api, Router, RpcEnvironment, Permission};
+use proxmox_router::{Router, RpcEnvironment, Permission};
+use proxmox_schema::api;
 
 use pbs_api_types::{
     NODE_SCHEMA, SUBSCRIPTION_KEY_SCHEMA, Authid,
@@ -51,7 +52,7 @@ pub fn check_subscription(
     };
 
     if !force && info.status == SubscriptionStatus::ACTIVE {
-        let age = proxmox::tools::time::epoch_i64() - info.checktime.unwrap_or(i64::MAX);
+        let age = proxmox_time::epoch_i64() - info.checktime.unwrap_or(i64::MAX);
         if age < subscription::MAX_LOCAL_KEY_AGE {
             return Ok(());
         }

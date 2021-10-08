@@ -28,9 +28,14 @@ tower-service = "0.3.0"
 xdg = "2.2"
 
 pathpatterns = "0.1.2"
-proxmox = { version = "0.14.0", default-features = false, features = [ "cli" ] }
+proxmox = "0.14.0"
 proxmox-fuse = "0.1.1"
 proxmox-http = { version = "0.5.0", features = [ "client", "http-helpers", "websocket" ] }
+proxmox-io = { version = "1", features = [ "tokio" ] }
+proxmox-lang = "1"
+proxmox-router = { version = "1", features = [ "cli" ] }
+proxmox-schema = "1"
+proxmox-time = "1"
 pxar = { version = "0.10.1", features = [ "tokio-io" ] }
 
 pbs-api-types = { path = "../pbs-api-types" }

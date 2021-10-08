@@ -8,10 +8,10 @@ use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use proxmox::api::router::SubdirMap;
-use proxmox::api::{api, Permission, Router, RpcEnvironment};
-use proxmox::http_bail;
-use proxmox::list_subdirs_api_method;
+use proxmox_router::{
+    http_bail, list_subdirs_api_method, Permission, Router, SubdirMap, RpcEnvironment,
+};
+use proxmox_schema::api;
 
 use proxmox_acme_rs::account::AccountData as AcmeAccountData;
 use proxmox_acme_rs::Account;

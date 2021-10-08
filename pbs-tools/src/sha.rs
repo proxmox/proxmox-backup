@@ -4,10 +4,12 @@ use std::io::Read;
 
 use anyhow::Error;
 
+use proxmox_io::vec;
+
 /// Calculate the sha256sum from a readable object.
 pub fn sha256(file: &mut dyn Read) -> Result<([u8; 32], u64), Error> {
     let mut hasher = openssl::sha::Sha256::new();
-    let mut buffer = proxmox::tools::vec::undefined(256 * 1024);
+    let mut buffer = vec::undefined(256 * 1024);
     let mut size: u64 = 0;
 
     loop {

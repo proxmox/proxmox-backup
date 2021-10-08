@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
-use proxmox::api::api;
+
+use proxmox_schema::api;
 
 #[api()]
 #[derive(Copy, Clone, Serialize, Deserialize)]

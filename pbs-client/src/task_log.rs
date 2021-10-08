@@ -5,7 +5,7 @@ use serde_json::{json, Value};
 use tokio::signal::unix::{signal, SignalKind};
 use futures::*;
 
-use proxmox::api::cli::format_and_print_result;
+use proxmox_router::cli::format_and_print_result;
 
 use pbs_tools::percent_encoding::percent_encode_component;
 

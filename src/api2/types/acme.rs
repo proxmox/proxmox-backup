@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use proxmox::api::{api, schema::{ApiType, Schema, StringSchema, ApiStringFormat}};
+use proxmox_schema::{api, ApiType, Schema, StringSchema, ApiStringFormat};
 
 use pbs_api_types::{
     DNS_ALIAS_FORMAT, DNS_NAME_FORMAT, PROXMOX_SAFE_ID_FORMAT,
@@ -62,7 +62,7 @@ pub struct KnownAcmeDirectory {
     pub url: &'static str,
 }
 
-proxmox::api_string_type! {
+proxmox_schema::api_string_type! {
     #[api(format: &PROXMOX_SAFE_ID_FORMAT)]
     /// ACME account name.
     #[derive(Clone, Eq, PartialEq, Hash, Deserialize, Serialize)]

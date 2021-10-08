@@ -9,8 +9,9 @@ use std::time::SystemTime;
 
 use anyhow::{bail, format_err, Error};
 use serde_json::json;
+use http::StatusCode;
 
-use proxmox::api::error::{HttpError, StatusCode};
+use proxmox_router::HttpError;
 
 use pbs_api_types::{Authid, SnapshotListItem, GroupListItem};
 use pbs_datastore::{DataStore, BackupInfo, BackupDir, BackupGroup, StoreProgress};
@@ -306,7 +307,7 @@ async fn pull_snapshot(
     let tmp_manifest_blob = DataBlob::load_from_reader(&mut tmp_manifest_file)?;
 
     if manifest_name.exists() {
-        let manifest_blob = proxmox::try_block!({
+        let manifest_blob = proxmox_lang::try_block!({
             let mut manifest_file = std::fs::File::open(&manifest_name).map_err(|err| {
                 format_err!(
                     "unable to open local manifest {:?} - {}",
@@ -476,12 +477,12 @@ impl SkipInfo {
     fn affected(&self) -> Result<String, Error> {
         match self.count {
             0 => Ok(String::new()),
-            1 => proxmox::tools::time::epoch_to_rfc3339_utc(self.oldest),
+            1 => Ok(proxmox_time::epoch_to_rfc3339_utc(self.oldest)?),
             _ => {
                 Ok(format!(
                     "{} .. {}",
-                    proxmox::tools::time::epoch_to_rfc3339_utc(self.oldest)?,
-                    proxmox::tools::time::epoch_to_rfc3339_utc(self.newest)?,
+                    proxmox_time::epoch_to_rfc3339_utc(self.oldest)?,
+                    proxmox_time::epoch_to_rfc3339_utc(self.newest)?,
                 ))
             }
         }
@@ -706,7 +707,7 @@ pub async fn pull_store(
     }
 
     if delete {
-        let result: Result<(), Error> = proxmox::try_block!({
+        let result: Result<(), Error> = proxmox_lang::try_block!({
             let local_groups = BackupInfo::list_backup_groups(&tgt_store.base_path())?;
             for local_group in local_groups {
                 if new_groups.contains(&local_group) {

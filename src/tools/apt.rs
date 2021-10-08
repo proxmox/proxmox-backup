@@ -4,8 +4,8 @@ use std::collections::HashMap;
 use anyhow::{Error, bail, format_err};
 use apt_pkg_native::Cache;
 
-use proxmox::const_regex;
 use proxmox::tools::fs::{file_read_optional_string, replace_file, CreateOptions};
+use proxmox_schema::const_regex;
 
 use pbs_api_types::APTUpdateInfo;
 

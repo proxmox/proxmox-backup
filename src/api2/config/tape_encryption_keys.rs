@@ -1,15 +1,8 @@
 use anyhow::{bail, Error};
 use serde_json::Value;
 
-use proxmox::{
-    api::{
-        api,
-        ApiMethod,
-        Router,
-        RpcEnvironment,
-        Permission,
-    },
-};
+use proxmox_router::{ApiMethod, Router, RpcEnvironment, Permission};
+use proxmox_schema::api;
 
 use pbs_api_types::{
     Fingerprint, KeyInfo, Kdf,

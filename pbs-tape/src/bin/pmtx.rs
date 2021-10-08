@@ -17,13 +17,9 @@ use std::fs::File;
 use anyhow::{bail, Error};
 use serde_json::Value;
 
-use proxmox::{
-    api::{
-        api,
-        cli::*,
-        RpcEnvironment,
-    },
-};
+use proxmox_schema::api;
+use proxmox_router::cli::*;
+use proxmox_router::RpcEnvironment;
 
 use pbs_config::drive::complete_changer_name;
 use pbs_api_types::{
@@ -93,7 +89,7 @@ fn inquiry(
 
     let output_format = get_output_format(&param);
 
-    let result: Result<_, Error> = proxmox::try_block!({
+    let result: Result<_, Error> = proxmox_lang::try_block!({
         let mut file = get_changer_handle(&param)?;
         let info = scsi_inquiry(&mut file)?;
         Ok(info)
@@ -281,7 +277,7 @@ fn status(
 
     let output_format = get_output_format(&param);
 
-    let result: Result<_, Error> = proxmox::try_block!({
+    let result: Result<_, Error> = proxmox_lang::try_block!({
         let mut file = get_changer_handle(&param)?;
         let status = sg_pt_changer::read_element_status(&mut file)?;
         Ok(status)

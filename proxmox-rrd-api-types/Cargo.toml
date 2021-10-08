@@ -7,5 +7,5 @@ description = "API type definitions for proxmox-rrd crate."
 
 
 [dependencies]
-serde = { version = "1.0", features = [] }
-proxmox = { version = "0.14.0", features = ["api-macro"] }
+serde = { version = "1.0", features = ["derive"] }
+proxmox-schema = { version = "1", features = ["api-macro"] }

@@ -620,7 +620,7 @@ impl DataStore {
             // writer" information and thus no safe atime cutoff
             let _exclusive_lock =  self.chunk_store.try_exclusive_lock()?;
 
-            let phase1_start_time = proxmox::tools::time::epoch_i64();
+            let phase1_start_time = proxmox_time::epoch_i64();
             let oldest_writer = self.chunk_store.oldest_writer().unwrap_or(phase1_start_time);
 
             let mut gc_status = GarbageCollectionStatus::default();
@@ -742,7 +742,7 @@ impl DataStore {
         path.push(backup_dir.relative_path());
         path.push(filename);
 
-        proxmox::try_block!({
+        proxmox_lang::try_block!({
             let mut file = std::fs::File::open(&path)?;
             DataBlob::load_from_reader(&mut file)
         }).map_err(|err| format_err!("unable to load blob '{:?}' - {}", path, err))
@@ -758,7 +758,7 @@ impl DataStore {
 
         let (chunk_path, digest_str) = self.chunk_store.chunk_path(digest);
 
-        proxmox::try_block!({
+        proxmox_lang::try_block!({
             let mut file = std::fs::File::open(&chunk_path)?;
             DataBlob::load_from_reader(&mut file)
         }).map_err(|err| format_err!(

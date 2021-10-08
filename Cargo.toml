@@ -58,6 +58,7 @@ thiserror = "1.0"
 futures = "0.3"
 h2 = { version = "0.3", features = [ "stream" ] }
 handlebars = "3.0"
+hex = "0.4.3"
 http = "0.2"
 hyper = { version = "0.14", features = [ "full" ] }
 lazy_static = "1.4"
@@ -96,11 +97,20 @@ zstd = { version = "0.6", features = [ "bindgen" ] }
 pathpatterns = "0.1.2"
 pxar = { version = "0.10.1", features = [ "tokio-io" ] }
 
-proxmox = { version = "0.14.0", features = [ "sortable-macro", "api-macro", "cli", "router", "tfa" ] }
-proxmox-acme-rs = "0.2.1"
-proxmox-apt = "0.7.0"
+proxmox = { version = "0.14.0", features = [ "sortable-macro" ] }
 proxmox-http = { version = "0.5.0", features = [ "client", "http-helpers", "websocket" ] }
-proxmox-openid = "0.7.0"
+proxmox-io = "1"
+proxmox-lang = "1"
+proxmox-router = { version = "1", features = [ "cli" ] }
+proxmox-schema = { version = "1", features = [ "api-macro" ] }
+proxmox-section-config = "1"
+proxmox-tfa = { version = "1", features = [ "u2f" ] }
+proxmox-time = "1"
+proxmox-uuid = "1"
+
+proxmox-acme-rs = "0.2.1"
+proxmox-apt = "0.8.0"
+proxmox-openid = "0.8.0"
 
 pbs-api-types = { path = "pbs-api-types" }
 pbs-buildcfg = { path = "pbs-buildcfg" }

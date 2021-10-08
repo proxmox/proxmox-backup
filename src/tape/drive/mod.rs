@@ -8,15 +8,13 @@ pub use lto::*;
 use std::path::PathBuf;
 
 use anyhow::{bail, format_err, Error};
-use ::serde::{Deserialize};
+use serde::Deserialize;
 use serde_json::Value;
 use nix::fcntl::OFlag;
 use nix::sys::stat::Mode;
 
 use proxmox::{
     tools::{
-        Uuid,
-        io::ReadExt,
         fs::{
             lock_file,
             atomic_open_or_create_file,
@@ -25,8 +23,10 @@ use proxmox::{
             CreateOptions,
        }
     },
-    api::section_config::SectionConfigData,
 };
+use proxmox_io::ReadExt;
+use proxmox_section_config::SectionConfigData;
+use proxmox_uuid::Uuid;
 
 use pbs_api_types::{VirtualTapeDrive, LtoTapeDrive, Fingerprint};
 use pbs_config::key_config::KeyConfig;
@@ -364,7 +364,7 @@ pub fn request_and_load_media(
     MediaId,
 ), Error> {
 
-    let check_label = |handle: &mut dyn TapeDriver, uuid: &proxmox::tools::Uuid| {
+    let check_label = |handle: &mut dyn TapeDriver, uuid: &proxmox_uuid::Uuid| {
         if let Ok((Some(media_id), _)) = handle.read_label() {
             task_log!(
                 worker,

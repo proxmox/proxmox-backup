@@ -15,10 +15,10 @@ use percent_encoding::percent_encode;
 use xdg::BaseDirectories;
 
 use proxmox::{
-    api::error::HttpError,
     sys::linux::tty,
     tools::fs::{file_get_json, replace_file, CreateOptions},
 };
+use proxmox_router::HttpError;
 
 use proxmox_http::client::HttpsConnector;
 use proxmox_http::uri::build_authority;
@@ -230,7 +230,7 @@ fn store_ticket_info(prefix: &str, server: &str, username: &str, ticket: &str, t
 
     let mut data = file_get_json(&path, Some(json!({})))?;
 
-    let now = proxmox::tools::time::epoch_i64();
+    let now = proxmox_time::epoch_i64();
 
     data[server][username] = json!({ "timestamp": now, "ticket": ticket, "token": token});
 
@@ -261,7 +261,7 @@ fn load_ticket_info(prefix: &str, server: &str, userid: &Userid) -> Option<(Stri
     // usually /run/user/<uid>/...
     let path = base.place_runtime_file("tickets").ok()?;
     let data = file_get_json(&path, None).ok()?;
-    let now = proxmox::tools::time::epoch_i64();
+    let now = proxmox_time::epoch_i64();
     let ticket_lifetime = ticket::TICKET_LIFETIME - 60;
     let uinfo = data[server][userid.as_str()].as_object()?;
     let timestamp = uinfo["timestamp"].as_i64()?;

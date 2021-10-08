@@ -1,8 +1,9 @@
 use anyhow::{bail, format_err, Error};
 use serde_json::{json, Value};
 
-use proxmox::api::{api, Router, Permission};
 use proxmox::tools::fs::{file_read_firstline, replace_file, CreateOptions};
+use proxmox_router::{Router, Permission};
+use proxmox_schema::api;
 
 use pbs_api_types::{NODE_SCHEMA, TIME_ZONE_SCHEMA, PRIV_SYS_MODIFY};
 
@@ -55,8 +56,8 @@ fn read_etc_localtime() -> Result<String, Error> {
 )]
 /// Read server time and time zone settings.
 fn get_time(_param: Value) -> Result<Value, Error> {
-    let time = proxmox::tools::time::epoch_i64();
-    let tm = proxmox::tools::time::localtime(time)?;
+    let time = proxmox_time::epoch_i64();
+    let tm = proxmox_time::localtime(time)?;
     let offset = tm.tm_gmtoff;
 
     let localtime = time + offset;

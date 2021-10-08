@@ -3,8 +3,8 @@
 use anyhow::{Error};
 use serde_json::{json, Value};
 
-use proxmox::api::{ApiHandler, ApiMethod, Router, RpcEnvironment, Permission};
-use proxmox::api::schema::ObjectSchema;
+use proxmox_router::{ApiHandler, ApiMethod, Router, RpcEnvironment, Permission};
+use proxmox_schema::ObjectSchema;
 
 fn get_version(
     _param: Value,

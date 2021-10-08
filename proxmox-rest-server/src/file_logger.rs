@@ -110,8 +110,8 @@ impl FileLogger {
         }
 
         let line = if self.options.prefix_time {
-            let now = proxmox::tools::time::epoch_i64();
-            let rfc3339 = match proxmox::tools::time::epoch_to_rfc3339(now) {
+            let now = proxmox_time::epoch_i64();
+            let rfc3339 = match proxmox_time::epoch_to_rfc3339(now) {
                 Ok(rfc3339) => rfc3339,
                 Err(_) => "1970-01-01T00:00:00Z".into(), // for safety, should really not happen!
             };

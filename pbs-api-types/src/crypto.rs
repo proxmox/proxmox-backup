@@ -3,7 +3,7 @@ use std::fmt::{self, Display};
 use anyhow::Error;
 use serde::{Deserialize, Serialize};
 
-use proxmox::api::api;
+use proxmox_schema::api;
 
 use pbs_tools::format::{as_fingerprint, bytes_as_fingerprint};
 

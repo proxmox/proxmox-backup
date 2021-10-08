@@ -2,7 +2,8 @@ use std::io::{BufReader, Read};
 use std::sync::Arc;
 
 use anyhow::{bail, format_err, Error};
-use proxmox::tools::io::ReadExt;
+
+use proxmox_io::ReadExt;
 
 use pbs_tools::crypt_config::CryptConfig;
 

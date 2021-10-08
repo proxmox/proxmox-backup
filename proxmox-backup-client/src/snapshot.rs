@@ -3,10 +3,9 @@ use std::sync::Arc;
 use anyhow::Error;
 use serde_json::{json, Value};
 
-use proxmox::{
-    api::{api, cli::*},
-    tools::fs::file_get_contents,
-};
+use proxmox::tools::fs::file_get_contents;
+use proxmox_router::cli::*;
+use proxmox_schema::api;
 
 use pbs_tools::crypt_config::CryptConfig;
 use pbs_config::key_config::decrypt_key;

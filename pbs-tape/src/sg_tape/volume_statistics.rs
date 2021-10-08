@@ -4,7 +4,7 @@ use std::os::unix::io::AsRawFd;
 use anyhow::{bail, format_err, Error};
 use endian_trait::Endian;
 
-use proxmox::tools::io::ReadExt;
+use proxmox_io::ReadExt;
 
 use pbs_api_types::Lp17VolumeStatistics;
 
@@ -71,7 +71,7 @@ fn decode_volume_statistics(data: &[u8]) -> Result<Lp17VolumeStatistics, Error> 
         Ok(value)
     };
 
-    proxmox::try_block!({
+    proxmox_lang::try_block!({
         if !((data[0] & 0x7f) == 0x17 && data[1] == 0) {
             bail!("invalid response");
         }

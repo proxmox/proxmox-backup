@@ -1,14 +1,8 @@
 use anyhow::{Error};
 use serde_json::Value;
 
-use proxmox::{
-    api::{
-        api,
-        cli::*,
-        RpcEnvironment,
-        ApiHandler,
-    },
-};
+use proxmox_router::{cli::*, ApiHandler, RpcEnvironment};
+use proxmox_schema::api;
 
 use pbs_api_types::{
     MEDIA_POOL_NAME_SCHEMA, CHANGER_NAME_SCHEMA, MediaStatus, MediaListEntry,

@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 
 use serde_json::{json, Value};
 
-use proxmox::api::{RpcEnvironment, RpcEnvironmentType};
+use proxmox_router::{RpcEnvironment, RpcEnvironmentType};
 
 use crate::ApiConfig;
 

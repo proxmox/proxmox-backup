@@ -9,8 +9,8 @@ use hyper::http::request::Parts;
 use serde_json::{json, Value};
 
 use proxmox::{sortable, identity};
-use proxmox::api::{ApiResponseFuture, ApiHandler, ApiMethod, RpcEnvironment};
-use proxmox::api::schema::*;
+use proxmox_router::{ApiResponseFuture, ApiHandler, ApiMethod, RpcEnvironment};
+use proxmox_schema::*;
 
 use pbs_datastore::{DataStore, DataBlob};
 use pbs_datastore::file_formats::{DataBlobHeader, EncryptedDataBlobHeader};
@@ -59,7 +59,7 @@ impl Future for UploadChunk {
                             break format_err!("uploaded chunk has unexpected size.");
                         }
 
-                        let (is_duplicate, compressed_size) = match proxmox::try_block! {
+                        let (is_duplicate, compressed_size) = match proxmox_lang::try_block! {
                             let mut chunk = DataBlob::from_raw(raw_data)?;
 
                             pbs_runtime::block_in_place(|| {

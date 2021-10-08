@@ -5,7 +5,7 @@ use anyhow::{bail, format_err, Context, Error};
 use serde::{Deserialize, Serialize};
 
 use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
-use proxmox::try_block;
+use proxmox_lang::try_block;
 
 use pbs_api_types::{Kdf, KeyInfo, Fingerprint};
 
@@ -122,7 +122,7 @@ impl KeyConfig  {
         let crypt_config = CryptConfig::new(raw_key.clone())?;
         let fingerprint = Some(Fingerprint::new(crypt_config.fingerprint()));
 
-        let created = proxmox::tools::time::epoch_i64();
+        let created = proxmox_time::epoch_i64();
         Ok(Self {
             kdf: None,
             created,
@@ -183,7 +183,7 @@ impl KeyConfig  {
         enc_data.extend_from_slice(&tag);
         enc_data.extend_from_slice(&encrypted_key);
 
-        let created = proxmox::tools::time::epoch_i64();
+        let created = proxmox_time::epoch_i64();
 
         // always compute fingerprint
         let crypt_config = CryptConfig::new(raw_key.clone())?;
@@ -370,8 +370,8 @@ fn encrypt_decrypt_test() -> Result<(), Error> {
 
     let key = KeyConfig {
         kdf: None,
-        created: proxmox::tools::time::epoch_i64(),
-        modified: proxmox::tools::time::epoch_i64(),
+        created: proxmox_time::epoch_i64(),
+        modified: proxmox_time::epoch_i64(),
         data: (0u8..32u8).collect(),
         fingerprint: Some(Fingerprint::new([
             14, 171, 212, 70, 11, 110, 185, 202, 52, 80, 35, 222, 226, 183, 120, 199, 144, 229, 74,
@@ -396,8 +396,8 @@ fn encrypt_decrypt_test() -> Result<(), Error> {
 fn fingerprint_checks() -> Result<(), Error> {
     let key = KeyConfig {
         kdf: None,
-        created: proxmox::tools::time::epoch_i64(),
-        modified: proxmox::tools::time::epoch_i64(),
+        created: proxmox_time::epoch_i64(),
+        modified: proxmox_time::epoch_i64(),
         data: (0u8..32u8).collect(),
         fingerprint: Some(Fingerprint::new([0u8; 32])), // wrong FP
         hint: None,
@@ -413,8 +413,8 @@ fn fingerprint_checks() -> Result<(), Error> {
 
     let key = KeyConfig {
         kdf: None,
-        created: proxmox::tools::time::epoch_i64(),
-        modified: proxmox::tools::time::epoch_i64(),
+        created: proxmox_time::epoch_i64(),
+        modified: proxmox_time::epoch_i64(),
         data: (0u8..32u8).collect(),
         fingerprint: None,
         hint: None,

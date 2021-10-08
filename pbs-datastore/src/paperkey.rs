@@ -4,7 +4,7 @@ use std::process::{Command, Stdio};
 use anyhow::{bail, format_err, Error};
 use serde::{Deserialize, Serialize};
 
-use proxmox::api::api;
+use proxmox_schema::api;
 
 use pbs_config::key_config::KeyConfig;
 

@@ -3,7 +3,7 @@ use std::io::Read;
 use endian_trait::Endian;
 use std::os::unix::io::AsRawFd;
 
-use proxmox::tools::io::ReadExt;
+use proxmox_io::ReadExt;
 
 use crate::sgutils2::SgRaw;
 
@@ -38,7 +38,7 @@ pub fn report_density<F: AsRawFd>(file: &mut F) -> Result<u8, Error> {
 
     let mut max_density = 0u8;
 
-    proxmox::try_block!({
+    proxmox_lang::try_block!({
         let mut reader = &data[..];
 
         let page_len: u16 = unsafe { reader.read_be_value()? };

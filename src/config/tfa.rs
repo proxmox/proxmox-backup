@@ -16,14 +16,11 @@ use webauthn_rs::{proto::UserVerificationPolicy, Webauthn};
 
 use webauthn_rs::proto::Credential as WebauthnCredential;
 
-use proxmox::api::api;
-use proxmox::api::schema::Updater;
 use proxmox::sys::error::SysError;
 use proxmox::tools::fs::CreateOptions;
-use proxmox::tools::tfa::totp::Totp;
-use proxmox::tools::tfa::u2f;
-use proxmox::tools::uuid::Uuid;
-use proxmox::tools::AsHex;
+use proxmox_schema::{api, Updater};
+use proxmox_tfa::{totp::Totp, u2f};
+use proxmox_uuid::Uuid;
 
 use pbs_buildcfg::configdir;
 use pbs_config::{open_backup_lockfile, BackupLockGuard};
@@ -276,7 +273,7 @@ impl TfaConfig {
     }
 
     /// Remove non-existent users.
-    pub fn cleanup_users(&mut self, config: &proxmox::api::section_config::SectionConfigData) {
+    pub fn cleanup_users(&mut self, config: &proxmox_section_config::SectionConfigData) {
         self.users
             .retain(|user, _| config.lookup::<User>("user", user.as_str()).is_ok());
     }
@@ -341,7 +338,7 @@ impl<T> TfaEntry<T> {
                 id: Uuid::generate().to_string(),
                 enable: true,
                 description,
-                created: proxmox::tools::time::epoch_i64(),
+                created: proxmox_time::epoch_i64(),
             },
             entry,
         }
@@ -371,7 +368,7 @@ impl U2fRegistrationChallenge {
         Self {
             challenge,
             description,
-            created: proxmox::tools::time::epoch_i64(),
+            created: proxmox_time::epoch_i64(),
         }
     }
 }
@@ -410,7 +407,7 @@ impl WebauthnRegistrationChallenge {
             state,
             challenge,
             description,
-            created: proxmox::tools::time::epoch_i64(),
+            created: proxmox_time::epoch_i64(),
         }
     }
 }
@@ -441,7 +438,7 @@ impl WebauthnAuthChallenge {
         Self {
             state,
             challenge,
-            created: proxmox::tools::time::epoch_i64(),
+            created: proxmox_time::epoch_i64(),
         }
     }
 }
@@ -614,7 +611,7 @@ impl TfaUserChallengeData {
         challenge: &str,
         response: &str,
     ) -> Result<TfaEntry<u2f::Registration>, Error> {
-        let expire_before = proxmox::tools::time::epoch_i64() - CHALLENGE_TIMEOUT;
+        let expire_before = proxmox_time::epoch_i64() - CHALLENGE_TIMEOUT;
 
         let index = self
             .inner
@@ -659,7 +656,7 @@ impl TfaUserChallengeData {
         response: webauthn_rs::proto::RegisterPublicKeyCredential,
         existing_registrations: &[TfaEntry<WebauthnCredential>],
     ) -> Result<TfaEntry<WebauthnCredential>, Error> {
-        let expire_before = proxmox::tools::time::epoch_i64() - CHALLENGE_TIMEOUT;
+        let expire_before = proxmox_time::epoch_i64() - CHALLENGE_TIMEOUT;
 
         let index = self
             .inner
@@ -991,7 +988,7 @@ impl TfaUserData {
         mut webauthn: Webauthn<WebauthnConfig>,
         mut response: Value,
     ) -> Result<(), Error> {
-        let expire_before = proxmox::tools::time::epoch_i64() - CHALLENGE_TIMEOUT;
+        let expire_before = proxmox_time::epoch_i64() - CHALLENGE_TIMEOUT;
 
         let challenge = match response
             .as_object_mut()
@@ -1083,9 +1080,9 @@ impl Recovery {
         proxmox::sys::linux::fill_with_random_data(&mut secret)?;
 
         let mut this = Self {
-            secret: AsHex(&secret).to_string(),
+            secret: hex::encode(&secret).to_string(),
             entries: Vec::with_capacity(10),
-            created: proxmox::tools::time::epoch_i64(),
+            created: proxmox_time::epoch_i64(),
         };
 
         let mut original = Vec::new();
@@ -1093,14 +1090,11 @@ impl Recovery {
         let mut key_data = [0u8; 80]; // 10 keys of 12 bytes
         proxmox::sys::linux::fill_with_random_data(&mut key_data)?;
         for b in key_data.chunks(8) {
+            // unwrap: encoding hex bytes to fixed sized arrays
             let entry = format!(
-                "{}-{}-{}-{}",
-                AsHex(&b[0..2]),
-                AsHex(&b[2..4]),
-                AsHex(&b[4..6]),
-                AsHex(&b[6..8]),
+                "{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}",
+                b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7],
             );
-
             this.entries.push(Some(this.hash(entry.as_bytes())?));
             original.push(entry);
         }
@@ -1120,7 +1114,7 @@ impl Recovery {
             .sign_oneshot_to_vec(data)
             .map_err(|err| format_err!("error calculating hmac: {}", err))?;
 
-        Ok(AsHex(&hmac).to_string())
+        Ok(hex::encode(&hmac))
     }
 
     /// Iterator over available keys.
@@ -1159,7 +1153,7 @@ where
     D: Deserializer<'de>,
     T: Deserialize<'de> + IsExpired,
 {
-    let expire_before = proxmox::tools::time::epoch_i64() - CHALLENGE_TIMEOUT;
+    let expire_before = proxmox_time::epoch_i64() - CHALLENGE_TIMEOUT;
     Ok(
         deserializer.deserialize_seq(crate::tools::serde_filter::FilteredVecVisitor::new(
             "a challenge entry",

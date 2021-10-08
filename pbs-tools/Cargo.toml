@@ -15,7 +15,7 @@ endian_trait = { version = "0.6", features = ["arrays"] }
 flate2 = "1.0"
 foreign-types = "0.3"
 futures = "0.3"
-hex = "0.4"
+hex = "0.4.3"
 lazy_static = "1.4"
 libc = "0.2"
 log = "0.4"
@@ -33,9 +33,9 @@ walkdir = "2"
 zstd = { version = "0.6", features = [ "bindgen" ] }
 
 proxmox = { version = "0.14.0", default-features = false, features = [ "tokio" ] }
-proxmox-io = { version = "1.0.0" }
-proxmox-lang = { version = "1.0.0" }
-proxmox-time = { version = "1.0.0" }
+proxmox-io = { version = "1", features = [ "tokio" ] }
+proxmox-lang = { version = "1" }
+proxmox-time = { version = "1" }
 
 pbs-buildcfg = { path = "../pbs-buildcfg" }
 pbs-runtime = { path = "../pbs-runtime" }

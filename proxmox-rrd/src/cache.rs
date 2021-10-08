@@ -62,7 +62,7 @@ impl RRDCache {
         create_path(path.parent().unwrap(), Some(self.dir_options.clone()), Some(self.file_options.clone()))?;
 
         let mut map = self.cache.write().unwrap();
-        let now = proxmox::tools::time::epoch_f64();
+        let now = proxmox_time::epoch_f64();
 
         if let Some(rrd) = map.get_mut(rel_path) {
             rrd.update(now, value);

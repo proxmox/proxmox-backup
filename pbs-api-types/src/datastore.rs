@@ -1,12 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-use proxmox::api::api;
-use proxmox::api::schema::{
-    ApiStringFormat, ApiType, ArraySchema, EnumEntry, IntegerSchema, ReturnType, Schema,
-    StringSchema, Updater,
+use proxmox_schema::{
+    api, const_regex, ApiStringFormat, ApiType, ArraySchema, EnumEntry, IntegerSchema, ReturnType,
+    Schema, StringSchema, Updater,
 };
-
-use proxmox::const_regex;
 
 use crate::{
     PROXMOX_SAFE_ID_FORMAT, SHA256_HEX_REGEX, SINGLE_LINE_COMMENT_SCHEMA, CryptMode, UPID,

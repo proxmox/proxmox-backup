@@ -7,7 +7,8 @@ use regex::Regex;
 use serde_json::{json, Value};
 use ::serde::{Deserialize, Serialize};
 
-use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};
+use proxmox_router::{ApiMethod, Router, RpcEnvironment, Permission};
+use proxmox_schema::api;
 use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
 use proxmox::{IPRE, IPV4RE, IPV6RE, IPV4OCTET, IPV6H16, IPV6LS32};
 

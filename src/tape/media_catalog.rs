@@ -11,18 +11,13 @@ use endian_trait::Endian;
 use pbs_tools::fs::read_subdir;
 use pbs_datastore::backup_info::BackupDir;
 
-use proxmox::tools::{
-    Uuid,
-    fs::{
-        fchown,
-        create_path,
-        CreateOptions,
-    },
-    io::{
-        WriteExt,
-        ReadExt,
-    },
+use proxmox::tools::fs::{
+    fchown,
+    create_path,
+    CreateOptions,
 };
+use proxmox_io::{WriteExt, ReadExt};
+use proxmox_uuid::Uuid;
 
 use crate::{
     tape::{
@@ -207,7 +202,7 @@ impl MediaCatalog {
 
         let path = Self::catalog_path(base_path, uuid);
 
-        let me = proxmox::try_block!({
+        let me = proxmox_lang::try_block!({
 
             Self::create_basedir(base_path)?;
 
@@ -295,7 +290,7 @@ impl MediaCatalog {
 
         let tmp_path = Self::tmp_catalog_path(base_path, uuid);
 
-        let me = proxmox::try_block!({
+        let me = proxmox_lang::try_block!({
 
             let file = Self::create_temporary_database_file(base_path, uuid)?;
 
@@ -380,7 +375,7 @@ impl MediaCatalog {
                 let pending = &self.pending;
                 // Note: lock file, to get a consistent view with load_catalog
                 nix::fcntl::flock(file.as_raw_fd(), nix::fcntl::FlockArg::LockExclusive)?;
-                let result: Result<(), Error> = proxmox::try_block!({
+                let result: Result<(), Error> = proxmox_lang::try_block!({
                     file.write_all(pending)?;
                     file.flush()?;
                     file.sync_data()?;

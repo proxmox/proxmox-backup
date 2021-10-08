@@ -17,7 +17,7 @@ use std::convert::TryInto;
 
 use anyhow::{bail, format_err, Error};
 
-use proxmox::tools::Uuid;
+use proxmox_uuid::Uuid;
 
 use pbs_api_types::{
     Fingerprint, MamAttribute, LtoDriveAndMediaStatus, LtoTapeDrive, Lp17VolumeStatistics,
@@ -47,7 +47,7 @@ use crate::{
 /// - for autoloader only, try to reload ejected tapes
 pub fn open_lto_tape_drive(config: &LtoTapeDrive) -> Result<LtoTapeHandle, Error> {
 
-    proxmox::try_block!({
+    proxmox_lang::try_block!({
         let file = open_lto_tape_device(&config.path)?;
 
         let mut handle = LtoTapeHandle::new(file)?;

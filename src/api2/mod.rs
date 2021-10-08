@@ -14,9 +14,7 @@ pub mod pull;
 pub mod tape;
 pub mod helpers;
 
-use proxmox::api::router::SubdirMap;
-use proxmox::api::Router;
-use proxmox::list_subdirs_api_method;
+use proxmox_router::{list_subdirs_api_method, Router, SubdirMap};
 
 const SUBDIRS: SubdirMap = &[
     ("access", &access::ROUTER),

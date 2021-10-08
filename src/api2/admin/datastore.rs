@@ -12,16 +12,15 @@ use hyper::{header, Body, Response, StatusCode};
 use serde_json::{json, Value};
 use tokio_stream::wrappers::ReceiverStream;
 
-use proxmox::api::{
-    api, ApiResponseFuture, ApiHandler, ApiMethod, Router,
-    RpcEnvironment, RpcEnvironmentType, Permission
-};
-use proxmox::api::router::SubdirMap;
-use proxmox::api::schema::*;
+use proxmox::{identity, sortable};
 use proxmox::tools::fs::{
     file_read_firstline, file_read_optional_string, replace_file, CreateOptions,
 };
-use proxmox::{http_err, identity, list_subdirs_api_method, sortable};
+use proxmox_router::{
+    list_subdirs_api_method, http_err, ApiResponseFuture, ApiHandler, ApiMethod, Router,
+    RpcEnvironment, RpcEnvironmentType, SubdirMap, Permission,
+};
+use proxmox_schema::*;
 
 use pxar::accessor::aio::Accessor;
 use pxar::EntryKind;

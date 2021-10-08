@@ -3,8 +3,8 @@ use std::collections::{HashMap, HashSet};
 
 use anyhow::{bail, Error};
 
-use proxmox::tools::Uuid;
-use proxmox::api::section_config::SectionConfigData;
+use proxmox_section_config::SectionConfigData;
+use proxmox_uuid::Uuid;
 
 use pbs_api_types::{VirtualTapeDrive, ScsiTapeChanger};
 use pbs_tape::{ElementStatus, MtxStatus};

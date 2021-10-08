@@ -1,6 +1,6 @@
 use serde::{Serialize, Deserialize};
 
-use proxmox::api::{ api, schema::* };
+use proxmox_schema::*;
 use pbs_api_types::SINGLE_LINE_COMMENT_FORMAT;
 
 pub const SYSTEMD_SECTION_NAME_SCHEMA: Schema = StringSchema::new(

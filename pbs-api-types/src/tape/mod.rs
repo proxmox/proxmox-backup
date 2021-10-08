@@ -22,13 +22,10 @@ pub use media_location::*;
 mod media;
 pub use media::*;
 
-use ::serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
-use proxmox::api::api;
-use proxmox::api::schema::{Schema, StringSchema, ApiStringFormat};
-use proxmox::tools::Uuid;
-
-use proxmox::const_regex;
+use proxmox_schema::{api, const_regex, Schema, StringSchema, ApiStringFormat};
+use proxmox_uuid::Uuid;
 
 use crate::{
     FINGERPRINT_SHA256_FORMAT, BACKUP_ID_SCHEMA, BACKUP_TYPE_SCHEMA,

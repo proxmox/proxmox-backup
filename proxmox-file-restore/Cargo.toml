@@ -16,7 +16,12 @@ tokio = { version = "1.6", features = [ "io-std", "rt", "rt-multi-thread", "time
 
 pxar = { version = "0.10.1", features = [ "tokio-io" ] }
 
-proxmox = { version = "0.14.0", features = [ "api-macro", "cli" ] }
+proxmox = { version = "0.14.0" }
+proxmox-lang = "1"
+proxmox-router = { version = "1", features = [ "cli" ] }
+proxmox-schema = { version = "1", features = [ "api-macro" ] }
+proxmox-time = "1"
+proxmox-uuid = "1"
 
 pbs-api-types = { path = "../pbs-api-types" }
 pbs-buildcfg = { path = "../pbs-buildcfg" }

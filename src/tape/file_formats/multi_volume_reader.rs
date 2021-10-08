@@ -2,7 +2,7 @@ use std::io::{Read};
 
 use anyhow::{bail, Error};
 
-use proxmox::tools::io::ReadExt;
+use proxmox_io::ReadExt;
 
 use pbs_tape::{TapeRead, MediaContentHeader};
 
@@ -50,7 +50,7 @@ impl <'a> Read for MultiVolumeReader<'a> {
             let mut reader = (self.next_reader_fn)()
                 .map_err(|err| proxmox::io_format_err!("multi-volume next failed: {}", err))?;
 
-            proxmox::try_block!({
+            proxmox_lang::try_block!({
                 let part_header: MediaContentHeader = unsafe { reader.read_le_value()? };
                 self.reader = Some(reader);
 

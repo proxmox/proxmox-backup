@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use endian_trait::Endian;
 use serde::{Deserialize, Serialize};
 
-use proxmox::tools::Uuid;
+use proxmox_uuid::Uuid;
 
 use pbs_api_types::Fingerprint;
 

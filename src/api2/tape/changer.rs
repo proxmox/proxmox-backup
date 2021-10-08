@@ -4,8 +4,8 @@ use std::path::Path;
 use anyhow::Error;
 use serde_json::Value;
 
-use proxmox::api::{api, Router, SubdirMap, RpcEnvironment, Permission};
-use proxmox::list_subdirs_api_method;
+use proxmox_schema::api;
+use proxmox_router::{list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap};
 
 use pbs_api_types::{
     Authid, ChangerListEntry, LtoTapeDrive, MtxEntryKind, MtxStatusEntry, ScsiTapeChanger,

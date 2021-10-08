@@ -8,10 +8,9 @@ use http::Response;
 use hyper::{Body, Method, StatusCode};
 use http::HeaderMap;
 
-use proxmox::try_block;
-use proxmox::api::RpcEnvironmentType;
+use proxmox_lang::try_block;
+use proxmox_router::{RpcEnvironmentType, UserInformation};
 use proxmox::tools::fs::CreateOptions;
-use proxmox::api::UserInformation;
 
 use proxmox_rest_server::{daemon, AuthError, ApiConfig, RestServer, RestEnvironment, ServerAdapter};
 

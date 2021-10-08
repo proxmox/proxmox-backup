@@ -1,6 +1,6 @@
-use ::serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
-use proxmox::api::api;
+use proxmox_schema::api;
 
 #[api()]
 /// Media status

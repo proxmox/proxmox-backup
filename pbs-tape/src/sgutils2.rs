@@ -6,16 +6,16 @@
 //!
 //! The SCSI Commands Reference Manual also contains some useful information.
 
+use std::ffi::CStr;
 use std::os::unix::io::AsRawFd;
 use std::ptr::NonNull;
 
 use anyhow::{bail, format_err, Error};
 use endian_trait::Endian;
-use serde::{Deserialize, Serialize};
 use libc::{c_char, c_int};
-use std::ffi::CStr;
+use serde::{Deserialize, Serialize};
 
-use proxmox::tools::io::ReadExt;
+use proxmox_io::ReadExt;
 
 #[derive(thiserror::Error, Debug)]
 pub struct SenseInfo {
@@ -379,7 +379,7 @@ pub fn get_asc_ascq_string(asc: u8, ascq: u8) -> String {
         )
     };
 
-    proxmox::try_block!({
+    proxmox_lang::try_block!({
         if res.is_null() { // just to be safe
             bail!("unexpected NULL ptr");
         }
@@ -675,7 +675,7 @@ pub fn scsi_inquiry<F: AsRawFd>(
     let data = sg_raw.do_command(&cmd)
         .map_err(|err| format_err!("SCSI inquiry failed - {}", err))?;
 
-    proxmox::try_block!({
+    proxmox_lang::try_block!({
         let mut reader = &data[..];
 
         let page: InquiryPage  = unsafe { reader.read_be_value()? };
@@ -724,7 +724,7 @@ pub fn scsi_mode_sense<F: AsRawFd, P: Endian>(
     let data = sg_raw.do_command(&cmd)
         .map_err(|err| format_err!("mode sense failed - {}", err))?;
 
-    proxmox::try_block!({
+    proxmox_lang::try_block!({
         let mut reader = &data[..];
 
         let head: ModeParameterHeader = unsafe { reader.read_be_value()? };
@@ -777,7 +777,7 @@ pub fn scsi_request_sense<F: AsRawFd>(
     let data = sg_raw.do_command(&cmd)
         .map_err(|err| format_err!("request sense failed - {}", err))?;
 
-    let sense = proxmox::try_block!({
+    let sense = proxmox_lang::try_block!({
         let data_len = data.len();
 
         if data_len < std::mem::size_of::<RequestSenseFixed>() {

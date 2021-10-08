@@ -14,8 +14,9 @@ use serde_json::Value;
 use tokio::signal::unix::{signal, SignalKind};
 
 use proxmox::{sortable, identity};
-use proxmox::api::{ApiHandler, ApiMethod, RpcEnvironment, schema::*, cli::*};
 use proxmox::tools::fd::Fd;
+use proxmox_router::{ApiHandler, ApiMethod, RpcEnvironment, cli::*};
+use proxmox_schema::*;
 
 use pbs_tools::crypt_config::CryptConfig;
 use pbs_config::key_config::load_and_decrypt_key;

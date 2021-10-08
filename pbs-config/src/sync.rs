@@ -1,15 +1,10 @@
-use anyhow::{Error};
-use lazy_static::lazy_static;
 use std::collections::HashMap;
 
-use proxmox::api::{
-    schema::*,
-    section_config::{
-        SectionConfig,
-        SectionConfigData,
-        SectionConfigPlugin,
-    }
-};
+use anyhow::Error;
+use lazy_static::lazy_static;
+
+use proxmox_schema::{ApiType, Schema};
+use proxmox_section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin};
 
 use pbs_api_types::{JOB_ID_SCHEMA, SyncJobConfig};
 

@@ -7,10 +7,11 @@ use anyhow::{bail, format_err, Error};
 use serde_json::{json, Value};
 use walkdir::WalkDir;
 
-use proxmox::api::cli::{
+use proxmox_router::cli::{
     format_and_print_result, get_output_format, CliCommand, CliCommandMap, CommandLineInterface,
+    OUTPUT_FORMAT,
 };
-use proxmox::api::{api, cli::*};
+use proxmox_schema::api;
 
 use pbs_tools::cli::outfile_or_stdout;
 use pbs_tools::crypt_config::CryptConfig;
@@ -282,7 +283,7 @@ fn inspect_file(
             };
 
             let mut ctime_str = index.index_ctime().to_string();
-            if let Ok(s) = proxmox::tools::time::strftime_local("%c", index.index_ctime()) {
+            if let Ok(s) = proxmox_time::strftime_local("%c", index.index_ctime()) {
                 ctime_str = s;
             }
 

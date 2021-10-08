@@ -4,14 +4,8 @@ use std::sync::{Arc, RwLock};
 use anyhow::{bail, Error};
 use lazy_static::lazy_static;
 
-use proxmox::api::{
-    schema::*,
-    section_config::{
-        SectionConfig,
-        SectionConfigData,
-        SectionConfigPlugin,
-    }
-};
+use proxmox_schema::*;
+use proxmox_section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin};
 
 use pbs_api_types::{
     Authid, Userid, ApiToken, User,

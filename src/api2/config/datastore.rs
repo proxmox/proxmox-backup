@@ -4,9 +4,9 @@ use anyhow::{bail, Error};
 use serde_json::Value;
 use ::serde::{Deserialize, Serialize};
 
-use proxmox::api::{api, Router, RpcEnvironment, RpcEnvironmentType, Permission};
-use proxmox::api::section_config::SectionConfigData;
-use proxmox::api::schema::{ApiType, parse_property_string};
+use proxmox_router::{Router, RpcEnvironment, RpcEnvironmentType, Permission};
+use proxmox_schema::{api, ApiType, parse_property_string};
+use proxmox_section_config::SectionConfigData;
 
 use pbs_datastore::chunk_store::ChunkStore;
 use pbs_config::BackupLockGuard;

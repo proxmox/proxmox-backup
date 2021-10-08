@@ -6,7 +6,7 @@ use anyhow::{bail, format_err, Error};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use proxmox::api::schema::{
+use proxmox_schema::{
     parse_property_string, parse_simple_value, verify_json_object, ObjectSchemaType, Schema,
 };
 
@@ -152,7 +152,7 @@ fn object_to_writer(output: &mut dyn Write, object: &Object) -> Result<(), Error
 
 #[test]
 fn test() {
-    use proxmox::api::schema::ApiType;
+    use proxmox_schema::ApiType;
 
     // let's just reuse some schema we actually have available:
     use crate::config::node::NodeConfig;

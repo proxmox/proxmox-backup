@@ -20,7 +20,7 @@ use futures::ready;
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt, ReadBuf};
 
 use crc32fast::Hasher;
-use proxmox::tools::time::gmtime;
+use proxmox_time::gmtime;
 
 use crate::compression::{DeflateEncoder, Level};
 

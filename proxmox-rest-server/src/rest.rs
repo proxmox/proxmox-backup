@@ -21,15 +21,15 @@ use tokio::time::Instant;
 use url::form_urlencoded;
 use tower_service::Service;
 
-use proxmox::api::schema::{
-    parse_parameter_strings, parse_simple_value, verify_json_object, ObjectSchemaType,
-    ParameterSchema,
-};
-use proxmox::api::{
+use proxmox_router::{
     check_api_permission, ApiHandler, ApiMethod, HttpError, Permission, RpcEnvironment,
     RpcEnvironmentType, UserInformation,
 };
-use proxmox::http_err;
+use proxmox_router::http_err;
+use proxmox_schema::{
+    parse_parameter_strings, parse_simple_value, verify_json_object, ObjectSchemaType,
+    ParameterSchema,
+};
 
 use pbs_tools::compression::{DeflateEncoder, Level};
 use pbs_tools::stream::AsyncReaderStream;
@@ -192,9 +192,9 @@ fn log_response(
             Some(AuthStringExtension(auth_id)) => auth_id.clone(),
             None => "-".to_string(),
         };
-        let now = proxmox::tools::time::epoch_i64();
+        let now = proxmox_time::epoch_i64();
         // time format which apache/nginx use (by default), copied from pve-http-server
-        let datetime = proxmox::tools::time::strftime_local("%d/%m/%Y:%H:%M:%S %z", now)
+        let datetime = proxmox_time::strftime_local("%d/%m/%Y:%H:%M:%S %z", now)
             .unwrap_or_else(|_| "-".to_string());
 
         logfile.lock().unwrap().log(format!(

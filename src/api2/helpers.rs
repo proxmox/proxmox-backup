@@ -4,7 +4,7 @@ use anyhow::Error;
 use futures::stream::TryStreamExt;
 use hyper::{Body, Response, StatusCode, header};
 
-use proxmox::http_bail;
+use proxmox_router::http_bail;
 
 pub async fn create_download_response(path: PathBuf) -> Result<Response<Body>, Error> {
     let file = match tokio::fs::File::open(path.clone()).await {

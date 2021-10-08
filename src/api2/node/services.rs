@@ -3,9 +3,9 @@ use std::process::{Command, Stdio};
 use anyhow::{bail, Error};
 use serde_json::{json, Value};
 
-use proxmox::{sortable, identity, list_subdirs_api_method};
-use proxmox::api::{api, Router, Permission, RpcEnvironment};
-use proxmox::api::router::SubdirMap;
+use proxmox::{sortable, identity};
+use proxmox_router::{list_subdirs_api_method, Router, Permission, RpcEnvironment, SubdirMap};
+use proxmox_schema::api;
 
 use pbs_api_types::{Authid, NODE_SCHEMA, SERVICE_ID_SCHEMA, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 

@@ -9,8 +9,8 @@ use anyhow::{bail, format_err, Error};
 
 use pbs_tools::process_locker::ProcessLockSharedGuard;
 
-use proxmox::tools::io::ReadExt;
-use proxmox::tools::Uuid;
+use proxmox_io::ReadExt;
+use proxmox_uuid::Uuid;
 
 use crate::chunk_stat::ChunkStat;
 use crate::chunk_store::ChunkStore;
@@ -30,7 +30,7 @@ pub struct FixedIndexHeader {
     pub chunk_size: u64,
     reserved: [u8; 4016], // overall size is one page (4096 bytes)
 }
-proxmox::static_assert_size!(FixedIndexHeader, 4096);
+proxmox_lang::static_assert_size!(FixedIndexHeader, 4096);
 
 // split image into fixed size chunks
 
@@ -149,7 +149,7 @@ impl FixedIndexReader {
         println!("ChunkSize: {}", self.chunk_size);
 
         let mut ctime_str = self.ctime.to_string();
-        if let Ok(s) = proxmox::tools::time::strftime_local("%c", self.ctime) {
+        if let Ok(s) = proxmox_time::strftime_local("%c", self.ctime) {
             ctime_str = s;
         }
 
@@ -281,7 +281,7 @@ impl FixedIndexWriter {
             panic!("got unexpected header size");
         }
 
-        let ctime = proxmox::tools::time::epoch_i64();
+        let ctime = proxmox_time::epoch_i64();
 
         let uuid = Uuid::generate();
 
@@ -361,7 +361,7 @@ impl FixedIndexWriter {
 
         self.unmap()?;
 
-        let csum_offset = proxmox::offsetof!(FixedIndexHeader, index_csum);
+        let csum_offset = proxmox_lang::offsetof!(FixedIndexHeader, index_csum);
         self.file.seek(SeekFrom::Start(csum_offset as u64))?;
         self.file.write_all(&index_csum)?;
         self.file.flush()?;

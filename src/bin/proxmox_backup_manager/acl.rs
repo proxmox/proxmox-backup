@@ -1,7 +1,8 @@
 use anyhow::{bail, Error};
 use serde_json::Value;
 
-use proxmox::api::{api, cli::*, RpcEnvironment, ApiHandler};
+use proxmox_router::{cli::*, ApiHandler, RpcEnvironment};
+use proxmox_schema::api;
 
 use proxmox_backup::api2;
 

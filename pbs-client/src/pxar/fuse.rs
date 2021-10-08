@@ -20,7 +20,7 @@ use futures::select;
 use futures::sink::SinkExt;
 use futures::stream::{StreamExt, TryStreamExt};
 
-use proxmox::tools::vec;
+use proxmox_io::vec;
 use pxar::accessor::{self, EntryRangeInfo, ReadAt};
 
 use proxmox_fuse::requests::{self, FuseRequest};

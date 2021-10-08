@@ -13,8 +13,8 @@ use anyhow::{bail, format_err, Error};
 use futures::future::{self, Either};
 use nix::unistd::{fork, ForkResult};
 
-use proxmox::tools::io::{ReadExt, WriteExt};
 use proxmox::tools::fd::Fd;
+use proxmox_io::{ReadExt, WriteExt};
 
 use pbs_tools::fd::fd_change_cloexec;
 

@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use anyhow::{Error};
+use anyhow::Error;
 
 use pbs_api_types::Authid;
 use pbs_client::{HttpClient, HttpClientOptions, BackupReader};
@@ -34,7 +34,7 @@ async fn run() -> Result<(), Error> {
 
     let client = HttpClient::new(host, 8007, auth_id, options)?;
 
-    let backup_time = proxmox::tools::time::parse_rfc3339("2019-06-28T10:49:48Z")?;
+    let backup_time = proxmox_time::parse_rfc3339("2019-06-28T10:49:48Z")?;
 
     let client = BackupReader::start(client, None, "store2", "host", "elsa", backup_time, true)
         .await?;

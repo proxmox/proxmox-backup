@@ -16,16 +16,8 @@ use std::collections::HashMap;
 use anyhow::{bail, Error};
 use lazy_static::lazy_static;
 
-use proxmox::{
-    api::{
-        schema::*,
-        section_config::{
-            SectionConfig,
-            SectionConfigData,
-            SectionConfigPlugin,
-        },
-    },
-};
+use proxmox_schema::*;
+use proxmox_section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin};
 
 use crate::{open_backup_lockfile, replace_backup_config, BackupLockGuard};
 

@@ -10,7 +10,7 @@ use openssl::rsa::{Rsa};
 use openssl::x509::{X509Builder};
 use openssl::pkey::PKey;
 
-use proxmox::try_block;
+use proxmox_lang::try_block;
 
 use pbs_buildcfg::{self, configdir};
 
@@ -115,7 +115,7 @@ pub fn update_self_signed_cert(force: bool) -> Result<(), Error> {
 
     // we try to generate an unique 'subject' to avoid browser problems
     //(reused serial numbers, ..)
-    let uuid = proxmox::tools::uuid::Uuid::generate();
+    let uuid = proxmox_uuid::Uuid::generate();
 
     let mut subject_name = openssl::x509::X509NameBuilder::new()?;
     subject_name.append_entry_by_text("O", "Proxmox Backup Server")?;

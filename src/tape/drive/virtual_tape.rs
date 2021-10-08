@@ -42,7 +42,7 @@ use crate::{
 
 /// This needs to lock the drive
 pub fn open_virtual_tape_drive(config: &VirtualTapeDrive) -> Result<VirtualTapeHandle, Error> {
-    proxmox::try_block!({
+    proxmox_lang::try_block!({
         let mut lock_path = std::path::PathBuf::from(&config.path);
         lock_path.push(".drive.lck");
 

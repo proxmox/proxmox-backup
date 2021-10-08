@@ -3,7 +3,7 @@
 use anyhow::bail;
 use serde::{Deserialize, Serialize};
 
-use proxmox::api::{api, schema::*};
+use proxmox_schema::*;
 
 use pbs_api_types::StorageStatus;
 

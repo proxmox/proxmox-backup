@@ -30,14 +30,8 @@ use anyhow::{bail, Error};
 use serde::{Serialize, Deserialize};
 use serde_json::json;
 
-use proxmox::tools::{
-    Uuid,
-    fs::{
-        replace_file,
-        file_get_json,
-        CreateOptions,
-    },
-};
+use proxmox::tools::fs::{replace_file, file_get_json, CreateOptions};
+use proxmox_uuid::Uuid;
 
 use proxmox_systemd::time::compute_next_event;
 use pbs_config::BackupLockGuard;
@@ -571,7 +565,7 @@ impl Inventory {
         if let Some(ctime) = self.media_set_start_time(media_set_uuid) {
             let mut template = template.unwrap_or_else(|| String::from("%c"));
             template = template.replace("%id%", &media_set_uuid.to_string());
-            proxmox::tools::time::strftime_local(&template, ctime)
+            Ok(proxmox_time::strftime_local(&template, ctime)?)
         } else {
             // We don't know the set start time, so we cannot use the template
             Ok(media_set_uuid.to_string())

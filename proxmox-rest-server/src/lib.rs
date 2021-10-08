@@ -27,8 +27,8 @@ use http::HeaderMap;
 
 use proxmox::tools::fd::Fd;
 use proxmox::sys::linux::procfs::PidStat;
-use proxmox::api::UserInformation;
 use proxmox::tools::fs::CreateOptions;
+use proxmox_router::UserInformation;
 
 mod compression;
 pub use compression::*;

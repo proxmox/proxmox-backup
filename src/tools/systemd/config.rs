@@ -3,14 +3,8 @@ use lazy_static::lazy_static;
 
 use super::types::*;
 
-use proxmox::api::{
-    schema::*,
-    section_config::{
-        SectionConfig,
-        SectionConfigData,
-        SectionConfigPlugin,
-    }
-};
+use proxmox_schema::*;
+use proxmox_section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin};
 
 use proxmox::tools::{fs::replace_file, fs::CreateOptions};
 

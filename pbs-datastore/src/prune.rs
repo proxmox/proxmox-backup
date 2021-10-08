@@ -135,17 +135,17 @@ pub fn compute_prune_info(
         })?;
     }
 
-    use proxmox::tools::time::strftime_local;
+    use proxmox_time::strftime_local;
 
     if let Some(keep_hourly) = options.keep_hourly {
         mark_selections(&mut mark, &list, keep_hourly as usize, |info| {
-            strftime_local("%Y/%m/%d/%H", info.backup_dir.backup_time())
+            strftime_local("%Y/%m/%d/%H", info.backup_dir.backup_time()).map_err(Error::from)
         })?;
     }
 
     if let Some(keep_daily) = options.keep_daily {
         mark_selections(&mut mark, &list, keep_daily as usize, |info| {
-            strftime_local("%Y/%m/%d", info.backup_dir.backup_time())
+            strftime_local("%Y/%m/%d", info.backup_dir.backup_time()).map_err(Error::from)
         })?;
     }
 
@@ -153,19 +153,19 @@ pub fn compute_prune_info(
         mark_selections(&mut mark, &list, keep_weekly as usize, |info| {
             // Note: Use iso-week year/week here. This year number
             // might not match the calendar year number.
-            strftime_local("%G/%V", info.backup_dir.backup_time())
+            strftime_local("%G/%V", info.backup_dir.backup_time()).map_err(Error::from)
         })?;
     }
 
     if let Some(keep_monthly) = options.keep_monthly {
         mark_selections(&mut mark, &list, keep_monthly as usize, |info| {
-            strftime_local("%Y/%m", info.backup_dir.backup_time())
+            strftime_local("%Y/%m", info.backup_dir.backup_time()).map_err(Error::from)
         })?;
     }
 
     if let Some(keep_yearly) = options.keep_yearly {
         mark_selections(&mut mark, &list, keep_yearly as usize, |info| {
-            strftime_local("%Y", info.backup_dir.backup_time())
+            strftime_local("%Y", info.backup_dir.backup_time()).map_err(Error::from)
         })?;
     }
 

@@ -6,21 +6,13 @@ use std::collections::HashMap;
 use anyhow::{bail, format_err, Error};
 use serde_json::Value;
 
-use proxmox::{
-    sortable,
-    identity,
-    list_subdirs_api_method,
-    tools::Uuid,
-    api::{
-        api,
-        section_config::SectionConfigData,
-        RpcEnvironment,
-        RpcEnvironmentType,
-        Permission,
-        Router,
-        SubdirMap,
-    },
+use proxmox::{sortable, identity};
+use proxmox_router::{
+    list_subdirs_api_method, Permission, Router, RpcEnvironment, RpcEnvironmentType, SubdirMap,
 };
+use proxmox_schema::api;
+use proxmox_section_config::SectionConfigData;
+use proxmox_uuid::Uuid;
 
 use pbs_api_types::{
     UPID_SCHEMA, CHANGER_NAME_SCHEMA, DRIVE_NAME_SCHEMA, MEDIA_LABEL_SCHEMA, MEDIA_POOL_NAME_SCHEMA,
@@ -521,7 +513,7 @@ pub fn label_media(
                 }
             }
 
-            let ctime = proxmox::tools::time::epoch_i64();
+            let ctime = proxmox_time::epoch_i64();
             let label = MediaLabel {
                 label_text: label_text.to_string(),
                 uuid: Uuid::generate(),
@@ -1084,7 +1076,7 @@ fn barcode_label_media_worker(
             }
         }
 
-        let ctime = proxmox::tools::time::epoch_i64();
+        let ctime = proxmox_time::epoch_i64();
         let label = MediaLabel {
             label_text: label_text.to_string(),
             uuid: Uuid::generate(),

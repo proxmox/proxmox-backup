@@ -7,10 +7,12 @@ use hyper::http::request::Parts;
 use hyper::{Body, Response, Request, StatusCode};
 use serde_json::{json, Value};
 
-use proxmox::{sortable, identity, list_subdirs_api_method};
-use proxmox::api::{ApiResponseFuture, ApiHandler, ApiMethod, Router, RpcEnvironment, Permission};
-use proxmox::api::router::SubdirMap;
-use proxmox::api::schema::*;
+use proxmox::{sortable, identity};
+use proxmox_router::list_subdirs_api_method;
+use proxmox_router::{
+    ApiResponseFuture, ApiHandler, ApiMethod, Router, RpcEnvironment, SubdirMap, Permission,
+};
+use proxmox_schema::*;
 
 use pbs_api_types::{
     Authid, VerifyState, SnapshotVerifyState,

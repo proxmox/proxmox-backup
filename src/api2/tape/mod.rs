@@ -3,14 +3,8 @@
 use anyhow::Error;
 use serde_json::Value;
 
-use proxmox::{
-    api::{
-        api,
-        router::SubdirMap,
-        Router,
-    },
-    list_subdirs_api_method,
-};
+use proxmox_schema::api;
+use proxmox_router::{list_subdirs_api_method, Router, SubdirMap};
 
 use pbs_api_types::TapeDeviceInfo;
 use pbs_tape::linux_list_drives::{lto_tape_device_list, linux_tape_changer_list};

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use proxmox::api::{api, schema::*};
+use proxmox_schema::*;
 
 use crate::{
     PROXMOX_SAFE_ID_REGEX,

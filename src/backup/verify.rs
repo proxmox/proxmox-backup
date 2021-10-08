@@ -361,7 +361,7 @@ pub fn verify_backup_dir_with_lock(
 
     let mut verify_result = VerifyState::Ok;
     for info in manifest.files() {
-        let result = proxmox::try_block!({
+        let result = proxmox_lang::try_block!({
             task_log!(verify_worker.worker, "  check {}", info.filename);
             match archive_type(&info.filename)? {
                 ArchiveType::FixedIndex => verify_fixed_index(verify_worker, &backup_dir, info),
@@ -556,7 +556,7 @@ pub fn verify_filter(
             match outdated_after {
                 None => false, // never re-verify if ignored and no max age
                 Some(max_age) => {
-                    let now = proxmox::tools::time::epoch_i64();
+                    let now = proxmox_time::epoch_i64();
                     let days_since_last_verify = (now - last_verify.upid.starttime) / 86400;
 
                     days_since_last_verify > max_age

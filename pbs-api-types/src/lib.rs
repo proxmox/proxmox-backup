@@ -3,9 +3,9 @@
 use serde::{Deserialize, Serialize};
 use anyhow::bail;
 
-use proxmox::api::api;
-use proxmox::api::schema::{ApiStringFormat, ApiType, ArraySchema, Schema, StringSchema, ReturnType};
-use proxmox::const_regex;
+use proxmox_schema::{
+    api, const_regex, ApiStringFormat, ApiType, ArraySchema, Schema, StringSchema, ReturnType,
+};
 use proxmox::{IPRE, IPRE_BRACKET, IPV4OCTET, IPV4RE, IPV6H16, IPV6LS32, IPV6RE};
 
 #[rustfmt::skip]
@@ -60,7 +60,7 @@ pub use userid::{PROXMOX_GROUP_ID_SCHEMA, PROXMOX_TOKEN_ID_SCHEMA, PROXMOX_TOKEN
 mod user;
 pub use user::*;
 
-pub use proxmox::api::upid::*;
+pub use proxmox_schema::upid::*;
 
 mod crypto;
 pub use crypto::{CryptMode, Fingerprint};

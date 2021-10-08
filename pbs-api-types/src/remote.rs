@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::*;
-use proxmox::api::{api, schema::*};
+use proxmox_schema::*;
 
 pub const REMOTE_PASSWORD_SCHEMA: Schema = StringSchema::new("Password or auth token for remote host.")
     .format(&PASSWORD_FORMAT)

@@ -3,8 +3,9 @@ use std::io::Write;
 use anyhow::{bail, Error};
 use serde_json::Value;
 
-use proxmox::api::{api, cli::*, ApiHandler, RpcEnvironment};
 use proxmox::tools::fs::file_get_contents;
+use proxmox_router::{cli::*, ApiHandler, RpcEnvironment};
+use proxmox_schema::api;
 
 use proxmox_backup::acme::AcmeClient;
 use proxmox_backup::api2;

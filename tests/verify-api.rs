@@ -2,9 +2,10 @@ use std::collections::HashSet;
 
 use anyhow::{bail, format_err, Error};
 
+use proxmox_schema::*;
+use proxmox_router::{ApiMethod, Permission, Router, SubdirMap, SubRoute};
+
 use proxmox_backup::api2;
-use proxmox::api::*;
-use proxmox::api::schema::*;
 
 // Simply test if api lookup tables inside Routers and Schemas are
 // correctly sorted.

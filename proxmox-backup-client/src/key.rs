@@ -4,15 +4,13 @@ use std::path::PathBuf;
 use anyhow::{bail, format_err, Error};
 use serde_json::Value;
 
-use proxmox::api::api;
-use proxmox::api::cli::{
+use proxmox::sys::linux::tty;
+use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
+use proxmox_router::cli::{
     format_and_print_result_full, get_output_format, CliCommand, CliCommandMap, ColumnConfig,
     OUTPUT_FORMAT,
 };
-use proxmox::api::router::ReturnType;
-use proxmox::api::schema::ApiType;
-use proxmox::sys::linux::tty;
-use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
+use proxmox_schema::{api, ApiType, ReturnType};
 
 use pbs_api_types::{RsaPubKeyInfo, PASSWORD_HINT_SCHEMA, Kdf, KeyInfo};
 use pbs_config::key_config::{KeyConfig, rsa_decrypt_key_config};
@@ -266,7 +264,7 @@ fn show_key(path: Option<String>, param: Value) -> Result<(), Error> {
     let mut info: KeyInfo = (&config).into();
     info.path = Some(format!("{:?}", path));
 
-    let options = proxmox::api::cli::default_table_format_options()
+    let options = proxmox_router::cli::default_table_format_options()
         .column(ColumnConfig::new("path"))
         .column(ColumnConfig::new("kdf"))
         .column(ColumnConfig::new("created").renderer(pbs_tools::format::render_epoch))
@@ -394,7 +392,7 @@ fn show_master_pubkey(path: Option<String>, param: Value) -> Result<(), Error> {
     let mut info = RsaPubKeyInfo::try_from(rsa)?;
     info.path = Some(path.display().to_string());
 
-    let options = proxmox::api::cli::default_table_format_options()
+    let options = proxmox_router::cli::default_table_format_options()
         .column(ColumnConfig::new("path"))
         .column(ColumnConfig::new("modulus"))
         .column(ColumnConfig::new("exponent"))

@@ -2,9 +2,9 @@ use anyhow::{bail, Error};
 use serde_json::json;
 use ::serde::{Deserialize, Serialize};
 
-use proxmox::api::{api, Permission, RpcEnvironment, RpcEnvironmentType};
-use proxmox::api::section_config::SectionConfigData;
-use proxmox::api::router::Router;
+use proxmox_router::{Router, RpcEnvironment, RpcEnvironmentType, Permission};
+use proxmox_schema::api;
+use proxmox_section_config::SectionConfigData;
 
 use pbs_api_types::{
     DataStoreConfig, NODE_SCHEMA, BLOCKDEVICE_NAME_SCHEMA,

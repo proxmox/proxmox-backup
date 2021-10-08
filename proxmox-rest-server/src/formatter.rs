@@ -6,7 +6,8 @@ use serde_json::{json, Value};
 use hyper::{Body, Response, StatusCode};
 use hyper::header;
 
-use proxmox::api::{HttpError, schema::ParameterError, RpcEnvironment};
+use proxmox_router::{HttpError, RpcEnvironment};
+use proxmox_schema::ParameterError;
 
 /// Extension to set error message for server side logging
 pub(crate) struct ErrorMessageExtension(pub String);

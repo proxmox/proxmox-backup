@@ -5,7 +5,8 @@ use anyhow::{Error};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use proxmox::api::{api, Permission, Router, RpcEnvironment};
+use proxmox_router::{Router, RpcEnvironment, Permission};
+use proxmox_schema::api;
 
 use pbs_api_types::{REALM_ID_SCHEMA, SINGLE_LINE_COMMENT_SCHEMA};
 

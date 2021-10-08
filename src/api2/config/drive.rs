@@ -2,7 +2,8 @@ use anyhow::{bail, Error};
 use ::serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use proxmox::api::{api, Router, RpcEnvironment, Permission};
+use proxmox_router::{Router, RpcEnvironment, Permission};
+use proxmox_schema::api;
 
 use pbs_api_types::{
     Authid, LtoTapeDrive, LtoTapeDriveUpdater, ScsiTapeChanger,

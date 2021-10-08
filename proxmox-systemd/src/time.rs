@@ -3,7 +3,7 @@ use std::convert::TryInto;
 use anyhow::Error;
 use bitflags::bitflags;
 
-use proxmox::tools::time::TmEditor;
+use proxmox_time::TmEditor;
 
 pub use super::parse_time::*;
 
@@ -368,7 +368,7 @@ mod test {
     use anyhow::bail;
 
     use super::*;
-    use proxmox::tools::time::*;
+    //use proxmox_time::*;
 
     fn test_event(v: &'static str) -> Result<(), Error> {
         match parse_calendar_event(v) {
@@ -397,8 +397,12 @@ mod test {
                     if next == expect {
                         println!("next {:?} => {}", event, next);
                     } else {
-                        bail!("next {:?} failed\nnext:  {:?}\nexpect: {:?}",
-                              event, gmtime(next), gmtime(expect));
+                        bail!(
+                            "next {:?} failed\nnext:  {:?}\nexpect: {:?}",
+                            event,
+                            proxmox_time::gmtime(next),
+                            proxmox_time::gmtime(expect),
+                        );
                     }
                 }
                 Ok(None) => bail!("next {:?} failed to find a timestamp", event),

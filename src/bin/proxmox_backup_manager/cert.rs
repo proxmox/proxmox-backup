@@ -1,6 +1,7 @@
 use anyhow::{bail, Error};
 
-use proxmox::api::{api, cli::*};
+use proxmox_router::cli::*;
+use proxmox_schema::api;
 
 use proxmox_backup::config;
 use proxmox_backup::auth_helpers::*;

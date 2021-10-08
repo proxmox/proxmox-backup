@@ -8,7 +8,7 @@ use std::fs::{OpenOptions, File};
 use anyhow::{bail, format_err, Error};
 use endian_trait::Endian;
 
-use proxmox::tools::io::ReadExt;
+use proxmox_io::ReadExt;
 
 use pbs_api_types::ScsiTapeChanger;
 
@@ -139,7 +139,7 @@ fn read_element_address_assignment<F: AsRawFd>(
 
     let data = execute_scsi_command(&mut sg_raw, &cmd, "read element address assignment", true)?;
 
-    proxmox::try_block!({
+    proxmox_lang::try_block!({
         let mut reader = &data[..];
         let page: AddressAssignmentPage = unsafe { reader.read_be_value()? };
 
@@ -662,7 +662,7 @@ fn decode_element_status_page(
     start_element_address: u16,
 ) -> Result<DecodedStatusPage, Error> {
 
-    proxmox::try_block!({
+    proxmox_lang::try_block!({
 
         let mut result = DecodedStatusPage {
             last_element_address: None,

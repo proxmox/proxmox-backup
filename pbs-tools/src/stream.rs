@@ -13,8 +13,8 @@ use futures::future::FutureExt;
 use futures::stream::Stream;
 
 use proxmox::io_format_err;
-use proxmox::tools::byte_buffer::ByteBuffer;
 use proxmox::sys::error::io_err_other;
+use proxmox_io::ByteBuffer;
 
 use pbs_runtime::block_in_place;
 

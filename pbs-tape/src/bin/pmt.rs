@@ -18,19 +18,9 @@ use std::convert::TryInto;
 use anyhow::{bail, Error};
 use serde_json::Value;
 
-use proxmox::{
-    api::{
-        api,
-        cli::*,
-        schema::{
-            Schema,
-            IntegerSchema,
-            StringSchema,
-            ArraySchema,
-        },
-        RpcEnvironment,
-    },
-};
+use proxmox_schema::{api, ArraySchema, IntegerSchema, Schema, StringSchema};
+use proxmox_router::cli::*;
+use proxmox_router::RpcEnvironment;
 
 use pbs_api_types::{
     LTO_DRIVE_PATH_SCHEMA, DRIVE_NAME_SCHEMA, LtoTapeDrive,

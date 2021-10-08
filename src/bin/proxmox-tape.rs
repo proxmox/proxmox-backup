@@ -1,18 +1,12 @@
 use anyhow::{format_err, Error};
 use serde_json::{json, Value};
 
-use proxmox::{
-    api::{
-        api,
-        cli::*,
-        RpcEnvironment,
-        section_config::SectionConfigData,
-    },
-    tools::{
-        time::strftime_local,
-        io::ReadExt,
-    },
-};
+use proxmox_io::ReadExt;
+use proxmox_router::RpcEnvironment;
+use proxmox_router::cli::*;
+use proxmox_schema::api;
+use proxmox_section_config::SectionConfigData;
+use proxmox_time::strftime_local;
 
 use pbs_client::view_task_result;
 use pbs_tools::format::{

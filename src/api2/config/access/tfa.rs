@@ -3,8 +3,9 @@
 
 use anyhow::Error;
 
-use proxmox::api::{api, Permission, Router, RpcEnvironment, SubdirMap};
-use proxmox::list_subdirs_api_method;
+use proxmox_router::{Router, RpcEnvironment, Permission, SubdirMap};
+use proxmox_schema::api;
+use proxmox_router::list_subdirs_api_method;
 
 use pbs_api_types::PROXMOX_CONFIG_DIGEST_SCHEMA;
 

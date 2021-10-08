@@ -5,9 +5,8 @@ use anyhow::{Error};
 use serde_json::Value;
 use serde::Serialize;
 
-use proxmox::api::{ApiMethod, RpcEnvironment};
-use proxmox::api::{
-    api,
+use proxmox_schema::{api, ApiType, ReturnType};
+use proxmox_router::{
     cli::{
         OUTPUT_FORMAT,
         ColumnConfig,
@@ -15,8 +14,8 @@ use proxmox::api::{
         format_and_print_result_full,
         default_table_format_options,
     },
-    router::ReturnType,
-    schema::ApiType,
+    ApiMethod,
+    RpcEnvironment,
 };
 
 use pbs_tools::crypt_config::CryptConfig;
@@ -222,7 +221,7 @@ async fn test_upload_speed(
     verbose: bool,
 ) -> Result<(), Error> {
 
-    let backup_time = proxmox::tools::time::epoch_i64();
+    let backup_time = proxmox_time::epoch_i64();
 
     let client = connect(&repo)?;
     record_repository(&repo);

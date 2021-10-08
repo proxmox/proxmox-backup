@@ -1,8 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use proxmox::const_regex;
-
-use proxmox::api::{api, schema::*};
+use proxmox_schema::*;
 
 use crate::{
     Userid, Authid, REMOTE_ID_SCHEMA, DRIVE_NAME_SCHEMA, MEDIA_POOL_NAME_SCHEMA,

@@ -3,9 +3,12 @@
 use anyhow::{format_err, Error};
 use serde_json::Value;
 
-use proxmox::api::router::SubdirMap;
-use proxmox::{list_subdirs_api_method, sortable};
-use proxmox::api::{api, ApiMethod, Permission, Router, RpcEnvironment, RpcEnvironmentType};
+use proxmox::sortable;
+use proxmox_router::{
+    list_subdirs_api_method, ApiMethod, Router, RpcEnvironment, RpcEnvironmentType, SubdirMap,
+    Permission,
+};
+use proxmox_schema::api;
 
 use pbs_api_types::{
     VerificationJobConfig, VerificationJobStatus, JOB_ID_SCHEMA, Authid,

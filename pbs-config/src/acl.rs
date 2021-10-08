@@ -8,7 +8,7 @@ use anyhow::{bail, Error};
 
 use lazy_static::lazy_static;
 
-use proxmox::api::schema::{Schema, StringSchema, ApiStringFormat, ApiType};
+use proxmox_schema::{ApiStringFormat, ApiType, Schema, StringSchema};
 
 use pbs_api_types::{Authid, Userid, Role, ROLE_NAME_NO_ACCESS};
 

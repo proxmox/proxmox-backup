@@ -14,8 +14,8 @@ use tokio::signal::unix::{signal, SignalKind};
 use pathpatterns::{MatchEntry, MatchType, PatternFlag};
 use pbs_client::pxar::{fuse, format_single_line_entry, ENCODER_MAX_ENTRIES, Flags, PxarExtractOptions};
 
-use proxmox::api::cli::*;
-use proxmox::api::api;
+use proxmox_schema::api;
+use proxmox_router::cli::*;
 
 fn extract_archive_from_reader<R: std::io::Read>(
     reader: &mut R,

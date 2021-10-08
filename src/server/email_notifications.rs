@@ -4,8 +4,8 @@ use serde_json::json;
 use handlebars::{Handlebars, Helper, Context, RenderError, RenderContext, Output, HelperResult, TemplateError};
 
 use proxmox::tools::email::sendmail;
-use proxmox::api::schema::{ApiType, parse_property_string};
-use proxmox::try_block;
+use proxmox_lang::try_block;
+use proxmox_schema::{parse_property_string, ApiType};
 
 use pbs_tools::format::HumanByte;
 use pbs_api_types::{

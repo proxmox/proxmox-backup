@@ -2,22 +2,11 @@
 
 use serde::{Deserialize, Serialize};
 
-use proxmox::api::{
-    api,
-    schema::{
-        Schema,
-        ApiStringFormat,
-        ArraySchema,
-        IntegerSchema,
-        StringSchema,
-        Updater,
-    },
+use proxmox_schema::{
+    api, ApiStringFormat, ArraySchema, IntegerSchema, Schema, StringSchema, Updater,
 };
 
-use crate::{
-    PROXMOX_SAFE_ID_FORMAT,
-    OptionalDeviceIdentification,
-};
+use crate::{OptionalDeviceIdentification, PROXMOX_SAFE_ID_FORMAT};
 
 pub const CHANGER_NAME_SCHEMA: Schema = StringSchema::new("Tape Changer Identifier.")
     .format(&PROXMOX_SAFE_ID_FORMAT)
@@ -25,9 +14,8 @@ pub const CHANGER_NAME_SCHEMA: Schema = StringSchema::new("Tape Changer Identifi
     .max_length(32)
     .schema();
 
-pub const SCSI_CHANGER_PATH_SCHEMA: Schema = StringSchema::new(
-    "Path to Linux generic SCSI device (e.g. '/dev/sg4')")
-    .schema();
+pub const SCSI_CHANGER_PATH_SCHEMA: Schema =
+    StringSchema::new("Path to Linux generic SCSI device (e.g. '/dev/sg4')").schema();
 
 pub const MEDIA_LABEL_SCHEMA: Schema = StringSchema::new("Media Label/Barcode.")
     .format(&PROXMOX_SAFE_ID_FORMAT)
@@ -36,16 +24,18 @@ pub const MEDIA_LABEL_SCHEMA: Schema = StringSchema::new("Media Label/Barcode.")
     .schema();
 
 pub const SLOT_ARRAY_SCHEMA: Schema = ArraySchema::new(
-    "Slot list.", &IntegerSchema::new("Slot number")
-        .minimum(1)
-        .schema())
-    .schema();
+    "Slot list.",
+    &IntegerSchema::new("Slot number").minimum(1).schema(),
+)
+.schema();
 
-pub const EXPORT_SLOT_LIST_SCHEMA: Schema = StringSchema::new("\
+pub const EXPORT_SLOT_LIST_SCHEMA: Schema = StringSchema::new(
+    "\
 A list of slot numbers, comma separated. Those slots are reserved for
 Import/Export, i.e. any media in those slots are considered to be
 'offline'.
-")
+",
+)
 .format(&ApiStringFormat::PropertyString(&SLOT_ARRAY_SCHEMA))
 .schema();
 
@@ -63,14 +53,14 @@ Import/Export, i.e. any media in those slots are considered to be
         },
     },
 )]
-#[derive(Serialize,Deserialize,Updater)]
+#[derive(Serialize, Deserialize, Updater)]
 #[serde(rename_all = "kebab-case")]
 /// SCSI tape changer
 pub struct ScsiTapeChanger {
     #[updater(skip)]
     pub name: String,
     pub path: String,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub export_slots: Option<String>,
 }
 
@@ -84,7 +74,7 @@ pub struct ScsiTapeChanger {
         },
     },
 )]
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 /// Changer config with optional device identification attributes
 pub struct ChangerListEntry {
@@ -95,7 +85,7 @@ pub struct ChangerListEntry {
 }
 
 #[api()]
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 /// Mtx Entry Kind
 pub enum MtxEntryKind {
@@ -118,7 +108,7 @@ pub enum MtxEntryKind {
         },
     },
 )]
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 /// Mtx Status Entry
 pub struct MtxStatusEntry {
@@ -126,12 +116,12 @@ pub struct MtxStatusEntry {
     /// The ID of the slot or drive
     pub entry_id: u64,
     /// The media label (volume tag) if the slot/drive is full
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub label_text: Option<String>,
     /// The slot the drive was loaded from
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub loaded_slot: Option<u64>,
     /// The current state of the drive
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub state: Option<String>,
 }

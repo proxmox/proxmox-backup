@@ -3,11 +3,8 @@ use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use proxmox::api::{
-    api,
-    schema::*,
-    section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin},
-};
+use proxmox_schema::{api, ApiType, Schema, StringSchema, Updater};
+use proxmox_section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin};
 
 use pbs_config::{open_backup_lockfile, BackupLockGuard};
 use pbs_api_types::PROXMOX_SAFE_ID_FORMAT;

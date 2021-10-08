@@ -14,7 +14,7 @@ use log::{error, info};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
-use proxmox::api::RpcEnvironmentType;
+use proxmox_router::RpcEnvironmentType;
 
 use pbs_client::DEFAULT_VSOCK_PORT;
 use proxmox_rest_server::{ApiConfig, RestServer};

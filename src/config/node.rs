@@ -3,8 +3,7 @@ use std::collections::HashSet;
 use anyhow::{bail, Error};
 use serde::{Deserialize, Serialize};
 
-use proxmox::api::api;
-use proxmox::api::schema::{ApiStringFormat, ApiType, Updater};
+use proxmox_schema::{api, ApiStringFormat, ApiType, Updater};
 
 use proxmox_http::ProxyConfig;
 

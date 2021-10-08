@@ -4,8 +4,8 @@ use std::sync::{Arc};
 use anyhow::{format_err, Error};
 use futures::{select, future::FutureExt};
 
-use proxmox::api::api;
-use proxmox::api::{ApiMethod, Router, RpcEnvironment, Permission};
+use proxmox_schema::api;
+use proxmox_router::{ApiMethod, Router, RpcEnvironment, Permission};
 
 use pbs_client::{HttpClient, BackupRepository};
 use pbs_api_types::{

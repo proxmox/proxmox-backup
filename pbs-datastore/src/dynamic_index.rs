@@ -9,9 +9,9 @@ use std::task::Context;
 
 use anyhow::{bail, format_err, Error};
 
-use proxmox::tools::io::ReadExt;
-use proxmox::tools::uuid::Uuid;
 use proxmox::tools::mmap::Mmap;
+use proxmox_io::ReadExt;
+use proxmox_uuid::Uuid;
 use pxar::accessor::{MaybeReady, ReadAt, ReadAtOperation};
 
 use pbs_tools::lru_cache::LruCache;
@@ -35,7 +35,7 @@ pub struct DynamicIndexHeader {
     pub index_csum: [u8; 32],
     reserved: [u8; 4032], // overall size is one page (4096 bytes)
 }
-proxmox::static_assert_size!(DynamicIndexHeader, 4096);
+proxmox_lang::static_assert_size!(DynamicIndexHeader, 4096);
 // TODO: Once non-Copy unions are stabilized, use:
 // union DynamicIndexHeader {
 //     reserved: [u8; 4096],
@@ -119,7 +119,7 @@ impl DynamicIndexReader {
             bail!("got unknown magic number");
         }
 
-        let ctime = proxmox::tools::time::epoch_i64();
+        let ctime = proxmox_time::epoch_i64();
 
         let index_size = stat.st_size as usize - header_size;
         let index_count = index_size / 40;
@@ -301,7 +301,7 @@ impl DynamicIndexWriter {
 
         let mut writer = BufWriter::with_capacity(1024 * 1024, file);
 
-        let ctime = proxmox::tools::time::epoch_i64();
+        let ctime = proxmox_time::epoch_i64();
 
         let uuid = Uuid::generate();
 
@@ -344,7 +344,7 @@ impl DynamicIndexWriter {
 
         self.writer.flush()?;
 
-        let csum_offset = proxmox::offsetof!(DynamicIndexHeader, index_csum);
+        let csum_offset = proxmox_lang::offsetof!(DynamicIndexHeader, index_csum);
         self.writer.seek(SeekFrom::Start(csum_offset as u64))?;
 
         let csum = self.csum.take().unwrap();

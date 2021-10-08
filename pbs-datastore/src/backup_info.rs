@@ -138,7 +138,7 @@ impl BackupGroup {
                     }
                 }
 
-                let timestamp = proxmox::tools::time::parse_rfc3339(backup_time)?;
+                let timestamp = proxmox_time::parse_rfc3339(backup_time)?;
                 if let Some(last_timestamp) = last {
                     if timestamp > last_timestamp {
                         last = Some(timestamp);
@@ -215,7 +215,7 @@ impl BackupDir {
         V: Into<String>,
     {
         let backup_time_string = backup_time_string.into();
-        let backup_time = proxmox::tools::time::parse_rfc3339(&backup_time_string)?;
+        let backup_time = proxmox_time::parse_rfc3339(&backup_time_string)?;
         let group = BackupGroup::new(backup_type.into(), backup_id.into());
         Ok(Self {
             group,
@@ -255,7 +255,7 @@ impl BackupDir {
 
     pub fn backup_time_to_string(backup_time: i64) -> Result<String, Error> {
         // fixme: can this fail? (avoid unwrap)
-        proxmox::tools::time::epoch_to_rfc3339_utc(backup_time)
+        Ok(proxmox_time::epoch_to_rfc3339_utc(backup_time)?)
     }
 }
 

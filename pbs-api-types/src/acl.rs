@@ -1,13 +1,12 @@
 use std::str::FromStr;
 
-use serde::{Deserialize, Serialize};
 use serde::de::{value, IntoDeserializer};
+use serde::{Deserialize, Serialize};
 
-use proxmox::api::api;
-use proxmox::api::schema::{
-    ApiStringFormat, BooleanSchema, EnumEntry, Schema, StringSchema,
+use proxmox_lang::constnamedbitmap;
+use proxmox_schema::{
+    api, const_regex, ApiStringFormat, BooleanSchema, EnumEntry, Schema, StringSchema,
 };
-use proxmox::{constnamedbitmap, const_regex};
 
 const_regex! {
     pub ACL_PATH_REGEX = concat!(r"^(?:/|", r"(?:/", PROXMOX_SAFE_ID_REGEX_STR!(), ")+", r")$");
@@ -222,7 +221,6 @@ pub enum Role {
     TapeReader = ROLE_TAPE_READER,
 }
 
-
 impl FromStr for Role {
     type Err = value::Error;
 
@@ -231,26 +229,24 @@ impl FromStr for Role {
     }
 }
 
-pub const ACL_PATH_FORMAT: ApiStringFormat =
-    ApiStringFormat::Pattern(&ACL_PATH_REGEX);
+pub const ACL_PATH_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&ACL_PATH_REGEX);
 
-pub const ACL_PATH_SCHEMA: Schema = StringSchema::new(
-    "Access control path.")
+pub const ACL_PATH_SCHEMA: Schema = StringSchema::new("Access control path.")
     .format(&ACL_PATH_FORMAT)
     .min_length(1)
     .max_length(128)
     .schema();
 
-pub const ACL_PROPAGATE_SCHEMA: Schema = BooleanSchema::new(
-    "Allow to propagate (inherit) permissions.")
-    .default(true)
-    .schema();
+pub const ACL_PROPAGATE_SCHEMA: Schema =
+    BooleanSchema::new("Allow to propagate (inherit) permissions.")
+        .default(true)
+        .schema();
 
-pub const ACL_UGID_TYPE_SCHEMA: Schema = StringSchema::new(
-    "Type of 'ugid' property.")
+pub const ACL_UGID_TYPE_SCHEMA: Schema = StringSchema::new("Type of 'ugid' property.")
     .format(&ApiStringFormat::Enum(&[
         EnumEntry::new("user", "User"),
-        EnumEntry::new("group", "Group")]))
+        EnumEntry::new("group", "Group"),
+    ]))
     .schema();
 
 #[api(

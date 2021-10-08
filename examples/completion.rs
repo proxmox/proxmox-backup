@@ -1,6 +1,7 @@
 use anyhow::{Error};
 
-use proxmox::api::{*, cli::*};
+use proxmox_schema::*;
+use proxmox_router::cli::*;
 
 #[api(
     input: {

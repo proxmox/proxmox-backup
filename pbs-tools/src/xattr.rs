@@ -5,8 +5,8 @@ use std::os::unix::io::RawFd;
 
 use nix::errno::Errno;
 
-use proxmox::c_str;
-use proxmox::tools::vec;
+use proxmox_io::vec;
+use proxmox_lang::c_str;
 
 /// `"security.capability"` as a CStr to avoid typos.
 ///
@@ -187,7 +187,7 @@ mod tests {
 
     use nix::errno::Errno;
 
-    use proxmox::c_str;
+    use proxmox_lang::c_str;
 
     #[test]
     fn test_fsetxattr_fgetxattr() {

@@ -1,29 +1,29 @@
 //! Map a raw data reader as a loop device via FUSE
 
-use anyhow::{Error, format_err, bail};
-use std::ffi::OsStr;
-use std::path::{Path, PathBuf};
-use std::fs::{File, remove_file, read_to_string, OpenOptions};
-use std::io::SeekFrom;
-use std::io::prelude::*;
+use anyhow::{bail, format_err, Error};
 use std::collections::HashMap;
+use std::ffi::OsStr;
+use std::fs::{read_to_string, remove_file, File, OpenOptions};
+use std::io::prelude::*;
+use std::io::SeekFrom;
+use std::path::{Path, PathBuf};
 
-use nix::unistd::Pid;
 use nix::sys::signal::{self, Signal};
+use nix::unistd::Pid;
+use regex::Regex;
 
-use tokio::io::{AsyncRead, AsyncSeek, AsyncReadExt, AsyncSeekExt};
+use futures::channel::mpsc::{Receiver, Sender};
 use futures::stream::{StreamExt, TryStreamExt};
-use futures::channel::mpsc::{Sender, Receiver};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt};
 
-use proxmox::const_regex;
-use proxmox::tools::time;
-use proxmox_fuse::{*, requests::FuseRequest};
 use super::loopdev;
+use proxmox_fuse::{requests::FuseRequest, *};
+use proxmox_time::epoch_i64;
 
 const RUN_DIR: &str = "/run/pbs-loopdev";
 
-const_regex! {
-    pub LOOPDEV_REGEX = r"^loop\d+$";
+lazy_static::lazy_static! {
+    static ref LOOPDEV_REGEX: Regex = Regex::new(r"^loop\d+$").unwrap();
 }
 
 /// Represents an ongoing FUSE-session that has been mapped onto a loop device.
@@ -40,12 +40,14 @@ pub struct FuseLoopSession<R: AsyncRead + AsyncSeek + Unpin> {
 }
 
 impl<R: AsyncRead + AsyncSeek + Unpin> FuseLoopSession<R> {
-
     /// Prepare for mapping the given reader as a block device node at
     /// /dev/loopN. Creates a temporary file for FUSE and a PID file for unmap.
-    pub async fn map_loop<P: AsRef<str>>(size: u64, mut reader: R, name: P, options: &OsStr)
-        -> Result<Self, Error>
-    {
+    pub async fn map_loop<P: AsRef<str>>(
+        size: u64,
+        mut reader: R,
+        name: P,
+        options: &OsStr,
+    ) -> Result<Self, Error> {
         // attempt a single read to check if the reader is configured correctly
         let _ = reader.read_u8().await?;
 
@@ -61,14 +63,14 @@ impl<R: AsyncRead + AsyncSeek + Unpin> FuseLoopSession<R> {
         cleanup_unused_run_files(Some(name.as_ref().to_owned()));
 
         match OpenOptions::new().write(true).create_new(true).open(&path) {
-            Ok(_) => { /* file created, continue on */ },
+            Ok(_) => { /* file created, continue on */ }
             Err(e) => {
                 if e.kind() == std::io::ErrorKind::AlreadyExists {
                     bail!("the given archive is already mapped, cannot map twice");
                 } else {
                     bail!("error while creating backing file ({:?}) - {}", &path, e);
                 }
-            },
+            }
         }
 
         let session = Fuse::builder("pbs-block-dev")?
@@ -77,9 +79,8 @@ impl<R: AsyncRead + AsyncSeek + Unpin> FuseLoopSession<R> {
             .build()?
             .mount(&path)?;
 
-        let loopdev_path = loopdev::get_or_create_free_dev().map_err(|err| {
-            format_err!("loop-control GET_FREE failed - {}", err)
-        })?;
+        let loopdev_path = loopdev::get_or_create_free_dev()
+            .map_err(|err| format_err!("loop-control GET_FREE failed - {}", err))?;
 
         // write pidfile so unmap can later send us a signal to exit
         Self::write_pidfile(&pid_path)?;
@@ -111,7 +112,6 @@ impl<R: AsyncRead + AsyncSeek + Unpin> FuseLoopSession<R> {
         mut startup_chan: Sender<Result<(), Error>>,
         abort_chan: Receiver<()>,
     ) -> Result<(), Error> {
-
         if self.session.is_none() {
             panic!("internal error: fuse_loop::main called before ::map_loop");
         }
@@ -121,7 +121,10 @@ impl<R: AsyncRead + AsyncSeek + Unpin> FuseLoopSession<R> {
         let (loopdev_path, fuse_path) = (self.loopdev_path.clone(), self.fuse_path.clone());
         tokio::task::spawn_blocking(move || {
             if let Err(err) = loopdev::assign(loopdev_path, fuse_path) {
-                let _ = startup_chan.try_send(Err(format_err!("error while assigning loop device - {}", err)));
+                let _ = startup_chan.try_send(Err(format_err!(
+                    "error while assigning loop device - {}",
+                    err
+                )));
             } else {
                 // device is assigned successfully, which means not only is the
                 // loopdev ready, but FUSE is also okay, since the assignment
@@ -130,16 +133,17 @@ impl<R: AsyncRead + AsyncSeek + Unpin> FuseLoopSession<R> {
             }
         });
 
-        let (loopdev_path, fuse_path, pid_path) =
-            (self.loopdev_path.clone(), self.fuse_path.clone(), self.pid_path.clone());
+        let (loopdev_path, fuse_path, pid_path) = (
+            self.loopdev_path.clone(),
+            self.fuse_path.clone(),
+            self.pid_path.clone(),
+        );
         let cleanup = |session: futures::stream::Fuse<Fuse>| {
             // only warn for errors on cleanup, if these fail nothing is lost
             if let Err(err) = loopdev::unassign(&loopdev_path) {
                 eprintln!(
                     "cleanup: warning: could not unassign file {} from loop device {} - {}",
-                    &fuse_path,
-                    &loopdev_path,
-                    err,
+                    &fuse_path, &loopdev_path, err,
                 );
             }
 
@@ -149,21 +153,19 @@ impl<R: AsyncRead + AsyncSeek + Unpin> FuseLoopSession<R> {
             if let Err(err) = remove_file(&fuse_path) {
                 eprintln!(
                     "cleanup: warning: could not remove temporary file {} - {}",
-                    &fuse_path,
-                    err,
+                    &fuse_path, err,
                 );
             }
             if let Err(err) = remove_file(&pid_path) {
                 eprintln!(
                     "cleanup: warning: could not remove PID file {} - {}",
-                    &pid_path,
-                    err,
+                    &pid_path, err,
                 );
             }
         };
 
         loop {
-            tokio::select!{
+            tokio::select! {
                 _ = abort_chan.next() => {
                     // aborted, do cleanup and exit
                     break;
@@ -227,8 +229,8 @@ impl<R: AsyncRead + AsyncSeek + Unpin> FuseLoopSession<R> {
 pub fn cleanup_unused_run_files(filter_name: Option<String>) {
     if let Ok(maps) = find_all_mappings() {
         for (name, loopdev) in maps {
-            if loopdev.is_none() &&
-                (filter_name.is_none() || &name == filter_name.as_ref().unwrap())
+            if loopdev.is_none()
+                && (filter_name.is_none() || &name == filter_name.as_ref().unwrap())
             {
                 let mut path = PathBuf::from(RUN_DIR);
                 path.push(&name);
@@ -254,10 +256,17 @@ pub fn cleanup_unused_run_files(filter_name: Option<String>) {
 }
 
 fn get_backing_file(loopdev: &str) -> Result<String, Error> {
-    let num = loopdev.split_at(9).1.parse::<u8>().map_err(|err|
-        format_err!("malformed loopdev path, does not end with valid number - {}", err))?;
+    let num = loopdev.split_at(9).1.parse::<u8>().map_err(|err| {
+        format_err!(
+            "malformed loopdev path, does not end with valid number - {}",
+            err
+        )
+    })?;
 
-    let block_path = PathBuf::from(format!("/sys/devices/virtual/block/loop{}/loop/backing_file", num));
+    let block_path = PathBuf::from(format!(
+        "/sys/devices/virtual/block/loop{}/loop/backing_file",
+        num
+    ));
     let backing_file = read_to_string(block_path).map_err(|err| {
         if err.kind() == std::io::ErrorKind::NotFound {
             format_err!("nothing mapped to {}", loopdev)
@@ -281,7 +290,7 @@ fn get_backing_file(loopdev: &str) -> Result<String, Error> {
 
 // call in broken state: we found the mapping, but the client is already dead,
 // only thing to do is clean up what we can
-fn emerg_cleanup (loopdev: Option<&str>, mut backing_file: PathBuf) {
+fn emerg_cleanup(loopdev: Option<&str>, mut backing_file: PathBuf) {
     eprintln!(
         "warning: found mapping with dead process ({:?}), attempting cleanup",
         &backing_file
@@ -312,35 +321,36 @@ fn unmap_from_backing(backing_file: &Path, loopdev: Option<&str>) -> Result<(), 
         }
         format_err!("error reading pidfile {:?}: {}", &pid_path, err)
     })?;
-    let pid = pid_str.parse::<i32>().map_err(|err|
-        format_err!("malformed PID ({}) in pidfile - {}", pid_str, err))?;
+    let pid = pid_str
+        .parse::<i32>()
+        .map_err(|err| format_err!("malformed PID ({}) in pidfile - {}", pid_str, err))?;
 
     let pid = Pid::from_raw(pid);
 
     // send SIGINT to trigger cleanup and exit in target process
     match signal::kill(pid, Signal::SIGINT) {
-        Ok(()) => {},
+        Ok(()) => {}
         Err(nix::Error::Sys(nix::errno::Errno::ESRCH)) => {
             emerg_cleanup(loopdev, backing_file.to_owned());
             return Ok(());
-        },
+        }
         Err(e) => return Err(e.into()),
     }
 
     // block until unmap is complete or timeout
-    let start = time::epoch_i64();
+    let start = epoch_i64();
     loop {
         match signal::kill(pid, None) {
             Ok(_) => {
                 // 10 second timeout, then assume failure
-                if (time::epoch_i64() - start) > 10 {
+                if (epoch_i64() - start) > 10 {
                     return Err(format_err!("timed out waiting for PID '{}' to exit", &pid));
                 }
                 std::thread::sleep(std::time::Duration::from_millis(100));
-            },
+            }
             Err(nix::Error::Sys(nix::errno::Errno::ESRCH)) => {
                 break;
-            },
+            }
             Err(e) => return Err(e.into()),
         }
     }
@@ -360,13 +370,13 @@ pub fn find_all_mappings() -> Result<impl Iterator<Item = (String, Option<String
             let loopdev = format!("/dev/{}", ent.file_name().to_string_lossy());
             if let Ok(file) = get_backing_file(&loopdev) {
                 // insert filename only, strip RUN_DIR/
-                loopmap.insert(file[RUN_DIR.len()+1..].to_owned(), loopdev);
+                loopmap.insert(file[RUN_DIR.len() + 1..].to_owned(), loopdev);
             }
         }
     }
 
-    Ok(pbs_tools::fs::read_subdir(libc::AT_FDCWD, Path::new(RUN_DIR))?
-        .filter_map(move |ent| {
+    Ok(
+        pbs_tools::fs::read_subdir(libc::AT_FDCWD, Path::new(RUN_DIR))?.filter_map(move |ent| {
             match ent {
                 Ok(ent) => {
                     let file = ent.file_name().to_string_lossy();
@@ -376,10 +386,11 @@ pub fn find_all_mappings() -> Result<impl Iterator<Item = (String, Option<String
                         let loopdev = loopmap.get(file.as_ref()).map(String::to_owned);
                         Some((file.into_owned(), loopdev))
                     }
-                },
+                }
                 Err(_) => None,
             }
-        }))
+        }),
+    )
 }
 
 /// Try and unmap a running proxmox-backup-client instance from the given

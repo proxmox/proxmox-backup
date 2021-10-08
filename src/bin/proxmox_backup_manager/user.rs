@@ -3,7 +3,8 @@ use serde_json::Value;
 
 use std::collections::HashMap;
 
-use proxmox::api::{api, cli::*, RpcEnvironment, ApiHandler};
+use proxmox_router::{cli::*, ApiHandler, RpcEnvironment};
+use proxmox_schema::api;
 
 use pbs_api_types::{ACL_PATH_SCHEMA, Authid, Userid};
 
@@ -15,7 +16,7 @@ fn render_expire(value: &Value, _record: &Value) -> Result<String, Error> {
     let text = match value.as_i64() {
         Some(epoch) if epoch == 0 => never,
         Some(epoch) => {
-            if let Ok(epoch_string) = proxmox::tools::time::strftime_local("%c", epoch as i64) {
+            if let Ok(epoch_string) = proxmox_time::strftime_local("%c", epoch as i64) {
                 epoch_string
             } else {
                 epoch.to_string()

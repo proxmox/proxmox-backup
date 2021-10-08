@@ -3,11 +3,11 @@
 use std::sync::{RwLock, Arc};
 
 use anyhow::{Error, bail};
-
-use proxmox::api::section_config::SectionConfigData;
 use lazy_static::lazy_static;
-use proxmox::api::UserInformation;
-use proxmox::tools::time::epoch_i64;
+
+use proxmox_router::UserInformation;
+use proxmox_section_config::SectionConfigData;
+use proxmox_time::epoch_i64;
 
 use pbs_api_types::{Authid, Userid, User, ApiToken, ROLE_ADMIN};
 

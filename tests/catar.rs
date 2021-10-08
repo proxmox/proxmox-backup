@@ -1,6 +1,6 @@
 use std::process::Command;
 
-use anyhow::{Error};
+use anyhow::Error;
 
 use pbs_client::pxar::*;
 

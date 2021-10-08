@@ -6,9 +6,9 @@ use std::io::Read;
 use anyhow::{bail, format_err, Error};
 use serde_json::Value;
 
-use proxmox::api::schema::*;
 use proxmox::sys::linux::tty;
 use proxmox::tools::fs::file_get_contents;
+use proxmox_schema::*;
 
 use pbs_api_types::CryptMode;
 

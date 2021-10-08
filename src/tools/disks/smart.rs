@@ -4,7 +4,7 @@ use lazy_static::lazy_static;
 use anyhow::{bail, Error};
 use ::serde::{Deserialize, Serialize};
 
-use proxmox::api::api;
+use proxmox_schema::api;
 
 #[api()]
 #[derive(Debug, Serialize, Deserialize)]

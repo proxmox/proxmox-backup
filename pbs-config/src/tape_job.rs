@@ -2,14 +2,8 @@ use anyhow::{Error};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 
-use proxmox::api::{
-    schema::{Schema, ApiType},
-    section_config::{
-        SectionConfig,
-        SectionConfigData,
-        SectionConfigPlugin,
-    }
-};
+use proxmox_schema::{Schema, ApiType};
+use proxmox_section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin};
 
 use pbs_api_types::{TapeBackupJobConfig, JOB_ID_SCHEMA};
 

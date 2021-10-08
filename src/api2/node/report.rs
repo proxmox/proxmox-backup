@@ -1,6 +1,8 @@
 use anyhow::Error;
-use proxmox::api::{api, ApiMethod, Permission, Router, RpcEnvironment};
 use serde_json::{json, Value};
+
+use proxmox_router::{ApiMethod, Permission, Router, RpcEnvironment};
+use proxmox_schema::api;
 
 use pbs_api_types::{NODE_SCHEMA, PRIV_SYS_AUDIT};
 

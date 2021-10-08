@@ -1,7 +1,7 @@
 use anyhow::{Error};
 
-use proxmox::api::format::*;
-use proxmox::api::cli::*;
+use proxmox_router::cli::*;
+use proxmox_schema::format::*;
 
 use pbs_client::catalog_shell::catalog_shell_cli;
 

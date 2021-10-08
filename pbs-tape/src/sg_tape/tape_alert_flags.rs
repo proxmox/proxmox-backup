@@ -3,7 +3,7 @@ use std::os::unix::io::AsRawFd;
 
 use anyhow::{bail, format_err, Error};
 
-use proxmox::tools::io::ReadExt;
+use proxmox_io::ReadExt;
 
 use crate::sgutils2::SgRaw;
 
@@ -106,7 +106,7 @@ fn sg_read_tape_alert_flags<F: AsRawFd>(file: &mut F) -> Result<Vec<u8>, Error> 
 
 fn decode_tape_alert_flags(data: &[u8]) -> Result<TapeAlertFlags, Error> {
 
-    proxmox::try_block!({
+    proxmox_lang::try_block!({
         if !((data[0] & 0x7f) == 0x12 && data[1] == 0) {
             bail!("invalid response");
         }

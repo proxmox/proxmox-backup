@@ -4,7 +4,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use proxmox::api::api;
+use proxmox_schema::api;
 
 use proxmox::tools::fs::{replace_file, CreateOptions};
 use proxmox_http::client::SimpleHttp;
@@ -229,7 +229,7 @@ fn test_parse_register_response() -> Result<(), Error> {
 /// queries the up to date subscription status and parses the response
 pub fn check_subscription(key: String, server_id: String) -> Result<SubscriptionInfo, Error> {
 
-    let now = proxmox::tools::time::epoch_i64();
+    let now = proxmox_time::epoch_i64();
 
     let (response, challenge) = pbs_runtime::block_on(register_subscription(&key, &server_id, now))
         .map_err(|err| format_err!("Error checking subscription: {}", err))?;
@@ -268,7 +268,7 @@ pub fn read_subscription() -> Result<Option<SubscriptionInfo>, Error> {
         }));
     }
 
-    let age = proxmox::tools::time::epoch_i64() - info.checktime.unwrap_or(0);
+    let age = proxmox_time::epoch_i64() - info.checktime.unwrap_or(0);
     if age < -5400 { // allow some delta for DST changes or time syncs, 1.5h
         return Ok(Some( SubscriptionInfo {
             status: SubscriptionStatus::INVALID,

@@ -1,5 +1,5 @@
-use proxmox::api::{Router, SubdirMap};
-use proxmox::list_subdirs_api_method;
+use proxmox_router::{Router, SubdirMap};
+use proxmox_router::list_subdirs_api_method;
 use proxmox::{identity, sortable};
 
 pub mod tfa;

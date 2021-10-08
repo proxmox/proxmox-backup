@@ -66,7 +66,7 @@ where
         Ok(Self {
             prefix: Cow::Borrowed(prefix),
             data: data.to_string(),
-            time: proxmox::tools::time::epoch_i64(),
+            time: proxmox_time::epoch_i64(),
             signature: None,
             _type_marker: PhantomData,
         })
@@ -171,7 +171,7 @@ where
             None => bail!("invalid ticket without signature"),
         };
 
-        let age = proxmox::tools::time::epoch_i64() - self.time;
+        let age = proxmox_time::epoch_i64() - self.time;
         if age < time_frame.start {
             bail!("invalid ticket - timestamp newer than expected");
         }
@@ -325,7 +325,7 @@ mod test {
             false
         });
         simple_test(&key, None, |t| {
-            t.change_time(proxmox::tools::time::epoch_i64() + 0x1000_0000);
+            t.change_time(proxmox_time::epoch_i64() + 0x1000_0000);
             false
         });
     }

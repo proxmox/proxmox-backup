@@ -7,9 +7,10 @@ use openssl::pkey::PKey;
 use openssl::x509::X509;
 use serde::{Deserialize, Serialize};
 
-use proxmox::api::router::SubdirMap;
-use proxmox::api::{api, Permission, Router, RpcEnvironment};
-use proxmox::list_subdirs_api_method;
+use proxmox_router::SubdirMap;
+use proxmox_router::{Permission, Router, RpcEnvironment};
+use proxmox_router::list_subdirs_api_method;
+use proxmox_schema::api;
 
 use pbs_api_types::{NODE_SCHEMA, PRIV_SYS_MODIFY};
 use pbs_buildcfg::configdir;
@@ -516,7 +517,7 @@ pub fn renew_acme_cert(force: bool, rpcenv: &mut dyn RpcEnvironment) -> Result<S
 /// Check whether the current certificate expires within the next 30 days.
 pub fn cert_expires_soon() -> Result<bool, Error> {
     let cert = pem_to_cert_info(get_certificate_pem()?.as_bytes())?;
-    cert.is_expired_after_epoch(proxmox::tools::time::epoch_i64() + 30 * 24 * 60 * 60)
+    cert.is_expired_after_epoch(proxmox_time::epoch_i64() + 30 * 24 * 60 * 60)
         .map_err(|err| format_err!("Failed to check certificate expiration date: {}", err))
 }
 

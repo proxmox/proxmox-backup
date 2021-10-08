@@ -9,8 +9,9 @@ use hyper::{Body, Response, Method};
 use http::request::Parts;
 use http::HeaderMap;
 
-use proxmox::api::{api, router::SubdirMap, Router, RpcEnvironmentType, UserInformation};
-use proxmox::list_subdirs_api_method;
+use proxmox_schema::api;
+use proxmox_router::{list_subdirs_api_method, SubdirMap, Router, RpcEnvironmentType, UserInformation};
+
 use proxmox_rest_server::{ServerAdapter, ApiConfig, AuthError, RestServer, RestEnvironment};
 
 // Create a Dummy User information system

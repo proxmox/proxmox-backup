@@ -4,10 +4,7 @@ use std::convert::TryFrom;
 use anyhow::{bail, Error};
 use serde::{Deserialize, Serialize};
 
-use proxmox::api::{
-    api,
-    schema::{Schema, IntegerSchema, StringSchema, Updater},
-};
+use proxmox_schema::{api, Schema, IntegerSchema, StringSchema, Updater};
 
 use crate::{
     PROXMOX_SAFE_ID_FORMAT,

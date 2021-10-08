@@ -5,7 +5,7 @@ use std::os::unix::io::AsRawFd;
 use anyhow::{bail, format_err, Error};
 use endian_trait::Endian;
 
-use proxmox::tools::io::ReadExt;
+use proxmox_io::ReadExt;
 
 use pbs_api_types::MamAttribute;
 
@@ -211,7 +211,7 @@ pub fn mam_extract_media_usage(mam: &[MamAttribute]) -> Result<MediaUsageInfo, E
             let mon: i32 = date_str[4..6].parse()?;
             let mday: i32 = date_str[6..8].parse()?;
 
-            use proxmox::tools::time::TmEditor;
+            use proxmox_time::TmEditor;
             let mut t = TmEditor::new(true);
             t.set_year(year)?;
             t.set_mon(mon)?;

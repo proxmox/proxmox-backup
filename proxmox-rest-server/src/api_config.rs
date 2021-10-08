@@ -12,8 +12,8 @@ use hyper::http::request::Parts;
 use handlebars::Handlebars;
 use serde::Serialize;
 
-use proxmox::api::{ApiMethod, Router, RpcEnvironmentType, UserInformation};
 use proxmox::tools::fs::{create_path, CreateOptions};
+use proxmox_router::{ApiMethod, Router, RpcEnvironmentType, UserInformation};
 
 use crate::{ServerAdapter, AuthError, FileLogger, FileLogOptions, CommandSocket, RestEnvironment};
 

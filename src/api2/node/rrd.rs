@@ -1,7 +1,8 @@
 use anyhow::Error;
 use serde_json::{Value, json};
 
-use proxmox::api::{api, Permission, Router};
+use proxmox_router::{Permission, Router};
+use proxmox_schema::api;
 
 use pbs_api_types::{
     NODE_SCHEMA, RRDMode, RRDTimeFrameResolution, PRIV_SYS_AUDIT,
@@ -19,7 +20,7 @@ pub fn create_value_from_rrd(
 ) -> Result<Value, Error> {
 
     let mut result = Vec::new();
-    let now = proxmox::tools::time::epoch_f64();
+    let now = proxmox_time::epoch_f64();
 
     for name in list {
         let (start, reso, list) = match RRD_CACHE.extract_cached_data(basedir, name, now, timeframe, cf) {

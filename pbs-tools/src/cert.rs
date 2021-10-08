@@ -24,7 +24,7 @@ fn asn1_time_to_unix(time: &openssl::asn1::Asn1TimeRef) -> Result<i64, Error> {
         bail!("failed to parse ASN1 time");
     }
     let mut c_tm = unsafe { c_tm.assume_init() };
-    proxmox::tools::time::timegm(&mut c_tm)
+    Ok(proxmox_time::timegm(&mut c_tm)?)
 }
 
 pub struct CertInfo {
@@ -66,10 +66,11 @@ impl CertInfo {
 
     pub fn fingerprint(&self) -> Result<String, Error> {
         let fp = self.x509.digest(openssl::hash::MessageDigest::sha256())?;
-        let fp_string = proxmox::tools::digest_to_hex(&fp);
-        let fp_string = fp_string.as_bytes().chunks(2).map(|v| std::str::from_utf8(v).unwrap())
-            .collect::<Vec<&str>>().join(":");
-        Ok(fp_string)
+        Ok(hex::encode(&fp)
+            .as_bytes()
+            .chunks(2)
+            .map(|v| std::str::from_utf8(v).unwrap())
+            .collect::<Vec<&str>>().join(":"))
     }
 
     pub fn public_key(&self) -> Result<PKey<Public>, Error> {

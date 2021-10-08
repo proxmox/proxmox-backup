@@ -5,9 +5,11 @@ use anyhow::{bail, format_err, Error};
 
 use serde_json::{json, Value};
 
-use proxmox::api::router::{Router, SubdirMap};
-use proxmox::api::{api, Permission, RpcEnvironment};
-use proxmox::{http_err, list_subdirs_api_method, identity, sortable};
+use proxmox::{identity, sortable};
+use proxmox_router::{
+    http_err, list_subdirs_api_method, Router, RpcEnvironment, SubdirMap, Permission,
+};
+use proxmox_schema::api;
 
 use proxmox_openid::{OpenIdAuthenticator,  OpenIdConfig};
 
@@ -88,7 +90,7 @@ pub fn openid_login(
 
     let mut tested_username = None;
 
-    let result = proxmox::try_block!({
+    let result = proxmox_lang::try_block!({
 
         let (realm, private_auth_state) =
             OpenIdAuthenticator::verify_public_auth_state(PROXMOX_BACKUP_RUN_DIR_M!(), &state)?;

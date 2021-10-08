@@ -1,18 +1,17 @@
 //! Datastote status
 
-use proxmox::list_subdirs_api_method;
-
 use anyhow::{Error};
 use serde_json::{json, Value};
 
-use proxmox::api::{
-    api,
+use proxmox_schema::api;
+use proxmox_router::{
     ApiMethod,
     Permission,
     Router,
     RpcEnvironment,
     SubdirMap,
 };
+use proxmox_router::list_subdirs_api_method;
 
 use pbs_api_types::{
     Authid, DATASTORE_SCHEMA, RRDMode, RRDTimeFrameResolution,
@@ -122,7 +121,7 @@ pub fn datastore_status(
         });
 
         let rrd_dir = format!("datastore/{}", store);
-        let now = proxmox::tools::time::epoch_f64();
+        let now = proxmox_time::epoch_f64();
 
         let get_rrd = |what: &str| RRD_CACHE.extract_cached_data(
             &rrd_dir,

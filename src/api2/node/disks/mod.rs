@@ -1,10 +1,11 @@
 use anyhow::{bail, Error};
 use serde_json::{json, Value};
 
-use proxmox::api::{api, Permission, RpcEnvironment, RpcEnvironmentType};
-use proxmox::api::router::{Router, SubdirMap};
 use proxmox::{sortable, identity};
-use proxmox::{list_subdirs_api_method};
+use proxmox_router::{
+    list_subdirs_api_method, Router, RpcEnvironment, RpcEnvironmentType, SubdirMap, Permission,
+};
+use proxmox_schema::api;
 
 use pbs_api_types::{
     UPID_SCHEMA, NODE_SCHEMA, BLOCKDEVICE_NAME_SCHEMA,

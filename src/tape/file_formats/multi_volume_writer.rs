@@ -1,6 +1,6 @@
 use anyhow::Error;
 
-use proxmox::tools::Uuid;
+use proxmox_uuid::Uuid;
 
 use pbs_tape::{TapeWrite, MediaContentHeader};
 

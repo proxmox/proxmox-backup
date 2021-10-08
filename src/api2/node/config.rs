@@ -1,7 +1,8 @@
 use anyhow::Error;
 use ::serde::{Deserialize, Serialize};
 
-use proxmox::api::{api, Permission, Router, RpcEnvironment};
+use proxmox_router::{Permission, Router, RpcEnvironment};
+use proxmox_schema::api;
 
 use pbs_api_types::{NODE_SCHEMA, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 

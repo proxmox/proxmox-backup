@@ -2,7 +2,8 @@
 
 use anyhow::{bail, Error};
 
-use proxmox::api::{api, Router, RpcEnvironment, Permission};
+use proxmox_router::{Router, RpcEnvironment, Permission};
+use proxmox_schema::api;
 
 use pbs_api_types::{
     Authid, AclListItem, Role, 

@@ -7,7 +7,7 @@ description = "REST server implementation"
 
 # for example
 [dev-dependencies]
-proxmox = { version = "0.14.0", features = ["router","api-macro"] }
+proxmox-schema = { version = "1", features = [ "api-macro" ] }
 tokio = { version = "1.6", features = [ "rt-multi-thread", "signal", "process" ] }
 
 [dependencies]
@@ -30,7 +30,12 @@ tokio-openssl = "0.6.1"
 tower-service = "0.3.0"
 url = "2.1"
 
-proxmox = { version = "0.14.0", features = [ "router"] }
+proxmox = "0.14.0"
+proxmox-io = "1"
+proxmox-lang = "1"
+proxmox-router = "1"
+proxmox-schema = { version = "1", features = [ "api-macro", "upid-api-impl" ] }
+proxmox-time = "1"
 
 # fixme: remove this dependency (pbs_tools::broadcast_future)
 pbs-tools = { path = "../pbs-tools" }

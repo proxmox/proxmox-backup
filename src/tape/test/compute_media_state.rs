@@ -5,9 +5,7 @@
 use std::path::PathBuf;
 use anyhow::Error;
 
-use proxmox::tools::{
-    Uuid,
-};
+use proxmox_uuid::Uuid;
 
 use pbs_api_types::{MediaStatus, MediaSetPolicy, RetentionPolicy};
 

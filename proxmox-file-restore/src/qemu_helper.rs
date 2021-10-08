@@ -24,7 +24,7 @@ const MAX_CID_TRIES: u64 = 32;
 fn create_restore_log_dir() -> Result<String, Error> {
     let logpath = format!("{}/file-restore", pbs_buildcfg::PROXMOX_BACKUP_LOG_DIR);
 
-    proxmox::try_block!({
+    proxmox_lang::try_block!({
         let backup_user = backup_user()?;
         let opts = CreateOptions::new()
             .owner(backup_user.uid)
@@ -163,8 +163,8 @@ pub async fn start_vm(
 
     // preface log file with start timestamp so one can see how long QEMU took to start
     writeln!(logfd, "[{}] PBS file restore VM log", {
-        let now = proxmox::tools::time::epoch_i64();
-        proxmox::tools::time::epoch_to_rfc3339(now)?
+        let now = proxmox_time::epoch_i64();
+        proxmox_time::epoch_to_rfc3339(now)?
     },)?;
 
     let base_args = [

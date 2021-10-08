@@ -1,4 +1,4 @@
-use proxmox::tools::vec;
+use proxmox_io::vec;
 
 use crate::{
     TapeWrite,

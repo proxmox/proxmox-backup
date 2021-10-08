@@ -1,7 +1,7 @@
 //! Backup Server Administration
 
-use proxmox::api::router::{Router, SubdirMap};
-use proxmox::list_subdirs_api_method;
+use proxmox_router::{Router, SubdirMap};
+use proxmox_router::list_subdirs_api_method;
 
 pub mod datastore;
 pub mod sync;

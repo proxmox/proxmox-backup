@@ -147,7 +147,7 @@ pub fn update_job_last_run_time(jobtype: &str, jobname: &str) -> Result<(), Erro
         Ok(job) => job,
         Err(_) => return Ok(()), // was locked (running), so do not update
     };
-    let time = proxmox::tools::time::epoch_i64();
+    let time = proxmox_time::epoch_i64();
 
     job.state = match JobState::load(jobtype, jobname)? {
         JobState::Created { .. } => JobState::Created { time },
@@ -220,7 +220,7 @@ impl JobState {
             }
         } else {
             Ok(JobState::Created {
-                time: proxmox::tools::time::epoch_i64() - 30,
+                time: proxmox_time::epoch_i64() - 30,
             })
         }
     }
@@ -241,7 +241,7 @@ impl Job {
             jobtype: jobtype.to_string(),
             jobname: jobname.to_string(),
             state: JobState::Created {
-                time: proxmox::tools::time::epoch_i64(),
+                time: proxmox_time::epoch_i64(),
             },
             _lock,
         })

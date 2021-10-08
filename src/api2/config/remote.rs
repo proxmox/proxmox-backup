@@ -2,8 +2,8 @@ use anyhow::{bail, format_err, Error};
 use serde_json::Value;
 use ::serde::{Deserialize, Serialize};
 
-use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};
-use proxmox::http_err;
+use proxmox_router::{http_err, ApiMethod, Router, RpcEnvironment, Permission};
+use proxmox_schema::api;
 
 use pbs_client::{HttpClient, HttpClientOptions};
 use pbs_api_types::{

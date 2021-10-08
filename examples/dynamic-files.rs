@@ -1,8 +1,8 @@
-use anyhow::{bail, Error};
-
 use std::thread;
 use std::path::PathBuf;
 use std::io::Write;
+
+use anyhow::{bail, Error};
 
 // tar handle files that shrink during backup, by simply padding with zeros.
 //

@@ -1,15 +1,9 @@
 use anyhow::{bail, Error};
 use serde_json::Value;
 
-use proxmox::{
-    api::{
-        api,
-        cli::*,
-        RpcEnvironment,
-        ApiHandler,
-        section_config::SectionConfigData,
-    },
-};
+use proxmox_router::{cli::*, ApiHandler, RpcEnvironment};
+use proxmox_schema::api;
+use proxmox_section_config::SectionConfigData;
 
 use pbs_config::drive::{
     complete_drive_name,

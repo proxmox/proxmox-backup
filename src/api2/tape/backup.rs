@@ -4,16 +4,9 @@ use std::sync::{Mutex, Arc};
 use anyhow::{bail, format_err, Error};
 use serde_json::Value;
 
-use proxmox::{
-    try_block,
-    api::{
-        api,
-        RpcEnvironment,
-        RpcEnvironmentType,
-        Router,
-        Permission,
-    },
-};
+use proxmox_lang::try_block;
+use proxmox_router::{Permission, Router, RpcEnvironment, RpcEnvironmentType};
+use proxmox_schema::api;
 
 use pbs_api_types::{
     Authid, Userid, TapeBackupJobConfig, TapeBackupJobSetup, TapeBackupJobStatus, MediaPoolConfig,
@@ -119,7 +112,7 @@ pub fn list_tape_backup_jobs(
 
     let mut list = Vec::new();
     let status_path = Path::new(TAPE_STATUS_DIR);
-    let current_time = proxmox::tools::time::epoch_i64();
+    let current_time = proxmox_time::epoch_i64();
 
     for job in job_list_iter {
         let privs = user_info.lookup_privs(&auth_id, &["tape", "job", &job.id]);

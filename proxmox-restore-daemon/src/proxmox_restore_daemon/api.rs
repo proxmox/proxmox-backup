@@ -13,11 +13,12 @@ use serde_json::Value;
 use tokio::sync::Semaphore;
 
 use pathpatterns::{MatchEntry, MatchPattern, MatchType, Pattern};
-use proxmox::api::{
-    api, schema::*, ApiHandler, ApiMethod, ApiResponseFuture, Permission, Router, RpcEnvironment,
-    SubdirMap,
+use proxmox::{identity, sortable};
+use proxmox_router::{
+    list_subdirs_api_method,
+    ApiHandler, ApiMethod, ApiResponseFuture, Permission, Router, RpcEnvironment, SubdirMap,
 };
-use proxmox::{identity, list_subdirs_api_method, sortable};
+use proxmox_schema::*;
 
 use pbs_api_types::file_restore::RestoreDaemonStatus;
 use pbs_client::pxar::{create_archive, Flags, PxarCreateOptions, ENCODER_MAX_ENTRIES};

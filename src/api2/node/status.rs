@@ -6,7 +6,8 @@ use serde_json::Value;
 
 use proxmox::sys::linux::procfs;
 
-use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};
+use proxmox_router::{ApiMethod, Router, RpcEnvironment, Permission};
+use proxmox_schema::api;
 
 use pbs_api_types::{NODE_SCHEMA, NodePowerCommand, PRIV_SYS_AUDIT, PRIV_SYS_POWER_MANAGEMENT};
 

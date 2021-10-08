@@ -1,10 +1,8 @@
 use std::fs::File;
 use std::io::Read;
 
-use proxmox::{
-    sys::error::SysError,
-    tools::Uuid,
-};
+use proxmox::sys::error::SysError;
+use proxmox_uuid::Uuid;
 
 use pbs_tape::{
     PROXMOX_TAPE_BLOCK_SIZE,
@@ -53,9 +51,9 @@ pub fn tape_write_catalog<'a>(
         return Ok(None);
     }
 
-    let mut file_copy_buffer = proxmox::tools::vec::undefined(PROXMOX_TAPE_BLOCK_SIZE);
+    let mut file_copy_buffer = proxmox_io::vec::undefined(PROXMOX_TAPE_BLOCK_SIZE);
 
-    let result: Result<(), std::io::Error> = proxmox::try_block!({
+    let result: Result<(), std::io::Error> = proxmox_lang::try_block!({
 
         let file_size = file.metadata()?.len();
         let mut remaining = file_size;

@@ -2,7 +2,7 @@
 
 use anyhow::format_err;
 
-use proxmox::api::UserInformation;
+use proxmox_router::UserInformation;
 
 use pbs_tools::ticket::{self, Ticket};
 use pbs_config::{token_shadow, CachedUserInfo};

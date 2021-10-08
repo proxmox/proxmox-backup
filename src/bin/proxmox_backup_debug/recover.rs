@@ -5,9 +5,9 @@ use std::path::Path;
 use anyhow::{bail, format_err, Error};
 use serde_json::Value;
 
-use proxmox::api::api;
-use proxmox::api::cli::{CliCommand, CliCommandMap, CommandLineInterface};
 use proxmox::tools::digest_to_hex;
+use proxmox_router::cli::{CliCommand, CliCommandMap, CommandLineInterface};
+use proxmox_schema::api;
 
 use pbs_tools::crypt_config::CryptConfig;
 use pbs_datastore::dynamic_index::DynamicIndexReader;

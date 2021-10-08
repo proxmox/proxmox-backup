@@ -1,4 +1,4 @@
-use proxmox::api::{
+use proxmox_router::{
     cli::{run_cli_command, CliCommandMap, CliEnvironment},
     RpcEnvironment,
 };

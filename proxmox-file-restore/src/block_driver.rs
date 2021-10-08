@@ -8,7 +8,8 @@ use anyhow::{bail, Error};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use proxmox::api::{api, cli::*};
+use proxmox_router::cli::*;
+use proxmox_schema::api;
 
 use pbs_client::BackupRepository;
 use pbs_datastore::backup_info::BackupDir;

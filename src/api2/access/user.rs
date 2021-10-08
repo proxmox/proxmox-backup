@@ -5,8 +5,8 @@ use serde::{Serialize, Deserialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 
-use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};
-use proxmox::api::router::SubdirMap;
+use proxmox_router::{ApiMethod, Router, RpcEnvironment, SubdirMap, Permission};
+use proxmox_schema::api;
 
 use pbs_api_types::{
     PROXMOX_CONFIG_DIGEST_SCHEMA, SINGLE_LINE_COMMENT_SCHEMA, Authid,
@@ -498,7 +498,7 @@ pub fn generate_token(
         bail!("token '{}' for user '{}' already exists.", token_name.as_str(), userid);
     }
 
-    let secret = format!("{:x}", proxmox::tools::uuid::Uuid::generate());
+    let secret = format!("{:x}", proxmox_uuid::Uuid::generate());
     token_shadow::set_secret(&tokenid, &secret)?;
 
     let token = ApiToken {

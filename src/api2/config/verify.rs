@@ -2,7 +2,8 @@ use anyhow::{bail, Error};
 use serde_json::Value;
 use ::serde::{Deserialize, Serialize};
 
-use proxmox::api::{api, Permission, Router, RpcEnvironment};
+use proxmox_router::{Router, RpcEnvironment, Permission};
+use proxmox_schema::api;
 
 use pbs_api_types::{
     Authid, VerificationJobConfig, VerificationJobConfigUpdater, JOB_ID_SCHEMA,

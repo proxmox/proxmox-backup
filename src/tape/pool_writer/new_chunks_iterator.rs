@@ -36,7 +36,7 @@ impl NewChunksIterator {
 
             let datastore_name = snapshot_reader.datastore_name();
 
-            let result: Result<(), Error> = proxmox::try_block!({
+            let result: Result<(), Error> = proxmox_lang::try_block!({
 
                 let mut chunk_iter = snapshot_reader.chunk_iterator()?;
 

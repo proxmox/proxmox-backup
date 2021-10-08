@@ -1,7 +1,8 @@
 use anyhow::{Error};
 use serde_json::{json, Value};
 
-use proxmox::api::{api, cli::*};
+use proxmox_schema::api;
+use proxmox_router::cli::*;
 
 use pbs_client::display_task_log;
 use pbs_tools::percent_encoding::percent_encode_component;

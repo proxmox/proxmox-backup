@@ -9,7 +9,7 @@ use hyper::{Body, Response, Method, StatusCode};
 use http::request::Parts;
 use http::HeaderMap;
 
-use proxmox::api::UserInformation;
+use proxmox_router::UserInformation;
 
 use proxmox_rest_server::{ServerAdapter, AuthError, RestEnvironment};
 

@@ -115,7 +115,7 @@ fn mode_string(entry: &Entry) -> String {
 }
 
 fn format_mtime(mtime: &StatxTimestamp) -> String {
-    if let Ok(s) = proxmox::tools::time::strftime_local("%Y-%m-%d %H:%M:%S", mtime.secs) {
+    if let Ok(s) = proxmox_time::strftime_local("%Y-%m-%d %H:%M:%S", mtime.secs) {
         return s;
     }
     format!("{}.{}", mtime.secs, mtime.nanos)

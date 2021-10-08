@@ -17,10 +17,10 @@ use tokio_stream::wrappers::ReceiverStream;
 use serde_json::{json, Value};
 use http::{Method, HeaderMap};
 
-use proxmox::try_block;
-use proxmox::api::{RpcEnvironment, RpcEnvironmentType, UserInformation};
 use proxmox::sys::linux::socket::set_tcp_keepalive;
 use proxmox::tools::fs::CreateOptions;
+use proxmox_lang::try_block;
+use proxmox_router::{RpcEnvironment, RpcEnvironmentType, UserInformation};
 
 use pbs_tools::{task_log, task_warn};
 use pbs_datastore::DataStore;
@@ -577,7 +577,7 @@ async fn schedule_datastore_garbage_collection() {
             }
         };
 
-        let now = proxmox::tools::time::epoch_i64();
+        let now = proxmox_time::epoch_i64();
 
         if next > now  { continue; }
 
@@ -1021,7 +1021,7 @@ fn check_schedule(worker_type: &str, event_str: &str, id: &str) -> bool {
         }
     };
 
-    let now = proxmox::tools::time::epoch_i64();
+    let now = proxmox_time::epoch_i64();
     next <= now
 }
 

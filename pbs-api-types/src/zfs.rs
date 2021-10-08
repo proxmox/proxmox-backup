@@ -1,8 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use proxmox::api::{api, schema::*};
-
-use proxmox::const_regex;
+use proxmox_schema::*;
 
 const_regex! {
     pub ZPOOL_NAME_REGEX = r"^[a-zA-Z][a-z0-9A-Z\-_.:]+$";

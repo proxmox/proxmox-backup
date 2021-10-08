@@ -1,11 +1,8 @@
 use anyhow::{bail, Error};
 use serde_json::{json, Value};
 
-use proxmox::api::{
-    api, Permission, RpcEnvironment, RpcEnvironmentType,
-    schema::parse_property_string,
-};
-use proxmox::api::router::Router;
+use proxmox_router::{Router, RpcEnvironment, RpcEnvironmentType, Permission};
+use proxmox_schema::{api, parse_property_string};
 
 use pbs_api_types::{
     ZpoolListItem, ZfsRaidLevel, ZfsCompressionType, DataStoreConfig,

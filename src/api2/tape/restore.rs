@@ -8,25 +8,12 @@ use std::sync::Arc;
 use anyhow::{bail, format_err, Error};
 use serde_json::Value;
 
-use proxmox::{
-    api::{
-        api,
-        RpcEnvironment,
-        RpcEnvironmentType,
-        Router,
-        Permission,
-        schema::parse_property_string,
-        section_config::SectionConfigData,
-    },
-    tools::{
-        Uuid,
-        io::ReadExt,
-        fs::{
-            replace_file,
-            CreateOptions,
-        },
-    },
-};
+use proxmox::tools::fs::{replace_file, CreateOptions};
+use proxmox_io::ReadExt;
+use proxmox_router::{Permission, Router, RpcEnvironment, RpcEnvironmentType};
+use proxmox_schema::{api, parse_property_string};
+use proxmox_section_config::SectionConfigData;
+use proxmox_uuid::Uuid;
 
 use pbs_api_types::{
     Authid, Userid, CryptMode,
@@ -441,7 +428,7 @@ fn restore_list_worker(
     let mut snapshot_file_hash: BTreeMap<Uuid, Vec<u64>> = BTreeMap::new();
     let mut snapshot_locks = HashMap::new();
 
-    let res = proxmox::try_block!({
+    let res = proxmox_lang::try_block!({
         // assemble snapshot files/locks
         for store_snapshot in snapshots.iter() {
             let mut split = store_snapshot.splitn(2, ':');
@@ -593,7 +580,7 @@ fn restore_list_worker(
             "Phase 3: copy snapshots from temp dir to datastores"
         );
         for (store_snapshot, _lock) in snapshot_locks.into_iter() {
-            proxmox::try_block!({
+            proxmox_lang::try_block!({
                 let mut split = store_snapshot.splitn(2, ':');
                 let source_datastore = split
                     .next()

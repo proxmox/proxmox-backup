@@ -7,7 +7,7 @@ fn run_command(mut command: Command) -> Result<(), Error> {
         .output()
         .map_err(|err| format_err!("failed to execute {:?} - {}", command, err))?;
 
-    proxmox::try_block!({
+    proxmox_lang::try_block!({
         if !output.status.success() {
             match output.status.code() {
                 Some(code) => {

@@ -4,8 +4,8 @@ use anyhow::Error;
 
 use serde_json::{json, Value};
 
-use proxmox::api::{api, Permission};
-use proxmox::api::router::Router;
+use proxmox_router::{Permission, Router};
+use proxmox_schema::api;
 
 use pbs_api_types::{Role, SINGLE_LINE_COMMENT_SCHEMA, PRIVILEGES};
 use pbs_config::acl::ROLE_NAMES;

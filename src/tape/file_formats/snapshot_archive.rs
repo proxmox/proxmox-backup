@@ -2,10 +2,8 @@ use std::io::{Read, Write};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use proxmox::{
-    sys::error::SysError,
-    tools::Uuid,
-};
+use proxmox::sys::error::SysError;
+use proxmox_uuid::Uuid;
 
 use pbs_tape::{
     PROXMOX_TAPE_BLOCK_SIZE,
@@ -46,9 +44,9 @@ pub fn tape_write_snapshot_archive<'a>(
 
     let root_metadata = pxar::Metadata::dir_builder(0o0664).build();
 
-    let mut file_copy_buffer = proxmox::tools::vec::undefined(PROXMOX_TAPE_BLOCK_SIZE);
+    let mut file_copy_buffer = proxmox_io::vec::undefined(PROXMOX_TAPE_BLOCK_SIZE);
 
-    let result: Result<(), std::io::Error> = proxmox::try_block!({
+    let result: Result<(), std::io::Error> = proxmox_lang::try_block!({
 
         let leom = writer.write_header(&header, &header_data)?;
         if leom {

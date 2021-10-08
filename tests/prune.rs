@@ -1,5 +1,6 @@
-use anyhow::{Error};
 use std::path::PathBuf;
+
+use anyhow::Error;
 
 use pbs_api_types::PruneOptions;
 use pbs_datastore::manifest::MANIFEST_BLOB_NAME;
