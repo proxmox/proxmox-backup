@@ -14,7 +14,7 @@ openssl = "0.10"
 regex = "1.2"
 serde = { version = "1.0", features = ["derive"] }
 
-proxmox = { version = "0.13.5", default-features = false, features = [ "api-macro" ] }
+proxmox-schema = { version = "1.0.0", features = [ "api-macro" ] }
 
 proxmox-rrd-api-types = { path = "../proxmox-rrd-api-types" }
 proxmox-systemd = { path = "../proxmox-systemd" }

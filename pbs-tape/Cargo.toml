@@ -18,7 +18,7 @@ bitflags = "1.2.1"
 regex = "1.2"
 udev = ">= 0.3, <0.5"
 
-proxmox = { version = "0.13.5", default-features = false, features = [] }
+proxmox = { version = "0.14.0", default-features = false, features = [] }
 
 pbs-api-types = { path = "../pbs-api-types" }
 pbs-tools = { path = "../pbs-tools" }

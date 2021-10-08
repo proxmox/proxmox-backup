@@ -14,7 +14,7 @@ nix = "0.19.1"
 regex = "1.2"
 tokio = { version = "1.6", features = [] }
 
-proxmox = "0.13.5"
+proxmox = "0.14.0"
 proxmox-fuse = "0.1.1"
 
 pbs-tools = { path = "../pbs-tools" }
