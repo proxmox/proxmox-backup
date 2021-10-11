@@ -1,31 +1,33 @@
 Backup Client Usage
 ===================
 
-The command line client is called :command:`proxmox-backup-client`.
+The command line client for Proxmox Backup Server is called
+:command:`proxmox-backup-client`.
 
 .. _client_repository:
 
 Backup Repository Locations
 ---------------------------
 
-The client uses the following notation to specify a datastore repository
-on the backup server.
+The client uses the following format to specify a datastore repository
+on the backup server (where username is specified in the form of user@realm):
 
   [[username@]server[:port]:]datastore
 
 The default value for ``username`` is ``root@pam``. If no server is specified,
 the default is the local host (``localhost``).
 
-You can specify a port if your backup server is only reachable on a different
-port (e.g. with NAT and port forwarding).
+You can specify a port if your backup server is only reachable on a non-default
+port (for example, with NAT and port forwarding configurations).
 
-Note that if the server is an IPv6 address, you have to write it with square
+Note that if the server uses an IPv6 address, you have to write it with square
 brackets (for example, `[fe80::01]`).
 
 You can pass the repository with the ``--repository`` command line option, or
 by setting the ``PBS_REPOSITORY`` environment variable.
 
-Here some examples of valid repositories and the real values
+Below are some examples of valid repositories and their corresponding real
+values:
 
 ================================ ================== ================== ===========
 Example                          User               Host:Port          Datastore
@@ -46,8 +48,8 @@ Environment Variables
   The default backup repository.
 
 ``PBS_PASSWORD``
-  When set, this value is used for the password required for the backup server.
-  You can also set this to a API token secret.
+  When set, this value is used as the password for the backup server.
+  You can also set this to an API token secret.
 
 ``PBS_PASSWORD_FD``, ``PBS_PASSWORD_FILE``, ``PBS_PASSWORD_CMD``
   Like ``PBS_PASSWORD``, but read data from an open file descriptor, a file
@@ -63,15 +65,14 @@ Environment Variables
   a file name or from the `stdout` of a command, respectively. The first
   defined environment variable from the order above is preferred.
 
-``PBS_FINGERPRINT`` When set, this value is used to verify the server
-  certificate (only used if the system CA certificates cannot validate the
-  certificate).
+``PBS_FINGERPRINT``
+  When set, this value is used to verify the server certificate (only used if
+  the system CA certificates cannot validate the certificate).
 
 
-.. Note:: Passwords must be valid UTF8 an may not contain
-   newlines. For your convienience, we just use the first line as
-   password, so you can add arbitrary comments after the
-   first newline.
+.. Note:: Passwords must be valid UTF-8 and may not contain newlines. For your
+   convienience, Proxmox Backup Server only uses the first line as password, so
+   you can add arbitrary comments after the first newline.
 
 
 Output Format
@@ -86,14 +87,15 @@ Creating Backups
 ----------------
 
 This section explains how to create a backup from within the machine. This can
-be a physical host, a virtual machine, or a container. Such backups may contain file
-and image archives. There are no restrictions in this case.
+be a physical host, a virtual machine, or a container. Such backups may contain
+file and image archives. There are no restrictions in this case.
 
-.. note:: If you want to backup virtual machines or containers on Proxmox VE, see :ref:`pve-integration`.
+.. Note:: If you want to backup virtual machines or containers on Proxmox VE,
+   see :ref:`pve-integration`.
 
-For the following example you need to have a backup server set up, working
-credentials and need to know the repository name.
-In the following examples we use ``backup-server:store1``.
+For the following example, you need to have a backup server set up, have working
+credentials, and know the repository name.
+In the following examples, we use ``backup-server:store1``.
 
 .. code-block:: console
 
@@ -107,12 +109,12 @@ In the following examples we use ``backup-server:store1``.
   Uploaded 12129 chunks in 87 seconds (564 MB/s).
   End Time: 2019-12-03T10:36:29+01:00
 
-This will prompt you for a password and then uploads a file archive named
+This will prompt you for a password, then upload a file archive named
 ``root.pxar`` containing all the files in the ``/`` directory.
 
-.. Caution:: Please note that the proxmox-backup-client does not
+.. Caution:: Please note that proxmox-backup-client does not
    automatically include mount points. Instead, you will see a short
-   ``skip mount point`` notice for each of them. The idea is to
+   ``skip mount point`` message for each of them. The idea is to
    create a separate file archive for each mounted disk. You can
    explicitly include them using the ``--include-dev`` option
    (i.e. ``--include-dev /boot/efi``). You can use this option
@@ -120,19 +122,19 @@ This will prompt you for a password and then uploads a file archive named
 
 The ``--repository`` option can get quite long and is used by all
 commands. You can avoid having to enter this value by setting the
-environment variable ``PBS_REPOSITORY``. Note that if you would like this to remain set
-over multiple sessions, you should instead add the below line to your
+environment variable ``PBS_REPOSITORY``. Note that if you would like this to
+remain set over multiple sessions, you should instead add the below line to your
 ``.bashrc`` file.
 
 .. code-block:: console
 
   # export PBS_REPOSITORY=backup-server:store1
 
-After this you can execute all commands without specifying the ``--repository``
-option.
+After this, you can execute all commands without having to specify the
+``--repository`` option.
 
-One single backup is allowed to contain more than one archive. For example, if
-you want to backup two disks mounted at ``/mnt/disk1`` and ``/mnt/disk2``:
+A single backup is allowed to contain more than one archive. For example, if
+you want to back up two disks mounted at ``/mnt/disk1`` and ``/mnt/disk2``:
 
 .. code-block:: console
 
@@ -146,26 +148,26 @@ archive source at the client. The format is:
 
     <archive-name>.<type>:<source-path>
 
-Common types are ``.pxar`` for file archives, and ``.img`` for block
-device images. To create a backup of a block device run the following command:
+Common types are ``.pxar`` for file archives and ``.img`` for block
+device images. To create a backup of a block device, run the following command:
 
 .. code-block:: console
 
   # proxmox-backup-client backup mydata.img:/dev/mylvm/mydata
 
 
-Excluding files/folders from a backup
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Excluding Files/Directories from a Backup
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Sometimes it is desired to exclude certain files or folders from a backup archive.
+Sometimes it is desired to exclude certain files or directories from a backup archive.
 To tell the Proxmox Backup client when and how to ignore files and directories,
-place a text file called ``.pxarexclude`` in the filesystem hierarchy.
+place a text file named ``.pxarexclude`` in the filesystem hierarchy.
 Whenever the backup client encounters such a file in a directory, it interprets
-each line as glob match patterns for files and directories that are to be excluded
+each line as a glob match pattern for files and directories that are to be excluded
 from the backup.
 
-The file must contain a single glob pattern per line. Empty lines are ignored.
-The same is true for lines starting with ``#``, which indicates a comment.
+The file must contain a single glob pattern per line. Empty lines and lines
+starting with ``#`` (indicating a comment) are ignored.
 A ``!`` at the beginning of a line reverses the glob match pattern from an exclusion
 to an explicit inclusion. This makes it possible to exclude all entries in a
 directory except for a few single files/subdirectories.
@@ -176,23 +178,24 @@ the given patterns. It is only possible to match files in this directory and its
 ``\`` is used to escape special glob characters.
 ``?`` matches any single character.
 ``*`` matches any character, including an empty string.
-``**`` is used to match subdirectories. It can be used to, for example, exclude
-all files ending in ``.tmp`` within the directory or subdirectories with the
-following pattern ``**/*.tmp``.
+``**`` is used to match current directory and subdirectories. For example, with
+the pattern ``**/*.tmp``, it would exclude all files ending in ``.tmp`` within
+a directory and its subdirectories.
 ``[...]`` matches a single character from any of the provided characters within
 the brackets. ``[!...]`` does the complementary and matches any single character
 not contained within the brackets. It is also possible to specify ranges with two
 characters separated by ``-``. For example, ``[a-z]`` matches any lowercase
-alphabetic character and ``[0-9]`` matches any one single digit.
+alphabetic character, and ``[0-9]`` matches any single digit.
 
 The order of the glob match patterns defines whether a file is included or
-excluded, that is to say later entries override previous ones.
+excluded, that is to say, later entries override earlier ones.
 This is also true for match patterns encountered deeper down the directory tree,
 which can override a previous exclusion.
-Be aware that excluded directories will **not** be read by the backup client.
-Thus, a ``.pxarexclude`` file in an excluded subdirectory will have no effect.
-``.pxarexclude`` files are treated as regular files and will be included in the
-backup archive.
+
+.. Note:: Excluded directories will **not** be read by the backup client. Thus,
+   a ``.pxarexclude`` file in an excluded subdirectory will have no effect.
+   ``.pxarexclude`` files are treated as regular files and will be included in
+   the backup archive.
 
 For example, consider the following directory structure:
 
@@ -280,7 +283,7 @@ You can avoid entering the passwords by setting the environment
 variables ``PBS_PASSWORD`` and ``PBS_ENCRYPTION_PASSWORD``.
 
 
-Using a master key to store and recover encryption keys
+Using a Master Key to Store and Recover Encryption Keys
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 You can also use ``proxmox-backup-client key`` to create an RSA public/private
@@ -360,7 +363,7 @@ To set up a master key:
   keep keys ordered and in a place that is separate from the contents being
   backed up. It can happen, for example, that you back up an entire system, using
   a key on that system. If the system then becomes inaccessible for any reason
-  and needs to be restored, this will not be possible as the encryption key will be
+  and needs to be restored, this will not be possible, as the encryption key will be
   lost along with the broken system.
 
 It is recommended that you keep your master key safe, but easily accessible, in
@@ -382,10 +385,10 @@ version of your master key. The following command sends the output of the
 Restoring Data
 --------------
 
-The regular creation of backups is a necessary step to avoiding data
-loss. More importantly, however, is the restoration. It is good practice to perform
-periodic recovery tests to ensure that you can access the data in
-case of problems.
+The regular creation of backups is a necessary step in avoiding data loss. More
+importantly, however, is the restoration. It is good practice to perform
+periodic recovery tests to ensure that you can access the data in case of
+disaster.
 
 First, you need to find the snapshot which you want to restore. The snapshot
 list command provides a list of all the snapshots on the server:
@@ -444,23 +447,22 @@ to use the interactive recovery shell.
 
 The interactive recovery shell is a minimal command line interface that
 utilizes the metadata stored in the catalog to quickly list, navigate and
-search files in a file archive.
+search for files in a file archive.
 To restore files, you can select them individually or match them with a glob
 pattern.
 
 Using the catalog for navigation reduces the overhead considerably because only
 the catalog needs to be downloaded and, optionally, decrypted.
-The actual chunks are only accessed if the metadata in the catalog is not enough
-or for the actual restore.
+The actual chunks are only accessed if the metadata in the catalog is
+insufficient or for the actual restore.
 
-Similar to common UNIX shells ``cd`` and ``ls`` are the commands used to change
+Similar to common UNIX shells, ``cd`` and ``ls`` are the commands used to change
 working directory and list directory contents in the archive.
 ``pwd`` shows the full path of the current working directory with respect to the
 archive root.
 
-Being able to quickly search the contents of the archive is a commonly needed feature.
-That's where the catalog is most valuable.
-For example:
+The ability to quickly search the contents of the archive is a commonly required
+feature. That's where the catalog is most valuable. For example:
 
 .. code-block:: console
 
@@ -471,8 +473,8 @@ For example:
   pxar:/ > restore-selected /target/path
   ...
 
-This will find and print all files ending in ``.txt`` located in ``etc/`` or a
-subdirectory and add the corresponding pattern to the list for subsequent restores.
+This will find and print all files ending in ``.txt`` located in ``etc/`` or its
+subdirectories, and add the corresponding pattern to the list for subsequent restores.
 ``list-selected`` shows these patterns and ``restore-selected`` finally restores
 all files in the archive matching the patterns to ``/target/path`` on the local
 host. This will scan the whole archive.
@@ -497,7 +499,7 @@ Mounting of Archives via FUSE
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The :term:`FUSE` implementation for the pxar archive allows you to mount a
-file archive as a read-only filesystem to a mountpoint on your host.
+file archive as a read-only filesystem to a mount point on your host.
 
 .. code-block:: console
 
@@ -513,7 +515,7 @@ This allows you to access the full contents of the archive in a seamless manner.
     load on your host, depending on the operations you perform on the mounted
     filesystem.
 
-To unmount the filesystem use the ``umount`` command on the mountpoint:
+To unmount the filesystem, use the ``umount`` command on the mount point:
 
 .. code-block:: console
 
@@ -522,7 +524,7 @@ To unmount the filesystem use the ``umount`` command on the mountpoint:
 Login and Logout
 ----------------
 
-The client tool prompts you to enter the logon password as soon as you
+The client tool prompts you to enter the login password as soon as you
 want to access the backup server. The server checks your credentials
 and responds with a ticket that is valid for two hours. The client
 tool automatically stores that ticket and uses it for further requests
@@ -551,7 +553,7 @@ Changing the Owner of a Backup Group
 By default, the owner of a backup group is the user which was used to originally
 create that backup group (or in the case of sync jobs, ``root@pam``). This
 means that if a user ``mike@pbs`` created a backup, another user ``john@pbs``
-can not be used to create backups in that same backup group.  In case you want
+can not be used to create backups in that same backup group. In case you want
 to change the owner of a backup, you can do so with the below command, using a
 user that has ``Datastore.Modify`` privileges on the datastore.
 
@@ -677,7 +679,7 @@ unused data blocks are removed.
    (access time) property. Filesystems are mounted with the ``relatime`` option
    by default. This results in a better performance by only updating the
    ``atime`` property if the last access has been at least 24 hours ago. The
-   downside is, that touching a chunk within these 24 hours will not always
+   downside is that touching a chunk within these 24 hours will not always
    update its ``atime`` property.
 
    Chunks in the grace period will be logged at the end of the garbage
@@ -701,8 +703,8 @@ unused data blocks are removed.
   Average chunk size: 2486565
   TASK OK
 
-
-.. todo:: howto run garbage-collection at regular intervals (cron)
+Garbage collection can also be scheduled using ``promxox-backup-manager`` or
+from the Proxmox Backup Server's web interface.
 
 Benchmarking
 ------------
