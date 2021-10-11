@@ -1,5 +1,5 @@
 .. Epilog (included at top of each file)
-   
+
    We use this file to define external links and common replacement
    patterns.
 
@@ -13,7 +13,6 @@
 .. _Proxmox: https://www.proxmox.com
 .. _Proxmox Community Forum: https://forum.proxmox.com
 .. _Proxmox Virtual Environment: https://www.proxmox.com/proxmox-ve
-.. FIXME
 .. _Proxmox Backup: https://pbs.proxmox.com/wiki/index.php/Main_Page
 .. _PBS Development List: https://lists.proxmox.com/cgi-bin/mailman/listinfo/pbs-devel
 .. _reStructuredText: https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html
@@ -23,6 +22,7 @@
 .. _Virtual machine: https://en.wikipedia.org/wiki/Virtual_machine
 .. _APT: http://en.wikipedia.org/wiki/Advanced_Packaging_Tool
 .. _QEMU: https://www.qemu.org/
+.. _LXC: https://linuxcontainers.org/lxc/introduction/
 
 .. _Client-server model: https://en.wikipedia.org/wiki/Client-server_model
 .. _AE: https://en.wikipedia.org/wiki/Authenticated_encryption

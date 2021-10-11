@@ -8,8 +8,9 @@ tools. The web interface also provides a built-in console, so if you prefer the
 command line or need some extra control, you have this option.
 
 The web interface can be accessed via https://youripaddress:8007. The default
-login is `root`, and the password is the one specified during the installation
-process.
+login is `root`, and the password is either the one specified during the
+installation process or the password of the root user, in case of installation
+on top of Debian.
 
 
 Features
@@ -110,7 +111,7 @@ The administration menu item also contains a disk management subsection:
 * **Disks**: View information on available disks
 
   * **Directory**: Create and view information on *ext4* and *xfs* disks
-  * **ZFS**: Create and view information on *ZFS* disks 
+  * **ZFS**: Create and view information on *ZFS* disks
 
 Tape Backup
 ^^^^^^^^^^^
@@ -133,9 +134,9 @@ Datastore
   :alt: Datastore Configuration
 
 The Datastore section contains interfaces for creating and managing
-datastores. It contains a button to create a new datastore on the server, as
-well as a subsection for each datastore on the system, in which you can use the
-top panel to view:
+datastores. It also contains a button for creating a new datastore on the
+server, as well as a subsection for each datastore on the system, in which you
+can use the top panel to view:
 
 * **Summary**: Access a range of datastore usage statistics
 * **Content**: Information on the datastore's backup groups and their respective

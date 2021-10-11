@@ -41,23 +41,23 @@ Binary Data (BLOBs)
 ~~~~~~~~~~~~~~~~~~~
 
 This type is used to store smaller (< 16MB) binary data such as
-configuration files. Larger files should be stored as image archive.
+configuration files. Larger files should be stored as image archives.
 
 .. caution:: Please do not store all files as BLOBs. Instead, use the
-   file archive to store whole directory trees.
+   file archive to store entire directory trees.
 
 
 Catalog File: ``catalog.pcat1``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The catalog file is an index for file archives. It contains
-the list of files and is used to speed up search operations.
+the list of included files and is used to speed up search operations.
 
 
 The Manifest: ``index.json``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The manifest contains the list of all backup files, their
+The manifest contains a list of all backed up files, and their
 sizes and checksums. It is used to verify the consistency of a
 backup.
 
@@ -68,18 +68,19 @@ Backup Type
 The backup server groups backups by *type*, where *type* is one of:
 
 ``vm``
-    This type is used for :term:`virtual machine`\ s. Typically
+    This type is used for :term:`virtual machine`\ s. It typically
     consists of the virtual machine's configuration file and an image archive
     for each disk.
 
 ``ct``
-    This type is used for :term:`container`\ s. Consists of the container's
-    configuration and a single file archive for the filesystem content.
+    This type is used for :term:`container`\ s. It consists of the container's
+    configuration and a single file archive for the filesystem's contents.
 
 ``host``
-    This type is used for backups created from within the backed up machine.
-    Typically this would be a physical host but could also be a virtual machine
-    or container. Such backups may contain file and image archives, there are no restrictions in this regard.
+    This type is used for file/directory backups created from within a machine.
+    Typically this would be a physical host, but could also be a virtual machine
+    or container. Such backups may contain file and image archives; there are no
+    restrictions in this regard.
 
 
 Backup ID

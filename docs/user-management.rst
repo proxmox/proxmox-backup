@@ -15,7 +15,7 @@ Proxmox Backup Server supports several authentication realms, and you need to
 choose the realm when you add a new user. Possible realms are:
 
 :pam: Linux PAM standard authentication. Use this if you want to
-      authenticate as Linux system user (Users need to exist on the
+      authenticate as a Linux system user (users need to exist on the
       system).
 
 :pbs: Proxmox Backup Server realm. This type stores hashed passwords in
@@ -40,13 +40,13 @@ users:
   :align: right
   :alt: Add a new user
 
-The superuser has full administration rights on everything, so you
-normally want to add other users with less privileges. You can add a new
+The superuser has full administration rights on everything, so it's recommended
+to add other users with less privileges. You can add a new
 user with the ``user create`` subcommand or through the web
 interface, under the **User Management** tab of **Configuration -> Access
 Control**. The ``create`` subcommand lets you specify many options like
 ``--email`` or ``--password``. You can update or change any user properties
-using the ``update`` subcommand later (**Edit** in the GUI):
+using the ``user update`` subcommand later (**Edit** in the GUI):
 
 
 .. code-block:: console
@@ -74,13 +74,13 @@ The resulting user list looks like this:
 Newly created users do not have any permissions. Please read the Access Control
 section to learn how to set access permissions.
 
-If you want to disable a user account, you can do that by setting ``--enable`` to ``0``
+You can disable a user account by setting ``--enable`` to ``0``:
 
 .. code-block:: console
 
   # proxmox-backup-manager user update john@pbs --enable 0
 
-Or completely remove the user with:
+Or completely remove a user with:
 
 .. code-block:: console
 
@@ -95,7 +95,7 @@ API Tokens
   :align: right
   :alt: API Token Overview
 
-Any authenticated user can generate API tokens which can in turn be used to
+Any authenticated user can generate API tokens, which can in turn be used to
 configure various clients, instead of directly providing the username and
 password.
 
@@ -117,7 +117,7 @@ The API token is passed from the client to the server by setting the
 ``Authorization`` HTTP header with method ``PBSAPIToken`` to the value
 ``TOKENID:TOKENSECRET``.
 
-Generating new tokens can done using ``proxmox-backup-manager`` or the GUI:
+You can generate tokens from the GUI or by using ``proxmox-backup-manager``:
 
 .. code-block:: console
 
@@ -154,9 +154,9 @@ section to learn how to set access permissions.
 Access Control
 --------------
 
-By default new users and API tokens do not have any permission. Instead you
+By default, new users and API tokens do not have any permissions. Instead you
 need to specify what is allowed and what is not. You can do this by assigning
-roles to users/tokens on specific objects like datastores or remotes. The
+roles to users/tokens on specific objects, like datastores or remotes. The
 following roles exist:
 
 **NoAccess**
@@ -176,7 +176,7 @@ following roles exist:
   is not allowed to read the actual data.
 
 **DatastoreReader**
-  Can Inspect datastore content and can do restores.
+  Can Inspect datastore content and do restores.
 
 **DatastoreBackup**
   Can backup and restore owned backups.
@@ -236,7 +236,8 @@ You can list the ACLs of each user/token using the following command:
    │ john@pbs │ /datastore/store1 │         1 │ DatastoreAdmin │
    └──────────┴───────────────────┴───────────┴────────────────┘
 
-A single user/token can be assigned multiple permission sets for different datastores.
+A single user/token can be assigned multiple permission sets for different
+datastores.
 
 .. Note::
   Naming convention is important here. For datastores on the host,
@@ -247,11 +248,11 @@ A single user/token can be assigned multiple permission sets for different datas
   remote (see `Remote` below) and ``{storename}`` is the name of the datastore on
   the remote.
 
-API Token permissions
+API Token Permissions
 ~~~~~~~~~~~~~~~~~~~~~
 
-API token permissions are calculated based on ACLs containing their ID
-independent of those of their corresponding user. The resulting permission set
+API token permissions are calculated based on ACLs containing their ID,
+independently of those of their corresponding user. The resulting permission set
 on a given path is then intersected with that of the corresponding user.
 
 In practice this means:
@@ -259,17 +260,17 @@ In practice this means:
 #. API tokens require their own ACL entries
 #. API tokens can never do more than their corresponding user
 
-Effective permissions
+Effective Permissions
 ~~~~~~~~~~~~~~~~~~~~~
 
-To calculate and display the effective permission set of a user or API token
+To calculate and display the effective permission set of a user or API token,
 you can use the ``proxmox-backup-manager user permission`` command:
 
 .. code-block:: console
 
   # proxmox-backup-manager user permissions john@pbs --path /datastore/store1
   Privileges with (*) have the propagate flag set
-  
+
   Path: /datastore/store1
   - Datastore.Audit (*)
   - Datastore.Backup (*)
@@ -277,17 +278,17 @@ you can use the ``proxmox-backup-manager user permission`` command:
   - Datastore.Prune (*)
   - Datastore.Read (*)
   - Datastore.Verify (*)
-  
+
   # proxmox-backup-manager acl update /datastore/store1 DatastoreBackup --auth-id 'john@pbs!client1'
   # proxmox-backup-manager user permissions 'john@pbs!client1' --path /datastore/store1
   Privileges with (*) have the propagate flag set
-  
+
   Path: /datastore/store1
   - Datastore.Backup (*)
 
 .. _user_tfa:
 
-Two-factor authentication
+Two-Factor Authentication
 -------------------------
 
 Introduction
@@ -296,7 +297,7 @@ Introduction
 With simple authentication, only a password (single factor) is required to
 successfully claim an identity (authenticate), for example, to be able to log in
 as `root@pam` on a specific instance of Proxmox Backup Server. In this case, if
-the password gets stolen or leaked, anybody can use it to log in - even if they
+the password gets leaked or stolen, anybody can use it to log in - even if they
 should not be allowed to do so.
 
 With two-factor authentication (TFA), a user is asked for an additional factor
@@ -359,13 +360,14 @@ WebAuthn
 
 For WebAuthn to work, you need to have two things:
 
-* a trusted HTTPS certificate (for example, by using `Let's Encrypt
+* A trusted HTTPS certificate (for example, by using `Let's Encrypt
   <https://pbs.proxmox.com/wiki/index.php/HTTPS_Certificate_Configuration>`_).
   While it probably works with an untrusted certificate, some browsers may warn
   or refuse WebAuthn operations if it is not trusted.
 
-* setup the WebAuthn configuration (see *Configuration -> Authentication* in the
-  Proxmox Backup Server web-interface). This can be auto-filled in most setups.
+* Setup the WebAuthn configuration (see **Configuration -> Authentication** in
+  the Proxmox Backup Server web interface). This can be auto-filled in most
+  setups.
 
 Once you have fulfilled both of these requirements, you can add a WebAuthn
 configuration in the *Access Control* panel.

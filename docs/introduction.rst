@@ -4,15 +4,15 @@ Introduction
 What is Proxmox Backup Server?
 ------------------------------
 
-Proxmox Backup Server is an enterprise-class, client-server backup software
-package that backs up :term:`virtual machine`\ s, :term:`container`\ s, and
+Proxmox Backup Server is an enterprise-class, client-server backup solution that
+is capable of backing up :term:`virtual machine`\ s, :term:`container`\ s, and
 physical hosts. It is specially optimized for the `Proxmox Virtual Environment`_
 platform and allows you to back up your data securely, even between remote
-sites, providing easy management with a web-based user interface.
+sites, providing easy management through a web-based user interface.
 
 It supports deduplication, compression, and authenticated
-encryption (AE_). Using :term:`Rust` as the implementation language guarantees high
-performance, low resource usage, and a safe, high-quality codebase.
+encryption (AE_). Using :term:`Rust` as the implementation language guarantees
+high performance, low resource usage, and a safe, high-quality codebase.
 
 Proxmox Backup uses state of the art cryptography for both client-server
 communication and backup content :ref:`encryption <client_encryption>`. All
@@ -28,22 +28,23 @@ Proxmox Backup Server uses a `client-server model`_. The server stores the
 backup data and provides an API to create and manage datastores. With the
 API, it's also possible to manage disks and other server-side resources.
 
-The backup client uses this API to access the backed up data. With the command
-line tool ``proxmox-backup-client`` you can create backups and restore data.
-For QEMU_ with `Proxmox Virtual Environment`_ we deliver an integrated client.
+The backup client uses this API to access the backed up data. You can use the
+``proxmox-backup-client`` command line tool to create and restore file backups.
+For QEMU_ and LXC_ within `Proxmox Virtual Environment`_, we deliver an
+integrated client.
 
 A single backup is allowed to contain several archives. For example, when you
 backup a :term:`virtual machine`, each disk is stored as a separate archive
 inside that backup. The VM configuration itself is stored as an extra file.
-This way, it's easy to access and restore only important parts of the backup,
-without the need to scan the whole backup.
+This way, it's easy to access and restore only the important parts of the
+backup, without the need to scan the whole backup.
 
 
 Main Features
 -------------
 
 :Support for Proxmox VE: The `Proxmox Virtual Environment`_ is fully
-   supported and you can easily backup :term:`virtual machine`\ s and
+   supported, and you can easily backup :term:`virtual machine`\ s and
    :term:`container`\ s.
 
 :Performance: The whole software stack is written in :term:`Rust`,
@@ -70,6 +71,10 @@ Main Features
    modern hardware. In addition to client-side encryption, all data is
    transferred via a secure TLS connection.
 
+:Tape backup: For long-term archiving of data, Proxmox Backup Server also
+   provides extensive support for backing up to tape and managing tape
+   libraries.
+
 :Web interface: Manage the Proxmox Backup Server with the integrated, web-based
    user interface.
 
@@ -80,7 +85,7 @@ Main Features
    backup-clients.
 
 :Enterprise Support: Proxmox Server Solutions GmbH offers enterprise support in
-   form of `Proxmox Backup Server Subscription Plans
+   the form of `Proxmox Backup Server Subscription Plans
    <https://www.proxmox.com/en/proxmox-backup-server/pricing>`_. Users at every
    subscription level get access to the Proxmox Backup :ref:`Enterprise
    Repository <sysadmin_package_repos_enterprise>`. In addition, with a Basic,
@@ -173,7 +178,7 @@ Bug Tracker
 ~~~~~~~~~~~
 
 Proxmox runs a public bug tracker at `<https://bugzilla.proxmox.com>`_. If an
-issue appears, file your report there. An issue can be a bug as well as a
+issue appears, file your report there. An issue can be a bug, as well as a
 request for a new feature or enhancement. The bug tracker helps to keep track
 of the issue and will send a notification once it has been solved.
 
@@ -224,5 +229,6 @@ requirements.
 
 In July 2020, we released the first beta version of Proxmox Backup
 Server, followed by the first stable version in November 2020. With support for
-incremental, fully deduplicated backups, Proxmox Backup significantly reduces
-network load and saves valuable storage space.
+encryption and incremental, fully deduplicated backups, Proxmox Backup offers a
+secure environment, which significantly reduces network load and saves valuable
+storage space.

@@ -102,7 +102,7 @@ is stored in the file ``/etc/proxmox-backup/datastore.cfg``.
    subdirectories per directory. That number comes from the 2\ :sup:`16`
    pre-created chunk namespace directories, and the ``.`` and ``..`` default
    directory entries. This requirement excludes certain filesystems and
-   filesystem configuration from being supported for a datastore. For example,
+   filesystem configurations from being supported for a datastore. For example,
    ``ext3`` as a whole or ``ext4`` with the ``dir_nlink`` feature manually disabled.
 
 
@@ -113,14 +113,15 @@ Datastore Configuration
   :align: right
   :alt: Datastore Overview
 
-You can configure multiple datastores. Minimum one datastore needs to be
+You can configure multiple datastores. A minimum of one datastore needs to be
 configured. The datastore is identified by a simple *name* and points to a
 directory on the filesystem. Each datastore also has associated retention
 settings of how many backup snapshots for each interval of ``hourly``,
 ``daily``, ``weekly``, ``monthly``, ``yearly`` as well as a time-independent
 number of backups to keep in that store. :ref:`backup-pruning` and
-:ref:`garbage collection <client_garbage-collection>` can also be configured to run
-periodically based on a configured schedule (see :ref:`calendar-event-scheduling`) per datastore.
+:ref:`garbage collection <client_garbage-collection>` can also be configured to
+run periodically, based on a configured schedule (see
+:ref:`calendar-event-scheduling`) per datastore.
 
 
 .. _storage_datastore_create:
@@ -146,7 +147,8 @@ window:
 * *Comment* can be used to add some contextual information to the datastore.
 
 Alternatively you can create a new datastore from the command line. The
-following command creates a new datastore called ``store1`` on :file:`/backup/disk1/store1`
+following command creates a new datastore called ``store1`` on
+:file:`/backup/disk1/store1`
 
 .. code-block:: console
 
@@ -156,7 +158,7 @@ following command creates a new datastore called ``store1`` on :file:`/backup/di
 Managing Datastores
 ^^^^^^^^^^^^^^^^^^^
 
-To list existing datastores from the command line run:
+To list existing datastores from the command line, run:
 
 .. code-block:: console
 
@@ -216,8 +218,9 @@ After creating a datastore, the following default layout will appear:
 
 `.lock` is an empty file used for process locking.
 
-The `.chunks` directory contains folders, starting from `0000` and taking hexadecimal values until `ffff`. These
-directories will store the chunked data after a backup operation has been executed.
+The `.chunks` directory contains folders, starting from `0000` and increasing in
+hexadecimal values until `ffff`. These directories will store the chunked data,
+categorized by checksum, after a backup operation has been executed.
 
 .. code-block:: console
 
