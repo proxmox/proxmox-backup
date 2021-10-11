@@ -17,8 +17,8 @@ configuration information for remotes is stored in the file
   :align: right
   :alt: Add a remote
 
-To add a remote, you need its hostname or IP, a userid and password on the
-remote, and its certificate fingerprint. To get the fingerprint, use the
+To add a remote, you need its hostname or IP address, a userid and password on
+the remote, and its certificate fingerprint. To get the fingerprint, use the
 ``proxmox-backup-manager cert info`` command on the remote, or navigate to
 **Dashboard** in the remote's web interface and select **Show Fingerprint**.
 
@@ -60,12 +60,13 @@ Sync Jobs
 
 Sync jobs are configured to pull the contents of a datastore on a **Remote** to
 a local datastore. You can manage sync jobs in the web interface, from the
-**Sync Jobs** tab of the datastore which you'd like to set one up for, or using
-the ``proxmox-backup-manager sync-job`` command.  The configuration information
-for sync jobs is stored at ``/etc/proxmox-backup/sync.cfg``. To create a new
-sync job, click the add button in the GUI, or use the ``create`` subcommand.
-After creating a sync job, you can either start it manually from the GUI or
-provide it with a schedule (see :ref:`calendar-event-scheduling`) to run regularly.
+**Sync Jobs** tab of the **Datastore** panel or from that of the Datastore
+itself. Alternatively, you can manage them with the ``proxmox-backup-manager
+sync-job`` command. The configuration information for sync jobs is stored at
+``/etc/proxmox-backup/sync.cfg``. To create a new sync job, click the add button
+in the GUI, or use the ``create`` subcommand. After creating a sync job, you can
+either start it manually from the GUI or provide it with a schedule (see
+:ref:`calendar-event-scheduling`) to run regularly.
 
 .. code-block:: console
 
@@ -79,14 +80,14 @@ provide it with a schedule (see :ref:`calendar-event-scheduling`) to run regular
   └────────────┴───────┴────────┴──────────────┴───────────┴─────────┘
   # proxmox-backup-manager sync-job remove pbs2-local
 
-For setting up sync jobs, the configuring user needs the following permissions:
+To set up sync jobs, the configuring user needs the following permissions:
 
 #. ``Remote.Read`` on the ``/remote/{remote}/{remote-store}`` path
-#. at least ``Datastore.Backup`` on the local target datastore (``/datastore/{store}``)
+#. At least ``Datastore.Backup`` on the local target datastore (``/datastore/{store}``)
 
 If the ``remove-vanished`` option is set, ``Datastore.Prune`` is required on
 the local datastore as well. If the ``owner`` option is not set (defaulting to
-``root@pam``) or set to something other than the configuring user,
+``root@pam``) or is set to something other than the configuring user,
 ``Datastore.Modify`` is required as well.
 
 .. note:: A sync job can only sync backup groups that the configured remote's

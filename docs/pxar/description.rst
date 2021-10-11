@@ -1,12 +1,12 @@
-``pxar`` is a command line utility to create and manipulate archives in the
+``pxar`` is a command line utility for creating and manipulating archives in the
 :ref:`pxar-format`.
 It is inspired by `casync file archive format
 <http://0pointer.net/blog/casync-a-tool-for-distributing-file-system-images.html>`_,
 which caters to a similar use-case.
 The ``.pxar`` format is adapted to fulfill the specific needs of the Proxmox
-Backup Server, for example, efficient storage of hardlinks.
-The format is designed to reduce storage space needed on the server by achieving
-a high level of deduplication.
+Backup Server, for example, efficient storage of hard links.
+The format is designed to reduce the required storage on the server by
+achieving a high level of deduplication.
 
 Creating an Archive
 ^^^^^^^^^^^^^^^^^^^
@@ -24,10 +24,10 @@ This will create a new archive called ``archive.pxar`` with the contents of the
     the same name is already present in the target folder, the creation will
     fail.
 
-By default, ``pxar`` will skip certain mountpoints and will not follow device
+By default, ``pxar`` will skip certain mount points and will not follow device
 boundaries. This design decision is based on the primary use case of creating
-archives for backups. It makes sense to not back up the contents of certain
-temporary or system specific files.
+archives for backups. It makes sense to ignore the contents of certain
+temporary or system specific files in a backup.
 To alter this behavior and follow device boundaries, use the
 ``--all-file-systems`` flag.
 
@@ -41,40 +41,38 @@ by running:
 
     # pxar create archive.pxar /path/to/source --exclude '**/*.txt'
 
-Be aware that the shell itself will try to expand all of the glob patterns before
-invoking ``pxar``.
-In order to avoid this, all globs have to be quoted correctly.
+Be aware that the shell itself will try to expand glob patterns before invoking
+``pxar``. In order to avoid this, all globs have to be quoted correctly.
 
 It is possible to pass the ``--exclude`` parameter multiple times, in order to
 match more than one pattern. This allows you to use more complex
-file exclusion/inclusion behavior. However, it is recommended to use
+file inclusion/exclusion behavior. However, it is recommended to use
 ``.pxarexclude`` files instead for such cases.
 
-For example you might want to exclude all ``.txt`` files except for a specific
-one from the archive. This is achieved via the negated match pattern, prefixed
-by ``!``.
-All the glob patterns are relative to the ``source`` directory.
+For example you might want to exclude all ``.txt`` files except a specific
+one from the archive. This would be achieved via the negated match pattern,
+prefixed by ``!``.  All the glob patterns are relative to the ``source``
+directory.
 
 .. code-block:: console
 
     # pxar create archive.pxar /path/to/source --exclude '**/*.txt' --exclude '!/folder/file.txt'
 
-.. NOTE:: The order of the glob match patterns matters as later ones override
-    previous ones. Permutations of the same patterns lead to different results.
+.. NOTE:: The order of the glob match patterns matters, as later ones override
+   earlier ones. Permutations of the same patterns lead to different results.
 
 ``pxar`` will store the list of glob match patterns passed as parameters via the
-command line, in a file called ``.pxarexclude-cli`` at the root of
-the archive.
+command line, in a file called ``.pxarexclude-cli``, at the root of the archive.
 If a file with this name is already present in the source folder during archive
-creation, this file is not included in the archive and the file containing the
-new patterns is added to the archive instead, the original file is not altered.
+creation, this file is not included in the archive, and the file containing the
+new patterns is added to the archive instead. The original file is not altered.
 
 A more convenient and persistent way to exclude files from the archive is by
 placing the glob match patterns in ``.pxarexclude`` files.
 It is possible to create and place these files in any directory of the filesystem
 tree.
-These files must contain one pattern per line, again later patterns win over
-previous ones.
+These files must contain one pattern per line, and later patterns override
+earlier ones.
 The patterns control file exclusions of files present within the given directory
 or further below it in the tree.
 The behavior is the same as described in :ref:`client_creating_backups`.
@@ -89,7 +87,7 @@ with the following command:
 
     # pxar extract archive.pxar /path/to/target
 
-If no target is provided, the content of the archive is extracted to the current
+If no target is provided, the contents of the archive is extracted to the current
 working directory.
 
 In order to restore only parts of an archive, single files, and/or folders,
@@ -116,13 +114,13 @@ run the following command:
     # pxar list archive.pxar
 
 This displays the full path of each file or directory with respect to the
-archives root.
+archive's root.
 
 Mounting an Archive
 ^^^^^^^^^^^^^^^^^^^
 
 ``pxar`` allows you to mount and inspect the contents of an archive via _`FUSE`.
-In order to mount an archive named ``archive.pxar`` to the mountpoint ``/mnt``,
+In order to mount an archive named ``archive.pxar`` to the mount point ``/mnt``,
 run the command:
 
 .. code-block:: console
@@ -130,7 +128,7 @@ run the command:
     # pxar mount archive.pxar /mnt
 
 Once the archive is mounted, you can access its content under the given
-mountpoint.
+mount point.
 
 .. code-block:: console
 

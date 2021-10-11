@@ -3,8 +3,8 @@
 `Proxmox VE`_ Integration
 -------------------------
 
-A Proxmox Backup Server can be integrated into a Proxmox VE setup by adding the
-former as a storage in a Proxmox VE standalone or cluster setup.
+Proxmox Backup Server can be integrated into a Proxmox VE standalone or cluster
+setup, by adding it as a storage in Proxmox VE.
 
 See also the `Proxmox VE Storage - Proxmox Backup Server
 <https://pve.proxmox.com/pve-docs/pve-admin-guide.html#storage_pbs>`_ section
@@ -14,8 +14,8 @@ of the Proxmox VE Administration Guide for Proxmox VE specific documentation.
 Using the Proxmox VE Web-Interface
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Proxmox VE has native API and web-interface integration of Proxmox Backup
-Server since the `Proxmox VE 6.3 release
+Proxmox VE has native API and web interface integration of Proxmox Backup
+Server as of `Proxmox VE 6.3
 <https://pve.proxmox.com/wiki/Roadmap#Proxmox_VE_6.3>`_.
 
 A Proxmox Backup Server can be added under ``Datacenter -> Storage``.
@@ -24,8 +24,8 @@ Using the Proxmox VE Command-Line
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 You need to define a new storage with type 'pbs' on your `Proxmox VE`_
-node. The following example uses ``store2`` as storage name, and
-assumes the server address is ``localhost``, and you want to connect
+node. The following example uses ``store2`` as the storage's name, and
+assumes the server address is ``localhost`` and you want to connect
 as ``user1@pbs``.
 
 .. code-block:: console
@@ -33,7 +33,7 @@ as ``user1@pbs``.
   # pvesm add pbs store2 --server localhost --datastore store2
   # pvesm set store2 --username user1@pbs --password <secret>
 
-.. note:: If you would rather not pass your password as plain text, you can pass
+.. note:: If you would rather not enter your password as plain text, you can pass
   the ``--password`` parameter, without any arguments. This will cause the
   program to prompt you for a password upon entering the command.
 
@@ -53,7 +53,7 @@ relationship:
 
   # pvesm set store2 --fingerprint  64:d3:ff:3a:50:38:53:5a:9b:f7:50:...:ab:fe
 
-After that you should be able to see storage status with:
+After that, you should be able to view storage status with:
 
 .. code-block:: console
 

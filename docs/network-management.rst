@@ -82,7 +82,8 @@ is:
 .. note:: This command and corresponding GUI button rely on the ``ifreload``
   command, from the package ``ifupdown2``. This package is included within the
   Proxmox Backup Server installation, however, you may have to install it yourself,
-  if you have installed Proxmox Backup Server on top of Debian or Proxmox VE.
+  if you have installed Proxmox Backup Server on top of Debian or a Proxmox VE
+  version prior to version 7.
 
 You can also configure DNS settings, from the **DNS** section
 of **Configuration** or by using the ``dns`` subcommand of
