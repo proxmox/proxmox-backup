@@ -49,12 +49,13 @@ GUI Overview
 
 The Proxmox Backup Server web interface consists of 3 main sections:
 
-* **Header**: At the top. This shows version information, and contains buttons to view
-  documentation, monitor running tasks, set the language and logout.
-* **Sidebar**: On the left. This contains the configuration options for
+* **Header**: At the top. This shows version information and contains buttons to
+  view documentation, monitor running tasks, set the language, configure various
+  display settings, and logout.
+* **Sidebar**: On the left. This contains the administration options for
   the server.
-* **Configuration Panel**: In the center. This contains the control interface for the
-  configuration options in the *Sidebar*.
+* **Configuration Panel**: In the center. This contains the respective control
+  interfaces for the administration options in the *Sidebar*.
 
 
 Sidebar
@@ -75,12 +76,14 @@ previous and currently running tasks, and subscription information.
 Configuration
 ^^^^^^^^^^^^^
 
-The Configuration section contains some system configuration options, such as
-time and network configuration. It also contains the following subsections:
+The Configuration section contains some system options, such as time, network,
+WebAuthn, and HTTP proxy configuration. It also contains the following
+subsections:
 
 * **Access Control**: Add and manage users, API tokens, and the permissions
   associated with these items
 * **Remotes**: Add, edit and remove remotes (see :term:`Remote`)
+* **Certificates**: Manage ACME accounts and create SSL certificates.
 * **Subscription**: Upload a subscription key, view subscription status and
   access a text-based system report.
 
@@ -99,6 +102,7 @@ tasks and information. These are:
   resource usage statistics
 * **Services**: Manage and monitor system services
 * **Updates**: An interface for upgrading packages
+* **Repositories**: An interface for configuring APT repositories
 * **Syslog**: View log messages from the server
 * **Tasks**: Task history with multiple filter options
 
@@ -120,11 +124,20 @@ Tape Backup
   :align: right
   :alt: Tape Backup: Tape changer overview
 
-The `Tape Backup`_ section contains a top panel, managing tape media sets,
-inventories, drives, changers and the tape backup jobs itself.
+The `Tape Backup`_ section contains a top panel, with options for managing tape
+media sets, inventories, drives, changers, encryption keys, and the tape backup
+jobs itself. The tabs are as follows:
 
-It also contains a subsection per standalone drive and per changer, with a
-status and management view for those devices.
+* **Content**: Information on the contents of the tape backup
+* **Inventory**: Manage the tapes attached to the system
+* **Changers**: Manage tape loading devices
+* **Drives**: Manage drives used for reading and writing to tapes
+* **Media Pools**: Manage logical pools of tapes
+* **Encryption Keys**: Manage tape backup encryption keys
+* **Backup Jobs**: Manage tape backup jobs
+
+The section also contains a subsection per standalone drive and per changer,
+with a status and management view for those devices.
 
 Datastore
 ^^^^^^^^^
@@ -145,5 +158,7 @@ can use the top panel to view:
   collection <client_garbage-collection>` operations, and run garbage collection
   manually
 * **Sync Jobs**: Create, manage and run :ref:`syncjobs` from remote servers
-* **Verify Jobs**: Create, manage and run :ref:`maintenance_verification` jobs on the
-  datastore
+* **Verify Jobs**: Create, manage and run :ref:`maintenance_verification` jobs
+  on the datastore
+* **Options**: Configure notification and verification settings
+* **Permissions**: Manage permissions on the datastore

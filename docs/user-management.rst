@@ -21,11 +21,13 @@ choose the realm when you add a new user. Possible realms are:
 :pbs: Proxmox Backup Server realm. This type stores hashed passwords in
       ``/etc/proxmox-backup/shadow.json``.
 
-After installation, there is a single user ``root@pam``, which
-corresponds to the Unix superuser. User configuration information is stored in the file
-``/etc/proxmox-backup/user.cfg``. You can use the
-``proxmox-backup-manager`` command line tool to list or manipulate
-users:
+:openid: OpenID Connect server. Users can authenticate against an external
+         OpenID Connect server.
+
+After installation, there is a single user, ``root@pam``, which corresponds to
+the Unix superuser. User configuration information is stored in the file
+``/etc/proxmox-backup/user.cfg``. You can use the ``proxmox-backup-manager``
+command line tool to list or manipulate users:
 
 .. code-block:: console
 
@@ -71,7 +73,7 @@ The resulting user list looks like this:
   │ root@pam │      1 │        │           │          │                  │ Superuser        │
   └──────────┴────────┴────────┴───────────┴──────────┴──────────────────┴──────────────────┘
 
-Newly created users do not have any permissions. Please read the Access Control
+Newly created users do not have any permissions. Please read the :ref:`user_acl`
 section to learn how to set access permissions.
 
 You can disable a user account by setting ``--enable`` to ``0``:
@@ -192,6 +194,18 @@ following roles exist:
 
 **RemoteSyncOperator**
   Is allowed to read data from a remote.
+
+**TapeAudit**
+  Can view tape related configuration and status
+
+**TapeAdministrat**
+  Can do anything related to tape backup
+
+**TapeOperator**
+  Can do tape backup and restore (but no configuration changes)
+
+**TapeReader**
+  Can read and inspect tape configuration and media content
 
 .. image:: images/screenshots/pbs-gui-user-management-add-user.png
   :align: right
@@ -370,7 +384,8 @@ For WebAuthn to work, you need to have two things:
   setups.
 
 Once you have fulfilled both of these requirements, you can add a WebAuthn
-configuration in the *Access Control* panel.
+configuration in the **Two Factor Authentication** tab of the **Access Control**
+panel.
 
 .. _user_tfa_setup_recovery_keys:
 
@@ -382,7 +397,8 @@ Recovery Keys
   :alt: Add a new user
 
 Recovery key codes do not need any preparation; you can simply create a set of
-recovery keys in the *Access Control* panel.
+recovery keys in the **Two Factor Authentication** tab of the **Access Control**
+panel.
 
 .. note:: There can only be one set of single-use recovery keys per user at any
  time.

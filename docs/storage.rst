@@ -15,7 +15,7 @@ accessed using the ``disk`` subcommand. This subcommand allows you to initialize
 disks, create various filesystems, and get information about the disks.
 
 To view the disks connected to the system, navigate to **Administration ->
-Disks** in the web interface or use the ``list`` subcommand of
+Storage/Disks** in the web interface or use the ``list`` subcommand of
 ``disk``:
 
 .. code-block:: console
@@ -42,9 +42,9 @@ To initialize a disk with a new GPT, use the ``initialize`` subcommand:
   :alt: Create a directory
 
 You can create an ``ext4`` or ``xfs`` filesystem on a disk using ``fs
-create``, or by navigating to **Administration -> Disks -> Directory** in the
-web interface and creating one from there. The following command creates an
-``ext4`` filesystem and passes the ``--add-datastore`` parameter, in order to
+create``, or by navigating to **Administration -> Storage/Disks -> Directory**
+in the web interface and creating one from there. The following command creates
+an ``ext4`` filesystem and passes the ``--add-datastore`` parameter, in order to
 automatically create a datastore on the disk (in this case ``sdd``). This will
 create a datastore at the location ``/mnt/datastore/store1``:
 
@@ -57,7 +57,7 @@ create a datastore at the location ``/mnt/datastore/store1``:
   :alt: Create ZFS
 
 You can also create a ``zpool`` with various raid levels from **Administration
--> Disks -> Zpool** in the web interface, or by using ``zpool create``. The command
+-> Storage/Disks -> ZFS** in the web interface, or by using ``zpool create``. The command
 below creates a mirrored ``zpool`` using two disks (``sdb`` & ``sdc``) and
 mounts it under ``/mnt/datastore/zpool1``:
 
