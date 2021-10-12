@@ -3,6 +3,7 @@ use std::ffi::{CStr, CString, OsStr, OsString};
 use std::future::Future;
 use std::io::Write;
 use std::mem;
+use std::ops::ControlFlow;
 use std::os::unix::ffi::{OsStrExt, OsStringExt};
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
@@ -20,7 +21,6 @@ use pxar::{EntryKind, Metadata};
 
 use pbs_runtime::block_in_place;
 use pbs_datastore::catalog::{self, DirEntryAttribute};
-use pbs_tools::ops::ControlFlow;
 
 use crate::pxar::Flags;
 use crate::pxar::fuse::{Accessor, FileEntry};
@@ -1100,7 +1100,7 @@ impl<'a> ExtractorState<'a> {
 
         self.extractor.leave_directory()?;
 
-        Ok(ControlFlow::CONTINUE)
+        Ok(ControlFlow::Continue(()))
     }
 
     async fn handle_new_directory(

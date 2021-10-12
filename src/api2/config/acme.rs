@@ -1,4 +1,5 @@
 use std::fs;
+use std::ops::ControlFlow;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
@@ -17,7 +18,6 @@ use proxmox_acme_rs::account::AccountData as AcmeAccountData;
 use proxmox_acme_rs::Account;
 
 use pbs_api_types::{Authid, PRIV_SYS_MODIFY};
-use pbs_tools::ops::ControlFlow;
 use pbs_tools::{task_log, task_warn};
 
 use crate::acme::AcmeClient;

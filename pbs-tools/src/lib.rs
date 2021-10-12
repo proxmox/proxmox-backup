@@ -15,7 +15,6 @@ pub mod json;
 pub mod logrotate;
 pub mod lru_cache;
 pub mod nom;
-pub mod ops;
 pub mod percent_encoding;
 pub mod process_locker;
 pub mod sha;

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::ops::ControlFlow;
 use std::path::Path;
 
 use anyhow::{bail, format_err, Error};
@@ -14,7 +15,6 @@ use crate::api2::types::{
     KnownAcmeDirectory,
     AcmeAccountName,
 };
-use pbs_tools::ops::ControlFlow;
 
 pub(crate) const ACME_DIR: &str = pbs_buildcfg::configdir!("/acme");
 pub(crate) const ACME_ACCOUNT_DIR: &str = pbs_buildcfg::configdir!("/acme/accounts");
@@ -141,7 +141,7 @@ pub fn complete_acme_account(_arg: &str, _param: &HashMap<String, String>) -> Ve
     let mut out = Vec::new();
     let _ = foreach_acme_account(|name| {
         out.push(name.into_string());
-        ControlFlow::CONTINUE
+        ControlFlow::Continue(())
     });
     out
 }
