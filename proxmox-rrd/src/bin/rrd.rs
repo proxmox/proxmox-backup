@@ -4,15 +4,21 @@ use std::path::PathBuf;
 
 use anyhow::{bail, Error};
 use serde::{Serialize, Deserialize};
+use serde_json::json;
 
 use proxmox_router::RpcEnvironment;
 use proxmox_router::cli::{run_cli_command, CliCommand, CliCommandMap, CliEnvironment};
 use proxmox_schema::{api, parse_property_string};
-use proxmox_schema::{ApiStringFormat, ApiType, Schema, StringSchema};
+use proxmox_schema::{ApiStringFormat, ApiType, IntegerSchema, Schema, StringSchema};
 
 use proxmox::tools::fs::CreateOptions;
 
 use proxmox_rrd::rrd::{CF, DST, RRA, RRD};
+
+pub const RRA_INDEX_SCHEMA: Schema = IntegerSchema::new(
+    "Index of the RRA.")
+    .minimum(0)
+    .schema();
 
 pub const RRA_CONFIG_STRING_SCHEMA: Schema = StringSchema::new(
     "RRA configuration")
@@ -42,11 +48,36 @@ pub struct RRAConfig {
        },
    },
 )]
-/// Dump the RRDB database in JSON format
-pub fn dump_rrdb(path: String) -> Result<(), Error> {
+/// Dump the RRD file in JSON format
+pub fn dump_rrd(path: String) -> Result<(), Error> {
 
     let rrd = RRD::load(&PathBuf::from(path))?;
     serde_json::to_writer_pretty(std::io::stdout(), &rrd)?;
+    println!("");
+    Ok(())
+}
+
+#[api(
+   input: {
+       properties: {
+          path: {
+              description: "The filename."
+          },
+       },
+   },
+)]
+/// RRD file information
+pub fn rrd_info(path: String) -> Result<(), Error> {
+
+    let rrd = RRD::load(&PathBuf::from(path))?;
+
+    println!("DST: {:?}", rrd.source.dst);
+
+    for (i, rra) in rrd.rra_list.iter().enumerate() {
+        // use RRAConfig property string format
+        println!("RRA[{}]: {:?},r={},n={}", i, rra.cf, rra.resolution, rra.data.len());
+    }
+
     Ok(())
 }
 
@@ -66,8 +97,8 @@ pub fn dump_rrdb(path: String) -> Result<(), Error> {
        },
    },
 )]
-/// Update the RRDB database
-pub fn update_rrdb(
+/// Update the RRD database
+pub fn update_rrd(
     path: String,
     time: Option<u64>,
     value: f64,
@@ -109,8 +140,8 @@ pub fn update_rrdb(
        },
    },
 )]
-/// Fetch data from the RRDB database
-pub fn fetch_rrdb(
+/// Fetch data from the RRD file
+pub fn fetch_rrd(
     path: String,
     cf: CF,
     resolution: u64,
@@ -123,6 +154,80 @@ pub fn fetch_rrdb(
     let data = rrd.extract_data(cf, resolution, start, end)?;
 
     println!("{}", serde_json::to_string_pretty(&data)?);
+
+    Ok(())
+}
+
+#[api(
+   input: {
+       properties: {
+           path: {
+               description: "The filename."
+           },
+           "rra-index": {
+               schema: RRA_INDEX_SCHEMA,
+           },
+       },
+   },
+)]
+/// Return the Unix timestamp of the first time slot inside the
+/// specified RRA (slot start time)
+pub fn first_update_time(
+    path: String,
+    rra_index: usize,
+) -> Result<(), Error> {
+
+    let rrd = RRD::load(&PathBuf::from(path))?;
+
+    if rra_index >= rrd.rra_list.len() {
+        bail!("rra-index is out of range");
+    }
+    let rra = &rrd.rra_list[rra_index];
+    let duration =  (rra.data.len() as u64)*rra.resolution;
+    let first = rra.slot_start_time((rrd.source.last_update as u64).saturating_sub(duration));
+
+    println!("{}", first);
+    Ok(())
+}
+
+#[api(
+   input: {
+       properties: {
+           path: {
+               description: "The filename."
+           },
+       },
+   },
+)]
+/// Return the Unix timestamp of the last update
+pub fn last_update_time(path: String) -> Result<(), Error> {
+
+    let rrd = RRD::load(&PathBuf::from(path))?;
+
+    println!("{}", rrd.source.last_update);
+    Ok(())
+}
+
+#[api(
+   input: {
+       properties: {
+           path: {
+               description: "The filename."
+           },
+       },
+   },
+)]
+/// Return the time and value from the last update
+pub fn last_update(path: String) -> Result<(), Error> {
+
+    let rrd = RRD::load(&PathBuf::from(path))?;
+
+    let result = json!({
+        "time": rrd.source.last_update,
+        "value": rrd.source.last_value,
+    });
+
+    println!("{}", serde_json::to_string_pretty(&result)?);
 
     Ok(())
 }
@@ -146,8 +251,8 @@ pub fn fetch_rrdb(
        },
    },
 )]
-/// Create a new RRDB database file
-pub fn create_rrdb(
+/// Create a new RRD file
+pub fn create_rrd(
     dst: DST,
     path: String,
     rra: Vec<String>,
@@ -172,6 +277,64 @@ pub fn create_rrdb(
     Ok(())
 }
 
+#[api(
+   input: {
+       properties: {
+           path: {
+               description: "The filename."
+           },
+           "rra-index": {
+               schema: RRA_INDEX_SCHEMA,
+           },
+           slots: {
+               description: "The number of slots you want to add or remove.",
+               type: i64,
+           },
+       },
+   },
+)]
+/// Resize. Change the number of data slots for the specified RRA.
+pub fn resize_rrd(
+    path: String,
+    rra_index: usize,
+    slots: i64,
+) -> Result<(), Error> {
+
+    let path = PathBuf::from(&path);
+
+    let mut rrd = RRD::load(&path)?;
+
+    if rra_index >= rrd.rra_list.len() {
+        bail!("rra-index is out of range");
+    }
+
+    let rra = &rrd.rra_list[rra_index];
+
+    let new_slots = (rra.data.len() as i64) + slots;
+
+    if new_slots < 1 {
+        bail!("numer of new slots is too small ('{}' < 1)", new_slots);
+    }
+
+    if new_slots > 1024*1024 {
+        bail!("numer of new slots is too big ('{}' > 1M)", new_slots);
+    }
+
+    let rra_end = rra.slot_end_time(rrd.source.last_update as u64);
+    let rra_start = rra_end - rra.resolution*(rra.data.len() as u64);
+    let (start, reso, data) = rra.extract_data(rra_start, rra_end, rrd.source.last_update);
+
+    let mut new_rra = RRA::new(rra.cf, rra.resolution, new_slots as usize);
+    new_rra.last_count = rra.last_count;
+
+    new_rra.insert_data(start, reso, data)?;
+
+    rrd.rra_list[rra_index] = new_rra;
+
+    rrd.save(&path, CreateOptions::new())?;
+
+    Ok(())
+}
 
 fn main() -> Result<(), Error> {
 
@@ -185,23 +348,57 @@ fn main() -> Result<(), Error> {
     let cmd_def = CliCommandMap::new()
         .insert(
             "create",
-            CliCommand::new(&API_METHOD_CREATE_RRDB)
+            CliCommand::new(&API_METHOD_CREATE_RRD)
                 .arg_param(&["path"])
-        )
-        .insert(
-            "update",
-            CliCommand::new(&API_METHOD_UPDATE_RRDB)
-                .arg_param(&["path"])
-        )
-        .insert(
-            "fetch",
-            CliCommand::new(&API_METHOD_FETCH_RRDB)
-                .arg_param(&["path"])
+                //.completion_cb("path", pbs_tools::fs::complete_file_name)
         )
         .insert(
             "dump",
-            CliCommand::new(&API_METHOD_DUMP_RRDB)
+            CliCommand::new(&API_METHOD_DUMP_RRD)
                 .arg_param(&["path"])
+                //.completion_cb("path", pbs_tools::fs::complete_file_name)
+         )
+        .insert(
+            "fetch",
+            CliCommand::new(&API_METHOD_FETCH_RRD)
+                .arg_param(&["path"])
+                //.completion_cb("path", pbs_tools::fs::complete_file_name)
+         )
+        .insert(
+            "first",
+            CliCommand::new(&API_METHOD_FIRST_UPDATE_TIME)
+                .arg_param(&["path"])
+                //.completion_cb("path", pbs_tools::fs::complete_file_name)
+        )
+        .insert(
+            "info",
+            CliCommand::new(&API_METHOD_RRD_INFO)
+                .arg_param(&["path"])
+                //.completion_cb("path", pbs_tools::fs::complete_file_name)
+        )
+        .insert(
+            "last",
+            CliCommand::new(&API_METHOD_LAST_UPDATE_TIME)
+                .arg_param(&["path"])
+            //.completion_cb("path", pbs_tools::fs::complete_file_name)
+        )
+        .insert(
+            "lastupdate",
+            CliCommand::new(&API_METHOD_LAST_UPDATE)
+                .arg_param(&["path"])
+            //.completion_cb("path", pbs_tools::fs::complete_file_name)
+        )
+        .insert(
+            "resize",
+            CliCommand::new(&API_METHOD_RESIZE_RRD)
+                .arg_param(&["path"])
+            //.completion_cb("path", pbs_tools::fs::complete_file_name)
+        )
+        .insert(
+            "update",
+            CliCommand::new(&API_METHOD_UPDATE_RRD)
+                .arg_param(&["path"])
+            //.completion_cb("path", pbs_tools::fs::complete_file_name)
         )
         ;
 

@@ -154,7 +154,7 @@ impl RRA {
 
     // directly overwrite data slots
     // the caller need to set last_update value on the DataSource manually.
-    pub(crate) fn insert_data(
+    pub fn insert_data(
         &mut self,
         start: u64,
         resolution: u64,
@@ -239,7 +239,7 @@ impl RRA {
         }
     }
 
-    fn extract_data(
+    pub fn extract_data(
         &self,
         start: u64,
         end: u64,
