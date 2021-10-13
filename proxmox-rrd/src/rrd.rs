@@ -153,8 +153,7 @@ impl RRA {
             if let Some(v) = data[i] {
                 self.data[index] = v;
             }
-            index += 1;
-            if index >= self.data.len() { index = 0; }
+            index += 1; if index >= self.data.len() { index = 0; }
         }
         Ok(())
     }
@@ -171,7 +170,7 @@ impl RRA {
         let mut index = ((t/reso) % num_entries) as usize;
         for _ in 0..num_entries {
             t += reso;
-            index = (index + 1) % (num_entries as usize);
+            index += 1; if index >= self.data.len() { index = 0; }
             if t < min_time {
                 self.data[index] = f64::NAN;
             } else {
@@ -251,7 +250,8 @@ impl RRA {
                     list.push(Some(value));
                 }
             }
-            t += reso; index = (index + 1) % (num_entries as usize);
+            t += reso;
+            index += 1; if index >= self.data.len() { index = 0; }
         }
 
         (start, reso, list)
