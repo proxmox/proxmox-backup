@@ -336,6 +336,36 @@ impl RRD {
         replace_file(filename, rrd_slice, options)
     }
 
+    pub fn last_update(&self) -> f64 {
+
+        let mut last_update = 0.0;
+
+        {
+            let mut check_last_update = |rra: &RRA| {
+                if rra.last_update > last_update {
+                    last_update = rra.last_update;
+                }
+            };
+
+            check_last_update(&self.hour_avg);
+            check_last_update(&self.hour_max);
+
+            check_last_update(&self.day_avg);
+            check_last_update(&self.day_max);
+
+            check_last_update(&self.week_avg);
+            check_last_update(&self.week_max);
+
+            check_last_update(&self.month_avg);
+            check_last_update(&self.month_max);
+
+            check_last_update(&self.year_avg);
+            check_last_update(&self.year_max);
+        }
+
+        last_update
+    }
+
     /// Update the value (in memory)
     ///
     /// Note: This does not call [Self::save].

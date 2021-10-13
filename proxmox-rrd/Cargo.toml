@@ -9,6 +9,7 @@ description = "Simple RRD database implementation."
 anyhow = "1.0"
 bitflags = "1.2.1"
 log = "0.4"
+nix = "0.19.1"
 
 proxmox = { version = "0.14.0" }
 proxmox-time = "1"

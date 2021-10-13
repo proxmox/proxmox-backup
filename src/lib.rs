@@ -51,10 +51,13 @@ lazy_static::lazy_static!{
             .owner(backup_user.uid)
             .group(backup_user.gid);
 
+        let apply_interval = 30.0*60.0; // 30 minutes
+
         RRDCache::new(
             "/var/lib/proxmox-backup/rrdb",
             Some(file_options),
             Some(dir_options),
-        )
+            apply_interval,
+        ).unwrap()
     };
 }

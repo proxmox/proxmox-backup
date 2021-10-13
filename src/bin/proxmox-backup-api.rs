@@ -74,7 +74,7 @@ async fn run() -> Result<(), Error> {
 
     proxmox_backup::server::create_run_dir()?;
 
-    RRD_CACHE.create_rrdb_dir()?;
+    RRD_CACHE.apply_journal()?;
 
     proxmox_backup::server::jobstate::create_jobstate_dir()?;
     proxmox_backup::tape::create_tape_status_dir()?;
