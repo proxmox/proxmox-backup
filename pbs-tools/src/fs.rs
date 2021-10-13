@@ -16,8 +16,7 @@ use nix::sys::stat::Mode;
 use regex::Regex;
 
 use proxmox::sys::error::SysError;
-
-use crate::borrow::Tied;
+use proxmox_borrow::Tied;
 
 pub type DirLockGuard = Dir;
 

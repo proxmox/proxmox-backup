@@ -33,6 +33,7 @@ walkdir = "2"
 zstd = { version = "0.6", features = [ "bindgen" ] }
 
 proxmox = { version = "0.14.0", default-features = false, features = [ "tokio" ] }
+proxmox-borrow = "1"
 proxmox-io = { version = "1", features = [ "tokio" ] }
 proxmox-lang = { version = "1" }
 proxmox-time = { version = "1" }

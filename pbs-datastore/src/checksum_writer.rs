@@ -3,7 +3,8 @@ use std::io::Write;
 
 use anyhow::{Error};
 
-use pbs_tools::borrow::Tied;
+use proxmox_borrow::Tied;
+
 use pbs_tools::crypt_config::CryptConfig;
 
 pub struct ChecksumWriter<W> {
