@@ -231,7 +231,7 @@ impl RRA {
 
         let mut list = Vec::new();
 
-        let rrd_end = reso*(last_update/reso);
+        let rrd_end = reso*(last_update/reso + 1);
         let rrd_start = rrd_end.saturating_sub(reso*num_entries);
 
         let mut t = start;
