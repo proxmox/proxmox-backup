@@ -6,7 +6,7 @@ use proxmox_router::{Permission, Router};
 use proxmox_schema::api;
 
 use pbs_api_types::{
-    NODE_SCHEMA, RRDMode, RRDTimeFrameResolution, PRIV_SYS_AUDIT,
+    NODE_SCHEMA, RRDMode, RRDTimeFrame, PRIV_SYS_AUDIT,
 };
 
 use crate::extract_rrd_data;
@@ -14,7 +14,7 @@ use crate::extract_rrd_data;
 pub fn create_value_from_rrd(
     basedir: &str,
     list: &[&str],
-    timeframe: RRDTimeFrameResolution,
+    timeframe: RRDTimeFrame,
     mode: RRDMode,
 ) -> Result<Value, Error> {
 
@@ -63,7 +63,7 @@ pub fn create_value_from_rrd(
                 schema: NODE_SCHEMA,
             },
             timeframe: {
-                type: RRDTimeFrameResolution,
+                type: RRDTimeFrame,
             },
             cf: {
                 type: RRDMode,
@@ -76,7 +76,7 @@ pub fn create_value_from_rrd(
 )]
 /// Read node stats
 fn get_node_stats(
-    timeframe: RRDTimeFrameResolution,
+    timeframe: RRDTimeFrame,
     cf: RRDMode,
     _param: Value,
 ) -> Result<Value, Error> {

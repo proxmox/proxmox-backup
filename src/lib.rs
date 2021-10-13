@@ -10,7 +10,7 @@ use anyhow::{format_err, Error};
 
 use proxmox::tools::fs::CreateOptions;
 
-use pbs_api_types::{RRDMode, RRDTimeFrameResolution};
+use pbs_api_types::{RRDMode, RRDTimeFrame};
 use pbs_buildcfg::configdir;
 use pbs_tools::cert::CertInfo;
 use proxmox_rrd::{rrd::CF, RRDCache};
@@ -84,19 +84,19 @@ pub fn initialize_rrd_cache() -> Result<&'static RRDCache, Error> {
 pub fn extract_rrd_data(
     basedir: &str,
     name: &str,
-    timeframe: RRDTimeFrameResolution,
+    timeframe: RRDTimeFrame,
     mode: RRDMode,
 ) ->  Result<Option<(u64, u64, Vec<Option<f64>>)>, Error> {
 
     let end = proxmox_time::epoch_f64() as u64;
 
     let (start, resolution) = match timeframe {
-        RRDTimeFrameResolution::Hour => (end - 3600, 60),
-        RRDTimeFrameResolution::Day => (end - 3600*24, 60),
-        RRDTimeFrameResolution::Week => (end - 3600*24*7, 30*60),
-        RRDTimeFrameResolution::Month => (end - 3600*24*30, 30*60),
-        RRDTimeFrameResolution::Year => (end - 3600*24*365, 6*60*60),
-        RRDTimeFrameResolution::Decade => (end - 10*3600*24*366, 7*86400),
+        RRDTimeFrame::Hour => (end - 3600, 60),
+        RRDTimeFrame::Day => (end - 3600*24, 60),
+        RRDTimeFrame::Week => (end - 3600*24*7, 30*60),
+        RRDTimeFrame::Month => (end - 3600*24*30, 30*60),
+        RRDTimeFrame::Year => (end - 3600*24*365, 6*60*60),
+        RRDTimeFrame::Decade => (end - 10*3600*24*366, 7*86400),
     };
 
     let cf = match mode {

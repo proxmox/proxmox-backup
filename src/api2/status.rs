@@ -14,7 +14,7 @@ use proxmox_router::{
 use proxmox_router::list_subdirs_api_method;
 
 use pbs_api_types::{
-    Authid, DATASTORE_SCHEMA, RRDMode, RRDTimeFrameResolution,
+    Authid, DATASTORE_SCHEMA, RRDMode, RRDTimeFrame,
     PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP,
 };
 
@@ -125,7 +125,7 @@ pub fn datastore_status(
         let get_rrd = |what: &str| extract_rrd_data(
             &rrd_dir,
             what,
-            RRDTimeFrameResolution::Month,
+            RRDTimeFrame::Month,
             RRDMode::Average,
         );
 

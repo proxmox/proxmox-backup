@@ -28,7 +28,7 @@ use pxar::EntryKind;
 use pbs_api_types::{ Authid, BackupContent, Counts, CryptMode,
     DataStoreListItem, GarbageCollectionStatus, GroupListItem,
     SnapshotListItem, SnapshotVerifyState, PruneOptions,
-    DataStoreStatus, RRDMode, RRDTimeFrameResolution,
+    DataStoreStatus, RRDMode, RRDTimeFrame,
     BACKUP_ARCHIVE_NAME_SCHEMA, BACKUP_ID_SCHEMA, BACKUP_TIME_SCHEMA,
     BACKUP_TYPE_SCHEMA, DATASTORE_SCHEMA,
     IGNORE_VERIFIED_BACKUPS_SCHEMA, UPID_SCHEMA,
@@ -1537,7 +1537,7 @@ pub fn pxar_file_download(
                 schema: DATASTORE_SCHEMA,
             },
             timeframe: {
-                type: RRDTimeFrameResolution,
+                type: RRDTimeFrame,
             },
             cf: {
                 type: RRDMode,
@@ -1551,7 +1551,7 @@ pub fn pxar_file_download(
 /// Read datastore stats
 pub fn get_rrd_stats(
     store: String,
-    timeframe: RRDTimeFrameResolution,
+    timeframe: RRDTimeFrame,
     cf: RRDMode,
     _param: Value,
 ) -> Result<Value, Error> {

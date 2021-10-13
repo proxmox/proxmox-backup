@@ -36,7 +36,7 @@ bitflags!{
 pub struct RRAv1 {
     /// Defined the data soure type and consolidation function
     pub flags: RRAFlags,
-    /// Resulution (seconds) from [RRDTimeFrameResolution]
+    /// Resulution (seconds)
     pub resolution: u64,
     /// Last update time (epoch)
     pub last_update: f64,

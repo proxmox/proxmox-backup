@@ -20,6 +20,5 @@ proxmox-schema = { version = "1.0.0", features = [ "api-macro" ] }
 proxmox-time = "1.0.0"
 proxmox-uuid = { version = "1.0.0", features = [ "serde" ] }
 
-proxmox-rrd-api-types = { path = "../proxmox-rrd-api-types" }
 proxmox-systemd = { path = "../proxmox-systemd" }
 pbs-tools = { path = "../pbs-tools" }
