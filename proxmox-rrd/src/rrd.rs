@@ -13,7 +13,7 @@
 
 use std::path::Path;
 
-use anyhow::{bail, Error};
+use anyhow::{bail, format_err, Error};
 
 use serde::{Serialize, Deserialize};
 
@@ -77,6 +77,9 @@ impl DataSource {
     }
 
     fn compute_new_value(&mut self, time: f64, mut value: f64) -> Result<f64, Error> {
+        if time < 0.0 {
+            bail!("got negative time");
+        }
         if time <= self.last_update {
             bail!("time in past ({} < {})", time, self.last_update);
         }
@@ -290,30 +293,36 @@ impl RRD {
 
     }
 
+    fn from_raw(raw: &[u8]) -> Result<Self, Error> {
+        if raw.len() < 8 {
+            bail!("not an rrd file - file is too small ({})", raw.len());
+        }
+
+        let rrd = if raw[0..8] == rrd_v1::PROXMOX_RRD_MAGIC_1_0 {
+            let v1 = rrd_v1::RRDv1::from_raw(&raw)?;
+            v1.to_rrd_v2()
+                .map_err(|err| format_err!("unable to convert from old V1 format - {}", err))?
+        } else if raw[0..8] == PROXMOX_RRD_MAGIC_2_0 {
+            serde_cbor::from_slice(&raw[8..])
+                .map_err(|err| format_err!("unable to decode RRD file - {}", err))?
+        } else {
+            bail!("not an rrd file - unknown magic number");
+        };
+
+        if rrd.source.last_update < 0.0 {
+            bail!("rrd file has negative last_update time");
+        }
+
+        Ok(rrd)
+    }
+
     /// Load data from a file
     pub fn load(path: &Path) -> Result<Self, std::io::Error> {
         let raw = std::fs::read(path)?;
-        if raw.len() < 8 {
-            let msg = format!("not an rrd file - file is too small ({})", raw.len());
-            return Err(std::io::Error::new(std::io::ErrorKind::Other, msg));
-        }
 
-        if raw[0..8] == rrd_v1::PROXMOX_RRD_MAGIC_1_0 {
-            let v1 = rrd_v1::RRDv1::from_raw(&raw)?;
-            v1.to_rrd_v2()
-                .map_err(|err| {
-                    let msg = format!("unable to convert from old V1 format - {}", err);
-                    std::io::Error::new(std::io::ErrorKind::Other, msg)
-                })
-        } else if raw[0..8] == PROXMOX_RRD_MAGIC_2_0 {
-            serde_cbor::from_slice(&raw[8..])
-                .map_err(|err| {
-                    let msg = format!("unable to decode RRD file - {}", err);
-                    std::io::Error::new(std::io::ErrorKind::Other, msg)
-                })
-         } else {
-            let msg = format!("not an rrd file - unknown magic number");
-            return Err(std::io::Error::new(std::io::ErrorKind::Other, msg));
+        match Self::from_raw(&raw) {
+            Ok(rrd) => Ok(rrd),
+            Err(err) =>  Err(std::io::Error::new(std::io::ErrorKind::Other, err.to_string())),
         }
     }
 
