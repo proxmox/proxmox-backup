@@ -1,82 +1,175 @@
-//! # Round Robin Database file format
+//! # Proxmox RRD format version 2
+//!
+//! The new format uses
+//! [CBOR](https://datatracker.ietf.org/doc/html/rfc8949) as storage
+//! format. This way we can use the serde serialization framework,
+//! which make our code more flexible, much nicer and type safe.
+//!
+//! ## Features
+//!
+//! * Well defined data format [CBOR](https://datatracker.ietf.org/doc/html/rfc8949)
+//! * Plattform independent (big endian f64, hopefully a standard format?)
+//! * Arbitrary number of RRAs (dynamically changeable)
 
-use std::io::Read;
 use std::path::Path;
 
 use anyhow::{bail, Error};
-use bitflags::bitflags;
 
-use proxmox::tools::{fs::replace_file, fs::CreateOptions};
+use serde::{Serialize, Deserialize};
 
-use proxmox_rrd_api_types::{RRDMode, RRDTimeFrameResolution};
+use proxmox::tools::fs::{replace_file, CreateOptions};
+use proxmox_schema::api;
 
-/// The number of data entries per RRA
-pub const RRD_DATA_ENTRIES: usize = 70;
+use crate::rrd_v1;
 
-/// Proxmox RRD file magic number
-// openssl::sha::sha256(b"Proxmox Round Robin Database file v1.0")[0..8];
-pub const PROXMOX_RRD_MAGIC_1_0: [u8; 8] =  [206, 46, 26, 212, 172, 158, 5, 186];
+/// Proxmox RRD v2 file magic number
+// openssl::sha::sha256(b"Proxmox Round Robin Database file v2.0")[0..8];
+pub const PROXMOX_RRD_MAGIC_2_0: [u8; 8] = [224, 200, 228, 27, 239, 112, 122, 159];
 
-use crate::DST;
-
-bitflags!{
-    /// Flags to specify the data soure type and consolidation function
-    pub struct RRAFlags: u64 {
-        // Data Source Types
-        const DST_GAUGE  = 1;
-        const DST_DERIVE = 2;
-        const DST_COUNTER = 4;
-        const DST_MASK   = 255; // first 8 bits
-
-        // Consolidation Functions
-        const CF_AVERAGE = 1 << 8;
-        const CF_MAX     = 2 << 8;
-        const CF_MASK    = 255 << 8;
-    }
+#[api()]
+#[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+/// RRD data source type
+pub enum DST {
+    /// Gauge values are stored unmodified.
+    Gauge,
+    /// Stores the difference to the previous value.
+    Derive,
+    /// Stores the difference to the previous value (like Derive), but
+    /// detect counter overflow (and ignores that value)
+    Counter,
 }
 
-/// Round Robin Archive with [RRD_DATA_ENTRIES] data slots.
-///
-/// This data structure is used inside [RRD] and directly written to the
-/// RRD files.
-#[repr(C)]
-pub struct RRA {
-    /// Defined the data soure type and consolidation function
-    pub flags: RRAFlags,
-    /// Resulution (seconds) from [RRDTimeFrameResolution]
-    pub resolution: u64,
+#[api()]
+#[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+/// Consolidation function
+pub enum CF {
+    /// Average
+    Average,
+    /// Maximum
+    Maximum,
+    /// Minimum
+    Minimum,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct DataSource {
+    /// Data source type
+    pub dst: DST,
     /// Last update time (epoch)
     pub last_update: f64,
-    /// Count values computed inside this update interval
-    pub last_count: u64,
-    /// Stores the last value, used to compute differential value for derive/counters
+    /// Stores the last value, used to compute differential value for
+    /// derive/counters
     pub counter_value: f64,
-    /// Data slots
-    pub data: [f64; RRD_DATA_ENTRIES],
 }
 
-impl RRA {
-    fn new(flags: RRAFlags, resolution: u64) -> Self {
+impl DataSource {
+
+    pub fn new(dst: DST) -> Self {
         Self {
-            flags, resolution,
+            dst,
             last_update: 0.0,
-            last_count: 0,
             counter_value: f64::NAN,
-            data: [f64::NAN; RRD_DATA_ENTRIES],
         }
     }
 
-    fn delete_old(&mut self, time: f64) {
-        let epoch = time as u64;
-        let last_update = self.last_update as u64;
-        let reso = self.resolution;
+    fn compute_new_value(&mut self, time: f64, mut value: f64) -> Result<f64, Error> {
+        if time <= self.last_update {
+            bail!("time in past ({} < {})", time, self.last_update);
+        }
 
-        let min_time = epoch - (RRD_DATA_ENTRIES as u64)*reso;
+        if value.is_nan() {
+            bail!("new value is NAN");
+        }
+
+        // derive counter value
+        let is_counter = self.dst == DST::Counter;
+
+        if is_counter || self.dst == DST::Derive {
+            let time_diff = time - self.last_update;
+
+            let diff = if self.counter_value.is_nan() {
+                0.0
+            } else if is_counter && value < 0.0 {
+                bail!("got negative value for counter");
+            } else if is_counter && value < self.counter_value {
+                // Note: We do not try automatic overflow corrections, but
+                // we update counter_value anyways, so that we can compute the diff
+                // next time.
+                self.counter_value = value;
+                bail!("conter overflow/reset detected");
+            } else {
+                value - self.counter_value
+            };
+            self.counter_value = value;
+            value = diff/time_diff;
+        }
+
+        Ok(value)
+    }
+
+
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct RRA {
+    pub resolution: u64,
+    pub cf: CF,
+    /// Count values computed inside this update interval
+    pub last_count: u64,
+    /// The actual data
+    pub data: Vec<f64>,
+}
+
+impl RRA {
+
+    pub fn new(cf: CF, resolution: u64, points: usize) -> Self {
+        Self {
+            cf,
+            resolution,
+            last_count: 0,
+            data: vec![f64::NAN; points],
+        }
+    }
+
+    // directly overwrite data slots
+    // the caller need to set last_update value on the DataSource manually.
+    pub(crate) fn insert_data(
+        &mut self,
+        start: u64,
+        resolution: u64,
+        data: Vec<Option<f64>>,
+    ) -> Result<(), Error> {
+        if resolution != self.resolution {
+            bail!("inser_data failed: got wrong resolution");
+        }
+        let num_entries = self.data.len() as u64;
+        let mut index = ((start/self.resolution) % num_entries) as usize;
+
+        for i in 0..data.len() {
+            if let Some(v) = data[i] {
+                self.data[index] = v;
+            }
+            index += 1;
+            if index >= self.data.len() { index = 0; }
+        }
+        Ok(())
+    }
+
+    fn delete_old_slots(&mut self, time: f64, last_update: f64) {
+        let epoch = time as u64;
+        let last_update = last_update as u64;
+        let reso = self.resolution;
+        let num_entries = self.data.len() as u64;
+
+        let min_time = epoch - num_entries*reso;
         let min_time = (min_time/reso + 1)*reso;
-        let mut t = last_update.saturating_sub((RRD_DATA_ENTRIES as u64)*reso);
-        let mut index = ((t/reso) % (RRD_DATA_ENTRIES as u64)) as usize;
-        for _ in 0..RRD_DATA_ENTRIES {
-            t += reso; index = (index + 1) % RRD_DATA_ENTRIES;
+        let mut t = last_update.saturating_sub(num_entries*reso);
+        let mut index = ((t/reso) % num_entries) as usize;
+        for _ in 0..num_entries {
+            t += reso;
+            index = (index + 1) % (num_entries as usize);
             if t < min_time {
                 self.data[index] = f64::NAN;
             } else {
@@ -85,13 +178,14 @@ impl RRA {
         }
     }
 
-    fn compute_new_value(&mut self, time: f64, value: f64) {
+    fn compute_new_value(&mut self, time: f64, last_update: f64, value: f64) {
         let epoch = time as u64;
-        let last_update = self.last_update as u64;
+        let last_update = last_update as u64;
         let reso = self.resolution;
+        let num_entries = self.data.len() as u64;
 
-        let index = ((epoch/reso) % (RRD_DATA_ENTRIES as u64)) as usize;
-        let last_index = ((last_update/reso) % (RRD_DATA_ENTRIES as u64)) as usize;
+        let index = ((epoch/reso) % num_entries) as usize;
+        let last_index = ((last_update/reso) % num_entries) as usize;
 
         if (epoch - (last_update as u64)) > reso || index != last_index {
             self.last_count = 0;
@@ -112,258 +206,111 @@ impl RRA {
             self.data[index] = value;
             self.last_count = 1;
         } else {
-            let new_value = if self.flags.contains(RRAFlags::CF_MAX) {
-                if last_value > value { last_value } else { value }
-            } else if self.flags.contains(RRAFlags::CF_AVERAGE) {
-                (last_value*(self.last_count as f64))/(new_count as f64)
-                    + value/(new_count as f64)
-            } else {
-                log::error!("rrdb update failed - unknown CF");
-                return;
+            let new_value = match self.cf {
+                CF::Maximum => if last_value > value { last_value } else { value },
+                CF::Minimum => if last_value < value { last_value } else { value },
+                CF::Average => {
+                    (last_value*(self.last_count as f64))/(new_count as f64)
+                        + value/(new_count as f64)
+                }
             };
             self.data[index] = new_value;
             self.last_count = new_count;
         }
-        self.last_update = time;
     }
 
-    // Note: This may update the state even in case of errors (see counter overflow)
-    fn update(&mut self, time: f64, mut value: f64) -> Result<(), Error> {
-
-        if time <= self.last_update {
-            bail!("time in past ({} < {})", time, self.last_update);
-        }
-
-        if value.is_nan() {
-            bail!("new value is NAN");
-        }
-
-        // derive counter value
-        if self.flags.intersects(RRAFlags::DST_DERIVE | RRAFlags::DST_COUNTER) {
-            let time_diff = time - self.last_update;
-            let is_counter = self.flags.contains(RRAFlags::DST_COUNTER);
-
-            let diff = if self.counter_value.is_nan() {
-                0.0
-            } else if is_counter && value < 0.0 {
-                bail!("got negative value for counter");
-            } else if is_counter && value < self.counter_value {
-                // Note: We do not try automatic overflow corrections, but
-                // we update counter_value anyways, so that we can compute the diff
-                // next time.
-                self.counter_value = value;
-                bail!("conter overflow/reset detected");
-            } else {
-                value - self.counter_value
-            };
-            self.counter_value = value;
-            value = diff/time_diff;
-        }
-
-        self.delete_old(time);
-        self.compute_new_value(time, value);
-
-        Ok(())
-    }
-}
-
-/// Round Robin Database file format with fixed number of [RRA]s
-#[repr(C)]
-// Note: Avoid alignment problems by using 8byte types only
-pub struct RRD {
-    /// The magic number to identify the file type
-    pub magic: [u8; 8],
-    /// Hourly data (average values)
-    pub hour_avg: RRA,
-    /// Hourly data (maximum values)
-    pub hour_max: RRA,
-    /// Dayly data (average values)
-    pub day_avg: RRA,
-    /// Dayly data (maximum values)
-    pub day_max: RRA,
-    /// Weekly data (average values)
-    pub week_avg: RRA,
-    /// Weekly data (maximum values)
-    pub week_max: RRA,
-    /// Monthly data (average values)
-    pub month_avg: RRA,
-    /// Monthly data (maximum values)
-    pub month_max: RRA,
-    /// Yearly data (average values)
-    pub year_avg: RRA,
-    /// Yearly data (maximum values)
-    pub year_max: RRA,
-}
-
-impl RRD {
-
-    /// Create a new empty instance
-    pub fn new(dst: DST) -> Self {
-        let flags = match dst {
-            DST::Gauge => RRAFlags::DST_GAUGE,
-            DST::Derive => RRAFlags::DST_DERIVE,
-        };
-
-        Self {
-            magic: PROXMOX_RRD_MAGIC_1_0,
-            hour_avg: RRA::new(
-                flags | RRAFlags::CF_AVERAGE,
-                RRDTimeFrameResolution::Hour as u64,
-            ),
-            hour_max: RRA::new(
-                flags |  RRAFlags::CF_MAX,
-                RRDTimeFrameResolution::Hour as u64,
-            ),
-            day_avg: RRA::new(
-                flags |  RRAFlags::CF_AVERAGE,
-                RRDTimeFrameResolution::Day as u64,
-            ),
-            day_max: RRA::new(
-                flags |  RRAFlags::CF_MAX,
-                RRDTimeFrameResolution::Day as u64,
-            ),
-            week_avg: RRA::new(
-                flags |  RRAFlags::CF_AVERAGE,
-                RRDTimeFrameResolution::Week as u64,
-            ),
-            week_max: RRA::new(
-                flags |  RRAFlags::CF_MAX,
-                RRDTimeFrameResolution::Week as u64,
-            ),
-            month_avg: RRA::new(
-                flags |  RRAFlags::CF_AVERAGE,
-                RRDTimeFrameResolution::Month as u64,
-            ),
-            month_max: RRA::new(
-                flags |  RRAFlags::CF_MAX,
-                RRDTimeFrameResolution::Month as u64,
-            ),
-            year_avg: RRA::new(
-                flags |  RRAFlags::CF_AVERAGE,
-                RRDTimeFrameResolution::Year as u64,
-            ),
-            year_max: RRA::new(
-                flags |  RRAFlags::CF_MAX,
-                RRDTimeFrameResolution::Year as u64,
-            ),
-        }
-    }
-
-    /// Extract data from the archive
-    pub fn extract_data(
+    fn extract_data(
         &self,
-        time: f64,
-        timeframe: RRDTimeFrameResolution,
-        mode: RRDMode,
+        start: u64,
+        end: u64,
+        last_update: f64,
     ) -> (u64, u64, Vec<Option<f64>>) {
-
-        let epoch = time as u64;
-        let reso = timeframe as u64;
-
-        let end = reso*(epoch/reso + 1);
-        let start = end - reso*(RRD_DATA_ENTRIES as u64);
+        let last_update = last_update as u64;
+        let reso = self.resolution;
+        let num_entries = self.data.len() as u64;
 
         let mut list = Vec::new();
 
-        let raa = match (mode, timeframe) {
-            (RRDMode::Average, RRDTimeFrameResolution::Hour) => &self.hour_avg,
-            (RRDMode::Max, RRDTimeFrameResolution::Hour) => &self.hour_max,
-            (RRDMode::Average, RRDTimeFrameResolution::Day) => &self.day_avg,
-            (RRDMode::Max, RRDTimeFrameResolution::Day) => &self.day_max,
-            (RRDMode::Average, RRDTimeFrameResolution::Week) => &self.week_avg,
-            (RRDMode::Max, RRDTimeFrameResolution::Week) => &self.week_max,
-            (RRDMode::Average, RRDTimeFrameResolution::Month) => &self.month_avg,
-            (RRDMode::Max, RRDTimeFrameResolution::Month) => &self.month_max,
-            (RRDMode::Average, RRDTimeFrameResolution::Year) => &self.year_avg,
-            (RRDMode::Max, RRDTimeFrameResolution::Year) => &self.year_max,
-        };
-
-        let rrd_end = reso*((raa.last_update as u64)/reso);
-        let rrd_start = rrd_end - reso*(RRD_DATA_ENTRIES as u64);
+        let rrd_end = reso*(last_update/reso);
+        let rrd_start = rrd_end.saturating_sub(reso*num_entries);
 
         let mut t = start;
-        let mut index = ((t/reso) % (RRD_DATA_ENTRIES as u64)) as usize;
-        for _ in 0..RRD_DATA_ENTRIES {
+        let mut index = ((t/reso) % num_entries) as usize;
+        for _ in 0..num_entries {
+            if t > end { break; };
             if t < rrd_start || t > rrd_end {
                 list.push(None);
             } else {
-                let value = raa.data[index];
+                let value = self.data[index];
                 if value.is_nan() {
                     list.push(None);
                 } else {
                     list.push(Some(value));
                 }
             }
-            t += reso; index = (index + 1) % RRD_DATA_ENTRIES;
+            t += reso; index = (index + 1) % (num_entries as usize);
         }
 
         (start, reso, list)
     }
+}
 
-    /// Create instance from raw data, testing data len and magic number
-    pub fn from_raw(mut raw: &[u8]) -> Result<Self, std::io::Error> {
-        let expected_len = std::mem::size_of::<RRD>();
-        if raw.len() != expected_len {
-            let msg = format!("wrong data size ({} != {})", raw.len(), expected_len);
-            return Err(std::io::Error::new(std::io::ErrorKind::Other, msg));
+#[derive(Serialize, Deserialize)]
+pub struct RRD {
+    pub source: DataSource,
+    pub rra_list: Vec<RRA>,
+}
+
+impl RRD {
+
+    pub fn new(dst: DST, rra_list: Vec<RRA>) -> RRD {
+
+        let source = DataSource::new(dst);
+
+        RRD {
+            source,
+            rra_list,
         }
 
-        let mut rrd: RRD = unsafe { std::mem::zeroed() };
-        unsafe {
-            let rrd_slice = std::slice::from_raw_parts_mut(&mut rrd as *mut _ as *mut u8, expected_len);
-            raw.read_exact(rrd_slice)?;
-        }
-
-        if rrd.magic != PROXMOX_RRD_MAGIC_1_0 {
-            let msg = "wrong magic number".to_string();
-            return Err(std::io::Error::new(std::io::ErrorKind::Other, msg));
-        }
-
-        Ok(rrd)
     }
 
     /// Load data from a file
     pub fn load(path: &Path) -> Result<Self, std::io::Error> {
         let raw = std::fs::read(path)?;
-        Self::from_raw(&raw)
+        if raw.len() < 8 {
+            let msg = format!("not an rrd file - file is too small ({})", raw.len());
+            return Err(std::io::Error::new(std::io::ErrorKind::Other, msg));
+        }
+
+        if raw[0..8] == rrd_v1::PROXMOX_RRD_MAGIC_1_0 {
+            let v1 = rrd_v1::RRDv1::from_raw(&raw)?;
+            v1.to_rrd_v2()
+                .map_err(|err| {
+                    let msg = format!("unable to convert from old V1 format - {}", err);
+                    std::io::Error::new(std::io::ErrorKind::Other, msg)
+                })
+        } else if raw[0..8] == PROXMOX_RRD_MAGIC_2_0 {
+            serde_cbor::from_slice(&raw[8..])
+                .map_err(|err| {
+                    let msg = format!("unable to decode RRD file - {}", err);
+                    std::io::Error::new(std::io::ErrorKind::Other, msg)
+                })
+         } else {
+            let msg = format!("not an rrd file - unknown magic number");
+            return Err(std::io::Error::new(std::io::ErrorKind::Other, msg));
+        }
     }
 
     /// Store data into a file (atomic replace file)
     pub fn save(&self, filename: &Path, options: CreateOptions) -> Result<(), Error> {
-        let rrd_slice = unsafe {
-            std::slice::from_raw_parts(self as *const _ as *const u8, std::mem::size_of::<RRD>())
-        };
-        replace_file(filename, rrd_slice, options)
+        let mut data: Vec<u8> = Vec::new();
+        data.extend(&PROXMOX_RRD_MAGIC_2_0);
+        serde_cbor::to_writer(&mut data, self)?;
+        replace_file(filename, &data, options)
     }
 
     pub fn last_update(&self) -> f64 {
-
-        let mut last_update = 0.0;
-
-        {
-            let mut check_last_update = |rra: &RRA| {
-                if rra.last_update > last_update {
-                    last_update = rra.last_update;
-                }
-            };
-
-            check_last_update(&self.hour_avg);
-            check_last_update(&self.hour_max);
-
-            check_last_update(&self.day_avg);
-            check_last_update(&self.day_max);
-
-            check_last_update(&self.week_avg);
-            check_last_update(&self.week_max);
-
-            check_last_update(&self.month_avg);
-            check_last_update(&self.month_max);
-
-            check_last_update(&self.year_avg);
-            check_last_update(&self.year_max);
-        }
-
-        last_update
+        self.source.last_update
     }
 
     /// Update the value (in memory)
@@ -371,32 +318,53 @@ impl RRD {
     /// Note: This does not call [Self::save].
     pub fn update(&mut self, time: f64, value: f64) {
 
-        let mut log_error = true;
-
-        let mut update_rra = |rra: &mut RRA| {
-            if let Err(err) = rra.update(time, value) {
-                if log_error {
-                    log::error!("rrd update failed: {}", err);
-                    // we only log the first error, because it is very
-                    // likely other calls produce the same error
-                    log_error = false;
-                }
+        let value = match self.source.compute_new_value(time, value) {
+            Ok(value) => value,
+            Err(err) => {
+                log::error!("rrd update failed: {}", err);
+                return;
             }
         };
 
-        update_rra(&mut self.hour_avg);
-        update_rra(&mut self.hour_max);
+        let last_update = self.source.last_update;
+        self.source.last_update = time;
 
-        update_rra(&mut self.day_avg);
-        update_rra(&mut self.day_max);
-
-        update_rra(&mut self.week_avg);
-        update_rra(&mut self.week_max);
-
-        update_rra(&mut self.month_avg);
-        update_rra(&mut self.month_max);
-
-        update_rra(&mut self.year_avg);
-        update_rra(&mut self.year_max);
+        for rra in self.rra_list.iter_mut() {
+            rra.delete_old_slots(time, last_update);
+            rra.compute_new_value(time, last_update, value);
+        }
     }
+
+    /// Extract data from the archive
+    ///
+    /// This selects the RRA with specified [CF] and (minimum)
+    /// resolution, and extract data from `start` to `end`.
+    pub fn extract_data(
+        &self,
+        start: u64,
+        end: u64,
+        cf: CF,
+        resolution: u64,
+    ) -> Result<(u64, u64, Vec<Option<f64>>), Error> {
+
+        let mut rra: Option<&RRA> = None;
+        for item in self.rra_list.iter() {
+            if item.cf != cf { continue; }
+            if item.resolution > resolution { continue; }
+
+            if let Some(current) = rra {
+                if item.resolution > current.resolution {
+                    rra = Some(item);
+                }
+            } else {
+                rra = Some(item);
+            }
+        }
+
+        match rra {
+            Some(rra) => Ok(rra.extract_data(start, end, self.source.last_update)),
+            None => bail!("unable to find RRA suitable ({:?}:{})", cf, resolution),
+        }
+    }
+
 }

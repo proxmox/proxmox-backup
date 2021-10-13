@@ -24,7 +24,7 @@ use proxmox_router::{RpcEnvironment, RpcEnvironmentType, UserInformation};
 
 use pbs_tools::{task_log, task_warn};
 use pbs_datastore::DataStore;
-use proxmox_rrd::DST;
+use proxmox_rrd::rrd::DST;
 
 use proxmox_rest_server::{
     rotate_task_log_archive, extract_cookie , AuthError, ApiConfig, RestServer, RestEnvironment,

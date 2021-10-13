@@ -1,5 +1,6 @@
-use anyhow::Error;
+use anyhow::{bail, Error};
 use serde_json::{Value, json};
+use std::collections::BTreeMap;
 
 use proxmox_router::{Permission, Router};
 use proxmox_schema::api;
@@ -7,8 +8,6 @@ use proxmox_schema::api;
 use pbs_api_types::{
     NODE_SCHEMA, RRDMode, RRDTimeFrameResolution, PRIV_SYS_AUDIT,
 };
-
-use proxmox_rrd::rrd::RRD_DATA_ENTRIES;
 
 use crate::get_rrd_cache;
 
@@ -19,30 +18,42 @@ pub fn create_value_from_rrd(
     cf: RRDMode,
 ) -> Result<Value, Error> {
 
-    let mut result = Vec::new();
+    let mut result: Vec<Value> = Vec::new();
     let now = proxmox_time::epoch_f64();
 
     let rrd_cache = get_rrd_cache()?;
 
+    let mut timemap = BTreeMap::new();
+
+    let mut last_resolution = None;
+
     for name in list {
-        let (start, reso, list) = match rrd_cache.extract_cached_data(basedir, name, now, timeframe, cf) {
+        let (start, reso, data) = match rrd_cache.extract_cached_data(basedir, name, now, timeframe, cf)? {
             Some(result) => result,
             None => continue,
         };
 
+        if let Some(expected_resolution) = last_resolution  {
+            if reso != expected_resolution {
+                bail!("got unexpected RRD resolution ({} != {})", reso, expected_resolution);
+            }
+        } else {
+            last_resolution = Some(reso);
+        }
+
         let mut t = start;
-        for index in 0..RRD_DATA_ENTRIES {
-            if result.len() <= index {
-                if let Some(value) = list[index] {
-                    result.push(json!({ "time": t, *name: value }));
-                } else {
-                    result.push(json!({ "time": t }));
-                }
-            } else if let Some(value) = list[index] {
-                result[index][name] = value.into();
+
+        for index in 0..data.len() {
+            let entry = timemap.entry(t).or_insert(json!({ "time": t }));
+            if let Some(value) = data[index] {
+                entry[*name] = value.into();
             }
             t += reso;
         }
+    }
+
+    for item in timemap.values() {
+        result.push(item.clone());
     }
 
     Ok(result.into())

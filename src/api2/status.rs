@@ -134,8 +134,8 @@ pub fn datastore_status(
             RRDMode::Average,
         );
 
-        let total_res = get_rrd("total");
-        let used_res = get_rrd("used");
+        let total_res = get_rrd("total")?;
+        let used_res = get_rrd("used")?;
 
         if let (Some((start, reso, total_list)), Some((_, _, used_list))) = (total_res, used_res) {
             let mut usage_list: Vec<f64> = Vec::new();

@@ -13,7 +13,7 @@ use proxmox::tools::fs::{atomic_open_or_create_file, create_path, CreateOptions}
 
 use proxmox_rrd_api_types::{RRDMode, RRDTimeFrameResolution};
 
-use crate::{DST, rrd::RRD};
+use crate::rrd::{DST, CF, RRD, RRA};
 
 const RRD_JOURNAL_NAME: &str = "rrd.journal";
 
@@ -79,6 +79,29 @@ impl RRDCache {
             apply_interval,
             state: RwLock::new(state),
         })
+    }
+
+    fn create_default_rrd(dst: DST) -> RRD {
+
+        let mut rra_list = Vec::new();
+
+        // 1min * 1440 => 1day
+        rra_list.push(RRA::new(CF::Average, 60, 1440));
+        rra_list.push(RRA::new(CF::Maximum, 60, 1440));
+
+        // 30min * 1440 => 30days = 1month
+        rra_list.push(RRA::new(CF::Average, 30*60, 1440));
+        rra_list.push(RRA::new(CF::Maximum, 30*60, 1440));
+
+        // 6h * 1440 => 360days = 1year
+        rra_list.push(RRA::new(CF::Average, 6*3600, 1440));
+        rra_list.push(RRA::new(CF::Maximum, 6*3600, 1440));
+
+        // 1week * 570 => 10years
+        rra_list.push(RRA::new(CF::Average, 7*86400, 570));
+        rra_list.push(RRA::new(CF::Maximum, 7*86400, 570));
+
+        RRD::new(dst, rra_list)
     }
 
     fn parse_journal_line(line: &str) -> Result<JournalEntry, Error> {
@@ -179,7 +202,7 @@ impl RRDCache {
                         if err.kind() != std::io::ErrorKind::NotFound {
                             log::warn!("overwriting RRD file {:?}, because of load error: {}", path, err);
                         }
-                        RRD::new(entry.dst)
+                        Self::create_default_rrd(entry.dst)
                     },
                 };
                 if entry.time > get_last_update(&entry.rel_path, &rrd) {
@@ -246,7 +269,7 @@ impl RRDCache {
                     if err.kind() != std::io::ErrorKind::NotFound {
                         log::warn!("overwriting RRD file {:?}, because of load error: {}", path, err);
                     }
-                    RRD::new(dst)
+                    Self::create_default_rrd(dst)
                 },
             };
             rrd.update(now, value);
@@ -264,13 +287,29 @@ impl RRDCache {
         now: f64,
         timeframe: RRDTimeFrameResolution,
         mode: RRDMode,
-    ) -> Option<(u64, u64, Vec<Option<f64>>)> {
+    ) -> Result<Option<(u64, u64, Vec<Option<f64>>)>, Error> {
 
         let state = self.state.read().unwrap();
 
+        let cf = match mode {
+            RRDMode::Max => CF::Maximum,
+            RRDMode::Average => CF::Average,
+        };
+
+        let now = now as u64;
+
+        let (start, resolution) = match timeframe {
+            RRDTimeFrameResolution::Hour => (now - 3600, 60),
+            RRDTimeFrameResolution::Day => (now - 3600*24, 60),
+            RRDTimeFrameResolution::Week => (now - 3600*24*7, 30*60),
+            RRDTimeFrameResolution::Month => (now - 3600*24*30, 30*60),
+            RRDTimeFrameResolution::Year => (now - 3600*24*365, 6*60*60),
+            RRDTimeFrameResolution::Decade => (now - 10*3600*24*366, 7*86400),
+        };
+
         match state.rrd_map.get(&format!("{}/{}", base, name)) {
-            Some(rrd) => Some(rrd.extract_data(now, timeframe, mode)),
-            None => None,
+            Some(rrd) => Ok(Some(rrd.extract_data(start, now, cf, resolution)?)),
+            None => Ok(None),
         }
     }
 }
