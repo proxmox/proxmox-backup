@@ -920,82 +920,85 @@ fn rrd_update_derive(name: &str, value: f64) {
 }
 
 async fn generate_host_stats() {
+    match tokio::task::spawn_blocking(generate_host_stats_sync).await {
+        Ok(()) => (),
+        Err(err) => log::error!("generate_host_stats paniced: {}", err),
+    }
+}
+
+fn generate_host_stats_sync() {
     use proxmox::sys::linux::procfs::{
         read_meminfo, read_proc_stat, read_proc_net_dev, read_loadavg};
 
-    pbs_runtime::block_in_place(move || {
+    match read_proc_stat() {
+        Ok(stat) => {
+            rrd_update_gauge("host/cpu", stat.cpu);
+            rrd_update_gauge("host/iowait", stat.iowait_percent);
+        }
+        Err(err) => {
+            eprintln!("read_proc_stat failed - {}", err);
+        }
+    }
 
-        match read_proc_stat() {
-            Ok(stat) => {
-                rrd_update_gauge("host/cpu", stat.cpu);
-                rrd_update_gauge("host/iowait", stat.iowait_percent);
+    match read_meminfo() {
+        Ok(meminfo) => {
+            rrd_update_gauge("host/memtotal", meminfo.memtotal as f64);
+            rrd_update_gauge("host/memused", meminfo.memused as f64);
+            rrd_update_gauge("host/swaptotal", meminfo.swaptotal as f64);
+            rrd_update_gauge("host/swapused", meminfo.swapused as f64);
+        }
+        Err(err) => {
+            eprintln!("read_meminfo failed - {}", err);
+        }
+    }
+
+    match read_proc_net_dev() {
+        Ok(netdev) => {
+            use pbs_config::network::is_physical_nic;
+            let mut netin = 0;
+            let mut netout = 0;
+            for item in netdev {
+                if !is_physical_nic(&item.device) { continue; }
+                netin += item.receive;
+                netout += item.send;
             }
-            Err(err) => {
-                eprintln!("read_proc_stat failed - {}", err);
+            rrd_update_derive("host/netin", netin as f64);
+            rrd_update_derive("host/netout", netout as f64);
+        }
+        Err(err) => {
+            eprintln!("read_prox_net_dev failed - {}", err);
+        }
+    }
+
+    match read_loadavg() {
+        Ok(loadavg) => {
+            rrd_update_gauge("host/loadavg", loadavg.0 as f64);
+        }
+        Err(err) => {
+            eprintln!("read_loadavg failed - {}", err);
+        }
+    }
+
+    let disk_manager = DiskManage::new();
+
+    gather_disk_stats(disk_manager.clone(), Path::new("/"), "host");
+
+    match pbs_config::datastore::config() {
+        Ok((config, _)) => {
+            let datastore_list: Vec<DataStoreConfig> =
+                config.convert_to_typed_array("datastore").unwrap_or_default();
+
+            for config in datastore_list {
+
+                let rrd_prefix = format!("datastore/{}", config.name);
+                let path = std::path::Path::new(&config.path);
+                gather_disk_stats(disk_manager.clone(), path, &rrd_prefix);
             }
         }
-
-        match read_meminfo() {
-            Ok(meminfo) => {
-                rrd_update_gauge("host/memtotal", meminfo.memtotal as f64);
-                rrd_update_gauge("host/memused", meminfo.memused as f64);
-                rrd_update_gauge("host/swaptotal", meminfo.swaptotal as f64);
-                rrd_update_gauge("host/swapused", meminfo.swapused as f64);
-            }
-            Err(err) => {
-                eprintln!("read_meminfo failed - {}", err);
-            }
+        Err(err) => {
+            eprintln!("read datastore config failed - {}", err);
         }
-
-        match read_proc_net_dev() {
-            Ok(netdev) => {
-                use pbs_config::network::is_physical_nic;
-                let mut netin = 0;
-                let mut netout = 0;
-                for item in netdev {
-                    if !is_physical_nic(&item.device) { continue; }
-                    netin += item.receive;
-                    netout += item.send;
-                }
-                rrd_update_derive("host/netin", netin as f64);
-                rrd_update_derive("host/netout", netout as f64);
-            }
-            Err(err) => {
-                eprintln!("read_prox_net_dev failed - {}", err);
-            }
-        }
-
-        match read_loadavg() {
-            Ok(loadavg) => {
-                rrd_update_gauge("host/loadavg", loadavg.0 as f64);
-            }
-            Err(err) => {
-                eprintln!("read_loadavg failed - {}", err);
-            }
-        }
-
-        let disk_manager = DiskManage::new();
-
-        gather_disk_stats(disk_manager.clone(), Path::new("/"), "host");
-
-        match pbs_config::datastore::config() {
-            Ok((config, _)) => {
-                let datastore_list: Vec<DataStoreConfig> =
-                    config.convert_to_typed_array("datastore").unwrap_or_default();
-
-                for config in datastore_list {
-
-                    let rrd_prefix = format!("datastore/{}", config.name);
-                    let path = std::path::Path::new(&config.path);
-                    gather_disk_stats(disk_manager.clone(), path, &rrd_prefix);
-                }
-            }
-            Err(err) => {
-                eprintln!("read datastore config failed - {}", err);
-            }
-        }
-
-    });
+    }
 }
 
 fn check_schedule(worker_type: &str, event_str: &str, id: &str) -> bool {
