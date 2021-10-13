@@ -194,15 +194,8 @@ impl RRDCache {
                 path.push(&entry.rel_path);
                 create_path(path.parent().unwrap(), Some(self.dir_options.clone()), Some(self.dir_options.clone()))?;
 
-                let mut rrd = match RRD::load(&path) {
-                    Ok(rrd) => rrd,
-                    Err(err) => {
-                        if err.kind() != std::io::ErrorKind::NotFound {
-                            log::warn!("overwriting RRD file {:?}, because of load error: {}", path, err);
-                        }
-                        Self::create_default_rrd(entry.dst)
-                    },
-                };
+                let mut rrd = Self::load_rrd(&path, entry.dst);
+
                 if entry.time > get_last_update(&entry.rel_path, &rrd) {
                     rrd.update(entry.time, entry.value);
                 }
@@ -235,7 +228,19 @@ impl RRDCache {
         Ok(())
     }
 
-    /// Update data in RAM and write file back to disk (if `save` is set)
+    fn load_rrd(path: &Path, dst: DST) -> RRD {
+        match RRD::load(path) {
+            Ok(rrd) => rrd,
+            Err(err) => {
+                if err.kind() != std::io::ErrorKind::NotFound {
+                    log::warn!("overwriting RRD file {:?}, because of load error: {}", path, err);
+                }
+                Self::create_default_rrd(dst)
+            },
+        }
+    }
+
+    /// Update data in RAM and write file back to disk (journal)
     pub fn update_value(
         &self,
         rel_path: &str,
@@ -261,15 +266,9 @@ impl RRDCache {
             let mut path = self.basedir.clone();
             path.push(rel_path);
             create_path(path.parent().unwrap(), Some(self.dir_options.clone()), Some(self.dir_options.clone()))?;
-            let mut rrd = match RRD::load(&path) {
-                Ok(rrd) => rrd,
-                Err(err) => {
-                    if err.kind() != std::io::ErrorKind::NotFound {
-                        log::warn!("overwriting RRD file {:?}, because of load error: {}", path, err);
-                    }
-                    Self::create_default_rrd(dst)
-                },
-            };
+
+            let mut rrd = Self::load_rrd(&path, dst);
+
             rrd.update(now, value);
             state.rrd_map.insert(rel_path.into(), rrd);
         }
