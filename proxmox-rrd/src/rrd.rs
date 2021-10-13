@@ -135,6 +135,18 @@ impl RRA {
         }
     }
 
+    pub fn slot_end_time(&self, time: u64) -> u64 {
+        self.resolution * (time / self.resolution + 1)
+    }
+
+    pub fn slot_start_time(&self, time: u64) -> u64 {
+        self.resolution * (time / self.resolution)
+    }
+
+    pub fn slot(&self, time: u64) -> usize {
+        ((time / self.resolution) as usize) % self.data.len()
+    }
+
     // directly overwrite data slots
     // the caller need to set last_update value on the DataSource manually.
     pub(crate) fn insert_data(
@@ -146,8 +158,8 @@ impl RRA {
         if resolution != self.resolution {
             bail!("inser_data failed: got wrong resolution");
         }
-        let num_entries = self.data.len() as u64;
-        let mut index = ((start/self.resolution) % num_entries) as usize;
+
+        let mut index = self.slot(start);
 
         for i in 0..data.len() {
             if let Some(v) = data[i] {
@@ -167,7 +179,9 @@ impl RRA {
         let min_time = epoch - num_entries*reso;
         let min_time = (min_time/reso + 1)*reso;
         let mut t = last_update.saturating_sub(num_entries*reso);
-        let mut index = ((t/reso) % num_entries) as usize;
+
+        let mut index = self.slot(t);
+
         for _ in 0..num_entries {
             t += reso;
             index += 1; if index >= self.data.len() { index = 0; }
@@ -183,12 +197,11 @@ impl RRA {
         let epoch = time as u64;
         let last_update = last_update as u64;
         let reso = self.resolution;
-        let num_entries = self.data.len() as u64;
 
-        let index = ((epoch/reso) % num_entries) as usize;
-        let last_index = ((last_update/reso) % num_entries) as usize;
+        let index = self.slot(epoch);
+        let last_index = self.slot(last_update);
 
-        if (epoch - (last_update as u64)) > reso || index != last_index {
+        if (epoch - last_update) > reso || index != last_index {
             self.last_count = 0;
         }
 
@@ -233,11 +246,11 @@ impl RRA {
 
         let mut list = Vec::new();
 
-        let rrd_end = reso*(last_update/reso + 1);
+        let rrd_end = self.slot_end_time(last_update);
         let rrd_start = rrd_end.saturating_sub(reso*num_entries);
 
         let mut t = start;
-        let mut index = ((t/reso) % num_entries) as usize;
+        let mut index = self.slot(t);
         for _ in 0..num_entries {
             if t > end { break; };
             if t < rrd_start || t > rrd_end {
