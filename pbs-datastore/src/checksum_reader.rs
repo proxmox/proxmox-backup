@@ -2,7 +2,8 @@ use anyhow::{Error};
 use std::sync::Arc;
 use std::io::Read;
 
-use pbs_tools::borrow::Tied;
+use proxmox_borrow::Tied;
+
 use pbs_tools::crypt_config::CryptConfig;
 
 pub struct ChecksumReader<R> {

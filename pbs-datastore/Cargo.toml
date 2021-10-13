@@ -26,6 +26,7 @@ pathpatterns = "0.1.2"
 pxar = "0.10.1"
 
 proxmox = "0.14.0"
+proxmox-borrow = "1"
 proxmox-io = "1"
 proxmox-lang = "1"
 proxmox-schema = { version = "1", features = [ "api-macro" ] }
