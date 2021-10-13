@@ -5,6 +5,9 @@ authors = ["Proxmox Support Team <support@proxmox.com>"]
 edition = "2018"
 description = "Simple RRD database implementation."
 
+[dev-dependencies]
+proxmox-router = "1"
+
 [dependencies]
 anyhow = "1.0"
 bitflags = "1.2.1"
@@ -16,5 +19,4 @@ serde_cbor = "0.11.1"
 
 proxmox = { version = "0.14.0" }
 proxmox-time = "1"
-proxmox-router = "1"
 proxmox-schema = { version = "1", features = [ "api-macro" ] }
