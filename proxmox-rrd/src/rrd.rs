@@ -63,7 +63,7 @@ pub struct DataSource {
     pub last_update: f64,
     /// Stores the last value, used to compute differential value for
     /// derive/counters
-    pub counter_value: f64,
+    pub last_value: f64,
 }
 
 impl DataSource {
@@ -72,7 +72,7 @@ impl DataSource {
         Self {
             dst,
             last_update: 0.0,
-            counter_value: f64::NAN,
+            last_value: f64::NAN,
         }
     }
 
@@ -94,21 +94,23 @@ impl DataSource {
         if is_counter || self.dst == DST::Derive {
             let time_diff = time - self.last_update;
 
-            let diff = if self.counter_value.is_nan() {
+            let diff = if self.last_value.is_nan() {
                 0.0
             } else if is_counter && value < 0.0 {
                 bail!("got negative value for counter");
-            } else if is_counter && value < self.counter_value {
+            } else if is_counter && value < self.last_value {
                 // Note: We do not try automatic overflow corrections, but
-                // we update counter_value anyways, so that we can compute the diff
+                // we update last_value anyways, so that we can compute the diff
                 // next time.
-                self.counter_value = value;
+                self.last_value = value;
                 bail!("conter overflow/reset detected");
             } else {
-                value - self.counter_value
+                value - self.last_value
             };
-            self.counter_value = value;
+            self.last_value = value;
             value = diff/time_diff;
+        } else {
+            self.last_value = value;
         }
 
         Ok(value)

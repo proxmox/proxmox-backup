@@ -285,7 +285,7 @@ impl RRDv1 {
 
         let source = DataSource {
             dst,
-            counter_value: f64::NAN,
+            last_value: f64::NAN,
             last_update:  self.hour_avg.last_update, // IMPORTANT!
         };
         Ok(RRD {
