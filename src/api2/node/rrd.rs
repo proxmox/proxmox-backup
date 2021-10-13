@@ -10,7 +10,7 @@ use pbs_api_types::{
 
 use proxmox_rrd::rrd::RRD_DATA_ENTRIES;
 
-use crate::RRD_CACHE;
+use crate::get_rrd_cache;
 
 pub fn create_value_from_rrd(
     basedir: &str,
@@ -22,8 +22,10 @@ pub fn create_value_from_rrd(
     let mut result = Vec::new();
     let now = proxmox_time::epoch_f64();
 
+    let rrd_cache = get_rrd_cache()?;
+
     for name in list {
-        let (start, reso, list) = match RRD_CACHE.extract_cached_data(basedir, name, now, timeframe, cf) {
+        let (start, reso, list) = match rrd_cache.extract_cached_data(basedir, name, now, timeframe, cf) {
             Some(result) => result,
             None => continue,
         };

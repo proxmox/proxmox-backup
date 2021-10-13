@@ -5,6 +5,9 @@
 
 use std::path::PathBuf;
 
+use once_cell::sync::OnceCell;
+use anyhow::{format_err, Error};
+
 use proxmox::tools::fs::CreateOptions;
 
 use pbs_buildcfg::configdir;
@@ -39,25 +42,39 @@ pub fn cert_info() -> Result<CertInfo, anyhow::Error> {
     CertInfo::from_path(PathBuf::from(configdir!("/proxy.pem")))
 }
 
-lazy_static::lazy_static!{
-    /// Proxmox Backup Server RRD cache instance
-    pub static ref RRD_CACHE: RRDCache = {
-        let backup_user = pbs_config::backup_user().unwrap();
-        let file_options = CreateOptions::new()
-            .owner(backup_user.uid)
-            .group(backup_user.gid);
+pub static RRD_CACHE: OnceCell<RRDCache> = OnceCell::new();
 
-       let dir_options = CreateOptions::new()
-            .owner(backup_user.uid)
-            .group(backup_user.gid);
+/// Get the RRD cache instance
+pub fn get_rrd_cache() -> Result<&'static RRDCache, Error> {
+    RRD_CACHE.get().ok_or_else(|| format_err!("RRD cache not initialized!"))
+}
 
-        let apply_interval = 30.0*60.0; // 30 minutes
+/// Initialize the RRD cache instance
+///
+/// Note: Only a single process must do this (proxmox-backup-proxy)
+pub fn initialize_rrd_cache() -> Result<&'static RRDCache, Error> {
 
-        RRDCache::new(
-            "/var/lib/proxmox-backup/rrdb",
-            Some(file_options),
-            Some(dir_options),
-            apply_interval,
-        ).unwrap()
-    };
+    let backup_user = pbs_config::backup_user()?;
+
+    let file_options = CreateOptions::new()
+        .owner(backup_user.uid)
+        .group(backup_user.gid);
+
+    let dir_options = CreateOptions::new()
+        .owner(backup_user.uid)
+        .group(backup_user.gid);
+
+    let apply_interval = 30.0*60.0; // 30 minutes
+
+    let cache = RRDCache::new(
+        "/var/lib/proxmox-backup/rrdb",
+        Some(file_options),
+        Some(dir_options),
+        apply_interval,
+    )?;
+
+    RRD_CACHE.set(cache)
+        .map_err(|_| format_err!("RRD cache already initialized!"))?;
+
+    Ok(RRD_CACHE.get().unwrap())
 }

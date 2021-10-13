@@ -16,7 +16,6 @@ use proxmox_rest_server::{daemon, AuthError, ApiConfig, RestServer, RestEnvironm
 
 use proxmox_backup::server::auth::check_pbs_auth;
 use proxmox_backup::auth_helpers::*;
-use proxmox_backup::RRD_CACHE;
 use proxmox_backup::config;
 
 fn main() {
@@ -73,9 +72,6 @@ async fn run() -> Result<(), Error> {
     config::update_self_signed_cert(false)?;
 
     proxmox_backup::server::create_run_dir()?;
-
-    RRD_CACHE.apply_journal()?;
-
     proxmox_backup::server::jobstate::create_jobstate_dir()?;
     proxmox_backup::tape::create_tape_status_dir()?;
     proxmox_backup::tape::create_drive_state_dir()?;

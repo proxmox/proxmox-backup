@@ -32,7 +32,7 @@ use proxmox_rest_server::{
 };
 
 use proxmox_backup::{
-    RRD_CACHE,
+    get_rrd_cache, initialize_rrd_cache,
     server::{
         auth::check_pbs_auth,
         jobstate::{
@@ -207,6 +207,9 @@ async fn run() -> Result<(), Error> {
 
     let _ = public_auth_key(); // load with lazy_static
     let _ = csrf_secret(); // load with lazy_static
+
+    let rrd_cache = initialize_rrd_cache()?;
+    rrd_cache.apply_journal()?;
 
     let mut config = ApiConfig::new(
         pbs_buildcfg::JS_DIR,
@@ -901,14 +904,18 @@ async fn run_stat_generator() {
 }
 
 fn rrd_update_gauge(name: &str, value: f64) {
-    if let Err(err) = RRD_CACHE.update_value(name, value, DST::Gauge) {
-        eprintln!("rrd::update_value '{}' failed - {}", name, err);
+    if let Ok(rrd_cache) = get_rrd_cache() {
+        if let Err(err) = rrd_cache.update_value(name, value, DST::Gauge) {
+            eprintln!("rrd::update_value '{}' failed - {}", name, err);
+        }
     }
 }
 
 fn rrd_update_derive(name: &str, value: f64) {
-    if let Err(err) = RRD_CACHE.update_value(name, value, DST::Derive) {
-        eprintln!("rrd::update_value '{}' failed - {}", name, err);
+    if let Ok(rrd_cache) = get_rrd_cache() {
+        if let Err(err) = rrd_cache.update_value(name, value, DST::Derive) {
+            eprintln!("rrd::update_value '{}' failed - {}", name, err);
+        }
     }
 }
 

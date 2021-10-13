@@ -22,7 +22,7 @@ use pbs_datastore::DataStore;
 use pbs_config::CachedUserInfo;
 
 use crate::tools::statistics::{linear_regression};
-use crate::RRD_CACHE;
+use crate::get_rrd_cache;
 
 #[api(
     returns: {
@@ -90,6 +90,8 @@ pub fn datastore_status(
 
     let mut list = Vec::new();
 
+    let rrd_cache = get_rrd_cache()?;
+
     for (store, (_, _)) in &config.sections {
         let user_privs = user_info.lookup_privs(&auth_id, &["datastore", &store]);
         let allowed = (user_privs & (PRIV_DATASTORE_AUDIT| PRIV_DATASTORE_BACKUP)) != 0;
@@ -123,7 +125,8 @@ pub fn datastore_status(
         let rrd_dir = format!("datastore/{}", store);
         let now = proxmox_time::epoch_f64();
 
-        let get_rrd = |what: &str| RRD_CACHE.extract_cached_data(
+
+        let get_rrd = |what: &str| rrd_cache.extract_cached_data(
             &rrd_dir,
             what,
             now,
