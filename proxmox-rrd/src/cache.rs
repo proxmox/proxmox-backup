@@ -11,8 +11,6 @@ use nix::fcntl::OFlag;
 
 use proxmox::tools::fs::{atomic_open_or_create_file, create_path, CreateOptions};
 
-use proxmox_rrd_api_types::{RRDMode, RRDTimeFrameResolution};
-
 use crate::rrd::{DST, CF, RRD, RRA};
 
 const RRD_JOURNAL_NAME: &str = "rrd.journal";
@@ -280,35 +278,23 @@ impl RRDCache {
     }
 
     /// Extract data from cached RRD
+    ///
+    /// `start`: Start time. If not sepecified, we simply extract 10 data points.
+    /// `end`: End time. Default is to use the current time.
     pub fn extract_cached_data(
         &self,
         base: &str,
         name: &str,
-        now: f64,
-        timeframe: RRDTimeFrameResolution,
-        mode: RRDMode,
+        cf: CF,
+        resolution: u64,
+        start: Option<u64>,
+        end: Option<u64>,
     ) -> Result<Option<(u64, u64, Vec<Option<f64>>)>, Error> {
 
         let state = self.state.read().unwrap();
 
-        let cf = match mode {
-            RRDMode::Max => CF::Maximum,
-            RRDMode::Average => CF::Average,
-        };
-
-        let now = now as u64;
-
-        let (start, resolution) = match timeframe {
-            RRDTimeFrameResolution::Hour => (now - 3600, 60),
-            RRDTimeFrameResolution::Day => (now - 3600*24, 60),
-            RRDTimeFrameResolution::Week => (now - 3600*24*7, 30*60),
-            RRDTimeFrameResolution::Month => (now - 3600*24*30, 30*60),
-            RRDTimeFrameResolution::Year => (now - 3600*24*365, 6*60*60),
-            RRDTimeFrameResolution::Decade => (now - 10*3600*24*366, 7*86400),
-        };
-
         match state.rrd_map.get(&format!("{}/{}", base, name)) {
-            Some(rrd) => Ok(Some(rrd.extract_data(start, now, cf, resolution)?)),
+            Some(rrd) => Ok(Some(rrd.extract_data(cf, resolution, start, end)?)),
             None => Ok(None),
         }
     }

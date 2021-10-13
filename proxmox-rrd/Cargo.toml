@@ -17,5 +17,3 @@ serde_cbor = "0.11.1"
 proxmox = { version = "0.14.0" }
 proxmox-time = "1"
 proxmox-schema = { version = "1", features = [ "api-macro" ] }
-
-proxmox-rrd-api-types = { path = "../proxmox-rrd-api-types" }

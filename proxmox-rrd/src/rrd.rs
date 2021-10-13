@@ -339,12 +339,15 @@ impl RRD {
     ///
     /// This selects the RRA with specified [CF] and (minimum)
     /// resolution, and extract data from `start` to `end`.
+    ///
+    /// `start`: Start time. If not sepecified, we simply extract 10 data points.
+    /// `end`: End time. Default is to use the current time.
     pub fn extract_data(
         &self,
-        start: u64,
-        end: u64,
         cf: CF,
         resolution: u64,
+        start: Option<u64>,
+        end: Option<u64>,
     ) -> Result<(u64, u64, Vec<Option<f64>>), Error> {
 
         let mut rra: Option<&RRA> = None;
@@ -362,7 +365,11 @@ impl RRD {
         }
 
         match rra {
-            Some(rra) => Ok(rra.extract_data(start, end, self.source.last_update)),
+            Some(rra) => {
+                let end = end.unwrap_or_else(|| proxmox_time::epoch_f64() as u64);
+                let start = start.unwrap_or(end - 10*rra.resolution);
+                Ok(rra.extract_data(start, end, self.source.last_update))
+            }
             None => bail!("unable to find RRA suitable ({:?}:{})", cf, resolution),
         }
     }

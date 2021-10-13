@@ -9,26 +9,23 @@ use pbs_api_types::{
     NODE_SCHEMA, RRDMode, RRDTimeFrameResolution, PRIV_SYS_AUDIT,
 };
 
-use crate::get_rrd_cache;
+use crate::extract_rrd_data;
 
 pub fn create_value_from_rrd(
     basedir: &str,
     list: &[&str],
     timeframe: RRDTimeFrameResolution,
-    cf: RRDMode,
+    mode: RRDMode,
 ) -> Result<Value, Error> {
 
     let mut result: Vec<Value> = Vec::new();
-    let now = proxmox_time::epoch_f64();
-
-    let rrd_cache = get_rrd_cache()?;
 
     let mut timemap = BTreeMap::new();
 
     let mut last_resolution = None;
 
     for name in list {
-        let (start, reso, data) = match rrd_cache.extract_cached_data(basedir, name, now, timeframe, cf)? {
+        let (start, reso, data) = match extract_rrd_data(basedir, name, timeframe, mode)? {
             Some(result) => result,
             None => continue,
         };
