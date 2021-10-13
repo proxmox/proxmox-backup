@@ -27,7 +27,7 @@ proxmox-time = "1"
 proxmox-uuid = "1"
 
 # router::cli is only used by binaries, so maybe we should split them out
-proxmox-router = "1"
+proxmox-router = "1.1"
 
 pbs-api-types = { path = "../pbs-api-types" }
 pbs-tools = { path = "../pbs-tools" }

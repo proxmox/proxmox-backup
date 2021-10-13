@@ -7,7 +7,7 @@ use serde::{Serialize, Deserialize};
 use serde_json::json;
 
 use proxmox_router::RpcEnvironment;
-use proxmox_router::cli::{run_cli_command, CliCommand, CliCommandMap, CliEnvironment};
+use proxmox_router::cli::{run_cli_command, complete_file_name, CliCommand, CliCommandMap, CliEnvironment};
 use proxmox_schema::{api, parse_property_string};
 use proxmox_schema::{ApiStringFormat, ApiType, IntegerSchema, Schema, StringSchema};
 
@@ -350,55 +350,55 @@ fn main() -> Result<(), Error> {
             "create",
             CliCommand::new(&API_METHOD_CREATE_RRD)
                 .arg_param(&["path"])
-                //.completion_cb("path", pbs_tools::fs::complete_file_name)
+                .completion_cb("path", complete_file_name)
         )
         .insert(
             "dump",
             CliCommand::new(&API_METHOD_DUMP_RRD)
                 .arg_param(&["path"])
-                //.completion_cb("path", pbs_tools::fs::complete_file_name)
+                .completion_cb("path", complete_file_name)
          )
         .insert(
             "fetch",
             CliCommand::new(&API_METHOD_FETCH_RRD)
                 .arg_param(&["path"])
-                //.completion_cb("path", pbs_tools::fs::complete_file_name)
+                .completion_cb("path", complete_file_name)
          )
         .insert(
             "first",
             CliCommand::new(&API_METHOD_FIRST_UPDATE_TIME)
                 .arg_param(&["path"])
-                //.completion_cb("path", pbs_tools::fs::complete_file_name)
+                .completion_cb("path", complete_file_name)
         )
         .insert(
             "info",
             CliCommand::new(&API_METHOD_RRD_INFO)
                 .arg_param(&["path"])
-                //.completion_cb("path", pbs_tools::fs::complete_file_name)
+                .completion_cb("path", complete_file_name)
         )
         .insert(
             "last",
             CliCommand::new(&API_METHOD_LAST_UPDATE_TIME)
                 .arg_param(&["path"])
-            //.completion_cb("path", pbs_tools::fs::complete_file_name)
+                .completion_cb("path", complete_file_name)
         )
         .insert(
             "lastupdate",
             CliCommand::new(&API_METHOD_LAST_UPDATE)
                 .arg_param(&["path"])
-            //.completion_cb("path", pbs_tools::fs::complete_file_name)
+                .completion_cb("path", complete_file_name)
         )
         .insert(
             "resize",
             CliCommand::new(&API_METHOD_RESIZE_RRD)
                 .arg_param(&["path"])
-            //.completion_cb("path", pbs_tools::fs::complete_file_name)
+                .completion_cb("path", complete_file_name)
         )
         .insert(
             "update",
             CliCommand::new(&API_METHOD_UPDATE_RRD)
                 .arg_param(&["path"])
-            //.completion_cb("path", pbs_tools::fs::complete_file_name)
+                .completion_cb("path", complete_file_name)
         )
         ;
 

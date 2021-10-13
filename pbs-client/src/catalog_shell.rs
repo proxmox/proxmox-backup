@@ -79,13 +79,13 @@ pub fn catalog_shell_cli() -> CommandLineInterface {
                 "restore-selected",
                 CliCommand::new(&API_METHOD_RESTORE_SELECTED_COMMAND)
                     .arg_param(&["target"])
-                    .completion_cb("target", pbs_tools::fs::complete_file_name),
+                    .completion_cb("target", cli::complete_file_name),
             )
             .insert(
                 "restore",
                 CliCommand::new(&API_METHOD_RESTORE_COMMAND)
                     .arg_param(&["target"])
-                    .completion_cb("target", pbs_tools::fs::complete_file_name),
+                    .completion_cb("target", cli::complete_file_name),
             )
             .insert(
                 "find",

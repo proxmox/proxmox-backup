@@ -27,7 +27,7 @@ pathpatterns = "0.1.2"
 pxar = { version = "0.10.1", features = [ "tokio-io" ] }
 
 proxmox = { version = "0.14.0", features = [ "sortable-macro" ] }
-proxmox-router = { version = "1", features = [ "cli" ] }
+proxmox-router = { version = "1.1", features = [ "cli" ] }
 proxmox-schema = { version = "1", features = [ "api-macro" ] }
 proxmox-time = "1"
 

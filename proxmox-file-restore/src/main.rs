@@ -8,8 +8,10 @@ use serde_json::{json, Value};
 
 use proxmox::tools::fs::{create_path, CreateOptions};
 use proxmox_router::cli::{
-    default_table_format_options, format_and_print_result_full, get_output_format,
-    run_cli_command, CliCommand, CliCommandMap, CliEnvironment, ColumnConfig, OUTPUT_FORMAT,
+    complete_file_name, default_table_format_options,
+    format_and_print_result_full, get_output_format,
+    run_cli_command,
+    CliCommand, CliCommandMap, CliEnvironment, ColumnConfig, OUTPUT_FORMAT,
 };
 use proxmox_schema::api;
 use pxar::accessor::aio::Accessor;
@@ -459,7 +461,7 @@ fn main() {
         .arg_param(&["snapshot", "path", "target"])
         .completion_cb("repository", complete_repository)
         .completion_cb("snapshot", complete_group_or_snapshot)
-        .completion_cb("target", pbs_tools::fs::complete_file_name);
+        .completion_cb("target", complete_file_name);
 
     let status_cmd_def = CliCommand::new(&API_METHOD_STATUS);
     let stop_cmd_def = CliCommand::new(&API_METHOD_STOP)

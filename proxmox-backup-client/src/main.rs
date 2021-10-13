@@ -1429,13 +1429,13 @@ fn main() {
         .arg_param(&["backupspec"])
         .completion_cb("repository", complete_repository)
         .completion_cb("backupspec", complete_backup_source)
-        .completion_cb("keyfile", pbs_tools::fs::complete_file_name)
-        .completion_cb("master-pubkey-file", pbs_tools::fs::complete_file_name)
+        .completion_cb("keyfile", complete_file_name)
+        .completion_cb("master-pubkey-file", complete_file_name)
         .completion_cb("chunk-size", complete_chunk_size);
 
     let benchmark_cmd_def = CliCommand::new(&API_METHOD_BENCHMARK)
         .completion_cb("repository", complete_repository)
-        .completion_cb("keyfile", pbs_tools::fs::complete_file_name);
+        .completion_cb("keyfile", complete_file_name);
 
     let list_cmd_def = CliCommand::new(&API_METHOD_LIST_BACKUP_GROUPS)
         .completion_cb("repository", complete_repository);
@@ -1448,7 +1448,7 @@ fn main() {
         .completion_cb("repository", complete_repository)
         .completion_cb("snapshot", complete_group_or_snapshot)
         .completion_cb("archive-name", complete_archive_name)
-        .completion_cb("target", pbs_tools::fs::complete_file_name);
+        .completion_cb("target", complete_file_name);
 
     let prune_cmd_def = CliCommand::new(&API_METHOD_PRUNE)
         .arg_param(&["group"])

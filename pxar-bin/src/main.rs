@@ -461,29 +461,29 @@ fn main() {
             "create",
             CliCommand::new(&API_METHOD_CREATE_ARCHIVE)
                 .arg_param(&["archive", "source"])
-                .completion_cb("archive", pbs_tools::fs::complete_file_name)
-                .completion_cb("source", pbs_tools::fs::complete_file_name),
+                .completion_cb("archive", complete_file_name)
+                .completion_cb("source", complete_file_name),
         )
         .insert(
             "extract",
             CliCommand::new(&API_METHOD_EXTRACT_ARCHIVE)
                 .arg_param(&["archive", "target"])
-                .completion_cb("archive", pbs_tools::fs::complete_file_name)
-                .completion_cb("target", pbs_tools::fs::complete_file_name)
-                .completion_cb("files-from", pbs_tools::fs::complete_file_name),
+                .completion_cb("archive", complete_file_name)
+                .completion_cb("target", complete_file_name)
+                .completion_cb("files-from", complete_file_name),
         )
         .insert(
             "mount",
             CliCommand::new(&API_METHOD_MOUNT_ARCHIVE)
                 .arg_param(&["archive", "mountpoint"])
-                .completion_cb("archive", pbs_tools::fs::complete_file_name)
-                .completion_cb("mountpoint", pbs_tools::fs::complete_file_name),
+                .completion_cb("archive", complete_file_name)
+                .completion_cb("mountpoint", complete_file_name),
         )
         .insert(
             "list",
             CliCommand::new(&API_METHOD_DUMP_ARCHIVE)
                 .arg_param(&["archive"])
-                .completion_cb("archive", pbs_tools::fs::complete_file_name),
+                .completion_cb("archive", complete_file_name),
         );
 
     let rpcenv = CliEnvironment::new();

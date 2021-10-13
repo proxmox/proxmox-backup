@@ -1,9 +1,7 @@
 //! File system helper utilities.
 
 use std::borrow::{Borrow, BorrowMut};
-use std::collections::HashMap;
 use std::fs::File;
-use std::hash::BuildHasher;
 use std::io::{self, BufRead};
 use std::ops::{Deref, DerefMut};
 use std::os::unix::io::{AsRawFd, RawFd};
@@ -12,7 +10,7 @@ use std::path::Path;
 use anyhow::{bail, format_err, Error};
 use nix::dir;
 use nix::dir::Dir;
-use nix::fcntl::{AtFlags, OFlag};
+use nix::fcntl::OFlag;
 use nix::sys::stat::Mode;
 
 use regex::Regex;
@@ -348,61 +346,6 @@ fn do_lock_dir_noblock(
         })?;
 
     Ok(handle)
-}
-
-pub fn complete_file_name<S>(arg: &str, _param: &HashMap<String, String, S>) -> Vec<String>
-where
-    S: BuildHasher,
-{
-    let mut result = vec![];
-
-    let mut dirname = std::path::PathBuf::from(if arg.is_empty() { "./" } else { arg });
-
-    let is_dir = match nix::sys::stat::fstatat(libc::AT_FDCWD, &dirname, AtFlags::empty()) {
-        Ok(stat) => (stat.st_mode & libc::S_IFMT) == libc::S_IFDIR,
-        Err(_) => false,
-    };
-
-    if !is_dir {
-        if let Some(parent) = dirname.parent() {
-            dirname = parent.to_owned();
-        }
-    }
-
-    let mut dir =
-        match nix::dir::Dir::openat(libc::AT_FDCWD, &dirname, OFlag::O_DIRECTORY, Mode::empty()) {
-            Ok(d) => d,
-            Err(_) => return result,
-        };
-
-    for item in dir.iter() {
-        if let Ok(entry) = item {
-            if let Ok(name) = entry.file_name().to_str() {
-                if name == "." || name == ".." {
-                    continue;
-                }
-                let mut newpath = dirname.clone();
-                newpath.push(name);
-
-                if let Ok(stat) =
-                    nix::sys::stat::fstatat(libc::AT_FDCWD, &newpath, AtFlags::empty())
-                {
-                    if (stat.st_mode & libc::S_IFMT) == libc::S_IFDIR {
-                        newpath.push("");
-                        if let Some(newpath) = newpath.to_str() {
-                            result.push(newpath.to_owned());
-                        }
-                        continue;
-                    }
-                }
-                if let Some(newpath) = newpath.to_str() {
-                    result.push(newpath.to_owned());
-                }
-            }
-        }
-    }
-
-    result
 }
 
 /// Get an iterator over lines of a file, skipping empty lines and comments (lines starting with a

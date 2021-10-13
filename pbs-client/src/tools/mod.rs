@@ -11,7 +11,7 @@ use serde_json::{json, Value};
 use xdg::BaseDirectories;
 
 use proxmox_schema::*;
-use proxmox_router::cli::shellword_split;
+use proxmox_router::cli::{complete_file_name, shellword_split};
 use proxmox::tools::fs::file_get_json;
 
 use pbs_api_types::{BACKUP_REPO_URL, Authid, UserWithTokens};
@@ -411,7 +411,7 @@ pub fn complete_backup_source(arg: &str, param: &HashMap<String, String>) -> Vec
         return result;
     }
 
-    let files = pbs_tools::fs::complete_file_name(data[1], param);
+    let files = complete_file_name(data[1], param);
 
     for file in files {
         result.push(format!("{}:{}", data[0], file));

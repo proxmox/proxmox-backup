@@ -403,8 +403,8 @@ pub fn snapshot_mgtm_cli() -> CliCommandMap {
             CliCommand::new(&API_METHOD_UPLOAD_LOG)
                 .arg_param(&["snapshot", "logfile"])
                 .completion_cb("snapshot", complete_backup_snapshot)
-                .completion_cb("logfile", pbs_tools::fs::complete_file_name)
-                .completion_cb("keyfile", pbs_tools::fs::complete_file_name)
+                .completion_cb("logfile", complete_file_name)
+                .completion_cb("keyfile", complete_file_name)
                 .completion_cb("repository", complete_repository)
         )
 }

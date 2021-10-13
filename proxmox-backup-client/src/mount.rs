@@ -94,7 +94,7 @@ pub fn mount_cmd_def() -> CliCommand {
         .completion_cb("repository", complete_repository)
         .completion_cb("snapshot", complete_group_or_snapshot)
         .completion_cb("archive-name", complete_pxar_archive_name)
-        .completion_cb("target", pbs_tools::fs::complete_file_name)
+        .completion_cb("target", complete_file_name)
 }
 
 pub fn map_cmd_def() -> CliCommand {
