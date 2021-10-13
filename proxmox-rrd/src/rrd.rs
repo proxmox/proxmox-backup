@@ -51,6 +51,8 @@ pub enum CF {
     Maximum,
     /// Minimum
     Minimum,
+    /// Use the last value
+    Last,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -209,6 +211,7 @@ impl RRA {
             let new_value = match self.cf {
                 CF::Maximum => if last_value > value { last_value } else { value },
                 CF::Minimum => if last_value < value { last_value } else { value },
+                CF::Last => value,
                 CF::Average => {
                     (last_value*(self.last_count as f64))/(new_count as f64)
                         + value/(new_count as f64)
