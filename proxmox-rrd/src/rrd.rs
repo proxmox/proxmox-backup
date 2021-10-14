@@ -219,11 +219,7 @@ impl RRA {
             self.last_count = 0;
         }
 
-        let new_count = if self.last_count < u64::MAX {
-            self.last_count + 1
-        } else {
-            u64::MAX // should never happen
-        };
+        let new_count = self.last_count.saturating_add(1);
 
         if self.last_count == 0 {
             self.data[index] = value;
