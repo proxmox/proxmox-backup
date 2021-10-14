@@ -186,9 +186,9 @@ impl RRA {
         let num_entries = self.data.len() as u64;
 
         let min_time = epoch.saturating_sub(num_entries*reso);
-        let min_time = (min_time/reso + 1)*reso;
-        let mut t = last_update.saturating_sub(num_entries*reso);
+        let min_time = self.slot_end_time(min_time);
 
+        let mut t = last_update.saturating_sub(num_entries*reso);
         let mut index = self.slot(t);
 
         for _ in 0..num_entries {
