@@ -181,7 +181,7 @@ impl RRA {
         let reso = self.resolution;
         let num_entries = self.data.len() as u64;
 
-        let min_time = epoch - num_entries*reso;
+        let min_time = epoch.saturating_sub(num_entries*reso);
         let min_time = (min_time/reso + 1)*reso;
         let mut t = last_update.saturating_sub(num_entries*reso);
 
@@ -258,7 +258,7 @@ impl RRA {
         let mut index = self.slot(t);
         for _ in 0..num_entries {
             if t > end { break; };
-            if t < rrd_start || t > rrd_end {
+            if t < rrd_start || t >= rrd_end {
                 list.push(None);
             } else {
                 let value = self.data[index];
@@ -401,4 +401,92 @@ impl RRD {
         }
     }
 
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn basic_rra_last_gauge_test() -> Result<(), Error> {
+        let rra = RRA::new(CF::Last, 60, 5);
+        let mut rrd = RRD::new(DST::Gauge, vec![rra]);
+
+        for i in 2..10 {
+            rrd.update((i as f64)*30.0, i as f64);
+        }
+
+        assert!(rrd.extract_data(CF::Average, 60, Some(0), Some(5*60)).is_err(), "CF::Average should not exist");
+
+        let (start, reso, data) = rrd.extract_data(CF::Last, 60, Some(0), Some(20*60))?;
+        assert_eq!(start, 0);
+        assert_eq!(reso, 60);
+        assert_eq!(data, [None, Some(3.0), Some(5.0), Some(7.0), Some(9.0)]);
+
+        Ok(())
+    }
+
+    #[test]
+    fn basic_rra_average_derive_test() -> Result<(), Error> {
+        let rra = RRA::new(CF::Average, 60, 5);
+        let mut rrd = RRD::new(DST::Derive, vec![rra]);
+
+        for i in 2..10 {
+            rrd.update((i as f64)*30.0, (i*60) as f64);
+        }
+
+        let (start, reso, data) = rrd.extract_data(CF::Average, 60, Some(60), Some(5*60))?;
+        assert_eq!(start, 60);
+        assert_eq!(reso, 60);
+        assert_eq!(data, [Some(1.0), Some(2.0), Some(2.0), Some(2.0), None]);
+
+        Ok(())
+    }
+
+    #[test]
+    fn basic_rra_average_gauge_test() -> Result<(), Error> {
+        let rra = RRA::new(CF::Average, 60, 5);
+        let mut rrd = RRD::new(DST::Gauge, vec![rra]);
+
+        for i in 2..10 {
+            rrd.update((i as f64)*30.0, i as f64);
+        }
+
+        let (start, reso, data) = rrd.extract_data(CF::Average, 60, Some(60), Some(5*60))?;
+        assert_eq!(start, 60);
+        assert_eq!(reso, 60);
+        assert_eq!(data, [Some(2.5), Some(4.5), Some(6.5), Some(8.5), None]);
+
+        for i in 10..14 {
+            rrd.update((i as f64)*30.0, i as f64);
+        }
+
+        let (start, reso, data) = rrd.extract_data(CF::Average, 60, Some(60), Some(5*60))?;
+        assert_eq!(start, 60);
+        assert_eq!(reso, 60);
+        assert_eq!(data, [None, Some(4.5), Some(6.5), Some(8.5), Some(10.5)]);
+
+        let (start, reso, data) = rrd.extract_data(CF::Average, 60, Some(3*60), Some(8*60))?;
+        assert_eq!(start, 3*60);
+        assert_eq!(reso, 60);
+        assert_eq!(data, [Some(6.5), Some(8.5), Some(10.5), Some(12.5), None]);
+
+        // add much newer vaule (should delete all previous/outdated value)
+        let i = 100; rrd.update((i as f64)*30.0, i as f64);
+        println!("TEST {:?}", serde_json::to_string_pretty(&rrd));
+
+        let (start, reso, data) = rrd.extract_data(CF::Average, 60, Some(100*30), Some(100*30 + 5*60))?;
+        assert_eq!(start, 100*30);
+        assert_eq!(reso, 60);
+        assert_eq!(data, [Some(100.0), None, None, None, None]);
+
+        // extract with end time smaller than start time
+        let (start, reso, data) = rrd.extract_data(CF::Average, 60, Some(100*30), Some(60))?;
+        assert_eq!(start, 100*30);
+        assert_eq!(reso, 60);
+        assert_eq!(data, []);
+
+        Ok(())
+    }
 }
