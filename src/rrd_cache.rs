@@ -76,7 +76,8 @@ pub fn extract_rrd_data(
 /// Update RRD Gauge values
 pub fn rrd_update_gauge(name: &str, value: f64) {
     if let Ok(rrd_cache) = get_rrd_cache() {
-        if let Err(err) = rrd_cache.update_value(name, value, DST::Gauge) {
+        let now = proxmox_time::epoch_f64();
+        if let Err(err) = rrd_cache.update_value(name, now, value, DST::Gauge) {
             log::error!("rrd::update_value '{}' failed - {}", name, err);
         }
     }
@@ -85,7 +86,8 @@ pub fn rrd_update_gauge(name: &str, value: f64) {
 /// Update RRD Derive values
 pub fn rrd_update_derive(name: &str, value: f64) {
     if let Ok(rrd_cache) = get_rrd_cache() {
-        if let Err(err) = rrd_cache.update_value(name, value, DST::Derive) {
+        let now = proxmox_time::epoch_f64();
+        if let Err(err) = rrd_cache.update_value(name, now, value, DST::Derive) {
             log::error!("rrd::update_value '{}' failed - {}", name, err);
         }
     }

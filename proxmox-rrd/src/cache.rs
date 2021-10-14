@@ -244,24 +244,23 @@ impl RRDCache {
     pub fn update_value(
         &self,
         rel_path: &str,
+        time: f64,
         value: f64,
         dst: DST,
     ) -> Result<(), Error> {
 
         let mut state = self.state.write().unwrap(); // block other writers
 
-        let now = proxmox_time::epoch_f64();
-
-        if (now - state.last_journal_flush) > self.apply_interval {
+        if (time - state.last_journal_flush) > self.apply_interval {
             if let Err(err) = self.apply_journal_locked(&mut state) {
                 log::error!("apply journal failed: {}", err);
             }
         }
 
-        Self::append_journal_entry(&mut state, now, value, dst, rel_path)?;
+        Self::append_journal_entry(&mut state, time, value, dst, rel_path)?;
 
         if let Some(rrd) = state.rrd_map.get_mut(rel_path) {
-            rrd.update(now, value);
+            rrd.update(time, value);
         } else {
             let mut path = self.basedir.clone();
             path.push(rel_path);
@@ -269,7 +268,7 @@ impl RRDCache {
 
             let mut rrd = Self::load_rrd(&path, dst);
 
-            rrd.update(now, value);
+            rrd.update(time, value);
             state.rrd_map.insert(rel_path.into(), rrd);
         }
 
