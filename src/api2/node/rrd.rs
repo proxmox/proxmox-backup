@@ -9,7 +9,7 @@ use pbs_api_types::{
     NODE_SCHEMA, RRDMode, RRDTimeFrame, PRIV_SYS_AUDIT,
 };
 
-use crate::extract_rrd_data;
+use crate::rrd_cache::extract_rrd_data;
 
 pub fn create_value_from_rrd(
     basedir: &str,

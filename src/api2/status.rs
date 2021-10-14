@@ -22,7 +22,7 @@ use pbs_datastore::DataStore;
 use pbs_config::CachedUserInfo;
 
 use crate::tools::statistics::{linear_regression};
-use crate::extract_rrd_data;
+use crate::rrd_cache::extract_rrd_data;
 
 #[api(
     returns: {
