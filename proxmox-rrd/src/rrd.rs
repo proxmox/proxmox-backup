@@ -409,6 +409,40 @@ mod tests {
     use super::*;
 
     #[test]
+    fn basic_rra_maximum_gauge_test() -> Result<(), Error> {
+        let rra = RRA::new(CF::Maximum, 60, 5);
+        let mut rrd = RRD::new(DST::Gauge, vec![rra]);
+
+        for i in 2..10 {
+            rrd.update((i as f64)*30.0, i as f64);
+        }
+
+        let (start, reso, data) = rrd.extract_data(CF::Maximum, 60, Some(0), Some(5*60))?;
+        assert_eq!(start, 0);
+        assert_eq!(reso, 60);
+        assert_eq!(data, [None, Some(3.0), Some(5.0), Some(7.0), Some(9.0)]);
+
+        Ok(())
+    }
+
+    #[test]
+    fn basic_rra_minimum_gauge_test() -> Result<(), Error> {
+        let rra = RRA::new(CF::Minimum, 60, 5);
+        let mut rrd = RRD::new(DST::Gauge, vec![rra]);
+
+        for i in 2..10 {
+            rrd.update((i as f64)*30.0, i as f64);
+        }
+
+        let (start, reso, data) = rrd.extract_data(CF::Minimum, 60, Some(0), Some(5*60))?;
+        assert_eq!(start, 0);
+        assert_eq!(reso, 60);
+        assert_eq!(data, [None, Some(2.0), Some(4.0), Some(6.0), Some(8.0)]);
+
+        Ok(())
+    }
+
+    #[test]
     fn basic_rra_last_gauge_test() -> Result<(), Error> {
         let rra = RRA::new(CF::Last, 60, 5);
         let mut rrd = RRD::new(DST::Gauge, vec![rra]);
