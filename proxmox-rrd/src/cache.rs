@@ -54,7 +54,7 @@ impl RRDCache {
     ///
     /// `apply_interval`: Commit journal after `apply_interval` seconds.
     ///
-    /// `load_rrd_cb`; The callback function is use to load RRD files,
+    /// `load_rrd_cb`; The callback function is used to load RRD files,
     /// and should return a newly generated RRD if the file does not
     /// exists (or is unreadable). This may generate RRDs with
     /// different configurations (dependent on `rel_path`).
@@ -171,6 +171,7 @@ impl RRDCache {
         Ok(())
     }
 
+    /// Apply journal. Should be used at server startup.
     pub fn apply_journal(&self) -> Result<(), Error> {
         let mut state = self.state.write().unwrap(); // block writers
         self.apply_journal_locked(&mut state)
@@ -296,6 +297,7 @@ impl RRDCache {
     /// Extract data from cached RRD
     ///
     /// `start`: Start time. If not sepecified, we simply extract 10 data points.
+    ///
     /// `end`: End time. Default is to use the current time.
     pub fn extract_cached_data(
         &self,

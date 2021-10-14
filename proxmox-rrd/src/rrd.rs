@@ -56,6 +56,7 @@ pub enum CF {
 }
 
 #[derive(Serialize, Deserialize)]
+/// Data source specification
 pub struct DataSource {
     /// Data source type
     pub dst: DST,
@@ -120,12 +121,15 @@ impl DataSource {
 }
 
 #[derive(Serialize, Deserialize)]
+/// Round Robin Archive
 pub struct RRA {
+    /// Number of seconds spaned by a single data entry.
     pub resolution: u64,
+    /// Consolitation function.
     pub cf: CF,
-    /// Count values computed inside this update interval
+    /// Count values computed inside this update interval.
     pub last_count: u64,
-    /// The actual data
+    /// The actual data entries.
     pub data: Vec<f64>,
 }
 
@@ -277,8 +281,11 @@ impl RRA {
 }
 
 #[derive(Serialize, Deserialize)]
+/// Round Robin Database
 pub struct RRD {
+    /// The data source definition
     pub source: DataSource,
+    /// List of round robin archives
     pub rra_list: Vec<RRA>,
 }
 
