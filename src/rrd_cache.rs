@@ -1,9 +1,11 @@
+use std::path::Path;
+
 use anyhow::{format_err, Error};
 use once_cell::sync::OnceCell;
 
 use proxmox::tools::fs::CreateOptions;
 use proxmox_rrd::RRDCache;
-use proxmox_rrd::rrd::{DST, CF};
+use proxmox_rrd::rrd::{RRD, DST, CF};
 
 use pbs_api_types::{RRDMode, RRDTimeFrame};
 
@@ -36,6 +38,7 @@ pub fn initialize_rrd_cache() -> Result<&'static RRDCache, Error> {
         Some(file_options),
         Some(dir_options),
         apply_interval,
+        load_callback,
     )?;
 
     RRD_CACHE.set(cache)
@@ -43,6 +46,25 @@ pub fn initialize_rrd_cache() -> Result<&'static RRDCache, Error> {
 
     Ok(RRD_CACHE.get().unwrap())
 }
+
+fn load_callback(
+    _cache: &RRDCache,
+    path: &Path,
+    _rel_path: &str,
+    dst: DST,
+) -> RRD {
+
+    match RRD::load(path) {
+        Ok(rrd) => rrd,
+        Err(err) => {
+            if err.kind() != std::io::ErrorKind::NotFound {
+                log::warn!("overwriting RRD file {:?}, because of load error: {}", path, err);
+            }
+            RRDCache::create_proxmox_backup_default_rrd(dst)
+        },
+    }
+}
+
 
 /// Extracts data for the specified time frame from from RRD cache
 pub fn extract_rrd_data(

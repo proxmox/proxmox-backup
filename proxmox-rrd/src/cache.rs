@@ -25,6 +25,7 @@ pub struct RRDCache {
     file_options: CreateOptions,
     dir_options: CreateOptions,
     state: RwLock<RRDCacheState>,
+    load_rrd_cb: fn(cache: &RRDCache, path: &Path, rel_path: &str, dst: DST) -> RRD,
 }
 
 // shared state behind RwLock
@@ -44,11 +45,25 @@ struct JournalEntry {
 impl RRDCache {
 
     /// Creates a new instance
+    ///
+    /// `basedir`: All files are stored relative to this path.
+    ///
+    /// `file_options`: Files are created with this options.
+    ///
+    /// `dir_options`: Directories are created with this options.
+    ///
+    /// `apply_interval`: Commit journal after `apply_interval` seconds.
+    ///
+    /// `load_rrd_cb`; The callback function is use to load RRD files,
+    /// and should return a newly generated RRD if the file does not
+    /// exists (or is unreadable). This may generate RRDs with
+    /// different configurations (dependent on `rel_path`).
     pub fn new<P: AsRef<Path>>(
         basedir: P,
         file_options: Option<CreateOptions>,
         dir_options: Option<CreateOptions>,
         apply_interval: f64,
+        load_rrd_cb: fn(cache: &RRDCache, path: &Path, rel_path: &str, dst: DST) -> RRD,
     ) -> Result<Self, Error> {
         let basedir = basedir.as_ref().to_owned();
 
@@ -75,11 +90,26 @@ impl RRDCache {
             file_options,
             dir_options,
             apply_interval,
+            load_rrd_cb,
             state: RwLock::new(state),
         })
     }
 
-    fn create_default_rrd(dst: DST) -> RRD {
+    /// Create a new RRD as used by the proxmox backup server
+    ///
+    /// It contains the following RRAs:
+    ///
+    /// * cf=average,r=60,n=1440 => 1day
+    /// * cf=maximum,r=60,n=1440 => 1day
+    /// * cf=average,r=30*60,n=1440 => 1month
+    /// * cf=maximum,r=30*60,n=1440 => 1month
+    /// * cf=average,r=6*3600,n=1440 => 1year
+    /// * cf=maximum,r=6*3600,n=1440 => 1year
+    /// * cf=average,r=7*86400,n=570 => 10years
+    /// * cf=maximum,r=7*86400,n=570 => 10year
+    ///
+    /// The resultion data file size is about 80KB.
+    pub fn create_proxmox_backup_default_rrd(dst: DST) -> RRD {
 
         let mut rra_list = Vec::new();
 
@@ -194,7 +224,7 @@ impl RRDCache {
                 path.push(&entry.rel_path);
                 create_path(path.parent().unwrap(), Some(self.dir_options.clone()), Some(self.dir_options.clone()))?;
 
-                let mut rrd = Self::load_rrd(&path, entry.dst);
+                let mut rrd = (self.load_rrd_cb)(&self, &path, &entry.rel_path, entry.dst);
 
                 if entry.time > get_last_update(&entry.rel_path, &rrd) {
                     rrd.update(entry.time, entry.value);
@@ -228,18 +258,6 @@ impl RRDCache {
         Ok(())
     }
 
-    fn load_rrd(path: &Path, dst: DST) -> RRD {
-        match RRD::load(path) {
-            Ok(rrd) => rrd,
-            Err(err) => {
-                if err.kind() != std::io::ErrorKind::NotFound {
-                    log::warn!("overwriting RRD file {:?}, because of load error: {}", path, err);
-                }
-                Self::create_default_rrd(dst)
-            },
-        }
-    }
-
     /// Update data in RAM and write file back to disk (journal)
     pub fn update_value(
         &self,
@@ -266,7 +284,7 @@ impl RRDCache {
             path.push(rel_path);
             create_path(path.parent().unwrap(), Some(self.dir_options.clone()), Some(self.dir_options.clone()))?;
 
-            let mut rrd = Self::load_rrd(&path, dst);
+            let mut rrd = (self.load_rrd_cb)(&self, &path, rel_path, dst);
 
             rrd.update(time, value);
             state.rrd_map.insert(rel_path.into(), rrd);
