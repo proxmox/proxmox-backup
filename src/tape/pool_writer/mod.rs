@@ -171,7 +171,7 @@ impl PoolWriter {
                 if let Some(slot) = changer.export_media(label_text)? {
                     task_log!(worker, "exported media '{}' to import/export slot {}", label_text, slot);
                 } else {
-                    task_warn!(worker, "export failed - media '{}' is not online", label_text);
+                    task_warn!(worker, "export failed - media '{}' is not online or in different drive", label_text);
                 }
             }
 
