@@ -48,7 +48,6 @@ pub fn initialize_rrd_cache() -> Result<&'static RRDCache, Error> {
 }
 
 fn load_callback(
-    _cache: &RRDCache,
     path: &Path,
     _rel_path: &str,
     dst: DST,
