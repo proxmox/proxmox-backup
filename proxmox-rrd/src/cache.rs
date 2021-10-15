@@ -24,7 +24,7 @@ pub struct RRDCache {
     apply_interval: f64,
     basedir: PathBuf,
     file_options: CreateOptions,
-    state: RwLock<RRDCacheState>,
+    state: RwLock<JournalState>,
     rrd_map: RwLock<RRDMap>,
 }
 
@@ -105,7 +105,7 @@ impl RRDMap {
 }
 
 // shared state behind RwLock
-struct RRDCacheState {
+struct JournalState {
     journal: File,
     last_journal_flush: f64,
     journal_applied: bool,
@@ -155,7 +155,7 @@ impl RRDCache {
         let flags = OFlag::O_CLOEXEC|OFlag::O_WRONLY|OFlag::O_APPEND;
         let journal = atomic_open_or_create_file(&journal_path, flags,  &[], file_options.clone())?;
 
-        let state = RRDCacheState {
+        let state = JournalState {
             journal,
             last_journal_flush: 0.0,
             journal_applied: false,
@@ -243,7 +243,7 @@ impl RRDCache {
     }
 
     fn append_journal_entry(
-        state: &mut RRDCacheState,
+        state: &mut JournalState,
         time: f64,
         value: f64,
         dst: DST,
@@ -260,7 +260,7 @@ impl RRDCache {
         self.apply_and_commit_journal_locked(&mut state)
     }
 
-    fn apply_and_commit_journal_locked(&self, state: &mut RRDCacheState) -> Result<(), Error> {
+    fn apply_and_commit_journal_locked(&self, state: &mut JournalState) -> Result<(), Error> {
 
         state.last_journal_flush = proxmox_time::epoch_f64();
 
@@ -292,7 +292,7 @@ impl RRDCache {
         Ok(())
     }
 
-    fn apply_journal_locked(&self, state: &mut RRDCacheState) -> Result<usize, Error> {
+    fn apply_journal_locked(&self, state: &mut JournalState) -> Result<usize, Error> {
 
         let mut journal_path = self.basedir.clone();
         journal_path.push(RRD_JOURNAL_NAME);
@@ -327,7 +327,7 @@ impl RRDCache {
         Ok(linenr)
     }
 
-    fn commit_journal_locked(&self, state: &mut RRDCacheState) -> Result<usize, Error> {
+    fn commit_journal_locked(&self, state: &mut JournalState) -> Result<usize, Error> {
 
         // save all RRDs - we only need a read lock here
         let rrd_file_count = self.rrd_map.read().unwrap().flush_rrd_files()?;
