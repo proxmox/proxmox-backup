@@ -31,6 +31,12 @@ pub struct JournalEntry {
     pub rel_path: String,
 }
 
+pub struct JournalFileInfo {
+    pub time: u64,
+    pub name: String,
+    pub path: PathBuf,
+}
+
 impl JournalState {
 
     pub(crate) fn new(config: Arc<CacheConfig>) -> Result<Self, Error> {
@@ -104,14 +110,14 @@ impl JournalState {
 
         let journal_list = self.list_old_journals()?;
 
-        for (_time, _filename, path) in journal_list {
-            std::fs::remove_file(path)?;
+        for entry in journal_list {
+            std::fs::remove_file(entry.path)?;
         }
 
         Ok(())
     }
 
-    pub fn list_old_journals(&self) -> Result<Vec<(u64, String, PathBuf)>, Error> {
+    pub fn list_old_journals(&self) -> Result<Vec<JournalFileInfo>, Error> {
         let mut list = Vec::new();
         for entry in std::fs::read_dir(&self.config.basedir)? {
             let entry = entry?;
@@ -123,7 +129,11 @@ impl JournalState {
                         if let Some(extension) = extension.to_str() {
                             if let Some(rest) = extension.strip_prefix("journal-") {
                                 if let Ok(time) = u64::from_str_radix(rest, 16) {
-                                    list.push((time, format!("rrd.{}", extension), path.to_owned()));
+                                    list.push(JournalFileInfo {
+                                        time,
+                                        name: format!("rrd.{}", extension),
+                                        path: path.to_owned(),
+                                    });
                                 }
                             }
                         }
@@ -131,7 +141,7 @@ impl JournalState {
                 }
             }
         }
-        list.sort_unstable_by_key(|t| t.0);
+        list.sort_unstable_by_key(|entry| entry.time);
         Ok(list)
     }
 }

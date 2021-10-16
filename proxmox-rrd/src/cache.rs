@@ -318,14 +318,14 @@ fn apply_journal_impl(
     // Apply old journals first
     let journal_list = state.read().unwrap().list_old_journals()?;
 
-    for (_time, filename, path) in journal_list {
-        log::info!("apply old journal log {}", filename);
-        let file = std::fs::OpenOptions::new().read(true).open(path)?;
+    for entry in journal_list {
+        log::info!("apply old journal log {}", entry.name);
+        let file = std::fs::OpenOptions::new().read(true).open(&entry.path)?;
         let mut reader = BufReader::new(file);
         lines += apply_journal_lines(
             Arc::clone(&state),
             Arc::clone(&rrd_map),
-            &filename,
+            &entry.name,
             &mut reader,
             false,
         )?;
