@@ -157,13 +157,11 @@ impl PoolWriter {
         if let Some((mut changer, _)) = media_changer(&drive_config, &self.drive_name)? {
 
             if let Some(ref mut status) = status {
-                task_log!(worker, "eject media");
-                status.drive.eject_media()?; // rewind and eject early, so that unload_media is faster
+                task_log!(worker, "rewind media");
+                // rewind first so that the unload command later does not run into a timeout
+                status.drive.rewind()?;
             }
             drop(status); // close drive
-
-            task_log!(worker, "unload media");
-            changer.unload_media(None)?;
 
             for media_uuid in self.pool.current_media_list()? {
                 let media = self.pool.lookup_media(media_uuid)?;
