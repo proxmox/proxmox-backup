@@ -60,27 +60,24 @@ impl RRDMap {
         Ok(())
     }
 
-    pub fn flush_rrd_files(&self) -> Result<usize, Error> {
-        let mut rrd_file_count = 0;
+    pub fn file_list(&self) -> Vec<String> {
+        let mut list = Vec::new();
 
-        let mut errors = 0;
-        for (rel_path, rrd) in self.map.iter() {
-            rrd_file_count += 1;
+        for rel_path in self.map.keys() {
+            list.push(rel_path.clone());
+        }
 
+        list
+    }
+
+    pub fn flush_rrd_file(&self, rel_path: &str) -> Result<(), Error> {
+        if let Some(rrd) =  self.map.get(rel_path) {
             let mut path = self.config.basedir.clone();
-            path.push(&rel_path);
-
-            if let Err(err) = rrd.save(&path, self.config.file_options.clone()) {
-                errors += 1;
-                log::error!("unable to save {:?}: {}", path, err);
-            }
+            path.push(rel_path);
+            rrd.save(&path, self.config.file_options.clone())
+        } else {
+            bail!("rrd file {} not loaded", rel_path);
         }
-
-        if errors != 0 {
-            bail!("errors during rrd flush - unable to commit rrd journal");
-        }
-
-        Ok(rrd_file_count)
     }
 
     pub fn extract_cached_data(

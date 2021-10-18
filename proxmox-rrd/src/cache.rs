@@ -152,6 +152,7 @@ impl RRDCache {
         let state = Arc::clone(&self.state);
         let rrd_map = Arc::clone(&self.rrd_map);
 
+
         let mut state_guard = self.state.write().unwrap();
         let journal_applied = state_guard.journal_applied;
 
@@ -372,8 +373,23 @@ fn commit_journal_impl(
     rrd_map: Arc<RwLock<RRDMap>>,
 ) -> Result<usize, Error> {
 
+    let files = rrd_map.read().unwrap().file_list();
+
+    let mut rrd_file_count = 0;
+    let mut errors = 0;
+
     // save all RRDs - we only need a read lock here
-    let rrd_file_count = rrd_map.read().unwrap().flush_rrd_files()?;
+    for rel_path in files.iter() {
+        rrd_file_count += 1;
+        if let Err(err) = rrd_map.read().unwrap().flush_rrd_file(&rel_path) {
+            errors += 1;
+            log::error!("unable to save rrd {}: {}", rel_path, err);
+        }
+    }
+
+    if errors != 0 {
+        bail!("errors during rrd flush - unable to commit rrd journal");
+    }
 
     // if everything went ok, remove the old journal files
     state.write().unwrap().remove_old_journals()?;
