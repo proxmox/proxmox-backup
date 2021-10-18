@@ -14,7 +14,6 @@
 use std::path::Path;
 
 use anyhow::{bail, format_err, Error};
-
 use serde::{Serialize, Deserialize};
 
 use proxmox::tools::fs::{replace_file, CreateOptions};

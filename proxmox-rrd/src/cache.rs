@@ -147,6 +147,10 @@ impl RRDCache {
         Ok(JournalEntry { time, value, dst, rel_path })
     }
 
+    pub fn sync_journal(&self) -> Result<(), Error> {
+        self.state.read().unwrap().sync_journal()
+    }
+
     /// Apply and commit the journal. Should be used at server startup.
     pub fn apply_journal(&self) -> Result<bool, Error> {
         let state = Arc::clone(&self.state);
@@ -386,6 +390,8 @@ fn commit_journal_impl(
             log::error!("unable to save rrd {}: {}", rel_path, err);
         }
     }
+
+    state.read().unwrap().syncfs()?;
 
     if errors != 0 {
         bail!("errors during rrd flush - unable to commit rrd journal");

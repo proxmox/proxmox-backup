@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::io::{Write, BufReader};
 use std::ffi::OsStr;
+use std::os::unix::io::AsRawFd;
 
 use anyhow::Error;
 use nix::fcntl::OFlag;
@@ -48,6 +49,16 @@ impl JournalState {
             journal_applied: false,
             apply_thread_result: None,
         })
+    }
+
+    pub fn sync_journal(&self) -> Result<(), Error> {
+        nix::unistd::fdatasync(self.journal.as_raw_fd())?;
+        Ok(())
+    }
+
+    pub fn syncfs(&self) -> Result<(), nix::Error> {
+        let res = unsafe { libc::syncfs(self.journal.as_raw_fd()) };
+        nix::errno::Errno::result(res).map(drop)
     }
 
     pub fn append_journal_entry(

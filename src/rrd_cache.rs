@@ -94,6 +94,14 @@ pub fn extract_rrd_data(
     rrd_cache.extract_cached_data(basedir, name, cf, resolution, Some(start), Some(end))
 }
 
+/// Sync/Flush the RRD journal
+pub fn rrd_sync_journal() {
+    if let Ok(rrd_cache) = get_rrd_cache() {
+        if let Err(err) = rrd_cache.sync_journal() {
+            log::error!("rrd_sync_journal failed - {}", err);
+        }
+    }
+}
 /// Update RRD Gauge values
 pub fn rrd_update_gauge(name: &str, value: f64) {
     if let Ok(rrd_cache) = get_rrd_cache() {

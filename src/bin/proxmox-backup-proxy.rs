@@ -30,7 +30,9 @@ use proxmox_rest_server::{
     ServerAdapter, WorkerTask, cleanup_old_tasks,
 };
 
-use proxmox_backup::rrd_cache::{ rrd_update_gauge, rrd_update_derive, initialize_rrd_cache};
+use proxmox_backup::rrd_cache::{
+    initialize_rrd_cache, rrd_update_gauge, rrd_update_derive, rrd_sync_journal,
+};
 use proxmox_backup::{
     server::{
         auth::check_pbs_auth,
@@ -895,6 +897,8 @@ async fn run_stat_generator() {
         let delay_target = Instant::now() +  Duration::from_secs(10);
 
         generate_host_stats().await;
+
+        rrd_sync_journal();
 
         tokio::time::sleep_until(tokio::time::Instant::from_std(delay_target)).await;
 
