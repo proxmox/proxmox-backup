@@ -122,20 +122,24 @@ impl JournalState {
         for entry in std::fs::read_dir(&self.config.basedir)? {
             let entry = entry?;
             let path = entry.path();
-            if path.is_file() {
-                if let Some(stem) = path.file_stem() {
-                    if stem != OsStr::new("rrd") { continue; }
-                    if let Some(extension) = path.extension() {
-                        if let Some(extension) = extension.to_str() {
-                            if let Some(rest) = extension.strip_prefix("journal-") {
-                                if let Ok(time) = u64::from_str_radix(rest, 16) {
-                                    list.push(JournalFileInfo {
-                                        time,
-                                        name: format!("rrd.{}", extension),
-                                        path: path.to_owned(),
-                                    });
-                                }
-                            }
+
+            if !path.is_file() { continue; }
+
+            match path.file_stem() {
+                None => continue,
+                Some(stem) if stem != OsStr::new("rrd") => continue,
+                Some(_) => (),
+            }
+
+            if let Some(extension) = path.extension() {
+                if let Some(extension) = extension.to_str() {
+                    if let Some(rest) = extension.strip_prefix("journal-") {
+                        if let Ok(time) = u64::from_str_radix(rest, 16) {
+                            list.push(JournalFileInfo {
+                                time,
+                                name: format!("rrd.{}", extension),
+                                path: path.to_owned(),
+                            });
                         }
                     }
                 }
