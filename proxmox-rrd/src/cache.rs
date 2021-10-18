@@ -154,19 +154,17 @@ impl RRDCache {
 
         let mut state_guard = self.state.write().unwrap();
         let journal_applied = state_guard.journal_applied;
-        let now = proxmox_time::epoch_f64();
-        let wants_commit = (now - state_guard.last_journal_flush) > self.config.apply_interval;
-
-        if journal_applied && !wants_commit { return Ok(journal_applied); }
 
         if let Some(ref recv) = state_guard.apply_thread_result {
             match recv.try_recv() {
                 Ok(Ok(())) => {
                     // finished without errors, OK
+                    state_guard.apply_thread_result = None;
                 }
                 Ok(Err(err)) => {
                     // finished with errors, log them
                     log::error!("{}", err);
+                    state_guard.apply_thread_result = None;
                 }
                 Err(TryRecvError::Empty) => {
                     // still running
@@ -175,9 +173,15 @@ impl RRDCache {
                 Err(TryRecvError::Disconnected) => {
                     // crashed, start again
                     log::error!("apply journal thread crashed - try again");
+                    state_guard.apply_thread_result = None;
                 }
             }
         }
+
+        let now = proxmox_time::epoch_f64();
+        let wants_commit = (now - state_guard.last_journal_flush) > self.config.apply_interval;
+
+        if journal_applied && !wants_commit { return Ok(journal_applied); }
 
         state_guard.last_journal_flush = proxmox_time::epoch_f64();
 
