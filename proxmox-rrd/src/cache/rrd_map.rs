@@ -74,7 +74,7 @@ impl RRDMap {
         if let Some(rrd) =  self.map.get(rel_path) {
             let mut path = self.config.basedir.clone();
             path.push(rel_path);
-            rrd.save(&path, self.config.file_options.clone())
+            rrd.save(&path, self.config.file_options.clone(), true)
         } else {
             bail!("rrd file {} not loaded", rel_path);
         }

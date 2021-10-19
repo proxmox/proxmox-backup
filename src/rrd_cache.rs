@@ -53,7 +53,7 @@ fn load_callback(
     dst: DST,
 ) -> RRD {
 
-    match RRD::load(path) {
+    match RRD::load(path, true) {
         Ok(rrd) => rrd,
         Err(err) => {
             if err.kind() != std::io::ErrorKind::NotFound {

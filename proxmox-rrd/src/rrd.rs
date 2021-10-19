@@ -12,11 +12,13 @@
 //! * Arbitrary number of RRAs (dynamically changeable)
 
 use std::path::Path;
+use std::io::{Read, Write};
+use std::os::unix::io::{AsRawFd, FromRawFd, IntoRawFd};
 
 use anyhow::{bail, format_err, Error};
 use serde::{Serialize, Deserialize};
 
-use proxmox::tools::fs::{replace_file, CreateOptions};
+use proxmox::tools::fs::{make_tmp_file, CreateOptions};
 use proxmox_schema::api;
 
 use crate::rrd_v1;
@@ -321,8 +323,21 @@ impl RRD {
     }
 
     /// Load data from a file
-    pub fn load(path: &Path) -> Result<Self, std::io::Error> {
-        let raw = std::fs::read(path)?;
+    pub fn load(path: &Path, avoid_page_cache: bool) -> Result<Self, std::io::Error> {
+
+        let mut file = std::fs::File::open(path)?;
+        let buffer_size = file.metadata().map(|m| m.len() as usize + 1).unwrap_or(0);
+        let mut raw = Vec::with_capacity(buffer_size);
+        file.read_to_end(&mut raw)?;
+
+        if avoid_page_cache {
+            nix::fcntl::posix_fadvise(
+                file.as_raw_fd(),
+                0,
+                buffer_size as i64,
+                nix::fcntl::PosixFadviseAdvice::POSIX_FADV_DONTNEED,
+            ).map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err.to_string()))?;
+        }
 
         match Self::from_raw(&raw) {
             Ok(rrd) => Ok(rrd),
@@ -331,11 +346,48 @@ impl RRD {
     }
 
     /// Store data into a file (atomic replace file)
-    pub fn save(&self, filename: &Path, options: CreateOptions) -> Result<(), Error> {
-        let mut data: Vec<u8> = Vec::new();
-        data.extend(&PROXMOX_RRD_MAGIC_2_0);
-        serde_cbor::to_writer(&mut data, self)?;
-        replace_file(filename, &data, options)
+    pub fn save(
+        &self,
+        path: &Path,
+        options: CreateOptions,
+        avoid_page_cache: bool,
+    ) -> Result<(), Error> {
+
+        let (fd, tmp_path) = make_tmp_file(&path, options)?;
+        let mut file = unsafe { std::fs::File::from_raw_fd(fd.into_raw_fd()) };
+
+        let mut try_block = || -> Result<(), Error> {
+            let mut data: Vec<u8> = Vec::new();
+            data.extend(&PROXMOX_RRD_MAGIC_2_0);
+            serde_cbor::to_writer(&mut data, self)?;
+            file.write_all(&data)?;
+
+            if avoid_page_cache {
+                nix::fcntl::posix_fadvise(
+                    file.as_raw_fd(),
+                    0,
+                    data.len() as i64,
+                    nix::fcntl::PosixFadviseAdvice::POSIX_FADV_DONTNEED,
+                )?;
+            }
+
+            Ok(())
+        };
+
+        match try_block() {
+            Ok(()) => (),
+            error => {
+                let _ = nix::unistd::unlink(&tmp_path);
+                return error;
+            }
+        }
+
+        if let Err(err) = std::fs::rename(&tmp_path, &path) {
+            let _ = nix::unistd::unlink(&tmp_path);
+            bail!("Atomic rename failed - {}", err);
+        }
+
+        Ok(())
     }
 
     pub fn last_update(&self) -> f64 {
