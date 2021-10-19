@@ -1,3 +1,12 @@
+rust-proxmox-backup (2.0.12-1) bullseye; urgency=medium
+
+  * proxmox-backup-proxy: clean up old tasks when their reference was rotated
+    out of the task-log index
+
+  * api daemons: fix sending log-reopen command
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 19 Oct 2021 10:48:28 +0200
+
 rust-proxmox-backup (2.0.11-1) bullseye; urgency=medium
 
   * drop aritifical limits for task-UPID length
