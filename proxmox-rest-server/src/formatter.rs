@@ -1,4 +1,5 @@
 //! Helpers to format response data
+use std::collections::HashMap;
 
 use anyhow::{Error};
 use serde_json::{json, Value};
@@ -144,15 +145,14 @@ impl  OutputFormatter for ExtJsFormatter {
     fn format_error(&self, err: Error) -> Response<Body> {
 
         let message: String;
-        let errors;
+        let mut errors = HashMap::new();
 
         if let Some(param_err) = err.downcast_ref::<ParameterError>() {
-            errors = param_err.errors().iter()
-                .map(|(name, err)| format!("parameter '{}': {}", name, err))
-                .collect();
+            for (name, err) in param_err.errors().iter() {
+                errors.insert(name, err.to_string());
+            }
             message = String::from("parameter verification errors");
         } else {
-            errors = vec![];
             message = err.to_string();
         }
 
