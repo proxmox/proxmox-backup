@@ -4,8 +4,9 @@ use std::sync::Arc;
 use std::io::{Write, BufReader};
 use std::ffi::OsStr;
 use std::os::unix::io::AsRawFd;
+use std::str::FromStr;
 
-use anyhow::Error;
+use anyhow::{bail, format_err, Error};
 use nix::fcntl::OFlag;
 use crossbeam_channel::Receiver;
 
@@ -30,6 +31,37 @@ pub struct JournalEntry {
     pub value: f64,
     pub dst: DST,
     pub rel_path: String,
+}
+
+impl FromStr for JournalEntry {
+    type Err = Error;
+
+   fn from_str(line: &str) -> Result<Self, Self::Err> {
+
+       let line = line.trim();
+
+        let parts: Vec<&str> = line.splitn(4, ':').collect();
+        if parts.len() != 4 {
+            bail!("wrong numper of components");
+        }
+
+        let time: f64 = parts[0].parse()
+            .map_err(|_| format_err!("unable to parse time"))?;
+        let value: f64 = parts[1].parse()
+            .map_err(|_| format_err!("unable to parse value"))?;
+        let dst: u8 = parts[2].parse()
+            .map_err(|_| format_err!("unable to parse data source type"))?;
+
+        let dst = match dst {
+            0 => DST::Gauge,
+            1 => DST::Derive,
+            _ => bail!("got strange value for data source type '{}'", dst),
+        };
+
+        let rel_path = parts[3].to_string();
+
+        Ok(JournalEntry { time, value, dst, rel_path })
+   }
 }
 
 pub struct JournalFileInfo {
