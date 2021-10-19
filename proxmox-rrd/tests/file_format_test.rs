@@ -28,11 +28,11 @@ const RRD_V2_FN: &str = "./tests/testdata/cpu.rrd_v2";
 #[test]
 fn upgrade_from_rrd_v1() -> Result<(), Error> {
 
-    let rrd = RRD::load(Path::new(RRD_V1_FN))?;
+    let rrd = RRD::load(Path::new(RRD_V1_FN), true)?;
 
     const RRD_V2_NEW_FN: &str = "./tests/testdata/cpu.rrd_v2.upgraded";
     let new_path = Path::new(RRD_V2_NEW_FN);
-    rrd.save(new_path, CreateOptions::new())?;
+    rrd.save(new_path, CreateOptions::new(), true)?;
 
     let result = compare_file(RRD_V2_FN, RRD_V2_NEW_FN);
     let _ = std::fs::remove_file(RRD_V2_NEW_FN);
@@ -45,11 +45,11 @@ fn upgrade_from_rrd_v1() -> Result<(), Error> {
 #[test]
 fn load_and_save_rrd_v2() -> Result<(), Error> {
 
-    let rrd = RRD::load(Path::new(RRD_V2_FN))?;
+    let rrd = RRD::load(Path::new(RRD_V2_FN), true)?;
 
     const RRD_V2_NEW_FN: &str = "./tests/testdata/cpu.rrd_v2.saved";
     let new_path = Path::new(RRD_V2_NEW_FN);
-    rrd.save(new_path, CreateOptions::new())?;
+    rrd.save(new_path, CreateOptions::new(), true)?;
 
     let result = compare_file(RRD_V2_FN, RRD_V2_NEW_FN);
     let _ = std::fs::remove_file(RRD_V2_NEW_FN);

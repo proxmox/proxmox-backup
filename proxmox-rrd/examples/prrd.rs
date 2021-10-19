@@ -51,7 +51,7 @@ pub struct RRAConfig {
 /// Dump the RRD file in JSON format
 pub fn dump_rrd(path: String) -> Result<(), Error> {
 
-    let rrd = RRD::load(&PathBuf::from(path))?;
+    let rrd = RRD::load(&PathBuf::from(path), false)?;
     serde_json::to_writer_pretty(std::io::stdout(), &rrd)?;
     println!("");
     Ok(())
@@ -69,7 +69,7 @@ pub fn dump_rrd(path: String) -> Result<(), Error> {
 /// RRD file information
 pub fn rrd_info(path: String) -> Result<(), Error> {
 
-    let rrd = RRD::load(&PathBuf::from(path))?;
+    let rrd = RRD::load(&PathBuf::from(path), false)?;
 
     println!("DST: {:?}", rrd.source.dst);
 
@@ -109,10 +109,10 @@ pub fn update_rrd(
     let time = time.map(|v| v as f64)
         .unwrap_or_else(proxmox_time::epoch_f64);
 
-    let mut rrd = RRD::load(&path)?;
+    let mut rrd = RRD::load(&path, false)?;
     rrd.update(time, value);
 
-    rrd.save(&path, CreateOptions::new())?;
+    rrd.save(&path, CreateOptions::new(), false)?;
 
     Ok(())
 }
@@ -149,7 +149,7 @@ pub fn fetch_rrd(
     end: Option<u64>,
 ) -> Result<(), Error> {
 
-    let rrd = RRD::load(&PathBuf::from(path))?;
+    let rrd = RRD::load(&PathBuf::from(path), false)?;
 
     let data = rrd.extract_data(cf, resolution, start, end)?;
 
@@ -177,7 +177,7 @@ pub fn first_update_time(
     rra_index: usize,
 ) -> Result<(), Error> {
 
-    let rrd = RRD::load(&PathBuf::from(path))?;
+    let rrd = RRD::load(&PathBuf::from(path), false)?;
 
     if rra_index >= rrd.rra_list.len() {
         bail!("rra-index is out of range");
@@ -202,7 +202,7 @@ pub fn first_update_time(
 /// Return the Unix timestamp of the last update
 pub fn last_update_time(path: String) -> Result<(), Error> {
 
-    let rrd = RRD::load(&PathBuf::from(path))?;
+    let rrd = RRD::load(&PathBuf::from(path), false)?;
 
     println!("{}", rrd.source.last_update);
     Ok(())
@@ -220,7 +220,7 @@ pub fn last_update_time(path: String) -> Result<(), Error> {
 /// Return the time and value from the last update
 pub fn last_update(path: String) -> Result<(), Error> {
 
-    let rrd = RRD::load(&PathBuf::from(path))?;
+    let rrd = RRD::load(&PathBuf::from(path), false)?;
 
     let result = json!({
         "time": rrd.source.last_update,
@@ -272,7 +272,7 @@ pub fn create_rrd(
 
     let rrd = RRD::new(dst, rra_list);
 
-    rrd.save(&path, CreateOptions::new())?;
+    rrd.save(&path, CreateOptions::new(), false)?;
 
     Ok(())
 }
@@ -302,7 +302,7 @@ pub fn resize_rrd(
 
     let path = PathBuf::from(&path);
 
-    let mut rrd = RRD::load(&path)?;
+    let mut rrd = RRD::load(&path, false)?;
 
     if rra_index >= rrd.rra_list.len() {
         bail!("rra-index is out of range");
@@ -331,7 +331,7 @@ pub fn resize_rrd(
 
     rrd.rra_list[rra_index] = new_rra;
 
-    rrd.save(&path, CreateOptions::new())?;
+    rrd.save(&path, CreateOptions::new(), false)?;
 
     Ok(())
 }
