@@ -120,6 +120,7 @@ impl RRDCache {
         RRD::new(dst, rra_list)
     }
 
+    /// Sync the journal data to disk (using `fdatasync` syscall)
     pub fn sync_journal(&self) -> Result<(), Error> {
         self.state.read().unwrap().sync_journal()
     }

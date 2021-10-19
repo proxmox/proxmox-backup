@@ -70,6 +70,7 @@ pub struct DataSource {
 
 impl DataSource {
 
+    /// Create a new Instance
     pub fn new(dst: DST) -> Self {
         Self {
             dst,
@@ -136,6 +137,7 @@ pub struct RRA {
 
 impl RRA {
 
+    /// Creates a new instance
     pub fn new(cf: CF, resolution: u64, points: usize) -> Self {
         Self {
             cf,
@@ -145,20 +147,24 @@ impl RRA {
         }
     }
 
+    /// Data slot end time
     pub fn slot_end_time(&self, time: u64) -> u64 {
         self.resolution * (time / self.resolution + 1)
     }
 
+    /// Data slot start time
     pub fn slot_start_time(&self, time: u64) -> u64 {
         self.resolution * (time / self.resolution)
     }
 
+    /// Data slot index
     pub fn slot(&self, time: u64) -> usize {
         ((time / self.resolution) as usize) % self.data.len()
     }
 
-    // directly overwrite data slots
-    // the caller need to set last_update value on the DataSource manually.
+    /// Directly overwrite data slots.
+    ///
+    /// The caller need to set `last_update` value on the [DataSource] manually.
     pub fn insert_data(
         &mut self,
         start: u64,
@@ -240,6 +246,11 @@ impl RRA {
         }
     }
 
+    /// Extract data
+    ///
+    /// Extract data from `start` to `end`. The RRA itself does not
+    /// store the `last_update` time, so you need to pass this a
+    /// parameter (see [DataSource]).
     pub fn extract_data(
         &self,
         start: u64,
@@ -288,6 +299,7 @@ pub struct RRD {
 
 impl RRD {
 
+    /// Creates a new Instance
     pub fn new(dst: DST, rra_list: Vec<RRA>) -> RRD {
 
         let source = DataSource::new(dst);
@@ -323,6 +335,10 @@ impl RRD {
     }
 
     /// Load data from a file
+    ///
+    /// Setting `avoid_page_cache` uses
+    /// `fadvise(..,POSIX_FADV_DONTNEED)` to avoid keeping the data in
+    /// the linux page cache.
     pub fn load(path: &Path, avoid_page_cache: bool) -> Result<Self, std::io::Error> {
 
         let mut file = std::fs::File::open(path)?;
@@ -346,7 +362,11 @@ impl RRD {
     }
 
     /// Store data into a file (atomic replace file)
-    pub fn save(
+    ///
+    /// Setting `avoid_page_cache` uses
+    /// `fadvise(..,POSIX_FADV_DONTNEED)` to avoid keeping the data in
+    /// the linux page cache.
+   pub fn save(
         &self,
         path: &Path,
         options: CreateOptions,
@@ -390,6 +410,7 @@ impl RRD {
         Ok(())
     }
 
+    /// Returns the last update time.
     pub fn last_update(&self) -> f64 {
         self.source.last_update
     }
