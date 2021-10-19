@@ -1,3 +1,9 @@
+rust-proxmox-backup (1.1.13-3) buster; urgency=medium
+
+  * fix sending log-rotation command to API daemons
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 19 Oct 2021 10:21:18 +0200
+
 rust-proxmox-backup (1.1.13-2) buster; urgency=medium
 
   * revert "auth: improve thread safety of 'crypt' C-library", not safe for
