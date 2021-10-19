@@ -88,11 +88,6 @@ impl JournalState {
         Ok(())
     }
 
-    pub fn syncfs(&self) -> Result<(), nix::Error> {
-        let res = unsafe { libc::syncfs(self.journal.as_raw_fd()) };
-        nix::errno::Errno::result(res).map(drop)
-    }
-
     pub fn append_journal_entry(
         &mut self,
         time: f64,
@@ -143,9 +138,13 @@ impl JournalState {
         let mut new_name = journal_path.clone();
         let now = proxmox_time::epoch_i64();
         new_name.set_extension(format!("journal-{:08x}", now));
-        std::fs::rename(journal_path, new_name)?;
+        std::fs::rename(journal_path, &new_name)?;
 
         self.journal = Self::open_journal_writer(&self.config)?;
+
+        // make sure the old journal data landed on the disk
+        super::fsync_file_and_parent(&new_name)?;
+
         Ok(())
     }
 
