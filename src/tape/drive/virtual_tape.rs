@@ -117,7 +117,7 @@ impl VirtualTapeHandle {
         let raw = serde_json::to_string_pretty(&serde_json::to_value(index)?)?;
 
         let options = CreateOptions::new();
-        replace_file(&path, raw.as_bytes(), options)?;
+        replace_file(&path, raw.as_bytes(), options, false)?;
         Ok(())
     }
 
@@ -157,7 +157,7 @@ impl VirtualTapeHandle {
         let raw = serde_json::to_string_pretty(&serde_json::to_value(status)?)?;
 
         let options = CreateOptions::new();
-        replace_file(&path, raw.as_bytes(), options)?;
+        replace_file(&path, raw.as_bytes(), options, false)?;
         Ok(())
     }
 

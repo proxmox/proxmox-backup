@@ -705,7 +705,7 @@ impl DataStore {
                     .group(backup_user.gid);
 
                 // ignore errors
-                let _ = replace_file(path, serialized.as_bytes(), options);
+                let _ = replace_file(path, serialized.as_bytes(), options, false);
             }
 
             *self.last_gc_status.lock().unwrap() = gc_status;
@@ -840,7 +840,7 @@ impl DataStore {
         path.push(MANIFEST_BLOB_NAME);
 
         // atomic replace invalidates flock - no other writes past this point!
-        replace_file(&path, raw_data, CreateOptions::new())?;
+        replace_file(&path, raw_data, CreateOptions::new(), false)?;
 
         Ok(())
     }

@@ -76,7 +76,7 @@ pub fn write(data: &TfaConfig) -> Result<(), Error> {
     let options = CreateOptions::new().perm(Mode::from_bits_truncate(0o0600));
 
     let json = serde_json::to_vec(data)?;
-    proxmox::tools::fs::replace_file(CONF_FILE, &json, options)
+    proxmox::tools::fs::replace_file(CONF_FILE, &json, options, true)
 }
 
 #[derive(Deserialize, Serialize)]

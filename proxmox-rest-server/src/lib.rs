@@ -117,7 +117,7 @@ pub(crate) fn pstart() -> u64 {
 /// Helper to write the PID into a file
 pub fn write_pid(pid_fn: &str) -> Result<(), Error> {
     let pid_str = format!("{}\n", *PID);
-    proxmox::tools::fs::replace_file(pid_fn, pid_str.as_bytes(), CreateOptions::new())
+    proxmox::tools::fs::replace_file(pid_fn, pid_str.as_bytes(), CreateOptions::new(), false)
 }
 
 /// Helper to read the PID from a file

@@ -104,6 +104,7 @@ pub fn generate_csrf_key() -> Result<(), Error> {
             .perm(Mode::from_bits_truncate(0o0640))
             .owner(nix::unistd::ROOT)
             .group(backup_user.gid),
+        true,
     )?;
 
     Ok(())
@@ -125,7 +126,11 @@ pub fn generate_auth_key() -> Result<(), Error> {
     use nix::sys::stat::Mode;
 
     replace_file(
-        &priv_path, &priv_pem, CreateOptions::new().perm(Mode::from_bits_truncate(0o0600)))?;
+        &priv_path,
+        &priv_pem,
+        CreateOptions::new().perm(Mode::from_bits_truncate(0o0600)),
+        true,
+    )?;
 
     let public_pem = rsa.public_key_to_pem()?;
 
@@ -138,6 +143,7 @@ pub fn generate_auth_key() -> Result<(), Error> {
             .perm(Mode::from_bits_truncate(0o0640))
             .owner(nix::unistd::ROOT)
             .group(backup_user.gid),
+        true,
     )?;
 
     Ok(())

@@ -18,7 +18,7 @@ bitflags = "1.2.1"
 regex = "1.2"
 udev = ">= 0.3, <0.5"
 
-proxmox = "0.14.0"
+proxmox = "0.15.0"
 proxmox-io = "1"
 proxmox-lang = "1"
 # api-macro is only used by the binaries, so maybe we should split them out

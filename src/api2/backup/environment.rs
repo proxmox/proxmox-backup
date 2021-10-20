@@ -453,7 +453,7 @@ impl BackupEnvironment {
         let blob = DataBlob::load_from_reader(&mut &data[..])?;
 
         let raw_data = blob.raw_data();
-        replace_file(&path, raw_data, CreateOptions::new())?;
+        replace_file(&path, raw_data, CreateOptions::new(), false)?;
 
         self.log(format!("add blob {:?} ({} bytes, comp: {})", path, orig_len, blob_len));
 

@@ -171,7 +171,7 @@ pub fn update_dns(
         data.push_str(options);
     }
 
-    replace_file(RESOLV_CONF_FN, data.as_bytes(), CreateOptions::new())?;
+    replace_file(RESOLV_CONF_FN, data.as_bytes(), CreateOptions::new(), true)?;
 
     Ok(Value::Null)
 }

@@ -95,7 +95,7 @@ impl ChunkStore {
 
         // create lock file with correct owner/group
         let lockfile_path = Self::lockfile_path(&base);
-        proxmox::tools::fs::replace_file(lockfile_path, b"", options.clone())?;
+        proxmox::tools::fs::replace_file(lockfile_path, b"", options.clone(), false)?;
 
         // create 64*1024 subdirs
         let mut last_percentage = 0;

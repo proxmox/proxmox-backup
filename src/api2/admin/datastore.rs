@@ -1328,7 +1328,7 @@ pub fn upload_backup_log(
         // always verify blob/CRC at server side
         let blob = DataBlob::load_from_reader(&mut &data[..])?;
 
-        replace_file(&path, blob.raw_data(), CreateOptions::new())?;
+        replace_file(&path, blob.raw_data(), CreateOptions::new(), false)?;
 
         // fixme: use correct formatter
         Ok(formatter::JSON_FORMATTER.format_data(Value::Null, &*rpcenv))
@@ -1644,7 +1644,7 @@ pub fn set_group_notes(
     check_priv_or_backup_owner(&datastore, &backup_group, &auth_id, PRIV_DATASTORE_MODIFY)?;
 
     let note_path = get_group_note_path(&datastore, &backup_group);
-    replace_file(note_path, notes.as_bytes(), CreateOptions::new())?;
+    replace_file(note_path, notes.as_bytes(), CreateOptions::new(), false)?;
 
     Ok(())
 }

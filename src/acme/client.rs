@@ -171,6 +171,7 @@ impl AcmeClient {
                 .perm(Mode::from_bits_truncate(0o600))
                 .owner(nix::unistd::ROOT)
                 .group(nix::unistd::Gid::from_raw(0)),
+            true,
         )
     }
 

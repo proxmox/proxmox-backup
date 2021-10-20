@@ -96,7 +96,7 @@ zstd = { version = "0.6", features = [ "bindgen" ] }
 pathpatterns = "0.1.2"
 pxar = { version = "0.10.1", features = [ "tokio-io" ] }
 
-proxmox = { version = "0.14.0", features = [ "sortable-macro" ] }
+proxmox = { version = "0.15.0", features = [ "sortable-macro" ] }
 proxmox-http = { version = "0.5.0", features = [ "client", "http-helpers", "websocket" ] }
 proxmox-io = "1"
 proxmox-lang = "1"
@@ -109,7 +109,7 @@ proxmox-uuid = "1"
 
 proxmox-acme-rs = "0.2.1"
 proxmox-apt = "0.8.0"
-proxmox-openid = "0.8.0"
+proxmox-openid = "0.8.1"
 
 pbs-api-types = { path = "pbs-api-types" }
 pbs-buildcfg = { path = "pbs-buildcfg" }

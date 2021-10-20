@@ -95,7 +95,7 @@ impl FileLogger {
             flags |=  OFlag::O_EXCL;
         }
 
-        let file = atomic_open_or_create_file(&file_name, flags, &[], options.file_opts.clone())?;
+        let file = atomic_open_or_create_file(&file_name, flags, &[], options.file_opts.clone(), false)?;
 
         Ok(file)
     }

@@ -30,7 +30,7 @@ tokio-openssl = "0.6.1"
 tower-service = "0.3.0"
 url = "2.1"
 
-proxmox = "0.14.0"
+proxmox = "0.15.0"
 proxmox-io = "1"
 proxmox-lang = "1"
 proxmox-router = "1.1"

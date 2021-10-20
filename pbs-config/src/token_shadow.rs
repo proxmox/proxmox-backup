@@ -45,7 +45,7 @@ fn write_file(data: HashMap<Authid, String>) -> Result<(), Error> {
         .group(backup_user.gid);
 
     let json = serde_json::to_vec(&data)?;
-    proxmox::tools::fs::replace_file(CONF_FILE, &json, options)
+    proxmox::tools::fs::replace_file(CONF_FILE, &json, options, true)
 }
 
 

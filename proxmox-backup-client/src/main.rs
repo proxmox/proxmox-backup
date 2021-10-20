@@ -126,7 +126,7 @@ fn record_repository(repo: &BackupRepository) {
 
     let new_data = json!(map);
 
-    let _ = replace_file(path, new_data.to_string().as_bytes(), CreateOptions::new());
+    let _ = replace_file(path, new_data.to_string().as_bytes(), CreateOptions::new(), false);
 }
 
 async fn api_datastore_list_snapshots(
@@ -1132,7 +1132,7 @@ async fn restore(param: Value) -> Result<Value, Error> {
 
     if archive_name == MANIFEST_BLOB_NAME {
         if let Some(target) = target {
-            replace_file(target, &backup_index_data, CreateOptions::new())?;
+            replace_file(target, &backup_index_data, CreateOptions::new(), false)?;
         } else {
             let stdout = std::io::stdout();
             let mut writer = stdout.lock();

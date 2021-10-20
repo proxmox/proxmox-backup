@@ -312,7 +312,7 @@ pub fn write_subscription(info: SubscriptionInfo) -> Result<(), Error> {
         .group(backup_user.gid);
 
     let subscription_file = std::path::Path::new(SUBSCRIPTION_FN);
-    replace_file(subscription_file, raw.as_bytes(), file_opts)?;
+    replace_file(subscription_file, raw.as_bytes(), file_opts, true)?;
 
     update_apt_auth(key, server_id)?;
 
@@ -343,7 +343,7 @@ pub fn update_apt_auth(key: Option<String>, password: Option<String>) -> Result<
                 .owner(nix::unistd::ROOT);
 
             // we use a namespaced .conf file, so just overwrite..
-            replace_file(auth_conf, conf.as_bytes(), file_opts)
+            replace_file(auth_conf, conf.as_bytes(), file_opts, true)
                 .map_err(|e| format_err!("Error saving apt auth config - {}", e))?;
         }
         _ => match nix::unistd::unlink(auth_conf) {

@@ -1362,7 +1362,7 @@ fn try_restore_snapshot_archive<R: pxar::decoder::SeqRead>(
             let blob = DataBlob::encode(old_manifest.as_bytes(), None, true)?;
 
             let options = CreateOptions::new();
-            replace_file(&tmp_path, blob.raw_data(), options)?;
+            replace_file(&tmp_path, blob.raw_data(), options, false)?;
 
             manifest = Some(BackupManifest::try_from(blob)?);
         } else {

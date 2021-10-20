@@ -345,7 +345,7 @@ fn save_changer_state_cache(
         .owner(backup_user.uid)
         .group(backup_user.gid);
 
-    replace_file(path, state.as_bytes(), options)
+    replace_file(path, state.as_bytes(), options, false)
 }
 
 fn delete_changer_state_cache(changer: &str) {

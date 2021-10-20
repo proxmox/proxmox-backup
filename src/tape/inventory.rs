@@ -183,7 +183,7 @@ impl Inventory {
                 .group(backup_user.gid)
         };
 
-        replace_file(&self.inventory_path, raw.as_bytes(), options)?;
+        replace_file(&self.inventory_path, raw.as_bytes(), options, true)?;
 
         Ok(())
     }

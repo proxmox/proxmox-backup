@@ -80,7 +80,7 @@ pub fn replace_backup_config<P: AsRef<std::path::Path>>(
         .owner(nix::unistd::ROOT)
         .group(backup_user.gid);
 
-    proxmox::tools::fs::replace_file(path, data, options)?;
+    proxmox::tools::fs::replace_file(path, data, options, true)?;
 
     Ok(())
 }
@@ -100,7 +100,7 @@ pub fn replace_secret_config<P: AsRef<std::path::Path>>(
         .owner(nix::unistd::ROOT)
         .group(nix::unistd::Gid::from_raw(0));
 
-    proxmox::tools::fs::replace_file(path, data, options)?;
+    proxmox::tools::fs::replace_file(path, data, options, true)?;
 
     Ok(())
 }

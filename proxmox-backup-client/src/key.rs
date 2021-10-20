@@ -315,7 +315,7 @@ fn import_master_pubkey(path: String) -> Result<(), Error> {
 
     let target_path = place_default_master_pubkey()?;
 
-    replace_file(&target_path, &pem_data, CreateOptions::new())?;
+    replace_file(&target_path, &pem_data, CreateOptions::new(), true)?;
 
     println!("Imported public master key to {:?}", target_path);
 
@@ -348,7 +348,7 @@ fn create_master_key() -> Result<(), Error> {
     let pub_key: Vec<u8> = pkey.public_key_to_pem()?;
     let filename_pub = "master-public.pem";
     println!("Writing public master key to {}", filename_pub);
-    replace_file(filename_pub, pub_key.as_slice(), CreateOptions::new())?;
+    replace_file(filename_pub, pub_key.as_slice(), CreateOptions::new(), true)?;
 
     let cipher = openssl::symm::Cipher::aes_256_cbc();
     let priv_key: Vec<u8> =
@@ -356,7 +356,7 @@ fn create_master_key() -> Result<(), Error> {
 
     let filename_priv = "master-private.pem";
     println!("Writing private master key to {}", filename_priv);
-    replace_file(filename_priv, priv_key.as_slice(), CreateOptions::new())?;
+    replace_file(filename_priv, priv_key.as_slice(), CreateOptions::new(), true)?;
 
     Ok(())
 }

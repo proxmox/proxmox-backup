@@ -102,6 +102,7 @@ fn write_snapshot_cache(
         cache_path,
         data.as_bytes(),
         options,
+        false,
     )?;
 
     Ok(list)

@@ -95,7 +95,7 @@ impl ProxmoxAuthenticator for PBS {
             .group(nix::unistd::Gid::from_raw(0));
 
         let data = serde_json::to_vec_pretty(&data)?;
-        proxmox::tools::fs::replace_file(SHADOW_CONFIG_FILENAME, &data, options)?;
+        proxmox::tools::fs::replace_file(SHADOW_CONFIG_FILENAME, &data, options, true)?;
 
         Ok(())
     }
@@ -113,7 +113,7 @@ impl ProxmoxAuthenticator for PBS {
             .group(nix::unistd::Gid::from_raw(0));
 
         let data = serde_json::to_vec_pretty(&data)?;
-        proxmox::tools::fs::replace_file(SHADOW_CONFIG_FILENAME, &data, options)?;
+        proxmox::tools::fs::replace_file(SHADOW_CONFIG_FILENAME, &data, options, true)?;
 
         Ok(())
     }

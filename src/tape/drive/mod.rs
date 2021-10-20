@@ -555,7 +555,7 @@ pub fn set_tape_device_state(
         .owner(backup_user.uid)
         .group(backup_user.gid);
 
-    replace_file(path, state.as_bytes(), options)
+    replace_file(path, state.as_bytes(), options, false)
 }
 
 /// Get the device state
@@ -618,6 +618,7 @@ fn open_device_lock(device_path: &str) -> Result<std::fs::File, Error> {
         OFlag::O_RDWR | OFlag::O_CLOEXEC | OFlag::O_APPEND,
         &[],
         options,
+        false,
     )
 }
 

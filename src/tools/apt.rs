@@ -24,7 +24,7 @@ pub struct PkgState {
 pub fn write_pkg_cache(state: &PkgState) -> Result<(), Error> {
     let serialized_state = serde_json::to_string(state)?;
 
-    replace_file(APT_PKG_STATE_FN, &serialized_state.as_bytes(), CreateOptions::new())
+    replace_file(APT_PKG_STATE_FN, &serialized_state.as_bytes(), CreateOptions::new(), false)
         .map_err(|err| format_err!("Error writing package cache - {}", err))?;
     Ok(())
 }

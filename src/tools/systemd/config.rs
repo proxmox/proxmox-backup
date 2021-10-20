@@ -133,7 +133,7 @@ fn save_systemd_config(config: &SectionConfig, filename: &str, data: &SectionCon
         .perm(mode)
         .owner(nix::unistd::ROOT);
 
-    replace_file(filename, raw.as_bytes(), options)?;
+    replace_file(filename, raw.as_bytes(), options, true)?;
 
     Ok(())
 }

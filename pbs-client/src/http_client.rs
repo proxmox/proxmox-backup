@@ -153,7 +153,7 @@ pub fn delete_ticket_info(prefix: &str, server: &str, username: &Userid) -> Resu
         map.remove(username.as_str());
     }
 
-    replace_file(path, data.to_string().as_bytes(), CreateOptions::new().perm(mode))?;
+    replace_file(path, data.to_string().as_bytes(), CreateOptions::new().perm(mode), false)?;
 
     Ok(())
 }
@@ -195,7 +195,7 @@ fn store_fingerprint(prefix: &str, server: &str, fingerprint: &str) -> Result<()
     result.push_str(fingerprint);
     result.push('\n');
 
-    replace_file(path, result.as_bytes(), CreateOptions::new())?;
+    replace_file(path, result.as_bytes(), CreateOptions::new(), false)?;
 
     Ok(())
 }
@@ -250,7 +250,7 @@ fn store_ticket_info(prefix: &str, server: &str, username: &str, ticket: &str, t
         }
     }
 
-    replace_file(path, new_data.to_string().as_bytes(), CreateOptions::new().perm(mode))?;
+    replace_file(path, new_data.to_string().as_bytes(), CreateOptions::new().perm(mode), false)?;
 
     Ok(())
 }

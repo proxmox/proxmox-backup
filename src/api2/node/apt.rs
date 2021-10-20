@@ -68,7 +68,7 @@ pub fn update_apt_proxy_config(proxy_config: Option<&ProxyConfig>) -> Result<(),
     if let Some(proxy_config) = proxy_config {
         let proxy = proxy_config.to_proxy_string()?;
         let data = format!("Acquire::http::Proxy \"{}\";\n", proxy);
-        replace_file(PROXY_CFG_FN, data.as_bytes(), CreateOptions::new())
+        replace_file(PROXY_CFG_FN, data.as_bytes(), CreateOptions::new(), false)
     } else {
         match std::fs::remove_file(PROXY_CFG_FN) {
             Ok(()) => Ok(()),

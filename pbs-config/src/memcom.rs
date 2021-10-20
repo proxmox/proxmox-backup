@@ -47,7 +47,10 @@ impl Memcom {
         let file = proxmox::tools::fs::atomic_open_or_create_file(
             MEMCOM_FILE_PATH,
             OFlag::O_RDWR | OFlag::O_CLOEXEC,
-            &EMPTY_PAGE, options)?;
+            &EMPTY_PAGE,
+            options,
+            true,
+        )?;
 
         let mmap = unsafe {
             Mmap::<u8>::map_fd(

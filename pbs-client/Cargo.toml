@@ -28,7 +28,7 @@ tower-service = "0.3.0"
 xdg = "2.2"
 
 pathpatterns = "0.1.2"
-proxmox = "0.14.0"
+proxmox = "0.15.0"
 proxmox-fuse = "0.1.1"
 proxmox-http = { version = "0.5.0", features = [ "client", "http-helpers", "websocket" ] }
 proxmox-io = { version = "1", features = [ "tokio" ] }

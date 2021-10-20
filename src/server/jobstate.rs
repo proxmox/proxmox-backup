@@ -301,7 +301,7 @@ impl Job {
             .owner(backup_user.uid)
             .group(backup_user.gid);
 
-        replace_file(path, serialized.as_bytes(), options)
+        replace_file(path, serialized.as_bytes(), options, false)
     }
 }
 

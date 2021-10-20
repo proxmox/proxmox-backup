@@ -448,7 +448,7 @@ pub fn save_config(config: &NetworkConfig) -> Result<(), Error> {
         .owner(nix::unistd::ROOT)
         .group(nix::unistd::Gid::from_raw(0));
 
-    replace_file(NETWORK_INTERFACES_NEW_FILENAME, &raw, options)?;
+    replace_file(NETWORK_INTERFACES_NEW_FILENAME, &raw, options, true)?;
 
     Ok(())
 }

@@ -440,8 +440,8 @@ fn test_crypto_parameters_handling() -> Result<(), Error> {
         mode: CryptMode::SignOnly,
     };
 
-    replace_file(&keypath, &some_key, CreateOptions::default())?;
-    replace_file(&master_keypath, &some_master_key, CreateOptions::default())?;
+    replace_file(&keypath, &some_key, CreateOptions::default(), false)?;
+    replace_file(&master_keypath, &some_master_key, CreateOptions::default(), false)?;
 
     // no params, no default key == no key
     let res = crypto_parameters(&json!({}));

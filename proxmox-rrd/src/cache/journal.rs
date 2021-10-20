@@ -113,6 +113,7 @@ impl JournalState {
             flags,
             &[],
             self.config.file_options.clone(),
+            false,
         )?;
         Ok(BufReader::new(journal))
     }
@@ -127,6 +128,7 @@ impl JournalState {
             flags,
             &[],
             config.file_options.clone(),
+            false,
         )?;
         Ok(journal)
     }

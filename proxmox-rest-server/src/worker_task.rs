@@ -146,6 +146,7 @@ impl WorkerTaskSetup {
             &self.active_tasks_fn,
             active_raw.as_bytes(),
             options,
+            false,
         )?;
 
         finish_list.sort_unstable_by(|a, b| {
@@ -166,6 +167,7 @@ impl WorkerTaskSetup {
                 OFlag::O_APPEND | OFlag::O_RDWR,
                 &[],
                 options,
+                false,
             )?;
             for info in &finish_list {
                 writer.write_all(render_task_line(&info).as_bytes())?;

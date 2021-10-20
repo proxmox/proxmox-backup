@@ -281,7 +281,7 @@ impl KeyConfig  {
         try_block!({
             if replace {
                 let mode = nix::sys::stat::Mode::S_IRUSR | nix::sys::stat::Mode::S_IWUSR;
-                replace_file(path, data.as_bytes(), CreateOptions::new().perm(mode))?;
+                replace_file(path, data.as_bytes(), CreateOptions::new().perm(mode), true)?;
             } else {
                 use std::os::unix::fs::OpenOptionsExt;
 

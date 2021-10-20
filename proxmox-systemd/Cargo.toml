@@ -15,4 +15,4 @@ proxmox-time = "1"
 proxmox-lang = "1"
 
 [dev-dependencies]
-proxmox = "0.14.0"
+proxmox = "0.15.0"

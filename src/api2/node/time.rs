@@ -97,7 +97,7 @@ fn set_timezone(
         bail!("No such timezone.");
     }
 
-    replace_file("/etc/timezone", timezone.as_bytes(), CreateOptions::new())?;
+    replace_file("/etc/timezone", timezone.as_bytes(), CreateOptions::new(), true)?;
 
     let _ = std::fs::remove_file("/etc/localtime");
 
