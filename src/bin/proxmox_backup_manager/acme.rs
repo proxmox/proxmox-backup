@@ -154,7 +154,8 @@ async fn register_account(
             false
         }
     } else {
-        false
+        println!("No Terms of Service found, proceeding.");
+        true
     };
 
     println!("Attempting to register account with {:?}...", directory);
