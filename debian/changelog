@@ -1,3 +1,23 @@
+rust-proxmox-backup (2.0.13-1) unstable; urgency=medium
+
+  * tape: simplify export_media_set for pool writer
+
+  * tape: improve export_media error message for not found tape
+
+  * rest-server: use hashmap for parameter errors
+
+  * proxmox-rrd: use new file firmat with higher resolution
+
+  * proxmox-rrd: use a journal to reduce amount of bytes written
+
+  * use new fsync parameter to replace_file and atomic_open_or_create
+
+  * docs: langauge and formatting fixup
+
+  * docs: Update for new features/functionality
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 21 Oct 2021 08:17:00 +0200
+
 rust-proxmox-backup (2.0.12-1) bullseye; urgency=medium
 
   * proxmox-backup-proxy: clean up old tasks when their reference was rotated
