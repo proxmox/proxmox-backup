@@ -139,7 +139,7 @@ impl AcmeClient {
         let account_path = account_path(account_name.as_ref());
         let file = OpenOptions::new()
             .write(true)
-            .create(true)
+            .create_new(true)
             .mode(0o600)
             .open(&account_path)
             .map_err(|err| format_err!("failed to open {:?} for writing: {}", account_path, err))?;
