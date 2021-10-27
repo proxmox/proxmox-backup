@@ -45,6 +45,44 @@ fn create_info(
     BackupInfo { backup_dir, files, protected: false }
 }
 
+fn create_info_protected(
+    snapshot: &str,
+    partial: bool,
+) -> BackupInfo {
+    let mut info = create_info(snapshot, partial);
+    info.protected = true;
+    info
+}
+
+#[test]
+fn test_prune_protected() -> Result<(), Error> {
+    let mut orig_list = Vec::new();
+
+    orig_list.push(create_info_protected("host/elsa/2019-11-15T09:39:15Z", false));
+    orig_list.push(create_info("host/elsa/2019-11-15T10:39:15Z", false));
+    orig_list.push(create_info("host/elsa/2019-11-15T10:49:15Z", false));
+    orig_list.push(create_info_protected("host/elsa/2019-11-15T10:59:15Z", false));
+
+    eprintln!("{:?}", orig_list);
+
+    let mut options = PruneOptions::default();
+    options.keep_last = Some(1);
+    let remove_list = get_prune_list(orig_list.clone(), false, &options);
+    let expect: Vec<PathBuf> = vec![
+        PathBuf::from("host/elsa/2019-11-15T10:39:15Z"),
+    ];
+    assert_eq!(remove_list, expect);
+
+    let mut options = PruneOptions::default();
+    options.keep_hourly = Some(1);
+    let remove_list = get_prune_list(orig_list.clone(), false, &options);
+    let expect: Vec<PathBuf> = vec![
+        PathBuf::from("host/elsa/2019-11-15T10:39:15Z"),
+    ];
+    assert_eq!(remove_list, expect);
+    Ok(())
+}
+
 #[test]
 fn test_prune_hourly() -> Result<(), Error> {
 
