@@ -654,6 +654,25 @@ shows the list of existing snapshots and what actions prune would take.
    in the chunk-store. The chunk-store still contains the data blocks. To free
    space you need to perform :ref:`client_garbage-collection`.
 
+It is also possible to protect single snapshots from being pruned or deleted:
+
+.. code-block:: console
+
+  # proxmox-backup-client snapshot protected update <snapshot> true
+
+This will set the protected flag on the snapshot and prevent pruning or manual
+deletion of this snapshot untilt he flag is removed again with:
+
+.. code-block:: console
+
+  # proxmox-backup-client snapshot protected update <snapshot> false
+
+When a group is with a protected snapshot is deleted, only the non-protected
+ones are removed and the group will remain.
+
+.. note:: This flag will not be synced when using pull or sync jobs. If you
+   want to protect a synced snapshot, you have to manually to this again on
+   the target :ref:`backup server.
 
 .. _client_garbage-collection:
 
