@@ -11,7 +11,7 @@ Glossary
    `Container`_
 
       A container is an isolated user space. Programs run directly on
-      the host's kernel, but with limited access to the host resources.
+      the host's kernel, but with limited access to the host's resources.
 
    Datastore
 
@@ -23,19 +23,19 @@ Glossary
       Rust is a new, fast and memory-efficient system programming
       language. It has no runtime or garbage collector. Rust’s rich type
       system and ownership model guarantee memory-safety and
-      thread-safety. I can eliminate many classes of bugs
+      thread-safety. This can eliminate many classes of bugs
       at compile-time.
 
    `Sphinx`_
 
-      Is a tool that makes it easy to create intelligent and
-      beautiful documentation. It was originally created for the
-      documentation of the Python programming language. It has excellent facilities for the
+      Is a tool that makes it easy to create intelligent and nicely formatted
+      documentation. It was originally created for the documentation of the
+      Python programming language. It has excellent facilities for the
       documentation of software projects in a range of languages.
 
    `reStructuredText`_
 
-      Is an easy-to-read, what-you-see-is-what-you-get plaintext
+      Is an easy-to-read, what-you-see-is-what-you-get, plaintext
       markup syntax and parser system.
 
    `FUSE`

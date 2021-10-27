@@ -1,6 +1,6 @@
 This file contains information used to access remote servers.
 
-Each entry starts with a header ``remote: <name>``, followed by the
+Each entry starts with the header ``remote: <name>``, followed by the
 remote configuration options.
 
 ::
@@ -11,7 +11,7 @@ remote configuration options.
 	...
 
   remote: ...
-	
+
 
 You can use the ``proxmox-backup-manager remote`` command to manipulate
 this file.

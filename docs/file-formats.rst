@@ -14,7 +14,8 @@ Proxmox File Archive Format (``.pxar``)
 Data Blob Format (``.blob``)
 ----------------------------
 
-The data blob format is used to store small binary data. The magic number decides the exact format:
+The data blob format is used to store small binary data. The magic number
+decides the exact format:
 
 .. list-table::
    :widths: auto
@@ -32,7 +33,8 @@ The data blob format is used to store small binary data. The magic number decide
      - encrypted
      - compressed
 
-Compression algorithm is ``zstd``. Encryption cipher is ``AES_256_GCM``.
+The compression algorithm used is ``zstd``. The encryption cipher is
+``AES_256_GCM``.
 
 Unencrypted blobs use the following format:
 
@@ -43,9 +45,9 @@ Unencrypted blobs use the following format:
    * - ``CRC32: [u8; 4]``
    * - ``Data: (max 16MiB)``
 
-Encrypted blobs additionally contains a 16 byte IV, followed by a 16
-byte Authenticated Encyryption (AE) tag, followed by the encrypted
-data:
+Encrypted blobs additionally contain a 16 byte initialization vector (IV),
+followed by a 16 byte authenticated encryption (AE) tag, followed by the
+encrypted data:
 
 .. list-table::
 
@@ -72,19 +74,19 @@ All numbers are stored as little-endian.
    * - ``ctime: i64``,
      - Creation Time (epoch)
    * - ``index_csum: [u8; 32]``,
-     - Sha256 over the index (without header) ``SHA256(digest1||digest2||...)``
+     - SHA-256 over the index (without header) ``SHA256(digest1||digest2||...)``
    * - ``size: u64``,
      - Image size
    * - ``chunk_size: u64``,
      - Chunk size
    * - ``reserved: [u8; 4016]``,
-     - overall header size is one page (4096 bytes)
+     - Overall header size is one page (4096 bytes)
    * - ``digest1: [u8; 32]``
-     - first chunk digest
+     - First chunk digest
    * - ``digest2: [u8; 32]``
-     - next chunk
+     - Second chunk digest
    * - ...
-     - next chunk ...
+     - Next chunk digest ...
 
 
 .. _dynamic-index-format:
@@ -103,16 +105,16 @@ All numbers are stored as little-endian.
    * - ``ctime: i64``,
      - Creation Time (epoch)
    * - ``index_csum: [u8; 32]``,
-     - Sha256 over the index (without header) ``SHA256(offset1||digest1||offset2||digest2||...)``
+     - SHA-256 over the index (without header) ``SHA256(offset1||digest1||offset2||digest2||...)``
    * - ``reserved: [u8; 4032]``,
      - Overall header size is one page (4096 bytes)
    * - ``offset1: u64``
      - End of first chunk
    * - ``digest1: [u8; 32]``
-     - first chunk digest
+     - First chunk digest
    * - ``offset2: u64``
      - End of second chunk
    * - ``digest2: [u8; 32]``
-     - second chunk digest
+     - Second chunk digest
    * - ...
-     - next chunk offset/digest
+     - Next chunk offset/digest

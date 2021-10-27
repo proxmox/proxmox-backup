@@ -37,7 +37,7 @@ Each field can contain multiple values in the following formats:
 * and a combination of the above: e.g., 01,05..10,12/02
 * or a `*` for every possible value: e.g., \*:00
 
-There are some special values that have specific meaning:
+There are some special values that have a specific meaning:
 
 =================================  ==============================
 Value                              Syntax
@@ -81,19 +81,19 @@ Not all features of systemd calendar events are implemented:
 
 * no Unix timestamps (e.g. `@12345`): instead use date and time to specify
   a specific point in time
-* no timezone: all schedules use the set timezone on the server
+* no timezone: all schedules use the timezone of the server
 * no sub-second resolution
 * no reverse day syntax (e.g. 2020-03~01)
 * no repetition of ranges (e.g. 1..10/2)
 
-Notes on scheduling
+Notes on Scheduling
 -------------------
 
-In `Proxmox Backup`_ scheduling for most tasks is done in the
+In `Proxmox Backup`_, scheduling for most tasks is done in the
 `proxmox-backup-proxy`. This daemon checks all job schedules
-if they are due every minute. This means that even if
+every minute, to see if any are due. This means that even though
 `calendar events` can contain seconds, it will only be checked
-once a minute.
+once per minute.
 
 Also, all schedules will be checked against the timezone set
 in the `Proxmox Backup`_ server.

@@ -1,4 +1,4 @@
-Each entry starts with a header ``backup: <name>``, followed by the
+Each entry starts with the header ``backup: <name>``, followed by the
 job configuration options.
 
 ::

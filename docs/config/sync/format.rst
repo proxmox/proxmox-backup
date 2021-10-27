@@ -1,4 +1,4 @@
-Each entry starts with a header ``sync: <name>``, followed by the
+Each entry starts with the header ``sync: <name>``, followed by the
 job configuration options.
 
 ::
@@ -9,7 +9,7 @@ job configuration options.
 	remote lina
 
   sync: ...
-	
+
 
 You can use the ``proxmox-backup-manager sync-job`` command to manipulate
 this file.

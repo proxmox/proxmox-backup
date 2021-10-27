@@ -1,9 +1,9 @@
 This file contains the list of API users and API tokens.
 
-Each user configuration section starts with a header ``user: <name>``,
+Each user configuration section starts with the header ``user: <name>``,
 followed by the user configuration options.
 
-API token configuration starts with a header ``token:
+API token configuration starts with the header ``token:
 <userid!token_name>``, followed by the token configuration. The data
 used to authenticate tokens is stored in a separate file
 (``token.shadow``).

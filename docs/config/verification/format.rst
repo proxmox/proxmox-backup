@@ -1,4 +1,4 @@
-Each entry starts with a header ``verification: <name>``, followed by the
+Each entry starts with the header ``verification: <name>``, followed by the
 job configuration options.
 
 ::

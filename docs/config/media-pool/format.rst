@@ -1,4 +1,4 @@
-Each entry starts with a header ``pool: <name>``, followed by the
+Each entry starts with the header ``pool: <name>``, followed by the
 media pool configuration options.
 
 ::
@@ -8,6 +8,6 @@ media pool configuration options.
 	retention overwrite
 
   pool: ...
-	
+
 
 You can use the ``proxmox-tape pool`` command to manipulate this file.

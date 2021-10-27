@@ -1,7 +1,7 @@
-Each LTO drive configuration section starts with a header ``lto: <name>``,
+Each LTO drive configuration section starts with the header ``lto: <name>``,
 followed by the drive configuration options.
 
-Tape changer configurations starts with  ``changer: <name>``,
+Tape changer configurations start with the header ``changer: <name>``,
 followed by the changer configuration options.
 
 ::
@@ -18,5 +18,5 @@ followed by the changer configuration options.
 You can use the ``proxmox-tape drive`` and ``proxmox-tape changer``
 commands to manipulate this file.
 
-.. NOTE:: The ``virtual:`` drive type is experimental and onyl used
+.. NOTE:: The ``virtual:`` drive type is experimental and should only be used
    for debugging.

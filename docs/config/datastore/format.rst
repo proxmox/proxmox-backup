@@ -1,9 +1,9 @@
-The file contains a list of datastore configuration sections. Each
-section starts with a header ``datastore: <name>``, followed by the
+This file contains a list of datastore configuration sections. Each
+section starts with the header ``datastore: <name>``, followed by the
 datastore configuration options.
 
 ::
-  
+
   datastore: <name1>
      path <path1>
      <option1> <value1>

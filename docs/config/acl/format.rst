@@ -2,13 +2,13 @@ This file contains the access control list for the Proxmox Backup
 Server API.
 
 Each line starts with ``acl:``, followed by 4 additional values
-separated by collon.
+separated by colon.
 
-:propagate: Propagate permissions down the hierachrchy
+:propagate: Propagate permissions down the hierarchy
 
 :path: The object path
 
-:User/Token: List of users and token
+:User/Token: List of users and tokens
 
 :Role: List of assigned roles
 

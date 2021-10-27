@@ -1,5 +1,5 @@
-Most commands producing output supports the ``--output-format``
-parameter. It accepts the following values:
+Most commands that produce output support the ``--output-format``
+parameter. This accepts the following values:
 
 :``text``: Text format (default). Structured data is rendered as a table.
 

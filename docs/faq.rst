@@ -69,6 +69,6 @@ be able to read the data.
 Is the backup incremental/deduplicated?
 ---------------------------------------
 
-With Proxmox Backup Server, backups are sent incremental and data is
-deduplicated on the server.
-This minimizes both the storage consumed and the network impact.
+With Proxmox Backup Server, backups are sent incrementally to the server, and
+data is then deduplicated on the server. This minimizes both the storage
+consumed and the impact on the network.

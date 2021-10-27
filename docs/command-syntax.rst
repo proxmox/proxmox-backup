@@ -10,7 +10,7 @@ Command Syntax
 Catalog Shell Commands
 ~~~~~~~~~~~~~~~~~~~~~~
 
-Those command are available when you start an interactive restore shell:
+The following commands are available in an interactive restore shell:
 
 .. code-block:: console
 
