@@ -826,6 +826,23 @@ Ext.define('PBS.DataStoreContent', {
 	    sortable: true,
 	    dataIndex: 'verification',
 	    width: 120,
+	    sorter: (arec, brec) => {
+		let a = arec.data.verification || { ok: 0, outdated: 0, failed: 0 };
+		let b = brec.data.verification || { ok: 0, outdated: 0, failed: 0 };
+		if (a.failed === b.failed) {
+		    if (a.none === b.none) {
+			if (a.outdated === b.outdated) {
+			    return b.ok - a.ok;
+			} else {
+			    return b.outdated - a.outdated;
+			}
+		    } else {
+			return b.none - a.none;
+		    }
+		} else {
+		    return b.failed - a.failed;
+		}
+	    },
 	    renderer: (v, meta, record) => {
 		let i = (cls, txt) => `<i class="fa fa-fw fa-${cls}"></i> ${txt}`;
 		if (v === undefined || v === null) {
