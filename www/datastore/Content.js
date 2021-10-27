@@ -494,6 +494,68 @@ Ext.define('PBS.DataStoreContent', {
 	    });
 	},
 
+	onProtectionChange: function(view, rI, cI, item, e, rec) {
+	    let me = this;
+	    view = this.getView();
+
+	    if (!(rec && rec.data)) return;
+	    let data = rec.data;
+	    if (!view.datastore) return;
+
+	    let type = data["backup-type"];
+	    let id = data["backup-id"];
+	    let time = (data["backup-time"].getTime()/1000).toFixed(0);
+
+	    let params = {
+		'backup-type': type,
+		'backup-id': id,
+		'backup-time': time,
+	    };
+
+	    let url = `/api2/extjs/admin/datastore/${view.datastore}/protected`;
+
+	    Ext.create('Proxmox.window.Edit', {
+		subject: gettext('Protection') + ` - ${data.text}`,
+		width: 400,
+
+		method: 'PUT',
+		autoShow: true,
+		isCreate: false,
+		autoLoad: true,
+
+		loadUrl: `${url}?${Ext.Object.toQueryString(params)}`,
+		url,
+
+		items: [
+		    {
+			xtype: 'hidden',
+			name: 'backup-type',
+			value: type,
+		    },
+		    {
+			xtype: 'hidden',
+			name: 'backup-id',
+			value: id,
+		    },
+		    {
+			xtype: 'hidden',
+			name: 'backup-time',
+			value: time,
+		    },
+		    {
+			xtype: 'proxmoxcheckbox',
+			fieldLabel: gettext('Protected'),
+			uncheckedValue: 0,
+			name: 'protected',
+			value: data.protected,
+		    },
+		],
+		listeners: {
+		    destroy: () => me.reload(),
+		},
+	    });
+	},
+
 	onForget: function(view, rI, cI, item, e, rec) {
 	    let me = this;
 	    view = this.getView();
@@ -710,7 +772,7 @@ Ext.define('PBS.DataStoreContent', {
 	    header: gettext('Actions'),
 	    xtype: 'actioncolumn',
 	    dataIndex: 'text',
-	    width: 140,
+	    width: 150,
 	    items: [
 		{
 		    handler: 'onVerify',
@@ -729,6 +791,12 @@ Ext.define('PBS.DataStoreContent', {
 		    getTip: (v, m, rec) => Ext.String.format(gettext("Prune '{0}'"), v),
 		    getClass: (v, m, rec) => rec.parentNode.id ==='root' ? 'fa fa-scissors' : 'pmx-hidden',
 		    isActionDisabled: (v, r, c, i, rec) => rec.parentNode.id !=='root',
+		},
+		{
+		    handler: 'onProtectionChange',
+		    getTip: (v, m, rec) => Ext.String.format(gettext("Change protection of '{0}'"), v),
+		    getClass: (v, m, rec) => !rec.data.leaf && rec.parentNode.id !== 'root' ? 'fa fa-shield' : 'pmx-hidden',
+		    isActionDisabled: (v, r, c, i, rec) => !!rec.data.leaf || rec.parentNode.id === 'root',
 		},
 		{
 		    handler: 'onForget',
