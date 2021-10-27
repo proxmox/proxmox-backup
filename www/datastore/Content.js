@@ -654,6 +654,13 @@ Ext.define('PBS.DataStoreContent', {
 	    xtype: 'treecolumn',
 	    header: gettext("Backup Group"),
 	    dataIndex: 'text',
+	    renderer: (value, meta, record) => {
+		let protect = "";
+		if (record.data.protected) {
+		    protect = ` <i class="fa fa-shield"></i>`;
+		}
+		return value + protect;
+	    },
 	    flex: 1,
 	},
 	{
