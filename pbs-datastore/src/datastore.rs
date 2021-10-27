@@ -858,6 +858,30 @@ impl DataStore {
         Ok(())
     }
 
+    /// Updates the protection status of the specified snapshot.
+    pub fn update_protection(
+        &self,
+        backup_dir: &BackupDir,
+        protection: bool
+    ) -> Result<(), Error> {
+        let full_path = self.snapshot_path(backup_dir);
+
+        let _guard = lock_dir_noblock(&full_path, "snapshot", "possibly running or in use")?;
+
+        let protected_path = backup_dir.protected_file(self.base_path());
+        if protection {
+            std::fs::File::create(protected_path)
+                .map_err(|err| format_err!("could not create protection file: {}", err))?;
+        } else if let Err(err) = std::fs::remove_file(protected_path) {
+            // ignore error for non-existing file
+            if err.kind() != std::io::ErrorKind::NotFound {
+                bail!("could not remove protection file: {}", err);
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn verify_new(&self) -> bool {
         self.verify_new
     }

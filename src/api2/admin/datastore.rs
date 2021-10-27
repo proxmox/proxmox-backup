@@ -1762,6 +1762,92 @@ pub fn set_notes(
             "backup-id": {
                 schema: BACKUP_ID_SCHEMA,
             },
+            "backup-time": {
+                schema: BACKUP_TIME_SCHEMA,
+            },
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_BACKUP, true),
+    },
+)]
+/// Query protection for a specific backup
+pub fn get_protection(
+    store: String,
+    backup_type: String,
+    backup_id: String,
+    backup_time: i64,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<bool, Error> {
+    let datastore = DataStore::lookup_datastore(&store)?;
+
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let backup_dir = BackupDir::new(backup_type, backup_id, backup_time)?;
+
+    check_priv_or_backup_owner(&datastore, backup_dir.group(), &auth_id, PRIV_DATASTORE_AUDIT)?;
+
+    let protected_path = backup_dir.protected_file(datastore.base_path());
+
+    Ok(protected_path.exists())
+}
+
+#[api(
+    input: {
+        properties: {
+            store: {
+                schema: DATASTORE_SCHEMA,
+            },
+            "backup-type": {
+                schema: BACKUP_TYPE_SCHEMA,
+            },
+            "backup-id": {
+                schema: BACKUP_ID_SCHEMA,
+            },
+            "backup-time": {
+                schema: BACKUP_TIME_SCHEMA,
+            },
+            protected: {
+                description: "Enable/disable protection.",
+            },
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&["datastore", "{store}"],
+                                           PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_BACKUP,
+                                           true),
+    },
+)]
+/// En- or disable protection for a specific backup
+pub fn set_protection(
+    store: String,
+    backup_type: String,
+    backup_id: String,
+    backup_time: i64,
+    protected: bool,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<(), Error> {
+    let datastore = DataStore::lookup_datastore(&store)?;
+
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let backup_dir = BackupDir::new(backup_type, backup_id, backup_time)?;
+
+    check_priv_or_backup_owner(&datastore, backup_dir.group(), &auth_id, PRIV_DATASTORE_MODIFY)?;
+
+    datastore.update_protection(&backup_dir, protected)
+}
+
+#[api(
+    input: {
+        properties: {
+            store: {
+                schema: DATASTORE_SCHEMA,
+            },
+            "backup-type": {
+                schema: BACKUP_TYPE_SCHEMA,
+            },
+            "backup-id": {
+                schema: BACKUP_ID_SCHEMA,
+            },
             "new-owner": {
                 type: Authid,
             },
@@ -1897,6 +1983,12 @@ const DATASTORE_INFO_SUBDIRS: SubdirMap = &[
         &Router::new()
             .get(&API_METHOD_GET_NOTES)
             .put(&API_METHOD_SET_NOTES)
+    ),
+    (
+        "protected",
+        &Router::new()
+            .get(&API_METHOD_GET_PROTECTION)
+            .put(&API_METHOD_SET_PROTECTION)
     ),
     (
         "prune",
