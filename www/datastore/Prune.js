@@ -103,6 +103,10 @@ Ext.define('PBS.Datastore.PruneInputPanel', {
 		let rule = nextRule();
 		for (let backup of backups) {
 		    if (backup.keep) {
+			if (backup.protected) {
+			    backup.keepReason = 'protected';
+			    continue;
+			}
 			counter[rule]++;
 			if (rule !== 'keep-all') {
 			    backup.keepReason = rule + ': ' + counter[rule];
