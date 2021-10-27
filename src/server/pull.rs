@@ -605,6 +605,14 @@ pub async fn pull_group(
             if remote_snapshots.contains(&backup_time) {
                 continue;
             }
+            if info.backup_dir.is_protected(tgt_store.base_path()) {
+                task_log!(
+                    worker,
+                    "don't delete vanished snapshot {:?} (protected)",
+                    info.backup_dir.relative_path()
+                );
+                continue;
+            }
             task_log!(worker, "delete vanished snapshot {:?}", info.backup_dir.relative_path());
             tgt_store.remove_backup_dir(&info.backup_dir, false)?;
         }
@@ -719,9 +727,15 @@ pub async fn pull_store(
                     local_group.backup_type(),
                     local_group.backup_id()
                 );
-                if let Err(err) = tgt_store.remove_backup_group(&local_group) {
-                    task_log!(worker, "{}", err.to_string());
-                    errors = true;
+                match tgt_store.remove_backup_group(&local_group) {
+                    Ok(true) => {},
+                    Ok(false) => {
+                        task_log!(worker, "kept some protected snapshots of group '{}'", local_group);
+                    },
+                    Err(err) => {
+                        task_log!(worker, "{}", err);
+                        errors = true;
+                    }
                 }
             }
             Ok(())
