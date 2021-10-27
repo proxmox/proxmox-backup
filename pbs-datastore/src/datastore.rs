@@ -266,8 +266,9 @@ impl DataStore {
         full_path
     }
 
-    /// Remove a complete backup group including all snapshots
-    pub fn remove_backup_group(&self, backup_group: &BackupGroup) ->  Result<(), Error> {
+    /// Remove a complete backup group including all snapshots, returns true
+    /// if all snapshots were removed, and false if some were protected
+    pub fn remove_backup_group(&self, backup_group: &BackupGroup) ->  Result<bool, Error> {
 
         let full_path = self.group_path(backup_group);
 
@@ -275,22 +276,30 @@ impl DataStore {
 
         log::info!("removing backup group {:?}", full_path);
 
+        let mut removed_all = true;
+
         // remove all individual backup dirs first to ensure nothing is using them
         for snap in backup_group.list_backups(&self.base_path())? {
+            if snap.backup_dir.is_protected(self.base_path()) {
+                removed_all = false;
+                continue;
+            }
             self.remove_backup_dir(&snap.backup_dir, false)?;
         }
 
-        // no snapshots left, we can now safely remove the empty folder
-        std::fs::remove_dir_all(&full_path)
-            .map_err(|err| {
-                format_err!(
-                    "removing backup group directory {:?} failed - {}",
-                    full_path,
-                    err,
-                )
-            })?;
+        if removed_all {
+            // no snapshots left, we can now safely remove the empty folder
+            std::fs::remove_dir_all(&full_path)
+                .map_err(|err| {
+                    format_err!(
+                        "removing backup group directory {:?} failed - {}",
+                        full_path,
+                        err,
+                    )
+                })?;
+        }
 
-        Ok(())
+        Ok(removed_all)
     }
 
     /// Remove a backup directory including all content
@@ -302,6 +311,10 @@ impl DataStore {
         if !force {
             _guard = lock_dir_noblock(&full_path, "snapshot", "possibly running or in use")?;
             _manifest_guard = self.lock_manifest(backup_dir)?;
+        }
+
+        if backup_dir.is_protected(self.base_path()) {
+            bail!("cannot remove protected snapshot");
         }
 
         log::info!("removing backup snapshot {:?}", full_path);
