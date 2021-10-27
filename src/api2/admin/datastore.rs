@@ -272,7 +272,9 @@ pub fn delete_group(
 
     check_priv_or_backup_owner(&datastore, &group, &auth_id, PRIV_DATASTORE_MODIFY)?;
 
-    datastore.remove_backup_group(&group)?;
+    if !datastore.remove_backup_group(&group)? {
+        bail!("did not delete whole group because of protected snapthots");
+    }
 
     Ok(Value::Null)
 }
