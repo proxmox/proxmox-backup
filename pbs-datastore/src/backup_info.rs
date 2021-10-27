@@ -92,7 +92,9 @@ impl BackupGroup {
                     BackupDir::with_rfc3339(&self.backup_type, &self.backup_id, backup_time)?;
                 let files = list_backup_files(l2_fd, backup_time)?;
 
-                list.push(BackupInfo { backup_dir, files });
+                let protected = backup_dir.is_protected(base_path.to_owned());
+
+                list.push(BackupInfo { backup_dir, files, protected });
 
                 Ok(())
             },
@@ -253,6 +255,17 @@ impl BackupDir {
         relative_path
     }
 
+    pub fn protected_file(&self, mut path: PathBuf) -> PathBuf {
+        path.push(self.relative_path());
+        path.push(".protected");
+        path
+    }
+
+    pub fn is_protected(&self, base_path: PathBuf) -> bool {
+        let path = self.protected_file(base_path);
+        path.exists()
+    }
+
     pub fn backup_time_to_string(backup_time: i64) -> Result<String, Error> {
         // fixme: can this fail? (avoid unwrap)
         Ok(proxmox_time::epoch_to_rfc3339_utc(backup_time)?)
@@ -293,6 +306,8 @@ pub struct BackupInfo {
     pub backup_dir: BackupDir,
     /// List of data files
     pub files: Vec<String>,
+    /// Protection Status
+    pub protected: bool,
 }
 
 impl BackupInfo {
@@ -301,8 +316,9 @@ impl BackupInfo {
         path.push(backup_dir.relative_path());
 
         let files = list_backup_files(libc::AT_FDCWD, &path)?;
+        let protected = backup_dir.is_protected(base_path.to_owned());
 
-        Ok(BackupInfo { backup_dir, files })
+        Ok(BackupInfo { backup_dir, files, protected })
     }
 
     /// Finds the latest backup inside a backup group

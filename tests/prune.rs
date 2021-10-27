@@ -42,7 +42,7 @@ fn create_info(
         files.push(String::from(MANIFEST_BLOB_NAME));
     }
 
-    BackupInfo { backup_dir, files }
+    BackupInfo { backup_dir, files, protected: false }
 }
 
 #[test]
