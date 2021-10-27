@@ -10,7 +10,7 @@ use crate::sgutils2::{SgRaw, alloc_page_aligned_buffer};
 
 /// Test if drive supports hardware encryption
 ///
-/// We search for AES_CGM algorithm with 256bits key.
+/// We search for AES_GCM algorithm with 256bits key.
 pub fn has_encryption<F: AsRawFd>(
     file: &mut F,
 ) -> bool {
@@ -213,14 +213,14 @@ struct SspDataEncryptionAlgorithmDescriptor {
     algorithm_code: u32,
 }
 
-// Returns the algorythm_index for AES-CGM
+// Returns the algorythm_index for AES-GCM
 fn decode_spin_data_encryption_caps(data: &[u8]) -> Result<u8, Error> {
 
     proxmox_lang::try_block!({
         let mut reader = &data[..];
         let _page: SspDataEncryptionCapabilityPage = unsafe { reader.read_be_value()? };
 
-        let mut aes_cgm_index = None;
+        let mut aes_gcm_index = None;
 
         loop {
             if reader.is_empty() { break; };
@@ -236,14 +236,14 @@ fn decode_spin_data_encryption_caps(data: &[u8]) -> Result<u8, Error> {
                 continue; // can't decrypt in hardware
             }
             if desc.algorithm_code == 0x00010014 && desc.key_size == 32 {
-                aes_cgm_index = Some(desc.algorythm_index);
+                aes_gcm_index = Some(desc.algorythm_index);
                 break;
             }
         }
 
-        match aes_cgm_index {
+        match aes_gcm_index {
             Some(index) => Ok(index),
-            None => bail!("drive does not support AES-CGM encryption"),
+            None => bail!("drive does not support AES-GCM encryption"),
         }
     }).map_err(|err: Error| format_err!("decode data encryption caps page failed - {}", err))
 

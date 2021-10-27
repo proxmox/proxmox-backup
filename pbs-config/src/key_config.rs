@@ -67,7 +67,7 @@ impl KeyDerivationConfig {
 /// Encryption Key Configuration
 ///
 /// We use this struct to store secret keys. When used with a key
-/// derivation function, the key data is encrypted (AES-CGM), and you
+/// derivation function, the key data is encrypted (AES-GCM), and you
 /// need the password to restore the plain key.
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct KeyConfig {
