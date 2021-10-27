@@ -358,6 +358,118 @@ async fn update_notes(param: Value) -> Result<Value, Error> {
     Ok(Value::Null)
 }
 
+#[api(
+    input: {
+        properties: {
+            repository: {
+                schema: REPO_URL_SCHEMA,
+                optional: true,
+            },
+            snapshot: {
+                type: String,
+                description: "Snapshot path.",
+            },
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+        }
+    }
+)]
+/// Show protection status of the specified snapshot
+async fn show_protection(param: Value) -> Result<Value, Error> {
+    let repo = extract_repository_from_value(&param)?;
+    let path = required_string_param(&param, "snapshot")?;
+
+    let snapshot: BackupDir = path.parse()?;
+    let client = connect(&repo)?;
+
+    let path = format!("api2/json/admin/datastore/{}/protected", repo.store());
+
+    let args = json!({
+        "backup-type": snapshot.group().backup_type(),
+        "backup-id": snapshot.group().backup_id(),
+        "backup-time": snapshot.backup_time(),
+    });
+
+    let output_format = get_output_format(&param);
+
+    let mut result = client.get(&path, Some(args)).await?;
+
+    let protected = result["data"].take();
+
+    if output_format == "text" {
+        if let Some(protected) = protected.as_bool() {
+            println!("{}", protected);
+        }
+    } else {
+        format_and_print_result(
+            &json!({
+                "protected": protected,
+            }),
+            &output_format,
+        );
+    }
+
+    Ok(Value::Null)
+}
+
+#[api(
+    input: {
+        properties: {
+            repository: {
+                schema: REPO_URL_SCHEMA,
+                optional: true,
+            },
+            snapshot: {
+                type: String,
+                description: "Snapshot path.",
+            },
+            protected: {
+                type: bool,
+                description: "The protection status.",
+            },
+        }
+    }
+)]
+/// Update Protection Status of a snapshot
+async fn update_protection(protected: bool, param: Value) -> Result<Value, Error> {
+    let repo = extract_repository_from_value(&param)?;
+    let path = required_string_param(&param, "snapshot")?;
+
+    let snapshot: BackupDir = path.parse()?;
+    let mut client = connect(&repo)?;
+
+    let path = format!("api2/json/admin/datastore/{}/protected", repo.store());
+
+    let args = json!({
+        "backup-type": snapshot.group().backup_type(),
+        "backup-id": snapshot.group().backup_id(),
+        "backup-time": snapshot.backup_time(),
+        "protected": protected,
+    });
+
+    client.put(&path, Some(args)).await?;
+
+    Ok(Value::Null)
+}
+
+fn protected_cli() -> CliCommandMap {
+    CliCommandMap::new()
+        .insert(
+            "show",
+            CliCommand::new(&API_METHOD_SHOW_PROTECTION)
+                .arg_param(&["snapshot"])
+                .completion_cb("snapshot", complete_backup_snapshot),
+        )
+        .insert(
+            "update",
+            CliCommand::new(&API_METHOD_UPDATE_PROTECTION)
+                .arg_param(&["snapshot", "protected"])
+                .completion_cb("snapshot", complete_backup_snapshot),
+        )
+}
+
 fn notes_cli() -> CliCommandMap {
     CliCommandMap::new()
         .insert(
@@ -377,6 +489,7 @@ fn notes_cli() -> CliCommandMap {
 pub fn snapshot_mgtm_cli() -> CliCommandMap {
     CliCommandMap::new()
         .insert("notes", notes_cli())
+        .insert("protected", protected_cli())
         .insert(
             "list",
             CliCommand::new(&API_METHOD_LIST_SNAPSHOTS)
