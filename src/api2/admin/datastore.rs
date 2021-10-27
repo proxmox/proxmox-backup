@@ -441,6 +441,7 @@ pub fn list_snapshots (
         let backup_type = group.backup_type().to_string();
         let backup_id = group.backup_id().to_string();
         let backup_time = info.backup_dir.backup_time();
+        let protected = info.backup_dir.is_protected(base_path.clone());
 
         match get_all_snapshot_files(&datastore, &info) {
             Ok((manifest, files)) => {
@@ -479,6 +480,7 @@ pub fn list_snapshots (
                     files,
                     size,
                     owner,
+                    protected,
                 }
             },
             Err(err) => {
@@ -503,6 +505,7 @@ pub fn list_snapshots (
                     files,
                     size: None,
                     owner,
+                    protected,
                 }
             },
         }
@@ -846,8 +849,8 @@ pub fn prune(
     let keep_all = !pbs_datastore::prune::keeps_something(&prune_options);
 
     if dry_run {
-        for (info, mut keep) in prune_info {
-            if keep_all { keep = true; }
+        for (info, mark) in prune_info {
+            let keep = keep_all || mark.keep();
 
             let backup_time = info.backup_dir.backup_time();
             let group = info.backup_dir.group();
@@ -857,6 +860,7 @@ pub fn prune(
                 "backup-id": group.backup_id(),
                 "backup-time": backup_time,
                 "keep": keep,
+                "protected": mark.protected(),
             }));
         }
         return Ok(json!(prune_result));
@@ -874,8 +878,8 @@ pub fn prune(
                   store, backup_type, backup_id);
     }
 
-    for (info, mut keep) in prune_info {
-        if keep_all { keep = true; }
+    for (info, mark) in prune_info {
+        let keep = keep_all || mark.keep();
 
         let backup_time = info.backup_dir.backup_time();
         let timestamp = info.backup_dir.backup_time_string();
@@ -887,7 +891,7 @@ pub fn prune(
             group.backup_type(),
             group.backup_id(),
             timestamp,
-            if keep { "keep" } else { "remove" },
+            mark,
         );
 
         task_log!(worker, "{}", msg);
@@ -897,6 +901,7 @@ pub fn prune(
             "backup-id": group.backup_id(),
             "backup-time": backup_time,
             "keep": keep,
+            "protected": mark.protected(),
         }));
 
         if !(dry_run || keep) {

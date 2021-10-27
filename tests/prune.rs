@@ -19,8 +19,8 @@ fn get_prune_list(
 
     prune_info
         .iter()
-        .filter_map(|(info, keep)| {
-            if *keep != return_kept {
+        .filter_map(|(info, mark)| {
+            if mark.keep() != return_kept {
                 None
             } else {
                 Some(info.backup_dir.relative_path())

@@ -390,6 +390,8 @@ pub struct SnapshotListItem {
     /// The owner of the snapshots group
     #[serde(skip_serializing_if = "Option::is_none")]
     pub owner: Option<Authid>,
+    /// Protection from prunes
+    pub protected: bool,
 }
 
 #[api(

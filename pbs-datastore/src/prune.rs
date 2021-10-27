@@ -7,7 +7,30 @@ use pbs_api_types::PruneOptions;
 
 use super::BackupInfo;
 
-enum PruneMark { Protected, Keep, KeepPartial, Remove }
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum PruneMark { Protected, Keep, KeepPartial, Remove }
+
+impl PruneMark {
+    pub fn keep(&self) -> bool {
+        *self != PruneMark::Remove
+    }
+
+    pub fn protected(&self) -> bool {
+        *self == PruneMark::Protected
+    }
+}
+
+impl std::fmt::Display for PruneMark {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let txt = match self {
+            PruneMark::Protected => "protected",
+            PruneMark::Keep => "keep",
+            PruneMark::KeepPartial => "keep-partial",
+            PruneMark::Remove => "remove",
+        };
+        write!(f, "{}", txt)
+    }
+}
 
 fn mark_selections<F: Fn(&BackupInfo) -> Result<String, Error>> (
     mark: &mut HashMap<PathBuf, PruneMark>,
@@ -125,7 +148,7 @@ pub fn cli_options_string(options: &PruneOptions) -> String {
 pub fn compute_prune_info(
     mut list: Vec<BackupInfo>,
     options: &PruneOptions,
-) -> Result<Vec<(BackupInfo, bool)>, Error> {
+) -> Result<Vec<(BackupInfo, PruneMark)>, Error> {
 
     let mut mark = HashMap::new();
 
@@ -173,15 +196,16 @@ pub fn compute_prune_info(
         })?;
     }
 
-    let prune_info: Vec<(BackupInfo, bool)> = list.into_iter()
+    let prune_info: Vec<(BackupInfo, PruneMark)> = list.into_iter()
         .map(|info| {
             let backup_id = info.backup_dir.relative_path();
-            let keep = match mark.get(&backup_id) {
-                Some(PruneMark::Keep) => true,
-                Some(PruneMark::KeepPartial) => true,
-               _ => false,
+            let mark = if info.protected {
+                PruneMark::Protected
+            } else {
+                *mark.get(&backup_id).unwrap_or(&PruneMark::Remove)
             };
-            (info, keep)
+
+            (info, mark)
         })
         .collect();
 

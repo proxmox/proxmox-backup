@@ -63,12 +63,12 @@ pub fn prune_datastore(
             group.backup_id()
         );
 
-        for (info, mut keep) in prune_info {
-            if keep_all { keep = true; }
+        for (info, mark) in prune_info {
+            let keep = keep_all || mark.keep();
             task_log!(
                 worker,
                 "{} {}/{}/{}",
-                if keep { "keep" } else { "remove" },
+                mark,
                 group.backup_type(),
                 group.backup_id(),
                 info.backup_dir.backup_time_string()
