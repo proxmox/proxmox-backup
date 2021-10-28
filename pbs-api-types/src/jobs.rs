@@ -1,3 +1,7 @@
+use anyhow::format_err;
+use std::str::FromStr;
+
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use proxmox_schema::*;
@@ -5,6 +9,7 @@ use proxmox_schema::*;
 use crate::{
     Userid, Authid, REMOTE_ID_SCHEMA, DRIVE_NAME_SCHEMA, MEDIA_POOL_NAME_SCHEMA,
     SINGLE_LINE_COMMENT_SCHEMA, PROXMOX_SAFE_ID_FORMAT, DATASTORE_SCHEMA,
+    BACKUP_GROUP_SCHEMA, BACKUP_TYPE_SCHEMA,
 };
 
 const_regex!{
@@ -316,6 +321,57 @@ pub struct TapeBackupJobStatus {
     #[serde(skip_serializing_if="Option::is_none")]
     pub next_media_label: Option<String>,
 }
+
+#[derive(Clone, Debug)]
+/// Filter for matching `BackupGroup`s, for use with `BackupGroup::filter`.
+pub enum GroupFilter {
+    /// BackupGroup type - either `vm`, `ct`, or `host`.
+    BackupType(String),
+    /// Full identifier of BackupGroup, including type
+    Group(String),
+    /// A regular expression matched against the full identifier of the BackupGroup
+    Regex(Regex),
+}
+
+impl std::str::FromStr for GroupFilter {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.split_once(":") {
+            Some(("group", value)) => parse_simple_value(value, &BACKUP_GROUP_SCHEMA).map(|_| GroupFilter::Group(value.to_string())),
+            Some(("type", value)) => parse_simple_value(value, &BACKUP_TYPE_SCHEMA).map(|_| GroupFilter::BackupType(value.to_string())),
+            Some(("regex", value)) => Ok(GroupFilter::Regex(Regex::new(value)?)),
+            Some((ty, _value)) => Err(format_err!("expected 'group', 'type' or 'regex' prefix, got '{}'", ty)),
+            None => Err(format_err!("input doesn't match expected format '<group:GROUP||type:<vm|ct|host>|regex:REGEX>'")),
+        }.map_err(|err| format_err!("'{}' - {}", s, err))
+    }
+}
+
+// used for serializing below, caution!
+impl std::fmt::Display for GroupFilter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GroupFilter::BackupType(backup_type) => write!(f, "type:{}", backup_type),
+            GroupFilter::Group(backup_group) => write!(f, "group:{}", backup_group),
+            GroupFilter::Regex(regex) => write!(f, "regex:{}", regex.as_str()),
+        }
+    }
+}
+
+proxmox::forward_deserialize_to_from_str!(GroupFilter);
+proxmox::forward_serialize_to_display!(GroupFilter);
+
+fn verify_group_filter(input: &str) -> Result<(), anyhow::Error> {
+    GroupFilter::from_str(input).map(|_| ())
+}
+
+pub const GROUP_FILTER_SCHEMA: Schema = StringSchema::new(
+    "Group filter based on group identifier ('group:GROUP'), group type ('type:<vm|ct|host>'), or regex ('regex:RE').")
+    .format(&ApiStringFormat::VerifyFn(verify_group_filter))
+    .type_text("<type:<vm|ct|host>|group:GROUP|regex:RE>")
+    .schema();
+
+pub const GROUP_FILTER_LIST_SCHEMA: Schema = ArraySchema::new("List of group filters.", &GROUP_FILTER_SCHEMA).schema();
 
 #[api(
     properties: {
