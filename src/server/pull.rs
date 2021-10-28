@@ -656,29 +656,32 @@ pub async fn pull_store(
         }
     });
 
+    let list:Vec<BackupGroup> = list
+        .into_iter()
+        .map(|item| BackupGroup::new(item.backup_type, item.backup_id))
+        .collect();
+
     let mut errors = false;
 
     let mut new_groups = std::collections::HashSet::new();
-    for item in list.iter() {
-        new_groups.insert(BackupGroup::new(&item.backup_type, &item.backup_id));
+    for group in list.iter() {
+        new_groups.insert(group.clone());
     }
 
     let mut progress = StoreProgress::new(list.len() as u64);
 
-    for (done, item) in list.into_iter().enumerate() {
+    for (done, group) in list.into_iter().enumerate() {
         progress.done_groups = done as u64;
         progress.done_snapshots = 0;
         progress.group_snapshots = 0;
-
-        let group = BackupGroup::new(&item.backup_type, &item.backup_id);
 
         let (owner, _lock_guard) = match tgt_store.create_locked_backup_group(&group, &auth_id) {
             Ok(result) => result,
             Err(err) => {
                 task_log!(
                     worker,
-                    "sync group {}/{} failed - group lock failed: {}",
-                    item.backup_type, item.backup_id, err
+                    "sync group {} failed - group lock failed: {}",
+                    &group, err
                 );
                 errors = true; // do not stop here, instead continue
                 continue;
@@ -690,8 +693,8 @@ pub async fn pull_store(
             // only the owner is allowed to create additional snapshots
             task_log!(
                 worker,
-                "sync group {}/{} failed - owner check failed ({} != {})",
-                item.backup_type, item.backup_id, auth_id, owner
+                "sync group {} failed - owner check failed ({} != {})",
+                &group, auth_id, owner
             );
             errors = true; // do not stop here, instead continue
         } else if let Err(err) = pull_group(
@@ -707,8 +710,8 @@ pub async fn pull_store(
         {
             task_log!(
                 worker,
-                "sync group {}/{} failed - {}",
-                item.backup_type, item.backup_id, err,
+                "sync group {} failed - {}",
+                &group, err,
             );
             errors = true; // do not stop here, instead continue
         }
