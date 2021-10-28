@@ -89,6 +89,7 @@ pub fn sync_job_commands() -> CommandLineInterface {
                 .completion_cb("store", pbs_config::datastore::complete_datastore_name)
                 .completion_cb("remote", pbs_config::remote::complete_remote_name)
                 .completion_cb("remote-store", crate::complete_remote_datastore_name)
+                .completion_cb("groups", crate::complete_remote_datastore_group_filter)
         )
         .insert("update",
                 CliCommand::new(&api2::config::sync::API_METHOD_UPDATE_SYNC_JOB)
@@ -97,6 +98,7 @@ pub fn sync_job_commands() -> CommandLineInterface {
                 .completion_cb("schedule", pbs_config::datastore::complete_calendar_event)
                 .completion_cb("store", pbs_config::datastore::complete_datastore_name)
                 .completion_cb("remote-store", crate::complete_remote_datastore_name)
+                .completion_cb("groups", crate::complete_remote_datastore_group_filter)
         )
         .insert("remove",
                 CliCommand::new(&api2::config::sync::API_METHOD_DELETE_SYNC_JOB)

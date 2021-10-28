@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::io::{self, Write};
 
-use anyhow::{format_err, Error};
+use anyhow::Error;
 use serde_json::{json, Value};
 
 use proxmox::tools::fs::CreateOptions;
@@ -9,10 +9,11 @@ use proxmox_router::{cli::*, RpcEnvironment};
 use proxmox_schema::api;
 
 use pbs_client::{display_task_log, view_task_result};
+use pbs_config::sync;
 use pbs_tools::percent_encoding::percent_encode_component;
 use pbs_tools::json::required_string_param;
 use pbs_api_types::{
-    GroupFilter,
+    GroupFilter, SyncJobConfig,
     DATASTORE_SCHEMA, GROUP_FILTER_LIST_SCHEMA, IGNORE_VERIFIED_BACKUPS_SCHEMA, REMOTE_ID_SCHEMA,
     REMOVE_VANISHED_BACKUPS_SCHEMA, UPID_SCHEMA, VERIFICATION_OUTDATED_AFTER_SCHEMA,
 };
@@ -399,6 +400,7 @@ async fn run() -> Result<(), Error> {
                 .completion_cb("local-store", pbs_config::datastore::complete_datastore_name)
                 .completion_cb("remote", pbs_config::remote::complete_remote_name)
                 .completion_cb("remote-store", complete_remote_datastore_name)
+                .completion_cb("groups", complete_remote_datastore_group_filter)
         )
         .insert(
             "verify",
@@ -441,24 +443,105 @@ fn main() -> Result<(), Error> {
     pbs_runtime::main(run())
 }
 
+fn get_sync_job(id: &String) -> Result<SyncJobConfig, Error> {
+    let (config, _digest) = sync::config()?;
+
+    config.lookup("sync", id)
+}
+
+fn get_remote(param: &HashMap<String, String>) -> Option<String> {
+    param
+        .get("remote")
+        .map(|r| r.to_owned())
+        .or_else(|| {
+            if let Some(id) = param.get("id") {
+                if let Ok(job) = get_sync_job(id) {
+                    return Some(job.remote.clone());
+                }
+            }
+            None
+        })
+}
+
+fn get_remote_store(param: &HashMap<String, String>) -> Option<(String, String)> {
+    let mut job: Option<SyncJobConfig> = None;
+
+    let remote = param
+        .get("remote")
+        .map(|r| r.to_owned())
+        .or_else(|| {
+            if let Some(id) = param.get("id") {
+                job = get_sync_job(id).ok();
+                if let Some(ref job) = job {
+                    return Some(job.remote.clone());
+                }
+            }
+            None
+        });
+
+    if let Some(remote) = remote {
+        let store = param
+            .get("remote-store")
+            .map(|r| r.to_owned())
+            .or_else(|| job.map(|job| job.remote_store.clone()));
+
+        if let Some(store) = store {
+            return Some((remote, store))
+        }
+    }
+
+    None
+}
+
 // shell completion helper
 pub fn complete_remote_datastore_name(_arg: &str, param: &HashMap<String, String>) -> Vec<String> {
 
     let mut list = Vec::new();
 
-    let _ = proxmox_lang::try_block!({
-        let remote = param.get("remote").ok_or_else(|| format_err!("no remote"))?;
+    if let Some(remote) = get_remote(param) {
+        if let Ok(data) = pbs_runtime::block_on(async move {
+                crate::api2::config::remote::scan_remote_datastores(remote).await
+            }) {
 
-        let data = pbs_runtime::block_on(async move {
-            crate::api2::config::remote::scan_remote_datastores(remote.clone()).await
-        })?;
-
-        for item in data {
-            list.push(item.store);
+            for item in data {
+                list.push(item.store);
+            }
         }
+    }
 
-        Ok(())
-    }).map_err(|_err: Error| { /* ignore */ });
+    list
+}
+
+// shell completion helper
+pub fn complete_remote_datastore_group(_arg: &str, param: &HashMap<String, String>) -> Vec<String> {
+
+    let mut list = Vec::new();
+
+    if let Some((remote, remote_store)) = get_remote_store(param) {
+        if let Ok(data) = pbs_runtime::block_on(async move {
+            crate::api2::config::remote::scan_remote_groups(remote.clone(), remote_store.clone()).await
+        }) {
+
+            for item in data {
+                list.push(format!("{}/{}", item.backup_type, item.backup_id));
+            }
+        }
+    }
+
+    list
+}
+
+// shell completion helper
+pub fn complete_remote_datastore_group_filter(_arg: &str, param: &HashMap<String, String>) -> Vec<String> {
+
+    let mut list = Vec::new();
+
+    list.push("regex:".to_string());
+    list.push("type:ct".to_string());
+    list.push("type:host".to_string());
+    list.push("type:vm".to_string());
+
+    list.extend(complete_remote_datastore_group(_arg, param).iter().map(|group| format!("group:{}", group)));
 
     list
 }

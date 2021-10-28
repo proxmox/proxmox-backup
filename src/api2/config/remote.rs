@@ -1,4 +1,7 @@
 use anyhow::{bail, format_err, Error};
+use proxmox::sortable;
+use proxmox_router::SubdirMap;
+use proxmox_router::list_subdirs_api_method;
 use serde_json::Value;
 use ::serde::{Deserialize, Serialize};
 
@@ -8,8 +11,8 @@ use proxmox_schema::api;
 use pbs_client::{HttpClient, HttpClientOptions};
 use pbs_api_types::{
     REMOTE_ID_SCHEMA, REMOTE_PASSWORD_SCHEMA, Remote, RemoteConfig, RemoteConfigUpdater,
-    Authid, PROXMOX_CONFIG_DIGEST_SCHEMA, DataStoreListItem, SyncJobConfig,
-    PRIV_REMOTE_AUDIT, PRIV_REMOTE_MODIFY,
+    Authid, PROXMOX_CONFIG_DIGEST_SCHEMA, DATASTORE_SCHEMA, GroupListItem,
+    DataStoreListItem, SyncJobConfig, PRIV_REMOTE_AUDIT, PRIV_REMOTE_MODIFY,
 };
 use pbs_config::sync;
 
@@ -340,8 +343,72 @@ pub async fn scan_remote_datastores(name: String) -> Result<Vec<DataStoreListIte
     }
 }
 
+#[api(
+    input: {
+        properties: {
+            name: {
+                schema: REMOTE_ID_SCHEMA,
+            },
+            store: {
+                schema: DATASTORE_SCHEMA,
+            },
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&["remote", "{name}"], PRIV_REMOTE_AUDIT, false),
+    },
+    returns: {
+        description: "Lists the accessible backup groups in a remote datastore.",
+        type: Array,
+        items: { type: GroupListItem },
+    },
+)]
+/// List groups of a remote.cfg entry's datastore
+pub async fn scan_remote_groups(name: String, store: String) -> Result<Vec<GroupListItem>, Error> {
+    let (remote_config, _digest) = pbs_config::remote::config()?;
+    let remote: Remote = remote_config.lookup("remote", &name)?;
+
+    let map_remote_err = |api_err| {
+        http_err!(INTERNAL_SERVER_ERROR,
+                  "failed to scan remote '{}' - {}",
+                  &name,
+                  api_err)
+    };
+
+    let client = remote_client(&remote)
+        .await
+        .map_err(map_remote_err)?;
+    let api_res = client
+        .get(&format!("api2/json/admin/datastore/{}/groups", store), None)
+        .await
+        .map_err(map_remote_err)?;
+    let parse_res = match api_res.get("data") {
+        Some(data) => serde_json::from_value::<Vec<GroupListItem>>(data.to_owned()),
+        None => bail!("remote {} did not return any group list data", &name),
+    };
+
+    match parse_res {
+        Ok(parsed) => Ok(parsed),
+        Err(_) => bail!("Failed to parse remote scan api result."),
+    }
+}
+
+#[sortable]
+const DATASTORE_SCAN_SUBDIRS: SubdirMap = &[
+    (
+        "groups",
+        &Router::new()
+            .get(&API_METHOD_SCAN_REMOTE_GROUPS)
+    ),
+];
+
+const DATASTORE_SCAN_ROUTER: Router = Router::new()
+    .get(&list_subdirs_api_method!(DATASTORE_SCAN_SUBDIRS))
+    .subdirs(DATASTORE_SCAN_SUBDIRS);
+
 const SCAN_ROUTER: Router = Router::new()
-    .get(&API_METHOD_SCAN_REMOTE_DATASTORES);
+    .get(&API_METHOD_SCAN_REMOTE_DATASTORES)
+    .match_all("store", &DATASTORE_SCAN_ROUTER);
 
 const ITEM_ROUTER: Router = Router::new()
     .get(&API_METHOD_READ_REMOTE)
