@@ -1,5 +1,6 @@
 use std::os::unix::io::RawFd;
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 
 use anyhow::{bail, format_err, Error};
 
@@ -10,6 +11,7 @@ use pbs_api_types::{
     GROUP_PATH_REGEX,
     SNAPSHOT_PATH_REGEX,
     BACKUP_FILE_REGEX,
+    GroupFilter,
 };
 
 use super::manifest::MANIFEST_BLOB_NAME;
@@ -154,6 +156,17 @@ impl BackupGroup {
         )?;
 
         Ok(last)
+    }
+
+    pub fn matches(&self, filter: &GroupFilter) -> bool {
+        match filter {
+            GroupFilter::Group(backup_group) => match BackupGroup::from_str(&backup_group) {
+                Ok(group) => &group == self,
+                Err(_) => false, // shouldn't happen if value is schema-checked
+            },
+            GroupFilter::BackupType(backup_type) => self.backup_type() == backup_type,
+            GroupFilter::Regex(regex) => regex.is_match(&self.to_string()),
+        }
     }
 }
 
