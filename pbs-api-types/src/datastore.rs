@@ -40,6 +40,7 @@ pub const BACKUP_ARCHIVE_NAME_SCHEMA: Schema = StringSchema::new("Backup archive
     .schema();
 
 pub const BACKUP_ID_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&BACKUP_ID_REGEX);
+pub const BACKUP_GROUP_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&GROUP_PATH_REGEX);
 
 pub const BACKUP_ID_SCHEMA: Schema = StringSchema::new("Backup ID.")
     .format(&BACKUP_ID_FORMAT)
@@ -55,6 +56,10 @@ pub const BACKUP_TYPE_SCHEMA: Schema = StringSchema::new("Backup type.")
 
 pub const BACKUP_TIME_SCHEMA: Schema = IntegerSchema::new("Backup time (Unix epoch.)")
     .minimum(1_547_797_308)
+    .schema();
+
+pub const BACKUP_GROUP_SCHEMA: Schema = StringSchema::new("Backup Group")
+    .format(&BACKUP_GROUP_FORMAT)
     .schema();
 
 pub const DATASTORE_SCHEMA: Schema = StringSchema::new("Datastore name.")
