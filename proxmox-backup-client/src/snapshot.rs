@@ -377,7 +377,7 @@ async fn update_notes(param: Value) -> Result<Value, Error> {
     }
 )]
 /// Show protection status of the specified snapshot
-async fn show_protection(param: Value) -> Result<Value, Error> {
+async fn show_protection(param: Value) -> Result<(), Error> {
     let repo = extract_repository_from_value(&param)?;
     let path = required_string_param(&param, "snapshot")?;
 
@@ -411,7 +411,7 @@ async fn show_protection(param: Value) -> Result<Value, Error> {
         );
     }
 
-    Ok(Value::Null)
+    Ok(())
 }
 
 #[api(
@@ -433,7 +433,7 @@ async fn show_protection(param: Value) -> Result<Value, Error> {
     }
 )]
 /// Update Protection Status of a snapshot
-async fn update_protection(protected: bool, param: Value) -> Result<Value, Error> {
+async fn update_protection(protected: bool, param: Value) -> Result<(), Error> {
     let repo = extract_repository_from_value(&param)?;
     let path = required_string_param(&param, "snapshot")?;
 
@@ -451,7 +451,7 @@ async fn update_protection(protected: bool, param: Value) -> Result<Value, Error
 
     client.put(&path, Some(args)).await?;
 
-    Ok(Value::Null)
+    Ok(())
 }
 
 fn protected_cli() -> CliCommandMap {
