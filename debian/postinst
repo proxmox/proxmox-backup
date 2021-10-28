@@ -4,6 +4,14 @@ set -e
 
 #DEBHELPER#
 
+update_sync_job() {
+    job="$1"
+
+    echo "Updating sync job '$job' to make old 'remove-vanished' default explicit.."
+    proxmox-backup-manager sync-job update "$job" --remove-vanished true \
+      || echo "Failed, please check sync.cfg manually!"
+}
+
 case "$1" in
     configure)
 	# need to have user backup in the tape group
@@ -31,6 +39,29 @@ case "$1" in
 		if grep -q -e ':termproxy::[^@]\+: ' /var/log/proxmox-backup/tasks/active; then
 			echo "Fixing up termproxy user id in task log..."
 			flock -w 30 /var/log/proxmox-backup/tasks/active.lock sed -i 's/:termproxy::\([^@]\+\): /:termproxy::\1@pam: /' /var/log/proxmox-backup/tasks/active || true
+		fi
+
+		if dpkg --compare-versions "$2" 'lt' '7.1-1' && test -e /etc/proxmox-backup/sync.cfg; then
+			prev_job=""
+
+			# read from HERE doc because POSIX sh limitations
+			while read -r key value; do
+				if test "$key" = "sync:"; then
+					if test -n "$prev_job"; then
+						# previous job doesn't have an explicit value
+						update_sync_job "$prev_job"
+					fi
+					prev_job=$value
+				else
+					prev_job=""
+				fi
+			done <<EOF
+$(grep -e '^sync:' -e 'remove-vanished' /etc/proxmox-backup/sync.cfg)
+EOF
+			if test -n "$prev_job"; then
+				# last job doesn't have an explicit value
+				update_sync_job "$prev_job"
+			fi
 		fi
 	fi
     ;;

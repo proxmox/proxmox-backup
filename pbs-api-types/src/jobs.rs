@@ -52,7 +52,7 @@ pub const VERIFICATION_SCHEDULE_SCHEMA: Schema = StringSchema::new(
 
 pub const REMOVE_VANISHED_BACKUPS_SCHEMA: Schema = BooleanSchema::new(
     "Delete vanished backups. This remove the local copy if the remote backup was deleted.")
-    .default(true)
+    .default(false)
     .schema();
 
 #[api(

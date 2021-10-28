@@ -179,7 +179,7 @@ async fn pull (
 ) -> Result<String, Error> {
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-    let delete = remove_vanished.unwrap_or(true);
+    let delete = remove_vanished.unwrap_or(false);
 
     check_pull_privs(&auth_id, &store, &remote, &remote_store, delete)?;
 

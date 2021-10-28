@@ -57,7 +57,7 @@ impl PullParameters {
         let (remote_config, _digest) = pbs_config::remote::config()?;
         let remote: Remote = remote_config.lookup("remote", remote)?;
 
-        let remove_vanished = remove_vanished.unwrap_or(true);
+        let remove_vanished = remove_vanished.unwrap_or(false);
 
         let source = BackupRepository::new(
             Some(remote.config.auth_id.clone()),
