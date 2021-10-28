@@ -11,12 +11,12 @@ use super::BackupInfo;
 pub enum PruneMark { Protected, Keep, KeepPartial, Remove }
 
 impl PruneMark {
-    pub fn keep(&self) -> bool {
-        *self != PruneMark::Remove
+    pub fn keep(self) -> bool {
+        self != PruneMark::Remove
     }
 
-    pub fn protected(&self) -> bool {
-        *self == PruneMark::Protected
+    pub fn protected(self) -> bool {
+        self == PruneMark::Protected
     }
 }
 
@@ -202,7 +202,7 @@ pub fn compute_prune_info(
             let mark = if info.protected {
                 PruneMark::Protected
             } else {
-                *mark.get(&backup_id).unwrap_or(&PruneMark::Remove)
+                mark.get(&backup_id).copied().unwrap_or(PruneMark::Remove)
             };
 
             (info, mark)
