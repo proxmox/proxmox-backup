@@ -1786,9 +1786,7 @@ pub fn get_protection(
 
     check_priv_or_backup_owner(&datastore, backup_dir.group(), &auth_id, PRIV_DATASTORE_AUDIT)?;
 
-    let protected_path = backup_dir.protected_file(datastore.base_path());
-
-    Ok(protected_path.exists())
+    Ok(backup_dir.is_protected(datastore.base_path()))
 }
 
 #[api(
