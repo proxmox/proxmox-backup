@@ -12,8 +12,9 @@ use pbs_client::{display_task_log, view_task_result};
 use pbs_tools::percent_encoding::percent_encode_component;
 use pbs_tools::json::required_string_param;
 use pbs_api_types::{
-    DATASTORE_SCHEMA, UPID_SCHEMA, REMOTE_ID_SCHEMA, REMOVE_VANISHED_BACKUPS_SCHEMA,
-    IGNORE_VERIFIED_BACKUPS_SCHEMA, VERIFICATION_OUTDATED_AFTER_SCHEMA,
+    GroupFilter,
+    DATASTORE_SCHEMA, GROUP_FILTER_LIST_SCHEMA, IGNORE_VERIFIED_BACKUPS_SCHEMA, REMOTE_ID_SCHEMA,
+    REMOVE_VANISHED_BACKUPS_SCHEMA, UPID_SCHEMA, VERIFICATION_OUTDATED_AFTER_SCHEMA,
 };
 
 use proxmox_rest_server::wait_for_local_worker;
@@ -238,6 +239,10 @@ fn task_mgmt_cli() -> CommandLineInterface {
                 schema: REMOVE_VANISHED_BACKUPS_SCHEMA,
                 optional: true,
             },
+            "groups": {
+                schema: GROUP_FILTER_LIST_SCHEMA,
+                optional: true,
+            },
             "output-format": {
                 schema: OUTPUT_FORMAT,
                 optional: true,
@@ -251,6 +256,7 @@ async fn pull_datastore(
     remote_store: String,
     local_store: String,
     remove_vanished: Option<bool>,
+    groups: Option<Vec<GroupFilter>>,
     param: Value,
 ) -> Result<Value, Error> {
 
@@ -263,6 +269,10 @@ async fn pull_datastore(
         "remote": remote,
         "remote-store": remote_store,
     });
+
+    if groups.is_some() {
+        args["groups"] = json!(groups);
+    }
 
     if let Some(remove_vanished) = remove_vanished {
         args["remove-vanished"] = Value::from(remove_vanished);

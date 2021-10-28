@@ -13,8 +13,9 @@ use http::StatusCode;
 
 use proxmox_router::HttpError;
 
-use pbs_api_types::{Authid, GroupListItem, Remote, SnapshotListItem};
-use pbs_datastore::{DataStore, BackupInfo, BackupDir, BackupGroup, StoreProgress};
+use pbs_api_types::{Authid, GroupFilter, GroupListItem, Remote, SnapshotListItem};
+
+use pbs_datastore::{BackupDir, BackupInfo, BackupGroup, DataStore, StoreProgress};
 use pbs_datastore::data_blob::DataBlob;
 use pbs_datastore::dynamic_index::DynamicIndexReader;
 use pbs_datastore::fixed_index::FixedIndexReader;
@@ -39,6 +40,7 @@ pub struct PullParameters {
     store: Arc<DataStore>,
     owner: Authid,
     remove_vanished: bool,
+    group_filter: Option<Vec<GroupFilter>>,
 }
 
 impl PullParameters {
@@ -48,6 +50,7 @@ impl PullParameters {
         remote_store: &str,
         owner: Authid,
         remove_vanished: Option<bool>,
+        group_filter: Option<Vec<GroupFilter>>,
     ) -> Result<Self, Error> {
         let store = DataStore::lookup_datastore(store)?;
 
@@ -63,7 +66,7 @@ impl PullParameters {
             remote_store.to_string(),
         );
 
-        Ok(Self { remote, source, store, owner, remove_vanished })
+        Ok(Self { remote, source, store, owner, remove_vanished, group_filter })
     }
 
     pub async fn client(&self) -> Result<HttpClient, Error> {
@@ -678,8 +681,7 @@ pub async fn pull_store(
 
     let mut list: Vec<GroupListItem> = serde_json::from_value(result["data"].take())?;
 
-    task_log!(worker, "found {} groups to sync", list.len());
-
+    let total_count = list.len();
     list.sort_unstable_by(|a, b| {
         let type_order = a.backup_type.cmp(&b.backup_type);
         if type_order == std::cmp::Ordering::Equal {
@@ -689,10 +691,31 @@ pub async fn pull_store(
         }
     });
 
+    let apply_filters = |group: &BackupGroup, filters: &[GroupFilter]| -> bool {
+        filters
+            .iter()
+            .any(|filter| group.matches(filter))
+    };
+
     let list:Vec<BackupGroup> = list
         .into_iter()
         .map(|item| BackupGroup::new(item.backup_type, item.backup_id))
         .collect();
+
+    let list = if let Some(ref group_filter) = &params.group_filter {
+        let unfiltered_count = list.len();
+        let list:Vec<BackupGroup> = list
+            .into_iter()
+            .filter(|group| {
+                apply_filters(&group, group_filter)
+            })
+            .collect();
+        task_log!(worker, "found {} groups to sync (out of {} total)", list.len(), unfiltered_count);
+        list
+    } else {
+        task_log!(worker, "found {} groups to sync", total_count);
+        list
+    };
 
     let mut errors = false;
 
@@ -754,6 +777,11 @@ pub async fn pull_store(
             for local_group in local_groups {
                 if new_groups.contains(&local_group) {
                     continue;
+                }
+                if let Some(ref group_filter) = &params.group_filter {
+                    if !apply_filters(&local_group, group_filter) {
+                        continue;
+                    }
                 }
                 task_log!(
                     worker,
