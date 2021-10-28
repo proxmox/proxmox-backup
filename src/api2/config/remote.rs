@@ -277,7 +277,7 @@ pub fn delete_remote(name: String, digest: Option<String>) -> Result<(), Error> 
 }
 
 /// Helper to get client for remote.cfg entry
-pub async fn remote_client(remote: Remote) -> Result<HttpClient, Error> {
+pub async fn remote_client(remote: &Remote) -> Result<HttpClient, Error> {
     let options = HttpClientOptions::new_non_interactive(remote.password.clone(), remote.config.fingerprint.clone());
 
     let client = HttpClient::new(
@@ -322,7 +322,7 @@ pub async fn scan_remote_datastores(name: String) -> Result<Vec<DataStoreListIte
                   api_err)
     };
 
-    let client = remote_client(remote)
+    let client = remote_client(&remote)
         .await
         .map_err(map_remote_err)?;
     let api_res = client
