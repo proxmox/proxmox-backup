@@ -8,6 +8,18 @@ use pbs_api_types::JOB_ID_SCHEMA;
 
 use proxmox_backup::api2;
 
+fn render_group_filter(value: &Value, _record: &Value) -> Result<String, Error> {
+    if let Some(group_filters) = value.as_array() {
+        let group_filters:Vec<&str> = group_filters
+            .iter()
+            .filter_map(Value::as_str)
+            .collect();
+        Ok(group_filters.join(" OR "))
+    } else {
+        Ok(String::from("all"))
+    }
+}
+
 #[api(
     input: {
         properties: {
@@ -35,6 +47,7 @@ fn list_sync_jobs(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value
         .column(ColumnConfig::new("remote"))
         .column(ColumnConfig::new("remote-store"))
         .column(ColumnConfig::new("schedule"))
+        .column(ColumnConfig::new("groups").renderer(render_group_filter))
         .column(ColumnConfig::new("comment"));
 
     format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
@@ -65,6 +78,12 @@ fn show_sync_job(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value,
         ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
         _ => unreachable!(),
     };
+
+    if let Some(groups) = data.get_mut("groups") {
+        if let Ok(rendered) = render_group_filter(groups, groups) {
+            *groups = Value::String(rendered);
+        }
+    }
 
     let options = default_table_format_options();
     format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
