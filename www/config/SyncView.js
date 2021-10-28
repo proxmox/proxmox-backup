@@ -1,7 +1,7 @@
 Ext.define('pbs-sync-jobs-status', {
     extend: 'Ext.data.Model',
     fields: [
-	'id', 'owner', 'remote', 'remote-store', 'store', 'schedule',
+	'id', 'owner', 'remote', 'remote-store', 'store', 'schedule', 'groups',
 	'next-run', 'last-run-upid', 'last-run-state', 'last-run-endtime',
 	{
 	    name: 'duration',
@@ -213,6 +213,12 @@ Ext.define('PBS.config.SyncJobView', {
 	    renderer: 'render_optional_owner',
 	    flex: 2,
 	    sortable: true,
+	},
+	{
+	    header: gettext('Backup Groups'),
+	    dataIndex: 'groups',
+	    renderer: v => v ? Ext.String.htmlEncode(v) : gettext('All'),
+	    width: 80,
 	},
 	{
 	    header: gettext('Schedule'),

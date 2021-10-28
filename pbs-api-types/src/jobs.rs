@@ -403,6 +403,10 @@ pub const GROUP_FILTER_LIST_SCHEMA: Schema = ArraySchema::new("List of group fil
             optional: true,
             schema: SYNC_SCHEDULE_SCHEMA,
         },
+        groups: {
+            schema: GROUP_FILTER_LIST_SCHEMA,
+            optional: true,
+        },
     }
 )]
 #[derive(Serialize,Deserialize,Clone,Updater)]
@@ -422,6 +426,8 @@ pub struct SyncJobConfig {
     pub comment: Option<String>,
     #[serde(skip_serializing_if="Option::is_none")]
     pub schedule: Option<String>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub groups: Option<Vec<GroupFilter>>,
 }
 
 #[api(

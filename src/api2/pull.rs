@@ -50,7 +50,7 @@ impl TryFrom<&SyncJobConfig> for PullParameters {
             &sync_job.remote_store,
             sync_job.owner.as_ref().unwrap_or_else(|| Authid::root_auth_id()).clone(),
             sync_job.remove_vanished,
-            None,
+            sync_job.groups.clone(),
         )
     }
 }
