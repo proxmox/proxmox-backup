@@ -22,13 +22,12 @@ impl PruneMark {
 
 impl std::fmt::Display for PruneMark {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let txt = match self {
+        f.write_str(match self {
             PruneMark::Protected => "protected",
             PruneMark::Keep => "keep",
             PruneMark::KeepPartial => "keep-partial",
             PruneMark::Remove => "remove",
-        };
-        write!(f, "{}", txt)
+        })
     }
 }
 
