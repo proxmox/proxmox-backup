@@ -135,15 +135,32 @@ pub fn extract_repository_from_map(param: &HashMap<String, String>) -> Option<Ba
 }
 
 pub fn connect(repo: &BackupRepository) -> Result<HttpClient, Error> {
-    connect_do(repo.host(), repo.port(), repo.auth_id())
+    connect_do(repo.host(), repo.port(), repo.auth_id(), None, None)
         .map_err(|err| format_err!("error building client for repository {} - {}", repo, err))
 }
 
-fn connect_do(server: &str, port: u16, auth_id: &Authid) -> Result<HttpClient, Error> {
+pub fn connect_rate_limited(
+    repo: &BackupRepository,
+    rate: Option<u64>,
+    bucket_size: Option<u64>,
+) -> Result<HttpClient, Error> {
+    connect_do(repo.host(), repo.port(), repo.auth_id(), rate, bucket_size)
+        .map_err(|err| format_err!("error building client for repository {} - {}", repo, err))
+}
+
+fn connect_do(
+    server: &str,
+    port: u16,
+    auth_id: &Authid,
+    rate_limit: Option<u64>,
+    bucket_size: Option<u64>,
+) -> Result<HttpClient, Error> {
     let fingerprint = std::env::var(ENV_VAR_PBS_FINGERPRINT).ok();
 
     let password = get_secret_from_env(ENV_VAR_PBS_PASSWORD)?;
-    let options = HttpClientOptions::new_interactive(password, fingerprint);
+    let options = HttpClientOptions::new_interactive(password, fingerprint)
+        .rate_limit(rate_limit)
+        .bucket_size(bucket_size);
 
     HttpClient::new(server, port, auth_id, options)
 }

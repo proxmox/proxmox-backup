@@ -20,7 +20,7 @@ use proxmox::{
 };
 use proxmox_router::HttpError;
 
-use proxmox_http::client::HttpsConnector;
+use proxmox_http::client::{HttpsConnector, RateLimiter};
 use proxmox_http::uri::build_authority;
 
 use pbs_api_types::{Authid, Userid};
@@ -51,6 +51,8 @@ pub struct HttpClientOptions {
     ticket_cache: bool,
     fingerprint_cache: bool,
     verify_cert: bool,
+    rate_limit: Option<u64>,
+    bucket_size: Option<u64>,
 }
 
 impl HttpClientOptions {
@@ -109,6 +111,16 @@ impl HttpClientOptions {
         self.verify_cert = verify_cert;
         self
     }
+
+    pub fn rate_limit(mut self, rate_limit:  Option<u64>) -> Self {
+        self.rate_limit = rate_limit;
+        self
+    }
+
+    pub fn bucket_size(mut self, bucket_size:  Option<u64>) -> Self {
+        self.bucket_size = bucket_size;
+        self
+    }
 }
 
 impl Default for HttpClientOptions {
@@ -121,6 +133,8 @@ impl Default for HttpClientOptions {
             ticket_cache: false,
             fingerprint_cache: false,
             verify_cert: true,
+            rate_limit: None,
+            bucket_size: None,
         }
     }
 }
@@ -343,7 +357,13 @@ impl HttpClient {
         httpc.enforce_http(false); // we want https...
 
         httpc.set_connect_timeout(Some(std::time::Duration::new(10, 0)));
-        let https = HttpsConnector::with_connector(httpc, ssl_connector_builder.build(), PROXMOX_BACKUP_TCP_KEEPALIVE_TIME);
+        let mut https = HttpsConnector::with_connector(httpc, ssl_connector_builder.build(), PROXMOX_BACKUP_TCP_KEEPALIVE_TIME);
+
+        if let Some(rate_limit) = options.rate_limit {
+            let bucket_size = options.bucket_size.unwrap_or_else(|| rate_limit*3);
+            https.set_read_limiter(Some(Arc::new(Mutex::new(RateLimiter::new(rate_limit, bucket_size)))));
+            https.set_write_limiter(Some(Arc::new(Mutex::new(RateLimiter::new(rate_limit, bucket_size)))));
+        }
 
         let client = Client::builder()
         //.http2_initial_stream_window_size( (1 << 31) - 2)
