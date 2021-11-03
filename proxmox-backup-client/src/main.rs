@@ -45,7 +45,7 @@ use pbs_client::tools::{
     complete_archive_name, complete_auth_id, complete_backup_group, complete_backup_snapshot,
     complete_backup_source, complete_chunk_size, complete_group_or_snapshot,
     complete_img_archive_name, complete_pxar_archive_name, complete_repository, connect,
-    extract_repository_from_value,
+    connect_rate_limited, extract_repository_from_value,
     key_source::{
         crypto_parameters, format_key_source, get_encryption_key_password, KEYFD_SCHEMA,
         KEYFILE_SCHEMA, MASTER_PUBKEY_FD_SCHEMA, MASTER_PUBKEY_FILE_SCHEMA,
@@ -582,6 +582,18 @@ fn spawn_catalog_upload(
                schema: CHUNK_SIZE_SCHEMA,
                optional: true,
            },
+           rate: {
+               type: u64,
+               description: "Rate limit for TBF in bytes/second.",
+               optional: true,
+               minimum: 1,
+           },
+           burst: {
+               type: u64,
+               description: "Size of the TBF bucket, in bytes.",
+               optional: true,
+               minimum: 1,
+           },
            "exclude": {
                type: Array,
                description: "List of paths or patterns for matching files to exclude.",
@@ -629,6 +641,9 @@ async fn create_backup(
     if let Some(size) = chunk_size_opt {
         verify_chunk_size(size)?;
     }
+
+    let rate_limit = param["rate"].as_u64();
+    let bucket_size = param["burst"].as_u64();
 
     let crypto = crypto_parameters(&param)?;
 
@@ -724,7 +739,7 @@ async fn create_backup(
 
     let backup_time = backup_time_opt.unwrap_or_else(epoch_i64);
 
-    let client = connect(&repo)?;
+    let client = connect_rate_limited(&repo, rate_limit, bucket_size)?;
     record_repository(&repo);
 
     println!("Starting backup: {}/{}/{}", backup_type, backup_id, BackupDir::backup_time_to_string(backup_time)?);
