@@ -133,6 +133,8 @@ pub enum DeletableProperty {
     LatestOnly,
     /// Delete the 'notify-user' property
     NotifyUser,
+    /// Delete the 'groups' property
+    Groups,
 }
 
 #[api(
@@ -191,6 +193,7 @@ pub fn update_tape_backup_job(
                 DeletableProperty::NotifyUser => { data.setup.notify_user = None; },
                 DeletableProperty::Schedule => { data.schedule = None; },
                 DeletableProperty::Comment => { data.comment = None; },
+                DeletableProperty::Groups => { data.setup.groups = None; },
             }
         }
     }
@@ -203,6 +206,7 @@ pub fn update_tape_backup_job(
     if update.setup.export_media_set.is_some() { data.setup.export_media_set = update.setup.export_media_set; }
     if update.setup.latest_only.is_some() { data.setup.latest_only = update.setup.latest_only; }
     if update.setup.notify_user.is_some() { data.setup.notify_user = update.setup.notify_user; }
+    if update.setup.groups.is_some() { data.setup.groups = update.setup.groups; }
 
     let schedule_changed = data.schedule != update.schedule;
     if update.schedule.is_some() { data.schedule = update.schedule; }
