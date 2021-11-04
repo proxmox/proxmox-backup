@@ -1,7 +1,7 @@
 Ext.define('pbs-tape-backup-job-status', {
     extend: 'Ext.data.Model',
     fields: [
-	'id', 'store', 'pool', 'drive', 'store', 'schedule', 'comment',
+	'id', 'store', 'pool', 'drive', 'store', 'schedule', 'comment', 'groups',
 	{ name: 'eject-media', type: 'boolean' },
 	{ name: 'export-media-set', type: 'boolean' },
 	{ name: 'latest-only', type: 'boolean' },
@@ -220,6 +220,12 @@ Ext.define('PBS.config.TapeBackupJobView', {
 	    dataIndex: 'latest-only',
 	    renderer: Proxmox.Utils.format_boolean,
 	    sortable: false,
+	},
+	{
+	    header: gettext('Backup Groups'),
+	    dataIndex: 'groups',
+	    renderer: v => v ? Ext.String.htmlEncode(v) : gettext('All'),
+	    width: 80,
 	},
 	{
 	    header: gettext('Schedule'),

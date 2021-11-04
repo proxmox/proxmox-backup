@@ -124,6 +124,15 @@ Ext.define('PBS.TapeManagement.BackupJobEdit', {
 
 	columnB: [
 	    {
+		fieldLabel: gettext('Backup Groups'),
+		xtype: 'displayfield',
+		name: 'groups',
+		renderer: v => v ? Ext.String.htmlEncode(v) : gettext('All'),
+		cbind: {
+		    hidden: '{isCreate}',
+		},
+	    },
+	    {
 		fieldLabel: gettext('Comment'),
 		xtype: 'proxmoxtextfield',
 		name: 'comment',
