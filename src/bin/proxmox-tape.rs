@@ -1,4 +1,6 @@
-use anyhow::{format_err, Error};
+use std::collections::HashMap;
+
+use anyhow::{bail, format_err, Error};
 use serde_json::{json, Value};
 
 use proxmox_io::ReadExt;
@@ -22,7 +24,7 @@ use pbs_config::datastore::complete_datastore_name;
 use pbs_api_types::{
     Userid, Authid, DATASTORE_SCHEMA, DATASTORE_MAP_LIST_SCHEMA,
     DRIVE_NAME_SCHEMA, MEDIA_LABEL_SCHEMA, MEDIA_POOL_NAME_SCHEMA,
-    TAPE_RESTORE_SNAPSHOT_SCHEMA,
+    TAPE_RESTORE_SNAPSHOT_SCHEMA, GROUP_FILTER_LIST_SCHEMA, GroupListItem,
 };
 use pbs_tape::{
     PROXMOX_BACKUP_CONTENT_HEADER_MAGIC_1_0, BlockReadError, MediaContentHeader,
@@ -48,6 +50,38 @@ use proxmox_backup::{
 
 mod proxmox_tape;
 use proxmox_tape::*;
+
+async fn get_backup_groups(store: &str) -> Result<Vec<GroupListItem>, Error> {
+    let client = connect_to_localhost()?;
+    let api_res = client
+        .get(&format!("api2/json/admin/datastore/{}/groups", store), None)
+        .await?;
+
+    match api_res.get("data") {
+        Some(data) => Ok(serde_json::from_value::<Vec<GroupListItem>>(data.to_owned())?),
+        None => bail!("could not get group list"),
+    }
+}
+
+// shell completion helper
+pub fn complete_datastore_group_filter(_arg: &str, param: &HashMap<String, String>) -> Vec<String> {
+
+    let mut list = Vec::new();
+
+    list.push("regex:".to_string());
+    list.push("type:ct".to_string());
+    list.push("type:host".to_string());
+    list.push("type:vm".to_string());
+
+    if let Some(store) =  param.get("store") {
+        let groups = pbs_runtime::block_on(async { get_backup_groups(store).await });
+        if let Ok(groups) = groups {
+            list.extend(groups.iter().map(|group| format!("group:{}/{}", group.backup_type, group.backup_id)));
+        }
+    }
+
+    list
+}
 
 pub fn extract_drive_name(
     param: &mut Value,
@@ -834,6 +868,10 @@ async fn clean_drive(mut param: Value) -> Result<(), Error> {
                 optional: true,
                 type: Userid,
             },
+            groups: {
+                schema: GROUP_FILTER_LIST_SCHEMA,
+                optional: true,
+            },
             "force-media-set": {
                 description: "Ignore the allocation policy and start a new media-set.",
                 optional: true,
@@ -978,6 +1016,7 @@ fn main() {
                 .completion_cb("drive", complete_drive_name)
                 .completion_cb("store", complete_datastore_name)
                 .completion_cb("pool", complete_pool_name)
+                .completion_cb("groups", complete_datastore_group_filter)
         )
         .insert(
             "restore",
