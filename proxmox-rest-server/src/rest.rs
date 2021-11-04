@@ -31,6 +31,8 @@ use proxmox_schema::{
     ParameterSchema,
 };
 
+use proxmox_http::client::RateLimitedStream;
+
 use pbs_tools::compression::{DeflateEncoder, Level};
 use pbs_tools::stream::AsyncReaderStream;
 
@@ -69,6 +71,32 @@ impl RestServer {
     pub fn new(api_config: ApiConfig) -> Self {
         Self {
             api_config: Arc::new(api_config),
+        }
+    }
+}
+
+impl Service<&Pin<Box<tokio_openssl::SslStream<RateLimitedStream<tokio::net::TcpStream>>>>>
+    for RestServer
+{
+    type Response = ApiService;
+    type Error = Error;
+    type Future = Pin<Box<dyn Future<Output = Result<ApiService, Error>> + Send>>;
+
+    fn poll_ready(&mut self, _cx: &mut Context) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn call(
+        &mut self,
+        ctx: &Pin<Box<tokio_openssl::SslStream<RateLimitedStream<tokio::net::TcpStream>>>>,
+    ) -> Self::Future {
+        match ctx.get_ref().peer_addr() {
+            Err(err) => future::err(format_err!("unable to get peer address - {}", err)).boxed(),
+            Ok(peer) => future::ok(ApiService {
+                peer,
+                api_config: self.api_config.clone(),
+            })
+            .boxed(),
         }
     }
 }
