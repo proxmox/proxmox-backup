@@ -11,10 +11,11 @@ use proxmox_schema::api;
 use pbs_api_types::{
     Authid, Userid, TapeBackupJobConfig, TapeBackupJobSetup, TapeBackupJobStatus, MediaPoolConfig,
     UPID_SCHEMA, JOB_ID_SCHEMA, PRIV_DATASTORE_READ, PRIV_TAPE_AUDIT, PRIV_TAPE_WRITE,
+    GroupFilter,
 };
 
 use pbs_datastore::{DataStore, StoreProgress, SnapshotReader};
-use pbs_datastore::backup_info::{BackupDir, BackupInfo};
+use pbs_datastore::backup_info::{BackupDir, BackupInfo, BackupGroup};
 use pbs_tools::{task_log, task_warn, task::WorkerTaskContext};
 use pbs_config::CachedUserInfo;
 use proxmox_rest_server::WorkerTask;
@@ -436,8 +437,21 @@ fn backup_worker(
 
     group_list.sort_unstable();
 
-    let group_count = group_list.len();
-    task_log!(worker, "found {} groups", group_count);
+    let (group_list, group_count) = if let Some(group_filters) = &setup.groups {
+        let filter_fn = |group: &BackupGroup, group_filters: &[GroupFilter]| {
+            group_filters.iter().any(|filter| group.matches(filter))
+        };
+
+        let group_count_full = group_list.len();
+        let list: Vec<BackupGroup> = group_list.into_iter().filter(|group| filter_fn(group, &group_filters)).collect();
+        let group_count = list.len();
+        task_log!(worker, "found {} groups (out of {} total)", group_count, group_count_full);
+        (list, group_count)
+    } else {
+        let group_count = group_list.len();
+        task_log!(worker, "found {} groups", group_count);
+        (group_list, group_count)
+    };
 
     let mut progress = StoreProgress::new(group_count as u64);
 
