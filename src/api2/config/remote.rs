@@ -86,7 +86,7 @@ pub fn create_remote(
     password: String,
 ) -> Result<(), Error> {
 
-    let _lock = pbs_config::remote::config()?;
+    let _lock = pbs_config::remote::lock_config()?;
 
     let (mut section_config, _digest) = pbs_config::remote::config()?;
 
@@ -185,7 +185,7 @@ pub fn update_remote(
     digest: Option<String>,
 ) -> Result<(), Error> {
 
-    let _lock = pbs_config::remote::config()?;
+    let _lock = pbs_config::remote::lock_config()?;
 
     let (mut config, expected_digest) = pbs_config::remote::config()?;
 
@@ -257,7 +257,7 @@ pub fn delete_remote(name: String, digest: Option<String>) -> Result<(), Error> 
         }
     }
 
-    let _lock = pbs_config::remote::config()?;
+    let _lock = pbs_config::remote::lock_config()?;
 
     let (mut config, expected_digest) = pbs_config::remote::config()?;
 
