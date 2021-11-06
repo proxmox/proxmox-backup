@@ -1,4 +1,9 @@
 use std::cmp::{Ordering, PartialOrd};
+use std::convert::{TryFrom, TryInto};
+
+use anyhow::Error;
+
+use proxmox_time::TmEditor;
 
 use super::time::{WeekDays};
 
@@ -27,6 +32,52 @@ pub struct DailyDuration {
     pub days: WeekDays,
     pub start: HmTime,
     pub end: HmTime,
+}
+
+impl DailyDuration {
+
+    /// Test it time is within this frame
+    pub fn time_match(&self, epoch: i64, utc: bool) -> Result<bool, Error> {
+
+        let t = TmEditor::with_epoch(epoch, utc)?;
+
+        Ok(self.time_match_with_tm_editor(&t))
+    }
+
+    /// Like time_match, but use [TmEditor] to specify the time
+    ///
+    /// Note: This function returns bool (not Result<bool, Error>). It
+    /// simply returns ''false' if passed time 't' contains invalid values.
+    pub fn time_match_with_tm_editor(&self, t: &TmEditor) -> bool {
+        let all_days = self.days.is_empty() || self.days.is_all();
+
+        if !all_days { // match day first
+            match u32::try_from(t.day_num()) {
+                Ok(day_num) => {
+                    match WeekDays::from_bits(1<<day_num) {
+                        Some(day) => {
+                            if !self.days.contains(day) {
+                                return false;
+                            }
+                        }
+                        None => return false,
+                    }
+                }
+                Err(_) => return false,
+            }
+        }
+
+        let hour = t.hour().try_into();
+        let minute = t.min().try_into();
+
+        match (hour, minute) {
+            (Ok(hour), Ok(minute)) => {
+                let ctime = HmTime { hour, minute };
+                ctime >= self.start && ctime < self.end
+            }
+            _ => false,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -68,6 +119,10 @@ mod test {
         Ok(())
     }
 
+    const fn make_test_time(mday: i32, hour: i32, min: i32) -> i64 {
+        (mday*3600*24 + hour*3600 + min*60) as i64
+    }
+
     #[test]
     fn test_daily_duration_parser() -> Result<(), Error> {
 
@@ -86,6 +141,33 @@ mod test {
         test_parse("mon 8-12", 8, 0, 12, 0, &[0])?;
         test_parse("tue..fri 8-12", 8, 0, 12, 0, &[1,2,3,4])?;
         test_parse("sat,tue..thu,fri 8-12", 8, 0, 12, 0, &[1,2,3,4,5])?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_time_match() -> Result<(), Error> {
+        const THURSDAY_80_00: i64 = make_test_time(0, 8, 0);
+        const THURSDAY_12_00: i64 = make_test_time(0, 12, 0);
+        const DAY: i64 = 3600*24;
+
+        let duration = parse_daily_duration("thu..fri 8:05-12")?;
+
+        assert!(!duration.time_match(THURSDAY_80_00, true)?);
+        assert!(!duration.time_match(THURSDAY_80_00 + DAY, true)?);
+        assert!(!duration.time_match(THURSDAY_80_00 + 2*DAY, true)?);
+
+        assert!(duration.time_match(THURSDAY_80_00 + 5*60, true)?);
+        assert!(duration.time_match(THURSDAY_80_00 + 5*60 + DAY, true)?);
+        assert!(!duration.time_match(THURSDAY_80_00 + 5*60 + 2*DAY, true)?);
+
+        assert!(duration.time_match(THURSDAY_12_00 - 1, true)?);
+        assert!(duration.time_match(THURSDAY_12_00 - 1 + DAY, true)?);
+        assert!(!duration.time_match(THURSDAY_12_00 - 1 + 2*DAY, true)?);
+
+        assert!(!duration.time_match(THURSDAY_12_00, true)?);
+        assert!(!duration.time_match(THURSDAY_12_00 + DAY, true)?);
+        assert!(!duration.time_match(THURSDAY_12_00 + 2*DAY, true)?);
 
         Ok(())
     }
