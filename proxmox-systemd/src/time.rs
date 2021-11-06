@@ -5,7 +5,7 @@ use bitflags::bitflags;
 
 use proxmox_time::TmEditor;
 
-pub use super::parse_time::*;
+pub use super::parse_time::{parse_calendar_event, parse_time_span};
 
 bitflags!{
     #[derive(Default)]

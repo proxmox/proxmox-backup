@@ -4,6 +4,7 @@ use anyhow::{bail, Error};
 use lazy_static::lazy_static;
 
 use super::time::*;
+use super::daily_duration::*;
 
 use nom::{
     error::{context, ParseError, VerboseError},
@@ -451,4 +452,59 @@ fn parse_time_span_incomplete(mut i: &str) -> IResult<&str, TimeSpan> {
     }
 
     Ok((i, ts))
+}
+
+pub fn parse_daily_duration(i: &str) -> Result<DailyDuration, Error> {
+    parse_complete_line("daily duration", i, parse_daily_duration_incomplete)
+}
+
+fn parse_daily_duration_incomplete(mut i: &str) -> IResult<&str, DailyDuration> {
+
+    let mut duration = DailyDuration::default();
+
+    if i.starts_with(|c: char| char::is_ascii_alphabetic(&c)) {
+
+        let (n, range_list) =  context(
+            "weekday range list",
+            separated_nonempty_list(tag(","), parse_weekdays_range)
+        )(i)?;
+
+        i = space0(n)?.0;
+
+        for range in range_list  { duration.days.insert(range); }
+    }
+
+    let (i, start) = parse_hm_time(i)?;
+
+    let i = space0(i)?.0;
+
+    let (i, _) = tag("-")(i)?;
+
+    let i = space0(i)?.0;
+
+    let end_time_start = i;
+
+    let (i, end) = parse_hm_time(i)?;
+
+    if start > end {
+        return Err(parse_error(end_time_start, "end time before start time"));
+    }
+
+    duration.start = start;
+    duration.end = end;
+
+    Ok((i, duration))
+}
+
+fn parse_hm_time(i: &str) -> IResult<&str, HmTime> {
+
+    let (i, (hour, opt_minute)) = tuple((
+        parse_time_comp(24),
+        opt(preceded(tag(":"), parse_time_comp(60))),
+    ))(i)?;
+
+    match opt_minute {
+        Some(minute) => Ok((i, HmTime { hour, minute })),
+        None => Ok((i, HmTime { hour, minute: 0})),
+    }
 }
