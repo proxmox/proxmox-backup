@@ -14,6 +14,7 @@ pub mod changer;
 pub mod media_pool;
 pub mod tape_encryption_keys;
 pub mod tape_backup_job;
+pub mod traffic_control;
 
 const SUBDIRS: SubdirMap = &[
     ("access", &access::ROUTER),
@@ -26,6 +27,7 @@ const SUBDIRS: SubdirMap = &[
     ("sync", &sync::ROUTER),
     ("tape-backup-job", &tape_backup_job::ROUTER),
     ("tape-encryption-keys", &tape_encryption_keys::ROUTER),
+    ("traffic-control", &traffic_control::ROUTER),
     ("verify", &verify::ROUTER),
 ];
 

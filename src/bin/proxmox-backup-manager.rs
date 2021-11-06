@@ -374,6 +374,7 @@ async fn run() -> Result<(), Error> {
         .insert("user", user_commands())
         .insert("openid", openid_commands())
         .insert("remote", remote_commands())
+        .insert("traffic-control", traffic_control_commands())
         .insert("garbage-collection", garbage_collection_commands())
         .insert("acme", acme_mgmt_cli())
         .insert("cert", cert_mgmt_cli())

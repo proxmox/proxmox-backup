@@ -7,6 +7,7 @@ use proxmox_schema::{
     api, const_regex, ApiStringFormat, ApiType, ArraySchema, Schema, StringSchema, ReturnType,
 };
 use proxmox::{IPRE, IPRE_BRACKET, IPV4OCTET, IPV4RE, IPV6H16, IPV6LS32, IPV6RE};
+use proxmox_systemd::daily_duration::parse_daily_duration;
 
 #[rustfmt::skip]
 #[macro_export]
@@ -72,6 +73,9 @@ pub use remote::*;
 
 mod tape;
 pub use tape::*;
+
+mod traffic_control;
+pub use traffic_control::*;
 
 mod zfs;
 pub use zfs::*;
@@ -151,6 +155,9 @@ pub const HOSTNAME_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&HOSTNAME_
 
 pub const DNS_ALIAS_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&DNS_ALIAS_REGEX);
+
+pub const DAILY_DURATION_FORMAT: ApiStringFormat =
+    ApiStringFormat::VerifyFn(|s| parse_daily_duration(s).map(drop));
 
 pub const SEARCH_DOMAIN_SCHEMA: Schema =
     StringSchema::new("Search domain for host-name lookup.").schema();

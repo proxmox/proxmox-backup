@@ -20,8 +20,10 @@ use proxmox_time::{strftime_local, epoch_i64};
 use pxar::accessor::{MaybeReady, ReadAt, ReadAtOperation};
 
 use pbs_api_types::{
-    BACKUP_ID_SCHEMA, BACKUP_TIME_SCHEMA, BACKUP_TYPE_SCHEMA, Authid, CryptMode, GroupListItem,
-    PruneListItem, SnapshotListItem, StorageStatus, Fingerprint, PruneOptions,
+    BACKUP_ID_SCHEMA, BACKUP_TIME_SCHEMA, BACKUP_TYPE_SCHEMA,
+    TRAFFIC_CONTROL_BURST_SCHEMA, TRAFFIC_CONTROL_RATE_SCHEMA,
+    Authid, CryptMode, Fingerprint, GroupListItem, PruneListItem, PruneOptions,
+    SnapshotListItem, StorageStatus,
 };
 use pbs_client::{
     BACKUP_SOURCE_SCHEMA,
@@ -583,16 +585,12 @@ fn spawn_catalog_upload(
                optional: true,
            },
            rate: {
-               type: u64,
-               description: "Rate limit for TBF in bytes/second.",
+               schema: TRAFFIC_CONTROL_RATE_SCHEMA,
                optional: true,
-               minimum: 1,
            },
            burst: {
-               type: u64,
-               description: "Size of the TBF bucket, in bytes.",
+               schema: TRAFFIC_CONTROL_BURST_SCHEMA,
                optional: true,
-               minimum: 1,
            },
            "exclude": {
                type: Array,
@@ -1056,6 +1054,14 @@ We do not extract '.pxar' archives when writing to standard output.
 
 "###
            },
+           rate: {
+               schema: TRAFFIC_CONTROL_RATE_SCHEMA,
+               optional: true,
+           },
+           burst: {
+               schema: TRAFFIC_CONTROL_BURST_SCHEMA,
+               optional: true,
+           },
            "allow-existing-dirs": {
                type: Boolean,
                description: "Do not fail if directories already exists.",
@@ -1086,8 +1092,10 @@ async fn restore(param: Value) -> Result<Value, Error> {
 
     let archive_name = json::required_string_param(&param, "archive-name")?;
 
-    let client = connect(&repo)?;
+    let rate_limit = param["rate"].as_u64();
+    let bucket_size = param["burst"].as_u64();
 
+    let client = connect_rate_limited(&repo, rate_limit, bucket_size)?;
     record_repository(&repo);
 
     let path = json::required_string_param(&param, "snapshot")?;
