@@ -48,6 +48,7 @@ apt-pkg-native = "0.3.2"
 base64 = "0.12"
 bitflags = "1.2.1"
 bytes = "1.0"
+cidr = "0.2.1"
 crc32fast = "1"
 endian_trait = { version = "0.6", features = ["arrays"] }
 env_logger = "0.7"
