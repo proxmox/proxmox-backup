@@ -21,6 +21,7 @@ use proxmox::sys::linux::socket::set_tcp_keepalive;
 use proxmox::tools::fs::CreateOptions;
 use proxmox_lang::try_block;
 use proxmox_router::{RpcEnvironment, RpcEnvironmentType, UserInformation};
+use proxmox_http::client::{RateLimiter, RateLimitedStream};
 
 use pbs_tools::{task_log, task_warn};
 use pbs_datastore::DataStore;
@@ -70,6 +71,7 @@ use proxmox_backup::api2::pull::do_sync_job;
 use proxmox_backup::api2::tape::backup::do_tape_backup_job;
 use proxmox_backup::server::do_verification_job;
 use proxmox_backup::server::do_prune_job;
+use proxmox_backup::TrafficControlCache;
 
 fn main() -> Result<(), Error> {
     proxmox_backup::tools::setup_safe_path_env();
@@ -351,7 +353,7 @@ fn make_tls_acceptor() -> Result<SslAcceptor, Error> {
 }
 
 type ClientStreamResult =
-    Result<std::pin::Pin<Box<tokio_openssl::SslStream<tokio::net::TcpStream>>>, Error>;
+    Result<std::pin::Pin<Box<tokio_openssl::SslStream<RateLimitedStream<tokio::net::TcpStream>>>>, Error>;
 const MAX_PENDING_ACCEPTS: usize = 1024;
 
 fn accept_connections(
@@ -386,6 +388,9 @@ async fn accept_connection(
 
         sock.set_nodelay(true).unwrap();
         let _ = set_tcp_keepalive(sock.as_raw_fd(), PROXMOX_BACKUP_TCP_KEEPALIVE_TIME);
+
+        let peer = sock.peer_addr().ok();
+        let sock = RateLimitedStream::with_limiter_update_cb(sock, move || lookup_rate_limiter(peer));
 
         let ssl = { // limit acceptor_guard scope
             // Acceptor can be reloaded using the command socket "reload-certificate" command
@@ -1074,4 +1079,28 @@ fn gather_disk_stats(disk_manager: Arc<DiskManage>, path: &Path, rrd_prefix: &st
             eprintln!("find_mounted_device failed - {}", err);
         }
     }
+}
+
+// Rate Limiter lookup
+
+// Test WITH
+// proxmox-backup-client restore vm/201/2021-10-22T09:55:56Z drive-scsi0.img img1.img --repository localhost:store2
+
+lazy_static::lazy_static!{
+    static ref TRAFFIC_CONTROL_CACHE: Arc<Mutex<TrafficControlCache>> =
+        Arc::new(Mutex::new(TrafficControlCache::new()));
+}
+
+fn lookup_rate_limiter(
+    peer: Option<std::net::SocketAddr>,
+) -> (Option<Arc<Mutex<RateLimiter>>>, Option<Arc<Mutex<RateLimiter>>>) {
+    let mut cache = TRAFFIC_CONTROL_CACHE.lock().unwrap();
+
+    let now = proxmox_time::epoch_i64();
+
+    cache.reload(now);
+
+    let (_rule_name, read_limiter, write_limiter) = cache.lookup_rate_limiter(peer, now);
+
+    (read_limiter, write_limiter)
 }
