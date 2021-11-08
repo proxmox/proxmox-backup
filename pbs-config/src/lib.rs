@@ -16,7 +16,7 @@ pub mod traffic_control;
 pub mod user;
 pub mod verify;
 
-pub(crate) mod memcom;
+pub mod memcom;
 
 use anyhow::{format_err, Error};
 

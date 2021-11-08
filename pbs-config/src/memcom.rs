@@ -23,6 +23,8 @@ pub struct Memcom {
 struct Head {
     // User (user.cfg) cache generation/version.
     user_cache_generation: AtomicUsize,
+    // Traffic control (traffic-control.cfg) generation/version.
+    traffic_control_generation: AtomicUsize,
 }
 
 static INSTANCE: OnceCell<Arc<Memcom>> = OnceCell::new();
@@ -79,6 +81,18 @@ impl Memcom {
     pub fn increase_user_cache_generation(&self) {
         self.head()
             .user_cache_generation
+            .fetch_add(1, Ordering::AcqRel);
+    }
+
+    /// Returns the traffic control generation number.
+    pub fn traffic_control_generation(&self) -> usize {
+        self.head().traffic_control_generation.load(Ordering::Acquire)
+    }
+
+    /// Increase the traffic control generation number.
+    pub fn increase_traffic_control_generation(&self) {
+        self.head()
+            .traffic_control_generation
             .fetch_add(1, Ordering::AcqRel);
     }
 }
