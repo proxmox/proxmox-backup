@@ -468,7 +468,7 @@ pub struct PluginConfig {
     ///
     /// Allows to cope with long TTL of DNS records.
     #[serde(skip_serializing_if = "Option::is_none", default)]
-    alidation_delay: Option<u32>,
+    validation_delay: Option<u32>,
 
     /// Flag to disable the config.
     #[serde(skip_serializing_if = "Option::is_none", default)]
