@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use proxmox_router::{
-    http_bail, list_subdirs_api_method, Permission, Router, SubdirMap, RpcEnvironment,
+    http_bail, list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap,
 };
 use proxmox_schema::api;
 
@@ -336,7 +336,8 @@ pub fn deactivate_account(
                     task_warn!(
                         worker,
                         "error deactivating account {}, proceedeing anyway - {}",
-                        name, err,
+                        name,
+                        err,
                     );
                 }
             }
@@ -630,7 +631,7 @@ pub fn delete_plugin(id: String) -> Result<(), Error> {
 
 #[api()]
 #[derive(Serialize, Deserialize)]
-#[serde(rename_all="kebab-case")]
+#[serde(rename_all = "kebab-case")]
 #[allow(non_camel_case_types)]
 /// Deletable property name
 pub enum DeletableProperty {
@@ -709,16 +710,27 @@ pub fn update_plugin(
             if let Some(delete) = delete {
                 for delete_prop in delete {
                     match delete_prop {
-                        DeletableProperty::validation_delay => { plugin.core.validation_delay = None; },
-                        DeletableProperty::disable => { plugin.core.disable = None; },
+                        DeletableProperty::validation_delay => {
+                            plugin.core.validation_delay = None;
+                        }
+                        DeletableProperty::disable => {
+                            plugin.core.disable = None;
+                        }
                     }
                 }
             }
-            if let Some(data) = data { plugin.data = data; }
-            if let Some(api) = update.api { plugin.core.api = api; }
-            if update.validation_delay.is_some() { plugin.core.validation_delay = update.validation_delay; }
-            if update.disable.is_some() { plugin.core.disable = update.disable; }
-
+            if let Some(data) = data {
+                plugin.data = data;
+            }
+            if let Some(api) = update.api {
+                plugin.core.api = api;
+            }
+            if update.validation_delay.is_some() {
+                plugin.core.validation_delay = update.validation_delay;
+            }
+            if update.disable.is_some() {
+                plugin.core.disable = update.disable;
+            }
 
             *entry = serde_json::to_value(plugin)?;
         }
