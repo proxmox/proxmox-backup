@@ -33,7 +33,7 @@ impl RestEnvironment {
 
     pub fn log_auth(&self, auth_id: &str) {
         let msg = format!("successful auth for user '{}'", auth_id);
-        log::info!("{}", msg);
+        log::debug!("{}", msg); // avoid noisy syslog, admins can already check the auth log
         if let Some(auth_logger) = self.api.get_auth_log() {
             auth_logger.lock().unwrap().log(&msg);
         }
