@@ -9,11 +9,11 @@ use proxmox::{identity, sortable};
 use proxmox_router::{
     http_err, list_subdirs_api_method, Router, RpcEnvironment, SubdirMap, Permission,
 };
-use proxmox_schema::api;
+use proxmox_schema::{api, parse_simple_value};
 
 use proxmox_openid::{OpenIdAuthenticator,  OpenIdConfig};
 
-use pbs_api_types::{Userid, User, REALM_ID_SCHEMA};
+use pbs_api_types::{User, Userid, EMAIL_SCHEMA, FIRST_NAME_SCHEMA, LAST_NAME_SCHEMA, REALM_ID_SCHEMA};
 use pbs_buildcfg::PROXMOX_BACKUP_RUN_DIR_M;
 use pbs_tools::ticket::Ticket;
 use pbs_config::domains::{OpenIdUserAttribute, OpenIdRealmConfig};
@@ -128,14 +128,27 @@ pub fn openid_login(
             if config.autocreate.unwrap_or(false) {
                 use pbs_config::user;
                 let _lock = open_backup_lockfile(user::USER_CFG_LOCKFILE, None, true)?;
+
+                let firstname = info.given_name().and_then(|n| n.get(None))
+                    .filter(|n| parse_simple_value(n, &FIRST_NAME_SCHEMA).is_ok())
+                    .map(|n| n.to_string());
+
+                let lastname = info.family_name().and_then(|n| n.get(None))
+                    .filter(|n| parse_simple_value(n, &LAST_NAME_SCHEMA).is_ok())
+                    .map(|n| n.to_string());
+
+                let email = info.email()
+                    .filter(|n| parse_simple_value(n, &EMAIL_SCHEMA).is_ok())
+                    .map(|e| e.to_string());
+
                 let user = User {
                     userid: user_id.clone(),
                     comment: None,
                     enable: None,
                     expire: None,
-                    firstname: info.given_name().and_then(|n| n.get(None)).map(|n| n.to_string()),
-                    lastname: info.family_name().and_then(|n| n.get(None)).map(|n| n.to_string()),
-                    email: info.email().map(|e| e.to_string()),
+                    firstname,
+                    lastname,
+                    email,
                 };
                 let (mut config, _digest) = user::config()?;
                 if config.sections.get(user.userid.as_str()).is_some() {
