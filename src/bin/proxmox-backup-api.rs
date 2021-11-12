@@ -72,6 +72,7 @@ async fn run() -> Result<(), Error> {
     config::update_self_signed_cert(false)?;
 
     proxmox_backup::server::create_run_dir()?;
+    proxmox_backup::server::create_state_dir()?;
     proxmox_backup::server::jobstate::create_jobstate_dir()?;
     proxmox_backup::tape::create_tape_status_dir()?;
     proxmox_backup::tape::create_drive_state_dir()?;
