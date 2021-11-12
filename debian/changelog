@@ -1,4 +1,33 @@
-rust-proxmox-backup (2.0.13-1) unstable; urgency=medium
+rust-proxmox-backup (2.0.14-1) bullseye; urgency=medium
+
+  * fix directory permission problems
+
+  * add traffic control configuration config with API
+
+  * proxmox-backup-proxy: implement traffic control
+
+  * proxmox-backup-client: add rate/burst parameter to backup/restore CLI
+
+  * openid_login: vertify that firstname, lastname and email fits our
+    schema definitions
+
+  * docs: add info about protection flag to client docs
+
+  * fix #3602: ui: datastore/Content: add action to set protection status
+
+  * ui: add protected icon to snapshot (if they are protected)
+
+  * ui: PruneInputPanel: add keepReason 'protected' for protected backups
+
+  * proxmox-backup-client: add 'protected' commands
+
+  * acme: interpret no TOS as accepted
+
+  * acme: new_account: prevent replacing existing accounts
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 12 Nov 2021 08:04:55 +0100
+
+rust-proxmox-backup (2.0.13-1) bullseye; urgency=medium
 
   * tape: simplify export_media_set for pool writer
 
