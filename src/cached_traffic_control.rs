@@ -14,7 +14,7 @@ use proxmox_time::TmEditor;
 
 use pbs_api_types::TrafficControlRule;
 
-use pbs_config::memcom::Memcom;
+use pbs_config::ConfigVersionCache;
 
 struct ParsedTcRule {
     config: TrafficControlRule, // original rule config
@@ -97,15 +97,15 @@ impl TrafficControlCache {
     }
 
     pub fn reload(&mut self, now: i64) {
-        let memcom = match Memcom::new() {
-            Ok(memcom) => memcom,
+        let version_cache = match ConfigVersionCache::new() {
+            Ok(cache) => cache,
             Err(err) => {
-                log::error!("TrafficControlCache::reload failed in Memcom::new: {}", err);
+                log::error!("TrafficControlCache::reload failed in ConfigVersionCache::new: {}", err);
                 return;
             }
         };
 
-        let traffic_control_generation = memcom.traffic_control_generation();
+        let traffic_control_generation = version_cache.traffic_control_generation();
 
         if (self.last_update != 0) &&
             (traffic_control_generation == self.last_traffic_control_generation) &&

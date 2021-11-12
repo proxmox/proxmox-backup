@@ -16,7 +16,8 @@ pub mod traffic_control;
 pub mod user;
 pub mod verify;
 
-pub mod memcom;
+mod config_version_cache;
+pub use config_version_cache::ConfigVersionCache;
 
 use anyhow::{format_err, Error};
 

@@ -11,7 +11,7 @@ use pbs_api_types::{
     Authid, Userid, ApiToken, User,
 };
 
-use crate::memcom::Memcom;
+use crate::ConfigVersionCache;
 
 use crate::{open_backup_lockfile, replace_backup_config, BackupLockGuard};
 
@@ -120,10 +120,10 @@ pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
     let raw = CONFIG.write(USER_CFG_FILENAME, &config)?;
     replace_backup_config(USER_CFG_FILENAME, raw.as_bytes())?;
 
-    // increase user cache generation
+    // increase user version
     // We use this in CachedUserInfo
-    let memcom = Memcom::new()?;
-    memcom.increase_user_cache_generation();
+    let version_cache = ConfigVersionCache::new()?;
+    version_cache.increase_user_cache_generation();
 
     Ok(())
 }

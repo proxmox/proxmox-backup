@@ -12,7 +12,7 @@ use proxmox_time::epoch_i64;
 use pbs_api_types::{Authid, Userid, User, ApiToken, ROLE_ADMIN};
 
 use crate::acl::{AclTree, ROLE_NAMES};
-use crate::memcom::Memcom;
+use crate::ConfigVersionCache;
 
 /// Cache User/Group/Token/Acl configuration data for fast permission tests
 pub struct CachedUserInfo {
@@ -38,8 +38,8 @@ impl CachedUserInfo {
     pub fn new() -> Result<Arc<Self>, Error> {
         let now = epoch_i64();
 
-        let memcom = Memcom::new()?;
-        let user_cache_generation = memcom.user_cache_generation();
+        let version_cache = ConfigVersionCache::new()?;
+        let user_cache_generation = version_cache.user_cache_generation();
 
         { // limit scope
             let cache = CACHED_CONFIG.read().unwrap();

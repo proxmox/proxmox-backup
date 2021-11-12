@@ -10,7 +10,7 @@ use pbs_api_types::{TrafficControlRule, TRAFFIC_CONTROL_ID_SCHEMA};
 
 use proxmox_section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin};
 
-use crate::memcom::Memcom;
+use crate::ConfigVersionCache;
 use crate::{open_backup_lockfile, replace_backup_config, BackupLockGuard};
 
 lazy_static! {
@@ -57,10 +57,10 @@ pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
     let raw = CONFIG.write(TRAFFIC_CONTROL_CFG_FILENAME, &config)?;
     replace_backup_config(TRAFFIC_CONTROL_CFG_FILENAME, raw.as_bytes())?;
 
-    // increase traffic control generation
+    // increase traffic control version
     // We use this in TrafficControlCache
-    let memcom = Memcom::new()?;
-    memcom.increase_traffic_control_generation();
+    let version_cache = ConfigVersionCache::new()?;
+    version_cache.increase_traffic_control_generation();
 
     Ok(())
 }
