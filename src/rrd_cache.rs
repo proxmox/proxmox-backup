@@ -7,7 +7,10 @@ use proxmox::tools::fs::CreateOptions;
 use proxmox_rrd::RRDCache;
 use proxmox_rrd::rrd::{RRD, DST, CF};
 
+use pbs_buildcfg::PROXMOX_BACKUP_STATE_DIR_M;
 use pbs_api_types::{RRDMode, RRDTimeFrame};
+
+const RRD_CACHE_BASEDIR: &str = concat!(PROXMOX_BACKUP_STATE_DIR_M!(), "/rrdb");
 
 pub static RRD_CACHE: OnceCell<RRDCache> = OnceCell::new();
 
@@ -34,7 +37,7 @@ pub fn initialize_rrd_cache() -> Result<&'static RRDCache, Error> {
     let apply_interval = 30.0*60.0; // 30 minutes
 
     let cache = RRDCache::new(
-        "/var/lib/proxmox-backup/rrdb",
+        RRD_CACHE_BASEDIR,
         Some(file_options),
         Some(dir_options),
         apply_interval,

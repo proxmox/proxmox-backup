@@ -23,6 +23,9 @@ pub const BACKUP_GROUP_NAME: &str = "backup";
 macro_rules! PROXMOX_BACKUP_RUN_DIR_M { () => ("/run/proxmox-backup") }
 
 #[macro_export]
+macro_rules! PROXMOX_BACKUP_STATE_DIR_M { () => ("/var/lib/proxmox-backup") }
+
+#[macro_export]
 macro_rules! PROXMOX_BACKUP_LOG_DIR_M { () => ("/var/log/proxmox-backup") }
 
 #[macro_export]
@@ -35,6 +38,9 @@ macro_rules! PROXMOX_BACKUP_FILE_RESTORE_BIN_DIR_M {
 
 /// namespaced directory for in-memory (tmpfs) run state
 pub const PROXMOX_BACKUP_RUN_DIR: &str = PROXMOX_BACKUP_RUN_DIR_M!();
+
+/// namespaced directory for persistent state
+pub const PROXMOX_BACKUP_STATE_DIR: &str = PROXMOX_BACKUP_STATE_DIR_M!();
 
 /// namespaced directory for persistent logging
 pub const PROXMOX_BACKUP_LOG_DIR: &str = PROXMOX_BACKUP_LOG_DIR_M!();

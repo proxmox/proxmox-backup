@@ -47,6 +47,8 @@ use proxmox::tools::fs::{
 };
 
 use proxmox_systemd::time::{compute_next_event, parse_calendar_event};
+
+use pbs_buildcfg::PROXMOX_BACKUP_STATE_DIR_M;
 use pbs_config::{open_backup_lockfile, BackupLockGuard};
 use pbs_api_types::{UPID, JobScheduleStatus};
 
@@ -77,16 +79,17 @@ pub struct Job {
     _lock: BackupLockGuard,
 }
 
-const JOB_STATE_BASEDIR: &str = "/var/lib/proxmox-backup/jobstates";
+const JOB_STATE_BASEDIR: &str = concat!(PROXMOX_BACKUP_STATE_DIR_M!(), "/jobstates");
 
 /// Create jobstate stat dir with correct permission
 pub fn create_jobstate_dir() -> Result<(), Error> {
     let backup_user = pbs_config::backup_user()?;
+
     let opts = CreateOptions::new()
         .owner(backup_user.uid)
         .group(backup_user.gid);
 
-    create_path(JOB_STATE_BASEDIR, None, Some(opts))
+    create_path(JOB_STATE_BASEDIR, Some(opts.clone()), Some(opts))
         .map_err(|err: Error| format_err!("unable to create rrdb stat dir - {}", err))?;
 
     Ok(())

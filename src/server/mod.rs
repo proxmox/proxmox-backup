@@ -62,3 +62,12 @@ pub fn create_run_dir() -> Result<(), Error> {
     let _: bool = create_path(pbs_buildcfg::PROXMOX_BACKUP_RUN_DIR_M!(), None, Some(opts))?;
     Ok(())
 }
+
+pub fn create_state_dir() -> Result<(), Error> {
+    let backup_user = pbs_config::backup_user()?;
+    let opts = CreateOptions::new()
+        .owner(backup_user.uid)
+        .group(backup_user.gid);
+    create_path(pbs_buildcfg::PROXMOX_BACKUP_STATE_DIR_M!(), None, Some(opts))?;
+    Ok(())
+}

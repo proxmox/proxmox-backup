@@ -7,7 +7,7 @@ use proxmox::tools::fs::{
     CreateOptions,
 };
 
-use pbs_buildcfg::PROXMOX_BACKUP_RUN_DIR_M;
+use pbs_buildcfg::{PROXMOX_BACKUP_RUN_DIR_M, PROXMOX_BACKUP_STATE_DIR_M};
 
 #[cfg(test)]
 mod test;
@@ -37,7 +37,7 @@ mod pool_writer;
 pub use pool_writer::*;
 
 /// Directory path where we store all tape status information
-pub const TAPE_STATUS_DIR: &str = "/var/lib/proxmox-backup/tape";
+pub const TAPE_STATUS_DIR: &str = concat!(PROXMOX_BACKUP_STATE_DIR_M!(), "/tape");
 
 /// Directory path where we store drive lock file
 pub const DRIVE_LOCK_DIR: &str = concat!(PROXMOX_BACKUP_RUN_DIR_M!(), "/drive-lock");
@@ -66,7 +66,11 @@ pub fn create_tape_status_dir() -> Result<(), Error> {
         .owner(backup_user.uid)
         .group(backup_user.gid);
 
-    create_path(TAPE_STATUS_DIR, None, Some(options))
+    let parent_opts = CreateOptions::new()
+        .owner(backup_user.uid)
+        .group(backup_user.gid);
+
+    create_path(TAPE_STATUS_DIR, Some(parent_opts), Some(options))
         .map_err(|err: Error| format_err!("unable to create tape status dir - {}", err))?;
 
     Ok(())
@@ -81,7 +85,11 @@ pub fn create_drive_lock_dir() -> Result<(), Error> {
         .owner(backup_user.uid)
         .group(backup_user.gid);
 
-    create_path(DRIVE_LOCK_DIR, None, Some(options))
+    let parent_opts = CreateOptions::new()
+        .owner(backup_user.uid)
+        .group(backup_user.gid);
+
+    create_path(DRIVE_LOCK_DIR, Some(parent_opts), Some(options))
         .map_err(|err: Error| format_err!("unable to create drive state dir - {}", err))?;
 
     Ok(())
@@ -96,7 +104,11 @@ pub fn create_drive_state_dir() -> Result<(), Error> {
         .owner(backup_user.uid)
         .group(backup_user.gid);
 
-    create_path(DRIVE_STATE_DIR, None, Some(options))
+    let parent_opts = CreateOptions::new()
+        .owner(backup_user.uid)
+        .group(backup_user.gid);
+
+    create_path(DRIVE_STATE_DIR, Some(parent_opts), Some(options))
         .map_err(|err: Error| format_err!("unable to create drive state dir - {}", err))?;
 
     Ok(())
@@ -111,7 +123,11 @@ pub fn create_changer_state_dir() -> Result<(), Error> {
         .owner(backup_user.uid)
         .group(backup_user.gid);
 
-    create_path(CHANGER_STATE_DIR, None, Some(options))
+    let parent_opts = CreateOptions::new()
+        .owner(backup_user.uid)
+        .group(backup_user.gid);
+
+    create_path(CHANGER_STATE_DIR, Some(parent_opts), Some(options))
         .map_err(|err: Error| format_err!("unable to create changer state dir - {}", err))?;
 
     Ok(())

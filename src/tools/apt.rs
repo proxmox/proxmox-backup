@@ -7,9 +7,10 @@ use apt_pkg_native::Cache;
 use proxmox::tools::fs::{file_read_optional_string, replace_file, CreateOptions};
 use proxmox_schema::const_regex;
 
+use pbs_buildcfg::PROXMOX_BACKUP_STATE_DIR_M;
 use pbs_api_types::APTUpdateInfo;
 
-const APT_PKG_STATE_FN: &str = "/var/lib/proxmox-backup/pkg-state.json";
+const APT_PKG_STATE_FN: &str = concat!(PROXMOX_BACKUP_STATE_DIR_M!(), "/pkg-state.json");
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 /// Some information we cache about the package (update) state, like what pending update version
