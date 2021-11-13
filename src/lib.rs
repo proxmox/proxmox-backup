@@ -33,8 +33,12 @@ pub mod client_helpers;
 
 pub mod rrd_cache;
 
+mod shared_rate_limiter;
+pub use shared_rate_limiter::SharedRateLimiter;
+
 mod cached_traffic_control;
 pub use cached_traffic_control::TrafficControlCache;
+
 
 /// Get the server's certificate info (from `proxy.pem`).
 pub fn cert_info() -> Result<CertInfo, anyhow::Error> {

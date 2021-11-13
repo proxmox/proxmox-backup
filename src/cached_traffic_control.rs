@@ -16,6 +16,8 @@ use pbs_api_types::TrafficControlRule;
 
 use pbs_config::ConfigVersionCache;
 
+use super::SharedRateLimiter;
+
 struct ParsedTcRule {
     config: TrafficControlRule, // original rule config
     networks: Vec<IpInet>, // parsed networks
@@ -23,6 +25,7 @@ struct ParsedTcRule {
 }
 
 pub struct TrafficControlCache {
+    use_shared_memory: bool,
     last_update: i64,
     last_traffic_control_generation: usize,
     rules: Vec<ParsedTcRule>,
@@ -85,17 +88,24 @@ fn cannonical_ip(ip: IpAddr) -> IpAddr {
 }
 
 fn create_limiter(
+    use_shared_memory: bool,
+    name: &str,
     rate: u64,
     burst: u64,
-    _direction: bool, // false => in, true => out
 ) -> Result<Arc<dyn ShareableRateLimit>, Error> {
-    Ok(Arc::new(Mutex::new(RateLimiter::new(rate, burst))))
+    if use_shared_memory {
+        let limiter = SharedRateLimiter::mmap_shmem(name, rate, burst)?;
+        Ok(Arc::new(limiter))
+    } else {
+        Ok(Arc::new(Mutex::new(RateLimiter::new(rate, burst))))
+    }
 }
 
 impl TrafficControlCache {
 
     pub fn new() -> Self {
         Self {
+            use_shared_memory: true,
             rules: Vec::new(),
             limiter_map: HashMap::new(),
             last_traffic_control_generation: 0,
@@ -162,7 +172,13 @@ impl TrafficControlCache {
                 }
                 None => {
                     if let Some(rate_in) = rule.rate_in {
-                        let limiter = create_limiter(rate_in, rule.burst_in.unwrap_or(rate_in), false)?;
+                        let name = format!("{}.in", rule.name);
+                        let limiter = create_limiter(
+                            self.use_shared_memory,
+                            &name,
+                            rate_in,
+                            rule.burst_in.unwrap_or(rate_in),
+                        )?;
                         entry.0 = Some(limiter);
                     }
                 }
@@ -179,7 +195,13 @@ impl TrafficControlCache {
                 }
                 None => {
                     if let Some(rate_out) = rule.rate_out {
-                        let limiter = create_limiter(rate_out, rule.burst_out.unwrap_or(rate_out), true)?;
+                        let name = format!("{}.out", rule.name);
+                        let limiter = create_limiter(
+                            self.use_shared_memory,
+                            &name,
+                            rate_out,
+                            rule.burst_out.unwrap_or(rate_out),
+                        )?;
                         entry.1 = Some(limiter);
                     }
                 }
