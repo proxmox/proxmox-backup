@@ -6,7 +6,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use anyhow::Error;
 use cidr::IpInet;
 
-use proxmox_http::client::RateLimiter;
+use proxmox_http::client::{ShareableRateLimit, RateLimiter};
 use proxmox_section_config::SectionConfigData;
 
 use proxmox_systemd::daily_duration::{parse_daily_duration, DailyDuration};
@@ -26,7 +26,7 @@ pub struct TrafficControlCache {
     last_update: i64,
     last_traffic_control_generation: usize,
     rules: Vec<ParsedTcRule>,
-    limiter_map: HashMap<String, (Option<Arc<Mutex<RateLimiter>>>, Option<Arc<Mutex<RateLimiter>>>)>,
+    limiter_map: HashMap<String, (Option<Arc<dyn ShareableRateLimit>>, Option<Arc<dyn ShareableRateLimit>>)>,
     use_utc: bool, // currently only used for testing
 }
 
@@ -84,6 +84,14 @@ fn cannonical_ip(ip: IpAddr) -> IpAddr {
     }
 }
 
+fn create_limiter(
+    rate: u64,
+    burst: u64,
+    _direction: bool, // false => in, true => out
+) -> Result<Arc<dyn ShareableRateLimit>, Error> {
+    Ok(Arc::new(Mutex::new(RateLimiter::new(rate, burst))))
+}
+
 impl TrafficControlCache {
 
     pub fn new() -> Self {
@@ -130,6 +138,7 @@ impl TrafficControlCache {
         self.update_config(&config)
     }
 
+
     fn update_config(&mut self, config: &SectionConfigData) -> Result<(), Error> {
         self.limiter_map.retain(|key, _value| config.sections.contains_key(key));
 
@@ -146,16 +155,15 @@ impl TrafficControlCache {
                 Some(ref read_limiter) => {
                     match rule.rate_in {
                         Some(rate_in) => {
-                            read_limiter.lock().unwrap().
-                                update_rate(rate_in, rule.burst_in.unwrap_or(rate_in));
+                            read_limiter.update_rate(rate_in, rule.burst_in.unwrap_or(rate_in));
                         }
                         None => entry.0 = None,
                     }
                 }
                 None => {
                     if let Some(rate_in) = rule.rate_in {
-                        let limiter = RateLimiter::new(rate_in, rule.burst_in.unwrap_or(rate_in));
-                        entry.0 = Some(Arc::new(Mutex::new(limiter)));
+                        let limiter = create_limiter(rate_in, rule.burst_in.unwrap_or(rate_in), false)?;
+                        entry.0 = Some(limiter);
                     }
                 }
             }
@@ -164,16 +172,15 @@ impl TrafficControlCache {
                 Some(ref write_limiter) => {
                     match rule.rate_out {
                         Some(rate_out) => {
-                            write_limiter.lock().unwrap().
-                                update_rate(rate_out, rule.burst_out.unwrap_or(rate_out));
+                            write_limiter.update_rate(rate_out, rule.burst_out.unwrap_or(rate_out));
                         }
                         None => entry.1 = None,
                     }
                 }
                 None => {
                     if let Some(rate_out) = rule.rate_out {
-                        let limiter = RateLimiter::new(rate_out, rule.burst_out.unwrap_or(rate_out));
-                        entry.1 = Some(Arc::new(Mutex::new(limiter)));
+                        let limiter = create_limiter(rate_out, rule.burst_out.unwrap_or(rate_out), true)?;
+                        entry.1 = Some(limiter);
                     }
                 }
             }
@@ -212,7 +219,7 @@ impl TrafficControlCache {
         &self,
         peer: Option<SocketAddr>,
         now: i64,
-    ) -> (&str, Option<Arc<Mutex<RateLimiter>>>, Option<Arc<Mutex<RateLimiter>>>) {
+    ) -> (&str, Option<Arc<dyn ShareableRateLimit>>, Option<Arc<dyn ShareableRateLimit>>) {
 
         let peer = match peer {
             None => return ("", None, None),

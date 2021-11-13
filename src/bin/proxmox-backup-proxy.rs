@@ -21,7 +21,7 @@ use proxmox::sys::linux::socket::set_tcp_keepalive;
 use proxmox::tools::fs::CreateOptions;
 use proxmox_lang::try_block;
 use proxmox_router::{RpcEnvironment, RpcEnvironmentType, UserInformation};
-use proxmox_http::client::{RateLimiter, RateLimitedStream};
+use proxmox_http::client::{RateLimitedStream, ShareableRateLimit};
 
 use pbs_tools::{task_log, task_warn};
 use pbs_datastore::DataStore;
@@ -1093,7 +1093,7 @@ lazy_static::lazy_static!{
 
 fn lookup_rate_limiter(
     peer: Option<std::net::SocketAddr>,
-) -> (Option<Arc<Mutex<RateLimiter>>>, Option<Arc<Mutex<RateLimiter>>>) {
+) -> (Option<Arc<dyn ShareableRateLimit>>, Option<Arc<dyn ShareableRateLimit>>) {
     let mut cache = TRAFFIC_CONTROL_CACHE.lock().unwrap();
 
     let now = proxmox_time::epoch_i64();
