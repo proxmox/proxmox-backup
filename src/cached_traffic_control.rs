@@ -2,6 +2,8 @@
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::time::Instant;
+use std::convert::TryInto;
 
 use anyhow::Error;
 use cidr::IpInet;
@@ -18,14 +20,28 @@ use pbs_config::ConfigVersionCache;
 
 use super::SharedRateLimiter;
 
+lazy_static::lazy_static!{
+    pub static ref TRAFFIC_CONTROL_CACHE: Arc<Mutex<TrafficControlCache>> =
+        Arc::new(Mutex::new(TrafficControlCache::new()));
+}
+
 struct ParsedTcRule {
     config: TrafficControlRule, // original rule config
     networks: Vec<IpInet>, // parsed networks
     timeframe: Vec<DailyDuration>, // parsed timeframe
 }
 
+pub struct TrafficStat {
+    pub traffic_in: u64,
+    pub rate_in: u64,
+    pub traffic_out: u64,
+    pub rate_out: u64,
+}
+
 pub struct TrafficControlCache {
     use_shared_memory: bool,
+    last_rate_compute: Instant,
+    current_rate_map: HashMap<String, TrafficStat>,
     last_update: i64,
     last_traffic_control_generation: usize,
     rules: Vec<ParsedTcRule>,
@@ -111,6 +127,8 @@ impl TrafficControlCache {
             last_traffic_control_generation: 0,
             last_update: 0,
             use_utc: false,
+            last_rate_compute: Instant::now(),
+            current_rate_map: HashMap::new(),
         }
     }
 
@@ -148,6 +166,48 @@ impl TrafficControlCache {
         self.update_config(&config)
     }
 
+    pub fn compute_current_rates(&mut self) {
+
+        let elapsed = self.last_rate_compute.elapsed().as_micros();
+        if elapsed < 200_000 { return } // not enough data
+
+        let mut new_rate_map = HashMap::new();
+
+        for (rule, (read_limit, write_limit)) in self.limiter_map.iter() {
+            let traffic_in = read_limit.as_ref().map(|l| l.traffic()).unwrap_or(0);
+            let traffic_out = write_limit.as_ref().map(|l| l.traffic()).unwrap_or(0);
+
+            let traffic_diff_in;
+            let traffic_diff_out;
+
+            if let Some(stat) = self.current_rate_map.get(rule) {
+                traffic_diff_in = traffic_in.saturating_sub(stat.traffic_in);
+                traffic_diff_out = traffic_out.saturating_sub(stat.traffic_out);
+            } else {
+                traffic_diff_in = 0;
+                traffic_diff_out = 0;
+            }
+
+            let rate_in = ((traffic_diff_in as u128) * 1_000_000) / elapsed;
+            let rate_out = ((traffic_diff_out as u128) * 1_000_000) / elapsed;
+
+            let stat = TrafficStat {
+                traffic_in,
+                traffic_out,
+                rate_in: rate_in.try_into().unwrap_or(u64::MAX),
+                rate_out: rate_out.try_into().unwrap_or(u64::MAX),
+            };
+            new_rate_map.insert(rule.clone(), stat);
+        }
+
+        self.current_rate_map = new_rate_map;
+
+        self.last_rate_compute = Instant::now()
+    }
+
+    pub fn current_rate_map(&self) -> &HashMap<String, TrafficStat> {
+        &self.current_rate_map
+    }
 
     fn update_config(&mut self, config: &SectionConfigData) -> Result<(), Error> {
         self.limiter_map.retain(|key, _value| config.sections.contains_key(key));

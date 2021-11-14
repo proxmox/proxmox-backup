@@ -6,10 +6,12 @@ use proxmox_router::list_subdirs_api_method;
 pub mod datastore;
 pub mod sync;
 pub mod verify;
+pub mod traffic_control;
 
 const SUBDIRS: SubdirMap = &[
     ("datastore", &datastore::ROUTER),
     ("sync", &sync::ROUTER),
+    ("traffic-control", &traffic_control::ROUTER),
     ("verify", &verify::ROUTER)
 ];
 

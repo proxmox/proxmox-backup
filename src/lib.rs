@@ -37,7 +37,7 @@ mod shared_rate_limiter;
 pub use shared_rate_limiter::SharedRateLimiter;
 
 mod cached_traffic_control;
-pub use cached_traffic_control::TrafficControlCache;
+pub use cached_traffic_control::{TrafficControlCache, TRAFFIC_CONTROL_CACHE};
 
 
 /// Get the server's certificate info (from `proxy.pem`).

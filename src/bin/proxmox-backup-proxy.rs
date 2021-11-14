@@ -35,6 +35,7 @@ use proxmox_backup::rrd_cache::{
     initialize_rrd_cache, rrd_update_gauge, rrd_update_derive, rrd_sync_journal,
 };
 use proxmox_backup::{
+    TRAFFIC_CONTROL_CACHE,
     server::{
         auth::check_pbs_auth,
         jobstate::{
@@ -71,7 +72,6 @@ use proxmox_backup::api2::pull::do_sync_job;
 use proxmox_backup::api2::tape::backup::do_tape_backup_job;
 use proxmox_backup::server::do_verification_job;
 use proxmox_backup::server::do_prune_job;
-use proxmox_backup::TrafficControlCache;
 
 fn main() -> Result<(), Error> {
     proxmox_backup::tools::setup_safe_path_env();
@@ -329,6 +329,7 @@ async fn run() -> Result<(), Error> {
 
     start_task_scheduler();
     start_stat_generator();
+    start_traffic_control_updater();
 
     server.await?;
     log::info!("server shutting down, waiting for active workers to complete");
@@ -461,6 +462,13 @@ fn start_stat_generator() {
 fn start_task_scheduler() {
     let abort_future = proxmox_rest_server::shutdown_future();
     let future = Box::pin(run_task_scheduler());
+    let task = futures::future::select(future, abort_future);
+    tokio::spawn(task.map(|_| ()));
+}
+
+fn start_traffic_control_updater() {
+    let abort_future = proxmox_rest_server::shutdown_future();
+    let future = Box::pin(run_traffic_control_updater());
     let task = futures::future::select(future, abort_future);
     tokio::spawn(task.map(|_| ()));
 }
@@ -1086,9 +1094,19 @@ fn gather_disk_stats(disk_manager: Arc<DiskManage>, path: &Path, rrd_prefix: &st
 // Test WITH
 // proxmox-backup-client restore vm/201/2021-10-22T09:55:56Z drive-scsi0.img img1.img --repository localhost:store2
 
-lazy_static::lazy_static!{
-    static ref TRAFFIC_CONTROL_CACHE: Arc<Mutex<TrafficControlCache>> =
-        Arc::new(Mutex::new(TrafficControlCache::new()));
+async fn run_traffic_control_updater() {
+
+     loop {
+        let delay_target = Instant::now() +  Duration::from_secs(1);
+
+        {
+            let mut cache = TRAFFIC_CONTROL_CACHE.lock().unwrap();
+            cache.compute_current_rates();
+        }
+
+         tokio::time::sleep_until(tokio::time::Instant::from_std(delay_target)).await;
+     }
+
 }
 
 fn lookup_rate_limiter(
