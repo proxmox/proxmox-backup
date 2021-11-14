@@ -31,7 +31,7 @@ impl Init for WrapLimiter {
 struct SharedRateLimiterData {
     magic: [u8; 8],
     tbf: SharedMutex<WrapLimiter>,
-    padding: [u8; 4096 - 120],
+    padding: [u8; 4096 - 104],
 }
 
 impl Init for SharedRateLimiterData {
@@ -98,9 +98,9 @@ impl ShareableRateLimit for SharedRateLimiter {
             .update_rate(rate, bucket_size);
     }
 
-    fn average_rate(&self, current_time: Instant) -> f64 {
+    fn traffic(&self) -> u64 {
         self.shmem.data().tbf.lock().0
-            .average_rate(current_time)
+            .traffic()
     }
 
     fn register_traffic(&self, current_time: Instant, data_len: u64) -> Duration {
