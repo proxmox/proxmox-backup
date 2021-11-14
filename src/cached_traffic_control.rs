@@ -348,6 +348,7 @@ rule: somewhere
 
         let mut cache = TrafficControlCache::new();
         cache.use_utc = true;
+        cache.use_shared_memory = false; // avoid permission problems in test environment
 
         cache.update_config(&config)?;
 
