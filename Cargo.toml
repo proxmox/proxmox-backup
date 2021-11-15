@@ -107,7 +107,7 @@ proxmox-section-config = "1"
 proxmox-tfa = { version = "1", features = [ "u2f" ] }
 proxmox-time = "1"
 proxmox-uuid = "1"
-proxmox-shared-memory = "0.1.0"
+proxmox-shared-memory = "0.1.1"
 
 proxmox-acme-rs = "0.3"
 proxmox-apt = "0.8.0"
