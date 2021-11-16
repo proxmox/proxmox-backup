@@ -73,7 +73,10 @@ pub fn update_webauthn_config(
     if let Some(wa) = &mut tfa.webauthn {
         if let Some(ref digest) = digest {
             let digest = proxmox::tools::hex_to_digest(digest)?;
-            crate::tools::detect_modified_configuration_file(&digest, &wa.digest()?)?;
+            crate::tools::detect_modified_configuration_file(
+                &digest,
+                &crate::config::tfa::webauthn_config_digest(&wa)?,
+            )?;
         }
         if let Some(ref rp) = webauthn.rp { wa.rp = rp.clone(); }
         if let Some(ref origin) = webauthn.rp { wa.origin = origin.clone(); }
