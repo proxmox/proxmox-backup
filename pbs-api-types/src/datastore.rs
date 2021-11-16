@@ -396,6 +396,7 @@ pub struct SnapshotListItem {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub owner: Option<Authid>,
     /// Protection from prunes
+    #[serde(default)]
     pub protected: bool,
 }
 
