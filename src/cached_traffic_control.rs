@@ -11,8 +11,7 @@ use cidr::IpInet;
 use proxmox_http::client::{ShareableRateLimit, RateLimiter};
 use proxmox_section_config::SectionConfigData;
 
-use proxmox_systemd::daily_duration::{parse_daily_duration, DailyDuration};
-use proxmox_time::TmEditor;
+use proxmox_time::{parse_daily_duration, DailyDuration, TmEditor};
 
 use pbs_api_types::TrafficControlRule;
 

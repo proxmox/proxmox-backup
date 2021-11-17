@@ -7,7 +7,7 @@ use proxmox_schema::{
     api, const_regex, ApiStringFormat, ApiType, ArraySchema, Schema, StringSchema, ReturnType,
 };
 use proxmox::{IPRE, IPRE_BRACKET, IPV4OCTET, IPV4RE, IPV6H16, IPV6LS32, IPV6RE};
-use proxmox_systemd::daily_duration::parse_daily_duration;
+use proxmox_time::parse_daily_duration;
 
 #[rustfmt::skip]
 #[macro_export]

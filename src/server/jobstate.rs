@@ -46,7 +46,7 @@ use proxmox::tools::fs::{
     create_path, file_read_optional_string, replace_file, CreateOptions,
 };
 
-use proxmox_systemd::time::{compute_next_event, parse_calendar_event};
+use proxmox_time::{compute_next_event, parse_calendar_event};
 
 use pbs_buildcfg::PROXMOX_BACKUP_STATE_DIR_M;
 use pbs_config::{open_backup_lockfile, BackupLockGuard};

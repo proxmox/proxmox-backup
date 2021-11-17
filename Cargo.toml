@@ -28,7 +28,6 @@ members = [
     "pbs-runtime",
     "proxmox-rest-server",
     "proxmox-rrd",
-    "proxmox-systemd",
     "pbs-tape",
     "pbs-tools",
 
@@ -120,7 +119,6 @@ pbs-datastore = { path = "pbs-datastore" }
 pbs-runtime = { path = "pbs-runtime" }
 proxmox-rest-server = { path = "proxmox-rest-server" }
 proxmox-rrd = { path = "proxmox-rrd" }
-proxmox-systemd = { path = "proxmox-systemd" }
 pbs-tools = { path = "pbs-tools" }
 pbs-tape = { path = "pbs-tape" }
 

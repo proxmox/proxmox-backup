@@ -18,7 +18,7 @@ use pbs_api_types::{
     Fingerprint, MediaStatus, MediaLocation, MediaSetPolicy, RetentionPolicy,
     MediaPoolConfig,
 };
-use proxmox_systemd::time::compute_next_event;
+use proxmox_time::compute_next_event;
 use pbs_config::BackupLockGuard;
 
 use crate::tape::{

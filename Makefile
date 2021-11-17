@@ -41,7 +41,6 @@ SUBCRATES := \
 	pbs-runtime \
 	proxmox-rest-server \
 	proxmox-rrd \
-	proxmox-systemd \
 	pbs-tape \
 	pbs-tools \
 	proxmox-backup-banner \

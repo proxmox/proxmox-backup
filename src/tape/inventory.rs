@@ -33,7 +33,7 @@ use serde_json::json;
 use proxmox::tools::fs::{replace_file, file_get_json, CreateOptions};
 use proxmox_uuid::Uuid;
 
-use proxmox_systemd::time::compute_next_event;
+use proxmox_time::compute_next_event;
 use pbs_config::BackupLockGuard;
 use pbs_api_types::{MediaSetPolicy, RetentionPolicy, MediaStatus, MediaLocation};
 

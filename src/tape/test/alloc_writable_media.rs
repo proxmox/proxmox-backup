@@ -5,7 +5,7 @@
 use std::path::PathBuf;
 use anyhow::Error;
 
-use proxmox_systemd::time::parse_time_span;
+use proxmox_time::parse_time_span;
 use pbs_api_types::{RetentionPolicy, MediaSetPolicy};
 
 use crate::tape::{Inventory, MediaPool};

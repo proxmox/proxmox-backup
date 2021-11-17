@@ -23,25 +23,25 @@ pub const JOB_ID_SCHEMA: Schema = StringSchema::new("Job ID.")
 
 pub const SYNC_SCHEDULE_SCHEMA: Schema = StringSchema::new(
     "Run sync job at specified schedule.")
-    .format(&ApiStringFormat::VerifyFn(proxmox_systemd::time::verify_calendar_event))
+    .format(&ApiStringFormat::VerifyFn(proxmox_time::verify_calendar_event))
     .type_text("<calendar-event>")
     .schema();
 
 pub const GC_SCHEDULE_SCHEMA: Schema = StringSchema::new(
     "Run garbage collection job at specified schedule.")
-    .format(&ApiStringFormat::VerifyFn(proxmox_systemd::time::verify_calendar_event))
+    .format(&ApiStringFormat::VerifyFn(proxmox_time::verify_calendar_event))
     .type_text("<calendar-event>")
     .schema();
 
 pub const PRUNE_SCHEDULE_SCHEMA: Schema = StringSchema::new(
     "Run prune job at specified schedule.")
-    .format(&ApiStringFormat::VerifyFn(proxmox_systemd::time::verify_calendar_event))
+    .format(&ApiStringFormat::VerifyFn(proxmox_time::verify_calendar_event))
     .type_text("<calendar-event>")
     .schema();
 
 pub const VERIFICATION_SCHEDULE_SCHEMA: Schema = StringSchema::new(
     "Run verify job at specified schedule.")
-    .format(&ApiStringFormat::VerifyFn(proxmox_systemd::time::verify_calendar_event))
+    .format(&ApiStringFormat::VerifyFn(proxmox_time::verify_calendar_event))
     .type_text("<calendar-event>")
     .schema();
 

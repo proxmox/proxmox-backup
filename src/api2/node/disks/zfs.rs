@@ -270,7 +270,7 @@ pub fn create_zpool(
 
             if std::path::Path::new("/lib/systemd/system/zfs-import@.service").exists() {
                 let import_unit = format!("zfs-import@{}.service", proxmox::tools::systemd::escape_unit(&name, false));
-                proxmox_systemd::enable_unit(&import_unit)?;
+                crate::tools::systemd::enable_unit(&import_unit)?;
             }
 
             if let Some(compression) = compression {

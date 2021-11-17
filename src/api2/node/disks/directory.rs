@@ -187,9 +187,9 @@ pub fn create_datastore_disk(
 
             let mount_unit_name = create_datastore_mount_unit(&name, &mount_point, filesystem, &uuid_path)?;
 
-            proxmox_systemd::reload_daemon()?;
-            proxmox_systemd::enable_unit(&mount_unit_name)?;
-            proxmox_systemd::start_unit(&mount_unit_name)?;
+            crate::tools::systemd::reload_daemon()?;
+            crate::tools::systemd::enable_unit(&mount_unit_name)?;
+            crate::tools::systemd::start_unit(&mount_unit_name)?;
 
             if add_datastore {
                 let lock = pbs_config::datastore::lock_config()?;
@@ -245,7 +245,7 @@ pub fn delete_datastore_disk(name: String) -> Result<(), Error> {
     // disable systemd mount-unit
     let mut mount_unit_name = proxmox::tools::systemd::escape_unit(&path, true);
     mount_unit_name.push_str(".mount");
-    proxmox_systemd::disable_unit(&mount_unit_name)?;
+    crate::tools::systemd::disable_unit(&mount_unit_name)?;
 
     // delete .mount-file
     let mount_unit_path = format!("/etc/systemd/system/{}", mount_unit_name);

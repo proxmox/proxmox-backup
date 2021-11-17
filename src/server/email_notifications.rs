@@ -431,7 +431,7 @@ pub fn send_tape_backup_status(
 ) -> Result<(), Error> {
 
     let (fqdn, port) = get_server_url();
-    let duration: proxmox_systemd::time::TimeSpan = summary.duration.into();
+    let duration: proxmox_time::TimeSpan = summary.duration.into();
     let mut data = json!({
         "job": job,
         "fqdn": fqdn,

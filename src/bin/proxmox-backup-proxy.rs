@@ -46,7 +46,7 @@ use proxmox_backup::{
 };
 
 use pbs_buildcfg::configdir;
-use proxmox_systemd::time::{compute_next_event, parse_calendar_event};
+use proxmox_time::{compute_next_event, parse_calendar_event};
 use pbs_tools::logrotate::LogRotate;
 
 use pbs_api_types::{

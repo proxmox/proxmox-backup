@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 
 use proxmox_schema::{api, Schema, StringSchema, ApiStringFormat, Updater};
 
-use proxmox_systemd::time::{parse_calendar_event, parse_time_span, CalendarEvent, TimeSpan};
+use proxmox_time::{parse_calendar_event, parse_time_span, CalendarEvent, TimeSpan};
 
 use crate::{
     PROXMOX_SAFE_ID_FORMAT,
