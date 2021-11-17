@@ -190,5 +190,5 @@ pub fn complete_key_fingerprint(_arg: &str, _param: &HashMap<String, String>) ->
         Err(_) => return Vec::new(),
     };
 
-    data.keys().map(|fp| pbs_tools::format::as_fingerprint(fp.bytes())).collect()
+    data.keys().map(|fp| fp.to_string()).collect()
 }

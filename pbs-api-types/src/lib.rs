@@ -64,7 +64,7 @@ pub use user::*;
 pub use proxmox_schema::upid::*;
 
 mod crypto;
-pub use crypto::{CryptMode, Fingerprint};
+pub use crypto::{CryptMode, Fingerprint, bytes_as_fingerprint};
 
 pub mod file_restore;
 

@@ -317,7 +317,7 @@ impl TapeDriver for LtoTapeHandle {
         }
 
         let output = if let Some((fingerprint, uuid)) = key_fingerprint {
-            let fingerprint = pbs_tools::format::as_fingerprint(fingerprint.bytes());
+            let fingerprint = fingerprint.to_string();
             run_sg_tape_cmd("encryption", &[
                 "--fingerprint", &fingerprint,
                 "--uuid", &uuid.to_string(),

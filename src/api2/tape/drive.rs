@@ -21,6 +21,7 @@ use pbs_api_types::{
 };
  
 use pbs_api_types::{PRIV_TAPE_AUDIT, PRIV_TAPE_READ, PRIV_TAPE_WRITE};
+
 use pbs_config::CachedUserInfo;
 use pbs_tape::{
     BlockReadError,
@@ -695,7 +696,7 @@ pub async fn read_label(
                         flat.encryption_key_fingerprint = set
                             .encryption_key_fingerprint
                             .as_ref()
-                            .map(|fp| pbs_tools::format::as_fingerprint(fp.bytes()));
+                            .map(|fp| fp.to_string());
 
                         let encrypt_fingerprint = set.encryption_key_fingerprint.clone()
                             .map(|fp| (fp, set.uuid.clone()));

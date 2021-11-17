@@ -7,6 +7,7 @@ description = "general API type helpers for PBS"
 
 [dependencies]
 anyhow = "1.0"
+hex = "0.4.3"
 lazy_static = "1.4"
 libc = "0.2"
 nix = "0.19.1"
@@ -21,4 +22,3 @@ proxmox-time = "1.0.0"
 proxmox-uuid = { version = "1.0.0", features = [ "serde" ] }
 
 proxmox-systemd = { path = "../proxmox-systemd" }
-pbs-tools = { path = "../pbs-tools" }

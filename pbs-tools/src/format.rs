@@ -103,47 +103,6 @@ impl From<u64> for HumanByte {
     }
 }
 
-pub fn as_fingerprint(bytes: &[u8]) -> String {
-    hex::encode(bytes)
-        .as_bytes()
-        .chunks(2)
-        .map(|v| unsafe { std::str::from_utf8_unchecked(v) }) // it's a hex string
-        .collect::<Vec<&str>>().join(":")
-}
-
-pub mod bytes_as_fingerprint {
-    use std::mem::MaybeUninit;
-
-    use serde::{Deserialize, Serializer, Deserializer};
-
-    pub fn serialize<S>(
-        bytes: &[u8; 32],
-        serializer: S,
-    ) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let s = super::as_fingerprint(bytes);
-        serializer.serialize_str(&s)
-    }
-
-    pub fn deserialize<'de, D>(
-        deserializer: D,
-    ) -> Result<[u8; 32], D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        // TODO: more efficiently implement with a Visitor implementing visit_str using split() and
-        // hex::decode by-byte
-        let mut s = String::deserialize(deserializer)?;
-        s.retain(|c| c != ':');
-        let mut out = MaybeUninit::<[u8; 32]>::uninit();
-        hex::decode_to_slice(s.as_bytes(), unsafe { &mut (*out.as_mut_ptr())[..] })
-            .map_err(serde::de::Error::custom)?;
-        Ok(unsafe { out.assume_init() })
-    }
-}
-
 #[test]
 fn correct_byte_convert() {
     fn convert(b: usize) -> String {
