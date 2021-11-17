@@ -16,7 +16,6 @@ pub mod apt;
 pub mod config;
 pub mod disks;
 
-pub mod serde_filter;
 pub mod statistics;
 pub mod subscription;
 pub mod systemd;
