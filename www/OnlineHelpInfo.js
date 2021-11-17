@@ -85,7 +85,7 @@ const proxmoxOnlineHelpInfo = {
   },
   "local-zfs-special-device": {
     "link": "/docs/sysadmin.html#local-zfs-special-device",
-    "title": "ZFS Special Device"
+    "title": "ZFS special device"
   },
   "maintenance-pruning": {
     "link": "/docs/maintenance.html#maintenance-pruning",
@@ -114,6 +114,10 @@ const proxmoxOnlineHelpInfo = {
   "sysadmin-network-configuration": {
     "link": "/docs/network-management.html#sysadmin-network-configuration",
     "title": "Network Management"
+  },
+  "sysadmin-traffic-control": {
+    "link": "/docs/traffic-control.html#sysadmin-traffic-control",
+    "title": "Traffic Control"
   },
   "pve-integration": {
     "link": "/docs/pve-integration.html#pve-integration",
@@ -185,7 +189,7 @@ const proxmoxOnlineHelpInfo = {
   },
   "user-tfa": {
     "link": "/docs/user-management.html#user-tfa",
-    "title": "Two-factor authentication"
+    "title": "Two-Factor Authentication"
   },
   "user-tfa-setup-totp": {
     "link": "/docs/user-management.html#user-tfa-setup-totp",

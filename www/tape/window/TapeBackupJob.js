@@ -65,7 +65,7 @@ Ext.define('PBS.TapeManagement.BackupJobEdit', {
 		name: 'drive',
 	    },
 	    {
-		xtype: 'pbsUserSelector',
+		xtype: 'pmxUserSelector',
 		name: 'notify-user',
 		fieldLabel: gettext('Notify User'),
 		emptyText: 'root@pam',

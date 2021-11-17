@@ -36,7 +36,6 @@ TAPE_UI_FILES=						\
 
 JSSRC=							\
 	Utils.js					\
-	form/UserSelector.js				\
 	form/TokenSelector.js				\
 	form/AuthidSelector.js				\
 	form/RemoteSelector.js				\
@@ -46,7 +45,6 @@ JSSRC=							\
 	data/RunningTasksStore.js			\
 	button/TaskButton.js				\
 	config/UserView.js				\
-	config/TfaView.js				\
 	config/TokenView.js				\
 	config/RemoteView.js				\
 	config/ACLView.js				\
@@ -56,9 +54,6 @@ JSSRC=							\
 	config/CertificateView.js			\
 	config/NodeOptionView.js			\
 	window/ACLEdit.js				\
-	window/AddTfaRecovery.js			\
-	window/AddTotp.js				\
-	window/AddWebauthn.js				\
 	window/BackupFileDownloader.js			\
 	window/BackupGroupChangeOwner.js		\
 	window/CreateDirectory.js			\
@@ -71,7 +66,6 @@ JSSRC=							\
 	window/UserPassword.js				\
 	window/Settings.js				\
 	window/TokenEdit.js				\
-	window/TfaEdit.js				\
 	window/VerifyJobEdit.js				\
 	window/ZFSCreate.js				\
 	dashboard/DataStoreStatistics.js		\

@@ -26,7 +26,7 @@ Ext.define('PBS.window.TokenEdit', {
 		    value: () => Proxmox.UserName,
 		},
 		editConfig: {
-		    xtype: 'pbsUserSelector',
+		    xtype: 'pmxUserSelector',
 		    allowBlank: false,
 		},
 		name: 'user',

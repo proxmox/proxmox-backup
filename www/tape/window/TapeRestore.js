@@ -388,7 +388,7 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 		    },
 		    column1: [
 			{
-			    xtype: 'pbsUserSelector',
+			    xtype: 'pmxUserSelector',
 			    name: 'notify-user',
 			    fieldLabel: gettext('Notify User'),
 			    emptyText: gettext('Current User'),
@@ -398,7 +398,7 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 			    renderer: Ext.String.htmlEncode,
 			},
 			{
-			    xtype: 'pbsUserSelector',
+			    xtype: 'pmxUserSelector',
 			    name: 'owner',
 			    fieldLabel: gettext('Owner'),
 			    emptyText: gettext('Current User'),

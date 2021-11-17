@@ -34,7 +34,7 @@ Ext.define('PBS.window.ACLEdit', {
 	if (me.aclType === 'user') {
 	    me.subject = gettext('User Permission');
 	    me.items.push({
-		xtype: 'pbsUserSelector',
+		xtype: 'pmxUserSelector',
 		name: 'auth-id',
 		fieldLabel: gettext('User'),
 		allowBlank: false,

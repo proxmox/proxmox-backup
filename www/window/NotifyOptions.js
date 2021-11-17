@@ -49,7 +49,7 @@ Ext.define('PBS.window.NotifyOptions', {
 	},
 	items: [
 	    {
-		xtype: 'pbsUserSelector',
+		xtype: 'pmxUserSelector',
 		name: 'notify-user',
 		fieldLabel: gettext('Notify User'),
 		emptyText: 'root@pam',
