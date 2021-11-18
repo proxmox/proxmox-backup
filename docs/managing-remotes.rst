@@ -90,11 +90,22 @@ the local datastore as well. If the ``owner`` option is not set (defaulting to
 ``root@pam``) or is set to something other than the configuring user,
 ``Datastore.Modify`` is required as well.
 
-If the ``groups`` option is set, only backup groups matching at least one of
-the specified criteria (backup type, full group identifier, or a regular
-expression matched against the full group identifier) are synced. The same
-filter is applied to local groups for handling of the ``remove-vanished``
-option.
+If the ``group-filter`` option is set, only backup groups matching at least one
+of the specified criteria are synced. The available criteria are:
+
+* backup type, for example to only sync groups of the `ct` (Container) type:
+    .. code-block:: console
+
+     # proxmox-backup-manager sync-job update ID --group-filter type:ct
+* full group identifier
+    .. code-block:: console
+
+     # proxmox-backup-manager sync-job update ID --group-filter group:vm/100
+* regular expression matched against the full group identifier
+.. todo:: add example for regex
+
+The same filter is applied to local groups for handling of the
+``remove-vanished`` option.
 
 .. note:: A sync job can only sync backup groups that the configured remote's
   user/API token can read. If a remote is configured with a user/API token that
