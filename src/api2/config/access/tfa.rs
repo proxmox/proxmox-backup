@@ -79,7 +79,7 @@ pub fn update_webauthn_config(
             )?;
         }
         if let Some(ref rp) = webauthn.rp { wa.rp = rp.clone(); }
-        if let Some(ref origin) = webauthn.rp { wa.origin = origin.clone(); }
+        if let Some(ref origin) = webauthn.origin { wa.origin = origin.clone(); }
         if let Some(ref id) = webauthn.id { wa.id = id.clone(); }
     } else {
         let rp = webauthn.rp.unwrap();
