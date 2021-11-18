@@ -11,12 +11,15 @@ use proxmox_router::{
 };
 use proxmox_schema::{api, parse_simple_value};
 
-use proxmox_openid::{OpenIdAuthenticator,  OpenIdConfig};
+use proxmox_openid::{OpenIdAuthenticator, OpenIdConfig};
 
-use pbs_api_types::{User, Userid, EMAIL_SCHEMA, FIRST_NAME_SCHEMA, LAST_NAME_SCHEMA, REALM_ID_SCHEMA};
+use pbs_api_types::{
+    OpenIdRealmConfig, User, Userid,
+    EMAIL_SCHEMA, FIRST_NAME_SCHEMA, LAST_NAME_SCHEMA, OPENID_DEFAILT_SCOPE_LIST,
+    REALM_ID_SCHEMA,
+};
 use pbs_buildcfg::PROXMOX_BACKUP_RUN_DIR_M;
 use pbs_tools::ticket::Ticket;
-use pbs_config::domains::{OpenIdUserAttribute, OpenIdRealmConfig};
 
 use pbs_config::CachedUserInfo;
 use pbs_config::open_backup_lockfile;
@@ -25,14 +28,34 @@ use crate::auth_helpers::*;
 use crate::server::ticket::ApiTicket;
 
 fn openid_authenticator(realm_config: &OpenIdRealmConfig, redirect_url: &str) -> Result<OpenIdAuthenticator, Error> {
+
+    let scopes: Vec<String> = realm_config.scopes.as_deref().unwrap_or(OPENID_DEFAILT_SCOPE_LIST)
+        .split(|c: char| c == ',' || c == ';' || char::is_ascii_whitespace(&c))
+        .filter(|s| !s.is_empty())
+        .map(String::from)
+        .collect();
+
+    let mut acr_values = None;
+    if let Some(ref list) = realm_config.acr_values {
+        acr_values = Some(
+            list
+                .split(|c: char| c == ',' || c == ';' || char::is_ascii_whitespace(&c))
+                .filter(|s| !s.is_empty())
+                .map(String::from)
+                .collect()
+        );
+    }
+
     let config = OpenIdConfig {
         issuer_url: realm_config.issuer_url.clone(),
         client_id: realm_config.client_id.clone(),
         client_key: realm_config.client_key.clone(),
+        prompt: realm_config.prompt.clone(),
+        scopes: Some(scopes),
+        acr_values,
     };
     OpenIdAuthenticator::discover(&config, redirect_url)
 }
-
 
 #[api(
     input: {
@@ -100,26 +123,32 @@ pub fn openid_login(
 
         let open_id = openid_authenticator(&config, &redirect_url)?;
 
-        let info = open_id.verify_authorization_code(&code, &private_auth_state)?;
+        let info = open_id.verify_authorization_code_simple(&code, &private_auth_state)?;
 
-        // eprintln!("VERIFIED {} {:?} {:?}", info.subject().as_str(), info.name(), info.email());
+        // eprintln!("VERIFIED {:?}", info);
 
-        let unique_name = match config.username_claim {
-            None | Some(OpenIdUserAttribute::Subject) => info.subject().as_str(),
-            Some(OpenIdUserAttribute::Username) => {
-                match info.preferred_username() {
-                    Some(name) => name.as_str(),
-                    None => bail!("missing claim 'preferred_name'"),
-                }
-            }
-            Some(OpenIdUserAttribute::Email) => {
-                match info.email() {
-                    Some(name) => name.as_str(),
-                    None => bail!("missing claim 'email'"),
+        let name_attr = config.username_claim.as_deref().unwrap_or("sub");
+
+        // Try to be compatible with previous versions
+        let try_attr = match name_attr {
+            "subject" => Some("sub"),
+            "username" => Some("preferred_username"),
+            _ => None,
+        };
+
+        let unique_name = match info[name_attr].as_str() {
+            Some(name) => name.to_owned(),
+            None => {
+                if let Some(try_attr) = try_attr {
+                    match info[try_attr].as_str() {
+                        Some(name) => name.to_owned(),
+                        None => bail!("missing claim '{}'", name_attr),
+                    }
+                } else {
+                    bail!("missing claim '{}'", name_attr);
                 }
             }
         };
-
 
         let user_id = Userid::try_from(format!("{}@{}", unique_name, realm))?;
         tested_username = Some(unique_name.to_string());
@@ -129,17 +158,14 @@ pub fn openid_login(
                 use pbs_config::user;
                 let _lock = open_backup_lockfile(user::USER_CFG_LOCKFILE, None, true)?;
 
-                let firstname = info.given_name().and_then(|n| n.get(None))
-                    .filter(|n| parse_simple_value(n, &FIRST_NAME_SCHEMA).is_ok())
-                    .map(|n| n.to_string());
+                let firstname = info["given_name"].as_str().map(|n| n.to_string())
+                    .filter(|n| parse_simple_value(n, &FIRST_NAME_SCHEMA).is_ok());
 
-                let lastname = info.family_name().and_then(|n| n.get(None))
-                    .filter(|n| parse_simple_value(n, &LAST_NAME_SCHEMA).is_ok())
-                    .map(|n| n.to_string());
+                let lastname = info["family_name"].as_str().map(|n| n.to_string())
+                    .filter(|n| parse_simple_value(n, &LAST_NAME_SCHEMA).is_ok());
 
-                let email = info.email()
-                    .filter(|n| parse_simple_value(n, &EMAIL_SCHEMA).is_ok())
-                    .map(|e| e.to_string());
+                let email = info["email"].as_str().map(|n| n.to_string())
+                    .filter(|n| parse_simple_value(n, &EMAIL_SCHEMA).is_ok());
 
                 let user = User {
                     userid: user_id.clone(),

@@ -8,9 +8,11 @@ use proxmox_router::{Router, RpcEnvironment, Permission};
 use proxmox_schema::api;
 
 use pbs_api_types::{
+    OpenIdRealmConfig, OpenIdRealmConfigUpdater,
     PROXMOX_CONFIG_DIGEST_SCHEMA, REALM_ID_SCHEMA, PRIV_SYS_AUDIT, PRIV_REALM_ALLOCATE,
 };
-use pbs_config::domains::{self, OpenIdRealmConfig, OpenIdRealmConfigUpdater};
+
+use pbs_config::domains;
 
 #[api(
     input: {
@@ -157,6 +159,12 @@ pub enum DeletableProperty {
     comment,
     /// Delete the autocreate property
     autocreate,
+    /// Delete the scopes property
+    scopes,
+    /// Delete the prompt property
+    prompt,
+    /// Delete the acr_values property
+    acr_values,
 }
 
 #[api(
@@ -215,6 +223,9 @@ pub fn update_openid_realm(
                 DeletableProperty::client_key => { config.client_key = None; },
                 DeletableProperty::comment => { config.comment = None; },
                 DeletableProperty::autocreate => { config.autocreate = None; },
+                DeletableProperty::scopes => { config.scopes = None; },
+                DeletableProperty::prompt => { config.prompt = None; },
+                DeletableProperty::acr_values => { config.acr_values = None; },
             }
         }
     }
@@ -233,6 +244,9 @@ pub fn update_openid_realm(
 
     if update.client_key.is_some() { config.client_key = update.client_key; }
     if update.autocreate.is_some() { config.autocreate = update.autocreate; }
+    if update.scopes.is_some() { config.scopes = update.scopes; }
+    if update.prompt.is_some() { config.prompt = update.prompt; }
+    if update.acr_values.is_some() { config.acr_values = update.acr_values; }
 
     domains.set_data(&realm, "openid", &config)?;
 

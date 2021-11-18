@@ -68,6 +68,9 @@ pub use crypto::{CryptMode, Fingerprint, bytes_as_fingerprint};
 
 pub mod file_restore;
 
+mod openid;
+pub use openid::*;
+
 mod remote;
 pub use remote::*;
 
