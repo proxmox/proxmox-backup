@@ -7,7 +7,7 @@ description = "low level pbs data storage access"
 
 [dependencies]
 anyhow = "1.0"
-base64 = "0.12"
+base64 = "0.13"
 crc32fast = "1"
 endian_trait = { version = "0.6", features = [ "arrays" ] }
 futures = "0.3"

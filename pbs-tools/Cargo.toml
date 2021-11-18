@@ -8,7 +8,7 @@ description = "common tools used throughout pbs"
 # This must not depend on any subcrates more closely related to pbs itself.
 [dependencies]
 anyhow = "1.0"
-base64 = "0.12"
+base64 = "0.13"
 bytes = "1.0"
 crc32fast = "1"
 endian_trait = { version = "0.6", features = ["arrays"] }

@@ -44,7 +44,7 @@ path = "src/lib.rs"
 
 [dependencies]
 apt-pkg-native = "0.3.2"
-base64 = "0.12"
+base64 = "0.13"
 bitflags = "1.2.1"
 bytes = "1.0"
 cidr = "0.2.1"
