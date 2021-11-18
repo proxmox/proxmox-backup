@@ -1,14 +1,33 @@
 use anyhow::Error;
-use serde_json::{json, Value};
+use serde::{Deserialize, Serialize};
 
-use proxmox_router::{Router, Permission};
+use proxmox_router::{Router, RpcEnvironment, Permission};
 use proxmox_schema::api;
 
 use pbs_api_types::{
-    TRAFFIC_CONTROL_ID_SCHEMA, PRIV_SYS_AUDIT,
+    TrafficControlRule, PRIV_SYS_AUDIT,
 };
 
 use crate::TRAFFIC_CONTROL_CACHE;
+
+#[api(
+    properties: {
+        config: {
+            type: TrafficControlRule,
+        },
+    },
+)]
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all="kebab-case")]
+/// Traffic control rule config with current rates
+pub struct TrafficControlCurrentRate {
+    #[serde(flatten)]
+    config: TrafficControlRule,
+    /// Current ingress rate in bytes/second
+    cur_rate_in: u64,
+    /// Current egress rate in bytes/second
+    cur_rate_out: u64,
+}
 
 #[api(
     input: {
@@ -18,20 +37,7 @@ use crate::TRAFFIC_CONTROL_CACHE;
         description: "Show current traffic control rates.",
         type: Array,
         items: {
-            description: "Current rates per rule.",
-            properties: {
-                name: {
-                    schema: TRAFFIC_CONTROL_ID_SCHEMA,
-                },
-                "rate-in": {
-                    description: "Current ingress rate in bytes/second",
-                    type: u64,
-                },
-                "rate-out": {
-                    description: "Current egress rate in bytes/second",
-                    type: u64,
-                },
-            },
+            type: TrafficControlCurrentRate,
         },
     },
     access: {
@@ -39,20 +45,30 @@ use crate::TRAFFIC_CONTROL_CACHE;
     },
 )]
 /// Show current traffic for all traffic control rules.
-pub fn show_current_traffic() -> Result<Value, Error> {
+pub fn show_current_traffic(
+    mut rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Vec<TrafficControlCurrentRate>, Error> {
+
+    let (config, digest) = pbs_config::traffic_control::config()?;
+
+    let rules: Vec<TrafficControlRule> = config.convert_to_typed_array("rule")?;
+
+    let cache = TRAFFIC_CONTROL_CACHE.lock().unwrap();
 
     let mut list = Vec::new();
 
-    let cache = TRAFFIC_CONTROL_CACHE.lock().unwrap();
-    for (rule, stat) in cache.current_rate_map().iter() {
-        list.push(json!({
-            "name": rule,
-            "rate-in": stat.rate_in,
-            "rate-out": stat.rate_out,
-        }));
+    for config in rules {
+        let (cur_rate_in, cur_rate_out) = match cache.current_rate_map().get(&config.name) {
+            None => (0, 0),
+            Some(state) => (state.rate_in, state.rate_out),
+        };
+        list.push(TrafficControlCurrentRate {config, cur_rate_in, cur_rate_out});
     }
 
-    Ok(list.into())
+    // also return the configuration digest
+    rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
+
+    Ok(list)
 }
 
 pub const ROUTER: Router = Router::new()

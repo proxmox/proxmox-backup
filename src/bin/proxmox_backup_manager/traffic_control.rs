@@ -93,7 +93,7 @@ async fn show_current_traffic(param: Value) -> Result<Value, Error> {
 
     let client = connect_to_localhost()?;
 
-    let mut result = client.get(&"api2/json/admin/traffic-control", Some(param)).await?;
+    let mut result = client.get(&"api2/json/admin/traffic-control", None).await?;
 
     let mut data = result["data"].take();
 
@@ -101,8 +101,8 @@ async fn show_current_traffic(param: Value) -> Result<Value, Error> {
 
     let options = default_table_format_options()
         .column(ColumnConfig::new("name"))
-        .column(ColumnConfig::new("rate-in"))
-        .column(ColumnConfig::new("rate-out"));
+        .column(ColumnConfig::new("cur-rate-in"))
+        .column(ColumnConfig::new("cur-rate-out"));
 
     format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
 
