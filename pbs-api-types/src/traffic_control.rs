@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use proxmox_schema::{api, Schema, IntegerSchema, StringSchema, Updater};
 
 use crate::{
-    CIDR_SCHEMA, DAILY_DURATION_FORMAT,
+    HumanByte, CIDR_SCHEMA, DAILY_DURATION_FORMAT,
     PROXMOX_SAFE_ID_FORMAT, SINGLE_LINE_COMMENT_SCHEMA,
 };
 
@@ -38,19 +38,19 @@ pub const TRAFFIC_CONTROL_BURST_SCHEMA: Schema = IntegerSchema::new(
             schema: SINGLE_LINE_COMMENT_SCHEMA,
         },
         "rate-in": {
-            schema: TRAFFIC_CONTROL_RATE_SCHEMA,
+            type: HumanByte,
             optional: true,
         },
         "burst-in": {
-            schema: TRAFFIC_CONTROL_BURST_SCHEMA,
+            type: HumanByte,
             optional: true,
         },
         "rate-out": {
-            schema: TRAFFIC_CONTROL_RATE_SCHEMA,
+            type: HumanByte,
             optional: true,
         },
         "burst-out": {
-            schema: TRAFFIC_CONTROL_BURST_SCHEMA,
+            type: HumanByte,
             optional: true,
         },
         network: {
@@ -79,13 +79,13 @@ pub struct TrafficControlRule {
     /// Rule applies to Source IPs within this networks
     pub network: Vec<String>,
     #[serde(skip_serializing_if="Option::is_none")]
-    pub rate_in: Option<u64>,
+    pub rate_in: Option<HumanByte>,
     #[serde(skip_serializing_if="Option::is_none")]
-    pub burst_in: Option<u64>,
+    pub burst_in: Option<HumanByte>,
     #[serde(skip_serializing_if="Option::is_none")]
-    pub rate_out: Option<u64>,
+    pub rate_out: Option<HumanByte>,
     #[serde(skip_serializing_if="Option::is_none")]
-    pub burst_out: Option<u64>,
+    pub burst_out: Option<HumanByte>,
     // fixme: expose this?
     //    /// Bandwidth is shared accross all connections
     //    #[serde(skip_serializing_if="Option::is_none")]

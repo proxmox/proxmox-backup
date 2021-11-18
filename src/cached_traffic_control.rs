@@ -224,7 +224,10 @@ impl TrafficControlCache {
                 Some(ref read_limiter) => {
                     match rule.rate_in {
                         Some(rate_in) => {
-                            read_limiter.update_rate(rate_in, rule.burst_in.unwrap_or(rate_in));
+                            read_limiter.update_rate(
+                                rate_in.as_u64(),
+                                rule.burst_in.unwrap_or(rate_in).as_u64(),
+                            );
                         }
                         None => entry.0 = None,
                     }
@@ -235,8 +238,8 @@ impl TrafficControlCache {
                         let limiter = create_limiter(
                             self.use_shared_memory,
                             &name,
-                            rate_in,
-                            rule.burst_in.unwrap_or(rate_in),
+                            rate_in.as_u64(),
+                            rule.burst_in.unwrap_or(rate_in).as_u64(),
                         )?;
                         entry.0 = Some(limiter);
                     }
@@ -247,7 +250,10 @@ impl TrafficControlCache {
                 Some(ref write_limiter) => {
                     match rule.rate_out {
                         Some(rate_out) => {
-                            write_limiter.update_rate(rate_out, rule.burst_out.unwrap_or(rate_out));
+                            write_limiter.update_rate(
+                                rate_out.as_u64(),
+                                rule.burst_out.unwrap_or(rate_out).as_u64(),
+                            );
                         }
                         None => entry.1 = None,
                     }
@@ -258,8 +264,8 @@ impl TrafficControlCache {
                         let limiter = create_limiter(
                             self.use_shared_memory,
                             &name,
-                            rate_out,
-                            rule.burst_out.unwrap_or(rate_out),
+                            rate_out.as_u64(),
+                            rule.burst_out.unwrap_or(rate_out).as_u64(),
                         )?;
                         entry.1 = Some(limiter);
                     }
