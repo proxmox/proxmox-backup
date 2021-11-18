@@ -192,8 +192,8 @@ pub enum DeletableProperty {
     schedule,
     /// Delete the remove-vanished flag.
     remove_vanished,
-    /// Delete the groups property.
-    groups,
+    /// Delete the group_filter property.
+    group_filter,
 }
 
 #[api(
@@ -256,7 +256,7 @@ pub fn update_sync_job(
                 DeletableProperty::comment => { data.comment = None; },
                 DeletableProperty::schedule => { data.schedule = None; },
                 DeletableProperty::remove_vanished => { data.remove_vanished = None; },
-                DeletableProperty::groups => { data.groups = None; },
+                DeletableProperty::group_filter => { data.group_filter = None; },
             }
         }
     }
@@ -274,7 +274,7 @@ pub fn update_sync_job(
     if let Some(remote) = update.remote { data.remote = remote; }
     if let Some(remote_store) = update.remote_store { data.remote_store = remote_store; }
     if let Some(owner) = update.owner { data.owner = Some(owner); }
-    if let Some(groups) = update.groups { data.groups = Some(groups); }
+    if let Some(group_filter) = update.group_filter { data.group_filter = Some(group_filter); }
 
     let schedule_changed = data.schedule != update.schedule;
     if update.schedule.is_some() { data.schedule = update.schedule; }
@@ -394,7 +394,7 @@ acl:1:/remote/remote1/remotestore1:write@pbs:RemoteSyncOperator
         owner: Some(write_auth_id.clone()),
         comment: None,
         remove_vanished: None,
-        groups: None,
+        group_filter: None,
         schedule: None,
     };
 

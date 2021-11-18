@@ -247,7 +247,7 @@ pub struct VerificationJobStatus {
             optional: true,
             type: Userid,
         },
-        groups: {
+        "group-filter": {
             schema: GROUP_FILTER_LIST_SCHEMA,
             optional: true,
         },
@@ -270,7 +270,7 @@ pub struct TapeBackupJobSetup {
     #[serde(skip_serializing_if="Option::is_none")]
     pub notify_user: Option<Userid>,
     #[serde(skip_serializing_if="Option::is_none")]
-    pub groups: Option<Vec<GroupFilter>>,
+    pub group_filter: Option<Vec<GroupFilter>>,
 }
 
 #[api(
@@ -409,7 +409,7 @@ pub const GROUP_FILTER_LIST_SCHEMA: Schema = ArraySchema::new("List of group fil
             optional: true,
             schema: SYNC_SCHEDULE_SCHEMA,
         },
-        groups: {
+        "group-filter": {
             schema: GROUP_FILTER_LIST_SCHEMA,
             optional: true,
         },
@@ -433,7 +433,7 @@ pub struct SyncJobConfig {
     #[serde(skip_serializing_if="Option::is_none")]
     pub schedule: Option<String>,
     #[serde(skip_serializing_if="Option::is_none")]
-    pub groups: Option<Vec<GroupFilter>>,
+    pub group_filter: Option<Vec<GroupFilter>>,
 }
 
 #[api(

@@ -240,7 +240,7 @@ fn task_mgmt_cli() -> CommandLineInterface {
                 schema: REMOVE_VANISHED_BACKUPS_SCHEMA,
                 optional: true,
             },
-            "groups": {
+            "group-filter": {
                 schema: GROUP_FILTER_LIST_SCHEMA,
                 optional: true,
             },
@@ -257,7 +257,7 @@ async fn pull_datastore(
     remote_store: String,
     local_store: String,
     remove_vanished: Option<bool>,
-    groups: Option<Vec<GroupFilter>>,
+    group_filter: Option<Vec<GroupFilter>>,
     param: Value,
 ) -> Result<Value, Error> {
 
@@ -271,8 +271,8 @@ async fn pull_datastore(
         "remote-store": remote_store,
     });
 
-    if groups.is_some() {
-        args["groups"] = json!(groups);
+    if group_filter.is_some() {
+        args["group-filter"] = json!(group_filter);
     }
 
     if let Some(remove_vanished) = remove_vanished {
@@ -400,7 +400,7 @@ async fn run() -> Result<(), Error> {
                 .completion_cb("local-store", pbs_config::datastore::complete_datastore_name)
                 .completion_cb("remote", pbs_config::remote::complete_remote_name)
                 .completion_cb("remote-store", complete_remote_datastore_name)
-                .completion_cb("groups", complete_remote_datastore_group_filter)
+                .completion_cb("group_filter", complete_remote_datastore_group_filter)
         )
         .insert(
             "verify",

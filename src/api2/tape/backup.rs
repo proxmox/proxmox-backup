@@ -437,7 +437,7 @@ fn backup_worker(
 
     group_list.sort_unstable();
 
-    let (group_list, group_count) = if let Some(group_filters) = &setup.groups {
+    let (group_list, group_count) = if let Some(group_filters) = &setup.group_filter {
         let filter_fn = |group: &BackupGroup, group_filters: &[GroupFilter]| {
             group_filters.iter().any(|filter| group.matches(filter))
         };
