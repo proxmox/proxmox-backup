@@ -19,6 +19,6 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_cbor = "0.11.1"
 
-proxmox = { version = "0.15.0" }
+proxmox = { version = "0.15.3" }
 proxmox-time = "1"
 proxmox-schema = { version = "1", features = [ "api-macro" ] }

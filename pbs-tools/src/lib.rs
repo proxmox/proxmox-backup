@@ -7,7 +7,6 @@ pub mod compression;
 pub mod crypt;
 pub mod crypt_config;
 pub mod format;
-pub mod fd;
 pub mod fs;
 pub mod io;
 pub mod json;

@@ -12,6 +12,7 @@ use nix::sys::signal::{kill, Signal};
 use nix::unistd::Pid;
 
 use proxmox::tools::fs::{create_path, file_read_string, make_tmp_file, CreateOptions};
+use proxmox::tools::fd::fd_change_cloexec;
 
 use pbs_client::{VsockClient, DEFAULT_VSOCK_PORT};
 
@@ -86,7 +87,7 @@ async fn create_temp_initramfs(ticket: &str, debug: bool) -> Result<(File, Strin
     let (tmp_file, tmp_path) =
         make_tmp_file("/tmp/file-restore-qemu.initramfs.tmp", CreateOptions::new())?;
     nix::unistd::unlink(&tmp_path)?;
-    pbs_tools::fd::fd_change_cloexec(tmp_file.as_raw_fd(), false)?;
+    fd_change_cloexec(tmp_file.as_raw_fd(), false)?;
 
     let initramfs = if debug {
         pbs_buildcfg::PROXMOX_BACKUP_INITRAMFS_DBG_FN
@@ -142,7 +143,7 @@ pub async fn start_vm(
     let pid;
     let (mut pid_file, pid_path) = make_tmp_file("/tmp/file-restore-qemu.pid.tmp", CreateOptions::new())?;
     nix::unistd::unlink(&pid_path)?;
-    pbs_tools::fd::fd_change_cloexec(pid_file.as_raw_fd(), false)?;
+    fd_change_cloexec(pid_file.as_raw_fd(), false)?;
 
     let (_ramfs_pid, ramfs_path) = create_temp_initramfs(ticket, debug).await?;
 
@@ -159,7 +160,7 @@ pub async fn start_vm(
         .append(true)
         .create_new(true)
         .open(logfile)?;
-    pbs_tools::fd::fd_change_cloexec(logfd.as_raw_fd(), false)?;
+    fd_change_cloexec(logfd.as_raw_fd(), false)?;
 
     // preface log file with start timestamp so one can see how long QEMU took to start
     writeln!(logfd, "[{}] PBS file restore VM log", {

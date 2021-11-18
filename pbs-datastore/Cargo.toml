@@ -25,7 +25,7 @@ zstd = { version = "0.6", features = [ "bindgen" ] }
 pathpatterns = "0.1.2"
 pxar = "0.10.1"
 
-proxmox = "0.15.0"
+proxmox = "0.15.3"
 proxmox-borrow = "1"
 proxmox-io = "1"
 proxmox-lang = "1"

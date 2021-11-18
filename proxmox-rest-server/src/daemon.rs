@@ -13,10 +13,8 @@ use anyhow::{bail, format_err, Error};
 use futures::future::{self, Either};
 use nix::unistd::{fork, ForkResult};
 
-use proxmox::tools::fd::Fd;
+use proxmox::tools::fd::{fd_change_cloexec, Fd};
 use proxmox_io::{ReadExt, WriteExt};
-
-use pbs_tools::fd::fd_change_cloexec;
 
 // Unfortunately FnBox is nightly-only and Box<FnOnce> is unusable, so just use Box<Fn>...
 type BoxedStoreFunc = Box<dyn FnMut() -> Result<String, Error> + UnwindSafe + Send>;
