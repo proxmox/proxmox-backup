@@ -99,6 +99,7 @@ pub fn read_traffic_control(
 #[api()]
 #[derive(Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
+#[serde(rename_all = "kebab-case")]
 /// Deletable property name
 pub enum DeletableProperty {
     /// Delete the rate_in property.
