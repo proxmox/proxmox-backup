@@ -39,6 +39,3 @@ proxmox-router = "1.1"
 proxmox-schema = { version = "1", features = [ "api-macro", "upid-api-impl" ] }
 proxmox-time = "1"
 proxmox-sys = "0.1"
-
-# fixme: remove this dependency (pbs_tools::broadcast_future)
-pbs-tools = { path = "../pbs-tools" }
