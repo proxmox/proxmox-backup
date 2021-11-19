@@ -256,13 +256,17 @@ impl proxmox_tfa::api::OpenUserChallengeData for UserAccess {
         let inner = if data.is_empty() {
             Default::default()
         } else {
-            serde_json::from_slice(&data).map_err(|err| {
-                format_err!(
-                    "failed to parse challenge data for user {}: {}",
-                    userid,
-                    err
-                )
-            })?
+            match serde_json::from_slice(&data) {
+                Ok(inner) => inner,
+                Err(err) => {
+                    eprintln!(
+                        "failed to parse challenge data for user {}: {}",
+                        userid,
+                        err
+                    );
+                    Default::default()
+                },
+            }
         };
 
         Ok(TfaUserChallengeData {
