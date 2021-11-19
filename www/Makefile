@@ -47,6 +47,7 @@ JSSRC=							\
 	config/UserView.js				\
 	config/TokenView.js				\
 	config/RemoteView.js				\
+	config/TrafficControlView.js			\
 	config/ACLView.js				\
 	config/SyncView.js				\
 	config/VerifyView.js				\
@@ -60,6 +61,7 @@ JSSRC=							\
 	window/DataStoreEdit.js				\
 	window/NotesEdit.js				\
 	window/RemoteEdit.js				\
+	window/TrafficControlEdit.js			\
 	window/NotifyOptions.js				\
 	window/SyncJobEdit.js				\
 	window/UserEdit.js				\

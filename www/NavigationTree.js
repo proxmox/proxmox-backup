@@ -51,6 +51,12 @@ Ext.define('PBS.store.NavigationStore', {
 			leaf: true,
 		    },
 		    {
+			text: gettext('Traffic Control'),
+			iconCls: 'fa fa-exchange fa-rotate-90',
+			path: 'pbsTrafficControlView',
+			leaf: true,
+		    },
+		    {
 			text: gettext('Certificates'),
 			iconCls: 'fa fa-certificate',
 			path: 'pbsCertificateConfiguration',
