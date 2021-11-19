@@ -12,8 +12,7 @@ use proxmox::tools::fs::CreateOptions;
 use proxmox_tfa::totp::Totp;
 
 pub use proxmox_tfa::api::{
-    TfaChallenge, TfaConfig, TfaEntry, TfaInfo, TfaResponse, TfaUserData, U2fConfig,
-    WebauthnConfig, WebauthnConfigUpdater,
+    TfaChallenge, TfaConfig, TfaResponse, WebauthnConfig, WebauthnConfigUpdater,
 };
 
 use pbs_api_types::{User, Userid};
