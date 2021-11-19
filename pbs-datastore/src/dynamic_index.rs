@@ -12,10 +12,10 @@ use anyhow::{bail, format_err, Error};
 use proxmox::tools::mmap::Mmap;
 use proxmox_io::ReadExt;
 use proxmox_uuid::Uuid;
+use proxmox_sys::process_locker::ProcessLockSharedGuard;
 use pxar::accessor::{MaybeReady, ReadAt, ReadAtOperation};
 
 use pbs_tools::lru_cache::LruCache;
-use pbs_tools::process_locker::ProcessLockSharedGuard;
 
 use crate::Chunker;
 use crate::chunk_stat::ChunkStat;

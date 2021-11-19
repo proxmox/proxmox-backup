@@ -13,12 +13,12 @@ use proxmox_router::{
     http_bail, list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap,
 };
 use proxmox_schema::api;
+use proxmox_sys::{task_log, task_warn};
 
 use proxmox_acme_rs::account::AccountData as AcmeAccountData;
 use proxmox_acme_rs::Account;
 
 use pbs_api_types::{Authid, PRIV_SYS_MODIFY};
-use pbs_tools::{task_log, task_warn};
 
 use crate::acme::AcmeClient;
 use crate::api2::types::{AcmeAccountName, AcmeChallengeSchema, KnownAcmeDirectory};

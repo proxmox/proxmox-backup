@@ -12,8 +12,8 @@ use std::sync::{Arc, Mutex};
 use anyhow::{bail, Error};
 
 use proxmox_uuid::Uuid;
+use proxmox_sys::{task_log, task_warn};
 
-use pbs_tools::{task_log, task_warn};
 use pbs_config::tape_encryption_keys::load_key_configs;
 use pbs_tape::{
     TapeWrite,

@@ -6,13 +6,14 @@ use std::time::Instant;
 
 use anyhow::{bail, format_err, Error};
 
+use proxmox_sys::{task_log, worker_task_context::WorkerTaskContext};
+
 use pbs_api_types::{Authid, CryptMode, VerifyState, UPID, SnapshotVerifyState};
 use pbs_datastore::{DataStore, DataBlob, StoreProgress};
 use pbs_datastore::backup_info::{BackupGroup, BackupDir, BackupInfo};
 use pbs_datastore::index::IndexFile;
 use pbs_datastore::manifest::{archive_type, ArchiveType, BackupManifest, FileInfo};
 use pbs_tools::fs::lock_dir_noblock_shared;
-use pbs_tools::{task_log, task::WorkerTaskContext};
 
 use crate::tools::ParallelHandler;
 

@@ -6,13 +6,13 @@ use futures::{select, future::FutureExt};
 
 use proxmox_schema::api;
 use proxmox_router::{ApiMethod, Router, RpcEnvironment, Permission};
+use proxmox_sys::task_log;
 
 use pbs_api_types::{
     Authid, SyncJobConfig, GroupFilter, GROUP_FILTER_LIST_SCHEMA,
     DATASTORE_SCHEMA, REMOTE_ID_SCHEMA, REMOVE_VANISHED_BACKUPS_SCHEMA,
     PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_PRUNE, PRIV_REMOTE_READ,
 };
-use pbs_tools::task_log;
 use proxmox_rest_server::WorkerTask;
 use pbs_config::CachedUserInfo;
 

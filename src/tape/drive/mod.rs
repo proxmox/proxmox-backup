@@ -27,10 +27,10 @@ use proxmox::{
 use proxmox_io::ReadExt;
 use proxmox_section_config::SectionConfigData;
 use proxmox_uuid::Uuid;
+use proxmox_sys::{task_log, worker_task_context::WorkerTaskContext};
 
 use pbs_api_types::{VirtualTapeDrive, LtoTapeDrive, Fingerprint};
 use pbs_config::key_config::KeyConfig;
-use pbs_tools::{task_log, task::WorkerTaskContext};
 
 use pbs_tape::{
     TapeWrite, TapeRead, BlockReadError, MediaContentHeader,

@@ -21,6 +21,7 @@ use proxmox_router::{
     RpcEnvironment, RpcEnvironmentType, SubdirMap, Permission,
 };
 use proxmox_schema::*;
+use proxmox_sys::{task_log, task_warn};
 
 use pxar::accessor::aio::Accessor;
 use pxar::EntryKind;
@@ -55,7 +56,6 @@ use pbs_datastore::prune::compute_prune_info;
 use pbs_tools::blocking::WrappedReaderStream;
 use pbs_tools::stream::{AsyncReaderStream, AsyncChannelWriter};
 use pbs_tools::json::{required_integer_param, required_string_param};
-use pbs_tools::{task_log, task_warn};
 use pbs_config::CachedUserInfo;
 use proxmox_rest_server::{WorkerTask, formatter};
 

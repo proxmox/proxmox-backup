@@ -58,7 +58,7 @@ pub fn verify_secret(tokenid: &Authid, secret: &str) -> Result<(), Error> {
     let data = read_file()?;
     match data.get(tokenid) {
         Some(hashed_secret) => {
-            pbs_tools::crypt::verify_crypt_pw(secret, &hashed_secret)
+            proxmox_sys::crypt::verify_crypt_pw(secret, &hashed_secret)
         },
         None => bail!("invalid API token"),
     }
@@ -73,7 +73,7 @@ pub fn set_secret(tokenid: &Authid, secret: &str) -> Result<(), Error> {
     let _guard = lock_config()?;
 
     let mut data = read_file()?;
-    let hashed_secret = pbs_tools::crypt::encrypt_pw(secret)?;
+    let hashed_secret = proxmox_sys::crypt::encrypt_pw(secret)?;
     data.insert(tokenid.clone(), hashed_secret);
     write_file(data)?;
 

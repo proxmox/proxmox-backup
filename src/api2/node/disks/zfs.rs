@@ -3,6 +3,7 @@ use serde_json::{json, Value};
 
 use proxmox_router::{Router, RpcEnvironment, RpcEnvironmentType, Permission};
 use proxmox_schema::{api, parse_property_string};
+use proxmox_sys::task_log;
 
 use pbs_api_types::{
     ZpoolListItem, ZfsRaidLevel, ZfsCompressionType, DataStoreConfig,
@@ -10,7 +11,6 @@ use pbs_api_types::{
     DISK_LIST_SCHEMA, ZFS_ASHIFT_SCHEMA, UPID_SCHEMA,
     PRIV_SYS_AUDIT, PRIV_SYS_MODIFY,
 };
-use pbs_tools::task_log;
 
 use crate::tools::disks::{
     zpool_list, zpool_status, parse_zpool_status_config_tree, vdev_list_to_tree,

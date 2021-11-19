@@ -22,8 +22,9 @@ use proxmox::tools::fs::CreateOptions;
 use proxmox_lang::try_block;
 use proxmox_router::{RpcEnvironment, RpcEnvironmentType, UserInformation};
 use proxmox_http::client::{RateLimitedStream, ShareableRateLimit};
+use proxmox_sys::{task_log, task_warn};
+use proxmox_sys::logrotate::LogRotate;
 
-use pbs_tools::{task_log, task_warn};
 use pbs_datastore::DataStore;
 
 use proxmox_rest_server::{
@@ -47,7 +48,6 @@ use proxmox_backup::{
 
 use pbs_buildcfg::configdir;
 use proxmox_time::{compute_next_event, parse_calendar_event};
-use pbs_tools::logrotate::LogRotate;
 
 use pbs_api_types::{
     Authid, TapeBackupJobConfig, VerificationJobConfig, SyncJobConfig, DataStoreConfig,
@@ -813,7 +813,19 @@ async fn schedule_task_log_rotate() {
             let result = try_block!({
                 let max_size = 512 * 1024 - 1; // an entry has ~ 100b, so > 5000 entries/file
                 let max_files = 20; // times twenty files gives > 100000 task entries
-                let has_rotated = rotate_task_log_archive(max_size, true, Some(max_files))?;
+
+                let user = pbs_config::backup_user()?;
+                let options = proxmox::tools::fs::CreateOptions::new()
+                    .owner(user.uid)
+                    .group(user.gid);
+
+                let has_rotated = rotate_task_log_archive(
+                    max_size,
+                    true,
+                    Some(max_files),
+                    Some(options.clone()),
+                )?;
+
                 if has_rotated {
                     task_log!(worker, "task log archive was rotated");
                 } else {
@@ -822,10 +834,16 @@ async fn schedule_task_log_rotate() {
 
                 let max_size = 32 * 1024 * 1024 - 1;
                 let max_files = 14;
-                let mut logrotate = LogRotate::new(pbs_buildcfg::API_ACCESS_LOG_FN, true)
-                        .ok_or_else(|| format_err!("could not get API access log file names"))?;
 
-                if logrotate.rotate(max_size, None, Some(max_files))? {
+
+                let mut logrotate = LogRotate::new(
+                    pbs_buildcfg::API_ACCESS_LOG_FN,
+                    true,
+                    Some(max_files),
+                    Some(options.clone()),
+                )?;
+
+                if logrotate.rotate(max_size)? {
                     println!("rotated access log, telling daemons to re-open log file");
                     pbs_runtime::block_on(command_reopen_access_logfiles())?;
                     task_log!(worker, "API access log was rotated");
@@ -833,10 +851,14 @@ async fn schedule_task_log_rotate() {
                     task_log!(worker, "API access log was not rotated");
                 }
 
-                let mut logrotate = LogRotate::new(pbs_buildcfg::API_AUTH_LOG_FN, true)
-                        .ok_or_else(|| format_err!("could not get API auth log file names"))?;
+                let mut logrotate = LogRotate::new(
+                    pbs_buildcfg::API_AUTH_LOG_FN,
+                    true,
+                    Some(max_files),
+                    Some(options),
+                )?;
 
-                if logrotate.rotate(max_size, None, Some(max_files))? {
+                if logrotate.rotate(max_size)? {
                     println!("rotated auth log, telling daemons to re-open log file");
                     pbs_runtime::block_on(command_reopen_auth_logfiles())?;
                     task_log!(worker, "API authentication log was rotated");

@@ -6,6 +6,7 @@ use proxmox_router::{
     list_subdirs_api_method, Router, RpcEnvironment, RpcEnvironmentType, SubdirMap, Permission,
 };
 use proxmox_schema::api;
+use proxmox_sys::task_log;
 
 use pbs_api_types::{
     UPID_SCHEMA, NODE_SCHEMA, BLOCKDEVICE_NAME_SCHEMA,
@@ -17,7 +18,6 @@ use crate::tools::disks::{
     get_disks, get_smart_data, get_disk_usage_info, inititialize_gpt_disk,
 };
 use proxmox_rest_server::WorkerTask;
-use pbs_tools::task_log;
 
 pub mod directory;
 pub mod zfs;

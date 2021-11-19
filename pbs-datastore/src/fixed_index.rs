@@ -7,8 +7,7 @@ use std::io::{Seek, SeekFrom};
 
 use anyhow::{bail, format_err, Error};
 
-use pbs_tools::process_locker::ProcessLockSharedGuard;
-
+use proxmox_sys::process_locker::ProcessLockSharedGuard;
 use proxmox_io::ReadExt;
 use proxmox_uuid::Uuid;
 

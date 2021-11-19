@@ -10,12 +10,13 @@ use anyhow::{bail, format_err, Error};
 use lazy_static::lazy_static;
 
 use proxmox::tools::fs::{replace_file, file_read_optional_string, CreateOptions};
+use proxmox_sys::process_locker::ProcessLockSharedGuard;
+use proxmox_sys::worker_task_context::WorkerTaskContext;
+use proxmox_sys::{task_log, task_warn};
 
 use pbs_api_types::{UPID, DataStoreConfig, Authid, GarbageCollectionStatus};
 use pbs_tools::format::HumanByte;
 use pbs_tools::fs::{lock_dir_noblock, DirLockGuard};
-use pbs_tools::process_locker::ProcessLockSharedGuard;
-use pbs_tools::{task_log, task_warn, task::WorkerTaskContext};
 use pbs_config::{open_backup_lockfile, BackupLockGuard};
 
 use crate::DataBlob;

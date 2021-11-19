@@ -21,8 +21,8 @@ use proxmox::tools::fs::{create_path, replace_file, atomic_open_or_create_file, 
 use proxmox_lang::try_block;
 use proxmox_schema::upid::UPID;
 
-use pbs_tools::task::WorkerTaskContext;
-use pbs_tools::logrotate::{LogRotate, LogRotateFiles};
+use proxmox_sys::worker_task_context::{WorkerTaskContext};
+use proxmox_sys::logrotate::{LogRotate, LogRotateFiles};
 
 use crate::{CommandSocket, FileLogger, FileLogOptions};
 
@@ -209,16 +209,25 @@ pub fn init_worker_tasks(basedir: PathBuf, file_opts: CreateOptions) -> Result<(
 
 /// checks if the Task Archive is bigger that 'size_threshold' bytes, and
 /// rotates it if it is
-pub fn rotate_task_log_archive(size_threshold: u64, compress: bool, max_files: Option<usize>) -> Result<bool, Error> {
+pub fn rotate_task_log_archive(
+    size_threshold: u64,
+    compress: bool,
+    max_files: Option<usize>,
+    options: Option<CreateOptions>,
+) -> Result<bool, Error> {
 
     let setup = worker_task_setup()?;
 
     let _lock = setup.lock_task_list_files(true)?;
 
-    let mut logrotate = LogRotate::new(&setup.task_archive_fn, compress)
-            .ok_or_else(|| format_err!("could not get archive file names"))?;
+    let mut logrotate = LogRotate::new(
+        &setup.task_archive_fn,
+        compress,
+        max_files,
+        options,
+    )?;
 
-    logrotate.rotate(size_threshold, None, max_files)
+    logrotate.rotate(size_threshold)
 }
 
 /// removes all task logs that are older than the oldest task entry in the
@@ -228,8 +237,12 @@ pub fn cleanup_old_tasks(compressed: bool) -> Result<(), Error> {
 
     let _lock = setup.lock_task_list_files(true)?;
 
-    let logrotate = LogRotate::new(&setup.task_archive_fn, compressed)
-            .ok_or_else(|| format_err!("could not get archive file names"))?;
+    let logrotate = LogRotate::new(
+        &setup.task_archive_fn,
+        compressed,
+        None,
+        None,
+    )?;
 
     let mut timestamp = None;
     if let Some(last_file) = logrotate.files().last() {
@@ -649,8 +662,7 @@ impl TaskListInfoIterator {
         let archive = if active_only {
             None
         } else {
-            let logrotate = LogRotate::new(&setup.task_archive_fn, true)
-                .ok_or_else(|| format_err!("could not get archive file names"))?;
+            let logrotate = LogRotate::new(&setup.task_archive_fn, true, None, None)?;
             Some(logrotate.files())
         };
 

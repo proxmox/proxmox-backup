@@ -14,6 +14,7 @@ use proxmox_router::{Permission, Router, RpcEnvironment, RpcEnvironmentType};
 use proxmox_schema::{api, parse_property_string};
 use proxmox_section_config::SectionConfigData;
 use proxmox_uuid::Uuid;
+use proxmox_sys::{task_log, task_warn, worker_task_context::WorkerTaskContext};
 
 use pbs_api_types::{
     Authid, Userid, CryptMode,
@@ -32,7 +33,6 @@ use pbs_tape::{
     TapeRead, BlockReadError, MediaContentHeader,
     PROXMOX_BACKUP_CONTENT_HEADER_MAGIC_1_0,
 };
-use pbs_tools::{task_log, task_warn, task::WorkerTaskContext};
 use proxmox_rest_server::WorkerTask;
 
 use crate::{

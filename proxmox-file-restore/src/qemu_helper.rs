@@ -13,6 +13,7 @@ use nix::unistd::Pid;
 
 use proxmox::tools::fs::{create_path, file_read_string, make_tmp_file, CreateOptions};
 use proxmox::tools::fd::fd_change_cloexec;
+use proxmox_sys::logrotate::LogRotate;
 
 use pbs_client::{VsockClient, DEFAULT_VSOCK_PORT};
 
@@ -149,10 +150,9 @@ pub async fn start_vm(
 
     let logpath = create_restore_log_dir()?;
     let logfile = &format!("{}/qemu.log", logpath);
-    let mut logrotate = pbs_tools::logrotate::LogRotate::new(logfile, false)
-        .ok_or_else(|| format_err!("could not get QEMU log file names"))?;
+    let mut logrotate = LogRotate::new(logfile, false, Some(16), None)?;
 
-    if let Err(err) = logrotate.do_rotate(CreateOptions::default(), Some(16)) {
+    if let Err(err) = logrotate.do_rotate() {
         eprintln!("warning: logrotate for QEMU log file failed - {}", err);
     }
 

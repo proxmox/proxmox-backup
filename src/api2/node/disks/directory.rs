@@ -5,12 +5,12 @@ use ::serde::{Deserialize, Serialize};
 use proxmox_router::{Router, RpcEnvironment, RpcEnvironmentType, Permission};
 use proxmox_schema::api;
 use proxmox_section_config::SectionConfigData;
+use proxmox_sys::task_log;
 
 use pbs_api_types::{
     DataStoreConfig, NODE_SCHEMA, BLOCKDEVICE_NAME_SCHEMA,
     DATASTORE_SCHEMA, UPID_SCHEMA, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY,
 };
-use pbs_tools::task_log;
 
 use crate::tools::disks::{
     DiskManage, FileSystemType, DiskUsageType,

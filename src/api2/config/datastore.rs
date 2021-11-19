@@ -7,6 +7,7 @@ use ::serde::{Deserialize, Serialize};
 use proxmox_router::{Router, RpcEnvironment, RpcEnvironmentType, Permission};
 use proxmox_schema::{api, ApiType, parse_property_string};
 use proxmox_section_config::SectionConfigData;
+use proxmox_sys::worker_task_context::WorkerTaskContext;
 
 use pbs_datastore::chunk_store::ChunkStore;
 use pbs_config::BackupLockGuard;
@@ -25,7 +26,6 @@ use crate::api2::admin::{
     verify::list_verification_jobs,
 };
 use pbs_config::CachedUserInfo;
-use pbs_tools::task::WorkerTaskContext;
 
 use proxmox_rest_server::WorkerTask;
 

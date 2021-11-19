@@ -12,6 +12,7 @@ use serde_json::json;
 use http::StatusCode;
 
 use proxmox_router::HttpError;
+use proxmox_sys::task_log;
 
 use pbs_api_types::{Authid, GroupFilter, GroupListItem, Remote, SnapshotListItem};
 
@@ -24,7 +25,6 @@ use pbs_datastore::manifest::{
     CLIENT_LOG_BLOB_NAME, MANIFEST_BLOB_NAME, ArchiveType, BackupManifest, FileInfo, archive_type
 };
 use pbs_tools::sha::sha256;
-use pbs_tools::task_log;
 use pbs_client::{BackupReader, BackupRepository, HttpClient, HttpClientOptions, RemoteChunkReader};
 use proxmox_rest_server::WorkerTask;
 

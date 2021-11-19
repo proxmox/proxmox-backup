@@ -78,13 +78,13 @@ impl ProxmoxAuthenticator for PBS {
         let data = proxmox::tools::fs::file_get_json(SHADOW_CONFIG_FILENAME, Some(json!({})))?;
         match data[username.as_str()].as_str() {
             None => bail!("no password set"),
-            Some(enc_password) => pbs_tools::crypt::verify_crypt_pw(password, enc_password)?,
+            Some(enc_password) => proxmox_sys::crypt::verify_crypt_pw(password, enc_password)?,
         }
         Ok(())
     }
 
     fn store_password(&self, username: &UsernameRef, password: &str) -> Result<(), Error> {
-        let enc_password = pbs_tools::crypt::encrypt_pw(password)?;
+        let enc_password = proxmox_sys::crypt::encrypt_pw(password)?;
         let mut data = proxmox::tools::fs::file_get_json(SHADOW_CONFIG_FILENAME, Some(json!({})))?;
         data[username.as_str()] = enc_password.into();
 

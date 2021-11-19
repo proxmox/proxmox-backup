@@ -11,10 +11,11 @@ use proxmox_router::SubdirMap;
 use proxmox_router::{Permission, Router, RpcEnvironment};
 use proxmox_router::list_subdirs_api_method;
 use proxmox_schema::api;
+use proxmox_sys::{task_log, task_warn};
 
 use pbs_api_types::{NODE_SCHEMA, PRIV_SYS_MODIFY};
 use pbs_buildcfg::configdir;
-use pbs_tools::{task_log, task_warn, cert};
+use pbs_tools::cert;
 
 use crate::acme::AcmeClient;
 use crate::api2::types::AcmeDomain;

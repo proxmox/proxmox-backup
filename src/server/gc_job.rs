@@ -1,8 +1,9 @@
 use std::sync::Arc;
 use anyhow::Error;
 
+use proxmox_sys::task_log;
+
 use pbs_api_types::Authid;
-use pbs_tools::task_log;
 use pbs_datastore::DataStore;
 use proxmox_rest_server::WorkerTask;
 

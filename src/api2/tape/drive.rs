@@ -13,6 +13,7 @@ use proxmox_router::{
 use proxmox_schema::api;
 use proxmox_section_config::SectionConfigData;
 use proxmox_uuid::Uuid;
+use proxmox_sys::{task_log, task_warn};
 
 use pbs_api_types::{
     UPID_SCHEMA, CHANGER_NAME_SCHEMA, DRIVE_NAME_SCHEMA, MEDIA_LABEL_SCHEMA, MEDIA_POOL_NAME_SCHEMA,
@@ -28,7 +29,6 @@ use pbs_tape::{
     sg_tape::tape_alert_flags_critical,
     linux_list_drives::{lto_tape_device_list, lookup_device_identification, open_lto_tape_device},
 };
-use pbs_tools::{task_log, task_warn};
 use proxmox_rest_server::WorkerTask;
 
 use crate::{

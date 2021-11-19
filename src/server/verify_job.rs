@@ -1,6 +1,6 @@
 use anyhow::{format_err, Error};
 
-use pbs_tools::task_log;
+use proxmox_sys::task_log;
 use pbs_api_types::{Authid, VerificationJobConfig};
 use proxmox_rest_server::WorkerTask;
 use pbs_datastore::DataStore;

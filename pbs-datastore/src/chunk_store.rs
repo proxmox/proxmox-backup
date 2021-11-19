@@ -6,10 +6,11 @@ use std::sync::{Arc, Mutex};
 use anyhow::{bail, format_err, Error};
 
 use proxmox::tools::fs::{CreateOptions, create_path, create_dir};
-
+use proxmox_sys::process_locker::{ProcessLocker, ProcessLockSharedGuard, ProcessLockExclusiveGuard};
+use proxmox_sys::worker_task_context::WorkerTaskContext;
+use proxmox_sys::task_log;
 use pbs_api_types::GarbageCollectionStatus;
-use pbs_tools::process_locker::{self, ProcessLocker};
-use pbs_tools::{task_log, task::WorkerTaskContext};
+
 
 use crate::DataBlob;
 
@@ -459,11 +460,11 @@ impl ChunkStore {
         self.base.clone()
     }
 
-    pub fn try_shared_lock(&self) -> Result<process_locker::ProcessLockSharedGuard, Error> {
+    pub fn try_shared_lock(&self) -> Result<ProcessLockSharedGuard, Error> {
         ProcessLocker::try_shared_lock(self.locker.clone())
     }
 
-    pub fn try_exclusive_lock(&self) -> Result<process_locker::ProcessLockExclusiveGuard, Error> {
+    pub fn try_exclusive_lock(&self) -> Result<ProcessLockExclusiveGuard, Error> {
         ProcessLocker::try_exclusive_lock(self.locker.clone())
     }
 }

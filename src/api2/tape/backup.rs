@@ -7,6 +7,7 @@ use serde_json::Value;
 use proxmox_lang::try_block;
 use proxmox_router::{Permission, Router, RpcEnvironment, RpcEnvironmentType};
 use proxmox_schema::api;
+use proxmox_sys::{task_log, task_warn, worker_task_context::WorkerTaskContext};
 
 use pbs_api_types::{
     Authid, Userid, TapeBackupJobConfig, TapeBackupJobSetup, TapeBackupJobStatus, MediaPoolConfig,
@@ -16,7 +17,6 @@ use pbs_api_types::{
 
 use pbs_datastore::{DataStore, StoreProgress, SnapshotReader};
 use pbs_datastore::backup_info::{BackupDir, BackupInfo, BackupGroup};
-use pbs_tools::{task_log, task_warn, task::WorkerTaskContext};
 use pbs_config::CachedUserInfo;
 use proxmox_rest_server::WorkerTask;
 
