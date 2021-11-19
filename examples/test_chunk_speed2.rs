@@ -13,7 +13,7 @@ use pbs_client::ChunkStream;
 // Note: I can currently get about 830MB/s
 
 fn main() {
-    if let Err(err) = pbs_runtime::main(run()) {
+    if let Err(err) = proxmox_async::runtime::main(run()) {
         panic!("ERROR: {}", err);
     }
 }

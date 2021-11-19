@@ -25,7 +25,7 @@ use proxmox::c_result;
 use proxmox::tools::fs::{create_path, CreateOptions};
 use proxmox_io::{sparse_copy, sparse_copy_async};
 
-use pbs_tools::zip::{ZipEncoder, ZipEntry};
+use proxmox_async::zip::{ZipEncoder, ZipEntry};
 
 use crate::pxar::dir_stack::PxarDirStack;
 use crate::pxar::metadata;

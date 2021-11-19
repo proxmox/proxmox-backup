@@ -33,8 +33,8 @@ use proxmox_schema::{
 
 use proxmox_http::client::RateLimitedStream;
 
-use pbs_tools::compression::{DeflateEncoder, Level};
-use pbs_tools::stream::AsyncReaderStream;
+use proxmox_async::compression::{DeflateEncoder, Level};
+use proxmox_async::stream::AsyncReaderStream;
 
 use crate::{
     ApiConfig, FileLogger, AuthError, RestEnvironment, CompressionMethod,

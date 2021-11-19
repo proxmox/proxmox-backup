@@ -6,7 +6,7 @@ use futures::*;
 
 use tokio::signal::unix::{signal, SignalKind};
 
-use pbs_tools::broadcast_future::BroadcastData;
+use proxmox_async::broadcast_future::BroadcastData;
 
 use crate::request_shutdown;
 

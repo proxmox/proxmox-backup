@@ -22,9 +22,9 @@ use proxmox_router::HttpError;
 
 use proxmox_http::client::{HttpsConnector, RateLimiter};
 use proxmox_http::uri::build_authority;
+use proxmox_async::broadcast_future::BroadcastFuture;
 
 use pbs_api_types::{Authid, Userid};
-use pbs_tools::broadcast_future::BroadcastFuture;
 use pbs_tools::json::json_object_to_query;
 use pbs_tools::ticket;
 use pbs_tools::percent_encoding::DEFAULT_ENCODE_SET;

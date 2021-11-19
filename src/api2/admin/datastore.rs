@@ -22,6 +22,8 @@ use proxmox_router::{
 };
 use proxmox_schema::*;
 use proxmox_sys::{task_log, task_warn};
+use proxmox_async::blocking::WrappedReaderStream;
+use proxmox_async::stream::{AsyncReaderStream, AsyncChannelWriter};
 
 use pxar::accessor::aio::Accessor;
 use pxar::EntryKind;
@@ -53,8 +55,6 @@ use pbs_datastore::fixed_index::{FixedIndexReader};
 use pbs_datastore::index::IndexFile;
 use pbs_datastore::manifest::{BackupManifest, CLIENT_LOG_BLOB_NAME, MANIFEST_BLOB_NAME};
 use pbs_datastore::prune::compute_prune_info;
-use pbs_tools::blocking::WrappedReaderStream;
-use pbs_tools::stream::{AsyncReaderStream, AsyncChannelWriter};
 use pbs_tools::json::{required_integer_param, required_string_param};
 use pbs_config::CachedUserInfo;
 use proxmox_rest_server::{WorkerTask, formatter};

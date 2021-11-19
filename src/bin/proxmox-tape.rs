@@ -74,7 +74,7 @@ pub fn complete_datastore_group_filter(_arg: &str, param: &HashMap<String, Strin
     list.push("type:vm".to_string());
 
     if let Some(store) =  param.get("store") {
-        let groups = pbs_runtime::block_on(async { get_backup_groups(store).await });
+        let groups = proxmox_async::runtime::block_on(async { get_backup_groups(store).await });
         if let Ok(groups) = groups {
             list.extend(groups.iter().map(|group| format!("group:{}/{}", group.backup_type, group.backup_id)));
         }
@@ -1135,5 +1135,5 @@ fn main() {
     let mut rpcenv = CliEnvironment::new();
     rpcenv.set_auth_id(Some(String::from("root@pam")));
 
-    pbs_runtime::main(run_async_cli_command(cmd_def, rpcenv));
+    proxmox_async::runtime::main(run_async_cli_command(cmd_def, rpcenv));
 }

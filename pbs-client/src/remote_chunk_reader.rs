@@ -5,12 +5,13 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::{bail, Error};
 
+use proxmox_async::runtime::block_on;
+
 use pbs_tools::crypt_config::CryptConfig;
 use pbs_api_types::CryptMode;
 use pbs_datastore::data_blob::DataBlob;
 use pbs_datastore::read_chunk::ReadChunk;
 use pbs_datastore::read_chunk::AsyncReadChunk;
-use pbs_runtime::block_on;
 
 use super::BackupReader;
 

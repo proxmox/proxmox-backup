@@ -25,7 +25,6 @@ members = [
     "pbs-config",
     "pbs-datastore",
     "pbs-fuse-loop",
-    "pbs-runtime",
     "proxmox-rest-server",
     "proxmox-rrd",
     "pbs-tape",
@@ -110,6 +109,7 @@ proxmox-sys = "0.1"
 
 proxmox-acme-rs = "0.3"
 proxmox-apt = "0.8.0"
+proxmox-async = "0.1"
 proxmox-openid = "0.9.0"
 
 pbs-api-types = { path = "pbs-api-types" }
@@ -117,7 +117,6 @@ pbs-buildcfg = { path = "pbs-buildcfg" }
 pbs-client = { path = "pbs-client" }
 pbs-config = { path = "pbs-config" }
 pbs-datastore = { path = "pbs-datastore" }
-pbs-runtime = { path = "pbs-runtime" }
 proxmox-rest-server = { path = "proxmox-rest-server" }
 proxmox-rrd = { path = "proxmox-rrd" }
 pbs-tools = { path = "pbs-tools" }

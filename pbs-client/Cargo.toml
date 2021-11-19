@@ -29,6 +29,7 @@ xdg = "2.2"
 
 pathpatterns = "0.1.2"
 proxmox = "0.15.3"
+proxmox-async = "0.1"
 proxmox-fuse = "0.1.1"
 proxmox-http = { version = "0.5.4", features = [ "client", "http-helpers", "websocket" ] }
 proxmox-io = { version = "1", features = [ "tokio" ] }
@@ -41,5 +42,4 @@ pxar = { version = "0.10.1", features = [ "tokio-io" ] }
 pbs-api-types = { path = "../pbs-api-types" }
 pbs-buildcfg = { path = "../pbs-buildcfg" }
 pbs-datastore = { path = "../pbs-datastore" }
-pbs-runtime = { path = "../pbs-runtime" }
 pbs-tools = { path = "../pbs-tools" }

@@ -478,7 +478,7 @@ fn main() {
     run_cli_command(
         cmd_def,
         rpcenv,
-        Some(|future| pbs_runtime::main(future)),
+        Some(|future| proxmox_async::runtime::main(future)),
     );
 }
 

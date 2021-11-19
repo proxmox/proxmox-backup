@@ -19,13 +19,13 @@ use proxmox_router::{
     ApiHandler, ApiMethod, ApiResponseFuture, Permission, Router, RpcEnvironment, SubdirMap,
 };
 use proxmox_schema::*;
+use proxmox_async::zip::zip_directory;
 
 use pbs_api_types::file_restore::RestoreDaemonStatus;
 use pbs_client::pxar::{create_archive, Flags, PxarCreateOptions, ENCODER_MAX_ENTRIES};
 use pbs_datastore::catalog::{ArchiveEntry, DirEntryAttribute};
 use pbs_tools::fs::read_subdir;
 use pbs_tools::json::required_string_param;
-use pbs_tools::zip::zip_directory;
 
 use pxar::encoder::aio::TokioWriter;
 

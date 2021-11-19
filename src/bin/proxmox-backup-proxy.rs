@@ -85,7 +85,7 @@ fn main() -> Result<(), Error> {
         bail!("proxy not running as backup user or group (got uid {} gid {})", running_uid, running_gid);
     }
 
-    pbs_runtime::main(run())
+    proxmox_async::runtime::main(run())
 }
 
 
@@ -845,7 +845,7 @@ async fn schedule_task_log_rotate() {
 
                 if logrotate.rotate(max_size)? {
                     println!("rotated access log, telling daemons to re-open log file");
-                    pbs_runtime::block_on(command_reopen_access_logfiles())?;
+                    proxmox_async::runtime::block_on(command_reopen_access_logfiles())?;
                     task_log!(worker, "API access log was rotated");
                 } else {
                     task_log!(worker, "API access log was not rotated");
@@ -860,7 +860,7 @@ async fn schedule_task_log_rotate() {
 
                 if logrotate.rotate(max_size)? {
                     println!("rotated auth log, telling daemons to re-open log file");
-                    pbs_runtime::block_on(command_reopen_auth_logfiles())?;
+                    proxmox_async::runtime::block_on(command_reopen_auth_logfiles())?;
                     task_log!(worker, "API authentication log was rotated");
                 } else {
                     task_log!(worker, "API authentication log was not rotated");

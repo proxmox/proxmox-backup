@@ -231,7 +231,7 @@ pub fn check_subscription(key: String, server_id: String) -> Result<Subscription
 
     let now = proxmox_time::epoch_i64();
 
-    let (response, challenge) = pbs_runtime::block_on(register_subscription(&key, &server_id, now))
+    let (response, challenge) = proxmox_async::runtime::block_on(register_subscription(&key, &server_id, now))
         .map_err(|err| format_err!("Error checking subscription: {}", err))?;
 
     parse_register_response(&response, key, server_id, now, &challenge)

@@ -12,9 +12,10 @@ use nix::dir::Dir;
 use nix::fcntl::OFlag;
 use nix::sys::stat::Mode;
 
+use proxmox_async::tokio_writer_adapter::TokioWriterAdapter;
+
 use pbs_datastore::catalog::CatalogWriter;
 use pbs_tools::sync::StdChannelWriter;
-use pbs_tools::tokio::TokioWriterAdapter;
 
 /// Stream implementation to encode and upload .pxar archives.
 ///
@@ -111,7 +112,7 @@ impl Stream for PxarBackupStream {
             }
         }
 
-        match pbs_runtime::block_in_place(|| self.rx.as_ref().unwrap().recv()) {
+        match proxmox_async::runtime::block_in_place(|| self.rx.as_ref().unwrap().recv()) {
             Ok(data) => Poll::Ready(Some(data)),
             Err(_) => {
                 let error = self.error.lock().unwrap();

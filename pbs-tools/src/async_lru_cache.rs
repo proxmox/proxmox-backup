@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::sync::{Arc, Mutex};
 
-use crate::broadcast_future::BroadcastFuture;
+use proxmox_async::broadcast_future::BroadcastFuture;
 use crate::lru_cache::LruCache;
 
 /// Interface for asynchronously getting values on cache misses.

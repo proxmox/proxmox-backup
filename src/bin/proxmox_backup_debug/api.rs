@@ -23,7 +23,7 @@ const URL_ASCIISET: percent_encoding::AsciiSet = percent_encoding::NON_ALPHANUME
 macro_rules! complete_api_path {
     ($capability:expr) => {
         |complete_me: &str, _map: &HashMap<String, String>| {
-            pbs_runtime::block_on(async { complete_api_path_do(complete_me, $capability).await })
+            proxmox_async::runtime::block_on(async { complete_api_path_do(complete_me, $capability).await })
         }
     };
 }

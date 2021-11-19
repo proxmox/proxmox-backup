@@ -63,7 +63,7 @@ fn main() -> Result<(), Error> {
 
     info!("disk scan complete, starting main runtime...");
 
-    pbs_runtime::main(run())
+    proxmox_async::runtime::main(run())
 }
 
 /// ensure we have our /run dirs, system users and stuff like that setup

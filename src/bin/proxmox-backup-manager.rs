@@ -440,7 +440,7 @@ fn main() -> Result<(), Error> {
 
     proxmox_backup::tools::setup_safe_path_env();
 
-    pbs_runtime::main(run())
+    proxmox_async::runtime::main(run())
 }
 
 fn get_sync_job(id: &String) -> Result<SyncJobConfig, Error> {
@@ -499,7 +499,7 @@ pub fn complete_remote_datastore_name(_arg: &str, param: &HashMap<String, String
     let mut list = Vec::new();
 
     if let Some(remote) = get_remote(param) {
-        if let Ok(data) = pbs_runtime::block_on(async move {
+        if let Ok(data) = proxmox_async::runtime::block_on(async move {
                 crate::api2::config::remote::scan_remote_datastores(remote).await
             }) {
 
@@ -518,7 +518,7 @@ pub fn complete_remote_datastore_group(_arg: &str, param: &HashMap<String, Strin
     let mut list = Vec::new();
 
     if let Some((remote, remote_store)) = get_remote_store(param) {
-        if let Ok(data) = pbs_runtime::block_on(async move {
+        if let Ok(data) = proxmox_async::runtime::block_on(async move {
             crate::api2::config::remote::scan_remote_groups(remote.clone(), remote_store.clone()).await
         }) {
 

@@ -488,6 +488,6 @@ fn main() {
 
     let rpcenv = CliEnvironment::new();
     run_cli_command(cmd_def, rpcenv, Some(|future| {
-        pbs_runtime::main(future)
+        proxmox_async::runtime::main(future)
     }));
 }

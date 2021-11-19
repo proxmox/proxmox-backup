@@ -19,7 +19,7 @@ use proxmox_router::cli::{self, CliCommand, CliCommandMap, CliHelper, CommandLin
 use proxmox_schema::api;
 use pxar::{EntryKind, Metadata};
 
-use pbs_runtime::block_in_place;
+use proxmox_async::runtime::block_in_place;
 use pbs_datastore::catalog::{self, DirEntryAttribute};
 
 use crate::pxar::Flags;

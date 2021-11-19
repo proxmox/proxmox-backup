@@ -62,7 +62,7 @@ impl Future for UploadChunk {
                         let (is_duplicate, compressed_size) = match proxmox_lang::try_block! {
                             let mut chunk = DataBlob::from_raw(raw_data)?;
 
-                            pbs_runtime::block_in_place(|| {
+                            proxmox_async::runtime::block_in_place(|| {
                                 chunk.verify_unencrypted(this.size as usize, &this.digest)?;
 
                                 // always comput CRC at server side

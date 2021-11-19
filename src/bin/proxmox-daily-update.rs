@@ -104,7 +104,7 @@ fn main() {
     let mut rpcenv = CliEnvironment::new();
     rpcenv.set_auth_id(Some(String::from("root@pam")));
 
-    if let Err(err) = pbs_runtime::main(run(&mut rpcenv)) {
+    if let Err(err) = proxmox_async::runtime::main(run(&mut rpcenv)) {
         eprintln!("error during update: {}", err);
         std::process::exit(1);
     }

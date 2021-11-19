@@ -5,7 +5,7 @@ use hyper::{Body, Request, Response};
 use tokio::net::{TcpListener, TcpStream};
 
 fn main() -> Result<(), Error> {
-    pbs_runtime::main(run())
+    proxmox_async::runtime::main(run())
 }
 
 async fn run() -> Result<(), Error> {

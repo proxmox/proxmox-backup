@@ -17,6 +17,7 @@ use proxmox::tools::fs::{file_get_json, replace_file, CreateOptions, image_size}
 use proxmox_router::{ApiMethod, RpcEnvironment, cli::*};
 use proxmox_schema::api;
 use proxmox_time::{strftime_local, epoch_i64};
+use proxmox_async::tokio_writer_adapter::TokioWriterAdapter;
 use pxar::accessor::{MaybeReady, ReadAt, ReadAtOperation};
 
 use pbs_api_types::{
@@ -67,7 +68,6 @@ use pbs_datastore::manifest::{
 };
 use pbs_datastore::read_chunk::AsyncReadChunk;
 use pbs_tools::sync::StdChannelWriter;
-use pbs_tools::tokio::TokioWriterAdapter;
 use pbs_tools::json;
 use pbs_tools::crypt_config::CryptConfig;
 
@@ -486,7 +486,7 @@ fn spawn_catalog_upload(
     encrypt: bool,
 ) -> Result<CatalogUploadResult, Error> {
     let (catalog_tx, catalog_rx) = std::sync::mpsc::sync_channel(10); // allow to buffer 10 writes
-    let catalog_stream = pbs_tools::blocking::StdChannelStream(catalog_rx);
+    let catalog_stream = proxmox_async::blocking::StdChannelStream(catalog_rx);
     let catalog_chunk_size = 512*1024;
     let catalog_chunk_stream = ChunkStream::new(catalog_stream, Some(catalog_chunk_size));
 
@@ -1524,6 +1524,6 @@ fn main() {
 
     let rpcenv = CliEnvironment::new();
     run_cli_command(cmd_def, rpcenv, Some(|future| {
-        pbs_runtime::main(future)
+        proxmox_async::runtime::main(future)
     }));
 }
