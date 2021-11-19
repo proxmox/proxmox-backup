@@ -7,10 +7,9 @@ use proxmox::tools::email::sendmail;
 use proxmox_lang::try_block;
 use proxmox_schema::{parse_property_string, ApiType};
 
-use pbs_tools::format::HumanByte;
 use pbs_api_types::{
     User, TapeBackupJobSetup, SyncJobConfig, VerificationJobConfig,
-    APTUpdateInfo, GarbageCollectionStatus,
+    APTUpdateInfo, GarbageCollectionStatus, HumanByte,
     Userid, Notify, DatastoreNotify, DataStoreConfig,
 };
 

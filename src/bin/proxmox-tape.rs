@@ -12,7 +12,6 @@ use proxmox_time::strftime_local;
 
 use pbs_client::view_task_result;
 use pbs_tools::format::{
-    HumanByte,
     render_epoch,
     render_bytes_human_readable,
 };
@@ -25,6 +24,7 @@ use pbs_api_types::{
     Userid, Authid, DATASTORE_SCHEMA, DATASTORE_MAP_LIST_SCHEMA,
     DRIVE_NAME_SCHEMA, MEDIA_LABEL_SCHEMA, MEDIA_POOL_NAME_SCHEMA,
     TAPE_RESTORE_SNAPSHOT_SCHEMA, GROUP_FILTER_LIST_SCHEMA, GroupListItem,
+    HumanByte
 };
 use pbs_tape::{
     PROXMOX_BACKUP_CONTENT_HEADER_MAGIC_1_0, BlockReadError, MediaContentHeader,

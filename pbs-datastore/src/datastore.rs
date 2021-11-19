@@ -14,8 +14,7 @@ use proxmox_sys::process_locker::ProcessLockSharedGuard;
 use proxmox_sys::worker_task_context::WorkerTaskContext;
 use proxmox_sys::{task_log, task_warn};
 
-use pbs_api_types::{UPID, DataStoreConfig, Authid, GarbageCollectionStatus};
-use pbs_tools::format::HumanByte;
+use pbs_api_types::{UPID, DataStoreConfig, Authid, GarbageCollectionStatus, HumanByte};
 use pbs_tools::fs::{lock_dir_noblock, DirLockGuard};
 use pbs_config::{open_backup_lockfile, BackupLockGuard};
 

@@ -14,8 +14,8 @@ use tokio_stream::wrappers::ReceiverStream;
 
 use proxmox::tools::digest_to_hex;
 
+use pbs_api_types::HumanByte;
 use pbs_tools::crypt_config::CryptConfig;
-use pbs_tools::format::HumanByte;
 use pbs_datastore::{CATALOG_NAME, PROXMOX_BACKUP_PROTOCOL_ID_V1};
 use pbs_datastore::data_blob::{ChunkInfo, DataBlob, DataChunkBuilder};
 use pbs_datastore::dynamic_index::DynamicIndexReader;
