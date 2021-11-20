@@ -1,3 +1,30 @@
+rust-proxmox-backup (2.1.0-1) bullseye; urgency=medium
+
+  * rest server: make successful-ticket auth log a debug one to avoid
+    syslog spam
+
+  * traffic-controls: add API/CLI to show current traffic
+
+  * docs: add traffic control section
+
+  * ui: use TFA widgets from widget toolkit
+
+  * sync: allow pulling groups selectively
+
+  * fix #3533: tape backup: filter groups according to config
+
+  * proxmox-tape: add missing notify-user option to backup command
+
+  * openid: allow arbitrary username-claims
+
+  * openid: support configuring the prompt, scopes and ACR values
+
+  * use human-byte for traffic-control rate-in/out and burst-in/out config
+
+  * ui: add traffic control view and editor
+
+ -- Proxmox Support Team <support@proxmox.com>  Sat, 20 Nov 2021 22:44:07 +0100
+
 rust-proxmox-backup (2.0.14-1) bullseye; urgency=medium
 
   * fix directory permission problems
