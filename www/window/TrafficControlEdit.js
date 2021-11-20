@@ -236,7 +236,7 @@ Ext.define('PBS.window.TrafficControlEdit', {
 		fieldLabel: gettext('Name'),
 		renderer: Ext.htmlEncode,
 		allowBlank: false,
-		minLength: 4,
+		minLength: 3,
 		cbind: {
 		    editable: '{isCreate}',
 		},
