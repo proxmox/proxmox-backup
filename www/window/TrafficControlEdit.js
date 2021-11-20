@@ -199,13 +199,17 @@ Ext.define('PBS.window.TrafficControlEdit', {
 		values.network = values.network.split(/\s*,\s*/);
 	    }
 
-	    if (!Ext.isArray(values.timeframe)) {
+	    if ('timeframe' in values && !values.timeframe) {
+		delete values.timeframe;
+	    }
+	    if (values.timeframe && !Ext.isArray(values.timeframe)) {
 		values.timeframe = values.timeframe.split(';');
 	    }
 
 	    delete values['network-select'];
 
 	    if (!isCreate) {
+		PBS.Utils.delete_if_default(values, 'timeframe');
 		PBS.Utils.delete_if_default(values, 'rate-in');
 		PBS.Utils.delete_if_default(values, 'rate-out');
 		PBS.Utils.delete_if_default(values, 'burst-in');
