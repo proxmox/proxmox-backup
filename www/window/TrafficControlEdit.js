@@ -193,7 +193,7 @@ Ext.define('PBS.window.TrafficControlEdit', {
 	    let me = this;
 	    let isCreate = me.up('window').isCreate;
 
-	    if (values['network-select'] === 'all') {
+	    if (!values['network-select']) {
 		values.network = '0.0.0.0/0';
 	    } else if (values.network) {
 		values.network = values.network.split(/\s*,\s*/);
@@ -275,41 +275,15 @@ Ext.define('PBS.window.TrafficControlEdit', {
 
 	columnB: [
 	    {
-		xtype: 'fieldcontainer',
-		fieldLabel: gettext('Network'),
-		layout: {
-		    type: 'hbox',
-		    align: 'stretch',
+		xtype: 'proxmoxtextfield',
+		fieldLabel: gettext('Network(s)'),
+		name: 'network',
+		emptyText: gettext('0.0.0.0/0 (Apply on all Networks)'),
+		autoEl: {
+		        tag: 'div',
+		        'data-qtip': gettext('A comma-separated list of networks to apply the (shared) limit.'),
+
 		},
-		items: [
-		    {
-			flex: 1,
-			xtype: 'radiofield',
-			boxLabel: gettext('All Networks'),
-			name: 'network-select',
-			value: true,
-			inputValue: 'all',
-		    },
-		    {
-			xtype: 'radiofield',
-			boxLabel: gettext('Limit to'),
-			name: 'network-select',
-			inputValue: 'limit',
-			listeners: {
-			    change: function(field, value) {
-				this.up('window').lookup('network').setDisabled(!value);
-			    },
-			},
-		    },
-		    {
-			flex: 1,
-			margin: '0 0 0 10',
-			xtype: 'proxmoxtextfield',
-			name: 'network',
-			reference: 'network',
-			disabled: true,
-		    },
-		],
 	    },
 	    {
 		xtype: 'displayfield',
