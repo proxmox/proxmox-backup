@@ -178,7 +178,7 @@ Ext.define('PBS.config.TrafficControlView', {
 	{
 	    header: gettext('Timeframes'),
 	    sortable: false,
-	    renderer: (timeframes) => Ext.String.htmlEncode(timeframes.join('; ')),
+	    renderer: tf => tf ? Ext.String.htmlEncode(tf.join('; ')) : '',
 	    dataIndex: 'timeframe',
 	    width: 200,
 	},
