@@ -28,7 +28,7 @@ Ext.define('PBS.config.TrafficControlView', {
 
     title: gettext('Traffic Control'),
 
-//    tools: [PBS.Utils.get_help_tool("backup-remote")],
+//    tools: [PBS.Utils.get_help_tool("backup-remote")], // TODO!
 
     controller: {
 	xclass: 'Ext.app.ViewController',
@@ -36,28 +36,26 @@ Ext.define('PBS.config.TrafficControlView', {
 	addRemote: function() {
 	    let me = this;
             Ext.create('PBS.window.TrafficControlEdit', {
+		autoShow: true,
 		listeners: {
-		    destroy: function() {
-			me.reload();
-		    },
+		    destroy: () => me.reload(),
 		},
-            }).show();
+            });
 	},
 
-	editRemote: function() {
+	editTrafficControl: function() {
 	    let me = this;
 	    let view = me.getView();
 	    let selection = view.getSelection();
 	    if (selection.length < 1) return;
 
-            Ext.create('PBS.window.TrafficControlEdit', {
-                name: selection[0].data.name,
+	    Ext.create('PBS.window.TrafficControlEdit', {
+		name: selection[0].data.name,
+		autoShow: true,
 		listeners: {
-		    destroy: function() {
-			me.reload();
-		    },
+		    destroy: () => me.reload(),
 		},
-            }).show();
+            });
 	},
 
 	render_bandwidth: v => v ? Proxmox.Utils.autoscale_size_unit(v) + '/s' : '',
@@ -71,7 +69,7 @@ Ext.define('PBS.config.TrafficControlView', {
 
     listeners: {
 	activate: 'reload',
-	itemdblclick: 'editRemote',
+	itemdblclick: 'editTrafficControl',
     },
 
     store: {
@@ -98,7 +96,7 @@ Ext.define('PBS.config.TrafficControlView', {
 	{
 	    xtype: 'proxmoxButton',
 	    text: gettext('Edit'),
-	    handler: 'editRemote',
+	    handler: 'editTrafficControl',
 	    disabled: true,
 	},
 	{
