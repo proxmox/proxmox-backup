@@ -113,14 +113,14 @@ Ext.define('PBS.config.TrafficControlView', {
     columns: [
 	{
 	    header: gettext('Rule'),
-	    width: 200,
+	    width: 120,
 	    sortable: true,
 	    renderer: Ext.String.htmlEncode,
 	    dataIndex: 'name',
 	},
 	{
 	    header: gettext('Rate In'),
-	    width: 200,
+	    width: 120,
 	    sortable: true,
 	    renderer: 'render_bandwidth',
 	    dataIndex: 'rate-in',
@@ -129,6 +129,8 @@ Ext.define('PBS.config.TrafficControlView', {
 	    header: gettext('Rate In Used'),
 	    xtype: 'widgetcolumn',
 	    dataIndex: 'rateInUsed',
+	    //width: 200,
+	    flex: 2,
 	    widget: {
 		xtype: 'progressbarwidget',
 		textTpl: '{percent:number("0")}%',
@@ -137,7 +139,7 @@ Ext.define('PBS.config.TrafficControlView', {
 	},
 	{
 	    header: gettext('Rate Out'),
-	    width: 200,
+	    width: 120,
 	    sortable: true,
 	    renderer: 'render_bandwidth',
 	    dataIndex: 'rate-out',
@@ -146,6 +148,7 @@ Ext.define('PBS.config.TrafficControlView', {
 	    header: gettext('Rate Out Used'),
 	    xtype: 'widgetcolumn',
 	    dataIndex: 'rateOutUsed',
+	    flex: 2,
 	    widget: {
 		xtype: 'progressbarwidget',
 		textTpl: '{percent:number("0")}%',
@@ -154,21 +157,21 @@ Ext.define('PBS.config.TrafficControlView', {
 	},
 	{
 	    header: gettext('Burst In'),
-	    width: 200,
+	    width: 120,
 	    sortable: true,
 	    renderer: 'render_bandwidth',
 	    dataIndex: 'burst-in',
 	},
 	{
 	    header: gettext('Burst Out'),
-	    width: 200,
+	    width: 120,
 	    sortable: true,
 	    renderer: 'render_bandwidth',
 	    dataIndex: 'burst-out',
 	},
 	{
 	    header: gettext('Networks'),
-	    width: 200,
+	    flex: 3,
 	    sortable: true,
 	    renderer: Ext.String.htmlEncode,
 	    dataIndex: 'network',
@@ -178,14 +181,14 @@ Ext.define('PBS.config.TrafficControlView', {
 	    sortable: false,
 	    renderer: tf => tf ? Ext.String.htmlEncode(tf.join('; ')) : '',
 	    dataIndex: 'timeframe',
-	    width: 200,
+	    flex: 3,
 	},
 	{
 	    header: gettext('Comment'),
 	    sortable: false,
 	    renderer: Ext.String.htmlEncode,
 	    dataIndex: 'comment',
-	    flex: 1,
+	    flex: 2,
 	},
     ],
 });
