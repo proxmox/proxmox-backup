@@ -5,6 +5,7 @@ Ext.define('PBS.window.TrafficControlEdit', {
 
     onlineHelp: 'sysadmin_traffic_control',
     width: 800,
+    height: 600,
 
     isAdd: true,
 
@@ -302,9 +303,12 @@ Ext.define('PBS.window.TrafficControlEdit', {
 		items: [
 		    {
 			xtype: 'grid',
-			height: 150,
+			height: 300,
 			scrollable: true,
 			reference: 'timeframes',
+			viewConfig: {
+			    emptyText: gettext('Apply Always'),
+			},
 			store: {
 			    fields: ['start', 'end', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'],
 			    data: [],
