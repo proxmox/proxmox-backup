@@ -23,7 +23,7 @@ use proxmox_router::{
 use proxmox_schema::*;
 use proxmox_sys::{task_log, task_warn};
 use proxmox_async::blocking::WrappedReaderStream;
-use proxmox_async::stream::{AsyncReaderStream, AsyncChannelWriter};
+use proxmox_async::{io::AsyncChannelWriter, stream::AsyncReaderStream};
 
 use pxar::accessor::aio::Accessor;
 use pxar::EntryKind;

@@ -17,7 +17,7 @@ use proxmox::tools::fs::{file_get_json, replace_file, CreateOptions, image_size}
 use proxmox_router::{ApiMethod, RpcEnvironment, cli::*};
 use proxmox_schema::api;
 use proxmox_time::{strftime_local, epoch_i64};
-use proxmox_async::tokio_writer_adapter::TokioWriterAdapter;
+use proxmox_async::blocking::TokioWriterAdapter;
 use pxar::accessor::{MaybeReady, ReadAt, ReadAtOperation};
 
 use pbs_api_types::{

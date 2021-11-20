@@ -12,7 +12,7 @@ use nix::dir::Dir;
 use nix::fcntl::OFlag;
 use nix::sys::stat::Mode;
 
-use proxmox_async::tokio_writer_adapter::TokioWriterAdapter;
+use proxmox_async::blocking::TokioWriterAdapter;
 
 use pbs_datastore::catalog::CatalogWriter;
 use pbs_tools::sync::StdChannelWriter;

@@ -31,7 +31,7 @@ tower-service = "0.3.0"
 url = "2.1"
 
 proxmox = "0.15.3"
-proxmox-async = "0.1"
+proxmox-async = "0.2"
 proxmox-io = "1"
 proxmox-lang = "1"
 proxmox-http = { version = "0.5.0", features = [ "client" ] }
