@@ -5,15 +5,11 @@ Ext.define('pmx-traffic-control', {
 	'timeframe', 'comment', 'cur-rate-in', 'cur-rate-out',
 	{
 	    name: 'rateInUsed',
-	    calculate: function(data) {
-		return (data['cur-rate-in'] || 0) / (data['rate-in'] || Infinity);
-	    },
+	    calculate: d => Proxmox.Utils.size_unit_ratios(d['cur-rate-in'], d['rate-in']),
 	},
 	{
 	    name: 'rateOutUsed',
-	    calculate: function(data) {
-		return (data['cur-rate-out'] || 0) / (data['rate-out'] || Infinity);
-	    },
+	    calculate: d => Proxmox.Utils.size_unit_ratios(d['cur-rate-out'], d['rate-out']),
 	},
     ],
     idProperty: 'name',
@@ -64,7 +60,7 @@ Ext.define('PBS.config.TrafficControlView', {
             }).show();
 	},
 
-	render_bandwidth: (value) => value ? Proxmox.Utils.format_size(value) + '/s' : '',
+	render_bandwidth: v => v ? Proxmox.Utils.autoscale_size_unit(v) + '/s' : '',
 
 	reload: function() { this.getView().getStore().rstore.load(); },
 
