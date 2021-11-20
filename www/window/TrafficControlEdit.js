@@ -203,7 +203,14 @@ Ext.define('PBS.window.TrafficControlEdit', {
 		delete values.timeframe;
 	    }
 	    if (values.timeframe && !Ext.isArray(values.timeframe)) {
-		values.timeframe = values.timeframe.split(';');
+		let timeframe = [], seen = {};
+		values.timeframe.split(';').forEach(tf => {
+		    if (!seen[tf]) {
+			timeframe.push(tf);
+			seen[tf] = true;
+		    }
+		});
+		values.timeframe = timeframe;
 	    }
 
 	    delete values['network-select'];
