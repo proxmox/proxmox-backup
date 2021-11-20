@@ -52,7 +52,7 @@ Ext.define('PBS.store.NavigationStore', {
 		    },
 		    {
 			text: gettext('Traffic Control'),
-			iconCls: 'fa fa-exchange fa-rotate-90',
+			iconCls: 'fa fa-signal fa-rotate-90',
 			path: 'pbsTrafficControlView',
 			leaf: true,
 		    },
