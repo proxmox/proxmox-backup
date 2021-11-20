@@ -90,6 +90,33 @@ impl std::fmt::Display for SizeUnit {
     }
 }
 
+/// Strips a trailing SizeUnit inclusive trailing whitespace
+/// Supports both IEC and SI based scales, the B/b byte symbol is optional.
+fn strip_unit(v: &str) -> (&str, SizeUnit) {
+    let v = v.strip_suffix(&['b', 'B'][..]).unwrap_or(v); // byte is implied anyway
+
+    let (v, binary) = match v.strip_suffix('i') {
+        Some(n) => (n, true),
+        None => (v, false),
+    };
+
+    let mut unit = SizeUnit::Byte;
+    (v.strip_suffix(|c: char| match c {
+        'k' | 'K' if !binary => { unit = SizeUnit::KByte; true }
+        'm' | 'M' if !binary => { unit = SizeUnit::MByte; true }
+        'g' | 'G' if !binary => { unit = SizeUnit::GByte; true }
+        't' | 'T' if !binary => { unit = SizeUnit::TByte; true }
+        'p' | 'P' if !binary => { unit = SizeUnit::PByte; true }
+        // binary (IEC recommended) variants
+        'k' | 'K' if binary => { unit = SizeUnit::Kibi; true }
+        'm' | 'M' if binary => { unit = SizeUnit::Mebi; true }
+        'g' | 'G' if binary => { unit = SizeUnit::Gibi; true }
+        't' | 'T' if binary => { unit = SizeUnit::Tebi; true }
+        'p' | 'P' if binary => { unit = SizeUnit::Pebi; true }
+        _ => false
+    }).unwrap_or(v).trim_end(), unit)
+}
+
 /// Byte size which can be displayed in a human friendly way
 pub struct HumanByte {
     /// The siginficant value, it does not includes any factor of the `unit`
@@ -159,6 +186,91 @@ impl std::fmt::Display for HumanByte {
         let size = ((self.size * precision_factor).round()) / precision_factor;
         write!(f, "{} {}", size, self.unit)
     }
+}
+
+impl std::str::FromStr for HumanByte {
+    type Err = Error;
+
+    fn from_str(v: &str) -> Result<Self, Error> {
+        let (v, unit) = strip_unit(v);
+        HumanByte::with_unit(v.parse()?, unit)
+    }
+}
+
+#[test]
+fn test_human_byte_parser() -> Result<(), Error> {
+    assert!("-10".parse::<HumanByte>().is_err()); // negative size
+
+    fn do_test(v: &str, size: f64, unit: SizeUnit, as_str: &str) -> Result<(), Error> {
+        let h: HumanByte = v.parse()?;
+
+        if h.size != size {
+            bail!("got unexpected size for '{}' ({} != {})", v, h.size, size);
+        }
+        if h.unit != unit {
+            bail!("got unexpected unit for '{}' ({:?} != {:?})", v, h.unit, unit);
+        }
+
+        let new = h.to_string();
+        if &new != as_str {
+            bail!("to_string failed for '{}' ({:?} != {:?})", v, new, as_str);
+        }
+        Ok(())
+    }
+    fn test(v: &str, size: f64, unit: SizeUnit, as_str: &str) -> bool {
+        match do_test(v, size, unit, as_str) {
+            Ok(_) => true,
+            Err(err) => {
+                eprintln!("{}", err); // makes debugging easier
+                false
+            }
+        }
+    }
+
+    assert!(test("14", 14.0, SizeUnit::Byte, "14 B"));
+    assert!(test("14.4", 14.4, SizeUnit::Byte, "14.4 B"));
+    assert!(test("14.45", 14.45, SizeUnit::Byte, "14.45 B"));
+    assert!(test("14.456", 14.456, SizeUnit::Byte, "14.456 B"));
+    assert!(test("14.4567", 14.4567, SizeUnit::Byte, "14.457 B"));
+
+    let h: HumanByte = "1.2345678".parse()?;
+    assert_eq!(&format!("{:.0}", h), "1 B");
+    assert_eq!(&format!("{:.0}", h.as_f64()), "1"); // use as_f64 to get raw bytes without unit
+    assert_eq!(&format!("{:.1}", h), "1.2 B");
+    assert_eq!(&format!("{:.2}", h), "1.23 B");
+    assert_eq!(&format!("{:.3}", h), "1.235 B");
+    assert_eq!(&format!("{:.4}", h), "1.2346 B");
+    assert_eq!(&format!("{:.5}", h), "1.23457 B");
+    assert_eq!(&format!("{:.6}", h), "1.234568 B");
+    assert_eq!(&format!("{:.7}", h), "1.2345678 B");
+    assert_eq!(&format!("{:.8}", h), "1.2345678 B");
+
+    assert!(test("987654321", 987654321.0, SizeUnit::Byte, "987654321 B"));
+
+    assert!(test("1300b", 1300.0, SizeUnit::Byte, "1300 B"));
+    assert!(test("1300B", 1300.0, SizeUnit::Byte, "1300 B"));
+    assert!(test("1300 B", 1300.0, SizeUnit::Byte, "1300 B"));
+    assert!(test("1300 b", 1300.0, SizeUnit::Byte, "1300 B"));
+
+    assert!(test("1.5KB", 1.5, SizeUnit::KByte, "1.5 KB"));
+    assert!(test("1.5kb", 1.5, SizeUnit::KByte, "1.5 KB"));
+    assert!(test("1.654321MB", 1.654_321, SizeUnit::MByte, "1.654 MB"));
+
+    assert!(test("2.0GB", 2.0, SizeUnit::GByte, "2 GB"));
+
+    assert!(test("1.4TB", 1.4, SizeUnit::TByte, "1.4 TB"));
+    assert!(test("1.4tb", 1.4, SizeUnit::TByte, "1.4 TB"));
+
+    assert!(test("2KiB", 2.0, SizeUnit::Kibi, "2 KiB"));
+    assert!(test("2Ki", 2.0, SizeUnit::Kibi, "2 KiB"));
+    assert!(test("2kib", 2.0, SizeUnit::Kibi, "2 KiB"));
+
+    assert!(test("2.3454MiB", 2.3454, SizeUnit::Mebi, "2.345 MiB"));
+    assert!(test("2.3456MiB", 2.3456, SizeUnit::Mebi, "2.346 MiB"));
+
+    assert!(test("4gib", 4.0, SizeUnit::Gibi, "4 GiB"));
+
+    Ok(())
 }
 
 #[test]
