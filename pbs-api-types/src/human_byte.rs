@@ -1,5 +1,7 @@
 use anyhow::{bail, Error};
 
+use proxmox_schema::{ApiStringFormat, ApiType, Schema, StringSchema, UpdaterType};
+
 /// Size units for byte sizes
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum SizeUnit {
@@ -118,11 +120,28 @@ fn strip_unit(v: &str) -> (&str, SizeUnit) {
 }
 
 /// Byte size which can be displayed in a human friendly way
+#[derive(Debug, Copy, Clone, UpdaterType)]
 pub struct HumanByte {
     /// The siginficant value, it does not includes any factor of the `unit`
     size: f64,
     /// The scale/unit of the value
     unit: SizeUnit,
+}
+
+fn verify_human_byte(s: &str) -> Result<(), Error> {
+    match s.parse::<HumanByte>() {
+        Ok(_) => Ok(()),
+        Err(err) => bail!("byte-size parse error for '{}': {}", s, err),
+    }
+}
+impl ApiType for HumanByte {
+    const API_SCHEMA: Schema = StringSchema::new(
+        "Byte size with optional unit (B, KB (base 10), MB, GB, ..., KiB (base 2), MiB, Gib, ...).",
+    )
+    .format(&ApiStringFormat::VerifyFn(verify_human_byte))
+    .min_length(1)
+    .max_length(64)
+    .schema();
 }
 
 impl HumanByte {
@@ -196,6 +215,9 @@ impl std::str::FromStr for HumanByte {
         HumanByte::with_unit(v.parse()?, unit)
     }
 }
+
+proxmox::forward_deserialize_to_from_str!(HumanByte);
+proxmox::forward_serialize_to_display!(HumanByte);
 
 #[test]
 fn test_human_byte_parser() -> Result<(), Error> {
