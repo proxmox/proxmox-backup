@@ -242,13 +242,17 @@ Ext.define('PBS.window.TrafficControlEdit', {
 	    },
 	    {
 		xtype: 'pmxBandwidthField',
-		fieldLabel: gettext('Rate In'),
 		name: 'rate-in',
+		fieldLabel: gettext('Rate In'),
+		emptyText: gettext('Unlimited'),
+		submitAutoScaledSizeUnit: true,
 	    },
 	    {
 		xtype: 'pmxBandwidthField',
-		fieldLabel: gettext('Rate Out'),
 		name: 'rate-out',
+		fieldLabel: gettext('Rate Out'),
+		emptyText: gettext('Unlimited'),
+		submitAutoScaledSizeUnit: true,
 	    },
 	],
 
@@ -263,13 +267,17 @@ Ext.define('PBS.window.TrafficControlEdit', {
 	    },
 	    {
 		xtype: 'pmxBandwidthField',
-		fieldLabel: gettext('Burst In'),
 		name: 'burst-in',
+		fieldLabel: gettext('Burst In'),
+		emptyText: gettext('Same as Rate'),
+		submitAutoScaledSizeUnit: true,
 	    },
 	    {
 		xtype: 'pmxBandwidthField',
-		fieldLabel: gettext('Burst Out'),
 		name: 'burst-out',
+		fieldLabel: gettext('Burst Out'),
+		emptyText: gettext('Same as Rate'),
+		submitAutoScaledSizeUnit: true,
 	    },
 	],
 
