@@ -44,13 +44,13 @@ impl SizeUnit {
     /// 'binary' specifies if IEC (base 2) units should be used or SI (base 10) ones
     pub fn auto_scale(size: f64, binary: bool) -> SizeUnit {
         if binary {
-            let bits = 63 - (size as u64).leading_zeros();
+            let bits = 64 - (size as u64).leading_zeros();
             match bits {
-                50.. => SizeUnit::Pebi,
-                40..=49 => SizeUnit::Tebi,
-                30..=39 => SizeUnit::Gibi,
-                20..=29 => SizeUnit::Mebi,
-                10..=19 => SizeUnit::Kibi,
+                51.. => SizeUnit::Pebi,
+                41..=50 => SizeUnit::Tebi,
+                31..=40 => SizeUnit::Gibi,
+                21..=30 => SizeUnit::Mebi,
+                11..=20 => SizeUnit::Kibi,
                 _ => SizeUnit::Byte,
             }
         } else {
@@ -319,6 +319,7 @@ fn test_human_byte_auto_unit_binary() {
     fn convert(b: u64) -> String {
         HumanByte::from(b).to_string()
     }
+    assert_eq!(convert(0), "0 B");
     assert_eq!(convert(987), "987 B");
     assert_eq!(convert(1022), "1022 B");
     assert_eq!(convert(9_000), "8.789 KiB");
