@@ -194,6 +194,14 @@ pub enum DeletableProperty {
     remove_vanished,
     /// Delete the group_filter property.
     group_filter,
+    /// Delete the rate_in property.
+    rate_in,
+    /// Delete the burst_in property.
+    burst_in,
+    /// Delete the rate_out property.
+    rate_out,
+    /// Delete the burst_out property.
+    burst_out,
 }
 
 #[api(
@@ -257,6 +265,10 @@ pub fn update_sync_job(
                 DeletableProperty::schedule => { data.schedule = None; },
                 DeletableProperty::remove_vanished => { data.remove_vanished = None; },
                 DeletableProperty::group_filter => { data.group_filter = None; },
+                DeletableProperty::rate_in => { data.limit.rate_in = None; },
+                DeletableProperty::rate_out => { data.limit.rate_out = None; },
+                DeletableProperty::burst_in => { data.limit.burst_in = None; },
+                DeletableProperty::burst_out => { data.limit.burst_out = None; },
             }
         }
     }
@@ -275,6 +287,22 @@ pub fn update_sync_job(
     if let Some(remote_store) = update.remote_store { data.remote_store = remote_store; }
     if let Some(owner) = update.owner { data.owner = Some(owner); }
     if let Some(group_filter) = update.group_filter { data.group_filter = Some(group_filter); }
+
+    if update.limit.rate_in.is_some() {
+        data.limit.rate_in = update.limit.rate_in;
+    }
+
+    if update.limit.rate_out.is_some() {
+        data.limit.rate_out = update.limit.rate_out;
+    }
+
+    if update.limit.burst_in.is_some() {
+        data.limit.burst_in = update.limit.burst_in;
+    }
+
+    if update.limit.burst_out.is_some() {
+        data.limit.burst_out = update.limit.burst_out;
+    }
 
     let schedule_changed = data.schedule != update.schedule;
     if update.schedule.is_some() { data.schedule = update.schedule; }

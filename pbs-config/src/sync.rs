@@ -17,7 +17,7 @@ lazy_static! {
 
 fn init() -> SectionConfig {
     let obj_schema = match SyncJobConfig::API_SCHEMA {
-        Schema::Object(ref obj_schema) => obj_schema,
+        Schema::AllOf(ref allof_schema) => allof_schema,
         _ => unreachable!(),
     };
 

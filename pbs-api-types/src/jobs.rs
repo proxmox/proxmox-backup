@@ -7,7 +7,8 @@ use serde::{Deserialize, Serialize};
 use proxmox_schema::*;
 
 use crate::{
-    Userid, Authid, REMOTE_ID_SCHEMA, DRIVE_NAME_SCHEMA, MEDIA_POOL_NAME_SCHEMA,
+    Userid, Authid, RateLimitConfig,
+    REMOTE_ID_SCHEMA, DRIVE_NAME_SCHEMA, MEDIA_POOL_NAME_SCHEMA,
     SINGLE_LINE_COMMENT_SCHEMA, PROXMOX_SAFE_ID_FORMAT, DATASTORE_SCHEMA,
     BACKUP_GROUP_SCHEMA, BACKUP_TYPE_SCHEMA,
 };
@@ -405,6 +406,9 @@ pub const GROUP_FILTER_LIST_SCHEMA: Schema = ArraySchema::new("List of group fil
             optional: true,
             schema: SINGLE_LINE_COMMENT_SCHEMA,
         },
+        limit: {
+            type: RateLimitConfig,
+        },
         schedule: {
             optional: true,
             schema: SYNC_SCHEDULE_SCHEMA,
@@ -434,6 +438,8 @@ pub struct SyncJobConfig {
     pub schedule: Option<String>,
     #[serde(skip_serializing_if="Option::is_none")]
     pub group_filter: Option<Vec<GroupFilter>>,
+    #[serde(flatten)]
+    pub limit: RateLimitConfig,
 }
 
 #[api(
