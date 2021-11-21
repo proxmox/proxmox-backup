@@ -22,7 +22,7 @@ fn init() -> SectionConfig {
     let mut config = SectionConfig::new(&TRAFFIC_CONTROL_ID_SCHEMA);
 
     let obj_schema = match TrafficControlRule::API_SCHEMA {
-        Schema::Object(ref obj_schema) => obj_schema,
+        Schema::AllOf(ref allof_schema) => allof_schema,
         _ => unreachable!(),
     };
     let plugin = SectionConfigPlugin::new("rule".to_string(), Some("name".to_string()), obj_schema);

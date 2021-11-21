@@ -219,27 +219,28 @@ impl TrafficControlCache {
         for rule in rules {
 
             let entry = self.limiter_map.entry(rule.name.clone()).or_insert((None, None));
+            let limit = &rule.limit;
 
             match entry.0 {
                 Some(ref read_limiter) => {
-                    match rule.rate_in {
+                    match limit.rate_in {
                         Some(rate_in) => {
                             read_limiter.update_rate(
                                 rate_in.as_u64(),
-                                rule.burst_in.unwrap_or(rate_in).as_u64(),
+                                limit.burst_in.unwrap_or(rate_in).as_u64(),
                             );
                         }
                         None => entry.0 = None,
                     }
                 }
                 None => {
-                    if let Some(rate_in) = rule.rate_in {
+                    if let Some(rate_in) = limit.rate_in {
                         let name = format!("{}.in", rule.name);
                         let limiter = create_limiter(
                             self.use_shared_memory,
                             &name,
                             rate_in.as_u64(),
-                            rule.burst_in.unwrap_or(rate_in).as_u64(),
+                            limit.burst_in.unwrap_or(rate_in).as_u64(),
                         )?;
                         entry.0 = Some(limiter);
                     }
@@ -248,24 +249,24 @@ impl TrafficControlCache {
 
             match entry.1 {
                 Some(ref write_limiter) => {
-                    match rule.rate_out {
+                    match limit.rate_out {
                         Some(rate_out) => {
                             write_limiter.update_rate(
                                 rate_out.as_u64(),
-                                rule.burst_out.unwrap_or(rate_out).as_u64(),
+                                limit.burst_out.unwrap_or(rate_out).as_u64(),
                             );
                         }
                         None => entry.1 = None,
                     }
                 }
                 None => {
-                    if let Some(rate_out) = rule.rate_out {
+                    if let Some(rate_out) = limit.rate_out {
                         let name = format!("{}.out", rule.name);
                         let limiter = create_limiter(
                             self.use_shared_memory,
                             &name,
                             rate_out.as_u64(),
-                            rule.burst_out.unwrap_or(rate_out).as_u64(),
+                            limit.burst_out.unwrap_or(rate_out).as_u64(),
                         )?;
                         entry.1 = Some(limiter);
                     }

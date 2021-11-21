@@ -30,13 +30,6 @@ pub const TRAFFIC_CONTROL_BURST_SCHEMA: Schema = IntegerSchema::new(
 
 #[api(
     properties: {
-        name: {
-            schema: TRAFFIC_CONTROL_ID_SCHEMA,
-        },
-        comment: {
-            optional: true,
-            schema: SINGLE_LINE_COMMENT_SCHEMA,
-        },
         "rate-in": {
             type: HumanByte,
             optional: true,
@@ -52,6 +45,45 @@ pub const TRAFFIC_CONTROL_BURST_SCHEMA: Schema = IntegerSchema::new(
         "burst-out": {
             type: HumanByte,
             optional: true,
+        },
+    },
+)]
+#[derive(Serialize,Deserialize,Default,Clone,Updater)]
+#[serde(rename_all = "kebab-case")]
+///  Rate Limit Configuration
+pub struct RateLimitConfig {
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub rate_in: Option<HumanByte>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub burst_in: Option<HumanByte>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub rate_out: Option<HumanByte>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub burst_out: Option<HumanByte>,
+}
+
+impl RateLimitConfig {
+    pub fn with_same_inout(rate: Option<HumanByte>, burst: Option<HumanByte>) -> Self {
+        Self {
+            rate_in: rate,
+            burst_in: burst,
+            rate_out: rate,
+            burst_out: burst,
+        }
+    }
+}
+
+#[api(
+    properties: {
+        name: {
+            schema: TRAFFIC_CONTROL_ID_SCHEMA,
+        },
+        comment: {
+            optional: true,
+            schema: SINGLE_LINE_COMMENT_SCHEMA,
+        },
+        limit: {
+            type: RateLimitConfig,
         },
         network: {
             type: Array,
@@ -78,14 +110,8 @@ pub struct TrafficControlRule {
     pub comment: Option<String>,
     /// Rule applies to Source IPs within this networks
     pub network: Vec<String>,
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub rate_in: Option<HumanByte>,
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub burst_in: Option<HumanByte>,
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub rate_out: Option<HumanByte>,
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub burst_out: Option<HumanByte>,
+    #[serde(flatten)]
+    pub limit: RateLimitConfig,
     // fixme: expose this?
     //    /// Bandwidth is shared accross all connections
     //    #[serde(skip_serializing_if="Option::is_none")]

@@ -168,10 +168,10 @@ pub fn update_traffic_control(
     if let Some(delete) = delete {
         for delete_prop in delete {
             match delete_prop {
-                DeletableProperty::rate_in => { data.rate_in = None; },
-                DeletableProperty::rate_out => { data.rate_out = None; },
-                DeletableProperty::burst_in => { data.burst_in = None; },
-                DeletableProperty::burst_out => { data.burst_out = None; },
+                DeletableProperty::rate_in => { data.limit.rate_in = None; },
+                DeletableProperty::rate_out => { data.limit.rate_out = None; },
+                DeletableProperty::burst_in => { data.limit.burst_in = None; },
+                DeletableProperty::burst_out => { data.limit.burst_out = None; },
                 DeletableProperty::comment => { data.comment = None; },
                 DeletableProperty::timeframe => { data.timeframe = None; },
             }
@@ -187,12 +187,22 @@ pub fn update_traffic_control(
         }
     }
 
-    if update.rate_in.is_some() { data.rate_in = update.rate_in; }
-    if update.rate_out.is_some() { data.rate_out = update.rate_out; }
+    if update.limit.rate_in.is_some() {
+        data.limit.rate_in = update.limit.rate_in;
+    }
 
-    if update.burst_in.is_some() { data.burst_in = update.burst_in; }
-    if update.burst_out.is_some() { data.burst_out = update.burst_out; }
-    
+    if update.limit.rate_out.is_some() {
+        data.limit.rate_out = update.limit.rate_out;
+    }
+
+    if update.limit.burst_in.is_some() {
+        data.limit.burst_in = update.limit.burst_in;
+    }
+
+    if update.limit.burst_out.is_some() {
+        data.limit.burst_out = update.limit.burst_out;
+    }
+
     if let Some(network) = update.network { data.network = network; }
     if update.timeframe.is_some() { data.timeframe = update.timeframe; }
 
