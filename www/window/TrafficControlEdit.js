@@ -195,7 +195,7 @@ Ext.define('PBS.window.TrafficControlEdit', {
 	    let isCreate = me.up('window').isCreate;
 
 	    if (!values.network) {
-		values.network = '0.0.0.0/0';
+		values.network = ['0.0.0.0/0', '::/0'];
 	    } else {
 		values.network = values.network.split(/\s*,\s*/);
 	    }
@@ -287,7 +287,7 @@ Ext.define('PBS.window.TrafficControlEdit', {
 		xtype: 'proxmoxtextfield',
 		fieldLabel: gettext('Network(s)'),
 		name: 'network',
-		emptyText: gettext('0.0.0.0/0 (Apply on all Networks)'),
+		emptyText: gettext('0.0.0.0/0, ::/0 (Apply on all Networks)'),
 		autoEl: {
 		    tag: 'div',
 		    'data-qtip': gettext('A comma-separated list of networks to apply the (shared) limit.'),
@@ -441,7 +441,7 @@ Ext.define('PBS.window.TrafficControlEdit', {
 	    me.load({
 		success: function(response) {
 		    let data = response.result.data;
-		    if (data.network?.length === 1 && data.network[0] === '0.0.0.0/0') {
+		    if (data.network?.length === 2 && data.network[0] === '0.0.0.0/0' && data.network[1] === '::/0') {
 			delete data.network;
 		    }
 
