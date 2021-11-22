@@ -436,6 +436,9 @@ Ext.define('PBS.window.TrafficControlEdit', {
 		delete data.network;
 	    }
 	}
+	if (data.network?.length) {
+	    data.network = data.network.join(', ');
+	}
 
 	if (Ext.isArray(data.timeframe)) {
 	    data.timeframe = data.timeframe.join(';');
