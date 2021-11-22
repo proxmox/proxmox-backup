@@ -1,3 +1,11 @@
+rust-proxmox-backup (2.1.1-2) bullseye; urgency=medium
+
+  * docs: update and add traffic control related screenshots
+
+  * docs: mention traffic control (bandwidth limits) for sync jobs
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 22 Nov 2021 16:07:39 +0100
+
 rust-proxmox-backup (2.1.1-1) bullseye; urgency=medium
 
   * fix proxmox-backup-manager sync-job list
