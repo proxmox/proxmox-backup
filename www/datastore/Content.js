@@ -717,11 +717,10 @@ Ext.define('PBS.DataStoreContent', {
 	    header: gettext("Backup Group"),
 	    dataIndex: 'text',
 	    renderer: (value, meta, record) => {
-		let protect = "";
 		if (record.data.protected) {
-		    protect = ` <i class="fa fa-shield"></i>`;
+		    return `${value} (${gettext('protected')})`;
 		}
-		return value + protect;
+		return value;
 	    },
 	    flex: 1,
 	},
@@ -795,7 +794,13 @@ Ext.define('PBS.DataStoreContent', {
 		{
 		    handler: 'onProtectionChange',
 		    getTip: (v, m, rec) => Ext.String.format(gettext("Change protection of '{0}'"), v),
-		    getClass: (v, m, rec) => !rec.data.leaf && rec.parentNode.id !== 'root' ? 'fa fa-shield' : 'pmx-hidden',
+		    getClass: (v, m, rec) => {
+			if (!rec.data.leaf && rec.parentNode.id !== 'root') {
+			    let extraCls = rec.data.protected ? 'good' : 'faded';
+			    return `fa fa-shield ${extraCls}`;
+			}
+			return 'pmx-hidden';
+		    },
 		    isActionDisabled: (v, r, c, i, rec) => !!rec.data.leaf || rec.parentNode.id === 'root',
 		},
 		{
