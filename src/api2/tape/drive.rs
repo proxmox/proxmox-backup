@@ -696,7 +696,7 @@ pub async fn read_label(
                         flat.encryption_key_fingerprint = set
                             .encryption_key_fingerprint
                             .as_ref()
-                            .map(|fp| fp.to_string());
+                            .map(|fp| fp.signature());
 
                         let encrypt_fingerprint = set.encryption_key_fingerprint.clone()
                             .map(|fp| (fp, set.uuid.clone()));

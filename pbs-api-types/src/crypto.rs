@@ -33,6 +33,9 @@ impl Fingerprint {
     pub fn bytes(&self) -> &[u8; 32] {
         &self.bytes
     }
+    pub fn signature(&self) -> String {
+        as_fingerprint(&self.bytes)
+    }
 }
 
 /// Display as short key ID
