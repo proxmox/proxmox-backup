@@ -424,6 +424,7 @@ acl:1:/remote/remote1/remotestore1:write@pbs:RemoteSyncOperator
         remove_vanished: None,
         group_filter: None,
         schedule: None,
+        limit: pbs_api_types::RateLimitConfig::default(), // no limit
     };
 
     // should work without ACLs
