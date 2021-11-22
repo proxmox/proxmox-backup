@@ -1,3 +1,26 @@
+rust-proxmox-backup (2.1.1-1) bullseye; urgency=medium
+
+  * fix proxmox-backup-manager sync-job list
+
+  * ui, api: sync-job: allow one to configure a rate limit
+
+  * api: snapshot list: set default for 'protected' flag
+
+  * ui: datastore content: rework rendering protection state
+
+  * docs: update traffic control docs (use HumanBytes)
+
+  * ui: traffic-control: include ipv6 in 'all' networks
+
+  * ui: traffic-control edit: add spaces between networks for more
+    readabillity
+
+  * tape: fix passing-through key-fingerprint
+
+  * avoid a bogus error regarding logrotate-path due to a reversed check
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 22 Nov 2021 12:24:31 +0100
+
 rust-proxmox-backup (2.1.0-1) bullseye; urgency=medium
 
   * rest server: make successful-ticket auth log a debug one to avoid
