@@ -425,23 +425,33 @@ Ext.define('PBS.window.TrafficControlEdit', {
 	],
     },
 
+    doSetValues: function(data) {
+	let me = this;
+
+	// NOTE: it can make sense to have any-ip (::/0 and 0/0) and specific ones in the same set
+	// so only check for "is default" when there really just two networks
+	if (data.network?.length === 2) {
+	    let nets = [...new Set(data.network)]; // only the set of unique networks
+	    if (nets.find(net => net === '0.0.0.0/0') && nets.find(net => net === '::/0')) {
+		delete data.network;
+	    }
+	}
+
+	if (Ext.isArray(data.timeframe)) {
+	    data.timeframe = data.timeframe.join(';');
+	}
+
+	me.setValues(data);
+    },
+
     initComponent: function() {
 	let me = this;
+
 	me.callParent();
+
 	if (!me.isCreate) {
 	    me.load({
-		success: function(response) {
-		    let data = response.result.data;
-		    if (data.network?.length === 2 && data.network[0] === '0.0.0.0/0' && data.network[1] === '::/0') {
-			delete data.network;
-		    }
-
-		    if (Ext.isArray(data.timeframe)) {
-			data.timeframe = data.timeframe.join(';');
-		    }
-
-		    me.setValues(data);
-		},
+		success: ({ result: { data } }) => me.doSetValues(data),
 	    });
 	}
     },
