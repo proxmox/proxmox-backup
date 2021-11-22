@@ -289,9 +289,8 @@ Ext.define('PBS.window.TrafficControlEdit', {
 		name: 'network',
 		emptyText: gettext('0.0.0.0/0 (Apply on all Networks)'),
 		autoEl: {
-		        tag: 'div',
-		        'data-qtip': gettext('A comma-separated list of networks to apply the (shared) limit.'),
-
+		    tag: 'div',
+		    'data-qtip': gettext('A comma-separated list of networks to apply the (shared) limit.'),
 		},
 	    },
 	    {
