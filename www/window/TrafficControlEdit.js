@@ -214,8 +214,6 @@ Ext.define('PBS.window.TrafficControlEdit', {
 		values.timeframe = timeframe;
 	    }
 
-	    delete values['network-select'];
-
 	    if (!isCreate) {
 		PBS.Utils.delete_if_default(values, 'timeframe');
 		PBS.Utils.delete_if_default(values, 'rate-in');
