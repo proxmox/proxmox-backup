@@ -1,7 +1,7 @@
 Ext.define('pbs-tape-backup-job-status', {
     extend: 'Ext.data.Model',
     fields: [
-	'id', 'store', 'pool', 'drive', 'store', 'schedule', 'comment', 'groups',
+	'id', 'store', 'pool', 'drive', 'store', 'schedule', 'comment', 'group-filter',
 	{ name: 'eject-media', type: 'boolean' },
 	{ name: 'export-media-set', type: 'boolean' },
 	{ name: 'latest-only', type: 'boolean' },
@@ -223,7 +223,7 @@ Ext.define('PBS.config.TapeBackupJobView', {
 	},
 	{
 	    header: gettext('Backup Groups'),
-	    dataIndex: 'groups',
+	    dataIndex: 'group-filter',
 	    renderer: v => v ? Ext.String.htmlEncode(v) : gettext('All'),
 	    width: 80,
 	},

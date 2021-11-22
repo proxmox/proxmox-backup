@@ -126,7 +126,7 @@ Ext.define('PBS.TapeManagement.BackupJobEdit', {
 	    {
 		fieldLabel: gettext('Backup Groups'),
 		xtype: 'displayfield',
-		name: 'groups',
+		name: 'group-filter',
 		renderer: v => v ? Ext.String.htmlEncode(v) : gettext('All'),
 		cbind: {
 		    hidden: '{isCreate}',
