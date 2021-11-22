@@ -3,10 +3,30 @@
 Traffic Control
 ---------------
 
-Proxmox Backup Server allows to limit network traffic for clients
-within specified source networks. The following command adds a traffic
-control rule to limit all clients (network ``0.0.0.0/0``) to 100 MB/s:
+.. image:: images/screenshots/pbs-gui-traffic-control-add.png
+  :align: right
+  :alt: Add a traffic control limit
 
+Creating and restoring backups can produce lots of traffic and impact other
+users of the network or shared storages.
+
+Proxmox Backup Server allows to limit network traffic for clients within
+specified networks using a token bucket filter (TBF).
+
+This allows you to avoid network congestion or to prioritize traffic from
+certain hosts.
+
+You can manage the traffic controls either over the web-interface or using the
+``traffic-control`` commandos of the ``proxmox-backup-manager`` command-line
+tool.
+
+.. note:: Sync jobs on the server are not affected by its rate-in limits. If
+   you want to limit the incomming traffic that a pull-based sync job
+   generates, you need to setup a job-specific rate-in limit. See
+   :ref:`syncjobs`.
+
+The following command adds a traffic control rule to limit all IPv4 clients
+(network ``0.0.0.0/0``) to 100 MB/s:
 
 .. code-block:: console
 
@@ -14,8 +34,14 @@ control rule to limit all clients (network ``0.0.0.0/0``) to 100 MB/s:
    --rate-in 100MB --rate-out 100MB \
    --comment "Default rate limit (100MB/s) for all clients"
 
-It is possible to restrict rules to certain time frames, for example
-the company office hours:
+.. note:: To limit both IPv4 and IPv6 network spaces you need to pass two
+   network parameters ``::/0`` and ``0.0.0.0/0``.
+
+It is possible to restrict rules to certain time frames, for example the
+company office hours:
+
+.. tip:: You can use SI (base 10: KB, MB, ...) or IEC (base 2: KiB, MiB, ...)
+   units.
 
 .. code-block:: console
 
@@ -23,9 +49,9 @@ the company office hours:
    --timeframe "mon..fri 8-12" \
    --timeframe "mon..fri 14:30-18"
 
-If there are more rules, the server uses the rule with the smaller
-network. For example, we can overwrite the setting for our private
-network (and the server itself) with:
+If there are more rules, the server uses the rule with the smaller network. For
+example, we can overwrite the setting for our private network (and the server
+itself) with:
 
 .. code-block:: console
 
@@ -36,6 +62,10 @@ network (and the server itself) with:
    --comment "Use 20GB/s for the local network"
 
 .. note:: The behavior is undefined if there are several rules for the same network.
+
+If there are multiple rules that match the same network all of them will be
+applied, which means that the smallest one wins, as it's bucket fills up the
+fastest.
 
 To list the current rules use:
 

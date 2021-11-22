@@ -85,6 +85,11 @@ To set up sync jobs, the configuring user needs the following permissions:
 #. ``Remote.Read`` on the ``/remote/{remote}/{remote-store}`` path
 #. At least ``Datastore.Backup`` on the local target datastore (``/datastore/{store}``)
 
+.. note:: A sync job can only sync backup groups that the configured remote's
+  user/API token can read. If a remote is configured with a user/API token that
+  only has ``Datastore.Backup`` privileges, only the limited set of accessible
+  snapshots owned by that user/API token can be synced.
+
 If the ``remove-vanished`` option is set, ``Datastore.Prune`` is required on
 the local datastore as well. If the ``owner`` option is not set (defaulting to
 ``root@pam``) or is set to something other than the configuring user,
@@ -107,7 +112,15 @@ of the specified criteria are synced. The available criteria are:
 The same filter is applied to local groups for handling of the
 ``remove-vanished`` option.
 
-.. note:: A sync job can only sync backup groups that the configured remote's
-  user/API token can read. If a remote is configured with a user/API token that
-  only has ``Datastore.Backup`` privileges, only the limited set of accessible
-  snapshots owned by that user/API token can be synced.
+
+Bandwidth Limit
+^^^^^^^^^^^^^^^
+
+Syncing datastores to an archive can produce lots of traffic and impact other
+users of the network. So, to avoid network or storage congetsion you can limit
+the bandwith of the sync job by setting the ``rate-in`` option either in the
+web interface or using the ``proxmox-backup-manager`` command-line tool:
+
+.. code-block:: console
+
+    # proxmox-backup-manager sync-job update ID --rate-in 20MiB
