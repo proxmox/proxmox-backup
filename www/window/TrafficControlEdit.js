@@ -287,7 +287,7 @@ Ext.define('PBS.window.TrafficControlEdit', {
 		xtype: 'proxmoxtextfield',
 		fieldLabel: gettext('Network(s)'),
 		name: 'network',
-		emptyText: gettext('0.0.0.0/0, ::/0 (Apply on all Networks)'),
+		emptyText: `0.0.0.0/0, ::/0 (${gettext('Apply on all Networks')})`,
 		autoEl: {
 		    tag: 'div',
 		    'data-qtip': gettext('A comma-separated list of networks to apply the (shared) limit.'),
