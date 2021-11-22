@@ -32,7 +32,7 @@ proxmox-lang = "1"
 proxmox-schema = { version = "1", features = [ "api-macro" ] }
 proxmox-time = "1"
 proxmox-uuid = "1"
-proxmox-sys = "0.1"
+proxmox-sys = "0.1.2"
 
 pbs-api-types = { path = "../pbs-api-types" }
 pbs-tools = { path = "../pbs-tools" }

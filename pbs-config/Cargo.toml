@@ -24,7 +24,7 @@ proxmox-schema = "1"
 proxmox-section-config = "1"
 proxmox-time = "1"
 proxmox-shared-memory = "0.1.1"
-proxmox-sys = "0.1"
+proxmox-sys = "0.1.2"
 
 pbs-api-types = { path = "../pbs-api-types" }
 pbs-buildcfg = { path = "../pbs-buildcfg" }
