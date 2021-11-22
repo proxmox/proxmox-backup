@@ -194,9 +194,9 @@ Ext.define('PBS.window.TrafficControlEdit', {
 	    let me = this;
 	    let isCreate = me.up('window').isCreate;
 
-	    if (!values['network-select']) {
+	    if (!values.network) {
 		values.network = '0.0.0.0/0';
-	    } else if (values.network) {
+	    } else {
 		values.network = values.network.split(/\s*,\s*/);
 	    }
 
@@ -442,10 +442,7 @@ Ext.define('PBS.window.TrafficControlEdit', {
 		success: function(response) {
 		    let data = response.result.data;
 		    if (data.network?.length === 1 && data.network[0] === '0.0.0.0/0') {
-			data['network-select'] = 'all';
 			delete data.network;
-		    } else {
-			data['network-select'] = 'limit';
 		    }
 
 		    if (Ext.isArray(data.timeframe)) {
