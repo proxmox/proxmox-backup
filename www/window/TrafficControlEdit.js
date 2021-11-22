@@ -197,7 +197,7 @@ Ext.define('PBS.window.TrafficControlEdit', {
 	    if (!values.network) {
 		values.network = ['0.0.0.0/0', '::/0'];
 	    } else {
-		values.network = values.network.split(/\s*,\s*/);
+		values.network = [...new Set(values.network.split(/\s*,\s*/))];
 	    }
 
 	    if ('timeframe' in values && !values.timeframe) {
