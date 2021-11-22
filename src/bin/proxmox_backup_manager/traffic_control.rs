@@ -5,6 +5,7 @@ use proxmox_router::{cli::*, ApiHandler, RpcEnvironment};
 use proxmox_schema::api;
 
 use pbs_api_types::TRAFFIC_CONTROL_ID_SCHEMA;
+use pbs_tools::format::render_bytes_human_readable;
 
 use proxmox_backup::api2;
 use proxmox_backup::client_helpers::connect_to_localhost;
@@ -101,8 +102,8 @@ async fn show_current_traffic(param: Value) -> Result<Value, Error> {
 
     let options = default_table_format_options()
         .column(ColumnConfig::new("name"))
-        .column(ColumnConfig::new("cur-rate-in"))
-        .column(ColumnConfig::new("cur-rate-out"));
+        .column(ColumnConfig::new("cur-rate-in").renderer(render_bytes_human_readable))
+        .column(ColumnConfig::new("cur-rate-out").renderer(render_bytes_human_readable));
 
     format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
 
