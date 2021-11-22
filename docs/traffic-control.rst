@@ -11,7 +11,7 @@ control rule to limit all clients (network ``0.0.0.0/0``) to 100 MB/s:
 .. code-block:: console
 
  # proxmox-backup-manager traffic-control create rule0  --network 0.0.0.0/0 \
-   --rate-in 100000000 --rate-out 100000000 \
+   --rate-in 100MB --rate-out 100MB \
    --comment "Default rate limit (100MB/s) for all clients"
 
 It is possible to restrict rules to certain time frames, for example
@@ -32,7 +32,7 @@ network (and the server itself) with:
  # proxmox-backup-manager traffic-control create rule1 \
    --network 192.168.2.0/24 \
    --network 127.0.0.0/8 \
-   --rate-in 20000000000 --rate-out 20000000000 \
+   --rate-in 20GB --rate-out 20GB \
    --comment "Use 20GB/s for the local network"
 
 .. note:: The behavior is undefined if there are several rules for the same network.
@@ -45,9 +45,9 @@ To list the current rules use:
  ┌───────┬─────────────┬─────────────┬─────────────────────────┬────────────...─┐
  │ name  │     rate-in │    rate-out │ network                 │ timeframe  ... │
  ╞═══════╪═════════════╪═════════════╪═════════════════════════╪════════════...═╡
- │ rule0 │   100000000 │   100000000 │ ["0.0.0.0/0"]           │ ["mon..fri ... │
+ │ rule0 │      100 MB │      100 MB │ ["0.0.0.0/0"]           │ ["mon..fri ... │
  ├───────┼─────────────┼─────────────┼─────────────────────────┼────────────...─┤
- │ rule1 │ 20000000000 │ 20000000000 │ ["192.168.2.0/24", ...] │            ... │
+ │ rule1 │       20 GB │       20 GB │ ["192.168.2.0/24", ...] │            ... │
  └───────┴─────────────┴─────────────┴─────────────────────────┴────────────...─┘
 
 Rules can also be removed:
@@ -62,10 +62,10 @@ To show the state (current data rate) of all configured rules use:
 .. code-block:: console
 
   # proxmox-backup-manager traffic-control traffic
-  ┌───────┬─────────┬──────────┐
-  │ name  │ rate-in │ rate-out │
-  ╞═══════╪═════════╪══════════╡
-  │ rule0 │       0 │        0 │
-  ├───────┼─────────┼──────────┤
-  │ rule1 │   10344 │      237 │
-  └───────┴─────────┴──────────┘
+  ┌───────┬─────────────┬──────────────┐
+  │ name  │ cur-rate-in │ cur-rate-out │
+  ╞═══════╪═════════════╪══════════════╡
+  │ rule0 │         0 B │          0 B │
+  ├───────┼─────────────┼──────────────┤
+  │ rule1 │   1.161 GiB │   19.146 KiB │
+  └───────┴─────────────┴──────────────┘
