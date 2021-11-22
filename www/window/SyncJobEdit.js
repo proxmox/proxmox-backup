@@ -125,6 +125,12 @@ Ext.define('PBS.window.SyncJobEdit', {
 	    if (!values.id && me.up('pbsSyncJobEdit').isCreate) {
 		values.id = 's-' + Ext.data.identifier.Uuid.Global.generate().slice(0, 13);
 	    }
+	    if (!me.isCreate) {
+		PBS.Utils.delete_if_default(values, 'rate-in');
+		if (typeof values.delete === 'string') {
+		    values.delete = values.delete.split(',');
+		}
+	    }
 	    return values;
 	},
 	column1: [
@@ -195,6 +201,14 @@ Ext.define('PBS.window.SyncJobEdit', {
 		    deleteEmpty: '{!isCreate}',
 		    value: '{scheduleValue}',
 		},
+	    },
+	    {
+		xtype: 'pmxBandwidthField',
+		name: 'rate-in',
+		fieldLabel: gettext('Rate Limit'),
+		emptyText: gettext('Unlimited'),
+		submitAutoScaledSizeUnit: true,
+		// NOTE: handle deleteEmpty in onGetValues due to bandwidth field having a cbind too
 	    },
 	],
 
