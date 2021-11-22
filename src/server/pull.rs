@@ -14,7 +14,10 @@ use http::StatusCode;
 use proxmox_router::HttpError;
 use proxmox_sys::task_log;
 
-use pbs_api_types::{Authid, GroupFilter, GroupListItem, Remote, SnapshotListItem};
+use pbs_api_types::{
+    Authid, GroupFilter, GroupListItem, RateLimitConfig, Remote,
+    SnapshotListItem,
+};
 
 use pbs_datastore::{BackupDir, BackupInfo, BackupGroup, DataStore, StoreProgress};
 use pbs_datastore::data_blob::DataBlob;
@@ -41,6 +44,7 @@ pub struct PullParameters {
     owner: Authid,
     remove_vanished: bool,
     group_filter: Option<Vec<GroupFilter>>,
+    limit: RateLimitConfig,
 }
 
 impl PullParameters {
@@ -51,6 +55,7 @@ impl PullParameters {
         owner: Authid,
         remove_vanished: Option<bool>,
         group_filter: Option<Vec<GroupFilter>>,
+        limit: RateLimitConfig,
     ) -> Result<Self, Error> {
         let store = DataStore::lookup_datastore(store)?;
 
@@ -66,11 +71,11 @@ impl PullParameters {
             remote_store.to_string(),
         );
 
-        Ok(Self { remote, source, store, owner, remove_vanished, group_filter })
+        Ok(Self { remote, source, store, owner, remove_vanished, group_filter, limit })
     }
 
     pub async fn client(&self) -> Result<HttpClient, Error> {
-        crate::api2::config::remote::remote_client(&self.remote).await
+        crate::api2::config::remote::remote_client(&self.remote, Some(self.limit.clone())).await
     }
 }
 

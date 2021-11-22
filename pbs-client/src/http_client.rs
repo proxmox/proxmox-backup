@@ -24,7 +24,7 @@ use proxmox_http::client::{HttpsConnector, RateLimiter};
 use proxmox_http::uri::build_authority;
 use proxmox_async::broadcast_future::BroadcastFuture;
 
-use pbs_api_types::{Authid, Userid};
+use pbs_api_types::{Authid, Userid, RateLimitConfig};
 use pbs_tools::json::json_object_to_query;
 use pbs_tools::ticket;
 use pbs_tools::percent_encoding::DEFAULT_ENCODE_SET;
@@ -51,8 +51,7 @@ pub struct HttpClientOptions {
     ticket_cache: bool,
     fingerprint_cache: bool,
     verify_cert: bool,
-    rate_limit: Option<u64>,
-    bucket_size: Option<u64>,
+    limit: RateLimitConfig,
 }
 
 impl HttpClientOptions {
@@ -112,13 +111,8 @@ impl HttpClientOptions {
         self
     }
 
-    pub fn rate_limit(mut self, rate_limit:  Option<u64>) -> Self {
-        self.rate_limit = rate_limit;
-        self
-    }
-
-    pub fn bucket_size(mut self, bucket_size:  Option<u64>) -> Self {
-        self.bucket_size = bucket_size;
+    pub fn rate_limit(mut self, rate_limit: RateLimitConfig) -> Self {
+        self.limit = rate_limit;
         self
     }
 }
@@ -133,8 +127,7 @@ impl Default for HttpClientOptions {
             ticket_cache: false,
             fingerprint_cache: false,
             verify_cert: true,
-            rate_limit: None,
-            bucket_size: None,
+            limit: RateLimitConfig::default(), // unlimited
         }
     }
 }
@@ -359,10 +352,18 @@ impl HttpClient {
         httpc.set_connect_timeout(Some(std::time::Duration::new(10, 0)));
         let mut https = HttpsConnector::with_connector(httpc, ssl_connector_builder.build(), PROXMOX_BACKUP_TCP_KEEPALIVE_TIME);
 
-        if let Some(rate_limit) = options.rate_limit {
-            let bucket_size = options.bucket_size.unwrap_or_else(|| rate_limit*3);
-            https.set_read_limiter(Some(Arc::new(Mutex::new(RateLimiter::new(rate_limit, bucket_size)))));
-            https.set_write_limiter(Some(Arc::new(Mutex::new(RateLimiter::new(rate_limit, bucket_size)))));
+        if let Some(rate_in) = options.limit.rate_in {
+            let burst_in = options.limit.burst_in.unwrap_or_else(|| rate_in).as_u64();
+            https.set_read_limiter(Some(Arc::new(Mutex::new(
+                RateLimiter::new(rate_in.as_u64(), burst_in)
+            ))));
+        }
+
+        if let Some(rate_out) = options.limit.rate_out {
+            let burst_out = options.limit.burst_out.unwrap_or_else(|| rate_out).as_u64();
+            https.set_write_limiter(Some(Arc::new(Mutex::new(
+                RateLimiter::new(rate_out.as_u64(), burst_out)
+            ))));
         }
 
         let client = Client::builder()

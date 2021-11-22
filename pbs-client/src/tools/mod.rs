@@ -14,7 +14,7 @@ use proxmox_schema::*;
 use proxmox_router::cli::{complete_file_name, shellword_split};
 use proxmox::tools::fs::file_get_json;
 
-use pbs_api_types::{BACKUP_REPO_URL, Authid, UserWithTokens};
+use pbs_api_types::{BACKUP_REPO_URL, Authid, RateLimitConfig, UserWithTokens};
 use pbs_datastore::BackupDir;
 use pbs_tools::json::json_object_to_query;
 
@@ -135,16 +135,16 @@ pub fn extract_repository_from_map(param: &HashMap<String, String>) -> Option<Ba
 }
 
 pub fn connect(repo: &BackupRepository) -> Result<HttpClient, Error> {
-    connect_do(repo.host(), repo.port(), repo.auth_id(), None, None)
+    let rate_limit = RateLimitConfig::default(); // unlimited
+    connect_do(repo.host(), repo.port(), repo.auth_id(), rate_limit)
         .map_err(|err| format_err!("error building client for repository {} - {}", repo, err))
 }
 
 pub fn connect_rate_limited(
     repo: &BackupRepository,
-    rate: Option<u64>,
-    bucket_size: Option<u64>,
+    rate_limit: RateLimitConfig,
 ) -> Result<HttpClient, Error> {
-    connect_do(repo.host(), repo.port(), repo.auth_id(), rate, bucket_size)
+    connect_do(repo.host(), repo.port(), repo.auth_id(), rate_limit)
         .map_err(|err| format_err!("error building client for repository {} - {}", repo, err))
 }
 
@@ -152,15 +152,13 @@ fn connect_do(
     server: &str,
     port: u16,
     auth_id: &Authid,
-    rate_limit: Option<u64>,
-    bucket_size: Option<u64>,
+    rate_limit: RateLimitConfig,
 ) -> Result<HttpClient, Error> {
     let fingerprint = std::env::var(ENV_VAR_PBS_FINGERPRINT).ok();
 
     let password = get_secret_from_env(ENV_VAR_PBS_PASSWORD)?;
     let options = HttpClientOptions::new_interactive(password, fingerprint)
-        .rate_limit(rate_limit)
-        .bucket_size(bucket_size);
+        .rate_limit(rate_limit);
 
     HttpClient::new(server, port, auth_id, options)
 }

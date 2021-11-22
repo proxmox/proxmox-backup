@@ -12,7 +12,7 @@ use pbs_client::{HttpClient, HttpClientOptions};
 use pbs_api_types::{
     REMOTE_ID_SCHEMA, REMOTE_PASSWORD_SCHEMA, Remote, RemoteConfig, RemoteConfigUpdater,
     Authid, PROXMOX_CONFIG_DIGEST_SCHEMA, DATASTORE_SCHEMA, GroupListItem,
-    DataStoreListItem, SyncJobConfig, PRIV_REMOTE_AUDIT, PRIV_REMOTE_MODIFY,
+    DataStoreListItem, RateLimitConfig, SyncJobConfig, PRIV_REMOTE_AUDIT, PRIV_REMOTE_MODIFY,
 };
 use pbs_config::sync;
 
@@ -280,8 +280,15 @@ pub fn delete_remote(name: String, digest: Option<String>) -> Result<(), Error> 
 }
 
 /// Helper to get client for remote.cfg entry
-pub async fn remote_client(remote: &Remote) -> Result<HttpClient, Error> {
-    let options = HttpClientOptions::new_non_interactive(remote.password.clone(), remote.config.fingerprint.clone());
+pub async fn remote_client(
+    remote: &Remote,
+    limit: Option<RateLimitConfig>,
+) -> Result<HttpClient, Error> {
+    let mut options = HttpClientOptions::new_non_interactive(remote.password.clone(), remote.config.fingerprint.clone());
+
+    if let Some(limit) = limit {
+        options = options.rate_limit(limit);
+    }
 
     let client = HttpClient::new(
         &remote.config.host,
@@ -325,7 +332,7 @@ pub async fn scan_remote_datastores(name: String) -> Result<Vec<DataStoreListIte
                   api_err)
     };
 
-    let client = remote_client(&remote)
+    let client = remote_client(&remote, None)
         .await
         .map_err(map_remote_err)?;
     let api_res = client
@@ -375,7 +382,7 @@ pub async fn scan_remote_groups(name: String, store: String) -> Result<Vec<Group
                   api_err)
     };
 
-    let client = remote_client(&remote)
+    let client = remote_client(&remote, None)
         .await
         .map_err(map_remote_err)?;
     let api_res = client

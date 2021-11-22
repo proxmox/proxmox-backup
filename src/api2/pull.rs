@@ -9,7 +9,7 @@ use proxmox_router::{ApiMethod, Router, RpcEnvironment, Permission};
 use proxmox_sys::task_log;
 
 use pbs_api_types::{
-    Authid, SyncJobConfig, GroupFilter, GROUP_FILTER_LIST_SCHEMA,
+    Authid, SyncJobConfig, GroupFilter, RateLimitConfig, GROUP_FILTER_LIST_SCHEMA,
     DATASTORE_SCHEMA, REMOTE_ID_SCHEMA, REMOVE_VANISHED_BACKUPS_SCHEMA,
     PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_PRUNE, PRIV_REMOTE_READ,
 };
@@ -51,6 +51,7 @@ impl TryFrom<&SyncJobConfig> for PullParameters {
             sync_job.owner.as_ref().unwrap_or_else(|| Authid::root_auth_id()).clone(),
             sync_job.remove_vanished,
             sync_job.group_filter.clone(),
+            sync_job.limit.clone(),
         )
     }
 }
@@ -156,6 +157,10 @@ pub fn do_sync_job(
                 schema: GROUP_FILTER_LIST_SCHEMA,
                 optional: true,
             },
+            limit: {
+                type: RateLimitConfig,
+                flatten: true,
+            }
         },
     },
     access: {
@@ -174,6 +179,7 @@ async fn pull (
     remote_store: String,
     remove_vanished: Option<bool>,
     group_filter: Option<Vec<GroupFilter>>,
+    limit: RateLimitConfig,
     _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
@@ -190,6 +196,7 @@ async fn pull (
         auth_id.clone(),
         remove_vanished,
         group_filter,
+        limit,
     )?;
     let client = pull_params.client().await?;
 

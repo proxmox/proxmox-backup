@@ -23,8 +23,9 @@ use pxar::accessor::{MaybeReady, ReadAt, ReadAtOperation};
 use pbs_api_types::{
     BACKUP_ID_SCHEMA, BACKUP_TIME_SCHEMA, BACKUP_TYPE_SCHEMA,
     TRAFFIC_CONTROL_BURST_SCHEMA, TRAFFIC_CONTROL_RATE_SCHEMA,
-    Authid, CryptMode, Fingerprint, GroupListItem, PruneListItem, PruneOptions,
-    SnapshotListItem, StorageStatus,
+    Authid, CryptMode, Fingerprint, GroupListItem, HumanByte,
+    PruneListItem, PruneOptions, RateLimitConfig, SnapshotListItem,
+    StorageStatus,
 };
 use pbs_client::{
     BACKUP_SOURCE_SCHEMA,
@@ -640,8 +641,16 @@ async fn create_backup(
         verify_chunk_size(size)?;
     }
 
-    let rate_limit = param["rate"].as_u64();
-    let bucket_size = param["burst"].as_u64();
+    let rate = match param["rate"].as_str() {
+        Some(s) => Some(s.parse::<HumanByte>()?),
+        None => None,
+    };
+    let burst = match param["burst"].as_str() {
+        Some(s) => Some(s.parse::<HumanByte>()?),
+        None => None,
+    };
+
+    let rate_limit = RateLimitConfig::with_same_inout(rate, burst);
 
     let crypto = crypto_parameters(&param)?;
 
@@ -737,7 +746,7 @@ async fn create_backup(
 
     let backup_time = backup_time_opt.unwrap_or_else(epoch_i64);
 
-    let client = connect_rate_limited(&repo, rate_limit, bucket_size)?;
+    let client = connect_rate_limited(&repo, rate_limit)?;
     record_repository(&repo);
 
     println!("Starting backup: {}/{}/{}", backup_type, backup_id, BackupDir::backup_time_to_string(backup_time)?);
@@ -1092,10 +1101,18 @@ async fn restore(param: Value) -> Result<Value, Error> {
 
     let archive_name = json::required_string_param(&param, "archive-name")?;
 
-    let rate_limit = param["rate"].as_u64();
-    let bucket_size = param["burst"].as_u64();
+    let rate = match param["rate"].as_str() {
+        Some(s) => Some(s.parse::<HumanByte>()?),
+        None => None,
+    };
+    let burst = match param["burst"].as_str() {
+        Some(s) => Some(s.parse::<HumanByte>()?),
+        None => None,
+    };
 
-    let client = connect_rate_limited(&repo, rate_limit, bucket_size)?;
+    let rate_limit = RateLimitConfig::with_same_inout(rate, burst);
+
+    let client = connect_rate_limited(&repo, rate_limit)?;
     record_repository(&repo);
 
     let path = json::required_string_param(&param, "snapshot")?;
