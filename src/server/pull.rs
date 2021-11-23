@@ -607,7 +607,8 @@ pub async fn pull_group(
         // get updated auth_info (new tickets)
         let auth_info = client.login().await?;
 
-        let options = HttpClientOptions::new_non_interactive(auth_info.ticket.clone(), fingerprint.clone());
+        let options = HttpClientOptions::new_non_interactive(auth_info.ticket.clone(), fingerprint.clone())
+            .rate_limit(params.limit.clone());
 
         let new_client = HttpClient::new(
             params.source.host(),
