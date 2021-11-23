@@ -7,7 +7,7 @@ use anyhow::{bail, Error};
 use once_cell::sync::OnceCell;
 use nix::sys::stat::Mode;
 
-use proxmox::tools::fs::{create_path, CreateOptions};
+use proxmox_sys::fs::{create_path, CreateOptions};
 
 // openssl::sha::sha256(b"Proxmox Backup ConfigVersionCache v1.0")[0..8];
 pub const PROXMOX_BACKUP_CONFIG_VERSION_CACHE_MAGIC_1_0: [u8; 8] = [25, 198, 168, 230, 154, 132, 143, 131];

@@ -1,5 +1,6 @@
 use anyhow::Error;
 use ::serde::{Deserialize, Serialize};
+use hex::FromHex;
 
 use proxmox_router::{Permission, Router, RpcEnvironment};
 use proxmox_schema::api;
@@ -29,7 +30,7 @@ pub const ROUTER: Router = Router::new()
 /// Get the node configuration
 pub fn get_node_config(mut rpcenv: &mut dyn RpcEnvironment) -> Result<NodeConfig, Error> {
     let (config, digest) = crate::config::node::config()?;
-    rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
+    rpcenv["digest"] = hex::encode(&digest).into();
     Ok(config)
 }
 
@@ -94,7 +95,7 @@ pub fn update_node_config(
     if let Some(digest) = digest {
         // FIXME: GUI doesn't handle our non-inlined digest part here properly...
         if !digest.is_empty() {
-            let digest = proxmox::tools::hex_to_digest(&digest)?;
+            let digest = <[u8; 32]>::from_hex(&digest)?;
             crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
         }
     }

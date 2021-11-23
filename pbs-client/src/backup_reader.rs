@@ -7,8 +7,6 @@ use std::os::unix::fs::OpenOptionsExt;
 use futures::future::AbortHandle;
 use serde_json::{json, Value};
 
-use proxmox::tools::digest_to_hex;
-
 use pbs_tools::crypt_config::CryptConfig;
 use pbs_tools::sha::sha256;
 use pbs_datastore::{PROXMOX_BACKUP_READER_PROTOCOL_ID_V1, BackupManifest};
@@ -121,7 +119,7 @@ impl BackupReader {
         output: W,
     ) -> Result<(), Error> {
         let path = "chunk";
-        let param = json!({ "digest": digest_to_hex(digest) });
+        let param = json!({ "digest": hex::encode(digest) });
         self.h2.download(path, Some(param), output).await
     }
 

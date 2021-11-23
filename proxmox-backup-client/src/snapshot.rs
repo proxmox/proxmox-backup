@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::Error;
 use serde_json::{json, Value};
 
-use proxmox::tools::fs::file_get_contents;
+use proxmox_sys::fs::file_get_contents;
 use proxmox_router::cli::*;
 use proxmox_schema::api;
 

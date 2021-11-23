@@ -216,8 +216,8 @@ impl std::str::FromStr for HumanByte {
     }
 }
 
-proxmox::forward_deserialize_to_from_str!(HumanByte);
-proxmox::forward_serialize_to_display!(HumanByte);
+proxmox_serde::forward_deserialize_to_from_str!(HumanByte);
+proxmox_serde::forward_serialize_to_display!(HumanByte);
 
 #[test]
 fn test_human_byte_parser() -> Result<(), Error> {

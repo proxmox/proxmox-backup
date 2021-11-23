@@ -267,7 +267,7 @@ fn test_crypt_speed(
 
     let crypt_config = CryptConfig::new(testkey)?;
 
-    //let random_data = proxmox::sys::linux::random_data(1024*1024)?;
+    //let random_data = proxmox_sys::linux::random_data(1024*1024)?;
     let mut random_data = vec![];
         // generate pseudo random byte sequence
         for i in 0..256*1024 {

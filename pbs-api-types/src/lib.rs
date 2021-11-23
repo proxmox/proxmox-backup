@@ -3,10 +3,11 @@
 use serde::{Deserialize, Serialize};
 use anyhow::bail;
 
+pub mod common_regex;
+
 use proxmox_schema::{
     api, const_regex, ApiStringFormat, ApiType, ArraySchema, Schema, StringSchema, ReturnType,
 };
-use proxmox::{IPRE, IPRE_BRACKET, IPV4OCTET, IPV4RE, IPV6H16, IPV6LS32, IPV6RE};
 use proxmox_time::parse_daily_duration;
 
 #[rustfmt::skip]
@@ -199,7 +200,7 @@ pub const DNS_NAME_OR_IP_SCHEMA: Schema = StringSchema::new("DNS name or IP addr
 
 pub const NODE_SCHEMA: Schema = StringSchema::new("Node name (or 'localhost')")
     .format(&ApiStringFormat::VerifyFn(|node| {
-        if node == "localhost" || node == proxmox::tools::nodename() {
+        if node == "localhost" || node == proxmox_sys::nodename() {
             Ok(())
         } else {
             bail!("no such node '{}'", node);

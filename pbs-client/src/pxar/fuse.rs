@@ -25,8 +25,7 @@ use pxar::accessor::{self, EntryRangeInfo, ReadAt};
 
 use proxmox_fuse::requests::{self, FuseRequest};
 use proxmox_fuse::{EntryParam, Fuse, ReplyBufState, Request, ROOT_ID};
-
-use pbs_tools::xattr;
+use proxmox_sys::fs::xattr;
 
 /// We mark inodes for regular files this way so we know how to access them.
 const NON_DIRECTORY_INODE: u64 = 1u64 << 63;

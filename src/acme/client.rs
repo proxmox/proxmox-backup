@@ -10,7 +10,7 @@ use hyper::{Body, Request};
 use nix::sys::stat::Mode;
 use serde::{Deserialize, Serialize};
 
-use proxmox::tools::fs::{replace_file, CreateOptions};
+use proxmox_sys::fs::{replace_file, CreateOptions};
 use proxmox_acme_rs::account::AccountCreator;
 use proxmox_acme_rs::account::AccountData as AcmeAccountData;
 use proxmox_acme_rs::order::{Order, OrderData};

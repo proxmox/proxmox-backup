@@ -13,7 +13,7 @@ use tokio_stream::wrappers::ReceiverStream;
 use xdg::BaseDirectories;
 
 use pathpatterns::{MatchEntry, MatchType, PatternFlag};
-use proxmox::tools::fs::{file_get_json, replace_file, CreateOptions, image_size};
+use proxmox_sys::fs::{file_get_json, replace_file, CreateOptions, image_size};
 use proxmox_router::{ApiMethod, RpcEnvironment, cli::*};
 use proxmox_schema::api;
 use proxmox_time::{strftime_local, epoch_i64};
@@ -654,7 +654,7 @@ async fn create_backup(
 
     let crypto = crypto_parameters(&param)?;
 
-    let backup_id = param["backup-id"].as_str().unwrap_or(&proxmox::tools::nodename());
+    let backup_id = param["backup-id"].as_str().unwrap_or(&proxmox_sys::nodename());
 
     let backup_type = param["backup-type"].as_str().unwrap_or("host");
 
@@ -751,7 +751,7 @@ async fn create_backup(
 
     println!("Starting backup: {}/{}/{}", backup_type, backup_id, BackupDir::backup_time_to_string(backup_time)?);
 
-    println!("Client name: {}", proxmox::tools::nodename());
+    println!("Client name: {}", proxmox_sys::nodename());
 
     let start_time = std::time::Instant::now();
 

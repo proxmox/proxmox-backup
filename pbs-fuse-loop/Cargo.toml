@@ -16,5 +16,4 @@ tokio = { version = "1.6", features = [] }
 
 proxmox-time = "1"
 proxmox-fuse = "0.1.1"
-
-pbs-tools = { path = "../pbs-tools" }
+proxmox-sys = "0.2"

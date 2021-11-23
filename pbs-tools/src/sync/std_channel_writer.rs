@@ -18,7 +18,7 @@ impl Write for StdChannelWriter {
     fn write(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
         self.0
             .send(Ok(buf.to_vec()))
-            .map_err(proxmox::sys::error::io_err_other)
+            .map_err(proxmox_sys::error::io_err_other)
             .and(Ok(buf.len()))
     }
 

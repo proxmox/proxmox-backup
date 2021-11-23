@@ -6,7 +6,7 @@ use serde_json::json;
 
 use proxmox_schema::api;
 
-use proxmox::tools::fs::{replace_file, CreateOptions};
+use proxmox_sys::fs::{replace_file, CreateOptions};
 use proxmox_http::client::SimpleHttp;
 
 use pbs_tools::json::json_object_to_query;
@@ -99,7 +99,7 @@ async fn register_subscription(
     checktime: i64
 ) -> Result<(String, String), Error> {
     // WHCMS sample code feeds the key into this, but it's just a challenge, so keep it simple
-    let rand = proxmox::tools::bin_to_hex(&proxmox::sys::linux::random_data(16)?);
+    let rand = hex::encode(&proxmox_sys::linux::random_data(16)?);
     let challenge = format!("{}{}", checktime, rand);
 
     let params = json!({
@@ -180,7 +180,7 @@ fn parse_register_response(
 
     if let SubscriptionStatus::ACTIVE = info.status {
         let response_raw = format!("{}{}", SHARED_KEY_DATA, challenge);
-        let expected = proxmox::tools::bin_to_hex(&tools::md5sum(response_raw.as_bytes())?);
+        let expected = hex::encode(&tools::md5sum(response_raw.as_bytes())?);
         if expected != md5hash {
             bail!("Subscription API challenge failed, expected {} != got {}", expected, md5hash);
         }
@@ -241,7 +241,7 @@ pub fn check_subscription(key: String, server_id: String) -> Result<Subscription
 /// reads in subscription information and does a basic integrity verification
 pub fn read_subscription() -> Result<Option<SubscriptionInfo>, Error> {
 
-    let cfg = proxmox::tools::fs::file_read_optional_string(&SUBSCRIPTION_FN)?;
+    let cfg = proxmox_sys::fs::file_read_optional_string(&SUBSCRIPTION_FN)?;
     let cfg = if let Some(cfg) = cfg { cfg } else { return Ok(None); };
 
     let mut cfg = cfg.lines();

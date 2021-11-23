@@ -12,7 +12,7 @@ use xdg::BaseDirectories;
 
 use proxmox_schema::*;
 use proxmox_router::cli::{complete_file_name, shellword_split};
-use proxmox::tools::fs::file_get_json;
+use proxmox_sys::fs::file_get_json;
 
 use pbs_api_types::{BACKUP_REPO_URL, Authid, RateLimitConfig, UserWithTokens};
 use pbs_datastore::BackupDir;
@@ -100,7 +100,7 @@ pub fn get_secret_from_env(base_name: &str) -> Result<Option<String>, Error> {
             let args = shellword_split(command)?;
             let mut command = Command::new(&args[0]);
             command.args(&args[1..]);
-            let output = pbs_tools::run_command(command, None)?;
+            let output = proxmox_sys::command::run_command(command, None)?;
             return Ok(Some(firstline(output)));
         }
         Err(NotUnicode(_)) => bail!(format!("{} contains bad characters", env_name)),

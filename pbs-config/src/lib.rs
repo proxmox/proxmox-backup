@@ -55,14 +55,14 @@ pub fn open_backup_lockfile<P: AsRef<std::path::Path>>(
     exclusive: bool,
 ) -> Result<BackupLockGuard, Error> {
     let user = backup_user()?;
-    let options = proxmox::tools::fs::CreateOptions::new()
+    let options = proxmox_sys::fs::CreateOptions::new()
         .perm(nix::sys::stat::Mode::from_bits_truncate(0o660))
         .owner(user.uid)
         .group(user.gid);
 
     let timeout = timeout.unwrap_or(std::time::Duration::new(10, 0));
 
-    let file = proxmox::tools::fs::open_file_locked(&path, timeout, exclusive, options)?;
+    let file = proxmox_sys::fs::open_file_locked(&path, timeout, exclusive, options)?;
     Ok(BackupLockGuard(Some(file)))
 }
 
@@ -77,12 +77,12 @@ pub fn replace_backup_config<P: AsRef<std::path::Path>>(
     let mode = nix::sys::stat::Mode::from_bits_truncate(0o0640);
     // set the correct owner/group/permissions while saving file
     // owner(rw) = root, group(r)= backup
-    let options = proxmox::tools::fs::CreateOptions::new()
+    let options = proxmox_sys::fs::CreateOptions::new()
         .perm(mode)
         .owner(nix::unistd::ROOT)
         .group(backup_user.gid);
 
-    proxmox::tools::fs::replace_file(path, data, options, true)?;
+    proxmox_sys::fs::replace_file(path, data, options, true)?;
 
     Ok(())
 }
@@ -97,12 +97,12 @@ pub fn replace_secret_config<P: AsRef<std::path::Path>>(
     let mode = nix::sys::stat::Mode::from_bits_truncate(0o0600);
     // set the correct owner/group/permissions while saving file
     // owner(rw) = root, group(r)= root
-    let options = proxmox::tools::fs::CreateOptions::new()
+    let options = proxmox_sys::fs::CreateOptions::new()
         .perm(mode)
         .owner(nix::unistd::ROOT)
         .group(nix::unistd::Gid::from_raw(0));
 
-    proxmox::tools::fs::replace_file(path, data, options, true)?;
+    proxmox_sys::fs::replace_file(path, data, options, true)?;
 
     Ok(())
 }

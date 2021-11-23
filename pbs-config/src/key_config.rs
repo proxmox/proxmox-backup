@@ -4,7 +4,7 @@ use std::path::Path;
 use anyhow::{bail, format_err, Context, Error};
 use serde::{Deserialize, Serialize};
 
-use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
+use proxmox_sys::fs::{file_get_contents, replace_file, CreateOptions};
 use proxmox_lang::try_block;
 
 use pbs_api_types::{Kdf, KeyInfo, Fingerprint};
@@ -18,12 +18,12 @@ pub enum KeyDerivationConfig {
         n: u64,
         r: u64,
         p: u64,
-        #[serde(with = "proxmox::tools::serde::bytes_as_base64")]
+        #[serde(with = "proxmox_serde::bytes_as_base64")]
         salt: Vec<u8>,
     },
     PBKDF2 {
         iter: usize,
-        #[serde(with = "proxmox::tools::serde::bytes_as_base64")]
+        #[serde(with = "proxmox_serde::bytes_as_base64")]
         salt: Vec<u8>,
     },
 }
@@ -72,11 +72,11 @@ impl KeyDerivationConfig {
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct KeyConfig {
     pub kdf: Option<KeyDerivationConfig>,
-    #[serde(with = "proxmox::tools::serde::epoch_as_rfc3339")]
+    #[serde(with = "proxmox_serde::epoch_as_rfc3339")]
     pub created: i64,
-    #[serde(with = "proxmox::tools::serde::epoch_as_rfc3339")]
+    #[serde(with = "proxmox_serde::epoch_as_rfc3339")]
     pub modified: i64,
-    #[serde(with = "proxmox::tools::serde::bytes_as_base64")]
+    #[serde(with = "proxmox_serde::bytes_as_base64")]
     pub data: Vec<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
@@ -111,7 +111,7 @@ impl KeyConfig  {
     /// Creates a new key using random data, protected by passphrase.
     pub fn new(passphrase: &[u8], kdf: Kdf) -> Result<([u8;32], Self), Error> {
         let mut key = [0u8; 32];
-        proxmox::sys::linux::fill_with_random_data(&mut key)?;
+        proxmox_sys::linux::fill_with_random_data(&mut key)?;
         let key_config = Self::with_key(&key, passphrase, kdf)?;
         Ok((key, key_config))
     }
@@ -144,7 +144,7 @@ impl KeyConfig  {
             bail!("got strange key length ({} != 32)", raw_key.len())
         }
 
-        let salt = proxmox::sys::linux::random_data(32)?;
+        let salt = proxmox_sys::linux::random_data(32)?;
 
         let kdf = match kdf {
             Kdf::Scrypt => KeyDerivationConfig::Scrypt {
@@ -166,7 +166,7 @@ impl KeyConfig  {
 
         let cipher = openssl::symm::Cipher::aes_256_gcm();
 
-        let iv = proxmox::sys::linux::random_data(16)?;
+        let iv = proxmox_sys::linux::random_data(16)?;
         let mut tag = [0u8; 16];
 
         let encrypted_key = openssl::symm::encrypt_aead(

@@ -6,7 +6,7 @@ use serde::de::{value, IntoDeserializer, Deserialize};
 use lazy_static::lazy_static;
 use regex::Regex;
 
-use proxmox::tools::{fs::replace_file, fs::CreateOptions};
+use proxmox_sys::{fs::replace_file, fs::CreateOptions};
 
 mod helper;
 pub use helper::*;
@@ -409,10 +409,10 @@ pub fn lock_config() -> Result<BackupLockGuard, Error> {
 
 pub fn config() -> Result<(NetworkConfig, [u8;32]), Error> {
 
-    let content = match proxmox::tools::fs::file_get_optional_contents(NETWORK_INTERFACES_NEW_FILENAME)? {
+    let content = match proxmox_sys::fs::file_get_optional_contents(NETWORK_INTERFACES_NEW_FILENAME)? {
         Some(content) => content,
         None => {
-            let content = proxmox::tools::fs::file_get_optional_contents(NETWORK_INTERFACES_FILENAME)?;
+            let content = proxmox_sys::fs::file_get_optional_contents(NETWORK_INTERFACES_FILENAME)?;
             content.unwrap_or_default()
         }
     };

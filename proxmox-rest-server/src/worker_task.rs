@@ -16,12 +16,12 @@ use tokio::sync::oneshot;
 use nix::fcntl::OFlag;
 use once_cell::sync::OnceCell;
 
-use proxmox::sys::linux::procfs;
-use proxmox::tools::fs::{create_path, replace_file, atomic_open_or_create_file, CreateOptions};
+use proxmox_sys::linux::procfs;
+use proxmox_sys::fs::{create_path, replace_file, atomic_open_or_create_file, CreateOptions};
 use proxmox_lang::try_block;
 use proxmox_schema::upid::UPID;
 
-use proxmox_sys::worker_task_context::{WorkerTaskContext};
+use proxmox_sys::WorkerTaskContext;
 use proxmox_sys::logrotate::{LogRotate, LogRotateFiles};
 
 use crate::{CommandSocket, FileLogger, FileLogOptions};
@@ -79,7 +79,7 @@ impl WorkerTaskSetup {
 
         let timeout = std::time::Duration::new(10, 0);
 
-        let file = proxmox::tools::fs::open_file_locked(
+        let file = proxmox_sys::fs::open_file_locked(
             &self.task_lock_fn,
             timeout,
             exclusive,

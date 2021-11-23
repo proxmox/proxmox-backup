@@ -4,8 +4,8 @@ use std::path::PathBuf;
 use anyhow::{bail, format_err, Error};
 use serde_json::Value;
 
-use proxmox::sys::linux::tty;
-use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
+use proxmox_sys::linux::tty;
+use proxmox_sys::fs::{file_get_contents, replace_file, CreateOptions};
 use proxmox_router::cli::{
     complete_file_name, format_and_print_result_full, get_output_format,
     CliCommand, CliCommandMap, ColumnConfig,
@@ -54,7 +54,7 @@ fn create(kdf: Option<Kdf>, path: Option<String>, hint: Option<String>) -> Resul
     let kdf = kdf.unwrap_or_default();
 
     let mut key = [0u8; 32];
-    proxmox::sys::linux::fill_with_random_data(&mut key)?;
+    proxmox_sys::linux::fill_with_random_data(&mut key)?;
 
     match kdf {
         Kdf::None => {

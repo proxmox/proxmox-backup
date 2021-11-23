@@ -12,8 +12,6 @@ use tokio::io::AsyncReadExt;
 use tokio::sync::{mpsc, oneshot};
 use tokio_stream::wrappers::ReceiverStream;
 
-use proxmox::tools::digest_to_hex;
-
 use pbs_api_types::HumanByte;
 use pbs_tools::crypt_config::CryptConfig;
 use pbs_datastore::{CATALOG_NAME, PROXMOX_BACKUP_PROTOCOL_ID_V1};
@@ -389,7 +387,7 @@ impl BackupWriter {
             "wid": wid ,
             "chunk-count": upload_stats.chunk_count,
             "size": upload_stats.size,
-            "csum": proxmox::tools::digest_to_hex(&upload_stats.csum),
+            "csum": hex::encode(&upload_stats.csum),
         });
         let _value = self.h2.post(&close_path, Some(param)).await?;
         Ok(BackupStats {
@@ -481,7 +479,7 @@ impl BackupWriter {
                             let mut digest_list = vec![];
                             let mut offset_list = vec![];
                             for (offset, digest) in chunk_list {
-                                digest_list.push(digest_to_hex(&digest));
+                                digest_list.push(hex::encode(&digest));
                                 offset_list.push(offset);
                             }
                             if verbose { println!("append chunks list len ({})", digest_list.len()); }
@@ -712,7 +710,7 @@ impl BackupWriter {
                 if let MergedChunkInfo::New(chunk_info) = merged_chunk_info {
                     let offset = chunk_info.offset;
                     let digest = chunk_info.digest;
-                    let digest_str = digest_to_hex(&digest);
+                    let digest_str = hex::encode(&digest);
 
                     /* too verbose, needs finer verbosity setting granularity
                     if verbose {

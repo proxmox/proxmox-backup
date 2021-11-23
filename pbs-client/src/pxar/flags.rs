@@ -255,7 +255,7 @@ impl Flags {
 
     /// Return the supported *pxar* feature flags based on the magic number of the filesystem.
     pub fn from_magic(magic: i64) -> Flags {
-        use proxmox::sys::linux::magic::*;
+        use proxmox_sys::linux::magic::*;
         match magic {
             MSDOS_SUPER_MAGIC => {
                 Flags::WITH_2SEC_TIME |

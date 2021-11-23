@@ -17,14 +17,14 @@ regex = "1.2"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
-proxmox = "0.15.3"
 proxmox-lang = "1"
 proxmox-router = { version = "1.1", default-features = false }
 proxmox-schema = "1"
 proxmox-section-config = "1"
 proxmox-time = "1"
-proxmox-shared-memory = "0.1.1"
-proxmox-sys = "0.1.2"
+proxmox-serde = "0.1"
+proxmox-shared-memory = "0.2"
+proxmox-sys = "0.2"
 
 pbs-api-types = { path = "../pbs-api-types" }
 pbs-buildcfg = { path = "../pbs-buildcfg" }

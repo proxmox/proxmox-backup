@@ -1,6 +1,7 @@
 use anyhow::{bail, Error};
 use serde_json::Value;
 use ::serde::{Deserialize, Serialize};
+use hex::FromHex;
 
 use proxmox_router::{Router, RpcEnvironment, Permission};
 use proxmox_schema::api;
@@ -91,7 +92,7 @@ pub fn list_sync_jobs(
 
     let list = config.convert_to_typed_array("sync")?;
 
-    rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
+    rpcenv["digest"] = hex::encode(&digest).into();
 
     let list = list
         .into_iter()
@@ -173,7 +174,7 @@ pub fn read_sync_job(
         bail!("permission check failed");
     }
 
-    rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
+    rpcenv["digest"] = hex::encode(&digest).into();
 
     Ok(sync_job)
 }
@@ -251,7 +252,7 @@ pub fn update_sync_job(
     let (mut config, expected_digest) = sync::config()?;
 
     if let Some(ref digest) = digest {
-        let digest = proxmox::tools::hex_to_digest(digest)?;
+        let digest = <[u8; 32]>::from_hex(digest)?;
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 
@@ -355,7 +356,7 @@ pub fn delete_sync_job(
     let (mut config, expected_digest) = sync::config()?;
 
     if let Some(ref digest) = digest {
-        let digest = proxmox::tools::hex_to_digest(digest)?;
+        let digest = <[u8; 32]>::from_hex(digest)?;
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 

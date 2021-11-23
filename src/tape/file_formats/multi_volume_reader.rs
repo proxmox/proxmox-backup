@@ -48,23 +48,23 @@ impl <'a> Read for MultiVolumeReader<'a> {
 
         if self.reader.is_none() {
             let mut reader = (self.next_reader_fn)()
-                .map_err(|err| proxmox::io_format_err!("multi-volume next failed: {}", err))?;
+                .map_err(|err| proxmox_sys::io_format_err!("multi-volume next failed: {}", err))?;
 
             proxmox_lang::try_block!({
                 let part_header: MediaContentHeader = unsafe { reader.read_le_value()? };
                 self.reader = Some(reader);
 
                 if part_header.uuid != self.header.uuid {
-                    proxmox::io_bail!("got wrong part uuid");
+                    proxmox_sys::io_bail!("got wrong part uuid");
                 }
                 if part_header.content_magic!= self.header.content_magic {
-                    proxmox::io_bail!("got wrong part content magic");
+                    proxmox_sys::io_bail!("got wrong part content magic");
                 }
 
                 let expect_part_number = self.header.part_number + 1;
 
                 if part_header.part_number != expect_part_number {
-                    proxmox::io_bail!("got wrong part number ({} != {})",
+                    proxmox_sys::io_bail!("got wrong part number ({} != {})",
                                       part_header.part_number, expect_part_number);
                 }
 
@@ -72,7 +72,7 @@ impl <'a> Read for MultiVolumeReader<'a> {
 
                 Ok(())
             }).map_err(|err| {
-                proxmox::io_format_err!("multi-volume read content header failed: {}", err)
+                proxmox_sys::io_format_err!("multi-volume read content header failed: {}", err)
             })?;
          }
 

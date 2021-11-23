@@ -10,7 +10,7 @@ use std::collections::BTreeSet;
 use crossbeam_channel::{bounded, TryRecvError};
 use anyhow::{format_err, bail, Error};
 
-use proxmox::tools::fs::{create_path, CreateOptions};
+use proxmox_sys::fs::{create_path, CreateOptions};
 
 use crate::rrd::{DST, CF, RRD, RRA};
 

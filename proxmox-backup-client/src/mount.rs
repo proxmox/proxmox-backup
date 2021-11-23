@@ -13,8 +13,8 @@ use nix::unistd::{fork, ForkResult};
 use serde_json::Value;
 use tokio::signal::unix::{signal, SignalKind};
 
-use proxmox::{sortable, identity};
-use proxmox::tools::fd::Fd;
+use proxmox_sys::{sortable, identity};
+use proxmox_sys::fd::Fd;
 use proxmox_router::{ApiHandler, ApiMethod, RpcEnvironment, cli::*};
 use proxmox_schema::*;
 
@@ -119,7 +119,7 @@ fn complete_mapping_names<S: BuildHasher>(_arg: &str, _param: &HashMap<String, S
     match pbs_fuse_loop::find_all_mappings() {
         Ok(mappings) => mappings
             .filter_map(|(name, _)| {
-                proxmox::tools::systemd::unescape_unit(&name).ok()
+                proxmox_sys::systemd::unescape_unit(&name).ok()
             }).collect(),
         Err(_) => Vec::new()
     }
@@ -280,7 +280,7 @@ async fn mount_do(param: Value, pipe: Option<Fd>) -> Result<Value, Error> {
         let reader = CachedChunkReader::new(chunk_reader, index, 8).seekable();
 
         let name = &format!("{}:{}/{}", repo.to_string(), path, archive_name);
-        let name_escaped = proxmox::tools::systemd::escape_unit(name, false);
+        let name_escaped = proxmox_sys::systemd::escape_unit(name, false);
 
         let mut session = pbs_fuse_loop::FuseLoopSession::map_loop(size, reader, &name_escaped, options).await?;
         let loopdev = session.loopdev_path.clone();
@@ -342,7 +342,7 @@ fn unmap(
             pbs_fuse_loop::cleanup_unused_run_files(None);
             let mut any = false;
             for (backing, loopdev) in pbs_fuse_loop::find_all_mappings()? {
-                let name = proxmox::tools::systemd::unescape_unit(&backing)?;
+                let name = proxmox_sys::systemd::unescape_unit(&backing)?;
                 println!("{}:\t{}", loopdev.unwrap_or_else(|| "(unmapped)".to_string()), name);
                 any = true;
             }
@@ -361,7 +361,7 @@ fn unmap(
     if name.starts_with("/dev/loop") {
         pbs_fuse_loop::unmap_loopdev(name)?;
     } else {
-        let name = proxmox::tools::systemd::escape_unit(&name, false);
+        let name = proxmox_sys::systemd::escape_unit(&name, false);
         pbs_fuse_loop::unmap_name(name)?;
     }
 

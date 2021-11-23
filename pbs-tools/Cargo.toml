@@ -32,12 +32,13 @@ url = "2.1"
 walkdir = "2"
 zstd = { version = "0.6", features = [ "bindgen" ] }
 
-proxmox = { version = "0.15.3", default-features = false, features = [ "tokio" ] }
-proxmox-async = "0.2"
+#proxmox = { version = "0.15.3", default-features = false, features = [ "tokio" ] }
+proxmox-async = "0.3"
 proxmox-borrow = "1"
 proxmox-io = { version = "1", features = [ "tokio" ] }
 proxmox-lang = { version = "1" }
 proxmox-time = { version = "1" }
+proxmox-sys = "0.2"
 
 pbs-buildcfg = { path = "../pbs-buildcfg" }
 pbs-api-types = { path = "../pbs-api-types" }

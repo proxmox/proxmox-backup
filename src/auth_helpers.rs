@@ -6,7 +6,7 @@ use openssl::pkey::{PKey, Private, Public};
 use openssl::rsa::Rsa;
 use openssl::sha;
 
-use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
+use proxmox_sys::fs::{file_get_contents, replace_file, CreateOptions};
 use proxmox_lang::try_block;
 
 use pbs_buildcfg::configdir;

@@ -48,7 +48,7 @@ fn function_calls() -> Vec<FunctionMapping> {
 }
 
 pub fn generate_report() -> String {
-    use proxmox::tools::fs::file_read_optional_string;
+    use proxmox_sys::fs::file_read_optional_string;
 
     let file_contents = files()
         .iter()

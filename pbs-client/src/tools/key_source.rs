@@ -6,8 +6,8 @@ use std::io::Read;
 use anyhow::{bail, format_err, Error};
 use serde_json::Value;
 
-use proxmox::sys::linux::tty;
-use proxmox::tools::fs::file_get_contents;
+use proxmox_sys::linux::tty;
+use proxmox_sys::fs::file_get_contents;
 use proxmox_schema::*;
 
 use pbs_api_types::CryptMode;
@@ -374,7 +374,7 @@ fn create_testdir(name: &str) -> Result<String, Error> {
 // safe w.r.t. concurrency
 fn test_crypto_parameters_handling() -> Result<(), Error> {
     use serde_json::json;
-    use proxmox::tools::fs::{replace_file, CreateOptions};
+    use proxmox_sys::fs::{replace_file, CreateOptions};
 
     let some_key = vec![1;1];
     let default_key = vec![2;1];

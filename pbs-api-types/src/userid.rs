@@ -685,8 +685,8 @@ fn test_token_id() {
     assert_eq!(auth_id.to_string(), "test@pam!bar".to_string());
 }
 
-proxmox::forward_deserialize_to_from_str!(Userid);
-proxmox::forward_serialize_to_display!(Userid);
+proxmox_serde::forward_deserialize_to_from_str!(Userid);
+proxmox_serde::forward_serialize_to_display!(Userid);
 
-proxmox::forward_deserialize_to_from_str!(Authid);
-proxmox::forward_serialize_to_display!(Authid);
+proxmox_serde::forward_deserialize_to_from_str!(Authid);
+proxmox_serde::forward_serialize_to_display!(Authid);

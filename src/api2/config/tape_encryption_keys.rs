@@ -1,5 +1,6 @@
 use anyhow::{bail, Error};
 use serde_json::Value;
+use hex::FromHex;
 
 use proxmox_router::{ApiMethod, Router, RpcEnvironment, Permission};
 use proxmox_schema::api;
@@ -50,7 +51,7 @@ pub fn list_keys(
         list.push(item.into());
     }
 
-    rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
+    rpcenv["digest"] = hex::encode(&digest).into();
 
     Ok(list)
 }
@@ -109,7 +110,7 @@ pub fn change_passphrase(
     let (mut config_map, expected_digest) = load_key_configs()?;
 
     if let Some(ref digest) = digest {
-        let digest = proxmox::tools::hex_to_digest(digest)?;
+        let digest = <[u8; 32]>::from_hex(digest)?;
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 
@@ -245,7 +246,7 @@ pub fn delete_key(
     let (mut key_map, _) = load_keys()?;
 
     if let Some(ref digest) = digest {
-        let digest = proxmox::tools::hex_to_digest(digest)?;
+        let digest = <[u8; 32]>::from_hex(digest)?;
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 

@@ -81,7 +81,7 @@ impl BackupGroup {
         let mut path = base_path.to_owned();
         path.push(self.group_path());
 
-        pbs_tools::fs::scandir(
+        proxmox_sys::fs::scandir(
             libc::AT_FDCWD,
             &path,
             &BACKUP_DATE_REGEX,
@@ -110,7 +110,7 @@ impl BackupGroup {
         let mut path = base_path.to_owned();
         path.push(self.group_path());
 
-        pbs_tools::fs::scandir(
+        proxmox_sys::fs::scandir(
             libc::AT_FDCWD,
             &path,
             &BACKUP_DATE_REGEX,
@@ -369,7 +369,7 @@ impl BackupInfo {
     pub fn list_backup_groups(base_path: &Path) -> Result<Vec<BackupGroup>, Error> {
         let mut list = Vec::new();
 
-        pbs_tools::fs::scandir(
+        proxmox_sys::fs::scandir(
             libc::AT_FDCWD,
             base_path,
             &BACKUP_TYPE_REGEX,
@@ -377,7 +377,7 @@ impl BackupInfo {
                 if file_type != nix::dir::Type::Directory {
                     return Ok(());
                 }
-                pbs_tools::fs::scandir(
+                proxmox_sys::fs::scandir(
                     l0_fd,
                     backup_type,
                     &BACKUP_ID_REGEX,
@@ -411,7 +411,7 @@ fn list_backup_files<P: ?Sized + nix::NixPath>(
 ) -> Result<Vec<String>, Error> {
     let mut files = vec![];
 
-    pbs_tools::fs::scandir(dirfd, path, &BACKUP_FILE_REGEX, |_, filename, file_type| {
+    proxmox_sys::fs::scandir(dirfd, path, &BACKUP_FILE_REGEX, |_, filename, file_type| {
         if file_type != nix::dir::Type::File {
             return Ok(());
         }

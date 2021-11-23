@@ -6,14 +6,14 @@ use std::time::Instant;
 
 use anyhow::{bail, format_err, Error};
 
-use proxmox_sys::{task_log, worker_task_context::WorkerTaskContext};
+use proxmox_sys::{task_log, WorkerTaskContext};
 
 use pbs_api_types::{Authid, CryptMode, VerifyState, UPID, SnapshotVerifyState};
 use pbs_datastore::{DataStore, DataBlob, StoreProgress};
 use pbs_datastore::backup_info::{BackupGroup, BackupDir, BackupInfo};
 use pbs_datastore::index::IndexFile;
 use pbs_datastore::manifest::{archive_type, ArchiveType, BackupManifest, FileInfo};
-use pbs_tools::fs::lock_dir_noblock_shared;
+use proxmox_sys::fs::lock_dir_noblock_shared;
 
 use crate::tools::ParallelHandler;
 
@@ -158,7 +158,7 @@ fn verify_index_chunks(
         if verify_worker.verified_chunks.lock().unwrap().contains(digest) {
             true
         } else if verify_worker.corrupt_chunks.lock().unwrap().contains(digest) {
-            let digest_str = proxmox::tools::digest_to_hex(digest);
+            let digest_str = hex::encode(digest);
             task_log!(verify_worker.worker, "chunk {} was marked as corrupt", digest_str);
             errors.fetch_add(1, Ordering::SeqCst);
             true

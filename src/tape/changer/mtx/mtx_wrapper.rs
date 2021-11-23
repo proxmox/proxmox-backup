@@ -1,6 +1,6 @@
 use anyhow::Error;
 
-use pbs_tools::run_command;
+use proxmox_sys::command::run_command;
 use pbs_api_types::ScsiTapeChanger;
 use pbs_tape::MtxStatus;
 

@@ -1,9 +1,10 @@
 use anyhow::{bail, format_err, Error};
-use proxmox::sortable;
+use proxmox_sys::sortable;
 use proxmox_router::SubdirMap;
 use proxmox_router::list_subdirs_api_method;
 use serde_json::Value;
 use ::serde::{Deserialize, Serialize};
+use hex::FromHex;
 
 use proxmox_router::{http_err, ApiMethod, Router, RpcEnvironment, Permission};
 use proxmox_schema::api;
@@ -57,7 +58,7 @@ pub fn list_remotes(
         })
         .collect();
 
-    rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
+    rpcenv["digest"] = hex::encode(&digest).into();
     Ok(list)
 }
 
@@ -128,7 +129,7 @@ pub fn read_remote(
     let (config, digest) = pbs_config::remote::config()?;
     let mut data: Remote = config.lookup("remote", &name)?;
     data.password = "".to_string(); // do not return password in api
-    rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
+    rpcenv["digest"] = hex::encode(&digest).into();
     Ok(data)
 }
 
@@ -193,7 +194,7 @@ pub fn update_remote(
     let (mut config, expected_digest) = pbs_config::remote::config()?;
 
     if let Some(ref digest) = digest {
-        let digest = proxmox::tools::hex_to_digest(digest)?;
+        let digest = <[u8; 32]>::from_hex(digest)?;
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 
@@ -265,7 +266,7 @@ pub fn delete_remote(name: String, digest: Option<String>) -> Result<(), Error> 
     let (mut config, expected_digest) = pbs_config::remote::config()?;
 
     if let Some(ref digest) = digest {
-        let digest = proxmox::tools::hex_to_digest(digest)?;
+        let digest = <[u8; 32]>::from_hex(digest)?;
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 

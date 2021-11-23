@@ -9,8 +9,9 @@ use nix::ioctl_read_bad;
 use nix::sys::socket::{socket, AddressFamily, SockType, SockFlag};
 use regex::Regex;
 
-use proxmox::*; // for IP macros
-use proxmox::tools::fd::Fd;
+use pbs_api_types::*; // for IP macros
+
+use proxmox_sys::fd::Fd;
 
 pub static IPV4_REVERSE_MASK: &[&str] = &[
     "0.0.0.0",
@@ -188,7 +189,7 @@ pub fn compute_file_diff(filename: &str, shadow: &str) -> Result<String, Error> 
         .output()
         .map_err(|err| format_err!("failed to execute diff - {}", err))?;
 
-    let diff = pbs_tools::command_output_as_string(output, Some(|c| c == 0 || c == 1))
+    let diff = proxmox_sys::command::command_output_as_string(output, Some(|c| c == 0 || c == 1))
         .map_err(|err| format_err!("diff failed: {}", err))?;
 
     Ok(diff)
@@ -209,7 +210,7 @@ pub fn network_reload() -> Result<(), Error> {
         .output()
         .map_err(|err| format_err!("failed to execute 'ifreload' - {}", err))?;
 
-    pbs_tools::command_output(output, None)
+    proxmox_sys::command::command_output(output, None)
         .map_err(|err| format_err!("ifreload failed: {}", err))?;
 
 

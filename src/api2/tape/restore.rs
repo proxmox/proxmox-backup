@@ -8,13 +8,13 @@ use std::sync::Arc;
 use anyhow::{bail, format_err, Error};
 use serde_json::Value;
 
-use proxmox::tools::fs::{replace_file, CreateOptions};
+use proxmox_sys::fs::{replace_file, CreateOptions};
 use proxmox_io::ReadExt;
 use proxmox_router::{Permission, Router, RpcEnvironment, RpcEnvironmentType};
 use proxmox_schema::{api, parse_property_string};
 use proxmox_section_config::SectionConfigData;
 use proxmox_uuid::Uuid;
-use proxmox_sys::{task_log, task_warn, worker_task_context::WorkerTaskContext};
+use proxmox_sys::{task_log, task_warn, WorkerTaskContext};
 
 use pbs_api_types::{
     Authid, Userid, CryptMode,
@@ -1158,7 +1158,7 @@ fn scan_chunk_archive<'a>(
         worker.check_abort()?;
 
         if verbose {
-            task_log!(worker, "Found chunk: {}", proxmox::tools::digest_to_hex(&digest));
+            task_log!(worker, "Found chunk: {}", hex::encode(&digest));
         }
 
         chunks.push(digest);
@@ -1193,10 +1193,10 @@ fn restore_chunk_archive<'a>(
             let chunk_exists = datastore2.cond_touch_chunk(&digest, false)?;
             if !chunk_exists {
                 if verbose {
-                    task_log!(worker2, "Insert chunk: {}", proxmox::tools::digest_to_hex(&digest));
+                    task_log!(worker2, "Insert chunk: {}", hex::encode(&digest));
                 }
                 bytes2.fetch_add(chunk.raw_size(), std::sync::atomic::Ordering::SeqCst);
-                // println!("verify and write {}", proxmox::tools::digest_to_hex(&digest));
+                // println!("verify and write {}", hex::encode(&digest));
                 chunk.verify_crc()?;
                 if chunk.crypt_mode()? == CryptMode::None {
                     chunk.decode(None, Some(&digest))?; // verify digest
@@ -1204,7 +1204,7 @@ fn restore_chunk_archive<'a>(
 
                 datastore2.insert_chunk(&chunk, &digest)?;
             } else if verbose {
-                task_log!(worker2, "Found existing chunk: {}", proxmox::tools::digest_to_hex(&digest));
+                task_log!(worker2, "Found existing chunk: {}", hex::encode(&digest));
             }
             Ok(())
         },

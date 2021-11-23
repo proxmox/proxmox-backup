@@ -25,7 +25,7 @@ pub fn lock() -> Result<BackupLockGuard, Error> {
 /// Read the Node Config.
 pub fn config() -> Result<(NodeConfig, [u8; 32]), Error> {
     let content =
-        proxmox::tools::fs::file_read_optional_string(CONF_FILE)?.unwrap_or_else(|| "".to_string());
+        proxmox_sys::fs::file_read_optional_string(CONF_FILE)?.unwrap_or_else(|| "".to_string());
 
     let digest = openssl::sha::sha256(content.as_bytes());
     let data: NodeConfig = crate::tools::config::from_str(&content, &NodeConfig::API_SCHEMA)?;

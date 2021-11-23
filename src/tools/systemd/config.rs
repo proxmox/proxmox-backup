@@ -6,7 +6,7 @@ use super::types::*;
 use proxmox_schema::*;
 use proxmox_section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin};
 
-use proxmox::tools::{fs::replace_file, fs::CreateOptions};
+use proxmox_sys::{fs::replace_file, fs::CreateOptions};
 
 
 lazy_static! {
@@ -104,7 +104,7 @@ fn init_mount() -> SectionConfig {
 
 fn parse_systemd_config(config: &SectionConfig, filename: &str) -> Result<SectionConfigData, Error> {
 
-    let raw = proxmox::tools::fs::file_get_contents(filename)?;
+    let raw = proxmox_sys::fs::file_get_contents(filename)?;
     let input = String::from_utf8(raw)?;
 
     let data = config.parse(filename, &input)?;

@@ -9,7 +9,7 @@ use std::path::PathBuf;
 
 use anyhow::{bail, Error};
 
-use proxmox::tools::fs::{CreateOptions, replace_file, file_read_optional_string};
+use proxmox_sys::fs::{CreateOptions, replace_file, file_read_optional_string};
 
 use pbs_api_types::{ScsiTapeChanger, LtoTapeDrive};
 

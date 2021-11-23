@@ -7,7 +7,7 @@ use serde_json::Value;
 use proxmox_lang::try_block;
 use proxmox_router::{Permission, Router, RpcEnvironment, RpcEnvironmentType};
 use proxmox_schema::api;
-use proxmox_sys::{task_log, task_warn, worker_task_context::WorkerTaskContext};
+use proxmox_sys::{task_log, task_warn, WorkerTaskContext};
 
 use pbs_api_types::{
     Authid, Userid, TapeBackupJobConfig, TapeBackupJobSetup, TapeBackupJobStatus, MediaPoolConfig,
@@ -147,7 +147,7 @@ pub fn list_tape_backup_jobs(
         list.push(TapeBackupJobStatus { config: job, status, next_media_label });
     }
 
-    rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
+    rpcenv["digest"] = hex::encode(&digest).into();
 
     Ok(list)
 }

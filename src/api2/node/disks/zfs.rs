@@ -265,11 +265,11 @@ pub fn create_zpool(
 
             task_log!(worker, "# {:?}", command);
 
-            let output = pbs_tools::run_command(command, None)?;
+            let output = proxmox_sys::command::run_command(command, None)?;
             task_log!(worker, "{}", output);
 
             if std::path::Path::new("/lib/systemd/system/zfs-import@.service").exists() {
-                let import_unit = format!("zfs-import@{}.service", proxmox::tools::systemd::escape_unit(&name, false));
+                let import_unit = format!("zfs-import@{}.service", proxmox_sys::systemd::escape_unit(&name, false));
                 crate::tools::systemd::enable_unit(&import_unit)?;
             }
 
@@ -277,7 +277,7 @@ pub fn create_zpool(
                 let mut command = std::process::Command::new("zfs");
                 command.args(&["set", &format!("compression={}", compression), &name]);
                 task_log!(worker, "# {:?}", command);
-                let output = pbs_tools::run_command(command, None)?;
+                let output = proxmox_sys::command::run_command(command, None)?;
                 task_log!(worker, "{}", output);
             }
 

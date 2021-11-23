@@ -78,7 +78,7 @@ pub fn  list_datastore_mounts() -> Result<Vec<DatastoreMountInfo>, Error> {
     let mut list = Vec::new();
 
     let basedir = "/etc/systemd/system";
-    for item in pbs_tools::fs::scan_subdir(libc::AT_FDCWD, basedir, &MOUNT_NAME_REGEX)? {
+    for item in proxmox_sys::fs::scan_subdir(libc::AT_FDCWD, basedir, &MOUNT_NAME_REGEX)? {
         let item = item?;
         let name = item.file_name().to_string_lossy().to_string();
 
@@ -243,7 +243,7 @@ pub fn delete_datastore_disk(name: String) -> Result<(), Error> {
     }
 
     // disable systemd mount-unit
-    let mut mount_unit_name = proxmox::tools::systemd::escape_unit(&path, true);
+    let mut mount_unit_name = proxmox_sys::systemd::escape_unit(&path, true);
     mount_unit_name.push_str(".mount");
     crate::tools::systemd::disable_unit(&mount_unit_name)?;
 
@@ -256,7 +256,7 @@ pub fn delete_datastore_disk(name: String) -> Result<(), Error> {
     // try to unmount, if that fails tell the user to reboot or unmount manually
     let mut command = std::process::Command::new("umount");
     command.arg(&path);
-    match pbs_tools::run_command(command, None) {
+    match proxmox_sys::command::run_command(command, None) {
         Err(_) => bail!(
             "Could not umount '{}' since it is busy. It will stay mounted \
              until the next reboot or until unmounted manually!",
@@ -282,7 +282,7 @@ fn create_datastore_mount_unit(
     what: &str,
 ) -> Result<String, Error> {
 
-    let mut mount_unit_name = proxmox::tools::systemd::escape_unit(&mount_point, true);
+    let mut mount_unit_name = proxmox_sys::systemd::escape_unit(&mount_point, true);
     mount_unit_name.push_str(".mount");
 
     let mount_unit_path = format!("/etc/systemd/system/{}", mount_unit_name);

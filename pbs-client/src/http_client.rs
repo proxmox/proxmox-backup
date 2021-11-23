@@ -14,10 +14,8 @@ use serde_json::{json, Value};
 use percent_encoding::percent_encode;
 use xdg::BaseDirectories;
 
-use proxmox::{
-    sys::linux::tty,
-    tools::fs::{file_get_json, replace_file, CreateOptions},
-};
+use proxmox_sys::linux::tty;
+use proxmox_sys::fs::{file_get_json, replace_file, CreateOptions};
 use proxmox_router::HttpError;
 
 use proxmox_http::client::{HttpsConnector, RateLimiter};
@@ -521,7 +519,7 @@ impl HttpClient {
             Ok(fp) => fp,
             Err(err) => bail!("failed to calculate certificate FP - {}", err), // should not happen
         };
-        let fp_string = proxmox::tools::digest_to_hex(&fp);
+        let fp_string = hex::encode(&fp);
         let fp_string = fp_string.as_bytes().chunks(2).map(|v| std::str::from_utf8(v).unwrap())
             .collect::<Vec<&str>>().join(":");
 

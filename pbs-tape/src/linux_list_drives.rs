@@ -7,9 +7,9 @@ use std::os::unix::io::AsRawFd;
 use anyhow::{bail, format_err, Error};
 use nix::fcntl::{fcntl, FcntlArg, OFlag};
 
-use proxmox::sys::error::SysResult;
+use proxmox_sys::error::SysResult;
+use proxmox_sys::fs::scan_subdir;
 
-use pbs_tools::fs::scan_subdir;
 use pbs_api_types::{DeviceKind, OptionalDeviceIdentification, TapeDeviceInfo};
 
 lazy_static::lazy_static!{

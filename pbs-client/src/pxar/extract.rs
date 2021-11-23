@@ -21,8 +21,8 @@ use pxar::decoder::aio::Decoder;
 use pxar::format::Device;
 use pxar::{Entry, EntryKind, Metadata};
 
-use proxmox::c_result;
-use proxmox::tools::fs::{create_path, CreateOptions};
+use proxmox_sys::c_result;
+use proxmox_sys::fs::{create_path, CreateOptions};
 use proxmox_io::{sparse_copy, sparse_copy_async};
 
 use proxmox_async::zip::{ZipEncoder, ZipEntry};

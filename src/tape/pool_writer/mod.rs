@@ -554,7 +554,7 @@ fn write_chunk_archive<'a>(
             Some(Err(err)) => bail!("{}", err),
         };
 
-        //println!("CHUNK {} size {}", proxmox::tools::digest_to_hex(digest), blob.raw_size());
+        //println!("CHUNK {} size {}", hex::encode(digest), blob.raw_size());
 
         match writer.try_write_chunk(&digest, &blob) {
             Ok(true) => {

@@ -150,7 +150,7 @@ fn extract_archive(
 
     let mut match_list = Vec::new();
     if let Some(filename) = &files_from {
-        for line in pbs_tools::fs::file_get_non_comment_lines(filename)? {
+        for line in proxmox_sys::fs::file_get_non_comment_lines(filename)? {
             let line = line
                 .map_err(|err| format_err!("error reading {}: {}", filename, err))?;
             match_list.push(

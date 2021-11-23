@@ -18,6 +18,7 @@ pub const ENCRYPTED_KEY_BLOB_NAME: &str = "rsa-encrypted.key.blob";
 
 mod hex_csum {
     use serde::{self, Deserialize, Serializer, Deserializer};
+    use hex::FromHex;
 
     pub fn serialize<S>(
         csum: &[u8; 32],
@@ -26,7 +27,7 @@ mod hex_csum {
     where
         S: Serializer,
     {
-        let s = proxmox::tools::digest_to_hex(csum);
+        let s = hex::encode(csum);
         serializer.serialize_str(&s)
     }
 
@@ -37,7 +38,7 @@ mod hex_csum {
         D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        proxmox::tools::hex_to_digest(&s).map_err(serde::de::Error::custom)
+        <[u8; 32]>::from_hex(&s).map_err(serde::de::Error::custom)
     }
 }
 
@@ -190,7 +191,7 @@ impl BackupManifest {
 
         if let Some(crypt_config) = crypt_config {
             let sig = self.signature(crypt_config)?;
-            manifest["signature"] = proxmox::tools::digest_to_hex(&sig).into();
+            manifest["signature"] = hex::encode(&sig).into();
             let fingerprint = &Fingerprint::new(crypt_config.fingerprint());
             manifest["unprotected"]["key-fingerprint"] = serde_json::to_value(fingerprint)?;
         }
@@ -240,7 +241,7 @@ impl BackupManifest {
 
         if let Some(ref crypt_config) = crypt_config {
             if let Some(signature) = signature {
-                let expected_signature = proxmox::tools::digest_to_hex(&Self::json_signature(&json, crypt_config)?);
+                let expected_signature = hex::encode(&Self::json_signature(&json, crypt_config)?);
 
                 let fingerprint = &json["unprotected"]["key-fingerprint"];
                 if fingerprint != &Value::Null {
@@ -318,7 +319,7 @@ fn test_manifest_signature() -> Result<(), Error> {
     assert_eq!(signature, "d7b446fb7db081662081d4b40fedd858a1d6307a5aff4ecff7d5bf4fd35679e9");
 
     let manifest: BackupManifest = serde_json::from_value(manifest)?;
-    let expected_signature = proxmox::tools::digest_to_hex(&manifest.signature(&crypt_config)?);
+    let expected_signature = hex::encode(&manifest.signature(&crypt_config)?);
 
     assert_eq!(signature, expected_signature);
 

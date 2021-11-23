@@ -104,7 +104,7 @@ pub fn update_self_signed_cert(force: bool) -> Result<(), Error> {
     let expire = openssl::asn1::Asn1Time::days_from_now(365*1000)?;
     x509.set_not_after(&expire)?;
 
-    let nodename = proxmox::tools::nodename();
+    let nodename = proxmox_sys::nodename();
     let mut fqdn = nodename.to_owned();
 
     let resolv_conf = crate::api2::node::dns::read_etc_resolv_conf()?;

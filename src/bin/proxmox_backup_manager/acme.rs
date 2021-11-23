@@ -3,7 +3,7 @@ use std::io::Write;
 use anyhow::{bail, Error};
 use serde_json::Value;
 
-use proxmox::tools::fs::file_get_contents;
+use proxmox_sys::fs::file_get_contents;
 use proxmox_router::{cli::*, ApiHandler, RpcEnvironment};
 use proxmox_schema::api;
 

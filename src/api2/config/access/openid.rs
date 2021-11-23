@@ -3,6 +3,7 @@
 use anyhow::{bail, Error};
 use serde_json::Value;
 use ::serde::{Deserialize, Serialize};
+use hex::FromHex;
 
 use proxmox_router::{Router, RpcEnvironment, Permission};
 use proxmox_schema::api;
@@ -37,7 +38,7 @@ pub fn list_openid_realms(
 
     let list = config.convert_to_typed_array("openid")?;
 
-    rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
+    rpcenv["digest"] = hex::encode(&digest).into();
 
     Ok(list)
 }
@@ -106,7 +107,7 @@ pub fn delete_openid_realm(
     let (mut domains, expected_digest) = domains::config()?;
 
     if let Some(ref digest) = digest {
-        let digest = proxmox::tools::hex_to_digest(digest)?;
+        let digest = <[u8; 32]>::from_hex(digest)?;
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 
@@ -142,7 +143,7 @@ pub fn read_openid_realm(
 
     let config = domains.lookup("openid", &realm)?;
 
-    rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
+    rpcenv["digest"] = hex::encode(&digest).into();
 
     Ok(config)
 }
@@ -211,7 +212,7 @@ pub fn update_openid_realm(
     let (mut domains, expected_digest) = domains::config()?;
 
     if let Some(ref digest) = digest {
-        let digest = proxmox::tools::hex_to_digest(digest)?;
+        let digest = <[u8; 32]>::from_hex(digest)?;
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 

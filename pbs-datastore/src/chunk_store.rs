@@ -5,9 +5,9 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::{bail, format_err, Error};
 
-use proxmox::tools::fs::{CreateOptions, create_path, create_dir};
+use proxmox_sys::fs::{CreateOptions, create_path, create_dir};
 use proxmox_sys::process_locker::{ProcessLocker, ProcessLockSharedGuard, ProcessLockExclusiveGuard};
-use proxmox_sys::worker_task_context::WorkerTaskContext;
+use proxmox_sys::WorkerTaskContext;
 use proxmox_sys::task_log;
 use pbs_api_types::GarbageCollectionStatus;
 
@@ -96,7 +96,7 @@ impl ChunkStore {
 
         // create lock file with correct owner/group
         let lockfile_path = Self::lockfile_path(&base);
-        proxmox::tools::fs::replace_file(lockfile_path, b"", options.clone(), false)?;
+        proxmox_sys::fs::replace_file(lockfile_path, b"", options.clone(), false)?;
 
         // create 64*1024 subdirs
         let mut last_percentage = 0;
@@ -194,7 +194,7 @@ impl ChunkStore {
     pub fn get_chunk_iterator(
         &self,
     ) -> Result<
-        impl Iterator<Item = (Result<pbs_tools::fs::ReadDirEntry, Error>, usize, bool)> + std::iter::FusedIterator,
+        impl Iterator<Item = (Result<proxmox_sys::fs::ReadDirEntry, Error>, usize, bool)> + std::iter::FusedIterator,
         Error
     > {
         use nix::dir::Dir;
@@ -212,7 +212,7 @@ impl ChunkStore {
             })?;
 
         let mut done = false;
-        let mut inner: Option<pbs_tools::fs::ReadDir> = None;
+        let mut inner: Option<proxmox_sys::fs::ReadDir> = None;
         let mut at = 0;
         let mut percentage = 0;
         Ok(std::iter::from_fn(move || {
@@ -256,7 +256,7 @@ impl ChunkStore {
                 let subdir: &str = &format!("{:04x}", at);
                 percentage = (at * 100) / 0x10000;
                 at += 1;
-                match pbs_tools::fs::read_subdir(base_handle.as_raw_fd(), subdir) {
+                match proxmox_sys::fs::read_subdir(base_handle.as_raw_fd(), subdir) {
                     Ok(dir) => {
                         inner = Some(dir);
                         // start reading:
@@ -382,7 +382,7 @@ impl ChunkStore {
         digest: &[u8; 32],
     ) -> Result<(bool, u64), Error> {
 
-        //println!("DIGEST {}", proxmox::tools::digest_to_hex(digest));
+        //println!("DIGEST {}", hex::encode(digest));
 
         let (chunk_path, digest_str) = self.chunk_path(digest);
 
@@ -440,7 +440,7 @@ impl ChunkStore {
         let mut chunk_path = self.chunk_dir.clone();
         let prefix = digest_to_prefix(digest);
         chunk_path.push(&prefix);
-        let digest_str = proxmox::tools::digest_to_hex(digest);
+        let digest_str = hex::encode(digest);
         chunk_path.push(&digest_str);
         (chunk_path, digest_str)
     }

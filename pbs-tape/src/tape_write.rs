@@ -34,7 +34,7 @@ pub trait TapeWrite {
         data: &[u8],
     ) -> Result<bool, std::io::Error> {
         if header.size as usize != data.len() {
-            proxmox::io_bail!("write_header with wrong size - internal error");
+            proxmox_sys::io_bail!("write_header with wrong size - internal error");
         }
         let header = header.to_le();
 

@@ -6,13 +6,14 @@ use std::fs::File;
 use anyhow::{bail, Error};
 use nix::dir::Dir;
 
+use proxmox_sys::fs::lock_dir_noblock_shared;
+
 use crate::backup_info::BackupDir;
 use crate::index::IndexFile;
 use crate::fixed_index::FixedIndexReader;
 use crate::dynamic_index::DynamicIndexReader;
 use crate::manifest::{archive_type, ArchiveType, CLIENT_LOG_BLOB_NAME, MANIFEST_BLOB_NAME};
 use crate::DataStore;
-use pbs_tools::fs::lock_dir_noblock_shared;
 
 /// Helper to access the contents of a datastore backup snapshot
 ///

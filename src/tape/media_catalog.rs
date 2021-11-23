@@ -8,10 +8,10 @@ use std::collections::{HashSet, HashMap};
 use anyhow::{bail, format_err, Error};
 use endian_trait::Endian;
 
-use pbs_tools::fs::read_subdir;
+use proxmox_sys::fs::read_subdir;
 use pbs_datastore::backup_info::BackupDir;
 
-use proxmox::tools::fs::{
+use proxmox_sys::fs::{
     fchown,
     create_path,
     CreateOptions,
@@ -541,7 +541,7 @@ impl MediaCatalog {
         };
 
         if self.log_to_stdout {
-            println!("C|{}", proxmox::tools::digest_to_hex(digest));
+            println!("C|{}", hex::encode(digest));
         }
 
         self.pending.push(b'C');

@@ -5,9 +5,9 @@ extern crate proxmox_backup;
 extern crate tokio;
 extern crate nix;
 
-use proxmox::tools::fs::CreateOptions;
+use proxmox_sys::fs::CreateOptions;
 use proxmox_lang::try_block;
-use proxmox_sys::{task_log, worker_task_context::WorkerTaskContext};
+use proxmox_sys::{task_log, WorkerTaskContext};
 
 use pbs_api_types::{Authid, UPID};
 

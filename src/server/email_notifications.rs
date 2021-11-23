@@ -3,7 +3,7 @@ use serde_json::json;
 
 use handlebars::{Handlebars, Helper, Context, RenderError, RenderContext, Output, HelperResult, TemplateError};
 
-use proxmox::tools::email::sendmail;
+use proxmox_sys::email::sendmail;
 use proxmox_lang::try_block;
 use proxmox_schema::{parse_property_string, ApiType};
 
@@ -239,7 +239,7 @@ fn send_job_status_mail(
     // so we include html as well
     let html = format!("<html><body><pre>\n{}\n<pre>", handlebars::html_escape(text));
 
-    let nodename = proxmox::tools::nodename();
+    let nodename = proxmox_sys::nodename();
 
     let author = format!("Proxmox Backup Server - {}", nodename);
 
@@ -504,7 +504,7 @@ fn get_server_url() -> (String, usize) {
 
     // user will surely request that they can change this
 
-    let nodename = proxmox::tools::nodename();
+    let nodename = proxmox_sys::nodename();
     let mut fqdn = nodename.to_owned();
 
     if let Ok(resolv_conf) = crate::api2::node::dns::read_etc_resolv_conf() {
@@ -524,7 +524,7 @@ pub fn send_updates_available(
 ) -> Result<(), Error> {
     // update mails always go to the root@pam configured email..
     if let Some(email) = lookup_user_email(Userid::root_userid()) {
-        let nodename = proxmox::tools::nodename();
+        let nodename = proxmox_sys::nodename();
         let subject = format!("New software packages available ({})", nodename);
 
         let (fqdn, port) = get_server_url();

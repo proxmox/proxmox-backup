@@ -18,7 +18,7 @@ use std::os::unix::io::{AsRawFd, FromRawFd, IntoRawFd};
 use anyhow::{bail, format_err, Error};
 use serde::{Serialize, Deserialize};
 
-use proxmox::tools::fs::{make_tmp_file, CreateOptions};
+use proxmox_sys::fs::{make_tmp_file, CreateOptions};
 use proxmox_schema::api;
 
 use crate::rrd_v1;

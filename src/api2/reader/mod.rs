@@ -6,8 +6,9 @@ use hyper::header::{self, HeaderValue, UPGRADE};
 use hyper::http::request::Parts;
 use hyper::{Body, Response, Request, StatusCode};
 use serde_json::Value;
+use hex::FromHex;
 
-use proxmox::{identity, sortable};
+use proxmox_sys::{identity, sortable};
 use proxmox_router::{
     http_err, list_subdirs_api_method, ApiHandler, ApiMethod, ApiResponseFuture, Permission,
     Router, RpcEnvironment, SubdirMap,
@@ -19,7 +20,7 @@ use pbs_api_types::{
     CHUNK_DIGEST_SCHEMA, PRIV_DATASTORE_READ, PRIV_DATASTORE_BACKUP,
     BACKUP_ARCHIVE_NAME_SCHEMA,
 };
-use pbs_tools::fs::lock_dir_noblock_shared;
+use proxmox_sys::fs::lock_dir_noblock_shared;
 use pbs_tools::json::{required_integer_param, required_string_param};
 use pbs_datastore::{DataStore, PROXMOX_BACKUP_READER_PROTOCOL_ID_V1};
 use pbs_datastore::backup_info::BackupDir;
@@ -277,7 +278,7 @@ fn download_chunk(
         let env: &ReaderEnvironment = rpcenv.as_ref();
 
         let digest_str = required_string_param(&param, "digest")?;
-        let digest = proxmox::tools::hex_to_digest(digest_str)?;
+        let digest = <[u8; 32]>::from_hex(digest_str)?;
 
         if !env.check_chunk_access(digest) {
             env.log(format!("attempted to download chunk {} which is not in registered chunk list", digest_str));
@@ -316,7 +317,7 @@ fn download_chunk_old(
     let env2 = env.clone();
 
     let digest_str = required_string_param(&param, "digest")?;
-    let digest = proxmox::tools::hex_to_digest(digest_str)?;
+    let digest = <[u8; 32]>::from_hex(digest_str)?;
 
     let (path, _) = env.datastore.chunk_path(&digest);
 

@@ -424,7 +424,7 @@ impl FixedIndexWriter {
             chunk_len,
             (compressed_size * 100) / (chunk_len as u64),
             is_duplicate,
-            proxmox::tools::digest_to_hex(digest)
+            hex::encode(digest)
         );
 
         if is_duplicate {

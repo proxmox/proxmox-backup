@@ -34,7 +34,7 @@ pub fn zfs_pool_stats(pool: &OsStr) -> Result<Option<BlockDevStat>, Error> {
     path.push(pool);
     path.push("io");
 
-    let text = match proxmox::tools::fs::file_read_optional_string(&path)? {
+    let text = match proxmox_sys::fs::file_read_optional_string(&path)? {
         Some(text) => text,
         None => { return Ok(None); }
     };

@@ -6,7 +6,7 @@ use std::io;
 use anyhow::{bail, format_err, Error};
 use serde::{Serialize, Deserialize};
 
-use proxmox::tools::{
+use proxmox_sys::{
     fs::{replace_file, CreateOptions},
 };
 
@@ -48,7 +48,7 @@ pub fn open_virtual_tape_drive(config: &VirtualTapeDrive) -> Result<VirtualTapeH
 
         let options = CreateOptions::new();
         let timeout = std::time::Duration::new(10, 0);
-        let lock = proxmox::tools::fs::open_file_locked(&lock_path, timeout, true, options)?;
+        let lock = proxmox_sys::fs::open_file_locked(&lock_path, timeout, true, options)?;
 
         Ok(VirtualTapeHandle {
             _lock: lock,
@@ -104,7 +104,7 @@ impl VirtualTapeHandle {
 
     fn load_tape_index(&self, tape_name: &str) -> Result<TapeIndex, Error> {
         let path = self.tape_index_path(tape_name);
-        let raw = proxmox::tools::fs::file_get_contents(&path)?;
+        let raw = proxmox_sys::fs::file_get_contents(&path)?;
         if raw.is_empty() {
             return Ok(TapeIndex { files: 0 });
         }
@@ -147,7 +147,7 @@ impl VirtualTapeHandle {
             current_tape: None,
         })?;
 
-        let data = proxmox::tools::fs::file_get_json(&path, Some(default))?;
+        let data = proxmox_sys::fs::file_get_json(&path, Some(default))?;
         let status: VirtualDriveStatus = serde_json::from_value(data)?;
         Ok(status)
     }
@@ -309,7 +309,7 @@ impl TapeDriver for VirtualTapeHandle {
                 Ok(Box::new(reader))
             }
             None => {
-                return Err(BlockReadError::Error(proxmox::io_format_err!("drive is empty (no tape loaded).")));
+                return Err(BlockReadError::Error(proxmox_sys::io_format_err!("drive is empty (no tape loaded).")));
             }
         }
     }
@@ -362,7 +362,7 @@ impl TapeDriver for VirtualTapeHandle {
 
                 Ok(writer)
             }
-            None => proxmox::io_bail!("drive is empty (no tape loaded)."),
+            None => proxmox_sys::io_bail!("drive is empty (no tape loaded)."),
         }
     }
 

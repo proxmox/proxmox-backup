@@ -22,8 +22,8 @@ pub enum MediaLocation {
     Vault(String),
 }
 
-proxmox::forward_deserialize_to_from_str!(MediaLocation);
-proxmox::forward_serialize_to_display!(MediaLocation);
+proxmox_serde::forward_deserialize_to_from_str!(MediaLocation);
+proxmox_serde::forward_serialize_to_display!(MediaLocation);
 
 impl proxmox_schema::ApiType for MediaLocation {
     const API_SCHEMA: Schema = StringSchema::new(

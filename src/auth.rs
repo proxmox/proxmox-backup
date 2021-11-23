@@ -75,7 +75,7 @@ const SHADOW_CONFIG_FILENAME: &str = configdir!("/shadow.json");
 impl ProxmoxAuthenticator for PBS {
 
     fn authenticate_user(&self, username: &UsernameRef, password: &str) -> Result<(), Error> {
-        let data = proxmox::tools::fs::file_get_json(SHADOW_CONFIG_FILENAME, Some(json!({})))?;
+        let data = proxmox_sys::fs::file_get_json(SHADOW_CONFIG_FILENAME, Some(json!({})))?;
         match data[username.as_str()].as_str() {
             None => bail!("no password set"),
             Some(enc_password) => proxmox_sys::crypt::verify_crypt_pw(password, enc_password)?,
@@ -85,35 +85,35 @@ impl ProxmoxAuthenticator for PBS {
 
     fn store_password(&self, username: &UsernameRef, password: &str) -> Result<(), Error> {
         let enc_password = proxmox_sys::crypt::encrypt_pw(password)?;
-        let mut data = proxmox::tools::fs::file_get_json(SHADOW_CONFIG_FILENAME, Some(json!({})))?;
+        let mut data = proxmox_sys::fs::file_get_json(SHADOW_CONFIG_FILENAME, Some(json!({})))?;
         data[username.as_str()] = enc_password.into();
 
         let mode = nix::sys::stat::Mode::from_bits_truncate(0o0600);
-        let options =  proxmox::tools::fs::CreateOptions::new()
+        let options =  proxmox_sys::fs::CreateOptions::new()
             .perm(mode)
             .owner(nix::unistd::ROOT)
             .group(nix::unistd::Gid::from_raw(0));
 
         let data = serde_json::to_vec_pretty(&data)?;
-        proxmox::tools::fs::replace_file(SHADOW_CONFIG_FILENAME, &data, options, true)?;
+        proxmox_sys::fs::replace_file(SHADOW_CONFIG_FILENAME, &data, options, true)?;
 
         Ok(())
     }
 
     fn remove_password(&self, username: &UsernameRef) -> Result<(), Error> {
-        let mut data = proxmox::tools::fs::file_get_json(SHADOW_CONFIG_FILENAME, Some(json!({})))?;
+        let mut data = proxmox_sys::fs::file_get_json(SHADOW_CONFIG_FILENAME, Some(json!({})))?;
         if let Some(map) = data.as_object_mut() {
             map.remove(username.as_str());
         }
 
         let mode = nix::sys::stat::Mode::from_bits_truncate(0o0600);
-        let options =  proxmox::tools::fs::CreateOptions::new()
+        let options =  proxmox_sys::fs::CreateOptions::new()
             .perm(mode)
             .owner(nix::unistd::ROOT)
             .group(nix::unistd::Gid::from_raw(0));
 
         let data = serde_json::to_vec_pretty(&data)?;
-        proxmox::tools::fs::replace_file(SHADOW_CONFIG_FILENAME, &data, options, true)?;
+        proxmox_sys::fs::replace_file(SHADOW_CONFIG_FILENAME, &data, options, true)?;
 
         Ok(())
     }

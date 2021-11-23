@@ -15,7 +15,7 @@ use std::collections::HashMap;
 use anyhow::{bail, Error};
 use serde::{Deserialize, Serialize};
 
-use proxmox::tools::fs::file_read_optional_string;
+use proxmox_sys::fs::file_read_optional_string;
 use pbs_api_types::Fingerprint;
 
 use crate::key_config::KeyConfig;
@@ -23,7 +23,8 @@ use crate::{open_backup_lockfile, replace_secret_config, replace_backup_config};
 
 mod hex_key {
     use serde::{self, Deserialize, Serializer, Deserializer};
-
+    use hex::FromHex;
+    
     pub fn serialize<S>(
         csum: &[u8; 32],
         serializer: S,
@@ -31,7 +32,7 @@ mod hex_key {
     where
         S: Serializer,
     {
-        let s = proxmox::tools::digest_to_hex(csum);
+        let s = hex::encode(csum);
         serializer.serialize_str(&s)
     }
 
@@ -42,7 +43,7 @@ mod hex_key {
         D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        proxmox::tools::hex_to_digest(&s).map_err(serde::de::Error::custom)
+        <[u8; 32]>::from_hex(&s).map_err(serde::de::Error::custom)
     }
 }
 

@@ -3,7 +3,7 @@ use std::io::{BufRead, BufReader};
 
 use anyhow::{format_err, bail, Error};
 
-use proxmox::tools::fs::CreateOptions;
+use proxmox_sys::fs::CreateOptions;
 
 use crate::tape::{MediaCatalog, MediaId};
 
@@ -98,7 +98,7 @@ fn write_snapshot_cache(
         .owner(backup_user.uid)
         .group(backup_user.gid);
 
-    proxmox::tools::fs::replace_file(
+    proxmox_sys::fs::replace_file(
         cache_path,
         data.as_bytes(),
         options,

@@ -347,7 +347,7 @@ impl DataBlob {
     ) -> Result<([u8;16], [u8;16]), Error> {
 
         let mut iv = [0u8; 16];
-        proxmox::sys::linux::fill_with_random_data(&mut iv)?;
+        proxmox_sys::linux::fill_with_random_data(&mut iv)?;
 
         let mut tag = [0u8; 16];
 

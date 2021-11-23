@@ -66,7 +66,7 @@ pub fn show_current_traffic(
     }
 
     // also return the configuration digest
-    rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
+    rpcenv["digest"] = hex::encode(&digest).into();
 
     Ok(list)
 }

@@ -133,7 +133,7 @@ impl TryFrom<&cert::CertInfo> for CertificateInfo {
 
 fn get_certificate_pem() -> Result<String, Error> {
     let cert_path = configdir!("/proxy.pem");
-    let cert_pem = proxmox::tools::fs::file_get_contents(&cert_path)?;
+    let cert_pem = proxmox_sys::fs::file_get_contents(&cert_path)?;
     String::from_utf8(cert_pem)
         .map_err(|_| format_err!("certificate in {:?} is not a valid PEM file", cert_path))
 }

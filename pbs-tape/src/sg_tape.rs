@@ -25,7 +25,7 @@ pub use mam::*;
 mod report_density;
 pub use report_density::*;
 
-use proxmox::sys::error::SysResult;
+use proxmox_sys::error::SysResult;
 use proxmox_io::{ReadExt, WriteExt};
 
 use pbs_api_types::{MamAttribute, Lp17VolumeStatistics, LtoDriveAndMediaStatus};
@@ -530,11 +530,11 @@ impl SgTape {
     ) ->  Result<(), std::io::Error> {
 
         if count > 255 {
-            proxmox::io_bail!("write_filemarks failed: got strange count '{}'", count);
+            proxmox_sys::io_bail!("write_filemarks failed: got strange count '{}'", count);
         }
 
         let mut sg_raw = SgRaw::new(&mut self.file, 16)
-            .map_err(|err| proxmox::io_format_err!("write_filemarks failed (alloc) - {}", err))?;
+            .map_err(|err| proxmox_sys::io_format_err!("write_filemarks failed (alloc) - {}", err))?;
 
         sg_raw.set_timeout(Self::SCSI_TAPE_DEFAULT_TIMEOUT);
         let mut cmd = Vec::new();
@@ -553,7 +553,7 @@ impl SgTape {
                 /* LEOM - ignore */
             }
             Err(err) => {
-                proxmox::io_bail!("write filemark  failed - {}", err);
+                proxmox_sys::io_bail!("write filemark  failed - {}", err);
             }
         }
 
@@ -632,7 +632,7 @@ impl SgTape {
         let transfer_len = data.len();
 
         if transfer_len > 0x800000 {
-           proxmox::io_bail!("write failed - data too large");
+           proxmox_sys::io_bail!("write failed - data too large");
         }
 
         let mut sg_raw = SgRaw::new(&mut self.file, 0)
@@ -656,7 +656,7 @@ impl SgTape {
                 return Ok(true); // LEOM
             }
             Err(err) => {
-                proxmox::io_bail!("write failed - {}", err);
+                proxmox_sys::io_bail!("write failed - {}", err);
             }
         }
     }
@@ -666,7 +666,7 @@ impl SgTape {
 
         if transfer_len > 0xFFFFFF {
             return Err(BlockReadError::Error(
-                proxmox::io_format_err!("read failed - buffer too large")
+                proxmox_sys::io_format_err!("read failed - buffer too large")
             ));
         }
 
@@ -693,14 +693,14 @@ impl SgTape {
             }
             Err(err) => {
                 return Err(BlockReadError::Error(
-                    proxmox::io_format_err!("read failed - {}", err)
+                    proxmox_sys::io_format_err!("read failed - {}", err)
                 ));
             }
         };
 
         if data.len() != transfer_len {
             return Err(BlockReadError::Error(
-                proxmox::io_format_err!("read failed - unexpected block len ({} != {})", data.len(), buffer.len())
+                proxmox_sys::io_format_err!("read failed - unexpected block len ({} != {})", data.len(), buffer.len())
             ));
         }
 
@@ -951,7 +951,7 @@ impl <'a> BlockRead for SgTapeReader<'a> {
 
     fn read_block(&mut self, buffer: &mut [u8]) -> Result<usize, BlockReadError> {
         if self.end_of_file {
-            return Err(BlockReadError::Error(proxmox::io_format_err!("detected read after EOF!")));
+            return Err(BlockReadError::Error(proxmox_sys::io_format_err!("detected read after EOF!")));
         }
         match self.sg_tape.read_block(buffer) {
             Ok(usize) => Ok(usize),

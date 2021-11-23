@@ -3,7 +3,7 @@
 use anyhow::{bail, format_err, Error};
 use serde_json::Value;
 
-use proxmox::sortable;
+use proxmox_sys::sortable;
 use proxmox_router::{
     list_subdirs_api_method, ApiMethod, Router, RpcEnvironment, RpcEnvironmentType, SubdirMap,
     Permission,
@@ -87,7 +87,7 @@ pub fn list_sync_jobs(
         list.push(SyncJobStatus { config: job, status });
     }
 
-    rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
+    rpcenv["digest"] = hex::encode(&digest).into();
 
     Ok(list)
 }

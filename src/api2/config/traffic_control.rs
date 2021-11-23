@@ -1,6 +1,7 @@
 use anyhow::{bail, Error};
 use serde_json::Value;
 use ::serde::{Deserialize, Serialize};
+use hex::FromHex;
 
 use proxmox_router::{ApiMethod, Router, RpcEnvironment, Permission};
 use proxmox_schema::api;
@@ -34,7 +35,7 @@ pub fn list_traffic_controls(
 
     let list: Vec<TrafficControlRule> = config.convert_to_typed_array("rule")?;
 
-    rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
+    rpcenv["digest"] = hex::encode(&digest).into();
 
     Ok(list)
 }
@@ -92,7 +93,7 @@ pub fn read_traffic_control(
 ) -> Result<TrafficControlRule, Error> {
     let (config, digest) = pbs_config::traffic_control::config()?;
     let data: TrafficControlRule = config.lookup("rule", &name)?;
-    rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
+    rpcenv["digest"] = hex::encode(&digest).into();
     Ok(data)
 }
 
@@ -159,7 +160,7 @@ pub fn update_traffic_control(
     let (mut config, expected_digest) = pbs_config::traffic_control::config()?;
 
     if let Some(ref digest) = digest {
-        let digest = proxmox::tools::hex_to_digest(digest)?;
+        let digest = <[u8; 32]>::from_hex(digest)?;
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 
@@ -238,7 +239,7 @@ pub fn delete_traffic_control(name: String, digest: Option<String>) -> Result<()
     let (mut config, expected_digest) = pbs_config::traffic_control::config()?;
 
     if let Some(ref digest) = digest {
-        let digest = proxmox::tools::hex_to_digest(digest)?;
+        let digest = <[u8; 32]>::from_hex(digest)?;
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 

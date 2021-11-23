@@ -1,7 +1,7 @@
 use anyhow::{bail, format_err, Error};
 use serde_json::{json, Value};
 
-use proxmox::tools::fs::{file_read_firstline, replace_file, CreateOptions};
+use proxmox_sys::fs::{file_read_firstline, replace_file, CreateOptions};
 use proxmox_router::{Router, Permission};
 use proxmox_schema::api;
 

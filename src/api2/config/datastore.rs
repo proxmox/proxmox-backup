@@ -3,11 +3,12 @@ use std::path::PathBuf;
 use anyhow::{bail, Error};
 use serde_json::Value;
 use ::serde::{Deserialize, Serialize};
+use hex::FromHex;
 
 use proxmox_router::{Router, RpcEnvironment, RpcEnvironmentType, Permission};
 use proxmox_schema::{api, ApiType, parse_property_string};
 use proxmox_section_config::SectionConfigData;
-use proxmox_sys::worker_task_context::WorkerTaskContext;
+use proxmox_sys::WorkerTaskContext;
 
 use pbs_datastore::chunk_store::ChunkStore;
 use pbs_config::BackupLockGuard;
@@ -55,7 +56,7 @@ pub fn list_datastores(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
 
-    rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
+    rpcenv["digest"] = hex::encode(&digest).into();
 
     let list:Vec<DataStoreConfig> = config.convert_to_typed_array("datastore")?;
     let filter_by_privs = |store: &DataStoreConfig| {
@@ -148,7 +149,7 @@ pub fn read_datastore(
     let (config, digest) = pbs_config::datastore::config()?;
 
     let store_config = config.lookup("datastore", &name)?;
-    rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
+    rpcenv["digest"] = hex::encode(&digest).into();
 
     Ok(store_config)
 }
@@ -228,7 +229,7 @@ pub fn update_datastore(
     let (mut config, expected_digest) = pbs_config::datastore::config()?;
 
     if let Some(ref digest) = digest {
-        let digest = proxmox::tools::hex_to_digest(digest)?;
+        let digest = <[u8; 32]>::from_hex(digest)?;
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 
@@ -347,7 +348,7 @@ pub async fn delete_datastore(
     let (mut config, expected_digest) = pbs_config::datastore::config()?;
 
     if let Some(ref digest) = digest {
-        let digest = proxmox::tools::hex_to_digest(digest)?;
+        let digest = <[u8; 32]>::from_hex(digest)?;
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 

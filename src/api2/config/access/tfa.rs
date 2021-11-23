@@ -2,6 +2,7 @@
 //! If we add more, it should be moved into a sub module.
 
 use anyhow::Error;
+use hex::FromHex;
 
 use proxmox_router::{Router, RpcEnvironment, Permission, SubdirMap};
 use proxmox_schema::api;
@@ -42,7 +43,7 @@ pub fn get_webauthn_config(
         Some(c) => c,
         None => return Ok(None),
     };
-    rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
+    rpcenv["digest"] = hex::encode(&digest).into();
     Ok(Some(config))
 }
 
@@ -72,7 +73,7 @@ pub fn update_webauthn_config(
 
     if let Some(wa) = &mut tfa.webauthn {
         if let Some(ref digest) = digest {
-            let digest = proxmox::tools::hex_to_digest(digest)?;
+            let digest = <[u8; 32]>::from_hex(digest)?;
             crate::tools::detect_modified_configuration_file(
                 &digest,
                 &crate::config::tfa::webauthn_config_digest(&wa)?,

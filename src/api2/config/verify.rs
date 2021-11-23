@@ -1,6 +1,7 @@
 use anyhow::{bail, Error};
 use serde_json::Value;
 use ::serde::{Deserialize, Serialize};
+use hex::FromHex;
 
 use proxmox_router::{Router, RpcEnvironment, Permission};
 use proxmox_schema::api;
@@ -48,7 +49,7 @@ pub fn list_verification_jobs(
             privs & required_privs != 00
         }).collect();
 
-    rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
+    rpcenv["digest"] = hex::encode(&digest).into();
 
     Ok(list)
 }
@@ -125,7 +126,7 @@ pub fn read_verification_job(
     let required_privs = PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_VERIFY;
     user_info.check_privs(&auth_id, &["datastore", &verification_job.store], required_privs, true)?;
 
-    rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
+    rpcenv["digest"] = hex::encode(&digest).into();
 
     Ok(verification_job)
 }
@@ -193,7 +194,7 @@ pub fn update_verification_job(
     let (mut config, expected_digest) = verify::config()?;
 
     if let Some(ref digest) = digest {
-        let digest = proxmox::tools::hex_to_digest(digest)?;
+        let digest = <[u8; 32]>::from_hex(digest)?;
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 
@@ -280,7 +281,7 @@ pub fn delete_verification_job(
     user_info.check_privs(&auth_id, &["datastore", &job.store], PRIV_DATASTORE_VERIFY, true)?;
 
     if let Some(ref digest) = digest {
-        let digest = proxmox::tools::hex_to_digest(digest)?;
+        let digest = <[u8; 32]>::from_hex(digest)?;
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 

@@ -12,8 +12,8 @@ use hyper::Request;
 use serde_json::{json, Value};
 use tokio::io::{AsyncBufReadExt, BufReader};
 
-use proxmox::{identity, sortable};
-use proxmox::tools::fd::fd_change_cloexec;
+use proxmox_sys::{identity, sortable};
+use proxmox_sys::fd::fd_change_cloexec;
 
 use proxmox_router::{
     ApiHandler, ApiMethod, ApiResponseFuture, Permission, RpcEnvironment, Router, SubdirMap,
@@ -319,7 +319,7 @@ fn upgrade_to_websocket(
 #[api]
 /// List Nodes (only for compatiblity)
 fn list_nodes() -> Result<Value, Error> {
-    Ok(json!([ { "node": proxmox::tools::nodename().to_string() } ]))
+    Ok(json!([ { "node": proxmox_sys::nodename().to_string() } ]))
 }
 
 pub const SUBDIRS: SubdirMap = &[

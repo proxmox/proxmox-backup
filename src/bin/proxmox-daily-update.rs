@@ -1,7 +1,7 @@
 use anyhow::Error;
 use serde_json::json;
 
-use proxmox::tools::fs::CreateOptions;
+use proxmox_sys::fs::CreateOptions;
 use proxmox_router::{cli::*, RpcEnvironment, ApiHandler};
 
 use proxmox_backup::api2;

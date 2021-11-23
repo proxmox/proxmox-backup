@@ -1,6 +1,7 @@
 use anyhow::{bail, Error};
 use serde_json::Value;
 use ::serde::{Deserialize, Serialize};
+use hex::FromHex;
 
 use proxmox_router::{Router, RpcEnvironment, Permission};
 use proxmox_schema::api;
@@ -47,7 +48,7 @@ pub fn list_tape_backup_jobs(
         })
         .collect();
 
-    rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
+    rpcenv["digest"] = hex::encode(&digest).into();
 
     Ok(list)
 }
@@ -111,7 +112,7 @@ pub fn read_tape_backup_job(
 
     let job = config.lookup("backup", &id)?;
 
-    rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
+    rpcenv["digest"] = hex::encode(&digest).into();
 
     Ok(job)
 }
@@ -180,7 +181,7 @@ pub fn update_tape_backup_job(
     let mut data: TapeBackupJobConfig = config.lookup("backup", &id)?;
 
     if let Some(ref digest) = digest {
-        let digest = proxmox::tools::hex_to_digest(digest)?;
+        let digest = <[u8; 32]>::from_hex(digest)?;
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 
@@ -259,7 +260,7 @@ pub fn delete_tape_backup_job(
     let (mut config, expected_digest) = pbs_config::tape_job::config()?;
 
     if let Some(ref digest) = digest {
-        let digest = proxmox::tools::hex_to_digest(digest)?;
+        let digest = <[u8; 32]>::from_hex(digest)?;
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 

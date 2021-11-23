@@ -479,7 +479,7 @@ pub(crate) async fn handle_api_request<Env: RpcEnvironment, S: 'static + BuildHa
             resp.map(|body| {
                 Body::wrap_stream(DeflateEncoder::with_quality(
                     TryStreamExt::map_err(body, |err| {
-                        proxmox::io_format_err!("error during compression: {}", err)
+                        proxmox_sys::io_format_err!("error during compression: {}", err)
                     }),
                     Level::Default,
                 ))

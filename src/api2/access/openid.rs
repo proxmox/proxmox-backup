@@ -2,10 +2,9 @@
 use std::convert::TryFrom;
 
 use anyhow::{bail, format_err, Error};
-
 use serde_json::{json, Value};
 
-use proxmox::{identity, sortable};
+use proxmox_sys::{identity, sortable};
 use proxmox_router::{
     http_err, list_subdirs_api_method, Router, RpcEnvironment, SubdirMap, Permission,
 };

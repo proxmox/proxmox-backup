@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use anyhow::{bail, Error};
 
-use proxmox::tools::fs::create_path;
+use proxmox_sys::fs::create_path;
 
 use crate::rrd::{CF, DST, RRD};
 

@@ -4,7 +4,7 @@ use std::io::{self, Write};
 use anyhow::Error;
 use serde_json::{json, Value};
 
-use proxmox::tools::fs::CreateOptions;
+use proxmox_sys::fs::CreateOptions;
 use proxmox_router::{cli::*, RpcEnvironment};
 use proxmox_schema::api;
 

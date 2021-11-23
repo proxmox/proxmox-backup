@@ -9,11 +9,10 @@ use nix::sys::stat::Mode;
 
 use pxar::Metadata;
 
-use proxmox::c_result;
-use proxmox::sys::error::SysError;
-use proxmox::tools::fd::RawFdNum;
-
-use pbs_tools::{acl, fs, xattr};
+use proxmox_sys::c_result;
+use proxmox_sys::error::SysError;
+use proxmox_sys::fd::RawFdNum;
+use proxmox_sys::fs::{self, acl, xattr};
 
 use crate::pxar::tools::perms_from_metadata;
 use crate::pxar::Flags;
@@ -67,7 +66,7 @@ pub fn apply_at(
     path_info: &Path,
     on_error: &mut (dyn FnMut(Error) -> Result<(), Error> + Send),
 ) -> Result<(), Error> {
-    let fd = proxmox::tools::fd::Fd::openat(
+    let fd = proxmox_sys::fd::Fd::openat(
         &unsafe { RawFdNum::from_raw_fd(parent) },
         file_name,
         OFlag::O_PATH | OFlag::O_CLOEXEC | OFlag::O_NOFOLLOW,

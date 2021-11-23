@@ -51,7 +51,8 @@ impl std::str::FromStr for Fingerprint {
     fn from_str(s: &str) -> Result<Self, Error> {
         let mut tmp = s.to_string();
         tmp.retain(|c| c != ':');
-        let bytes = proxmox::tools::hex_to_digest(&tmp)?;
+        let mut bytes = [0u8; 32];
+        hex::decode_to_slice(&tmp, &mut bytes)?;
         Ok(Fingerprint::new(bytes))
     }
 }

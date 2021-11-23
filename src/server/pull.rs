@@ -110,7 +110,7 @@ async fn pull_index_chunks<I: IndexFile>(
         "sync chunk writer",
         4,
         move |(chunk, digest, size): (DataBlob, [u8; 32], u64)| {
-            // println!("verify and write {}", proxmox::tools::digest_to_hex(&digest));
+            // println!("verify and write {}", hex::encode(&digest));
             chunk.verify_unencrypted(size as usize, &digest)?;
             target2.insert_chunk(&chunk, &digest)?;
             Ok(())
@@ -133,10 +133,10 @@ async fn pull_index_chunks<I: IndexFile>(
                     target.cond_touch_chunk(&info.digest, false)
                 })?;
                 if chunk_exists {
-                    //task_log!(worker, "chunk {} exists {}", pos, proxmox::tools::digest_to_hex(digest));
+                    //task_log!(worker, "chunk {} exists {}", pos, hex::encode(digest));
                     return Ok::<_, Error>(());
                 }
-                //task_log!(worker, "sync {} chunk {}", pos, proxmox::tools::digest_to_hex(digest));
+                //task_log!(worker, "sync {} chunk {}", pos, hex::encode(digest));
                 let chunk = chunk_reader.read_raw_chunk(&info.digest).await?;
                 let raw_size = chunk.raw_size() as usize;
 

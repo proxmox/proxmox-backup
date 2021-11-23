@@ -2,7 +2,7 @@
 
 use anyhow::{format_err, Error};
 
-use proxmox::tools::fs::{
+use proxmox_sys::fs::{
     create_path,
     CreateOptions,
 };

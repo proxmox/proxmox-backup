@@ -41,7 +41,7 @@ fn x509name_to_string(name: &openssl::x509::X509NameRef) -> Result<String, Error
 
 impl CertInfo {
     pub fn from_path(path: PathBuf) -> Result<Self, Error> {
-        Self::from_pem(&proxmox::tools::fs::file_get_contents(&path)?)
+        Self::from_pem(&proxmox_sys::fs::file_get_contents(&path)?)
             .map_err(|err| format_err!("failed to load certificate from {:?} - {}", path, err))
     }
 

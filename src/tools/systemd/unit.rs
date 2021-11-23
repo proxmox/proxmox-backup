@@ -97,7 +97,7 @@ pub fn reload_unit(unit: &str) -> Result<(), Error> {
 fn test_escape_unit() -> Result<(), Error> {
     fn test_escape(i: &str, expected: &str, is_path: bool) {
 
-        use proxmox::tools::systemd::{escape_unit, unescape_unit};
+        use proxmox_sys::systemd::{escape_unit, unescape_unit};
 
         let escaped = escape_unit(i, is_path);
         assert_eq!(escaped, expected);

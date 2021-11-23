@@ -58,7 +58,7 @@ impl NewChunksIterator {
                     };
 
                     let blob = datastore.load_chunk(&digest)?;
-                    //println!("LOAD CHUNK {}", proxmox::tools::digest_to_hex(&digest));
+                    //println!("LOAD CHUNK {}", hex::encode(&digest));
                     match tx.send(Ok(Some((digest, blob)))) {
                         Ok(()) => {},
                         Err(err) => {

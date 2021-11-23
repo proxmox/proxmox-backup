@@ -3,7 +3,7 @@ use std::path::Path;
 use anyhow::{format_err, Error};
 use once_cell::sync::OnceCell;
 
-use proxmox::tools::fs::CreateOptions;
+use proxmox_sys::fs::CreateOptions;
 use proxmox_rrd::RRDCache;
 use proxmox_rrd::rrd::{RRD, DST, CF};
 

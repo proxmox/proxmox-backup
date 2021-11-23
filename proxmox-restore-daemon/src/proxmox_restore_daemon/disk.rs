@@ -9,11 +9,11 @@ use anyhow::{bail, format_err, Error};
 use lazy_static::lazy_static;
 use log::{info, warn};
 
-use proxmox::tools::fs;
+use proxmox_sys::fs;
+use proxmox_sys::command::run_command;
 use proxmox_schema::const_regex;
 
 use pbs_api_types::BLOCKDEVICE_NAME_REGEX;
-use pbs_tools::run_command;
 
 const_regex! {
     VIRTIO_PART_REGEX = r"^vd[a-z]+(\d+)$";
@@ -371,7 +371,7 @@ impl DiskState {
 
         // create mapping for virtio drives and .fidx files (via serial description)
         // note: disks::DiskManager relies on udev, which we don't have
-        for entry in pbs_tools::fs::scan_subdir(
+        for entry in proxmox_sys::fs::scan_subdir(
             libc::AT_FDCWD,
             "/sys/block",
             &BLOCKDEVICE_NAME_REGEX,
@@ -416,7 +416,7 @@ impl DiskState {
             }
 
             let mut parts = Vec::new();
-            for entry in pbs_tools::fs::scan_subdir(
+            for entry in proxmox_sys::fs::scan_subdir(
                 libc::AT_FDCWD,
                 sys_path,
                 &VIRTIO_PART_REGEX,

@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use anyhow::{Error, bail, format_err};
 use apt_pkg_native::Cache;
 
-use proxmox::tools::fs::{file_read_optional_string, replace_file, CreateOptions};
+use proxmox_sys::fs::{file_read_optional_string, replace_file, CreateOptions};
 use proxmox_schema::const_regex;
 
 use pbs_buildcfg::PROXMOX_BACKUP_STATE_DIR_M;
@@ -102,7 +102,7 @@ fn get_changelog_url(
         command.arg("changelog");
         command.arg("--print-uris");
         command.arg(package);
-        let output = pbs_tools::run_command(command, None)?; // format: 'http://foo/bar' package.changelog
+        let output = proxmox_sys::command::run_command(command, None)?; // format: 'http://foo/bar' package.changelog
         let output = match output.splitn(2, ' ').next() {
             Some(output) => {
                 if output.len() < 2 {

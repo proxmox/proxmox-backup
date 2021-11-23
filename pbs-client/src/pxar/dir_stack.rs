@@ -7,8 +7,8 @@ use nix::dir::Dir;
 use nix::fcntl::OFlag;
 use nix::sys::stat::{mkdirat, Mode};
 
-use proxmox::sys::error::SysError;
-use proxmox::tools::fd::BorrowedFd;
+use proxmox_sys::error::SysError;
+use proxmox_sys::fd::BorrowedFd;
 use pxar::Metadata;
 
 use crate::pxar::tools::{assert_single_path_component, perms_from_metadata};

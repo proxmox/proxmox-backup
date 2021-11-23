@@ -27,7 +27,7 @@ fn rate_test(name: &str, bench: &dyn Fn() -> usize) {
 
 fn main() -> Result<(), Error> {
 
-    let input = proxmox::sys::linux::random_data(1024*1024)?;
+    let input = proxmox_sys::linux::random_data(1024*1024)?;
 
     rate_test("crc32", &|| {
         let mut crchasher = crc32fast::Hasher::new();
@@ -46,9 +46,9 @@ fn main() -> Result<(), Error> {
         input.len()
     });
 
-    let key = proxmox::sys::linux::random_data(32)?;
+    let key = proxmox_sys::linux::random_data(32)?;
 
-    let iv = proxmox::sys::linux::random_data(16)?;
+    let iv = proxmox_sys::linux::random_data(16)?;
 
     let cipher =  openssl::symm::Cipher::aes_256_gcm();
 

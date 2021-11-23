@@ -3,7 +3,7 @@ use serde_json::Value;
 
 use proxmox_router::{cli::*, ApiHandler, RpcEnvironment};
 use proxmox_schema::api;
-use proxmox::sys::linux::tty;
+use proxmox_sys::linux::tty;
 
 use pbs_api_types::{
     Fingerprint, Kdf, DRIVE_NAME_SCHEMA, TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,

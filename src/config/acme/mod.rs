@@ -5,8 +5,8 @@ use std::path::Path;
 use anyhow::{bail, format_err, Error};
 use serde_json::Value;
 
-use proxmox::sys::error::SysError;
-use proxmox::tools::fs::{CreateOptions, file_read_string};
+use proxmox_sys::error::SysError;
+use proxmox_sys::fs::{CreateOptions, file_read_string};
 
 use pbs_api_types::PROXMOX_SAFE_ID_REGEX;
 
@@ -32,7 +32,7 @@ fn root_only() -> CreateOptions {
 }
 
 fn create_acme_subdir(dir: &str) -> nix::Result<()> {
-    match proxmox::tools::fs::create_dir(dir, root_only()) {
+    match proxmox_sys::fs::create_dir(dir, root_only()) {
         Ok(()) => Ok(()),
         Err(err) if err.already_exists() => Ok(()),
         Err(err) => Err(err),
@@ -70,7 +70,7 @@ pub fn foreach_acme_account<F>(mut func: F) -> Result<(), Error>
 where
     F: FnMut(AcmeAccountName) -> ControlFlow<Result<(), Error>>,
 {
-    match pbs_tools::fs::scan_subdir(-1, ACME_ACCOUNT_DIR, &PROXMOX_SAFE_ID_REGEX) {
+    match proxmox_sys::fs::scan_subdir(-1, ACME_ACCOUNT_DIR, &PROXMOX_SAFE_ID_REGEX) {
         Ok(files) => {
             for file in files {
                 let file = file?;

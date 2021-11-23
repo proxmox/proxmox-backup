@@ -175,7 +175,7 @@ fn decode_mam_attributes(data: &[u8]) -> Result<Vec<MamAttribute>, Error> {
                             unreachable!();
                         }
                     },
-                    MamFormat::BINARY => proxmox::tools::digest_to_hex(&data),
+                    MamFormat::BINARY => hex::encode(&data),
                 };
                 list.push(MamAttribute {
                     id: head_id,

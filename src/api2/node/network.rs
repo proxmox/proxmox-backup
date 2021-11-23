@@ -1,6 +1,7 @@
 use anyhow::{Error, bail};
 use serde_json::{Value, to_value};
 use ::serde::{Deserialize, Serialize};
+use hex::FromHex;
 
 use proxmox_router::{ApiMethod, Router, RpcEnvironment, Permission};
 use proxmox_schema::{api, parse_property_string};
@@ -92,7 +93,7 @@ pub fn list_network_devices(
 ) -> Result<Value, Error> {
 
     let (config, digest) = network::config()?;
-    let digest = proxmox::tools::digest_to_hex(&digest);
+    let digest = hex::encode(&digest);
 
     let mut list = Vec::new();
 
@@ -136,7 +137,7 @@ pub fn read_interface(iface: String) -> Result<Value, Error> {
     let interface = config.lookup(&iface)?;
 
     let mut data: Value = to_value(interface)?;
-    data["digest"] = proxmox::tools::digest_to_hex(&digest).into();
+    data["digest"] = hex::encode(&digest).into();
 
     Ok(data)
 }
@@ -528,7 +529,7 @@ pub fn update_interface(
     let (mut config, expected_digest) = network::config()?;
 
     if let Some(ref digest) = digest {
-        let digest = proxmox::tools::hex_to_digest(digest)?;
+        let digest = <[u8; 32]>::from_hex(digest)?;
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 
@@ -668,7 +669,7 @@ pub fn delete_interface(iface: String, digest: Option<String>) -> Result<(), Err
     let (mut config, expected_digest) = network::config()?;
 
     if let Some(ref digest) = digest {
-        let digest = proxmox::tools::hex_to_digest(digest)?;
+        let digest = <[u8; 32]>::from_hex(digest)?;
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 

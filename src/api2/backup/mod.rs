@@ -6,8 +6,9 @@ use hyper::header::{HeaderValue, UPGRADE};
 use hyper::http::request::Parts;
 use hyper::{Body, Response, Request, StatusCode};
 use serde_json::{json, Value};
+use hex::FromHex;
 
-use proxmox::{sortable, identity};
+use proxmox_sys::{sortable, identity};
 use proxmox_router::list_subdirs_api_method;
 use proxmox_router::{
     ApiResponseFuture, ApiHandler, ApiMethod, Router, RpcEnvironment, SubdirMap, Permission,
@@ -19,7 +20,7 @@ use pbs_api_types::{
     BACKUP_ID_SCHEMA, BACKUP_TIME_SCHEMA, BACKUP_TYPE_SCHEMA, DATASTORE_SCHEMA,
     CHUNK_DIGEST_SCHEMA, PRIV_DATASTORE_BACKUP, BACKUP_ARCHIVE_NAME_SCHEMA,
 };
-use pbs_tools::fs::lock_dir_noblock_shared;
+use proxmox_sys::fs::lock_dir_noblock_shared;
 use pbs_tools::json::{required_array_param, required_integer_param, required_string_param};
 use pbs_config::CachedUserInfo;
 use pbs_datastore::{DataStore, PROXMOX_BACKUP_PROTOCOL_ID_V1};
@@ -433,7 +434,7 @@ fn create_fixed_index(
         };
 
         let (old_csum, _) = index.compute_csum();
-        let old_csum = proxmox::tools::digest_to_hex(&old_csum);
+        let old_csum = hex::encode(&old_csum);
         if old_csum != csum {
             bail!("expected csum ({}) doesn't match last backup's ({}), cannot do incremental backup",
                 csum, old_csum);
@@ -508,7 +509,7 @@ fn dynamic_append (
 
     for (i, item) in digest_list.iter().enumerate() {
         let digest_str = item.as_str().unwrap();
-        let digest = proxmox::tools::hex_to_digest(digest_str)?;
+        let digest = <[u8; 32]>::from_hex(digest_str)?;
         let offset = offset_list[i].as_u64().unwrap();
         let size = env.lookup_chunk(&digest).ok_or_else(|| format_err!("no such chunk {}", digest_str))?;
 
@@ -573,7 +574,7 @@ fn fixed_append (
 
     for (i, item) in digest_list.iter().enumerate() {
         let digest_str = item.as_str().unwrap();
-        let digest = proxmox::tools::hex_to_digest(digest_str)?;
+        let digest = <[u8; 32]>::from_hex(digest_str)?;
         let offset = offset_list[i].as_u64().unwrap();
         let size = env.lookup_chunk(&digest).ok_or_else(|| format_err!("no such chunk {}", digest_str))?;
 
@@ -628,7 +629,7 @@ fn close_dynamic_index (
     let chunk_count = required_integer_param(&param, "chunk-count")? as u64;
     let size = required_integer_param(&param, "size")? as u64;
     let csum_str = required_string_param(&param, "csum")?;
-    let csum = proxmox::tools::hex_to_digest(csum_str)?;
+    let csum = <[u8; 32]>::from_hex(csum_str)?;
 
     let env: &BackupEnvironment = rpcenv.as_ref();
 
@@ -682,7 +683,7 @@ fn close_fixed_index (
     let chunk_count = required_integer_param(&param, "chunk-count")? as u64;
     let size = required_integer_param(&param, "size")? as u64;
     let csum_str = required_string_param(&param, "csum")?;
-    let csum = proxmox::tools::hex_to_digest(csum_str)?;
+    let csum = <[u8; 32]>::from_hex(csum_str)?;
 
     let env: &BackupEnvironment = rpcenv.as_ref();
 

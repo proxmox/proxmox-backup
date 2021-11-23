@@ -9,13 +9,13 @@ use std::time::Duration;
 use anyhow::{bail, format_err, Error};
 use lazy_static::lazy_static;
 
-use proxmox::tools::fs::{replace_file, file_read_optional_string, CreateOptions};
+use proxmox_sys::fs::{replace_file, file_read_optional_string, CreateOptions};
 use proxmox_sys::process_locker::ProcessLockSharedGuard;
-use proxmox_sys::worker_task_context::WorkerTaskContext;
+use proxmox_sys::WorkerTaskContext;
 use proxmox_sys::{task_log, task_warn};
+use proxmox_sys::fs::{lock_dir_noblock, DirLockGuard};
 
 use pbs_api_types::{UPID, DataStoreConfig, Authid, GarbageCollectionStatus, HumanByte};
-use pbs_tools::fs::{lock_dir_noblock, DirLockGuard};
 use pbs_config::{open_backup_lockfile, BackupLockGuard};
 
 use crate::DataBlob;
@@ -127,7 +127,7 @@ impl DataStore {
     pub fn get_chunk_iterator(
         &self,
     ) -> Result<
-        impl Iterator<Item = (Result<pbs_tools::fs::ReadDirEntry, Error>, usize, bool)>,
+        impl Iterator<Item = (Result<proxmox_sys::fs::ReadDirEntry, Error>, usize, bool)>,
         Error
     > {
         self.chunk_store.get_chunk_iterator()
@@ -199,7 +199,7 @@ impl DataStore {
                 map_err(|err| {
                     format_err!(
                         "fast_index_verification error, stat_chunk {} failed - {}",
-                        proxmox::tools::digest_to_hex(&info.digest),
+                        hex::encode(&info.digest),
                         err,
                     )
                 })?;
@@ -232,7 +232,7 @@ impl DataStore {
         wanted_files.insert(CLIENT_LOG_BLOB_NAME.to_string());
         manifest.files().iter().for_each(|item| { wanted_files.insert(item.filename.clone()); });
 
-        for item in pbs_tools::fs::read_subdir(libc::AT_FDCWD, &full_path)? {
+        for item in proxmox_sys::fs::read_subdir(libc::AT_FDCWD, &full_path)? {
             if let Ok(item) = item {
                 if let Some(file_type) = item.file_type() {
                     if file_type != nix::dir::Type::File { continue; }
@@ -272,7 +272,7 @@ impl DataStore {
 
         let full_path = self.group_path(backup_group);
 
-        let _guard = pbs_tools::fs::lock_dir_noblock(&full_path, "backup group", "possible running backup")?;
+        let _guard = proxmox_sys::fs::lock_dir_noblock(&full_path, "backup group", "possible running backup")?;
 
         log::info!("removing backup group {:?}", full_path);
 
@@ -358,7 +358,7 @@ impl DataStore {
         let mut full_path = self.base_path();
         full_path.push(backup_group.group_path());
         full_path.push("owner");
-        let owner = proxmox::tools::fs::file_read_firstline(full_path)?;
+        let owner = proxmox_sys::fs::file_read_firstline(full_path)?;
         Ok(owner.trim_end().parse()?) // remove trailing newline
     }
 
@@ -525,7 +525,7 @@ impl DataStore {
                 task_warn!(
                     worker,
                     "warning: unable to access non-existent chunk {}, required by {:?}",
-                    proxmox::tools::digest_to_hex(digest),
+                    hex::encode(digest),
                     file_name,
                 );
 

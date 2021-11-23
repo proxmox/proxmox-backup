@@ -4,6 +4,7 @@ use anyhow::{bail, format_err, Error};
 use serde::{Serialize, Deserialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
+use hex::FromHex;
 
 use proxmox_router::{ApiMethod, Router, RpcEnvironment, SubdirMap, Permission};
 use proxmox_schema::api;
@@ -80,7 +81,7 @@ pub fn list_users(
 
     let list:Vec<User> = config.convert_to_typed_array("user")?;
 
-    rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
+    rpcenv["digest"] = hex::encode(&digest).into();
 
     let iter = list.into_iter().filter(filter_by_privs);
     let list = if include_tokens {
@@ -187,7 +188,7 @@ pub fn create_user(
 pub fn read_user(userid: Userid, mut rpcenv: &mut dyn RpcEnvironment) -> Result<User, Error> {
     let (config, digest) = pbs_config::user::config()?;
     let user = config.lookup("user", userid.as_str())?;
-    rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
+    rpcenv["digest"] = hex::encode(&digest).into();
     Ok(user)
 }
 
@@ -258,7 +259,7 @@ pub fn update_user(
     let (mut config, expected_digest) = pbs_config::user::config()?;
 
     if let Some(ref digest) = digest {
-        let digest = proxmox::tools::hex_to_digest(digest)?;
+        let digest = <[u8; 32]>::from_hex(digest)?;
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 
@@ -351,7 +352,7 @@ pub fn delete_user(userid: Userid, digest: Option<String>) -> Result<(), Error> 
     let (mut config, expected_digest) = pbs_config::user::config()?;
 
     if let Some(ref digest) = digest {
-        let digest = proxmox::tools::hex_to_digest(digest)?;
+        let digest = <[u8; 32]>::from_hex(digest)?;
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 
@@ -421,7 +422,7 @@ pub fn read_token(
 
     let tokenid = Authid::from((userid, Some(token_name)));
 
-    rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
+    rpcenv["digest"] = hex::encode(&digest).into();
     config.lookup("token", &tokenid.to_string())
 }
 
@@ -488,7 +489,7 @@ pub fn generate_token(
     let (mut config, expected_digest) = pbs_config::user::config()?;
 
     if let Some(ref digest) = digest {
-        let digest = proxmox::tools::hex_to_digest(digest)?;
+        let digest = <[u8; 32]>::from_hex(digest)?;
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 
@@ -569,7 +570,7 @@ pub fn update_token(
     let (mut config, expected_digest) = pbs_config::user::config()?;
 
     if let Some(ref digest) = digest {
-        let digest = proxmox::tools::hex_to_digest(digest)?;
+        let digest = <[u8; 32]>::from_hex(digest)?;
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 
@@ -637,7 +638,7 @@ pub fn delete_token(
     let (mut config, expected_digest) = pbs_config::user::config()?;
 
     if let Some(ref digest) = digest {
-        let digest = proxmox::tools::hex_to_digest(digest)?;
+        let digest = <[u8; 32]>::from_hex(digest)?;
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 
@@ -703,7 +704,7 @@ pub fn list_tokens(
 
     let list:Vec<ApiToken> = config.convert_to_typed_array("token")?;
 
-    rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
+    rpcenv["digest"] = hex::encode(&digest).into();
 
     let filter_by_owner = |token: ApiToken| {
         if token.tokenid.is_token() && token.tokenid.user() == &userid {

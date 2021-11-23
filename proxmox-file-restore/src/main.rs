@@ -6,7 +6,7 @@ use std::sync::Arc;
 use anyhow::{bail, format_err, Error};
 use serde_json::{json, Value};
 
-use proxmox::tools::fs::{create_path, CreateOptions};
+use proxmox_sys::fs::{create_path, CreateOptions};
 use proxmox_router::cli::{
     complete_file_name, default_table_format_options,
     format_and_print_result_full, get_output_format,

@@ -7,8 +7,9 @@ use futures::*;
 use hyper::Body;
 use hyper::http::request::Parts;
 use serde_json::{json, Value};
+use hex::FromHex;
 
-use proxmox::{sortable, identity};
+use proxmox_sys::{sortable, identity};
 use proxmox_router::{ApiResponseFuture, ApiHandler, ApiMethod, RpcEnvironment};
 use proxmox_schema::*;
 
@@ -127,7 +128,7 @@ fn upload_fixed_chunk(
         let encoded_size = required_integer_param(&param, "encoded-size")? as u32;
 
         let digest_str = required_string_param(&param, "digest")?;
-        let digest = proxmox::tools::hex_to_digest(digest_str)?;
+        let digest = <[u8; 32]>::from_hex(digest_str)?;
 
         let env: &BackupEnvironment = rpcenv.as_ref();
 
@@ -135,7 +136,7 @@ fn upload_fixed_chunk(
             UploadChunk::new(req_body, env.datastore.clone(), digest, size, encoded_size).await?;
 
         env.register_fixed_chunk(wid, digest, size, compressed_size, is_duplicate)?;
-        let digest_str = proxmox::tools::digest_to_hex(&digest);
+        let digest_str = hex::encode(&digest);
         env.debug(format!("upload_chunk done: {} bytes, {}", size, digest_str));
 
         let result = Ok(json!(digest_str));
@@ -185,7 +186,7 @@ fn upload_dynamic_chunk(
         let encoded_size = required_integer_param(&param, "encoded-size")? as u32;
 
         let digest_str = required_string_param(&param, "digest")?;
-        let digest = proxmox::tools::hex_to_digest(digest_str)?;
+        let digest = <[u8; 32]>::from_hex(digest_str)?;
 
         let env: &BackupEnvironment = rpcenv.as_ref();
 
@@ -194,7 +195,7 @@ fn upload_dynamic_chunk(
             .await?;
 
         env.register_dynamic_chunk(wid, digest, size, compressed_size, is_duplicate)?;
-        let digest_str = proxmox::tools::digest_to_hex(&digest);
+        let digest_str = hex::encode(&digest);
         env.debug(format!("upload_chunk done: {} bytes, {}", size, digest_str));
 
         let result = Ok(json!(digest_str));

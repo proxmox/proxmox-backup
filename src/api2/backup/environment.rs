@@ -6,8 +6,7 @@ use nix::dir::Dir;
 use ::serde::{Serialize};
 use serde_json::{json, Value};
 
-use proxmox::tools::digest_to_hex;
-use proxmox::tools::fs::{replace_file, CreateOptions};
+use proxmox_sys::fs::{replace_file, CreateOptions};
 use proxmox_router::{RpcEnvironment, RpcEnvironmentType};
 
 use pbs_datastore::{DataStore, DataBlob};
@@ -331,8 +330,8 @@ impl BackupEnvironment {
 
     fn log_upload_stat(&self, archive_name:  &str, csum: &[u8; 32], uuid: &[u8; 16], size: u64, chunk_count: u64, upload_stat: &UploadStatistic) {
         self.log(format!("Upload statistics for '{}'", archive_name));
-        self.log(format!("UUID: {}", digest_to_hex(uuid)));
-        self.log(format!("Checksum: {}", digest_to_hex(csum)));
+        self.log(format!("UUID: {}", hex::encode(uuid)));
+        self.log(format!("Checksum: {}", hex::encode(csum)));
         self.log(format!("Size: {}", size));
         self.log(format!("Chunk count: {}", chunk_count));
 

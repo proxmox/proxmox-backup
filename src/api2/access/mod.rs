@@ -6,7 +6,7 @@ use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-use proxmox::{identity, sortable};
+use proxmox_sys::{identity, sortable};
 use proxmox_router::{
     http_err, list_subdirs_api_method, Router, RpcEnvironment, SubdirMap, Permission,
 };

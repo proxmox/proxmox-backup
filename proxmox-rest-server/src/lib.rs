@@ -25,9 +25,9 @@ use hyper::{Body, Response, Method};
 use http::request::Parts;
 use http::HeaderMap;
 
-use proxmox::tools::fd::Fd;
-use proxmox::sys::linux::procfs::PidStat;
-use proxmox::tools::fs::CreateOptions;
+use proxmox_sys::fd::Fd;
+use proxmox_sys::linux::procfs::PidStat;
+use proxmox_sys::fs::CreateOptions;
 use proxmox_router::UserInformation;
 
 mod compression;
@@ -117,12 +117,12 @@ pub(crate) fn pstart() -> u64 {
 /// Helper to write the PID into a file
 pub fn write_pid(pid_fn: &str) -> Result<(), Error> {
     let pid_str = format!("{}\n", *PID);
-    proxmox::tools::fs::replace_file(pid_fn, pid_str.as_bytes(), CreateOptions::new(), false)
+    proxmox_sys::fs::replace_file(pid_fn, pid_str.as_bytes(), CreateOptions::new(), false)
 }
 
 /// Helper to read the PID from a file
 pub fn read_pid(pid_fn: &str) -> Result<i32, Error> {
-    let pid = proxmox::tools::fs::file_get_contents(pid_fn)?;
+    let pid = proxmox_sys::fs::file_get_contents(pid_fn)?;
     let pid = std::str::from_utf8(&pid)?.trim();
     pid.parse().map_err(|err| format_err!("could not parse pid - {}", err))
 }

@@ -23,7 +23,7 @@ use pbs_api_types::{
     Fingerprint, MamAttribute, LtoDriveAndMediaStatus, LtoTapeDrive, Lp17VolumeStatistics,
 };
 use pbs_config::key_config::KeyConfig;
-use pbs_tools::run_command;
+use proxmox_sys::command::run_command;
 use pbs_tape::{
     TapeWrite, TapeRead, BlockReadError, MediaContentHeader,
     sg_tape::{SgTape, TapeAlertFlags},

@@ -7,7 +7,7 @@
 use anyhow::Error;
 use serde_json::Value;
 
-use proxmox::tools::fs::{create_path, CreateOptions};
+use proxmox_sys::fs::{create_path, CreateOptions};
 
 use pbs_buildcfg;
 

@@ -9,8 +9,8 @@ use ::serde::{Deserialize, Serialize};
 
 use proxmox_router::{ApiMethod, Router, RpcEnvironment, Permission};
 use proxmox_schema::api;
-use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
-use proxmox::{IPRE, IPV4RE, IPV6RE, IPV4OCTET, IPV6H16, IPV6LS32};
+use proxmox_sys::fs::{file_get_contents, replace_file, CreateOptions};
+use pbs_api_types::{IPRE, IPV4RE, IPV6RE, IPV4OCTET, IPV6H16, IPV6LS32};
 
 use pbs_api_types::{
     PROXMOX_CONFIG_DIGEST_SCHEMA, FIRST_DNS_SERVER_SCHEMA, SECOND_DNS_SERVER_SCHEMA,
@@ -41,7 +41,7 @@ pub fn read_etc_resolv_conf() -> Result<Value, Error> {
 
     let raw = file_get_contents(RESOLV_CONF_FN)?;
 
-    result["digest"] = Value::from(proxmox::tools::digest_to_hex(&sha::sha256(&raw)));
+    result["digest"] = Value::from(hex::encode(&sha::sha256(&raw)));
 
     let data = String::from_utf8(raw)?;
 

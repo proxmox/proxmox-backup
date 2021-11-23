@@ -11,7 +11,7 @@ use proxmox_router::cli::{run_cli_command, complete_file_name, CliCommand, CliCo
 use proxmox_schema::{api, parse_property_string};
 use proxmox_schema::{ApiStringFormat, ApiType, IntegerSchema, Schema, StringSchema};
 
-use proxmox::tools::fs::CreateOptions;
+use proxmox_sys::fs::CreateOptions;
 
 use proxmox_rrd::rrd::{CF, DST, RRA, RRD};
 

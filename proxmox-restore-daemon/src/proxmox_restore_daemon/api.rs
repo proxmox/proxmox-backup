@@ -13,18 +13,18 @@ use serde_json::Value;
 use tokio::sync::Semaphore;
 
 use pathpatterns::{MatchEntry, MatchPattern, MatchType, Pattern};
-use proxmox::{identity, sortable};
 use proxmox_router::{
     list_subdirs_api_method,
     ApiHandler, ApiMethod, ApiResponseFuture, Permission, Router, RpcEnvironment, SubdirMap,
 };
 use proxmox_schema::*;
 use proxmox_async::zip::zip_directory;
+use proxmox_sys::fs::read_subdir;
+use proxmox_sys::{identity, sortable};
 
 use pbs_api_types::file_restore::RestoreDaemonStatus;
 use pbs_client::pxar::{create_archive, Flags, PxarCreateOptions, ENCODER_MAX_ENTRIES};
 use pbs_datastore::catalog::{ArchiveEntry, DirEntryAttribute};
-use pbs_tools::fs::read_subdir;
 use pbs_tools::json::required_string_param;
 
 use pxar::encoder::aio::TokioWriter;

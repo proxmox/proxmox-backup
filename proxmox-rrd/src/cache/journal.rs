@@ -10,7 +10,7 @@ use anyhow::{bail, format_err, Error};
 use nix::fcntl::OFlag;
 use crossbeam_channel::Receiver;
 
-use proxmox::tools::fs::atomic_open_or_create_file;
+use proxmox_sys::fs::atomic_open_or_create_file;
 
 const RRD_JOURNAL_NAME: &str = "rrd.journal";
 

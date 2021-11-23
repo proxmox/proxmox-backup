@@ -26,11 +26,11 @@ tokio-util = { version = "0.6", features = [ "codec", "io" ] }
 pathpatterns = "0.1.2"
 pxar = { version = "0.10.1", features = [ "tokio-io" ] }
 
-proxmox = { version = "0.15.3", features = [ "sortable-macro" ] }
-proxmox-async = "0.2"
+proxmox-async = "0.3"
 proxmox-router = { version = "1.1", features = [ "cli" ] }
 proxmox-schema = { version = "1", features = [ "api-macro" ] }
 proxmox-time = "1"
+proxmox-sys = { version = "0.2",  features = [ "sortable-macro" ] }
 
 pbs-api-types = { path = "../pbs-api-types" }
 pbs-tools = { path = "../pbs-tools" }

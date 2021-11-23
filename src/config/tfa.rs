@@ -7,8 +7,8 @@ use std::path::PathBuf;
 use anyhow::{bail, format_err, Error};
 use nix::sys::stat::Mode;
 
-use proxmox::sys::error::SysError;
-use proxmox::tools::fs::CreateOptions;
+use proxmox_sys::error::SysError;
+use proxmox_sys::fs::CreateOptions;
 use proxmox_tfa::totp::Totp;
 
 pub use proxmox_tfa::api::{
@@ -68,7 +68,7 @@ pub fn write(data: &TfaConfig) -> Result<(), Error> {
     let options = CreateOptions::new().perm(Mode::from_bits_truncate(0o0600));
 
     let json = serde_json::to_vec(data)?;
-    proxmox::tools::fs::replace_file(CONF_FILE, &json, options, true)
+    proxmox_sys::fs::replace_file(CONF_FILE, &json, options, true)
 }
 
 /// Cleanup non-existent users from the tfa config.
@@ -101,7 +101,7 @@ impl TfaUserChallengeData {
             );
         }
 
-        proxmox::c_try!(unsafe { libc::ftruncate(self.lock.as_raw_fd(), 0) });
+        proxmox_sys::c_try!(unsafe { libc::ftruncate(self.lock.as_raw_fd(), 0) });
 
         Ok(())
     }
@@ -224,7 +224,7 @@ impl proxmox_tfa::api::OpenUserChallengeData for UserAccess {
     fn open(&self, userid: &str) -> Result<Self::Data, Error> {
         crate::server::create_run_dir()?;
         let options = CreateOptions::new().perm(Mode::from_bits_truncate(0o0600));
-        proxmox::tools::fs::create_path(CHALLENGE_DATA_PATH, Some(options.clone()), Some(options))
+        proxmox_sys::fs::create_path(CHALLENGE_DATA_PATH, Some(options.clone()), Some(options))
             .map_err(|err| {
                 format_err!(
                     "failed to crate challenge data dir {:?}: {}",
@@ -244,7 +244,7 @@ impl proxmox_tfa::api::OpenUserChallengeData for UserAccess {
             .open(&path)
             .map_err(|err| format_err!("failed to create challenge file {:?}: {}", path, err))?;
 
-        proxmox::tools::fs::lock_file(&mut file, true, None)?;
+        proxmox_sys::fs::lock_file(&mut file, true, None)?;
 
         // the file may be empty, so read to a temporary buffer first:
         let mut data = Vec::with_capacity(4096);
@@ -291,7 +291,7 @@ impl proxmox_tfa::api::OpenUserChallengeData for UserAccess {
             Err(err) => return Err(err.into()),
         };
 
-        proxmox::tools::fs::lock_file(&mut file, true, None)?;
+        proxmox_sys::fs::lock_file(&mut file, true, None)?;
 
         let inner = serde_json::from_reader(&mut file).map_err(|err| {
             format_err!("failed to read challenge data for user {}: {}", userid, err)

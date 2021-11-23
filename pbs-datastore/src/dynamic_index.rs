@@ -9,7 +9,7 @@ use std::task::Context;
 
 use anyhow::{bail, format_err, Error};
 
-use proxmox::tools::mmap::Mmap;
+use proxmox_sys::mmap::Mmap;
 use proxmox_io::ReadExt;
 use proxmox_uuid::Uuid;
 use proxmox_sys::process_locker::ProcessLockSharedGuard;
@@ -467,7 +467,7 @@ impl DynamicChunkWriter {
                     chunk_size,
                     (compressed_size * 100) / (chunk_size as u64),
                     is_duplicate,
-                    proxmox::tools::digest_to_hex(&digest)
+                    hex::encode(&digest)
                 );
                 self.index.add_chunk(self.chunk_offset as u64, &digest)?;
                 self.chunk_buffer.truncate(0);

@@ -1,6 +1,7 @@
 use anyhow::{bail, Error};
 use ::serde::{Deserialize, Serialize};
 use serde_json::Value;
+use hex::FromHex;
 
 use proxmox_router::{Router, RpcEnvironment, Permission};
 use proxmox_schema::api;
@@ -82,7 +83,7 @@ pub fn get_config(
 
     let data: LtoTapeDrive = config.lookup("lto", &name)?;
 
-    rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
+    rpcenv["digest"] = hex::encode(&digest).into();
 
     Ok(data)
 }
@@ -123,7 +124,7 @@ pub fn list_drives(
         })
         .collect();
 
-    rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
+    rpcenv["digest"] = hex::encode(&digest).into();
 
     Ok(drive_list)
 }
@@ -183,7 +184,7 @@ pub fn update_drive(
     let (mut config, expected_digest) = pbs_config::drive::config()?;
 
     if let Some(ref digest) = digest {
-        let digest = proxmox::tools::hex_to_digest(digest)?;
+        let digest = <[u8; 32]>::from_hex(digest)?;
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 

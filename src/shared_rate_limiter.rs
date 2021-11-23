@@ -5,7 +5,7 @@ use std::time::{Instant, Duration};
 use anyhow::{bail, Error};
 use nix::sys::stat::Mode;
 
-use proxmox::tools::fs::{create_path, CreateOptions};
+use proxmox_sys::fs::{create_path, CreateOptions};
 
 use proxmox_http::client::{RateLimit, RateLimiter, ShareableRateLimit};
 use proxmox_shared_memory::{Init, SharedMemory, SharedMutex};

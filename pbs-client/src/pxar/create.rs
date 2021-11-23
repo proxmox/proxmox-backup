@@ -19,14 +19,14 @@ use pathpatterns::{MatchEntry, MatchFlag, MatchList, MatchType, PatternFlag};
 use pxar::Metadata;
 use pxar::encoder::{SeqWrite, LinkOffset};
 
-use proxmox::sys::error::SysError;
-use proxmox::tools::fd::RawFdNum;
-use proxmox::tools::fd::Fd;
+use proxmox_sys::error::SysError;
+use proxmox_sys::fd::RawFdNum;
+use proxmox_sys::fd::Fd;
+use proxmox_sys::fs::{self, acl, xattr};
 use proxmox_io::vec;
 use proxmox_lang::c_str;
 
 use pbs_datastore::catalog::BackupCatalogWriter;
-use pbs_tools::{acl, fs, xattr};
 use pbs_tools::str::strip_ascii_whitespace;
 
 use crate::pxar::metadata::errno_is_unsupported;
@@ -60,7 +60,7 @@ fn detect_fs_type(fd: RawFd) -> Result<i64, Error> {
 
 #[rustfmt::skip]
 pub fn is_virtual_file_system(magic: i64) -> bool {
-    use proxmox::sys::linux::magic::*;
+    use proxmox_sys::linux::magic::*;
 
     matches!(magic, BINFMTFS_MAGIC |
         CGROUP2_SUPER_MAGIC |
@@ -855,7 +855,7 @@ fn get_chattr(metadata: &mut Metadata, fd: RawFd) -> Result<(), Error> {
 }
 
 fn get_fat_attr(metadata: &mut Metadata, fd: RawFd, fs_magic: i64) -> Result<(), Error> {
-    use proxmox::sys::linux::magic::*;
+    use proxmox_sys::linux::magic::*;
 
     if fs_magic != MSDOS_SUPER_MAGIC && fs_magic != FUSE_SUPER_MAGIC {
         return Ok(());
@@ -891,7 +891,7 @@ fn get_quota_project_id(
         return Ok(());
     }
 
-    use proxmox::sys::linux::magic::*;
+    use proxmox_sys::linux::magic::*;
 
     match magic {
         EXT4_SUPER_MAGIC | XFS_SUPER_MAGIC | FUSE_SUPER_MAGIC | ZFS_SUPER_MAGIC => (),

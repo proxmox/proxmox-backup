@@ -17,8 +17,8 @@ use tokio_stream::wrappers::ReceiverStream;
 use serde_json::{json, Value};
 use http::{Method, HeaderMap};
 
-use proxmox::sys::linux::socket::set_tcp_keepalive;
-use proxmox::tools::fs::CreateOptions;
+use proxmox_sys::linux::socket::set_tcp_keepalive;
+use proxmox_sys::fs::CreateOptions;
 use proxmox_lang::try_block;
 use proxmox_router::{RpcEnvironment, RpcEnvironmentType, UserInformation};
 use proxmox_http::client::{RateLimitedStream, ShareableRateLimit};
@@ -145,7 +145,7 @@ async fn get_index_future(
         None => (None, None),
     };
 
-    let nodename = proxmox::tools::nodename();
+    let nodename = proxmox_sys::nodename();
     let user = userid.as_ref().map(|u| u.as_str()).unwrap_or("");
 
     let csrf_token = csrf_token.unwrap_or_else(|| String::from(""));
@@ -815,7 +815,7 @@ async fn schedule_task_log_rotate() {
                 let max_files = 20; // times twenty files gives > 100000 task entries
 
                 let user = pbs_config::backup_user()?;
-                let options = proxmox::tools::fs::CreateOptions::new()
+                let options = proxmox_sys::fs::CreateOptions::new()
                     .owner(user.uid)
                     .group(user.gid);
 
@@ -949,7 +949,7 @@ async fn generate_host_stats() {
 }
 
 fn generate_host_stats_sync() {
-    use proxmox::sys::linux::procfs::{
+    use proxmox_sys::linux::procfs::{
         read_meminfo, read_proc_stat, read_proc_net_dev, read_loadavg};
 
     match read_proc_stat() {

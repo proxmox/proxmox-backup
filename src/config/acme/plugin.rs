@@ -90,7 +90,7 @@ pub struct DnsPlugin {
 
     // We handle this property separately in the API calls.
     /// DNS plugin data (base64url encoded without padding).
-    #[serde(with = "proxmox::tools::serde::string_as_base64url_nopad")]
+    #[serde(with = "proxmox_serde::string_as_base64url_nopad")]
     pub data: String,
 }
 
@@ -141,7 +141,7 @@ pub fn lock() -> Result<BackupLockGuard, Error> {
 }
 
 pub fn config() -> Result<(PluginData, [u8; 32]), Error> {
-    let content = proxmox::tools::fs::file_read_optional_string(ACME_PLUGIN_CFG_FILENAME)?
+    let content = proxmox_sys::fs::file_read_optional_string(ACME_PLUGIN_CFG_FILENAME)?
         .unwrap_or_else(|| "".to_string());
 
     let digest = openssl::sha::sha256(content.as_bytes());

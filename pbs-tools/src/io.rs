@@ -1,6 +1,6 @@
 //! I/O utilities.
 
-use proxmox::tools::fd::Fd;
+use proxmox_sys::fd::Fd;
 
 /// The `BufferedRead` trait provides a single function
 /// `buffered_read`. It returns a reference to an internal buffer. The

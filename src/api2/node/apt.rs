@@ -2,7 +2,7 @@ use anyhow::{Error, bail, format_err};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 
-use proxmox::tools::fs::{replace_file, CreateOptions};
+use proxmox_sys::fs::{replace_file, CreateOptions};
 use proxmox_router::{
     list_subdirs_api_method, RpcEnvironment, RpcEnvironmentType, Permission, Router, SubdirMap
 };
@@ -277,7 +277,7 @@ fn apt_get_changelog(
         command.arg("changelog");
         command.arg("-qq"); // don't display download progress
         command.arg(name);
-        let output = pbs_tools::run_command(command, None)?;
+        let output = proxmox_sys::command::run_command(command, None)?;
         Ok(json!(output))
     }
 }
@@ -447,7 +447,7 @@ pub fn get_versions() -> Result<Vec<APTUpdateInfo>, Error> {
 /// Get APT repository information.
 pub fn get_repositories() -> Result<Value, Error> {
     let (files, errors, digest) = proxmox_apt::repositories::repositories()?;
-    let digest = proxmox::tools::digest_to_hex(&digest);
+    let digest = hex::encode(&digest);
 
     let suite = proxmox_apt::repositories::get_current_release_codename()?;
 
@@ -493,7 +493,7 @@ pub fn add_repository(handle: APTRepositoryHandle, digest: Option<String>) -> Re
     let suite = proxmox_apt::repositories::get_current_release_codename()?;
 
     if let Some(expected_digest) = digest {
-        let current_digest = proxmox::tools::digest_to_hex(&current_digest);
+        let current_digest = hex::encode(&current_digest);
         crate::tools::assert_if_modified(&expected_digest, &current_digest)?;
     }
 
@@ -583,7 +583,7 @@ pub fn change_repository(
     let (mut files, errors, current_digest) = proxmox_apt::repositories::repositories()?;
 
     if let Some(expected_digest) = digest {
-        let current_digest = proxmox::tools::digest_to_hex(&current_digest);
+        let current_digest = hex::encode(&current_digest);
         crate::tools::assert_if_modified(&expected_digest, &current_digest)?;
     }
 

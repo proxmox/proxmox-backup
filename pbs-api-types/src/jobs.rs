@@ -365,8 +365,8 @@ impl std::fmt::Display for GroupFilter {
     }
 }
 
-proxmox::forward_deserialize_to_from_str!(GroupFilter);
-proxmox::forward_serialize_to_display!(GroupFilter);
+proxmox_serde::forward_deserialize_to_from_str!(GroupFilter);
+proxmox_serde::forward_serialize_to_display!(GroupFilter);
 
 fn verify_group_filter(input: &str) -> Result<(), anyhow::Error> {
     GroupFilter::from_str(input).map(|_| ())

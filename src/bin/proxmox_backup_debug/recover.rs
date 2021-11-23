@@ -5,7 +5,6 @@ use std::path::Path;
 use anyhow::{bail, format_err, Error};
 use serde_json::Value;
 
-use proxmox::tools::digest_to_hex;
 use proxmox_router::cli::{CliCommand, CliCommandMap, CommandLineInterface};
 use proxmox_schema::api;
 
@@ -87,7 +86,7 @@ fn recover_index(
     let mut data = Vec::with_capacity(4 * 1024 * 1024);
     for pos in 0..index.index_count() {
         let chunk_digest = index.index_digest(pos).unwrap();
-        let digest_str = digest_to_hex(chunk_digest);
+        let digest_str = hex::encode(chunk_digest);
         let digest_prefix = &digest_str[0..4];
         let chunk_path = chunks_path.join(digest_prefix).join(digest_str);
         let mut chunk_file = std::fs::File::open(&chunk_path)

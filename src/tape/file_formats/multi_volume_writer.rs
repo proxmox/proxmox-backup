@@ -53,16 +53,16 @@ impl <'a> TapeWrite for MultiVolumeWriter<'a> {
     fn write_all(&mut self, buf: &[u8]) -> Result<bool, std::io::Error> {
 
         if self.finished {
-            proxmox::io_bail!("multi-volume writer already finished: internal error");
+            proxmox_sys::io_bail!("multi-volume writer already finished: internal error");
         }
 
         if self.got_leom {
             if !self.wrote_header {
-                proxmox::io_bail!("multi-volume writer: got LEOM before writing anything - internal error");
+                proxmox_sys::io_bail!("multi-volume writer: got LEOM before writing anything - internal error");
             }
             let mut writer = match self.writer.take() {
                 Some(writer) => writer,
-                None =>  proxmox::io_bail!("multi-volume writer: no writer  -internal error"),
+                None =>  proxmox_sys::io_bail!("multi-volume writer: no writer  -internal error"),
             };
             self.bytes_written = writer.bytes_written();
             writer.finish(true)?;
@@ -70,11 +70,11 @@ impl <'a> TapeWrite for MultiVolumeWriter<'a> {
 
         if self.writer.is_none() {
             if self.header.part_number >= 255 {
-                proxmox::io_bail!("multi-volume writer: too many parts");
+                proxmox_sys::io_bail!("multi-volume writer: too many parts");
             }
             self.writer = Some(
                 (self.next_writer_fn)()
-                    .map_err(|err| proxmox::io_format_err!("multi-volume get next volume failed: {}", err))?
+                    .map_err(|err| proxmox_sys::io_format_err!("multi-volume get next volume failed: {}", err))?
             );
             self.got_leom = false;
             self.wrote_header = false;
@@ -107,12 +107,12 @@ impl <'a> TapeWrite for MultiVolumeWriter<'a> {
 
     fn finish(&mut self, incomplete: bool) -> Result<bool, std::io::Error> {
         if incomplete {
-            proxmox::io_bail!(
+            proxmox_sys::io_bail!(
                 "incomplete flag makes no sense for multi-volume stream: internal error");
         }
 
         match self.writer.take() {
-            None if self.finished => proxmox::io_bail!(
+            None if self.finished => proxmox_sys::io_bail!(
                 "multi-volume writer already finished: internal error"),
             None => Ok(false),
             Some(ref mut writer) => {

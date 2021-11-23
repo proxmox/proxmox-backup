@@ -18,5 +18,5 @@ use tokio::{
 };
 use tokio_openssl::SslStream;
 
-use proxmox::sys::linux::socket::set_tcp_keepalive;
+use proxmox_sys::linux::socket::set_tcp_keepalive;
 use proxmox_http::http::{MaybeTlsStream, ProxyConfig};

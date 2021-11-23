@@ -13,21 +13,18 @@ use serde_json::Value;
 use nix::fcntl::OFlag;
 use nix::sys::stat::Mode;
 
-use proxmox::{
-    tools::{
-        fs::{
-            lock_file,
-            atomic_open_or_create_file,
-            file_read_optional_string,
-            replace_file,
-            CreateOptions,
-       }
-    },
+use proxmox_sys::fs::{
+    lock_file,
+    atomic_open_or_create_file,
+    file_read_optional_string,
+    replace_file,
+    CreateOptions,
 };
+
 use proxmox_io::ReadExt;
 use proxmox_section_config::SectionConfigData;
 use proxmox_uuid::Uuid;
-use proxmox_sys::{task_log, worker_task_context::WorkerTaskContext};
+use proxmox_sys::{task_log, WorkerTaskContext};
 
 use pbs_api_types::{VirtualTapeDrive, LtoTapeDrive, Fingerprint};
 use pbs_config::key_config::KeyConfig;
@@ -602,7 +599,7 @@ pub struct DeviceLockGuard(std::fs::File);
 // Uses systemd escape_unit to compute a file name from `device_path`, the try
 // to lock `/var/lock/<name>`.
 fn open_device_lock(device_path: &str) -> Result<std::fs::File, Error> {
-    let lock_name = proxmox::tools::systemd::escape_unit(device_path, true);
+    let lock_name = proxmox_sys::systemd::escape_unit(device_path, true);
 
     let mut path = std::path::PathBuf::from(crate::tape::DRIVE_LOCK_DIR);
     path.push(lock_name);

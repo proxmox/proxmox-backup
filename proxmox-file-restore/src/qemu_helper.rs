@@ -11,8 +11,8 @@ use tokio::time;
 use nix::sys::signal::{kill, Signal};
 use nix::unistd::Pid;
 
-use proxmox::tools::fs::{create_path, file_read_string, make_tmp_file, CreateOptions};
-use proxmox::tools::fd::fd_change_cloexec;
+use proxmox_sys::fs::{create_path, file_read_string, make_tmp_file, CreateOptions};
+use proxmox_sys::fd::fd_change_cloexec;
 use proxmox_sys::logrotate::LogRotate;
 
 use pbs_client::{VsockClient, DEFAULT_VSOCK_PORT};

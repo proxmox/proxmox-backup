@@ -11,6 +11,7 @@ libc = "0.2"
 anyhow = "1.0"
 thiserror = "1.0"
 endian_trait = { version = "0.6", features = ["arrays"] }
+hex = "0.4.3"
 nix = "0.19.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -18,7 +19,6 @@ bitflags = "1.2.1"
 regex = "1.2"
 udev = "0.4"
 
-proxmox = "0.15.3"
 proxmox-io = "1"
 proxmox-lang = "1"
 # api-macro is only used by the binaries, so maybe we should split them out
@@ -28,6 +28,7 @@ proxmox-uuid = "1"
 
 # router::cli is only used by binaries, so maybe we should split them out
 proxmox-router = "1.1"
+proxmox-sys = "0.2"
 
 pbs-api-types = { path = "../pbs-api-types" }
 pbs-tools = { path = "../pbs-tools" }

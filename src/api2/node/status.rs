@@ -4,7 +4,7 @@ use std::path::Path;
 use anyhow::{Error, format_err, bail};
 use serde_json::Value;
 
-use proxmox::sys::linux::procfs;
+use proxmox_sys::linux::procfs;
 
 use proxmox_router::{ApiMethod, Router, RpcEnvironment, Permission};
 use proxmox_schema::api;

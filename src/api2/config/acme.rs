@@ -8,6 +8,7 @@ use anyhow::{bail, format_err, Error};
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use hex::FromHex;
 
 use proxmox_router::{
     http_bail, list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap,
@@ -520,7 +521,7 @@ fn modify_cfg_for_api(id: &str, ty: &str, data: &Value) -> PluginConfig {
 /// List ACME challenge plugins.
 pub fn list_plugins(mut rpcenv: &mut dyn RpcEnvironment) -> Result<Vec<PluginConfig>, Error> {
     let (plugins, digest) = plugin::config()?;
-    rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
+    rpcenv["digest"] = hex::encode(&digest).into();
     Ok(plugins
         .iter()
         .map(|(id, (ty, data))| modify_cfg_for_api(&id, &ty, data))
@@ -542,7 +543,7 @@ pub fn list_plugins(mut rpcenv: &mut dyn RpcEnvironment) -> Result<Vec<PluginCon
 /// List ACME challenge plugins.
 pub fn get_plugin(id: String, mut rpcenv: &mut dyn RpcEnvironment) -> Result<PluginConfig, Error> {
     let (plugins, digest) = plugin::config()?;
-    rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
+    rpcenv["digest"] = hex::encode(&digest).into();
 
     match plugins.get(&id) {
         Some((ty, data)) => Ok(modify_cfg_for_api(&id, &ty, &data)),
@@ -695,7 +696,7 @@ pub fn update_plugin(
     let (mut plugins, expected_digest) = plugin::config()?;
 
     if let Some(digest) = digest {
-        let digest = proxmox::tools::hex_to_digest(&digest)?;
+        let digest = <[u8; 32]>::from_hex(&digest)?;
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 

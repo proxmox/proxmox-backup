@@ -10,7 +10,7 @@ use http::HeaderMap;
 
 use proxmox_lang::try_block;
 use proxmox_router::{RpcEnvironmentType, UserInformation};
-use proxmox::tools::fs::CreateOptions;
+use proxmox_sys::fs::CreateOptions;
 
 use proxmox_rest_server::{daemon, AuthError, ApiConfig, RestServer, RestEnvironment, ServerAdapter};
 

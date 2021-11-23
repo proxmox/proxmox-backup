@@ -17,7 +17,7 @@ impl <W: Write> CryptWriter<W> {
 
     pub fn new(writer: W, config: Arc<CryptConfig>) -> Result<Self, Error> {
         let mut iv = [0u8; 16];
-        proxmox::sys::linux::fill_with_random_data(&mut iv)?;
+        proxmox_sys::linux::fill_with_random_data(&mut iv)?;
         let block_size = config.cipher().block_size();
 
         let crypter = config.data_crypter(&iv, openssl::symm::Mode::Encrypt)?;

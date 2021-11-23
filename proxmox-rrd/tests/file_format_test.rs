@@ -4,7 +4,7 @@ use std::process::Command;
 use anyhow::{bail, Error};
 
 use proxmox_rrd::rrd::RRD;
-use proxmox::tools::fs::CreateOptions;
+use proxmox_sys::fs::CreateOptions;
 
 fn compare_file(fn1: &str, fn2: &str) -> Result<(), Error> {
 

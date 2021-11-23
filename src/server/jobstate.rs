@@ -42,7 +42,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{bail, format_err, Error};
 use serde::{Deserialize, Serialize};
 
-use proxmox::tools::fs::{
+use proxmox_sys::fs::{
     create_path, file_read_optional_string, replace_file, CreateOptions,
 };
 

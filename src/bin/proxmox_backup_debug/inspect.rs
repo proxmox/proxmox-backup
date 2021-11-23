@@ -6,6 +6,7 @@ use std::path::Path;
 use anyhow::{bail, format_err, Error};
 use serde_json::{json, Value};
 use walkdir::WalkDir;
+use hex::FromHex;
 
 use proxmox_router::cli::{
     format_and_print_result, get_output_format, CliCommand, CliCommandMap, CommandLineInterface,
@@ -116,7 +117,7 @@ fn inspect_chunk(
 
     let digest_raw: Option<[u8; 32]> = digest
         .map(|ref d| {
-            proxmox::tools::hex_to_digest(d)
+            <[u8; 32]>::from_hex(d)
                 .map_err(|e| format_err!("could not parse chunk - {}", e))
         })
         .map_or(Ok(None), |r| r.map(Some))?;
@@ -291,7 +292,7 @@ fn inspect_file(
 
             for pos in 0..index.index_count() {
                 let digest = index.index_digest(pos).unwrap();
-                chunk_digests.insert(proxmox::tools::digest_to_hex(digest));
+                chunk_digests.insert(hex::encode(digest));
             }
 
             json!({

@@ -4,7 +4,7 @@ use anyhow::{bail, format_err, Error};
 use serde::{Serialize, Deserialize};
 use serde_json::{from_value, Value};
 
-use proxmox::tools::fs::CreateOptions;
+use proxmox_sys::fs::CreateOptions;
 
 use pbs_api_types::Authid;
 //use crate::auth;
@@ -27,7 +27,7 @@ fn lock_config() -> Result<BackupLockGuard, Error> {
 }
 
 fn read_file() -> Result<HashMap<Authid, String>, Error> {
-    let json = proxmox::tools::fs::file_get_json(CONF_FILE, Some(Value::Null))?;
+    let json = proxmox_sys::fs::file_get_json(CONF_FILE, Some(Value::Null))?;
 
     if json == Value::Null {
         Ok(HashMap::new())
@@ -45,7 +45,7 @@ fn write_file(data: HashMap<Authid, String>) -> Result<(), Error> {
         .group(backup_user.gid);
 
     let json = serde_json::to_vec(&data)?;
-    proxmox::tools::fs::replace_file(CONF_FILE, &json, options, true)
+    proxmox_sys::fs::replace_file(CONF_FILE, &json, options, true)
 }
 
 

@@ -13,7 +13,7 @@ use anyhow::{bail, format_err, Error};
 use futures::future::{self, Either};
 use nix::unistd::{fork, ForkResult};
 
-use proxmox::tools::fd::{fd_change_cloexec, Fd};
+use proxmox_sys::fd::{fd_change_cloexec, Fd};
 use proxmox_io::{ReadExt, WriteExt};
 
 // Unfortunately FnBox is nightly-only and Box<FnOnce> is unusable, so just use Box<Fn>...
@@ -129,14 +129,14 @@ impl Reloader {
                             let ident = ident.as_bytes();
                             let fd = unsafe { sd_journal_stream_fd(ident.as_ptr(), libc::LOG_INFO, 1) };
                             if fd >= 0 && fd != 1 {
-                                let fd = proxmox::tools::fd::Fd(fd); // add drop handler
+                                let fd = proxmox_sys::fd::Fd(fd); // add drop handler
                                 nix::unistd::dup2(fd.as_raw_fd(), 1)?;
                             } else {
                                 log::error!("failed to update STDOUT journal redirection ({})", fd);
                             }
                             let fd = unsafe { sd_journal_stream_fd(ident.as_ptr(), libc::LOG_ERR, 1) };
                             if fd >= 0 && fd != 2 {
-                                let fd = proxmox::tools::fd::Fd(fd); // add drop handler
+                                let fd = proxmox_sys::fd::Fd(fd); // add drop handler
                                 nix::unistd::dup2(fd.as_raw_fd(), 2)?;
                             } else {
                                 log::error!("failed to update STDERR journal redirection ({})", fd);
