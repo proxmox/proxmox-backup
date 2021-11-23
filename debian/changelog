@@ -1,3 +1,13 @@
+rust-proxmox-backup (2.1.2-1) bullseye; urgency=medium
+
+  * docs: backup-client: fix wrong reference
+
+  * docs: remotes: note that protected flags will not be synced
+
+  * sync job: correctly apply rate limit
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 23 Nov 2021 13:56:15 +0100
+
 rust-proxmox-backup (2.1.1-2) bullseye; urgency=medium
 
   * docs: update and add traffic control related screenshots
