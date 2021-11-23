@@ -672,7 +672,7 @@ ones are removed and the group will remain.
 
 .. note:: This flag will not be synced when using pull or sync jobs. If you
    want to protect a synced snapshot, you have to manually to this again on
-   the target :ref:`backup server.
+   the target backup server.
 
 .. _client_garbage-collection:
 
