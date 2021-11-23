@@ -112,6 +112,7 @@ of the specified criteria are synced. The available criteria are:
 The same filter is applied to local groups for handling of the
 ``remove-vanished`` option.
 
+.. note:: The ``protected`` flag of remote backup snapshots will not be synced.
 
 Bandwidth Limit
 ^^^^^^^^^^^^^^^
