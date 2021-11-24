@@ -16,31 +16,6 @@ pub const MANIFEST_LOCK_NAME: &str = ".index.json.lck";
 pub const CLIENT_LOG_BLOB_NAME: &str = "client.log.blob";
 pub const ENCRYPTED_KEY_BLOB_NAME: &str = "rsa-encrypted.key.blob";
 
-mod hex_csum {
-    use serde::{self, Deserialize, Serializer, Deserializer};
-    use hex::FromHex;
-
-    pub fn serialize<S>(
-        csum: &[u8; 32],
-        serializer: S,
-    ) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let s = hex::encode(csum);
-        serializer.serialize_str(&s)
-    }
-
-    pub fn deserialize<'de, D>(
-        deserializer: D,
-    ) -> Result<[u8; 32], D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let s = String::deserialize(deserializer)?;
-        <[u8; 32]>::from_hex(&s).map_err(serde::de::Error::custom)
-    }
-}
 
 fn crypt_mode_none() -> CryptMode { CryptMode::None }
 fn empty_value() -> Value { json!({}) }
@@ -52,7 +27,7 @@ pub struct FileInfo {
     #[serde(default="crypt_mode_none")] // to be compatible with < 0.8.0 backups
     pub crypt_mode: CryptMode,
     pub size: u64,
-    #[serde(with = "hex_csum")]
+    #[serde(with = "hex::serde")]
     pub csum: [u8; 32],
 }
 
