@@ -13,6 +13,7 @@ use tokio_stream::wrappers::ReceiverStream;
 use xdg::BaseDirectories;
 
 use pathpatterns::{MatchEntry, MatchType, PatternFlag};
+use proxmox_io::StdChannelWriter;
 use proxmox_sys::fs::{file_get_json, replace_file, CreateOptions, image_size};
 use proxmox_router::{ApiMethod, RpcEnvironment, cli::*};
 use proxmox_schema::api;
@@ -68,7 +69,6 @@ use pbs_datastore::manifest::{
     ENCRYPTED_KEY_BLOB_NAME, MANIFEST_BLOB_NAME, ArchiveType, BackupManifest, archive_type,
 };
 use pbs_datastore::read_chunk::AsyncReadChunk;
-use pbs_tools::sync::StdChannelWriter;
 use pbs_tools::json;
 use pbs_tools::crypt_config::CryptConfig;
 

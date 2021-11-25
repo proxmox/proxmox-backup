@@ -140,7 +140,7 @@ fn mount(
 
     // Process should be daemonized.
     // Make sure to fork before the async runtime is instantiated to avoid troubles.
-    let (pr, pw) = pbs_tools::io::pipe()?;
+    let (pr, pw) = proxmox_sys::pipe()?;
     match unsafe { fork() } {
         Ok(ForkResult::Parent { .. }) => {
             drop(pw);

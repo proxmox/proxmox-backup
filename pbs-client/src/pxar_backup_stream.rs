@@ -13,9 +13,9 @@ use nix::fcntl::OFlag;
 use nix::sys::stat::Mode;
 
 use proxmox_async::blocking::TokioWriterAdapter;
+use proxmox_io::StdChannelWriter;
 
 use pbs_datastore::catalog::CatalogWriter;
-use pbs_tools::sync::StdChannelWriter;
 
 /// Stream implementation to encode and upload .pxar archives.
 ///
