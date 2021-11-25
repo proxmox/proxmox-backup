@@ -176,7 +176,7 @@ async fn backup_directory<P: AsRef<Path>>(
     dir_path: P,
     archive_name: &str,
     chunk_size: Option<usize>,
-    catalog: Arc<Mutex<CatalogWriter<TokioWriterAdapter<StdChannelWriter>>>>,
+    catalog: Arc<Mutex<CatalogWriter<TokioWriterAdapter<StdChannelWriter<Error>>>>>,
     pxar_create_options: pbs_client::pxar::PxarCreateOptions,
     upload_options: UploadOptions,
 ) -> Result<BackupStats, Error> {
@@ -478,7 +478,7 @@ async fn start_garbage_collection(param: Value) -> Result<Value, Error> {
 }
 
 struct CatalogUploadResult {
-    catalog_writer: Arc<Mutex<CatalogWriter<TokioWriterAdapter<StdChannelWriter>>>>,
+    catalog_writer: Arc<Mutex<CatalogWriter<TokioWriterAdapter<StdChannelWriter<Error>>>>>,
     result: tokio::sync::oneshot::Receiver<Result<BackupStats, Error>>,
 }
 
