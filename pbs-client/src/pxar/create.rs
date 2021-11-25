@@ -27,7 +27,6 @@ use proxmox_io::vec;
 use proxmox_lang::c_str;
 
 use pbs_datastore::catalog::BackupCatalogWriter;
-use pbs_tools::str::strip_ascii_whitespace;
 
 use crate::pxar::metadata::errno_is_unsupported;
 use crate::pxar::Flags;
@@ -56,6 +55,17 @@ fn detect_fs_type(fd: RawFd) -> Result<i64, Error> {
     let fs_stat = unsafe { fs_stat.assume_init() };
 
     Ok(fs_stat.f_type)
+}
+
+fn strip_ascii_whitespace(line: &[u8]) -> &[u8] {
+    let line = match line.iter().position(|&b| !b.is_ascii_whitespace()) {
+        Some(n) => &line[n..],
+        None => return &[],
+    };
+    match line.iter().rev().position(|&b| !b.is_ascii_whitespace()) {
+        Some(n) => &line[..(line.len() - n)],
+        None => &[],
+    }
 }
 
 #[rustfmt::skip]

@@ -7,7 +7,6 @@ pub mod lru_cache;
 pub mod nom;
 pub mod percent_encoding;
 pub mod sha;
-pub mod str;
 pub mod sync;
 pub mod ticket;
 
