@@ -31,5 +31,4 @@ proxmox-router = "1.1"
 proxmox-sys = "0.2"
 
 pbs-api-types = { path = "../pbs-api-types" }
-pbs-tools = { path = "../pbs-tools" }
 pbs-config = { path = "../pbs-config" }
