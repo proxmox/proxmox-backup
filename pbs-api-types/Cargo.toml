@@ -22,4 +22,4 @@ proxmox-serde = "0.1"
 proxmox-time = "1.1"
 proxmox-uuid = { version = "1.0.0", features = [ "serde" ] }
 
-proxmox-sys = "0.2" # only needed foör nodename()??
+proxmox-sys = "0.2" # only needed for nodename()??
