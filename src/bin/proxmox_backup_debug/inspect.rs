@@ -1,7 +1,8 @@
 use std::collections::HashSet;
 use std::fs::File;
-use std::io::{Read, Seek, SeekFrom};
+use std::io::{stdout, Read, Seek, SeekFrom, Write};
 use std::path::Path;
+use std::panic::{RefUnwindSafe, UnwindSafe};
 
 use anyhow::{bail, format_err, Error};
 use serde_json::{json, Value};
@@ -14,7 +15,6 @@ use proxmox_router::cli::{
 };
 use proxmox_schema::api;
 
-use pbs_tools::cli::outfile_or_stdout;
 use pbs_tools::crypt_config::CryptConfig;
 use pbs_datastore::dynamic_index::DynamicIndexReader;
 use pbs_datastore::file_formats::{
@@ -27,6 +27,17 @@ use pbs_datastore::DataBlob;
 use pbs_config::key_config::load_and_decrypt_key;
 use pbs_client::tools::key_source::get_encryption_key_password;
 
+// Returns either a new file, if a path is given, or stdout, if no path is given.
+fn outfile_or_stdout<P: AsRef<Path>>(
+    path: Option<P>,
+) -> std::io::Result<Box<dyn Write + Send + Sync + Unpin + RefUnwindSafe + UnwindSafe>> {
+    if let Some(path) = path {
+        let f = File::create(path)?;
+        Ok(Box::new(f) as Box<_>)
+    } else {
+        Ok(Box::new(stdout()) as Box<_>)
+    }
+}
 
 /// Decodes a blob and writes its content either to stdout or into a file
 fn decode_blob(

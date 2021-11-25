@@ -1,5 +1,4 @@
 pub mod cert;
-pub mod cli;
 pub mod crypt_config;
 pub mod format;
 pub mod io;
