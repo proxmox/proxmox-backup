@@ -9,7 +9,6 @@ pub mod percent_encoding;
 pub mod sha;
 pub mod str;
 pub mod sync;
-pub mod sys;
 pub mod ticket;
 
 pub mod async_lru_cache;

@@ -20,20 +20,30 @@ mod config_version_cache;
 pub use config_version_cache::ConfigVersionCache;
 
 use anyhow::{format_err, Error};
+use nix::unistd::{Gid, Group, Uid, User};
 
 pub use pbs_buildcfg::{BACKUP_USER_NAME, BACKUP_GROUP_NAME};
 
 /// Return User info for the 'backup' user (``getpwnam_r(3)``)
 pub fn backup_user() -> Result<nix::unistd::User, Error> {
-    pbs_tools::sys::query_user(BACKUP_USER_NAME)?
-        .ok_or_else(|| format_err!("Unable to lookup '{}' user.", BACKUP_USER_NAME))
+    if cfg!(test) {
+        Ok(User::from_uid(Uid::current())?.expect("current user does not exist"))
+    } else {
+        User::from_name(BACKUP_USER_NAME)?
+            .ok_or_else(|| format_err!("Unable to lookup '{}' user.", BACKUP_USER_NAME))
+    }
 }
 
 /// Return Group info for the 'backup' group (``getgrnam(3)``)
 pub fn backup_group() -> Result<nix::unistd::Group, Error> {
-    pbs_tools::sys::query_group(BACKUP_GROUP_NAME)?
-        .ok_or_else(|| format_err!("Unable to lookup '{}' group.", BACKUP_GROUP_NAME))
+    if cfg!(test) {
+        Ok(Group::from_gid(Gid::current())?.expect("current group does not exist"))
+    } else {
+        Group::from_name(BACKUP_GROUP_NAME)?
+            .ok_or_else(|| format_err!("Unable to lookup '{}' group.", BACKUP_GROUP_NAME))
+    }
 }
+
 pub struct BackupLockGuard(Option<std::fs::File>);
 
 #[doc(hidden)]

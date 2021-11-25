@@ -506,7 +506,7 @@ fn create_run_dir() -> Result<(), Error> {
 
 /// Return User info for the 'backup' user (``getpwnam_r(3)``)
 pub fn backup_user() -> Result<nix::unistd::User, Error> {
-    pbs_tools::sys::query_user(pbs_buildcfg::BACKUP_USER_NAME)?
-        .ok_or_else(|| format_err!("Unable to lookup '{}' user.", pbs_buildcfg::BACKUP_USER_NAME))
+    nix::unistd::User::from_name(pbs_buildcfg::BACKUP_USER_NAME)?
+        .ok_or_else(|| format_err!("Unable to lookup '{}' user.",  pbs_buildcfg::BACKUP_USER_NAME))
 }
 
