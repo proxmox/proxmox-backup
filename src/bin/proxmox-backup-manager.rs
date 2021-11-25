@@ -10,8 +10,8 @@ use proxmox_schema::api;
 
 use pbs_client::{display_task_log, view_task_result};
 use pbs_config::sync;
-use pbs_tools::percent_encoding::percent_encode_component;
 use pbs_tools::json::required_string_param;
+use pbs_api_types::percent_encoding::percent_encode_component;
 use pbs_api_types::{
     GroupFilter, SyncJobConfig,
     DATASTORE_SCHEMA, GROUP_FILTER_LIST_SCHEMA, IGNORE_VERIFIED_BACKUPS_SCHEMA, REMOTE_ID_SCHEMA,

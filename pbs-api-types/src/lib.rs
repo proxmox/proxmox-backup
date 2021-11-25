@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use anyhow::bail;
 
 pub mod common_regex;
+pub mod percent_encoding;
 
 use proxmox_schema::{
     api, const_regex, ApiStringFormat, ApiType, ArraySchema, Schema, StringSchema, ReturnType,

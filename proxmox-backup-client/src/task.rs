@@ -5,7 +5,7 @@ use proxmox_schema::api;
 use proxmox_router::cli::*;
 
 use pbs_client::display_task_log;
-use pbs_tools::percent_encoding::percent_encode_component;
+use pbs_api_types::percent_encoding::percent_encode_component;
 use pbs_tools::json::required_string_param;
 
 use pbs_api_types::UPID;

@@ -5,7 +5,6 @@ pub mod io;
 pub mod json;
 pub mod lru_cache;
 pub mod nom;
-pub mod percent_encoding;
 pub mod sha;
 pub mod sync;
 pub mod ticket;

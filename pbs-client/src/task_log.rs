@@ -7,7 +7,7 @@ use futures::*;
 
 use proxmox_router::cli::format_and_print_result;
 
-use pbs_tools::percent_encoding::percent_encode_component;
+use pbs_api_types::percent_encoding::percent_encode_component;
 
 use super::HttpClient;
 
