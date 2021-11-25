@@ -176,8 +176,12 @@ pub fn openid_login(
                     email,
                 };
                 let (mut config, _digest) = user::config()?;
-                if config.sections.get(user.userid.as_str()).is_some() {
-                    bail!("autocreate user failed - '{}' already exists.", user.userid);
+                if let Ok(old_user) = config.lookup::<User>("user", user.userid.as_str()) {
+                    if let Some(false) = old_user.enable {
+                        bail!("user '{}' is disabled.", user.userid);
+                    } else {
+                        bail!("autocreate user failed - '{}' already exists.", user.userid);
+                    }
                 }
                 config.set_data(user.userid.as_str(), "user", &user)?;
                 user::save_config(&config)?;
