@@ -127,7 +127,7 @@ impl TfaUserChallengeData {
 /// Get an optional TFA challenge for a user.
 pub fn login_challenge(userid: &Userid) -> Result<Option<TfaChallenge>, Error> {
     let _lock = write_lock()?;
-    read()?.authentication_challenge(UserAccess, userid.as_str())
+    read()?.authentication_challenge(UserAccess, userid.as_str(), None)
 }
 
 /// Add a TOTP entry for a user. Returns the ID.
@@ -176,7 +176,7 @@ pub fn add_webauthn_registration(userid: &Userid, description: String) -> Result
     let _lock = crate::config::tfa::write_lock();
     let mut data = read()?;
     let challenge =
-        data.webauthn_registration_challenge(UserAccess, userid.as_str(), description)?;
+        data.webauthn_registration_challenge(UserAccess, userid.as_str(), description, None)?;
     write(&data)?;
     Ok(challenge)
 }
@@ -189,7 +189,8 @@ pub fn finish_webauthn_registration(
 ) -> Result<String, Error> {
     let _lock = crate::config::tfa::write_lock();
     let mut data = read()?;
-    let id = data.webauthn_registration_finish(UserAccess, userid.as_str(), challenge, response)?;
+    let id =
+        data.webauthn_registration_finish(UserAccess, userid.as_str(), challenge, response, None)?;
     write(&data)?;
     Ok(id)
 }
@@ -203,7 +204,7 @@ pub fn verify_challenge(
     let _lock = crate::config::tfa::write_lock();
     let mut data = read()?;
     if data
-        .verify(UserAccess, userid.as_str(), challenge, response)?
+        .verify(UserAccess, userid.as_str(), challenge, response, None)?
         .needs_saving()
     {
         write(&data)?;
@@ -261,11 +262,10 @@ impl proxmox_tfa::api::OpenUserChallengeData for UserAccess {
                 Err(err) => {
                     eprintln!(
                         "failed to parse challenge data for user {}: {}",
-                        userid,
-                        err
+                        userid, err
                     );
                     Default::default()
-                },
+                }
             }
         };
 

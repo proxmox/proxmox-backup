@@ -228,6 +228,7 @@ fn add_tfa_entry(
         value,
         challenge,
         r#type,
+        None,
     )?;
     crate::config::tfa::write(&data)?;
     Ok(out)

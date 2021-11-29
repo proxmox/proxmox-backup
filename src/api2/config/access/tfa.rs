@@ -1,12 +1,13 @@
 //! For now this only has the TFA subdir, which is in this file.
 //! If we add more, it should be moved into a sub module.
 
-use anyhow::Error;
+use anyhow::{format_err, Error};
 use hex::FromHex;
+use serde::{Deserialize, Serialize};
 
-use proxmox_router::{Router, RpcEnvironment, Permission, SubdirMap};
-use proxmox_schema::api;
 use proxmox_router::list_subdirs_api_method;
+use proxmox_router::{Permission, Router, RpcEnvironment, SubdirMap};
+use proxmox_schema::api;
 
 use pbs_api_types::PROXMOX_CONFIG_DIGEST_SCHEMA;
 
@@ -47,6 +48,15 @@ pub fn get_webauthn_config(
     Ok(Some(config))
 }
 
+#[api()]
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+/// Deletable property name
+pub enum DeletableProperty {
+    /// Delete the origin property.
+    Origin,
+}
+
 #[api(
     protected: true,
     input: {
@@ -54,6 +64,14 @@ pub fn get_webauthn_config(
             webauthn: {
                 flatten: true,
                 type: WebauthnConfigUpdater,
+            },
+            delete: {
+                description: "List of properties to delete.",
+                type: Array,
+                optional: true,
+                items: {
+                    type: DeletableProperty,
+                }
             },
             digest: {
                 optional: true,
@@ -65,6 +83,7 @@ pub fn get_webauthn_config(
 /// Update the TFA configuration.
 pub fn update_webauthn_config(
     webauthn: WebauthnConfigUpdater,
+    delete: Option<Vec<DeletableProperty>>,
     digest: Option<String>,
 ) -> Result<(), Error> {
     let _lock = tfa::write_lock();
@@ -79,13 +98,34 @@ pub fn update_webauthn_config(
                 &crate::config::tfa::webauthn_config_digest(&wa)?,
             )?;
         }
-        if let Some(ref rp) = webauthn.rp { wa.rp = rp.clone(); }
-        if let Some(ref origin) = webauthn.origin { wa.origin = origin.clone(); }
-        if let Some(ref id) = webauthn.id { wa.id = id.clone(); }
+
+        if let Some(delete) = delete {
+            for delete in delete {
+                match delete {
+                    DeletableProperty::Origin => {
+                        wa.origin = None;
+                    }
+                }
+            }
+        }
+
+        if let Some(rp) = webauthn.rp {
+            wa.rp = rp;
+        }
+        if webauthn.origin.is_some() {
+            wa.origin = webauthn.origin;
+        }
+        if let Some(id) = webauthn.id {
+            wa.id = id;
+        }
     } else {
-        let rp = webauthn.rp.unwrap();
-        let origin = webauthn.origin.unwrap();
-        let id = webauthn.id.unwrap();
+        let rp = webauthn
+            .rp
+            .ok_or_else(|| format_err!("missing proeprty: 'rp'"))?;
+        let origin = webauthn.origin;
+        let id = webauthn
+            .id
+            .ok_or_else(|| format_err!("missing property: 'id'"))?;
         tfa.webauthn = Some(WebauthnConfig { rp, origin, id });
     }
 
