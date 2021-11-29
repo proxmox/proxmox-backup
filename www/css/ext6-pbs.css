@@ -280,3 +280,8 @@ span.snapshot-comment-column {
 .info-pointer div.right-aligned {
     cursor: pointer;
 }
+
+.x-fieldcontainer-default-cell > .x-grid-cell-inner {
+    padding-top: 0px;
+    padding-bottom: 0px;
+}

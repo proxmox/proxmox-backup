@@ -43,6 +43,7 @@ JSSRC=							\
 	form/CalendarEvent.js				\
 	form/PermissionPathSelector.js			\
 	form/GroupSelector.js				\
+	form/GroupFilter.js				\
 	data/RunningTasksStore.js			\
 	button/TaskButton.js				\
 	config/UserView.js				\
