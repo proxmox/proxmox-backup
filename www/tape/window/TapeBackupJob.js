@@ -11,6 +11,8 @@ Ext.define('PBS.TapeManagement.BackupJobEdit', {
 
     fieldDefaults: { labelWidth: 120 },
 
+    bodyPadding: 0,
+
     cbindData: function(initialConfig) {
 	let me = this;
 
@@ -28,117 +30,140 @@ Ext.define('PBS.TapeManagement.BackupJobEdit', {
     },
 
     items: {
-	xtype: 'inputpanel',
-	onGetValues: function(values) {
-	    let me = this;
+	xtype: 'tabpanel',
+	bodyPadding: 10,
+	border: 0,
+	items: [
+	    {
+		title: gettext('Options'),
+		xtype: 'inputpanel',
+		onGetValues: function(values) {
+		    let me = this;
 
-	    if (values['export-media-set'] && !me.up('pbsTapeBackupJobEdit').isCreate) {
-		Proxmox.Utils.assemble_field_data(values, { "delete": 'eject-media' });
-	    }
-	    PBS.Utils.delete_if_default(values, 'notify-user');
-	    return values;
-	},
-	column1: [
-	    {
-		xtype: 'pmxDisplayEditField',
-		name: 'id',
-		fieldLabel: gettext('Job ID'),
-		renderer: Ext.htmlEncode,
-		allowBlank: false,
-		cbind: {
-		    editable: '{isCreate}',
+		    if (values['export-media-set'] && !me.up('pbsTapeBackupJobEdit').isCreate) {
+			Proxmox.Utils.assemble_field_data(values, { "delete": 'eject-media' });
+		    }
+		    PBS.Utils.delete_if_default(values, 'notify-user');
+		    return values;
 		},
-	    },
-	    {
-		xtype: 'pbsDataStoreSelector',
-		fieldLabel: gettext('Local Datastore'),
-		name: 'store',
-	    },
-	    {
-		xtype: 'pbsMediaPoolSelector',
-		fieldLabel: gettext('Media Pool'),
-		name: 'pool',
-	    },
-	    {
-		xtype: 'pbsDriveSelector',
-		fieldLabel: gettext('Drive'),
-		name: 'drive',
-	    },
-	    {
-		xtype: 'pmxUserSelector',
-		name: 'notify-user',
-		fieldLabel: gettext('Notify User'),
-		emptyText: 'root@pam',
-		allowBlank: true,
-		value: null,
-		renderer: Ext.String.htmlEncode,
-	    },
-	],
-
-	column2: [
-	    {
-		fieldLabel: gettext('Schedule'),
-		xtype: 'pbsCalendarEvent',
-		name: 'schedule',
-		emptyText: gettext('none (disabled)'),
-		cbind: {
-		    deleteEmpty: '{!isCreate}',
-		    value: '{scheduleValue}',
-		},
-	    },
-	    {
-		fieldLabel: gettext('Export Media-Set'),
-		xtype: 'proxmoxcheckbox',
-		name: 'export-media-set',
-		cbind: {
-		    deleteEmpty: '{!isCreate}',
-		},
-		listeners: {
-		    change: function(cb, value) {
-			let me = this;
-			let eject = me.up('window').down('proxmoxcheckbox[name=eject-media]');
-			if (value) {
-			    eject.setValue(false);
-			}
-			eject.setDisabled(!!value);
+		column1: [
+		    {
+			xtype: 'pmxDisplayEditField',
+			name: 'id',
+			fieldLabel: gettext('Job ID'),
+			renderer: Ext.htmlEncode,
+			allowBlank: false,
+			cbind: {
+			    editable: '{isCreate}',
+			},
 		    },
-		},
-	    },
-	    {
-		fieldLabel: gettext('Eject Media'),
-		xtype: 'proxmoxcheckbox',
-		name: 'eject-media',
-		cbind: {
-		    deleteEmpty: '{!isCreate}',
-		},
-	    },
-	    {
-		fieldLabel: gettext('Latest Only'),
-		xtype: 'proxmoxcheckbox',
-		name: 'latest-only',
-		cbind: {
-		    deleteEmpty: '{!isCreate}',
-		},
-	    },
-	],
+		    {
+			xtype: 'pbsDataStoreSelector',
+			fieldLabel: gettext('Local Datastore'),
+			name: 'store',
+			listeners: {
+			    change: function(field, value) {
+				let me = this;
+				me.up('tabpanel').down('pbsGroupFilter').setLocalDatastore(value);
+			    },
+			},
+		    },
+		    {
+			xtype: 'pbsMediaPoolSelector',
+			fieldLabel: gettext('Media Pool'),
+			name: 'pool',
+		    },
+		    {
+			xtype: 'pbsDriveSelector',
+			fieldLabel: gettext('Drive'),
+			name: 'drive',
+		    },
+		    {
+			xtype: 'pmxUserSelector',
+			name: 'notify-user',
+			fieldLabel: gettext('Notify User'),
+			emptyText: 'root@pam',
+			allowBlank: true,
+			value: null,
+			renderer: Ext.String.htmlEncode,
+		    },
+		],
 
-	columnB: [
-	    {
-		fieldLabel: gettext('Backup Groups'),
-		xtype: 'displayfield',
-		name: 'group-filter',
-		renderer: v => v ? Ext.String.htmlEncode(v) : gettext('All'),
-		cbind: {
-		    hidden: '{isCreate}',
-		},
+		column2: [
+		    {
+			fieldLabel: gettext('Schedule'),
+			xtype: 'pbsCalendarEvent',
+			name: 'schedule',
+			emptyText: gettext('none (disabled)'),
+			cbind: {
+			    deleteEmpty: '{!isCreate}',
+			    value: '{scheduleValue}',
+			},
+		    },
+		    {
+			fieldLabel: gettext('Export Media-Set'),
+			xtype: 'proxmoxcheckbox',
+			name: 'export-media-set',
+			cbind: {
+			    deleteEmpty: '{!isCreate}',
+			},
+			listeners: {
+			    change: function(cb, value) {
+				let me = this;
+				let eject = me.up('window').down('proxmoxcheckbox[name=eject-media]');
+				if (value) {
+				    eject.setValue(false);
+				}
+				eject.setDisabled(!!value);
+			    },
+			},
+		    },
+		    {
+			fieldLabel: gettext('Eject Media'),
+			xtype: 'proxmoxcheckbox',
+			name: 'eject-media',
+			cbind: {
+			    deleteEmpty: '{!isCreate}',
+			},
+		    },
+		    {
+			fieldLabel: gettext('Latest Only'),
+			xtype: 'proxmoxcheckbox',
+			name: 'latest-only',
+			cbind: {
+			    deleteEmpty: '{!isCreate}',
+			},
+		    },
+		],
+
+		columnB: [
+		    {
+			fieldLabel: gettext('Comment'),
+			xtype: 'proxmoxtextfield',
+			name: 'comment',
+			cbind: {
+			    deleteEmpty: '{!isCreate}',
+			},
+		    },
+		],
 	    },
 	    {
-		fieldLabel: gettext('Comment'),
-		xtype: 'proxmoxtextfield',
-		name: 'comment',
-		cbind: {
-		    deleteEmpty: '{!isCreate}',
+		xtype: 'inputpanel',
+		onGetValues: function(values) {
+		    PBS.Utils.delete_if_default(values, 'group-filter');
+		    if (Ext.isArray(values['group-filter']) && values['group-filter'].length === 0) {
+			delete values['group-filter'];
+			values.delete = 'group-filter';
+		    }
+		    return values;
 		},
+		title: gettext('Group Filter'),
+		items: [
+		    {
+			xtype: 'pbsGroupFilter',
+			name: 'group-filter',
+		    },
+		],
 	    },
 	],
     },
