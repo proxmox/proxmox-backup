@@ -98,6 +98,8 @@ Ext.define('PBS.window.SyncJobEdit', {
 
     subject: gettext('SyncJob'),
 
+    bodyPadding: 0,
+
     fieldDefaults: { labelWidth: 120 },
     defaultFocus: 'proxmoxtextfield[name=comment]',
 
@@ -118,117 +120,142 @@ Ext.define('PBS.window.SyncJobEdit', {
     },
 
     items: {
-	xtype: 'inputpanel',
-	onGetValues: function(values) {
-	    let me = this;
+	xtype: 'tabpanel',
+	bodyPadding: 10,
+	border: 0,
+	items: [
+	    {
+		title: 'Options',
+		xtype: 'inputpanel',
+		onGetValues: function(values) {
+		    let me = this;
 
-	    if (!values.id && me.up('pbsSyncJobEdit').isCreate) {
-		values.id = 's-' + Ext.data.identifier.Uuid.Global.generate().slice(0, 13);
-	    }
-	    if (!me.isCreate) {
-		PBS.Utils.delete_if_default(values, 'rate-in');
-		if (typeof values.delete === 'string') {
-		    values.delete = values.delete.split(',');
-		}
-	    }
-	    return values;
-	},
-	column1: [
-	    {
-		xtype: 'pmxDisplayEditField',
-		fieldLabel: gettext('Local Datastore'),
-		name: 'store',
-		submitValue: true,
-		cbind: {
-		    editable: '{editDatastore}',
-		    value: '{datastore}',
+		    if (!values.id && me.up('pbsSyncJobEdit').isCreate) {
+			values.id = 's-' + Ext.data.identifier.Uuid.Global.generate().slice(0, 13);
+		    }
+		    if (!me.isCreate) {
+			PBS.Utils.delete_if_default(values, 'rate-in');
+			if (typeof values.delete === 'string') {
+			    values.delete = values.delete.split(',');
+			}
+		    }
+		    return values;
 		},
-		editConfig: {
-		    xtype: 'pbsDataStoreSelector',
-		    allowBlank: false,
-		},
-	    },
-	    {
-		fieldLabel: gettext('Local Owner'),
-		xtype: 'pbsAuthidSelector',
-		name: 'owner',
-		cbind: {
-		    value: '{authid}',
-		    deleteEmpty: '{!isCreate}',
-		},
-	    },
-	    {
-		fieldLabel: gettext('Remove vanished'),
-		xtype: 'proxmoxcheckbox',
-		name: 'remove-vanished',
-		autoEl: {
-		    tag: 'div',
-		    'data-qtip': gettext('Remove snapshots from local datastore if they vanished from source datastore?'),
-		},
-		uncheckedValue: false,
-		value: false,
-	    },
-	],
-
-	column2: [
-	    {
-		fieldLabel: gettext('Source Remote'),
-		xtype: 'pbsRemoteSelector',
-		allowBlank: false,
-		name: 'remote',
-		listeners: {
-		    change: function(f, value) {
-			let me = this;
-			let remoteStoreField = me.up('pbsSyncJobEdit').down('field[name=remote-store]');
-			remoteStoreField.setRemote(value);
+		column1: [
+		    {
+			xtype: 'pmxDisplayEditField',
+			fieldLabel: gettext('Local Datastore'),
+			name: 'store',
+			submitValue: true,
+			cbind: {
+			    editable: '{editDatastore}',
+			    value: '{datastore}',
+			},
+			editConfig: {
+			    xtype: 'pbsDataStoreSelector',
+			    allowBlank: false,
+			},
 		    },
-		},
-	    },
-	    {
-		fieldLabel: gettext('Source Datastore'),
-		xtype: 'pbsRemoteStoreSelector',
-		allowBlank: false,
-		autoSelect: false,
-		name: 'remote-store',
-		disabled: true,
-	    },
-	    {
-		fieldLabel: gettext('Sync Schedule'),
-		xtype: 'pbsCalendarEvent',
-		name: 'schedule',
-		emptyText: gettext('none (disabled)'),
-		cbind: {
-		    deleteEmpty: '{!isCreate}',
-		    value: '{scheduleValue}',
-		},
-	    },
-	    {
-		xtype: 'pmxBandwidthField',
-		name: 'rate-in',
-		fieldLabel: gettext('Rate Limit'),
-		emptyText: gettext('Unlimited'),
-		submitAutoScaledSizeUnit: true,
-		// NOTE: handle deleteEmpty in onGetValues due to bandwidth field having a cbind too
-	    },
-	],
+		    {
+			fieldLabel: gettext('Local Owner'),
+			xtype: 'pbsAuthidSelector',
+			name: 'owner',
+			cbind: {
+			    value: '{authid}',
+			    deleteEmpty: '{!isCreate}',
+			},
+		    },
+		    {
+			fieldLabel: gettext('Remove vanished'),
+			xtype: 'proxmoxcheckbox',
+			name: 'remove-vanished',
+			autoEl: {
+			    tag: 'div',
+			    'data-qtip': gettext('Remove snapshots from local datastore if they vanished from source datastore?'),
+			},
+			uncheckedValue: false,
+			value: false,
+		    },
+		],
 
-	columnB: [
-	    {
-		fieldLabel: gettext('Backup Groups'),
-		xtype: 'displayfield',
-		name: 'group-filter',
-		renderer: v => v ? Ext.String.htmlEncode(v) : gettext('All'),
-		cbind: {
-		    hidden: '{isCreate}',
-		},
+		column2: [
+		    {
+			fieldLabel: gettext('Source Remote'),
+			xtype: 'pbsRemoteSelector',
+			allowBlank: false,
+			name: 'remote',
+			listeners: {
+			    change: function(f, value) {
+				let me = this;
+				let remoteStoreField = me.up('pbsSyncJobEdit').down('field[name=remote-store]');
+				remoteStoreField.setRemote(value);
+			    },
+			},
+		    },
+		    {
+			fieldLabel: gettext('Source Datastore'),
+			xtype: 'pbsRemoteStoreSelector',
+			allowBlank: false,
+			autoSelect: false,
+			name: 'remote-store',
+			disabled: true,
+			listeners: {
+			    change: function(field, value) {
+				let me = this;
+				let remoteField = me.up('pbsSyncJobEdit').down('field[name=remote]');
+				let remote = remoteField.getValue();
+				me.up('tabpanel').down('pbsGroupFilter').setRemoteDatastore(remote, value);
+			    },
+			},
+		    },
+		    {
+			fieldLabel: gettext('Sync Schedule'),
+			xtype: 'pbsCalendarEvent',
+			name: 'schedule',
+			emptyText: gettext('none (disabled)'),
+			cbind: {
+			    deleteEmpty: '{!isCreate}',
+			    value: '{scheduleValue}',
+			},
+		    },
+		    {
+			xtype: 'pmxBandwidthField',
+			name: 'rate-in',
+			fieldLabel: gettext('Rate Limit'),
+			emptyText: gettext('Unlimited'),
+			submitAutoScaledSizeUnit: true,
+			// NOTE: handle deleteEmpty in onGetValues due to bandwidth field having a cbind too
+		    },
+		],
+
+		columnB: [
+		    {
+			fieldLabel: gettext('Comment'),
+			xtype: 'proxmoxtextfield',
+			name: 'comment',
+			cbind: {
+			    deleteEmpty: '{!isCreate}',
+			},
+		    },
+		],
 	    },
 	    {
-		fieldLabel: gettext('Comment'),
-		xtype: 'proxmoxtextfield',
-		name: 'comment',
-		cbind: {
-		    deleteEmpty: '{!isCreate}',
+		xtype: 'inputpanel',
+		onGetValues: function(values) {
+		    PBS.Utils.delete_if_default(values, 'group-filter');
+		    if (Ext.isArray(values['group-filter']) && values['group-filter'].length === 0) {
+			delete values['group-filter'];
+			values.delete = 'group-filter';
+		    }
+		    return values;
 		},
+		title: gettext('Group Filter'),
+		items: [
+		    {
+			xtype: 'pbsGroupFilter',
+			name: 'group-filter',
+		    },
+		],
 	    },
 	],
     },
