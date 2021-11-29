@@ -12,7 +12,7 @@ use hyper::Request;
 use serde_json::{json, Value};
 use tokio::io::{AsyncBufReadExt, BufReader};
 
-use proxmox_sys::{identity, sortable};
+use proxmox_sys::sortable;
 use proxmox_sys::fd::fd_change_cloexec;
 
 use proxmox_router::{

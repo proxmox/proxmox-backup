@@ -4,7 +4,7 @@ use std::io::{BufRead, BufReader};
 use anyhow::{bail, Error};
 use serde_json::{json, Value};
 
-use proxmox_sys::{identity, sortable};
+use proxmox_sys::sortable;
 use proxmox_router::{list_subdirs_api_method, Router, RpcEnvironment, Permission, SubdirMap};
 use proxmox_schema::api;
 

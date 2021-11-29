@@ -8,7 +8,7 @@ use hyper::{Body, Response, Request, StatusCode};
 use serde_json::Value;
 use hex::FromHex;
 
-use proxmox_sys::{identity, sortable};
+use proxmox_sys::sortable;
 use proxmox_router::{
     http_err, list_subdirs_api_method, ApiHandler, ApiMethod, ApiResponseFuture, Permission,
     Router, RpcEnvironment, SubdirMap,

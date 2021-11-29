@@ -12,7 +12,7 @@ use hyper::{header, Body, Response, StatusCode};
 use serde_json::{json, Value};
 use tokio_stream::wrappers::ReceiverStream;
 
-use proxmox_sys::{identity, sortable};
+use proxmox_sys::sortable;
 use proxmox_sys::fs::{
     file_read_firstline, file_read_optional_string, replace_file, CreateOptions,
 };
