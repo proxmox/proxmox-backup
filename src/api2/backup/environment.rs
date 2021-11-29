@@ -194,7 +194,7 @@ impl BackupEnvironment {
         if size < data.chunk_size {
             data.small_chunk_count += 1;
             if data.small_chunk_count > 1 {
-                bail!("fixed writer '{}' - detected multiple end chunks (chunk size too small)");
+                bail!("fixed writer '{}' - detected multiple end chunks (chunk size too small)", wid);
             }
         }
 

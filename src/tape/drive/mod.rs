@@ -257,7 +257,7 @@ pub fn media_changer(
                         None => Ok(None),
                     }
                 }
-                _ => bail!("unknown drive type '{}' - internal error"),
+                ty => bail!("unknown drive type '{}' - internal error", ty),
             }
         }
         None => {
@@ -305,7 +305,7 @@ pub fn open_drive(
                     let handle = open_lto_tape_drive(&tape)?;
                     Ok(Box::new(handle))
                 }
-                _ => bail!("unknown drive type '{}' - internal error"),
+                ty => bail!("unknown drive type '{}' - internal error", ty),
             }
         }
         None => {
@@ -495,7 +495,7 @@ pub fn request_and_load_media(
                         update_and_log_request_error(&mut last_error, request_error)?;
                     }
                 }
-                _ => bail!("drive type '{}' not implemented!"),
+                ty => bail!("drive type '{}' not implemented!", ty),
             }
         }
         None => {
@@ -584,7 +584,7 @@ fn tape_device_path(
                 "lto" => {
                     LtoTapeDrive::deserialize(config)?.path
                 }
-                _ => bail!("unknown drive type '{}' - internal error"),
+                ty => bail!("unknown drive type '{}' - internal error", ty),
             };
             Ok(path)
         }
