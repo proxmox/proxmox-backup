@@ -42,6 +42,7 @@ JSSRC=							\
 	form/DataStoreSelector.js			\
 	form/CalendarEvent.js				\
 	form/PermissionPathSelector.js			\
+	form/GroupSelector.js				\
 	data/RunningTasksStore.js			\
 	button/TaskButton.js				\
 	config/UserView.js				\
