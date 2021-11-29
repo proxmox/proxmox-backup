@@ -105,9 +105,9 @@ impl Future for Session {
 
 /// We use this to return an errno value back to the kernel.
 macro_rules! io_return {
-    ($errno:expr) => {
+    ($errno:expr) => {{
         return Err(::std::io::Error::from_raw_os_error($errno).into());
-    };
+    }};
 }
 
 /// Format an "other" error, see `io_bail` below for details.
