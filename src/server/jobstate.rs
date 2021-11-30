@@ -46,7 +46,7 @@ use proxmox_sys::fs::{
     create_path, file_read_optional_string, replace_file, CreateOptions,
 };
 
-use proxmox_time::{compute_next_event, parse_calendar_event};
+use proxmox_time::CalendarEvent;
 
 use pbs_buildcfg::PROXMOX_BACKUP_STATE_DIR_M;
 use pbs_config::{open_backup_lockfile, BackupLockGuard};
@@ -339,9 +339,9 @@ pub fn compute_schedule_status(
     status.last_run_endtime = endtime;
 
     if let Some(schedule) = schedule {
-        if let Ok(event) = parse_calendar_event(&schedule) {
+        if let Ok(event) = schedule.parse::<CalendarEvent>() {
             // ignore errors
-            status.next_run = compute_next_event(&event, last, false).unwrap_or(None);
+            status.next_run = event.compute_next_event(last, false).unwrap_or(None);
         }
     }
 

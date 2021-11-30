@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 
 use proxmox_schema::{api, Schema, StringSchema, ApiStringFormat, Updater};
 
-use proxmox_time::{parse_calendar_event, parse_time_span, CalendarEvent, TimeSpan};
+use proxmox_time::{CalendarEvent, TimeSpan};
 
 use crate::{
     PROXMOX_SAFE_ID_FORMAT,
@@ -62,7 +62,7 @@ impl std::str::FromStr for MediaSetPolicy {
             return Ok(MediaSetPolicy::AlwaysCreate);
         }
 
-        let event = parse_calendar_event(s)?;
+        let event = s.parse()?;
 
         Ok(MediaSetPolicy::CreateAt(event))
     }
@@ -97,7 +97,7 @@ impl std::str::FromStr for RetentionPolicy {
             return Ok(RetentionPolicy::KeepForever);
         }
 
-        let time_span = parse_time_span(s)?;
+        let time_span = s.parse()?;
 
         Ok(RetentionPolicy::ProtectFor(time_span))
     }

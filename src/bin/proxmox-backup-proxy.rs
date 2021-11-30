@@ -47,7 +47,7 @@ use proxmox_backup::{
 };
 
 use pbs_buildcfg::configdir;
-use proxmox_time::{compute_next_event, parse_calendar_event};
+use proxmox_time::CalendarEvent;
 
 use pbs_api_types::{
     Authid, TapeBackupJobConfig, VerificationJobConfig, SyncJobConfig, DataStoreConfig,
@@ -565,7 +565,7 @@ async fn schedule_datastore_garbage_collection() {
             None => continue,
         };
 
-        let event = match parse_calendar_event(&event_str) {
+        let event: CalendarEvent = match event_str.parse() {
             Ok(event) => event,
             Err(err) => {
                 eprintln!("unable to parse schedule '{}' - {}", event_str, err);
@@ -585,7 +585,7 @@ async fn schedule_datastore_garbage_collection() {
             }
         };
 
-        let next = match compute_next_event(&event, last, false) {
+        let next = match event.compute_next_event(last, false) {
             Ok(Some(next)) => next,
             Ok(None) => continue,
             Err(err) => {
@@ -1024,7 +1024,7 @@ fn generate_host_stats_sync() {
 }
 
 fn check_schedule(worker_type: &str, event_str: &str, id: &str) -> bool {
-    let event = match parse_calendar_event(event_str) {
+    let event: CalendarEvent = match event_str.parse() {
         Ok(event) => event,
         Err(err) => {
             eprintln!("unable to parse schedule '{}' - {}", event_str, err);
@@ -1040,7 +1040,7 @@ fn check_schedule(worker_type: &str, event_str: &str, id: &str) -> bool {
         }
     };
 
-    let next = match compute_next_event(&event, last, false) {
+    let next = match event.compute_next_event(last, false) {
         Ok(Some(next)) => next,
         Ok(None) => return false,
         Err(err) => {

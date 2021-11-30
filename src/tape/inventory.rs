@@ -33,7 +33,6 @@ use serde_json::json;
 use proxmox_sys::fs::{replace_file, file_get_json, CreateOptions};
 use proxmox_uuid::Uuid;
 
-use proxmox_time::compute_next_event;
 use pbs_config::BackupLockGuard;
 use pbs_api_types::{MediaSetPolicy, RetentionPolicy, MediaStatus, MediaLocation};
 
@@ -534,7 +533,7 @@ impl Inventory {
                         set_start_time
                     }
                     MediaSetPolicy::CreateAt(ref event) => {
-                        match compute_next_event(event, set_start_time, false) {
+                        match event.compute_next_event(set_start_time, false) {
                             Ok(Some(next)) => next,
                             Ok(None) | Err(_) => return i64::MAX,
                         }
