@@ -585,7 +585,7 @@ async fn schedule_datastore_garbage_collection() {
             }
         };
 
-        let next = match event.compute_next_event(last, false) {
+        let next = match event.compute_next_event(last) {
             Ok(Some(next)) => next,
             Ok(None) => continue,
             Err(err) => {
@@ -1040,7 +1040,7 @@ fn check_schedule(worker_type: &str, event_str: &str, id: &str) -> bool {
         }
     };
 
-    let next = match event.compute_next_event(last, false) {
+    let next = match event.compute_next_event(last) {
         Ok(Some(next)) => next,
         Ok(None) => return false,
         Err(err) => {

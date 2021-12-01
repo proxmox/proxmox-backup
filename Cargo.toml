@@ -100,7 +100,7 @@ proxmox-router = { version = "1.1", features = [ "cli" ] }
 proxmox-schema = { version = "1", features = [ "api-macro" ] }
 proxmox-section-config = "1"
 proxmox-tfa = { version = "2", features = [ "api", "api-types" ] }
-proxmox-time = "1.1.1"
+proxmox-time = "1.1.2"
 proxmox-uuid = "1"
 proxmox-serde = "0.1"
 proxmox-shared-memory = "0.2"

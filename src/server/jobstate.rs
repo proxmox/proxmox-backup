@@ -341,7 +341,7 @@ pub fn compute_schedule_status(
     if let Some(schedule) = schedule {
         if let Ok(event) = schedule.parse::<CalendarEvent>() {
             // ignore errors
-            status.next_run = event.compute_next_event(last, false).unwrap_or(None);
+            status.next_run = event.compute_next_event(last).unwrap_or(None);
         }
     }
 

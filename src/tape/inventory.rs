@@ -533,7 +533,7 @@ impl Inventory {
                         set_start_time
                     }
                     MediaSetPolicy::CreateAt(ref event) => {
-                        match event.compute_next_event(set_start_time, false) {
+                        match event.compute_next_event(set_start_time) {
                             Ok(Some(next)) => next,
                             Ok(None) | Err(_) => return i64::MAX,
                         }
