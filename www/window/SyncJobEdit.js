@@ -243,9 +243,14 @@ Ext.define('PBS.window.SyncJobEdit', {
 		xtype: 'inputpanel',
 		onGetValues: function(values) {
 		    PBS.Utils.delete_if_default(values, 'group-filter');
-		    if (Ext.isArray(values['group-filter']) && values['group-filter'].length === 0) {
-			delete values['group-filter'];
-			values.delete = 'group-filter';
+		    if (Ext.isArray(values['group-filter'])) {
+			if (values['group-filter'].length === 0) {
+			    delete values['group-filter'];
+			    values.delete = 'group-filter';
+			} else {
+			    // merge duplicates
+			    values['group-filter'] = [...new Set(values['group-filter'])];
+			}
 		    }
 		    return values;
 		},
