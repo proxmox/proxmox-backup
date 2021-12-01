@@ -199,6 +199,7 @@ pub const DNS_NAME_OR_IP_SCHEMA: Schema = StringSchema::new("DNS name or IP addr
     .format(&DNS_NAME_OR_IP_FORMAT)
     .schema();
 
+#[cfg(not(target_arch="wasm32"))] // this only makes sense for the serever side
 pub const NODE_SCHEMA: Schema = StringSchema::new("Node name (or 'localhost')")
     .format(&ApiStringFormat::VerifyFn(|node| {
         if node == "localhost" || node == proxmox_sys::nodename() {
