@@ -10,7 +10,8 @@ Ext.define('PBS.form.GroupFilter', {
 
 	removeReferences: function(record) {
 	    for (const widget of Object.keys(record.widgets || {})) {
-		delete record[widget];
+		delete record.widgets[widget].record;
+		delete record.widgets[widget];
 	    }
 
 	    delete record.widgets;
