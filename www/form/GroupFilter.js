@@ -214,8 +214,11 @@ Ext.define('PBS.form.GroupFilter', {
 	me.setDsStoreUrl(url);
 	me.dsStore.load({
 	    callback: (records) => {
+		if (me.isDestroyed) {
+		    return;
+		}
 		me.query('pbsGroupSelector').forEach((selector) => {
-		    selector.getStore().setData(records);
+		    selector.getStore().setData(records || []);
 		});
 	    },
 	});
