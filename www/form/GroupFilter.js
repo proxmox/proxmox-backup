@@ -134,7 +134,11 @@ Ext.define('PBS.form.GroupFilter', {
 	    let regex = widget.down('textfield[type=regex]');
 	    let group = widget.down('pbsGroupSelector');
 
-	    group.getStore().setData(view.dsStore.getData());
+	    let recs = [];
+	    view.dsStore.each((record) => {
+		recs.push(record.data);
+	    });
+	    group.getStore().setData(recs);
 
 	    // add a widget reference to the record so we can acces them
 	    // from the other column
