@@ -134,28 +134,26 @@ Ext.define('PBS.form.GroupFilter', {
 	    let regex = widget.down('textfield[type=regex]');
 	    let group = widget.down('pbsGroupSelector');
 
+	    // cannot reuse the same store for all group selectors due to combo grid limitations,
+	    // and just setting the data directly makes trouble due to Ext.util.Collection and its
+	    // observers behavior, so, lets do a manual full-clone
 	    let recs = [];
-	    view.dsStore.each((record) => {
-		recs.push(record.data);
-	    });
+	    view.dsStore.each(record => recs.push(record.data));
 	    group.getStore().setData(recs);
 
-	    // add a widget reference to the record so we can acces them
-	    // from the other column
+	    // add a widget reference to the record so we can acces them from the other column
 	    rec.widgets = {
 		type,
 		regex,
 		group,
 	    };
 
-	    // add a record reference so we can access the record from
-	    // the change handler
+	    // add a record reference so we can access the record from the change handler
 	    type.record = rec;
 	    regex.record = rec;
 	    group.record = rec;
 
-	    // CAUTION we just created a cyclic reference, we have to delete
-	    // that on filter removal!
+	    // CAUTION: we just created a cyclic reference, we have to delete that on filter removal!
 
 	    me.setInputValue(rec.widgets, rec);
 	},
@@ -221,9 +219,8 @@ Ext.define('PBS.form.GroupFilter', {
 		if (me.isDestroyed) {
 		    return;
 		}
-		me.query('pbsGroupSelector').forEach((selector) => {
-		    selector.getStore().setData(records || []);
-		});
+		let groups = records || [];
+		me.query('pbsGroupSelector').forEach(el => el.getStore().setData(groups));
 	    },
 	});
     },
