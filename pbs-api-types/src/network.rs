@@ -127,7 +127,7 @@ pub enum NetworkInterfaceType {
 pub const NETWORK_INTERFACE_NAME_SCHEMA: Schema = StringSchema::new("Network interface name.")
     .format(&NETWORK_INTERFACE_FORMAT)
     .min_length(1)
-    .max_length(libc::IFNAMSIZ-1)
+    .max_length(15) // libc::IFNAMSIZ-1
     .schema();
 
 pub const NETWORK_INTERFACE_ARRAY_SCHEMA: Schema = ArraySchema::new(
