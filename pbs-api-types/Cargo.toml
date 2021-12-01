@@ -9,7 +9,6 @@ description = "general API type helpers for PBS"
 anyhow = "1.0"
 hex = "0.4.3"
 lazy_static = "1.4"
-openssl = "0.10"
 percent-encoding = "2.1"
 regex = "1.2"
 serde = { version = "1.0", features = ["derive"] }
@@ -21,3 +20,6 @@ proxmox-time = "1.1.1"
 proxmox-uuid = { version = "1.0.0", features = [ "serde" ] }
 
 proxmox-sys = "0.2" # only needed for nodename()??
+
+[target.'cfg(not(target_arch="wasm32"))'.dependencies]
+openssl = "0.10"

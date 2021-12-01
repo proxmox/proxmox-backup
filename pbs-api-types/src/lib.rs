@@ -326,6 +326,7 @@ pub struct RsaPubKeyInfo {
     pub length: usize,
 }
 
+#[cfg(not(target_arch="wasm32"))]
 impl std::convert::TryFrom<openssl::rsa::Rsa<openssl::pkey::Public>> for RsaPubKeyInfo {
     type Error = anyhow::Error;
 
