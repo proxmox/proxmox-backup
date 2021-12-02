@@ -264,6 +264,9 @@ Ext.define('PBS.DataStoreSummary', {
 	    if (key !== 'summarycolumns') {
 		return;
 	    }
+	    if (!me.rendered) {
+		return;
+	    }
 	    Proxmox.Utils.updateColumns(me);
 	});
 
