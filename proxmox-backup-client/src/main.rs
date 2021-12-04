@@ -329,7 +329,7 @@ async fn change_backup_owner(group: String, mut param: Value) -> Result<(), Erro
 
     let repo = extract_repository_from_value(&param)?;
 
-    let mut client = connect(&repo)?;
+    let client = connect(&repo)?;
 
     param.as_object_mut().unwrap().remove("repository");
 
@@ -464,7 +464,7 @@ async fn start_garbage_collection(param: Value) -> Result<Value, Error> {
 
     let output_format = get_output_format(&param);
 
-    let mut client = connect(&repo)?;
+    let client = connect(&repo)?;
 
     let path = format!("api2/json/admin/datastore/{}/gc", repo.store());
 
@@ -472,7 +472,7 @@ async fn start_garbage_collection(param: Value) -> Result<Value, Error> {
 
     record_repository(&repo);
 
-    view_task_result(&mut client, result, &output_format).await?;
+    view_task_result(&client, result, &output_format).await?;
 
     Ok(Value::Null)
 }
@@ -1310,7 +1310,7 @@ async fn prune(
 ) -> Result<Value, Error> {
     let repo = extract_repository_from_value(&param)?;
 
-    let mut client = connect(&repo)?;
+    let client = connect(&repo)?;
 
     let path = format!("api2/json/admin/datastore/{}/prune", repo.store());
 

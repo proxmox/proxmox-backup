@@ -171,7 +171,7 @@ async fn forget_snapshots(param: Value) -> Result<Value, Error> {
     let path = required_string_param(&param, "snapshot")?;
     let snapshot: BackupDir = path.parse()?;
 
-    let mut client = connect(&repo)?;
+    let client = connect(&repo)?;
 
     let path = format!("api2/json/admin/datastore/{}/snapshots", repo.store());
 
@@ -225,7 +225,7 @@ async fn upload_log(param: Value) -> Result<Value, Error> {
     let snapshot = required_string_param(&param, "snapshot")?;
     let snapshot: BackupDir = snapshot.parse()?;
 
-    let mut client = connect(&repo)?;
+    let client = connect(&repo)?;
 
     let crypto = crypto_parameters(&param)?;
 
@@ -342,7 +342,7 @@ async fn update_notes(param: Value) -> Result<Value, Error> {
     let notes = required_string_param(&param, "notes")?;
 
     let snapshot: BackupDir = path.parse()?;
-    let mut client = connect(&repo)?;
+    let client = connect(&repo)?;
 
     let path = format!("api2/json/admin/datastore/{}/notes", repo.store());
 
@@ -438,7 +438,7 @@ async fn update_protection(protected: bool, param: Value) -> Result<(), Error> {
     let path = required_string_param(&param, "snapshot")?;
 
     let snapshot: BackupDir = path.parse()?;
-    let mut client = connect(&repo)?;
+    let client = connect(&repo)?;
 
     let path = format!("api2/json/admin/datastore/{}/protected", repo.store());
 

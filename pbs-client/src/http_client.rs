@@ -587,7 +587,7 @@ impl HttpClient {
     }
 
     pub async fn delete(
-        &mut self,
+        &self,
         path: &str,
         data: Option<Value>,
     ) -> Result<Value, Error> {
@@ -596,7 +596,7 @@ impl HttpClient {
     }
 
     pub async fn post(
-        &mut self,
+        &self,
         path: &str,
         data: Option<Value>,
     ) -> Result<Value, Error> {
@@ -605,7 +605,7 @@ impl HttpClient {
     }
 
     pub async fn put(
-        &mut self,
+        &self,
         path: &str,
         data: Option<Value>,
     ) -> Result<Value, Error> {
@@ -614,7 +614,7 @@ impl HttpClient {
     }
 
     pub async fn download(
-        &mut self,
+        &self,
         path: &str,
         output: &mut (dyn Write + Send),
     ) -> Result<(), Error> {
@@ -651,7 +651,7 @@ impl HttpClient {
     }
 
     pub async fn upload(
-        &mut self,
+        &self,
         content_type: &str,
         body: Body,
         path: &str,

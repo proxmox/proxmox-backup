@@ -18,7 +18,7 @@ use super::HttpClient;
 /// the user presses CTRL-C. Two interrupts cause an immediate end of
 /// the loop. The task may still run in that case.
 pub async fn display_task_log(
-    client: &mut HttpClient,
+    client: &HttpClient,
     upid_str: &str,
     strip_date: bool,
 ) -> Result<(), Error> {
@@ -100,7 +100,7 @@ pub async fn display_task_log(
 
 /// Display task result (upid), or view task log - depending on output format
 pub async fn view_task_result(
-    client: &mut HttpClient,
+    client: &HttpClient,
     result: Value,
     output_format: &str,
 ) -> Result<(), Error> {

@@ -99,9 +99,9 @@ async fn task_log(param: Value) -> Result<Value, Error> {
     let repo = extract_repository_from_value(&param)?;
     let upid =  required_string_param(&param, "upid")?;
 
-    let mut client = connect(&repo)?;
+    let client = connect(&repo)?;
 
-    display_task_log(&mut client, upid, true).await?;
+    display_task_log(&client, upid, true).await?;
 
     Ok(Value::Null)
 }
@@ -125,7 +125,7 @@ async fn task_stop(param: Value) -> Result<Value, Error> {
     let repo = extract_repository_from_value(&param)?;
     let upid_str =  required_string_param(&param, "upid")?;
 
-    let mut client = connect(&repo)?;
+    let client = connect(&repo)?;
 
     let path = format!("api2/json/nodes/localhost/tasks/{}", percent_encode_component(upid_str));
     let _ = client.delete(&path, None).await?;

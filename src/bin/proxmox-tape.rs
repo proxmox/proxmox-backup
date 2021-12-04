@@ -146,12 +146,12 @@ async fn format_media(mut param: Value) -> Result<(), Error> {
 
     let drive = extract_drive_name(&mut param, &config)?;
 
-    let mut client = connect_to_localhost()?;
+    let client = connect_to_localhost()?;
 
     let path = format!("api2/json/tape/drive/{}/format-media", drive);
     let result = client.post(&path, Some(param)).await?;
 
-    view_task_result(&mut client, result, &output_format).await?;
+    view_task_result(&client, result, &output_format).await?;
 
     Ok(())
 }
@@ -179,12 +179,12 @@ async fn rewind(mut param: Value) -> Result<(), Error> {
 
     let drive = extract_drive_name(&mut param, &config)?;
 
-    let mut client = connect_to_localhost()?;
+    let client = connect_to_localhost()?;
 
     let path = format!("api2/json/tape/drive/{}/rewind", drive);
     let result = client.post(&path, Some(param)).await?;
 
-    view_task_result(&mut client, result, &output_format).await?;
+    view_task_result(&client, result, &output_format).await?;
 
     Ok(())
 }
@@ -212,12 +212,12 @@ async fn eject_media(mut param: Value) -> Result<(), Error> {
 
     let drive = extract_drive_name(&mut param, &config)?;
 
-    let mut client = connect_to_localhost()?;
+    let client = connect_to_localhost()?;
 
     let path = format!("api2/json/tape/drive/{}/eject-media", drive);
     let result = client.post(&path, Some(param)).await?;
 
-    view_task_result(&mut client, result, &output_format).await?;
+    view_task_result(&client, result, &output_format).await?;
 
     Ok(())
 }
@@ -248,12 +248,12 @@ async fn load_media(mut param: Value) -> Result<(), Error> {
 
     let drive = extract_drive_name(&mut param, &config)?;
 
-    let mut client = connect_to_localhost()?;
+    let client = connect_to_localhost()?;
 
     let path = format!("api2/json/tape/drive/{}/load-media", drive);
     let result = client.post(&path, Some(param)).await?;
 
-    view_task_result(&mut client, result, &output_format).await?;
+    view_task_result(&client, result, &output_format).await?;
 
     Ok(())
 }
@@ -278,7 +278,7 @@ async fn export_media(mut param: Value) -> Result<(), Error> {
 
     let drive = extract_drive_name(&mut param, &config)?;
 
-    let mut client = connect_to_localhost()?;
+    let client = connect_to_localhost()?;
 
     let path = format!("api2/json/tape/drive/{}/export-media", drive);
     client.put(&path, Some(param)).await?;
@@ -308,7 +308,7 @@ async fn load_media_from_slot(mut param: Value) -> Result<(), Error> {
 
     let drive = extract_drive_name(&mut param, &config)?;
 
-    let mut client = connect_to_localhost()?;
+    let client = connect_to_localhost()?;
 
     let path = format!("api2/json/tape/drive/{}/load-slot", drive);
     client.put(&path, Some(param)).await?;
@@ -345,12 +345,12 @@ async fn unload_media(mut param: Value) -> Result<(), Error> {
 
     let drive = extract_drive_name(&mut param, &config)?;
 
-    let mut client = connect_to_localhost()?;
+    let client = connect_to_localhost()?;
 
     let path = format!("api2/json/tape/drive/{}/unload", drive);
     let result = client.post(&path, Some(param)).await?;
 
-    view_task_result(&mut client, result, &output_format).await?;
+    view_task_result(&client, result, &output_format).await?;
 
     Ok(())
 }
@@ -385,12 +385,12 @@ async fn label_media(mut param: Value) -> Result<(), Error> {
 
     let drive = extract_drive_name(&mut param, &config)?;
 
-    let mut client = connect_to_localhost()?;
+    let client = connect_to_localhost()?;
 
     let path = format!("api2/json/tape/drive/{}/label-media", drive);
     let result = client.post(&path, Some(param)).await?;
 
-    view_task_result(&mut client, result, &output_format).await?;
+    view_task_result(&client, result, &output_format).await?;
 
     Ok(())
 }
@@ -484,7 +484,7 @@ async fn inventory(
 
     let do_read = read_labels.unwrap_or(false) || read_all_labels.unwrap_or(false);
 
-    let mut client = connect_to_localhost()?;
+    let client = connect_to_localhost()?;
 
     let path = format!("api2/json/tape/drive/{}/inventory", drive);
 
@@ -496,7 +496,7 @@ async fn inventory(
         }
 
         let result = client.put(&path, Some(param)).await?; // update inventory
-        view_task_result(&mut client, result, &output_format).await?;
+        view_task_result(&client, result, &output_format).await?;
     }
 
     let mut result = client.get(&path, None).await?;
@@ -541,12 +541,12 @@ async fn barcode_label_media(mut param: Value) -> Result<(), Error> {
 
     let drive = extract_drive_name(&mut param, &config)?;
 
-    let mut client = connect_to_localhost()?;
+    let client = connect_to_localhost()?;
 
     let path = format!("api2/json/tape/drive/{}/barcode-label-media", drive);
     let result = client.post(&path, Some(param)).await?;
 
-    view_task_result(&mut client, result, &output_format).await?;
+    view_task_result(&client, result, &output_format).await?;
 
     Ok(())
 }
@@ -819,12 +819,12 @@ async fn clean_drive(mut param: Value) -> Result<(), Error> {
 
     let drive = extract_drive_name(&mut param, &config)?;
 
-    let mut client = connect_to_localhost()?;
+    let client = connect_to_localhost()?;
 
     let path = format!("api2/json/tape/drive/{}/clean", drive);
     let result = client.put(&path, Some(param)).await?;
 
-    view_task_result(&mut client, result, &output_format).await?;
+    view_task_result(&client, result, &output_format).await?;
 
     Ok(())
 }
@@ -894,11 +894,11 @@ async fn backup(mut param: Value) -> Result<(), Error> {
 
     param["drive"] = extract_drive_name(&mut param, &config)?.into();
 
-    let mut client = connect_to_localhost()?;
+    let client = connect_to_localhost()?;
 
     let result = client.post("api2/json/tape/backup", Some(param)).await?;
 
-    view_task_result(&mut client, result, &output_format).await?;
+    view_task_result(&client, result, &output_format).await?;
 
     Ok(())
 }
@@ -949,11 +949,11 @@ async fn restore(mut param: Value) -> Result<(), Error> {
 
     param["drive"] = extract_drive_name(&mut param, &config)?.into();
 
-    let mut client = connect_to_localhost()?;
+    let client = connect_to_localhost()?;
 
     let result = client.post("api2/json/tape/restore", Some(param)).await?;
 
-    view_task_result(&mut client, result, &output_format).await?;
+    view_task_result(&client, result, &output_format).await?;
 
     Ok(())
 }
@@ -996,12 +996,12 @@ async fn catalog_media(mut param: Value)  -> Result<(), Error> {
 
     let drive = extract_drive_name(&mut param, &config)?;
 
-    let mut client = connect_to_localhost()?;
+    let client = connect_to_localhost()?;
 
     let path = format!("api2/json/tape/drive/{}/catalog", drive);
     let result = client.post(&path, Some(param)).await?;
 
-    view_task_result(&mut client, result, &output_format).await?;
+    view_task_result(&client, result, &output_format).await?;
 
     Ok(())
 }

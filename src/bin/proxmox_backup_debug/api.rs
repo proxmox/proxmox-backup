@@ -190,7 +190,7 @@ async fn call_api(
 }
 
 async fn call_api_http(method: &str, path: &str, params: Option<Value>) -> Result<Value, Error> {
-    let mut client = connect_to_localhost()?;
+    let client = connect_to_localhost()?;
 
     let path = format!(
         "api2/json/{}",
@@ -260,8 +260,8 @@ async fn call_api_and_format_result(
     if let Some(upid) = result.as_str() {
         if PROXMOX_UPID_REGEX.is_match(upid) {
             if use_http_client() {
-                let mut client = connect_to_localhost()?;
-                view_task_result(&mut client, json!({ "data": upid }), &output_format).await?;
+                let client = connect_to_localhost()?;
+                view_task_result(&client, json!({ "data": upid }), &output_format).await?;
                 return Ok(());
             }
 

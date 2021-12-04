@@ -47,13 +47,13 @@ async fn start_garbage_collection(param: Value) -> Result<Value, Error> {
 
     let store = required_string_param(&param, "store")?;
 
-    let mut client = connect_to_localhost()?;
+    let client = connect_to_localhost()?;
 
     let path = format!("api2/json/admin/datastore/{}/gc", store);
 
     let result = client.post(&path, None).await?;
 
-    view_task_result(&mut client, result, &output_format).await?;
+    view_task_result(&client, result, &output_format).await?;
 
     Ok(Value::Null)
 }
@@ -178,9 +178,9 @@ async fn task_log(param: Value) -> Result<Value, Error> {
 
     let upid = required_string_param(&param, "upid")?;
 
-    let mut client = connect_to_localhost()?;
+    let client = connect_to_localhost()?;
 
-    display_task_log(&mut client, upid, true).await?;
+    display_task_log(&client, upid, true).await?;
 
     Ok(Value::Null)
 }
@@ -199,7 +199,7 @@ async fn task_stop(param: Value) -> Result<Value, Error> {
 
     let upid_str = required_string_param(&param, "upid")?;
 
-    let mut client = connect_to_localhost()?;
+    let client = connect_to_localhost()?;
 
     let path = format!("api2/json/nodes/localhost/tasks/{}", percent_encode_component(upid_str));
     let _ = client.delete(&path, None).await?;
@@ -263,7 +263,7 @@ async fn pull_datastore(
 
     let output_format = get_output_format(&param);
 
-    let mut client = connect_to_localhost()?;
+    let client = connect_to_localhost()?;
 
     let mut args = json!({
         "store": local_store,
@@ -281,7 +281,7 @@ async fn pull_datastore(
 
     let result = client.post("api2/json/pull", Some(args)).await?;
 
-    view_task_result(&mut client, result, &output_format).await?;
+    view_task_result(&client, result, &output_format).await?;
 
     Ok(Value::Null)
 }
@@ -315,7 +315,7 @@ async fn verify(
 
     let output_format = extract_output_format(&mut param);
 
-    let mut client = connect_to_localhost()?;
+    let client = connect_to_localhost()?;
 
     let args = json!(param);
 
@@ -323,7 +323,7 @@ async fn verify(
 
     let result = client.post(&path, Some(args)).await?;
 
-    view_task_result(&mut client, result, &output_format).await?;
+    view_task_result(&client, result, &output_format).await?;
 
     Ok(Value::Null)
 }
