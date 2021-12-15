@@ -348,6 +348,7 @@ fn make_tls_acceptor() -> Result<SslAcceptor, Error> {
         .map_err(|err| format_err!("unable to read proxy key {} - {}", key_path, err))?;
     acceptor.set_certificate_chain_file(cert_path)
         .map_err(|err| format_err!("unable to read proxy cert {} - {}", cert_path, err))?;
+    acceptor.set_options(openssl::ssl::SslOptions::NO_RENEGOTIATION);
     acceptor.check_private_key().unwrap();
 
     Ok(acceptor.build())
