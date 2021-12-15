@@ -126,9 +126,20 @@ pbs-tape = { path = "pbs-tape" }
 # NOTE: You must run `cargo update` after changing this for it to take effect!
 [patch.crates-io]
 #proxmox = { path = "../proxmox/proxmox" }
+#proxmox-async = { path = "../proxmox/proxmox-async" }
+#proxmox-borrow = { path = "../proxmox/proxmox-borrow" }
+#proxmox-fuse = { path = "../proxmox-fuse" }
 #proxmox-http = { path = "../proxmox/proxmox-http" }
-#proxmox-tfa = { path = "../proxmox/proxmox-tfa" }
+#proxmox-io = { path = "../proxmox/proxmox-io" }
+#proxmox-lang = { path = "../proxmox/proxmox-lang" }
+#proxmox-router = { path = "../proxmox/proxmox-router" }
 #proxmox-schema = { path = "../proxmox/proxmox-schema" }
+#proxmox-section-config = { path = "../proxmox/proxmox-section-config" }
+#proxmox-shared-memory = { path = "../proxmox/proxmox-shared-memory" }
+#proxmox-sys = { path = "../proxmox/proxmox-sys" }
+#proxmox-tfa = { path = "../proxmox/proxmox-tfa" }
+#proxmox-time = { path = "../proxmox/proxmox-time" }
+#proxmox-uuid = { path = "../proxmox/proxmox-uuid" }
 #pxar = { path = "../pxar" }
 
 [features]
