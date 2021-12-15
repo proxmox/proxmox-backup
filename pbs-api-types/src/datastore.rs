@@ -55,7 +55,7 @@ pub const BACKUP_TYPE_SCHEMA: Schema = StringSchema::new("Backup type.")
     .schema();
 
 pub const BACKUP_TIME_SCHEMA: Schema = IntegerSchema::new("Backup time (Unix epoch.)")
-    .minimum(1_547_797_308)
+    .minimum(1)
     .schema();
 
 pub const BACKUP_GROUP_SCHEMA: Schema = StringSchema::new("Backup Group")
