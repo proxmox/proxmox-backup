@@ -23,7 +23,7 @@ nix = "0.19.1"
 nom = "5.1"
 openssl = "0.10"
 percent-encoding = "2.1"
-regex = "1.2"
+regex = "1.5"
 serde = "1.0"
 serde_json = "1.0"
 # rt-multi-thread is required for block_in_place
