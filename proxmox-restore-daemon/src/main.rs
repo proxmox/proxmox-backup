@@ -46,7 +46,7 @@ fn main() -> Result<(), Error> {
 
     // don't have a real syslog (and no persistance), so use env_logger to print to a log file (via
     // stdout to a serial terminal attached by QEMU)
-    env_logger::from_env(env_logger::Env::default().default_filter_or("info"))
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
         .write_style(env_logger::WriteStyle::Never)
         .format_timestamp_millis()
         .init();
