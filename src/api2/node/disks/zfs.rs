@@ -273,13 +273,15 @@ pub fn create_zpool(
                 crate::tools::systemd::enable_unit(&import_unit)?;
             }
 
+            let mut command = std::process::Command::new("zfs");
+            command.arg("set");
             if let Some(compression) = compression {
-                let mut command = std::process::Command::new("zfs");
-                command.args(&["set", &format!("compression={}", compression), &name]);
-                task_log!(worker, "# {:?}", command);
-                let output = proxmox_sys::command::run_command(command, None)?;
-                task_log!(worker, "{}", output);
+                command.arg(&format!("compression={}", compression));
             }
+            command.args(&["relatime=on", &name]);
+            task_log!(worker, "# {:?}", command);
+            let output = proxmox_sys::command::run_command(command, None)?;
+            task_log!(worker, "{}", output);
 
             if add_datastore {
                 let lock = pbs_config::datastore::lock_config()?;
