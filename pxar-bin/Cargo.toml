@@ -18,7 +18,7 @@ tokio = { version = "1.6", features = [ "rt", "rt-multi-thread" ] }
 pathpatterns = "0.1.2"
 #proxmox = "0.15.3"
 proxmox-async = "0.3"
-proxmox-schema = { version = "1", features = [ "api-macro" ] }
+proxmox-schema = { version = "1.1", features = [ "api-macro" ] }
 proxmox-router = "1.1"
 proxmox-sys = "0.2"
 pxar = { version = "0.10.1", features = [ "tokio-io" ] }
