@@ -11,7 +11,7 @@ use serde_json::Value;
 use proxmox_sys::fs::{replace_file, CreateOptions};
 use proxmox_io::ReadExt;
 use proxmox_router::{Permission, Router, RpcEnvironment, RpcEnvironmentType};
-use proxmox_schema::{api, parse_property_string};
+use proxmox_schema::api;
 use proxmox_section_config::SectionConfigData;
 use proxmox_uuid::Uuid;
 use proxmox_sys::{task_log, task_warn, WorkerTaskContext};
@@ -79,7 +79,7 @@ impl TryFrom<String> for DataStoreMap {
     type Error = Error;
 
     fn try_from(value: String) -> Result<Self, Error> {
-        let value = parse_property_string(&value, &DATASTORE_MAP_ARRAY_SCHEMA)?;
+        let value = DATASTORE_MAP_ARRAY_SCHEMA.parse_property_string(&value)?;
         let mut mapping: Vec<String> = value
             .as_array()
             .unwrap()

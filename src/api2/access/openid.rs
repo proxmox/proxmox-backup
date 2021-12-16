@@ -8,7 +8,7 @@ use proxmox_sys::sortable;
 use proxmox_router::{
     http_err, list_subdirs_api_method, Router, RpcEnvironment, SubdirMap, Permission,
 };
-use proxmox_schema::{api, parse_simple_value};
+use proxmox_schema::api;
 
 use proxmox_openid::{OpenIdAuthenticator, OpenIdConfig};
 
@@ -158,13 +158,13 @@ pub fn openid_login(
                 let _lock = open_backup_lockfile(user::USER_CFG_LOCKFILE, None, true)?;
 
                 let firstname = info["given_name"].as_str().map(|n| n.to_string())
-                    .filter(|n| parse_simple_value(n, &FIRST_NAME_SCHEMA).is_ok());
+                    .filter(|n| FIRST_NAME_SCHEMA.parse_simple_value(n).is_ok());
 
                 let lastname = info["family_name"].as_str().map(|n| n.to_string())
-                    .filter(|n| parse_simple_value(n, &LAST_NAME_SCHEMA).is_ok());
+                    .filter(|n| LAST_NAME_SCHEMA.parse_simple_value(n).is_ok());
 
                 let email = info["email"].as_str().map(|n| n.to_string())
-                    .filter(|n| parse_simple_value(n, &EMAIL_SCHEMA).is_ok());
+                    .filter(|n| EMAIL_SCHEMA.parse_simple_value(n).is_ok());
 
                 let user = User {
                     userid: user_id.clone(),

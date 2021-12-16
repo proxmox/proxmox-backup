@@ -6,7 +6,7 @@ use ::serde::{Deserialize, Serialize};
 use hex::FromHex;
 
 use proxmox_router::{Router, RpcEnvironment, RpcEnvironmentType, Permission};
-use proxmox_schema::{api, ApiType, parse_property_string};
+use proxmox_schema::{api, ApiType};
 use proxmox_section_config::SectionConfigData;
 use proxmox_sys::WorkerTaskContext;
 
@@ -283,7 +283,7 @@ pub fn update_datastore(
     if update.keep_yearly.is_some() { data.keep_yearly = update.keep_yearly; }
 
     if let Some(notify_str) = update.notify {
-        let value = parse_property_string(&notify_str, &DatastoreNotify::API_SCHEMA)?;
+        let value = DatastoreNotify::API_SCHEMA.parse_property_string(&notify_str)?;
         let notify: DatastoreNotify = serde_json::from_value(value)?;
         if let  DatastoreNotify { gc: None, verify: None, sync: None } = notify {
             data.notify = None;

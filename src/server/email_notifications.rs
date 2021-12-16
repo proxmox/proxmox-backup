@@ -5,7 +5,7 @@ use handlebars::{Handlebars, Helper, Context, RenderError, RenderContext, Output
 
 use proxmox_sys::email::sendmail;
 use proxmox_lang::try_block;
-use proxmox_schema::{parse_property_string, ApiType};
+use proxmox_schema::ApiType;
 
 use pbs_api_types::{
     User, TapeBackupJobSetup, SyncJobConfig, VerificationJobConfig,
@@ -578,7 +578,7 @@ pub fn lookup_datastore_notify_settings(
 
     let notify_str = config.notify.unwrap_or_default();
 
-    if let Ok(value) = parse_property_string(&notify_str, &DatastoreNotify::API_SCHEMA) {
+    if let Ok(value) = DatastoreNotify::API_SCHEMA.parse_property_string(&notify_str) {
         if let Ok(notify) = serde_json::from_value(value) {
             return (email, notify);
         }

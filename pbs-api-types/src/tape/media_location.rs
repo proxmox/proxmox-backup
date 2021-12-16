@@ -1,6 +1,6 @@
 use anyhow::{bail, Error};
 
-use proxmox_schema::{parse_simple_value, ApiStringFormat, Schema, StringSchema};
+use proxmox_schema::{ApiStringFormat, Schema, StringSchema};
 
 use crate::{CHANGER_NAME_SCHEMA, PROXMOX_SAFE_ID_FORMAT};
 
@@ -33,10 +33,10 @@ impl proxmox_schema::ApiType for MediaLocation {
         let location: MediaLocation = text.parse()?;
         match location {
             MediaLocation::Online(ref changer) => {
-                parse_simple_value(changer, &CHANGER_NAME_SCHEMA)?;
+                CHANGER_NAME_SCHEMA.parse_simple_value(changer)?;
             }
             MediaLocation::Vault(ref vault) => {
-                parse_simple_value(vault, &VAULT_NAME_SCHEMA)?;
+                VAULT_NAME_SCHEMA.parse_simple_value(vault)?;
             }
             MediaLocation::Offline => { /* OK */ }
         }

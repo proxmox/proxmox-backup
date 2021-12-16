@@ -6,7 +6,6 @@ use endian_trait::Endian;
 use serde::{Serialize, Deserialize};
 use serde_json::Value;
 
-use proxmox_schema::parse_property_string;
 use proxmox_uuid::Uuid;
 
 use pbs_api_types::{ScsiTapeChanger, SLOT_ARRAY_SCHEMA};
@@ -313,7 +312,7 @@ impl MtxStatus {
         let mut export_slots: HashSet<u64> = HashSet::new();
 
         if let Some(slots) = &config.export_slots {
-            let slots: Value = parse_property_string(&slots, &SLOT_ARRAY_SCHEMA)?;
+            let slots: Value = SLOT_ARRAY_SCHEMA.parse_property_string(&slots)?;
             export_slots = slots
                 .as_array()
                 .unwrap()

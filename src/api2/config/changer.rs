@@ -4,7 +4,7 @@ use serde_json::Value;
 use hex::FromHex;
 
 use proxmox_router::{Router, RpcEnvironment, Permission};
-use proxmox_schema::{api, parse_property_string};
+use proxmox_schema::api;
 
 use pbs_api_types::{
     Authid, ScsiTapeChanger, ScsiTapeChangerUpdater, LtoTapeDrive,
@@ -205,9 +205,7 @@ pub fn update_changer(
     }
 
     if let Some(export_slots) = update.export_slots {
-        let slots: Value = parse_property_string(
-            &export_slots, &SLOT_ARRAY_SCHEMA
-        )?;
+        let slots: Value = SLOT_ARRAY_SCHEMA.parse_property_string(&export_slots)?;
         let mut slots: Vec<String> = slots
             .as_array()
             .unwrap()

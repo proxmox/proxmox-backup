@@ -2,7 +2,7 @@ use anyhow::{bail, Error};
 use serde_json::{json, Value};
 
 use proxmox_router::{Router, RpcEnvironment, RpcEnvironmentType, Permission};
-use proxmox_schema::{api, parse_property_string};
+use proxmox_schema::api;
 use proxmox_sys::task_log;
 
 use pbs_api_types::{
@@ -173,7 +173,7 @@ pub fn create_zpool(
     let ashift = ashift.unwrap_or(12);
 
     let devices_text = devices.clone();
-    let devices = parse_property_string(&devices, &DISK_ARRAY_SCHEMA)?;
+    let devices = DISK_ARRAY_SCHEMA.parse_property_string(&devices)?;
     let devices: Vec<String> = devices.as_array().unwrap().iter()
         .map(|v| v.as_str().unwrap().to_string()).collect();
 

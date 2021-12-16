@@ -6,9 +6,7 @@ use anyhow::{bail, format_err, Error};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use proxmox_schema::{
-    parse_property_string, parse_simple_value, verify_json_object, ObjectSchemaType, Schema,
-};
+use proxmox_schema::{ObjectSchemaType, Schema};
 
 type Object = serde_json::Map<String, Value>;
 
@@ -100,7 +98,7 @@ fn parse_key_value(
 fn parse_value(value: &str, schema: Option<&'static Schema>) -> Result<Value, Error> {
     match schema {
         None => Ok(Value::String(value.to_owned())),
-        Some(schema) => parse_simple_value(value, schema),
+        Some(schema) => schema.parse_simple_value(value),
     }
 }
 
@@ -110,9 +108,7 @@ pub fn from_property_string<T>(input: &str, schema: &'static Schema) -> Result<T
 where
     T: for<'de> Deserialize<'de>,
 {
-    Ok(serde_json::from_value(parse_property_string(
-        input, schema,
-    )?)?)
+    Ok(serde_json::from_value(schema.parse_property_string(input)?)?)
 }
 
 /// Serialize a data structure using a 'key: value' config file format.
@@ -124,7 +120,7 @@ pub fn to_bytes<T: Serialize>(value: &T, schema: &'static Schema) -> Result<Vec<
 pub fn value_to_bytes(value: &Value, schema: &'static Schema) -> Result<Vec<u8>, Error> {
     let schema = object_schema(schema)?;
 
-    verify_json_object(value, schema)?;
+    schema.verify_json(value)?;
 
     let object = value
         .as_object()

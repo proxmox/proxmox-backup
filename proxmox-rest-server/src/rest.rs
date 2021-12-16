@@ -26,10 +26,7 @@ use proxmox_router::{
     RpcEnvironmentType, UserInformation,
 };
 use proxmox_router::http_err;
-use proxmox_schema::{
-    parse_parameter_strings, parse_simple_value, verify_json_object, ObjectSchemaType,
-    ParameterSchema,
-};
+use proxmox_schema::{ObjectSchemaType, ParameterSchema};
 
 use proxmox_http::client::RateLimitedStream;
 
@@ -330,7 +327,7 @@ fn parse_query_parameters<S: 'static + BuildHasher + Send>(
         param_list.push((k.clone(), v.clone()));
     }
 
-    let params = parse_parameter_strings(&param_list, param_schema, true)?;
+    let params = param_schema.parse_parameter_strings(&param_list, true)?;
 
     Ok(params)
 }
@@ -376,10 +373,10 @@ async fn get_request_parameters<S: 'static + BuildHasher + Send>(
         let mut params: Value = serde_json::from_str(utf8_data)?;
         for (k, v) in uri_param {
             if let Some((_optional, prop_schema)) = param_schema.lookup(&k) {
-                params[&k] = parse_simple_value(&v, prop_schema)?;
+                params[&k] = prop_schema.parse_simple_value(&v)?;
             }
         }
-        verify_json_object(&params, &param_schema)?;
+        param_schema.verify_json(&params)?;
         return Ok(params);
     } else {
         parse_query_parameters(param_schema, utf8_data, &parts, &uri_param)

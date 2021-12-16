@@ -345,8 +345,8 @@ impl std::str::FromStr for GroupFilter {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.split_once(":") {
-            Some(("group", value)) => parse_simple_value(value, &BACKUP_GROUP_SCHEMA).map(|_| GroupFilter::Group(value.to_string())),
-            Some(("type", value)) => parse_simple_value(value, &BACKUP_TYPE_SCHEMA).map(|_| GroupFilter::BackupType(value.to_string())),
+            Some(("group", value)) => BACKUP_GROUP_SCHEMA.parse_simple_value(value).map(|_| GroupFilter::Group(value.to_string())),
+            Some(("type", value)) => BACKUP_TYPE_SCHEMA.parse_simple_value(value).map(|_| GroupFilter::BackupType(value.to_string())),
             Some(("regex", value)) => Ok(GroupFilter::Regex(Regex::new(value)?)),
             Some((ty, _value)) => Err(format_err!("expected 'group', 'type' or 'regex' prefix, got '{}'", ty)),
             None => Err(format_err!("input doesn't match expected format '<group:GROUP||type:<vm|ct|host>|regex:REGEX>'")),

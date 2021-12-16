@@ -8,8 +8,7 @@ use serde_json::json;
 
 use proxmox_router::RpcEnvironment;
 use proxmox_router::cli::{run_cli_command, complete_file_name, CliCommand, CliCommandMap, CliEnvironment};
-use proxmox_schema::{api, parse_property_string};
-use proxmox_schema::{ApiStringFormat, ApiType, IntegerSchema, Schema, StringSchema};
+use proxmox_schema::{api, ApiStringFormat, ApiType, IntegerSchema, Schema, StringSchema};
 
 use proxmox_sys::fs::CreateOptions;
 
@@ -262,7 +261,7 @@ pub fn create_rrd(
 
     for item in rra.iter() {
         let rra: RRAConfig = serde_json::from_value(
-            parse_property_string(item, &RRAConfig::API_SCHEMA)?
+            RRAConfig::API_SCHEMA.parse_property_string(item)?
         )?;
         println!("GOT {:?}", rra);
         rra_list.push(RRA::new(rra.cf, rra.r, rra.n as usize));

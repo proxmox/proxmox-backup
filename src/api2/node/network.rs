@@ -4,7 +4,7 @@ use ::serde::{Deserialize, Serialize};
 use hex::FromHex;
 
 use proxmox_router::{ApiMethod, Router, RpcEnvironment, Permission};
-use proxmox_schema::{api, parse_property_string};
+use proxmox_schema::api;
 
 use pbs_api_types::{
     Authid, Interface, NetworkInterfaceType, LinuxBondMode, NetworkConfigMethod, BondXmitHashPolicy,
@@ -17,7 +17,7 @@ use pbs_config::network::{self, NetworkConfig};
 use proxmox_rest_server::WorkerTask;
 
 fn split_interface_list(list: &str) -> Result<Vec<String>, Error> {
-    let value = parse_property_string(&list, &NETWORK_INTERFACE_ARRAY_SCHEMA)?;
+    let value = NETWORK_INTERFACE_ARRAY_SCHEMA.parse_property_string(&list)?;
     Ok(value.as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect())
 }
 

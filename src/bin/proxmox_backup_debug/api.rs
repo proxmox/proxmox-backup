@@ -8,7 +8,7 @@ use tokio::signal::unix::{signal, SignalKind};
 use std::collections::HashMap;
 
 use proxmox_router::{cli::*, ApiHandler, ApiMethod, RpcEnvironment, SubRoute};
-use proxmox_schema::{api, parse_parameter_strings, ApiType, ParameterSchema, Schema};
+use proxmox_schema::{api, ApiType, ParameterSchema, Schema};
 use proxmox_schema::format::DocumentationFormat;
 
 use pbs_api_types::{PROXMOX_UPID_REGEX, UPID};
@@ -161,7 +161,7 @@ fn merge_parameters(
         }
     }
 
-    let params = parse_parameter_strings(&param_list, schema, true)?;
+    let params = schema.parse_parameter_strings(&param_list, true)?;
 
     Ok(params)
 }
