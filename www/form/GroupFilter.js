@@ -332,10 +332,28 @@ Ext.define('PBS.form.GroupFilter', {
 	    },
 	},
 	{
-	    xtype: 'button',
-	    text: gettext('Add'),
-	    iconCls: 'fa fa-plus-circle',
-	    handler: 'addFilter',
+	    xtype: 'container',
+	    layout: {
+		type: 'hbox',
+	    },
+	    items: [
+		{
+		    xtype: 'button',
+		    text: gettext('Add'),
+		    iconCls: 'fa fa-plus-circle',
+		    handler: 'addFilter',
+		},
+		{
+		    xtype: 'box',
+		    flex: 1,
+		},
+		{
+		    xtype: 'box',
+		    style: 'margin: 3px 0px;',
+		    html: `<span class="pmx-hint">${gettext('Note')}</span>: `
+			+ gettext('Filters are additive (OR-like)'),
+		},
+	    ],
 	},
     ],
 
