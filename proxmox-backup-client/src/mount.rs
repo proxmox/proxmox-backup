@@ -13,7 +13,7 @@ use nix::unistd::{fork, ForkResult};
 use serde_json::Value;
 use tokio::signal::unix::{signal, SignalKind};
 
-use proxmox_sys::{sortable, identity};
+use proxmox_sys::sortable;
 use proxmox_sys::fd::Fd;
 use proxmox_router::{ApiHandler, ApiMethod, RpcEnvironment, cli::*};
 use proxmox_schema::*;

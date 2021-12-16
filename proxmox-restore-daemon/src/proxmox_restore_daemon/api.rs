@@ -20,7 +20,7 @@ use proxmox_router::{
 use proxmox_schema::*;
 use proxmox_async::zip::zip_directory;
 use proxmox_sys::fs::read_subdir;
-use proxmox_sys::{identity, sortable};
+use proxmox_sys::sortable;
 
 use pbs_api_types::file_restore::RestoreDaemonStatus;
 use pbs_client::pxar::{create_archive, Flags, PxarCreateOptions, ENCODER_MAX_ENTRIES};
