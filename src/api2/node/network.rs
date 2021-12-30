@@ -17,7 +17,7 @@ use pbs_config::network::{self, NetworkConfig};
 use proxmox_rest_server::WorkerTask;
 
 fn split_interface_list(list: &str) -> Result<Vec<String>, Error> {
-    let value = NETWORK_INTERFACE_ARRAY_SCHEMA.parse_property_string(&list)?;
+    let value = NETWORK_INTERFACE_ARRAY_SCHEMA.parse_property_string(list)?;
     Ok(value.as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect())
 }
 

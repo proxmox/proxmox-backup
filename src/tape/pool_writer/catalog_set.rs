@@ -63,7 +63,7 @@ impl CatalogSet {
         }
 
         // remove read-only version from set (in case it is there)
-        self.media_set_catalog.remove_catalog(&new_catalog.uuid());
+        self.media_set_catalog.remove_catalog(new_catalog.uuid());
 
         self.catalog = Some(new_catalog);
 

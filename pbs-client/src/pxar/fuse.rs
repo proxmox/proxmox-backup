@@ -649,7 +649,7 @@ impl SessionImpl {
 
 #[inline]
 fn to_entry(entry: &FileEntry) -> Result<EntryParam, Error> {
-    to_entry_param(to_inode(&entry), &entry)
+    to_entry_param(to_inode(entry), entry)
 }
 
 #[inline]

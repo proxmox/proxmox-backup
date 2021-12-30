@@ -185,7 +185,7 @@ pub(crate) fn set_proxy_certificate(cert_pem: &[u8], key_pem: &[u8]) -> Result<(
     create_configdir()?;
     pbs_config::replace_backup_config(&key_path, key_pem)
         .map_err(|err| format_err!("error writing certificate private key - {}", err))?;
-    pbs_config::replace_backup_config(&cert_path, &cert_pem)
+    pbs_config::replace_backup_config(&cert_path, cert_pem)
         .map_err(|err| format_err!("error writing certificate file - {}", err))?;
 
     Ok(())

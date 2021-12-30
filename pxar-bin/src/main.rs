@@ -195,7 +195,7 @@ fn extract_archive(
         let mut reader = stdin.lock();
         extract_archive_from_reader(
             &mut reader,
-            &target,
+            target,
             feature_flags,
             verbose,
             options,
@@ -208,7 +208,7 @@ fn extract_archive(
         let mut reader = std::io::BufReader::new(file);
         extract_archive_from_reader(
             &mut reader,
-            &target,
+            target,
             feature_flags,
             verbose,
             options,
@@ -409,7 +409,7 @@ async fn mount_archive(
     let mountpoint = Path::new(&mountpoint);
     let options = OsStr::new("ro,default_permissions");
 
-    let session = fuse::Session::mount_path(&archive, &options, verbose, mountpoint)
+    let session = fuse::Session::mount_path(archive, options, verbose, mountpoint)
         .await
         .map_err(|err| format_err!("pxar mount failed: {}", err))?;
 

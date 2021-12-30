@@ -62,14 +62,14 @@ fn get_tape_handle(param: &Value) -> Result<SgTape, Error> {
 
     if let Some(name) = param["drive"].as_str() {
         let (config, _digest) = pbs_config::drive::config()?;
-        let drive: LtoTapeDrive = config.lookup("lto", &name)?;
+        let drive: LtoTapeDrive = config.lookup("lto", name)?;
         eprintln!("using device {}", drive.path);
         return SgTape::new(open_lto_tape_device(&drive.path)?);
     }
 
     if let Some(device) = param["device"].as_str() {
         eprintln!("using device {}", device);
-        return SgTape::new(open_lto_tape_device(&device)?);
+        return SgTape::new(open_lto_tape_device(device)?);
     }
 
     if let Ok(name) = std::env::var("PROXMOX_TAPE_DRIVE") {
@@ -94,7 +94,7 @@ fn get_tape_handle(param: &Value) -> Result<SgTape, Error> {
 
     if drive_names.len() == 1 {
         let name = drive_names[0];
-        let drive: LtoTapeDrive = config.lookup("lto", &name)?;
+        let drive: LtoTapeDrive = config.lookup("lto", name)?;
         eprintln!("using device {}", drive.path);
         return SgTape::new(open_lto_tape_device(&drive.path)?);
     }

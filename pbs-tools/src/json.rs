@@ -64,7 +64,7 @@ pub fn json_object_to_query(data: Value) -> Result<String, Error> {
                 query.append_pair(key, &n.to_string());
             }
             Value::String(s) => {
-                query.append_pair(key, &s);
+                query.append_pair(key, s);
             }
             Value::Array(arr) => {
                 for element in arr {
@@ -76,7 +76,7 @@ pub fn json_object_to_query(data: Value) -> Result<String, Error> {
                             query.append_pair(key, &n.to_string());
                         }
                         Value::String(s) => {
-                            query.append_pair(key, &s);
+                            query.append_pair(key, s);
                         }
                         _ => bail!(
                             "json_object_to_query: unable to handle complex array data types."
@@ -121,14 +121,14 @@ pub fn required_integer_property(param: &Value, name: &str) -> Result<i64, Error
 
 pub fn required_array_param<'a>(param: &'a Value, name: &str) -> Result<&'a [Value], Error> {
     match param[name].as_array() {
-        Some(s) => Ok(&s),
+        Some(s) => Ok(s),
         None => bail!("missing parameter '{}'", name),
     }
 }
 
 pub fn required_array_property<'a>(param: &'a Value, name: &str) -> Result<&'a [Value], Error> {
     match param[name].as_array() {
-        Some(s) => Ok(&s),
+        Some(s) => Ok(s),
         None => bail!("missing property '{}'", name),
     }
 }

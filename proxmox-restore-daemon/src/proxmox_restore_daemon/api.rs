@@ -146,7 +146,7 @@ fn list(
     let param_path_buf = Path::new(path_str);
 
     let mut disk_state = crate::DISK_STATE.lock().unwrap();
-    let query_result = disk_state.resolve(&param_path_buf)?;
+    let query_result = disk_state.resolve(param_path_buf)?;
 
     match query_result {
         ResolveResult::Path(vm_path) => {
@@ -275,7 +275,7 @@ fn extract(
 
         let query_result = {
             let mut disk_state = crate::DISK_STATE.lock().unwrap();
-            disk_state.resolve(&path)?
+            disk_state.resolve(path)?
         };
 
         let vm_path = match query_result {

@@ -233,7 +233,7 @@ impl AcmeClient {
             )
             .await?;
 
-            let request = account.post_request(&account.location, &nonce, data)?;
+            let request = account.post_request(&account.location, nonce, data)?;
             match Self::execute(&mut self.http_client, request, &mut self.nonce).await {
                 Ok(response) => break response,
                 Err(err) if err.is_bad_nonce() => continue,
@@ -402,7 +402,7 @@ impl AcmeClient {
             )
             .await?;
 
-            let request = revocation.request(&directory, nonce)?;
+            let request = revocation.request(directory, nonce)?;
             match Self::execute(&mut self.http_client, request, &mut self.nonce).await {
                 Ok(_response) => return Ok(()),
                 Err(err) if err.is_bad_nonce() => continue,

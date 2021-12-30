@@ -25,7 +25,7 @@ pub struct PkgState {
 pub fn write_pkg_cache(state: &PkgState) -> Result<(), Error> {
     let serialized_state = serde_json::to_string(state)?;
 
-    replace_file(APT_PKG_STATE_FN, &serialized_state.as_bytes(), CreateOptions::new(), false)
+    replace_file(APT_PKG_STATE_FN, serialized_state.as_bytes(), CreateOptions::new(), false)
         .map_err(|err| format_err!("Error writing package cache - {}", err))?;
     Ok(())
 }
@@ -206,7 +206,7 @@ pub fn list_installed_apt_packages<F: Fn(FilterData) -> bool>(
                 drop(cache_iter);
                 // also loop through missing dependencies, as they would be installed
                 for pkg in depends.iter() {
-                    let mut iter = cache.find_by_name(&pkg);
+                    let mut iter = cache.find_by_name(pkg);
                     let view = match iter.next() {
                         Some(view) => view,
                         None => continue // package not found, ignore

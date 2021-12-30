@@ -36,7 +36,7 @@ fn get_changer_handle(param: &Value) -> Result<File, Error> {
 
     if let Some(name) = param["changer"].as_str() {
         let (config, _digest) = pbs_config::drive::config()?;
-        let changer_config: ScsiTapeChanger = config.lookup("changer", &name)?;
+        let changer_config: ScsiTapeChanger = config.lookup("changer", name)?;
         eprintln!("using device {}", changer_config.path);
         return sg_pt_changer::open(&changer_config.path);
     }

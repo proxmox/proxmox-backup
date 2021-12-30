@@ -90,8 +90,8 @@ async fn dump_catalog(param: Value) -> Result<Value, Error> {
         client,
         crypt_config.clone(),
         repo.store(),
-        &snapshot.group().backup_type(),
-        &snapshot.group().backup_id(),
+        snapshot.group().backup_type(),
+        snapshot.group().backup_id(),
         snapshot.backup_time(),
         true,
     ).await?;
@@ -103,7 +103,7 @@ async fn dump_catalog(param: Value) -> Result<Value, Error> {
 
     let most_used = index.find_most_used_chunks(8);
 
-    let file_info = manifest.lookup_file_info(&CATALOG_NAME)?;
+    let file_info = manifest.lookup_file_info(CATALOG_NAME)?;
 
     let chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config, file_info.chunk_crypt_mode(), most_used);
 
@@ -232,7 +232,7 @@ async fn catalog_shell(param: Value) -> Result<(), Error> {
 
     let most_used = index.find_most_used_chunks(8);
 
-    let file_info = manifest.lookup_file_info(&CATALOG_NAME)?;
+    let file_info = manifest.lookup_file_info(CATALOG_NAME)?;
     let chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config, file_info.chunk_crypt_mode(), most_used);
     let mut reader = BufferedDynamicReader::new(index, chunk_reader);
     let mut catalogfile = std::fs::OpenOptions::new()

@@ -827,7 +827,7 @@ pub fn complete_media_set_snapshots(_arg: &str, param: &HashMap<String, String>)
         None => return Vec::new(),
     };
     let status_path = Path::new(TAPE_STATUS_DIR);
-    let inventory = match Inventory::load(&status_path) {
+    let inventory = match Inventory::load(status_path) {
         Ok(inventory) => inventory,
         Err(_) => return Vec::new(),
     };

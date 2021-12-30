@@ -839,7 +839,7 @@ impl DataStore {
     ) -> Result<(), Error> {
 
         let _guard = self.lock_manifest(backup_dir)?;
-        let (mut manifest, _) = self.load_manifest(&backup_dir)?;
+        let (mut manifest, _) = self.load_manifest(backup_dir)?;
 
         update_fn(&mut manifest);
 
@@ -919,7 +919,7 @@ impl DataStore {
         }
 
         // sorting by inode improves data locality, which makes it lots faster on spinners
-        chunk_list.sort_unstable_by(|(_, ino_a), (_, ino_b)| ino_a.cmp(&ino_b));
+        chunk_list.sort_unstable_by(|(_, ino_a), (_, ino_b)| ino_a.cmp(ino_b));
 
         Ok(chunk_list)
     }

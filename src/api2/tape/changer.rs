@@ -96,7 +96,7 @@ pub async fn get_status(
     for (id, drive_status) in status.drives.iter().enumerate() {
         let mut state = None;
         if let Some(drive) = drive_map.get(&(id as u64)) {
-            state = get_tape_device_state(&config, &drive)?;
+            state = get_tape_device_state(&config, drive)?;
         }
         let entry = MtxStatusEntry {
             entry_kind: MtxEntryKind::Drive,
@@ -231,7 +231,7 @@ const SUBDIRS: SubdirMap = &[
 
 const ITEM_ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(SUBDIRS))
-    .subdirs(&SUBDIRS);
+    .subdirs(SUBDIRS);
 
 pub const ROUTER: Router = Router::new()
     .get(&API_METHOD_LIST_CHANGERS)

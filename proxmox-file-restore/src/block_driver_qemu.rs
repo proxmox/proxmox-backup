@@ -325,7 +325,7 @@ impl BlockRestoreDriver for QemuBlockDriver {
         match VMStateMap::load_read_only() {
             Ok(state) => state
                 .iter()
-                .filter_map(|(name, _)| proxmox_sys::systemd::unescape_unit(&name).ok())
+                .filter_map(|(name, _)| proxmox_sys::systemd::unescape_unit(name).ok())
                 .collect(),
             Err(_) => Vec::new(),
         }

@@ -138,7 +138,7 @@ fn check_datastore_privs(
     auth_id: &Authid,
     owner: &Option<Authid>,
 ) -> Result<(), Error> {
-    let privs = user_info.lookup_privs(&auth_id, &["datastore", &store]);
+    let privs = user_info.lookup_privs(auth_id, &["datastore", store]);
     if (privs & PRIV_DATASTORE_BACKUP) == 0 {
         bail!("no permissions on /datastore/{}", store);
     }
@@ -220,7 +220,7 @@ pub fn restore(
     }
 
     for store in used_datastores.iter() {
-        check_datastore_privs(&user_info, &store, &auth_id, &owner)?;
+        check_datastore_privs(&user_info, store, &auth_id, &owner)?;
     }
 
     let privs = user_info.lookup_privs(&auth_id, &["tape", "drive", &drive]);
@@ -448,7 +448,7 @@ fn restore_list_worker(
             })?;
 
             let (owner, _group_lock) =
-                datastore.create_locked_backup_group(backup_dir.group(), &restore_owner)?;
+                datastore.create_locked_backup_group(backup_dir.group(), restore_owner)?;
             if restore_owner != &owner {
                 // only the owner is allowed to create additional snapshots
                 bail!(
@@ -460,7 +460,7 @@ fn restore_list_worker(
             }
 
             let (media_id, file_num) = if let Some((media_uuid, file_num)) =
-                catalog.lookup_snapshot(&source_datastore, &snapshot)
+                catalog.lookup_snapshot(source_datastore, snapshot)
             {
                 let media_id = inventory.lookup_media(media_uuid).unwrap();
                 (media_id, file_num)
@@ -516,7 +516,7 @@ fn restore_list_worker(
             let (drive, info) = request_and_load_media(
                 &worker,
                 &drive_config,
-                &drive_name,
+                drive_name,
                 &media_id.label,
                 &email,
             )?;
@@ -568,7 +568,7 @@ fn restore_list_worker(
             let (mut drive, _info) = request_and_load_media(
                 &worker,
                 &drive_config,
-                &drive_name,
+                drive_name,
                 &media_id.label,
                 &email,
             )?;
@@ -591,7 +591,7 @@ fn restore_list_worker(
                 let backup_dir: BackupDir = snapshot.parse()?;
 
                 let datastore = store_map
-                    .get_datastore(&source_datastore)
+                    .get_datastore(source_datastore)
                     .ok_or_else(|| format_err!("unexpected source datastore: {}", source_datastore))?;
 
                 let mut tmp_path = base_path.clone();
@@ -646,7 +646,7 @@ fn get_media_set_catalog(
             }
             Some(media_uuid) => {
                 let media_id = inventory.lookup_media(media_uuid).unwrap();
-                let media_catalog = MediaCatalog::open(status_path, &media_id, false, false)?;
+                let media_catalog = MediaCatalog::open(status_path, media_id, false, false)?;
                 catalog.append_catalog(media_catalog)?;
             }
         }
@@ -899,7 +899,7 @@ pub fn request_and_restore_media(
         Some(ref set) => &set.uuid,
     };
 
-    let (mut drive, info) = request_and_load_media(&worker, &drive_config, &drive_name, &media_id.label, email)?;
+    let (mut drive, info) = request_and_load_media(&worker, drive_config, drive_name, &media_id.label, email)?;
 
     match info.media_set_label {
         None => {
@@ -923,7 +923,7 @@ pub fn request_and_restore_media(
         worker,
         &mut drive,
         &info,
-        Some((&store_map, restore_owner)),
+        Some((store_map, restore_owner)),
         checked_chunks_map,
         false,
     )

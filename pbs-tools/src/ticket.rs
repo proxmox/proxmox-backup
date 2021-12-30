@@ -97,8 +97,8 @@ where
         write!(
             f,
             "{}:{}:{:08X}",
-            percent_encode(self.prefix.as_bytes(), &TICKET_ASCIISET),
-            percent_encode(self.data.as_bytes(), &TICKET_ASCIISET),
+            percent_encode(self.prefix.as_bytes(), TICKET_ASCIISET),
+            percent_encode(self.data.as_bytes(), TICKET_ASCIISET),
             self.time,
         )
         .map_err(Error::from)
@@ -107,7 +107,7 @@ where
     /// Write additional authentication data to the verifier.
     fn write_aad(f: &mut dyn io::Write, aad: Option<&str>) -> Result<(), Error> {
         if let Some(aad) = aad {
-            write!(f, ":{}", percent_encode(aad.as_bytes(), &TICKET_ASCIISET))?;
+            write!(f, ":{}", percent_encode(aad.as_bytes(), TICKET_ASCIISET))?;
         }
         Ok(())
     }
@@ -122,7 +122,7 @@ where
     /// Sign the ticket.
     pub fn sign(&mut self, keypair: &PKey<Private>, aad: Option<&str>) -> Result<String, Error> {
         let mut output = Vec::<u8>::new();
-        let mut signer = Signer::new(MessageDigest::sha256(), &keypair)
+        let mut signer = Signer::new(MessageDigest::sha256(), keypair)
             .map_err(|err| format_err!("openssl error creating signer for ticket: {}", err))?;
 
         self.write_data(&mut output)
@@ -179,14 +179,14 @@ where
             bail!("invalid ticket - expired");
         }
 
-        let mut verifier = Verifier::new(MessageDigest::sha256(), &keypair)?;
+        let mut verifier = Verifier::new(MessageDigest::sha256(), keypair)?;
 
         self.write_data(&mut verifier)
             .and_then(|()| Self::write_aad(&mut verifier, aad))
             .map_err(|err| format_err!("error verifying ticket: {}", err))?;
 
         let is_valid: bool = verifier
-            .verify(&signature)
+            .verify(signature)
             .map_err(|err| format_err!("openssl error verifying ticket: {}", err))?;
 
         if !is_valid {

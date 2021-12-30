@@ -81,7 +81,7 @@ pub fn config() -> Result<(SectionConfigData, [u8;32]), Error> {
 
 /// Save the configuration file
 pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
-    let raw = CONFIG.write(DRIVE_CFG_FILENAME, &config)?;
+    let raw = CONFIG.write(DRIVE_CFG_FILENAME, config)?;
     replace_backup_config(DRIVE_CFG_FILENAME, raw.as_bytes())
 }
 

@@ -94,7 +94,7 @@ async fn get_child_links(
     path: &str,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<String>, Error> {
-    let (path, components) = normalize_uri_path(&path)?;
+    let (path, components) = normalize_uri_path(path)?;
 
     let info = &proxmox_backup::api2::ROUTER
         .find_route(&components, &mut HashMap::new())
@@ -132,7 +132,7 @@ fn get_api_method(
         _ => unreachable!(),
     };
     let mut uri_param = HashMap::new();
-    let (path, components) = normalize_uri_path(&path)?;
+    let (path, components) = normalize_uri_path(path)?;
     if let Some(method) =
         &proxmox_backup::api2::ROUTER.find_method(&components, method.clone(), &mut uri_param)
     {
@@ -446,7 +446,7 @@ async fn ls(path: Option<String>, mut param: Value, rpcenv: &mut dyn RpcEnvironm
         &mut serde_json::to_value(res)?,
         &proxmox_schema::ReturnType {
             optional: false,
-            schema: &LS_SCHEMA,
+            schema: LS_SCHEMA,
         },
         &output_format,
         &options,

@@ -282,7 +282,7 @@ fn create_datastore_mount_unit(
     what: &str,
 ) -> Result<String, Error> {
 
-    let mut mount_unit_name = proxmox_sys::systemd::escape_unit(&mount_point, true);
+    let mut mount_unit_name = proxmox_sys::systemd::escape_unit(mount_point, true);
     mount_unit_name.push_str(".mount");
 
     let mount_unit_path = format!("/etc/systemd/system/{}", mount_unit_name);

@@ -654,7 +654,7 @@ async fn create_backup(
 
     let crypto = crypto_parameters(&param)?;
 
-    let backup_id = param["backup-id"].as_str().unwrap_or(&proxmox_sys::nodename());
+    let backup_id = param["backup-id"].as_str().unwrap_or(proxmox_sys::nodename());
 
     let backup_type = param["backup-type"].as_str().unwrap_or("host");
 
@@ -794,7 +794,7 @@ async fn create_backup(
         crypt_config.clone(),
         repo.store(),
         backup_type,
-        &backup_id,
+        backup_id,
         backup_time,
         verbose,
         false
@@ -1003,7 +1003,7 @@ async fn dump_image<W: Write>(
 
     for pos in 0..index.index_count() {
         let digest = index.index_digest(pos).unwrap();
-        let raw_data = chunk_reader.read_chunk(&digest).await?;
+        let raw_data = chunk_reader.read_chunk(digest).await?;
         writer.write_all(&raw_data)?;
         bytes += raw_data.len();
         if verbose {

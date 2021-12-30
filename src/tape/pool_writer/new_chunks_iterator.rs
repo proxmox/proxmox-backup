@@ -53,7 +53,7 @@ impl NewChunksIterator {
                         continue;
                     }
 
-                    if catalog_set.lock().unwrap().contains_chunk(&datastore_name, &digest) {
+                    if catalog_set.lock().unwrap().contains_chunk(datastore_name, &digest) {
                         continue;
                     };
 

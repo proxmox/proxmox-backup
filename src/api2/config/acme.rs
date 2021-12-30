@@ -524,7 +524,7 @@ pub fn list_plugins(mut rpcenv: &mut dyn RpcEnvironment) -> Result<Vec<PluginCon
     rpcenv["digest"] = hex::encode(&digest).into();
     Ok(plugins
         .iter()
-        .map(|(id, (ty, data))| modify_cfg_for_api(&id, &ty, data))
+        .map(|(id, (ty, data))| modify_cfg_for_api(id, ty, data))
         .collect())
 }
 
@@ -546,7 +546,7 @@ pub fn get_plugin(id: String, mut rpcenv: &mut dyn RpcEnvironment) -> Result<Plu
     rpcenv["digest"] = hex::encode(&digest).into();
 
     match plugins.get(&id) {
-        Some((ty, data)) => Ok(modify_cfg_for_api(&id, &ty, &data)),
+        Some((ty, data)) => Ok(modify_cfg_for_api(&id, ty, data)),
         None => http_bail!(NOT_FOUND, "no such plugin"),
     }
 }

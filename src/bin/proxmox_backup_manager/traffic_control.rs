@@ -94,7 +94,7 @@ async fn show_current_traffic(param: Value) -> Result<Value, Error> {
 
     let client = connect_to_localhost()?;
 
-    let mut result = client.get(&"api2/json/admin/traffic-control", None).await?;
+    let mut result = client.get("api2/json/admin/traffic-control", None).await?;
 
     let mut data = result["data"].take();
 

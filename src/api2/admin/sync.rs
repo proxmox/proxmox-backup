@@ -73,7 +73,7 @@ pub fn list_sync_jobs(
             }
         })
         .filter(|job: &SyncJobConfig| {
-            check_sync_job_read_access(&user_info, &auth_id, &job)
+            check_sync_job_read_access(&user_info, &auth_id, job)
         });
 
     let mut list = Vec::new();

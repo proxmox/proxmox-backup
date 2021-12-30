@@ -44,7 +44,7 @@ fn mark_selections<F: Fn(&BackupInfo) -> Result<String, Error>> (
     for info in list {
         let backup_id = info.backup_dir.relative_path();
         if let Some(PruneMark::Keep) = mark.get(&backup_id) {
-            let sel_id: String = select_id(&info)?;
+            let sel_id: String = select_id(info)?;
             already_included.insert(sel_id);
         }
     }
@@ -56,7 +56,7 @@ fn mark_selections<F: Fn(&BackupInfo) -> Result<String, Error>> (
             mark.insert(backup_id, PruneMark::Protected);
             continue;
         }
-        let sel_id: String = select_id(&info)?;
+        let sel_id: String = select_id(info)?;
 
         if already_included.contains(&sel_id) { continue; }
 

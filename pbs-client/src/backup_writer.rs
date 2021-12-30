@@ -321,7 +321,7 @@ impl BackupWriter {
             self.h2.clone(),
             wid,
             stream,
-            &prefix,
+            prefix,
             known_chunks.clone(),
             if options.encrypt {
                 self.crypt_config.clone()

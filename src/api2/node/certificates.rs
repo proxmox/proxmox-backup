@@ -330,7 +330,7 @@ async fn order_certificate(
 
     for auth_url in &order.data.authorizations {
         task_log!(worker, "Getting authorization details from '{}'", auth_url);
-        let mut auth = acme.get_authorization(&auth_url).await?;
+        let mut auth = acme.get_authorization(auth_url).await?;
 
         let domain = match &mut auth.identifier {
             Identifier::Dns(domain) => domain.to_ascii_lowercase(),
@@ -442,7 +442,7 @@ async fn request_validation(
     validation_url: &str,
 ) -> Result<(), Error> {
     task_log!(worker, "Triggering validation");
-    acme.request_challenge_validation(&validation_url).await?;
+    acme.request_challenge_validation(validation_url).await?;
 
     task_log!(worker, "Sleeping for 5 seconds");
     tokio::time::sleep(Duration::from_secs(5)).await;
@@ -450,7 +450,7 @@ async fn request_validation(
     loop {
         use proxmox_acme_rs::authorization::Status;
 
-        let auth = acme.get_authorization(&auth_url).await?;
+        let auth = acme.get_authorization(auth_url).await?;
         match auth.status {
             Status::Pending => {
                 task_log!(worker, "Status is still 'pending', trying again in 10 seconds");

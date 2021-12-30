@@ -141,7 +141,7 @@ impl NodeConfig {
     /// Returns the parsed ProxyConfig
     pub fn http_proxy(&self) -> Option<ProxyConfig> {
         if let Some(http_proxy) = &self.http_proxy {
-            match ProxyConfig::parse_proxy_url(&http_proxy) {
+            match ProxyConfig::parse_proxy_url(http_proxy) {
                 Ok(proxy) => Some(proxy),
                 Err(_) => None,
             }

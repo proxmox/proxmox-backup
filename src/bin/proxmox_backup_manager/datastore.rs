@@ -93,7 +93,7 @@ async fn create_datastore(mut param: Value) -> Result<Value, Error> {
 
     let mut client = connect_to_localhost()?;
 
-    let result = client.post(&"api2/json/config/datastore", Some(param)).await?;
+    let result = client.post("api2/json/config/datastore", Some(param)).await?;
 
     view_task_result(&mut client, result, &output_format).await?;
 

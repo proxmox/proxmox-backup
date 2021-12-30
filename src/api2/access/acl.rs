@@ -121,7 +121,7 @@ pub fn read_acl(
     let mut list: Vec<AclListItem> = Vec::new();
     if let Some(path) = &path {
         if let Some(node) = &tree.find_node(path) {
-            extract_acl_node_data(&node, path, &mut list, exact, &auth_id_filter);
+            extract_acl_node_data(node, path, &mut list, exact, &auth_id_filter);
         }
     } else {
         extract_acl_node_data(&tree.root, "", &mut list, exact, &auth_id_filter);

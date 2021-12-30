@@ -265,9 +265,9 @@ impl ScsiMediaChange for ScsiTapeChanger {
         }
 
         let status = if USE_MTX {
-            mtx::mtx_status(&self)
+            mtx::mtx_status(self)
         } else {
-            sg_pt_changer::status(&self)
+            sg_pt_changer::status(self)
         };
 
         match &status {

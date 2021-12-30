@@ -91,13 +91,13 @@ pub fn datastore_status(
     let mut list = Vec::new();
 
     for (store, (_, _)) in &config.sections {
-        let user_privs = user_info.lookup_privs(&auth_id, &["datastore", &store]);
+        let user_privs = user_info.lookup_privs(&auth_id, &["datastore", store]);
         let allowed = (user_privs & (PRIV_DATASTORE_AUDIT| PRIV_DATASTORE_BACKUP)) != 0;
         if !allowed {
             continue;
         }
 
-        let datastore = match DataStore::lookup_datastore(&store) {
+        let datastore = match DataStore::lookup_datastore(store) {
             Ok(datastore) => datastore,
             Err(err) => {
                 list.push(json!({

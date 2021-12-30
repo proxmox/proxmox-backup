@@ -54,7 +54,7 @@ pub fn config() -> Result<(SectionConfigData, [u8;32]), Error> {
 
 /// Save the configuration file
 pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
-    let raw = CONFIG.write(TRAFFIC_CONTROL_CFG_FILENAME, &config)?;
+    let raw = CONFIG.write(TRAFFIC_CONTROL_CFG_FILENAME, config)?;
     replace_backup_config(TRAFFIC_CONTROL_CFG_FILENAME, raw.as_bytes())?;
 
     // increase traffic control version
@@ -88,7 +88,7 @@ mod test {
  timeframe mon..wed 8:00-16:30
  timeframe fri 9:00-12:00
 ";
-        let data = CONFIG.parse(TRAFFIC_CONTROL_CFG_FILENAME, &content)?;
+        let data = CONFIG.parse(TRAFFIC_CONTROL_CFG_FILENAME, content)?;
         eprintln!("GOT {:?}", data);
 
         Ok(())

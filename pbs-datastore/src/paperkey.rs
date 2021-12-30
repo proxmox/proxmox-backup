@@ -53,7 +53,7 @@ pub fn generate_paper_key<W: Write>(
 
         (lines, true)
     } else {
-        match serde_json::from_str::<KeyConfig>(&data) {
+        match serde_json::from_str::<KeyConfig>(data) {
             Ok(key_config) => {
                 let lines = serde_json::to_string_pretty(&key_config)?
                     .lines()
@@ -216,7 +216,7 @@ fn paperkey_text<W: Write>(
     }
     writeln!(output, "-----END PROXMOX BACKUP KEY-----")?;
 
-    let qr_code = generate_qr_code("utf8i", &lines)?;
+    let qr_code = generate_qr_code("utf8i", lines)?;
     let qr_code = String::from_utf8(qr_code)
         .map_err(|_| format_err!("Failed to read qr code (got non-utf8 data)"))?;
 

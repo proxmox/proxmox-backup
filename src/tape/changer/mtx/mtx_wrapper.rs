@@ -21,7 +21,7 @@ pub fn mtx_status(config: &ScsiTapeChanger) -> Result<MtxStatus, Error> {
 
     let mut status = parse_mtx_status(&output)?;
 
-    status.mark_import_export_slots(&config)?;
+    status.mark_import_export_slots(config)?;
 
     Ok(status)
 }

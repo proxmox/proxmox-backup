@@ -83,7 +83,7 @@ fn check_priv_or_backup_owner(
     required_privs: u64,
 ) -> Result<(), Error> {
     let user_info = CachedUserInfo::new()?;
-    let privs = user_info.lookup_privs(&auth_id, &["datastore", store.name()]);
+    let privs = user_info.lookup_privs(auth_id, &["datastore", store.name()]);
 
     if privs & required_privs == 0 {
         let owner = store.get_owner(group)?;
@@ -125,7 +125,7 @@ fn get_all_snapshot_files(
     info: &BackupInfo,
 ) -> Result<(BackupManifest, Vec<BackupContent>), Error> {
 
-    let (manifest, mut files) = read_backup_index(&store, &info.backup_dir)?;
+    let (manifest, mut files) = read_backup_index(store, &info.backup_dir)?;
 
     let file_set = files.iter().fold(HashSet::new(), |mut acc, item| {
         acc.insert(item.filename.clone());
@@ -536,7 +536,7 @@ pub fn list_snapshots (
             snapshots.extend(
                 group_backups
                     .into_iter()
-                    .map(|info| info_to_snapshot_list_item(&group, Some(owner.clone()), info))
+                    .map(|info| info_to_snapshot_list_item(group, Some(owner.clone()), info))
             );
 
             Ok(snapshots)
@@ -549,7 +549,7 @@ fn get_snapshots_count(store: &DataStore, filter_owner: Option<&Authid>) -> Resu
 
     groups.iter()
         .filter(|group| {
-            let owner = match store.get_owner(&group) {
+            let owner = match store.get_owner(group) {
                 Ok(owner) => owner,
                 Err(err) => {
                     eprintln!("Failed to get owner of group '{}/{}' - {}",
@@ -1071,7 +1071,7 @@ pub fn get_datastore_list(
     let mut list = Vec::new();
 
     for (store, (_, data)) in &config.sections {
-        let user_privs = user_info.lookup_privs(&auth_id, &["datastore", &store]);
+        let user_privs = user_info.lookup_privs(&auth_id, &["datastore", store]);
         let allowed = (user_privs & (PRIV_DATASTORE_AUDIT| PRIV_DATASTORE_BACKUP)) != 0;
         if allowed {
             list.push(
@@ -1401,7 +1401,7 @@ pub fn catalog(
         .map_err(|err| format_err!("unable to read dynamic index '{:?}' - {}", &path, err))?;
 
     let (csum, size) = index.compute_csum();
-    manifest.verify_file(&file_name, &csum, size)?;
+    manifest.verify_file(file_name, &csum, size)?;
 
     let chunk_reader = LocalChunkReader::new(datastore, None, CryptMode::None);
     let reader = BufferedDynamicReader::new(index, chunk_reader);
@@ -1446,7 +1446,7 @@ pub fn pxar_file_download(
 
     async move {
         let store = required_string_param(&param, "store")?;
-        let datastore = DataStore::lookup_datastore(&store)?;
+        let datastore = DataStore::lookup_datastore(store)?;
 
         let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
@@ -1483,7 +1483,7 @@ pub fn pxar_file_download(
             .map_err(|err| format_err!("unable to read dynamic index '{:?}' - {}", &path, err))?;
 
         let (csum, size) = index.compute_csum();
-        manifest.verify_file(&pxar_name, &csum, size)?;
+        manifest.verify_file(pxar_name, &csum, size)?;
 
         let chunk_reader = LocalChunkReader::new(datastore, None, CryptMode::None);
         let reader = BufferedDynamicReader::new(index, chunk_reader);

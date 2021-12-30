@@ -72,7 +72,7 @@ fn recover_index(
 
     let crypt_conf_opt = if let Some(key_file_path) = key_file_path {
         let (key, _created, _fingerprint) =
-            load_and_decrypt_key(&key_file_path, &get_encryption_key_password)?;
+            load_and_decrypt_key(key_file_path, &get_encryption_key_password)?;
         Some(CryptConfig::new(key)?)
     } else {
         None

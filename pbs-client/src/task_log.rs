@@ -110,7 +110,7 @@ pub async fn view_task_result(
             display_task_log(client, upid, true).await?;
         }
     } else {
-        format_and_print_result(&data, &output_format);
+        format_and_print_result(data, output_format);
     }
 
     Ok(())

@@ -125,7 +125,7 @@ pub fn parse_systemd_mount(filename: &str) -> Result<SectionConfigData, Error> {
 }
 
 fn save_systemd_config(config: &SectionConfig, filename: &str, data: &SectionConfigData) -> Result<(), Error> {
-    let raw = config.write(filename, &data)?;
+    let raw = config.write(filename, data)?;
 
     let mode = nix::sys::stat::Mode::from_bits_truncate(0o0644);
     // set the correct owner/group/permissions while saving file, owner(rw) = root

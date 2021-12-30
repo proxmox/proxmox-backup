@@ -121,7 +121,7 @@ async fn termproxy(cmd: Option<String>, rpcenv: &mut dyn RpcEnvironment) -> Resu
 
     let ticket = Ticket::new(ticket::TERM_PREFIX, &Empty)?.sign(
         private_auth_key(),
-        Some(&tools::ticket::term_aad(&userid, &path, port)),
+        Some(&tools::ticket::term_aad(userid, path, port)),
     )?;
 
     let mut command = Vec::new();
@@ -161,7 +161,7 @@ async fn termproxy(cmd: Option<String>, rpcenv: &mut dyn RpcEnvironment) -> Resu
             arguments.push(&fd_string);
             arguments.extend_from_slice(&[
                 "--path",
-                &path,
+                path,
                 "--perm",
                 "Sys.Console",
                 "--authport",
@@ -293,7 +293,7 @@ fn upgrade_to_websocket(
         Ticket::<Empty>::parse(ticket)?.verify(
             crate::auth_helpers::public_auth_key(),
             ticket::TERM_PREFIX,
-            Some(&tools::ticket::term_aad(&userid, "/system", port)),
+            Some(&tools::ticket::term_aad(userid, "/system", port)),
         )?;
 
         let (ws, response) = WebSocket::new(parts.headers.clone())?;

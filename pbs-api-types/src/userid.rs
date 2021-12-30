@@ -556,10 +556,7 @@ impl Authid {
     }
 
     pub fn tokenname(&self) -> Option<&TokennameRef> {
-        match &self.tokenname {
-            Some(name) => Some(&name),
-            None => None,
-        }
+        self.tokenname.as_deref()
     }
 
     /// Get the "root@pam" auth id.

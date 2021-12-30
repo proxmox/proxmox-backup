@@ -55,9 +55,9 @@ pub fn read_etc_resolv_conf() -> Result<Value, Error> {
 
     for line in data.lines() {
 
-        if let Some(caps) = DOMAIN_REGEX.captures(&line) {
+        if let Some(caps) = DOMAIN_REGEX.captures(line) {
             result["search"] = Value::from(&caps[1]);
-        } else if let Some(caps) = SERVER_REGEX.captures(&line) {
+        } else if let Some(caps) = SERVER_REGEX.captures(line) {
             nscount += 1;
             if nscount > 3 { continue };
             let nameserver = &caps[1];

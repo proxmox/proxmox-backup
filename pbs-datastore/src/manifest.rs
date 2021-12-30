@@ -214,7 +214,7 @@ impl BackupManifest {
         let json: Value = serde_json::from_slice(data)?;
         let signature = json["signature"].as_str().map(String::from);
 
-        if let Some(ref crypt_config) = crypt_config {
+        if let Some(crypt_config) = crypt_config {
             if let Some(signature) = signature {
                 let expected_signature = hex::encode(&Self::json_signature(&json, crypt_config)?);
 

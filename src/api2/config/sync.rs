@@ -20,12 +20,12 @@ pub fn check_sync_job_read_access(
     auth_id: &Authid,
     job: &SyncJobConfig,
 ) -> bool {
-    let datastore_privs = user_info.lookup_privs(&auth_id, &["datastore", &job.store]);
+    let datastore_privs = user_info.lookup_privs(auth_id, &["datastore", &job.store]);
     if datastore_privs & PRIV_DATASTORE_AUDIT == 0 {
         return false;
     }
 
-    let remote_privs = user_info.lookup_privs(&auth_id, &["remote", &job.remote]);
+    let remote_privs = user_info.lookup_privs(auth_id, &["remote", &job.remote]);
     remote_privs & PRIV_REMOTE_AUDIT != 0
 }
 
@@ -35,7 +35,7 @@ pub fn check_sync_job_modify_access(
     auth_id: &Authid,
     job: &SyncJobConfig,
 ) -> bool {
-    let datastore_privs = user_info.lookup_privs(&auth_id, &["datastore", &job.store]);
+    let datastore_privs = user_info.lookup_privs(auth_id, &["datastore", &job.store]);
     if datastore_privs & PRIV_DATASTORE_BACKUP == 0 {
         return false;
     }
@@ -62,7 +62,7 @@ pub fn check_sync_job_modify_access(
         return false;
     }
 
-    let remote_privs = user_info.lookup_privs(&auth_id, &["remote", &job.remote, &job.remote_store]);
+    let remote_privs = user_info.lookup_privs(auth_id, &["remote", &job.remote, &job.remote_store]);
     remote_privs & PRIV_REMOTE_READ != 0
 }
 
@@ -96,7 +96,7 @@ pub fn list_sync_jobs(
 
     let list = list
         .into_iter()
-        .filter(|sync_job| check_sync_job_read_access(&user_info, &auth_id, &sync_job))
+        .filter(|sync_job| check_sync_job_read_access(&user_info, &auth_id, sync_job))
         .collect();
    Ok(list)
 }
@@ -429,8 +429,8 @@ acl:1:/remote/remote1/remotestore1:write@pbs:RemoteSyncOperator
     };
 
     // should work without ACLs
-    assert_eq!(check_sync_job_read_access(&user_info, &root_auth_id, &job), true);
-    assert_eq!(check_sync_job_modify_access(&user_info, &root_auth_id, &job), true);
+    assert_eq!(check_sync_job_read_access(&user_info, root_auth_id, &job), true);
+    assert_eq!(check_sync_job_modify_access(&user_info, root_auth_id, &job), true);
 
     // user without permissions must fail
     assert_eq!(check_sync_job_read_access(&user_info, &no_perm_auth_id, &job), false);

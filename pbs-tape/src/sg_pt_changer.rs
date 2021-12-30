@@ -86,7 +86,7 @@ fn execute_scsi_command<F: AsRawFd>(
     let mut timeout = std::time::Duration::new(5, 0); // short timeout by default
 
     loop {
-        match sg_raw.do_command(&cmd) {
+        match sg_raw.do_command(cmd) {
             Ok(data) => return Ok(data.to_vec()),
             Err(err) if !retry => bail!("{} failed: {}", error_prefix, err),
             Err(err) => {
@@ -487,7 +487,7 @@ pub fn status(config: &ScsiTapeChanger) -> Result<MtxStatus, Error> {
     let mut status = read_element_status(&mut file)
         .map_err(|err| format_err!("error reading element status: {}", err))?;
 
-    status.mark_import_export_slots(&config)?;
+    status.mark_import_export_slots(config)?;
 
     Ok(status)
 }
@@ -827,7 +827,7 @@ mod test {
         element_type: u8,
     ) -> Vec<u8> {
         let descs: Vec<Vec<u8>> = descriptors.iter().map(|desc| {
-            build_storage_descriptor(&desc, trailing)
+            build_storage_descriptor(desc, trailing)
         }).collect();
 
         let (desc_len, address) = if let Some(el) = descs.get(0) {

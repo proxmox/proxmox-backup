@@ -123,7 +123,7 @@ impl DataBlob {
                 raw_data.write_le_value(dummy_head)?;
             }
 
-            let (iv, tag) = Self::encrypt_to(&config, data, &mut raw_data)?;
+            let (iv, tag) = Self::encrypt_to(config, data, &mut raw_data)?;
 
             let head = EncryptedDataBlobHeader {
                 head: DataBlobHeader { magic, crc: [0; 4] }, iv, tag,
@@ -491,7 +491,7 @@ impl <'a, 'b> DataChunkBuilder<'a, 'b> {
 
     fn compute_digest(&mut self) {
         if !self.digest_computed {
-            if let Some(ref config) = self.config {
+            if let Some(config) = self.config {
                 self.digest = config.compute_digest(self.orig_data);
             } else {
                 self.digest = openssl::sha::sha256(self.orig_data);
@@ -531,7 +531,7 @@ impl <'a, 'b> DataChunkBuilder<'a, 'b> {
     ) -> Result<(DataBlob, [u8; 32]), Error> {
         let zero_bytes = vec![0; chunk_size];
         let mut chunk_builder = DataChunkBuilder::new(&zero_bytes).compress(compress);
-        if let Some(ref crypt_config) = crypt_config {
+        if let Some(crypt_config) = crypt_config {
             chunk_builder = chunk_builder.crypt_config(crypt_config);
         }
 

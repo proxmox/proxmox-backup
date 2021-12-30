@@ -75,7 +75,7 @@ fn show_remote(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, E
 pub fn remote_commands() -> CommandLineInterface {
 
     let cmd_def = CliCommandMap::new()
-        .insert("list", CliCommand::new(&&API_METHOD_LIST_REMOTES))
+        .insert("list", CliCommand::new(&API_METHOD_LIST_REMOTES))
         .insert(
             "show",
             CliCommand::new(&API_METHOD_SHOW_REMOTE)

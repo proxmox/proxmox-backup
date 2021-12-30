@@ -55,7 +55,7 @@ fn list_acls(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Err
 pub fn acl_commands() -> CommandLineInterface {
 
     let cmd_def = CliCommandMap::new()
-        .insert("list", CliCommand::new(&&API_METHOD_LIST_ACLS))
+        .insert("list", CliCommand::new(&API_METHOD_LIST_ACLS))
         .insert(
             "update",
             CliCommand::new(&api2::access::acl::API_METHOD_UPDATE_ACL)

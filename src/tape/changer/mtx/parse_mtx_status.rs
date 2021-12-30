@@ -203,7 +203,7 @@ Data Transfer Element 1:Empty
       Storage Element 24 IMPORT/EXPORT:Empty
 "###;
 
-    let _ = parse_mtx_status(&output)?;
+    let _ = parse_mtx_status(output)?;
 
     Ok(())
 }

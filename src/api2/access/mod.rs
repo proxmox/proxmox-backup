@@ -118,7 +118,7 @@ fn authenticate_2nd(
     challenge_ticket: &str,
     response: &str,
 ) -> Result<AuthResult, Error> {
-    let challenge: TfaChallenge = Ticket::<ApiTicket>::parse(&challenge_ticket)?
+    let challenge: TfaChallenge = Ticket::<ApiTicket>::parse(challenge_ticket)?
         .verify_with_time_frame(public_auth_key(), "PBS", Some(userid.as_str()), -60..600)?
         .require_partial()?;
 

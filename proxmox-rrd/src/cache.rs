@@ -393,10 +393,10 @@ fn commit_journal_impl(
     // save all RRDs - we only need a read lock here
     // Note: no fsync here (we do it afterwards)
     for rel_path in files.iter() {
-        let parent_dir = rrd_parent_dir(&config.basedir, &rel_path);
+        let parent_dir = rrd_parent_dir(&config.basedir, rel_path);
         dir_set.insert(parent_dir);
         rrd_file_count += 1;
-        if let Err(err) = rrd_map.read().unwrap().flush_rrd_file(&rel_path) {
+        if let Err(err) = rrd_map.read().unwrap().flush_rrd_file(rel_path) {
             errors += 1;
             log::error!("unable to save rrd {}: {}", rel_path, err);
         }

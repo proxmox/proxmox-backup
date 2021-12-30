@@ -317,7 +317,7 @@ impl RRD {
         }
 
         let rrd = if raw[0..8] == rrd_v1::PROXMOX_RRD_MAGIC_1_0 {
-            let v1 = rrd_v1::RRDv1::from_raw(&raw)?;
+            let v1 = rrd_v1::RRDv1::from_raw(raw)?;
             v1.to_rrd_v2()
                 .map_err(|err| format_err!("unable to convert from old V1 format - {}", err))?
         } else if raw[0..8] == PROXMOX_RRD_MAGIC_2_0 {

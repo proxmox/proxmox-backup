@@ -95,7 +95,7 @@ pub fn update_webauthn_config(
             let digest = <[u8; 32]>::from_hex(digest)?;
             crate::tools::detect_modified_configuration_file(
                 &digest,
-                &crate::config::tfa::webauthn_config_digest(&wa)?,
+                &crate::config::tfa::webauthn_config_digest(wa)?,
             )?;
         }
 

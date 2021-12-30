@@ -547,7 +547,7 @@ impl Archiver {
             None => return Ok(()),
         };
 
-        let metadata = get_metadata(fd.as_raw_fd(), &stat, self.flags(), self.fs_magic, &mut self.fs_feature_flags)?;
+        let metadata = get_metadata(fd.as_raw_fd(), stat, self.flags(), self.fs_magic, &mut self.fs_feature_flags)?;
 
         if self
             .patterns
@@ -629,14 +629,14 @@ impl Archiver {
                     catalog.lock().unwrap().add_block_device(c_file_name)?;
                 }
 
-                self.add_device(encoder, file_name, &metadata, &stat).await
+                self.add_device(encoder, file_name, &metadata, stat).await
             }
             mode::IFCHR => {
                 if let Some(ref catalog) = self.catalog {
                     catalog.lock().unwrap().add_char_device(c_file_name)?;
                 }
 
-                self.add_device(encoder, file_name, &metadata, &stat).await
+                self.add_device(encoder, file_name, &metadata, stat).await
             }
             other => bail!(
                 "encountered unknown file type: 0x{:x} (0o{:o})",
@@ -656,7 +656,7 @@ impl Archiver {
     ) -> Result<(), Error> {
         let dir_name = OsStr::from_bytes(dir_name.to_bytes());
 
-        let mut encoder = encoder.create_directory(dir_name, &metadata).await?;
+        let mut encoder = encoder.create_directory(dir_name, metadata).await?;
 
         let old_fs_magic = self.fs_magic;
         let old_fs_feature_flags = self.fs_feature_flags;
@@ -820,17 +820,17 @@ fn get_xattr_fcaps_acl(
     };
 
     for attr in &xattrs {
-        if xattr::is_security_capability(&attr) {
+        if xattr::is_security_capability(attr) {
             get_fcaps(meta, fd, flags, fs_feature_flags)?;
             continue;
         }
 
-        if xattr::is_acl(&attr) {
+        if xattr::is_acl(attr) {
             get_acl(meta, proc_path, flags, fs_feature_flags)?;
             continue;
         }
 
-        if !xattr::is_valid_xattr_name(&attr) {
+        if !xattr::is_valid_xattr_name(attr) {
             continue;
         }
 

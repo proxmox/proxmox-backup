@@ -270,7 +270,7 @@ fn dump_api_method_schema(
 
     data["parameters"] = dump_property_schema(&api_method.parameters);
 
-    let mut returns = dump_schema(&api_method.returns.schema);
+    let mut returns = dump_schema(api_method.returns.schema);
     if api_method.returns.optional {
         returns["optional"] = 1.into();
     }

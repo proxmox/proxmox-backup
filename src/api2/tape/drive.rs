@@ -542,7 +542,7 @@ fn write_media_label(
     let media_id = if let Some(ref pool) = pool {
         // assign media to pool by writing special media set label
         task_log!(worker, "Label media '{}' for pool '{}'", label.label_text, pool);
-        let set = MediaSetLabel::with_data(&pool, [0u8; 16].into(), 0, label.ctime, None);
+        let set = MediaSetLabel::with_data(pool, [0u8; 16].into(), 0, label.ctime, None);
 
         drive.write_media_set_label(&set, None)?;
 
@@ -1473,7 +1473,7 @@ pub const SUBDIRS: SubdirMap = &sorted!([
 
 const ITEM_ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(SUBDIRS))
-    .subdirs(&SUBDIRS);
+    .subdirs(SUBDIRS);
 
 pub const ROUTER: Router = Router::new()
     .get(&API_METHOD_LIST_DRIVES)

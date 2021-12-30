@@ -51,7 +51,7 @@ fn decode_blob(
 
     if blob.is_encrypted() && key_file.is_some() {
         let (key, _created, _fingerprint) =
-            load_and_decrypt_key(&key_file.unwrap(), &get_encryption_key_password)?;
+            load_and_decrypt_key(key_file.unwrap(), &get_encryption_key_password)?;
         crypt_conf = CryptConfig::new(key)?;
         crypt_conf_opt = Some(&crypt_conf);
     }

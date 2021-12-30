@@ -73,8 +73,8 @@ fn show_openid_realm(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Va
 pub fn openid_commands() -> CommandLineInterface {
 
     let cmd_def = CliCommandMap::new()
-        .insert("list", CliCommand::new(&&API_METHOD_LIST_OPENID_REALMS))
-        .insert("show", CliCommand::new(&&API_METHOD_SHOW_OPENID_REALM)
+        .insert("list", CliCommand::new(&API_METHOD_LIST_OPENID_REALMS))
+        .insert("show", CliCommand::new(&API_METHOD_SHOW_OPENID_REALM)
                 .arg_param(&["realm"])
                 .completion_cb("realm", pbs_config::domains::complete_openid_realm_name)
         )

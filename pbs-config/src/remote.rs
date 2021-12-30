@@ -46,7 +46,7 @@ pub fn config() -> Result<(SectionConfigData, [u8;32]), Error> {
 }
 
 pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
-    let raw = CONFIG.write(REMOTE_CFG_FILENAME, &config)?;
+    let raw = CONFIG.write(REMOTE_CFG_FILENAME, config)?;
     crate::replace_backup_config(REMOTE_CFG_FILENAME, raw.as_bytes())
 }
 

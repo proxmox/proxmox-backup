@@ -506,7 +506,7 @@ impl <R: Read + Seek> CatalogReader<R> {
             if let Some(entry) = self.lookup(&current, comp)? {
                 current = entry;
             } else {
-                bail!("path {:?} not found in catalog", String::from_utf8_lossy(&path));
+                bail!("path {:?} not found in catalog", String::from_utf8_lossy(path));
             }
         }
         Ok(current)
@@ -612,7 +612,7 @@ impl <R: Read + Seek> CatalogReader<R> {
             file_path.extend(&e.name);
             match match_list.matches(&file_path, e.get_file_mode()) {
                 Some(MatchType::Exclude) => continue,
-                Some(MatchType::Include) => callback(&file_path)?,
+                Some(MatchType::Include) => callback(file_path)?,
                 None => (),
             }
             if is_dir {

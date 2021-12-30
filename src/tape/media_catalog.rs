@@ -413,7 +413,7 @@ impl MediaCatalog {
 
         let uuid = &media_id.label.uuid;
 
-        let me = Self::create_temporary_database(base_path, &media_id, log_to_stdout)?;
+        let me = Self::create_temporary_database(base_path, media_id, log_to_stdout)?;
 
         Self::finish_temporary_database(base_path, uuid, true)?;
 

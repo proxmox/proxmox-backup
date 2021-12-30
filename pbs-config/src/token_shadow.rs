@@ -58,7 +58,7 @@ pub fn verify_secret(tokenid: &Authid, secret: &str) -> Result<(), Error> {
     let data = read_file()?;
     match data.get(tokenid) {
         Some(hashed_secret) => {
-            proxmox_sys::crypt::verify_crypt_pw(secret, &hashed_secret)
+            proxmox_sys::crypt::verify_crypt_pw(secret, hashed_secret)
         },
         None => bail!("invalid API token"),
     }

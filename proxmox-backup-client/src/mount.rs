@@ -259,7 +259,7 @@ async fn mount_do(param: Value, pipe: Option<Fd>) -> Result<Value, Error> {
 
         let session = pbs_client::pxar::fuse::Session::mount(
             decoder,
-            &options,
+            options,
             false,
             Path::new(target.unwrap()),
         )

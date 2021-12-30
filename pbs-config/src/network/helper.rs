@@ -95,7 +95,7 @@ pub fn parse_address_or_cidr(cidr: &str) -> Result<(String, Option<u8>, bool), E
         ).unwrap();
     }
 
-    if let Some(caps) = CIDR_V4_REGEX.captures(&cidr) {
+    if let Some(caps) = CIDR_V4_REGEX.captures(cidr) {
         let address = &caps[1];
         if let Some(mask) = caps.get(2) {
             let mask = u8::from_str_radix(mask.as_str(), 10)?;
@@ -104,7 +104,7 @@ pub fn parse_address_or_cidr(cidr: &str) -> Result<(String, Option<u8>, bool), E
         } else {
             Ok((address.to_string(), None, false))
         }
-    } else if let Some(caps) = CIDR_V6_REGEX.captures(&cidr) {
+    } else if let Some(caps) = CIDR_V6_REGEX.captures(cidr) {
         let address = &caps[1];
         if let Some(mask) = caps.get(2) {
             let mask = u8::from_str_radix(mask.as_str(), 10)?;

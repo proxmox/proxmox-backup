@@ -176,9 +176,9 @@ fn get_service_state(
         bail!("unknown service name '{}'", service);
     }
 
-    let status = get_full_service_state(&service)?;
+    let status = get_full_service_state(service)?;
 
-    Ok(json_service_state(&service, status))
+    Ok(json_service_state(service, status))
 }
 
 fn run_service_command(service: &str, cmd: &str, auth_id: Authid) -> Result<Value, Error> {

@@ -529,7 +529,7 @@ impl Shell {
             };
 
             let new_stack =
-                Self::lookup(&stack, &mut *catalog, accessor, Some(path), follow_symlinks).await?;
+                Self::lookup(stack, &mut *catalog, accessor, Some(path), follow_symlinks).await?;
 
             *stack = new_stack;
 
@@ -993,7 +993,7 @@ impl Shell {
             &mut self.catalog,
             dir_stack,
             extractor,
-            &match_list,
+            match_list,
             &self.accessor,
         )?;
 
@@ -1118,7 +1118,7 @@ impl<'a> ExtractorState<'a> {
         self.path_len_stack.push(self.path_len);
         self.path_len = self.path.len();
 
-        Shell::walk_pxar_archive(&self.accessor, &mut self.dir_stack).await?;
+        Shell::walk_pxar_archive(self.accessor, &mut self.dir_stack).await?;
         let dir_pxar = self.dir_stack.last().unwrap().pxar.as_ref().unwrap();
         let dir_meta = dir_pxar.entry().metadata().clone();
         let create = self.matches && match_result != Some(MatchType::Exclude);
@@ -1141,7 +1141,7 @@ impl<'a> ExtractorState<'a> {
             }
             (true, DirEntryAttribute::File { .. }) => {
                 self.dir_stack.push(PathStackEntry::new(entry));
-                let file = Shell::walk_pxar_archive(&self.accessor, &mut self.dir_stack).await?;
+                let file = Shell::walk_pxar_archive(self.accessor, &mut self.dir_stack).await?;
                 self.extract_file(file).await?;
                 self.dir_stack.pop();
             }
@@ -1153,7 +1153,7 @@ impl<'a> ExtractorState<'a> {
             | (true, DirEntryAttribute::Hardlink) => {
                 let attr = entry.attr.clone();
                 self.dir_stack.push(PathStackEntry::new(entry));
-                let file = Shell::walk_pxar_archive(&self.accessor, &mut self.dir_stack).await?;
+                let file = Shell::walk_pxar_archive(self.accessor, &mut self.dir_stack).await?;
                 self.extract_special(file, attr).await?;
                 self.dir_stack.pop();
             }

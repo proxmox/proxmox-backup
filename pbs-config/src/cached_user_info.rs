@@ -109,7 +109,7 @@ impl CachedUserInfo {
         required_privs: u64,
         partial: bool,
     ) -> Result<(), Error> {
-        let privs = self.lookup_privs(&auth_id, path);
+        let privs = self.lookup_privs(auth_id, path);
         let allowed = if partial {
             (privs & required_privs) != 0
         } else {

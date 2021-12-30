@@ -245,8 +245,8 @@ fn send_job_status_mail(
 
     sendmail(
         &[email],
-        &subject,
-        Some(&text),
+        subject,
+        Some(text),
         Some(&html),
         None,
         Some(&author),

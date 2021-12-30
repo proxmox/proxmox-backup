@@ -192,11 +192,11 @@ pub fn update_changer_online_status(
     let mut online_map = OnlineStatusMap::new(drive_config)?;
     let mut online_set = HashSet::new();
     for label_text in label_text_list.iter() {
-        if let Some(media_id) = inventory.find_media_by_label_text(&label_text) {
+        if let Some(media_id) = inventory.find_media_by_label_text(label_text) {
             online_set.insert(media_id.label.uuid.clone());
         }
     }
-    online_map.update_online_status(&changer_name, online_set)?;
+    online_map.update_online_status(changer_name, online_set)?;
     inventory.update_online_status(&online_map)?;
 
     Ok(())

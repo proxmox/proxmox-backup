@@ -182,7 +182,7 @@ pub fn do_tape_backup_job(
         Some(lock_tape_device(&drive_config, &setup.drive)?)
     };
 
-    let notify_user = setup.notify_user.as_ref().unwrap_or_else(|| &Userid::root_userid());
+    let notify_user = setup.notify_user.as_ref().unwrap_or_else(|| Userid::root_userid());
     let email = lookup_user_email(notify_user);
 
     let upid_str = WorkerTask::new_thread(
@@ -363,7 +363,7 @@ pub fn backup(
 
     let job_id = format!("{}:{}:{}", setup.store, setup.pool, setup.drive);
 
-    let notify_user = setup.notify_user.as_ref().unwrap_or_else(|| &Userid::root_userid());
+    let notify_user = setup.notify_user.as_ref().unwrap_or_else(|| Userid::root_userid());
     let email = lookup_user_email(notify_user);
 
     let upid_str = WorkerTask::new_thread(
@@ -423,7 +423,7 @@ fn backup_worker(
     task_log!(worker, "update media online status");
     let changer_name = update_media_online_status(&setup.drive)?;
 
-    let pool = MediaPool::with_config(status_path, &pool_config, changer_name, false)?;
+    let pool = MediaPool::with_config(status_path, pool_config, changer_name, false)?;
 
     let mut pool_writer = PoolWriter::new(
         pool,
@@ -443,7 +443,7 @@ fn backup_worker(
         };
 
         let group_count_full = group_list.len();
-        let list: Vec<BackupGroup> = group_list.into_iter().filter(|group| filter_fn(group, &group_filters)).collect();
+        let list: Vec<BackupGroup> = group_list.into_iter().filter(|group| filter_fn(group, group_filters)).collect();
         let group_count = list.len();
         task_log!(worker, "found {} groups (out of {} total)", group_count, group_count_full);
         (list, group_count)

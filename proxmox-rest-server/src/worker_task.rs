@@ -151,7 +151,7 @@ impl WorkerTaskSetup {
 
         finish_list.sort_unstable_by(|a, b| {
             match (&a.state, &b.state) {
-                (Some(s1), Some(s2)) => s1.cmp(&s2),
+                (Some(s1), Some(s2)) => s1.cmp(s2),
                 (Some(_), None) => std::cmp::Ordering::Less,
                 (None, Some(_)) => std::cmp::Ordering::Greater,
                 _ => a.upid.starttime.cmp(&b.upid.starttime),
@@ -170,7 +170,7 @@ impl WorkerTaskSetup {
                 false,
             )?;
             for info in &finish_list {
-                writer.write_all(render_task_line(&info).as_bytes())?;
+                writer.write_all(render_task_line(info).as_bytes())?;
             }
         }
 
@@ -580,7 +580,7 @@ fn render_task_line(info: &TaskListInfo) -> String {
 fn render_task_list(list: &[TaskListInfo]) -> String {
     let mut raw = String::new();
     for info in list {
-        raw.push_str(&render_task_line(&info));
+        raw.push_str(&render_task_line(info));
     }
     raw
 }
@@ -980,7 +980,7 @@ pub async fn wait_for_local_worker(upid_str: &str) -> Result<(), Error> {
 
 /// Request abort of a local worker (if existing and running)
 pub fn abort_local_worker(upid: UPID) {
-    if let Some(ref worker) = WORKER_TASK_LIST.lock().unwrap().get(&upid.task_id) {
+    if let Some(worker) = WORKER_TASK_LIST.lock().unwrap().get(&upid.task_id) {
         worker.request_abort();
     }
 }

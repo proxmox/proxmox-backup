@@ -40,7 +40,7 @@ impl KeyDerivationConfig {
                 // estimated scrypt memory usage is 128*r*n*p
                 openssl::pkcs5::scrypt(
                     passphrase,
-                    &salt,
+                    salt,
                     *n, *r, *p,
                     1025*1024*1024,
                     &mut key,
@@ -52,7 +52,7 @@ impl KeyDerivationConfig {
 
                  openssl::pkcs5::pbkdf2_hmac(
                     passphrase,
-                    &salt,
+                    salt,
                     *iter,
                     openssl::hash::MessageDigest::sha256(),
                     &mut key,
@@ -235,10 +235,10 @@ impl KeyConfig  {
             openssl::symm::decrypt_aead(
                 cipher,
                 &derived_key,
-                Some(&iv),
+                Some(iv),
                 b"",
-                &enc_data,
-                &tag,
+                enc_data,
+                tag,
             ).map_err(|err| {
                 match self.hint {
                     Some(ref hint) => {

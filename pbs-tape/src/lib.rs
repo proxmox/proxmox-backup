@@ -312,7 +312,7 @@ impl MtxStatus {
         let mut export_slots: HashSet<u64> = HashSet::new();
 
         if let Some(slots) = &config.export_slots {
-            let slots: Value = SLOT_ARRAY_SCHEMA.parse_property_string(&slots)?;
+            let slots: Value = SLOT_ARRAY_SCHEMA.parse_property_string(slots)?;
             export_slots = slots
                 .as_array()
                 .unwrap()

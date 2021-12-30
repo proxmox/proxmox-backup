@@ -398,7 +398,7 @@ impl DiskState {
 
             // attempt to mount device directly
             let dev_node = format!("/dev/{}", name);
-            let size = Self::make_dev_node(&dev_node, &sys_path)?;
+            let size = Self::make_dev_node(&dev_node, sys_path)?;
             let mut dfs_bucket = Bucket::RawFs(PartitionBucketData {
                 dev_node: dev_node.clone(),
                 number: 0,
@@ -755,7 +755,7 @@ impl DiskState {
     fn make_dev_node(devnode: &str, sys_path: &str) -> Result<u64, Error> {
         let dev_num_str = fs::file_read_firstline(&format!("{}/dev", sys_path))?;
         let (major, minor) = dev_num_str.split_at(dev_num_str.find(':').unwrap());
-        Self::mknod_blk(&devnode, major.parse()?, minor[1..].trim_end().parse()?)?;
+        Self::mknod_blk(devnode, major.parse()?, minor[1..].trim_end().parse()?)?;
 
         // this *always* contains the number of 512-byte sectors, regardless of the true
         // blocksize of this disk - which should always be 512 here anyway

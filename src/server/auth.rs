@@ -78,7 +78,7 @@ pub async fn check_pbs_auth(
                     verify_csrf_prevention_token(
                         csrf_secret(),
                         &userid,
-                        &csrf_token,
+                        csrf_token,
                         -300,
                         ticket_lifetime,
                     )?;

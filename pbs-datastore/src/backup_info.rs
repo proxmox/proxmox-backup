@@ -160,7 +160,7 @@ impl BackupGroup {
 
     pub fn matches(&self, filter: &GroupFilter) -> bool {
         match filter {
-            GroupFilter::Group(backup_group) => match BackupGroup::from_str(&backup_group) {
+            GroupFilter::Group(backup_group) => match BackupGroup::from_str(backup_group) {
                 Ok(group) => &group == self,
                 Err(_) => false, // shouldn't happen if value is schema-checked
             },

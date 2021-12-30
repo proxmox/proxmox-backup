@@ -289,7 +289,7 @@ impl MediaPool {
                     create_new_set = Some(String::from("policy is AlwaysCreate"));
                 }
                 MediaSetPolicy::CreateAt(event) => {
-                    if let Some(set_start_time) = self.inventory.media_set_start_time(&self.current_media_set.uuid()) {
+                    if let Some(set_start_time) = self.inventory.media_set_start_time(self.current_media_set.uuid()) {
                         if let Ok(Some(alloc_time)) = event.compute_next_event(set_start_time as i64) {
                             if current_time >= alloc_time {
                                 create_new_set = Some(String::from("policy CreateAt event triggered"));
@@ -407,7 +407,7 @@ impl MediaPool {
 
         for media_id in media_list {
 
-            let (status, location) = self.compute_media_state(&media_id);
+            let (status, location) = self.compute_media_state(media_id);
             if media_id.media_set_label.is_some() { continue; } // should not happen
 
             if !self.location_is_available(&location) {
@@ -478,7 +478,7 @@ impl MediaPool {
                 continue;
             }
 
-            if !self.media_is_expired(&media, current_time) {
+            if !self.media_is_expired(media, current_time) {
                 continue;
             }
 

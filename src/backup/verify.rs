@@ -301,7 +301,7 @@ pub fn verify_backup_dir(
     filter: Option<&dyn Fn(&BackupManifest) -> bool>,
 ) -> Result<bool, Error> {
     let snap_lock = lock_dir_noblock_shared(
-        &verify_worker.datastore.snapshot_path(&backup_dir),
+        &verify_worker.datastore.snapshot_path(backup_dir),
         "snapshot",
         "locked by another operation",
     );
@@ -330,7 +330,7 @@ pub fn verify_backup_dir_with_lock(
     filter: Option<&dyn Fn(&BackupManifest) -> bool>,
     _snap_lock: Dir,
 ) -> Result<bool, Error> {
-    let manifest = match verify_worker.datastore.load_manifest(&backup_dir) {
+    let manifest = match verify_worker.datastore.load_manifest(backup_dir) {
         Ok((manifest, _)) => manifest,
         Err(err) => {
             task_log!(
@@ -365,10 +365,10 @@ pub fn verify_backup_dir_with_lock(
         let result = proxmox_lang::try_block!({
             task_log!(verify_worker.worker, "  check {}", info.filename);
             match archive_type(&info.filename)? {
-                ArchiveType::FixedIndex => verify_fixed_index(verify_worker, &backup_dir, info),
-                ArchiveType::DynamicIndex => verify_dynamic_index(verify_worker, &backup_dir, info),
+                ArchiveType::FixedIndex => verify_fixed_index(verify_worker, backup_dir, info),
+                ArchiveType::DynamicIndex => verify_dynamic_index(verify_worker, backup_dir, info),
                 ArchiveType::Blob => {
-                    verify_blob(verify_worker.datastore.clone(), &backup_dir, info)
+                    verify_blob(verify_worker.datastore.clone(), backup_dir, info)
                 }
             }
         });
@@ -397,7 +397,7 @@ pub fn verify_backup_dir_with_lock(
     let verify_state = serde_json::to_value(verify_state)?;
     verify_worker
         .datastore
-        .update_manifest(&backup_dir, |manifest| {
+        .update_manifest(backup_dir, |manifest| {
             manifest.unprotected["verify_state"] = verify_state;
         })
         .map_err(|err| format_err!("unable to update manifest blob - {}", err))?;

@@ -24,9 +24,9 @@ use pbs_config::CachedUserInfo;
 fn check_job_privs(auth_id: &Authid, user_info: &CachedUserInfo, upid: &UPID) -> Result<(), Error> {
     match (upid.worker_type.as_str(), &upid.worker_id) {
         ("verificationjob", Some(workerid)) => {
-            if let Some(captures) = VERIFICATION_JOB_WORKER_ID_REGEX.captures(&workerid) {
+            if let Some(captures) = VERIFICATION_JOB_WORKER_ID_REGEX.captures(workerid) {
                 if let Some(store) = captures.get(1) {
-                    return user_info.check_privs(&auth_id,
+                    return user_info.check_privs(auth_id,
                                                  &["datastore", store.as_str()],
                                                  PRIV_DATASTORE_VERIFY,
                                                  true);
@@ -34,7 +34,7 @@ fn check_job_privs(auth_id: &Authid, user_info: &CachedUserInfo, upid: &UPID) ->
             }
         },
         ("syncjob", Some(workerid)) => {
-            if let Some(captures) = SYNC_JOB_WORKER_ID_REGEX.captures(&workerid) {
+            if let Some(captures) = SYNC_JOB_WORKER_ID_REGEX.captures(workerid) {
                 let remote = captures.get(1);
                 let remote_store = captures.get(2);
                 let local_store = captures.get(3);
@@ -42,7 +42,7 @@ fn check_job_privs(auth_id: &Authid, user_info: &CachedUserInfo, upid: &UPID) ->
                 if let (Some(remote), Some(remote_store), Some(local_store)) =
                     (remote, remote_store, local_store) {
 
-                    return check_pull_privs(&auth_id,
+                    return check_pull_privs(auth_id,
                                             local_store.as_str(),
                                             remote.as_str(),
                                             remote_store.as_str(),
@@ -51,15 +51,15 @@ fn check_job_privs(auth_id: &Authid, user_info: &CachedUserInfo, upid: &UPID) ->
             }
         },
         ("garbage_collection", Some(workerid)) => {
-            return user_info.check_privs(&auth_id,
-                                         &["datastore", &workerid],
+            return user_info.check_privs(auth_id,
+                                         &["datastore", workerid],
                                          PRIV_DATASTORE_MODIFY,
                                          true)
         },
         ("prune", Some(workerid)) => {
-            return user_info.check_privs(&auth_id,
+            return user_info.check_privs(auth_id,
                                          &["datastore",
-                                         &workerid],
+                                         workerid],
                                          PRIV_DATASTORE_MODIFY,
                                          true);
         },
@@ -73,7 +73,7 @@ fn check_job_privs(auth_id: &Authid, user_info: &CachedUserInfo, upid: &UPID) ->
 fn check_job_store(upid: &UPID, store: &str) -> bool {
     match (upid.worker_type.as_str(), &upid.worker_id) {
         (workertype, Some(workerid)) if workertype.starts_with("verif") => {
-            if let Some(captures) = VERIFICATION_JOB_WORKER_ID_REGEX.captures(&workerid) {
+            if let Some(captures) = VERIFICATION_JOB_WORKER_ID_REGEX.captures(workerid) {
                 if let Some(jobstore) = captures.get(1) {
                     return store == jobstore.as_str();
                 }
@@ -82,7 +82,7 @@ fn check_job_store(upid: &UPID, store: &str) -> bool {
             }
         }
         ("syncjob", Some(workerid)) => {
-            if let Some(captures) = SYNC_JOB_WORKER_ID_REGEX.captures(&workerid) {
+            if let Some(captures) = SYNC_JOB_WORKER_ID_REGEX.captures(workerid) {
                 if let Some(local_store) = captures.get(3) {
                     return store == local_store.as_str();
                 }
@@ -112,7 +112,7 @@ fn check_task_access(auth_id: &Authid, upid: &UPID) -> Result<(), Error> {
         // or task == job which the user/token could have configured/manually executed
 
         user_info.check_privs(auth_id, &["system", "tasks"], PRIV_SYS_AUDIT, false)
-            .or_else(|_| check_job_privs(&auth_id, &user_info, upid))
+            .or_else(|_| check_job_privs(auth_id, &user_info, upid))
             .or_else(|_| bail!("task access not allowed"))
     }
 }
@@ -250,7 +250,7 @@ async fn get_task_status(
 
 fn extract_upid(param: &Value) -> Result<UPID, Error> {
 
-    let upid_str = pbs_tools::json::required_string_param(&param, "upid")?;
+    let upid_str = pbs_tools::json::required_string_param(param, "upid")?;
 
     upid_str.parse::<UPID>()
 }
@@ -569,7 +569,7 @@ const UPID_API_SUBDIRS: SubdirMap = &sorted!([
 pub const UPID_API_ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(UPID_API_SUBDIRS))
     .delete(&API_METHOD_STOP_TASK)
-    .subdirs(&UPID_API_SUBDIRS);
+    .subdirs(UPID_API_SUBDIRS);
 
 pub const ROUTER: Router = Router::new()
     .get(&API_METHOD_LIST_TASKS)

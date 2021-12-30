@@ -37,7 +37,7 @@ impl BackupRepository {
             return auth_id;
         }
 
-        &Authid::root_auth_id()
+        Authid::root_auth_id()
     }
 
     pub fn user(&self) -> &Userid {

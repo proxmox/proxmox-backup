@@ -438,7 +438,7 @@ async fn pull_snapshot(
             &mut chunk_reader,
             tgt_store.clone(),
             snapshot,
-            &item,
+            item,
             downloaded_chunks.clone(),
         )
         .await?;
@@ -465,7 +465,7 @@ pub async fn pull_snapshot_from(
     snapshot: &BackupDir,
     downloaded_chunks: Arc<Mutex<HashSet<[u8; 32]>>>,
 ) -> Result<(), Error> {
-    let (_path, is_new, _snap_lock) = tgt_store.create_locked_backup_dir(&snapshot)?;
+    let (_path, is_new, _snap_lock) = tgt_store.create_locked_backup_dir(snapshot)?;
 
     if is_new {
         task_log!(worker, "sync snapshot {:?}", snapshot.relative_path());
@@ -474,12 +474,12 @@ pub async fn pull_snapshot_from(
             worker,
             reader,
             tgt_store.clone(),
-            &snapshot,
+            snapshot,
             downloaded_chunks,
         )
         .await
         {
-            if let Err(cleanup_err) = tgt_store.remove_backup_dir(&snapshot, true) {
+            if let Err(cleanup_err) = tgt_store.remove_backup_dir(snapshot, true) {
                 task_log!(worker, "cleanup error - {}", cleanup_err);
             }
             return Err(err);
@@ -491,7 +491,7 @@ pub async fn pull_snapshot_from(
             worker,
             reader,
             tgt_store.clone(),
-            &snapshot,
+            snapshot,
             downloaded_chunks,
         )
         .await?;
@@ -713,7 +713,7 @@ pub async fn pull_store(
         let list:Vec<BackupGroup> = list
             .into_iter()
             .filter(|group| {
-                apply_filters(&group, group_filter)
+                apply_filters(group, group_filter)
             })
             .collect();
         task_log!(worker, "found {} groups to sync (out of {} total)", list.len(), unfiltered_count);

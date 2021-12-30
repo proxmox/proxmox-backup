@@ -241,7 +241,7 @@ fn get_proxied_peer(headers: &HeaderMap) -> Option<std::net::SocketAddr> {
         static ref RE: Regex = Regex::new(r#"for="([^"]+)""#).unwrap();
     }
     let forwarded = headers.get(header::FORWARDED)?.to_str().ok()?;
-    let capture = RE.captures(&forwarded)?;
+    let capture = RE.captures(forwarded)?;
     let rhost = capture.get(1)?.as_str();
 
     rhost.parse().ok()

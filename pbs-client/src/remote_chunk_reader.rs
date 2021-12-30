@@ -50,7 +50,7 @@ impl RemoteChunkReader {
         let mut chunk_data = Vec::with_capacity(4 * 1024 * 1024);
 
         self.client
-            .download_chunk(&digest, &mut chunk_data)
+            .download_chunk(digest, &mut chunk_data)
             .await?;
 
         let chunk = DataBlob::load_from_reader(&mut &chunk_data[..])?;

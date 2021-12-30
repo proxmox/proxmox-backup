@@ -117,7 +117,7 @@ pub fn cached_config() -> Result<Arc<SectionConfigData>, Error> {
 }
 
 pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
-    let raw = CONFIG.write(USER_CFG_FILENAME, &config)?;
+    let raw = CONFIG.write(USER_CFG_FILENAME, config)?;
     replace_backup_config(USER_CFG_FILENAME, raw.as_bytes())?;
 
     // increase user version

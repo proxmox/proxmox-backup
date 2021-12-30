@@ -175,8 +175,8 @@ async fn list(
         client,
         crypt_config.clone(),
         repo.store(),
-        &snapshot.group().backup_type(),
-        &snapshot.group().backup_id(),
+        snapshot.group().backup_type(),
+        snapshot.group().backup_id(),
         snapshot.backup_time(),
         true,
     )
@@ -209,7 +209,7 @@ async fn list(
                 .download_dynamic_index(&manifest, CATALOG_NAME)
                 .await?;
             let most_used = index.find_most_used_chunks(8);
-            let file_info = manifest.lookup_file_info(&CATALOG_NAME)?;
+            let file_info = manifest.lookup_file_info(CATALOG_NAME)?;
             let chunk_reader = RemoteChunkReader::new(
                 client.clone(),
                 crypt_config,
@@ -348,8 +348,8 @@ async fn extract(
         client,
         crypt_config.clone(),
         repo.store(),
-        &snapshot.group().backup_type(),
-        &snapshot.group().backup_id(),
+        snapshot.group().backup_type(),
+        snapshot.group().backup_id(),
         snapshot.backup_time(),
         true,
     )

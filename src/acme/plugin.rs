@@ -270,7 +270,7 @@ impl AcmePlugin for StandaloneServer {
             let token = challenge
                 .token()
                 .ok_or_else(|| format_err!("missing token in challenge"))?;
-            let key_auth = Arc::new(client.key_authorization(&token)?);
+            let key_auth = Arc::new(client.key_authorization(token)?);
             let path = Arc::new(format!("/.well-known/acme-challenge/{}", token));
 
             let service = make_service_fn(move |_| {

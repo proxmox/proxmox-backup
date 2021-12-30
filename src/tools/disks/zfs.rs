@@ -20,7 +20,7 @@ lazy_static!{
 pub fn get_pool_from_dataset(dataset: &OsStr) -> Option<&OsStr> {
     if let Some(dataset) = dataset.to_str() {
         if let Some(idx) = dataset.find('/') {
-            return Some(&dataset[0..idx].as_ref());
+            return Some(dataset[0..idx].as_ref());
         }
     }
 

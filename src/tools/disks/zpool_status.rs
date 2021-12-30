@@ -189,7 +189,7 @@ pub fn parse_zpool_status_config_tree(i: &str) -> Result<Vec<ZFSPoolVDevState>, 
 }
 
 fn parse_zpool_status(input: &str) -> Result<Vec<(String, String)>, Error> {
-    parse_complete("zfs status output", &input, many0(parse_zpool_status_field))
+    parse_complete("zfs status output", input, many0(parse_zpool_status_field))
 }
 
 pub fn vdev_list_to_tree(vdev_list: &[ZFSPoolVDevState]) -> Result<Value, Error> {
@@ -220,7 +220,7 @@ where
     };
 
     for item in items {
-        let (node, node_level) = to_node(&item);
+        let (node, node_level) = to_node(item);
         let vdev_level = 1 + node_level;
         let mut node = match node {
             Value::Object(map) => map,
@@ -373,7 +373,7 @@ pub fn zpool_status(pool: &str) -> Result<Vec<(String, String)>, Error> {
 fn test_parse(output: &str) -> Result<(), Error> {
     let mut found_config = false;
 
-    for (k, v) in parse_zpool_status(&output)? {
+    for (k, v) in parse_zpool_status(output)? {
         println!("<{}> => '{}'", k, v);
         if k == "config" {
             let vdev_list = parse_zpool_status_config_tree(&v)?;

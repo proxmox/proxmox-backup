@@ -157,13 +157,13 @@ fn test_zfs_parse_list() -> Result<(), Error> {
 
     let output = "";
 
-    let data = parse_zpool_list(&output)?;
+    let data = parse_zpool_list(output)?;
     let expect = Vec::new();
 
     assert_eq!(data, expect);
 
     let output = "btest	427349245952	405504	427348840448	-	-	0	0	1.00	ONLINE	-\n";
-    let data = parse_zpool_list(&output)?;
+    let data = parse_zpool_list(output)?;
     let expect = vec![
         ZFSPoolInfo {
             name: "btest".to_string(),
@@ -190,7 +190,7 @@ logs                                                                            
 
 ";
 
-    let data = parse_zpool_list(&output)?;
+    let data = parse_zpool_list(output)?;
     let expect = vec![
         ZFSPoolInfo {
             name: String::from("rpool"),
@@ -232,7 +232,7 @@ logs               -      -      -        -         -      -      -      -  -
 	/dev/sda5	213674622976	0	213674622976	-	-	0	0	-	ONLINE
 ";
 
-    let data = parse_zpool_list(&output)?;
+    let data = parse_zpool_list(output)?;
     let expect = vec![
         ZFSPoolInfo {
             name: String::from("b-test"),
@@ -267,7 +267,7 @@ b.test	427349245952	761856	427348484096	-	-	0	0	1.00	ONLINE	-
 	/dev/sda1	-	-	-	-	-	-	-	-	ONLINE
 ";
 
-    let data = parse_zpool_list(&output)?;
+    let data = parse_zpool_list(output)?;
     let expect = vec![
         ZFSPoolInfo {
             name: String::from("b.test"),

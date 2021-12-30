@@ -319,7 +319,7 @@ pub async fn complete_server_file_name_do(param: &HashMap<String, String>) -> Ve
 pub fn complete_archive_name(arg: &str, param: &HashMap<String, String>) -> Vec<String> {
     complete_server_file_name(arg, param)
         .iter()
-        .map(|v| pbs_tools::format::strip_server_file_extension(&v).to_owned())
+        .map(|v| pbs_tools::format::strip_server_file_extension(v).to_owned())
         .collect()
 }
 

@@ -46,7 +46,7 @@ impl CertInfo {
     }
 
     pub fn from_pem(cert_pem: &[u8]) -> Result<Self, Error> {
-        let x509 = openssl::x509::X509::from_pem(&cert_pem)?;
+        let x509 = openssl::x509::X509::from_pem(cert_pem)?;
         Ok(Self{
             x509
         })
@@ -87,11 +87,11 @@ impl CertInfo {
     }
 
     pub fn not_before_unix(&self) -> Result<i64, Error> {
-        asn1_time_to_unix(&self.not_before())
+        asn1_time_to_unix(self.not_before())
     }
 
     pub fn not_after_unix(&self) -> Result<i64, Error> {
-        asn1_time_to_unix(&self.not_after())
+        asn1_time_to_unix(self.not_after())
     }
 
     /// Check if the certificate is expired at or after a specific unix epoch.

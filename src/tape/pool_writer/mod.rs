@@ -117,7 +117,7 @@ impl PoolWriter {
 
     /// Set media status to FULL (persistent - stores pool status)
     pub fn set_media_status_full(&mut self, uuid: &Uuid) -> Result<(), Error> {
-        self.pool.set_media_status_full(&uuid)?;
+        self.pool.set_media_status_full(uuid)?;
         Ok(())
     }
 
@@ -556,7 +556,7 @@ fn write_chunk_archive<'a>(
 
         //println!("CHUNK {} size {}", hex::encode(digest), blob.raw_size());
 
-        match writer.try_write_chunk(&digest, &blob) {
+        match writer.try_write_chunk(digest, blob) {
             Ok(true) => {
                 chunk_list.push(*digest);
                 chunk_iter.next(); // consume
@@ -627,7 +627,7 @@ fn update_media_set_label(
                 if new_set.encryption_key_fingerprint != media_set_label.encryption_key_fingerprint {
                     bail!("detected changed encryption fingerprint - internal error");
                 }
-                media_catalog = MediaCatalog::open(status_path, &media_id, true, false)?;
+                media_catalog = MediaCatalog::open(status_path, media_id, true, false)?;
 
                 // todo: verify last content/media_catalog somehow?
 

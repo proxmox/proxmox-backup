@@ -730,7 +730,7 @@ async fn schedule_datastore_verify_jobs() {
         let worker_type = "verificationjob";
         let auth_id = Authid::root_auth_id().clone();
         if check_schedule(worker_type, &event_str, &job_id) {
-            let job = match Job::new(&worker_type, &job_id) {
+            let job = match Job::new(worker_type, &job_id) {
                 Ok(job) => job,
                 Err(_) => continue, // could not get lock
             };
@@ -766,7 +766,7 @@ async fn schedule_tape_backup_jobs() {
         let worker_type = "tape-backup-job";
         let auth_id = Authid::root_auth_id().clone();
         if check_schedule(worker_type, &event_str, &job_id) {
-            let job = match Job::new(&worker_type, &job_id) {
+            let job = match Job::new(worker_type, &job_id) {
                 Ok(job) => job,
                 Err(_) => continue, // could not get lock
             };
@@ -1033,7 +1033,7 @@ fn check_schedule(worker_type: &str, event_str: &str, id: &str) -> bool {
         }
     };
 
-    let last = match jobstate::last_run_time(worker_type, &id) {
+    let last = match jobstate::last_run_time(worker_type, id) {
         Ok(time) => time,
         Err(err) => {
             eprintln!("could not get last run time of {} {}: {}", worker_type, id, err);

@@ -171,7 +171,7 @@ fn list_permissions(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Val
 pub fn user_commands() -> CommandLineInterface {
 
     let cmd_def = CliCommandMap::new()
-        .insert("list", CliCommand::new(&&API_METHOD_LIST_USERS))
+        .insert("list", CliCommand::new(&API_METHOD_LIST_USERS))
         .insert(
             "create",
             // fixme: howto handle password parameter?
@@ -192,7 +192,7 @@ pub fn user_commands() -> CommandLineInterface {
         )
         .insert(
             "list-tokens",
-            CliCommand::new(&&API_METHOD_LIST_TOKENS)
+            CliCommand::new(&API_METHOD_LIST_TOKENS)
                 .arg_param(&["userid"])
                 .completion_cb("userid", pbs_config::user::complete_userid)
         )
@@ -211,7 +211,7 @@ pub fn user_commands() -> CommandLineInterface {
         )
         .insert(
             "permissions",
-            CliCommand::new(&&API_METHOD_LIST_PERMISSIONS)
+            CliCommand::new(&API_METHOD_LIST_PERMISSIONS)
                 .arg_param(&["auth-id"])
                 .completion_cb("auth-id", pbs_config::user::complete_authid)
                 .completion_cb("path", pbs_config::datastore::complete_acl_path)
