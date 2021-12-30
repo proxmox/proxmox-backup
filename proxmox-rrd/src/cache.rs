@@ -70,9 +70,9 @@ impl RRDCache {
             .map_err(|err: Error| format_err!("unable to create rrdb stat dir - {}", err))?;
 
         let config = Arc::new(CacheConfig {
-            basedir: basedir,
-            file_options: file_options,
-            dir_options: dir_options,
+            basedir,
+            file_options,
+            dir_options,
             apply_interval,
         });
 
