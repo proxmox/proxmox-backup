@@ -69,7 +69,7 @@ impl <'a> TapeWrite for MultiVolumeWriter<'a> {
         }
 
         if self.writer.is_none() {
-            if self.header.part_number >= 255 {
+            if self.header.part_number == u8::MAX {
                 proxmox_sys::io_bail!("multi-volume writer: too many parts");
             }
             self.writer = Some(
