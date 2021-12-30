@@ -215,7 +215,7 @@ pub fn restore(
     let store_map = DataStoreMap::try_from(store)
         .map_err(|err| format_err!("cannot parse store mapping: {}", err))?;
     let used_datastores = store_map.used_datastores();
-    if used_datastores.len() == 0 {
+    if used_datastores.is_empty() {
         bail!("no datastores given");
     }
 

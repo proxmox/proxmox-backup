@@ -24,7 +24,7 @@ fn main() -> Result<(), Error> {
 
     let (_prefix, args) = get_args();
 
-    if args.len() < 1 {
+    if args.is_empty() {
         bail!("missing arguments");
     }
 

@@ -92,7 +92,7 @@ fn authenticate_user(
                 if *name == privilege_name {
                     let mut path_vec = Vec::new();
                     for part in path.split('/') {
-                        if part != "" {
+                        if !part.is_empty() {
                             path_vec.push(part);
                         }
                     }

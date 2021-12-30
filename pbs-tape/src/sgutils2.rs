@@ -438,7 +438,7 @@ impl <'a, F: AsRawFd> SgRaw<'a, F> {
 
         let mut ptvp = SgPt::new()?;
 
-        if self.buffer.len() > 0 {
+        if !self.buffer.is_empty() {
             unsafe {
                 set_scsi_pt_data_in(
                     ptvp.as_mut_ptr(),
@@ -579,7 +579,7 @@ impl <'a, F: AsRawFd> SgRaw<'a, F> {
             return Err(format_err!("no valid SCSI command").into());
         }
 
-        if data.len() == 0 {
+        if data.is_empty() {
             return Err(format_err!("got zero-sized input buffer").into());
         }
 

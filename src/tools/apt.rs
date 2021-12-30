@@ -93,7 +93,7 @@ fn get_changelog_url(
     origin: &str,
     component: &str,
 ) -> Result<String, Error> {
-    if origin == "" {
+    if origin.is_empty() {
         bail!("no origin available for package {}", package);
     }
 

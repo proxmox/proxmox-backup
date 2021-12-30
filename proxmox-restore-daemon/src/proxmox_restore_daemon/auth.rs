@@ -35,7 +35,7 @@ impl StaticAuthAdapter {
         let mut ticket_file = File::open(TICKET_FILE)?;
         let mut ticket = String::new();
         let len = ticket_file.read_to_string(&mut ticket)?;
-        if len <= 0 {
+        if len == 0 {
             bail!("invalid ticket: cannot be empty");
         }
         Ok(StaticAuthAdapter { ticket })
