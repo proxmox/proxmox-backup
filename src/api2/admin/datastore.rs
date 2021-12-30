@@ -969,7 +969,7 @@ pub fn prune_datastore(
         auth_id.to_string(),
         to_stdout,
         move |worker| crate::server::prune_datastore(
-            worker.clone(),
+            worker,
             auth_id,
             prune_options,
             &store,

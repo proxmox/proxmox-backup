@@ -421,7 +421,7 @@ async fn run() -> Result<(), Error> {
     if !avoid_init {
         let backup_user = pbs_config::backup_user()?;
         let file_opts = CreateOptions::new().owner(backup_user.uid).group(backup_user.gid);
-        proxmox_rest_server::init_worker_tasks(pbs_buildcfg::PROXMOX_BACKUP_LOG_DIR_M!().into(), file_opts.clone())?;
+        proxmox_rest_server::init_worker_tasks(pbs_buildcfg::PROXMOX_BACKUP_LOG_DIR_M!().into(), file_opts)?;
 
         let mut commando_sock = proxmox_rest_server::CommandSocket::new(proxmox_rest_server::our_ctrl_sock(), backup_user.gid);
         proxmox_rest_server::register_task_control_commands(&mut commando_sock)?;
@@ -456,7 +456,7 @@ fn get_remote(param: &HashMap<String, String>) -> Option<String> {
         .or_else(|| {
             if let Some(id) = param.get("id") {
                 if let Ok(job) = get_sync_job(id) {
-                    return Some(job.remote.clone());
+                    return Some(job.remote);
                 }
             }
             None
@@ -483,7 +483,7 @@ fn get_remote_store(param: &HashMap<String, String>) -> Option<(String, String)>
         let store = param
             .get("remote-store")
             .map(|r| r.to_owned())
-            .or_else(|| job.map(|job| job.remote_store.clone()));
+            .or_else(|| job.map(|job| job.remote_store));
 
         if let Some(store) = store {
             return Some((remote, store))

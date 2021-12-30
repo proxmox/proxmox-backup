@@ -109,8 +109,8 @@ fn test_media_set_simple() -> Result<(), Error> {
 
 
     let tape1_uuid = inventory.generate_used_tape("tape1", sl1.clone(), 0);
-    let tape2_uuid = inventory.generate_used_tape("tape2", sl2.clone(), 0);
-    let tape3_uuid = inventory.generate_used_tape("tape3", sl3.clone(), 0);
+    let tape2_uuid = inventory.generate_used_tape("tape2", sl2, 0);
+    let tape3_uuid = inventory.generate_used_tape("tape3", sl3, 0);
 
     // generate incomplete media set in pool p2
     let sl4 = MediaSetLabel::with_data("p2", Uuid::generate(), 1, ctime + 40, None);
@@ -134,9 +134,9 @@ fn test_media_set_simple() -> Result<(), Error> {
     let media_list = media_set.media_list();
     assert_eq!(media_list.len(), 3);
 
-    assert_eq!(media_list[0], Some(tape1_uuid.clone()));
-    assert_eq!(media_list[1], Some(tape2_uuid.clone()));
-    assert_eq!(media_list[2], Some(tape3_uuid.clone()));
+    assert_eq!(media_list[0], Some(tape1_uuid));
+    assert_eq!(media_list[1], Some(tape2_uuid));
+    assert_eq!(media_list[2], Some(tape3_uuid));
 
     // test media set start time
     assert_eq!(inventory.media_set_start_time(&sl1.uuid), Some(ctime + 10));
@@ -150,7 +150,7 @@ fn test_media_set_simple() -> Result<(), Error> {
     assert_eq!(media_list.len(), 2);
 
     assert_eq!(media_list[0], None);
-    assert_eq!(media_list[1], Some(tape4_uuid.clone()));
+    assert_eq!(media_list[1], Some(tape4_uuid));
 
     // start time for incomplete set must be None
     assert_eq!(inventory.media_set_start_time(&sl4.uuid), None);

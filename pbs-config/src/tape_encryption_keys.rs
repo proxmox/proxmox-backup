@@ -177,7 +177,7 @@ pub fn insert_key(key: [u8;32], key_config: KeyConfig, force: bool) -> Result<()
     key_map.insert(fingerprint.clone(), item);
     save_keys(key_map)?;
 
-    config_map.insert(fingerprint.clone(), key_config);
+    config_map.insert(fingerprint, key_config);
     save_key_configs(config_map)?;
 
     Ok(())

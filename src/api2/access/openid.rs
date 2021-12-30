@@ -150,7 +150,7 @@ pub fn openid_login(
         };
 
         let user_id = Userid::try_from(format!("{}@{}", unique_name, realm))?;
-        tested_username = Some(unique_name.to_string());
+        tested_username = Some(unique_name);
 
         if !user_info.is_active_user_id(&user_id) {
             if config.autocreate.unwrap_or(false) {
@@ -246,8 +246,7 @@ fn openid_auth_url(
 
     let open_id = openid_authenticator(&config, &redirect_url)?;
 
-    let url = open_id.authorize_url(PROXMOX_BACKUP_RUN_DIR_M!(), &realm)?
-        .to_string();
+    let url = open_id.authorize_url(PROXMOX_BACKUP_RUN_DIR_M!(), &realm)?;
 
     Ok(url.into())
 }

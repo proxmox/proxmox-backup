@@ -38,7 +38,7 @@ fn worker_task_abort() -> Result<(), Error> {
     let gid = nix::unistd::Gid::current();
 
     let file_opts = CreateOptions::new().owner(uid).group(gid);
-    proxmox_rest_server::init_worker_tasks("./target/tasklogtestdir".into(), file_opts.clone())?;
+    proxmox_rest_server::init_worker_tasks("./target/tasklogtestdir".into(), file_opts)?;
 
     use std::sync::{Arc, Mutex};
 

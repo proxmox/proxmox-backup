@@ -1179,7 +1179,6 @@ fn restore_chunk_archive<'a>(
 
     let mut decoder = ChunkArchiveDecoder::new(reader);
 
-    let datastore2 = datastore.clone();
     let start_time = std::time::SystemTime::now();
     let bytes = Arc::new(std::sync::atomic::AtomicU64::new(0));
     let bytes2 = bytes.clone();
@@ -1190,7 +1189,7 @@ fn restore_chunk_archive<'a>(
         "tape restore chunk writer",
         4,
         move |(chunk, digest): (DataBlob, [u8; 32])| {
-            let chunk_exists = datastore2.cond_touch_chunk(&digest, false)?;
+            let chunk_exists = datastore.cond_touch_chunk(&digest, false)?;
             if !chunk_exists {
                 if verbose {
                     task_log!(worker2, "Insert chunk: {}", hex::encode(&digest));
@@ -1202,7 +1201,7 @@ fn restore_chunk_archive<'a>(
                     chunk.decode(None, Some(&digest))?; // verify digest
                 }
 
-                datastore2.insert_chunk(&chunk, &digest)?;
+                datastore.insert_chunk(&chunk, &digest)?;
             } else if verbose {
                 task_log!(worker2, "Found existing chunk: {}", hex::encode(&digest));
             }

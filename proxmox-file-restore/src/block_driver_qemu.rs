@@ -167,7 +167,7 @@ async fn ensure_running(details: &SnapRestoreDetails) -> Result<VsockClient, Err
     Ok(VsockClient::new(
         new_cid,
         DEFAULT_VSOCK_PORT,
-        Some(vms.ticket.clone()),
+        Some(vms.ticket),
     ))
 }
 

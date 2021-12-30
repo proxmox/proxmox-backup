@@ -705,7 +705,7 @@ impl DiskState {
                                 return None;
                             }
                             match b.component_string(components.len()) {
-                                Ok(cs) => Some((cs.to_owned(), b.size(components.len()))),
+                                Ok(cs) => Some((cs, b.size(components.len()))),
                                 Err(_) => None,
                             }
                         })

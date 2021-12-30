@@ -475,7 +475,7 @@ fn test_crypto_parameters_handling() -> Result<(), Error> {
     assert!(crypto_parameters(&json!({"keyfile": invalid_keypath, "crypt-mode": "encrypt"})).is_err());
 
     // now set a default key
-    unsafe { set_test_encryption_key(Ok(Some(default_key.clone()))); }
+    unsafe { set_test_encryption_key(Ok(Some(default_key))); }
 
     // and repeat
 
@@ -550,7 +550,7 @@ fn test_crypto_parameters_handling() -> Result<(), Error> {
     // now remove default key again
     unsafe { set_test_encryption_key(Ok(None)); }
     // set a default master key
-    unsafe { set_test_default_master_pubkey(Ok(Some(default_master_key.clone()))); }
+    unsafe { set_test_default_master_pubkey(Ok(Some(default_master_key))); }
 
     // and use an explicit master key
     assert!(crypto_parameters(&json!({"master-pubkey-file": master_keypath})).is_err());

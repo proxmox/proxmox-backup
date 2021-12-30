@@ -48,7 +48,7 @@ impl WorkerTaskSetup {
 
     fn new(basedir: PathBuf, file_opts: CreateOptions) -> Self {
 
-        let mut taskdir = basedir.clone();
+        let mut taskdir = basedir;
         taskdir.push("tasks");
 
         let mut task_lock_fn = taskdir.clone();
@@ -192,7 +192,7 @@ impl WorkerTaskSetup {
             let dir_opts = self.file_opts.clone()
                 .perm(nix::sys::stat::Mode::from_bits_truncate(0o755));
 
-            create_path(&self.taskdir, Some(dir_opts.clone()), Some(dir_opts.clone()))?;
+            create_path(&self.taskdir, Some(dir_opts.clone()), Some(dir_opts))?;
             // fixme:??? create_path(pbs_buildcfg::PROXMOX_BACKUP_RUN_DIR, None, Some(opts))?;
             Ok(())
         }).map_err(|err: Error| format_err!("unable to create task log dir - {}", err))
