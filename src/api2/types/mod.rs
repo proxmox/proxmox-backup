@@ -39,7 +39,7 @@ fn test_cert_fingerprint_schema() -> Result<(), anyhow::Error> {
     ];
 
     for fingerprint in invalid_fingerprints.iter() {
-        if parse_simple_value(fingerprint, &schema).is_ok() {
+        if schema.parse_simple_value(fingerprint).is_ok() {
             bail!("test fingerprint '{}' failed -  got Ok() while exception an error.", fingerprint);
         }
     }
@@ -50,7 +50,7 @@ fn test_cert_fingerprint_schema() -> Result<(), anyhow::Error> {
     ];
 
     for fingerprint in valid_fingerprints.iter() {
-        let v = match parse_simple_value(fingerprint, &schema) {
+        let v = match schema.parse_simple_value(fingerprint) {
             Ok(v) => v,
             Err(err) => {
                 bail!("unable to parse fingerprint '{}' - {}", fingerprint, err);
@@ -83,7 +83,7 @@ fn test_proxmox_user_id_schema() -> Result<(), anyhow::Error> {
     ];
 
     for name in invalid_user_ids.iter() {
-        if parse_simple_value(name, &Userid::API_SCHEMA).is_ok() {
+        if Userid::API_SCHEMA.parse_simple_value(name).is_ok() {
             bail!("test userid '{}' failed -  got Ok() while exception an error.", name);
         }
     }
@@ -97,7 +97,7 @@ fn test_proxmox_user_id_schema() -> Result<(), anyhow::Error> {
     ];
 
     for name in valid_user_ids.iter() {
-        let v = match parse_simple_value(name, &Userid::API_SCHEMA) {
+        let v = match Userid::API_SCHEMA.parse_simple_value(name) {
             Ok(v) => v,
             Err(err) => {
                 bail!("unable to parse userid '{}' - {}", name, err);
