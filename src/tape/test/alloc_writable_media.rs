@@ -5,7 +5,6 @@
 use std::path::PathBuf;
 use anyhow::Error;
 
-use proxmox_time::parse_time_span;
 use pbs_api_types::{RetentionPolicy, MediaSetPolicy};
 
 use crate::tape::{Inventory, MediaPool};
@@ -149,7 +148,7 @@ fn test_alloc_writable_media_4() -> Result<(), Error> {
         "p1",
         &testdir,
         MediaSetPolicy::AlwaysCreate,
-        RetentionPolicy::ProtectFor(parse_time_span("12s")?),
+        RetentionPolicy::ProtectFor("12s".parse()?),
         None,
         None,
         false,
