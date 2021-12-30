@@ -642,7 +642,7 @@ pub fn backup_snapshot(
         }
     }
 
-    if let Err(_) = reader_thread.join() {
+    if reader_thread.join().is_err() {
         bail!("chunk reader thread failed");
     }
 

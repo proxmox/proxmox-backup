@@ -405,7 +405,7 @@ impl DiskState {
                 mountpoint: None,
                 size,
             });
-            if let Ok(_) = filesystems.ensure_mounted(&mut dfs_bucket) {
+            if filesystems.ensure_mounted(&mut dfs_bucket).is_ok() {
                 // mount succeeded, add bucket and skip any other checks for the disk
                 info!(
                     "drive '{}' ('{}', '{}') contains fs directly ({}B)",

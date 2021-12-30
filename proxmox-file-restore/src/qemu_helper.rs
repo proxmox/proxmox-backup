@@ -60,7 +60,7 @@ fn validate_img_existance(debug: bool) -> Result<(), Error> {
 
 pub fn try_kill_vm(pid: i32) -> Result<(), Error> {
     let pid = Pid::from_raw(pid);
-    if let Ok(()) = kill(pid, None) {
+    if kill(pid, None).is_ok() {
         // process is running (and we could kill it), check if it is actually ours
         // (if it errors assume we raced with the process's death and ignore it)
         if let Ok(cmdline) = file_read_string(format!("/proc/{}/cmdline", pid)) {
@@ -129,7 +129,7 @@ pub async fn start_vm(
     files: impl Iterator<Item = String>,
     ticket: &str,
 ) -> Result<(i32, i32), Error> {
-    if let Err(_) = std::env::var("PBS_PASSWORD") {
+    if std::env::var("PBS_PASSWORD").is_err() {
         bail!("environment variable PBS_PASSWORD has to be set for QEMU VM restore");
     }
 
