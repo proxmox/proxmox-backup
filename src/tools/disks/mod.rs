@@ -982,21 +982,14 @@ pub fn create_file_system(disk: &Disk, fs_type: FileSystemType) -> Result<(), Er
 
 /// Block device name completion helper
 pub fn complete_disk_name(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
-    let mut list = Vec::new();
-
     let dir = match proxmox_sys::fs::scan_subdir(libc::AT_FDCWD, "/sys/block", &BLOCKDEVICE_NAME_REGEX) {
         Ok(dir) => dir,
-        Err(_) => return list,
+        Err(_) => return vec![],
     };
 
-    for item in dir {
-        if let Ok(item) = item {
-            let name = item.file_name().to_str().unwrap().to_string();
-            list.push(name);
-        }
-    }
-
-    list
+    dir.flatten().map(|item| {
+        item.file_name().to_str().unwrap().to_string()
+    }).collect()
 }
 
 /// Read the FS UUID (parse blkid output)

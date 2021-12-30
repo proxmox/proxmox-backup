@@ -232,21 +232,18 @@ impl DataStore {
         wanted_files.insert(CLIENT_LOG_BLOB_NAME.to_string());
         manifest.files().iter().for_each(|item| { wanted_files.insert(item.filename.clone()); });
 
-        for item in proxmox_sys::fs::read_subdir(libc::AT_FDCWD, &full_path)? {
-            if let Ok(item) = item {
-                if let Some(file_type) = item.file_type() {
-                    if file_type != nix::dir::Type::File { continue; }
-                }
-                let file_name = item.file_name().to_bytes();
-                if file_name == b"." || file_name == b".." { continue; };
-
-                if let Ok(name) = std::str::from_utf8(file_name) {
-                    if wanted_files.contains(name) { continue; }
-                }
-                println!("remove unused file {:?}", item.file_name());
-                let dirfd = item.parent_fd();
-                let _res = unsafe { libc::unlinkat(dirfd, item.file_name().as_ptr(), 0) };
+        for item in proxmox_sys::fs::read_subdir(libc::AT_FDCWD, &full_path)?.flatten() {
+            if let Some(file_type) = item.file_type() {
+                if file_type != nix::dir::Type::File { continue; }
             }
+            let file_name = item.file_name().to_bytes();
+            if file_name == b"." || file_name == b".." { continue; };
+            if let Ok(name) = std::str::from_utf8(file_name) {
+                if wanted_files.contains(name) { continue; }
+            }
+            println!("remove unused file {:?}", item.file_name());
+            let dirfd = item.parent_fd();
+            let _res = unsafe { libc::unlinkat(dirfd, item.file_name().as_ptr(), 0) };
         }
 
         Ok(())

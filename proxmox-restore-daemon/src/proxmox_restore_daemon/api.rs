@@ -158,33 +158,29 @@ fn list(
                 }
                 DirEntryAttribute::Directory { .. } => {
                     // list on directory, return all contained files/dirs
-                    for f in read_subdir(libc::AT_FDCWD, &vm_path)? {
-                        if let Ok(f) = f {
-                            let name = f.file_name().to_bytes();
-                            let path = &Path::new(OsStr::from_bytes(name));
-                            if path.components().count() == 1 {
-                                // ignore '.' and '..'
-                                match path.components().next().unwrap() {
-                                    std::path::Component::CurDir
-                                    | std::path::Component::ParentDir => continue,
-                                    _ => {}
-                                }
+                    for f in read_subdir(libc::AT_FDCWD, &vm_path)?.flatten() {
+                        let name = f.file_name().to_bytes();
+                        let path = &Path::new(OsStr::from_bytes(name));
+                        if path.components().count() == 1 {
+                            // ignore '.' and '..'
+                            match path.components().next().unwrap() {
+                                std::path::Component::CurDir
+                                | std::path::Component::ParentDir => continue,
+                                _ => {}
                             }
-
-                            let mut full_vm_path = PathBuf::new();
-                            full_vm_path.push(&vm_path);
-                            full_vm_path.push(path);
-                            let mut full_path = PathBuf::new();
-                            full_path.push(param_path_buf);
-                            full_path.push(path);
-
-                            let entry = get_dir_entry(&full_vm_path);
-                            if let Ok(entry) = entry {
-                                res.push(ArchiveEntry::new(
-                                    full_path.as_os_str().as_bytes(),
-                                    Some(&entry),
-                                ));
-                            }
+                        }
+                        let mut full_vm_path = PathBuf::new();
+                        full_vm_path.push(&vm_path);
+                        full_vm_path.push(path);
+                        let mut full_path = PathBuf::new();
+                        full_path.push(param_path_buf);
+                        full_path.push(path);
+                        let entry = get_dir_entry(&full_vm_path);
+                        if let Ok(entry) = entry {
+                            res.push(ArchiveEntry::new(
+                                full_path.as_os_str().as_bytes(),
+                                Some(&entry),
+                            ));
                         }
                     }
                 }
