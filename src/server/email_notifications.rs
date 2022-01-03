@@ -235,6 +235,9 @@ fn send_job_status_mail(
     text: &str,
 ) -> Result<(), Error> {
 
+    let (config, _) = crate::config::node::config()?;
+    let from = config.email_from; 
+
     // Note: OX has serious problems displaying text mails,
     // so we include html as well
     let html = format!("<html><body><pre>\n{}\n<pre>", handlebars::html_escape(text));
@@ -248,7 +251,7 @@ fn send_job_status_mail(
         subject,
         Some(text),
         Some(&html),
-        None,
+        from.as_deref(),
         Some(&author),
     )?;
 
