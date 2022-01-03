@@ -54,6 +54,8 @@ pub enum DeletableProperty {
     acmedomain4,
     /// Delete the http-proxy property.
     http_proxy,
+    /// Delete the email-from property.
+    email_from,
 }
 
 #[api(
@@ -110,6 +112,7 @@ pub fn update_node_config(
                 DeletableProperty::acmedomain3 => { config.acmedomain3 = None; },
                 DeletableProperty::acmedomain4 => { config.acmedomain4 = None; },
                 DeletableProperty::http_proxy => { config.http_proxy = None; },
+                DeletableProperty::email_from => { config.email_from = None; },
             }
         }
     }
@@ -121,6 +124,7 @@ pub fn update_node_config(
     if update.acmedomain3.is_some() { config.acmedomain3 = update.acmedomain3; }
     if update.acmedomain4.is_some() { config.acmedomain4 = update.acmedomain4; }
     if update.http_proxy.is_some() { config.http_proxy = update.http_proxy; }
+    if update.email_from.is_some() { config.email_from = update.email_from; }
 
     crate::config::node::save_config(&config)?;
 
