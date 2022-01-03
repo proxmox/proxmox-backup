@@ -7,6 +7,7 @@ use proxmox_schema::{api, ApiStringFormat, ApiType, Updater};
 
 use proxmox_http::ProxyConfig;
 
+use pbs_api_types::EMAIL_SCHEMA;
 use pbs_buildcfg::configdir;
 use pbs_config::{open_backup_lockfile, BackupLockGuard};
 
@@ -86,6 +87,10 @@ pub struct AcmeConfig {
             schema: HTTP_PROXY_SCHEMA,
             optional: true,
         },
+        "email-from": {
+            schema: EMAIL_SCHEMA,
+            optional: true,
+        },
     },
 )]
 #[derive(Deserialize, Serialize, Updater)]
@@ -113,6 +118,9 @@ pub struct NodeConfig {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub http_proxy: Option<String>,
+    
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email_from: Option<String>,
 }
 
 impl NodeConfig {
