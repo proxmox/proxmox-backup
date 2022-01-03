@@ -34,6 +34,15 @@ Ext.define('PBS.NodeOptionView', {
 	    deleteEmpty: true,
 	    onlineHelp: 'node_options_http_proxy',
 	},
+	{
+	    xtype: 'text',
+	    name: 'email-from',
+	    defaultValue: gettext('root@$hostname'),
+	    text: gettext('Email from address'),
+	    vtype: 'proxmoxMail',
+	    deleteEmpty: true,
+	},
+
     ],
 
     initComponent: function() {

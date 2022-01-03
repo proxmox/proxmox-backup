@@ -63,9 +63,25 @@ Ext.define('PBS.SystemConfiguration', {
 		    title: gettext('Webauthn'),
 		    xtype: 'pbsWebauthnConfigView',
 		},
+	    ],
+	},
+	{
+	    title: gettext('Options'),
+	    itemId: 'options',
+	    xtype: 'panel',
+	    layout: {
+		type: 'vbox',
+		align: 'stretch',
+		multi: true,
+	    },
+	    defaults: {
+		collapsible: true,
+		animCollapse: false,
+		margin: '10 10 0 10',
+	    },
+	    items: [
 		{
-		    // FIXME: this is only a semi-OK place as long as there's only the http-proxy in there
-		    title: gettext('HTTP proxy'),
+		    title: gettext('General'),
 		    xtype: 'pbsNodeOptionView',
 		},
 	    ],
@@ -85,6 +101,11 @@ Ext.define('PBS.SystemConfiguration', {
 	let authentication = me.getComponent('authentication');
 	Ext.Array.forEach(authentication.query(), function(item) {
 	    item.relayEvents(authentication, ['activate', 'deactivate', 'destroy']);
+	});
+
+	let options = me.getComponent('options');
+	Ext.Array.forEach(options.query(), function(item) {
+	    item.relayEvents(options, ['activate', 'deactivate', 'destroy']);
 	});
     },
 });
