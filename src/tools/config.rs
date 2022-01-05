@@ -137,7 +137,12 @@ fn object_to_writer(output: &mut dyn Write, object: &Object) -> Result<(), Error
         match value {
             Value::Null => continue, // delete this entry
             Value::Bool(v) => writeln!(output, "{}: {}", key, v)?,
-            Value::String(v) => writeln!(output, "{}: {}", key, v)?,
+            Value::String(v) => {
+                if v.as_bytes().contains(&b'\n') {
+                    bail!("value for {} contains newlines", key);
+                }
+                writeln!(output, "{}: {}", key, v)?
+            }
             Value::Number(v) => writeln!(output, "{}: {}", key, v)?,
             Value::Array(_) => bail!("arrays are not supported in config files"),
             Value::Object(_) => bail!("complex objects are not supported in config files"),
