@@ -568,15 +568,19 @@ fn get_snapshots_count(store: &DataStore, filter_owner: Option<&Authid>) -> Resu
         .try_fold(Counts::default(), |mut counts, group| {
             let snapshot_count = group.list_backups(&base_path)?.len() as u64;
 
-            let type_count = match group.backup_type() {
-                "ct" => counts.ct.get_or_insert(Default::default()),
-                "vm" => counts.vm.get_or_insert(Default::default()),
-                "host" => counts.host.get_or_insert(Default::default()),
-                _ => counts.other.get_or_insert(Default::default()),
-            };
+            // only include groups with snapshots (avoid confusing users
+            // by counting/displaying emtpy groups)
+            if snapshot_count > 0 {
+                let type_count = match group.backup_type() {
+                    "ct" => counts.ct.get_or_insert(Default::default()),
+                    "vm" => counts.vm.get_or_insert(Default::default()),
+                    "host" => counts.host.get_or_insert(Default::default()),
+                    _ => counts.other.get_or_insert(Default::default()),
+                };
 
-            type_count.groups += 1;
-            type_count.snapshots += snapshot_count;
+                type_count.groups += 1;
+                type_count.snapshots += snapshot_count;
+            }
 
             Ok(counts)
         })
