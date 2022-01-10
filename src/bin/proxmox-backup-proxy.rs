@@ -62,8 +62,7 @@ use proxmox_backup::tools::{
     PROXMOX_BACKUP_TCP_KEEPALIVE_TIME,
     disks::{
         DiskManage,
-        zfs_pool_stats,
-        get_pool_from_dataset,
+        zfs_dataset_stats,
     },
 };
 
@@ -1072,16 +1071,16 @@ fn gather_disk_stats(disk_manager: Arc<DiskManage>, path: &Path, rrd_prefix: &st
         Ok(None) => {},
         Ok(Some((fs_type, device, source))) => {
             let mut device_stat = None;
-            match fs_type.as_str() {
-                "zfs" => {
-                    if let Some(source) = source {
-                        let pool = get_pool_from_dataset(&source).unwrap_or(&source);
-                        match zfs_pool_stats(pool) {
-                            Ok(stat) => device_stat = stat,
-                            Err(err) => eprintln!("zfs_pool_stats({:?}) failed - {}", pool, err),
-                        }
+            match (fs_type.as_str(), source) {
+                ("zfs", Some(source)) => match source.into_string() {
+                    Ok(dataset) => match zfs_dataset_stats(&dataset) {
+                        Ok(stat) => device_stat = Some(stat),
+                        Err(err) => eprintln!("zfs_dataset_stats({:?}) failed - {}", dataset, err),
+                    },
+                    Err(source) => {
+                        eprintln!("zfs_pool_stats({:?}) failed - invalid characters", source)
                     }
-                }
+                },
                 _ => {
                     if let Ok(disk) = disk_manager.clone().disk_by_dev_num(device.into_dev_t()) {
                         match disk.read_stat() {
