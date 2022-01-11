@@ -234,6 +234,8 @@ Ext.define('PBS.DataStoreSummary', {
 	},
 	{
 	    xtype: 'proxmoxRRDChart',
+	    itemId: 'ioDelayChart',
+	    hidden: true,
 	    title: gettext('IO Delay (ms)'),
 	    fields: ['io_delay'],
 	    fieldTitles: [gettext('IO Delay')],
@@ -287,6 +289,10 @@ Ext.define('PBS.DataStoreSummary', {
 		}
 	    },
 	});
+
+	me.mon(me.rrdstore, 'load', function(store, records, success) {
+	    me.down('#ioDelayChart').setVisible(!success || records[0]?.data?.io_ticks !== undefined);
+	}, undefined, { single: true });
 
 	me.query('proxmoxRRDChart').forEach((chart) => {
 	    chart.setStore(me.rrdstore);
