@@ -1567,14 +1567,24 @@ pub fn get_rrd_stats(
     _param: Value,
 ) -> Result<Value, Error> {
 
+    let datastore = DataStore::lookup_datastore(&store)?;
+    let disk_manager = crate::tools::disks::DiskManage::new();
+
+    let mut rrd_fields = vec![
+        "total", "used",
+        "read_ios", "read_bytes",
+        "write_ios", "write_bytes",
+    ];
+
+    // we do not have io_ticks for zpools, so don't include them
+    match disk_manager.find_mounted_device(&datastore.base_path()) {
+        Ok(Some((fs_type, _, _))) if fs_type.as_str() == "zfs" => {},
+        _ => rrd_fields.push("io_ticks"),
+    };
+
     create_value_from_rrd(
         &format!("datastore/{}", store),
-        &[
-            "total", "used",
-            "read_ios", "read_bytes",
-            "write_ios", "write_bytes",
-            "io_ticks",
-        ],
+        &rrd_fields,
         timeframe,
         cf,
     )
