@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use openssl::ssl::{SslAcceptor, SslMethod};
 use anyhow::{bail, Error};
 use serde::{Deserialize, Serialize};
 
@@ -7,7 +8,7 @@ use proxmox_schema::{api, ApiStringFormat, ApiType, Updater};
 
 use proxmox_http::ProxyConfig;
 
-use pbs_api_types::EMAIL_SCHEMA;
+use pbs_api_types::{EMAIL_SCHEMA, OPENSSL_CIPHERS_TLS_1_2_SCHEMA, OPENSSL_CIPHERS_TLS_1_3_SCHEMA};
 use pbs_buildcfg::configdir;
 use pbs_config::{open_backup_lockfile, BackupLockGuard};
 
@@ -91,6 +92,14 @@ pub struct AcmeConfig {
             schema: EMAIL_SCHEMA,
             optional: true,
         },
+        "ciphers-tls13": {
+            schema: OPENSSL_CIPHERS_TLS_1_3_SCHEMA,
+            optional: true,
+        },
+        "ciphers-tls12": {
+            schema: OPENSSL_CIPHERS_TLS_1_2_SCHEMA,
+            optional: true,
+        },
     },
 )]
 #[derive(Deserialize, Serialize, Updater)]
@@ -121,6 +130,14 @@ pub struct NodeConfig {
     
     #[serde(skip_serializing_if = "Option::is_none")]
     pub email_from: Option<String>,
+
+    /// List of SSL ciphers for tls 1.3 that will be used by the proxy. (Proxy has to be restarted for changes to take effect)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ciphers_tls13: Option<String>,
+    
+    /// List of SSL ciphers for tls <= 1.2 that will be used by the proxy. (Proxy has to be restarted for changes to take effect)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ciphers_tls12: Option<String>,
 }
 
 impl NodeConfig {
@@ -171,6 +188,13 @@ impl NodeConfig {
             if !domains.insert(domain.domain.to_lowercase()) {
                 bail!("duplicate domain '{}' in ACME config", domain.domain);
             }
+        }
+        let mut dummy_acceptor = SslAcceptor::mozilla_intermediate_v5(SslMethod::tls()).unwrap();
+        if let Some(ciphers) = self.ciphers_tls13.as_deref() {
+            dummy_acceptor.set_ciphersuites(ciphers)?;
+        }
+        if let Some(ciphers) = self.ciphers_tls12.as_deref() {
+            dummy_acceptor.set_cipher_list(ciphers)?;
         }
 
         Ok(())
