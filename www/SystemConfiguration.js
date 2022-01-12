@@ -45,30 +45,9 @@ Ext.define('PBS.SystemConfiguration', {
 	    ],
 	},
 	{
-	    title: gettext('Authentication'),
-	    itemId: 'authentication',
 	    xtype: 'panel',
-	    layout: {
-		type: 'vbox',
-		align: 'stretch',
-		multi: true,
-	    },
-	    defaults: {
-		collapsible: true,
-		animCollapse: false,
-		margin: '10 10 0 10',
-	    },
-	    items: [
-		{
-		    title: gettext('Webauthn'),
-		    xtype: 'pbsWebauthnConfigView',
-		},
-	    ],
-	},
-	{
-	    title: gettext('Options'),
-	    itemId: 'options',
-	    xtype: 'panel',
+	    title: gettext('Other'),
+	    itemId: 'other-options',
 	    layout: {
 		type: 'vbox',
 		align: 'stretch',
@@ -84,6 +63,10 @@ Ext.define('PBS.SystemConfiguration', {
 		    title: gettext('General'),
 		    xtype: 'pbsNodeOptionView',
 		},
+		{
+		    title: gettext('WebAuthn TFA'),
+		    xtype: 'pbsWebauthnConfigView',
+		},
 	    ],
 	},
     ],
@@ -98,12 +81,7 @@ Ext.define('PBS.SystemConfiguration', {
 	    item.relayEvents(networktime, ['activate', 'deactivate', 'destroy']);
 	});
 
-	let authentication = me.getComponent('authentication');
-	Ext.Array.forEach(authentication.query(), function(item) {
-	    item.relayEvents(authentication, ['activate', 'deactivate', 'destroy']);
-	});
-
-	let options = me.getComponent('options');
+	let options = me.getComponent('other-options');
 	Ext.Array.forEach(options.query(), function(item) {
 	    item.relayEvents(options, ['activate', 'deactivate', 'destroy']);
 	});
