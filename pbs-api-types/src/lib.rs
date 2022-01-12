@@ -1,7 +1,6 @@
 //! Basic API types used by most of the PBS code.
 
 use serde::{Deserialize, Serialize};
-use anyhow::bail;
 
 pub mod common_regex;
 pub mod percent_encoding;
@@ -199,15 +198,9 @@ pub const DNS_NAME_OR_IP_SCHEMA: Schema = StringSchema::new("DNS name or IP addr
     .format(&DNS_NAME_OR_IP_FORMAT)
     .schema();
 
-#[cfg(not(target_arch="wasm32"))] // this only makes sense for the serever side
+
 pub const NODE_SCHEMA: Schema = StringSchema::new("Node name (or 'localhost')")
-    .format(&ApiStringFormat::VerifyFn(|node| {
-        if node == "localhost" || node == proxmox_sys::nodename() {
-            Ok(())
-        } else {
-            bail!("no such node '{}'", node);
-        }
-    }))
+    .format(&HOSTNAME_FORMAT)
     .schema();
 
 pub const TIME_ZONE_SCHEMA: Schema = StringSchema::new(
