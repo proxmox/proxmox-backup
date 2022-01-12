@@ -2,6 +2,7 @@ use std::convert::TryFrom;
 use std::path::PathBuf;
 
 use anyhow::{bail, format_err, Error};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use proxmox_sys::linux::tty;
@@ -13,13 +14,47 @@ use proxmox_router::cli::{
 };
 use proxmox_schema::{api, ApiType, ReturnType};
 
-use pbs_api_types::{RsaPubKeyInfo, PASSWORD_HINT_SCHEMA, Kdf, KeyInfo};
+use pbs_api_types::{PASSWORD_HINT_SCHEMA, Kdf, KeyInfo};
 use pbs_config::key_config::{KeyConfig, rsa_decrypt_key_config};
 use pbs_datastore::paperkey::{generate_paper_key, PaperkeyFormat};
 use pbs_client::tools::key_source::{
     find_default_encryption_key, find_default_master_pubkey, get_encryption_key_password,
     place_default_encryption_key, place_default_master_pubkey,
 };
+
+#[api]
+#[derive(Deserialize, Serialize)]
+/// RSA public key information
+pub struct RsaPubKeyInfo {
+    /// Path to key (if stored in a file)
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub path: Option<String>,
+    /// RSA exponent
+    pub exponent: String,
+    /// Hex-encoded RSA modulus
+    pub modulus: String,
+    /// Key (modulus) length in bits
+    pub length: usize,
+}
+
+#[cfg(not(target_arch="wasm32"))]
+impl std::convert::TryFrom<openssl::rsa::Rsa<openssl::pkey::Public>> for RsaPubKeyInfo {
+    type Error = anyhow::Error;
+
+    fn try_from(value: openssl::rsa::Rsa<openssl::pkey::Public>) -> Result<Self, Self::Error> {
+        let modulus = value.n().to_hex_str()?.to_string();
+        let exponent = value.e().to_dec_str()?.to_string();
+        let length = value.size() as usize * 8;
+
+        Ok(Self {
+            path: None,
+            exponent,
+            modulus,
+            length,
+        })
+    }
+}
+
 
 #[api(
     input: {

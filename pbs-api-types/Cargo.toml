@@ -21,4 +21,3 @@ proxmox-uuid = { version = "1.0.0", features = [ "serde" ] }
 
 [target.'cfg(not(target_arch="wasm32"))'.dependencies]
 proxmox-sys = "0.2" # only needed for nodename()??
-openssl = "0.10"

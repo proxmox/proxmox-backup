@@ -312,39 +312,6 @@ pub const PASSWORD_HINT_SCHEMA: Schema = StringSchema::new("Password hint.")
     .schema();
 
 
-#[api]
-#[derive(Deserialize, Serialize)]
-/// RSA public key information
-pub struct RsaPubKeyInfo {
-    /// Path to key (if stored in a file)
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub path: Option<String>,
-    /// RSA exponent
-    pub exponent: String,
-    /// Hex-encoded RSA modulus
-    pub modulus: String,
-    /// Key (modulus) length in bits
-    pub length: usize,
-}
-
-#[cfg(not(target_arch="wasm32"))]
-impl std::convert::TryFrom<openssl::rsa::Rsa<openssl::pkey::Public>> for RsaPubKeyInfo {
-    type Error = anyhow::Error;
-
-    fn try_from(value: openssl::rsa::Rsa<openssl::pkey::Public>) -> Result<Self, Self::Error> {
-        let modulus = value.n().to_hex_str()?.to_string();
-        let exponent = value.e().to_dec_str()?.to_string();
-        let length = value.size() as usize * 8;
-
-        Ok(Self {
-            path: None,
-            exponent,
-            modulus,
-            length,
-        })
-    }
-}
-
 #[api()]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
