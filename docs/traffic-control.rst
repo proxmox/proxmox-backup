@@ -21,7 +21,7 @@ You can manage the traffic controls either over the web-interface or using the
 tool.
 
 .. note:: Sync jobs on the server are not affected by its rate-in limits. If
-   you want to limit the incomming traffic that a pull-based sync job
+   you want to limit the incoming traffic that a pull-based sync job
    generates, you need to setup a job-specific rate-in limit. See
    :ref:`syncjobs`.
 

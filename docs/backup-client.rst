@@ -71,7 +71,7 @@ Environment Variables
 
 
 .. Note:: Passwords must be valid UTF-8 and may not contain newlines. For your
-   convienience, Proxmox Backup Server only uses the first line as password, so
+   convenience, Proxmox Backup Server only uses the first line as password, so
    you can add arbitrary comments after the first newline.
 
 

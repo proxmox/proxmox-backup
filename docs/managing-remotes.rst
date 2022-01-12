@@ -117,9 +117,9 @@ The same filter is applied to local groups for handling of the
 Bandwidth Limit
 ^^^^^^^^^^^^^^^
 
-Syncing datastores to an archive can produce lots of traffic and impact other
-users of the network. So, to avoid network or storage congetsion you can limit
-the bandwith of the sync job by setting the ``rate-in`` option either in the
+Syncing a datastore to an archive can produce lots of traffic and impact other
+users of the network. So, to avoid network or storage congestion you can limit
+the bandwidth of the sync job by setting the ``rate-in`` option either in the
 web interface or using the ``proxmox-backup-manager`` command-line tool:
 
 .. code-block:: console
