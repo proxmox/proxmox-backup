@@ -1,3 +1,45 @@
+rust-proxmox-backup (2.1.3-1) bullseye; urgency=medium
+
+  * fix #3618: proxmox-async: zip: add conditional EFS flag to zip files to
+    improve non-ascii code point extraction under windows.
+
+  * OpenID Connect login: improve error message for disabled users
+
+  * ui: tape: backup job: add second tab for group-filters to add/edit window
+
+  * ui: sync job: add second tab for group-filters to add/edit window
+
+  * ui: calendar event: add once daily example and clarify the workday one
+
+  * fix #3794: api types: set backup time (since the UNIX epoch) lower limit
+    to 1
+
+  * ui: fix opening settings window in datastore panel
+
+  * api: zfs: create zpool with `relatime=on` flag set
+
+  * fix #3763: disable SSL/TLS renegotiation
+
+  * node config: add email-from parameter to control notification sender
+    address
+
+  * ui: configuration: rename the "Authentication" tab to "Other" and add a
+    "General" section with HTTP-proxy and email-from settings
+
+  * datastore stats: not include the unavailable `io_ticks` for ZFS
+    datastores
+
+  * ui: hide RRD chart for IO delay if no `io_ticks` are returned
+
+  * fix #3058: ui: improve remote edit UX by clarifying ID vs host fields
+
+  * docs: fix some minor typos
+
+  * api-types: relax nodename API schema, make it a simple regex check like in
+    Proxmox VE
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 12 Jan 2022 16:49:13 +0100
+
 rust-proxmox-backup (2.1.2-1) bullseye; urgency=medium
 
   * docs: backup-client: fix wrong reference
