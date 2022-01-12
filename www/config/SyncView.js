@@ -196,7 +196,7 @@ Ext.define('PBS.config.SyncJobView', {
 	    sortable: true,
 	},
 	{
-	    header: gettext('Remote'),
+	    header: gettext('Remote ID'),
 	    dataIndex: 'remote',
 	    width: 120,
 	    sortable: true,

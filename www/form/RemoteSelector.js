@@ -16,7 +16,7 @@ Ext.define('PBS.form.RemoteSelector', {
     listConfig: {
 	columns: [
 	    {
-		header: gettext('Remote'),
+		header: gettext('Remote ID'),
 		sortable: true,
 		dataIndex: 'name',
 		renderer: Ext.String.htmlEncode,

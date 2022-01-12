@@ -116,7 +116,7 @@ Ext.define('PBS.config.RemoteView', {
 
     columns: [
 	{
-	    header: gettext('Remote'),
+	    header: gettext('Remote ID'),
 	    width: 200,
 	    sortable: true,
 	    renderer: Ext.String.htmlEncode,

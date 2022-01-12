@@ -32,7 +32,7 @@ Ext.define('PBS.window.RemoteEdit', {
 	    {
 		xtype: 'pmxDisplayEditField',
 		name: 'name',
-		fieldLabel: gettext('Remote'),
+		fieldLabel: gettext('Remote ID'),
 		renderer: Ext.htmlEncode,
 		allowBlank: false,
 		minLength: 4,
@@ -47,6 +47,7 @@ Ext.define('PBS.window.RemoteEdit', {
 		submitValue: false,
 		vtype: 'HostPort',
 		fieldLabel: gettext('Host'),
+		emptyText: gettext('FQDN or IP-address'),
 		listeners: {
 		    change: function(field, newvalue) {
 			let host = newvalue;
@@ -74,31 +75,31 @@ Ext.define('PBS.window.RemoteEdit', {
 	    },
 	    {
 		xtype: 'proxmoxtextfield',
-		hidden: true,
 		name: 'host',
+		hidden: true,
 	    },
 	    {
 		xtype: 'proxmoxtextfield',
+		name: 'port',
 		hidden: true,
 		cbind: {
 		    deleteEmpty: '{!isCreate}',
 		},
-		name: 'port',
 	    },
 	],
 
 	column2: [
 	    {
 		xtype: 'proxmoxtextfield',
-		allowBlank: false,
 		name: 'auth-id',
 		fieldLabel: gettext('Auth ID'),
+		allowBlank: false,
 	    },
 	    {
 		xtype: 'textfield',
+		name: 'password',
 		inputType: 'password',
 		fieldLabel: gettext('Password'),
-		name: 'password',
 		cbind: {
 		    emptyText: '{passwordEmptyText}',
 		    allowBlank: '{!isCreate}',
@@ -110,10 +111,11 @@ Ext.define('PBS.window.RemoteEdit', {
 	    {
 		xtype: 'proxmoxtextfield',
 		name: 'fingerprint',
+		fieldLabel: gettext('Fingerprint'),
+		emptyText: gettext("Server certificate's SHA-256 fingerprint, required for self-signed certificates"),
 		cbind: {
 		    deleteEmpty: '{!isCreate}',
 		},
-		fieldLabel: gettext('Fingerprint'),
 	    },
 	    {
 		xtype: 'proxmoxtextfield',
