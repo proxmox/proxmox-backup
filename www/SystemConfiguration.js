@@ -12,6 +12,7 @@ Ext.define('PBS.SystemConfiguration', {
 	    xtype: 'panel',
 	    title: gettext(' Network/Time'),
 	    itemId: 'network',
+	    iconCls: 'fa fa-exchange',
 	    layout: {
 		type: 'vbox',
 		align: 'stretch',
@@ -48,6 +49,7 @@ Ext.define('PBS.SystemConfiguration', {
 	    xtype: 'panel',
 	    title: gettext('Other'),
 	    itemId: 'other-options',
+	    iconCls: 'fa fa-sliders',
 	    layout: {
 		type: 'vbox',
 		align: 'stretch',
