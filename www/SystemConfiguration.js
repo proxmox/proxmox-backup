@@ -9,9 +9,9 @@ Ext.define('PBS.SystemConfiguration', {
     tools: [PBS.Utils.get_help_tool("sysadmin-network-configuration")],
     items: [
 	{
-	    title: gettext('Network/Time'),
-	    itemId: 'network',
 	    xtype: 'panel',
+	    title: gettext(' Network/Time'),
+	    itemId: 'network',
 	    layout: {
 		type: 'vbox',
 		align: 'stretch',
@@ -24,20 +24,20 @@ Ext.define('PBS.SystemConfiguration', {
 	    },
 	    items: [
 		{
-		    title: gettext('Time'),
 		    xtype: 'proxmoxNodeTimeView',
+		    title: gettext('Time'),
 		    nodename: 'localhost',
 		},
 		{
-		    title: gettext('DNS'),
 		    xtype: 'proxmoxNodeDNSView',
+		    title: gettext('DNS'),
 		    nodename: 'localhost',
 		},
 		{
+		    xtype: 'proxmoxNodeNetworkView',
+		    title: gettext('Network Interfaces'),
 		    flex: 1,
 		    minHeight: 200,
-		    title: gettext('Network Interfaces'),
-		    xtype: 'proxmoxNodeNetworkView',
 		    showApplyBtn: true,
 		    types: ['bond', 'bridge'],
 		    nodename: 'localhost',
@@ -77,14 +77,10 @@ Ext.define('PBS.SystemConfiguration', {
 	me.callParent();
 
 	let networktime = me.getComponent('network');
-	Ext.Array.forEach(networktime.query(), function(item) {
-	    item.relayEvents(networktime, ['activate', 'deactivate', 'destroy']);
-	});
+	networktime.query()?.forEach(el => el.relayEvents(networktime, ['activate', 'deactivate', 'destroy']));
 
 	let options = me.getComponent('other-options');
-	Ext.Array.forEach(options.query(), function(item) {
-	    item.relayEvents(options, ['activate', 'deactivate', 'destroy']);
-	});
+	options.query()?.forEach(el => el.relayEvents(options, ['activate', 'deactivate', 'destroy']));
     },
 });
 
