@@ -99,20 +99,6 @@ mod local_macros {
     macro_rules! DNS_ALIAS_NAME {
         () => (concat!(r"(?:(?:", DNS_ALIAS_LABEL!() , r"\.)*", DNS_ALIAS_LABEL!(), ")"))
     }
-    macro_rules! OPENSSL_CIPHERSUITE_RE { 
-        () => (
-            r"TLS_AES_256_GCM_SHA384|TLS_CHACHA20_POLY1305_SHA256|TLS_AES_128_GCM_SHA256|TLS_AES_128_CCM_8_SHA256|TLS_AES_128_CCM_SHA256"
-        ) 
-    }
-    macro_rules! OPENSSL_CIPHER_STRING_RE { 
-        () => (concat!(
-            r"([!\-+]?(COMPLEMENTOFDEFAULT|ALL|COMPLEMENTOFALL|HIGH|MEDIUM|LOW|[ae]?NULL|[ka]?RSA|",
-            "kDH[rdE]?|kEDH|DHE?|EDH|ADH|kEECDH|kECDHE|ECDH|ECDHE|EECDH|AECDH|a?DSS|aDH|a?ECDSA|",
-            "SSLv3|AES(128|256)?|GCM|AESGCM|AESCCM|AESCCM8|ARIA(128|256)?|CAMELLIA(128|256)?|",
-            "CHACHA20|3?DES|RC[24]|IDEA|SEED|MD5|SHA(1|256|384)?|aGOST(01)?|kGOST|GOST94|GOST89MAC|",
-            "[ak]?PSK|kECDHEPSK|kDHEPSK|kRSAPSK|SUITEB(128|128ONLY|192)?|CBC3?|POLY1305))+"
-        )) 
-    }
 }
 
 const_regex! {
@@ -137,21 +123,8 @@ const_regex! {
 
     pub FINGERPRINT_SHA256_REGEX = r"^(?:[0-9a-fA-F][0-9a-fA-F])(?::[0-9a-fA-F][0-9a-fA-F]){31}$";
 
-    pub OPENSSL_CIPHERS_TLS_1_2_REGEX = concat!(
-        r"^((",
-        OPENSSL_CIPHER_STRING_RE!(),
-        ")([: ,](",
-        OPENSSL_CIPHER_STRING_RE!(),
-        "))*)$"
-    );
-    
-    pub OPENSSL_CIPHERS_TLS_1_3_REGEX = concat!(
-        r"^((",
-        OPENSSL_CIPHERSUITE_RE!(),
-        ")(:(",
-        OPENSSL_CIPHERSUITE_RE!(),
-        "))*)$"
-    );
+    // just a rough check - dummy acceptor is used before persisting
+    pub OPENSSL_CIPHERS_REGEX = r"^[0-9A-Za-z_:, +!\-@=.]+$";
 
     /// Regex for safe identifiers.
     ///
@@ -189,9 +162,7 @@ pub const BLOCKDEVICE_NAME_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&B
 pub const SUBSCRIPTION_KEY_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&SUBSCRIPTION_KEY_REGEX);
 pub const SYSTEMD_DATETIME_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&SYSTEMD_DATETIME_REGEX);
 pub const HOSTNAME_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&HOSTNAME_REGEX);
-pub const OPENSSL_CIPHERS_TLS_1_2_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&OPENSSL_CIPHERS_TLS_1_2_REGEX);
-pub const OPENSSL_CIPHERS_TLS_1_3_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&OPENSSL_CIPHERS_TLS_1_3_REGEX);
-
+pub const OPENSSL_CIPHERS_TLS_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&OPENSSL_CIPHERS_REGEX);
 
 pub const DNS_ALIAS_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&DNS_ALIAS_REGEX);
@@ -221,12 +192,12 @@ pub const HOSTNAME_SCHEMA: Schema = StringSchema::new("Hostname (as defined in R
     .format(&HOSTNAME_FORMAT)
     .schema();
 
-pub const OPENSSL_CIPHERS_TLS_1_2_SCHEMA: Schema = StringSchema::new("OpenSSL cipher string list used by the proxy for TLS <= 1.2")
-    .format(&OPENSSL_CIPHERS_TLS_1_2_FORMAT)
+pub const OPENSSL_CIPHERS_TLS_1_2_SCHEMA: Schema = StringSchema::new("OpenSSL cipher list used by the proxy for TLS <= 1.2")
+    .format(&OPENSSL_CIPHERS_TLS_FORMAT)
     .schema();
 
-pub const OPENSSL_CIPHERS_TLS_1_3_SCHEMA: Schema = StringSchema::new("OpenSSL ciphersuites list used by the proxy for TLSv1.3")
-    .format(&OPENSSL_CIPHERS_TLS_1_3_FORMAT)
+pub const OPENSSL_CIPHERS_TLS_1_3_SCHEMA: Schema = StringSchema::new("OpenSSL ciphersuites list used by the proxy for TLS 1.3")
+    .format(&OPENSSL_CIPHERS_TLS_FORMAT)
     .schema();
 
 pub const DNS_NAME_FORMAT: ApiStringFormat =
