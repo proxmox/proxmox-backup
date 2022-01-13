@@ -56,10 +56,12 @@ pub enum DeletableProperty {
     http_proxy,
     /// Delete the email-from property.
     email_from,
-    /// Delete the ciphers-tls13 property.
-    ciphers_tls13,
-    /// Delete the ciphers-tls12 property.
-    ciphers_tls12,
+    /// Delete the ciphers-tls-1.3 property.
+    #[serde(rename="ciphers-tls-1.3")]
+    ciphers_tls_1_3,
+    /// Delete the ciphers-tls-1.2 property.
+    #[serde(rename="ciphers-tls-1.2")]
+    ciphers_tls_1_2,
 }
 
 #[api(
@@ -117,8 +119,8 @@ pub fn update_node_config(
                 DeletableProperty::acmedomain4 => { config.acmedomain4 = None; },
                 DeletableProperty::http_proxy => { config.http_proxy = None; },
                 DeletableProperty::email_from => { config.email_from = None; },
-                DeletableProperty::ciphers_tls13 => { config.ciphers_tls13 = None; },
-                DeletableProperty::ciphers_tls12 => { config.ciphers_tls12 = None; },
+                DeletableProperty::ciphers_tls_1_3 => { config.ciphers_tls_1_3 = None; },
+                DeletableProperty::ciphers_tls_1_2 => { config.ciphers_tls_1_2 = None; },
             }
         }
     }
@@ -131,8 +133,8 @@ pub fn update_node_config(
     if update.acmedomain4.is_some() { config.acmedomain4 = update.acmedomain4; }
     if update.http_proxy.is_some() { config.http_proxy = update.http_proxy; }
     if update.email_from.is_some() { config.email_from = update.email_from; }
-    if update.ciphers_tls13.is_some() { config.ciphers_tls13 = update.ciphers_tls13; }
-    if update.ciphers_tls12.is_some() { config.ciphers_tls12 = update.ciphers_tls12; }
+    if update.ciphers_tls_1_3.is_some() { config.ciphers_tls_1_3 = update.ciphers_tls_1_3; }
+    if update.ciphers_tls_1_2.is_some() { config.ciphers_tls_1_2 = update.ciphers_tls_1_2; }
 
     crate::config::node::save_config(&config)?;
 

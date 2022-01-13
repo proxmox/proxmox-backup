@@ -343,14 +343,14 @@ fn make_tls_acceptor() -> Result<SslAcceptor, Error> {
     let cert_path = configdir!("/proxy.pem");
 
     let (config, _) = proxmox_backup::config::node::config()?;
-    let ciphers_tls13 = config.ciphers_tls13;
-    let ciphers_tls12 = config.ciphers_tls12;
+    let ciphers_tls_1_3 = config.ciphers_tls_1_3;
+    let ciphers_tls_1_2 = config.ciphers_tls_1_2;
 
     let mut acceptor = SslAcceptor::mozilla_intermediate_v5(SslMethod::tls()).unwrap();
-    if let Some(ciphers) = ciphers_tls13.as_deref() {
+    if let Some(ciphers) = ciphers_tls_1_3.as_deref() {
         acceptor.set_ciphersuites(ciphers)?;
     }
-    if let Some(ciphers) = ciphers_tls12.as_deref() {
+    if let Some(ciphers) = ciphers_tls_1_2.as_deref() {
         acceptor.set_cipher_list(ciphers)?;
     }
     acceptor.set_private_key_file(key_path, SslFiletype::PEM)
