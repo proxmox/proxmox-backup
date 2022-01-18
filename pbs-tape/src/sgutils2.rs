@@ -90,7 +90,7 @@ impl SgPt {
 
 /// Peripheral device type text (see `inquiry` command)
 ///
-/// see [https://en.wikipedia.org/wiki/SCSI_Peripheral_Device_Type]
+/// see <https://en.wikipedia.org/wiki/SCSI_Peripheral_Device_Type>
 pub const PERIPHERAL_DEVICE_TYPE_TEXT: [&'static str; 32] = [
     "Disk Drive",
     "Tape Drive",

@@ -469,7 +469,7 @@ impl Disk {
 
     /// Read block device stats
     ///
-    /// see https://www.kernel.org/doc/Documentation/block/stat.txt
+    /// see <https://www.kernel.org/doc/Documentation/block/stat.txt>
     pub fn read_stat(&self) -> std::io::Result<Option<BlockDevStat>> {
         if let Some(stat) = self.read_sys(Path::new("stat"))? {
             let stat = unsafe { std::str::from_utf8_unchecked(&stat) };
