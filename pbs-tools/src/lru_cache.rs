@@ -100,8 +100,24 @@ pub struct LruCache<K, V> {
     _marker: PhantomData<Box<CacheNode<K, V>>>,
 }
 
+impl<K, V> Drop for LruCache<K, V> {
+    fn drop (&mut self) {
+        self.clear();
+    }
+}
+
 // trivial: if our contents are Send, the whole cache is Send
 unsafe impl<K: Send, V: Send> Send for LruCache<K, V> {}
+
+impl<K, V> LruCache<K, V> {
+    /// Clear all the entries from the cache.
+    pub fn clear(&mut self) {
+        // This frees only the HashMap with the node pointers.
+        self.map.clear();
+        // This frees the actual nodes and resets the list head and tail.
+        self.list.clear();
+    }
+}
 
 impl<K: std::cmp::Eq + std::hash::Hash + Copy, V> LruCache<K, V> {
     /// Create LRU cache instance which holds up to `capacity` nodes at once.
@@ -113,14 +129,6 @@ impl<K: std::cmp::Eq + std::hash::Hash + Copy, V> LruCache<K, V> {
             capacity,
             _marker: PhantomData,
         }
-    }
-
-    /// Clear all the entries from the cache.
-    pub fn clear(&mut self) {
-        // This frees only the HashMap with the node pointers.
-        self.map.clear();
-        // This frees the actual nodes and resets the list head and tail.
-        self.list.clear();
     }
 
     /// Insert or update an entry identified by `key` with the given `value`.
