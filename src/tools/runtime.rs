@@ -2,8 +2,8 @@
 
 use std::cell::RefCell;
 use std::future::Future;
-use std::sync::{Arc, Weak, Mutex};
-use std::task::{Context, Poll, RawWaker, Waker};
+use std::sync::{Arc, Mutex, Weak};
+use std::task::{Context, Poll, Waker};
 use std::thread::{self, Thread};
 
 use lazy_static::lazy_static;
@@ -15,8 +15,7 @@ thread_local! {
 }
 
 fn is_in_tokio() -> bool {
-    tokio::runtime::Handle::try_current()
-        .is_ok()
+    tokio::runtime::Handle::try_current().is_ok()
 }
 
 fn is_blocking() -> bool {
@@ -49,7 +48,8 @@ lazy_static! {
     static ref RUNTIME: Mutex<Weak<Runtime>> = Mutex::new(Weak::new());
 }
 
-extern {
+#[link(name = "crypto")]
+extern "C" {
     fn OPENSSL_thread_stop();
 }
 
@@ -58,16 +58,19 @@ extern {
 /// This makes sure that tokio's worker threads are marked for us so that we know whether we
 /// can/need to use `block_in_place` in our `block_on` helper.
 pub fn get_runtime_with_builder<F: Fn() -> runtime::Builder>(get_builder: F) -> Arc<Runtime> {
-
     let mut guard = RUNTIME.lock().unwrap();
 
-    if let Some(rt) = guard.upgrade() { return rt; }
+    if let Some(rt) = guard.upgrade() {
+        return rt;
+    }
 
     let mut builder = get_builder();
     builder.on_thread_stop(|| {
         // avoid openssl bug: https://github.com/openssl/openssl/issues/6214
         // call OPENSSL_thread_stop to avoid race with openssl cleanup handlers
-        unsafe { OPENSSL_thread_stop(); }
+        unsafe {
+            OPENSSL_thread_stop();
+        }
     });
 
     let runtime = builder.build().expect("failed to spawn tokio runtime");
@@ -82,14 +85,12 @@ pub fn get_runtime_with_builder<F: Fn() -> runtime::Builder>(get_builder: F) -> 
 ///
 /// This calls get_runtime_with_builder() using the tokio default threaded scheduler
 pub fn get_runtime() -> Arc<Runtime> {
-
     get_runtime_with_builder(|| {
         let mut builder = runtime::Builder::new_multi_thread();
         builder.enable_all();
         builder
     })
 }
-
 
 /// Block on a synchronous piece of code.
 pub fn block_in_place<R>(fut: impl FnOnce() -> R) -> R {
@@ -155,12 +156,22 @@ pub fn main<F: Future>(fut: F) -> F::Output {
     block_on(fut)
 }
 
+struct ThreadWaker(Thread);
+
+impl std::task::Wake for ThreadWaker {
+    fn wake(self: Arc<Self>) {
+        self.0.unpark();
+    }
+
+    fn wake_by_ref(self: &Arc<Self>) {
+        self.0.unpark();
+    }
+}
+
 fn block_on_local_future<F: Future>(fut: F) -> F::Output {
     pin_mut!(fut);
 
-    let waker = Arc::new(thread::current());
-    let waker = thread_waker_clone(Arc::into_raw(waker) as *const ());
-    let waker = unsafe { Waker::from_raw(waker) };
+    let waker = Waker::from(Arc::new(ThreadWaker(thread::current())));
     let mut context = Context::from_waker(&waker);
     loop {
         match fut.as_mut().poll(&mut context) {
@@ -168,35 +179,4 @@ fn block_on_local_future<F: Future>(fut: F) -> F::Output {
             Poll::Pending => thread::park(),
         }
     }
-}
-
-const THREAD_WAKER_VTABLE: std::task::RawWakerVTable = std::task::RawWakerVTable::new(
-    thread_waker_clone,
-    thread_waker_wake,
-    thread_waker_wake_by_ref,
-    thread_waker_drop,
-);
-
-fn thread_waker_clone(this: *const ()) -> RawWaker {
-    let this = unsafe { Arc::from_raw(this as *const Thread) };
-    let cloned = Arc::clone(&this);
-    let _ = Arc::into_raw(this);
-
-    RawWaker::new(Arc::into_raw(cloned) as *const (), &THREAD_WAKER_VTABLE)
-}
-
-fn thread_waker_wake(this: *const ()) {
-    let this = unsafe { Arc::from_raw(this as *const Thread) };
-    this.unpark();
-}
-
-fn thread_waker_wake_by_ref(this: *const ()) {
-    let this = unsafe { Arc::from_raw(this as *const Thread) };
-    this.unpark();
-    let _ = Arc::into_raw(this);
-}
-
-fn thread_waker_drop(this: *const ()) {
-    let this = unsafe { Arc::from_raw(this as *const Thread) };
-    drop(this);
 }
