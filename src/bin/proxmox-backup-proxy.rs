@@ -170,6 +170,15 @@ async fn get_index_future(
             lang = language;
         }
     }
+    if lang.is_empty() {
+        if let Ok((config, _)) = proxmox_backup::config::node::config() {
+            if let Some(default) = config.default_lang {
+                if Path::new(&format!("/usr/share/pbs-i18n/pbs-lang-{}.js", default)).exists() {
+                    lang = default;
+                }
+            }
+        }
+    }
 
     let data = json!({
         "NodeName": nodename,

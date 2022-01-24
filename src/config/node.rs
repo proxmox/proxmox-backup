@@ -57,6 +57,69 @@ pub struct AcmeConfig {
     account: AcmeAccountName,
 }
 
+/// All available languages in Proxmox. Taken from proxmox-i18n repository.
+/// pt_BR, zh_CN, and zh_TW use the same case in the translation files.
+// TODO: auto-generate from available translations
+#[api]
+#[allow(non_camel_case_types)]
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all="lowercase")]
+pub enum Translation {
+    /// Arabic
+    Ar,
+    /// Catalan
+    Ca,
+    /// Danish
+    Da,
+    /// German
+    De,
+    /// Spanish
+    Es,
+    /// Euskera
+    Eu,
+    /// Persian (Farsi)
+    Fa,
+    /// French
+    Fr,
+    /// Galician
+    Gl,
+    /// Hebrew
+    He,
+    /// Hungarian
+    Hu,
+    /// Italian
+    It,
+    /// Japanese
+    Ja,
+    /// Korean
+    Kr,
+    /// Norwegian (Bokmal)
+    Nb,
+    /// Dutch
+    Nl,
+    /// Norwegian (Nynorsk)
+    Nn,
+    /// Polish
+    Pl,
+    /// Portuguese (Brazil)
+    #[serde(rename="pt_BR")]
+    Pt_Br,
+    /// Russian
+    Ru,
+    /// Slovenian
+    Sl,
+    /// Swedish
+    Sv,
+    /// Turkish
+    Tr,
+    /// Chinese (simplified)
+    #[serde(rename="zh_CN")]
+    Zh_Cn,
+    /// Chinese (traditional)
+    #[serde(rename="zh_TW")]
+    Zh_Tw,
+}
+
 #[api(
     properties: {
         acme: {
@@ -100,6 +163,10 @@ pub struct AcmeConfig {
             schema: OPENSSL_CIPHERS_TLS_1_2_SCHEMA,
             optional: true,
         },
+        "default-lang" : {
+            schema: Translation::API_SCHEMA,
+            optional: true,
+        }
     },
 )]
 #[derive(Deserialize, Serialize, Updater)]
@@ -127,17 +194,21 @@ pub struct NodeConfig {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub http_proxy: Option<String>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub email_from: Option<String>,
 
     /// List of TLS ciphers for TLS 1.3 that will be used by the proxy. (Proxy has to be restarted for changes to take effect)
     #[serde(skip_serializing_if = "Option::is_none", rename="ciphers-tls-1.3")]
     pub ciphers_tls_1_3: Option<String>,
-    
+
     /// List of TLS ciphers for TLS <= 1.2 that will be used by the proxy. (Proxy has to be restarted for changes to take effect)
     #[serde(skip_serializing_if = "Option::is_none", rename="ciphers-tls-1.2")]
     pub ciphers_tls_1_2: Option<String>,
+
+    /// Default language used in the GUI
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub default_lang: Option<String>,
 }
 
 impl NodeConfig {
