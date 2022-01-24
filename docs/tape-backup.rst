@@ -500,7 +500,7 @@ a single media pool, so a job only uses tapes from that pool.
      is less space efficient, because the media from the last set
      may not be fully written, leaving the remaining space unused.
 
-     The advantage is that this procudes media sets of minimal
+     The advantage is that this produces media sets of minimal
      size. Small sets are easier to handle, can be moved more conveniently
      to an off-site vault, and can be restored much faster.
 
