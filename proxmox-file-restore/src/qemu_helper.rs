@@ -3,7 +3,7 @@ use std::fs::{File, OpenOptions};
 use std::io::prelude::*;
 use std::os::unix::io::AsRawFd;
 use std::path::PathBuf;
-use std::time::Duration;
+use std::time::{Instant, Duration};
 
 use anyhow::{bail, format_err, Error};
 use tokio::time;
@@ -303,7 +303,9 @@ pub async fn start_vm(
 
     // QEMU has started successfully, now wait for virtio socket to become ready
     let pid_t = Pid::from_raw(pid);
-    for _ in 0..60 {
+
+    let start_poll = Instant::now();
+    loop {
         let client = VsockClient::new(cid as i32, DEFAULT_VSOCK_PORT, Some(ticket.to_owned()));
         if let Ok(Ok(_)) =
             time::timeout(Duration::from_secs(2), client.get("api2/json/status", None)).await
@@ -318,6 +320,9 @@ pub async fn start_vm(
         }
         if kill(pid_t, None).is_err() { // check if QEMU process exited in between
             bail!("VM exited before connection could be established");
+        }
+        if Instant::now().duration_since(start_poll) > Duration::from_secs(25) {
+            break;
         }
         time::sleep(Duration::from_millis(200)).await;
     }
