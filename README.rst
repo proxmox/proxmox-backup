@@ -1,3 +1,7 @@
+
+Build & Release Notes
+*********************
+
 ``rustup`` Toolchain
 ====================
 
@@ -40,41 +44,44 @@ example for proxmox crate above).
 
 Build
 =====
-on Debian Buster
+on Debian 11 Bullseye
 
 Setup:
-  1. # echo 'deb http://download.proxmox.com/debian/devel/ buster main' >> /etc/apt/sources.list.d/proxmox-devel.list
-  2. # sudo wget http://download.proxmox.com/debian/proxmox-ve-release-6.x.gpg -O /etc/apt/trusted.gpg.d/proxmox-ve-release-6.x.gpg
+  1. # echo 'deb http://download.proxmox.com/debian/devel/ bullseye main' | sudo tee /etc/apt/sources.list.d/proxmox-devel.list
+  2. # sudo wget https://enterprise.proxmox.com/debian/proxmox-release-bullseye.gpg -O /etc/apt/trusted.gpg.d/proxmox-release-bullseye.gpg
   3. # sudo apt update
   4. # sudo apt install devscripts debcargo clang
   5. # git clone git://git.proxmox.com/git/proxmox-backup.git
-  6. # sudo mk-build-deps -ir
+  6. # cd proxmox-backup; sudo mk-build-deps -ir
 
 Note: 2. may be skipped if you already added the PVE or PBS package repository
 
-You are now able to build using the Makefile or cargo itself.
+You are now able to build using the Makefile or cargo itself, e.g.::
 
+  # make deb-all
+  # # or for a non-package build
+  # cargo build --all --release
 
 Design Notes
-============
+************
 
 Here are some random thought about the software design (unless I find a better place).
 
 
 Large chunk sizes
------------------
+=================
 
-It is important to notice that large chunk sizes are crucial for
-performance. We have a multi-user system, where different people can do
-different operations on a datastore at the same time, and most operation
-involves reading a series of chunks.
+It is important to notice that large chunk sizes are crucial for performance.
+We have a multi-user system, where different people can do different operations
+on a datastore at the same time, and most operation involves reading a series
+of chunks.
 
-So what is the maximal theoretical speed we can get when reading a
-series of chunks? Reading a chunk sequence need the following steps:
+So what is the maximal theoretical speed we can get when reading a series of
+chunks? Reading a chunk sequence need the following steps:
 
-- seek to the first chunk start location
+- seek to the first chunk's start location
 - read the chunk data
-- seek to the first chunk start location
+- seek to the next chunk's start location
 - read the chunk data
 - ...
 
