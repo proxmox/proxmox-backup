@@ -1,3 +1,16 @@
+rust-proxmox-backup (2.1.5-1) bullseye; urgency=medium
+
+  * tell system allocator to always use mmap for allocations >= 128 KiB to
+    improve reclaimability of free'd memory to the OS and reduce peak and avg.
+    RSS consumption
+
+  * file restore: always wait up to 25s for the file-restore-VM to have
+    scanned all possible filesystems in a backup. While theoretically there
+    are some edge cases where the tool waits less now, most common ones should
+    be waiting more compared to the 12s "worst" case previously.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 26 Jan 2022 16:23:09 +0100
+
 rust-proxmox-backup (2.1.4-1) bullseye; urgency=medium
 
   * config: add tls ciphers to NodeConfig
