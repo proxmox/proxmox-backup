@@ -73,6 +73,8 @@ use proxmox_backup::server::do_verification_job;
 use proxmox_backup::server::do_prune_job;
 
 fn main() -> Result<(), Error> {
+    pbs_tools::setup_libc_malloc_opts();
+
     proxmox_backup::tools::setup_safe_path_env();
 
     let backup_uid = pbs_config::backup_user()?.uid;

@@ -19,6 +19,8 @@ use proxmox_backup::auth_helpers::*;
 use proxmox_backup::config;
 
 fn main() {
+    pbs_tools::setup_libc_malloc_opts();
+
     proxmox_backup::tools::setup_safe_path_env();
 
     if let Err(err) = proxmox_async::runtime::main(run()) {

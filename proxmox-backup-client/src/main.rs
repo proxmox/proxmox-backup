@@ -1464,6 +1464,7 @@ impl ReadAt for BufferedDynamicReadAt {
 }
 
 fn main() {
+    pbs_tools::setup_libc_malloc_opts();
 
     let backup_cmd_def = CliCommand::new(&API_METHOD_CREATE_BACKUP)
         .arg_param(&["backupspec"])

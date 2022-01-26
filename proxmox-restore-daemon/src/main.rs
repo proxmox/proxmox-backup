@@ -38,6 +38,8 @@ lazy_static! {
 
 /// This is expected to be run by 'proxmox-file-restore' within a mini-VM
 fn main() -> Result<(), Error> {
+    pbs_tools::setup_libc_malloc_opts();
+
     if !Path::new(VM_DETECT_FILE).exists() {
         bail!(
             "This binary is not supposed to be run manually, use 'proxmox-file-restore' instead."
