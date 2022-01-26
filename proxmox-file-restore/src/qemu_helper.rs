@@ -305,6 +305,7 @@ pub async fn start_vm(
     let pid_t = Pid::from_raw(pid);
 
     let start_poll = Instant::now();
+    let mut round = 1;
     loop {
         let client = VsockClient::new(cid as i32, DEFAULT_VSOCK_PORT, Some(ticket.to_owned()));
         if let Ok(Ok(_)) =
@@ -324,7 +325,8 @@ pub async fn start_vm(
         if Instant::now().duration_since(start_poll) > Duration::from_secs(25) {
             break;
         }
-        time::sleep(Duration::from_millis(200)).await;
+        time::sleep(Duration::from_millis(round * 25)).await;
+        round += 1;
     }
 
     // start failed
