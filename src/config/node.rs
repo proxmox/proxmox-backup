@@ -61,7 +61,6 @@ pub struct AcmeConfig {
 /// pt_BR, zh_CN, and zh_TW use the same case in the translation files.
 // TODO: auto-generate from available translations
 #[api]
-#[allow(non_camel_case_types)]
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all="lowercase")]
 pub enum Translation {
@@ -103,7 +102,7 @@ pub enum Translation {
     Pl,
     /// Portuguese (Brazil)
     #[serde(rename="pt_BR")]
-    Pt_Br,
+    PtBr,
     /// Russian
     Ru,
     /// Slovenian
@@ -114,10 +113,10 @@ pub enum Translation {
     Tr,
     /// Chinese (simplified)
     #[serde(rename="zh_CN")]
-    Zh_Cn,
+    ZhCn,
     /// Chinese (traditional)
     #[serde(rename="zh_TW")]
-    Zh_Tw,
+    ZhTw,
 }
 
 #[api(
