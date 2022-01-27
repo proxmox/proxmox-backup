@@ -388,11 +388,13 @@ Ext.define('PBS.DataStoreContent', {
 		    "backup-type": data["backup-type"],
 		    "backup-id": data["backup-id"],
 		    "backup-time": (data['backup-time'].getTime()/1000).toFixed(0),
+		    "outdated-after": 0, // always reverify single snapshots
 		};
 	    } else {
 		params = {
 		    "backup-type": data.backup_type,
 		    "backup-id": data.backup_id,
+		    "outdated-after": 29, // reverify after 29 days so match with the "old" display
 		};
 	    }
 
