@@ -145,8 +145,8 @@ pub const IGNORE_VERIFIED_BACKUPS_SCHEMA: Schema = BooleanSchema::new(
     .schema();
 
 pub const VERIFICATION_OUTDATED_AFTER_SCHEMA: Schema = IntegerSchema::new(
-    "Days after that a verification becomes outdated")
-    .minimum(1)
+    "Days after that a verification becomes outdated. (0 means always)")
+    .minimum(0)
     .schema();
 
 #[api(
