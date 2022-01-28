@@ -391,7 +391,7 @@ async fn accept_connection(
     let accept_counter = Arc::new(());
 
     loop {
-        let (sock, _addr) = match listener.accept().await {
+        let (sock, peer) = match listener.accept().await {
             Ok(conn) => conn,
             Err(err) =>  {
                 eprintln!("error accepting tcp connection: {}", err);
@@ -402,7 +402,6 @@ async fn accept_connection(
         sock.set_nodelay(true).unwrap();
         let _ = set_tcp_keepalive(sock.as_raw_fd(), PROXMOX_BACKUP_TCP_KEEPALIVE_TIME);
 
-        let peer = sock.peer_addr().ok();
         let sock = RateLimitedStream::with_limiter_update_cb(sock, move || lookup_rate_limiter(peer));
 
         let ssl = { // limit acceptor_guard scope
@@ -1144,7 +1143,7 @@ async fn run_traffic_control_updater() {
 }
 
 fn lookup_rate_limiter(
-    peer: Option<std::net::SocketAddr>,
+    peer: std::net::SocketAddr,
 ) -> (Option<Arc<dyn ShareableRateLimit>>, Option<Arc<dyn ShareableRateLimit>>) {
     let mut cache = TRAFFIC_CONTROL_CACHE.lock().unwrap();
 

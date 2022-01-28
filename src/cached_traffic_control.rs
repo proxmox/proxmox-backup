@@ -305,14 +305,9 @@ impl TrafficControlCache {
 
     pub fn lookup_rate_limiter(
         &self,
-        peer: Option<SocketAddr>,
+        peer: SocketAddr,
         now: i64,
     ) -> (&str, Option<Arc<dyn ShareableRateLimit>>, Option<Arc<dyn ShareableRateLimit>>) {
-
-        let peer = match peer {
-            None => return ("", None, None),
-            Some(peer) => peer,
-        };
 
         let peer_ip = cannonical_ip(peer.ip());
 
@@ -427,32 +422,27 @@ rule: somewhere
         let private = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(192, 168, 2, 35)), 1234);
         let somewhere = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4)), 1234);
 
-        let (rule, read_limiter, write_limiter) = cache.lookup_rate_limiter(None, THURSDAY_80_00);
-        assert_eq!(rule, "");
-        assert!(read_limiter.is_none());
-        assert!(write_limiter.is_none());
-
-        let (rule, read_limiter, write_limiter) = cache.lookup_rate_limiter(Some(somewhere), THURSDAY_80_00);
+        let (rule, read_limiter, write_limiter) = cache.lookup_rate_limiter(somewhere, THURSDAY_80_00);
         assert_eq!(rule, "somewhere");
         assert!(read_limiter.is_some());
         assert!(write_limiter.is_some());
 
-         let (rule, read_limiter, write_limiter) = cache.lookup_rate_limiter(Some(local), THURSDAY_19_00);
+         let (rule, read_limiter, write_limiter) = cache.lookup_rate_limiter(local, THURSDAY_19_00);
         assert_eq!(rule, "rule2");
         assert!(read_limiter.is_some());
         assert!(write_limiter.is_some());
 
-        let (rule, read_limiter, write_limiter) = cache.lookup_rate_limiter(Some(gateway), THURSDAY_15_00);
+        let (rule, read_limiter, write_limiter) = cache.lookup_rate_limiter(gateway, THURSDAY_15_00);
         assert_eq!(rule, "rule1");
         assert!(read_limiter.is_some());
         assert!(write_limiter.is_some());
 
-        let (rule, read_limiter, write_limiter) = cache.lookup_rate_limiter(Some(gateway), THURSDAY_19_00);
+        let (rule, read_limiter, write_limiter) = cache.lookup_rate_limiter(gateway, THURSDAY_19_00);
         assert_eq!(rule, "somewhere");
         assert!(read_limiter.is_some());
         assert!(write_limiter.is_some());
 
-        let (rule, read_limiter, write_limiter) = cache.lookup_rate_limiter(Some(private), THURSDAY_19_00);
+        let (rule, read_limiter, write_limiter) = cache.lookup_rate_limiter(private, THURSDAY_19_00);
         assert_eq!(rule, "rule2");
         assert!(read_limiter.is_some());
         assert!(write_limiter.is_some());
