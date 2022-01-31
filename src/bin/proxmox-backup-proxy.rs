@@ -28,7 +28,7 @@ use proxmox_sys::{task_log, task_warn};
 use pbs_datastore::DataStore;
 
 use proxmox_rest_server::{
-    cleanup_old_tasks, extract_cookie, rotate_task_log_archive, ApiConfig, AuthError,
+    cleanup_old_tasks, cookie_from_header, rotate_task_log_archive, ApiConfig, AuthError,
     RestEnvironment, RestServer, ServerAdapter, WorkerTask,
 };
 
@@ -108,17 +108,23 @@ impl ServerAdapter for ProxmoxBackupProxyAdapter {
     }
 }
 
-fn extract_lang_header(headers: &http::HeaderMap) -> Option<String> {
-    if let Some(Ok(cookie)) = headers.get("COOKIE").map(|v| v.to_str()) {
-        return extract_cookie(cookie, "PBSLangCookie");
+/// check for a cookie with the user-preferred language, fallback to the config one if not set or
+/// not existing
+fn get_language(headers: &http::HeaderMap) -> String {
+    let exists = |l: &str| Path::new(&format!("/usr/share/pbs-i18n/pbs-lang-{}.js", l)).exists();
+
+    match cookie_from_header(headers, "PBSLangCookie") {
+        Some(cookie_lang) if exists(&cookie_lang) => cookie_lang,
+        _ => match proxmox_backup::config::node::config().map(|(cfg, _)| cfg.default_lang) {
+            Ok(Some(default_lang)) if exists(&default_lang) => default_lang,
+            _ => String::from(""),
+        },
     }
-    None
 }
 
 async fn get_index_future(env: RestEnvironment, parts: Parts) -> Response<Body> {
     let auth_id = env.get_auth_id();
     let api = env.api_config();
-    let language = extract_lang_header(&parts.headers);
 
     // fixme: make all IO async
 
@@ -155,27 +161,11 @@ async fn get_index_future(env: RestEnvironment, parts: Parts) -> Response<Body> 
         }
     }
 
-    let mut lang = String::from("");
-    if let Some(language) = language {
-        if Path::new(&format!("/usr/share/pbs-i18n/pbs-lang-{}.js", language)).exists() {
-            lang = language;
-        }
-    }
-    if lang.is_empty() {
-        if let Ok((config, _)) = proxmox_backup::config::node::config() {
-            if let Some(default) = config.default_lang {
-                if Path::new(&format!("/usr/share/pbs-i18n/pbs-lang-{}.js", default)).exists() {
-                    lang = default;
-                }
-            }
-        }
-    }
-
     let data = json!({
         "NodeName": nodename,
         "UserName": user,
         "CSRFPreventionToken": csrf_token,
-        "language": lang,
+        "language": get_language(&parts.headers),
         "debug": debug,
     });
 
