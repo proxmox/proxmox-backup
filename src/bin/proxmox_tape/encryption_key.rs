@@ -145,7 +145,6 @@ fn show_key(
             },
             hint: {
                 schema: PASSWORD_HINT_SCHEMA,
-                optional: true,
             },
         },
     },
