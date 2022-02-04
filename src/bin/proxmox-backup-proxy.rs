@@ -188,17 +188,17 @@ async fn get_index_future(env: RestEnvironment, parts: Parts) -> Response<Body> 
 }
 
 async fn run() -> Result<(), Error> {
+    // Note: To debug early connection error use
+    // PROXMOX_DEBUG=1 ./target/release/proxmox-backup-proxy
+    let debug = std::env::var("PROXMOX_DEBUG").is_ok();
+
     if let Err(err) = syslog::init(
         syslog::Facility::LOG_DAEMON,
-        log::LevelFilter::Info,
+        if debug { log::LevelFilter::Debug } else { log::LevelFilter::Info },
         Some("proxmox-backup-proxy"),
     ) {
         bail!("unable to inititialize syslog - {}", err);
     }
-
-    // Note: To debug early connection error use
-    // PROXMOX_DEBUG=1 ./target/release/proxmox-backup-proxy
-    let debug = std::env::var("PROXMOX_DEBUG").is_ok();
 
     let _ = public_auth_key(); // load with lazy_static
     let _ = csrf_secret(); // load with lazy_static
