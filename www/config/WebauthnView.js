@@ -4,7 +4,7 @@ Ext.define('PBS.WebauthnConfigView', {
 
     url: "/api2/json/config/access/tfa/webauthn",
     cwidth1: 150,
-    interval: 1000,
+    interval: 2500,
 
     rows: {
 	rp: {
