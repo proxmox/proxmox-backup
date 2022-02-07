@@ -19,11 +19,11 @@ fn commands() -> Vec<(&'static str, Vec<&'static str>)> {
     vec![
     //  ("<command>", vec![<arg [, arg]>])
         ("proxmox-backup-manager", vec!["versions", "--verbose"]),
+        ("proxmox-backup-manager", vec!["subscription", "get"]),
         ("df", vec!["-h"]),
         ("lsblk", vec!["--ascii"]),
         ("zpool", vec!["status"]),
         ("zfs", vec!["list"]),
-        ("proxmox-backup-manager", vec!["subscription", "get"]),
     ]
 }
 
