@@ -72,6 +72,8 @@ pub enum Translation {
     Da,
     /// German
     De,
+    /// English
+    En,
     /// Spanish
     Es,
     /// Euskera
