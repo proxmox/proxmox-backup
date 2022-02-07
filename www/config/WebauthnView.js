@@ -44,6 +44,7 @@ Ext.define('PBS.WebauthnConfigView', {
 	itemdblclick: 'runEditor',
 	activate: 'startStore',
 	deactivate: 'stopStore',
+	beforedestroy: 'stopStore',
     },
 });
 
