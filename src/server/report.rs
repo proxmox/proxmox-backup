@@ -12,6 +12,9 @@ fn files() -> Vec<&'static str> {
         "/etc/proxmox-backup/remote.cfg",
         "/etc/proxmox-backup/sync.cfg",
         "/etc/proxmox-backup/verification.cfg",
+        "/etc/proxmox-backup/tape.cfg",
+        "/etc/proxmox-backup/media-pool.cfg",
+        "/etc/proxmox-backup/traffic-control.cfg",
     ]
 }
 
@@ -22,6 +25,7 @@ fn commands() -> Vec<(&'static str, Vec<&'static str>)> {
         ("proxmox-backup-manager", vec!["subscription", "get"]),
         ("df", vec!["-h"]),
         ("lsblk", vec!["--ascii"]),
+        ("ls", vec!["-l", "/dev/disk/by-id", "/dev/disk/by-path"]),
         ("zpool", vec!["status"]),
         ("zfs", vec!["list"]),
     ]
