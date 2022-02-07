@@ -62,6 +62,8 @@ pub enum DeletableProperty {
     /// Delete the ciphers-tls-1.2 property.
     #[serde(rename="ciphers-tls-1.2")]
     ciphers_tls_1_2,
+    /// Delete the default-lang property.
+    default_lang,
 }
 
 #[api(
@@ -121,6 +123,7 @@ pub fn update_node_config(
                 DeletableProperty::email_from => { config.email_from = None; },
                 DeletableProperty::ciphers_tls_1_3 => { config.ciphers_tls_1_3 = None; },
                 DeletableProperty::ciphers_tls_1_2 => { config.ciphers_tls_1_2 = None; },
+                DeletableProperty::default_lang => { config.default_lang = None; },
             }
         }
     }
@@ -135,6 +138,7 @@ pub fn update_node_config(
     if update.email_from.is_some() { config.email_from = update.email_from; }
     if update.ciphers_tls_1_3.is_some() { config.ciphers_tls_1_3 = update.ciphers_tls_1_3; }
     if update.ciphers_tls_1_2.is_some() { config.ciphers_tls_1_2 = update.ciphers_tls_1_2; }
+    if update.default_lang.is_some() { config.default_lang = update.default_lang; }
 
     crate::config::node::save_config(&config)?;
 
