@@ -116,13 +116,13 @@ impl <R: BlockRead> BlockedReader<R> {
                 proxmox_sys::io_bail!("detected tape block after block-stream end marker");
             }
             Err(BlockReadError::EndOfFile) => {
-                return Ok(());
+                Ok(())
             }
             Err(BlockReadError::EndOfStream) => {
                 proxmox_sys::io_bail!("got unexpected end of tape");
             }
             Err(BlockReadError::Error(err)) => {
-                return Err(err);
+                Err(err)
             }
         }
     }

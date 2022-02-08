@@ -471,7 +471,7 @@ pub fn read_element_status<F: AsRawFd>(file: &mut F) -> Result<MtxStatus, Error>
     for drive in status.drives.iter_mut() {
         if let Some(source_address) = drive.loaded_slot {
             let source_address = source_address as u16;
-            drive.loaded_slot = slot_map.get(&source_address).map(|v| *v);
+            drive.loaded_slot = slot_map.get(&source_address).copied();
         }
     }
 
@@ -672,7 +672,7 @@ fn decode_element_status_page(
             import_export_slots: Vec::new(),
         };
 
-        let mut reader = &data[..];
+        let mut reader = data;
 
         let head: ElementStatusHeader = unsafe { reader.read_be_value()? };
 
@@ -715,7 +715,7 @@ fn decode_element_status_page(
             }
 
             for descriptor in descr_data.chunks_exact(descr_len) {
-                let mut reader = &descriptor[..];
+                let mut reader = descriptor;
 
                 match subhead.element_type_code {
                     1 => {

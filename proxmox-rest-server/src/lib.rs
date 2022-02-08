@@ -205,7 +205,7 @@ pub fn extract_cookie(cookie: &str, cookie_name: &str) -> Option<String> {
 /// We assume cookie_name is already url encoded.
 pub fn cookie_from_header(headers: &http::HeaderMap, cookie_name: &str) -> Option<String> {
     if let Some(Ok(cookie)) = headers.get("COOKIE").map(|v| v.to_str()) {
-        extract_cookie(&cookie, cookie_name)
+        extract_cookie(cookie, cookie_name)
     } else {
         None
     }

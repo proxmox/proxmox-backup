@@ -351,14 +351,14 @@ impl HttpClient {
         let mut https = HttpsConnector::with_connector(httpc, ssl_connector_builder.build(), PROXMOX_BACKUP_TCP_KEEPALIVE_TIME);
 
         if let Some(rate_in) = options.limit.rate_in {
-            let burst_in = options.limit.burst_in.unwrap_or_else(|| rate_in).as_u64();
+            let burst_in = options.limit.burst_in.unwrap_or(rate_in).as_u64();
             https.set_read_limiter(Some(Arc::new(Mutex::new(
                 RateLimiter::new(rate_in.as_u64(), burst_in)
             ))));
         }
 
         if let Some(rate_out) = options.limit.rate_out {
-            let burst_out = options.limit.burst_out.unwrap_or_else(|| rate_out).as_u64();
+            let burst_out = options.limit.burst_out.unwrap_or(rate_out).as_u64();
             https.set_write_limiter(Some(Arc::new(Mutex::new(
                 RateLimiter::new(rate_out.as_u64(), burst_out)
             ))));

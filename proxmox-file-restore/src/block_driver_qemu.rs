@@ -271,7 +271,7 @@ impl BlockRestoreDriver for QemuBlockDriver {
                         None => {
                             let err = format!(
                                 "invalid JSON received from /status call: {}",
-                                status.to_string()
+                                status
                             );
                             extra["error"] = json!(err);
                         }

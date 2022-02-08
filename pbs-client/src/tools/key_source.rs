@@ -349,7 +349,7 @@ pub fn get_encryption_key_password() -> Result<Vec<u8>, Error> {
 
     // If we're on a TTY, query the user for a password
     if tty::stdin_isatty() {
-        return Ok(tty::read_password("Encryption Key Password: ")?);
+        return tty::read_password("Encryption Key Password: ");
     }
 
     bail!("no password input mechanism available");

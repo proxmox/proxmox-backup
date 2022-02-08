@@ -167,10 +167,8 @@ pub fn insert_key(key: [u8;32], key_config: KeyConfig, force: bool) -> Result<()
         None => bail!("missing encryption key fingerprint - internal error"),
     };
 
-    if !force {
-        if config_map.get(&fingerprint).is_some() {
-            bail!("encryption key '{}' already exists.", fingerprint);
-        }
+    if !force && config_map.get(&fingerprint).is_some() {
+        bail!("encryption key '{}' already exists.", fingerprint);
     }
 
     let item = EncryptionKeyInfo::new(key, fingerprint.clone());

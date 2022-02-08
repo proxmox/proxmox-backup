@@ -377,7 +377,7 @@ async fn get_request_parameters<S: 'static + BuildHasher + Send>(
             }
         }
         param_schema.verify_json(&params)?;
-        return Ok(params);
+        Ok(params)
     } else {
         parse_query_parameters(param_schema, utf8_data, &parts, &uri_param)
     }

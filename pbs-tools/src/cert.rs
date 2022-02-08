@@ -24,7 +24,7 @@ fn asn1_time_to_unix(time: &openssl::asn1::Asn1TimeRef) -> Result<i64, Error> {
         bail!("failed to parse ASN1 time");
     }
     let mut c_tm = unsafe { c_tm.assume_init() };
-    Ok(proxmox_time::timegm(&mut c_tm)?)
+    proxmox_time::timegm(&mut c_tm)
 }
 
 pub struct CertInfo {
@@ -57,11 +57,11 @@ impl CertInfo {
     }
 
     pub fn subject_name(&self) -> Result<String, Error> {
-        Ok(x509name_to_string(self.x509.subject_name())?)
+        x509name_to_string(self.x509.subject_name())
     }
 
     pub fn issuer_name(&self) -> Result<String, Error> {
-        Ok(x509name_to_string(self.x509.issuer_name())?)
+        x509name_to_string(self.x509.issuer_name())
     }
 
     pub fn fingerprint(&self) -> Result<String, Error> {

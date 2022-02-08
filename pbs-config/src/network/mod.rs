@@ -492,7 +492,7 @@ mod test {
 
         let input = "";
 
-        let mut parser = NetworkParser::new(&input.as_bytes()[..]);
+        let mut parser = NetworkParser::new(input.as_bytes());
 
         let config = parser.parse_interfaces(None)?;
 
@@ -502,7 +502,7 @@ mod test {
         assert_eq!(output, expected);
 
         // run again using output as input
-        let mut parser = NetworkParser::new(&output.as_bytes()[..]);
+        let mut parser = NetworkParser::new(output.as_bytes());
 
         let config = parser.parse_interfaces(None)?;
 
@@ -518,7 +518,7 @@ mod test {
 
         let input = "#c1\n\n#c2\n\niface test inet manual\n";
 
-        let mut parser = NetworkParser::new(&input.as_bytes()[..]);
+        let mut parser = NetworkParser::new(input.as_bytes());
 
         let config = parser.parse_interfaces(None)?;
 
@@ -546,7 +546,7 @@ mod test {
                      iface ens21 inet manual\n\
                      iface ens22 inet manual\n";
 
-        let mut parser = NetworkParser::new(&input.as_bytes()[..]);
+        let mut parser = NetworkParser::new(input.as_bytes());
 
         let config = parser.parse_interfaces(None)?;
 
@@ -597,7 +597,7 @@ mod test {
                      \taddress fe80::5496:35ff:fe99:5a6a/64\n\
                      \tgateway fe80::1\n";
 
-        let mut parser = NetworkParser::new(&input.as_bytes()[..]);
+        let mut parser = NetworkParser::new(input.as_bytes());
 
         let config = parser.parse_interfaces(None)?;
 

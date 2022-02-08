@@ -22,7 +22,7 @@ pub const OPENID_SCOPE_ARRAY_SCHEMA: Schema = ArraySchema::new(
 pub const OPENID_SCOPE_LIST_FORMAT: ApiStringFormat =
     ApiStringFormat::PropertyString(&OPENID_SCOPE_ARRAY_SCHEMA);
 
-pub const OPENID_DEFAILT_SCOPE_LIST: &'static str = "email profile";
+pub const OPENID_DEFAILT_SCOPE_LIST: &str = "email profile";
 pub const OPENID_SCOPE_LIST_SCHEMA: Schema = StringSchema::new("OpenID Scope List")
     .format(&OPENID_SCOPE_LIST_FORMAT)
     .default(OPENID_DEFAILT_SCOPE_LIST)

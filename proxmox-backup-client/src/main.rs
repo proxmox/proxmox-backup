@@ -1451,7 +1451,7 @@ impl ReadAt for BufferedDynamicReadAt {
         MaybeReady::Ready(tokio::task::block_in_place(move || {
             let mut reader = self.inner.lock().unwrap();
             reader.seek(SeekFrom::Start(offset))?;
-            Ok(reader.read(buf)?)
+            reader.read(buf)
         }))
     }
 

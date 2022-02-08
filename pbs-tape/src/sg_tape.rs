@@ -79,7 +79,7 @@ impl DataCompressionModePage {
         if enable {
             self.flags2 |= 128;
         } else {
-            self.flags2 = self.flags2 & 127;
+            self.flags2 &= 127;
         }
     }
 
@@ -389,7 +389,7 @@ impl SgTape {
                 bail!("got unexpected data len ({} != {}", data.len(), expected_size);
             }
 
-            let mut reader = &data[..];
+            let mut reader = data;
 
             let page: ReadPositionLongPage = unsafe { reader.read_be_value()? };
 
@@ -445,10 +445,8 @@ impl SgTape {
         sg_raw.do_command(&cmd)
             .map_err(|err| format_err!("move to EOD failed - {}", err))?;
 
-        if write_missing_eof {
-            if !self.check_filemark()? {
-                self.write_filemarks(1, false)?;
-            }
+        if write_missing_eof && !self.check_filemark()? {
+            self.write_filemarks(1, false)?;
         }
 
         Ok(())
@@ -611,7 +609,7 @@ impl SgTape {
 
     /// Read Volume Statistics
     pub fn volume_statistics(&mut self) -> Result<Lp17VolumeStatistics, Error> {
-        return read_volume_statistics(&mut self.file);
+        read_volume_statistics(&mut self.file)
     }
 
     pub fn set_encryption(
@@ -651,9 +649,9 @@ impl SgTape {
         //println!("WRITE {:?}", data);
 
         match sg_raw.do_out_command(&cmd, data) {
-            Ok(()) => { return Ok(false) }
+            Ok(()) => { Ok(false) }
             Err(ScsiError::Sense(SenseInfo { sense_key: 0, asc: 0, ascq: 2 })) => {
-                return Ok(true); // LEOM
+                Ok(true) // LEOM
             }
             Err(err) => {
                 proxmox_sys::io_bail!("write failed - {}", err);
@@ -910,7 +908,7 @@ impl SgTape {
 
                     // assume max. 16000 medium passes
                     // see: https://en.wikipedia.org/wiki/Linear_Tape-Open
-                    let wearout: f64 = (passes as f64)/(16000.0 as f64);
+                    let wearout: f64 = (passes as f64)/16000.0_f64;
 
                     status.medium_passes = Some(passes);
                     status.medium_wearout = Some(wearout);

@@ -421,7 +421,7 @@ impl <R: BufRead> NetworkParser<R> {
             address_family_v6 = true;
         }
 
-        if let Some(mut interface) = config.interfaces.get_mut(&iface) {
+        if let Some(interface) = config.interfaces.get_mut(&iface) {
             if address_family_v4 {
                 set_method_v4(interface, config_method)?;
             }
@@ -429,7 +429,7 @@ impl <R: BufRead> NetworkParser<R> {
                 set_method_v6(interface, config_method)?;
             }
 
-            self.parse_iface_attributes(&mut interface, address_family_v4, address_family_v6)?;
+            self.parse_iface_attributes(interface, address_family_v4, address_family_v6)?;
         } else {
             let mut interface = Interface::new(iface.clone());
             if address_family_v4 {

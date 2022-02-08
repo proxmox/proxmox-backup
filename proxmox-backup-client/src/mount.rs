@@ -279,7 +279,7 @@ async fn mount_do(param: Value, pipe: Option<Fd>) -> Result<Value, Error> {
         let chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config, file_info.chunk_crypt_mode(), HashMap::new());
         let reader = CachedChunkReader::new(chunk_reader, index, 8).seekable();
 
-        let name = &format!("{}:{}/{}", repo.to_string(), path, archive_name);
+        let name = &format!("{}:{}/{}", repo, path, archive_name);
         let name_escaped = proxmox_sys::systemd::escape_unit(name, false);
 
         let mut session = pbs_fuse_loop::FuseLoopSession::map_loop(size, reader, &name_escaped, options).await?;

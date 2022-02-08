@@ -119,7 +119,7 @@ impl KeyConfig  {
     /// Creates a new, unencrypted key.
     pub fn without_password(raw_key: [u8; 32]) -> Result<Self, Error> {
         // always compute fingerprint
-        let crypt_config = CryptConfig::new(raw_key.clone())?;
+        let crypt_config = CryptConfig::new(raw_key)?;
         let fingerprint = Some(Fingerprint::new(crypt_config.fingerprint()));
 
         let created = proxmox_time::epoch_i64();
@@ -186,7 +186,7 @@ impl KeyConfig  {
         let created = proxmox_time::epoch_i64();
 
         // always compute fingerprint
-        let crypt_config = CryptConfig::new(raw_key.clone())?;
+        let crypt_config = CryptConfig::new(*raw_key)?;
         let fingerprint = Some(Fingerprint::new(crypt_config.fingerprint()));
 
         Ok(Self {
@@ -257,7 +257,7 @@ impl KeyConfig  {
         let mut result = [0u8; 32];
         result.copy_from_slice(&key);
 
-        let crypt_config = CryptConfig::new(result.clone())?;
+        let crypt_config = CryptConfig::new(result)?;
         let fingerprint = Fingerprint::new(crypt_config.fingerprint());
         if let Some(ref stored_fingerprint) = self.fingerprint {
             if &fingerprint != stored_fingerprint {

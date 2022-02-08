@@ -53,20 +53,18 @@ impl SizeUnit {
                 11..=20 => SizeUnit::Kibi,
                 _ => SizeUnit::Byte,
             }
+        } else if size >= 1_000_000_000_000_000.0 {
+            SizeUnit::PByte
+        } else if size >= 1_000_000_000_000.0 {
+            SizeUnit::TByte
+        } else if size >= 1_000_000_000.0 {
+            SizeUnit::GByte
+        } else if size >= 1_000_000.0 {
+            SizeUnit::MByte
+        } else if size >= 1_000.0 {
+            SizeUnit::KByte
         } else {
-            if size >= 1_000_000_000_000_000.0 {
-                SizeUnit::PByte
-            } else if size >= 1_000_000_000_000.0 {
-                SizeUnit::TByte
-            } else if size >= 1_000_000_000.0 {
-                SizeUnit::GByte
-            } else if size >= 1_000_000.0 {
-                SizeUnit::MByte
-            } else if size >= 1_000.0 {
-                SizeUnit::KByte
-            } else {
-                SizeUnit::Byte
-            }
+            SizeUnit::Byte
         }
     }
 }

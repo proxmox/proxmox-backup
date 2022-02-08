@@ -356,7 +356,7 @@ impl DataStore {
         full_path.push(backup_group.group_path());
         full_path.push("owner");
         let owner = proxmox_sys::fs::file_read_firstline(full_path)?;
-        Ok(owner.trim_end().parse()?) // remove trailing newline
+        owner.trim_end().parse() // remove trailing newline
     }
 
     pub fn owns_backup(&self, backup_group: &BackupGroup, auth_id: &Authid) -> Result<bool, Error> {

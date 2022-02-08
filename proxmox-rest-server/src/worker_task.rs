@@ -901,7 +901,7 @@ impl WorkerTask {
     pub fn request_abort(&self) {
         let prev_abort = self.abort_requested.swap(true, Ordering::SeqCst);
         if !prev_abort { // log abort one time
-            self.log_message(format!("received abort request ..."));
+            self.log_message("received abort request ...".to_string());
         }
         // noitify listeners
         let mut data = self.data.lock().unwrap();

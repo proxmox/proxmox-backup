@@ -148,11 +148,7 @@ async fn register_account(
         std::io::stdout().flush()?;
         let mut input = String::new();
         std::io::stdin().read_line(&mut input)?;
-        if input.trim().eq_ignore_ascii_case("y") {
-            true
-        } else {
-            false
-        }
+        input.trim().eq_ignore_ascii_case("y")
     } else {
         println!("No Terms of Service found, proceeding.");
         true

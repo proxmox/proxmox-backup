@@ -719,7 +719,7 @@ impl DiskState {
             components.push(component);
         }
 
-        let mut bucket = match Bucket::filter_mut(buckets, &bucket_type, &components) {
+        let bucket = match Bucket::filter_mut(buckets, &bucket_type, &components) {
             Some(bucket) => bucket,
             None => bail!(
                 "bucket/component path not found: {}/{}/{}",
@@ -732,7 +732,7 @@ impl DiskState {
         // bucket found, check mount
         let mountpoint = self
             .filesystems
-            .ensure_mounted(&mut bucket)
+            .ensure_mounted(bucket)
             .map_err(|err| {
                 format_err!(
                     "mounting '{}/{}/{}' failed: {}",

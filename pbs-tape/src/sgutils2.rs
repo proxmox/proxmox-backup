@@ -91,7 +91,7 @@ impl SgPt {
 /// Peripheral device type text (see `inquiry` command)
 ///
 /// see <https://en.wikipedia.org/wiki/SCSI_Peripheral_Device_Type>
-pub const PERIPHERAL_DEVICE_TYPE_TEXT: [&'static str; 32] = [
+pub const PERIPHERAL_DEVICE_TYPE_TEXT: [&str; 32] = [
     "Disk Drive",
     "Tape Drive",
     "Printer",
@@ -142,7 +142,7 @@ pub const SENSE_KEY_VOLUME_OVERFLOW: u8 = 0x0d;
 pub const SENSE_KEY_MISCOMPARE: u8      = 0x0e;
 
 /// Sense Key Descriptions
-pub const SENSE_KEY_DESCRIPTIONS: [&'static str; 16] = [
+pub const SENSE_KEY_DESCRIPTIONS: [&str; 16] = [
     "No Sense",
     "Recovered Error",
     "Not Ready",
@@ -486,13 +486,13 @@ impl <'a, F: AsRawFd> SgRaw<'a, F> {
 
         let res_cat = unsafe { get_scsi_pt_result_category(ptvp.as_ptr()) };
         match res_cat {
-            SCSI_PT_RESULT_GOOD => return Ok(()),
+            SCSI_PT_RESULT_GOOD => Ok(()),
             SCSI_PT_RESULT_STATUS => {
                 let status = unsafe { get_scsi_pt_status_response(ptvp.as_ptr()) };
                 if status != 0 {
                     return Err(format_err!("unknown scsi error - status response {}", status).into());
                 }
-                return Ok(());
+                Ok(())
             }
             SCSI_PT_RESULT_SENSE => {
                 if sense_len == 0 {
@@ -528,7 +528,7 @@ impl <'a, F: AsRawFd> SgRaw<'a, F> {
                     }
                 };
 
-                return Err(ScsiError::Sense(sense));
+                Err(ScsiError::Sense(sense))
             }
             SCSI_PT_RESULT_TRANSPORT_ERR => return Err(format_err!("scsi command failed: transport error").into()),
             SCSI_PT_RESULT_OS_ERR => {
@@ -676,7 +676,7 @@ pub fn scsi_inquiry<F: AsRawFd>(
         .map_err(|err| format_err!("SCSI inquiry failed - {}", err))?;
 
     proxmox_lang::try_block!({
-        let mut reader = &data[..];
+        let mut reader = data;
 
         let page: InquiryPage  = unsafe { reader.read_be_value()? };
 
@@ -725,7 +725,7 @@ pub fn scsi_mode_sense<F: AsRawFd, P: Endian>(
         .map_err(|err| format_err!("mode sense failed - {}", err))?;
 
     proxmox_lang::try_block!({
-        let mut reader = &data[..];
+        let mut reader = data;
 
         let head: ModeParameterHeader = unsafe { reader.read_be_value()? };
         let expected_len = head.mode_data_len as usize + 2;
@@ -788,7 +788,7 @@ pub fn scsi_request_sense<F: AsRawFd>(
             bail!("received unexpected sense code '0x{:02x}'", code);
         }
 
-        let mut reader = &data[..];
+        let mut reader = data;
 
         let sense: RequestSenseFixed = unsafe { reader.read_be_value()? };
 

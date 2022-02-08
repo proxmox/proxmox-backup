@@ -217,7 +217,7 @@ struct SspDataEncryptionAlgorithmDescriptor {
 fn decode_spin_data_encryption_caps(data: &[u8]) -> Result<u8, Error> {
 
     proxmox_lang::try_block!({
-        let mut reader = &data[..];
+        let mut reader = data;
         let _page: SspDataEncryptionCapabilityPage = unsafe { reader.read_be_value()? };
 
         let mut aes_gcm_index = None;
@@ -268,7 +268,7 @@ struct SspDataEncryptionStatusPage {
 fn decode_spin_data_encryption_status(data: &[u8]) -> Result<DataEncryptionStatus, Error> {
 
     proxmox_lang::try_block!({
-        let mut reader = &data[..];
+        let mut reader = data;
         let page: SspDataEncryptionStatusPage = unsafe { reader.read_be_value()? };
 
         if page.page_code != 0x20 {

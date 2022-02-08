@@ -39,7 +39,7 @@ pub fn report_density<F: AsRawFd>(file: &mut F) -> Result<u8, Error> {
     let mut max_density = 0u8;
 
     proxmox_lang::try_block!({
-        let mut reader = &data[..];
+        let mut reader = data;
 
         let page_len: u16 = unsafe { reader.read_be_value()? };
         let page_len = page_len as usize;

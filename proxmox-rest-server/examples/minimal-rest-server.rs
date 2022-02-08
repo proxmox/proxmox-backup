@@ -80,7 +80,7 @@ lazy_static! {
 #[api]
 /// Lists all current items
 fn list_items() -> Result<Vec<String>, Error> {
-    Ok(ITEM_MAP.lock().unwrap().keys().map(|k| k.clone()).collect())
+    Ok(ITEM_MAP.lock().unwrap().keys().cloned().collect())
 }
 
 #[api(

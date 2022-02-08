@@ -63,8 +63,8 @@ impl RRDCache {
     ) -> Result<Self, Error> {
         let basedir = basedir.as_ref().to_owned();
 
-        let file_options = file_options.unwrap_or_else(|| CreateOptions::new());
-        let dir_options = dir_options.unwrap_or_else(|| CreateOptions::new());
+        let file_options = file_options.unwrap_or_else(CreateOptions::new);
+        let dir_options = dir_options.unwrap_or_else(CreateOptions::new);
 
         create_path(&basedir, Some(dir_options.clone()), Some(dir_options.clone()))
             .map_err(|err: Error| format_err!("unable to create rrdb stat dir - {}", err))?;

@@ -123,7 +123,7 @@ pub fn read_mam_attributes<F: AsRawFd>(file: &mut F) -> Result<Vec<MamAttribute>
 
 fn decode_mam_attributes(data: &[u8]) -> Result<Vec<MamAttribute>, Error> {
 
-    let mut reader = &data[..];
+    let mut reader = data;
 
     let data_len: u32 = unsafe { reader.read_be_value()? };
 

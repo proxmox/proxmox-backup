@@ -52,7 +52,7 @@ pub fn dump_rrd(path: String) -> Result<(), Error> {
 
     let rrd = RRD::load(&PathBuf::from(path), false)?;
     serde_json::to_writer_pretty(std::io::stdout(), &rrd)?;
-    println!("");
+    println!();
     Ok(())
 }
 

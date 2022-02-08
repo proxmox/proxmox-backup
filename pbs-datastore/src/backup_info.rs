@@ -281,7 +281,7 @@ impl BackupDir {
 
     pub fn backup_time_to_string(backup_time: i64) -> Result<String, Error> {
         // fixme: can this fail? (avoid unwrap)
-        Ok(proxmox_time::epoch_to_rfc3339_utc(backup_time)?)
+        proxmox_time::epoch_to_rfc3339_utc(backup_time)
     }
 }
 

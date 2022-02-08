@@ -206,7 +206,7 @@ impl ApiConfig {
 
         let logger_options = FileLogOptions {
             append: true,
-            file_opts: file_opts.unwrap_or(CreateOptions::default()),
+            file_opts: file_opts.unwrap_or_default(),
             ..Default::default()
         };
         let request_log = Arc::new(Mutex::new(FileLogger::new(&path, logger_options)?));
@@ -246,7 +246,7 @@ impl ApiConfig {
         let logger_options = FileLogOptions {
             append: true,
             prefix_time: true,
-            file_opts: file_opts.unwrap_or(CreateOptions::default()),
+            file_opts: file_opts.unwrap_or_default(),
             ..Default::default()
         };
         let auth_log = Arc::new(Mutex::new(FileLogger::new(&path, logger_options)?));

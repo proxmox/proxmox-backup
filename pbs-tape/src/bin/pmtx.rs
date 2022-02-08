@@ -243,7 +243,7 @@ fn unload(
 
         if let Some(to_slot) = status.find_free_slot(false) {
             sg_pt_changer::unload(&mut file, to_slot, drivenum)?;
-            return Ok(());
+            Ok(())
         } else {
             bail!("Drive '{}' unload failure - no free slot", drivenum);
         }
