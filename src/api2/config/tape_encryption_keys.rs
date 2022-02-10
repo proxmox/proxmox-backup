@@ -1,4 +1,4 @@
-use anyhow::{bail, Error};
+use anyhow::{format_err, bail, Error};
 use serde_json::Value;
 use hex::FromHex;
 
@@ -6,11 +6,13 @@ use proxmox_router::{ApiMethod, Router, RpcEnvironment, Permission};
 use proxmox_schema::api;
 
 use pbs_api_types::{
-    Fingerprint, KeyInfo, Kdf,
+    Authid, Fingerprint, KeyInfo, Kdf,
     TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
     PROXMOX_CONFIG_DIGEST_SCHEMA, PASSWORD_HINT_SCHEMA,
     PRIV_TAPE_AUDIT, PRIV_TAPE_MODIFY,
 };
+
+use pbs_config::CachedUserInfo;
 
 use pbs_config::key_config::KeyConfig;
 use pbs_config::open_backup_lockfile;
@@ -70,6 +72,7 @@ pub fn list_keys(
             password: {
                 description: "The current password.",
                 min_length: 5,
+                optional: true,
             },
             "new-password": {
                 description: "The new password.",
@@ -77,6 +80,12 @@ pub fn list_keys(
             },
             hint: {
                 schema: PASSWORD_HINT_SCHEMA,
+            },
+            force: {
+                optional: true,
+                type: bool,
+                description: "Reset the passphrase for a tape key, using the root-only accessible copy.",
+                default: false,
             },
             digest: {
                 optional: true,
@@ -91,12 +100,13 @@ pub fn list_keys(
 /// Change the encryption key's password (and password hint).
 pub fn change_passphrase(
     kdf: Option<Kdf>,
-    password: String,
+    password: Option<String>,
     new_password: String,
     hint: String,
+    force: bool,
     fingerprint: Fingerprint,
     digest: Option<String>,
-    _rpcenv: &mut dyn RpcEnvironment
+    rpcenv: &mut dyn RpcEnvironment
 ) -> Result<(), Error> {
 
     let kdf = kdf.unwrap_or_default();
@@ -116,10 +126,29 @@ pub fn change_passphrase(
 
     let key_config = match config_map.get(&fingerprint) {
         Some(key_config) => key_config,
-        None => bail!("tape encryption key '{}' does not exist.", fingerprint),
+        None => bail!("tape encryption key configuration '{}' does not exist.", fingerprint),
     };
 
-    let (key, created, fingerprint) = key_config.decrypt(&|| Ok(password.as_bytes().to_vec()))?;
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let user_info = CachedUserInfo::new()?;
+
+    if force && !user_info.is_superuser(&auth_id) {
+        bail!("resetting the key's passphrase requires root privileges")
+    }
+
+    let (key, created, fingerprint) = match (force, &password) {
+        (true, Some(_)) => bail!("password is not allowed when using force"),
+        (false, None) => bail!("missing parameter: password"),
+        (false, Some(pass)) => key_config.decrypt(&|| Ok(pass.as_bytes().to_vec()))?,
+        (true, None) => {
+                let key = load_keys()?.0.get(&fingerprint).ok_or_else(|| {
+                    format_err!("failed to reset passphrase, could not find key '{}'", fingerprint)
+                })?.key;
+
+                (key, key_config.created, fingerprint)
+        }
+    };
+
     let mut new_key_config = KeyConfig::with_key(&key, new_password.as_bytes(), kdf)?;
     new_key_config.created = created; // keep original value
     new_key_config.hint = Some(hint);
