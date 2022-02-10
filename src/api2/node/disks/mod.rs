@@ -1,21 +1,19 @@
 use anyhow::{bail, Error};
 use serde_json::{json, Value};
 
-use proxmox_sys::sortable;
 use proxmox_router::{
-    list_subdirs_api_method, Router, RpcEnvironment, RpcEnvironmentType, SubdirMap, Permission,
+    list_subdirs_api_method, Permission, Router, RpcEnvironment, RpcEnvironmentType, SubdirMap,
 };
 use proxmox_schema::api;
-use proxmox_sys::task_log;
+use proxmox_sys::{sortable, task_log};
 
 use pbs_api_types::{
-    UPID_SCHEMA, NODE_SCHEMA, BLOCKDEVICE_NAME_SCHEMA,
-    PRIV_SYS_AUDIT, PRIV_SYS_MODIFY,
+    BLOCKDEVICE_NAME_SCHEMA, NODE_SCHEMA, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY, UPID_SCHEMA,
 };
 
 use crate::tools::disks::{
-    DiskUsageInfo, DiskUsageType, DiskManage, SmartData,
-    get_disks, get_smart_data, get_disk_usage_info, inititialize_gpt_disk,
+    get_disk_usage_info, get_disks, get_smart_data, inititialize_gpt_disk, DiskManage,
+    DiskUsageInfo, DiskUsageType, SmartData,
 };
 use proxmox_rest_server::WorkerTask;
 
@@ -57,7 +55,6 @@ pub fn list_disks(
     skipsmart: bool,
     usage_type: Option<DiskUsageType>,
 ) -> Result<Vec<DiskUsageInfo>, Error> {
-
     let mut list = Vec::new();
 
     for (_, info) in get_disks(None, skipsmart)? {
@@ -100,11 +97,7 @@ pub fn list_disks(
     },
 )]
 /// Get SMART attributes and health of a disk.
-pub fn smart_status(
-    disk: String,
-    healthonly: Option<bool>,
-) -> Result<SmartData, Error> {
-
+pub fn smart_status(disk: String, healthonly: Option<bool>) -> Result<SmartData, Error> {
     let healthonly = healthonly.unwrap_or(false);
 
     let manager = DiskManage::new();
@@ -143,7 +136,6 @@ pub fn initialize_disk(
     uuid: Option<String>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-
     let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
     let auth_id = rpcenv.get_auth_id().unwrap();
@@ -155,8 +147,11 @@ pub fn initialize_disk(
     }
 
     let upid_str = WorkerTask::new_thread(
-        "diskinit", Some(disk.clone()), auth_id, to_stdout, move |worker|
-        {
+        "diskinit",
+        Some(disk.clone()),
+        auth_id,
+        to_stdout,
+        move |worker| {
             task_log!(worker, "initialize disk {}", disk);
 
             let disk_manager = DiskManage::new();
@@ -165,7 +160,8 @@ pub fn initialize_disk(
             inititialize_gpt_disk(&disk_info, uuid.as_deref())?;
 
             Ok(())
-        })?;
+        },
+    )?;
 
     Ok(json!(upid_str))
 }
@@ -175,18 +171,9 @@ const SUBDIRS: SubdirMap = &sorted!([
     //    ("lvm", &lvm::ROUTER),
     ("directory", &directory::ROUTER),
     ("zfs", &zfs::ROUTER),
-    (
-        "initgpt", &Router::new()
-            .post(&API_METHOD_INITIALIZE_DISK)
-    ),
-    (
-        "list", &Router::new()
-            .get(&API_METHOD_LIST_DISKS)
-    ),
-    (
-        "smart", &Router::new()
-            .get(&API_METHOD_SMART_STATUS)
-    ),
+    ("initgpt", &Router::new().post(&API_METHOD_INITIALIZE_DISK)),
+    ("list", &Router::new().get(&API_METHOD_LIST_DISKS)),
+    ("smart", &Router::new().get(&API_METHOD_SMART_STATUS)),
 ]);
 
 pub const ROUTER: Router = Router::new()
