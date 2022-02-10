@@ -42,7 +42,15 @@ Ext.define('PBS.NodeOptionView', {
 	    vtype: 'proxmoxMail',
 	    deleteEmpty: true,
 	},
-
+	{
+	    xtype: 'combobox',
+	    name: 'default-lang',
+	    text: gettext('Default language'),
+	    defaultValue: '__default__',
+	    comboItems: Proxmox.Utils.language_array(),
+	    deleteEmpty: true,
+	    renderer: Proxmox.Utils.render_language,
+	},
     ],
 
     initComponent: function() {
