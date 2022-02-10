@@ -146,11 +146,18 @@ fn show_key(
             hint: {
                 schema: PASSWORD_HINT_SCHEMA,
             },
+            force: {
+                optional: true,
+                type: bool,
+                description: "Reset the passphrase for a tape key, without asking for the old one.",
+                default: false,
+            },
         },
     },
 )]
 /// Change the encryption key's password.
 fn change_passphrase(
+    force: bool,
     mut param: Value,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
@@ -159,11 +166,15 @@ fn change_passphrase(
         bail!("unable to change passphrase - no tty");
     }
 
-    let password = tty::read_password("Current Tape Encryption Key Password: ")?;
+    if force {
+        param["force"] = serde_json::Value::Bool(true);
+    } else {
+        let password = tty::read_password("Current Tape Encryption Key Password: ")?;
+        param["password"] = String::from_utf8(password)?.into();
+    }
 
     let new_password = tty::read_and_verify_password("New Tape Encryption Key Password: ")?;
 
-    param["password"] = String::from_utf8(password)?.into();
     param["new-password"] = String::from_utf8(new_password)?.into();
 
     let info = &api2::config::tape_encryption_keys::API_METHOD_CHANGE_PASSPHRASE;
