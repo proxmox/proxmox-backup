@@ -1,15 +1,13 @@
 use anyhow::{bail, Error};
 
-use pbs_tools::nom::{
-    multispace0, multispace1, notspace1, IResult,
-};
+use pbs_tools::nom::{multispace0, multispace1, notspace1, IResult};
 
 use nom::{
-    bytes::complete::{take_while1, take_till, take_till1},
-    combinator::{map_res, all_consuming, recognize, opt},
+    bytes::complete::{take_till, take_till1, take_while1},
+    character::complete::{char, digit1, line_ending},
+    combinator::{all_consuming, map_res, opt, recognize},
+    multi::many0,
     sequence::{preceded, tuple},
-    character::complete::{digit1, char, line_ending},
-    multi::{many0},
 };
 
 #[derive(Debug, PartialEq)]
@@ -28,7 +26,6 @@ pub struct ZFSPoolInfo {
     pub usage: Option<ZFSPoolUsage>,
     pub devices: Vec<String>,
 }
-
 
 fn parse_optional_u64(i: &str) -> IResult<&str, Option<u64>> {
     if let Some(rest) = i.strip_prefix('-') {
@@ -61,44 +58,49 @@ fn parse_pool_device(i: &str) -> IResult<&str, String> {
 fn parse_zpool_list_header(i: &str) -> IResult<&str, ZFSPoolInfo> {
     // name, size, allocated, free, checkpoint, expandsize, fragmentation, capacity, dedupratio, health, altroot.
 
-    let (i, (text, size, alloc, free, _, _,
-             frag, _, dedup, health,
-             _altroot, _eol)) = tuple((
+    let (i, (text, size, alloc, free, _, _, frag, _, dedup, health, _altroot, _eol)) = tuple((
         take_while1(|c| char::is_alphanumeric(c) || c == '-' || c == ':' || c == '_' || c == '.'), // name
         preceded(multispace1, parse_optional_u64), // size
         preceded(multispace1, parse_optional_u64), // allocated
         preceded(multispace1, parse_optional_u64), // free
-        preceded(multispace1, notspace1), // checkpoint
-        preceded(multispace1, notspace1), // expandsize
+        preceded(multispace1, notspace1),          // checkpoint
+        preceded(multispace1, notspace1),          // expandsize
         preceded(multispace1, parse_optional_u64), // fragmentation
-        preceded(multispace1, notspace1), // capacity
+        preceded(multispace1, notspace1),          // capacity
         preceded(multispace1, parse_optional_f64), // dedup
-        preceded(multispace1, notspace1), // health
-        opt(preceded(multispace1, notspace1)), // optional altroot
+        preceded(multispace1, notspace1),          // health
+        opt(preceded(multispace1, notspace1)),     // optional altroot
         line_ending,
     ))(i)?;
 
-    let status = if let (Some(size), Some(alloc), Some(free), Some(frag), Some(dedup)) = (size, alloc, free, frag, dedup)  {
+    let status = if let (Some(size), Some(alloc), Some(free), Some(frag), Some(dedup)) =
+        (size, alloc, free, frag, dedup)
+    {
         ZFSPoolInfo {
             name: text.into(),
             health: health.into(),
-            usage: Some(ZFSPoolUsage { size, alloc, free, frag, dedup }),
+            usage: Some(ZFSPoolUsage {
+                size,
+                alloc,
+                free,
+                frag,
+                dedup,
+            }),
             devices: Vec::new(),
         }
     } else {
-         ZFSPoolInfo {
-             name: text.into(),
-             health: health.into(),
-             usage: None,
-             devices: Vec::new(),
-         }
+        ZFSPoolInfo {
+            name: text.into(),
+            health: health.into(),
+            usage: None,
+            devices: Vec::new(),
+        }
     };
 
     Ok((i, status))
 }
 
 fn parse_zpool_list_item(i: &str) -> IResult<&str, ZFSPoolInfo> {
-
     let (i, mut stat) = parse_zpool_list_header(i)?;
     let (i, devices) = many0(parse_pool_device)(i)?;
 
@@ -117,9 +119,11 @@ fn parse_zpool_list_item(i: &str) -> IResult<&str, ZFSPoolInfo> {
 /// the zpool list output format is not really defined...
 fn parse_zpool_list(i: &str) -> Result<Vec<ZFSPoolInfo>, Error> {
     match all_consuming(many0(parse_zpool_list_item))(i) {
-        Err(nom::Err::Error(err)) |
-        Err(nom::Err::Failure(err)) => {
-            bail!("unable to parse zfs list output - {}", nom::error::convert_error(i, err));
+        Err(nom::Err::Error(err)) | Err(nom::Err::Failure(err)) => {
+            bail!(
+                "unable to parse zfs list output - {}",
+                nom::error::convert_error(i, err)
+            );
         }
         Err(err) => {
             bail!("unable to parse zfs list output - {}", err);
@@ -133,7 +137,6 @@ fn parse_zpool_list(i: &str) -> Result<Vec<ZFSPoolInfo>, Error> {
 /// Devices are only included when run with verbose flags
 /// set. Without, device lists are empty.
 pub fn zpool_list(pool: Option<String>, verbose: bool) -> Result<Vec<ZFSPoolInfo>, Error> {
-
     // Note: zpools list verbose output can include entries for 'special', 'cache' and 'logs'
     // and maybe other things.
 
@@ -143,9 +146,13 @@ pub fn zpool_list(pool: Option<String>, verbose: bool) -> Result<Vec<ZFSPoolInfo
     // Note: We do not use -o to define output properties, because zpool command ignores
     // that completely for special vdevs and devices
 
-    if verbose { command.arg("-v"); }
+    if verbose {
+        command.arg("-v");
+    }
 
-    if let Some(pool) = pool { command.arg(pool); }
+    if let Some(pool) = pool {
+        command.arg(pool);
+    }
 
     let output = proxmox_sys::command::run_command(command, None)?;
 
@@ -154,7 +161,6 @@ pub fn zpool_list(pool: Option<String>, verbose: bool) -> Result<Vec<ZFSPoolInfo
 
 #[test]
 fn test_zfs_parse_list() -> Result<(), Error> {
-
     let output = "";
 
     let data = parse_zpool_list(output)?;
@@ -164,19 +170,18 @@ fn test_zfs_parse_list() -> Result<(), Error> {
 
     let output = "btest	427349245952	405504	427348840448	-	-	0	0	1.00	ONLINE	-\n";
     let data = parse_zpool_list(output)?;
-    let expect = vec![
-        ZFSPoolInfo {
-            name: "btest".to_string(),
-            health: "ONLINE".to_string(),
-            devices: Vec::new(),
-            usage: Some(ZFSPoolUsage {
-                size: 427349245952,
-                alloc: 405504,
-                free: 427348840448,
-                dedup: 1.0,
-                frag: 0,
-            }),
-        }];
+    let expect = vec![ZFSPoolInfo {
+        name: "btest".to_string(),
+        health: "ONLINE".to_string(),
+        devices: Vec::new(),
+        usage: Some(ZFSPoolUsage {
+            size: 427349245952,
+            alloc: 405504,
+            free: 427348840448,
+            dedup: 1.0,
+            frag: 0,
+        }),
+    }];
 
     assert_eq!(data, expect);
 
@@ -195,10 +200,12 @@ logs                                                                            
         ZFSPoolInfo {
             name: String::from("rpool"),
             health: String::from("ONLINE"),
-            devices: vec![String::from("/dev/disk/by-id/ata-Crucial_CT500MX200SSD1_154210EB4078-part3")],
+            devices: vec![String::from(
+                "/dev/disk/by-id/ata-Crucial_CT500MX200SSD1_154210EB4078-part3",
+            )],
             usage: Some(ZFSPoolUsage {
                 size: 535260299264,
-                alloc:402852388864 ,
+                alloc: 402852388864,
                 free: 132407910400,
                 dedup: 1.0,
                 frag: 22,
@@ -249,7 +256,7 @@ logs               -      -      -        -         -      -      -      -  -
                 String::from("/dev/sda2"),
                 String::from("/dev/sda3"),
                 String::from("/dev/sda4"),
-            ]
+            ],
         },
         ZFSPoolInfo {
             name: String::from("logs"),
@@ -268,22 +275,18 @@ b.test	427349245952	761856	427348484096	-	-	0	0	1.00	ONLINE	-
 ";
 
     let data = parse_zpool_list(output)?;
-    let expect = vec![
-        ZFSPoolInfo {
-            name: String::from("b.test"),
-            health: String::from("ONLINE"),
-            usage: Some(ZFSPoolUsage {
-                size: 427349245952,
-                alloc: 761856,
-                free: 427348484096,
-                dedup: 1.0,
-                frag: 0,
-            }),
-            devices: vec![
-                String::from("/dev/sda1"),
-            ]
-        },
-    ];
+    let expect = vec![ZFSPoolInfo {
+        name: String::from("b.test"),
+        health: String::from("ONLINE"),
+        usage: Some(ZFSPoolUsage {
+            size: 427349245952,
+            alloc: 761856,
+            free: 427348484096,
+            dedup: 1.0,
+            frag: 0,
+        }),
+        devices: vec![String::from("/dev/sda1")],
+    }];
 
     assert_eq!(data, expect);
 

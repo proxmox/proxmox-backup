@@ -14,12 +14,12 @@ use once_cell::sync::OnceCell;
 
 use ::serde::{Deserialize, Serialize};
 
-use proxmox_sys::error::io_err_other;
-use proxmox_sys::linux::procfs::{MountInfo, mountinfo::Device};
-use proxmox_sys::{io_bail, io_format_err};
 use proxmox_schema::api;
+use proxmox_sys::error::io_err_other;
+use proxmox_sys::linux::procfs::{mountinfo::Device, MountInfo};
+use proxmox_sys::{io_bail, io_format_err};
 
-use pbs_api_types::{BLOCKDEVICE_NAME_REGEX, StorageStatus};
+use pbs_api_types::{StorageStatus, BLOCKDEVICE_NAME_REGEX};
 
 mod zfs;
 pub use zfs::*;
@@ -32,7 +32,7 @@ pub use lvm::*;
 mod smart;
 pub use smart::*;
 
-lazy_static::lazy_static!{
+lazy_static::lazy_static! {
     static ref ISCSI_PATH_REGEX: regex::Regex =
         regex::Regex::new(r"host[^/]*/session[^/]*").unwrap();
 }
@@ -153,7 +153,6 @@ impl DiskManage {
         &self,
         path: &std::path::Path,
     ) -> Result<Option<(String, Device, Option<OsString>)>, Error> {
-
         let stat = nix::sys::stat::stat(path)?;
         let device = Device::from_dev_t(stat.st_dev);
 
@@ -161,7 +160,11 @@ impl DiskManage {
 
         for (_id, entry) in self.mount_info()? {
             if entry.root == root_path && entry.device == device {
-                return Ok(Some((entry.fs_type.clone(), entry.device, entry.mount_source.clone())));
+                return Ok(Some((
+                    entry.fs_type.clone(),
+                    entry.device,
+                    entry.mount_source.clone(),
+                )));
             }
         }
 
@@ -300,7 +303,7 @@ impl Disk {
     /// Get the disk's size in bytes.
     pub fn size(&self) -> io::Result<u64> {
         Ok(*self.info.size.get_or_try_init(|| {
-            self.read_sys_u64("size")?.map(|s| s*512).ok_or_else(|| {
+            self.read_sys_u64("size")?.map(|s| s * 512).ok_or_else(|| {
                 io_format_err!(
                     "failed to get disk size from {:?}",
                     self.syspath().join("size"),
@@ -444,19 +447,19 @@ impl Disk {
     /// another kernel driver like the device mapper.
     pub fn has_holders(&self) -> io::Result<bool> {
         Ok(*self
-           .info
-           .has_holders
-           .get_or_try_init(|| -> io::Result<bool> {
-               let mut subdir = self.syspath().to_owned();
-               subdir.push("holders");
-               for entry in std::fs::read_dir(subdir)? {
-                   match entry?.file_name().as_bytes() {
-                       b"." | b".." => (),
-                       _ => return Ok(true),
-                   }
-               }
-               Ok(false)
-           })?)
+            .info
+            .has_holders
+            .get_or_try_init(|| -> io::Result<bool> {
+                let mut subdir = self.syspath().to_owned();
+                subdir.push("holders");
+                for entry in std::fs::read_dir(subdir)? {
+                    match entry?.file_name().as_bytes() {
+                        b"." | b".." => (),
+                        _ => return Ok(true),
+                    }
+                }
+                Ok(false)
+            })?)
     }
 
     /// Check if this disk is mounted.
@@ -473,26 +476,28 @@ impl Disk {
     pub fn read_stat(&self) -> std::io::Result<Option<BlockDevStat>> {
         if let Some(stat) = self.read_sys(Path::new("stat"))? {
             let stat = unsafe { std::str::from_utf8_unchecked(&stat) };
-            let stat: Vec<u64> = stat.split_ascii_whitespace().map(|s| {
-                u64::from_str_radix(s, 10).unwrap_or(0)
-            }).collect();
+            let stat: Vec<u64> = stat
+                .split_ascii_whitespace()
+                .map(|s| u64::from_str_radix(s, 10).unwrap_or(0))
+                .collect();
 
-            if stat.len() < 15 { return Ok(None); }
+            if stat.len() < 15 {
+                return Ok(None);
+            }
 
             return Ok(Some(BlockDevStat {
                 read_ios: stat[0],
                 read_sectors: stat[2],
-                write_ios: stat[4] + stat[11], // write + discard
+                write_ios: stat[4] + stat[11],     // write + discard
                 write_sectors: stat[6] + stat[13], // write + discard
                 io_ticks: stat[10],
-             }));
+            }));
         }
         Ok(None)
     }
 
     /// List device partitions
     pub fn partitions(&self) -> Result<HashMap<u64, Disk>, Error> {
-
         let sys_path = self.syspath();
         let device = self.sysname().to_string_lossy().to_string();
 
@@ -505,7 +510,9 @@ impl Disk {
                 Err(_) => continue, // skip non utf8 entries
             };
 
-            if !name.starts_with(&device) { continue; }
+            if !name.starts_with(&device) {
+                continue;
+            }
 
             let mut part_path = sys_path.to_owned();
             part_path.push(name);
@@ -523,7 +530,6 @@ impl Disk {
 
 /// Returns disk usage information (total, used, avail)
 pub fn disk_usage(path: &std::path::Path) -> Result<StorageStatus, Error> {
-
     let mut stat: libc::statfs64 = unsafe { std::mem::zeroed() };
 
     use nix::NixPath;
@@ -533,16 +539,16 @@ pub fn disk_usage(path: &std::path::Path) -> Result<StorageStatus, Error> {
 
     let bsize = stat.f_bsize as u64;
 
-    Ok(StorageStatus{
-        total: stat.f_blocks*bsize,
-        used: (stat.f_blocks-stat.f_bfree)*bsize,
-        avail: stat.f_bavail*bsize,
+    Ok(StorageStatus {
+        total: stat.f_blocks * bsize,
+        used: (stat.f_blocks - stat.f_bfree) * bsize,
+        avail: stat.f_bavail * bsize,
     })
 }
 
 #[api()]
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all="lowercase")]
+#[serde(rename_all = "lowercase")]
 /// This is just a rough estimate for a "type" of disk.
 pub enum DiskType {
     /// We know nothing.
@@ -570,7 +576,6 @@ pub struct BlockDevStat {
 
 /// Use lsblk to read partition type uuids and file system types.
 pub fn get_lsblk_info() -> Result<Vec<LsblkInfo>, Error> {
-
     let mut command = std::process::Command::new("lsblk");
     command.args(&["--json", "-o", "path,parttype,fstype"]);
 
@@ -584,10 +589,7 @@ pub fn get_lsblk_info() -> Result<Vec<LsblkInfo>, Error> {
 /// Get set of devices with a file system label.
 ///
 /// The set is indexed by using the unix raw device number (dev_t is u64)
-fn get_file_system_devices(
-    lsblk_info: &[LsblkInfo],
-) -> Result<HashSet<u64>, Error> {
-
+fn get_file_system_devices(lsblk_info: &[LsblkInfo]) -> Result<HashSet<u64>, Error> {
     let mut device_set: HashSet<u64> = HashSet::new();
 
     for info in lsblk_info.iter() {
@@ -602,7 +604,7 @@ fn get_file_system_devices(
 
 #[api()]
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all="lowercase")]
+#[serde(rename_all = "lowercase")]
 pub enum DiskUsageType {
     /// Disk is not used (as far we can tell)
     Unused,
@@ -634,7 +636,7 @@ pub enum DiskUsageType {
     }
 )]
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all="kebab-case")]
+#[serde(rename_all = "kebab-case")]
 /// Information about how a Disk is used
 pub struct DiskUsageInfo {
     /// Disk name (/sys/block/<name>)
@@ -668,7 +670,6 @@ fn scan_partitions(
     zfs_devices: &HashSet<u64>,
     device: &str,
 ) -> Result<DiskUsageType, Error> {
-
     let mut sys_path = std::path::PathBuf::from("/sys/block");
     sys_path.push(device);
 
@@ -686,7 +687,9 @@ fn scan_partitions(
             Ok(name) => name,
             Err(_) => continue, // skip non utf8 entries
         };
-        if !name.starts_with(device) { continue; }
+        if !name.starts_with(device) {
+            continue;
+        }
 
         found_partitions = true;
 
@@ -709,9 +712,9 @@ fn scan_partitions(
             found_dm = true;
         }
 
-         if zfs_devices.contains(&devnum) {
+        if zfs_devices.contains(&devnum) {
             found_zfs = true;
-         }
+        }
     }
 
     if found_mountpoints {
@@ -729,12 +732,8 @@ fn scan_partitions(
     Ok(used)
 }
 
-
 /// Get disk usage information for a single disk
-pub fn get_disk_usage_info(
-    disk: &str,
-    no_smart: bool,
-) -> Result<DiskUsageInfo, Error> {
+pub fn get_disk_usage_info(disk: &str, no_smart: bool) -> Result<DiskUsageInfo, Error> {
     let mut filter = Vec::new();
     filter.push(disk.to_string());
     let mut map = get_disks(Some(filter), no_smart)?;
@@ -752,15 +751,15 @@ pub fn get_disks(
     // do no include data from smartctl
     no_smart: bool,
 ) -> Result<HashMap<String, DiskUsageInfo>, Error> {
-
     let disk_manager = DiskManage::new();
 
     let lsblk_info = get_lsblk_info()?;
 
-    let zfs_devices = zfs_devices(&lsblk_info, None).or_else(|err| -> Result<HashSet<u64>, Error> {
-        eprintln!("error getting zfs devices: {}", err);
-        Ok(HashSet::new())
-    })?;
+    let zfs_devices =
+        zfs_devices(&lsblk_info, None).or_else(|err| -> Result<HashSet<u64>, Error> {
+            eprintln!("error getting zfs devices: {}", err);
+            Ok(HashSet::new())
+        })?;
 
     let lvm_devices = get_lvm_devices(&lsblk_info)?;
 
@@ -770,20 +769,25 @@ pub fn get_disks(
 
     let mut result = HashMap::new();
 
-    for item in proxmox_sys::fs::scan_subdir(libc::AT_FDCWD, "/sys/block", &BLOCKDEVICE_NAME_REGEX)? {
+    for item in proxmox_sys::fs::scan_subdir(libc::AT_FDCWD, "/sys/block", &BLOCKDEVICE_NAME_REGEX)?
+    {
         let item = item?;
 
         let name = item.file_name().to_str().unwrap().to_string();
 
         if let Some(ref disks) = disks {
-            if !disks.contains(&name) { continue; }
+            if !disks.contains(&name) {
+                continue;
+            }
         }
 
         let sys_path = format!("/sys/block/{}", name);
 
         if let Ok(target) = std::fs::read_link(&sys_path) {
             if let Some(target) = target.to_str() {
-                if ISCSI_PATH_REGEX.is_match(target) { continue; } // skip iSCSI devices
+                if ISCSI_PATH_REGEX.is_match(target) {
+                    continue;
+                } // skip iSCSI devices
             }
         }
 
@@ -809,7 +813,7 @@ pub fn get_disks(
 
         match disk.is_mounted() {
             Ok(true) => usage = DiskUsageType::Mounted,
-            Ok(false) => {},
+            Ok(false) => {}
             Err(_) => continue, // skip devices with undetectable mount status
         }
 
@@ -817,16 +821,19 @@ pub fn get_disks(
             usage = DiskUsageType::ZFS;
         }
 
-        let vendor = disk.vendor().unwrap_or(None).
-            map(|s| s.to_string_lossy().trim().to_string());
+        let vendor = disk
+            .vendor()
+            .unwrap_or(None)
+            .map(|s| s.to_string_lossy().trim().to_string());
 
         let model = disk.model().map(|s| s.to_string_lossy().into_owned());
 
         let serial = disk.serial().map(|s| s.to_string_lossy().into_owned());
 
-        let devpath =  disk.device_path().map(|p| p.to_owned())
+        let devpath = disk
+            .device_path()
+            .map(|p| p.to_owned())
             .map(|p| p.to_string_lossy().to_string());
-
 
         let wwn = disk.wwn().map(|s| s.to_string_lossy().into_owned());
 
@@ -836,7 +843,7 @@ pub fn get_disks(
                     if part_usage != DiskUsageType::Unused {
                         usage = part_usage;
                     }
-                },
+                }
                 Err(_) => continue, // skip devices if scan_partitions fail
             };
         }
@@ -849,7 +856,7 @@ pub fn get_disks(
             usage = DiskUsageType::DeviceMapper;
         }
 
-        let mut  status = SmartStatus::Unknown;
+        let mut status = SmartStatus::Unknown;
         let mut wearout = None;
 
         if !no_smart {
@@ -861,8 +868,15 @@ pub fn get_disks(
 
         let info = DiskUsageInfo {
             name: name.clone(),
-            vendor, model, serial, devpath, size, wwn, disk_type,
-            status, wearout,
+            vendor,
+            model,
+            serial,
+            devpath,
+            size,
+            wwn,
+            disk_type,
+            status,
+            wearout,
             used: usage,
             gpt: disk.has_gpt(),
             rpm: disk.ata_rotation_rate_rpm(),
@@ -876,7 +890,6 @@ pub fn get_disks(
 
 /// Try to reload the partition table
 pub fn reread_partition_table(disk: &Disk) -> Result<(), Error> {
-
     let disk_path = match disk.device_path() {
         Some(path) => path,
         None => bail!("disk {:?} has no node in /dev", disk.syspath()),
@@ -893,7 +906,6 @@ pub fn reread_partition_table(disk: &Disk) -> Result<(), Error> {
 
 /// Initialize disk by writing a GPT partition table
 pub fn inititialize_gpt_disk(disk: &Disk, uuid: Option<&str>) -> Result<(), Error> {
-
     let disk_path = match disk.device_path() {
         Some(path) => path,
         None => bail!("disk {:?} has no node in /dev", disk.syspath()),
@@ -912,7 +924,6 @@ pub fn inititialize_gpt_disk(disk: &Disk, uuid: Option<&str>) -> Result<(), Erro
 
 /// Create a single linux partition using the whole available space
 pub fn create_single_linux_partition(disk: &Disk) -> Result<Disk, Error> {
-
     let disk_path = match disk.device_path() {
         Some(path) => path,
         None => bail!("disk {:?} has no node in /dev", disk.syspath()),
@@ -934,7 +945,7 @@ pub fn create_single_linux_partition(disk: &Disk) -> Result<Disk, Error> {
 
 #[api()]
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all="lowercase")]
+#[serde(rename_all = "lowercase")]
 pub enum FileSystemType {
     /// Linux Ext4
     Ext4,
@@ -963,7 +974,6 @@ impl std::str::FromStr for FileSystemType {
 
 /// Create a file system on a disk or disk partition
 pub fn create_file_system(disk: &Disk, fs_type: FileSystemType) -> Result<(), Error> {
-
     let disk_path = match disk.device_path() {
         Some(path) => path,
         None => bail!("disk {:?} has no node in /dev", disk.syspath()),
@@ -982,21 +992,21 @@ pub fn create_file_system(disk: &Disk, fs_type: FileSystemType) -> Result<(), Er
 
 /// Block device name completion helper
 pub fn complete_disk_name(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
-    let dir = match proxmox_sys::fs::scan_subdir(libc::AT_FDCWD, "/sys/block", &BLOCKDEVICE_NAME_REGEX) {
-        Ok(dir) => dir,
-        Err(_) => return vec![],
-    };
+    let dir =
+        match proxmox_sys::fs::scan_subdir(libc::AT_FDCWD, "/sys/block", &BLOCKDEVICE_NAME_REGEX) {
+            Ok(dir) => dir,
+            Err(_) => return vec![],
+        };
 
-    dir.flatten().map(|item| {
-        item.file_name().to_str().unwrap().to_string()
-    }).collect()
+    dir.flatten()
+        .map(|item| item.file_name().to_str().unwrap().to_string())
+        .collect()
 }
 
 /// Read the FS UUID (parse blkid output)
 ///
 /// Note: Calling blkid is more reliable than using the udev ID_FS_UUID property.
 pub fn get_fs_uuid(disk: &Disk) -> Result<String, Error> {
-
     let disk_path = match disk.device_path() {
         Some(path) => path,
         None => bail!("disk {:?} has no node in /dev", disk.syspath()),

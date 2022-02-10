@@ -5,32 +5,31 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 use pbs_tools::nom::{
-    parse_complete, parse_error, parse_failure,
-    multispace0, multispace1, notspace1, parse_u64, IResult,
+    multispace0, multispace1, notspace1, parse_complete, parse_error, parse_failure, parse_u64,
+    IResult,
 };
 
 use nom::{
     bytes::complete::{tag, take_while, take_while1},
-    combinator::{opt},
-    sequence::{preceded},
-    character::complete::{line_ending},
-    multi::{many0,many1},
+    character::complete::line_ending,
+    combinator::opt,
+    multi::{many0, many1},
+    sequence::preceded,
 };
-
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ZFSPoolVDevState {
     pub name: String,
     pub lvl: u64,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub state: Option<String>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub read: Option<u64>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub write: Option<u64>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cksum: Option<u64>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub msg: Option<String>,
 }
 
@@ -39,7 +38,6 @@ fn expand_tab_length(input: &str) -> usize {
 }
 
 fn parse_zpool_status_vdev(i: &str) -> IResult<&str, ZFSPoolVDevState> {
-
     let (n, indent) = multispace0(i)?;
 
     let indent_len = expand_tab_length(indent);
@@ -49,11 +47,12 @@ fn parse_zpool_status_vdev(i: &str) -> IResult<&str, ZFSPoolVDevState> {
     }
     let i = n;
 
-    let indent_level = (indent_len as u64)/2;
+    let indent_level = (indent_len as u64) / 2;
 
-    let (i, vdev_name) =  notspace1(i)?;
+    let (i, vdev_name) = notspace1(i)?;
 
-    if let Ok((n, _)) = preceded(multispace0, line_ending)(i) { // special device
+    if let Ok((n, _)) = preceded(multispace0, line_ending)(i) {
+        // special device
         let vdev = ZFSPoolVDevState {
             name: vdev_name.to_string(),
             lvl: indent_level,
@@ -67,7 +66,8 @@ fn parse_zpool_status_vdev(i: &str) -> IResult<&str, ZFSPoolVDevState> {
     }
 
     let (i, state) = preceded(multispace1, notspace1)(i)?;
-    if let Ok((n, _)) = preceded(multispace0, line_ending)(i) { // spares
+    if let Ok((n, _)) = preceded(multispace0, line_ending)(i) {
+        // spares
         let vdev = ZFSPoolVDevState {
             name: vdev_name.to_string(),
             lvl: indent_level,
@@ -100,7 +100,6 @@ fn parse_zpool_status_vdev(i: &str) -> IResult<&str, ZFSPoolVDevState> {
 }
 
 fn parse_zpool_status_tree(i: &str) -> IResult<&str, Vec<ZFSPoolVDevState>> {
-
     // skip header
     let (i, _) = tag("NAME")(i)?;
     let (i, _) = multispace1(i)?;
@@ -130,8 +129,10 @@ fn space_indented_line(indent: usize) -> impl Fn(&str) -> IResult<&str, &str> {
                 break;
             }
             n = &n[1..];
-            if len >= indent { break; }
-        };
+            if len >= indent {
+                break;
+            }
+        }
         if len != indent {
             return Err(parse_error(i, "not correctly indented"));
         }
@@ -144,7 +145,9 @@ fn parse_zpool_status_field(i: &str) -> IResult<&str, (String, String)> {
     let (i, prefix) = take_while1(|c| c != ':')(i)?;
     let (i, _) = tag(":")(i)?;
     let (i, mut value) = take_while(|c| c != '\n')(i)?;
-    if value.starts_with(' ') { value = &value[1..]; }
+    if value.starts_with(' ') {
+        value = &value[1..];
+    }
 
     let (mut i, _) = line_ending(i)?;
 
@@ -169,7 +172,9 @@ fn parse_zpool_status_field(i: &str) -> IResult<&str, (String, String)> {
         if let Some(cont) = cont {
             let (n, _) = line_ending(n)?;
             i = n;
-            if !value.is_empty() { value.push('\n'); }
+            if !value.is_empty() {
+                value.push('\n');
+            }
             value.push_str(cont);
         } else {
             if field == "config" {
@@ -233,7 +238,9 @@ where
         while vdev_level < cur.level {
             cur.children_of_parent.push(Value::Object(cur.node));
             let mut parent = stack.pop().unwrap();
-            parent.node.insert("children".to_string(), Value::Array(cur.children_of_parent));
+            parent
+                .node
+                .insert("children".to_string(), Value::Array(cur.children_of_parent));
             parent.node.insert("leaf".to_string(), Value::Bool(false));
             cur = parent;
 
@@ -252,16 +259,17 @@ where
             });
         } else {
             // same indentation level, add to children of the previous level:
-            cur.children_of_parent.push(Value::Object(
-                replace(&mut cur.node, node),
-            ));
+            cur.children_of_parent
+                .push(Value::Object(replace(&mut cur.node, node)));
         }
     }
 
     while !stack.is_empty() {
         cur.children_of_parent.push(Value::Object(cur.node));
         let mut parent = stack.pop().unwrap();
-        parent.node.insert("children".to_string(), Value::Array(cur.children_of_parent));
+        parent
+            .node
+            .insert("children".to_string(), Value::Array(cur.children_of_parent));
         parent.node.insert("leaf".to_string(), Value::Bool(false));
         cur = parent;
     }
@@ -281,6 +289,7 @@ fn test_vdev_list_to_tree() {
         msg: None,
     };
 
+    #[rustfmt::skip]
     let input = vec![
         //ZFSPoolVDevState { name: "root".to_string(), lvl: 0, ..DEFAULT },
         ZFSPoolVDevState { name: "vdev1".to_string(), lvl: 1, ..DEFAULT },
@@ -351,16 +360,14 @@ fn test_vdev_list_to_tree() {
         }],\
         \"leaf\":false\
    }";
-    let expected: Value = serde_json::from_str(EXPECTED)
-        .expect("failed to parse expected json value");
+    let expected: Value =
+        serde_json::from_str(EXPECTED).expect("failed to parse expected json value");
 
-    let tree = vdev_list_to_tree(&input)
-        .expect("failed to turn valid vdev list into a tree");
+    let tree = vdev_list_to_tree(&input).expect("failed to turn valid vdev list into a tree");
     assert_eq!(tree, expected);
 }
 
 pub fn zpool_status(pool: &str) -> Result<Vec<(String, String)>, Error> {
-
     let mut command = std::process::Command::new("zpool");
     command.args(&["status", "-p", "-P", pool]);
 
@@ -390,7 +397,6 @@ fn test_parse(output: &str) -> Result<(), Error> {
 
 #[test]
 fn test_zpool_status_parser() -> Result<(), Error> {
-
     let output = r###"  pool: tank
  state: DEGRADED
 status: One or more devices could not be opened.  Sufficient replicas exist for
@@ -418,7 +424,6 @@ errors: No known data errors
 
 #[test]
 fn test_zpool_status_parser2() -> Result<(), Error> {
-
     // Note: this input create TABS
     let output = r###"  pool: btest
  state: ONLINE
@@ -443,7 +448,6 @@ errors: No known data errors
 
 #[test]
 fn test_zpool_status_parser3() -> Result<(), Error> {
-
     let output = r###"  pool: bt-est
  state: ONLINE
   scan: none requested
@@ -468,7 +472,6 @@ errors: No known data errors
 
 #[test]
 fn test_zpool_status_parser_spares() -> Result<(), Error> {
-
     let output = r###"  pool: tank
  state: ONLINE
   scan: none requested

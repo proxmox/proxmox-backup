@@ -1,6 +1,6 @@
-use std::path::PathBuf;
 use std::collections::HashSet;
 use std::os::unix::fs::MetadataExt;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use anyhow::{bail, Error};
@@ -10,7 +10,7 @@ use proxmox_schema::const_regex;
 
 use super::*;
 
-lazy_static!{
+lazy_static! {
     static ref ZFS_UUIDS: HashSet<&'static str> = {
         let mut set = HashSet::new();
         set.insert("6a898cc3-1dd2-11b2-99a6-080020736631"); // apple
@@ -29,14 +29,15 @@ fn get_pool_from_dataset(dataset: &str) -> &str {
 
 /// Returns kernel IO-stats for zfs pools
 pub fn zfs_pool_stats(pool: &OsStr) -> Result<Option<BlockDevStat>, Error> {
-
     let mut path = PathBuf::from("/proc/spl/kstat/zfs");
     path.push(pool);
     path.push("io");
 
     let text = match proxmox_sys::fs::file_read_optional_string(&path)? {
         Some(text) => text,
-        None => { return Ok(None); }
+        None => {
+            return Ok(None);
+        }
     };
 
     let lines: Vec<&str> = text.lines().collect();
@@ -50,15 +51,16 @@ pub fn zfs_pool_stats(pool: &OsStr) -> Result<Option<BlockDevStat>, Error> {
     // Note: w -> wait (wtime -> wait time)
     // Note: r -> run  (rtime -> run time)
     // All times are nanoseconds
-    let stat: Vec<u64> = lines[2].split_ascii_whitespace().map(|s| {
-        u64::from_str_radix(s, 10).unwrap_or(0)
-    }).collect();
+    let stat: Vec<u64> = lines[2]
+        .split_ascii_whitespace()
+        .map(|s| u64::from_str_radix(s, 10).unwrap_or(0))
+        .collect();
 
-    let ticks = (stat[4] + stat[7])/1_000_000; // convert to milisec
+    let ticks = (stat[4] + stat[7]) / 1_000_000; // convert to milisec
 
     let stat = BlockDevStat {
-        read_sectors: stat[0]>>9,
-        write_sectors: stat[1]>>9,
+        read_sectors: stat[0] >> 9,
+        write_sectors: stat[1] >> 9,
         read_ios: stat[2],
         write_ios: stat[3],
         io_ticks: ticks,
@@ -70,11 +72,7 @@ pub fn zfs_pool_stats(pool: &OsStr) -> Result<Option<BlockDevStat>, Error> {
 /// Get set of devices used by zfs (or a specific zfs pool)
 ///
 /// The set is indexed by using the unix raw device number (dev_t is u64)
-pub fn zfs_devices(
-    lsblk_info: &[LsblkInfo],
-    pool: Option<String>,
-) -> Result<HashSet<u64>, Error> {
-
+pub fn zfs_devices(lsblk_info: &[LsblkInfo], pool: Option<String>) -> Result<HashSet<u64>, Error> {
     let list = zpool_list(pool, true)?;
 
     let mut device_set = HashSet::new();
@@ -161,7 +159,6 @@ fn parse_objset_stat(pool: &str, objset_id: &str) -> Result<(String, BlockDevSta
 
     Ok((dataset_name, stat))
 }
-
 
 fn get_mapping(dataset: &str) -> Option<(String, String)> {
     ZFS_DATASET_OBJSET_MAP
