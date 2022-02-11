@@ -147,13 +147,14 @@ impl  OutputFormatter for ExtJsFormatter {
         let message: String;
         let mut errors = HashMap::new();
 
-        if let Some(param_err) = err.downcast_ref::<ParameterError>() {
-            for (name, err) in param_err.errors().iter() {
-                errors.insert(name, err.to_string());
+        match err.downcast::<ParameterError>() {
+            Ok(param_err) => {
+                for (name, err) in param_err {
+                    errors.insert(name, err.to_string());
+                }
+                message = String::from("parameter verification errors");
             }
-            message = String::from("parameter verification errors");
-        } else {
-            message = err.to_string();
+            Err(err) => message = err.to_string(),
         }
 
         let result = json!({
