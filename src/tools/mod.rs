@@ -22,7 +22,6 @@ pub mod systemd;
 pub mod ticket;
 
 pub mod parallel_handler;
-pub use parallel_handler::ParallelHandler;
 
 /// Shortcut for md5 sums.
 pub fn md5sum(data: &[u8]) -> Result<DigestBytes, Error> {

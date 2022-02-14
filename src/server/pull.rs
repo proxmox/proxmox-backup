@@ -31,7 +31,7 @@ use pbs_tools::sha::sha256;
 use pbs_client::{BackupReader, BackupRepository, HttpClient, HttpClientOptions, RemoteChunkReader};
 use proxmox_rest_server::WorkerTask;
 
-use crate::tools::ParallelHandler;
+use crate::tools::parallel_handler::ParallelHandler;
 
 // fixme: implement filters
 // fixme: delete vanished groups

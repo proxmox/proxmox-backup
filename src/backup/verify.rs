@@ -15,7 +15,7 @@ use pbs_datastore::index::IndexFile;
 use pbs_datastore::manifest::{archive_type, ArchiveType, BackupManifest, FileInfo};
 use proxmox_sys::fs::lock_dir_noblock_shared;
 
-use crate::tools::ParallelHandler;
+use crate::tools::parallel_handler::ParallelHandler;
 
 /// A VerifyWorker encapsulates a task worker, datastore and information about which chunks have
 /// already been verified or detected as corrupt.

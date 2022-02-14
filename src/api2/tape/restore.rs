@@ -36,7 +36,7 @@ use pbs_tape::{
 use proxmox_rest_server::WorkerTask;
 
 use crate::{
-    tools::ParallelHandler,
+    tools::parallel_handler::ParallelHandler,
     server::lookup_user_email,
     tape::{
         TAPE_STATUS_DIR,

@@ -1,3 +1,5 @@
+//! A thread pool which run a closure in parallel.
+
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 
