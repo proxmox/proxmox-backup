@@ -1,3 +1,9 @@
+//! Round Robin Database cache
+//!
+//! RRD files are stored under `/var/lib/proxmox-backup/rrdb/`. Only a
+//! single process may access and update those files, so we initialize
+//! and update RRD data inside `proxmox-backup-proxy`.
+
 use std::path::Path;
 
 use anyhow::{format_err, Error};
@@ -12,7 +18,7 @@ use pbs_api_types::{RRDMode, RRDTimeFrame};
 
 const RRD_CACHE_BASEDIR: &str = concat!(PROXMOX_BACKUP_STATE_DIR_M!(), "/rrdb");
 
-pub static RRD_CACHE: OnceCell<RRDCache> = OnceCell::new();
+static RRD_CACHE: OnceCell<RRDCache> = OnceCell::new();
 
 /// Get the RRD cache instance
 pub fn get_rrd_cache() -> Result<&'static RRDCache, Error> {
