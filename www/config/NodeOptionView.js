@@ -45,7 +45,7 @@ Ext.define('PBS.NodeOptionView', {
 	{
 	    xtype: 'combobox',
 	    name: 'default-lang',
-	    text: gettext('Default language'),
+	    text: gettext('Default Language'),
 	    defaultValue: '__default__',
 	    comboItems: Proxmox.Utils.language_array(),
 	    deleteEmpty: true,
