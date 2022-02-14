@@ -16,6 +16,9 @@ pub mod apt;
 pub mod config;
 pub mod disks;
 
+mod shared_rate_limiter;
+pub use shared_rate_limiter::SharedRateLimiter;
+
 pub mod statistics;
 pub mod subscription;
 pub mod systemd;

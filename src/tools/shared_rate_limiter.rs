@@ -55,12 +55,21 @@ impl Init for SharedRateLimiterData {
     }
 }
 
+/// Rate limiter designed for shared memory ([SharedMemory])
+///
+/// The actual [RateLimiter] is protected by a [SharedMutex] and
+/// implements [Init]. This way we can share the limiter between
+/// different processes.
 pub struct SharedRateLimiter {
     shmem: SharedMemory<SharedRateLimiterData>
 }
 
 impl SharedRateLimiter {
 
+    /// Creates a new mmap'ed instance.
+    ///
+    /// Data is mapped in `/var/run/proxmox-backup/shmem/tbf/<name>` using
+    /// `TMPFS`.
     pub fn mmap_shmem(name: &str, rate: u64, burst: u64) -> Result<Self, Error> {
         let mut path = PathBuf::from(BASE_PATH);
 

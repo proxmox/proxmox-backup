@@ -18,7 +18,7 @@ use pbs_api_types::TrafficControlRule;
 
 use pbs_config::ConfigVersionCache;
 
-use super::SharedRateLimiter;
+use crate::tools::SharedRateLimiter;
 
 lazy_static::lazy_static!{
     /// Shared traffic control cache singleton.

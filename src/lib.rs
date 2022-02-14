@@ -33,9 +33,6 @@ pub mod client_helpers;
 
 pub mod rrd_cache;
 
-mod shared_rate_limiter;
-pub use shared_rate_limiter::SharedRateLimiter;
-
 pub mod traffic_control_cache;
 
 /// Get the server's certificate info (from `proxy.pem`).
