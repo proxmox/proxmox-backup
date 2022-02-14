@@ -40,7 +40,7 @@ use proxmox_backup::{
         auth::check_pbs_auth,
         jobstate::{self, Job},
     },
-    TRAFFIC_CONTROL_CACHE,
+    traffic_control_cache::TRAFFIC_CONTROL_CACHE,
 };
 
 use pbs_buildcfg::configdir;

@@ -1,4 +1,5 @@
-//! Cached traffic control configuration
+//! Traffic control implementation
+
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
@@ -20,6 +21,7 @@ use pbs_config::ConfigVersionCache;
 use super::SharedRateLimiter;
 
 lazy_static::lazy_static!{
+    /// Shared traffic control cache singleton.
     pub static ref TRAFFIC_CONTROL_CACHE: Arc<Mutex<TrafficControlCache>> =
         Arc::new(Mutex::new(TrafficControlCache::new()));
 }
@@ -30,14 +32,22 @@ struct ParsedTcRule {
     timeframe: Vec<DailyDuration>, // parsed timeframe
 }
 
+/// Traffic control statistics
 pub struct TrafficStat {
+    /// Total incomming traffic (bytes)
     pub traffic_in: u64,
+    /// Incoming data rate (bytes/second)
     pub rate_in: u64,
+    /// Total outgoing traffic (bytes)
     pub traffic_out: u64,
+    /// Outgoing data rate (bytes/second)
     pub rate_out: u64,
 }
 
+/// Cache rules from `/etc/proxmox-backup/traffic-control.cfg`
+/// together with corresponding rate limiter implementation.
 pub struct TrafficControlCache {
+    // use shared memory to make it work with daemon restarts
     use_shared_memory: bool,
     last_rate_compute: Instant,
     current_rate_map: HashMap<String, TrafficStat>,
@@ -118,7 +128,7 @@ fn create_limiter(
 
 impl TrafficControlCache {
 
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             use_shared_memory: true,
             rules: Vec::new(),
@@ -131,6 +141,11 @@ impl TrafficControlCache {
         }
     }
 
+    /// Reload rules from configuration file
+    ///
+    /// Only reload if configuration file was updated
+    /// ([ConfigVersionCache]) or last update is older that 60
+    /// seconds.
     pub fn reload(&mut self, now: i64) {
         let version_cache = match ConfigVersionCache::new() {
             Ok(cache) => cache,
@@ -165,6 +180,9 @@ impl TrafficControlCache {
         self.update_config(&config)
     }
 
+    /// Compute current data rates.
+    ///
+    /// This should be called every second (from `proxmox-backup-proxy`).
     pub fn compute_current_rates(&mut self) {
 
         let elapsed = self.last_rate_compute.elapsed().as_micros();
@@ -204,6 +222,7 @@ impl TrafficControlCache {
         self.last_rate_compute = Instant::now()
     }
 
+    /// Returns current [TrafficStat] for each configured rule.
     pub fn current_rate_map(&self) -> &HashMap<String, TrafficStat> {
         &self.current_rate_map
     }
@@ -303,6 +322,13 @@ impl TrafficControlCache {
         Ok(())
     }
 
+    /// Returns the rate limiter (if any) for the specified peer address.
+    ///
+    /// - Rules where timeframe does not match are skipped.
+    /// - Rules with smaller network size have higher priority.
+    ///
+    /// Behavior is undefined if more than one rule matches after
+    /// above selection.
     pub fn lookup_rate_limiter(
         &self,
         peer: SocketAddr,

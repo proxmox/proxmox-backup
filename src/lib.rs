@@ -36,9 +36,7 @@ pub mod rrd_cache;
 mod shared_rate_limiter;
 pub use shared_rate_limiter::SharedRateLimiter;
 
-mod cached_traffic_control;
-pub use cached_traffic_control::{TrafficControlCache, TRAFFIC_CONTROL_CACHE};
-
+pub mod traffic_control_cache;
 
 /// Get the server's certificate info (from `proxy.pem`).
 pub fn cert_info() -> Result<CertInfo, anyhow::Error> {

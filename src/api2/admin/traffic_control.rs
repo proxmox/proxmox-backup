@@ -8,7 +8,7 @@ use pbs_api_types::{
     TrafficControlRule, PRIV_SYS_AUDIT,
 };
 
-use crate::TRAFFIC_CONTROL_CACHE;
+use crate::traffic_control_cache::TRAFFIC_CONTROL_CACHE;
 
 #[api(
     properties: {
