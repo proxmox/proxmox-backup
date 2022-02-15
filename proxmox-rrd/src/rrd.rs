@@ -177,8 +177,8 @@ impl RRA {
 
         let mut index = self.slot(start);
 
-        for i in 0..data.len() {
-            if let Some(v) = data[i] {
+        for item in data {
+            if let Some(v) = item {
                 self.data[index] = v;
             }
             index += 1; if index >= self.data.len() { index = 0; }
