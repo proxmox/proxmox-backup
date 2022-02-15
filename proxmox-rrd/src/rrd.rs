@@ -469,7 +469,7 @@ impl RRD {
         match rra {
             Some(rra) => {
                 let end = end.unwrap_or_else(|| proxmox_time::epoch_f64() as u64);
-                let start = start.unwrap_or(end.saturating_sub(10*rra.resolution));
+                let start = start.unwrap_or_else(|| end.saturating_sub(10*rra.resolution));
                 Ok(rra.extract_data(start, end, self.source.last_update))
             }
             None => bail!("unable to find RRA suitable ({:?}:{})", cf, resolution),
