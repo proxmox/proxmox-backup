@@ -101,24 +101,20 @@ impl RRDCache {
     ///
     /// The resultion data file size is about 80KB.
     pub fn create_proxmox_backup_default_rrd(dst: DST) -> RRD {
-
-        let mut rra_list = Vec::new();
-
-        // 1min * 1440 => 1day
-        rra_list.push(RRA::new(CF::Average, 60, 1440));
-        rra_list.push(RRA::new(CF::Maximum, 60, 1440));
-
-        // 30min * 1440 => 30days = 1month
-        rra_list.push(RRA::new(CF::Average, 30*60, 1440));
-        rra_list.push(RRA::new(CF::Maximum, 30*60, 1440));
-
-        // 6h * 1440 => 360days = 1year
-        rra_list.push(RRA::new(CF::Average, 6*3600, 1440));
-        rra_list.push(RRA::new(CF::Maximum, 6*3600, 1440));
-
-        // 1week * 570 => 10years
-        rra_list.push(RRA::new(CF::Average, 7*86400, 570));
-        rra_list.push(RRA::new(CF::Maximum, 7*86400, 570));
+        let rra_list = vec![
+            // 1 min * 1440 => 1 day
+            RRA::new(CF::Average, 60, 1440),
+            RRA::new(CF::Maximum, 60, 1440),
+            // 30 min * 1440 => 30 days ~ 1 month
+            RRA::new(CF::Average, 30 * 60, 1440),
+            RRA::new(CF::Maximum, 30 * 60, 1440),
+            // 6 h * 1440 => 360 days ~ 1 year
+            RRA::new(CF::Average, 6 * 3600, 1440),
+            RRA::new(CF::Maximum, 6 * 3600, 1440),
+            // 1 week * 570 => 10 years
+            RRA::new(CF::Average, 7 * 86400, 570),
+            RRA::new(CF::Maximum, 7 * 86400, 570),
+        ];
 
         RRD::new(dst, rra_list)
     }
