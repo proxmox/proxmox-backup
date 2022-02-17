@@ -34,11 +34,16 @@ impl NewChunksIterator {
 
             let mut chunk_index: HashSet<[u8;32]> = HashSet::new();
 
-            let datastore_name = snapshot_reader.datastore_name();
+            let datastore_name = snapshot_reader.datastore_name().to_string();
 
             let result: Result<(), Error> = proxmox_lang::try_block!({
 
-                let mut chunk_iter = snapshot_reader.chunk_iterator()?;
+                let mut chunk_iter = snapshot_reader.chunk_iterator(move |digest| {
+                    catalog_set
+                        .lock()
+                        .unwrap()
+                        .contains_chunk(&datastore_name, digest)
+                })?;
 
                 loop {
                     let digest = match chunk_iter.next() {
@@ -52,10 +57,6 @@ impl NewChunksIterator {
                     if chunk_index.contains(&digest) {
                         continue;
                     }
-
-                    if catalog_set.lock().unwrap().contains_chunk(datastore_name, &digest) {
-                        continue;
-                    };
 
                     let blob = datastore.load_chunk(&digest)?;
                     //println!("LOAD CHUNK {}", hex::encode(&digest));

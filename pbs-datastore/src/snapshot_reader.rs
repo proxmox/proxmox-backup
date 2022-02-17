@@ -87,9 +87,9 @@ impl SnapshotReader {
         Ok(file)
     }
 
-    /// Returns an iterator for all used chunks.
-    pub fn chunk_iterator(&self) -> Result<SnapshotChunkIterator, Error> {
-        SnapshotChunkIterator::new(self)
+    /// Returns an iterator for all chunks not skipped by `skip_fn`.
+    pub fn chunk_iterator<F: Fn(&[u8;32]) -> bool>(&self, skip_fn: F) -> Result<SnapshotChunkIterator<F>, Error> {
+        SnapshotChunkIterator::new(self, skip_fn)
     }
 }
 
@@ -98,13 +98,14 @@ impl SnapshotReader {
 /// Note: The iterator returns a `Result`, and the iterator state is
 /// undefined after the first error. So it make no sense to continue
 /// iteration after the first error.
-pub struct SnapshotChunkIterator<'a> {
+pub struct SnapshotChunkIterator<'a, F: Fn(&[u8;32]) -> bool> {
     snapshot_reader: &'a SnapshotReader,
     todo_list: Vec<String>,
+    skip_fn: F,
     current_index: Option<(Arc<Box<dyn IndexFile + Send>>, usize, Vec<(usize, u64)>)>,
 }
 
-impl <'a> Iterator for SnapshotChunkIterator<'a> {
+impl <'a, F: Fn(&[u8;32]) -> bool> Iterator for SnapshotChunkIterator<'a, F> {
     type Item = Result<[u8; 32], Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -121,7 +122,7 @@ impl <'a> Iterator for SnapshotChunkIterator<'a> {
 
                         let datastore =
                             DataStore::lookup_datastore(self.snapshot_reader.datastore_name())?;
-                        let order = datastore.get_chunks_in_order(&index, |_| false, |_| Ok(()))?;
+                        let order = datastore.get_chunks_in_order(&index, &self.skip_fn, |_| Ok(()))?;
 
                         self.current_index = Some((Arc::new(index), 0, order));
                     } else {
@@ -142,9 +143,9 @@ impl <'a> Iterator for SnapshotChunkIterator<'a> {
     }
 }
 
-impl <'a> SnapshotChunkIterator<'a> {
+impl <'a, F: Fn(&[u8;32]) -> bool> SnapshotChunkIterator<'a, F> {
 
-    pub fn new(snapshot_reader: &'a SnapshotReader) -> Result<Self, Error> {
+    pub fn new(snapshot_reader: &'a SnapshotReader, skip_fn: F) -> Result<Self, Error> {
 
         let mut todo_list = Vec::new();
 
@@ -157,6 +158,6 @@ impl <'a> SnapshotChunkIterator<'a> {
             }
         }
 
-        Ok(Self { snapshot_reader, todo_list, current_index: None })
+        Ok(Self { snapshot_reader, todo_list, current_index: None, skip_fn })
     }
 }
