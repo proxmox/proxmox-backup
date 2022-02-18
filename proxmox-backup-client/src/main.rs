@@ -851,7 +851,7 @@ async fn create_backup(
     let mut catalog = None;
     let mut catalog_result_rx = None;
 
-    let printfileinfo = |butype:&str, filename:&str, repo:&pbs_client::BackupRepository, target:&str| {
+    let log_file = |butype: &str, filename: &str, target: &str| {
         if dry_run{
             println!("Would upload {} '{}' to '{}' as {}", butype, filename, repo, target);
         } else {
@@ -861,18 +861,12 @@ async fn create_backup(
 
     for (backup_type, filename, target, size) in upload_list {
         match (backup_type, dry_run) {
-            (BackupSpecificationType::CONFIG, true) => {
-                printfileinfo("config file", &filename, &repo, &target);
-            }
-            (BackupSpecificationType::LOGFILE, true) => {
-                printfileinfo("log file", &filename, &repo, &target);
-            }
-            (BackupSpecificationType::PXAR, true) => {
-                printfileinfo("directory", &filename, &repo, &target);
-            }
-            (BackupSpecificationType::IMAGE, true) => {
-                printfileinfo("image", &filename, &repo, &target);
-            }
+            // dry-run
+            (BackupSpecificationType::CONFIG, true) => log_file("config file", &filename, &target),
+            (BackupSpecificationType::LOGFILE, true) => log_file("log file", &filename, &target),
+            (BackupSpecificationType::PXAR, true) => log_file("directory", &filename, &target),
+            (BackupSpecificationType::IMAGE, true) => log_file("image", &filename, &target),
+            // no dry-run
             (BackupSpecificationType::CONFIG, false) => {
                 let upload_options = UploadOptions {
                     compress: true,
@@ -880,7 +874,7 @@ async fn create_backup(
                     ..UploadOptions::default()
                 };
 
-                printfileinfo("config file", &filename, &repo, &target);
+                log_file("config file", &filename, &target);
                 let stats = client
                     .upload_blob_from_file(&filename, &target, upload_options)
                     .await?;
@@ -893,7 +887,7 @@ async fn create_backup(
                     ..UploadOptions::default()
                 };
 
-                printfileinfo("log file", &filename, &repo, &target);
+                log_file("log file", &filename, &target);
                 let stats = client
                     .upload_blob_from_file(&filename, &target, upload_options)
                     .await?;
@@ -908,7 +902,7 @@ async fn create_backup(
                 }
                 let catalog = catalog.as_ref().unwrap();
 
-                printfileinfo("directory", &filename, &repo, &target);
+                log_file("directory", &filename, &target);
                 catalog.lock().unwrap().start_directory(std::ffi::CString::new(target.as_str())?.as_c_str())?;
 
                 let pxar_options = pbs_client::pxar::PxarCreateOptions {
@@ -939,7 +933,7 @@ async fn create_backup(
                 catalog.lock().unwrap().end_directory()?;
             }
             (BackupSpecificationType::IMAGE, false) => {
-                printfileinfo("image", &filename, &repo, &target);
+                log_file("image", &filename, &target);
 
                 let upload_options = UploadOptions {
                     previous_manifest: previous_manifest.clone(),
