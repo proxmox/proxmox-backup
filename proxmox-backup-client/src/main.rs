@@ -543,6 +543,7 @@ fn spawn_catalog_upload(
                type: Boolean,
                description: "Include all mounted subdirectories.",
                optional: true,
+               default: false,
            },
            keyfile: {
                schema: KEYFILE_SCHEMA,
@@ -568,6 +569,7 @@ fn spawn_catalog_upload(
                type: Boolean,
                description: "Skip lost+found directory.",
                optional: true,
+               default: false,
            },
            "backup-type": {
                schema: BACKUP_TYPE_SCHEMA,
@@ -612,11 +614,13 @@ fn spawn_catalog_upload(
                type: Boolean,
                description: "Verbose output.",
                optional: true,
+               default: false,
            },
            "dry-run": {
                type: Boolean,
                description: "Just show what backup would do, but do not upload anything.",
                optional: true,
+               default: false,
            },
        }
    }
@@ -624,6 +628,10 @@ fn spawn_catalog_upload(
 /// Create (host) backup.
 async fn create_backup(
     param: Value,
+    all_file_systems: bool,
+    skip_lost_and_found: bool,
+    dry_run: bool,
+    verbose: bool,
     _info: &ApiMethod,
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
@@ -631,14 +639,6 @@ async fn create_backup(
     let repo = extract_repository_from_value(&param)?;
 
     let backupspec_list = json::required_array_param(&param, "backupspec")?;
-
-    let all_file_systems = param["all-file-systems"].as_bool().unwrap_or(false);
-
-    let skip_lost_and_found = param["skip-lost-and-found"].as_bool().unwrap_or(false);
-
-    let verbose = param["verbose"].as_bool().unwrap_or(false);
-
-    let dry_run = param["dry-run"].as_bool().unwrap_or(false);
 
     let backup_time_opt = param["backup-time"].as_i64();
 
