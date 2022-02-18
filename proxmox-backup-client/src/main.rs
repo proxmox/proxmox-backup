@@ -613,6 +613,11 @@ fn spawn_catalog_upload(
                description: "Verbose output.",
                optional: true,
            },
+           "dry-run": {
+               type: Boolean,
+               description: "Just show what backup would do, but do not upload anything.",
+               optional: true,
+           },
        }
    }
 )]
@@ -632,6 +637,8 @@ async fn create_backup(
     let skip_lost_and_found = param["skip-lost-and-found"].as_bool().unwrap_or(false);
 
     let verbose = param["verbose"].as_bool().unwrap_or(false);
+
+    let dry_run = param["dry-run"].as_bool().unwrap_or(false);
 
     let backup_time_opt = param["backup-time"].as_i64();
 
@@ -844,35 +851,55 @@ async fn create_backup(
     let mut catalog = None;
     let mut catalog_result_rx = None;
 
+    let printfileinfo = |butype:&str, filename:&str, repo:&pbs_client::BackupRepository, target:&str| {
+        if dry_run{
+            println!("Would upload {} '{}' to '{}' as {}", butype, filename, repo, target);
+        } else {
+            println!("Upload {} '{}' to '{}' as {}", butype, filename, repo, target);
+        }
+    };
+
     for (backup_type, filename, target, size) in upload_list {
-        match backup_type {
-            BackupSpecificationType::CONFIG => {
+        match (backup_type, dry_run) {
+            (BackupSpecificationType::CONFIG, true) => {
+                printfileinfo("config file", &filename, &repo, &target);
+            }
+            (BackupSpecificationType::LOGFILE, true) => {
+                printfileinfo("log file", &filename, &repo, &target);
+            }
+            (BackupSpecificationType::PXAR, true) => {
+                printfileinfo("directory", &filename, &repo, &target);
+            }
+            (BackupSpecificationType::IMAGE, true) => {
+                printfileinfo("image", &filename, &repo, &target);
+            }
+            (BackupSpecificationType::CONFIG, false) => {
                 let upload_options = UploadOptions {
                     compress: true,
                     encrypt: crypto.mode == CryptMode::Encrypt,
                     ..UploadOptions::default()
                 };
 
-                println!("Upload config file '{}' to '{}' as {}", filename, repo, target);
+                printfileinfo("config file", &filename, &repo, &target);
                 let stats = client
                     .upload_blob_from_file(&filename, &target, upload_options)
                     .await?;
                 manifest.add_file(target, stats.size, stats.csum, crypto.mode)?;
             }
-            BackupSpecificationType::LOGFILE => { // fixme: remove - not needed anymore ?
+            (BackupSpecificationType::LOGFILE, false) => { // fixme: remove - not needed anymore ?
                 let upload_options = UploadOptions {
                     compress: true,
                     encrypt: crypto.mode == CryptMode::Encrypt,
                     ..UploadOptions::default()
                 };
 
-                println!("Upload log file '{}' to '{}' as {}", filename, repo, target);
+                printfileinfo("log file", &filename, &repo, &target);
                 let stats = client
                     .upload_blob_from_file(&filename, &target, upload_options)
                     .await?;
                 manifest.add_file(target, stats.size, stats.csum, crypto.mode)?;
             }
-            BackupSpecificationType::PXAR => {
+            (BackupSpecificationType::PXAR, false) => {
                 // start catalog upload on first use
                 if catalog.is_none() {
                     let catalog_upload_res = spawn_catalog_upload(client.clone(), crypto.mode == CryptMode::Encrypt)?;
@@ -881,7 +908,7 @@ async fn create_backup(
                 }
                 let catalog = catalog.as_ref().unwrap();
 
-                println!("Upload directory '{}' to '{}' as {}", filename, repo, target);
+                printfileinfo("directory", &filename, &repo, &target);
                 catalog.lock().unwrap().start_directory(std::ffi::CString::new(target.as_str())?.as_c_str())?;
 
                 let pxar_options = pbs_client::pxar::PxarCreateOptions {
@@ -911,8 +938,8 @@ async fn create_backup(
                 manifest.add_file(target, stats.size, stats.csum, crypto.mode)?;
                 catalog.lock().unwrap().end_directory()?;
             }
-            BackupSpecificationType::IMAGE => {
-                println!("Upload image '{}' to '{:?}' as {}", filename, repo, target);
+            (BackupSpecificationType::IMAGE, false) => {
+                printfileinfo("image", &filename, &repo, &target);
 
                 let upload_options = UploadOptions {
                     previous_manifest: previous_manifest.clone(),
@@ -931,6 +958,11 @@ async fn create_backup(
                 manifest.add_file(target, stats.size, stats.csum, crypto.mode)?;
             }
         }
+    }
+
+    if dry_run {
+        println!("dry-run: no upload happend");
+        return Ok(Value::Null);
     }
 
     // finalize and upload catalog
