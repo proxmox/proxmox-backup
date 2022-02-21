@@ -20,7 +20,7 @@ regex = "1.5"
 udev = "0.4"
 
 proxmox-io = "1"
-proxmox-lang = "1"
+proxmox-lang = "1.1"
 # api-macro is only used by the binaries, so maybe we should split them out
 proxmox-schema = { version = "1.1", features = [ "api-macro" ] }
 proxmox-time = "1"

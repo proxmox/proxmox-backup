@@ -34,7 +34,7 @@ url = "2.1"
 proxmox-async = "0.3"
 proxmox-compression = "0.1"
 proxmox-io = "1"
-proxmox-lang = "1"
+proxmox-lang = "1.1"
 proxmox-http = { version = "0.6", features = [ "client" ] }
 proxmox-router = "1.1"
 proxmox-schema = { version = "1.2", features = [ "api-macro", "upid-api-impl" ] }

@@ -36,7 +36,7 @@ zstd = { version = "0.6", features = [ "bindgen" ] }
 proxmox-async = "0.3"
 proxmox-borrow = "1"
 proxmox-io = { version = "1", features = [ "tokio" ] }
-proxmox-lang = { version = "1" }
+proxmox-lang = { version = "1.1" }
 proxmox-time = { version = "1" }
 proxmox-sys = "0.2"
 
