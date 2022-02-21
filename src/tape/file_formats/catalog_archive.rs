@@ -61,13 +61,13 @@ pub fn tape_write_catalog<'a>(
         while remaining != 0 {
             let got = file.read(&mut file_copy_buffer[..])?;
             if got as u64 > remaining {
-                proxmox_sys::io_bail!("catalog '{}' changed while reading", uuid);
+                proxmox_lang::io_bail!("catalog '{}' changed while reading", uuid);
             }
             writer.write_all(&file_copy_buffer[..got])?;
             remaining -= got as u64;
         }
         if remaining > 0 {
-            proxmox_sys::io_bail!("catalog '{}' shrunk while reading", uuid);
+            proxmox_lang::io_bail!("catalog '{}' shrunk while reading", uuid);
         }
         Ok(())
     });

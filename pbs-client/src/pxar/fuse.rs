@@ -25,6 +25,7 @@ use pxar::accessor::{self, EntryRangeInfo, ReadAt};
 
 use proxmox_fuse::requests::{self, FuseRequest};
 use proxmox_fuse::{EntryParam, Fuse, ReplyBufState, Request, ROOT_ID};
+use proxmox_lang::io_format_err;
 use proxmox_sys::fs::xattr;
 
 /// We mark inodes for regular files this way so we know how to access them.
@@ -110,20 +111,6 @@ macro_rules! io_return {
     }};
 }
 
-/// Format an "other" error, see `io_bail` below for details.
-macro_rules! io_format_err {
-    ($($fmt:tt)*) => {
-        ::std::io::Error::new(::std::io::ErrorKind::Other, format!($($fmt)*))
-    }
-}
-
-/// We use this to bail out of a functionin an unexpected error case. This will cause the fuse
-/// request to be answered with a generic `EIO` error code. The error message contained in here
-/// will be printed to stdout if the verbose flag is used, otherwise silently dropped.
-macro_rules! io_bail {
-    ($($fmt:tt)*) => { return Err(io_format_err!($($fmt)*).into()); }
-}
-
 /// This is what we need to cache as a "lookup" entry. The kernel assumes that these are easily
 /// accessed.
 struct Lookup {
@@ -157,7 +144,10 @@ impl Lookup {
         loop {
             let old = self.refs.load(Ordering::Acquire);
             if count >= old {
-                io_bail!("reference count underflow");
+                // We use this to bail out of a functionin an unexpected error case. This will cause the fuse
+                // request to be answered with a generic `EIO` error code. The error message contained in here
+                // will be printed to stdout if the verbose flag is used, otherwise silently dropped.
+                return Err(io_format_err!("reference count underflow").into());
             }
             let new = old - count;
             match self

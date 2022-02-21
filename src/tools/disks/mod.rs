@@ -15,9 +15,9 @@ use once_cell::sync::OnceCell;
 use ::serde::{Deserialize, Serialize};
 
 use proxmox_schema::api;
-use proxmox_sys::error::io_err_other;
+use proxmox_lang::error::io_err_other;
 use proxmox_sys::linux::procfs::{mountinfo::Device, MountInfo};
-use proxmox_sys::{io_bail, io_format_err};
+use proxmox_lang::{io_bail, io_format_err};
 
 use pbs_api_types::{StorageStatus, BLOCKDEVICE_NAME_REGEX};
 

@@ -58,14 +58,14 @@ pub fn tape_write_snapshot_archive<'a>(
         for filename in file_list.iter() {
 
             let mut file = snapshot_reader.open_file(filename)
-                .map_err(|err| proxmox_sys::io_format_err!("open file '{}' failed - {}", filename, err))?;
+                .map_err(|err| proxmox_lang::io_format_err!("open file '{}' failed - {}", filename, err))?;
             let metadata = file.metadata()?;
             let file_size = metadata.len();
 
             let metadata: pxar::Metadata = metadata.into();
 
             if !metadata.is_regular_file() {
-                proxmox_sys::io_bail!("file '{}' is not a regular file", filename);
+                proxmox_lang::io_bail!("file '{}' is not a regular file", filename);
             }
 
             let mut remaining = file_size;
@@ -73,14 +73,14 @@ pub fn tape_write_snapshot_archive<'a>(
             while remaining != 0 {
                 let got = file.read(&mut file_copy_buffer[..])?;
                 if got as u64 > remaining {
-                    proxmox_sys::io_bail!("file '{}' changed while reading", filename);
+                    proxmox_lang::io_bail!("file '{}' changed while reading", filename);
                 }
                 out.write_all(&file_copy_buffer[..got])?;
                 remaining -= got as u64;
 
             }
             if remaining > 0 {
-                proxmox_sys::io_bail!("file '{}' shrunk while reading", filename);
+                proxmox_lang::io_bail!("file '{}' shrunk while reading", filename);
             }
         }
         encoder.finish()?;

@@ -69,7 +69,7 @@ impl <'a> ChunkArchiveWriter<'a> {
     fn write_all(&mut self, data: &[u8]) -> Result<bool, std::io::Error> {
         match self.writer {
             Some(ref mut writer) => writer.write_all(data),
-            None => proxmox_sys::io_bail!(
+            None => proxmox_lang::io_bail!(
                 "detected write after archive finished - internal error"),
         }
     }

@@ -65,7 +65,7 @@ impl <W: BlockWrite> BlockedWriter<W> {
 
     fn write_eof(&mut self) -> Result<(), std::io::Error> {
         if self.wrote_eof {
-            proxmox_sys::io_bail!("BlockedWriter: detected multiple EOF writes");
+            proxmox_lang::io_bail!("BlockedWriter: detected multiple EOF writes");
         }
         self.wrote_eof = true;
 

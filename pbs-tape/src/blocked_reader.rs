@@ -69,11 +69,11 @@ impl <R: BlockRead> BlockedReader<R> {
     fn check_buffer(buffer: &BlockHeader, seq_nr: u32) -> Result<(usize, bool), std::io::Error> {
 
         if buffer.magic != PROXMOX_TAPE_BLOCK_HEADER_MAGIC_1_0 {
-            proxmox_sys::io_bail!("detected tape block with wrong magic number - not written by proxmox tape");
+            proxmox_lang::io_bail!("detected tape block with wrong magic number - not written by proxmox tape");
         }
 
         if seq_nr != buffer.seq_nr() {
-            proxmox_sys::io_bail!(
+            proxmox_lang::io_bail!(
                 "detected tape block with wrong sequence number ({} != {})",
                 seq_nr, buffer.seq_nr())
         }
@@ -82,9 +82,9 @@ impl <R: BlockRead> BlockedReader<R> {
         let found_end_marker = buffer.flags.contains(BlockHeaderFlags::END_OF_STREAM);
 
         if size > buffer.payload.len() {
-            proxmox_sys::io_bail!("detected tape block with wrong payload size ({} > {}", size, buffer.payload.len());
+            proxmox_lang::io_bail!("detected tape block with wrong payload size ({} > {}", size, buffer.payload.len());
         } else if size == 0 && !found_end_marker {
-            proxmox_sys::io_bail!("detected tape block with zero payload size");
+            proxmox_lang::io_bail!("detected tape block with zero payload size");
         }
 
 
@@ -103,7 +103,7 @@ impl <R: BlockRead> BlockedReader<R> {
         let bytes = reader.read_block(data)?;
 
         if bytes != BlockHeader::SIZE {
-            return Err(proxmox_sys::io_format_err!("got wrong block size").into());
+            return Err(proxmox_lang::io_format_err!("got wrong block size").into());
         }
 
         Ok(())
@@ -113,13 +113,13 @@ impl <R: BlockRead> BlockedReader<R> {
         let mut tmp_buf = [0u8; 512]; // use a small buffer for testing EOF
         match reader.read_block(&mut tmp_buf) {
             Ok(_) => {
-                proxmox_sys::io_bail!("detected tape block after block-stream end marker");
+                proxmox_lang::io_bail!("detected tape block after block-stream end marker");
             }
             Err(BlockReadError::EndOfFile) => {
                 Ok(())
             }
             Err(BlockReadError::EndOfStream) => {
-                proxmox_sys::io_bail!("got unexpected end of tape");
+                proxmox_lang::io_bail!("got unexpected end of tape");
             }
             Err(BlockReadError::Error(err)) => {
                 Err(err)
@@ -135,12 +135,12 @@ impl <R: BlockRead> BlockedReader<R> {
                 self.got_eod = true;
                 self.read_pos = self.buffer.payload.len();
                 if !self.found_end_marker && check_end_marker {
-                    proxmox_sys::io_bail!("detected tape stream without end marker");
+                    proxmox_lang::io_bail!("detected tape stream without end marker");
                 }
                 return Ok(0); // EOD
             }
             Err(BlockReadError::EndOfStream) => {
-                proxmox_sys::io_bail!("got unexpected end of tape");
+                proxmox_lang::io_bail!("got unexpected end of tape");
             }
             Err(BlockReadError::Error(err)) => {
                 return Err(err);
@@ -167,10 +167,10 @@ impl <R: BlockRead> TapeRead for BlockedReader<R> {
 
     fn is_incomplete(&self) -> Result<bool, std::io::Error> {
         if !self.got_eod {
-            proxmox_sys::io_bail!("is_incomplete failed: EOD not reached");
+            proxmox_lang::io_bail!("is_incomplete failed: EOD not reached");
         }
         if !self.found_end_marker {
-            proxmox_sys::io_bail!("is_incomplete failed: no end marker found");
+            proxmox_lang::io_bail!("is_incomplete failed: no end marker found");
         }
 
         Ok(self.incomplete)
@@ -178,7 +178,7 @@ impl <R: BlockRead> TapeRead for BlockedReader<R> {
 
     fn has_end_marker(&self) -> Result<bool, std::io::Error> {
         if !self.got_eod {
-            proxmox_sys::io_bail!("has_end_marker failed: EOD not reached");
+            proxmox_lang::io_bail!("has_end_marker failed: EOD not reached");
         }
 
         Ok(self.found_end_marker)
@@ -207,7 +207,7 @@ impl <R: BlockRead> Read for BlockedReader<R> {
     fn read(&mut self, buffer: &mut [u8]) -> Result<usize, std::io::Error> {
 
          if self.read_error {
-            proxmox_sys::io_bail!("detected read after error - internal error");
+            proxmox_lang::io_bail!("detected read after error - internal error");
         }
 
         let mut buffer_size = self.buffer.size();

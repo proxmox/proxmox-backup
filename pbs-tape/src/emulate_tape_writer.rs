@@ -39,7 +39,7 @@ impl <W: Write> BlockWrite for EmulateTapeWriter<W> {
     fn write_block(&mut self, buffer: &[u8]) -> Result<bool, io::Error> {
 
         if buffer.len() != PROXMOX_TAPE_BLOCK_SIZE {
-            proxmox_sys::io_bail!("EmulateTapeWriter: got write with wrong block size ({} != {}",
+            proxmox_lang::io_bail!("EmulateTapeWriter: got write with wrong block size ({} != {}",
                               buffer.len(), PROXMOX_TAPE_BLOCK_SIZE);
         }
 
@@ -59,7 +59,7 @@ impl <W: Write> BlockWrite for EmulateTapeWriter<W> {
 
     fn write_filemark(&mut self) -> Result<(), std::io::Error> {
         if self.wrote_eof {
-            proxmox_sys::io_bail!("EmulateTapeWriter: detected multiple EOF writes");
+            proxmox_lang::io_bail!("EmulateTapeWriter: detected multiple EOF writes");
         }
         // do nothing, just record the call
         self.wrote_eof = true;
