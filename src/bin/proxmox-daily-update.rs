@@ -1,8 +1,8 @@
 use anyhow::Error;
 use serde_json::json;
 
+use proxmox_router::{cli::*, ApiHandler, RpcEnvironment};
 use proxmox_sys::fs::CreateOptions;
-use proxmox_router::{cli::*, RpcEnvironment, ApiHandler};
 
 use proxmox_backup::api2;
 use proxmox_backup::tools::subscription;
@@ -21,9 +21,7 @@ async fn wait_for_local_worker(upid_str: &str) -> Result<(), Error> {
 }
 
 /// Daily update
-async fn do_update(
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<(), Error> {
+async fn do_update(rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
     let param = json!({});
 
     let method = &api2::node::subscription::API_METHOD_CHECK_SUBSCRIPTION;
@@ -38,7 +36,7 @@ async fn do_update(
         Err(err) => {
             eprintln!("Error reading subscription - {}", err);
             false
-        },
+        }
     };
 
     let param = json!({
@@ -88,10 +86,18 @@ async fn check_acme_certificates(rpcenv: &mut dyn RpcEnvironment) -> Result<(), 
 
 async fn run(rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
     let backup_user = pbs_config::backup_user()?;
-    let file_opts = CreateOptions::new().owner(backup_user.uid).group(backup_user.gid);
-    proxmox_rest_server::init_worker_tasks(pbs_buildcfg::PROXMOX_BACKUP_LOG_DIR_M!().into(), file_opts.clone())?;
+    let file_opts = CreateOptions::new()
+        .owner(backup_user.uid)
+        .group(backup_user.gid);
+    proxmox_rest_server::init_worker_tasks(
+        pbs_buildcfg::PROXMOX_BACKUP_LOG_DIR_M!().into(),
+        file_opts.clone(),
+    )?;
 
-    let mut commando_sock = proxmox_rest_server::CommandSocket::new(proxmox_rest_server::our_ctrl_sock(), backup_user.gid);
+    let mut commando_sock = proxmox_rest_server::CommandSocket::new(
+        proxmox_rest_server::our_ctrl_sock(),
+        backup_user.gid,
+    );
     proxmox_rest_server::register_task_control_commands(&mut commando_sock)?;
     commando_sock.spawn()?;
 
