@@ -30,7 +30,7 @@ use proxmox_schema::{ObjectSchemaType, ParameterSchema};
 
 use proxmox_http::client::RateLimitedStream;
 
-use proxmox_async::compression::{DeflateEncoder, Level};
+use proxmox_compression::{DeflateEncoder, Level};
 use proxmox_async::stream::AsyncReaderStream;
 
 use crate::{

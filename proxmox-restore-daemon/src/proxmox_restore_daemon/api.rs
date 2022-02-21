@@ -18,7 +18,7 @@ use proxmox_router::{
     ApiHandler, ApiMethod, ApiResponseFuture, Permission, Router, RpcEnvironment, SubdirMap,
 };
 use proxmox_schema::*;
-use proxmox_async::zip::zip_directory;
+use proxmox_compression::zip::zip_directory;
 use proxmox_sys::fs::read_subdir;
 use proxmox_sys::sortable;
 

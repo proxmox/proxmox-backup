@@ -32,6 +32,7 @@ url = "2.1"
 
 #proxmox = "0.15.3"
 proxmox-async = "0.3"
+proxmox-compression = "0.1"
 proxmox-io = "1"
 proxmox-lang = "1"
 proxmox-http = { version = "0.6", features = [ "client" ] }
