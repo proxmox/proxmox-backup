@@ -30,7 +30,7 @@ xdg = "2.2"
 
 pathpatterns = "0.1.2"
 
-proxmox-async = "0.3"
+proxmox-async = "0.4"
 proxmox-compression = "0.1"
 proxmox-fuse = "0.1.1"
 proxmox-http = { version = "0.6", features = [ "client", "http-helpers", "websocket" ] }
