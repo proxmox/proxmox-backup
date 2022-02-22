@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use std::io::{self, Read, Write, Seek, SeekFrom};
+use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
@@ -13,37 +13,18 @@ use tokio_stream::wrappers::ReceiverStream;
 use xdg::BaseDirectories;
 
 use pathpatterns::{MatchEntry, MatchType, PatternFlag};
-use proxmox_io::StdChannelWriter;
-use proxmox_sys::fs::{file_get_json, replace_file, CreateOptions, image_size};
-use proxmox_router::{ApiMethod, RpcEnvironment, cli::*};
-use proxmox_schema::api;
-use proxmox_time::{strftime_local, epoch_i64};
 use proxmox_async::blocking::TokioWriterAdapter;
+use proxmox_io::StdChannelWriter;
+use proxmox_router::{cli::*, ApiMethod, RpcEnvironment};
+use proxmox_schema::api;
+use proxmox_sys::fs::{file_get_json, image_size, replace_file, CreateOptions};
+use proxmox_time::{epoch_i64, strftime_local};
 use pxar::accessor::{MaybeReady, ReadAt, ReadAtOperation};
 
 use pbs_api_types::{
-    BACKUP_ID_SCHEMA, BACKUP_TIME_SCHEMA, BACKUP_TYPE_SCHEMA,
-    TRAFFIC_CONTROL_BURST_SCHEMA, TRAFFIC_CONTROL_RATE_SCHEMA,
-    Authid, CryptMode, Fingerprint, GroupListItem, HumanByte,
-    PruneListItem, PruneOptions, RateLimitConfig, SnapshotListItem,
-    StorageStatus,
-};
-use pbs_client::{
-    BACKUP_SOURCE_SCHEMA,
-    BackupReader,
-    BackupRepository,
-    BackupSpecificationType,
-    BackupStats,
-    BackupWriter,
-    ChunkStream,
-    FixedChunkStream,
-    HttpClient,
-    PxarBackupStream,
-    RemoteChunkReader,
-    UploadOptions,
-    delete_ticket_info,
-    parse_backup_specification,
-    view_task_result,
+    Authid, CryptMode, Fingerprint, GroupListItem, HumanByte, PruneListItem, PruneOptions,
+    RateLimitConfig, SnapshotListItem, StorageStatus, BACKUP_ID_SCHEMA, BACKUP_TIME_SCHEMA,
+    BACKUP_TYPE_SCHEMA, TRAFFIC_CONTROL_BURST_SCHEMA, TRAFFIC_CONTROL_RATE_SCHEMA,
 };
 use pbs_client::catalog_shell::Shell;
 use pbs_client::tools::{
@@ -57,8 +38,13 @@ use pbs_client::tools::{
     },
     CHUNK_SIZE_SCHEMA, REPO_URL_SCHEMA,
 };
-use pbs_config::key_config::{KeyConfig, decrypt_key, rsa_encrypt_key_config};
-use pbs_datastore::CATALOG_NAME;
+use pbs_client::{
+    delete_ticket_info, parse_backup_specification, view_task_result, BackupReader,
+    BackupRepository, BackupSpecificationType, BackupStats, BackupWriter, ChunkStream,
+    FixedChunkStream, HttpClient, PxarBackupStream, RemoteChunkReader, UploadOptions,
+    BACKUP_SOURCE_SCHEMA,
+};
+use pbs_config::key_config::{decrypt_key, rsa_encrypt_key_config, KeyConfig};
 use pbs_datastore::backup_info::{BackupDir, BackupGroup};
 use pbs_datastore::catalog::{BackupCatalogWriter, CatalogReader, CatalogWriter};
 use pbs_datastore::chunk_store::verify_chunk_size;
@@ -66,11 +52,12 @@ use pbs_datastore::dynamic_index::{BufferedDynamicReader, DynamicIndexReader};
 use pbs_datastore::fixed_index::FixedIndexReader;
 use pbs_datastore::index::IndexFile;
 use pbs_datastore::manifest::{
-    ENCRYPTED_KEY_BLOB_NAME, MANIFEST_BLOB_NAME, ArchiveType, BackupManifest, archive_type,
+    archive_type, ArchiveType, BackupManifest, ENCRYPTED_KEY_BLOB_NAME, MANIFEST_BLOB_NAME,
 };
 use pbs_datastore::read_chunk::AsyncReadChunk;
-use pbs_tools::json;
+use pbs_datastore::CATALOG_NAME;
 use pbs_tools::crypt_config::CryptConfig;
+use pbs_tools::json;
 
 mod benchmark;
 pub use benchmark::*;
@@ -85,7 +72,6 @@ pub use snapshot::*;
 pub mod key;
 
 fn record_repository(repo: &BackupRepository) {
-
     let base = match BaseDirectories::with_prefix("proxmox-backup") {
         Ok(v) => v,
         _ => return,
@@ -101,7 +87,7 @@ fn record_repository(repo: &BackupRepository) {
 
     let repo = repo.to_string();
 
-    data[&repo] = json!{ data[&repo].as_i64().unwrap_or(0) + 1 };
+    data[&repo] = json! { data[&repo].as_i64().unwrap_or(0) + 1 };
 
     let mut map = serde_json::map::Map::new();
 
@@ -109,7 +95,9 @@ fn record_repository(repo: &BackupRepository) {
         let mut max_used = 0;
         let mut max_repo = None;
         for (repo, count) in data.as_object().unwrap() {
-            if map.contains_key(repo) { continue; }
+            if map.contains_key(repo) {
+                continue;
+            }
             if let Some(count) = count.as_i64() {
                 if count > max_used {
                     max_used = count;
@@ -122,14 +110,20 @@ fn record_repository(repo: &BackupRepository) {
         } else {
             break;
         }
-        if map.len() > 10 { // store max. 10 repos
+        if map.len() > 10 {
+            // store max. 10 repos
             break;
         }
     }
 
     let new_data = json!(map);
 
-    let _ = replace_file(path, new_data.to_string().as_bytes(), CreateOptions::new(), false);
+    let _ = replace_file(
+        path,
+        new_data.to_string().as_bytes(),
+        CreateOptions::new(),
+        false,
+    );
 }
 
 async fn api_datastore_list_snapshots(
@@ -137,7 +131,6 @@ async fn api_datastore_list_snapshots(
     store: &str,
     group: Option<BackupGroup>,
 ) -> Result<Value, Error> {
-
     let path = format!("api2/json/admin/datastore/{}/snapshots", store);
 
     let mut args = json!({});
@@ -156,19 +149,25 @@ pub async fn api_datastore_latest_snapshot(
     store: &str,
     group: BackupGroup,
 ) -> Result<(String, String, i64), Error> {
-
     let list = api_datastore_list_snapshots(client, store, Some(group.clone())).await?;
     let mut list: Vec<SnapshotListItem> = serde_json::from_value(list)?;
 
     if list.is_empty() {
-        bail!("backup group {:?} does not contain any snapshots.", group.group_path());
+        bail!(
+            "backup group {:?} does not contain any snapshots.",
+            group.group_path()
+        );
     }
 
     list.sort_unstable_by(|a, b| b.backup_time.cmp(&a.backup_time));
 
     let backup_time = list[0].backup_time;
 
-    Ok((group.backup_type().to_owned(), group.backup_id().to_owned(), backup_time))
+    Ok((
+        group.backup_type().to_owned(),
+        group.backup_id().to_owned(),
+        backup_time,
+    ))
 }
 
 async fn backup_directory<P: AsRef<Path>>(
@@ -180,18 +179,12 @@ async fn backup_directory<P: AsRef<Path>>(
     pxar_create_options: pbs_client::pxar::PxarCreateOptions,
     upload_options: UploadOptions,
 ) -> Result<BackupStats, Error> {
-
-    let pxar_stream = PxarBackupStream::open(
-        dir_path.as_ref(),
-        catalog,
-        pxar_create_options,
-    )?;
+    let pxar_stream = PxarBackupStream::open(dir_path.as_ref(), catalog, pxar_create_options)?;
     let mut chunk_stream = ChunkStream::new(pxar_stream, chunk_size);
 
     let (tx, rx) = mpsc::channel(10); // allow to buffer 10 chunks
 
-    let stream = ReceiverStream::new(rx)
-        .map_err(Error::from);
+    let stream = ReceiverStream::new(rx).map_err(Error::from);
 
     // spawn chunker inside a separate task so that it can run parallel
     tokio::spawn(async move {
@@ -218,7 +211,6 @@ async fn backup_image<P: AsRef<Path>>(
     chunk_size: Option<usize>,
     upload_options: UploadOptions,
 ) -> Result<BackupStats, Error> {
-
     let path = image_path.as_ref().to_owned();
 
     let file = tokio::fs::File::open(path).await?;
@@ -226,7 +218,7 @@ async fn backup_image<P: AsRef<Path>>(
     let stream = tokio_util::codec::FramedRead::new(file, tokio_util::codec::BytesCodec::new())
         .map_err(Error::from);
 
-    let stream = FixedChunkStream::new(stream, chunk_size.unwrap_or(4*1024*1024));
+    let stream = FixedChunkStream::new(stream, chunk_size.unwrap_or(4 * 1024 * 1024));
 
     if upload_options.fixed_size.is_none() {
         bail!("cannot backup image with dynamic chunk size!");
@@ -255,7 +247,6 @@ async fn backup_image<P: AsRef<Path>>(
 )]
 /// List backup groups.
 async fn list_backup_groups(param: Value) -> Result<Value, Error> {
-
     let output_format = get_output_format(&param);
 
     let repo = extract_repository_from_value(&param)?;
@@ -288,12 +279,16 @@ async fn list_backup_groups(param: Value) -> Result<Value, Error> {
     let options = default_table_format_options()
         .sortby("backup-type", false)
         .sortby("backup-id", false)
-        .column(ColumnConfig::new("backup-id").renderer(render_group_path).header("group"))
+        .column(
+            ColumnConfig::new("backup-id")
+                .renderer(render_group_path)
+                .header("group"),
+        )
         .column(
             ColumnConfig::new("last-backup")
                 .renderer(render_last_backup)
                 .header("last snapshot")
-                .right_align(false)
+                .right_align(false),
         )
         .column(ColumnConfig::new("backup-count"))
         .column(ColumnConfig::new("files").renderer(render_files));
@@ -326,7 +321,6 @@ async fn list_backup_groups(param: Value) -> Result<Value, Error> {
 )]
 /// Change owner of a backup group
 async fn change_backup_owner(group: String, mut param: Value) -> Result<(), Error> {
-
     let repo = extract_repository_from_value(&param)?;
 
     let client = connect(&repo)?;
@@ -358,7 +352,6 @@ async fn change_backup_owner(group: String, mut param: Value) -> Result<(), Erro
 )]
 /// Try to login. If successful, store ticket.
 async fn api_login(param: Value) -> Result<Value, Error> {
-
     let repo = extract_repository_from_value(&param)?;
 
     let client = connect(&repo)?;
@@ -381,7 +374,6 @@ async fn api_login(param: Value) -> Result<Value, Error> {
 )]
 /// Logout (delete stored ticket).
 fn api_logout(param: Value) -> Result<Value, Error> {
-
     let repo = extract_repository_from_value(&param)?;
 
     delete_ticket_info("proxmox-backup", repo.host(), repo.user())?;
@@ -405,7 +397,6 @@ fn api_logout(param: Value) -> Result<Value, Error> {
 )]
 /// Show client and optional server version
 async fn api_version(param: Value) -> Result<(), Error> {
-
     let output_format = get_output_format(&param);
 
     let mut version_info = json!({
@@ -459,7 +450,6 @@ async fn api_version(param: Value) -> Result<(), Error> {
 )]
 /// Start garbage collection for a specific repository.
 async fn start_garbage_collection(param: Value) -> Result<Value, Error> {
-
     let repo = extract_repository_from_value(&param)?;
 
     let output_format = get_output_format(&param);
@@ -488,10 +478,12 @@ fn spawn_catalog_upload(
 ) -> Result<CatalogUploadResult, Error> {
     let (catalog_tx, catalog_rx) = std::sync::mpsc::sync_channel(10); // allow to buffer 10 writes
     let catalog_stream = proxmox_async::blocking::StdChannelStream(catalog_rx);
-    let catalog_chunk_size = 512*1024;
+    let catalog_chunk_size = 512 * 1024;
     let catalog_chunk_stream = ChunkStream::new(catalog_stream, Some(catalog_chunk_size));
 
-    let catalog_writer = Arc::new(Mutex::new(CatalogWriter::new(TokioWriterAdapter::new(StdChannelWriter::new(catalog_tx)))?));
+    let catalog_writer = Arc::new(Mutex::new(CatalogWriter::new(TokioWriterAdapter::new(
+        StdChannelWriter::new(catalog_tx),
+    ))?));
 
     let (catalog_result_tx, catalog_result_rx) = tokio::sync::oneshot::channel();
 
@@ -514,7 +506,10 @@ fn spawn_catalog_upload(
         let _ = catalog_result_tx.send(catalog_upload_result);
     });
 
-    Ok(CatalogUploadResult { catalog_writer, result: catalog_result_rx })
+    Ok(CatalogUploadResult {
+        catalog_writer,
+        result: catalog_result_rx,
+    })
 }
 
 #[api(
@@ -635,14 +630,13 @@ async fn create_backup(
     _info: &ApiMethod,
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-
     let repo = extract_repository_from_value(&param)?;
 
     let backupspec_list = json::required_array_param(&param, "backupspec")?;
 
     let backup_time_opt = param["backup-time"].as_i64();
 
-    let chunk_size_opt = param["chunk-size"].as_u64().map(|v| (v*1024) as usize);
+    let chunk_size_opt = param["chunk-size"].as_u64().map(|v| (v * 1024) as usize);
 
     if let Some(size) = chunk_size_opt {
         verify_chunk_size(size)?;
@@ -661,13 +655,16 @@ async fn create_backup(
 
     let crypto = crypto_parameters(&param)?;
 
-    let backup_id = param["backup-id"].as_str().unwrap_or(proxmox_sys::nodename());
+    let backup_id = param["backup-id"]
+        .as_str()
+        .unwrap_or(proxmox_sys::nodename());
 
     let backup_type = param["backup-type"].as_str().unwrap_or("host");
 
     let include_dev = param["include-dev"].as_array();
 
-    let entries_max = param["entries-max"].as_u64()
+    let entries_max = param["entries-max"]
+        .as_u64()
         .unwrap_or(pbs_client::pxar::ENCODER_MAX_ENTRIES as u64);
 
     let empty = Vec::new();
@@ -675,14 +672,20 @@ async fn create_backup(
 
     let mut pattern_list = Vec::with_capacity(exclude_args.len());
     for entry in exclude_args {
-        let entry = entry.as_str().ok_or_else(|| format_err!("Invalid pattern string slice"))?;
+        let entry = entry
+            .as_str()
+            .ok_or_else(|| format_err!("Invalid pattern string slice"))?;
         pattern_list.push(
             MatchEntry::parse_pattern(entry, PatternFlag::PATH_NAME, MatchType::Exclude)
-                .map_err(|err| format_err!("invalid exclude pattern entry: {}", err))?
+                .map_err(|err| format_err!("invalid exclude pattern entry: {}", err))?,
         );
     }
 
-    let mut devices = if all_file_systems { None } else { Some(HashSet::new()) };
+    let mut devices = if all_file_systems {
+        None
+    } else {
+        Some(HashSet::new())
+    };
 
     if let Some(include_dev) = include_dev {
         if all_file_systems {
@@ -723,7 +726,12 @@ async fn create_backup(
                 if !file_type.is_dir() {
                     bail!("got unexpected file type (expected directory)");
                 }
-                upload_list.push((BackupSpecificationType::PXAR, filename.to_owned(), format!("{}.didx", target), 0));
+                upload_list.push((
+                    BackupSpecificationType::PXAR,
+                    filename.to_owned(),
+                    format!("{}.didx", target),
+                    0,
+                ));
             }
             BackupSpecificationType::IMAGE => {
                 if !(file_type.is_file() || file_type.is_block_device()) {
@@ -732,21 +740,38 @@ async fn create_backup(
 
                 let size = image_size(&PathBuf::from(filename))?;
 
-                if size == 0 { bail!("got zero-sized file '{}'", filename); }
+                if size == 0 {
+                    bail!("got zero-sized file '{}'", filename);
+                }
 
-                upload_list.push((BackupSpecificationType::IMAGE, filename.to_owned(), format!("{}.fidx", target), size));
+                upload_list.push((
+                    BackupSpecificationType::IMAGE,
+                    filename.to_owned(),
+                    format!("{}.fidx", target),
+                    size,
+                ));
             }
             BackupSpecificationType::CONFIG => {
                 if !file_type.is_file() {
                     bail!("got unexpected file type (expected regular file)");
                 }
-                upload_list.push((BackupSpecificationType::CONFIG, filename.to_owned(), format!("{}.blob", target), metadata.len()));
+                upload_list.push((
+                    BackupSpecificationType::CONFIG,
+                    filename.to_owned(),
+                    format!("{}.blob", target),
+                    metadata.len(),
+                ));
             }
             BackupSpecificationType::LOGFILE => {
                 if !file_type.is_file() {
                     bail!("got unexpected file type (expected regular file)");
                 }
-                upload_list.push((BackupSpecificationType::LOGFILE, filename.to_owned(), format!("{}.blob", target), metadata.len()));
+                upload_list.push((
+                    BackupSpecificationType::LOGFILE,
+                    filename.to_owned(),
+                    format!("{}.blob", target),
+                    metadata.len(),
+                ));
             }
         }
     }
@@ -756,13 +781,21 @@ async fn create_backup(
     let client = connect_rate_limited(&repo, rate_limit)?;
     record_repository(&repo);
 
-    println!("Starting backup: {}/{}/{}", backup_type, backup_id, BackupDir::backup_time_to_string(backup_time)?);
+    println!(
+        "Starting backup: {}/{}/{}",
+        backup_type,
+        backup_id,
+        BackupDir::backup_time_to_string(backup_time)?
+    );
 
     println!("Client name: {}", proxmox_sys::nodename());
 
     let start_time = std::time::Instant::now();
 
-    println!("Starting backup protocol: {}", strftime_local("%c", epoch_i64())?);
+    println!(
+        "Starting backup protocol: {}",
+        strftime_local("%c", epoch_i64())?
+    );
 
     let (crypt_config, rsa_encrypted_key) = match crypto.enc_key {
         None => (None, None),
@@ -790,7 +823,7 @@ async fn create_backup(
                     let enc_key = rsa_encrypt_key_config(rsa, &key_config)?;
 
                     (Some(Arc::new(crypt_config)), Some(enc_key))
-                },
+                }
                 _ => (Some(Arc::new(crypt_config)), None),
             }
         }
@@ -804,8 +837,9 @@ async fn create_backup(
         backup_id,
         backup_time,
         verbose,
-        false
-    ).await?;
+        false,
+    )
+    .await?;
 
     let download_previous_manifest = match client.previous_backup_time().await {
         Ok(Some(backup_time)) => {
@@ -851,12 +885,9 @@ async fn create_backup(
     let mut catalog = None;
     let mut catalog_result_rx = None;
 
-    let log_file = |butype: &str, filename: &str, target: &str| {
-        if dry_run{
-            println!("Would upload {} '{}' to '{}' as {}", butype, filename, repo, target);
-        } else {
-            println!("Upload {} '{}' to '{}' as {}", butype, filename, repo, target);
-        }
+    let log_file = |desc: &str, file: &str, target: &str| {
+        let what = if dry_run { "Would upload" } else { "Upload" };
+        println!("{} {} '{}' to '{}' as {}", what, desc, file, repo, target);
     };
 
     for (backup_type, filename, target, size) in upload_list {
@@ -880,7 +911,8 @@ async fn create_backup(
                     .await?;
                 manifest.add_file(target, stats.size, stats.csum, crypto.mode)?;
             }
-            (BackupSpecificationType::LOGFILE, false) => { // fixme: remove - not needed anymore ?
+            (BackupSpecificationType::LOGFILE, false) => {
+                // fixme: remove - not needed anymore ?
                 let upload_options = UploadOptions {
                     compress: true,
                     encrypt: crypto.mode == CryptMode::Encrypt,
@@ -896,14 +928,18 @@ async fn create_backup(
             (BackupSpecificationType::PXAR, false) => {
                 // start catalog upload on first use
                 if catalog.is_none() {
-                    let catalog_upload_res = spawn_catalog_upload(client.clone(), crypto.mode == CryptMode::Encrypt)?;
+                    let catalog_upload_res =
+                        spawn_catalog_upload(client.clone(), crypto.mode == CryptMode::Encrypt)?;
                     catalog = Some(catalog_upload_res.catalog_writer);
                     catalog_result_rx = Some(catalog_upload_res.result);
                 }
                 let catalog = catalog.as_ref().unwrap();
 
                 log_file("directory", &filename, &target);
-                catalog.lock().unwrap().start_directory(std::ffi::CString::new(target.as_str())?.as_c_str())?;
+                catalog
+                    .lock()
+                    .unwrap()
+                    .start_directory(std::ffi::CString::new(target.as_str())?.as_c_str())?;
 
                 let pxar_options = pbs_client::pxar::PxarCreateOptions {
                     device_set: devices.clone(),
@@ -928,7 +964,8 @@ async fn create_backup(
                     catalog.clone(),
                     pxar_options,
                     upload_options,
-                ).await?;
+                )
+                .await?;
                 manifest.add_file(target, stats.size, stats.csum, crypto.mode)?;
                 catalog.lock().unwrap().end_directory()?;
             }
@@ -942,13 +979,9 @@ async fn create_backup(
                     encrypt: crypto.mode == CryptMode::Encrypt,
                 };
 
-                let stats = backup_image(
-                    &client,
-                    &filename,
-                    &target,
-                    chunk_size_opt,
-                    upload_options,
-                ).await?;
+                let stats =
+                    backup_image(&client, &filename, &target, chunk_size_opt, upload_options)
+                        .await?;
                 manifest.add_file(target, stats.size, stats.csum, crypto.mode)?;
             }
         }
@@ -978,21 +1011,30 @@ async fn create_backup(
     if let Some(rsa_encrypted_key) = rsa_encrypted_key {
         let target = ENCRYPTED_KEY_BLOB_NAME;
         println!("Upload RSA encoded key to '{:?}' as {}", repo, target);
-        let options = UploadOptions { compress: false, encrypt: false, ..UploadOptions::default() };
+        let options = UploadOptions {
+            compress: false,
+            encrypt: false,
+            ..UploadOptions::default()
+        };
         let stats = client
             .upload_blob_from_data(rsa_encrypted_key, target, options)
             .await?;
         manifest.add_file(target.to_string(), stats.size, stats.csum, crypto.mode)?;
-
     }
     // create manifest (index.json)
     // manifests are never encrypted, but include a signature
-    let manifest = manifest.to_string(crypt_config.as_ref().map(Arc::as_ref))
+    let manifest = manifest
+        .to_string(crypt_config.as_ref().map(Arc::as_ref))
         .map_err(|err| format_err!("unable to format manifest - {}", err))?;
 
-
-    if verbose { println!("Upload index.json to '{}'", repo) };
-    let options = UploadOptions { compress: true, encrypt: false, ..UploadOptions::default() };
+    if verbose {
+        println!("Upload index.json to '{}'", repo)
+    };
+    let options = UploadOptions {
+        compress: true,
+        encrypt: false,
+        ..UploadOptions::default()
+    };
     client
         .upload_blob_from_data(manifest.into_bytes(), MANIFEST_BLOB_NAME, options)
         .await?;
@@ -1016,7 +1058,6 @@ async fn dump_image<W: Write>(
     mut writer: W,
     verbose: bool,
 ) -> Result<(), Error> {
-
     let most_used = index.find_most_used_chunks(8);
 
     let chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config, crypt_mode, most_used);
@@ -1033,10 +1074,14 @@ async fn dump_image<W: Write>(
         writer.write_all(&raw_data)?;
         bytes += raw_data.len();
         if verbose {
-            let next_per = ((pos+1)*100)/index.index_count();
+            let next_per = ((pos + 1) * 100) / index.index_count();
             if per != next_per {
-                eprintln!("progress {}% (read {} bytes, duration {} sec)",
-                          next_per, bytes, start_time.elapsed().as_secs());
+                eprintln!(
+                    "progress {}% (read {} bytes, duration {} sec)",
+                    next_per,
+                    bytes,
+                    start_time.elapsed().as_secs()
+                );
                 per = next_per;
             }
         }
@@ -1044,12 +1089,12 @@ async fn dump_image<W: Write>(
 
     let end_time = std::time::Instant::now();
     let elapsed = end_time.duration_since(start_time);
-    eprintln!("restore image complete (bytes={}, duration={:.2}s, speed={:.2}MB/s)",
-              bytes,
-              elapsed.as_secs_f64(),
-              bytes as f64/(1024.0*1024.0*elapsed.as_secs_f64())
+    eprintln!(
+        "restore image complete (bytes={}, duration={:.2}s, speed={:.2}MB/s)",
+        bytes,
+        elapsed.as_secs_f64(),
+        bytes as f64 / (1024.0 * 1024.0 * elapsed.as_secs_f64())
     );
-
 
     Ok(())
 }
@@ -1148,7 +1193,11 @@ async fn restore(param: Value) -> Result<Value, Error> {
         api_datastore_latest_snapshot(&client, repo.store(), group).await?
     } else {
         let snapshot: BackupDir = path.parse()?;
-        (snapshot.group().backup_type().to_owned(), snapshot.group().backup_id().to_owned(), snapshot.backup_time())
+        (
+            snapshot.group().backup_type().to_owned(),
+            snapshot.group().backup_id().to_owned(),
+            snapshot.backup_time(),
+        )
     };
 
     let target = json::required_string_param(&param, "target")?;
@@ -1176,7 +1225,8 @@ async fn restore(param: Value) -> Result<Value, Error> {
         &backup_id,
         backup_time,
         true,
-    ).await?;
+    )
+    .await?;
 
     let (archive_name, archive_type) = parse_archive_type(archive_name);
 
@@ -1202,7 +1252,8 @@ async fn restore(param: Value) -> Result<Value, Error> {
         } else {
             let stdout = std::io::stdout();
             let mut writer = stdout.lock();
-            writer.write_all(&backup_index_data)
+            writer
+                .write_all(&backup_index_data)
                 .map_err(|err| format_err!("unable to pipe data - {}", err))?;
         }
 
@@ -1212,16 +1263,17 @@ async fn restore(param: Value) -> Result<Value, Error> {
     let file_info = manifest.lookup_file_info(&archive_name)?;
 
     if archive_type == ArchiveType::Blob {
-
         let mut reader = client.download_blob(&manifest, &archive_name).await?;
 
         if let Some(target) = target {
-           let mut writer = std::fs::OpenOptions::new()
+            let mut writer = std::fs::OpenOptions::new()
                 .write(true)
                 .create(true)
                 .create_new(true)
                 .open(target)
-                .map_err(|err| format_err!("unable to create target file {:?} - {}", target, err))?;
+                .map_err(|err| {
+                    format_err!("unable to create target file {:?} - {}", target, err)
+                })?;
             std::io::copy(&mut reader, &mut writer)?;
         } else {
             let stdout = std::io::stdout();
@@ -1229,14 +1281,19 @@ async fn restore(param: Value) -> Result<Value, Error> {
             std::io::copy(&mut reader, &mut writer)
                 .map_err(|err| format_err!("unable to pipe data - {}", err))?;
         }
-
     } else if archive_type == ArchiveType::DynamicIndex {
-
-        let index = client.download_dynamic_index(&manifest, &archive_name).await?;
+        let index = client
+            .download_dynamic_index(&manifest, &archive_name)
+            .await?;
 
         let most_used = index.find_most_used_chunks(8);
 
-        let chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config, file_info.chunk_crypt_mode(), most_used);
+        let chunk_reader = RemoteChunkReader::new(
+            client.clone(),
+            crypt_config,
+            file_info.chunk_crypt_mode(),
+            most_used,
+        );
 
         let mut reader = BufferedDynamicReader::new(index, chunk_reader);
 
@@ -1270,8 +1327,9 @@ async fn restore(param: Value) -> Result<Value, Error> {
                 .map_err(|err| format_err!("unable to pipe data - {}", err))?;
         }
     } else if archive_type == ArchiveType::FixedIndex {
-
-        let index = client.download_fixed_index(&manifest, &archive_name).await?;
+        let index = client
+            .download_fixed_index(&manifest, &archive_name)
+            .await?;
 
         let mut writer = if let Some(target) = target {
             std::fs::OpenOptions::new()
@@ -1287,7 +1345,15 @@ async fn restore(param: Value) -> Result<Value, Error> {
                 .map_err(|err| format_err!("unable to open /dev/stdout - {}", err))?
         };
 
-        dump_image(client.clone(), crypt_config.clone(), file_info.chunk_crypt_mode(), index, &mut writer, verbose).await?;
+        dump_image(
+            client.clone(),
+            crypt_config.clone(),
+            file_info.chunk_crypt_mode(),
+            index,
+            &mut writer,
+            verbose,
+        )
+        .await?;
     }
 
     Ok(Value::Null)
@@ -1332,7 +1398,7 @@ async fn prune(
     group: String,
     prune_options: PruneOptions,
     quiet: bool,
-    mut param: Value
+    mut param: Value,
 ) -> Result<Value, Error> {
     let repo = extract_repository_from_value(&param)?;
 
@@ -1366,26 +1432,42 @@ async fn prune(
             Some(true) => "keep",
             Some(false) => "remove",
             None => "unknown",
-        }.to_string())
+        }
+        .to_string())
     };
 
     let options = default_table_format_options()
         .sortby("backup-type", false)
         .sortby("backup-id", false)
         .sortby("backup-time", false)
-        .column(ColumnConfig::new("backup-id").renderer(render_snapshot_path).header("snapshot"))
-        .column(ColumnConfig::new("backup-time").renderer(pbs_tools::format::render_epoch).header("date"))
-        .column(ColumnConfig::new("keep").renderer(render_prune_action).header("action"))
-        ;
+        .column(
+            ColumnConfig::new("backup-id")
+                .renderer(render_snapshot_path)
+                .header("snapshot"),
+        )
+        .column(
+            ColumnConfig::new("backup-time")
+                .renderer(pbs_tools::format::render_epoch)
+                .header("date"),
+        )
+        .column(
+            ColumnConfig::new("keep")
+                .renderer(render_prune_action)
+                .header("action"),
+        );
 
     let return_type = &pbs_api_types::ADMIN_DATASTORE_PRUNE_RETURN_TYPE;
 
     let mut data = result["data"].take();
 
     if quiet {
-        let list: Vec<Value> = data.as_array().unwrap().iter().filter(|item| {
-            item["keep"].as_bool() == Some(false)
-        }).cloned().collect();
+        let list: Vec<Value> = data
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|item| item["keep"].as_bool() == Some(false))
+            .cloned()
+            .collect();
         data = list.into();
     }
 
@@ -1413,7 +1495,6 @@ async fn prune(
 )]
 /// Get repository status.
 async fn status(param: Value) -> Result<Value, Error> {
-
     let repo = extract_repository_from_value(&param)?;
 
     let output_format = get_output_format(&param);
@@ -1430,8 +1511,8 @@ async fn status(param: Value) -> Result<Value, Error> {
     let render_total_percentage = |v: &Value, record: &Value| -> Result<String, Error> {
         let v = v.as_u64().unwrap();
         let total = record["total"].as_u64().unwrap();
-        let roundup = total/200;
-        let per = ((v+roundup)*100)/total;
+        let roundup = total / 200;
+        let per = ((v + roundup) * 100) / total;
         let info = format!(" ({} %)", per);
         Ok(format!("{} {:>8}", v, info))
     };
@@ -1522,22 +1603,22 @@ fn main() {
         .completion_cb("group", complete_backup_group)
         .completion_cb("repository", complete_repository);
 
-    let status_cmd_def = CliCommand::new(&API_METHOD_STATUS)
-        .completion_cb("repository", complete_repository);
+    let status_cmd_def =
+        CliCommand::new(&API_METHOD_STATUS).completion_cb("repository", complete_repository);
 
-    let login_cmd_def = CliCommand::new(&API_METHOD_API_LOGIN)
-        .completion_cb("repository", complete_repository);
+    let login_cmd_def =
+        CliCommand::new(&API_METHOD_API_LOGIN).completion_cb("repository", complete_repository);
 
-    let logout_cmd_def = CliCommand::new(&API_METHOD_API_LOGOUT)
-        .completion_cb("repository", complete_repository);
+    let logout_cmd_def =
+        CliCommand::new(&API_METHOD_API_LOGOUT).completion_cb("repository", complete_repository);
 
-    let version_cmd_def = CliCommand::new(&API_METHOD_API_VERSION)
-        .completion_cb("repository", complete_repository);
+    let version_cmd_def =
+        CliCommand::new(&API_METHOD_API_VERSION).completion_cb("repository", complete_repository);
 
     let change_owner_cmd_def = CliCommand::new(&API_METHOD_CHANGE_BACKUP_OWNER)
         .arg_param(&["group", "new-owner"])
         .completion_cb("group", complete_backup_group)
-        .completion_cb("new-owner",  complete_auth_id)
+        .completion_cb("new-owner", complete_auth_id)
         .completion_cb("repository", complete_repository);
 
     let cmd_def = CliCommandMap::new()
@@ -1559,15 +1640,15 @@ fn main() {
         .insert("version", version_cmd_def)
         .insert("benchmark", benchmark_cmd_def)
         .insert("change-owner", change_owner_cmd_def)
-
         .alias(&["files"], &["snapshot", "files"])
         .alias(&["forget"], &["snapshot", "forget"])
         .alias(&["upload-log"], &["snapshot", "upload-log"])
-        .alias(&["snapshots"], &["snapshot", "list"])
-        ;
+        .alias(&["snapshots"], &["snapshot", "list"]);
 
     let rpcenv = CliEnvironment::new();
-    run_cli_command(cmd_def, rpcenv, Some(|future| {
-        proxmox_async::runtime::main(future)
-    }));
+    run_cli_command(
+        cmd_def,
+        rpcenv,
+        Some(|future| proxmox_async::runtime::main(future)),
+    );
 }
