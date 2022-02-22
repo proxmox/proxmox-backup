@@ -28,7 +28,7 @@ async fn do_update(rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
     match method.handler {
         ApiHandler::Sync(handler) => {
             if let Err(err) = (handler)(param, method, rpcenv) {
-                eprintln!("Error checking subscription - {}", err);
+                log::error!("Error checking subscription - {}", err);
             }
         }
         _ => unreachable!(),
@@ -38,7 +38,7 @@ async fn do_update(rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
         Ok(Some(subscription)) => subscription.status == subscription::SubscriptionStatus::ACTIVE,
         Ok(None) => false,
         Err(err) => {
-            eprintln!("Error reading subscription - {}", err);
+            log::error!("Error reading subscription - {}", err);
             false
         }
     };
@@ -50,7 +50,7 @@ async fn do_update(rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
     match method.handler {
         ApiHandler::Sync(handler) => match (handler)(param, method, rpcenv) {
             Err(err) => {
-                eprintln!("Error triggering apt database update - {}", err);
+                log::error!("Error triggering apt database update - {}", err);
             }
             Ok(upid) => wait_for_local_worker(upid.as_str().unwrap()).await?,
         },
@@ -60,7 +60,7 @@ async fn do_update(rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
     match check_acme_certificates(rpcenv).await {
         Ok(()) => (),
         Err(err) => {
-            eprintln!("error checking certificates: {}", err);
+            log::error!("error checking certificates: {}", err);
         }
     }
 
@@ -78,7 +78,7 @@ async fn check_acme_certificates(rpcenv: &mut dyn RpcEnvironment) -> Result<(), 
     }
 
     if !api2::node::certificates::cert_expires_soon()? {
-        println!("Certificate does not expire within the next 30 days, not renewing.");
+        log::info!("Certificate does not expire within the next 30 days, not renewing.");
         return Ok(());
     }
 
@@ -115,11 +115,19 @@ async fn run(rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
 fn main() {
     proxmox_backup::tools::setup_safe_path_env();
 
+    if let Err(err) = syslog::init(
+        syslog::Facility::LOG_DAEMON,
+        log::LevelFilter::Info,
+        Some("proxmox-daily-update"),
+    ) {
+        eprintln!("unable to inititialize syslog - {}", err);
+    }
+
     let mut rpcenv = CliEnvironment::new();
     rpcenv.set_auth_id(Some(String::from("root@pam")));
 
     if let Err(err) = proxmox_async::runtime::main(run(&mut rpcenv)) {
-        eprintln!("error during update: {}", err);
+        log::error!("error during update: {}", err);
         std::process::exit(1);
     }
 }
