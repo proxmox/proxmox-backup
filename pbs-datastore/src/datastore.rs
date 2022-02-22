@@ -9,13 +9,18 @@ use std::time::Duration;
 use anyhow::{bail, format_err, Error};
 use lazy_static::lazy_static;
 
+use proxmox_schema::ApiType;
+
 use proxmox_sys::fs::{replace_file, file_read_optional_string, CreateOptions};
 use proxmox_sys::process_locker::ProcessLockSharedGuard;
 use proxmox_sys::WorkerTaskContext;
 use proxmox_sys::{task_log, task_warn};
 use proxmox_sys::fs::{lock_dir_noblock, DirLockGuard};
 
-use pbs_api_types::{UPID, DataStoreConfig, Authid, GarbageCollectionStatus, HumanByte};
+use pbs_api_types::{
+    UPID, DataStoreConfig, Authid, GarbageCollectionStatus, HumanByte,
+    ChunkOrder, DatastoreTuning,
+};
 use pbs_config::{open_backup_lockfile, BackupLockGuard};
 
 use crate::DataBlob;
@@ -57,12 +62,11 @@ pub struct DataStore {
     gc_mutex: Mutex<()>,
     last_gc_status: Mutex<GarbageCollectionStatus>,
     verify_new: bool,
+    chunk_order: ChunkOrder,
 }
 
 impl DataStore {
-
     pub fn lookup_datastore(name: &str) -> Result<Arc<DataStore>, Error> {
-
         let (config, _digest) = pbs_config::datastore::config()?;
         let config: DataStoreConfig = config.lookup("datastore", name)?;
         let path = PathBuf::from(&config.path);
@@ -116,11 +120,17 @@ impl DataStore {
             GarbageCollectionStatus::default()
         };
 
+        let tuning: DatastoreTuning = serde_json::from_value(
+            DatastoreTuning::API_SCHEMA.parse_property_string(config.tuning.as_deref().unwrap_or(""))?
+        )?;
+        let chunk_order = tuning.chunk_order.unwrap_or(ChunkOrder::Inode);
+
         Ok(Self {
             chunk_store: Arc::new(chunk_store),
             gc_mutex: Mutex::new(()),
             last_gc_status: Mutex::new(gc_status),
             verify_new: config.verify_new.unwrap_or(false),
+            chunk_order,
         })
     }
 
@@ -907,16 +917,26 @@ impl DataStore {
                 continue;
             }
 
-            let ino = match self.stat_chunk(&info.digest) {
-                Err(_) => u64::MAX, // could not stat, move to end of list
-                Ok(metadata) => metadata.ino(),
+            let ino = match self.chunk_order {
+                ChunkOrder::Inode => {
+                    match self.stat_chunk(&info.digest) {
+                        Err(_) => u64::MAX, // could not stat, move to end of list
+                        Ok(metadata) => metadata.ino(),
+                    }
+                }
+                ChunkOrder::None => 0,
             };
 
             chunk_list.push((pos, ino));
         }
 
-        // sorting by inode improves data locality, which makes it lots faster on spinners
-        chunk_list.sort_unstable_by(|(_, ino_a), (_, ino_b)| ino_a.cmp(ino_b));
+        match self.chunk_order {
+            // sorting by inode improves data locality, which makes it lots faster on spinners
+            ChunkOrder::Inode => {
+                chunk_list.sort_unstable_by(|(_, ino_a), (_, ino_b)| ino_a.cmp(ino_b))
+            }
+            ChunkOrder::None => {}
+        }
 
         Ok(chunk_list)
     }

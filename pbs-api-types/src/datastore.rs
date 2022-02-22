@@ -167,6 +167,38 @@ pub struct PruneOptions {
     pub keep_yearly: Option<u64>,
 }
 
+#[api]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+/// The order to sort chunks by
+pub enum ChunkOrder {
+    /// Iterate chunks in the index order
+    None,
+    /// Iterate chunks in inode order
+    Inode,
+}
+
+#[api(
+    properties: {
+        "chunk-order": {
+            type: ChunkOrder,
+            optional: true,
+        },
+    },
+)]
+#[derive(Serialize, Deserialize, Default)]
+#[serde(rename_all = "kebab-case")]
+/// Datastore tuning options
+pub struct DatastoreTuning {
+    /// Iterate chunks in this order
+    pub chunk_order: Option<ChunkOrder>,
+}
+
+pub const DATASTORE_TUNING_STRING_SCHEMA: Schema = StringSchema::new(
+    "Datastore tuning options")
+    .format(&ApiStringFormat::PropertyString(&DatastoreTuning::API_SCHEMA))
+    .schema();
+
 #[api(
     properties: {
         name: {
@@ -224,6 +256,10 @@ pub struct PruneOptions {
             optional: true,
             type: bool,
         },
+        tuning: {
+            optional: true,
+            schema: DATASTORE_TUNING_STRING_SCHEMA,
+        },
     }
 )]
 #[derive(Serialize,Deserialize,Updater)]
@@ -261,6 +297,9 @@ pub struct DataStoreConfig {
     /// Send notification only for job errors
     #[serde(skip_serializing_if="Option::is_none")]
     pub notify: Option<String>,
+    /// Datastore tuning options
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub tuning: Option<String>,
 }
 
 #[api(

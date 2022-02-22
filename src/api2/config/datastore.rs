@@ -184,6 +184,8 @@ pub enum DeletableProperty {
     notify_user,
     /// Delete the notify property
     notify,
+    /// Delete the tuning property
+    tuning,
 }
 
 #[api(
@@ -250,6 +252,7 @@ pub fn update_datastore(
                 DeletableProperty::verify_new => { data.verify_new = None; },
                 DeletableProperty::notify => { data.notify = None; },
                 DeletableProperty::notify_user => { data.notify_user = None; },
+                DeletableProperty::tuning => { data.tuning = None; },
             }
         }
     }
@@ -294,6 +297,8 @@ pub fn update_datastore(
     if update.verify_new.is_some() { data.verify_new = update.verify_new; }
 
     if update.notify_user.is_some() { data.notify_user = update.notify_user; }
+
+    if update.tuning.is_some() { data.tuning = update.tuning; }
 
     config.set_data(&name, "datastore", &data)?;
 
