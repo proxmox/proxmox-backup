@@ -9,13 +9,13 @@ use proxmox_backup::tools::subscription;
 
 async fn wait_for_local_worker(upid_str: &str) -> Result<(), Error> {
     let upid: pbs_api_types::UPID = upid_str.parse()?;
-    let sleep_duration = core::time::Duration::new(0, 100_000_000);
+    let poll_delay = core::time::Duration::from_millis(100);
 
     loop {
         if !proxmox_rest_server::worker_is_active_local(&upid) {
             break;
         }
-        tokio::time::sleep(sleep_duration).await;
+        tokio::time::sleep(poll_delay).await;
     }
     Ok(())
 }
