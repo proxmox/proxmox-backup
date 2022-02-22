@@ -25,10 +25,14 @@ async fn do_update(rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
     let param = json!({});
 
     let method = &api2::node::subscription::API_METHOD_CHECK_SUBSCRIPTION;
-    let _res = match method.handler {
-        ApiHandler::Sync(handler) => (handler)(param, method, rpcenv)?,
+    match method.handler {
+        ApiHandler::Sync(handler) => {
+            if let Err(err) = (handler)(param, method, rpcenv) {
+                eprintln!("Error checking subscription - {}", err);
+            }
+        }
         _ => unreachable!(),
-    };
+    }
 
     let notify = match subscription::read_subscription() {
         Ok(Some(subscription)) => subscription.status == subscription::SubscriptionStatus::ACTIVE,
@@ -43,11 +47,15 @@ async fn do_update(rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
         "notify": notify,
     });
     let method = &api2::node::apt::API_METHOD_APT_UPDATE_DATABASE;
-    let upid = match method.handler {
-        ApiHandler::Sync(handler) => (handler)(param, method, rpcenv)?,
+    match method.handler {
+        ApiHandler::Sync(handler) => match (handler)(param, method, rpcenv) {
+            Err(err) => {
+                eprintln!("Error triggering apt database update - {}", err);
+            }
+            Ok(upid) => wait_for_local_worker(upid.as_str().unwrap()).await?,
+        },
         _ => unreachable!(),
     };
-    wait_for_local_worker(upid.as_str().unwrap()).await?;
 
     match check_acme_certificates(rpcenv).await {
         Ok(()) => (),
