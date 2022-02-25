@@ -7,7 +7,7 @@ use proxmox_section_config::{SectionConfig, SectionConfigData, SectionConfigPlug
 
 use pbs_api_types::{DataStoreConfig, DATASTORE_SCHEMA};
 
-use crate::{open_backup_lockfile, replace_backup_config, BackupLockGuard};
+use crate::{open_backup_lockfile, replace_backup_config, BackupLockGuard, ConfigVersionCache};
 
 lazy_static! {
     pub static ref CONFIG: SectionConfig = init();
@@ -46,7 +46,14 @@ pub fn config() -> Result<(SectionConfigData, [u8;32]), Error> {
 
 pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
     let raw = CONFIG.write(DATASTORE_CFG_FILENAME, config)?;
-    replace_backup_config(DATASTORE_CFG_FILENAME, raw.as_bytes())
+    replace_backup_config(DATASTORE_CFG_FILENAME, raw.as_bytes())?;
+
+    // increase datastore version
+    // We use this in pbs-datastore
+    let version_cache = ConfigVersionCache::new()?;
+    version_cache.increase_datastore_generation();
+
+    Ok(())
 }
 
 // shell completion helper

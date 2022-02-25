@@ -24,10 +24,12 @@ struct ConfigVersionCacheData {
     user_cache_generation: AtomicUsize,
     // Traffic control (traffic-control.cfg) generation/version.
     traffic_control_generation: AtomicUsize,
+    // datastore (datastore.cfg) generation/version
+    datastore_generation: AtomicUsize,
 
     // Add further atomics here (and reduce padding size)
 
-    padding: [u8; 4096 - 3*8],
+    padding: [u8; 4096 - 4*8],
 }
 
 
@@ -118,4 +120,18 @@ impl ConfigVersionCache {
             .fetch_add(1, Ordering::AcqRel);
     }
 
+    /// Returns the datastore generation number.
+    pub fn datastore_generation(&self) -> usize {
+        self.shmem
+            .data()
+            .datastore_generation
+            .load(Ordering::Acquire)
+    }
+
+    /// Increase the datastore generation number.
+    pub fn increase_datastore_generation(&self) -> usize {
+        self.shmem
+            .data()
+            .datastore_generation.fetch_add(1, Ordering::Acquire)
+    }
 }

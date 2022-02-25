@@ -21,7 +21,7 @@ use pbs_api_types::{
     UPID, DataStoreConfig, Authid, GarbageCollectionStatus, HumanByte,
     ChunkOrder, DatastoreTuning,
 };
-use pbs_config::{open_backup_lockfile, BackupLockGuard};
+use pbs_config::{open_backup_lockfile, BackupLockGuard, ConfigVersionCache};
 
 use crate::DataBlob;
 use crate::backup_info::{BackupGroup, BackupDir};
@@ -63,26 +63,30 @@ pub struct DataStore {
     last_gc_status: Mutex<GarbageCollectionStatus>,
     verify_new: bool,
     chunk_order: ChunkOrder,
+    last_generation: usize,
+    last_update: i64,
 }
 
 impl DataStore {
     pub fn lookup_datastore(name: &str) -> Result<Arc<DataStore>, Error> {
+        let version_cache = ConfigVersionCache::new()?;
+        let generation = version_cache.datastore_generation();
+        let now = proxmox_time::epoch_i64();
+
+        let mut map = DATASTORE_MAP.lock().unwrap();
+        let entry = map.get(name);
+
+        if let Some(datastore) = &entry {
+            if datastore.last_generation == generation && now < (datastore.last_update + 60) {
+                return Ok(Arc::clone(datastore));
+            }
+        }
+
         let (config, _digest) = pbs_config::datastore::config()?;
         let config: DataStoreConfig = config.lookup("datastore", name)?;
         let path = PathBuf::from(&config.path);
 
-        let mut map = DATASTORE_MAP.lock().unwrap();
-
-        if let Some(datastore) = map.get(name) {
-            // Compare Config - if changed, create new Datastore object!
-            if datastore.chunk_store.base() == path &&
-                datastore.verify_new == config.verify_new.unwrap_or(false)
-            {
-                return Ok(datastore.clone());
-            }
-        }
-
-        let datastore = DataStore::open_with_path(name, &path, config)?;
+        let datastore = DataStore::open_with_path(name, &path, config, generation, now)?;
 
         let datastore = Arc::new(datastore);
         map.insert(name.to_string(), datastore.clone());
@@ -102,7 +106,13 @@ impl DataStore {
         Ok(())
     }
 
-    fn open_with_path(store_name: &str, path: &Path, config: DataStoreConfig) -> Result<Self, Error> {
+    fn open_with_path(
+        store_name: &str,
+        path: &Path,
+        config: DataStoreConfig,
+        last_generation: usize,
+        last_update: i64,
+    ) -> Result<Self, Error> {
         let chunk_store = ChunkStore::open(store_name, path)?;
 
         let mut gc_status_path = chunk_store.base_path();
@@ -131,6 +141,8 @@ impl DataStore {
             last_gc_status: Mutex::new(gc_status),
             verify_new: config.verify_new.unwrap_or(false),
             chunk_order,
+            last_generation,
+            last_update,
         })
     }
 
