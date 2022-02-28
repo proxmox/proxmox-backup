@@ -519,8 +519,9 @@ a single media pool, so a job only uses tapes from that pool.
 
      This balances between space efficiency and media count.
 
-     .. NOTE:: Retention period starts when the calendar event
-        triggers.
+     .. NOTE:: Retention period starts on the creation time of the next
+        media-set or, if that does not exist, when the calendar event
+        triggers the next time after the current media-set start time.
 
    Additionally, the following events may allocate a new media set:
 
