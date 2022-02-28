@@ -979,3 +979,77 @@ This command does the following:
 - run drive cleaning operation
 
 - unload the cleaning tape (to slot 3)
+
+Example Setups
+--------------
+
+Here are a few example setups for how to manage media pools and schedules.
+This is not an exhaustive list, and there are many more possible combinations
+of useful settings.
+
+Simple Setup
+~~~~~~~~~~~~
+
+The most simple setup, always continue the media-set and never expire.
+All backups are stored on a single media set and never deleted.
+
+Allocation policy:
+  continue
+
+Retention policy:
+  keep
+
+Such a simple setup has the advantage that it uses not much space, and
+since there is only one media-set, it is easy to manage. On the other hand,
+it is prone to errors. If a single tape fails, all backups that uses chunks
+from that tape will not be restorable. If you want to start a new media-set
+manually, you can set the currently writable media of the set either to
+'full', or set the location to an offsite vault. In that case, a new
+media-set will be created.
+
+Weekday Scheme
+~~~~~~~~~~~~~~
+
+A slightly more complex scheme, where the goal is to have a tape for each
+weekday, e.g. from Monday to Friday. This can be solved by having a seperate
+media pool for each day, so 'Monday', 'Tuesday', etc.
+
+Allocation policy:
+  should be 'mon' for the 'Monday' pool, 'tue' for the Tuesday pool and so on.
+
+Retention policy:
+  overwrite
+
+There should be a (or more) tape-backup jobs for each pool on the correspondig
+weekday. This scheme is still easily managable with one media set per weekday,
+which can even be taken off site easily.
+
+Staggered Pools
+~~~~~~~~~~~~~~~
+
+Alternatively, more complex setups are possible with multiple media pools and
+different allocation and retention policies.
+
+An example would be to have a media pool with weekly allocation:
+
+Allocation policy:
+  mon
+
+Retention policy:
+  3 weeks
+
+This creates a new media set each week, and expires them after the 4th
+media set.
+
+Then in addition, there could be a yearly pool that only gets allocated
+once a year, but will not be expired (e.g. for long-term archival purposes):
+
+Allocation policy:
+  yearly
+
+Retention policy:
+  keep
+
+In combination with suited prune settings and tape backup schedules, this
+achieves long-term storage of some backups, while keeping the current
+backups on smaller media sets that get expired every 4 weeks.
