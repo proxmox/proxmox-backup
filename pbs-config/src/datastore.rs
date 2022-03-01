@@ -48,8 +48,7 @@ pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
     let raw = CONFIG.write(DATASTORE_CFG_FILENAME, config)?;
     replace_backup_config(DATASTORE_CFG_FILENAME, raw.as_bytes())?;
 
-    // increase datastore version
-    // We use this in pbs-datastore
+    // used in pbs-datastore
     let version_cache = ConfigVersionCache::new()?;
     version_cache.increase_datastore_generation();
 
