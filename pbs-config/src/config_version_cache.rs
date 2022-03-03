@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::mem::MaybeUninit;
+use std::mem::{MaybeUninit, ManuallyDrop};
 
 use anyhow::{bail, Error};
 use once_cell::sync::OnceCell;
@@ -18,7 +18,7 @@ use proxmox_shared_memory::*;
 
 #[derive(Debug)]
 #[repr(C)]
-struct ConfigVersionCacheData {
+struct ConfigVersionCacheDataInner {
     magic: [u8; 8],
     // User (user.cfg) cache generation/version.
     user_cache_generation: AtomicUsize,
@@ -27,11 +27,35 @@ struct ConfigVersionCacheData {
     // datastore (datastore.cfg) generation/version
     datastore_generation: AtomicUsize,
 
-    // Add further atomics here (and reduce padding size)
-
-    padding: [u8; 4096 - 4*8],
+    // Add further atomics here
 }
 
+#[repr(C)]
+union ConfigVersionCacheData {
+    data: ManuallyDrop<ConfigVersionCacheDataInner>,
+    _padding: [u8; 4096],
+}
+
+#[test]
+fn assert_cache_size() {
+    assert_eq!(std::mem::size_of::<ConfigVersionCacheData>(), 4096);
+}
+
+impl std::ops::Deref for ConfigVersionCacheData {
+    type Target = ConfigVersionCacheDataInner;
+
+    #[inline]
+    fn deref(&self) -> &ConfigVersionCacheDataInner {
+        unsafe { &self.data }
+    }
+}
+
+impl std::ops::DerefMut for ConfigVersionCacheData {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut ConfigVersionCacheDataInner {
+        unsafe { &mut self.data }
+    }
+}
 
 impl Init for ConfigVersionCacheData {
     fn initialize(this: &mut MaybeUninit<Self>) {
