@@ -6,7 +6,7 @@ use ::serde::{Deserialize, Serialize};
 use hex::FromHex;
 
 use proxmox_router::{Router, RpcEnvironment, Permission};
-use proxmox_schema::api;
+use proxmox_schema::{api, param_bail};
 
 use pbs_api_types::{
     OpenIdRealmConfig, OpenIdRealmConfigUpdater,
@@ -68,7 +68,7 @@ pub fn create_openid_realm(config: OpenIdRealmConfig) -> Result<(), Error> {
         config.realm == "pam" ||
         domains.sections.get(&config.realm).is_some()
     {
-        bail!("realm '{}' already exists.", config.realm);
+        param_bail!("realm", "realm '{}' already exists.", config.realm);
     }
 
     domains.set_data(&config.realm, "openid", &config)?;

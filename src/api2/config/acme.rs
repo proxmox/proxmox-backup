@@ -13,7 +13,7 @@ use hex::FromHex;
 use proxmox_router::{
     http_bail, list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap,
 };
-use proxmox_schema::api;
+use proxmox_schema::{api, param_bail};
 use proxmox_sys::{task_log, task_warn};
 
 use proxmox_acme_rs::account::AccountData as AcmeAccountData;
@@ -582,7 +582,7 @@ pub fn get_plugin(id: String, mut rpcenv: &mut dyn RpcEnvironment) -> Result<Plu
 pub fn add_plugin(r#type: String, core: DnsPluginCore, data: String) -> Result<(), Error> {
     // Currently we only support DNS plugins and the standalone plugin is "fixed":
     if r#type != "dns" {
-        bail!("invalid ACME plugin type: {:?}", r#type);
+        param_bail!("type", "invalid ACME plugin type: {:?}", r#type);
     }
 
     let data = String::from_utf8(base64::decode(&data)?)
@@ -594,7 +594,7 @@ pub fn add_plugin(r#type: String, core: DnsPluginCore, data: String) -> Result<(
 
     let (mut plugins, _digest) = plugin::config()?;
     if plugins.contains_key(&id) {
-        bail!("ACME plugin ID {:?} already exists", id);
+        param_bail!("id", "ACME plugin ID {:?} already exists", id);
     }
 
     let plugin = serde_json::to_value(DnsPlugin { core, data })?;

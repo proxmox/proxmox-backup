@@ -3,7 +3,7 @@ use serde_json::Value;
 use hex::FromHex;
 
 use proxmox_router::{ApiMethod, Router, RpcEnvironment, Permission};
-use proxmox_schema::api;
+use proxmox_schema::{api, param_bail};
 
 use pbs_api_types::{
     Authid, Fingerprint, KeyInfo, Kdf,
@@ -112,7 +112,7 @@ pub fn change_passphrase(
     let kdf = kdf.unwrap_or_default();
 
     if let Kdf::None = kdf {
-        bail!("Please specify a key derivation function (none is not allowed here).");
+        param_bail!("kdf", format_err!("Please specify a key derivation function (none is not allowed here)."));
     }
 
     let _lock = open_backup_lockfile(TAPE_KEYS_LOCKFILE, None, true)?;
@@ -137,8 +137,8 @@ pub fn change_passphrase(
     }
 
     let (key, created, fingerprint) = match (force, &password) {
-        (true, Some(_)) => bail!("password is not allowed when using force"),
-        (false, None) => bail!("missing parameter: password"),
+        (true, Some(_)) => param_bail!("password", format_err!("password is not allowed when using force")),
+        (false, None) => param_bail!("password", format_err!("missing parameter: password")),
         (false, Some(pass)) => key_config.decrypt(&|| Ok(pass.as_bytes().to_vec()))?,
         (true, None) => {
                 let key = load_keys()?.0.get(&fingerprint).ok_or_else(|| {
@@ -195,7 +195,7 @@ pub fn create_key(
     let kdf = kdf.unwrap_or_default();
 
     if let Kdf::None = kdf {
-        bail!("Please specify a key derivation function (none is not allowed here).");
+        param_bail!("kdf", format_err!("Please specify a key derivation function (none is not allowed here)."));
     }
 
     let (key, mut key_config) = KeyConfig::new(password.as_bytes(), kdf)?;

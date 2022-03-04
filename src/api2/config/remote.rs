@@ -7,7 +7,7 @@ use ::serde::{Deserialize, Serialize};
 use hex::FromHex;
 
 use proxmox_router::{http_err, ApiMethod, Router, RpcEnvironment, Permission};
-use proxmox_schema::api;
+use proxmox_schema::{api, param_bail};
 
 use pbs_client::{HttpClient, HttpClientOptions};
 use pbs_api_types::{
@@ -95,7 +95,7 @@ pub fn create_remote(
     let (mut section_config, _digest) = pbs_config::remote::config()?;
 
     if section_config.sections.get(&name).is_some() {
-        bail!("remote '{}' already exists.", name);
+        param_bail!("name", "remote '{}' already exists.", name);
     }
 
     let remote = Remote { name: name.clone(), config, password };
@@ -257,7 +257,7 @@ pub fn delete_remote(name: String, digest: Option<String>) -> Result<(), Error> 
     let job_list: Vec<SyncJobConfig>  = sync_jobs.convert_to_typed_array("sync")?;
     for job in job_list {
         if job.remote == name {
-            bail!("remote '{}' is used by sync job '{}' (datastore '{}')", name, job.id, job.store);
+            param_bail!("name", "remote '{}' is used by sync job '{}' (datastore '{}')", name, job.id, job.store);
         }
     }
 

@@ -4,7 +4,7 @@ use ::serde::{Deserialize, Serialize};
 use hex::FromHex;
 
 use proxmox_router::{ApiMethod, Router, RpcEnvironment, Permission};
-use proxmox_schema::api;
+use proxmox_schema::{api, param_bail};
 
 use pbs_api_types::{
     TrafficControlRule, TrafficControlRuleUpdater,
@@ -62,7 +62,7 @@ pub fn create_traffic_control(config: TrafficControlRule) -> Result<(), Error> {
     let (mut section_config, _digest) = pbs_config::traffic_control::config()?;
 
     if section_config.sections.get(&config.name).is_some() {
-        bail!("traffic control rule '{}' already exists.", config.name);
+        param_bail!("name", "traffic control rule '{}' already exists.", config.name);
     }
 
     section_config.set_data(&config.name, "rule", &config)?;

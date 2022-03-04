@@ -6,7 +6,7 @@ use ::serde::{Deserialize, Serialize};
 use hex::FromHex;
 
 use proxmox_router::{Router, RpcEnvironment, RpcEnvironmentType, Permission};
-use proxmox_schema::{api, ApiType};
+use proxmox_schema::{api, param_bail, ApiType};
 use proxmox_section_config::SectionConfigData;
 use proxmox_sys::WorkerTaskContext;
 
@@ -113,7 +113,7 @@ pub fn create_datastore(
     let (section_config, _digest) = pbs_config::datastore::config()?;
 
     if section_config.sections.get(&config.name).is_some() {
-        bail!("datastore '{}' already exists.", config.name);
+        param_bail!("name", "datastore '{}' already exists.", config.name);
     }
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;

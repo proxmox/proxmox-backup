@@ -4,7 +4,7 @@ use ::serde::{Deserialize, Serialize};
 use hex::FromHex;
 
 use proxmox_router::{Router, RpcEnvironment, Permission};
-use proxmox_schema::api;
+use proxmox_schema::{api, param_bail};
 
 use pbs_api_types::{
     Authid, SyncJobConfig, SyncJobConfigUpdater, JOB_ID_SCHEMA, PROXMOX_CONFIG_DIGEST_SCHEMA,
@@ -133,7 +133,7 @@ pub fn create_sync_job(
     let (mut section_config, _digest) = sync::config()?;
 
     if section_config.sections.get(&config.id).is_some() {
-        bail!("job '{}' already exists.", config.id);
+        param_bail!("id", "job '{}' already exists.", config.id);
     }
 
     section_config.set_data(&config.id, "sync", &config)?;

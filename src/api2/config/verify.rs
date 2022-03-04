@@ -4,7 +4,7 @@ use ::serde::{Deserialize, Serialize};
 use hex::FromHex;
 
 use proxmox_router::{Router, RpcEnvironment, Permission};
-use proxmox_schema::api;
+use proxmox_schema::{api, param_bail};
 
 use pbs_api_types::{
     Authid, VerificationJobConfig, VerificationJobConfigUpdater, JOB_ID_SCHEMA,
@@ -85,7 +85,7 @@ pub fn create_verification_job(
     let (mut section_config, _digest) = verify::config()?;
 
     if section_config.sections.get(&config.id).is_some() {
-        bail!("job '{}' already exists.", config.id);
+        param_bail!("id", "job '{}' already exists.", config.id);
     }
 
     section_config.set_data(&config.id, "verification", &config)?;

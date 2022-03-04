@@ -1,10 +1,10 @@
-use anyhow::{bail, Error};
+use anyhow::{bail, format_err, Error};
 use ::serde::{Deserialize, Serialize};
 use serde_json::Value;
 use hex::FromHex;
 
 use proxmox_router::{Router, RpcEnvironment, Permission};
-use proxmox_schema::api;
+use proxmox_schema::{api, param_bail};
 
 use pbs_api_types::{
     Authid, LtoTapeDrive, LtoTapeDriveUpdater, ScsiTapeChanger,
@@ -43,10 +43,10 @@ pub fn create_drive(config: LtoTapeDrive) -> Result<(), Error> {
 
     for drive in existing {
         if drive.name == config.name {
-            bail!("Entry '{}' already exists", config.name);
+            param_bail!("name", "Entry '{}' already exists", config.name);
         }
         if drive.path == config.path {
-            bail!("Path '{}' already used in drive '{}'", config.path, drive.name);
+            param_bail!("path", "Path '{}' already used in drive '{}'", config.path, drive.name);
         }
     }
 
@@ -218,7 +218,7 @@ pub fn update_drive(
             data.changer_drivenum = None;
         } else {
             if data.changer.is_none() {
-                bail!("Option 'changer-drivenum' requires option 'changer'.");
+                param_bail!("changer", format_err!("Option 'changer-drivenum' requires option 'changer'."));
             }
             data.changer_drivenum = Some(changer_drivenum);
         }
@@ -254,7 +254,7 @@ pub fn delete_drive(name: String, _param: Value) -> Result<(), Error> {
     match config.sections.get(&name) {
         Some((section_type, _)) => {
             if section_type != "lto" {
-                bail!("Entry '{}' exists, but is not a lto tape drive", name);
+                param_bail!("name", "Entry '{}' exists, but is not a lto tape drive", name);
             }
             config.sections.remove(&name);
         },

@@ -2,7 +2,7 @@ use anyhow::{bail, Error};
 use ::serde::{Deserialize, Serialize};
 
 use proxmox_router::{Router, RpcEnvironment, Permission};
-use proxmox_schema::api;
+use proxmox_schema::{api, param_bail};
 
 use pbs_api_types::{
     Authid, MediaPoolConfig, MediaPoolConfigUpdater, MEDIA_POOL_NAME_SCHEMA,
@@ -35,7 +35,7 @@ pub fn create_pool(
     let (mut section_config, _digest) = pbs_config::media_pool::config()?;
 
     if section_config.sections.get(&config.name).is_some() {
-        bail!("Media pool '{}' already exists", config.name);
+        param_bail!("name", "Media pool '{}' already exists", config.name);
     }
 
     section_config.set_data(&config.name, "pool", &config)?;

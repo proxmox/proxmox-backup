@@ -4,7 +4,7 @@ use serde_json::Value;
 use hex::FromHex;
 
 use proxmox_router::{Router, RpcEnvironment, Permission};
-use proxmox_schema::api;
+use proxmox_schema::{api, param_bail};
 
 use pbs_api_types::{
     Authid, ScsiTapeChanger, ScsiTapeChangerUpdater, LtoTapeDrive,
@@ -43,11 +43,11 @@ pub fn create_changer(config: ScsiTapeChanger) -> Result<(), Error> {
 
     for changer in existing {
         if changer.name == config.name {
-            bail!("Entry '{}' already exists", config.name);
+            param_bail!("name", "Entry '{}' already exists", config.name);
         }
 
         if changer.path == config.path {
-            bail!("Path '{}' already in use by '{}'", config.path, changer.name);
+            param_bail!("path", "Path '{}' already in use by '{}'", config.path, changer.name);
         }
     }
 
@@ -252,7 +252,7 @@ pub fn delete_changer(name: String, _param: Value) -> Result<(), Error> {
     match config.sections.get(&name) {
         Some((section_type, _)) => {
             if section_type != "changer" {
-                bail!("Entry '{}' exists, but is not a changer device", name);
+                param_bail!("name", "Entry '{}' exists, but is not a changer device", name);
             }
             config.sections.remove(&name);
         },
@@ -263,7 +263,7 @@ pub fn delete_changer(name: String, _param: Value) -> Result<(), Error> {
     for drive in drive_list {
         if let Some(changer) = drive.changer {
             if changer == name {
-                bail!("Delete changer '{}' failed - used by drive '{}'", name, drive.name);
+                param_bail!("name", "Delete changer '{}' failed - used by drive '{}'", name, drive.name);
             }
         }
     }

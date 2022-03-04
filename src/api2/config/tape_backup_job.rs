@@ -4,7 +4,7 @@ use ::serde::{Deserialize, Serialize};
 use hex::FromHex;
 
 use proxmox_router::{Router, RpcEnvironment, Permission};
-use proxmox_schema::api;
+use proxmox_schema::{api, param_bail};
 
 use pbs_api_types::{
     Authid, TapeBackupJobConfig, TapeBackupJobConfigUpdater,
@@ -77,7 +77,7 @@ pub fn create_tape_backup_job(
     let (mut config, _digest) = pbs_config::tape_job::config()?;
 
     if config.sections.get(&job.id).is_some() {
-        bail!("job '{}' already exists.", job.id);
+        param_bail!("id", "job '{}' already exists.", job.id);
     }
 
     config.set_data(&job.id, "backup", &job)?;
