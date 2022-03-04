@@ -8,7 +8,11 @@ use proxmox_schema::{api, ApiStringFormat, ApiType, Updater};
 
 use proxmox_http::ProxyConfig;
 
-use pbs_api_types::{EMAIL_SCHEMA, OPENSSL_CIPHERS_TLS_1_2_SCHEMA, OPENSSL_CIPHERS_TLS_1_3_SCHEMA};
+use pbs_api_types::{
+    EMAIL_SCHEMA, MULTI_LINE_COMMENT_SCHEMA, OPENSSL_CIPHERS_TLS_1_2_SCHEMA,
+    OPENSSL_CIPHERS_TLS_1_3_SCHEMA,
+};
+
 use pbs_buildcfg::configdir;
 use pbs_config::{open_backup_lockfile, BackupLockGuard};
 
@@ -167,6 +171,10 @@ pub enum Translation {
         "default-lang" : {
             schema: Translation::API_SCHEMA,
             optional: true,
+        },
+        "description" : {
+            optional: true,
+            schema: MULTI_LINE_COMMENT_SCHEMA,
         }
     },
 )]
@@ -210,6 +218,10 @@ pub struct NodeConfig {
     /// Default language used in the GUI
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default_lang: Option<String>,
+
+    /// Node description
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
 }
 
 impl NodeConfig {

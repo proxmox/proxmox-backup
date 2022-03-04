@@ -137,6 +137,8 @@ const_regex! {
 
     pub SINGLE_LINE_COMMENT_REGEX = r"^[[:^cntrl:]]*$";
 
+    pub MULTI_LINE_COMMENT_REGEX = r"(?m)^([[:^cntrl:]]*)$";
+
     pub BACKUP_REPO_URL_REGEX = concat!(
         r"^^(?:(?:(",
         USER_ID_REGEX_STR!(), "|", APITOKEN_ID_REGEX_STR!(),
@@ -271,6 +273,13 @@ pub const SINGLE_LINE_COMMENT_FORMAT: ApiStringFormat =
 
 pub const SINGLE_LINE_COMMENT_SCHEMA: Schema = StringSchema::new("Comment (single line).")
     .format(&SINGLE_LINE_COMMENT_FORMAT)
+    .schema();
+
+pub const MULTI_LINE_COMMENT_FORMAT: ApiStringFormat =
+    ApiStringFormat::Pattern(&MULTI_LINE_COMMENT_REGEX);
+
+pub const MULTI_LINE_COMMENT_SCHEMA: Schema = StringSchema::new("Comment (multiple lines).")
+    .format(&MULTI_LINE_COMMENT_FORMAT)
     .schema();
 
 pub const SUBSCRIPTION_KEY_SCHEMA: Schema = StringSchema::new("Proxmox Backup Server subscription key.")

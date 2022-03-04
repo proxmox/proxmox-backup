@@ -31,8 +31,19 @@ pub fn value_from_str(input: &str, schema: &'static Schema) -> Result<Value, Err
     let schema = object_schema(schema)?;
 
     let mut config = Object::new();
+    let mut lines = input.lines().enumerate().peekable();
+    let mut description = String::new();
 
-    for (lineno, line) in input.lines().enumerate() {
+    while let Some((_, line)) = lines.next_if(|(_, line)| line.starts_with('#')) {
+        description.push_str(&line[1..]);
+        description.push('\n');
+    }
+
+    if !description.is_empty() {
+        config.insert("description".to_string(), Value::String(description));
+    }
+
+    for (lineno, line) in lines {
         let line = line.trim();
         if line.starts_with('#') || line.is_empty() {
             continue;
@@ -133,9 +144,17 @@ pub fn value_to_bytes(value: &Value, schema: &'static Schema) -> Result<Vec<u8>,
 
 /// Note: the object must have already been verified at this point.
 fn object_to_writer(output: &mut dyn Write, object: &Object) -> Result<(), Error> {
+    // special key `description` for multi-line notes, must be written before everything else
+    if let Some(Value::String(description)) = object.get("description") {
+        for lines in description.lines() {
+            writeln!(output, "#{}", lines)?;
+        }
+    }
+
     for (key, value) in object.iter() {
         match value {
-            Value::Null => continue, // delete this entry
+            _ if key == "description" => continue, // skip description as we handle it above
+            Value::Null => continue,           // delete this entry
             Value::Bool(v) => writeln!(output, "{}: {}", key, v)?,
             Value::String(v) => {
                 if v.as_bytes().contains(&b'\n') {
@@ -171,4 +190,37 @@ fn test() {
         .expect("failed to serialize node config");
 
     assert_eq!(config, NODE_CONFIG.as_bytes());
+}
+
+#[test]
+fn test_with_comment() {
+    use proxmox_schema::ApiType;
+
+    // let's just reuse some schema we actually have available:
+    use crate::config::node::NodeConfig;
+
+    const NODE_INPUT: &str = "\
+        #this should\n\
+        #be included\n\
+        acme: account=pebble\n\
+        # this should not\n\
+        acmedomain0: test1.invalid.local,plugin=power\n\
+        acmedomain1: test2.invalid.local\n\
+    ";
+
+    const NODE_OUTPUT: &str = "\
+        #this should\n\
+        #be included\n\
+        acme: account=pebble\n\
+        acmedomain0: test1.invalid.local,plugin=power\n\
+        acmedomain1: test2.invalid.local\n\
+    ";
+
+    let data: NodeConfig = from_str(NODE_INPUT, &NodeConfig::API_SCHEMA)
+        .expect("failed to parse multi-line notes node config");
+
+    let config = to_bytes(&data, &NodeConfig::API_SCHEMA)
+        .expect("failed to serialize multi-line notes node config");
+
+    assert_eq!(config, NODE_OUTPUT.as_bytes());
 }

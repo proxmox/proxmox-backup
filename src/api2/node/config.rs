@@ -64,6 +64,8 @@ pub enum DeletableProperty {
     ciphers_tls_1_2,
     /// Delete the default-lang property.
     default_lang,
+    /// Delete any description
+    description,
 }
 
 #[api(
@@ -124,6 +126,7 @@ pub fn update_node_config(
                 DeletableProperty::ciphers_tls_1_3 => { config.ciphers_tls_1_3 = None; },
                 DeletableProperty::ciphers_tls_1_2 => { config.ciphers_tls_1_2 = None; },
                 DeletableProperty::default_lang => { config.default_lang = None; },
+                DeletableProperty::description => { config.description = None; },
             }
         }
     }
@@ -139,6 +142,7 @@ pub fn update_node_config(
     if update.ciphers_tls_1_3.is_some() { config.ciphers_tls_1_3 = update.ciphers_tls_1_3; }
     if update.ciphers_tls_1_2.is_some() { config.ciphers_tls_1_2 = update.ciphers_tls_1_2; }
     if update.default_lang.is_some() { config.default_lang = update.default_lang; }
+    if update.description.is_some() { config.description = update.description; }
 
     crate::config::node::save_config(&config)?;
 
