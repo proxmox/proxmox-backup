@@ -1,11 +1,11 @@
 use std::path::PathBuf;
 
-use anyhow::{bail, Error};
+use anyhow::Error;
 use serde_json::Value;
 use ::serde::{Deserialize, Serialize};
 use hex::FromHex;
 
-use proxmox_router::{Router, RpcEnvironment, RpcEnvironmentType, Permission};
+use proxmox_router::{http_bail, Router, RpcEnvironment, RpcEnvironmentType, Permission};
 use proxmox_schema::{api, param_bail, ApiType};
 use proxmox_section_config::SectionConfigData;
 use proxmox_sys::WorkerTaskContext;
@@ -359,7 +359,7 @@ pub async fn delete_datastore(
 
     match config.sections.get(&name) {
         Some(_) => { config.sections.remove(&name); },
-        None => bail!("datastore '{}' does not exist.", name),
+        None => http_bail!(NOT_FOUND, "datastore '{}' does not exist.", name),
     }
 
     if !keep_job_configs {

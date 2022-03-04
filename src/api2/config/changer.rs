@@ -1,9 +1,9 @@
-use anyhow::{bail, Error};
+use anyhow::Error;
 use ::serde::{Deserialize, Serialize};
 use serde_json::Value;
 use hex::FromHex;
 
-use proxmox_router::{Router, RpcEnvironment, Permission};
+use proxmox_router::{http_bail, Router, RpcEnvironment, Permission};
 use proxmox_schema::{api, param_bail};
 
 use pbs_api_types::{
@@ -256,7 +256,7 @@ pub fn delete_changer(name: String, _param: Value) -> Result<(), Error> {
             }
             config.sections.remove(&name);
         },
-        None => bail!("Delete changer '{}' failed - no such entry", name),
+        None => http_bail!(NOT_FOUND, "Delete changer '{}' failed - no such entry", name),
     }
 
     let drive_list: Vec<LtoTapeDrive> = config.convert_to_typed_array("lto")?;

@@ -6,7 +6,7 @@ use serde_json::Value;
 use ::serde::{Deserialize, Serialize};
 use hex::FromHex;
 
-use proxmox_router::{http_err, ApiMethod, Router, RpcEnvironment, Permission};
+use proxmox_router::{http_bail, http_err, ApiMethod, Router, RpcEnvironment, Permission};
 use proxmox_schema::{api, param_bail};
 
 use pbs_client::{HttpClient, HttpClientOptions};
@@ -272,7 +272,7 @@ pub fn delete_remote(name: String, digest: Option<String>) -> Result<(), Error> 
 
     match config.sections.get(&name) {
         Some(_) => { config.sections.remove(&name); },
-        None => bail!("remote '{}' does not exist.", name),
+        None => http_bail!(NOT_FOUND, "remote '{}' does not exist.", name),
     }
 
     pbs_config::remote::save_config(&config)?;

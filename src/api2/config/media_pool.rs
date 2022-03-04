@@ -1,7 +1,7 @@
-use anyhow::{bail, Error};
+use anyhow::Error;
 use ::serde::{Deserialize, Serialize};
 
-use proxmox_router::{Router, RpcEnvironment, Permission};
+use proxmox_router::{http_bail, Router, RpcEnvironment, Permission};
 use proxmox_schema::{api, param_bail};
 
 use pbs_api_types::{
@@ -217,7 +217,7 @@ pub fn delete_pool(name: String) -> Result<(), Error> {
 
     match config.sections.get(&name) {
         Some(_) => { config.sections.remove(&name); },
-        None => bail!("delete pool '{}' failed - no such pool", name),
+        None => http_bail!(NOT_FOUND, "delete pool '{}' failed - no such pool", name),
     }
 
     pbs_config::media_pool::save_config(&config)?;

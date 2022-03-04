@@ -1,11 +1,11 @@
 /// Configure OpenId realms
 
-use anyhow::{bail, Error};
+use anyhow::Error;
 use serde_json::Value;
 use ::serde::{Deserialize, Serialize};
 use hex::FromHex;
 
-use proxmox_router::{Router, RpcEnvironment, Permission};
+use proxmox_router::{http_bail, Router, RpcEnvironment, Permission};
 use proxmox_schema::{api, param_bail};
 
 use pbs_api_types::{
@@ -112,7 +112,7 @@ pub fn delete_openid_realm(
     }
 
     if domains.sections.remove(&realm).is_none()  {
-        bail!("realm '{}' does not exist.", realm);
+        http_bail!(NOT_FOUND, "realm '{}' does not exist.", realm);
     }
 
     domains::save_config(&domains)?;

@@ -2,7 +2,7 @@ use anyhow::{format_err, bail, Error};
 use serde_json::Value;
 use hex::FromHex;
 
-use proxmox_router::{ApiMethod, Router, RpcEnvironment, Permission};
+use proxmox_router::{http_bail, ApiMethod, Router, RpcEnvironment, Permission};
 use proxmox_schema::{api, param_bail};
 
 use pbs_api_types::{
@@ -126,7 +126,7 @@ pub fn change_passphrase(
 
     let key_config = match config_map.get(&fingerprint) {
         Some(key_config) => key_config,
-        None => bail!("tape encryption key configuration '{}' does not exist.", fingerprint),
+        None => http_bail!(NOT_FOUND, "tape encryption key configuration '{}' does not exist.", fingerprint),
     };
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
@@ -234,7 +234,7 @@ pub fn read_key(
 
     let key_config = match config_map.get(&fingerprint) {
         Some(key_config) => key_config,
-        None => bail!("tape encryption key '{}' does not exist.", fingerprint),
+        None => http_bail!(NOT_FOUND, "tape encryption key '{}' does not exist.", fingerprint),
     };
 
     if key_config.kdf.is_none() {
@@ -281,7 +281,7 @@ pub fn delete_key(
 
     match config_map.get(&fingerprint) {
         Some(_) => { config_map.remove(&fingerprint); },
-        None => bail!("tape encryption key '{}' does not exist.", fingerprint),
+        None => http_bail!(NOT_FOUND, "tape encryption key '{}' does not exist.", fingerprint),
     }
     save_key_configs(config_map)?;
 

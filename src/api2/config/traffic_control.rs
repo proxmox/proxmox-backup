@@ -1,9 +1,9 @@
-use anyhow::{bail, Error};
+use anyhow::Error;
 use serde_json::Value;
 use ::serde::{Deserialize, Serialize};
 use hex::FromHex;
 
-use proxmox_router::{ApiMethod, Router, RpcEnvironment, Permission};
+use proxmox_router::{http_bail, ApiMethod, Router, RpcEnvironment, Permission};
 use proxmox_schema::{api, param_bail};
 
 use pbs_api_types::{
@@ -245,7 +245,7 @@ pub fn delete_traffic_control(name: String, digest: Option<String>) -> Result<()
 
     match config.sections.get(&name) {
         Some(_) => { config.sections.remove(&name); },
-        None => bail!("traffic control rule '{}' does not exist.", name),
+        None => http_bail!(NOT_FOUND, "traffic control rule '{}' does not exist.", name),
     }
 
     pbs_config::traffic_control::save_config(&config)?;

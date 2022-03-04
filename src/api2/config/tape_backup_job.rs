@@ -1,9 +1,9 @@
-use anyhow::{bail, Error};
+use anyhow::Error;
 use serde_json::Value;
 use ::serde::{Deserialize, Serialize};
 use hex::FromHex;
 
-use proxmox_router::{Router, RpcEnvironment, Permission};
+use proxmox_router::{http_bail, Router, RpcEnvironment, Permission};
 use proxmox_schema::{api, param_bail};
 
 use pbs_api_types::{
@@ -268,7 +268,7 @@ pub fn delete_tape_backup_job(
         Ok(_job) => {
             config.sections.remove(&id);
         },
-        Err(_) => { bail!("job '{}' does not exist.", id) },
+        Err(_) => { http_bail!(NOT_FOUND, "job '{}' does not exist.", id) },
     };
 
     pbs_config::tape_job::save_config(&config)?;

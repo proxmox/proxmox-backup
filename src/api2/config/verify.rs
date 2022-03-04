@@ -1,9 +1,9 @@
-use anyhow::{bail, Error};
+use anyhow::Error;
 use serde_json::Value;
 use ::serde::{Deserialize, Serialize};
 use hex::FromHex;
 
-use proxmox_router::{Router, RpcEnvironment, Permission};
+use proxmox_router::{http_bail, Router, RpcEnvironment, Permission};
 use proxmox_schema::{api, param_bail};
 
 use pbs_api_types::{
@@ -287,7 +287,7 @@ pub fn delete_verification_job(
 
     match config.sections.get(&id) {
         Some(_) => { config.sections.remove(&id); },
-        None => bail!("job '{}' does not exist.", id),
+        None => http_bail!(NOT_FOUND, "job '{}' does not exist.", id),
     }
 
     verify::save_config(&config)?;
