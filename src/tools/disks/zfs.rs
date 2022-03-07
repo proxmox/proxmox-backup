@@ -124,7 +124,7 @@ fn parse_objset_stat(pool: &str, objset_id: &str) -> Result<(String, BlockDevSta
 
     let text = match proxmox_sys::fs::file_read_optional_string(&path)? {
         Some(text) => text,
-        None => bail!("could not parse 'objset-{}' stat file", objset_id),
+        None => bail!("could not parse '{}' stat file", objset_id),
     };
 
     let mut dataset_name = String::new();
