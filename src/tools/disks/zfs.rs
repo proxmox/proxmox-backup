@@ -198,6 +198,14 @@ pub fn zfs_dataset_stats(dataset: &str) -> Result<BlockDevStat, Error> {
     }
     let (pool, objset_id) =
         mapping.ok_or_else(|| format_err!("could not find objset id for dataset"))?;
-    let (_, stat) = parse_objset_stat(&pool, &objset_id)?;
-    Ok(stat)
+
+    match parse_objset_stat(&pool, &objset_id) {
+        Ok((_, stat)) => Ok(stat),
+        Err(err) => {
+            // on error remove dataset from map, it probably vanished or the
+            // mapping was incorrect
+            ZFS_DATASET_OBJSET_MAP.lock().unwrap().remove(dataset);
+            Err(err)
+        }
+    }
 }
