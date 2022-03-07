@@ -442,3 +442,44 @@ pub enum RRDTimeFrame {
     /// Decade (10 years)
     Decade,
 }
+
+#[api]
+#[derive(Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+/// type of the realm
+pub enum RealmType {
+    /// The PAM realm
+    Pam,
+    /// The PBS realm
+    Pbs,
+    /// An OpenID Connect realm
+    OpenId,
+}
+
+#[api(
+    properties: {
+        realm: {
+            schema: REALM_ID_SCHEMA,
+        },
+        "type": {
+            type: RealmType,
+        },
+        comment: {
+            optional: true,
+            schema: SINGLE_LINE_COMMENT_SCHEMA,
+        },
+    },
+)]
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+/// Basic Information about a realm
+pub struct BasicRealmInfo {
+    pub realm: String,
+    #[serde(rename = "type")]
+    pub ty: RealmType,
+    /// True if it is the default realm
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub default: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub comment: Option<String>,
+}

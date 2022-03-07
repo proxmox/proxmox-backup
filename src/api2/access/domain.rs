@@ -1,56 +1,12 @@
 //! List Authentication domains/realms
 
 use anyhow::{Error};
-
-use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use proxmox_router::{Router, RpcEnvironment, Permission};
 use proxmox_schema::api;
 
-use pbs_api_types::{REALM_ID_SCHEMA, SINGLE_LINE_COMMENT_SCHEMA};
-
-#[api]
-#[derive(Deserialize, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
-/// type of the realm
-pub enum RealmType {
-    /// The PAM realm
-    Pam,
-    /// The PBS realm
-    Pbs,
-    /// An OpenID Connect realm
-    OpenId,
-}
-
-#[api(
-    properties: {
-        realm: {
-            schema: REALM_ID_SCHEMA,
-        },
-        "type": {
-            type: RealmType,
-        },
-        comment: {
-            optional: true,
-            schema: SINGLE_LINE_COMMENT_SCHEMA,
-        },
-    },
-)]
-#[derive(Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
-/// Basic Information about a realm
-pub struct BasicRealmInfo {
-    pub realm: String,
-    #[serde(rename = "type")]
-    pub ty: RealmType,
-    /// True if it is the default realm
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub default: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub comment: Option<String>,
-}
-
+use pbs_api_types::BasicRealmInfo;
 
 #[api(
     returns: {
