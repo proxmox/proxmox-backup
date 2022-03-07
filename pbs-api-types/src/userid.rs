@@ -101,6 +101,7 @@ pub const PROXMOX_AUTH_REALM_SCHEMA: Schema = PROXMOX_AUTH_REALM_STRING_SCHEMA.s
 #[api(
     type: String,
     format: &PROXMOX_USER_NAME_FORMAT,
+    min_length: 1,
 )]
 /// The user name part of a user id.
 ///
