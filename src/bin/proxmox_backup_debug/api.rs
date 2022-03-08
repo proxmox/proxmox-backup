@@ -8,8 +8,8 @@ use tokio::signal::unix::{signal, SignalKind};
 use std::collections::HashMap;
 
 use proxmox_router::{cli::*, ApiHandler, ApiMethod, RpcEnvironment, SubRoute};
-use proxmox_schema::{api, ApiType, ParameterSchema, Schema};
 use proxmox_schema::format::DocumentationFormat;
+use proxmox_schema::{api, ApiType, ParameterSchema, Schema};
 
 use pbs_api_types::{PROXMOX_UPID_REGEX, UPID};
 use pbs_client::view_task_result;
@@ -23,7 +23,9 @@ const URL_ASCIISET: percent_encoding::AsciiSet = percent_encoding::NON_ALPHANUME
 macro_rules! complete_api_path {
     ($capability:expr) => {
         |complete_me: &str, _map: &HashMap<String, String>| {
-            proxmox_async::runtime::block_on(async { complete_api_path_do(complete_me, $capability).await })
+            proxmox_async::runtime::block_on(async {
+                complete_api_path_do(complete_me, $capability).await
+            })
         }
     };
 }
@@ -382,8 +384,7 @@ struct ApiDirEntry {
 }
 
 const LS_SCHEMA: &proxmox_schema::Schema =
-    &proxmox_schema::ArraySchema::new("List of child links", &ApiDirEntry::API_SCHEMA)
-        .schema();
+    &proxmox_schema::ArraySchema::new("List of child links", &ApiDirEntry::API_SCHEMA).schema();
 
 async fn get_api_children(
     path: String,
@@ -436,7 +437,11 @@ async fn get_api_children(
     },
 )]
 /// Get API usage information for <path>
-async fn ls(path: Option<String>, mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
+async fn ls(
+    path: Option<String>,
+    mut param: Value,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<(), Error> {
     let output_format = extract_output_format(&mut param);
 
     let options = TableFormatOptions::new()
