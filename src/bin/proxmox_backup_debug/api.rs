@@ -143,7 +143,7 @@ fn get_api_method(
 }
 
 fn merge_parameters(
-    uri_param: HashMap<String, String>,
+    uri_param: &HashMap<String, String>,
     param: Option<Value>,
     schema: ParameterSchema,
 ) -> Result<Value, Error> {
@@ -179,14 +179,18 @@ async fn call_api(
     rpcenv: &mut dyn RpcEnvironment,
     params: Option<Value>,
 ) -> Result<Value, Error> {
+    let (api_method, uri_params) = get_api_method(method, path)?;
+    let mut params = merge_parameters(&uri_params, params, api_method.parameters)?;
+
     if use_http_client() {
-        return call_api_http(method, path, params).await;
+        // remove url parameters here
+        for (param, _) in uri_params {
+            params.as_object_mut().unwrap().remove(&param);
+        }
+        return call_api_http(method, path, Some(params)).await;
     }
 
-    let (method, uri_param) = get_api_method(method, path)?;
-    let params = merge_parameters(uri_param, params, method.parameters)?;
-
-    call_api_code(method, rpcenv, params).await
+    call_api_code(api_method, rpcenv, params).await
 }
 
 async fn call_api_http(method: &str, path: &str, params: Option<Value>) -> Result<Value, Error> {
