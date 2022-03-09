@@ -149,19 +149,23 @@ fn merge_parameters(
     param: Option<Value>,
     schema: ParameterSchema,
 ) -> Result<Value, Error> {
-    let mut param_list: Vec<(String, String)> = vec![];
+    let mut param_list: Vec<(String, String)> = uri_param
+        .iter()
+        .map(|(k, v)| (k.clone(), v.clone()))
+        .collect();
 
-    for (k, v) in uri_param {
-        param_list.push((k.clone(), v.clone()));
+    if let Some(Value::Object(map)) = param {
+        param_list.extend(map.into_iter().map(|(k, v)| {
+            (
+                k,
+                match v {
+                    Value::String(s) => s,
+                    _ => unreachable!(), // we're in the CLI
+                },
+            )
+        }));
     }
 
-    let param = param.unwrap_or(json!({}));
-
-    if let Some(map) = param.as_object() {
-        for (k, v) in map {
-            param_list.push((k.clone(), v.as_str().unwrap().to_string()));
-        }
-    }
 
     let params = schema.parse_parameter_strings(&param_list, true)?;
 
