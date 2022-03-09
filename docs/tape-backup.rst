@@ -1023,15 +1023,16 @@ Retention policy:
 
 There should be a (or more) tape-backup jobs for each pool on the corresponding
 weekday. This scheme is still very manageable with one media set per weekday,
-which can even be taken off site easily.
+and could be easily moved off-site.
 
-Multiple pools with different policies
+Multiple Pools with Different Policies
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Alternatively, more complex setups are possible with multiple media pools and
+Complex setups are also possible with multiple media pools configured with
 different allocation and retention policies.
 
-An example would be to have a media pool with weekly allocation:
+An example would be to have two media pools. The first configured with weekly
+allocation and a few weeks of retention:
 
 Allocation policy:
   mon
@@ -1039,7 +1040,7 @@ Allocation policy:
 Retention policy:
   3 weeks
 
-And another pool with yearly allocation that does not expire:
+The second pool configured yearly allocation that does not expire:
 
 Allocation policy:
   yearly
@@ -1049,4 +1050,5 @@ Retention policy:
 
 In combination with suited prune settings and tape backup schedules, this
 achieves long-term storage of some backups, while keeping the current
-backups on smaller media sets that get expired every 4 weeks.
+backups on smaller media sets that get expired every three plus the current
+week (~ 4 weeks).
