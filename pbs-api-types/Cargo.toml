@@ -10,7 +10,7 @@ anyhow = "1.0"
 hex = "0.4.3"
 lazy_static = "1.4"
 percent-encoding = "2.1"
-regex = "1.2"
+regex = "1.5.5"
 serde = { version = "1.0", features = ["derive"] }
 
 proxmox-lang = "1.0.0"
