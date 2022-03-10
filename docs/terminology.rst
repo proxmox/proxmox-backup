@@ -116,7 +116,7 @@ uniquely identifies a specific backup within a datastore.
     vm/104/2019-10-09T08:01:06Z
     host/elsa/2019-11-08T09:48:14Z
 
-As you can see, the time format is RFC3399_ with Coordinated
+As you can see, the time format is RFC3339_ with Coordinated
 Universal Time (UTC_, identified by the trailing *Z*).
 
 

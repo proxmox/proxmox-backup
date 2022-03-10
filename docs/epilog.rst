@@ -35,7 +35,7 @@
 .. _ZFS: https://en.wikipedia.org/wiki/ZFS
 .. _Proxmox VE: https://pve.proxmox.com
 
-.. _RFC3399: https://tools.ietf.org/html/rfc3339
+.. _RFC3339: https://tools.ietf.org/html/rfc3339
 .. _UTC: https://en.wikipedia.org/wiki/Coordinated_Universal_Time
 .. _ISO Week date: https://en.wikipedia.org/wiki/ISO_week_date
 

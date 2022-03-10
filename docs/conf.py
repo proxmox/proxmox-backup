@@ -77,7 +77,7 @@ project = 'Proxmox Backup'
 copyright = '2019-2021, Proxmox Server Solutions GmbH'
 author = 'Proxmox Support Team'
 
-# The version info for the project you're documenting, acts as replacement for
+# The version info for the project you're documenting, acts as a replacement for
 # |version| and |release|, also used in various other places throughout the
 # built documents.
 #

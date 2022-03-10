@@ -1,7 +1,7 @@
 /// Control magnetic tape drive operation
 ///
 /// This is a Rust implementation, using the Proxmox userspace tape
-/// driver. This is meant as replacement fot the 'mt' command line
+/// driver. This is meant as a replacement for the 'mt' command line
 /// tool.
 ///
 /// Features:
