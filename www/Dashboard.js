@@ -239,11 +239,11 @@ Ext.define('PBS.Dashboard', {
 		Ext.String.format(gettext('{0} days'), '{days}') + ')',
 	    },
 	    reference: 'longesttasks',
-	    height: 250,
+	    height: 280,
 	},
 	{
 	    xtype: 'pbsRunningTasks',
-	    height: 250,
+	    height: 280,
 	},
 	{
 	    bind: {
