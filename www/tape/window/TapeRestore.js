@@ -398,10 +398,10 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 			    renderer: Ext.String.htmlEncode,
 			},
 			{
-			    xtype: 'pmxUserSelector',
+			    xtype: 'pbsAuthidSelector',
 			    name: 'owner',
 			    fieldLabel: gettext('Owner'),
-			    emptyText: gettext('Current User'),
+			    emptyText: gettext('Current Auth ID'),
 			    value: null,
 			    allowBlank: true,
 			    skipEmptyText: true,
