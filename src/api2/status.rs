@@ -1,7 +1,7 @@
 //! Datastote status
 
-use anyhow::{Error};
-use serde_json::{json, Value};
+use anyhow::Error;
+use serde_json::Value;
 
 use proxmox_schema::api;
 use proxmox_router::{
@@ -14,7 +14,7 @@ use proxmox_router::{
 use proxmox_router::list_subdirs_api_method;
 
 use pbs_api_types::{
-    Authid, DATASTORE_SCHEMA, RRDMode, RRDTimeFrame,
+    Authid, DataStoreStatusListItem, RRDMode, RRDTimeFrame,
     PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP,
 };
 
@@ -29,47 +29,7 @@ use crate::rrd_cache::extract_rrd_data;
         description: "Lists the Status of the Datastores.",
         type: Array,
         items: {
-            description: "Status of a Datastore",
-            type: Object,
-            properties: {
-                store: {
-                    schema: DATASTORE_SCHEMA,
-                },
-                total: {
-                    type: Integer,
-                    description: "The Size of the underlying storage in bytes",
-                },
-                used: {
-                    type: Integer,
-                    description: "The used bytes of the underlying storage",
-                },
-                avail: {
-                    type: Integer,
-                    description: "The available bytes of the underlying storage",
-                },
-                history: {
-                    type: Array,
-                    optional: true,
-                    description: "A list of usages of the past (last Month).",
-                    items: {
-                        type: Number,
-                        description: "The usage of a time in the past. Either null or between 0.0 and 1.0.",
-                    }
-                },
-                "estimated-full-date": {
-                    type: Integer,
-                    optional: true,
-                    description: "Estimation of the UNIX epoch when the storage will be full.\
-                        This is calculated via a simple Linear Regression (Least Squares)\
-                        of RRD data of the last Month. Missing if there are not enough data points yet.\
-                        If the estimate lies in the past, the usage is decreasing.",
-                },
-                "error": {
-                    type: String,
-                    optional: true,
-                    description: "An error description, for example, when the datastore could not be looked up.",
-                },
-            },
+            type: DataStoreStatusListItem,
         },
     },
     access: {
@@ -81,7 +41,7 @@ pub fn datastore_status(
     _param: Value,
     _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
-    ) -> Result<Value, Error> {
+    ) -> Result<Vec<DataStoreStatusListItem>, Error> {
 
     let (config, _digest) = pbs_config::datastore::config()?;
 
@@ -100,25 +60,33 @@ pub fn datastore_status(
         let datastore = match DataStore::lookup_datastore(store) {
             Ok(datastore) => datastore,
             Err(err) => {
-                list.push(json!({
-                    "store": store,
-                    "total": -1,
-                    "used": -1,
-                    "avail": -1,
-                    "error": err.to_string()
-                }));
+                list.push(DataStoreStatusListItem {
+                    store: store.clone(),
+                    total: 0,
+                    used: 0,
+                    avail: 0,
+                    history: None,
+                    history_start: None,
+                    history_delta: None,
+                    estimated_full_date: None,
+                    error: Some(err.to_string()),
+                });
                 continue;
             }
         };
         let status = crate::tools::disks::disk_usage(&datastore.base_path())?;
 
-        let mut entry = json!({
-            "store": store,
-            "total": status.total,
-            "used": status.used,
-            "avail": status.avail,
-            "gc-status": datastore.last_gc_status(),
-        });
+        let mut entry = DataStoreStatusListItem {
+            store: store.clone(),
+            total: status.total,
+            used: status.used,
+            avail: status.avail,
+            history: None,
+            history_start: None,
+            history_delta: None,
+            estimated_full_date: None,
+            error: None,
+        };
 
         let rrd_dir = format!("datastore/{}", store);
 
@@ -149,23 +117,23 @@ pub fn datastore_status(
                         time_list.push(start + (idx as u64)*reso);
                         let usage = used/total;
                         usage_list.push(usage);
-                        history.push(json!(usage));
+                        history.push(Some(usage));
                     },
                     _ => {
-                        history.push(json!(null))
+                        history.push(None)
                     }
                 }
             }
 
-            entry["history-start"] = start.into();
-            entry["history-delta"] = reso.into();
-            entry["history"] = history.into();
+            entry.history_start = Some(start);
+            entry.history_delta = Some(reso);
+            entry.history = Some(history);
 
             // we skip the calculation for datastores with not enough data
             if usage_list.len() >= 7 {
-                entry["estimated-full-date"] = match linear_regression(&time_list, &usage_list) {
-                    Some((a, b)) if b != 0.0 => Value::from(((1.0 - a) / b).floor() as u64),
-                    _ => Value::from(0),
+                entry.estimated_full_date = match linear_regression(&time_list, &usage_list) {
+                    Some((a, b)) if b != 0.0 => Some(((1.0 - a) / b).floor() as i64),
+                    _ => None,
                 };
             }
         }

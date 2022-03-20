@@ -633,6 +633,48 @@ pub struct DataStoreStatus {
     pub counts: Option<Counts>,
 }
 
+#[api(
+    properties: {
+        store: {
+            schema: DATASTORE_SCHEMA,
+        },
+        history: {
+            type: Array,
+            optional: true,
+            items: {
+                type: Number,
+                description: "The usage of a time in the past. Either null or between 0.0 and 1.0.",
+            }
+        },
+     },
+)]
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all="kebab-case")]
+/// Status of a Datastore
+pub struct DataStoreStatusListItem {
+    pub store: String,
+    /// The Size of the underlying storage in bytes.
+    pub total: u64,
+    /// The used bytes of the underlying storage.
+    pub used: u64,
+    /// The available bytes of the underlying storage.
+    pub avail: u64,
+    /// A list of usages of the past (last Month).
+    pub history: Option<Vec<Option<f64>>>,
+    /// History start time (epoch)
+    pub history_start: Option<u64>,
+    /// History resolution (seconds)
+    pub history_delta: Option<u64>,
+    /// Estimation of the UNIX epoch when the storage will be full.
+    /// This is calculated via a simple Linear Regression (Least
+    /// Squares) of RRD data of the last Month. Missing if there are
+    /// not enough data points yet. If the estimate lies in the past,
+    /// the usage is decreasing.
+    pub estimated_full_date: Option<i64>,
+    /// An error description, for example, when the datastore could not be looked up
+    pub error: Option<String>,
+}
+
 pub const ADMIN_DATASTORE_LIST_SNAPSHOTS_RETURN_TYPE: ReturnType = ReturnType {
     optional: false,
     schema: &ArraySchema::new(
