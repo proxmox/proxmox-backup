@@ -53,7 +53,7 @@ where
     data: String,
     time: i64,
     signature: Option<Vec<u8>>,
-    _type_marker: PhantomData<T>,
+    _type_marker: PhantomData<fn() -> T>,
 }
 
 impl<T> Ticket<T>
