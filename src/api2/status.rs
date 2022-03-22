@@ -62,9 +62,9 @@ pub fn datastore_status(
             Err(err) => {
                 list.push(DataStoreStatusListItem {
                     store: store.clone(),
-                    total: 0,
-                    used: 0,
-                    avail: 0,
+                    total: -1,
+                    used: -1,
+                    avail: -1,
                     history: None,
                     history_start: None,
                     history_delta: None,
@@ -78,9 +78,9 @@ pub fn datastore_status(
 
         let mut entry = DataStoreStatusListItem {
             store: store.clone(),
-            total: status.total,
-            used: status.used,
-            avail: status.avail,
+            total: status.total as i64,
+            used: status.used as i64,
+            avail: status.avail as i64,
             history: None,
             history_start: None,
             history_delta: None,
@@ -133,6 +133,7 @@ pub fn datastore_status(
             if usage_list.len() >= 7 {
                 entry.estimated_full_date = match linear_regression(&time_list, &usage_list) {
                     Some((a, b)) if b != 0.0 => Some(((1.0 - a) / b).floor() as i64),
+                    Some((_, b)) if b == 0.0 => Some(0), // infinite estimate, set to past for gui to detect
                     _ => None,
                 };
             }

@@ -653,25 +653,30 @@ pub struct DataStoreStatus {
 /// Status of a Datastore
 pub struct DataStoreStatusListItem {
     pub store: String,
-    /// The Size of the underlying storage in bytes.
-    pub total: u64,
-    /// The used bytes of the underlying storage.
-    pub used: u64,
-    /// The available bytes of the underlying storage.
-    pub avail: u64,
+    /// The Size of the underlying storage in bytes. (-1 on error)
+    pub total: i64,
+    /// The used bytes of the underlying storage. (-1 on error)
+    pub used: i64,
+    /// The available bytes of the underlying storage. (-1 on error)
+    pub avail: i64,
     /// A list of usages of the past (last Month).
+    #[serde(skip_serializing_if="Option::is_none")]
     pub history: Option<Vec<Option<f64>>>,
     /// History start time (epoch)
+    #[serde(skip_serializing_if="Option::is_none")]
     pub history_start: Option<u64>,
     /// History resolution (seconds)
+    #[serde(skip_serializing_if="Option::is_none")]
     pub history_delta: Option<u64>,
     /// Estimation of the UNIX epoch when the storage will be full.
     /// This is calculated via a simple Linear Regression (Least
     /// Squares) of RRD data of the last Month. Missing if there are
     /// not enough data points yet. If the estimate lies in the past,
-    /// the usage is decreasing.
+    /// the usage is decreasing or not changing.
+    #[serde(skip_serializing_if="Option::is_none")]
     pub estimated_full_date: Option<i64>,
     /// An error description, for example, when the datastore could not be looked up
+    #[serde(skip_serializing_if="Option::is_none")]
     pub error: Option<String>,
 }
 
