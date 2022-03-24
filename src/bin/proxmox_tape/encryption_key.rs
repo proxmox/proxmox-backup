@@ -1,8 +1,8 @@
-use anyhow::{bail, Error};
+use anyhow::{bail, format_err, Error};
 use serde_json::Value;
 
 use proxmox_router::{cli::*, ApiHandler, RpcEnvironment};
-use proxmox_schema::api;
+use proxmox_schema::{api, param_bail};
 use proxmox_sys::linux::tty;
 
 use pbs_api_types::{
@@ -12,6 +12,7 @@ use pbs_api_types::{
 
 use pbs_datastore::paperkey::{PaperkeyFormat, generate_paper_key};
 use pbs_config::tape_encryption_keys::{load_key_configs,complete_key_fingerprint};
+use pbs_config::key_config::KeyConfig;
 
 use proxmox_backup::api2;
 
@@ -186,11 +187,19 @@ fn change_passphrase(
     Ok(())
 }
 
+pub const BEGIN_MARKER: &str = "-----BEGIN PROXMOX BACKUP KEY-----";
+pub const END_MARKER: &str = "-----END PROXMOX BACKUP KEY-----";
+
 #[api(
     input: {
         properties: {
             drive: {
                 schema: DRIVE_NAME_SCHEMA,
+                optional: true,
+            },
+            "backupkey": {
+                description: "Importing a previously exported backupkey with either an exported paperkey-file, json-string or a json-file",
+                type: String,
                 optional: true,
             },
         },
@@ -199,17 +208,59 @@ fn change_passphrase(
 /// Restore encryption key from tape (read password from stdin)
 async fn restore_key(
     mut param: Value,
+    backupkey: Option<String>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
 
     let (config, _digest) = pbs_config::drive::config()?;
-    param["drive"] = crate::extract_drive_name(&mut param, &config)?.into();
+
+    let drive = crate::extract_drive_name(&mut param, &config);
 
     if !tty::stdin_isatty() {
         bail!("no password input mechanism available");
     }
 
-    let password = tty::read_password("Tepe Encryption Key Password: ")?;
+    if (drive.is_err() && backupkey.is_none()) || (drive.is_ok() && backupkey.is_some()) {
+        param_bail!(
+            "drive",
+            format_err!("Please specify either a valid drive name or a backupkey")
+        );
+    }
+
+    if drive.is_ok() {
+        param["drive"] = drive.unwrap().into();
+    }
+
+    if let Some(backupkey) = backupkey {
+        if serde_json::from_str::<KeyConfig>(&backupkey).is_ok() {
+            // json as Parameter
+            println!("backupkey to import: {}", backupkey);
+            param["backupkey"] = backupkey.into();
+        } else {
+            println!("backupkey is not a valid json. Interpreting Parameter as a filename");
+            let data = proxmox_sys::fs::file_read_string(backupkey)?;
+            if serde_json::from_str::<KeyConfig>(&data).is_ok() {
+                // standalone json-file
+                println!("backupkey to import: {}", data);
+                param["backupkey"] = data.into();
+            } else {
+                // exported paperkey-file
+                let start = data
+                    .find(BEGIN_MARKER)
+                    .ok_or_else(|| format_err!("cannot find key start marker"))?
+                    + BEGIN_MARKER.len();
+                let data_remain = &data[start..];
+                let end = data_remain
+                    .find(END_MARKER)
+                    .ok_or_else(|| format_err!("cannot find key end marker below start marker"))?;
+                let backupkey_extract = &data_remain[..end];
+                println!("backupkey to import: {}", backupkey_extract);
+                param["backupkey"] = backupkey_extract.into();
+            }
+        }
+    }
+
+    let password = tty::read_password("Tape Encryption Key Password: ")?;
     param["password"] = String::from_utf8(password)?.into();
 
     let info = &api2::tape::drive::API_METHOD_RESTORE_KEY;

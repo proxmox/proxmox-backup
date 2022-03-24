@@ -10,7 +10,7 @@ use proxmox_sys::sortable;
 use proxmox_router::{
     list_subdirs_api_method, Permission, Router, RpcEnvironment, RpcEnvironmentType, SubdirMap,
 };
-use proxmox_schema::api;
+use proxmox_schema::{api, param_bail};
 use proxmox_section_config::SectionConfigData;
 use proxmox_uuid::Uuid;
 use proxmox_sys::{task_log, task_warn};
@@ -24,6 +24,8 @@ use pbs_api_types::{
 use pbs_api_types::{PRIV_TAPE_AUDIT, PRIV_TAPE_READ, PRIV_TAPE_WRITE};
 
 use pbs_config::CachedUserInfo;
+use pbs_config::key_config::KeyConfig;
+use pbs_config::tape_encryption_keys::insert_key;
 use pbs_tape::{
     BlockReadError,
     sg_tape::tape_alert_flags_critical,
@@ -607,9 +609,17 @@ fn write_media_label(
         properties: {
             drive: {
                 schema: DRIVE_NAME_SCHEMA,
+                optional: true,
             },
             password: {
                 description: "Encryption key password.",
+            },
+            backupkey: {
+                description: "A previously exported paperkey in JSON format.",
+                type: String,
+                min_length: 300,
+                max_length: 600,
+                optional: true,
             },
         },
     },
@@ -619,29 +629,48 @@ fn write_media_label(
 )]
 /// Try to restore a tape encryption key
 pub async fn restore_key(
-    drive: String,
+    drive: Option<String>,
     password: String,
+    backupkey: Option<String>,
 ) -> Result<(), Error> {
-    run_drive_blocking_task(
-        drive.clone(),
-        "restore key".to_string(),
-        move |config| {
-            let mut drive = open_drive(&config, &drive)?;
 
-            let (_media_id, key_config) = drive.read_label()?;
+    if (drive.is_none() && backupkey.is_none()) || (drive.is_some() && backupkey.is_some()) {
+        param_bail!(
+            "drive",
+            format_err!("Please specify either a valid drive name or a backupkey")
+        );
+    }
 
-            if let Some(key_config) = key_config {
-                let password_fn = || { Ok(password.as_bytes().to_vec()) };
-                let (key, ..) = key_config.decrypt(&password_fn)?;
-                pbs_config::tape_encryption_keys::insert_key(key, key_config, true)?;
-            } else {
-                bail!("media does not contain any encryption key configuration");
+    if let Some(drive) = drive {
+        run_drive_blocking_task(
+            drive.clone(),
+            "restore key".to_string(),
+            move |config| {
+                let mut drive = open_drive(&config, &drive)?;
+
+                let (_media_id, key_config) = drive.read_label()?;
+
+                if let Some(key_config) = key_config {
+                    let password_fn = || { Ok(password.as_bytes().to_vec()) };
+                    let (key, ..) = key_config.decrypt(&password_fn)?;
+                    insert_key(key, key_config, true)?;
+                } else {
+                    bail!("media does not contain any encryption key configuration");
+                }
+
+                Ok(())
             }
+        )
+        .await?;
+    }else if let Some(backupkey) = backupkey {
+        let key_config: KeyConfig =
+                serde_json::from_str(&backupkey).map_err(|err| format_err!("<errmsg>: {}", err))?;
+        let password_fn = || Ok(password.as_bytes().to_vec());
+        let (key, ..) = key_config.decrypt(&password_fn)?;
+        insert_key(key, key_config, false)?;
+    }
 
-            Ok(())
-        }
-    )
-    .await
+    Ok(())
 }
 
  #[api(
