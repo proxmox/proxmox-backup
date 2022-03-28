@@ -175,6 +175,9 @@ Lines ending in ``/`` match only on directories.
 The directory containing the ``.pxarexclude`` file is considered to be the root of
 the given patterns. It is only possible to match files in this directory and its subdirectories.
 
+.. Note:: Patterns without a leading ``/`` will also match in subdirectories,
+   while patterns with a leading ``/`` will only match in the current directory.
+
 ``\`` is used to escape special glob characters.
 ``?`` matches any single character.
 ``*`` matches any character, including an empty string.
