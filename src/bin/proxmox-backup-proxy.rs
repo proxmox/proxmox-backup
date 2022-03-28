@@ -847,6 +847,11 @@ async fn schedule_task_log_rotate() {
                 let max_size = 512 * 1024 - 1; // an entry has ~ 100b, so > 5000 entries/file
                 let max_files = 20; // times twenty files gives > 100000 task entries
 
+                let max_days = proxmox_backup::config::node::config()
+                    .map(|(cfg, _)| cfg.task_log_max_days)
+                    .ok()
+                    .flatten();
+
                 let user = pbs_config::backup_user()?;
                 let options = proxmox_sys::fs::CreateOptions::new()
                     .owner(user.uid)
@@ -856,6 +861,7 @@ async fn schedule_task_log_rotate() {
                     max_size,
                     true,
                     Some(max_files),
+                    max_days,
                     Some(options.clone()),
                 )?;
 

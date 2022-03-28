@@ -211,20 +211,67 @@ pub fn init_worker_tasks(basedir: PathBuf, file_opts: CreateOptions) -> Result<(
 }
 
 /// checks if the Task Archive is bigger that 'size_threshold' bytes, and
-/// rotates it if it is
+/// rotates it if it is, keeps only up to 'max_files'.
+/// If 'max_days' is given, 'max_files' is ignored, and all archive files
+/// will be deleted where there are only tasks that are older than the given days.
 pub fn rotate_task_log_archive(
     size_threshold: u64,
     compress: bool,
     max_files: Option<usize>,
+    max_days: Option<usize>,
     options: Option<CreateOptions>,
 ) -> Result<bool, Error> {
     let setup = worker_task_setup()?;
 
     let _lock = setup.lock_task_list_files(true)?;
 
-    let mut logrotate = LogRotate::new(&setup.task_archive_fn, compress, max_files, options)?;
+    let mut logrotate = LogRotate::new(
+        &setup.task_archive_fn,
+        compress,
+        if max_days.is_none() { max_files } else { None },
+        options,
+    )?;
 
-    logrotate.rotate(size_threshold)
+    let mut rotated = logrotate.rotate(size_threshold)?;
+
+    if let Some(max_days) = max_days {
+        let mut delete = false;
+        let file_names = logrotate.file_names();
+        let mut files = logrotate.files();
+        for file_name in file_names {
+            if !delete {
+                // we only have to check if we did not start deleting already
+
+                // this is ok because the task log files are locked, so no one
+                // else should modify these
+                let reader = match files.next() {
+                    Some(file) => BufReader::new(file),
+                    None => {
+                        bail!("unexpected error: files do not match file_names");
+                    }
+                };
+                if let Some(line) = reader.lines().next() {
+                    if let Ok((_, _, Some(state))) = parse_worker_status_line(&line?) {
+                        // we approximate here with the days, but should be close enough
+                        let cutoff_time =
+                            proxmox_time::epoch_i64() - (max_days * 24 * 60 * 60) as i64;
+                        if state.endtime() < cutoff_time {
+                            // we found the first file that has only older entries, start deleting
+                            delete = true;
+                            rotated = true;
+                        }
+                    }
+                }
+            }
+            if delete {
+                if let Err(err) = std::fs::remove_file(&file_name) {
+                    log::error!("could not remove {:?}: {}", file_name, err);
+                }
+            }
+        }
+    }
+
+    Ok(rotated)
 }
 
 /// removes all task logs that are older than the oldest task entry in the
