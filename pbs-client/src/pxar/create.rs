@@ -549,9 +549,10 @@ impl Archiver {
 
         let metadata = get_metadata(fd.as_raw_fd(), stat, self.flags(), self.fs_magic, &mut self.fs_feature_flags)?;
 
+        let match_path = PathBuf::from("/").join(self.path.clone());
         if self
             .patterns
-            .matches(self.path.as_os_str().as_bytes(), Some(stat.st_mode as u32))
+            .matches(match_path.as_os_str().as_bytes(), Some(stat.st_mode as u32))
             == Some(MatchType::Exclude)
         {
             return Ok(());
