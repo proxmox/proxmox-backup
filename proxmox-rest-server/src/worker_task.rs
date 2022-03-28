@@ -20,6 +20,7 @@ use proxmox_lang::try_block;
 use proxmox_schema::upid::UPID;
 use proxmox_sys::fs::{atomic_open_or_create_file, create_path, replace_file, CreateOptions};
 use proxmox_sys::linux::procfs;
+use proxmox_sys::task_warn;
 
 use proxmox_sys::logrotate::{LogRotate, LogRotateFiles};
 use proxmox_sys::WorkerTaskContext;
@@ -228,7 +229,7 @@ pub fn rotate_task_log_archive(
 
 /// removes all task logs that are older than the oldest task entry in the
 /// task archive
-pub fn cleanup_old_tasks(compressed: bool) -> Result<(), Error> {
+pub fn cleanup_old_tasks(worker: &dyn WorkerTaskContext, compressed: bool) -> Result<(), Error> {
     let setup = worker_task_setup()?;
 
     let _lock = setup.lock_task_list_files(true)?;
@@ -262,18 +263,44 @@ pub fn cleanup_old_tasks(compressed: bool) -> Result<(), Error> {
         for i in 0..256 {
             let mut path = setup.taskdir.clone();
             path.push(format!("{:02X}", i));
-            for file in std::fs::read_dir(path)? {
-                let file = file?;
+            let files = match std::fs::read_dir(path) {
+                Ok(files) => files,
+                Err(err) if err.kind() == std::io::ErrorKind::NotFound => continue,
+                Err(err) => {
+                    task_warn!(worker, "could not check task logs in '{:02X}': {}", i, err);
+                    continue;
+                }
+            };
+            for file in files {
+                let file = match file {
+                    Ok(file) => file,
+                    Err(err) => {
+                        task_warn!(
+                            worker,
+                            "could not check some task log in '{:02X}': {}",
+                            i,
+                            err
+                        );
+                        continue;
+                    }
+                };
                 let path = file.path();
 
-                let modified = get_modified(file)
-                    .map_err(|err| format_err!("error getting mtime for {:?}: {}", path, err))?;
+                let modified = match get_modified(file) {
+                    Ok(modified) => modified,
+                    Err(err) => {
+                        task_warn!(worker, "error getting mtime for '{:?}': {}", path, err);
+                        continue;
+                    }
+                };
 
                 if modified < cutoff_time {
-                    match std::fs::remove_file(path) {
+                    match std::fs::remove_file(&path) {
                         Ok(()) => {}
                         Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
-                        Err(err) => bail!("could not remove file: {}", err),
+                        Err(err) => {
+                            task_warn!(worker, "could not remove file '{:?}': {}", path, err)
+                        }
                     }
                 }
             }

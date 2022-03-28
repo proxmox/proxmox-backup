@@ -900,7 +900,7 @@ async fn schedule_task_log_rotate() {
 
                 if has_rotated {
                     task_log!(worker, "cleaning up old task logs");
-                    if let Err(err) = cleanup_old_tasks(true) {
+                    if let Err(err) = cleanup_old_tasks(&worker, true) {
                         task_warn!(worker, "could not completely cleanup old tasks: {}", err);
                     }
                 }
