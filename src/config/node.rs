@@ -222,6 +222,10 @@ pub struct NodeConfig {
     /// Node description
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+
+    /// Maximum days to keep Task logs
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub task_log_max_days: Option<usize>,
 }
 
 impl NodeConfig {
