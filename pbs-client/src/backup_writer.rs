@@ -289,22 +289,28 @@ impl BackupWriter {
             // try, but ignore errors
             match ArchiveType::from_path(archive_name) {
                 Ok(ArchiveType::FixedIndex) => {
-                    let _ = self
+                    if let Err(err) = self
                         .download_previous_fixed_index(
                             archive_name,
                             &manifest,
                             known_chunks.clone(),
                         )
-                        .await;
+                        .await
+                    {
+                        eprintln!("Error downloading .fidx from previous manifest: {}", err);
+                    }
                 }
                 Ok(ArchiveType::DynamicIndex) => {
-                    let _ = self
+                    if let Err(err) = self
                         .download_previous_dynamic_index(
                             archive_name,
                             &manifest,
                             known_chunks.clone(),
                         )
-                        .await;
+                        .await
+                    {
+                        eprintln!("Error downloading .didx from previous manifest: {}", err);
+                    }
                 }
                 _ => { /* do nothing */ }
             }
