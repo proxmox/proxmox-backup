@@ -3,16 +3,16 @@
 use anyhow::Error;
 use serde_json::Value;
 
-use proxmox_schema::api;
 use proxmox_router::{list_subdirs_api_method, Router, SubdirMap};
+use proxmox_schema::api;
 
 use pbs_api_types::TapeDeviceInfo;
-use pbs_tape::linux_list_drives::{lto_tape_device_list, linux_tape_changer_list};
+use pbs_tape::linux_list_drives::{linux_tape_changer_list, lto_tape_device_list};
 
-pub mod drive;
-pub mod changer;
-pub mod media;
 pub mod backup;
+pub mod changer;
+pub mod drive;
+pub mod media;
 pub mod restore;
 
 #[api(
@@ -29,7 +29,6 @@ pub mod restore;
 )]
 /// Scan tape drives
 pub fn scan_drives(_param: Value) -> Result<Vec<TapeDeviceInfo>, Error> {
-
     let list = lto_tape_device_list();
 
     Ok(list)
@@ -49,7 +48,6 @@ pub fn scan_drives(_param: Value) -> Result<Vec<TapeDeviceInfo>, Error> {
 )]
 /// Scan for SCSI tape changers
 pub fn scan_changers(_param: Value) -> Result<Vec<TapeDeviceInfo>, Error> {
-
     let list = linux_tape_changer_list();
 
     Ok(list)
@@ -63,14 +61,9 @@ const SUBDIRS: SubdirMap = &[
     ("restore", &restore::ROUTER),
     (
         "scan-changers",
-        &Router::new()
-            .get(&API_METHOD_SCAN_CHANGERS),
+        &Router::new().get(&API_METHOD_SCAN_CHANGERS),
     ),
-    (
-        "scan-drives",
-        &Router::new()
-            .get(&API_METHOD_SCAN_DRIVES),
-    ),
+    ("scan-drives", &Router::new().get(&API_METHOD_SCAN_DRIVES)),
 ];
 
 pub const ROUTER: Router = Router::new()

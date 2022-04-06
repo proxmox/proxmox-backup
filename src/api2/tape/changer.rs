@@ -4,8 +4,8 @@ use std::path::Path;
 use anyhow::Error;
 use serde_json::Value;
 
-use proxmox_schema::api;
 use proxmox_router::{list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap};
+use proxmox_schema::api;
 
 use pbs_api_types::{
     Authid, ChangerListEntry, LtoTapeDrive, MtxEntryKind, MtxStatusEntry, ScsiTapeChanger,
@@ -13,23 +13,15 @@ use pbs_api_types::{
 };
 use pbs_config::CachedUserInfo;
 use pbs_tape::{
+    linux_list_drives::{linux_tape_changer_list, lookup_device_identification},
     ElementStatus,
-    linux_list_drives::{lookup_device_identification, linux_tape_changer_list},
 };
 
-use crate::{
-    tape::{
-        TAPE_STATUS_DIR,
-        Inventory,
-        changer::{
-            OnlineStatusMap,
-            ScsiMediaChange,
-            mtx_status_to_online_set,
-        },
-        drive::get_tape_device_state,
-    },
+use crate::tape::{
+    changer::{mtx_status_to_online_set, OnlineStatusMap, ScsiMediaChange},
+    drive::get_tape_device_state,
+    Inventory, TAPE_STATUS_DIR,
 };
-
 
 #[api(
     input: {
@@ -56,18 +48,12 @@ use crate::{
     },
 )]
 /// Get tape changer status
-pub async fn get_status(
-    name: String,
-    cache: bool,
-) -> Result<Vec<MtxStatusEntry>, Error> {
-
+pub async fn get_status(name: String, cache: bool) -> Result<Vec<MtxStatusEntry>, Error> {
     let (config, _digest) = pbs_config::drive::config()?;
 
     let mut changer_config: ScsiTapeChanger = config.lookup("changer", &name)?;
 
-    let status = tokio::task::spawn_blocking(move || {
-        changer_config.status(cache)
-    }).await??;
+    let status = tokio::task::spawn_blocking(move || changer_config.status(cache)).await??;
 
     let state_path = Path::new(TAPE_STATUS_DIR);
     let mut inventory = Inventory::load(state_path)?;
@@ -155,12 +141,7 @@ pub async fn get_status(
     },
 )]
 /// Transfers media from one slot to another
-pub async fn transfer(
-    name: String,
-    from: u64,
-    to: u64,
-) -> Result<(), Error> {
-
+pub async fn transfer(name: String, from: u64, to: u64) -> Result<(), Error> {
     let (config, _digest) = pbs_config::drive::config()?;
 
     let mut changer_config: ScsiTapeChanger = config.lookup("changer", &name)?;
@@ -168,7 +149,8 @@ pub async fn transfer(
     tokio::task::spawn_blocking(move || {
         changer_config.transfer(from, to)?;
         Ok(())
-    }).await?
+    })
+    .await?
 }
 
 #[api(
@@ -210,23 +192,18 @@ pub fn list_changers(
         }
 
         let info = lookup_device_identification(&linux_changers, &changer.path);
-        let entry = ChangerListEntry { config: changer, info };
+        let entry = ChangerListEntry {
+            config: changer,
+            info,
+        };
         list.push(entry);
     }
     Ok(list)
 }
 
 const SUBDIRS: SubdirMap = &[
-    (
-        "status",
-        &Router::new()
-            .get(&API_METHOD_GET_STATUS)
-    ),
-    (
-        "transfer",
-        &Router::new()
-            .post(&API_METHOD_TRANSFER)
-    ),
+    ("status", &Router::new().get(&API_METHOD_GET_STATUS)),
+    ("transfer", &Router::new().post(&API_METHOD_TRANSFER)),
 ];
 
 const ITEM_ROUTER: Router = Router::new()

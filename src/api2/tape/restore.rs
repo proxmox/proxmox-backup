@@ -1,71 +1,53 @@
-use std::path::{Path, PathBuf};
-use std::ffi::OsStr;
-use std::collections::{HashMap, HashSet, BTreeMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::convert::TryFrom;
+use std::ffi::OsStr;
 use std::io::{Seek, SeekFrom};
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use anyhow::{bail, format_err, Error};
 use serde_json::Value;
 
-use proxmox_sys::fs::{replace_file, CreateOptions};
 use proxmox_io::ReadExt;
 use proxmox_router::{Permission, Router, RpcEnvironment, RpcEnvironmentType};
 use proxmox_schema::api;
 use proxmox_section_config::SectionConfigData;
-use proxmox_uuid::Uuid;
+use proxmox_sys::fs::{replace_file, CreateOptions};
 use proxmox_sys::{task_log, task_warn, WorkerTaskContext};
+use proxmox_uuid::Uuid;
 
 use pbs_api_types::{
-    Authid, Userid, CryptMode,
-    DATASTORE_MAP_ARRAY_SCHEMA, DATASTORE_MAP_LIST_SCHEMA, DRIVE_NAME_SCHEMA,
-    UPID_SCHEMA, TAPE_RESTORE_SNAPSHOT_SCHEMA,
-    PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY, PRIV_TAPE_READ,
+    Authid, CryptMode, Userid, DATASTORE_MAP_ARRAY_SCHEMA, DATASTORE_MAP_LIST_SCHEMA,
+    DRIVE_NAME_SCHEMA, PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY, PRIV_TAPE_READ,
+    TAPE_RESTORE_SNAPSHOT_SCHEMA, UPID_SCHEMA,
 };
-use pbs_datastore::{DataStore, DataBlob};
+use pbs_config::CachedUserInfo;
 use pbs_datastore::backup_info::BackupDir;
 use pbs_datastore::dynamic_index::DynamicIndexReader;
 use pbs_datastore::fixed_index::FixedIndexReader;
 use pbs_datastore::index::IndexFile;
 use pbs_datastore::manifest::{archive_type, ArchiveType, BackupManifest, MANIFEST_BLOB_NAME};
-use pbs_config::CachedUserInfo;
+use pbs_datastore::{DataBlob, DataStore};
 use pbs_tape::{
-    TapeRead, BlockReadError, MediaContentHeader,
-    PROXMOX_BACKUP_CONTENT_HEADER_MAGIC_1_0,
+    BlockReadError, MediaContentHeader, TapeRead, PROXMOX_BACKUP_CONTENT_HEADER_MAGIC_1_0,
 };
 use proxmox_rest_server::WorkerTask;
 
 use crate::{
-    tools::parallel_handler::ParallelHandler,
     server::lookup_user_email,
     tape::{
-        TAPE_STATUS_DIR,
-        MediaId,
-        MediaSet,
-        MediaCatalog,
-        MediaSetCatalog,
-        Inventory,
-        lock_media_set,
+        drive::{lock_tape_device, request_and_load_media, set_tape_device_state, TapeDriver},
         file_formats::{
-            PROXMOX_BACKUP_MEDIA_LABEL_MAGIC_1_0,
-            PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_0,
+            CatalogArchiveHeader, ChunkArchiveDecoder, ChunkArchiveHeader, SnapshotArchiveHeader,
+            PROXMOX_BACKUP_CATALOG_ARCHIVE_MAGIC_1_0, PROXMOX_BACKUP_CHUNK_ARCHIVE_MAGIC_1_0,
+            PROXMOX_BACKUP_CHUNK_ARCHIVE_MAGIC_1_1, PROXMOX_BACKUP_MEDIA_LABEL_MAGIC_1_0,
+            PROXMOX_BACKUP_MEDIA_SET_LABEL_MAGIC_1_0, PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_0,
             PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_1,
-            PROXMOX_BACKUP_MEDIA_SET_LABEL_MAGIC_1_0,
-            PROXMOX_BACKUP_CHUNK_ARCHIVE_MAGIC_1_0,
-            PROXMOX_BACKUP_CHUNK_ARCHIVE_MAGIC_1_1,
-            PROXMOX_BACKUP_CATALOG_ARCHIVE_MAGIC_1_0,
-            ChunkArchiveHeader,
-            ChunkArchiveDecoder,
-            SnapshotArchiveHeader,
-            CatalogArchiveHeader,
         },
-        drive::{
-            TapeDriver,
-            request_and_load_media,
-            lock_tape_device,
-            set_tape_device_state,
-        },
+        lock_media_set, Inventory, MediaCatalog, MediaId, MediaSet, MediaSetCatalog,
+        TAPE_STATUS_DIR,
     },
+    tools::parallel_handler::ParallelHandler,
 };
 
 const RESTORE_TMP_DIR: &str = "/var/tmp/proxmox-backup";
@@ -306,16 +288,11 @@ pub fn restore(
             }
 
             if let Err(err) = set_tape_device_state(&drive, "") {
-                task_log!(
-                    worker,
-                    "could not unset drive state for {}: {}",
-                    drive,
-                    err
-                );
+                task_log!(worker, "could not unset drive state for {}: {}", drive, err);
             }
 
             res
-        }
+        },
     )?;
 
     Ok(upid_str.into())
@@ -342,12 +319,19 @@ fn restore_full_worker(
     for (seq_nr, media_uuid) in media_list.iter().enumerate() {
         match media_uuid {
             None => {
-                bail!("media set {} is incomplete (missing member {}).", media_set_uuid, seq_nr);
+                bail!(
+                    "media set {} is incomplete (missing member {}).",
+                    media_set_uuid,
+                    seq_nr
+                );
             }
             Some(media_uuid) => {
                 let media_id = inventory.lookup_media(media_uuid).unwrap();
-                if let Some(ref set) = media_id.media_set_label { // always true here
-                    if encryption_key_fingerprint.is_none() && set.encryption_key_fingerprint.is_some() {
+                if let Some(ref set) = media_id.media_set_label {
+                    // always true here
+                    if encryption_key_fingerprint.is_none()
+                        && set.encryption_key_fingerprint.is_some()
+                    {
                         encryption_key_fingerprint = set.encryption_key_fingerprint.clone();
                     }
                 }
@@ -364,21 +348,22 @@ fn restore_full_worker(
         worker,
         "Datastore(s): {}",
         store_map
-        .used_datastores()
-        .into_iter()
-        .map(String::from)
-        .collect::<Vec<String>>()
-        .join(", "),
+            .used_datastores()
+            .into_iter()
+            .map(String::from)
+            .collect::<Vec<String>>()
+            .join(", "),
     );
 
     task_log!(worker, "Drive: {}", drive_name);
     task_log!(
         worker,
         "Required media list: {}",
-        media_id_list.iter()
-        .map(|media_id| media_id.label.label_text.as_str())
-        .collect::<Vec<&str>>()
-        .join(";")
+        media_id_list
+            .iter()
+            .map(|media_id| media_id.label.label_text.as_str())
+            .collect::<Vec<&str>>()
+            .join(";")
     );
 
     let mut datastore_locks = Vec::new();
@@ -529,11 +514,13 @@ fn restore_list_worker(
                 &info,
                 &media_set_uuid,
                 &mut datastore_chunk_map,
-            ).map_err(|err| format_err!("could not restore snapshots to tmpdir: {}", err))?;
+            )
+            .map_err(|err| format_err!("could not restore snapshots to tmpdir: {}", err))?;
         }
 
         // sorted media_uuid => (sorted file_num => (set of digests)))
-        let mut media_file_chunk_map: BTreeMap<Uuid, BTreeMap<u64, HashSet<[u8; 32]>>> = BTreeMap::new();
+        let mut media_file_chunk_map: BTreeMap<Uuid, BTreeMap<u64, HashSet<[u8; 32]>>> =
+            BTreeMap::new();
 
         for (source_datastore, chunks) in datastore_chunk_map.into_iter() {
             let datastore = store_map.get_datastore(&source_datastore).ok_or_else(|| {
@@ -546,7 +533,9 @@ fn restore_list_worker(
                 // we only want to restore chunks that we do not have yet
                 if !datastore.cond_touch_chunk(&digest, false)? {
                     if let Some((uuid, nr)) = catalog.lookup_chunk(&source_datastore, &digest) {
-                        let file = media_file_chunk_map.entry(uuid.clone()).or_insert_with(BTreeMap::new);
+                        let file = media_file_chunk_map
+                            .entry(uuid.clone())
+                            .or_insert_with(BTreeMap::new);
                         let chunks = file.entry(nr).or_insert_with(HashSet::new);
                         chunks.insert(digest);
                     }
@@ -590,9 +579,9 @@ fn restore_list_worker(
                     .ok_or_else(|| format_err!("invalid snapshot:{}", store_snapshot))?;
                 let backup_dir: BackupDir = snapshot.parse()?;
 
-                let datastore = store_map
-                    .get_datastore(source_datastore)
-                    .ok_or_else(|| format_err!("unexpected source datastore: {}", source_datastore))?;
+                let datastore = store_map.get_datastore(source_datastore).ok_or_else(|| {
+                    format_err!("unexpected source datastore: {}", source_datastore)
+                })?;
 
                 let mut tmp_path = base_path.clone();
                 tmp_path.push(&source_datastore);
@@ -608,13 +597,17 @@ fn restore_list_worker(
                 }
                 task_log!(worker, "Restore snapshot '{}' done", snapshot);
                 Ok(())
-            }).map_err(|err: Error| format_err!("could not copy {}: {}", store_snapshot, err))?;
+            })
+            .map_err(|err: Error| format_err!("could not copy {}: {}", store_snapshot, err))?;
         }
         Ok(())
     });
 
     if res.is_err() {
-        task_warn!(worker, "Error during restore, partially restored snapshots will NOT be cleaned up");
+        task_warn!(
+            worker,
+            "Error during restore, partially restored snapshots will NOT be cleaned up"
+        );
     }
 
     match std::fs::remove_dir_all(&base_path) {
@@ -693,7 +686,12 @@ fn restore_snapshots_to_tmpdir(
     for file_num in file_list {
         let current_file_number = drive.current_file_number()?;
         if current_file_number != *file_num {
-            task_log!(worker, "was at file {}, moving to {}", current_file_number, file_num);
+            task_log!(
+                worker,
+                "was at file {}, moving to {}",
+                current_file_number,
+                file_num
+            );
             drive.move_to_file(*file_num)?;
             let current_file_number = drive.current_file_number()?;
             task_log!(worker, "now at file {}", current_file_number);
@@ -735,7 +733,8 @@ fn restore_snapshots_to_tmpdir(
                 let chunks = chunks_list
                     .entry(source_datastore)
                     .or_insert_with(HashSet::new);
-                let manifest = try_restore_snapshot_archive(worker.clone(), &mut decoder, &tmp_path)?;
+                let manifest =
+                    try_restore_snapshot_archive(worker.clone(), &mut decoder, &tmp_path)?;
                 for item in manifest.files() {
                     let mut archive_path = tmp_path.to_owned();
                     archive_path.push(&item.filename);
@@ -744,9 +743,7 @@ fn restore_snapshots_to_tmpdir(
                         ArchiveType::DynamicIndex => {
                             Box::new(DynamicIndexReader::open(&archive_path)?)
                         }
-                        ArchiveType::FixedIndex => {
-                            Box::new(FixedIndexReader::open(&archive_path)?)
-                        }
+                        ArchiveType::FixedIndex => Box::new(FixedIndexReader::open(&archive_path)?),
                         ArchiveType::Blob => continue,
                     };
                     for i in 0..index.index_count() {
@@ -772,7 +769,12 @@ fn restore_file_chunk_map(
     for (nr, chunk_map) in file_chunk_map.iter_mut() {
         let current_file_number = drive.current_file_number()?;
         if current_file_number != *nr {
-            task_log!(worker, "was at file {}, moving to {}", current_file_number, nr);
+            task_log!(
+                worker,
+                "was at file {}, moving to {}",
+                current_file_number,
+                nr
+            );
             drive.move_to_file(*nr)?;
             let current_file_number = drive.current_file_number()?;
             task_log!(worker, "now at file {}", current_file_number);
@@ -803,7 +805,12 @@ fn restore_file_chunk_map(
                     format_err!("unexpected chunk archive for store: {}", source_datastore)
                 })?;
 
-                let count = restore_partial_chunk_archive(worker.clone(), reader, datastore.clone(), chunk_map)?;
+                let count = restore_partial_chunk_archive(
+                    worker.clone(),
+                    reader,
+                    datastore.clone(),
+                    chunk_map,
+                )?;
                 task_log!(worker, "restored {} chunks", count);
             }
             _ => bail!("unexpected content magic {:?}", header.content_magic),
@@ -882,7 +889,6 @@ fn restore_partial_chunk_archive<'a>(
     Ok(count)
 }
 
-
 /// Request and restore complete media without using existing catalog (create catalog instead)
 pub fn request_and_restore_media(
     worker: Arc<WorkerTask>,
@@ -890,7 +896,7 @@ pub fn request_and_restore_media(
     drive_config: &SectionConfigData,
     drive_name: &str,
     store_map: &DataStoreMap,
-    checked_chunks_map: &mut HashMap<String, HashSet<[u8;32]>>,
+    checked_chunks_map: &mut HashMap<String, HashSet<[u8; 32]>>,
     restore_owner: &Authid,
     email: &Option<String>,
 ) -> Result<(), Error> {
@@ -899,20 +905,29 @@ pub fn request_and_restore_media(
         Some(ref set) => &set.uuid,
     };
 
-    let (mut drive, info) = request_and_load_media(&worker, drive_config, drive_name, &media_id.label, email)?;
+    let (mut drive, info) =
+        request_and_load_media(&worker, drive_config, drive_name, &media_id.label, email)?;
 
     match info.media_set_label {
         None => {
-            bail!("missing media set label on media {} ({})",
-                  media_id.label.label_text, media_id.label.uuid);
+            bail!(
+                "missing media set label on media {} ({})",
+                media_id.label.label_text,
+                media_id.label.uuid
+            );
         }
         Some(ref set) => {
             if &set.uuid != media_set_uuid {
-                bail!("wrong media set label on media {} ({} != {})",
-                      media_id.label.label_text, media_id.label.uuid,
-                      media_set_uuid);
+                bail!(
+                    "wrong media set label on media {} ({} != {})",
+                    media_id.label.label_text,
+                    media_id.label.uuid,
+                    media_set_uuid
+                );
             }
-            let encrypt_fingerprint = set.encryption_key_fingerprint.clone()
+            let encrypt_fingerprint = set
+                .encryption_key_fingerprint
+                .clone()
                 .map(|fp| (fp, set.uuid.clone()));
 
             drive.set_encryption(encrypt_fingerprint)?;
@@ -937,10 +952,9 @@ pub fn restore_media(
     drive: &mut Box<dyn TapeDriver>,
     media_id: &MediaId,
     target: Option<(&DataStoreMap, &Authid)>,
-    checked_chunks_map: &mut HashMap<String, HashSet<[u8;32]>>,
+    checked_chunks_map: &mut HashMap<String, HashSet<[u8; 32]>>,
     verbose: bool,
-) ->  Result<(), Error> {
-
+) -> Result<(), Error> {
     let status_path = Path::new(TAPE_STATUS_DIR);
     let mut catalog = MediaCatalog::create_temporary_database(status_path, media_id, false)?;
 
@@ -948,7 +962,11 @@ pub fn restore_media(
         let current_file_number = drive.current_file_number()?;
         let reader = match drive.read_next_file() {
             Err(BlockReadError::EndOfFile) => {
-                task_log!(worker, "skip unexpected filemark at pos {}", current_file_number);
+                task_log!(
+                    worker,
+                    "skip unexpected filemark at pos {}",
+                    current_file_number
+                );
                 continue;
             }
             Err(BlockReadError::EndOfStream) => {
@@ -961,7 +979,15 @@ pub fn restore_media(
             Ok(reader) => reader,
         };
 
-        restore_archive(worker.clone(), reader, current_file_number, target, &mut catalog, checked_chunks_map, verbose)?;
+        restore_archive(
+            worker.clone(),
+            reader,
+            current_file_number,
+            target,
+            &mut catalog,
+            checked_chunks_map,
+            verbose,
+        )?;
     }
 
     catalog.commit()?;
@@ -977,7 +1003,7 @@ fn restore_archive<'a>(
     current_file_number: u64,
     target: Option<(&DataStoreMap, &Authid)>,
     catalog: &mut MediaCatalog,
-    checked_chunks_map: &mut HashMap<String, HashSet<[u8;32]>>,
+    checked_chunks_map: &mut HashMap<String, HashSet<[u8; 32]>>,
     verbose: bool,
 ) -> Result<(), Error> {
     let header: MediaContentHeader = unsafe { reader.read_le_value()? };
@@ -1003,7 +1029,13 @@ fn restore_archive<'a>(
             let datastore_name = archive_header.store;
             let snapshot = archive_header.snapshot;
 
-            task_log!(worker, "File {}: snapshot archive {}:{}", current_file_number, datastore_name, snapshot);
+            task_log!(
+                worker,
+                "File {}: snapshot archive {}:{}",
+                current_file_number,
+                datastore_name,
+                snapshot
+            );
 
             let backup_dir: BackupDir = snapshot.parse()?;
 
@@ -1057,7 +1089,12 @@ fn restore_archive<'a>(
 
             reader.skip_data()?; // read all data
             if let Ok(false) = reader.is_incomplete() {
-                catalog.register_snapshot(Uuid::from(header.uuid), current_file_number, &datastore_name, &snapshot)?;
+                catalog.register_snapshot(
+                    Uuid::from(header.uuid),
+                    current_file_number,
+                    &datastore_name,
+                    &snapshot,
+                )?;
                 catalog.commit_if_large()?;
             }
         }
@@ -1072,18 +1109,35 @@ fn restore_archive<'a>(
 
             let source_datastore = archive_header.store;
 
-            task_log!(worker, "File {}: chunk archive for datastore '{}'", current_file_number, source_datastore);
+            task_log!(
+                worker,
+                "File {}: chunk archive for datastore '{}'",
+                current_file_number,
+                source_datastore
+            );
             let datastore = target
                 .as_ref()
                 .and_then(|t| t.0.get_datastore(&source_datastore));
 
             if datastore.is_some() || target.is_none() {
                 let checked_chunks = checked_chunks_map
-                    .entry(datastore.as_ref().map(|d| d.name()).unwrap_or("_unused_").to_string())
+                    .entry(
+                        datastore
+                            .as_ref()
+                            .map(|d| d.name())
+                            .unwrap_or("_unused_")
+                            .to_string(),
+                    )
                     .or_insert(HashSet::new());
 
                 let chunks = if let Some(datastore) = datastore {
-                    restore_chunk_archive(worker.clone(), reader, datastore, checked_chunks, verbose)?
+                    restore_chunk_archive(
+                        worker.clone(),
+                        reader,
+                        datastore,
+                        checked_chunks,
+                        verbose,
+                    )?
                 } else {
                     scan_chunk_archive(worker.clone(), reader, verbose)?
                 };
@@ -1111,11 +1165,16 @@ fn restore_archive<'a>(
             let archive_header: CatalogArchiveHeader = serde_json::from_slice(&header_data)
                 .map_err(|err| format_err!("unable to parse catalog archive header - {}", err))?;
 
-            task_log!(worker, "File {}: skip catalog '{}'", current_file_number, archive_header.uuid);
+            task_log!(
+                worker,
+                "File {}: skip catalog '{}'",
+                current_file_number,
+                archive_header.uuid
+            );
 
             reader.skip_data()?; // read all data
         }
-         _ =>  bail!("unknown content magic {:?}", header.content_magic),
+        _ => bail!("unknown content magic {:?}", header.content_magic),
     }
 
     Ok(())
@@ -1126,8 +1185,7 @@ fn scan_chunk_archive<'a>(
     worker: Arc<WorkerTask>,
     reader: Box<dyn 'a + TapeRead>,
     verbose: bool,
-) -> Result<Option<Vec<[u8;32]>>, Error> {
-
+) -> Result<Option<Vec<[u8; 32]>>, Error> {
     let mut chunks = Vec::new();
 
     let mut decoder = ChunkArchiveDecoder::new(reader);
@@ -1171,10 +1229,9 @@ fn restore_chunk_archive<'a>(
     worker: Arc<WorkerTask>,
     reader: Box<dyn 'a + TapeRead>,
     datastore: Arc<DataStore>,
-    checked_chunks: &mut HashSet<[u8;32]>,
+    checked_chunks: &mut HashSet<[u8; 32]>,
     verbose: bool,
-) -> Result<Option<Vec<[u8;32]>>, Error> {
-
+) -> Result<Option<Vec<[u8; 32]>>, Error> {
     let mut chunks = Vec::new();
 
     let mut decoder = ChunkArchiveDecoder::new(reader);
@@ -1210,7 +1267,6 @@ fn restore_chunk_archive<'a>(
     );
 
     let verify_and_write_channel = writer_pool.channel();
-
 
     loop {
         let (digest, blob) = match decoder.next_chunk() {
@@ -1267,7 +1323,6 @@ fn restore_snapshot_archive<'a>(
     reader: Box<dyn 'a + TapeRead>,
     snapshot_path: &Path,
 ) -> Result<bool, Error> {
-
     let mut decoder = pxar::decoder::sync::Decoder::from_std(reader)?;
     match try_restore_snapshot_archive(worker, &mut decoder, snapshot_path) {
         Ok(_) => Ok(true),
@@ -1295,7 +1350,6 @@ fn try_restore_snapshot_archive<R: pxar::decoder::SeqRead>(
     decoder: &mut pxar::decoder::sync::Decoder<R>,
     snapshot_path: &Path,
 ) -> Result<BackupManifest, Error> {
-
     let _root = match decoder.next() {
         None => bail!("missing root entry"),
         Some(root) => {
@@ -1348,12 +1402,12 @@ fn try_restore_snapshot_archive<R: pxar::decoder::SeqRead>(
         tmp_path.set_extension("tmp");
 
         if filename == manifest_file_name {
-
             let blob = DataBlob::load_from_reader(&mut contents)?;
             let mut old_manifest = BackupManifest::try_from(blob)?;
 
             // Remove verify_state to indicate that this snapshot is not verified
-            old_manifest.unprotected
+            old_manifest
+                .unprotected
                 .as_object_mut()
                 .map(|m| m.remove("verify_state"));
 
@@ -1394,7 +1448,11 @@ fn try_restore_snapshot_archive<R: pxar::decoder::SeqRead>(
     tmp_manifest_path.set_extension("tmp");
 
     if let Err(err) = std::fs::rename(&tmp_manifest_path, &manifest_path) {
-        bail!("Atomic rename manifest {:?} failed - {}", manifest_path, err);
+        bail!(
+            "Atomic rename manifest {:?} failed - {}",
+            manifest_path,
+            err
+        );
     }
 
     Ok(manifest)
@@ -1406,8 +1464,7 @@ pub fn fast_catalog_restore(
     drive: &mut Box<dyn TapeDriver>,
     media_set: &MediaSet,
     uuid: &Uuid, // current media Uuid
-) ->  Result<bool, Error> {
-
+) -> Result<bool, Error> {
     let status_path = Path::new(TAPE_STATUS_DIR);
 
     let current_file_number = drive.current_file_number()?;
@@ -1422,10 +1479,15 @@ pub fn fast_catalog_restore(
     loop {
         let current_file_number = drive.current_file_number()?;
 
-        { // limit reader scope
+        {
+            // limit reader scope
             let mut reader = match drive.read_next_file() {
                 Err(BlockReadError::EndOfFile) => {
-                    task_log!(worker, "skip unexpected filemark at pos {}", current_file_number);
+                    task_log!(
+                        worker,
+                        "skip unexpected filemark at pos {}",
+                        current_file_number
+                    );
                     continue;
                 }
                 Err(BlockReadError::EndOfStream) => {
@@ -1449,10 +1511,16 @@ pub fn fast_catalog_restore(
                 let header_data = reader.read_exact_allocated(header.size as usize)?;
 
                 let archive_header: CatalogArchiveHeader = serde_json::from_slice(&header_data)
-                    .map_err(|err| format_err!("unable to parse catalog archive header - {}", err))?;
+                    .map_err(|err| {
+                        format_err!("unable to parse catalog archive header - {}", err)
+                    })?;
 
                 if &archive_header.media_set_uuid != media_set.uuid() {
-                    task_log!(worker, "skipping unrelated catalog at pos {}", current_file_number);
+                    task_log!(
+                        worker,
+                        "skipping unrelated catalog at pos {}",
+                        current_file_number
+                    );
                     reader.skip_data()?; // read all data
                     continue;
                 }
@@ -1462,16 +1530,18 @@ pub fn fast_catalog_restore(
                 let wanted = media_set
                     .media_list()
                     .iter()
-                    .find(|e| {
-                        match e {
-                            None => false,
-                            Some(uuid) => uuid == catalog_uuid,
-                        }
+                    .find(|e| match e {
+                        None => false,
+                        Some(uuid) => uuid == catalog_uuid,
                     })
                     .is_some();
 
                 if !wanted {
-                    task_log!(worker, "skip catalog because media '{}' not inventarized", catalog_uuid);
+                    task_log!(
+                        worker,
+                        "skip catalog because media '{}' not inventarized",
+                        catalog_uuid
+                    );
                     reader.skip_data()?; // read all data
                     continue;
                 }
@@ -1481,13 +1551,18 @@ pub fn fast_catalog_restore(
                 } else {
                     // only restore if catalog does not exist
                     if MediaCatalog::exists(status_path, catalog_uuid) {
-                        task_log!(worker, "catalog for media '{}' already exists", catalog_uuid);
+                        task_log!(
+                            worker,
+                            "catalog for media '{}' already exists",
+                            catalog_uuid
+                        );
                         reader.skip_data()?; // read all data
                         continue;
                     }
                 }
 
-                let mut file = MediaCatalog::create_temporary_database_file(status_path, catalog_uuid)?;
+                let mut file =
+                    MediaCatalog::create_temporary_database_file(status_path, catalog_uuid)?;
 
                 std::io::copy(&mut reader, &mut file)?;
 
@@ -1496,11 +1571,19 @@ pub fn fast_catalog_restore(
                 match MediaCatalog::parse_catalog_header(&mut file)? {
                     (true, Some(media_uuid), Some(media_set_uuid)) => {
                         if &media_uuid != catalog_uuid {
-                            task_log!(worker, "catalog uuid missmatch at pos {}", current_file_number);
+                            task_log!(
+                                worker,
+                                "catalog uuid missmatch at pos {}",
+                                current_file_number
+                            );
                             continue;
                         }
                         if media_set_uuid != archive_header.media_set_uuid {
-                            task_log!(worker, "catalog media_set missmatch at pos {}", current_file_number);
+                            task_log!(
+                                worker,
+                                "catalog media_set missmatch at pos {}",
+                                current_file_number
+                            );
                             continue;
                         }
 
@@ -1510,7 +1593,11 @@ pub fn fast_catalog_restore(
                             task_log!(worker, "successfully restored catalog");
                             found_catalog = true
                         } else {
-                            task_log!(worker, "successfully restored related catalog {}", media_uuid);
+                            task_log!(
+                                worker,
+                                "successfully restored related catalog {}",
+                                media_uuid
+                            );
                         }
                     }
                     _ => {

@@ -1,30 +1,23 @@
-use std::path::Path;
 use std::collections::HashSet;
+use std::path::Path;
 
 use anyhow::{bail, format_err, Error};
 
-use proxmox_router::{list_subdirs_api_method, Router, SubdirMap, RpcEnvironment, Permission};
+use proxmox_router::{list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap};
 use proxmox_schema::api;
 use proxmox_uuid::Uuid;
 
-use pbs_datastore::backup_info::BackupDir;
 use pbs_api_types::{
-    MEDIA_POOL_NAME_SCHEMA, MEDIA_LABEL_SCHEMA, MEDIA_UUID_SCHEMA, CHANGER_NAME_SCHEMA,
-    VAULT_NAME_SCHEMA, Authid, MediaPoolConfig, MediaListEntry, MediaSetListEntry,
-    MediaStatus, MediaContentEntry, MediaContentListFilter,
-    PRIV_TAPE_AUDIT,
+    Authid, MediaContentEntry, MediaContentListFilter, MediaListEntry, MediaPoolConfig,
+    MediaSetListEntry, MediaStatus, CHANGER_NAME_SCHEMA, MEDIA_LABEL_SCHEMA,
+    MEDIA_POOL_NAME_SCHEMA, MEDIA_UUID_SCHEMA, PRIV_TAPE_AUDIT, VAULT_NAME_SCHEMA,
 };
 use pbs_config::CachedUserInfo;
+use pbs_datastore::backup_info::BackupDir;
 
-use crate::{
-    tape::{
-        TAPE_STATUS_DIR,
-        Inventory,
-        MediaPool,
-        MediaCatalog,
-        media_catalog_snapshot_list,
-        changer::update_online_status,
-    },
+use crate::tape::{
+    changer::update_online_status, media_catalog_snapshot_list, Inventory, MediaCatalog, MediaPool,
+    TAPE_STATUS_DIR,
 };
 
 #[api(
@@ -61,7 +54,7 @@ pub async fn list_media_sets(
         };
 
         let privs = user_info.lookup_privs(&auth_id, &["tape", "pool", pool_name]);
-        if (privs & PRIV_TAPE_AUDIT) == 0  {
+        if (privs & PRIV_TAPE_AUDIT) == 0 {
             continue;
         }
 
@@ -150,7 +143,8 @@ pub async fn list_media(
         }
         // test what catalog files we have
         MediaCatalog::media_with_catalogs(status_path)
-    }).await??;
+    })
+    .await??;
 
     let mut list = Vec::new();
 
@@ -166,7 +160,7 @@ pub async fn list_media(
         }
 
         let privs = user_info.lookup_privs(&auth_id, &["tape", "pool", pool_name]);
-        if (privs & PRIV_TAPE_AUDIT) == 0  {
+        if (privs & PRIV_TAPE_AUDIT) == 0 {
             continue;
         }
 
@@ -185,17 +179,14 @@ pub async fn list_media(
         for media in pool.list_media() {
             let expired = pool.media_is_expired(&media, current_time);
 
-            let media_set_uuid = media.media_set_label()
-                .map(|set| set.uuid.clone());
+            let media_set_uuid = media.media_set_label().map(|set| set.uuid.clone());
 
-            let seq_nr = media.media_set_label()
-                .map(|set| set.seq_nr);
+            let seq_nr = media.media_set_label().map(|set| set.seq_nr);
 
-            let media_set_name = media.media_set_label()
-                .map(|set| {
-                    pool.generate_media_set_name(&set.uuid, config.template.clone())
-                        .unwrap_or_else(|_| set.uuid.to_string())
-                });
+            let media_set_name = media.media_set_label().map(|set| {
+                pool.generate_media_set_name(&set.uuid, config.template.clone())
+                    .unwrap_or_else(|_| set.uuid.to_string())
+            });
 
             let catalog_ok = if media.media_set_label().is_none() {
                 // Media is empty, we need no catalog
@@ -224,11 +215,9 @@ pub async fn list_media(
     let inventory = Inventory::load(status_path)?;
 
     let privs = user_info.lookup_privs(&auth_id, &["tape", "pool"]);
-    if (privs & PRIV_TAPE_AUDIT) != 0  {
+    if (privs & PRIV_TAPE_AUDIT) != 0 {
         if pool.is_none() {
-
             for media_id in inventory.list_unassigned_media() {
-
                 let (mut status, location) = inventory.status_and_location(&media_id.label.uuid);
 
                 if status == MediaStatus::Unknown {
@@ -267,7 +256,7 @@ pub async fn list_media(
         }
 
         let privs = user_info.lookup_privs(&auth_id, &["tape", "pool", &media_set_label.pool]);
-        if (privs & PRIV_TAPE_AUDIT) == 0  {
+        if (privs & PRIV_TAPE_AUDIT) == 0 {
             continue;
         }
 
@@ -289,9 +278,7 @@ pub async fn list_media(
             media_set_name: Some(media_set_name),
             seq_nr: Some(media_set_label.seq_nr),
         });
-
     }
-
 
     Ok(list)
 }
@@ -310,15 +297,12 @@ pub async fn list_media(
     },
 )]
 /// Change Tape location to vault (if given), or offline.
-pub fn move_tape(
-    label_text: String,
-    vault_name: Option<String>,
-) -> Result<(), Error> {
-
+pub fn move_tape(label_text: String, vault_name: Option<String>) -> Result<(), Error> {
     let status_path = Path::new(TAPE_STATUS_DIR);
     let mut inventory = Inventory::load(status_path)?;
 
-    let uuid = inventory.find_media_by_label_text(&label_text)
+    let uuid = inventory
+        .find_media_by_label_text(&label_text)
         .ok_or_else(|| format_err!("no such media '{}'", label_text))?
         .label
         .uuid
@@ -348,21 +332,24 @@ pub fn move_tape(
     },
 )]
 /// Destroy media (completely remove from database)
-pub fn destroy_media(label_text: String, force: Option<bool>,) -> Result<(), Error> {
-
+pub fn destroy_media(label_text: String, force: Option<bool>) -> Result<(), Error> {
     let force = force.unwrap_or(false);
 
     let status_path = Path::new(TAPE_STATUS_DIR);
     let mut inventory = Inventory::load(status_path)?;
 
-    let media_id = inventory.find_media_by_label_text(&label_text)
+    let media_id = inventory
+        .find_media_by_label_text(&label_text)
         .ok_or_else(|| format_err!("no such media '{}'", label_text))?;
 
     if !force {
         if let Some(ref set) = media_id.media_set_label {
-            let is_empty = set.uuid.as_ref() == [0u8;16];
+            let is_empty = set.uuid.as_ref() == [0u8; 16];
             if !is_empty {
-                bail!("media '{}' contains data (please use 'force' flag to remove.", label_text);
+                bail!(
+                    "media '{}' contains data (please use 'force' flag to remove.",
+                    label_text
+                );
             }
         }
     }
@@ -414,24 +401,32 @@ pub fn list_content(
         let set = media_id.media_set_label.as_ref().unwrap();
 
         if let Some(ref label_text) = filter.label_text {
-            if &media_id.label.label_text != label_text { continue; }
+            if &media_id.label.label_text != label_text {
+                continue;
+            }
         }
 
         if let Some(ref pool) = filter.pool {
-            if &set.pool != pool { continue; }
+            if &set.pool != pool {
+                continue;
+            }
         }
 
         let privs = user_info.lookup_privs(&auth_id, &["tape", "pool", &set.pool]);
-        if (privs & PRIV_TAPE_AUDIT) == 0  {
+        if (privs & PRIV_TAPE_AUDIT) == 0 {
             continue;
         }
 
         if let Some(ref media_uuid) = filter.media {
-            if &media_id.label.uuid != media_uuid { continue; }
+            if &media_id.label.uuid != media_uuid {
+                continue;
+            }
         }
 
         if let Some(ref media_set_uuid) = filter.media_set {
-            if &set.uuid != media_set_uuid { continue; }
+            if &set.uuid != media_set_uuid {
+                continue;
+            }
         }
 
         let template = match config.lookup::<MediaPoolConfig>("pool", &set.pool) {
@@ -447,10 +442,14 @@ pub fn list_content(
             let backup_dir: BackupDir = snapshot.parse()?;
 
             if let Some(ref backup_type) = filter.backup_type {
-                if backup_dir.group().backup_type() != backup_type { continue; }
+                if backup_dir.group().backup_type() != backup_type {
+                    continue;
+                }
             }
             if let Some(ref backup_id) = filter.backup_id {
-                if backup_dir.group().backup_id() != backup_id { continue; }
+                if backup_dir.group().backup_id() != backup_id {
+                    continue;
+                }
             }
 
             list.push(MediaContentEntry {
@@ -482,7 +481,6 @@ pub fn list_content(
 )]
 /// Get current media status
 pub fn get_media_status(uuid: Uuid) -> Result<MediaStatus, Error> {
-
     let status_path = Path::new(TAPE_STATUS_DIR);
     let inventory = Inventory::load(status_path)?;
 
@@ -509,7 +507,6 @@ pub fn get_media_status(uuid: Uuid) -> Result<MediaStatus, Error> {
 /// It is not allowed to set status to 'writable' or 'unknown' (those
 /// are internally managed states).
 pub fn update_media_status(uuid: Uuid, status: Option<MediaStatus>) -> Result<(), Error> {
-
     let status_path = Path::new(TAPE_STATUS_DIR);
     let mut inventory = Inventory::load(status_path)?;
 
@@ -524,14 +521,12 @@ pub fn update_media_status(uuid: Uuid, status: Option<MediaStatus>) -> Result<()
     Ok(())
 }
 
-const MEDIA_SUBDIRS: SubdirMap = &[
-    (
-        "status",
-        &Router::new()
-            .get(&API_METHOD_GET_MEDIA_STATUS)
-            .post(&API_METHOD_UPDATE_MEDIA_STATUS)
-    ),
-];
+const MEDIA_SUBDIRS: SubdirMap = &[(
+    "status",
+    &Router::new()
+        .get(&API_METHOD_GET_MEDIA_STATUS)
+        .post(&API_METHOD_UPDATE_MEDIA_STATUS),
+)];
 
 pub const MEDIA_ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(MEDIA_SUBDIRS))
@@ -542,29 +537,15 @@ pub const MEDIA_LIST_ROUTER: Router = Router::new()
     .match_all("uuid", &MEDIA_ROUTER);
 
 const SUBDIRS: SubdirMap = &[
-    (
-        "content",
-        &Router::new()
-            .get(&API_METHOD_LIST_CONTENT)
-    ),
-    (
-        "destroy",
-        &Router::new()
-            .get(&API_METHOD_DESTROY_MEDIA)
-    ),
-    ( "list", &MEDIA_LIST_ROUTER ),
+    ("content", &Router::new().get(&API_METHOD_LIST_CONTENT)),
+    ("destroy", &Router::new().get(&API_METHOD_DESTROY_MEDIA)),
+    ("list", &MEDIA_LIST_ROUTER),
     (
         "media-sets",
-        &Router::new()
-        .get(&API_METHOD_LIST_MEDIA_SETS)
+        &Router::new().get(&API_METHOD_LIST_MEDIA_SETS),
     ),
-    (
-        "move",
-        &Router::new()
-            .post(&API_METHOD_MOVE_TAPE)
-    ),
+    ("move", &Router::new().post(&API_METHOD_MOVE_TAPE)),
 ];
-
 
 pub const ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(SUBDIRS))

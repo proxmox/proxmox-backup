@@ -1,5 +1,5 @@
 use std::path::Path;
-use std::sync::{Mutex, Arc};
+use std::sync::{Arc, Mutex};
 
 use anyhow::{bail, format_err, Error};
 use serde_json::Value;
@@ -10,43 +10,29 @@ use proxmox_schema::api;
 use proxmox_sys::{task_log, task_warn, WorkerTaskContext};
 
 use pbs_api_types::{
-    Authid, Userid, TapeBackupJobConfig, TapeBackupJobSetup, TapeBackupJobStatus, MediaPoolConfig,
-    UPID_SCHEMA, JOB_ID_SCHEMA, PRIV_DATASTORE_READ, PRIV_TAPE_AUDIT, PRIV_TAPE_WRITE,
-    GroupFilter,
+    Authid, GroupFilter, MediaPoolConfig, TapeBackupJobConfig, TapeBackupJobSetup,
+    TapeBackupJobStatus, Userid, JOB_ID_SCHEMA, PRIV_DATASTORE_READ, PRIV_TAPE_AUDIT,
+    PRIV_TAPE_WRITE, UPID_SCHEMA,
 };
 
-use pbs_datastore::{DataStore, StoreProgress, SnapshotReader};
-use pbs_datastore::backup_info::{BackupDir, BackupInfo, BackupGroup};
 use pbs_config::CachedUserInfo;
+use pbs_datastore::backup_info::{BackupDir, BackupGroup, BackupInfo};
+use pbs_datastore::{DataStore, SnapshotReader, StoreProgress};
 use proxmox_rest_server::WorkerTask;
 
 use crate::{
     server::{
-        lookup_user_email,
-        TapeBackupJobSummary,
-        jobstate::{
-            Job,
-            JobState,
-            compute_schedule_status,
-        },
+        jobstate::{compute_schedule_status, Job, JobState},
+        lookup_user_email, TapeBackupJobSummary,
     },
     tape::{
-        TAPE_STATUS_DIR,
-        Inventory,
-        PoolWriter,
-        MediaPool,
-        drive::{
-            media_changer,
-            lock_tape_device,
-            TapeLockError,
-            set_tape_device_state,
-        },
         changer::update_changer_online_status,
+        drive::{lock_tape_device, media_changer, set_tape_device_state, TapeLockError},
+        Inventory, MediaPool, PoolWriter, TAPE_STATUS_DIR,
     },
 };
 
-const TAPE_BACKUP_JOB_ROUTER: Router = Router::new()
-    .post(&API_METHOD_RUN_TAPE_BACKUP_JOB);
+const TAPE_BACKUP_JOB_ROUTER: Router = Router::new().post(&API_METHOD_RUN_TAPE_BACKUP_JOB);
 
 pub const ROUTER: Router = Router::new()
     .get(&API_METHOD_LIST_TAPE_BACKUP_JOBS)
@@ -59,7 +45,6 @@ fn check_backup_permission(
     pool: &str,
     drive: &str,
 ) -> Result<(), Error> {
-
     let user_info = CachedUserInfo::new()?;
 
     let privs = user_info.lookup_privs(auth_id, &["datastore", store]);
@@ -144,7 +129,11 @@ pub fn list_tape_backup_jobs(
             }
         }
 
-        list.push(TapeBackupJobStatus { config: job, status, next_media_label });
+        list.push(TapeBackupJobStatus {
+            config: job,
+            status,
+            next_media_label,
+        });
     }
 
     rpcenv["digest"] = hex::encode(&digest).into();
@@ -159,12 +148,13 @@ pub fn do_tape_backup_job(
     schedule: Option<String>,
     to_stdout: bool,
 ) -> Result<String, Error> {
-
-    let job_id = format!("{}:{}:{}:{}",
-                         setup.store,
-                         setup.pool,
-                         setup.drive,
-                         job.jobname());
+    let job_id = format!(
+        "{}:{}:{}:{}",
+        setup.store,
+        setup.pool,
+        setup.drive,
+        job.jobname()
+    );
 
     let worker_type = job.jobtype().to_string();
 
@@ -182,7 +172,10 @@ pub fn do_tape_backup_job(
         Some(lock_tape_device(&drive_config, &setup.drive)?)
     };
 
-    let notify_user = setup.notify_user.as_ref().unwrap_or_else(|| Userid::root_userid());
+    let notify_user = setup
+        .notify_user
+        .as_ref()
+        .unwrap_or_else(|| Userid::root_userid());
     let email = lookup_user_email(notify_user);
 
     let upid_str = WorkerTask::new_thread(
@@ -213,11 +206,10 @@ pub fn do_tape_backup_job(
                 }
                 set_tape_device_state(&setup.drive, &worker.upid().to_string())?;
 
-                task_log!(worker,"Starting tape backup job '{}'", job_id);
+                task_log!(worker, "Starting tape backup job '{}'", job_id);
                 if let Some(event_str) = schedule {
-                    task_log!(worker,"task triggered by schedule '{}'", event_str);
+                    task_log!(worker, "task triggered by schedule '{}'", event_str);
                 }
-
 
                 backup_worker(
                     &worker,
@@ -253,15 +245,11 @@ pub fn do_tape_backup_job(
             }
 
             if let Err(err) = set_tape_device_state(&setup.drive, "") {
-                eprintln!(
-                    "could not unset drive state for {}: {}",
-                    setup.drive,
-                    err
-                );
+                eprintln!("could not unset drive state for {}: {}", setup.drive, err);
             }
 
             job_result
-        }
+        },
     )?;
 
     Ok(upid_str)
@@ -283,10 +271,7 @@ pub fn do_tape_backup_job(
     },
 )]
 /// Runs a tape backup job manually.
-pub fn run_tape_backup_job(
-    id: String,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<String, Error> {
+pub fn run_tape_backup_job(id: String, rpcenv: &mut dyn RpcEnvironment) -> Result<String, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
     let (config, _digest) = pbs_config::tape_job::config()?;
@@ -339,15 +324,9 @@ pub fn backup(
     force_media_set: bool,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-    check_backup_permission(
-        &auth_id,
-        &setup.store,
-        &setup.pool,
-        &setup.drive,
-    )?;
+    check_backup_permission(&auth_id, &setup.store, &setup.pool, &setup.drive)?;
 
     let datastore = DataStore::lookup_datastore(&setup.store)?;
 
@@ -363,7 +342,10 @@ pub fn backup(
 
     let job_id = format!("{}:{}:{}", setup.store, setup.pool, setup.drive);
 
-    let notify_user = setup.notify_user.as_ref().unwrap_or_else(|| Userid::root_userid());
+    let notify_user = setup
+        .notify_user
+        .as_ref()
+        .unwrap_or_else(|| Userid::root_userid());
     let email = lookup_user_email(notify_user);
 
     let upid_str = WorkerTask::new_thread(
@@ -401,7 +383,7 @@ pub fn backup(
             // ignore errors
             let _ = set_tape_device_state(&setup.drive, "");
             job_result
-        }
+        },
     )?;
 
     Ok(upid_str.into())
@@ -416,7 +398,6 @@ fn backup_worker(
     summary: &mut TapeBackupJobSummary,
     force_media_set: bool,
 ) -> Result<(), Error> {
-
     let status_path = Path::new(TAPE_STATUS_DIR);
     let start = std::time::Instant::now();
 
@@ -425,13 +406,7 @@ fn backup_worker(
 
     let pool = MediaPool::with_config(status_path, pool_config, changer_name, false)?;
 
-    let mut pool_writer = PoolWriter::new(
-        pool,
-        &setup.drive,
-        worker,
-        email,
-        force_media_set
-    )?;
+    let mut pool_writer = PoolWriter::new(pool, &setup.drive, worker, email, force_media_set)?;
 
     let mut group_list = BackupInfo::list_backup_groups(&datastore.base_path())?;
 
@@ -443,9 +418,17 @@ fn backup_worker(
         };
 
         let group_count_full = group_list.len();
-        let list: Vec<BackupGroup> = group_list.into_iter().filter(|group| filter_fn(group, group_filters)).collect();
+        let list: Vec<BackupGroup> = group_list
+            .into_iter()
+            .filter(|group| filter_fn(group, group_filters))
+            .collect();
         let group_count = list.len();
-        task_log!(worker, "found {} groups (out of {} total)", group_count, group_count_full);
+        task_log!(
+            worker,
+            "found {} groups (out of {} total)",
+            group_count,
+            group_count_full
+        );
         (list, group_count)
     } else {
         let group_count = group_list.len();
@@ -458,7 +441,10 @@ fn backup_worker(
     let latest_only = setup.latest_only.unwrap_or(false);
 
     if latest_only {
-        task_log!(worker, "latest-only: true (only considering latest snapshots)");
+        task_log!(
+            worker,
+            "latest-only: true (only considering latest snapshots)"
+        );
     }
 
     let datastore_name = datastore.name();
@@ -504,11 +490,7 @@ fn backup_worker(
                     summary.snapshot_list.push(snapshot_name);
                 }
                 progress.done_snapshots = 1;
-                task_log!(
-                    worker,
-                    "percentage done: {}",
-                    progress
-                );
+                task_log!(worker, "percentage done: {}", progress);
             }
         } else {
             progress.group_snapshots = snapshot_list.len() as u64;
@@ -527,11 +509,7 @@ fn backup_worker(
                     summary.snapshot_list.push(snapshot_name);
                 }
                 progress.done_snapshots = snapshot_number as u64 + 1;
-                task_log!(
-                    worker,
-                    "percentage done: {}",
-                    progress
-                );
+                task_log!(worker, "percentage done: {}", progress);
             }
         }
     }
@@ -544,7 +522,10 @@ fn backup_worker(
         let uuid = pool_writer.load_writable_media(worker)?;
         let done = pool_writer.append_catalog_archive(worker)?;
         if !done {
-            task_log!(worker, "catalog does not fit on tape, writing to next volume");
+            task_log!(
+                worker,
+                "catalog does not fit on tape, writing to next volume"
+            );
             pool_writer.set_media_status_full(&uuid)?;
             pool_writer.load_writable_media(worker)?;
             let done = pool_writer.append_catalog_archive(worker)?;
@@ -571,22 +552,15 @@ fn backup_worker(
 
 // Try to update the the media online status
 fn update_media_online_status(drive: &str) -> Result<Option<String>, Error> {
-
     let (config, _digest) = pbs_config::drive::config()?;
 
     if let Ok(Some((mut changer, changer_name))) = media_changer(&config, drive) {
-
-         let label_text_list = changer.online_media_label_texts()?;
+        let label_text_list = changer.online_media_label_texts()?;
 
         let status_path = Path::new(TAPE_STATUS_DIR);
         let mut inventory = Inventory::load(status_path)?;
 
-        update_changer_online_status(
-            &config,
-            &mut inventory,
-            &changer_name,
-            &label_text_list,
-        )?;
+        update_changer_online_status(&config, &mut inventory, &changer_name, &label_text_list)?;
 
         Ok(Some(changer_name))
     } else {
@@ -600,7 +574,6 @@ pub fn backup_snapshot(
     datastore: Arc<DataStore>,
     snapshot: BackupDir,
 ) -> Result<bool, Error> {
-
     task_log!(worker, "backup snapshot {}", snapshot);
 
     let snapshot_reader = match SnapshotReader::new(datastore.clone(), snapshot.clone()) {
@@ -614,10 +587,8 @@ pub fn backup_snapshot(
 
     let snapshot_reader = Arc::new(Mutex::new(snapshot_reader));
 
-    let (reader_thread, chunk_iter) = pool_writer.spawn_chunk_reader_thread(
-        datastore.clone(),
-        snapshot_reader.clone(),
-    )?;
+    let (reader_thread, chunk_iter) =
+        pool_writer.spawn_chunk_reader_thread(datastore.clone(), snapshot_reader.clone())?;
 
     let mut chunk_iter = chunk_iter.peekable();
 
@@ -627,7 +598,7 @@ pub fn backup_snapshot(
         // test is we have remaining chunks
         match chunk_iter.peek() {
             None => break,
-            Some(Ok(_)) => { /* Ok */ },
+            Some(Ok(_)) => { /* Ok */ }
             Some(Err(err)) => bail!("{}", err),
         }
 
@@ -635,7 +606,8 @@ pub fn backup_snapshot(
 
         worker.check_abort()?;
 
-        let (leom, _bytes) = pool_writer.append_chunk_archive(worker, &mut chunk_iter, datastore.name())?;
+        let (leom, _bytes) =
+            pool_writer.append_chunk_archive(worker, &mut chunk_iter, datastore.name())?;
 
         if leom {
             pool_writer.set_media_status_full(&uuid)?;
