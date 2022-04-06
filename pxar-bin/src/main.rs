@@ -3,8 +3,8 @@ use std::ffi::OsStr;
 use std::fs::OpenOptions;
 use std::os::unix::fs::OpenOptionsExt;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 use anyhow::{bail, format_err, Error};
 use futures::future::FutureExt;
@@ -12,10 +12,12 @@ use futures::select;
 use tokio::signal::unix::{signal, SignalKind};
 
 use pathpatterns::{MatchEntry, MatchType, PatternFlag};
-use pbs_client::pxar::{fuse, format_single_line_entry, ENCODER_MAX_ENTRIES, Flags, PxarExtractOptions};
+use pbs_client::pxar::{
+    format_single_line_entry, fuse, Flags, PxarExtractOptions, ENCODER_MAX_ENTRIES,
+};
 
-use proxmox_schema::api;
 use proxmox_router::cli::*;
+use proxmox_schema::api;
 
 fn extract_archive_from_reader<R: std::io::Read>(
     reader: &mut R,
@@ -151,8 +153,7 @@ fn extract_archive(
     let mut match_list = Vec::new();
     if let Some(filename) = &files_from {
         for line in proxmox_sys::fs::file_get_non_comment_lines(filename)? {
-            let line = line
-                .map_err(|err| format_err!("error reading {}: {}", filename, err))?;
+            let line = line.map_err(|err| format_err!("error reading {}: {}", filename, err))?;
             match_list.push(
                 MatchEntry::parse_pattern(line, PatternFlag::PATH_NAME, MatchType::Include)
                     .map_err(|err| format_err!("bad pattern in file '{}': {}", filename, err))?,
@@ -180,7 +181,8 @@ fn extract_archive(
             was_ok.store(false, Ordering::Release);
             eprintln!("error: {}", err);
             Ok(())
-        }) as Box<dyn FnMut(Error) -> Result<(), Error> + Send>)
+        })
+            as Box<dyn FnMut(Error) -> Result<(), Error> + Send>)
     };
 
     let options = PxarExtractOptions {
@@ -193,26 +195,14 @@ fn extract_archive(
     if archive == "-" {
         let stdin = std::io::stdin();
         let mut reader = stdin.lock();
-        extract_archive_from_reader(
-            &mut reader,
-            target,
-            feature_flags,
-            verbose,
-            options,
-        )?;
+        extract_archive_from_reader(&mut reader, target, feature_flags, verbose, options)?;
     } else {
         if verbose {
             println!("PXAR extract: {}", archive);
         }
         let file = std::fs::File::open(archive)?;
         let mut reader = std::io::BufReader::new(file);
-        extract_archive_from_reader(
-            &mut reader,
-            target,
-            feature_flags,
-            verbose,
-            options,
-        )?;
+        extract_archive_from_reader(&mut reader, target, feature_flags, verbose, options)?;
     }
 
     if !was_ok.load(Ordering::Acquire) {
@@ -332,7 +322,6 @@ async fn create_archive(
         skip_lost_and_found: false,
     };
 
-
     let source = PathBuf::from(source);
 
     let dir = nix::dir::Dir::open(
@@ -381,7 +370,8 @@ async fn create_archive(
         },
         None,
         options,
-    ).await?;
+    )
+    .await?;
 
     Ok(())
 }
@@ -400,11 +390,7 @@ async fn create_archive(
     },
 )]
 /// Mount the archive to the provided mountpoint via FUSE.
-async fn mount_archive(
-    archive: String,
-    mountpoint: String,
-    verbose: bool,
-) -> Result<(), Error> {
+async fn mount_archive(archive: String, mountpoint: String, verbose: bool) -> Result<(), Error> {
     let archive = Path::new(&archive);
     let mountpoint = Path::new(&mountpoint);
     let options = OsStr::new("ro,default_permissions");
@@ -487,7 +473,9 @@ fn main() {
         );
 
     let rpcenv = CliEnvironment::new();
-    run_cli_command(cmd_def, rpcenv, Some(|future| {
-        proxmox_async::runtime::main(future)
-    }));
+    run_cli_command(
+        cmd_def,
+        rpcenv,
+        Some(|future| proxmox_async::runtime::main(future)),
+    );
 }
