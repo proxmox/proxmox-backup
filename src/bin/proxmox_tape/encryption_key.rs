@@ -6,53 +6,45 @@ use proxmox_schema::{api, param_bail};
 use proxmox_sys::linux::tty;
 
 use pbs_api_types::{
-    Fingerprint, Kdf, DRIVE_NAME_SCHEMA, TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
-    PASSWORD_HINT_SCHEMA,
+    Fingerprint, Kdf, DRIVE_NAME_SCHEMA, PASSWORD_HINT_SCHEMA,
+    TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
 };
 
-use pbs_datastore::paperkey::{PaperkeyFormat, generate_paper_key};
-use pbs_config::tape_encryption_keys::{load_key_configs,complete_key_fingerprint};
 use pbs_config::key_config::KeyConfig;
+use pbs_config::tape_encryption_keys::{complete_key_fingerprint, load_key_configs};
+use pbs_datastore::paperkey::{generate_paper_key, PaperkeyFormat};
 
 use proxmox_backup::api2;
 
 pub fn encryption_key_commands() -> CommandLineInterface {
-
     let cmd_def = CliCommandMap::new()
         .insert("list", CliCommand::new(&API_METHOD_LIST_KEYS))
-        .insert(
-            "create",
-            CliCommand::new(&API_METHOD_CREATE_KEY)
-        )
+        .insert("create", CliCommand::new(&API_METHOD_CREATE_KEY))
         .insert(
             "change-passphrase",
             CliCommand::new(&API_METHOD_CHANGE_PASSPHRASE)
                 .arg_param(&["fingerprint"])
-                .completion_cb("fingerprint", complete_key_fingerprint)
+                .completion_cb("fingerprint", complete_key_fingerprint),
         )
         .insert(
             "show",
             CliCommand::new(&API_METHOD_SHOW_KEY)
                 .arg_param(&["fingerprint"])
-                .completion_cb("fingerprint", complete_key_fingerprint)
+                .completion_cb("fingerprint", complete_key_fingerprint),
         )
         .insert(
             "paperkey",
             CliCommand::new(&API_METHOD_PAPER_KEY)
                 .arg_param(&["fingerprint"])
-                .completion_cb("fingerprint", complete_key_fingerprint)
+                .completion_cb("fingerprint", complete_key_fingerprint),
         )
-        .insert(
-            "restore",
-            CliCommand::new(&API_METHOD_RESTORE_KEY)
-        )
+        .insert("restore", CliCommand::new(&API_METHOD_RESTORE_KEY))
         .insert(
             "remove",
             CliCommand::new(&api2::config::tape_encryption_keys::API_METHOD_DELETE_KEY)
                 .arg_param(&["fingerprint"])
-                .completion_cb("fingerprint", complete_key_fingerprint)
-        )
-        ;
+                .completion_cb("fingerprint", complete_key_fingerprint),
+        );
 
     cmd_def.into()
 }
@@ -82,7 +74,6 @@ fn paper_key(
     subject: Option<String>,
     output_format: Option<PaperkeyFormat>,
 ) -> Result<(), Error> {
-
     let (config_map, _digest) = load_key_configs()?;
 
     let key_config = match config_map.get(&fingerprint) {
@@ -109,11 +100,7 @@ fn paper_key(
     },
 )]
 /// Print the encryption key's metadata.
-fn show_key(
-    param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<(), Error> {
-
+fn show_key(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
     let output_format = get_output_format(&param);
 
     let info = &api2::config::tape_encryption_keys::API_METHOD_READ_KEY;
@@ -162,7 +149,6 @@ fn change_passphrase(
     mut param: Value,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
-
     if !tty::stdin_isatty() {
         bail!("unable to change passphrase - no tty");
     }
@@ -288,11 +274,7 @@ async fn restore_key(
     },
 )]
 /// Create key (read password from stdin)
-fn create_key(
-    mut param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<(), Error> {
-
+fn create_key(mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
     if !tty::stdin_isatty() {
         bail!("no password input mechanism available");
     }
@@ -312,7 +294,6 @@ fn create_key(
     Ok(())
 }
 
-
 #[api(
     input: {
         properties: {
@@ -324,11 +305,7 @@ fn create_key(
     },
 )]
 /// List keys
-fn list_keys(
-    param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<(), Error> {
-
+fn list_keys(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
     let output_format = get_output_format(&param);
     let info = &api2::config::tape_encryption_keys::API_METHOD_LIST_KEYS;
     let mut data = match info.handler {
@@ -338,8 +315,7 @@ fn list_keys(
 
     let options = default_table_format_options()
         .column(ColumnConfig::new("fingerprint"))
-        .column(ColumnConfig::new("hint"))
-        ;
+        .column(ColumnConfig::new("hint"));
 
     format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
 

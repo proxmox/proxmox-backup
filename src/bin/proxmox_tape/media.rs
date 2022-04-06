@@ -1,39 +1,34 @@
-use anyhow::{Error};
+use anyhow::Error;
 use serde_json::Value;
 
 use proxmox_router::{cli::*, ApiHandler, RpcEnvironment};
 use proxmox_schema::api;
 
 use pbs_api_types::{
-    MEDIA_POOL_NAME_SCHEMA, CHANGER_NAME_SCHEMA, MediaStatus, MediaListEntry,
-    MediaContentListFilter,
+    MediaContentListFilter, MediaListEntry, MediaStatus, CHANGER_NAME_SCHEMA,
+    MEDIA_POOL_NAME_SCHEMA,
 };
 use pbs_config::drive::complete_changer_name;
 use pbs_config::media_pool::complete_pool_name;
 
 use proxmox_backup::{
     api2,
-    tape::{
-        complete_media_label_text,
-        complete_media_uuid,
-        complete_media_set_uuid,
-    },
+    tape::{complete_media_label_text, complete_media_set_uuid, complete_media_uuid},
 };
 
 pub fn media_commands() -> CommandLineInterface {
-
     let cmd_def = CliCommandMap::new()
         .insert(
             "list",
             CliCommand::new(&API_METHOD_LIST_MEDIA)
                 .completion_cb("pool", complete_pool_name)
-                .completion_cb("update-status-changer", complete_changer_name)
+                .completion_cb("update-status-changer", complete_changer_name),
         )
         .insert(
             "destroy",
             CliCommand::new(&api2::tape::media::API_METHOD_DESTROY_MEDIA)
                 .arg_param(&["label-text"])
-                .completion_cb("label-text", complete_media_label_text)
+                .completion_cb("label-text", complete_media_label_text),
         )
         .insert(
             "content",
@@ -41,9 +36,8 @@ pub fn media_commands() -> CommandLineInterface {
                 .completion_cb("pool", complete_pool_name)
                 .completion_cb("label-text", complete_media_label_text)
                 .completion_cb("media", complete_media_uuid)
-                .completion_cb("media-set", complete_media_set_uuid)
-        )
-        ;
+                .completion_cb("media-set", complete_media_set_uuid),
+        );
 
     cmd_def.into()
 }
@@ -74,11 +68,7 @@ pub fn media_commands() -> CommandLineInterface {
     },
 )]
 /// List pool media
-async fn list_media(
-    param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<(), Error> {
-
+async fn list_media(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
     let output_format = get_output_format(&param);
     let info = &api2::tape::media::API_METHOD_LIST_MEDIA;
     let mut data = match info.handler {
@@ -89,17 +79,17 @@ async fn list_media(
     fn render_status(_value: &Value, record: &Value) -> Result<String, Error> {
         let record: MediaListEntry = serde_json::from_value(record.clone())?;
         Ok(match record.status {
-            MediaStatus::Damaged | MediaStatus::Retired => {
-                serde_json::to_value(&record.status)?
-                .as_str().unwrap()
-                .to_string()
-            }
+            MediaStatus::Damaged | MediaStatus::Retired => serde_json::to_value(&record.status)?
+                .as_str()
+                .unwrap()
+                .to_string(),
             _ => {
                 if record.expired {
                     String::from("expired")
                 } else {
                     serde_json::to_value(&record.status)?
-                    .as_str().unwrap()
+                        .as_str()
+                        .unwrap()
                         .to_string()
                 }
             }
@@ -127,8 +117,7 @@ async fn list_media(
         .column(ColumnConfig::new("location"))
         .column(ColumnConfig::new("catalog").renderer(catalog_status))
         .column(ColumnConfig::new("uuid"))
-        .column(ColumnConfig::new("media-set-uuid"))
-        ;
+        .column(ColumnConfig::new("media-set-uuid"));
 
     format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
 
@@ -150,11 +139,7 @@ async fn list_media(
     },
 )]
 /// List media content
-fn list_content(
-    param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<(), Error> {
-
+fn list_content(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
     let output_format = get_output_format(&param);
     let info = &api2::tape::media::API_METHOD_LIST_CONTENT;
     let mut data = match info.handler {
@@ -174,11 +159,9 @@ fn list_content(
         .column(ColumnConfig::new("seq-nr"))
         .column(ColumnConfig::new("store"))
         .column(ColumnConfig::new("snapshot"))
-        .column(ColumnConfig::new("media-set-uuid"))
-        ;
+        .column(ColumnConfig::new("media-set-uuid"));
 
     format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
 
     Ok(())
-
 }

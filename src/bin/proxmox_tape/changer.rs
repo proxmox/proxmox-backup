@@ -5,22 +5,15 @@ use proxmox_router::{cli::*, ApiHandler, RpcEnvironment};
 use proxmox_schema::api;
 use proxmox_section_config::SectionConfigData;
 
-use pbs_config::drive::{
-    complete_drive_name,
-    complete_changer_name,
-};
+use pbs_config::drive::{complete_changer_name, complete_drive_name};
 
 use pbs_api_types::CHANGER_NAME_SCHEMA;
 
-use pbs_tape::linux_list_drives::{complete_changer_path};
+use pbs_tape::linux_list_drives::complete_changer_path;
 
 use proxmox_backup::{api2, tape::drive::media_changer};
 
-pub fn lookup_changer_name(
-    param: &Value,
-    config: &SectionConfigData,
-) -> Result<String, Error> {
-
+pub fn lookup_changer_name(param: &Value, config: &SectionConfigData) -> Result<String, Error> {
     if let Some(name) = param["name"].as_str() {
         return Ok(String::from(name));
     }
@@ -37,46 +30,47 @@ pub fn lookup_changer_name(
 }
 
 pub fn changer_commands() -> CommandLineInterface {
-
     let cmd_def = CliCommandMap::new()
         .insert("scan", CliCommand::new(&API_METHOD_SCAN_FOR_CHANGERS))
         .insert("list", CliCommand::new(&API_METHOD_LIST_CHANGERS))
-        .insert("config",
-                CliCommand::new(&API_METHOD_GET_CONFIG)
+        .insert(
+            "config",
+            CliCommand::new(&API_METHOD_GET_CONFIG)
                 .arg_param(&["name"])
-                .completion_cb("name", complete_changer_name)
+                .completion_cb("name", complete_changer_name),
         )
         .insert(
             "remove",
             CliCommand::new(&api2::config::changer::API_METHOD_DELETE_CHANGER)
                 .arg_param(&["name"])
-                .completion_cb("name", complete_changer_name)
+                .completion_cb("name", complete_changer_name),
         )
         .insert(
             "create",
             CliCommand::new(&api2::config::changer::API_METHOD_CREATE_CHANGER)
                 .arg_param(&["name"])
                 .completion_cb("name", complete_drive_name)
-                .completion_cb("path", complete_changer_path)
+                .completion_cb("path", complete_changer_path),
         )
         .insert(
             "update",
             CliCommand::new(&api2::config::changer::API_METHOD_UPDATE_CHANGER)
                 .arg_param(&["name"])
                 .completion_cb("name", complete_changer_name)
-                .completion_cb("path", complete_changer_path)
+                .completion_cb("path", complete_changer_path),
         )
-        .insert("status",
-                CliCommand::new(&API_METHOD_GET_STATUS)
+        .insert(
+            "status",
+            CliCommand::new(&API_METHOD_GET_STATUS)
                 .arg_param(&["name"])
-                .completion_cb("name", complete_changer_name)
+                .completion_cb("name", complete_changer_name),
         )
-        .insert("transfer",
-                CliCommand::new(&API_METHOD_TRANSFER)
+        .insert(
+            "transfer",
+            CliCommand::new(&API_METHOD_TRANSFER)
                 .arg_param(&["name"])
-                .completion_cb("name", complete_changer_name)
-        )
-        ;
+                .completion_cb("name", complete_changer_name),
+        );
 
     cmd_def.into()
 }
@@ -92,11 +86,7 @@ pub fn changer_commands() -> CommandLineInterface {
     },
 )]
 /// List changers
-fn list_changers(
-    param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<(), Error> {
-
+fn list_changers(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
     let output_format = get_output_format(&param);
     let info = &api2::tape::changer::API_METHOD_LIST_CHANGERS;
     let mut data = match info.handler {
@@ -109,8 +99,7 @@ fn list_changers(
         .column(ColumnConfig::new("path"))
         .column(ColumnConfig::new("vendor"))
         .column(ColumnConfig::new("model"))
-        .column(ColumnConfig::new("serial"))
-        ;
+        .column(ColumnConfig::new("serial"));
 
     format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
 
@@ -128,11 +117,7 @@ fn list_changers(
     },
 )]
 /// Scan for SCSI tape changers
-fn scan_for_changers(
-    param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<(), Error> {
-
+fn scan_for_changers(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
     let output_format = get_output_format(&param);
     let info = &api2::tape::API_METHOD_SCAN_CHANGERS;
     let mut data = match info.handler {
@@ -144,8 +129,7 @@ fn scan_for_changers(
         .column(ColumnConfig::new("path"))
         .column(ColumnConfig::new("vendor"))
         .column(ColumnConfig::new("model"))
-        .column(ColumnConfig::new("serial"))
-        ;
+        .column(ColumnConfig::new("serial"));
 
     format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
 
@@ -166,11 +150,7 @@ fn scan_for_changers(
     },
 )]
 /// Get tape changer configuration
-fn get_config(
-    param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<(), Error> {
-
+fn get_config(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
     let output_format = get_output_format(&param);
     let info = &api2::config::changer::API_METHOD_GET_CONFIG;
     let mut data = match info.handler {
@@ -181,8 +161,7 @@ fn get_config(
     let options = default_table_format_options()
         .column(ColumnConfig::new("name"))
         .column(ColumnConfig::new("path"))
-        .column(ColumnConfig::new("export-slots"))
-        ;
+        .column(ColumnConfig::new("export-slots"));
 
     format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
 
@@ -210,11 +189,7 @@ fn get_config(
     },
 )]
 /// Get tape changer status
-async fn get_status(
-    mut param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<(), Error> {
-
+async fn get_status(mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
     let (config, _digest) = pbs_config::drive::config()?;
 
     param["name"] = lookup_changer_name(&param, &config)?.into();
@@ -244,8 +219,7 @@ async fn get_status(
         .column(ColumnConfig::new("entry-kind"))
         .column(ColumnConfig::new("entry-id"))
         .column(ColumnConfig::new("label-text").renderer(render_label_text))
-        .column(ColumnConfig::new("loaded-slot"))
-        ;
+        .column(ColumnConfig::new("loaded-slot"));
 
     format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
 
@@ -273,11 +247,7 @@ async fn get_status(
     },
 )]
 /// Transfers media from one slot to another
-pub async fn transfer(
-    mut param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<(), Error> {
-
+pub async fn transfer(mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
     let (config, _digest) = pbs_config::drive::config()?;
 
     param["name"] = lookup_changer_name(&param, &config)?.into();

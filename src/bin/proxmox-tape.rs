@@ -4,48 +4,34 @@ use anyhow::{bail, format_err, Error};
 use serde_json::{json, Value};
 
 use proxmox_io::ReadExt;
-use proxmox_router::RpcEnvironment;
 use proxmox_router::cli::*;
+use proxmox_router::RpcEnvironment;
 use proxmox_schema::api;
 use proxmox_section_config::SectionConfigData;
 use proxmox_time::strftime_local;
 
 use pbs_client::view_task_result;
-use pbs_tools::format::{
-    render_epoch,
-    render_bytes_human_readable,
-};
+use pbs_tools::format::{render_bytes_human_readable, render_epoch};
 
+use pbs_config::datastore::complete_datastore_name;
 use pbs_config::drive::complete_drive_name;
 use pbs_config::media_pool::complete_pool_name;
-use pbs_config::datastore::complete_datastore_name;
 
 use pbs_api_types::{
-    Userid, Authid, DATASTORE_SCHEMA, DATASTORE_MAP_LIST_SCHEMA,
-    DRIVE_NAME_SCHEMA, MEDIA_LABEL_SCHEMA, MEDIA_POOL_NAME_SCHEMA,
-    TAPE_RESTORE_SNAPSHOT_SCHEMA, GROUP_FILTER_LIST_SCHEMA, GroupListItem,
-    HumanByte
+    Authid, GroupListItem, HumanByte, Userid, DATASTORE_MAP_LIST_SCHEMA, DATASTORE_SCHEMA,
+    DRIVE_NAME_SCHEMA, GROUP_FILTER_LIST_SCHEMA, MEDIA_LABEL_SCHEMA, MEDIA_POOL_NAME_SCHEMA,
+    TAPE_RESTORE_SNAPSHOT_SCHEMA,
 };
-use pbs_tape::{
-    PROXMOX_BACKUP_CONTENT_HEADER_MAGIC_1_0, BlockReadError, MediaContentHeader,
-};
+use pbs_tape::{BlockReadError, MediaContentHeader, PROXMOX_BACKUP_CONTENT_HEADER_MAGIC_1_0};
 
 use proxmox_backup::{
     api2,
-    tape::{
-        drive::{
-            open_drive,
-            lock_tape_device,
-            set_tape_device_state,
-        },
-        complete_media_label_text,
-        complete_media_set_uuid,
-        complete_media_set_snapshots,
-        file_formats::{
-            proxmox_tape_magic_to_text,
-        },
-    },
     client_helpers::connect_to_localhost,
+    tape::{
+        complete_media_label_text, complete_media_set_snapshots, complete_media_set_uuid,
+        drive::{lock_tape_device, open_drive, set_tape_device_state},
+        file_formats::proxmox_tape_magic_to_text,
+    },
 };
 
 mod proxmox_tape;
@@ -58,14 +44,15 @@ async fn get_backup_groups(store: &str) -> Result<Vec<GroupListItem>, Error> {
         .await?;
 
     match api_res.get("data") {
-        Some(data) => Ok(serde_json::from_value::<Vec<GroupListItem>>(data.to_owned())?),
+        Some(data) => Ok(serde_json::from_value::<Vec<GroupListItem>>(
+            data.to_owned(),
+        )?),
         None => bail!("could not get group list"),
     }
 }
 
 // shell completion helper
 pub fn complete_datastore_group_filter(_arg: &str, param: &HashMap<String, String>) -> Vec<String> {
-
     let mut list = Vec::new();
 
     list.push("regex:".to_string());
@@ -73,33 +60,32 @@ pub fn complete_datastore_group_filter(_arg: &str, param: &HashMap<String, Strin
     list.push("type:host".to_string());
     list.push("type:vm".to_string());
 
-    if let Some(store) =  param.get("store") {
+    if let Some(store) = param.get("store") {
         let groups = proxmox_async::runtime::block_on(async { get_backup_groups(store).await });
         if let Ok(groups) = groups {
-            list.extend(groups.iter().map(|group| format!("group:{}/{}", group.backup_type, group.backup_id)));
+            list.extend(
+                groups
+                    .iter()
+                    .map(|group| format!("group:{}/{}", group.backup_type, group.backup_id)),
+            );
         }
     }
 
     list
 }
 
-pub fn extract_drive_name(
-    param: &mut Value,
-    config: &SectionConfigData,
-) -> Result<String, Error> {
-
+pub fn extract_drive_name(param: &mut Value, config: &SectionConfigData) -> Result<String, Error> {
     let drive = param["drive"]
         .as_str()
         .map(String::from)
         .or_else(|| std::env::var("PROXMOX_TAPE_DRIVE").ok())
-        .or_else(||  {
-
+        .or_else(|| {
             let mut drive_names = Vec::new();
 
             for (name, (section_type, _)) in config.sections.iter() {
-
-                if !(section_type == "linux" || section_type == "virtual") { continue; }
-                drive_names.push(name);
+                if section_type == "linux" || section_type == "virtual" {
+                    drive_names.push(name);
+                }
             }
 
             if drive_names.len() == 1 {
@@ -139,7 +125,6 @@ pub fn extract_drive_name(
 )]
 /// Format media
 async fn format_media(mut param: Value) -> Result<(), Error> {
-
     let output_format = extract_output_format(&mut param);
 
     let (config, _digest) = pbs_config::drive::config()?;
@@ -172,7 +157,6 @@ async fn format_media(mut param: Value) -> Result<(), Error> {
 )]
 /// Rewind tape
 async fn rewind(mut param: Value) -> Result<(), Error> {
-
     let output_format = extract_output_format(&mut param);
 
     let (config, _digest) = pbs_config::drive::config()?;
@@ -205,7 +189,6 @@ async fn rewind(mut param: Value) -> Result<(), Error> {
 )]
 /// Eject/Unload drive media
 async fn eject_media(mut param: Value) -> Result<(), Error> {
-
     let output_format = extract_output_format(&mut param);
 
     let (config, _digest) = pbs_config::drive::config()?;
@@ -241,7 +224,6 @@ async fn eject_media(mut param: Value) -> Result<(), Error> {
 )]
 /// Load media with specified label
 async fn load_media(mut param: Value) -> Result<(), Error> {
-
     let output_format = extract_output_format(&mut param);
 
     let (config, _digest) = pbs_config::drive::config()?;
@@ -273,7 +255,6 @@ async fn load_media(mut param: Value) -> Result<(), Error> {
 )]
 /// Export media with specified label
 async fn export_media(mut param: Value) -> Result<(), Error> {
-
     let (config, _digest) = pbs_config::drive::config()?;
 
     let drive = extract_drive_name(&mut param, &config)?;
@@ -303,7 +284,6 @@ async fn export_media(mut param: Value) -> Result<(), Error> {
 )]
 /// Load media from the specified slot
 async fn load_media_from_slot(mut param: Value) -> Result<(), Error> {
-
     let (config, _digest) = pbs_config::drive::config()?;
 
     let drive = extract_drive_name(&mut param, &config)?;
@@ -338,7 +318,6 @@ async fn load_media_from_slot(mut param: Value) -> Result<(), Error> {
 )]
 /// Unload media via changer
 async fn unload_media(mut param: Value) -> Result<(), Error> {
-
     let output_format = extract_output_format(&mut param);
 
     let (config, _digest) = pbs_config::drive::config()?;
@@ -378,7 +357,6 @@ async fn unload_media(mut param: Value) -> Result<(), Error> {
 )]
 /// Label media
 async fn label_media(mut param: Value) -> Result<(), Error> {
-
     let output_format = extract_output_format(&mut param);
 
     let (config, _digest) = pbs_config::drive::config()?;
@@ -416,7 +394,6 @@ async fn label_media(mut param: Value) -> Result<(), Error> {
 )]
 /// Read media label
 async fn read_label(mut param: Value) -> Result<(), Error> {
-
     let output_format = extract_output_format(&mut param);
 
     let (config, _digest) = pbs_config::drive::config()?;
@@ -438,8 +415,7 @@ async fn read_label(mut param: Value) -> Result<(), Error> {
         .column(ColumnConfig::new("pool"))
         .column(ColumnConfig::new("media-set-uuid"))
         .column(ColumnConfig::new("media-set-ctime").renderer(render_epoch))
-        .column(ColumnConfig::new("encryption-key-fingerprint"))
-        ;
+        .column(ColumnConfig::new("encryption-key-fingerprint"));
 
     format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
 
@@ -476,7 +452,6 @@ async fn inventory(
     read_all_labels: Option<bool>,
     mut param: Value,
 ) -> Result<(), Error> {
-
     let output_format = extract_output_format(&mut param);
 
     let (config, _digest) = pbs_config::drive::config()?;
@@ -489,7 +464,6 @@ async fn inventory(
     let path = format!("api2/json/tape/drive/{}/inventory", drive);
 
     if do_read {
-
         let mut param = json!({});
         if let Some(true) = read_all_labels {
             param["read-all-labels"] = true.into();
@@ -506,8 +480,7 @@ async fn inventory(
 
     let options = default_table_format_options()
         .column(ColumnConfig::new("label-text"))
-        .column(ColumnConfig::new("uuid"))
-        ;
+        .column(ColumnConfig::new("uuid"));
 
     format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
 
@@ -534,7 +507,6 @@ async fn inventory(
 )]
 /// Label media with barcodes from changer device
 async fn barcode_label_media(mut param: Value) -> Result<(), Error> {
-
     let output_format = extract_output_format(&mut param);
 
     let (config, _digest) = pbs_config::drive::config()?;
@@ -563,7 +535,6 @@ async fn barcode_label_media(mut param: Value) -> Result<(), Error> {
 )]
 /// Move to end of media (MTEOM, used to debug)
 fn move_to_eom(mut param: Value) -> Result<(), Error> {
-
     let (config, _digest) = pbs_config::drive::config()?;
 
     let drive = extract_drive_name(&mut param, &config)?;
@@ -593,7 +564,6 @@ fn move_to_eom(mut param: Value) -> Result<(), Error> {
 /// Note: This reads unless the driver returns an IO Error, so this
 /// method is expected to fails when we reach EOT.
 fn debug_scan(mut param: Value) -> Result<(), Error> {
-
     let (config, _digest) = pbs_config::drive::config()?;
 
     let drive = extract_drive_name(&mut param, &config)?;
@@ -628,8 +598,12 @@ fn debug_scan(mut param: Value) -> Result<(), Error> {
                 match header {
                     Ok(header) => {
                         if header.magic != PROXMOX_BACKUP_CONTENT_HEADER_MAGIC_1_0 {
-                            println!("got MediaContentHeader with wrong magic: {:?}", header.magic);
-                        } else if let Some(name) = proxmox_tape_magic_to_text(&header.content_magic) {
+                            println!(
+                                "got MediaContentHeader with wrong magic: {:?}",
+                                header.magic
+                            );
+                        } else if let Some(name) = proxmox_tape_magic_to_text(&header.content_magic)
+                        {
                             println!("got content header: {}", name);
                             println!("  uuid:  {}", header.content_uuid());
                             println!("  ctime: {}", strftime_local("%c", header.ctime)?);
@@ -673,7 +647,6 @@ fn debug_scan(mut param: Value) -> Result<(), Error> {
 )]
 /// Read Cartridge Memory (Medium auxiliary memory attributes)
 async fn cartridge_memory(mut param: Value) -> Result<(), Error> {
-
     let output_format = extract_output_format(&mut param);
 
     let (config, _digest) = pbs_config::drive::config()?;
@@ -691,8 +664,7 @@ async fn cartridge_memory(mut param: Value) -> Result<(), Error> {
     let options = default_table_format_options()
         .column(ColumnConfig::new("id"))
         .column(ColumnConfig::new("name"))
-        .column(ColumnConfig::new("value"))
-        ;
+        .column(ColumnConfig::new("value"));
 
     format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
     Ok(())
@@ -714,7 +686,6 @@ async fn cartridge_memory(mut param: Value) -> Result<(), Error> {
 )]
 /// Read Volume Statistics (SCSI log page 17h)
 async fn volume_statistics(mut param: Value) -> Result<(), Error> {
-
     let output_format = extract_output_format(&mut param);
 
     let (config, _digest) = pbs_config::drive::config()?;
@@ -752,7 +723,6 @@ async fn volume_statistics(mut param: Value) -> Result<(), Error> {
 )]
 /// Get drive/media status
 async fn status(mut param: Value) -> Result<(), Error> {
-
     let output_format = extract_output_format(&mut param);
 
     let (config, _digest) = pbs_config::drive::config()?;
@@ -769,7 +739,7 @@ async fn status(mut param: Value) -> Result<(), Error> {
 
     let render_percentage = |value: &Value, _record: &Value| {
         match value.as_f64() {
-            Some(wearout) => Ok(format!("{:.2}%", wearout*100.0)),
+            Some(wearout) => Ok(format!("{:.2}%", wearout * 100.0)),
             None => Ok(String::from("ERROR")), // should never happen
         }
     };
@@ -788,8 +758,7 @@ async fn status(mut param: Value) -> Result<(), Error> {
         .column(ColumnConfig::new("bytes-read").renderer(render_bytes_human_readable))
         .column(ColumnConfig::new("medium-passes"))
         .column(ColumnConfig::new("medium-wearout").renderer(render_percentage))
-        .column(ColumnConfig::new("volume-mounts"))
-        ;
+        .column(ColumnConfig::new("volume-mounts"));
 
     format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
 
@@ -812,7 +781,6 @@ async fn status(mut param: Value) -> Result<(), Error> {
 )]
 /// Clean drive
 async fn clean_drive(mut param: Value) -> Result<(), Error> {
-
     let output_format = extract_output_format(&mut param);
 
     let (config, _digest) = pbs_config::drive::config()?;
@@ -887,7 +855,6 @@ async fn clean_drive(mut param: Value) -> Result<(), Error> {
 )]
 /// Backup datastore to tape media pool
 async fn backup(mut param: Value) -> Result<(), Error> {
-
     let output_format = extract_output_format(&mut param);
 
     let (config, _digest) = pbs_config::drive::config()?;
@@ -942,7 +909,6 @@ async fn backup(mut param: Value) -> Result<(), Error> {
 )]
 /// Restore data from media-set
 async fn restore(mut param: Value) -> Result<(), Error> {
-
     let output_format = extract_output_format(&mut param);
 
     let (config, _digest) = pbs_config::drive::config()?;
@@ -988,8 +954,7 @@ async fn restore(mut param: Value) -> Result<(), Error> {
     },
 )]
 /// Scan media and record content
-async fn catalog_media(mut param: Value)  -> Result<(), Error> {
-
+async fn catalog_media(mut param: Value) -> Result<(), Error> {
     let output_format = extract_output_format(&mut param);
 
     let (config, _digest) = pbs_config::drive::config()?;
@@ -1007,7 +972,6 @@ async fn catalog_media(mut param: Value)  -> Result<(), Error> {
 }
 
 fn main() {
-
     let cmd_def = CliCommandMap::new()
         .insert(
             "backup",
@@ -1016,7 +980,7 @@ fn main() {
                 .completion_cb("drive", complete_drive_name)
                 .completion_cb("store", complete_datastore_name)
                 .completion_cb("pool", complete_pool_name)
-                .completion_cb("groups", complete_datastore_group_filter)
+                .completion_cb("groups", complete_datastore_group_filter),
         )
         .insert(
             "restore",
@@ -1024,80 +988,69 @@ fn main() {
                 .arg_param(&["media-set", "store", "snapshots"])
                 .completion_cb("store", complete_datastore_name)
                 .completion_cb("media-set", complete_media_set_uuid)
-                .completion_cb("snapshots", complete_media_set_snapshots)
+                .completion_cb("snapshots", complete_media_set_snapshots),
         )
         .insert(
             "barcode-label",
             CliCommand::new(&API_METHOD_BARCODE_LABEL_MEDIA)
                 .completion_cb("drive", complete_drive_name)
-                .completion_cb("pool", complete_pool_name)
+                .completion_cb("pool", complete_pool_name),
         )
         .insert(
             "rewind",
-            CliCommand::new(&API_METHOD_REWIND)
-                .completion_cb("drive", complete_drive_name)
+            CliCommand::new(&API_METHOD_REWIND).completion_cb("drive", complete_drive_name),
         )
         .insert(
             "scan",
-            CliCommand::new(&API_METHOD_DEBUG_SCAN)
-                .completion_cb("drive", complete_drive_name)
+            CliCommand::new(&API_METHOD_DEBUG_SCAN).completion_cb("drive", complete_drive_name),
         )
         .insert(
             "status",
-            CliCommand::new(&API_METHOD_STATUS)
-                .completion_cb("drive", complete_drive_name)
+            CliCommand::new(&API_METHOD_STATUS).completion_cb("drive", complete_drive_name),
         )
         .insert(
             "eod",
-            CliCommand::new(&API_METHOD_MOVE_TO_EOM)
-                .completion_cb("drive", complete_drive_name)
+            CliCommand::new(&API_METHOD_MOVE_TO_EOM).completion_cb("drive", complete_drive_name),
         )
         .insert(
             "format",
-            CliCommand::new(&API_METHOD_FORMAT_MEDIA)
-                .completion_cb("drive", complete_drive_name)
+            CliCommand::new(&API_METHOD_FORMAT_MEDIA).completion_cb("drive", complete_drive_name),
         )
         .insert(
             "eject",
-            CliCommand::new(&API_METHOD_EJECT_MEDIA)
-                .completion_cb("drive", complete_drive_name)
+            CliCommand::new(&API_METHOD_EJECT_MEDIA).completion_cb("drive", complete_drive_name),
         )
         .insert(
             "inventory",
-            CliCommand::new(&API_METHOD_INVENTORY)
-                .completion_cb("drive", complete_drive_name)
+            CliCommand::new(&API_METHOD_INVENTORY).completion_cb("drive", complete_drive_name),
         )
         .insert(
             "read-label",
-            CliCommand::new(&API_METHOD_READ_LABEL)
-                .completion_cb("drive", complete_drive_name)
+            CliCommand::new(&API_METHOD_READ_LABEL).completion_cb("drive", complete_drive_name),
         )
         .insert(
             "catalog",
-            CliCommand::new(&API_METHOD_CATALOG_MEDIA)
-                .completion_cb("drive", complete_drive_name)
+            CliCommand::new(&API_METHOD_CATALOG_MEDIA).completion_cb("drive", complete_drive_name),
         )
         .insert(
             "cartridge-memory",
             CliCommand::new(&API_METHOD_CARTRIDGE_MEMORY)
-                .completion_cb("drive", complete_drive_name)
+                .completion_cb("drive", complete_drive_name),
         )
         .insert(
             "volume-statistics",
             CliCommand::new(&API_METHOD_VOLUME_STATISTICS)
-                .completion_cb("drive", complete_drive_name)
+                .completion_cb("drive", complete_drive_name),
         )
         .insert(
             "clean",
-            CliCommand::new(&API_METHOD_CLEAN_DRIVE)
-                .completion_cb("drive", complete_drive_name)
+            CliCommand::new(&API_METHOD_CLEAN_DRIVE).completion_cb("drive", complete_drive_name),
         )
         .insert(
             "label",
             CliCommand::new(&API_METHOD_LABEL_MEDIA)
                 .completion_cb("drive", complete_drive_name)
-                .completion_cb("pool", complete_pool_name)
-
+                .completion_cb("pool", complete_pool_name),
         )
         .insert("changer", changer_commands())
         .insert("drive", drive_commands())
@@ -1110,27 +1063,25 @@ fn main() {
             CliCommand::new(&API_METHOD_LOAD_MEDIA)
                 .arg_param(&["label-text"])
                 .completion_cb("drive", complete_drive_name)
-                .completion_cb("label-text", complete_media_label_text)
+                .completion_cb("label-text", complete_media_label_text),
         )
         .insert(
             "load-media-from-slot",
             CliCommand::new(&API_METHOD_LOAD_MEDIA_FROM_SLOT)
                 .arg_param(&["source-slot"])
-                .completion_cb("drive", complete_drive_name)
+                .completion_cb("drive", complete_drive_name),
         )
         .insert(
             "unload",
-            CliCommand::new(&API_METHOD_UNLOAD_MEDIA)
-                .completion_cb("drive", complete_drive_name)
+            CliCommand::new(&API_METHOD_UNLOAD_MEDIA).completion_cb("drive", complete_drive_name),
         )
         .insert(
             "export-media",
             CliCommand::new(&API_METHOD_EXPORT_MEDIA)
                 .arg_param(&["label-text"])
                 .completion_cb("drive", complete_drive_name)
-                .completion_cb("label-text", complete_media_label_text)
-        )
-        ;
+                .completion_cb("label-text", complete_media_label_text),
+        );
 
     let mut rpcenv = CliEnvironment::new();
     rpcenv.set_auth_id(Some(String::from("root@pam")));

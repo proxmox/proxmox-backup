@@ -6,31 +6,27 @@ use proxmox_schema::api;
 
 use pbs_api_types::DRIVE_NAME_SCHEMA;
 
-use pbs_config::drive::{
-    complete_drive_name,
-    complete_changer_name,
-    complete_lto_drive_name,
-};
+use pbs_config::drive::{complete_changer_name, complete_drive_name, complete_lto_drive_name};
 
-use pbs_tape::linux_list_drives::{complete_drive_path};
+use pbs_tape::linux_list_drives::complete_drive_path;
 
 use proxmox_backup::api2;
 
 pub fn drive_commands() -> CommandLineInterface {
-
     let cmd_def = CliCommandMap::new()
         .insert("scan", CliCommand::new(&API_METHOD_SCAN_FOR_DRIVES))
         .insert("list", CliCommand::new(&API_METHOD_LIST_DRIVES))
-        .insert("config",
-                CliCommand::new(&API_METHOD_GET_CONFIG)
+        .insert(
+            "config",
+            CliCommand::new(&API_METHOD_GET_CONFIG)
                 .arg_param(&["name"])
-                .completion_cb("name", complete_lto_drive_name)
+                .completion_cb("name", complete_lto_drive_name),
         )
         .insert(
             "remove",
             CliCommand::new(&api2::config::drive::API_METHOD_DELETE_DRIVE)
                 .arg_param(&["name"])
-                .completion_cb("name", complete_lto_drive_name)
+                .completion_cb("name", complete_lto_drive_name),
         )
         .insert(
             "create",
@@ -38,7 +34,7 @@ pub fn drive_commands() -> CommandLineInterface {
                 .arg_param(&["name"])
                 .completion_cb("name", complete_drive_name)
                 .completion_cb("path", complete_drive_path)
-                .completion_cb("changer", complete_changer_name)
+                .completion_cb("changer", complete_changer_name),
         )
         .insert(
             "update",
@@ -46,9 +42,8 @@ pub fn drive_commands() -> CommandLineInterface {
                 .arg_param(&["name"])
                 .completion_cb("name", complete_lto_drive_name)
                 .completion_cb("path", complete_drive_path)
-                .completion_cb("changer", complete_changer_name)
-        )
-        ;
+                .completion_cb("changer", complete_changer_name),
+        );
 
     cmd_def.into()
 }
@@ -64,11 +59,7 @@ pub fn drive_commands() -> CommandLineInterface {
     },
 )]
 /// List drives
-fn list_drives(
-    param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<(), Error> {
-
+fn list_drives(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
     let output_format = get_output_format(&param);
     let info = &api2::tape::drive::API_METHOD_LIST_DRIVES;
     let mut data = match info.handler {
@@ -82,8 +73,7 @@ fn list_drives(
         .column(ColumnConfig::new("changer"))
         .column(ColumnConfig::new("vendor"))
         .column(ColumnConfig::new("model"))
-        .column(ColumnConfig::new("serial"))
-        ;
+        .column(ColumnConfig::new("serial"));
 
     format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
 
@@ -101,11 +91,7 @@ fn list_drives(
     }
 )]
 /// Scan for drives
-fn scan_for_drives(
-    param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<(), Error> {
-
+fn scan_for_drives(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
     let output_format = get_output_format(&param);
     let info = &api2::tape::API_METHOD_SCAN_DRIVES;
     let mut data = match info.handler {
@@ -117,14 +103,12 @@ fn scan_for_drives(
         .column(ColumnConfig::new("path"))
         .column(ColumnConfig::new("vendor"))
         .column(ColumnConfig::new("model"))
-        .column(ColumnConfig::new("serial"))
-        ;
+        .column(ColumnConfig::new("serial"));
 
     format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
 
     Ok(())
 }
-
 
 #[api(
     input: {
@@ -140,11 +124,7 @@ fn scan_for_drives(
     },
 )]
 /// Get pool configuration
-fn get_config(
-    param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<(), Error> {
-
+fn get_config(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
     let output_format = get_output_format(&param);
     let info = &api2::config::drive::API_METHOD_GET_CONFIG;
     let mut data = match info.handler {
@@ -156,8 +136,7 @@ fn get_config(
         .column(ColumnConfig::new("name"))
         .column(ColumnConfig::new("path"))
         .column(ColumnConfig::new("changer"))
-        .column(ColumnConfig::new("changer-drivenum"))
-        ;
+        .column(ColumnConfig::new("changer-drivenum"));
 
     format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
 
