@@ -8,11 +8,11 @@ pub const RRD_DATA_ENTRIES: usize = 70;
 
 /// Proxmox RRD file magic number
 // openssl::sha::sha256(b"Proxmox Round Robin Database file v1.0")[0..8];
-pub const PROXMOX_RRD_MAGIC_1_0: [u8; 8] =  [206, 46, 26, 212, 172, 158, 5, 186];
+pub const PROXMOX_RRD_MAGIC_1_0: [u8; 8] = [206, 46, 26, 212, 172, 158, 5, 186];
 
-use crate::rrd::{RRD, RRA, CF, DST, DataSource};
+use crate::rrd::{DataSource, CF, DST, RRA, RRD};
 
-bitflags!{
+bitflags! {
     /// Flags to specify the data soure type and consolidation function
     pub struct RRAFlags: u64 {
         // Data Source Types
@@ -49,19 +49,16 @@ pub struct RRAv1 {
 }
 
 impl RRAv1 {
-
-    fn extract_data(
-        &self,
-    ) -> (u64, u64, Vec<Option<f64>>) {
+    fn extract_data(&self) -> (u64, u64, Vec<Option<f64>>) {
         let reso = self.resolution;
 
         let mut list = Vec::new();
 
-        let rra_end = reso*((self.last_update as u64)/reso);
-        let rra_start = rra_end - reso*(RRD_DATA_ENTRIES as u64);
+        let rra_end = reso * ((self.last_update as u64) / reso);
+        let rra_start = rra_end - reso * (RRD_DATA_ENTRIES as u64);
 
         let mut t = rra_start;
-        let mut index = ((t/reso) % (RRD_DATA_ENTRIES as u64)) as usize;
+        let mut index = ((t / reso) % (RRD_DATA_ENTRIES as u64)) as usize;
         for _ in 0..RRD_DATA_ENTRIES {
             let value = self.data[index];
             if value.is_nan() {
@@ -70,7 +67,8 @@ impl RRAv1 {
                 list.push(Some(value));
             }
 
-            t += reso; index = (index + 1) % RRD_DATA_ENTRIES;
+            t += reso;
+            index = (index + 1) % RRD_DATA_ENTRIES;
         }
 
         (rra_start, reso, list)
@@ -106,9 +104,7 @@ pub struct RRDv1 {
 }
 
 impl RRDv1 {
-
     pub fn from_raw(mut raw: &[u8]) -> Result<Self, std::io::Error> {
-
         let expected_len = std::mem::size_of::<RRDv1>();
 
         if raw.len() != expected_len {
@@ -118,7 +114,8 @@ impl RRDv1 {
 
         let mut rrd: RRDv1 = unsafe { std::mem::zeroed() };
         unsafe {
-            let rrd_slice = std::slice::from_raw_parts_mut(&mut rrd as *mut _ as *mut u8, expected_len);
+            let rrd_slice =
+                std::slice::from_raw_parts_mut(&mut rrd as *mut _ as *mut u8, expected_len);
             raw.read_exact(rrd_slice)?;
         }
 
@@ -131,7 +128,6 @@ impl RRDv1 {
     }
 
     pub fn to_rrd_v2(&self) -> Result<RRD, Error> {
-
         let mut rra_list = Vec::new();
 
         // old format v1:
@@ -150,30 +146,36 @@ impl RRDv1 {
         // decade   1 week,      570 points
 
         // Linear extrapolation
-        fn extrapolate_data(start: u64, reso: u64, factor: u64, data: Vec<Option<f64>>) -> (u64, u64, Vec<Option<f64>>) {
-
+        fn extrapolate_data(
+            start: u64,
+            reso: u64,
+            factor: u64,
+            data: Vec<Option<f64>>,
+        ) -> (u64, u64, Vec<Option<f64>>) {
             let mut new = Vec::new();
 
             for i in 0..data.len() {
                 let mut next = i + 1;
-                if next >= data.len() { next = 0 };
+                if next >= data.len() {
+                    next = 0
+                };
                 let v = data[i];
                 let v1 = data[next];
                 match (v, v1) {
                     (Some(v), Some(v1)) => {
-                        let diff = (v1 - v)/(factor as f64);
+                        let diff = (v1 - v) / (factor as f64);
                         for j in 0..factor {
-                            new.push(Some(v + diff*(j as f64)));
+                            new.push(Some(v + diff * (j as f64)));
                         }
                     }
                     (Some(v), None) => {
                         new.push(Some(v));
-                        for _ in 0..factor-1 {
+                        for _ in 0..factor - 1 {
                             new.push(None);
                         }
                     }
                     (None, Some(v1)) => {
-                        for _ in 0..factor-1 {
+                        for _ in 0..factor - 1 {
                             new.push(None);
                         }
                         new.push(Some(v1));
@@ -186,7 +188,7 @@ impl RRDv1 {
                 }
             }
 
-            (start, reso/factor, new)
+            (start, reso / factor, new)
         }
 
         // Try to convert to new, higher capacity format
@@ -213,7 +215,7 @@ impl RRDv1 {
 
         // compute montly average (merge old self.month_avg,
         // self.week_avg and self.day_avg)
-        let mut month_avg = RRA::new(CF::Average, 30*60, 1440);
+        let mut month_avg = RRA::new(CF::Average, 30 * 60, 1440);
 
         let (start, reso, data) = self.month_avg.extract_data();
         let (start, reso, data) = extrapolate_data(start, reso, 24, data);
@@ -228,7 +230,7 @@ impl RRDv1 {
 
         // compute montly maximum (merge old self.month_max,
         // self.week_max and self.day_max)
-        let mut month_max = RRA::new(CF::Maximum, 30*60, 1440);
+        let mut month_max = RRA::new(CF::Maximum, 30 * 60, 1440);
 
         let (start, reso, data) = self.month_max.extract_data();
         let (start, reso, data) = extrapolate_data(start, reso, 24, data);
@@ -242,26 +244,26 @@ impl RRDv1 {
         month_max.insert_data(start, reso, data)?;
 
         // compute yearly average (merge old self.year_avg)
-        let mut year_avg = RRA::new(CF::Average, 6*3600, 1440);
+        let mut year_avg = RRA::new(CF::Average, 6 * 3600, 1440);
 
         let (start, reso, data) = self.year_avg.extract_data();
         let (start, reso, data) = extrapolate_data(start, reso, 28, data);
         year_avg.insert_data(start, reso, data)?;
 
         // compute yearly maximum (merge old self.year_avg)
-        let mut year_max = RRA::new(CF::Maximum, 6*3600, 1440);
+        let mut year_max = RRA::new(CF::Maximum, 6 * 3600, 1440);
 
         let (start, reso, data) = self.year_max.extract_data();
         let (start, reso, data) = extrapolate_data(start, reso, 28, data);
         year_max.insert_data(start, reso, data)?;
 
         // compute decade average (merge old self.year_avg)
-        let mut decade_avg = RRA::new(CF::Average, 7*86400, 570);
+        let mut decade_avg = RRA::new(CF::Average, 7 * 86400, 570);
         let (start, reso, data) = self.year_avg.extract_data();
         decade_avg.insert_data(start, reso, data)?;
 
         // compute decade maximum (merge old self.year_max)
-        let mut decade_max = RRA::new(CF::Maximum, 7*86400, 570);
+        let mut decade_max = RRA::new(CF::Maximum, 7 * 86400, 570);
         let (start, reso, data) = self.year_max.extract_data();
         decade_max.insert_data(start, reso, data)?;
 
@@ -286,11 +288,8 @@ impl RRDv1 {
         let source = DataSource {
             dst,
             last_value: f64::NAN,
-            last_update:  self.hour_avg.last_update, // IMPORTANT!
+            last_update: self.hour_avg.last_update, // IMPORTANT!
         };
-        Ok(RRD {
-            source,
-            rra_list,
-        })
+        Ok(RRD { source, rra_list })
     }
 }

@@ -1,6 +1,6 @@
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
-use std::collections::HashMap;
 
 use anyhow::{bail, Error};
 
@@ -17,7 +17,6 @@ pub struct RRDMap {
 }
 
 impl RRDMap {
-
     pub(crate) fn new(
         config: Arc<CacheConfig>,
         load_rrd_cb: fn(path: &Path, rel_path: &str, dst: DST) -> RRD,
@@ -71,7 +70,7 @@ impl RRDMap {
     }
 
     pub fn flush_rrd_file(&self, rel_path: &str) -> Result<(), Error> {
-        if let Some(rrd) =  self.map.get(rel_path) {
+        if let Some(rrd) = self.map.get(rel_path) {
             let mut path = self.config.basedir.clone();
             path.push(rel_path);
             rrd.save(&path, self.config.file_options.clone(), true)

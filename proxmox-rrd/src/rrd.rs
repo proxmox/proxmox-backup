@@ -11,15 +11,15 @@
 //! * Plattform independent (big endian f64, hopefully a standard format?)
 //! * Arbitrary number of RRAs (dynamically changeable)
 
-use std::path::Path;
 use std::io::{Read, Write};
 use std::os::unix::io::{AsRawFd, FromRawFd, IntoRawFd};
+use std::path::Path;
 
 use anyhow::{bail, format_err, Error};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
-use proxmox_sys::fs::{make_tmp_file, CreateOptions};
 use proxmox_schema::api;
+use proxmox_sys::fs::{make_tmp_file, CreateOptions};
 
 use crate::rrd_v1;
 
@@ -69,7 +69,6 @@ pub struct DataSource {
 }
 
 impl DataSource {
-
     /// Create a new Instance
     pub fn new(dst: DST) -> Self {
         Self {
@@ -111,15 +110,13 @@ impl DataSource {
                 value - self.last_value
             };
             self.last_value = value;
-            value = diff/time_diff;
+            value = diff / time_diff;
         } else {
             self.last_value = value;
         }
 
         Ok(value)
     }
-
-
 }
 
 #[derive(Serialize, Deserialize)]
@@ -136,7 +133,6 @@ pub struct RRA {
 }
 
 impl RRA {
-
     /// Creates a new instance
     pub fn new(cf: CF, resolution: u64, points: usize) -> Self {
         Self {
@@ -181,7 +177,10 @@ impl RRA {
             if let Some(v) = item {
                 self.data[index] = v;
             }
-            index += 1; if index >= self.data.len() { index = 0; }
+            index += 1;
+            if index >= self.data.len() {
+                index = 0;
+            }
         }
         Ok(())
     }
@@ -192,15 +191,18 @@ impl RRA {
         let reso = self.resolution;
         let num_entries = self.data.len() as u64;
 
-        let min_time = epoch.saturating_sub(num_entries*reso);
+        let min_time = epoch.saturating_sub(num_entries * reso);
         let min_time = self.slot_end_time(min_time);
 
-        let mut t = last_update.saturating_sub(num_entries*reso);
+        let mut t = last_update.saturating_sub(num_entries * reso);
         let mut index = self.slot(t);
 
         for _ in 0..num_entries {
             t += reso;
-            index += 1; if index >= self.data.len() { index = 0; }
+            index += 1;
+            if index >= self.data.len() {
+                index = 0;
+            }
             if t < min_time {
                 self.data[index] = f64::NAN;
             } else {
@@ -233,12 +235,24 @@ impl RRA {
             self.last_count = 1;
         } else {
             let new_value = match self.cf {
-                CF::Maximum => if last_value > value { last_value } else { value },
-                CF::Minimum => if last_value < value { last_value } else { value },
+                CF::Maximum => {
+                    if last_value > value {
+                        last_value
+                    } else {
+                        value
+                    }
+                }
+                CF::Minimum => {
+                    if last_value < value {
+                        last_value
+                    } else {
+                        value
+                    }
+                }
                 CF::Last => value,
                 CF::Average => {
-                    (last_value*(self.last_count as f64))/(new_count as f64)
-                        + value/(new_count as f64)
+                    (last_value * (self.last_count as f64)) / (new_count as f64)
+                        + value / (new_count as f64)
                 }
             };
             self.data[index] = new_value;
@@ -264,12 +278,14 @@ impl RRA {
         let mut list = Vec::new();
 
         let rrd_end = self.slot_end_time(last_update);
-        let rrd_start = rrd_end.saturating_sub(reso*num_entries);
+        let rrd_start = rrd_end.saturating_sub(reso * num_entries);
 
         let mut t = start;
         let mut index = self.slot(t);
         for _ in 0..num_entries {
-            if t > end { break; };
+            if t > end {
+                break;
+            };
             if t < rrd_start || t >= rrd_end {
                 list.push(None);
             } else {
@@ -281,7 +297,10 @@ impl RRA {
                 }
             }
             t += reso;
-            index += 1; if index >= self.data.len() { index = 0; }
+            index += 1;
+            if index >= self.data.len() {
+                index = 0;
+            }
         }
 
         (start, reso, list)
@@ -298,17 +317,11 @@ pub struct RRD {
 }
 
 impl RRD {
-
     /// Creates a new Instance
     pub fn new(dst: DST, rra_list: Vec<RRA>) -> RRD {
-
         let source = DataSource::new(dst);
 
-        RRD {
-            source,
-            rra_list,
-        }
-
+        RRD { source, rra_list }
     }
 
     fn from_raw(raw: &[u8]) -> Result<Self, Error> {
@@ -340,7 +353,6 @@ impl RRD {
     /// `fadvise(..,POSIX_FADV_DONTNEED)` to avoid keeping the data in
     /// the linux page cache.
     pub fn load(path: &Path, avoid_page_cache: bool) -> Result<Self, std::io::Error> {
-
         let mut file = std::fs::File::open(path)?;
         let buffer_size = file.metadata().map(|m| m.len() as usize + 1).unwrap_or(0);
         let mut raw = Vec::with_capacity(buffer_size);
@@ -352,12 +364,16 @@ impl RRD {
                 0,
                 buffer_size as i64,
                 nix::fcntl::PosixFadviseAdvice::POSIX_FADV_DONTNEED,
-            ).map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err.to_string()))?;
+            )
+            .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err.to_string()))?;
         }
 
         match Self::from_raw(&raw) {
             Ok(rrd) => Ok(rrd),
-            Err(err) =>  Err(std::io::Error::new(std::io::ErrorKind::Other, err.to_string())),
+            Err(err) => Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                err.to_string(),
+            )),
         }
     }
 
@@ -366,13 +382,12 @@ impl RRD {
     /// Setting `avoid_page_cache` uses
     /// `fadvise(..,POSIX_FADV_DONTNEED)` to avoid keeping the data in
     /// the linux page cache.
-   pub fn save(
+    pub fn save(
         &self,
         path: &Path,
         options: CreateOptions,
         avoid_page_cache: bool,
     ) -> Result<(), Error> {
-
         let (fd, tmp_path) = make_tmp_file(&path, options)?;
         let mut file = unsafe { std::fs::File::from_raw_fd(fd.into_raw_fd()) };
 
@@ -419,7 +434,6 @@ impl RRD {
     ///
     /// Note: This does not call [Self::save].
     pub fn update(&mut self, time: f64, value: f64) {
-
         let value = match self.source.compute_new_value(time, value) {
             Ok(value) => value,
             Err(err) => {
@@ -451,11 +465,14 @@ impl RRD {
         start: Option<u64>,
         end: Option<u64>,
     ) -> Result<(u64, u64, Vec<Option<f64>>), Error> {
-
         let mut rra: Option<&RRA> = None;
         for item in self.rra_list.iter() {
-            if item.cf != cf { continue; }
-            if item.resolution > resolution { continue; }
+            if item.cf != cf {
+                continue;
+            }
+            if item.resolution > resolution {
+                continue;
+            }
 
             if let Some(current) = rra {
                 if item.resolution > current.resolution {
@@ -469,15 +486,13 @@ impl RRD {
         match rra {
             Some(rra) => {
                 let end = end.unwrap_or_else(|| proxmox_time::epoch_f64() as u64);
-                let start = start.unwrap_or_else(|| end.saturating_sub(10*rra.resolution));
+                let start = start.unwrap_or_else(|| end.saturating_sub(10 * rra.resolution));
                 Ok(rra.extract_data(start, end, self.source.last_update))
             }
             None => bail!("unable to find RRA suitable ({:?}:{})", cf, resolution),
         }
     }
-
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -489,10 +504,10 @@ mod tests {
         let mut rrd = RRD::new(DST::Gauge, vec![rra]);
 
         for i in 2..10 {
-            rrd.update((i as f64)*30.0, i as f64);
+            rrd.update((i as f64) * 30.0, i as f64);
         }
 
-        let (start, reso, data) = rrd.extract_data(CF::Maximum, 60, Some(0), Some(5*60))?;
+        let (start, reso, data) = rrd.extract_data(CF::Maximum, 60, Some(0), Some(5 * 60))?;
         assert_eq!(start, 0);
         assert_eq!(reso, 60);
         assert_eq!(data, [None, Some(3.0), Some(5.0), Some(7.0), Some(9.0)]);
@@ -506,10 +521,10 @@ mod tests {
         let mut rrd = RRD::new(DST::Gauge, vec![rra]);
 
         for i in 2..10 {
-            rrd.update((i as f64)*30.0, i as f64);
+            rrd.update((i as f64) * 30.0, i as f64);
         }
 
-        let (start, reso, data) = rrd.extract_data(CF::Minimum, 60, Some(0), Some(5*60))?;
+        let (start, reso, data) = rrd.extract_data(CF::Minimum, 60, Some(0), Some(5 * 60))?;
         assert_eq!(start, 0);
         assert_eq!(reso, 60);
         assert_eq!(data, [None, Some(2.0), Some(4.0), Some(6.0), Some(8.0)]);
@@ -523,12 +538,16 @@ mod tests {
         let mut rrd = RRD::new(DST::Gauge, vec![rra]);
 
         for i in 2..10 {
-            rrd.update((i as f64)*30.0, i as f64);
+            rrd.update((i as f64) * 30.0, i as f64);
         }
 
-        assert!(rrd.extract_data(CF::Average, 60, Some(0), Some(5*60)).is_err(), "CF::Average should not exist");
+        assert!(
+            rrd.extract_data(CF::Average, 60, Some(0), Some(5 * 60))
+                .is_err(),
+            "CF::Average should not exist"
+        );
 
-        let (start, reso, data) = rrd.extract_data(CF::Last, 60, Some(0), Some(20*60))?;
+        let (start, reso, data) = rrd.extract_data(CF::Last, 60, Some(0), Some(20 * 60))?;
         assert_eq!(start, 0);
         assert_eq!(reso, 60);
         assert_eq!(data, [None, Some(3.0), Some(5.0), Some(7.0), Some(9.0)]);
@@ -542,10 +561,10 @@ mod tests {
         let mut rrd = RRD::new(DST::Derive, vec![rra]);
 
         for i in 2..10 {
-            rrd.update((i as f64)*30.0, (i*60) as f64);
+            rrd.update((i as f64) * 30.0, (i * 60) as f64);
         }
 
-        let (start, reso, data) = rrd.extract_data(CF::Average, 60, Some(60), Some(5*60))?;
+        let (start, reso, data) = rrd.extract_data(CF::Average, 60, Some(60), Some(5 * 60))?;
         assert_eq!(start, 60);
         assert_eq!(reso, 60);
         assert_eq!(data, [Some(1.0), Some(2.0), Some(2.0), Some(2.0), None]);
@@ -559,40 +578,42 @@ mod tests {
         let mut rrd = RRD::new(DST::Gauge, vec![rra]);
 
         for i in 2..10 {
-            rrd.update((i as f64)*30.0, i as f64);
+            rrd.update((i as f64) * 30.0, i as f64);
         }
 
-        let (start, reso, data) = rrd.extract_data(CF::Average, 60, Some(60), Some(5*60))?;
+        let (start, reso, data) = rrd.extract_data(CF::Average, 60, Some(60), Some(5 * 60))?;
         assert_eq!(start, 60);
         assert_eq!(reso, 60);
         assert_eq!(data, [Some(2.5), Some(4.5), Some(6.5), Some(8.5), None]);
 
         for i in 10..14 {
-            rrd.update((i as f64)*30.0, i as f64);
+            rrd.update((i as f64) * 30.0, i as f64);
         }
 
-        let (start, reso, data) = rrd.extract_data(CF::Average, 60, Some(60), Some(5*60))?;
+        let (start, reso, data) = rrd.extract_data(CF::Average, 60, Some(60), Some(5 * 60))?;
         assert_eq!(start, 60);
         assert_eq!(reso, 60);
         assert_eq!(data, [None, Some(4.5), Some(6.5), Some(8.5), Some(10.5)]);
 
-        let (start, reso, data) = rrd.extract_data(CF::Average, 60, Some(3*60), Some(8*60))?;
-        assert_eq!(start, 3*60);
+        let (start, reso, data) = rrd.extract_data(CF::Average, 60, Some(3 * 60), Some(8 * 60))?;
+        assert_eq!(start, 3 * 60);
         assert_eq!(reso, 60);
         assert_eq!(data, [Some(6.5), Some(8.5), Some(10.5), Some(12.5), None]);
 
         // add much newer vaule (should delete all previous/outdated value)
-        let i = 100; rrd.update((i as f64)*30.0, i as f64);
+        let i = 100;
+        rrd.update((i as f64) * 30.0, i as f64);
         println!("TEST {:?}", serde_json::to_string_pretty(&rrd));
 
-        let (start, reso, data) = rrd.extract_data(CF::Average, 60, Some(100*30), Some(100*30 + 5*60))?;
-        assert_eq!(start, 100*30);
+        let (start, reso, data) =
+            rrd.extract_data(CF::Average, 60, Some(100 * 30), Some(100 * 30 + 5 * 60))?;
+        assert_eq!(start, 100 * 30);
         assert_eq!(reso, 60);
         assert_eq!(data, [Some(100.0), None, None, None, None]);
 
         // extract with end time smaller than start time
-        let (start, reso, data) = rrd.extract_data(CF::Average, 60, Some(100*30), Some(60))?;
-        assert_eq!(start, 100*30);
+        let (start, reso, data) = rrd.extract_data(CF::Average, 60, Some(100 * 30), Some(60))?;
+        assert_eq!(start, 100 * 30);
         assert_eq!(reso, 60);
         assert_eq!(data, []);
 

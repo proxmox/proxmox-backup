@@ -1,21 +1,21 @@
-use std::fs::File;
-use std::path::PathBuf;
-use std::sync::Arc;
-use std::io::{Write, BufReader};
 use std::ffi::OsStr;
+use std::fs::File;
+use std::io::{BufReader, Write};
 use std::os::unix::io::AsRawFd;
+use std::path::PathBuf;
 use std::str::FromStr;
+use std::sync::Arc;
 
 use anyhow::{bail, format_err, Error};
-use nix::fcntl::OFlag;
 use crossbeam_channel::Receiver;
+use nix::fcntl::OFlag;
 
 use proxmox_sys::fs::atomic_open_or_create_file;
 
 const RRD_JOURNAL_NAME: &str = "rrd.journal";
 
-use crate::rrd::DST;
 use crate::cache::CacheConfig;
+use crate::rrd::DST;
 
 // shared state behind RwLock
 pub struct JournalState {
@@ -36,20 +36,22 @@ pub struct JournalEntry {
 impl FromStr for JournalEntry {
     type Err = Error;
 
-   fn from_str(line: &str) -> Result<Self, Self::Err> {
-
-       let line = line.trim();
+    fn from_str(line: &str) -> Result<Self, Self::Err> {
+        let line = line.trim();
 
         let parts: Vec<&str> = line.splitn(4, ':').collect();
         if parts.len() != 4 {
             bail!("wrong numper of components");
         }
 
-        let time: f64 = parts[0].parse()
+        let time: f64 = parts[0]
+            .parse()
             .map_err(|_| format_err!("unable to parse time"))?;
-        let value: f64 = parts[1].parse()
+        let value: f64 = parts[1]
+            .parse()
             .map_err(|_| format_err!("unable to parse value"))?;
-        let dst: u8 = parts[2].parse()
+        let dst: u8 = parts[2]
+            .parse()
             .map_err(|_| format_err!("unable to parse data source type"))?;
 
         let dst = match dst {
@@ -60,8 +62,13 @@ impl FromStr for JournalEntry {
 
         let rel_path = parts[3].to_string();
 
-        Ok(JournalEntry { time, value, dst, rel_path })
-   }
+        Ok(JournalEntry {
+            time,
+            value,
+            dst,
+            rel_path,
+        })
+    }
 }
 
 pub struct JournalFileInfo {
@@ -71,7 +78,6 @@ pub struct JournalFileInfo {
 }
 
 impl JournalState {
-
     pub(crate) fn new(config: Arc<CacheConfig>) -> Result<Self, Error> {
         let journal = JournalState::open_journal_writer(&config)?;
         Ok(Self {
@@ -95,19 +101,17 @@ impl JournalState {
         dst: DST,
         rel_path: &str,
     ) -> Result<(), Error> {
-        let journal_entry = format!(
-            "{}:{}:{}:{}\n", time, value, dst as u8, rel_path);
+        let journal_entry = format!("{}:{}:{}:{}\n", time, value, dst as u8, rel_path);
         self.journal.write_all(journal_entry.as_bytes())?;
         Ok(())
     }
 
     pub fn open_journal_reader(&self) -> Result<BufReader<File>, Error> {
-
         // fixme : dup self.journal instead??
         let mut journal_path = self.config.basedir.clone();
         journal_path.push(RRD_JOURNAL_NAME);
 
-        let flags = OFlag::O_CLOEXEC|OFlag::O_RDONLY;
+        let flags = OFlag::O_CLOEXEC | OFlag::O_RDONLY;
         let journal = atomic_open_or_create_file(
             &journal_path,
             flags,
@@ -122,7 +126,7 @@ impl JournalState {
         let mut journal_path = config.basedir.clone();
         journal_path.push(RRD_JOURNAL_NAME);
 
-        let flags = OFlag::O_CLOEXEC|OFlag::O_WRONLY|OFlag::O_APPEND;
+        let flags = OFlag::O_CLOEXEC | OFlag::O_WRONLY | OFlag::O_APPEND;
         let journal = atomic_open_or_create_file(
             &journal_path,
             flags,
@@ -151,7 +155,6 @@ impl JournalState {
     }
 
     pub fn remove_old_journals(&self) -> Result<(), Error> {
-
         let journal_list = self.list_old_journals()?;
 
         for entry in journal_list {
@@ -167,7 +170,9 @@ impl JournalState {
             let entry = entry?;
             let path = entry.path();
 
-            if !path.is_file() { continue; }
+            if !path.is_file() {
+                continue;
+            }
 
             match path.file_stem() {
                 None => continue,

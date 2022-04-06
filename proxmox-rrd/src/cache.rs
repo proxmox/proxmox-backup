@@ -1,18 +1,18 @@
+use std::collections::BTreeSet;
 use std::fs::File;
+use std::io::{BufRead, BufReader};
+use std::os::unix::io::AsRawFd;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
-use std::io::{BufRead, BufReader};
-use std::time::SystemTime;
 use std::thread::spawn;
-use std::os::unix::io::AsRawFd;
-use std::collections::BTreeSet;
+use std::time::SystemTime;
 
+use anyhow::{bail, format_err, Error};
 use crossbeam_channel::{bounded, TryRecvError};
-use anyhow::{format_err, bail, Error};
 
 use proxmox_sys::fs::{create_path, CreateOptions};
 
-use crate::rrd::{DST, CF, RRD, RRA};
+use crate::rrd::{CF, DST, RRA, RRD};
 
 mod journal;
 use journal::*;
@@ -37,9 +37,7 @@ pub(crate) struct CacheConfig {
     dir_options: CreateOptions,
 }
 
-
 impl RRDCache {
-
     /// Creates a new instance
     ///
     /// `basedir`: All files are stored relative to this path.
@@ -66,8 +64,12 @@ impl RRDCache {
         let file_options = file_options.unwrap_or_else(CreateOptions::new);
         let dir_options = dir_options.unwrap_or_else(CreateOptions::new);
 
-        create_path(&basedir, Some(dir_options.clone()), Some(dir_options.clone()))
-            .map_err(|err: Error| format_err!("unable to create rrdb stat dir - {}", err))?;
+        create_path(
+            &basedir,
+            Some(dir_options.clone()),
+            Some(dir_options.clone()),
+        )
+        .map_err(|err: Error| format_err!("unable to create rrdb stat dir - {}", err))?;
 
         let config = Arc::new(CacheConfig {
             basedir,
@@ -130,7 +132,6 @@ impl RRDCache {
         let state = Arc::clone(&self.state);
         let rrd_map = Arc::clone(&self.rrd_map);
 
-
         let mut state_guard = self.state.write().unwrap();
         let journal_applied = state_guard.journal_applied;
 
@@ -160,7 +161,9 @@ impl RRDCache {
         let now = proxmox_time::epoch_f64();
         let wants_commit = (now - state_guard.last_journal_flush) > self.config.apply_interval;
 
-        if journal_applied && !wants_commit { return Ok(journal_applied); }
+        if journal_applied && !wants_commit {
+            return Ok(journal_applied);
+        }
 
         state_guard.last_journal_flush = proxmox_time::epoch_f64();
 
@@ -176,7 +179,6 @@ impl RRDCache {
         Ok(journal_applied)
     }
 
-
     /// Update data in RAM and write file back to disk (journal)
     pub fn update_value(
         &self,
@@ -185,14 +187,18 @@ impl RRDCache {
         value: f64,
         dst: DST,
     ) -> Result<(), Error> {
-
         let journal_applied = self.apply_journal()?;
 
-        self.state.write().unwrap()
+        self.state
+            .write()
+            .unwrap()
             .append_journal_entry(time, value, dst, rel_path)?;
 
         if journal_applied {
-            self.rrd_map.write().unwrap().update(rel_path, time, value, dst, false)?;
+            self.rrd_map
+                .write()
+                .unwrap()
+                .update(rel_path, time, value, dst, false)?;
         }
 
         Ok(())
@@ -212,11 +218,12 @@ impl RRDCache {
         start: Option<u64>,
         end: Option<u64>,
     ) -> Result<Option<(u64, u64, Vec<Option<f64>>)>, Error> {
-        self.rrd_map.read().unwrap()
+        self.rrd_map
+            .read()
+            .unwrap()
             .extract_cached_data(base, name, cf, resolution, start, end)
     }
 }
-
 
 fn apply_and_commit_journal_thread(
     config: Arc<CacheConfig>,
@@ -224,7 +231,6 @@ fn apply_and_commit_journal_thread(
     rrd_map: Arc<RwLock<RRDMap>>,
     commit_only: bool,
 ) -> Result<(), Error> {
-
     if commit_only {
         state.write().unwrap().rotate_journal()?; // start new journal, keep old one
     } else {
@@ -234,7 +240,11 @@ fn apply_and_commit_journal_thread(
         match apply_journal_impl(Arc::clone(&state), Arc::clone(&rrd_map)) {
             Ok(entries) => {
                 let elapsed = start_time.elapsed().unwrap().as_secs_f64();
-                log::info!("applied rrd journal ({} entries in {:.3} seconds)", entries, elapsed);
+                log::info!(
+                    "applied rrd journal ({} entries in {:.3} seconds)",
+                    entries,
+                    elapsed
+                );
             }
             Err(err) => bail!("apply rrd journal failed - {}", err),
         }
@@ -246,8 +256,11 @@ fn apply_and_commit_journal_thread(
     match commit_journal_impl(config, state, rrd_map) {
         Ok(rrd_file_count) => {
             let elapsed = start_time.elapsed().unwrap().as_secs_f64();
-            log::info!("rrd journal successfully committed ({} files in {:.3} seconds)",
-                       rrd_file_count, elapsed);
+            log::info!(
+                "rrd journal successfully committed ({} files in {:.3} seconds)",
+                rrd_file_count,
+                elapsed
+            );
         }
         Err(err) => bail!("rrd journal commit failed: {}", err),
     }
@@ -261,7 +274,6 @@ fn apply_journal_lines(
     reader: &mut BufReader<File>,
     lock_read_line: bool,
 ) -> Result<usize, Error> {
-
     let mut linenr = 0;
 
     loop {
@@ -274,20 +286,30 @@ fn apply_journal_lines(
             reader.read_line(&mut line)?
         };
 
-        if len == 0 { break; }
+        if len == 0 {
+            break;
+        }
 
         let entry: JournalEntry = match line.parse() {
             Ok(entry) => entry,
             Err(err) => {
                 log::warn!(
                     "unable to parse rrd journal '{}' line {} (skip) - {}",
-                    journal_name, linenr, err,
+                    journal_name,
+                    linenr,
+                    err,
                 );
                 continue; // skip unparsable lines
             }
         };
 
-        rrd_map.write().unwrap().update(&entry.rel_path, entry.time, entry.value, entry.dst, true)?;
+        rrd_map.write().unwrap().update(
+            &entry.rel_path,
+            entry.time,
+            entry.value,
+            entry.dst,
+            true,
+        )?;
     }
     Ok(linenr)
 }
@@ -296,7 +318,6 @@ fn apply_journal_impl(
     state: Arc<RwLock<JournalState>>,
     rrd_map: Arc<RwLock<RRDMap>>,
 ) -> Result<usize, Error> {
-
     let mut lines = 0;
 
     // Apply old journals first
@@ -343,7 +364,6 @@ fn apply_journal_impl(
         state_guard.journal_applied = true;
     }
 
-
     Ok(lines)
 }
 
@@ -353,7 +373,7 @@ fn fsync_file_or_dir(path: &Path) -> Result<(), Error> {
     Ok(())
 }
 
-pub(crate)fn fsync_file_and_parent(path: &Path) -> Result<(), Error> {
+pub(crate) fn fsync_file_and_parent(path: &Path) -> Result<(), Error> {
     let file = std::fs::File::open(path)?;
     nix::unistd::fsync(file.as_raw_fd())?;
     if let Some(parent) = path.parent() {
@@ -376,7 +396,6 @@ fn commit_journal_impl(
     state: Arc<RwLock<JournalState>>,
     rrd_map: Arc<RwLock<RRDMap>>,
 ) -> Result<usize, Error> {
-
     let files = rrd_map.read().unwrap().file_list();
 
     let mut rrd_file_count = 0;
