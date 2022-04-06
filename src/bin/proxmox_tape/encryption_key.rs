@@ -187,9 +187,6 @@ fn change_passphrase(
     Ok(())
 }
 
-pub const BEGIN_MARKER: &str = "-----BEGIN PROXMOX BACKUP KEY-----";
-pub const END_MARKER: &str = "-----END PROXMOX BACKUP KEY-----";
-
 #[api(
     input: {
         properties: {
@@ -197,67 +194,69 @@ pub const END_MARKER: &str = "-----END PROXMOX BACKUP KEY-----";
                 schema: DRIVE_NAME_SCHEMA,
                 optional: true,
             },
-            "backupkey": {
-                description: "Importing a previously exported backupkey with either an exported paperkey-file, json-string or a json-file",
+            key: {
+                description: "Import key from json string or an exported paperkey-format.",
+                type: String,
+                optional: true,
+            },
+            "key-file": {
+                description: "Import key from a file with either json or exported paperkey-format.",
                 type: String,
                 optional: true,
             },
         },
     },
 )]
-/// Restore encryption key from tape (read password from stdin)
+/// Restore encryption key from tape or from a backup file/string (reads password from stdin)
 async fn restore_key(
     mut param: Value,
-    backupkey: Option<String>,
+    key: Option<String>,
+    key_file: Option<String>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
-
-    let (config, _digest) = pbs_config::drive::config()?;
-
-    let drive = crate::extract_drive_name(&mut param, &config);
-
+    let drive_passed = param.get("drive").is_some();
+    if drive_passed && (key.is_some() || key_file.is_some()) {
+        bail!("cannot have both 'drive' and 'key(-file)' parameter set!");
+    } else if key.is_some() && key_file.is_some() {
+        bail!("cannot have both 'key' and 'key-file' parameter set!");
+    } else if !drive_passed && !key.is_some() && !key_file.is_some() {
+        bail!("one of either 'drive' or 'key' parameter must be set!");
+    }
     if !tty::stdin_isatty() {
         bail!("no password input mechanism available");
     }
 
-    if (drive.is_err() && backupkey.is_none()) || (drive.is_ok() && backupkey.is_some()) {
-        param_bail!(
-            "drive",
-            format_err!("Please specify either a valid drive name or a backupkey")
-        );
-    }
-
-    if drive.is_ok() {
-        param["drive"] = drive.unwrap().into();
-    }
-
-    if let Some(backupkey) = backupkey {
-        if serde_json::from_str::<KeyConfig>(&backupkey).is_ok() {
-            // json as Parameter
-            println!("backupkey to import: {}", backupkey);
-            param["backupkey"] = backupkey.into();
-        } else {
-            println!("backupkey is not a valid json. Interpreting Parameter as a filename");
-            let data = proxmox_sys::fs::file_read_string(backupkey)?;
-            if serde_json::from_str::<KeyConfig>(&data).is_ok() {
-                // standalone json-file
-                println!("backupkey to import: {}", data);
-                param["backupkey"] = data.into();
-            } else {
-                // exported paperkey-file
-                let start = data
-                    .find(BEGIN_MARKER)
-                    .ok_or_else(|| format_err!("cannot find key start marker"))?
-                    + BEGIN_MARKER.len();
-                let data_remain = &data[start..];
-                let end = data_remain
-                    .find(END_MARKER)
-                    .ok_or_else(|| format_err!("cannot find key end marker below start marker"))?;
-                let backupkey_extract = &data_remain[..end];
-                println!("backupkey to import: {}", backupkey_extract);
-                param["backupkey"] = backupkey_extract.into();
-            }
+    if drive_passed {
+        let (config, _digest) = pbs_config::drive::config()?;
+        match crate::extract_drive_name(&mut param, &config) {
+            Ok(drive) => param["drive"] = drive.into(),
+            Err(err) => param_bail!("drive", format_err!("invalid drive - {}", err)),
         }
+    }
+
+    let key = match key_file {
+        Some(key_file) => Some(proxmox_sys::fs::file_read_string(key_file)?),
+        None => key,
+    };
+    if let Some(data) = key {
+        let key = if serde_json::from_str::<KeyConfig>(&data).is_ok() {
+            &data
+        } else {
+            const BEGIN_MARKER: &str = "-----BEGIN PROXMOX BACKUP KEY-----";
+            const END_MARKER: &str = "-----END PROXMOX BACKUP KEY-----";
+            // exported paperkey-file
+            let start = data
+                .find(BEGIN_MARKER)
+                .ok_or_else(|| format_err!("cannot find key start marker"))?
+                + BEGIN_MARKER.len();
+            let data_remain = &data[start..];
+            let end = data_remain
+                .find(END_MARKER)
+                .ok_or_else(|| format_err!("cannot find key end marker below start marker"))?;
+            &data_remain[..end]
+        };
+        println!("key to import: {}", key);
+        param["key"] = key.into();
     }
 
     let password = tty::read_password("Tape Encryption Key Password: ")?;
