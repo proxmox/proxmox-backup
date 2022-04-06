@@ -1,7 +1,7 @@
 //! Block file access via a small QEMU restore VM using the PBS block driver in QEMU
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
-use std::io::{prelude::*, SeekFrom};
+use std::io::{prelude::*, BufReader, BufWriter, SeekFrom};
 
 use anyhow::{bail, Error};
 use futures::FutureExt;
@@ -51,7 +51,7 @@ impl VMStateMap {
     fn load() -> Result<Self, Error> {
         let mut file = Self::open_file_raw(true)?;
         lock_file(&mut file, true, Some(std::time::Duration::from_secs(120)))?;
-        let map = serde_json::from_reader(&file).unwrap_or_default();
+        let map = serde_json::from_reader(BufReader::new(&mut file)).unwrap_or_default();
         Ok(Self { map, file })
     }
 
@@ -59,14 +59,14 @@ impl VMStateMap {
     /// shell auto-completion, for anything requiring consistency use load() !
     fn load_read_only() -> Result<HashMap<String, VMState>, Error> {
         let file = Self::open_file_raw(false)?;
-        Ok(serde_json::from_reader(&file).unwrap_or_default())
+        Ok(serde_json::from_reader(BufReader::new(file)).unwrap_or_default())
     }
 
     /// Write back a potentially modified state map, consuming the held lock
     fn write(mut self) -> Result<(), Error> {
         self.file.seek(SeekFrom::Start(0))?;
         self.file.set_len(0)?;
-        serde_json::to_writer(self.file, &self.map)?;
+        serde_json::to_writer(BufWriter::new(&mut self.file), &self.map)?;
 
         // drop ourselves including file lock
         Ok(())

@@ -40,7 +40,7 @@ pub fn read() -> Result<TfaConfig, Error> {
         Err(err) => return Err(err.into()),
     };
 
-    Ok(serde_json::from_reader(file)?)
+    Ok(serde_json::from_reader(io::BufReader::new(file))?)
 }
 
 pub(crate) fn webauthn_config_digest(config: &WebauthnConfig) -> Result<[u8; 32], Error> {
@@ -116,7 +116,7 @@ impl TfaUserChallengeData {
     fn save(mut self) -> Result<(), Error> {
         self.rewind()?;
 
-        serde_json::to_writer(&mut &self.lock, &self.inner).map_err(|err| {
+        serde_json::to_writer(io::BufWriter::new(&mut &self.lock), &self.inner).map_err(|err| {
             format_err!("failed to update challenge file {:?}: {}", self.path, err)
         })?;
 
@@ -293,7 +293,7 @@ impl proxmox_tfa::api::OpenUserChallengeData for UserAccess {
 
         proxmox_sys::fs::lock_file(&mut file, true, None)?;
 
-        let inner = serde_json::from_reader(&mut file).map_err(|err| {
+        let inner = serde_json::from_reader(io::BufReader::new(&mut file)).map_err(|err| {
             format_err!("failed to read challenge data for user {}: {}", userid, err)
         })?;
 
