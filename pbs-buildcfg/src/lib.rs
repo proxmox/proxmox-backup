@@ -1,14 +1,12 @@
 //! Exports configuration data from the build system
 
-pub const PROXMOX_PKG_VERSION: &str =
-    concat!(
-        env!("CARGO_PKG_VERSION_MAJOR"),
-        ".",
-        env!("CARGO_PKG_VERSION_MINOR"),
-    );
+pub const PROXMOX_PKG_VERSION: &str = concat!(
+    env!("CARGO_PKG_VERSION_MAJOR"),
+    ".",
+    env!("CARGO_PKG_VERSION_MINOR"),
+);
 pub const PROXMOX_PKG_RELEASE: &str = env!("CARGO_PKG_VERSION_PATCH");
 pub const PROXMOX_PKG_REPOID: &str = env!("REPOID");
-
 
 /// The configured configuration directory
 pub const CONFIGDIR: &str = "/etc/proxmox-backup";
@@ -20,20 +18,38 @@ pub const BACKUP_USER_NAME: &str = "backup";
 pub const BACKUP_GROUP_NAME: &str = "backup";
 
 #[macro_export]
-macro_rules! PROXMOX_BACKUP_RUN_DIR_M { () => ("/run/proxmox-backup") }
+macro_rules! PROXMOX_BACKUP_RUN_DIR_M {
+    () => {
+        "/run/proxmox-backup"
+    };
+}
 
 #[macro_export]
-macro_rules! PROXMOX_BACKUP_STATE_DIR_M { () => ("/var/lib/proxmox-backup") }
+macro_rules! PROXMOX_BACKUP_STATE_DIR_M {
+    () => {
+        "/var/lib/proxmox-backup"
+    };
+}
 
 #[macro_export]
-macro_rules! PROXMOX_BACKUP_LOG_DIR_M { () => ("/var/log/proxmox-backup") }
+macro_rules! PROXMOX_BACKUP_LOG_DIR_M {
+    () => {
+        "/var/log/proxmox-backup"
+    };
+}
 
 #[macro_export]
-macro_rules! PROXMOX_BACKUP_CACHE_DIR_M { () => ("/var/cache/proxmox-backup") }
+macro_rules! PROXMOX_BACKUP_CACHE_DIR_M {
+    () => {
+        "/var/cache/proxmox-backup"
+    };
+}
 
 #[macro_export]
 macro_rules! PROXMOX_BACKUP_FILE_RESTORE_BIN_DIR_M {
-    () => ("/usr/lib/x86_64-linux-gnu/proxmox-backup/file-restore")
+    () => {
+        "/usr/lib/x86_64-linux-gnu/proxmox-backup/file-restore"
+    };
 }
 
 /// namespaced directory for in-memory (tmpfs) run state
@@ -65,8 +81,10 @@ pub const PROXMOX_BACKUP_INITRAMFS_FN: &str =
     concat!(PROXMOX_BACKUP_CACHE_DIR_M!(), "/file-restore-initramfs.img");
 
 /// filename of the cached initramfs to use for debugging single file restore
-pub const PROXMOX_BACKUP_INITRAMFS_DBG_FN: &str =
-    concat!(PROXMOX_BACKUP_CACHE_DIR_M!(), "/file-restore-initramfs-debug.img");
+pub const PROXMOX_BACKUP_INITRAMFS_DBG_FN: &str = concat!(
+    PROXMOX_BACKUP_CACHE_DIR_M!(),
+    "/file-restore-initramfs-debug.img"
+);
 
 /// filename of the kernel to use for booting single file restore VMs
 pub const PROXMOX_BACKUP_KERNEL_FN: &str =
@@ -82,7 +100,9 @@ pub const PROXMOX_BACKUP_KERNEL_FN: &str =
 /// ```
 #[macro_export]
 macro_rules! configdir {
-    ($subdir:expr) => (concat!("/etc/proxmox-backup", $subdir))
+    ($subdir:expr) => {
+        concat!("/etc/proxmox-backup", $subdir)
+    };
 }
 
 /// Prepend the run directory to a file name.
