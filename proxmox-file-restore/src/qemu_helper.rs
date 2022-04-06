@@ -3,7 +3,7 @@ use std::fs::{File, OpenOptions};
 use std::io::prelude::*;
 use std::os::unix::io::AsRawFd;
 use std::path::PathBuf;
-use std::time::{Instant, Duration};
+use std::time::{Duration, Instant};
 
 use anyhow::{bail, format_err, Error};
 use tokio::time;
@@ -11,14 +11,14 @@ use tokio::time;
 use nix::sys::signal::{kill, Signal};
 use nix::unistd::Pid;
 
-use proxmox_sys::fs::{create_path, file_read_string, make_tmp_file, CreateOptions};
 use proxmox_sys::fd::fd_change_cloexec;
+use proxmox_sys::fs::{create_path, file_read_string, make_tmp_file, CreateOptions};
 use proxmox_sys::logrotate::LogRotate;
 
 use pbs_client::{VsockClient, DEFAULT_VSOCK_PORT};
 
-use crate::{cpio, backup_user};
 use super::SnapRestoreDetails;
+use crate::{backup_user, cpio};
 
 const PBS_VM_NAME: &str = "pbs-restore-vm";
 const MAX_CID_TRIES: u64 = 32;
@@ -142,7 +142,8 @@ pub async fn start_vm(
     validate_img_existance(debug)?;
 
     let pid;
-    let (mut pid_file, pid_path) = make_tmp_file("/tmp/file-restore-qemu.pid.tmp", CreateOptions::new())?;
+    let (mut pid_file, pid_path) =
+        make_tmp_file("/tmp/file-restore-qemu.pid.tmp", CreateOptions::new())?;
     nix::unistd::unlink(&pid_path)?;
     fd_change_cloexec(pid_file.as_raw_fd(), false)?;
 
@@ -319,7 +320,8 @@ pub async fn start_vm(
             }
             return Ok((pid, cid as i32));
         }
-        if kill(pid_t, None).is_err() { // check if QEMU process exited in between
+        if kill(pid_t, None).is_err() {
+            // check if QEMU process exited in between
             bail!("VM exited before connection could be established");
         }
         if Instant::now().duration_since(start_poll) > Duration::from_secs(25) {

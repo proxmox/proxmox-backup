@@ -3,7 +3,7 @@
 //! https://www.kernel.org/doc/html/latest/driver-api/early-userspace/buffer-format.html
 //! This does not provide full support for the format, only what is needed to include files in an
 //! initramfs intended for a linux kernel.
-use std::ffi::{CString, CStr};
+use std::ffi::{CStr, CString};
 
 use anyhow::{bail, Error};
 use tokio::io::{copy, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
@@ -40,7 +40,7 @@ pub async fn append_file<W: AsyncWrite + Unpin, R: AsyncRead + Unpin>(
     print_cpio_hex(&mut target, 0).await?; // c_check (ignored for newc)
 
     target.write_all(name).await?;
-    let header_size = 6 + 8*13 + name.len();
+    let header_size = 6 + 8 * 13 + name.len();
     let mut name_pad = header_size;
     while name_pad & 3 != 0 {
         target.write_u8(0).await?;
@@ -70,5 +70,8 @@ pub async fn append_trailer<W: AsyncWrite + Unpin>(target: W) -> Result<(), Erro
 }
 
 async fn print_cpio_hex<W: AsyncWrite + Unpin>(target: &mut W, value: u64) -> Result<(), Error> {
-    target.write_all(format!("{:08x}", value).as_bytes()).await.map_err(|e| e.into())
+    target
+        .write_all(format!("{:08x}", value).as_bytes())
+        .await
+        .map_err(|e| e.into())
 }

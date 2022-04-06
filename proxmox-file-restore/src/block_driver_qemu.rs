@@ -10,7 +10,7 @@ use serde_json::json;
 
 use proxmox_sys::fs::lock_file;
 
-use pbs_client::{DEFAULT_VSOCK_PORT, BackupRepository, VsockClient};
+use pbs_client::{BackupRepository, VsockClient, DEFAULT_VSOCK_PORT};
 use pbs_datastore::backup_info::BackupDir;
 use pbs_datastore::catalog::ArchiveEntry;
 
@@ -269,10 +269,8 @@ impl BlockRestoreDriver for QemuBlockDriver {
                             }
                         }
                         None => {
-                            let err = format!(
-                                "invalid JSON received from /status call: {}",
-                                status
-                            );
+                            let err =
+                                format!("invalid JSON received from /status call: {}", status);
                             extra["error"] = json!(err);
                         }
                     },

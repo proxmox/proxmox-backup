@@ -6,26 +6,17 @@ use std::sync::Arc;
 use anyhow::{bail, format_err, Error};
 use serde_json::{json, Value};
 
-use proxmox_sys::fs::{create_path, CreateOptions};
 use proxmox_router::cli::{
-    complete_file_name, default_table_format_options,
-    format_and_print_result_full, get_output_format,
-    run_cli_command,
-    CliCommand, CliCommandMap, CliEnvironment, ColumnConfig, OUTPUT_FORMAT,
+    complete_file_name, default_table_format_options, format_and_print_result_full,
+    get_output_format, run_cli_command, CliCommand, CliCommandMap, CliEnvironment, ColumnConfig,
+    OUTPUT_FORMAT,
 };
 use proxmox_schema::api;
+use proxmox_sys::fs::{create_path, CreateOptions};
 use pxar::accessor::aio::Accessor;
 use pxar::decoder::aio::Decoder;
 
-use pbs_tools::crypt_config::CryptConfig;
 use pbs_api_types::CryptMode;
-use pbs_datastore::CATALOG_NAME;
-use pbs_datastore::backup_info::BackupDir;
-use pbs_datastore::catalog::{ArchiveEntry, CatalogReader, DirEntryAttribute};
-use pbs_datastore::dynamic_index::{BufferedDynamicReader, LocalDynamicReadAt};
-use pbs_datastore::index::IndexFile;
-use pbs_config::key_config::decrypt_key;
-use pbs_client::{BackupReader, RemoteChunkReader};
 use pbs_client::pxar::{create_zip, extract_sub_dir, extract_sub_dir_seq};
 use pbs_client::tools::{
     complete_group_or_snapshot, complete_repository, connect, extract_repository_from_value,
@@ -35,14 +26,22 @@ use pbs_client::tools::{
     },
     REPO_URL_SCHEMA,
 };
+use pbs_client::{BackupReader, RemoteChunkReader};
+use pbs_config::key_config::decrypt_key;
+use pbs_datastore::backup_info::BackupDir;
+use pbs_datastore::catalog::{ArchiveEntry, CatalogReader, DirEntryAttribute};
+use pbs_datastore::dynamic_index::{BufferedDynamicReader, LocalDynamicReadAt};
+use pbs_datastore::index::IndexFile;
+use pbs_datastore::CATALOG_NAME;
+use pbs_tools::crypt_config::CryptConfig;
 
 pub mod block_driver;
 pub use block_driver::*;
 
 pub mod cpio;
 
-mod qemu_helper;
 mod block_driver_qemu;
+mod qemu_helper;
 
 enum ExtractPath {
     ListArchives,
@@ -146,12 +145,7 @@ fn keyfile_path(param: &Value) -> Option<String> {
    }
 )]
 /// List a directory from a backup snapshot.
-async fn list(
-    snapshot: String,
-    path: String,
-    base64: bool,
-    param: Value,
-) -> Result<(), Error> {
+async fn list(snapshot: String, path: String, base64: bool, param: Value) -> Result<(), Error> {
     let repo = extract_repository_from_value(&param)?;
     let snapshot: BackupDir = snapshot.parse()?;
     let path = parse_path(path, base64)?;
@@ -199,7 +193,11 @@ async fn list(
                 } else {
                     None
                 };
-                entries.push(ArchiveEntry::new_with_size(path.as_bytes(), attr, Some(file.size)));
+                entries.push(ArchiveEntry::new_with_size(
+                    path.as_bytes(),
+                    attr,
+                    Some(file.size),
+                ));
             }
 
             Ok(entries)
@@ -506,7 +504,10 @@ fn create_run_dir() -> Result<(), Error> {
 
 /// Return User info for the 'backup' user (``getpwnam_r(3)``)
 pub fn backup_user() -> Result<nix::unistd::User, Error> {
-    nix::unistd::User::from_name(pbs_buildcfg::BACKUP_USER_NAME)?
-        .ok_or_else(|| format_err!("Unable to lookup '{}' user.",  pbs_buildcfg::BACKUP_USER_NAME))
+    nix::unistd::User::from_name(pbs_buildcfg::BACKUP_USER_NAME)?.ok_or_else(|| {
+        format_err!(
+            "Unable to lookup '{}' user.",
+            pbs_buildcfg::BACKUP_USER_NAME
+        )
+    })
 }
-
