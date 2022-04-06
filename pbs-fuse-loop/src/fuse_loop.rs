@@ -365,7 +365,9 @@ fn unmap_from_backing(backing_file: &Path, loopdev: Option<&str>) -> Result<(), 
 pub fn find_all_mappings() -> Result<impl Iterator<Item = (String, Option<String>)>, Error> {
     // get map of all /dev/loop mappings belonging to us
     let mut loopmap = HashMap::new();
-    for ent in proxmox_sys::fs::scan_subdir(libc::AT_FDCWD, Path::new("/dev/"), &LOOPDEV_REGEX)?.flatten() {
+    for ent in
+        proxmox_sys::fs::scan_subdir(libc::AT_FDCWD, Path::new("/dev/"), &LOOPDEV_REGEX)?.flatten()
+    {
         let loopdev = format!("/dev/{}", ent.file_name().to_string_lossy());
         if let Ok(file) = get_backing_file(&loopdev) {
             // insert filename only, strip RUN_DIR/

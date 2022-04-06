@@ -1,8 +1,8 @@
 //! Helpers to work with /dev/loop* devices
 
 use std::fs::{File, OpenOptions};
+use std::os::unix::io::{AsRawFd, RawFd};
 use std::path::Path;
-use std::os::unix::io::{RawFd, AsRawFd};
 
 use anyhow::Error;
 
@@ -24,7 +24,11 @@ mod loop_ioctl {
     ioctl_write_int_bad!(ioctl_set_fd, (LOOP_IOCTL << 8) | LOOP_SET_FD);
     ioctl_none!(ioctl_clr_fd, LOOP_IOCTL, LOOP_CLR_FD);
     ioctl_none!(ioctl_ctrl_get_free, LOOP_IOCTL, LOOP_CTRL_GET_FREE);
-    ioctl_write_ptr_bad!(ioctl_set_status64, (LOOP_IOCTL << 8) | LOOP_SET_STATUS64, LoopInfo64);
+    ioctl_write_ptr_bad!(
+        ioctl_set_status64,
+        (LOOP_IOCTL << 8) | LOOP_SET_STATUS64,
+        LoopInfo64
+    );
 
     pub const LO_FLAGS_READ_ONLY: u32 = 1;
     pub const LO_FLAGS_PARTSCAN: u32 = 8;
@@ -66,12 +70,16 @@ pub fn get_or_create_free_dev() -> Result<String, Error> {
 }
 
 fn assign_dev(fd: RawFd, backing_fd: RawFd) -> Result<(), Error> {
-    unsafe { ioctl_set_fd(fd, backing_fd)?; }
+    unsafe {
+        ioctl_set_fd(fd, backing_fd)?;
+    }
 
     // set required read-only flag and partscan for convenience
     let mut info: LoopInfo64 = unsafe { std::mem::zeroed() };
     info.lo_flags = LO_FLAGS_READ_ONLY | LO_FLAGS_PARTSCAN;
-    unsafe { ioctl_set_status64(fd, &info)?; }
+    unsafe {
+        ioctl_set_status64(fd, &info)?;
+    }
 
     Ok(())
 }
@@ -80,9 +88,7 @@ fn assign_dev(fd: RawFd, backing_fd: RawFd) -> Result<(), Error> {
 /// it as it's backing file in read-only mode.
 pub fn assign<P: AsRef<Path>>(loop_dev: P, backing: P) -> Result<(), Error> {
     let loop_file = File::open(loop_dev)?;
-    let backing_file = OpenOptions::new()
-        .read(true)
-        .open(backing)?;
+    let backing_file = OpenOptions::new().read(true).open(backing)?;
     assign_dev(loop_file.as_raw_fd(), backing_file.as_raw_fd())?;
     Ok(())
 }
@@ -91,6 +97,8 @@ pub fn assign<P: AsRef<Path>>(loop_dev: P, backing: P) -> Result<(), Error> {
 /// /dev/loopN device.
 pub fn unassign<P: AsRef<Path>>(path: P) -> Result<(), Error> {
     let loop_file = File::open(path)?;
-    unsafe { ioctl_clr_fd(loop_file.as_raw_fd())?; }
+    unsafe {
+        ioctl_clr_fd(loop_file.as_raw_fd())?;
+    }
     Ok(())
 }
