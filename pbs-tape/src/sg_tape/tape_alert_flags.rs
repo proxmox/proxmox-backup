@@ -7,7 +7,7 @@ use proxmox_io::ReadExt;
 
 use crate::sgutils2::SgRaw;
 
-bitflags::bitflags!{
+bitflags::bitflags! {
 
     /// Tape Alert Flags
     ///
@@ -73,16 +73,13 @@ bitflags::bitflags!{
 }
 
 /// Read Tape Alert Flags using raw SCSI command.
-pub fn read_tape_alert_flags<F: AsRawFd>(file: &mut F) ->  Result<TapeAlertFlags, Error> {
-
+pub fn read_tape_alert_flags<F: AsRawFd>(file: &mut F) -> Result<TapeAlertFlags, Error> {
     let data = sg_read_tape_alert_flags(file)?;
 
     decode_tape_alert_flags(&data)
 }
 
-
 fn sg_read_tape_alert_flags<F: AsRawFd>(file: &mut F) -> Result<Vec<u8>, Error> {
-
     let mut sg_raw = SgRaw::new(file, 512)?;
 
     // Note: We cannjot use LP 2Eh TapeAlerts, because that clears flags on read.
@@ -91,7 +88,7 @@ fn sg_read_tape_alert_flags<F: AsRawFd>(file: &mut F) -> Result<Vec<u8>, Error> 
     let mut cmd = Vec::new();
     cmd.push(0x4D); // LOG SENSE
     cmd.push(0);
-    cmd.push((1<<6) | 0x12); // Tape Alert Response log page
+    cmd.push((1 << 6) | 0x12); // Tape Alert Response log page
     cmd.push(0);
     cmd.push(0);
     cmd.push(0);
@@ -99,13 +96,13 @@ fn sg_read_tape_alert_flags<F: AsRawFd>(file: &mut F) -> Result<Vec<u8>, Error> 
     cmd.extend(&[2u8, 0u8]); // alloc len
     cmd.push(0u8); // control byte
 
-    sg_raw.do_command(&cmd)
+    sg_raw
+        .do_command(&cmd)
         .map_err(|err| format_err!("read tape alert flags failed - {}", err))
         .map(|v| v.to_vec())
 }
 
 fn decode_tape_alert_flags(data: &[u8]) -> Result<TapeAlertFlags, Error> {
-
     proxmox_lang::try_block!({
         if !((data[0] & 0x7f) == 0x12 && data[1] == 0) {
             bail!("invalid response");
@@ -130,36 +127,36 @@ fn decode_tape_alert_flags(data: &[u8]) -> Result<TapeAlertFlags, Error> {
             bail!("invalid parameter length");
         }
 
-        let mut value: u64 =  unsafe { reader.read_be_value()? };
+        let mut value: u64 = unsafe { reader.read_be_value()? };
 
         // bits are in wrong order, reverse them
         value = value.reverse_bits();
 
         Ok(TapeAlertFlags::from_bits_truncate(value))
-    }).map_err(|err| format_err!("decode tape alert flags failed - {}", err))
+    })
+    .map_err(|err| format_err!("decode tape alert flags failed - {}", err))
 }
 
-const CRITICAL_FLAG_MASK: u64 =
-TapeAlertFlags::MEDIA.bits() |
-TapeAlertFlags::WRITE_FAILURE.bits() |
-TapeAlertFlags::READ_FAILURE.bits() |
-TapeAlertFlags::WRITE_PROTECT.bits() |
-TapeAlertFlags::UNRECOVERABLE_SNAPPED_TAPE.bits() |
-TapeAlertFlags::FORCED_EJECT.bits() |
-TapeAlertFlags::EXPIRED_CLEANING_MEDIA.bits() |
-TapeAlertFlags::INVALID_CLEANING_TAPE.bits() |
-TapeAlertFlags::HARDWARE_A.bits() |
-TapeAlertFlags::HARDWARE_B.bits() |
-TapeAlertFlags::EJECT_MEDIA.bits() |
-TapeAlertFlags::PREDICTIVE_FAILURE.bits() |
-TapeAlertFlags::LOADER_STRAY_TAPE.bits() |
-TapeAlertFlags::LOADER_MAGAZINE.bits() |
-TapeAlertFlags::TAPE_SYSTEM_AREA_WRITE_FAILURE.bits() |
-TapeAlertFlags::TAPE_SYSTEM_AREA_READ_FAILURE.bits() |
-TapeAlertFlags::NO_START_OF_DATA.bits() |
-TapeAlertFlags::LOADING_FAILURE.bits() |
-TapeAlertFlags::UNRECOVERABLE_UNLOAD_FAILURE.bits() |
-TapeAlertFlags::AUTOMATION_INTERFACE_FAILURE.bits();
+const CRITICAL_FLAG_MASK: u64 = TapeAlertFlags::MEDIA.bits()
+    | TapeAlertFlags::WRITE_FAILURE.bits()
+    | TapeAlertFlags::READ_FAILURE.bits()
+    | TapeAlertFlags::WRITE_PROTECT.bits()
+    | TapeAlertFlags::UNRECOVERABLE_SNAPPED_TAPE.bits()
+    | TapeAlertFlags::FORCED_EJECT.bits()
+    | TapeAlertFlags::EXPIRED_CLEANING_MEDIA.bits()
+    | TapeAlertFlags::INVALID_CLEANING_TAPE.bits()
+    | TapeAlertFlags::HARDWARE_A.bits()
+    | TapeAlertFlags::HARDWARE_B.bits()
+    | TapeAlertFlags::EJECT_MEDIA.bits()
+    | TapeAlertFlags::PREDICTIVE_FAILURE.bits()
+    | TapeAlertFlags::LOADER_STRAY_TAPE.bits()
+    | TapeAlertFlags::LOADER_MAGAZINE.bits()
+    | TapeAlertFlags::TAPE_SYSTEM_AREA_WRITE_FAILURE.bits()
+    | TapeAlertFlags::TAPE_SYSTEM_AREA_READ_FAILURE.bits()
+    | TapeAlertFlags::NO_START_OF_DATA.bits()
+    | TapeAlertFlags::LOADING_FAILURE.bits()
+    | TapeAlertFlags::UNRECOVERABLE_UNLOAD_FAILURE.bits()
+    | TapeAlertFlags::AUTOMATION_INTERFACE_FAILURE.bits();
 
 /// Check if tape-alert-flags contains critial errors.
 pub fn tape_alert_flags_critical(flags: TapeAlertFlags) -> bool {
@@ -167,8 +164,7 @@ pub fn tape_alert_flags_critical(flags: TapeAlertFlags) -> bool {
 }
 
 const MEDIA_LIFE_MASK: u64 =
-TapeAlertFlags::MEDIA_LIFE.bits() |
-TapeAlertFlags::NEARING_MEDIA_LIFE.bits();
+    TapeAlertFlags::MEDIA_LIFE.bits() | TapeAlertFlags::NEARING_MEDIA_LIFE.bits();
 
 /// Check if tape-alert-flags indicates media-life end
 pub fn tape_alert_flags_media_life(flags: TapeAlertFlags) -> bool {
@@ -176,8 +172,7 @@ pub fn tape_alert_flags_media_life(flags: TapeAlertFlags) -> bool {
 }
 
 const MEDIA_CLEAN_MASK: u64 =
-TapeAlertFlags::CLEAN_NOW.bits() |
-TapeAlertFlags::CLEAN_PERIODIC.bits();
+    TapeAlertFlags::CLEAN_NOW.bits() | TapeAlertFlags::CLEAN_PERIODIC.bits();
 
 /// Check if tape-alert-flags indicates media cleaning request
 pub fn tape_alert_flags_cleaning_request(flags: TapeAlertFlags) -> bool {

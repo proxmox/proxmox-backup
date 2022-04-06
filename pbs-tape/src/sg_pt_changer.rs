@@ -1,9 +1,9 @@
 //! SCSI changer implementation using libsgutil2
-use std::os::unix::prelude::AsRawFd;
-use std::io::Read;
 use std::collections::HashMap;
+use std::fs::{File, OpenOptions};
+use std::io::Read;
+use std::os::unix::prelude::AsRawFd;
 use std::path::Path;
-use std::fs::{OpenOptions, File};
 
 use anyhow::{bail, format_err, Error};
 use endian_trait::Endian;
@@ -13,31 +13,25 @@ use proxmox_io::ReadExt;
 use pbs_api_types::ScsiTapeChanger;
 
 use crate::{
-    ElementStatus,MtxStatus,TransportElementStatus,DriveStatus,StorageElementStatus,
-    sgutils2::{
-        SgRaw,
-        SENSE_KEY_NOT_READY,
-        ScsiError,
-        scsi_ascii_to_string,
-        scsi_inquiry,
-    },
+    sgutils2::{scsi_ascii_to_string, scsi_inquiry, ScsiError, SgRaw, SENSE_KEY_NOT_READY},
+    DriveStatus, ElementStatus, MtxStatus, StorageElementStatus, TransportElementStatus,
 };
 
-const SCSI_CHANGER_DEFAULT_TIMEOUT: usize = 60*5; // 5 minutes
+const SCSI_CHANGER_DEFAULT_TIMEOUT: usize = 60 * 5; // 5 minutes
 const SCSI_VOLUME_TAG_LEN: usize = 36;
 
 /// Initialize element status (Inventory)
 pub fn initialize_element_status<F: AsRawFd>(file: &mut F) -> Result<(), Error> {
-
     let mut sg_raw = SgRaw::new(file, 64)?;
 
     // like mtx(1), set a very long timeout (30 minutes)
-    sg_raw.set_timeout(30*60);
+    sg_raw.set_timeout(30 * 60);
 
     let mut cmd = Vec::new();
     cmd.extend(&[0x07, 0, 0, 0, 0, 0]); // INITIALIZE ELEMENT STATUS (07h)
 
-    sg_raw.do_command(&cmd)
+    sg_raw
+        .do_command(&cmd)
         .map_err(|err| format_err!("initializte element status (07h) failed - {}", err))?;
 
     Ok(())
@@ -78,7 +72,6 @@ fn execute_scsi_command<F: AsRawFd>(
     error_prefix: &str,
     retry: bool,
 ) -> Result<Vec<u8>, Error> {
-
     let start = std::time::SystemTime::now();
 
     let mut last_msg: Option<String> = None;
@@ -103,9 +96,12 @@ fn execute_scsi_command<F: AsRawFd>(
 
                 if let ScsiError::Sense(ref sense) = err {
                     // Not Ready - becoming ready
-                    if sense.sense_key == SENSE_KEY_NOT_READY && sense.asc == 0x04 && sense.ascq == 1 {
+                    if sense.sense_key == SENSE_KEY_NOT_READY
+                        && sense.asc == 0x04
+                        && sense.ascq == 1
+                    {
                         // wait up to 5 minutes, long enough to finish inventorize
-                        timeout = std::time::Duration::new(5*60, 0);
+                        timeout = std::time::Duration::new(5 * 60, 0);
                     }
                 }
 
@@ -117,14 +113,12 @@ fn execute_scsi_command<F: AsRawFd>(
                 continue; // try again
             }
         }
-   }
+    }
 }
-
 
 fn read_element_address_assignment<F: AsRawFd>(
     file: &mut F,
 ) -> Result<AddressAssignmentPage, Error> {
-
     let allocation_len: u8 = u8::MAX;
     let mut sg_raw = SgRaw::new(file, allocation_len as usize)?;
     sg_raw.set_timeout(SCSI_CHANGER_DEFAULT_TIMEOUT);
@@ -148,7 +142,8 @@ fn read_element_address_assignment<F: AsRawFd>(
         }
 
         Ok(page)
-    }).map_err(|err: Error| format_err!("decode element address assignment page failed - {}", err))
+    })
+    .map_err(|err: Error| format_err!("decode element address assignment page failed - {}", err))
 }
 
 fn scsi_move_medium_cdb(
@@ -156,7 +151,6 @@ fn scsi_move_medium_cdb(
     source_element_address: u16,
     destination_element_address: u16,
 ) -> Vec<u8> {
-
     let mut cmd = Vec::new();
     cmd.push(0xA5); // MOVE MEDIUM (A5h)
     cmd.push(0); // reserved
@@ -172,11 +166,7 @@ fn scsi_move_medium_cdb(
 }
 
 /// Load media from storage slot into drive
-pub fn load_slot(
-    file: &mut File,
-    from_slot: u64,
-    drivenum: u64,
-) -> Result<(), Error> {
+pub fn load_slot(file: &mut File, from_slot: u64, drivenum: u64) -> Result<(), Error> {
     let status = read_element_status(file)?;
 
     let transport_address = status.transport_address();
@@ -192,19 +182,15 @@ pub fn load_slot(
     let mut sg_raw = SgRaw::new(file, 64)?;
     sg_raw.set_timeout(SCSI_CHANGER_DEFAULT_TIMEOUT);
 
-    sg_raw.do_command(&cmd)
+    sg_raw
+        .do_command(&cmd)
         .map_err(|err| format_err!("load drive failed - {}", err))?;
 
     Ok(())
 }
 
 /// Unload media from drive into a storage slot
-pub fn unload(
-    file: &mut File,
-    to_slot: u64,
-    drivenum: u64,
-) -> Result<(), Error> {
-
+pub fn unload(file: &mut File, to_slot: u64, drivenum: u64) -> Result<(), Error> {
     let status = read_element_status(file)?;
 
     let transport_address = status.transport_address();
@@ -220,7 +206,8 @@ pub fn unload(
     let mut sg_raw = SgRaw::new(file, 64)?;
     sg_raw.set_timeout(SCSI_CHANGER_DEFAULT_TIMEOUT);
 
-    sg_raw.do_command(&cmd)
+    sg_raw
+        .do_command(&cmd)
         .map_err(|err| format_err!("unload drive failed - {}", err))?;
 
     Ok(())
@@ -232,7 +219,6 @@ pub fn transfer_medium<F: AsRawFd>(
     from_slot: u64,
     to_slot: u64,
 ) -> Result<(), Error> {
-
     let status = read_element_status(file)?;
 
     let transport_address = status.transport_address();
@@ -248,11 +234,14 @@ pub fn transfer_medium<F: AsRawFd>(
     let mut sg_raw = SgRaw::new(file, 64)?;
     sg_raw.set_timeout(SCSI_CHANGER_DEFAULT_TIMEOUT);
 
-    sg_raw.do_command(&cmd)
-        .map_err(|err| {
-            format_err!("transfer medium from slot {} to slot {} failed - {}",
-                        from_slot, to_slot, err)
-        })?;
+    sg_raw.do_command(&cmd).map_err(|err| {
+        format_err!(
+            "transfer medium from slot {} to slot {} failed - {}",
+            from_slot,
+            to_slot,
+            err
+        )
+    })?;
 
     Ok(())
 }
@@ -282,7 +271,7 @@ impl ElementType {
     fn byte6(&self) -> u8 {
         match *self {
             ElementType::DataTransferWithDVCID => 0b001, //  Mixed=0,CurData=0,DVCID=1
-            _ => 0b000, // Mixed=0,CurData=0,DVCID=0
+            _ => 0b000,                                  // Mixed=0,CurData=0,DVCID=0
         }
     }
 }
@@ -293,7 +282,6 @@ fn scsi_read_element_status_cdb(
     element_type: ElementType,
     allocation_len: u32,
 ) -> Vec<u8> {
-
     let mut cmd = Vec::new();
     cmd.push(0xB8); // READ ELEMENT STATUS (B8h)
     cmd.push(element_type.byte1());
@@ -315,7 +303,6 @@ fn get_element<F: AsRawFd>(
     allocation_len: u32,
     mut retry: bool,
 ) -> Result<DecodedStatusPage, Error> {
-
     let mut start_element_address = 0;
     let number_of_elements: u16 = 1000; // some changers limit the query
 
@@ -328,7 +315,12 @@ fn get_element<F: AsRawFd>(
     };
 
     loop {
-        let cmd = scsi_read_element_status_cdb(start_element_address, number_of_elements, element_type, allocation_len);
+        let cmd = scsi_read_element_status_cdb(
+            start_element_address,
+            number_of_elements,
+            element_type,
+            allocation_len,
+        );
 
         let data = execute_scsi_command(sg_raw, &cmd, "read element status (B8h)", retry)?;
 
@@ -364,7 +356,6 @@ fn get_element<F: AsRawFd>(
 
 /// Read element status.
 pub fn read_element_status<F: AsRawFd>(file: &mut F) -> Result<MtxStatus, Error> {
-
     let inquiry = scsi_inquiry(file)?;
 
     if inquiry.peripheral_type != 8 {
@@ -387,15 +378,30 @@ pub fn read_element_status<F: AsRawFd>(file: &mut F) -> Result<MtxStatus, Error>
     let page = get_element(&mut sg_raw, ElementType::Storage, allocation_len, true)?;
     storage_slots.extend(page.storage_slots);
 
-    let page = get_element(&mut sg_raw, ElementType::ImportExport, allocation_len, false)?;
+    let page = get_element(
+        &mut sg_raw,
+        ElementType::ImportExport,
+        allocation_len,
+        false,
+    )?;
     import_export_slots.extend(page.import_export_slots);
 
-    let page = get_element(&mut sg_raw, ElementType::DataTransfer, allocation_len, false)?;
+    let page = get_element(
+        &mut sg_raw,
+        ElementType::DataTransfer,
+        allocation_len,
+        false,
+    )?;
     drives.extend(page.drives);
 
     // get the serial + vendor + model,
     // some changer require this to be an extra scsi command
-    let page = get_element(&mut sg_raw, ElementType::DataTransferWithDVCID, allocation_len, false)?;
+    let page = get_element(
+        &mut sg_raw,
+        ElementType::DataTransferWithDVCID,
+        allocation_len,
+        false,
+    )?;
     // should be in same order and same count, but be on the safe side.
     // there should not be too many drives normally
     for drive in drives.iter_mut() {
@@ -408,7 +414,12 @@ pub fn read_element_status<F: AsRawFd>(file: &mut F) -> Result<MtxStatus, Error>
         }
     }
 
-    let page = get_element(&mut sg_raw, ElementType::MediumTransport, allocation_len, false)?;
+    let page = get_element(
+        &mut sg_raw,
+        ElementType::MediumTransport,
+        allocation_len,
+        false,
+    )?;
     transports.extend(page.transports);
 
     let transport_count = setup.transport_element_count as usize;
@@ -451,14 +462,18 @@ pub fn read_element_status<F: AsRawFd>(file: &mut F) -> Result<MtxStatus, Error>
     let mut slots = storage_slots;
     slots.extend(import_export_slots);
 
-    let mut status = MtxStatus { transports, drives, slots };
+    let mut status = MtxStatus {
+        transports,
+        drives,
+        slots,
+    };
 
     // sanity checks
     if status.drives.is_empty() {
         bail!("no data transfer elements reported");
     }
     if status.slots.is_empty() {
-         bail!("no storage elements reported");
+        bail!("no storage elements reported");
     }
 
     // compute virtual storage slot to element_address map
@@ -482,8 +497,7 @@ pub fn read_element_status<F: AsRawFd>(file: &mut F) -> Result<MtxStatus, Error>
 pub fn status(config: &ScsiTapeChanger) -> Result<MtxStatus, Error> {
     let path = &config.path;
 
-    let mut file = open(path)
-        .map_err(|err| format_err!("error opening '{}': {}", path, err))?;
+    let mut file = open(path).map_err(|err| format_err!("error opening '{}': {}", path, err))?;
     let mut status = read_element_status(&mut file)
         .map_err(|err| format_err!("error reading element status: {}", err))?;
 
@@ -492,14 +506,13 @@ pub fn status(config: &ScsiTapeChanger) -> Result<MtxStatus, Error> {
     Ok(status)
 }
 
-
 #[repr(C, packed)]
 #[derive(Endian)]
 struct ElementStatusHeader {
     first_element_address_reported: u16,
     number_of_elements_available: u16,
     reserved: u8,
-    byte_count_of_report_available: [u8;3],
+    byte_count_of_report_available: [u8; 3],
 }
 
 #[repr(C, packed)]
@@ -509,18 +522,17 @@ struct SubHeader {
     flags: u8,
     descriptor_length: u16,
     reserved: u8,
-    byte_count_of_descriptor_data_available: [u8;3],
+    byte_count_of_descriptor_data_available: [u8; 3],
 }
 
 impl SubHeader {
-
     fn parse_optional_volume_tag<R: Read>(
         &self,
         reader: &mut R,
         full: bool,
     ) -> Result<Option<String>, Error> {
-
-        if (self.flags & 128) != 0 { // has PVolTag
+        if (self.flags & 128) != 0 {
+            // has PVolTag
             let tmp = reader.read_exact_allocated(SCSI_VOLUME_TAG_LEN)?;
             if full {
                 let volume_tag = scsi_ascii_to_string(&tmp);
@@ -532,12 +544,9 @@ impl SubHeader {
 
     // AFAIK, tape changer do not use AlternateVolumeTag
     // but parse anyways, just to be sure
-    fn skip_alternate_volume_tag<R: Read>(
-        &self,
-        reader: &mut R,
-    ) -> Result<Option<String>, Error> {
-
-        if (self.flags & 64) != 0 { // has AVolTag
+    fn skip_alternate_volume_tag<R: Read>(&self, reader: &mut R) -> Result<Option<String>, Error> {
+        if (self.flags & 64) != 0 {
+            // has AVolTag
             let _tmp = reader.read_exact_allocated(SCSI_VOLUME_TAG_LEN)?;
         }
 
@@ -547,13 +556,14 @@ impl SubHeader {
 
 #[repr(C, packed)]
 #[derive(Endian)]
-struct TransportDescriptor { // Robot/Griper
+struct TransportDescriptor {
+    // Robot/Griper
     element_address: u16,
     flags1: u8,
     reserved_3: u8,
     additional_sense_code: u8,
     additional_sense_code_qualifier: u8,
-    reserved_6: [u8;3],
+    reserved_6: [u8; 3],
     flags2: u8,
     source_storage_element_address: u16,
     // volume tag and Mixed media descriptor follows (depends on flags)
@@ -561,7 +571,8 @@ struct TransportDescriptor { // Robot/Griper
 
 #[repr(C, packed)]
 #[derive(Endian)]
-struct TransferDescriptor { // Tape drive
+struct TransferDescriptor {
+    // Tape drive
     element_address: u16,
     flags1: u8,
     reserved_3: u8,
@@ -578,7 +589,8 @@ struct TransferDescriptor { // Tape drive
 
 #[repr(C, packed)]
 #[derive(Endian)]
-struct DvcidHead { // Drive Identifier Header
+struct DvcidHead {
+    // Drive Identifier Header
     code_set: u8,
     identifier_type: u8,
     reserved: u8,
@@ -588,13 +600,14 @@ struct DvcidHead { // Drive Identifier Header
 
 #[repr(C, packed)]
 #[derive(Endian)]
-struct StorageDescriptor { // Mail Slot
+struct StorageDescriptor {
+    // Mail Slot
     element_address: u16,
     flags1: u8,
     reserved_3: u8,
     additional_sense_code: u8,
     additional_sense_code_qualifier: u8,
-    reserved_6: [u8;3],
+    reserved_6: [u8; 3],
     flags2: u8,
     source_storage_element_address: u16,
     // volume tag and Mixed media descriptor follows (depends on flags)
@@ -630,7 +643,8 @@ fn decode_dvcid_info<R: Read>(reader: &mut R) -> Result<DvcidInfo, Error> {
     let dvcid: DvcidHead = unsafe { reader.read_be_value()? };
 
     let (serial, vendor, model) = match (dvcid.code_set, dvcid.identifier_type) {
-        (2, 0) => { // Serial number only (Quantum Superloader3 uses this)
+        (2, 0) => {
+            // Serial number only (Quantum Superloader3 uses this)
             let serial = reader.read_exact_allocated(dvcid.identifier_len as usize)?;
             let serial = scsi_ascii_to_string(&serial);
             (Some(serial), None, None)
@@ -661,9 +675,7 @@ fn decode_element_status_page(
     data: &[u8],
     start_element_address: u16,
 ) -> Result<DecodedStatusPage, Error> {
-
     proxmox_lang::try_block!({
-
         let mut result = DecodedStatusPage {
             last_element_address: None,
             transports: Vec::new(),
@@ -690,7 +702,11 @@ fn decode_element_status_page(
         if len < reader.len() {
             reader = &reader[..len];
         } else if len > reader.len() {
-            bail!("wrong amount of data: expected {}, got {}", len, reader.len());
+            bail!(
+                "wrong amount of data: expected {}, got {}",
+                len,
+                reader.len()
+            );
         }
 
         loop {
@@ -763,7 +779,8 @@ fn decode_element_status_page(
                     4 => {
                         let desc: TransferDescriptor = unsafe { reader.read_be_value()? };
 
-                        let loaded_slot = if (desc.flags2 & 128) != 0 { // SValid
+                        let loaded_slot = if (desc.flags2 & 128) != 0 {
+                            // SValid
                             Some(desc.source_storage_element_address as u64)
                         } else {
                             None
@@ -798,23 +815,21 @@ fn decode_element_status_page(
         }
 
         Ok(result)
-    }).map_err(|err: Error| format_err!("decode element status failed - {}", err))
+    })
+    .map_err(|err: Error| format_err!("decode element status failed - {}", err))
 }
 
 /// Open the device for read/write, returns the file handle
 pub fn open<P: AsRef<Path>>(path: P) -> Result<File, Error> {
-    let file = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .open(path)?;
+    let file = OpenOptions::new().read(true).write(true).open(path)?;
 
     Ok(file)
 }
 
 #[cfg(test)]
 mod test {
-    use anyhow::Error;
     use super::*;
+    use anyhow::Error;
 
     struct StorageDesc {
         address: u16,
@@ -826,9 +841,10 @@ mod test {
         trailing: &[u8],
         element_type: u8,
     ) -> Vec<u8> {
-        let descs: Vec<Vec<u8>> = descriptors.iter().map(|desc| {
-            build_storage_descriptor(desc, trailing)
-        }).collect();
+        let descs: Vec<Vec<u8>> = descriptors
+            .iter()
+            .map(|desc| build_storage_descriptor(desc, trailing))
+            .collect();
 
         let (desc_len, address) = if let Some(el) = descs.get(0) {
             (el.len() as u16, descriptors[0].address)
@@ -863,10 +879,7 @@ mod test {
         res
     }
 
-    fn build_storage_descriptor(
-        desc: &StorageDesc,
-        trailing: &[u8],
-    ) -> Vec<u8> {
+    fn build_storage_descriptor(desc: &StorageDesc, trailing: &[u8]) -> Vec<u8> {
         let mut res = Vec::new();
         res.push(((desc.address >> 8) & 0xFF) as u8);
         res.push((desc.address & 0xFF) as u8);
@@ -876,7 +889,7 @@ mod test {
             res.push(0x00); // full
         }
 
-        res.extend_from_slice(&[0,0,0,0,0,0,0x80]);
+        res.extend_from_slice(&[0, 0, 0, 0, 0, 0, 0x80]);
         res.push(((desc.address >> 8) & 0xFF) as u8);
         res.push((desc.address & 0xFF) as u8);
 
@@ -942,7 +955,7 @@ mod test {
                 pvoltag: Some("1234567890".to_string()),
             },
         ];
-        let test_data = build_element_status_page(descs, &[0,0,0,0,0], 0x2);
+        let test_data = build_element_status_page(descs, &[0, 0, 0, 0, 0], 0x2);
         let page = decode_element_status_page(&test_data, 0)?;
         assert_eq!(page.storage_slots.len(), 2);
         Ok(())

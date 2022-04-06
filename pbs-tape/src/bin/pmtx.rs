@@ -11,29 +11,25 @@
 ///
 /// - list serial number for attached drives, so that it is possible
 ///   to associate drive numbers with drives.
-
 use std::fs::File;
 
 use anyhow::{bail, Error};
 use serde_json::Value;
 
-use proxmox_schema::api;
 use proxmox_router::cli::*;
 use proxmox_router::RpcEnvironment;
+use proxmox_schema::api;
 
+use pbs_api_types::{LtoTapeDrive, ScsiTapeChanger, CHANGER_NAME_SCHEMA, SCSI_CHANGER_PATH_SCHEMA};
 use pbs_config::drive::complete_changer_name;
-use pbs_api_types::{
-    SCSI_CHANGER_PATH_SCHEMA, CHANGER_NAME_SCHEMA, ScsiTapeChanger, LtoTapeDrive,
-};
 use pbs_tape::{
+    linux_list_drives::{complete_changer_path, linux_tape_changer_list},
+    sg_pt_changer,
     sgutils2::scsi_inquiry,
     ElementStatus,
-    sg_pt_changer,
-    linux_list_drives::{complete_changer_path, linux_tape_changer_list},
 };
 
 fn get_changer_handle(param: &Value) -> Result<File, Error> {
-
     if let Some(name) = param["changer"].as_str() {
         let (config, _digest) = pbs_config::drive::config()?;
         let changer_config: ScsiTapeChanger = config.lookup("changer", name)?;
@@ -83,10 +79,7 @@ fn get_changer_handle(param: &Value) -> Result<File, Error> {
     },
 )]
 /// Inquiry
-fn inquiry(
-    param: Value,
-) -> Result<(), Error> {
-
+fn inquiry(param: Value) -> Result<(), Error> {
     let output_format = get_output_format(&param);
 
     let result: Result<_, Error> = proxmox_lang::try_block!({
@@ -113,7 +106,10 @@ fn inquiry(
 
     let info = result?;
 
-    println!("Type:     {} ({})", info.peripheral_type_text, info.peripheral_type);
+    println!(
+        "Type:     {} ({})",
+        info.peripheral_type_text, info.peripheral_type
+    );
     println!("Vendor:   {}", info.vendor);
     println!("Product:  {}", info.product);
     println!("Revision: {}", info.revision);
@@ -136,10 +132,7 @@ fn inquiry(
     },
 )]
 /// Inventory
-fn inventory(
-    param: Value,
-) -> Result<(), Error> {
-
+fn inventory(param: Value) -> Result<(), Error> {
     let mut file = get_changer_handle(&param)?;
     sg_pt_changer::initialize_element_status(&mut file)?;
 
@@ -170,12 +163,7 @@ fn inventory(
     },
 )]
 /// Load
-fn load(
-    param: Value,
-    slot: u64,
-    drivenum: Option<u64>,
-) -> Result<(), Error> {
-
+fn load(param: Value, slot: u64, drivenum: Option<u64>) -> Result<(), Error> {
     let mut file = get_changer_handle(&param)?;
 
     let drivenum = drivenum.unwrap_or(0);
@@ -210,12 +198,7 @@ fn load(
     },
 )]
 /// Unload
-fn unload(
-    param: Value,
-    slot: Option<u64>,
-    drivenum: Option<u64>,
-) -> Result<(), Error> {
-
+fn unload(param: Value, slot: Option<u64>, drivenum: Option<u64>) -> Result<(), Error> {
     let mut file = get_changer_handle(&param)?;
 
     let drivenum = drivenum.unwrap_or(0);
@@ -271,10 +254,7 @@ fn unload(
     },
 )]
 /// Changer Status
-fn status(
-    param: Value,
-) -> Result<(), Error> {
-
+fn status(param: Value) -> Result<(), Error> {
     let output_format = get_output_format(&param);
 
     let result: Result<_, Error> = proxmox_lang::try_block!({
@@ -302,7 +282,10 @@ fn status(
     let status = result?;
 
     for (i, transport) in status.transports.iter().enumerate() {
-        println!("Transport Element (Griper)    {:>3}: {:?}",i, transport.status);
+        println!(
+            "Transport Element (Griper)    {:>3}: {:?}",
+            i, transport.status
+        );
     }
 
     for (i, drive) in status.drives.iter().enumerate() {
@@ -312,7 +295,7 @@ fn status(
         };
         let serial_txt = match drive.drive_serial_number {
             Some(ref serial) => format!(", Serial: {}", serial),
-             None => String::new(),
+            None => String::new(),
         };
 
         println!(
@@ -323,9 +306,9 @@ fn status(
 
     for (i, slot) in status.slots.iter().enumerate() {
         if slot.import_export {
-            println!("  Import/Export   {:>3}: {:?}", i+1, slot.status);
+            println!("  Import/Export   {:>3}: {:?}", i + 1, slot.status);
         } else {
-            println!("  Storage Element {:>3}: {:?}", i+1, slot.status);
+            println!("  Storage Element {:>3}: {:?}", i + 1, slot.status);
         }
     }
 
@@ -355,12 +338,7 @@ fn status(
     },
 )]
 /// Transfer
-fn transfer(
-    param: Value,
-    from: u64,
-    to: u64,
-) -> Result<(), Error> {
-
+fn transfer(param: Value, from: u64, to: u64) -> Result<(), Error> {
     let mut file = get_changer_handle(&param)?;
 
     sg_pt_changer::transfer_medium(&mut file, from, to)?;
@@ -380,7 +358,6 @@ fn transfer(
 )]
 /// Scan for existing tape changer devices
 fn scan(param: Value) -> Result<(), Error> {
-
     let output_format = get_output_format(&param);
 
     let list = linux_tape_changer_list();
@@ -400,14 +377,16 @@ fn scan(param: Value) -> Result<(), Error> {
     }
 
     for item in list.iter() {
-        println!("{} ({}/{}/{})", item.path, item.vendor, item.model, item.serial);
+        println!(
+            "{} ({}/{}/{})",
+            item.path, item.vendor, item.model, item.serial
+        );
     }
 
     Ok(())
 }
 
 fn main() -> Result<(), Error> {
-
     let uid = nix::unistd::Uid::current();
 
     let username = match nix::unistd::User::from_uid(uid)? {
@@ -415,49 +394,47 @@ fn main() -> Result<(), Error> {
         None => bail!("unable to get user name"),
     };
 
-
     let cmd_def = CliCommandMap::new()
         .usage_skip_options(&["device", "changer", "output-format"])
         .insert(
             "inquiry",
             CliCommand::new(&API_METHOD_INQUIRY)
                 .completion_cb("changer", complete_changer_name)
-                .completion_cb("device", complete_changer_path)
+                .completion_cb("device", complete_changer_path),
         )
         .insert(
             "inventory",
             CliCommand::new(&API_METHOD_INVENTORY)
                 .completion_cb("changer", complete_changer_name)
-                .completion_cb("device", complete_changer_path)
+                .completion_cb("device", complete_changer_path),
         )
         .insert(
             "load",
             CliCommand::new(&API_METHOD_LOAD)
                 .arg_param(&["slot"])
                 .completion_cb("changer", complete_changer_name)
-                .completion_cb("device", complete_changer_path)
+                .completion_cb("device", complete_changer_path),
         )
         .insert(
             "unload",
             CliCommand::new(&API_METHOD_UNLOAD)
                 .completion_cb("changer", complete_changer_name)
-                .completion_cb("device", complete_changer_path)
+                .completion_cb("device", complete_changer_path),
         )
         .insert("scan", CliCommand::new(&API_METHOD_SCAN))
         .insert(
             "status",
             CliCommand::new(&API_METHOD_STATUS)
                 .completion_cb("changer", complete_changer_name)
-                .completion_cb("device", complete_changer_path)
+                .completion_cb("device", complete_changer_path),
         )
         .insert(
             "transfer",
             CliCommand::new(&API_METHOD_TRANSFER)
                 .arg_param(&["from", "to"])
                 .completion_cb("changer", complete_changer_name)
-                .completion_cb("device", complete_changer_path)
-        )
-         ;
+                .completion_cb("device", complete_changer_path),
+        );
 
     let mut rpcenv = CliEnvironment::new();
     rpcenv.set_auth_id(Some(format!("{}@pam", username)));

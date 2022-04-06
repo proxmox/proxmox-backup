@@ -1,8 +1,8 @@
-use std::path::{Path, PathBuf};
 use std::collections::HashMap;
-use std::fs::{OpenOptions, File};
+use std::fs::{File, OpenOptions};
 use std::os::unix::fs::OpenOptionsExt;
 use std::os::unix::io::AsRawFd;
+use std::path::{Path, PathBuf};
 
 use anyhow::{bail, format_err, Error};
 use nix::fcntl::{fcntl, FcntlArg, OFlag};
@@ -12,21 +12,20 @@ use proxmox_sys::fs::scan_subdir;
 
 use pbs_api_types::{DeviceKind, OptionalDeviceIdentification, TapeDeviceInfo};
 
-lazy_static::lazy_static!{
+lazy_static::lazy_static! {
     static ref SCSI_GENERIC_NAME_REGEX: regex::Regex =
         regex::Regex::new(r"^sg\d+$").unwrap();
 }
 
 /// List linux tape changer devices
 pub fn linux_tape_changer_list() -> Vec<TapeDeviceInfo> {
-
     let mut list = Vec::new();
 
     let dir_iter = match scan_subdir(
         libc::AT_FDCWD,
         "/sys/class/scsi_generic",
-        &SCSI_GENERIC_NAME_REGEX)
-    {
+        &SCSI_GENERIC_NAME_REGEX,
+    ) {
         Err(_) => return list,
         Ok(iter) => iter,
     };
@@ -63,7 +62,9 @@ pub fn linux_tape_changer_list() -> Vec<TapeDeviceInfo> {
                     continue;
                 }
             }
-            _ => { continue; }
+            _ => {
+                continue;
+            }
         }
 
         // let mut test_path = sys_path.clone();
@@ -75,22 +76,42 @@ pub fn linux_tape_changer_list() -> Vec<TapeDeviceInfo> {
             Some(dev_path) => dev_path,
         };
 
-        let serial = match device.property_value("ID_SCSI_SERIAL")
+        let serial = match device
+            .property_value("ID_SCSI_SERIAL")
             .map(std::ffi::OsString::from)
-            .and_then(|s| if let Ok(s) = s.into_string() { Some(s) } else { None })
-        {
+            .and_then(|s| {
+                if let Ok(s) = s.into_string() {
+                    Some(s)
+                } else {
+                    None
+                }
+            }) {
             None => continue,
             Some(serial) => serial,
         };
 
-        let vendor = device.property_value("ID_VENDOR")
+        let vendor = device
+            .property_value("ID_VENDOR")
             .map(std::ffi::OsString::from)
-            .and_then(|s| if let Ok(s) = s.into_string() { Some(s) } else { None })
+            .and_then(|s| {
+                if let Ok(s) = s.into_string() {
+                    Some(s)
+                } else {
+                    None
+                }
+            })
             .unwrap_or_else(|| String::from("unknown"));
 
-        let model = device.property_value("ID_MODEL")
+        let model = device
+            .property_value("ID_MODEL")
             .map(std::ffi::OsString::from)
-            .and_then(|s| if let Ok(s) = s.into_string() { Some(s) } else { None })
+            .and_then(|s| {
+                if let Ok(s) = s.into_string() {
+                    Some(s)
+                } else {
+                    None
+                }
+            })
             .unwrap_or_else(|| String::from("unknown"));
 
         let dev_path = format!("/dev/tape/by-id/scsi-{}", serial);
@@ -113,14 +134,13 @@ pub fn linux_tape_changer_list() -> Vec<TapeDeviceInfo> {
 
 /// List LTO drives
 pub fn lto_tape_device_list() -> Vec<TapeDeviceInfo> {
-
     let mut list = Vec::new();
 
     let dir_iter = match scan_subdir(
         libc::AT_FDCWD,
         "/sys/class/scsi_generic",
-        &SCSI_GENERIC_NAME_REGEX)
-    {
+        &SCSI_GENERIC_NAME_REGEX,
+    ) {
         Err(_) => return list,
         Ok(iter) => iter,
     };
@@ -157,7 +177,9 @@ pub fn lto_tape_device_list() -> Vec<TapeDeviceInfo> {
                     continue;
                 }
             }
-            _ => { continue; }
+            _ => {
+                continue;
+            }
         }
 
         // let mut test_path = sys_path.clone();
@@ -169,22 +191,42 @@ pub fn lto_tape_device_list() -> Vec<TapeDeviceInfo> {
             Some(dev_path) => dev_path,
         };
 
-        let serial = match device.property_value("ID_SCSI_SERIAL")
+        let serial = match device
+            .property_value("ID_SCSI_SERIAL")
             .map(std::ffi::OsString::from)
-            .and_then(|s| if let Ok(s) = s.into_string() { Some(s) } else { None })
-        {
+            .and_then(|s| {
+                if let Ok(s) = s.into_string() {
+                    Some(s)
+                } else {
+                    None
+                }
+            }) {
             None => continue,
             Some(serial) => serial,
         };
 
-        let vendor = device.property_value("ID_VENDOR")
+        let vendor = device
+            .property_value("ID_VENDOR")
             .map(std::ffi::OsString::from)
-            .and_then(|s| if let Ok(s) = s.into_string() { Some(s) } else { None })
+            .and_then(|s| {
+                if let Ok(s) = s.into_string() {
+                    Some(s)
+                } else {
+                    None
+                }
+            })
             .unwrap_or_else(|| String::from("unknown"));
 
-        let model = device.property_value("ID_MODEL")
+        let model = device
+            .property_value("ID_MODEL")
             .map(std::ffi::OsString::from)
-            .and_then(|s| if let Ok(s) = s.into_string() { Some(s) } else { None })
+            .and_then(|s| {
+                if let Ok(s) = s.into_string() {
+                    Some(s)
+                } else {
+                    None
+                }
+            })
             .unwrap_or_else(|| String::from("unknown"));
 
         let dev_path = format!("/dev/tape/by-id/scsi-{}-sg", serial);
@@ -206,17 +248,14 @@ pub fn lto_tape_device_list() -> Vec<TapeDeviceInfo> {
 }
 
 /// Test if a device exists, and returns associated `TapeDeviceInfo`
-pub fn lookup_device<'a>(
-    devices: &'a[TapeDeviceInfo],
-    path: &str,
-) -> Option<&'a TapeDeviceInfo> {
-
+pub fn lookup_device<'a>(devices: &'a [TapeDeviceInfo], path: &str) -> Option<&'a TapeDeviceInfo> {
     if let Ok(stat) = nix::sys::stat::stat(path) {
-
         let major = unsafe { libc::major(stat.st_rdev) };
         let minor = unsafe { libc::minor(stat.st_rdev) };
 
-        devices.iter().find(|d| d.major == major && d.minor == minor)
+        devices
+            .iter()
+            .find(|d| d.major == major && d.minor == minor)
     } else {
         None
     }
@@ -224,10 +263,9 @@ pub fn lookup_device<'a>(
 
 /// Lookup optional drive identification attributes
 pub fn lookup_device_identification<'a>(
-    devices: &'a[TapeDeviceInfo],
+    devices: &'a [TapeDeviceInfo],
     path: &str,
 ) -> OptionalDeviceIdentification {
-
     if let Some(info) = lookup_device(devices, path) {
         OptionalDeviceIdentification {
             vendor: Some(info.vendor.clone()),
@@ -244,20 +282,15 @@ pub fn lookup_device_identification<'a>(
 }
 
 /// Make sure path is a lto tape device
-pub fn check_drive_path(
-    drives: &[TapeDeviceInfo],
-    path: &str,
-) -> Result<(), Error> {
+pub fn check_drive_path(drives: &[TapeDeviceInfo], path: &str) -> Result<(), Error> {
     if lookup_device(drives, path).is_none() {
         bail!("path '{}' is not a lto SCSI-generic tape device", path);
     }
     Ok(())
 }
 
-
 /// Check for correct Major/Minor numbers
 pub fn check_tape_is_lto_tape_device(file: &File) -> Result<(), Error> {
-
     let stat = nix::sys::stat::fstat(file.as_raw_fd())?;
 
     let devnum = stat.st_rdev;
@@ -281,10 +314,7 @@ pub fn check_tape_is_lto_tape_device(file: &File) -> Result<(), Error> {
 /// The open call use O_NONBLOCK, but that flag is cleard after open
 /// succeeded. This also checks if the device is a non-rewinding tape
 /// device.
-pub fn open_lto_tape_device(
-    path: &str,
-) -> Result<File, Error> {
-
+pub fn open_lto_tape_device(path: &str) -> Result<File, Error> {
     let file = OpenOptions::new()
         .read(true)
         .write(true)
@@ -293,14 +323,12 @@ pub fn open_lto_tape_device(
 
     // clear O_NONBLOCK from now on.
 
-    let flags = fcntl(file.as_raw_fd(), FcntlArg::F_GETFL)
-        .into_io_result()?;
+    let flags = fcntl(file.as_raw_fd(), FcntlArg::F_GETFL).into_io_result()?;
 
     let mut flags = OFlag::from_bits_truncate(flags);
     flags.remove(OFlag::O_NONBLOCK);
 
-    fcntl(file.as_raw_fd(), FcntlArg::F_SETFL(flags))
-        .into_io_result()?;
+    fcntl(file.as_raw_fd(), FcntlArg::F_SETFL(flags)).into_io_result()?;
 
     check_tape_is_lto_tape_device(&file)
         .map_err(|err| format_err!("device type check {:?} failed - {}", path, err))?;
@@ -308,15 +336,20 @@ pub fn open_lto_tape_device(
     Ok(file)
 }
 
-
 // shell completion helper
 
 /// List changer device paths
 pub fn complete_changer_path(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
-    linux_tape_changer_list().iter().map(|v| v.path.clone()).collect()
+    linux_tape_changer_list()
+        .iter()
+        .map(|v| v.path.clone())
+        .collect()
 }
 
 /// List tape device paths
 pub fn complete_drive_path(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
-    lto_tape_device_list().iter().map(|v| v.path.clone()).collect()
+    lto_tape_device_list()
+        .iter()
+        .map(|v| v.path.clone())
+        .collect()
 }

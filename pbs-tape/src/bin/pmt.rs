@@ -12,54 +12,46 @@
 /// - support tape alert flags
 /// - support volume statistics
 /// - read cartridge memory
-
 use std::convert::TryInto;
 
 use anyhow::{bail, Error};
 use serde_json::Value;
 
-use proxmox_schema::{api, ArraySchema, IntegerSchema, Schema, StringSchema};
 use proxmox_router::cli::*;
 use proxmox_router::RpcEnvironment;
+use proxmox_schema::{api, ArraySchema, IntegerSchema, Schema, StringSchema};
 
-use pbs_api_types::{
-    LTO_DRIVE_PATH_SCHEMA, DRIVE_NAME_SCHEMA, LtoTapeDrive,
-};
+use pbs_api_types::{LtoTapeDrive, DRIVE_NAME_SCHEMA, LTO_DRIVE_PATH_SCHEMA};
 use pbs_config::drive::complete_drive_name;
 use pbs_tape::{
-    sg_tape::SgTape,
     linux_list_drives::{complete_drive_path, lto_tape_device_list, open_lto_tape_device},
+    sg_tape::SgTape,
 };
 
-pub const FILE_MARK_COUNT_SCHEMA: Schema =
-    IntegerSchema::new("File mark count.")
+pub const FILE_MARK_COUNT_SCHEMA: Schema = IntegerSchema::new("File mark count.")
     .minimum(1)
     .maximum(i32::MAX as isize)
     .schema();
 
-pub const FILE_MARK_POSITION_SCHEMA: Schema =
-    IntegerSchema::new("File mark position (0 is BOT).")
+pub const FILE_MARK_POSITION_SCHEMA: Schema = IntegerSchema::new("File mark position (0 is BOT).")
     .minimum(0)
     .maximum(i32::MAX as isize)
     .schema();
 
-pub const RECORD_COUNT_SCHEMA: Schema =
-    IntegerSchema::new("Record count.")
+pub const RECORD_COUNT_SCHEMA: Schema = IntegerSchema::new("Record count.")
     .minimum(1)
     .maximum(i32::MAX as isize)
     .schema();
 
-pub const DRIVE_OPTION_SCHEMA: Schema = StringSchema::new(
-    "Lto Tape Driver Option, either numeric value or option name.")
-    .schema();
+pub const DRIVE_OPTION_SCHEMA: Schema =
+    StringSchema::new("Lto Tape Driver Option, either numeric value or option name.").schema();
 
 pub const DRIVE_OPTION_LIST_SCHEMA: Schema =
     ArraySchema::new("Drive Option List.", &DRIVE_OPTION_SCHEMA)
-    .min_length(1)
-    .schema();
+        .min_length(1)
+        .schema();
 
 fn get_tape_handle(param: &Value) -> Result<SgTape, Error> {
-
     if let Some(name) = param["drive"].as_str() {
         let (config, _digest) = pbs_config::drive::config()?;
         let drive: LtoTapeDrive = config.lookup("lto", name)?;
@@ -88,7 +80,9 @@ fn get_tape_handle(param: &Value) -> Result<SgTape, Error> {
 
     let mut drive_names = Vec::new();
     for (name, (section_type, _)) in config.sections.iter() {
-        if section_type != "lto" { continue; }
+        if section_type != "lto" {
+            continue;
+        }
         drive_names.push(name);
     }
 
@@ -122,14 +116,12 @@ fn get_tape_handle(param: &Value) -> Result<SgTape, Error> {
 /// Position the tape at the beginning of the count file (after
 /// filemark count)
 fn asf(count: u64, param: Value) -> Result<(), Error> {
-
     let mut handle = get_tape_handle(&param)?;
 
     handle.locate_file(count)?;
 
     Ok(())
 }
-
 
 #[api(
    input: {
@@ -152,14 +144,12 @@ fn asf(count: u64, param: Value) -> Result<(), Error> {
 ///
 /// The tape is positioned on the last block of the previous file.
 fn bsf(count: usize, param: Value) -> Result<(), Error> {
-
     let mut handle = get_tape_handle(&param)?;
 
     handle.space_filemarks(-count.try_into()?)?;
 
     Ok(())
 }
-
 
 #[api(
    input: {
@@ -183,7 +173,6 @@ fn bsf(count: usize, param: Value) -> Result<(), Error> {
 /// This leaves the tape positioned at the first block of the file
 /// that is count - 1 files before the current file.
 fn bsfm(count: usize, param: Value) -> Result<(), Error> {
-
     let mut handle = get_tape_handle(&param)?;
 
     handle.space_filemarks(-count.try_into()?)?;
@@ -191,7 +180,6 @@ fn bsfm(count: usize, param: Value) -> Result<(), Error> {
 
     Ok(())
 }
-
 
 #[api(
    input: {
@@ -212,14 +200,12 @@ fn bsfm(count: usize, param: Value) -> Result<(), Error> {
 )]
 /// Backward space records.
 fn bsr(count: usize, param: Value) -> Result<(), Error> {
-
     let mut handle = get_tape_handle(&param)?;
 
     handle.space_blocks(-count.try_into()?)?;
 
     Ok(())
 }
-
 
 #[api(
    input: {
@@ -241,7 +227,6 @@ fn bsr(count: usize, param: Value) -> Result<(), Error> {
 )]
 /// Read Cartridge Memory
 fn cartridge_memory(param: Value) -> Result<(), Error> {
-
     let output_format = get_output_format(&param);
 
     let mut handle = get_tape_handle(&param)?;
@@ -292,11 +277,11 @@ fn cartridge_memory(param: Value) -> Result<(), Error> {
 )]
 /// Read Tape Alert Flags
 fn tape_alert_flags(param: Value) -> Result<(), Error> {
-
     let output_format = get_output_format(&param);
 
     let mut handle = get_tape_handle(&param)?;
-    let result = handle.tape_alert_flags()
+    let result = handle
+        .tape_alert_flags()
         .map(|flags| format!("{:?}", flags));
 
     if output_format == "json-pretty" {
@@ -337,13 +322,11 @@ fn tape_alert_flags(param: Value) -> Result<(), Error> {
 )]
 /// Eject drive media
 fn eject(param: Value) -> Result<(), Error> {
-
     let mut handle = get_tape_handle(&param)?;
     handle.eject()?;
 
     Ok(())
 }
-
 
 #[api(
    input: {
@@ -361,13 +344,11 @@ fn eject(param: Value) -> Result<(), Error> {
 )]
 /// Move to end of media
 fn eod(param: Value) -> Result<(), Error> {
-
     let mut handle = get_tape_handle(&param)?;
     handle.move_to_eom(false)?;
 
     Ok(())
 }
-
 
 #[api(
    input: {
@@ -391,7 +372,6 @@ fn eod(param: Value) -> Result<(), Error> {
 )]
 /// Erase media (from current position)
 fn erase(fast: Option<bool>, param: Value) -> Result<(), Error> {
-
     let mut handle = get_tape_handle(&param)?;
     handle.erase_media(fast.unwrap_or(true))?;
 
@@ -420,7 +400,6 @@ fn erase(fast: Option<bool>, param: Value) -> Result<(), Error> {
 )]
 /// Format media,  single partition
 fn format(fast: Option<bool>, param: Value) -> Result<(), Error> {
-
     let mut handle = get_tape_handle(&param)?;
     handle.format_media(fast.unwrap_or(true))?;
 
@@ -448,7 +427,6 @@ fn format(fast: Option<bool>, param: Value) -> Result<(), Error> {
 ///
 /// The tape is positioned on the first block of the next file.
 fn fsf(count: usize, param: Value) -> Result<(), Error> {
-
     let mut handle = get_tape_handle(&param)?;
 
     handle.space_filemarks(count.try_into()?)?;
@@ -478,7 +456,6 @@ fn fsf(count: usize, param: Value) -> Result<(), Error> {
 /// This leaves the tape positioned at the last block of the file that
 /// is count - 1 files past the current file.
 fn fsfm(count: usize, param: Value) -> Result<(), Error> {
-
     let mut handle = get_tape_handle(&param)?;
 
     handle.space_filemarks(count.try_into()?)?;
@@ -486,7 +463,6 @@ fn fsfm(count: usize, param: Value) -> Result<(), Error> {
 
     Ok(())
 }
-
 
 #[api(
    input: {
@@ -507,14 +483,12 @@ fn fsfm(count: usize, param: Value) -> Result<(), Error> {
 )]
 /// Forward space records.
 fn fsr(count: usize, param: Value) -> Result<(), Error> {
-
     let mut handle = get_tape_handle(&param)?;
 
     handle.space_blocks(count.try_into()?)?;
 
     Ok(())
 }
-
 
 #[api(
    input: {
@@ -532,13 +506,11 @@ fn fsr(count: usize, param: Value) -> Result<(), Error> {
 )]
 /// Load media
 fn load(param: Value) -> Result<(), Error> {
-
     let mut handle = get_tape_handle(&param)?;
     handle.load()?;
 
     Ok(())
 }
-
 
 #[api(
    input: {
@@ -556,14 +528,12 @@ fn load(param: Value) -> Result<(), Error> {
 )]
 /// Lock the tape drive door
 fn lock(param: Value) -> Result<(), Error> {
-
     let mut handle = get_tape_handle(&param)?;
 
     handle.set_medium_removal(false)?;
 
     Ok(())
 }
-
 
 #[api(
    input: {
@@ -581,13 +551,11 @@ fn lock(param: Value) -> Result<(), Error> {
 )]
 /// Rewind the tape
 fn rewind(param: Value) -> Result<(), Error> {
-
     let mut handle = get_tape_handle(&param)?;
     handle.rewind()?;
 
     Ok(())
 }
-
 
 #[api(
    input: {
@@ -601,7 +569,6 @@ fn rewind(param: Value) -> Result<(), Error> {
 )]
 /// Scan for existing tape changer devices
 fn scan(param: Value) -> Result<(), Error> {
-
     let output_format = get_output_format(&param);
 
     let list = lto_tape_device_list();
@@ -621,7 +588,10 @@ fn scan(param: Value) -> Result<(), Error> {
     }
 
     for item in list.iter() {
-        println!("{} ({}/{}/{})", item.path, item.vendor, item.model, item.serial);
+        println!(
+            "{} ({}/{}/{})",
+            item.path, item.vendor, item.model, item.serial
+        );
     }
 
     Ok(())
@@ -647,7 +617,6 @@ fn scan(param: Value) -> Result<(), Error> {
 )]
 /// Drive Status
 fn status(param: Value) -> Result<(), Error> {
-
     let output_format = get_output_format(&param);
 
     let mut handle = get_tape_handle(&param)?;
@@ -677,7 +646,6 @@ fn status(param: Value) -> Result<(), Error> {
     Ok(())
 }
 
-
 #[api(
    input: {
         properties: {
@@ -694,14 +662,12 @@ fn status(param: Value) -> Result<(), Error> {
 )]
 /// Unlock the tape drive door
 fn unlock(param: Value) -> Result<(), Error> {
-
     let mut handle = get_tape_handle(&param)?;
 
     handle.set_medium_removal(true)?;
 
     Ok(())
 }
-
 
 #[api(
     input: {
@@ -723,7 +689,6 @@ fn unlock(param: Value) -> Result<(), Error> {
 )]
 /// Volume Statistics
 fn volume_statistics(param: Value) -> Result<(), Error> {
-
     let output_format = get_output_format(&param);
 
     let mut handle = get_tape_handle(&param)?;
@@ -772,7 +737,6 @@ fn volume_statistics(param: Value) -> Result<(), Error> {
 )]
 /// Write count (default 1) EOF marks at current position.
 fn weof(count: Option<usize>, param: Value) -> Result<(), Error> {
-
     let count = count.unwrap_or(1);
 
     let mut handle = get_tape_handle(&param)?;
@@ -825,7 +789,6 @@ fn options(
     defaults: Option<bool>,
     param: Value,
 ) -> Result<(), Error> {
-
     let mut handle = get_tape_handle(&param)?;
 
     if let Some(true) = defaults {
@@ -838,7 +801,6 @@ fn options(
 }
 
 fn main() -> Result<(), Error> {
-
     let uid = nix::unistd::Uid::current();
 
     let username = match nix::unistd::User::from_uid(uid)? {
@@ -875,8 +837,7 @@ fn main() -> Result<(), Error> {
         .insert("tape-alert-flags", std_cmd(&API_METHOD_TAPE_ALERT_FLAGS))
         .insert("unlock", std_cmd(&API_METHOD_UNLOCK))
         .insert("volume-statistics", std_cmd(&API_METHOD_VOLUME_STATISTICS))
-        .insert("weof", std_cmd(&API_METHOD_WEOF).arg_param(&["count"]))
-        ;
+        .insert("weof", std_cmd(&API_METHOD_WEOF).arg_param(&["count"]));
 
     let mut rpcenv = CliEnvironment::new();
     rpcenv.set_auth_id(Some(format!("{}@pam", username)));

@@ -14,12 +14,10 @@ pub struct EmulateTapeWriter<W> {
     wrote_eof: bool,
 }
 
-impl <W: Write> EmulateTapeWriter<W> {
-
+impl<W: Write> EmulateTapeWriter<W> {
     /// Create a new instance allowing to write about max_size bytes
     pub fn new(writer: W, max_size: usize) -> Self {
-
-        let mut max_blocks = max_size/PROXMOX_TAPE_BLOCK_SIZE;
+        let mut max_blocks = max_size / PROXMOX_TAPE_BLOCK_SIZE;
 
         if max_blocks < 2 {
             max_blocks = 2; // at least 2 blocks
@@ -34,17 +32,20 @@ impl <W: Write> EmulateTapeWriter<W> {
     }
 }
 
-impl <W: Write> BlockWrite for EmulateTapeWriter<W> {
-
+impl<W: Write> BlockWrite for EmulateTapeWriter<W> {
     fn write_block(&mut self, buffer: &[u8]) -> Result<bool, io::Error> {
-
         if buffer.len() != PROXMOX_TAPE_BLOCK_SIZE {
-            proxmox_lang::io_bail!("EmulateTapeWriter: got write with wrong block size ({} != {}",
-                              buffer.len(), PROXMOX_TAPE_BLOCK_SIZE);
+            proxmox_lang::io_bail!(
+                "EmulateTapeWriter: got write with wrong block size ({} != {}",
+                buffer.len(),
+                PROXMOX_TAPE_BLOCK_SIZE
+            );
         }
 
         if self.block_nr >= self.max_blocks + 2 {
-            return Err(io::Error::from_raw_os_error(nix::errno::Errno::ENOSPC as i32));
+            return Err(io::Error::from_raw_os_error(
+                nix::errno::Errno::ENOSPC as i32,
+            ));
         }
 
         self.writer.write_all(buffer)?;

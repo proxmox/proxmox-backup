@@ -16,22 +16,20 @@ use crate::sgutils2::SgRaw;
 ///
 /// The Volume Statistics log page is included in Ultrium 5 and later
 /// drives.
-pub fn read_volume_statistics<F: AsRawFd>(file: &mut F) ->  Result<Lp17VolumeStatistics, Error> {
-
+pub fn read_volume_statistics<F: AsRawFd>(file: &mut F) -> Result<Lp17VolumeStatistics, Error> {
     let data = sg_read_volume_statistics(file)?;
 
     decode_volume_statistics(&data)
 }
 
 fn sg_read_volume_statistics<F: AsRawFd>(file: &mut F) -> Result<Vec<u8>, Error> {
-
     let alloc_len: u16 = 8192;
     let mut sg_raw = SgRaw::new(file, alloc_len as usize)?;
 
     let mut cmd = Vec::new();
     cmd.push(0x4D); // LOG SENSE
     cmd.push(0);
-    cmd.push((1<<6) | 0x17); // Volume Statistics log page
+    cmd.push((1 << 6) | 0x17); // Volume Statistics log page
     cmd.push(0); // Subpage 0
     cmd.push(0);
     cmd.push(0);
@@ -39,7 +37,8 @@ fn sg_read_volume_statistics<F: AsRawFd>(file: &mut F) -> Result<Vec<u8>, Error>
     cmd.extend(&alloc_len.to_be_bytes()); // alloc len
     cmd.push(0u8); // control byte
 
-    sg_raw.do_command(&cmd)
+    sg_raw
+        .do_command(&cmd)
         .map_err(|err| format_err!("read tape volume statistics failed - {}", err))
         .map(|v| v.to_vec())
 }
@@ -53,8 +52,6 @@ struct LpParameterHeader {
 }
 
 fn decode_volume_statistics(data: &[u8]) -> Result<Lp17VolumeStatistics, Error> {
-
-
     let read_be_counter = |reader: &mut &[u8], len: u8| {
         let len = len as usize;
         if len == 0 || len > 8 {
@@ -86,7 +83,7 @@ fn decode_volume_statistics(data: &[u8]) -> Result<Lp17VolumeStatistics, Error> 
             bail!("invalid page length");
         } else {
             // Note: Quantum hh7 returns the allocation_length instead of real data_len
-            reader = &data[4..page_len+4];
+            reader = &data[4..page_len + 4];
         }
 
         let mut stat = Lp17VolumeStatistics::default();
@@ -101,14 +98,13 @@ fn decode_volume_statistics(data: &[u8]) -> Result<Lp17VolumeStatistics, Error> 
             match head.parameter_code {
                 0x0000 => {
                     let value: u64 = read_be_counter(&mut reader, head.parameter_len)?;
-                     if value == 0 {
-                         bail!("page-valid flag not set");
+                    if value == 0 {
+                        bail!("page-valid flag not set");
                     }
                     page_valid = true;
                 }
                 0x0001 => {
-                    stat.volume_mounts =
-                        read_be_counter(&mut reader, head.parameter_len)?;
+                    stat.volume_mounts = read_be_counter(&mut reader, head.parameter_len)?;
                 }
                 0x0002 => {
                     stat.volume_datasets_written =
@@ -131,8 +127,7 @@ fn decode_volume_statistics(data: &[u8]) -> Result<Lp17VolumeStatistics, Error> 
                         read_be_counter(&mut reader, head.parameter_len)?;
                 }
                 0x0007 => {
-                    stat.volume_datasets_read =
-                        read_be_counter(&mut reader, head.parameter_len)?;
+                    stat.volume_datasets_read = read_be_counter(&mut reader, head.parameter_len)?;
                 }
                 0x0008 => {
                     stat.volume_recovered_read_errors =
@@ -175,12 +170,10 @@ fn decode_volume_statistics(data: &[u8]) -> Result<Lp17VolumeStatistics, Error> 
                         read_be_counter(&mut reader, head.parameter_len)?;
                 }
                 0x0014 => {
-                    stat.medium_mount_time =
-                        read_be_counter(&mut reader, head.parameter_len)?;
+                    stat.medium_mount_time = read_be_counter(&mut reader, head.parameter_len)?;
                 }
                 0x0015 => {
-                    stat.medium_ready_time =
-                        read_be_counter(&mut reader, head.parameter_len)?;
+                    stat.medium_ready_time = read_be_counter(&mut reader, head.parameter_len)?;
                 }
                 0x0016 => {
                     stat.total_native_capacity =
@@ -207,12 +200,11 @@ fn decode_volume_statistics(data: &[u8]) -> Result<Lp17VolumeStatistics, Error> 
                     }
                 }
                 0x0101 => {
-                   stat.beginning_of_medium_passes =
+                    stat.beginning_of_medium_passes =
                         read_be_counter(&mut reader, head.parameter_len)?;
                 }
                 0x0102 => {
-                   stat.middle_of_tape_passes =
-                        read_be_counter(&mut reader, head.parameter_len)?;
+                    stat.middle_of_tape_passes = read_be_counter(&mut reader, head.parameter_len)?;
                 }
                 _ => {
                     reader.read_exact_allocated(head.parameter_len as usize)?;
@@ -225,6 +217,6 @@ fn decode_volume_statistics(data: &[u8]) -> Result<Lp17VolumeStatistics, Error> 
         }
 
         Ok(stat)
-
-    }).map_err(|err| format_err!("decode volume statistics failed - {}", err))
+    })
+    .map_err(|err| format_err!("decode volume statistics failed - {}", err))
 }

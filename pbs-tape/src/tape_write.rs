@@ -38,12 +38,16 @@ pub trait TapeWrite {
         }
         let header = header.to_le();
 
-        let res = self.write_all(unsafe { std::slice::from_raw_parts(
-            &header as *const MediaContentHeader as *const u8,
-            std::mem::size_of::<MediaContentHeader>(),
-        )})?;
+        let res = self.write_all(unsafe {
+            std::slice::from_raw_parts(
+                &header as *const MediaContentHeader as *const u8,
+                std::mem::size_of::<MediaContentHeader>(),
+            )
+        })?;
 
-        if data.is_empty() { return Ok(res); }
+        if data.is_empty() {
+            return Ok(res);
+        }
 
         self.write_all(data)
     }

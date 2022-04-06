@@ -1,11 +1,6 @@
 use proxmox_io::vec;
 
-use crate::{
-    TapeWrite,
-    BlockWrite,
-    BlockHeader,
-    BlockHeaderFlags,
-};
+use crate::{BlockHeader, BlockHeaderFlags, BlockWrite, TapeWrite};
 
 /// Assemble and write blocks of data
 ///
@@ -22,8 +17,7 @@ pub struct BlockedWriter<W: BlockWrite> {
     wrote_eof: bool,
 }
 
-impl <W: BlockWrite> Drop for BlockedWriter<W> {
-
+impl<W: BlockWrite> Drop for BlockedWriter<W> {
     // Try to make sure to end the file with a filemark
     fn drop(&mut self) {
         if !self.wrote_eof {
@@ -32,8 +26,7 @@ impl <W: BlockWrite> Drop for BlockedWriter<W> {
     }
 }
 
-impl <W: BlockWrite> BlockedWriter<W> {
-
+impl<W: BlockWrite> BlockedWriter<W> {
     /// Allow access to underlying writer
     pub fn writer_ref_mut(&mut self) -> &mut W {
         &mut self.writer
@@ -53,7 +46,6 @@ impl <W: BlockWrite> BlockedWriter<W> {
     }
 
     fn write_block(buffer: &BlockHeader, writer: &mut W) -> Result<bool, std::io::Error> {
-
         let data = unsafe {
             std::slice::from_raw_parts(
                 (buffer as *const BlockHeader) as *const u8,
@@ -73,12 +65,13 @@ impl <W: BlockWrite> BlockedWriter<W> {
     }
 
     fn write(&mut self, data: &[u8]) -> Result<usize, std::io::Error> {
-
-        if data.is_empty() { return Ok(0); }
+        if data.is_empty() {
+            return Ok(0);
+        }
 
         let rest = self.buffer.payload.len() - self.buffer_pos;
         let bytes = if data.len() < rest { data.len() } else { rest };
-        self.buffer.payload[self.buffer_pos..(self.buffer_pos+bytes)]
+        self.buffer.payload[self.buffer_pos..(self.buffer_pos + bytes)]
             .copy_from_slice(&data[..bytes]);
 
         let rest = rest - bytes;
@@ -89,21 +82,20 @@ impl <W: BlockWrite> BlockedWriter<W> {
             self.buffer.set_seq_nr(self.seq_nr);
             self.seq_nr += 1;
             let leom = Self::write_block(&self.buffer, &mut self.writer)?;
-            if leom { self.logical_end_of_media = true; }
+            if leom {
+                self.logical_end_of_media = true;
+            }
             self.buffer_pos = 0;
             self.bytes_written += BlockHeader::SIZE;
-
         } else {
             self.buffer_pos += bytes;
         }
 
         Ok(bytes)
     }
-
 }
 
-impl <W: BlockWrite> TapeWrite for BlockedWriter<W> {
-
+impl<W: BlockWrite> TapeWrite for BlockedWriter<W> {
     fn write_all(&mut self, mut data: &[u8]) -> Result<bool, std::io::Error> {
         while !data.is_empty() {
             match self.write(data) {
@@ -125,7 +117,9 @@ impl <W: BlockWrite> TapeWrite for BlockedWriter<W> {
     fn finish(&mut self, incomplete: bool) -> Result<bool, std::io::Error> {
         vec::clear(&mut self.buffer.payload[self.buffer_pos..]);
         self.buffer.flags = BlockHeaderFlags::END_OF_STREAM;
-        if incomplete { self.buffer.flags |= BlockHeaderFlags::INCOMPLETE; }
+        if incomplete {
+            self.buffer.flags |= BlockHeaderFlags::INCOMPLETE;
+        }
         self.buffer.set_size(self.buffer_pos);
         self.buffer.set_seq_nr(self.seq_nr);
         self.seq_nr += 1;
@@ -139,5 +133,4 @@ impl <W: BlockWrite> TapeWrite for BlockedWriter<W> {
     fn logical_end_of_media(&self) -> bool {
         self.logical_end_of_media
     }
-
 }

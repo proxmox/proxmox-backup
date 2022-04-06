@@ -1,20 +1,17 @@
-use std::os::unix::prelude::AsRawFd;
 use std::io::Write;
+use std::os::unix::prelude::AsRawFd;
 
 use anyhow::{bail, format_err, Error};
 use endian_trait::Endian;
 
 use proxmox_io::{ReadExt, WriteExt};
 
-use crate::sgutils2::{SgRaw, alloc_page_aligned_buffer};
+use crate::sgutils2::{alloc_page_aligned_buffer, SgRaw};
 
 /// Test if drive supports hardware encryption
 ///
 /// We search for AES_GCM algorithm with 256bits key.
-pub fn has_encryption<F: AsRawFd>(
-    file: &mut F,
-) -> bool {
-
+pub fn has_encryption<F: AsRawFd>(file: &mut F) -> bool {
     let data = match sg_spin_data_encryption_caps(file) {
         Ok(data) => data,
         Err(_) => return false,
@@ -25,11 +22,7 @@ pub fn has_encryption<F: AsRawFd>(
 /// Set or clear encryption key
 ///
 /// We always use mixed mode,
-pub fn set_encryption<F: AsRawFd>(
-    file: &mut F,
-    key: Option<[u8; 32]>,
-) -> Result<(), Error> {
-
+pub fn set_encryption<F: AsRawFd>(file: &mut F, key: Option<[u8; 32]>) -> Result<(), Error> {
     let data = match sg_spin_data_encryption_caps(file) {
         Ok(data) => data,
         Err(_) if key.is_none() => {
@@ -85,7 +78,6 @@ fn sg_spout_set_encryption<F: AsRawFd>(
     algorythm_index: u8,
     key: Option<[u8; 32]>,
 ) -> Result<(), Error> {
-
     let mut sg_raw = SgRaw::new(file, 0)?;
 
     let mut outbuf_len = std::mem::size_of::<SspSetDataEncryptionPage>();
@@ -106,7 +98,11 @@ fn sg_spout_set_encryption<F: AsRawFd>(
         algorythm_index,
         key_format: 0,
         reserved: [0u8; 8],
-        key_len: if let Some(ref key) = key { key.len() as u16 } else { 0 },
+        key_len: if let Some(ref key) = key {
+            key.len() as u16
+        } else {
+            0
+        },
     };
 
     let mut writer = &mut outbuf[..];
@@ -119,58 +115,72 @@ fn sg_spout_set_encryption<F: AsRawFd>(
     let mut cmd = Vec::new();
     cmd.push(0xB5); // SECURITY PROTOCOL IN (SPOUT)
     cmd.push(0x20); // Tape Data Encryption Page
-    cmd.push(0);cmd.push(0x10); // Set Data Encryption page
+    cmd.push(0);
+    cmd.push(0x10); // Set Data Encryption page
     cmd.push(0);
     cmd.push(0);
     cmd.extend(&(outbuf_len as u32).to_be_bytes()); // data out len
     cmd.push(0);
     cmd.push(0);
 
-    sg_raw.do_out_command(&cmd, &outbuf)
+    sg_raw
+        .do_out_command(&cmd, &outbuf)
         .map_err(|err| format_err!("set data encryption SPOUT(20h[0010h]) failed - {}", err))
 }
 
 // Warning: this blocks and fails if there is no media loaded
 fn sg_spin_data_encryption_status<F: AsRawFd>(file: &mut F) -> Result<Vec<u8>, Error> {
-
-    let allocation_len: u32 = 8192+4;
+    let allocation_len: u32 = 8192 + 4;
 
     let mut sg_raw = SgRaw::new(file, allocation_len as usize)?;
 
     let mut cmd = Vec::new();
     cmd.push(0xA2); // SECURITY PROTOCOL IN (SPIN)
     cmd.push(0x20); // Tape Data Encryption Page
-    cmd.push(0);cmd.push(0x20); // Data Encryption Status page
+    cmd.push(0);
+    cmd.push(0x20); // Data Encryption Status page
     cmd.push(0);
     cmd.push(0);
     cmd.extend(&allocation_len.to_be_bytes());
     cmd.push(0);
     cmd.push(0);
 
-    sg_raw.do_command(&cmd)
-        .map_err(|err| format_err!("read data encryption status SPIN(20h[0020h]) failed - {}", err))
+    sg_raw
+        .do_command(&cmd)
+        .map_err(|err| {
+            format_err!(
+                "read data encryption status SPIN(20h[0020h]) failed - {}",
+                err
+            )
+        })
         .map(|v| v.to_vec())
 }
 
 // Warning: this blocks and fails if there is no media loaded
 fn sg_spin_data_encryption_caps<F: AsRawFd>(file: &mut F) -> Result<Vec<u8>, Error> {
-
-    let allocation_len: u32 = 8192+4;
+    let allocation_len: u32 = 8192 + 4;
 
     let mut sg_raw = SgRaw::new(file, allocation_len as usize)?;
 
     let mut cmd = Vec::new();
     cmd.push(0xA2); // SECURITY PROTOCOL IN (SPIN)
     cmd.push(0x20); // Tape Data Encryption Page
-    cmd.push(0);cmd.push(0x10); // Data Encryption Capabilities page
+    cmd.push(0);
+    cmd.push(0x10); // Data Encryption Capabilities page
     cmd.push(0);
     cmd.push(0);
     cmd.extend(&allocation_len.to_be_bytes());
     cmd.push(0);
     cmd.push(0);
 
-    sg_raw.do_command(&cmd)
-        .map_err(|err| format_err!("read data encryption caps SPIN(20h[0010h]) failed - {}", err))
+    sg_raw
+        .do_command(&cmd)
+        .map_err(|err| {
+            format_err!(
+                "read data encryption caps SPIN(20h[0010h]) failed - {}",
+                err
+            )
+        })
         .map(|v| v.to_vec())
 }
 
@@ -215,7 +225,6 @@ struct SspDataEncryptionAlgorithmDescriptor {
 
 // Returns the algorythm_index for AES-GCM
 fn decode_spin_data_encryption_caps(data: &[u8]) -> Result<u8, Error> {
-
     proxmox_lang::try_block!({
         let mut reader = data;
         let _page: SspDataEncryptionCapabilityPage = unsafe { reader.read_be_value()? };
@@ -223,9 +232,10 @@ fn decode_spin_data_encryption_caps(data: &[u8]) -> Result<u8, Error> {
         let mut aes_gcm_index = None;
 
         loop {
-            if reader.is_empty() { break; };
-            let desc: SspDataEncryptionAlgorithmDescriptor =
-                unsafe { reader.read_be_value()? };
+            if reader.is_empty() {
+                break;
+            };
+            let desc: SspDataEncryptionAlgorithmDescriptor = unsafe { reader.read_be_value()? };
             if desc.descriptor_len != 0x14 {
                 bail!("got wrong key descriptor len");
             }
@@ -245,8 +255,8 @@ fn decode_spin_data_encryption_caps(data: &[u8]) -> Result<u8, Error> {
             Some(index) => Ok(index),
             None => bail!("drive does not support AES-GCM encryption"),
         }
-    }).map_err(|err: Error| format_err!("decode data encryption caps page failed - {}", err))
-
+    })
+    .map_err(|err: Error| format_err!("decode data encryption caps page failed - {}", err))
 }
 
 #[derive(Endian)]
@@ -266,7 +276,6 @@ struct SspDataEncryptionStatusPage {
 }
 
 fn decode_spin_data_encryption_status(data: &[u8]) -> Result<DataEncryptionStatus, Error> {
-
     proxmox_lang::try_block!({
         let mut reader = data;
         let page: SspDataEncryptionStatusPage = unsafe { reader.read_be_value()? };
@@ -283,11 +292,9 @@ fn decode_spin_data_encryption_status(data: &[u8]) -> Result<DataEncryptionStatu
             _ => bail!("unknown encryption mode"),
         };
 
-        let status = DataEncryptionStatus {
-            mode,
-        };
+        let status = DataEncryptionStatus { mode };
 
         Ok(status)
-
-    }).map_err(|err| format_err!("decode data encryption status page failed - {}", err))
+    })
+    .map_err(|err| format_err!("decode data encryption status page failed - {}", err))
 }
