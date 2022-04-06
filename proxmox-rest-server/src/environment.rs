@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use std::net::SocketAddr;
+use std::sync::Arc;
 
 use serde_json::{json, Value};
 
@@ -42,13 +42,19 @@ impl RestEnvironment {
     pub fn log_failed_auth(&self, failed_auth_id: Option<String>, msg: &str) {
         let msg = match (self.client_ip, failed_auth_id) {
             (Some(peer), Some(user)) => {
-                format!("authentication failure; rhost={} user={} msg={}", peer, user, msg)
+                format!(
+                    "authentication failure; rhost={} user={} msg={}",
+                    peer, user, msg
+                )
             }
             (Some(peer), None) => {
                 format!("authentication failure; rhost={} msg={}", peer, msg)
             }
             (None, Some(user)) => {
-                format!("authentication failure; rhost=unknown user={} msg={}", user, msg)
+                format!(
+                    "authentication failure; rhost=unknown user={} msg={}",
+                    user, msg
+                )
             }
             (None, None) => {
                 format!("authentication failure; rhost=unknown msg={}", msg)
@@ -59,12 +65,10 @@ impl RestEnvironment {
             auth_logger.lock().unwrap().log(&msg);
         }
     }
-
 }
 
 impl RpcEnvironment for RestEnvironment {
-
-    fn result_attrib_mut (&mut self) -> &mut Value {
+    fn result_attrib_mut(&mut self) -> &mut Value {
         &mut self.result_attributes
     }
 

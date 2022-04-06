@@ -5,8 +5,8 @@ use hyper::header;
 #[derive(Eq, Ord, PartialEq, PartialOrd, Debug)]
 pub enum CompressionMethod {
     Deflate,
-//    Gzip,
-//    Brotli,
+    //    Gzip,
+    //    Brotli,
 }
 
 impl CompressionMethod {
@@ -16,8 +16,8 @@ impl CompressionMethod {
 
     pub fn extension(&self) -> &'static str {
         match *self {
-//            CompressionMethod::Brotli => "br",
-//            CompressionMethod::Gzip => "gzip",
+            //            CompressionMethod::Brotli => "br",
+            //            CompressionMethod::Gzip => "gzip",
             CompressionMethod::Deflate => "deflate",
         }
     }
@@ -28,8 +28,8 @@ impl std::str::FromStr for CompressionMethod {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-//            "br" => Ok(CompressionMethod::Brotli),
-//            "gzip" => Ok(CompressionMethod::Gzip),
+            //            "br" => Ok(CompressionMethod::Brotli),
+            //            "gzip" => Ok(CompressionMethod::Gzip),
             "deflate" => Ok(CompressionMethod::Deflate),
             // http accept-encoding allows to give weights with ';q='
             other if other.starts_with("deflate;q=") => Ok(CompressionMethod::Deflate),

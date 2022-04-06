@@ -18,24 +18,24 @@ use regex::Regex;
 use serde_json::Value;
 use tokio::fs::File;
 use tokio::time::Instant;
-use url::form_urlencoded;
 use tower_service::Service;
+use url::form_urlencoded;
 
+use proxmox_router::http_err;
 use proxmox_router::{
     check_api_permission, ApiHandler, ApiMethod, HttpError, Permission, RpcEnvironment,
     RpcEnvironmentType, UserInformation,
 };
-use proxmox_router::http_err;
 use proxmox_schema::{ObjectSchemaType, ParameterSchema};
 
 use proxmox_http::client::RateLimitedStream;
 
-use proxmox_compression::{DeflateEncoder, Level};
 use proxmox_async::stream::AsyncReaderStream;
+use proxmox_compression::{DeflateEncoder, Level};
 
 use crate::{
-    ApiConfig, FileLogger, AuthError, RestEnvironment, CompressionMethod,
-    normalize_uri_path, formatter::*,
+    formatter::*, normalize_uri_path, ApiConfig, AuthError, CompressionMethod, FileLogger,
+    RestEnvironment,
 };
 
 extern "C" {
@@ -47,9 +47,15 @@ struct AuthStringExtension(String);
 struct EmptyUserInformation {}
 
 impl UserInformation for EmptyUserInformation {
-    fn is_superuser(&self, _userid: &str) -> bool { false }
-    fn is_group_member(&self, _userid: &str, _group: &str) -> bool { false }
-    fn lookup_privs(&self, _userid: &str, _path: &[&str]) -> u64 { 0 }
+    fn is_superuser(&self, _userid: &str) -> bool {
+        false
+    }
+    fn is_group_member(&self, _userid: &str, _group: &str) -> bool {
+        false
+    }
+    fn lookup_privs(&self, _userid: &str, _path: &[&str]) -> u64 {
+        0
+    }
 }
 
 /// REST server implementation (configured with [ApiConfig])
@@ -98,9 +104,7 @@ impl Service<&Pin<Box<tokio_openssl::SslStream<RateLimitedStream<tokio::net::Tcp
     }
 }
 
-impl Service<&Pin<Box<tokio_openssl::SslStream<tokio::net::TcpStream>>>>
-    for RestServer
-{
+impl Service<&Pin<Box<tokio_openssl::SslStream<tokio::net::TcpStream>>>> for RestServer {
     type Response = ApiService;
     type Error = Error;
     type Future = Pin<Box<dyn Future<Output = Result<ApiService, Error>> + Send>>;
@@ -134,7 +138,7 @@ impl Service<&hyper::server::conn::AddrStream> for RestServer {
     }
 
     fn call(&mut self, ctx: &hyper::server::conn::AddrStream) -> Self::Future {
-        let peer =  ctx.remote_addr();
+        let peer = ctx.remote_addr();
         future::ok(ApiService {
             peer,
             api_config: self.api_config.clone(),
@@ -494,7 +498,6 @@ pub(crate) async fn handle_api_request<Env: RpcEnvironment, S: 'static + BuildHa
     Ok(resp)
 }
 
-
 fn extension_to_content_type(filename: &Path) -> (&'static str, bool) {
     if let Some(ext) = filename.extension().and_then(|osstr| osstr.to_str()) {
         return match ext {
@@ -671,7 +674,8 @@ async fn handle_request(
                 }
             }
 
-            let mut user_info: Box<dyn UserInformation + Send + Sync> = Box::new(EmptyUserInformation {});
+            let mut user_info: Box<dyn UserInformation + Send + Sync> =
+                Box::new(EmptyUserInformation {});
 
             if auth_required {
                 match api.check_auth(&parts.headers, &method).await {
@@ -730,7 +734,9 @@ async fn handle_request(
                     };
 
                     if let Some(auth_id) = auth_id {
-                        response.extensions_mut().insert(AuthStringExtension(auth_id));
+                        response
+                            .extensions_mut()
+                            .insert(AuthStringExtension(auth_id));
                     }
 
                     return Ok(response);

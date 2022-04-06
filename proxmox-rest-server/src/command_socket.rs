@@ -2,18 +2,22 @@ use anyhow::{bail, format_err, Error};
 
 use std::collections::HashMap;
 use std::os::unix::io::AsRawFd;
-use std::path::{PathBuf, Path};
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use futures::*;
-use tokio::net::UnixListener;
-use serde::Serialize;
-use serde_json::Value;
 use nix::sys::socket;
 use nix::unistd::Gid;
+use serde::Serialize;
+use serde_json::Value;
+use tokio::net::UnixListener;
 
 // Listens on a Unix Socket to handle simple command asynchronously
-fn create_control_socket<P, F>(path: P, gid: Gid, func: F) -> Result<impl Future<Output = ()>, Error>
+fn create_control_socket<P, F>(
+    path: P,
+    gid: Gid,
+    func: F,
+) -> Result<impl Future<Output = ()>, Error>
 where
     P: Into<PathBuf>,
     F: Fn(Value) -> Result<Value, Error> + Send + Sync + 'static,
@@ -59,45 +63,57 @@ where
             use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
             let func = Arc::clone(&func);
             let path = path.clone();
-            tokio::spawn(futures::future::select(
-                async move {
-                    let mut rx = tokio::io::BufReader::new(rx);
-                    let mut line = String::new();
-                    loop {
-                        line.clear();
-                        match rx.read_line({ line.clear(); &mut line }).await {
-                            Ok(0) => break,
-                            Ok(_) => (),
-                            Err(err) => {
-                                eprintln!("control socket {:?} read error: {}", path, err);
+            tokio::spawn(
+                futures::future::select(
+                    async move {
+                        let mut rx = tokio::io::BufReader::new(rx);
+                        let mut line = String::new();
+                        loop {
+                            line.clear();
+                            match rx
+                                .read_line({
+                                    line.clear();
+                                    &mut line
+                                })
+                                .await
+                            {
+                                Ok(0) => break,
+                                Ok(_) => (),
+                                Err(err) => {
+                                    eprintln!("control socket {:?} read error: {}", path, err);
+                                    return;
+                                }
+                            }
+
+                            let response = match line.parse::<Value>() {
+                                Ok(param) => match func(param) {
+                                    Ok(res) => format!("OK: {}\n", res),
+                                    Err(err) => format!("ERROR: {}\n", err),
+                                },
+                                Err(err) => format!("ERROR: {}\n", err),
+                            };
+
+                            if let Err(err) = tx.write_all(response.as_bytes()).await {
+                                eprintln!(
+                                    "control socket {:?} write response error: {}",
+                                    path, err
+                                );
                                 return;
                             }
                         }
-
-                        let response = match line.parse::<Value>() {
-                            Ok(param) => match func(param) {
-                                Ok(res) => format!("OK: {}\n", res),
-                                Err(err) => format!("ERROR: {}\n", err),
-                            }
-                            Err(err) => format!("ERROR: {}\n", err),
-                        };
-
-                        if let Err(err) = tx.write_all(response.as_bytes()).await {
-                            eprintln!("control socket {:?} write response error: {}", path, err);
-                            return;
-                        }
                     }
-                }.boxed(),
-                abort_future,
-            ).map(|_| ()));
+                    .boxed(),
+                    abort_future,
+                )
+                .map(|_| ()),
+            );
         }
-    }.boxed();
+    }
+    .boxed();
 
     let abort_future = crate::last_worker_future().map_err(|_| {});
-    let task = futures::future::select(
-        control_future,
-        abort_future,
-    ).map(|_: futures::future::Either<(Result<(), Error>, _), _>| ());
+    let task = futures::future::select(control_future, abort_future)
+        .map(|_: futures::future::Either<(Result<(), Error>, _), _>| ());
 
     Ok(task)
 }
@@ -148,7 +164,8 @@ where
 }
 
 // A callback for a specific commando socket.
-type CommandSocketFn = Box<(dyn Fn(Option<&Value>) -> Result<Value, Error> + Send + Sync + 'static)>;
+type CommandSocketFn =
+    Box<(dyn Fn(Option<&Value>) -> Result<Value, Error> + Send + Sync + 'static)>;
 
 /// Tooling to get a single control command socket where one can
 /// register multiple commands dynamically.
@@ -164,7 +181,8 @@ pub struct CommandSocket {
 impl CommandSocket {
     /// Creates a new instance.
     pub fn new<P>(path: P, gid: Gid) -> Self
-        where P: Into<PathBuf>,
+    where
+        P: Into<PathBuf>,
     {
         CommandSocket {
             socket: path.into(),
@@ -176,29 +194,30 @@ impl CommandSocket {
     /// Spawn the socket and consume self, meaning you cannot register commands anymore after
     /// calling this.
     pub fn spawn(self) -> Result<(), Error> {
-        let control_future = create_control_socket(self.socket.to_owned(), self.gid, move |param| {
-            let param = param
-                .as_object()
-                .ok_or_else(|| format_err!("unable to parse parameters (expected json object)"))?;
+        let control_future =
+            create_control_socket(self.socket.to_owned(), self.gid, move |param| {
+                let param = param.as_object().ok_or_else(|| {
+                    format_err!("unable to parse parameters (expected json object)")
+                })?;
 
-            let command = match param.get("command") {
-                Some(Value::String(command)) => command.as_str(),
-                None => bail!("no command"),
-                _ => bail!("unable to parse command"),
-            };
+                let command = match param.get("command") {
+                    Some(Value::String(command)) => command.as_str(),
+                    None => bail!("no command"),
+                    _ => bail!("unable to parse command"),
+                };
 
-            if !self.commands.contains_key(command) {
-                bail!("got unknown command '{}'", command);
-            }
+                if !self.commands.contains_key(command) {
+                    bail!("got unknown command '{}'", command);
+                }
 
-            match self.commands.get(command) {
-                None => bail!("got unknown command '{}'", command),
-                Some(handler) => {
-                    let args = param.get("args"); //.unwrap_or(&Value::Null);
-                    (handler)(args)
-                },
-            }
-        })?;
+                match self.commands.get(command) {
+                    None => bail!("got unknown command '{}'", command),
+                    Some(handler) => {
+                        let args = param.get("args"); //.unwrap_or(&Value::Null);
+                        (handler)(args)
+                    }
+                }
+            })?;
 
         tokio::spawn(control_future);
 
@@ -206,15 +225,10 @@ impl CommandSocket {
     }
 
     /// Register a new command with a callback.
-    pub fn register_command<F>(
-        &mut self,
-        command: String,
-        handler: F,
-    ) -> Result<(), Error>
+    pub fn register_command<F>(&mut self, command: String, handler: F) -> Result<(), Error>
     where
         F: Fn(Option<&Value>) -> Result<Value, Error> + Send + Sync + 'static,
     {
-
         if self.commands.contains_key(&command) {
             bail!("command '{}' already exists!", command);
         }

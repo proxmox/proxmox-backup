@@ -1,18 +1,20 @@
-use std::sync::Mutex;
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
+use std::sync::Mutex;
 
 use anyhow::{bail, format_err, Error};
-use lazy_static::lazy_static;
-use hyper::{Body, Response, Method};
 use http::request::Parts;
 use http::HeaderMap;
+use hyper::{Body, Method, Response};
+use lazy_static::lazy_static;
 
+use proxmox_router::{
+    list_subdirs_api_method, Router, RpcEnvironmentType, SubdirMap, UserInformation,
+};
 use proxmox_schema::api;
-use proxmox_router::{list_subdirs_api_method, SubdirMap, Router, RpcEnvironmentType, UserInformation};
 
-use proxmox_rest_server::{ServerAdapter, ApiConfig, AuthError, RestServer, RestEnvironment};
+use proxmox_rest_server::{ApiConfig, AuthError, RestEnvironment, RestServer, ServerAdapter};
 
 // Create a Dummy User information system
 struct DummyUserInfo;
@@ -34,13 +36,17 @@ struct MinimalServer;
 
 // implement the server adapter
 impl ServerAdapter for MinimalServer {
-
     // normally this would check and authenticate the user
     fn check_auth(
         &self,
         _headers: &HeaderMap,
         _method: &Method,
-    ) -> Pin<Box<dyn Future<Output = Result<(String, Box<dyn UserInformation + Sync + Send>), AuthError>> + Send>> {
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<(String, Box<dyn UserInformation + Sync + Send>), AuthError>>
+                + Send,
+        >,
+    > {
         Box::pin(async move {
             // get some global/cached userinfo
             let userinfo: Box<dyn UserInformation + Sync + Send> = Box::new(DummyUserInfo);
@@ -121,7 +127,12 @@ fn create_item(name: String, value: String) -> Result<(), Error> {
 )]
 /// returns the value of an item
 fn get_item(name: String) -> Result<String, Error> {
-    ITEM_MAP.lock().unwrap().get(&name).map(|s| s.to_string()).ok_or_else(|| format_err!("no such item '{}'", name))
+    ITEM_MAP
+        .lock()
+        .unwrap()
+        .get(&name)
+        .map(|s| s.to_string())
+        .ok_or_else(|| format_err!("no such item '{}'", name))
 }
 
 #[api(
@@ -177,13 +188,9 @@ const SUBDIRS: SubdirMap = &[
         &Router::new()
             .get(&API_METHOD_LIST_ITEMS)
             .post(&API_METHOD_CREATE_ITEM)
-            .match_all("name", &ITEM_ROUTER)
+            .match_all("name", &ITEM_ROUTER),
     ),
-    (
-        "ping",
-        &Router::new()
-            .get(&API_METHOD_PING)
-    ),
+    ("ping", &Router::new().get(&API_METHOD_PING)),
 ];
 
 const ROUTER: Router = Router::new()
@@ -191,7 +198,6 @@ const ROUTER: Router = Router::new()
     .subdirs(SUBDIRS);
 
 async fn run() -> Result<(), Error> {
-
     // we first have to configure the api environment (basedir etc.)
 
     let config = ApiConfig::new(
@@ -204,21 +210,16 @@ async fn run() -> Result<(), Error> {
 
     // then we have to create a daemon that listens, accepts and serves
     // the api to clients
-    proxmox_rest_server::daemon::create_daemon(
-        ([127, 0, 0, 1], 65000).into(),
-        move |listener| {
-            let incoming = hyper::server::conn::AddrIncoming::from_listener(listener)?;
+    proxmox_rest_server::daemon::create_daemon(([127, 0, 0, 1], 65000).into(), move |listener| {
+        let incoming = hyper::server::conn::AddrIncoming::from_listener(listener)?;
 
-            Ok(async move {
+        Ok(async move {
+            hyper::Server::builder(incoming).serve(rest_server).await?;
 
-                hyper::Server::builder(incoming)
-                    .serve(rest_server)
-                    .await?;
-
-                Ok(())
-            })
-        },
-    ).await?;
+            Ok(())
+        })
+    })
+    .await?;
 
     Ok(())
 }

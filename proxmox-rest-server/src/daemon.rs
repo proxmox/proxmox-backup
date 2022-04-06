@@ -3,9 +3,9 @@
 use std::ffi::CString;
 use std::future::Future;
 use std::io::{Read, Write};
-use std::os::raw::{c_char, c_uchar, c_int};
-use std::os::unix::io::{AsRawFd, FromRawFd, IntoRawFd, RawFd};
+use std::os::raw::{c_char, c_int, c_uchar};
 use std::os::unix::ffi::OsStrExt;
+use std::os::unix::io::{AsRawFd, FromRawFd, IntoRawFd, RawFd};
 use std::panic::UnwindSafe;
 use std::path::PathBuf;
 
@@ -13,8 +13,8 @@ use anyhow::{bail, format_err, Error};
 use futures::future::{self, Either};
 use nix::unistd::{fork, ForkResult};
 
-use proxmox_sys::fd::{fd_change_cloexec, Fd};
 use proxmox_io::{ReadExt, WriteExt};
+use proxmox_sys::fd::{fd_change_cloexec, Fd};
 
 // Unfortunately FnBox is nightly-only and Box<FnOnce> is unusable, so just use Box<Fn>...
 type BoxedStoreFunc = Box<dyn FnMut() -> Result<String, Error> + UnwindSafe + Send>;
@@ -102,9 +102,8 @@ impl Reloader {
                         // At this point we call pre-exec helpers. We must be certain that if they fail for
                         // whatever reason we can still call `_exit()`, so use catch_unwind.
                         match std::panic::catch_unwind(move || {
-                            let mut pnew = unsafe {
-                                std::fs::File::from_raw_fd(pnew.into_raw_fd())
-                            };
+                            let mut pnew =
+                                unsafe { std::fs::File::from_raw_fd(pnew.into_raw_fd()) };
                             let pid = nix::unistd::Pid::this();
                             if let Err(e) = unsafe { pnew.write_host_value(pid.as_raw()) } {
                                 log::error!("failed to send new server PID to parent: {}", e);
@@ -125,16 +124,19 @@ impl Reloader {
                             std::mem::drop(pnew);
 
                             // Try to reopen STDOUT/STDERR journald streams to get correct PID in logs
-                            let ident = CString::new(self.self_exe.file_name().unwrap().as_bytes()).unwrap();
+                            let ident = CString::new(self.self_exe.file_name().unwrap().as_bytes())
+                                .unwrap();
                             let ident = ident.as_bytes();
-                            let fd = unsafe { sd_journal_stream_fd(ident.as_ptr(), libc::LOG_INFO, 1) };
+                            let fd =
+                                unsafe { sd_journal_stream_fd(ident.as_ptr(), libc::LOG_INFO, 1) };
                             if fd >= 0 && fd != 1 {
                                 let fd = proxmox_sys::fd::Fd(fd); // add drop handler
                                 nix::unistd::dup2(fd.as_raw_fd(), 1)?;
                             } else {
                                 log::error!("failed to update STDOUT journal redirection ({})", fd);
                             }
-                            let fd = unsafe { sd_journal_stream_fd(ident.as_ptr(), libc::LOG_ERR, 1) };
+                            let fd =
+                                unsafe { sd_journal_stream_fd(ident.as_ptr(), libc::LOG_ERR, 1) };
                             if fd >= 0 && fd != 2 {
                                 let fd = proxmox_sys::fd::Fd(fd); // add drop handler
                                 nix::unistd::dup2(fd.as_raw_fd(), 2)?;
@@ -143,8 +145,7 @@ impl Reloader {
                             }
 
                             self.do_reexec(new_args)
-                        })
-                        {
+                        }) {
                             Ok(Ok(())) => log::error!("do_reexec returned!"),
                             Ok(Err(err)) => log::error!("do_reexec failed: {}", err),
                             Err(_) => log::error!("panic in re-exec"),
@@ -157,20 +158,22 @@ impl Reloader {
                     Err(e) => log::error!("fork() failed, restart delayed: {}", e),
                 }
                 // No matter how we managed to get here, this is the time where we bail out quickly:
-                unsafe {
-                    libc::_exit(-1)
-                }
+                unsafe { libc::_exit(-1) }
             }
             Ok(ForkResult::Parent { child }) => {
-                log::debug!("forked off a new server (first pid: {}), waiting for 2nd pid", child);
+                log::debug!(
+                    "forked off a new server (first pid: {}), waiting for 2nd pid",
+                    child
+                );
                 std::mem::drop(pnew);
-                let mut pold = unsafe {
-                    std::fs::File::from_raw_fd(pold.into_raw_fd())
-                };
+                let mut pold = unsafe { std::fs::File::from_raw_fd(pold.into_raw_fd()) };
                 let child = nix::unistd::Pid::from_raw(match unsafe { pold.read_le_value() } {
                     Ok(v) => v,
                     Err(e) => {
-                        log::error!("failed to receive pid of double-forked child process: {}", e);
+                        log::error!(
+                            "failed to receive pid of double-forked child process: {}",
+                            e
+                        );
                         // systemd will complain but won't kill the service...
                         return Ok(());
                     }
@@ -215,9 +218,10 @@ impl Reloadable for tokio::net::TcpListener {
     // FIXME: We could become "independent" of the TcpListener and its reference to the file
     // descriptor by `dup()`ing it (and check if the listener still exists via kcmp()?)
     fn get_store_func(&self) -> Result<BoxedStoreFunc, Error> {
-        let mut fd_opt = Some(Fd(
-            nix::fcntl::fcntl(self.as_raw_fd(), nix::fcntl::FcntlArg::F_DUPFD_CLOEXEC(0))?
-        ));
+        let mut fd_opt = Some(Fd(nix::fcntl::fcntl(
+            self.as_raw_fd(),
+            nix::fcntl::FcntlArg::F_DUPFD_CLOEXEC(0),
+        )?));
         Ok(Box::new(move || {
             let fd = fd_opt.take().unwrap();
             fd_change_cloexec(fd.as_raw_fd(), false)?;
@@ -226,13 +230,13 @@ impl Reloadable for tokio::net::TcpListener {
     }
 
     fn restore(var: &str) -> Result<Self, Error> {
-        let fd = var.parse::<u32>()
-            .map_err(|e| format_err!("invalid file descriptor: {}", e))?
-            as RawFd;
+        let fd = var
+            .parse::<u32>()
+            .map_err(|e| format_err!("invalid file descriptor: {}", e))? as RawFd;
         fd_change_cloexec(fd, true)?;
-        Ok(Self::from_std(
-            unsafe { std::net::TcpListener::from_raw_fd(fd) },
-        )?)
+        Ok(Self::from_std(unsafe {
+            std::net::TcpListener::from_raw_fd(fd)
+        })?)
     }
 }
 
@@ -253,10 +257,11 @@ where
 {
     let mut reloader = Reloader::new()?;
 
-    let listener: tokio::net::TcpListener = reloader.restore(
-        "PROXMOX_BACKUP_LISTEN_FD",
-        move || async move { Ok(tokio::net::TcpListener::bind(&address).await?) },
-    ).await?;
+    let listener: tokio::net::TcpListener = reloader
+        .restore("PROXMOX_BACKUP_LISTEN_FD", move || async move {
+            Ok(tokio::net::TcpListener::bind(&address).await?)
+        })
+        .await?;
 
     let service = create_service(listener)?;
 
@@ -308,7 +313,11 @@ where
 
 #[link(name = "systemd")]
 extern "C" {
-    fn sd_journal_stream_fd(identifier: *const c_uchar, priority: c_int, level_prefix: c_int) -> c_int;
+    fn sd_journal_stream_fd(
+        identifier: *const c_uchar,
+        priority: c_int,
+        level_prefix: c_int,
+    ) -> c_int;
     fn sd_notify(unset_environment: c_int, state: *const c_char) -> c_int;
     fn sd_notify_barrier(unset_environment: c_int, timeout: u64) -> c_int;
 }
@@ -328,7 +337,7 @@ pub fn systemd_notify(state: SystemdNotify) -> Result<(), Error> {
         SystemdNotify::Ready => {
             log::info!("service is ready");
             CString::new("READY=1")
-        },
+        }
         SystemdNotify::Reloading => CString::new("RELOADING=1"),
         SystemdNotify::Stopping => CString::new("STOPPING=1"),
         SystemdNotify::Status(msg) => CString::new(format!("STATUS={}", msg)),
@@ -336,7 +345,10 @@ pub fn systemd_notify(state: SystemdNotify) -> Result<(), Error> {
     }?;
     let rc = unsafe { sd_notify(0, message.as_ptr()) };
     if rc < 0 {
-        bail!("systemd_notify failed: {}", std::io::Error::from_raw_os_error(-rc));
+        bail!(
+            "systemd_notify failed: {}",
+            std::io::Error::from_raw_os_error(-rc)
+        );
     }
 
     Ok(())
@@ -346,7 +358,10 @@ pub fn systemd_notify(state: SystemdNotify) -> Result<(), Error> {
 pub fn systemd_notify_barrier(timeout: u64) -> Result<(), Error> {
     let rc = unsafe { sd_notify_barrier(0, timeout) };
     if rc < 0 {
-        bail!("systemd_notify_barrier failed: {}", std::io::Error::from_raw_os_error(-rc));
+        bail!(
+            "systemd_notify_barrier failed: {}",
+            std::io::Error::from_raw_os_error(-rc)
+        );
     }
     Ok(())
 }

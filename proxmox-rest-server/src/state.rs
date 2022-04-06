@@ -1,4 +1,4 @@
-use anyhow::{Error};
+use anyhow::Error;
 use lazy_static::lazy_static;
 use std::sync::Mutex;
 
@@ -40,7 +40,6 @@ lazy_static! {
 ///
 /// This calls [request_shutdown] when receiving the signal.
 pub fn catch_shutdown_signal() -> Result<(), Error> {
-
     let mut stream = signal(SignalKind::interrupt())?;
 
     let future = async move {
@@ -49,7 +48,8 @@ pub fn catch_shutdown_signal() -> Result<(), Error> {
             SERVER_STATE.lock().unwrap().reload_request = false;
             request_shutdown();
         }
-    }.boxed();
+    }
+    .boxed();
 
     let abort_future = last_worker_future().map_err(|_| {});
     let task = futures::future::select(future, abort_future);
@@ -64,7 +64,6 @@ pub fn catch_shutdown_signal() -> Result<(), Error> {
 /// This calls [request_shutdown] when receiving the signal, and tries
 /// to restart the server.
 pub fn catch_reload_signal() -> Result<(), Error> {
-
     let mut stream = signal(SignalKind::hangup())?;
 
     let future = async move {
@@ -73,7 +72,8 @@ pub fn catch_reload_signal() -> Result<(), Error> {
             SERVER_STATE.lock().unwrap().reload_request = true;
             crate::request_shutdown();
         }
-    }.boxed();
+    }
+    .boxed();
 
     let abort_future = last_worker_future().map_err(|_| {});
     let task = futures::future::select(future, abort_future);
@@ -88,7 +88,6 @@ pub(crate) fn is_reload_request() -> bool {
 
     data.mode == ServerMode::Shutdown && data.reload_request
 }
-
 
 pub(crate) fn server_shutdown() {
     let mut data = SERVER_STATE.lock().unwrap();
@@ -107,14 +106,11 @@ pub(crate) fn server_shutdown() {
 /// Future to signal server shutdown
 pub fn shutdown_future() -> impl Future<Output = ()> {
     let mut data = SERVER_STATE.lock().unwrap();
-    data
-        .shutdown_listeners
-        .listen()
-        .map(|_| ())
+    data.shutdown_listeners.listen().map(|_| ())
 }
 
 /// Future to signal when last worker task finished
-pub fn last_worker_future() ->  impl Future<Output = Result<(), Error>> {
+pub fn last_worker_future() -> impl Future<Output = Result<(), Error>> {
     let mut data = SERVER_STATE.lock().unwrap();
     data.last_worker_listeners.listen()
 }
@@ -128,7 +124,12 @@ pub(crate) fn set_worker_count(count: usize) {
 pub(crate) fn check_last_worker() {
     let mut data = SERVER_STATE.lock().unwrap();
 
-    if !(data.mode == ServerMode::Shutdown && data.worker_count == 0 && data.internal_task_count == 0) { return; }
+    if !(data.mode == ServerMode::Shutdown
+        && data.worker_count == 0
+        && data.internal_task_count == 0)
+    {
+        return;
+    }
 
     data.last_worker_listeners.notify_listeners(Ok(()));
 }
@@ -147,7 +148,8 @@ where
     tokio::spawn(async move {
         let _ = tokio::spawn(task).await; // ignore errors
 
-        { // drop mutex
+        {
+            // drop mutex
             let mut data = SERVER_STATE.lock().unwrap();
             if data.internal_task_count > 0 {
                 data.internal_task_count -= 1;

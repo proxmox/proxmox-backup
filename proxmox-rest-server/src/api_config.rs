@@ -1,22 +1,21 @@
 use std::collections::HashMap;
-use std::path::PathBuf;
-use std::time::SystemTime;
 use std::fs::metadata;
-use std::sync::{Arc, Mutex, RwLock};
+use std::path::PathBuf;
 use std::pin::Pin;
+use std::sync::{Arc, Mutex, RwLock};
+use std::time::SystemTime;
 
-use anyhow::{bail, Error, format_err};
-use hyper::{Method, Body, Response};
+use anyhow::{bail, format_err, Error};
 use hyper::http::request::Parts;
+use hyper::{Body, Method, Response};
 
 use handlebars::Handlebars;
 use serde::Serialize;
 
-use proxmox_sys::fs::{create_path, CreateOptions};
 use proxmox_router::{ApiMethod, Router, RpcEnvironmentType, UserInformation};
+use proxmox_sys::fs::{create_path, CreateOptions};
 
-use crate::{ServerAdapter, AuthError, FileLogger, FileLogOptions, CommandSocket, RestEnvironment};
-
+use crate::{AuthError, CommandSocket, FileLogOptions, FileLogger, RestEnvironment, ServerAdapter};
 
 /// REST server configuration
 pub struct ApiConfig {
@@ -87,12 +86,10 @@ impl ApiConfig {
         method: Method,
         uri_param: &mut HashMap<String, String>,
     ) -> Option<&'static ApiMethod> {
-
         self.router.find_method(components, method, uri_param)
     }
 
     pub(crate) fn find_alias(&self, components: &[&str]) -> PathBuf {
-
         let mut prefix = String::new();
         let mut filename = self.basedir.clone();
         let comp_len = components.len();
@@ -100,7 +97,10 @@ impl ApiConfig {
             prefix.push_str(components[0]);
             if let Some(subdir) = self.aliases.get(&prefix) {
                 filename.push(subdir);
-                components.iter().skip(1).for_each(|comp| filename.push(comp));
+                components
+                    .iter()
+                    .skip(1)
+                    .for_each(|comp| filename.push(comp));
             } else {
                 components.iter().for_each(|comp| filename.push(comp));
             }
@@ -121,8 +121,9 @@ impl ApiConfig {
     /// # }
     /// ```
     pub fn add_alias<S, P>(&mut self, alias: S, path: P)
-        where S: Into<String>,
-              P: Into<PathBuf>,
+    where
+        S: Into<String>,
+        P: Into<PathBuf>,
     {
         self.aliases.insert(alias.into(), path.into());
     }
@@ -136,7 +137,7 @@ impl ApiConfig {
     /// Those templates cane be use with [render_template](Self::render_template) to generate pages.
     pub fn register_template<P>(&self, name: &str, path: P) -> Result<(), Error>
     where
-        P: Into<PathBuf>
+        P: Into<PathBuf>,
     {
         if self.template_files.read().unwrap().contains_key(name) {
             bail!("template already registered");
@@ -146,8 +147,14 @@ impl ApiConfig {
         let metadata = metadata(&path)?;
         let mtime = metadata.modified()?;
 
-        self.templates.write().unwrap().register_template_file(name, &path)?;
-        self.template_files.write().unwrap().insert(name.to_string(), (mtime, path));
+        self.templates
+            .write()
+            .unwrap()
+            .register_template_file(name, &path)?;
+        self.template_files
+            .write()
+            .unwrap()
+            .insert(name.to_string(), (mtime, path));
 
         Ok(())
     }
@@ -162,11 +169,18 @@ impl ApiConfig {
         let mtime;
         {
             let template_files = self.template_files.read().unwrap();
-            let (old_mtime, old_path) = template_files.get(name).ok_or_else(|| format_err!("template not found"))?;
+            let (old_mtime, old_path) = template_files
+                .get(name)
+                .ok_or_else(|| format_err!("template not found"))?;
 
             mtime = metadata(old_path)?.modified()?;
             if mtime <= *old_mtime {
-                return self.templates.read().unwrap().render(name, data).map_err(|err| format_err!("{}", err));
+                return self
+                    .templates
+                    .read()
+                    .unwrap()
+                    .render(name, data)
+                    .map_err(|err| format_err!("{}", err));
             }
             path = old_path.to_path_buf();
         }
@@ -178,7 +192,9 @@ impl ApiConfig {
             templates.register_template_file(name, &path)?;
             template_files.insert(name.to_string(), (mtime, path));
 
-            templates.render(name, data).map_err(|err| format_err!("{}", err))
+            templates
+                .render(name, data)
+                .map_err(|err| format_err!("{}", err))
         }
     }
 
@@ -195,7 +211,7 @@ impl ApiConfig {
         commando_sock: &mut CommandSocket,
     ) -> Result<(), Error>
     where
-        P: Into<PathBuf>
+        P: Into<PathBuf>,
     {
         let path: PathBuf = path.into();
         if let Some(base) = path.parent() {
@@ -234,7 +250,7 @@ impl ApiConfig {
         commando_sock: &mut CommandSocket,
     ) -> Result<(), Error>
     where
-        P: Into<PathBuf>
+        P: Into<PathBuf>,
     {
         let path: PathBuf = path.into();
         if let Some(base) = path.parent() {

@@ -3,7 +3,7 @@ use std::io::Write;
 use anyhow::Error;
 use nix::fcntl::OFlag;
 
-use proxmox_sys::fs::{CreateOptions, atomic_open_or_create_file};
+use proxmox_sys::fs::{atomic_open_or_create_file, CreateOptions};
 
 /// Options to control the behavior of a [FileLogger] instance
 #[derive(Default)]
@@ -23,7 +23,6 @@ pub struct FileLogOptions {
     pub prefix_time: bool,
     /// File owner/group and mode
     pub file_opts: CreateOptions,
-
 }
 
 /// Log messages with optional automatically added timestamps into files
@@ -66,7 +65,11 @@ impl FileLogger {
 
         let file_name: std::path::PathBuf = file_name.as_ref().to_path_buf();
 
-        Ok(Self { file, file_name, options })
+        Ok(Self {
+            file,
+            file_name,
+            options,
+        })
     }
 
     pub fn reopen(&mut self) -> Result<&Self, Error> {
@@ -79,23 +82,23 @@ impl FileLogger {
         file_name: P,
         options: &FileLogOptions,
     ) -> Result<std::fs::File, Error> {
-
         let mut flags = OFlag::O_CLOEXEC;
 
-        if options.read  {
-            flags |=  OFlag::O_RDWR;
+        if options.read {
+            flags |= OFlag::O_RDWR;
         } else {
-            flags |=  OFlag::O_WRONLY;
+            flags |= OFlag::O_WRONLY;
         }
 
         if options.append {
-            flags |=  OFlag::O_APPEND;
+            flags |= OFlag::O_APPEND;
         }
         if options.exclusive {
-            flags |=  OFlag::O_EXCL;
+            flags |= OFlag::O_EXCL;
         }
 
-        let file = atomic_open_or_create_file(&file_name, flags, &[], options.file_opts.clone(), false)?;
+        let file =
+            atomic_open_or_create_file(&file_name, flags, &[], options.file_opts.clone(), false)?;
 
         Ok(file)
     }

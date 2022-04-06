@@ -15,20 +15,20 @@
 //!   - worker task management
 //! * generic interface to authenticate user
 
-use std::sync::atomic::{Ordering, AtomicBool};
 use std::future::Future;
 use std::pin::Pin;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::{bail, format_err, Error};
-use nix::unistd::Pid;
-use hyper::{Body, Response, Method};
 use http::request::Parts;
 use http::HeaderMap;
+use hyper::{Body, Method, Response};
+use nix::unistd::Pid;
 
-use proxmox_sys::fd::Fd;
-use proxmox_sys::linux::procfs::PidStat;
-use proxmox_sys::fs::CreateOptions;
 use proxmox_router::UserInformation;
+use proxmox_sys::fd::Fd;
+use proxmox_sys::fs::CreateOptions;
+use proxmox_sys::linux::procfs::PidStat;
 
 mod compression;
 pub use compression::*;
@@ -47,7 +47,7 @@ mod command_socket;
 pub use command_socket::*;
 
 mod file_logger;
-pub use file_logger::{FileLogger, FileLogOptions};
+pub use file_logger::{FileLogOptions, FileLogger};
 
 mod api_config;
 pub use api_config::ApiConfig;
@@ -75,7 +75,6 @@ impl From<Error> for AuthError {
 
 /// User Authentication and index/root page generation methods
 pub trait ServerAdapter: Send + Sync {
-
     /// Returns the index/root page
     fn get_index(
         &self,
@@ -91,11 +90,16 @@ pub trait ServerAdapter: Send + Sync {
         &'a self,
         headers: &'a HeaderMap,
         method: &'a Method,
-    ) -> Pin<Box<dyn Future<Output = Result<(String, Box<dyn UserInformation + Sync + Send>), AuthError>> + Send + 'a>>;
-
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<(String, Box<dyn UserInformation + Sync + Send>), AuthError>>
+                + Send
+                + 'a,
+        >,
+    >;
 }
 
-lazy_static::lazy_static!{
+lazy_static::lazy_static! {
     static ref PID: i32 = unsafe { libc::getpid() };
     static ref PSTART: u64 = PidStat::read_from_pid(Pid::from_raw(*PID)).unwrap().starttime;
 }
@@ -124,7 +128,8 @@ pub fn write_pid(pid_fn: &str) -> Result<(), Error> {
 pub fn read_pid(pid_fn: &str) -> Result<i32, Error> {
     let pid = proxmox_sys::fs::file_get_contents(pid_fn)?;
     let pid = std::str::from_utf8(&pid)?.trim();
-    pid.parse().map_err(|err| format_err!("could not parse pid - {}", err))
+    pid.parse()
+        .map_err(|err| format_err!("could not parse pid - {}", err))
 }
 
 /// Returns the control socket path for a specific process ID.
@@ -177,7 +182,6 @@ pub fn socketpair() -> Result<(Fd, Fd), Error> {
     )?;
     Ok((Fd(pa), Fd(pb)))
 }
-
 
 /// Extract a specific cookie from cookie header.
 /// We assume cookie_name is already url encoded.

@@ -1,30 +1,30 @@
 use std::collections::{HashMap, VecDeque};
 use std::fs::File;
-use std::path::PathBuf;
-use std::io::{Read, Write, BufRead, BufReader};
+use std::io::{BufRead, BufReader, Read, Write};
 use std::panic::UnwindSafe;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::{SystemTime, Duration};
+use std::time::{Duration, SystemTime};
 
 use anyhow::{bail, format_err, Error};
 use futures::*;
 use lazy_static::lazy_static;
-use serde_json::{json, Value};
-use serde::{Serialize, Deserialize};
-use tokio::sync::oneshot;
 use nix::fcntl::OFlag;
 use once_cell::sync::OnceCell;
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
+use tokio::sync::oneshot;
 
-use proxmox_sys::linux::procfs;
-use proxmox_sys::fs::{create_path, replace_file, atomic_open_or_create_file, CreateOptions};
 use proxmox_lang::try_block;
 use proxmox_schema::upid::UPID;
+use proxmox_sys::fs::{atomic_open_or_create_file, create_path, replace_file, CreateOptions};
+use proxmox_sys::linux::procfs;
 
-use proxmox_sys::WorkerTaskContext;
 use proxmox_sys::logrotate::{LogRotate, LogRotateFiles};
+use proxmox_sys::WorkerTaskContext;
 
-use crate::{CommandSocket, FileLogger, FileLogOptions};
+use crate::{CommandSocket, FileLogOptions, FileLogger};
 
 struct TaskListLockGuard(File);
 
@@ -40,14 +40,13 @@ struct WorkerTaskSetup {
 static WORKER_TASK_SETUP: OnceCell<WorkerTaskSetup> = OnceCell::new();
 
 fn worker_task_setup() -> Result<&'static WorkerTaskSetup, Error> {
-    WORKER_TASK_SETUP.get()
+    WORKER_TASK_SETUP
+        .get()
         .ok_or_else(|| format_err!("WorkerTask library is not initialized"))
 }
 
 impl WorkerTaskSetup {
-
     fn new(basedir: PathBuf, file_opts: CreateOptions) -> Self {
-
         let mut taskdir = basedir;
         taskdir.push("tasks");
 
@@ -74,17 +73,15 @@ impl WorkerTaskSetup {
     }
 
     fn lock_task_list_files(&self, exclusive: bool) -> Result<TaskListLockGuard, Error> {
-        let options =  self.file_opts.clone()
+        let options = self
+            .file_opts
+            .clone()
             .perm(nix::sys::stat::Mode::from_bits_truncate(0o660));
 
         let timeout = std::time::Duration::new(10, 0);
 
-        let file = proxmox_sys::fs::open_file_locked(
-            &self.task_lock_fn,
-            timeout,
-            exclusive,
-            options,
-        )?;
+        let file =
+            proxmox_sys::fs::open_file_locked(&self.task_lock_fn, timeout, exclusive, options)?;
 
         Ok(TaskListLockGuard(file))
     }
@@ -99,7 +96,6 @@ impl WorkerTaskSetup {
     // atomically read/update the task list, update status of finished tasks
     // new_upid is added to the list when specified.
     fn update_active_workers(&self, new_upid: Option<&UPID>) -> Result<(), Error> {
-
         let lock = self.lock_task_list_files(true)?;
 
         // TODO remove with 1.x
@@ -121,45 +117,48 @@ impl WorkerTaskSetup {
                 if !worker_is_active_local(&info.upid) {
                     // println!("Detected stopped task '{}'", &info.upid_str);
                     let now = proxmox_time::epoch_i64();
-                    let status = upid_read_status(&info.upid).unwrap_or(TaskState::Unknown { endtime: now });
+                    let status =
+                        upid_read_status(&info.upid).unwrap_or(TaskState::Unknown { endtime: now });
                     finish_list.push(TaskListInfo {
                         upid: info.upid,
                         upid_str: info.upid_str,
-                        state: Some(status)
+                        state: Some(status),
                     });
                     return None;
                 }
 
                 Some(info)
-            }).collect();
+            })
+            .collect();
 
         if let Some(upid) = new_upid {
-            active_list.push(TaskListInfo { upid: upid.clone(), upid_str: upid.to_string(), state: None });
+            active_list.push(TaskListInfo {
+                upid: upid.clone(),
+                upid_str: upid.to_string(),
+                state: None,
+            });
         }
 
         let active_raw = render_task_list(&active_list);
 
-        let options =  self.file_opts.clone()
+        let options = self
+            .file_opts
+            .clone()
             .perm(nix::sys::stat::Mode::from_bits_truncate(0o660));
 
-        replace_file(
-            &self.active_tasks_fn,
-            active_raw.as_bytes(),
-            options,
-            false,
-        )?;
+        replace_file(&self.active_tasks_fn, active_raw.as_bytes(), options, false)?;
 
-        finish_list.sort_unstable_by(|a, b| {
-            match (&a.state, &b.state) {
-                (Some(s1), Some(s2)) => s1.cmp(s2),
-                (Some(_), None) => std::cmp::Ordering::Less,
-                (None, Some(_)) => std::cmp::Ordering::Greater,
-                _ => a.upid.starttime.cmp(&b.upid.starttime),
-            }
+        finish_list.sort_unstable_by(|a, b| match (&a.state, &b.state) {
+            (Some(s1), Some(s2)) => s1.cmp(s2),
+            (Some(_), None) => std::cmp::Ordering::Less,
+            (None, Some(_)) => std::cmp::Ordering::Greater,
+            _ => a.upid.starttime.cmp(&b.upid.starttime),
         });
 
         if !finish_list.is_empty() {
-            let options =  self.file_opts.clone()
+            let options = self
+                .file_opts
+                .clone()
                 .perm(nix::sys::stat::Mode::from_bits_truncate(0o660));
 
             let mut writer = atomic_open_or_create_file(
@@ -187,15 +186,17 @@ impl WorkerTaskSetup {
 
     // Create task log directory with correct permissions
     fn create_task_log_dirs(&self) -> Result<(), Error> {
-
         try_block!({
-            let dir_opts = self.file_opts.clone()
+            let dir_opts = self
+                .file_opts
+                .clone()
                 .perm(nix::sys::stat::Mode::from_bits_truncate(0o755));
 
             create_path(&self.taskdir, Some(dir_opts.clone()), Some(dir_opts))?;
             // fixme:??? create_path(pbs_buildcfg::PROXMOX_BACKUP_RUN_DIR, None, Some(opts))?;
             Ok(())
-        }).map_err(|err: Error| format_err!("unable to create task log dir - {}", err))
+        })
+        .map_err(|err: Error| format_err!("unable to create task log dir - {}", err))
     }
 }
 
@@ -203,7 +204,8 @@ impl WorkerTaskSetup {
 pub fn init_worker_tasks(basedir: PathBuf, file_opts: CreateOptions) -> Result<(), Error> {
     let setup = WorkerTaskSetup::new(basedir, file_opts);
     setup.create_task_log_dirs()?;
-    WORKER_TASK_SETUP.set(setup)
+    WORKER_TASK_SETUP
+        .set(setup)
         .map_err(|_| format_err!("init_worker_tasks failed - already initialized"))
 }
 
@@ -215,17 +217,11 @@ pub fn rotate_task_log_archive(
     max_files: Option<usize>,
     options: Option<CreateOptions>,
 ) -> Result<bool, Error> {
-
     let setup = worker_task_setup()?;
 
     let _lock = setup.lock_task_list_files(true)?;
 
-    let mut logrotate = LogRotate::new(
-        &setup.task_archive_fn,
-        compress,
-        max_files,
-        options,
-    )?;
+    let mut logrotate = LogRotate::new(&setup.task_archive_fn, compress, max_files, options)?;
 
     logrotate.rotate(size_threshold)
 }
@@ -237,12 +233,7 @@ pub fn cleanup_old_tasks(compressed: bool) -> Result<(), Error> {
 
     let _lock = setup.lock_task_list_files(true)?;
 
-    let logrotate = LogRotate::new(
-        &setup.task_archive_fn,
-        compressed,
-        None,
-        None,
-    )?;
+    let logrotate = LogRotate::new(&setup.task_archive_fn, compressed, None, None)?;
 
     let mut timestamp = None;
     if let Some(last_file) = logrotate.files().last() {
@@ -265,7 +256,8 @@ pub fn cleanup_old_tasks(compressed: bool) -> Result<(), Error> {
             SystemTime::UNIX_EPOCH.checked_add(Duration::from_secs(timestamp as u64))
         } else {
             SystemTime::UNIX_EPOCH.checked_sub(Duration::from_secs(-timestamp as u64))
-        }.ok_or_else(|| format_err!("could not calculate cutoff time"))?;
+        }
+        .ok_or_else(|| format_err!("could not calculate cutoff time"))?;
 
         for i in 0..256 {
             let mut path = setup.taskdir.clone();
@@ -279,8 +271,8 @@ pub fn cleanup_old_tasks(compressed: bool) -> Result<(), Error> {
 
                 if modified < cutoff_time {
                     match std::fs::remove_file(path) {
-                        Ok(()) => {},
-                        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {},
+                        Ok(()) => {}
+                        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
                         Err(err) => bail!("could not remove file: {}", err),
                     }
                 }
@@ -290,7 +282,6 @@ pub fn cleanup_old_tasks(compressed: bool) -> Result<(), Error> {
 
     Ok(())
 }
-
 
 /// Path to the worker log file
 pub fn upid_log_path(upid: &UPID) -> Result<std::path::PathBuf, Error> {
@@ -302,10 +293,11 @@ pub fn upid_log_path(upid: &UPID) -> Result<std::path::PathBuf, Error> {
 /// If there is not a single line with at valid datetime, we assume the
 /// starttime to be the endtime
 pub fn upid_read_status(upid: &UPID) -> Result<TaskState, Error> {
-
     let setup = worker_task_setup()?;
 
-    let mut status = TaskState::Unknown { endtime: upid.starttime };
+    let mut status = TaskState::Unknown {
+        endtime: upid.starttime,
+    };
 
     let path = setup.log_path(upid);
 
@@ -325,7 +317,7 @@ pub fn upid_read_status(upid: &UPID) -> Result<TaskState, Error> {
     }
 
     let last_line = match data.iter().rposition(|c| *c == b'\n') {
-        Some(start) if data.len() > (start+1) => &data[start+1..],
+        Some(start) if data.len() > (start + 1) => &data[start + 1..],
         Some(_) => &data, // should not happen, since we removed all trailing newlines
         None => &data,
     };
@@ -350,7 +342,8 @@ pub fn upid_read_status(upid: &UPID) -> Result<TaskState, Error> {
 }
 
 lazy_static! {
-    static ref WORKER_TASK_LIST: Mutex<HashMap<usize, Arc<WorkerTask>>> = Mutex::new(HashMap::new());
+    static ref WORKER_TASK_LIST: Mutex<HashMap<usize, Arc<WorkerTask>>> =
+        Mutex::new(HashMap::new());
 }
 
 /// checks if the task UPID refers to a worker from this process
@@ -405,11 +398,13 @@ pub fn worker_is_active_local(upid: &UPID) -> bool {
 ///
 /// * ``worker-task-status <UPID>``: return true of false, depending on
 /// whether the worker is running or stopped.
-pub fn register_task_control_commands(
-    commando_sock: &mut CommandSocket,
-) -> Result<(), Error> {
+pub fn register_task_control_commands(commando_sock: &mut CommandSocket) -> Result<(), Error> {
     fn get_upid(args: Option<&Value>) -> Result<UPID, Error> {
-        let args = if let Some(args) = args { args } else { bail!("missing args") };
+        let args = if let Some(args) = args {
+            args
+        } else {
+            bail!("missing args")
+        };
         let upid = match args.get("upid") {
             Some(Value::String(upid)) => upid.parse::<UPID>()?,
             None => bail!("no upid in args"),
@@ -454,7 +449,6 @@ pub fn abort_worker_nowait(upid: UPID) {
 ///
 /// By sending ``worker-task-abort`` to the control socket.
 pub async fn abort_worker(upid: UPID) -> Result<(), Error> {
-
     let sock = crate::ctrl_sock_from_pid(upid.pid);
     let cmd = json!({
         "command": "worker-task-abort",
@@ -466,7 +460,6 @@ pub async fn abort_worker(upid: UPID) -> Result<(), Error> {
 }
 
 fn parse_worker_status_line(line: &str) -> Result<(String, UPID, Option<TaskState>), Error> {
-
     let data = line.splitn(3, ' ').collect::<Vec<&str>>();
 
     let len = data.len();
@@ -519,10 +512,15 @@ impl TaskState {
             Ok(TaskState::OK { endtime })
         } else if let Some(warnings) = s.strip_prefix("WARNINGS: ") {
             let count: u64 = warnings.parse()?;
-            Ok(TaskState::Warning{ count, endtime })
+            Ok(TaskState::Warning { count, endtime })
         } else if !s.is_empty() {
-            let message = if let Some(err) = s.strip_prefix("ERROR: ") { err } else { s }.to_string();
-            Ok(TaskState::Error{ message, endtime })
+            let message = if let Some(err) = s.strip_prefix("ERROR: ") {
+                err
+            } else {
+                s
+            }
+            .to_string();
+            Ok(TaskState::Error { message, endtime })
         } else {
             bail!("unable to parse Task Status '{}'", s);
         }
@@ -545,7 +543,7 @@ impl std::fmt::Display for TaskState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             TaskState::Unknown { .. } => write!(f, "unknown"),
-            TaskState::OK { .. }=> write!(f, "OK"),
+            TaskState::OK { .. } => write!(f, "OK"),
             TaskState::Warning { count, .. } => write!(f, "WARNINGS: {}", count),
             TaskState::Error { message, .. } => write!(f, "{}", message),
         }
@@ -568,7 +566,12 @@ pub struct TaskListInfo {
 fn render_task_line(info: &TaskListInfo) -> String {
     let mut raw = String::new();
     if let Some(status) = &info.state {
-        raw.push_str(&format!("{} {:08X} {}\n", info.upid_str, status.endtime(), status));
+        raw.push_str(&format!(
+            "{} {:08X} {}\n",
+            info.upid_str,
+            status.endtime(),
+            status
+        ));
     } else {
         raw.push_str(&info.upid_str);
         raw.push('\n');
@@ -587,8 +590,7 @@ fn render_task_list(list: &[TaskListInfo]) -> String {
 
 // note this is not locked, caller has to make sure it is
 // this will skip (and log) lines that are not valid status lines
-fn read_task_file<R: Read>(reader: R) -> Result<Vec<TaskListInfo>, Error>
-{
+fn read_task_file<R: Read>(reader: R) -> Result<Vec<TaskListInfo>, Error> {
     let reader = BufReader::new(reader);
     let mut list = Vec::new();
     for line in reader.lines() {
@@ -597,7 +599,7 @@ fn read_task_file<R: Read>(reader: R) -> Result<Vec<TaskListInfo>, Error>
             Ok((upid_str, upid, state)) => list.push(TaskListInfo {
                 upid_str,
                 upid,
-                state
+                state,
             }),
             Err(err) => {
                 log::warn!("unable to parse worker status '{}' - {}", line, err);
@@ -634,7 +636,6 @@ pub struct TaskListInfoIterator {
 impl TaskListInfoIterator {
     /// Creates a new iterator instance.
     pub fn new(active_only: bool) -> Result<Self, Error> {
-
         let setup = worker_task_setup()?;
 
         let (read_lock, active_list) = {
@@ -685,7 +686,7 @@ impl Iterator for TaskListInfoIterator {
             if let Some(element) = self.list.pop_back() {
                 return Some(Ok(element));
             } else if self.end {
-                    return None;
+                return None;
             } else {
                 if let Some(mut archive) = self.archive.take() {
                     if let Some(file) = archive.next() {
@@ -720,7 +721,6 @@ pub struct WorkerTask {
 }
 
 impl std::fmt::Display for WorkerTask {
-
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         self.upid.fmt(f)
     }
@@ -734,14 +734,12 @@ struct WorkerTaskData {
 }
 
 impl WorkerTask {
-
     pub fn new(
         worker_type: &str,
         worker_id: Option<String>,
         auth_id: String,
         to_stdout: bool,
     ) -> Result<Arc<Self>, Error> {
-
         let setup = worker_task_setup()?;
 
         let upid = UPID::new(worker_type, worker_id, auth_id)?;
@@ -751,7 +749,9 @@ impl WorkerTask {
 
         path.push(format!("{:02X}", upid.pstart & 255));
 
-        let dir_opts = setup.file_opts.clone()
+        let dir_opts = setup
+            .file_opts
+            .clone()
             .perm(nix::sys::stat::Mode::from_bits_truncate(0o755));
 
         create_path(&path, None, Some(dir_opts))?;
@@ -800,8 +800,9 @@ impl WorkerTask {
         to_stdout: bool,
         f: F,
     ) -> Result<String, Error>
-        where F: Send + 'static + FnOnce(Arc<WorkerTask>) -> T,
-              T: Send + 'static + Future<Output = Result<(), Error>>,
+    where
+        F: Send + 'static + FnOnce(Arc<WorkerTask>) -> T,
+        T: Send + 'static + Future<Output = Result<(), Error>>,
     {
         let worker = WorkerTask::new(worker_type, worker_id, auth_id, to_stdout)?;
         let upid_str = worker.upid.to_string();
@@ -822,29 +823,26 @@ impl WorkerTask {
         to_stdout: bool,
         f: F,
     ) -> Result<String, Error>
-        where F: Send + UnwindSafe + 'static + FnOnce(Arc<WorkerTask>) -> Result<(), Error>
+    where
+        F: Send + UnwindSafe + 'static + FnOnce(Arc<WorkerTask>) -> Result<(), Error>,
     {
         let worker = WorkerTask::new(worker_type, worker_id, auth_id, to_stdout)?;
         let upid_str = worker.upid.to_string();
 
-        let _child = std::thread::Builder::new().name(upid_str.clone()).spawn(move || {
-            let worker1 = worker.clone();
-            let result = match std::panic::catch_unwind(move || f(worker1)) {
-                Ok(r) => r,
-                Err(panic) => {
-                    match panic.downcast::<&str>() {
-                        Ok(panic_msg) => {
-                            Err(format_err!("worker panicked: {}", panic_msg))
-                        }
-                        Err(_) => {
-                            Err(format_err!("worker panicked: unknown type."))
-                        }
-                    }
-                }
-            };
+        let _child = std::thread::Builder::new()
+            .name(upid_str.clone())
+            .spawn(move || {
+                let worker1 = worker.clone();
+                let result = match std::panic::catch_unwind(move || f(worker1)) {
+                    Ok(r) => r,
+                    Err(panic) => match panic.downcast::<&str>() {
+                        Ok(panic_msg) => Err(format_err!("worker panicked: {}", panic_msg)),
+                        Err(_) => Err(format_err!("worker panicked: unknown type.")),
+                    },
+                };
 
-            worker.log_result(&result);
-        });
+                worker.log_result(&result);
+            });
 
         Ok(upid_str)
     }
@@ -856,9 +854,15 @@ impl WorkerTask {
         let endtime = proxmox_time::epoch_i64();
 
         if let Err(err) = result {
-            TaskState::Error { message: err.to_string(), endtime }
+            TaskState::Error {
+                message: err.to_string(),
+                endtime,
+            }
         } else if warn_count > 0 {
-            TaskState::Warning { count: warn_count, endtime }
+            TaskState::Warning {
+                count: warn_count,
+                endtime,
+            }
         } else {
             TaskState::OK { endtime }
         }
@@ -893,30 +897,33 @@ impl WorkerTask {
             let mut data = self.data.lock().unwrap();
             data.progress = progress;
         } else {
-           // fixme:  log!("task '{}': ignoring strange value for progress '{}'", self.upid, progress);
+            // fixme:  log!("task '{}': ignoring strange value for progress '{}'", self.upid, progress);
         }
     }
 
     /// Request abort
     pub fn request_abort(&self) {
         let prev_abort = self.abort_requested.swap(true, Ordering::SeqCst);
-        if !prev_abort { // log abort one time
+        if !prev_abort {
+            // log abort one time
             self.log_message("received abort request ...".to_string());
         }
         // noitify listeners
         let mut data = self.data.lock().unwrap();
         loop {
             match data.abort_listeners.pop() {
-                None => { break; },
+                None => {
+                    break;
+                }
                 Some(ch) => {
                     let _ = ch.send(()); // ignore errors here
-                },
+                }
             }
         }
     }
 
     /// Get a future which resolves on task abort
-    pub fn abort_future(&self) ->  oneshot::Receiver<()> {
+    pub fn abort_future(&self) -> oneshot::Receiver<()> {
         let (tx, rx) = oneshot::channel::<()>();
 
         let mut data = self.data.lock().unwrap();
@@ -934,7 +941,6 @@ impl WorkerTask {
 }
 
 impl WorkerTaskContext for WorkerTask {
-
     fn abort_requested(&self) -> bool {
         self.abort_requested.load(Ordering::SeqCst)
     }
@@ -963,7 +969,6 @@ impl WorkerTaskContext for WorkerTask {
 /// Note: local workers should print logs to stdout, so there is no
 /// need to fetch/display logs. We just wait for the worker to finish.
 pub async fn wait_for_local_worker(upid_str: &str) -> Result<(), Error> {
-
     let upid: UPID = upid_str.parse()?;
 
     let sleep_duration = core::time::Duration::new(0, 100_000_000);
