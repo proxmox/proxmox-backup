@@ -210,10 +210,12 @@ pub fn init_worker_tasks(basedir: PathBuf, file_opts: CreateOptions) -> Result<(
         .map_err(|_| format_err!("init_worker_tasks failed - already initialized"))
 }
 
-/// checks if the Task Archive is bigger that 'size_threshold' bytes, and
-/// rotates it if it is, keeps only up to 'max_files'.
-/// If 'max_days' is given, 'max_files' is ignored, and all archive files
-/// will be deleted where there are only tasks that are older than the given days.
+/// Optionally rotates and/or cleans up the task archive depending on its size and age.
+///
+/// Check if the Task Archive is bigger than 'size_threshold' bytes, and rotate in that case.
+/// Keeps either only up to 'max_files' if 'max_days' is not given. Else, 'max_files' will be
+/// ignored, and all archive files older than the first with only tasks from before 'now-max_days'
+/// will be deleted
 pub fn rotate_task_log_archive(
     size_threshold: u64,
     compress: bool,
@@ -235,34 +237,27 @@ pub fn rotate_task_log_archive(
     let mut rotated = logrotate.rotate(size_threshold)?;
 
     if let Some(max_days) = max_days {
-        let mut delete = false;
-        let file_names = logrotate.file_names();
+        // NOTE: not on exact day-boundary but close enough for what's done here
+        let cutoff_time = proxmox_time::epoch_i64() - (max_days * 24 * 60 * 60) as i64;
+        let mut cutoff = false;
         let mut files = logrotate.files();
         // task archives have task-logs sorted by endtime, with the oldest at the start of the
         // file. So, peak into every archive and see if the first listed tasks' endtime would be
         // cut off. If that's the case we know that the next (older) task archive rotation surely
         // falls behind the cut-off line. We cannot say the same for the current archive without
         // checking its last (newest) line, but that's more complex, expensive and rather unlikely.
-        for file_name in file_names {
-            if !delete {
-                // we only have to check if we did not start deleting already
-
-                // this is ok because the task log files are locked, so no one
-                // else should modify these
+        for file_name in logrotate.file_names() {
+            if !cutoff {
                 let reader = match files.next() {
                     Some(file) => BufReader::new(file),
-                    None => {
-                        bail!("unexpected error: files do not match file_names");
-                    }
+                    None => bail!("unexpected error: files do not match file_names"),
                 };
-                if let Some(line) = reader.lines().next() {
-                    if let Ok((_, _, Some(state))) = parse_worker_status_line(&line?) {
-                        // we approximate here with the days, but should be close enough
-                        let cutoff_time =
-                            proxmox_time::epoch_i64() - (max_days * 24 * 60 * 60) as i64;
+                if let Some(Ok(line)) = reader.lines().next() {
+                    if let Ok((_, _, Some(state))) = parse_worker_status_line(&line) {
                         if state.endtime() < cutoff_time {
-                            // we found the first file that has only older entries, start deleting
-                            delete = true;
+                            // found first file with the oldest entry being cut-off, so next older
+                            // ones are all up for deletion.
+                            cutoff = true;
                             rotated = true;
                         }
                     }
