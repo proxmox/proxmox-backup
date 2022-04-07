@@ -238,6 +238,11 @@ pub fn rotate_task_log_archive(
         let mut delete = false;
         let file_names = logrotate.file_names();
         let mut files = logrotate.files();
+        // task archives have task-logs sorted by endtime, with the oldest at the start of the
+        // file. So, peak into every archive and see if the first listed tasks' endtime would be
+        // cut off. If that's the case we know that the next (older) task archive rotation surely
+        // falls behind the cut-off line. We cannot say the same for the current archive without
+        // checking its last (newest) line, but that's more complex, expensive and rather unlikely.
         for file_name in file_names {
             if !delete {
                 // we only have to check if we did not start deleting already
@@ -262,8 +267,7 @@ pub fn rotate_task_log_archive(
                         }
                     }
                 }
-            }
-            if delete {
+            } else {
                 if let Err(err) = std::fs::remove_file(&file_name) {
                     log::error!("could not remove {:?}: {}", file_name, err);
                 }
