@@ -105,9 +105,8 @@ fn worker_task_abort() -> Result<(), Error> {
     });
 
     let data = errmsg.lock().unwrap();
-    match *data {
-        Some(ref err) => bail!("Error: {}", err),
-        None => {}
+    if let Some(ref err) = *data {
+        bail!("Error: {}", err)
     }
 
     Ok(())

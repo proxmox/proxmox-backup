@@ -452,7 +452,7 @@ fn main() -> Result<(), Error> {
     proxmox_async::runtime::main(run())
 }
 
-fn get_sync_job(id: &String) -> Result<SyncJobConfig, Error> {
+fn get_sync_job(id: &str) -> Result<SyncJobConfig, Error> {
     let (config, _digest) = sync::config()?;
 
     config.lookup("sync", id)
@@ -536,12 +536,12 @@ pub fn complete_remote_datastore_group_filter(
     _arg: &str,
     param: &HashMap<String, String>,
 ) -> Vec<String> {
-    let mut list = Vec::new();
-
-    list.push("regex:".to_string());
-    list.push("type:ct".to_string());
-    list.push("type:host".to_string());
-    list.push("type:vm".to_string());
+    let mut list = vec![
+        "regex:".to_string(),
+        "type:ct".to_string(),
+        "type:host".to_string(),
+        "type:vm".to_string(),
+    ];
 
     list.extend(
         complete_remote_datastore_group(_arg, param)

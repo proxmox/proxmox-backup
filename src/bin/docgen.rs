@@ -338,8 +338,7 @@ pub fn dump_api_schema(
             child["path"] = sub_path.into();
             child["text"] = format!("{{{}}}", param_name).into();
 
-            let mut children = Vec::new();
-            children.push(child);
+            let children = vec![child];
             data["children"] = children.into();
             data["leaf"] = 0.into();
         }

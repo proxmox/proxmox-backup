@@ -53,12 +53,12 @@ async fn get_backup_groups(store: &str) -> Result<Vec<GroupListItem>, Error> {
 
 // shell completion helper
 pub fn complete_datastore_group_filter(_arg: &str, param: &HashMap<String, String>) -> Vec<String> {
-    let mut list = Vec::new();
-
-    list.push("regex:".to_string());
-    list.push("type:ct".to_string());
-    list.push("type:host".to_string());
-    list.push("type:vm".to_string());
+    let mut list = vec![
+        "regex:".to_string(),
+        "type:ct".to_string(),
+        "type:host".to_string(),
+        "type:vm".to_string(),
+    ];
 
     if let Some(store) = param.get("store") {
         let groups = proxmox_async::runtime::block_on(async { get_backup_groups(store).await });

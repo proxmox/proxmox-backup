@@ -453,7 +453,8 @@ async fn ls(
         .noheader(true)
         .sortby("name", false);
 
-    let res = get_api_children(path.unwrap_or(String::from("/")), rpcenv).await?;
+    let path = path.unwrap_or_else(|| "".into());
+    let res = get_api_children(path, rpcenv).await?;
 
     format_and_print_result_full(
         &mut serde_json::to_value(res)?,

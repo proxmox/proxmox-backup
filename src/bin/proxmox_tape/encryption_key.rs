@@ -205,7 +205,7 @@ async fn restore_key(
         bail!("cannot have both 'drive' and 'key(-file)' parameter set!");
     } else if key.is_some() && key_file.is_some() {
         bail!("cannot have both 'key' and 'key-file' parameter set!");
-    } else if !drive_passed && !key.is_some() && !key_file.is_some() {
+    } else if !drive_passed && key.is_none() && key_file.is_none() {
         bail!("one of either 'drive' or 'key' parameter must be set!");
     }
     if !tty::stdin_isatty() {

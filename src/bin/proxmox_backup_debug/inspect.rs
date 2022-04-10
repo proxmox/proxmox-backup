@@ -119,7 +119,7 @@ fn inspect_chunk(
     let chunk_path = Path::new(&chunk);
 
     if digest.is_none() && use_filename_as_digest {
-        digest = Some(if let Some((_, filename)) = chunk.rsplit_once("/") {
+        digest = Some(if let Some((_, filename)) = chunk.rsplit_once('/') {
             String::from(filename)
         } else {
             chunk.clone()
