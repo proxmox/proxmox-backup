@@ -18,7 +18,6 @@ use proxmox_backup::api2;
 )]
 /// Read DNS settings
 fn get_dns(mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
-
     let output_format = get_output_format(&param);
 
     param["node"] = "localhost".into();
@@ -28,7 +27,6 @@ fn get_dns(mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, E
         ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
         _ => unreachable!(),
     };
-
 
     let options = default_table_format_options()
         .column(ColumnConfig::new("search"))
@@ -42,16 +40,12 @@ fn get_dns(mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, E
 }
 
 pub fn dns_commands() -> CommandLineInterface {
-
     let cmd_def = CliCommandMap::new()
-        .insert(
-            "get",
-            CliCommand::new(&API_METHOD_GET_DNS)
-        )
+        .insert("get", CliCommand::new(&API_METHOD_GET_DNS))
         .insert(
             "set",
             CliCommand::new(&api2::node::dns::API_METHOD_UPDATE_DNS)
-                .fixed_param("node", String::from("localhost"))
+                .fixed_param("node", String::from("localhost")),
         );
 
     cmd_def.into()

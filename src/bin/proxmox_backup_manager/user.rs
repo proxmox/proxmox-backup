@@ -6,13 +6,15 @@ use std::collections::HashMap;
 use proxmox_router::{cli::*, ApiHandler, RpcEnvironment};
 use proxmox_schema::api;
 
-use pbs_api_types::{ACL_PATH_SCHEMA, Authid, Userid};
+use pbs_api_types::{Authid, Userid, ACL_PATH_SCHEMA};
 
 use proxmox_backup::api2;
 
 fn render_expire(value: &Value, _record: &Value) -> Result<String, Error> {
     let never = String::from("never");
-    if value.is_null() { return Ok(never); }
+    if value.is_null() {
+        return Ok(never);
+    }
     let text = match value.as_i64() {
         Some(epoch) if epoch == 0 => never,
         Some(epoch) => {
@@ -21,7 +23,7 @@ fn render_expire(value: &Value, _record: &Value) -> Result<String, Error> {
             } else {
                 epoch.to_string()
             }
-        },
+        }
         None => value.to_string(),
     };
     Ok(text)
@@ -39,7 +41,6 @@ fn render_expire(value: &Value, _record: &Value) -> Result<String, Error> {
 )]
 /// List configured users.
 fn list_users(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
-
     let output_format = get_output_format(&param);
 
     let info = &api2::access::user::API_METHOD_LIST_USERS;
@@ -51,13 +52,9 @@ fn list_users(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Er
     let options = default_table_format_options()
         .column(ColumnConfig::new("userid"))
         .column(
-            ColumnConfig::new("enable")
-                .renderer(pbs_tools::format::render_bool_with_default_true)
+            ColumnConfig::new("enable").renderer(pbs_tools::format::render_bool_with_default_true),
         )
-        .column(
-            ColumnConfig::new("expire")
-                .renderer(render_expire)
-        )
+        .column(ColumnConfig::new("expire").renderer(render_expire))
         .column(ColumnConfig::new("firstname"))
         .column(ColumnConfig::new("lastname"))
         .column(ColumnConfig::new("email"))
@@ -83,7 +80,6 @@ fn list_users(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Er
 )]
 /// List tokens associated with user.
 fn list_tokens(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
-
     let output_format = get_output_format(&param);
 
     let info = &api2::access::user::API_METHOD_LIST_TOKENS;
@@ -95,20 +91,15 @@ fn list_tokens(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, E
     let options = default_table_format_options()
         .column(ColumnConfig::new("tokenid"))
         .column(
-            ColumnConfig::new("enable")
-                .renderer(pbs_tools::format::render_bool_with_default_true)
+            ColumnConfig::new("enable").renderer(pbs_tools::format::render_bool_with_default_true),
         )
-        .column(
-            ColumnConfig::new("expire")
-                .renderer(render_expire)
-        )
+        .column(ColumnConfig::new("expire").renderer(render_expire))
         .column(ColumnConfig::new("comment"));
 
     format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
 
     Ok(Value::Null)
 }
-
 
 #[api(
     input: {
@@ -129,7 +120,6 @@ fn list_tokens(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, E
 )]
 /// List permissions of user/token.
 fn list_permissions(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
-
     let output_format = get_output_format(&param);
 
     let info = &api2::access::API_METHOD_LIST_PERMISSIONS;
@@ -140,13 +130,13 @@ fn list_permissions(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Val
 
     if output_format == "text" {
         println!("Privileges with (*) have the propagate flag set\n");
-        let data:HashMap<String, HashMap<String, bool>> = serde_json::from_value(data)?;
-        let mut paths:Vec<String> = data.keys().cloned().collect();
+        let data: HashMap<String, HashMap<String, bool>> = serde_json::from_value(data)?;
+        let mut paths: Vec<String> = data.keys().cloned().collect();
         paths.sort_unstable();
         for path in paths {
             println!("Path: {}", path);
             let priv_map = data.get(&path).unwrap();
-            let mut privs:Vec<String> = priv_map.keys().cloned().collect();
+            let mut privs: Vec<String> = priv_map.keys().cloned().collect();
             if privs.is_empty() {
                 println!("- NoAccess");
             } else {
@@ -167,54 +157,51 @@ fn list_permissions(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Val
     Ok(Value::Null)
 }
 
-
 pub fn user_commands() -> CommandLineInterface {
-
     let cmd_def = CliCommandMap::new()
         .insert("list", CliCommand::new(&API_METHOD_LIST_USERS))
         .insert(
             "create",
             // fixme: howto handle password parameter?
-            CliCommand::new(&api2::access::user::API_METHOD_CREATE_USER)
-                .arg_param(&["userid"])
+            CliCommand::new(&api2::access::user::API_METHOD_CREATE_USER).arg_param(&["userid"]),
         )
         .insert(
             "update",
             CliCommand::new(&api2::access::user::API_METHOD_UPDATE_USER)
                 .arg_param(&["userid"])
-                .completion_cb("userid", pbs_config::user::complete_userid)
+                .completion_cb("userid", pbs_config::user::complete_userid),
         )
         .insert(
             "remove",
             CliCommand::new(&api2::access::user::API_METHOD_DELETE_USER)
                 .arg_param(&["userid"])
-                .completion_cb("userid", pbs_config::user::complete_userid)
+                .completion_cb("userid", pbs_config::user::complete_userid),
         )
         .insert(
             "list-tokens",
             CliCommand::new(&API_METHOD_LIST_TOKENS)
                 .arg_param(&["userid"])
-                .completion_cb("userid", pbs_config::user::complete_userid)
+                .completion_cb("userid", pbs_config::user::complete_userid),
         )
         .insert(
             "generate-token",
             CliCommand::new(&api2::access::user::API_METHOD_GENERATE_TOKEN)
                 .arg_param(&["userid", "token-name"])
-                .completion_cb("userid", pbs_config::user::complete_userid)
+                .completion_cb("userid", pbs_config::user::complete_userid),
         )
         .insert(
             "delete-token",
             CliCommand::new(&api2::access::user::API_METHOD_DELETE_TOKEN)
                 .arg_param(&["userid", "token-name"])
                 .completion_cb("userid", pbs_config::user::complete_userid)
-                .completion_cb("token-name", pbs_config::user::complete_token_name)
+                .completion_cb("token-name", pbs_config::user::complete_token_name),
         )
         .insert(
             "permissions",
             CliCommand::new(&API_METHOD_LIST_PERMISSIONS)
                 .arg_param(&["auth-id"])
                 .completion_cb("auth-id", pbs_config::user::complete_authid)
-                .completion_cb("path", pbs_config::datastore::complete_acl_path)
+                .completion_cb("path", pbs_config::datastore::complete_acl_path),
         );
 
     cmd_def.into()

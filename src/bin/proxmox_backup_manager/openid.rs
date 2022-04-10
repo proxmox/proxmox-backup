@@ -8,7 +8,6 @@ use pbs_api_types::REALM_ID_SCHEMA;
 
 use proxmox_backup::api2;
 
-
 #[api(
     input: {
         properties: {
@@ -21,7 +20,6 @@ use proxmox_backup::api2;
 )]
 /// List configured OpenId realms
 fn list_openid_realms(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
-
     let output_format = get_output_format(&param);
 
     let info = &api2::config::access::openid::API_METHOD_LIST_OPENID_REALMS;
@@ -55,7 +53,6 @@ fn list_openid_realms(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<V
 
 /// Show OpenID realm configuration
 fn show_openid_realm(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
-
     let output_format = get_output_format(&param);
 
     let info = &api2::config::access::openid::API_METHOD_READ_OPENID_REALM;
@@ -71,32 +68,35 @@ fn show_openid_realm(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Va
 }
 
 pub fn openid_commands() -> CommandLineInterface {
-
     let cmd_def = CliCommandMap::new()
         .insert("list", CliCommand::new(&API_METHOD_LIST_OPENID_REALMS))
-        .insert("show", CliCommand::new(&API_METHOD_SHOW_OPENID_REALM)
+        .insert(
+            "show",
+            CliCommand::new(&API_METHOD_SHOW_OPENID_REALM)
                 .arg_param(&["realm"])
-                .completion_cb("realm", pbs_config::domains::complete_openid_realm_name)
+                .completion_cb("realm", pbs_config::domains::complete_openid_realm_name),
         )
-        .insert("create",
-                CliCommand::new(&api2::config::access::openid::API_METHOD_CREATE_OPENID_REALM)
+        .insert(
+            "create",
+            CliCommand::new(&api2::config::access::openid::API_METHOD_CREATE_OPENID_REALM)
                 .arg_param(&["realm"])
                 .arg_param(&["realm"])
-                .completion_cb("realm", pbs_config::domains::complete_openid_realm_name)
+                .completion_cb("realm", pbs_config::domains::complete_openid_realm_name),
         )
-        .insert("update",
-                CliCommand::new(&api2::config::access::openid::API_METHOD_UPDATE_OPENID_REALM)
+        .insert(
+            "update",
+            CliCommand::new(&api2::config::access::openid::API_METHOD_UPDATE_OPENID_REALM)
                 .arg_param(&["realm"])
                 .arg_param(&["realm"])
-                .completion_cb("realm", pbs_config::domains::complete_openid_realm_name)
+                .completion_cb("realm", pbs_config::domains::complete_openid_realm_name),
         )
-        .insert("delete",
-                CliCommand::new(&api2::config::access::openid::API_METHOD_DELETE_OPENID_REALM)
+        .insert(
+            "delete",
+            CliCommand::new(&api2::config::access::openid::API_METHOD_DELETE_OPENID_REALM)
                 .arg_param(&["realm"])
                 .arg_param(&["realm"])
-                .completion_cb("realm", pbs_config::domains::complete_openid_realm_name)
-        )
-        ;
+                .completion_cb("realm", pbs_config::domains::complete_openid_realm_name),
+        );
 
-       cmd_def.into()
+    cmd_def.into()
 }

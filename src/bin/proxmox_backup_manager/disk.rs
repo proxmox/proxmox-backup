@@ -5,14 +5,10 @@ use proxmox_router::{cli::*, ApiHandler, RpcEnvironment};
 use proxmox_schema::api;
 
 use pbs_api_types::{
-    DISK_LIST_SCHEMA, ZFS_ASHIFT_SCHEMA, ZfsRaidLevel, ZfsCompressionType,
-    BLOCKDEVICE_NAME_SCHEMA, DATASTORE_SCHEMA, 
+    ZfsCompressionType, ZfsRaidLevel, BLOCKDEVICE_NAME_SCHEMA, DATASTORE_SCHEMA, DISK_LIST_SCHEMA,
+    ZFS_ASHIFT_SCHEMA,
 };
-use proxmox_backup::tools::disks::{
-    FileSystemType,
-    SmartAttribute,
-    complete_disk_name,
-};
+use proxmox_backup::tools::disks::{complete_disk_name, FileSystemType, SmartAttribute};
 
 use proxmox_backup::api2;
 
@@ -28,7 +24,6 @@ use proxmox_backup::api2;
 )]
 /// Local disk list.
 fn list_disks(mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
-
     let output_format = get_output_format(&param);
 
     param["node"] = "localhost".into();
@@ -41,7 +36,10 @@ fn list_disks(mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value
 
     let render_wearout = |value: &Value, _record: &Value| -> Result<String, Error> {
         match value.as_f64() {
-            Some(value) => Ok(format!("{:.2} %", if value <= 100.0 { 100.0 - value   } else { 0.0 })),
+            Some(value) => Ok(format!(
+                "{:.2} %",
+                if value <= 100.0 { 100.0 - value } else { 0.0 }
+            )),
             None => Ok(String::from("-")),
         }
     };
@@ -54,8 +52,7 @@ fn list_disks(mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value
         .column(ColumnConfig::new("size"))
         .column(ColumnConfig::new("model"))
         .column(ColumnConfig::new("wearout").renderer(render_wearout))
-        .column(ColumnConfig::new("status"))
-        ;
+        .column(ColumnConfig::new("status"));
 
     format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
 
@@ -84,7 +81,6 @@ fn list_disks(mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value
 )]
 /// Show SMART attributes.
 fn smart_attributes(mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
-
     let output_format = get_output_format(&param);
 
     param["node"] = "localhost".into();
@@ -98,7 +94,12 @@ fn smart_attributes(mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result
     let mut data = data["attributes"].take();
 
     let options = default_table_format_options();
-    format_and_print_result_full(&mut data, &API_METHOD_SMART_ATTRIBUTES.returns, &output_format, &options);
+    format_and_print_result_full(
+        &mut data,
+        &API_METHOD_SMART_ATTRIBUTES.returns,
+        &output_format,
+        &options,
+    );
 
     Ok(Value::Null)
 }
@@ -123,7 +124,6 @@ async fn initialize_disk(
     mut param: Value,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-
     param["node"] = "localhost".into();
 
     let info = &api2::node::disks::API_METHOD_INITIALIZE_DISK;
@@ -166,11 +166,7 @@ async fn initialize_disk(
    },
 )]
 /// create a zfs pool
-async fn create_zpool(
-    mut param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Value, Error> {
-
+async fn create_zpool(mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
     param["node"] = "localhost".into();
 
     let info = &api2::node::disks::zfs::API_METHOD_CREATE_ZPOOL;
@@ -196,7 +192,6 @@ async fn create_zpool(
 )]
 /// Local zfs pools.
 fn list_zpools(mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
-
     let output_format = get_output_format(&param);
 
     param["node"] = "localhost".into();
@@ -216,13 +211,17 @@ fn list_zpools(mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Valu
         if size == 0 {
             bail!("got zero size");
         }
-        Ok(format!("{:.2} %", (value as f64)/(size as f64)))
+        Ok(format!("{:.2} %", (value as f64) / (size as f64)))
     };
 
     let options = default_table_format_options()
         .column(ColumnConfig::new("name"))
         .column(ColumnConfig::new("size"))
-        .column(ColumnConfig::new("alloc").right_align(true).renderer(render_usage))
+        .column(
+            ColumnConfig::new("alloc")
+                .right_align(true)
+                .renderer(render_usage),
+        )
         .column(ColumnConfig::new("health"));
 
     format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
@@ -231,13 +230,13 @@ fn list_zpools(mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Valu
 }
 
 pub fn zpool_commands() -> CommandLineInterface {
-
     let cmd_def = CliCommandMap::new()
         .insert("list", CliCommand::new(&API_METHOD_LIST_ZPOOLS))
-        .insert("create",
-                CliCommand::new(&API_METHOD_CREATE_ZPOOL)
+        .insert(
+            "create",
+            CliCommand::new(&API_METHOD_CREATE_ZPOOL)
                 .arg_param(&["name"])
-                .completion_cb("devices", complete_disk_name) // fixme: complete the list
+                .completion_cb("devices", complete_disk_name), // fixme: complete the list
         );
 
     cmd_def.into()
@@ -254,8 +253,10 @@ pub fn zpool_commands() -> CommandLineInterface {
     }
 )]
 /// List systemd datastore mount units.
-fn list_datastore_mounts(mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
-
+fn list_datastore_mounts(
+    mut param: Value,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
     let output_format = get_output_format(&param);
 
     param["node"] = "localhost".into();
@@ -303,7 +304,6 @@ async fn create_datastore_disk(
     mut param: Value,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-
     param["node"] = "localhost".into();
 
     let info = &api2::node::disks::directory::API_METHOD_CREATE_DATASTORE_DISK;
@@ -318,33 +318,34 @@ async fn create_datastore_disk(
 }
 
 pub fn filesystem_commands() -> CommandLineInterface {
-
     let cmd_def = CliCommandMap::new()
         .insert("list", CliCommand::new(&API_METHOD_LIST_DATASTORE_MOUNTS))
-        .insert("create",
-                CliCommand::new(&API_METHOD_CREATE_DATASTORE_DISK)
+        .insert(
+            "create",
+            CliCommand::new(&API_METHOD_CREATE_DATASTORE_DISK)
                 .arg_param(&["name"])
-                .completion_cb("disk", complete_disk_name)
+                .completion_cb("disk", complete_disk_name),
         );
 
     cmd_def.into()
 }
 
 pub fn disk_commands() -> CommandLineInterface {
-
     let cmd_def = CliCommandMap::new()
         .insert("list", CliCommand::new(&API_METHOD_LIST_DISKS))
-        .insert("smart-attributes",
-                CliCommand::new(&API_METHOD_SMART_ATTRIBUTES)
+        .insert(
+            "smart-attributes",
+            CliCommand::new(&API_METHOD_SMART_ATTRIBUTES)
                 .arg_param(&["disk"])
-                .completion_cb("disk", complete_disk_name)
+                .completion_cb("disk", complete_disk_name),
         )
         .insert("fs", filesystem_commands())
         .insert("zpool", zpool_commands())
-        .insert("initialize",
-                CliCommand::new(&API_METHOD_INITIALIZE_DISK)
+        .insert(
+            "initialize",
+            CliCommand::new(&API_METHOD_INITIALIZE_DISK)
                 .arg_param(&["disk"])
-                .completion_cb("disk", complete_disk_name)
+                .completion_cb("disk", complete_disk_name),
         );
 
     cmd_def.into()

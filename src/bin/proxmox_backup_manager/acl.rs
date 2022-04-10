@@ -18,7 +18,6 @@ use proxmox_backup::api2;
 )]
 /// Access Control list.
 fn list_acls(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
-
     let output_format = get_output_format(&param);
 
     let info = &api2::access::acl::API_METHOD_READ_ACL;
@@ -28,7 +27,9 @@ fn list_acls(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Err
     };
 
     fn render_ugid(value: &Value, record: &Value) -> Result<String, Error> {
-        if value.is_null() { return Ok(String::new()); }
+        if value.is_null() {
+            return Ok(String::new());
+        }
         let ugid = value.as_str().unwrap();
         let ugid_type = record["ugid_type"].as_str().unwrap();
 
@@ -53,7 +54,6 @@ fn list_acls(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Err
 }
 
 pub fn acl_commands() -> CommandLineInterface {
-
     let cmd_def = CliCommandMap::new()
         .insert("list", CliCommand::new(&API_METHOD_LIST_ACLS))
         .insert(
@@ -61,8 +61,7 @@ pub fn acl_commands() -> CommandLineInterface {
             CliCommand::new(&api2::access::acl::API_METHOD_UPDATE_ACL)
                 .arg_param(&["path", "role"])
                 .completion_cb("auth-id", pbs_config::user::complete_authid)
-                .completion_cb("path", pbs_config::datastore::complete_acl_path)
-
+                .completion_cb("path", pbs_config::datastore::complete_acl_path),
         );
 
     cmd_def.into()

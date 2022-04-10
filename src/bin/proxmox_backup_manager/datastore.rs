@@ -4,8 +4,8 @@ use serde_json::Value;
 use proxmox_router::{cli::*, ApiHandler, RpcEnvironment};
 use proxmox_schema::api;
 
-use pbs_client::view_task_result;
 use pbs_api_types::{DataStoreConfig, DATASTORE_SCHEMA};
+use pbs_client::view_task_result;
 
 use proxmox_backup::api2;
 use proxmox_backup::client_helpers::connect_to_localhost;
@@ -22,7 +22,6 @@ use proxmox_backup::client_helpers::connect_to_localhost;
 )]
 /// Datastore list.
 fn list_datastores(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
-
     let output_format = get_output_format(&param);
 
     let info = &api2::config::datastore::API_METHOD_LIST_DATASTORES;
@@ -56,7 +55,6 @@ fn list_datastores(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Valu
 )]
 /// Show datastore configuration
 fn show_datastore(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
-
     let output_format = get_output_format(&param);
 
     let info = &api2::config::datastore::API_METHOD_READ_DATASTORE;
@@ -88,12 +86,13 @@ fn show_datastore(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value
 )]
 /// Create new datastore config.
 async fn create_datastore(mut param: Value) -> Result<Value, Error> {
-
     let output_format = extract_output_format(&mut param);
 
     let client = connect_to_localhost()?;
 
-    let result = client.post("api2/json/config/datastore", Some(param)).await?;
+    let result = client
+        .post("api2/json/config/datastore", Some(param))
+        .await?;
 
     view_task_result(&client, result, &output_format).await?;
 
@@ -101,29 +100,37 @@ async fn create_datastore(mut param: Value) -> Result<Value, Error> {
 }
 
 pub fn datastore_commands() -> CommandLineInterface {
-
     let cmd_def = CliCommandMap::new()
         .insert("list", CliCommand::new(&API_METHOD_LIST_DATASTORES))
-        .insert("show",
-                CliCommand::new(&API_METHOD_SHOW_DATASTORE)
+        .insert(
+            "show",
+            CliCommand::new(&API_METHOD_SHOW_DATASTORE)
+                .arg_param(&["name"])
+                .completion_cb("name", pbs_config::datastore::complete_datastore_name),
+        )
+        .insert(
+            "create",
+            CliCommand::new(&API_METHOD_CREATE_DATASTORE).arg_param(&["name", "path"]),
+        )
+        .insert(
+            "update",
+            CliCommand::new(&api2::config::datastore::API_METHOD_UPDATE_DATASTORE)
                 .arg_param(&["name"])
                 .completion_cb("name", pbs_config::datastore::complete_datastore_name)
+                .completion_cb(
+                    "gc-schedule",
+                    pbs_config::datastore::complete_calendar_event,
+                )
+                .completion_cb(
+                    "prune-schedule",
+                    pbs_config::datastore::complete_calendar_event,
+                ),
         )
-        .insert("create",
-                CliCommand::new(&API_METHOD_CREATE_DATASTORE)
-                .arg_param(&["name", "path"])
-        )
-        .insert("update",
-                CliCommand::new(&api2::config::datastore::API_METHOD_UPDATE_DATASTORE)
+        .insert(
+            "remove",
+            CliCommand::new(&api2::config::datastore::API_METHOD_DELETE_DATASTORE)
                 .arg_param(&["name"])
-                .completion_cb("name", pbs_config::datastore::complete_datastore_name)
-                .completion_cb("gc-schedule", pbs_config::datastore::complete_calendar_event)
-                .completion_cb("prune-schedule", pbs_config::datastore::complete_calendar_event)
-        )
-        .insert("remove",
-                CliCommand::new(&api2::config::datastore::API_METHOD_DELETE_DATASTORE)
-                .arg_param(&["name"])
-                .completion_cb("name", pbs_config::datastore::complete_datastore_name)
+                .completion_cb("name", pbs_config::datastore::complete_datastore_name),
         );
 
     cmd_def.into()

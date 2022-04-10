@@ -20,7 +20,6 @@ use proxmox_backup::api2;
 )]
 /// List all verification jobs
 fn list_verification_jobs(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
-
     let output_format = get_output_format(&param);
 
     let info = &api2::config::verify::API_METHOD_LIST_VERIFICATION_JOBS;
@@ -57,7 +56,6 @@ fn list_verification_jobs(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Resu
 )]
 /// Show verification job configuration
 fn show_verification_job(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
-
     let output_format = get_output_format(&param);
 
     let info = &api2::config::verify::API_METHOD_READ_VERIFICATION_JOB;
@@ -73,33 +71,36 @@ fn show_verification_job(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Resul
 }
 
 pub fn verify_job_commands() -> CommandLineInterface {
-
     let cmd_def = CliCommandMap::new()
         .insert("list", CliCommand::new(&API_METHOD_LIST_VERIFICATION_JOBS))
-        .insert("show",
-                CliCommand::new(&API_METHOD_SHOW_VERIFICATION_JOB)
+        .insert(
+            "show",
+            CliCommand::new(&API_METHOD_SHOW_VERIFICATION_JOB)
+                .arg_param(&["id"])
+                .completion_cb("id", pbs_config::verify::complete_verification_job_id),
+        )
+        .insert(
+            "create",
+            CliCommand::new(&api2::config::verify::API_METHOD_CREATE_VERIFICATION_JOB)
                 .arg_param(&["id"])
                 .completion_cb("id", pbs_config::verify::complete_verification_job_id)
+                .completion_cb("schedule", pbs_config::datastore::complete_calendar_event)
+                .completion_cb("store", pbs_config::datastore::complete_datastore_name),
         )
-        .insert("create",
-                CliCommand::new(&api2::config::verify::API_METHOD_CREATE_VERIFICATION_JOB)
+        .insert(
+            "update",
+            CliCommand::new(&api2::config::verify::API_METHOD_UPDATE_VERIFICATION_JOB)
                 .arg_param(&["id"])
                 .completion_cb("id", pbs_config::verify::complete_verification_job_id)
                 .completion_cb("schedule", pbs_config::datastore::complete_calendar_event)
                 .completion_cb("store", pbs_config::datastore::complete_datastore_name)
+                .completion_cb("remote-store", crate::complete_remote_datastore_name),
         )
-        .insert("update",
-                CliCommand::new(&api2::config::verify::API_METHOD_UPDATE_VERIFICATION_JOB)
+        .insert(
+            "remove",
+            CliCommand::new(&api2::config::verify::API_METHOD_DELETE_VERIFICATION_JOB)
                 .arg_param(&["id"])
-                .completion_cb("id", pbs_config::verify::complete_verification_job_id)
-                .completion_cb("schedule", pbs_config::datastore::complete_calendar_event)
-                .completion_cb("store", pbs_config::datastore::complete_datastore_name)
-                .completion_cb("remote-store", crate::complete_remote_datastore_name)
-        )
-        .insert("remove",
-                CliCommand::new(&api2::config::verify::API_METHOD_DELETE_VERIFICATION_JOB)
-                .arg_param(&["id"])
-                .completion_cb("id", pbs_config::verify::complete_verification_job_id)
+                .completion_cb("id", pbs_config::verify::complete_verification_job_id),
         );
 
     cmd_def.into()

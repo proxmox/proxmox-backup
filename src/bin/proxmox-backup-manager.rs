@@ -4,19 +4,19 @@ use std::io::{self, Write};
 use anyhow::Error;
 use serde_json::{json, Value};
 
-use proxmox_sys::fs::CreateOptions;
 use proxmox_router::{cli::*, RpcEnvironment};
 use proxmox_schema::api;
+use proxmox_sys::fs::CreateOptions;
 
+use pbs_api_types::percent_encoding::percent_encode_component;
+use pbs_api_types::{
+    GroupFilter, SyncJobConfig, DATASTORE_SCHEMA, GROUP_FILTER_LIST_SCHEMA,
+    IGNORE_VERIFIED_BACKUPS_SCHEMA, REMOTE_ID_SCHEMA, REMOVE_VANISHED_BACKUPS_SCHEMA, UPID_SCHEMA,
+    VERIFICATION_OUTDATED_AFTER_SCHEMA,
+};
 use pbs_client::{display_task_log, view_task_result};
 use pbs_config::sync;
 use pbs_tools::json::required_string_param;
-use pbs_api_types::percent_encoding::percent_encode_component;
-use pbs_api_types::{
-    GroupFilter, SyncJobConfig,
-    DATASTORE_SCHEMA, GROUP_FILTER_LIST_SCHEMA, IGNORE_VERIFIED_BACKUPS_SCHEMA, REMOTE_ID_SCHEMA,
-    REMOVE_VANISHED_BACKUPS_SCHEMA, UPID_SCHEMA, VERIFICATION_OUTDATED_AFTER_SCHEMA,
-};
 
 use proxmox_rest_server::wait_for_local_worker;
 
@@ -42,7 +42,6 @@ use proxmox_backup_manager::*;
 )]
 /// Start garbage collection for a specific datastore.
 async fn start_garbage_collection(param: Value) -> Result<Value, Error> {
-
     let output_format = get_output_format(&param);
 
     let store = required_string_param(&param, "store")?;
@@ -73,7 +72,6 @@ async fn start_garbage_collection(param: Value) -> Result<Value, Error> {
 )]
 /// Show garbage collection status for a specific datastore.
 async fn garbage_collection_status(param: Value) -> Result<Value, Error> {
-
     let output_format = get_output_format(&param);
 
     let store = required_string_param(&param, "store")?;
@@ -94,17 +92,18 @@ async fn garbage_collection_status(param: Value) -> Result<Value, Error> {
 }
 
 fn garbage_collection_commands() -> CommandLineInterface {
-
     let cmd_def = CliCommandMap::new()
-        .insert("status",
-                CliCommand::new(&API_METHOD_GARBAGE_COLLECTION_STATUS)
+        .insert(
+            "status",
+            CliCommand::new(&API_METHOD_GARBAGE_COLLECTION_STATUS)
                 .arg_param(&["store"])
-                .completion_cb("store", pbs_config::datastore::complete_datastore_name)
+                .completion_cb("store", pbs_config::datastore::complete_datastore_name),
         )
-        .insert("start",
-                CliCommand::new(&API_METHOD_START_GARBAGE_COLLECTION)
+        .insert(
+            "start",
+            CliCommand::new(&API_METHOD_START_GARBAGE_COLLECTION)
                 .arg_param(&["store"])
-                .completion_cb("store", pbs_config::datastore::complete_datastore_name)
+                .completion_cb("store", pbs_config::datastore::complete_datastore_name),
         );
 
     cmd_def.into()
@@ -135,7 +134,6 @@ fn garbage_collection_commands() -> CommandLineInterface {
 )]
 /// List running server tasks.
 async fn task_list(param: Value) -> Result<Value, Error> {
-
     let output_format = get_output_format(&param);
 
     let client = connect_to_localhost()?;
@@ -147,15 +145,25 @@ async fn task_list(param: Value) -> Result<Value, Error> {
         "start": 0,
         "limit": limit,
     });
-    let mut result = client.get("api2/json/nodes/localhost/tasks", Some(args)).await?;
+    let mut result = client
+        .get("api2/json/nodes/localhost/tasks", Some(args))
+        .await?;
 
     let mut data = result["data"].take();
     let return_type = &api2::node::tasks::API_METHOD_LIST_TASKS.returns;
 
     use pbs_tools::format::{render_epoch, render_task_status};
     let options = default_table_format_options()
-        .column(ColumnConfig::new("starttime").right_align(false).renderer(render_epoch))
-        .column(ColumnConfig::new("endtime").right_align(false).renderer(render_epoch))
+        .column(
+            ColumnConfig::new("starttime")
+                .right_align(false)
+                .renderer(render_epoch),
+        )
+        .column(
+            ColumnConfig::new("endtime")
+                .right_align(false)
+                .renderer(render_epoch),
+        )
         .column(ColumnConfig::new("upid"))
         .column(ColumnConfig::new("status").renderer(render_task_status));
 
@@ -175,7 +183,6 @@ async fn task_list(param: Value) -> Result<Value, Error> {
 )]
 /// Display the task log.
 async fn task_log(param: Value) -> Result<Value, Error> {
-
     let upid = required_string_param(&param, "upid")?;
 
     let client = connect_to_localhost()?;
@@ -196,24 +203,23 @@ async fn task_log(param: Value) -> Result<Value, Error> {
 )]
 /// Try to stop a specific task.
 async fn task_stop(param: Value) -> Result<Value, Error> {
-
     let upid_str = required_string_param(&param, "upid")?;
 
     let client = connect_to_localhost()?;
 
-    let path = format!("api2/json/nodes/localhost/tasks/{}", percent_encode_component(upid_str));
+    let path = format!(
+        "api2/json/nodes/localhost/tasks/{}",
+        percent_encode_component(upid_str)
+    );
     let _ = client.delete(&path, None).await?;
 
     Ok(Value::Null)
 }
 
 fn task_mgmt_cli() -> CommandLineInterface {
+    let task_log_cmd_def = CliCommand::new(&API_METHOD_TASK_LOG).arg_param(&["upid"]);
 
-    let task_log_cmd_def = CliCommand::new(&API_METHOD_TASK_LOG)
-        .arg_param(&["upid"]);
-
-    let task_stop_cmd_def = CliCommand::new(&API_METHOD_TASK_STOP)
-        .arg_param(&["upid"]);
+    let task_stop_cmd_def = CliCommand::new(&API_METHOD_TASK_STOP).arg_param(&["upid"]);
 
     let cmd_def = CliCommandMap::new()
         .insert("list", CliCommand::new(&API_METHOD_TASK_LIST))
@@ -260,7 +266,6 @@ async fn pull_datastore(
     group_filter: Option<Vec<GroupFilter>>,
     param: Value,
 ) -> Result<Value, Error> {
-
     let output_format = get_output_format(&param);
 
     let client = connect_to_localhost()?;
@@ -308,11 +313,7 @@ async fn pull_datastore(
    }
 )]
 /// Verify backups
-async fn verify(
-    store: String,
-    mut param: Value,
-) -> Result<Value, Error> {
-
+async fn verify(store: String, mut param: Value) -> Result<Value, Error> {
     let output_format = extract_output_format(&mut param);
 
     let client = connect_to_localhost()?;
@@ -357,15 +358,18 @@ async fn get_versions(verbose: bool, param: Value) -> Result<Value, Error> {
     let output_format = get_output_format(&param);
 
     let packages = crate::api2::node::apt::get_versions()?;
-    let mut packages = json!(if verbose { &packages[..] } else { &packages[1..2] });
+    let mut packages = json!(if verbose {
+        &packages[..]
+    } else {
+        &packages[1..2]
+    });
 
     let options = default_table_format_options()
         .disable_sort()
         .noborder(true) // just not helpful for version info which gets copy pasted often
         .column(ColumnConfig::new("Package"))
         .column(ColumnConfig::new("Version"))
-        .column(ColumnConfig::new("ExtraInfo").header("Extra Info"))
-        ;
+        .column(ColumnConfig::new("ExtraInfo").header("Extra Info"));
     let return_type = &crate::api2::node::apt::API_METHOD_GET_VERSIONS.returns;
 
     format_and_print_result_full(&mut packages, return_type, &output_format, &options);
@@ -374,7 +378,6 @@ async fn get_versions(verbose: bool, param: Value) -> Result<Value, Error> {
 }
 
 async fn run() -> Result<(), Error> {
-
     let cmd_def = CliCommandMap::new()
         .insert("acl", acl_commands())
         .insert("datastore", datastore_commands())
@@ -397,33 +400,40 @@ async fn run() -> Result<(), Error> {
             "pull",
             CliCommand::new(&API_METHOD_PULL_DATASTORE)
                 .arg_param(&["remote", "remote-store", "local-store"])
-                .completion_cb("local-store", pbs_config::datastore::complete_datastore_name)
+                .completion_cb(
+                    "local-store",
+                    pbs_config::datastore::complete_datastore_name,
+                )
                 .completion_cb("remote", pbs_config::remote::complete_remote_name)
                 .completion_cb("remote-store", complete_remote_datastore_name)
-                .completion_cb("group_filter", complete_remote_datastore_group_filter)
+                .completion_cb("group_filter", complete_remote_datastore_group_filter),
         )
         .insert(
             "verify",
             CliCommand::new(&API_METHOD_VERIFY)
                 .arg_param(&["store"])
-                .completion_cb("store", pbs_config::datastore::complete_datastore_name)
+                .completion_cb("store", pbs_config::datastore::complete_datastore_name),
         )
-        .insert("report",
-            CliCommand::new(&API_METHOD_REPORT)
-        )
-        .insert("versions",
-            CliCommand::new(&API_METHOD_GET_VERSIONS)
-        );
+        .insert("report", CliCommand::new(&API_METHOD_REPORT))
+        .insert("versions", CliCommand::new(&API_METHOD_GET_VERSIONS));
 
     let args: Vec<String> = std::env::args().take(2).collect();
     let avoid_init = args.len() >= 2 && (args[1] == "bashcomplete" || args[1] == "printdoc");
 
     if !avoid_init {
         let backup_user = pbs_config::backup_user()?;
-        let file_opts = CreateOptions::new().owner(backup_user.uid).group(backup_user.gid);
-        proxmox_rest_server::init_worker_tasks(pbs_buildcfg::PROXMOX_BACKUP_LOG_DIR_M!().into(), file_opts)?;
+        let file_opts = CreateOptions::new()
+            .owner(backup_user.uid)
+            .group(backup_user.gid);
+        proxmox_rest_server::init_worker_tasks(
+            pbs_buildcfg::PROXMOX_BACKUP_LOG_DIR_M!().into(),
+            file_opts,
+        )?;
 
-        let mut commando_sock = proxmox_rest_server::CommandSocket::new(proxmox_rest_server::our_ctrl_sock(), backup_user.gid);
+        let mut commando_sock = proxmox_rest_server::CommandSocket::new(
+            proxmox_rest_server::our_ctrl_sock(),
+            backup_user.gid,
+        );
         proxmox_rest_server::register_task_control_commands(&mut commando_sock)?;
         commando_sock.spawn()?;
     }
@@ -437,7 +447,6 @@ async fn run() -> Result<(), Error> {
 }
 
 fn main() -> Result<(), Error> {
-
     proxmox_backup::tools::setup_safe_path_env();
 
     proxmox_async::runtime::main(run())
@@ -450,34 +459,28 @@ fn get_sync_job(id: &String) -> Result<SyncJobConfig, Error> {
 }
 
 fn get_remote(param: &HashMap<String, String>) -> Option<String> {
-    param
-        .get("remote")
-        .map(|r| r.to_owned())
-        .or_else(|| {
-            if let Some(id) = param.get("id") {
-                if let Ok(job) = get_sync_job(id) {
-                    return Some(job.remote);
-                }
+    param.get("remote").map(|r| r.to_owned()).or_else(|| {
+        if let Some(id) = param.get("id") {
+            if let Ok(job) = get_sync_job(id) {
+                return Some(job.remote);
             }
-            None
-        })
+        }
+        None
+    })
 }
 
 fn get_remote_store(param: &HashMap<String, String>) -> Option<(String, String)> {
     let mut job: Option<SyncJobConfig> = None;
 
-    let remote = param
-        .get("remote")
-        .map(|r| r.to_owned())
-        .or_else(|| {
-            if let Some(id) = param.get("id") {
-                job = get_sync_job(id).ok();
-                if let Some(ref job) = job {
-                    return Some(job.remote.clone());
-                }
+    let remote = param.get("remote").map(|r| r.to_owned()).or_else(|| {
+        if let Some(id) = param.get("id") {
+            job = get_sync_job(id).ok();
+            if let Some(ref job) = job {
+                return Some(job.remote.clone());
             }
-            None
-        });
+        }
+        None
+    });
 
     if let Some(remote) = remote {
         let store = param
@@ -486,7 +489,7 @@ fn get_remote_store(param: &HashMap<String, String>) -> Option<(String, String)>
             .or_else(|| job.map(|job| job.remote_store));
 
         if let Some(store) = store {
-            return Some((remote, store))
+            return Some((remote, store));
         }
     }
 
@@ -495,14 +498,12 @@ fn get_remote_store(param: &HashMap<String, String>) -> Option<(String, String)>
 
 // shell completion helper
 pub fn complete_remote_datastore_name(_arg: &str, param: &HashMap<String, String>) -> Vec<String> {
-
     let mut list = Vec::new();
 
     if let Some(remote) = get_remote(param) {
         if let Ok(data) = proxmox_async::runtime::block_on(async move {
-                crate::api2::config::remote::scan_remote_datastores(remote).await
-            }) {
-
+            crate::api2::config::remote::scan_remote_datastores(remote).await
+        }) {
             for item in data {
                 list.push(item.store);
             }
@@ -514,14 +515,13 @@ pub fn complete_remote_datastore_name(_arg: &str, param: &HashMap<String, String
 
 // shell completion helper
 pub fn complete_remote_datastore_group(_arg: &str, param: &HashMap<String, String>) -> Vec<String> {
-
     let mut list = Vec::new();
 
     if let Some((remote, remote_store)) = get_remote_store(param) {
         if let Ok(data) = proxmox_async::runtime::block_on(async move {
-            crate::api2::config::remote::scan_remote_groups(remote.clone(), remote_store.clone()).await
+            crate::api2::config::remote::scan_remote_groups(remote.clone(), remote_store.clone())
+                .await
         }) {
-
             for item in data {
                 list.push(format!("{}/{}", item.backup_type, item.backup_id));
             }
@@ -532,8 +532,10 @@ pub fn complete_remote_datastore_group(_arg: &str, param: &HashMap<String, Strin
 }
 
 // shell completion helper
-pub fn complete_remote_datastore_group_filter(_arg: &str, param: &HashMap<String, String>) -> Vec<String> {
-
+pub fn complete_remote_datastore_group_filter(
+    _arg: &str,
+    param: &HashMap<String, String>,
+) -> Vec<String> {
     let mut list = Vec::new();
 
     list.push("regex:".to_string());
@@ -541,7 +543,11 @@ pub fn complete_remote_datastore_group_filter(_arg: &str, param: &HashMap<String
     list.push("type:host".to_string());
     list.push("type:vm".to_string());
 
-    list.extend(complete_remote_datastore_group(_arg, param).iter().map(|group| format!("group:{}", group)));
+    list.extend(
+        complete_remote_datastore_group(_arg, param)
+            .iter()
+            .map(|group| format!("group:{}", group)),
+    );
 
     list
 }

@@ -10,7 +10,6 @@ use pbs_tools::format::render_bytes_human_readable;
 use proxmox_backup::api2;
 use proxmox_backup::client_helpers::connect_to_localhost;
 
-
 #[api(
     input: {
         properties: {
@@ -23,7 +22,6 @@ use proxmox_backup::client_helpers::connect_to_localhost;
 )]
 /// List configured traffic control rules.
 fn list_traffic_controls(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
-
     let output_format = get_output_format(&param);
 
     let info = &api2::config::traffic_control::API_METHOD_LIST_TRAFFIC_CONTROLS;
@@ -62,7 +60,6 @@ fn list_traffic_controls(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Resul
 )]
 /// Show traffic control configuration
 fn show_traffic_control(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
-
     let output_format = get_output_format(&param);
 
     let info = &api2::config::traffic_control::API_METHOD_READ_TRAFFIC_CONTROL;
@@ -89,7 +86,6 @@ fn show_traffic_control(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result
 )]
 /// Show current traffic for all rules.
 async fn show_current_traffic(param: Value) -> Result<Value, Error> {
-
     let output_format = get_output_format(&param);
 
     let client = connect_to_localhost()?;
@@ -111,7 +107,6 @@ async fn show_current_traffic(param: Value) -> Result<Value, Error> {
 }
 
 pub fn traffic_control_commands() -> CommandLineInterface {
-
     let cmd_def = CliCommandMap::new()
         .insert("list", CliCommand::new(&API_METHOD_LIST_TRAFFIC_CONTROLS))
         .insert("traffic", CliCommand::new(&API_METHOD_SHOW_CURRENT_TRAFFIC))
@@ -119,24 +114,33 @@ pub fn traffic_control_commands() -> CommandLineInterface {
             "show",
             CliCommand::new(&API_METHOD_SHOW_TRAFFIC_CONTROL)
                 .arg_param(&["name"])
-                .completion_cb("name", pbs_config::traffic_control::complete_traffic_control_name)
+                .completion_cb(
+                    "name",
+                    pbs_config::traffic_control::complete_traffic_control_name,
+                ),
         )
         .insert(
             "create",
             CliCommand::new(&api2::config::traffic_control::API_METHOD_CREATE_TRAFFIC_CONTROL)
-                .arg_param(&["name"])
+                .arg_param(&["name"]),
         )
         .insert(
             "update",
             CliCommand::new(&api2::config::traffic_control::API_METHOD_UPDATE_TRAFFIC_CONTROL)
                 .arg_param(&["name"])
-                .completion_cb("name", pbs_config::traffic_control::complete_traffic_control_name)
+                .completion_cb(
+                    "name",
+                    pbs_config::traffic_control::complete_traffic_control_name,
+                ),
         )
         .insert(
             "remove",
             CliCommand::new(&api2::config::traffic_control::API_METHOD_DELETE_TRAFFIC_CONTROL)
                 .arg_param(&["name"])
-                .completion_cb("name", pbs_config::traffic_control::complete_traffic_control_name)
+                .completion_cb(
+                    "name",
+                    pbs_config::traffic_control::complete_traffic_control_name,
+                ),
         );
 
     cmd_def.into()
