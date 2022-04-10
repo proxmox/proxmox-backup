@@ -1,4 +1,4 @@
-use anyhow::{Error};
+use anyhow::Error;
 use futures::*;
 
 extern crate proxmox_backup;
@@ -19,7 +19,6 @@ fn main() {
 }
 
 async fn run() -> Result<(), Error> {
-
     let file = tokio::fs::File::open("random-test.dat").await?;
 
     let stream = tokio_util::codec::FramedRead::new(file, tokio_util::codec::BytesCodec::new())
@@ -34,7 +33,7 @@ async fn run() -> Result<(), Error> {
     let mut repeat = 0;
     let mut stream_len = 0;
     while let Some(chunk) = chunk_stream.try_next().await? {
-        if chunk.len() > 16*1024*1024 {
+        if chunk.len() > 16 * 1024 * 1024 {
             panic!("Chunk too large {}", chunk.len());
         }
 
@@ -44,10 +43,19 @@ async fn run() -> Result<(), Error> {
         println!("Got chunk {}", chunk.len());
     }
 
-    let speed = ((stream_len*1_000_000)/(1024*1024))/(start_time.elapsed().as_micros() as usize);
-    println!("Uploaded {} chunks in {} seconds ({} MB/s).", repeat, start_time.elapsed().as_secs(), speed);
-    println!("Average chunk size was {} bytes.", stream_len/repeat);
-    println!("time per request: {} microseconds.", (start_time.elapsed().as_micros())/(repeat as u128));
+    let speed =
+        ((stream_len * 1_000_000) / (1024 * 1024)) / (start_time.elapsed().as_micros() as usize);
+    println!(
+        "Uploaded {} chunks in {} seconds ({} MB/s).",
+        repeat,
+        start_time.elapsed().as_secs(),
+        speed
+    );
+    println!("Average chunk size was {} bytes.", stream_len / repeat);
+    println!(
+        "time per request: {} microseconds.",
+        (start_time.elapsed().as_micros()) / (repeat as u128)
+    );
 
     Ok(())
 }

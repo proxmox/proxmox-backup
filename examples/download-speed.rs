@@ -3,14 +3,13 @@ use std::io::Write;
 use anyhow::Error;
 
 use pbs_api_types::Authid;
-use pbs_client::{HttpClient, HttpClientOptions, BackupReader};
+use pbs_client::{BackupReader, HttpClient, HttpClientOptions};
 
 pub struct DummyWriter {
     bytes: usize,
 }
 
 impl Write for DummyWriter {
-
     fn write(&mut self, data: &[u8]) -> Result<usize, std::io::Error> {
         self.bytes += data.len();
         Ok(data.len())
@@ -21,9 +20,7 @@ impl Write for DummyWriter {
     }
 }
 
-
 async fn run() -> Result<(), Error> {
-
     let host = "localhost";
 
     let auth_id = Authid::root_auth_id();
@@ -36,8 +33,8 @@ async fn run() -> Result<(), Error> {
 
     let backup_time = proxmox_time::parse_rfc3339("2019-06-28T10:49:48Z")?;
 
-    let client = BackupReader::start(client, None, "store2", "host", "elsa", backup_time, true)
-        .await?;
+    let client =
+        BackupReader::start(client, None, "store2", "host", "elsa", backup_time, true).await?;
 
     let start = std::time::SystemTime::now();
 
@@ -50,10 +47,13 @@ async fn run() -> Result<(), Error> {
     }
 
     let elapsed = start.elapsed().unwrap();
-    let elapsed = (elapsed.as_secs() as f64) +
-        (elapsed.subsec_millis() as f64)/1000.0;
+    let elapsed = (elapsed.as_secs() as f64) + (elapsed.subsec_millis() as f64) / 1000.0;
 
-    println!("Downloaded {} bytes, {} MB/s", bytes, (bytes as f64)/(elapsed*1024.0*1024.0));
+    println!(
+        "Downloaded {} bytes, {} MB/s",
+        bytes,
+        (bytes as f64) / (elapsed * 1024.0 * 1024.0)
+    );
 
     Ok(())
 }

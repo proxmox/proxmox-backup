@@ -1,7 +1,7 @@
-use anyhow::{Error};
+use anyhow::Error;
 
-use proxmox_schema::*;
 use proxmox_router::cli::*;
+use proxmox_schema::*;
 
 #[api(
     input: {
@@ -16,9 +16,7 @@ use proxmox_router::cli::*;
 /// Echo command. Print the passed text.
 ///
 /// Returns: nothing
-fn echo_command(
-    text: String,
-) -> Result<(), Error> {
+fn echo_command(text: String) -> Result<(), Error> {
     println!("{}", text);
     Ok(())
 }
@@ -37,9 +35,7 @@ fn echo_command(
 /// Hello command.
 ///
 /// Returns: nothing
-fn hello_command(
-    verbose: Option<bool>,
-) -> Result<(), Error> {
+fn hello_command(verbose: Option<bool>) -> Result<(), Error> {
     if verbose.unwrap_or(false) {
         println!("Hello, how are you!");
     } else {
@@ -54,7 +50,6 @@ fn hello_command(
 ///
 /// Returns: nothing
 fn quit_command() -> Result<(), Error> {
-
     println!("Goodbye.");
 
     std::process::exit(0);
@@ -64,8 +59,9 @@ fn cli_definition() -> CommandLineInterface {
     let cmd_def = CliCommandMap::new()
         .insert("quit", CliCommand::new(&API_METHOD_QUIT_COMMAND))
         .insert("hello", CliCommand::new(&API_METHOD_HELLO_COMMAND))
-        .insert("echo", CliCommand::new(&API_METHOD_ECHO_COMMAND)
-                .arg_param(&["text"])
+        .insert(
+            "echo",
+            CliCommand::new(&API_METHOD_ECHO_COMMAND).arg_param(&["text"]),
         )
         .insert_help();
 
@@ -73,7 +69,6 @@ fn cli_definition() -> CommandLineInterface {
 }
 
 fn main() -> Result<(), Error> {
-
     let helper = CliHelper::new(cli_definition());
 
     let mut rl = rustyline::Editor::<CliHelper>::new();

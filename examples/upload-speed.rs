@@ -1,10 +1,9 @@
-use anyhow::{Error};
+use anyhow::Error;
 
-use pbs_client::{HttpClient, HttpClientOptions, BackupWriter};
 use pbs_api_types::Authid;
+use pbs_client::{BackupWriter, HttpClient, HttpClientOptions};
 
 async fn upload_speed() -> Result<f64, Error> {
-
     let host = "localhost";
     let datastore = "store2";
 
@@ -18,7 +17,17 @@ async fn upload_speed() -> Result<f64, Error> {
 
     let backup_time = proxmox_time::epoch_i64();
 
-    let client = BackupWriter::start(client, None, datastore, "host", "speedtest", backup_time, false, true).await?;
+    let client = BackupWriter::start(
+        client,
+        None,
+        datastore,
+        "host",
+        "speedtest",
+        backup_time,
+        false,
+        true,
+    )
+    .await?;
 
     println!("start upload speed test");
     let res = client.upload_speedtest(true).await?;
@@ -26,7 +35,7 @@ async fn upload_speed() -> Result<f64, Error> {
     Ok(res)
 }
 
-fn main()  {
+fn main() {
     match proxmox_async::runtime::main(upload_speed()) {
         Ok(mbs) => {
             println!("average upload speed: {} MB/s", mbs);

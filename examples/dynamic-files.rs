@@ -1,6 +1,6 @@
-use std::thread;
-use std::path::PathBuf;
 use std::io::Write;
+use std::path::PathBuf;
+use std::thread;
 
 use anyhow::{bail, Error};
 
@@ -19,15 +19,15 @@ use anyhow::{bail, Error};
 // Error: detected shrunk file "./dyntest1/testfile0.dat" (22020096 < 12679380992)
 
 fn create_large_file(path: PathBuf) {
-
     println!("TEST {:?}", path);
 
     let mut file = std::fs::OpenOptions::new()
         .write(true)
         .create_new(true)
-        .open(&path).unwrap();
+        .open(&path)
+        .unwrap();
 
-    let buffer = vec![0u8; 64*1024];
+    let buffer = vec![0u8; 64 * 1024];
 
     loop {
         for _ in 0..64 {
@@ -40,7 +40,6 @@ fn create_large_file(path: PathBuf) {
 }
 
 fn main() -> Result<(), Error> {
-
     let base = PathBuf::from("dyntest1");
     let _ = std::fs::create_dir(&base);
 
