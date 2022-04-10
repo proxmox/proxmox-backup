@@ -24,31 +24,28 @@ pub use media::*;
 
 use serde::{Deserialize, Serialize};
 
-use proxmox_schema::{api, const_regex, Schema, StringSchema, ApiStringFormat};
+use proxmox_schema::{api, const_regex, ApiStringFormat, Schema, StringSchema};
 use proxmox_uuid::Uuid;
 
-use crate::{
-    FINGERPRINT_SHA256_FORMAT, BACKUP_ID_SCHEMA, BACKUP_TYPE_SCHEMA,
-};
+use crate::{BACKUP_ID_SCHEMA, BACKUP_TYPE_SCHEMA, FINGERPRINT_SHA256_FORMAT};
 
-const_regex!{
+const_regex! {
     pub TAPE_RESTORE_SNAPSHOT_REGEX = concat!(r"^", PROXMOX_SAFE_ID_REGEX_STR!(), r":", SNAPSHOT_PATH_REGEX_STR!(), r"$");
 }
 
 pub const TAPE_RESTORE_SNAPSHOT_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&TAPE_RESTORE_SNAPSHOT_REGEX);
 
-pub const TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA: Schema = StringSchema::new(
-    "Tape encryption key fingerprint (sha256)."
-)
-    .format(&FINGERPRINT_SHA256_FORMAT)
-    .schema();
+pub const TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA: Schema =
+    StringSchema::new("Tape encryption key fingerprint (sha256).")
+        .format(&FINGERPRINT_SHA256_FORMAT)
+        .schema();
 
-pub const TAPE_RESTORE_SNAPSHOT_SCHEMA: Schema = StringSchema::new(
-    "A snapshot in the format: 'store:type/id/time")
-    .format(&TAPE_RESTORE_SNAPSHOT_FORMAT)
-    .type_text("store:type/id/time")
-    .schema();
+pub const TAPE_RESTORE_SNAPSHOT_SCHEMA: Schema =
+    StringSchema::new("A snapshot in the format: 'store:type/id/time")
+        .format(&TAPE_RESTORE_SNAPSHOT_FORMAT)
+        .type_text("store:type/id/time")
+        .schema();
 
 #[api(
     properties: {
@@ -78,8 +75,8 @@ pub const TAPE_RESTORE_SNAPSHOT_SCHEMA: Schema = StringSchema::new(
         },
     },
 )]
-#[derive(Serialize,Deserialize)]
-#[serde(rename_all="kebab-case")]
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 /// Content list filter parameters
 pub struct MediaContentListFilter {
     pub pool: Option<String>,

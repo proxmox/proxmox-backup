@@ -6,8 +6,7 @@ const_regex! {
     pub ZPOOL_NAME_REGEX = r"^[a-zA-Z][a-z0-9A-Z\-_.:]+$";
 }
 
-pub const ZFS_ASHIFT_SCHEMA: Schema = IntegerSchema::new(
-    "Pool sector size exponent.")
+pub const ZFS_ASHIFT_SCHEMA: Schema = IntegerSchema::new("Pool sector size exponent.")
     .minimum(9)
     .maximum(16)
     .default(12)
@@ -59,7 +58,7 @@ pub enum ZfsRaidLevel {
 
 #[api()]
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all="kebab-case")]
+#[serde(rename_all = "kebab-case")]
 /// zpool list item
 pub struct ZpoolListItem {
     /// zpool name

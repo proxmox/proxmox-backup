@@ -6,7 +6,7 @@ pub mod common_regex;
 pub mod percent_encoding;
 
 use proxmox_schema::{
-    api, const_regex, ApiStringFormat, ApiType, ArraySchema, Schema, StringSchema, ReturnType,
+    api, const_regex, ApiStringFormat, ApiType, ArraySchema, ReturnType, Schema, StringSchema,
 };
 use proxmox_time::parse_daily_duration;
 
@@ -68,7 +68,7 @@ pub use user::*;
 pub use proxmox_schema::upid::*;
 
 mod crypto;
-pub use crypto::{CryptMode, Fingerprint, bytes_as_fingerprint};
+pub use crypto::{bytes_as_fingerprint, CryptMode, Fingerprint};
 
 pub mod file_restore;
 
@@ -86,7 +86,6 @@ pub use traffic_control::*;
 
 mod zfs;
 pub use zfs::*;
-
 
 #[rustfmt::skip]
 #[macro_use]
@@ -160,14 +159,17 @@ pub const CIDR_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&CIDR_REGEX);
 pub const PVE_CONFIG_DIGEST_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&SHA256_HEX_REGEX);
 pub const PASSWORD_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&PASSWORD_REGEX);
 pub const UUID_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&UUID_REGEX);
-pub const BLOCKDEVICE_NAME_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&BLOCKDEVICE_NAME_REGEX);
-pub const SUBSCRIPTION_KEY_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&SUBSCRIPTION_KEY_REGEX);
-pub const SYSTEMD_DATETIME_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&SYSTEMD_DATETIME_REGEX);
+pub const BLOCKDEVICE_NAME_FORMAT: ApiStringFormat =
+    ApiStringFormat::Pattern(&BLOCKDEVICE_NAME_REGEX);
+pub const SUBSCRIPTION_KEY_FORMAT: ApiStringFormat =
+    ApiStringFormat::Pattern(&SUBSCRIPTION_KEY_REGEX);
+pub const SYSTEMD_DATETIME_FORMAT: ApiStringFormat =
+    ApiStringFormat::Pattern(&SYSTEMD_DATETIME_REGEX);
 pub const HOSTNAME_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&HOSTNAME_REGEX);
-pub const OPENSSL_CIPHERS_TLS_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&OPENSSL_CIPHERS_REGEX);
+pub const OPENSSL_CIPHERS_TLS_FORMAT: ApiStringFormat =
+    ApiStringFormat::Pattern(&OPENSSL_CIPHERS_REGEX);
 
-pub const DNS_ALIAS_FORMAT: ApiStringFormat =
-    ApiStringFormat::Pattern(&DNS_ALIAS_REGEX);
+pub const DNS_ALIAS_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&DNS_ALIAS_REGEX);
 
 pub const DAILY_DURATION_FORMAT: ApiStringFormat =
     ApiStringFormat::VerifyFn(|s| parse_daily_duration(s).map(drop));
@@ -175,18 +177,15 @@ pub const DAILY_DURATION_FORMAT: ApiStringFormat =
 pub const SEARCH_DOMAIN_SCHEMA: Schema =
     StringSchema::new("Search domain for host-name lookup.").schema();
 
-pub const FIRST_DNS_SERVER_SCHEMA: Schema =
-    StringSchema::new("First name server IP address.")
+pub const FIRST_DNS_SERVER_SCHEMA: Schema = StringSchema::new("First name server IP address.")
     .format(&IP_FORMAT)
     .schema();
 
-pub const SECOND_DNS_SERVER_SCHEMA: Schema =
-    StringSchema::new("Second name server IP address.")
+pub const SECOND_DNS_SERVER_SCHEMA: Schema = StringSchema::new("Second name server IP address.")
     .format(&IP_FORMAT)
     .schema();
 
-pub const THIRD_DNS_SERVER_SCHEMA: Schema =
-    StringSchema::new("Third name server IP address.")
+pub const THIRD_DNS_SERVER_SCHEMA: Schema = StringSchema::new("Third name server IP address.")
     .format(&IP_FORMAT)
     .schema();
 
@@ -194,48 +193,47 @@ pub const HOSTNAME_SCHEMA: Schema = StringSchema::new("Hostname (as defined in R
     .format(&HOSTNAME_FORMAT)
     .schema();
 
-pub const OPENSSL_CIPHERS_TLS_1_2_SCHEMA: Schema = StringSchema::new("OpenSSL cipher list used by the proxy for TLS <= 1.2")
-    .format(&OPENSSL_CIPHERS_TLS_FORMAT)
-    .schema();
+pub const OPENSSL_CIPHERS_TLS_1_2_SCHEMA: Schema =
+    StringSchema::new("OpenSSL cipher list used by the proxy for TLS <= 1.2")
+        .format(&OPENSSL_CIPHERS_TLS_FORMAT)
+        .schema();
 
-pub const OPENSSL_CIPHERS_TLS_1_3_SCHEMA: Schema = StringSchema::new("OpenSSL ciphersuites list used by the proxy for TLS 1.3")
-    .format(&OPENSSL_CIPHERS_TLS_FORMAT)
-    .schema();
+pub const OPENSSL_CIPHERS_TLS_1_3_SCHEMA: Schema =
+    StringSchema::new("OpenSSL ciphersuites list used by the proxy for TLS 1.3")
+        .format(&OPENSSL_CIPHERS_TLS_FORMAT)
+        .schema();
 
-pub const DNS_NAME_FORMAT: ApiStringFormat =
-    ApiStringFormat::Pattern(&DNS_NAME_REGEX);
+pub const DNS_NAME_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&DNS_NAME_REGEX);
 
-pub const DNS_NAME_OR_IP_FORMAT: ApiStringFormat =
-    ApiStringFormat::Pattern(&DNS_NAME_OR_IP_REGEX);
+pub const DNS_NAME_OR_IP_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&DNS_NAME_OR_IP_REGEX);
 
 pub const DNS_NAME_OR_IP_SCHEMA: Schema = StringSchema::new("DNS name or IP address.")
     .format(&DNS_NAME_OR_IP_FORMAT)
     .schema();
-
 
 pub const NODE_SCHEMA: Schema = StringSchema::new("Node name (or 'localhost')")
     .format(&HOSTNAME_FORMAT)
     .schema();
 
 pub const TIME_ZONE_SCHEMA: Schema = StringSchema::new(
-    "Time zone. The file '/usr/share/zoneinfo/zone.tab' contains the list of valid names.")
-    .format(&SINGLE_LINE_COMMENT_FORMAT)
-    .min_length(2)
-    .max_length(64)
-    .schema();
+    "Time zone. The file '/usr/share/zoneinfo/zone.tab' contains the list of valid names.",
+)
+.format(&SINGLE_LINE_COMMENT_FORMAT)
+.min_length(2)
+.max_length(64)
+.schema();
 
-pub const BLOCKDEVICE_NAME_SCHEMA: Schema = StringSchema::new("Block device name (/sys/block/<name>).")
-    .format(&BLOCKDEVICE_NAME_FORMAT)
-    .min_length(3)
-    .max_length(64)
-    .schema();
+pub const BLOCKDEVICE_NAME_SCHEMA: Schema =
+    StringSchema::new("Block device name (/sys/block/<name>).")
+        .format(&BLOCKDEVICE_NAME_FORMAT)
+        .min_length(3)
+        .max_length(64)
+        .schema();
 
-pub const DISK_ARRAY_SCHEMA: Schema = ArraySchema::new(
-    "Disk name list.", &BLOCKDEVICE_NAME_SCHEMA)
-    .schema();
+pub const DISK_ARRAY_SCHEMA: Schema =
+    ArraySchema::new("Disk name list.", &BLOCKDEVICE_NAME_SCHEMA).schema();
 
-pub const DISK_LIST_SCHEMA: Schema = StringSchema::new(
-    "A list of disk names, comma separated.")
+pub const DISK_LIST_SCHEMA: Schema = StringSchema::new("A list of disk names, comma separated.")
     .format(&ApiStringFormat::PropertyString(&DISK_ARRAY_SCHEMA))
     .schema();
 
@@ -282,15 +280,14 @@ pub const MULTI_LINE_COMMENT_SCHEMA: Schema = StringSchema::new("Comment (multip
     .format(&MULTI_LINE_COMMENT_FORMAT)
     .schema();
 
-pub const SUBSCRIPTION_KEY_SCHEMA: Schema = StringSchema::new("Proxmox Backup Server subscription key.")
-    .format(&SUBSCRIPTION_KEY_FORMAT)
-    .min_length(15)
-    .max_length(16)
-    .schema();
+pub const SUBSCRIPTION_KEY_SCHEMA: Schema =
+    StringSchema::new("Proxmox Backup Server subscription key.")
+        .format(&SUBSCRIPTION_KEY_FORMAT)
+        .min_length(15)
+        .max_length(16)
+        .schema();
 
-pub const SERVICE_ID_SCHEMA: Schema = StringSchema::new("Service ID.")
-    .max_length(256)
-    .schema();
+pub const SERVICE_ID_SCHEMA: Schema = StringSchema::new("Service ID.").max_length(256).schema();
 
 pub const PROXMOX_CONFIG_DIGEST_SCHEMA: Schema = StringSchema::new(
     "Prevent changes if current configuration file has different \
@@ -303,9 +300,7 @@ pub const PROXMOX_CONFIG_DIGEST_SCHEMA: Schema = StringSchema::new(
 /// API schema format definition for repository URLs
 pub const BACKUP_REPO_URL: ApiStringFormat = ApiStringFormat::Pattern(&BACKUP_REPO_URL_REGEX);
 
-
 // Complex type definitions
-
 
 #[api()]
 #[derive(Default, Serialize, Deserialize)]
@@ -324,7 +319,6 @@ pub const PASSWORD_HINT_SCHEMA: Schema = StringSchema::new("Password hint.")
     .min_length(1)
     .max_length(64)
     .schema();
-
 
 #[api()]
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -352,10 +346,9 @@ pub struct APTUpdateInfo {
     /// URL under which the package's changelog can be retrieved
     pub change_log_url: String,
     /// Custom extra field for additional package information
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub extra_info: Option<String>,
 }
-
 
 #[api()]
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
@@ -367,7 +360,6 @@ pub enum NodePowerCommand {
     /// Shutdown the server
     Shutdown,
 }
-
 
 #[api()]
 #[derive(Eq, PartialEq, Debug, Serialize, Deserialize)]
@@ -407,19 +399,16 @@ pub struct TaskListItem {
     /// The authenticated entity who started the task
     pub user: String,
     /// The task end time (Epoch)
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub endtime: Option<i64>,
     /// Task end status
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<String>,
 }
 
 pub const NODE_TASKS_LIST_TASKS_RETURN_TYPE: ReturnType = ReturnType {
     optional: false,
-    schema: &ArraySchema::new(
-        "A list of tasks.",
-        &TaskListItem::API_SCHEMA,
-    ).schema(),
+    schema: &ArraySchema::new("A list of tasks.", &TaskListItem::API_SCHEMA).schema(),
 };
 
 #[api()]

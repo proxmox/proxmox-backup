@@ -4,13 +4,9 @@ use std::convert::TryFrom;
 use anyhow::{bail, Error};
 use serde::{Deserialize, Serialize};
 
-use proxmox_schema::{api, Schema, IntegerSchema, StringSchema, Updater};
+use proxmox_schema::{api, IntegerSchema, Schema, StringSchema, Updater};
 
-use crate::{
-    PROXMOX_SAFE_ID_FORMAT,
-    CHANGER_NAME_SCHEMA,
-    OptionalDeviceIdentification,
-};
+use crate::{OptionalDeviceIdentification, CHANGER_NAME_SCHEMA, PROXMOX_SAFE_ID_FORMAT};
 
 pub const DRIVE_NAME_SCHEMA: Schema = StringSchema::new("Drive Identifier.")
     .format(&PROXMOX_SAFE_ID_FORMAT)
@@ -18,16 +14,15 @@ pub const DRIVE_NAME_SCHEMA: Schema = StringSchema::new("Drive Identifier.")
     .max_length(32)
     .schema();
 
-pub const LTO_DRIVE_PATH_SCHEMA: Schema = StringSchema::new(
-    "The path to a LTO SCSI-generic tape device (i.e. '/dev/sg0')")
-    .schema();
+pub const LTO_DRIVE_PATH_SCHEMA: Schema =
+    StringSchema::new("The path to a LTO SCSI-generic tape device (i.e. '/dev/sg0')").schema();
 
-pub const CHANGER_DRIVENUM_SCHEMA: Schema = IntegerSchema::new(
-    "Associated changer drive number (requires option changer)")
-    .minimum(0)
-    .maximum(255)
-    .default(0)
-    .schema();
+pub const CHANGER_DRIVENUM_SCHEMA: Schema =
+    IntegerSchema::new("Associated changer drive number (requires option changer)")
+        .minimum(0)
+        .maximum(255)
+        .default(0)
+        .schema();
 
 #[api(
     properties: {
@@ -36,7 +31,7 @@ pub const CHANGER_DRIVENUM_SCHEMA: Schema = IntegerSchema::new(
         }
     }
 )]
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize, Deserialize)]
 /// Simulate tape drives (only for test and debug)
 #[serde(rename_all = "kebab-case")]
 pub struct VirtualTapeDrive {
@@ -44,7 +39,7 @@ pub struct VirtualTapeDrive {
     /// Path to directory
     pub path: String,
     /// Virtual tape size
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub max_size: Option<usize>,
 }
 
@@ -66,16 +61,16 @@ pub struct VirtualTapeDrive {
         },
     }
 )]
-#[derive(Serialize,Deserialize,Updater)]
+#[derive(Serialize, Deserialize, Updater)]
 #[serde(rename_all = "kebab-case")]
 /// Lto SCSI tape driver
 pub struct LtoTapeDrive {
     #[updater(skip)]
     pub name: String,
     pub path: String,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub changer: Option<String>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub changer_drivenum: Option<u64>,
 }
 
@@ -89,7 +84,7 @@ pub struct LtoTapeDrive {
         },
     },
 )]
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 /// Drive list entry
 pub struct DriveListEntry {
@@ -98,12 +93,12 @@ pub struct DriveListEntry {
     #[serde(flatten)]
     pub info: OptionalDeviceIdentification,
     /// the state of the drive if locked
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub state: Option<String>,
 }
 
 #[api()]
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize, Deserialize)]
 /// Medium auxiliary memory attributes (MAM)
 pub struct MamAttribute {
     /// Attribute id
@@ -115,7 +110,7 @@ pub struct MamAttribute {
 }
 
 #[api()]
-#[derive(Serialize,Deserialize,Copy,Clone,Debug)]
+#[derive(Serialize, Deserialize, Copy, Clone, Debug)]
 pub enum TapeDensity {
     /// Unknown (no media loaded)
     Unknown,
@@ -168,7 +163,7 @@ impl TryFrom<u8> for TapeDensity {
         },
     },
 )]
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 /// Drive/Media status for Lto SCSI drives.
 ///
@@ -190,35 +185,35 @@ pub struct LtoDriveAndMediaStatus {
     /// Tape density
     pub density: TapeDensity,
     /// Media is write protected
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub write_protect: Option<bool>,
     /// Tape Alert Flags
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub alert_flags: Option<String>,
     /// Current file number
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub file_number: Option<u64>,
     /// Current block number
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub block_number: Option<u64>,
     /// Medium Manufacture Date (epoch)
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub manufactured: Option<i64>,
     /// Total Bytes Read in Medium Life
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub bytes_read: Option<u64>,
     /// Total Bytes Written in Medium Life
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub bytes_written: Option<u64>,
     /// Number of mounts for the current volume (i.e., Thread Count)
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub volume_mounts: Option<u64>,
     /// Count of the total number of times the medium has passed over
     /// the head.
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub medium_passes: Option<u64>,
     /// Estimated tape wearout factor (assuming max. 16000 end-to-end passes)
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub medium_wearout: Option<f64>,
 }
 

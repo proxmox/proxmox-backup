@@ -39,15 +39,35 @@ use proxmox_schema::{
 // slash is not allowed because it is used as pve API delimiter
 // also see "man useradd"
 #[macro_export]
-macro_rules! USER_NAME_REGEX_STR { () => (r"(?:[^\s:/[:cntrl:]]+)") }
+macro_rules! USER_NAME_REGEX_STR {
+    () => {
+        r"(?:[^\s:/[:cntrl:]]+)"
+    };
+}
 #[macro_export]
-macro_rules! GROUP_NAME_REGEX_STR { () => (USER_NAME_REGEX_STR!()) }
+macro_rules! GROUP_NAME_REGEX_STR {
+    () => {
+        USER_NAME_REGEX_STR!()
+    };
+}
 #[macro_export]
-macro_rules! TOKEN_NAME_REGEX_STR { () => (PROXMOX_SAFE_ID_REGEX_STR!()) }
+macro_rules! TOKEN_NAME_REGEX_STR {
+    () => {
+        PROXMOX_SAFE_ID_REGEX_STR!()
+    };
+}
 #[macro_export]
-macro_rules! USER_ID_REGEX_STR { () => (concat!(USER_NAME_REGEX_STR!(), r"@", PROXMOX_SAFE_ID_REGEX_STR!())) }
+macro_rules! USER_ID_REGEX_STR {
+    () => {
+        concat!(USER_NAME_REGEX_STR!(), r"@", PROXMOX_SAFE_ID_REGEX_STR!())
+    };
+}
 #[macro_export]
-macro_rules! APITOKEN_ID_REGEX_STR { () => (concat!(USER_ID_REGEX_STR!() , r"!", TOKEN_NAME_REGEX_STR!())) }
+macro_rules! APITOKEN_ID_REGEX_STR {
+    () => {
+        concat!(USER_ID_REGEX_STR!(), r"!", TOKEN_NAME_REGEX_STR!())
+    };
+}
 
 const_regex! {
     pub PROXMOX_USER_NAME_REGEX = concat!(r"^",  USER_NAME_REGEX_STR!(), r"$");
@@ -238,7 +258,8 @@ impl TryFrom<String> for Realm {
     type Error = Error;
 
     fn try_from(s: String) -> Result<Self, Error> {
-        PROXMOX_AUTH_REALM_STRING_SCHEMA.check_constraints(&s)
+        PROXMOX_AUTH_REALM_STRING_SCHEMA
+            .check_constraints(&s)
             .map_err(|_| format_err!("invalid realm"))?;
 
         Ok(Self(s))
@@ -249,7 +270,8 @@ impl<'a> TryFrom<&'a str> for &'a RealmRef {
     type Error = Error;
 
     fn try_from(s: &'a str) -> Result<&'a RealmRef, Error> {
-        PROXMOX_AUTH_REALM_STRING_SCHEMA.check_constraints(s)
+        PROXMOX_AUTH_REALM_STRING_SCHEMA
+            .check_constraints(s)
             .map_err(|_| format_err!("invalid realm"))?;
 
         Ok(RealmRef::new(s))
@@ -482,7 +504,8 @@ impl std::str::FromStr for Userid {
             bail!("invalid user name in user id");
         }
 
-        PROXMOX_AUTH_REALM_STRING_SCHEMA.check_constraints(realm)
+        PROXMOX_AUTH_REALM_STRING_SCHEMA
+            .check_constraints(realm)
             .map_err(|_| format_err!("invalid realm in user id"))?;
 
         Ok(Self::from((UsernameRef::new(name), RealmRef::new(realm))))
@@ -503,7 +526,8 @@ impl TryFrom<String> for Userid {
             bail!("invalid user name in user id");
         }
 
-        PROXMOX_AUTH_REALM_STRING_SCHEMA.check_constraints(&data[(name_len + 1)..])
+        PROXMOX_AUTH_REALM_STRING_SCHEMA
+            .check_constraints(&data[(name_len + 1)..])
             .map_err(|_| format_err!("invalid realm in user id"))?;
 
         Ok(Self { data, name_len })
@@ -532,7 +556,7 @@ impl PartialEq<String> for Userid {
 #[derive(Clone, Debug, Eq, PartialEq, Hash, UpdaterType)]
 pub struct Authid {
     user: Userid,
-    tokenname: Option<Tokenname>
+    tokenname: Option<Tokenname>,
 }
 
 impl ApiType for Authid {
@@ -652,7 +676,7 @@ impl TryFrom<String> for Authid {
 
         data.truncate(realm_end);
 
-        let user:Userid = data.parse()?;
+        let user: Userid = data.parse()?;
 
         Ok(Self { user, tokenname })
     }
@@ -679,7 +703,10 @@ fn test_token_id() {
     let token_userid = auth_id.user();
     assert_eq!(&userid, token_userid);
     assert!(auth_id.is_token());
-    assert_eq!(auth_id.tokenname().expect("Token has tokenname").as_str(), TokennameRef::new("bar").as_str());
+    assert_eq!(
+        auth_id.tokenname().expect("Token has tokenname").as_str(),
+        TokennameRef::new("bar").as_str()
+    );
     assert_eq!(auth_id.to_string(), "test@pam!bar".to_string());
 }
 

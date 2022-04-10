@@ -3,49 +3,43 @@ use serde::{Deserialize, Serialize};
 use proxmox_schema::*;
 
 use crate::{
+    CIDR_FORMAT, CIDR_V4_FORMAT, CIDR_V6_FORMAT, IP_FORMAT, IP_V4_FORMAT, IP_V6_FORMAT,
     PROXMOX_SAFE_ID_REGEX,
-    IP_V4_FORMAT, IP_V6_FORMAT, IP_FORMAT,
-    CIDR_V4_FORMAT, CIDR_V6_FORMAT, CIDR_FORMAT,
 };
 
 pub const NETWORK_INTERFACE_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&PROXMOX_SAFE_ID_REGEX);
 
-pub const IP_V4_SCHEMA: Schema =
-    StringSchema::new("IPv4 address.")
+pub const IP_V4_SCHEMA: Schema = StringSchema::new("IPv4 address.")
     .format(&IP_V4_FORMAT)
     .max_length(15)
     .schema();
 
-pub const IP_V6_SCHEMA: Schema =
-    StringSchema::new("IPv6 address.")
+pub const IP_V6_SCHEMA: Schema = StringSchema::new("IPv6 address.")
     .format(&IP_V6_FORMAT)
     .max_length(39)
     .schema();
 
-pub const IP_SCHEMA: Schema =
-    StringSchema::new("IP (IPv4 or IPv6) address.")
+pub const IP_SCHEMA: Schema = StringSchema::new("IP (IPv4 or IPv6) address.")
     .format(&IP_FORMAT)
     .max_length(39)
     .schema();
 
-pub const CIDR_V4_SCHEMA: Schema =
-    StringSchema::new("IPv4 address with netmask (CIDR notation).")
+pub const CIDR_V4_SCHEMA: Schema = StringSchema::new("IPv4 address with netmask (CIDR notation).")
     .format(&CIDR_V4_FORMAT)
     .max_length(18)
     .schema();
 
-pub const CIDR_V6_SCHEMA: Schema =
-    StringSchema::new("IPv6 address with netmask (CIDR notation).")
+pub const CIDR_V6_SCHEMA: Schema = StringSchema::new("IPv6 address with netmask (CIDR notation).")
     .format(&CIDR_V6_FORMAT)
     .max_length(43)
     .schema();
 
 pub const CIDR_SCHEMA: Schema =
     StringSchema::new("IP address (IPv4 or IPv6) with netmask (CIDR notation).")
-    .format(&CIDR_FORMAT)
-    .max_length(43)
-    .schema();
+        .format(&CIDR_FORMAT)
+        .max_length(43)
+        .schema();
 
 #[api()]
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
@@ -130,14 +124,15 @@ pub const NETWORK_INTERFACE_NAME_SCHEMA: Schema = StringSchema::new("Network int
     .max_length(15) // libc::IFNAMSIZ-1
     .schema();
 
-pub const NETWORK_INTERFACE_ARRAY_SCHEMA: Schema = ArraySchema::new(
-    "Network interface list.", &NETWORK_INTERFACE_NAME_SCHEMA)
-    .schema();
+pub const NETWORK_INTERFACE_ARRAY_SCHEMA: Schema =
+    ArraySchema::new("Network interface list.", &NETWORK_INTERFACE_NAME_SCHEMA).schema();
 
-pub const NETWORK_INTERFACE_LIST_SCHEMA: Schema = StringSchema::new(
-    "A list of network devices, comma separated.")
-    .format(&ApiStringFormat::PropertyString(&NETWORK_INTERFACE_ARRAY_SCHEMA))
-    .schema();
+pub const NETWORK_INTERFACE_LIST_SCHEMA: Schema =
+    StringSchema::new("A list of network devices, comma separated.")
+        .format(&ApiStringFormat::PropertyString(
+            &NETWORK_INTERFACE_ARRAY_SCHEMA,
+        ))
+        .schema();
 
 #[api(
     properties: {
@@ -232,48 +227,48 @@ pub struct Interface {
     /// Interface type
     #[serde(rename = "type")]
     pub interface_type: NetworkInterfaceType,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub method: Option<NetworkConfigMethod>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub method6: Option<NetworkConfigMethod>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     /// IPv4 address with netmask
     pub cidr: Option<String>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     /// IPv4 gateway
     pub gateway: Option<String>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     /// IPv6 address with netmask
     pub cidr6: Option<String>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     /// IPv6 gateway
     pub gateway6: Option<String>,
 
-    #[serde(skip_serializing_if="Vec::is_empty")]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub options: Vec<String>,
-    #[serde(skip_serializing_if="Vec::is_empty")]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub options6: Vec<String>,
 
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub comments: Option<String>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub comments6: Option<String>,
 
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     /// Maximum Transmission Unit
     pub mtu: Option<u64>,
 
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub bridge_ports: Option<Vec<String>>,
     /// Enable bridge vlan support.
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub bridge_vlan_aware: Option<bool>,
 
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub slaves: Option<Vec<String>>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub bond_mode: Option<LinuxBondMode>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "bond-primary")]
     pub bond_primary: Option<String>,
     pub bond_xmit_hash_policy: Option<BondXmitHashPolicy>,
@@ -281,7 +276,7 @@ pub struct Interface {
 
 impl Interface {
     pub fn new(name: String) -> Self {
-        Self  {
+        Self {
             name,
             interface_type: NetworkInterfaceType::Unknown,
             autostart: false,

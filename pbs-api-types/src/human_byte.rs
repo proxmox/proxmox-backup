@@ -101,7 +101,8 @@ fn strip_unit(v: &str) -> (&str, SizeUnit) {
     };
 
     let mut unit = SizeUnit::Byte;
-    (v.strip_suffix(|c: char| match c {
+    #[rustfmt::skip]
+    let value = v.strip_suffix(|c: char| match c {
         'k' | 'K' if !binary => { unit = SizeUnit::KByte; true }
         'm' | 'M' if !binary => { unit = SizeUnit::MByte; true }
         'g' | 'G' if !binary => { unit = SizeUnit::GByte; true }
@@ -114,7 +115,9 @@ fn strip_unit(v: &str) -> (&str, SizeUnit) {
         't' | 'T' if binary => { unit = SizeUnit::Tebi; true }
         'p' | 'P' if binary => { unit = SizeUnit::Pebi; true }
         _ => false
-    }).unwrap_or(v).trim_end(), unit)
+    }).unwrap_or(v).trim_end();
+
+    (value, unit)
 }
 
 /// Byte size which can be displayed in a human friendly way
@@ -154,13 +157,19 @@ impl HumanByte {
     /// Create a new instance with optimal binary unit computed
     pub fn new_binary(size: f64) -> Self {
         let unit = SizeUnit::auto_scale(size, true);
-        HumanByte { size: size / unit.factor(), unit }
+        HumanByte {
+            size: size / unit.factor(),
+            unit,
+        }
     }
 
     /// Create a new instance with optimal decimal unit computed
     pub fn new_decimal(size: f64) -> Self {
         let unit = SizeUnit::auto_scale(size, false);
-        HumanByte { size: size / unit.factor(), unit }
+        HumanByte {
+            size: size / unit.factor(),
+            unit,
+        }
     }
 
     /// Returns the size as u64 number of bytes
@@ -228,7 +237,12 @@ fn test_human_byte_parser() -> Result<(), Error> {
             bail!("got unexpected size for '{}' ({} != {})", v, h.size, size);
         }
         if h.unit != unit {
-            bail!("got unexpected unit for '{}' ({:?} != {:?})", v, h.unit, unit);
+            bail!(
+                "got unexpected unit for '{}' ({:?} != {:?})",
+                v,
+                h.unit,
+                unit
+            );
         }
 
         let new = h.to_string();
@@ -265,7 +279,12 @@ fn test_human_byte_parser() -> Result<(), Error> {
     assert_eq!(&format!("{:.7}", h), "1.2345678 B");
     assert_eq!(&format!("{:.8}", h), "1.2345678 B");
 
-    assert!(test("987654321", 987654321.0, SizeUnit::Byte, "987654321 B"));
+    assert!(test(
+        "987654321",
+        987654321.0,
+        SizeUnit::Byte,
+        "987654321 B"
+    ));
 
     assert!(test("1300b", 1300.0, SizeUnit::Byte, "1300 B"));
     assert!(test("1300B", 1300.0, SizeUnit::Byte, "1300 B"));

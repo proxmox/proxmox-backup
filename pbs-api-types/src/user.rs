@@ -1,22 +1,22 @@
 use serde::{Deserialize, Serialize};
 
-use proxmox_schema::{
-    api, BooleanSchema, IntegerSchema, Schema, StringSchema, Updater,
-};
+use proxmox_schema::{api, BooleanSchema, IntegerSchema, Schema, StringSchema, Updater};
 
-use super::{SINGLE_LINE_COMMENT_FORMAT, SINGLE_LINE_COMMENT_SCHEMA};
 use super::userid::{Authid, Userid, PROXMOX_TOKEN_ID_SCHEMA};
+use super::{SINGLE_LINE_COMMENT_FORMAT, SINGLE_LINE_COMMENT_SCHEMA};
 
 pub const ENABLE_USER_SCHEMA: Schema = BooleanSchema::new(
-    "Enable the account (default). You can set this to '0' to disable the account.")
-    .default(true)
-    .schema();
+    "Enable the account (default). You can set this to '0' to disable the account.",
+)
+.default(true)
+.schema();
 
 pub const EXPIRE_USER_SCHEMA: Schema = IntegerSchema::new(
-    "Account expiration date (seconds since epoch). '0' means no expiration date.")
-    .default(0)
-    .minimum(0)
-    .schema();
+    "Account expiration date (seconds since epoch). '0' means no expiration date.",
+)
+.default(0)
+.minimum(0)
+.schema();
 
 pub const FIRST_NAME_SCHEMA: Schema = StringSchema::new("First name.")
     .format(&SINGLE_LINE_COMMENT_FORMAT)
@@ -75,23 +75,23 @@ pub const EMAIL_SCHEMA: Schema = StringSchema::new("E-Mail Address.")
         },
     }
 )]
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize, Deserialize)]
 /// User properties with added list of ApiTokens
 pub struct UserWithTokens {
     pub userid: Userid,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub enable: Option<bool>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub expire: Option<i64>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub firstname: Option<String>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub lastname: Option<String>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
-    #[serde(skip_serializing_if="Vec::is_empty", default)]
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub tokens: Vec<ApiToken>,
 }
 
@@ -114,15 +114,15 @@ pub struct UserWithTokens {
         },
     }
 )]
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize, Deserialize)]
 /// ApiToken properties.
 pub struct ApiToken {
     pub tokenid: Authid,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub enable: Option<bool>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub expire: Option<i64>,
 }
 
@@ -132,7 +132,7 @@ impl ApiToken {
             return false;
         }
         if let Some(expire) = self.expire {
-            let now =  proxmox_time::epoch_i64();
+            let now = proxmox_time::epoch_i64();
             if expire > 0 && expire <= now {
                 return false;
             }
@@ -172,22 +172,22 @@ impl ApiToken {
         },
     }
 )]
-#[derive(Serialize,Deserialize,Updater)]
+#[derive(Serialize, Deserialize, Updater)]
 /// User properties.
 pub struct User {
     #[updater(skip)]
     pub userid: Userid,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub enable: Option<bool>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub expire: Option<i64>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub firstname: Option<String>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub lastname: Option<String>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
 }
 
@@ -197,7 +197,7 @@ impl User {
             return false;
         }
         if let Some(expire) = self.expire {
-            let now =  proxmox_time::epoch_i64();
+            let now = proxmox_time::epoch_i64();
             if expire > 0 && expire <= now {
                 return false;
             }

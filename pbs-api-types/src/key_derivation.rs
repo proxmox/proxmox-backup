@@ -39,7 +39,7 @@ impl Default for Kdf {
 /// Encryption Key Information
 pub struct KeyInfo {
     /// Path to key (if stored in a file)
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub path: Option<String>,
     pub kdf: Kdf,
     /// Key creation time
@@ -47,10 +47,9 @@ pub struct KeyInfo {
     /// Key modification time
     pub modified: i64,
     /// Key fingerprint
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub fingerprint: Option<String>,
     /// Password hint
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub hint: Option<String>,
 }
-

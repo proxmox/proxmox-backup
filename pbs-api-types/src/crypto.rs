@@ -62,18 +62,16 @@ fn as_fingerprint(bytes: &[u8]) -> String {
         .as_bytes()
         .chunks(2)
         .map(|v| unsafe { std::str::from_utf8_unchecked(v) }) // it's a hex string
-        .collect::<Vec<&str>>().join(":")
+        .collect::<Vec<&str>>()
+        .join(":")
 }
 
 pub mod bytes_as_fingerprint {
     use std::mem::MaybeUninit;
 
-    use serde::{Deserialize, Serializer, Deserializer};
+    use serde::{Deserialize, Deserializer, Serializer};
 
-    pub fn serialize<S>(
-        bytes: &[u8; 32],
-        serializer: S,
-    ) -> Result<S::Ok, S::Error>
+    pub fn serialize<S>(bytes: &[u8; 32], serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
@@ -81,9 +79,7 @@ pub mod bytes_as_fingerprint {
         serializer.serialize_str(&s)
     }
 
-    pub fn deserialize<'de, D>(
-        deserializer: D,
-    ) -> Result<[u8; 32], D::Error>
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<[u8; 32], D::Error>
     where
         D: Deserializer<'de>,
     {

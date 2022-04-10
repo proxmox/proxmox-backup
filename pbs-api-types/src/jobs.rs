@@ -7,13 +7,12 @@ use serde::{Deserialize, Serialize};
 use proxmox_schema::*;
 
 use crate::{
-    Userid, Authid, RateLimitConfig,
-    REMOTE_ID_SCHEMA, DRIVE_NAME_SCHEMA, MEDIA_POOL_NAME_SCHEMA,
-    SINGLE_LINE_COMMENT_SCHEMA, PROXMOX_SAFE_ID_FORMAT, DATASTORE_SCHEMA,
-    BACKUP_GROUP_SCHEMA, BACKUP_TYPE_SCHEMA,
+    Authid, RateLimitConfig, Userid, BACKUP_GROUP_SCHEMA, BACKUP_TYPE_SCHEMA, DATASTORE_SCHEMA,
+    DRIVE_NAME_SCHEMA, MEDIA_POOL_NAME_SCHEMA, PROXMOX_SAFE_ID_FORMAT, REMOTE_ID_SCHEMA,
+    SINGLE_LINE_COMMENT_SCHEMA,
 };
 
-const_regex!{
+const_regex! {
 
     /// Regex for verification jobs 'DATASTORE:ACTUAL_JOB_ID'
     pub VERIFICATION_JOB_WORKER_ID_REGEX = concat!(r"^(", PROXMOX_SAFE_ID_REGEX_STR!(), r"):");
@@ -27,34 +26,41 @@ pub const JOB_ID_SCHEMA: Schema = StringSchema::new("Job ID.")
     .max_length(32)
     .schema();
 
-pub const SYNC_SCHEDULE_SCHEMA: Schema = StringSchema::new(
-    "Run sync job at specified schedule.")
-    .format(&ApiStringFormat::VerifyFn(proxmox_time::verify_calendar_event))
+pub const SYNC_SCHEDULE_SCHEMA: Schema = StringSchema::new("Run sync job at specified schedule.")
+    .format(&ApiStringFormat::VerifyFn(
+        proxmox_time::verify_calendar_event,
+    ))
     .type_text("<calendar-event>")
     .schema();
 
-pub const GC_SCHEDULE_SCHEMA: Schema = StringSchema::new(
-    "Run garbage collection job at specified schedule.")
-    .format(&ApiStringFormat::VerifyFn(proxmox_time::verify_calendar_event))
+pub const GC_SCHEDULE_SCHEMA: Schema =
+    StringSchema::new("Run garbage collection job at specified schedule.")
+        .format(&ApiStringFormat::VerifyFn(
+            proxmox_time::verify_calendar_event,
+        ))
+        .type_text("<calendar-event>")
+        .schema();
+
+pub const PRUNE_SCHEDULE_SCHEMA: Schema = StringSchema::new("Run prune job at specified schedule.")
+    .format(&ApiStringFormat::VerifyFn(
+        proxmox_time::verify_calendar_event,
+    ))
     .type_text("<calendar-event>")
     .schema();
 
-pub const PRUNE_SCHEDULE_SCHEMA: Schema = StringSchema::new(
-    "Run prune job at specified schedule.")
-    .format(&ApiStringFormat::VerifyFn(proxmox_time::verify_calendar_event))
-    .type_text("<calendar-event>")
-    .schema();
-
-pub const VERIFICATION_SCHEDULE_SCHEMA: Schema = StringSchema::new(
-    "Run verify job at specified schedule.")
-    .format(&ApiStringFormat::VerifyFn(proxmox_time::verify_calendar_event))
-    .type_text("<calendar-event>")
-    .schema();
+pub const VERIFICATION_SCHEDULE_SCHEMA: Schema =
+    StringSchema::new("Run verify job at specified schedule.")
+        .format(&ApiStringFormat::VerifyFn(
+            proxmox_time::verify_calendar_event,
+        ))
+        .type_text("<calendar-event>")
+        .schema();
 
 pub const REMOVE_VANISHED_BACKUPS_SCHEMA: Schema = BooleanSchema::new(
-    "Delete vanished backups. This remove the local copy if the remote backup was deleted.")
-    .default(false)
-    .schema();
+    "Delete vanished backups. This remove the local copy if the remote backup was deleted.",
+)
+.default(false)
+.schema();
 
 #[api(
     properties: {
@@ -80,17 +86,17 @@ pub const REMOVE_VANISHED_BACKUPS_SCHEMA: Schema = BooleanSchema::new(
         },
     }
 )]
-#[derive(Serialize,Deserialize,Default)]
-#[serde(rename_all="kebab-case")]
+#[derive(Serialize, Deserialize, Default)]
+#[serde(rename_all = "kebab-case")]
 /// Job Scheduling Status
 pub struct JobScheduleStatus {
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub next_run: Option<i64>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub last_run_state: Option<String>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub last_run_upid: Option<String>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub last_run_endtime: Option<i64>,
 }
 
@@ -134,20 +140,23 @@ pub struct DatastoreNotify {
     pub sync: Option<Notify>,
 }
 
-pub const DATASTORE_NOTIFY_STRING_SCHEMA: Schema = StringSchema::new(
-    "Datastore notification setting")
-    .format(&ApiStringFormat::PropertyString(&DatastoreNotify::API_SCHEMA))
-    .schema();
+pub const DATASTORE_NOTIFY_STRING_SCHEMA: Schema =
+    StringSchema::new("Datastore notification setting")
+        .format(&ApiStringFormat::PropertyString(
+            &DatastoreNotify::API_SCHEMA,
+        ))
+        .schema();
 
 pub const IGNORE_VERIFIED_BACKUPS_SCHEMA: Schema = BooleanSchema::new(
-    "Do not verify backups that are already verified if their verification is not outdated.")
-    .default(true)
-    .schema();
+    "Do not verify backups that are already verified if their verification is not outdated.",
+)
+.default(true)
+.schema();
 
-pub const VERIFICATION_OUTDATED_AFTER_SCHEMA: Schema = IntegerSchema::new(
-    "Days after that a verification becomes outdated. (0 means always)")
-    .minimum(0)
-    .schema();
+pub const VERIFICATION_OUTDATED_AFTER_SCHEMA: Schema =
+    IntegerSchema::new("Days after that a verification becomes outdated. (0 means always)")
+        .minimum(0)
+        .schema();
 
 #[api(
     properties: {
@@ -175,8 +184,8 @@ pub const VERIFICATION_OUTDATED_AFTER_SCHEMA: Schema = IntegerSchema::new(
         },
     }
 )]
-#[derive(Serialize,Deserialize,Updater)]
-#[serde(rename_all="kebab-case")]
+#[derive(Serialize, Deserialize, Updater)]
+#[serde(rename_all = "kebab-case")]
 /// Verification Job
 pub struct VerificationJobConfig {
     /// unique ID to address this job
@@ -184,16 +193,16 @@ pub struct VerificationJobConfig {
     pub id: String,
     /// the datastore ID this verificaiton job affects
     pub store: String,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     /// if not set to false, check the age of the last snapshot verification to filter
     /// out recent ones, depending on 'outdated_after' configuration.
     pub ignore_verified: Option<bool>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     /// Reverify snapshots after X days, never if 0. Ignored if 'ignore_verified' is false.
     pub outdated_after: Option<i64>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     /// when to schedule this job in calendar event notation
     pub schedule: Option<String>,
 }
@@ -208,8 +217,8 @@ pub struct VerificationJobConfig {
         },
     },
 )]
-#[derive(Serialize,Deserialize)]
-#[serde(rename_all="kebab-case")]
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 /// Status of Verification Job
 pub struct VerificationJobStatus {
     #[serde(flatten)]
@@ -254,23 +263,23 @@ pub struct VerificationJobStatus {
         },
     }
 )]
-#[derive(Serialize,Deserialize,Clone,Updater)]
-#[serde(rename_all="kebab-case")]
+#[derive(Serialize, Deserialize, Clone, Updater)]
+#[serde(rename_all = "kebab-case")]
 /// Tape Backup Job Setup
 pub struct TapeBackupJobSetup {
     pub store: String,
     pub pool: String,
     pub drive: String,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub eject_media: Option<bool>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub export_media_set: Option<bool>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub latest_only: Option<bool>,
     /// Send job email notification to this user
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub notify_user: Option<Userid>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub group_filter: Option<Vec<GroupFilter>>,
 }
 
@@ -292,17 +301,17 @@ pub struct TapeBackupJobSetup {
         },
     }
 )]
-#[derive(Serialize,Deserialize,Clone,Updater)]
-#[serde(rename_all="kebab-case")]
+#[derive(Serialize, Deserialize, Clone, Updater)]
+#[serde(rename_all = "kebab-case")]
 /// Tape Backup Job
 pub struct TapeBackupJobConfig {
     #[updater(skip)]
     pub id: String,
     #[serde(flatten)]
     pub setup: TapeBackupJobSetup,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub schedule: Option<String>,
 }
 
@@ -316,8 +325,8 @@ pub struct TapeBackupJobConfig {
         },
     },
 )]
-#[derive(Serialize,Deserialize)]
-#[serde(rename_all="kebab-case")]
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 /// Status of Tape Backup Job
 pub struct TapeBackupJobStatus {
     #[serde(flatten)]
@@ -325,7 +334,7 @@ pub struct TapeBackupJobStatus {
     #[serde(flatten)]
     pub status: JobScheduleStatus,
     /// Next tape used (best guess)
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub next_media_label: Option<String>,
 }
 
@@ -378,7 +387,8 @@ pub const GROUP_FILTER_SCHEMA: Schema = StringSchema::new(
     .type_text("<type:<vm|ct|host>|group:GROUP|regex:RE>")
     .schema();
 
-pub const GROUP_FILTER_LIST_SCHEMA: Schema = ArraySchema::new("List of group filters.", &GROUP_FILTER_SCHEMA).schema();
+pub const GROUP_FILTER_LIST_SCHEMA: Schema =
+    ArraySchema::new("List of group filters.", &GROUP_FILTER_SCHEMA).schema();
 
 #[api(
     properties: {
@@ -419,24 +429,24 @@ pub const GROUP_FILTER_LIST_SCHEMA: Schema = ArraySchema::new("List of group fil
         },
     }
 )]
-#[derive(Serialize,Deserialize,Clone,Updater)]
-#[serde(rename_all="kebab-case")]
+#[derive(Serialize, Deserialize, Clone, Updater)]
+#[serde(rename_all = "kebab-case")]
 /// Sync Job
 pub struct SyncJobConfig {
     #[updater(skip)]
     pub id: String,
     pub store: String,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub owner: Option<Authid>,
     pub remote: String,
     pub remote_store: String,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub remove_vanished: Option<bool>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub schedule: Option<String>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub group_filter: Option<Vec<GroupFilter>>,
     #[serde(flatten)]
     pub limit: RateLimitConfig,
@@ -452,9 +462,8 @@ pub struct SyncJobConfig {
         },
     },
 )]
-
-#[derive(Serialize,Deserialize)]
-#[serde(rename_all="kebab-case")]
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 /// Status of Sync Job
 pub struct SyncJobStatus {
     #[serde(flatten)]

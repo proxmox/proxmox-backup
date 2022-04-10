@@ -6,13 +6,12 @@ use proxmox_schema::{
 };
 
 use crate::{
-    PROXMOX_SAFE_ID_FORMAT, SHA256_HEX_REGEX, SINGLE_LINE_COMMENT_SCHEMA, CryptMode, UPID,
-    Fingerprint, Userid, Authid,
-    GC_SCHEDULE_SCHEMA, DATASTORE_NOTIFY_STRING_SCHEMA, PRUNE_SCHEDULE_SCHEMA,
-
+    Authid, CryptMode, Fingerprint, Userid, DATASTORE_NOTIFY_STRING_SCHEMA, GC_SCHEDULE_SCHEMA,
+    PROXMOX_SAFE_ID_FORMAT, PRUNE_SCHEDULE_SCHEMA, SHA256_HEX_REGEX, SINGLE_LINE_COMMENT_SCHEMA,
+    UPID,
 };
 
-const_regex!{
+const_regex! {
     pub BACKUP_TYPE_REGEX = concat!(r"^(", BACKUP_TYPE_RE!(), r")$");
 
     pub BACKUP_ID_REGEX = concat!(r"^", BACKUP_ID_RE!(), r"$");
@@ -81,17 +80,19 @@ pub const DATASTORE_MAP_SCHEMA: Schema = StringSchema::new("Datastore mapping.")
     .type_text("(<source>=)?<target>")
     .schema();
 
-pub const DATASTORE_MAP_ARRAY_SCHEMA: Schema = ArraySchema::new(
-    "Datastore mapping list.", &DATASTORE_MAP_SCHEMA)
-    .schema();
+pub const DATASTORE_MAP_ARRAY_SCHEMA: Schema =
+    ArraySchema::new("Datastore mapping list.", &DATASTORE_MAP_SCHEMA).schema();
 
 pub const DATASTORE_MAP_LIST_SCHEMA: Schema = StringSchema::new(
     "A list of Datastore mappings (or single datastore), comma separated. \
     For example 'a=b,e' maps the source datastore 'a' to target 'b and \
     all other sources to the default 'e'. If no default is given, only the \
-    specified sources are mapped.")
-    .format(&ApiStringFormat::PropertyString(&DATASTORE_MAP_ARRAY_SCHEMA))
-    .schema();
+    specified sources are mapped.",
+)
+.format(&ApiStringFormat::PropertyString(
+    &DATASTORE_MAP_ARRAY_SCHEMA,
+))
+.schema();
 
 pub const PRUNE_SCHEMA_KEEP_DAILY: Schema = IntegerSchema::new("Number of daily backups to keep.")
     .minimum(1)
@@ -153,17 +154,17 @@ pub const PRUNE_SCHEMA_KEEP_YEARLY: Schema =
 #[serde(rename_all = "kebab-case")]
 /// Common pruning options
 pub struct PruneOptions {
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub keep_last: Option<u64>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub keep_hourly: Option<u64>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub keep_daily: Option<u64>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub keep_weekly: Option<u64>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub keep_monthly: Option<u64>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub keep_yearly: Option<u64>,
 }
 
@@ -194,9 +195,10 @@ pub struct DatastoreTuning {
     pub chunk_order: Option<ChunkOrder>,
 }
 
-pub const DATASTORE_TUNING_STRING_SCHEMA: Schema = StringSchema::new(
-    "Datastore tuning options")
-    .format(&ApiStringFormat::PropertyString(&DatastoreTuning::API_SCHEMA))
+pub const DATASTORE_TUNING_STRING_SCHEMA: Schema = StringSchema::new("Datastore tuning options")
+    .format(&ApiStringFormat::PropertyString(
+        &DatastoreTuning::API_SCHEMA,
+    ))
     .schema();
 
 #[api(
@@ -262,43 +264,43 @@ pub const DATASTORE_TUNING_STRING_SCHEMA: Schema = StringSchema::new(
         },
     }
 )]
-#[derive(Serialize,Deserialize,Updater)]
-#[serde(rename_all="kebab-case")]
+#[derive(Serialize, Deserialize, Updater)]
+#[serde(rename_all = "kebab-case")]
 /// Datastore configuration properties.
 pub struct DataStoreConfig {
     #[updater(skip)]
     pub name: String,
     #[updater(skip)]
     pub path: String,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub gc_schedule: Option<String>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub prune_schedule: Option<String>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub keep_last: Option<u64>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub keep_hourly: Option<u64>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub keep_daily: Option<u64>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub keep_weekly: Option<u64>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub keep_monthly: Option<u64>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub keep_yearly: Option<u64>,
     /// If enabled, all backups will be verified right after completion.
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub verify_new: Option<bool>,
     /// Send job email notification to this user
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub notify_user: Option<Userid>,
     /// Send notification only for job errors
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub notify: Option<String>,
     /// Datastore tuning options
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub tuning: Option<String>,
 }
 
@@ -374,7 +376,6 @@ pub struct SnapshotVerifyState {
     /// State of the verification. Enum.
     pub state: VerifyState,
 }
-
 
 #[api(
     properties: {
@@ -616,7 +617,7 @@ impl Default for GarbageCollectionStatus {
     },
 )]
 #[derive(Serialize, Deserialize)]
-#[serde(rename_all="kebab-case")]
+#[serde(rename_all = "kebab-case")]
 /// Overall Datastore status and useful information.
 pub struct DataStoreStatus {
     /// Total space (bytes).
@@ -626,10 +627,10 @@ pub struct DataStoreStatus {
     /// Available space (bytes).
     pub avail: u64,
     /// Status of last GC
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub gc_status: Option<GarbageCollectionStatus>,
     /// Group/Snapshot counts
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub counts: Option<Counts>,
 }
 
@@ -649,7 +650,7 @@ pub struct DataStoreStatus {
      },
 )]
 #[derive(Serialize, Deserialize)]
-#[serde(rename_all="kebab-case")]
+#[serde(rename_all = "kebab-case")]
 /// Status of a Datastore
 pub struct DataStoreStatusListItem {
     pub store: String,
@@ -660,23 +661,23 @@ pub struct DataStoreStatusListItem {
     /// The available bytes of the underlying storage. (-1 on error)
     pub avail: i64,
     /// A list of usages of the past (last Month).
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub history: Option<Vec<Option<f64>>>,
     /// History start time (epoch)
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub history_start: Option<u64>,
     /// History resolution (seconds)
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub history_delta: Option<u64>,
     /// Estimation of the UNIX epoch when the storage will be full.
     /// This is calculated via a simple Linear Regression (Least
     /// Squares) of RRD data of the last Month. Missing if there are
     /// not enough data points yet. If the estimate lies in the past,
     /// the usage is decreasing or not changing.
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub estimated_full_date: Option<i64>,
     /// An error description, for example, when the datastore could not be looked up
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
 }
 
@@ -685,7 +686,8 @@ pub const ADMIN_DATASTORE_LIST_SNAPSHOTS_RETURN_TYPE: ReturnType = ReturnType {
     schema: &ArraySchema::new(
         "Returns the list of snapshots.",
         &SnapshotListItem::API_SCHEMA,
-    ).schema(),
+    )
+    .schema(),
 };
 
 pub const ADMIN_DATASTORE_LIST_SNAPSHOT_FILES_RETURN_TYPE: ReturnType = ReturnType {
@@ -693,7 +695,8 @@ pub const ADMIN_DATASTORE_LIST_SNAPSHOT_FILES_RETURN_TYPE: ReturnType = ReturnTy
     schema: &ArraySchema::new(
         "Returns the list of archive files inside a backup snapshots.",
         &BackupContent::API_SCHEMA,
-    ).schema(),
+    )
+    .schema(),
 };
 
 pub const ADMIN_DATASTORE_LIST_GROUPS_RETURN_TYPE: ReturnType = ReturnType {
@@ -701,7 +704,8 @@ pub const ADMIN_DATASTORE_LIST_GROUPS_RETURN_TYPE: ReturnType = ReturnType {
     schema: &ArraySchema::new(
         "Returns the list of backup groups.",
         &GroupListItem::API_SCHEMA,
-    ).schema(),
+    )
+    .schema(),
 };
 
 pub const ADMIN_DATASTORE_PRUNE_RETURN_TYPE: ReturnType = ReturnType {
@@ -709,5 +713,6 @@ pub const ADMIN_DATASTORE_PRUNE_RETURN_TYPE: ReturnType = ReturnType {
     schema: &ArraySchema::new(
         "Returns the list of snapshots and a flag indicating if there are kept or removed.",
         &PruneListItem::API_SCHEMA,
-    ).schema(),
+    )
+    .schema(),
 };

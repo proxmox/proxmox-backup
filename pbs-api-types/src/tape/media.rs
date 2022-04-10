@@ -3,19 +3,15 @@ use ::serde::{Deserialize, Serialize};
 use proxmox_schema::*;
 use proxmox_uuid::Uuid;
 
-use crate::{
-    UUID_FORMAT,
-    MediaStatus,
-    MediaLocation,
-};
+use crate::{MediaLocation, MediaStatus, UUID_FORMAT};
 
-pub const MEDIA_SET_UUID_SCHEMA: Schema =
-    StringSchema::new("MediaSet Uuid (We use the all-zero Uuid to reseve an empty media for a specific pool).")
-    .format(&UUID_FORMAT)
-    .schema();
+pub const MEDIA_SET_UUID_SCHEMA: Schema = StringSchema::new(
+    "MediaSet Uuid (We use the all-zero Uuid to reseve an empty media for a specific pool).",
+)
+.format(&UUID_FORMAT)
+.schema();
 
-pub const MEDIA_UUID_SCHEMA: Schema =
-    StringSchema::new("Media Uuid.")
+pub const MEDIA_UUID_SCHEMA: Schema = StringSchema::new("Media Uuid.")
     .format(&UUID_FORMAT)
     .schema();
 
@@ -26,7 +22,7 @@ pub const MEDIA_UUID_SCHEMA: Schema =
         },
     },
 )]
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 /// Media Set list entry
 pub struct MediaSetListEntry {
@@ -56,7 +52,7 @@ pub struct MediaSetListEntry {
         },
     },
 )]
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 /// Media list entry
 pub struct MediaListEntry {
@@ -72,18 +68,18 @@ pub struct MediaListEntry {
     /// Catalog status OK
     pub catalog: bool,
     /// Media set name
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub media_set_name: Option<String>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub media_set_uuid: Option<Uuid>,
     /// Media set seq_nr
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub seq_nr: Option<u64>,
     /// MediaSet creation time stamp
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub media_set_ctime: Option<i64>,
     /// Media Pool
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub pool: Option<String>,
 }
 
@@ -98,7 +94,7 @@ pub struct MediaListEntry {
         },
     },
 )]
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 /// Media label info
 pub struct MediaIdFlat {
@@ -110,18 +106,18 @@ pub struct MediaIdFlat {
     pub ctime: i64,
     // All MediaSet properties are optional here
     /// MediaSet Pool
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub pool: Option<String>,
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub media_set_uuid: Option<Uuid>,
     /// MediaSet media sequence number
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub seq_nr: Option<u64>,
     /// MediaSet Creation time stamp
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub media_set_ctime: Option<i64>,
     /// Encryption key fingerprint
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub encryption_key_fingerprint: Option<String>,
 }
 
@@ -133,7 +129,7 @@ pub struct MediaIdFlat {
         },
     },
 )]
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 /// Label with optional Uuid
 pub struct LabelUuidMap {
@@ -153,7 +149,7 @@ pub struct LabelUuidMap {
         },
     },
 )]
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 /// Media content list entry
 pub struct MediaContentEntry {
