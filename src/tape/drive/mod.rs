@@ -8,55 +8,40 @@ pub use lto::*;
 use std::path::PathBuf;
 
 use anyhow::{bail, format_err, Error};
-use serde::Deserialize;
-use serde_json::Value;
 use nix::fcntl::OFlag;
 use nix::sys::stat::Mode;
+use serde::Deserialize;
+use serde_json::Value;
 
 use proxmox_sys::fs::{
-    lock_file,
-    atomic_open_or_create_file,
-    file_read_optional_string,
-    replace_file,
-    CreateOptions,
+    atomic_open_or_create_file, file_read_optional_string, lock_file, replace_file, CreateOptions,
 };
 
 use proxmox_io::ReadExt;
 use proxmox_section_config::SectionConfigData;
-use proxmox_uuid::Uuid;
 use proxmox_sys::{task_log, WorkerTaskContext};
+use proxmox_uuid::Uuid;
 
-use pbs_api_types::{VirtualTapeDrive, LtoTapeDrive, Fingerprint};
+use pbs_api_types::{Fingerprint, LtoTapeDrive, VirtualTapeDrive};
 use pbs_config::key_config::KeyConfig;
 
-use pbs_tape::{
-    TapeWrite, TapeRead, BlockReadError, MediaContentHeader,
-    sg_tape::TapeAlertFlags,
-};
+use pbs_tape::{sg_tape::TapeAlertFlags, BlockReadError, MediaContentHeader, TapeRead, TapeWrite};
 
 use crate::{
     server::send_load_media_email,
     tape::{
-        MediaId,
-        drive::{
-            virtual_tape::open_virtual_tape_drive,
-        },
+        changer::{MediaChange, MtxMediaChanger},
+        drive::virtual_tape::open_virtual_tape_drive,
         file_formats::{
-            PROXMOX_BACKUP_MEDIA_LABEL_MAGIC_1_0,
+            MediaLabel, MediaSetLabel, PROXMOX_BACKUP_MEDIA_LABEL_MAGIC_1_0,
             PROXMOX_BACKUP_MEDIA_SET_LABEL_MAGIC_1_0,
-            MediaLabel,
-            MediaSetLabel,
         },
-        changer::{
-            MediaChange,
-            MtxMediaChanger,
-        },
+        MediaId,
     },
 };
 
 /// Tape driver interface
 pub trait TapeDriver {
-
     /// Flush all data to the tape
     fn sync(&mut self) -> Result<(), Error>;
 
@@ -90,14 +75,14 @@ pub trait TapeDriver {
 
     /// Write label to tape (erase tape content)
     fn label_tape(&mut self, label: &MediaLabel) -> Result<(), Error> {
-
         self.set_encryption(None)?;
 
         self.format_media(true)?; // this rewinds the tape
 
         let raw = serde_json::to_string_pretty(&serde_json::to_value(&label)?)?;
 
-        let header = MediaContentHeader::new(PROXMOX_BACKUP_MEDIA_LABEL_MAGIC_1_0, raw.len() as u32);
+        let header =
+            MediaContentHeader::new(PROXMOX_BACKUP_MEDIA_LABEL_MAGIC_1_0, raw.len() as u32);
 
         {
             let mut writer = self.write_file()?;
@@ -125,7 +110,6 @@ pub trait TapeDriver {
     /// This tries to read both media labels (label and
     /// media_set_label). Also returns the optional encryption key configuration.
     fn read_label(&mut self) -> Result<(Option<MediaId>, Option<KeyConfig>), Error> {
-
         self.rewind()?;
 
         let label = {
@@ -143,7 +127,7 @@ pub trait TapeDriver {
             };
 
             let header: MediaContentHeader = unsafe { reader.read_le_value()? };
-            header.check(PROXMOX_BACKUP_MEDIA_LABEL_MAGIC_1_0, 1, 64*1024)?;
+            header.check(PROXMOX_BACKUP_MEDIA_LABEL_MAGIC_1_0, 1, 64 * 1024)?;
             let data = reader.read_exact_allocated(header.size as usize)?;
 
             let label: MediaLabel = serde_json::from_slice(&data)
@@ -157,7 +141,10 @@ pub trait TapeDriver {
             label
         };
 
-        let mut media_id = MediaId { label, media_set_label: None };
+        let mut media_id = MediaId {
+            label,
+            media_set_label: None,
+        };
 
         // try to read MediaSet label
         let mut reader = match self.read_next_file() {
@@ -174,7 +161,7 @@ pub trait TapeDriver {
         };
 
         let header: MediaContentHeader = unsafe { reader.read_le_value()? };
-        header.check(PROXMOX_BACKUP_MEDIA_SET_LABEL_MAGIC_1_0, 1, 64*1024)?;
+        header.check(PROXMOX_BACKUP_MEDIA_SET_LABEL_MAGIC_1_0, 1, 64 * 1024)?;
         let data = reader.read_exact_allocated(header.size as usize)?;
 
         let mut data: Value = serde_json::from_slice(&data)
@@ -238,28 +225,25 @@ pub fn media_changer(
     config: &SectionConfigData,
     drive: &str,
 ) -> Result<Option<(Box<dyn MediaChange>, String)>, Error> {
-
     match config.sections.get(drive) {
-        Some((section_type_name, config)) => {
-            match section_type_name.as_ref() {
-                "virtual" => {
-                    let tape = VirtualTapeDrive::deserialize(config)?;
-                    Ok(Some((Box::new(tape), drive.to_string())))
-                }
-                "lto" => {
-                    let drive_config = LtoTapeDrive::deserialize(config)?;
-                    match drive_config.changer {
-                        Some(ref changer_name) => {
-                            let changer = MtxMediaChanger::with_drive_config(&drive_config)?;
-                            let changer_name = changer_name.to_string();
-                            Ok(Some((Box::new(changer), changer_name)))
-                        }
-                        None => Ok(None),
-                    }
-                }
-                ty => bail!("unknown drive type '{}' - internal error", ty),
+        Some((section_type_name, config)) => match section_type_name.as_ref() {
+            "virtual" => {
+                let tape = VirtualTapeDrive::deserialize(config)?;
+                Ok(Some((Box::new(tape), drive.to_string())))
             }
-        }
+            "lto" => {
+                let drive_config = LtoTapeDrive::deserialize(config)?;
+                match drive_config.changer {
+                    Some(ref changer_name) => {
+                        let changer = MtxMediaChanger::with_drive_config(&drive_config)?;
+                        let changer_name = changer_name.to_string();
+                        Ok(Some((Box::new(changer), changer_name)))
+                    }
+                    None => Ok(None),
+                }
+            }
+            ty => bail!("unknown drive type '{}' - internal error", ty),
+        },
         None => {
             bail!("no such drive '{}'", drive);
         }
@@ -274,40 +258,30 @@ pub fn required_media_changer(
     drive: &str,
 ) -> Result<(Box<dyn MediaChange>, String), Error> {
     match media_changer(config, drive) {
-        Ok(Some(result)) => {
-            Ok(result)
-        }
+        Ok(Some(result)) => Ok(result),
         Ok(None) => {
             bail!("drive '{}' has no associated changer device", drive);
-        },
-        Err(err) => {
-            Err(err)
         }
+        Err(err) => Err(err),
     }
 }
 
 /// Opens a tape drive (this fails if there is no media loaded)
-pub fn open_drive(
-    config: &SectionConfigData,
-    drive: &str,
-) -> Result<Box<dyn TapeDriver>, Error> {
-
+pub fn open_drive(config: &SectionConfigData, drive: &str) -> Result<Box<dyn TapeDriver>, Error> {
     match config.sections.get(drive) {
-        Some((section_type_name, config)) => {
-            match section_type_name.as_ref() {
-                "virtual" => {
-                    let tape = VirtualTapeDrive::deserialize(config)?;
-                    let handle = open_virtual_tape_drive(&tape)?;
-                    Ok(Box::new(handle))
-                }
-                "lto" => {
-                    let tape = LtoTapeDrive::deserialize(config)?;
-                    let handle = open_lto_tape_drive(&tape)?;
-                    Ok(Box::new(handle))
-                }
-                ty => bail!("unknown drive type '{}' - internal error", ty),
+        Some((section_type_name, config)) => match section_type_name.as_ref() {
+            "virtual" => {
+                let tape = VirtualTapeDrive::deserialize(config)?;
+                let handle = open_virtual_tape_drive(&tape)?;
+                Ok(Box::new(handle))
             }
-        }
+            "lto" => {
+                let tape = LtoTapeDrive::deserialize(config)?;
+                let handle = open_lto_tape_drive(&tape)?;
+                Ok(Box::new(handle))
+            }
+            ty => bail!("unknown drive type '{}' - internal error", ty),
+        },
         None => {
             bail!("no such drive '{}'", drive);
         }
@@ -328,7 +302,7 @@ impl std::fmt::Display for TapeRequestError {
         match self {
             TapeRequestError::None => {
                 write!(f, "no error")
-            },
+            }
             TapeRequestError::OpenFailed(reason) => {
                 write!(f, "tape open failed - {}", reason)
             }
@@ -336,7 +310,10 @@ impl std::fmt::Display for TapeRequestError {
                 write!(f, "wrong media label {}", label)
             }
             TapeRequestError::EmptyTape => {
-                write!(f, "found empty media without label (please label all tapes first)")
+                write!(
+                    f,
+                    "found empty media without label (please label all tapes first)"
+                )
             }
             TapeRequestError::ReadFailed(reason) => {
                 write!(f, "tape read failed - {}", reason)
@@ -356,11 +333,7 @@ pub fn request_and_load_media(
     drive: &str,
     label: &MediaLabel,
     notify_email: &Option<String>,
-) -> Result<(
-    Box<dyn TapeDriver>,
-    MediaId,
-), Error> {
-
+) -> Result<(Box<dyn TapeDriver>, MediaId), Error> {
     let check_label = |handle: &mut dyn TapeDriver, uuid: &proxmox_uuid::Uuid| {
         if let Ok((Some(media_id), _)) = handle.read_label() {
             task_log!(
@@ -399,13 +372,18 @@ pub fn request_and_load_media(
                     let label_text = label.label_text.clone();
 
                     if drive_config.changer.is_some() {
-
-                        task_log!(worker, "loading media '{}' into drive '{}'", label_text, drive);
+                        task_log!(
+                            worker,
+                            "loading media '{}' into drive '{}'",
+                            label_text,
+                            drive
+                        );
 
                         let mut changer = MtxMediaChanger::with_drive_config(&drive_config)?;
                         changer.load_media(&label_text)?;
 
-                        let mut handle: Box<dyn TapeDriver> = Box::new(open_lto_tape_drive(&drive_config)?);
+                        let mut handle: Box<dyn TapeDriver> =
+                            Box::new(open_lto_tape_drive(&drive_config)?);
 
                         let media_id = check_label(handle.as_mut(), &label.uuid)?;
 
@@ -415,34 +393,34 @@ pub fn request_and_load_media(
                     let mut last_error = TapeRequestError::None;
 
                     let update_and_log_request_error =
-                        |old: &mut TapeRequestError, new: TapeRequestError| -> Result<(), Error>
-                    {
-                        if new != *old {
-                            task_log!(worker, "{}", new);
-                            task_log!(
-                                worker,
-                                "Please insert media '{}' into drive '{}'",
-                                label_text,
-                                drive
-                            );
-                            if let Some(to) = notify_email {
-                                send_load_media_email(
-                                    drive,
-                                    &label_text,
-                                    to,
-                                    Some(new.to_string()),
-                                )?;
+                        |old: &mut TapeRequestError, new: TapeRequestError| -> Result<(), Error> {
+                            if new != *old {
+                                task_log!(worker, "{}", new);
+                                task_log!(
+                                    worker,
+                                    "Please insert media '{}' into drive '{}'",
+                                    label_text,
+                                    drive
+                                );
+                                if let Some(to) = notify_email {
+                                    send_load_media_email(
+                                        drive,
+                                        &label_text,
+                                        to,
+                                        Some(new.to_string()),
+                                    )?;
+                                }
+                                *old = new;
                             }
-                            *old = new;
-                        }
-                        Ok(())
-                    };
+                            Ok(())
+                        };
 
                     loop {
                         worker.check_abort()?;
 
                         if last_error != TapeRequestError::None {
-                            for _ in 0..50 { // delay 5 seconds
+                            for _ in 0..50 {
+                                // delay 5 seconds
                                 worker.check_abort()?;
                                 std::thread::sleep(std::time::Duration::from_millis(100));
                             }
@@ -484,12 +462,8 @@ pub fn request_and_load_media(
                                 );
                                 TapeRequestError::WrongLabel(label_string)
                             }
-                            Ok((None, _)) => {
-                                TapeRequestError::EmptyTape
-                            }
-                            Err(err) => {
-                                TapeRequestError::ReadFailed(err.to_string())
-                            }
+                            Ok((None, _)) => TapeRequestError::EmptyTape,
+                            Err(err) => TapeRequestError::ReadFailed(err.to_string()),
                         };
 
                         update_and_log_request_error(&mut last_error, request_error)?;
@@ -537,11 +511,7 @@ pub fn lock_tape_device(
 /// Writes the given state for the specified drive
 ///
 /// This function does not lock, so make sure the drive is locked
-pub fn set_tape_device_state(
-    drive: &str,
-    state: &str,
-) -> Result<(), Error> {
-
+pub fn set_tape_device_state(drive: &str, state: &str) -> Result<(), Error> {
     let mut path = PathBuf::from(crate::tape::DRIVE_STATE_DIR);
     path.push(drive);
 
@@ -571,19 +541,12 @@ pub fn get_tape_device_state(
     }
 }
 
-fn tape_device_path(
-    config: &SectionConfigData,
-    drive: &str,
-) -> Result<String, Error> {
+fn tape_device_path(config: &SectionConfigData, drive: &str) -> Result<String, Error> {
     match config.sections.get(drive) {
         Some((section_type_name, config)) => {
             let path = match section_type_name.as_ref() {
-                "virtual" => {
-                    VirtualTapeDrive::deserialize(config)?.path
-                }
-                "lto" => {
-                    LtoTapeDrive::deserialize(config)?.path
-                }
+                "virtual" => VirtualTapeDrive::deserialize(config)?.path,
+                "lto" => LtoTapeDrive::deserialize(config)?.path,
                 ty => bail!("unknown drive type '{}' - internal error", ty),
             };
             Ok(path)
@@ -622,7 +585,7 @@ fn open_device_lock(device_path: &str) -> Result<std::fs::File, Error> {
 // Acquires an exclusive lock on `device_path`
 //
 fn lock_device_path(device_path: &str) -> Result<DeviceLockGuard, TapeLockError> {
-    let mut file = open_device_lock(device_path)?; 
+    let mut file = open_device_lock(device_path)?;
     let timeout = std::time::Duration::new(10, 0);
     if let Err(err) = lock_file(&mut file, true, Some(timeout)) {
         if err.kind() == std::io::ErrorKind::Interrupted {
@@ -638,13 +601,12 @@ fn lock_device_path(device_path: &str) -> Result<DeviceLockGuard, TapeLockError>
 // Same logic as lock_device_path, but uses a timeout of 0, making it
 // non-blocking, and returning if the file is locked or not
 fn test_device_path_lock(device_path: &str) -> Result<bool, Error> {
-
-    let mut file = open_device_lock(device_path)?; 
+    let mut file = open_device_lock(device_path)?;
 
     let timeout = std::time::Duration::new(0, 0);
     match lock_file(&mut file, true, Some(timeout)) {
         // file was not locked, continue
-        Ok(()) => {},
+        Ok(()) => {}
         // file was locked, return true
         Err(err) if err.kind() == std::io::ErrorKind::WouldBlock => return Ok(true),
         Err(err) => bail!("{}", err),

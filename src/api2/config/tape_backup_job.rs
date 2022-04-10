@@ -1,15 +1,14 @@
-use anyhow::Error;
-use serde_json::Value;
 use ::serde::{Deserialize, Serialize};
+use anyhow::Error;
 use hex::FromHex;
+use serde_json::Value;
 
-use proxmox_router::{http_bail, Router, RpcEnvironment, Permission};
+use proxmox_router::{http_bail, Permission, Router, RpcEnvironment};
 use proxmox_schema::{api, param_bail};
 
 use pbs_api_types::{
-    Authid, TapeBackupJobConfig, TapeBackupJobConfigUpdater,
-    JOB_ID_SCHEMA, PROXMOX_CONFIG_DIGEST_SCHEMA,
-    PRIV_TAPE_AUDIT, PRIV_TAPE_MODIFY,
+    Authid, TapeBackupJobConfig, TapeBackupJobConfigUpdater, JOB_ID_SCHEMA, PRIV_TAPE_AUDIT,
+    PRIV_TAPE_MODIFY, PROXMOX_CONFIG_DIGEST_SCHEMA,
 };
 
 use pbs_config::CachedUserInfo;
@@ -107,7 +106,6 @@ pub fn read_tape_backup_job(
     id: String,
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<TapeBackupJobConfig, Error> {
-
     let (config, digest) = pbs_config::tape_job::config()?;
 
     let job = config.lookup("backup", &id)?;
@@ -119,7 +117,7 @@ pub fn read_tape_backup_job(
 
 #[api()]
 #[derive(Serialize, Deserialize)]
-#[serde(rename_all="kebab-case")]
+#[serde(rename_all = "kebab-case")]
 /// Deletable property name
 pub enum DeletableProperty {
     /// Delete the comment property.
@@ -188,29 +186,61 @@ pub fn update_tape_backup_job(
     if let Some(delete) = delete {
         for delete_prop in delete {
             match delete_prop {
-                DeletableProperty::EjectMedia => { data.setup.eject_media = None; },
-                DeletableProperty::ExportMediaSet => { data.setup.export_media_set = None; },
-                DeletableProperty::LatestOnly => { data.setup.latest_only = None; },
-                DeletableProperty::NotifyUser => { data.setup.notify_user = None; },
-                DeletableProperty::Schedule => { data.schedule = None; },
-                DeletableProperty::Comment => { data.comment = None; },
-                DeletableProperty::GroupFilter => { data.setup.group_filter = None; },
+                DeletableProperty::EjectMedia => {
+                    data.setup.eject_media = None;
+                }
+                DeletableProperty::ExportMediaSet => {
+                    data.setup.export_media_set = None;
+                }
+                DeletableProperty::LatestOnly => {
+                    data.setup.latest_only = None;
+                }
+                DeletableProperty::NotifyUser => {
+                    data.setup.notify_user = None;
+                }
+                DeletableProperty::Schedule => {
+                    data.schedule = None;
+                }
+                DeletableProperty::Comment => {
+                    data.comment = None;
+                }
+                DeletableProperty::GroupFilter => {
+                    data.setup.group_filter = None;
+                }
             }
         }
     }
 
-    if let Some(store) = update.setup.store { data.setup.store = store; }
-    if let Some(pool) = update.setup.pool { data.setup.pool = pool; }
-    if let Some(drive) = update.setup.drive { data.setup.drive = drive; }
+    if let Some(store) = update.setup.store {
+        data.setup.store = store;
+    }
+    if let Some(pool) = update.setup.pool {
+        data.setup.pool = pool;
+    }
+    if let Some(drive) = update.setup.drive {
+        data.setup.drive = drive;
+    }
 
-    if update.setup.eject_media.is_some() { data.setup.eject_media = update.setup.eject_media; };
-    if update.setup.export_media_set.is_some() { data.setup.export_media_set = update.setup.export_media_set; }
-    if update.setup.latest_only.is_some() { data.setup.latest_only = update.setup.latest_only; }
-    if update.setup.notify_user.is_some() { data.setup.notify_user = update.setup.notify_user; }
-    if update.setup.group_filter.is_some() { data.setup.group_filter = update.setup.group_filter; }
+    if update.setup.eject_media.is_some() {
+        data.setup.eject_media = update.setup.eject_media;
+    };
+    if update.setup.export_media_set.is_some() {
+        data.setup.export_media_set = update.setup.export_media_set;
+    }
+    if update.setup.latest_only.is_some() {
+        data.setup.latest_only = update.setup.latest_only;
+    }
+    if update.setup.notify_user.is_some() {
+        data.setup.notify_user = update.setup.notify_user;
+    }
+    if update.setup.group_filter.is_some() {
+        data.setup.group_filter = update.setup.group_filter;
+    }
 
     let schedule_changed = data.schedule != update.schedule;
-    if update.schedule.is_some() { data.schedule = update.schedule; }
+    if update.schedule.is_some() {
+        data.schedule = update.schedule;
+    }
 
     if let Some(comment) = update.comment {
         let comment = comment.trim();
@@ -267,8 +297,10 @@ pub fn delete_tape_backup_job(
     match config.lookup::<TapeBackupJobConfig>("backup", &id) {
         Ok(_job) => {
             config.sections.remove(&id);
-        },
-        Err(_) => { http_bail!(NOT_FOUND, "job '{}' does not exist.", id) },
+        }
+        Err(_) => {
+            http_bail!(NOT_FOUND, "job '{}' does not exist.", id)
+        }
     };
 
     pbs_config::tape_job::save_config(&config)?;

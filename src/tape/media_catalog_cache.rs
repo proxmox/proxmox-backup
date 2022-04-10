@@ -1,7 +1,7 @@
-use std::path::Path;
 use std::io::{BufRead, BufReader};
+use std::path::Path;
 
-use anyhow::{format_err, bail, Error};
+use anyhow::{bail, format_err, Error};
 
 use proxmox_sys::fs::CreateOptions;
 
@@ -15,7 +15,6 @@ pub fn media_catalog_snapshot_list(
     base_path: &Path,
     media_id: &MediaId,
 ) -> Result<Vec<(String, String)>, Error> {
-
     let uuid = &media_id.label.uuid;
 
     let mut cache_path = base_path.to_owned();
@@ -29,7 +28,10 @@ pub fn media_catalog_snapshot_list(
         Err(err) => bail!("unable to stat media catalog {:?} - {}", catalog_path, err),
     };
 
-    let cache_id = format!("{:016X}-{:016X}-{:016X}", stat.st_ino, stat.st_size as u64, stat.st_mtime as u64);
+    let cache_id = format!(
+        "{:016X}-{:016X}-{:016X}",
+        stat.st_ino, stat.st_size as u64, stat.st_mtime as u64
+    );
 
     match std::fs::OpenOptions::new().read(true).open(&cache_path) {
         Ok(file) => {
@@ -38,7 +40,8 @@ pub fn media_catalog_snapshot_list(
             let mut lines = file.lines();
             match lines.next() {
                 Some(Ok(id)) => {
-                    if id != cache_id { // cache is outdated - rewrite
+                    if id != cache_id {
+                        // cache is outdated - rewrite
                         return write_snapshot_cache(base_path, media_id, &cache_path, &cache_id);
                     }
                 }
@@ -71,8 +74,7 @@ fn write_snapshot_cache(
     media_id: &MediaId,
     cache_path: &Path,
     cache_id: &str,
-) ->  Result<Vec<(String, String)>, Error> {
-
+) -> Result<Vec<(String, String)>, Error> {
     // open normal catalog and write cache
     let catalog = MediaCatalog::open(base_path, media_id, false, false)?;
 
@@ -98,12 +100,7 @@ fn write_snapshot_cache(
         .owner(backup_user.uid)
         .group(backup_user.gid);
 
-    proxmox_sys::fs::replace_file(
-        cache_path,
-        data.as_bytes(),
-        options,
-        false,
-    )?;
+    proxmox_sys::fs::replace_file(cache_path, data.as_bytes(), options, false)?;
 
     Ok(list)
 }

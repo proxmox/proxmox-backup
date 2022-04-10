@@ -4,19 +4,9 @@ use std::io::Read;
 use proxmox_sys::error::SysError;
 use proxmox_uuid::Uuid;
 
-use pbs_tape::{
-    PROXMOX_TAPE_BLOCK_SIZE,
-    TapeWrite, MediaContentHeader,
-};
+use pbs_tape::{MediaContentHeader, TapeWrite, PROXMOX_TAPE_BLOCK_SIZE};
 
-use crate::{
-    tape::{
-        file_formats::{
-            PROXMOX_BACKUP_CATALOG_ARCHIVE_MAGIC_1_0,
-            CatalogArchiveHeader,
-        },
-    },
-};
+use crate::tape::file_formats::{CatalogArchiveHeader, PROXMOX_BACKUP_CATALOG_ARCHIVE_MAGIC_1_0};
 
 /// Write a media catalog to the tape
 ///
@@ -32,17 +22,20 @@ pub fn tape_write_catalog<'a>(
     seq_nr: usize,
     file: &mut File,
 ) -> Result<Option<Uuid>, std::io::Error> {
-
     let archive_header = CatalogArchiveHeader {
         uuid: uuid.clone(),
         media_set_uuid: media_set_uuid.clone(),
         seq_nr: seq_nr as u64,
     };
 
-    let header_data = serde_json::to_string_pretty(&archive_header)?.as_bytes().to_vec();
+    let header_data = serde_json::to_string_pretty(&archive_header)?
+        .as_bytes()
+        .to_vec();
 
     let header = MediaContentHeader::new(
-        PROXMOX_BACKUP_CATALOG_ARCHIVE_MAGIC_1_0, header_data.len() as u32);
+        PROXMOX_BACKUP_CATALOG_ARCHIVE_MAGIC_1_0,
+        header_data.len() as u32,
+    );
     let content_uuid: Uuid = header.uuid.into();
 
     let leom = writer.write_header(&header, &header_data)?;
@@ -54,7 +47,6 @@ pub fn tape_write_catalog<'a>(
     let mut file_copy_buffer = proxmox_io::vec::undefined(PROXMOX_TAPE_BLOCK_SIZE);
 
     let result: Result<(), std::io::Error> = proxmox_lang::try_block!({
-
         let file_size = file.metadata()?.len();
         let mut remaining = file_size;
 
@@ -71,7 +63,7 @@ pub fn tape_write_catalog<'a>(
         }
         Ok(())
     });
-    
+
     match result {
         Ok(()) => {
             writer.finish(false)?;

@@ -4,40 +4,19 @@ use std::fs::File;
 use std::io;
 
 use anyhow::{bail, format_err, Error};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
-use proxmox_sys::{
-    fs::{replace_file, CreateOptions},
-};
+use proxmox_sys::fs::{replace_file, CreateOptions};
 
 use pbs_config::key_config::KeyConfig;
 use pbs_tape::{
-    TapeWrite,
-    TapeRead,
-    BlockedReader,
-    BlockedWriter,
-    BlockReadError,
-    MtxStatus,
-    DriveStatus,
-    ElementStatus,
-    StorageElementStatus,
-    MediaContentHeader,
-    EmulateTapeReader,
-    EmulateTapeWriter,
+    BlockReadError, BlockedReader, BlockedWriter, DriveStatus, ElementStatus, EmulateTapeReader,
+    EmulateTapeWriter, MediaContentHeader, MtxStatus, StorageElementStatus, TapeRead, TapeWrite,
 };
 
-use crate::{
-    tape::{
-       drive::{
-           VirtualTapeDrive,
-           TapeDriver,
-           MediaChange,
-        },
-        file_formats::{
-            MediaSetLabel,
-            PROXMOX_BACKUP_MEDIA_SET_LABEL_MAGIC_1_0,
-        },
-    },
+use crate::tape::{
+    drive::{MediaChange, TapeDriver, VirtualTapeDrive},
+    file_formats::{MediaSetLabel, PROXMOX_BACKUP_MEDIA_SET_LABEL_MAGIC_1_0},
 };
 
 /// This needs to lock the drive
@@ -53,24 +32,32 @@ pub fn open_virtual_tape_drive(config: &VirtualTapeDrive) -> Result<VirtualTapeH
         Ok(VirtualTapeHandle {
             _lock: lock,
             drive_name: config.name.clone(),
-            max_size: config.max_size.unwrap_or(64*1024*1024),
+            max_size: config.max_size.unwrap_or(64 * 1024 * 1024),
             path: std::path::PathBuf::from(&config.path),
         })
-    }).map_err(|err: Error| format_err!("open drive '{}' ({}) failed - {}", config.name, config.path, err))
+    })
+    .map_err(|err: Error| {
+        format_err!(
+            "open drive '{}' ({}) failed - {}",
+            config.name,
+            config.path,
+            err
+        )
+    })
 }
 
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize, Deserialize)]
 struct VirtualTapeStatus {
     name: String,
     pos: usize,
 }
 
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize, Deserialize)]
 struct VirtualDriveStatus {
     current_tape: Option<VirtualTapeStatus>,
 }
 
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize, Deserialize)]
 struct TapeIndex {
     files: usize,
 }
@@ -83,7 +70,6 @@ pub struct VirtualTapeHandle {
 }
 
 impl VirtualTapeHandle {
-
     fn status_file_path(&self) -> std::path::PathBuf {
         let mut path = self.path.clone();
         path.push("drive-status.json");
@@ -121,11 +107,11 @@ impl VirtualTapeHandle {
         Ok(())
     }
 
-    fn truncate_tape(&self, tape_name: &str, pos: usize) ->  Result<usize, Error> {
+    fn truncate_tape(&self, tape_name: &str, pos: usize) -> Result<usize, Error> {
         let mut index = self.load_tape_index(tape_name)?;
 
         if index.files <= pos {
-            return Ok(index.files)
+            return Ok(index.files);
         }
 
         for i in pos..index.files {
@@ -143,9 +129,7 @@ impl VirtualTapeHandle {
     fn load_status(&self) -> Result<VirtualDriveStatus, Error> {
         let path = self.status_file_path();
 
-        let default = serde_json::to_value(VirtualDriveStatus {
-            current_tape: None,
-        })?;
+        let default = serde_json::to_value(VirtualDriveStatus { current_tape: None })?;
 
         let data = proxmox_sys::fs::file_get_json(&path, Some(default))?;
         let status: VirtualDriveStatus = serde_json::from_value(data)?;
@@ -183,9 +167,12 @@ impl VirtualTapeHandle {
     fn forward_space_count_files(&mut self, count: usize) -> Result<(), Error> {
         let mut status = self.load_status()?;
         match status.current_tape {
-            Some(VirtualTapeStatus { ref name, ref mut pos }) => {
-
-                let index = self.load_tape_index(name)
+            Some(VirtualTapeStatus {
+                ref name,
+                ref mut pos,
+            }) => {
+                let index = self
+                    .load_tape_index(name)
                     .map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))?;
 
                 let new_pos = *pos + count;
@@ -210,7 +197,6 @@ impl VirtualTapeHandle {
         let mut status = self.load_status()?;
         match status.current_tape {
             Some(VirtualTapeStatus { ref mut pos, .. }) => {
-
                 if count <= *pos {
                     *pos = *pos - count;
                 } else {
@@ -225,28 +211,26 @@ impl VirtualTapeHandle {
             None => bail!("drive is empty (no tape loaded)."),
         }
     }
-
 }
 
 impl TapeDriver for VirtualTapeHandle {
-
     fn sync(&mut self) -> Result<(), Error> {
         Ok(()) // do nothing for now
     }
 
     fn current_file_number(&mut self) -> Result<u64, Error> {
-       let status = self.load_status()
+        let status = self
+            .load_status()
             .map_err(|err| format_err!("current_file_number failed: {}", err.to_string()))?;
 
         match status.current_tape {
-            Some(VirtualTapeStatus { pos, .. }) => { Ok(pos as u64)},
+            Some(VirtualTapeStatus { pos, .. }) => Ok(pos as u64),
             None => bail!("current_file_number failed: drive is empty (no tape loaded)."),
         }
     }
 
     /// Move to last file
     fn move_to_last_file(&mut self) -> Result<(), Error> {
-
         self.move_to_eom(false)?;
 
         if self.current_file_number()? == 0 {
@@ -261,9 +245,12 @@ impl TapeDriver for VirtualTapeHandle {
     fn move_to_file(&mut self, file: u64) -> Result<(), Error> {
         let mut status = self.load_status()?;
         match status.current_tape {
-            Some(VirtualTapeStatus { ref name, ref mut pos }) => {
-
-                let index = self.load_tape_index(name)
+            Some(VirtualTapeStatus {
+                ref name,
+                ref mut pos,
+            }) => {
+                let index = self
+                    .load_tape_index(name)
                     .map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))?;
 
                 if file as usize > index.files {
@@ -282,46 +269,55 @@ impl TapeDriver for VirtualTapeHandle {
     }
 
     fn read_next_file(&mut self) -> Result<Box<dyn TapeRead>, BlockReadError> {
-        let mut status = self.load_status()
-            .map_err(|err| BlockReadError::Error(io::Error::new(io::ErrorKind::Other, err.to_string())))?;
+        let mut status = self.load_status().map_err(|err| {
+            BlockReadError::Error(io::Error::new(io::ErrorKind::Other, err.to_string()))
+        })?;
 
         match status.current_tape {
-            Some(VirtualTapeStatus { ref name, ref mut pos }) => {
-
-                let index = self.load_tape_index(name)
-                    .map_err(|err| BlockReadError::Error(io::Error::new(io::ErrorKind::Other, err.to_string())))?;
+            Some(VirtualTapeStatus {
+                ref name,
+                ref mut pos,
+            }) => {
+                let index = self.load_tape_index(name).map_err(|err| {
+                    BlockReadError::Error(io::Error::new(io::ErrorKind::Other, err.to_string()))
+                })?;
 
                 if *pos >= index.files {
                     return Err(BlockReadError::EndOfStream);
                 }
 
                 let path = self.tape_file_path(name, *pos);
-                let file = std::fs::OpenOptions::new()
-                    .read(true)
-                    .open(path)?;
+                let file = std::fs::OpenOptions::new().read(true).open(path)?;
 
                 *pos += 1;
-                self.store_status(&status)
-                    .map_err(|err|  BlockReadError::Error(io::Error::new(io::ErrorKind::Other, err.to_string())))?;
+                self.store_status(&status).map_err(|err| {
+                    BlockReadError::Error(io::Error::new(io::ErrorKind::Other, err.to_string()))
+                })?;
 
                 let reader = EmulateTapeReader::new(file);
                 let reader = BlockedReader::open(reader)?;
                 Ok(Box::new(reader))
             }
             None => {
-                return Err(BlockReadError::Error(proxmox_lang::io_format_err!("drive is empty (no tape loaded).")));
+                return Err(BlockReadError::Error(proxmox_lang::io_format_err!(
+                    "drive is empty (no tape loaded)."
+                )));
             }
         }
     }
 
     fn write_file(&mut self) -> Result<Box<dyn TapeWrite>, io::Error> {
-        let mut status = self.load_status()
+        let mut status = self
+            .load_status()
             .map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))?;
 
         match status.current_tape {
-            Some(VirtualTapeStatus { ref name, ref mut pos }) => {
-
-                let mut index = self.load_tape_index(name)
+            Some(VirtualTapeStatus {
+                ref name,
+                ref mut pos,
+            }) => {
+                let mut index = self
+                    .load_tape_index(name)
                     .map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))?;
 
                 for i in *pos..index.files {
@@ -333,7 +329,6 @@ impl TapeDriver for VirtualTapeHandle {
                 for i in 0..*pos {
                     let path = self.tape_file_path(name, i);
                     used_space += path.metadata()?.len() as usize;
-
                 }
                 index.files = *pos + 1;
 
@@ -369,9 +364,12 @@ impl TapeDriver for VirtualTapeHandle {
     fn move_to_eom(&mut self, _write_missing_eof: bool) -> Result<(), Error> {
         let mut status = self.load_status()?;
         match status.current_tape {
-            Some(VirtualTapeStatus { ref name, ref mut pos }) => {
-
-                let index = self.load_tape_index(name)
+            Some(VirtualTapeStatus {
+                ref name,
+                ref mut pos,
+            }) => {
+                let index = self
+                    .load_tape_index(name)
                     .map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))?;
 
                 *pos = index.files;
@@ -400,7 +398,10 @@ impl TapeDriver for VirtualTapeHandle {
     fn format_media(&mut self, _fast: bool) -> Result<(), Error> {
         let mut status = self.load_status()?;
         match status.current_tape {
-            Some(VirtualTapeStatus { ref name, ref mut pos }) => {
+            Some(VirtualTapeStatus {
+                ref name,
+                ref mut pos,
+            }) => {
                 *pos = self.truncate_tape(name, 0)?;
                 self.store_status(&status)?;
                 Ok(())
@@ -414,7 +415,6 @@ impl TapeDriver for VirtualTapeHandle {
         media_set_label: &MediaSetLabel,
         key_config: Option<&KeyConfig>,
     ) -> Result<(), Error> {
-
         self.set_encryption(None)?;
 
         if key_config.is_some() {
@@ -423,7 +423,10 @@ impl TapeDriver for VirtualTapeHandle {
 
         let mut status = self.load_status()?;
         match status.current_tape {
-            Some(VirtualTapeStatus { ref name, ref mut pos }) => {
+            Some(VirtualTapeStatus {
+                ref name,
+                ref mut pos,
+            }) => {
                 *pos = self.truncate_tape(name, 1)?;
                 let pos = *pos;
                 self.store_status(&status)?;
@@ -432,11 +435,17 @@ impl TapeDriver for VirtualTapeHandle {
                     bail!("media is empty (no label).");
                 }
                 if pos != 1 {
-                    bail!("write_media_set_label: truncate failed - got wrong pos '{}'", pos);
+                    bail!(
+                        "write_media_set_label: truncate failed - got wrong pos '{}'",
+                        pos
+                    );
                 }
 
                 let raw = serde_json::to_string_pretty(&serde_json::to_value(media_set_label)?)?;
-                let header = MediaContentHeader::new(PROXMOX_BACKUP_MEDIA_SET_LABEL_MAGIC_1_0, raw.len() as u32);
+                let header = MediaContentHeader::new(
+                    PROXMOX_BACKUP_MEDIA_SET_LABEL_MAGIC_1_0,
+                    raw.len() as u32,
+                );
 
                 {
                     let mut writer = self.write_file()?;
@@ -451,15 +460,12 @@ impl TapeDriver for VirtualTapeHandle {
     }
 
     fn eject_media(&mut self) -> Result<(), Error> {
-        let status = VirtualDriveStatus {
-            current_tape: None,
-        };
+        let status = VirtualDriveStatus { current_tape: None };
         self.store_status(&status)
     }
 }
 
 impl MediaChange for VirtualTapeHandle {
-
     fn drive_number(&self) -> u64 {
         0
     }
@@ -469,7 +475,6 @@ impl MediaChange for VirtualTapeHandle {
     }
 
     fn status(&mut self) -> Result<MtxStatus, Error> {
-
         let drive_status = self.load_status()?;
 
         let mut drives = Vec::new();
@@ -482,7 +487,7 @@ impl MediaChange for VirtualTapeHandle {
                 vendor: None,
                 model: None,
                 element_address: 0,
-           });
+            });
         }
 
         // This implementation is lame, because we do not have fixed
@@ -490,7 +495,7 @@ impl MediaChange for VirtualTapeHandle {
 
         let mut slots = Vec::new();
         let label_texts = self.online_media_label_texts()?;
-        let max_slots = ((label_texts.len() + 7)/8) * 8;
+        let max_slots = ((label_texts.len() + 7) / 8) * 8;
 
         for i in 0..max_slots {
             let status = if let Some(label_text) = label_texts.get(i) {
@@ -505,7 +510,11 @@ impl MediaChange for VirtualTapeHandle {
             });
         }
 
-        Ok(MtxStatus { drives, slots, transports: Vec::new() })
+        Ok(MtxStatus {
+            drives,
+            slots,
+            transports: Vec::new(),
+        })
     }
 
     fn transfer_media(&mut self, _from: u64, _to: u64) -> Result<MtxStatus, Error> {
@@ -568,7 +577,6 @@ impl MediaChange for VirtualTapeHandle {
 }
 
 impl MediaChange for VirtualTapeDrive {
-
     fn drive_number(&self) -> u64 {
         0
     }

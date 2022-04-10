@@ -11,30 +11,28 @@
 //!
 //! - unability to detect EOT (you just get EIO)
 
+use std::convert::TryInto;
 use std::fs::File;
 use std::os::unix::io::{AsRawFd, FromRawFd, RawFd};
-use std::convert::TryInto;
 
 use anyhow::{bail, format_err, Error};
 
 use proxmox_uuid::Uuid;
 
 use pbs_api_types::{
-    Fingerprint, MamAttribute, LtoDriveAndMediaStatus, LtoTapeDrive, Lp17VolumeStatistics,
+    Fingerprint, Lp17VolumeStatistics, LtoDriveAndMediaStatus, LtoTapeDrive, MamAttribute,
 };
 use pbs_config::key_config::KeyConfig;
-use proxmox_sys::command::run_command;
 use pbs_tape::{
-    TapeWrite, TapeRead, BlockReadError, MediaContentHeader,
-    sg_tape::{SgTape, TapeAlertFlags},
     linux_list_drives::open_lto_tape_device,
+    sg_tape::{SgTape, TapeAlertFlags},
+    BlockReadError, MediaContentHeader, TapeRead, TapeWrite,
 };
+use proxmox_sys::command::run_command;
 
-use crate::{
-    tape::{
-        drive::TapeDriver,
-        file_formats::{PROXMOX_BACKUP_MEDIA_SET_LABEL_MAGIC_1_0, MediaSetLabel},
-    },
+use crate::tape::{
+    drive::TapeDriver,
+    file_formats::{MediaSetLabel, PROXMOX_BACKUP_MEDIA_SET_LABEL_MAGIC_1_0},
 };
 
 /// Open a tape device
@@ -46,7 +44,6 @@ use crate::{
 /// - check block size
 /// - for autoloader only, try to reload ejected tapes
 pub fn open_lto_tape_drive(config: &LtoTapeDrive) -> Result<LtoTapeHandle, Error> {
-
     proxmox_lang::try_block!({
         let file = open_lto_tape_device(&config.path)?;
 
@@ -64,7 +61,15 @@ pub fn open_lto_tape_drive(config: &LtoTapeDrive) -> Result<LtoTapeHandle, Error
         handle.set_default_options()?;
 
         Ok(handle)
-    }).map_err(|err: Error| format_err!("open drive '{}' ({}) failed - {}", config.name, config.path, err))
+    })
+    .map_err(|err: Error| {
+        format_err!(
+            "open drive '{}' ({}) failed - {}",
+            config.name,
+            config.path,
+            err
+        )
+    })
 }
 
 /// Lto Tape device handle
@@ -73,7 +78,6 @@ pub struct LtoTapeHandle {
 }
 
 impl LtoTapeHandle {
-
     /// Creates a new instance
     pub fn new(file: File) -> Result<Self, Error> {
         let sg_tape = SgTape::new(file)?;
@@ -93,7 +97,8 @@ impl LtoTapeHandle {
         block_length: Option<u32>,
         buffer_mode: Option<bool>,
     ) -> Result<(), Error> {
-        self.sg_tape.set_drive_options(compression, block_length, buffer_mode)
+        self.sg_tape
+            .set_drive_options(compression, block_length, buffer_mode)
     }
 
     /// Write a single EOF mark without flushing buffers
@@ -102,7 +107,7 @@ impl LtoTapeHandle {
     }
 
     /// Get Tape and Media status
-    pub fn get_drive_and_media_status(&mut self) -> Result<LtoDriveAndMediaStatus, Error>  {
+    pub fn get_drive_and_media_status(&mut self) -> Result<LtoDriveAndMediaStatus, Error> {
         self.sg_tape.get_drive_and_media_status()
     }
 
@@ -123,7 +128,7 @@ impl LtoTapeHandle {
     }
 
     /// Position the tape after filemark count. Count 0 means BOT.
-    pub fn locate_file(&mut self, position: u64) ->  Result<(), Error> {
+    pub fn locate_file(&mut self, position: u64) -> Result<(), Error> {
         self.sg_tape.locate_file(position)
     }
 
@@ -131,14 +136,14 @@ impl LtoTapeHandle {
         self.sg_tape.erase_media(fast)
     }
 
-    pub fn load(&mut self) ->  Result<(), Error> {
+    pub fn load(&mut self) -> Result<(), Error> {
         self.sg_tape.load()
     }
 
     /// Read Cartridge Memory (MAM Attributes)
     pub fn cartridge_memory(&mut self) -> Result<Vec<MamAttribute>, Error> {
         self.sg_tape.cartridge_memory()
-     }
+    }
 
     /// Read Volume Statistics
     pub fn volume_statistics(&mut self) -> Result<Lp17VolumeStatistics, Error> {
@@ -146,21 +151,21 @@ impl LtoTapeHandle {
     }
 
     /// Lock the drive door
-    pub fn lock(&mut self) -> Result<(), Error>  {
-        self.sg_tape.set_medium_removal(false)
+    pub fn lock(&mut self) -> Result<(), Error> {
+        self.sg_tape
+            .set_medium_removal(false)
             .map_err(|err| format_err!("lock door failed - {}", err))
     }
 
     /// Unlock the drive door
-    pub fn unlock(&mut self) -> Result<(), Error>  {
-        self.sg_tape.set_medium_removal(true)
+    pub fn unlock(&mut self) -> Result<(), Error> {
+        self.sg_tape
+            .set_medium_removal(true)
             .map_err(|err| format_err!("unlock door failed - {}", err))
     }
 }
 
-
 impl TapeDriver for LtoTapeHandle {
-
     fn sync(&mut self) -> Result<(), Error> {
         self.sg_tape.sync()?;
         Ok(())
@@ -172,7 +177,6 @@ impl TapeDriver for LtoTapeHandle {
     }
 
     fn move_to_last_file(&mut self) -> Result<(), Error> {
-
         self.move_to_eom(false)?;
 
         self.sg_tape.check_filemark()?;
@@ -226,7 +230,6 @@ impl TapeDriver for LtoTapeHandle {
         media_set_label: &MediaSetLabel,
         key_config: Option<&KeyConfig>,
     ) -> Result<(), Error> {
-
         let file_number = self.current_file_number()?;
         if file_number != 1 {
             self.rewind()?;
@@ -235,12 +238,16 @@ impl TapeDriver for LtoTapeHandle {
 
         let file_number = self.current_file_number()?;
         if file_number != 1 {
-            bail!("write_media_set_label failed - got wrong file number ({} != 1)", file_number);
+            bail!(
+                "write_media_set_label failed - got wrong file number ({} != 1)",
+                file_number
+            );
         }
 
         self.set_encryption(None)?;
 
-        { // limit handle scope
+        {
+            // limit handle scope
             let mut handle = self.write_file()?;
 
             let mut value = serde_json::to_value(media_set_label)?;
@@ -257,7 +264,8 @@ impl TapeDriver for LtoTapeHandle {
 
             let raw = serde_json::to_string_pretty(&value)?;
 
-            let header = MediaContentHeader::new(PROXMOX_BACKUP_MEDIA_SET_LABEL_MAGIC_1_0, raw.len() as u32);
+            let header =
+                MediaContentHeader::new(PROXMOX_BACKUP_MEDIA_SET_LABEL_MAGIC_1_0, raw.len() as u32);
             handle.write_header(&header, raw.as_bytes())?;
             handle.finish(false)?;
         }
@@ -285,15 +293,11 @@ impl TapeDriver for LtoTapeHandle {
         &mut self,
         key_fingerprint: Option<(Fingerprint, Uuid)>,
     ) -> Result<(), Error> {
-
         if nix::unistd::Uid::effective().is_root() {
-
             if let Some((ref key_fingerprint, ref uuid)) = key_fingerprint {
-
                 let (key_map, _digest) = pbs_config::tape_encryption_keys::load_keys()?;
                 match key_map.get(key_fingerprint) {
                     Some(item) => {
-
                         // derive specialized key for each media-set
 
                         let mut tape_key = [0u8; 32];
@@ -305,7 +309,8 @@ impl TapeDriver for LtoTapeHandle {
                             &uuid_bytes,
                             10,
                             openssl::hash::MessageDigest::sha256(),
-                            &mut tape_key)?;
+                            &mut tape_key,
+                        )?;
 
                         return self.sg_tape.set_encryption(Some(tape_key));
                     }
@@ -318,10 +323,11 @@ impl TapeDriver for LtoTapeHandle {
 
         let output = if let Some((fingerprint, uuid)) = key_fingerprint {
             let fingerprint = fingerprint.signature();
-            run_sg_tape_cmd("encryption", &[
-                "--fingerprint", &fingerprint,
-                "--uuid", &uuid.to_string(),
-            ], self.sg_tape.file_mut().as_raw_fd())?
+            run_sg_tape_cmd(
+                "encryption",
+                &["--fingerprint", &fingerprint, "--uuid", &uuid.to_string()],
+                self.sg_tape.file_mut().as_raw_fd(),
+            )?
         } else {
             run_sg_tape_cmd("encryption", &[], self.sg_tape.file_mut().as_raw_fd())?
         };
@@ -331,12 +337,12 @@ impl TapeDriver for LtoTapeHandle {
 }
 
 fn run_sg_tape_cmd(subcmd: &str, args: &[&str], fd: RawFd) -> Result<String, Error> {
-    let mut command = std::process::Command::new(
-        "/usr/lib/x86_64-linux-gnu/proxmox-backup/sg-tape-cmd");
+    let mut command =
+        std::process::Command::new("/usr/lib/x86_64-linux-gnu/proxmox-backup/sg-tape-cmd");
     command.args(&[subcmd]);
     command.args(&["--stdin"]);
     command.args(args);
     let device_fd = nix::unistd::dup(fd)?;
-    command.stdin(unsafe { std::process::Stdio::from_raw_fd(device_fd)});
+    command.stdin(unsafe { std::process::Stdio::from_raw_fd(device_fd) });
     run_command(command, None)
 }

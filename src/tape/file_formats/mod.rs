@@ -37,7 +37,8 @@ pub const PROXMOX_BACKUP_CHUNK_ARCHIVE_MAGIC_1_0: [u8; 8] = [62, 173, 167, 95, 4
 pub const PROXMOX_BACKUP_CHUNK_ARCHIVE_MAGIC_1_1: [u8; 8] = [109, 49, 99, 109, 215, 2, 131, 191];
 
 // openssl::sha::sha256(b"Proxmox Backup Chunk Archive Entry v1.0")[0..8]
-pub const PROXMOX_BACKUP_CHUNK_ARCHIVE_ENTRY_MAGIC_1_0: [u8; 8] = [72, 87, 109, 242, 222, 66, 143, 220];
+pub const PROXMOX_BACKUP_CHUNK_ARCHIVE_ENTRY_MAGIC_1_0: [u8; 8] =
+    [72, 87, 109, 242, 222, 66, 143, 220];
 
 // openssl::sha::sha256(b"Proxmox Backup Snapshot Archive v1.0")[0..8];
 // only used in unreleased version - no longer supported
@@ -46,9 +47,10 @@ pub const PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_0: [u8; 8] = [9, 182, 2, 31, 1
 pub const PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_1: [u8; 8] = [218, 22, 21, 208, 17, 226, 154, 98];
 
 // openssl::sha::sha256(b"Proxmox Backup Catalog Archive v1.0")[0..8];
-pub const PROXMOX_BACKUP_CATALOG_ARCHIVE_MAGIC_1_0: [u8; 8] = [183, 207, 199, 37, 158, 153, 30, 115];
+pub const PROXMOX_BACKUP_CATALOG_ARCHIVE_MAGIC_1_0: [u8; 8] =
+    [183, 207, 199, 37, 158, 153, 30, 115];
 
-lazy_static::lazy_static!{
+lazy_static::lazy_static! {
     // Map content magic numbers to human readable names.
     static ref PROXMOX_TAPE_CONTENT_NAME: HashMap<&'static [u8;8], &'static str> = {
         let mut map = HashMap::new();
@@ -65,9 +67,10 @@ lazy_static::lazy_static!{
 
 /// Map content magic numbers to human readable names.
 pub fn proxmox_tape_magic_to_text(magic: &[u8; 8]) -> Option<String> {
-    PROXMOX_TAPE_CONTENT_NAME.get(magic).map(|s| String::from(*s))
+    PROXMOX_TAPE_CONTENT_NAME
+        .get(magic)
+        .map(|s| String::from(*s))
 }
-
 
 #[derive(Deserialize, Serialize)]
 /// Header for chunk archives
@@ -77,7 +80,7 @@ pub struct ChunkArchiveHeader {
 }
 
 #[derive(Endian)]
-#[repr(C,packed)]
+#[repr(C, packed)]
 /// Header for data blobs inside a chunk archive
 pub struct ChunkArchiveEntryHeader {
     /// fixed value `PROXMOX_BACKUP_CHUNK_ARCHIVE_ENTRY_MAGIC_1_0`
@@ -108,7 +111,7 @@ pub struct CatalogArchiveHeader {
     pub seq_nr: u64,
 }
 
-#[derive(Serialize,Deserialize,Clone,Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 /// Media Label
 ///
 /// Media labels are used to uniquely identify a media. They are
@@ -122,8 +125,7 @@ pub struct MediaLabel {
     pub ctime: i64,
 }
 
-
-#[derive(Serialize,Deserialize,Clone,Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 /// `MediaSet` Label
 ///
 /// Used to uniquely identify a `MediaSet`. They are stored as second
@@ -138,12 +140,11 @@ pub struct MediaSetLabel {
     /// Creation time stamp
     pub ctime: i64,
     /// Encryption key finkerprint (if encryped)
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub encryption_key_fingerprint: Option<Fingerprint>,
 }
 
 impl MediaSetLabel {
-
     pub fn with_data(
         pool: &str,
         uuid: Uuid,
@@ -160,4 +161,3 @@ impl MediaSetLabel {
         }
     }
 }
-

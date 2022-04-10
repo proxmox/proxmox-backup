@@ -2,20 +2,14 @@
 //
 // # cargo test --release tape::test::compute_media_state
 
-use std::path::PathBuf;
 use anyhow::Error;
+use std::path::PathBuf;
 
 use proxmox_uuid::Uuid;
 
-use pbs_api_types::{MediaStatus, MediaSetPolicy, RetentionPolicy};
+use pbs_api_types::{MediaSetPolicy, MediaStatus, RetentionPolicy};
 
-use crate::tape::{
-    Inventory,
-    MediaPool,
-    file_formats::{
-        MediaSetLabel,
-    },
-};
+use crate::tape::{file_formats::MediaSetLabel, Inventory, MediaPool};
 
 fn create_testdir(name: &str) -> Result<PathBuf, Error> {
     let mut testdir: PathBuf = String::from("./target/testout").into();
@@ -30,7 +24,6 @@ fn create_testdir(name: &str) -> Result<PathBuf, Error> {
 
 #[test]
 fn test_compute_media_state() -> Result<(), Error> {
-
     let testdir = create_testdir("test_compute_media_state")?;
 
     let ctime = 0;
@@ -55,18 +48,21 @@ fn test_compute_media_state() -> Result<(), Error> {
     let tape4_uuid = inventory.generate_used_tape("tape4", sl4, 0);
     let tape5_uuid = inventory.generate_used_tape("tape5", sl5, 0);
 
-     let pool = MediaPool::new(
+    let pool = MediaPool::new(
         "p1",
-         &testdir ,
-         MediaSetPolicy::AlwaysCreate,
-         RetentionPolicy::KeepForever,
-         None,
-         None,
-         false,
+        &testdir,
+        MediaSetPolicy::AlwaysCreate,
+        RetentionPolicy::KeepForever,
+        None,
+        None,
+        false,
     )?;
 
     // tape1 is free
-    assert_eq!(pool.lookup_media(&tape1_uuid)?.status(), &MediaStatus::Writable);
+    assert_eq!(
+        pool.lookup_media(&tape1_uuid)?.status(),
+        &MediaStatus::Writable
+    );
 
     // intermediate tapes should be Full
     assert_eq!(pool.lookup_media(&tape2_uuid)?.status(), &MediaStatus::Full);
@@ -74,14 +70,16 @@ fn test_compute_media_state() -> Result<(), Error> {
     assert_eq!(pool.lookup_media(&tape4_uuid)?.status(), &MediaStatus::Full);
 
     // last tape is writable
-    assert_eq!(pool.lookup_media(&tape5_uuid)?.status(), &MediaStatus::Writable);
+    assert_eq!(
+        pool.lookup_media(&tape5_uuid)?.status(),
+        &MediaStatus::Writable
+    );
 
     Ok(())
 }
 
 #[test]
 fn test_media_expire_time() -> Result<(), Error> {
-
     let testdir = create_testdir("test_media_expire_time")?;
 
     let ctime = 0;
@@ -97,7 +95,7 @@ fn test_media_expire_time() -> Result<(), Error> {
     let tape1_uuid = inventory.generate_used_tape("tape1", sl1, 0);
 
     // tape2: single tape media set
-    let sl2= MediaSetLabel::with_data("p1", Uuid::generate(), 0, ctime + 120, None);
+    let sl2 = MediaSetLabel::with_data("p1", Uuid::generate(), 0, ctime + 120, None);
     let tape2_uuid = inventory.generate_used_tape("tape2", sl2, 0);
 
     let event = "*:0/2".parse()?;
@@ -105,7 +103,7 @@ fn test_media_expire_time() -> Result<(), Error> {
 
     let pool = MediaPool::new(
         "p1",
-        &testdir ,
+        &testdir,
         MediaSetPolicy::CreateAt(event),
         RetentionPolicy::ProtectFor(span),
         None,
@@ -115,19 +113,52 @@ fn test_media_expire_time() -> Result<(), Error> {
 
     assert_eq!(pool.lookup_media(&tape0_uuid)?.status(), &MediaStatus::Full);
     assert_eq!(pool.lookup_media(&tape1_uuid)?.status(), &MediaStatus::Full);
-    assert_eq!(pool.lookup_media(&tape2_uuid)?.status(), &MediaStatus::Writable);
+    assert_eq!(
+        pool.lookup_media(&tape2_uuid)?.status(),
+        &MediaStatus::Writable
+    );
 
-    assert_eq!(pool.media_is_expired(&pool.lookup_media(&tape0_uuid)?, 0), false);
-    assert_eq!(pool.media_is_expired(&pool.lookup_media(&tape0_uuid)?, 60), false);
-    assert_eq!(pool.media_is_expired(&pool.lookup_media(&tape0_uuid)?, 120), false);
-    assert_eq!(pool.media_is_expired(&pool.lookup_media(&tape0_uuid)?, 180), true);
+    assert_eq!(
+        pool.media_is_expired(&pool.lookup_media(&tape0_uuid)?, 0),
+        false
+    );
+    assert_eq!(
+        pool.media_is_expired(&pool.lookup_media(&tape0_uuid)?, 60),
+        false
+    );
+    assert_eq!(
+        pool.media_is_expired(&pool.lookup_media(&tape0_uuid)?, 120),
+        false
+    );
+    assert_eq!(
+        pool.media_is_expired(&pool.lookup_media(&tape0_uuid)?, 180),
+        true
+    );
 
-    assert_eq!(pool.media_is_expired(&pool.lookup_media(&tape1_uuid)?, 0), false);
-    assert_eq!(pool.media_is_expired(&pool.lookup_media(&tape1_uuid)?, 60), false);
-    assert_eq!(pool.media_is_expired(&pool.lookup_media(&tape1_uuid)?, 120), false);
-    assert_eq!(pool.media_is_expired(&pool.lookup_media(&tape1_uuid)?, 180), false);
-    assert_eq!(pool.media_is_expired(&pool.lookup_media(&tape1_uuid)?, 190), false);
-    assert_eq!(pool.media_is_expired(&pool.lookup_media(&tape1_uuid)?, 240), true);
+    assert_eq!(
+        pool.media_is_expired(&pool.lookup_media(&tape1_uuid)?, 0),
+        false
+    );
+    assert_eq!(
+        pool.media_is_expired(&pool.lookup_media(&tape1_uuid)?, 60),
+        false
+    );
+    assert_eq!(
+        pool.media_is_expired(&pool.lookup_media(&tape1_uuid)?, 120),
+        false
+    );
+    assert_eq!(
+        pool.media_is_expired(&pool.lookup_media(&tape1_uuid)?, 180),
+        false
+    );
+    assert_eq!(
+        pool.media_is_expired(&pool.lookup_media(&tape1_uuid)?, 190),
+        false
+    );
+    assert_eq!(
+        pool.media_is_expired(&pool.lookup_media(&tape1_uuid)?, 240),
+        true
+    );
 
     Ok(())
 }

@@ -1,15 +1,13 @@
-use anyhow::{format_err, bail, Error};
-use serde_json::Value;
+use anyhow::{bail, format_err, Error};
 use hex::FromHex;
+use serde_json::Value;
 
-use proxmox_router::{http_bail, ApiMethod, Router, RpcEnvironment, Permission};
+use proxmox_router::{http_bail, ApiMethod, Permission, Router, RpcEnvironment};
 use proxmox_schema::{api, param_bail};
 
 use pbs_api_types::{
-    Authid, Fingerprint, KeyInfo, Kdf,
-    TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
-    PROXMOX_CONFIG_DIGEST_SCHEMA, PASSWORD_HINT_SCHEMA,
-    PRIV_TAPE_AUDIT, PRIV_TAPE_MODIFY,
+    Authid, Fingerprint, Kdf, KeyInfo, PASSWORD_HINT_SCHEMA, PRIV_TAPE_AUDIT, PRIV_TAPE_MODIFY,
+    PROXMOX_CONFIG_DIGEST_SCHEMA, TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
 };
 
 use pbs_config::CachedUserInfo;
@@ -17,12 +15,7 @@ use pbs_config::CachedUserInfo;
 use pbs_config::key_config::KeyConfig;
 use pbs_config::open_backup_lockfile;
 use pbs_config::tape_encryption_keys::{
-    TAPE_KEYS_LOCKFILE,
-    load_keys,
-    load_key_configs,
-    save_keys,
-    save_key_configs,
-    insert_key,
+    insert_key, load_key_configs, load_keys, save_key_configs, save_keys, TAPE_KEYS_LOCKFILE,
 };
 
 #[api(
@@ -44,7 +37,6 @@ pub fn list_keys(
     _info: &ApiMethod,
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<KeyInfo>, Error> {
-
     let (key_map, digest) = load_key_configs()?;
 
     let mut list = Vec::new();
@@ -106,13 +98,15 @@ pub fn change_passphrase(
     force: bool,
     fingerprint: Fingerprint,
     digest: Option<String>,
-    rpcenv: &mut dyn RpcEnvironment
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
-
     let kdf = kdf.unwrap_or_default();
 
     if let Kdf::None = kdf {
-        param_bail!("kdf", format_err!("Please specify a key derivation function (none is not allowed here)."));
+        param_bail!(
+            "kdf",
+            format_err!("Please specify a key derivation function (none is not allowed here).")
+        );
     }
 
     let _lock = open_backup_lockfile(TAPE_KEYS_LOCKFILE, None, true)?;
@@ -126,7 +120,11 @@ pub fn change_passphrase(
 
     let key_config = match config_map.get(&fingerprint) {
         Some(key_config) => key_config,
-        None => http_bail!(NOT_FOUND, "tape encryption key configuration '{}' does not exist.", fingerprint),
+        None => http_bail!(
+            NOT_FOUND,
+            "tape encryption key configuration '{}' does not exist.",
+            fingerprint
+        ),
     };
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
@@ -137,15 +135,25 @@ pub fn change_passphrase(
     }
 
     let (key, created, fingerprint) = match (force, &password) {
-        (true, Some(_)) => param_bail!("password", format_err!("password is not allowed when using force")),
+        (true, Some(_)) => param_bail!(
+            "password",
+            format_err!("password is not allowed when using force")
+        ),
         (false, None) => param_bail!("password", format_err!("missing parameter: password")),
         (false, Some(pass)) => key_config.decrypt(&|| Ok(pass.as_bytes().to_vec()))?,
         (true, None) => {
-                let key = load_keys()?.0.get(&fingerprint).ok_or_else(|| {
-                    format_err!("failed to reset passphrase, could not find key '{}'", fingerprint)
-                })?.key;
+            let key = load_keys()?
+                .0
+                .get(&fingerprint)
+                .ok_or_else(|| {
+                    format_err!(
+                        "failed to reset passphrase, could not find key '{}'",
+                        fingerprint
+                    )
+                })?
+                .key;
 
-                (key, key_config.created, fingerprint)
+            (key, key_config.created, fingerprint)
         }
     };
 
@@ -189,13 +197,15 @@ pub fn create_key(
     kdf: Option<Kdf>,
     password: String,
     hint: String,
-    _rpcenv: &mut dyn RpcEnvironment
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Fingerprint, Error> {
-
     let kdf = kdf.unwrap_or_default();
 
     if let Kdf::None = kdf {
-        param_bail!("kdf", format_err!("Please specify a key derivation function (none is not allowed here)."));
+        param_bail!(
+            "kdf",
+            format_err!("Please specify a key derivation function (none is not allowed here).")
+        );
     }
 
     let (key, mut key_config) = KeyConfig::new(password.as_bytes(), kdf)?;
@@ -207,7 +217,6 @@ pub fn create_key(
 
     Ok(fingerprint)
 }
-
 
 #[api(
     input: {
@@ -229,12 +238,15 @@ pub fn read_key(
     fingerprint: Fingerprint,
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<KeyInfo, Error> {
-
     let (config_map, _digest) = load_key_configs()?;
 
     let key_config = match config_map.get(&fingerprint) {
         Some(key_config) => key_config,
-        None => http_bail!(NOT_FOUND, "tape encryption key '{}' does not exist.", fingerprint),
+        None => http_bail!(
+            NOT_FOUND,
+            "tape encryption key '{}' does not exist.",
+            fingerprint
+        ),
     };
 
     if key_config.kdf.is_none() {
@@ -280,8 +292,14 @@ pub fn delete_key(
     }
 
     match config_map.get(&fingerprint) {
-        Some(_) => { config_map.remove(&fingerprint); },
-        None => http_bail!(NOT_FOUND, "tape encryption key '{}' does not exist.", fingerprint),
+        Some(_) => {
+            config_map.remove(&fingerprint);
+        }
+        None => http_bail!(
+            NOT_FOUND,
+            "tape encryption key '{}' does not exist.",
+            fingerprint
+        ),
     }
     save_key_configs(config_map)?;
 

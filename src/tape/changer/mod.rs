@@ -9,15 +9,14 @@ use std::path::PathBuf;
 
 use anyhow::{bail, Error};
 
-use proxmox_sys::fs::{CreateOptions, replace_file, file_read_optional_string};
+use proxmox_sys::fs::{file_read_optional_string, replace_file, CreateOptions};
 
-use pbs_api_types::{ScsiTapeChanger, LtoTapeDrive};
+use pbs_api_types::{LtoTapeDrive, ScsiTapeChanger};
 
-use pbs_tape::{sg_pt_changer, MtxStatus, ElementStatus};
+use pbs_tape::{sg_pt_changer, ElementStatus, MtxStatus};
 
 /// Interface to SCSI changer devices
 pub trait ScsiMediaChange {
-
     fn status(&mut self, use_cache: bool) -> Result<MtxStatus, Error>;
 
     fn load_slot(&mut self, from_slot: u64, drivenum: u64) -> Result<MtxStatus, Error>;
@@ -29,7 +28,6 @@ pub trait ScsiMediaChange {
 
 /// Interface to the media changer device for a single drive
 pub trait MediaChange {
-
     /// Drive number inside changer
     fn drive_number(&self) -> u64;
 
@@ -55,9 +53,11 @@ pub trait MediaChange {
     /// slots. Also, you cannot load cleaning units with this
     /// interface.
     fn load_media(&mut self, label_text: &str) -> Result<MtxStatus, Error> {
-
         if label_text.starts_with("CLN") {
-            bail!("unable to load media '{}' (seems to be a cleaning unit)", label_text);
+            bail!(
+                "unable to load media '{}' (seems to be a cleaning unit)",
+                label_text
+            );
         }
 
         let mut status = self.status()?;
@@ -69,17 +69,21 @@ pub trait MediaChange {
             if let ElementStatus::VolumeTag(ref tag) = drive_status.status {
                 if *tag == label_text {
                     if i as u64 != self.drive_number() {
-                        bail!("unable to load media '{}' - media in wrong drive ({} != {})",
-                              label_text, i, self.drive_number());
+                        bail!(
+                            "unable to load media '{}' - media in wrong drive ({} != {})",
+                            label_text,
+                            i,
+                            self.drive_number()
+                        );
                     }
-                    return Ok(status) // already loaded
+                    return Ok(status); // already loaded
                 }
             }
             if i as u64 == self.drive_number() {
                 match drive_status.status {
-                    ElementStatus::Empty => { /* OK */ },
+                    ElementStatus::Empty => { /* OK */ }
                     _ => unload_drive = true,
-                 }
+                }
             }
         }
 
@@ -92,9 +96,12 @@ pub trait MediaChange {
             if let ElementStatus::VolumeTag(ref tag) = slot_info.status {
                 if tag == label_text {
                     if slot_info.import_export {
-                        bail!("unable to load media '{}' - inside import/export slot", label_text);
+                        bail!(
+                            "unable to load media '{}' - inside import/export slot",
+                            label_text
+                        );
                     }
-                    slot = Some(i+1);
+                    slot = Some(i + 1);
                     break;
                 }
             }
@@ -127,9 +134,13 @@ pub trait MediaChange {
         }
 
         for slot_info in status.slots.iter() {
-            if slot_info.import_export { continue; }
+            if slot_info.import_export {
+                continue;
+            }
             if let ElementStatus::VolumeTag(ref tag) = slot_info.status {
-                if tag.starts_with("CLN") { continue; }
+                if tag.starts_with("CLN") {
+                    continue;
+                }
                 list.push(tag.clone());
             }
         }
@@ -147,15 +158,19 @@ pub trait MediaChange {
         // Unload drive first. Note: This also unloads a loaded cleaning tape
         if let Some(drive_status) = status.drives.get(self.drive_number() as usize) {
             match drive_status.status {
-                ElementStatus::Empty => { /* OK */ },
-                _ => { status = self.unload_to_free_slot(status)?; }
+                ElementStatus::Empty => { /* OK */ }
+                _ => {
+                    status = self.unload_to_free_slot(status)?;
+                }
             }
         }
 
         let mut cleaning_cartridge_slot = None;
 
         for (i, slot_info) in status.slots.iter().enumerate() {
-            if slot_info.import_export { continue; }
+            if slot_info.import_export {
+                continue;
+            }
             if let ElementStatus::VolumeTag(ref tag) = slot_info.status {
                 if tag.starts_with("CLN") {
                     cleaning_cartridge_slot = Some(i + 1);
@@ -168,7 +183,6 @@ pub trait MediaChange {
             None => bail!("clean failed - unable to find cleaning cartridge"),
             Some(cleaning_cartridge_slot) => cleaning_cartridge_slot as u64,
         };
-
 
         self.load_media_from_slot(cleaning_cartridge_slot)?;
 
@@ -197,7 +211,9 @@ pub trait MediaChange {
 
         for (i, slot_info) in status.slots.iter().enumerate() {
             if slot_info.import_export {
-                if to.is_some() { continue; }
+                if to.is_some() {
+                    continue;
+                }
                 if let ElementStatus::Empty = slot_info.status {
                     to = Some(i as u64 + 1);
                 }
@@ -214,7 +230,7 @@ pub trait MediaChange {
                     self.unload_media(Some(to))?;
                     Ok(Some(to))
                 }
-                None =>  bail!("unable to find free export slot"),
+                None => bail!("unable to find free export slot"),
             }
         } else {
             match (from, to) {
@@ -234,7 +250,6 @@ pub trait MediaChange {
     ///
     /// Note: This method consumes status - so please use returned status afterward.
     fn unload_to_free_slot(&mut self, status: MtxStatus) -> Result<MtxStatus, Error> {
-
         let drive_status = &status.drives[self.drive_number() as usize];
         if let Some(slot) = drive_status.loaded_slot {
             // check if original slot is empty/usable
@@ -248,7 +263,10 @@ pub trait MediaChange {
         if let Some(slot) = status.find_free_slot(false) {
             self.unload_media(Some(slot))
         } else {
-            bail!("drive '{}' unload failure - no free slot", self.drive_name());
+            bail!(
+                "drive '{}' unload failure - no free slot",
+                self.drive_name()
+            );
         }
     }
 }
@@ -256,8 +274,7 @@ pub trait MediaChange {
 const USE_MTX: bool = false;
 
 impl ScsiMediaChange for ScsiTapeChanger {
-
-    fn status(&mut self, use_cache: bool)  -> Result<MtxStatus, Error> {
+    fn status(&mut self, use_cache: bool) -> Result<MtxStatus, Error> {
         if use_cache {
             if let Some(state) = load_changer_state_cache(&self.name)? {
                 return Ok(state);
@@ -328,11 +345,7 @@ impl ScsiMediaChange for ScsiTapeChanger {
     }
 }
 
-fn save_changer_state_cache(
-    changer: &str,
-    state: &MtxStatus,
-) -> Result<(), Error> {
-
+fn save_changer_state_cache(changer: &str, state: &MtxStatus) -> Result<(), Error> {
     let mut path = PathBuf::from(crate::tape::CHANGER_STATE_DIR);
     path.push(changer);
 
@@ -377,7 +390,6 @@ pub struct MtxMediaChanger {
 }
 
 impl MtxMediaChanger {
-
     pub fn with_drive_config(drive_config: &LtoTapeDrive) -> Result<Self, Error> {
         let (config, _digest) = pbs_config::drive::config()?;
         let changer_config: ScsiTapeChanger = match drive_config.changer {
@@ -394,7 +406,6 @@ impl MtxMediaChanger {
 }
 
 impl MediaChange for MtxMediaChanger {
-
     fn drive_number(&self) -> u64 {
         self.drive_number
     }

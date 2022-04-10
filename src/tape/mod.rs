@@ -2,10 +2,7 @@
 
 use anyhow::{format_err, Error};
 
-use proxmox_sys::fs::{
-    create_path,
-    CreateOptions,
-};
+use proxmox_sys::fs::{create_path, CreateOptions};
 
 use pbs_buildcfg::{PROXMOX_BACKUP_RUN_DIR_M, PROXMOX_BACKUP_STATE_DIR_M};
 
@@ -51,11 +48,10 @@ pub const CHANGER_STATE_DIR: &str = concat!(PROXMOX_BACKUP_RUN_DIR_M!(), "/chang
 /// We limit chunk archive size, so that we can faster restore a
 /// specific chunk (The catalog only store file numbers, so we
 /// need to read the whole archive to restore a single chunk)
-pub const MAX_CHUNK_ARCHIVE_SIZE: usize = 4*1024*1024*1024; // 4GB for now
+pub const MAX_CHUNK_ARCHIVE_SIZE: usize = 4 * 1024 * 1024 * 1024; // 4GB for now
 
 /// To improve performance, we need to avoid tape drive buffer flush.
-pub const COMMIT_BLOCK_SIZE: usize = 128*1024*1024*1024; // 128 GiB
-
+pub const COMMIT_BLOCK_SIZE: usize = 128 * 1024 * 1024 * 1024; // 128 GiB
 
 /// Create tape status dir with correct permission
 pub fn create_tape_status_dir() -> Result<(), Error> {

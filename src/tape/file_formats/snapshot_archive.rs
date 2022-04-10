@@ -5,17 +5,10 @@ use std::task::{Context, Poll};
 use proxmox_sys::error::SysError;
 use proxmox_uuid::Uuid;
 
-use pbs_tape::{
-    PROXMOX_TAPE_BLOCK_SIZE,
-    TapeWrite, MediaContentHeader,
-};
 use pbs_datastore::SnapshotReader;
+use pbs_tape::{MediaContentHeader, TapeWrite, PROXMOX_TAPE_BLOCK_SIZE};
 
-use crate::tape::file_formats::{
-    PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_1,
-    SnapshotArchiveHeader,
-};
-
+use crate::tape::file_formats::{SnapshotArchiveHeader, PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_1};
 
 /// Write a set of files as `pxar` archive to the tape
 ///
@@ -29,17 +22,20 @@ pub fn tape_write_snapshot_archive<'a>(
     writer: &mut (dyn TapeWrite + 'a),
     snapshot_reader: &SnapshotReader,
 ) -> Result<Option<Uuid>, std::io::Error> {
-
     let snapshot = snapshot_reader.snapshot().to_string();
     let store = snapshot_reader.datastore_name().to_string();
     let file_list = snapshot_reader.file_list();
 
     let archive_header = SnapshotArchiveHeader { snapshot, store };
 
-    let header_data = serde_json::to_string_pretty(&archive_header)?.as_bytes().to_vec();
+    let header_data = serde_json::to_string_pretty(&archive_header)?
+        .as_bytes()
+        .to_vec();
 
     let header = MediaContentHeader::new(
-        PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_1, header_data.len() as u32);
+        PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_1,
+        header_data.len() as u32,
+    );
     let content_uuid = header.uuid.into();
 
     let root_metadata = pxar::Metadata::dir_builder(0o0664).build();
@@ -47,18 +43,20 @@ pub fn tape_write_snapshot_archive<'a>(
     let mut file_copy_buffer = proxmox_io::vec::undefined(PROXMOX_TAPE_BLOCK_SIZE);
 
     let result: Result<(), std::io::Error> = proxmox_lang::try_block!({
-
         let leom = writer.write_header(&header, &header_data)?;
         if leom {
-            return Err(std::io::Error::from_raw_os_error(nix::errno::Errno::ENOSPC as i32));
+            return Err(std::io::Error::from_raw_os_error(
+                nix::errno::Errno::ENOSPC as i32,
+            ));
         }
 
-        let mut encoder = pxar::encoder::sync::Encoder::new(PxarTapeWriter::new(writer), &root_metadata)?;
+        let mut encoder =
+            pxar::encoder::sync::Encoder::new(PxarTapeWriter::new(writer), &root_metadata)?;
 
         for filename in file_list.iter() {
-
-            let mut file = snapshot_reader.open_file(filename)
-                .map_err(|err| proxmox_lang::io_format_err!("open file '{}' failed - {}", filename, err))?;
+            let mut file = snapshot_reader.open_file(filename).map_err(|err| {
+                proxmox_lang::io_format_err!("open file '{}' failed - {}", filename, err)
+            })?;
             let metadata = file.metadata()?;
             let file_size = metadata.len();
 
@@ -77,7 +75,6 @@ pub fn tape_write_snapshot_archive<'a>(
                 }
                 out.write_all(&file_copy_buffer[..got])?;
                 remaining -= got as u64;
-
             }
             if remaining > 0 {
                 proxmox_lang::io_bail!("file '{}' shrunk while reading", filename);
@@ -117,7 +114,6 @@ impl<'a, T: TapeWrite + ?Sized> PxarTapeWriter<'a, T> {
 }
 
 impl<'a, T: TapeWrite + ?Sized> pxar::encoder::SeqWrite for PxarTapeWriter<'a, T> {
-
     fn poll_seq_write(
         self: Pin<&mut Self>,
         _cx: &mut Context,
@@ -127,7 +123,9 @@ impl<'a, T: TapeWrite + ?Sized> pxar::encoder::SeqWrite for PxarTapeWriter<'a, T
         Poll::Ready(match this.inner.write_all(buf) {
             Ok(leom) => {
                 if leom {
-                    Err(std::io::Error::from_raw_os_error(nix::errno::Errno::ENOSPC as i32))
+                    Err(std::io::Error::from_raw_os_error(
+                        nix::errno::Errno::ENOSPC as i32,
+                    ))
                 } else {
                     Ok(buf.len())
                 }

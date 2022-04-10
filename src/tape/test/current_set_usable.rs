@@ -2,22 +2,14 @@
 //
 // # cargo test --release tape::test::current_set_usable
 
-use std::path::PathBuf;
 use anyhow::Error;
+use std::path::PathBuf;
 
 use proxmox_uuid::Uuid;
 
-use pbs_api_types::{RetentionPolicy, MediaSetPolicy};
+use pbs_api_types::{MediaSetPolicy, RetentionPolicy};
 
-use crate::{
-    tape::{
-        Inventory,
-        MediaPool,
-        file_formats::{
-            MediaSetLabel,
-        },
-    },
-};
+use crate::tape::{file_formats::MediaSetLabel, Inventory, MediaPool};
 
 fn create_testdir(name: &str) -> Result<PathBuf, Error> {
     let mut testdir: PathBuf = String::from("./target/testout").into();
@@ -32,7 +24,6 @@ fn create_testdir(name: &str) -> Result<PathBuf, Error> {
 
 #[test]
 fn test_current_set_usable_1() -> Result<(), Error> {
-
     let testdir = create_testdir("test_current_set_usable_1")?;
 
     // pool without any media
@@ -54,7 +45,6 @@ fn test_current_set_usable_1() -> Result<(), Error> {
 
 #[test]
 fn test_current_set_usable_2() -> Result<(), Error> {
-
     let testdir = create_testdir("test_current_set_usable_2")?;
 
     let ctime = 0;
@@ -81,7 +71,6 @@ fn test_current_set_usable_2() -> Result<(), Error> {
 
 #[test]
 fn test_current_set_usable_3() -> Result<(), Error> {
-
     let testdir = create_testdir("test_current_set_usable_3")?;
 
     let ctime = 0;
@@ -110,7 +99,6 @@ fn test_current_set_usable_3() -> Result<(), Error> {
 
 #[test]
 fn test_current_set_usable_4() -> Result<(), Error> {
-
     let testdir = create_testdir("test_current_set_usable_4")?;
 
     let ctime = 0;
@@ -139,7 +127,6 @@ fn test_current_set_usable_4() -> Result<(), Error> {
 
 #[test]
 fn test_current_set_usable_5() -> Result<(), Error> {
-
     let testdir = create_testdir("test_current_set_usable_5")?;
 
     let ctime = 0;
@@ -170,7 +157,6 @@ fn test_current_set_usable_5() -> Result<(), Error> {
 
 #[test]
 fn test_current_set_usable_6() -> Result<(), Error> {
-
     let testdir = create_testdir("test_current_set_usable_6")?;
 
     let ctime = 0;
@@ -199,7 +185,6 @@ fn test_current_set_usable_6() -> Result<(), Error> {
 
 #[test]
 fn test_current_set_usable_7() -> Result<(), Error> {
-
     let testdir = create_testdir("test_current_set_usable_7")?;
 
     let ctime = 0;
@@ -214,7 +199,6 @@ fn test_current_set_usable_7() -> Result<(), Error> {
     inventory.set_media_status_damaged(&tape1_uuid)?;
 
     inventory.generate_used_tape("tape2", sl2, ctime);
-
 
     // pool with one two media in current set, one set to damaged
     let pool = MediaPool::new(

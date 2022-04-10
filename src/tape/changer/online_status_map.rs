@@ -1,16 +1,16 @@
-use std::path::Path;
 use std::collections::{HashMap, HashSet};
+use std::path::Path;
 
 use anyhow::{bail, Error};
 
 use proxmox_section_config::SectionConfigData;
 use proxmox_uuid::Uuid;
 
-use pbs_api_types::{VirtualTapeDrive, ScsiTapeChanger};
+use pbs_api_types::{ScsiTapeChanger, VirtualTapeDrive};
 use pbs_tape::{ElementStatus, MtxStatus};
 
-use crate::tape::Inventory;
 use crate::tape::changer::{MediaChange, ScsiMediaChange};
+use crate::tape::Inventory;
 
 /// Helper to update media online status
 ///
@@ -23,13 +23,11 @@ pub struct OnlineStatusMap {
 }
 
 impl OnlineStatusMap {
-
     /// Creates a new instance with one map entry for each configured
     /// changer (or 'VirtualTapeDrive', which has an internal
     /// changer). The map entry is set to 'None' to indicate that we
     /// do not have information about the online status.
     pub fn new(config: &SectionConfigData) -> Result<Self, Error> {
-
         let mut map = HashMap::new();
 
         let changers: Vec<ScsiTapeChanger> = config.convert_to_typed_array("changer")?;
@@ -42,7 +40,10 @@ impl OnlineStatusMap {
             map.insert(vtape.name.clone(), None);
         }
 
-        Ok(Self { map, changer_map: HashMap::new() })
+        Ok(Self {
+            map,
+            changer_map: HashMap::new(),
+        })
     }
 
     /// Returns the assiciated changer name for a media.
@@ -61,11 +62,14 @@ impl OnlineStatusMap {
     }
 
     /// Update the online set for the specified changer
-    pub fn update_online_status(&mut self, changer_name: &str, online_set: HashSet<Uuid>) -> Result<(), Error> {
-
+    pub fn update_online_status(
+        &mut self,
+        changer_name: &str,
+        online_set: HashSet<Uuid>,
+    ) -> Result<(), Error> {
         match self.map.get(changer_name) {
             None => bail!("no such changer '{}' device", changer_name),
-            Some(None) => { /* Ok */ },
+            Some(None) => { /* Ok */ }
             Some(Some(_)) => {
                 // do not allow updates to keep self.changer_map consistent
                 bail!("update_online_status '{}' called twice", changer_name);
@@ -73,7 +77,8 @@ impl OnlineStatusMap {
         }
 
         for uuid in online_set.iter() {
-            self.changer_map.insert(uuid.clone(), changer_name.to_string());
+            self.changer_map
+                .insert(uuid.clone(), changer_name.to_string());
         }
 
         self.map.insert(changer_name.to_string(), Some(online_set));
@@ -87,7 +92,6 @@ impl OnlineStatusMap {
 /// Returns a HashSet containing all found media Uuid. This only
 /// returns media found in Inventory.
 pub fn mtx_status_to_online_set(status: &MtxStatus, inventory: &Inventory) -> HashSet<Uuid> {
-
     let mut online_set = HashSet::new();
 
     for drive_status in status.drives.iter() {
@@ -99,7 +103,9 @@ pub fn mtx_status_to_online_set(status: &MtxStatus, inventory: &Inventory) -> Ha
     }
 
     for slot_info in status.slots.iter() {
-        if slot_info.import_export { continue; }
+        if slot_info.import_export {
+            continue;
+        }
         if let ElementStatus::VolumeTag(ref label_text) = slot_info.status {
             if let Some(media_id) = inventory.find_media_by_label_text(label_text) {
                 online_set.insert(media_id.label.uuid.clone());
@@ -113,8 +119,10 @@ pub fn mtx_status_to_online_set(status: &MtxStatus, inventory: &Inventory) -> Ha
 /// Update online media status
 ///
 /// For a single 'changer', or else simply ask all changer devices.
-pub fn update_online_status(state_path: &Path, changer: Option<&str>) -> Result<OnlineStatusMap, Error> {
-
+pub fn update_online_status(
+    state_path: &Path,
+    changer: Option<&str>,
+) -> Result<OnlineStatusMap, Error> {
     let (config, _digest) = pbs_config::drive::config()?;
 
     let mut inventory = Inventory::load(state_path)?;
@@ -135,7 +143,10 @@ pub fn update_online_status(state_path: &Path, changer: Option<&str>) -> Result<
         let status = match changer_config.status(false) {
             Ok(status) => status,
             Err(err) => {
-                eprintln!("unable to get changer '{}' status - {}", changer_config.name, err);
+                eprintln!(
+                    "unable to get changer '{}' status - {}",
+                    changer_config.name, err
+                );
                 continue;
             }
         };
@@ -172,7 +183,10 @@ pub fn update_online_status(state_path: &Path, changer: Option<&str>) -> Result<
 
     if let Some(changer) = changer {
         if !found_changer {
-            bail!("update_online_status failed - no such changer '{}'", changer);
+            bail!(
+                "update_online_status failed - no such changer '{}'",
+                changer
+            );
         }
     }
 
@@ -188,7 +202,6 @@ pub fn update_changer_online_status(
     changer_name: &str,
     label_text_list: &[String],
 ) -> Result<(), Error> {
-
     let mut online_map = OnlineStatusMap::new(drive_config)?;
     let mut online_set = HashSet::new();
     for label_text in label_text_list.iter() {

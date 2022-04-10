@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::{format_err, Error};
 
-use pbs_datastore::{DataStore, DataBlob, SnapshotReader};
+use pbs_datastore::{DataBlob, DataStore, SnapshotReader};
 
 use crate::tape::CatalogSet;
 
@@ -16,7 +16,6 @@ pub struct NewChunksIterator {
 }
 
 impl NewChunksIterator {
-
     /// Creates the iterator, spawning a new thread
     ///
     /// Make sure to join() the returnd thread handle.
@@ -25,19 +24,16 @@ impl NewChunksIterator {
         snapshot_reader: Arc<Mutex<SnapshotReader>>,
         catalog_set: Arc<Mutex<CatalogSet>>,
     ) -> Result<(std::thread::JoinHandle<()>, Self), Error> {
-
         let (tx, rx) = std::sync::mpsc::sync_channel(3);
 
         let reader_thread = std::thread::spawn(move || {
-
             let snapshot_reader = snapshot_reader.lock().unwrap();
 
-            let mut chunk_index: HashSet<[u8;32]> = HashSet::new();
+            let mut chunk_index: HashSet<[u8; 32]> = HashSet::new();
 
             let datastore_name = snapshot_reader.datastore_name().to_string();
 
             let result: Result<(), Error> = proxmox_lang::try_block!({
-
                 let mut chunk_iter = snapshot_reader.chunk_iterator(move |digest| {
                     catalog_set
                         .lock()
@@ -61,7 +57,7 @@ impl NewChunksIterator {
                     let blob = datastore.load_chunk(&digest)?;
                     //println!("LOAD CHUNK {}", hex::encode(&digest));
                     match tx.send(Ok(Some((digest, blob)))) {
-                        Ok(()) => {},
+                        Ok(()) => {}
                         Err(err) => {
                             eprintln!("could not send chunk to reader thread: {}", err);
                             break;

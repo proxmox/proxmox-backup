@@ -2,21 +2,14 @@
 //
 // # cargo test --release tape::test::inventory
 
-use std::path::PathBuf;
 use anyhow::{bail, Error};
+use std::path::PathBuf;
 
 use proxmox_uuid::Uuid;
 
 use pbs_api_types::{MediaLocation, MediaStatus};
 
-use crate::{
-    tape::{
-        Inventory,
-        file_formats::{
-            MediaSetLabel,
-        },
-    },
-};
+use crate::tape::{file_formats::MediaSetLabel, Inventory};
 
 fn create_testdir(name: &str) -> Result<PathBuf, Error> {
     let mut testdir: PathBuf = String::from("./target/testout").into();
@@ -31,38 +24,56 @@ fn create_testdir(name: &str) -> Result<PathBuf, Error> {
 
 #[test]
 fn test_media_state_db() -> Result<(), Error> {
-
     let testdir = create_testdir("test_media_state_db")?;
 
     let mut inventory = Inventory::load(&testdir)?;
 
     let uuid1: Uuid = inventory.generate_free_tape("tape1", 0);
 
-    assert_eq!(inventory.status_and_location(&uuid1), (MediaStatus::Unknown, MediaLocation::Offline));
+    assert_eq!(
+        inventory.status_and_location(&uuid1),
+        (MediaStatus::Unknown, MediaLocation::Offline)
+    );
 
     inventory.set_media_status_full(&uuid1)?;
 
-    assert_eq!(inventory.status_and_location(&uuid1), (MediaStatus::Full, MediaLocation::Offline));
+    assert_eq!(
+        inventory.status_and_location(&uuid1),
+        (MediaStatus::Full, MediaLocation::Offline)
+    );
 
     inventory.set_media_location_vault(&uuid1, "Office2")?;
-    assert_eq!(inventory.status_and_location(&uuid1),
-               (MediaStatus::Full, MediaLocation::Vault(String::from("Office2"))));
+    assert_eq!(
+        inventory.status_and_location(&uuid1),
+        (
+            MediaStatus::Full,
+            MediaLocation::Vault(String::from("Office2"))
+        )
+    );
 
     inventory.set_media_location_offline(&uuid1)?;
-    assert_eq!(inventory.status_and_location(&uuid1), (MediaStatus::Full, MediaLocation::Offline));
+    assert_eq!(
+        inventory.status_and_location(&uuid1),
+        (MediaStatus::Full, MediaLocation::Offline)
+    );
 
     inventory.set_media_status_damaged(&uuid1)?;
-    assert_eq!(inventory.status_and_location(&uuid1), (MediaStatus::Damaged, MediaLocation::Offline));
+    assert_eq!(
+        inventory.status_and_location(&uuid1),
+        (MediaStatus::Damaged, MediaLocation::Offline)
+    );
 
     inventory.clear_media_status(&uuid1)?;
-    assert_eq!(inventory.status_and_location(&uuid1), (MediaStatus::Unknown, MediaLocation::Offline));
+    assert_eq!(
+        inventory.status_and_location(&uuid1),
+        (MediaStatus::Unknown, MediaLocation::Offline)
+    );
 
     Ok(())
 }
 
 #[test]
 fn test_list_pool_media() -> Result<(), Error> {
-
     let testdir = create_testdir("test_list_pool_media")?;
     let mut inventory = Inventory::load(&testdir)?;
 
@@ -81,10 +92,16 @@ fn test_list_pool_media() -> Result<(), Error> {
     let list = inventory.list_pool_media("p1");
     assert_eq!(list.len(), 2);
 
-    let tape2 = list.iter().find(|media_id| &media_id.label.uuid == &tape2_uuid).unwrap();
+    let tape2 = list
+        .iter()
+        .find(|media_id| &media_id.label.uuid == &tape2_uuid)
+        .unwrap();
     assert!(tape2.media_set_label.is_none());
 
-    let tape3 = list.iter().find(|media_id| &media_id.label.uuid == &tape3_uuid).unwrap();
+    let tape3 = list
+        .iter()
+        .find(|media_id| &media_id.label.uuid == &tape3_uuid)
+        .unwrap();
     match tape3.media_set_label {
         None => bail!("missing media set label"),
         Some(ref set) => {
@@ -97,16 +114,14 @@ fn test_list_pool_media() -> Result<(), Error> {
 
 #[test]
 fn test_media_set_simple() -> Result<(), Error> {
-
     let testdir = create_testdir("test_media_set_simple")?;
     let mut inventory = Inventory::load(&testdir)?;
 
     let ctime = 0;
 
     let sl1 = MediaSetLabel::with_data("p1", Uuid::generate(), 0, ctime + 10, None);
-    let sl2 = MediaSetLabel::with_data("p1", sl1.uuid.clone(), 1, ctime+ 20, None);
+    let sl2 = MediaSetLabel::with_data("p1", sl1.uuid.clone(), 1, ctime + 20, None);
     let sl3 = MediaSetLabel::with_data("p1", sl1.uuid.clone(), 2, ctime + 30, None);
-
 
     let tape1_uuid = inventory.generate_used_tape("tape1", sl1.clone(), 0);
     let tape2_uuid = inventory.generate_used_tape("tape2", sl2, 0);
@@ -141,7 +156,6 @@ fn test_media_set_simple() -> Result<(), Error> {
     // test media set start time
     assert_eq!(inventory.media_set_start_time(&sl1.uuid), Some(ctime + 10));
 
-
     // test pool p2
     let media_set = inventory.compute_media_set_members(&sl4.uuid)?;
     assert_eq!(media_set.uuid(), &sl4.uuid);
@@ -158,10 +172,8 @@ fn test_media_set_simple() -> Result<(), Error> {
     Ok(())
 }
 
-
 #[test]
 fn test_latest_media_set() -> Result<(), Error> {
-
     let testdir = create_testdir("test_latest_media_set")?;
 
     let insert_tape = |inventory: &mut Inventory, pool, label, seq_nr, ctime| -> Uuid {
@@ -176,7 +188,12 @@ fn test_latest_media_set() -> Result<(), Error> {
         let set = inventory.compute_media_set_members(&latest_set).unwrap();
         let media_list = set.media_list();
         assert_eq!(media_list.iter().filter(|s| s.is_some()).count(), 1);
-        let media_uuid = media_list.iter().find(|s| s.is_some()).unwrap().clone().unwrap();
+        let media_uuid = media_list
+            .iter()
+            .find(|s| s.is_some())
+            .unwrap()
+            .clone()
+            .unwrap();
         let media = inventory.lookup_media(&media_uuid).unwrap();
         assert_eq!(media.label.label_text, label);
     };

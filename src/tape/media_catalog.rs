@@ -1,38 +1,28 @@
+use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
 use std::fs::File;
-use std::io::{Write, Read, BufReader, Seek, SeekFrom};
+use std::io::{BufReader, Read, Seek, SeekFrom, Write};
 use std::os::unix::io::AsRawFd;
-use std::path::{PathBuf, Path};
-use std::collections::{HashSet, HashMap};
+use std::path::{Path, PathBuf};
 
 use anyhow::{bail, format_err, Error};
 use endian_trait::Endian;
 
-use proxmox_sys::fs::read_subdir;
 use pbs_datastore::backup_info::BackupDir;
+use proxmox_sys::fs::read_subdir;
 
-use proxmox_sys::fs::{
-    fchown,
-    create_path,
-    CreateOptions,
-};
-use proxmox_io::{WriteExt, ReadExt};
+use proxmox_io::{ReadExt, WriteExt};
+use proxmox_sys::fs::{create_path, fchown, CreateOptions};
 use proxmox_uuid::Uuid;
 
-use crate::{
-    tape::{
-        MediaId,
-        file_formats::MediaSetLabel,
-    },
-};
+use crate::tape::{file_formats::MediaSetLabel, MediaId};
 
 pub struct DatastoreContent {
     pub snapshot_index: HashMap<String, u64>, // snapshot => file_nr
-    pub chunk_index: HashMap<[u8;32], u64>, // chunk => file_nr
+    pub chunk_index: HashMap<[u8; 32], u64>,  // chunk => file_nr
 }
 
 impl DatastoreContent {
-
     pub fn new() -> Self {
         Self {
             chunk_index: HashMap::new(),
@@ -47,8 +37,7 @@ impl DatastoreContent {
 /// including the file position.
 ///
 /// We use a simple binary format to store data on disk.
-pub struct MediaCatalog  {
-
+pub struct MediaCatalog {
     uuid: Uuid, // BackupMedia uuid
 
     file: Option<File>,
@@ -65,14 +54,14 @@ pub struct MediaCatalog  {
 }
 
 impl MediaCatalog {
-
     /// Magic number for media catalog files.
     // openssl::sha::sha256(b"Proxmox Backup Media Catalog v1.0")[0..8]
     // Note: this version did not store datastore names (not supported anymore)
     pub const PROXMOX_BACKUP_MEDIA_CATALOG_MAGIC_1_0: [u8; 8] = [221, 29, 164, 1, 59, 69, 19, 40];
 
     // openssl::sha::sha256(b"Proxmox Backup Media Catalog v1.1")[0..8]
-    pub const PROXMOX_BACKUP_MEDIA_CATALOG_MAGIC_1_1: [u8; 8] = [76, 142, 232, 193, 32, 168, 137, 113];
+    pub const PROXMOX_BACKUP_MEDIA_CATALOG_MAGIC_1_1: [u8; 8] =
+        [76, 142, 232, 193, 32, 168, 137, 113];
 
     /// List media with catalogs
     pub fn media_with_catalogs(base_path: &Path) -> Result<HashSet<Uuid>, Error> {
@@ -81,8 +70,10 @@ impl MediaCatalog {
         for entry in read_subdir(libc::AT_FDCWD, base_path)? {
             let entry = entry?;
             let name = unsafe { entry.file_name_utf8_unchecked() };
-            if !name.ends_with(".log") { continue; }
-            if let Ok(uuid) = Uuid::parse_str(&name[..(name.len()-4)]) {
+            if !name.ends_with(".log") {
+                continue;
+            }
+            if let Ok(uuid) = Uuid::parse_str(&name[..(name.len() - 4)]) {
                 catalogs.insert(uuid);
             }
         }
@@ -111,7 +102,6 @@ impl MediaCatalog {
 
     /// Destroy the media catalog (remove all files)
     pub fn destroy(base_path: &Path, uuid: &Uuid) -> Result<(), Error> {
-
         let path = Self::catalog_path(base_path, uuid);
 
         match std::fs::remove_file(path) {
@@ -122,11 +112,7 @@ impl MediaCatalog {
     }
 
     /// Destroy the media catalog if media_set uuid does not match
-    pub fn destroy_unrelated_catalog(
-        base_path: &Path,
-        media_id: &MediaId,
-    ) -> Result<(), Error> {
-
+    pub fn destroy_unrelated_catalog(base_path: &Path, media_id: &MediaId) -> Result<(), Error> {
         let uuid = &media_id.label.uuid;
 
         let path = Self::catalog_path(base_path, uuid);
@@ -144,8 +130,8 @@ impl MediaCatalog {
         let expected_media_set_id = match media_id.media_set_label {
             None => {
                 std::fs::remove_file(path)?;
-                return Ok(())
-            },
+                return Ok(());
+            }
             Some(ref set) => &set.uuid,
         };
 
@@ -197,13 +183,11 @@ impl MediaCatalog {
         write: bool,
         create: bool,
     ) -> Result<Self, Error> {
-
         let uuid = &media_id.label.uuid;
 
         let path = Self::catalog_path(base_path, uuid);
 
         let me = proxmox_lang::try_block!({
-
             Self::create_basedir(base_path)?;
 
             let mut file = std::fs::OpenOptions::new()
@@ -213,8 +197,12 @@ impl MediaCatalog {
                 .open(&path)?;
 
             let backup_user = pbs_config::backup_user()?;
-            fchown(file.as_raw_fd(), Some(backup_user.uid), Some(backup_user.gid))
-                .map_err(|err| format_err!("fchown failed - {}", err))?;
+            fchown(
+                file.as_raw_fd(),
+                Some(backup_user.uid),
+                Some(backup_user.gid),
+            )
+            .map_err(|err| format_err!("fchown failed - {}", err))?;
 
             let mut me = Self {
                 uuid: uuid.clone(),
@@ -234,26 +222,22 @@ impl MediaCatalog {
             let (found_magic_number, _) = result?;
 
             if !found_magic_number {
-                me.pending.extend(&Self::PROXMOX_BACKUP_MEDIA_CATALOG_MAGIC_1_1);
+                me.pending
+                    .extend(&Self::PROXMOX_BACKUP_MEDIA_CATALOG_MAGIC_1_1);
             }
 
             if write {
                 me.file = Some(file);
             }
             Ok(me)
-        }).map_err(|err: Error| {
-            format_err!("unable to open media catalog {:?} - {}", path, err)
-        })?;
+        })
+        .map_err(|err: Error| format_err!("unable to open media catalog {:?} - {}", path, err))?;
 
         Ok(me)
     }
 
     /// Creates a temporary empty catalog file
-    pub fn create_temporary_database_file(
-        base_path: &Path,
-        uuid: &Uuid,
-    ) -> Result<File, Error> {
-
+    pub fn create_temporary_database_file(base_path: &Path, uuid: &Uuid) -> Result<File, Error> {
         Self::create_basedir(base_path)?;
 
         let tmp_path = Self::tmp_catalog_path(base_path, uuid);
@@ -271,8 +255,12 @@ impl MediaCatalog {
         }
 
         let backup_user = pbs_config::backup_user()?;
-        fchown(file.as_raw_fd(), Some(backup_user.uid), Some(backup_user.gid))
-            .map_err(|err| format_err!("fchown failed - {}", err))?;
+        fchown(
+            file.as_raw_fd(),
+            Some(backup_user.uid),
+            Some(backup_user.gid),
+        )
+        .map_err(|err| format_err!("fchown failed - {}", err))?;
 
         Ok(file)
     }
@@ -285,13 +273,11 @@ impl MediaCatalog {
         media_id: &MediaId,
         log_to_stdout: bool,
     ) -> Result<Self, Error> {
-
         let uuid = &media_id.label.uuid;
 
         let tmp_path = Self::tmp_catalog_path(base_path, uuid);
 
         let me = proxmox_lang::try_block!({
-
             let file = Self::create_temporary_database_file(base_path, uuid)?;
 
             let mut me = Self {
@@ -306,7 +292,8 @@ impl MediaCatalog {
 
             me.log_to_stdout = log_to_stdout;
 
-            me.pending.extend(&Self::PROXMOX_BACKUP_MEDIA_CATALOG_MAGIC_1_1);
+            me.pending
+                .extend(&Self::PROXMOX_BACKUP_MEDIA_CATALOG_MAGIC_1_1);
 
             me.register_label(&media_id.label.uuid, 0, 0)?;
 
@@ -317,8 +304,13 @@ impl MediaCatalog {
             me.commit()?;
 
             Ok(me)
-        }).map_err(|err: Error| {
-            format_err!("unable to create temporary media catalog {:?} - {}", tmp_path, err)
+        })
+        .map_err(|err: Error| {
+            format_err!(
+                "unable to create temporary media catalog {:?} - {}",
+                tmp_path,
+                err
+            )
         })?;
 
         Ok(me)
@@ -333,7 +325,6 @@ impl MediaCatalog {
         uuid: &Uuid,
         commit: bool,
     ) -> Result<(), Error> {
-
         let tmp_path = Self::tmp_catalog_path(base_path, uuid);
 
         if commit {
@@ -365,7 +356,6 @@ impl MediaCatalog {
     ///
     /// Fixme: this should be atomic ...
     pub fn commit(&mut self) -> Result<(), Error> {
-
         if self.pending.is_empty() {
             return Ok(());
         }
@@ -398,7 +388,7 @@ impl MediaCatalog {
         if self.current_archive.is_some() {
             bail!("can't commit catalog in the middle of an chunk archive");
         }
-        if self.pending.len() > 1024*1024 {
+        if self.pending.len() > 1024 * 1024 {
             self.commit()?;
         }
         Ok(())
@@ -409,8 +399,7 @@ impl MediaCatalog {
         base_path: &Path,
         media_id: &MediaId,
         log_to_stdout: bool,
-    ) ->  Result<Self, Error> {
-
+    ) -> Result<Self, Error> {
         let uuid = &media_id.label.uuid;
 
         let me = Self::create_temporary_database(base_path, media_id, log_to_stdout)?;
@@ -437,7 +426,7 @@ impl MediaCatalog {
     }
 
     /// Test if the catalog already contain a chunk
-    pub fn contains_chunk(&self, store: &str, digest: &[u8;32]) -> bool {
+    pub fn contains_chunk(&self, store: &str, digest: &[u8; 32]) -> bool {
         match self.content.get(store) {
             None => false,
             Some(content) => content.chunk_index.contains_key(digest),
@@ -445,7 +434,7 @@ impl MediaCatalog {
     }
 
     /// Returns the chunk archive file number
-    pub fn lookup_chunk(&self, store: &str, digest: &[u8;32]) -> Option<u64> {
+    pub fn lookup_chunk(&self, store: &str, digest: &[u8; 32]) -> Option<u64> {
         match self.content.get(store) {
             None => None,
             Some(content) => content.chunk_index.get(digest).copied(),
@@ -453,9 +442,11 @@ impl MediaCatalog {
     }
 
     fn check_register_label(&self, file_number: u64, uuid: &Uuid) -> Result<(), Error> {
-
         if file_number >= 2 {
-            bail!("register label failed: got wrong file number ({} >= 2)", file_number);
+            bail!(
+                "register label failed: got wrong file number ({} >= 2)",
+                file_number
+            );
         }
 
         if file_number == 0 && uuid != &self.uuid {
@@ -472,8 +463,11 @@ impl MediaCatalog {
         };
 
         if file_number != expected_file_number {
-            bail!("register label failed: got unexpected file number ({} < {})",
-                  file_number, expected_file_number);
+            bail!(
+                "register label failed: got unexpected file number ({} < {})",
+                file_number,
+                expected_file_number
+            );
         }
         Ok(())
     }
@@ -485,7 +479,6 @@ impl MediaCatalog {
         seq_nr: u64, // onyl used for media set labels
         file_number: u64,
     ) -> Result<(), Error> {
-
         self.check_register_label(file_number, uuid)?;
 
         if file_number == 0 && seq_nr != 0 {
@@ -504,7 +497,9 @@ impl MediaCatalog {
 
         self.pending.push(b'L');
 
-        unsafe { self.pending.write_le_value(entry)?; }
+        unsafe {
+            self.pending.write_le_value(entry)?;
+        }
 
         self.last_entry = Some((uuid.clone(), file_number));
 
@@ -530,11 +525,7 @@ impl MediaCatalog {
     /// Register a chunk
     ///
     /// Only valid after start_chunk_archive.
-    fn register_chunk(
-        &mut self,
-        digest: &[u8;32],
-    ) -> Result<(), Error> {
-
+    fn register_chunk(&mut self, digest: &[u8; 32]) -> Result<(), Error> {
         let (file_number, store) = match self.current_archive {
             None => bail!("register_chunk failed: no archive started"),
             Some((_, file_number, ref store)) => (file_number, store),
@@ -558,13 +549,15 @@ impl MediaCatalog {
     }
 
     fn check_start_chunk_archive(&self, file_number: u64) -> Result<(), Error> {
-
         if self.current_archive.is_some() {
             bail!("start_chunk_archive failed: already started");
         }
 
         if file_number < 2 {
-            bail!("start_chunk_archive failed: got wrong file number ({} < 2)", file_number);
+            bail!(
+                "start_chunk_archive failed: got wrong file number ({} < 2)",
+                file_number
+            );
         }
 
         let expect_min_file_number = match self.last_entry {
@@ -573,8 +566,11 @@ impl MediaCatalog {
         };
 
         if file_number < expect_min_file_number {
-            bail!("start_chunk_archive: got unexpected file number ({} < {})",
-                  file_number, expect_min_file_number);
+            bail!(
+                "start_chunk_archive: got unexpected file number ({} < {})",
+                file_number,
+                expect_min_file_number
+            );
         }
 
         Ok(())
@@ -586,8 +582,7 @@ impl MediaCatalog {
         uuid: Uuid, // Uuid form MediaContentHeader
         file_number: u64,
         store: &str,
-   ) -> Result<(), Error> {
-
+    ) -> Result<(), Error> {
         self.check_start_chunk_archive(file_number)?;
 
         let entry = ChunkArchiveStart {
@@ -602,10 +597,14 @@ impl MediaCatalog {
 
         self.pending.push(b'A');
 
-        unsafe { self.pending.write_le_value(entry)?; }
+        unsafe {
+            self.pending.write_le_value(entry)?;
+        }
         self.pending.extend(store.as_bytes());
 
-        self.content.entry(store.to_string()).or_insert(DatastoreContent::new());
+        self.content
+            .entry(store.to_string())
+            .or_insert(DatastoreContent::new());
 
         self.current_archive = Some((uuid, file_number, store.to_string()));
 
@@ -613,7 +612,6 @@ impl MediaCatalog {
     }
 
     fn check_end_chunk_archive(&self, uuid: &Uuid, file_number: u64) -> Result<(), Error> {
-
         match self.current_archive {
             None => bail!("end_chunk archive failed: not started"),
             Some((ref expected_uuid, expected_file_number, ..)) => {
@@ -621,8 +619,11 @@ impl MediaCatalog {
                     bail!("end_chunk_archive failed: got unexpected uuid");
                 }
                 if file_number != expected_file_number {
-                    bail!("end_chunk_archive failed: got unexpected file number ({} != {})",
-                          file_number, expected_file_number);
+                    bail!(
+                        "end_chunk_archive failed: got unexpected file number ({} != {})",
+                        file_number,
+                        expected_file_number
+                    );
                 }
             }
         }
@@ -631,11 +632,9 @@ impl MediaCatalog {
 
     /// End a chunk archive section
     fn end_chunk_archive(&mut self) -> Result<(), Error> {
-
         match self.current_archive.take() {
             None => bail!("end_chunk_archive failed: not started"),
             Some((uuid, file_number, ..)) => {
-
                 let entry = ChunkArchiveEnd {
                     file_number,
                     uuid: *uuid.as_bytes(),
@@ -647,7 +646,9 @@ impl MediaCatalog {
 
                 self.pending.push(b'E');
 
-                unsafe { self.pending.write_le_value(entry)?; }
+                unsafe {
+                    self.pending.write_le_value(entry)?;
+                }
 
                 self.last_entry = Some((uuid, file_number));
             }
@@ -657,13 +658,15 @@ impl MediaCatalog {
     }
 
     fn check_register_snapshot(&self, file_number: u64, snapshot: &str) -> Result<(), Error> {
-
         if self.current_archive.is_some() {
             bail!("register_snapshot failed: inside chunk_archive");
         }
 
         if file_number < 2 {
-            bail!("register_snapshot failed: got wrong file number ({} < 2)", file_number);
+            bail!(
+                "register_snapshot failed: got wrong file number ({} < 2)",
+                file_number
+            );
         }
 
         let expect_min_file_number = match self.last_entry {
@@ -672,12 +675,19 @@ impl MediaCatalog {
         };
 
         if file_number < expect_min_file_number {
-            bail!("register_snapshot failed: got unexpected file number ({} < {})",
-                  file_number, expect_min_file_number);
+            bail!(
+                "register_snapshot failed: got unexpected file number ({} < {})",
+                file_number,
+                expect_min_file_number
+            );
         }
 
         if let Err(err) = snapshot.parse::<BackupDir>() {
-            bail!("register_snapshot failed: unable to parse snapshot '{}' - {}", snapshot, err);
+            bail!(
+                "register_snapshot failed: unable to parse snapshot '{}' - {}",
+                snapshot,
+                err
+            );
         }
 
         Ok(())
@@ -691,7 +701,6 @@ impl MediaCatalog {
         store: &str,
         snapshot: &str,
     ) -> Result<(), Error> {
-
         self.check_register_snapshot(file_number, snapshot)?;
 
         let entry = SnapshotEntry {
@@ -702,20 +711,32 @@ impl MediaCatalog {
         };
 
         if self.log_to_stdout {
-            println!("S|{}|{}|{}:{}", file_number, uuid.to_string(), store, snapshot);
+            println!(
+                "S|{}|{}|{}:{}",
+                file_number,
+                uuid.to_string(),
+                store,
+                snapshot
+            );
         }
 
         self.pending.push(b'S');
 
-        unsafe { self.pending.write_le_value(entry)?; }
+        unsafe {
+            self.pending.write_le_value(entry)?;
+        }
         self.pending.extend(store.as_bytes());
         self.pending.push(b':');
         self.pending.extend(snapshot.as_bytes());
 
-        let content = self.content.entry(store.to_string())
+        let content = self
+            .content
+            .entry(store.to_string())
             .or_insert(DatastoreContent::new());
 
-        content.snapshot_index.insert(snapshot.to_string(), file_number);
+        content
+            .snapshot_index
+            .insert(snapshot.to_string(), file_number);
 
         self.last_entry = Some((uuid, file_number));
 
@@ -726,7 +747,6 @@ impl MediaCatalog {
     pub fn parse_catalog_header<R: Read>(
         reader: &mut R,
     ) -> Result<(bool, Option<Uuid>, Option<Uuid>), Error> {
-
         // read/check magic number
         let mut magic = [0u8; 8];
         if !reader.read_exact_or_eof(&mut magic)? {
@@ -774,7 +794,6 @@ impl MediaCatalog {
         file: &mut File,
         media_set_label: Option<&MediaSetLabel>,
     ) -> Result<(bool, Option<Uuid>), Error> {
-
         let mut file = BufReader::new(file);
         let mut found_magic_number = false;
         let mut media_set_uuid = None;
@@ -782,10 +801,14 @@ impl MediaCatalog {
         loop {
             let pos = file.seek(SeekFrom::Current(0))?; // get current pos
 
-            if pos == 0 { // read/check magic number
+            if pos == 0 {
+                // read/check magic number
                 let mut magic = [0u8; 8];
                 match file.read_exact_or_eof(&mut magic) {
-                    Ok(false) => { /* EOF */ break; }
+                    Ok(false) => {
+                        /* EOF */
+                        break;
+                    }
                     Ok(true) => { /* OK */ }
                     Err(err) => bail!("read failed - {}", err),
                 }
@@ -802,7 +825,10 @@ impl MediaCatalog {
 
             let mut entry_type = [0u8; 1];
             match file.read_exact_or_eof(&mut entry_type) {
-                Ok(false) => { /* EOF */ break; }
+                Ok(false) => {
+                    /* EOF */
+                    break;
+                }
                 Ok(true) => { /* OK */ }
                 Err(err) => bail!("read failed - {}", err),
             }
@@ -833,11 +859,12 @@ impl MediaCatalog {
 
                     self.check_start_chunk_archive(file_number)?;
 
-                    self.content.entry(store.to_string())
+                    self.content
+                        .entry(store.to_string())
                         .or_insert(DatastoreContent::new());
 
                     self.current_archive = Some((uuid, file_number, store.to_string()));
-               }
+                }
                 b'E' => {
                     let entry: ChunkArchiveEnd = unsafe { file.read_le_value()? };
                     let file_number = entry.file_number;
@@ -867,10 +894,14 @@ impl MediaCatalog {
 
                     self.check_register_snapshot(file_number, snapshot)?;
 
-                    let content = self.content.entry(store.to_string())
+                    let content = self
+                        .content
+                        .entry(store.to_string())
                         .or_insert(DatastoreContent::new());
 
-                    content.snapshot_index.insert(snapshot.to_string(), file_number);
+                    content
+                        .snapshot_index
+                        .insert(snapshot.to_string(), file_number);
 
                     self.last_entry = Some((uuid, file_number));
                 }
@@ -899,7 +930,6 @@ impl MediaCatalog {
                     bail!("unknown entry type '{}'", entry_type[0]);
                 }
             }
-
         }
 
         Ok((found_magic_number, media_set_uuid))
@@ -909,12 +939,11 @@ impl MediaCatalog {
 /// Media set catalog
 ///
 /// Catalog for multiple media.
-pub struct MediaSetCatalog  {
+pub struct MediaSetCatalog {
     catalog_list: HashMap<Uuid, MediaCatalog>,
 }
 
 impl MediaSetCatalog {
-
     /// Creates a new instance
     pub fn new() -> Self {
         Self {
@@ -924,7 +953,6 @@ impl MediaSetCatalog {
 
     /// Add a catalog
     pub fn append_catalog(&mut self, catalog: MediaCatalog) -> Result<(), Error> {
-
         if self.catalog_list.get(&catalog.uuid).is_some() {
             bail!("MediaSetCatalog already contains media '{}'", catalog.uuid);
         }
@@ -960,7 +988,7 @@ impl MediaSetCatalog {
     }
 
     /// Test if the catalog already contain a chunk
-    pub fn contains_chunk(&self, store: &str, digest: &[u8;32]) -> bool {
+    pub fn contains_chunk(&self, store: &str, digest: &[u8; 32]) -> bool {
         for catalog in self.catalog_list.values() {
             if catalog.contains_chunk(store, digest) {
                 return true;
@@ -970,7 +998,7 @@ impl MediaSetCatalog {
     }
 
     /// Returns the media uuid and chunk archive file number
-    pub fn lookup_chunk(&self, store: &str, digest: &[u8;32]) -> Option<(&Uuid, u64)> {
+    pub fn lookup_chunk(&self, store: &str, digest: &[u8; 32]) -> Option<(&Uuid, u64)> {
         for (uuid, catalog) in self.catalog_list.iter() {
             if let Some(nr) = catalog.lookup_chunk(store, digest) {
                 return Some((uuid, nr));
@@ -986,7 +1014,7 @@ impl MediaSetCatalog {
 #[repr(C)]
 struct LabelEntry {
     file_number: u64,
-    uuid: [u8;16],
+    uuid: [u8; 16],
     seq_nr: u64, // only used for media set labels
 }
 
@@ -994,23 +1022,23 @@ struct LabelEntry {
 #[repr(C)]
 struct ChunkArchiveStart {
     file_number: u64,
-    uuid: [u8;16],
+    uuid: [u8; 16],
     store_name_len: u8,
     /* datastore name follows */
 }
 
 #[derive(Endian)]
 #[repr(C)]
-struct ChunkArchiveEnd{
+struct ChunkArchiveEnd {
     file_number: u64,
-    uuid: [u8;16],
+    uuid: [u8; 16],
 }
 
 #[derive(Endian)]
 #[repr(C)]
-struct SnapshotEntry{
+struct SnapshotEntry {
     file_number: u64,
-    uuid: [u8;16],
+    uuid: [u8; 16],
     store_name_len: u8,
     name_len: u16,
     /* datastore name,  ':', snapshot name follows */

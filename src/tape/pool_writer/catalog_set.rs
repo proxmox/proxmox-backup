@@ -2,12 +2,7 @@ use anyhow::{bail, Error};
 
 use proxmox_uuid::Uuid;
 
-use crate::{
-    tape::{
-        MediaCatalog,
-        MediaSetCatalog,
-    },
-};
+use crate::tape::{MediaCatalog, MediaSetCatalog};
 
 /// Helper to build and query sets of catalogs
 ///
@@ -20,7 +15,6 @@ pub struct CatalogSet {
 }
 
 impl CatalogSet {
-
     /// Create empty instance
     pub fn new() -> Self {
         Self {
@@ -45,7 +39,7 @@ impl CatalogSet {
     }
 
     /// Test if the catalog already contains a chunk
-    pub fn contains_chunk(&self, store: &str, digest: &[u8;32]) -> bool {
+    pub fn contains_chunk(&self, store: &str, digest: &[u8; 32]) -> bool {
         if let Some(ref catalog) = self.catalog {
             if catalog.contains_chunk(store, digest) {
                 return true;
@@ -56,7 +50,6 @@ impl CatalogSet {
 
     /// Add a new catalog, move the old on to the read-only set
     pub fn append_catalog(&mut self, new_catalog: MediaCatalog) -> Result<(), Error> {
-
         // append current catalog to read-only set
         if let Some(catalog) = self.catalog.take() {
             self.media_set_catalog.append_catalog(catalog)?;
@@ -77,7 +70,7 @@ impl CatalogSet {
         file_number: u64,
         store: &str,
         snapshot: &str,
-    )  -> Result<(), Error> {
+    ) -> Result<(), Error> {
         match self.catalog {
             Some(ref mut catalog) => {
                 catalog.register_snapshot(uuid, file_number, store, snapshot)?;

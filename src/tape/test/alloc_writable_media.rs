@@ -2,10 +2,10 @@
 //
 // # cargo test --release tape::test::alloc_writable_media
 
-use std::path::PathBuf;
 use anyhow::Error;
+use std::path::PathBuf;
 
-use pbs_api_types::{RetentionPolicy, MediaSetPolicy};
+use pbs_api_types::{MediaSetPolicy, RetentionPolicy};
 
 use crate::tape::{Inventory, MediaPool};
 
@@ -22,7 +22,6 @@ fn create_testdir(name: &str) -> Result<PathBuf, Error> {
 
 #[test]
 fn test_alloc_writable_media_1() -> Result<(), Error> {
-
     let testdir = create_testdir("test_alloc_writable_media_1")?;
 
     let mut ctime = 0;
@@ -49,7 +48,6 @@ fn test_alloc_writable_media_1() -> Result<(), Error> {
 
 #[test]
 fn test_alloc_writable_media_2() -> Result<(), Error> {
-
     let testdir = create_testdir("test_alloc_writable_media_2")?;
 
     let mut inventory = Inventory::load(&testdir)?;
@@ -87,7 +85,6 @@ fn test_alloc_writable_media_2() -> Result<(), Error> {
 
 #[test]
 fn test_alloc_writable_media_3() -> Result<(), Error> {
-
     let testdir = create_testdir("test_alloc_writable_media_3")?;
 
     let mut inventory = Inventory::load(&testdir)?;
@@ -136,7 +133,6 @@ fn test_alloc_writable_media_3() -> Result<(), Error> {
 
 #[test]
 fn test_alloc_writable_media_4() -> Result<(), Error> {
-
     let testdir = create_testdir("test_alloc_writable_media_4")?;
 
     let mut inventory = Inventory::load(&testdir)?;

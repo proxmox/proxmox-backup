@@ -1,17 +1,15 @@
 use anyhow::Error;
 
-use nom::bytes::complete::{take_while, tag};
+use nom::bytes::complete::{tag, take_while};
 
-use pbs_tape::{ElementStatus, MtxStatus, DriveStatus, StorageElementStatus};
+use pbs_tape::{DriveStatus, ElementStatus, MtxStatus, StorageElementStatus};
 
 use pbs_tools::nom::{
-    parse_complete, multispace0, multispace1, parse_u64,
-    parse_failure, parse_error, IResult,
+    multispace0, multispace1, parse_complete, parse_error, parse_failure, parse_u64, IResult,
 };
 
-
 // Recognizes one line
-fn next_line(i: &str)  -> IResult<&str, &str> {
+fn next_line(i: &str) -> IResult<&str, &str> {
     let (i, line) = take_while(|c| (c != '\n'))(i)?;
     if i.is_empty() {
         Ok((i, line))
@@ -21,7 +19,6 @@ fn next_line(i: &str)  -> IResult<&str, &str> {
 }
 
 fn parse_storage_changer(i: &str) -> IResult<&str, ()> {
-
     let (i, _) = multispace0(i)?;
     let (i, _) = tag("Storage Changer")(i)?;
     let (i, _) = next_line(i)?; // skip
@@ -30,7 +27,6 @@ fn parse_storage_changer(i: &str) -> IResult<&str, ()> {
 }
 
 fn parse_drive_status(i: &str, id: u64) -> IResult<&str, DriveStatus> {
-
     let mut loaded_slot = None;
 
     if let Some(empty) = i.strip_prefix("Empty") {
@@ -87,14 +83,13 @@ fn parse_drive_status(i: &str, id: u64) -> IResult<&str, DriveStatus> {
 
 fn parse_slot_status(i: &str) -> IResult<&str, ElementStatus> {
     if let Some(empty) = i.strip_prefix("Empty") {
-        return Ok((empty,  ElementStatus::Empty));
+        return Ok((empty, ElementStatus::Empty));
     }
     if let Some(n) = i.strip_prefix("Full ") {
         if let Some(n) = n.strip_prefix(":VolumeTag=") {
             let (n, tag) = take_while(|c| !(c == ' ' || c == ':' || c == '\n'))(n)?;
             let (n, _) = take_while(|c| c != '\n')(n)?; // skip to eol
             return Ok((n, ElementStatus::VolumeTag(tag.to_string())));
-
         }
         let (n, _) = take_while(|c| c != '\n')(n)?; // skip
 
@@ -105,7 +100,6 @@ fn parse_slot_status(i: &str) -> IResult<&str, ElementStatus> {
 }
 
 fn parse_data_transfer_element(i: &str) -> IResult<&str, (u64, DriveStatus)> {
-
     let (i, _) = tag("Data Transfer Element")(i)?;
     let (i, _) = multispace1(i)?;
     let (i, id) = parse_u64(i)?;
@@ -117,13 +111,12 @@ fn parse_data_transfer_element(i: &str) -> IResult<&str, (u64, DriveStatus)> {
 }
 
 fn parse_storage_element(i: &str) -> IResult<&str, (u64, bool, ElementStatus)> {
-
     let (i, _) = multispace1(i)?;
     let (i, _) = tag("Storage Element")(i)?;
     let (i, _) = multispace1(i)?;
     let (i, id) = parse_u64(i)?;
     let (i, opt_ie) = nom::combinator::opt(tag(" IMPORT/EXPORT"))(i)?;
-    let import_export =  opt_ie.is_some();
+    let import_export = opt_ie.is_some();
     let (i, _) = nom::character::complete::char(':')(i)?;
     let (i, element_status) = parse_slot_status(i)?;
     let (i, _) = nom::character::complete::newline(i)?;
@@ -131,8 +124,7 @@ fn parse_storage_element(i: &str) -> IResult<&str, (u64, bool, ElementStatus)> {
     Ok((i, (id, import_export, element_status)))
 }
 
-fn parse_status(i: &str) ->  IResult<&str, MtxStatus> {
-
+fn parse_status(i: &str) -> IResult<&str, MtxStatus> {
     let (mut i, _) = parse_storage_changer(i)?;
 
     let mut drives = Vec::new();
@@ -158,14 +150,17 @@ fn parse_status(i: &str) ->  IResult<&str, MtxStatus> {
         slots.push(status);
     }
 
-    let status = MtxStatus { drives, slots, transports: Vec::new() };
+    let status = MtxStatus {
+        drives,
+        slots,
+        transports: Vec::new(),
+    };
 
     Ok((i, status))
 }
 
 /// Parses the output from 'mtx status'
 pub fn parse_mtx_status(i: &str) -> Result<MtxStatus, Error> {
-
     let status = parse_complete("mtx status", i, parse_status)?;
 
     Ok(status)
@@ -173,7 +168,6 @@ pub fn parse_mtx_status(i: &str) -> Result<MtxStatus, Error> {
 
 #[test]
 fn test_changer_status() -> Result<(), Error> {
-
     let output = r###" Storage Changer /dev/tape/by-id/scsi-387408F60F0000:2 Drives, 24 Slots ( 4 Import/Export )
 Data Transfer Element 0:Empty
 Data Transfer Element 1:Empty

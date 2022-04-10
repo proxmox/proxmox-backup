@@ -2,14 +2,14 @@ use anyhow::Error;
 
 use proxmox_uuid::Uuid;
 
-use pbs_tape::{TapeWrite, MediaContentHeader};
+use pbs_tape::{MediaContentHeader, TapeWrite};
 
 /// Writes data streams using multiple volumes
 ///
 /// Note: We do not use this feature currently.
 pub struct MultiVolumeWriter<'a> {
     writer: Option<Box<dyn TapeWrite + 'a>>,
-    next_writer_fn: Box<dyn 'a + FnMut() -> Result<Box<dyn TapeWrite +'a>, Error>>,
+    next_writer_fn: Box<dyn 'a + FnMut() -> Result<Box<dyn TapeWrite + 'a>, Error>>,
     got_leom: bool,
     finished: bool,
     wrote_header: bool,
@@ -18,16 +18,14 @@ pub struct MultiVolumeWriter<'a> {
     bytes_written: usize, // does not include bytes from current writer
 }
 
-impl <'a> MultiVolumeWriter<'a> {
-
+impl<'a> MultiVolumeWriter<'a> {
     /// Creates a new instance
     pub fn new(
-        writer: Box<dyn TapeWrite +'a>,
+        writer: Box<dyn TapeWrite + 'a>,
         content_magic: [u8; 8],
         header_data: Vec<u8>,
         next_writer_fn: Box<dyn 'a + FnMut() -> Result<Box<dyn TapeWrite + 'a>, Error>>,
     ) -> Self {
-
         let header = MediaContentHeader::new(content_magic, header_data.len() as u32);
 
         Self {
@@ -48,21 +46,21 @@ impl <'a> MultiVolumeWriter<'a> {
     }
 }
 
-impl <'a> TapeWrite for MultiVolumeWriter<'a> {
-
+impl<'a> TapeWrite for MultiVolumeWriter<'a> {
     fn write_all(&mut self, buf: &[u8]) -> Result<bool, std::io::Error> {
-
         if self.finished {
             proxmox_lang::io_bail!("multi-volume writer already finished: internal error");
         }
 
         if self.got_leom {
             if !self.wrote_header {
-                proxmox_lang::io_bail!("multi-volume writer: got LEOM before writing anything - internal error");
+                proxmox_lang::io_bail!(
+                    "multi-volume writer: got LEOM before writing anything - internal error"
+                );
             }
             let mut writer = match self.writer.take() {
                 Some(writer) => writer,
-                None =>  proxmox_lang::io_bail!("multi-volume writer: no writer  -internal error"),
+                None => proxmox_lang::io_bail!("multi-volume writer: no writer  -internal error"),
             };
             self.bytes_written = writer.bytes_written();
             writer.finish(true)?;
@@ -72,10 +70,9 @@ impl <'a> TapeWrite for MultiVolumeWriter<'a> {
             if self.header.part_number == u8::MAX {
                 proxmox_lang::io_bail!("multi-volume writer: too many parts");
             }
-            self.writer = Some(
-                (self.next_writer_fn)()
-                    .map_err(|err| proxmox_lang::io_format_err!("multi-volume get next volume failed: {}", err))?
-            );
+            self.writer = Some((self.next_writer_fn)().map_err(|err| {
+                proxmox_lang::io_format_err!("multi-volume get next volume failed: {}", err)
+            })?);
             self.got_leom = false;
             self.wrote_header = false;
             self.header.part_number += 1;
@@ -92,7 +89,9 @@ impl <'a> TapeWrite for MultiVolumeWriter<'a> {
             }
         };
 
-        if leom { self.got_leom = true; }
+        if leom {
+            self.got_leom = true;
+        }
 
         Ok(false)
     }
@@ -108,12 +107,14 @@ impl <'a> TapeWrite for MultiVolumeWriter<'a> {
     fn finish(&mut self, incomplete: bool) -> Result<bool, std::io::Error> {
         if incomplete {
             proxmox_lang::io_bail!(
-                "incomplete flag makes no sense for multi-volume stream: internal error");
+                "incomplete flag makes no sense for multi-volume stream: internal error"
+            );
         }
 
         match self.writer.take() {
-            None if self.finished => proxmox_lang::io_bail!(
-                "multi-volume writer already finished: internal error"),
+            None if self.finished => {
+                proxmox_lang::io_bail!("multi-volume writer already finished: internal error")
+            }
             None => Ok(false),
             Some(ref mut writer) => {
                 self.finished = true;
@@ -129,5 +130,4 @@ impl <'a> TapeWrite for MultiVolumeWriter<'a> {
     fn logical_end_of_media(&self) -> bool {
         self.got_leom
     }
-
 }
