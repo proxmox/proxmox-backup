@@ -13,12 +13,12 @@ use serde_json::Value;
 use tokio::sync::Semaphore;
 
 use pathpatterns::{MatchEntry, MatchPattern, MatchType, Pattern};
+use proxmox_compression::zip::zip_directory;
 use proxmox_router::{
-    list_subdirs_api_method,
-    ApiHandler, ApiMethod, ApiResponseFuture, Permission, Router, RpcEnvironment, SubdirMap,
+    list_subdirs_api_method, ApiHandler, ApiMethod, ApiResponseFuture, Permission, Router,
+    RpcEnvironment, SubdirMap,
 };
 use proxmox_schema::*;
-use proxmox_compression::zip::zip_directory;
 use proxmox_sys::fs::read_subdir;
 use proxmox_sys::sortable;
 
@@ -29,7 +29,7 @@ use pbs_tools::json::required_string_param;
 
 use pxar::encoder::aio::TokioWriter;
 
-use super::{disk::ResolveResult, watchdog_remaining, watchdog_inhibit, watchdog_ping};
+use super::{disk::ResolveResult, watchdog_inhibit, watchdog_ping, watchdog_remaining};
 
 // NOTE: All API endpoints must have Permission::Superuser, as the configs for authentication do
 // not exist within the restore VM. Safety is guaranteed by checking a ticket via a custom ApiAuth.
@@ -73,7 +73,10 @@ fn read_uptime() -> Result<f32, Error> {
     }
 )]
 /// General status information
-fn status(rpcenv: &mut dyn RpcEnvironment, keep_timeout: bool) -> Result<RestoreDaemonStatus, Error> {
+fn status(
+    rpcenv: &mut dyn RpcEnvironment,
+    keep_timeout: bool,
+) -> Result<RestoreDaemonStatus, Error> {
     if !keep_timeout && rpcenv.get_auth_id().is_some() {
         watchdog_ping();
     }
@@ -164,8 +167,9 @@ fn list(
                         if path.components().count() == 1 {
                             // ignore '.' and '..'
                             match path.components().next().unwrap() {
-                                std::path::Component::CurDir
-                                | std::path::Component::ParentDir => continue,
+                                std::path::Component::CurDir | std::path::Component::ParentDir => {
+                                    continue
+                                }
                                 _ => {}
                             }
                         }
@@ -192,10 +196,7 @@ fn list(
                 let mut t_path = path.clone();
                 t_path.push(b'/');
                 t_path.extend(t.as_bytes());
-                res.push(ArchiveEntry::new(
-                    &t_path[..],
-                    None,
-                ));
+                res.push(ArchiveEntry::new(&t_path[..], None));
             }
         }
         ResolveResult::BucketComponents(comps) => {

@@ -80,7 +80,10 @@ fn setup_system_env() -> Result<(), Error> {
     std::fs::create_dir_all("/etc")?;
     let mut passwd = File::create("/etc/passwd")?;
     writeln!(passwd, "root:x:0:0:root:/root:/bin/sh")?;
-    writeln!(passwd, "backup:x:34:34:backup:/var/backups:/usr/sbin/nologin")?;
+    writeln!(
+        passwd,
+        "backup:x:34:34:backup:/var/backups:/usr/sbin/nologin"
+    )?;
 
     let mut group = File::create("/etc/group")?;
     writeln!(group, "root:x:0:")?;
@@ -88,7 +91,6 @@ fn setup_system_env() -> Result<(), Error> {
 
     Ok(())
 }
-
 
 async fn run() -> Result<(), Error> {
     watchdog_init();

@@ -9,9 +9,9 @@ use anyhow::{bail, format_err, Error};
 use lazy_static::lazy_static;
 use log::{info, warn};
 
-use proxmox_sys::fs;
-use proxmox_sys::command::run_command;
 use proxmox_schema::const_regex;
+use proxmox_sys::command::run_command;
+use proxmox_sys::fs;
 
 use pbs_api_types::BLOCKDEVICE_NAME_REGEX;
 
@@ -371,12 +371,9 @@ impl DiskState {
 
         // create mapping for virtio drives and .fidx files (via serial description)
         // note: disks::DiskManager relies on udev, which we don't have
-        for entry in proxmox_sys::fs::scan_subdir(
-            libc::AT_FDCWD,
-            "/sys/block",
-            &BLOCKDEVICE_NAME_REGEX,
-        )?
-        .filter_map(Result::ok)
+        for entry in
+            proxmox_sys::fs::scan_subdir(libc::AT_FDCWD, "/sys/block", &BLOCKDEVICE_NAME_REGEX)?
+                .filter_map(Result::ok)
         {
             let name = unsafe { entry.file_name_utf8_unchecked() };
             if !name.starts_with("vd") {
@@ -416,12 +413,8 @@ impl DiskState {
             }
 
             let mut parts = Vec::new();
-            for entry in proxmox_sys::fs::scan_subdir(
-                libc::AT_FDCWD,
-                sys_path,
-                &VIRTIO_PART_REGEX,
-            )?
-            .filter_map(Result::ok)
+            for entry in proxmox_sys::fs::scan_subdir(libc::AT_FDCWD, sys_path, &VIRTIO_PART_REGEX)?
+                .filter_map(Result::ok)
             {
                 let part_name = unsafe { entry.file_name_utf8_unchecked() };
                 let dev_node = format!("/dev/{}", part_name);
@@ -730,18 +723,15 @@ impl DiskState {
         };
 
         // bucket found, check mount
-        let mountpoint = self
-            .filesystems
-            .ensure_mounted(bucket)
-            .map_err(|err| {
-                format_err!(
-                    "mounting '{}/{}/{}' failed: {}",
-                    req_fidx,
-                    bucket_type,
-                    components.join("/"),
-                    err
-                )
-            })?;
+        let mountpoint = self.filesystems.ensure_mounted(bucket).map_err(|err| {
+            format_err!(
+                "mounting '{}/{}/{}' failed: {}",
+                req_fidx,
+                bucket_type,
+                components.join("/"),
+                err
+            )
+        })?;
 
         let mut local_path = PathBuf::new();
         local_path.push(mountpoint);
