@@ -12,7 +12,6 @@ fn get_prune_list(
     return_kept: bool,
     options: &PruneOptions,
 ) -> Vec<PathBuf> {
-
     let mut prune_info = compute_prune_info(list, options).unwrap();
 
     prune_info.reverse();
@@ -29,11 +28,7 @@ fn get_prune_list(
         .collect()
 }
 
-fn create_info(
-    snapshot: &str,
-    partial: bool,
-) -> BackupInfo {
-
+fn create_info(snapshot: &str, partial: bool) -> BackupInfo {
     let backup_dir: BackupDir = snapshot.parse().unwrap();
 
     let mut files = Vec::new();
@@ -42,13 +37,14 @@ fn create_info(
         files.push(String::from(MANIFEST_BLOB_NAME));
     }
 
-    BackupInfo { backup_dir, files, protected: false }
+    BackupInfo {
+        backup_dir,
+        files,
+        protected: false,
+    }
 }
 
-fn create_info_protected(
-    snapshot: &str,
-    partial: bool,
-) -> BackupInfo {
+fn create_info_protected(snapshot: &str, partial: bool) -> BackupInfo {
     let mut info = create_info(snapshot, partial);
     info.protected = true;
     info
@@ -58,34 +54,35 @@ fn create_info_protected(
 fn test_prune_protected() -> Result<(), Error> {
     let mut orig_list = Vec::new();
 
-    orig_list.push(create_info_protected("host/elsa/2019-11-15T09:39:15Z", false));
+    orig_list.push(create_info_protected(
+        "host/elsa/2019-11-15T09:39:15Z",
+        false,
+    ));
     orig_list.push(create_info("host/elsa/2019-11-15T10:39:15Z", false));
     orig_list.push(create_info("host/elsa/2019-11-15T10:49:15Z", false));
-    orig_list.push(create_info_protected("host/elsa/2019-11-15T10:59:15Z", false));
+    orig_list.push(create_info_protected(
+        "host/elsa/2019-11-15T10:59:15Z",
+        false,
+    ));
 
     eprintln!("{:?}", orig_list);
 
     let mut options = PruneOptions::default();
     options.keep_last = Some(1);
     let remove_list = get_prune_list(orig_list.clone(), false, &options);
-    let expect: Vec<PathBuf> = vec![
-        PathBuf::from("host/elsa/2019-11-15T10:39:15Z"),
-    ];
+    let expect: Vec<PathBuf> = vec![PathBuf::from("host/elsa/2019-11-15T10:39:15Z")];
     assert_eq!(remove_list, expect);
 
     let mut options = PruneOptions::default();
     options.keep_hourly = Some(1);
     let remove_list = get_prune_list(orig_list.clone(), false, &options);
-    let expect: Vec<PathBuf> = vec![
-        PathBuf::from("host/elsa/2019-11-15T10:39:15Z"),
-    ];
+    let expect: Vec<PathBuf> = vec![PathBuf::from("host/elsa/2019-11-15T10:39:15Z")];
     assert_eq!(remove_list, expect);
     Ok(())
 }
 
 #[test]
 fn test_prune_hourly() -> Result<(), Error> {
-
     let mut orig_list = Vec::new();
 
     orig_list.push(create_info("host/elsa/2019-11-15T09:39:15Z", false));
@@ -121,7 +118,6 @@ fn test_prune_hourly() -> Result<(), Error> {
 
 #[test]
 fn test_prune_simple2() -> Result<(), Error> {
-
     let mut orig_list = Vec::new();
 
     orig_list.push(create_info("host/elsa/2018-11-15T11:59:15Z", false));
@@ -138,9 +134,7 @@ fn test_prune_simple2() -> Result<(), Error> {
     let mut options = PruneOptions::default();
     options.keep_daily = Some(1);
     let remove_list = get_prune_list(list, true, &options);
-    let expect: Vec<PathBuf> = vec![
-        PathBuf::from("host/elsa/2019-12-04T11:59:15Z"),
-    ];
+    let expect: Vec<PathBuf> = vec![PathBuf::from("host/elsa/2019-12-04T11:59:15Z")];
     assert_eq!(remove_list, expect);
 
     let list = orig_list.clone();
@@ -194,7 +188,6 @@ fn test_prune_simple2() -> Result<(), Error> {
 
 #[test]
 fn test_prune_simple() -> Result<(), Error> {
-
     let mut orig_list = Vec::new();
 
     orig_list.push(create_info("host/elsa/2019-12-02T11:59:15Z", false));
@@ -215,9 +208,7 @@ fn test_prune_simple() -> Result<(), Error> {
     let mut options = PruneOptions::default();
     options.keep_last = Some(3);
     let remove_list = get_prune_list(list, false, &options);
-    let expect: Vec<PathBuf> = vec![
-        PathBuf::from("host/elsa/2019-12-02T11:59:15Z"),
-    ];
+    let expect: Vec<PathBuf> = vec![PathBuf::from("host/elsa/2019-12-02T11:59:15Z")];
     assert_eq!(remove_list, expect);
 
     let list = orig_list.clone();

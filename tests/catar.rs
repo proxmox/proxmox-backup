@@ -5,7 +5,6 @@ use anyhow::Error;
 use pbs_client::pxar::*;
 
 fn run_test(dir_name: &str) -> Result<(), Error> {
-
     println!("run pxar test {}", dir_name);
 
     Command::new("casync")
@@ -23,8 +22,10 @@ fn run_test(dir_name: &str) -> Result<(), Error> {
     let writer = pxar::encoder::sync::StandardWriter::new(writer);
 
     let dir = nix::dir::Dir::open(
-        dir_name, nix::fcntl::OFlag::O_NOFOLLOW,
-        nix::sys::stat::Mode::empty())?;
+        dir_name,
+        nix::fcntl::OFlag::O_NOFOLLOW,
+        nix::sys::stat::Mode::empty(),
+    )?;
 
     let options = PxarCreateOptions {
         entries_max: ENCODER_MAX_ENTRIES,
@@ -52,7 +53,6 @@ fn run_test(dir_name: &str) -> Result<(), Error> {
 }
 
 fn run_all_tests() -> Result<(), Error> {
-
     run_test("tests/catar_data/test_file")?;
 
     run_test("tests/catar_data/test_symlink")?;
@@ -66,9 +66,9 @@ fn run_all_tests() -> Result<(), Error> {
     Ok(())
 }
 
-#[test] #[ignore]
+#[test]
+#[ignore]
 fn catar_simple() {
-
     if let Err(err) = run_all_tests() {
         eprintln!("Error: {}", err);
         std::process::exit(1);

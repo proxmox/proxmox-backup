@@ -1,39 +1,40 @@
-use std::sync::Arc;
 use std::io::Cursor;
-use std::io::{Read, Write, Seek, SeekFrom };
+use std::io::{Read, Seek, SeekFrom, Write};
+use std::sync::Arc;
 
 use anyhow::{bail, Error};
 use lazy_static::lazy_static;
 
-use pbs_tools::crypt_config::CryptConfig;
 use pbs_datastore::{DataBlob, DataBlobReader, DataBlobWriter};
+use pbs_tools::crypt_config::CryptConfig;
 
 lazy_static! {
     static ref TEST_DATA: Vec<u8> = {
         let mut data = Vec::new();
 
         for i in 0..100_000 {
-            data.push((i%255) as u8);
+            data.push((i % 255) as u8);
         }
 
         data
     };
-
     static ref CRYPT_CONFIG: Arc<CryptConfig> = {
         let key = [1u8; 32];
         Arc::new(CryptConfig::new(key).unwrap())
     };
-
-    static ref TEST_DIGEST_PLAIN: [u8; 32] = [83, 154, 96, 195, 167, 204, 38, 142, 204, 224, 130, 201, 24, 71, 2, 188, 130, 155, 177, 6, 162, 100, 61, 238, 38, 219, 63, 240, 191, 132, 87, 238];
-
-    static ref TEST_DIGEST_ENC: [u8; 32] = [50, 162, 191, 93, 255, 132, 9, 14, 127, 23, 92, 39, 246, 102, 245, 204, 130, 104, 4, 106, 182, 239, 218, 14, 80, 17, 150, 188, 239, 253, 198, 117];
+    static ref TEST_DIGEST_PLAIN: [u8; 32] = [
+        83, 154, 96, 195, 167, 204, 38, 142, 204, 224, 130, 201, 24, 71, 2, 188, 130, 155, 177, 6,
+        162, 100, 61, 238, 38, 219, 63, 240, 191, 132, 87, 238
+    ];
+    static ref TEST_DIGEST_ENC: [u8; 32] = [
+        50, 162, 191, 93, 255, 132, 9, 14, 127, 23, 92, 39, 246, 102, 245, 204, 130, 104, 4, 106,
+        182, 239, 218, 14, 80, 17, 150, 188, 239, 253, 198, 117
+    ];
 }
 
 fn verify_test_blob(mut cursor: Cursor<Vec<u8>>, digest: &[u8; 32]) -> Result<(), Error> {
-
     // run read tests with different buffer sizes
-    for size in [1, 3, 64*1024].iter() {
-
+    for size in [1, 3, 64 * 1024].iter() {
         println!("Starting DataBlobReader test (size = {})", size);
 
         cursor.seek(SeekFrom::Start(0))?;
@@ -44,7 +45,9 @@ fn verify_test_blob(mut cursor: Cursor<Vec<u8>>, digest: &[u8; 32]) -> Result<()
         let mut buf = vec![0u8; *size];
         loop {
             let count = reader.read(&mut buf)?;
-            if count == 0 { break; }
+            if count == 0 {
+                break;
+            }
             buffer.extend(&buf[..count]);
         }
 

@@ -2,11 +2,11 @@ use anyhow::{bail, Error};
 
 extern crate proxmox_backup;
 
-extern crate tokio;
 extern crate nix;
+extern crate tokio;
 
-use proxmox_sys::fs::CreateOptions;
 use proxmox_lang::try_block;
+use proxmox_sys::fs::CreateOptions;
 use proxmox_sys::{task_log, WorkerTaskContext};
 
 use pbs_api_types::{Authid, UPID};
@@ -14,7 +14,6 @@ use pbs_api_types::{Authid, UPID};
 use proxmox_rest_server::{CommandSocket, WorkerTask};
 
 fn garbage_collection(worker: &WorkerTask) -> Result<(), Error> {
-
     task_log!(worker, "start garbage collection");
 
     for i in 0..50 {
@@ -29,7 +28,6 @@ fn garbage_collection(worker: &WorkerTask) -> Result<(), Error> {
 
     Ok(())
 }
-
 
 #[test]
 #[ignore]
@@ -47,9 +45,10 @@ fn worker_task_abort() -> Result<(), Error> {
 
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(async move {
-
         let mut commando_sock = CommandSocket::new(
-            proxmox_rest_server::our_ctrl_sock(), nix::unistd::Gid::current());
+            proxmox_rest_server::our_ctrl_sock(),
+            nix::unistd::Gid::current(),
+        );
 
         let init_result: Result<(), Error> = try_block!({
             proxmox_rest_server::register_task_control_commands(&mut commando_sock)?;
@@ -61,7 +60,7 @@ fn worker_task_abort() -> Result<(), Error> {
             return;
         }
 
-       if let Err(err) = commando_sock.spawn() {
+        if let Err(err) = commando_sock.spawn() {
             eprintln!("unable to spawn command socket - {}", err);
             return;
         }
@@ -82,7 +81,9 @@ fn worker_task_abort() -> Result<(), Error> {
                     println!("got expected error: {}", err);
                 } else {
                     let mut data = errmsg.lock().unwrap();
-                    *data = Some(String::from("thread finished - seems abort did not work as expected"));
+                    *data = Some(String::from(
+                        "thread finished - seems abort did not work as expected",
+                    ));
                 }
 
                 Ok(())
@@ -96,15 +97,17 @@ fn worker_task_abort() -> Result<(), Error> {
             Ok(wid) => {
                 println!("WORKER: {}", wid);
                 proxmox_rest_server::abort_worker_nowait(wid.parse::<UPID>().unwrap());
-                proxmox_rest_server::wait_for_local_worker(&wid).await.unwrap();
-             }
+                proxmox_rest_server::wait_for_local_worker(&wid)
+                    .await
+                    .unwrap();
+            }
         }
     });
 
     let data = errmsg.lock().unwrap();
     match *data {
         Some(ref err) => bail!("Error: {}", err),
-        None => {},
+        None => {}
     }
 
     Ok(())

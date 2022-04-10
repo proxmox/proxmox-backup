@@ -2,8 +2,8 @@ use std::collections::HashSet;
 
 use anyhow::{bail, format_err, Error};
 
+use proxmox_router::{ApiMethod, Permission, Router, SubRoute, SubdirMap};
 use proxmox_schema::*;
-use proxmox_router::{ApiMethod, Permission, Router, SubdirMap, SubRoute};
 
 use proxmox_backup::api2;
 
@@ -11,18 +11,19 @@ use proxmox_backup::api2;
 // correctly sorted.
 
 fn verify_object_schema(schema: &ObjectSchema) -> Result<(), Error> {
-
     let map = schema.properties;
 
     if !map.is_empty() {
-
         for i in 1..map.len() {
-
-            if map[i].0 <= map[i-1].0 {
+            if map[i].0 <= map[i - 1].0 {
                 for (name, _, _) in map.iter() {
                     eprintln!("{}", name);
                 }
-                bail!("found unsorted property map ({} <= {})", map[i].0, map[i-1].0);
+                bail!(
+                    "found unsorted property map ({} <= {})",
+                    map[i].0,
+                    map[i - 1].0
+                );
             }
         }
     }
@@ -79,15 +80,18 @@ fn verify_schema(schema: &Schema) -> Result<(), Error> {
 }
 
 fn verify_access_permissions(permission: &Permission) -> Result<(), Error> {
-
     match permission {
         Permission::Or(list) => {
-            for perm in list.iter() { verify_access_permissions(perm)?; }
+            for perm in list.iter() {
+                verify_access_permissions(perm)?;
+            }
         }
         Permission::And(list) => {
-            for perm in list.iter() { verify_access_permissions(perm)?; }
+            for perm in list.iter() {
+                verify_access_permissions(perm)?;
+            }
         }
-        Permission::Privilege(path_comp, ..)=> {
+        Permission::Privilege(path_comp, ..) => {
             let path = format!("/{}", path_comp.join("/"));
             pbs_config::acl::check_acl_path(&path)?;
         }
@@ -96,12 +100,7 @@ fn verify_access_permissions(permission: &Permission) -> Result<(), Error> {
     Ok(())
 }
 
-fn verify_api_method(
-    method: &str,
-    path: &str,
-    info: &ApiMethod
-) -> Result<(), Error>
-{
+fn verify_api_method(method: &str, path: &str, info: &ApiMethod) -> Result<(), Error> {
     match &info.parameters {
         ParameterSchema::Object(obj) => {
             verify_object_schema(obj)
@@ -122,22 +121,20 @@ fn verify_api_method(
     Ok(())
 }
 
-fn verify_dirmap(
-    path: &str,
-    dirmap: SubdirMap,
-) -> Result<(), Error> {
-
+fn verify_dirmap(path: &str, dirmap: SubdirMap) -> Result<(), Error> {
     if !dirmap.is_empty() {
-
         for i in 1..dirmap.len() {
-
-            if dirmap[i].0 <= dirmap[i-1].0 {
+            if dirmap[i].0 <= dirmap[i - 1].0 {
                 for (name, _) in dirmap.iter() {
                     eprintln!("{}/{}", path, name);
                 }
-                bail!("found unsorted dirmap at {:?} ({} <= {})", path, dirmap[i].0, dirmap[i-1].0);
+                bail!(
+                    "found unsorted dirmap at {:?} ({} <= {})",
+                    path,
+                    dirmap[i].0,
+                    dirmap[i - 1].0
+                );
             }
-
         }
     }
 
@@ -150,7 +147,6 @@ fn verify_dirmap(
 }
 
 fn verify_router(path: &str, router: &Router) -> Result<(), Error> {
-
     println!("Verify {}", path);
 
     if let Some(api_method) = router.get {
@@ -182,7 +178,6 @@ fn verify_router(path: &str, router: &Router) -> Result<(), Error> {
 
 #[test]
 fn verify_backup_api() -> Result<(), Error> {
-
     let api = &api2::backup::BACKUP_API_ROUTER;
     verify_router("backup-api", api)?;
 
@@ -191,7 +186,6 @@ fn verify_backup_api() -> Result<(), Error> {
 
 #[test]
 fn verify_reader_api() -> Result<(), Error> {
-
     let api = &api2::reader::READER_API_ROUTER;
     verify_router("reader-api", api)?;
 
@@ -200,7 +194,6 @@ fn verify_reader_api() -> Result<(), Error> {
 
 #[test]
 fn verify_root_api() -> Result<(), Error> {
-
     let api = &api2::ROUTER;
     verify_router("root", api)?;
 
