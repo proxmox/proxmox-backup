@@ -13,6 +13,9 @@ Ext.define('PBS.NodeOptionView', {
 
     listeners: {
 	itemdblclick: function() { this.run_editor(); },
+	activate: function() { this.rstore.startUpdate(); },
+	destroy: function() { this.rstore.stopUpdate(); },
+	deactivate: function() { this.rstore.stopUpdate(); },
     },
 
     tbar: [
@@ -52,14 +55,4 @@ Ext.define('PBS.NodeOptionView', {
 	    renderer: Proxmox.Utils.render_language,
 	},
     ],
-
-    initComponent: function() {
-	let me = this;
-
-	me.callParent();
-
-	me.on('activate', me.rstore.startUpdate);
-	me.on('destroy', me.rstore.stopUpdate);
-	me.on('deactivate', me.rstore.stopUpdate);
-    },
 });
