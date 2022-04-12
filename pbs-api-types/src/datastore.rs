@@ -6,9 +6,9 @@ use proxmox_schema::{
 };
 
 use crate::{
-    Authid, CryptMode, Fingerprint, Userid, DATASTORE_NOTIFY_STRING_SCHEMA, GC_SCHEDULE_SCHEMA,
-    PROXMOX_SAFE_ID_FORMAT, PRUNE_SCHEDULE_SCHEMA, SHA256_HEX_REGEX, SINGLE_LINE_COMMENT_SCHEMA,
-    UPID,
+    Authid, CryptMode, Fingerprint, MaintenanceMode, Userid, DATASTORE_NOTIFY_STRING_SCHEMA,
+    GC_SCHEDULE_SCHEMA, PROXMOX_SAFE_ID_FORMAT, PRUNE_SCHEDULE_SCHEMA, SHA256_HEX_REGEX,
+    SINGLE_LINE_COMMENT_SCHEMA, UPID,
 };
 
 const_regex! {
@@ -262,6 +262,11 @@ pub const DATASTORE_TUNING_STRING_SCHEMA: Schema = StringSchema::new("Datastore 
             optional: true,
             schema: DATASTORE_TUNING_STRING_SCHEMA,
         },
+        "maintenance-mode": {
+            optional: true,
+            format: &ApiStringFormat::PropertyString(&MaintenanceMode::API_SCHEMA),
+            type: String,
+        },
     }
 )]
 #[derive(Serialize, Deserialize, Updater)]
@@ -302,6 +307,18 @@ pub struct DataStoreConfig {
     /// Datastore tuning options
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tuning: Option<String>,
+    /// Maintenance mode, type is either 'offline' or 'read-only', message should be enclosed in "
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub maintenance_mode: Option<String>,
+}
+
+impl DataStoreConfig {
+    pub fn get_maintenance_mode(&self) -> Option<MaintenanceMode> {
+        self.maintenance_mode
+            .as_ref()
+            .and_then(|str| MaintenanceMode::API_SCHEMA.parse_property_string(str).ok())
+            .and_then(|value| MaintenanceMode::deserialize(value).ok())
+    }
 }
 
 #[api(

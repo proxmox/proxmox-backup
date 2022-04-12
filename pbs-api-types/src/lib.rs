@@ -49,6 +49,9 @@ pub use jobs::*;
 mod key_derivation;
 pub use key_derivation::{Kdf, KeyInfo};
 
+mod maintenance;
+pub use maintenance::*;
+
 mod network;
 pub use network::*;
 
