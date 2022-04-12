@@ -658,6 +658,10 @@ Ext.define('PBS.Utils', {
 	    extra += '<i class="fa fa-check"></i>';
 	}
 
+	if (message) {
+	    extra += ` (${message.split("=").pop()})`;
+	}
+
 	let modeText = Proxmox.Utils.unknownText;
 	switch (type) {
 	    case 'read-only': modeText = gettext("Read-only");
