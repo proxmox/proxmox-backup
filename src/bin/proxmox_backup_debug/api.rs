@@ -229,6 +229,14 @@ async fn call_api_code(
         nix::unistd::setuid(backup_user.uid)?;
     }
     match method.handler {
+        ApiHandler::StreamingSync(handler) => {
+            let res = (handler)(params, method, rpcenv)?.to_value()?;
+            Ok(res)
+        }
+        ApiHandler::StreamingAsync(handler) => {
+            let res = (handler)(params, method, rpcenv).await?.to_value()?;
+            Ok(res)
+        }
         ApiHandler::AsyncHttp(_handler) => {
             bail!("not implemented");
         }
