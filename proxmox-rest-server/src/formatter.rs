@@ -7,7 +7,7 @@ use serde_json::{json, Value};
 use hyper::header;
 use hyper::{Body, Response, StatusCode};
 
-use proxmox_router::{HttpError, RpcEnvironment};
+use proxmox_router::{HttpError, RpcEnvironment, SerializableReturn};
 use proxmox_schema::ParameterError;
 
 /// Extension to set error message for server side logging
@@ -17,6 +17,13 @@ pub(crate) struct ErrorMessageExtension(pub String);
 pub trait OutputFormatter: Send + Sync {
     /// Transform json data into a http response
     fn format_data(&self, data: Value, rpcenv: &dyn RpcEnvironment) -> Response<Body>;
+
+    /// Transform serializable data into a streaming http response
+    fn format_data_streaming(
+        &self,
+        data: Box<dyn SerializableReturn + Send>,
+        rpcenv: &dyn RpcEnvironment,
+    ) -> Result<Response<Body>, Error>;
 
     /// Transform errors into a http response
     fn format_error(&self, err: Error) -> Response<Body>;
@@ -50,6 +57,16 @@ fn json_data_response(data: Value) -> Response<Body> {
     response
 }
 
+fn json_data_response_streaming(body: Body) -> Result<Response<Body>, Error> {
+    let response = Response::builder()
+        .header(
+            header::CONTENT_TYPE,
+            header::HeaderValue::from_static(JSON_CONTENT_TYPE),
+        )
+        .body(body)?;
+    Ok(response)
+}
+
 fn add_result_attributes(result: &mut Value, rpcenv: &dyn RpcEnvironment) {
     let attributes = match rpcenv.result_attrib().as_object() {
         Some(attr) => attr,
@@ -59,6 +76,22 @@ fn add_result_attributes(result: &mut Value, rpcenv: &dyn RpcEnvironment) {
     for (key, value) in attributes {
         result[key] = value.clone();
     }
+}
+
+fn start_data_streaming(
+    value: Value,
+    data: Box<dyn SerializableReturn + Send>,
+) -> tokio::sync::mpsc::Receiver<Result<Vec<u8>, Error>> {
+    let (writer, reader) = tokio::sync::mpsc::channel(1);
+
+    tokio::task::spawn_blocking(move || {
+        let output = proxmox_async::blocking::SenderWriter::from_sender(writer);
+        let mut output = std::io::BufWriter::new(output);
+        let mut serializer = serde_json::Serializer::new(&mut output);
+        let _ = data.sender_serialize(&mut serializer, value);
+    });
+
+    reader
 }
 
 struct JsonFormatter();
@@ -82,6 +115,21 @@ impl OutputFormatter for JsonFormatter {
         add_result_attributes(&mut result, rpcenv);
 
         json_data_response(result)
+    }
+
+    fn format_data_streaming(
+        &self,
+        data: Box<dyn SerializableReturn + Send>,
+        rpcenv: &dyn RpcEnvironment,
+    ) -> Result<Response<Body>, Error> {
+        let mut value = json!({});
+
+        add_result_attributes(&mut value, rpcenv);
+
+        let reader = start_data_streaming(value, data);
+        let stream = tokio_stream::wrappers::ReceiverStream::new(reader);
+
+        json_data_response_streaming(Body::wrap_stream(stream))
     }
 
     fn format_error(&self, err: Error) -> Response<Body> {
@@ -138,6 +186,23 @@ impl OutputFormatter for ExtJsFormatter {
         add_result_attributes(&mut result, rpcenv);
 
         json_data_response(result)
+    }
+
+    fn format_data_streaming(
+        &self,
+        data: Box<dyn SerializableReturn + Send>,
+        rpcenv: &dyn RpcEnvironment,
+    ) -> Result<Response<Body>, Error> {
+        let mut value = json!({
+            "success": true,
+        });
+
+        add_result_attributes(&mut value, rpcenv);
+
+        let reader = start_data_streaming(value, data);
+        let stream = tokio_stream::wrappers::ReceiverStream::new(reader);
+
+        json_data_response_streaming(Body::wrap_stream(stream))
     }
 
     fn format_error(&self, err: Error) -> Response<Body> {
