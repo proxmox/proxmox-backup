@@ -4,7 +4,7 @@
 //! services. We want async IO, so this is built on top of
 //! tokio/hyper.
 
-use anyhow::Error;
+use anyhow::{format_err, Error};
 use serde_json::Value;
 
 use proxmox_sys::fs::{create_path, CreateOptions};
@@ -69,5 +69,19 @@ pub fn create_state_dir() -> Result<(), Error> {
         .owner(backup_user.uid)
         .group(backup_user.gid);
     create_path(pbs_buildcfg::PROXMOX_BACKUP_STATE_DIR_M!(), None, Some(opts))?;
+    Ok(())
+}
+
+/// Create active operations dir with correct permission.
+pub fn create_active_operations_dir() -> Result<(), Error> {
+    let backup_user = pbs_config::backup_user()?;
+    let mode = nix::sys::stat::Mode::from_bits_truncate(0o0750);
+    let options = CreateOptions::new()
+        .perm(mode)
+        .owner(backup_user.uid)
+        .group(backup_user.gid);
+
+    create_path(pbs_datastore::ACTIVE_OPERATIONS_DIR, None, Some(options))
+        .map_err(|err: Error| format_err!("unable to create active operations dir - {}", err))?;
     Ok(())
 }

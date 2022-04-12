@@ -35,5 +35,6 @@ proxmox-uuid = "1"
 proxmox-sys = "0.2"
 
 pbs-api-types = { path = "../pbs-api-types" }
+pbs-buildcfg = { path = "../pbs-buildcfg" }
 pbs-tools = { path = "../pbs-tools" }
 pbs-config = { path = "../pbs-config" }

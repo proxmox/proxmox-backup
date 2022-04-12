@@ -145,6 +145,9 @@
 // Note: .pcat1 => Proxmox Catalog Format version 1
 pub const CATALOG_NAME: &str = "catalog.pcat1.didx";
 
+/// Directory path where active operations counters are saved.
+pub const ACTIVE_OPERATIONS_DIR: &str = concat!(pbs_buildcfg::PROXMOX_BACKUP_RUN_DIR_M!(), "/active-operations");
+
 #[macro_export]
 macro_rules! PROXMOX_BACKUP_PROTOCOL_ID_V1 {
     () => {
@@ -179,6 +182,7 @@ pub mod paperkey;
 pub mod prune;
 pub mod read_chunk;
 pub mod store_progress;
+pub mod task_tracking;
 
 pub mod dynamic_index;
 pub mod fixed_index;
