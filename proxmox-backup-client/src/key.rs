@@ -293,7 +293,7 @@ fn show_key(path: Option<String>, param: Value) -> Result<(), Error> {
             .ok_or_else(|| format_err!("no encryption file provided and no default file found"))?,
     };
 
-    let config: KeyConfig = serde_json::from_slice(&file_get_contents(path.clone())?)?;
+    let config: KeyConfig = serde_json::from_slice(&file_get_contents(&path)?)?;
 
     let output_format = get_output_format(&param);
 
