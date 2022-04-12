@@ -186,6 +186,8 @@ pub enum DeletableProperty {
     notify,
     /// Delete the tuning property
     tuning,
+    /// Delete the maintenance-mode property
+    maintenance_mode,
 }
 
 #[api(
@@ -253,6 +255,7 @@ pub fn update_datastore(
                 DeletableProperty::notify => { data.notify = None; },
                 DeletableProperty::notify_user => { data.notify_user = None; },
                 DeletableProperty::tuning => { data.tuning = None; },
+                DeletableProperty::maintenance_mode => { data.maintenance_mode = None; },
             }
         }
     }
@@ -299,6 +302,8 @@ pub fn update_datastore(
     if update.notify_user.is_some() { data.notify_user = update.notify_user; }
 
     if update.tuning.is_some() { data.tuning = update.tuning; }
+
+    if update.maintenance_mode.is_some() { data.maintenance_mode = update.maintenance_mode; }
 
     config.set_data(&name, "datastore", &data)?;
 
