@@ -99,6 +99,7 @@ JSSRC=							\
 	datastore/DataStoreList.js			\
 	ServerStatus.js					\
 	ServerAdministration.js				\
+	NodeNotes.js				        \
 	Dashboard.js					\
 	${TAPE_UI_FILES}				\
 	NavigationTree.js				\

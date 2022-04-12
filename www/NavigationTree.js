@@ -33,6 +33,12 @@ Ext.define('PBS.store.NavigationStore', {
 		leaf: true,
 	    },
 	    {
+		text: gettext('Notes'),
+		iconCls: 'fa fa-sticky-note-o',
+		path: 'pbsNodeNotes',
+		leaf: true,
+	    },
+	    {
 		text: gettext('Configuration'),
 		iconCls: 'fa fa-gears',
 		path: 'pbsSystemConfiguration',
