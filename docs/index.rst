@@ -50,6 +50,7 @@ in the section entitled "GNU Free Documentation License".
    file-formats.rst
    backup-protocol.rst
    calendarevents.rst
+   markdown-primer.rst
    glossary.rst
    GFDL.rst
 
