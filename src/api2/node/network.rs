@@ -1,6 +1,6 @@
 use anyhow::{Error, bail};
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, to_value};
-use ::serde::{Deserialize, Serialize};
 use hex::FromHex;
 
 use proxmox_router::{ApiMethod, Router, RpcEnvironment, Permission};
@@ -539,7 +539,7 @@ pub fn update_interface(
     let interface = config.lookup_mut(&iface)?;
 
     if let Some(interface_type) = param.get("type") {
-        let interface_type: NetworkInterfaceType = serde_json::from_value(interface_type.clone())?;
+        let interface_type = NetworkInterfaceType::deserialize(interface_type)?;
         if  interface_type != interface.interface_type {
             bail!("got unexpected interface type ({:?} != {:?})", interface_type, interface.interface_type);
         }

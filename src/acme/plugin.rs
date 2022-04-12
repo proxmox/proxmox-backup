@@ -30,7 +30,7 @@ pub(crate) fn get_acme_plugin(
 
     Ok(Some(match ty.as_str() {
         "dns" => {
-            let plugin: DnsPlugin = serde_json::from_value(data.clone())?;
+            let plugin: DnsPlugin = serde::Deserialize::deserialize(data)?;
             Box::new(plugin)
         }
         "standalone" => {

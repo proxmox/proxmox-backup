@@ -706,7 +706,7 @@ pub fn update_plugin(
                 bail!("cannot update plugin of type {:?}", ty);
             }
 
-            let mut plugin: DnsPlugin = serde_json::from_value(entry.clone())?;
+            let mut plugin = DnsPlugin::deserialize(&*entry)?;
 
             if let Some(delete) = delete {
                 for delete_prop in delete {

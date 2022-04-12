@@ -131,7 +131,7 @@ fn do_crypto_parameters(param: &Value, keep_keyfd_open: bool) -> Result<CryptoPa
     };
 
     let mode: Option<CryptMode> = match param.get("crypt-mode") {
-        Some(mode) => Some(serde_json::from_value(mode.clone())?),
+        Some(mode) => Some(serde::Deserialize::deserialize(mode)?),
         None => None,
     };
 

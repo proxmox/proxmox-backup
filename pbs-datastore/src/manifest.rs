@@ -178,7 +178,7 @@ impl BackupManifest {
     pub fn fingerprint(&self) -> Result<Option<Fingerprint>, Error> {
         match &self.unprotected["key-fingerprint"] {
             Value::Null => Ok(None),
-            value => Ok(Some(serde_json::from_value(value.clone())?))
+            value => Ok(Some(Deserialize::deserialize(value)?))
         }
     }
 
@@ -220,7 +220,7 @@ impl BackupManifest {
 
                 let fingerprint = &json["unprotected"]["key-fingerprint"];
                 if fingerprint != &Value::Null {
-                    let fingerprint = serde_json::from_value(fingerprint.clone())?;
+                    let fingerprint = Fingerprint::deserialize(fingerprint)?;
                     let config_fp = Fingerprint::new(crypt_config.fingerprint());
                     if config_fp != fingerprint {
                         bail!(

@@ -230,7 +230,7 @@ async fn list(snapshot: String, path: String, base64: bool, param: Value) -> Res
                 keyfile,
             };
             let driver: Option<BlockDriverType> = match param.get("driver") {
-                Some(drv) => Some(serde_json::from_value(drv.clone())?),
+                Some(drv) => Some(serde::Deserialize::deserialize(drv)?),
                 None => None,
             };
             data_list(driver, details, file, path).await
@@ -382,7 +382,7 @@ async fn extract(
                 keyfile,
             };
             let driver: Option<BlockDriverType> = match param.get("driver") {
-                Some(drv) => Some(serde_json::from_value(drv.clone())?),
+                Some(drv) => Some(serde::Deserialize::deserialize(drv)?),
                 None => None,
             };
 
