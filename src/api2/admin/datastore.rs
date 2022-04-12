@@ -12,6 +12,7 @@ use hyper::{header, Body, Response, StatusCode};
 use serde_json::{json, Value};
 use tokio_stream::wrappers::ReceiverStream;
 
+use proxmox_compression::zstd::ZstdEncoder;
 use proxmox_sys::sortable;
 use proxmox_sys::fs::{
     file_read_firstline, file_read_optional_string, replace_file, CreateOptions,
@@ -40,7 +41,7 @@ use pbs_api_types::{ Authid, BackupContent, Counts, CryptMode,
     PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_VERIFY,
 
 };
-use pbs_client::pxar::create_zip;
+use pbs_client::pxar::{create_tar, create_zip};
 use pbs_datastore::{
     check_backup_owner, DataStore, BackupDir, BackupGroup, StoreProgress, LocalChunkReader,
     CATALOG_NAME, task_tracking
@@ -1433,6 +1434,7 @@ pub const API_METHOD_PXAR_FILE_DOWNLOAD: ApiMethod = ApiMethod::new(
             ("backup-id", false,  &BACKUP_ID_SCHEMA),
             ("backup-time", false, &BACKUP_TIME_SCHEMA),
             ("filepath", false, &StringSchema::new("Base64 encoded path").schema()),
+            ("tar", true, &BooleanSchema::new("Download as .tar.zst").schema()),
         ]),
     )
 ).access(None, &Permission::Privilege(
@@ -1460,6 +1462,8 @@ pub fn pxar_file_download(
         let backup_type = required_string_param(&param, "backup-type")?;
         let backup_id = required_string_param(&param, "backup-id")?;
         let backup_time = required_integer_param(&param, "backup-time")?;
+
+        let tar = param["tar"].as_bool().unwrap_or(false);
 
         let backup_dir = BackupDir::new(backup_type, backup_id, backup_time)?;
 
@@ -1520,15 +1524,26 @@ pub fn pxar_file_download(
                     }),
             ),
             EntryKind::Directory => {
-                let (sender, receiver) = tokio::sync::mpsc::channel(100);
+                let (sender, receiver) = tokio::sync::mpsc::channel::<Result<_, Error>>(100);
                 let channelwriter = AsyncChannelWriter::new(sender, 1024 * 1024);
-                proxmox_rest_server::spawn_internal_task(
-                    create_zip(channelwriter, decoder, path.clone(), false)
-                );
-                Body::wrap_stream(ReceiverStream::new(receiver).map_err(move |err| {
-                    eprintln!("error during streaming of zip '{:?}' - {}", path, err);
-                    err
-                }))
+                if tar {
+                    proxmox_rest_server::spawn_internal_task(
+                        create_tar(channelwriter, decoder, path.clone(), false)
+                    );
+                    let zstdstream = ZstdEncoder::new(ReceiverStream::new(receiver))?;
+                    Body::wrap_stream(zstdstream.map_err(move |err| {
+                        eprintln!("error during streaming of tar.zst '{:?}' - {}", path, err);
+                        err
+                    }))
+                } else {
+                    proxmox_rest_server::spawn_internal_task(
+                        create_zip(channelwriter, decoder, path.clone(), false)
+                    );
+                    Body::wrap_stream(ReceiverStream::new(receiver).map_err(move |err| {
+                        eprintln!("error during streaming of zip '{:?}' - {}", path, err);
+                        err
+                    }))
+                }
             }
             other => bail!("cannot download file of type {:?}", other),
         };
