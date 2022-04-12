@@ -16,7 +16,7 @@ use proxmox_sys::task_log;
 
 use pbs_api_types::{
     Authid, GroupFilter, GroupListItem, RateLimitConfig, Remote,
-    SnapshotListItem,
+    Operation, SnapshotListItem,
 };
 
 use pbs_datastore::{BackupDir, BackupInfo, BackupGroup, DataStore, StoreProgress};
@@ -57,7 +57,7 @@ impl PullParameters {
         group_filter: Option<Vec<GroupFilter>>,
         limit: RateLimitConfig,
     ) -> Result<Self, Error> {
-        let store = DataStore::lookup_datastore(store)?;
+        let store = DataStore::lookup_datastore(store, Some(Operation::Write))?;
 
         let (remote_config, _digest) = pbs_config::remote::config()?;
         let remote: Remote = remote_config.lookup("remote", remote)?;

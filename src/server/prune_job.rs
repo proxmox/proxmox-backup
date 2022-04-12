@@ -7,7 +7,7 @@ use proxmox_sys::{task_log, task_warn};
 use pbs_datastore::backup_info::BackupInfo;
 use pbs_datastore::prune::compute_prune_info;
 use pbs_datastore::DataStore;
-use pbs_api_types::{Authid, PRIV_DATASTORE_MODIFY, PruneOptions};
+use pbs_api_types::{Authid, Operation, PRIV_DATASTORE_MODIFY, PruneOptions};
 use pbs_config::CachedUserInfo;
 use proxmox_rest_server::WorkerTask;
 
@@ -97,7 +97,7 @@ pub fn do_prune_job(
     auth_id: &Authid,
     schedule: Option<String>,
 ) -> Result<String, Error> {
-    let datastore = DataStore::lookup_datastore(&store)?;
+    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
     let worker_type = job.jobtype().to_string();
     let auth_id = auth_id.clone();

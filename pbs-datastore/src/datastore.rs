@@ -19,7 +19,7 @@ use proxmox_sys::fs::{lock_dir_noblock, DirLockGuard};
 
 use pbs_api_types::{
     UPID, DataStoreConfig, Authid, GarbageCollectionStatus, HumanByte,
-    ChunkOrder, DatastoreTuning,
+    ChunkOrder, DatastoreTuning, Operation,
 };
 use pbs_config::{open_backup_lockfile, BackupLockGuard, ConfigVersionCache};
 
@@ -68,10 +68,23 @@ pub struct DataStore {
 }
 
 impl DataStore {
-    pub fn lookup_datastore(name: &str) -> Result<Arc<DataStore>, Error> {
+    pub fn lookup_datastore(
+        name: &str,
+        operation: Option<Operation>,
+    ) -> Result<Arc<DataStore>, Error> {
         let version_cache = ConfigVersionCache::new()?;
         let generation = version_cache.datastore_generation();
         let now = proxmox_time::epoch_i64();
+
+        let (config, _digest) = pbs_config::datastore::config()?;
+        let config: DataStoreConfig = config.lookup("datastore", name)?;
+        let path = PathBuf::from(&config.path);
+
+        if let Some(maintenance_mode) = config.get_maintenance_mode() {
+            if let Err(error) = maintenance_mode.check(operation) {
+                bail!("datastore '{}' is in {}", name, error);
+            }
+        }
 
         let mut map = DATASTORE_MAP.lock().unwrap();
         let entry = map.get(name);
@@ -81,10 +94,6 @@ impl DataStore {
                 return Ok(Arc::clone(datastore));
             }
         }
-
-        let (config, _digest) = pbs_config::datastore::config()?;
-        let config: DataStoreConfig = config.lookup("datastore", name)?;
-        let path = PathBuf::from(&config.path);
 
         let datastore = DataStore::open_with_path(name, &path, config, generation, now)?;
 

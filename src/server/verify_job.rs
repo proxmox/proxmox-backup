@@ -1,7 +1,7 @@
 use anyhow::{format_err, Error};
 
 use proxmox_sys::task_log;
-use pbs_api_types::{Authid, VerificationJobConfig};
+use pbs_api_types::{Authid, Operation, VerificationJobConfig};
 use proxmox_rest_server::WorkerTask;
 use pbs_datastore::DataStore;
 
@@ -22,7 +22,7 @@ pub fn do_verification_job(
     to_stdout: bool,
 ) -> Result<String, Error> {
 
-    let datastore = DataStore::lookup_datastore(&verification_job.store)?;
+    let datastore = DataStore::lookup_datastore(&verification_job.store, Some(Operation::Read))?;
 
     let outdated_after = verification_job.outdated_after;
     let ignore_verified_snapshots = verification_job.ignore_verified.unwrap_or(true);

@@ -30,7 +30,7 @@ use pxar::EntryKind;
 
 use pbs_api_types::{ Authid, BackupContent, Counts, CryptMode,
     DataStoreListItem, GarbageCollectionStatus, GroupListItem,
-    SnapshotListItem, SnapshotVerifyState, PruneOptions,
+    Operation, SnapshotListItem, SnapshotVerifyState, PruneOptions,
     DataStoreStatus, RRDMode, RRDTimeFrame,
     BACKUP_ARCHIVE_NAME_SCHEMA, BACKUP_ID_SCHEMA, BACKUP_TIME_SCHEMA,
     BACKUP_TYPE_SCHEMA, DATASTORE_SCHEMA,
@@ -170,7 +170,7 @@ pub fn list_groups(
     let user_info = CachedUserInfo::new()?;
     let user_privs = user_info.lookup_privs(&auth_id, &["datastore", &store]);
 
-    let datastore = DataStore::lookup_datastore(&store)?;
+    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
     let list_all = (user_privs & PRIV_DATASTORE_AUDIT) != 0;
 
     let backup_groups = BackupInfo::list_backup_groups(&datastore.base_path())?;
@@ -268,7 +268,7 @@ pub fn delete_group(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
     let group = BackupGroup::new(backup_type, backup_id);
-    let datastore = DataStore::lookup_datastore(&store)?;
+    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
     check_priv_or_backup_owner(&datastore, &group, &auth_id, PRIV_DATASTORE_MODIFY)?;
 
@@ -315,7 +315,7 @@ pub fn list_snapshot_files(
 ) -> Result<Vec<BackupContent>, Error> {
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-    let datastore = DataStore::lookup_datastore(&store)?;
+    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
 
     let snapshot = BackupDir::new(backup_type, backup_id, backup_time)?;
 
@@ -365,7 +365,7 @@ pub fn delete_snapshot(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
     let snapshot = BackupDir::new(backup_type, backup_id, backup_time)?;
-    let datastore = DataStore::lookup_datastore(&store)?;
+    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
     check_priv_or_backup_owner(&datastore, snapshot.group(), &auth_id, PRIV_DATASTORE_MODIFY)?;
 
@@ -414,7 +414,7 @@ pub fn list_snapshots (
 
     let list_all = (user_privs & PRIV_DATASTORE_AUDIT) != 0;
 
-    let datastore = DataStore::lookup_datastore(&store)?;
+    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
 
     let base_path = datastore.base_path();
 
@@ -615,7 +615,7 @@ pub fn status(
     _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<DataStoreStatus, Error> {
-    let datastore = DataStore::lookup_datastore(&store)?;
+    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
     let storage = crate::tools::disks::disk_usage(&datastore.base_path())?;
     let (counts, gc_status) = if verbose {
         let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
@@ -693,7 +693,7 @@ pub fn verify(
     outdated_after: Option<i64>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-    let datastore = DataStore::lookup_datastore(&store)?;
+    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
     let ignore_verified = ignore_verified.unwrap_or(true);
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
@@ -838,7 +838,7 @@ pub fn prune(
 
     let group = BackupGroup::new(&backup_type, &backup_id);
 
-    let datastore = DataStore::lookup_datastore(&store)?;
+    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
     check_priv_or_backup_owner(&datastore, &group, &auth_id, PRIV_DATASTORE_MODIFY)?;
 
@@ -963,7 +963,7 @@ pub fn prune_datastore(
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-    let datastore = DataStore::lookup_datastore(&store)?;
+    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
     let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
@@ -1007,7 +1007,7 @@ pub fn start_garbage_collection(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
-    let datastore = DataStore::lookup_datastore(&store)?;
+    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
     let job =  Job::new("garbage_collection", &store)
@@ -1043,7 +1043,7 @@ pub fn garbage_collection_status(
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<GarbageCollectionStatus, Error> {
 
-    let datastore = DataStore::lookup_datastore(&store)?;
+    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
 
     let status = datastore.last_gc_status();
 
@@ -1119,7 +1119,7 @@ pub fn download_file(
 
     async move {
         let store = required_string_param(&param, "store")?;
-        let datastore = DataStore::lookup_datastore(store)?;
+        let datastore = DataStore::lookup_datastore(store, Some(Operation::Read))?;
 
         let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
@@ -1189,7 +1189,7 @@ pub fn download_file_decoded(
 
     async move {
         let store = required_string_param(&param, "store")?;
-        let datastore = DataStore::lookup_datastore(store)?;
+        let datastore = DataStore::lookup_datastore(store, Some(Operation::Read))?;
 
         let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
@@ -1303,7 +1303,7 @@ pub fn upload_backup_log(
 
     async move {
         let store = required_string_param(&param, "store")?;
-        let datastore = DataStore::lookup_datastore(store)?;
+        let datastore = DataStore::lookup_datastore(store, Some(Operation::Write))?;
 
         let file_name =  CLIENT_LOG_BLOB_NAME;
 
@@ -1380,7 +1380,7 @@ pub fn catalog(
     filepath: String,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<ArchiveEntry>, Error> {
-    let datastore = DataStore::lookup_datastore(&store)?;
+    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
@@ -1450,7 +1450,7 @@ pub fn pxar_file_download(
 
     async move {
         let store = required_string_param(&param, "store")?;
-        let datastore = DataStore::lookup_datastore(store)?;
+        let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
 
         let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
@@ -1567,7 +1567,7 @@ pub fn get_rrd_stats(
     _param: Value,
 ) -> Result<Value, Error> {
 
-    let datastore = DataStore::lookup_datastore(&store)?;
+    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
     let disk_manager = crate::tools::disks::DiskManage::new();
 
     let mut rrd_fields = vec![
@@ -1615,7 +1615,7 @@ pub fn get_group_notes(
     backup_id: String,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
-    let datastore = DataStore::lookup_datastore(&store)?;
+    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let backup_group = BackupGroup::new(backup_type, backup_id);
@@ -1657,7 +1657,7 @@ pub fn set_group_notes(
     notes: String,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
-    let datastore = DataStore::lookup_datastore(&store)?;
+    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let backup_group = BackupGroup::new(backup_type, backup_id);
@@ -1699,7 +1699,7 @@ pub fn get_notes(
     backup_time: i64,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
-    let datastore = DataStore::lookup_datastore(&store)?;
+    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let backup_dir = BackupDir::new(backup_type, backup_id, backup_time)?;
@@ -1750,7 +1750,7 @@ pub fn set_notes(
     notes: String,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
-    let datastore = DataStore::lookup_datastore(&store)?;
+    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let backup_dir = BackupDir::new(backup_type, backup_id, backup_time)?;
@@ -1793,7 +1793,7 @@ pub fn get_protection(
     backup_time: i64,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<bool, Error> {
-    let datastore = DataStore::lookup_datastore(&store)?;
+    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let backup_dir = BackupDir::new(backup_type, backup_id, backup_time)?;
@@ -1838,7 +1838,7 @@ pub fn set_protection(
     protected: bool,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
-    let datastore = DataStore::lookup_datastore(&store)?;
+    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let backup_dir = BackupDir::new(backup_type, backup_id, backup_time)?;
@@ -1879,7 +1879,7 @@ pub fn set_backup_owner(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
 
-    let datastore = DataStore::lookup_datastore(&store)?;
+    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
     let backup_group = BackupGroup::new(backup_type, backup_id);
 

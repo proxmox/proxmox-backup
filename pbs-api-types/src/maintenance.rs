@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+use anyhow::{bail, Error};
 use serde::{Deserialize, Serialize};
 
 use proxmox_schema::{api, ApiStringFormat, const_regex, Schema, StringSchema};
@@ -24,7 +26,7 @@ pub enum Operation {
 }
 
 #[api]
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, PartialEq)]
 #[serde(rename_all="kebab-case")]
 /// Maintenance type.
 pub enum MaintenanceType {
@@ -56,4 +58,21 @@ pub struct MaintenanceMode {
     /// Reason for maintenance.
     #[serde(skip_serializing_if = "Option::is_none")]
     message: Option<String>,
+}
+
+impl MaintenanceMode {
+    pub fn check(&self, operation: Option<Operation>) -> Result<(), Error> {
+        let message = percent_encoding::percent_decode_str(self.message.as_deref().unwrap_or(""))
+            .decode_utf8()
+            .unwrap_or(Cow::Borrowed(""));
+
+        if self.ty == MaintenanceType::Offline {
+            bail!("offline maintenance mode: {}", message);
+        } else if self.ty == MaintenanceType::ReadOnly {
+            if let Some(Operation::Write) = operation {
+                bail!("read-only maintenance mode: {}", message);
+            }
+        }
+        Ok(())
+    }
 }

@@ -10,7 +10,7 @@ use proxmox_schema::api;
 use proxmox_sys::{task_log, task_warn, WorkerTaskContext};
 
 use pbs_api_types::{
-    Authid, GroupFilter, MediaPoolConfig, TapeBackupJobConfig, TapeBackupJobSetup,
+    Authid, GroupFilter, MediaPoolConfig, Operation, TapeBackupJobConfig, TapeBackupJobSetup,
     TapeBackupJobStatus, Userid, JOB_ID_SCHEMA, PRIV_DATASTORE_READ, PRIV_TAPE_AUDIT,
     PRIV_TAPE_WRITE, UPID_SCHEMA,
 };
@@ -158,7 +158,7 @@ pub fn do_tape_backup_job(
 
     let worker_type = job.jobtype().to_string();
 
-    let datastore = DataStore::lookup_datastore(&setup.store)?;
+    let datastore = DataStore::lookup_datastore(&setup.store, Some(Operation::Read))?;
 
     let (config, _digest) = pbs_config::media_pool::config()?;
     let pool_config: MediaPoolConfig = config.lookup("pool", &setup.pool)?;
@@ -328,7 +328,7 @@ pub fn backup(
 
     check_backup_permission(&auth_id, &setup.store, &setup.pool, &setup.drive)?;
 
-    let datastore = DataStore::lookup_datastore(&setup.store)?;
+    let datastore = DataStore::lookup_datastore(&setup.store, Some(Operation::Read))?;
 
     let (config, _digest) = pbs_config::media_pool::config()?;
     let pool_config: MediaPoolConfig = config.lookup("pool", &setup.pool)?;

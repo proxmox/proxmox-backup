@@ -17,7 +17,7 @@ use proxmox_sys::{task_log, task_warn, WorkerTaskContext};
 use proxmox_uuid::Uuid;
 
 use pbs_api_types::{
-    Authid, CryptMode, Userid, DATASTORE_MAP_ARRAY_SCHEMA, DATASTORE_MAP_LIST_SCHEMA,
+    Authid, CryptMode, Operation, Userid, DATASTORE_MAP_ARRAY_SCHEMA, DATASTORE_MAP_LIST_SCHEMA,
     DRIVE_NAME_SCHEMA, PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY, PRIV_TAPE_READ,
     TAPE_RESTORE_SNAPSHOT_SCHEMA, UPID_SCHEMA,
 };
@@ -75,10 +75,10 @@ impl TryFrom<String> for DataStoreMap {
             if let Some(index) = store.find('=') {
                 let mut target = store.split_off(index);
                 target.remove(0); // remove '='
-                let datastore = DataStore::lookup_datastore(&target)?;
+                let datastore = DataStore::lookup_datastore(&target, Some(Operation::Write))?;
                 map.insert(store, datastore);
             } else if default.is_none() {
-                default = Some(DataStore::lookup_datastore(&store)?);
+                default = Some(DataStore::lookup_datastore(&store, Some(Operation::Write))?);
             } else {
                 bail!("multiple default stores given");
             }

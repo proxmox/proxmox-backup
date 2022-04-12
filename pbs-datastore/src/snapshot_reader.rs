@@ -14,6 +14,7 @@ use crate::fixed_index::FixedIndexReader;
 use crate::dynamic_index::DynamicIndexReader;
 use crate::manifest::{archive_type, ArchiveType, CLIENT_LOG_BLOB_NAME, MANIFEST_BLOB_NAME};
 use crate::DataStore;
+use pbs_api_types::Operation;
 
 /// Helper to access the contents of a datastore backup snapshot
 ///
@@ -121,7 +122,10 @@ impl <'a, F: Fn(&[u8;32]) -> bool> Iterator for SnapshotChunkIterator<'a, F> {
                         };
 
                         let datastore =
-                            DataStore::lookup_datastore(self.snapshot_reader.datastore_name())?;
+                            DataStore::lookup_datastore(
+                                self.snapshot_reader.datastore_name(),
+                                Some(Operation::Read)
+                            )?;
                         let order = datastore.get_chunks_in_order(&index, &self.skip_fn, |_| Ok(()))?;
 
                         self.current_index = Some((Arc::new(index), 0, order));

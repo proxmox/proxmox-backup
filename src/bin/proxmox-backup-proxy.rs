@@ -48,7 +48,7 @@ use proxmox_time::CalendarEvent;
 
 use pbs_api_types::{
     Authid, DataStoreConfig, PruneOptions, SyncJobConfig, TapeBackupJobConfig,
-    VerificationJobConfig,
+    VerificationJobConfig, Operation
 };
 
 use proxmox_rest_server::daemon;
@@ -560,7 +560,7 @@ async fn schedule_datastore_garbage_collection() {
     };
 
     for (store, (_, store_config)) in config.sections {
-        let datastore = match DataStore::lookup_datastore(&store) {
+        let datastore = match DataStore::lookup_datastore(&store, Some(Operation::Write)) {
             Ok(datastore) => datastore,
             Err(err) => {
                 eprintln!("lookup_datastore failed - {}", err);

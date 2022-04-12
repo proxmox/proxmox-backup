@@ -14,7 +14,7 @@ use proxmox_router::{
 use proxmox_router::list_subdirs_api_method;
 
 use pbs_api_types::{
-    Authid, DataStoreStatusListItem, RRDMode, RRDTimeFrame,
+    Authid, DataStoreStatusListItem, Operation, RRDMode, RRDTimeFrame,
     PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP,
 };
 
@@ -57,7 +57,7 @@ pub fn datastore_status(
             continue;
         }
 
-        let datastore = match DataStore::lookup_datastore(store) {
+        let datastore = match DataStore::lookup_datastore(&store, Some(Operation::Read)) {
             Ok(datastore) => datastore,
             Err(err) => {
                 list.push(DataStoreStatusListItem {

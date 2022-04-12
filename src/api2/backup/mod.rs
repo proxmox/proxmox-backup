@@ -16,7 +16,7 @@ use proxmox_router::{
 use proxmox_schema::*;
 
 use pbs_api_types::{
-    Authid, VerifyState, SnapshotVerifyState,
+    Authid, Operation, VerifyState, SnapshotVerifyState,
     BACKUP_ID_SCHEMA, BACKUP_TIME_SCHEMA, BACKUP_TYPE_SCHEMA, DATASTORE_SCHEMA,
     CHUNK_DIGEST_SCHEMA, PRIV_DATASTORE_BACKUP, BACKUP_ARCHIVE_NAME_SCHEMA,
 };
@@ -77,7 +77,7 @@ async move {
     let user_info = CachedUserInfo::new()?;
     user_info.check_privs(&auth_id, &["datastore", &store], PRIV_DATASTORE_BACKUP, false)?;
 
-    let datastore = DataStore::lookup_datastore(&store)?;
+    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
     let backup_type = required_string_param(&param, "backup-type")?;
     let backup_id = required_string_param(&param, "backup-id")?;

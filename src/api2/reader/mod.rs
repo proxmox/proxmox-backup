@@ -16,8 +16,8 @@ use proxmox_router::{
 use proxmox_schema::{BooleanSchema, ObjectSchema};
 
 use pbs_api_types::{
-    Authid, DATASTORE_SCHEMA, BACKUP_TYPE_SCHEMA, BACKUP_TIME_SCHEMA, BACKUP_ID_SCHEMA,
-    CHUNK_DIGEST_SCHEMA, PRIV_DATASTORE_READ, PRIV_DATASTORE_BACKUP,
+    Authid, Operation, DATASTORE_SCHEMA, BACKUP_TYPE_SCHEMA, BACKUP_TIME_SCHEMA,
+    BACKUP_ID_SCHEMA, CHUNK_DIGEST_SCHEMA, PRIV_DATASTORE_READ, PRIV_DATASTORE_BACKUP,
     BACKUP_ARCHIVE_NAME_SCHEMA,
 };
 use proxmox_sys::fs::lock_dir_noblock_shared;
@@ -81,7 +81,7 @@ fn upgrade_to_backup_reader_protocol(
             bail!("no permissions on /datastore/{}", store);
         }
 
-        let datastore = DataStore::lookup_datastore(&store)?;
+        let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
 
         let backup_type = required_string_param(&param, "backup-type")?;
         let backup_id = required_string_param(&param, "backup-id")?;
