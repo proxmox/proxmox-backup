@@ -618,6 +618,7 @@ Ext.define('PBS.DataStoreContent', {
 		title: `${type}/${id}/${timetext}`,
 		listURL: `/api2/json/admin/datastore/${view.datastore}/catalog`,
 		downloadURL: `/api2/json/admin/datastore/${view.datastore}/pxar-file-download`,
+		enableTar: true,
 		extraParams: {
 		    'backup-id': id,
 		    'backup-time': (time.getTime()/1000).toFixed(0),
