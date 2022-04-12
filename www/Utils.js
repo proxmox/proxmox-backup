@@ -641,23 +641,28 @@ Ext.define('PBS.Utils', {
     },
 
     renderMaintenance: function(mode, activeTasks) {
-	if (!mode) return gettext('None');
-	let [type, _message] = mode.split(",");
+	if (!mode) {
+	    return gettext('None');
+	}
+	// FIXME: this "parser" is brittle and relies on the order the arguments will appear in
+	let [type, message] = mode.split(",");
 	type = type.split("=").pop();
 
 	const conflictingTasks = activeTasks.write + (type === 'offline' ? activeTasks.read : 0);
-	const checkmarkIcon = '<i class="fa fa-check"></i>';
-	const spinnerIcon = '<i class="fa fa-spinner fa-pulse fa-fw"></i>';
-	const conflictingTasksMessage = `<i>${conflictingTasks} conflicting tasks still active</i>`;
-	const extra = conflictingTasks > 0 ? `| ${spinnerIcon} ${conflictingTasksMessage}` : checkmarkIcon;
+
+	let extra = '';
+	if (conflictingTasks > 0) {
+	    extra += '| <i class="fa fa-spinner fa-pulse fa-fw"></i> ';
+	    extra += Ext.String.format(gettext('{0} conflicting tasks still active.'), conflictingTasks);
+	} else {
+	    extra += '<i class="fa fa-check"></i>';
+	}
 
 	let modeText = Proxmox.Utils.unknownText;
 	switch (type) {
-	    case 'read-only':
-		modeText = gettext("Read-only");
+	    case 'read-only': modeText = gettext("Read-only");
 		break;
-	    case 'offline':
-		modeText = gettext("Offline");
+	    case 'offline': modeText = gettext("Offline");
 		break;
 	}
 	return `${modeText} ${extra}`;
