@@ -22,6 +22,7 @@ Ext.define('PBS.window.MaintenanceOptions', {
     },
 
     items: {
+	xtype: 'inputpanel',
 	onGetValues: function(values) {
 	    if (values.delete === 'maintenance-type') {
 		values.delete = 'maintenance-mode';
@@ -37,7 +38,6 @@ Ext.define('PBS.window.MaintenanceOptions', {
 	    delete values['maintenance-msg'];
 	    return values;
 	},
-	xtype: 'inputpanel',
 	items: [
 	    {
 		xtype: 'pbsMaintenanceType',
@@ -50,6 +50,7 @@ Ext.define('PBS.window.MaintenanceOptions', {
 		xtype: 'proxmoxtextfield',
 		name: 'maintenance-msg',
 		fieldLabel: gettext('Description'),
+		// FIXME: disable if maintenance type is none
 	    },
 	],
     },

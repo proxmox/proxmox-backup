@@ -25,9 +25,6 @@ Ext.define('PBS.Datastore.Options', {
 
 	init: function(view) {
 	    let me = this;
-	    me.callParent();
-	    view.rows['maintenance-mode'].renderer =
-		(value) => PBS.Utils.renderMaintenance(value, view.maintenanceActiveTasks);
 
 	    me.activeOperationsRstore = Ext.create('Proxmox.data.ObjectStore', {
 		url: `/api2/json/admin/datastore/${view.datastore}/active-operations`,
@@ -36,8 +33,9 @@ Ext.define('PBS.Datastore.Options', {
 	    me.activeOperationsRstore.startUpdate();
 
 	    view.mon(me.activeOperationsRstore, 'load', (store, data, success) => {
-		me.view.maintenanceActiveTasks.read = data[0].data.value;
-		me.view.maintenanceActiveTasks.write = data[1].data.value;
+		let activeTasks = me.getView().maintenanceActiveTasks;
+		activeTasks.read = data[0].data.value;
+		activeTasks.write = data[1].data.value;
 	    });
 	},
 
@@ -152,6 +150,9 @@ Ext.define('PBS.Datastore.Options', {
 	"maintenance-mode": {
 	    required: true,
 	    header: gettext('Maintenance mode'),
+	    renderer: function(v) {
+		return PBS.Utils.renderMaintenance(v, this.maintenanceActiveTasks);
+	    },
 	    editor: {
 		xtype: 'pbsMaintenanceOptionEdit',
 	    },
