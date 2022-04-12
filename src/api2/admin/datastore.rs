@@ -43,7 +43,7 @@ use pbs_api_types::{ Authid, BackupContent, Counts, CryptMode,
 use pbs_client::pxar::create_zip;
 use pbs_datastore::{
     check_backup_owner, DataStore, BackupDir, BackupGroup, StoreProgress, LocalChunkReader,
-    CATALOG_NAME,
+    CATALOG_NAME, task_tracking
 };
 use pbs_datastore::backup_info::BackupInfo;
 use pbs_datastore::cached_chunk_reader::CachedChunkReader;
@@ -1596,6 +1596,30 @@ pub fn get_rrd_stats(
             store: {
                 schema: DATASTORE_SCHEMA,
             },
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_AUDIT, true),
+    },
+)]
+/// Read datastore stats
+pub fn get_active_operations(
+    store: String,
+    _param: Value,
+) -> Result<Value, Error> {
+    let active_operations = task_tracking::get_active_operations(&store)?;
+    Ok(json!({
+        "read": active_operations.read,
+        "write": active_operations.write,
+    }))
+}
+
+#[api(
+    input: {
+        properties: {
+            store: {
+                schema: DATASTORE_SCHEMA,
+            },
             "backup-type": {
                 schema: BACKUP_TYPE_SCHEMA,
             },
@@ -1947,6 +1971,11 @@ pub fn set_backup_owner(
 
 #[sortable]
 const DATASTORE_INFO_SUBDIRS: SubdirMap = &[
+    (
+        "active-operations",
+        &Router::new()
+            .get(&API_METHOD_GET_ACTIVE_OPERATIONS)
+    ),
     (
         "catalog",
         &Router::new()
