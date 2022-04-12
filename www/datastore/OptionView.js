@@ -64,6 +64,15 @@ Ext.define('PBS.Datastore.Options', {
 		},
 	    });
 	},
+
+	stopUpdates: function() {
+	    let view = this.getView();
+	    view.rstore.stopUpdate();
+	},
+	startUpdates: function() {
+	    let view = this.getView();
+	    view.rstore.startUpdate();
+	},
     },
 
     tbar: [
@@ -84,9 +93,9 @@ Ext.define('PBS.Datastore.Options', {
     ],
 
     listeners: {
-	activate: function() { this.rstore.startUpdate(); },
-	destroy: function() { this.rstore.stopUpdate(); },
-	deactivate: function() { this.rstore.stopUpdate(); },
+	activate: 'startUpdates',
+	beforedestroy: 'stopUpdates',
+	deactivate: 'stopUpdates',
 	itemdblclick: 'edit',
     },
 
