@@ -61,6 +61,7 @@ JSSRC=							\
 	window/BackupGroupChangeOwner.js		\
 	window/CreateDirectory.js			\
 	window/DataStoreEdit.js				\
+	window/MaintenanceOptions.js			\
 	window/NotesEdit.js				\
 	window/RemoteEdit.js				\
 	window/TrafficControlEdit.js			\
