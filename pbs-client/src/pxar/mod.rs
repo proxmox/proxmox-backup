@@ -59,7 +59,7 @@ pub use flags::Flags;
 
 pub use create::{create_archive, PxarCreateOptions};
 pub use extract::{
-    create_zip, extract_archive, extract_sub_dir, extract_sub_dir_seq, ErrorHandler,
+    create_tar, create_zip, extract_archive, extract_sub_dir, extract_sub_dir_seq, ErrorHandler,
     PxarExtractOptions,
 };
 

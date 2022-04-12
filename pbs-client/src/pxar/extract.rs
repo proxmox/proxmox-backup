@@ -1,9 +1,10 @@
 //! Code for extraction of pxar contents onto the file system.
 
+use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::ffi::{CStr, CString, OsStr, OsString};
 use std::io;
-use std::os::unix::ffi::OsStrExt;
+use std::os::unix::ffi::{OsStrExt, OsStringExt};
 use std::os::unix::io::{AsRawFd, FromRawFd, RawFd};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -17,7 +18,7 @@ use nix::sys::stat::Mode;
 
 use pathpatterns::{MatchEntry, MatchList, MatchType};
 use pxar::accessor::aio::{Accessor, FileContents, FileEntry};
-use pxar::decoder::aio::Decoder;
+use pxar::decoder::{aio::Decoder, Contents};
 use pxar::format::Device;
 use pxar::{Entry, EntryKind, Metadata};
 
@@ -499,6 +500,212 @@ impl Extractor {
             &mut self.on_error,
         )
     }
+}
+
+fn add_metadata_to_header(header: &mut tar::Header, metadata: &Metadata) {
+    header.set_mode(metadata.stat.mode as u32);
+    header.set_mtime(metadata.stat.mtime.secs as u64);
+    header.set_uid(metadata.stat.uid as u64);
+    header.set_gid(metadata.stat.gid as u64);
+}
+
+async fn tar_add_file<'a, W, T>(
+    tar: &mut proxmox_compression::tar::Builder<W>,
+    contents: Option<Contents<'a, T>>,
+    size: u64,
+    metadata: &Metadata,
+    path: &Path,
+) -> Result<(), Error>
+where
+    T: pxar::decoder::SeqRead + Unpin + Send + Sync + 'static,
+    W: tokio::io::AsyncWrite + Unpin + Send + 'static,
+{
+    let mut header = tar::Header::new_gnu();
+    header.set_entry_type(tar::EntryType::Regular);
+    header.set_size(size);
+    add_metadata_to_header(&mut header, metadata);
+    header.set_cksum();
+    match contents {
+        Some(content) => tar.add_entry(&mut header, path, content).await,
+        None => tar.add_entry(&mut header, path, tokio::io::empty()).await,
+    }
+    .map_err(|err| format_err!("could not send file entry: {}", err))?;
+    Ok(())
+}
+
+// converts to a pathbuf and removes the trailing '\0'
+fn link_to_pathbuf(link: &[u8]) -> PathBuf {
+    let len = link.len();
+    let mut buf = Vec::with_capacity(len);
+    buf.extend_from_slice(&link[..len - 1]);
+    OsString::from_vec(buf).into()
+}
+
+/// Creates a tar file from `path` and writes it into `output`
+pub async fn create_tar<T, W, P>(
+    output: W,
+    accessor: Accessor<T>,
+    path: P,
+    verbose: bool,
+) -> Result<(), Error>
+where
+    T: Clone + pxar::accessor::ReadAt + Unpin + Send + Sync + 'static,
+    W: tokio::io::AsyncWrite + Unpin + Send + 'static,
+    P: AsRef<Path>,
+{
+    let root = accessor.open_root().await?;
+    let file = root
+        .lookup(&path)
+        .await?
+        .ok_or(format_err!("error opening '{:?}'", path.as_ref()))?;
+
+    let mut prefix = PathBuf::new();
+    let mut components = file.entry().path().components();
+    components.next_back(); // discard last
+    for comp in components {
+        prefix.push(comp);
+    }
+
+    let mut tarencoder = proxmox_compression::tar::Builder::new(output);
+    let mut hardlinks: HashMap<PathBuf, PathBuf> = HashMap::new();
+
+    if let Ok(dir) = file.enter_directory().await {
+        let mut decoder = dir.decode_full().await?;
+        decoder.enable_goodbye_entries(false);
+        while let Some(entry) = decoder.next().await {
+            let entry = entry.map_err(|err| format_err!("cannot decode entry: {}", err))?;
+
+            let metadata = entry.metadata();
+            let path = entry.path().strip_prefix(&prefix)?.to_path_buf();
+
+            match entry.kind() {
+                EntryKind::File { .. } => {
+                    let size = decoder.content_size().unwrap_or(0);
+                    tar_add_file(&mut tarencoder, decoder.contents(), size, &metadata, &path)
+                        .await?
+                }
+                EntryKind::Hardlink(link) => {
+                    if !link.data.is_empty() {
+                        let entry = root
+                            .lookup(&path)
+                            .await?
+                            .ok_or(format_err!("error looking up '{:?}'", path))?;
+                        let realfile = accessor.follow_hardlink(&entry).await?;
+                        let metadata = realfile.entry().metadata();
+                        let realpath = link_to_pathbuf(&link.data);
+
+                        if verbose {
+                            eprintln!("adding '{}' to tar", path.display());
+                        }
+
+                        let stripped_path = match realpath.strip_prefix(&prefix) {
+                            Ok(path) => path,
+                            Err(_) => {
+                                // outside of our tar archive, add the first occurrance to the tar
+                                if let Some(path) = hardlinks.get(&realpath) {
+                                    path
+                                } else {
+                                    let size = decoder.content_size().unwrap_or(0);
+                                    tar_add_file(
+                                        &mut tarencoder,
+                                        decoder.contents(),
+                                        size,
+                                        metadata,
+                                        &path,
+                                    )
+                                    .await?;
+                                    hardlinks.insert(realpath, path);
+                                    continue;
+                                }
+                            }
+                        };
+                        let mut header = tar::Header::new_gnu();
+                        header.set_entry_type(tar::EntryType::Link);
+                        add_metadata_to_header(&mut header, metadata);
+                        header.set_size(0);
+                        tarencoder
+                            .add_link(&mut header, path, stripped_path)
+                            .await
+                            .map_err(|err| format_err!("could not send hardlink entry: {}", err))?;
+                    }
+                }
+                EntryKind::Symlink(link) if !link.data.is_empty() => {
+                    if verbose {
+                        eprintln!("adding '{}' to tar", path.display());
+                    }
+                    let realpath = link_to_pathbuf(&link.data);
+                    let mut header = tar::Header::new_gnu();
+                    header.set_entry_type(tar::EntryType::Symlink);
+                    add_metadata_to_header(&mut header, metadata);
+                    header.set_size(0);
+                    tarencoder
+                        .add_link(&mut header, path, realpath)
+                        .await
+                        .map_err(|err| format_err!("could not send symlink entry: {}", err))?;
+                }
+                EntryKind::Fifo => {
+                    if verbose {
+                        eprintln!("adding '{}' to tar", path.display());
+                    }
+                    let mut header = tar::Header::new_gnu();
+                    header.set_entry_type(tar::EntryType::Fifo);
+                    add_metadata_to_header(&mut header, metadata);
+                    header.set_size(0);
+                    header.set_device_major(0)?;
+                    header.set_device_minor(0)?;
+                    header.set_cksum();
+                    tarencoder
+                        .add_entry(&mut header, path, tokio::io::empty())
+                        .await
+                        .map_err(|err| format_err!("could not send fifo entry: {}", err))?;
+                }
+                EntryKind::Directory => {
+                    if verbose {
+                        eprintln!("adding '{}' to tar", path.display());
+                    }
+                    // we cannot add the root path itself
+                    if path != Path::new("/") {
+                        let mut header = tar::Header::new_gnu();
+                        header.set_entry_type(tar::EntryType::Directory);
+                        add_metadata_to_header(&mut header, metadata);
+                        header.set_size(0);
+                        header.set_cksum();
+                        tarencoder
+                            .add_entry(&mut header, path, tokio::io::empty())
+                            .await
+                            .map_err(|err| format_err!("could not send dir entry: {}", err))?;
+                    }
+                }
+                EntryKind::Device(device) => {
+                    if verbose {
+                        eprintln!("adding '{}' to tar", path.display());
+                    }
+                    let entry_type = if metadata.stat.is_chardev() {
+                        tar::EntryType::Char
+                    } else {
+                        tar::EntryType::Block
+                    };
+                    let mut header = tar::Header::new_gnu();
+                    header.set_entry_type(entry_type);
+                    header.set_device_major(device.major as u32)?;
+                    header.set_device_minor(device.minor as u32)?;
+                    add_metadata_to_header(&mut header, metadata);
+                    header.set_size(0);
+                    tarencoder
+                        .add_entry(&mut header, path, tokio::io::empty())
+                        .await
+                        .map_err(|err| format_err!("could not send device entry: {}", err))?;
+                }
+                _ => {} // ignore all else
+            }
+        }
+    }
+
+    tarencoder.finish().await.map_err(|err| {
+        eprintln!("error during finishing of zip: {}", err);
+        err
+    })?;
+    Ok(())
 }
 
 pub async fn create_zip<T, W, P>(
