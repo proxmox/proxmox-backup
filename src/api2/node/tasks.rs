@@ -380,6 +380,7 @@ fn stop_task(
 }
 
 #[api(
+    streaming: true,
     input: {
         properties: {
             node: {

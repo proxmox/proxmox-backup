@@ -375,6 +375,7 @@ pub fn delete_snapshot(
 }
 
 #[api(
+    streaming: true,
     input: {
         properties: {
             store: {
