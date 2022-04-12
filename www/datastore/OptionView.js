@@ -66,12 +66,18 @@ Ext.define('PBS.Datastore.Options', {
 	},
 
 	stopUpdates: function() {
-	    let view = this.getView();
+	    let me = this;
+	    let view = me.getView();
+
 	    view.rstore.stopUpdate();
+	    me.activeOperationsRstore.stopUpdate();
 	},
 	startUpdates: function() {
-	    let view = this.getView();
+	    let me = this;
+	    let view = me.getView();
+
 	    view.rstore.startUpdate();
+	    me.activeOperationsRstore.startUpdate();
 	},
     },
 
