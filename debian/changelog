@@ -1,3 +1,77 @@
+rust-proxmox-backup (2.1.6-1) UNRELEASED; urgency=medium
+
+  * api: verify: allow passing '0 days' for immediate re-verification
+
+  * fix #3103. node configuration: allow to configure default UI language
+
+  * fix #3856: tape: encryption key's password hint parameter is not optional
+
+  * re-use PROXMOX_DEBUG environment variable to control log level filter
+
+  * ui: WebAuthn: fix stopping store upgrades on destroy and decrease interval
+
+  * report: add tape, traffic control and disk infos and tune output order
+
+  * fix #3853: cli/api: add force option to tape key change-passphrase
+
+  * fix #3323: cli client: add dry-run option for backup command
+
+  * tape: make iterating over chunks to backup smarter to avoid some work
+
+  * bin: daily-update: make single checks/updates fail gracefully and log
+    to syslog directly instead of going through stdout indirectly.
+
+  * datastore: allow to turn of inode-sorting for chunk iteration. While inode
+    sorting benefits read-performance on block devices with higher latency
+    (e.g., spinning disks), it's also some extra work to get the metadata
+    required for sorting, so its a trade-off. For setups that have either very
+    slow or very fast metadata IO the benefits may turn into a net cost.
+
+  * docs: explain retention time for event allocation policy in more detail
+
+  * docs: add tape schedule examples
+
+  * proxmox-backup-debug api: parse parameters before sending to api
+
+  * ui: fix panel height in the dashboard for three-column view mode
+
+  * fix #3934 tape owner-selector to auth-id (user OR token)
+
+  * fix #3067: api: add support for multi-line comments in the node
+    configuration
+
+  * pbs-client: print error when we couldn't download previous FIDX/DIDX for
+    incremental change tracking
+
+  * fix #3854 add command to import a key from a file (json or paper-key
+    format) to proxmox-tape
+
+  * improve IO access pattern for some scenarios like TFA with high user and
+    login count or the file-restore-for-block-backup VM's internal driver.
+
+  * pxar create: fix anchored path pattern matching when adding entries
+
+  * docs: client: file exclusion: add note about leading slash
+
+  * rest-server: add option to rotate task logs by 'max_days' instead of
+    'max_files'
+
+  * pbs-datastore: add active operations tracking and use it to implement a
+    graceful transition into the also newly added maintenance mode (read-only
+    or offline) for datastores. Note that the UI implementation may still show
+    some rough edges if a datastore is in offline mode for maintenance.
+
+  * add new streaming-response type for API call responses and enable it for
+    the snapshot and task-log list, which can both get rather big. This avoids
+    allocation of a potentially big intermediate memory buffer and thus
+    overall memory usage.
+
+  * pxar: accompany existing .zip download support with a tar.zst(d) one. The
+    tar archive supports more file types (e.g., hard links or device nodes)
+    and zstd allows for a efficient but still effective compression.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 13 Apr 2022 17:00:53 +0200
+
 rust-proxmox-backup (2.1.5-1) bullseye; urgency=medium
 
   * tell system allocator to always use mmap for allocations >= 128 KiB to
