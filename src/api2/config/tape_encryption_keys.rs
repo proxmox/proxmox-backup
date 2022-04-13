@@ -182,6 +182,14 @@ pub fn change_passphrase(
             },
             hint: {
                 schema: PASSWORD_HINT_SCHEMA,
+                optional: true,
+            },
+            key: {
+                description: "A previously exported paperkey in JSON format.",
+                type: String,
+                min_length: 300,
+                max_length: 600,
+                optional: true,
             },
         },
     },
@@ -196,8 +204,9 @@ pub fn change_passphrase(
 pub fn create_key(
     kdf: Option<Kdf>,
     password: String,
-    hint: String,
-    _rpcenv: &mut dyn RpcEnvironment,
+    hint: Option<String>,
+    key: Option<String>,
+    _rpcenv: &mut dyn RpcEnvironment
 ) -> Result<Fingerprint, Error> {
     let kdf = kdf.unwrap_or_default();
 
@@ -207,13 +216,33 @@ pub fn create_key(
             format_err!("Please specify a key derivation function (none is not allowed here).")
         );
     }
+    if hint.is_none() && key.is_none() {
+        param_bail!(
+            "hint",
+            format_err!("Please specify either a hint or a key")
+        );
+    }
 
-    let (key, mut key_config) = KeyConfig::new(password.as_bytes(), kdf)?;
-    key_config.hint = Some(hint);
+    let (key_decrypt, mut key_config, fingerprint) = match key {
+        Some(key) => {
+            let key_config: KeyConfig =
+                serde_json::from_str(&key).map_err(|err| format_err!("<errmsg>: {}", err))?;
+            let password_fn = || Ok(password.as_bytes().to_vec());
+            let (key_decrypt, _created, fingerprint) = key_config.decrypt(&password_fn)?;
+            (key_decrypt, key_config, fingerprint)
+        }
+        None => {
+            let (key_decrypt, key_config) = KeyConfig::new(password.as_bytes(), kdf)?;
+            let fingerprint = key_config.fingerprint.clone().unwrap();
+            (key_decrypt, key_config, fingerprint)
+        }
+    };
 
-    let fingerprint = key_config.fingerprint.clone().unwrap();
+    if hint.is_some() {
+        key_config.hint = hint;
+    }
 
-    insert_key(key, key_config, false)?;
+    insert_key(key_decrypt, key_config, false)?;
 
     Ok(fingerprint)
 }

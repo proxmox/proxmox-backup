@@ -247,12 +247,19 @@ async fn restore_key(
 
     let password = tty::read_password("Tape Encryption Key Password: ")?;
     param["password"] = String::from_utf8(password)?.into();
-
-    let info = &api2::tape::drive::API_METHOD_RESTORE_KEY;
-    match info.handler {
-        ApiHandler::Async(handler) => (handler)(param, info, rpcenv).await?,
-        _ => unreachable!(),
-    };
+    if drive_passed {
+        let info = &api2::tape::drive::API_METHOD_RESTORE_KEY;
+        match info.handler {
+            ApiHandler::Async(handler) => (handler)(param, info, rpcenv).await?,
+            _ => unreachable!(),
+        };
+    } else {
+        let info = &api2::config::tape_encryption_keys::API_METHOD_CREATE_KEY;
+        match info.handler {
+            ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
+            _ => unreachable!(),
+        };
+    }
 
     Ok(())
 }

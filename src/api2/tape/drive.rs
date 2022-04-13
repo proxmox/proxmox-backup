@@ -23,7 +23,6 @@ use pbs_api_types::{
 
 use pbs_api_types::{PRIV_TAPE_AUDIT, PRIV_TAPE_READ, PRIV_TAPE_WRITE};
 
-use pbs_config::key_config::KeyConfig;
 use pbs_config::tape_encryption_keys::insert_key;
 use pbs_config::CachedUserInfo;
 use pbs_tape::{
@@ -610,17 +609,9 @@ fn write_media_label(
             drive: {
                 schema: DRIVE_NAME_SCHEMA,
                 //description: "Restore the key from this drive the (encrypted) key was saved on.",
-                optional: true,
             },
             password: {
                 description: "The password the key was encrypted with.",
-            },
-            key: {
-                description: "Restore the key from this JSON string. Clashes with drive.",
-                type: String,
-                min_length: 300,
-                max_length: 600,
-                optional: true,
             },
         },
     },
@@ -630,40 +621,26 @@ fn write_media_label(
 )]
 /// Try to restore a tape encryption key
 pub async fn restore_key(
-    drive: Option<String>,
+    drive: String,
     password: String,
-    key: Option<String>,
 ) -> Result<(), Error> {
-    if drive.is_some() && key.is_some() {
-        bail!("cannot have both 'drive' and 'key' parameter set!");
-    } else if !drive.is_some() && !key.is_some() {
-        bail!("one of either 'drive' or 'key' parameter must be set!");
-    }
 
-    if let Some(drive) = drive {
-        run_drive_blocking_task(drive.clone(), "restore key".to_string(), move |config| {
-            let mut drive = open_drive(&config, &drive)?;
+    run_drive_blocking_task(drive.clone(), "restore key".to_string(), move |config| {
+        let mut drive = open_drive(&config, &drive)?;
 
-            let (_media_id, key_config) = drive.read_label()?;
+        let (_media_id, key_config) = drive.read_label()?;
 
-            if let Some(key_config) = key_config {
-                let password_fn = || Ok(password.as_bytes().to_vec());
-                let (key, ..) = key_config.decrypt(&password_fn)?;
-                insert_key(key, key_config, true)?;
-            } else {
-                bail!("media does not contain any encryption key configuration");
-            }
+        if let Some(key_config) = key_config {
+            let password_fn = || Ok(password.as_bytes().to_vec());
+            let (key, ..) = key_config.decrypt(&password_fn)?;
+            insert_key(key, key_config, true)?;
+        } else {
+            bail!("media does not contain any encryption key configuration");
+        }
 
-            Ok(())
-        })
-        .await?;
-    } else if let Some(key) = key {
-        let key_config: KeyConfig =
-            serde_json::from_str(&key).map_err(|err| format_err!("<errmsg>: {}", err))?;
-        let password_fn = || Ok(password.as_bytes().to_vec());
-        let (key, ..) = key_config.decrypt(&password_fn)?;
-        insert_key(key, key_config, false)?;
-    }
+        Ok(())
+    })
+    .await?;
 
     Ok(())
 }
