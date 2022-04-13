@@ -551,12 +551,9 @@ where
         .await?
         .ok_or(format_err!("error opening '{:?}'", path.as_ref()))?;
 
-    let mut prefix = PathBuf::new();
     let mut components = file.entry().path().components();
     components.next_back(); // discard last
-    for comp in components {
-        prefix.push(comp);
-    }
+    let prefix = components.as_path();
 
     let mut tarencoder = proxmox_compression::tar::Builder::new(output);
     let mut hardlinks: HashMap<PathBuf, PathBuf> = HashMap::new();
@@ -568,7 +565,7 @@ where
             let entry = entry.map_err(|err| format_err!("cannot decode entry: {}", err))?;
 
             let metadata = entry.metadata();
-            let path = entry.path().strip_prefix(&prefix)?.to_path_buf();
+            let path = entry.path().strip_prefix(prefix)?.to_path_buf();
 
             match entry.kind() {
                 EntryKind::File { .. } => {
@@ -590,7 +587,7 @@ where
                             eprintln!("adding '{}' to tar", path.display());
                         }
 
-                        let stripped_path = match realpath.strip_prefix(&prefix) {
+                        let stripped_path = match realpath.strip_prefix(prefix) {
                             Ok(path) => path,
                             Err(_) => {
                                 // outside of our tar archive, add the first occurrance to the tar
@@ -717,12 +714,11 @@ where
         .await?
         .ok_or(format_err!("error opening '{:?}'", path.as_ref()))?;
 
-    let mut prefix = PathBuf::new();
-    let mut components = file.entry().path().components();
-    components.next_back(); // discar last
-    for comp in components {
-        prefix.push(comp);
-    }
+    let prefix = {
+        let mut components = file.entry().path().components();
+        components.next_back(); // discar last
+        components.as_path().to_owned()
+    };
 
     let mut zipencoder = ZipEncoder::new(output);
     let mut decoder = decoder;
