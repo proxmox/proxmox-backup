@@ -185,7 +185,7 @@ pub fn change_passphrase(
                 optional: true,
             },
             key: {
-                description: "A previously exported paperkey in JSON format.",
+                description: "Restore/Re-create a key from this JSON string.",
                 type: String,
                 min_length: 300,
                 max_length: 600,
@@ -206,42 +206,38 @@ pub fn create_key(
     password: String,
     hint: Option<String>,
     key: Option<String>,
-    _rpcenv: &mut dyn RpcEnvironment
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Fingerprint, Error> {
     let kdf = kdf.unwrap_or_default();
 
-    if let Kdf::None = kdf {
-        param_bail!(
-            "kdf",
-            format_err!("Please specify a key derivation function (none is not allowed here).")
-        );
-    }
-    if hint.is_none() && key.is_none() {
-        param_bail!(
-            "hint",
-            format_err!("Please specify either a hint or a key")
-        );
+    if key.is_none() {
+        if let Kdf::None = kdf {
+            param_bail!(
+                "kdf",
+                format_err!("Please specify a key derivation function (none is not allowed here).")
+            );
+        }
+        if hint.is_none() {
+            param_bail!("hint", format_err!("Please specify either a hint or a key"));
+        }
     }
 
-    let (key_decrypt, mut key_config, fingerprint) = match key {
+    let (key_decrypt, mut key_config) = match key {
         Some(key) => {
             let key_config: KeyConfig =
                 serde_json::from_str(&key).map_err(|err| format_err!("<errmsg>: {}", err))?;
-            let password_fn = || Ok(password.as_bytes().to_vec());
-            let (key_decrypt, _created, fingerprint) = key_config.decrypt(&password_fn)?;
-            (key_decrypt, key_config, fingerprint)
+            let (key_decrypt, _created, _fp) =
+                key_config.decrypt(&|| Ok(password.as_bytes().to_vec()))?;
+            (key_decrypt, key_config)
         }
-        None => {
-            let (key_decrypt, key_config) = KeyConfig::new(password.as_bytes(), kdf)?;
-            let fingerprint = key_config.fingerprint.clone().unwrap();
-            (key_decrypt, key_config, fingerprint)
-        }
+        None => KeyConfig::new(password.as_bytes(), kdf)?,
     };
 
     if hint.is_some() {
         key_config.hint = hint;
     }
 
+    let fingerprint = key_config.fingerprint.clone().unwrap();
     insert_key(key_decrypt, key_config, false)?;
 
     Ok(fingerprint)

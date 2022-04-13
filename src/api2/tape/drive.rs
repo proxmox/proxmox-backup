@@ -620,11 +620,7 @@ fn write_media_label(
     },
 )]
 /// Try to restore a tape encryption key
-pub async fn restore_key(
-    drive: String,
-    password: String,
-) -> Result<(), Error> {
-
+pub async fn restore_key(drive: String, password: String) -> Result<(), Error> {
     run_drive_blocking_task(drive.clone(), "restore key".to_string(), move |config| {
         let mut drive = open_drive(&config, &drive)?;
 
