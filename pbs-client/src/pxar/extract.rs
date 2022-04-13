@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::ffi::{CStr, CString, OsStr, OsString};
 use std::io;
-use std::os::unix::ffi::{OsStrExt, OsStringExt};
+use std::os::unix::ffi::OsStrExt;
 use std::os::unix::io::{AsRawFd, FromRawFd, RawFd};
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
@@ -533,14 +533,6 @@ where
     Ok(())
 }
 
-// converts to a pathbuf and removes the trailing '\0'
-fn link_to_pathbuf(link: &[u8]) -> PathBuf {
-    let len = link.len();
-    let mut buf = Vec::with_capacity(len);
-    buf.extend_from_slice(&link[..len - 1]);
-    OsString::from_vec(buf).into()
-}
-
 /// Creates a tar file from `path` and writes it into `output`
 pub async fn create_tar<T, W, P>(
     output: W,
@@ -592,7 +584,7 @@ where
                             .ok_or(format_err!("error looking up '{:?}'", path))?;
                         let realfile = accessor.follow_hardlink(&entry).await?;
                         let metadata = realfile.entry().metadata();
-                        let realpath = link_to_pathbuf(&link.data);
+                        let realpath = Path::new(link);
 
                         if verbose {
                             eprintln!("adding '{}' to tar", path.display());
@@ -602,7 +594,7 @@ where
                             Ok(path) => path,
                             Err(_) => {
                                 // outside of our tar archive, add the first occurrance to the tar
-                                if let Some(path) = hardlinks.get(&realpath) {
+                                if let Some(path) = hardlinks.get(realpath) {
                                     path
                                 } else {
                                     let size = decoder.content_size().unwrap_or(0);
@@ -614,7 +606,7 @@ where
                                         &path,
                                     )
                                     .await?;
-                                    hardlinks.insert(realpath, path);
+                                    hardlinks.insert(realpath.to_owned(), path);
                                     continue;
                                 }
                             }
@@ -633,7 +625,7 @@ where
                     if verbose {
                         eprintln!("adding '{}' to tar", path.display());
                     }
-                    let realpath = link_to_pathbuf(&link.data);
+                    let realpath = Path::new(link);
                     let mut header = tar::Header::new_gnu();
                     header.set_entry_type(tar::EntryType::Symlink);
                     add_metadata_to_header(&mut header, metadata);
