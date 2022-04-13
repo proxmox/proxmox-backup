@@ -565,7 +565,7 @@ where
             let entry = entry.map_err(|err| format_err!("cannot decode entry: {}", err))?;
 
             let metadata = entry.metadata();
-            let path = entry.path().strip_prefix(prefix)?.to_path_buf();
+            let path = entry.path().strip_prefix(prefix)?;
 
             match entry.kind() {
                 EntryKind::File { .. } => {
@@ -603,7 +603,7 @@ where
                                         &path,
                                     )
                                     .await?;
-                                    hardlinks.insert(realpath.to_owned(), path);
+                                    hardlinks.insert(realpath.to_owned(), path.to_owned());
                                     continue;
                                 }
                             }
@@ -748,7 +748,7 @@ where
 {
     Box::pin(async move {
         let metadata = file.entry().metadata();
-        let path = file.entry().path().strip_prefix(&prefix)?.to_path_buf();
+        let path = file.entry().path().strip_prefix(&prefix)?;
 
         match file.kind() {
             EntryKind::File { .. } => {
