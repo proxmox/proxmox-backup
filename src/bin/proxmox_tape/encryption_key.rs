@@ -228,12 +228,13 @@ async fn restore_key(
         let key = if serde_json::from_str::<KeyConfig>(&data).is_ok() {
             &data
         } else {
+            println!("key data seems not like a valid JSON key, trying to parse paper-key format");
             const BEGIN_MARKER: &str = "-----BEGIN PROXMOX BACKUP KEY-----";
             const END_MARKER: &str = "-----END PROXMOX BACKUP KEY-----";
             // exported paperkey-file
             let start = data
                 .find(BEGIN_MARKER)
-                .ok_or_else(|| format_err!("cannot find key start marker"))?
+                .ok_or_else(|| format_err!("cannot find a paper-key format start marker"))?
                 + BEGIN_MARKER.len();
             let data_remain = &data[start..];
             let end = data_remain
