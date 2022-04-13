@@ -7,11 +7,11 @@ use std::io;
 use std::os::unix::ffi::{OsStrExt, OsStringExt};
 use std::os::unix::io::{AsRawFd, FromRawFd, RawFd};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
 use std::pin::Pin;
+use std::sync::{Arc, Mutex};
 
-use futures::future::Future;
 use anyhow::{bail, format_err, Error};
+use futures::future::Future;
 use nix::dir::Dir;
 use nix::fcntl::OFlag;
 use nix::sys::stat::Mode;
@@ -22,9 +22,9 @@ use pxar::decoder::{aio::Decoder, Contents};
 use pxar::format::Device;
 use pxar::{Entry, EntryKind, Metadata};
 
+use proxmox_io::{sparse_copy, sparse_copy_async};
 use proxmox_sys::c_result;
 use proxmox_sys::fs::{create_path, CreateOptions};
-use proxmox_io::{sparse_copy, sparse_copy_async};
 
 use proxmox_compression::zip::{ZipEncoder, ZipEntry};
 
@@ -33,7 +33,7 @@ use crate::pxar::metadata;
 use crate::pxar::Flags;
 
 pub struct PxarExtractOptions<'a> {
-    pub match_list: &'a[MatchEntry],
+    pub match_list: &'a [MatchEntry],
     pub extract_match_default: bool,
     pub allow_existing_dirs: bool,
     pub on_error: Option<ErrorHandler>,
@@ -721,7 +721,8 @@ where
 {
     let root = decoder.open_root().await?;
     let file = root
-        .lookup(&path).await?
+        .lookup(&path)
+        .await?
         .ok_or(format_err!("error opening '{:?}'", path.as_ref()))?;
 
     let mut prefix = PathBuf::new();
@@ -740,13 +741,10 @@ where
             err
         })?;
 
-    zipencoder
-        .finish()
-        .await
-        .map_err(|err| {
-            eprintln!("error during finishing of zip: {}", err);
-            err
-        })
+    zipencoder.finish().await.map_err(|err| {
+        eprintln!("error during finishing of zip: {}", err);
+        err
+    })
 }
 
 fn recurse_files_zip<'a, T, W>(
@@ -776,8 +774,8 @@ where
                     true,
                 );
                 zip.add_entry(entry, Some(file.contents().await?))
-                   .await
-                   .map_err(|err| format_err!("could not send file entry: {}", err))?;
+                    .await
+                    .map_err(|err| format_err!("could not send file entry: {}", err))?;
             }
             EntryKind::Hardlink(_) => {
                 let realfile = decoder.follow_hardlink(&file).await?;
@@ -791,8 +789,8 @@ where
                     true,
                 );
                 zip.add_entry(entry, Some(realfile.contents().await?))
-                   .await
-                   .map_err(|err| format_err!("could not send file entry: {}", err))?;
+                    .await
+                    .map_err(|err| format_err!("could not send file entry: {}", err))?;
             }
             EntryKind::Directory => {
                 let dir = file.enter_directory().await?;
