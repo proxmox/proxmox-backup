@@ -8,7 +8,7 @@ use std::path::Path;
 use anyhow::{bail, format_err, Error};
 use nix::sys::stat::Mode;
 
-use pxar::{mode, Entry, EntryKind, Metadata, format::StatxTimestamp};
+use pxar::{format::StatxTimestamp, mode, Entry, EntryKind, Metadata};
 
 /// Get the file permissions as `nix::Mode`
 pub fn perms_from_metadata(meta: &Metadata) -> Result<Mode, Error> {

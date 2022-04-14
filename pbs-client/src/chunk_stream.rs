@@ -1,8 +1,8 @@
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
+use anyhow::Error;
 use bytes::BytesMut;
-use anyhow::{Error};
 use futures::ready;
 use futures::stream::{Stream, TryStream};
 
@@ -18,7 +18,12 @@ pub struct ChunkStream<S: Unpin> {
 
 impl<S: Unpin> ChunkStream<S> {
     pub fn new(input: S, chunk_size: Option<usize>) -> Self {
-        Self { input, chunker: Chunker::new(chunk_size.unwrap_or(4*1024*1024)), buffer: BytesMut::new(), scan_pos: 0}
+        Self {
+            input,
+            chunker: Chunker::new(chunk_size.unwrap_or(4 * 1024 * 1024)),
+            buffer: BytesMut::new(),
+            scan_pos: 0,
+        }
     }
 }
 
@@ -30,7 +35,6 @@ where
     S::Ok: AsRef<[u8]>,
     S::Error: Into<Error>,
 {
-
     type Item = Result<BytesMut, Error>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
@@ -82,7 +86,11 @@ pub struct FixedChunkStream<S: Unpin> {
 
 impl<S: Unpin> FixedChunkStream<S> {
     pub fn new(input: S, chunk_size: usize) -> Self {
-        Self { input, chunk_size, buffer: BytesMut::new() }
+        Self {
+            input,
+            chunk_size,
+            buffer: BytesMut::new(),
+        }
     }
 }
 
@@ -95,7 +103,10 @@ where
 {
     type Item = Result<BytesMut, S::Error>;
 
-    fn poll_next(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Result<BytesMut, S::Error>>> {
+    fn poll_next(
+        self: Pin<&mut Self>,
+        cx: &mut Context,
+    ) -> Poll<Option<Result<BytesMut, S::Error>>> {
         let this = self.get_mut();
         loop {
             if this.buffer.len() >= this.chunk_size {

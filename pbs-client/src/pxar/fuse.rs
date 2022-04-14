@@ -503,7 +503,9 @@ impl SessionImpl {
 
     async fn getattr(&self, inode: u64) -> Result<libc::stat, Error> {
         let entry = unsafe {
-            self.accessor.open_file_at_range(&self.get_lookup(inode)?.entry_range_info).await?
+            self.accessor
+                .open_file_at_range(&self.get_lookup(inode)?.entry_range_info)
+                .await?
         };
         to_stat(inode, &entry)
     }
@@ -584,11 +586,7 @@ impl SessionImpl {
 
     async fn listxattrs(&self, inode: u64) -> Result<Vec<pxar::format::XAttr>, Error> {
         let lookup = self.get_lookup(inode)?;
-        let metadata = self
-            .open_entry(&lookup)
-            .await?
-            .into_entry()
-            .into_metadata();
+        let metadata = self.open_entry(&lookup).await?.into_entry().into_metadata();
 
         let mut xattrs = metadata.xattrs;
 

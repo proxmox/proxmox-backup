@@ -4,26 +4,29 @@ use std::time::Duration;
 
 use anyhow::{bail, format_err, Error};
 use futures::*;
-use http::Uri;
 use http::header::HeaderValue;
+use http::Uri;
 use http::{Request, Response};
-use hyper::Body;
 use hyper::client::{Client, HttpConnector};
-use openssl::{ssl::{SslConnector, SslMethod}, x509::X509StoreContextRef};
-use serde_json::{json, Value};
+use hyper::Body;
+use openssl::{
+    ssl::{SslConnector, SslMethod},
+    x509::X509StoreContextRef,
+};
 use percent_encoding::percent_encode;
+use serde_json::{json, Value};
 use xdg::BaseDirectories;
 
-use proxmox_sys::linux::tty;
-use proxmox_sys::fs::{file_get_json, replace_file, CreateOptions};
 use proxmox_router::HttpError;
+use proxmox_sys::fs::{file_get_json, replace_file, CreateOptions};
+use proxmox_sys::linux::tty;
 
+use proxmox_async::broadcast_future::BroadcastFuture;
 use proxmox_http::client::{HttpsConnector, RateLimiter};
 use proxmox_http::uri::build_authority;
-use proxmox_async::broadcast_future::BroadcastFuture;
 
-use pbs_api_types::{Authid, Userid, RateLimitConfig};
 use pbs_api_types::percent_encoding::DEFAULT_ENCODE_SET;
+use pbs_api_types::{Authid, RateLimitConfig, Userid};
 use pbs_tools::json::json_object_to_query;
 use pbs_tools::ticket;
 
@@ -53,7 +56,6 @@ pub struct HttpClientOptions {
 }
 
 impl HttpClientOptions {
-
     pub fn new_interactive(password: Option<String>, fingerprint: Option<String>) -> Self {
         Self {
             password,
@@ -144,7 +146,6 @@ pub struct HttpClient {
 
 /// Delete stored ticket data (logout)
 pub fn delete_ticket_info(prefix: &str, server: &str, username: &Userid) -> Result<(), Error> {
-
     let base = BaseDirectories::with_prefix(prefix)?;
 
     // usually /run/user/<uid>/...
@@ -158,13 +159,17 @@ pub fn delete_ticket_info(prefix: &str, server: &str, username: &Userid) -> Resu
         map.remove(username.as_str());
     }
 
-    replace_file(path, data.to_string().as_bytes(), CreateOptions::new().perm(mode), false)?;
+    replace_file(
+        path,
+        data.to_string().as_bytes(),
+        CreateOptions::new().perm(mode),
+        false,
+    )?;
 
     Ok(())
 }
 
 fn store_fingerprint(prefix: &str, server: &str, fingerprint: &str) -> Result<(), Error> {
-
     let base = BaseDirectories::with_prefix(prefix)?;
 
     // usually ~/.config/<prefix>/fingerprints
@@ -206,7 +211,6 @@ fn store_fingerprint(prefix: &str, server: &str, fingerprint: &str) -> Result<()
 }
 
 fn load_fingerprint(prefix: &str, server: &str) -> Option<String> {
-
     let base = BaseDirectories::with_prefix(prefix).ok()?;
 
     // usually ~/.config/<prefix>/fingerprints
@@ -224,8 +228,13 @@ fn load_fingerprint(prefix: &str, server: &str) -> Option<String> {
     None
 }
 
-fn store_ticket_info(prefix: &str, server: &str, username: &str, ticket: &str, token: &str) -> Result<(), Error> {
-
+fn store_ticket_info(
+    prefix: &str,
+    server: &str,
+    username: &str,
+    ticket: &str,
+    token: &str,
+) -> Result<(), Error> {
     let base = BaseDirectories::with_prefix(prefix)?;
 
     // usually /run/user/<uid>/...
@@ -255,7 +264,12 @@ fn store_ticket_info(prefix: &str, server: &str, username: &str, ticket: &str, t
         }
     }
 
-    replace_file(path, new_data.to_string().as_bytes(), CreateOptions::new().perm(mode), false)?;
+    replace_file(
+        path,
+        new_data.to_string().as_bytes(),
+        CreateOptions::new().perm(mode),
+        false,
+    )?;
 
     Ok(())
 }
@@ -300,7 +314,6 @@ impl HttpClient {
         auth_id: &Authid,
         mut options: HttpClientOptions,
     ) -> Result<Self, Error> {
-
         let verified_fingerprint = Arc::new(Mutex::new(None));
 
         let mut expected_fingerprint = options.fingerprint.take();
@@ -320,25 +333,32 @@ impl HttpClient {
             let interactive = options.interactive;
             let fingerprint_cache = options.fingerprint_cache;
             let prefix = options.prefix.clone();
-            ssl_connector_builder.set_verify_callback(openssl::ssl::SslVerifyMode::PEER, move |valid, ctx| {
-                match Self::verify_callback(valid, ctx, expected_fingerprint.as_ref(), interactive) {
+            ssl_connector_builder.set_verify_callback(
+                openssl::ssl::SslVerifyMode::PEER,
+                move |valid, ctx| match Self::verify_callback(
+                    valid,
+                    ctx,
+                    expected_fingerprint.as_ref(),
+                    interactive,
+                ) {
                     Ok(None) => true,
                     Ok(Some(fingerprint)) => {
                         if fingerprint_cache && prefix.is_some() {
-                            if let Err(err) = store_fingerprint(
-                                prefix.as_ref().unwrap(), &server, &fingerprint) {
+                            if let Err(err) =
+                                store_fingerprint(prefix.as_ref().unwrap(), &server, &fingerprint)
+                            {
                                 eprintln!("{}", err);
                             }
                         }
                         *verified_fingerprint.lock().unwrap() = Some(fingerprint);
                         true
-                    },
+                    }
                     Err(err) => {
                         eprintln!("certificate validation failed - {}", err);
                         false
-                    },
-                }
-            });
+                    }
+                },
+            );
         } else {
             ssl_connector_builder.set_verify(openssl::ssl::SslVerifyMode::NONE);
         }
@@ -348,25 +368,31 @@ impl HttpClient {
         httpc.enforce_http(false); // we want https...
 
         httpc.set_connect_timeout(Some(std::time::Duration::new(10, 0)));
-        let mut https = HttpsConnector::with_connector(httpc, ssl_connector_builder.build(), PROXMOX_BACKUP_TCP_KEEPALIVE_TIME);
+        let mut https = HttpsConnector::with_connector(
+            httpc,
+            ssl_connector_builder.build(),
+            PROXMOX_BACKUP_TCP_KEEPALIVE_TIME,
+        );
 
         if let Some(rate_in) = options.limit.rate_in {
             let burst_in = options.limit.burst_in.unwrap_or(rate_in).as_u64();
-            https.set_read_limiter(Some(Arc::new(Mutex::new(
-                RateLimiter::new(rate_in.as_u64(), burst_in)
-            ))));
+            https.set_read_limiter(Some(Arc::new(Mutex::new(RateLimiter::new(
+                rate_in.as_u64(),
+                burst_in,
+            )))));
         }
 
         if let Some(rate_out) = options.limit.rate_out {
             let burst_out = options.limit.burst_out.unwrap_or(rate_out).as_u64();
-            https.set_write_limiter(Some(Arc::new(Mutex::new(
-                RateLimiter::new(rate_out.as_u64(), burst_out)
-            ))));
+            https.set_write_limiter(Some(Arc::new(Mutex::new(RateLimiter::new(
+                rate_out.as_u64(),
+                burst_out,
+            )))));
         }
 
         let client = Client::builder()
-        //.http2_initial_stream_window_size( (1 << 31) - 2)
-        //.http2_initial_connection_window_size( (1 << 31) - 2)
+            //.http2_initial_stream_window_size( (1 << 31) - 2)
+            //.http2_initial_connection_window_size( (1 << 31) - 2)
             .build::<_, Body>(https);
 
         let password = options.password.take();
@@ -404,18 +430,32 @@ impl HttpClient {
 
         let renewal_future = async move {
             loop {
-                tokio::time::sleep(Duration::new(60*15,  0)).await; // 15 minutes
+                tokio::time::sleep(Duration::new(60 * 15, 0)).await; // 15 minutes
                 let (auth_id, ticket) = {
                     let authinfo = auth2.read().unwrap().clone();
                     (authinfo.auth_id, authinfo.ticket)
                 };
-                match Self::credentials(client2.clone(), server2.clone(), port, auth_id.user().clone(), ticket).await {
+                match Self::credentials(
+                    client2.clone(),
+                    server2.clone(),
+                    port,
+                    auth_id.user().clone(),
+                    ticket,
+                )
+                .await
+                {
                     Ok(auth) => {
                         if use_ticket_cache && prefix2.is_some() {
-                            let _ = store_ticket_info(prefix2.as_ref().unwrap(), &server2, &auth.auth_id.to_string(), &auth.ticket, &auth.token);
+                            let _ = store_ticket_info(
+                                prefix2.as_ref().unwrap(),
+                                &server2,
+                                &auth.auth_id.to_string(),
+                                &auth.ticket,
+                                &auth.token,
+                            );
                         }
                         *auth2.write().unwrap() = auth;
-                    },
+                    }
                     Err(err) => {
                         eprintln!("re-authentication failed: {}", err);
                         return;
@@ -432,14 +472,21 @@ impl HttpClient {
             port,
             auth_id.user().clone(),
             password,
-        ).map_ok({
+        )
+        .map_ok({
             let server = server.to_string();
             let prefix = options.prefix.clone();
             let authinfo = auth.clone();
 
             move |auth| {
                 if use_ticket_cache && prefix.is_some() {
-                    let _ = store_ticket_info(prefix.as_ref().unwrap(), &server, &auth.auth_id.to_string(), &auth.ticket, &auth.token);
+                    let _ = store_ticket_info(
+                        prefix.as_ref().unwrap(),
+                        &server,
+                        &auth.auth_id.to_string(),
+                        &auth.ticket,
+                        &auth.token,
+                    );
                 }
                 *authinfo.write().unwrap() = auth;
                 tokio::spawn(renewal_future);
@@ -502,7 +549,6 @@ impl HttpClient {
         expected_fingerprint: Option<&String>,
         interactive: bool,
     ) -> Result<Option<String>, Error> {
-
         if openssl_valid {
             return Ok(None);
         }
@@ -513,15 +559,21 @@ impl HttpClient {
         };
 
         let depth = ctx.error_depth();
-        if depth != 0 { bail!("context depth != 0") }
+        if depth != 0 {
+            bail!("context depth != 0")
+        }
 
         let fp = match cert.digest(openssl::hash::MessageDigest::sha256()) {
             Ok(fp) => fp,
             Err(err) => bail!("failed to calculate certificate FP - {}", err), // should not happen
         };
         let fp_string = hex::encode(&fp);
-        let fp_string = fp_string.as_bytes().chunks(2).map(|v| std::str::from_utf8(v).unwrap())
-            .collect::<Vec<&str>>().join(":");
+        let fp_string = fp_string
+            .as_bytes()
+            .chunks(2)
+            .map(|v| std::str::from_utf8(v).unwrap())
+            .collect::<Vec<&str>>()
+            .join(":");
 
         if let Some(expected_fingerprint) = expected_fingerprint {
             let expected_fingerprint = expected_fingerprint.to_lowercase();
@@ -561,76 +613,70 @@ impl HttpClient {
     }
 
     pub async fn request(&self, mut req: Request<Body>) -> Result<Value, Error> {
-
         let client = self.client.clone();
 
-        let auth =  self.login().await?;
+        let auth = self.login().await?;
         if auth.auth_id.is_token() {
-            let enc_api_token = format!("PBSAPIToken {}:{}", auth.auth_id, percent_encode(auth.ticket.as_bytes(), DEFAULT_ENCODE_SET));
-            req.headers_mut().insert("Authorization", HeaderValue::from_str(&enc_api_token).unwrap());
+            let enc_api_token = format!(
+                "PBSAPIToken {}:{}",
+                auth.auth_id,
+                percent_encode(auth.ticket.as_bytes(), DEFAULT_ENCODE_SET)
+            );
+            req.headers_mut().insert(
+                "Authorization",
+                HeaderValue::from_str(&enc_api_token).unwrap(),
+            );
         } else {
-            let enc_ticket = format!("PBSAuthCookie={}", percent_encode(auth.ticket.as_bytes(), DEFAULT_ENCODE_SET));
-            req.headers_mut().insert("Cookie", HeaderValue::from_str(&enc_ticket).unwrap());
-            req.headers_mut().insert("CSRFPreventionToken", HeaderValue::from_str(&auth.token).unwrap());
+            let enc_ticket = format!(
+                "PBSAuthCookie={}",
+                percent_encode(auth.ticket.as_bytes(), DEFAULT_ENCODE_SET)
+            );
+            req.headers_mut()
+                .insert("Cookie", HeaderValue::from_str(&enc_ticket).unwrap());
+            req.headers_mut().insert(
+                "CSRFPreventionToken",
+                HeaderValue::from_str(&auth.token).unwrap(),
+            );
         }
 
         Self::api_request(client, req).await
     }
 
-    pub async fn get(
-        &self,
-        path: &str,
-        data: Option<Value>,
-    ) -> Result<Value, Error> {
+    pub async fn get(&self, path: &str, data: Option<Value>) -> Result<Value, Error> {
         let req = Self::request_builder(&self.server, self.port, "GET", path, data)?;
         self.request(req).await
     }
 
-    pub async fn delete(
-        &self,
-        path: &str,
-        data: Option<Value>,
-    ) -> Result<Value, Error> {
+    pub async fn delete(&self, path: &str, data: Option<Value>) -> Result<Value, Error> {
         let req = Self::request_builder(&self.server, self.port, "DELETE", path, data)?;
         self.request(req).await
     }
 
-    pub async fn post(
-        &self,
-        path: &str,
-        data: Option<Value>,
-    ) -> Result<Value, Error> {
+    pub async fn post(&self, path: &str, data: Option<Value>) -> Result<Value, Error> {
         let req = Self::request_builder(&self.server, self.port, "POST", path, data)?;
         self.request(req).await
     }
 
-    pub async fn put(
-        &self,
-        path: &str,
-        data: Option<Value>,
-    ) -> Result<Value, Error> {
+    pub async fn put(&self, path: &str, data: Option<Value>) -> Result<Value, Error> {
         let req = Self::request_builder(&self.server, self.port, "PUT", path, data)?;
         self.request(req).await
     }
 
-    pub async fn download(
-        &self,
-        path: &str,
-        output: &mut (dyn Write + Send),
-    ) -> Result<(), Error> {
+    pub async fn download(&self, path: &str, output: &mut (dyn Write + Send)) -> Result<(), Error> {
         let mut req = Self::request_builder(&self.server, self.port, "GET", path, None)?;
 
         let client = self.client.clone();
 
         let auth = self.login().await?;
 
-        let enc_ticket = format!("PBSAuthCookie={}", percent_encode(auth.ticket.as_bytes(), DEFAULT_ENCODE_SET));
-        req.headers_mut().insert("Cookie", HeaderValue::from_str(&enc_ticket).unwrap());
+        let enc_ticket = format!(
+            "PBSAuthCookie={}",
+            percent_encode(auth.ticket.as_bytes(), DEFAULT_ENCODE_SET)
+        );
+        req.headers_mut()
+            .insert("Cookie", HeaderValue::from_str(&enc_ticket).unwrap());
 
-        let resp = tokio::time::timeout(
-            HTTP_TIMEOUT,
-            client.request(req)
-        )
+        let resp = tokio::time::timeout(HTTP_TIMEOUT, client.request(req))
             .await
             .map_err(|_| format_err!("http download request timed out"))??;
         let status = resp.status();
@@ -657,7 +703,6 @@ impl HttpClient {
         path: &str,
         data: Option<Value>,
     ) -> Result<Value, Error> {
-
         let query = match data {
             Some(data) => Some(json_object_to_query(data)?),
             None => None,
@@ -669,7 +714,8 @@ impl HttpClient {
             .uri(url)
             .header("User-Agent", "proxmox-backup-client/1.0")
             .header("Content-Type", content_type)
-            .body(body).unwrap();
+            .body(body)
+            .unwrap();
 
         self.request(req).await
     }
@@ -679,25 +725,36 @@ impl HttpClient {
         mut req: Request<Body>,
         protocol_name: String,
     ) -> Result<(H2Client, futures::future::AbortHandle), Error> {
-
         let client = self.client.clone();
-        let auth =  self.login().await?;
+        let auth = self.login().await?;
 
         if auth.auth_id.is_token() {
-            let enc_api_token = format!("PBSAPIToken {}:{}", auth.auth_id, percent_encode(auth.ticket.as_bytes(), DEFAULT_ENCODE_SET));
-            req.headers_mut().insert("Authorization", HeaderValue::from_str(&enc_api_token).unwrap());
+            let enc_api_token = format!(
+                "PBSAPIToken {}:{}",
+                auth.auth_id,
+                percent_encode(auth.ticket.as_bytes(), DEFAULT_ENCODE_SET)
+            );
+            req.headers_mut().insert(
+                "Authorization",
+                HeaderValue::from_str(&enc_api_token).unwrap(),
+            );
         } else {
-            let enc_ticket = format!("PBSAuthCookie={}", percent_encode(auth.ticket.as_bytes(), DEFAULT_ENCODE_SET));
-            req.headers_mut().insert("Cookie", HeaderValue::from_str(&enc_ticket).unwrap());
-            req.headers_mut().insert("CSRFPreventionToken", HeaderValue::from_str(&auth.token).unwrap());
+            let enc_ticket = format!(
+                "PBSAuthCookie={}",
+                percent_encode(auth.ticket.as_bytes(), DEFAULT_ENCODE_SET)
+            );
+            req.headers_mut()
+                .insert("Cookie", HeaderValue::from_str(&enc_ticket).unwrap());
+            req.headers_mut().insert(
+                "CSRFPreventionToken",
+                HeaderValue::from_str(&auth.token).unwrap(),
+            );
         }
 
-        req.headers_mut().insert("UPGRADE", HeaderValue::from_str(&protocol_name).unwrap());
+        req.headers_mut()
+            .insert("UPGRADE", HeaderValue::from_str(&protocol_name).unwrap());
 
-        let resp = tokio::time::timeout(
-            HTTP_TIMEOUT,
-            client.request(req)
-        )
+        let resp = tokio::time::timeout(HTTP_TIMEOUT, client.request(req))
             .await
             .map_err(|_| format_err!("http upgrade request timed out"))??;
         let status = resp.status();
@@ -714,12 +771,11 @@ impl HttpClient {
         let (h2, connection) = h2::client::Builder::new()
             .initial_connection_window_size(max_window_size)
             .initial_window_size(max_window_size)
-            .max_frame_size(4*1024*1024)
+            .max_frame_size(4 * 1024 * 1024)
             .handshake(upgraded)
             .await?;
 
-        let connection = connection
-            .map_err(|_| eprintln!("HTTP/2.0 connection failed"));
+        let connection = connection.map_err(|_| eprintln!("HTTP/2.0 connection failed"));
 
         let (connection, abort) = futures::future::abortable(connection);
         // A cancellable future returns an Option which is None when cancelled and
@@ -743,12 +799,21 @@ impl HttpClient {
         password: String,
     ) -> Result<AuthInfo, Error> {
         let data = json!({ "username": username, "password": password });
-        let req = Self::request_builder(&server, port, "POST", "/api2/json/access/ticket", Some(data))?;
+        let req = Self::request_builder(
+            &server,
+            port,
+            "POST",
+            "/api2/json/access/ticket",
+            Some(data),
+        )?;
         let cred = Self::api_request(client, req).await?;
         let auth = AuthInfo {
             auth_id: cred["data"]["username"].as_str().unwrap().parse()?,
             ticket: cred["data"]["ticket"].as_str().unwrap().to_owned(),
-            token: cred["data"]["CSRFPreventionToken"].as_str().unwrap().to_owned(),
+            token: cred["data"]["CSRFPreventionToken"]
+                .as_str()
+                .unwrap()
+                .to_owned(),
         };
 
         Ok(auth)
@@ -773,17 +838,14 @@ impl HttpClient {
 
     async fn api_request(
         client: Client<HttpsConnector>,
-        req: Request<Body>
+        req: Request<Body>,
     ) -> Result<Value, Error> {
-
         Self::api_response(
-            tokio::time::timeout(
-                HTTP_TIMEOUT,
-                client.request(req)
-            )
+            tokio::time::timeout(HTTP_TIMEOUT, client.request(req))
                 .await
-                .map_err(|_| format_err!("http request timed out"))??
-        ).await
+                .map_err(|_| format_err!("http request timed out"))??,
+        )
+        .await
     }
 
     // Read-only access to server property
@@ -795,7 +857,13 @@ impl HttpClient {
         self.port
     }
 
-    pub fn request_builder(server: &str, port: u16, method: &str, path: &str, data: Option<Value>) -> Result<Request<Body>, Error> {
+    pub fn request_builder(
+        server: &str,
+        port: u16,
+        method: &str,
+        path: &str,
+        data: Option<Value>,
+    ) -> Result<Request<Body>, Error> {
         if let Some(data) = data {
             if method == "POST" {
                 let url = build_uri(server, port, path, None)?;
@@ -813,7 +881,10 @@ impl HttpClient {
                     .method(method)
                     .uri(url)
                     .header("User-Agent", "proxmox-backup-client/1.0")
-                    .header(hyper::header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+                    .header(
+                        hyper::header::CONTENT_TYPE,
+                        "application/x-www-form-urlencoded",
+                    )
                     .body(Body::empty())?;
                 Ok(request)
             }
@@ -823,7 +894,10 @@ impl HttpClient {
                 .method(method)
                 .uri(url)
                 .header("User-Agent", "proxmox-backup-client/1.0")
-                .header(hyper::header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+                .header(
+                    hyper::header::CONTENT_TYPE,
+                    "application/x-www-form-urlencoded",
+                )
                 .body(Body::empty())?;
 
             Ok(request)
@@ -837,41 +911,27 @@ impl Drop for HttpClient {
     }
 }
 
-
 #[derive(Clone)]
 pub struct H2Client {
     h2: h2::client::SendRequest<bytes::Bytes>,
 }
 
 impl H2Client {
-
     pub fn new(h2: h2::client::SendRequest<bytes::Bytes>) -> Self {
         Self { h2 }
     }
 
-    pub async fn get(
-        &self,
-        path: &str,
-        param: Option<Value>
-    ) -> Result<Value, Error> {
+    pub async fn get(&self, path: &str, param: Option<Value>) -> Result<Value, Error> {
         let req = Self::request_builder("localhost", "GET", path, param, None).unwrap();
         self.request(req).await
     }
 
-    pub async fn put(
-        &self,
-        path: &str,
-        param: Option<Value>
-    ) -> Result<Value, Error> {
+    pub async fn put(&self, path: &str, param: Option<Value>) -> Result<Value, Error> {
         let req = Self::request_builder("localhost", "PUT", path, param, None).unwrap();
         self.request(req).await
     }
 
-    pub async fn post(
-        &self,
-        path: &str,
-        param: Option<Value>
-    ) -> Result<Value, Error> {
+    pub async fn post(&self, path: &str, param: Option<Value>) -> Result<Value, Error> {
         let req = Self::request_builder("localhost", "POST", path, param, None).unwrap();
         self.request(req).await
     }
@@ -912,7 +972,8 @@ impl H2Client {
         content_type: &str,
         data: Vec<u8>,
     ) -> Result<Value, Error> {
-        let request = Self::request_builder("localhost", method, path, param, Some(content_type)).unwrap();
+        let request =
+            Self::request_builder("localhost", method, path, param, Some(content_type)).unwrap();
 
         let mut send_request = self.h2.clone().ready().await?;
 
@@ -926,17 +987,9 @@ impl H2Client {
             .await
     }
 
-    async fn request(
-        &self,
-        request: Request<()>,
-    ) -> Result<Value, Error> {
-
+    async fn request(&self, request: Request<()>) -> Result<Value, Error> {
         self.send_request(request, None)
-            .and_then(move |response| {
-                response
-                    .map_err(Error::from)
-                    .and_then(Self::h2api_response)
-            })
+            .and_then(move |response| response.map_err(Error::from).and_then(Self::h2api_response))
             .await
     }
 
@@ -945,8 +998,8 @@ impl H2Client {
         request: Request<()>,
         data: Option<bytes::Bytes>,
     ) -> impl Future<Output = Result<h2::client::ResponseFuture, Error>> {
-
-        self.h2.clone()
+        self.h2
+            .clone()
             .ready()
             .map_err(Error::from)
             .and_then(move |mut send_request| async move {
@@ -961,9 +1014,7 @@ impl H2Client {
             })
     }
 
-    pub async fn h2api_response(
-        response: Response<h2::RecvStream>,
-    ) -> Result<Value, Error> {
+    pub async fn h2api_response(response: Response<h2::RecvStream>) -> Result<Value, Error> {
         let status = response.status();
 
         let (_head, mut body) = response.into_parts();
@@ -1013,7 +1064,10 @@ impl H2Client {
                 let query = json_object_to_query(param)?;
                 // We detected problem with hyper around 6000 characters - so we try to keep on the safe side
                 if query.len() > 4096 {
-                    bail!("h2 query data too large ({} bytes) - please encode data inside body", query.len());
+                    bail!(
+                        "h2 query data too large ({} bytes) - please encode data inside body",
+                        query.len()
+                    );
                 }
                 Some(query)
             }

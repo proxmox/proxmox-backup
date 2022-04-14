@@ -1,5 +1,5 @@
-use std::future::Future;
 use std::collections::HashMap;
+use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
@@ -7,11 +7,11 @@ use anyhow::{bail, Error};
 
 use proxmox_async::runtime::block_on;
 
-use pbs_tools::crypt_config::CryptConfig;
 use pbs_api_types::CryptMode;
 use pbs_datastore::data_blob::DataBlob;
-use pbs_datastore::read_chunk::ReadChunk;
 use pbs_datastore::read_chunk::AsyncReadChunk;
+use pbs_datastore::read_chunk::ReadChunk;
+use pbs_tools::crypt_config::CryptConfig;
 
 use super::BackupReader;
 
@@ -49,24 +49,20 @@ impl RemoteChunkReader {
     pub async fn read_raw_chunk(&self, digest: &[u8; 32]) -> Result<DataBlob, Error> {
         let mut chunk_data = Vec::with_capacity(4 * 1024 * 1024);
 
-        self.client
-            .download_chunk(digest, &mut chunk_data)
-            .await?;
+        self.client.download_chunk(digest, &mut chunk_data).await?;
 
         let chunk = DataBlob::load_from_reader(&mut &chunk_data[..])?;
 
         match self.crypt_mode {
-            CryptMode::Encrypt => {
-                match chunk.crypt_mode()? {
-                    CryptMode::Encrypt => Ok(chunk),
-                    CryptMode::SignOnly | CryptMode::None => bail!("Index and chunk CryptMode don't match."),
+            CryptMode::Encrypt => match chunk.crypt_mode()? {
+                CryptMode::Encrypt => Ok(chunk),
+                CryptMode::SignOnly | CryptMode::None => {
+                    bail!("Index and chunk CryptMode don't match.")
                 }
             },
-            CryptMode::SignOnly | CryptMode::None => {
-                match chunk.crypt_mode()? {
-                    CryptMode::Encrypt => bail!("Index and chunk CryptMode don't match."),
-                    CryptMode::SignOnly | CryptMode::None => Ok(chunk),
-                }
+            CryptMode::SignOnly | CryptMode::None => match chunk.crypt_mode()? {
+                CryptMode::Encrypt => bail!("Index and chunk CryptMode don't match."),
+                CryptMode::SignOnly | CryptMode::None => Ok(chunk),
             },
         }
     }
@@ -114,7 +110,8 @@ impl AsyncReadChunk for RemoteChunkReader {
 
             let chunk = Self::read_raw_chunk(self, digest).await?;
 
-            let raw_data = chunk.decode(self.crypt_config.as_ref().map(Arc::as_ref), Some(digest))?;
+            let raw_data =
+                chunk.decode(self.crypt_config.as_ref().map(Arc::as_ref), Some(digest))?;
 
             let use_cache = self.cache_hint.contains_key(digest);
             if use_cache {

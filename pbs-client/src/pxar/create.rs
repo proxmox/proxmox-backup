@@ -1,4 +1,4 @@
-use std::collections::{HashSet, HashMap};
+use std::collections::{HashMap, HashSet};
 use std::ffi::{CStr, CString, OsStr};
 use std::fmt;
 use std::io::{self, Read, Write};
@@ -8,29 +8,29 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use anyhow::{bail, format_err, Error};
+use futures::future::BoxFuture;
+use futures::FutureExt;
 use nix::dir::Dir;
 use nix::errno::Errno;
 use nix::fcntl::OFlag;
 use nix::sys::stat::{FileStat, Mode};
-use futures::future::BoxFuture;
-use futures::FutureExt;
 
 use pathpatterns::{MatchEntry, MatchFlag, MatchList, MatchType, PatternFlag};
+use pxar::encoder::{LinkOffset, SeqWrite};
 use pxar::Metadata;
-use pxar::encoder::{SeqWrite, LinkOffset};
 
-use proxmox_sys::error::SysError;
-use proxmox_sys::fd::RawFdNum;
-use proxmox_sys::fd::Fd;
-use proxmox_sys::fs::{self, acl, xattr};
 use proxmox_io::vec;
 use proxmox_lang::c_str;
+use proxmox_sys::error::SysError;
+use proxmox_sys::fd::Fd;
+use proxmox_sys::fd::RawFdNum;
+use proxmox_sys::fs::{self, acl, xattr};
 
 use pbs_datastore::catalog::BackupCatalogWriter;
 
 use crate::pxar::metadata::errno_is_unsupported;
-use crate::pxar::Flags;
 use crate::pxar::tools::assert_single_path_component;
+use crate::pxar::Flags;
 
 /// Pxar options for creating a pxar archive/stream
 #[derive(Default, Clone)]
@@ -46,7 +46,6 @@ pub struct PxarCreateOptions {
     /// Verbose output
     pub verbose: bool,
 }
-
 
 fn detect_fs_type(fd: RawFd) -> Result<i64, Error> {
     let mut fs_stat = std::mem::MaybeUninit::uninit();
@@ -229,7 +228,9 @@ where
         file_copy_buffer: vec::undefined(4 * 1024 * 1024),
     };
 
-    archiver.archive_dir_contents(&mut encoder, source_dir, true).await?;
+    archiver
+        .archive_dir_contents(&mut encoder, source_dir, true)
+        .await?;
     encoder.finish().await?;
     Ok(())
 }
@@ -285,13 +286,15 @@ impl Archiver {
                 let file_name = file_entry.name.to_bytes();
 
                 if is_root && file_name == b".pxarexclude-cli" {
-                    self.encode_pxarexclude_cli(encoder, &file_entry.name, old_patterns_count).await?;
+                    self.encode_pxarexclude_cli(encoder, &file_entry.name, old_patterns_count)
+                        .await?;
                     continue;
                 }
 
                 (self.callback)(&file_entry.path)?;
                 self.path = file_entry.path;
-                self.add_entry(encoder, dir_fd, &file_entry.name, &file_entry.stat).await
+                self.add_entry(encoder, dir_fd, &file_entry.name, &file_entry.stat)
+                    .await
                     .map_err(|err| self.wrap_err(err))?;
             }
             self.path = old_path;
@@ -299,7 +302,8 @@ impl Archiver {
             self.patterns.truncate(old_patterns_count);
 
             Ok(())
-        }.boxed()
+        }
+        .boxed()
     }
 
     /// openat() wrapper which allows but logs `EACCES` and turns `ENOENT` into `None`.
@@ -332,7 +336,11 @@ impl Archiver {
                     Ok(None)
                 }
                 Err(nix::Error::Sys(Errno::EACCES)) => {
-                    writeln!(self.errors, "failed to open file: {:?}: access denied", file_name)?;
+                    writeln!(
+                        self.errors,
+                        "failed to open file: {:?}: access denied",
+                        file_name
+                    )?;
                     Ok(None)
                 }
                 Err(nix::Error::Sys(Errno::EPERM)) if !noatime.is_empty() => {
@@ -341,7 +349,7 @@ impl Archiver {
                     continue;
                 }
                 Err(other) => Err(Error::from(other)),
-            }
+            };
         }
     }
 
@@ -365,8 +373,7 @@ impl Archiver {
                     let _ = writeln!(
                         self.errors,
                         "ignoring .pxarexclude after read error in {:?}: {}",
-                        self.path,
-                        err,
+                        self.path, err,
                     );
                     self.patterns.truncate(old_pattern_count);
                     return Ok(());
@@ -422,13 +429,18 @@ impl Archiver {
     ) -> Result<(), Error> {
         let content = generate_pxar_excludes_cli(&self.patterns[..patterns_count]);
         if let Some(ref catalog) = self.catalog {
-            catalog.lock().unwrap().add_file(file_name, content.len() as u64, 0)?;
+            catalog
+                .lock()
+                .unwrap()
+                .add_file(file_name, content.len() as u64, 0)?;
         }
 
         let mut metadata = Metadata::default();
         metadata.stat.mode = pxar::format::mode::IFREG | 0o600;
 
-        let mut file = encoder.create_file(&metadata, ".pxarexclude-cli", content.len() as u64).await?;
+        let mut file = encoder
+            .create_file(&metadata, ".pxarexclude-cli", content.len() as u64)
+            .await?;
         file.write_all(&content).await?;
 
         Ok(())
@@ -481,13 +493,16 @@ impl Archiver {
 
             self.entry_counter += 1;
             if self.entry_counter > self.entry_limit {
-                bail!("exceeded allowed number of file entries (> {})",self.entry_limit);
+                bail!(
+                    "exceeded allowed number of file entries (> {})",
+                    self.entry_limit
+                );
             }
 
             file_list.push(FileListEntry {
                 name: file_name,
                 path: full_path,
-                stat
+                stat,
             });
         }
 
@@ -497,7 +512,11 @@ impl Archiver {
     }
 
     fn report_vanished_file(&mut self) -> Result<(), Error> {
-        writeln!(self.errors, "warning: file vanished while reading: {:?}", self.path)?;
+        writeln!(
+            self.errors,
+            "warning: file vanished while reading: {:?}",
+            self.path
+        )?;
         Ok(())
     }
 
@@ -547,7 +566,13 @@ impl Archiver {
             None => return Ok(()),
         };
 
-        let metadata = get_metadata(fd.as_raw_fd(), stat, self.flags(), self.fs_magic, &mut self.fs_feature_flags)?;
+        let metadata = get_metadata(
+            fd.as_raw_fd(),
+            stat,
+            self.flags(),
+            self.fs_magic,
+            &mut self.fs_feature_flags,
+        )?;
 
         let match_path = PathBuf::from("/").join(self.path.clone());
         if self
@@ -580,14 +605,19 @@ impl Archiver {
 
                 let file_size = stat.st_size as u64;
                 if let Some(ref catalog) = self.catalog {
-                    catalog.lock().unwrap().add_file(c_file_name, file_size, stat.st_mtime)?;
+                    catalog
+                        .lock()
+                        .unwrap()
+                        .add_file(c_file_name, file_size, stat.st_mtime)?;
                 }
 
-                let offset: LinkOffset =
-                    self.add_regular_file(encoder, fd, file_name, &metadata, file_size).await?;
+                let offset: LinkOffset = self
+                    .add_regular_file(encoder, fd, file_name, &metadata, file_size)
+                    .await?;
 
                 if stat.st_nlink > 1 {
-                    self.hardlinks.insert(link_info, (self.path.clone(), offset));
+                    self.hardlinks
+                        .insert(link_info, (self.path.clone(), offset));
                 }
 
                 Ok(())
@@ -598,7 +628,9 @@ impl Archiver {
                 if let Some(ref catalog) = self.catalog {
                     catalog.lock().unwrap().start_directory(c_file_name)?;
                 }
-                let result = self.add_directory(encoder, dir, c_file_name, &metadata, stat).await;
+                let result = self
+                    .add_directory(encoder, dir, c_file_name, &metadata, stat)
+                    .await;
                 if let Some(ref catalog) = self.catalog {
                     catalog.lock().unwrap().end_directory()?;
                 }
@@ -749,15 +781,23 @@ impl Archiver {
         metadata: &Metadata,
         stat: &FileStat,
     ) -> Result<(), Error> {
-        Ok(encoder.add_device(
-            metadata,
-            file_name,
-            pxar::format::Device::from_dev_t(stat.st_rdev),
-        ).await?)
+        Ok(encoder
+            .add_device(
+                metadata,
+                file_name,
+                pxar::format::Device::from_dev_t(stat.st_rdev),
+            )
+            .await?)
     }
 }
 
-fn get_metadata(fd: RawFd, stat: &FileStat, flags: Flags, fs_magic: i64, fs_feature_flags: &mut Flags) -> Result<Metadata, Error> {
+fn get_metadata(
+    fd: RawFd,
+    stat: &FileStat,
+    flags: Flags,
+    fs_magic: i64,
+    fs_feature_flags: &mut Flags,
+) -> Result<Metadata, Error> {
     // required for some of these
     let proc_path = Path::new("/proc/self/fd/").join(fd.to_string());
 
@@ -779,7 +819,12 @@ fn get_metadata(fd: RawFd, stat: &FileStat, flags: Flags, fs_magic: i64, fs_feat
     Ok(meta)
 }
 
-fn get_fcaps(meta: &mut Metadata, fd: RawFd, flags: Flags, fs_feature_flags: &mut Flags) -> Result<(), Error> {
+fn get_fcaps(
+    meta: &mut Metadata,
+    fd: RawFd,
+    flags: Flags,
+    fs_feature_flags: &mut Flags,
+) -> Result<(), Error> {
     if !flags.contains(Flags::WITH_FCAPS) {
         return Ok(());
     }
@@ -815,7 +860,7 @@ fn get_xattr_fcaps_acl(
         Err(Errno::EOPNOTSUPP) => {
             fs_feature_flags.remove(Flags::WITH_XATTRS);
             return Ok(());
-        },
+        }
         Err(Errno::EBADF) => return Ok(()), // symlinks
         Err(err) => bail!("failed to read xattrs: {}", err),
     };
@@ -932,7 +977,12 @@ fn get_quota_project_id(
     Ok(())
 }
 
-fn get_acl(metadata: &mut Metadata, proc_path: &Path, flags: Flags, fs_feature_flags: &mut Flags) -> Result<(), Error> {
+fn get_acl(
+    metadata: &mut Metadata,
+    proc_path: &Path,
+    flags: Flags,
+    fs_feature_flags: &mut Flags,
+) -> Result<(), Error> {
     if !flags.contains(Flags::WITH_ACL) {
         return Ok(());
     }

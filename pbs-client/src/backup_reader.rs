@@ -1,23 +1,23 @@
 use anyhow::{format_err, Error};
-use std::io::{Write, Seek, SeekFrom};
 use std::fs::File;
-use std::sync::Arc;
+use std::io::{Seek, SeekFrom, Write};
 use std::os::unix::fs::OpenOptionsExt;
+use std::sync::Arc;
 
 use futures::future::AbortHandle;
 use serde_json::{json, Value};
 
-use pbs_tools::crypt_config::CryptConfig;
-use pbs_tools::sha::sha256;
-use pbs_datastore::{PROXMOX_BACKUP_READER_PROTOCOL_ID_V1, BackupManifest};
 use pbs_datastore::data_blob::DataBlob;
 use pbs_datastore::data_blob_reader::DataBlobReader;
 use pbs_datastore::dynamic_index::DynamicIndexReader;
 use pbs_datastore::fixed_index::FixedIndexReader;
 use pbs_datastore::index::IndexFile;
 use pbs_datastore::manifest::MANIFEST_BLOB_NAME;
+use pbs_datastore::{BackupManifest, PROXMOX_BACKUP_READER_PROTOCOL_ID_V1};
+use pbs_tools::crypt_config::CryptConfig;
+use pbs_tools::sha::sha256;
 
-use super::{HttpClient, H2Client};
+use super::{H2Client, HttpClient};
 
 /// Backup Reader
 pub struct BackupReader {
@@ -27,16 +27,18 @@ pub struct BackupReader {
 }
 
 impl Drop for BackupReader {
-
     fn drop(&mut self) {
         self.abort.abort();
     }
 }
 
 impl BackupReader {
-
     fn new(h2: H2Client, abort: AbortHandle, crypt_config: Option<Arc<CryptConfig>>) -> Arc<Self> {
-        Arc::new(Self { h2, abort, crypt_config})
+        Arc::new(Self {
+            h2,
+            abort,
+            crypt_config,
+        })
     }
 
     /// Create a new instance by upgrading the connection at '/api2/json/reader'
@@ -49,7 +51,6 @@ impl BackupReader {
         backup_time: i64,
         debug: bool,
     ) -> Result<Arc<BackupReader>, Error> {
-
         let param = json!({
             "backup-type": backup_type,
             "backup-id": backup_id,
@@ -57,46 +58,39 @@ impl BackupReader {
             "store": datastore,
             "debug": debug,
         });
-        let req = HttpClient::request_builder(client.server(), client.port(), "GET", "/api2/json/reader", Some(param)).unwrap();
+        let req = HttpClient::request_builder(
+            client.server(),
+            client.port(),
+            "GET",
+            "/api2/json/reader",
+            Some(param),
+        )
+        .unwrap();
 
-        let (h2, abort) = client.start_h2_connection(req, String::from(PROXMOX_BACKUP_READER_PROTOCOL_ID_V1!())).await?;
+        let (h2, abort) = client
+            .start_h2_connection(req, String::from(PROXMOX_BACKUP_READER_PROTOCOL_ID_V1!()))
+            .await?;
 
         Ok(BackupReader::new(h2, abort, crypt_config))
     }
 
     /// Execute a GET request
-    pub async fn get(
-        &self,
-        path: &str,
-        param: Option<Value>,
-    ) -> Result<Value, Error> {
+    pub async fn get(&self, path: &str, param: Option<Value>) -> Result<Value, Error> {
         self.h2.get(path, param).await
     }
 
     /// Execute a PUT request
-    pub async fn put(
-        &self,
-        path: &str,
-        param: Option<Value>,
-    ) -> Result<Value, Error> {
+    pub async fn put(&self, path: &str, param: Option<Value>) -> Result<Value, Error> {
         self.h2.put(path, param).await
     }
 
     /// Execute a POST request
-    pub async fn post(
-        &self,
-        path: &str,
-        param: Option<Value>,
-    ) -> Result<Value, Error> {
+    pub async fn post(&self, path: &str, param: Option<Value>) -> Result<Value, Error> {
         self.h2.post(path, param).await
     }
 
     /// Execute a GET request and send output to a writer
-    pub async fn download<W: Write + Send>(
-        &self,
-        file_name: &str,
-        output: W,
-    ) -> Result<(), Error> {
+    pub async fn download<W: Write + Send>(&self, file_name: &str, output: W) -> Result<(), Error> {
         let path = "download";
         let param = json!({ "file-name": file_name });
         self.h2.download(path, Some(param), output).await
@@ -105,10 +99,7 @@ impl BackupReader {
     /// Execute a special GET request and send output to a writer
     ///
     /// This writes random data, and is only useful to test download speed.
-    pub async fn speedtest<W: Write + Send>(
-        &self,
-        output: W,
-    ) -> Result<(), Error> {
+    pub async fn speedtest<W: Write + Send>(&self, output: W) -> Result<(), Error> {
         self.h2.download("speedtest", None, output).await
     }
 
@@ -131,14 +122,14 @@ impl BackupReader {
     ///
     /// The manifest signature is verified if we have a crypt_config.
     pub async fn download_manifest(&self) -> Result<(BackupManifest, Vec<u8>), Error> {
-
         let mut raw_data = Vec::with_capacity(64 * 1024);
         self.download(MANIFEST_BLOB_NAME, &mut raw_data).await?;
         let blob = DataBlob::load_from_reader(&mut &raw_data[..])?;
         // no expected digest available
         let data = blob.decode(None, None)?;
 
-        let manifest = BackupManifest::from_data(&data[..], self.crypt_config.as_ref().map(Arc::as_ref))?;
+        let manifest =
+            BackupManifest::from_data(&data[..], self.crypt_config.as_ref().map(Arc::as_ref))?;
 
         Ok((manifest, data))
     }
@@ -152,7 +143,6 @@ impl BackupReader {
         manifest: &BackupManifest,
         name: &str,
     ) -> Result<DataBlobReader<'_, File>, Error> {
-
         let mut tmpfile = std::fs::OpenOptions::new()
             .write(true)
             .read(true)
@@ -179,7 +169,6 @@ impl BackupReader {
         manifest: &BackupManifest,
         name: &str,
     ) -> Result<DynamicIndexReader, Error> {
-
         let mut tmpfile = std::fs::OpenOptions::new()
             .write(true)
             .read(true)
@@ -207,7 +196,6 @@ impl BackupReader {
         manifest: &BackupManifest,
         name: &str,
     ) -> Result<FixedIndexReader, Error> {
-
         let mut tmpfile = std::fs::OpenOptions::new()
             .write(true)
             .read(true)

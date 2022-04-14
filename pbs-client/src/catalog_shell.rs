@@ -14,16 +14,16 @@ use nix::fcntl::OFlag;
 use nix::sys::stat::Mode;
 
 use pathpatterns::{MatchEntry, MatchList, MatchPattern, MatchType, PatternFlag};
-use proxmox_sys::fs::{create_path, CreateOptions};
 use proxmox_router::cli::{self, CliCommand, CliCommandMap, CliHelper, CommandLineInterface};
 use proxmox_schema::api;
+use proxmox_sys::fs::{create_path, CreateOptions};
 use pxar::{EntryKind, Metadata};
 
-use proxmox_async::runtime::block_in_place;
 use pbs_datastore::catalog::{self, DirEntryAttribute};
+use proxmox_async::runtime::block_in_place;
 
-use crate::pxar::Flags;
 use crate::pxar::fuse::{Accessor, FileEntry};
+use crate::pxar::Flags;
 
 type CatalogReader = pbs_datastore::catalog::CatalogReader<std::fs::File>;
 
@@ -91,10 +91,7 @@ pub fn catalog_shell_cli() -> CommandLineInterface {
                 "find",
                 CliCommand::new(&API_METHOD_FIND_COMMAND).arg_param(&["pattern"]),
             )
-            .insert(
-                "exit",
-                CliCommand::new(&API_METHOD_EXIT),
-            )
+            .insert("exit", CliCommand::new(&API_METHOD_EXIT))
             .insert_help(),
     )
 }
@@ -1070,7 +1067,8 @@ impl<'a> ExtractorState<'a> {
             }
             self.path.extend(&entry.name);
 
-            self.extractor.set_path(OsString::from_vec(self.path.clone()));
+            self.extractor
+                .set_path(OsString::from_vec(self.path.clone()));
             self.handle_entry(entry).await?;
         }
 
@@ -1122,7 +1120,8 @@ impl<'a> ExtractorState<'a> {
         let dir_pxar = self.dir_stack.last().unwrap().pxar.as_ref().unwrap();
         let dir_meta = dir_pxar.entry().metadata().clone();
         let create = self.matches && match_result != Some(MatchType::Exclude);
-        self.extractor.enter_directory(dir_pxar.file_name().to_os_string(), dir_meta, create)?;
+        self.extractor
+            .enter_directory(dir_pxar.file_name().to_os_string(), dir_meta, create)?;
 
         Ok(())
     }
@@ -1172,13 +1171,9 @@ impl<'a> ExtractorState<'a> {
             pxar::EntryKind::File { size, .. } => {
                 let file_name = CString::new(entry.file_name().as_bytes())?;
                 let mut contents = entry.contents().await?;
-                self.extractor.async_extract_file(
-                    &file_name,
-                    entry.metadata(),
-                    *size,
-                    &mut contents,
-                )
-                .await
+                self.extractor
+                    .async_extract_file(&file_name, entry.metadata(), *size, &mut contents)
+                    .await
             }
             _ => {
                 bail!(
@@ -1197,11 +1192,13 @@ impl<'a> ExtractorState<'a> {
         let file_name = CString::new(entry.file_name().as_bytes())?;
         match (catalog_attr, entry.kind()) {
             (DirEntryAttribute::Symlink, pxar::EntryKind::Symlink(symlink)) => {
-                block_in_place(|| self.extractor.extract_symlink(
-                    &file_name,
-                    entry.metadata(),
-                    symlink.as_os_str(),
-                ))
+                block_in_place(|| {
+                    self.extractor.extract_symlink(
+                        &file_name,
+                        entry.metadata(),
+                        symlink.as_os_str(),
+                    )
+                })
             }
             (DirEntryAttribute::Symlink, _) => {
                 bail!(
@@ -1211,7 +1208,10 @@ impl<'a> ExtractorState<'a> {
             }
 
             (DirEntryAttribute::Hardlink, pxar::EntryKind::Hardlink(hardlink)) => {
-                block_in_place(|| self.extractor.extract_hardlink(&file_name, hardlink.as_os_str()))
+                block_in_place(|| {
+                    self.extractor
+                        .extract_hardlink(&file_name, hardlink.as_os_str())
+                })
             }
             (DirEntryAttribute::Hardlink, _) => {
                 bail!(
@@ -1224,16 +1224,18 @@ impl<'a> ExtractorState<'a> {
                 self.extract_device(attr.clone(), &file_name, device, entry.metadata())
             }
 
-            (DirEntryAttribute::Fifo, pxar::EntryKind::Fifo) => {
-                block_in_place(|| self.extractor.extract_special(&file_name, entry.metadata(), 0))
-            }
+            (DirEntryAttribute::Fifo, pxar::EntryKind::Fifo) => block_in_place(|| {
+                self.extractor
+                    .extract_special(&file_name, entry.metadata(), 0)
+            }),
             (DirEntryAttribute::Fifo, _) => {
                 bail!("catalog fifo {:?} not a fifo in the archive", self.path());
             }
 
-            (DirEntryAttribute::Socket, pxar::EntryKind::Socket) => {
-                block_in_place(|| self.extractor.extract_special(&file_name, entry.metadata(), 0))
-            }
+            (DirEntryAttribute::Socket, pxar::EntryKind::Socket) => block_in_place(|| {
+                self.extractor
+                    .extract_special(&file_name, entry.metadata(), 0)
+            }),
             (DirEntryAttribute::Socket, _) => {
                 bail!(
                     "catalog socket {:?} not a socket in the archive",
@@ -1277,6 +1279,9 @@ impl<'a> ExtractorState<'a> {
                 );
             }
         }
-        block_in_place(|| self.extractor.extract_special(file_name, metadata, device.to_dev_t()))
+        block_in_place(|| {
+            self.extractor
+                .extract_special(file_name, metadata, device.to_dev_t())
+        })
     }
 }

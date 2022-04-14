@@ -151,24 +151,35 @@ impl Default for Flags {
     }
 }
 
-// form /usr/include/linux/fs.h
-const FS_APPEND_FL: c_long =      0x0000_0020;
-const FS_NOATIME_FL: c_long =     0x0000_0080;
-const FS_COMPR_FL: c_long =       0x0000_0004;
-const FS_NOCOW_FL: c_long =       0x0080_0000;
-const FS_NODUMP_FL: c_long =      0x0000_0040;
-const FS_DIRSYNC_FL: c_long =     0x0001_0000;
-const FS_IMMUTABLE_FL: c_long =   0x0000_0010;
-const FS_SYNC_FL: c_long =        0x0000_0008;
-const FS_NOCOMP_FL: c_long =      0x0000_0400;
-const FS_PROJINHERIT_FL: c_long = 0x2000_0000;
+#[rustfmt::skip]
+mod fs_flags {
+use libc::c_long;
+    // form /usr/include/linux/fs.h
+    pub const FS_APPEND_FL: c_long =      0x0000_0020;
+    pub const FS_NOATIME_FL: c_long =     0x0000_0080;
+    pub const FS_COMPR_FL: c_long =       0x0000_0004;
+    pub const FS_NOCOW_FL: c_long =       0x0080_0000;
+    pub const FS_NODUMP_FL: c_long =      0x0000_0040;
+    pub const FS_DIRSYNC_FL: c_long =     0x0001_0000;
+    pub const FS_IMMUTABLE_FL: c_long =   0x0000_0010;
+    pub const FS_SYNC_FL: c_long =        0x0000_0008;
+    pub const FS_NOCOMP_FL: c_long =      0x0000_0400;
+    pub const FS_PROJINHERIT_FL: c_long = 0x2000_0000;
 
-pub(crate) const INITIAL_FS_FLAGS: c_long =
-    FS_NOATIME_FL
-    | FS_COMPR_FL
-    | FS_NOCOW_FL
-    | FS_NOCOMP_FL
-    | FS_PROJINHERIT_FL;
+    // from /usr/include/linux/msdos_fs.h
+    pub const ATTR_HIDDEN: u32 =      2;
+    pub const ATTR_SYS: u32 =         4;
+    pub const ATTR_ARCH: u32 =       32;
+
+    pub(crate) const INITIAL_FS_FLAGS: c_long =
+        FS_NOATIME_FL
+        | FS_COMPR_FL
+        | FS_NOCOW_FL
+        | FS_NOCOMP_FL
+        | FS_PROJINHERIT_FL;
+
+}
+use fs_flags::*; // for code formating/rusfmt
 
 #[rustfmt::skip]
 const CHATTR_MAP: [(Flags, c_long); 10] = [
@@ -183,11 +194,6 @@ const CHATTR_MAP: [(Flags, c_long); 10] = [
     ( Flags::WITH_FLAG_NOCOMP,      FS_NOCOMP_FL      ),
     ( Flags::WITH_FLAG_PROJINHERIT, FS_PROJINHERIT_FL ),
 ];
-
-// from /usr/include/linux/msdos_fs.h
-const ATTR_HIDDEN: u32 =      2;
-const ATTR_SYS: u32 =         4;
-const ATTR_ARCH: u32 =       32;
 
 #[rustfmt::skip]
 const FAT_ATTR_MAP: [(Flags, u32); 3] = [
@@ -258,121 +264,117 @@ impl Flags {
         use proxmox_sys::linux::magic::*;
         match magic {
             MSDOS_SUPER_MAGIC => {
-                Flags::WITH_2SEC_TIME |
-                Flags::WITH_READ_ONLY |
-                Flags::WITH_FAT_ATTRS
-            },
+                Flags::WITH_2SEC_TIME | Flags::WITH_READ_ONLY | Flags::WITH_FAT_ATTRS
+            }
             EXT4_SUPER_MAGIC => {
-                Flags::WITH_2SEC_TIME |
-                Flags::WITH_READ_ONLY |
-                Flags::WITH_PERMISSIONS |
-                Flags::WITH_SYMLINKS |
-                Flags::WITH_DEVICE_NODES |
-                Flags::WITH_FIFOS |
-                Flags::WITH_SOCKETS |
-                Flags::WITH_FLAG_APPEND |
-                Flags::WITH_FLAG_NOATIME |
-                Flags::WITH_FLAG_NODUMP |
-                Flags::WITH_FLAG_DIRSYNC |
-                Flags::WITH_FLAG_IMMUTABLE |
-                Flags::WITH_FLAG_SYNC |
-                Flags::WITH_XATTRS |
-                Flags::WITH_ACL |
-                Flags::WITH_SELINUX |
-                Flags::WITH_FCAPS |
-                Flags::WITH_QUOTA_PROJID
-            },
+                Flags::WITH_2SEC_TIME
+                    | Flags::WITH_READ_ONLY
+                    | Flags::WITH_PERMISSIONS
+                    | Flags::WITH_SYMLINKS
+                    | Flags::WITH_DEVICE_NODES
+                    | Flags::WITH_FIFOS
+                    | Flags::WITH_SOCKETS
+                    | Flags::WITH_FLAG_APPEND
+                    | Flags::WITH_FLAG_NOATIME
+                    | Flags::WITH_FLAG_NODUMP
+                    | Flags::WITH_FLAG_DIRSYNC
+                    | Flags::WITH_FLAG_IMMUTABLE
+                    | Flags::WITH_FLAG_SYNC
+                    | Flags::WITH_XATTRS
+                    | Flags::WITH_ACL
+                    | Flags::WITH_SELINUX
+                    | Flags::WITH_FCAPS
+                    | Flags::WITH_QUOTA_PROJID
+            }
             XFS_SUPER_MAGIC => {
-                Flags::WITH_2SEC_TIME |
-                Flags::WITH_READ_ONLY |
-                Flags::WITH_PERMISSIONS |
-                Flags::WITH_SYMLINKS |
-                Flags::WITH_DEVICE_NODES |
-                Flags::WITH_FIFOS |
-                Flags::WITH_SOCKETS |
-                Flags::WITH_FLAG_APPEND |
-                Flags::WITH_FLAG_NOATIME |
-                Flags::WITH_FLAG_NODUMP |
-                Flags::WITH_FLAG_IMMUTABLE |
-                Flags::WITH_FLAG_SYNC |
-                Flags::WITH_XATTRS |
-                Flags::WITH_ACL |
-                Flags::WITH_SELINUX |
-                Flags::WITH_FCAPS |
-                Flags::WITH_QUOTA_PROJID
-            },
+                Flags::WITH_2SEC_TIME
+                    | Flags::WITH_READ_ONLY
+                    | Flags::WITH_PERMISSIONS
+                    | Flags::WITH_SYMLINKS
+                    | Flags::WITH_DEVICE_NODES
+                    | Flags::WITH_FIFOS
+                    | Flags::WITH_SOCKETS
+                    | Flags::WITH_FLAG_APPEND
+                    | Flags::WITH_FLAG_NOATIME
+                    | Flags::WITH_FLAG_NODUMP
+                    | Flags::WITH_FLAG_IMMUTABLE
+                    | Flags::WITH_FLAG_SYNC
+                    | Flags::WITH_XATTRS
+                    | Flags::WITH_ACL
+                    | Flags::WITH_SELINUX
+                    | Flags::WITH_FCAPS
+                    | Flags::WITH_QUOTA_PROJID
+            }
             ZFS_SUPER_MAGIC => {
-                Flags::WITH_2SEC_TIME |
-                Flags::WITH_READ_ONLY |
-                Flags::WITH_PERMISSIONS |
-                Flags::WITH_SYMLINKS |
-                Flags::WITH_DEVICE_NODES |
-                Flags::WITH_FIFOS |
-                Flags::WITH_SOCKETS |
-                Flags::WITH_FLAG_APPEND |
-                Flags::WITH_FLAG_NOATIME |
-                Flags::WITH_FLAG_NODUMP |
-                Flags::WITH_FLAG_DIRSYNC |
-                Flags::WITH_FLAG_IMMUTABLE |
-                Flags::WITH_FLAG_SYNC |
-                Flags::WITH_XATTRS |
-                Flags::WITH_ACL |
-                Flags::WITH_SELINUX |
-                Flags::WITH_FCAPS |
-                Flags::WITH_QUOTA_PROJID
-            },
+                Flags::WITH_2SEC_TIME
+                    | Flags::WITH_READ_ONLY
+                    | Flags::WITH_PERMISSIONS
+                    | Flags::WITH_SYMLINKS
+                    | Flags::WITH_DEVICE_NODES
+                    | Flags::WITH_FIFOS
+                    | Flags::WITH_SOCKETS
+                    | Flags::WITH_FLAG_APPEND
+                    | Flags::WITH_FLAG_NOATIME
+                    | Flags::WITH_FLAG_NODUMP
+                    | Flags::WITH_FLAG_DIRSYNC
+                    | Flags::WITH_FLAG_IMMUTABLE
+                    | Flags::WITH_FLAG_SYNC
+                    | Flags::WITH_XATTRS
+                    | Flags::WITH_ACL
+                    | Flags::WITH_SELINUX
+                    | Flags::WITH_FCAPS
+                    | Flags::WITH_QUOTA_PROJID
+            }
             BTRFS_SUPER_MAGIC => {
-                Flags::WITH_2SEC_TIME |
-                Flags::WITH_READ_ONLY |
-                Flags::WITH_PERMISSIONS |
-                Flags::WITH_SYMLINKS |
-                Flags::WITH_DEVICE_NODES |
-                Flags::WITH_FIFOS |
-                Flags::WITH_SOCKETS |
-                Flags::WITH_FLAG_APPEND |
-                Flags::WITH_FLAG_NOATIME |
-                Flags::WITH_FLAG_COMPR |
-                Flags::WITH_FLAG_NOCOW |
-                Flags::WITH_FLAG_NODUMP |
-                Flags::WITH_FLAG_DIRSYNC |
-                Flags::WITH_FLAG_IMMUTABLE |
-                Flags::WITH_FLAG_SYNC |
-                Flags::WITH_FLAG_NOCOMP |
-                Flags::WITH_XATTRS |
-                Flags::WITH_ACL |
-                Flags::WITH_SELINUX |
-                Flags::WITH_SUBVOLUME |
-                Flags::WITH_SUBVOLUME_RO |
-                Flags::WITH_FCAPS
-            },
+                Flags::WITH_2SEC_TIME
+                    | Flags::WITH_READ_ONLY
+                    | Flags::WITH_PERMISSIONS
+                    | Flags::WITH_SYMLINKS
+                    | Flags::WITH_DEVICE_NODES
+                    | Flags::WITH_FIFOS
+                    | Flags::WITH_SOCKETS
+                    | Flags::WITH_FLAG_APPEND
+                    | Flags::WITH_FLAG_NOATIME
+                    | Flags::WITH_FLAG_COMPR
+                    | Flags::WITH_FLAG_NOCOW
+                    | Flags::WITH_FLAG_NODUMP
+                    | Flags::WITH_FLAG_DIRSYNC
+                    | Flags::WITH_FLAG_IMMUTABLE
+                    | Flags::WITH_FLAG_SYNC
+                    | Flags::WITH_FLAG_NOCOMP
+                    | Flags::WITH_XATTRS
+                    | Flags::WITH_ACL
+                    | Flags::WITH_SELINUX
+                    | Flags::WITH_SUBVOLUME
+                    | Flags::WITH_SUBVOLUME_RO
+                    | Flags::WITH_FCAPS
+            }
             TMPFS_MAGIC => {
-                Flags::WITH_2SEC_TIME |
-                Flags::WITH_READ_ONLY |
-                Flags::WITH_PERMISSIONS |
-                Flags::WITH_SYMLINKS |
-                Flags::WITH_DEVICE_NODES |
-                Flags::WITH_FIFOS |
-                Flags::WITH_SOCKETS |
-                Flags::WITH_ACL |
-                Flags::WITH_SELINUX
-            },
+                Flags::WITH_2SEC_TIME
+                    | Flags::WITH_READ_ONLY
+                    | Flags::WITH_PERMISSIONS
+                    | Flags::WITH_SYMLINKS
+                    | Flags::WITH_DEVICE_NODES
+                    | Flags::WITH_FIFOS
+                    | Flags::WITH_SOCKETS
+                    | Flags::WITH_ACL
+                    | Flags::WITH_SELINUX
+            }
             // FUSE mounts are special as the supported feature set
             // is not clear a priori.
-            FUSE_SUPER_MAGIC => {
-                Flags::WITH_FUSE
-            },
+            FUSE_SUPER_MAGIC => Flags::WITH_FUSE,
             _ => {
-                Flags::WITH_2SEC_TIME |
-                Flags::WITH_READ_ONLY |
-                Flags::WITH_PERMISSIONS |
-                Flags::WITH_SYMLINKS |
-                Flags::WITH_DEVICE_NODES |
-                Flags::WITH_FIFOS |
-                Flags::WITH_SOCKETS |
-                Flags::WITH_XATTRS |
-                Flags::WITH_ACL |
-                Flags::WITH_FCAPS
-            },
+                Flags::WITH_2SEC_TIME
+                    | Flags::WITH_READ_ONLY
+                    | Flags::WITH_PERMISSIONS
+                    | Flags::WITH_SYMLINKS
+                    | Flags::WITH_DEVICE_NODES
+                    | Flags::WITH_FIFOS
+                    | Flags::WITH_SOCKETS
+                    | Flags::WITH_XATTRS
+                    | Flags::WITH_ACL
+                    | Flags::WITH_FCAPS
+            }
         }
     }
 }

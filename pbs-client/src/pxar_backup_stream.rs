@@ -6,8 +6,8 @@ use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
 
 use anyhow::{format_err, Error};
+use futures::future::{AbortHandle, Abortable};
 use futures::stream::Stream;
-use futures::future::{Abortable, AbortHandle};
 use nix::dir::Dir;
 use nix::fcntl::OFlag;
 use nix::sys::stat::Mode;
@@ -68,7 +68,9 @@ impl PxarBackupStream {
                 },
                 Some(catalog),
                 options,
-            ).await {
+            )
+            .await
+            {
                 let mut error = error2.lock().unwrap();
                 *error = Some(err.to_string());
             }
@@ -92,11 +94,7 @@ impl PxarBackupStream {
     ) -> Result<Self, Error> {
         let dir = nix::dir::Dir::open(dirname, OFlag::O_DIRECTORY, Mode::empty())?;
 
-        Self::new(
-            dir,
-            catalog,
-            options,
-        )
+        Self::new(dir, catalog, options)
     }
 }
 

@@ -1,9 +1,12 @@
-use std::sync::{Arc, atomic::{AtomicUsize, Ordering}};
+use std::sync::{
+    atomic::{AtomicUsize, Ordering},
+    Arc,
+};
 
 use anyhow::{bail, Error};
+use futures::*;
 use serde_json::{json, Value};
 use tokio::signal::unix::{signal, SignalKind};
-use futures::*;
 
 use proxmox_router::cli::format_and_print_result;
 
@@ -22,7 +25,6 @@ pub async fn display_task_log(
     upid_str: &str,
     strip_date: bool,
 ) -> Result<(), Error> {
-
     let mut signal_stream = signal(SignalKind::interrupt())?;
     let abort_count = Arc::new(AtomicUsize::new(0));
     let abort_count2 = Arc::clone(&abort_count);
@@ -40,21 +42,25 @@ pub async fn display_task_log(
     };
 
     let request_future = async move {
-
         let mut start = 1;
         let limit = 500;
 
         loop {
-
             let abort = abort_count.load(Ordering::Relaxed);
             if abort > 0 {
-                let path = format!("api2/json/nodes/localhost/tasks/{}", percent_encode_component(upid_str));
+                let path = format!(
+                    "api2/json/nodes/localhost/tasks/{}",
+                    percent_encode_component(upid_str)
+                );
                 let _ = client.delete(&path, None).await?;
             }
 
             let param = json!({ "start": start, "limit": limit, "test-status": true });
 
-            let path = format!("api2/json/nodes/localhost/tasks/{}/log", percent_encode_component(upid_str));
+            let path = format!(
+                "api2/json/nodes/localhost/tasks/{}/log",
+                percent_encode_component(upid_str)
+            );
             let result = client.get(&path, Some(param)).await?;
 
             let active = result["active"].as_bool().unwrap();
@@ -66,7 +72,9 @@ pub async fn display_task_log(
             for item in data {
                 let n = item["n"].as_u64().unwrap();
                 let t = item["t"].as_str().unwrap();
-                if n != start { bail!("got wrong line number in response data ({} != {}", n, start); }
+                if n != start {
+                    bail!("got wrong line number in response data ({} != {}", n, start);
+                }
                 if strip_date && t.len() > 27 && &t[25..27] == ": " {
                     let line = &t[27..];
                     println!("{}", line);
@@ -83,14 +91,18 @@ pub async fn display_task_log(
                     break;
                 }
             } else if lines != limit {
-                bail!("got wrong number of lines from server ({} != {})", lines, limit);
+                bail!(
+                    "got wrong number of lines from server ({} != {})",
+                    lines,
+                    limit
+                );
             }
         }
 
         Ok(())
     };
 
-    futures::select!{
+    futures::select! {
         request = request_future.fuse() => request?,
         abort = abort_future.fuse() => abort?,
     };

@@ -1,20 +1,20 @@
 //! Shared tools useful for common CLI clients.
 use std::collections::HashMap;
+use std::env::VarError::{NotPresent, NotUnicode};
 use std::fs::File;
+use std::io::{BufRead, BufReader};
 use std::os::unix::io::FromRawFd;
-use std::env::VarError::{NotUnicode, NotPresent};
-use std::io::{BufReader, BufRead};
 use std::process::Command;
 
 use anyhow::{bail, format_err, Context, Error};
 use serde_json::{json, Value};
 use xdg::BaseDirectories;
 
-use proxmox_schema::*;
 use proxmox_router::cli::{complete_file_name, shellword_split};
+use proxmox_schema::*;
 use proxmox_sys::fs::file_get_json;
 
-use pbs_api_types::{BACKUP_REPO_URL, Authid, RateLimitConfig, UserWithTokens};
+use pbs_api_types::{Authid, RateLimitConfig, UserWithTokens, BACKUP_REPO_URL};
 use pbs_datastore::BackupDir;
 use pbs_tools::json::json_object_to_query;
 
@@ -48,7 +48,6 @@ pub const CHUNK_SIZE_SCHEMA: Schema = IntegerSchema::new("Chunk size in KB. Must
 ///
 /// Only return the first line of data (without CRLF).
 pub fn get_secret_from_env(base_name: &str) -> Result<Option<String>, Error> {
-
     let firstline = |data: String| -> String {
         match data.lines().next() {
             Some(line) => line.to_string(),
@@ -68,19 +67,24 @@ pub fn get_secret_from_env(base_name: &str) -> Result<Option<String>, Error> {
     match std::env::var(base_name) {
         Ok(p) => return Ok(Some(firstline(p))),
         Err(NotUnicode(_)) => bail!(format!("{} contains bad characters", base_name)),
-        Err(NotPresent) => {},
+        Err(NotPresent) => {}
     };
 
     let env_name = format!("{}_FD", base_name);
     match std::env::var(&env_name) {
         Ok(fd_str) => {
-            let fd: i32 = fd_str.parse()
-                .map_err(|err| format_err!("unable to parse file descriptor in ENV({}): {}", env_name, err))?;
+            let fd: i32 = fd_str.parse().map_err(|err| {
+                format_err!(
+                    "unable to parse file descriptor in ENV({}): {}",
+                    env_name,
+                    err
+                )
+            })?;
             let mut file = unsafe { File::from_raw_fd(fd) };
             return Ok(Some(firstline_file(&mut file)?));
         }
         Err(NotUnicode(_)) => bail!(format!("{} contains bad characters", env_name)),
-        Err(NotPresent) => {},
+        Err(NotPresent) => {}
     }
 
     let env_name = format!("{}_FILE", base_name);
@@ -91,7 +95,7 @@ pub fn get_secret_from_env(base_name: &str) -> Result<Option<String>, Error> {
             return Ok(Some(firstline_file(&mut file)?));
         }
         Err(NotUnicode(_)) => bail!(format!("{} contains bad characters", env_name)),
-        Err(NotPresent) => {},
+        Err(NotPresent) => {}
     }
 
     let env_name = format!("{}_CMD", base_name);
@@ -104,7 +108,7 @@ pub fn get_secret_from_env(base_name: &str) -> Result<Option<String>, Error> {
             return Ok(Some(firstline(output)));
         }
         Err(NotUnicode(_)) => bail!(format!("{} contains bad characters", env_name)),
-        Err(NotPresent) => {},
+        Err(NotPresent) => {}
     }
 
     Ok(None)
@@ -157,21 +161,18 @@ fn connect_do(
     let fingerprint = std::env::var(ENV_VAR_PBS_FINGERPRINT).ok();
 
     let password = get_secret_from_env(ENV_VAR_PBS_PASSWORD)?;
-    let options = HttpClientOptions::new_interactive(password, fingerprint)
-        .rate_limit(rate_limit);
+    let options = HttpClientOptions::new_interactive(password, fingerprint).rate_limit(rate_limit);
 
     HttpClient::new(server, port, auth_id, options)
 }
 
 /// like get, but simply ignore errors and return Null instead
 pub async fn try_get(repo: &BackupRepository, url: &str) -> Value {
-
     let fingerprint = std::env::var(ENV_VAR_PBS_FINGERPRINT).ok();
     let password = get_secret_from_env(ENV_VAR_PBS_PASSWORD).unwrap_or(None);
 
     // ticket cache, but no questions asked
-    let options = HttpClientOptions::new_interactive(password, fingerprint)
-        .interactive(false);
+    let options = HttpClientOptions::new_interactive(password, fingerprint).interactive(false);
 
     let client = match HttpClient::new(repo.host(), repo.port(), repo.auth_id(), options) {
         Ok(v) => v,
@@ -196,7 +197,6 @@ pub fn complete_backup_group(_arg: &str, param: &HashMap<String, String>) -> Vec
 }
 
 pub async fn complete_backup_group_do(param: &HashMap<String, String>) -> Vec<String> {
-
     let mut result = vec![];
 
     let repo = match extract_repository_from_map(param) {
@@ -225,8 +225,10 @@ pub fn complete_group_or_snapshot(arg: &str, param: &HashMap<String, String>) ->
     proxmox_async::runtime::main(async { complete_group_or_snapshot_do(arg, param).await })
 }
 
-pub async fn complete_group_or_snapshot_do(arg: &str, param: &HashMap<String, String>) -> Vec<String> {
-
+pub async fn complete_group_or_snapshot_do(
+    arg: &str,
+    param: &HashMap<String, String>,
+) -> Vec<String> {
     if arg.matches('/').count() < 2 {
         let groups = complete_backup_group_do(param).await;
         let mut result = vec![];
@@ -245,7 +247,6 @@ pub fn complete_backup_snapshot(_arg: &str, param: &HashMap<String, String>) -> 
 }
 
 pub async fn complete_backup_snapshot_do(param: &HashMap<String, String>) -> Vec<String> {
-
     let mut result = vec![];
 
     let repo = match extract_repository_from_map(param) {
@@ -259,9 +260,11 @@ pub async fn complete_backup_snapshot_do(param: &HashMap<String, String>) -> Vec
 
     if let Some(list) = data.as_array() {
         for item in list {
-            if let (Some(backup_id), Some(backup_type), Some(backup_time)) =
-                (item["backup-id"].as_str(), item["backup-type"].as_str(), item["backup-time"].as_i64())
-            {
+            if let (Some(backup_id), Some(backup_type), Some(backup_time)) = (
+                item["backup-id"].as_str(),
+                item["backup-type"].as_str(),
+                item["backup-time"].as_i64(),
+            ) {
                 if let Ok(snapshot) = BackupDir::new(backup_type, backup_id, backup_time) {
                     result.push(snapshot.relative_path().to_str().unwrap().to_owned());
                 }
@@ -277,7 +280,6 @@ pub fn complete_server_file_name(_arg: &str, param: &HashMap<String, String>) ->
 }
 
 pub async fn complete_server_file_name_do(param: &HashMap<String, String>) -> Vec<String> {
-
     let mut result = vec![];
 
     let repo = match extract_repository_from_map(param) {
@@ -286,12 +288,10 @@ pub async fn complete_server_file_name_do(param: &HashMap<String, String>) -> Ve
     };
 
     let snapshot: BackupDir = match param.get("snapshot") {
-        Some(path) => {
-            match path.parse() {
-                Ok(v) => v,
-                _ => return result,
-            }
-        }
+        Some(path) => match path.parse() {
+            Ok(v) => v,
+            _ => return result,
+        },
         _ => return result,
     };
 
@@ -299,7 +299,8 @@ pub async fn complete_server_file_name_do(param: &HashMap<String, String>) -> Ve
         "backup-type": snapshot.group().backup_type(),
         "backup-id": snapshot.group().backup_id(),
         "backup-time": snapshot.backup_time(),
-    })).unwrap();
+    }))
+    .unwrap();
 
     let path = format!("api2/json/admin/datastore/{}/files?{}", repo.store(), query);
 
@@ -350,14 +351,15 @@ pub fn complete_img_archive_name(arg: &str, param: &HashMap<String, String>) -> 
 }
 
 pub fn complete_chunk_size(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
-
     let mut result = vec![];
 
     let mut size = 64;
     loop {
         result.push(size.to_string());
         size *= 2;
-        if size > 4096 { break; }
+        if size > 4096 {
+            break;
+        }
     }
 
     result
@@ -368,7 +370,6 @@ pub fn complete_auth_id(_arg: &str, param: &HashMap<String, String>) -> Vec<Stri
 }
 
 pub async fn complete_auth_id_do(param: &HashMap<String, String>) -> Vec<String> {
-
     let mut result = vec![];
 
     let repo = match extract_repository_from_map(param) {
