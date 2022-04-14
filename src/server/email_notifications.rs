@@ -1,16 +1,17 @@
 use anyhow::Error;
 use serde_json::json;
 
-use handlebars::{Handlebars, Helper, Context, RenderError, RenderContext, Output, HelperResult, TemplateError};
+use handlebars::{
+    Context, Handlebars, Helper, HelperResult, Output, RenderContext, RenderError, TemplateError,
+};
 
-use proxmox_sys::email::sendmail;
 use proxmox_lang::try_block;
 use proxmox_schema::ApiType;
+use proxmox_sys::email::sendmail;
 
 use pbs_api_types::{
-    User, TapeBackupJobSetup, SyncJobConfig, VerificationJobConfig,
-    APTUpdateInfo, GarbageCollectionStatus, HumanByte,
-    Userid, Notify, DatastoreNotify, DataStoreConfig,
+    APTUpdateInfo, DataStoreConfig, DatastoreNotify, GarbageCollectionStatus, HumanByte, Notify,
+    SyncJobConfig, TapeBackupJobSetup, User, Userid, VerificationJobConfig,
 };
 
 const GC_OK_TEMPLATE: &str = r###"
@@ -40,7 +41,6 @@ Please visit the web interface for further details:
 <https://{{fqdn}}:{{port}}/#DataStore-{{datastore}}>
 
 "###;
-
 
 const GC_ERR_TEMPLATE: &str = r###"
 
@@ -183,7 +183,7 @@ Please visit the web interface for further details:
 
 "###;
 
-lazy_static::lazy_static!{
+lazy_static::lazy_static! {
 
     static ref HANDLEBARS: Handlebars<'static> = {
         let mut hb = Handlebars::new();
@@ -229,18 +229,16 @@ pub struct TapeBackupJobSummary {
     pub duration: std::time::Duration,
 }
 
-fn send_job_status_mail(
-    email: &str,
-    subject: &str,
-    text: &str,
-) -> Result<(), Error> {
-
+fn send_job_status_mail(email: &str, subject: &str, text: &str) -> Result<(), Error> {
     let (config, _) = crate::config::node::config()?;
-    let from = config.email_from; 
+    let from = config.email_from;
 
     // Note: OX has serious problems displaying text mails,
     // so we include html as well
-    let html = format!("<html><body><pre>\n{}\n<pre>", handlebars::html_escape(text));
+    let html = format!(
+        "<html><body><pre>\n{}\n<pre>",
+        handlebars::html_escape(text)
+    );
 
     let nodename = proxmox_sys::nodename();
 
@@ -265,9 +263,8 @@ pub fn send_gc_status(
     status: &GarbageCollectionStatus,
     result: &Result<(), Error>,
 ) -> Result<(), Error> {
-
     match notify.gc {
-        None => { /* send notifications by default */ },
+        None => { /* send notifications by default */ }
         Some(notify) => {
             if notify == Notify::Never || (result.is_ok() && notify == Notify::Error) {
                 return Ok(());
@@ -285,7 +282,7 @@ pub fn send_gc_status(
     let text = match result {
         Ok(()) => {
             let deduplication_factor = if status.disk_bytes > 0 {
-                (status.index_data_bytes as f64)/(status.disk_bytes as f64)
+                (status.index_data_bytes as f64) / (status.disk_bytes as f64)
             } else {
                 1.0
             };
@@ -302,14 +299,8 @@ pub fn send_gc_status(
     };
 
     let subject = match result {
-        Ok(()) => format!(
-            "Garbage Collect Datastore '{}' successful",
-            datastore,
-        ),
-        Err(_) => format!(
-            "Garbage Collect Datastore '{}' failed",
-            datastore,
-        ),
+        Ok(()) => format!("Garbage Collect Datastore '{}' successful", datastore,),
+        Err(_) => format!("Garbage Collect Datastore '{}' failed", datastore,),
     };
 
     send_job_status_mail(email, &subject, &text)?;
@@ -323,7 +314,6 @@ pub fn send_verify_status(
     job: VerificationJobConfig,
     result: &Result<Vec<String>, Error>,
 ) -> Result<(), Error> {
-
     let (fqdn, port) = get_server_url();
     let mut data = json!({
         "job": job,
@@ -349,7 +339,7 @@ pub fn send_verify_status(
     };
 
     match notify.verify {
-        None => { /* send notifications by default */ },
+        None => { /* send notifications by default */ }
         Some(notify) => {
             if notify == Notify::Never || (result_is_ok && notify == Notify::Error) {
                 return Ok(());
@@ -358,14 +348,8 @@ pub fn send_verify_status(
     }
 
     let subject = match result {
-        Ok(errors) if errors.is_empty() => format!(
-            "Verify Datastore '{}' successful",
-            job.store,
-        ),
-        _ => format!(
-            "Verify Datastore '{}' failed",
-            job.store,
-        ),
+        Ok(errors) if errors.is_empty() => format!("Verify Datastore '{}' successful", job.store,),
+        _ => format!("Verify Datastore '{}' failed", job.store,),
     };
 
     send_job_status_mail(email, &subject, &text)?;
@@ -379,9 +363,8 @@ pub fn send_sync_status(
     job: &SyncJobConfig,
     result: &Result<(), Error>,
 ) -> Result<(), Error> {
-
     match notify.sync {
-        None => { /* send notifications by default */ },
+        None => { /* send notifications by default */ }
         Some(notify) => {
             if notify == Notify::Never || (result.is_ok() && notify == Notify::Error) {
                 return Ok(());
@@ -397,9 +380,7 @@ pub fn send_sync_status(
     });
 
     let text = match result {
-        Ok(()) => {
-            HANDLEBARS.render("sync_ok_template", &data)?
-        }
+        Ok(()) => HANDLEBARS.render("sync_ok_template", &data)?,
         Err(err) => {
             data["error"] = err.to_string().into();
             HANDLEBARS.render("sync_err_template", &data)?
@@ -409,13 +390,11 @@ pub fn send_sync_status(
     let subject = match result {
         Ok(()) => format!(
             "Sync remote '{}' datastore '{}' successful",
-            job.remote,
-            job.remote_store,
+            job.remote, job.remote_store,
         ),
         Err(_) => format!(
             "Sync remote '{}' datastore '{}' failed",
-            job.remote,
-            job.remote_store,
+            job.remote, job.remote_store,
         ),
     };
 
@@ -431,7 +410,6 @@ pub fn send_tape_backup_status(
     result: &Result<(), Error>,
     summary: TapeBackupJobSummary,
 ) -> Result<(), Error> {
-
     let (fqdn, port) = get_server_url();
     let duration: proxmox_time::TimeSpan = summary.duration.into();
     let mut data = json!({
@@ -444,9 +422,7 @@ pub fn send_tape_backup_status(
     });
 
     let text = match result {
-        Ok(()) => {
-            HANDLEBARS.render("tape_backup_ok_template", &data)?
-        }
+        Ok(()) => HANDLEBARS.render("tape_backup_ok_template", &data)?,
         Err(err) => {
             data["error"] = err.to_string().into();
             HANDLEBARS.render("tape_backup_err_template", &data)?
@@ -454,24 +430,10 @@ pub fn send_tape_backup_status(
     };
 
     let subject = match (result, id) {
-        (Ok(()), Some(id)) => format!(
-            "Tape Backup '{}' datastore '{}' successful",
-            id,
-            job.store,
-        ),
-        (Ok(()), None) => format!(
-            "Tape Backup datastore '{}' successful",
-            job.store,
-        ),
-        (Err(_), Some(id)) => format!(
-            "Tape Backup '{}' datastore '{}' failed",
-            id,
-            job.store,
-        ),
-        (Err(_), None) => format!(
-            "Tape Backup datastore '{}' failed",
-            job.store,
-        ),
+        (Ok(()), Some(id)) => format!("Tape Backup '{}' datastore '{}' successful", id, job.store,),
+        (Ok(()), None) => format!("Tape Backup datastore '{}' successful", job.store,),
+        (Err(_), Some(id)) => format!("Tape Backup '{}' datastore '{}' failed", id, job.store,),
+        (Err(_), None) => format!("Tape Backup datastore '{}' failed", job.store,),
     };
 
     send_job_status_mail(email, &subject, &text)?;
@@ -486,13 +448,15 @@ pub fn send_load_media_email(
     to: &str,
     reason: Option<String>,
 ) -> Result<(), Error> {
-
     let subject = format!("Load Media '{}' request for drive '{}'", label_text, drive);
 
     let mut text = String::new();
 
     if let Some(reason) = reason {
-        text.push_str(&format!("The drive has the wrong or no tape inserted. Error:\n{}\n\n", reason));
+        text.push_str(&format!(
+            "The drive has the wrong or no tape inserted. Error:\n{}\n\n",
+            reason
+        ));
     }
 
     text.push_str("Please insert the requested media into the backup drive.\n\n");
@@ -504,7 +468,6 @@ pub fn send_load_media_email(
 }
 
 fn get_server_url() -> (String, usize) {
-
     // user will surely request that they can change this
 
     let nodename = proxmox_sys::nodename();
@@ -522,9 +485,7 @@ fn get_server_url() -> (String, usize) {
     (fqdn, port)
 }
 
-pub fn send_updates_available(
-    updates: &[&APTUpdateInfo],
-) -> Result<(), Error> {
+pub fn send_updates_available(updates: &[&APTUpdateInfo]) -> Result<(), Error> {
     // update mails always go to the root@pam configured email..
     if let Some(email) = lookup_user_email(Userid::root_userid()) {
         let nodename = proxmox_sys::nodename();
@@ -532,11 +493,14 @@ pub fn send_updates_available(
 
         let (fqdn, port) = get_server_url();
 
-        let text = HANDLEBARS.render("package_update_template", &json!({
-            "fqdn": fqdn,
-            "port": port,
-            "updates": updates,
-        }))?;
+        let text = HANDLEBARS.render(
+            "package_update_template",
+            &json!({
+                "fqdn": fqdn,
+                "port": port,
+                "updates": updates,
+            }),
+        )?;
 
         send_job_status_mail(&email, &subject, &text)?;
     }
@@ -545,7 +509,6 @@ pub fn send_updates_available(
 
 /// Lookup users email address
 pub fn lookup_user_email(userid: &Userid) -> Option<String> {
-
     if let Ok(user_config) = pbs_config::user::cached_config() {
         if let Ok(user) = user_config.lookup::<User>("user", userid.as_str()) {
             return user.email;
@@ -556,13 +519,14 @@ pub fn lookup_user_email(userid: &Userid) -> Option<String> {
 }
 
 /// Lookup Datastore notify settings
-pub fn lookup_datastore_notify_settings(
-    store: &str,
-) -> (Option<String>, DatastoreNotify) {
-
+pub fn lookup_datastore_notify_settings(store: &str) -> (Option<String>, DatastoreNotify) {
     let mut email = None;
 
-    let notify = DatastoreNotify { gc: None, verify: None, sync: None };
+    let notify = DatastoreNotify {
+        gc: None,
+        verify: None,
+        sync: None,
+    };
 
     let (config, _digest) = match pbs_config::datastore::config() {
         Ok(result) => result,
@@ -597,9 +561,11 @@ fn handlebars_humam_bytes_helper(
     _: &Handlebars,
     _: &Context,
     _rc: &mut RenderContext,
-    out: &mut dyn Output
+    out: &mut dyn Output,
 ) -> HelperResult {
-    let param = h.param(0).map(|v| v.value().as_u64())
+    let param = h
+        .param(0)
+        .map(|v| v.value().as_u64())
         .flatten()
         .ok_or_else(|| RenderError::new("human-bytes: param not found"))?;
 
@@ -613,19 +579,23 @@ fn handlebars_relative_percentage_helper(
     _: &Handlebars,
     _: &Context,
     _rc: &mut RenderContext,
-    out: &mut dyn Output
+    out: &mut dyn Output,
 ) -> HelperResult {
-    let param0 = h.param(0).map(|v| v.value().as_f64())
+    let param0 = h
+        .param(0)
+        .map(|v| v.value().as_f64())
         .flatten()
         .ok_or_else(|| RenderError::new("relative-percentage: param0 not found"))?;
-    let param1 = h.param(1).map(|v| v.value().as_f64())
+    let param1 = h
+        .param(1)
+        .map(|v| v.value().as_f64())
         .flatten()
         .ok_or_else(|| RenderError::new("relative-percentage: param1 not found"))?;
 
     if param1 == 0.0 {
         out.write("-")?;
     } else {
-        out.write(&format!("{:.2}%", (param0*100.0)/param1))?;
+        out.write(&format!("{:.2}%", (param0 * 100.0) / param1))?;
     }
     Ok(())
 }

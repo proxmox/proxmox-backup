@@ -1,16 +1,13 @@
 use anyhow::{format_err, Error};
 
-use proxmox_sys::task_log;
 use pbs_api_types::{Authid, Operation, VerificationJobConfig};
-use proxmox_rest_server::WorkerTask;
 use pbs_datastore::DataStore;
+use proxmox_rest_server::WorkerTask;
+use proxmox_sys::task_log;
 
 use crate::{
+    backup::{verify_all_backups, verify_filter},
     server::jobstate::Job,
-    backup::{
-        verify_filter,
-        verify_all_backups,
-    },
 };
 
 /// Runs a verification job.
@@ -21,7 +18,6 @@ pub fn do_verification_job(
     schedule: Option<String>,
     to_stdout: bool,
 ) -> Result<String, Error> {
-
     let datastore = DataStore::lookup_datastore(&verification_job.store, Some(Operation::Read))?;
 
     let outdated_after = verification_job.outdated_after;
@@ -29,9 +25,7 @@ pub fn do_verification_job(
 
     let (email, notify) = crate::server::lookup_datastore_notify_settings(&verification_job.store);
 
-    let job_id = format!("{}:{}",
-                         &verification_job.store,
-                         job.jobname());
+    let job_id = format!("{}:{}", &verification_job.store, job.jobname());
     let worker_type = job.jobtype().to_string();
     let upid_str = WorkerTask::new_thread(
         &worker_type,
@@ -41,9 +35,9 @@ pub fn do_verification_job(
         move |worker| {
             job.start(&worker.upid().to_string())?;
 
-            task_log!(worker,"Starting datastore verify job '{}'", job_id);
+            task_log!(worker, "Starting datastore verify job '{}'", job_id);
             if let Some(event_str) = schedule {
-                task_log!(worker,"task triggered by schedule '{}'", event_str);
+                task_log!(worker, "task triggered by schedule '{}'", event_str);
             }
 
             let verify_worker = crate::backup::VerifyWorker::new(worker.clone(), datastore);
@@ -63,8 +57,10 @@ pub fn do_verification_job(
                         task_log!(worker, "\t{}", dir);
                     }
 
-                    Err(format_err!("verification failed - please check the log for details"))
-                },
+                    Err(format_err!(
+                        "verification failed - please check the log for details"
+                    ))
+                }
                 Err(_) => Err(format_err!("verification failed - job aborted")),
             };
 
@@ -79,7 +75,9 @@ pub fn do_verification_job(
             }
 
             if let Some(email) = email {
-                if let Err(err) = crate::server::send_verify_status(&email, notify, verification_job, &result) {
+                if let Err(err) =
+                    crate::server::send_verify_status(&email, notify, verification_job, &result)
+                {
                     eprintln!("send verify notification failed: {}", err);
                 }
             }

@@ -20,7 +20,7 @@ fn files() -> Vec<&'static str> {
 
 fn commands() -> Vec<(&'static str, Vec<&'static str>)> {
     vec![
-    //  ("<command>", vec![<arg [, arg]>])
+        //  ("<command>", vec![<arg [, arg]>])
         ("proxmox-backup-manager", vec!["versions", "--verbose"]),
         ("proxmox-backup-manager", vec!["subscription", "get"]),
         ("df", vec!["-h"]),
@@ -35,20 +35,18 @@ fn commands() -> Vec<(&'static str, Vec<&'static str>)> {
 type FunctionMapping = (&'static str, fn() -> String);
 
 fn function_calls() -> Vec<FunctionMapping> {
-    vec![
-        ("Datastores", || {
-            let config = match pbs_config::datastore::config() {
-                Ok((config, _digest)) => config,
-                _ => return String::from("could not read datastore config"),
-            };
+    vec![("Datastores", || {
+        let config = match pbs_config::datastore::config() {
+            Ok((config, _digest)) => config,
+            _ => return String::from("could not read datastore config"),
+        };
 
-            let mut list = Vec::new();
-            for store in config.sections.keys() {
-                list.push(store.as_str());
-            }
-            list.join(", ")
-        })
-    ]
+        let mut list = Vec::new();
+        for store in config.sections.keys() {
+            list.push(store.as_str());
+        }
+        list.join(", ")
+    })]
 }
 
 pub fn generate_report() -> String {

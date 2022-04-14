@@ -4,10 +4,10 @@ use anyhow::format_err;
 
 use proxmox_router::UserInformation;
 
-use pbs_tools::ticket::{self, Ticket};
-use pbs_config::{token_shadow, CachedUserInfo};
 use pbs_api_types::{Authid, Userid};
-use proxmox_rest_server::{AuthError, extract_cookie};
+use pbs_config::{token_shadow, CachedUserInfo};
+use pbs_tools::ticket::{self, Ticket};
+use proxmox_rest_server::{extract_cookie, AuthError};
 
 use crate::auth_helpers::*;
 
@@ -53,7 +53,6 @@ pub async fn check_pbs_auth(
     headers: &http::HeaderMap,
     method: &hyper::Method,
 ) -> Result<(String, Box<dyn UserInformation + Sync + Send>), AuthError> {
-
     // fixme: make all IO async
 
     let user_info = CachedUserInfo::new()?;

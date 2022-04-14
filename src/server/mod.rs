@@ -37,16 +37,18 @@ pub mod pull;
 pub(crate) async fn reload_proxy_certificate() -> Result<(), Error> {
     let proxy_pid = proxmox_rest_server::read_pid(pbs_buildcfg::PROXMOX_BACKUP_PROXY_PID_FN)?;
     let sock = proxmox_rest_server::ctrl_sock_from_pid(proxy_pid);
-    let _: Value = proxmox_rest_server::send_raw_command(sock, "{\"command\":\"reload-certificate\"}\n")
-        .await?;
+    let _: Value =
+        proxmox_rest_server::send_raw_command(sock, "{\"command\":\"reload-certificate\"}\n")
+            .await?;
     Ok(())
 }
 
 pub(crate) async fn notify_datastore_removed() -> Result<(), Error> {
     let proxy_pid = proxmox_rest_server::read_pid(pbs_buildcfg::PROXMOX_BACKUP_PROXY_PID_FN)?;
     let sock = proxmox_rest_server::ctrl_sock_from_pid(proxy_pid);
-    let _: Value = proxmox_rest_server::send_raw_command(sock, "{\"command\":\"datastore-removed\"}\n")
-        .await?;
+    let _: Value =
+        proxmox_rest_server::send_raw_command(sock, "{\"command\":\"datastore-removed\"}\n")
+            .await?;
     Ok(())
 }
 
@@ -68,7 +70,11 @@ pub fn create_state_dir() -> Result<(), Error> {
     let opts = CreateOptions::new()
         .owner(backup_user.uid)
         .group(backup_user.gid);
-    create_path(pbs_buildcfg::PROXMOX_BACKUP_STATE_DIR_M!(), None, Some(opts))?;
+    create_path(
+        pbs_buildcfg::PROXMOX_BACKUP_STATE_DIR_M!(),
+        None,
+        Some(opts),
+    )?;
     Ok(())
 }
 

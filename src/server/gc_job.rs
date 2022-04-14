@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use anyhow::Error;
+use std::sync::Arc;
 
 use proxmox_sys::task_log;
 
@@ -17,7 +17,6 @@ pub fn do_garbage_collection_job(
     schedule: Option<String>,
     to_stdout: bool,
 ) -> Result<String, Error> {
-
     let store = datastore.name().to_string();
 
     let (email, notify) = crate::server::lookup_datastore_notify_settings(&store);
@@ -50,13 +49,15 @@ pub fn do_garbage_collection_job(
 
             if let Some(email) = email {
                 let gc_status = datastore.last_gc_status();
-                if let Err(err) = crate::server::send_gc_status(&email, notify, &store, &gc_status, &result) {
+                if let Err(err) =
+                    crate::server::send_gc_status(&email, notify, &store, &gc_status, &result)
+                {
                     eprintln!("send gc notification failed: {}", err);
                 }
             }
 
             result
-        }
+        },
     )?;
 
     Ok(upid_str)

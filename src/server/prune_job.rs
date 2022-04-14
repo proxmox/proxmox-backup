@@ -4,11 +4,11 @@ use anyhow::Error;
 
 use proxmox_sys::{task_log, task_warn};
 
+use pbs_api_types::{Authid, Operation, PruneOptions, PRIV_DATASTORE_MODIFY};
+use pbs_config::CachedUserInfo;
 use pbs_datastore::backup_info::BackupInfo;
 use pbs_datastore::prune::compute_prune_info;
 use pbs_datastore::DataStore;
-use pbs_api_types::{Authid, Operation, PRIV_DATASTORE_MODIFY, PruneOptions};
-use pbs_config::CachedUserInfo;
 use proxmox_rest_server::WorkerTask;
 
 use crate::server::jobstate::Job;
@@ -113,7 +113,14 @@ pub fn do_prune_job(
                 task_log!(worker, "task triggered by schedule '{}'", event_str);
             }
 
-            let result = prune_datastore(worker.clone(), auth_id, prune_options, &store, datastore, false);
+            let result = prune_datastore(
+                worker.clone(),
+                auth_id,
+                prune_options,
+                &store,
+                datastore,
+                false,
+            );
 
             let status = worker.create_state(&result);
 
