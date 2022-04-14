@@ -119,7 +119,9 @@ pub fn from_property_string<T>(input: &str, schema: &'static Schema) -> Result<T
 where
     T: for<'de> Deserialize<'de>,
 {
-    Ok(serde_json::from_value(schema.parse_property_string(input)?)?)
+    Ok(serde_json::from_value(
+        schema.parse_property_string(input)?,
+    )?)
 }
 
 /// Serialize a data structure using a 'key: value' config file format.
@@ -154,7 +156,7 @@ fn object_to_writer(output: &mut dyn Write, object: &Object) -> Result<(), Error
     for (key, value) in object.iter() {
         match value {
             _ if key == "description" => continue, // skip description as we handle it above
-            Value::Null => continue,           // delete this entry
+            Value::Null => continue,               // delete this entry
             Value::Bool(v) => writeln!(output, "{}: {}", key, v)?,
             Value::String(v) => {
                 if v.as_bytes().contains(&b'\n') {
@@ -183,11 +185,10 @@ fn test() {
         acmedomain1: test2.invalid.local\n\
     ";
 
-    let data: NodeConfig = from_str(NODE_CONFIG, &NodeConfig::API_SCHEMA)
-        .expect("failed to parse simple node config");
+    let data: NodeConfig =
+        from_str(NODE_CONFIG, &NodeConfig::API_SCHEMA).expect("failed to parse simple node config");
 
-    let config = to_bytes(&data, &NodeConfig::API_SCHEMA)
-        .expect("failed to serialize node config");
+    let config = to_bytes(&data, &NodeConfig::API_SCHEMA).expect("failed to serialize node config");
 
     assert_eq!(config, NODE_CONFIG.as_bytes());
 }

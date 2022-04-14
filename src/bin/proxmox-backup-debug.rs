@@ -20,5 +20,9 @@ fn main() {
     let mut rpcenv = CliEnvironment::new();
     rpcenv.set_auth_id(Some(format!("{}@pam", username)));
 
-    run_cli_command(cmd_def, rpcenv, Some(|future| proxmox_async::runtime::main(future)));
+    run_cli_command(
+        cmd_def,
+        rpcenv,
+        Some(|future| proxmox_async::runtime::main(future)),
+    );
 }

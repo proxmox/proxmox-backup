@@ -11,7 +11,6 @@ use pbs_api_types::PRIVILEGES;
 use proxmox_backup::api2;
 
 fn get_args() -> (String, Vec<String>) {
-
     let mut args = std::env::args();
     let prefix = args.next().unwrap();
     let prefix = prefix.rsplit('/').next().unwrap().to_string(); // without path
@@ -21,7 +20,6 @@ fn get_args() -> (String, Vec<String>) {
 }
 
 fn main() -> Result<(), Error> {
-
     let (_prefix, args) = get_args();
 
     if args.is_empty() {
@@ -49,10 +47,9 @@ fn main() -> Result<(), Error> {
 }
 
 fn generate_api_tree() -> String {
-
     let mut tree = Vec::new();
 
-    let mut data = dump_api_schema(& api2::ROUTER, ".");
+    let mut data = dump_api_schema(&api2::ROUTER, ".");
     data["path"] = "/".into();
     // hack: add invisible space to sort as first entry
     data["text"] = "&#x200b;Management API (HTTP)".into();
@@ -70,11 +67,13 @@ fn generate_api_tree() -> String {
     data["text"] = "Restore API (HTTP/2)".into();
     tree.push(data);
 
-    format!("var apiSchema = {};", serde_json::to_string_pretty(&tree).unwrap())
+    format!(
+        "var apiSchema = {};",
+        serde_json::to_string_pretty(&tree).unwrap()
+    )
 }
 
 pub fn dump_schema(schema: &Schema) -> Value {
-
     let mut data;
 
     match schema {
@@ -112,23 +111,18 @@ pub fn dump_schema(schema: &Schema) -> Value {
             match string_schema.format {
                 None | Some(ApiStringFormat::VerifyFn(_)) => { /* do nothing */ }
                 Some(ApiStringFormat::Pattern(const_regex)) => {
-                    data["pattern"] = format!("/{}/", const_regex.regex_string)
-                        .into();
+                    data["pattern"] = format!("/{}/", const_regex.regex_string).into();
                 }
                 Some(ApiStringFormat::Enum(variants)) => {
-                    let variants: Vec<String> = variants
-                        .iter()
-                        .map(|e| e.value.to_string())
-                        .collect();
+                    let variants: Vec<String> =
+                        variants.iter().map(|e| e.value.to_string()).collect();
                     data["enum"] = serde_json::to_value(variants).unwrap();
                 }
                 Some(ApiStringFormat::PropertyString(subschema)) => {
-
                     match subschema {
                         Schema::Object(_) | Schema::Array(_) => {
                             data["format"] = dump_schema(subschema);
-                            data["typetext"] = get_property_string_type_text(subschema)
-                                .into();
+                            data["typetext"] = get_property_string_type_text(subschema).into();
                         }
                         _ => { /* do nothing  - shouldnot happen */ }
                     };
@@ -137,7 +131,7 @@ pub fn dump_schema(schema: &Schema) -> Value {
             // fixme: dump format
         }
         Schema::Integer(integer_schema) => {
-           data = json!({
+            data = json!({
                 "type": "integer",
                 "description": integer_schema.description,
             });
@@ -162,7 +156,7 @@ pub fn dump_schema(schema: &Schema) -> Value {
             if let Some(minimum) = number_schema.minimum {
                 data["minimum"] = minimum.into();
             }
-             if let Some(maximum) = number_schema.maximum {
+            if let Some(maximum) = number_schema.maximum {
                 data["maximum"] = maximum.into();
             }
         }
@@ -182,7 +176,7 @@ pub fn dump_schema(schema: &Schema) -> Value {
             if let Some(min_length) = array_schema.min_length {
                 data["minLength"] = min_length.into();
             }
-             if let Some(max_length) = array_schema.min_length {
+            if let Some(max_length) = array_schema.min_length {
                 data["maxLength"] = max_length.into();
             }
         }
@@ -216,7 +210,6 @@ pub fn dump_property_schema(param: &dyn ObjectSchemaType) -> Value {
 }
 
 fn dump_api_permission(permission: &Permission) -> Value {
-
     match permission {
         Permission::Superuser => json!({ "user": "root@pam" }),
         Permission::User(user) => json!({ "user": user }),
@@ -233,7 +226,6 @@ fn dump_api_permission(permission: &Permission) -> Value {
             })
         }
         Permission::Privilege(name, value, partial) => {
-
             let mut privs = Vec::new();
             for (name, v) in PRIVILEGES {
                 if (value & v) != 0 {
@@ -260,10 +252,7 @@ fn dump_api_permission(permission: &Permission) -> Value {
     }
 }
 
-fn dump_api_method_schema(
-    method: &str,
-    api_method: &ApiMethod,
-) -> Value {
+fn dump_api_method_schema(method: &str, api_method: &ApiMethod) -> Value {
     let mut data = json!({
         "description": api_method.parameters.description(),
     });
@@ -277,10 +266,16 @@ fn dump_api_method_schema(
     data["returns"] = returns;
 
     match api_method.access {
-        ApiAccess { description: None, permission: Permission::Superuser } => {
+        ApiAccess {
+            description: None,
+            permission: Permission::Superuser,
+        } => {
             // no need to output default
         }
-        ApiAccess { description, permission } => {
+        ApiAccess {
+            description,
+            permission,
+        } => {
             let mut permissions = dump_api_permission(permission);
             if let Some(description) = description {
                 permissions["description"] = description.into();
@@ -301,11 +296,7 @@ fn dump_api_method_schema(
     data
 }
 
-pub fn dump_api_schema(
-    router: &Router,
-    path: &str,
-) -> Value {
-
+pub fn dump_api_schema(router: &Router, path: &str) -> Value {
     let mut data = json!({});
 
     let mut info = json!({});
@@ -327,7 +318,7 @@ pub fn dump_api_schema(
     match &router.subroute {
         None => {
             data["leaf"] = 1.into();
-        },
+        }
         Some(SubRoute::MatchAll { router, param_name }) => {
             let sub_path = if path == "." {
                 format!("/{{{}}}", param_name)
@@ -343,7 +334,6 @@ pub fn dump_api_schema(
             data["leaf"] = 0.into();
         }
         Some(SubRoute::Map(dirmap)) => {
-
             let mut children = Vec::new();
 
             for (key, sub_router) in dirmap.iter() {

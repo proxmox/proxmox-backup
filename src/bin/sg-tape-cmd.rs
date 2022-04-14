@@ -2,7 +2,6 @@
 /// to read and set the encryption key.
 ///
 /// This command can use STDIN as tape device handle.
-
 use std::fs::File;
 use std::os::unix::io::{AsRawFd, FromRawFd};
 
@@ -14,24 +13,15 @@ use proxmox_schema::api;
 use proxmox_uuid::Uuid;
 
 use pbs_api_types::{
-    Fingerprint, LTO_DRIVE_PATH_SCHEMA, DRIVE_NAME_SCHEMA, TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
-    MEDIA_SET_UUID_SCHEMA, LtoTapeDrive,
+    Fingerprint, LtoTapeDrive, DRIVE_NAME_SCHEMA, LTO_DRIVE_PATH_SCHEMA, MEDIA_SET_UUID_SCHEMA,
+    TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
 };
 
-use pbs_tape::linux_list_drives::{open_lto_tape_device, check_tape_is_lto_tape_device};
+use pbs_tape::linux_list_drives::{check_tape_is_lto_tape_device, open_lto_tape_device};
 
-use proxmox_backup::{
-    tape::{
-        drive::{
-            TapeDriver,
-            LtoTapeHandle,
-            open_lto_tape_drive,
-        },
-    },
-};
+use proxmox_backup::tape::drive::{open_lto_tape_drive, LtoTapeHandle, TapeDriver};
 
 fn get_tape_handle(param: &Value) -> Result<LtoTapeHandle, Error> {
-
     let handle = if let Some(name) = param["drive"].as_str() {
         let (config, _digest) = pbs_config::drive::config()?;
         let drive: LtoTapeDrive = config.lookup("lto", name)?;
@@ -56,7 +46,9 @@ fn get_tape_handle(param: &Value) -> Result<LtoTapeHandle, Error> {
 
         let mut drive_names = Vec::new();
         for (name, (section_type, _)) in config.sections.iter() {
-            if section_type != "lto" { continue; }
+            if section_type != "lto" {
+                continue;
+            }
             drive_names.push(name);
         }
 
@@ -106,7 +98,6 @@ fn set_encryption(
     uuid: Option<Uuid>,
     param: Value,
 ) -> Result<(), Error> {
-
     let result = proxmox_lang::try_block!({
         let mut handle = get_tape_handle(&param)?;
 
@@ -123,7 +114,8 @@ fn set_encryption(
         }
 
         Ok(())
-    }).map_err(|err: Error| err.to_string());
+    })
+    .map_err(|err: Error| err.to_string());
 
     println!("{}", serde_json::to_string_pretty(&result)?);
 
@@ -131,7 +123,6 @@ fn set_encryption(
 }
 
 fn main() -> Result<(), Error> {
-
     // check if we are user root or backup
     let backup_uid = pbs_config::backup_user()?.uid;
     let backup_gid = pbs_config::backup_group()?.gid;
@@ -146,16 +137,13 @@ fn main() -> Result<(), Error> {
     if !running_uid.is_root() && (running_uid != backup_uid || running_gid != backup_gid) {
         bail!(
             "Not running as backup user or group (got uid {} gid {})",
-            running_uid, running_gid,
+            running_uid,
+            running_gid,
         );
     }
 
-    let cmd_def = CliCommandMap::new()
-        .insert(
-            "encryption",
-            CliCommand::new(&API_METHOD_SET_ENCRYPTION)
-        )
-        ;
+    let cmd_def =
+        CliCommandMap::new().insert("encryption", CliCommand::new(&API_METHOD_SET_ENCRYPTION));
 
     let mut rpcenv = CliEnvironment::new();
     rpcenv.set_auth_id(Some(String::from("root@pam")));

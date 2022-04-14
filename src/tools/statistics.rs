@@ -1,6 +1,6 @@
 //! Helpers for common statistics tasks
-use num_traits::NumAssignRef;
 use num_traits::cast::ToPrimitive;
+use num_traits::NumAssignRef;
 
 /// Calculates the sum of a list of numbers
 /// ```
@@ -14,7 +14,7 @@ use num_traits::cast::ToPrimitive;
 /// ```
 pub fn sum<T>(list: &[T]) -> T
 where
-    T: NumAssignRef + ToPrimitive
+    T: NumAssignRef + ToPrimitive,
 {
     let mut sum = T::zero();
     for num in list {
@@ -32,13 +32,13 @@ where
 /// ```
 pub fn mean<T>(list: &[T]) -> Option<f64>
 where
-    T: NumAssignRef + ToPrimitive
+    T: NumAssignRef + ToPrimitive,
 {
     let len = list.len();
     if len == 0 {
-        return None
+        return None;
     }
-    Some(sum(list).to_f64()?/(list.len() as f64))
+    Some(sum(list).to_f64()? / (list.len() as f64))
 }
 
 /// Calculates the variance of a variable x
@@ -50,13 +50,13 @@ where
 /// ```
 pub fn variance<T>(list: &[T]) -> Option<f64>
 where
-    T: NumAssignRef + ToPrimitive
+    T: NumAssignRef + ToPrimitive,
 {
     covariance(list, list)
 }
 
 /// Calculates the (non-corrected) covariance of two variables x,y
-pub fn covariance<X, Y> (x: &[X], y: &[Y]) -> Option<f64>
+pub fn covariance<X, Y>(x: &[X], y: &[Y]) -> Option<f64>
 where
     X: NumAssignRef + ToPrimitive,
     Y: NumAssignRef + ToPrimitive,
@@ -64,19 +64,21 @@ where
     let len_x = x.len();
     let len_y = y.len();
     if len_x == 0 || len_y == 0 || len_x != len_y {
-        return None
+        return None;
     }
 
     let mean_x = mean(x)?;
     let mean_y = mean(y)?;
 
-    let covariance: f64 = (0..len_x).map(|i| {
-        let x = x[i].to_f64().unwrap_or(0.0);
-        let y = y[i].to_f64().unwrap_or(0.0);
-        (x - mean_x)*(y - mean_y)
-    }).sum();
+    let covariance: f64 = (0..len_x)
+        .map(|i| {
+            let x = x[i].to_f64().unwrap_or(0.0);
+            let y = y[i].to_f64().unwrap_or(0.0);
+            (x - mean_x) * (y - mean_y)
+        })
+        .sum();
 
-    Some(covariance/(len_x as f64))
+    Some(covariance / (len_x as f64))
 }
 
 /// Returns the factors `(a,b)` of a linear regression `y = a + bx`
@@ -90,15 +92,15 @@ where
 /// assert!((a - -4.0).abs() < 0.001);
 /// assert!((b - 2.0).abs() < 0.001);
 /// ```
-pub fn linear_regression<X, Y> (x: &[X], y: &[Y]) -> Option<(f64, f64)>
+pub fn linear_regression<X, Y>(x: &[X], y: &[Y]) -> Option<(f64, f64)>
 where
     X: NumAssignRef + ToPrimitive,
-    Y: NumAssignRef + ToPrimitive
+    Y: NumAssignRef + ToPrimitive,
 {
     let len_x = x.len();
     let len_y = y.len();
     if len_x == 0 || len_y == 0 || len_x != len_y {
-        return None
+        return None;
     }
 
     let mean_x = mean(x)?;
@@ -113,11 +115,11 @@ where
 
         let x_mean_x = x - mean_x;
 
-        covariance += x_mean_x*(y - mean_y);
+        covariance += x_mean_x * (y - mean_y);
         variance += x_mean_x * x_mean_x;
     }
 
-    let beta = covariance/variance;
-    let alpha = mean_y - beta*mean_x;
-    Some((alpha,beta))
+    let beta = covariance / variance;
+    let alpha = mean_y - beta * mean_x;
+    Some((alpha, beta))
 }

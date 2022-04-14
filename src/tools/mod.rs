@@ -6,11 +6,7 @@ use std::any::Any;
 use anyhow::{bail, format_err, Error};
 use openssl::hash::{hash, DigestBytes, MessageDigest};
 
-use proxmox_http::{
-    client::SimpleHttp,
-    client::SimpleHttpOptions,
-    ProxyConfig,
-};
+use proxmox_http::{client::SimpleHttp, client::SimpleHttpOptions, ProxyConfig};
 
 pub mod apt;
 pub mod config;
@@ -36,8 +32,7 @@ pub fn get_hardware_address() -> Result<String, Error> {
 
     let contents = proxmox_sys::fs::file_get_contents(FILENAME)
         .map_err(|e| format_err!("Error getting host key - {}", e))?;
-    let digest = md5sum(&contents)
-        .map_err(|e| format_err!("Error digesting host key - {}", e))?;
+    let digest = md5sum(&contents).map_err(|e| format_err!("Error digesting host key - {}", e))?;
 
     Ok(hex::encode(&digest).to_uppercase())
 }
@@ -49,11 +44,13 @@ pub fn assert_if_modified(digest1: &str, digest2: &str) -> Result<(), Error> {
     Ok(())
 }
 
-
 /// Detect modified configuration files
 ///
 /// This function fails with a reasonable error message if checksums do not match.
-pub fn detect_modified_configuration_file(digest1: &[u8;32], digest2: &[u8;32]) -> Result<(), Error> {
+pub fn detect_modified_configuration_file(
+    digest1: &[u8; 32],
+    digest2: &[u8; 32],
+) -> Result<(), Error> {
     if digest1 != digest2 {
         bail!("detected modified configuration - file changed by other user? Try again.");
     }

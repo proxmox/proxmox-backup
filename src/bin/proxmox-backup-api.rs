@@ -4,19 +4,21 @@ use std::pin::Pin;
 use anyhow::{bail, Error};
 use futures::*;
 use http::request::Parts;
+use http::HeaderMap;
 use http::Response;
 use hyper::{Body, Method, StatusCode};
-use http::HeaderMap;
 
 use proxmox_lang::try_block;
 use proxmox_router::{RpcEnvironmentType, UserInformation};
 use proxmox_sys::fs::CreateOptions;
 
-use proxmox_rest_server::{daemon, AuthError, ApiConfig, RestServer, RestEnvironment, ServerAdapter};
+use proxmox_rest_server::{
+    daemon, ApiConfig, AuthError, RestEnvironment, RestServer, ServerAdapter,
+};
 
-use proxmox_backup::server::auth::check_pbs_auth;
 use proxmox_backup::auth_helpers::*;
 use proxmox_backup::config;
+use proxmox_backup::server::auth::check_pbs_auth;
 
 fn main() {
     pbs_tools::setup_libc_malloc_opts();
@@ -32,14 +34,12 @@ fn main() {
 struct ProxmoxBackupApiAdapter;
 
 impl ServerAdapter for ProxmoxBackupApiAdapter {
-
     fn get_index(
         &self,
         _env: RestEnvironment,
         _parts: Parts,
     ) -> Pin<Box<dyn Future<Output = Response<Body>> + Send>> {
         Box::pin(async move {
-
             let index = "<center><h1>Proxmox Backup API Server</h1></center>";
 
             Response::builder()
@@ -54,10 +54,14 @@ impl ServerAdapter for ProxmoxBackupApiAdapter {
         &'a self,
         headers: &'a HeaderMap,
         method: &'a Method,
-    ) -> Pin<Box<dyn Future<Output = Result<(String, Box<dyn UserInformation + Sync + Send>), AuthError>> + Send + 'a>> {
-        Box::pin(async move {
-            check_pbs_auth(headers, method).await
-        })
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<(String, Box<dyn UserInformation + Sync + Send>), AuthError>>
+                + Send
+                + 'a,
+        >,
+    > {
+        Box::pin(async move { check_pbs_auth(headers, method).await })
     }
 }
 
@@ -65,7 +69,8 @@ async fn run() -> Result<(), Error> {
     if let Err(err) = syslog::init(
         syslog::Facility::LOG_DAEMON,
         log::LevelFilter::Info,
-        Some("proxmox-backup-api")) {
+        Some("proxmox-backup-api"),
+    ) {
         bail!("unable to inititialize syslog - {}", err);
     }
 
@@ -100,10 +105,17 @@ async fn run() -> Result<(), Error> {
     )?;
 
     let backup_user = pbs_config::backup_user()?;
-    let mut commando_sock = proxmox_rest_server::CommandSocket::new(proxmox_rest_server::our_ctrl_sock(), backup_user.gid);
+    let mut commando_sock = proxmox_rest_server::CommandSocket::new(
+        proxmox_rest_server::our_ctrl_sock(),
+        backup_user.gid,
+    );
 
-    let dir_opts = CreateOptions::new().owner(backup_user.uid).group(backup_user.gid);
-    let file_opts = CreateOptions::new().owner(backup_user.uid).group(backup_user.gid);
+    let dir_opts = CreateOptions::new()
+        .owner(backup_user.uid)
+        .group(backup_user.gid);
+    let file_opts = CreateOptions::new()
+        .owner(backup_user.uid)
+        .group(backup_user.gid);
 
     config.enable_access_log(
         pbs_buildcfg::API_ACCESS_LOG_FN,
@@ -119,27 +131,26 @@ async fn run() -> Result<(), Error> {
         &mut commando_sock,
     )?;
 
-
     let rest_server = RestServer::new(config);
-    proxmox_rest_server::init_worker_tasks(pbs_buildcfg::PROXMOX_BACKUP_LOG_DIR_M!().into(), file_opts.clone())?;
+    proxmox_rest_server::init_worker_tasks(
+        pbs_buildcfg::PROXMOX_BACKUP_LOG_DIR_M!().into(),
+        file_opts.clone(),
+    )?;
 
     // http server future:
-    let server = daemon::create_daemon(
-        ([127,0,0,1], 82).into(),
-        move |listener| {
-            let incoming = hyper::server::conn::AddrIncoming::from_listener(listener)?;
+    let server = daemon::create_daemon(([127, 0, 0, 1], 82).into(), move |listener| {
+        let incoming = hyper::server::conn::AddrIncoming::from_listener(listener)?;
 
-            Ok(async {
-                daemon::systemd_notify(daemon::SystemdNotify::Ready)?;
+        Ok(async {
+            daemon::systemd_notify(daemon::SystemdNotify::Ready)?;
 
-                hyper::Server::builder(incoming)
-                    .serve(rest_server)
-                    .with_graceful_shutdown(proxmox_rest_server::shutdown_future())
-                    .map_err(Error::from)
-                    .await
-            })
-        },
-    );
+            hyper::Server::builder(incoming)
+                .serve(rest_server)
+                .with_graceful_shutdown(proxmox_rest_server::shutdown_future())
+                .map_err(Error::from)
+                .await
+        })
+    });
 
     proxmox_rest_server::write_pid(pbs_buildcfg::PROXMOX_BACKUP_API_PID_FN)?;
 

@@ -166,7 +166,6 @@ fn merge_parameters(
         }));
     }
 
-
     let params = schema.parse_parameter_strings(&param_list, true)?;
 
     Ok(params)

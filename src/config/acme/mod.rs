@@ -6,15 +6,11 @@ use anyhow::{bail, format_err, Error};
 use serde_json::Value;
 
 use proxmox_sys::error::SysError;
-use proxmox_sys::fs::{CreateOptions, file_read_string};
+use proxmox_sys::fs::{file_read_string, CreateOptions};
 
 use pbs_api_types::PROXMOX_SAFE_ID_REGEX;
 
-use crate::api2::types::{
-    AcmeChallengeSchema,
-    KnownAcmeDirectory,
-    AcmeAccountName,
-};
+use crate::api2::types::{AcmeAccountName, AcmeChallengeSchema, KnownAcmeDirectory};
 
 pub(crate) const ACME_DIR: &str = pbs_buildcfg::configdir!("/acme");
 pub(crate) const ACME_ACCOUNT_DIR: &str = pbs_buildcfg::configdir!("/acme/accounts");
@@ -64,7 +60,6 @@ pub const DEFAULT_ACME_DIRECTORY_ENTRY: &KnownAcmeDirectory = &KNOWN_ACME_DIRECT
 pub fn account_path(name: &str) -> String {
     format!("{}/{}", ACME_ACCOUNT_DIR, name)
 }
-
 
 pub fn foreach_acme_account<F>(mut func: F) -> Result<(), Error>
 where
@@ -163,7 +158,10 @@ pub fn complete_acme_plugin_type(_arg: &str, _param: &HashMap<String, String>) -
     ]
 }
 
-pub fn complete_acme_api_challenge_type(_arg: &str, param: &HashMap<String, String>) -> Vec<String> {
+pub fn complete_acme_api_challenge_type(
+    _arg: &str,
+    param: &HashMap<String, String>,
+) -> Vec<String> {
     if param.get("type") == Some(&"dns".to_string()) {
         match load_dns_challenge_schema() {
             Ok(schema) => schema.into_iter().map(|s| s.id).collect(),

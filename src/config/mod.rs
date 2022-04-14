@@ -4,11 +4,11 @@
 //! configuration files.
 
 use anyhow::{bail, format_err, Error};
-use std::path::PathBuf;
 use nix::sys::stat::Mode;
-use openssl::rsa::{Rsa};
-use openssl::x509::{X509Builder};
 use openssl::pkey::PKey;
+use openssl::rsa::Rsa;
+use openssl::x509::X509Builder;
+use std::path::PathBuf;
 
 use proxmox_lang::try_block;
 
@@ -73,23 +73,23 @@ pub fn create_configdir() -> Result<(), Error> {
 
     let backup_user = pbs_config::backup_user()?;
 
-    nix::unistd::chown(cfgdir, Some(backup_user.uid), Some(backup_user.gid))
-        .map_err(|err| {
-            format_err!(
-                "unable to set configuration directory '{}' permissions - {}",
-                cfgdir,
-                err
-            )
-        })
+    nix::unistd::chown(cfgdir, Some(backup_user.uid), Some(backup_user.gid)).map_err(|err| {
+        format_err!(
+            "unable to set configuration directory '{}' permissions - {}",
+            cfgdir,
+            err
+        )
+    })
 }
 
 /// Update self signed node certificate.
 pub fn update_self_signed_cert(force: bool) -> Result<(), Error> {
-
     let key_path = PathBuf::from(configdir!("/proxy.key"));
     let cert_path = PathBuf::from(configdir!("/proxy.pem"));
 
-    if key_path.exists() && cert_path.exists() && !force { return Ok(()); }
+    if key_path.exists() && cert_path.exists() && !force {
+        return Ok(());
+    }
 
     let rsa = Rsa::generate(4096).unwrap();
 
@@ -101,7 +101,7 @@ pub fn update_self_signed_cert(force: bool) -> Result<(), Error> {
 
     let today = openssl::asn1::Asn1Time::days_from_now(0)?;
     x509.set_not_before(&today)?;
-    let expire = openssl::asn1::Asn1Time::days_from_now(365*1000)?;
+    let expire = openssl::asn1::Asn1Time::days_from_now(365 * 1000)?;
     x509.set_not_after(&expire)?;
 
     let nodename = proxmox_sys::nodename();
@@ -144,8 +144,12 @@ pub fn update_self_signed_cert(force: bool) -> Result<(), Error> {
 
     alt_names.dns("localhost");
 
-    if nodename != "localhost" { alt_names.dns(nodename); }
-    if nodename != fqdn { alt_names.dns(&fqdn); }
+    if nodename != "localhost" {
+        alt_names.dns(nodename);
+    }
+    if nodename != fqdn {
+        alt_names.dns(&fqdn);
+    }
 
     let alt_names = alt_names.build(&context)?;
 

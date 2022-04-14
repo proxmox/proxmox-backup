@@ -1,13 +1,13 @@
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::{stdout, Read, Seek, SeekFrom, Write};
-use std::path::Path;
 use std::panic::{RefUnwindSafe, UnwindSafe};
+use std::path::Path;
 
 use anyhow::{bail, format_err, Error};
+use hex::FromHex;
 use serde_json::{json, Value};
 use walkdir::WalkDir;
-use hex::FromHex;
 
 use proxmox_router::cli::{
     format_and_print_result, get_output_format, CliCommand, CliCommandMap, CommandLineInterface,
@@ -15,7 +15,8 @@ use proxmox_router::cli::{
 };
 use proxmox_schema::api;
 
-use pbs_tools::crypt_config::CryptConfig;
+use pbs_client::tools::key_source::get_encryption_key_password;
+use pbs_config::key_config::load_and_decrypt_key;
 use pbs_datastore::dynamic_index::DynamicIndexReader;
 use pbs_datastore::file_formats::{
     COMPRESSED_BLOB_MAGIC_1_0, DYNAMIC_SIZED_CHUNK_INDEX_1_0, ENCRYPTED_BLOB_MAGIC_1_0,
@@ -24,8 +25,7 @@ use pbs_datastore::file_formats::{
 use pbs_datastore::fixed_index::FixedIndexReader;
 use pbs_datastore::index::IndexFile;
 use pbs_datastore::DataBlob;
-use pbs_config::key_config::load_and_decrypt_key;
-use pbs_client::tools::key_source::get_encryption_key_password;
+use pbs_tools::crypt_config::CryptConfig;
 
 // Returns either a new file, if a path is given, or stdout, if no path is given.
 fn outfile_or_stdout<P: AsRef<Path>>(
@@ -128,8 +128,7 @@ fn inspect_chunk(
 
     let digest_raw: Option<[u8; 32]> = digest
         .map(|ref d| {
-            <[u8; 32]>::from_hex(d)
-                .map_err(|e| format_err!("could not parse chunk - {}", e))
+            <[u8; 32]>::from_hex(d).map_err(|e| format_err!("could not parse chunk - {}", e))
         })
         .map_or(Ok(None), |r| r.map(Some))?;
 

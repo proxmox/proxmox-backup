@@ -47,8 +47,8 @@ use pbs_buildcfg::configdir;
 use proxmox_time::CalendarEvent;
 
 use pbs_api_types::{
-    Authid, DataStoreConfig, PruneOptions, SyncJobConfig, TapeBackupJobConfig,
-    VerificationJobConfig, Operation
+    Authid, DataStoreConfig, Operation, PruneOptions, SyncJobConfig, TapeBackupJobConfig,
+    VerificationJobConfig,
 };
 
 use proxmox_rest_server::daemon;
@@ -101,10 +101,14 @@ impl ServerAdapter for ProxmoxBackupProxyAdapter {
         &'a self,
         headers: &'a HeaderMap,
         method: &'a Method,
-    ) -> Pin<Box<dyn Future<Output = Result<(String, Box<dyn UserInformation + Sync + Send>), AuthError>> + Send + 'a>> {
-        Box::pin(async move {
-            check_pbs_auth(headers, method).await
-        })
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<(String, Box<dyn UserInformation + Sync + Send>), AuthError>>
+                + Send
+                + 'a,
+        >,
+    > {
+        Box::pin(async move { check_pbs_auth(headers, method).await })
     }
 }
 
@@ -194,7 +198,11 @@ async fn run() -> Result<(), Error> {
 
     if let Err(err) = syslog::init(
         syslog::Facility::LOG_DAEMON,
-        if debug { log::LevelFilter::Debug } else { log::LevelFilter::Info },
+        if debug {
+            log::LevelFilter::Debug
+        } else {
+            log::LevelFilter::Info
+        },
         Some("proxmox-backup-proxy"),
     ) {
         bail!("unable to inititialize syslog - {}", err);

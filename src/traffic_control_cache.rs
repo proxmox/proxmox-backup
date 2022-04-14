@@ -1,15 +1,15 @@
 //! Traffic control implementation
 
-use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use std::time::Instant;
 use std::convert::TryInto;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 use anyhow::Error;
 use cidr::IpInet;
 
-use proxmox_http::client::{ShareableRateLimit, RateLimiter};
+use proxmox_http::client::{RateLimiter, ShareableRateLimit};
 use proxmox_section_config::SectionConfigData;
 
 use proxmox_time::{parse_daily_duration, DailyDuration, TmEditor};
@@ -20,15 +20,15 @@ use pbs_config::ConfigVersionCache;
 
 use crate::tools::SharedRateLimiter;
 
-lazy_static::lazy_static!{
+lazy_static::lazy_static! {
     /// Shared traffic control cache singleton.
     pub static ref TRAFFIC_CONTROL_CACHE: Arc<Mutex<TrafficControlCache>> =
         Arc::new(Mutex::new(TrafficControlCache::new()));
 }
 
 struct ParsedTcRule {
-    config: TrafficControlRule, // original rule config
-    networks: Vec<IpInet>, // parsed networks
+    config: TrafficControlRule,    // original rule config
+    networks: Vec<IpInet>,         // parsed networks
     timeframe: Vec<DailyDuration>, // parsed timeframe
 }
 
@@ -54,16 +54,20 @@ pub struct TrafficControlCache {
     last_update: i64,
     last_traffic_control_generation: usize,
     rules: Vec<ParsedTcRule>,
-    limiter_map: HashMap<String, (Option<Arc<dyn ShareableRateLimit>>, Option<Arc<dyn ShareableRateLimit>>)>,
+    limiter_map: HashMap<
+        String,
+        (
+            Option<Arc<dyn ShareableRateLimit>>,
+            Option<Arc<dyn ShareableRateLimit>>,
+        ),
+    >,
     use_utc: bool, // currently only used for testing
 }
 
-fn timeframe_match(
-    duration_list: &[DailyDuration],
-    now: &TmEditor,
-) -> bool {
-
-    if duration_list.is_empty() { return true; }
+fn timeframe_match(duration_list: &[DailyDuration], now: &TmEditor) -> bool {
+    if duration_list.is_empty() {
+        return true;
+    }
 
     for duration in duration_list.iter() {
         if duration.time_match_with_tm_editor(now) {
@@ -74,11 +78,7 @@ fn timeframe_match(
     false
 }
 
-fn network_match_len(
-    networks: &[IpInet],
-    ip: &IpAddr,
-) -> Option<u8> {
-
+fn network_match_len(networks: &[IpInet], ip: &IpAddr) -> Option<u8> {
     let mut match_len = None;
 
     for cidr in networks.iter() {
@@ -101,14 +101,12 @@ fn cannonical_ip(ip: IpAddr) -> IpAddr {
     // TODO: use std::net::IpAddr::to_cananical once stable
     match ip {
         IpAddr::V4(addr) => IpAddr::V4(addr),
-        IpAddr::V6(addr) => {
-            match addr.octets() {
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, a, b, c, d] => {
-                    IpAddr::V4(Ipv4Addr::new(a, b, c, d))
-                }
-                _ => IpAddr::V6(addr),
+        IpAddr::V6(addr) => match addr.octets() {
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, a, b, c, d] => {
+                IpAddr::V4(Ipv4Addr::new(a, b, c, d))
             }
-        }
+            _ => IpAddr::V6(addr),
+        },
     }
 }
 
@@ -127,7 +125,6 @@ fn create_limiter(
 }
 
 impl TrafficControlCache {
-
     fn new() -> Self {
         Self {
             use_shared_memory: true,
@@ -150,16 +147,22 @@ impl TrafficControlCache {
         let version_cache = match ConfigVersionCache::new() {
             Ok(cache) => cache,
             Err(err) => {
-                log::error!("TrafficControlCache::reload failed in ConfigVersionCache::new: {}", err);
+                log::error!(
+                    "TrafficControlCache::reload failed in ConfigVersionCache::new: {}",
+                    err
+                );
                 return;
             }
         };
 
         let traffic_control_generation = version_cache.traffic_control_generation();
 
-        if (self.last_update != 0) &&
-            (traffic_control_generation == self.last_traffic_control_generation) &&
-            ((now - self.last_update) < 60) { return; }
+        if (self.last_update != 0)
+            && (traffic_control_generation == self.last_traffic_control_generation)
+            && ((now - self.last_update) < 60)
+        {
+            return;
+        }
 
         log::debug!("reload traffic control rules");
 
@@ -184,9 +187,10 @@ impl TrafficControlCache {
     ///
     /// This should be called every second (from `proxmox-backup-proxy`).
     pub fn compute_current_rates(&mut self) {
-
         let elapsed = self.last_rate_compute.elapsed().as_micros();
-        if elapsed < 200_000 { return } // not enough data
+        if elapsed < 200_000 {
+            return;
+        } // not enough data
 
         let mut new_rate_map = HashMap::new();
 
@@ -228,30 +232,30 @@ impl TrafficControlCache {
     }
 
     fn update_config(&mut self, config: &SectionConfigData) -> Result<(), Error> {
-        self.limiter_map.retain(|key, _value| config.sections.contains_key(key));
+        self.limiter_map
+            .retain(|key, _value| config.sections.contains_key(key));
 
-        let rules: Vec<TrafficControlRule> =
-            config.convert_to_typed_array("rule")?;
+        let rules: Vec<TrafficControlRule> = config.convert_to_typed_array("rule")?;
 
         let mut active_rules = Vec::new();
 
         for rule in rules {
-
-            let entry = self.limiter_map.entry(rule.name.clone()).or_insert((None, None));
+            let entry = self
+                .limiter_map
+                .entry(rule.name.clone())
+                .or_insert((None, None));
             let limit = &rule.limit;
 
             match entry.0 {
-                Some(ref read_limiter) => {
-                    match limit.rate_in {
-                        Some(rate_in) => {
-                            read_limiter.update_rate(
-                                rate_in.as_u64(),
-                                limit.burst_in.unwrap_or(rate_in).as_u64(),
-                            );
-                        }
-                        None => entry.0 = None,
+                Some(ref read_limiter) => match limit.rate_in {
+                    Some(rate_in) => {
+                        read_limiter.update_rate(
+                            rate_in.as_u64(),
+                            limit.burst_in.unwrap_or(rate_in).as_u64(),
+                        );
                     }
-                }
+                    None => entry.0 = None,
+                },
                 None => {
                     if let Some(rate_in) = limit.rate_in {
                         let name = format!("{}.in", rule.name);
@@ -267,17 +271,15 @@ impl TrafficControlCache {
             }
 
             match entry.1 {
-                Some(ref write_limiter) => {
-                    match limit.rate_out {
-                        Some(rate_out) => {
-                            write_limiter.update_rate(
-                                rate_out.as_u64(),
-                                limit.burst_out.unwrap_or(rate_out).as_u64(),
-                            );
-                        }
-                        None => entry.1 = None,
+                Some(ref write_limiter) => match limit.rate_out {
+                    Some(rate_out) => {
+                        write_limiter.update_rate(
+                            rate_out.as_u64(),
+                            limit.burst_out.unwrap_or(rate_out).as_u64(),
+                        );
                     }
-                }
+                    None => entry.1 = None,
+                },
                 None => {
                     if let Some(rate_out) = limit.rate_out {
                         let name = format!("{}.out", rule.name);
@@ -314,7 +316,11 @@ impl TrafficControlCache {
                 networks.push(cidr);
             }
 
-            active_rules.push(ParsedTcRule { config: rule, networks, timeframe });
+            active_rules.push(ParsedTcRule {
+                config: rule,
+                networks,
+                timeframe,
+            });
         }
 
         self.rules = active_rules;
@@ -333,8 +339,11 @@ impl TrafficControlCache {
         &self,
         peer: SocketAddr,
         now: i64,
-    ) -> (&str, Option<Arc<dyn ShareableRateLimit>>, Option<Arc<dyn ShareableRateLimit>>) {
-
+    ) -> (
+        &str,
+        Option<Arc<dyn ShareableRateLimit>>,
+        Option<Arc<dyn ShareableRateLimit>>,
+    ) {
         let peer_ip = cannonical_ip(peer.ip());
 
         log::debug!("lookup_rate_limiter: {:?}", peer_ip);
@@ -350,7 +359,9 @@ impl TrafficControlCache {
         let mut last_rule_match = None;
 
         for rule in self.rules.iter() {
-            if !timeframe_match(&rule.timeframe, &now) { continue; }
+            if !timeframe_match(&rule.timeframe, &now) {
+                continue;
+            }
 
             if let Some(match_len) = network_match_len(&rule.networks, &peer_ip) {
                 match last_rule_match {
@@ -367,9 +378,11 @@ impl TrafficControlCache {
         match last_rule_match {
             Some((rule, _)) => {
                 match self.limiter_map.get(&rule.config.name) {
-                    Some((read_limiter, write_limiter)) => {
-                        (&rule.config.name, read_limiter.clone(), write_limiter.clone())
-                    }
+                    Some((read_limiter, write_limiter)) => (
+                        &rule.config.name,
+                        read_limiter.clone(),
+                        write_limiter.clone(),
+                    ),
                     None => ("", None, None), // should never happen
                 }
             }
@@ -378,23 +391,27 @@ impl TrafficControlCache {
     }
 }
 
-
 #[cfg(test)]
 mod test {
     use super::*;
 
     const fn make_test_time(mday: i32, hour: i32, min: i32) -> i64 {
-        (mday*3600*24 + hour*3600 + min*60) as i64
+        (mday * 3600 * 24 + hour * 3600 + min * 60) as i64
     }
 
     #[test]
     fn testnetwork_match() -> Result<(), Error> {
-
         let networks = ["192.168.2.1/24", "127.0.0.0/8"];
         let networks: Vec<IpInet> = networks.iter().map(|n| n.parse().unwrap()).collect();
 
-        assert_eq!(network_match_len(&networks, &"192.168.2.1".parse()?), Some(24));
-        assert_eq!(network_match_len(&networks, &"192.168.2.254".parse()?), Some(24));
+        assert_eq!(
+            network_match_len(&networks, &"192.168.2.1".parse()?),
+            Some(24)
+        );
+        assert_eq!(
+            network_match_len(&networks, &"192.168.2.254".parse()?),
+            Some(24)
+        );
         assert_eq!(network_match_len(&networks, &"192.168.3.1".parse()?), None);
         assert_eq!(network_match_len(&networks, &"127.1.1.0".parse()?), Some(8));
         assert_eq!(network_match_len(&networks, &"128.1.1.0".parse()?), None);
@@ -402,14 +419,16 @@ mod test {
         let networks = ["0.0.0.0/0"];
         let networks: Vec<IpInet> = networks.iter().map(|n| n.parse().unwrap()).collect();
         assert_eq!(network_match_len(&networks, &"127.1.1.0".parse()?), Some(0));
-        assert_eq!(network_match_len(&networks, &"192.168.2.1".parse()?), Some(0));
+        assert_eq!(
+            network_match_len(&networks, &"192.168.2.1".parse()?),
+            Some(0)
+        );
 
         Ok(())
     }
 
     #[test]
-    fn test_rule_match()  -> Result<(), Error> {
-
+    fn test_rule_match() -> Result<(), Error> {
         let config_data = "
 rule: rule1
 	comment my test rule
@@ -448,32 +467,35 @@ rule: somewhere
         let private = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(192, 168, 2, 35)), 1234);
         let somewhere = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4)), 1234);
 
-        let (rule, read_limiter, write_limiter) = cache.lookup_rate_limiter(somewhere, THURSDAY_80_00);
+        let (rule, read_limiter, write_limiter) =
+            cache.lookup_rate_limiter(somewhere, THURSDAY_80_00);
         assert_eq!(rule, "somewhere");
         assert!(read_limiter.is_some());
         assert!(write_limiter.is_some());
 
-         let (rule, read_limiter, write_limiter) = cache.lookup_rate_limiter(local, THURSDAY_19_00);
+        let (rule, read_limiter, write_limiter) = cache.lookup_rate_limiter(local, THURSDAY_19_00);
         assert_eq!(rule, "rule2");
         assert!(read_limiter.is_some());
         assert!(write_limiter.is_some());
 
-        let (rule, read_limiter, write_limiter) = cache.lookup_rate_limiter(gateway, THURSDAY_15_00);
+        let (rule, read_limiter, write_limiter) =
+            cache.lookup_rate_limiter(gateway, THURSDAY_15_00);
         assert_eq!(rule, "rule1");
         assert!(read_limiter.is_some());
         assert!(write_limiter.is_some());
 
-        let (rule, read_limiter, write_limiter) = cache.lookup_rate_limiter(gateway, THURSDAY_19_00);
+        let (rule, read_limiter, write_limiter) =
+            cache.lookup_rate_limiter(gateway, THURSDAY_19_00);
         assert_eq!(rule, "somewhere");
         assert!(read_limiter.is_some());
         assert!(write_limiter.is_some());
 
-        let (rule, read_limiter, write_limiter) = cache.lookup_rate_limiter(private, THURSDAY_19_00);
+        let (rule, read_limiter, write_limiter) =
+            cache.lookup_rate_limiter(private, THURSDAY_19_00);
         assert_eq!(rule, "rule2");
         assert!(read_limiter.is_some());
         assert!(write_limiter.is_some());
 
         Ok(())
     }
-
 }

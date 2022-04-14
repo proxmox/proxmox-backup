@@ -8,11 +8,11 @@ use anyhow::{bail, format_err, Error};
 
 use proxmox_sys::{task_log, WorkerTaskContext};
 
-use pbs_api_types::{Authid, CryptMode, VerifyState, UPID, SnapshotVerifyState};
-use pbs_datastore::{DataStore, DataBlob, StoreProgress};
-use pbs_datastore::backup_info::{BackupGroup, BackupDir, BackupInfo};
+use pbs_api_types::{Authid, CryptMode, SnapshotVerifyState, VerifyState, UPID};
+use pbs_datastore::backup_info::{BackupDir, BackupGroup, BackupInfo};
 use pbs_datastore::index::IndexFile;
 use pbs_datastore::manifest::{archive_type, ArchiveType, BackupManifest, FileInfo};
+use pbs_datastore::{DataBlob, DataStore, StoreProgress};
 use proxmox_sys::fs::lock_dir_noblock_shared;
 
 use crate::tools::parallel_handler::ParallelHandler;
@@ -63,14 +63,14 @@ fn verify_blob(
             // digest already verified above
             blob.decode(None, None)?;
             Ok(())
-        },
+        }
         CryptMode::SignOnly => bail!("Invalid CryptMode for blob"),
     }
 }
 
 fn rename_corrupted_chunk(
     datastore: Arc<DataStore>,
-    digest: &[u8;32],
+    digest: &[u8; 32],
     worker: &dyn WorkerTaskContext,
 ) {
     let (path, digest_str) = datastore.chunk_path(digest);
@@ -89,11 +89,16 @@ fn rename_corrupted_chunk(
     match std::fs::rename(&path, &new_path) {
         Ok(_) => {
             task_log!(worker, "corrupted chunk renamed to {:?}", &new_path);
-        },
+        }
         Err(err) => {
             match err.kind() {
-                std::io::ErrorKind::NotFound => { /* ignored */ },
-                _ => task_log!(worker, "could not rename corrupted chunk {:?} - {}", &path, err)
+                std::io::ErrorKind::NotFound => { /* ignored */ }
+                _ => task_log!(
+                    worker,
+                    "could not rename corrupted chunk {:?} - {}",
+                    &path,
+                    err
+                ),
             }
         }
     };
@@ -127,7 +132,7 @@ fn verify_index_chunks(
                     task_log!(worker2, "can't verify chunk, unknown CryptMode - {}", err);
                     errors2.fetch_add(1, Ordering::SeqCst);
                     return Ok(());
-                },
+                }
                 Ok(mode) => mode,
             };
 
@@ -151,15 +156,29 @@ fn verify_index_chunks(
             }
 
             Ok(())
-        }
+        },
     );
 
     let skip_chunk = |digest: &[u8; 32]| -> bool {
-        if verify_worker.verified_chunks.lock().unwrap().contains(digest) {
+        if verify_worker
+            .verified_chunks
+            .lock()
+            .unwrap()
+            .contains(digest)
+        {
             true
-        } else if verify_worker.corrupt_chunks.lock().unwrap().contains(digest) {
+        } else if verify_worker
+            .corrupt_chunks
+            .lock()
+            .unwrap()
+            .contains(digest)
+        {
             let digest_str = hex::encode(digest);
-            task_log!(verify_worker.worker, "chunk {} was marked as corrupt", digest_str);
+            task_log!(
+                verify_worker.worker,
+                "chunk {} was marked as corrupt",
+                digest_str
+            );
             errors.fetch_add(1, Ordering::SeqCst);
             true
         } else {
@@ -193,8 +212,16 @@ fn verify_index_chunks(
 
         match verify_worker.datastore.load_chunk(&info.digest) {
             Err(err) => {
-                verify_worker.corrupt_chunks.lock().unwrap().insert(info.digest);
-                task_log!(verify_worker.worker, "can't verify chunk, load failed - {}", err);
+                verify_worker
+                    .corrupt_chunks
+                    .lock()
+                    .unwrap()
+                    .insert(info.digest);
+                task_log!(
+                    verify_worker.worker,
+                    "can't verify chunk, load failed - {}",
+                    err
+                );
                 errors.fetch_add(1, Ordering::SeqCst);
                 rename_corrupted_chunk(
                     verify_worker.datastore.clone(),
@@ -356,7 +383,12 @@ pub fn verify_backup_dir_with_lock(
         }
     }
 
-    task_log!(verify_worker.worker, "verify {}:{}", verify_worker.datastore.name(), backup_dir);
+    task_log!(
+        verify_worker.worker,
+        "verify {}:{}",
+        verify_worker.datastore.name(),
+        backup_dir
+    );
 
     let mut error_count = 0;
 
@@ -367,9 +399,7 @@ pub fn verify_backup_dir_with_lock(
             match archive_type(&info.filename)? {
                 ArchiveType::FixedIndex => verify_fixed_index(verify_worker, backup_dir, info),
                 ArchiveType::DynamicIndex => verify_dynamic_index(verify_worker, backup_dir, info),
-                ArchiveType::Blob => {
-                    verify_blob(verify_worker.datastore.clone(), backup_dir, info)
-                }
+                ArchiveType::Blob => verify_blob(verify_worker.datastore.clone(), backup_dir, info),
             }
         });
 
@@ -473,7 +503,11 @@ pub fn verify_all_backups(
     let mut errors = Vec::new();
     let worker = Arc::clone(&verify_worker.worker);
 
-    task_log!(worker, "verify datastore {}", verify_worker.datastore.name());
+    task_log!(
+        worker,
+        "verify datastore {}",
+        verify_worker.datastore.name()
+    );
 
     if let Some(owner) = &owner {
         task_log!(worker, "limiting to backups owned by {}", owner);
@@ -486,25 +520,20 @@ pub fn verify_all_backups(
                     || (group_owner.is_token()
                         && !owner.is_token()
                         && group_owner.user() == owner.user())
-            },
+            }
             (Ok(_), None) => true,
             (Err(err), Some(_)) => {
                 // intentionally not in task log
                 // the task user might not be allowed to see this group!
                 println!("Failed to get owner of group '{}' - {}", group, err);
                 false
-            },
+            }
             (Err(err), None) => {
                 // we don't filter by owner, but we want to log the error
-                task_log!(
-                    worker,
-                    "Failed to get owner of group '{} - {}",
-                    group,
-                    err,
-                );
+                task_log!(worker, "Failed to get owner of group '{} - {}", group, err,);
                 errors.push(group.to_string());
                 true
-            },
+            }
         }
     };
 

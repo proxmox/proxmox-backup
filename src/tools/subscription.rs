@@ -1,4 +1,4 @@
-use anyhow::{Error, format_err, bail};
+use anyhow::{bail, format_err, Error};
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -6,16 +6,13 @@ use serde_json::json;
 
 use proxmox_schema::api;
 
-use proxmox_sys::fs::{replace_file, CreateOptions};
 use proxmox_http::client::SimpleHttp;
+use proxmox_sys::fs::{replace_file, CreateOptions};
 
 use pbs_tools::json::json_object_to_query;
 
 use crate::config::node;
-use crate::tools::{
-    self,
-    pbs_simple_http,
-};
+use crate::tools::{self, pbs_simple_http};
 
 /// How long the local key is valid for in between remote checks
 pub const MAX_LOCAL_KEY_AGE: i64 = 15 * 24 * 3600;
@@ -41,7 +38,9 @@ pub enum SubscriptionStatus {
     INVALID,
 }
 impl Default for SubscriptionStatus {
-    fn default() -> Self { SubscriptionStatus::NOTFOUND }
+    fn default() -> Self {
+        SubscriptionStatus::NOTFOUND
+    }
 }
 impl std::fmt::Display for SubscriptionStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -62,41 +61,41 @@ impl std::fmt::Display for SubscriptionStatus {
     },
 )]
 #[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all="kebab-case")]
+#[serde(rename_all = "kebab-case")]
 /// Proxmox subscription information
 pub struct SubscriptionInfo {
     /// Subscription status from the last check
     pub status: SubscriptionStatus,
     /// the server ID, if permitted to access
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub serverid: Option<String>,
     /// timestamp of the last check done
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub checktime: Option<i64>,
     /// the subscription key, if set and permitted to access
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub key: Option<String>,
     /// a more human readable status message
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
     /// human readable productname of the set subscription
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub productname: Option<String>,
     /// register date of the set subscription
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub regdate: Option<String>,
     /// next due date of the set subscription
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub nextduedate: Option<String>,
     /// URL to the web shop
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
 }
 
 async fn register_subscription(
     key: &str,
     server_id: &str,
-    checktime: i64
+    checktime: i64,
 ) -> Result<(String, String), Error> {
     // WHCMS sample code feeds the key into this, but it's just a challenge, so keep it simple
     let rand = hex::encode(&proxmox_sys::linux::random_data(16)?);
@@ -120,7 +119,9 @@ async fn register_subscription(
 
     let uri = "https://shop.proxmox.com/modules/servers/licensing/verify.php";
     let query = json_object_to_query(params)?;
-    let response = client.post(uri, Some(query), Some("application/x-www-form-urlencoded")).await?;
+    let response = client
+        .post(uri, Some(query), Some("application/x-www-form-urlencoded"))
+        .await?;
     let body = SimpleHttp::response_body_string(response).await?;
 
     Ok((body, challenge))
@@ -132,7 +133,7 @@ fn parse_status(value: &str) -> SubscriptionStatus {
         "new" => SubscriptionStatus::NEW,
         "notfound" => SubscriptionStatus::NOTFOUND,
         "invalid" => SubscriptionStatus::INVALID,
-         _ => SubscriptionStatus::INVALID,
+        _ => SubscriptionStatus::INVALID,
     }
 }
 
@@ -164,15 +165,16 @@ fn parse_register_response(
             "productname" => info.productname = Some(value.into()),
             "regdate" => info.regdate = Some(value.into()),
             "nextduedate" => info.nextduedate = Some(value.into()),
-            "message" if value == "Directory Invalid" =>
-                info.message = Some("Invalid Server ID".into()),
+            "message" if value == "Directory Invalid" => {
+                info.message = Some("Invalid Server ID".into())
+            }
             "message" => info.message = Some(value.into()),
             "validdirectory" => {
                 if value.split(',').find(is_server_id) == None {
                     bail!("Server ID does not match");
                 }
                 info.serverid = Some(server_id.to_owned());
-            },
+            }
             "md5hash" => md5hash = value.to_owned(),
             _ => (),
         }
@@ -182,7 +184,11 @@ fn parse_register_response(
         let response_raw = format!("{}{}", SHARED_KEY_DATA, challenge);
         let expected = hex::encode(&tools::md5sum(response_raw.as_bytes())?);
         if expected != md5hash {
-            bail!("Subscription API challenge failed, expected {} != got {}", expected, md5hash);
+            bail!(
+                "Subscription API challenge failed, expected {} != got {}",
+                expected,
+                md5hash
+            );
         }
     }
     Ok(info)
@@ -210,29 +216,38 @@ fn test_parse_register_response() -> Result<(), Error> {
     let checktime = 1600000000;
     let salt = "cf44486bddb6ad0145732642c45b2957";
 
-    let info = parse_register_response(response, key.to_owned(), server_id.to_owned(), checktime, salt)?;
+    let info = parse_register_response(
+        response,
+        key.to_owned(),
+        server_id.to_owned(),
+        checktime,
+        salt,
+    )?;
 
-    assert_eq!(info, SubscriptionInfo {
-        key: Some(key),
-        serverid: Some(server_id),
-        status: SubscriptionStatus::ACTIVE,
-        checktime: Some(checktime),
-        url: Some("https://www.proxmox.com/en/proxmox-backup-server/pricing".into()),
-        message: None,
-        nextduedate: Some("2021-09-19".into()),
-        regdate: Some("2020-09-19 00:00:00".into()),
-        productname: Some("Proxmox Backup Server Test Subscription -1 year".into()),
-    });
+    assert_eq!(
+        info,
+        SubscriptionInfo {
+            key: Some(key),
+            serverid: Some(server_id),
+            status: SubscriptionStatus::ACTIVE,
+            checktime: Some(checktime),
+            url: Some("https://www.proxmox.com/en/proxmox-backup-server/pricing".into()),
+            message: None,
+            nextduedate: Some("2021-09-19".into()),
+            regdate: Some("2020-09-19 00:00:00".into()),
+            productname: Some("Proxmox Backup Server Test Subscription -1 year".into()),
+        }
+    );
     Ok(())
 }
 
 /// queries the up to date subscription status and parses the response
 pub fn check_subscription(key: String, server_id: String) -> Result<SubscriptionInfo, Error> {
-
     let now = proxmox_time::epoch_i64();
 
-    let (response, challenge) = proxmox_async::runtime::block_on(register_subscription(&key, &server_id, now))
-        .map_err(|err| format_err!("Error checking subscription: {}", err))?;
+    let (response, challenge) =
+        proxmox_async::runtime::block_on(register_subscription(&key, &server_id, now))
+            .map_err(|err| format_err!("Error checking subscription: {}", err))?;
 
     parse_register_response(&response, key, server_id, now, &challenge)
         .map_err(|err| format_err!("Error parsing subscription check response: {}", err))
@@ -240,16 +255,27 @@ pub fn check_subscription(key: String, server_id: String) -> Result<Subscription
 
 /// reads in subscription information and does a basic integrity verification
 pub fn read_subscription() -> Result<Option<SubscriptionInfo>, Error> {
-
     let cfg = proxmox_sys::fs::file_read_optional_string(&SUBSCRIPTION_FN)?;
-    let cfg = if let Some(cfg) = cfg { cfg } else { return Ok(None); };
+    let cfg = if let Some(cfg) = cfg {
+        cfg
+    } else {
+        return Ok(None);
+    };
 
     let mut cfg = cfg.lines();
 
     // first line is key in plain
-    let _key = if let Some(key) = cfg.next() { key } else { return Ok(None) };
+    let _key = if let Some(key) = cfg.next() {
+        key
+    } else {
+        return Ok(None);
+    };
     // second line is checksum of encoded data
-    let checksum = if let Some(csum) = cfg.next() { csum } else { return Ok(None) };
+    let checksum = if let Some(csum) = cfg.next() {
+        csum
+    } else {
+        return Ok(None);
+    };
 
     let encoded: String = cfg.collect::<String>();
     let decoded = base64::decode(encoded.to_owned())?;
@@ -257,11 +283,16 @@ pub fn read_subscription() -> Result<Option<SubscriptionInfo>, Error> {
 
     let info: SubscriptionInfo = serde_json::from_str(decoded)?;
 
-    let new_checksum = format!("{}{}{}", info.checktime.unwrap_or(0), encoded, SHARED_KEY_DATA);
+    let new_checksum = format!(
+        "{}{}{}",
+        info.checktime.unwrap_or(0),
+        encoded,
+        SHARED_KEY_DATA
+    );
     let new_checksum = base64::encode(tools::md5sum(new_checksum.as_bytes())?);
 
     if checksum != new_checksum {
-        return Ok(Some( SubscriptionInfo {
+        return Ok(Some(SubscriptionInfo {
             status: SubscriptionStatus::INVALID,
             message: Some("checksum mismatch".to_string()),
             ..info
@@ -269,15 +300,16 @@ pub fn read_subscription() -> Result<Option<SubscriptionInfo>, Error> {
     }
 
     let age = proxmox_time::epoch_i64() - info.checktime.unwrap_or(0);
-    if age < -5400 { // allow some delta for DST changes or time syncs, 1.5h
-        return Ok(Some( SubscriptionInfo {
+    if age < -5400 {
+        // allow some delta for DST changes or time syncs, 1.5h
+        return Ok(Some(SubscriptionInfo {
             status: SubscriptionStatus::INVALID,
             message: Some("last check date too far in the future".to_string()),
             ..info
         }));
     } else if age > MAX_LOCAL_KEY_AGE + MAX_KEY_CHECK_FAILURE_AGE {
         if let SubscriptionStatus::ACTIVE = info.status {
-            return Ok(Some( SubscriptionInfo {
+            return Ok(Some(SubscriptionInfo {
                 status: SubscriptionStatus::INVALID,
                 message: Some("subscription information too old".to_string()),
                 ..info
@@ -299,7 +331,12 @@ pub fn write_subscription(info: SubscriptionInfo) -> Result<(), Error> {
         format!("{}\n", info.key.unwrap())
     } else {
         let encoded = base64::encode(serde_json::to_string(&info)?);
-        let csum = format!("{}{}{}", info.checktime.unwrap_or(0), encoded, SHARED_KEY_DATA);
+        let csum = format!(
+            "{}{}{}",
+            info.checktime.unwrap_or(0),
+            encoded,
+            SHARED_KEY_DATA
+        );
         let csum = base64::encode(tools::md5sum(csum.as_bytes())?);
         format!("{}\n{}\n{}\n", info.key.unwrap(), csum, encoded)
     };
@@ -334,13 +371,10 @@ pub fn update_apt_auth(key: Option<String>, password: Option<String>) -> Result<
         (Some(key), Some(password)) => {
             let conf = format!(
                 "machine enterprise.proxmox.com/debian/pbs\n login {}\n password {}\n",
-                key,
-                password,
+                key, password,
             );
             let mode = nix::sys::stat::Mode::from_bits_truncate(0o0640);
-            let file_opts = CreateOptions::new()
-                .perm(mode)
-                .owner(nix::unistd::ROOT);
+            let file_opts = CreateOptions::new().perm(mode).owner(nix::unistd::ROOT);
 
             // we use a namespaced .conf file, so just overwrite..
             replace_file(auth_conf, conf.as_bytes(), file_opts, true)
@@ -350,7 +384,8 @@ pub fn update_apt_auth(key: Option<String>, password: Option<String>) -> Result<
             Ok(()) => Ok(()),
             Err(nix::Error::Sys(nix::errno::Errno::ENOENT)) => Ok(()), // ignore not existing
             Err(err) => Err(err),
-        }.map_err(|e| format_err!("Error clearing apt auth config - {}", e))?,
+        }
+        .map_err(|e| format_err!("Error clearing apt auth config - {}", e))?,
     }
     Ok(())
 }

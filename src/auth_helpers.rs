@@ -6,18 +6,13 @@ use openssl::pkey::{PKey, Private, Public};
 use openssl::rsa::Rsa;
 use openssl::sha;
 
-use proxmox_sys::fs::{file_get_contents, replace_file, CreateOptions};
 use proxmox_lang::try_block;
+use proxmox_sys::fs::{file_get_contents, replace_file, CreateOptions};
 
-use pbs_buildcfg::configdir;
 use pbs_api_types::Userid;
+use pbs_buildcfg::configdir;
 
-fn compute_csrf_secret_digest(
-    timestamp: i64,
-    secret: &[u8],
-    userid: &Userid,
-) -> String {
-
+fn compute_csrf_secret_digest(timestamp: i64, secret: &[u8], userid: &Userid) -> String {
     let mut hasher = sha::Sha256::new();
     let data = format!("{:08X}:{}:", timestamp, userid);
     hasher.update(data.as_bytes());
@@ -26,11 +21,7 @@ fn compute_csrf_secret_digest(
     base64::encode_config(&hasher.finish(), base64::STANDARD_NO_PAD)
 }
 
-pub fn assemble_csrf_prevention_token(
-    secret: &[u8],
-    userid: &Userid,
-) -> String {
-
+pub fn assemble_csrf_prevention_token(secret: &[u8], userid: &Userid) -> String {
     let epoch = proxmox_time::epoch_i64();
 
     let digest = compute_csrf_secret_digest(epoch, secret, userid);
@@ -45,13 +36,11 @@ pub fn verify_csrf_prevention_token(
     min_age: i64,
     max_age: i64,
 ) -> Result<i64, Error> {
-
     use std::collections::VecDeque;
 
     let mut parts: VecDeque<&str> = token.split(':').collect();
 
     try_block!({
-
         if parts.len() != 2 {
             bail!("format error - wrong number of parts.");
         }
@@ -59,8 +48,8 @@ pub fn verify_csrf_prevention_token(
         let timestamp = parts.pop_front().unwrap();
         let sig = parts.pop_front().unwrap();
 
-        let ttime = i64::from_str_radix(timestamp, 16).
-            map_err(|err| format_err!("timestamp format error - {}", err))?;
+        let ttime = i64::from_str_radix(timestamp, 16)
+            .map_err(|err| format_err!("timestamp format error - {}", err))?;
 
         let digest = compute_csrf_secret_digest(ttime, secret, userid);
 
@@ -80,14 +69,16 @@ pub fn verify_csrf_prevention_token(
         }
 
         Ok(age)
-    }).map_err(|err| format_err!("invalid csrf token - {}", err))
+    })
+    .map_err(|err| format_err!("invalid csrf token - {}", err))
 }
 
 pub fn generate_csrf_key() -> Result<(), Error> {
-
     let path = PathBuf::from(configdir!("/csrf.key"));
 
-    if path.exists() { return Ok(()); }
+    if path.exists() {
+        return Ok(());
+    }
 
     let rsa = Rsa::generate(2048).unwrap();
 
@@ -111,13 +102,14 @@ pub fn generate_csrf_key() -> Result<(), Error> {
 }
 
 pub fn generate_auth_key() -> Result<(), Error> {
-
     let priv_path = PathBuf::from(configdir!("/authkey.key"));
 
     let mut public_path = priv_path.clone();
     public_path.set_extension("pub");
 
-    if priv_path.exists() && public_path.exists() { return Ok(()); }
+    if priv_path.exists() && public_path.exists() {
+        return Ok(());
+    }
 
     let rsa = Rsa::generate(4096).unwrap();
 
@@ -150,17 +142,14 @@ pub fn generate_auth_key() -> Result<(), Error> {
 }
 
 pub fn csrf_secret() -> &'static [u8] {
-
     lazy_static! {
-        static ref SECRET: Vec<u8> =
-            file_get_contents(configdir!("/csrf.key")).unwrap();
+        static ref SECRET: Vec<u8> = file_get_contents(configdir!("/csrf.key")).unwrap();
     }
 
     &SECRET
 }
 
 fn load_public_auth_key() -> Result<PKey<Public>, Error> {
-
     let pem = file_get_contents(configdir!("/authkey.pub"))?;
     let rsa = Rsa::public_key_from_pem(&pem)?;
     let key = PKey::from_rsa(rsa)?;
@@ -169,7 +158,6 @@ fn load_public_auth_key() -> Result<PKey<Public>, Error> {
 }
 
 pub fn public_auth_key() -> &'static PKey<Public> {
-
     lazy_static! {
         static ref KEY: PKey<Public> = load_public_auth_key().unwrap();
     }

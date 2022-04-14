@@ -59,7 +59,8 @@ impl<I: Send + 'static> ParallelHandler<I> {
     /// Create a new thread pool, each thread processing incoming data
     /// with 'handler_fn'.
     pub fn new<F>(name: &str, threads: usize, handler_fn: F) -> Self
-        where F: Fn(I) -> Result<(), Error> + Send + Clone + 'static,
+    where
+        F: Fn(I) -> Result<(), Error> + Send + Clone + 'static,
     {
         let mut handles = Vec::new();
         let (input_tx, input_rx) = bounded::<I>(threads);
@@ -89,7 +90,7 @@ impl<I: Send + 'static> ParallelHandler<I> {
                             }
                         }
                     })
-                    .unwrap()
+                    .unwrap(),
             );
         }
         Self {
@@ -132,19 +133,17 @@ impl<I: Send + 'static> ParallelHandler<I> {
     }
 
     fn join_threads(&mut self) -> Vec<String> {
-
         let mut msg_list = Vec::new();
 
         let mut i = 0;
         while let Some(handle) = self.handles.pop() {
             if let Err(panic) = handle.join() {
                 match panic.downcast::<&str>() {
-                    Ok(panic_msg) => msg_list.push(
-                        format!("thread {} ({}) panicked: {}", self.name, i, panic_msg)
-                    ),
-                    Err(_) => msg_list.push(
-                        format!("thread {} ({}) panicked", self.name, i)
-                    ),
+                    Ok(panic_msg) => msg_list.push(format!(
+                        "thread {} ({}) panicked: {}",
+                        self.name, i, panic_msg
+                    )),
+                    Err(_) => msg_list.push(format!("thread {} ({}) panicked", self.name, i)),
                 }
             }
             i += 1;

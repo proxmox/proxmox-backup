@@ -1,16 +1,15 @@
-use std::borrow::Cow;
 use anyhow::{bail, Error};
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 
-use proxmox_schema::{api, ApiStringFormat, const_regex, Schema, StringSchema};
+use proxmox_schema::{api, const_regex, ApiStringFormat, Schema, StringSchema};
 
-const_regex!{
+const_regex! {
     pub MAINTENANCE_MESSAGE_REGEX = r"^[[:^cntrl:]]*$";
 }
 
 pub const MAINTENANCE_MESSAGE_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&MAINTENANCE_MESSAGE_REGEX);
-
 
 pub const MAINTENANCE_MESSAGE_SCHEMA: Schema =
     StringSchema::new("Message describing the reason for the maintenance.")
@@ -27,7 +26,7 @@ pub enum Operation {
 
 #[api]
 #[derive(Deserialize, Serialize, PartialEq)]
-#[serde(rename_all="kebab-case")]
+#[serde(rename_all = "kebab-case")]
 /// Maintenance type.
 pub enum MaintenanceType {
     /// Only read operations are allowed on the datastore.

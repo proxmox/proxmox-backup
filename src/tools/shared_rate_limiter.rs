@@ -1,6 +1,6 @@
-use std::path::PathBuf;
 use std::mem::MaybeUninit;
-use std::time::{Instant, Duration};
+use std::path::PathBuf;
+use std::time::{Duration, Instant};
 
 use anyhow::{bail, Error};
 use nix::sys::stat::Mode;
@@ -8,11 +8,12 @@ use nix::sys::stat::Mode;
 use proxmox_sys::fs::{create_path, CreateOptions};
 
 use proxmox_http::client::{RateLimit, RateLimiter, ShareableRateLimit};
-use proxmox_shared_memory::{Init, SharedMemory, SharedMutex};
 use proxmox_shared_memory::{check_subtype, initialize_subtype};
+use proxmox_shared_memory::{Init, SharedMemory, SharedMutex};
 
 // openssl::sha::sha256(b"Proxmox Backup SharedRateLimiter v1.0")[0..8];
-pub const PROXMOX_BACKUP_SHARED_RATE_LIMITER_MAGIC_1_0: [u8; 8] = [6, 58, 213, 96, 161, 122, 130, 117];
+pub const PROXMOX_BACKUP_SHARED_RATE_LIMITER_MAGIC_1_0: [u8; 8] =
+    [6, 58, 213, 96, 161, 122, 130, 117];
 
 const BASE_PATH: &str = pbs_buildcfg::rundir!("/shmem/tbf");
 
@@ -61,11 +62,10 @@ impl Init for SharedRateLimiterData {
 /// implements [Init]. This way we can share the limiter between
 /// different processes.
 pub struct SharedRateLimiter {
-    shmem: SharedMemory<SharedRateLimiterData>
+    shmem: SharedMemory<SharedRateLimiterData>,
 }
 
 impl SharedRateLimiter {
-
     /// Creates a new mmap'ed instance.
     ///
     /// Data is mapped in `/var/run/proxmox-backup/shmem/tbf/<name>` using
@@ -80,10 +80,7 @@ impl SharedRateLimiter {
             .owner(user.uid)
             .group(user.gid);
 
-        create_path(
-            &path,
-            Some(dir_opts.clone()),
-            Some(dir_opts))?;
+        create_path(&path, Some(dir_opts.clone()), Some(dir_opts))?;
 
         path.push(name);
 
@@ -92,8 +89,7 @@ impl SharedRateLimiter {
             .owner(user.uid)
             .group(user.gid);
 
-        let shmem: SharedMemory<SharedRateLimiterData> =
-            SharedMemory::open(&path, file_opts)?;
+        let shmem: SharedMemory<SharedRateLimiterData> = SharedMemory::open(&path, file_opts)?;
 
         shmem.data().tbf.lock().0.update_rate(rate, burst);
 
@@ -103,17 +99,24 @@ impl SharedRateLimiter {
 
 impl ShareableRateLimit for SharedRateLimiter {
     fn update_rate(&self, rate: u64, bucket_size: u64) {
-        self.shmem.data().tbf.lock().0
+        self.shmem
+            .data()
+            .tbf
+            .lock()
+            .0
             .update_rate(rate, bucket_size);
     }
 
     fn traffic(&self) -> u64 {
-        self.shmem.data().tbf.lock().0
-            .traffic()
+        self.shmem.data().tbf.lock().0.traffic()
     }
 
     fn register_traffic(&self, current_time: Instant, data_len: u64) -> Duration {
-        self.shmem.data().tbf.lock().0
+        self.shmem
+            .data()
+            .tbf
+            .lock()
+            .0
             .register_traffic(current_time, data_len)
     }
 }

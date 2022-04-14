@@ -1,14 +1,14 @@
-use std::collections::HashSet;
 use std::collections::HashMap;
+use std::collections::HashSet;
 
-use anyhow::{Error, bail, format_err};
+use anyhow::{bail, format_err, Error};
 use apt_pkg_native::Cache;
 
-use proxmox_sys::fs::{file_read_optional_string, replace_file, CreateOptions};
 use proxmox_schema::const_regex;
+use proxmox_sys::fs::{file_read_optional_string, replace_file, CreateOptions};
 
-use pbs_buildcfg::PROXMOX_BACKUP_STATE_DIR_M;
 use pbs_api_types::APTUpdateInfo;
+use pbs_buildcfg::PROXMOX_BACKUP_STATE_DIR_M;
 
 const APT_PKG_STATE_FN: &str = concat!(PROXMOX_BACKUP_STATE_DIR_M!(), "/pkg-state.json");
 
@@ -25,8 +25,13 @@ pub struct PkgState {
 pub fn write_pkg_cache(state: &PkgState) -> Result<(), Error> {
     let serialized_state = serde_json::to_string(state)?;
 
-    replace_file(APT_PKG_STATE_FN, serialized_state.as_bytes(), CreateOptions::new(), false)
-        .map_err(|err| format_err!("Error writing package cache - {}", err))?;
+    replace_file(
+        APT_PKG_STATE_FN,
+        serialized_state.as_bytes(),
+        CreateOptions::new(),
+        false,
+    )
+    .map_err(|err| format_err!("Error writing package cache - {}", err))?;
     Ok(())
 }
 
@@ -42,7 +47,7 @@ pub fn read_pkg_state() -> Result<Option<PkgState>, Error> {
         .map_err(|err| format_err!("could not parse cached package status - {}", err))
 }
 
-pub fn pkg_cache_expired () -> Result<bool, Error> {
+pub fn pkg_cache_expired() -> Result<bool, Error> {
     if let Ok(pbs_cache) = std::fs::metadata(APT_PKG_STATE_FN) {
         let apt_pkgcache = std::fs::metadata("/var/cache/apt/pkgcache.bin")?;
         let dpkg_status = std::fs::metadata("/var/lib/dpkg/status")?;
@@ -57,26 +62,28 @@ pub fn pkg_cache_expired () -> Result<bool, Error> {
 }
 
 pub fn update_cache() -> Result<PkgState, Error> {
-        // update our cache
-        let all_upgradeable = list_installed_apt_packages(|data| {
-            data.candidate_version == data.active_version &&
-            data.installed_version != Some(data.candidate_version)
-        }, None);
+    // update our cache
+    let all_upgradeable = list_installed_apt_packages(
+        |data| {
+            data.candidate_version == data.active_version
+                && data.installed_version != Some(data.candidate_version)
+        },
+        None,
+    );
 
-        let cache = match read_pkg_state() {
-            Ok(Some(mut cache)) => {
-                cache.package_status = all_upgradeable;
-                cache
-            },
-            _ => PkgState {
-                notified: None,
-                package_status: all_upgradeable,
-            },
-        };
-        write_pkg_cache(&cache)?;
-        Ok(cache)
+    let cache = match read_pkg_state() {
+        Ok(Some(mut cache)) => {
+            cache.package_status = all_upgradeable;
+            cache
+        }
+        _ => PkgState {
+            notified: None,
+            package_status: all_upgradeable,
+        },
+    };
+    write_pkg_cache(&cache)?;
+    Ok(cache)
 }
-
 
 const_regex! {
     VERSION_EPOCH_REGEX = r"^\d+:";
@@ -108,9 +115,12 @@ fn get_changelog_url(
                 if output.len() < 2 {
                     bail!("invalid output (URI part too short) from 'apt-get changelog --print-uris': {}", output)
                 }
-                output[1..output.len()-1].to_owned()
-            },
-            None => bail!("invalid output from 'apt-get changelog --print-uris': {}", output)
+                output[1..output.len() - 1].to_owned()
+            }
+            None => bail!(
+                "invalid output from 'apt-get changelog --print-uris': {}",
+                output
+            ),
         };
         return Ok(output);
     } else if origin == "Proxmox" {
@@ -123,18 +133,22 @@ fn get_changelog_url(
                 let base_capture = captures.get(1);
                 match base_capture {
                     Some(base_underscore) => base_underscore.as_str().replace("_", "/"),
-                    None => bail!("incompatible filename, cannot find regex group")
+                    None => bail!("incompatible filename, cannot find regex group"),
                 }
-            },
-            None => bail!("incompatible filename, doesn't match regex")
+            }
+            None => bail!("incompatible filename, doesn't match regex"),
         };
 
         if component == "pbs-enterprise" {
-            return Ok(format!("https://enterprise.proxmox.com/{}/{}_{}.changelog",
-                              base, package, version));
+            return Ok(format!(
+                "https://enterprise.proxmox.com/{}/{}_{}.changelog",
+                base, package, version
+            ));
         } else {
-            return Ok(format!("http://download.proxmox.com/{}/{}_{}.changelog",
-                              base, package, version));
+            return Ok(format!(
+                "http://download.proxmox.com/{}/{}_{}.changelog",
+                base, package, version
+            ));
         }
     }
 
@@ -162,7 +176,6 @@ pub fn list_installed_apt_packages<F: Fn(FilterData) -> bool>(
     filter: F,
     only_versions_for: Option<&str>,
 ) -> Vec<APTUpdateInfo> {
-
     let mut ret = Vec::new();
     let mut depends = HashSet::new();
 
@@ -172,26 +185,20 @@ pub fn list_installed_apt_packages<F: Fn(FilterData) -> bool>(
 
     let mut cache_iter = match only_versions_for {
         Some(name) => cache.find_by_name(name),
-        None => cache.iter()
+        None => cache.iter(),
     };
 
     loop {
-
         match cache_iter.next() {
             Some(view) => {
                 let di = if only_versions_for.is_some() {
-                    query_detailed_info(
-                        PackagePreSelect::All,
-                        &filter,
-                        view,
-                        None
-                    )
+                    query_detailed_info(PackagePreSelect::All, &filter, view, None)
                 } else {
                     query_detailed_info(
                         PackagePreSelect::OnlyInstalled,
                         &filter,
                         view,
-                        Some(&mut depends)
+                        Some(&mut depends),
                     )
                 };
                 if let Some(info) = di {
@@ -201,7 +208,7 @@ pub fn list_installed_apt_packages<F: Fn(FilterData) -> bool>(
                 if only_versions_for.is_some() {
                     break;
                 }
-            },
+            }
             None => {
                 drop(cache_iter);
                 // also loop through missing dependencies, as they would be installed
@@ -209,15 +216,10 @@ pub fn list_installed_apt_packages<F: Fn(FilterData) -> bool>(
                     let mut iter = cache.find_by_name(pkg);
                     let view = match iter.next() {
                         Some(view) => view,
-                        None => continue // package not found, ignore
+                        None => continue, // package not found, ignore
                     };
 
-                    let di = query_detailed_info(
-                        PackagePreSelect::OnlyNew,
-                        &filter,
-                        view,
-                        None
-                    );
+                    let di = query_detailed_info(PackagePreSelect::OnlyNew, &filter, view, None);
                     if let Some(info) = di {
                         ret.push(info);
                     }
@@ -238,7 +240,7 @@ fn query_detailed_info<'a, F, V>(
 ) -> Option<APTUpdateInfo>
 where
     F: Fn(FilterData) -> bool,
-    V: std::ops::Deref<Target = apt_pkg_native::sane::PkgView<'a>>
+    V: std::ops::Deref<Target = apt_pkg_native::sane::PkgView<'a>>,
 {
     let current_version = view.current_version();
     let candidate_version = view.candidate_version();
@@ -247,8 +249,8 @@ where
         PackagePreSelect::OnlyInstalled => match (current_version, candidate_version) {
             (Some(cur), Some(can)) => (Some(cur), can), // package installed and there is an update
             (Some(cur), None) => (Some(cur.clone()), cur), // package installed and up-to-date
-            (None, Some(_)) => return None, // package could be installed
-            (None, None) => return None, // broken
+            (None, Some(_)) => return None,             // package could be installed
+            (None, None) => return None,                // broken
         },
         PackagePreSelect::OnlyNew => match (current_version, candidate_version) {
             (Some(_), Some(_)) => return None,
@@ -267,7 +269,6 @@ where
     // get additional information via nested APT 'iterators'
     let mut view_iter = view.versions();
     while let Some(ver) = view_iter.next() {
-
         let package = view.name();
         let version = ver.version();
         let mut origin_res = "unknown".to_owned();
@@ -299,7 +300,6 @@ where
             let mut origin_iter = ver.origin_iter();
             let origin = origin_iter.next();
             if let Some(origin) = origin {
-
                 if let Some(sd) = origin.short_desc() {
                     short_desc = sd;
                 }
@@ -324,8 +324,8 @@ where
 
                     // build changelog URL from gathered information
                     // ignore errors, use empty changelog instead
-                    let url = get_changelog_url(&package, &filename,
-                        &version, &origin_res, &component);
+                    let url =
+                        get_changelog_url(&package, &filename, &version, &origin_res, &component);
                     if let Ok(url) = url {
                         change_log_url = url;
                     }
@@ -338,7 +338,7 @@ where
                     let dep = match dep_iter.next() {
                         Some(dep) if dep.dep_type() != "Depends" => continue,
                         Some(dep) => dep,
-                        None => break
+                        None => break,
                     };
 
                     let dep_pkg = dep.target_pkg();
@@ -358,7 +358,7 @@ where
                 version: candidate_version.clone(),
                 old_version: match current_version {
                     Some(vers) => vers,
-                    None => "".to_owned()
+                    None => "".to_owned(),
                 },
                 priority: priority_res,
                 section: section_res,

@@ -8,7 +8,6 @@ use proxmox_section_config::{SectionConfig, SectionConfigData, SectionConfigPlug
 
 use proxmox_sys::{fs::replace_file, fs::CreateOptions};
 
-
 lazy_static! {
     pub static ref SERVICE_CONFIG: SectionConfig = init_service();
     pub static ref TIMER_CONFIG: SectionConfig = init_timer();
@@ -16,25 +15,24 @@ lazy_static! {
 }
 
 fn init_service() -> SectionConfig {
-
     let mut config = SectionConfig::with_systemd_syntax(&SYSTEMD_SECTION_NAME_SCHEMA);
 
     match SystemdUnitSection::API_SCHEMA {
-        Schema::Object(ref obj_schema) =>  {
+        Schema::Object(ref obj_schema) => {
             let plugin = SectionConfigPlugin::new("Unit".to_string(), None, obj_schema);
             config.register_plugin(plugin);
         }
         _ => unreachable!(),
     };
     match SystemdInstallSection::API_SCHEMA {
-        Schema::Object(ref obj_schema) =>  {
+        Schema::Object(ref obj_schema) => {
             let plugin = SectionConfigPlugin::new("Install".to_string(), None, obj_schema);
             config.register_plugin(plugin);
         }
         _ => unreachable!(),
     };
     match SystemdServiceSection::API_SCHEMA {
-        Schema::Object(ref obj_schema) =>  {
+        Schema::Object(ref obj_schema) => {
             let plugin = SectionConfigPlugin::new("Service".to_string(), None, obj_schema);
             config.register_plugin(plugin);
         }
@@ -45,25 +43,24 @@ fn init_service() -> SectionConfig {
 }
 
 fn init_timer() -> SectionConfig {
-
     let mut config = SectionConfig::with_systemd_syntax(&SYSTEMD_SECTION_NAME_SCHEMA);
 
     match SystemdUnitSection::API_SCHEMA {
-        Schema::Object(ref obj_schema) =>  {
+        Schema::Object(ref obj_schema) => {
             let plugin = SectionConfigPlugin::new("Unit".to_string(), None, obj_schema);
             config.register_plugin(plugin);
         }
         _ => unreachable!(),
     };
     match SystemdInstallSection::API_SCHEMA {
-        Schema::Object(ref obj_schema) =>  {
+        Schema::Object(ref obj_schema) => {
             let plugin = SectionConfigPlugin::new("Install".to_string(), None, obj_schema);
             config.register_plugin(plugin);
         }
         _ => unreachable!(),
     };
     match SystemdTimerSection::API_SCHEMA {
-        Schema::Object(ref obj_schema) =>  {
+        Schema::Object(ref obj_schema) => {
             let plugin = SectionConfigPlugin::new("Timer".to_string(), None, obj_schema);
             config.register_plugin(plugin);
         }
@@ -74,25 +71,24 @@ fn init_timer() -> SectionConfig {
 }
 
 fn init_mount() -> SectionConfig {
-
     let mut config = SectionConfig::with_systemd_syntax(&SYSTEMD_SECTION_NAME_SCHEMA);
 
     match SystemdUnitSection::API_SCHEMA {
-        Schema::Object(ref obj_schema) =>  {
+        Schema::Object(ref obj_schema) => {
             let plugin = SectionConfigPlugin::new("Unit".to_string(), None, obj_schema);
             config.register_plugin(plugin);
         }
         _ => unreachable!(),
     };
     match SystemdInstallSection::API_SCHEMA {
-        Schema::Object(ref obj_schema) =>  {
+        Schema::Object(ref obj_schema) => {
             let plugin = SectionConfigPlugin::new("Install".to_string(), None, obj_schema);
             config.register_plugin(plugin);
         }
         _ => unreachable!(),
     };
     match SystemdMountSection::API_SCHEMA {
-        Schema::Object(ref obj_schema) =>  {
+        Schema::Object(ref obj_schema) => {
             let plugin = SectionConfigPlugin::new("Mount".to_string(), None, obj_schema);
             config.register_plugin(plugin);
         }
@@ -102,8 +98,10 @@ fn init_mount() -> SectionConfig {
     config
 }
 
-fn parse_systemd_config(config: &SectionConfig, filename: &str) -> Result<SectionConfigData, Error> {
-
+fn parse_systemd_config(
+    config: &SectionConfig,
+    filename: &str,
+) -> Result<SectionConfigData, Error> {
     let raw = proxmox_sys::fs::file_get_contents(filename)?;
     let input = String::from_utf8(raw)?;
 
@@ -124,14 +122,16 @@ pub fn parse_systemd_mount(filename: &str) -> Result<SectionConfigData, Error> {
     parse_systemd_config(&MOUNT_CONFIG, filename)
 }
 
-fn save_systemd_config(config: &SectionConfig, filename: &str, data: &SectionConfigData) -> Result<(), Error> {
+fn save_systemd_config(
+    config: &SectionConfig,
+    filename: &str,
+    data: &SectionConfigData,
+) -> Result<(), Error> {
     let raw = config.write(filename, data)?;
 
     let mode = nix::sys::stat::Mode::from_bits_truncate(0o0644);
     // set the correct owner/group/permissions while saving file, owner(rw) = root
-    let options = CreateOptions::new()
-        .perm(mode)
-        .owner(nix::unistd::ROOT);
+    let options = CreateOptions::new().perm(mode).owner(nix::unistd::ROOT);
 
     replace_file(filename, raw.as_bytes(), options, true)?;
 

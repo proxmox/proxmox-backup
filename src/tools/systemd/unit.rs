@@ -20,7 +20,9 @@ fn run_command(mut command: Command) -> Result<(), Error> {
                                     m
                                 }
                             })
-                            .unwrap_or_else(|_| String::from("non utf8 error message (suppressed)"));
+                            .unwrap_or_else(|_| {
+                                String::from("non utf8 error message (suppressed)")
+                            });
 
                         bail!("status code: {} - {}", code, msg);
                     }
@@ -29,7 +31,8 @@ fn run_command(mut command: Command) -> Result<(), Error> {
             }
         }
         Ok(())
-    }).map_err(|err| format_err!("command {:?} failed - {}", command, err))?;
+    })
+    .map_err(|err| format_err!("command {:?} failed - {}", command, err))?;
 
     Ok(())
 }
@@ -96,7 +99,6 @@ pub fn reload_unit(unit: &str) -> Result<(), Error> {
 #[test]
 fn test_escape_unit() -> Result<(), Error> {
     fn test_escape(i: &str, expected: &str, is_path: bool) {
-
         use proxmox_sys::systemd::{escape_unit, unescape_unit};
 
         let escaped = escape_unit(i, is_path);
