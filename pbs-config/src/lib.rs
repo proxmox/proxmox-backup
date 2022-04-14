@@ -22,7 +22,7 @@ pub use config_version_cache::ConfigVersionCache;
 use anyhow::{format_err, Error};
 use nix::unistd::{Gid, Group, Uid, User};
 
-pub use pbs_buildcfg::{BACKUP_USER_NAME, BACKUP_GROUP_NAME};
+pub use pbs_buildcfg::{BACKUP_GROUP_NAME, BACKUP_USER_NAME};
 
 /// Return User info for the 'backup' user (``getpwnam_r(3)``)
 pub fn backup_user() -> Result<nix::unistd::User, Error> {
@@ -79,10 +79,7 @@ pub fn open_backup_lockfile<P: AsRef<std::path::Path>>(
 /// Atomically write data to file owned by "root:backup" with permission "0640"
 ///
 /// Only the superuser can write those files, but group 'backup' can read them.
-pub fn replace_backup_config<P: AsRef<std::path::Path>>(
-    path: P,
-    data: &[u8],
-) -> Result<(), Error> {
+pub fn replace_backup_config<P: AsRef<std::path::Path>>(path: P, data: &[u8]) -> Result<(), Error> {
     let backup_user = backup_user()?;
     let mode = nix::sys::stat::Mode::from_bits_truncate(0o0640);
     // set the correct owner/group/permissions while saving file
@@ -100,10 +97,7 @@ pub fn replace_backup_config<P: AsRef<std::path::Path>>(
 /// Atomically write data to file owned by "root:root" with permission "0600"
 ///
 /// Only the superuser can read and write those files.
-pub fn replace_secret_config<P: AsRef<std::path::Path>>(
-    path: P,
-    data: &[u8],
-) -> Result<(), Error> {
+pub fn replace_secret_config<P: AsRef<std::path::Path>>(path: P, data: &[u8]) -> Result<(), Error> {
     let mode = nix::sys::stat::Mode::from_bits_truncate(0o0600);
     // set the correct owner/group/permissions while saving file
     // owner(rw) = root, group(r)= root

@@ -6,7 +6,7 @@ use lazy_static::lazy_static;
 use proxmox_schema::*;
 use proxmox_section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin};
 
-use pbs_api_types::{JOB_ID_SCHEMA, VerificationJobConfig};
+use pbs_api_types::{VerificationJobConfig, JOB_ID_SCHEMA};
 
 use crate::{open_backup_lockfile, replace_backup_config, BackupLockGuard};
 
@@ -20,7 +20,11 @@ fn init() -> SectionConfig {
         _ => unreachable!(),
     };
 
-    let plugin = SectionConfigPlugin::new("verification".to_string(), Some(String::from("id")), obj_schema);
+    let plugin = SectionConfigPlugin::new(
+        "verification".to_string(),
+        Some(String::from("id")),
+        obj_schema,
+    );
     let mut config = SectionConfig::new(&JOB_ID_SCHEMA);
     config.register_plugin(plugin);
 
@@ -35,8 +39,7 @@ pub fn lock_config() -> Result<BackupLockGuard, Error> {
     open_backup_lockfile(VERIFICATION_CFG_LOCKFILE, None, true)
 }
 
-pub fn config() -> Result<(SectionConfigData, [u8;32]), Error> {
-
+pub fn config() -> Result<(SectionConfigData, [u8; 32]), Error> {
     let content = proxmox_sys::fs::file_read_optional_string(VERIFICATION_CFG_FILENAME)?;
     let content = content.unwrap_or_else(String::new);
 

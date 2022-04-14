@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use anyhow::{bail, format_err, Error};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use serde_json::{from_value, Value};
 
 use proxmox_sys::fs::CreateOptions;
@@ -14,7 +14,7 @@ const LOCK_FILE: &str = pbs_buildcfg::configdir!("/token.shadow.lock");
 const CONF_FILE: &str = pbs_buildcfg::configdir!("/token.shadow");
 
 #[derive(Serialize, Deserialize)]
-#[serde(rename_all="kebab-case")]
+#[serde(rename_all = "kebab-case")]
 /// ApiToken id / secret pair
 pub struct ApiTokenSecret {
     pub tokenid: Authid,
@@ -48,7 +48,6 @@ fn write_file(data: HashMap<Authid, String>) -> Result<(), Error> {
     proxmox_sys::fs::replace_file(CONF_FILE, &json, options, true)
 }
 
-
 /// Verifies that an entry for given tokenid / API token secret exists
 pub fn verify_secret(tokenid: &Authid, secret: &str) -> Result<(), Error> {
     if !tokenid.is_token() {
@@ -57,9 +56,7 @@ pub fn verify_secret(tokenid: &Authid, secret: &str) -> Result<(), Error> {
 
     let data = read_file()?;
     match data.get(tokenid) {
-        Some(hashed_secret) => {
-            proxmox_sys::crypt::verify_crypt_pw(secret, hashed_secret)
-        },
+        Some(hashed_secret) => proxmox_sys::crypt::verify_crypt_pw(secret, hashed_secret),
         None => bail!("invalid API token"),
     }
 }

@@ -1,18 +1,17 @@
 use std::collections::HashMap;
 
-use anyhow::{Error};
+use anyhow::Error;
 use lazy_static::lazy_static;
 
 use proxmox_schema::{ApiType, Schema};
 use proxmox_section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin};
 
-use pbs_api_types::{OpenIdRealmConfig, REALM_ID_SCHEMA};
 use crate::{open_backup_lockfile, replace_backup_config, BackupLockGuard};
+use pbs_api_types::{OpenIdRealmConfig, REALM_ID_SCHEMA};
 
 lazy_static! {
     pub static ref CONFIG: SectionConfig = init();
 }
-
 
 fn init() -> SectionConfig {
     let obj_schema = match OpenIdRealmConfig::API_SCHEMA {
@@ -20,7 +19,11 @@ fn init() -> SectionConfig {
         _ => unreachable!(),
     };
 
-    let plugin = SectionConfigPlugin::new("openid".to_string(), Some(String::from("realm")), obj_schema);
+    let plugin = SectionConfigPlugin::new(
+        "openid".to_string(),
+        Some(String::from("realm")),
+        obj_schema,
+    );
     let mut config = SectionConfig::new(&REALM_ID_SCHEMA);
     config.register_plugin(plugin);
 
@@ -35,8 +38,7 @@ pub fn lock_config() -> Result<BackupLockGuard, Error> {
     open_backup_lockfile(DOMAINS_CFG_LOCKFILE, None, true)
 }
 
-pub fn config() -> Result<(SectionConfigData, [u8;32]), Error> {
-
+pub fn config() -> Result<(SectionConfigData, [u8; 32]), Error> {
     let content = proxmox_sys::fs::file_read_optional_string(DOMAINS_CFG_FILENAME)?
         .unwrap_or_else(|| "".to_string());
 
@@ -60,8 +62,16 @@ pub fn complete_realm_name(_arg: &str, _param: &HashMap<String, String>) -> Vec<
 
 pub fn complete_openid_realm_name(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
     match config() {
-        Ok((data, _digest)) => data.sections.iter()
-            .filter_map(|(id, (t, _))| if t == "openid" { Some(id.to_string()) } else { None })
+        Ok((data, _digest)) => data
+            .sections
+            .iter()
+            .filter_map(|(id, (t, _))| {
+                if t == "openid" {
+                    Some(id.to_string())
+                } else {
+                    None
+                }
+            })
             .collect(),
         Err(_) => return vec![],
     }

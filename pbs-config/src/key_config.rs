@@ -4,10 +4,10 @@ use std::path::Path;
 use anyhow::{bail, format_err, Context, Error};
 use serde::{Deserialize, Serialize};
 
-use proxmox_sys::fs::{file_get_contents, replace_file, CreateOptions};
 use proxmox_lang::try_block;
+use proxmox_sys::fs::{file_get_contents, replace_file, CreateOptions};
 
-use pbs_api_types::{Kdf, KeyInfo, Fingerprint};
+use pbs_api_types::{Fingerprint, Kdf, KeyInfo};
 
 use pbs_tools::crypt_config::CryptConfig;
 
@@ -29,28 +29,19 @@ pub enum KeyDerivationConfig {
 }
 
 impl KeyDerivationConfig {
-
     /// Derive a key from provided passphrase
     pub fn derive_key(&self, passphrase: &[u8]) -> Result<[u8; 32], Error> {
-
         let mut key = [0u8; 32];
 
         match self {
             KeyDerivationConfig::Scrypt { n, r, p, salt } => {
                 // estimated scrypt memory usage is 128*r*n*p
-                openssl::pkcs5::scrypt(
-                    passphrase,
-                    salt,
-                    *n, *r, *p,
-                    1025*1024*1024,
-                    &mut key,
-                )?;
+                openssl::pkcs5::scrypt(passphrase, salt, *n, *r, *p, 1025 * 1024 * 1024, &mut key)?;
 
                 Ok(key)
             }
             KeyDerivationConfig::PBKDF2 { iter, salt } => {
-
-                 openssl::pkcs5::pbkdf2_hmac(
+                openssl::pkcs5::pbkdf2_hmac(
                     passphrase,
                     salt,
                     *iter,
@@ -97,19 +88,15 @@ impl From<&KeyConfig> for KeyInfo {
             },
             created: key_config.created,
             modified: key_config.modified,
-            fingerprint: key_config
-                .fingerprint
-                .as_ref()
-                .map(|fp| fp.signature()),
+            fingerprint: key_config.fingerprint.as_ref().map(|fp| fp.signature()),
             hint: key_config.hint.clone(),
         }
     }
 }
 
-impl KeyConfig  {
-
+impl KeyConfig {
     /// Creates a new key using random data, protected by passphrase.
-    pub fn new(passphrase: &[u8], kdf: Kdf) -> Result<([u8;32], Self), Error> {
+    pub fn new(passphrase: &[u8], kdf: Kdf) -> Result<([u8; 32], Self), Error> {
         let mut key = [0u8; 32];
         proxmox_sys::linux::fill_with_random_data(&mut key)?;
         let key_config = Self::with_key(&key, passphrase, kdf)?;
@@ -134,12 +121,7 @@ impl KeyConfig  {
     }
 
     /// Creates a new instance, protect raw_key with passphrase.
-    pub fn with_key(
-        raw_key: &[u8; 32],
-        passphrase: &[u8],
-        kdf: Kdf,
-    ) -> Result<Self, Error> {
-
+    pub fn with_key(raw_key: &[u8; 32], passphrase: &[u8], kdf: Kdf) -> Result<Self, Error> {
         if raw_key.len() != 32 {
             bail!("got strange key length ({} != 32)", raw_key.len())
         }
@@ -153,10 +135,7 @@ impl KeyConfig  {
                 p: 1,
                 salt,
             },
-            Kdf::PBKDF2 => KeyDerivationConfig::PBKDF2 {
-                iter: 65535,
-                salt,
-            },
+            Kdf::PBKDF2 => KeyDerivationConfig::PBKDF2 { iter: 65535, salt },
             Kdf::None => {
                 bail!("No key derivation function specified");
             }
@@ -169,14 +148,8 @@ impl KeyConfig  {
         let iv = proxmox_sys::linux::random_data(16)?;
         let mut tag = [0u8; 16];
 
-        let encrypted_key = openssl::symm::encrypt_aead(
-            cipher,
-            &derived_key,
-            Some(&iv),
-            b"",
-            raw_key,
-            &mut tag,
-        )?;
+        let encrypted_key =
+            openssl::symm::encrypt_aead(cipher, &derived_key, Some(&iv), b"", raw_key, &mut tag)?;
 
         let mut enc_data = vec![];
         enc_data.extend_from_slice(&iv);
@@ -210,12 +183,10 @@ impl KeyConfig  {
     pub fn decrypt(
         &self,
         passphrase: &dyn Fn() -> Result<Vec<u8>, Error>,
-    ) -> Result<([u8;32], i64, Fingerprint), Error> {
-
+    ) -> Result<([u8; 32], i64, Fingerprint), Error> {
         let raw_data = &self.data;
 
         let key = if let Some(ref kdf) = self.kdf {
-
             let passphrase = passphrase()?;
             if passphrase.len() < 5 {
                 bail!("Passphrase is too short!");
@@ -232,24 +203,15 @@ impl KeyConfig  {
 
             let cipher = openssl::symm::Cipher::aes_256_gcm();
 
-            openssl::symm::decrypt_aead(
-                cipher,
-                &derived_key,
-                Some(iv),
-                b"",
-                enc_data,
-                tag,
-            ).map_err(|err| {
-                match self.hint {
+            openssl::symm::decrypt_aead(cipher, &derived_key, Some(iv), b"", enc_data, tag)
+                .map_err(|err| match self.hint {
                     Some(ref hint) => {
                         format_err!("Unable to decrypt key (password hint: {})", hint)
                     }
                     None => {
                         format_err!("Unable to decrypt key (wrong password?) - {}", err)
                     }
-                }
-            })?
-
+                })?
         } else {
             raw_data.clone()
         };
@@ -263,7 +225,8 @@ impl KeyConfig  {
             if &fingerprint != stored_fingerprint {
                 bail!(
                     "KeyConfig contains wrong fingerprint {}, contained key has fingerprint {}",
-                    stored_fingerprint, fingerprint
+                    stored_fingerprint,
+                    fingerprint
                 );
             }
         }
@@ -273,7 +236,6 @@ impl KeyConfig  {
 
     /// Store a KeyConfig to path
     pub fn store<P: AsRef<Path>>(&self, path: P, replace: bool) -> Result<(), Error> {
-
         let path: &Path = path.as_ref();
 
         let data = serde_json::to_string(self)?;
@@ -295,7 +257,8 @@ impl KeyConfig  {
             }
 
             Ok(())
-        }).map_err(|err: Error| format_err!("Unable to store key file {:?} - {}", path, err))?;
+        })
+        .map_err(|err: Error| format_err!("Unable to store key file {:?} - {}", path, err))?;
 
         Ok(())
     }
@@ -305,7 +268,7 @@ impl KeyConfig  {
 pub fn load_and_decrypt_key(
     path: &std::path::Path,
     passphrase: &dyn Fn() -> Result<Vec<u8>, Error>,
-) -> Result<([u8;32], i64, Fingerprint), Error> {
+) -> Result<([u8; 32], i64, Fingerprint), Error> {
     decrypt_key(&file_get_contents(&path)?, passphrase)
         .with_context(|| format!("failed to load decryption key from {:?}", path))
 }
@@ -314,7 +277,7 @@ pub fn load_and_decrypt_key(
 pub fn decrypt_key(
     mut keydata: &[u8],
     passphrase: &dyn Fn() -> Result<Vec<u8>, Error>,
-) -> Result<([u8;32], i64, Fingerprint), Error> {
+) -> Result<([u8; 32], i64, Fingerprint), Error> {
     let key_config: KeyConfig = serde_json::from_reader(&mut keydata)?;
     key_config.decrypt(passphrase)
 }
@@ -382,8 +345,7 @@ fn encrypt_decrypt_test() -> Result<(), Error> {
 
     let encrypted = rsa_encrypt_key_config(public, &key).expect("encryption failed");
     let (decrypted, created, fingerprint) =
-        rsa_decrypt_key_config(private, &encrypted, &passphrase)
-            .expect("decryption failed");
+        rsa_decrypt_key_config(private, &encrypted, &passphrase).expect("decryption failed");
 
     assert_eq!(key.created, created);
     assert_eq!(key.data, decrypted);
@@ -404,12 +366,13 @@ fn fingerprint_checks() -> Result<(), Error> {
     };
 
     let expected_fingerprint = Fingerprint::new([
-            14, 171, 212, 70, 11, 110, 185, 202, 52, 80, 35, 222, 226, 183, 120, 199, 144, 229, 74,
-            22, 131, 185, 101, 156, 10, 87, 174, 25, 144, 144, 21, 155,
-        ]);
+        14, 171, 212, 70, 11, 110, 185, 202, 52, 80, 35, 222, 226, 183, 120, 199, 144, 229, 74, 22,
+        131, 185, 101, 156, 10, 87, 174, 25, 144, 144, 21, 155,
+    ]);
 
     let mut data = serde_json::to_vec(&key).expect("encoding KeyConfig failed");
-    decrypt_key(&mut data, &{ || { Ok(Vec::new()) }}).expect_err("decoding KeyConfig with wrong fingerprint worked");
+    decrypt_key(&mut data, &{ || Ok(Vec::new()) })
+        .expect_err("decoding KeyConfig with wrong fingerprint worked");
 
     let key = KeyConfig {
         kdf: None,
@@ -420,9 +383,9 @@ fn fingerprint_checks() -> Result<(), Error> {
         hint: None,
     };
 
-
     let mut data = serde_json::to_vec(&key).expect("encoding KeyConfig failed");
-    let (key_data, created, fingerprint) = decrypt_key(&mut data, &{ || { Ok(Vec::new()) }}).expect("decoding KeyConfig without fingerprint failed");
+    let (key_data, created, fingerprint) = decrypt_key(&mut data, &{ || Ok(Vec::new()) })
+        .expect("decoding KeyConfig without fingerprint failed");
 
     assert_eq!(key.data, key_data);
     assert_eq!(key.created, created);

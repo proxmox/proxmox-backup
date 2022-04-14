@@ -1,6 +1,6 @@
+use std::collections::{HashMap, VecDeque};
 use std::io::BufRead;
 use std::iter::Iterator;
-use std::collections::{HashMap, VecDeque};
 
 use lazy_static::lazy_static;
 
@@ -67,10 +67,13 @@ pub struct Lexer<R> {
     cur_line: Option<VecDeque<(Token, String)>>,
 }
 
-impl <R: BufRead> Lexer<R> {
-
+impl<R: BufRead> Lexer<R> {
     pub fn new(input: R) -> Self {
-        Self { input, eof_count: 0, cur_line: None }
+        Self {
+            input,
+            eof_count: 0,
+            cur_line: None,
+        }
     }
 
     fn split_line(line: &str) -> VecDeque<(Token, String)> {
@@ -79,10 +82,13 @@ impl <R: BufRead> Lexer<R> {
             res.push_back((Token::Comment, comment.trim().to_string()));
             return res;
         }
-        let mut list: VecDeque<(Token, String)> = line.split_ascii_whitespace().map(|text| {
-            let token = KEYWORDS.get(text).unwrap_or(&Token::Text);
-            (*token, text.to_string())
-        }).collect();
+        let mut list: VecDeque<(Token, String)> = line
+            .split_ascii_whitespace()
+            .map(|text| {
+                let token = KEYWORDS.get(text).unwrap_or(&Token::Text);
+                (*token, text.to_string())
+            })
+            .collect();
 
         if line.starts_with(|c: char| c.is_ascii_whitespace() && c != '\n') {
             list.push_front((Token::Attribute, String::from("\t")));
@@ -91,8 +97,7 @@ impl <R: BufRead> Lexer<R> {
     }
 }
 
-impl <R: BufRead> Iterator for Lexer<R> {
-
+impl<R: BufRead> Iterator for Lexer<R> {
     type Item = Result<(Token, String), std::io::Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -102,7 +107,9 @@ impl <R: BufRead> Iterator for Lexer<R> {
                 Err(err) => return Some(Err(err)),
                 Ok(0) => {
                     self.eof_count += 1;
-                    if self.eof_count == 1 { return Some(Ok((Token::EOF, String::new()))); }
+                    if self.eof_count == 1 {
+                        return Some(Ok((Token::EOF, String::new())));
+                    }
                     return None;
                 }
                 _ => {}
@@ -111,7 +118,7 @@ impl <R: BufRead> Iterator for Lexer<R> {
         }
 
         match self.cur_line {
-            Some(ref mut  cur_line) => {
+            Some(ref mut cur_line) => {
                 if cur_line.is_empty() {
                     self.cur_line = None;
                     Some(Ok((Token::Newline, String::from("\n"))))
@@ -120,9 +127,7 @@ impl <R: BufRead> Iterator for Lexer<R> {
                     Some(Ok((token, text)))
                 }
             }
-            None => {
-                None
-            }
+            None => None,
         }
     }
 }

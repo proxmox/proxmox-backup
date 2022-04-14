@@ -1,8 +1,8 @@
-use anyhow::{Error};
+use anyhow::Error;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 
-use proxmox_schema::{Schema, ApiType};
+use proxmox_schema::{ApiType, Schema};
 use proxmox_section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin};
 
 use pbs_api_types::{TapeBackupJobConfig, JOB_ID_SCHEMA};
@@ -19,7 +19,8 @@ fn init() -> SectionConfig {
         _ => unreachable!(),
     };
 
-    let plugin = SectionConfigPlugin::new("backup".to_string(), Some(String::from("id")), obj_schema);
+    let plugin =
+        SectionConfigPlugin::new("backup".to_string(), Some(String::from("id")), obj_schema);
     let mut config = SectionConfig::new(&JOB_ID_SCHEMA);
     config.register_plugin(plugin);
 
@@ -31,11 +32,10 @@ pub const TAPE_JOB_CFG_LOCKFILE: &str = "/etc/proxmox-backup/.tape-job.lck";
 
 /// Get exclusive lock
 pub fn lock() -> Result<BackupLockGuard, Error> {
-    open_backup_lockfile( TAPE_JOB_CFG_LOCKFILE, None, true)
+    open_backup_lockfile(TAPE_JOB_CFG_LOCKFILE, None, true)
 }
 
-pub fn config() -> Result<(SectionConfigData, [u8;32]), Error> {
-
+pub fn config() -> Result<(SectionConfigData, [u8; 32]), Error> {
     let content = proxmox_sys::fs::file_read_optional_string(TAPE_JOB_CFG_FILENAME)?
         .unwrap_or_else(|| "".to_string());
 

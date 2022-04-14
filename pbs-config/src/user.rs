@@ -7,9 +7,7 @@ use lazy_static::lazy_static;
 use proxmox_schema::*;
 use proxmox_section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin};
 
-use pbs_api_types::{
-    Authid, Userid, ApiToken, User,
-};
+use pbs_api_types::{ApiToken, Authid, User, Userid};
 
 use crate::ConfigVersionCache;
 
@@ -26,14 +24,19 @@ fn init() -> SectionConfig {
         Schema::Object(ref user_schema) => user_schema,
         _ => unreachable!(),
     };
-    let user_plugin = SectionConfigPlugin::new("user".to_string(), Some("userid".to_string()), user_schema);
+    let user_plugin =
+        SectionConfigPlugin::new("user".to_string(), Some("userid".to_string()), user_schema);
     config.register_plugin(user_plugin);
 
     let token_schema = match ApiToken::API_SCHEMA {
         Schema::Object(ref token_schema) => token_schema,
         _ => unreachable!(),
     };
-    let token_plugin = SectionConfigPlugin::new("token".to_string(), Some("tokenid".to_string()), token_schema);
+    let token_plugin = SectionConfigPlugin::new(
+        "token".to_string(),
+        Some("tokenid".to_string()),
+        token_schema,
+    );
     config.register_plugin(token_plugin);
 
     config
@@ -47,8 +50,7 @@ pub fn lock_config() -> Result<BackupLockGuard, Error> {
     open_backup_lockfile(USER_CFG_LOCKFILE, None, true)
 }
 
-pub fn config() -> Result<(SectionConfigData, [u8;32]), Error> {
-
+pub fn config() -> Result<(SectionConfigData, [u8; 32]), Error> {
     let content = proxmox_sys::fs::file_read_optional_string(USER_CFG_FILENAME)?
         .unwrap_or_else(|| "".to_string());
 
@@ -72,7 +74,6 @@ pub fn config() -> Result<(SectionConfigData, [u8;32]), Error> {
 }
 
 pub fn cached_config() -> Result<Arc<SectionConfigData>, Error> {
-
     struct ConfigCache {
         data: Option<Arc<SectionConfigData>>,
         last_mtime: i64,
@@ -80,8 +81,11 @@ pub fn cached_config() -> Result<Arc<SectionConfigData>, Error> {
     }
 
     lazy_static! {
-        static ref CACHED_CONFIG: RwLock<ConfigCache> = RwLock::new(
-            ConfigCache { data: None, last_mtime: 0, last_mtime_nsec: 0 });
+        static ref CACHED_CONFIG: RwLock<ConfigCache> = RwLock::new(ConfigCache {
+            data: None,
+            last_mtime: 0,
+            last_mtime_nsec: 0
+        });
     }
 
     let stat = match nix::sys::stat::stat(USER_CFG_FILENAME) {
@@ -90,11 +94,13 @@ pub fn cached_config() -> Result<Arc<SectionConfigData>, Error> {
         Err(err) => bail!("unable to stat '{}' - {}", USER_CFG_FILENAME, err),
     };
 
-    { // limit scope
+    {
+        // limit scope
         let cache = CACHED_CONFIG.read().unwrap();
         if let Some(ref config) = cache.data {
             if let Some(stat) = stat {
-                if stat.st_mtime == cache.last_mtime && stat.st_mtime_nsec == cache.last_mtime_nsec {
+                if stat.st_mtime == cache.last_mtime && stat.st_mtime_nsec == cache.last_mtime_nsec
+                {
                     return Ok(config.clone());
                 }
             } else if cache.last_mtime == 0 && cache.last_mtime_nsec == 0 {
@@ -130,26 +136,27 @@ pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
 
 /// Only exposed for testing
 #[doc(hidden)]
-pub fn test_cfg_from_str(raw: &str) -> Result<(SectionConfigData, [u8;32]), Error> {
+pub fn test_cfg_from_str(raw: &str) -> Result<(SectionConfigData, [u8; 32]), Error> {
     let cfg = init();
     let parsed = cfg.parse("test_user_cfg", raw)?;
 
-    Ok((parsed, [0;32]))
+    Ok((parsed, [0; 32]))
 }
 
 // shell completion helper
 pub fn complete_userid(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
     match config() {
-        Ok((data, _digest)) => {
-            data.sections.iter()
-                .filter_map(|(id, (section_type, _))| {
-                    if section_type == "user" {
-                        Some(id.to_string())
-                    } else {
-                        None
-                    }
-                }).collect()
-        },
+        Ok((data, _digest)) => data
+            .sections
+            .iter()
+            .filter_map(|(id, (section_type, _))| {
+                if section_type == "user" {
+                    Some(id.to_string())
+                } else {
+                    None
+                }
+            })
+            .collect(),
         Err(_) => return vec![],
     }
 }
@@ -174,21 +181,20 @@ pub fn complete_token_name(_arg: &str, param: &HashMap<String, String>) -> Vec<S
             let user = data.lookup::<User>("user", userid);
             let tokens = data.convert_to_typed_array("token");
             match (user, tokens) {
-                (Ok(_), Ok(tokens)) => {
-                    tokens
-                        .into_iter()
-                        .filter_map(|token: ApiToken| {
-                            let tokenid = token.tokenid;
-                            if tokenid.is_token() && tokenid.user() == userid {
-                                Some(tokenid.tokenname().unwrap().as_str().to_string())
-                            } else {
-                                None
-                            }
-                        }).collect()
-                },
+                (Ok(_), Ok(tokens)) => tokens
+                    .into_iter()
+                    .filter_map(|token: ApiToken| {
+                        let tokenid = token.tokenid;
+                        if tokenid.is_token() && tokenid.user() == userid {
+                            Some(tokenid.tokenname().unwrap().as_str().to_string())
+                        } else {
+                            None
+                        }
+                    })
+                    .collect(),
                 _ => vec![],
             }
-        },
+        }
         None => vec![],
     }
 }

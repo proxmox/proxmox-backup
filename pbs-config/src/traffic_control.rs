@@ -42,8 +42,7 @@ pub fn lock_config() -> Result<BackupLockGuard, Error> {
 }
 
 /// Read and parse the configuration file
-pub fn config() -> Result<(SectionConfigData, [u8;32]), Error> {
-
+pub fn config() -> Result<(SectionConfigData, [u8; 32]), Error> {
     let content = proxmox_sys::fs::file_read_optional_string(TRAFFIC_CONTROL_CFG_FILENAME)?
         .unwrap_or_else(|| "".to_string());
 
@@ -64,7 +63,6 @@ pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
 
     Ok(())
 }
-
 
 // shell completion helper
 pub fn complete_traffic_control_name(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
@@ -93,5 +91,4 @@ mod test {
 
         Ok(())
     }
-
 }

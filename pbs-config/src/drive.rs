@@ -21,16 +21,12 @@ use proxmox_section_config::{SectionConfig, SectionConfigData, SectionConfigPlug
 
 use crate::{open_backup_lockfile, replace_backup_config, BackupLockGuard};
 
-use pbs_api_types::{
-    DRIVE_NAME_SCHEMA, VirtualTapeDrive, LtoTapeDrive, ScsiTapeChanger,
-};
-
+use pbs_api_types::{LtoTapeDrive, ScsiTapeChanger, VirtualTapeDrive, DRIVE_NAME_SCHEMA};
 
 lazy_static! {
     /// Static [`SectionConfig`] to access parser/writer functions.
     pub static ref CONFIG: SectionConfig = init();
 }
-
 
 fn init() -> SectionConfig {
     let mut config = SectionConfig::new(&DRIVE_NAME_SCHEMA);
@@ -39,7 +35,8 @@ fn init() -> SectionConfig {
         Schema::Object(ref obj_schema) => obj_schema,
         _ => unreachable!(),
     };
-    let plugin = SectionConfigPlugin::new("virtual".to_string(), Some("name".to_string()), obj_schema);
+    let plugin =
+        SectionConfigPlugin::new("virtual".to_string(), Some("name".to_string()), obj_schema);
     config.register_plugin(plugin);
 
     let obj_schema = match LtoTapeDrive::API_SCHEMA {
@@ -53,7 +50,8 @@ fn init() -> SectionConfig {
         Schema::Object(ref obj_schema) => obj_schema,
         _ => unreachable!(),
     };
-    let plugin = SectionConfigPlugin::new("changer".to_string(), Some("name".to_string()), obj_schema);
+    let plugin =
+        SectionConfigPlugin::new("changer".to_string(), Some("name".to_string()), obj_schema);
     config.register_plugin(plugin);
     config
 }
@@ -69,8 +67,7 @@ pub fn lock() -> Result<BackupLockGuard, Error> {
 }
 
 /// Read and parse the configuration file
-pub fn config() -> Result<(SectionConfigData, [u8;32]), Error> {
-
+pub fn config() -> Result<(SectionConfigData, [u8; 32]), Error> {
     let content = proxmox_sys::fs::file_read_optional_string(DRIVE_CFG_FILENAME)?
         .unwrap_or_else(|| "".to_string());
 
@@ -98,15 +95,12 @@ pub fn check_drive_exists(config: &SectionConfigData, drive: &str) -> Result<(),
     Ok(())
 }
 
-
 // shell completion helper
 
 /// List all drive names
 pub fn complete_drive_name(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
     match config() {
-        Ok((data, _digest)) => data.sections.iter()
-            .map(|(id, _)| id.to_string())
-            .collect(),
+        Ok((data, _digest)) => data.sections.iter().map(|(id, _)| id.to_string()).collect(),
         Err(_) => return vec![],
     }
 }
@@ -114,10 +108,10 @@ pub fn complete_drive_name(_arg: &str, _param: &HashMap<String, String>) -> Vec<
 /// List Lto tape drives
 pub fn complete_lto_drive_name(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
     match config() {
-        Ok((data, _digest)) => data.sections.iter()
-            .filter(|(_id, (section_type, _))| {
-                section_type == "lto"
-            })
+        Ok((data, _digest)) => data
+            .sections
+            .iter()
+            .filter(|(_id, (section_type, _))| section_type == "lto")
             .map(|(id, _)| id.to_string())
             .collect(),
         Err(_) => return vec![],
@@ -127,10 +121,10 @@ pub fn complete_lto_drive_name(_arg: &str, _param: &HashMap<String, String>) -> 
 /// List Scsi tape changer names
 pub fn complete_changer_name(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
     match config() {
-        Ok((data, _digest)) => data.sections.iter()
-            .filter(|(_id, (section_type, _))| {
-                section_type == "changer"
-            })
+        Ok((data, _digest)) => data
+            .sections
+            .iter()
+            .filter(|(_id, (section_type, _))| section_type == "changer")
             .map(|(id, _)| id.to_string())
             .collect(),
         Err(_) => return vec![],

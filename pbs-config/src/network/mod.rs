@@ -1,10 +1,10 @@
-use std::io::{Write};
-use std::collections::{HashSet, HashMap, BTreeMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
+use std::io::Write;
 
-use anyhow::{Error, format_err, bail};
-use serde::de::{value, IntoDeserializer, Deserialize};
+use anyhow::{bail, format_err, Error};
 use lazy_static::lazy_static;
 use regex::Regex;
+use serde::de::{value, Deserialize, IntoDeserializer};
 
 use proxmox_sys::{fs::replace_file, fs::CreateOptions};
 
@@ -17,11 +17,13 @@ pub use lexer::*;
 mod parser;
 pub use parser::*;
 
-use pbs_api_types::{Interface, NetworkConfigMethod, NetworkInterfaceType, LinuxBondMode, BondXmitHashPolicy};
+use pbs_api_types::{
+    BondXmitHashPolicy, Interface, LinuxBondMode, NetworkConfigMethod, NetworkInterfaceType,
+};
 
 use crate::{open_backup_lockfile, BackupLockGuard};
 
-lazy_static!{
+lazy_static! {
     static ref PHYSICAL_NIC_REGEX: Regex = Regex::new(r"^(?:eth\d+|en[^:.]+|ib\d+)$").unwrap();
 }
 
@@ -61,7 +63,6 @@ pub fn bond_xmit_hash_policy_to_str(policy: &BondXmitHashPolicy) -> &'static str
 
 // Write attributes not depending on address family
 fn write_iface_attributes(iface: &Interface, w: &mut dyn Write) -> Result<(), Error> {
-
     static EMPTY_LIST: Vec<String> = Vec::new();
 
     match iface.interface_type {
@@ -86,10 +87,12 @@ fn write_iface_attributes(iface: &Interface, w: &mut dyn Write) -> Result<(), Er
             }
 
             if let Some(xmit_policy) = &iface.bond_xmit_hash_policy {
-                if mode == LinuxBondMode::ieee802_3ad ||
-                    mode == LinuxBondMode::balance_xor
-                {
-                    writeln!(w, "\tbond_xmit_hash_policy {}", bond_xmit_hash_policy_to_str(xmit_policy))?;
+                if mode == LinuxBondMode::ieee802_3ad || mode == LinuxBondMode::balance_xor {
+                    writeln!(
+                        w,
+                        "\tbond_xmit_hash_policy {}",
+                        bond_xmit_hash_policy_to_str(xmit_policy)
+                    )?;
                 }
             }
 
@@ -111,7 +114,11 @@ fn write_iface_attributes(iface: &Interface, w: &mut dyn Write) -> Result<(), Er
 }
 
 // Write attributes depending on address family inet (IPv4)
-fn write_iface_attributes_v4(iface: &Interface, w: &mut dyn Write, method: NetworkConfigMethod) -> Result<(), Error> {
+fn write_iface_attributes_v4(
+    iface: &Interface,
+    w: &mut dyn Write,
+    method: NetworkConfigMethod,
+) -> Result<(), Error> {
     if method == NetworkConfigMethod::Static {
         if let Some(address) = &iface.cidr {
             writeln!(w, "\taddress {}", address)?;
@@ -135,7 +142,11 @@ fn write_iface_attributes_v4(iface: &Interface, w: &mut dyn Write, method: Netwo
 }
 
 /// Write attributes depending on address family inet6 (IPv6)
-fn write_iface_attributes_v6(iface: &Interface, w: &mut dyn Write, method: NetworkConfigMethod) -> Result<(), Error> {
+fn write_iface_attributes_v6(
+    iface: &Interface,
+    w: &mut dyn Write,
+    method: NetworkConfigMethod,
+) -> Result<(), Error> {
     if method == NetworkConfigMethod::Static {
         if let Some(address) = &iface.cidr6 {
             writeln!(w, "\taddress {}", address)?;
@@ -159,7 +170,6 @@ fn write_iface_attributes_v6(iface: &Interface, w: &mut dyn Write, method: Netwo
 }
 
 fn write_iface(iface: &Interface, w: &mut dyn Write) -> Result<(), Error> {
-
     fn method_to_str(method: NetworkConfigMethod) -> &'static str {
         match method {
             NetworkConfigMethod::Static => "static",
@@ -169,7 +179,9 @@ fn write_iface(iface: &Interface, w: &mut dyn Write) -> Result<(), Error> {
         }
     }
 
-    if iface.method.is_none() && iface.method6.is_none() { return Ok(()); }
+    if iface.method.is_none() && iface.method6.is_none() {
+        return Ok(());
+    }
 
     if iface.autostart {
         writeln!(w, "auto {}", iface.name)?;
@@ -195,7 +207,8 @@ fn write_iface(iface: &Interface, w: &mut dyn Write) -> Result<(), Error> {
         if !skip_v6 {
             writeln!(w, "iface {} inet6 {}", iface.name, method_to_str(method6))?;
             write_iface_attributes_v6(iface, w, method6)?;
-            if iface.method.is_none() { // only write common attributes once
+            if iface.method.is_none() {
+                // only write common attributes once
                 write_iface_attributes(iface, w)?;
             }
             writeln!(w)?;
@@ -220,8 +233,7 @@ pub struct NetworkConfig {
 
 use std::convert::TryFrom;
 
-impl TryFrom<NetworkConfig> for String  {
-
+impl TryFrom<NetworkConfig> for String {
     type Error = Error;
 
     fn try_from(config: NetworkConfig) -> Result<Self, Self::Error> {
@@ -233,7 +245,6 @@ impl TryFrom<NetworkConfig> for String  {
 }
 
 impl NetworkConfig {
-
     pub fn new() -> Self {
         Self {
             interfaces: BTreeMap::new(),
@@ -242,16 +253,18 @@ impl NetworkConfig {
     }
 
     pub fn lookup(&self, name: &str) -> Result<&Interface, Error> {
-        let interface = self.interfaces.get(name).ok_or_else(|| {
-            format_err!("interface '{}' does not exist.", name)
-        })?;
+        let interface = self
+            .interfaces
+            .get(name)
+            .ok_or_else(|| format_err!("interface '{}' does not exist.", name))?;
         Ok(interface)
     }
 
     pub fn lookup_mut(&mut self, name: &str) -> Result<&mut Interface, Error> {
-        let interface = self.interfaces.get_mut(name).ok_or_else(|| {
-            format_err!("interface '{}' does not exist.", name)
-        })?;
+        let interface = self
+            .interfaces
+            .get_mut(name)
+            .ok_or_else(|| format_err!("interface '{}' does not exist.", name))?;
         Ok(interface)
     }
 
@@ -261,8 +274,12 @@ impl NetworkConfig {
         let mut check_port_usage = |iface, ports: &Vec<String>| {
             for port in ports.iter() {
                 if let Some(prev_iface) = used_ports.get(port) {
-                    bail!("iface '{}' port '{}' is already used on interface '{}'",
-                          iface, port, prev_iface);
+                    bail!(
+                        "iface '{}' port '{}' is already used on interface '{}'",
+                        iface,
+                        port,
+                        prev_iface
+                    );
                 }
                 used_ports.insert(port.to_string(), iface);
             }
@@ -270,18 +287,25 @@ impl NetworkConfig {
         };
 
         for (iface, interface) in self.interfaces.iter() {
-            if let Some(ports) = &interface.bridge_ports { check_port_usage(iface, ports)?; }
-            if let Some(slaves) = &interface.slaves { check_port_usage(iface, slaves)?; }
+            if let Some(ports) = &interface.bridge_ports {
+                check_port_usage(iface, ports)?;
+            }
+            if let Some(slaves) = &interface.slaves {
+                check_port_usage(iface, slaves)?;
+            }
         }
         Ok(())
     }
 
     /// Check if child mtu is less or equal than parent mtu
     pub fn check_mtu(&self, parent_name: &str, child_name: &str) -> Result<(), Error> {
-
-        let parent = self.interfaces.get(parent_name)
+        let parent = self
+            .interfaces
+            .get(parent_name)
             .ok_or_else(|| format_err!("check_mtu - missing parent interface '{}'", parent_name))?;
-        let child = self.interfaces.get(child_name)
+        let child = self
+            .interfaces
+            .get(child_name)
             .ok_or_else(|| format_err!("check_mtu - missing child interface '{}'", child_name))?;
 
         let child_mtu = match child.mtu {
@@ -301,8 +325,13 @@ impl NetworkConfig {
         };
 
         if parent_mtu < child_mtu {
-            bail!("interface '{}' - mtu {} is lower than '{}' - mtu {}\n",
-                  parent_name, parent_mtu, child_name, child_mtu);
+            bail!(
+                "interface '{}' - mtu {} is lower than '{}' - mtu {}\n",
+                parent_name,
+                parent_mtu,
+                child_name,
+                child_mtu
+            );
         }
 
         Ok(())
@@ -316,8 +345,13 @@ impl NetworkConfig {
                     match self.interfaces.get(slave) {
                         Some(entry) => {
                             if entry.interface_type != NetworkInterfaceType::Eth {
-                                bail!("bond '{}' - wrong interface type on slave '{}' ({:?} != {:?})",
-                                      iface, slave, entry.interface_type, NetworkInterfaceType::Eth);
+                                bail!(
+                                    "bond '{}' - wrong interface type on slave '{}' ({:?} != {:?})",
+                                    iface,
+                                    slave,
+                                    entry.interface_type,
+                                    NetworkInterfaceType::Eth
+                                );
                             }
                         }
                         None => {
@@ -333,7 +367,7 @@ impl NetworkConfig {
 
     /// Check if bridge ports exists
     pub fn check_bridge_ports(&self) -> Result<(), Error> {
-        lazy_static!{
+        lazy_static! {
             static ref VLAN_INTERFACE_REGEX: Regex = Regex::new(r"^(\S+)\.(\d+)$").unwrap();
         }
 
@@ -341,7 +375,11 @@ impl NetworkConfig {
             if let Some(ports) = &interface.bridge_ports {
                 for port in ports.iter() {
                     let captures = VLAN_INTERFACE_REGEX.captures(port);
-                    let port = if let Some(ref caps) = captures { &caps[1] } else { port.as_str() };
+                    let port = if let Some(ref caps) = captures {
+                        &caps[1]
+                    } else {
+                        port.as_str()
+                    };
                     if !self.interfaces.contains_key(port) {
                         bail!("bridge '{}' - unable to find port '{}'", iface, port);
                     }
@@ -353,7 +391,6 @@ impl NetworkConfig {
     }
 
     pub fn write_config(&self, w: &mut dyn Write) -> Result<(), Error> {
-
         self.check_port_usage()?;
         self.check_bond_slaves()?;
         self.check_bridge_ports()?;
@@ -363,13 +400,15 @@ impl NetworkConfig {
         let mut last_entry_was_comment = false;
 
         for entry in self.order.iter() {
-             match entry {
+            match entry {
                 NetworkOrderEntry::Comment(comment) => {
                     writeln!(w, "#{}", comment)?;
                     last_entry_was_comment = true;
                 }
                 NetworkOrderEntry::Option(option) => {
-                    if last_entry_was_comment {  writeln!(w)?; }
+                    if last_entry_was_comment {
+                        writeln!(w)?;
+                    }
                     last_entry_was_comment = false;
                     writeln!(w, "{}", option)?;
                     writeln!(w)?;
@@ -380,10 +419,14 @@ impl NetworkConfig {
                         None => continue,
                     };
 
-                    if last_entry_was_comment {  writeln!(w)?; }
+                    if last_entry_was_comment {
+                        writeln!(w)?;
+                    }
                     last_entry_was_comment = false;
 
-                    if done.contains(name) { continue; }
+                    if done.contains(name) {
+                        continue;
+                    }
                     done.insert(name);
 
                     write_iface(interface, w)?;
@@ -392,7 +435,9 @@ impl NetworkConfig {
         }
 
         for (name, interface) in &self.interfaces {
-            if done.contains(name) { continue; }
+            if done.contains(name) {
+                continue;
+            }
             write_iface(interface, w)?;
         }
         Ok(())
@@ -407,15 +452,16 @@ pub fn lock_config() -> Result<BackupLockGuard, Error> {
     open_backup_lockfile(NETWORK_LOCKFILE, None, true)
 }
 
-pub fn config() -> Result<(NetworkConfig, [u8;32]), Error> {
-
-    let content = match proxmox_sys::fs::file_get_optional_contents(NETWORK_INTERFACES_NEW_FILENAME)? {
-        Some(content) => content,
-        None => {
-            let content = proxmox_sys::fs::file_get_optional_contents(NETWORK_INTERFACES_FILENAME)?;
-            content.unwrap_or_default()
-        }
-    };
+pub fn config() -> Result<(NetworkConfig, [u8; 32]), Error> {
+    let content =
+        match proxmox_sys::fs::file_get_optional_contents(NETWORK_INTERFACES_NEW_FILENAME)? {
+            Some(content) => content,
+            None => {
+                let content =
+                    proxmox_sys::fs::file_get_optional_contents(NETWORK_INTERFACES_FILENAME)?;
+                content.unwrap_or_default()
+            }
+        };
 
     let digest = openssl::sha::sha256(&content);
 
@@ -427,7 +473,6 @@ pub fn config() -> Result<(NetworkConfig, [u8;32]), Error> {
 }
 
 pub fn changes() -> Result<String, Error> {
-
     if !std::path::Path::new(NETWORK_INTERFACES_NEW_FILENAME).exists() {
         return Ok(String::new());
     }
@@ -436,7 +481,6 @@ pub fn changes() -> Result<String, Error> {
 }
 
 pub fn save_config(config: &NetworkConfig) -> Result<(), Error> {
-
     let mut raw = Vec::new();
     config.write_config(&mut raw)?;
 
@@ -461,7 +505,6 @@ pub fn complete_interface_name(_arg: &str, _param: &HashMap<String, String>) -> 
     }
 }
 
-
 pub fn complete_port_list(arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
     let mut ports = Vec::new();
     match config() {
@@ -476,20 +519,26 @@ pub fn complete_port_list(arg: &str, _param: &HashMap<String, String>) -> Vec<St
     };
 
     let arg = arg.trim();
-    let prefix = if let Some(idx) = arg.rfind(',') { &arg[..idx+1] } else { "" };
-    ports.iter().map(|port| format!("{}{}", prefix, port)).collect()
+    let prefix = if let Some(idx) = arg.rfind(',') {
+        &arg[..idx + 1]
+    } else {
+        ""
+    };
+    ports
+        .iter()
+        .map(|port| format!("{}{}", prefix, port))
+        .collect()
 }
 
 #[cfg(test)]
 mod test {
 
-    use anyhow::{Error};
+    use anyhow::Error;
 
     use super::*;
 
     #[test]
     fn test_network_config_create_lo_1() -> Result<(), Error> {
-
         let input = "";
 
         let mut parser = NetworkParser::new(input.as_bytes());
@@ -515,7 +564,6 @@ mod test {
 
     #[test]
     fn test_network_config_create_lo_2() -> Result<(), Error> {
-
         let input = "#c1\n\n#c2\n\niface test inet manual\n";
 
         let mut parser = NetworkParser::new(input.as_bytes());

@@ -10,7 +10,7 @@ use lazy_static::lazy_static;
 
 use proxmox_schema::{ApiStringFormat, ApiType, Schema, StringSchema};
 
-use pbs_api_types::{Authid, Userid, Role, ROLE_NAME_NO_ACCESS};
+use pbs_api_types::{Authid, Role, Userid, ROLE_NAME_NO_ACCESS};
 
 use crate::{open_backup_lockfile, replace_backup_config, BackupLockGuard};
 
@@ -328,10 +328,7 @@ impl AclTree {
     fn get_or_insert_node(&mut self, path: &[&str]) -> &mut AclTreeNode {
         let mut node = &mut self.root;
         for comp in path {
-            node = node
-                .children
-                .entry(String::from(*comp))
-                .or_default();
+            node = node.children.entry(String::from(*comp)).or_default();
         }
         node
     }

@@ -15,20 +15,17 @@ use std::collections::HashMap;
 use anyhow::{bail, Error};
 use serde::{Deserialize, Serialize};
 
-use proxmox_sys::fs::file_read_optional_string;
 use pbs_api_types::Fingerprint;
+use proxmox_sys::fs::file_read_optional_string;
 
 use crate::key_config::KeyConfig;
-use crate::{open_backup_lockfile, replace_secret_config, replace_backup_config};
+use crate::{open_backup_lockfile, replace_backup_config, replace_secret_config};
 
 mod hex_key {
-    use serde::{self, Deserialize, Serializer, Deserializer};
     use hex::FromHex;
-    
-    pub fn serialize<S>(
-        csum: &[u8; 32],
-        serializer: S,
-    ) -> Result<S::Ok, S::Error>
+    use serde::{self, Deserialize, Deserializer, Serializer};
+
+    pub fn serialize<S>(csum: &[u8; 32], serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
@@ -36,9 +33,7 @@ mod hex_key {
         serializer.serialize_str(&s)
     }
 
-    pub fn deserialize<'de, D>(
-        deserializer: D,
-    ) -> Result<[u8; 32], D::Error>
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<[u8; 32], D::Error>
     where
         D: Deserializer<'de>,
     {
@@ -68,8 +63,7 @@ pub const TAPE_KEY_CONFIG_FILENAME: &str = "/etc/proxmox-backup/tape-encryption-
 pub const TAPE_KEYS_LOCKFILE: &str = "/etc/proxmox-backup/.tape-encryption-keys.lck";
 
 /// Load tape encryption keys (plain, unprotected keys)
-pub fn load_keys() -> Result<(HashMap<Fingerprint, EncryptionKeyInfo>,  [u8;32]), Error> {
-
+pub fn load_keys() -> Result<(HashMap<Fingerprint, EncryptionKeyInfo>, [u8; 32]), Error> {
     let content = file_read_optional_string(TAPE_KEYS_FILENAME)?;
     let content = content.unwrap_or_else(|| String::from("[]"));
 
@@ -99,8 +93,7 @@ pub fn load_keys() -> Result<(HashMap<Fingerprint, EncryptionKeyInfo>,  [u8;32])
 }
 
 /// Load tape encryption key configurations (password protected keys)
-pub fn load_key_configs() -> Result<(HashMap<Fingerprint, KeyConfig>,  [u8;32]), Error> {
-
+pub fn load_key_configs() -> Result<(HashMap<Fingerprint, KeyConfig>, [u8; 32]), Error> {
     let content = file_read_optional_string(TAPE_KEY_CONFIG_FILENAME)?;
     let content = content.unwrap_or_else(|| String::from("[]"));
 
@@ -128,7 +121,6 @@ pub fn load_key_configs() -> Result<(HashMap<Fingerprint, KeyConfig>,  [u8;32]),
 ///
 /// The file is only accessible by user root (mode 0600).
 pub fn save_keys(map: HashMap<Fingerprint, EncryptionKeyInfo>) -> Result<(), Error> {
-
     let mut list = Vec::new();
 
     for (_fp, item) in map {
@@ -141,7 +133,6 @@ pub fn save_keys(map: HashMap<Fingerprint, EncryptionKeyInfo>) -> Result<(), Err
 
 /// Store tape encryption key configurations (password protected keys)
 pub fn save_key_configs(map: HashMap<Fingerprint, KeyConfig>) -> Result<(), Error> {
-
     let mut list = Vec::new();
 
     for (_fp, item) in map {
@@ -155,8 +146,7 @@ pub fn save_key_configs(map: HashMap<Fingerprint, KeyConfig>) -> Result<(), Erro
 /// Insert a new key
 ///
 /// Get the lock, load both files, insert the new key, store files.
-pub fn insert_key(key: [u8;32], key_config: KeyConfig, force: bool) -> Result<(), Error> {
-
+pub fn insert_key(key: [u8; 32], key_config: KeyConfig, force: bool) -> Result<(), Error> {
     let _lock = open_backup_lockfile(TAPE_KEYS_LOCKFILE, None, true)?;
 
     let (mut key_map, _) = load_keys()?;

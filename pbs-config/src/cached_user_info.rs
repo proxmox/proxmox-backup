@@ -1,15 +1,15 @@
 //! Cached user info for fast ACL permission checks
 
-use std::sync::{RwLock, Arc};
+use std::sync::{Arc, RwLock};
 
-use anyhow::{Error, bail};
+use anyhow::{bail, Error};
 use lazy_static::lazy_static;
 
 use proxmox_router::UserInformation;
 use proxmox_section_config::SectionConfigData;
 use proxmox_time::epoch_i64;
 
-use pbs_api_types::{Authid, Userid, User, ApiToken, ROLE_ADMIN};
+use pbs_api_types::{ApiToken, Authid, User, Userid, ROLE_ADMIN};
 
 use crate::acl::{AclTree, ROLE_NAMES};
 use crate::ConfigVersionCache;
@@ -27,13 +27,14 @@ struct ConfigCache {
 }
 
 lazy_static! {
-    static ref CACHED_CONFIG: RwLock<ConfigCache> = RwLock::new(
-        ConfigCache { data: None, last_update: 0, last_user_cache_generation: 0 }
-    );
+    static ref CACHED_CONFIG: RwLock<ConfigCache> = RwLock::new(ConfigCache {
+        data: None,
+        last_update: 0,
+        last_user_cache_generation: 0
+    });
 }
 
 impl CachedUserInfo {
-
     /// Returns a cached instance (up to 5 seconds old).
     pub fn new() -> Result<Arc<Self>, Error> {
         let now = epoch_i64();
@@ -41,10 +42,11 @@ impl CachedUserInfo {
         let version_cache = ConfigVersionCache::new()?;
         let user_cache_generation = version_cache.user_cache_generation();
 
-        { // limit scope
+        {
+            // limit scope
             let cache = CACHED_CONFIG.read().unwrap();
-            if (user_cache_generation == cache.last_user_cache_generation) &&
-                ((now - cache.last_update) < 5)
+            if (user_cache_generation == cache.last_user_cache_generation)
+                && ((now - cache.last_update) < 5)
             {
                 if let Some(ref config) = cache.data {
                     return Ok(config.clone());
@@ -92,7 +94,10 @@ impl CachedUserInfo {
         }
 
         if auth_id.is_token() {
-            if let Ok(info) = self.user_cfg.lookup::<ApiToken>("token", &auth_id.to_string()) {
+            if let Ok(info) = self
+                .user_cfg
+                .lookup::<ApiToken>("token", &auth_id.to_string())
+            {
                 return info.is_active();
             } else {
                 return false;
@@ -157,14 +162,14 @@ impl CachedUserInfo {
             // limit privs to that of owning user
             let user_auth_id = Authid::from(auth_id.user().clone());
             privs &= self.lookup_privs(&user_auth_id, path);
-            let (owner_privs, owner_propagated_privs) = self.lookup_privs_details(&user_auth_id, path);
+            let (owner_privs, owner_propagated_privs) =
+                self.lookup_privs_details(&user_auth_id, path);
             privs &= owner_privs;
             propagated_privs &= owner_propagated_privs;
         }
 
         (privs, propagated_privs)
     }
-
 }
 
 impl UserInformation for CachedUserInfo {

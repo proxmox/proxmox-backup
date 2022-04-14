@@ -1,12 +1,12 @@
-use std::path::Path;
-use std::process::Command;
 use std::collections::HashMap;
 use std::os::unix::io::{AsRawFd, FromRawFd};
+use std::path::Path;
+use std::process::Command;
 
-use anyhow::{Error, bail, format_err};
+use anyhow::{bail, format_err, Error};
 use lazy_static::lazy_static;
 use nix::ioctl_read_bad;
-use nix::sys::socket::{socket, AddressFamily, SockType, SockFlag};
+use nix::sys::socket::{socket, AddressFamily, SockFlag, SockType};
 use regex::Regex;
 
 use pbs_api_types::*; // for IP macros
@@ -77,7 +77,13 @@ pub fn check_netmask(mask: u8, is_v6: bool) -> Result<(), Error> {
     };
 
     if !(mask >= min && mask <= max) {
-        bail!("{} mask '{}' is out of range ({}..{}).", ver, mask, min, max);
+        bail!(
+            "{} mask '{}' is out of range ({}..{}).",
+            ver,
+            mask,
+            min,
+            max
+        );
     }
 
     Ok(())
@@ -85,14 +91,11 @@ pub fn check_netmask(mask: u8, is_v6: bool) -> Result<(), Error> {
 
 // parse ip address with optional cidr mask
 pub fn parse_address_or_cidr(cidr: &str) -> Result<(String, Option<u8>, bool), Error> {
-
     lazy_static! {
-        pub static ref CIDR_V4_REGEX: Regex = Regex::new(
-            concat!(r"^(", IPV4RE!(), r")(?:/(\d{1,2}))?$")
-        ).unwrap();
-        pub static ref CIDR_V6_REGEX: Regex = Regex::new(
-            concat!(r"^(", IPV6RE!(), r")(?:/(\d{1,3}))?$")
-        ).unwrap();
+        pub static ref CIDR_V4_REGEX: Regex =
+            Regex::new(concat!(r"^(", IPV4RE!(), r")(?:/(\d{1,2}))?$")).unwrap();
+        pub static ref CIDR_V6_REGEX: Regex =
+            Regex::new(concat!(r"^(", IPV6RE!(), r")(?:/(\d{1,3}))?$")).unwrap();
     }
 
     if let Some(caps) = CIDR_V4_REGEX.captures(cidr) {
@@ -119,7 +122,6 @@ pub fn parse_address_or_cidr(cidr: &str) -> Result<(String, Option<u8>, bool), E
 }
 
 pub fn get_network_interfaces() -> Result<HashMap<String, bool>, Error> {
-
     const PROC_NET_DEV: &str = "/proc/net/dev";
 
     #[repr(C)]
@@ -130,7 +132,7 @@ pub fn get_network_interfaces() -> Result<HashMap<String, bool>, Error> {
 
     ioctl_read_bad!(get_interface_flags, libc::SIOCGIFFLAGS, ifreq);
 
-    lazy_static!{
+    lazy_static! {
         static ref IFACE_LINE_REGEX: Regex = Regex::new(r"^\s*([^:\s]+):").unwrap();
     }
     let raw = std::fs::read_to_string(PROC_NET_DEV)
@@ -163,13 +165,26 @@ pub fn get_network_interfaces() -> Result<HashMap<String, bool>, Error> {
         if let Some(cap) = IFACE_LINE_REGEX.captures(line) {
             let ifname = &cap[1];
 
-            let mut req = ifreq { ifr_name: *b"0000000000000000", ifru_flags: 0 };
-            for (i, b) in std::ffi::CString::new(ifname)?.as_bytes_with_nul().iter().enumerate() {
-                if i < (libc::IFNAMSIZ-1) { req.ifr_name[i] = *b as libc::c_uchar; }
+            let mut req = ifreq {
+                ifr_name: *b"0000000000000000",
+                ifru_flags: 0,
+            };
+            for (i, b) in std::ffi::CString::new(ifname)?
+                .as_bytes_with_nul()
+                .iter()
+                .enumerate()
+            {
+                if i < (libc::IFNAMSIZ - 1) {
+                    req.ifr_name[i] = *b as libc::c_uchar;
+                }
             }
             let res = unsafe { get_interface_flags(sock.as_raw_fd(), &mut req)? };
             if res != 0 {
-                bail!("ioctl get_interface_flags for '{}' failed ({})", ifname, res);
+                bail!(
+                    "ioctl get_interface_flags for '{}' failed ({})",
+                    ifname,
+                    res
+                );
             }
             let is_up = (req.ifru_flags & (libc::IFF_UP as libc::c_short)) != 0;
             interface_list.insert(ifname.to_string(), is_up);
@@ -180,7 +195,6 @@ pub fn get_network_interfaces() -> Result<HashMap<String, bool>, Error> {
 }
 
 pub fn compute_file_diff(filename: &str, shadow: &str) -> Result<String, Error> {
-
     let output = Command::new("diff")
         .arg("-b")
         .arg("-u")
@@ -204,7 +218,6 @@ pub fn assert_ifupdown2_installed() -> Result<(), Error> {
 }
 
 pub fn network_reload() -> Result<(), Error> {
-
     let output = Command::new("ifreload")
         .arg("-a")
         .output()
@@ -212,7 +225,6 @@ pub fn network_reload() -> Result<(), Error> {
 
     proxmox_sys::command::command_output(output, None)
         .map_err(|err| format_err!("ifreload failed: {}", err))?;
-
 
     Ok(())
 }

@@ -20,7 +20,8 @@ fn init() -> SectionConfig {
         _ => unreachable!(),
     };
 
-    let plugin = SectionConfigPlugin::new("remote".to_string(), Some("name".to_string()), obj_schema);
+    let plugin =
+        SectionConfigPlugin::new("remote".to_string(), Some("name".to_string()), obj_schema);
     let mut config = SectionConfig::new(&REMOTE_ID_SCHEMA);
     config.register_plugin(plugin);
 
@@ -35,8 +36,7 @@ pub fn lock_config() -> Result<BackupLockGuard, Error> {
     open_backup_lockfile(REMOTE_CFG_LOCKFILE, None, true)
 }
 
-pub fn config() -> Result<(SectionConfigData, [u8;32]), Error> {
-
+pub fn config() -> Result<(SectionConfigData, [u8; 32]), Error> {
     let content = proxmox_sys::fs::file_read_optional_string(REMOTE_CFG_FILENAME)?
         .unwrap_or_else(|| "".to_string());
 

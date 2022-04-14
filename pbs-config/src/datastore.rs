@@ -1,4 +1,4 @@
-use anyhow::{Error};
+use anyhow::Error;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 
@@ -19,7 +19,11 @@ fn init() -> SectionConfig {
         _ => unreachable!(),
     };
 
-    let plugin = SectionConfigPlugin::new("datastore".to_string(), Some(String::from("name")), obj_schema);
+    let plugin = SectionConfigPlugin::new(
+        "datastore".to_string(),
+        Some(String::from("name")),
+        obj_schema,
+    );
     let mut config = SectionConfig::new(&DATASTORE_SCHEMA);
     config.register_plugin(plugin);
 
@@ -34,8 +38,7 @@ pub fn lock_config() -> Result<BackupLockGuard, Error> {
     open_backup_lockfile(DATASTORE_CFG_LOCKFILE, None, true)
 }
 
-pub fn config() -> Result<(SectionConfigData, [u8;32]), Error> {
-
+pub fn config() -> Result<(SectionConfigData, [u8; 32]), Error> {
     let content = proxmox_sys::fs::file_read_optional_string(DATASTORE_CFG_FILENAME)?
         .unwrap_or_else(|| "".to_string());
 
@@ -96,5 +99,7 @@ pub fn complete_acl_path(_arg: &str, _param: &HashMap<String, String>) -> Vec<St
 pub fn complete_calendar_event(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
     // just give some hints about possible values
     ["minutely", "hourly", "daily", "mon..fri", "0:0"]
-        .iter().map(|s| String::from(*s)).collect()
+        .iter()
+        .map(|s| String::from(*s))
+        .collect()
 }

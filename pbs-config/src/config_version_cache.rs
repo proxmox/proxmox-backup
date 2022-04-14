@@ -1,16 +1,17 @@
+use std::mem::{ManuallyDrop, MaybeUninit};
 use std::path::Path;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::mem::{MaybeUninit, ManuallyDrop};
+use std::sync::Arc;
 
 use anyhow::{bail, Error};
-use once_cell::sync::OnceCell;
 use nix::sys::stat::Mode;
+use once_cell::sync::OnceCell;
 
 use proxmox_sys::fs::{create_path, CreateOptions};
 
 // openssl::sha::sha256(b"Proxmox Backup ConfigVersionCache v1.0")[0..8];
-pub const PROXMOX_BACKUP_CONFIG_VERSION_CACHE_MAGIC_1_0: [u8; 8] = [25, 198, 168, 230, 154, 132, 143, 131];
+pub const PROXMOX_BACKUP_CONFIG_VERSION_CACHE_MAGIC_1_0: [u8; 8] =
+    [25, 198, 168, 230, 154, 132, 143, 131];
 
 const FILE_PATH: &str = pbs_buildcfg::rundir!("/shmem/config-versions");
 
@@ -26,7 +27,6 @@ struct ConfigVersionCacheDataInner {
     traffic_control_generation: AtomicUsize,
     // datastore (datastore.cfg) generation/version
     datastore_generation: AtomicUsize,
-
     // Add further atomics here
 }
 
@@ -76,15 +76,13 @@ impl Init for ConfigVersionCacheData {
     }
 }
 
-
 pub struct ConfigVersionCache {
-    shmem: SharedMemory<ConfigVersionCacheData>
+    shmem: SharedMemory<ConfigVersionCacheData>,
 }
 
-static INSTANCE: OnceCell<Arc< ConfigVersionCache>> = OnceCell::new();
+static INSTANCE: OnceCell<Arc<ConfigVersionCache>> = OnceCell::new();
 
 impl ConfigVersionCache {
-
     /// Open the memory based communication channel singleton.
     pub fn new() -> Result<Arc<Self>, Error> {
         INSTANCE.get_or_try_init(Self::open).map(Arc::clone)
@@ -101,45 +99,47 @@ impl ConfigVersionCache {
 
         let file_path = Path::new(FILE_PATH);
         let dir_path = file_path.parent().unwrap();
-        
-        create_path(
-            dir_path,
-            Some(dir_opts.clone()),
-            Some(dir_opts))?;
+
+        create_path(dir_path, Some(dir_opts.clone()), Some(dir_opts))?;
 
         let file_opts = CreateOptions::new()
             .perm(Mode::from_bits_truncate(0o660))
             .owner(user.uid)
             .group(user.gid);
 
-        let shmem: SharedMemory<ConfigVersionCacheData> =
-            SharedMemory::open(file_path, file_opts)?;
+        let shmem: SharedMemory<ConfigVersionCacheData> = SharedMemory::open(file_path, file_opts)?;
 
         Ok(Arc::new(Self { shmem }))
     }
 
     /// Returns the user cache generation number.
     pub fn user_cache_generation(&self) -> usize {
-        self.shmem.data()
-            .user_cache_generation.load(Ordering::Acquire)
+        self.shmem
+            .data()
+            .user_cache_generation
+            .load(Ordering::Acquire)
     }
 
     /// Increase the user cache generation number.
     pub fn increase_user_cache_generation(&self) {
-        self.shmem.data()
+        self.shmem
+            .data()
             .user_cache_generation
             .fetch_add(1, Ordering::AcqRel);
     }
 
     /// Returns the traffic control generation number.
     pub fn traffic_control_generation(&self) -> usize {
-        self.shmem.data()
-            .traffic_control_generation.load(Ordering::Acquire)
+        self.shmem
+            .data()
+            .traffic_control_generation
+            .load(Ordering::Acquire)
     }
 
     /// Increase the traffic control generation number.
     pub fn increase_traffic_control_generation(&self) {
-        self.shmem.data()
+        self.shmem
+            .data()
             .traffic_control_generation
             .fetch_add(1, Ordering::AcqRel);
     }
@@ -156,6 +156,7 @@ impl ConfigVersionCache {
     pub fn increase_datastore_generation(&self) -> usize {
         self.shmem
             .data()
-            .datastore_generation.fetch_add(1, Ordering::Acquire)
+            .datastore_generation
+            .fetch_add(1, Ordering::Acquire)
     }
 }

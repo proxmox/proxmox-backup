@@ -1,15 +1,18 @@
-use std::io::{BufRead};
-use std::iter::{Peekable, Iterator};
 use std::collections::{HashMap, HashSet};
+use std::io::BufRead;
+use std::iter::{Iterator, Peekable};
 
-use anyhow::{Error, bail, format_err};
+use anyhow::{bail, format_err, Error};
 use lazy_static::lazy_static;
 use regex::Regex;
 
 use super::helper::*;
 use super::lexer::*;
 
-use super::{NetworkConfig, NetworkOrderEntry, Interface, NetworkConfigMethod, NetworkInterfaceType, bond_mode_from_str, bond_xmit_hash_policy_from_str};
+use super::{
+    bond_mode_from_str, bond_xmit_hash_policy_from_str, Interface, NetworkConfig,
+    NetworkConfigMethod, NetworkInterfaceType, NetworkOrderEntry,
+};
 
 fn set_method_v4(iface: &mut Interface, method: NetworkConfigMethod) -> Result<(), Error> {
     if iface.method.is_none() {
@@ -65,11 +68,18 @@ fn set_gateway_v6(iface: &mut Interface, gateway: String) -> Result<(), Error> {
     Ok(())
 }
 
-fn set_interface_type(iface: &mut Interface, interface_type: NetworkInterfaceType) -> Result<(), Error> {
+fn set_interface_type(
+    iface: &mut Interface,
+    interface_type: NetworkInterfaceType,
+) -> Result<(), Error> {
     if iface.interface_type == NetworkInterfaceType::Unknown {
         iface.interface_type = interface_type;
     } else if iface.interface_type != interface_type {
-        bail!("interface type already defined - cannot change from {:?} to {:?}", iface.interface_type, interface_type);
+        bail!(
+            "interface type already defined - cannot change from {:?} to {:?}",
+            iface.interface_type,
+            interface_type
+        );
     }
     Ok(())
 }
@@ -79,8 +89,7 @@ pub struct NetworkParser<R: BufRead> {
     line_nr: usize,
 }
 
-impl <R: BufRead> NetworkParser<R> {
-
+impl<R: BufRead> NetworkParser<R> {
     pub fn new(reader: R) -> Self {
         let input = Lexer::new(reader).peekable();
         Self { input, line_nr: 1 }
@@ -91,9 +100,7 @@ impl <R: BufRead> NetworkParser<R> {
             Some(Err(err)) => {
                 bail!("input error - {}", err);
             }
-            Some(Ok((token, _))) => {
-                Ok(*token)
-            }
+            Some(Ok((token, _))) => Ok(*token),
             None => {
                 bail!("got unexpected end of stream (inside peek)");
             }
@@ -106,7 +113,9 @@ impl <R: BufRead> NetworkParser<R> {
                 bail!("input error - {}", err);
             }
             Some(Ok((token, text))) => {
-                if token == Token::Newline { self.line_nr += 1; }
+                if token == Token::Newline {
+                    self.line_nr += 1;
+                }
                 Ok((token, text))
             }
             None => {
@@ -136,14 +145,13 @@ impl <R: BufRead> NetworkParser<R> {
         loop {
             match self.next()? {
                 (Token::Text, iface) => {
-                     auto_flag.insert(iface.to_string());
+                    auto_flag.insert(iface.to_string());
                 }
                 (Token::Newline, _) => break,
                 unexpected => {
                     bail!("expected {:?}, got {:?}", Token::Text, unexpected);
                 }
             }
-
         }
 
         Ok(())
@@ -153,7 +161,7 @@ impl <R: BufRead> NetworkParser<R> {
         self.eat(Token::Netmask)?;
         let netmask = self.next_text()?;
 
-        let mask = if let Some(mask) = IPV4_MASK_HASH_LOCALNET.get(netmask.as_str())  {
+        let mask = if let Some(mask) = IPV4_MASK_HASH_LOCALNET.get(netmask.as_str()) {
             *mask
         } else {
             match u8::from_str_radix(netmask.as_str(), 10) {
@@ -236,7 +244,9 @@ impl <R: BufRead> NetworkParser<R> {
             match self.next()? {
                 (Token::Newline, _) => return Ok(line),
                 (_, text) => {
-                    if !line.is_empty() { line.push(' '); }
+                    if !line.is_empty() {
+                        line.push(' ');
+                    }
                     line.push_str(&text);
                 }
             }
@@ -255,7 +265,10 @@ impl <R: BufRead> NetworkParser<R> {
                         list.push(text);
                     }
                 }
-                _ => bail!("unable to parse interface list - unexpected token '{:?}'", token),
+                _ => bail!(
+                    "unable to parse interface list - unexpected token '{:?}'",
+                    token
+                ),
             }
         }
 
@@ -268,23 +281,28 @@ impl <R: BufRead> NetworkParser<R> {
         address_family_v4: bool,
         address_family_v6: bool,
     ) -> Result<(), Error> {
-
         let mut netmask = None;
         let mut address_list = Vec::new();
 
         loop {
             match self.peek()? {
-                Token::Attribute => { self.eat(Token::Attribute)?; },
+                Token::Attribute => {
+                    self.eat(Token::Attribute)?;
+                }
                 Token::Comment => {
                     let comment = self.eat(Token::Comment)?;
                     if !address_family_v4 && address_family_v6 {
                         let mut comments = interface.comments6.take().unwrap_or_default();
-                        if !comments.is_empty() { comments.push('\n'); }
+                        if !comments.is_empty() {
+                            comments.push('\n');
+                        }
                         comments.push_str(&comment);
                         interface.comments6 = Some(comments);
                     } else {
                         let mut comments = interface.comments.take().unwrap_or_default();
-                        if !comments.is_empty() { comments.push('\n'); }
+                        if !comments.is_empty() {
+                            comments.push('\n');
+                        }
                         comments.push_str(&comment);
                         interface.comments = Some(comments);
                     }
@@ -343,7 +361,8 @@ impl <R: BufRead> NetworkParser<R> {
                     interface.bond_xmit_hash_policy = Some(policy);
                     self.eat(Token::Newline)?;
                 }
-                _ => { // parse addon attributes
+                _ => {
+                    // parse addon attributes
                     let option = self.parse_to_eol()?;
                     if !option.is_empty() {
                         if !address_family_v4 && address_family_v6 {
@@ -351,8 +370,8 @@ impl <R: BufRead> NetworkParser<R> {
                         } else {
                             interface.options.push(option);
                         }
-                   };
-                 },
+                    };
+                }
             }
         }
 
@@ -362,7 +381,7 @@ impl <R: BufRead> NetworkParser<R> {
                 bail!("unable to apply netmask to multiple addresses (please use cidr notation)");
             } else if address_list.len() == 1 {
                 let (mut cidr, mask, is_v6) = address_list.pop().unwrap();
-                if mask.is_some()  {
+                if mask.is_some() {
                     // address already has a mask  - ignore netmask
                 } else {
                     check_netmask(netmask, is_v6)?;
@@ -449,12 +468,18 @@ impl <R: BufRead> NetworkParser<R> {
         Ok(())
     }
 
-    pub fn parse_interfaces(&mut self, existing_interfaces: Option<&HashMap<String, bool>>) -> Result<NetworkConfig, Error> {
+    pub fn parse_interfaces(
+        &mut self,
+        existing_interfaces: Option<&HashMap<String, bool>>,
+    ) -> Result<NetworkConfig, Error> {
         self._parse_interfaces(existing_interfaces)
             .map_err(|err| format_err!("line {}: {}", self.line_nr, err))
     }
 
-    pub fn _parse_interfaces(&mut self, existing_interfaces: Option<&HashMap<String, bool>>) -> Result<NetworkConfig, Error> {
+    pub fn _parse_interfaces(
+        &mut self,
+        existing_interfaces: Option<&HashMap<String, bool>>,
+    ) -> Result<NetworkConfig, Error> {
         let mut config = NetworkConfig::new();
 
         let mut auto_flag: HashSet<String> = HashSet::new();
@@ -494,31 +519,38 @@ impl <R: BufRead> NetworkParser<R> {
             }
         }
 
-        lazy_static!{
+        lazy_static! {
             static ref INTERFACE_ALIAS_REGEX: Regex = Regex::new(r"^\S+:\d+$").unwrap();
             static ref VLAN_INTERFACE_REGEX: Regex = Regex::new(r"^\S+\.\d+$").unwrap();
         }
 
         if let Some(existing_interfaces) = existing_interfaces {
-            for (iface, active) in existing_interfaces.iter()  {
+            for (iface, active) in existing_interfaces.iter() {
                 if let Some(interface) = config.interfaces.get_mut(iface) {
                     interface.active = *active;
-                    if interface.interface_type == NetworkInterfaceType::Unknown && super::is_physical_nic(iface) {
+                    if interface.interface_type == NetworkInterfaceType::Unknown
+                        && super::is_physical_nic(iface)
+                    {
                         interface.interface_type = NetworkInterfaceType::Eth;
                     }
-                } else if super::is_physical_nic(iface) { // also add all physical NICs
+                } else if super::is_physical_nic(iface) {
+                    // also add all physical NICs
                     let mut interface = Interface::new(iface.clone());
                     set_method_v4(&mut interface, NetworkConfigMethod::Manual)?;
                     interface.interface_type = NetworkInterfaceType::Eth;
                     interface.active = *active;
                     config.interfaces.insert(interface.name.clone(), interface);
-                    config.order.push(NetworkOrderEntry::Iface(iface.to_string()));
+                    config
+                        .order
+                        .push(NetworkOrderEntry::Iface(iface.to_string()));
                 }
             }
         }
 
         for (name, interface) in config.interfaces.iter_mut() {
-            if interface.interface_type != NetworkInterfaceType::Unknown { continue; }
+            if interface.interface_type != NetworkInterfaceType::Unknown {
+                continue;
+            }
             if name == "lo" {
                 interface.interface_type = NetworkInterfaceType::Loopback;
                 continue;
@@ -548,11 +580,14 @@ impl <R: BufRead> NetworkParser<R> {
             let mut new_order = Vec::new();
             let mut added_lo = false;
             for entry in config.order {
-                if added_lo { new_order.push(entry); continue; } // copy the rest
+                if added_lo {
+                    new_order.push(entry);
+                    continue;
+                } // copy the rest
                 match entry {
                     NetworkOrderEntry::Comment(_) => {
                         new_order.push(entry);
-                     }
+                    }
                     _ => {
                         new_order.push(NetworkOrderEntry::Iface(String::from("lo")));
                         added_lo = true;

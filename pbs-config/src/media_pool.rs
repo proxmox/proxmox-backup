@@ -14,7 +14,7 @@ use lazy_static::lazy_static;
 use proxmox_schema::*;
 use proxmox_section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin};
 
-use pbs_api_types::{MEDIA_POOL_NAME_SCHEMA, MediaPoolConfig};
+use pbs_api_types::{MediaPoolConfig, MEDIA_POOL_NAME_SCHEMA};
 
 use crate::{open_backup_lockfile, replace_backup_config, BackupLockGuard};
 
@@ -47,8 +47,7 @@ pub fn lock() -> Result<BackupLockGuard, Error> {
 }
 
 /// Read and parse the configuration file
-pub fn config() -> Result<(SectionConfigData, [u8;32]), Error> {
-
+pub fn config() -> Result<(SectionConfigData, [u8; 32]), Error> {
     let content = proxmox_sys::fs::file_read_optional_string(MEDIA_POOL_CFG_FILENAME)?
         .unwrap_or_else(|| "".to_string());
 
