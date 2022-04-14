@@ -5,29 +5,28 @@ use anyhow::{bail, format_err, Error};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use proxmox_sys::linux::tty;
-use proxmox_sys::fs::{file_get_contents, replace_file, CreateOptions};
 use proxmox_router::cli::{
-    complete_file_name, format_and_print_result_full, get_output_format,
-    CliCommand, CliCommandMap, ColumnConfig,
-    OUTPUT_FORMAT,
+    complete_file_name, format_and_print_result_full, get_output_format, CliCommand, CliCommandMap,
+    ColumnConfig, OUTPUT_FORMAT,
 };
 use proxmox_schema::{api, ApiType, ReturnType};
+use proxmox_sys::fs::{file_get_contents, replace_file, CreateOptions};
+use proxmox_sys::linux::tty;
 
-use pbs_api_types::{PASSWORD_HINT_SCHEMA, Kdf, KeyInfo};
-use pbs_config::key_config::{KeyConfig, rsa_decrypt_key_config};
-use pbs_datastore::paperkey::{generate_paper_key, PaperkeyFormat};
+use pbs_api_types::{Kdf, KeyInfo, PASSWORD_HINT_SCHEMA};
 use pbs_client::tools::key_source::{
     find_default_encryption_key, find_default_master_pubkey, get_encryption_key_password,
     place_default_encryption_key, place_default_master_pubkey,
 };
+use pbs_config::key_config::{rsa_decrypt_key_config, KeyConfig};
+use pbs_datastore::paperkey::{generate_paper_key, PaperkeyFormat};
 
 #[api]
 #[derive(Deserialize, Serialize)]
 /// RSA public key information
 pub struct RsaPubKeyInfo {
     /// Path to key (if stored in a file)
-    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub path: Option<String>,
     /// RSA exponent
     pub exponent: String,
@@ -37,7 +36,7 @@ pub struct RsaPubKeyInfo {
     pub length: usize,
 }
 
-#[cfg(not(target_arch="wasm32"))]
+#[cfg(not(target_arch = "wasm32"))]
 impl std::convert::TryFrom<openssl::rsa::Rsa<openssl::pkey::Public>> for RsaPubKeyInfo {
     type Error = anyhow::Error;
 
@@ -54,7 +53,6 @@ impl std::convert::TryFrom<openssl::rsa::Rsa<openssl::pkey::Public>> for RsaPubK
         })
     }
 }
-
 
 #[api(
     input: {
@@ -391,7 +389,12 @@ fn create_master_key() -> Result<(), Error> {
 
     let filename_priv = "master-private.pem";
     println!("Writing private master key to {}", filename_priv);
-    replace_file(filename_priv, priv_key.as_slice(), CreateOptions::new(), true)?;
+    replace_file(
+        filename_priv,
+        priv_key.as_slice(),
+        CreateOptions::new(),
+        true,
+    )?;
 
     Ok(())
 }

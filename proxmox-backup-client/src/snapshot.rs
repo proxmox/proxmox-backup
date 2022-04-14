@@ -3,30 +3,21 @@ use std::sync::Arc;
 use anyhow::Error;
 use serde_json::{json, Value};
 
-use proxmox_sys::fs::file_get_contents;
 use proxmox_router::cli::*;
 use proxmox_schema::api;
+use proxmox_sys::fs::file_get_contents;
 
-use pbs_tools::crypt_config::CryptConfig;
-use pbs_config::key_config::decrypt_key;
-use pbs_api_types::{SnapshotListItem, CryptMode};
+use pbs_api_types::{CryptMode, SnapshotListItem};
 use pbs_client::tools::key_source::get_encryption_key_password;
-use pbs_datastore::{DataBlob, BackupGroup};
+use pbs_config::key_config::decrypt_key;
+use pbs_datastore::{BackupGroup, DataBlob};
+use pbs_tools::crypt_config::CryptConfig;
 use pbs_tools::json::required_string_param;
 
 use crate::{
-    REPO_URL_SCHEMA,
-    KEYFILE_SCHEMA,
-    KEYFD_SCHEMA,
-    BackupDir,
-    api_datastore_list_snapshots,
-    complete_backup_snapshot,
-    complete_backup_group,
-    complete_repository,
-    connect,
-    crypto_parameters,
-    extract_repository_from_value,
-    record_repository,
+    api_datastore_list_snapshots, complete_backup_group, complete_backup_snapshot,
+    complete_repository, connect, crypto_parameters, extract_repository_from_value,
+    record_repository, BackupDir, KEYFD_SCHEMA, KEYFILE_SCHEMA, REPO_URL_SCHEMA,
 };
 
 #[api(
@@ -50,7 +41,6 @@ use crate::{
 )]
 /// List backup snapshots.
 async fn list_snapshots(param: Value) -> Result<Value, Error> {
-
     let repo = extract_repository_from_value(&param)?;
 
     let output_format = get_output_format(&param);
@@ -86,10 +76,13 @@ async fn list_snapshots(param: Value) -> Result<Value, Error> {
         .sortby("backup-type", false)
         .sortby("backup-id", false)
         .sortby("backup-time", false)
-        .column(ColumnConfig::new("backup-id").renderer(render_snapshot_path).header("snapshot"))
+        .column(
+            ColumnConfig::new("backup-id")
+                .renderer(render_snapshot_path)
+                .header("snapshot"),
+        )
         .column(ColumnConfig::new("size").renderer(pbs_tools::format::render_bytes_human_readable))
-        .column(ColumnConfig::new("files").renderer(render_files))
-        ;
+        .column(ColumnConfig::new("files").renderer(render_files));
 
     let return_type = &pbs_api_types::ADMIN_DATASTORE_LIST_SNAPSHOTS_RETURN_TYPE;
 
@@ -118,7 +111,6 @@ async fn list_snapshots(param: Value) -> Result<Value, Error> {
 )]
 /// List snapshot files.
 async fn list_snapshot_files(param: Value) -> Result<Value, Error> {
-
     let repo = extract_repository_from_value(&param)?;
 
     let path = required_string_param(&param, "snapshot")?;
@@ -130,11 +122,16 @@ async fn list_snapshot_files(param: Value) -> Result<Value, Error> {
 
     let path = format!("api2/json/admin/datastore/{}/files", repo.store());
 
-    let mut result = client.get(&path, Some(json!({
-        "backup-type": snapshot.group().backup_type(),
-        "backup-id": snapshot.group().backup_id(),
-        "backup-time": snapshot.backup_time(),
-    }))).await?;
+    let mut result = client
+        .get(
+            &path,
+            Some(json!({
+                "backup-type": snapshot.group().backup_type(),
+                "backup-id": snapshot.group().backup_id(),
+                "backup-time": snapshot.backup_time(),
+            })),
+        )
+        .await?;
 
     record_repository(&repo);
 
@@ -165,7 +162,6 @@ async fn list_snapshot_files(param: Value) -> Result<Value, Error> {
 )]
 /// Forget (remove) backup snapshots.
 async fn forget_snapshots(param: Value) -> Result<Value, Error> {
-
     let repo = extract_repository_from_value(&param)?;
 
     let path = required_string_param(&param, "snapshot")?;
@@ -175,11 +171,16 @@ async fn forget_snapshots(param: Value) -> Result<Value, Error> {
 
     let path = format!("api2/json/admin/datastore/{}/snapshots", repo.store());
 
-    let result = client.delete(&path, Some(json!({
-        "backup-type": snapshot.group().backup_type(),
-        "backup-id": snapshot.group().backup_id(),
-        "backup-time": snapshot.backup_time(),
-    }))).await?;
+    let result = client
+        .delete(
+            &path,
+            Some(json!({
+                "backup-type": snapshot.group().backup_type(),
+                "backup-id": snapshot.group().backup_id(),
+                "backup-time": snapshot.backup_time(),
+            })),
+        )
+        .await?;
 
     record_repository(&repo);
 
@@ -218,7 +219,6 @@ async fn forget_snapshots(param: Value) -> Result<Value, Error> {
 )]
 /// Upload backup log file.
 async fn upload_log(param: Value) -> Result<Value, Error> {
-
     let logfile = required_string_param(&param, "logfile")?;
     let repo = extract_repository_from_value(&param)?;
 
@@ -243,12 +243,17 @@ async fn upload_log(param: Value) -> Result<Value, Error> {
     // fixme: howto sign log?
     let blob = match crypto.mode {
         CryptMode::None | CryptMode::SignOnly => DataBlob::encode(&data, None, true)?,
-        CryptMode::Encrypt => DataBlob::encode(&data, crypt_config.as_ref().map(Arc::as_ref), true)?,
+        CryptMode::Encrypt => {
+            DataBlob::encode(&data, crypt_config.as_ref().map(Arc::as_ref), true)?
+        }
     };
 
     let raw_data = blob.into_inner();
 
-    let path = format!("api2/json/admin/datastore/{}/upload-backup-log", repo.store());
+    let path = format!(
+        "api2/json/admin/datastore/{}/upload-backup-log",
+        repo.store()
+    );
 
     let args = json!({
         "backup-type": snapshot.group().backup_type(),
@@ -258,7 +263,9 @@ async fn upload_log(param: Value) -> Result<Value, Error> {
 
     let body = hyper::Body::from(raw_data);
 
-    client.upload("application/octet-stream", body, &path, Some(args)).await
+    client
+        .upload("application/octet-stream", body, &path, Some(args))
+        .await
 }
 
 #[api(
@@ -495,21 +502,21 @@ pub fn snapshot_mgtm_cli() -> CliCommandMap {
             CliCommand::new(&API_METHOD_LIST_SNAPSHOTS)
                 .arg_param(&["group"])
                 .completion_cb("group", complete_backup_group)
-                .completion_cb("repository", complete_repository)
+                .completion_cb("repository", complete_repository),
         )
         .insert(
             "files",
             CliCommand::new(&API_METHOD_LIST_SNAPSHOT_FILES)
                 .arg_param(&["snapshot"])
                 .completion_cb("repository", complete_repository)
-                .completion_cb("snapshot", complete_backup_snapshot)
+                .completion_cb("snapshot", complete_backup_snapshot),
         )
         .insert(
             "forget",
             CliCommand::new(&API_METHOD_FORGET_SNAPSHOTS)
                 .arg_param(&["snapshot"])
                 .completion_cb("repository", complete_repository)
-                .completion_cb("snapshot", complete_backup_snapshot)
+                .completion_cb("snapshot", complete_backup_snapshot),
         )
         .insert(
             "upload-log",
@@ -518,6 +525,6 @@ pub fn snapshot_mgtm_cli() -> CliCommandMap {
                 .completion_cb("snapshot", complete_backup_snapshot)
                 .completion_cb("logfile", complete_file_name)
                 .completion_cb("keyfile", complete_file_name)
-                .completion_cb("repository", complete_repository)
+                .completion_cb("repository", complete_repository),
         )
 }

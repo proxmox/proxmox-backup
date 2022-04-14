@@ -1,41 +1,24 @@
-use std::os::unix::fs::OpenOptionsExt;
 use std::io::{Seek, SeekFrom};
+use std::os::unix::fs::OpenOptionsExt;
 use std::sync::Arc;
 
 use anyhow::{bail, format_err, Error};
 use serde_json::Value;
 
-use proxmox_schema::api;
 use proxmox_router::cli::*;
+use proxmox_schema::api;
 
 use pbs_client::tools::key_source::get_encryption_key_password;
 use pbs_client::{BackupReader, RemoteChunkReader};
-use pbs_tools::json::required_string_param;
 use pbs_tools::crypt_config::CryptConfig;
+use pbs_tools::json::required_string_param;
 
 use crate::{
-    REPO_URL_SCHEMA,
-    KEYFD_SCHEMA,
-    extract_repository_from_value,
-    format_key_source,
-    record_repository,
-    decrypt_key,
-    api_datastore_latest_snapshot,
-    complete_repository,
-    complete_backup_snapshot,
-    complete_group_or_snapshot,
-    complete_pxar_archive_name,
-    connect,
-    crypto_parameters,
-    BackupDir,
-    BackupGroup,
-    BufferedDynamicReader,
-    BufferedDynamicReadAt,
-    CatalogReader,
-    CATALOG_NAME,
-    DynamicIndexReader,
-    IndexFile,
-    Shell,
+    api_datastore_latest_snapshot, complete_backup_snapshot, complete_group_or_snapshot,
+    complete_pxar_archive_name, complete_repository, connect, crypto_parameters, decrypt_key,
+    extract_repository_from_value, format_key_source, record_repository, BackupDir, BackupGroup,
+    BufferedDynamicReadAt, BufferedDynamicReader, CatalogReader, DynamicIndexReader, IndexFile,
+    Shell, CATALOG_NAME, KEYFD_SCHEMA, REPO_URL_SCHEMA,
 };
 
 #[api(
@@ -63,7 +46,6 @@ use crate::{
 )]
 /// Dump catalog.
 async fn dump_catalog(param: Value) -> Result<Value, Error> {
-
     let repo = extract_repository_from_value(&param)?;
 
     let path = required_string_param(&param, "snapshot")?;
@@ -94,18 +76,26 @@ async fn dump_catalog(param: Value) -> Result<Value, Error> {
         snapshot.group().backup_id(),
         snapshot.backup_time(),
         true,
-    ).await?;
+    )
+    .await?;
 
     let (manifest, _) = client.download_manifest().await?;
     manifest.check_fingerprint(crypt_config.as_ref().map(Arc::as_ref))?;
 
-    let index = client.download_dynamic_index(&manifest, CATALOG_NAME).await?;
+    let index = client
+        .download_dynamic_index(&manifest, CATALOG_NAME)
+        .await?;
 
     let most_used = index.find_most_used_chunks(8);
 
     let file_info = manifest.lookup_file_info(CATALOG_NAME)?;
 
-    let chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config, file_info.chunk_crypt_mode(), most_used);
+    let chunk_reader = RemoteChunkReader::new(
+        client.clone(),
+        crypt_config,
+        file_info.chunk_crypt_mode(),
+        most_used,
+    );
 
     let mut reader = BufferedDynamicReader::new(index, chunk_reader);
 
@@ -168,7 +158,11 @@ async fn catalog_shell(param: Value) -> Result<(), Error> {
         api_datastore_latest_snapshot(&client, repo.store(), group).await?
     } else {
         let snapshot: BackupDir = path.parse()?;
-        (snapshot.group().backup_type().to_owned(), snapshot.group().backup_id().to_owned(), snapshot.backup_time())
+        (
+            snapshot.group().backup_type().to_owned(),
+            snapshot.group().backup_id().to_owned(),
+            snapshot.backup_time(),
+        )
     };
 
     let crypto = crypto_parameters(&param)?;
@@ -200,7 +194,8 @@ async fn catalog_shell(param: Value) -> Result<(), Error> {
         &backup_id,
         backup_time,
         true,
-    ).await?;
+    )
+    .await?;
 
     let mut tmpfile = std::fs::OpenOptions::new()
         .write(true)
@@ -211,15 +206,21 @@ async fn catalog_shell(param: Value) -> Result<(), Error> {
     let (manifest, _) = client.download_manifest().await?;
     manifest.check_fingerprint(crypt_config.as_ref().map(Arc::as_ref))?;
 
-    let index = client.download_dynamic_index(&manifest, &server_archive_name).await?;
+    let index = client
+        .download_dynamic_index(&manifest, &server_archive_name)
+        .await?;
     let most_used = index.find_most_used_chunks(8);
 
     let file_info = manifest.lookup_file_info(&server_archive_name)?;
-    let chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config.clone(), file_info.chunk_crypt_mode(), most_used);
+    let chunk_reader = RemoteChunkReader::new(
+        client.clone(),
+        crypt_config.clone(),
+        file_info.chunk_crypt_mode(),
+        most_used,
+    );
     let reader = BufferedDynamicReader::new(index, chunk_reader);
     let archive_size = reader.archive_size();
-    let reader: pbs_client::pxar::fuse::Reader =
-        Arc::new(BufferedDynamicReadAt::new(reader));
+    let reader: pbs_client::pxar::fuse::Reader = Arc::new(BufferedDynamicReadAt::new(reader));
     let decoder = pbs_client::pxar::fuse::Accessor::new(reader, archive_size).await?;
 
     client.download(CATALOG_NAME, &mut tmpfile).await?;
@@ -233,7 +234,12 @@ async fn catalog_shell(param: Value) -> Result<(), Error> {
     let most_used = index.find_most_used_chunks(8);
 
     let file_info = manifest.lookup_file_info(CATALOG_NAME)?;
-    let chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config, file_info.chunk_crypt_mode(), most_used);
+    let chunk_reader = RemoteChunkReader::new(
+        client.clone(),
+        crypt_config,
+        file_info.chunk_crypt_mode(),
+        most_used,
+    );
     let mut reader = BufferedDynamicReader::new(index, chunk_reader);
     let mut catalogfile = std::fs::OpenOptions::new()
         .write(true)
@@ -246,11 +252,7 @@ async fn catalog_shell(param: Value) -> Result<(), Error> {
 
     catalogfile.seek(SeekFrom::Start(0))?;
     let catalog_reader = CatalogReader::new(catalogfile);
-    let state = Shell::new(
-        catalog_reader,
-        &server_archive_name,
-        decoder,
-    ).await?;
+    let state = Shell::new(catalog_reader, &server_archive_name, decoder).await?;
 
     println!("Starting interactive shell");
     state.shell().await?;
