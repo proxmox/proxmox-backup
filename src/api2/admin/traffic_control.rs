@@ -1,12 +1,10 @@
 use anyhow::Error;
 use serde::{Deserialize, Serialize};
 
-use proxmox_router::{Router, RpcEnvironment, Permission};
+use proxmox_router::{Permission, Router, RpcEnvironment};
 use proxmox_schema::api;
 
-use pbs_api_types::{
-    TrafficControlRule, PRIV_SYS_AUDIT,
-};
+use pbs_api_types::{TrafficControlRule, PRIV_SYS_AUDIT};
 
 use crate::traffic_control_cache::TRAFFIC_CONTROL_CACHE;
 
@@ -18,7 +16,7 @@ use crate::traffic_control_cache::TRAFFIC_CONTROL_CACHE;
     },
 )]
 #[derive(Serialize, Deserialize)]
-#[serde(rename_all="kebab-case")]
+#[serde(rename_all = "kebab-case")]
 /// Traffic control rule config with current rates
 pub struct TrafficControlCurrentRate {
     #[serde(flatten)]
@@ -48,7 +46,6 @@ pub struct TrafficControlCurrentRate {
 pub fn show_current_traffic(
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<TrafficControlCurrentRate>, Error> {
-
     let (config, digest) = pbs_config::traffic_control::config()?;
 
     let rules: Vec<TrafficControlRule> = config.convert_to_typed_array("rule")?;
@@ -62,7 +59,11 @@ pub fn show_current_traffic(
             None => (0, 0),
             Some(state) => (state.rate_in, state.rate_out),
         };
-        list.push(TrafficControlCurrentRate {config, cur_rate_in, cur_rate_out});
+        list.push(TrafficControlCurrentRate {
+            config,
+            cur_rate_in,
+            cur_rate_out,
+        });
     }
 
     // also return the configuration digest
@@ -71,5 +72,4 @@ pub fn show_current_traffic(
     Ok(list)
 }
 
-pub const ROUTER: Router = Router::new()
-    .get(&API_METHOD_SHOW_CURRENT_TRAFFIC);
+pub const ROUTER: Router = Router::new().get(&API_METHOD_SHOW_CURRENT_TRAFFIC);

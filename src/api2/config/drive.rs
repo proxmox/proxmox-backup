@@ -1,18 +1,18 @@
-use anyhow::{format_err, Error};
 use ::serde::{Deserialize, Serialize};
-use serde_json::Value;
+use anyhow::{format_err, Error};
 use hex::FromHex;
+use serde_json::Value;
 
-use proxmox_router::{http_bail, Router, RpcEnvironment, Permission};
+use proxmox_router::{http_bail, Permission, Router, RpcEnvironment};
 use proxmox_schema::{api, param_bail};
 
 use pbs_api_types::{
-    Authid, LtoTapeDrive, LtoTapeDriveUpdater, ScsiTapeChanger,
-    PROXMOX_CONFIG_DIGEST_SCHEMA, DRIVE_NAME_SCHEMA, PRIV_TAPE_AUDIT, PRIV_TAPE_MODIFY,
+    Authid, LtoTapeDrive, LtoTapeDriveUpdater, ScsiTapeChanger, DRIVE_NAME_SCHEMA, PRIV_TAPE_AUDIT,
+    PRIV_TAPE_MODIFY, PROXMOX_CONFIG_DIGEST_SCHEMA,
 };
 use pbs_config::CachedUserInfo;
 
-use pbs_tape::linux_list_drives::{lto_tape_device_list, check_drive_path};
+use pbs_tape::linux_list_drives::{check_drive_path, lto_tape_device_list};
 
 #[api(
     protected: true,
@@ -30,7 +30,6 @@ use pbs_tape::linux_list_drives::{lto_tape_device_list, check_drive_path};
 )]
 /// Create a new drive
 pub fn create_drive(config: LtoTapeDrive) -> Result<(), Error> {
-
     let _lock = pbs_config::drive::lock()?;
 
     let (mut section_config, _digest) = pbs_config::drive::config()?;
@@ -46,7 +45,12 @@ pub fn create_drive(config: LtoTapeDrive) -> Result<(), Error> {
             param_bail!("name", "Entry '{}' already exists", config.name);
         }
         if drive.path == config.path {
-            param_bail!("path", "Path '{}' already used in drive '{}'", config.path, drive.name);
+            param_bail!(
+                "path",
+                "Path '{}' already used in drive '{}'",
+                config.path,
+                drive.name
+            );
         }
     }
 
@@ -78,7 +82,6 @@ pub fn get_config(
     _param: Value,
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<LtoTapeDrive, Error> {
-
     let (config, digest) = pbs_config::drive::config()?;
 
     let data: LtoTapeDrive = config.lookup("lto", &name)?;
@@ -176,9 +179,8 @@ pub fn update_drive(
     update: LtoTapeDriveUpdater,
     delete: Option<Vec<DeletableProperty>>,
     digest: Option<String>,
-   _param: Value,
+    _param: Value,
 ) -> Result<(), Error> {
-
     let _lock = pbs_config::drive::lock()?;
 
     let (mut config, expected_digest) = pbs_config::drive::config()?;
@@ -196,8 +198,10 @@ pub fn update_drive(
                 DeletableProperty::changer => {
                     data.changer = None;
                     data.changer_drivenum = None;
-                },
-                DeletableProperty::changer_drivenum => { data.changer_drivenum = None; },
+                }
+                DeletableProperty::changer_drivenum => {
+                    data.changer_drivenum = None;
+                }
             }
         }
     }
@@ -218,7 +222,10 @@ pub fn update_drive(
             data.changer_drivenum = None;
         } else {
             if data.changer.is_none() {
-                param_bail!("changer", format_err!("Option 'changer-drivenum' requires option 'changer'."));
+                param_bail!(
+                    "changer",
+                    format_err!("Option 'changer-drivenum' requires option 'changer'.")
+                );
             }
             data.changer_drivenum = Some(changer_drivenum);
         }
@@ -246,7 +253,6 @@ pub fn update_drive(
 )]
 /// Delete a drive configuration
 pub fn delete_drive(name: String, _param: Value) -> Result<(), Error> {
-
     let _lock = pbs_config::drive::lock()?;
 
     let (mut config, _digest) = pbs_config::drive::config()?;
@@ -254,10 +260,14 @@ pub fn delete_drive(name: String, _param: Value) -> Result<(), Error> {
     match config.sections.get(&name) {
         Some((section_type, _)) => {
             if section_type != "lto" {
-                param_bail!("name", "Entry '{}' exists, but is not a lto tape drive", name);
+                param_bail!(
+                    "name",
+                    "Entry '{}' exists, but is not a lto tape drive",
+                    name
+                );
             }
             config.sections.remove(&name);
-        },
+        }
         None => http_bail!(NOT_FOUND, "Delete drive '{}' failed - no such drive", name),
     }
 
@@ -270,7 +280,6 @@ const ITEM_ROUTER: Router = Router::new()
     .get(&API_METHOD_GET_CONFIG)
     .put(&API_METHOD_UPDATE_DRIVE)
     .delete(&API_METHOD_DELETE_DRIVE);
-
 
 pub const ROUTER: Router = Router::new()
     .get(&API_METHOD_LIST_DRIVES)

@@ -1,16 +1,15 @@
-/// Configure OpenId realms
-
-use anyhow::Error;
-use serde_json::Value;
 use ::serde::{Deserialize, Serialize};
+/// Configure OpenId realms
+use anyhow::Error;
 use hex::FromHex;
+use serde_json::Value;
 
-use proxmox_router::{http_bail, Router, RpcEnvironment, Permission};
+use proxmox_router::{http_bail, Permission, Router, RpcEnvironment};
 use proxmox_schema::{api, param_bail};
 
 use pbs_api_types::{
-    OpenIdRealmConfig, OpenIdRealmConfigUpdater,
-    PROXMOX_CONFIG_DIGEST_SCHEMA, REALM_ID_SCHEMA, PRIV_SYS_AUDIT, PRIV_REALM_ALLOCATE,
+    OpenIdRealmConfig, OpenIdRealmConfigUpdater, PRIV_REALM_ALLOCATE, PRIV_SYS_AUDIT,
+    PROXMOX_CONFIG_DIGEST_SCHEMA, REALM_ID_SCHEMA,
 };
 
 use pbs_config::domains;
@@ -33,7 +32,6 @@ pub fn list_openid_realms(
     _param: Value,
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<OpenIdRealmConfig>, Error> {
-
     let (config, digest) = domains::config()?;
 
     let list = config.convert_to_typed_array("openid")?;
@@ -59,14 +57,13 @@ pub fn list_openid_realms(
 )]
 /// Create a new OpenId realm
 pub fn create_openid_realm(config: OpenIdRealmConfig) -> Result<(), Error> {
-
     let _lock = domains::lock_config()?;
 
     let (mut domains, _digest) = domains::config()?;
 
-    if config.realm == "pbs" ||
-        config.realm == "pam" ||
-        domains.sections.get(&config.realm).is_some()
+    if config.realm == "pbs"
+        || config.realm == "pam"
+        || domains.sections.get(&config.realm).is_some()
     {
         param_bail!("realm", "realm '{}' already exists.", config.realm);
     }
@@ -101,7 +98,6 @@ pub fn delete_openid_realm(
     digest: Option<String>,
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
-
     let _lock = domains::lock_config()?;
 
     let (mut domains, expected_digest) = domains::config()?;
@@ -111,7 +107,7 @@ pub fn delete_openid_realm(
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 
-    if domains.sections.remove(&realm).is_none()  {
+    if domains.sections.remove(&realm).is_none() {
         http_bail!(NOT_FOUND, "realm '{}' does not exist.", realm);
     }
 
@@ -138,7 +134,6 @@ pub fn read_openid_realm(
     realm: String,
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<OpenIdRealmConfig, Error> {
-
     let (domains, digest) = domains::config()?;
 
     let config = domains.lookup("openid", &realm)?;
@@ -150,7 +145,7 @@ pub fn read_openid_realm(
 
 #[api()]
 #[derive(Serialize, Deserialize)]
-#[serde(rename_all="kebab-case")]
+#[serde(rename_all = "kebab-case")]
 #[allow(non_camel_case_types)]
 /// Deletable property name
 pub enum DeletableProperty {
@@ -206,7 +201,6 @@ pub fn update_openid_realm(
     digest: Option<String>,
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
-
     let _lock = domains::lock_config()?;
 
     let (mut domains, expected_digest) = domains::config()?;
@@ -221,12 +215,24 @@ pub fn update_openid_realm(
     if let Some(delete) = delete {
         for delete_prop in delete {
             match delete_prop {
-                DeletableProperty::client_key => { config.client_key = None; },
-                DeletableProperty::comment => { config.comment = None; },
-                DeletableProperty::autocreate => { config.autocreate = None; },
-                DeletableProperty::scopes => { config.scopes = None; },
-                DeletableProperty::prompt => { config.prompt = None; },
-                DeletableProperty::acr_values => { config.acr_values = None; },
+                DeletableProperty::client_key => {
+                    config.client_key = None;
+                }
+                DeletableProperty::comment => {
+                    config.comment = None;
+                }
+                DeletableProperty::autocreate => {
+                    config.autocreate = None;
+                }
+                DeletableProperty::scopes => {
+                    config.scopes = None;
+                }
+                DeletableProperty::prompt => {
+                    config.prompt = None;
+                }
+                DeletableProperty::acr_values => {
+                    config.acr_values = None;
+                }
             }
         }
     }
@@ -240,14 +246,28 @@ pub fn update_openid_realm(
         }
     }
 
-    if let Some(issuer_url) = update.issuer_url { config.issuer_url = issuer_url; }
-    if let Some(client_id) = update.client_id { config.client_id = client_id; }
+    if let Some(issuer_url) = update.issuer_url {
+        config.issuer_url = issuer_url;
+    }
+    if let Some(client_id) = update.client_id {
+        config.client_id = client_id;
+    }
 
-    if update.client_key.is_some() { config.client_key = update.client_key; }
-    if update.autocreate.is_some() { config.autocreate = update.autocreate; }
-    if update.scopes.is_some() { config.scopes = update.scopes; }
-    if update.prompt.is_some() { config.prompt = update.prompt; }
-    if update.acr_values.is_some() { config.acr_values = update.acr_values; }
+    if update.client_key.is_some() {
+        config.client_key = update.client_key;
+    }
+    if update.autocreate.is_some() {
+        config.autocreate = update.autocreate;
+    }
+    if update.scopes.is_some() {
+        config.scopes = update.scopes;
+    }
+    if update.prompt.is_some() {
+        config.prompt = update.prompt;
+    }
+    if update.acr_values.is_some() {
+        config.acr_values = update.acr_values;
+    }
 
     domains.set_data(&realm, "openid", &config)?;
 

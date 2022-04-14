@@ -1,10 +1,10 @@
 use std::process::{Command, Stdio};
 
-use anyhow::{Error};
+use anyhow::Error;
 use serde_json::{json, Value};
-use std::io::{BufRead,BufReader};
+use std::io::{BufRead, BufReader};
 
-use proxmox_router::{ApiMethod, Router, RpcEnvironment, Permission};
+use proxmox_router::{ApiMethod, Permission, Router, RpcEnvironment};
 use proxmox_schema::api;
 
 use pbs_api_types::{NODE_SCHEMA, PRIV_SYS_AUDIT};
@@ -69,7 +69,6 @@ fn get_journal(
     _info: &ApiMethod,
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-
     let mut args = vec![];
 
     if let Some(lastentries) = lastentries {
@@ -127,5 +126,4 @@ fn get_journal(
     Ok(json!(lines))
 }
 
-pub const ROUTER: Router = Router::new()
-    .get(&API_METHOD_GET_JOURNAL);
+pub const ROUTER: Router = Router::new().get(&API_METHOD_GET_JOURNAL);

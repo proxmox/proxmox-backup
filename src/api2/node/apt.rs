@@ -1,12 +1,12 @@
-use anyhow::{Error, bail, format_err};
+use anyhow::{bail, format_err, Error};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 
-use proxmox_sys::fs::{replace_file, CreateOptions};
 use proxmox_router::{
-    list_subdirs_api_method, RpcEnvironment, RpcEnvironmentType, Permission, Router, SubdirMap
+    list_subdirs_api_method, Permission, Router, RpcEnvironment, RpcEnvironmentType, SubdirMap,
 };
 use proxmox_schema::api;
+use proxmox_sys::fs::{replace_file, CreateOptions};
 
 use proxmox_apt::repositories::{
     APTRepositoryFile, APTRepositoryFileError, APTRepositoryHandle, APTRepositoryInfo,
@@ -15,17 +15,13 @@ use proxmox_apt::repositories::{
 use proxmox_http::ProxyConfig;
 
 use pbs_api_types::{
-    APTUpdateInfo, NODE_SCHEMA, PROXMOX_CONFIG_DIGEST_SCHEMA, UPID_SCHEMA,
-    PRIV_SYS_AUDIT, PRIV_SYS_MODIFY,
+    APTUpdateInfo, NODE_SCHEMA, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY, PROXMOX_CONFIG_DIGEST_SCHEMA,
+    UPID_SCHEMA,
 };
 
 use crate::config::node;
+use crate::tools::{apt, pbs_simple_http, subscription};
 use proxmox_rest_server::WorkerTask;
-use crate::tools::{
-    apt,
-    pbs_simple_http,
-    subscription,
-};
 
 #[api(
     input: {
@@ -49,7 +45,6 @@ use crate::tools::{
 )]
 /// List available APT updates
 fn apt_update_available(_param: Value) -> Result<Value, Error> {
-
     if let Ok(false) = apt::pkg_cache_expired() {
         if let Ok(Some(cache)) = apt::read_pkg_state() {
             return Ok(json!(cache.package_status));
@@ -62,7 +57,6 @@ fn apt_update_available(_param: Value) -> Result<Value, Error> {
 }
 
 pub fn update_apt_proxy_config(proxy_config: Option<&ProxyConfig>) -> Result<(), Error> {
-
     const PROXY_CFG_FN: &str = "/etc/apt/apt.conf.d/76pveproxy"; // use same file as PVE
 
     if let Some(proxy_config) = proxy_config {
@@ -90,7 +84,9 @@ fn read_and_update_proxy_config() -> Result<Option<ProxyConfig>, Error> {
 }
 
 fn do_apt_update(worker: &WorkerTask, quiet: bool) -> Result<(), Error> {
-    if !quiet { worker.log_message("starting apt-get update") }
+    if !quiet {
+        worker.log_message("starting apt-get update")
+    }
 
     read_and_update_proxy_config()?;
 
@@ -98,7 +94,8 @@ fn do_apt_update(worker: &WorkerTask, quiet: bool) -> Result<(), Error> {
     command.arg("update");
 
     // apt "errors" quite easily, and run_command is a bit rigid, so handle this inline for now.
-    let output = command.output()
+    let output = command
+        .output()
         .map_err(|err| format_err!("failed to execute {:?} - {}", command, err))?;
 
     if !quiet {
@@ -109,7 +106,13 @@ fn do_apt_update(worker: &WorkerTask, quiet: bool) -> Result<(), Error> {
     if !output.status.success() {
         if output.status.code().is_some() {
             let msg = String::from_utf8(output.stderr)
-                .map(|m| if m.is_empty() { String::from("no error message") } else { m })
+                .map(|m| {
+                    if m.is_empty() {
+                        String::from("no error message")
+                    } else {
+                        m
+                    }
+                })
                 .unwrap_or_else(|_| String::from("non utf8 error message (suppressed)"));
             worker.log_warning(msg);
         } else {
@@ -154,7 +157,6 @@ pub fn apt_update_database(
     quiet: bool,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
-
     let auth_id = rpcenv.get_auth_id().unwrap();
     let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
@@ -176,7 +178,7 @@ pub fn apt_update_database(
                         if notified_version != pkg.version {
                             to_notify.push(pkg);
                         }
-                    },
+                    }
                     None => to_notify.push(pkg),
                 }
             }
@@ -220,19 +222,17 @@ pub fn apt_update_database(
     },
 )]
 /// Retrieve the changelog of the specified package.
-fn apt_get_changelog(
-    param: Value,
-) -> Result<Value, Error> {
-
+fn apt_get_changelog(param: Value) -> Result<Value, Error> {
     let name = pbs_tools::json::required_string_param(&param, "name")?.to_owned();
     let version = param["version"].as_str();
 
-    let pkg_info = apt::list_installed_apt_packages(|data| {
-        match version {
+    let pkg_info = apt::list_installed_apt_packages(
+        |data| match version {
             Some(version) => version == data.active_version,
-            None => data.active_version == data.candidate_version
-        }
-    }, Some(&name));
+            None => data.active_version == data.candidate_version,
+        },
+        Some(&name),
+    );
 
     if pkg_info.is_empty() {
         bail!("Package '{}' not found", name);
@@ -245,33 +245,47 @@ fn apt_get_changelog(
     // FIXME: use 'apt-get changelog' for proxmox packages as well, once repo supports it
     if changelog_url.starts_with("http://download.proxmox.com/") {
         let changelog = proxmox_async::runtime::block_on(client.get_string(changelog_url, None))
-            .map_err(|err| format_err!("Error downloading changelog from '{}': {}", changelog_url, err))?;
+            .map_err(|err| {
+                format_err!(
+                    "Error downloading changelog from '{}': {}",
+                    changelog_url,
+                    err
+                )
+            })?;
         Ok(json!(changelog))
-
     } else if changelog_url.starts_with("https://enterprise.proxmox.com/") {
         let sub = match subscription::read_subscription()? {
             Some(sub) => sub,
-            None => bail!("cannot retrieve changelog from enterprise repo: no subscription info found")
+            None => {
+                bail!("cannot retrieve changelog from enterprise repo: no subscription info found")
+            }
         };
         let (key, id) = match sub.key {
-            Some(key) => {
-                match sub.serverid {
-                    Some(id) => (key, id),
-                    None =>
-                        bail!("cannot retrieve changelog from enterprise repo: no server id found")
-                }
+            Some(key) => match sub.serverid {
+                Some(id) => (key, id),
+                None => bail!("cannot retrieve changelog from enterprise repo: no server id found"),
             },
-            None => bail!("cannot retrieve changelog from enterprise repo: no subscription key found")
+            None => {
+                bail!("cannot retrieve changelog from enterprise repo: no subscription key found")
+            }
         };
 
         let mut auth_header = HashMap::new();
-        auth_header.insert("Authorization".to_owned(),
-            format!("Basic {}", base64::encode(format!("{}:{}", key, id))));
+        auth_header.insert(
+            "Authorization".to_owned(),
+            format!("Basic {}", base64::encode(format!("{}:{}", key, id))),
+        );
 
-        let changelog = proxmox_async::runtime::block_on(client.get_string(changelog_url, Some(&auth_header)))
-            .map_err(|err| format_err!("Error downloading changelog from '{}': {}", changelog_url, err))?;
+        let changelog =
+            proxmox_async::runtime::block_on(client.get_string(changelog_url, Some(&auth_header)))
+                .map_err(|err| {
+                    format_err!(
+                        "Error downloading changelog from '{}': {}",
+                        changelog_url,
+                        err
+                    )
+                })?;
         Ok(json!(changelog))
-
     } else {
         let mut command = std::process::Command::new("apt-get");
         command.arg("changelog");
@@ -348,23 +362,35 @@ pub fn get_versions() -> Result<Vec<APTUpdateInfo>, Error> {
         "running kernel: {}",
         nix::sys::utsname::uname().release().to_owned()
     );
-    if let Some(proxmox_backup) = pbs_packages.iter().find(|pkg| pkg.package == "proxmox-backup") {
+    if let Some(proxmox_backup) = pbs_packages
+        .iter()
+        .find(|pkg| pkg.package == "proxmox-backup")
+    {
         let mut proxmox_backup = proxmox_backup.clone();
         proxmox_backup.extra_info = Some(running_kernel);
         packages.push(proxmox_backup);
     } else {
-        packages.push(unknown_package("proxmox-backup".into(), Some(running_kernel)));
+        packages.push(unknown_package(
+            "proxmox-backup".into(),
+            Some(running_kernel),
+        ));
     }
 
     let version = pbs_buildcfg::PROXMOX_PKG_VERSION;
     let release = pbs_buildcfg::PROXMOX_PKG_RELEASE;
     let daemon_version_info = Some(format!("running version: {}.{}", version, release));
-    if let Some(pkg) = pbs_packages.iter().find(|pkg| pkg.package == "proxmox-backup-server") {
+    if let Some(pkg) = pbs_packages
+        .iter()
+        .find(|pkg| pkg.package == "proxmox-backup-server")
+    {
         let mut pkg = pkg.clone();
         pkg.extra_info = daemon_version_info;
         packages.push(pkg);
     } else {
-        packages.push(unknown_package("proxmox-backup".into(), daemon_version_info));
+        packages.push(unknown_package(
+            "proxmox-backup".into(),
+            daemon_version_info,
+        ));
     }
 
     let mut kernel_pkgs: Vec<APTUpdateInfo> = pbs_packages
@@ -609,15 +635,22 @@ pub fn change_repository(
 }
 
 const SUBDIRS: SubdirMap = &[
-    ("changelog", &Router::new().get(&API_METHOD_APT_GET_CHANGELOG)),
-    ("repositories", &Router::new()
-        .get(&API_METHOD_GET_REPOSITORIES)
-        .post(&API_METHOD_CHANGE_REPOSITORY)
-        .put(&API_METHOD_ADD_REPOSITORY)
+    (
+        "changelog",
+        &Router::new().get(&API_METHOD_APT_GET_CHANGELOG),
     ),
-    ("update", &Router::new()
-        .get(&API_METHOD_APT_UPDATE_AVAILABLE)
-        .post(&API_METHOD_APT_UPDATE_DATABASE)
+    (
+        "repositories",
+        &Router::new()
+            .get(&API_METHOD_GET_REPOSITORIES)
+            .post(&API_METHOD_CHANGE_REPOSITORY)
+            .put(&API_METHOD_ADD_REPOSITORY),
+    ),
+    (
+        "update",
+        &Router::new()
+            .get(&API_METHOD_APT_UPDATE_AVAILABLE)
+            .post(&API_METHOD_APT_UPDATE_DATABASE),
     ),
     ("versions", &Router::new().get(&API_METHOD_GET_VERSIONS)),
 ];

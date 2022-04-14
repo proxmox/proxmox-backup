@@ -4,15 +4,15 @@ pub mod access;
 pub mod admin;
 pub mod backup;
 pub mod config;
+pub mod helpers;
 pub mod node;
-pub mod reader;
-pub mod status;
-pub mod types;
-pub mod version;
 pub mod ping;
 pub mod pull;
+pub mod reader;
+pub mod status;
 pub mod tape;
-pub mod helpers;
+pub mod types;
+pub mod version;
 
 use proxmox_router::{list_subdirs_api_method, Router, SubdirMap};
 

@@ -1,18 +1,18 @@
-use std::process::Command;
 use std::path::Path;
+use std::process::Command;
 
-use anyhow::{Error, format_err, bail};
+use anyhow::{bail, format_err, Error};
 use serde_json::Value;
 
 use proxmox_sys::linux::procfs;
 
-use proxmox_router::{ApiMethod, Router, RpcEnvironment, Permission};
+use proxmox_router::{ApiMethod, Permission, Router, RpcEnvironment};
 use proxmox_schema::api;
 
-use pbs_api_types::{NODE_SCHEMA, NodePowerCommand, PRIV_SYS_AUDIT, PRIV_SYS_POWER_MANAGEMENT};
+use pbs_api_types::{NodePowerCommand, NODE_SCHEMA, PRIV_SYS_AUDIT, PRIV_SYS_POWER_MANAGEMENT};
 
 use crate::api2::types::{
-    NodeCpuInformation, NodeStatus, NodeMemoryCounters, NodeSwapCounters, NodeInformation,
+    NodeCpuInformation, NodeInformation, NodeMemoryCounters, NodeStatus, NodeSwapCounters,
 };
 
 impl std::convert::From<procfs::ProcFsCPUInfo> for NodeCpuInformation {
@@ -111,7 +111,6 @@ fn get_status(
 )]
 /// Reboot or shutdown the node.
 fn reboot_or_shutdown(command: NodePowerCommand) -> Result<(), Error> {
-
     let systemctl_command = match command {
         NodePowerCommand::Reboot => "reboot",
         NodePowerCommand::Shutdown => "poweroff",
@@ -126,7 +125,13 @@ fn reboot_or_shutdown(command: NodePowerCommand) -> Result<(), Error> {
         match output.status.code() {
             Some(code) => {
                 let msg = String::from_utf8(output.stderr)
-                    .map(|m| if m.is_empty() { String::from("no error message") } else { m })
+                    .map(|m| {
+                        if m.is_empty() {
+                            String::from("no error message")
+                        } else {
+                            m
+                        }
+                    })
                     .unwrap_or_else(|_| String::from("non utf8 error message (suppressed)"));
                 bail!("diff failed with status code: {} - {}", code, msg);
             }

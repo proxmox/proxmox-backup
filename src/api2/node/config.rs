@@ -1,5 +1,5 @@
-use anyhow::Error;
 use ::serde::{Deserialize, Serialize};
+use anyhow::Error;
 use hex::FromHex;
 
 use proxmox_router::{Permission, Router, RpcEnvironment};
@@ -36,7 +36,7 @@ pub fn get_node_config(mut rpcenv: &mut dyn RpcEnvironment) -> Result<NodeConfig
 
 #[api()]
 #[derive(Serialize, Deserialize)]
-#[serde(rename_all="kebab-case")]
+#[serde(rename_all = "kebab-case")]
 #[allow(non_camel_case_types)]
 /// Deletable property name
 pub enum DeletableProperty {
@@ -57,10 +57,10 @@ pub enum DeletableProperty {
     /// Delete the email-from property.
     email_from,
     /// Delete the ciphers-tls-1.3 property.
-    #[serde(rename="ciphers-tls-1.3")]
+    #[serde(rename = "ciphers-tls-1.3")]
     ciphers_tls_1_3,
     /// Delete the ciphers-tls-1.2 property.
-    #[serde(rename="ciphers-tls-1.2")]
+    #[serde(rename = "ciphers-tls-1.2")]
     ciphers_tls_1_2,
     /// Delete the default-lang property.
     default_lang,
@@ -117,36 +117,88 @@ pub fn update_node_config(
     if let Some(delete) = delete {
         for delete_prop in delete {
             match delete_prop {
-                DeletableProperty::acme => { config.acme = None; },
-                DeletableProperty::acmedomain0 => { config.acmedomain0 = None; },
-                DeletableProperty::acmedomain1 => { config.acmedomain1 = None; },
-                DeletableProperty::acmedomain2 => { config.acmedomain2 = None; },
-                DeletableProperty::acmedomain3 => { config.acmedomain3 = None; },
-                DeletableProperty::acmedomain4 => { config.acmedomain4 = None; },
-                DeletableProperty::http_proxy => { config.http_proxy = None; },
-                DeletableProperty::email_from => { config.email_from = None; },
-                DeletableProperty::ciphers_tls_1_3 => { config.ciphers_tls_1_3 = None; },
-                DeletableProperty::ciphers_tls_1_2 => { config.ciphers_tls_1_2 = None; },
-                DeletableProperty::default_lang => { config.default_lang = None; },
-                DeletableProperty::description => { config.description = None; },
-                DeletableProperty::task_log_max_days => { config.task_log_max_days = None; },
+                DeletableProperty::acme => {
+                    config.acme = None;
+                }
+                DeletableProperty::acmedomain0 => {
+                    config.acmedomain0 = None;
+                }
+                DeletableProperty::acmedomain1 => {
+                    config.acmedomain1 = None;
+                }
+                DeletableProperty::acmedomain2 => {
+                    config.acmedomain2 = None;
+                }
+                DeletableProperty::acmedomain3 => {
+                    config.acmedomain3 = None;
+                }
+                DeletableProperty::acmedomain4 => {
+                    config.acmedomain4 = None;
+                }
+                DeletableProperty::http_proxy => {
+                    config.http_proxy = None;
+                }
+                DeletableProperty::email_from => {
+                    config.email_from = None;
+                }
+                DeletableProperty::ciphers_tls_1_3 => {
+                    config.ciphers_tls_1_3 = None;
+                }
+                DeletableProperty::ciphers_tls_1_2 => {
+                    config.ciphers_tls_1_2 = None;
+                }
+                DeletableProperty::default_lang => {
+                    config.default_lang = None;
+                }
+                DeletableProperty::description => {
+                    config.description = None;
+                }
+                DeletableProperty::task_log_max_days => {
+                    config.task_log_max_days = None;
+                }
             }
         }
     }
 
-    if update.acme.is_some() { config.acme = update.acme; }
-    if update.acmedomain0.is_some() { config.acmedomain0 = update.acmedomain0; }
-    if update.acmedomain1.is_some() { config.acmedomain1 = update.acmedomain1; }
-    if update.acmedomain2.is_some() { config.acmedomain2 = update.acmedomain2; }
-    if update.acmedomain3.is_some() { config.acmedomain3 = update.acmedomain3; }
-    if update.acmedomain4.is_some() { config.acmedomain4 = update.acmedomain4; }
-    if update.http_proxy.is_some() { config.http_proxy = update.http_proxy; }
-    if update.email_from.is_some() { config.email_from = update.email_from; }
-    if update.ciphers_tls_1_3.is_some() { config.ciphers_tls_1_3 = update.ciphers_tls_1_3; }
-    if update.ciphers_tls_1_2.is_some() { config.ciphers_tls_1_2 = update.ciphers_tls_1_2; }
-    if update.default_lang.is_some() { config.default_lang = update.default_lang; }
-    if update.description.is_some() { config.description = update.description; }
-    if update.task_log_max_days.is_some() { config.task_log_max_days = update.task_log_max_days; }
+    if update.acme.is_some() {
+        config.acme = update.acme;
+    }
+    if update.acmedomain0.is_some() {
+        config.acmedomain0 = update.acmedomain0;
+    }
+    if update.acmedomain1.is_some() {
+        config.acmedomain1 = update.acmedomain1;
+    }
+    if update.acmedomain2.is_some() {
+        config.acmedomain2 = update.acmedomain2;
+    }
+    if update.acmedomain3.is_some() {
+        config.acmedomain3 = update.acmedomain3;
+    }
+    if update.acmedomain4.is_some() {
+        config.acmedomain4 = update.acmedomain4;
+    }
+    if update.http_proxy.is_some() {
+        config.http_proxy = update.http_proxy;
+    }
+    if update.email_from.is_some() {
+        config.email_from = update.email_from;
+    }
+    if update.ciphers_tls_1_3.is_some() {
+        config.ciphers_tls_1_3 = update.ciphers_tls_1_3;
+    }
+    if update.ciphers_tls_1_2.is_some() {
+        config.ciphers_tls_1_2 = update.ciphers_tls_1_2;
+    }
+    if update.default_lang.is_some() {
+        config.default_lang = update.default_lang;
+    }
+    if update.description.is_some() {
+        config.description = update.description;
+    }
+    if update.task_log_max_days.is_some() {
+        config.task_log_max_days = update.task_log_max_days;
+    }
 
     crate::config::node::save_config(&config)?;
 

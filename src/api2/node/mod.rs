@@ -12,23 +12,23 @@ use hyper::Request;
 use serde_json::{json, Value};
 use tokio::io::{AsyncBufReadExt, BufReader};
 
-use proxmox_sys::sortable;
 use proxmox_sys::fd::fd_change_cloexec;
+use proxmox_sys::sortable;
 
+use proxmox_http::websocket::WebSocket;
+use proxmox_router::list_subdirs_api_method;
 use proxmox_router::{
-    ApiHandler, ApiMethod, ApiResponseFuture, Permission, RpcEnvironment, Router, SubdirMap,
+    ApiHandler, ApiMethod, ApiResponseFuture, Permission, Router, RpcEnvironment, SubdirMap,
 };
 use proxmox_schema::*;
-use proxmox_router::list_subdirs_api_method;
-use proxmox_http::websocket::WebSocket;
 
 use proxmox_rest_server::WorkerTask;
 
 use pbs_api_types::{Authid, NODE_SCHEMA, PRIV_SYS_CONSOLE};
 use pbs_tools::ticket::{self, Empty, Ticket};
 
-use crate::tools;
 use crate::auth_helpers::private_auth_key;
+use crate::tools;
 
 pub mod apt;
 pub mod certificates;
@@ -303,7 +303,7 @@ fn upgrade_to_websocket(
                 .map_err(Error::from)
                 .await
             {
-               Ok(upgraded) => upgraded,
+                Ok(upgraded) => upgraded,
                 _ => bail!("error"),
             };
 

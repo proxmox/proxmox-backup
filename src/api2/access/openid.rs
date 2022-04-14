@@ -4,31 +4,35 @@ use std::convert::TryFrom;
 use anyhow::{bail, format_err, Error};
 use serde_json::{json, Value};
 
-use proxmox_sys::sortable;
 use proxmox_router::{
-    http_err, list_subdirs_api_method, Router, RpcEnvironment, SubdirMap, Permission,
+    http_err, list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap,
 };
 use proxmox_schema::api;
+use proxmox_sys::sortable;
 
 use proxmox_openid::{OpenIdAuthenticator, OpenIdConfig};
 
 use pbs_api_types::{
-    OpenIdRealmConfig, User, Userid,
-    EMAIL_SCHEMA, FIRST_NAME_SCHEMA, LAST_NAME_SCHEMA, OPENID_DEFAILT_SCOPE_LIST,
-    REALM_ID_SCHEMA,
+    OpenIdRealmConfig, User, Userid, EMAIL_SCHEMA, FIRST_NAME_SCHEMA, LAST_NAME_SCHEMA,
+    OPENID_DEFAILT_SCOPE_LIST, REALM_ID_SCHEMA,
 };
 use pbs_buildcfg::PROXMOX_BACKUP_RUN_DIR_M;
 use pbs_tools::ticket::Ticket;
 
-use pbs_config::CachedUserInfo;
 use pbs_config::open_backup_lockfile;
+use pbs_config::CachedUserInfo;
 
 use crate::auth_helpers::*;
 use crate::server::ticket::ApiTicket;
 
-fn openid_authenticator(realm_config: &OpenIdRealmConfig, redirect_url: &str) -> Result<OpenIdAuthenticator, Error> {
-
-    let scopes: Vec<String> = realm_config.scopes.as_deref().unwrap_or(OPENID_DEFAILT_SCOPE_LIST)
+fn openid_authenticator(
+    realm_config: &OpenIdRealmConfig,
+    redirect_url: &str,
+) -> Result<OpenIdAuthenticator, Error> {
+    let scopes: Vec<String> = realm_config
+        .scopes
+        .as_deref()
+        .unwrap_or(OPENID_DEFAILT_SCOPE_LIST)
         .split(|c: char| c == ',' || c == ';' || char::is_ascii_whitespace(&c))
         .filter(|s| !s.is_empty())
         .map(String::from)
@@ -37,11 +41,10 @@ fn openid_authenticator(realm_config: &OpenIdRealmConfig, redirect_url: &str) ->
     let mut acr_values = None;
     if let Some(ref list) = realm_config.acr_values {
         acr_values = Some(
-            list
-                .split(|c: char| c == ',' || c == ';' || char::is_ascii_whitespace(&c))
+            list.split(|c: char| c == ',' || c == ';' || char::is_ascii_whitespace(&c))
                 .filter(|s| !s.is_empty())
                 .map(String::from)
-                .collect()
+                .collect(),
         );
     }
 
@@ -105,7 +108,9 @@ pub fn openid_login(
 ) -> Result<Value, Error> {
     use proxmox_rest_server::RestEnvironment;
 
-    let env: &RestEnvironment = rpcenv.as_any().downcast_ref::<RestEnvironment>()
+    let env: &RestEnvironment = rpcenv
+        .as_any()
+        .downcast_ref::<RestEnvironment>()
         .ok_or_else(|| format_err!("detected worng RpcEnvironment type"))?;
 
     let user_info = CachedUserInfo::new()?;
@@ -113,7 +118,6 @@ pub fn openid_login(
     let mut tested_username = None;
 
     let result = proxmox_lang::try_block!({
-
         let (realm, private_auth_state) =
             OpenIdAuthenticator::verify_public_auth_state(PROXMOX_BACKUP_RUN_DIR_M!(), &state)?;
 
@@ -157,13 +161,19 @@ pub fn openid_login(
                 use pbs_config::user;
                 let _lock = open_backup_lockfile(user::USER_CFG_LOCKFILE, None, true)?;
 
-                let firstname = info["given_name"].as_str().map(|n| n.to_string())
+                let firstname = info["given_name"]
+                    .as_str()
+                    .map(|n| n.to_string())
                     .filter(|n| FIRST_NAME_SCHEMA.parse_simple_value(n).is_ok());
 
-                let lastname = info["family_name"].as_str().map(|n| n.to_string())
+                let lastname = info["family_name"]
+                    .as_str()
+                    .map(|n| n.to_string())
                     .filter(|n| LAST_NAME_SCHEMA.parse_simple_value(n).is_ok());
 
-                let email = info["email"].as_str().map(|n| n.to_string())
+                let email = info["email"]
+                    .as_str()
+                    .map(|n| n.to_string())
                     .filter(|n| EMAIL_SCHEMA.parse_simple_value(n).is_ok());
 
                 let user = User {
@@ -206,7 +216,7 @@ pub fn openid_login(
     if let Err(ref err) = result {
         let msg = err.to_string();
         env.log_failed_auth(tested_username, &msg);
-        return Err(http_err!(UNAUTHORIZED, "{}", msg))
+        return Err(http_err!(UNAUTHORIZED, "{}", msg));
     }
 
     result
@@ -240,7 +250,6 @@ fn openid_auth_url(
     redirect_url: String,
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
-
     let (domains, _digest) = pbs_config::domains::config()?;
     let config: OpenIdRealmConfig = domains.lookup("openid", &realm)?;
 

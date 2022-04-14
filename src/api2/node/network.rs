@@ -1,16 +1,16 @@
-use anyhow::{Error, bail};
-use serde::{Deserialize, Serialize};
-use serde_json::{Value, to_value};
+use anyhow::{bail, Error};
 use hex::FromHex;
+use serde::{Deserialize, Serialize};
+use serde_json::{to_value, Value};
 
-use proxmox_router::{ApiMethod, Router, RpcEnvironment, Permission};
+use proxmox_router::{ApiMethod, Permission, Router, RpcEnvironment};
 use proxmox_schema::api;
 
 use pbs_api_types::{
-    Authid, Interface, NetworkInterfaceType, LinuxBondMode, NetworkConfigMethod, BondXmitHashPolicy,
+    Authid, BondXmitHashPolicy, Interface, LinuxBondMode, NetworkConfigMethod,
+    NetworkInterfaceType, CIDR_V4_SCHEMA, CIDR_V6_SCHEMA, IP_V4_SCHEMA, IP_V6_SCHEMA,
     NETWORK_INTERFACE_ARRAY_SCHEMA, NETWORK_INTERFACE_LIST_SCHEMA, NETWORK_INTERFACE_NAME_SCHEMA,
-    CIDR_V4_SCHEMA, CIDR_V6_SCHEMA, IP_V4_SCHEMA, IP_V6_SCHEMA, PROXMOX_CONFIG_DIGEST_SCHEMA,
-    NODE_SCHEMA, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY,
+    NODE_SCHEMA, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY, PROXMOX_CONFIG_DIGEST_SCHEMA,
 };
 use pbs_config::network::{self, NetworkConfig};
 
@@ -18,41 +18,57 @@ use proxmox_rest_server::WorkerTask;
 
 fn split_interface_list(list: &str) -> Result<Vec<String>, Error> {
     let value = NETWORK_INTERFACE_ARRAY_SCHEMA.parse_property_string(list)?;
-    Ok(value.as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect())
+    Ok(value
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap().to_string())
+        .collect())
 }
 
 fn check_duplicate_gateway_v4(config: &NetworkConfig, iface: &str) -> Result<(), Error> {
-
-    let current_gateway_v4 = config.interfaces.iter()
+    let current_gateway_v4 = config
+        .interfaces
+        .iter()
         .find(|(_, interface)| interface.gateway.is_some())
         .map(|(name, _)| name.to_string());
 
     if let Some(current_gateway_v4) = current_gateway_v4 {
         if current_gateway_v4 != iface {
-            bail!("Default IPv4 gateway already exists on interface '{}'", current_gateway_v4);
+            bail!(
+                "Default IPv4 gateway already exists on interface '{}'",
+                current_gateway_v4
+            );
         }
     }
     Ok(())
 }
 
 fn check_duplicate_gateway_v6(config: &NetworkConfig, iface: &str) -> Result<(), Error> {
-
-    let current_gateway_v6 = config.interfaces.iter()
+    let current_gateway_v6 = config
+        .interfaces
+        .iter()
         .find(|(_, interface)| interface.gateway6.is_some())
         .map(|(name, _)| name.to_string());
 
     if let Some(current_gateway_v6) = current_gateway_v6 {
         if current_gateway_v6 != iface {
-            bail!("Default IPv6 gateway already exists on interface '{}'", current_gateway_v6);
+            bail!(
+                "Default IPv6 gateway already exists on interface '{}'",
+                current_gateway_v6
+            );
         }
     }
     Ok(())
 }
 
-
 fn set_bridge_ports(iface: &mut Interface, ports: Vec<String>) -> Result<(), Error> {
     if iface.interface_type != NetworkInterfaceType::Bridge {
-        bail!("interface '{}' is no bridge (type is {:?})", iface.name, iface.interface_type);
+        bail!(
+            "interface '{}' is no bridge (type is {:?})",
+            iface.name,
+            iface.interface_type
+        );
     }
     iface.bridge_ports = Some(ports);
     Ok(())
@@ -60,7 +76,11 @@ fn set_bridge_ports(iface: &mut Interface, ports: Vec<String>) -> Result<(), Err
 
 fn set_bond_slaves(iface: &mut Interface, slaves: Vec<String>) -> Result<(), Error> {
     if iface.interface_type != NetworkInterfaceType::Bond {
-        bail!("interface '{}' is no bond (type is {:?})", iface.name, iface.interface_type);
+        bail!(
+            "interface '{}' is no bond (type is {:?})",
+            iface.name,
+            iface.interface_type
+        );
     }
     iface.slaves = Some(slaves);
     Ok(())
@@ -91,14 +111,15 @@ pub fn list_network_devices(
     _info: &ApiMethod,
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-
     let (config, digest) = network::config()?;
     let digest = hex::encode(&digest);
 
     let mut list = Vec::new();
 
     for (iface, interface) in config.interfaces.iter() {
-        if iface == "lo" { continue; } // do not list lo
+        if iface == "lo" {
+            continue;
+        } // do not list lo
         let mut item: Value = to_value(interface)?;
         item["digest"] = digest.clone().into();
         item["iface"] = iface.to_string().into();
@@ -131,7 +152,6 @@ pub fn list_network_devices(
 )]
 /// Read a network interface configuration.
 pub fn read_interface(iface: String) -> Result<Value, Error> {
-
     let (config, digest) = network::config()?;
 
     let interface = config.lookup(&iface)?;
@@ -141,7 +161,6 @@ pub fn read_interface(iface: String) -> Result<Value, Error> {
 
     Ok(data)
 }
-
 
 #[api(
     protected: true,
@@ -256,7 +275,6 @@ pub fn create_interface(
     slaves: Option<String>,
     param: Value,
 ) -> Result<(), Error> {
-
     let interface_type = pbs_tools::json::required_string_param(&param, "type")?;
     let interface_type: NetworkInterfaceType = serde_json::from_value(interface_type.into())?;
 
@@ -271,35 +289,55 @@ pub fn create_interface(
     let mut interface = Interface::new(iface.clone());
     interface.interface_type = interface_type;
 
-    if let Some(autostart) = autostart { interface.autostart = autostart; }
-    if method.is_some() { interface.method = method; }
-    if method6.is_some() { interface.method6 = method6; }
-    if mtu.is_some() { interface.mtu = mtu; }
-    if comments.is_some() { interface.comments = comments; }
-    if comments6.is_some() { interface.comments6 = comments6; }
+    if let Some(autostart) = autostart {
+        interface.autostart = autostart;
+    }
+    if method.is_some() {
+        interface.method = method;
+    }
+    if method6.is_some() {
+        interface.method6 = method6;
+    }
+    if mtu.is_some() {
+        interface.mtu = mtu;
+    }
+    if comments.is_some() {
+        interface.comments = comments;
+    }
+    if comments6.is_some() {
+        interface.comments6 = comments6;
+    }
 
     if let Some(cidr) = cidr {
         let (_, _, is_v6) = network::parse_cidr(&cidr)?;
-        if is_v6 { bail!("invalid address type (expected IPv4, got IPv6)"); }
+        if is_v6 {
+            bail!("invalid address type (expected IPv4, got IPv6)");
+        }
         interface.cidr = Some(cidr);
     }
 
     if let Some(cidr6) = cidr6 {
         let (_, _, is_v6) = network::parse_cidr(&cidr6)?;
-        if !is_v6 { bail!("invalid address type (expected IPv6, got IPv4)"); }
+        if !is_v6 {
+            bail!("invalid address type (expected IPv6, got IPv4)");
+        }
         interface.cidr6 = Some(cidr6);
     }
 
     if let Some(gateway) = gateway {
         let is_v6 = gateway.contains(':');
-        if is_v6 {  bail!("invalid address type (expected IPv4, got IPv6)"); }
+        if is_v6 {
+            bail!("invalid address type (expected IPv4, got IPv6)");
+        }
         check_duplicate_gateway_v4(&config, &iface)?;
         interface.gateway = Some(gateway);
     }
 
     if let Some(gateway6) = gateway6 {
         let is_v6 = gateway6.contains(':');
-        if !is_v6 {  bail!("invalid address type (expected IPv6, got IPv4)"); }
+        if !is_v6 {
+            bail!("invalid address type (expected IPv6, got IPv4)");
+        }
         check_duplicate_gateway_v6(&config, &iface)?;
         interface.gateway6 = Some(gateway6);
     }
@@ -310,7 +348,9 @@ pub fn create_interface(
                 let ports = split_interface_list(&ports)?;
                 set_bridge_ports(&mut interface, ports)?;
             }
-            if bridge_vlan_aware.is_some() { interface.bridge_vlan_aware = bridge_vlan_aware; }
+            if bridge_vlan_aware.is_some() {
+                interface.bridge_vlan_aware = bridge_vlan_aware;
+            }
         }
         NetworkInterfaceType::Bond => {
             if let Some(mode) = bond_mode {
@@ -322,9 +362,7 @@ pub fn create_interface(
                     interface.bond_primary = bond_primary;
                 }
                 if bond_xmit_hash_policy.is_some() {
-                    if mode != LinuxBondMode::ieee802_3ad &&
-                       mode != LinuxBondMode::balance_xor
-                    {
+                    if mode != LinuxBondMode::ieee802_3ad && mode != LinuxBondMode::balance_xor {
                         bail!("bond_xmit_hash_policy is only valid with LACP(802.3ad) or balance-xor mode");
                     }
                     interface.bond_xmit_hash_policy = bond_xmit_hash_policy;
@@ -335,7 +373,10 @@ pub fn create_interface(
                 set_bond_slaves(&mut interface, slaves)?;
             }
         }
-        _ => bail!("creating network interface type '{:?}' is not supported", interface_type),
+        _ => bail!(
+            "creating network interface type '{:?}' is not supported",
+            interface_type
+        ),
     }
 
     if interface.cidr.is_some() || interface.gateway.is_some() {
@@ -394,7 +435,6 @@ pub enum DeletableProperty {
     /// Delete bond transmit hash policy
     bond_xmit_hash_policy,
 }
-
 
 #[api(
     protected: true,
@@ -523,7 +563,6 @@ pub fn update_interface(
     digest: Option<String>,
     param: Value,
 ) -> Result<(), Error> {
-
     let _lock = network::lock_config()?;
 
     let (mut config, expected_digest) = network::config()?;
@@ -533,49 +572,95 @@ pub fn update_interface(
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 
-    if gateway.is_some() { check_duplicate_gateway_v4(&config, &iface)?; }
-    if gateway6.is_some() { check_duplicate_gateway_v6(&config, &iface)?; }
+    if gateway.is_some() {
+        check_duplicate_gateway_v4(&config, &iface)?;
+    }
+    if gateway6.is_some() {
+        check_duplicate_gateway_v6(&config, &iface)?;
+    }
 
     let interface = config.lookup_mut(&iface)?;
 
     if let Some(interface_type) = param.get("type") {
         let interface_type = NetworkInterfaceType::deserialize(interface_type)?;
-        if  interface_type != interface.interface_type {
-            bail!("got unexpected interface type ({:?} != {:?})", interface_type, interface.interface_type);
+        if interface_type != interface.interface_type {
+            bail!(
+                "got unexpected interface type ({:?} != {:?})",
+                interface_type,
+                interface.interface_type
+            );
         }
     }
 
     if let Some(delete) = delete {
         for delete_prop in delete {
             match delete_prop {
-                DeletableProperty::cidr => { interface.cidr = None; },
-                DeletableProperty::cidr6 => { interface.cidr6 = None; },
-                DeletableProperty::gateway => { interface.gateway = None; },
-                DeletableProperty::gateway6 => { interface.gateway6 = None; },
-                DeletableProperty::method => { interface.method = None; },
-                DeletableProperty::method6 => { interface.method6 = None; },
-                DeletableProperty::comments => { interface.comments = None; },
-                DeletableProperty::comments6 => { interface.comments6 = None; },
-                DeletableProperty::mtu => { interface.mtu = None; },
-                DeletableProperty::autostart => { interface.autostart = false; },
-                DeletableProperty::bridge_ports => { set_bridge_ports(interface, Vec::new())?; }
-                DeletableProperty::bridge_vlan_aware => { interface.bridge_vlan_aware = None; }
-                DeletableProperty::slaves => { set_bond_slaves(interface, Vec::new())?; }
-                DeletableProperty::bond_primary => { interface.bond_primary = None; }
-                DeletableProperty::bond_xmit_hash_policy => { interface.bond_xmit_hash_policy = None }
+                DeletableProperty::cidr => {
+                    interface.cidr = None;
+                }
+                DeletableProperty::cidr6 => {
+                    interface.cidr6 = None;
+                }
+                DeletableProperty::gateway => {
+                    interface.gateway = None;
+                }
+                DeletableProperty::gateway6 => {
+                    interface.gateway6 = None;
+                }
+                DeletableProperty::method => {
+                    interface.method = None;
+                }
+                DeletableProperty::method6 => {
+                    interface.method6 = None;
+                }
+                DeletableProperty::comments => {
+                    interface.comments = None;
+                }
+                DeletableProperty::comments6 => {
+                    interface.comments6 = None;
+                }
+                DeletableProperty::mtu => {
+                    interface.mtu = None;
+                }
+                DeletableProperty::autostart => {
+                    interface.autostart = false;
+                }
+                DeletableProperty::bridge_ports => {
+                    set_bridge_ports(interface, Vec::new())?;
+                }
+                DeletableProperty::bridge_vlan_aware => {
+                    interface.bridge_vlan_aware = None;
+                }
+                DeletableProperty::slaves => {
+                    set_bond_slaves(interface, Vec::new())?;
+                }
+                DeletableProperty::bond_primary => {
+                    interface.bond_primary = None;
+                }
+                DeletableProperty::bond_xmit_hash_policy => interface.bond_xmit_hash_policy = None,
             }
         }
     }
 
-    if let Some(autostart) = autostart { interface.autostart = autostart; }
-    if method.is_some() { interface.method = method; }
-    if method6.is_some() { interface.method6 = method6; }
-    if mtu.is_some() { interface.mtu = mtu; }
+    if let Some(autostart) = autostart {
+        interface.autostart = autostart;
+    }
+    if method.is_some() {
+        interface.method = method;
+    }
+    if method6.is_some() {
+        interface.method6 = method6;
+    }
+    if mtu.is_some() {
+        interface.mtu = mtu;
+    }
     if let Some(ports) = bridge_ports {
         let ports = split_interface_list(&ports)?;
         set_bridge_ports(interface, ports)?;
     }
-    if bridge_vlan_aware.is_some() { interface.bridge_vlan_aware = bridge_vlan_aware; }
+    if bridge_vlan_aware.is_some() {
+        interface.bridge_vlan_aware = bridge_vlan_aware;
+    }
     if let Some(slaves) = slaves {
         let slaves = split_interface_list(&slaves)?;
         set_bond_slaves(interface, slaves)?;
@@ -589,9 +674,7 @@ pub fn update_interface(
             interface.bond_primary = bond_primary;
         }
         if bond_xmit_hash_policy.is_some() {
-            if mode != LinuxBondMode::ieee802_3ad &&
-               mode != LinuxBondMode::balance_xor
-            {
+            if mode != LinuxBondMode::ieee802_3ad && mode != LinuxBondMode::balance_xor {
                 bail!("bond_xmit_hash_policy is only valid with LACP(802.3ad) or balance-xor mode");
             }
             interface.bond_xmit_hash_policy = bond_xmit_hash_policy;
@@ -600,30 +683,42 @@ pub fn update_interface(
 
     if let Some(cidr) = cidr {
         let (_, _, is_v6) = network::parse_cidr(&cidr)?;
-        if is_v6 { bail!("invalid address type (expected IPv4, got IPv6)"); }
+        if is_v6 {
+            bail!("invalid address type (expected IPv4, got IPv6)");
+        }
         interface.cidr = Some(cidr);
     }
 
     if let Some(cidr6) = cidr6 {
         let (_, _, is_v6) = network::parse_cidr(&cidr6)?;
-        if !is_v6 { bail!("invalid address type (expected IPv6, got IPv4)"); }
+        if !is_v6 {
+            bail!("invalid address type (expected IPv6, got IPv4)");
+        }
         interface.cidr6 = Some(cidr6);
     }
 
     if let Some(gateway) = gateway {
         let is_v6 = gateway.contains(':');
-        if is_v6 {  bail!("invalid address type (expected IPv4, got IPv6)"); }
+        if is_v6 {
+            bail!("invalid address type (expected IPv4, got IPv6)");
+        }
         interface.gateway = Some(gateway);
     }
 
     if let Some(gateway6) = gateway6 {
         let is_v6 = gateway6.contains(':');
-        if !is_v6 {  bail!("invalid address type (expected IPv6, got IPv4)"); }
+        if !is_v6 {
+            bail!("invalid address type (expected IPv6, got IPv4)");
+        }
         interface.gateway6 = Some(gateway6);
     }
 
-    if comments.is_some() { interface.comments = comments; }
-    if comments6.is_some() { interface.comments6 = comments6; }
+    if comments.is_some() {
+        interface.comments = comments;
+    }
+    if comments6.is_some() {
+        interface.comments6 = comments6;
+    }
 
     if interface.cidr.is_some() || interface.gateway.is_some() {
         interface.method = Some(NetworkConfigMethod::Static);
@@ -696,21 +791,26 @@ pub fn delete_interface(iface: String, digest: Option<String>) -> Result<(), Err
     },
 )]
 /// Reload network configuration (requires ifupdown2).
-pub async fn reload_network_config(
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<String, Error> {
-
+pub async fn reload_network_config(rpcenv: &mut dyn RpcEnvironment) -> Result<String, Error> {
     network::assert_ifupdown2_installed()?;
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-    let upid_str = WorkerTask::spawn("srvreload", Some(String::from("networking")), auth_id.to_string(), true, |_worker| async {
+    let upid_str = WorkerTask::spawn(
+        "srvreload",
+        Some(String::from("networking")),
+        auth_id.to_string(),
+        true,
+        |_worker| async {
+            let _ = std::fs::rename(
+                network::NETWORK_INTERFACES_NEW_FILENAME,
+                network::NETWORK_INTERFACES_FILENAME,
+            );
 
-        let _ = std::fs::rename(network::NETWORK_INTERFACES_NEW_FILENAME, network::NETWORK_INTERFACES_FILENAME);
-
-        network::network_reload()?;
-        Ok(())
-    })?;
+            network::network_reload()?;
+            Ok(())
+        },
+    )?;
 
     Ok(upid_str)
 }
@@ -730,7 +830,6 @@ pub async fn reload_network_config(
 )]
 /// Revert network configuration (rm /etc/network/interfaces.new).
 pub fn revert_network_config() -> Result<(), Error> {
-
     let _ = std::fs::remove_file(network::NETWORK_INTERFACES_NEW_FILENAME);
 
     Ok(())

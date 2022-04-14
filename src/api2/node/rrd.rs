@@ -1,13 +1,11 @@
 use anyhow::{bail, Error};
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use std::collections::BTreeMap;
 
 use proxmox_router::{Permission, Router};
 use proxmox_schema::api;
 
-use pbs_api_types::{
-    NODE_SCHEMA, RRDMode, RRDTimeFrame, PRIV_SYS_AUDIT,
-};
+use pbs_api_types::{RRDMode, RRDTimeFrame, NODE_SCHEMA, PRIV_SYS_AUDIT};
 
 use crate::rrd_cache::extract_rrd_data;
 
@@ -17,7 +15,6 @@ pub fn create_value_from_rrd(
     timeframe: RRDTimeFrame,
     mode: RRDMode,
 ) -> Result<Value, Error> {
-
     let mut result: Vec<Value> = Vec::new();
 
     let mut timemap = BTreeMap::new();
@@ -30,9 +27,13 @@ pub fn create_value_from_rrd(
             None => continue,
         };
 
-        if let Some(expected_resolution) = last_resolution  {
+        if let Some(expected_resolution) = last_resolution {
             if reso != expected_resolution {
-                bail!("got unexpected RRD resolution ({} != {})", reso, expected_resolution);
+                bail!(
+                    "got unexpected RRD resolution ({} != {})",
+                    reso,
+                    expected_resolution
+                );
             }
         } else {
             last_resolution = Some(reso);
@@ -75,29 +76,30 @@ pub fn create_value_from_rrd(
     },
 )]
 /// Read node stats
-fn get_node_stats(
-    timeframe: RRDTimeFrame,
-    cf: RRDMode,
-    _param: Value,
-) -> Result<Value, Error> {
-
+fn get_node_stats(timeframe: RRDTimeFrame, cf: RRDMode, _param: Value) -> Result<Value, Error> {
     create_value_from_rrd(
         "host",
         &[
-            "cpu", "iowait",
-            "memtotal", "memused",
-            "swaptotal", "swapused",
-            "netin", "netout",
+            "cpu",
+            "iowait",
+            "memtotal",
+            "memused",
+            "swaptotal",
+            "swapused",
+            "netin",
+            "netout",
             "loadavg",
-            "total", "used",
-            "read_ios", "read_bytes",
-            "write_ios", "write_bytes",
+            "total",
+            "used",
+            "read_ios",
+            "read_bytes",
+            "write_ios",
+            "write_bytes",
             "io_ticks",
-         ],
+        ],
         timeframe,
         cf,
     )
 }
 
-pub const ROUTER: Router = Router::new()
-    .get(&API_METHOD_GET_NODE_STATS);
+pub const ROUTER: Router = Router::new().get(&API_METHOD_GET_NODE_STATS);

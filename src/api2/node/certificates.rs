@@ -7,9 +7,9 @@ use openssl::pkey::PKey;
 use openssl::x509::X509;
 use serde::{Deserialize, Serialize};
 
+use proxmox_router::list_subdirs_api_method;
 use proxmox_router::SubdirMap;
 use proxmox_router::{Permission, Router, RpcEnvironment};
-use proxmox_router::list_subdirs_api_method;
 use proxmox_schema::api;
 use proxmox_sys::{task_log, task_warn};
 
@@ -305,7 +305,10 @@ async fn order_certificate(
     };
 
     if domains.is_empty() {
-        task_log!(worker, "No domains configured to be ordered from an ACME server.");
+        task_log!(
+            worker,
+            "No domains configured to be ordered from an ACME server."
+        );
         return Ok(None);
     }
 
@@ -363,7 +366,9 @@ async fn order_certificate(
             task_warn!(
                 worker,
                 "Failed to teardown plugin '{}' for domain '{}' - {}",
-                plugin_id, domain, err
+                plugin_id,
+                domain,
+                err
             );
         }
 
@@ -453,7 +458,10 @@ async fn request_validation(
         let auth = acme.get_authorization(auth_url).await?;
         match auth.status {
             Status::Pending => {
-                task_log!(worker, "Status is still 'pending', trying again in 10 seconds");
+                task_log!(
+                    worker,
+                    "Status is still 'pending', trying again in 10 seconds"
+                );
                 tokio::time::sleep(Duration::from_secs(10)).await;
             }
             Status::Valid => return Ok(()),
@@ -574,7 +582,10 @@ pub fn revoke_acme_cert(rpcenv: &mut dyn RpcEnvironment) -> Result<String, Error
             let mut acme = node_config.acme_client().await?;
             task_log!(worker, "Revoking old certificate");
             acme.revoke_certificate(cert_pem.as_bytes(), None).await?;
-            task_log!(worker, "Deleting certificate and regenerating a self-signed one");
+            task_log!(
+                worker,
+                "Deleting certificate and regenerating a self-signed one"
+            );
             delete_custom_certificate().await?;
             Ok(())
         },

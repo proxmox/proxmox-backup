@@ -1,9 +1,9 @@
 //! List Authentication domains/realms
 
-use anyhow::{Error};
+use anyhow::Error;
 use serde_json::{json, Value};
 
-use proxmox_router::{Router, RpcEnvironment, Permission};
+use proxmox_router::{Permission, Router, RpcEnvironment};
 use proxmox_schema::api;
 
 use pbs_api_types::BasicRealmInfo;
@@ -50,5 +50,4 @@ fn list_domains(mut rpcenv: &mut dyn RpcEnvironment) -> Result<Vec<BasicRealmInf
     Ok(list)
 }
 
-pub const ROUTER: Router = Router::new()
-    .get(&API_METHOD_LIST_DOMAINS);
+pub const ROUTER: Router = Router::new().get(&API_METHOD_LIST_DOMAINS);

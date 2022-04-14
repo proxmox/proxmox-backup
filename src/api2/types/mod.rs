@@ -21,12 +21,10 @@ pub const FILENAME_FORMAT: ApiStringFormat = ApiStringFormat::VerifyFn(|name| {
     Ok(())
 });
 
-
 // Regression tests
 
 #[test]
 fn test_cert_fingerprint_schema() -> Result<(), anyhow::Error> {
-
     let schema = pbs_api_types::CERT_FINGERPRINT_SHA256_SCHEMA;
 
     let invalid_fingerprints = [
@@ -40,7 +38,10 @@ fn test_cert_fingerprint_schema() -> Result<(), anyhow::Error> {
 
     for fingerprint in invalid_fingerprints.iter() {
         if schema.parse_simple_value(fingerprint).is_ok() {
-            bail!("test fingerprint '{}' failed -  got Ok() while exception an error.", fingerprint);
+            bail!(
+                "test fingerprint '{}' failed -  got Ok() while exception an error.",
+                fingerprint
+            );
         }
     }
 
@@ -58,7 +59,11 @@ fn test_cert_fingerprint_schema() -> Result<(), anyhow::Error> {
         };
 
         if v != serde_json::json!(fingerprint) {
-            bail!("unable to parse fingerprint '{}' - got wrong value {:?}", fingerprint, v);
+            bail!(
+                "unable to parse fingerprint '{}' - got wrong value {:?}",
+                fingerprint,
+                v
+            );
         }
     }
 
@@ -67,24 +72,26 @@ fn test_cert_fingerprint_schema() -> Result<(), anyhow::Error> {
 
 #[test]
 fn test_proxmox_user_id_schema() -> Result<(), anyhow::Error> {
-
     use pbs_api_types::Userid;
 
     let invalid_user_ids = [
-        "x", // too short
-        "xx", // too short
-        "xxx", // no realm
-        "xxx@", // no realm
-        "xx x@test", // contains space
+        "x",                                                                 // too short
+        "xx",                                                                // too short
+        "xxx",                                                               // no realm
+        "xxx@",                                                              // no realm
+        "xx x@test",                                                         // contains space
         "xx\nx@test", // contains control character
-        "x:xx@test", // contains collon
-        "xx/x@test", // contains slash
+        "x:xx@test",  // contains collon
+        "xx/x@test",  // contains slash
         "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx@test", // too long
     ];
 
     for name in invalid_user_ids.iter() {
         if Userid::API_SCHEMA.parse_simple_value(name).is_ok() {
-            bail!("test userid '{}' failed -  got Ok() while exception an error.", name);
+            bail!(
+                "test userid '{}' failed -  got Ok() while exception an error.",
+                name
+            );
         }
     }
 
@@ -105,7 +112,11 @@ fn test_proxmox_user_id_schema() -> Result<(), anyhow::Error> {
         };
 
         if v != serde_json::json!(name) {
-            bail!("unable to parse userid '{}' - got wrong value {:?}", name, v);
+            bail!(
+                "unable to parse userid '{}' - got wrong value {:?}",
+                name,
+                v
+            );
         }
     }
 
@@ -139,7 +150,7 @@ pub struct NodeSwapCounters {
 }
 
 #[api]
-#[derive(Serialize,Deserialize,Default)]
+#[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "kebab-case")]
 /// Contains general node information such as the fingerprint`
 pub struct NodeInformation {
@@ -207,13 +218,13 @@ pub struct NodeStatus {
     pub info: NodeInformation,
 }
 
-pub const HTTP_PROXY_SCHEMA: Schema = StringSchema::new(
-    "HTTP proxy configuration [http://]<host>[:port]")
-    .format(&ApiStringFormat::VerifyFn(|s| {
-        proxmox_http::ProxyConfig::parse_proxy_url(s)?;
-        Ok(())
-    }))
-    .min_length(1)
-    .max_length(128)
-    .type_text("[http://]<host>[:port]")
-    .schema();
+pub const HTTP_PROXY_SCHEMA: Schema =
+    StringSchema::new("HTTP proxy configuration [http://]<host>[:port]")
+        .format(&ApiStringFormat::VerifyFn(|s| {
+            proxmox_http::ProxyConfig::parse_proxy_url(s)?;
+            Ok(())
+        }))
+        .min_length(1)
+        .max_length(128)
+        .type_text("[http://]<host>[:port]")
+        .schema();

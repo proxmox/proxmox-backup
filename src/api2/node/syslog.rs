@@ -1,12 +1,12 @@
 use std::process::{Command, Stdio};
 
-use anyhow::{Error};
+use anyhow::Error;
 use serde_json::{json, Value};
 
-use proxmox_router::{ApiMethod, Router, RpcEnvironment, Permission};
+use proxmox_router::{ApiMethod, Permission, Router, RpcEnvironment};
 use proxmox_schema::api;
 
-use pbs_api_types::{NODE_SCHEMA, SYSTEMD_DATETIME_FORMAT, PRIV_SYS_AUDIT};
+use pbs_api_types::{NODE_SCHEMA, PRIV_SYS_AUDIT, SYSTEMD_DATETIME_FORMAT};
 
 fn dump_journal(
     start: Option<u64>,
@@ -15,12 +15,17 @@ fn dump_journal(
     until: Option<&str>,
     service: Option<&str>,
 ) -> Result<(u64, Vec<Value>), Error> {
-
     let mut args = vec!["-o", "short", "--no-pager"];
 
-    if let Some(service) = service { args.extend(&["--unit", service]); }
-    if let Some(since) = since { args.extend(&["--since", since]); }
-    if let Some(until) = until { args.extend(&["--until", until]); }
+    if let Some(service) = service {
+        args.extend(&["--unit", service]);
+    }
+    if let Some(since) = since {
+        args.extend(&["--since", since]);
+    }
+    if let Some(until) = until {
+        args.extend(&["--until", until]);
+    }
 
     let mut lines: Vec<Value> = vec![];
     let mut limit = limit.unwrap_or(50);
@@ -32,15 +37,19 @@ fn dump_journal(
         .stdout(Stdio::piped())
         .spawn()?;
 
-    use std::io::{BufRead,BufReader};
+    use std::io::{BufRead, BufReader};
 
     if let Some(ref mut stdout) = child.stdout {
         for line in BufReader::new(stdout).lines() {
             match line {
                 Ok(line) => {
                     count += 1;
-                    if count < start { continue };
-	            if limit == 0 { continue };
+                    if count < start {
+                        continue;
+                    };
+                    if limit == 0 {
+                        continue;
+                    };
 
                     lines.push(json!({ "n": count, "t": line }));
 
@@ -64,7 +73,7 @@ fn dump_journal(
     // so we add a line
     if count == 0 {
         count += 1;
-	lines.push(json!({ "n": count, "t": "no content"}));
+        lines.push(json!({ "n": count, "t": "no content"}));
     }
 
     Ok((count, lines))
@@ -133,21 +142,21 @@ fn get_syslog(
     _info: &ApiMethod,
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-
-    let service = param["service"].as_str().map(|service| crate::api2::node::services::real_service_name(service));
+    let service = param["service"]
+        .as_str()
+        .map(|service| crate::api2::node::services::real_service_name(service));
 
     let (count, lines) = dump_journal(
         param["start"].as_u64(),
         param["limit"].as_u64(),
         param["since"].as_str(),
         param["until"].as_str(),
-        service)?;
+        service,
+    )?;
 
     rpcenv["total"] = Value::from(count);
 
     Ok(json!(lines))
 }
 
-pub const ROUTER: Router = Router::new()
-    .get(&API_METHOD_GET_SYSLOG);
-
+pub const ROUTER: Router = Router::new().get(&API_METHOD_GET_SYSLOG);

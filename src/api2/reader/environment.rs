@@ -1,13 +1,13 @@
-use std::sync::{Arc,RwLock};
 use std::collections::HashSet;
+use std::sync::{Arc, RwLock};
 
 use serde_json::{json, Value};
 
 use proxmox_router::{RpcEnvironment, RpcEnvironmentType};
 
+use pbs_api_types::Authid;
 use pbs_datastore::backup_info::BackupDir;
 use pbs_datastore::DataStore;
-use pbs_api_types::Authid;
 use proxmox_rest_server::formatter::*;
 use proxmox_rest_server::WorkerTask;
 
@@ -22,7 +22,7 @@ pub struct ReaderEnvironment {
     pub worker: Arc<WorkerTask>,
     pub datastore: Arc<DataStore>,
     pub backup_dir: BackupDir,
-    allowed_chunks: Arc<RwLock<HashSet<[u8;32]>>>,
+    allowed_chunks: Arc<RwLock<HashSet<[u8; 32]>>>,
 }
 
 impl ReaderEnvironment {
@@ -33,8 +33,6 @@ impl ReaderEnvironment {
         datastore: Arc<DataStore>,
         backup_dir: BackupDir,
     ) -> Self {
-
-
         Self {
             result_attributes: json!({}),
             env_type,
@@ -53,22 +51,22 @@ impl ReaderEnvironment {
     }
 
     pub fn debug<S: AsRef<str>>(&self, msg: S) {
-        if self.debug { self.worker.log_message(msg); }
+        if self.debug {
+            self.worker.log_message(msg);
+        }
     }
 
-
-    pub fn register_chunk(&self, digest: [u8;32]) {
+    pub fn register_chunk(&self, digest: [u8; 32]) {
         let mut allowed_chunks = self.allowed_chunks.write().unwrap();
         allowed_chunks.insert(digest);
     }
 
-    pub fn check_chunk_access(&self, digest: [u8;32]) -> bool {
-       self.allowed_chunks.read().unwrap().contains(&digest)
+    pub fn check_chunk_access(&self, digest: [u8; 32]) -> bool {
+        self.allowed_chunks.read().unwrap().contains(&digest)
     }
 }
 
 impl RpcEnvironment for ReaderEnvironment {
-
     fn result_attrib_mut(&mut self) -> &mut Value {
         &mut self.result_attributes
     }

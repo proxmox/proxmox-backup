@@ -1,20 +1,20 @@
-use anyhow::{bail, format_err, Error};
-use proxmox_sys::sortable;
-use proxmox_router::SubdirMap;
-use proxmox_router::list_subdirs_api_method;
-use serde_json::Value;
 use ::serde::{Deserialize, Serialize};
+use anyhow::{bail, format_err, Error};
 use hex::FromHex;
+use proxmox_router::list_subdirs_api_method;
+use proxmox_router::SubdirMap;
+use proxmox_sys::sortable;
+use serde_json::Value;
 
-use proxmox_router::{http_bail, http_err, ApiMethod, Router, RpcEnvironment, Permission};
+use proxmox_router::{http_bail, http_err, ApiMethod, Permission, Router, RpcEnvironment};
 use proxmox_schema::{api, param_bail};
 
-use pbs_client::{HttpClient, HttpClientOptions};
 use pbs_api_types::{
-    REMOTE_ID_SCHEMA, REMOTE_PASSWORD_SCHEMA, Remote, RemoteConfig, RemoteConfigUpdater,
-    Authid, PROXMOX_CONFIG_DIGEST_SCHEMA, DATASTORE_SCHEMA, GroupListItem,
-    DataStoreListItem, RateLimitConfig, SyncJobConfig, PRIV_REMOTE_AUDIT, PRIV_REMOTE_MODIFY,
+    Authid, DataStoreListItem, GroupListItem, RateLimitConfig, Remote, RemoteConfig,
+    RemoteConfigUpdater, SyncJobConfig, DATASTORE_SCHEMA, PRIV_REMOTE_AUDIT, PRIV_REMOTE_MODIFY,
+    PROXMOX_CONFIG_DIGEST_SCHEMA, REMOTE_ID_SCHEMA, REMOTE_PASSWORD_SCHEMA,
 };
+use pbs_client::{HttpClient, HttpClientOptions};
 use pbs_config::sync;
 
 use pbs_config::CachedUserInfo;
@@ -84,12 +84,7 @@ pub fn list_remotes(
     },
 )]
 /// Create new remote.
-pub fn create_remote(
-    name: String,
-    config: RemoteConfig,
-    password: String,
-) -> Result<(), Error> {
-
+pub fn create_remote(name: String, config: RemoteConfig, password: String) -> Result<(), Error> {
     let _lock = pbs_config::remote::lock_config()?;
 
     let (mut section_config, _digest) = pbs_config::remote::config()?;
@@ -98,7 +93,11 @@ pub fn create_remote(
         param_bail!("name", "remote '{}' already exists.", name);
     }
 
-    let remote = Remote { name: name.clone(), config, password };
+    let remote = Remote {
+        name: name.clone(),
+        config,
+        password,
+    };
 
     section_config.set_data(&name, "remote", &remote)?;
 
@@ -188,7 +187,6 @@ pub fn update_remote(
     delete: Option<Vec<DeletableProperty>>,
     digest: Option<String>,
 ) -> Result<(), Error> {
-
     let _lock = pbs_config::remote::lock_config()?;
 
     let (mut config, expected_digest) = pbs_config::remote::config()?;
@@ -203,9 +201,15 @@ pub fn update_remote(
     if let Some(delete) = delete {
         for delete_prop in delete {
             match delete_prop {
-                DeletableProperty::comment => { data.config.comment = None; },
-                DeletableProperty::fingerprint => { data.config.fingerprint = None; },
-                DeletableProperty::port => { data.config.port = None; },
+                DeletableProperty::comment => {
+                    data.config.comment = None;
+                }
+                DeletableProperty::fingerprint => {
+                    data.config.fingerprint = None;
+                }
+                DeletableProperty::port => {
+                    data.config.port = None;
+                }
             }
         }
     }
@@ -218,12 +222,22 @@ pub fn update_remote(
             data.config.comment = Some(comment);
         }
     }
-    if let Some(host) = update.host { data.config.host = host; }
-    if update.port.is_some() { data.config.port = update.port; }
-    if let Some(auth_id) = update.auth_id { data.config.auth_id = auth_id; }
-    if let Some(password) = password { data.password = password; }
+    if let Some(host) = update.host {
+        data.config.host = host;
+    }
+    if update.port.is_some() {
+        data.config.port = update.port;
+    }
+    if let Some(auth_id) = update.auth_id {
+        data.config.auth_id = auth_id;
+    }
+    if let Some(password) = password {
+        data.password = password;
+    }
 
-    if update.fingerprint.is_some() { data.config.fingerprint = update.fingerprint; }
+    if update.fingerprint.is_some() {
+        data.config.fingerprint = update.fingerprint;
+    }
 
     config.set_data(&name, "remote", &data)?;
 
@@ -251,13 +265,18 @@ pub fn update_remote(
 )]
 /// Remove a remote from the configuration file.
 pub fn delete_remote(name: String, digest: Option<String>) -> Result<(), Error> {
-
     let (sync_jobs, _) = sync::config()?;
 
-    let job_list: Vec<SyncJobConfig>  = sync_jobs.convert_to_typed_array("sync")?;
+    let job_list: Vec<SyncJobConfig> = sync_jobs.convert_to_typed_array("sync")?;
     for job in job_list {
         if job.remote == name {
-            param_bail!("name", "remote '{}' is used by sync job '{}' (datastore '{}')", name, job.id, job.store);
+            param_bail!(
+                "name",
+                "remote '{}' is used by sync job '{}' (datastore '{}')",
+                name,
+                job.id,
+                job.store
+            );
         }
     }
 
@@ -271,7 +290,9 @@ pub fn delete_remote(name: String, digest: Option<String>) -> Result<(), Error> 
     }
 
     match config.sections.get(&name) {
-        Some(_) => { config.sections.remove(&name); },
+        Some(_) => {
+            config.sections.remove(&name);
+        }
         None => http_bail!(NOT_FOUND, "remote '{}' does not exist.", name),
     }
 
@@ -285,7 +306,10 @@ pub async fn remote_client(
     remote: &Remote,
     limit: Option<RateLimitConfig>,
 ) -> Result<HttpClient, Error> {
-    let mut options = HttpClientOptions::new_non_interactive(remote.password.clone(), remote.config.fingerprint.clone());
+    let mut options = HttpClientOptions::new_non_interactive(
+        remote.password.clone(),
+        remote.config.fingerprint.clone(),
+    );
 
     if let Some(limit) = limit {
         options = options.rate_limit(limit);
@@ -295,14 +319,21 @@ pub async fn remote_client(
         &remote.config.host,
         remote.config.port.unwrap_or(8007),
         &remote.config.auth_id,
-        options)?;
-    let _auth_info = client.login() // make sure we can auth
+        options,
+    )?;
+    let _auth_info = client
+        .login() // make sure we can auth
         .await
-        .map_err(|err| format_err!("remote connection to '{}' failed - {}", remote.config.host, err))?;
+        .map_err(|err| {
+            format_err!(
+                "remote connection to '{}' failed - {}",
+                remote.config.host,
+                err
+            )
+        })?;
 
     Ok(client)
 }
-
 
 #[api(
     input: {
@@ -327,15 +358,15 @@ pub async fn scan_remote_datastores(name: String) -> Result<Vec<DataStoreListIte
     let remote: Remote = remote_config.lookup("remote", &name)?;
 
     let map_remote_err = |api_err| {
-        http_err!(INTERNAL_SERVER_ERROR,
-                  "failed to scan remote '{}' - {}",
-                  &name,
-                  api_err)
+        http_err!(
+            INTERNAL_SERVER_ERROR,
+            "failed to scan remote '{}' - {}",
+            &name,
+            api_err
+        )
     };
 
-    let client = remote_client(&remote, None)
-        .await
-        .map_err(map_remote_err)?;
+    let client = remote_client(&remote, None).await.map_err(map_remote_err)?;
     let api_res = client
         .get("api2/json/admin/datastore", None)
         .await
@@ -377,15 +408,15 @@ pub async fn scan_remote_groups(name: String, store: String) -> Result<Vec<Group
     let remote: Remote = remote_config.lookup("remote", &name)?;
 
     let map_remote_err = |api_err| {
-        http_err!(INTERNAL_SERVER_ERROR,
-                  "failed to scan remote '{}' - {}",
-                  &name,
-                  api_err)
+        http_err!(
+            INTERNAL_SERVER_ERROR,
+            "failed to scan remote '{}' - {}",
+            &name,
+            api_err
+        )
     };
 
-    let client = remote_client(&remote, None)
-        .await
-        .map_err(map_remote_err)?;
+    let client = remote_client(&remote, None).await.map_err(map_remote_err)?;
     let api_res = client
         .get(&format!("api2/json/admin/datastore/{}/groups", store), None)
         .await
@@ -402,13 +433,8 @@ pub async fn scan_remote_groups(name: String, store: String) -> Result<Vec<Group
 }
 
 #[sortable]
-const DATASTORE_SCAN_SUBDIRS: SubdirMap = &[
-    (
-        "groups",
-        &Router::new()
-            .get(&API_METHOD_SCAN_REMOTE_GROUPS)
-    ),
-];
+const DATASTORE_SCAN_SUBDIRS: SubdirMap =
+    &[("groups", &Router::new().get(&API_METHOD_SCAN_REMOTE_GROUPS))];
 
 const DATASTORE_SCAN_ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(DATASTORE_SCAN_SUBDIRS))

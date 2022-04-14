@@ -1,14 +1,14 @@
-use anyhow::Error;
-use serde_json::Value;
 use ::serde::{Deserialize, Serialize};
+use anyhow::Error;
 use hex::FromHex;
+use serde_json::Value;
 
-use proxmox_router::{http_bail, Router, RpcEnvironment, Permission};
+use proxmox_router::{http_bail, Permission, Router, RpcEnvironment};
 use proxmox_schema::{api, param_bail};
 
 use pbs_api_types::{
     Authid, VerificationJobConfig, VerificationJobConfigUpdater, JOB_ID_SCHEMA,
-    PROXMOX_CONFIG_DIGEST_SCHEMA, PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_VERIFY,
+    PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_VERIFY, PROXMOX_CONFIG_DIGEST_SCHEMA,
 };
 use pbs_config::verify;
 
@@ -42,18 +42,19 @@ pub fn list_verification_jobs(
 
     let list = config.convert_to_typed_array("verification")?;
 
-    let list = list.into_iter()
+    let list = list
+        .into_iter()
         .filter(|job: &VerificationJobConfig| {
             let privs = user_info.lookup_privs(&auth_id, &["datastore", &job.store]);
 
             privs & required_privs != 00
-        }).collect();
+        })
+        .collect();
 
     rpcenv["digest"] = hex::encode(&digest).into();
 
     Ok(list)
 }
-
 
 #[api(
     protected: true,
@@ -73,12 +74,17 @@ pub fn list_verification_jobs(
 /// Create a new verification job.
 pub fn create_verification_job(
     config: VerificationJobConfig,
-    rpcenv: &mut dyn RpcEnvironment
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
 
-    user_info.check_privs(&auth_id, &["datastore", &config.store], PRIV_DATASTORE_VERIFY, false)?;
+    user_info.check_privs(
+        &auth_id,
+        &["datastore", &config.store],
+        PRIV_DATASTORE_VERIFY,
+        false,
+    )?;
 
     let _lock = verify::lock_config()?;
 
@@ -124,7 +130,12 @@ pub fn read_verification_job(
     let verification_job: VerificationJobConfig = config.lookup("verification", &id)?;
 
     let required_privs = PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_VERIFY;
-    user_info.check_privs(&auth_id, &["datastore", &verification_job.store], required_privs, true)?;
+    user_info.check_privs(
+        &auth_id,
+        &["datastore", &verification_job.store],
+        required_privs,
+        true,
+    )?;
 
     rpcenv["digest"] = hex::encode(&digest).into();
 
@@ -133,7 +144,7 @@ pub fn read_verification_job(
 
 #[api()]
 #[derive(Serialize, Deserialize)]
-#[serde(rename_all="kebab-case")]
+#[serde(rename_all = "kebab-case")]
 /// Deletable property name
 pub enum DeletableProperty {
     /// Delete the ignore verified property.
@@ -143,7 +154,7 @@ pub enum DeletableProperty {
     /// Delete the job schedule.
     Schedule,
     /// Delete outdated after property.
-    OutdatedAfter
+    OutdatedAfter,
 }
 
 #[api(
@@ -201,15 +212,28 @@ pub fn update_verification_job(
     let mut data: VerificationJobConfig = config.lookup("verification", &id)?;
 
     // check existing store
-    user_info.check_privs(&auth_id, &["datastore", &data.store], PRIV_DATASTORE_VERIFY, true)?;
+    user_info.check_privs(
+        &auth_id,
+        &["datastore", &data.store],
+        PRIV_DATASTORE_VERIFY,
+        true,
+    )?;
 
     if let Some(delete) = delete {
         for delete_prop in delete {
             match delete_prop {
-                DeletableProperty::IgnoreVerified => { data.ignore_verified = None; },
-                DeletableProperty::OutdatedAfter => { data.outdated_after = None; },
-                DeletableProperty::Comment => { data.comment = None; },
-                DeletableProperty::Schedule => { data.schedule = None; },
+                DeletableProperty::IgnoreVerified => {
+                    data.ignore_verified = None;
+                }
+                DeletableProperty::OutdatedAfter => {
+                    data.outdated_after = None;
+                }
+                DeletableProperty::Comment => {
+                    data.comment = None;
+                }
+                DeletableProperty::Schedule => {
+                    data.schedule = None;
+                }
             }
         }
     }
@@ -225,15 +249,25 @@ pub fn update_verification_job(
 
     if let Some(store) = update.store {
         // check new store
-        user_info.check_privs(&auth_id, &["datastore", &store], PRIV_DATASTORE_VERIFY, true)?;
+        user_info.check_privs(
+            &auth_id,
+            &["datastore", &store],
+            PRIV_DATASTORE_VERIFY,
+            true,
+        )?;
         data.store = store;
     }
 
-
-    if update.ignore_verified.is_some() { data.ignore_verified = update.ignore_verified; }
-    if update.outdated_after.is_some() { data.outdated_after = update.outdated_after; }
+    if update.ignore_verified.is_some() {
+        data.ignore_verified = update.ignore_verified;
+    }
+    if update.outdated_after.is_some() {
+        data.outdated_after = update.outdated_after;
+    }
     let schedule_changed = data.schedule != update.schedule;
-    if update.schedule.is_some() { data.schedule = update.schedule; }
+    if update.schedule.is_some() {
+        data.schedule = update.schedule;
+    }
 
     config.set_data(&id, "verification", &data)?;
 
@@ -278,7 +312,12 @@ pub fn delete_verification_job(
     let (mut config, expected_digest) = verify::config()?;
 
     let job: VerificationJobConfig = config.lookup("verification", &id)?;
-    user_info.check_privs(&auth_id, &["datastore", &job.store], PRIV_DATASTORE_VERIFY, true)?;
+    user_info.check_privs(
+        &auth_id,
+        &["datastore", &job.store],
+        PRIV_DATASTORE_VERIFY,
+        true,
+    )?;
 
     if let Some(ref digest) = digest {
         let digest = <[u8; 32]>::from_hex(digest)?;
@@ -286,7 +325,9 @@ pub fn delete_verification_job(
     }
 
     match config.sections.get(&id) {
-        Some(_) => { config.sections.remove(&id); },
+        Some(_) => {
+            config.sections.remove(&id);
+        }
         None => http_bail!(NOT_FOUND, "job '{}' does not exist.", id),
     }
 

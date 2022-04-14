@@ -1,9 +1,9 @@
 //! Cheap check if the API daemon is online.
 
-use anyhow::{Error};
+use anyhow::Error;
 use serde_json::{json, Value};
 
-use proxmox_router::{Router, Permission};
+use proxmox_router::{Permission, Router};
 use proxmox_schema::api;
 
 #[api(
@@ -28,5 +28,4 @@ pub fn ping() -> Result<Value, Error> {
         "pong": true,
     }))
 }
-pub const ROUTER: Router = Router::new()
-    .get(&API_METHOD_PING);
+pub const ROUTER: Router = Router::new().get(&API_METHOD_PING);

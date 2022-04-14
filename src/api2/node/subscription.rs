@@ -1,16 +1,15 @@
-use anyhow::{Error, format_err, bail};
+use anyhow::{bail, format_err, Error};
 use serde_json::Value;
 
-use proxmox_router::{Router, RpcEnvironment, Permission};
+use proxmox_router::{Permission, Router, RpcEnvironment};
 use proxmox_schema::api;
 
 use pbs_api_types::{
-    NODE_SCHEMA, SUBSCRIPTION_KEY_SCHEMA, Authid,
-    PRIV_SYS_AUDIT,PRIV_SYS_MODIFY,
+    Authid, NODE_SCHEMA, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY, SUBSCRIPTION_KEY_SCHEMA,
 };
 
 use crate::tools;
-use crate::tools::subscription::{self, SubscriptionStatus, SubscriptionInfo};
+use crate::tools::subscription::{self, SubscriptionInfo, SubscriptionStatus};
 use pbs_config::CachedUserInfo;
 
 #[api(
@@ -33,9 +32,7 @@ use pbs_config::CachedUserInfo;
     },
 )]
 /// Check and update subscription status.
-pub fn check_subscription(
-    force: bool,
-) -> Result<(), Error> {
+pub fn check_subscription(force: bool) -> Result<(), Error> {
     let info = match subscription::read_subscription() {
         Err(err) => bail!("could not read subscription status: {}", err),
         Ok(Some(info)) => info,
@@ -93,7 +90,7 @@ pub fn get_subscription(
             status: SubscriptionStatus::NOTFOUND,
             message: Some("There is no subscription key".into()),
             serverid: Some(tools::get_hardware_address()?),
-            url:  Some(url.into()),
+            url: Some(url.into()),
             ..Default::default()
         },
     };
@@ -132,10 +129,7 @@ pub fn get_subscription(
     },
 )]
 /// Set a subscription key and check it.
-pub fn set_subscription(
-    key: String,
-) -> Result<(), Error> {
-
+pub fn set_subscription(key: String) -> Result<(), Error> {
     let server_id = tools::get_hardware_address()?;
 
     let info = subscription::check_subscription(key, server_id)?;
@@ -161,7 +155,6 @@ pub fn set_subscription(
 )]
 /// Delete subscription info.
 pub fn delete_subscription() -> Result<(), Error> {
-
     subscription::delete_subscription()
         .map_err(|err| format_err!("Deleting subscription failed: {}", err))?;
 

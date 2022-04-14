@@ -1,12 +1,12 @@
-use anyhow::Error;
 use ::serde::{Deserialize, Serialize};
+use anyhow::Error;
 
-use proxmox_router::{http_bail, Router, RpcEnvironment, Permission};
+use proxmox_router::{http_bail, Permission, Router, RpcEnvironment};
 use proxmox_schema::{api, param_bail};
 
 use pbs_api_types::{
-    Authid, MediaPoolConfig, MediaPoolConfigUpdater, MEDIA_POOL_NAME_SCHEMA,
-    PRIV_TAPE_AUDIT, PRIV_TAPE_MODIFY,
+    Authid, MediaPoolConfig, MediaPoolConfigUpdater, MEDIA_POOL_NAME_SCHEMA, PRIV_TAPE_AUDIT,
+    PRIV_TAPE_MODIFY,
 };
 
 use pbs_config::CachedUserInfo;
@@ -26,10 +26,7 @@ use pbs_config::CachedUserInfo;
     },
 )]
 /// Create a new media pool
-pub fn create_pool(
-    config: MediaPoolConfig,
-) -> Result<(), Error> {
-
+pub fn create_pool(config: MediaPoolConfig) -> Result<(), Error> {
     let _lock = pbs_config::media_pool::lock()?;
 
     let (mut section_config, _digest) = pbs_config::media_pool::config()?;
@@ -59,9 +56,7 @@ pub fn create_pool(
     },
 )]
 /// List media pools
-pub fn list_pools(
-    mut rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Vec<MediaPoolConfig>, Error> {
+pub fn list_pools(mut rpcenv: &mut dyn RpcEnvironment) -> Result<Vec<MediaPoolConfig>, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
 
@@ -69,7 +64,7 @@ pub fn list_pools(
 
     let list = config.convert_to_typed_array::<MediaPoolConfig>("pool")?;
 
-     let list = list
+    let list = list
         .into_iter()
         .filter(|pool| {
             let privs = user_info.lookup_privs(&auth_id, &["tape", "pool", &pool.name]);
@@ -99,7 +94,6 @@ pub fn list_pools(
 )]
 /// Get media pool configuration
 pub fn get_config(name: String) -> Result<MediaPoolConfig, Error> {
-
     let (config, _digest) = pbs_config::media_pool::config()?;
 
     let data: MediaPoolConfig = config.lookup("pool", &name)?;
@@ -155,7 +149,6 @@ pub fn update_pool(
     update: MediaPoolConfigUpdater,
     delete: Option<Vec<DeletableProperty>>,
 ) -> Result<(), Error> {
-
     let _lock = pbs_config::media_pool::lock()?;
 
     let (mut config, _digest) = pbs_config::media_pool::config()?;
@@ -165,19 +158,37 @@ pub fn update_pool(
     if let Some(delete) = delete {
         for delete_prop in delete {
             match delete_prop {
-                DeletableProperty::allocation => { data.allocation = None; },
-                DeletableProperty::retention => { data.retention = None; },
-                DeletableProperty::template => { data.template = None; },
-                DeletableProperty::encrypt => { data.encrypt = None; },
-                DeletableProperty::comment => { data.comment = None; },
+                DeletableProperty::allocation => {
+                    data.allocation = None;
+                }
+                DeletableProperty::retention => {
+                    data.retention = None;
+                }
+                DeletableProperty::template => {
+                    data.template = None;
+                }
+                DeletableProperty::encrypt => {
+                    data.encrypt = None;
+                }
+                DeletableProperty::comment => {
+                    data.comment = None;
+                }
             }
         }
     }
 
-    if update.allocation.is_some() { data.allocation = update.allocation; }
-    if update.retention.is_some() { data.retention = update.retention; }
-    if update.template.is_some() { data.template = update.template; }
-    if update.encrypt.is_some() { data.encrypt = update.encrypt; }
+    if update.allocation.is_some() {
+        data.allocation = update.allocation;
+    }
+    if update.retention.is_some() {
+        data.retention = update.retention;
+    }
+    if update.template.is_some() {
+        data.template = update.template;
+    }
+    if update.encrypt.is_some() {
+        data.encrypt = update.encrypt;
+    }
 
     if let Some(comment) = update.comment {
         let comment = comment.trim();
@@ -210,13 +221,14 @@ pub fn update_pool(
 )]
 /// Delete a media pool configuration
 pub fn delete_pool(name: String) -> Result<(), Error> {
-
     let _lock = pbs_config::media_pool::lock()?;
 
     let (mut config, _digest) = pbs_config::media_pool::config()?;
 
     match config.sections.get(&name) {
-        Some(_) => { config.sections.remove(&name); },
+        Some(_) => {
+            config.sections.remove(&name);
+        }
         None => http_bail!(NOT_FOUND, "delete pool '{}' failed - no such pool", name),
     }
 
@@ -229,7 +241,6 @@ const ITEM_ROUTER: Router = Router::new()
     .get(&API_METHOD_GET_CONFIG)
     .put(&API_METHOD_UPDATE_POOL)
     .delete(&API_METHOD_DELETE_POOL);
-
 
 pub const ROUTER: Router = Router::new()
     .get(&API_METHOD_LIST_POOLS)

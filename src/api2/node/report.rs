@@ -33,5 +33,4 @@ fn get_report(
     Ok(json!(generate_report()))
 }
 
-pub const ROUTER: Router = Router::new()
-    .get(&API_METHOD_GET_REPORT);
+pub const ROUTER: Router = Router::new().get(&API_METHOD_GET_REPORT);

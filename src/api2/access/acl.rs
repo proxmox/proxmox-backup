@@ -3,13 +3,12 @@
 use anyhow::{bail, Error};
 use hex::FromHex;
 
-use proxmox_router::{Router, RpcEnvironment, Permission};
+use proxmox_router::{Permission, Router, RpcEnvironment};
 use proxmox_schema::api;
 
 use pbs_api_types::{
-    Authid, AclListItem, Role, 
-    ACL_PATH_SCHEMA, PROXMOX_CONFIG_DIGEST_SCHEMA, PROXMOX_GROUP_ID_SCHEMA,
-    ACL_PROPAGATE_SCHEMA, PRIV_SYS_AUDIT, PRIV_PERMISSIONS_MODIFY,
+    AclListItem, Authid, Role, ACL_PATH_SCHEMA, ACL_PROPAGATE_SCHEMA, PRIV_PERMISSIONS_MODIFY,
+    PRIV_SYS_AUDIT, PROXMOX_CONFIG_DIGEST_SCHEMA, PROXMOX_GROUP_ID_SCHEMA,
 };
 
 use pbs_config::acl::AclTreeNode;
@@ -32,15 +31,18 @@ fn extract_acl_node_data(
 
     for (user, roles) in &node.users {
         if let Some(auth_id_filter) = auth_id_filter {
-            if !user.is_token()
-                || user.user() != auth_id_filter.user() {
-                 continue;
+            if !user.is_token() || user.user() != auth_id_filter.user() {
+                continue;
             }
         }
 
         for (role, propagate) in roles {
             list.push(AclListItem {
-                path: if path.is_empty() { String::from("/") } else { path.to_string() },
+                path: if path.is_empty() {
+                    String::from("/")
+                } else {
+                    path.to_string()
+                },
                 propagate: *propagate,
                 ugid_type: String::from("user"),
                 ugid: user.to_string(),
@@ -55,7 +57,11 @@ fn extract_acl_node_data(
 
         for (role, propagate) in roles {
             list.push(AclListItem {
-                path: if path.is_empty() { String::from("/") } else { path.to_string() },
+                path: if path.is_empty() {
+                    String::from("/")
+                } else {
+                    path.to_string()
+                },
                 propagate: *propagate,
                 ugid_type: String::from("group"),
                 ugid: group.to_string(),
@@ -201,8 +207,10 @@ pub fn update_acl(
                 } else if auth_id.user() != current_auth_id.user() {
                     bail!("Unprivileged users can only set ACL items for their own API tokens.");
                 }
-            },
-            None => { bail!("Unprivileged user needs to provide auth_id to update ACL item."); },
+            }
+            None => {
+                bail!("Unprivileged user needs to provide auth_id to update ACL item.");
+            }
         };
     }
 
@@ -222,18 +230,26 @@ pub fn update_acl(
     if let Some(ref _group) = group {
         bail!("parameter 'group' - groups are currently not supported.");
     } else if let Some(ref auth_id) = auth_id {
-        if !delete { // Note: we allow to delete non-existent users
+        if !delete {
+            // Note: we allow to delete non-existent users
             let user_cfg = pbs_config::user::cached_config()?;
             if user_cfg.sections.get(&auth_id.to_string()).is_none() {
-                bail!(format!("no such {}.",
-                              if auth_id.is_token() { "API token" } else { "user" }));
+                bail!(format!(
+                    "no such {}.",
+                    if auth_id.is_token() {
+                        "API token"
+                    } else {
+                        "user"
+                    }
+                ));
             }
         }
     } else {
         bail!("missing 'userid' or 'group' parameter.");
     }
 
-    if !delete { // Note: we allow to delete entries with invalid path
+    if !delete {
+        // Note: we allow to delete entries with invalid path
         pbs_config::acl::check_acl_path(&path)?;
     }
 

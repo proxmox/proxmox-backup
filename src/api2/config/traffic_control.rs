@@ -1,15 +1,14 @@
-use anyhow::Error;
-use serde_json::Value;
 use ::serde::{Deserialize, Serialize};
+use anyhow::Error;
 use hex::FromHex;
+use serde_json::Value;
 
-use proxmox_router::{http_bail, ApiMethod, Router, RpcEnvironment, Permission};
+use proxmox_router::{http_bail, ApiMethod, Permission, Router, RpcEnvironment};
 use proxmox_schema::{api, param_bail};
 
 use pbs_api_types::{
-    TrafficControlRule, TrafficControlRuleUpdater,
+    TrafficControlRule, TrafficControlRuleUpdater, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY,
     PROXMOX_CONFIG_DIGEST_SCHEMA, TRAFFIC_CONTROL_ID_SCHEMA,
-    PRIV_SYS_AUDIT, PRIV_SYS_MODIFY,
 };
 
 #[api(
@@ -56,13 +55,16 @@ pub fn list_traffic_controls(
 )]
 /// Create new traffic control rule.
 pub fn create_traffic_control(config: TrafficControlRule) -> Result<(), Error> {
-
     let _lock = pbs_config::traffic_control::lock_config()?;
 
     let (mut section_config, _digest) = pbs_config::traffic_control::config()?;
 
     if section_config.sections.get(&config.name).is_some() {
-        param_bail!("name", "traffic control rule '{}' already exists.", config.name);
+        param_bail!(
+            "name",
+            "traffic control rule '{}' already exists.",
+            config.name
+        );
     }
 
     section_config.set_data(&config.name, "rule", &config)?;
@@ -154,7 +156,6 @@ pub fn update_traffic_control(
     delete: Option<Vec<DeletableProperty>>,
     digest: Option<String>,
 ) -> Result<(), Error> {
-
     let _lock = pbs_config::traffic_control::lock_config()?;
 
     let (mut config, expected_digest) = pbs_config::traffic_control::config()?;
@@ -169,12 +170,24 @@ pub fn update_traffic_control(
     if let Some(delete) = delete {
         for delete_prop in delete {
             match delete_prop {
-                DeletableProperty::rate_in => { data.limit.rate_in = None; },
-                DeletableProperty::rate_out => { data.limit.rate_out = None; },
-                DeletableProperty::burst_in => { data.limit.burst_in = None; },
-                DeletableProperty::burst_out => { data.limit.burst_out = None; },
-                DeletableProperty::comment => { data.comment = None; },
-                DeletableProperty::timeframe => { data.timeframe = None; },
+                DeletableProperty::rate_in => {
+                    data.limit.rate_in = None;
+                }
+                DeletableProperty::rate_out => {
+                    data.limit.rate_out = None;
+                }
+                DeletableProperty::burst_in => {
+                    data.limit.burst_in = None;
+                }
+                DeletableProperty::burst_out => {
+                    data.limit.burst_out = None;
+                }
+                DeletableProperty::comment => {
+                    data.comment = None;
+                }
+                DeletableProperty::timeframe => {
+                    data.timeframe = None;
+                }
             }
         }
     }
@@ -204,8 +217,12 @@ pub fn update_traffic_control(
         data.limit.burst_out = update.limit.burst_out;
     }
 
-    if let Some(network) = update.network { data.network = network; }
-    if update.timeframe.is_some() { data.timeframe = update.timeframe; }
+    if let Some(network) = update.network {
+        data.network = network;
+    }
+    if update.timeframe.is_some() {
+        data.timeframe = update.timeframe;
+    }
 
     config.set_data(&name, "rule", &data)?;
 
@@ -233,7 +250,6 @@ pub fn update_traffic_control(
 )]
 /// Remove a traffic control rule from the configuration file.
 pub fn delete_traffic_control(name: String, digest: Option<String>) -> Result<(), Error> {
-
     let _lock = pbs_config::traffic_control::lock_config()?;
 
     let (mut config, expected_digest) = pbs_config::traffic_control::config()?;
@@ -244,7 +260,9 @@ pub fn delete_traffic_control(name: String, digest: Option<String>) -> Result<()
     }
 
     match config.sections.get(&name) {
-        Some(_) => { config.sections.remove(&name); },
+        Some(_) => {
+            config.sections.remove(&name);
+        }
         None => http_bail!(NOT_FOUND, "traffic control rule '{}' does not exist.", name),
     }
 
@@ -252,7 +270,6 @@ pub fn delete_traffic_control(name: String, digest: Option<String>) -> Result<()
 
     Ok(())
 }
-
 
 const ITEM_ROUTER: Router = Router::new()
     .get(&API_METHOD_READ_TRAFFIC_CONTROL)

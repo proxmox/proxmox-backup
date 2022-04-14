@@ -4,21 +4,20 @@ use std::io::{BufRead, BufReader};
 use anyhow::{bail, Error};
 use serde_json::{json, Value};
 
-use proxmox_sys::sortable;
-use proxmox_router::{list_subdirs_api_method, Router, RpcEnvironment, Permission, SubdirMap};
+use proxmox_router::{list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap};
 use proxmox_schema::api;
+use proxmox_sys::sortable;
 
 use pbs_api_types::{
-    Userid, Authid, Tokenname, TaskListItem, TaskStateType, UPID,
-    NODE_SCHEMA, UPID_SCHEMA, VERIFICATION_JOB_WORKER_ID_REGEX,
-    SYNC_JOB_WORKER_ID_REGEX, DATASTORE_SCHEMA,
+    Authid, TaskListItem, TaskStateType, Tokenname, Userid, DATASTORE_SCHEMA, NODE_SCHEMA,
     PRIV_DATASTORE_MODIFY, PRIV_DATASTORE_VERIFY, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY,
+    SYNC_JOB_WORKER_ID_REGEX, UPID, UPID_SCHEMA, VERIFICATION_JOB_WORKER_ID_REGEX,
 };
 
 use crate::api2::pull::check_pull_privs;
 
-use proxmox_rest_server::{upid_log_path, upid_read_status, TaskState, TaskListInfoIterator};
 use pbs_config::CachedUserInfo;
+use proxmox_rest_server::{upid_log_path, upid_read_status, TaskListInfoIterator, TaskState};
 
 // matches respective job execution privileges
 fn check_job_privs(auth_id: &Authid, user_info: &CachedUserInfo, upid: &UPID) -> Result<(), Error> {
@@ -26,13 +25,15 @@ fn check_job_privs(auth_id: &Authid, user_info: &CachedUserInfo, upid: &UPID) ->
         ("verificationjob", Some(workerid)) => {
             if let Some(captures) = VERIFICATION_JOB_WORKER_ID_REGEX.captures(workerid) {
                 if let Some(store) = captures.get(1) {
-                    return user_info.check_privs(auth_id,
-                                                 &["datastore", store.as_str()],
-                                                 PRIV_DATASTORE_VERIFY,
-                                                 true);
+                    return user_info.check_privs(
+                        auth_id,
+                        &["datastore", store.as_str()],
+                        PRIV_DATASTORE_VERIFY,
+                        true,
+                    );
                 }
             }
-        },
+        }
         ("syncjob", Some(workerid)) => {
             if let Some(captures) = SYNC_JOB_WORKER_ID_REGEX.captures(workerid) {
                 let remote = captures.get(1);
@@ -40,29 +41,34 @@ fn check_job_privs(auth_id: &Authid, user_info: &CachedUserInfo, upid: &UPID) ->
                 let local_store = captures.get(3);
 
                 if let (Some(remote), Some(remote_store), Some(local_store)) =
-                    (remote, remote_store, local_store) {
-
-                    return check_pull_privs(auth_id,
-                                            local_store.as_str(),
-                                            remote.as_str(),
-                                            remote_store.as_str(),
-                                            false);
+                    (remote, remote_store, local_store)
+                {
+                    return check_pull_privs(
+                        auth_id,
+                        local_store.as_str(),
+                        remote.as_str(),
+                        remote_store.as_str(),
+                        false,
+                    );
                 }
             }
-        },
+        }
         ("garbage_collection", Some(workerid)) => {
-            return user_info.check_privs(auth_id,
-                                         &["datastore", workerid],
-                                         PRIV_DATASTORE_MODIFY,
-                                         true)
-        },
+            return user_info.check_privs(
+                auth_id,
+                &["datastore", workerid],
+                PRIV_DATASTORE_MODIFY,
+                true,
+            )
+        }
         ("prune", Some(workerid)) => {
-            return user_info.check_privs(auth_id,
-                                         &["datastore",
-                                         workerid],
-                                         PRIV_DATASTORE_MODIFY,
-                                         true);
-        },
+            return user_info.check_privs(
+                auth_id,
+                &["datastore", workerid],
+                PRIV_DATASTORE_MODIFY,
+                true,
+            );
+        }
         _ => bail!("not a scheduled job task"),
     };
 
@@ -102,7 +108,8 @@ fn check_job_store(upid: &UPID, store: &str) -> bool {
 fn check_task_access(auth_id: &Authid, upid: &UPID) -> Result<(), Error> {
     let task_auth_id: Authid = upid.auth_id.parse()?;
     if auth_id == &task_auth_id
-        || (task_auth_id.is_token() && &Authid::from(task_auth_id.user().clone()) == auth_id) {
+        || (task_auth_id.is_token() && &Authid::from(task_auth_id.user().clone()) == auth_id)
+    {
         // task owner can always read
         Ok(())
     } else {
@@ -111,7 +118,8 @@ fn check_task_access(auth_id: &Authid, upid: &UPID) -> Result<(), Error> {
         // access to all tasks
         // or task == job which the user/token could have configured/manually executed
 
-        user_info.check_privs(auth_id, &["system", "tasks"], PRIV_SYS_AUDIT, false)
+        user_info
+            .check_privs(auth_id, &["system", "tasks"], PRIV_SYS_AUDIT, false)
             .or_else(|_| check_job_privs(auth_id, &user_info, upid))
             .or_else(|_| bail!("task access not allowed"))
     }
@@ -127,9 +135,10 @@ pub fn tasktype(state: &TaskState) -> TaskStateType {
 }
 
 fn into_task_list_item(info: proxmox_rest_server::TaskListInfo) -> pbs_api_types::TaskListItem {
-    let (endtime, status) = info
-        .state
-        .map_or_else(|| (None, None), |a| (Some(a.endtime()), Some(a.to_string())));
+    let (endtime, status) = info.state.map_or_else(
+        || (None, None),
+        |a| (Some(a.endtime()), Some(a.to_string())),
+    );
 
     pbs_api_types::TaskListItem {
         upid: info.upid_str,
@@ -210,11 +219,7 @@ fn into_task_list_item(info: proxmox_rest_server::TaskListInfo) -> pbs_api_types
     },
 )]
 /// Get task status.
-async fn get_task_status(
-    param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Value, Error> {
-
+async fn get_task_status(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
     let upid = extract_upid(&param)?;
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
@@ -249,7 +254,6 @@ async fn get_task_status(
 }
 
 fn extract_upid(param: &Value) -> Result<UPID, Error> {
-
     let upid_str = pbs_tools::json::required_string_param(param, "upid")?;
 
     upid_str.parse::<UPID>()
@@ -289,11 +293,7 @@ fn extract_upid(param: &Value) -> Result<UPID, Error> {
     },
 )]
 /// Read task log.
-async fn read_task_log(
-    param: Value,
-    mut rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Value, Error> {
-
+async fn read_task_log(param: Value, mut rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
     let upid = extract_upid(&param)?;
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
@@ -317,8 +317,12 @@ async fn read_task_log(
         match line {
             Ok(line) => {
                 count += 1;
-                if count < start { continue };
-	        if limit == 0 { continue };
+                if count < start {
+                    continue;
+                };
+                if limit == 0 {
+                    continue;
+                };
 
                 lines.push(json!({ "n": count, "t": line }));
 
@@ -359,11 +363,7 @@ async fn read_task_log(
     },
 )]
 /// Try to stop a task.
-fn stop_task(
-    param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Value, Error> {
-
+fn stop_task(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
     let upid = extract_upid(&param)?;
 
     let auth_id = rpcenv.get_auth_id().unwrap();
@@ -465,7 +465,6 @@ pub fn list_tasks(
     param: Value,
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<TaskListItem>, Error> {
-
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
     let user_privs = user_info.lookup_privs(&auth_id, &["system", "tasks"]);
@@ -475,7 +474,11 @@ pub fn list_tasks(
     let store = param["store"].as_str();
 
     let list = TaskListInfoIterator::new(running)?;
-    let limit = if limit > 0 { limit as usize } else { usize::MAX };
+    let limit = if limit > 0 {
+        limit as usize
+    } else {
+        usize::MAX
+    };
 
     let mut skipped = 0;
     let mut result: Vec<TaskListItem> = Vec::new();
@@ -510,15 +513,21 @@ pub fn list_tasks(
         }
 
         if let Some(needle) = &userfilter {
-            if !info.upid.auth_id.to_string().contains(needle) { continue; }
+            if !info.upid.auth_id.to_string().contains(needle) {
+                continue;
+            }
         }
 
         if let Some(store) = store {
-            if !check_job_store(&info.upid, store) { continue; }
+            if !check_job_store(&info.upid, store) {
+                continue;
+            }
         }
 
         if let Some(typefilter) = &typefilter {
-            if !info.upid.worker_type.contains(typefilter) { continue; }
+            if !info.upid.worker_type.contains(typefilter) {
+                continue;
+            }
         }
 
         match (&info.state, &statusfilter) {
@@ -528,9 +537,9 @@ pub fn list_tasks(
                 if !filters.contains(&tasktype(state)) {
                     continue;
                 }
-            },
+            }
             (None, Some(_)) => continue,
-            _ => {},
+            _ => {}
         }
 
         if skipped < start as usize {
@@ -546,7 +555,8 @@ pub fn list_tasks(
     }
 
     let mut count = result.len() + start as usize;
-    if !result.is_empty() && result.len() >= limit { // we have a 'virtual' entry as long as we have any new
+    if !result.is_empty() && result.len() >= limit {
+        // we have a 'virtual' entry as long as we have any new
         count += 1;
     }
 
@@ -557,14 +567,8 @@ pub fn list_tasks(
 
 #[sortable]
 const UPID_API_SUBDIRS: SubdirMap = &sorted!([
-    (
-        "log", &Router::new()
-            .get(&API_METHOD_READ_TASK_LOG)
-    ),
-    (
-        "status", &Router::new()
-            .get(&API_METHOD_GET_TASK_STATUS)
-    )
+    ("log", &Router::new().get(&API_METHOD_READ_TASK_LOG)),
+    ("status", &Router::new().get(&API_METHOD_GET_TASK_STATUS))
 ]);
 
 pub const UPID_API_ROUTER: Router = Router::new()

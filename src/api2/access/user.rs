@@ -1,19 +1,18 @@
 //! User Management
 
 use anyhow::{bail, format_err, Error};
-use serde::{Serialize, Deserialize};
+use hex::FromHex;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
-use hex::FromHex;
 
-use proxmox_router::{ApiMethod, Router, RpcEnvironment, SubdirMap, Permission};
+use proxmox_router::{ApiMethod, Permission, Router, RpcEnvironment, SubdirMap};
 use proxmox_schema::api;
 
 use pbs_api_types::{
-    PROXMOX_CONFIG_DIGEST_SCHEMA, SINGLE_LINE_COMMENT_SCHEMA, Authid,
-    Tokenname, UserWithTokens, Userid, User, UserUpdater, ApiToken,
-    ENABLE_USER_SCHEMA, EXPIRE_USER_SCHEMA, PBS_PASSWORD_SCHEMA,
-    PRIV_SYS_AUDIT, PRIV_PERMISSIONS_MODIFY,
+    ApiToken, Authid, Tokenname, User, UserUpdater, UserWithTokens, Userid, ENABLE_USER_SCHEMA,
+    EXPIRE_USER_SCHEMA, PBS_PASSWORD_SCHEMA, PRIV_PERMISSIONS_MODIFY, PRIV_SYS_AUDIT,
+    PROXMOX_CONFIG_DIGEST_SCHEMA, SINGLE_LINE_COMMENT_SCHEMA,
 };
 use pbs_config::token_shadow;
 
@@ -59,7 +58,6 @@ pub fn list_users(
     _info: &ApiMethod,
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<UserWithTokens>, Error> {
-
     let (config, digest) = pbs_config::user::config()?;
 
     let auth_id: Authid = rpcenv
@@ -74,41 +72,34 @@ pub fn list_users(
     let top_level_privs = user_info.lookup_privs(&auth_id, &["access", "users"]);
     let top_level_allowed = (top_level_privs & PRIV_SYS_AUDIT) != 0;
 
-    let filter_by_privs = |user: &User| {
-        top_level_allowed || user.userid == *userid
-    };
+    let filter_by_privs = |user: &User| top_level_allowed || user.userid == *userid;
 
-
-    let list:Vec<User> = config.convert_to_typed_array("user")?;
+    let list: Vec<User> = config.convert_to_typed_array("user")?;
 
     rpcenv["digest"] = hex::encode(&digest).into();
 
     let iter = list.into_iter().filter(filter_by_privs);
     let list = if include_tokens {
         let tokens: Vec<ApiToken> = config.convert_to_typed_array("token")?;
-        let mut user_to_tokens = tokens
-            .into_iter()
-            .fold(
-                HashMap::new(),
-                |mut map: HashMap<Userid, Vec<ApiToken>>, token: ApiToken| {
+        let mut user_to_tokens = tokens.into_iter().fold(
+            HashMap::new(),
+            |mut map: HashMap<Userid, Vec<ApiToken>>, token: ApiToken| {
                 if token.tokenid.is_token() {
-                    map
-                        .entry(token.tokenid.user().clone())
+                    map.entry(token.tokenid.user().clone())
                         .or_default()
                         .push(token);
                 }
                 map
-            });
-        iter
-            .map(|user: User| {
-                let mut user = new_user_with_tokens(user);
-                user.tokens = user_to_tokens.remove(&user.userid).unwrap_or_default();
-                user
-            })
-            .collect()
+            },
+        );
+        iter.map(|user: User| {
+            let mut user = new_user_with_tokens(user);
+            user.tokens = user_to_tokens.remove(&user.userid).unwrap_or_default();
+            user
+        })
+        .collect()
     } else {
-        iter.map(new_user_with_tokens)
-            .collect()
+        iter.map(new_user_with_tokens).collect()
     };
 
     Ok(list)
@@ -136,14 +127,17 @@ pub fn list_users(
 pub fn create_user(
     password: Option<String>,
     config: User,
-    rpcenv: &mut dyn RpcEnvironment
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
-
     let _lock = pbs_config::user::lock_config()?;
 
     let (mut section_config, _digest) = pbs_config::user::config()?;
 
-    if section_config.sections.get(config.userid.as_str()).is_some() {
+    if section_config
+        .sections
+        .get(config.userid.as_str())
+        .is_some()
+    {
         bail!("user '{}' already exists.", config.userid);
     }
 
@@ -194,7 +188,7 @@ pub fn read_user(userid: Userid, mut rpcenv: &mut dyn RpcEnvironment) -> Result<
 
 #[api()]
 #[derive(Serialize, Deserialize)]
-#[serde(rename_all="kebab-case")]
+#[serde(rename_all = "kebab-case")]
 #[allow(non_camel_case_types)]
 pub enum DeletableProperty {
     /// Delete the comment property.
@@ -253,7 +247,6 @@ pub fn update_user(
     digest: Option<String>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
-
     let _lock = pbs_config::user::lock_config()?;
 
     let (mut config, expected_digest) = pbs_config::user::config()?;
@@ -306,11 +299,19 @@ pub fn update_user(
     }
 
     if let Some(firstname) = update.firstname {
-        data.firstname = if firstname.is_empty() { None } else { Some(firstname) };
+        data.firstname = if firstname.is_empty() {
+            None
+        } else {
+            Some(firstname)
+        };
     }
 
     if let Some(lastname) = update.lastname {
-        data.lastname = if lastname.is_empty() { None } else { Some(lastname) };
+        data.lastname = if lastname.is_empty() {
+            None
+        } else {
+            Some(lastname)
+        };
     }
     if let Some(email) = update.email {
         data.email = if email.is_empty() { None } else { Some(email) };
@@ -345,10 +346,9 @@ pub fn update_user(
 )]
 /// Remove a user from the configuration file.
 pub fn delete_user(userid: Userid, digest: Option<String>) -> Result<(), Error> {
-
     let _lock = pbs_config::user::lock_config()?;
     let _tfa_lock = crate::config::tfa::write_lock()?;
- 
+
     let (mut config, expected_digest) = pbs_config::user::config()?;
 
     if let Some(ref digest) = digest {
@@ -357,7 +357,9 @@ pub fn delete_user(userid: Userid, digest: Option<String>) -> Result<(), Error> 
     }
 
     match config.sections.get(userid.as_str()) {
-        Some(_) => { config.sections.remove(userid.as_str()); },
+        Some(_) => {
+            config.sections.remove(userid.as_str());
+        }
         None => bail!("user '{}' does not exist.", userid),
     }
 
@@ -365,7 +367,7 @@ pub fn delete_user(userid: Userid, digest: Option<String>) -> Result<(), Error> 
 
     let authenticator = crate::auth::lookup_authenticator(userid.realm())?;
     match authenticator.remove_password(userid.name()) {
-        Ok(()) => {},
+        Ok(()) => {}
         Err(err) => {
             eprintln!(
                 "error removing password after deleting user {:?}: {}",
@@ -417,7 +419,6 @@ pub fn read_token(
     _info: &ApiMethod,
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<ApiToken, Error> {
-
     let (config, digest) = pbs_config::user::config()?;
 
     let tokenid = Authid::from((userid, Some(token_name)));
@@ -483,7 +484,6 @@ pub fn generate_token(
     expire: Option<i64>,
     digest: Option<String>,
 ) -> Result<Value, Error> {
-
     let _lock = pbs_config::user::lock_config()?;
 
     let (mut config, expected_digest) = pbs_config::user::config()?;
@@ -497,7 +497,11 @@ pub fn generate_token(
     let tokenid_string = tokenid.to_string();
 
     if config.sections.get(&tokenid_string).is_some() {
-        bail!("token '{}' for user '{}' already exists.", token_name.as_str(), userid);
+        bail!(
+            "token '{}' for user '{}' already exists.",
+            token_name.as_str(),
+            userid
+        );
     }
 
     let secret = format!("{:x}", proxmox_uuid::Uuid::generate());
@@ -564,7 +568,6 @@ pub fn update_token(
     expire: Option<i64>,
     digest: Option<String>,
 ) -> Result<(), Error> {
-
     let _lock = pbs_config::user::lock_config()?;
 
     let (mut config, expected_digest) = pbs_config::user::config()?;
@@ -632,7 +635,6 @@ pub fn delete_token(
     token_name: Tokenname,
     digest: Option<String>,
 ) -> Result<(), Error> {
-
     let _lock = pbs_config::user::lock_config()?;
 
     let (mut config, expected_digest) = pbs_config::user::config()?;
@@ -646,8 +648,14 @@ pub fn delete_token(
     let tokenid_string = tokenid.to_string();
 
     match config.sections.get(&tokenid_string) {
-        Some(_) => { config.sections.remove(&tokenid_string); },
-        None => bail!("token '{}' of user '{}' does not exist.", token_name.as_str(), userid),
+        Some(_) => {
+            config.sections.remove(&tokenid_string);
+        }
+        None => bail!(
+            "token '{}' of user '{}' does not exist.",
+            token_name.as_str(),
+            userid
+        ),
     }
 
     token_shadow::delete_secret(&tokenid)?;
@@ -664,7 +672,7 @@ pub fn delete_token(
     }
 )]
 #[derive(Serialize, Deserialize)]
-#[serde(rename_all="kebab-case")]
+#[serde(rename_all = "kebab-case")]
 /// A Token Entry that contains the token-name
 pub struct TokenApiEntry {
     /// The Token name
@@ -699,20 +707,16 @@ pub fn list_tokens(
     _info: &ApiMethod,
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<TokenApiEntry>, Error> {
-
     let (config, digest) = pbs_config::user::config()?;
 
-    let list:Vec<ApiToken> = config.convert_to_typed_array("token")?;
+    let list: Vec<ApiToken> = config.convert_to_typed_array("token")?;
 
     rpcenv["digest"] = hex::encode(&digest).into();
 
     let filter_by_owner = |token: ApiToken| {
         if token.tokenid.is_token() && token.tokenid.user() == &userid {
             let token_name = token.tokenid.tokenname().unwrap().to_owned();
-            Some(TokenApiEntry {
-                token_name,
-                token,
-            })
+            Some(TokenApiEntry { token_name, token })
         } else {
             None
         }
@@ -733,9 +737,7 @@ const TOKEN_ROUTER: Router = Router::new()
     .get(&API_METHOD_LIST_TOKENS)
     .match_all("token-name", &TOKEN_ITEM_ROUTER);
 
-const USER_SUBDIRS: SubdirMap = &[
-    ("token", &TOKEN_ROUTER),
-];
+const USER_SUBDIRS: SubdirMap = &[("token", &TOKEN_ROUTER)];
 
 const USER_ROUTER: Router = Router::new()
     .get(&API_METHOD_READ_USER)

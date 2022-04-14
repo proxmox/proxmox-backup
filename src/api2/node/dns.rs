@@ -1,21 +1,21 @@
 use std::sync::{Arc, Mutex};
 
-use anyhow::{Error};
+use ::serde::{Deserialize, Serialize};
+use anyhow::Error;
 use lazy_static::lazy_static;
 use openssl::sha;
 use regex::Regex;
 use serde_json::{json, Value};
-use ::serde::{Deserialize, Serialize};
 
-use proxmox_router::{ApiMethod, Router, RpcEnvironment, Permission};
+use pbs_api_types::{IPRE, IPV4OCTET, IPV4RE, IPV6H16, IPV6LS32, IPV6RE};
+use proxmox_router::{ApiMethod, Permission, Router, RpcEnvironment};
 use proxmox_schema::api;
 use proxmox_sys::fs::{file_get_contents, replace_file, CreateOptions};
-use pbs_api_types::{IPRE, IPV4RE, IPV6RE, IPV4OCTET, IPV6H16, IPV6LS32};
 
 use pbs_api_types::{
-    PROXMOX_CONFIG_DIGEST_SCHEMA, FIRST_DNS_SERVER_SCHEMA, SECOND_DNS_SERVER_SCHEMA,
-    THIRD_DNS_SERVER_SCHEMA, NODE_SCHEMA, SEARCH_DOMAIN_SCHEMA,
-    PRIV_SYS_AUDIT, PRIV_SYS_MODIFY,
+    FIRST_DNS_SERVER_SCHEMA, NODE_SCHEMA, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY,
+    PROXMOX_CONFIG_DIGEST_SCHEMA, SEARCH_DOMAIN_SCHEMA, SECOND_DNS_SERVER_SCHEMA,
+    THIRD_DNS_SERVER_SCHEMA,
 };
 
 static RESOLV_CONF_FN: &str = "/etc/resolv.conf";
@@ -34,7 +34,6 @@ pub enum DeletableProperty {
 }
 
 pub fn read_etc_resolv_conf() -> Result<Value, Error> {
-
     let mut result = json!({});
 
     let mut nscount = 0;
@@ -47,24 +46,27 @@ pub fn read_etc_resolv_conf() -> Result<Value, Error> {
 
     lazy_static! {
         static ref DOMAIN_REGEX: Regex = Regex::new(r"^\s*(?:search|domain)\s+(\S+)\s*").unwrap();
-        static ref SERVER_REGEX: Regex = Regex::new(
-            concat!(r"^\s*nameserver\s+(", IPRE!(),  r")\s*")).unwrap();
+        static ref SERVER_REGEX: Regex =
+            Regex::new(concat!(r"^\s*nameserver\s+(", IPRE!(), r")\s*")).unwrap();
     }
 
     let mut options = String::new();
 
     for line in data.lines() {
-
         if let Some(caps) = DOMAIN_REGEX.captures(line) {
             result["search"] = Value::from(&caps[1]);
         } else if let Some(caps) = SERVER_REGEX.captures(line) {
             nscount += 1;
-            if nscount > 3 { continue };
+            if nscount > 3 {
+                continue;
+            };
             let nameserver = &caps[1];
             let id = format!("dns{}", nscount);
             result[id] = Value::from(nameserver);
         } else {
-            if !options.is_empty() { options.push('\n'); }
+            if !options.is_empty() {
+                options.push('\n');
+            }
             options.push_str(line);
         }
     }
@@ -127,7 +129,6 @@ pub fn update_dns(
     delete: Option<Vec<DeletableProperty>>,
     digest: Option<String>,
 ) -> Result<Value, Error> {
-
     lazy_static! {
         static ref MUTEX: Arc<Mutex<()>> = Arc::new(Mutex::new(()));
     }
@@ -145,17 +146,31 @@ pub fn update_dns(
         for delete_prop in delete {
             let config = config.as_object_mut().unwrap();
             match delete_prop {
-                DeletableProperty::dns1 => { config.remove("dns1"); },
-                DeletableProperty::dns2 => { config.remove("dns2"); },
-                DeletableProperty::dns3 => { config.remove("dns3"); },
+                DeletableProperty::dns1 => {
+                    config.remove("dns1");
+                }
+                DeletableProperty::dns2 => {
+                    config.remove("dns2");
+                }
+                DeletableProperty::dns3 => {
+                    config.remove("dns3");
+                }
             }
         }
     }
 
-    if let Some(search) = search { config["search"] = search.into(); }
-    if let Some(dns1) = dns1 { config["dns1"] = dns1.into(); }
-    if let Some(dns2) = dns2 { config["dns2"] = dns2.into(); }
-    if let Some(dns3) = dns3 { config["dns3"] = dns3.into(); }
+    if let Some(search) = search {
+        config["search"] = search.into();
+    }
+    if let Some(dns1) = dns1 {
+        config["dns1"] = dns1.into();
+    }
+    if let Some(dns2) = dns2 {
+        config["dns2"] = dns2.into();
+    }
+    if let Some(dns3) = dns3 {
+        config["dns3"] = dns3.into();
+    }
 
     let mut data = String::new();
 
@@ -219,7 +234,6 @@ pub fn get_dns(
     _info: &ApiMethod,
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-
     read_etc_resolv_conf()
 }
 

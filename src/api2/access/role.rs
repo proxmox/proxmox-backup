@@ -7,7 +7,7 @@ use serde_json::{json, Value};
 use proxmox_router::{Permission, Router};
 use proxmox_schema::api;
 
-use pbs_api_types::{Role, SINGLE_LINE_COMMENT_SCHEMA, PRIVILEGES};
+use pbs_api_types::{Role, PRIVILEGES, SINGLE_LINE_COMMENT_SCHEMA};
 use pbs_config::acl::ROLE_NAMES;
 
 #[api(
@@ -56,5 +56,4 @@ fn list_roles() -> Result<Value, Error> {
     Ok(list.into())
 }
 
-pub const ROUTER: Router = Router::new()
-    .get(&API_METHOD_LIST_ROLES);
+pub const ROUTER: Router = Router::new().get(&API_METHOD_LIST_ROLES);

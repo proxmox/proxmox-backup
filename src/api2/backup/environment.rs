@@ -1,20 +1,20 @@
 use anyhow::{bail, format_err, Error};
-use std::sync::{Arc, Mutex};
-use std::collections::HashMap;
 use nix::dir::Dir;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
-use ::serde::{Serialize};
+use ::serde::Serialize;
 use serde_json::{json, Value};
 
-use proxmox_sys::fs::{replace_file, CreateOptions};
 use proxmox_router::{RpcEnvironment, RpcEnvironmentType};
+use proxmox_sys::fs::{replace_file, CreateOptions};
 
-use pbs_datastore::{DataStore, DataBlob};
+use pbs_api_types::Authid;
 use pbs_datastore::backup_info::{BackupDir, BackupInfo};
 use pbs_datastore::dynamic_index::DynamicIndexWriter;
 use pbs_datastore::fixed_index::FixedIndexWriter;
-use pbs_api_types::Authid;
-use proxmox_rest_server::{WorkerTask, formatter::*};
+use pbs_datastore::{DataBlob, DataStore};
+use proxmox_rest_server::{formatter::*, WorkerTask};
 
 use crate::backup::verify_backup_dir_with_lock;
 
@@ -72,7 +72,7 @@ struct FixedWriterState {
 }
 
 // key=digest, value=length
-type KnownChunksMap = HashMap<[u8;32], u32>;
+type KnownChunksMap = HashMap<[u8; 32], u32>;
 
 struct SharedBackupState {
     finished: bool,
@@ -86,7 +86,6 @@ struct SharedBackupState {
 }
 
 impl SharedBackupState {
-
     // Raise error if finished flag is set
     fn ensure_unfinished(&self) -> Result<(), Error> {
         if self.finished {
@@ -102,7 +101,6 @@ impl SharedBackupState {
     }
 }
 
-
 /// `RpcEnvironmet` implementation for backup service
 #[derive(Clone)]
 pub struct BackupEnvironment {
@@ -115,7 +113,7 @@ pub struct BackupEnvironment {
     pub datastore: Arc<DataStore>,
     pub backup_dir: BackupDir,
     pub last_backup: Option<BackupInfo>,
-    state: Arc<Mutex<SharedBackupState>>
+    state: Arc<Mutex<SharedBackupState>>,
 }
 
 impl BackupEnvironment {
@@ -126,7 +124,6 @@ impl BackupEnvironment {
         datastore: Arc<DataStore>,
         backup_dir: BackupDir,
     ) -> Self {
-
         let state = SharedBackupState {
             finished: false,
             uid_counter: 0,
@@ -188,13 +185,21 @@ impl BackupEnvironment {
         };
 
         if size > data.chunk_size {
-            bail!("fixed writer '{}' - got large chunk ({} > {}", data.name, size, data.chunk_size);
+            bail!(
+                "fixed writer '{}' - got large chunk ({} > {}",
+                data.name,
+                size,
+                data.chunk_size
+            );
         }
 
         if size < data.chunk_size {
             data.small_chunk_count += 1;
             if data.small_chunk_count > 1 {
-                bail!("fixed writer '{}' - detected multiple end chunks (chunk size too small)", wid);
+                bail!(
+                    "fixed writer '{}' - detected multiple end chunks (chunk size too small)",
+                    wid
+                );
             }
         }
 
@@ -202,7 +207,9 @@ impl BackupEnvironment {
         data.upload_stat.count += 1;
         data.upload_stat.size += size as u64;
         data.upload_stat.compressed_size += compressed_size as u64;
-        if is_duplicate { data.upload_stat.duplicates += 1; }
+        if is_duplicate {
+            data.upload_stat.duplicates += 1;
+        }
 
         // register chunk
         state.known_chunks.insert(digest, size);
@@ -235,7 +242,9 @@ impl BackupEnvironment {
         data.upload_stat.count += 1;
         data.upload_stat.size += size as u64;
         data.upload_stat.compressed_size += compressed_size as u64;
-        if is_duplicate { data.upload_stat.duplicates += 1; }
+        if is_duplicate {
+            data.upload_stat.duplicates += 1;
+        }
 
         // register chunk
         state.known_chunks.insert(digest, size);
@@ -250,37 +259,71 @@ impl BackupEnvironment {
     }
 
     /// Store the writer with an unique ID
-    pub fn register_dynamic_writer(&self, index: DynamicIndexWriter, name: String) -> Result<usize, Error> {
+    pub fn register_dynamic_writer(
+        &self,
+        index: DynamicIndexWriter,
+        name: String,
+    ) -> Result<usize, Error> {
         let mut state = self.state.lock().unwrap();
 
         state.ensure_unfinished()?;
 
         let uid = state.next_uid();
 
-        state.dynamic_writers.insert(uid, DynamicWriterState {
-            index, name, offset: 0, chunk_count: 0, upload_stat: UploadStatistic::new(),
-        });
+        state.dynamic_writers.insert(
+            uid,
+            DynamicWriterState {
+                index,
+                name,
+                offset: 0,
+                chunk_count: 0,
+                upload_stat: UploadStatistic::new(),
+            },
+        );
 
         Ok(uid)
     }
 
     /// Store the writer with an unique ID
-    pub fn register_fixed_writer(&self, index: FixedIndexWriter, name: String, size: usize, chunk_size: u32, incremental: bool) -> Result<usize, Error> {
+    pub fn register_fixed_writer(
+        &self,
+        index: FixedIndexWriter,
+        name: String,
+        size: usize,
+        chunk_size: u32,
+        incremental: bool,
+    ) -> Result<usize, Error> {
         let mut state = self.state.lock().unwrap();
 
         state.ensure_unfinished()?;
 
         let uid = state.next_uid();
 
-        state.fixed_writers.insert(uid, FixedWriterState {
-            index, name, chunk_count: 0, size, chunk_size, small_chunk_count: 0, upload_stat: UploadStatistic::new(), incremental,
-        });
+        state.fixed_writers.insert(
+            uid,
+            FixedWriterState {
+                index,
+                name,
+                chunk_count: 0,
+                size,
+                chunk_size,
+                small_chunk_count: 0,
+                upload_stat: UploadStatistic::new(),
+                incremental,
+            },
+        );
 
         Ok(uid)
     }
 
     /// Append chunk to dynamic writer
-    pub fn dynamic_writer_append_chunk(&self, wid: usize, offset: u64, size: u32, digest: &[u8; 32]) -> Result<(), Error> {
+    pub fn dynamic_writer_append_chunk(
+        &self,
+        wid: usize,
+        offset: u64,
+        size: u32,
+        digest: &[u8; 32],
+    ) -> Result<(), Error> {
         let mut state = self.state.lock().unwrap();
 
         state.ensure_unfinished()?;
@@ -290,10 +333,13 @@ impl BackupEnvironment {
             None => bail!("dynamic writer '{}' not registered", wid),
         };
 
-
         if data.offset != offset {
-            bail!("dynamic writer '{}' append chunk failed - got strange chunk offset ({} != {})",
-                  data.name, data.offset, offset);
+            bail!(
+                "dynamic writer '{}' append chunk failed - got strange chunk offset ({} != {})",
+                data.name,
+                data.offset,
+                offset
+            );
         }
 
         data.offset += size as u64;
@@ -305,7 +351,13 @@ impl BackupEnvironment {
     }
 
     /// Append chunk to fixed writer
-    pub fn fixed_writer_append_chunk(&self, wid: usize, offset: u64, size: u32, digest: &[u8; 32]) -> Result<(), Error> {
+    pub fn fixed_writer_append_chunk(
+        &self,
+        wid: usize,
+        offset: u64,
+        size: u32,
+        digest: &[u8; 32],
+    ) -> Result<(), Error> {
         let mut state = self.state.lock().unwrap();
 
         state.ensure_unfinished()?;
@@ -325,7 +377,15 @@ impl BackupEnvironment {
         Ok(())
     }
 
-    fn log_upload_stat(&self, archive_name:  &str, csum: &[u8; 32], uuid: &[u8; 16], size: u64, chunk_count: u64, upload_stat: &UploadStatistic) {
+    fn log_upload_stat(
+        &self,
+        archive_name: &str,
+        csum: &[u8; 32],
+        uuid: &[u8; 16],
+        size: u64,
+        chunk_count: u64,
+        upload_stat: &UploadStatistic,
+    ) {
         self.log(format!("Upload statistics for '{}'", archive_name));
         self.log(format!("UUID: {}", hex::encode(uuid)));
         self.log(format!("Checksum: {}", hex::encode(csum)));
@@ -336,7 +396,11 @@ impl BackupEnvironment {
             return;
         }
 
-        self.log(format!("Upload size: {} ({}%)", upload_stat.size, (upload_stat.size*100)/size));
+        self.log(format!(
+            "Upload size: {} ({}%)",
+            upload_stat.size,
+            (upload_stat.size * 100) / size
+        ));
 
         // account for zero chunk, which might be uploaded but never used
         let client_side_duplicates = if chunk_count < upload_stat.count {
@@ -348,17 +412,29 @@ impl BackupEnvironment {
         let server_side_duplicates = upload_stat.duplicates;
 
         if (client_side_duplicates + server_side_duplicates) > 0 {
-            let per = (client_side_duplicates + server_side_duplicates)*100/chunk_count;
-            self.log(format!("Duplicates: {}+{} ({}%)", client_side_duplicates, server_side_duplicates, per));
+            let per = (client_side_duplicates + server_side_duplicates) * 100 / chunk_count;
+            self.log(format!(
+                "Duplicates: {}+{} ({}%)",
+                client_side_duplicates, server_side_duplicates, per
+            ));
         }
 
         if upload_stat.size > 0 {
-            self.log(format!("Compression: {}%", (upload_stat.compressed_size*100)/upload_stat.size));
+            self.log(format!(
+                "Compression: {}%",
+                (upload_stat.compressed_size * 100) / upload_stat.size
+            ));
         }
     }
 
     /// Close dynamic writer
-    pub fn dynamic_writer_close(&self, wid: usize, chunk_count: u64, size: u64, csum: [u8; 32]) -> Result<(), Error> {
+    pub fn dynamic_writer_close(
+        &self,
+        wid: usize,
+        chunk_count: u64,
+        size: u64,
+        csum: [u8; 32],
+    ) -> Result<(), Error> {
         let mut state = self.state.lock().unwrap();
 
         state.ensure_unfinished()?;
@@ -369,11 +445,21 @@ impl BackupEnvironment {
         };
 
         if data.chunk_count != chunk_count {
-            bail!("dynamic writer '{}' close failed - unexpected chunk count ({} != {})", data.name, data.chunk_count, chunk_count);
+            bail!(
+                "dynamic writer '{}' close failed - unexpected chunk count ({} != {})",
+                data.name,
+                data.chunk_count,
+                chunk_count
+            );
         }
 
         if data.offset != size {
-            bail!("dynamic writer '{}' close failed - unexpected file size ({} != {})", data.name, data.offset, size);
+            bail!(
+                "dynamic writer '{}' close failed - unexpected file size ({} != {})",
+                data.name,
+                data.offset,
+                size
+            );
         }
 
         let uuid = data.index.uuid;
@@ -381,10 +467,20 @@ impl BackupEnvironment {
         let expected_csum = data.index.close()?;
 
         if csum != expected_csum {
-            bail!("dynamic writer '{}' close failed - got unexpected checksum", data.name);
+            bail!(
+                "dynamic writer '{}' close failed - got unexpected checksum",
+                data.name
+            );
         }
 
-        self.log_upload_stat(&data.name, &csum, &uuid, size, chunk_count, &data.upload_stat);
+        self.log_upload_stat(
+            &data.name,
+            &csum,
+            &uuid,
+            size,
+            chunk_count,
+            &data.upload_stat,
+        );
 
         state.file_counter += 1;
         state.backup_size += size;
@@ -394,7 +490,13 @@ impl BackupEnvironment {
     }
 
     /// Close fixed writer
-    pub fn fixed_writer_close(&self, wid: usize, chunk_count: u64, size: u64, csum: [u8; 32]) -> Result<(), Error> {
+    pub fn fixed_writer_close(
+        &self,
+        wid: usize,
+        chunk_count: u64,
+        size: u64,
+        csum: [u8; 32],
+    ) -> Result<(), Error> {
         let mut state = self.state.lock().unwrap();
 
         state.ensure_unfinished()?;
@@ -405,18 +507,33 @@ impl BackupEnvironment {
         };
 
         if data.chunk_count != chunk_count {
-            bail!("fixed writer '{}' close failed - received wrong number of chunk ({} != {})", data.name, data.chunk_count, chunk_count);
+            bail!(
+                "fixed writer '{}' close failed - received wrong number of chunk ({} != {})",
+                data.name,
+                data.chunk_count,
+                chunk_count
+            );
         }
 
         if !data.incremental {
             let expected_count = data.index.index_length();
 
             if chunk_count != (expected_count as u64) {
-                bail!("fixed writer '{}' close failed - unexpected chunk count ({} != {})", data.name, expected_count, chunk_count);
+                bail!(
+                    "fixed writer '{}' close failed - unexpected chunk count ({} != {})",
+                    data.name,
+                    expected_count,
+                    chunk_count
+                );
             }
 
             if size != (data.size as u64) {
-                bail!("fixed writer '{}' close failed - unexpected file size ({} != {})", data.name, data.size, size);
+                bail!(
+                    "fixed writer '{}' close failed - unexpected file size ({} != {})",
+                    data.name,
+                    data.size,
+                    size
+                );
             }
         }
 
@@ -424,10 +541,20 @@ impl BackupEnvironment {
         let expected_csum = data.index.close()?;
 
         if csum != expected_csum {
-            bail!("fixed writer '{}' close failed - got unexpected checksum", data.name);
+            bail!(
+                "fixed writer '{}' close failed - got unexpected checksum",
+                data.name
+            );
         }
 
-        self.log_upload_stat(&data.name, &expected_csum, &uuid, size, chunk_count, &data.upload_stat);
+        self.log_upload_stat(
+            &data.name,
+            &expected_csum,
+            &uuid,
+            size,
+            chunk_count,
+            &data.upload_stat,
+        );
 
         state.file_counter += 1;
         state.backup_size += size;
@@ -437,7 +564,6 @@ impl BackupEnvironment {
     }
 
     pub fn add_blob(&self, file_name: &str, data: Vec<u8>) -> Result<(), Error> {
-
         let mut path = self.datastore.base_path();
         path.push(self.backup_dir.relative_path());
         path.push(file_name);
@@ -451,7 +577,10 @@ impl BackupEnvironment {
         let raw_data = blob.raw_data();
         replace_file(&path, raw_data, CreateOptions::new(), false)?;
 
-        self.log(format!("add blob {:?} ({} bytes, comp: {})", path, orig_len, blob_len));
+        self.log(format!(
+            "add blob {:?} ({} bytes, comp: {})",
+            path, orig_len, blob_len
+        ));
 
         let mut state = self.state.lock().unwrap();
         state.file_counter += 1;
@@ -478,9 +607,11 @@ impl BackupEnvironment {
 
         // check for valid manifest and store stats
         let stats = serde_json::to_value(state.backup_stat)?;
-        self.datastore.update_manifest(&self.backup_dir, |manifest| {
-            manifest.unprotected["chunk_upload_stats"] = stats;
-        }).map_err(|err| format_err!("unable to update manifest blob - {}", err))?;
+        self.datastore
+            .update_manifest(&self.backup_dir, |manifest| {
+                manifest.unprotected["chunk_upload_stats"] = stats;
+            })
+            .map_err(|err| format_err!("unable to update manifest blob - {}", err))?;
 
         if let Some(base) = &self.last_backup {
             let path = self.datastore.snapshot_path(&base.backup_dir);
@@ -509,11 +640,13 @@ impl BackupEnvironment {
             return Ok(());
         }
 
-        let worker_id = format!("{}:{}/{}/{:08X}",
+        let worker_id = format!(
+            "{}:{}/{}/{:08X}",
             self.datastore.name(),
             self.backup_dir.group().backup_type(),
             self.backup_dir.group().backup_id(),
-            self.backup_dir.backup_time());
+            self.backup_dir.backup_time()
+        );
 
         let datastore = self.datastore.clone();
         let backup_dir = self.backup_dir.clone();
@@ -525,7 +658,6 @@ impl BackupEnvironment {
             false,
             move |worker| {
                 worker.log_message("Automatically verifying newly added snapshot");
-
 
                 let verify_worker = crate::backup::VerifyWorker::new(worker.clone(), datastore);
                 if !verify_backup_dir_with_lock(
@@ -540,7 +672,8 @@ impl BackupEnvironment {
 
                 Ok(())
             },
-        ).map(|_| ())
+        )
+        .map(|_| ())
     }
 
     pub fn log<S: AsRef<str>>(&self, msg: S) {
@@ -548,7 +681,9 @@ impl BackupEnvironment {
     }
 
     pub fn debug<S: AsRef<str>>(&self, msg: S) {
-        if self.debug { self.worker.log_message(msg); }
+        if self.debug {
+            self.worker.log_message(msg);
+        }
     }
 
     pub fn format_response(&self, result: Result<Value, Error>) -> Response<Body> {
@@ -582,7 +717,6 @@ impl BackupEnvironment {
 }
 
 impl RpcEnvironment for BackupEnvironment {
-
     fn result_attrib_mut(&mut self) -> &mut Value {
         &mut self.result_attributes
     }

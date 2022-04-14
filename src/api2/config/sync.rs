@@ -1,15 +1,15 @@
-use anyhow::{bail, Error};
-use serde_json::Value;
 use ::serde::{Deserialize, Serialize};
+use anyhow::{bail, Error};
 use hex::FromHex;
+use serde_json::Value;
 
-use proxmox_router::{http_bail, Router, RpcEnvironment, Permission};
+use proxmox_router::{http_bail, Permission, Router, RpcEnvironment};
 use proxmox_schema::{api, param_bail};
 
 use pbs_api_types::{
-    Authid, SyncJobConfig, SyncJobConfigUpdater, JOB_ID_SCHEMA, PROXMOX_CONFIG_DIGEST_SCHEMA,
-    PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY, PRIV_DATASTORE_PRUNE,
-    PRIV_REMOTE_AUDIT, PRIV_REMOTE_READ,
+    Authid, SyncJobConfig, SyncJobConfigUpdater, JOB_ID_SCHEMA, PRIV_DATASTORE_AUDIT,
+    PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY, PRIV_DATASTORE_PRUNE, PRIV_REMOTE_AUDIT,
+    PRIV_REMOTE_READ, PROXMOX_CONFIG_DIGEST_SCHEMA,
 };
 use pbs_config::sync;
 
@@ -49,10 +49,8 @@ pub fn check_sync_job_modify_access(
     let correct_owner = match job.owner {
         Some(ref owner) => {
             owner == auth_id
-                || (owner.is_token()
-                    && !auth_id.is_token()
-                    && owner.user() == auth_id.user())
-        },
+                || (owner.is_token() && !auth_id.is_token() && owner.user() == auth_id.user())
+        }
         // default sync owner
         None => auth_id == Authid::root_auth_id(),
     };
@@ -98,7 +96,7 @@ pub fn list_sync_jobs(
         .into_iter()
         .filter(|sync_job| check_sync_job_read_access(&user_info, &auth_id, sync_job))
         .collect();
-   Ok(list)
+    Ok(list)
 }
 
 #[api(
@@ -181,7 +179,7 @@ pub fn read_sync_job(
 
 #[api()]
 #[derive(Serialize, Deserialize)]
-#[serde(rename_all="kebab-case")]
+#[serde(rename_all = "kebab-case")]
 #[allow(non_camel_case_types)]
 /// Deletable property name
 pub enum DeletableProperty {
@@ -258,18 +256,36 @@ pub fn update_sync_job(
 
     let mut data: SyncJobConfig = config.lookup("sync", &id)?;
 
-     if let Some(delete) = delete {
+    if let Some(delete) = delete {
         for delete_prop in delete {
             match delete_prop {
-                DeletableProperty::owner => { data.owner = None; },
-                DeletableProperty::comment => { data.comment = None; },
-                DeletableProperty::schedule => { data.schedule = None; },
-                DeletableProperty::remove_vanished => { data.remove_vanished = None; },
-                DeletableProperty::group_filter => { data.group_filter = None; },
-                DeletableProperty::rate_in => { data.limit.rate_in = None; },
-                DeletableProperty::rate_out => { data.limit.rate_out = None; },
-                DeletableProperty::burst_in => { data.limit.burst_in = None; },
-                DeletableProperty::burst_out => { data.limit.burst_out = None; },
+                DeletableProperty::owner => {
+                    data.owner = None;
+                }
+                DeletableProperty::comment => {
+                    data.comment = None;
+                }
+                DeletableProperty::schedule => {
+                    data.schedule = None;
+                }
+                DeletableProperty::remove_vanished => {
+                    data.remove_vanished = None;
+                }
+                DeletableProperty::group_filter => {
+                    data.group_filter = None;
+                }
+                DeletableProperty::rate_in => {
+                    data.limit.rate_in = None;
+                }
+                DeletableProperty::rate_out => {
+                    data.limit.rate_out = None;
+                }
+                DeletableProperty::burst_in => {
+                    data.limit.burst_in = None;
+                }
+                DeletableProperty::burst_out => {
+                    data.limit.burst_out = None;
+                }
             }
         }
     }
@@ -283,11 +299,21 @@ pub fn update_sync_job(
         }
     }
 
-    if let Some(store) = update.store { data.store = store; }
-    if let Some(remote) = update.remote { data.remote = remote; }
-    if let Some(remote_store) = update.remote_store { data.remote_store = remote_store; }
-    if let Some(owner) = update.owner { data.owner = Some(owner); }
-    if let Some(group_filter) = update.group_filter { data.group_filter = Some(group_filter); }
+    if let Some(store) = update.store {
+        data.store = store;
+    }
+    if let Some(remote) = update.remote {
+        data.remote = remote;
+    }
+    if let Some(remote_store) = update.remote_store {
+        data.remote_store = remote_store;
+    }
+    if let Some(owner) = update.owner {
+        data.owner = Some(owner);
+    }
+    if let Some(group_filter) = update.group_filter {
+        data.group_filter = Some(group_filter);
+    }
 
     if update.limit.rate_in.is_some() {
         data.limit.rate_in = update.limit.rate_in;
@@ -306,8 +332,12 @@ pub fn update_sync_job(
     }
 
     let schedule_changed = data.schedule != update.schedule;
-    if update.schedule.is_some() { data.schedule = update.schedule; }
-    if update.remove_vanished.is_some() { data.remove_vanished = update.remove_vanished; }
+    if update.schedule.is_some() {
+        data.schedule = update.schedule;
+    }
+    if update.remove_vanished.is_some() {
+        data.remove_vanished = update.remove_vanished;
+    }
 
     if !check_sync_job_modify_access(&user_info, &auth_id, &data) {
         bail!("permission check failed");
@@ -366,8 +396,10 @@ pub fn delete_sync_job(
                 bail!("permission check failed");
             }
             config.sections.remove(&id);
-        },
-        Err(_) => { http_bail!(NOT_FOUND, "job '{}' does not exist.", id) },
+        }
+        Err(_) => {
+            http_bail!(NOT_FOUND, "job '{}' does not exist.", id)
+        }
     };
 
     sync::save_config(&config)?;
@@ -387,25 +419,30 @@ pub const ROUTER: Router = Router::new()
     .post(&API_METHOD_CREATE_SYNC_JOB)
     .match_all("id", &ITEM_ROUTER);
 
-
 #[test]
 fn sync_job_access_test() -> Result<(), Error> {
-    let (user_cfg, _) = pbs_config::user::test_cfg_from_str(r###"
+    let (user_cfg, _) = pbs_config::user::test_cfg_from_str(
+        r###"
 user: noperm@pbs
 
 user: read@pbs
 
 user: write@pbs
 
-"###).expect("test user.cfg is not parsable");
-    let acl_tree = pbs_config::acl::AclTree::from_raw(r###"
+"###,
+    )
+    .expect("test user.cfg is not parsable");
+    let acl_tree = pbs_config::acl::AclTree::from_raw(
+        r###"
 acl:1:/datastore/localstore1:read@pbs,write@pbs:DatastoreAudit
 acl:1:/datastore/localstore1:write@pbs:DatastoreBackup
 acl:1:/datastore/localstore2:write@pbs:DatastorePowerUser
 acl:1:/datastore/localstore3:write@pbs:DatastoreAdmin
 acl:1:/remote/remote1:read@pbs,write@pbs:RemoteAudit
 acl:1:/remote/remote1/remotestore1:write@pbs:RemoteSyncOperator
-"###).expect("test acl.cfg is not parsable");
+"###,
+    )
+    .expect("test acl.cfg is not parsable");
 
     let user_info = CachedUserInfo::test_new(user_cfg, acl_tree);
 
@@ -429,28 +466,52 @@ acl:1:/remote/remote1/remotestore1:write@pbs:RemoteSyncOperator
     };
 
     // should work without ACLs
-    assert_eq!(check_sync_job_read_access(&user_info, root_auth_id, &job), true);
-    assert_eq!(check_sync_job_modify_access(&user_info, root_auth_id, &job), true);
+    assert_eq!(
+        check_sync_job_read_access(&user_info, root_auth_id, &job),
+        true
+    );
+    assert_eq!(
+        check_sync_job_modify_access(&user_info, root_auth_id, &job),
+        true
+    );
 
     // user without permissions must fail
-    assert_eq!(check_sync_job_read_access(&user_info, &no_perm_auth_id, &job), false);
-    assert_eq!(check_sync_job_modify_access(&user_info, &no_perm_auth_id, &job), false);
+    assert_eq!(
+        check_sync_job_read_access(&user_info, &no_perm_auth_id, &job),
+        false
+    );
+    assert_eq!(
+        check_sync_job_modify_access(&user_info, &no_perm_auth_id, &job),
+        false
+    );
 
     // reading without proper read permissions on either remote or local must fail
-    assert_eq!(check_sync_job_read_access(&user_info, &read_auth_id, &job), false);
+    assert_eq!(
+        check_sync_job_read_access(&user_info, &read_auth_id, &job),
+        false
+    );
 
     // reading without proper read permissions on local end must fail
     job.remote = "remote1".to_string();
-    assert_eq!(check_sync_job_read_access(&user_info, &read_auth_id, &job), false);
+    assert_eq!(
+        check_sync_job_read_access(&user_info, &read_auth_id, &job),
+        false
+    );
 
     // reading without proper read permissions on remote end must fail
     job.remote = "remote0".to_string();
     job.store = "localstore1".to_string();
-    assert_eq!(check_sync_job_read_access(&user_info, &read_auth_id, &job), false);
+    assert_eq!(
+        check_sync_job_read_access(&user_info, &read_auth_id, &job),
+        false
+    );
 
     // writing without proper write permissions on either end must fail
     job.store = "localstore0".to_string();
-    assert_eq!(check_sync_job_modify_access(&user_info, &write_auth_id, &job), false);
+    assert_eq!(
+        check_sync_job_modify_access(&user_info, &write_auth_id, &job),
+        false
+    );
 
     // writing without proper write permissions on local end must fail
     job.remote = "remote1".to_string();
@@ -458,46 +519,85 @@ acl:1:/remote/remote1/remotestore1:write@pbs:RemoteSyncOperator
     // writing without proper write permissions on remote end must fail
     job.remote = "remote0".to_string();
     job.store = "localstore1".to_string();
-    assert_eq!(check_sync_job_modify_access(&user_info, &write_auth_id, &job), false);
+    assert_eq!(
+        check_sync_job_modify_access(&user_info, &write_auth_id, &job),
+        false
+    );
 
     // reset remote to one where users have access
     job.remote = "remote1".to_string();
 
     // user with read permission can only read, but not modify/run
-    assert_eq!(check_sync_job_read_access(&user_info, &read_auth_id, &job), true);
+    assert_eq!(
+        check_sync_job_read_access(&user_info, &read_auth_id, &job),
+        true
+    );
     job.owner = Some(read_auth_id.clone());
-    assert_eq!(check_sync_job_modify_access(&user_info, &read_auth_id, &job), false);
+    assert_eq!(
+        check_sync_job_modify_access(&user_info, &read_auth_id, &job),
+        false
+    );
     job.owner = None;
-    assert_eq!(check_sync_job_modify_access(&user_info, &read_auth_id, &job), false);
+    assert_eq!(
+        check_sync_job_modify_access(&user_info, &read_auth_id, &job),
+        false
+    );
     job.owner = Some(write_auth_id.clone());
-    assert_eq!(check_sync_job_modify_access(&user_info, &read_auth_id, &job), false);
+    assert_eq!(
+        check_sync_job_modify_access(&user_info, &read_auth_id, &job),
+        false
+    );
 
     // user with simple write permission can modify/run
-    assert_eq!(check_sync_job_read_access(&user_info, &write_auth_id, &job), true);
-    assert_eq!(check_sync_job_modify_access(&user_info, &write_auth_id, &job), true);
+    assert_eq!(
+        check_sync_job_read_access(&user_info, &write_auth_id, &job),
+        true
+    );
+    assert_eq!(
+        check_sync_job_modify_access(&user_info, &write_auth_id, &job),
+        true
+    );
 
     // but can't modify/run with deletion
     job.remove_vanished = Some(true);
-    assert_eq!(check_sync_job_modify_access(&user_info, &write_auth_id, &job), false);
+    assert_eq!(
+        check_sync_job_modify_access(&user_info, &write_auth_id, &job),
+        false
+    );
 
     // unless they have Datastore.Prune as well
     job.store = "localstore2".to_string();
-    assert_eq!(check_sync_job_modify_access(&user_info, &write_auth_id, &job), true);
+    assert_eq!(
+        check_sync_job_modify_access(&user_info, &write_auth_id, &job),
+        true
+    );
 
     // changing owner is not possible
     job.owner = Some(read_auth_id.clone());
-    assert_eq!(check_sync_job_modify_access(&user_info, &write_auth_id, &job), false);
+    assert_eq!(
+        check_sync_job_modify_access(&user_info, &write_auth_id, &job),
+        false
+    );
 
     // also not to the default 'root@pam'
     job.owner = None;
-    assert_eq!(check_sync_job_modify_access(&user_info, &write_auth_id, &job), false);
+    assert_eq!(
+        check_sync_job_modify_access(&user_info, &write_auth_id, &job),
+        false
+    );
 
     // unless they have Datastore.Modify as well
     job.store = "localstore3".to_string();
     job.owner = Some(read_auth_id);
-    assert_eq!(check_sync_job_modify_access(&user_info, &write_auth_id, &job), true);
+    assert_eq!(
+        check_sync_job_modify_access(&user_info, &write_auth_id, &job),
+        true
+    );
     job.owner = None;
-    assert_eq!(check_sync_job_modify_access(&user_info, &write_auth_id, &job), true);
+    assert_eq!(
+        check_sync_job_modify_access(&user_info, &write_auth_id, &job),
+        true
+    );
 
     Ok(())
 }

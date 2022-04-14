@@ -1,24 +1,21 @@
 use anyhow::{bail, Error};
 use serde_json::{json, Value};
 
-use proxmox_router::{Router, RpcEnvironment, RpcEnvironmentType, Permission};
+use proxmox_router::{Permission, Router, RpcEnvironment, RpcEnvironmentType};
 use proxmox_schema::api;
 use proxmox_sys::task_log;
 
 use pbs_api_types::{
-    ZpoolListItem, ZfsRaidLevel, ZfsCompressionType, DataStoreConfig,
-    NODE_SCHEMA, ZPOOL_NAME_SCHEMA, DATASTORE_SCHEMA, DISK_ARRAY_SCHEMA,
-    DISK_LIST_SCHEMA, ZFS_ASHIFT_SCHEMA, UPID_SCHEMA,
-    PRIV_SYS_AUDIT, PRIV_SYS_MODIFY,
+    DataStoreConfig, ZfsCompressionType, ZfsRaidLevel, ZpoolListItem, DATASTORE_SCHEMA,
+    DISK_ARRAY_SCHEMA, DISK_LIST_SCHEMA, NODE_SCHEMA, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY, UPID_SCHEMA,
+    ZFS_ASHIFT_SCHEMA, ZPOOL_NAME_SCHEMA,
 };
 
 use crate::tools::disks::{
-    zpool_list, zpool_status, parse_zpool_status_config_tree, vdev_list_to_tree,
-    DiskUsageType,
+    parse_zpool_status_config_tree, vdev_list_to_tree, zpool_list, zpool_status, DiskUsageType,
 };
 
 use proxmox_rest_server::WorkerTask;
-
 
 #[api(
     protected: true,
@@ -42,7 +39,6 @@ use proxmox_rest_server::WorkerTask;
 )]
 /// List zfs pools.
 pub fn list_zpools() -> Result<Vec<ZpoolListItem>, Error> {
-
     let data = zpool_list(None, false)?;
 
     let mut list = Vec::new();
@@ -87,15 +83,12 @@ pub fn list_zpools() -> Result<Vec<ZpoolListItem>, Error> {
     },
 )]
 /// Get zpool status details.
-pub fn zpool_details(
-    name: String,
-) -> Result<Value, Error> {
-
+pub fn zpool_details(name: String) -> Result<Value, Error> {
     let key_value_list = zpool_status(&name)?;
 
     let config = match key_value_list.iter().find(|(k, _)| k == "config") {
         Some((_, v)) => v,
-        None =>  bail!("got zpool status without config key"),
+        None => bail!("got zpool status without config key"),
     };
 
     let vdev_list = parse_zpool_status_config_tree(config)?;
@@ -107,10 +100,11 @@ pub fn zpool_details(
         }
     }
 
-    tree["name"] = tree.as_object_mut().unwrap()
+    tree["name"] = tree
+        .as_object_mut()
+        .unwrap()
         .remove("pool")
         .unwrap_or_else(|| name.into());
-
 
     Ok(tree)
 }
@@ -163,7 +157,6 @@ pub fn create_zpool(
     add_datastore: Option<bool>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
-
     let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
     let auth_id = rpcenv.get_auth_id().unwrap();
@@ -174,8 +167,12 @@ pub fn create_zpool(
 
     let devices_text = devices.clone();
     let devices = DISK_ARRAY_SCHEMA.parse_property_string(&devices)?;
-    let devices: Vec<String> = devices.as_array().unwrap().iter()
-        .map(|v| v.as_str().unwrap().to_string()).collect();
+    let devices: Vec<String> = devices
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap().to_string())
+        .collect();
 
     let disk_map = crate::tools::disks::get_disks(None, true)?;
     for disk in devices.iter() {
@@ -220,20 +217,35 @@ pub fn create_zpool(
     let default_path = std::path::PathBuf::from(&mount_point);
 
     match std::fs::metadata(&default_path) {
-        Err(_) => {}, // path does not exist
+        Err(_) => {} // path does not exist
         Ok(_) => {
             bail!("path {:?} already exists", default_path);
         }
     }
 
-     let upid_str = WorkerTask::new_thread(
-        "zfscreate", Some(name.clone()), auth_id, to_stdout, move |worker|
-        {
-            task_log!(worker, "create {:?} zpool '{}' on devices '{}'", raidlevel, name, devices_text);
-
+    let upid_str = WorkerTask::new_thread(
+        "zfscreate",
+        Some(name.clone()),
+        auth_id,
+        to_stdout,
+        move |worker| {
+            task_log!(
+                worker,
+                "create {:?} zpool '{}' on devices '{}'",
+                raidlevel,
+                name,
+                devices_text
+            );
 
             let mut command = std::process::Command::new("zpool");
-            command.args(&["create", "-o", &format!("ashift={}", ashift), "-m", &mount_point, &name]);
+            command.args(&[
+                "create",
+                "-o",
+                &format!("ashift={}", ashift),
+                "-m",
+                &mount_point,
+                &name,
+            ]);
 
             match raidlevel {
                 ZfsRaidLevel::Single => {
@@ -244,10 +256,10 @@ pub fn create_zpool(
                     command.args(devices);
                 }
                 ZfsRaidLevel::Raid10 => {
-                     devices.chunks(2).for_each(|pair| {
-                         command.arg("mirror");
-                         command.args(pair);
-                     });
+                    devices.chunks(2).for_each(|pair| {
+                        command.arg("mirror");
+                        command.args(pair);
+                    });
                 }
                 ZfsRaidLevel::RaidZ => {
                     command.arg("raidz");
@@ -269,7 +281,10 @@ pub fn create_zpool(
             task_log!(worker, "{}", output);
 
             if std::path::Path::new("/lib/systemd/system/zfs-import@.service").exists() {
-                let import_unit = format!("zfs-import@{}.service", proxmox_sys::systemd::escape_unit(&name, false));
+                let import_unit = format!(
+                    "zfs-import@{}.service",
+                    proxmox_sys::systemd::escape_unit(&name, false)
+                );
                 crate::tools::systemd::enable_unit(&import_unit)?;
             }
 
@@ -294,17 +309,22 @@ pub fn create_zpool(
                     bail!("datastore '{}' already exists.", datastore.name);
                 }
 
-                crate::api2::config::datastore::do_create_datastore(lock, config, datastore, Some(&worker))?;
+                crate::api2::config::datastore::do_create_datastore(
+                    lock,
+                    config,
+                    datastore,
+                    Some(&worker),
+                )?;
             }
 
             Ok(())
-        })?;
+        },
+    )?;
 
     Ok(upid_str)
 }
 
-pub const POOL_ROUTER: Router = Router::new()
-    .get(&API_METHOD_ZPOOL_DETAILS);
+pub const POOL_ROUTER: Router = Router::new().get(&API_METHOD_ZPOOL_DETAILS);
 
 pub const ROUTER: Router = Router::new()
     .get(&API_METHOD_LIST_ZPOOLS)

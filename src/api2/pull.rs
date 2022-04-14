@@ -2,23 +2,22 @@
 use std::convert::TryFrom;
 
 use anyhow::{format_err, Error};
-use futures::{select, future::FutureExt};
+use futures::{future::FutureExt, select};
 
+use proxmox_router::{ApiMethod, Permission, Router, RpcEnvironment};
 use proxmox_schema::api;
-use proxmox_router::{ApiMethod, Router, RpcEnvironment, Permission};
 use proxmox_sys::task_log;
 
 use pbs_api_types::{
-    Authid, SyncJobConfig, GroupFilter, RateLimitConfig, GROUP_FILTER_LIST_SCHEMA,
-    DATASTORE_SCHEMA, REMOTE_ID_SCHEMA, REMOVE_VANISHED_BACKUPS_SCHEMA,
-    PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_PRUNE, PRIV_REMOTE_READ,
+    Authid, GroupFilter, RateLimitConfig, SyncJobConfig, DATASTORE_SCHEMA,
+    GROUP_FILTER_LIST_SCHEMA, PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_PRUNE, PRIV_REMOTE_READ,
+    REMOTE_ID_SCHEMA, REMOVE_VANISHED_BACKUPS_SCHEMA,
 };
-use proxmox_rest_server::WorkerTask;
 use pbs_config::CachedUserInfo;
+use proxmox_rest_server::WorkerTask;
 
-use crate::server::pull::{PullParameters, pull_store};
 use crate::server::jobstate::Job;
-
+use crate::server::pull::{pull_store, PullParameters};
 
 pub fn check_pull_privs(
     auth_id: &Authid,
@@ -27,11 +26,15 @@ pub fn check_pull_privs(
     remote_store: &str,
     delete: bool,
 ) -> Result<(), Error> {
-
     let user_info = CachedUserInfo::new()?;
 
     user_info.check_privs(auth_id, &["datastore", store], PRIV_DATASTORE_BACKUP, false)?;
-    user_info.check_privs(auth_id, &["remote", remote, remote_store], PRIV_REMOTE_READ, false)?;
+    user_info.check_privs(
+        auth_id,
+        &["remote", remote, remote_store],
+        PRIV_REMOTE_READ,
+        false,
+    )?;
 
     if delete {
         user_info.check_privs(auth_id, &["datastore", store], PRIV_DATASTORE_PRUNE, false)?;
@@ -48,7 +51,11 @@ impl TryFrom<&SyncJobConfig> for PullParameters {
             &sync_job.store,
             &sync_job.remote,
             &sync_job.remote_store,
-            sync_job.owner.as_ref().unwrap_or_else(|| Authid::root_auth_id()).clone(),
+            sync_job
+                .owner
+                .as_ref()
+                .unwrap_or_else(|| Authid::root_auth_id())
+                .clone(),
             sync_job.remove_vanished,
             sync_job.group_filter.clone(),
             sync_job.limit.clone(),
@@ -63,12 +70,13 @@ pub fn do_sync_job(
     schedule: Option<String>,
     to_stdout: bool,
 ) -> Result<String, Error> {
-
-    let job_id = format!("{}:{}:{}:{}",
-                         sync_job.remote,
-                         sync_job.remote_store,
-                         sync_job.store,
-                         job.jobname());
+    let job_id = format!(
+        "{}:{}:{}:{}",
+        sync_job.remote,
+        sync_job.remote_store,
+        sync_job.store,
+        job.jobname()
+    );
     let worker_type = job.jobtype().to_string();
 
     let (email, notify) = crate::server::lookup_datastore_notify_settings(&sync_job.store);
@@ -79,14 +87,12 @@ pub fn do_sync_job(
         auth_id.to_string(),
         to_stdout,
         move |worker| async move {
-
             job.start(&worker.upid().to_string())?;
 
             let worker2 = worker.clone();
             let sync_job2 = sync_job.clone();
 
             let worker_future = async move {
-
                 let pull_params = PullParameters::try_from(&sync_job)?;
                 let client = pull_params.client().await?;
 
@@ -109,9 +115,11 @@ pub fn do_sync_job(
                 Ok(())
             };
 
-            let mut abort_future = worker2.abort_future().map(|_| Err(format_err!("sync aborted")));
+            let mut abort_future = worker2
+                .abort_future()
+                .map(|_| Err(format_err!("sync aborted")));
 
-            let result = select!{
+            let result = select! {
                 worker = worker_future.fuse() => worker,
                 abort = abort_future => abort,
             };
@@ -119,20 +127,23 @@ pub fn do_sync_job(
             let status = worker2.create_state(&result);
 
             match job.finish(status) {
-                Ok(_) => {},
+                Ok(_) => {}
                 Err(err) => {
                     eprintln!("could not finish job state: {}", err);
                 }
             }
 
             if let Some(email) = email {
-                if let Err(err) = crate::server::send_sync_status(&email, notify, &sync_job2, &result) {
+                if let Err(err) =
+                    crate::server::send_sync_status(&email, notify, &sync_job2, &result)
+                {
                     eprintln!("send sync notification failed: {}", err);
                 }
             }
 
             result
-        })?;
+        },
+    )?;
 
     Ok(upid_str)
 }
@@ -173,7 +184,7 @@ The delete flag additionally requires the Datastore.Prune privilege on '/datasto
     },
 )]
 /// Sync store from other repository
-async fn pull (
+async fn pull(
     store: String,
     remote: String,
     remote_store: String,
@@ -183,7 +194,6 @@ async fn pull (
     _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
-
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let delete = remove_vanished.unwrap_or(false);
 
@@ -201,25 +211,29 @@ async fn pull (
     let client = pull_params.client().await?;
 
     // fixme: set to_stdout to false?
-    let upid_str = WorkerTask::spawn("sync", Some(store.clone()), auth_id.to_string(), true, move |worker| async move {
+    let upid_str = WorkerTask::spawn(
+        "sync",
+        Some(store.clone()),
+        auth_id.to_string(),
+        true,
+        move |worker| async move {
+            task_log!(worker, "sync datastore '{}' start", store);
 
-        task_log!(worker, "sync datastore '{}' start", store);
+            let pull_future = pull_store(&worker, &client, &pull_params);
+            let future = select! {
+                success = pull_future.fuse() => success,
+                abort = worker.abort_future().map(|_| Err(format_err!("pull aborted"))) => abort,
+            };
 
-        let pull_future = pull_store(&worker, &client, &pull_params);
-        let future = select!{
-            success = pull_future.fuse() => success,
-            abort = worker.abort_future().map(|_| Err(format_err!("pull aborted"))) => abort,
-        };
+            let _ = future?;
 
-        let _ = future?;
+            task_log!(worker, "sync datastore '{}' end", store);
 
-        task_log!(worker, "sync datastore '{}' end", store);
-
-        Ok(())
-    })?;
+            Ok(())
+        },
+    )?;
 
     Ok(upid_str)
 }
 
-pub const ROUTER: Router = Router::new()
-    .post(&API_METHOD_PULL);
+pub const ROUTER: Router = Router::new().post(&API_METHOD_PULL);

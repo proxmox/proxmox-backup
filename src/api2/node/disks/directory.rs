@@ -1,20 +1,20 @@
+use ::serde::{Deserialize, Serialize};
 use anyhow::{bail, Error};
 use serde_json::json;
-use ::serde::{Deserialize, Serialize};
 
-use proxmox_router::{Router, RpcEnvironment, RpcEnvironmentType, Permission};
+use proxmox_router::{Permission, Router, RpcEnvironment, RpcEnvironmentType};
 use proxmox_schema::api;
 use proxmox_section_config::SectionConfigData;
 use proxmox_sys::task_log;
 
 use pbs_api_types::{
-    DataStoreConfig, NODE_SCHEMA, BLOCKDEVICE_NAME_SCHEMA,
-    DATASTORE_SCHEMA, UPID_SCHEMA, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY,
+    DataStoreConfig, BLOCKDEVICE_NAME_SCHEMA, DATASTORE_SCHEMA, NODE_SCHEMA, PRIV_SYS_AUDIT,
+    PRIV_SYS_MODIFY, UPID_SCHEMA,
 };
 
 use crate::tools::disks::{
-    DiskManage, FileSystemType, DiskUsageType,
-    create_file_system, create_single_linux_partition, get_fs_uuid, get_disk_usage_info,
+    create_file_system, create_single_linux_partition, get_disk_usage_info, get_fs_uuid,
+    DiskManage, DiskUsageType, FileSystemType,
 };
 use crate::tools::systemd::{self, types::*};
 
@@ -31,7 +31,7 @@ const BASE_MOUNT_DIR: &str = "/mnt/datastore/";
     },
 )]
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all="kebab-case")]
+#[serde(rename_all = "kebab-case")]
 /// Datastore mount info.
 pub struct DatastoreMountInfo {
     /// The path of the mount unit.
@@ -69,8 +69,7 @@ pub struct DatastoreMountInfo {
     },
 )]
 /// List systemd datastore mount units.
-pub fn  list_datastore_mounts() -> Result<Vec<DatastoreMountInfo>, Error> {
-
+pub fn list_datastore_mounts() -> Result<Vec<DatastoreMountInfo>, Error> {
     lazy_static::lazy_static! {
         static ref MOUNT_NAME_REGEX: regex::Regex = regex::Regex::new(r"^mnt-datastore-(.+)\.mount$").unwrap();
     }
@@ -144,7 +143,6 @@ pub fn create_datastore_disk(
     filesystem: Option<FileSystemType>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
-
     let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
     let auth_id = rpcenv.get_auth_id().unwrap();
@@ -161,15 +159,18 @@ pub fn create_datastore_disk(
     let default_path = std::path::PathBuf::from(&mount_point);
 
     match std::fs::metadata(&default_path) {
-        Err(_) => {}, // path does not exist
+        Err(_) => {} // path does not exist
         Ok(_) => {
             bail!("path {:?} already exists", default_path);
         }
     }
 
     let upid_str = WorkerTask::new_thread(
-        "dircreate", Some(name.clone()), auth_id, to_stdout, move |worker|
-        {
+        "dircreate",
+        Some(name.clone()),
+        auth_id,
+        to_stdout,
+        move |worker| {
             task_log!(worker, "create datastore '{}' on disk {}", name, disk);
 
             let add_datastore = add_datastore.unwrap_or(false);
@@ -185,7 +186,8 @@ pub fn create_datastore_disk(
             let uuid = get_fs_uuid(&partition)?;
             let uuid_path = format!("/dev/disk/by-uuid/{}", uuid);
 
-            let mount_unit_name = create_datastore_mount_unit(&name, &mount_point, filesystem, &uuid_path)?;
+            let mount_unit_name =
+                create_datastore_mount_unit(&name, &mount_point, filesystem, &uuid_path)?;
 
             crate::tools::systemd::reload_daemon()?;
             crate::tools::systemd::enable_unit(&mount_unit_name)?;
@@ -202,11 +204,17 @@ pub fn create_datastore_disk(
                     bail!("datastore '{}' already exists.", datastore.name);
                 }
 
-                crate::api2::config::datastore::do_create_datastore(lock, config, datastore, Some(&worker))?;
+                crate::api2::config::datastore::do_create_datastore(
+                    lock,
+                    config,
+                    datastore,
+                    Some(&worker),
+                )?;
             }
 
             Ok(())
-        })?;
+        },
+    )?;
 
     Ok(upid_str)
 }
@@ -229,17 +237,19 @@ pub fn create_datastore_disk(
 )]
 /// Remove a Filesystem mounted under '/mnt/datastore/<name>'.".
 pub fn delete_datastore_disk(name: String) -> Result<(), Error> {
-
     let path = format!("{}{}", BASE_MOUNT_DIR, name);
     // path of datastore cannot be changed
     let (config, _) = pbs_config::datastore::config()?;
     let datastores: Vec<DataStoreConfig> = config.convert_to_typed_array("datastore")?;
-    let conflicting_datastore: Option<DataStoreConfig> = datastores.into_iter()
-        .find(|ds| ds.path == path);
+    let conflicting_datastore: Option<DataStoreConfig> =
+        datastores.into_iter().find(|ds| ds.path == path);
 
     if let Some(conflicting_datastore) = conflicting_datastore {
-        bail!("Can't remove '{}' since it's required by datastore '{}'",
-              conflicting_datastore.path, conflicting_datastore.name);
+        bail!(
+            "Can't remove '{}' since it's required by datastore '{}'",
+            conflicting_datastore.path,
+            conflicting_datastore.name
+        );
     }
 
     // disable systemd mount-unit
@@ -262,18 +272,16 @@ pub fn delete_datastore_disk(name: String) -> Result<(), Error> {
              until the next reboot or until unmounted manually!",
             path
         ),
-        Ok(_) => Ok(())
+        Ok(_) => Ok(()),
     }
 }
 
-const ITEM_ROUTER: Router = Router::new()
-    .delete(&API_METHOD_DELETE_DATASTORE_DISK);
+const ITEM_ROUTER: Router = Router::new().delete(&API_METHOD_DELETE_DATASTORE_DISK);
 
 pub const ROUTER: Router = Router::new()
     .get(&API_METHOD_LIST_DATASTORE_MOUNTS)
     .post(&API_METHOD_CREATE_DATASTORE_DISK)
     .match_all("name", &ITEM_ROUTER);
-
 
 fn create_datastore_mount_unit(
     datastore_name: &str,
@@ -281,14 +289,16 @@ fn create_datastore_mount_unit(
     fs_type: FileSystemType,
     what: &str,
 ) -> Result<String, Error> {
-
     let mut mount_unit_name = proxmox_sys::systemd::escape_unit(mount_point, true);
     mount_unit_name.push_str(".mount");
 
     let mount_unit_path = format!("/etc/systemd/system/{}", mount_unit_name);
 
     let unit = SystemdUnitSection {
-        Description: format!("Mount datatstore '{}' under '{}'", datastore_name, mount_point),
+        Description: format!(
+            "Mount datatstore '{}' under '{}'",
+            datastore_name, mount_point
+        ),
         ..Default::default()
     };
 

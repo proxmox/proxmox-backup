@@ -12,61 +12,54 @@ use hyper::{header, Body, Response, StatusCode};
 use serde_json::{json, Value};
 use tokio_stream::wrappers::ReceiverStream;
 
+use proxmox_async::blocking::WrappedReaderStream;
+use proxmox_async::{io::AsyncChannelWriter, stream::AsyncReaderStream};
 use proxmox_compression::zstd::ZstdEncoder;
-use proxmox_sys::sortable;
+use proxmox_router::{
+    http_err, list_subdirs_api_method, ApiHandler, ApiMethod, ApiResponseFuture, Permission,
+    Router, RpcEnvironment, RpcEnvironmentType, SubdirMap,
+};
+use proxmox_schema::*;
 use proxmox_sys::fs::{
     file_read_firstline, file_read_optional_string, replace_file, CreateOptions,
 };
-use proxmox_router::{
-    list_subdirs_api_method, http_err, ApiResponseFuture, ApiHandler, ApiMethod, Router,
-    RpcEnvironment, RpcEnvironmentType, SubdirMap, Permission,
-};
-use proxmox_schema::*;
+use proxmox_sys::sortable;
 use proxmox_sys::{task_log, task_warn};
-use proxmox_async::blocking::WrappedReaderStream;
-use proxmox_async::{io::AsyncChannelWriter, stream::AsyncReaderStream};
 
 use pxar::accessor::aio::Accessor;
 use pxar::EntryKind;
 
-use pbs_api_types::{ Authid, BackupContent, Counts, CryptMode,
-    DataStoreListItem, GarbageCollectionStatus, GroupListItem,
-    Operation, SnapshotListItem, SnapshotVerifyState, PruneOptions,
-    DataStoreStatus, RRDMode, RRDTimeFrame,
-    BACKUP_ARCHIVE_NAME_SCHEMA, BACKUP_ID_SCHEMA, BACKUP_TIME_SCHEMA,
-    BACKUP_TYPE_SCHEMA, DATASTORE_SCHEMA,
-    IGNORE_VERIFIED_BACKUPS_SCHEMA, UPID_SCHEMA,
-    VERIFICATION_OUTDATED_AFTER_SCHEMA, PRIV_DATASTORE_AUDIT,
-    PRIV_DATASTORE_MODIFY, PRIV_DATASTORE_READ, PRIV_DATASTORE_PRUNE,
-    PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_VERIFY,
-
+use pbs_api_types::{
+    Authid, BackupContent, Counts, CryptMode, DataStoreListItem, DataStoreStatus,
+    GarbageCollectionStatus, GroupListItem, Operation, PruneOptions, RRDMode, RRDTimeFrame,
+    SnapshotListItem, SnapshotVerifyState, BACKUP_ARCHIVE_NAME_SCHEMA, BACKUP_ID_SCHEMA,
+    BACKUP_TIME_SCHEMA, BACKUP_TYPE_SCHEMA, DATASTORE_SCHEMA, IGNORE_VERIFIED_BACKUPS_SCHEMA,
+    PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY, PRIV_DATASTORE_PRUNE,
+    PRIV_DATASTORE_READ, PRIV_DATASTORE_VERIFY, UPID_SCHEMA, VERIFICATION_OUTDATED_AFTER_SCHEMA,
 };
 use pbs_client::pxar::{create_tar, create_zip};
-use pbs_datastore::{
-    check_backup_owner, DataStore, BackupDir, BackupGroup, StoreProgress, LocalChunkReader,
-    CATALOG_NAME, task_tracking
-};
+use pbs_config::CachedUserInfo;
 use pbs_datastore::backup_info::BackupInfo;
 use pbs_datastore::cached_chunk_reader::CachedChunkReader;
 use pbs_datastore::catalog::{ArchiveEntry, CatalogReader};
 use pbs_datastore::data_blob::DataBlob;
 use pbs_datastore::data_blob_reader::DataBlobReader;
 use pbs_datastore::dynamic_index::{BufferedDynamicReader, DynamicIndexReader, LocalDynamicReadAt};
-use pbs_datastore::fixed_index::{FixedIndexReader};
+use pbs_datastore::fixed_index::FixedIndexReader;
 use pbs_datastore::index::IndexFile;
 use pbs_datastore::manifest::{BackupManifest, CLIENT_LOG_BLOB_NAME, MANIFEST_BLOB_NAME};
 use pbs_datastore::prune::compute_prune_info;
+use pbs_datastore::{
+    check_backup_owner, task_tracking, BackupDir, BackupGroup, DataStore, LocalChunkReader,
+    StoreProgress, CATALOG_NAME,
+};
 use pbs_tools::json::{required_integer_param, required_string_param};
-use pbs_config::CachedUserInfo;
-use proxmox_rest_server::{WorkerTask, formatter};
+use proxmox_rest_server::{formatter, WorkerTask};
 
 use crate::api2::node::rrd::create_value_from_rrd;
-use crate::backup::{
-    verify_all_backups, verify_backup_group, verify_backup_dir, verify_filter,
-};
+use crate::backup::{verify_all_backups, verify_backup_dir, verify_backup_group, verify_filter};
 
 use crate::server::jobstate::Job;
-
 
 const GROUP_NOTES_FILE_NAME: &str = "notes";
 
@@ -97,7 +90,6 @@ fn read_backup_index(
     store: &DataStore,
     backup_dir: &BackupDir,
 ) -> Result<(BackupManifest, Vec<BackupContent>), Error> {
-
     let (manifest, index_size) = store.load_manifest(backup_dir)?;
 
     let mut result = Vec::new();
@@ -125,7 +117,6 @@ fn get_all_snapshot_files(
     store: &DataStore,
     info: &BackupInfo,
 ) -> Result<(BackupManifest, Vec<BackupContent>), Error> {
-
     let (manifest, mut files) = read_backup_index(store, &info.backup_dir)?;
 
     let file_set = files.iter().fold(HashSet::new(), |mut acc, item| {
@@ -134,7 +125,9 @@ fn get_all_snapshot_files(
     });
 
     for file in &info.files {
-        if file_set.contains(file) { continue; }
+        if file_set.contains(file) {
+            continue;
+        }
         files.push(BackupContent {
             filename: file.to_string(),
             size: None,
@@ -166,7 +159,6 @@ pub fn list_groups(
     store: String,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<GroupListItem>, Error> {
-
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
     let user_privs = user_info.lookup_privs(&auth_id, &["datastore", &store]);
@@ -182,12 +174,12 @@ pub fn list_groups(
             let owner = match datastore.get_owner(&group) {
                 Ok(auth_id) => auth_id,
                 Err(err) => {
-                    eprintln!("Failed to get owner of group '{}/{}' - {}",
-                             &store,
-                             group,
-                             err);
+                    eprintln!(
+                        "Failed to get owner of group '{}/{}' - {}",
+                        &store, group, err
+                    );
                     return group_info;
-                },
+                }
             };
             if !list_all && check_backup_owner(&owner, &auth_id).is_err() {
                 return group_info;
@@ -197,7 +189,7 @@ pub fn list_groups(
                 Ok(snapshots) => snapshots,
                 Err(_) => {
                     return group_info;
-                },
+                }
             };
 
             let backup_count: u64 = snapshots.len() as u64;
@@ -209,7 +201,8 @@ pub fn list_groups(
                 .iter()
                 .fold(&snapshots[0], |last, curr| {
                     if curr.is_finished()
-                        && curr.backup_dir.backup_time() > last.backup_dir.backup_time() {
+                        && curr.backup_dir.backup_time() > last.backup_dir.backup_time()
+                    {
                         curr
                     } else {
                         last
@@ -265,7 +258,6 @@ pub fn delete_group(
     _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
     let group = BackupGroup::new(backup_type, backup_id);
@@ -314,13 +306,17 @@ pub fn list_snapshot_files(
     _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<BackupContent>, Error> {
-
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
 
     let snapshot = BackupDir::new(backup_type, backup_id, backup_time)?;
 
-    check_priv_or_backup_owner(&datastore, snapshot.group(), &auth_id, PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_READ)?;
+    check_priv_or_backup_owner(
+        &datastore,
+        snapshot.group(),
+        &auth_id,
+        PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_READ,
+    )?;
 
     let info = BackupInfo::new(&datastore.base_path(), snapshot)?;
 
@@ -362,13 +358,17 @@ pub fn delete_snapshot(
     _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
     let snapshot = BackupDir::new(backup_type, backup_id, backup_time)?;
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
-    check_priv_or_backup_owner(&datastore, snapshot.group(), &auth_id, PRIV_DATASTORE_MODIFY)?;
+    check_priv_or_backup_owner(
+        &datastore,
+        snapshot.group(),
+        &auth_id,
+        PRIV_DATASTORE_MODIFY,
+    )?;
 
     datastore.remove_backup_dir(&snapshot, false)?;
 
@@ -401,7 +401,7 @@ pub fn delete_snapshot(
     },
 )]
 /// List backup snapshots.
-pub fn list_snapshots (
+pub fn list_snapshots(
     store: String,
     backup_type: Option<String>,
     backup_id: Option<String>,
@@ -409,7 +409,6 @@ pub fn list_snapshots (
     _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<SnapshotListItem>, Error> {
-
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
     let user_privs = user_info.lookup_privs(&auth_id, &["datastore", &store]);
@@ -425,19 +424,15 @@ pub fn list_snapshots (
             let mut groups = Vec::with_capacity(1);
             groups.push(BackupGroup::new(backup_type, backup_id));
             groups
-        },
-        (Some(backup_type), None) => {
-            BackupInfo::list_backup_groups(&base_path)?
-                .into_iter()
-                .filter(|group| group.backup_type() == backup_type)
-                .collect()
-        },
-        (None, Some(backup_id)) => {
-            BackupInfo::list_backup_groups(&base_path)?
-                .into_iter()
-                .filter(|group| group.backup_id() == backup_id)
-                .collect()
-        },
+        }
+        (Some(backup_type), None) => BackupInfo::list_backup_groups(&base_path)?
+            .into_iter()
+            .filter(|group| group.backup_type() == backup_type)
+            .collect(),
+        (None, Some(backup_id)) => BackupInfo::list_backup_groups(&base_path)?
+            .into_iter()
+            .filter(|group| group.backup_id() == backup_id)
+            .collect(),
         _ => BackupInfo::list_backup_groups(&base_path)?,
     };
 
@@ -460,17 +455,18 @@ pub fn list_snapshots (
                     Err(err) => {
                         eprintln!("error parsing fingerprint: '{}'", err);
                         None
-                    },
+                    }
                 };
 
                 let verification = manifest.unprotected["verify_state"].clone();
-                let verification: Option<SnapshotVerifyState> = match serde_json::from_value(verification) {
-                    Ok(verify) => verify,
-                    Err(err) => {
-                        eprintln!("error parsing verification state : '{}'", err);
-                        None
-                    }
-                };
+                let verification: Option<SnapshotVerifyState> =
+                    match serde_json::from_value(verification) {
+                        Ok(verify) => verify,
+                        Err(err) => {
+                            eprintln!("error parsing verification state : '{}'", err);
+                            None
+                        }
+                    };
 
                 let size = Some(files.iter().map(|x| x.size.unwrap_or(0)).sum());
 
@@ -486,18 +482,18 @@ pub fn list_snapshots (
                     owner,
                     protected,
                 }
-            },
+            }
             Err(err) => {
                 eprintln!("error during snapshot file listing: '{}'", err);
                 let files = info
-                        .files
-                        .into_iter()
-                        .map(|filename| BackupContent {
-                            filename,
-                            size: None,
-                            crypt_mode: None,
-                        })
-                        .collect();
+                    .files
+                    .into_iter()
+                    .map(|filename| BackupContent {
+                        filename,
+                        size: None,
+                        crypt_mode: None,
+                    })
+                    .collect();
 
                 SnapshotListItem {
                     backup_type,
@@ -511,55 +507,56 @@ pub fn list_snapshots (
                     owner,
                     protected,
                 }
-            },
+            }
         }
     };
 
-    groups
-        .iter()
-        .try_fold(Vec::new(), |mut snapshots, group| {
-            let owner = match datastore.get_owner(group) {
-                Ok(auth_id) => auth_id,
-                Err(err) => {
-                    eprintln!("Failed to get owner of group '{}/{}' - {}",
-                              &store,
-                              group,
-                              err);
-                    return Ok(snapshots);
-                },
-            };
-
-            if !list_all && check_backup_owner(&owner, &auth_id).is_err() {
+    groups.iter().try_fold(Vec::new(), |mut snapshots, group| {
+        let owner = match datastore.get_owner(group) {
+            Ok(auth_id) => auth_id,
+            Err(err) => {
+                eprintln!(
+                    "Failed to get owner of group '{}/{}' - {}",
+                    &store, group, err
+                );
                 return Ok(snapshots);
             }
+        };
 
-            let group_backups = group.list_backups(&datastore.base_path())?;
+        if !list_all && check_backup_owner(&owner, &auth_id).is_err() {
+            return Ok(snapshots);
+        }
 
-            snapshots.extend(
-                group_backups
-                    .into_iter()
-                    .map(|info| info_to_snapshot_list_item(group, Some(owner.clone()), info))
-            );
+        let group_backups = group.list_backups(&datastore.base_path())?;
 
-            Ok(snapshots)
-        })
+        snapshots.extend(
+            group_backups
+                .into_iter()
+                .map(|info| info_to_snapshot_list_item(group, Some(owner.clone()), info)),
+        );
+
+        Ok(snapshots)
+    })
 }
 
 fn get_snapshots_count(store: &DataStore, filter_owner: Option<&Authid>) -> Result<Counts, Error> {
     let base_path = store.base_path();
     let groups = BackupInfo::list_backup_groups(&base_path)?;
 
-    groups.iter()
+    groups
+        .iter()
         .filter(|group| {
             let owner = match store.get_owner(group) {
                 Ok(owner) => owner,
                 Err(err) => {
-                    eprintln!("Failed to get owner of group '{}/{}' - {}",
-                              store.name(),
-                              group,
-                              err);
+                    eprintln!(
+                        "Failed to get owner of group '{}/{}' - {}",
+                        store.name(),
+                        group,
+                        err
+                    );
                     return false;
-                },
+                }
             };
 
             match filter_owner {
@@ -707,7 +704,10 @@ pub fn verify(
 
     match (backup_type, backup_id, backup_time) {
         (Some(backup_type), Some(backup_id), Some(backup_time)) => {
-            worker_id = format!("{}:{}/{}/{:08X}", store, backup_type, backup_id, backup_time);
+            worker_id = format!(
+                "{}:{}/{}/{:08X}",
+                store, backup_type, backup_id, backup_time
+            );
             let dir = BackupDir::new(backup_type, backup_id, backup_time)?;
 
             check_priv_or_backup_owner(&datastore, dir.group(), &auth_id, PRIV_DATASTORE_VERIFY)?;
@@ -745,9 +745,7 @@ pub fn verify(
                     &verify_worker,
                     &backup_dir,
                     worker.upid().clone(),
-                    Some(&move |manifest| {
-                        verify_filter(ignore_verified, outdated_after, manifest)
-                    }),
+                    Some(&move |manifest| verify_filter(ignore_verified, outdated_after, manifest)),
                 )? {
                     res.push(backup_dir.to_string());
                 }
@@ -758,14 +756,11 @@ pub fn verify(
                     &backup_group,
                     &mut StoreProgress::new(1),
                     worker.upid(),
-                    Some(&move |manifest| {
-                        verify_filter(ignore_verified, outdated_after, manifest)
-                    }),
+                    Some(&move |manifest| verify_filter(ignore_verified, outdated_after, manifest)),
                 )?;
                 failed_dirs
             } else {
-                let privs = CachedUserInfo::new()?
-                    .lookup_privs(&auth_id, &["datastore", &store]);
+                let privs = CachedUserInfo::new()?.lookup_privs(&auth_id, &["datastore", &store]);
 
                 let owner = if privs & PRIV_DATASTORE_VERIFY == 0 {
                     Some(auth_id)
@@ -777,9 +772,7 @@ pub fn verify(
                     &verify_worker,
                     worker.upid(),
                     owner,
-                    Some(&move |manifest| {
-                        verify_filter(ignore_verified, outdated_after, manifest)
-                    }),
+                    Some(&move |manifest| verify_filter(ignore_verified, outdated_after, manifest)),
                 )?
             };
             if !failed_dirs.is_empty() {
@@ -835,7 +828,6 @@ pub fn prune(
     _param: Value,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
     let group = BackupGroup::new(&backup_type, &backup_id);
@@ -874,16 +866,24 @@ pub fn prune(
         return Ok(json!(prune_result));
     }
 
-
     // We use a WorkerTask just to have a task log, but run synchrounously
     let worker = WorkerTask::new("prune", Some(worker_id), auth_id.to_string(), true)?;
 
     if keep_all {
         task_log!(worker, "No prune selection - keeping all files.");
     } else {
-        task_log!(worker, "retention options: {}", pbs_datastore::prune::cli_options_string(&prune_options));
-        task_log!(worker, "Starting prune on store \"{}\" group \"{}/{}\"",
-                  store, backup_type, backup_id);
+        task_log!(
+            worker,
+            "retention options: {}",
+            pbs_datastore::prune::cli_options_string(&prune_options)
+        );
+        task_log!(
+            worker,
+            "Starting prune on store \"{}\" group \"{}/{}\"",
+            store,
+            backup_type,
+            backup_id
+        );
     }
 
     for (info, mark) in prune_info {
@@ -892,7 +892,6 @@ pub fn prune(
         let backup_time = info.backup_dir.backup_time();
         let timestamp = info.backup_dir.backup_time_string();
         let group = info.backup_dir.group();
-
 
         let msg = format!(
             "{}/{}/{} {}",
@@ -962,7 +961,6 @@ pub fn prune_datastore(
     _param: Value,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
-
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
@@ -974,14 +972,16 @@ pub fn prune_datastore(
         Some(store.clone()),
         auth_id.to_string(),
         to_stdout,
-        move |worker| crate::server::prune_datastore(
-            worker,
-            auth_id,
-            prune_options,
-            &store,
-            datastore,
-            dry_run
-        ),
+        move |worker| {
+            crate::server::prune_datastore(
+                worker,
+                auth_id,
+                prune_options,
+                &store,
+                datastore,
+                dry_run,
+            )
+        },
     )?;
 
     Ok(upid_str)
@@ -1008,17 +1008,23 @@ pub fn start_garbage_collection(
     _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-    let job =  Job::new("garbage_collection", &store)
+    let job = Job::new("garbage_collection", &store)
         .map_err(|_| format_err!("garbage collection already running"))?;
 
     let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
-    let upid_str = crate::server::do_garbage_collection_job(job, datastore, &auth_id, None, to_stdout)
-        .map_err(|err| format_err!("unable to start garbage collection job on datastore {} - {}", store, err))?;
+    let upid_str =
+        crate::server::do_garbage_collection_job(job, datastore, &auth_id, None, to_stdout)
+            .map_err(|err| {
+                format_err!(
+                    "unable to start garbage collection job on datastore {} - {}",
+                    store,
+                    err
+                )
+            })?;
 
     Ok(json!(upid_str))
 }
@@ -1044,7 +1050,6 @@ pub fn garbage_collection_status(
     _info: &ApiMethod,
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<GarbageCollectionStatus, Error> {
-
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
 
     let status = datastore.last_gc_status();
@@ -1068,7 +1073,6 @@ pub fn get_datastore_list(
     _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<DataStoreListItem>, Error> {
-
     let (config, _digest) = pbs_config::datastore::config()?;
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
@@ -1078,14 +1082,12 @@ pub fn get_datastore_list(
 
     for (store, (_, data)) in &config.sections {
         let user_privs = user_info.lookup_privs(&auth_id, &["datastore", store]);
-        let allowed = (user_privs & (PRIV_DATASTORE_AUDIT| PRIV_DATASTORE_BACKUP)) != 0;
+        let allowed = (user_privs & (PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_BACKUP)) != 0;
         if allowed {
-            list.push(
-                DataStoreListItem {
-                    store: store.clone(),
-                    comment: data["comment"].as_str().map(String::from),
-                }
-            );
+            list.push(DataStoreListItem {
+                store: store.clone(),
+                comment: data["comment"].as_str().map(String::from),
+            });
         }
     }
 
@@ -1100,15 +1102,19 @@ pub const API_METHOD_DOWNLOAD_FILE: ApiMethod = ApiMethod::new(
         &sorted!([
             ("store", false, &DATASTORE_SCHEMA),
             ("backup-type", false, &BACKUP_TYPE_SCHEMA),
-            ("backup-id", false,  &BACKUP_ID_SCHEMA),
+            ("backup-id", false, &BACKUP_ID_SCHEMA),
             ("backup-time", false, &BACKUP_TIME_SCHEMA),
             ("file-name", false, &BACKUP_ARCHIVE_NAME_SCHEMA),
         ]),
-    )
-).access(None, &Permission::Privilege(
-    &["datastore", "{store}"],
-    PRIV_DATASTORE_READ | PRIV_DATASTORE_BACKUP,
-    true)
+    ),
+)
+.access(
+    None,
+    &Permission::Privilege(
+        &["datastore", "{store}"],
+        PRIV_DATASTORE_READ | PRIV_DATASTORE_BACKUP,
+        true,
+    ),
 );
 
 pub fn download_file(
@@ -1118,7 +1124,6 @@ pub fn download_file(
     _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
 ) -> ApiResponseFuture {
-
     async move {
         let store = required_string_param(&param, "store")?;
         let datastore = DataStore::lookup_datastore(store, Some(Operation::Read))?;
@@ -1133,9 +1138,17 @@ pub fn download_file(
 
         let backup_dir = BackupDir::new(backup_type, backup_id, backup_time)?;
 
-        check_priv_or_backup_owner(&datastore, backup_dir.group(), &auth_id, PRIV_DATASTORE_READ)?;
+        check_priv_or_backup_owner(
+            &datastore,
+            backup_dir.group(),
+            &auth_id,
+            PRIV_DATASTORE_READ,
+        )?;
 
-        println!("Download {} from {} ({}/{})", file_name, store, backup_dir, file_name);
+        println!(
+            "Download {} from {} ({}/{})",
+            file_name, store, backup_dir, file_name
+        );
 
         let mut path = datastore.base_path();
         path.push(backup_dir.relative_path());
@@ -1145,21 +1158,23 @@ pub fn download_file(
             .await
             .map_err(|err| http_err!(BAD_REQUEST, "File open failed: {}", err))?;
 
-        let payload = tokio_util::codec::FramedRead::new(file, tokio_util::codec::BytesCodec::new())
-            .map_ok(|bytes| bytes.freeze())
-            .map_err(move |err| {
-                eprintln!("error during streaming of '{:?}' - {}", &path, err);
-                err
-            });
+        let payload =
+            tokio_util::codec::FramedRead::new(file, tokio_util::codec::BytesCodec::new())
+                .map_ok(|bytes| bytes.freeze())
+                .map_err(move |err| {
+                    eprintln!("error during streaming of '{:?}' - {}", &path, err);
+                    err
+                });
         let body = Body::wrap_stream(payload);
 
         // fixme: set other headers ?
         Ok(Response::builder()
-           .status(StatusCode::OK)
-           .header(header::CONTENT_TYPE, "application/octet-stream")
-           .body(body)
-           .unwrap())
-    }.boxed()
+            .status(StatusCode::OK)
+            .header(header::CONTENT_TYPE, "application/octet-stream")
+            .body(body)
+            .unwrap())
+    }
+    .boxed()
 }
 
 #[sortable]
@@ -1170,15 +1185,19 @@ pub const API_METHOD_DOWNLOAD_FILE_DECODED: ApiMethod = ApiMethod::new(
         &sorted!([
             ("store", false, &DATASTORE_SCHEMA),
             ("backup-type", false, &BACKUP_TYPE_SCHEMA),
-            ("backup-id", false,  &BACKUP_ID_SCHEMA),
+            ("backup-id", false, &BACKUP_ID_SCHEMA),
             ("backup-time", false, &BACKUP_TIME_SCHEMA),
             ("file-name", false, &BACKUP_ARCHIVE_NAME_SCHEMA),
         ]),
-    )
-).access(None, &Permission::Privilege(
-    &["datastore", "{store}"],
-    PRIV_DATASTORE_READ | PRIV_DATASTORE_BACKUP,
-    true)
+    ),
+)
+.access(
+    None,
+    &Permission::Privilege(
+        &["datastore", "{store}"],
+        PRIV_DATASTORE_READ | PRIV_DATASTORE_BACKUP,
+        true,
+    ),
 );
 
 pub fn download_file_decoded(
@@ -1188,7 +1207,6 @@ pub fn download_file_decoded(
     _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
 ) -> ApiResponseFuture {
-
     async move {
         let store = required_string_param(&param, "store")?;
         let datastore = DataStore::lookup_datastore(store, Some(Operation::Read))?;
@@ -1203,7 +1221,12 @@ pub fn download_file_decoded(
 
         let backup_dir = BackupDir::new(backup_type, backup_id, backup_time)?;
 
-        check_priv_or_backup_owner(&datastore, backup_dir.group(), &auth_id, PRIV_DATASTORE_READ)?;
+        check_priv_or_backup_owner(
+            &datastore,
+            backup_dir.group(),
+            &auth_id,
+            PRIV_DATASTORE_READ,
+        )?;
 
         let (manifest, files) = read_backup_index(&datastore, &backup_dir)?;
         for file in files {
@@ -1212,7 +1235,10 @@ pub fn download_file_decoded(
             }
         }
 
-        println!("Download {} from {} ({}/{})", file_name, store, backup_dir, file_name);
+        println!(
+            "Download {} from {} ({}/{})",
+            file_name, store, backup_dir, file_name
+        );
 
         let mut path = datastore.base_path();
         path.push(backup_dir.relative_path());
@@ -1222,34 +1248,38 @@ pub fn download_file_decoded(
 
         let body = match extension {
             "didx" => {
-                let index = DynamicIndexReader::open(&path)
-                    .map_err(|err| format_err!("unable to read dynamic index '{:?}' - {}", &path, err))?;
+                let index = DynamicIndexReader::open(&path).map_err(|err| {
+                    format_err!("unable to read dynamic index '{:?}' - {}", &path, err)
+                })?;
                 let (csum, size) = index.compute_csum();
                 manifest.verify_file(&file_name, &csum, size)?;
 
                 let chunk_reader = LocalChunkReader::new(datastore, None, CryptMode::None);
                 let reader = CachedChunkReader::new(chunk_reader, index, 1).seekable();
-                Body::wrap_stream(AsyncReaderStream::new(reader)
-                    .map_err(move |err| {
-                        eprintln!("error during streaming of '{:?}' - {}", path, err);
-                        err
-                    }))
-            },
+                Body::wrap_stream(AsyncReaderStream::new(reader).map_err(move |err| {
+                    eprintln!("error during streaming of '{:?}' - {}", path, err);
+                    err
+                }))
+            }
             "fidx" => {
-                let index = FixedIndexReader::open(&path)
-                    .map_err(|err| format_err!("unable to read fixed index '{:?}' - {}", &path, err))?;
+                let index = FixedIndexReader::open(&path).map_err(|err| {
+                    format_err!("unable to read fixed index '{:?}' - {}", &path, err)
+                })?;
 
                 let (csum, size) = index.compute_csum();
                 manifest.verify_file(&file_name, &csum, size)?;
 
                 let chunk_reader = LocalChunkReader::new(datastore, None, CryptMode::None);
                 let reader = CachedChunkReader::new(chunk_reader, index, 1).seekable();
-                Body::wrap_stream(AsyncReaderStream::with_buffer_size(reader, 4*1024*1024)
-                    .map_err(move |err| {
-                        eprintln!("error during streaming of '{:?}' - {}", path, err);
-                        err
-                    }))
-            },
+                Body::wrap_stream(
+                    AsyncReaderStream::with_buffer_size(reader, 4 * 1024 * 1024).map_err(
+                        move |err| {
+                            eprintln!("error during streaming of '{:?}' - {}", path, err);
+                            err
+                        },
+                    ),
+                )
+            }
             "blob" => {
                 let file = std::fs::File::open(&path)
                     .map_err(|err| http_err!(BAD_REQUEST, "File open failed: {}", err))?;
@@ -1257,25 +1287,27 @@ pub fn download_file_decoded(
                 // FIXME: load full blob to verify index checksum?
 
                 Body::wrap_stream(
-                    WrappedReaderStream::new(DataBlobReader::new(file, None)?)
-                        .map_err(move |err| {
+                    WrappedReaderStream::new(DataBlobReader::new(file, None)?).map_err(
+                        move |err| {
                             eprintln!("error during streaming of '{:?}' - {}", path, err);
                             err
-                        })
+                        },
+                    ),
                 )
-            },
+            }
             extension => {
                 bail!("cannot download '{}' files", extension);
-            },
+            }
         };
 
         // fixme: set other headers ?
         Ok(Response::builder()
-           .status(StatusCode::OK)
-           .header(header::CONTENT_TYPE, "application/octet-stream")
-           .body(body)
-           .unwrap())
-    }.boxed()
+            .status(StatusCode::OK)
+            .header(header::CONTENT_TYPE, "application/octet-stream")
+            .body(body)
+            .unwrap())
+    }
+    .boxed()
 }
 
 #[sortable]
@@ -1289,10 +1321,11 @@ pub const API_METHOD_UPLOAD_BACKUP_LOG: ApiMethod = ApiMethod::new(
             ("backup-id", false, &BACKUP_ID_SCHEMA),
             ("backup-time", false, &BACKUP_TIME_SCHEMA),
         ]),
-    )
-).access(
+    ),
+)
+.access(
     Some("Only the backup creator/owner is allowed to do this."),
-    &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_BACKUP, false)
+    &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_BACKUP, false),
 );
 
 pub fn upload_backup_log(
@@ -1302,12 +1335,11 @@ pub fn upload_backup_log(
     _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
 ) -> ApiResponseFuture {
-
     async move {
         let store = required_string_param(&param, "store")?;
         let datastore = DataStore::lookup_datastore(store, Some(Operation::Write))?;
 
-        let file_name =  CLIENT_LOG_BLOB_NAME;
+        let file_name = CLIENT_LOG_BLOB_NAME;
 
         let backup_type = required_string_param(&param, "backup-type")?;
         let backup_id = required_string_param(&param, "backup-id")?;
@@ -1327,8 +1359,14 @@ pub fn upload_backup_log(
             bail!("backup already contains a log.");
         }
 
-        println!("Upload backup log to {}/{}/{}/{}/{}", store,
-                 backup_type, backup_id, backup_dir.backup_time_string(), file_name);
+        println!(
+            "Upload backup log to {}/{}/{}/{}/{}",
+            store,
+            backup_type,
+            backup_id,
+            backup_dir.backup_time_string(),
+            file_name
+        );
 
         let data = req_body
             .map_err(Error::from)
@@ -1345,7 +1383,8 @@ pub fn upload_backup_log(
 
         // fixme: use correct formatter
         Ok(formatter::JSON_FORMATTER.format_data(Value::Null, &*rpcenv))
-    }.boxed()
+    }
+    .boxed()
 }
 
 #[api(
@@ -1388,7 +1427,12 @@ pub fn catalog(
 
     let backup_dir = BackupDir::new(backup_type, backup_id, backup_time)?;
 
-    check_priv_or_backup_owner(&datastore, backup_dir.group(), &auth_id, PRIV_DATASTORE_READ)?;
+    check_priv_or_backup_owner(
+        &datastore,
+        backup_dir.group(),
+        &auth_id,
+        PRIV_DATASTORE_READ,
+    )?;
 
     let file_name = CATALOG_NAME;
 
@@ -1450,7 +1494,6 @@ pub fn pxar_file_download(
     _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
 ) -> ApiResponseFuture {
-
     async move {
         let store = required_string_param(&param, "store")?;
         let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
@@ -1467,7 +1510,12 @@ pub fn pxar_file_download(
 
         let backup_dir = BackupDir::new(backup_type, backup_id, backup_time)?;
 
-        check_priv_or_backup_owner(&datastore, backup_dir.group(), &auth_id, PRIV_DATASTORE_READ)?;
+        check_priv_or_backup_owner(
+            &datastore,
+            backup_dir.group(),
+            &auth_id,
+            PRIV_DATASTORE_READ,
+        )?;
 
         let mut components = base64::decode(&filepath)?;
         if !components.is_empty() && components[0] == b'/' {
@@ -1503,7 +1551,8 @@ pub fn pxar_file_download(
         let root = decoder.open_root().await?;
         let path = OsStr::from_bytes(file_path).to_os_string();
         let file = root
-            .lookup(&path).await?
+            .lookup(&path)
+            .await?
             .ok_or_else(|| format_err!("error opening '{:?}'", path))?;
 
         let body = match file.kind() {
@@ -1516,10 +1565,7 @@ pub fn pxar_file_download(
             EntryKind::Hardlink(_) => Body::wrap_stream(
                 AsyncReaderStream::new(decoder.follow_hardlink(&file).await?.contents().await?)
                     .map_err(move |err| {
-                        eprintln!(
-                            "error during streaming of hardlink '{:?}' - {}",
-                            path, err
-                        );
+                        eprintln!("error during streaming of hardlink '{:?}' - {}", path, err);
                         err
                     }),
             ),
@@ -1527,18 +1573,24 @@ pub fn pxar_file_download(
                 let (sender, receiver) = tokio::sync::mpsc::channel::<Result<_, Error>>(100);
                 let channelwriter = AsyncChannelWriter::new(sender, 1024 * 1024);
                 if tar {
-                    proxmox_rest_server::spawn_internal_task(
-                        create_tar(channelwriter, decoder, path.clone(), false)
-                    );
+                    proxmox_rest_server::spawn_internal_task(create_tar(
+                        channelwriter,
+                        decoder,
+                        path.clone(),
+                        false,
+                    ));
                     let zstdstream = ZstdEncoder::new(ReceiverStream::new(receiver))?;
                     Body::wrap_stream(zstdstream.map_err(move |err| {
                         eprintln!("error during streaming of tar.zst '{:?}' - {}", path, err);
                         err
                     }))
                 } else {
-                    proxmox_rest_server::spawn_internal_task(
-                        create_zip(channelwriter, decoder, path.clone(), false)
-                    );
+                    proxmox_rest_server::spawn_internal_task(create_zip(
+                        channelwriter,
+                        decoder,
+                        path.clone(),
+                        false,
+                    ));
                     Body::wrap_stream(ReceiverStream::new(receiver).map_err(move |err| {
                         eprintln!("error during streaming of zip '{:?}' - {}", path, err);
                         err
@@ -1550,11 +1602,12 @@ pub fn pxar_file_download(
 
         // fixme: set other headers ?
         Ok(Response::builder()
-           .status(StatusCode::OK)
-           .header(header::CONTENT_TYPE, "application/octet-stream")
-           .body(body)
-           .unwrap())
-    }.boxed()
+            .status(StatusCode::OK)
+            .header(header::CONTENT_TYPE, "application/octet-stream")
+            .body(body)
+            .unwrap())
+    }
+    .boxed()
 }
 
 #[api(
@@ -1582,28 +1635,25 @@ pub fn get_rrd_stats(
     cf: RRDMode,
     _param: Value,
 ) -> Result<Value, Error> {
-
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
     let disk_manager = crate::tools::disks::DiskManage::new();
 
     let mut rrd_fields = vec![
-        "total", "used",
-        "read_ios", "read_bytes",
-        "write_ios", "write_bytes",
+        "total",
+        "used",
+        "read_ios",
+        "read_bytes",
+        "write_ios",
+        "write_bytes",
     ];
 
     // we do not have io_ticks for zpools, so don't include them
     match disk_manager.find_mounted_device(&datastore.base_path()) {
-        Ok(Some((fs_type, _, _))) if fs_type.as_str() == "zfs" => {},
+        Ok(Some((fs_type, _, _))) if fs_type.as_str() == "zfs" => {}
         _ => rrd_fields.push("io_ticks"),
     };
 
-    create_value_from_rrd(
-        &format!("datastore/{}", store),
-        &rrd_fields,
-        timeframe,
-        cf,
-    )
+    create_value_from_rrd(&format!("datastore/{}", store), &rrd_fields, timeframe, cf)
 }
 
 #[api(
@@ -1619,10 +1669,7 @@ pub fn get_rrd_stats(
     },
 )]
 /// Read datastore stats
-pub fn get_active_operations(
-    store: String,
-    _param: Value,
-) -> Result<Value, Error> {
+pub fn get_active_operations(store: String, _param: Value) -> Result<Value, Error> {
     let active_operations = task_tracking::get_active_operations(&store)?;
     Ok(json!({
         "read": active_operations.read,
@@ -1744,13 +1791,16 @@ pub fn get_notes(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let backup_dir = BackupDir::new(backup_type, backup_id, backup_time)?;
 
-    check_priv_or_backup_owner(&datastore, backup_dir.group(), &auth_id, PRIV_DATASTORE_AUDIT)?;
+    check_priv_or_backup_owner(
+        &datastore,
+        backup_dir.group(),
+        &auth_id,
+        PRIV_DATASTORE_AUDIT,
+    )?;
 
     let (manifest, _) = datastore.load_manifest(&backup_dir)?;
 
-    let notes = manifest.unprotected["notes"]
-        .as_str()
-        .unwrap_or("");
+    let notes = manifest.unprotected["notes"].as_str().unwrap_or("");
 
     Ok(String::from(notes))
 }
@@ -1795,11 +1845,18 @@ pub fn set_notes(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let backup_dir = BackupDir::new(backup_type, backup_id, backup_time)?;
 
-    check_priv_or_backup_owner(&datastore, backup_dir.group(), &auth_id, PRIV_DATASTORE_MODIFY)?;
+    check_priv_or_backup_owner(
+        &datastore,
+        backup_dir.group(),
+        &auth_id,
+        PRIV_DATASTORE_MODIFY,
+    )?;
 
-    datastore.update_manifest(&backup_dir,|manifest| {
-        manifest.unprotected["notes"] = notes.into();
-    }).map_err(|err| format_err!("unable to update manifest blob - {}", err))?;
+    datastore
+        .update_manifest(&backup_dir, |manifest| {
+            manifest.unprotected["notes"] = notes.into();
+        })
+        .map_err(|err| format_err!("unable to update manifest blob - {}", err))?;
 
     Ok(())
 }
@@ -1838,7 +1895,12 @@ pub fn get_protection(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let backup_dir = BackupDir::new(backup_type, backup_id, backup_time)?;
 
-    check_priv_or_backup_owner(&datastore, backup_dir.group(), &auth_id, PRIV_DATASTORE_AUDIT)?;
+    check_priv_or_backup_owner(
+        &datastore,
+        backup_dir.group(),
+        &auth_id,
+        PRIV_DATASTORE_AUDIT,
+    )?;
 
     Ok(backup_dir.is_protected(datastore.base_path()))
 }
@@ -1883,7 +1945,12 @@ pub fn set_protection(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let backup_dir = BackupDir::new(backup_type, backup_id, backup_time)?;
 
-    check_priv_or_backup_owner(&datastore, backup_dir.group(), &auth_id, PRIV_DATASTORE_MODIFY)?;
+    check_priv_or_backup_owner(
+        &datastore,
+        backup_dir.group(),
+        &auth_id,
+        PRIV_DATASTORE_MODIFY,
+    )?;
 
     datastore.update_protection(&backup_dir, protected)
 }
@@ -1918,7 +1985,6 @@ pub fn set_backup_owner(
     new_owner: Authid,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
-
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
     let backup_group = BackupGroup::new(backup_type, backup_id);
@@ -1941,43 +2007,44 @@ pub fn set_backup_owner(
                 let owner = owner.user();
                 let new_owner = new_owner.user();
                 owner == new_owner && Authid::from(owner.clone()) == auth_id
-            },
+            }
             (true, false) => {
                 // API token to API token owner
-                Authid::from(owner.user().clone()) == auth_id
-                    && new_owner == auth_id
-            },
+                Authid::from(owner.user().clone()) == auth_id && new_owner == auth_id
+            }
             (false, true) => {
                 // API token owner to API token
-                owner == auth_id
-                    && Authid::from(new_owner.user().clone()) == auth_id
-            },
+                owner == auth_id && Authid::from(new_owner.user().clone()) == auth_id
+            }
             (false, false) => {
                 // User to User, not allowed for unprivileged users
                 false
-            },
+            }
         }
     } else {
         false
     };
 
     if !allowed {
-        return Err(http_err!(UNAUTHORIZED,
-                  "{} does not have permission to change owner of backup group '{}' to {}",
-                  auth_id,
-                  backup_group,
-                  new_owner,
+        return Err(http_err!(
+            UNAUTHORIZED,
+            "{} does not have permission to change owner of backup group '{}' to {}",
+            auth_id,
+            backup_group,
+            new_owner,
         ));
     }
 
     if !user_info.is_active_auth_id(&new_owner) {
-        bail!("{} '{}' is inactive or non-existent",
-              if new_owner.is_token() {
-                  "API token".to_string()
-              } else {
-                  "user".to_string()
-              },
-              new_owner);
+        bail!(
+            "{} '{}' is inactive or non-existent",
+            if new_owner.is_token() {
+                "API token".to_string()
+            } else {
+                "user".to_string()
+            },
+            new_owner
+        );
     }
 
     datastore.set_owner(&backup_group, &new_owner, true)?;
@@ -1989,111 +2056,79 @@ pub fn set_backup_owner(
 const DATASTORE_INFO_SUBDIRS: SubdirMap = &[
     (
         "active-operations",
-        &Router::new()
-            .get(&API_METHOD_GET_ACTIVE_OPERATIONS)
+        &Router::new().get(&API_METHOD_GET_ACTIVE_OPERATIONS),
     ),
-    (
-        "catalog",
-        &Router::new()
-            .get(&API_METHOD_CATALOG)
-    ),
+    ("catalog", &Router::new().get(&API_METHOD_CATALOG)),
     (
         "change-owner",
-        &Router::new()
-            .post(&API_METHOD_SET_BACKUP_OWNER)
+        &Router::new().post(&API_METHOD_SET_BACKUP_OWNER),
     ),
     (
         "download",
-        &Router::new()
-            .download(&API_METHOD_DOWNLOAD_FILE)
+        &Router::new().download(&API_METHOD_DOWNLOAD_FILE),
     ),
     (
         "download-decoded",
-        &Router::new()
-            .download(&API_METHOD_DOWNLOAD_FILE_DECODED)
+        &Router::new().download(&API_METHOD_DOWNLOAD_FILE_DECODED),
     ),
-    (
-        "files",
-        &Router::new()
-            .get(&API_METHOD_LIST_SNAPSHOT_FILES)
-    ),
+    ("files", &Router::new().get(&API_METHOD_LIST_SNAPSHOT_FILES)),
     (
         "gc",
         &Router::new()
             .get(&API_METHOD_GARBAGE_COLLECTION_STATUS)
-            .post(&API_METHOD_START_GARBAGE_COLLECTION)
+            .post(&API_METHOD_START_GARBAGE_COLLECTION),
     ),
     (
         "group-notes",
         &Router::new()
             .get(&API_METHOD_GET_GROUP_NOTES)
-            .put(&API_METHOD_SET_GROUP_NOTES)
+            .put(&API_METHOD_SET_GROUP_NOTES),
     ),
     (
         "groups",
         &Router::new()
             .get(&API_METHOD_LIST_GROUPS)
-            .delete(&API_METHOD_DELETE_GROUP)
+            .delete(&API_METHOD_DELETE_GROUP),
     ),
     (
         "notes",
         &Router::new()
             .get(&API_METHOD_GET_NOTES)
-            .put(&API_METHOD_SET_NOTES)
+            .put(&API_METHOD_SET_NOTES),
     ),
     (
         "protected",
         &Router::new()
             .get(&API_METHOD_GET_PROTECTION)
-            .put(&API_METHOD_SET_PROTECTION)
+            .put(&API_METHOD_SET_PROTECTION),
     ),
-    (
-        "prune",
-        &Router::new()
-            .post(&API_METHOD_PRUNE)
-    ),
+    ("prune", &Router::new().post(&API_METHOD_PRUNE)),
     (
         "prune-datastore",
-        &Router::new()
-            .post(&API_METHOD_PRUNE_DATASTORE)
+        &Router::new().post(&API_METHOD_PRUNE_DATASTORE),
     ),
     (
         "pxar-file-download",
-        &Router::new()
-            .download(&API_METHOD_PXAR_FILE_DOWNLOAD)
+        &Router::new().download(&API_METHOD_PXAR_FILE_DOWNLOAD),
     ),
-    (
-        "rrd",
-        &Router::new()
-            .get(&API_METHOD_GET_RRD_STATS)
-    ),
+    ("rrd", &Router::new().get(&API_METHOD_GET_RRD_STATS)),
     (
         "snapshots",
         &Router::new()
             .get(&API_METHOD_LIST_SNAPSHOTS)
-            .delete(&API_METHOD_DELETE_SNAPSHOT)
+            .delete(&API_METHOD_DELETE_SNAPSHOT),
     ),
-    (
-        "status",
-        &Router::new()
-            .get(&API_METHOD_STATUS)
-    ),
+    ("status", &Router::new().get(&API_METHOD_STATUS)),
     (
         "upload-backup-log",
-        &Router::new()
-            .upload(&API_METHOD_UPLOAD_BACKUP_LOG)
+        &Router::new().upload(&API_METHOD_UPLOAD_BACKUP_LOG),
     ),
-    (
-        "verify",
-        &Router::new()
-            .post(&API_METHOD_VERIFY)
-    ),
+    ("verify", &Router::new().post(&API_METHOD_VERIFY)),
 ];
 
 const DATASTORE_INFO_ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(DATASTORE_INFO_SUBDIRS))
     .subdirs(DATASTORE_INFO_SUBDIRS);
-
 
 pub const ROUTER: Router = Router::new()
     .get(&API_METHOD_GET_DATASTORE_LIST)

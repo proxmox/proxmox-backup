@@ -3,32 +3,23 @@
 use anyhow::{bail, format_err, Error};
 use serde_json::Value;
 
-use proxmox_sys::sortable;
 use proxmox_router::{
-    list_subdirs_api_method, ApiMethod, Router, RpcEnvironment, RpcEnvironmentType, SubdirMap,
-    Permission,
+    list_subdirs_api_method, ApiMethod, Permission, Router, RpcEnvironment, RpcEnvironmentType,
+    SubdirMap,
 };
 use proxmox_schema::api;
+use proxmox_sys::sortable;
 
-use pbs_api_types::{DATASTORE_SCHEMA, JOB_ID_SCHEMA, Authid, SyncJobConfig, SyncJobStatus};
+use pbs_api_types::{Authid, SyncJobConfig, SyncJobStatus, DATASTORE_SCHEMA, JOB_ID_SCHEMA};
 use pbs_config::sync;
 use pbs_config::CachedUserInfo;
 
 use crate::{
     api2::{
+        config::sync::{check_sync_job_modify_access, check_sync_job_read_access},
         pull::do_sync_job,
-        config::sync::{
-            check_sync_job_modify_access,
-            check_sync_job_read_access,
-        },
     },
-    server::{
-        jobstate::{
-            Job,
-            JobState,
-            compute_schedule_status,
-        },
-    },
+    server::jobstate::{compute_schedule_status, Job, JobState},
 };
 
 #[api(
@@ -56,7 +47,6 @@ pub fn list_sync_jobs(
     _param: Value,
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<SyncJobStatus>, Error> {
-
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
 
@@ -72,9 +62,7 @@ pub fn list_sync_jobs(
                 true
             }
         })
-        .filter(|job: &SyncJobConfig| {
-            check_sync_job_read_access(&user_info, &auth_id, job)
-        });
+        .filter(|job: &SyncJobConfig| check_sync_job_read_access(&user_info, &auth_id, job));
 
     let mut list = Vec::new();
 
@@ -84,7 +72,10 @@ pub fn list_sync_jobs(
 
         let status = compute_schedule_status(&last_state, job.schedule.as_deref())?;
 
-        list.push(SyncJobStatus { config: job, status });
+        list.push(SyncJobStatus {
+            config: job,
+            status,
+        });
     }
 
     rpcenv["digest"] = hex::encode(&digest).into();
@@ -131,18 +122,11 @@ pub fn run_sync_job(
 }
 
 #[sortable]
-const SYNC_INFO_SUBDIRS: SubdirMap = &[
-    (
-        "run",
-        &Router::new()
-            .post(&API_METHOD_RUN_SYNC_JOB)
-    ),
-];
+const SYNC_INFO_SUBDIRS: SubdirMap = &[("run", &Router::new().post(&API_METHOD_RUN_SYNC_JOB))];
 
 const SYNC_INFO_ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(SYNC_INFO_SUBDIRS))
     .subdirs(SYNC_INFO_SUBDIRS);
-
 
 pub const ROUTER: Router = Router::new()
     .get(&API_METHOD_LIST_SYNC_JOBS)

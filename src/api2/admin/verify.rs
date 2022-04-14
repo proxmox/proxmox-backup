@@ -3,29 +3,23 @@
 use anyhow::{format_err, Error};
 use serde_json::Value;
 
-use proxmox_sys::sortable;
 use proxmox_router::{
-    list_subdirs_api_method, ApiMethod, Router, RpcEnvironment, RpcEnvironmentType, SubdirMap,
-    Permission,
+    list_subdirs_api_method, ApiMethod, Permission, Router, RpcEnvironment, RpcEnvironmentType,
+    SubdirMap,
 };
 use proxmox_schema::api;
+use proxmox_sys::sortable;
 
 use pbs_api_types::{
-    VerificationJobConfig, VerificationJobStatus, JOB_ID_SCHEMA, Authid,
-    PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_VERIFY, DATASTORE_SCHEMA,
+    Authid, VerificationJobConfig, VerificationJobStatus, DATASTORE_SCHEMA, JOB_ID_SCHEMA,
+    PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_VERIFY,
 };
 use pbs_config::verify;
 use pbs_config::CachedUserInfo;
 
-use crate::{
-    server::{
-        do_verification_job,
-        jobstate::{
-            Job,
-            JobState,
-            compute_schedule_status,
-        },
-    },
+use crate::server::{
+    do_verification_job,
+    jobstate::{compute_schedule_status, Job, JobState},
 };
 
 #[api(
@@ -84,7 +78,10 @@ pub fn list_verification_jobs(
 
         let status = compute_schedule_status(&last_state, job.schedule.as_deref())?;
 
-        list.push(VerificationJobStatus { config: job, status });
+        list.push(VerificationJobStatus {
+            config: job,
+            status,
+        });
     }
 
     rpcenv["digest"] = hex::encode(&digest).into();
@@ -117,7 +114,12 @@ pub fn run_verification_job(
     let (config, _digest) = verify::config()?;
     let verification_job: VerificationJobConfig = config.lookup("verification", &id)?;
 
-    user_info.check_privs(&auth_id, &["datastore", &verification_job.store], PRIV_DATASTORE_VERIFY, true)?;
+    user_info.check_privs(
+        &auth_id,
+        &["datastore", &verification_job.store],
+        PRIV_DATASTORE_VERIFY,
+        true,
+    )?;
 
     let job = Job::new("verificationjob", &id)?;
     let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
@@ -128,7 +130,8 @@ pub fn run_verification_job(
 }
 
 #[sortable]
-const VERIFICATION_INFO_SUBDIRS: SubdirMap = &[("run", &Router::new().post(&API_METHOD_RUN_VERIFICATION_JOB))];
+const VERIFICATION_INFO_SUBDIRS: SubdirMap =
+    &[("run", &Router::new().post(&API_METHOD_RUN_VERIFICATION_JOB))];
 
 const VERIFICATION_INFO_ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(VERIFICATION_INFO_SUBDIRS))

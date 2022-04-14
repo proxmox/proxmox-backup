@@ -6,19 +6,19 @@ use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-use proxmox_sys::sortable;
 use proxmox_router::{
-    http_err, list_subdirs_api_method, Router, RpcEnvironment, SubdirMap, Permission,
+    http_err, list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap,
 };
 use proxmox_schema::api;
+use proxmox_sys::sortable;
 
 use pbs_api_types::{
-    Userid, Authid, PASSWORD_SCHEMA, ACL_PATH_SCHEMA,
-    PRIVILEGES, PRIV_PERMISSIONS_MODIFY, PRIV_SYS_AUDIT,
+    Authid, Userid, ACL_PATH_SCHEMA, PASSWORD_SCHEMA, PRIVILEGES, PRIV_PERMISSIONS_MODIFY,
+    PRIV_SYS_AUDIT,
 };
-use pbs_tools::ticket::{self, Empty, Ticket};
 use pbs_config::acl::AclTreeNode;
 use pbs_config::CachedUserInfo;
+use pbs_tools::ticket::{self, Empty, Ticket};
 
 use crate::auth_helpers::*;
 use crate::config::tfa::TfaChallenge;
@@ -193,10 +193,11 @@ pub fn create_ticket(
     tfa_challenge: Option<String>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-
     use proxmox_rest_server::RestEnvironment;
 
-    let env: &RestEnvironment = rpcenv.as_any().downcast_ref::<RestEnvironment>()
+    let env: &RestEnvironment = rpcenv
+        .as_any()
+        .downcast_ref::<RestEnvironment>()
         .ok_or_else(|| format_err!("detected worng RpcEnvironment type"))?;
 
     match authenticate_user(&username, &password, path, privs, port, tfa_challenge) {
@@ -340,7 +341,7 @@ pub fn list_permissions(
             } else {
                 bail!("not allowed to list permissions of {}", auth_id);
             }
-        },
+        }
         None => current_auth_id,
     };
 

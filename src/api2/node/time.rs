@@ -1,11 +1,11 @@
 use anyhow::{bail, format_err, Error};
 use serde_json::{json, Value};
 
-use proxmox_sys::fs::{file_read_firstline, replace_file, CreateOptions};
-use proxmox_router::{Router, Permission};
+use proxmox_router::{Permission, Router};
 use proxmox_schema::api;
+use proxmox_sys::fs::{file_read_firstline, replace_file, CreateOptions};
 
-use pbs_api_types::{NODE_SCHEMA, TIME_ZONE_SCHEMA, PRIV_SYS_MODIFY};
+use pbs_api_types::{NODE_SCHEMA, PRIV_SYS_MODIFY, TIME_ZONE_SCHEMA};
 
 fn read_etc_localtime() -> Result<String, Error> {
     // use /etc/timezone
@@ -14,8 +14,8 @@ fn read_etc_localtime() -> Result<String, Error> {
     }
 
     // otherwise guess from the /etc/localtime symlink
-    let link = std::fs::read_link("/etc/localtime").
-        map_err(|err| format_err!("failed to guess timezone - {}", err))?;
+    let link = std::fs::read_link("/etc/localtime")
+        .map_err(|err| format_err!("failed to guess timezone - {}", err))?;
 
     let link = link.to_string_lossy();
     match link.rfind("/zoneinfo/") {
@@ -87,17 +87,19 @@ fn get_time(_param: Value) -> Result<Value, Error> {
     },
 )]
 /// Set time zone
-fn set_timezone(
-    timezone: String,
-    _param: Value,
-) -> Result<Value, Error> {
+fn set_timezone(timezone: String, _param: Value) -> Result<Value, Error> {
     let path = std::path::PathBuf::from(format!("/usr/share/zoneinfo/{}", timezone));
 
     if !path.exists() {
         bail!("No such timezone.");
     }
 
-    replace_file("/etc/timezone", timezone.as_bytes(), CreateOptions::new(), true)?;
+    replace_file(
+        "/etc/timezone",
+        timezone.as_bytes(),
+        CreateOptions::new(),
+        true,
+    )?;
 
     let _ = std::fs::remove_file("/etc/localtime");
 

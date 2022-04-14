@@ -3,11 +3,11 @@ use std::process::{Command, Stdio};
 use anyhow::{bail, Error};
 use serde_json::{json, Value};
 
-use proxmox_sys::sortable;
-use proxmox_router::{list_subdirs_api_method, Router, Permission, RpcEnvironment, SubdirMap};
+use proxmox_router::{list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap};
 use proxmox_schema::api;
+use proxmox_sys::sortable;
 
-use pbs_api_types::{Authid, NODE_SCHEMA, SERVICE_ID_SCHEMA, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
+use pbs_api_types::{Authid, NODE_SCHEMA, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY, SERVICE_ID_SCHEMA};
 
 use proxmox_rest_server::WorkerTask;
 
@@ -22,7 +22,6 @@ static SERVICE_NAME_LIST: [&str; 7] = [
 ];
 
 pub fn real_service_name(service: &str) -> &str {
-
     // since postfix package 3.1.0-3.1 the postfix unit is only here
     // to manage subinstances, of which the default is called "-".
     // This is where we look for the daemon status
@@ -35,7 +34,6 @@ pub fn real_service_name(service: &str) -> &str {
 }
 
 fn get_full_service_state(service: &str) -> Result<Value, Error> {
-
     let real_service_name = real_service_name(service);
 
     let mut child = Command::new("systemctl")
@@ -43,7 +41,7 @@ fn get_full_service_state(service: &str) -> Result<Value, Error> {
         .stdout(Stdio::piped())
         .spawn()?;
 
-    use std::io::{BufRead,BufReader};
+    use std::io::{BufRead, BufReader};
 
     let mut result = json!({});
 
@@ -76,7 +74,6 @@ fn get_full_service_state(service: &str) -> Result<Value, Error> {
 }
 
 fn json_service_state(service: &str, status: Value) -> Value {
-
     if let Some(desc) = status["Description"].as_str() {
         let name = status["Name"].as_str().unwrap_or(service);
         let state = status["SubState"].as_str().unwrap_or("unknown");
@@ -128,10 +125,7 @@ fn json_service_state(service: &str, status: Value) -> Value {
     },
 )]
 /// Service list.
-fn list_services(
-    _param: Value,
-) -> Result<Value, Error> {
-
+fn list_services(_param: Value) -> Result<Value, Error> {
     let mut list = vec![];
 
     for service in &SERVICE_NAME_LIST {
@@ -165,11 +159,7 @@ fn list_services(
     },
 )]
 /// Read service properties.
-fn get_service_state(
-    service: String,
-    _param: Value,
-) -> Result<Value, Error> {
-
+fn get_service_state(service: String, _param: Value) -> Result<Value, Error> {
     let service = service.as_str();
 
     if !SERVICE_NAME_LIST.contains(&service) {
@@ -182,11 +172,10 @@ fn get_service_state(
 }
 
 fn run_service_command(service: &str, cmd: &str, auth_id: Authid) -> Result<Value, Error> {
-
     let workerid = format!("srv{}", &cmd);
 
     let cmd = match cmd {
-        "start"|"stop"|"restart"=> cmd.to_string(),
+        "start" | "stop" | "restart" => cmd.to_string(),
         "reload" => "try-reload-or-restart".to_string(), // some services do not implement reload
         _ => bail!("unknown service command '{}'", cmd),
     };
@@ -198,9 +187,12 @@ fn run_service_command(service: &str, cmd: &str, auth_id: Authid) -> Result<Valu
         auth_id.to_string(),
         false,
         move |_worker| {
-
             if service == "proxmox-backup" && cmd == "stop" {
-                bail!("invalid service cmd '{} {}' cannot stop essential service!", service, cmd);
+                bail!(
+                    "invalid service cmd '{} {}' cannot stop essential service!",
+                    service,
+                    cmd
+                );
             }
 
             let real_service_name = real_service_name(&service);
@@ -214,7 +206,7 @@ fn run_service_command(service: &str, cmd: &str, auth_id: Authid) -> Result<Valu
             }
 
             Ok(())
-        }
+        },
     )?;
 
     Ok(upid.into())
@@ -242,7 +234,6 @@ fn start_service(
     _param: Value,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
     log::info!("starting service {}", service);
@@ -271,8 +262,7 @@ fn stop_service(
     service: String,
     _param: Value,
     rpcenv: &mut dyn RpcEnvironment,
- ) -> Result<Value, Error> {
-
+) -> Result<Value, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
     log::info!("stopping service {}", service);
@@ -302,7 +292,6 @@ fn restart_service(
     _param: Value,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
     log::info!("re-starting service {}", service);
@@ -337,7 +326,6 @@ fn reload_service(
     _param: Value,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
     log::info!("reloading service {}", service);
@@ -347,26 +335,11 @@ fn reload_service(
 
 #[sortable]
 const SERVICE_SUBDIRS: SubdirMap = &sorted!([
-    (
-        "reload", &Router::new()
-            .post(&API_METHOD_RELOAD_SERVICE)
-    ),
-    (
-        "restart", &Router::new()
-            .post(&API_METHOD_RESTART_SERVICE)
-    ),
-    (
-        "start", &Router::new()
-            .post(&API_METHOD_START_SERVICE)
-    ),
-    (
-        "state", &Router::new()
-            .get(&API_METHOD_GET_SERVICE_STATE)
-    ),
-    (
-        "stop", &Router::new()
-            .post(&API_METHOD_STOP_SERVICE)
-    ),
+    ("reload", &Router::new().post(&API_METHOD_RELOAD_SERVICE)),
+    ("restart", &Router::new().post(&API_METHOD_RESTART_SERVICE)),
+    ("start", &Router::new().post(&API_METHOD_START_SERVICE)),
+    ("state", &Router::new().get(&API_METHOD_GET_SERVICE_STATE)),
+    ("stop", &Router::new().post(&API_METHOD_STOP_SERVICE)),
 ]);
 
 const SERVICE_ROUTER: Router = Router::new()

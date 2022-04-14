@@ -1,18 +1,17 @@
-use anyhow::Error;
 use ::serde::{Deserialize, Serialize};
-use serde_json::Value;
+use anyhow::Error;
 use hex::FromHex;
+use serde_json::Value;
 
-use proxmox_router::{http_bail, Router, RpcEnvironment, Permission};
+use proxmox_router::{http_bail, Permission, Router, RpcEnvironment};
 use proxmox_schema::{api, param_bail};
 
 use pbs_api_types::{
-    Authid, ScsiTapeChanger, ScsiTapeChangerUpdater, LtoTapeDrive,
-    PROXMOX_CONFIG_DIGEST_SCHEMA, CHANGER_NAME_SCHEMA, SLOT_ARRAY_SCHEMA,
-    PRIV_TAPE_AUDIT, PRIV_TAPE_MODIFY,
+    Authid, LtoTapeDrive, ScsiTapeChanger, ScsiTapeChangerUpdater, CHANGER_NAME_SCHEMA,
+    PRIV_TAPE_AUDIT, PRIV_TAPE_MODIFY, PROXMOX_CONFIG_DIGEST_SCHEMA, SLOT_ARRAY_SCHEMA,
 };
 use pbs_config::CachedUserInfo;
-use pbs_tape::linux_list_drives::{linux_tape_changer_list, check_drive_path};
+use pbs_tape::linux_list_drives::{check_drive_path, linux_tape_changer_list};
 
 #[api(
     protected: true,
@@ -30,7 +29,6 @@ use pbs_tape::linux_list_drives::{linux_tape_changer_list, check_drive_path};
 )]
 /// Create a new changer device
 pub fn create_changer(config: ScsiTapeChanger) -> Result<(), Error> {
-
     let _lock = pbs_config::drive::lock()?;
 
     let (mut section_config, _digest) = pbs_config::drive::config()?;
@@ -47,7 +45,12 @@ pub fn create_changer(config: ScsiTapeChanger) -> Result<(), Error> {
         }
 
         if changer.path == config.path {
-            param_bail!("path", "Path '{}' already in use by '{}'", config.path, changer.name);
+            param_bail!(
+                "path",
+                "Path '{}' already in use by '{}'",
+                config.path,
+                changer.name
+            );
         }
     }
 
@@ -79,7 +82,6 @@ pub fn get_config(
     _param: Value,
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<ScsiTapeChanger, Error> {
-
     let (config, digest) = pbs_config::drive::config()?;
 
     let data: ScsiTapeChanger = config.lookup("changer", &name)?;
@@ -176,7 +178,6 @@ pub fn update_changer(
     digest: Option<String>,
     _param: Value,
 ) -> Result<(), Error> {
-
     let _lock = pbs_config::drive::lock()?;
 
     let (mut config, expected_digest) = pbs_config::drive::config()?;
@@ -244,7 +245,6 @@ pub fn update_changer(
 )]
 /// Delete a tape changer configuration
 pub fn delete_changer(name: String, _param: Value) -> Result<(), Error> {
-
     let _lock = pbs_config::drive::lock()?;
 
     let (mut config, _digest) = pbs_config::drive::config()?;
@@ -252,18 +252,31 @@ pub fn delete_changer(name: String, _param: Value) -> Result<(), Error> {
     match config.sections.get(&name) {
         Some((section_type, _)) => {
             if section_type != "changer" {
-                param_bail!("name", "Entry '{}' exists, but is not a changer device", name);
+                param_bail!(
+                    "name",
+                    "Entry '{}' exists, but is not a changer device",
+                    name
+                );
             }
             config.sections.remove(&name);
-        },
-        None => http_bail!(NOT_FOUND, "Delete changer '{}' failed - no such entry", name),
+        }
+        None => http_bail!(
+            NOT_FOUND,
+            "Delete changer '{}' failed - no such entry",
+            name
+        ),
     }
 
     let drive_list: Vec<LtoTapeDrive> = config.convert_to_typed_array("lto")?;
     for drive in drive_list {
         if let Some(changer) = drive.changer {
             if changer == name {
-                param_bail!("name", "Delete changer '{}' failed - used by drive '{}'", name, drive.name);
+                param_bail!(
+                    "name",
+                    "Delete changer '{}' failed - used by drive '{}'",
+                    name,
+                    drive.name
+                );
             }
         }
     }
@@ -277,7 +290,6 @@ const ITEM_ROUTER: Router = Router::new()
     .get(&API_METHOD_GET_CONFIG)
     .put(&API_METHOD_UPDATE_CHANGER)
     .delete(&API_METHOD_DELETE_CHANGER);
-
 
 pub const ROUTER: Router = Router::new()
     .get(&API_METHOD_LIST_CHANGERS)

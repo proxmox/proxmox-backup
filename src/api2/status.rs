@@ -3,26 +3,20 @@
 use anyhow::Error;
 use serde_json::Value;
 
-use proxmox_schema::api;
-use proxmox_router::{
-    ApiMethod,
-    Permission,
-    Router,
-    RpcEnvironment,
-    SubdirMap,
-};
 use proxmox_router::list_subdirs_api_method;
+use proxmox_router::{ApiMethod, Permission, Router, RpcEnvironment, SubdirMap};
+use proxmox_schema::api;
 
 use pbs_api_types::{
-    Authid, DataStoreStatusListItem, Operation, RRDMode, RRDTimeFrame,
-    PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP,
+    Authid, DataStoreStatusListItem, Operation, RRDMode, RRDTimeFrame, PRIV_DATASTORE_AUDIT,
+    PRIV_DATASTORE_BACKUP,
 };
 
-use pbs_datastore::DataStore;
 use pbs_config::CachedUserInfo;
+use pbs_datastore::DataStore;
 
-use crate::tools::statistics::{linear_regression};
 use crate::rrd_cache::extract_rrd_data;
+use crate::tools::statistics::linear_regression;
 
 #[api(
     returns: {
@@ -41,8 +35,7 @@ pub fn datastore_status(
     _param: Value,
     _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
-    ) -> Result<Vec<DataStoreStatusListItem>, Error> {
-
+) -> Result<Vec<DataStoreStatusListItem>, Error> {
     let (config, _digest) = pbs_config::datastore::config()?;
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
@@ -52,7 +45,7 @@ pub fn datastore_status(
 
     for (store, (_, _)) in &config.sections {
         let user_privs = user_info.lookup_privs(&auth_id, &["datastore", store]);
-        let allowed = (user_privs & (PRIV_DATASTORE_AUDIT| PRIV_DATASTORE_BACKUP)) != 0;
+        let allowed = (user_privs & (PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_BACKUP)) != 0;
         if !allowed {
             continue;
         }
@@ -90,12 +83,8 @@ pub fn datastore_status(
 
         let rrd_dir = format!("datastore/{}", store);
 
-        let get_rrd = |what: &str| extract_rrd_data(
-            &rrd_dir,
-            what,
-            RRDTimeFrame::Month,
-            RRDMode::Average,
-        );
+        let get_rrd =
+            |what: &str| extract_rrd_data(&rrd_dir, what, RRDTimeFrame::Month, RRDMode::Average);
 
         let total_res = get_rrd("total")?;
         let used_res = get_rrd("used")?;
@@ -114,14 +103,12 @@ pub fn datastore_status(
 
                 match (total, used) {
                     (Some(total), Some(used)) if total != 0.0 => {
-                        time_list.push(start + (idx as u64)*reso);
-                        let usage = used/total;
+                        time_list.push(start + (idx as u64) * reso);
+                        let usage = used / total;
                         usage_list.push(usage);
                         history.push(Some(usage));
-                    },
-                    _ => {
-                        history.push(None)
                     }
+                    _ => history.push(None),
                 }
             }
 
@@ -145,9 +132,10 @@ pub fn datastore_status(
     Ok(list.into())
 }
 
-const SUBDIRS: SubdirMap = &[
-    ("datastore-usage", &Router::new().get(&API_METHOD_DATASTORE_STATUS)),
-];
+const SUBDIRS: SubdirMap = &[(
+    "datastore-usage",
+    &Router::new().get(&API_METHOD_DATASTORE_STATUS),
+)];
 
 pub const ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(SUBDIRS))
