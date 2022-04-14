@@ -14,6 +14,7 @@ use proxmox_router::{
 };
 use proxmox_schema::{api, ApiType, ReturnType};
 
+use pbs_api_types::BackupType;
 use pbs_client::tools::key_source::get_encryption_key_password;
 use pbs_client::{BackupRepository, BackupWriter};
 use pbs_config::key_config::{load_and_decrypt_key, KeyDerivationConfig};
@@ -241,7 +242,7 @@ async fn test_upload_speed(
         client,
         crypt_config.clone(),
         repo.store(),
-        "host",
+        BackupType::Host,
         "benchmark",
         backup_time,
         false,

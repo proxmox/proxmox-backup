@@ -66,7 +66,7 @@ pub fn complete_datastore_group_filter(_arg: &str, param: &HashMap<String, Strin
             list.extend(
                 groups
                     .iter()
-                    .map(|group| format!("group:{}/{}", group.backup_type, group.backup_id)),
+                    .map(|group| format!("group:{}/{}", group.backup.ty, group.backup.id)),
             );
         }
     }

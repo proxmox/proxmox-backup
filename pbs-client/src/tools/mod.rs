@@ -265,6 +265,13 @@ pub async fn complete_backup_snapshot_do(param: &HashMap<String, String>) -> Vec
                 item["backup-type"].as_str(),
                 item["backup-time"].as_i64(),
             ) {
+                let backup_type = match backup_type.parse() {
+                    Ok(ty) => ty,
+                    Err(_) => {
+                        // FIXME: print error in completion?
+                        continue;
+                    }
+                };
                 if let Ok(snapshot) = BackupDir::new(backup_type, backup_id, backup_time) {
                     result.push(snapshot.relative_path().to_str().unwrap().to_owned());
                 }

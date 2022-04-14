@@ -441,7 +441,7 @@ pub fn list_content(
         for (store, snapshot) in media_catalog_snapshot_list(status_path, &media_id)? {
             let backup_dir: BackupDir = snapshot.parse()?;
 
-            if let Some(ref backup_type) = filter.backup_type {
+            if let Some(backup_type) = filter.backup_type {
                 if backup_dir.group().backup_type() != backup_type {
                     continue;
                 }

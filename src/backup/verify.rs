@@ -8,7 +8,7 @@ use anyhow::{bail, format_err, Error};
 
 use proxmox_sys::{task_log, WorkerTaskContext};
 
-use pbs_api_types::{Authid, CryptMode, SnapshotVerifyState, VerifyState, UPID};
+use pbs_api_types::{Authid, BackupType, CryptMode, SnapshotVerifyState, VerifyState, UPID};
 use pbs_datastore::backup_info::{BackupDir, BackupGroup, BackupInfo};
 use pbs_datastore::index::IndexFile;
 use pbs_datastore::manifest::{archive_type, ArchiveType, BackupManifest, FileInfo};
@@ -539,7 +539,9 @@ pub fn verify_all_backups(
 
     let mut list = match verify_worker.datastore.iter_backup_groups_ok() {
         Ok(list) => list
-            .filter(|group| !(group.backup_type() == "host" && group.backup_id() == "benchmark"))
+            .filter(|group| {
+                !(group.backup_type() == BackupType::Host && group.backup_id() == "benchmark")
+            })
             .filter(filter_by_owner)
             .collect::<Vec<BackupGroup>>(),
         Err(err) => {

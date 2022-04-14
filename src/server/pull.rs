@@ -577,7 +577,7 @@ pub async fn pull_group(
     let mut result = client.get(&path, Some(args)).await?;
     let mut list: Vec<SnapshotListItem> = serde_json::from_value(result["data"].take())?;
 
-    list.sort_unstable_by(|a, b| a.backup_time.cmp(&b.backup_time));
+    list.sort_unstable_by(|a, b| a.backup.time.cmp(&b.backup.time));
 
     client.login().await?; // make sure auth is complete
 
@@ -599,7 +599,7 @@ pub async fn pull_group(
     };
 
     for (pos, item) in list.into_iter().enumerate() {
-        let snapshot = BackupDir::new(item.backup_type, item.backup_id, item.backup_time)?;
+        let snapshot = BackupDir::new(item.backup.ty(), item.backup.id(), item.backup.time)?;
 
         // in-progress backups can't be synced
         if item.size.is_none() {
@@ -712,9 +712,9 @@ pub async fn pull_store(
 
     let total_count = list.len();
     list.sort_unstable_by(|a, b| {
-        let type_order = a.backup_type.cmp(&b.backup_type);
+        let type_order = a.backup.ty.cmp(&b.backup.ty);
         if type_order == std::cmp::Ordering::Equal {
-            a.backup_id.cmp(&b.backup_id)
+            a.backup.id.cmp(&b.backup.id)
         } else {
             type_order
         }
@@ -726,7 +726,7 @@ pub async fn pull_store(
 
     let list: Vec<BackupGroup> = list
         .into_iter()
-        .map(|item| BackupGroup::new(item.backup_type, item.backup_id))
+        .map(|item| BackupGroup::new(item.backup.ty, item.backup.id))
         .collect();
 
     let list = if let Some(ref group_filter) = &params.group_filter {

@@ -59,7 +59,7 @@ async fn list_snapshots(param: Value) -> Result<Value, Error> {
 
     let render_snapshot_path = |_v: &Value, record: &Value| -> Result<String, Error> {
         let item: SnapshotListItem = serde_json::from_value(record.to_owned())?;
-        let snapshot = BackupDir::new(item.backup_type, item.backup_id, item.backup_time)?;
+        let snapshot = BackupDir::new(item.backup.ty(), item.backup.id(), item.backup.time)?;
         Ok(snapshot.relative_path().to_str().unwrap().to_owned())
     };
 

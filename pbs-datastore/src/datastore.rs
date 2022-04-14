@@ -18,8 +18,8 @@ use proxmox_sys::WorkerTaskContext;
 use proxmox_sys::{task_log, task_warn};
 
 use pbs_api_types::{
-    Authid, ChunkOrder, DataStoreConfig, DatastoreTuning, GarbageCollectionStatus, HumanByte,
-    Operation, BACKUP_DATE_REGEX, BACKUP_ID_REGEX, BACKUP_TYPE_REGEX, UPID,
+    Authid, BackupType, ChunkOrder, DataStoreConfig, DatastoreTuning, GarbageCollectionStatus,
+    HumanByte, Operation, BACKUP_DATE_REGEX, BACKUP_ID_REGEX, UPID,
 };
 use pbs_config::{open_backup_lockfile, BackupLockGuard, ConfigVersionCache};
 
@@ -494,7 +494,7 @@ impl DataStore {
     ) -> Result<(Authid, DirLockGuard), Error> {
         // create intermediate path first:
         let mut full_path = self.base_path();
-        full_path.push(backup_group.backup_type());
+        full_path.push(backup_group.backup_type().as_str());
         std::fs::create_dir_all(&full_path)?;
 
         full_path.push(backup_group.backup_id());
@@ -1113,7 +1113,7 @@ impl Iterator for ListSnapshots {
 /// A iterator for a (single) level of Backup Groups
 pub struct ListGroups {
     type_fd: proxmox_sys::fs::ReadDir,
-    id_state: Option<(String, proxmox_sys::fs::ReadDir)>,
+    id_state: Option<(BackupType, proxmox_sys::fs::ReadDir)>,
 }
 
 impl ListGroups {
@@ -1130,7 +1130,7 @@ impl Iterator for ListGroups {
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            if let Some((ref group_type, ref mut id_fd)) = self.id_state {
+            if let Some((group_type, ref mut id_fd)) = self.id_state {
                 let item = match id_fd.next() {
                     Some(item) => item,
                     None => {
@@ -1162,7 +1162,7 @@ impl Iterator for ListGroups {
                                 Some(nix::dir::Type::Directory) => {} // OK
                                 _ => continue,
                             }
-                            if BACKUP_TYPE_REGEX.is_match(name) {
+                            if let Ok(group_type) = BackupType::from_str(name) {
                                 // found a backup group type, descend into it to scan all IDs in it
                                 // by switching to the id-state branch
                                 let base_fd = entry.parent_fd();
@@ -1170,7 +1170,7 @@ impl Iterator for ListGroups {
                                     Ok(dirfd) => dirfd,
                                     Err(err) => return Some(Err(err.into())),
                                 };
-                                self.id_state = Some((name.to_owned(), id_dirfd));
+                                self.id_state = Some((group_type, id_dirfd));
                             }
                         }
                         continue; // file did not match regex or isn't valid utf-8

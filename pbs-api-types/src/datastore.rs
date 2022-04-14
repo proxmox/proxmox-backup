@@ -1,3 +1,6 @@
+use std::fmt;
+
+use anyhow::{bail, format_err, Error};
 use serde::{Deserialize, Serialize};
 
 use proxmox_schema::{
@@ -394,17 +397,244 @@ pub struct SnapshotVerifyState {
     pub state: VerifyState,
 }
 
+#[api]
+/// Backup types.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum BackupType {
+    /// Virtual machines.
+    Vm,
+
+    /// Containers.
+    Ct,
+
+    /// "Host" backups.
+    Host,
+}
+
+impl BackupType {
+    pub const fn as_str(&self) -> &'static str {
+        match self {
+            BackupType::Vm => "vm",
+            BackupType::Ct => "ct",
+            BackupType::Host => "host",
+        }
+    }
+
+    /// We used to have alphabetical ordering here when this was a string.
+    const fn order(self) -> u8 {
+        match self {
+            BackupType::Ct => 0,
+            BackupType::Host => 1,
+            BackupType::Vm => 2,
+        }
+    }
+}
+
+impl fmt::Display for BackupType {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(self.as_str(), f)
+    }
+}
+
+impl std::str::FromStr for BackupType {
+    type Err = Error;
+
+    /// Parse a backup type.
+    fn from_str(ty: &str) -> Result<Self, Error> {
+        Ok(match ty {
+            "ct" => BackupType::Ct,
+            "host" => BackupType::Host,
+            "vm" => BackupType::Vm,
+            _ => bail!("invalid backup type {ty:?}"),
+        })
+    }
+}
+
+impl std::cmp::Ord for BackupType {
+    #[inline]
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.order().cmp(&other.order())
+    }
+}
+
+impl std::cmp::PartialOrd for BackupType {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 #[api(
     properties: {
-        "backup-type": {
-            schema: BACKUP_TYPE_SCHEMA,
-        },
-        "backup-id": {
-            schema: BACKUP_ID_SCHEMA,
-        },
-        "backup-time": {
-            schema: BACKUP_TIME_SCHEMA,
-        },
+        "backup-type": { type: BackupType },
+        "backup-id": { schema: BACKUP_ID_SCHEMA },
+    },
+)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+/// A backup group (without a data store).
+pub struct BackupGroup {
+    /// Backup type.
+    #[serde(rename = "backup-type")]
+    pub ty: BackupType,
+
+    /// Backup id.
+    #[serde(rename = "backup-id")]
+    pub id: String,
+}
+
+impl BackupGroup {
+    pub fn new<T: Into<String>>(ty: BackupType, id: T) -> Self {
+        Self { ty, id: id.into() }
+    }
+}
+
+impl From<(BackupType, String)> for BackupGroup {
+    fn from(data: (BackupType, String)) -> Self {
+        Self {
+            ty: data.0,
+            id: data.1,
+        }
+    }
+}
+
+impl std::cmp::Ord for BackupGroup {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        let type_order = self.ty.cmp(&other.ty);
+        if type_order != std::cmp::Ordering::Equal {
+            return type_order;
+        }
+        // try to compare IDs numerically
+        let id_self = self.id.parse::<u64>();
+        let id_other = other.id.parse::<u64>();
+        match (id_self, id_other) {
+            (Ok(id_self), Ok(id_other)) => id_self.cmp(&id_other),
+            (Ok(_), Err(_)) => std::cmp::Ordering::Less,
+            (Err(_), Ok(_)) => std::cmp::Ordering::Greater,
+            _ => self.id.cmp(&other.id),
+        }
+    }
+}
+
+impl std::cmp::PartialOrd for BackupGroup {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl fmt::Display for BackupGroup {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}/{}", self.ty, self.id)
+    }
+}
+
+impl std::str::FromStr for BackupGroup {
+    type Err = Error;
+
+    /// Parse a backup group.
+    ///
+    /// This parses strings like `vm/100".
+    fn from_str(path: &str) -> Result<Self, Error> {
+        let cap = GROUP_PATH_REGEX
+            .captures(path)
+            .ok_or_else(|| format_err!("unable to parse backup group path '{}'", path))?;
+
+        Ok(Self {
+            ty: cap.get(1).unwrap().as_str().parse()?,
+            id: cap.get(2).unwrap().as_str().to_owned(),
+        })
+    }
+}
+
+#[api(
+    properties: {
+        "group": { type: BackupGroup },
+        "backup-time": { schema: BACKUP_TIME_SCHEMA },
+    },
+)]
+/// Uniquely identify a Backup (relative to data store)
+///
+/// We also call this a backup snaphost.
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct BackupDir {
+    /// Backup group.
+    #[serde(flatten)]
+    pub group: BackupGroup,
+
+    /// Backup timestamp unix epoch.
+    #[serde(rename = "backup-time")]
+    pub time: i64,
+}
+
+impl From<(BackupGroup, i64)> for BackupDir {
+    fn from(data: (BackupGroup, i64)) -> Self {
+        Self {
+            group: data.0,
+            time: data.1,
+        }
+    }
+}
+
+impl From<(BackupType, String, i64)> for BackupDir {
+    fn from(data: (BackupType, String, i64)) -> Self {
+        Self {
+            group: (data.0, data.1).into(),
+            time: data.2,
+        }
+    }
+}
+
+impl BackupDir {
+    pub fn with_rfc3339<T>(ty: BackupType, id: T, backup_time_string: &str) -> Result<Self, Error>
+    where
+        T: Into<String>,
+    {
+        let time = proxmox_time::parse_rfc3339(&backup_time_string)?;
+        let group = BackupGroup::new(ty, id.into());
+        Ok(Self { group, time })
+    }
+
+    pub fn ty(&self) -> BackupType {
+        self.group.ty
+    }
+
+    pub fn id(&self) -> &str {
+        &self.group.id
+    }
+}
+
+impl std::str::FromStr for BackupDir {
+    type Err = Error;
+
+    /// Parse a snapshot path.
+    ///
+    /// This parses strings like `host/elsa/2020-06-15T05:18:33Z".
+    fn from_str(path: &str) -> Result<Self, Self::Err> {
+        let cap = SNAPSHOT_PATH_REGEX
+            .captures(path)
+            .ok_or_else(|| format_err!("unable to parse backup snapshot path '{}'", path))?;
+
+        BackupDir::with_rfc3339(
+            cap.get(1).unwrap().as_str().parse()?,
+            cap.get(2).unwrap().as_str(),
+            cap.get(3).unwrap().as_str(),
+        )
+    }
+}
+
+impl std::fmt::Display for BackupDir {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // FIXME: log error?
+        let time = proxmox_time::epoch_to_rfc3339_utc(self.time).map_err(|_| fmt::Error)?;
+        write!(f, "{}/{}", self.group, time)
+    }
+}
+
+#[api(
+    properties: {
+        "backup": { type: BackupDir },
         comment: {
             schema: SINGLE_LINE_COMMENT_SCHEMA,
             optional: true,
@@ -432,9 +662,8 @@ pub struct SnapshotVerifyState {
 #[serde(rename_all = "kebab-case")]
 /// Basic information about backup snapshot.
 pub struct SnapshotListItem {
-    pub backup_type: String, // enum
-    pub backup_id: String,
-    pub backup_time: i64,
+    #[serde(flatten)]
+    pub backup: BackupDir,
     /// The first line from manifest "notes"
     #[serde(skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
@@ -459,15 +688,8 @@ pub struct SnapshotListItem {
 
 #[api(
     properties: {
-        "backup-type": {
-            schema: BACKUP_TYPE_SCHEMA,
-        },
-        "backup-id": {
-            schema: BACKUP_ID_SCHEMA,
-        },
-        "last-backup": {
-            schema: BACKUP_TIME_SCHEMA,
-        },
+        "backup": { type: BackupGroup },
+        "last-backup": { schema: BACKUP_TIME_SCHEMA },
         "backup-count": {
             type: Integer,
         },
@@ -486,8 +708,9 @@ pub struct SnapshotListItem {
 #[serde(rename_all = "kebab-case")]
 /// Basic information about a backup group.
 pub struct GroupListItem {
-    pub backup_type: String, // enum
-    pub backup_id: String,
+    #[serde(flatten)]
+    pub backup: BackupGroup,
+
     pub last_backup: i64,
     /// Number of contained snapshots
     pub backup_count: u64,
@@ -503,24 +726,16 @@ pub struct GroupListItem {
 
 #[api(
     properties: {
-        "backup-type": {
-            schema: BACKUP_TYPE_SCHEMA,
-        },
-        "backup-id": {
-            schema: BACKUP_ID_SCHEMA,
-        },
-        "backup-time": {
-            schema: BACKUP_TIME_SCHEMA,
-        },
+        "backup": { type: BackupDir },
     },
 )]
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 /// Prune result.
 pub struct PruneListItem {
-    pub backup_type: String, // enum
-    pub backup_id: String,
-    pub backup_time: i64,
+    #[serde(flatten)]
+    pub backup: BackupDir,
+
     /// Keep snapshot
     pub keep: bool,
 }

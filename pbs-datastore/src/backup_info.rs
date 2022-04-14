@@ -5,7 +5,8 @@ use std::str::FromStr;
 use anyhow::{bail, format_err, Error};
 
 use pbs_api_types::{
-    GroupFilter, BACKUP_DATE_REGEX, BACKUP_FILE_REGEX, GROUP_PATH_REGEX, SNAPSHOT_PATH_REGEX,
+    BackupType, GroupFilter, BACKUP_DATE_REGEX, BACKUP_FILE_REGEX, GROUP_PATH_REGEX,
+    SNAPSHOT_PATH_REGEX,
 };
 
 use super::manifest::MANIFEST_BLOB_NAME;
@@ -14,7 +15,7 @@ use super::manifest::MANIFEST_BLOB_NAME;
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct BackupGroup {
     /// Type of backup
-    backup_type: String,
+    backup_type: BackupType,
     /// Unique (for this type) ID
     backup_id: String,
 }
@@ -44,15 +45,15 @@ impl std::cmp::PartialOrd for BackupGroup {
 }
 
 impl BackupGroup {
-    pub fn new<T: Into<String>, U: Into<String>>(backup_type: T, backup_id: U) -> Self {
+    pub fn new<T: Into<String>>(backup_type: BackupType, backup_id: T) -> Self {
         Self {
-            backup_type: backup_type.into(),
+            backup_type,
             backup_id: backup_id.into(),
         }
     }
 
-    pub fn backup_type(&self) -> &str {
-        &self.backup_type
+    pub fn backup_type(&self) -> BackupType {
+        self.backup_type
     }
 
     pub fn backup_id(&self) -> &str {
@@ -62,7 +63,7 @@ impl BackupGroup {
     pub fn group_path(&self) -> PathBuf {
         let mut relative_path = PathBuf::new();
 
-        relative_path.push(&self.backup_type);
+        relative_path.push(self.backup_type.as_str());
 
         relative_path.push(&self.backup_id);
 
@@ -85,7 +86,7 @@ impl BackupGroup {
                 }
 
                 let backup_dir =
-                    BackupDir::with_rfc3339(&self.backup_type, &self.backup_id, backup_time)?;
+                    BackupDir::with_rfc3339(self.backup_type, &self.backup_id, backup_time)?;
                 let files = list_backup_files(l2_fd, backup_time)?;
 
                 let protected = backup_dir.is_protected(base_path.to_owned());
@@ -162,9 +163,21 @@ impl BackupGroup {
                 Ok(group) => &group == self,
                 Err(_) => false, // shouldn't happen if value is schema-checked
             },
-            GroupFilter::BackupType(backup_type) => self.backup_type() == backup_type,
+            GroupFilter::BackupType(backup_type) => self.backup_type().as_str() == backup_type,
             GroupFilter::Regex(regex) => regex.is_match(&self.to_string()),
         }
+    }
+}
+
+impl From<&BackupGroup> for pbs_api_types::BackupGroup {
+    fn from(group: &BackupGroup) -> pbs_api_types::BackupGroup {
+        (group.backup_type, group.backup_id.clone()).into()
+    }
+}
+
+impl From<BackupGroup> for pbs_api_types::BackupGroup {
+    fn from(group: BackupGroup) -> pbs_api_types::BackupGroup {
+        (group.backup_type, group.backup_id).into()
     }
 }
 
@@ -188,7 +201,7 @@ impl std::str::FromStr for BackupGroup {
             .ok_or_else(|| format_err!("unable to parse backup group path '{}'", path))?;
 
         Ok(Self {
-            backup_type: cap.get(1).unwrap().as_str().to_owned(),
+            backup_type: cap.get(1).unwrap().as_str().parse()?,
             backup_id: cap.get(2).unwrap().as_str().to_owned(),
         })
     }
@@ -208,28 +221,26 @@ pub struct BackupDir {
 }
 
 impl BackupDir {
-    pub fn new<T, U>(backup_type: T, backup_id: U, backup_time: i64) -> Result<Self, Error>
+    pub fn new<T>(backup_type: BackupType, backup_id: T, backup_time: i64) -> Result<Self, Error>
     where
         T: Into<String>,
-        U: Into<String>,
     {
-        let group = BackupGroup::new(backup_type.into(), backup_id.into());
+        let group = BackupGroup::new(backup_type, backup_id.into());
         BackupDir::with_group(group, backup_time)
     }
 
-    pub fn with_rfc3339<T, U, V>(
-        backup_type: T,
-        backup_id: U,
-        backup_time_string: V,
+    pub fn with_rfc3339<T, U>(
+        backup_type: BackupType,
+        backup_id: T,
+        backup_time_string: U,
     ) -> Result<Self, Error>
     where
         T: Into<String>,
         U: Into<String>,
-        V: Into<String>,
     {
         let backup_time_string = backup_time_string.into();
         let backup_time = proxmox_time::parse_rfc3339(&backup_time_string)?;
-        let group = BackupGroup::new(backup_type.into(), backup_id.into());
+        let group = BackupGroup::new(backup_type, backup_id.into());
         Ok(Self {
             group,
             backup_time,
@@ -283,6 +294,22 @@ impl BackupDir {
     }
 }
 
+impl From<&BackupDir> for pbs_api_types::BackupDir {
+    fn from(dir: &BackupDir) -> pbs_api_types::BackupDir {
+        (
+            pbs_api_types::BackupGroup::from(dir.group.clone()),
+            dir.backup_time,
+        )
+            .into()
+    }
+}
+
+impl From<BackupDir> for pbs_api_types::BackupDir {
+    fn from(dir: BackupDir) -> pbs_api_types::BackupDir {
+        (pbs_api_types::BackupGroup::from(dir.group), dir.backup_time).into()
+    }
+}
+
 impl std::str::FromStr for BackupDir {
     type Err = Error;
 
@@ -295,7 +322,7 @@ impl std::str::FromStr for BackupDir {
             .ok_or_else(|| format_err!("unable to parse backup snapshot path '{}'", path))?;
 
         BackupDir::with_rfc3339(
-            cap.get(1).unwrap().as_str(),
+            cap.get(1).unwrap().as_str().parse()?,
             cap.get(2).unwrap().as_str(),
             cap.get(3).unwrap().as_str(),
         )

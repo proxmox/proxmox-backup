@@ -7,6 +7,7 @@ use std::sync::Arc;
 use futures::future::AbortHandle;
 use serde_json::{json, Value};
 
+use pbs_api_types::BackupType;
 use pbs_datastore::data_blob::DataBlob;
 use pbs_datastore::data_blob_reader::DataBlobReader;
 use pbs_datastore::dynamic_index::DynamicIndexReader;
@@ -46,7 +47,7 @@ impl BackupReader {
         client: HttpClient,
         crypt_config: Option<Arc<CryptConfig>>,
         datastore: &str,
-        backup_type: &str,
+        backup_type: BackupType,
         backup_id: &str,
         backup_time: i64,
         debug: bool,

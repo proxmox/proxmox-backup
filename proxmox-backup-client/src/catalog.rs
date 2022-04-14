@@ -190,7 +190,7 @@ async fn catalog_shell(param: Value) -> Result<(), Error> {
         client,
         crypt_config.clone(),
         repo.store(),
-        &backup_type,
+        backup_type,
         &backup_id,
         backup_time,
         true,

@@ -240,7 +240,7 @@ async fn mount_do(param: Value, pipe: Option<Fd>) -> Result<Value, Error> {
         client,
         crypt_config.clone(),
         repo.store(),
-        &backup_type,
+        backup_type,
         &backup_id,
         backup_time,
         true,

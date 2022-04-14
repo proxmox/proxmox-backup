@@ -16,9 +16,9 @@ use proxmox_schema::{BooleanSchema, ObjectSchema};
 use proxmox_sys::sortable;
 
 use pbs_api_types::{
-    Authid, Operation, BACKUP_ARCHIVE_NAME_SCHEMA, BACKUP_ID_SCHEMA, BACKUP_TIME_SCHEMA,
-    BACKUP_TYPE_SCHEMA, CHUNK_DIGEST_SCHEMA, DATASTORE_SCHEMA, PRIV_DATASTORE_BACKUP,
-    PRIV_DATASTORE_READ,
+    Authid, BackupType, Operation, BACKUP_ARCHIVE_NAME_SCHEMA, BACKUP_ID_SCHEMA,
+    BACKUP_TIME_SCHEMA, BACKUP_TYPE_SCHEMA, CHUNK_DIGEST_SCHEMA, DATASTORE_SCHEMA,
+    PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_READ,
 };
 use pbs_config::CachedUserInfo;
 use pbs_datastore::backup_info::BackupDir;
@@ -90,7 +90,7 @@ fn upgrade_to_backup_reader_protocol(
 
         let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
 
-        let backup_type = required_string_param(&param, "backup-type")?;
+        let backup_type: BackupType = required_string_param(&param, "backup-type")?.parse()?;
         let backup_id = required_string_param(&param, "backup-id")?;
         let backup_time = required_integer_param(&param, "backup-time")?;
 

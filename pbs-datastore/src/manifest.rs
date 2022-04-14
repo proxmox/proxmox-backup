@@ -6,7 +6,7 @@ use anyhow::{bail, format_err, Error};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use pbs_api_types::{CryptMode, Fingerprint};
+use pbs_api_types::{BackupType, CryptMode, Fingerprint};
 use pbs_tools::crypt_config::CryptConfig;
 
 use crate::BackupDir;
@@ -50,7 +50,7 @@ impl FileInfo {
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct BackupManifest {
-    backup_type: String,
+    backup_type: BackupType,
     backup_id: String,
     backup_time: i64,
     files: Vec<FileInfo>,
@@ -87,7 +87,7 @@ pub fn archive_type<P: AsRef<Path>>(archive_name: P) -> Result<ArchiveType, Erro
 impl BackupManifest {
     pub fn new(snapshot: BackupDir) -> Self {
         Self {
-            backup_type: snapshot.group().backup_type().into(),
+            backup_type: snapshot.group().backup_type(),
             backup_id: snapshot.group().backup_id().into(),
             backup_time: snapshot.backup_time(),
             files: Vec::new(),

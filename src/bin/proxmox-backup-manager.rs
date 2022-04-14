@@ -523,7 +523,7 @@ pub fn complete_remote_datastore_group(_arg: &str, param: &HashMap<String, Strin
                 .await
         }) {
             for item in data {
-                list.push(format!("{}/{}", item.backup_type, item.backup_id));
+                list.push(format!("{}/{}", item.backup.ty, item.backup.id));
             }
         }
     }

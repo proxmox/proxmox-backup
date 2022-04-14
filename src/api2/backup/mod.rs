@@ -16,7 +16,7 @@ use proxmox_schema::*;
 use proxmox_sys::sortable;
 
 use pbs_api_types::{
-    Authid, Operation, SnapshotVerifyState, VerifyState, BACKUP_ARCHIVE_NAME_SCHEMA,
+    Authid, BackupType, Operation, SnapshotVerifyState, VerifyState, BACKUP_ARCHIVE_NAME_SCHEMA,
     BACKUP_ID_SCHEMA, BACKUP_TIME_SCHEMA, BACKUP_TYPE_SCHEMA, CHUNK_DIGEST_SCHEMA,
     DATASTORE_SCHEMA, PRIV_DATASTORE_BACKUP,
 };
@@ -82,7 +82,7 @@ fn upgrade_to_backup_protocol(
 
         let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
-        let backup_type = required_string_param(&param, "backup-type")?;
+        let backup_type: BackupType = required_string_param(&param, "backup-type")?.parse()?;
         let backup_id = required_string_param(&param, "backup-id")?;
         let backup_time = required_integer_param(&param, "backup-time")?;
 
@@ -109,7 +109,7 @@ fn upgrade_to_backup_protocol(
 
         let backup_group = BackupGroup::new(backup_type, backup_id);
 
-        let worker_type = if backup_type == "host" && backup_id == "benchmark" {
+        let worker_type = if backup_type == BackupType::Host && backup_id == "benchmark" {
             if !benchmark {
                 bail!("unable to run benchmark without --benchmark flags");
             }

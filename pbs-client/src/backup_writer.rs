@@ -12,7 +12,7 @@ use tokio::io::AsyncReadExt;
 use tokio::sync::{mpsc, oneshot};
 use tokio_stream::wrappers::ReceiverStream;
 
-use pbs_api_types::HumanByte;
+use pbs_api_types::{BackupType, HumanByte};
 use pbs_datastore::data_blob::{ChunkInfo, DataBlob, DataChunkBuilder};
 use pbs_datastore::dynamic_index::DynamicIndexReader;
 use pbs_datastore::fixed_index::FixedIndexReader;
@@ -86,7 +86,7 @@ impl BackupWriter {
         client: HttpClient,
         crypt_config: Option<Arc<CryptConfig>>,
         datastore: &str,
-        backup_type: &str,
+        backup_type: BackupType,
         backup_id: &str,
         backup_time: i64,
         debug: bool,

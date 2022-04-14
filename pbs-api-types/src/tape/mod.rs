@@ -27,7 +27,7 @@ use serde::{Deserialize, Serialize};
 use proxmox_schema::{api, const_regex, ApiStringFormat, Schema, StringSchema};
 use proxmox_uuid::Uuid;
 
-use crate::{BACKUP_ID_SCHEMA, BACKUP_TYPE_SCHEMA, FINGERPRINT_SHA256_FORMAT};
+use crate::{BackupType, BACKUP_ID_SCHEMA, FINGERPRINT_SHA256_FORMAT};
 
 const_regex! {
     pub TAPE_RESTORE_SNAPSHOT_REGEX = concat!(r"^", PROXMOX_SAFE_ID_REGEX_STR!(), r":", SNAPSHOT_PATH_REGEX_STR!(), r"$");
@@ -66,7 +66,7 @@ pub const TAPE_RESTORE_SNAPSHOT_SCHEMA: Schema =
             optional: true,
         },
         "backup-type": {
-            schema: BACKUP_TYPE_SCHEMA,
+            type: BackupType,
             optional: true,
         },
         "backup-id": {
@@ -83,6 +83,6 @@ pub struct MediaContentListFilter {
     pub label_text: Option<String>,
     pub media: Option<Uuid>,
     pub media_set: Option<Uuid>,
-    pub backup_type: Option<String>,
+    pub backup_type: Option<BackupType>,
     pub backup_id: Option<String>,
 }

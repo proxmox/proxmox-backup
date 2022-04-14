@@ -30,7 +30,7 @@ use pxar::accessor::aio::Accessor;
 use pxar::EntryKind;
 
 use pbs_api_types::{
-    Authid, BackupContent, Counts, CryptMode, DataStoreListItem, DataStoreStatus,
+    Authid, BackupContent, BackupType, Counts, CryptMode, DataStoreListItem, DataStoreStatus,
     GarbageCollectionStatus, GroupListItem, Operation, PruneOptions, RRDMode, RRDTimeFrame,
     SnapshotListItem, SnapshotVerifyState, BACKUP_ARCHIVE_NAME_SCHEMA, BACKUP_ID_SCHEMA,
     BACKUP_TIME_SCHEMA, BACKUP_TYPE_SCHEMA, DATASTORE_SCHEMA, IGNORE_VERIFIED_BACKUPS_SCHEMA,
@@ -207,8 +207,7 @@ pub fn list_groups(
             let comment = file_read_firstline(&note_path).ok();
 
             group_info.push(GroupListItem {
-                backup_type: group.backup_type().to_string(),
-                backup_id: group.backup_id().to_string(),
+                backup: group.into(),
                 last_backup: last_backup.backup_dir.backup_time(),
                 owner: Some(owner),
                 backup_count,
@@ -223,15 +222,9 @@ pub fn list_groups(
 #[api(
     input: {
         properties: {
-            store: {
-                schema: DATASTORE_SCHEMA,
-            },
-            "backup-type": {
-                schema: BACKUP_TYPE_SCHEMA,
-            },
-            "backup-id": {
-                schema: BACKUP_ID_SCHEMA,
-            },
+            store: { schema: DATASTORE_SCHEMA },
+            "backup-type": { type: BackupType },
+            "backup-id": { schema: BACKUP_ID_SCHEMA },
         },
     },
     access: {
@@ -244,7 +237,7 @@ pub fn list_groups(
 /// Delete backup group including all snapshots.
 pub fn delete_group(
     store: String,
-    backup_type: String,
+    backup_type: BackupType,
     backup_id: String,
     _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
@@ -266,18 +259,10 @@ pub fn delete_group(
 #[api(
     input: {
         properties: {
-            store: {
-                schema: DATASTORE_SCHEMA,
-            },
-            "backup-type": {
-                schema: BACKUP_TYPE_SCHEMA,
-            },
-            "backup-id": {
-                schema: BACKUP_ID_SCHEMA,
-            },
-            "backup-time": {
-                schema: BACKUP_TIME_SCHEMA,
-            },
+            store: { schema: DATASTORE_SCHEMA },
+            "backup-type": { type: BackupType },
+            "backup-id": { schema: BACKUP_ID_SCHEMA },
+            "backup-time": { schema: BACKUP_TIME_SCHEMA },
         },
     },
     returns: pbs_api_types::ADMIN_DATASTORE_LIST_SNAPSHOT_FILES_RETURN_TYPE,
@@ -291,7 +276,7 @@ pub fn delete_group(
 /// List snapshot files.
 pub fn list_snapshot_files(
     store: String,
-    backup_type: String,
+    backup_type: BackupType,
     backup_id: String,
     backup_time: i64,
     _info: &ApiMethod,
@@ -319,18 +304,10 @@ pub fn list_snapshot_files(
 #[api(
     input: {
         properties: {
-            store: {
-                schema: DATASTORE_SCHEMA,
-            },
-            "backup-type": {
-                schema: BACKUP_TYPE_SCHEMA,
-            },
-            "backup-id": {
-                schema: BACKUP_ID_SCHEMA,
-            },
-            "backup-time": {
-                schema: BACKUP_TIME_SCHEMA,
-            },
+            store: { schema: DATASTORE_SCHEMA },
+            "backup-type": { type: BackupType },
+            "backup-id": { schema: BACKUP_ID_SCHEMA },
+            "backup-time": { schema: BACKUP_TIME_SCHEMA },
         },
     },
     access: {
@@ -343,7 +320,7 @@ pub fn list_snapshot_files(
 /// Delete backup snapshot.
 pub fn delete_snapshot(
     store: String,
-    backup_type: String,
+    backup_type: BackupType,
     backup_id: String,
     backup_time: i64,
     _info: &ApiMethod,
@@ -370,12 +347,10 @@ pub fn delete_snapshot(
     streaming: true,
     input: {
         properties: {
-            store: {
-                schema: DATASTORE_SCHEMA,
-            },
+            store: { schema: DATASTORE_SCHEMA },
             "backup-type": {
                 optional: true,
-                schema: BACKUP_TYPE_SCHEMA,
+                type: BackupType,
             },
             "backup-id": {
                 optional: true,
@@ -394,7 +369,7 @@ pub fn delete_snapshot(
 /// List backup snapshots.
 pub fn list_snapshots(
     store: String,
-    backup_type: Option<String>,
+    backup_type: Option<BackupType>,
     backup_id: Option<String>,
     _param: Value,
     _info: &ApiMethod,
@@ -424,9 +399,10 @@ pub fn list_snapshots(
     };
 
     let info_to_snapshot_list_item = |group: &BackupGroup, owner, info: BackupInfo| {
-        let backup_type = group.backup_type().to_string();
-        let backup_id = group.backup_id().to_string();
-        let backup_time = info.backup_dir.backup_time();
+        let backup = pbs_api_types::BackupDir {
+            group: group.into(),
+            time: info.backup_dir.backup_time(),
+        };
         let protected = info.backup_dir.is_protected(datastore.base_path());
 
         match get_all_snapshot_files(&datastore, &info) {
@@ -458,9 +434,7 @@ pub fn list_snapshots(
                 let size = Some(files.iter().map(|x| x.size.unwrap_or(0)).sum());
 
                 SnapshotListItem {
-                    backup_type,
-                    backup_id,
-                    backup_time,
+                    backup,
                     comment,
                     verification,
                     fingerprint,
@@ -483,9 +457,7 @@ pub fn list_snapshots(
                     .collect();
 
                 SnapshotListItem {
-                    backup_type,
-                    backup_id,
-                    backup_time,
+                    backup,
                     comment: None,
                     verification: None,
                     fingerprint: None,
@@ -550,10 +522,9 @@ fn get_snapshots_count(store: &DataStore, filter_owner: Option<&Authid>) -> Resu
             // only include groups with snapshots, counting/displaying emtpy groups can confuse
             if snapshot_count > 0 {
                 let type_count = match group.backup_type() {
-                    "ct" => counts.ct.get_or_insert(Default::default()),
-                    "vm" => counts.vm.get_or_insert(Default::default()),
-                    "host" => counts.host.get_or_insert(Default::default()),
-                    _ => counts.other.get_or_insert(Default::default()),
+                    BackupType::Ct => counts.ct.get_or_insert(Default::default()),
+                    BackupType::Vm => counts.vm.get_or_insert(Default::default()),
+                    BackupType::Host => counts.host.get_or_insert(Default::default()),
                 };
 
                 type_count.groups += 1;
@@ -630,7 +601,7 @@ pub fn status(
                 schema: DATASTORE_SCHEMA,
             },
             "backup-type": {
-                schema: BACKUP_TYPE_SCHEMA,
+                type: BackupType,
                 optional: true,
             },
             "backup-id": {
@@ -664,7 +635,7 @@ pub fn status(
 /// or all backups in the datastore.
 pub fn verify(
     store: String,
-    backup_type: Option<String>,
+    backup_type: Option<BackupType>,
     backup_id: Option<String>,
     backup_time: Option<i64>,
     ignore_verified: Option<bool>,
@@ -771,12 +742,8 @@ pub fn verify(
 #[api(
     input: {
         properties: {
-            "backup-id": {
-                schema: BACKUP_ID_SCHEMA,
-            },
-            "backup-type": {
-                schema: BACKUP_TYPE_SCHEMA,
-            },
+            "backup-id": { schema: BACKUP_ID_SCHEMA },
+            "backup-type": { type: BackupType },
             "dry-run": {
                 optional: true,
                 type: bool,
@@ -800,7 +767,7 @@ pub fn verify(
 /// Prune a group on the datastore
 pub fn prune(
     backup_id: String,
-    backup_type: String,
+    backup_type: BackupType,
     dry_run: bool,
     prune_options: PruneOptions,
     store: String,
@@ -809,13 +776,13 @@ pub fn prune(
 ) -> Result<Value, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-    let group = BackupGroup::new(&backup_type, &backup_id);
+    let group = BackupGroup::new(backup_type, &backup_id);
 
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
     check_priv_or_backup_owner(&datastore, &group, &auth_id, PRIV_DATASTORE_MODIFY)?;
 
-    let worker_id = format!("{}:{}/{}", store, &backup_type, &backup_id);
+    let worker_id = format!("{}:{}/{}", store, backup_type, &backup_id);
 
     let mut prune_result = Vec::new();
 
@@ -1111,7 +1078,7 @@ pub fn download_file(
 
         let file_name = required_string_param(&param, "file-name")?.to_owned();
 
-        let backup_type = required_string_param(&param, "backup-type")?;
+        let backup_type: BackupType = required_string_param(&param, "backup-type")?.parse()?;
         let backup_id = required_string_param(&param, "backup-id")?;
         let backup_time = required_integer_param(&param, "backup-time")?;
 
@@ -1194,7 +1161,7 @@ pub fn download_file_decoded(
 
         let file_name = required_string_param(&param, "file-name")?.to_owned();
 
-        let backup_type = required_string_param(&param, "backup-type")?;
+        let backup_type: BackupType = required_string_param(&param, "backup-type")?.parse()?;
         let backup_id = required_string_param(&param, "backup-id")?;
         let backup_time = required_integer_param(&param, "backup-time")?;
 
@@ -1320,7 +1287,7 @@ pub fn upload_backup_log(
 
         let file_name = CLIENT_LOG_BLOB_NAME;
 
-        let backup_type = required_string_param(&param, "backup-type")?;
+        let backup_type: BackupType = required_string_param(&param, "backup-type")?.parse()?;
         let backup_id = required_string_param(&param, "backup-id")?;
         let backup_time = required_integer_param(&param, "backup-time")?;
 
@@ -1369,18 +1336,10 @@ pub fn upload_backup_log(
 #[api(
     input: {
         properties: {
-            store: {
-                schema: DATASTORE_SCHEMA,
-            },
-            "backup-type": {
-                schema: BACKUP_TYPE_SCHEMA,
-            },
-            "backup-id": {
-                schema: BACKUP_ID_SCHEMA,
-            },
-            "backup-time": {
-                schema: BACKUP_TIME_SCHEMA,
-            },
+            store: { schema: DATASTORE_SCHEMA },
+            "backup-type": { type: BackupType },
+            "backup-id": { schema: BACKUP_ID_SCHEMA },
+            "backup-time": { schema: BACKUP_TIME_SCHEMA },
             "filepath": {
                 description: "Base64 encoded path.",
                 type: String,
@@ -1394,7 +1353,7 @@ pub fn upload_backup_log(
 /// Get the entries of the given path of the catalog
 pub fn catalog(
     store: String,
-    backup_type: String,
+    backup_type: BackupType,
     backup_id: String,
     backup_time: i64,
     filepath: String,
@@ -1481,7 +1440,7 @@ pub fn pxar_file_download(
 
         let filepath = required_string_param(&param, "filepath")?.to_owned();
 
-        let backup_type = required_string_param(&param, "backup-type")?;
+        let backup_type: BackupType = required_string_param(&param, "backup-type")?.parse()?;
         let backup_id = required_string_param(&param, "backup-id")?;
         let backup_time = required_integer_param(&param, "backup-time")?;
 
@@ -1659,15 +1618,9 @@ pub fn get_active_operations(store: String, _param: Value) -> Result<Value, Erro
 #[api(
     input: {
         properties: {
-            store: {
-                schema: DATASTORE_SCHEMA,
-            },
-            "backup-type": {
-                schema: BACKUP_TYPE_SCHEMA,
-            },
-            "backup-id": {
-                schema: BACKUP_ID_SCHEMA,
-            },
+            store: { schema: DATASTORE_SCHEMA },
+            "backup-type": { type: BackupType },
+            "backup-id": { schema: BACKUP_ID_SCHEMA },
         },
     },
     access: {
@@ -1677,7 +1630,7 @@ pub fn get_active_operations(store: String, _param: Value) -> Result<Value, Erro
 /// Get "notes" for a backup group
 pub fn get_group_notes(
     store: String,
-    backup_type: String,
+    backup_type: BackupType,
     backup_id: String,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
@@ -1695,15 +1648,9 @@ pub fn get_group_notes(
 #[api(
     input: {
         properties: {
-            store: {
-                schema: DATASTORE_SCHEMA,
-            },
-            "backup-type": {
-                schema: BACKUP_TYPE_SCHEMA,
-            },
-            "backup-id": {
-                schema: BACKUP_ID_SCHEMA,
-            },
+            store: { schema: DATASTORE_SCHEMA },
+            "backup-type": { type: BackupType },
+            "backup-id": { schema: BACKUP_ID_SCHEMA },
             notes: {
                 description: "A multiline text.",
             },
@@ -1718,7 +1665,7 @@ pub fn get_group_notes(
 /// Set "notes" for a backup group
 pub fn set_group_notes(
     store: String,
-    backup_type: String,
+    backup_type: BackupType,
     backup_id: String,
     notes: String,
     rpcenv: &mut dyn RpcEnvironment,
@@ -1739,18 +1686,10 @@ pub fn set_group_notes(
 #[api(
     input: {
         properties: {
-            store: {
-                schema: DATASTORE_SCHEMA,
-            },
-            "backup-type": {
-                schema: BACKUP_TYPE_SCHEMA,
-            },
-            "backup-id": {
-                schema: BACKUP_ID_SCHEMA,
-            },
-            "backup-time": {
-                schema: BACKUP_TIME_SCHEMA,
-            },
+            store: { schema: DATASTORE_SCHEMA },
+            "backup-type": { type: BackupType },
+            "backup-id": { schema: BACKUP_ID_SCHEMA },
+            "backup-time": { schema: BACKUP_TIME_SCHEMA },
         },
     },
     access: {
@@ -1760,7 +1699,7 @@ pub fn set_group_notes(
 /// Get "notes" for a specific backup
 pub fn get_notes(
     store: String,
-    backup_type: String,
+    backup_type: BackupType,
     backup_id: String,
     backup_time: i64,
     rpcenv: &mut dyn RpcEnvironment,
@@ -1787,18 +1726,10 @@ pub fn get_notes(
 #[api(
     input: {
         properties: {
-            store: {
-                schema: DATASTORE_SCHEMA,
-            },
-            "backup-type": {
-                schema: BACKUP_TYPE_SCHEMA,
-            },
-            "backup-id": {
-                schema: BACKUP_ID_SCHEMA,
-            },
-            "backup-time": {
-                schema: BACKUP_TIME_SCHEMA,
-            },
+            store: { schema: DATASTORE_SCHEMA },
+            "backup-type": { type: BackupType },
+            "backup-id": { schema: BACKUP_ID_SCHEMA },
+            "backup-time": { schema: BACKUP_TIME_SCHEMA },
             notes: {
                 description: "A multiline text.",
             },
@@ -1813,7 +1744,7 @@ pub fn get_notes(
 /// Set "notes" for a specific backup
 pub fn set_notes(
     store: String,
-    backup_type: String,
+    backup_type: BackupType,
     backup_id: String,
     backup_time: i64,
     notes: String,
@@ -1843,18 +1774,10 @@ pub fn set_notes(
 #[api(
     input: {
         properties: {
-            store: {
-                schema: DATASTORE_SCHEMA,
-            },
-            "backup-type": {
-                schema: BACKUP_TYPE_SCHEMA,
-            },
-            "backup-id": {
-                schema: BACKUP_ID_SCHEMA,
-            },
-            "backup-time": {
-                schema: BACKUP_TIME_SCHEMA,
-            },
+            store: { schema: DATASTORE_SCHEMA },
+            "backup-type": { type: BackupType },
+            "backup-id": { schema: BACKUP_ID_SCHEMA },
+            "backup-time": { schema: BACKUP_TIME_SCHEMA },
         },
     },
     access: {
@@ -1864,7 +1787,7 @@ pub fn set_notes(
 /// Query protection for a specific backup
 pub fn get_protection(
     store: String,
-    backup_type: String,
+    backup_type: BackupType,
     backup_id: String,
     backup_time: i64,
     rpcenv: &mut dyn RpcEnvironment,
@@ -1887,18 +1810,10 @@ pub fn get_protection(
 #[api(
     input: {
         properties: {
-            store: {
-                schema: DATASTORE_SCHEMA,
-            },
-            "backup-type": {
-                schema: BACKUP_TYPE_SCHEMA,
-            },
-            "backup-id": {
-                schema: BACKUP_ID_SCHEMA,
-            },
-            "backup-time": {
-                schema: BACKUP_TIME_SCHEMA,
-            },
+            store: { schema: DATASTORE_SCHEMA },
+            "backup-type": { type: BackupType },
+            "backup-id": { schema: BACKUP_ID_SCHEMA },
+            "backup-time": { schema: BACKUP_TIME_SCHEMA },
             protected: {
                 description: "Enable/disable protection.",
             },
@@ -1913,7 +1828,7 @@ pub fn get_protection(
 /// En- or disable protection for a specific backup
 pub fn set_protection(
     store: String,
-    backup_type: String,
+    backup_type: BackupType,
     backup_id: String,
     backup_time: i64,
     protected: bool,
@@ -1937,15 +1852,9 @@ pub fn set_protection(
 #[api(
     input: {
         properties: {
-            store: {
-                schema: DATASTORE_SCHEMA,
-            },
-            "backup-type": {
-                schema: BACKUP_TYPE_SCHEMA,
-            },
-            "backup-id": {
-                schema: BACKUP_ID_SCHEMA,
-            },
+            store: { schema: DATASTORE_SCHEMA },
+            "backup-type": { type: BackupType },
+            "backup-id": { schema: BACKUP_ID_SCHEMA },
             "new-owner": {
                 type: Authid,
             },
@@ -1959,7 +1868,7 @@ pub fn set_protection(
 /// Change owner of a backup group
 pub fn set_backup_owner(
     store: String,
-    backup_type: String,
+    backup_type: BackupType,
     backup_id: String,
     new_owner: Authid,
     rpcenv: &mut dyn RpcEnvironment,

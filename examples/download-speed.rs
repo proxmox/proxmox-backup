@@ -2,7 +2,7 @@ use std::io::Write;
 
 use anyhow::Error;
 
-use pbs_api_types::Authid;
+use pbs_api_types::{Authid, BackupType};
 use pbs_client::{BackupReader, HttpClient, HttpClientOptions};
 
 pub struct DummyWriter {
@@ -33,8 +33,16 @@ async fn run() -> Result<(), Error> {
 
     let backup_time = proxmox_time::parse_rfc3339("2019-06-28T10:49:48Z")?;
 
-    let client =
-        BackupReader::start(client, None, "store2", "host", "elsa", backup_time, true).await?;
+    let client = BackupReader::start(
+        client,
+        None,
+        "store2",
+        BackupType::Host,
+        "elsa",
+        backup_time,
+        true,
+    )
+    .await?;
 
     let start = std::time::SystemTime::now();
 
