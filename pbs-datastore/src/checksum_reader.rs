@@ -1,6 +1,6 @@
-use anyhow::{Error};
-use std::sync::Arc;
+use anyhow::Error;
 use std::io::Read;
+use std::sync::Arc;
 
 use proxmox_borrow::Tied;
 
@@ -12,8 +12,7 @@ pub struct ChecksumReader<R> {
     signer: Option<Tied<Arc<CryptConfig>, openssl::sign::Signer<'static>>>,
 }
 
-impl <R: Read> ChecksumReader<R> {
-
+impl<R: Read> ChecksumReader<R> {
     pub fn new(reader: R, config: Option<Arc<CryptConfig>>) -> Self {
         let hasher = crc32fast::Hasher::new();
         let signer = match config {
@@ -26,7 +25,11 @@ impl <R: Read> ChecksumReader<R> {
             None => None,
         };
 
-        Self { reader, hasher, signer }
+        Self {
+            reader,
+            hasher,
+            signer,
+        }
     }
 
     pub fn finish(mut self) -> Result<(R, u32, Option<[u8; 32]>), Error> {
@@ -42,19 +45,18 @@ impl <R: Read> ChecksumReader<R> {
     }
 }
 
-impl <R: Read> Read for ChecksumReader<R> {
-
+impl<R: Read> Read for ChecksumReader<R> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
         let count = self.reader.read(buf)?;
         if count > 0 {
             self.hasher.update(&buf[..count]);
             if let Some(ref mut signer) = self.signer {
-                signer.update(&buf[..count])
-                    .map_err(|err| {
-                        std::io::Error::new(
-                            std::io::ErrorKind::Other,
-                            format!("hmac update failed - {}", err))
-                    })?;
+                signer.update(&buf[..count]).map_err(|err| {
+                    std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        format!("hmac update failed - {}", err),
+                    )
+                })?;
             }
         }
         Ok(count)

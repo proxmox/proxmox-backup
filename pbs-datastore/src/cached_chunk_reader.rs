@@ -10,8 +10,8 @@ use anyhow::Error;
 use futures::ready;
 use tokio::io::{AsyncRead, AsyncSeek, ReadBuf};
 
-use proxmox_lang::io_format_err;
 use proxmox_lang::error::io_err_other;
+use proxmox_lang::io_format_err;
 
 use pbs_tools::async_lru_cache::{AsyncCacher, AsyncLruCache};
 

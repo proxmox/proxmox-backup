@@ -15,7 +15,7 @@ impl StoreProgress {
     pub fn new(total_groups: u64) -> Self {
         StoreProgress {
             total_groups,
-            .. Default::default()
+            ..Default::default()
         }
     }
 

@@ -38,7 +38,7 @@ pub const DYNAMIC_SIZED_CHUNK_INDEX_1_0: [u8; 8] = [28, 145, 78, 165, 25, 186, 1
 /// This is basically the same format we use for chunks, but
 /// with other magic numbers so that we can distinguish them.
 #[derive(Endian)]
-#[repr(C,packed)]
+#[repr(C, packed)]
 pub struct DataBlobHeader {
     pub magic: [u8; 8],
     pub crc: [u8; 4],
@@ -52,7 +52,7 @@ pub struct DataBlobHeader {
 ///
 /// (MAGIC || CRC32 || IV || TAG || EncryptedData).
 #[derive(Endian)]
-#[repr(C,packed)]
+#[repr(C, packed)]
 pub struct EncryptedDataBlobHeader {
     pub head: DataBlobHeader,
     pub iv: [u8; 16],

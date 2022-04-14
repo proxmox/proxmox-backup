@@ -1,14 +1,19 @@
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
-use anyhow::{Error};
+use anyhow::Error;
 
 use pbs_api_types::PruneOptions;
 
 use super::BackupInfo;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub enum PruneMark { Protected, Keep, KeepPartial, Remove }
+pub enum PruneMark {
+    Protected,
+    Keep,
+    KeepPartial,
+    Remove,
+}
 
 impl PruneMark {
     pub fn keep(self) -> bool {
@@ -31,13 +36,12 @@ impl std::fmt::Display for PruneMark {
     }
 }
 
-fn mark_selections<F: Fn(&BackupInfo) -> Result<String, Error>> (
+fn mark_selections<F: Fn(&BackupInfo) -> Result<String, Error>>(
     mark: &mut HashMap<PathBuf, PruneMark>,
     list: &[BackupInfo],
     keep: usize,
     select_id: F,
 ) -> Result<(), Error> {
-
     let mut include_hash = HashSet::new();
 
     let mut already_included = HashSet::new();
@@ -51,17 +55,23 @@ fn mark_selections<F: Fn(&BackupInfo) -> Result<String, Error>> (
 
     for info in list {
         let backup_id = info.backup_dir.relative_path();
-        if mark.get(&backup_id).is_some() { continue; }
+        if mark.get(&backup_id).is_some() {
+            continue;
+        }
         if info.protected {
             mark.insert(backup_id, PruneMark::Protected);
             continue;
         }
         let sel_id: String = select_id(info)?;
 
-        if already_included.contains(&sel_id) { continue; }
+        if already_included.contains(&sel_id) {
+            continue;
+        }
 
         if !include_hash.contains(&sel_id) {
-            if include_hash.len() >= keep { break; }
+            if include_hash.len() >= keep {
+                break;
+            }
             include_hash.insert(sel_id);
             mark.insert(backup_id, PruneMark::Keep);
         } else {
@@ -72,11 +82,7 @@ fn mark_selections<F: Fn(&BackupInfo) -> Result<String, Error>> (
     Ok(())
 }
 
-fn remove_incomplete_snapshots(
-    mark: &mut HashMap<PathBuf, PruneMark>,
-    list: &[BackupInfo],
-) {
-
+fn remove_incomplete_snapshots(mark: &mut HashMap<PathBuf, PruneMark>, list: &[BackupInfo]) {
     let mut keep_unfinished = true;
     for info in list.iter() {
         // backup is considered unfinished if there is no manifest
@@ -86,7 +92,8 @@ fn remove_incomplete_snapshots(
             keep_unfinished = false;
         } else {
             let backup_id = info.backup_dir.relative_path();
-            if keep_unfinished { // keep first unfinished
+            if keep_unfinished {
+                // keep first unfinished
                 mark.insert(backup_id, PruneMark::KeepPartial);
             } else {
                 mark.insert(backup_id, PruneMark::Remove);
@@ -98,12 +105,36 @@ fn remove_incomplete_snapshots(
 
 pub fn keeps_something(options: &PruneOptions) -> bool {
     let mut keep_something = false;
-    if let Some(count) = options.keep_last { if count > 0 { keep_something = true; } }
-    if let Some(count) = options.keep_hourly { if count > 0 { keep_something = true; } }
-    if let Some(count) = options.keep_daily { if count > 0 { keep_something = true; } }
-    if let Some(count) = options.keep_weekly { if count > 0 { keep_something = true; } }
-    if let Some(count) = options.keep_monthly { if count > 0 { keep_something = true; } }
-    if let Some(count) = options.keep_yearly { if count > 0 { keep_something = true; } }
+    if let Some(count) = options.keep_last {
+        if count > 0 {
+            keep_something = true;
+        }
+    }
+    if let Some(count) = options.keep_hourly {
+        if count > 0 {
+            keep_something = true;
+        }
+    }
+    if let Some(count) = options.keep_daily {
+        if count > 0 {
+            keep_something = true;
+        }
+    }
+    if let Some(count) = options.keep_weekly {
+        if count > 0 {
+            keep_something = true;
+        }
+    }
+    if let Some(count) = options.keep_monthly {
+        if count > 0 {
+            keep_something = true;
+        }
+    }
+    if let Some(count) = options.keep_yearly {
+        if count > 0 {
+            keep_something = true;
+        }
+    }
     keep_something
 }
 
@@ -148,7 +179,6 @@ pub fn compute_prune_info(
     mut list: Vec<BackupInfo>,
     options: &PruneOptions,
 ) -> Result<Vec<(BackupInfo, PruneMark)>, Error> {
-
     let mut mark = HashMap::new();
 
     BackupInfo::sort_list(&mut list, false);
@@ -195,7 +225,8 @@ pub fn compute_prune_info(
         })?;
     }
 
-    let prune_info: Vec<(BackupInfo, PruneMark)> = list.into_iter()
+    let prune_info: Vec<(BackupInfo, PruneMark)> = list
+        .into_iter()
         .map(|info| {
             let backup_id = info.backup_dir.relative_path();
             let mark = if info.protected {

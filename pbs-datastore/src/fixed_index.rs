@@ -1,14 +1,14 @@
 use std::fs::File;
 use std::io::Write;
+use std::io::{Seek, SeekFrom};
 use std::os::unix::io::AsRawFd;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::io::{Seek, SeekFrom};
 
 use anyhow::{bail, format_err, Error};
 
-use proxmox_sys::process_locker::ProcessLockSharedGuard;
 use proxmox_io::ReadExt;
+use proxmox_sys::process_locker::ProcessLockSharedGuard;
 use proxmox_uuid::Uuid;
 
 use crate::chunk_stat::ChunkStat;

@@ -5,19 +5,20 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::{bail, format_err, Error};
 
-use proxmox_sys::fs::{CreateOptions, create_path, create_dir};
-use proxmox_sys::process_locker::{ProcessLocker, ProcessLockSharedGuard, ProcessLockExclusiveGuard};
-use proxmox_sys::WorkerTaskContext;
-use proxmox_sys::task_log;
 use pbs_api_types::GarbageCollectionStatus;
-
+use proxmox_sys::fs::{create_dir, create_path, CreateOptions};
+use proxmox_sys::process_locker::{
+    ProcessLockExclusiveGuard, ProcessLockSharedGuard, ProcessLocker,
+};
+use proxmox_sys::task_log;
+use proxmox_sys::WorkerTaskContext;
 
 use crate::DataBlob;
 
 /// File system based chunk store
 pub struct ChunkStore {
     name: String, // used for error reporting
-    pub (crate) base: PathBuf,
+    pub(crate) base: PathBuf,
     chunk_dir: PathBuf,
     mutex: Mutex<()>,
     locker: Arc<Mutex<ProcessLocker>>,
@@ -26,8 +27,15 @@ pub struct ChunkStore {
 // TODO: what about sysctl setting vm.vfs_cache_pressure (0 - 100) ?
 
 pub fn verify_chunk_size(size: usize) -> Result<(), Error> {
-
-    static SIZES: [usize; 7] = [64*1024, 128*1024, 256*1024, 512*1024, 1024*1024, 2048*1024, 4096*1024];
+    static SIZES: [usize; 7] = [
+        64 * 1024,
+        128 * 1024,
+        256 * 1024,
+        512 * 1024,
+        1024 * 1024,
+        2048 * 1024,
+        4096 * 1024,
+    ];
 
     if !SIZES.contains(&size) {
         bail!("Got unsupported chunk size '{}'", size);
@@ -36,26 +44,23 @@ pub fn verify_chunk_size(size: usize) -> Result<(), Error> {
 }
 
 fn digest_to_prefix(digest: &[u8]) -> PathBuf {
-
-    let mut buf = Vec::<u8>::with_capacity(2+1+2+1);
+    let mut buf = Vec::<u8>::with_capacity(2 + 1 + 2 + 1);
 
     const HEX_CHARS: &[u8; 16] = b"0123456789abcdef";
 
     buf.push(HEX_CHARS[(digest[0] as usize) >> 4]);
-    buf.push(HEX_CHARS[(digest[0] as usize) &0xf]);
+    buf.push(HEX_CHARS[(digest[0] as usize) & 0xf]);
     buf.push(HEX_CHARS[(digest[1] as usize) >> 4]);
     buf.push(HEX_CHARS[(digest[1] as usize) & 0xf]);
     buf.push(b'/');
 
-    let path = unsafe { String::from_utf8_unchecked(buf)};
+    let path = unsafe { String::from_utf8_unchecked(buf) };
 
     path.into()
 }
 
 impl ChunkStore {
-
     fn chunk_dir<P: AsRef<Path>>(path: P) -> PathBuf {
-
         let mut chunk_dir: PathBuf = PathBuf::from(path.as_ref());
         chunk_dir.push(".chunks");
 
@@ -66,11 +71,16 @@ impl ChunkStore {
         &self.base
     }
 
-    pub fn create<P>(name: &str, path: P, uid: nix::unistd::Uid, gid: nix::unistd::Gid, worker: Option<&dyn WorkerTaskContext>) -> Result<Self, Error>
+    pub fn create<P>(
+        name: &str,
+        path: P,
+        uid: nix::unistd::Uid,
+        gid: nix::unistd::Gid,
+        worker: Option<&dyn WorkerTaskContext>,
+    ) -> Result<Self, Error>
     where
         P: Into<PathBuf>,
     {
-
         let base: PathBuf = path.into();
 
         if !base.is_absolute() {
@@ -79,19 +89,31 @@ impl ChunkStore {
 
         let chunk_dir = Self::chunk_dir(&base);
 
-        let options = CreateOptions::new()
-            .owner(uid)
-            .group(gid);
+        let options = CreateOptions::new().owner(uid).group(gid);
 
         let default_options = CreateOptions::new();
 
         match create_path(&base, Some(default_options), Some(options.clone())) {
-            Err(err) => bail!("unable to create chunk store '{}' at {:?} - {}", name, base, err),
-            Ok(res) => if ! res  { nix::unistd::chown(&base, Some(uid), Some(gid))? },
+            Err(err) => bail!(
+                "unable to create chunk store '{}' at {:?} - {}",
+                name,
+                base,
+                err
+            ),
+            Ok(res) => {
+                if !res {
+                    nix::unistd::chown(&base, Some(uid), Some(gid))?
+                }
+            }
         }
 
         if let Err(err) = create_dir(&chunk_dir, options.clone()) {
-            bail!("unable to create chunk store '{}' subdir {:?} - {}", name, chunk_dir, err);
+            bail!(
+                "unable to create chunk store '{}' subdir {:?} - {}",
+                name,
+                chunk_dir,
+                err
+            );
         }
 
         // create lock file with correct owner/group
@@ -101,13 +123,18 @@ impl ChunkStore {
         // create 64*1024 subdirs
         let mut last_percentage = 0;
 
-        for i in 0..64*1024 {
+        for i in 0..64 * 1024 {
             let mut l1path = chunk_dir.clone();
             l1path.push(format!("{:04x}", i));
             if let Err(err) = create_dir(&l1path, options.clone()) {
-                bail!("unable to create chunk store '{}' subdir {:?} - {}", name, l1path, err);
+                bail!(
+                    "unable to create chunk store '{}' subdir {:?} - {}",
+                    name,
+                    l1path,
+                    err
+                );
             }
-            let percentage = (i*100)/(64*1024);
+            let percentage = (i * 100) / (64 * 1024);
             if percentage != last_percentage {
                 if let Some(worker) = worker {
                     task_log!(worker, "Chunkstore create: {}%", percentage)
@@ -128,7 +155,6 @@ impl ChunkStore {
     }
 
     pub fn open<P: Into<PathBuf>>(name: &str, base: P) -> Result<Self, Error> {
-
         let base: PathBuf = base.into();
 
         if !base.is_absolute() {
@@ -138,7 +164,12 @@ impl ChunkStore {
         let chunk_dir = Self::chunk_dir(&base);
 
         if let Err(err) = std::fs::metadata(&chunk_dir) {
-            bail!("unable to open chunk store '{}' at {:?} - {}", name, chunk_dir, err);
+            bail!(
+                "unable to open chunk store '{}' at {:?} - {}",
+                name,
+                chunk_dir,
+                err
+            );
         }
 
         let lockfile_path = Self::lockfile_path(&base);
@@ -150,7 +181,7 @@ impl ChunkStore {
             base,
             chunk_dir,
             locker,
-            mutex: Mutex::new(())
+            mutex: Mutex::new(()),
         })
     }
 
@@ -159,7 +190,11 @@ impl ChunkStore {
         Ok(())
     }
 
-    pub fn cond_touch_chunk(&self, digest: &[u8; 32], fail_if_not_exist: bool) -> Result<bool, Error> {
+    pub fn cond_touch_chunk(
+        &self,
+        digest: &[u8; 32],
+        fail_if_not_exist: bool,
+    ) -> Result<bool, Error> {
         let (chunk_path, _digest_str) = self.chunk_path(digest);
         self.cond_touch_path(&chunk_path, fail_if_not_exist)
     }
@@ -169,8 +204,14 @@ impl ChunkStore {
         const UTIME_OMIT: i64 = (1 << 30) - 2;
 
         let times: [libc::timespec; 2] = [
-            libc::timespec { tv_sec: 0, tv_nsec: UTIME_NOW },
-            libc::timespec { tv_sec: 0, tv_nsec: UTIME_OMIT }
+            libc::timespec {
+                tv_sec: 0,
+                tv_nsec: UTIME_NOW,
+            },
+            libc::timespec {
+                tv_sec: 0,
+                tv_nsec: UTIME_OMIT,
+            },
         ];
 
         use nix::NixPath;
@@ -194,15 +235,16 @@ impl ChunkStore {
     pub fn get_chunk_iterator(
         &self,
     ) -> Result<
-        impl Iterator<Item = (Result<proxmox_sys::fs::ReadDirEntry, Error>, usize, bool)> + std::iter::FusedIterator,
-        Error
+        impl Iterator<Item = (Result<proxmox_sys::fs::ReadDirEntry, Error>, usize, bool)>
+            + std::iter::FusedIterator,
+        Error,
     > {
         use nix::dir::Dir;
         use nix::fcntl::OFlag;
         use nix::sys::stat::Mode;
 
-        let base_handle = Dir::open(&self.chunk_dir, OFlag::O_RDONLY, Mode::empty())
-            .map_err(|err| {
+        let base_handle =
+            Dir::open(&self.chunk_dir, OFlag::O_RDONLY, Mode::empty()).map_err(|err| {
                 format_err!(
                     "unable to open store '{}' chunk dir {:?} - {}",
                     self.name,
@@ -270,11 +312,16 @@ impl ChunkStore {
                         // other errors are fatal, so end our iteration
                         done = true;
                         // and pass the error through:
-                        return Some((Err(format_err!("unable to read subdir '{}' - {}", subdir, err)), percentage, false));
+                        return Some((
+                            Err(format_err!("unable to read subdir '{}' - {}", subdir, err)),
+                            percentage,
+                            false,
+                        ));
                     }
                 }
             }
-        }).fuse())
+        })
+        .fuse())
     }
 
     pub fn oldest_writer(&self) -> Option<i64> {
@@ -291,7 +338,7 @@ impl ChunkStore {
         use nix::sys::stat::fstatat;
         use nix::unistd::{unlinkat, UnlinkatFlags};
 
-        let mut min_atime = phase1_start_time - 3600*24; // at least 24h (see mount option relatime)
+        let mut min_atime = phase1_start_time - 3600 * 24; // at least 24h (see mount option relatime)
 
         if oldest_writer < min_atime {
             min_atime = oldest_writer;
@@ -305,12 +352,7 @@ impl ChunkStore {
         for (entry, percentage, bad) in self.get_chunk_iterator()? {
             if last_percentage != percentage {
                 last_percentage = percentage;
-                task_log!(
-                    worker,
-                    "processed {}% ({} chunks)",
-                    percentage,
-                    chunk_count,
-                );
+                task_log!(worker, "processed {}% ({} chunks)", percentage, chunk_count,);
             }
 
             worker.check_abort()?;
@@ -318,12 +360,19 @@ impl ChunkStore {
 
             let (dirfd, entry) = match entry {
                 Ok(entry) => (entry.parent_fd(), entry),
-                Err(err) => bail!("chunk iterator on chunk store '{}' failed - {}", self.name, err),
+                Err(err) => bail!(
+                    "chunk iterator on chunk store '{}' failed - {}",
+                    self.name,
+                    err
+                ),
             };
 
             let file_type = match entry.file_type() {
                 Some(file_type) => file_type,
-                None => bail!("unsupported file system type on chunk store '{}'", self.name),
+                None => bail!(
+                    "unsupported file system type on chunk store '{}'",
+                    self.name
+                ),
             };
             if file_type != nix::dir::Type::File {
                 continue;
@@ -376,12 +425,7 @@ impl ChunkStore {
         Ok(())
     }
 
-    pub fn insert_chunk(
-        &self,
-        chunk: &DataBlob,
-        digest: &[u8; 32],
-    ) -> Result<(bool, u64), Error> {
-
+    pub fn insert_chunk(&self, chunk: &DataBlob, digest: &[u8; 32]) -> Result<(bool, u64), Error> {
         //println!("DIGEST {}", hex::encode(digest));
 
         let (chunk_path, digest_str) = self.chunk_path(digest);
@@ -393,7 +437,11 @@ impl ChunkStore {
                 self.touch_chunk(digest)?;
                 return Ok((true, metadata.len()));
             } else {
-                bail!("Got unexpected file type on store '{}' for chunk {}", self.name, digest_str);
+                bail!(
+                    "Got unexpected file type on store '{}' for chunk {}",
+                    self.name,
+                    digest_str
+                );
             }
         }
 
@@ -422,7 +470,7 @@ impl ChunkStore {
         })?;
 
         if let Err(err) = std::fs::rename(&tmp_path, &chunk_path) {
-            if std::fs::remove_file(&tmp_path).is_err()  { /* ignore */ }
+            if std::fs::remove_file(&tmp_path).is_err() { /* ignore */ }
             bail!(
                 "Atomic rename on store '{}' failed for chunk {} - {}",
                 self.name,
@@ -436,7 +484,7 @@ impl ChunkStore {
         Ok((false, encoded_size))
     }
 
-    pub fn chunk_path(&self, digest:&[u8; 32]) -> (PathBuf, String) {
+    pub fn chunk_path(&self, digest: &[u8; 32]) -> (PathBuf, String) {
         let mut chunk_path = self.chunk_dir.clone();
         let prefix = digest_to_prefix(digest);
         chunk_path.push(&prefix);
@@ -446,7 +494,6 @@ impl ChunkStore {
     }
 
     pub fn relative_path(&self, path: &Path) -> PathBuf {
-
         let mut full_path = self.base.clone();
         full_path.push(path);
         full_path
@@ -469,10 +516,8 @@ impl ChunkStore {
     }
 }
 
-
 #[test]
 fn test_chunk_store1() {
-
     let mut path = std::fs::canonicalize(".").unwrap(); // we need absolute path
     path.push(".testdir");
 
@@ -481,17 +526,20 @@ fn test_chunk_store1() {
     let chunk_store = ChunkStore::open("test", &path);
     assert!(chunk_store.is_err());
 
-    let user = nix::unistd::User::from_uid(nix::unistd::Uid::current()).unwrap().unwrap();
+    let user = nix::unistd::User::from_uid(nix::unistd::Uid::current())
+        .unwrap()
+        .unwrap();
     let chunk_store = ChunkStore::create("test", &path, user.uid, user.gid, None).unwrap();
 
-    let (chunk, digest) = crate::data_blob::DataChunkBuilder::new(&[0u8, 1u8]).build().unwrap();
+    let (chunk, digest) = crate::data_blob::DataChunkBuilder::new(&[0u8, 1u8])
+        .build()
+        .unwrap();
 
     let (exists, _) = chunk_store.insert_chunk(&chunk, &digest).unwrap();
     assert!(!exists);
 
     let (exists, _) = chunk_store.insert_chunk(&chunk, &digest).unwrap();
     assert!(exists);
-
 
     let chunk_store = ChunkStore::create("test", &path, user.uid, user.gid, None);
     assert!(chunk_store.is_err());

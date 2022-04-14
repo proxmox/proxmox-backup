@@ -146,7 +146,10 @@
 pub const CATALOG_NAME: &str = "catalog.pcat1.didx";
 
 /// Directory path where active operations counters are saved.
-pub const ACTIVE_OPERATIONS_DIR: &str = concat!(pbs_buildcfg::PROXMOX_BACKUP_RUN_DIR_M!(), "/active-operations");
+pub const ACTIVE_OPERATIONS_DIR: &str = concat!(
+    pbs_buildcfg::PROXMOX_BACKUP_RUN_DIR_M!(),
+    "/active-operations"
+);
 
 #[macro_export]
 macro_rules! PROXMOX_BACKUP_PROTOCOL_ID_V1 {
@@ -163,8 +166,8 @@ macro_rules! PROXMOX_BACKUP_READER_PROTOCOL_ID_V1 {
 }
 
 pub mod backup_info;
-pub mod catalog;
 pub mod cached_chunk_reader;
+pub mod catalog;
 pub mod checksum_reader;
 pub mod checksum_writer;
 pub mod chunk_stat;

@@ -1,5 +1,5 @@
+use std::io::{BufRead, Read};
 use std::sync::Arc;
-use std::io::{Read, BufRead};
 
 use anyhow::{bail, Error};
 
@@ -13,9 +13,13 @@ pub struct CryptReader<R> {
     finalized: bool,
 }
 
-impl <R: BufRead> CryptReader<R> {
-
-    pub fn new(reader: R, iv: [u8; 16], tag: [u8; 16], config: Arc<CryptConfig>) -> Result<Self, Error> {
+impl<R: BufRead> CryptReader<R> {
+    pub fn new(
+        reader: R,
+        iv: [u8; 16],
+        tag: [u8; 16],
+        config: Arc<CryptConfig>,
+    ) -> Result<Self, Error> {
         let block_size = config.cipher().block_size(); // Note: block size is normally 1 byte for stream ciphers
         if block_size.count_ones() != 1 || block_size > 512 {
             bail!("unexpected Cipher block size {}", block_size);
@@ -23,7 +27,13 @@ impl <R: BufRead> CryptReader<R> {
         let mut crypter = config.data_crypter(&iv, openssl::symm::Mode::Decrypt)?;
         crypter.set_tag(&tag)?;
 
-        Ok(Self { reader, crypter, block_size, finalized: false, small_read_buf: Vec::new() })
+        Ok(Self {
+            reader,
+            crypter,
+            block_size,
+            finalized: false,
+            small_read_buf: Vec::new(),
+        })
     }
 
     pub fn finish(self) -> Result<R, Error> {
@@ -34,11 +44,14 @@ impl <R: BufRead> CryptReader<R> {
     }
 }
 
-impl <R: BufRead> Read for CryptReader<R> {
-
+impl<R: BufRead> Read for CryptReader<R> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
         if !self.small_read_buf.is_empty() {
-            let max = if self.small_read_buf.len() > buf.len() {  buf.len() } else { self.small_read_buf.len() };
+            let max = if self.small_read_buf.len() > buf.len() {
+                buf.len()
+            } else {
+                self.small_read_buf.len()
+            };
             let rest = self.small_read_buf.split_off(max);
             buf[..max].copy_from_slice(&self.small_read_buf);
             self.small_read_buf = rest;
@@ -48,10 +61,11 @@ impl <R: BufRead> Read for CryptReader<R> {
         let data = self.reader.fill_buf()?;
 
         // handle small read buffers
-        if buf.len() <= 2*self.block_size {
+        if buf.len() <= 2 * self.block_size {
             let mut outbuf = [0u8; 1024];
 
-            let count = if data.is_empty() { // EOF
+            let count = if data.is_empty() {
+                // EOF
                 let written = self.crypter.finalize(&mut outbuf)?;
                 self.finalized = true;
                 written
@@ -73,7 +87,8 @@ impl <R: BufRead> Read for CryptReader<R> {
                 buf[..count].copy_from_slice(&outbuf[..count]);
                 Ok(count)
             }
-        } else if data.is_empty() { // EOF
+        } else if data.is_empty() {
+            // EOF
             let rest = self.crypter.finalize(buf)?;
             self.finalized = true;
             Ok(rest)

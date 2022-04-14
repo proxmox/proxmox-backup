@@ -1,9 +1,9 @@
-use std::collections::{HashSet, HashMap};
+use std::collections::{HashMap, HashSet};
+use std::convert::TryFrom;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
-use std::convert::TryFrom;
 use std::str::FromStr;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use anyhow::{bail, format_err, Error};
@@ -11,43 +11,40 @@ use lazy_static::lazy_static;
 
 use proxmox_schema::ApiType;
 
-use proxmox_sys::fs::{replace_file, file_read_optional_string, CreateOptions};
+use proxmox_sys::fs::{file_read_optional_string, replace_file, CreateOptions};
+use proxmox_sys::fs::{lock_dir_noblock, DirLockGuard};
 use proxmox_sys::process_locker::ProcessLockSharedGuard;
 use proxmox_sys::WorkerTaskContext;
 use proxmox_sys::{task_log, task_warn};
-use proxmox_sys::fs::{lock_dir_noblock, DirLockGuard};
 
 use pbs_api_types::{
-    UPID, DataStoreConfig, Authid, GarbageCollectionStatus, HumanByte,
-    ChunkOrder, DatastoreTuning, Operation,
+    Authid, ChunkOrder, DataStoreConfig, DatastoreTuning, GarbageCollectionStatus, HumanByte,
+    Operation, UPID,
 };
 use pbs_config::{open_backup_lockfile, BackupLockGuard, ConfigVersionCache};
 
-use crate::DataBlob;
-use crate::backup_info::{BackupGroup, BackupDir};
+use crate::backup_info::{BackupDir, BackupGroup};
 use crate::chunk_store::ChunkStore;
 use crate::dynamic_index::{DynamicIndexReader, DynamicIndexWriter};
 use crate::fixed_index::{FixedIndexReader, FixedIndexWriter};
 use crate::index::IndexFile;
 use crate::manifest::{
-    MANIFEST_BLOB_NAME, MANIFEST_LOCK_NAME, CLIENT_LOG_BLOB_NAME,
-    ArchiveType, BackupManifest,
-    archive_type,
+    archive_type, ArchiveType, BackupManifest, CLIENT_LOG_BLOB_NAME, MANIFEST_BLOB_NAME,
+    MANIFEST_LOCK_NAME,
 };
 use crate::task_tracking::update_active_operations;
+use crate::DataBlob;
 
 lazy_static! {
-    static ref DATASTORE_MAP: Mutex<HashMap<String, Arc<DataStoreImpl>>> = Mutex::new(HashMap::new());
+    static ref DATASTORE_MAP: Mutex<HashMap<String, Arc<DataStoreImpl>>> =
+        Mutex::new(HashMap::new());
 }
 
 /// checks if auth_id is owner, or, if owner is a token, if
 /// auth_id is the user of the token
-pub fn check_backup_owner(
-    owner: &Authid,
-    auth_id: &Authid,
-) -> Result<(), Error> {
-    let correct_owner = owner == auth_id
-        || (owner.is_token() && &Authid::from(owner.user().clone()) == auth_id);
+pub fn check_backup_owner(owner: &Authid, auth_id: &Authid) -> Result<(), Error> {
+    let correct_owner =
+        owner == auth_id || (owner.is_token() && &Authid::from(owner.user().clone()) == auth_id);
     if !correct_owner {
         bail!("backup owner check failed ({} != {})", auth_id, owner);
     }
@@ -147,14 +144,12 @@ impl DataStore {
     }
 
     /// removes all datastores that are not configured anymore
-    pub fn remove_unused_datastores() -> Result<(), Error>{
+    pub fn remove_unused_datastores() -> Result<(), Error> {
         let (config, _digest) = pbs_config::datastore::config()?;
 
         let mut map = DATASTORE_MAP.lock().unwrap();
         // removes all elements that are not in the config
-        map.retain(|key, _| {
-            config.sections.contains_key(key)
-        });
+        map.retain(|key, _| config.sections.contains_key(key));
         Ok(())
     }
 
@@ -183,7 +178,8 @@ impl DataStore {
         };
 
         let tuning: DatastoreTuning = serde_json::from_value(
-            DatastoreTuning::API_SCHEMA.parse_property_string(config.tuning.as_deref().unwrap_or(""))?
+            DatastoreTuning::API_SCHEMA
+                .parse_property_string(config.tuning.as_deref().unwrap_or(""))?,
         )?;
         let chunk_order = tuning.chunk_order.unwrap_or(ChunkOrder::Inode);
 
@@ -202,21 +198,32 @@ impl DataStore {
         &self,
     ) -> Result<
         impl Iterator<Item = (Result<proxmox_sys::fs::ReadDirEntry, Error>, usize, bool)>,
-        Error
+        Error,
     > {
         self.inner.chunk_store.get_chunk_iterator()
     }
 
-    pub fn create_fixed_writer<P: AsRef<Path>>(&self, filename: P, size: usize, chunk_size: usize) -> Result<FixedIndexWriter, Error> {
-
-        let index = FixedIndexWriter::create(self.inner.chunk_store.clone(), filename.as_ref(), size, chunk_size)?;
+    pub fn create_fixed_writer<P: AsRef<Path>>(
+        &self,
+        filename: P,
+        size: usize,
+        chunk_size: usize,
+    ) -> Result<FixedIndexWriter, Error> {
+        let index = FixedIndexWriter::create(
+            self.inner.chunk_store.clone(),
+            filename.as_ref(),
+            size,
+            chunk_size,
+        )?;
 
         Ok(index)
     }
 
-    pub fn open_fixed_reader<P: AsRef<Path>>(&self, filename: P) -> Result<FixedIndexReader, Error> {
-
-        let full_path =  self.inner.chunk_store.relative_path(filename.as_ref());
+    pub fn open_fixed_reader<P: AsRef<Path>>(
+        &self,
+        filename: P,
+    ) -> Result<FixedIndexReader, Error> {
+        let full_path = self.inner.chunk_store.relative_path(filename.as_ref());
 
         let index = FixedIndexReader::open(&full_path)?;
 
@@ -224,18 +231,19 @@ impl DataStore {
     }
 
     pub fn create_dynamic_writer<P: AsRef<Path>>(
-        &self, filename: P,
+        &self,
+        filename: P,
     ) -> Result<DynamicIndexWriter, Error> {
-
-        let index = DynamicIndexWriter::create(
-            self.inner.chunk_store.clone(), filename.as_ref())?;
+        let index = DynamicIndexWriter::create(self.inner.chunk_store.clone(), filename.as_ref())?;
 
         Ok(index)
     }
 
-    pub fn open_dynamic_reader<P: AsRef<Path>>(&self, filename: P) -> Result<DynamicIndexReader, Error> {
-
-        let full_path =  self.inner.chunk_store.relative_path(filename.as_ref());
+    pub fn open_dynamic_reader<P: AsRef<Path>>(
+        &self,
+        filename: P,
+    ) -> Result<DynamicIndexReader, Error> {
+        let full_path = self.inner.chunk_store.relative_path(filename.as_ref());
 
         let index = DynamicIndexReader::open(&full_path)?;
 
@@ -247,12 +255,11 @@ impl DataStore {
         P: AsRef<Path>,
     {
         let filename = filename.as_ref();
-        let out: Box<dyn IndexFile + Send> =
-            match archive_type(filename)? {
-                ArchiveType::DynamicIndex => Box::new(self.open_dynamic_reader(filename)?),
-                ArchiveType::FixedIndex => Box::new(self.open_fixed_reader(filename)?),
-                _ => bail!("cannot open index file of unknown type: {:?}", filename),
-            };
+        let out: Box<dyn IndexFile + Send> = match archive_type(filename)? {
+            ArchiveType::DynamicIndex => Box::new(self.open_dynamic_reader(filename)?),
+            ArchiveType::FixedIndex => Box::new(self.open_fixed_reader(filename)?),
+            _ => bail!("cannot open index file of unknown type: {:?}", filename),
+        };
         Ok(out)
     }
 
@@ -260,23 +267,21 @@ impl DataStore {
     pub fn fast_index_verification(
         &self,
         index: &dyn IndexFile,
-        checked: &mut HashSet<[u8;32]>,
+        checked: &mut HashSet<[u8; 32]>,
     ) -> Result<(), Error> {
-
         for pos in 0..index.index_count() {
             let info = index.chunk_info(pos).unwrap();
             if checked.contains(&info.digest) {
                 continue;
             }
 
-            self.stat_chunk(&info.digest).
-                map_err(|err| {
-                    format_err!(
-                        "fast_index_verification error, stat_chunk {} failed - {}",
-                        hex::encode(&info.digest),
-                        err,
-                    )
-                })?;
+            self.stat_chunk(&info.digest).map_err(|err| {
+                format_err!(
+                    "fast_index_verification error, stat_chunk {} failed - {}",
+                    hex::encode(&info.digest),
+                    err,
+                )
+            })?;
 
             checked.insert(info.digest);
         }
@@ -295,25 +300,35 @@ impl DataStore {
     /// Cleanup a backup directory
     ///
     /// Removes all files not mentioned in the manifest.
-    pub fn cleanup_backup_dir(&self, backup_dir: &BackupDir, manifest: &BackupManifest
-    ) ->  Result<(), Error> {
-
+    pub fn cleanup_backup_dir(
+        &self,
+        backup_dir: &BackupDir,
+        manifest: &BackupManifest,
+    ) -> Result<(), Error> {
         let mut full_path = self.base_path();
         full_path.push(backup_dir.relative_path());
 
         let mut wanted_files = HashSet::new();
         wanted_files.insert(MANIFEST_BLOB_NAME.to_string());
         wanted_files.insert(CLIENT_LOG_BLOB_NAME.to_string());
-        manifest.files().iter().for_each(|item| { wanted_files.insert(item.filename.clone()); });
+        manifest.files().iter().for_each(|item| {
+            wanted_files.insert(item.filename.clone());
+        });
 
         for item in proxmox_sys::fs::read_subdir(libc::AT_FDCWD, &full_path)?.flatten() {
             if let Some(file_type) = item.file_type() {
-                if file_type != nix::dir::Type::File { continue; }
+                if file_type != nix::dir::Type::File {
+                    continue;
+                }
             }
             let file_name = item.file_name().to_bytes();
-            if file_name == b"." || file_name == b".." { continue; };
+            if file_name == b"." || file_name == b".." {
+                continue;
+            };
             if let Ok(name) = std::str::from_utf8(file_name) {
-                if wanted_files.contains(name) { continue; }
+                if wanted_files.contains(name) {
+                    continue;
+                }
             }
             println!("remove unused file {:?}", item.file_name());
             let dirfd = item.parent_fd();
@@ -339,11 +354,14 @@ impl DataStore {
 
     /// Remove a complete backup group including all snapshots, returns true
     /// if all snapshots were removed, and false if some were protected
-    pub fn remove_backup_group(&self, backup_group: &BackupGroup) ->  Result<bool, Error> {
-
+    pub fn remove_backup_group(&self, backup_group: &BackupGroup) -> Result<bool, Error> {
         let full_path = self.group_path(backup_group);
 
-        let _guard = proxmox_sys::fs::lock_dir_noblock(&full_path, "backup group", "possible running backup")?;
+        let _guard = proxmox_sys::fs::lock_dir_noblock(
+            &full_path,
+            "backup group",
+            "possible running backup",
+        )?;
 
         log::info!("removing backup group {:?}", full_path);
 
@@ -360,22 +378,20 @@ impl DataStore {
 
         if removed_all {
             // no snapshots left, we can now safely remove the empty folder
-            std::fs::remove_dir_all(&full_path)
-                .map_err(|err| {
-                    format_err!(
-                        "removing backup group directory {:?} failed - {}",
-                        full_path,
-                        err,
-                    )
-                })?;
+            std::fs::remove_dir_all(&full_path).map_err(|err| {
+                format_err!(
+                    "removing backup group directory {:?} failed - {}",
+                    full_path,
+                    err,
+                )
+            })?;
         }
 
         Ok(removed_all)
     }
 
     /// Remove a backup directory including all content
-    pub fn remove_backup_dir(&self, backup_dir: &BackupDir, force: bool) ->  Result<(), Error> {
-
+    pub fn remove_backup_dir(&self, backup_dir: &BackupDir, force: bool) -> Result<(), Error> {
         let full_path = self.snapshot_path(backup_dir);
 
         let (_guard, _manifest_guard);
@@ -389,14 +405,9 @@ impl DataStore {
         }
 
         log::info!("removing backup snapshot {:?}", full_path);
-        std::fs::remove_dir_all(&full_path)
-            .map_err(|err| {
-                format_err!(
-                    "removing backup snapshot {:?} failed - {}",
-                    full_path,
-                    err,
-                )
-            })?;
+        std::fs::remove_dir_all(&full_path).map_err(|err| {
+            format_err!("removing backup snapshot {:?} failed - {}", full_path, err,)
+        })?;
 
         // the manifest does not exists anymore, we do not need to keep the lock
         if let Ok(path) = self.manifest_lock_path(backup_dir) {
@@ -460,7 +471,8 @@ impl DataStore {
             open_options.create_new(true);
         }
 
-        let mut file = open_options.open(&path)
+        let mut file = open_options
+            .open(&path)
             .map_err(|err| format_err!("unable to create owner file {:?} - {}", path, err))?;
 
         writeln!(file, "{}", auth_id)
@@ -490,13 +502,21 @@ impl DataStore {
         // create the last component now
         match std::fs::create_dir(&full_path) {
             Ok(_) => {
-                let guard = lock_dir_noblock(&full_path, "backup group", "another backup is already running")?;
+                let guard = lock_dir_noblock(
+                    &full_path,
+                    "backup group",
+                    "another backup is already running",
+                )?;
                 self.set_owner(backup_group, auth_id, false)?;
                 let owner = self.get_owner(backup_group)?; // just to be sure
                 Ok((owner, guard))
             }
             Err(ref err) if err.kind() == io::ErrorKind::AlreadyExists => {
-                let guard = lock_dir_noblock(&full_path, "backup group", "another backup is already running")?;
+                let guard = lock_dir_noblock(
+                    &full_path,
+                    "backup group",
+                    "another backup is already running",
+                )?;
                 let owner = self.get_owner(backup_group)?; // just to be sure
                 Ok((owner, guard))
             }
@@ -507,20 +527,28 @@ impl DataStore {
     /// Creates a new backup snapshot inside a BackupGroup
     ///
     /// The BackupGroup directory needs to exist.
-    pub fn create_locked_backup_dir(&self, backup_dir: &BackupDir)
-        -> Result<(PathBuf, bool, DirLockGuard), Error>
-    {
+    pub fn create_locked_backup_dir(
+        &self,
+        backup_dir: &BackupDir,
+    ) -> Result<(PathBuf, bool, DirLockGuard), Error> {
         let relative_path = backup_dir.relative_path();
         let mut full_path = self.base_path();
         full_path.push(&relative_path);
 
-        let lock = ||
-            lock_dir_noblock(&full_path, "snapshot", "internal error - tried creating snapshot that's already in use");
+        let lock = || {
+            lock_dir_noblock(
+                &full_path,
+                "snapshot",
+                "internal error - tried creating snapshot that's already in use",
+            )
+        };
 
         match std::fs::create_dir(&full_path) {
             Ok(_) => Ok((relative_path, true, lock()?)),
-            Err(ref e) if e.kind() == io::ErrorKind::AlreadyExists => Ok((relative_path, false, lock()?)),
-            Err(e) => Err(e.into())
+            Err(ref e) if e.kind() == io::ErrorKind::AlreadyExists => {
+                Ok((relative_path, false, lock()?))
+            }
+            Err(e) => Err(e.into()),
         }
     }
 
@@ -535,7 +563,8 @@ impl DataStore {
 
         // make sure we skip .chunks (and other hidden files to keep it simple)
         fn is_hidden(entry: &walkdir::DirEntry) -> bool {
-            entry.file_name()
+            entry
+                .file_name()
                 .to_str()
                 .map(|s| s.starts_with('.'))
                 .unwrap_or(false)
@@ -550,7 +579,11 @@ impl DataStore {
                             bail!("cannot continue garbage-collection safely, permission denied on: {:?}", path)
                         }
                     } else {
-                        bail!("unexpected error on datastore traversal: {} - {:?}", inner, path)
+                        bail!(
+                            "unexpected error on datastore traversal: {} - {:?}",
+                            inner,
+                            path
+                        )
                     }
                 } else {
                     bail!("unexpected error on datastore traversal: {}", inner)
@@ -563,11 +596,13 @@ impl DataStore {
                 Ok(entry) => entry.into_path(),
                 Err(err) => {
                     handle_entry_err(err)?;
-                    continue
-                },
+                    continue;
+                }
             };
             if let Ok(archive_type) = archive_type(&path) {
-                if archive_type == ArchiveType::FixedIndex || archive_type == ArchiveType::DynamicIndex {
+                if archive_type == ArchiveType::FixedIndex
+                    || archive_type == ArchiveType::DynamicIndex
+                {
                     list.push(path);
                 }
             }
@@ -584,7 +619,6 @@ impl DataStore {
         status: &mut GarbageCollectionStatus,
         worker: &dyn WorkerTaskContext,
     ) -> Result<(), Error> {
-
         status.index_file_count += 1;
         status.index_data_bytes += index.index_bytes();
 
@@ -620,7 +654,6 @@ impl DataStore {
         status: &mut GarbageCollectionStatus,
         worker: &dyn WorkerTaskContext,
     ) -> Result<(), Error> {
-
         let image_list = self.list_images()?;
         let image_count = image_list.len();
 
@@ -629,7 +662,6 @@ impl DataStore {
         let mut strange_paths_count: u64 = 0;
 
         for (i, img) in image_list.into_iter().enumerate() {
-
             worker.check_abort()?;
             worker.fail_on_shutdown()?;
 
@@ -683,7 +715,6 @@ impl DataStore {
             );
         }
 
-
         Ok(())
     }
 
@@ -695,17 +726,23 @@ impl DataStore {
         !matches!(self.inner.gc_mutex.try_lock(), Ok(_))
     }
 
-    pub fn garbage_collection(&self, worker: &dyn WorkerTaskContext, upid: &UPID) -> Result<(), Error> {
-
+    pub fn garbage_collection(
+        &self,
+        worker: &dyn WorkerTaskContext,
+        upid: &UPID,
+    ) -> Result<(), Error> {
         if let Ok(ref mut _mutex) = self.inner.gc_mutex.try_lock() {
-
             // avoids that we run GC if an old daemon process has still a
             // running backup writer, which is not save as we have no "oldest
             // writer" information and thus no safe atime cutoff
-            let _exclusive_lock =  self.inner.chunk_store.try_exclusive_lock()?;
+            let _exclusive_lock = self.inner.chunk_store.try_exclusive_lock()?;
 
             let phase1_start_time = proxmox_time::epoch_i64();
-            let oldest_writer = self.inner.chunk_store.oldest_writer().unwrap_or(phase1_start_time);
+            let oldest_writer = self
+                .inner
+                .chunk_store
+                .oldest_writer()
+                .unwrap_or(phase1_start_time);
 
             let mut gc_status = GarbageCollectionStatus::default();
             gc_status.upid = Some(upid.to_string());
@@ -751,7 +788,8 @@ impl DataStore {
             );
 
             if gc_status.index_data_bytes > 0 {
-                let comp_per = (gc_status.disk_bytes as f64 * 100.)/gc_status.index_data_bytes as f64;
+                let comp_per =
+                    (gc_status.disk_bytes as f64 * 100.) / gc_status.index_data_bytes as f64;
                 task_log!(
                     worker,
                     "On-Disk usage: {} ({:.2}%)",
@@ -763,7 +801,7 @@ impl DataStore {
             task_log!(worker, "On-Disk chunks: {}", gc_status.disk_chunks);
 
             let deduplication_factor = if gc_status.disk_bytes > 0 {
-                (gc_status.index_data_bytes as f64)/(gc_status.disk_bytes as f64)
+                (gc_status.index_data_bytes as f64) / (gc_status.disk_bytes as f64)
             } else {
                 1.0
             };
@@ -771,7 +809,7 @@ impl DataStore {
             task_log!(worker, "Deduplication factor: {:.2}", deduplication_factor);
 
             if gc_status.disk_chunks > 0 {
-                let avg_chunk = gc_status.disk_bytes/(gc_status.disk_chunks as u64);
+                let avg_chunk = gc_status.disk_bytes / (gc_status.disk_chunks as u64);
                 task_log!(worker, "Average chunk size: {}", HumanByte::from(avg_chunk));
             }
 
@@ -793,7 +831,6 @@ impl DataStore {
             }
 
             *self.inner.last_gc_status.lock().unwrap() = gc_status;
-
         } else {
             bail!("Start GC failed - (already running/locked)");
         }
@@ -805,19 +842,21 @@ impl DataStore {
         self.inner.chunk_store.try_shared_lock()
     }
 
-    pub fn chunk_path(&self, digest:&[u8; 32]) -> (PathBuf, String) {
+    pub fn chunk_path(&self, digest: &[u8; 32]) -> (PathBuf, String) {
         self.inner.chunk_store.chunk_path(digest)
     }
 
-    pub fn cond_touch_chunk(&self, digest: &[u8; 32], fail_if_not_exist: bool) -> Result<bool, Error> {
-        self.inner.chunk_store.cond_touch_chunk(digest, fail_if_not_exist)
+    pub fn cond_touch_chunk(
+        &self,
+        digest: &[u8; 32],
+        fail_if_not_exist: bool,
+    ) -> Result<bool, Error> {
+        self.inner
+            .chunk_store
+            .cond_touch_chunk(digest, fail_if_not_exist)
     }
 
-    pub fn insert_chunk(
-        &self,
-        chunk: &DataBlob,
-        digest: &[u8; 32],
-    ) -> Result<(bool, u64), Error> {
+    pub fn insert_chunk(&self, chunk: &DataBlob, digest: &[u8; 32]) -> Result<(bool, u64), Error> {
         self.inner.chunk_store.insert_chunk(chunk, digest)
     }
 
@@ -829,9 +868,9 @@ impl DataStore {
         proxmox_lang::try_block!({
             let mut file = std::fs::File::open(&path)?;
             DataBlob::load_from_reader(&mut file)
-        }).map_err(|err| format_err!("unable to load blob '{:?}' - {}", path, err))
+        })
+        .map_err(|err| format_err!("unable to load blob '{:?}' - {}", path, err))
     }
-
 
     pub fn stat_chunk(&self, digest: &[u8; 32]) -> Result<std::fs::Metadata, Error> {
         let (chunk_path, _digest_str) = self.inner.chunk_store.chunk_path(digest);
@@ -839,28 +878,27 @@ impl DataStore {
     }
 
     pub fn load_chunk(&self, digest: &[u8; 32]) -> Result<DataBlob, Error> {
-
         let (chunk_path, digest_str) = self.inner.chunk_store.chunk_path(digest);
 
         proxmox_lang::try_block!({
             let mut file = std::fs::File::open(&chunk_path)?;
             DataBlob::load_from_reader(&mut file)
-        }).map_err(|err| format_err!(
-            "store '{}', unable to load chunk '{}' - {}",
-            self.name(),
-            digest_str,
-            err,
-        ))
+        })
+        .map_err(|err| {
+            format_err!(
+                "store '{}', unable to load chunk '{}' - {}",
+                self.name(),
+                digest_str,
+                err,
+            )
+        })
     }
 
     /// Returns the filename to lock a manifest
     ///
     /// Also creates the basedir. The lockfile is located in
     /// '/run/proxmox-backup/locks/{datastore}/{type}/{id}/{timestamp}.index.json.lck'
-    fn manifest_lock_path(
-        &self,
-        backup_dir: &BackupDir,
-    ) -> Result<String, Error> {
+    fn manifest_lock_path(&self, backup_dir: &BackupDir) -> Result<String, Error> {
         let mut path = format!(
             "/run/proxmox-backup/locks/{}/{}/{}",
             self.name(),
@@ -869,32 +907,27 @@ impl DataStore {
         );
         std::fs::create_dir_all(&path)?;
         use std::fmt::Write;
-        write!(path, "/{}{}", backup_dir.backup_time_string(), &MANIFEST_LOCK_NAME)?;
+        write!(
+            path,
+            "/{}{}",
+            backup_dir.backup_time_string(),
+            &MANIFEST_LOCK_NAME
+        )?;
 
         Ok(path)
     }
 
-    fn lock_manifest(
-        &self,
-        backup_dir: &BackupDir,
-    ) -> Result<BackupLockGuard, Error> {
+    fn lock_manifest(&self, backup_dir: &BackupDir) -> Result<BackupLockGuard, Error> {
         let path = self.manifest_lock_path(backup_dir)?;
 
         // update_manifest should never take a long time, so if someone else has
         // the lock we can simply block a bit and should get it soon
         open_backup_lockfile(&path, Some(Duration::from_secs(5)), true)
-            .map_err(|err| {
-                format_err!(
-                    "unable to acquire manifest lock {:?} - {}", &path, err
-                )
-            })
+            .map_err(|err| format_err!("unable to acquire manifest lock {:?} - {}", &path, err))
     }
 
     /// Load the manifest without a lock. Must not be written back.
-    pub fn load_manifest(
-        &self,
-        backup_dir: &BackupDir,
-    ) -> Result<(BackupManifest, u64), Error> {
+    pub fn load_manifest(&self, backup_dir: &BackupDir) -> Result<(BackupManifest, u64), Error> {
         let blob = self.load_blob(backup_dir, MANIFEST_BLOB_NAME)?;
         let raw_size = blob.raw_size();
         let manifest = BackupManifest::try_from(blob)?;
@@ -908,7 +941,6 @@ impl DataStore {
         backup_dir: &BackupDir,
         update_fn: impl FnOnce(&mut BackupManifest),
     ) -> Result<(), Error> {
-
         let _guard = self.lock_manifest(backup_dir)?;
         let (mut manifest, _) = self.load_manifest(backup_dir)?;
 
@@ -930,11 +962,7 @@ impl DataStore {
     }
 
     /// Updates the protection status of the specified snapshot.
-    pub fn update_protection(
-        &self,
-        backup_dir: &BackupDir,
-        protection: bool
-    ) -> Result<(), Error> {
+    pub fn update_protection(&self, backup_dir: &BackupDir, protection: bool) -> Result<(), Error> {
         let full_path = self.snapshot_path(backup_dir);
 
         let _guard = lock_dir_noblock(&full_path, "snapshot", "possibly running or in use")?;

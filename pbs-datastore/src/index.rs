@@ -45,13 +45,17 @@ pub trait IndexFile {
         let mut most_used = Vec::new();
 
         for (digest, count) in map {
-            if count <= 1 { continue; }
+            if count <= 1 {
+                continue;
+            }
             match most_used.binary_search_by_key(&count, |&(_digest, count)| count) {
                 Ok(p) => most_used.insert(p, (digest, count)),
                 Err(p) => most_used.insert(p, (digest, count)),
             }
 
-            if most_used.len() > max { let _ = most_used.pop(); }
+            if most_used.len() > max {
+                let _ = most_used.pop();
+            }
         }
 
         let mut map = HashMap::new();

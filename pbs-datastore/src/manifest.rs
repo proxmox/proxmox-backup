@@ -3,11 +3,11 @@ use std::path::Path;
 
 use anyhow::{bail, format_err, Error};
 
-use serde_json::{json, Value};
 use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
 
-use pbs_tools::crypt_config::CryptConfig;
 use pbs_api_types::{CryptMode, Fingerprint};
+use pbs_tools::crypt_config::CryptConfig;
 
 use crate::BackupDir;
 
@@ -16,15 +16,18 @@ pub const MANIFEST_LOCK_NAME: &str = ".index.json.lck";
 pub const CLIENT_LOG_BLOB_NAME: &str = "client.log.blob";
 pub const ENCRYPTED_KEY_BLOB_NAME: &str = "rsa-encrypted.key.blob";
 
-
-fn crypt_mode_none() -> CryptMode { CryptMode::None }
-fn empty_value() -> Value { json!({}) }
+fn crypt_mode_none() -> CryptMode {
+    CryptMode::None
+}
+fn empty_value() -> Value {
+    json!({})
+}
 
 #[derive(Serialize, Deserialize)]
-#[serde(rename_all="kebab-case")]
+#[serde(rename_all = "kebab-case")]
 pub struct FileInfo {
     pub filename: String,
-    #[serde(default="crypt_mode_none")] // to be compatible with < 0.8.0 backups
+    #[serde(default = "crypt_mode_none")] // to be compatible with < 0.8.0 backups
     pub crypt_mode: CryptMode,
     pub size: u64,
     #[serde(with = "hex::serde")]
@@ -32,12 +35,11 @@ pub struct FileInfo {
 }
 
 impl FileInfo {
-
     /// Return expected CryptMode of referenced chunks
     ///
     /// Encrypted Indices should only reference encrypted chunks, while signed or plain indices
     /// should only reference plain chunks.
-    pub fn chunk_crypt_mode (&self) -> CryptMode {
+    pub fn chunk_crypt_mode(&self) -> CryptMode {
         match self.crypt_mode {
             CryptMode::Encrypt => CryptMode::Encrypt,
             CryptMode::SignOnly | CryptMode::None => CryptMode::None,
@@ -46,13 +48,13 @@ impl FileInfo {
 }
 
 #[derive(Serialize, Deserialize)]
-#[serde(rename_all="kebab-case")]
+#[serde(rename_all = "kebab-case")]
 pub struct BackupManifest {
     backup_type: String,
     backup_id: String,
     backup_time: i64,
     files: Vec<FileInfo>,
-    #[serde(default="empty_value")] // to be compatible with < 0.8.0 backups
+    #[serde(default = "empty_value")] // to be compatible with < 0.8.0 backups
     pub unprotected: Value,
     pub signature: Option<String>,
 }
@@ -78,14 +80,11 @@ impl ArchiveType {
 }
 
 //#[deprecated(note = "use ArchivType::from_path instead")] later...
-pub fn archive_type<P: AsRef<Path>>(
-    archive_name: P,
-) -> Result<ArchiveType, Error> {
+pub fn archive_type<P: AsRef<Path>>(archive_name: P) -> Result<ArchiveType, Error> {
     ArchiveType::from_path(archive_name)
 }
 
 impl BackupManifest {
-
     pub fn new(snapshot: BackupDir) -> Self {
         Self {
             backup_type: snapshot.group().backup_type().into(),
@@ -97,9 +96,20 @@ impl BackupManifest {
         }
     }
 
-    pub fn add_file(&mut self, filename: String, size: u64, csum: [u8; 32], crypt_mode: CryptMode) -> Result<(), Error> {
+    pub fn add_file(
+        &mut self,
+        filename: String,
+        size: u64,
+        csum: [u8; 32],
+        crypt_mode: CryptMode,
+    ) -> Result<(), Error> {
         let _archive_type = ArchiveType::from_path(&filename)?; // check type
-        self.files.push(FileInfo { filename, size, csum, crypt_mode });
+        self.files.push(FileInfo {
+            filename,
+            size,
+            csum,
+            crypt_mode,
+        });
         Ok(())
     }
 
@@ -108,7 +118,6 @@ impl BackupManifest {
     }
 
     pub fn lookup_file_info(&self, name: &str) -> Result<&FileInfo, Error> {
-
         let info = self.files.iter().find(|item| item.filename == name);
 
         match info {
@@ -118,7 +127,6 @@ impl BackupManifest {
     }
 
     pub fn verify_file(&self, name: &str, csum: &[u8; 32], size: u64) -> Result<(), Error> {
-
         let info = self.lookup_file_info(name)?;
 
         if size != info.size {
@@ -146,7 +154,6 @@ impl BackupManifest {
     }
 
     fn json_signature(data: &Value, crypt_config: &CryptConfig) -> Result<[u8; 32], Error> {
-
         let mut signed_data = data.clone();
 
         signed_data.as_object_mut().unwrap().remove("unprotected"); // exclude
@@ -161,7 +168,6 @@ impl BackupManifest {
 
     /// Converts the Manifest into json string, and add a signature if there is a crypt_config.
     pub fn to_string(&self, crypt_config: Option<&CryptConfig>) -> Result<String, Error> {
-
         let mut manifest = serde_json::to_value(&self)?;
 
         if let Some(crypt_config) = crypt_config {
@@ -178,7 +184,7 @@ impl BackupManifest {
     pub fn fingerprint(&self) -> Result<Option<Fingerprint>, Error> {
         match &self.unprotected["key-fingerprint"] {
             Value::Null => Ok(None),
-            value => Ok(Some(Deserialize::deserialize(value)?))
+            value => Ok(Some(Deserialize::deserialize(value)?)),
         }
     }
 
@@ -210,7 +216,10 @@ impl BackupManifest {
     }
 
     /// Try to read the manifest. This verifies the signature if there is a crypt_config.
-    pub fn from_data(data: &[u8], crypt_config: Option<&CryptConfig>) -> Result<BackupManifest, Error> {
+    pub fn from_data(
+        data: &[u8],
+        crypt_config: Option<&CryptConfig>,
+    ) -> Result<BackupManifest, Error> {
         let json: Value = serde_json::from_slice(data)?;
         let signature = json["signature"].as_str().map(String::from);
 
@@ -243,13 +252,13 @@ impl BackupManifest {
     }
 }
 
-
 impl TryFrom<super::DataBlob> for BackupManifest {
     type Error = Error;
 
     fn try_from(blob: super::DataBlob) -> Result<Self, Error> {
         // no expected digest available
-        let data = blob.decode(None, None)
+        let data = blob
+            .decode(None, None)
             .map_err(|err| format_err!("decode backup manifest blob failed - {}", err))?;
         let json: Value = serde_json::from_slice(&data[..])
             .map_err(|err| format_err!("unable to parse backup manifest json - {}", err))?;
@@ -258,10 +267,8 @@ impl TryFrom<super::DataBlob> for BackupManifest {
     }
 }
 
-
 #[test]
 fn test_manifest_signature() -> Result<(), Error> {
-
     use pbs_config::key_config::KeyDerivationConfig;
 
     let pw = b"test";
@@ -291,7 +298,10 @@ fn test_manifest_signature() -> Result<(), Error> {
     let manifest: Value = serde_json::from_str(&text)?;
     let signature = manifest["signature"].as_str().unwrap().to_string();
 
-    assert_eq!(signature, "d7b446fb7db081662081d4b40fedd858a1d6307a5aff4ecff7d5bf4fd35679e9");
+    assert_eq!(
+        signature,
+        "d7b446fb7db081662081d4b40fedd858a1d6307a5aff4ecff7d5bf4fd35679e9"
+    );
 
     let manifest: BackupManifest = serde_json::from_value(manifest)?;
     let expected_signature = hex::encode(&manifest.signature(&crypt_config)?);

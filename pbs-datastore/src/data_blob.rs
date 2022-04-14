@@ -6,12 +6,12 @@ use openssl::symm::{decrypt_aead, Mode};
 
 use proxmox_io::{ReadExt, WriteExt};
 
-use pbs_tools::crypt_config::CryptConfig;
 use pbs_api_types::CryptMode;
+use pbs_tools::crypt_config::CryptConfig;
 
 use super::file_formats::*;
 
-const MAX_BLOB_SIZE: usize = 128*1024*1024;
+const MAX_BLOB_SIZE: usize = 128 * 1024 * 1024;
 
 /// Encoded data chunk with digest and positional information
 pub struct ChunkInfo {
@@ -35,9 +35,8 @@ pub struct DataBlob {
 }
 
 impl DataBlob {
-
     /// accessor to raw_data field
-    pub fn raw_data(&self) -> &[u8]  {
+    pub fn raw_data(&self) -> &[u8] {
         &self.raw_data
     }
 
@@ -59,13 +58,13 @@ impl DataBlob {
     /// accessor to crc32 checksum
     pub fn crc(&self) -> u32 {
         let crc_o = proxmox_lang::offsetof!(DataBlobHeader, crc);
-        u32::from_le_bytes(self.raw_data[crc_o..crc_o+4].try_into().unwrap())
+        u32::from_le_bytes(self.raw_data[crc_o..crc_o + 4].try_into().unwrap())
     }
 
     // set the CRC checksum field
     pub fn set_crc(&mut self, crc: u32) {
         let crc_o = proxmox_lang::offsetof!(DataBlobHeader, crc);
-        self.raw_data[crc_o..crc_o+4].copy_from_slice(&crc.to_le_bytes());
+        self.raw_data[crc_o..crc_o + 4].copy_from_slice(&crc.to_le_bytes());
     }
 
     /// compute the CRC32 checksum
@@ -91,13 +90,11 @@ impl DataBlob {
         config: Option<&CryptConfig>,
         compress: bool,
     ) -> Result<Self, Error> {
-
         if data.len() > MAX_BLOB_SIZE {
             bail!("data blob too large ({} bytes).", data.len());
         }
 
         let mut blob = if let Some(config) = config {
-
             let compr_data;
             let (_compress, data, magic) = if compress {
                 compr_data = zstd::block::compress(data, 1)?;
@@ -115,7 +112,10 @@ impl DataBlob {
             let mut raw_data = Vec::with_capacity(data.len() + header_len);
 
             let dummy_head = EncryptedDataBlobHeader {
-                head: DataBlobHeader { magic: [0u8; 8], crc: [0; 4] },
+                head: DataBlobHeader {
+                    magic: [0u8; 8],
+                    crc: [0; 4],
+                },
                 iv: [0u8; 16],
                 tag: [0u8; 16],
             };
@@ -126,7 +126,9 @@ impl DataBlob {
             let (iv, tag) = Self::encrypt_to(config, data, &mut raw_data)?;
 
             let head = EncryptedDataBlobHeader {
-                head: DataBlobHeader { magic, crc: [0; 4] }, iv, tag,
+                head: DataBlobHeader { magic, crc: [0; 4] },
+                iv,
+                tag,
             };
 
             unsafe {
@@ -135,12 +137,11 @@ impl DataBlob {
 
             DataBlob { raw_data }
         } else {
-
             let max_data_len = data.len() + std::mem::size_of::<DataBlobHeader>();
             if compress {
                 let mut comp_data = Vec::with_capacity(max_data_len);
 
-                let head =  DataBlobHeader {
+                let head = DataBlobHeader {
                     magic: COMPRESSED_BLOB_MAGIC_1_0,
                     crc: [0; 4],
                 };
@@ -151,7 +152,9 @@ impl DataBlob {
                 zstd::stream::copy_encode(data, &mut comp_data, 1)?;
 
                 if comp_data.len() < max_data_len {
-                    let mut blob = DataBlob { raw_data: comp_data };
+                    let mut blob = DataBlob {
+                        raw_data: comp_data,
+                    };
                     blob.set_crc(blob.compute_crc());
                     return Ok(blob);
                 }
@@ -159,7 +162,7 @@ impl DataBlob {
 
             let mut raw_data = Vec::with_capacity(max_data_len);
 
-            let head =  DataBlobHeader {
+            let head = DataBlobHeader {
                 magic: UNCOMPRESSED_BLOB_MAGIC_1_0,
                 crc: [0; 4],
             };
@@ -180,18 +183,23 @@ impl DataBlob {
     pub fn crypt_mode(&self) -> Result<CryptMode, Error> {
         let magic = self.magic();
 
-        Ok(if magic == &UNCOMPRESSED_BLOB_MAGIC_1_0 || magic == &COMPRESSED_BLOB_MAGIC_1_0 {
-            CryptMode::None
-        } else if magic == &ENCR_COMPR_BLOB_MAGIC_1_0 || magic == &ENCRYPTED_BLOB_MAGIC_1_0 {
-            CryptMode::Encrypt
-        } else {
-            bail!("Invalid blob magic number.");
-        })
+        Ok(
+            if magic == &UNCOMPRESSED_BLOB_MAGIC_1_0 || magic == &COMPRESSED_BLOB_MAGIC_1_0 {
+                CryptMode::None
+            } else if magic == &ENCR_COMPR_BLOB_MAGIC_1_0 || magic == &ENCRYPTED_BLOB_MAGIC_1_0 {
+                CryptMode::Encrypt
+            } else {
+                bail!("Invalid blob magic number.");
+            },
+        )
     }
 
     /// Decode blob data
-    pub fn decode(&self, config: Option<&CryptConfig>, digest: Option<&[u8; 32]>) -> Result<Vec<u8>, Error> {
-
+    pub fn decode(
+        &self,
+        config: Option<&CryptConfig>,
+        digest: Option<&[u8; 32]>,
+    ) -> Result<Vec<u8>, Error> {
         let magic = self.magic();
 
         if magic == &UNCOMPRESSED_BLOB_MAGIC_1_0 {
@@ -217,11 +225,21 @@ impl DataBlob {
                 (&self.raw_data[..header_len]).read_le_value::<EncryptedDataBlobHeader>()?
             };
 
-            if let Some(config) = config  {
+            if let Some(config) = config {
                 let data = if magic == &ENCR_COMPR_BLOB_MAGIC_1_0 {
-                    Self::decode_compressed_chunk(config, &self.raw_data[header_len..], &head.iv, &head.tag)?
+                    Self::decode_compressed_chunk(
+                        config,
+                        &self.raw_data[header_len..],
+                        &head.iv,
+                        &head.tag,
+                    )?
                 } else {
-                    Self::decode_uncompressed_chunk(config, &self.raw_data[header_len..], &head.iv, &head.tag)?
+                    Self::decode_uncompressed_chunk(
+                        config,
+                        &self.raw_data[header_len..],
+                        &head.iv,
+                        &head.tag,
+                    )?
                 };
                 if let Some(digest) = digest {
                     Self::verify_digest(&data, Some(config), digest)?;
@@ -237,8 +255,7 @@ impl DataBlob {
 
     /// Load blob from ``reader``, verify CRC
     pub fn load_from_reader(reader: &mut dyn std::io::Read) -> Result<Self, Error> {
-
-        let mut data = Vec::with_capacity(1024*1024);
+        let mut data = Vec::with_capacity(1024 * 1024);
         reader.read_to_end(&mut data)?;
 
         let blob = Self::from_raw(data)?;
@@ -250,7 +267,6 @@ impl DataBlob {
 
     /// Create Instance from raw data
     pub fn from_raw(data: Vec<u8>) -> Result<Self, Error> {
-
         if data.len() < std::mem::size_of::<DataBlobHeader>() {
             bail!("blob too small ({} bytes).", data.len());
         }
@@ -258,7 +274,6 @@ impl DataBlob {
         let magic = &data[0..8];
 
         if magic == ENCR_COMPR_BLOB_MAGIC_1_0 || magic == ENCRYPTED_BLOB_MAGIC_1_0 {
-
             if data.len() < std::mem::size_of::<EncryptedDataBlobHeader>() {
                 bail!("encrypted blob too small ({} bytes).", data.len());
             }
@@ -267,7 +282,6 @@ impl DataBlob {
 
             Ok(blob)
         } else if magic == COMPRESSED_BLOB_MAGIC_1_0 || magic == UNCOMPRESSED_BLOB_MAGIC_1_0 {
-
             let blob = DataBlob { raw_data: data };
 
             Ok(blob)
@@ -293,7 +307,6 @@ impl DataBlob {
         expected_chunk_size: usize,
         expected_digest: &[u8; 32],
     ) -> Result<(), Error> {
-
         let magic = self.magic();
 
         if magic == &ENCR_COMPR_BLOB_MAGIC_1_0 || magic == &ENCRYPTED_BLOB_MAGIC_1_0 {
@@ -304,7 +317,11 @@ impl DataBlob {
         let data = self.decode(None, Some(expected_digest))?;
 
         if expected_chunk_size != data.len() {
-            bail!("detected chunk with wrong length ({} != {})", expected_chunk_size, data.len());
+            bail!(
+                "detected chunk with wrong length ({} != {})",
+                expected_chunk_size,
+                data.len()
+            );
         }
 
         Ok(())
@@ -315,7 +332,6 @@ impl DataBlob {
         config: Option<&CryptConfig>,
         expected_digest: &[u8; 32],
     ) -> Result<(), Error> {
-
         let digest = match config {
             Some(config) => config.compute_digest(data),
             None => openssl::sha::sha256(data),
@@ -344,8 +360,7 @@ impl DataBlob {
         config: &CryptConfig,
         data: &[u8],
         mut output: W,
-    ) -> Result<([u8;16], [u8;16]), Error> {
-
+    ) -> Result<([u8; 16], [u8; 16]), Error> {
         let mut iv = [0u8; 16];
         proxmox_sys::linux::fill_with_random_data(&mut iv)?;
 
@@ -353,7 +368,7 @@ impl DataBlob {
 
         let mut c = config.data_crypter(&iv, Mode::Encrypt)?;
 
-        const BUFFER_SIZE: usize = 32*1024;
+        const BUFFER_SIZE: usize = 32 * 1024;
 
         let mut encr_buf = [0u8; BUFFER_SIZE];
         let max_encoder_input = BUFFER_SIZE - config.cipher().block_size();
@@ -361,7 +376,9 @@ impl DataBlob {
         let mut start = 0;
         loop {
             let mut end = start + max_encoder_input;
-            if end > data.len() { end = data.len(); }
+            if end > data.len() {
+                end = data.len();
+            }
             if end > start {
                 let count = c.update(&data[start..end], &mut encr_buf)?;
                 output.write_all(&encr_buf[..count])?;
@@ -372,7 +389,9 @@ impl DataBlob {
         }
 
         let rest = c.finalize(&mut encr_buf)?;
-        if rest > 0 { output.write_all(&encr_buf[..rest])?; }
+        if rest > 0 {
+            output.write_all(&encr_buf[..rest])?;
+        }
 
         output.flush()?;
 
@@ -388,14 +407,13 @@ impl DataBlob {
         iv: &[u8; 16],
         tag: &[u8; 16],
     ) -> Result<Vec<u8>, Error> {
-
-        let dec = Vec::with_capacity(1024*1024);
+        let dec = Vec::with_capacity(1024 * 1024);
 
         let mut decompressor = zstd::stream::write::Decoder::new(dec)?;
 
         let mut c = config.data_crypter(iv, Mode::Decrypt)?;
 
-        const BUFFER_SIZE: usize = 32*1024;
+        const BUFFER_SIZE: usize = 32 * 1024;
 
         let mut decr_buf = [0u8; BUFFER_SIZE];
         let max_decoder_input = BUFFER_SIZE - config.cipher().block_size();
@@ -403,7 +421,9 @@ impl DataBlob {
         let mut start = 0;
         loop {
             let mut end = start + max_decoder_input;
-            if end > data.len() { end = data.len(); }
+            if end > data.len() {
+                end = data.len();
+            }
             if end > start {
                 let count = c.update(&data[start..end], &mut decr_buf)?;
                 decompressor.write_all(&decr_buf[0..count])?;
@@ -415,7 +435,9 @@ impl DataBlob {
 
         c.set_tag(tag)?;
         let rest = c.finalize(&mut decr_buf)?;
-        if rest > 0 { decompressor.write_all(&decr_buf[..rest])?; }
+        if rest > 0 {
+            decompressor.write_all(&decr_buf[..rest])?;
+        }
 
         decompressor.flush()?;
 
@@ -429,7 +451,6 @@ impl DataBlob {
         iv: &[u8; 16],
         tag: &[u8; 16],
     ) -> Result<Vec<u8>, Error> {
-
         let decr_data = decrypt_aead(
             *config.cipher(),
             config.enc_key(),
@@ -441,7 +462,6 @@ impl DataBlob {
 
         Ok(decr_data)
     }
-
 }
 
 /// Builder for chunk DataBlobs
@@ -457,8 +477,7 @@ pub struct DataChunkBuilder<'a, 'b> {
     compress: bool,
 }
 
-impl <'a, 'b> DataChunkBuilder<'a, 'b> {
-
+impl<'a, 'b> DataChunkBuilder<'a, 'b> {
     /// Create a new builder instance.
     pub fn new(orig_data: &'a [u8]) -> Self {
         Self {
@@ -537,5 +556,4 @@ impl <'a, 'b> DataChunkBuilder<'a, 'b> {
 
         chunk_builder.build()
     }
-
 }

@@ -10,7 +10,6 @@ pub struct ChunkStat {
 }
 
 impl ChunkStat {
-
     pub fn new(size: u64) -> Self {
         ChunkStat {
             size,
@@ -27,15 +26,14 @@ impl ChunkStat {
 
 impl std::fmt::Debug for ChunkStat {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let avg = ((self.size as f64)/(self.chunk_count as f64)) as usize;
-        let compression = (self.compressed_size*100)/(self.size as u64);
-        let rate = (self.disk_size*100)/(self.size as u64);
+        let avg = ((self.size as f64) / (self.chunk_count as f64)) as usize;
+        let compression = (self.compressed_size * 100) / (self.size as u64);
+        let rate = (self.disk_size * 100) / (self.size as u64);
 
         let elapsed = self.start_time.elapsed().unwrap();
-        let elapsed = (elapsed.as_secs() as f64) +
-            (elapsed.subsec_millis() as f64)/1000.0;
+        let elapsed = (elapsed.as_secs() as f64) + (elapsed.subsec_millis() as f64) / 1000.0;
 
-        let write_speed = ((self.size as f64)/(1024.0*1024.0))/elapsed;
+        let write_speed = ((self.size as f64) / (1024.0 * 1024.0)) / elapsed;
 
         write!(f, "Size: {}, average chunk size: {}, compression rate: {}%, disk_size: {} ({}%), speed: {:.2} MB/s",
                self.size, avg, compression, self.disk_size, rate, write_speed)

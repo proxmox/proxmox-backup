@@ -5,13 +5,8 @@ use std::str::FromStr;
 use anyhow::{bail, format_err, Error};
 
 use pbs_api_types::{
-    BACKUP_ID_REGEX,
-    BACKUP_TYPE_REGEX,
-    BACKUP_DATE_REGEX,
-    GROUP_PATH_REGEX,
-    SNAPSHOT_PATH_REGEX,
-    BACKUP_FILE_REGEX,
-    GroupFilter,
+    GroupFilter, BACKUP_DATE_REGEX, BACKUP_FILE_REGEX, BACKUP_ID_REGEX, BACKUP_TYPE_REGEX,
+    GROUP_PATH_REGEX, SNAPSHOT_PATH_REGEX,
 };
 
 use super::manifest::MANIFEST_BLOB_NAME;
@@ -96,7 +91,11 @@ impl BackupGroup {
 
                 let protected = backup_dir.is_protected(base_path.to_owned());
 
-                list.push(BackupInfo { backup_dir, files, protected });
+                list.push(BackupInfo {
+                    backup_dir,
+                    files,
+                    protected,
+                });
 
                 Ok(())
             },
@@ -331,7 +330,11 @@ impl BackupInfo {
         let files = list_backup_files(libc::AT_FDCWD, &path)?;
         let protected = backup_dir.is_protected(base_path.to_owned());
 
-        Ok(BackupInfo { backup_dir, files, protected })
+        Ok(BackupInfo {
+            backup_dir,
+            files,
+            protected,
+        })
     }
 
     /// Finds the latest backup inside a backup group
@@ -399,9 +402,7 @@ impl BackupInfo {
 
     pub fn is_finished(&self) -> bool {
         // backup is considered unfinished if there is no manifest
-        self.files
-            .iter()
-            .any(|name| name == MANIFEST_BLOB_NAME)
+        self.files.iter().any(|name| name == MANIFEST_BLOB_NAME)
     }
 }
 

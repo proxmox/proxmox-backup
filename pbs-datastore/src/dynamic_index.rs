@@ -9,21 +9,21 @@ use std::task::Context;
 
 use anyhow::{bail, format_err, Error};
 
-use proxmox_sys::mmap::Mmap;
 use proxmox_io::ReadExt;
-use proxmox_uuid::Uuid;
+use proxmox_sys::mmap::Mmap;
 use proxmox_sys::process_locker::ProcessLockSharedGuard;
+use proxmox_uuid::Uuid;
 use pxar::accessor::{MaybeReady, ReadAt, ReadAtOperation};
 
 use pbs_tools::lru_cache::LruCache;
 
-use crate::Chunker;
 use crate::chunk_stat::ChunkStat;
 use crate::chunk_store::ChunkStore;
 use crate::data_blob::{DataBlob, DataChunkBuilder};
 use crate::file_formats;
-use crate::index::{IndexFile, ChunkReadInfo};
+use crate::index::{ChunkReadInfo, IndexFile};
 use crate::read_chunk::ReadChunk;
+use crate::Chunker;
 
 /// Header format definition for dynamic index files (`.dixd`)
 #[repr(C)]
@@ -228,7 +228,11 @@ impl IndexFile for DynamicIndexReader {
         if pos >= self.index.len() {
             return None;
         }
-        let start = if pos == 0 { 0 } else { self.index[pos - 1].end() };
+        let start = if pos == 0 {
+            0
+        } else {
+            self.index[pos - 1].end()
+        };
 
         let end = self.index[pos].end();
 
@@ -252,7 +256,7 @@ impl IndexFile for DynamicIndexReader {
         let found_idx = self.binary_search(0, 0, end_idx, end, offset);
         let found_idx = match found_idx {
             Ok(i) => i,
-            Err(_) => return None
+            Err(_) => return None,
         };
 
         let found_start = if found_idx == 0 {
@@ -581,13 +585,16 @@ impl<S: ReadChunk> BufferedDynamicReader<S> {
 
     fn buffer_chunk(&mut self, idx: usize) -> Result<(), Error> {
         //let (start, end, data) = self.lru_cache.access(
-        let cached_chunk = self.lru_cache.access(
-            idx,
-            &mut ChunkCacher {
-                store: &mut self.store,
-                index: &self.index,
-            },
-        )?.ok_or_else(|| format_err!("chunk not found by cacher"))?;
+        let cached_chunk = self
+            .lru_cache
+            .access(
+                idx,
+                &mut ChunkCacher {
+                    store: &mut self.store,
+                    index: &self.index,
+                },
+            )?
+            .ok_or_else(|| format_err!("chunk not found by cacher"))?;
 
         // fixme: avoid copy
         self.read_buffer.clear();

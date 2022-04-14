@@ -1,7 +1,7 @@
-use std::sync::Arc;
 use std::io::Write;
+use std::sync::Arc;
 
-use anyhow::{Error};
+use anyhow::Error;
 
 use proxmox_borrow::Tied;
 
@@ -13,8 +13,7 @@ pub struct ChecksumWriter<W> {
     signer: Option<Tied<Arc<CryptConfig>, openssl::sign::Signer<'static>>>,
 }
 
-impl <W: Write> ChecksumWriter<W> {
-
+impl<W: Write> ChecksumWriter<W> {
     pub fn new(writer: W, config: Option<Arc<CryptConfig>>) -> Self {
         let hasher = crc32fast::Hasher::new();
         let signer = match config {
@@ -26,7 +25,11 @@ impl <W: Write> ChecksumWriter<W> {
             }
             None => None,
         };
-        Self { writer, hasher, signer }
+        Self {
+            writer,
+            hasher,
+            signer,
+        }
     }
 
     pub fn finish(mut self) -> Result<(W, u32, Option<[u8; 32]>), Error> {
@@ -42,17 +45,16 @@ impl <W: Write> ChecksumWriter<W> {
     }
 }
 
-impl <W: Write> Write for ChecksumWriter<W> {
-
+impl<W: Write> Write for ChecksumWriter<W> {
     fn write(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
         self.hasher.update(buf);
         if let Some(ref mut signer) = self.signer {
-            signer.update(buf)
-                .map_err(|err| {
-                    std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        format!("hmac update failed - {}", err))
-                })?;
+            signer.update(buf).map_err(|err| {
+                std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!("hmac update failed - {}", err),
+                )
+            })?;
         }
         self.writer.write(buf)
     }

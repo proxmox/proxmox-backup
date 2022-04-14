@@ -4,11 +4,11 @@ use std::sync::Arc;
 
 use anyhow::{bail, Error};
 
-use pbs_tools::crypt_config::CryptConfig;
 use pbs_api_types::CryptMode;
+use pbs_tools::crypt_config::CryptConfig;
 
 use crate::data_blob::DataBlob;
-use crate::read_chunk::{ReadChunk, AsyncReadChunk};
+use crate::read_chunk::{AsyncReadChunk, ReadChunk};
 use crate::DataStore;
 
 #[derive(Clone)]
@@ -19,7 +19,11 @@ pub struct LocalChunkReader {
 }
 
 impl LocalChunkReader {
-    pub fn new(store: Arc<DataStore>, crypt_config: Option<Arc<CryptConfig>>, crypt_mode: CryptMode) -> Self {
+    pub fn new(
+        store: Arc<DataStore>,
+        crypt_config: Option<Arc<CryptConfig>>,
+        crypt_mode: CryptMode,
+    ) -> Self {
         Self {
             store,
             crypt_config,
@@ -29,17 +33,15 @@ impl LocalChunkReader {
 
     fn ensure_crypt_mode(&self, chunk_mode: CryptMode) -> Result<(), Error> {
         match self.crypt_mode {
-            CryptMode::Encrypt => {
-                match chunk_mode {
-                    CryptMode::Encrypt => Ok(()),
-                    CryptMode::SignOnly | CryptMode::None => bail!("Index and chunk CryptMode don't match."),
+            CryptMode::Encrypt => match chunk_mode {
+                CryptMode::Encrypt => Ok(()),
+                CryptMode::SignOnly | CryptMode::None => {
+                    bail!("Index and chunk CryptMode don't match.")
                 }
             },
-            CryptMode::SignOnly | CryptMode::None => {
-                match chunk_mode {
-                    CryptMode::Encrypt => bail!("Index and chunk CryptMode don't match."),
-                    CryptMode::SignOnly | CryptMode::None => Ok(()),
-                }
+            CryptMode::SignOnly | CryptMode::None => match chunk_mode {
+                CryptMode::Encrypt => bail!("Index and chunk CryptMode don't match."),
+                CryptMode::SignOnly | CryptMode::None => Ok(()),
             },
         }
     }
@@ -66,7 +68,7 @@ impl AsyncReadChunk for LocalChunkReader {
         &'a self,
         digest: &'a [u8; 32],
     ) -> Pin<Box<dyn Future<Output = Result<DataBlob, Error>> + Send + 'a>> {
-        Box::pin(async move{
+        Box::pin(async move {
             let (path, _) = self.store.chunk_path(digest);
 
             let raw_data = tokio::fs::read(&path).await?;
@@ -85,7 +87,8 @@ impl AsyncReadChunk for LocalChunkReader {
         Box::pin(async move {
             let chunk = AsyncReadChunk::read_raw_chunk(self, digest).await?;
 
-            let raw_data = chunk.decode(self.crypt_config.as_ref().map(Arc::as_ref), Some(digest))?;
+            let raw_data =
+                chunk.decode(self.crypt_config.as_ref().map(Arc::as_ref), Some(digest))?;
 
             // fixme: verify digest?
 
