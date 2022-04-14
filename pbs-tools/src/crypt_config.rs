@@ -7,7 +7,7 @@
 //! encryption](https://en.wikipedia.org/wiki/Authenticated_encryption)
 //! for a short introduction.
 
-use anyhow::{Error};
+use anyhow::Error;
 use openssl::hash::MessageDigest;
 use openssl::pkcs5::pbkdf2_hmac;
 use openssl::symm::{Cipher, Crypter, Mode};
@@ -15,10 +15,8 @@ use openssl::symm::{Cipher, Crypter, Mode};
 // openssl::sha::sha256(b"Proxmox Backup Encryption Key Fingerprint")
 /// This constant is used to compute fingerprints.
 const FINGERPRINT_INPUT: [u8; 32] = [
-    110, 208, 239, 119,  71,  31, 255,  77,
-    85, 199, 168, 254,  74, 157, 182,  33,
-    97,  64, 127,  19,  76, 114,  93, 223,
-    48, 153,  45,  37, 236,  69, 237,  38,
+    110, 208, 239, 119, 71, 31, 255, 77, 85, 199, 168, 254, 74, 157, 182, 33, 97, 64, 127, 19, 76,
+    114, 93, 223, 48, 153, 45, 37, 236, 69, 237, 38,
 ];
 
 /// Encryption Configuration with secret key
@@ -37,13 +35,11 @@ pub struct CryptConfig {
 }
 
 impl CryptConfig {
-
     /// Create a new instance.
     ///
     /// We compute a derived 32 byte key using pbkdf2_hmac. This second
     /// key is used in compute_digest.
     pub fn new(enc_key: [u8; 32]) -> Result<Self, Error> {
-
         let mut id_key = [0u8; 32];
 
         pbkdf2_hmac(
@@ -51,11 +47,17 @@ impl CryptConfig {
             b"_id_key",
             10,
             MessageDigest::sha256(),
-            &mut id_key)?;
+            &mut id_key,
+        )?;
 
         let id_pkey = openssl::pkey::PKey::hmac(&id_key).unwrap();
 
-        Ok(Self { id_key, id_pkey, enc_key, cipher: Cipher::aes_256_gcm() })
+        Ok(Self {
+            id_key,
+            id_pkey,
+            enc_key,
+            cipher: Cipher::aes_256_gcm(),
+        })
     }
 
     /// Expose Cipher (AES_256_GCM)
@@ -107,7 +109,7 @@ impl CryptConfig {
     }
 
     /// Returns an openssl Crypter using AES_256_GCM,
-    pub fn data_crypter(&self, iv: &[u8; 16], mode: Mode) -> Result<Crypter, Error>  {
+    pub fn data_crypter(&self, iv: &[u8; 16], mode: Mode) -> Result<Crypter, Error> {
         let mut crypter = openssl::symm::Crypter::new(self.cipher, mode, &self.enc_key, Some(iv))?;
         crypter.aad_update(b"")?; //??
         Ok(crypter)

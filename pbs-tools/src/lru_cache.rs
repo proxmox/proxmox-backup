@@ -4,7 +4,7 @@
 //! A HashMap is used for fast access by a given key and a doubly linked list
 //! is used to keep track of the cache access order.
 
-use std::collections::{HashMap, hash_map::Entry};
+use std::collections::{hash_map::Entry, HashMap};
 use std::marker::PhantomData;
 
 /// Interface for getting values on cache misses.
@@ -101,7 +101,7 @@ pub struct LruCache<K, V> {
 }
 
 impl<K, V> Drop for LruCache<K, V> {
-    fn drop (&mut self) {
+    fn drop(&mut self) {
         self.clear();
     }
 }
@@ -204,7 +204,11 @@ impl<K: std::cmp::Eq + std::hash::Hash + Copy, V> LruCache<K, V> {
     /// value.
     /// If fetch returns a value, it is inserted as the most recently used entry
     /// in the cache.
-    pub fn access<'a>(&'a mut self, key: K, cacher: &mut dyn Cacher<K, V>) -> Result<Option<&'a mut V>, anyhow::Error> {
+    pub fn access<'a>(
+        &'a mut self,
+        key: K,
+        cacher: &mut dyn Cacher<K, V>,
+    ) -> Result<Option<&'a mut V>, anyhow::Error> {
         match self.map.entry(key) {
             Entry::Occupied(mut o) => {
                 // Cache hit, birng node to front of list

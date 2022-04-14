@@ -24,6 +24,6 @@ pub mod async_lru_cache;
 /// less erratic behavior in the overall's runtime RSS size.
 pub fn setup_libc_malloc_opts() {
     unsafe {
-        libc::mallopt(libc::M_MMAP_THRESHOLD, 4096*32);
+        libc::mallopt(libc::M_MMAP_THRESHOLD, 4096 * 32);
     }
 }

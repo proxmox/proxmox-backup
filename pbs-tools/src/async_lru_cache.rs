@@ -7,8 +7,8 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::sync::{Arc, Mutex};
 
-use proxmox_async::broadcast_future::BroadcastFuture;
 use crate::lru_cache::LruCache;
+use proxmox_async::broadcast_future::BroadcastFuture;
 
 /// Interface for asynchronously getting values on cache misses.
 pub trait AsyncCacher<K, V: Clone>: Sync + Send {

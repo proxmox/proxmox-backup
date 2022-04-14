@@ -1,13 +1,13 @@
 //! Deals with the server's current certificates (proxy.pem).
 
-use std::path::PathBuf;
 use std::mem::MaybeUninit;
+use std::path::PathBuf;
 
 use anyhow::{bail, format_err, Error};
 use foreign_types::ForeignTypeRef;
-use openssl::x509::{X509, GeneralName};
+use openssl::pkey::{PKey, Public};
 use openssl::stack::Stack;
-use openssl::pkey::{Public, PKey};
+use openssl::x509::{GeneralName, X509};
 
 // C type:
 #[allow(non_camel_case_types)]
@@ -34,7 +34,11 @@ pub struct CertInfo {
 fn x509name_to_string(name: &openssl::x509::X509NameRef) -> Result<String, Error> {
     let mut parts = Vec::new();
     for entry in name.entries() {
-        parts.push(format!("{} = {}", entry.object().nid().short_name()?, entry.data().as_utf8()?));
+        parts.push(format!(
+            "{} = {}",
+            entry.object().nid().short_name()?,
+            entry.data().as_utf8()?
+        ));
     }
     Ok(parts.join(", "))
 }
@@ -47,9 +51,7 @@ impl CertInfo {
 
     pub fn from_pem(cert_pem: &[u8]) -> Result<Self, Error> {
         let x509 = openssl::x509::X509::from_pem(cert_pem)?;
-        Ok(Self{
-            x509
-        })
+        Ok(Self { x509 })
     }
 
     pub fn subject_alt_names(&self) -> Option<Stack<GeneralName>> {
@@ -70,7 +72,8 @@ impl CertInfo {
             .as_bytes()
             .chunks(2)
             .map(|v| std::str::from_utf8(v).unwrap())
-            .collect::<Vec<&str>>().join(":"))
+            .collect::<Vec<&str>>()
+            .join(":"))
     }
 
     pub fn public_key(&self) -> Result<PKey<Public>, Error> {
