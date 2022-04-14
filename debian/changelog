@@ -1,4 +1,4 @@
-rust-proxmox-backup (2.1.6-1) UNRELEASED; urgency=medium
+rust-proxmox-backup (2.1.6-1) bullseye; urgency=medium
 
   * api: verify: allow passing '0 days' for immediate re-verification
 
