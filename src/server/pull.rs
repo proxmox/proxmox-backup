@@ -28,7 +28,7 @@ use pbs_datastore::index::IndexFile;
 use pbs_datastore::manifest::{
     archive_type, ArchiveType, BackupManifest, FileInfo, CLIENT_LOG_BLOB_NAME, MANIFEST_BLOB_NAME,
 };
-use pbs_datastore::{BackupDir, BackupGroup, BackupInfo, DataStore, StoreProgress};
+use pbs_datastore::{BackupDir, BackupGroup, DataStore, StoreProgress};
 use pbs_tools::sha::sha256;
 use proxmox_rest_server::WorkerTask;
 
@@ -797,8 +797,7 @@ pub async fn pull_store(
 
     if params.remove_vanished {
         let result: Result<(), Error> = proxmox_lang::try_block!({
-            let local_groups = BackupInfo::list_backup_groups(&params.store.base_path())?;
-            for local_group in local_groups {
+            for local_group in params.store.list_backup_groups()? {
                 if new_groups.contains(&local_group) {
                     continue;
                 }

@@ -408,7 +408,7 @@ fn backup_worker(
 
     let mut pool_writer = PoolWriter::new(pool, &setup.drive, worker, email, force_media_set)?;
 
-    let mut group_list = BackupInfo::list_backup_groups(&datastore.base_path())?;
+    let mut group_list = datastore.list_backup_groups()?;
 
     group_list.sort_unstable();
 

@@ -166,65 +166,65 @@ pub fn list_groups(
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
     let list_all = (user_privs & PRIV_DATASTORE_AUDIT) != 0;
 
-    let backup_groups = BackupInfo::list_backup_groups(&datastore.base_path())?;
-
-    let group_info = backup_groups
-        .into_iter()
-        .fold(Vec::new(), |mut group_info, group| {
-            let owner = match datastore.get_owner(&group) {
-                Ok(auth_id) => auth_id,
-                Err(err) => {
-                    eprintln!(
-                        "Failed to get owner of group '{}/{}' - {}",
-                        &store, group, err
-                    );
-                    return group_info;
-                }
-            };
-            if !list_all && check_backup_owner(&owner, &auth_id).is_err() {
-                return group_info;
-            }
-
-            let snapshots = match group.list_backups(&datastore.base_path()) {
-                Ok(snapshots) => snapshots,
-                Err(_) => {
-                    return group_info;
-                }
-            };
-
-            let backup_count: u64 = snapshots.len() as u64;
-            if backup_count == 0 {
-                return group_info;
-            }
-
-            let last_backup = snapshots
-                .iter()
-                .fold(&snapshots[0], |last, curr| {
-                    if curr.is_finished()
-                        && curr.backup_dir.backup_time() > last.backup_dir.backup_time()
-                    {
-                        curr
-                    } else {
-                        last
+    let group_info =
+        datastore
+            .list_backup_groups()?
+            .into_iter()
+            .fold(Vec::new(), |mut group_info, group| {
+                let owner = match datastore.get_owner(&group) {
+                    Ok(auth_id) => auth_id,
+                    Err(err) => {
+                        eprintln!(
+                            "Failed to get owner of group '{}/{}' - {}",
+                            &store, group, err
+                        );
+                        return group_info;
                     }
-                })
-                .to_owned();
+                };
+                if !list_all && check_backup_owner(&owner, &auth_id).is_err() {
+                    return group_info;
+                }
 
-            let note_path = get_group_note_path(&datastore, &group);
-            let comment = file_read_firstline(&note_path).ok();
+                let snapshots = match group.list_backups(&datastore.base_path()) {
+                    Ok(snapshots) => snapshots,
+                    Err(_) => {
+                        return group_info;
+                    }
+                };
 
-            group_info.push(GroupListItem {
-                backup_type: group.backup_type().to_string(),
-                backup_id: group.backup_id().to_string(),
-                last_backup: last_backup.backup_dir.backup_time(),
-                owner: Some(owner),
-                backup_count,
-                files: last_backup.files,
-                comment,
+                let backup_count: u64 = snapshots.len() as u64;
+                if backup_count == 0 {
+                    return group_info;
+                }
+
+                let last_backup = snapshots
+                    .iter()
+                    .fold(&snapshots[0], |last, curr| {
+                        if curr.is_finished()
+                            && curr.backup_dir.backup_time() > last.backup_dir.backup_time()
+                        {
+                            curr
+                        } else {
+                            last
+                        }
+                    })
+                    .to_owned();
+
+                let note_path = get_group_note_path(&datastore, &group);
+                let comment = file_read_firstline(&note_path).ok();
+
+                group_info.push(GroupListItem {
+                    backup_type: group.backup_type().to_string(),
+                    backup_id: group.backup_id().to_string(),
+                    last_backup: last_backup.backup_dir.backup_time(),
+                    owner: Some(owner),
+                    backup_count,
+                    files: last_backup.files,
+                    comment,
+                });
+
+                group_info
             });
-
-            group_info
-        });
 
     Ok(group_info)
 }
@@ -417,30 +417,30 @@ pub fn list_snapshots(
 
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
 
-    let base_path = datastore.base_path();
-
     let groups = match (backup_type, backup_id) {
         (Some(backup_type), Some(backup_id)) => {
             let mut groups = Vec::with_capacity(1);
             groups.push(BackupGroup::new(backup_type, backup_id));
             groups
         }
-        (Some(backup_type), None) => BackupInfo::list_backup_groups(&base_path)?
+        (Some(backup_type), None) => datastore
+            .list_backup_groups()?
             .into_iter()
             .filter(|group| group.backup_type() == backup_type)
             .collect(),
-        (None, Some(backup_id)) => BackupInfo::list_backup_groups(&base_path)?
+        (None, Some(backup_id)) => datastore
+            .list_backup_groups()?
             .into_iter()
             .filter(|group| group.backup_id() == backup_id)
             .collect(),
-        _ => BackupInfo::list_backup_groups(&base_path)?,
+        _ => datastore.list_backup_groups()?,
     };
 
     let info_to_snapshot_list_item = |group: &BackupGroup, owner, info: BackupInfo| {
         let backup_type = group.backup_type().to_string();
         let backup_id = group.backup_id().to_string();
         let backup_time = info.backup_dir.backup_time();
-        let protected = info.backup_dir.is_protected(base_path.clone());
+        let protected = info.backup_dir.is_protected(datastore.base_path());
 
         match get_all_snapshot_files(&datastore, &info) {
             Ok((manifest, files)) => {
@@ -540,11 +540,9 @@ pub fn list_snapshots(
 }
 
 fn get_snapshots_count(store: &DataStore, filter_owner: Option<&Authid>) -> Result<Counts, Error> {
-    let base_path = store.base_path();
-    let groups = BackupInfo::list_backup_groups(&base_path)?;
-
-    groups
-        .iter()
+    store
+        .list_backup_groups()?
+        .into_iter()
         .filter(|group| {
             let owner = match store.get_owner(group) {
                 Ok(owner) => owner,
@@ -565,7 +563,7 @@ fn get_snapshots_count(store: &DataStore, filter_owner: Option<&Authid>) -> Resu
             }
         })
         .try_fold(Counts::default(), |mut counts, group| {
-            let snapshot_count = group.list_backups(&base_path)?.len() as u64;
+            let snapshot_count = group.list_backups(&store.base_path())?.len() as u64;
 
             // only include groups with snapshots (avoid confusing users
             // by counting/displaying emtpy groups)

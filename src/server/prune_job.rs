@@ -6,7 +6,6 @@ use proxmox_sys::{task_log, task_warn};
 
 use pbs_api_types::{Authid, Operation, PruneOptions, PRIV_DATASTORE_MODIFY};
 use pbs_config::CachedUserInfo;
-use pbs_datastore::backup_info::BackupInfo;
 use pbs_datastore::prune::compute_prune_info;
 use pbs_datastore::DataStore;
 use proxmox_rest_server::WorkerTask;
@@ -43,11 +42,8 @@ pub fn prune_datastore(
     let privs = user_info.lookup_privs(&auth_id, &["datastore", store]);
     let has_privs = privs & PRIV_DATASTORE_MODIFY != 0;
 
-    let base_path = datastore.base_path();
-
-    let groups = BackupInfo::list_backup_groups(&base_path)?;
-    for group in groups {
-        let list = group.list_backups(&base_path)?;
+    for group in datastore.list_backup_groups()? {
+        let list = group.list_backups(&datastore.base_path())?;
 
         if !has_privs && !datastore.owns_backup(&group, &auth_id)? {
             continue;

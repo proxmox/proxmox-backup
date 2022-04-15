@@ -537,7 +537,7 @@ pub fn verify_all_backups(
         }
     };
 
-    let mut list = match BackupInfo::list_backup_groups(&verify_worker.datastore.base_path()) {
+    let mut list = match verify_worker.datastore.list_backup_groups() {
         Ok(list) => list
             .into_iter()
             .filter(|group| !(group.backup_type() == "host" && group.backup_id() == "benchmark"))
