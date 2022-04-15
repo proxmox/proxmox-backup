@@ -19,7 +19,7 @@ use proxmox_sys::{task_log, task_warn};
 
 use pbs_api_types::{
     Authid, ChunkOrder, DataStoreConfig, DatastoreTuning, GarbageCollectionStatus, HumanByte,
-    Operation, BACKUP_ID_REGEX, BACKUP_TYPE_REGEX, UPID,
+    Operation, BACKUP_DATE_REGEX, BACKUP_ID_REGEX, BACKUP_TYPE_REGEX, UPID,
 };
 use pbs_config::{open_backup_lockfile, BackupLockGuard, ConfigVersionCache};
 
@@ -1062,6 +1062,51 @@ impl DataStore {
         }
 
         Ok(chunk_list)
+    }
+}
+
+/// A iterator for all BackupDir's (Snapshots) in a BackupGroup
+pub struct ListSnapshots {
+    group: BackupGroup,
+    fd: proxmox_sys::fs::ReadDir,
+}
+
+impl ListSnapshots {
+    pub fn new(group: BackupGroup, group_path: PathBuf) -> Result<Self, Error> {
+        Ok(ListSnapshots {
+            fd: proxmox_sys::fs::read_subdir(libc::AT_FDCWD, &group_path)?,
+            group,
+        })
+    }
+}
+
+impl Iterator for ListSnapshots {
+    type Item = Result<BackupDir, Error>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            let item = self.fd.next()?;
+            match item {
+                Ok(ref entry) => {
+                    if let Ok(name) = entry.file_name().to_str() {
+                        match entry.file_type() {
+                            Some(nix::dir::Type::Directory) => {} // OK
+                            _ => continue,
+                        }
+                        if BACKUP_DATE_REGEX.is_match(name) {
+                            let backup_time = match proxmox_time::parse_rfc3339(&name) {
+                                Ok(time) => time,
+                                Err(err) => return Some(Err(err)),
+                            };
+
+                            return Some(BackupDir::with_group(self.group.clone(), backup_time));
+                        }
+                    }
+                    continue; // file did not match regex or isn't valid utf-8
+                }
+                Err(err) => return Some(Err(err)),
+            }
+        }
     }
 }
 
