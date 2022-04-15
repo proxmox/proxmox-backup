@@ -554,34 +554,7 @@ impl DataStore {
 
     /// Get a in-memory vector for all top-level backup groups of a datatstore
     pub fn list_backup_groups(&self) -> Result<Vec<BackupGroup>, Error> {
-        let mut list = Vec::new();
-
-        proxmox_sys::fs::scandir(
-            libc::AT_FDCWD,
-            &self.base_path(),
-            &BACKUP_TYPE_REGEX,
-            |l0_fd, backup_type, file_type| {
-                if file_type != nix::dir::Type::Directory {
-                    return Ok(());
-                }
-                proxmox_sys::fs::scandir(
-                    l0_fd,
-                    backup_type,
-                    &BACKUP_ID_REGEX,
-                    |_, backup_id, file_type| {
-                        if file_type != nix::dir::Type::Directory {
-                            return Ok(());
-                        }
-
-                        list.push(BackupGroup::new(backup_type, backup_id));
-
-                        Ok(())
-                    },
-                )
-            },
-        )?;
-
-        Ok(list)
+        ListGroups::new(self.base_path())?.collect()
     }
 
     pub fn list_images(&self) -> Result<Vec<PathBuf>, Error> {
@@ -1063,5 +1036,77 @@ impl DataStore {
         }
 
         Ok(chunk_list)
+    }
+}
+
+/// A iterator for a (single) level of Backup Groups
+pub struct ListGroups {
+    type_fd: proxmox_sys::fs::ReadDir,
+    id_state: Option<(String, proxmox_sys::fs::ReadDir)>,
+}
+
+impl ListGroups {
+    pub fn new(base_path: PathBuf) -> Result<Self, Error> {
+        Ok(ListGroups {
+            type_fd: proxmox_sys::fs::read_subdir(libc::AT_FDCWD, &base_path)?,
+            id_state: None,
+        })
+    }
+}
+
+impl Iterator for ListGroups {
+    type Item = Result<BackupGroup, Error>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if let Some((ref group_type, ref mut id_fd)) = self.id_state {
+                let item = match id_fd.next() {
+                    Some(item) => item,
+                    None => {
+                        self.id_state = None;
+                        continue; // exhausted all IDs for the current group type, try others
+                    }
+                };
+                match item {
+                    Ok(ref entry) => {
+                        if let Ok(name) = entry.file_name().to_str() {
+                            match entry.file_type() {
+                                Some(nix::dir::Type::Directory) => {} // OK
+                                _ => continue,
+                            }
+                            if BACKUP_ID_REGEX.is_match(name) {
+                                return Some(Ok(BackupGroup::new(group_type, name)));
+                            }
+                        }
+                        continue; // file did not match regex or isn't valid utf-8
+                    }
+                    Err(err) => return Some(Err(err)),
+                }
+            } else {
+                let item = self.type_fd.next()?;
+                match item {
+                    Ok(ref entry) => {
+                        if let Ok(name) = entry.file_name().to_str() {
+                            match entry.file_type() {
+                                Some(nix::dir::Type::Directory) => {} // OK
+                                _ => continue,
+                            }
+                            if BACKUP_TYPE_REGEX.is_match(name) {
+                                // found a backup group type, descend into it to scan all IDs in it
+                                // by switching to the id-state branch
+                                let base_fd = entry.parent_fd();
+                                let id_dirfd = match proxmox_sys::fs::read_subdir(base_fd, name) {
+                                    Ok(dirfd) => dirfd,
+                                    Err(err) => return Some(Err(err.into())),
+                                };
+                                self.id_state = Some((name.to_owned(), id_dirfd));
+                            }
+                        }
+                        continue; // file did not match regex or isn't valid utf-8
+                    }
+                    Err(err) => return Some(Err(err)),
+                }
+            }
+        }
     }
 }
