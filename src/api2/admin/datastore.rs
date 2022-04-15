@@ -418,11 +418,7 @@ pub fn list_snapshots(
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
 
     let groups = match (backup_type, backup_id) {
-        (Some(backup_type), Some(backup_id)) => {
-            let mut groups = Vec::with_capacity(1);
-            groups.push(BackupGroup::new(backup_type, backup_id));
-            groups
-        }
+        (Some(backup_type), Some(backup_id)) => vec![BackupGroup::new(backup_type, backup_id)],
         (Some(backup_type), None) => datastore
             .list_backup_groups()?
             .into_iter()
@@ -547,12 +543,8 @@ fn get_snapshots_count(store: &DataStore, filter_owner: Option<&Authid>) -> Resu
             let owner = match store.get_owner(group) {
                 Ok(owner) => owner,
                 Err(err) => {
-                    eprintln!(
-                        "Failed to get owner of group '{}/{}' - {}",
-                        store.name(),
-                        group,
-                        err
-                    );
+                    let id = store.name();
+                    eprintln!("Failed to get owner of group '{}/{}' - {}", id, group, err);
                     return false;
                 }
             };
@@ -565,8 +557,7 @@ fn get_snapshots_count(store: &DataStore, filter_owner: Option<&Authid>) -> Resu
         .try_fold(Counts::default(), |mut counts, group| {
             let snapshot_count = group.list_backups(&store.base_path())?.len() as u64;
 
-            // only include groups with snapshots (avoid confusing users
-            // by counting/displaying emtpy groups)
+            // only include groups with snapshots, counting/displaying emtpy groups can confuse
             if snapshot_count > 0 {
                 let type_count = match group.backup_type() {
                     "ct" => counts.ct.get_or_insert(Default::default()),
