@@ -19,7 +19,7 @@ use proxmox_sys::{task_log, task_warn};
 
 use pbs_api_types::{
     Authid, ChunkOrder, DataStoreConfig, DatastoreTuning, GarbageCollectionStatus, HumanByte,
-    Operation, UPID,
+    Operation, BACKUP_ID_REGEX, BACKUP_TYPE_REGEX, UPID,
 };
 use pbs_config::{open_backup_lockfile, BackupLockGuard, ConfigVersionCache};
 
@@ -550,6 +550,38 @@ impl DataStore {
             }
             Err(e) => Err(e.into()),
         }
+    }
+
+    /// Get a in-memory vector for all top-level backup groups of a datatstore
+    pub fn list_backup_groups(&self) -> Result<Vec<BackupGroup>, Error> {
+        let mut list = Vec::new();
+
+        proxmox_sys::fs::scandir(
+            libc::AT_FDCWD,
+            &self.base_path(),
+            &BACKUP_TYPE_REGEX,
+            |l0_fd, backup_type, file_type| {
+                if file_type != nix::dir::Type::Directory {
+                    return Ok(());
+                }
+                proxmox_sys::fs::scandir(
+                    l0_fd,
+                    backup_type,
+                    &BACKUP_ID_REGEX,
+                    |_, backup_id, file_type| {
+                        if file_type != nix::dir::Type::Directory {
+                            return Ok(());
+                        }
+
+                        list.push(BackupGroup::new(backup_type, backup_id));
+
+                        Ok(())
+                    },
+                )
+            },
+        )?;
+
+        Ok(list)
     }
 
     pub fn list_images(&self) -> Result<Vec<PathBuf>, Error> {

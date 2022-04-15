@@ -369,6 +369,7 @@ impl BackupInfo {
         Ok(files)
     }
 
+    #[deprecated = "move to datastore"]
     pub fn list_backup_groups(base_path: &Path) -> Result<Vec<BackupGroup>, Error> {
         let mut list = Vec::new();
 
