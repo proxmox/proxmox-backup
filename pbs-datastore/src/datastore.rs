@@ -552,7 +552,33 @@ impl DataStore {
         }
     }
 
+    /// Get a streaming iter over top-level backup groups of a datatstore
+    ///
+    /// The iterated item is still a Result that can contain errors from rather unexptected FS or
+    /// parsing errors.
+    pub fn iter_backup_groups(&self) -> Result<ListGroups, Error> {
+        ListGroups::new(self.base_path())
+    }
+
+    /// Get a streaming iter over top-level backup groups of a datatstore, filtered by Ok results
+    ///
+    /// The iterated item's result is already unwrapped, if it contained an error it will be
+    /// logged. Can be useful in iterator chain commands
+    pub fn iter_backup_groups_ok(&self) -> Result<impl Iterator<Item = BackupGroup> + '_, Error> {
+        Ok(
+            ListGroups::new(self.base_path())?.filter_map(move |group| match group {
+                Ok(group) => Some(group),
+                Err(err) => {
+                    log::error!("list groups error on datastore {} - {}", self.name(), err);
+                    None
+                }
+            }),
+        )
+    }
+
     /// Get a in-memory vector for all top-level backup groups of a datatstore
+    ///
+    /// NOTE: using the iterator directly is most often more efficient w.r.t. memory usage
     pub fn list_backup_groups(&self) -> Result<Vec<BackupGroup>, Error> {
         ListGroups::new(self.base_path())?.collect()
     }
