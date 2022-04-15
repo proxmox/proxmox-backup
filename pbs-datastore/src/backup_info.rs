@@ -5,8 +5,7 @@ use std::str::FromStr;
 use anyhow::{bail, format_err, Error};
 
 use pbs_api_types::{
-    GroupFilter, BACKUP_DATE_REGEX, BACKUP_FILE_REGEX, BACKUP_ID_REGEX, BACKUP_TYPE_REGEX,
-    GROUP_PATH_REGEX, SNAPSHOT_PATH_REGEX,
+    GroupFilter, BACKUP_DATE_REGEX, BACKUP_FILE_REGEX, GROUP_PATH_REGEX, SNAPSHOT_PATH_REGEX,
 };
 
 use super::manifest::MANIFEST_BLOB_NAME;
@@ -367,38 +366,6 @@ impl BackupInfo {
         let files = list_backup_files(libc::AT_FDCWD, &path)?;
 
         Ok(files)
-    }
-
-    #[deprecated = "move to datastore"]
-    pub fn list_backup_groups(base_path: &Path) -> Result<Vec<BackupGroup>, Error> {
-        let mut list = Vec::new();
-
-        proxmox_sys::fs::scandir(
-            libc::AT_FDCWD,
-            base_path,
-            &BACKUP_TYPE_REGEX,
-            |l0_fd, backup_type, file_type| {
-                if file_type != nix::dir::Type::Directory {
-                    return Ok(());
-                }
-                proxmox_sys::fs::scandir(
-                    l0_fd,
-                    backup_type,
-                    &BACKUP_ID_REGEX,
-                    |_, backup_id, file_type| {
-                        if file_type != nix::dir::Type::Directory {
-                            return Ok(());
-                        }
-
-                        list.push(BackupGroup::new(backup_type, backup_id));
-
-                        Ok(())
-                    },
-                )
-            },
-        )?;
-
-        Ok(list)
     }
 
     pub fn is_finished(&self) -> bool {
