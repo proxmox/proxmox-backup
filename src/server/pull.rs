@@ -797,7 +797,8 @@ pub async fn pull_store(
 
     if params.remove_vanished {
         let result: Result<(), Error> = proxmox_lang::try_block!({
-            for local_group in params.store.list_backup_groups()? {
+            for local_group in params.store.iter_backup_groups()? {
+                let local_group = local_group?;
                 if new_groups.contains(&local_group) {
                     continue;
                 }

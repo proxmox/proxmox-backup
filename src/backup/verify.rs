@@ -537,9 +537,8 @@ pub fn verify_all_backups(
         }
     };
 
-    let mut list = match verify_worker.datastore.list_backup_groups() {
+    let mut list = match verify_worker.datastore.iter_backup_groups_ok() {
         Ok(list) => list
-            .into_iter()
             .filter(|group| !(group.backup_type() == "host" && group.backup_id() == "benchmark"))
             .filter(filter_by_owner)
             .collect::<Vec<BackupGroup>>(),
