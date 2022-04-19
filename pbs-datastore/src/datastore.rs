@@ -341,7 +341,7 @@ impl DataStore {
     /// Returns the absolute path for a backup_group
     pub fn group_path(&self, backup_group: &BackupGroup) -> PathBuf {
         let mut full_path = self.base_path();
-        full_path.push(backup_group.group_path());
+        full_path.push(backup_group.relative_group_path());
         full_path
     }
 
@@ -424,7 +424,7 @@ impl DataStore {
     pub fn last_successful_backup(&self, backup_group: &BackupGroup) -> Result<Option<i64>, Error> {
         let base_path = self.base_path();
         let mut group_path = base_path.clone();
-        group_path.push(backup_group.group_path());
+        group_path.push(backup_group.relative_group_path());
 
         if group_path.exists() {
             backup_group.last_successful_backup(&base_path)
@@ -438,7 +438,7 @@ impl DataStore {
     /// The backup owner is the entity who first created the backup group.
     pub fn get_owner(&self, backup_group: &BackupGroup) -> Result<Authid, Error> {
         let mut full_path = self.base_path();
-        full_path.push(backup_group.group_path());
+        full_path.push(backup_group.relative_group_path());
         full_path.push("owner");
         let owner = proxmox_sys::fs::file_read_firstline(full_path)?;
         owner.trim_end().parse() // remove trailing newline
@@ -458,7 +458,7 @@ impl DataStore {
         force: bool,
     ) -> Result<(), Error> {
         let mut path = self.base_path();
-        path.push(backup_group.group_path());
+        path.push(backup_group.relative_group_path());
         path.push("owner");
 
         let mut open_options = std::fs::OpenOptions::new();

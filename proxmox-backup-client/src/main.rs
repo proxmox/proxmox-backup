@@ -156,7 +156,7 @@ pub async fn api_datastore_latest_snapshot(
     if list.is_empty() {
         bail!(
             "backup group {:?} does not contain any snapshots.",
-            group.group_path()
+            group.relative_group_path()
         );
     }
 
@@ -263,7 +263,7 @@ async fn list_backup_groups(param: Value) -> Result<Value, Error> {
     let render_group_path = |_v: &Value, record: &Value| -> Result<String, Error> {
         let item: GroupListItem = serde_json::from_value(record.to_owned())?;
         let group = BackupGroup::new(item.backup.ty, item.backup.id);
-        Ok(group.group_path().to_str().unwrap().to_owned())
+        Ok(group.relative_group_path().to_str().unwrap().to_owned())
     };
 
     let render_last_backup = |_v: &Value, record: &Value| -> Result<String, Error> {

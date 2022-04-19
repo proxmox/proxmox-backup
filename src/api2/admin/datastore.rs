@@ -65,7 +65,7 @@ const GROUP_NOTES_FILE_NAME: &str = "notes";
 
 fn get_group_note_path(store: &DataStore, group: &BackupGroup) -> PathBuf {
     let mut note_path = store.base_path();
-    note_path.push(group.group_path());
+    note_path.push(group.relative_group_path());
     note_path.push(GROUP_NOTES_FILE_NAME);
     note_path
 }

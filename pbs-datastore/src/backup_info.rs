@@ -60,7 +60,7 @@ impl BackupGroup {
         &self.backup_id
     }
 
-    pub fn group_path(&self) -> PathBuf {
+    pub fn relative_group_path(&self) -> PathBuf {
         let mut relative_path = PathBuf::new();
 
         relative_path.push(self.backup_type.as_str());
@@ -74,7 +74,7 @@ impl BackupGroup {
         let mut list = vec![];
 
         let mut path = base_path.to_owned();
-        path.push(self.group_path());
+        path.push(self.relative_group_path());
 
         proxmox_sys::fs::scandir(
             libc::AT_FDCWD,
@@ -120,7 +120,7 @@ impl BackupGroup {
         let mut last = None;
 
         let mut path = base_path.to_owned();
-        path.push(self.group_path());
+        path.push(self.relative_group_path());
 
         proxmox_sys::fs::scandir(
             libc::AT_FDCWD,
@@ -283,7 +283,7 @@ impl BackupDir {
     }
 
     pub fn relative_path(&self) -> PathBuf {
-        let mut relative_path = self.group.group_path();
+        let mut relative_path = self.group.relative_group_path();
 
         relative_path.push(self.backup_time_string.clone());
 
