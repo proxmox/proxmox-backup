@@ -557,6 +557,22 @@ where
     let mut hardlinks: HashMap<PathBuf, PathBuf> = HashMap::new();
 
     if let Ok(dir) = file.enter_directory().await {
+        let entry = dir.lookup_self().await?;
+        let path = entry.path().strip_prefix(prefix)?;
+
+        if path != Path::new("/") {
+            let metadata = entry.metadata();
+            let mut header = tar::Header::new_gnu();
+            header.set_entry_type(tar::EntryType::Directory);
+            add_metadata_to_header(&mut header, metadata);
+            header.set_size(0);
+            header.set_cksum();
+            tarencoder
+                .add_entry(&mut header, path, tokio::io::empty())
+                .await
+                .map_err(|err| format_err!("could not send dir entry: {}", err))?;
+        }
+
         let mut decoder = dir.decode_full().await?;
         decoder.enable_goodbye_entries(false);
         while let Some(entry) = decoder.next().await {
