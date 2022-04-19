@@ -471,7 +471,7 @@ impl std::cmp::PartialOrd for BackupType {
         "backup-id": { schema: BACKUP_ID_SCHEMA },
     },
 )]
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 /// A backup group (without a data store).
 pub struct BackupGroup {
@@ -487,6 +487,28 @@ pub struct BackupGroup {
 impl BackupGroup {
     pub fn new<T: Into<String>>(ty: BackupType, id: T) -> Self {
         Self { ty, id: id.into() }
+    }
+
+    pub fn matches(&self, filter: &crate::GroupFilter) -> bool {
+        use crate::GroupFilter;
+
+        match filter {
+            GroupFilter::Group(backup_group) => {
+                match backup_group.parse::<BackupGroup>() {
+                    Ok(group) => *self == group,
+                    Err(_) => false, // shouldn't happen if value is schema-checked
+                }
+            }
+            GroupFilter::BackupType(backup_type) => self.ty.as_str() == backup_type,
+            GroupFilter::Regex(regex) => regex.is_match(&self.to_string()),
+        }
+    }
+}
+
+impl AsRef<BackupGroup> for BackupGroup {
+    #[inline]
+    fn as_ref(&self) -> &Self {
+        self
     }
 }
 
@@ -566,6 +588,20 @@ pub struct BackupDir {
     /// Backup timestamp unix epoch.
     #[serde(rename = "backup-time")]
     pub time: i64,
+}
+
+impl AsRef<BackupGroup> for BackupDir {
+    #[inline]
+    fn as_ref(&self) -> &BackupGroup {
+        &self.group
+    }
+}
+
+impl AsRef<BackupDir> for BackupDir {
+    #[inline]
+    fn as_ref(&self) -> &Self {
+        self
+    }
 }
 
 impl From<(BackupGroup, i64)> for BackupDir {

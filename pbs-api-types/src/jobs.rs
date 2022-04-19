@@ -342,6 +342,7 @@ pub struct TapeBackupJobStatus {
 /// Filter for matching `BackupGroup`s, for use with `BackupGroup::filter`.
 pub enum GroupFilter {
     /// BackupGroup type - either `vm`, `ct`, or `host`.
+    // FIXME: Should be `BackupType`
     BackupType(String),
     /// Full identifier of BackupGroup, including type
     Group(String),
