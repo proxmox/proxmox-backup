@@ -1,40 +1,21 @@
 use std::os::unix::io::RawFd;
 use std::path::{Path, PathBuf};
-use std::str::FromStr;
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{bail, Error};
 
-use pbs_api_types::{
-    BackupType, GroupFilter, BACKUP_DATE_REGEX, BACKUP_FILE_REGEX, GROUP_PATH_REGEX,
-    SNAPSHOT_PATH_REGEX,
-};
+use pbs_api_types::{BackupType, GroupFilter, BACKUP_DATE_REGEX, BACKUP_FILE_REGEX};
 
 use super::manifest::MANIFEST_BLOB_NAME;
 
 /// BackupGroup is a directory containing a list of BackupDir
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct BackupGroup {
-    /// Type of backup
-    backup_type: BackupType,
-    /// Unique (for this type) ID
-    backup_id: String,
+    group: pbs_api_types::BackupGroup,
 }
 
 impl std::cmp::Ord for BackupGroup {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        let type_order = self.backup_type.cmp(&other.backup_type);
-        if type_order != std::cmp::Ordering::Equal {
-            return type_order;
-        }
-        // try to compare IDs numerically
-        let id_self = self.backup_id.parse::<u64>();
-        let id_other = other.backup_id.parse::<u64>();
-        match (id_self, id_other) {
-            (Ok(id_self), Ok(id_other)) => id_self.cmp(&id_other),
-            (Ok(_), Err(_)) => std::cmp::Ordering::Less,
-            (Err(_), Ok(_)) => std::cmp::Ordering::Greater,
-            _ => self.backup_id.cmp(&other.backup_id),
-        }
+        self.group.cmp(&other.group)
     }
 }
 
@@ -45,29 +26,22 @@ impl std::cmp::PartialOrd for BackupGroup {
 }
 
 impl BackupGroup {
-    pub fn new<T: Into<String>>(backup_type: BackupType, backup_id: T) -> Self {
+    pub(crate) fn new<T: Into<String>>(backup_type: BackupType, backup_id: T) -> Self {
         Self {
-            backup_type,
-            backup_id: backup_id.into(),
+            group: (backup_type, backup_id.into()).into(),
         }
     }
 
     pub fn backup_type(&self) -> BackupType {
-        self.backup_type
+        self.group.ty
     }
 
     pub fn backup_id(&self) -> &str {
-        &self.backup_id
+        &self.group.id
     }
 
     pub fn relative_group_path(&self) -> PathBuf {
-        let mut relative_path = PathBuf::new();
-
-        relative_path.push(self.backup_type.as_str());
-
-        relative_path.push(&self.backup_id);
-
-        relative_path
+        self.group.to_string().into()
     }
 
     pub fn list_backups(&self, base_path: &Path) -> Result<Vec<BackupInfo>, Error> {
@@ -85,8 +59,7 @@ impl BackupGroup {
                     return Ok(());
                 }
 
-                let backup_dir =
-                    BackupDir::with_rfc3339(self.backup_type, &self.backup_id, backup_time)?;
+                let backup_dir = self.backup_dir_with_rfc3339(backup_time)?;
                 let files = list_backup_files(l2_fd, backup_time)?;
 
                 let protected = backup_dir.is_protected(base_path.to_owned());
@@ -171,26 +144,37 @@ impl BackupGroup {
     }
 
     pub fn matches(&self, filter: &GroupFilter) -> bool {
-        match filter {
-            GroupFilter::Group(backup_group) => match BackupGroup::from_str(backup_group) {
-                Ok(group) => &group == self,
-                Err(_) => false, // shouldn't happen if value is schema-checked
-            },
-            GroupFilter::BackupType(backup_type) => self.backup_type().as_str() == backup_type,
-            GroupFilter::Regex(regex) => regex.is_match(&self.to_string()),
-        }
+        self.group.matches(filter)
+    }
+
+    pub fn backup_dir(&self, time: i64) -> Result<BackupDir, Error> {
+        BackupDir::with_group(self.clone(), time)
+    }
+
+    pub fn backup_dir_with_rfc3339<T: Into<String>>(
+        &self,
+        time_string: T,
+    ) -> Result<BackupDir, Error> {
+        BackupDir::with_rfc3339(self.clone(), time_string.into())
+    }
+}
+
+impl AsRef<pbs_api_types::BackupGroup> for BackupGroup {
+    #[inline]
+    fn as_ref(&self) -> &pbs_api_types::BackupGroup {
+        &self.group
     }
 }
 
 impl From<&BackupGroup> for pbs_api_types::BackupGroup {
     fn from(group: &BackupGroup) -> pbs_api_types::BackupGroup {
-        (group.backup_type, group.backup_id.clone()).into()
+        group.group.clone()
     }
 }
 
 impl From<BackupGroup> for pbs_api_types::BackupGroup {
     fn from(group: BackupGroup) -> pbs_api_types::BackupGroup {
-        (group.backup_type, group.backup_id).into()
+        group.group
     }
 }
 
@@ -202,21 +186,19 @@ impl std::fmt::Display for BackupGroup {
     }
 }
 
-impl std::str::FromStr for BackupGroup {
-    type Err = Error;
+impl From<BackupDir> for BackupGroup {
+    fn from(dir: BackupDir) -> BackupGroup {
+        BackupGroup {
+            group: dir.dir.group,
+        }
+    }
+}
 
-    /// Parse a backup group path
-    ///
-    /// This parses strings like `vm/100".
-    fn from_str(path: &str) -> Result<Self, Self::Err> {
-        let cap = GROUP_PATH_REGEX
-            .captures(path)
-            .ok_or_else(|| format_err!("unable to parse backup group path '{}'", path))?;
-
-        Ok(Self {
-            backup_type: cap.get(1).unwrap().as_str().parse()?,
-            backup_id: cap.get(2).unwrap().as_str().to_owned(),
-        })
+impl From<&BackupDir> for BackupGroup {
+    fn from(dir: &BackupDir) -> BackupGroup {
+        BackupGroup {
+            group: dir.dir.group.clone(),
+        }
     }
 }
 
@@ -225,57 +207,53 @@ impl std::str::FromStr for BackupGroup {
 /// We also call this a backup snaphost.
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct BackupDir {
-    /// Backup group
-    group: BackupGroup,
-    /// Backup timestamp
-    backup_time: i64,
+    dir: pbs_api_types::BackupDir,
     // backup_time as rfc3339
     backup_time_string: String,
 }
 
 impl BackupDir {
-    pub fn new<T>(backup_type: BackupType, backup_id: T, backup_time: i64) -> Result<Self, Error>
-    where
-        T: Into<String>,
-    {
-        let group = BackupGroup::new(backup_type, backup_id.into());
-        BackupDir::with_group(group, backup_time)
+    /// Temporarily used for tests.
+    #[doc(hidden)]
+    pub fn new_test(dir: pbs_api_types::BackupDir) -> Self {
+        Self {
+            backup_time_string: Self::backup_time_to_string(dir.time).unwrap(),
+            dir,
+        }
     }
 
-    pub fn with_rfc3339<T, U>(
-        backup_type: BackupType,
-        backup_id: T,
-        backup_time_string: U,
-    ) -> Result<Self, Error>
-    where
-        T: Into<String>,
-        U: Into<String>,
-    {
-        let backup_time_string = backup_time_string.into();
-        let backup_time = proxmox_time::parse_rfc3339(&backup_time_string)?;
-        let group = BackupGroup::new(backup_type, backup_id.into());
-        Ok(Self {
-            group,
-            backup_time,
-            backup_time_string,
-        })
-    }
-
-    pub fn with_group(group: BackupGroup, backup_time: i64) -> Result<Self, Error> {
+    pub(crate) fn with_group(group: BackupGroup, backup_time: i64) -> Result<Self, Error> {
         let backup_time_string = Self::backup_time_to_string(backup_time)?;
         Ok(Self {
-            group,
-            backup_time,
+            dir: (group.group, backup_time).into(),
             backup_time_string,
         })
     }
 
-    pub fn group(&self) -> &BackupGroup {
-        &self.group
+    pub(crate) fn with_rfc3339(
+        group: BackupGroup,
+        backup_time_string: String,
+    ) -> Result<Self, Error> {
+        let backup_time = proxmox_time::parse_rfc3339(&backup_time_string)?;
+        Ok(Self {
+            dir: (group.group, backup_time).into(),
+            backup_time_string,
+        })
     }
 
+    #[inline]
+    pub fn backup_type(&self) -> BackupType {
+        self.dir.group.ty
+    }
+
+    #[inline]
+    pub fn backup_id(&self) -> &str {
+        &self.dir.group.id
+    }
+
+    #[inline]
     pub fn backup_time(&self) -> i64 {
-        self.backup_time
+        self.dir.time
     }
 
     pub fn backup_time_string(&self) -> &str {
@@ -283,11 +261,15 @@ impl BackupDir {
     }
 
     pub fn relative_path(&self) -> PathBuf {
-        let mut relative_path = self.group.relative_group_path();
+        format!("{}/{}", self.dir.group, self.backup_time_string).into()
+    }
 
-        relative_path.push(self.backup_time_string.clone());
-
-        relative_path
+    /// Returns the absolute path for backup_dir, using the cached formatted time string.
+    pub fn full_path(&self, mut base_path: PathBuf) -> PathBuf {
+        base_path.push(self.dir.group.ty.as_str());
+        base_path.push(&self.dir.group.id);
+        base_path.push(&self.backup_time_string);
+        base_path
     }
 
     pub fn protected_file(&self, mut path: PathBuf) -> PathBuf {
@@ -307,46 +289,45 @@ impl BackupDir {
     }
 }
 
+impl AsRef<pbs_api_types::BackupDir> for BackupDir {
+    fn as_ref(&self) -> &pbs_api_types::BackupDir {
+        &self.dir
+    }
+}
+
+impl AsRef<pbs_api_types::BackupGroup> for BackupDir {
+    fn as_ref(&self) -> &pbs_api_types::BackupGroup {
+        &self.dir.group
+    }
+}
+
+impl From<&BackupDir> for pbs_api_types::BackupGroup {
+    fn from(dir: &BackupDir) -> pbs_api_types::BackupGroup {
+        dir.dir.group.clone()
+    }
+}
+
+impl From<BackupDir> for pbs_api_types::BackupGroup {
+    fn from(dir: BackupDir) -> pbs_api_types::BackupGroup {
+        dir.dir.group.into()
+    }
+}
+
 impl From<&BackupDir> for pbs_api_types::BackupDir {
     fn from(dir: &BackupDir) -> pbs_api_types::BackupDir {
-        (
-            pbs_api_types::BackupGroup::from(dir.group.clone()),
-            dir.backup_time,
-        )
-            .into()
+        dir.dir.clone()
     }
 }
 
 impl From<BackupDir> for pbs_api_types::BackupDir {
     fn from(dir: BackupDir) -> pbs_api_types::BackupDir {
-        (pbs_api_types::BackupGroup::from(dir.group), dir.backup_time).into()
-    }
-}
-
-impl std::str::FromStr for BackupDir {
-    type Err = Error;
-
-    /// Parse a snapshot path
-    ///
-    /// This parses strings like `host/elsa/2020-06-15T05:18:33Z".
-    fn from_str(path: &str) -> Result<Self, Self::Err> {
-        let cap = SNAPSHOT_PATH_REGEX
-            .captures(path)
-            .ok_or_else(|| format_err!("unable to parse backup snapshot path '{}'", path))?;
-
-        BackupDir::with_rfc3339(
-            cap.get(1).unwrap().as_str().parse()?,
-            cap.get(2).unwrap().as_str(),
-            cap.get(3).unwrap().as_str(),
-        )
+        dir.dir
     }
 }
 
 impl std::fmt::Display for BackupDir {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let backup_type = self.group.backup_type();
-        let id = self.group.backup_id();
-        write!(f, "{}/{}/{}", backup_type, id, self.backup_time_string)
+        write!(f, "{}/{}", self.dir.group, self.backup_time_string)
     }
 }
 
@@ -379,10 +360,10 @@ impl BackupInfo {
     pub fn sort_list(list: &mut Vec<BackupInfo>, ascendending: bool) {
         if ascendending {
             // oldest first
-            list.sort_unstable_by(|a, b| a.backup_dir.backup_time.cmp(&b.backup_dir.backup_time));
+            list.sort_unstable_by(|a, b| a.backup_dir.dir.time.cmp(&b.backup_dir.dir.time));
         } else {
             // newest first
-            list.sort_unstable_by(|a, b| b.backup_dir.backup_time.cmp(&a.backup_dir.backup_time));
+            list.sort_unstable_by(|a, b| b.backup_dir.dir.time.cmp(&a.backup_dir.dir.time));
         }
     }
 

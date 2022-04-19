@@ -9,8 +9,6 @@ use serde_json::{json, Value};
 use pbs_api_types::{BackupType, CryptMode, Fingerprint};
 use pbs_tools::crypt_config::CryptConfig;
 
-use crate::BackupDir;
-
 pub const MANIFEST_BLOB_NAME: &str = "index.json.blob";
 pub const MANIFEST_LOCK_NAME: &str = ".index.json.lck";
 pub const CLIENT_LOG_BLOB_NAME: &str = "client.log.blob";
@@ -85,11 +83,11 @@ pub fn archive_type<P: AsRef<Path>>(archive_name: P) -> Result<ArchiveType, Erro
 }
 
 impl BackupManifest {
-    pub fn new(snapshot: BackupDir) -> Self {
+    pub fn new(snapshot: pbs_api_types::BackupDir) -> Self {
         Self {
-            backup_type: snapshot.group().backup_type(),
-            backup_id: snapshot.group().backup_id().into(),
-            backup_time: snapshot.backup_time(),
+            backup_type: snapshot.group.ty,
+            backup_id: snapshot.group.id.into(),
+            backup_time: snapshot.time,
             files: Vec::new(),
             unprotected: json!({}),
             signature: None,
@@ -284,9 +282,7 @@ fn test_manifest_signature() -> Result<(), Error> {
 
     let crypt_config = CryptConfig::new(testkey)?;
 
-    let snapshot: BackupDir = "host/elsa/2020-06-26T13:56:05Z".parse()?;
-
-    let mut manifest = BackupManifest::new(snapshot);
+    let mut manifest = BackupManifest::new("host/elsa/2020-06-26T13:56:05Z".parse()?);
 
     manifest.add_file("test1.img.fidx".into(), 200, [1u8; 32], CryptMode::Encrypt)?;
     manifest.add_file("abc.blob".into(), 200, [2u8; 32], CryptMode::None)?;

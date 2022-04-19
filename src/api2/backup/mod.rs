@@ -21,7 +21,6 @@ use pbs_api_types::{
     DATASTORE_SCHEMA, PRIV_DATASTORE_BACKUP,
 };
 use pbs_config::CachedUserInfo;
-use pbs_datastore::backup_info::{BackupDir, BackupGroup};
 use pbs_datastore::index::IndexFile;
 use pbs_datastore::manifest::{archive_type, ArchiveType};
 use pbs_datastore::{DataStore, PROXMOX_BACKUP_PROTOCOL_ID_V1};
@@ -107,7 +106,7 @@ fn upgrade_to_backup_protocol(
 
         let env_type = rpcenv.env_type();
 
-        let backup_group = BackupGroup::new(backup_type, backup_id);
+        let backup_group = datastore.backup_group(backup_type, backup_id);
 
         let worker_type = if backup_type == BackupType::Host && backup_id == "benchmark" {
             if !benchmark {
@@ -123,7 +122,7 @@ fn upgrade_to_backup_protocol(
 
         // lock backup group to only allow one backup per group at a time
         let (owner, _group_guard) =
-            datastore.create_locked_backup_group(&backup_group, &auth_id)?;
+            datastore.create_locked_backup_group(backup_group.as_ref(), &auth_id)?;
 
         // permission check
         let correct_owner =
@@ -155,7 +154,7 @@ fn upgrade_to_backup_protocol(
             }
         };
 
-        let backup_dir = BackupDir::with_group(backup_group, backup_time)?;
+        let backup_dir = backup_group.backup_dir(backup_time)?;
 
         let _last_guard = if let Some(last) = &last_backup {
             if backup_dir.backup_time() <= last.backup_dir.backup_time() {
@@ -163,7 +162,7 @@ fn upgrade_to_backup_protocol(
             }
 
             // lock last snapshot to prevent forgetting/pruning it during backup
-            let full_path = datastore.snapshot_path(&last.backup_dir);
+            let full_path = datastore.snapshot_path(last.backup_dir.as_ref());
             Some(lock_dir_noblock_shared(
                 &full_path,
                 "snapshot",
@@ -173,7 +172,7 @@ fn upgrade_to_backup_protocol(
             None
         };
 
-        let (path, is_new, snap_guard) = datastore.create_locked_backup_dir(&backup_dir)?;
+        let (path, is_new, snap_guard) = datastore.create_locked_backup_dir(backup_dir.as_ref())?;
         if !is_new {
             bail!("backup directory already exists.");
         }
@@ -812,7 +811,7 @@ fn download_previous(
             None => bail!("no valid previous backup"),
         };
 
-        let mut path = env.datastore.snapshot_path(&last_backup.backup_dir);
+        let mut path = env.datastore.snapshot_path(last_backup.backup_dir.as_ref());
         path.push(&archive_name);
 
         {

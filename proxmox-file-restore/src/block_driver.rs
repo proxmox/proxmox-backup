@@ -11,8 +11,8 @@ use serde_json::{json, Value};
 use proxmox_router::cli::*;
 use proxmox_schema::api;
 
+use pbs_api_types::BackupDir;
 use pbs_client::BackupRepository;
-use pbs_datastore::backup_info::BackupDir;
 use pbs_datastore::catalog::ArchiveEntry;
 use pbs_datastore::manifest::BackupManifest;
 

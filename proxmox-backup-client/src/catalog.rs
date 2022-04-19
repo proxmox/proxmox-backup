@@ -72,9 +72,9 @@ async fn dump_catalog(param: Value) -> Result<Value, Error> {
         client,
         crypt_config.clone(),
         repo.store(),
-        snapshot.group().backup_type(),
-        snapshot.group().backup_id(),
-        snapshot.backup_time(),
+        snapshot.group.ty,
+        &snapshot.group.id,
+        snapshot.time,
         true,
     )
     .await?;
@@ -158,11 +158,7 @@ async fn catalog_shell(param: Value) -> Result<(), Error> {
         api_datastore_latest_snapshot(&client, repo.store(), group).await?
     } else {
         let snapshot: BackupDir = path.parse()?;
-        (
-            snapshot.group().backup_type().to_owned(),
-            snapshot.group().backup_id().to_owned(),
-            snapshot.backup_time(),
-        )
+        (snapshot.group.ty, snapshot.group.id, snapshot.time)
     };
 
     let crypto = crypto_parameters(&param)?;

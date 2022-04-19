@@ -63,16 +63,16 @@ use crate::server::jobstate::Job;
 
 const GROUP_NOTES_FILE_NAME: &str = "notes";
 
-fn get_group_note_path(store: &DataStore, group: &BackupGroup) -> PathBuf {
+fn get_group_note_path(store: &DataStore, group: &pbs_api_types::BackupGroup) -> PathBuf {
     let mut note_path = store.base_path();
-    note_path.push(group.relative_group_path());
+    note_path.push(group.to_string());
     note_path.push(GROUP_NOTES_FILE_NAME);
     note_path
 }
 
 fn check_priv_or_backup_owner(
     store: &DataStore,
-    group: &BackupGroup,
+    group: &pbs_api_types::BackupGroup,
     auth_id: &Authid,
     required_privs: u64,
 ) -> Result<(), Error> {
@@ -170,7 +170,7 @@ pub fn list_groups(
         .iter_backup_groups()?
         .try_fold(Vec::new(), |mut group_info, group| {
             let group = group?;
-            let owner = match datastore.get_owner(&group) {
+            let owner = match datastore.get_owner(group.as_ref()) {
                 Ok(auth_id) => auth_id,
                 Err(err) => {
                     let id = &store;
@@ -203,7 +203,7 @@ pub fn list_groups(
                 })
                 .to_owned();
 
-            let note_path = get_group_note_path(&datastore, &group);
+            let note_path = get_group_note_path(&datastore, group.as_ref());
             let comment = file_read_firstline(&note_path).ok();
 
             group_info.push(GroupListItem {
@@ -244,7 +244,7 @@ pub fn delete_group(
 ) -> Result<Value, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-    let group = BackupGroup::new(backup_type, backup_id);
+    let group = pbs_api_types::BackupGroup::from((backup_type, backup_id));
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
     check_priv_or_backup_owner(&datastore, &group, &auth_id, PRIV_DATASTORE_MODIFY)?;
@@ -285,11 +285,11 @@ pub fn list_snapshot_files(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
 
-    let snapshot = BackupDir::new(backup_type, backup_id, backup_time)?;
+    let snapshot = datastore.backup_dir_from_spec((backup_type, backup_id, backup_time).into())?;
 
     check_priv_or_backup_owner(
         &datastore,
-        snapshot.group(),
+        snapshot.as_ref(),
         &auth_id,
         PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_READ,
     )?;
@@ -328,17 +328,17 @@ pub fn delete_snapshot(
 ) -> Result<Value, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-    let snapshot = BackupDir::new(backup_type, backup_id, backup_time)?;
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
+    let snapshot = datastore.backup_dir_from_spec((backup_type, backup_id, backup_time).into())?;
 
     check_priv_or_backup_owner(
         &datastore,
-        snapshot.group(),
+        snapshot.as_ref(),
         &auth_id,
         PRIV_DATASTORE_MODIFY,
     )?;
 
-    datastore.remove_backup_dir(&snapshot, false)?;
+    datastore.remove_backup_dir(snapshot.as_ref(), false)?;
 
     Ok(Value::Null)
 }
@@ -386,7 +386,9 @@ pub fn list_snapshots(
     // FIXME: filter also owner before collecting, for doing that nicely the owner should move into
     // backup group and provide an error free (Err -> None) accessor
     let groups = match (backup_type, backup_id) {
-        (Some(backup_type), Some(backup_id)) => vec![BackupGroup::new(backup_type, backup_id)],
+        (Some(backup_type), Some(backup_id)) => {
+            vec![datastore.backup_group(backup_type, backup_id)]
+        }
         (Some(backup_type), None) => datastore
             .iter_backup_groups_ok()?
             .filter(|group| group.backup_type() == backup_type)
@@ -471,7 +473,7 @@ pub fn list_snapshots(
     };
 
     groups.iter().try_fold(Vec::new(), |mut snapshots, group| {
-        let owner = match datastore.get_owner(group) {
+        let owner = match datastore.get_owner(group.as_ref()) {
             Ok(auth_id) => auth_id,
             Err(err) => {
                 eprintln!(
@@ -502,7 +504,7 @@ fn get_snapshots_count(store: &DataStore, filter_owner: Option<&Authid>) -> Resu
     store
         .iter_backup_groups_ok()?
         .filter(|group| {
-            let owner = match store.get_owner(group) {
+            let owner = match store.get_owner(group.as_ref()) {
                 Ok(owner) => owner,
                 Err(err) => {
                     let id = store.name();
@@ -658,20 +660,20 @@ pub fn verify(
                 "{}:{}/{}/{:08X}",
                 store, backup_type, backup_id, backup_time
             );
-            let dir = BackupDir::new(backup_type, backup_id, backup_time)?;
+            let dir = datastore.backup_dir_from_parts(backup_type, backup_id, backup_time)?;
 
-            check_priv_or_backup_owner(&datastore, dir.group(), &auth_id, PRIV_DATASTORE_VERIFY)?;
+            check_priv_or_backup_owner(&datastore, dir.as_ref(), &auth_id, PRIV_DATASTORE_VERIFY)?;
 
             backup_dir = Some(dir);
             worker_type = "verify_snapshot";
         }
         (Some(backup_type), Some(backup_id), None) => {
             worker_id = format!("{}:{}/{}", store, backup_type, backup_id);
-            let group = BackupGroup::new(backup_type, backup_id);
+            let group = pbs_api_types::BackupGroup::from((backup_type, backup_id));
 
             check_priv_or_backup_owner(&datastore, &group, &auth_id, PRIV_DATASTORE_VERIFY)?;
 
-            backup_group = Some(group);
+            backup_group = Some(datastore.backup_group_from_spec(group));
             worker_type = "verify_group";
         }
         (None, None, None) => {
@@ -776,11 +778,11 @@ pub fn prune(
 ) -> Result<Value, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-    let group = BackupGroup::new(backup_type, &backup_id);
-
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
-    check_priv_or_backup_owner(&datastore, &group, &auth_id, PRIV_DATASTORE_MODIFY)?;
+    let group = datastore.backup_group(backup_type, &backup_id);
+
+    check_priv_or_backup_owner(&datastore, group.as_ref(), &auth_id, PRIV_DATASTORE_MODIFY)?;
 
     let worker_id = format!("{}:{}/{}", store, backup_type, &backup_id);
 
@@ -798,13 +800,10 @@ pub fn prune(
         for (info, mark) in prune_info {
             let keep = keep_all || mark.keep();
 
-            let backup_time = info.backup_dir.backup_time();
-            let group = info.backup_dir.group();
-
             prune_result.push(json!({
-                "backup-type": group.backup_type(),
-                "backup-id": group.backup_id(),
-                "backup-time": backup_time,
+                "backup-type": info.backup_dir.backup_type(),
+                "backup-id": info.backup_dir.backup_id(),
+                "backup-time": info.backup_dir.backup_time(),
                 "keep": keep,
                 "protected": mark.protected(),
             }));
@@ -837,28 +836,22 @@ pub fn prune(
 
         let backup_time = info.backup_dir.backup_time();
         let timestamp = info.backup_dir.backup_time_string();
-        let group = info.backup_dir.group();
+        let group: &pbs_api_types::BackupGroup = info.backup_dir.as_ref();
 
-        let msg = format!(
-            "{}/{}/{} {}",
-            group.backup_type(),
-            group.backup_id(),
-            timestamp,
-            mark,
-        );
+        let msg = format!("{}/{}/{} {}", group.ty, group.id, timestamp, mark,);
 
         task_log!(worker, "{}", msg);
 
         prune_result.push(json!({
-            "backup-type": group.backup_type(),
-            "backup-id": group.backup_id(),
+            "backup-type": group.ty,
+            "backup-id": group.id,
             "backup-time": backup_time,
             "keep": keep,
             "protected": mark.protected(),
         }));
 
         if !(dry_run || keep) {
-            if let Err(err) = datastore.remove_backup_dir(&info.backup_dir, false) {
+            if let Err(err) = datastore.remove_backup_dir(info.backup_dir.as_ref(), false) {
                 task_warn!(
                     worker,
                     "failed to remove dir {:?}: {}",
@@ -1079,14 +1072,14 @@ pub fn download_file(
         let file_name = required_string_param(&param, "file-name")?.to_owned();
 
         let backup_type: BackupType = required_string_param(&param, "backup-type")?.parse()?;
-        let backup_id = required_string_param(&param, "backup-id")?;
+        let backup_id = required_string_param(&param, "backup-id")?.to_owned();
         let backup_time = required_integer_param(&param, "backup-time")?;
 
-        let backup_dir = BackupDir::new(backup_type, backup_id, backup_time)?;
+        let backup_dir = datastore.backup_dir_from_parts(backup_type, backup_id, backup_time)?;
 
         check_priv_or_backup_owner(
             &datastore,
-            backup_dir.group(),
+            backup_dir.as_ref(),
             &auth_id,
             PRIV_DATASTORE_READ,
         )?;
@@ -1162,14 +1155,14 @@ pub fn download_file_decoded(
         let file_name = required_string_param(&param, "file-name")?.to_owned();
 
         let backup_type: BackupType = required_string_param(&param, "backup-type")?.parse()?;
-        let backup_id = required_string_param(&param, "backup-id")?;
+        let backup_id = required_string_param(&param, "backup-id")?.to_owned();
         let backup_time = required_integer_param(&param, "backup-time")?;
 
-        let backup_dir = BackupDir::new(backup_type, backup_id, backup_time)?;
+        let backup_dir = datastore.backup_dir_from_parts(backup_type, backup_id, backup_time)?;
 
         check_priv_or_backup_owner(
             &datastore,
-            backup_dir.group(),
+            backup_dir.as_ref(),
             &auth_id,
             PRIV_DATASTORE_READ,
         )?;
@@ -1291,10 +1284,10 @@ pub fn upload_backup_log(
         let backup_id = required_string_param(&param, "backup-id")?;
         let backup_time = required_integer_param(&param, "backup-time")?;
 
-        let backup_dir = BackupDir::new(backup_type, backup_id, backup_time)?;
+        let backup_dir = datastore.backup_dir_from_parts(backup_type, backup_id, backup_time)?;
 
         let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-        let owner = datastore.get_owner(backup_dir.group())?;
+        let owner = datastore.get_owner(backup_dir.as_ref())?;
         check_backup_owner(&owner, &auth_id)?;
 
         let mut path = datastore.base_path();
@@ -1363,11 +1356,12 @@ pub fn catalog(
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-    let backup_dir = BackupDir::new(backup_type, backup_id, backup_time)?;
+    let backup_dir =
+        datastore.backup_dir_from_spec((backup_type, backup_id, backup_time).into())?;
 
     check_priv_or_backup_owner(
         &datastore,
-        backup_dir.group(),
+        backup_dir.as_ref(),
         &auth_id,
         PRIV_DATASTORE_READ,
     )?;
@@ -1446,11 +1440,12 @@ pub fn pxar_file_download(
 
         let tar = param["tar"].as_bool().unwrap_or(false);
 
-        let backup_dir = BackupDir::new(backup_type, backup_id, backup_time)?;
+        let backup_dir = datastore
+            .backup_dir_from_spec((backup_type, backup_id.to_owned(), backup_time).into())?;
 
         check_priv_or_backup_owner(
             &datastore,
-            backup_dir.group(),
+            backup_dir.as_ref(),
             &auth_id,
             PRIV_DATASTORE_READ,
         )?;
@@ -1637,7 +1632,7 @@ pub fn get_group_notes(
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-    let backup_group = BackupGroup::new(backup_type, backup_id);
+    let backup_group = pbs_api_types::BackupGroup::from((backup_type, backup_id));
 
     check_priv_or_backup_owner(&datastore, &backup_group, &auth_id, PRIV_DATASTORE_AUDIT)?;
 
@@ -1673,7 +1668,7 @@ pub fn set_group_notes(
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-    let backup_group = BackupGroup::new(backup_type, backup_id);
+    let backup_group = pbs_api_types::BackupGroup::from((backup_type, backup_id));
 
     check_priv_or_backup_owner(&datastore, &backup_group, &auth_id, PRIV_DATASTORE_MODIFY)?;
 
@@ -1707,11 +1702,12 @@ pub fn get_notes(
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-    let backup_dir = BackupDir::new(backup_type, backup_id, backup_time)?;
+    let backup_dir =
+        datastore.backup_dir_from_spec((backup_type, backup_id, backup_time).into())?;
 
     check_priv_or_backup_owner(
         &datastore,
-        backup_dir.group(),
+        backup_dir.as_ref(),
         &auth_id,
         PRIV_DATASTORE_AUDIT,
     )?;
@@ -1753,11 +1749,12 @@ pub fn set_notes(
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-    let backup_dir = BackupDir::new(backup_type, backup_id, backup_time)?;
+    let backup_dir =
+        datastore.backup_dir_from_spec((backup_type, backup_id, backup_time).into())?;
 
     check_priv_or_backup_owner(
         &datastore,
-        backup_dir.group(),
+        backup_dir.as_ref(),
         &auth_id,
         PRIV_DATASTORE_MODIFY,
     )?;
@@ -1795,11 +1792,12 @@ pub fn get_protection(
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-    let backup_dir = BackupDir::new(backup_type, backup_id, backup_time)?;
+    let backup_dir =
+        datastore.backup_dir_from_spec((backup_type, backup_id, backup_time).into())?;
 
     check_priv_or_backup_owner(
         &datastore,
-        backup_dir.group(),
+        backup_dir.as_ref(),
         &auth_id,
         PRIV_DATASTORE_AUDIT,
     )?;
@@ -1837,11 +1835,12 @@ pub fn set_protection(
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-    let backup_dir = BackupDir::new(backup_type, backup_id, backup_time)?;
+    let backup_dir =
+        datastore.backup_dir_from_spec((backup_type, backup_id, backup_time).into())?;
 
     check_priv_or_backup_owner(
         &datastore,
-        backup_dir.group(),
+        backup_dir.as_ref(),
         &auth_id,
         PRIV_DATASTORE_MODIFY,
     )?;
@@ -1875,7 +1874,7 @@ pub fn set_backup_owner(
 ) -> Result<(), Error> {
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
-    let backup_group = BackupGroup::new(backup_type, backup_id);
+    let backup_group = datastore.backup_group(backup_type, backup_id);
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
@@ -1887,7 +1886,7 @@ pub fn set_backup_owner(
         // High-privilege user/token
         true
     } else if (privs & PRIV_DATASTORE_BACKUP) != 0 {
-        let owner = datastore.get_owner(&backup_group)?;
+        let owner = datastore.get_owner(backup_group.as_ref())?;
 
         match (owner.is_token(), new_owner.is_token()) {
             (true, true) => {
@@ -1935,7 +1934,7 @@ pub fn set_backup_owner(
         );
     }
 
-    datastore.set_owner(&backup_group, &new_owner, true)?;
+    datastore.set_owner(backup_group.as_ref(), &new_owner, true)?;
 
     Ok(())
 }

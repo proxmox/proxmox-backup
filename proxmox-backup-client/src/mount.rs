@@ -18,13 +18,13 @@ use proxmox_schema::*;
 use proxmox_sys::fd::Fd;
 use proxmox_sys::sortable;
 
+use pbs_api_types::{BackupDir, BackupGroup};
 use pbs_client::tools::key_source::get_encryption_key_password;
 use pbs_client::{BackupReader, RemoteChunkReader};
 use pbs_config::key_config::load_and_decrypt_key;
 use pbs_datastore::cached_chunk_reader::CachedChunkReader;
 use pbs_datastore::dynamic_index::BufferedDynamicReader;
 use pbs_datastore::index::IndexFile;
-use pbs_datastore::{BackupDir, BackupGroup};
 use pbs_tools::crypt_config::CryptConfig;
 use pbs_tools::json::required_string_param;
 
@@ -204,11 +204,7 @@ async fn mount_do(param: Value, pipe: Option<Fd>) -> Result<Value, Error> {
         api_datastore_latest_snapshot(&client, repo.store(), group).await?
     } else {
         let snapshot: BackupDir = path.parse()?;
-        (
-            snapshot.group().backup_type().to_owned(),
-            snapshot.group().backup_id().to_owned(),
-            snapshot.backup_time(),
-        )
+        (snapshot.group.ty, snapshot.group.id, snapshot.time)
     };
 
     let keyfile = param["keyfile"].as_str().map(PathBuf::from);

@@ -28,7 +28,7 @@ use pbs_datastore::index::IndexFile;
 use pbs_datastore::manifest::{
     archive_type, ArchiveType, BackupManifest, FileInfo, CLIENT_LOG_BLOB_NAME, MANIFEST_BLOB_NAME,
 };
-use pbs_datastore::{BackupDir, BackupGroup, DataStore, StoreProgress};
+use pbs_datastore::{DataStore, StoreProgress};
 use pbs_tools::sha::sha256;
 use proxmox_rest_server::WorkerTask;
 
@@ -223,13 +223,13 @@ async fn pull_single_archive(
     reader: &BackupReader,
     chunk_reader: &mut RemoteChunkReader,
     tgt_store: Arc<DataStore>,
-    snapshot: &BackupDir,
+    snapshot: &pbs_api_types::BackupDir,
     archive_info: &FileInfo,
     downloaded_chunks: Arc<Mutex<HashSet<[u8; 32]>>>,
 ) -> Result<(), Error> {
     let archive_name = &archive_info.filename;
     let mut path = tgt_store.base_path();
-    path.push(snapshot.relative_path());
+    path.push(snapshot.to_string());
     path.push(archive_name);
 
     let mut tmp_path = path.clone();
@@ -321,15 +321,17 @@ async fn pull_snapshot(
     worker: &WorkerTask,
     reader: Arc<BackupReader>,
     tgt_store: Arc<DataStore>,
-    snapshot: &BackupDir,
+    snapshot: &pbs_api_types::BackupDir,
     downloaded_chunks: Arc<Mutex<HashSet<[u8; 32]>>>,
 ) -> Result<(), Error> {
+    let snapshot_relative_path = snapshot.to_string();
+
     let mut manifest_name = tgt_store.base_path();
-    manifest_name.push(snapshot.relative_path());
+    manifest_name.push(&snapshot_relative_path);
     manifest_name.push(MANIFEST_BLOB_NAME);
 
     let mut client_log_name = tgt_store.base_path();
-    client_log_name.push(snapshot.relative_path());
+    client_log_name.push(&snapshot_relative_path);
     client_log_name.push(CLIENT_LOG_BLOB_NAME);
 
     let mut tmp_manifest_name = manifest_name.clone();
@@ -396,7 +398,7 @@ async fn pull_snapshot(
 
     for item in manifest.files() {
         let mut path = tgt_store.base_path();
-        path.push(snapshot.relative_path());
+        path.push(&snapshot_relative_path);
         path.push(&item.filename);
 
         if path.exists() {
@@ -471,13 +473,14 @@ pub async fn pull_snapshot_from(
     worker: &WorkerTask,
     reader: Arc<BackupReader>,
     tgt_store: Arc<DataStore>,
-    snapshot: &BackupDir,
+    snapshot: &pbs_api_types::BackupDir,
     downloaded_chunks: Arc<Mutex<HashSet<[u8; 32]>>>,
 ) -> Result<(), Error> {
     let (_path, is_new, _snap_lock) = tgt_store.create_locked_backup_dir(snapshot)?;
 
+    let snapshot_path = snapshot.to_string();
     if is_new {
-        task_log!(worker, "sync snapshot {:?}", snapshot.relative_path());
+        task_log!(worker, "sync snapshot {:?}", snapshot_path);
 
         if let Err(err) = pull_snapshot(
             worker,
@@ -493,9 +496,9 @@ pub async fn pull_snapshot_from(
             }
             return Err(err);
         }
-        task_log!(worker, "sync snapshot {:?} done", snapshot.relative_path());
+        task_log!(worker, "sync snapshot {:?} done", snapshot_path);
     } else {
-        task_log!(worker, "re-sync snapshot {:?}", snapshot.relative_path());
+        task_log!(worker, "re-sync snapshot {:?}", snapshot_path);
         pull_snapshot(
             worker,
             reader,
@@ -504,11 +507,7 @@ pub async fn pull_snapshot_from(
             downloaded_chunks,
         )
         .await?;
-        task_log!(
-            worker,
-            "re-sync snapshot {:?} done",
-            snapshot.relative_path()
-        );
+        task_log!(worker, "re-sync snapshot {:?} done", snapshot_path);
     }
 
     Ok(())
@@ -561,7 +560,7 @@ pub async fn pull_group(
     worker: &WorkerTask,
     client: &HttpClient,
     params: &PullParameters,
-    group: &BackupGroup,
+    group: &pbs_api_types::BackupGroup,
     progress: &mut StoreProgress,
 ) -> Result<(), Error> {
     let path = format!(
@@ -570,8 +569,8 @@ pub async fn pull_group(
     );
 
     let args = json!({
-        "backup-type": group.backup_type(),
-        "backup-id": group.backup_id(),
+        "backup-type": group.ty,
+        "backup-id": group.id,
     });
 
     let mut result = client.get(&path, Some(args)).await?;
@@ -599,7 +598,7 @@ pub async fn pull_group(
     };
 
     for (pos, item) in list.into_iter().enumerate() {
-        let snapshot = BackupDir::new(item.backup.ty(), item.backup.id(), item.backup.time)?;
+        let snapshot = item.backup;
 
         // in-progress backups can't be synced
         if item.size.is_none() {
@@ -611,7 +610,7 @@ pub async fn pull_group(
             continue;
         }
 
-        let backup_time = snapshot.backup_time();
+        let backup_time = snapshot.time;
 
         remote_snapshots.insert(backup_time);
 
@@ -640,8 +639,8 @@ pub async fn pull_group(
             new_client,
             None,
             params.source.store(),
-            snapshot.group().backup_type(),
-            snapshot.group().backup_id(),
+            snapshot.group.ty,
+            &snapshot.group.id,
             backup_time,
             true,
         )
@@ -663,6 +662,7 @@ pub async fn pull_group(
     }
 
     if params.remove_vanished {
+        let group = params.store.backup_group_from_spec(group.clone());
         let local_list = group.list_backups(&params.store.base_path())?;
         for info in local_list {
             let backup_time = info.backup_dir.backup_time();
@@ -682,7 +682,9 @@ pub async fn pull_group(
                 "delete vanished snapshot {:?}",
                 info.backup_dir.relative_path()
             );
-            params.store.remove_backup_dir(&info.backup_dir, false)?;
+            params
+                .store
+                .remove_backup_dir(info.backup_dir.as_ref(), false)?;
         }
     }
 
@@ -720,18 +722,15 @@ pub async fn pull_store(
         }
     });
 
-    let apply_filters = |group: &BackupGroup, filters: &[GroupFilter]| -> bool {
+    let apply_filters = |group: &pbs_api_types::BackupGroup, filters: &[GroupFilter]| -> bool {
         filters.iter().any(|filter| group.matches(filter))
     };
 
-    let list: Vec<BackupGroup> = list
-        .into_iter()
-        .map(|item| BackupGroup::new(item.backup.ty, item.backup.id))
-        .collect();
+    let list: Vec<pbs_api_types::BackupGroup> = list.into_iter().map(|item| item.backup).collect();
 
     let list = if let Some(ref group_filter) = &params.group_filter {
         let unfiltered_count = list.len();
-        let list: Vec<BackupGroup> = list
+        let list: Vec<pbs_api_types::BackupGroup> = list
             .into_iter()
             .filter(|group| apply_filters(group, group_filter))
             .collect();
@@ -799,11 +798,11 @@ pub async fn pull_store(
         let result: Result<(), Error> = proxmox_lang::try_block!({
             for local_group in params.store.iter_backup_groups()? {
                 let local_group = local_group?;
-                if new_groups.contains(&local_group) {
+                if new_groups.contains(local_group.as_ref()) {
                     continue;
                 }
                 if let Some(ref group_filter) = &params.group_filter {
-                    if !apply_filters(&local_group, group_filter) {
+                    if !apply_filters(local_group.as_ref(), group_filter) {
                         continue;
                     }
                 }
@@ -813,7 +812,7 @@ pub async fn pull_store(
                     local_group.backup_type(),
                     local_group.backup_id()
                 );
-                match params.store.remove_backup_group(&local_group) {
+                match params.store.remove_backup_group(local_group.as_ref()) {
                     Ok(true) => {}
                     Ok(false) => {
                         task_log!(

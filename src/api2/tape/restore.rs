@@ -22,7 +22,6 @@ use pbs_api_types::{
     TAPE_RESTORE_SNAPSHOT_SCHEMA, UPID_SCHEMA,
 };
 use pbs_config::CachedUserInfo;
-use pbs_datastore::backup_info::BackupDir;
 use pbs_datastore::dynamic_index::DynamicIndexReader;
 use pbs_datastore::fixed_index::FixedIndexReader;
 use pbs_datastore::index::IndexFile;
@@ -423,7 +422,7 @@ fn restore_list_worker(
             let snapshot = split
                 .next()
                 .ok_or_else(|| format_err!("invalid snapshot:{}", store_snapshot))?;
-            let backup_dir: BackupDir = snapshot.parse()?;
+            let backup_dir: pbs_api_types::BackupDir = snapshot.parse()?;
 
             let datastore = store_map.get_datastore(source_datastore).ok_or_else(|| {
                 format_err!(
@@ -433,7 +432,7 @@ fn restore_list_worker(
             })?;
 
             let (owner, _group_lock) =
-                datastore.create_locked_backup_group(backup_dir.group(), restore_owner)?;
+                datastore.create_locked_backup_group(backup_dir.as_ref(), restore_owner)?;
             if restore_owner != &owner {
                 // only the owner is allowed to create additional snapshots
                 bail!(
@@ -577,7 +576,7 @@ fn restore_list_worker(
                 let snapshot = split
                     .next()
                     .ok_or_else(|| format_err!("invalid snapshot:{}", store_snapshot))?;
-                let backup_dir: BackupDir = snapshot.parse()?;
+                let backup_dir: pbs_api_types::BackupDir = snapshot.parse()?;
 
                 let datastore = store_map.get_datastore(source_datastore).ok_or_else(|| {
                     format_err!("unexpected source datastore: {}", source_datastore)
@@ -1037,12 +1036,12 @@ fn restore_archive<'a>(
                 snapshot
             );
 
-            let backup_dir: BackupDir = snapshot.parse()?;
+            let backup_dir: pbs_api_types::BackupDir = snapshot.parse()?;
 
             if let Some((store_map, authid)) = target.as_ref() {
                 if let Some(datastore) = store_map.get_datastore(&datastore_name) {
                     let (owner, _group_lock) =
-                        datastore.create_locked_backup_group(backup_dir.group(), authid)?;
+                        datastore.create_locked_backup_group(backup_dir.as_ref(), authid)?;
                     if *authid != &owner {
                         // only the owner is allowed to create additional snapshots
                         bail!(
@@ -1054,7 +1053,7 @@ fn restore_archive<'a>(
                     }
 
                     let (rel_path, is_new, _snap_lock) =
-                        datastore.create_locked_backup_dir(&backup_dir)?;
+                        datastore.create_locked_backup_dir(backup_dir.as_ref())?;
                     let mut path = datastore.base_path();
                     path.push(rel_path);
 

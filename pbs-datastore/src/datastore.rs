@@ -19,7 +19,8 @@ use proxmox_sys::{task_log, task_warn};
 
 use pbs_api_types::{
     Authid, BackupType, ChunkOrder, DataStoreConfig, DatastoreTuning, GarbageCollectionStatus,
-    HumanByte, Operation, BACKUP_DATE_REGEX, BACKUP_ID_REGEX, UPID,
+    HumanByte, Operation, BACKUP_DATE_REGEX, BACKUP_ID_REGEX, GROUP_PATH_REGEX,
+    SNAPSHOT_PATH_REGEX, UPID,
 };
 use pbs_config::{open_backup_lockfile, BackupLockGuard, ConfigVersionCache};
 
@@ -302,11 +303,19 @@ impl DataStore {
     /// Removes all files not mentioned in the manifest.
     pub fn cleanup_backup_dir(
         &self,
-        backup_dir: &BackupDir,
+        backup_dir: impl AsRef<pbs_api_types::BackupDir>,
+        manifest: &BackupManifest,
+    ) -> Result<(), Error> {
+        self.cleanup_backup_dir_do(backup_dir.as_ref(), manifest)
+    }
+
+    fn cleanup_backup_dir_do(
+        &self,
+        backup_dir: &pbs_api_types::BackupDir,
         manifest: &BackupManifest,
     ) -> Result<(), Error> {
         let mut full_path = self.base_path();
-        full_path.push(backup_dir.relative_path());
+        full_path.push(backup_dir.to_string());
 
         let mut wanted_files = HashSet::new();
         wanted_files.insert(MANIFEST_BLOB_NAME.to_string());
@@ -339,23 +348,28 @@ impl DataStore {
     }
 
     /// Returns the absolute path for a backup_group
-    pub fn group_path(&self, backup_group: &BackupGroup) -> PathBuf {
+    pub fn group_path(&self, backup_group: &pbs_api_types::BackupGroup) -> PathBuf {
         let mut full_path = self.base_path();
-        full_path.push(backup_group.relative_group_path());
+        full_path.push(backup_group.to_string());
         full_path
     }
 
     /// Returns the absolute path for backup_dir
-    pub fn snapshot_path(&self, backup_dir: &BackupDir) -> PathBuf {
+    pub fn snapshot_path(&self, backup_dir: &pbs_api_types::BackupDir) -> PathBuf {
         let mut full_path = self.base_path();
-        full_path.push(backup_dir.relative_path());
+        full_path.push(backup_dir.to_string());
         full_path
     }
 
     /// Remove a complete backup group including all snapshots, returns true
     /// if all snapshots were removed, and false if some were protected
-    pub fn remove_backup_group(&self, backup_group: &BackupGroup) -> Result<bool, Error> {
-        let full_path = self.group_path(backup_group);
+    pub fn remove_backup_group(
+        &self,
+        backup_group: &pbs_api_types::BackupGroup,
+    ) -> Result<bool, Error> {
+        let backup_group = self.backup_group_from_spec(backup_group.clone());
+
+        let full_path = self.group_path(backup_group.as_ref());
 
         let _guard = proxmox_sys::fs::lock_dir_noblock(
             &full_path,
@@ -373,7 +387,7 @@ impl DataStore {
                 removed_all = false;
                 continue;
             }
-            self.remove_backup_dir(&snap.backup_dir, false)?;
+            self.remove_backup_dir(snap.backup_dir.as_ref(), false)?;
         }
 
         if removed_all {
@@ -391,13 +405,19 @@ impl DataStore {
     }
 
     /// Remove a backup directory including all content
-    pub fn remove_backup_dir(&self, backup_dir: &BackupDir, force: bool) -> Result<(), Error> {
-        let full_path = self.snapshot_path(backup_dir);
+    pub fn remove_backup_dir(
+        &self,
+        backup_dir: &pbs_api_types::BackupDir,
+        force: bool,
+    ) -> Result<(), Error> {
+        let backup_dir = self.backup_dir_from_spec(backup_dir.clone())?;
+
+        let full_path = backup_dir.full_path(self.base_path());
 
         let (_guard, _manifest_guard);
         if !force {
             _guard = lock_dir_noblock(&full_path, "snapshot", "possibly running or in use")?;
-            _manifest_guard = self.lock_manifest(backup_dir)?;
+            _manifest_guard = self.lock_manifest(&backup_dir)?;
         }
 
         if backup_dir.is_protected(self.base_path()) {
@@ -410,7 +430,7 @@ impl DataStore {
         })?;
 
         // the manifest does not exists anymore, we do not need to keep the lock
-        if let Ok(path) = self.manifest_lock_path(backup_dir) {
+        if let Ok(path) = self.manifest_lock_path(&backup_dir) {
             // ignore errors
             let _ = std::fs::remove_file(path);
         }
@@ -421,7 +441,12 @@ impl DataStore {
     /// Returns the time of the last successful backup
     ///
     /// Or None if there is no backup in the group (or the group dir does not exist).
-    pub fn last_successful_backup(&self, backup_group: &BackupGroup) -> Result<Option<i64>, Error> {
+    pub fn last_successful_backup(
+        &self,
+        backup_group: &pbs_api_types::BackupGroup,
+    ) -> Result<Option<i64>, Error> {
+        let backup_group = self.backup_group_from_spec(backup_group.clone());
+
         let base_path = self.base_path();
         let mut group_path = base_path.clone();
         group_path.push(backup_group.relative_group_path());
@@ -436,15 +461,19 @@ impl DataStore {
     /// Returns the backup owner.
     ///
     /// The backup owner is the entity who first created the backup group.
-    pub fn get_owner(&self, backup_group: &BackupGroup) -> Result<Authid, Error> {
+    pub fn get_owner(&self, backup_group: &pbs_api_types::BackupGroup) -> Result<Authid, Error> {
         let mut full_path = self.base_path();
-        full_path.push(backup_group.relative_group_path());
+        full_path.push(backup_group.to_string());
         full_path.push("owner");
         let owner = proxmox_sys::fs::file_read_firstline(full_path)?;
         owner.trim_end().parse() // remove trailing newline
     }
 
-    pub fn owns_backup(&self, backup_group: &BackupGroup, auth_id: &Authid) -> Result<bool, Error> {
+    pub fn owns_backup(
+        &self,
+        backup_group: &pbs_api_types::BackupGroup,
+        auth_id: &Authid,
+    ) -> Result<bool, Error> {
         let owner = self.get_owner(backup_group)?;
 
         Ok(check_backup_owner(&owner, auth_id).is_ok())
@@ -453,12 +482,12 @@ impl DataStore {
     /// Set the backup owner.
     pub fn set_owner(
         &self,
-        backup_group: &BackupGroup,
+        backup_group: &pbs_api_types::BackupGroup,
         auth_id: &Authid,
         force: bool,
     ) -> Result<(), Error> {
         let mut path = self.base_path();
-        path.push(backup_group.relative_group_path());
+        path.push(backup_group.to_string());
         path.push("owner");
 
         let mut open_options = std::fs::OpenOptions::new();
@@ -489,15 +518,15 @@ impl DataStore {
     /// This also acquires an exclusive lock on the directory and returns the lock guard.
     pub fn create_locked_backup_group(
         &self,
-        backup_group: &BackupGroup,
+        backup_group: &pbs_api_types::BackupGroup,
         auth_id: &Authid,
     ) -> Result<(Authid, DirLockGuard), Error> {
         // create intermediate path first:
         let mut full_path = self.base_path();
-        full_path.push(backup_group.backup_type().as_str());
+        full_path.push(backup_group.ty.as_str());
         std::fs::create_dir_all(&full_path)?;
 
-        full_path.push(backup_group.backup_id());
+        full_path.push(&backup_group.id);
 
         // create the last component now
         match std::fs::create_dir(&full_path) {
@@ -529,9 +558,9 @@ impl DataStore {
     /// The BackupGroup directory needs to exist.
     pub fn create_locked_backup_dir(
         &self,
-        backup_dir: &BackupDir,
+        backup_dir: &pbs_api_types::BackupDir,
     ) -> Result<(PathBuf, bool, DirLockGuard), Error> {
-        let relative_path = backup_dir.relative_path();
+        let relative_path = PathBuf::from(backup_dir.to_string());
         let mut full_path = self.base_path();
         full_path.push(&relative_path);
 
@@ -699,7 +728,7 @@ impl DataStore {
             if let Some(backup_dir_path) = img.parent() {
                 let backup_dir_path = backup_dir_path.strip_prefix(self.base_path())?;
                 if let Some(backup_dir_str) = backup_dir_path.to_str() {
-                    if BackupDir::from_str(backup_dir_str).is_err() {
+                    if pbs_api_types::BackupDir::from_str(backup_dir_str).is_err() {
                         strange_paths_count += 1;
                     }
                 }
@@ -933,8 +962,8 @@ impl DataStore {
         let mut path = format!(
             "/run/proxmox-backup/locks/{}/{}/{}",
             self.name(),
-            backup_dir.group().backup_type(),
-            backup_dir.group().backup_id(),
+            backup_dir.backup_type(),
+            backup_dir.backup_id(),
         );
         std::fs::create_dir_all(&path)?;
         use std::fmt::Write;
@@ -994,7 +1023,7 @@ impl DataStore {
 
     /// Updates the protection status of the specified snapshot.
     pub fn update_protection(&self, backup_dir: &BackupDir, protection: bool) -> Result<(), Error> {
-        let full_path = self.snapshot_path(backup_dir);
+        let full_path = backup_dir.full_path(self.base_path());
 
         let _guard = lock_dir_noblock(&full_path, "snapshot", "possibly running or in use")?;
 
@@ -1062,6 +1091,70 @@ impl DataStore {
         }
 
         Ok(chunk_list)
+    }
+
+    pub fn backup_group_from_spec(&self, group: pbs_api_types::BackupGroup) -> BackupGroup {
+        BackupGroup::new(group.ty, group.id)
+    }
+
+    pub fn backup_dir_from_spec(&self, dir: pbs_api_types::BackupDir) -> Result<BackupDir, Error> {
+        BackupDir::with_group(self.backup_group_from_spec(dir.group), dir.time)
+    }
+
+    pub fn backup_dir_from_parts<T>(
+        &self,
+        ty: BackupType,
+        id: T,
+        time: i64,
+    ) -> Result<BackupDir, Error>
+    where
+        T: Into<String>,
+    {
+        self.backup_dir_from_spec((ty, id.into(), time).into())
+    }
+
+    pub fn backup_group<T>(&self, ty: BackupType, id: T) -> BackupGroup
+    where
+        T: Into<String>,
+    {
+        BackupGroup::new(ty, id.into())
+    }
+
+    pub fn backup_group_from_path(&self, path: &str) -> Result<BackupGroup, Error> {
+        let cap = GROUP_PATH_REGEX
+            .captures(path)
+            .ok_or_else(|| format_err!("unable to parse backup group path '{}'", path))?;
+
+        Ok(self.backup_group(
+            cap.get(1).unwrap().as_str().parse()?,
+            cap.get(2).unwrap().as_str().to_owned(),
+        ))
+    }
+
+    pub fn backup_dir(&self, group: BackupGroup, time: i64) -> Result<BackupDir, Error> {
+        BackupDir::with_group(group, time)
+    }
+
+    pub fn backup_dir_with_rfc3339<T: Into<String>>(
+        &self,
+        group: BackupGroup,
+        time_string: T,
+    ) -> Result<BackupDir, Error> {
+        BackupDir::with_rfc3339(group, time_string.into())
+    }
+
+    pub fn backup_dir_from_path(&self, path: &str) -> Result<BackupDir, Error> {
+        let cap = SNAPSHOT_PATH_REGEX
+            .captures(path)
+            .ok_or_else(|| format_err!("unable to parse backup snapshot path '{}'", path))?;
+
+        BackupDir::with_rfc3339(
+            BackupGroup::new(
+                cap.get(1).unwrap().as_str().parse()?,
+                cap.get(2).unwrap().as_str().to_owned(),
+            ),
+            cap.get(3).unwrap().as_str().to_owned(),
+        )
     }
 }
 

@@ -10,8 +10,8 @@ use serde_json::json;
 
 use proxmox_sys::fs::lock_file;
 
+use pbs_api_types::BackupDir;
 use pbs_client::{BackupRepository, VsockClient, DEFAULT_VSOCK_PORT};
-use pbs_datastore::backup_info::BackupDir;
 use pbs_datastore::catalog::ArchiveEntry;
 
 use super::block_driver::*;

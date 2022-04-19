@@ -21,7 +21,6 @@ use pbs_api_types::{
     PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_READ,
 };
 use pbs_config::CachedUserInfo;
-use pbs_datastore::backup_info::BackupDir;
 use pbs_datastore::index::IndexFile;
 use pbs_datastore::manifest::{archive_type, ArchiveType};
 use pbs_datastore::{DataStore, PROXMOX_BACKUP_READER_PROTOCOL_ID_V1};
@@ -113,9 +112,9 @@ fn upgrade_to_backup_reader_protocol(
 
         let env_type = rpcenv.env_type();
 
-        let backup_dir = BackupDir::new(backup_type, backup_id, backup_time)?;
+        let backup_dir = datastore.backup_dir_from_parts(backup_type, backup_id, backup_time)?;
         if !priv_read {
-            let owner = datastore.get_owner(backup_dir.group())?;
+            let owner = datastore.get_owner(backup_dir.as_ref())?;
             let correct_owner = owner == auth_id
                 || (owner.is_token() && Authid::from(owner.user().clone()) == auth_id);
             if !correct_owner {
@@ -124,7 +123,7 @@ fn upgrade_to_backup_reader_protocol(
         }
 
         let _guard = lock_dir_noblock_shared(
-            &datastore.snapshot_path(&backup_dir),
+            &backup_dir.full_path(datastore.base_path()),
             "snapshot",
             "locked by another operation",
         )?;

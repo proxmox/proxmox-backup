@@ -13,7 +13,6 @@ use pbs_api_types::{
     MEDIA_POOL_NAME_SCHEMA, MEDIA_UUID_SCHEMA, PRIV_TAPE_AUDIT, VAULT_NAME_SCHEMA,
 };
 use pbs_config::CachedUserInfo;
-use pbs_datastore::backup_info::BackupDir;
 
 use crate::tape::{
     changer::update_online_status, media_catalog_snapshot_list, Inventory, MediaCatalog, MediaPool,
@@ -439,15 +438,15 @@ pub fn list_content(
             .unwrap_or_else(|_| set.uuid.to_string());
 
         for (store, snapshot) in media_catalog_snapshot_list(status_path, &media_id)? {
-            let backup_dir: BackupDir = snapshot.parse()?;
+            let backup_dir: pbs_api_types::BackupDir = snapshot.parse()?;
 
             if let Some(backup_type) = filter.backup_type {
-                if backup_dir.group().backup_type() != backup_type {
+                if backup_dir.ty() != backup_type {
                     continue;
                 }
             }
             if let Some(ref backup_id) = filter.backup_id {
-                if backup_dir.group().backup_id() != backup_id {
+                if backup_dir.id() != backup_id {
                     continue;
                 }
             }
@@ -462,7 +461,7 @@ pub fn list_content(
                 seq_nr: set.seq_nr,
                 snapshot: snapshot.to_owned(),
                 store: store.to_owned(),
-                backup_time: backup_dir.backup_time(),
+                backup_time: backup_dir.time,
             });
         }
     }

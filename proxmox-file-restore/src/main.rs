@@ -16,7 +16,7 @@ use proxmox_sys::fs::{create_path, CreateOptions};
 use pxar::accessor::aio::Accessor;
 use pxar::decoder::aio::Decoder;
 
-use pbs_api_types::CryptMode;
+use pbs_api_types::{BackupDir, CryptMode};
 use pbs_client::pxar::{create_zip, extract_sub_dir, extract_sub_dir_seq};
 use pbs_client::tools::{
     complete_group_or_snapshot, complete_repository, connect, extract_repository_from_value,
@@ -28,7 +28,6 @@ use pbs_client::tools::{
 };
 use pbs_client::{BackupReader, RemoteChunkReader};
 use pbs_config::key_config::decrypt_key;
-use pbs_datastore::backup_info::BackupDir;
 use pbs_datastore::catalog::{ArchiveEntry, CatalogReader, DirEntryAttribute};
 use pbs_datastore::dynamic_index::{BufferedDynamicReader, LocalDynamicReadAt};
 use pbs_datastore::index::IndexFile;
@@ -169,9 +168,9 @@ async fn list(snapshot: String, path: String, base64: bool, param: Value) -> Res
         client,
         crypt_config.clone(),
         repo.store(),
-        snapshot.group().backup_type(),
-        snapshot.group().backup_id(),
-        snapshot.backup_time(),
+        snapshot.group.ty,
+        &snapshot.group.id,
+        snapshot.time,
         true,
     )
     .await?;
@@ -346,9 +345,9 @@ async fn extract(
         client,
         crypt_config.clone(),
         repo.store(),
-        snapshot.group().backup_type(),
-        snapshot.group().backup_id(),
-        snapshot.backup_time(),
+        snapshot.group.ty,
+        &snapshot.group.id,
+        snapshot.time,
         true,
     )
     .await?;

@@ -22,9 +22,9 @@ use proxmox_time::{epoch_i64, strftime_local};
 use pxar::accessor::{MaybeReady, ReadAt, ReadAtOperation};
 
 use pbs_api_types::{
-    Authid, BackupType, CryptMode, Fingerprint, GroupListItem, HumanByte, PruneListItem,
-    PruneOptions, RateLimitConfig, SnapshotListItem, StorageStatus, BACKUP_ID_SCHEMA,
-    BACKUP_TIME_SCHEMA, BACKUP_TYPE_SCHEMA, TRAFFIC_CONTROL_BURST_SCHEMA,
+    Authid, BackupDir, BackupGroup, BackupType, CryptMode, Fingerprint, GroupListItem, HumanByte,
+    PruneListItem, PruneOptions, RateLimitConfig, SnapshotListItem, StorageStatus,
+    BACKUP_ID_SCHEMA, BACKUP_TIME_SCHEMA, BACKUP_TYPE_SCHEMA, TRAFFIC_CONTROL_BURST_SCHEMA,
     TRAFFIC_CONTROL_RATE_SCHEMA,
 };
 use pbs_client::catalog_shell::Shell;
@@ -46,7 +46,6 @@ use pbs_client::{
     BACKUP_SOURCE_SCHEMA,
 };
 use pbs_config::key_config::{decrypt_key, rsa_encrypt_key_config, KeyConfig};
-use pbs_datastore::backup_info::{BackupDir, BackupGroup};
 use pbs_datastore::catalog::{BackupCatalogWriter, CatalogReader, CatalogWriter};
 use pbs_datastore::chunk_store::verify_chunk_size;
 use pbs_datastore::dynamic_index::{BufferedDynamicReader, DynamicIndexReader};
@@ -136,8 +135,8 @@ async fn api_datastore_list_snapshots(
 
     let mut args = json!({});
     if let Some(group) = group {
-        args["backup-type"] = group.backup_type().to_string().into();
-        args["backup-id"] = group.backup_id().into();
+        args["backup-type"] = group.ty.to_string().into();
+        args["backup-id"] = group.id.into();
     }
 
     let mut result = client.get(&path, Some(args)).await?;
@@ -154,21 +153,12 @@ pub async fn api_datastore_latest_snapshot(
     let mut list: Vec<SnapshotListItem> = serde_json::from_value(list)?;
 
     if list.is_empty() {
-        bail!(
-            "backup group {:?} does not contain any snapshots.",
-            group.relative_group_path()
-        );
+        bail!("backup group {} does not contain any snapshots.", group);
     }
 
     list.sort_unstable_by(|a, b| b.backup.time.cmp(&a.backup.time));
 
-    let backup_time = list[0].backup.time;
-
-    Ok((
-        group.backup_type().to_owned(),
-        group.backup_id().to_owned(),
-        backup_time,
-    ))
+    Ok((group.ty, group.id, list[0].backup.time))
 }
 
 async fn backup_directory<P: AsRef<Path>>(
@@ -263,13 +253,16 @@ async fn list_backup_groups(param: Value) -> Result<Value, Error> {
     let render_group_path = |_v: &Value, record: &Value| -> Result<String, Error> {
         let item: GroupListItem = serde_json::from_value(record.to_owned())?;
         let group = BackupGroup::new(item.backup.ty, item.backup.id);
-        Ok(group.relative_group_path().to_str().unwrap().to_owned())
+        Ok(group.to_string())
     };
 
     let render_last_backup = |_v: &Value, record: &Value| -> Result<String, Error> {
         let item: GroupListItem = serde_json::from_value(record.to_owned())?;
-        let snapshot = BackupDir::new(item.backup.ty, item.backup.id, item.last_backup)?;
-        Ok(snapshot.relative_path().to_str().unwrap().to_owned())
+        let snapshot = BackupDir {
+            group: item.backup,
+            time: item.last_backup,
+        };
+        Ok(snapshot.to_string())
     };
 
     let render_files = |_v: &Value, record: &Value| -> Result<String, Error> {
@@ -330,8 +323,8 @@ async fn change_backup_owner(group: String, mut param: Value) -> Result<(), Erro
 
     let group: BackupGroup = group.parse()?;
 
-    param["backup-type"] = group.backup_type().to_string().into();
-    param["backup-id"] = group.backup_id().into();
+    param["backup-type"] = group.ty.to_string().into();
+    param["backup-id"] = group.id.into();
 
     let path = format!("api2/json/admin/datastore/{}/change-owner", repo.store());
     client.post(&path, Some(param)).await?;
@@ -786,7 +779,7 @@ async fn create_backup(
         "Starting backup: {}/{}/{}",
         backup_type,
         backup_id,
-        BackupDir::backup_time_to_string(backup_time)?
+        pbs_datastore::BackupDir::backup_time_to_string(backup_time)?
     );
 
     println!("Client name: {}", proxmox_sys::nodename());
@@ -880,7 +873,7 @@ async fn create_backup(
         None
     };
 
-    let snapshot = BackupDir::new(backup_type, backup_id, backup_time)?;
+    let snapshot = BackupDir::from((backup_type, backup_id.to_owned(), backup_time));
     let mut manifest = BackupManifest::new(snapshot);
 
     let mut catalog = None;
@@ -1194,11 +1187,7 @@ async fn restore(param: Value) -> Result<Value, Error> {
         api_datastore_latest_snapshot(&client, repo.store(), group).await?
     } else {
         let snapshot: BackupDir = path.parse()?;
-        (
-            snapshot.group().backup_type().to_owned(),
-            snapshot.group().backup_id().to_owned(),
-            snapshot.backup_time(),
-        )
+        (snapshot.group.ty, snapshot.group.id, snapshot.time)
     };
 
     let target = json::required_string_param(&param, "target")?;
@@ -1415,8 +1404,8 @@ async fn prune(
     if let Some(dry_run) = dry_run {
         api_param["dry-run"] = dry_run.into();
     }
-    api_param["backup-type"] = group.backup_type().to_string().into();
-    api_param["backup-id"] = group.backup_id().into();
+    api_param["backup-type"] = group.ty.to_string().into();
+    api_param["backup-id"] = group.id.into();
 
     let mut result = client.post(&path, Some(api_param)).await?;
 
@@ -1424,8 +1413,7 @@ async fn prune(
 
     let render_snapshot_path = |_v: &Value, record: &Value| -> Result<String, Error> {
         let item: PruneListItem = serde_json::from_value(record.to_owned())?;
-        let snapshot = BackupDir::new(item.backup.ty(), item.backup.id(), item.backup.time)?;
-        Ok(snapshot.relative_path().to_str().unwrap().to_owned())
+        Ok(item.backup.to_string())
     };
 
     let render_prune_action = |v: &Value, _record: &Value| -> Result<String, Error> {

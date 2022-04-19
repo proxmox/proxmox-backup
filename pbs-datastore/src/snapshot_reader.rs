@@ -28,8 +28,13 @@ pub struct SnapshotReader {
 
 impl SnapshotReader {
     /// Lock snapshot, reads the manifest and returns a new instance
-    pub fn new(datastore: Arc<DataStore>, snapshot: BackupDir) -> Result<Self, Error> {
-        let snapshot_path = datastore.snapshot_path(&snapshot);
+    pub fn new(
+        datastore: Arc<DataStore>,
+        snapshot: pbs_api_types::BackupDir,
+    ) -> Result<Self, Error> {
+        let snapshot = datastore.backup_dir_from_spec(snapshot)?;
+
+        let snapshot_path = snapshot.full_path(datastore.base_path());
 
         let locked_dir =
             lock_dir_noblock_shared(&snapshot_path, "snapshot", "locked by another operation")?;

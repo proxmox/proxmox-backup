@@ -46,7 +46,7 @@ pub fn prune_datastore(
         let group = group?;
         let list = group.list_backups(&datastore.base_path())?;
 
-        if !has_privs && !datastore.owns_backup(&group, &auth_id)? {
+        if !has_privs && !datastore.owns_backup(group.as_ref(), &auth_id)? {
             continue;
         }
 
@@ -72,7 +72,7 @@ pub fn prune_datastore(
                 info.backup_dir.backup_time_string()
             );
             if !keep && !dry_run {
-                if let Err(err) = datastore.remove_backup_dir(&info.backup_dir, false) {
+                if let Err(err) = datastore.remove_backup_dir(info.backup_dir.as_ref(), false) {
                     task_warn!(
                         worker,
                         "failed to remove dir {:?}: {}",

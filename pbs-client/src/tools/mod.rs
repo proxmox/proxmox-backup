@@ -15,7 +15,6 @@ use proxmox_schema::*;
 use proxmox_sys::fs::file_get_json;
 
 use pbs_api_types::{Authid, RateLimitConfig, UserWithTokens, BACKUP_REPO_URL};
-use pbs_datastore::BackupDir;
 use pbs_tools::json::json_object_to_query;
 
 use crate::{BackupRepository, HttpClient, HttpClientOptions};
@@ -258,24 +257,15 @@ pub async fn complete_backup_snapshot_do(param: &HashMap<String, String>) -> Vec
 
     let data = try_get(&repo, &path).await;
 
-    if let Some(list) = data.as_array() {
+    if let Value::Array(list) = data {
         for item in list {
-            if let (Some(backup_id), Some(backup_type), Some(backup_time)) = (
-                item["backup-id"].as_str(),
-                item["backup-type"].as_str(),
-                item["backup-time"].as_i64(),
-            ) {
-                let backup_type = match backup_type.parse() {
-                    Ok(ty) => ty,
-                    Err(_) => {
-                        // FIXME: print error in completion?
-                        continue;
-                    }
-                };
-                if let Ok(snapshot) = BackupDir::new(backup_type, backup_id, backup_time) {
-                    result.push(snapshot.relative_path().to_str().unwrap().to_owned());
+            match serde_json::from_value::<pbs_api_types::BackupDir>(item) {
+                Ok(item) => result.push(item.to_string()),
+                Err(_) => {
+                    // FIXME: print error in completion?
+                    continue;
                 }
-            }
+            };
         }
     }
 
@@ -294,7 +284,7 @@ pub async fn complete_server_file_name_do(param: &HashMap<String, String>) -> Ve
         _ => return result,
     };
 
-    let snapshot: BackupDir = match param.get("snapshot") {
+    let snapshot: pbs_api_types::BackupDir = match param.get("snapshot") {
         Some(path) => match path.parse() {
             Ok(v) => v,
             _ => return result,
@@ -303,9 +293,9 @@ pub async fn complete_server_file_name_do(param: &HashMap<String, String>) -> Ve
     };
 
     let query = json_object_to_query(json!({
-        "backup-type": snapshot.group().backup_type(),
-        "backup-id": snapshot.group().backup_id(),
-        "backup-time": snapshot.backup_time(),
+        "backup-type": snapshot.group.ty,
+        "backup-id": snapshot.group.id,
+        "backup-time": snapshot.time,
     }))
     .unwrap();
 

@@ -576,7 +576,7 @@ pub fn backup_snapshot(
 ) -> Result<bool, Error> {
     task_log!(worker, "backup snapshot {}", snapshot);
 
-    let snapshot_reader = match SnapshotReader::new(datastore.clone(), snapshot.clone()) {
+    let snapshot_reader = match SnapshotReader::new(datastore.clone(), (&snapshot).into()) {
         Ok(reader) => reader,
         Err(err) => {
             // ignore missing snapshots and continue

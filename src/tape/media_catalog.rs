@@ -8,7 +8,6 @@ use std::path::{Path, PathBuf};
 use anyhow::{bail, format_err, Error};
 use endian_trait::Endian;
 
-use pbs_datastore::backup_info::BackupDir;
 use proxmox_sys::fs::read_subdir;
 
 use proxmox_io::{ReadExt, WriteExt};
@@ -682,7 +681,7 @@ impl MediaCatalog {
             );
         }
 
-        if let Err(err) = snapshot.parse::<BackupDir>() {
+        if let Err(err) = snapshot.parse::<pbs_api_types::BackupDir>() {
             bail!(
                 "register_snapshot failed: unable to parse snapshot '{}' - {}",
                 snapshot,

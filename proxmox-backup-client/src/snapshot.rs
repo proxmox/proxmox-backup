@@ -7,10 +7,10 @@ use proxmox_router::cli::*;
 use proxmox_schema::api;
 use proxmox_sys::fs::file_get_contents;
 
-use pbs_api_types::{CryptMode, SnapshotListItem};
+use pbs_api_types::{BackupGroup, CryptMode, SnapshotListItem};
 use pbs_client::tools::key_source::get_encryption_key_password;
 use pbs_config::key_config::decrypt_key;
-use pbs_datastore::{BackupGroup, DataBlob};
+use pbs_datastore::DataBlob;
 use pbs_tools::crypt_config::CryptConfig;
 use pbs_tools::json::required_string_param;
 
@@ -59,8 +59,7 @@ async fn list_snapshots(param: Value) -> Result<Value, Error> {
 
     let render_snapshot_path = |_v: &Value, record: &Value| -> Result<String, Error> {
         let item: SnapshotListItem = serde_json::from_value(record.to_owned())?;
-        let snapshot = BackupDir::new(item.backup.ty(), item.backup.id(), item.backup.time)?;
-        Ok(snapshot.relative_path().to_str().unwrap().to_owned())
+        Ok(item.backup.to_string())
     };
 
     let render_files = |_v: &Value, record: &Value| -> Result<String, Error> {
@@ -126,9 +125,9 @@ async fn list_snapshot_files(param: Value) -> Result<Value, Error> {
         .get(
             &path,
             Some(json!({
-                "backup-type": snapshot.group().backup_type(),
-                "backup-id": snapshot.group().backup_id(),
-                "backup-time": snapshot.backup_time(),
+                "backup-type": snapshot.group.ty,
+                "backup-id": snapshot.group.id,
+                "backup-time": snapshot.time,
             })),
         )
         .await?;
@@ -175,9 +174,9 @@ async fn forget_snapshots(param: Value) -> Result<Value, Error> {
         .delete(
             &path,
             Some(json!({
-                "backup-type": snapshot.group().backup_type(),
-                "backup-id": snapshot.group().backup_id(),
-                "backup-time": snapshot.backup_time(),
+                "backup-type": snapshot.group.ty,
+                "backup-id": snapshot.group.id,
+                "backup-time": snapshot.time,
             })),
         )
         .await?;
@@ -255,12 +254,7 @@ async fn upload_log(param: Value) -> Result<Value, Error> {
         repo.store()
     );
 
-    let args = json!({
-        "backup-type": snapshot.group().backup_type(),
-        "backup-id":  snapshot.group().backup_id(),
-        "backup-time": snapshot.backup_time(),
-    });
-
+    let args = serde_json::to_value(&snapshot)?;
     let body = hyper::Body::from(raw_data);
 
     client
@@ -297,9 +291,9 @@ async fn show_notes(param: Value) -> Result<Value, Error> {
     let path = format!("api2/json/admin/datastore/{}/notes", repo.store());
 
     let args = json!({
-        "backup-type": snapshot.group().backup_type(),
-        "backup-id": snapshot.group().backup_id(),
-        "backup-time": snapshot.backup_time(),
+        "backup-type": snapshot.group.ty,
+        "backup-id": snapshot.group.id,
+        "backup-time": snapshot.time,
     });
 
     let output_format = get_output_format(&param);
@@ -354,9 +348,9 @@ async fn update_notes(param: Value) -> Result<Value, Error> {
     let path = format!("api2/json/admin/datastore/{}/notes", repo.store());
 
     let args = json!({
-        "backup-type": snapshot.group().backup_type(),
-        "backup-id": snapshot.group().backup_id(),
-        "backup-time": snapshot.backup_time(),
+        "backup-type": snapshot.group.ty,
+        "backup-id": snapshot.group.id,
+        "backup-time": snapshot.time,
         "notes": notes,
     });
 
@@ -394,9 +388,9 @@ async fn show_protection(param: Value) -> Result<(), Error> {
     let path = format!("api2/json/admin/datastore/{}/protected", repo.store());
 
     let args = json!({
-        "backup-type": snapshot.group().backup_type(),
-        "backup-id": snapshot.group().backup_id(),
-        "backup-time": snapshot.backup_time(),
+        "backup-type": snapshot.group.ty,
+        "backup-id": snapshot.group.id,
+        "backup-time": snapshot.time,
     });
 
     let output_format = get_output_format(&param);
@@ -450,9 +444,9 @@ async fn update_protection(protected: bool, param: Value) -> Result<(), Error> {
     let path = format!("api2/json/admin/datastore/{}/protected", repo.store());
 
     let args = json!({
-        "backup-type": snapshot.group().backup_type(),
-        "backup-id": snapshot.group().backup_id(),
-        "backup-time": snapshot.backup_time(),
+        "backup-type": snapshot.group.ty,
+        "backup-id": snapshot.group.id,
+        "backup-time": snapshot.time,
         "protected": protected,
     });
 

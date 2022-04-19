@@ -29,7 +29,7 @@ fn get_prune_list(
 }
 
 fn create_info(snapshot: &str, partial: bool) -> BackupInfo {
-    let backup_dir: BackupDir = snapshot.parse().unwrap();
+    let backup_dir = BackupDir::new_test(snapshot.parse().unwrap());
 
     let mut files = Vec::new();
 

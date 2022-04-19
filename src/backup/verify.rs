@@ -328,7 +328,7 @@ pub fn verify_backup_dir(
     filter: Option<&dyn Fn(&BackupManifest) -> bool>,
 ) -> Result<bool, Error> {
     let snap_lock = lock_dir_noblock_shared(
-        &verify_worker.datastore.snapshot_path(backup_dir),
+        &verify_worker.datastore.snapshot_path(backup_dir.as_ref()),
         "snapshot",
         "locked by another operation",
     );
@@ -514,7 +514,7 @@ pub fn verify_all_backups(
     }
 
     let filter_by_owner = |group: &BackupGroup| {
-        match (verify_worker.datastore.get_owner(group), &owner) {
+        match (verify_worker.datastore.get_owner(group.as_ref()), &owner) {
             (Ok(ref group_owner), Some(owner)) => {
                 group_owner == owner
                     || (group_owner.is_token()
@@ -530,7 +530,7 @@ pub fn verify_all_backups(
             }
             (Err(err), None) => {
                 // we don't filter by owner, but we want to log the error
-                task_log!(worker, "Failed to get owner of group '{} - {}", group, err,);
+                task_log!(worker, "Failed to get owner of group '{} - {}", group, err);
                 errors.push(group.to_string());
                 true
             }
