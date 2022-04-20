@@ -133,9 +133,7 @@ fn upgrade_to_backup_protocol(
         }
 
         let last_backup = {
-            let info = backup_group
-                .last_backup(&datastore.base_path(), true)
-                .unwrap_or(None);
+            let info = backup_group.last_backup(true).unwrap_or(None);
             if let Some(info) = info {
                 let (manifest, _) = datastore.load_manifest(&info.backup_dir)?;
                 let verify = manifest.unprotected["verify_state"].clone();

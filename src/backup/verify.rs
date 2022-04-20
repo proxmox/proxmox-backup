@@ -450,7 +450,7 @@ pub fn verify_backup_group(
     filter: Option<&dyn Fn(&BackupManifest) -> bool>,
 ) -> Result<Vec<String>, Error> {
     let mut errors = Vec::new();
-    let mut list = match group.list_backups(&verify_worker.datastore.base_path()) {
+    let mut list = match group.list_backups() {
         Ok(list) => list,
         Err(err) => {
             task_log!(

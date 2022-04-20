@@ -458,7 +458,7 @@ fn backup_worker(
         progress.done_snapshots = 0;
         progress.group_snapshots = 0;
 
-        let snapshot_list = group.list_backups(&datastore.base_path())?;
+        let snapshot_list = group.list_backups()?;
 
         // filter out unfinished backups
         let mut snapshot_list: Vec<_> = snapshot_list

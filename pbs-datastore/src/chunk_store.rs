@@ -21,7 +21,7 @@ pub struct ChunkStore {
     pub(crate) base: PathBuf,
     chunk_dir: PathBuf,
     mutex: Mutex<()>,
-    locker: Arc<Mutex<ProcessLocker>>,
+    locker: Option<Arc<Mutex<ProcessLocker>>>,
 }
 
 // TODO: what about sysctl setting vm.vfs_cache_pressure (0 - 100) ?
@@ -60,6 +60,17 @@ fn digest_to_prefix(digest: &[u8]) -> PathBuf {
 }
 
 impl ChunkStore {
+    #[doc(hidden)]
+    pub unsafe fn panic_store() -> Self {
+        Self {
+            name: String::new(),
+            base: PathBuf::new(),
+            chunk_dir: PathBuf::new(),
+            mutex: Mutex::new(()),
+            locker: None,
+        }
+    }
+
     fn chunk_dir<P: AsRef<Path>>(path: P) -> PathBuf {
         let mut chunk_dir: PathBuf = PathBuf::from(path.as_ref());
         chunk_dir.push(".chunks");
@@ -180,12 +191,15 @@ impl ChunkStore {
             name: name.to_owned(),
             base,
             chunk_dir,
-            locker,
+            locker: Some(locker),
             mutex: Mutex::new(()),
         })
     }
 
     pub fn touch_chunk(&self, digest: &[u8; 32]) -> Result<(), Error> {
+        // unwrap: only `None` in unit tests
+        assert!(self.locker.is_some());
+
         self.cond_touch_chunk(digest, true)?;
         Ok(())
     }
@@ -195,11 +209,17 @@ impl ChunkStore {
         digest: &[u8; 32],
         fail_if_not_exist: bool,
     ) -> Result<bool, Error> {
+        // unwrap: only `None` in unit tests
+        assert!(self.locker.is_some());
+
         let (chunk_path, _digest_str) = self.chunk_path(digest);
         self.cond_touch_path(&chunk_path, fail_if_not_exist)
     }
 
     pub fn cond_touch_path(&self, path: &Path, fail_if_not_exist: bool) -> Result<bool, Error> {
+        // unwrap: only `None` in unit tests
+        assert!(self.locker.is_some());
+
         const UTIME_NOW: i64 = (1 << 30) - 1;
         const UTIME_OMIT: i64 = (1 << 30) - 2;
 
@@ -239,6 +259,9 @@ impl ChunkStore {
             + std::iter::FusedIterator,
         Error,
     > {
+        // unwrap: only `None` in unit tests
+        assert!(self.locker.is_some());
+
         use nix::dir::Dir;
         use nix::fcntl::OFlag;
         use nix::sys::stat::Mode;
@@ -325,7 +348,8 @@ impl ChunkStore {
     }
 
     pub fn oldest_writer(&self) -> Option<i64> {
-        ProcessLocker::oldest_shared_lock(self.locker.clone())
+        // unwrap: only `None` in unit tests
+        ProcessLocker::oldest_shared_lock(self.locker.clone().unwrap())
     }
 
     pub fn sweep_unused_chunks(
@@ -335,6 +359,9 @@ impl ChunkStore {
         status: &mut GarbageCollectionStatus,
         worker: &dyn WorkerTaskContext,
     ) -> Result<(), Error> {
+        // unwrap: only `None` in unit tests
+        assert!(self.locker.is_some());
+
         use nix::sys::stat::fstatat;
         use nix::unistd::{unlinkat, UnlinkatFlags};
 
@@ -426,6 +453,9 @@ impl ChunkStore {
     }
 
     pub fn insert_chunk(&self, chunk: &DataBlob, digest: &[u8; 32]) -> Result<(bool, u64), Error> {
+        // unwrap: only `None` in unit tests
+        assert!(self.locker.is_some());
+
         //println!("DIGEST {}", hex::encode(digest));
 
         let (chunk_path, digest_str) = self.chunk_path(digest);
@@ -485,6 +515,9 @@ impl ChunkStore {
     }
 
     pub fn chunk_path(&self, digest: &[u8; 32]) -> (PathBuf, String) {
+        // unwrap: only `None` in unit tests
+        assert!(self.locker.is_some());
+
         let mut chunk_path = self.chunk_dir.clone();
         let prefix = digest_to_prefix(digest);
         chunk_path.push(&prefix);
@@ -494,6 +527,9 @@ impl ChunkStore {
     }
 
     pub fn relative_path(&self, path: &Path) -> PathBuf {
+        // unwrap: only `None` in unit tests
+        assert!(self.locker.is_some());
+
         let mut full_path = self.base.clone();
         full_path.push(path);
         full_path
@@ -504,15 +540,20 @@ impl ChunkStore {
     }
 
     pub fn base_path(&self) -> PathBuf {
+        // unwrap: only `None` in unit tests
+        assert!(self.locker.is_some());
+
         self.base.clone()
     }
 
     pub fn try_shared_lock(&self) -> Result<ProcessLockSharedGuard, Error> {
-        ProcessLocker::try_shared_lock(self.locker.clone())
+        // unwrap: only `None` in unit tests
+        ProcessLocker::try_shared_lock(self.locker.clone().unwrap())
     }
 
     pub fn try_exclusive_lock(&self) -> Result<ProcessLockExclusiveGuard, Error> {
-        ProcessLocker::try_exclusive_lock(self.locker.clone())
+        // unwrap: only `None` in unit tests
+        ProcessLocker::try_exclusive_lock(self.locker.clone().unwrap())
     }
 }
 

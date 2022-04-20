@@ -34,7 +34,7 @@ impl SnapshotReader {
     ) -> Result<Self, Error> {
         let snapshot = datastore.backup_dir(snapshot)?;
 
-        let snapshot_path = snapshot.full_path(datastore.base_path());
+        let snapshot_path = snapshot.full_path();
 
         let locked_dir =
             lock_dir_noblock_shared(&snapshot_path, "snapshot", "locked by another operation")?;

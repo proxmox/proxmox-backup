@@ -1,21 +1,35 @@
+use std::fmt;
 use std::os::unix::io::RawFd;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
+use std::sync::Arc;
 
 use anyhow::{bail, Error};
 
 use pbs_api_types::{BackupType, GroupFilter, BACKUP_DATE_REGEX, BACKUP_FILE_REGEX};
 
-use super::manifest::MANIFEST_BLOB_NAME;
+use crate::manifest::MANIFEST_BLOB_NAME;
+use crate::DataStore;
 
 /// BackupGroup is a directory containing a list of BackupDir
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct BackupGroup {
+    store: Arc<DataStore>,
+
     group: pbs_api_types::BackupGroup,
 }
 
+impl fmt::Debug for BackupGroup {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("BackupGroup")
+            .field("store", &self.store.name())
+            .field("group", &self.group)
+            .finish()
+    }
+}
+
 impl BackupGroup {
-    pub(crate) fn new(group: pbs_api_types::BackupGroup) -> Self {
-        Self { group }
+    pub(crate) fn new(store: Arc<DataStore>, group: pbs_api_types::BackupGroup) -> Self {
+        Self { store, group }
     }
 
     /// Access the underlying [`BackupGroup`](pbs_api_types::BackupGroup).
@@ -32,13 +46,18 @@ impl BackupGroup {
         &self.group.id
     }
 
+    pub fn full_group_path(&self) -> PathBuf {
+        self.store.base_path().join(self.group.to_string())
+    }
+
     pub fn relative_group_path(&self) -> PathBuf {
         self.group.to_string().into()
     }
 
-    pub fn list_backups(&self, base_path: &Path) -> Result<Vec<BackupInfo>, Error> {
+    pub fn list_backups(&self) -> Result<Vec<BackupInfo>, Error> {
         let mut list = vec![];
 
+        let base_path = self.store.base_path();
         let mut path = base_path.to_owned();
         path.push(self.relative_group_path());
 
@@ -54,7 +73,7 @@ impl BackupGroup {
                 let backup_dir = self.backup_dir_with_rfc3339(backup_time)?;
                 let files = list_backup_files(l2_fd, backup_time)?;
 
-                let protected = backup_dir.is_protected(base_path.to_owned());
+                let protected = backup_dir.is_protected();
 
                 list.push(BackupInfo {
                     backup_dir,
@@ -69,22 +88,18 @@ impl BackupGroup {
     }
 
     /// Finds the latest backup inside a backup group
-    pub fn last_backup(
-        &self,
-        base_path: &Path,
-        only_finished: bool,
-    ) -> Result<Option<BackupInfo>, Error> {
-        let backups = self.list_backups(base_path)?;
+    pub fn last_backup(&self, only_finished: bool) -> Result<Option<BackupInfo>, Error> {
+        let backups = self.list_backups()?;
         Ok(backups
             .into_iter()
             .filter(|item| !only_finished || item.is_finished())
             .max_by_key(|item| item.backup_dir.backup_time()))
     }
 
-    pub fn last_successful_backup(&self, base_path: &Path) -> Result<Option<i64>, Error> {
+    pub fn last_successful_backup(&self) -> Result<Option<i64>, Error> {
         let mut last = None;
 
-        let mut path = base_path.to_owned();
+        let mut path = self.store.base_path();
         path.push(self.relative_group_path());
 
         proxmox_sys::fs::scandir(
@@ -149,6 +164,10 @@ impl BackupGroup {
     ) -> Result<BackupDir, Error> {
         BackupDir::with_rfc3339(self.clone(), time_string.into())
     }
+
+    pub fn iter_snapshots(&self) -> Result<crate::ListSnapshots, Error> {
+        crate::ListSnapshots::new(self.clone())
+    }
 }
 
 impl AsRef<pbs_api_types::BackupGroup> for BackupGroup {
@@ -181,6 +200,7 @@ impl std::fmt::Display for BackupGroup {
 impl From<BackupDir> for BackupGroup {
     fn from(dir: BackupDir) -> BackupGroup {
         BackupGroup {
+            store: dir.store,
             group: dir.dir.group,
         }
     }
@@ -189,6 +209,7 @@ impl From<BackupDir> for BackupGroup {
 impl From<&BackupDir> for BackupGroup {
     fn from(dir: &BackupDir) -> BackupGroup {
         BackupGroup {
+            store: Arc::clone(&dir.store),
             group: dir.dir.group.clone(),
         }
     }
@@ -197,11 +218,22 @@ impl From<&BackupDir> for BackupGroup {
 /// Uniquely identify a Backup (relative to data store)
 ///
 /// We also call this a backup snaphost.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct BackupDir {
+    store: Arc<DataStore>,
     dir: pbs_api_types::BackupDir,
     // backup_time as rfc3339
     backup_time_string: String,
+}
+
+impl fmt::Debug for BackupDir {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("BackupDir")
+            .field("store", &self.store.name())
+            .field("dir", &self.dir)
+            .field("backup_time_string", &self.backup_time_string)
+            .finish()
+    }
 }
 
 impl BackupDir {
@@ -209,6 +241,7 @@ impl BackupDir {
     #[doc(hidden)]
     pub fn new_test(dir: pbs_api_types::BackupDir) -> Self {
         Self {
+            store: unsafe { DataStore::new_test() },
             backup_time_string: Self::backup_time_to_string(dir.time).unwrap(),
             dir,
         }
@@ -217,6 +250,7 @@ impl BackupDir {
     pub(crate) fn with_group(group: BackupGroup, backup_time: i64) -> Result<Self, Error> {
         let backup_time_string = Self::backup_time_to_string(backup_time)?;
         Ok(Self {
+            store: group.store,
             dir: (group.group, backup_time).into(),
             backup_time_string,
         })
@@ -228,6 +262,7 @@ impl BackupDir {
     ) -> Result<Self, Error> {
         let backup_time = proxmox_time::parse_rfc3339(&backup_time_string)?;
         Ok(Self {
+            store: group.store,
             dir: (group.group, backup_time).into(),
             backup_time_string,
         })
@@ -257,21 +292,23 @@ impl BackupDir {
     }
 
     /// Returns the absolute path for backup_dir, using the cached formatted time string.
-    pub fn full_path(&self, mut base_path: PathBuf) -> PathBuf {
+    pub fn full_path(&self) -> PathBuf {
+        let mut base_path = self.store.base_path();
         base_path.push(self.dir.group.ty.as_str());
         base_path.push(&self.dir.group.id);
         base_path.push(&self.backup_time_string);
         base_path
     }
 
-    pub fn protected_file(&self, mut path: PathBuf) -> PathBuf {
+    pub fn protected_file(&self) -> PathBuf {
+        let mut path = self.store.base_path();
         path.push(self.relative_path());
         path.push(".protected");
         path
     }
 
-    pub fn is_protected(&self, base_path: PathBuf) -> bool {
-        let path = self.protected_file(base_path);
+    pub fn is_protected(&self) -> bool {
+        let path = self.protected_file();
         path.exists()
     }
 
@@ -324,7 +361,7 @@ impl std::fmt::Display for BackupDir {
 }
 
 /// Detailed Backup Information, lists files inside a BackupDir
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 pub struct BackupInfo {
     /// the backup directory
     pub backup_dir: BackupDir,
@@ -335,12 +372,13 @@ pub struct BackupInfo {
 }
 
 impl BackupInfo {
-    pub fn new(base_path: &Path, backup_dir: BackupDir) -> Result<BackupInfo, Error> {
-        let mut path = base_path.to_owned();
+    pub fn new(backup_dir: BackupDir) -> Result<BackupInfo, Error> {
+        let base_path = backup_dir.store.base_path();
+        let mut path = base_path.clone();
         path.push(backup_dir.relative_path());
 
         let files = list_backup_files(libc::AT_FDCWD, &path)?;
-        let protected = backup_dir.is_protected(base_path.to_owned());
+        let protected = backup_dir.is_protected();
 
         Ok(BackupInfo {
             backup_dir,

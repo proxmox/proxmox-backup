@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::{bail, Error};
 
-use pbs_datastore::{ListGroups, ListSnapshots};
+use pbs_datastore::DataStore;
 
 fn run() -> Result<(), Error> {
     let base: PathBuf = match std::env::args().skip(1).next() {
@@ -10,12 +10,13 @@ fn run() -> Result<(), Error> {
         None => bail!("no path passed"),
     };
 
-    for group in ListGroups::new(base.to_owned())? {
+    let store = unsafe { DataStore::open_path("", &base, None)? };
+
+    for group in store.iter_backup_groups()? {
         let group = group?;
         println!("found group {}", group);
 
-        let group_path = base.as_path().join(group.to_string());
-        for snapshot in ListSnapshots::new(group, group_path)? {
+        for snapshot in group.iter_snapshots()? {
             println!("\t{}", snapshot?);
         }
     }

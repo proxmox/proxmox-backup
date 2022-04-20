@@ -4,6 +4,7 @@ use std::collections::HashSet;
 use std::ffi::OsStr;
 use std::os::unix::ffi::OsStrExt;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use anyhow::{bail, format_err, Error};
 use futures::*;
@@ -182,7 +183,7 @@ pub fn list_groups(
                 return Ok(group_info);
             }
 
-            let snapshots = match group.list_backups(&datastore.base_path()) {
+            let snapshots = match group.list_backups() {
                 Ok(snapshots) => snapshots,
                 Err(_) => return Ok(group_info),
             };
@@ -294,7 +295,7 @@ pub fn list_snapshot_files(
         PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_READ,
     )?;
 
-    let info = BackupInfo::new(&datastore.base_path(), snapshot)?;
+    let info = BackupInfo::new(snapshot)?;
 
     let (_manifest, files) = get_all_snapshot_files(&datastore, &info)?;
 
@@ -405,7 +406,7 @@ pub fn list_snapshots(
             group: group.into(),
             time: info.backup_dir.backup_time(),
         };
-        let protected = info.backup_dir.is_protected(datastore.base_path());
+        let protected = info.backup_dir.is_protected();
 
         match get_all_snapshot_files(&datastore, &info) {
             Ok((manifest, files)) => {
@@ -488,7 +489,7 @@ pub fn list_snapshots(
             return Ok(snapshots);
         }
 
-        let group_backups = group.list_backups(&datastore.base_path())?;
+        let group_backups = group.list_backups()?;
 
         snapshots.extend(
             group_backups
@@ -500,7 +501,10 @@ pub fn list_snapshots(
     })
 }
 
-fn get_snapshots_count(store: &DataStore, filter_owner: Option<&Authid>) -> Result<Counts, Error> {
+fn get_snapshots_count(
+    store: &Arc<DataStore>,
+    filter_owner: Option<&Authid>,
+) -> Result<Counts, Error> {
     store
         .iter_backup_groups_ok()?
         .filter(|group| {
@@ -519,7 +523,7 @@ fn get_snapshots_count(store: &DataStore, filter_owner: Option<&Authid>) -> Resu
             }
         })
         .try_fold(Counts::default(), |mut counts, group| {
-            let snapshot_count = group.list_backups(&store.base_path())?.len() as u64;
+            let snapshot_count = group.list_backups()?.len() as u64;
 
             // only include groups with snapshots, counting/displaying emtpy groups can confuse
             if snapshot_count > 0 {
@@ -788,7 +792,7 @@ pub fn prune(
 
     let mut prune_result = Vec::new();
 
-    let list = group.list_backups(&datastore.base_path())?;
+    let list = group.list_backups()?;
 
     let mut prune_info = compute_prune_info(list, &prune_options)?;
 
@@ -1797,7 +1801,7 @@ pub fn get_protection(
         PRIV_DATASTORE_AUDIT,
     )?;
 
-    Ok(backup_dir.is_protected(datastore.base_path()))
+    Ok(backup_dir.is_protected())
 }
 
 #[api(

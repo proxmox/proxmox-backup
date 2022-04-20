@@ -44,7 +44,7 @@ pub fn prune_datastore(
 
     for group in datastore.iter_backup_groups()? {
         let group = group?;
-        let list = group.list_backups(&datastore.base_path())?;
+        let list = group.list_backups()?;
 
         if !has_privs && !datastore.owns_backup(group.as_ref(), &auth_id)? {
             continue;

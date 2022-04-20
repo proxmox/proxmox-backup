@@ -65,6 +65,22 @@ pub struct DataStoreImpl {
     last_update: i64,
 }
 
+impl DataStoreImpl {
+    // This one just panics on everything
+    #[doc(hidden)]
+    pub unsafe fn new_test() -> Arc<Self> {
+        Arc::new(Self {
+            chunk_store: Arc::new(unsafe { ChunkStore::panic_store() }),
+            gc_mutex: Mutex::new(()),
+            last_gc_status: Mutex::new(GarbageCollectionStatus::default()),
+            verify_new: false,
+            chunk_order: ChunkOrder::None,
+            last_generation: 0,
+            last_update: 0,
+        })
+    }
+}
+
 pub struct DataStore {
     inner: Arc<DataStoreImpl>,
     operation: Option<Operation>,
@@ -98,6 +114,15 @@ impl Drop for DataStore {
 }
 
 impl DataStore {
+    // This one just panics on everything
+    #[doc(hidden)]
+    pub unsafe fn new_test() -> Arc<Self> {
+        Arc::new(Self {
+            inner: unsafe { DataStoreImpl::new_test() },
+            operation: None,
+        })
+    }
+
     pub fn lookup_datastore(
         name: &str,
         operation: Option<Operation>,
@@ -108,7 +133,6 @@ impl DataStore {
 
         let (config, _digest) = pbs_config::datastore::config()?;
         let config: DataStoreConfig = config.lookup("datastore", name)?;
-        let path = PathBuf::from(&config.path);
 
         if let Some(maintenance_mode) = config.get_maintenance_mode() {
             if let Err(error) = maintenance_mode.check(operation) {
@@ -132,7 +156,8 @@ impl DataStore {
             }
         }
 
-        let datastore = DataStore::open_with_path(name, &path, config, generation, now)?;
+        let chunk_store = ChunkStore::open(name, &config.path)?;
+        let datastore = DataStore::with_store_and_config(chunk_store, config, generation, now)?;
 
         let datastore = Arc::new(datastore);
         map.insert(name.to_string(), datastore.clone());
@@ -153,15 +178,43 @@ impl DataStore {
         Ok(())
     }
 
-    fn open_with_path(
-        store_name: &str,
-        path: &Path,
+    /// Open a raw database given a name and a path.
+    pub unsafe fn open_path(
+        name: &str,
+        path: impl AsRef<Path>,
+        operation: Option<Operation>,
+    ) -> Result<Arc<Self>, Error> {
+        let path = path
+            .as_ref()
+            .to_str()
+            .ok_or_else(|| format_err!("non-utf8 paths not supported"))?
+            .to_owned();
+        unsafe { Self::open_from_config(DataStoreConfig::new(name.to_owned(), path), operation) }
+    }
+
+    /// Open a datastore given a raw configuration.
+    pub unsafe fn open_from_config(
+        config: DataStoreConfig,
+        operation: Option<Operation>,
+    ) -> Result<Arc<Self>, Error> {
+        let name = config.name.clone();
+
+        let chunk_store = ChunkStore::open(&name, &config.path)?;
+        let inner = Arc::new(Self::with_store_and_config(chunk_store, config, 0, 0)?);
+
+        if let Some(operation) = operation {
+            update_active_operations(&name, operation, 1)?;
+        }
+
+        Ok(Arc::new(Self { inner, operation }))
+    }
+
+    fn with_store_and_config(
+        chunk_store: ChunkStore,
         config: DataStoreConfig,
         last_generation: usize,
         last_update: i64,
     ) -> Result<DataStoreImpl, Error> {
-        let chunk_store = ChunkStore::open(store_name, path)?;
-
         let mut gc_status_path = chunk_store.base_path();
         gc_status_path.push(".gc-status");
 
@@ -363,7 +416,7 @@ impl DataStore {
     /// Remove a complete backup group including all snapshots, returns true
     /// if all snapshots were removed, and false if some were protected
     pub fn remove_backup_group(
-        &self,
+        self: &Arc<Self>,
         backup_group: &pbs_api_types::BackupGroup,
     ) -> Result<bool, Error> {
         let backup_group = self.backup_group(backup_group.clone());
@@ -381,8 +434,8 @@ impl DataStore {
         let mut removed_all = true;
 
         // remove all individual backup dirs first to ensure nothing is using them
-        for snap in backup_group.list_backups(&self.base_path())? {
-            if snap.backup_dir.is_protected(self.base_path()) {
+        for snap in backup_group.list_backups()? {
+            if snap.backup_dir.is_protected() {
                 removed_all = false;
                 continue;
             }
@@ -405,13 +458,13 @@ impl DataStore {
 
     /// Remove a backup directory including all content
     pub fn remove_backup_dir(
-        &self,
+        self: &Arc<Self>,
         backup_dir: &pbs_api_types::BackupDir,
         force: bool,
     ) -> Result<(), Error> {
         let backup_dir = self.backup_dir(backup_dir.clone())?;
 
-        let full_path = backup_dir.full_path(self.base_path());
+        let full_path = backup_dir.full_path();
 
         let (_guard, _manifest_guard);
         if !force {
@@ -419,7 +472,7 @@ impl DataStore {
             _manifest_guard = self.lock_manifest(&backup_dir)?;
         }
 
-        if backup_dir.is_protected(self.base_path()) {
+        if backup_dir.is_protected() {
             bail!("cannot remove protected snapshot");
         }
 
@@ -441,7 +494,7 @@ impl DataStore {
     ///
     /// Or None if there is no backup in the group (or the group dir does not exist).
     pub fn last_successful_backup(
-        &self,
+        self: &Arc<Self>,
         backup_group: &pbs_api_types::BackupGroup,
     ) -> Result<Option<i64>, Error> {
         let backup_group = self.backup_group(backup_group.clone());
@@ -451,7 +504,7 @@ impl DataStore {
         group_path.push(backup_group.relative_group_path());
 
         if group_path.exists() {
-            backup_group.last_successful_backup(&base_path)
+            backup_group.last_successful_backup()
         } else {
             Ok(None)
         }
@@ -584,20 +637,23 @@ impl DataStore {
     ///
     /// The iterated item is still a Result that can contain errors from rather unexptected FS or
     /// parsing errors.
-    pub fn iter_backup_groups(&self) -> Result<ListGroups, Error> {
-        ListGroups::new(self.base_path())
+    pub fn iter_backup_groups(self: &Arc<DataStore>) -> Result<ListGroups, Error> {
+        ListGroups::new(Arc::clone(self))
     }
 
     /// Get a streaming iter over top-level backup groups of a datatstore, filtered by Ok results
     ///
     /// The iterated item's result is already unwrapped, if it contained an error it will be
     /// logged. Can be useful in iterator chain commands
-    pub fn iter_backup_groups_ok(&self) -> Result<impl Iterator<Item = BackupGroup> + '_, Error> {
+    pub fn iter_backup_groups_ok(
+        self: &Arc<DataStore>,
+    ) -> Result<impl Iterator<Item = BackupGroup> + 'static, Error> {
+        let this = Arc::clone(self);
         Ok(
-            ListGroups::new(self.base_path())?.filter_map(move |group| match group {
+            ListGroups::new(Arc::clone(&self))?.filter_map(move |group| match group {
                 Ok(group) => Some(group),
                 Err(err) => {
-                    log::error!("list groups error on datastore {} - {}", self.name(), err);
+                    log::error!("list groups error on datastore {} - {}", this.name(), err);
                     None
                 }
             }),
@@ -607,8 +663,8 @@ impl DataStore {
     /// Get a in-memory vector for all top-level backup groups of a datatstore
     ///
     /// NOTE: using the iterator directly is most often more efficient w.r.t. memory usage
-    pub fn list_backup_groups(&self) -> Result<Vec<BackupGroup>, Error> {
-        ListGroups::new(self.base_path())?.collect()
+    pub fn list_backup_groups(self: &Arc<DataStore>) -> Result<Vec<BackupGroup>, Error> {
+        ListGroups::new(Arc::clone(self))?.collect()
     }
 
     pub fn list_images(&self) -> Result<Vec<PathBuf>, Error> {
@@ -1022,11 +1078,11 @@ impl DataStore {
 
     /// Updates the protection status of the specified snapshot.
     pub fn update_protection(&self, backup_dir: &BackupDir, protection: bool) -> Result<(), Error> {
-        let full_path = backup_dir.full_path(self.base_path());
+        let full_path = backup_dir.full_path();
 
         let _guard = lock_dir_noblock(&full_path, "snapshot", "possibly running or in use")?;
 
-        let protected_path = backup_dir.protected_file(self.base_path());
+        let protected_path = backup_dir.protected_file();
         if protection {
             std::fs::File::create(protected_path)
                 .map_err(|err| format_err!("could not create protection file: {}", err))?;
@@ -1093,12 +1149,12 @@ impl DataStore {
     }
 
     /// Open a backup group from this datastore.
-    pub fn backup_group(&self, group: pbs_api_types::BackupGroup) -> BackupGroup {
-        BackupGroup::new(group)
+    pub fn backup_group(self: &Arc<Self>, group: pbs_api_types::BackupGroup) -> BackupGroup {
+        BackupGroup::new(Arc::clone(&self), group)
     }
 
     /// Open a backup group from this datastore.
-    pub fn backup_group_from_parts<T>(&self, ty: BackupType, id: T) -> BackupGroup
+    pub fn backup_group_from_parts<T>(self: &Arc<Self>, ty: BackupType, id: T) -> BackupGroup
     where
         T: Into<String>,
     {
@@ -1108,18 +1164,18 @@ impl DataStore {
     /// Open a backup group from this datastore by backup group path such as `vm/100`.
     ///
     /// Convenience method for `store.backup_group(path.parse()?)`
-    pub fn backup_group_from_path(&self, path: &str) -> Result<BackupGroup, Error> {
+    pub fn backup_group_from_path(self: &Arc<Self>, path: &str) -> Result<BackupGroup, Error> {
         Ok(self.backup_group(path.parse()?))
     }
 
     /// Open a snapshot (backup directory) from this datastore.
-    pub fn backup_dir(&self, dir: pbs_api_types::BackupDir) -> Result<BackupDir, Error> {
+    pub fn backup_dir(self: &Arc<Self>, dir: pbs_api_types::BackupDir) -> Result<BackupDir, Error> {
         BackupDir::with_group(self.backup_group(dir.group), dir.time)
     }
 
     /// Open a snapshot (backup directory) from this datastore.
     pub fn backup_dir_from_parts<T>(
-        &self,
+        self: &Arc<Self>,
         ty: BackupType,
         id: T,
         time: i64,
@@ -1132,7 +1188,7 @@ impl DataStore {
 
     /// Open a snapshot (backup directory) from this datastore with a cached rfc3339 time string.
     pub fn backup_dir_with_rfc3339<T: Into<String>>(
-        &self,
+        self: &Arc<Self>,
         group: BackupGroup,
         time_string: T,
     ) -> Result<BackupDir, Error> {
@@ -1140,7 +1196,7 @@ impl DataStore {
     }
 
     /// Open a snapshot (backup directory) from this datastore by a snapshot path.
-    pub fn backup_dir_from_path(&self, path: &str) -> Result<BackupDir, Error> {
+    pub fn backup_dir_from_path(self: &Arc<Self>, path: &str) -> Result<BackupDir, Error> {
         self.backup_dir(path.parse()?)
     }
 }
@@ -1152,9 +1208,9 @@ pub struct ListSnapshots {
 }
 
 impl ListSnapshots {
-    pub fn new(group: BackupGroup, group_path: PathBuf) -> Result<Self, Error> {
+    pub fn new(group: BackupGroup) -> Result<Self, Error> {
         Ok(ListSnapshots {
-            fd: proxmox_sys::fs::read_subdir(libc::AT_FDCWD, &group_path)?,
+            fd: proxmox_sys::fs::read_subdir(libc::AT_FDCWD, &group.full_group_path())?,
             group,
         })
     }
@@ -1192,14 +1248,16 @@ impl Iterator for ListSnapshots {
 
 /// A iterator for a (single) level of Backup Groups
 pub struct ListGroups {
+    store: Arc<DataStore>,
     type_fd: proxmox_sys::fs::ReadDir,
     id_state: Option<(BackupType, proxmox_sys::fs::ReadDir)>,
 }
 
 impl ListGroups {
-    pub fn new(base_path: PathBuf) -> Result<Self, Error> {
+    pub fn new(store: Arc<DataStore>) -> Result<Self, Error> {
         Ok(ListGroups {
-            type_fd: proxmox_sys::fs::read_subdir(libc::AT_FDCWD, &base_path)?,
+            type_fd: proxmox_sys::fs::read_subdir(libc::AT_FDCWD, &store.base_path())?,
+            store,
             id_state: None,
         })
     }
@@ -1227,6 +1285,7 @@ impl Iterator for ListGroups {
                             }
                             if BACKUP_ID_REGEX.is_match(name) {
                                 return Some(Ok(BackupGroup::new(
+                                    Arc::clone(&self.store),
                                     (group_type, name.to_owned()).into(),
                                 )));
                             }

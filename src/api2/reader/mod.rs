@@ -123,7 +123,7 @@ fn upgrade_to_backup_reader_protocol(
         }
 
         let _guard = lock_dir_noblock_shared(
-            &backup_dir.full_path(datastore.base_path()),
+            &backup_dir.full_path(),
             "snapshot",
             "locked by another operation",
         )?;
