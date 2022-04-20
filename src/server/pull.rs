@@ -662,7 +662,7 @@ pub async fn pull_group(
     }
 
     if params.remove_vanished {
-        let group = params.store.backup_group_from_spec(group.clone());
+        let group = params.store.backup_group(group.clone());
         let local_list = group.list_backups(&params.store.base_path())?;
         for info in local_list {
             let backup_time = info.backup_dir.backup_time();

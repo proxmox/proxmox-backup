@@ -106,7 +106,7 @@ fn upgrade_to_backup_protocol(
 
         let env_type = rpcenv.env_type();
 
-        let backup_group = datastore.backup_group(backup_type, backup_id);
+        let backup_group = datastore.backup_group_from_parts(backup_type, backup_id);
 
         let worker_type = if backup_type == BackupType::Host && backup_id == "benchmark" {
             if !benchmark {

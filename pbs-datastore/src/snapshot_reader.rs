@@ -32,7 +32,7 @@ impl SnapshotReader {
         datastore: Arc<DataStore>,
         snapshot: pbs_api_types::BackupDir,
     ) -> Result<Self, Error> {
-        let snapshot = datastore.backup_dir_from_spec(snapshot)?;
+        let snapshot = datastore.backup_dir(snapshot)?;
 
         let snapshot_path = snapshot.full_path(datastore.base_path());
 

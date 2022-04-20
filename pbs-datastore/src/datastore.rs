@@ -19,8 +19,7 @@ use proxmox_sys::{task_log, task_warn};
 
 use pbs_api_types::{
     Authid, BackupType, ChunkOrder, DataStoreConfig, DatastoreTuning, GarbageCollectionStatus,
-    HumanByte, Operation, BACKUP_DATE_REGEX, BACKUP_ID_REGEX, GROUP_PATH_REGEX,
-    SNAPSHOT_PATH_REGEX, UPID,
+    HumanByte, Operation, BACKUP_DATE_REGEX, BACKUP_ID_REGEX, UPID,
 };
 use pbs_config::{open_backup_lockfile, BackupLockGuard, ConfigVersionCache};
 
@@ -367,7 +366,7 @@ impl DataStore {
         &self,
         backup_group: &pbs_api_types::BackupGroup,
     ) -> Result<bool, Error> {
-        let backup_group = self.backup_group_from_spec(backup_group.clone());
+        let backup_group = self.backup_group(backup_group.clone());
 
         let full_path = self.group_path(backup_group.as_ref());
 
@@ -410,7 +409,7 @@ impl DataStore {
         backup_dir: &pbs_api_types::BackupDir,
         force: bool,
     ) -> Result<(), Error> {
-        let backup_dir = self.backup_dir_from_spec(backup_dir.clone())?;
+        let backup_dir = self.backup_dir(backup_dir.clone())?;
 
         let full_path = backup_dir.full_path(self.base_path());
 
@@ -445,7 +444,7 @@ impl DataStore {
         &self,
         backup_group: &pbs_api_types::BackupGroup,
     ) -> Result<Option<i64>, Error> {
-        let backup_group = self.backup_group_from_spec(backup_group.clone());
+        let backup_group = self.backup_group(backup_group.clone());
 
         let base_path = self.base_path();
         let mut group_path = base_path.clone();
@@ -1093,14 +1092,32 @@ impl DataStore {
         Ok(chunk_list)
     }
 
-    pub fn backup_group_from_spec(&self, group: pbs_api_types::BackupGroup) -> BackupGroup {
-        BackupGroup::new(group.ty, group.id)
+    /// Open a backup group from this datastore.
+    pub fn backup_group(&self, group: pbs_api_types::BackupGroup) -> BackupGroup {
+        BackupGroup::new(group)
     }
 
-    pub fn backup_dir_from_spec(&self, dir: pbs_api_types::BackupDir) -> Result<BackupDir, Error> {
-        BackupDir::with_group(self.backup_group_from_spec(dir.group), dir.time)
+    /// Open a backup group from this datastore.
+    pub fn backup_group_from_parts<T>(&self, ty: BackupType, id: T) -> BackupGroup
+    where
+        T: Into<String>,
+    {
+        self.backup_group((ty, id.into()).into())
     }
 
+    /// Open a backup group from this datastore by backup group path such as `vm/100`.
+    ///
+    /// Convenience method for `store.backup_group(path.parse()?)`
+    pub fn backup_group_from_path(&self, path: &str) -> Result<BackupGroup, Error> {
+        Ok(self.backup_group(path.parse()?))
+    }
+
+    /// Open a snapshot (backup directory) from this datastore.
+    pub fn backup_dir(&self, dir: pbs_api_types::BackupDir) -> Result<BackupDir, Error> {
+        BackupDir::with_group(self.backup_group(dir.group), dir.time)
+    }
+
+    /// Open a snapshot (backup directory) from this datastore.
     pub fn backup_dir_from_parts<T>(
         &self,
         ty: BackupType,
@@ -1110,31 +1127,10 @@ impl DataStore {
     where
         T: Into<String>,
     {
-        self.backup_dir_from_spec((ty, id.into(), time).into())
+        self.backup_dir((ty, id.into(), time).into())
     }
 
-    pub fn backup_group<T>(&self, ty: BackupType, id: T) -> BackupGroup
-    where
-        T: Into<String>,
-    {
-        BackupGroup::new(ty, id.into())
-    }
-
-    pub fn backup_group_from_path(&self, path: &str) -> Result<BackupGroup, Error> {
-        let cap = GROUP_PATH_REGEX
-            .captures(path)
-            .ok_or_else(|| format_err!("unable to parse backup group path '{}'", path))?;
-
-        Ok(self.backup_group(
-            cap.get(1).unwrap().as_str().parse()?,
-            cap.get(2).unwrap().as_str().to_owned(),
-        ))
-    }
-
-    pub fn backup_dir(&self, group: BackupGroup, time: i64) -> Result<BackupDir, Error> {
-        BackupDir::with_group(group, time)
-    }
-
+    /// Open a snapshot (backup directory) from this datastore with a cached rfc3339 time string.
     pub fn backup_dir_with_rfc3339<T: Into<String>>(
         &self,
         group: BackupGroup,
@@ -1143,18 +1139,9 @@ impl DataStore {
         BackupDir::with_rfc3339(group, time_string.into())
     }
 
+    /// Open a snapshot (backup directory) from this datastore by a snapshot path.
     pub fn backup_dir_from_path(&self, path: &str) -> Result<BackupDir, Error> {
-        let cap = SNAPSHOT_PATH_REGEX
-            .captures(path)
-            .ok_or_else(|| format_err!("unable to parse backup snapshot path '{}'", path))?;
-
-        BackupDir::with_rfc3339(
-            BackupGroup::new(
-                cap.get(1).unwrap().as_str().parse()?,
-                cap.get(2).unwrap().as_str().to_owned(),
-            ),
-            cap.get(3).unwrap().as_str().to_owned(),
-        )
+        self.backup_dir(path.parse()?)
     }
 }
 
@@ -1239,7 +1226,9 @@ impl Iterator for ListGroups {
                                 _ => continue,
                             }
                             if BACKUP_ID_REGEX.is_match(name) {
-                                return Some(Ok(BackupGroup::new(group_type, name)));
+                                return Some(Ok(BackupGroup::new(
+                                    (group_type, name.to_owned()).into(),
+                                )));
                             }
                         }
                         continue; // file did not match regex or isn't valid utf-8

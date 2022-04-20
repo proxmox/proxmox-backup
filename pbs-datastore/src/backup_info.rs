@@ -14,10 +14,8 @@ pub struct BackupGroup {
 }
 
 impl BackupGroup {
-    pub(crate) fn new<T: Into<String>>(backup_type: BackupType, backup_id: T) -> Self {
-        Self {
-            group: (backup_type, backup_id.into()).into(),
-        }
+    pub(crate) fn new(group: pbs_api_types::BackupGroup) -> Self {
+        Self { group }
     }
 
     /// Access the underlying [`BackupGroup`](pbs_api_types::BackupGroup).
