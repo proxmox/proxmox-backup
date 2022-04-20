@@ -8,15 +8,9 @@ use pbs_api_types::{BackupType, GroupFilter, BACKUP_DATE_REGEX, BACKUP_FILE_REGE
 use super::manifest::MANIFEST_BLOB_NAME;
 
 /// BackupGroup is a directory containing a list of BackupDir
-#[derive(Debug, PartialEq, Hash, Clone)]
+#[derive(Debug, Hash, Clone)]
 pub struct BackupGroup {
     group: pbs_api_types::BackupGroup,
-}
-
-impl std::cmp::PartialOrd for BackupGroup {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.group.cmp(&other.group))
-    }
 }
 
 impl BackupGroup {
