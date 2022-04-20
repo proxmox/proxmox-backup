@@ -111,7 +111,7 @@ pub fn create_remote(name: String, config: RemoteConfig, password: String) -> Re
             },
         },
     },
-    returns: { type: Remote },
+    returns: { type: RemoteWithoutPassword },
     access: {
         permission: &Permission::Privilege(&["remote", "{name}"], PRIV_REMOTE_AUDIT, false),
     }
@@ -121,10 +121,9 @@ pub fn read_remote(
     name: String,
     _info: &ApiMethod,
     mut rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Remote, Error> {
+) -> Result<RemoteWithoutPassword, Error> {
     let (config, digest) = pbs_config::remote::config()?;
-    let mut data: Remote = config.lookup("remote", &name)?;
-    data.password = "".to_string(); // do not return password in api
+    let data: RemoteWithoutPassword = config.lookup("remote", &name)?;
     rpcenv["digest"] = hex::encode(&digest).into();
     Ok(data)
 }
