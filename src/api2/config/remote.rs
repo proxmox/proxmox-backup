@@ -11,8 +11,8 @@ use proxmox_schema::{api, param_bail};
 
 use pbs_api_types::{
     Authid, DataStoreListItem, GroupListItem, RateLimitConfig, Remote, RemoteConfig,
-    RemoteConfigUpdater, SyncJobConfig, DATASTORE_SCHEMA, PRIV_REMOTE_AUDIT, PRIV_REMOTE_MODIFY,
-    PROXMOX_CONFIG_DIGEST_SCHEMA, REMOTE_ID_SCHEMA, REMOTE_PASSWORD_SCHEMA,
+    RemoteConfigUpdater, RemoteWithoutPassword, SyncJobConfig, DATASTORE_SCHEMA, PRIV_REMOTE_AUDIT,
+    PRIV_REMOTE_MODIFY, PROXMOX_CONFIG_DIGEST_SCHEMA, REMOTE_ID_SCHEMA, REMOTE_PASSWORD_SCHEMA,
 };
 use pbs_client::{HttpClient, HttpClientOptions};
 use pbs_config::sync;
@@ -26,7 +26,7 @@ use pbs_config::CachedUserInfo;
     returns: {
         description: "The list of configured remotes (with config digest).",
         type: Array,
-        items: { type: Remote },
+        items: { type: RemoteWithoutPassword },
     },
     access: {
         description: "List configured remotes filtered by Remote.Audit privileges",
@@ -38,17 +38,14 @@ pub fn list_remotes(
     _param: Value,
     _info: &ApiMethod,
     mut rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Vec<Remote>, Error> {
+) -> Result<Vec<RemoteWithoutPassword>, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
 
     let (config, digest) = pbs_config::remote::config()?;
 
-    let mut list: Vec<Remote> = config.convert_to_typed_array("remote")?;
-    // don't return password in api
-    for remote in &mut list {
-        remote.password = "".to_string();
-    }
+    // Note: This removes the password (we do not want to return the password).
+    let list: Vec<RemoteWithoutPassword> = config.convert_to_typed_array("remote")?;
 
     let list = list
         .into_iter()

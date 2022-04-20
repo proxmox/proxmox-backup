@@ -85,3 +85,22 @@ pub struct Remote {
     #[serde(flatten)]
     pub config: RemoteConfig,
 }
+
+#[api(
+    properties: {
+        name: {
+            schema: REMOTE_ID_SCHEMA,
+        },
+        config: {
+            type: RemoteConfig,
+        },
+    },
+)]
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+/// Remote properties.
+pub struct RemoteWithoutPassword {
+    pub name: String,
+    #[serde(flatten)]
+    pub config: RemoteConfig,
+}
