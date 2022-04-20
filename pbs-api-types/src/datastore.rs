@@ -499,7 +499,7 @@ impl BackupGroup {
                     Err(_) => false, // shouldn't happen if value is schema-checked
                 }
             }
-            GroupFilter::BackupType(backup_type) => self.ty.as_str() == backup_type,
+            GroupFilter::BackupType(ty) => self.ty == *ty,
             GroupFilter::Regex(regex) => regex.is_match(&self.to_string()),
         }
     }

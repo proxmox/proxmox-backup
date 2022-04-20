@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use proxmox_schema::*;
 
 use crate::{
-    Authid, RateLimitConfig, Userid, BACKUP_GROUP_SCHEMA, BACKUP_TYPE_SCHEMA, DATASTORE_SCHEMA,
+    Authid, BackupType, RateLimitConfig, Userid, BACKUP_GROUP_SCHEMA, DATASTORE_SCHEMA,
     DRIVE_NAME_SCHEMA, MEDIA_POOL_NAME_SCHEMA, PROXMOX_SAFE_ID_FORMAT, REMOTE_ID_SCHEMA,
     SINGLE_LINE_COMMENT_SCHEMA,
 };
@@ -342,8 +342,7 @@ pub struct TapeBackupJobStatus {
 /// Filter for matching `BackupGroup`s, for use with `BackupGroup::filter`.
 pub enum GroupFilter {
     /// BackupGroup type - either `vm`, `ct`, or `host`.
-    // FIXME: Should be `BackupType`
-    BackupType(String),
+    BackupType(BackupType),
     /// Full identifier of BackupGroup, including type
     Group(String),
     /// A regular expression matched against the full identifier of the BackupGroup
@@ -356,7 +355,7 @@ impl std::str::FromStr for GroupFilter {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.split_once(":") {
             Some(("group", value)) => BACKUP_GROUP_SCHEMA.parse_simple_value(value).map(|_| GroupFilter::Group(value.to_string())),
-            Some(("type", value)) => BACKUP_TYPE_SCHEMA.parse_simple_value(value).map(|_| GroupFilter::BackupType(value.to_string())),
+            Some(("type", value)) => Ok(GroupFilter::BackupType(value.parse()?)),
             Some(("regex", value)) => Ok(GroupFilter::Regex(Regex::new(value)?)),
             Some((ty, _value)) => Err(format_err!("expected 'group', 'type' or 'regex' prefix, got '{}'", ty)),
             None => Err(format_err!("input doesn't match expected format '<group:GROUP||type:<vm|ct|host>|regex:REGEX>'")),
