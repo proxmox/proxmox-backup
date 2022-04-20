@@ -386,15 +386,6 @@ impl BackupInfo {
         }
     }
 
-    pub fn list_files(base_path: &Path, backup_dir: &BackupDir) -> Result<Vec<String>, Error> {
-        let mut path = base_path.to_owned();
-        path.push(backup_dir.relative_path());
-
-        let files = list_backup_files(libc::AT_FDCWD, &path)?;
-
-        Ok(files)
-    }
-
     pub fn is_finished(&self) -> bool {
         // backup is considered unfinished if there is no manifest
         self.files.iter().any(|name| name == MANIFEST_BLOB_NAME)
