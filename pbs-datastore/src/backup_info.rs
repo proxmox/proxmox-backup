@@ -8,7 +8,7 @@ use pbs_api_types::{BackupType, GroupFilter, BACKUP_DATE_REGEX, BACKUP_FILE_REGE
 use super::manifest::MANIFEST_BLOB_NAME;
 
 /// BackupGroup is a directory containing a list of BackupDir
-#[derive(Debug, Hash, Clone)]
+#[derive(Debug, Clone)]
 pub struct BackupGroup {
     group: pbs_api_types::BackupGroup,
 }
