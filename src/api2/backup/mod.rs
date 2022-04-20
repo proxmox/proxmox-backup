@@ -21,7 +21,7 @@ use pbs_api_types::{
     DATASTORE_SCHEMA, PRIV_DATASTORE_BACKUP,
 };
 use pbs_config::CachedUserInfo;
-use pbs_datastore::backup_info::{BackupDir, BackupGroup, BackupInfo};
+use pbs_datastore::backup_info::{BackupDir, BackupGroup};
 use pbs_datastore::index::IndexFile;
 use pbs_datastore::manifest::{archive_type, ArchiveType};
 use pbs_datastore::{DataStore, PROXMOX_BACKUP_PROTOCOL_ID_V1};
@@ -134,7 +134,8 @@ fn upgrade_to_backup_protocol(
         }
 
         let last_backup = {
-            let info = BackupInfo::last_backup(&datastore.base_path(), &backup_group, true)
+            let info = backup_group
+                .last_backup(&datastore.base_path(), true)
                 .unwrap_or(None);
             if let Some(info) = info {
                 let (manifest, _) = datastore.load_manifest(&info.backup_dir)?;
