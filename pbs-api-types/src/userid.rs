@@ -327,7 +327,7 @@ impl PartialEq<Realm> for &RealmRef {
 /// The token ID part of an API token authentication id.
 ///
 /// This alone does NOT uniquely identify the API token - use a full `Authid` for such use cases.
-#[derive(Clone, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq, Deserialize, Serialize)]
 pub struct Tokenname(String);
 
 /// A reference to a token name part of an authentication id. This alone does NOT uniquely identify
@@ -420,7 +420,7 @@ impl<'a> TryFrom<&'a str> for &'a TokennameRef {
 }
 
 /// A complete user id consisting of a user name and a realm
-#[derive(Clone, Debug, PartialEq, Eq, Hash, UpdaterType)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd, UpdaterType)]
 pub struct Userid {
     data: String,
     name_len: usize,
@@ -553,7 +553,7 @@ impl PartialEq<String> for Userid {
 }
 
 /// A complete authentication id consisting of a user id and an optional token name.
-#[derive(Clone, Debug, Eq, PartialEq, Hash, UpdaterType)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash, UpdaterType, Ord, PartialOrd)]
 pub struct Authid {
     user: Userid,
     tokenname: Option<Tokenname>,
