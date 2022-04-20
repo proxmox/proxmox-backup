@@ -550,7 +550,7 @@ pub fn verify_all_backups(
         }
     };
 
-    list.sort_unstable();
+    list.sort_unstable_by(|a, b| a.group().cmp(b.group()));
 
     let group_count = list.len();
     task_log!(worker, "found {} groups", group_count);

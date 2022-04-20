@@ -410,7 +410,7 @@ fn backup_worker(
 
     let mut group_list = datastore.list_backup_groups()?;
 
-    group_list.sort_unstable();
+    group_list.sort_unstable_by(|a, b| a.group().cmp(b.group()));
 
     let (group_list, group_count) = if let Some(group_filters) = &setup.group_filter {
         let filter_fn = |group: &BackupGroup, group_filters: &[GroupFilter]| {
