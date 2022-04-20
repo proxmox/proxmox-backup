@@ -316,6 +316,27 @@ pub struct DataStoreConfig {
 }
 
 impl DataStoreConfig {
+    pub fn new(name: String, path: String) -> Self {
+        Self {
+            name,
+            path,
+            comment: None,
+            gc_schedule: None,
+            prune_schedule: None,
+            keep_last: None,
+            keep_hourly: None,
+            keep_daily: None,
+            keep_weekly: None,
+            keep_monthly: None,
+            keep_yearly: None,
+            verify_new: None,
+            notify_user: None,
+            notify: None,
+            tuning: None,
+            maintenance_mode: None,
+        }
+    }
+
     pub fn get_maintenance_mode(&self) -> Option<MaintenanceMode> {
         self.maintenance_mode
             .as_ref()
