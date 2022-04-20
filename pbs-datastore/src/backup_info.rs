@@ -205,7 +205,7 @@ impl From<&BackupDir> for BackupGroup {
 /// Uniquely identify a Backup (relative to data store)
 ///
 /// We also call this a backup snaphost.
-#[derive(Debug, Eq, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct BackupDir {
     dir: pbs_api_types::BackupDir,
     // backup_time as rfc3339
