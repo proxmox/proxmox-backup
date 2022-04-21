@@ -141,6 +141,9 @@ pub const SENSE_KEY_ABORTED_COMMAND: u8 = 0x0b;
 pub const SENSE_KEY_VOLUME_OVERFLOW: u8 = 0x0d;
 pub const SENSE_KEY_MISCOMPARE: u8 = 0x0e;
 
+// SAM STAT
+const SAM_STAT_CHECK_CONDITION: i32 = 0x02;
+
 /// Sense Key Descriptions
 pub const SENSE_KEY_DESCRIPTIONS: [&str; 16] = [
     "No Sense",
@@ -457,11 +460,16 @@ impl<'a, F: AsRawFd> SgRaw<'a, F> {
 
         let sense_len = unsafe { get_scsi_pt_sense_len(ptvp.as_ptr()) };
 
-        let res_cat = unsafe { get_scsi_pt_result_category(ptvp.as_ptr()) };
+        let mut res_cat = unsafe { get_scsi_pt_result_category(ptvp.as_ptr()) };
+        let status = unsafe { get_scsi_pt_status_response(ptvp.as_ptr()) };
+
+        if res_cat == SCSI_PT_RESULT_TRANSPORT_ERR && status == SAM_STAT_CHECK_CONDITION {
+            res_cat = SCSI_PT_RESULT_SENSE;
+        }
+
         match res_cat {
             SCSI_PT_RESULT_GOOD => Ok(()),
             SCSI_PT_RESULT_STATUS => {
-                let status = unsafe { get_scsi_pt_status_response(ptvp.as_ptr()) };
                 if status != 0 {
                     return Err(
                         format_err!("unknown scsi error - status response {}", status).into(),
