@@ -6,6 +6,7 @@ use hex::FromHex;
 use hyper::header::{self, HeaderValue, UPGRADE};
 use hyper::http::request::Parts;
 use hyper::{Body, Request, Response, StatusCode};
+use serde::Deserialize;
 use serde_json::Value;
 
 use proxmox_router::{
@@ -16,15 +17,15 @@ use proxmox_schema::{BooleanSchema, ObjectSchema};
 use proxmox_sys::sortable;
 
 use pbs_api_types::{
-    Authid, BackupType, Operation, BACKUP_ARCHIVE_NAME_SCHEMA, BACKUP_ID_SCHEMA,
-    BACKUP_TIME_SCHEMA, BACKUP_TYPE_SCHEMA, CHUNK_DIGEST_SCHEMA, DATASTORE_SCHEMA,
-    PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_READ,
+    Authid, Operation, BACKUP_ARCHIVE_NAME_SCHEMA, BACKUP_ID_SCHEMA, BACKUP_TIME_SCHEMA,
+    BACKUP_TYPE_SCHEMA, CHUNK_DIGEST_SCHEMA, DATASTORE_SCHEMA, PRIV_DATASTORE_BACKUP,
+    PRIV_DATASTORE_READ,
 };
 use pbs_config::CachedUserInfo;
 use pbs_datastore::index::IndexFile;
 use pbs_datastore::manifest::{archive_type, ArchiveType};
 use pbs_datastore::{DataStore, PROXMOX_BACKUP_READER_PROTOCOL_ID_V1};
-use pbs_tools::json::{required_integer_param, required_string_param};
+use pbs_tools::json::required_string_param;
 use proxmox_rest_server::{H2Service, WorkerTask};
 use proxmox_sys::fs::lock_dir_noblock_shared;
 
@@ -89,9 +90,7 @@ fn upgrade_to_backup_reader_protocol(
 
         let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
 
-        let backup_type: BackupType = required_string_param(&param, "backup-type")?.parse()?;
-        let backup_id = required_string_param(&param, "backup-id")?;
-        let backup_time = required_integer_param(&param, "backup-time")?;
+        let backup_dir = pbs_api_types::BackupDir::deserialize(&param)?;
 
         let protocols = parts
             .headers
@@ -112,7 +111,7 @@ fn upgrade_to_backup_reader_protocol(
 
         let env_type = rpcenv.env_type();
 
-        let backup_dir = datastore.backup_dir_from_parts(backup_type, backup_id, backup_time)?;
+        let backup_dir = datastore.backup_dir(backup_dir)?;
         if !priv_read {
             let owner = datastore.get_owner(backup_dir.as_ref())?;
             let correct_owner = owner == auth_id
@@ -135,9 +134,9 @@ fn upgrade_to_backup_reader_protocol(
         let worker_id = format!(
             "{}:{}/{}/{:08X}",
             store,
-            backup_type,
-            backup_id,
-            backup_dir.backup_time()
+            backup_dir.backup_type(),
+            backup_dir.backup_id(),
+            backup_dir.backup_time(),
         );
 
         WorkerTask::spawn(

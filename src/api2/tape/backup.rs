@@ -408,7 +408,8 @@ fn backup_worker(
 
     let mut pool_writer = PoolWriter::new(pool, &setup.drive, worker, email, force_media_set)?;
 
-    let mut group_list = datastore.list_backup_groups()?;
+    // FIXME: Namespaces! Probably just recurse for now? Not sure about the usage here...
+    let mut group_list = datastore.list_backup_groups(Default::default())?;
 
     group_list.sort_unstable_by(|a, b| a.group().cmp(b.group()));
 

@@ -36,10 +36,28 @@ macro_rules! BACKUP_NS_RE {
 
 #[rustfmt::skip]
 #[macro_export]
+macro_rules! BACKUP_NS_PATH_RE {
+    () => (
+        concat!(r"(:?ns/", PROXMOX_SAFE_ID_REGEX_STR!(), r"/){0,7}ns/", PROXMOX_SAFE_ID_REGEX_STR!())
+    );
+}
+
+#[rustfmt::skip]
+#[macro_export]
 macro_rules! SNAPSHOT_PATH_REGEX_STR {
     () => (
-        concat!(r"(", BACKUP_TYPE_RE!(), ")/(", BACKUP_ID_RE!(), ")/(", BACKUP_TIME_RE!(), r")")
+        concat!(
+            r"(", BACKUP_NS_PATH_RE!(), ")?",
+            r"(", BACKUP_TYPE_RE!(), ")/(", BACKUP_ID_RE!(), ")/(", BACKUP_TIME_RE!(), r")",
+        )
     );
+}
+
+#[macro_export]
+macro_rules! GROUP_OR_SNAPSHOT_PATH_REGEX_STR {
+    () => {
+        concat!(SNAPSHOT_PATH_REGEX_STR!(), "?")
+    };
 }
 
 mod acl;

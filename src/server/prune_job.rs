@@ -42,7 +42,8 @@ pub fn prune_datastore(
     let privs = user_info.lookup_privs(&auth_id, &["datastore", store]);
     let has_privs = privs & PRIV_DATASTORE_MODIFY != 0;
 
-    for group in datastore.iter_backup_groups()? {
+    // FIXME: Namespaces and recursion!
+    for group in datastore.iter_backup_groups(Default::default())? {
         let group = group?;
         let list = group.list_backups()?;
 

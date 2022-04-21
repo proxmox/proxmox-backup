@@ -12,7 +12,7 @@ use tokio::io::AsyncReadExt;
 use tokio::sync::{mpsc, oneshot};
 use tokio_stream::wrappers::ReceiverStream;
 
-use pbs_api_types::{BackupType, HumanByte};
+use pbs_api_types::{BackupDir, HumanByte};
 use pbs_datastore::data_blob::{ChunkInfo, DataBlob, DataChunkBuilder};
 use pbs_datastore::dynamic_index::DynamicIndexReader;
 use pbs_datastore::fixed_index::FixedIndexReader;
@@ -86,16 +86,15 @@ impl BackupWriter {
         client: HttpClient,
         crypt_config: Option<Arc<CryptConfig>>,
         datastore: &str,
-        backup_type: BackupType,
-        backup_id: &str,
-        backup_time: i64,
+        backup: &BackupDir,
         debug: bool,
         benchmark: bool,
     ) -> Result<Arc<BackupWriter>, Error> {
         let param = json!({
-            "backup-type": backup_type,
-            "backup-id": backup_id,
-            "backup-time": backup_time,
+            "backup-ns": backup.ns(),
+            "backup-type": backup.ty(),
+            "backup-id": backup.id(),
+            "backup-time": backup.time,
             "store": datastore,
             "debug": debug,
             "benchmark": benchmark

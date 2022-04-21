@@ -17,8 +17,8 @@ use proxmox_sys::WorkerTaskContext;
 use proxmox_sys::{task_log, task_warn};
 
 use pbs_api_types::{
-    Authid, BackupType, ChunkOrder, DataStoreConfig, DatastoreTuning, GarbageCollectionStatus,
-    HumanByte, Operation, BACKUP_DATE_REGEX, BACKUP_ID_REGEX, UPID,
+    Authid, BackupNamespace, BackupType, ChunkOrder, DataStoreConfig, DatastoreTuning,
+    GarbageCollectionStatus, HumanByte, Operation, BACKUP_DATE_REGEX, BACKUP_ID_REGEX, UPID,
 };
 use pbs_config::ConfigVersionCache;
 
@@ -348,6 +348,16 @@ impl DataStore {
         self.inner.chunk_store.base_path()
     }
 
+    pub fn namespace_path(&self, ns: &BackupNamespace) -> PathBuf {
+        let mut path = self.base_path();
+        path.reserve(ns.path_len());
+        for part in ns.components() {
+            path.push("ns");
+            path.push(part);
+        }
+        path
+    }
+
     /// Cleanup a backup directory
     ///
     /// Removes all files not mentioned in the manifest.
@@ -517,6 +527,10 @@ impl DataStore {
     ) -> Result<(Authid, DirLockGuard), Error> {
         // create intermediate path first:
         let mut full_path = self.base_path();
+        for ns in backup_group.ns.components() {
+            full_path.push("ns");
+            full_path.push(ns);
+        }
         full_path.push(backup_group.ty.as_str());
         std::fs::create_dir_all(&full_path)?;
 
@@ -579,8 +593,11 @@ impl DataStore {
     ///
     /// The iterated item is still a Result that can contain errors from rather unexptected FS or
     /// parsing errors.
-    pub fn iter_backup_groups(self: &Arc<DataStore>) -> Result<ListGroups, Error> {
-        ListGroups::new(Arc::clone(self))
+    pub fn iter_backup_groups(
+        self: &Arc<DataStore>,
+        ns: BackupNamespace,
+    ) -> Result<ListGroups, Error> {
+        ListGroups::new(Arc::clone(self), ns)
     }
 
     /// Get a streaming iter over top-level backup groups of a datatstore, filtered by Ok results
@@ -589,10 +606,11 @@ impl DataStore {
     /// logged. Can be useful in iterator chain commands
     pub fn iter_backup_groups_ok(
         self: &Arc<DataStore>,
+        ns: BackupNamespace,
     ) -> Result<impl Iterator<Item = BackupGroup> + 'static, Error> {
         let this = Arc::clone(self);
         Ok(
-            ListGroups::new(Arc::clone(&self))?.filter_map(move |group| match group {
+            ListGroups::new(Arc::clone(&self), ns)?.filter_map(move |group| match group {
                 Ok(group) => Some(group),
                 Err(err) => {
                     log::error!("list groups error on datastore {} - {}", this.name(), err);
@@ -605,8 +623,11 @@ impl DataStore {
     /// Get a in-memory vector for all top-level backup groups of a datatstore
     ///
     /// NOTE: using the iterator directly is most often more efficient w.r.t. memory usage
-    pub fn list_backup_groups(self: &Arc<DataStore>) -> Result<Vec<BackupGroup>, Error> {
-        ListGroups::new(Arc::clone(self))?.collect()
+    pub fn list_backup_groups(
+        self: &Arc<DataStore>,
+        ns: BackupNamespace,
+    ) -> Result<Vec<BackupGroup>, Error> {
+        ListGroups::new(Arc::clone(self), ns)?.collect()
     }
 
     pub fn list_images(&self) -> Result<Vec<PathBuf>, Error> {
@@ -1047,11 +1068,16 @@ impl DataStore {
     }
 
     /// Open a backup group from this datastore.
-    pub fn backup_group_from_parts<T>(self: &Arc<Self>, ty: BackupType, id: T) -> BackupGroup
+    pub fn backup_group_from_parts<T>(
+        self: &Arc<Self>,
+        ns: BackupNamespace,
+        ty: BackupType,
+        id: T,
+    ) -> BackupGroup
     where
         T: Into<String>,
     {
-        self.backup_group((ty, id.into()).into())
+        self.backup_group((ns, ty, id.into()).into())
     }
 
     /// Open a backup group from this datastore by backup group path such as `vm/100`.
@@ -1069,6 +1095,7 @@ impl DataStore {
     /// Open a snapshot (backup directory) from this datastore.
     pub fn backup_dir_from_parts<T>(
         self: &Arc<Self>,
+        ns: BackupNamespace,
         ty: BackupType,
         id: T,
         time: i64,
@@ -1076,7 +1103,7 @@ impl DataStore {
     where
         T: Into<String>,
     {
-        self.backup_dir((ty, id.into(), time).into())
+        self.backup_dir((ns, ty, id.into(), time).into())
     }
 
     /// Open a snapshot (backup directory) from this datastore with a cached rfc3339 time string.
@@ -1143,15 +1170,19 @@ impl Iterator for ListSnapshots {
 /// A iterator for a (single) level of Backup Groups
 pub struct ListGroups {
     store: Arc<DataStore>,
+    ns: BackupNamespace,
     type_fd: proxmox_sys::fs::ReadDir,
     id_state: Option<(BackupType, proxmox_sys::fs::ReadDir)>,
 }
 
 impl ListGroups {
-    pub fn new(store: Arc<DataStore>) -> Result<Self, Error> {
+    pub fn new(store: Arc<DataStore>, ns: BackupNamespace) -> Result<Self, Error> {
+        let mut base_path = store.base_path().to_owned();
+        base_path.push(ns.path());
         Ok(ListGroups {
-            type_fd: proxmox_sys::fs::read_subdir(libc::AT_FDCWD, &store.base_path())?,
+            type_fd: proxmox_sys::fs::read_subdir(libc::AT_FDCWD, &base_path)?,
             store,
+            ns,
             id_state: None,
         })
     }
@@ -1183,7 +1214,7 @@ impl Iterator for ListGroups {
                     if BACKUP_ID_REGEX.is_match(name) {
                         return Some(Ok(BackupGroup::new(
                             Arc::clone(&self.store),
-                            (group_type, name.to_owned()).into(),
+                            (self.ns.clone(), group_type, name.to_owned()).into(),
                         )));
                     }
                 }

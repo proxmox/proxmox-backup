@@ -2,7 +2,7 @@ use std::io::Write;
 
 use anyhow::Error;
 
-use pbs_api_types::{Authid, BackupType};
+use pbs_api_types::{Authid, BackupNamespace, BackupType};
 use pbs_client::{BackupReader, HttpClient, HttpClientOptions};
 
 pub struct DummyWriter {
@@ -37,9 +37,13 @@ async fn run() -> Result<(), Error> {
         client,
         None,
         "store2",
-        BackupType::Host,
-        "elsa",
-        backup_time,
+        &(
+            BackupNamespace::root(),
+            BackupType::Host,
+            "elsa".to_string(),
+            backup_time,
+        )
+            .into(),
         true,
     )
     .await?;

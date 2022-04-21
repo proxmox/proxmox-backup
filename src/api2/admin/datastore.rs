@@ -10,6 +10,7 @@ use anyhow::{bail, format_err, Error};
 use futures::*;
 use hyper::http::request::Parts;
 use hyper::{header, Body, Response, StatusCode};
+use serde::Deserialize;
 use serde_json::{json, Value};
 use tokio_stream::wrappers::ReceiverStream;
 
@@ -31,12 +32,13 @@ use pxar::accessor::aio::Accessor;
 use pxar::EntryKind;
 
 use pbs_api_types::{
-    Authid, BackupContent, BackupType, Counts, CryptMode, DataStoreListItem, DataStoreStatus,
-    GarbageCollectionStatus, GroupListItem, Operation, PruneOptions, RRDMode, RRDTimeFrame,
-    SnapshotListItem, SnapshotVerifyState, BACKUP_ARCHIVE_NAME_SCHEMA, BACKUP_ID_SCHEMA,
-    BACKUP_TIME_SCHEMA, BACKUP_TYPE_SCHEMA, DATASTORE_SCHEMA, IGNORE_VERIFIED_BACKUPS_SCHEMA,
-    PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY, PRIV_DATASTORE_PRUNE,
-    PRIV_DATASTORE_READ, PRIV_DATASTORE_VERIFY, UPID_SCHEMA, VERIFICATION_OUTDATED_AFTER_SCHEMA,
+    Authid, BackupContent, BackupNamespace, BackupType, Counts, CryptMode, DataStoreListItem,
+    DataStoreStatus, GarbageCollectionStatus, GroupListItem, Operation, PruneOptions, RRDMode,
+    RRDTimeFrame, SnapshotListItem, SnapshotVerifyState, BACKUP_ARCHIVE_NAME_SCHEMA,
+    BACKUP_ID_SCHEMA, BACKUP_TIME_SCHEMA, BACKUP_TYPE_SCHEMA, DATASTORE_SCHEMA,
+    IGNORE_VERIFIED_BACKUPS_SCHEMA, PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP,
+    PRIV_DATASTORE_MODIFY, PRIV_DATASTORE_PRUNE, PRIV_DATASTORE_READ, PRIV_DATASTORE_VERIFY,
+    UPID_SCHEMA, VERIFICATION_OUTDATED_AFTER_SCHEMA,
 };
 use pbs_client::pxar::{create_tar, create_zip};
 use pbs_config::CachedUserInfo;
@@ -54,7 +56,7 @@ use pbs_datastore::{
     check_backup_owner, task_tracking, BackupDir, BackupGroup, DataStore, LocalChunkReader,
     StoreProgress, CATALOG_NAME,
 };
-use pbs_tools::json::{required_integer_param, required_string_param};
+use pbs_tools::json::required_string_param;
 use proxmox_rest_server::{formatter, WorkerTask};
 
 use crate::api2::node::rrd::create_value_from_rrd;
@@ -168,7 +170,7 @@ pub fn list_groups(
     let list_all = (user_privs & PRIV_DATASTORE_AUDIT) != 0;
 
     datastore
-        .iter_backup_groups()?
+        .iter_backup_groups(Default::default())? // FIXME: Namespaces and recursion parameters!
         .try_fold(Vec::new(), |mut group_info, group| {
             let group = group?;
             let owner = match datastore.get_owner(group.as_ref()) {
@@ -224,8 +226,10 @@ pub fn list_groups(
     input: {
         properties: {
             store: { schema: DATASTORE_SCHEMA },
-            "backup-type": { type: BackupType },
-            "backup-id": { schema: BACKUP_ID_SCHEMA },
+            group: {
+                type: pbs_api_types::BackupGroup,
+                flatten: true,
+            },
         },
     },
     access: {
@@ -238,14 +242,12 @@ pub fn list_groups(
 /// Delete backup group including all snapshots.
 pub fn delete_group(
     store: String,
-    backup_type: BackupType,
-    backup_id: String,
+    group: pbs_api_types::BackupGroup,
     _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-    let group = pbs_api_types::BackupGroup::from((backup_type, backup_id));
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
     check_priv_or_backup_owner(&datastore, &group, &auth_id, PRIV_DATASTORE_MODIFY)?;
@@ -261,9 +263,10 @@ pub fn delete_group(
     input: {
         properties: {
             store: { schema: DATASTORE_SCHEMA },
-            "backup-type": { type: BackupType },
-            "backup-id": { schema: BACKUP_ID_SCHEMA },
-            "backup-time": { schema: BACKUP_TIME_SCHEMA },
+            backup_dir: {
+                type: pbs_api_types::BackupDir,
+                flatten: true,
+            },
         },
     },
     returns: pbs_api_types::ADMIN_DATASTORE_LIST_SNAPSHOT_FILES_RETURN_TYPE,
@@ -277,16 +280,14 @@ pub fn delete_group(
 /// List snapshot files.
 pub fn list_snapshot_files(
     store: String,
-    backup_type: BackupType,
-    backup_id: String,
-    backup_time: i64,
+    backup_dir: pbs_api_types::BackupDir,
     _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<BackupContent>, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
 
-    let snapshot = datastore.backup_dir_from_parts(backup_type, backup_id, backup_time)?;
+    let snapshot = datastore.backup_dir(backup_dir)?;
 
     check_priv_or_backup_owner(
         &datastore,
@@ -306,9 +307,10 @@ pub fn list_snapshot_files(
     input: {
         properties: {
             store: { schema: DATASTORE_SCHEMA },
-            "backup-type": { type: BackupType },
-            "backup-id": { schema: BACKUP_ID_SCHEMA },
-            "backup-time": { schema: BACKUP_TIME_SCHEMA },
+            backup_dir: {
+                type: pbs_api_types::BackupDir,
+                flatten: true,
+            },
         },
     },
     access: {
@@ -321,16 +323,14 @@ pub fn list_snapshot_files(
 /// Delete backup snapshot.
 pub fn delete_snapshot(
     store: String,
-    backup_type: BackupType,
-    backup_id: String,
-    backup_time: i64,
+    backup_dir: pbs_api_types::BackupDir,
     _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
-    let snapshot = datastore.backup_dir_from_parts(backup_type, backup_id, backup_time)?;
+    let snapshot = datastore.backup_dir(backup_dir)?;
 
     check_priv_or_backup_owner(
         &datastore,
@@ -349,6 +349,10 @@ pub fn delete_snapshot(
     input: {
         properties: {
             store: { schema: DATASTORE_SCHEMA },
+            "backup-ns": {
+                type: BackupNamespace,
+                optional: true,
+            },
             "backup-type": {
                 optional: true,
                 type: BackupType,
@@ -370,6 +374,7 @@ pub fn delete_snapshot(
 /// List backup snapshots.
 pub fn list_snapshots(
     store: String,
+    backup_ns: Option<BackupNamespace>,
     backup_type: Option<BackupType>,
     backup_id: Option<String>,
     _param: Value,
@@ -384,21 +389,26 @@ pub fn list_snapshots(
 
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
 
+    let backup_ns = backup_ns.unwrap_or_default();
+
     // FIXME: filter also owner before collecting, for doing that nicely the owner should move into
     // backup group and provide an error free (Err -> None) accessor
     let groups = match (backup_type, backup_id) {
         (Some(backup_type), Some(backup_id)) => {
-            vec![datastore.backup_group_from_parts(backup_type, backup_id)]
+            vec![datastore.backup_group_from_parts(backup_ns, backup_type, backup_id)]
         }
+        // FIXME: Recursion
         (Some(backup_type), None) => datastore
-            .iter_backup_groups_ok()?
+            .iter_backup_groups_ok(backup_ns)?
             .filter(|group| group.backup_type() == backup_type)
             .collect(),
+        // FIXME: Recursion
         (None, Some(backup_id)) => datastore
-            .iter_backup_groups_ok()?
+            .iter_backup_groups_ok(backup_ns)?
             .filter(|group| group.backup_id() == backup_id)
             .collect(),
-        _ => datastore.list_backup_groups()?,
+        // FIXME: Recursion
+        (None, None) => datastore.list_backup_groups(backup_ns)?,
     };
 
     let info_to_snapshot_list_item = |group: &BackupGroup, owner, info: BackupInfo| {
@@ -506,7 +516,7 @@ fn get_snapshots_count(
     filter_owner: Option<&Authid>,
 ) -> Result<Counts, Error> {
     store
-        .iter_backup_groups_ok()?
+        .iter_backup_groups_ok(Default::default())? // FIXME: Recurse!
         .filter(|group| {
             let owner = match store.get_owner(group.as_ref()) {
                 Ok(owner) => owner,
@@ -606,6 +616,10 @@ pub fn status(
             store: {
                 schema: DATASTORE_SCHEMA,
             },
+            "backup-ns": {
+                type: BackupNamespace,
+                optional: true,
+            },
             "backup-type": {
                 type: BackupType,
                 optional: true,
@@ -641,6 +655,7 @@ pub fn status(
 /// or all backups in the datastore.
 pub fn verify(
     store: String,
+    backup_ns: Option<BackupNamespace>,
     backup_type: Option<BackupType>,
     backup_id: Option<String>,
     backup_time: Option<i64>,
@@ -658,13 +673,22 @@ pub fn verify(
     let mut backup_group = None;
     let mut worker_type = "verify";
 
+    // FIXME: Recursion
+    // FIXME: Namespaces and worker ID, could this be an issue?
+    let backup_ns = backup_ns.unwrap_or_default();
+
     match (backup_type, backup_id, backup_time) {
         (Some(backup_type), Some(backup_id), Some(backup_time)) => {
             worker_id = format!(
-                "{}:{}/{}/{:08X}",
-                store, backup_type, backup_id, backup_time
+                "{}:{}/{}/{}/{:08X}",
+                store,
+                backup_ns.display_as_path(),
+                backup_type,
+                backup_id,
+                backup_time
             );
-            let dir = datastore.backup_dir_from_parts(backup_type, backup_id, backup_time)?;
+            let dir =
+                datastore.backup_dir_from_parts(backup_ns, backup_type, backup_id, backup_time)?;
 
             check_priv_or_backup_owner(&datastore, dir.as_ref(), &auth_id, PRIV_DATASTORE_VERIFY)?;
 
@@ -672,8 +696,14 @@ pub fn verify(
             worker_type = "verify_snapshot";
         }
         (Some(backup_type), Some(backup_id), None) => {
-            worker_id = format!("{}:{}/{}", store, backup_type, backup_id);
-            let group = pbs_api_types::BackupGroup::from((backup_type, backup_id));
+            worker_id = format!(
+                "{}:{}/{}/{}",
+                store,
+                backup_ns.display_as_path(),
+                backup_type,
+                backup_id
+            );
+            let group = pbs_api_types::BackupGroup::from((backup_ns, backup_type, backup_id));
 
             check_priv_or_backup_owner(&datastore, &group, &auth_id, PRIV_DATASTORE_VERIFY)?;
 
@@ -748,8 +778,10 @@ pub fn verify(
 #[api(
     input: {
         properties: {
-            "backup-id": { schema: BACKUP_ID_SCHEMA },
-            "backup-type": { type: BackupType },
+            group: {
+                type: pbs_api_types::BackupGroup,
+                flatten: true,
+            },
             "dry-run": {
                 optional: true,
                 type: bool,
@@ -772,8 +804,7 @@ pub fn verify(
 )]
 /// Prune a group on the datastore
 pub fn prune(
-    backup_id: String,
-    backup_type: BackupType,
+    group: pbs_api_types::BackupGroup,
     dry_run: bool,
     prune_options: PruneOptions,
     store: String,
@@ -784,11 +815,11 @@ pub fn prune(
 
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
-    let group = datastore.backup_group_from_parts(backup_type, &backup_id);
+    let group = datastore.backup_group(group);
 
     check_priv_or_backup_owner(&datastore, group.as_ref(), &auth_id, PRIV_DATASTORE_MODIFY)?;
 
-    let worker_id = format!("{}:{}/{}", store, backup_type, &backup_id);
+    let worker_id = format!("{}:{}", store, group);
 
     let mut prune_result = Vec::new();
 
@@ -828,10 +859,9 @@ pub fn prune(
         );
         task_log!(
             worker,
-            "Starting prune on store \"{}\" group \"{}/{}\"",
+            "Starting prune on store \"{}\" group \"{}\"",
             store,
-            backup_type,
-            backup_id
+            group,
         );
     }
 
@@ -1076,11 +1106,7 @@ pub fn download_file(
 
         let file_name = required_string_param(&param, "file-name")?.to_owned();
 
-        let backup_type: BackupType = required_string_param(&param, "backup-type")?.parse()?;
-        let backup_id = required_string_param(&param, "backup-id")?.to_owned();
-        let backup_time = required_integer_param(&param, "backup-time")?;
-
-        let backup_dir = datastore.backup_dir_from_parts(backup_type, backup_id, backup_time)?;
+        let backup_dir = datastore.backup_dir(Deserialize::deserialize(&param)?)?;
 
         check_priv_or_backup_owner(
             &datastore,
@@ -1159,11 +1185,7 @@ pub fn download_file_decoded(
 
         let file_name = required_string_param(&param, "file-name")?.to_owned();
 
-        let backup_type: BackupType = required_string_param(&param, "backup-type")?.parse()?;
-        let backup_id = required_string_param(&param, "backup-id")?.to_owned();
-        let backup_time = required_integer_param(&param, "backup-time")?;
-
-        let backup_dir = datastore.backup_dir_from_parts(backup_type, backup_id, backup_time)?;
+        let backup_dir = datastore.backup_dir(Deserialize::deserialize(&param)?)?;
 
         check_priv_or_backup_owner(
             &datastore,
@@ -1285,11 +1307,7 @@ pub fn upload_backup_log(
 
         let file_name = CLIENT_LOG_BLOB_NAME;
 
-        let backup_type: BackupType = required_string_param(&param, "backup-type")?.parse()?;
-        let backup_id = required_string_param(&param, "backup-id")?;
-        let backup_time = required_integer_param(&param, "backup-time")?;
-
-        let backup_dir = datastore.backup_dir_from_parts(backup_type, backup_id, backup_time)?;
+        let backup_dir = datastore.backup_dir(Deserialize::deserialize(&param)?)?;
 
         let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
         let owner = datastore.get_owner(backup_dir.as_ref())?;
@@ -1303,14 +1321,7 @@ pub fn upload_backup_log(
             bail!("backup already contains a log.");
         }
 
-        println!(
-            "Upload backup log to {}/{}/{}/{}/{}",
-            store,
-            backup_type,
-            backup_id,
-            backup_dir.backup_time_string(),
-            file_name
-        );
+        println!("Upload backup log to {store}/{backup_dir}/{file_name}");
 
         let data = req_body
             .map_err(Error::from)
@@ -1335,9 +1346,10 @@ pub fn upload_backup_log(
     input: {
         properties: {
             store: { schema: DATASTORE_SCHEMA },
-            "backup-type": { type: BackupType },
-            "backup-id": { schema: BACKUP_ID_SCHEMA },
-            "backup-time": { schema: BACKUP_TIME_SCHEMA },
+            backup_dir: {
+                type: pbs_api_types::BackupDir,
+                flatten: true,
+            },
             "filepath": {
                 description: "Base64 encoded path.",
                 type: String,
@@ -1351,9 +1363,7 @@ pub fn upload_backup_log(
 /// Get the entries of the given path of the catalog
 pub fn catalog(
     store: String,
-    backup_type: BackupType,
-    backup_id: String,
-    backup_time: i64,
+    backup_dir: pbs_api_types::BackupDir,
     filepath: String,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<ArchiveEntry>, Error> {
@@ -1361,7 +1371,7 @@ pub fn catalog(
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-    let backup_dir = datastore.backup_dir_from_parts(backup_type, backup_id, backup_time)?;
+    let backup_dir = datastore.backup_dir(backup_dir)?;
 
     check_priv_or_backup_owner(
         &datastore,
@@ -1438,13 +1448,9 @@ pub fn pxar_file_download(
 
         let filepath = required_string_param(&param, "filepath")?.to_owned();
 
-        let backup_type: BackupType = required_string_param(&param, "backup-type")?.parse()?;
-        let backup_id = required_string_param(&param, "backup-id")?;
-        let backup_time = required_integer_param(&param, "backup-time")?;
-
         let tar = param["tar"].as_bool().unwrap_or(false);
 
-        let backup_dir = datastore.backup_dir_from_parts(backup_type, backup_id, backup_time)?;
+        let backup_dir = datastore.backup_dir(Deserialize::deserialize(&param)?)?;
 
         check_priv_or_backup_owner(
             &datastore,
@@ -1617,8 +1623,10 @@ pub fn get_active_operations(store: String, _param: Value) -> Result<Value, Erro
     input: {
         properties: {
             store: { schema: DATASTORE_SCHEMA },
-            "backup-type": { type: BackupType },
-            "backup-id": { schema: BACKUP_ID_SCHEMA },
+            backup_group: {
+                type: pbs_api_types::BackupGroup,
+                flatten: true,
+            },
         },
     },
     access: {
@@ -1628,14 +1636,12 @@ pub fn get_active_operations(store: String, _param: Value) -> Result<Value, Erro
 /// Get "notes" for a backup group
 pub fn get_group_notes(
     store: String,
-    backup_type: BackupType,
-    backup_id: String,
+    backup_group: pbs_api_types::BackupGroup,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-    let backup_group = pbs_api_types::BackupGroup::from((backup_type, backup_id));
 
     check_priv_or_backup_owner(&datastore, &backup_group, &auth_id, PRIV_DATASTORE_AUDIT)?;
 
@@ -1647,8 +1653,10 @@ pub fn get_group_notes(
     input: {
         properties: {
             store: { schema: DATASTORE_SCHEMA },
-            "backup-type": { type: BackupType },
-            "backup-id": { schema: BACKUP_ID_SCHEMA },
+            backup_group: {
+                type: pbs_api_types::BackupGroup,
+                flatten: true,
+            },
             notes: {
                 description: "A multiline text.",
             },
@@ -1663,15 +1671,13 @@ pub fn get_group_notes(
 /// Set "notes" for a backup group
 pub fn set_group_notes(
     store: String,
-    backup_type: BackupType,
-    backup_id: String,
+    backup_group: pbs_api_types::BackupGroup,
     notes: String,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-    let backup_group = pbs_api_types::BackupGroup::from((backup_type, backup_id));
 
     check_priv_or_backup_owner(&datastore, &backup_group, &auth_id, PRIV_DATASTORE_MODIFY)?;
 
@@ -1685,9 +1691,10 @@ pub fn set_group_notes(
     input: {
         properties: {
             store: { schema: DATASTORE_SCHEMA },
-            "backup-type": { type: BackupType },
-            "backup-id": { schema: BACKUP_ID_SCHEMA },
-            "backup-time": { schema: BACKUP_TIME_SCHEMA },
+            backup_dir: {
+                type: pbs_api_types::BackupDir,
+                flatten: true,
+            },
         },
     },
     access: {
@@ -1697,15 +1704,13 @@ pub fn set_group_notes(
 /// Get "notes" for a specific backup
 pub fn get_notes(
     store: String,
-    backup_type: BackupType,
-    backup_id: String,
-    backup_time: i64,
+    backup_dir: pbs_api_types::BackupDir,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-    let backup_dir = datastore.backup_dir_from_parts(backup_type, backup_id, backup_time)?;
+    let backup_dir = datastore.backup_dir(backup_dir)?;
 
     check_priv_or_backup_owner(
         &datastore,
@@ -1725,9 +1730,10 @@ pub fn get_notes(
     input: {
         properties: {
             store: { schema: DATASTORE_SCHEMA },
-            "backup-type": { type: BackupType },
-            "backup-id": { schema: BACKUP_ID_SCHEMA },
-            "backup-time": { schema: BACKUP_TIME_SCHEMA },
+            backup_dir: {
+                type: pbs_api_types::BackupDir,
+                flatten: true,
+            },
             notes: {
                 description: "A multiline text.",
             },
@@ -1742,16 +1748,14 @@ pub fn get_notes(
 /// Set "notes" for a specific backup
 pub fn set_notes(
     store: String,
-    backup_type: BackupType,
-    backup_id: String,
-    backup_time: i64,
+    backup_dir: pbs_api_types::BackupDir,
     notes: String,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-    let backup_dir = datastore.backup_dir_from_parts(backup_type, backup_id, backup_time)?;
+    let backup_dir = datastore.backup_dir(backup_dir)?;
 
     check_priv_or_backup_owner(
         &datastore,
@@ -1773,9 +1777,10 @@ pub fn set_notes(
     input: {
         properties: {
             store: { schema: DATASTORE_SCHEMA },
-            "backup-type": { type: BackupType },
-            "backup-id": { schema: BACKUP_ID_SCHEMA },
-            "backup-time": { schema: BACKUP_TIME_SCHEMA },
+            backup_dir: {
+                type: pbs_api_types::BackupDir,
+                flatten: true,
+            },
         },
     },
     access: {
@@ -1785,15 +1790,13 @@ pub fn set_notes(
 /// Query protection for a specific backup
 pub fn get_protection(
     store: String,
-    backup_type: BackupType,
-    backup_id: String,
-    backup_time: i64,
+    backup_dir: pbs_api_types::BackupDir,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<bool, Error> {
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-    let backup_dir = datastore.backup_dir_from_parts(backup_type, backup_id, backup_time)?;
+    let backup_dir = datastore.backup_dir(backup_dir)?;
 
     check_priv_or_backup_owner(
         &datastore,
@@ -1809,9 +1812,10 @@ pub fn get_protection(
     input: {
         properties: {
             store: { schema: DATASTORE_SCHEMA },
-            "backup-type": { type: BackupType },
-            "backup-id": { schema: BACKUP_ID_SCHEMA },
-            "backup-time": { schema: BACKUP_TIME_SCHEMA },
+            backup_dir: {
+                type: pbs_api_types::BackupDir,
+                flatten: true,
+            },
             protected: {
                 description: "Enable/disable protection.",
             },
@@ -1826,16 +1830,14 @@ pub fn get_protection(
 /// En- or disable protection for a specific backup
 pub fn set_protection(
     store: String,
-    backup_type: BackupType,
-    backup_id: String,
-    backup_time: i64,
+    backup_dir: pbs_api_types::BackupDir,
     protected: bool,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-    let backup_dir = datastore.backup_dir_from_parts(backup_type, backup_id, backup_time)?;
+    let backup_dir = datastore.backup_dir(backup_dir)?;
 
     check_priv_or_backup_owner(
         &datastore,
@@ -1851,8 +1853,10 @@ pub fn set_protection(
     input: {
         properties: {
             store: { schema: DATASTORE_SCHEMA },
-            "backup-type": { type: BackupType },
-            "backup-id": { schema: BACKUP_ID_SCHEMA },
+            backup_group: {
+                type: pbs_api_types::BackupGroup,
+                flatten: true,
+            },
             "new-owner": {
                 type: Authid,
             },
@@ -1866,14 +1870,13 @@ pub fn set_protection(
 /// Change owner of a backup group
 pub fn set_backup_owner(
     store: String,
-    backup_type: BackupType,
-    backup_id: String,
+    backup_group: pbs_api_types::BackupGroup,
     new_owner: Authid,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
-    let backup_group = datastore.backup_group_from_parts(backup_type, backup_id);
+    let backup_group = datastore.backup_group(backup_group);
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 

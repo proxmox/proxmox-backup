@@ -1,6 +1,6 @@
 use anyhow::Error;
 
-use pbs_api_types::{Authid, BackupType};
+use pbs_api_types::{Authid, BackupNamespace, BackupType};
 use pbs_client::{BackupWriter, HttpClient, HttpClientOptions};
 
 async fn upload_speed() -> Result<f64, Error> {
@@ -21,9 +21,13 @@ async fn upload_speed() -> Result<f64, Error> {
         client,
         None,
         datastore,
-        BackupType::Host,
-        "speedtest",
-        backup_time,
+        &(
+            BackupNamespace::root(),
+            BackupType::Host,
+            "speedtest".to_string(),
+            backup_time,
+        )
+            .into(),
         false,
         true,
     )

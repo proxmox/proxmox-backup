@@ -14,9 +14,9 @@ use pbs_tools::crypt_config::CryptConfig;
 use pbs_tools::json::required_string_param;
 
 use crate::{
-    api_datastore_latest_snapshot, complete_backup_snapshot, complete_group_or_snapshot,
-    complete_pxar_archive_name, complete_repository, connect, crypto_parameters, decrypt_key,
-    extract_repository_from_value, format_key_source, record_repository, BackupDir, BackupGroup,
+    complete_backup_snapshot, complete_group_or_snapshot, complete_pxar_archive_name,
+    complete_repository, connect, crypto_parameters, decrypt_key, dir_or_last_from_group,
+    extract_repository_from_value, format_key_source, record_repository, BackupDir,
     BufferedDynamicReadAt, BufferedDynamicReader, CatalogReader, DynamicIndexReader, IndexFile,
     Shell, CATALOG_NAME, KEYFD_SCHEMA, REPO_URL_SCHEMA,
 };
@@ -68,16 +68,8 @@ async fn dump_catalog(param: Value) -> Result<Value, Error> {
 
     let client = connect(&repo)?;
 
-    let client = BackupReader::start(
-        client,
-        crypt_config.clone(),
-        repo.store(),
-        snapshot.group.ty,
-        &snapshot.group.id,
-        snapshot.time,
-        true,
-    )
-    .await?;
+    let client =
+        BackupReader::start(client, crypt_config.clone(), repo.store(), &snapshot, true).await?;
 
     let (manifest, _) = client.download_manifest().await?;
     manifest.check_fingerprint(crypt_config.as_ref().map(Arc::as_ref))?;
@@ -153,13 +145,7 @@ async fn catalog_shell(param: Value) -> Result<(), Error> {
     let path = required_string_param(&param, "snapshot")?;
     let archive_name = required_string_param(&param, "archive-name")?;
 
-    let (backup_type, backup_id, backup_time) = if path.matches('/').count() == 1 {
-        let group: BackupGroup = path.parse()?;
-        api_datastore_latest_snapshot(&client, repo.store(), group).await?
-    } else {
-        let snapshot: BackupDir = path.parse()?;
-        (snapshot.group.ty, snapshot.group.id, snapshot.time)
-    };
+    let backup_dir = dir_or_last_from_group(&client, &repo, &path).await?;
 
     let crypto = crypto_parameters(&param)?;
 
@@ -186,9 +172,7 @@ async fn catalog_shell(param: Value) -> Result<(), Error> {
         client,
         crypt_config.clone(),
         repo.store(),
-        backup_type,
-        &backup_id,
-        backup_time,
+        &backup_dir,
         true,
     )
     .await?;

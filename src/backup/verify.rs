@@ -533,7 +533,11 @@ pub fn verify_all_backups(
         }
     };
 
-    let mut list = match verify_worker.datastore.iter_backup_groups_ok() {
+    // FIXME: This should probably simply enable recursion (or the call have a recursion parameter)
+    let mut list = match verify_worker
+        .datastore
+        .iter_backup_groups_ok(Default::default())
+    {
         Ok(list) => list
             .filter(|group| {
                 !(group.backup_type() == BackupType::Host && group.backup_id() == "benchmark")

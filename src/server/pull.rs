@@ -651,13 +651,11 @@ async fn pull_group(
             continue;
         }
 
-        let backup_time = snapshot.time;
-
-        remote_snapshots.insert(backup_time);
+        remote_snapshots.insert(snapshot.time);
 
         if let Some(last_sync_time) = last_sync {
-            if last_sync_time > backup_time {
-                skip_info.update(backup_time);
+            if last_sync_time > snapshot.time {
+                skip_info.update(snapshot.time);
                 continue;
             }
         }
@@ -676,16 +674,8 @@ async fn pull_group(
             options,
         )?;
 
-        let reader = BackupReader::start(
-            new_client,
-            None,
-            params.source.store(),
-            snapshot.group.ty,
-            &snapshot.group.id,
-            backup_time,
-            true,
-        )
-        .await?;
+        let reader =
+            BackupReader::start(new_client, None, params.source.store(), &snapshot, true).await?;
 
         let result = pull_snapshot_from(
             worker,
@@ -757,6 +747,8 @@ pub async fn pull_store(
     // explicit create shared lock to prevent GC on newly created chunks
     let _shared_store_lock = params.store.try_shared_chunk_store_lock()?;
 
+    // FIXME: Namespaces! AND: If we make this API call recurse down namespaces we need to do the
+    // same down in the `remove_vanished` case!
     let path = format!("api2/json/admin/datastore/{}/groups", params.source.store());
 
     let mut result = client
@@ -850,7 +842,8 @@ pub async fn pull_store(
 
     if params.remove_vanished {
         let result: Result<(), Error> = proxmox_lang::try_block!({
-            for local_group in params.store.iter_backup_groups()? {
+            // FIXME: See above comment about namespaces & recursion
+            for local_group in params.store.iter_backup_groups(Default::default())? {
                 let local_group = local_group?;
                 if new_groups.contains(local_group.as_ref()) {
                     continue;

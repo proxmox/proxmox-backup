@@ -102,16 +102,8 @@ async fn list_files(
     driver: Option<BlockDriverType>,
 ) -> Result<Vec<ArchiveEntry>, Error> {
     let client = connect(&repo)?;
-    let client = BackupReader::start(
-        client,
-        crypt_config.clone(),
-        repo.store(),
-        snapshot.group.ty,
-        &snapshot.group.id,
-        snapshot.time,
-        true,
-    )
-    .await?;
+    let client =
+        BackupReader::start(client, crypt_config.clone(), repo.store(), &snapshot, true).await?;
 
     let (manifest, _) = client.download_manifest().await?;
     manifest.check_fingerprint(crypt_config.as_ref().map(Arc::as_ref))?;
@@ -409,16 +401,8 @@ async fn extract(
     };
 
     let client = connect(&repo)?;
-    let client = BackupReader::start(
-        client,
-        crypt_config.clone(),
-        repo.store(),
-        snapshot.group.ty,
-        &snapshot.group.id,
-        snapshot.time,
-        true,
-    )
-    .await?;
+    let client =
+        BackupReader::start(client, crypt_config.clone(), repo.store(), &snapshot, true).await?;
     let (manifest, _) = client.download_manifest().await?;
 
     match path {

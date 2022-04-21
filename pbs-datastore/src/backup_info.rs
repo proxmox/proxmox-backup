@@ -217,11 +217,10 @@ impl From<BackupGroup> for pbs_api_types::BackupGroup {
     }
 }
 
-impl std::fmt::Display for BackupGroup {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let backup_type = self.backup_type();
-        let id = self.backup_id();
-        write!(f, "{}/{}", backup_type, id)
+impl fmt::Display for BackupGroup {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.group, f)
     }
 }
 
@@ -446,8 +445,8 @@ impl From<BackupDir> for pbs_api_types::BackupDir {
     }
 }
 
-impl std::fmt::Display for BackupDir {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for BackupDir {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}/{}", self.dir.group, self.backup_time_string)
     }
 }

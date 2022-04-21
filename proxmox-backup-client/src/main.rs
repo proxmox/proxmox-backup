@@ -7,6 +7,7 @@ use std::task::Context;
 
 use anyhow::{bail, format_err, Error};
 use futures::stream::{StreamExt, TryStreamExt};
+use serde::Deserialize;
 use serde_json::{json, Value};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
@@ -22,10 +23,10 @@ use proxmox_time::{epoch_i64, strftime_local};
 use pxar::accessor::{MaybeReady, ReadAt, ReadAtOperation};
 
 use pbs_api_types::{
-    Authid, BackupDir, BackupGroup, BackupType, CryptMode, Fingerprint, GroupListItem, HumanByte,
-    PruneListItem, PruneOptions, RateLimitConfig, SnapshotListItem, StorageStatus,
-    BACKUP_ID_SCHEMA, BACKUP_TIME_SCHEMA, BACKUP_TYPE_SCHEMA, TRAFFIC_CONTROL_BURST_SCHEMA,
-    TRAFFIC_CONTROL_RATE_SCHEMA,
+    Authid, BackupDir, BackupGroup, BackupNamespace, BackupPart, BackupType, CryptMode,
+    Fingerprint, GroupListItem, HumanByte, PruneListItem, PruneOptions, RateLimitConfig,
+    SnapshotListItem, StorageStatus, BACKUP_ID_SCHEMA, BACKUP_NAMESPACE_SCHEMA, BACKUP_TIME_SCHEMA,
+    BACKUP_TYPE_SCHEMA, TRAFFIC_CONTROL_BURST_SCHEMA, TRAFFIC_CONTROL_RATE_SCHEMA,
 };
 use pbs_client::catalog_shell::Shell;
 use pbs_client::tools::{
@@ -148,7 +149,7 @@ pub async fn api_datastore_latest_snapshot(
     client: &HttpClient,
     store: &str,
     group: BackupGroup,
-) -> Result<(BackupType, String, i64), Error> {
+) -> Result<BackupDir, Error> {
     let list = api_datastore_list_snapshots(client, store, Some(group.clone())).await?;
     let mut list: Vec<SnapshotListItem> = serde_json::from_value(list)?;
 
@@ -158,7 +159,20 @@ pub async fn api_datastore_latest_snapshot(
 
     list.sort_unstable_by(|a, b| b.backup.time.cmp(&a.backup.time));
 
-    Ok((group.ty, group.id, list[0].backup.time))
+    Ok((group, list[0].backup.time).into())
+}
+
+pub async fn dir_or_last_from_group(
+    client: &HttpClient,
+    repo: &BackupRepository,
+    path: &str,
+) -> Result<BackupDir, Error> {
+    match path.parse::<BackupPart>()? {
+        BackupPart::Dir(dir) => Ok(dir),
+        BackupPart::Group(group) => {
+            api_datastore_latest_snapshot(&client, repo.store(), group).await
+        }
+    }
 }
 
 async fn backup_directory<P: AsRef<Path>>(
@@ -251,13 +265,12 @@ async fn list_backup_groups(param: Value) -> Result<Value, Error> {
     record_repository(&repo);
 
     let render_group_path = |_v: &Value, record: &Value| -> Result<String, Error> {
-        let item: GroupListItem = serde_json::from_value(record.to_owned())?;
-        let group = BackupGroup::new(item.backup.ty, item.backup.id);
-        Ok(group.to_string())
+        let item = GroupListItem::deserialize(record)?;
+        Ok(item.backup.to_string())
     };
 
     let render_last_backup = |_v: &Value, record: &Value| -> Result<String, Error> {
-        let item: GroupListItem = serde_json::from_value(record.to_owned())?;
+        let item = GroupListItem::deserialize(record)?;
         let snapshot = BackupDir {
             group: item.backup,
             time: item.last_backup,
@@ -266,7 +279,7 @@ async fn list_backup_groups(param: Value) -> Result<Value, Error> {
     };
 
     let render_files = |_v: &Value, record: &Value| -> Result<String, Error> {
-        let item: GroupListItem = serde_json::from_value(record.to_owned())?;
+        let item = GroupListItem::deserialize(record)?;
         Ok(pbs_tools::format::render_backup_file_list(&item.files))
     };
 
@@ -560,6 +573,10 @@ fn spawn_catalog_upload(
                optional: true,
                default: false,
            },
+           "backup-ns": {
+               schema: BACKUP_NAMESPACE_SCHEMA,
+               optional: true,
+           },
            "backup-type": {
                schema: BACKUP_TYPE_SCHEMA,
                optional: true,
@@ -652,6 +669,14 @@ async fn create_backup(
     let backup_id = param["backup-id"]
         .as_str()
         .unwrap_or(proxmox_sys::nodename());
+
+    let backup_namespace: BackupNamespace = match param.get("backup-ns") {
+        Some(ns) => ns
+            .as_str()
+            .ok_or_else(|| format_err!("bad namespace {:?}", ns))?
+            .parse()?,
+        None => BackupNamespace::root(),
+    };
 
     let backup_type: BackupType = param["backup-type"].as_str().unwrap_or("host").parse()?;
 
@@ -775,12 +800,13 @@ async fn create_backup(
     let client = connect_rate_limited(&repo, rate_limit)?;
     record_repository(&repo);
 
-    println!(
-        "Starting backup: {}/{}/{}",
+    let snapshot = BackupDir::from((
+        backup_namespace,
         backup_type,
-        backup_id,
-        pbs_datastore::BackupDir::backup_time_to_string(backup_time)?
-    );
+        backup_id.to_owned(),
+        backup_time,
+    ));
+    println!("Starting backup: {snapshot}");
 
     println!("Client name: {}", proxmox_sys::nodename());
 
@@ -827,9 +853,7 @@ async fn create_backup(
         client,
         crypt_config.clone(),
         repo.store(),
-        backup_type,
-        backup_id,
-        backup_time,
+        &snapshot,
         verbose,
         false,
     )
@@ -873,7 +897,6 @@ async fn create_backup(
         None
     };
 
-    let snapshot = BackupDir::from((backup_type, backup_id.to_owned(), backup_time));
     let mut manifest = BackupManifest::new(snapshot);
 
     let mut catalog = None;
@@ -1182,13 +1205,7 @@ async fn restore(param: Value) -> Result<Value, Error> {
 
     let path = json::required_string_param(&param, "snapshot")?;
 
-    let (backup_type, backup_id, backup_time) = if path.matches('/').count() == 1 {
-        let group: BackupGroup = path.parse()?;
-        api_datastore_latest_snapshot(&client, repo.store(), group).await?
-    } else {
-        let snapshot: BackupDir = path.parse()?;
-        (snapshot.group.ty, snapshot.group.id, snapshot.time)
-    };
+    let backup_dir = dir_or_last_from_group(&client, &repo, &path).await?;
 
     let target = json::required_string_param(&param, "target")?;
     let target = if target == "-" { None } else { Some(target) };
@@ -1211,9 +1228,7 @@ async fn restore(param: Value) -> Result<Value, Error> {
         client,
         crypt_config.clone(),
         repo.store(),
-        backup_type,
-        &backup_id,
-        backup_time,
+        &backup_dir,
         true,
     )
     .await?;

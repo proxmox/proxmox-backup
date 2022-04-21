@@ -6,6 +6,7 @@ use hex::FromHex;
 use hyper::header::{HeaderValue, UPGRADE};
 use hyper::http::request::Parts;
 use hyper::{Body, Request, Response, StatusCode};
+use serde::Deserialize;
 use serde_json::{json, Value};
 
 use proxmox_router::list_subdirs_api_method;
@@ -81,9 +82,7 @@ fn upgrade_to_backup_protocol(
 
         let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
-        let backup_type: BackupType = required_string_param(&param, "backup-type")?.parse()?;
-        let backup_id = required_string_param(&param, "backup-id")?;
-        let backup_time = required_integer_param(&param, "backup-time")?;
+        let backup_dir_arg = pbs_api_types::BackupDir::deserialize(&param)?;
 
         let protocols = parts
             .headers
@@ -102,13 +101,15 @@ fn upgrade_to_backup_protocol(
             );
         }
 
-        let worker_id = format!("{}:{}/{}", store, backup_type, backup_id);
+        let worker_id = format!("{}:{}/{}", store, backup_dir_arg.ty(), backup_dir_arg.id());
 
         let env_type = rpcenv.env_type();
 
-        let backup_group = datastore.backup_group_from_parts(backup_type, backup_id);
+        let backup_group = datastore.backup_group(backup_dir_arg.group.clone());
 
-        let worker_type = if backup_type == BackupType::Host && backup_id == "benchmark" {
+        let worker_type = if backup_group.backup_type() == BackupType::Host
+            && backup_group.backup_id() == "benchmark"
+        {
             if !benchmark {
                 bail!("unable to run benchmark without --benchmark flags");
             }
@@ -152,7 +153,7 @@ fn upgrade_to_backup_protocol(
             }
         };
 
-        let backup_dir = backup_group.backup_dir(backup_time)?;
+        let backup_dir = backup_group.backup_dir(backup_dir_arg.time)?;
 
         let _last_guard = if let Some(last) = &last_backup {
             if backup_dir.backup_time() <= last.backup_dir.backup_time() {

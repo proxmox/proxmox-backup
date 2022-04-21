@@ -12,7 +12,7 @@ fn run() -> Result<(), Error> {
 
     let store = unsafe { DataStore::open_path("", &base, None)? };
 
-    for group in store.iter_backup_groups()? {
+    for group in store.iter_backup_groups(Default::default())? {
         let group = group?;
         println!("found group {}", group);
 

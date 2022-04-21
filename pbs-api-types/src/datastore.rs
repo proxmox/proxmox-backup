@@ -1,5 +1,5 @@
 use std::fmt;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use anyhow::{bail, format_err, Error};
 use serde::{Deserialize, Serialize};
@@ -16,19 +16,24 @@ use crate::{
 };
 
 const_regex! {
+    pub BACKUP_NAMESPACE_REGEX = concat!(r"^", BACKUP_NS_RE!(), r"$");
+
     pub BACKUP_TYPE_REGEX = concat!(r"^(", BACKUP_TYPE_RE!(), r")$");
 
     pub BACKUP_ID_REGEX = concat!(r"^", BACKUP_ID_RE!(), r"$");
 
     pub BACKUP_DATE_REGEX = concat!(r"^", BACKUP_TIME_RE!() ,r"$");
 
-    pub GROUP_PATH_REGEX = concat!(r"^(", BACKUP_TYPE_RE!(), ")/(", BACKUP_ID_RE!(), r")$");
+    pub GROUP_PATH_REGEX = concat!(
+        r"^(", BACKUP_NS_PATH_RE!(), r")?",
+        r"(", BACKUP_TYPE_RE!(), ")/",
+        r"(", BACKUP_ID_RE!(), r")$",
+    );
 
     pub BACKUP_FILE_REGEX = r"^.*\.([fd]idx|blob)$";
 
     pub SNAPSHOT_PATH_REGEX = concat!(r"^", SNAPSHOT_PATH_REGEX_STR!(), r"$");
-
-    pub BACKUP_NAMESPACE_REGEX = concat!(r"^", BACKUP_NS_RE!(), r"$");
+    pub GROUP_OR_SNAPSHOT_PATH_REGEX = concat!(r"^", GROUP_OR_SNAPSHOT_PATH_REGEX_STR!(), r"$");
 
     pub DATASTORE_MAP_REGEX = concat!(r"(:?", PROXMOX_SAFE_ID_REGEX_STR!(), r"=)?", PROXMOX_SAFE_ID_REGEX_STR!());
 }
@@ -640,7 +645,7 @@ impl BackupNamespace {
 
     /// Return an adapter which [`Display`]s as a path with `"ns/"` prefixes in front of every
     /// component.
-    fn display_as_path(&self) -> BackupNamespacePath {
+    pub fn display_as_path(&self) -> BackupNamespacePath {
         BackupNamespacePath(self)
     }
 
@@ -775,6 +780,7 @@ impl std::cmp::PartialOrd for BackupType {
 
 #[api(
     properties: {
+        "backup-ns": { type: BackupNamespace },
         "backup-type": { type: BackupType },
         "backup-id": { schema: BACKUP_ID_SCHEMA },
     },
@@ -783,6 +789,14 @@ impl std::cmp::PartialOrd for BackupType {
 #[serde(rename_all = "kebab-case")]
 /// A backup group (without a data store).
 pub struct BackupGroup {
+    /// An optional namespace this backup belongs to.
+    #[serde(
+        rename = "backup-ns",
+        skip_serializing_if = "BackupNamespace::is_root",
+        default
+    )]
+    pub ns: BackupNamespace,
+
     /// Backup type.
     #[serde(rename = "backup-type")]
     pub ty: BackupType,
@@ -793,8 +807,12 @@ pub struct BackupGroup {
 }
 
 impl BackupGroup {
-    pub fn new<T: Into<String>>(ty: BackupType, id: T) -> Self {
-        Self { ty, id: id.into() }
+    pub fn new<T: Into<String>>(ns: BackupNamespace, ty: BackupType, id: T) -> Self {
+        Self {
+            ns,
+            ty,
+            id: id.into(),
+        }
     }
 
     pub fn matches(&self, filter: &crate::GroupFilter) -> bool {
@@ -820,21 +838,29 @@ impl AsRef<BackupGroup> for BackupGroup {
     }
 }
 
-impl From<(BackupType, String)> for BackupGroup {
-    fn from(data: (BackupType, String)) -> Self {
+impl From<(BackupNamespace, BackupType, String)> for BackupGroup {
+    #[inline]
+    fn from(data: (BackupNamespace, BackupType, String)) -> Self {
         Self {
-            ty: data.0,
-            id: data.1,
+            ns: data.0,
+            ty: data.1,
+            id: data.2,
         }
     }
 }
 
 impl std::cmp::Ord for BackupGroup {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        let ns_order = self.ns.cmp(&other.ns);
+        if ns_order != std::cmp::Ordering::Equal {
+            return ns_order;
+        }
+
         let type_order = self.ty.cmp(&other.ty);
         if type_order != std::cmp::Ordering::Equal {
             return type_order;
         }
+
         // try to compare IDs numerically
         let id_self = self.id.parse::<u64>();
         let id_other = other.id.parse::<u64>();
@@ -855,7 +881,11 @@ impl std::cmp::PartialOrd for BackupGroup {
 
 impl fmt::Display for BackupGroup {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}/{}", self.ty, self.id)
+        if self.ns.is_root() {
+            write!(f, "{}/{}", self.ty, self.id)
+        } else {
+            write!(f, "{}/{}/{}", self.ns.display_as_path(), self.ty, self.id)
+        }
     }
 }
 
@@ -871,8 +901,9 @@ impl std::str::FromStr for BackupGroup {
             .ok_or_else(|| format_err!("unable to parse backup group path '{}'", path))?;
 
         Ok(Self {
-            ty: cap.get(1).unwrap().as_str().parse()?,
-            id: cap.get(2).unwrap().as_str().to_owned(),
+            ns: BackupNamespace::from_path(cap.get(1).unwrap().as_str())?,
+            ty: cap.get(2).unwrap().as_str().parse()?,
+            id: cap.get(3).unwrap().as_str().to_owned(),
         })
     }
 }
@@ -921,31 +952,43 @@ impl From<(BackupGroup, i64)> for BackupDir {
     }
 }
 
-impl From<(BackupType, String, i64)> for BackupDir {
-    fn from(data: (BackupType, String, i64)) -> Self {
+impl From<(BackupNamespace, BackupType, String, i64)> for BackupDir {
+    fn from(data: (BackupNamespace, BackupType, String, i64)) -> Self {
         Self {
-            group: (data.0, data.1).into(),
-            time: data.2,
+            group: (data.0, data.1, data.2).into(),
+            time: data.3,
         }
     }
 }
 
 impl BackupDir {
-    pub fn with_rfc3339<T>(ty: BackupType, id: T, backup_time_string: &str) -> Result<Self, Error>
+    pub fn with_rfc3339<T>(
+        ns: BackupNamespace,
+        ty: BackupType,
+        id: T,
+        backup_time_string: &str,
+    ) -> Result<Self, Error>
     where
         T: Into<String>,
     {
         let time = proxmox_time::parse_rfc3339(&backup_time_string)?;
-        let group = BackupGroup::new(ty, id.into());
+        let group = BackupGroup::new(ns, ty, id.into());
         Ok(Self { group, time })
     }
 
+    #[inline]
     pub fn ty(&self) -> BackupType {
         self.group.ty
     }
 
+    #[inline]
     pub fn id(&self) -> &str {
         &self.group.id
+    }
+
+    #[inline]
+    pub fn ns(&self) -> &BackupNamespace {
+        &self.group.ns
     }
 }
 
@@ -960,19 +1003,53 @@ impl std::str::FromStr for BackupDir {
             .captures(path)
             .ok_or_else(|| format_err!("unable to parse backup snapshot path '{}'", path))?;
 
+        let ns = match cap.get(1) {
+            Some(cap) => BackupNamespace::from_path(cap.as_str())?,
+            None => BackupNamespace::root(),
+        };
         BackupDir::with_rfc3339(
-            cap.get(1).unwrap().as_str().parse()?,
-            cap.get(2).unwrap().as_str(),
+            ns,
+            cap.get(2).unwrap().as_str().parse()?,
             cap.get(3).unwrap().as_str(),
+            cap.get(4).unwrap().as_str(),
         )
     }
 }
 
-impl std::fmt::Display for BackupDir {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for BackupDir {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // FIXME: log error?
         let time = proxmox_time::epoch_to_rfc3339_utc(self.time).map_err(|_| fmt::Error)?;
         write!(f, "{}/{}", self.group, time)
+    }
+}
+
+/// Used when both a backup group or a directory can be valid.
+pub enum BackupPart {
+    Group(BackupGroup),
+    Dir(BackupDir),
+}
+
+impl std::str::FromStr for BackupPart {
+    type Err = Error;
+
+    /// Parse a path which can be either a backup group or a snapshot dir.
+    fn from_str(path: &str) -> Result<Self, Error> {
+        let cap = GROUP_OR_SNAPSHOT_PATH_REGEX
+            .captures(path)
+            .ok_or_else(|| format_err!("unable to parse backup snapshot path '{}'", path))?;
+
+        let ns = match cap.get(1) {
+            Some(cap) => BackupNamespace::from_path(cap.as_str())?,
+            None => BackupNamespace::root(),
+        };
+        let ty = cap.get(2).unwrap().as_str().parse()?;
+        let id = cap.get(3).unwrap().as_str().to_string();
+
+        Ok(match cap.get(4) {
+            Some(time) => BackupPart::Dir(BackupDir::with_rfc3339(ns, ty, id, time.as_str())?),
+            None => BackupPart::Group((ns, ty, id).into()),
+        })
     }
 }
 
