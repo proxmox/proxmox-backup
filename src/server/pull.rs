@@ -586,7 +586,7 @@ pub async fn pull_group(
 
     let mut remote_snapshots = std::collections::HashSet::new();
 
-    // start with 16384 chunks (up to 65GB)
+    // start with 65536 chunks (up to 256 GiB)
     let downloaded_chunks = Arc::new(Mutex::new(HashSet::with_capacity(1024 * 64)));
 
     progress.group_snapshots = list.len() as u64;
