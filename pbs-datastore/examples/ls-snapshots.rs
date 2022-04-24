@@ -12,12 +12,16 @@ fn run() -> Result<(), Error> {
 
     let store = unsafe { DataStore::open_path("", &base, None)? };
 
-    for group in store.iter_backup_groups(Default::default())? {
-        let group = group?;
-        println!("found group {}", group);
+    for ns in store.recursive_iter_backup_ns_ok(Default::default())? {
+        println!("found namespace store:/{}", ns);
 
-        for snapshot in group.iter_snapshots()? {
-            println!("\t{}", snapshot?);
+        for group in store.iter_backup_groups(ns)? {
+            let group = group?;
+            println!("    found group {}", group);
+
+            for snapshot in group.iter_snapshots()? {
+                println!("\t{}", snapshot?);
+            }
         }
     }
 

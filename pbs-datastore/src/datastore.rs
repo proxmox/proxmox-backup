@@ -407,6 +407,13 @@ impl DataStore {
         Ok(())
     }
 
+    /// Returns the absolute path for a backup namespace on this datastore
+    pub fn ns_path(&self, ns: &BackupNamespace) -> PathBuf {
+        let mut full_path = self.base_path();
+        full_path.push(ns.path());
+        full_path
+    }
+
     /// Returns the absolute path for a backup_group
     pub fn group_path(&self, backup_group: &pbs_api_types::BackupGroup) -> PathBuf {
         let mut full_path = self.base_path();
@@ -587,6 +594,68 @@ impl DataStore {
             }
             Err(e) => Err(e.into()),
         }
+    }
+
+    /// Get a streaming iter over single-level backup namespaces of a datatstore
+    ///
+    /// The iterated item is still a Result that can contain errors from rather unexptected FS or
+    /// parsing errors.
+    pub fn iter_backup_ns(
+        self: &Arc<DataStore>,
+        ns: BackupNamespace,
+    ) -> Result<ListNamespaces, Error> {
+        ListNamespaces::new(Arc::clone(self), ns)
+    }
+
+    /// Get a streaming iter over single-level backup namespaces of a datatstore, filtered by Ok
+    ///
+    /// The iterated item's result is already unwrapped, if it contained an error it will be
+    /// logged. Can be useful in iterator chain commands
+    pub fn iter_backup_ns_ok(
+        self: &Arc<DataStore>,
+        ns: BackupNamespace,
+    ) -> Result<impl Iterator<Item = BackupNamespace> + 'static, Error> {
+        let this = Arc::clone(self);
+        Ok(
+            ListNamespaces::new(Arc::clone(&self), ns)?.filter_map(move |ns| match ns {
+                Ok(ns) => Some(ns),
+                Err(err) => {
+                    log::error!("list groups error on datastore {} - {}", this.name(), err);
+                    None
+                }
+            }),
+        )
+    }
+
+    /// Get a streaming iter over single-level backup namespaces of a datatstore
+    ///
+    /// The iterated item is still a Result that can contain errors from rather unexptected FS or
+    /// parsing errors.
+    pub fn recursive_iter_backup_ns(
+        self: &Arc<DataStore>,
+        ns: BackupNamespace,
+    ) -> Result<ListNamespacesRecursive, Error> {
+        ListNamespacesRecursive::new(Arc::clone(self), ns)
+    }
+
+    /// Get a streaming iter over single-level backup namespaces of a datatstore, filtered by Ok
+    ///
+    /// The iterated item's result is already unwrapped, if it contained an error it will be
+    /// logged. Can be useful in iterator chain commands
+    pub fn recursive_iter_backup_ns_ok(
+        self: &Arc<DataStore>,
+        ns: BackupNamespace,
+    ) -> Result<impl Iterator<Item = BackupNamespace> + 'static, Error> {
+        let this = Arc::clone(self);
+        Ok(
+            ListNamespacesRecursive::new(Arc::clone(&self), ns)?.filter_map(move |ns| match ns {
+                Ok(ns) => Some(ns),
+                Err(err) => {
+                    log::error!("list groups error on datastore {} - {}", this.name(), err);
+                    None
+                }
+            }),
+        )
     }
 
     /// Get a streaming iter over top-level backup groups of a datatstore
@@ -1242,6 +1311,149 @@ impl Iterator for ListGroups {
                         self.id_state = Some((group_type, id_dirfd));
                     }
                 }
+            }
+        }
+    }
+}
+
+/// A iterator for a (single) level of Namespaces
+pub struct ListNamespaces {
+    ns: BackupNamespace,
+    base_path: PathBuf,
+    ns_state: Option<proxmox_sys::fs::ReadDir>,
+}
+
+impl ListNamespaces {
+    /// construct a new single-level namespace iterator on a datastore with an optional anchor ns
+    pub fn new(store: Arc<DataStore>, ns: BackupNamespace) -> Result<Self, Error> {
+        Ok(ListNamespaces {
+            ns,
+            base_path: store.base_path(),
+            ns_state: None,
+        })
+    }
+
+    /// to allow constructing the iter directly on a path, e.g., provided by section config
+    ///
+    /// NOTE: it's recommended to use the datastore one constructor or go over the recursive iter
+    pub fn new_from_path(path: PathBuf, ns: Option<BackupNamespace>) -> Result<Self, Error> {
+        Ok(ListNamespaces {
+            ns: ns.unwrap_or_default(),
+            base_path: path,
+            ns_state: None,
+        })
+    }
+}
+
+impl Iterator for ListNamespaces {
+    type Item = Result<BackupNamespace, Error>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if let Some(ref mut id_fd) = self.ns_state {
+                let item = id_fd.next()?; // if this returns none we are done
+                let entry = match item {
+                    Ok(ref entry) => {
+                        match entry.file_type() {
+                            Some(nix::dir::Type::Directory) => entry, // OK
+                            _ => continue,
+                        }
+                    }
+                    Err(err) => return Some(Err(err)),
+                };
+                if let Ok(name) = entry.file_name().to_str() {
+                    if name != "." && name != ".." {
+                        return Some(BackupNamespace::from_parent_ns(&self.ns, name.to_string()));
+                    }
+                }
+                continue; // file did not match regex or isn't valid utf-8
+            } else {
+                let mut base_path = self.base_path.to_owned();
+                if !self.ns.is_root() {
+                    base_path.push(self.ns.path());
+                }
+                base_path.push("ns");
+
+                let ns_dirfd = match proxmox_sys::fs::read_subdir(libc::AT_FDCWD, &base_path) {
+                    Ok(dirfd) => dirfd,
+                    Err(nix::Error::Sys(nix::errno::Errno::ENOENT)) => return None,
+                    Err(err) => return Some(Err(err.into())),
+                };
+                // found a ns directory, descend into it to scan all it's namespaces
+                self.ns_state = Some(ns_dirfd);
+            }
+        }
+    }
+}
+
+/// A iterator for all Namespaces below an anchor namespace, most often that will be the
+/// `BackupNamespace::root()` one.
+///
+/// Descends depth-first (pre-order) into the namespace hierachy yielding namespaces immediately as
+/// it finds them.
+///
+/// Note: The anchor namespaces passed on creating the iterator will yielded as first element, this
+/// can be usefull for searching all backup groups from a certain anchor, as that can contain
+/// sub-namespaces but also groups on its own level, so otherwise one would need to special case
+/// the ones from the own level.
+pub struct ListNamespacesRecursive {
+    store: Arc<DataStore>,
+    /// the starting namespace we search downward from
+    ns: BackupNamespace,
+    state: Option<Vec<ListNamespaces>>, // vector to avoid code recursion
+}
+
+impl ListNamespacesRecursive {
+    /// Creates an recursive namespace iterator.
+    pub fn new(store: Arc<DataStore>, ns: BackupNamespace) -> Result<Self, Error> {
+        Ok(ListNamespacesRecursive {
+            store: store,
+            ns,
+            state: None,
+        })
+    }
+}
+
+impl Iterator for ListNamespacesRecursive {
+    type Item = Result<BackupNamespace, Error>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if let Some(ref mut state) = self.state {
+                if state.is_empty() {
+                    return None; // there's a state but it's empty -> we're all done
+                }
+                let iter = match state.last_mut() {
+                    Some(iter) => iter,
+                    None => return None, // unexpected, should we just unwrap?
+                };
+                match iter.next() {
+                    Some(Ok(ns)) => {
+                        match ListNamespaces::new(Arc::clone(&self.store), ns.to_owned()) {
+                            Ok(iter) => state.push(iter),
+                            Err(err) => log::error!("failed to create child namespace iter {err}"),
+                        }
+                        return Some(Ok(ns));
+                    }
+                    Some(ns_err) => return Some(ns_err),
+                    None => {
+                        let _ = state.pop(); // done at this (and belows) level, continue in parent
+                    }
+                }
+            } else {
+                // first next call ever: initialize state vector and start iterating at our level
+                let mut state = Vec::with_capacity(pbs_api_types::MAX_NAMESPACE_DEPTH);
+                match ListNamespaces::new(Arc::clone(&self.store), self.ns.to_owned()) {
+                    Ok(list_ns) => state.push(list_ns),
+                    Err(err) => {
+                        // yield the error but set the state to Some to avoid re-try, a future
+                        // next() will then see the state, and the empty check yield's None
+                        self.state = Some(state);
+                        return Some(Err(err));
+                    }
+                }
+                self.state = Some(state);
+                return Some(Ok(self.ns.to_owned())); // return our anchor ns for convenience
             }
         }
     }

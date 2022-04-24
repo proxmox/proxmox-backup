@@ -206,7 +206,7 @@ pub use manifest::BackupManifest;
 pub use store_progress::StoreProgress;
 
 mod datastore;
-pub use datastore::{check_backup_owner, DataStore, ListGroups, ListSnapshots};
+pub use datastore::{check_backup_owner, DataStore, ListGroups, ListNamespaces, ListSnapshots};
 
 mod snapshot_reader;
 pub use snapshot_reader::SnapshotReader;
