@@ -499,9 +499,7 @@ impl DataStore {
     ) -> Result<Option<i64>, Error> {
         let backup_group = self.backup_group(backup_group.clone());
 
-        let base_path = self.base_path();
-        let mut group_path = base_path.clone();
-        group_path.push(backup_group.relative_group_path());
+        let group_path = backup_group.full_group_path();
 
         if group_path.exists() {
             backup_group.last_successful_backup()
@@ -976,8 +974,7 @@ impl DataStore {
     }
 
     pub fn load_blob(&self, backup_dir: &BackupDir, filename: &str) -> Result<DataBlob, Error> {
-        let mut path = self.base_path();
-        path.push(backup_dir.relative_path());
+        let mut path = backup_dir.full_path();
         path.push(filename);
 
         proxmox_lang::try_block!({
@@ -1066,8 +1063,7 @@ impl DataStore {
         let blob = DataBlob::encode(manifest.as_bytes(), None, true)?;
         let raw_data = blob.raw_data();
 
-        let mut path = self.base_path();
-        path.push(backup_dir.relative_path());
+        let mut path = backup_dir.full_path();
         path.push(MANIFEST_BLOB_NAME);
 
         // atomic replace invalidates flock - no other writes past this point!

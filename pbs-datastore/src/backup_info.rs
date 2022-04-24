@@ -57,9 +57,7 @@ impl BackupGroup {
     pub fn list_backups(&self) -> Result<Vec<BackupInfo>, Error> {
         let mut list = vec![];
 
-        let base_path = self.store.base_path();
-        let mut path = base_path.to_owned();
-        path.push(self.relative_group_path());
+        let path = self.full_group_path();
 
         proxmox_sys::fs::scandir(
             libc::AT_FDCWD,
@@ -99,8 +97,7 @@ impl BackupGroup {
     pub fn last_successful_backup(&self) -> Result<Option<i64>, Error> {
         let mut last = None;
 
-        let mut path = self.store.base_path();
-        path.push(self.relative_group_path());
+        let path = self.full_group_path();
 
         proxmox_sys::fs::scandir(
             libc::AT_FDCWD,
@@ -373,9 +370,7 @@ pub struct BackupInfo {
 
 impl BackupInfo {
     pub fn new(backup_dir: BackupDir) -> Result<BackupInfo, Error> {
-        let base_path = backup_dir.store.base_path();
-        let mut path = base_path.clone();
-        path.push(backup_dir.relative_path());
+        let path = backup_dir.full_path();
 
         let files = list_backup_files(libc::AT_FDCWD, &path)?;
         let protected = backup_dir.is_protected();
