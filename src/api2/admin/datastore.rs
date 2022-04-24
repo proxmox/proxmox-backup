@@ -1998,6 +1998,11 @@ const DATASTORE_INFO_SUBDIRS: SubdirMap = &[
             .delete(&API_METHOD_DELETE_GROUP),
     ),
     (
+        "namespace",
+        // FIXME: move into datastore:: sub-module?!
+        &crate::api2::admin::namespace::ROUTER,
+    ),
+    (
         "notes",
         &Router::new()
             .get(&API_METHOD_GET_NOTES)

@@ -1213,6 +1213,22 @@ pub struct GroupListItem {
     pub comment: Option<String>,
 }
 
+#[api()]
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+/// Basic information about a backup namespace.
+pub struct NamespaceListItem {
+    /// A backup namespace
+    pub ns: BackupNamespace,
+
+    // TODO?
+    //pub group_count: u64,
+    //pub ns_count: u64,
+    /// The first line from the namespace's "notes"
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub comment: Option<String>,
+}
+
 #[api(
     properties: {
         "backup": { type: BackupDir },
@@ -1427,6 +1443,15 @@ pub const ADMIN_DATASTORE_LIST_GROUPS_RETURN_TYPE: ReturnType = ReturnType {
     schema: &ArraySchema::new(
         "Returns the list of backup groups.",
         &GroupListItem::API_SCHEMA,
+    )
+    .schema(),
+};
+
+pub const ADMIN_DATASTORE_LIST_NAMESPACE_RETURN_TYPE: ReturnType = ReturnType {
+    optional: false,
+    schema: &ArraySchema::new(
+        "Returns the list of backup namespaces.",
+        &NamespaceListItem::API_SCHEMA,
     )
     .schema(),
 };

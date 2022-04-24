@@ -4,6 +4,7 @@ use proxmox_router::list_subdirs_api_method;
 use proxmox_router::{Router, SubdirMap};
 
 pub mod datastore;
+pub mod namespace;
 pub mod sync;
 pub mod traffic_control;
 pub mod verify;
