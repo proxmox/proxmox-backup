@@ -411,47 +411,16 @@ impl DataStore {
         full_path
     }
 
-    /// Remove a complete backup group including all snapshots, returns true
-    /// if all snapshots were removed, and false if some were protected
+    /// Remove a complete backup group including all snapshots.
+    ///
+    /// Returns true if all snapshots were removed, and false if some were protected
     pub fn remove_backup_group(
         self: &Arc<Self>,
         backup_group: &pbs_api_types::BackupGroup,
     ) -> Result<bool, Error> {
         let backup_group = self.backup_group(backup_group.clone());
 
-        let full_path = self.group_path(backup_group.as_ref());
-
-        let _guard = proxmox_sys::fs::lock_dir_noblock(
-            &full_path,
-            "backup group",
-            "possible running backup",
-        )?;
-
-        log::info!("removing backup group {:?}", full_path);
-
-        let mut removed_all = true;
-
-        // remove all individual backup dirs first to ensure nothing is using them
-        for snap in backup_group.list_backups()? {
-            if snap.backup_dir.is_protected() {
-                removed_all = false;
-                continue;
-            }
-            self.remove_backup_dir(snap.backup_dir.as_ref(), false)?;
-        }
-
-        if removed_all {
-            // no snapshots left, we can now safely remove the empty folder
-            std::fs::remove_dir_all(&full_path).map_err(|err| {
-                format_err!(
-                    "removing backup group directory {:?} failed - {}",
-                    full_path,
-                    err,
-                )
-            })?;
-        }
-
-        Ok(removed_all)
+        backup_group.destroy()
     }
 
     /// Remove a backup directory including all content
@@ -462,30 +431,7 @@ impl DataStore {
     ) -> Result<(), Error> {
         let backup_dir = self.backup_dir(backup_dir.clone())?;
 
-        let full_path = backup_dir.full_path();
-
-        let (_guard, _manifest_guard);
-        if !force {
-            _guard = lock_dir_noblock(&full_path, "snapshot", "possibly running or in use")?;
-            _manifest_guard = backup_dir.lock_manifest()?;
-        }
-
-        if backup_dir.is_protected() {
-            bail!("cannot remove protected snapshot");
-        }
-
-        log::info!("removing backup snapshot {:?}", full_path);
-        std::fs::remove_dir_all(&full_path).map_err(|err| {
-            format_err!("removing backup snapshot {:?} failed - {}", full_path, err,)
-        })?;
-
-        // the manifest does not exists anymore, we do not need to keep the lock
-        if let Ok(path) = backup_dir.manifest_lock_path() {
-            // ignore errors
-            let _ = std::fs::remove_file(path);
-        }
-
-        Ok(())
+        backup_dir.destroy(force)
     }
 
     /// Returns the time of the last successful backup

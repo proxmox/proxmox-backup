@@ -5,6 +5,8 @@ use std::sync::Arc;
 
 use anyhow::{bail, format_err, Error};
 
+use proxmox_sys::fs::lock_dir_noblock;
+
 use pbs_api_types::{BackupType, GroupFilter, BACKUP_DATE_REGEX, BACKUP_FILE_REGEX};
 use pbs_config::{open_backup_lockfile, BackupLockGuard};
 
@@ -166,6 +168,34 @@ impl BackupGroup {
     pub fn iter_snapshots(&self) -> Result<crate::ListSnapshots, Error> {
         crate::ListSnapshots::new(self.clone())
     }
+
+    /// Destroy the group inclusive all its backup snapshots (BackupDir's)
+    ///
+    /// Returns true if all snapshots were removed, and false if some were protected
+    pub fn destroy(&self) -> Result<bool, Error> {
+        let path = self.full_group_path();
+        let _guard =
+            proxmox_sys::fs::lock_dir_noblock(&path, "backup group", "possible running backup")?;
+
+        log::info!("removing backup group {:?}", path);
+        let mut removed_all_snaps = true;
+        for snap in self.iter_snapshots()? {
+            let snap = snap?;
+            if snap.is_protected() {
+                removed_all_snaps = false;
+                continue;
+            }
+            snap.destroy(false)?;
+        }
+
+        if removed_all_snaps {
+            std::fs::remove_dir_all(&path).map_err(|err| {
+                format_err!("removing group directory {:?} failed - {}", path, err)
+            })?;
+        }
+
+        Ok(removed_all_snaps)
+    }
 }
 
 impl AsRef<pbs_api_types::BackupGroup> for BackupGroup {
@@ -319,7 +349,7 @@ impl BackupDir {
     ///
     /// Also creates the basedir. The lockfile is located in
     /// '/run/proxmox-backup/locks/{datastore}/{type}/{id}/{timestamp}.index.json.lck'
-    pub(crate) fn manifest_lock_path(&self) -> Result<String, Error> {
+    fn manifest_lock_path(&self) -> Result<String, Error> {
         let mut path = format!("/run/proxmox-backup/locks/{}/{self}", self.store.name());
         std::fs::create_dir_all(&path)?;
         use std::fmt::Write;
@@ -336,6 +366,35 @@ impl BackupDir {
         // actions locking the manifest should be relatively short, only wait a few seconds
         open_backup_lockfile(&path, Some(std::time::Duration::from_secs(5)), true)
             .map_err(|err| format_err!("unable to acquire manifest lock {:?} - {}", &path, err))
+    }
+
+    /// Destroy the whole snapshot, bails if it's protected
+    ///
+    /// Setting `force` to true skips locking and thus ignores if the backup is currently in use.
+    pub fn destroy(&self, force: bool) -> Result<(), Error> {
+        let full_path = self.full_path();
+
+        let (_guard, _manifest_guard);
+        if !force {
+            _guard = lock_dir_noblock(&full_path, "snapshot", "possibly running or in use")?;
+            _manifest_guard = self.lock_manifest()?;
+        }
+
+        if self.is_protected() {
+            bail!("cannot remove protected snapshot"); // use special error type?
+        }
+
+        log::info!("removing backup snapshot {:?}", full_path);
+        std::fs::remove_dir_all(&full_path).map_err(|err| {
+            format_err!("removing backup snapshot {:?} failed - {}", full_path, err,)
+        })?;
+
+        // the manifest doesn't exist anymore, no need to keep the lock (already done by guard?)
+        if let Ok(path) = self.manifest_lock_path() {
+            let _ = std::fs::remove_file(path); // ignore errors
+        }
+
+        Ok(())
     }
 }
 
