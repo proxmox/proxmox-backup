@@ -632,7 +632,7 @@ impl BackupNamespace {
         }
 
         if !crate::PROXMOX_SAFE_ID_REGEX.is_match(&subdir) {
-            bail!("not a valid namespace component");
+            bail!("not a valid namespace component: {subdir}");
         }
 
         if !self.inner.is_empty() {
