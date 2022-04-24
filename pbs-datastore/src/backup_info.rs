@@ -11,7 +11,7 @@ use pbs_api_types::{BackupType, GroupFilter, BACKUP_DATE_REGEX, BACKUP_FILE_REGE
 use pbs_config::{open_backup_lockfile, BackupLockGuard};
 
 use crate::manifest::{MANIFEST_BLOB_NAME, MANIFEST_LOCK_NAME};
-use crate::DataStore;
+use crate::{DataStore, DataBlob};
 
 /// BackupGroup is a directory containing a list of BackupDir
 #[derive(Clone)]
@@ -343,6 +343,18 @@ impl BackupDir {
     pub fn backup_time_to_string(backup_time: i64) -> Result<String, Error> {
         // fixme: can this fail? (avoid unwrap)
         proxmox_time::epoch_to_rfc3339_utc(backup_time)
+    }
+
+    /// load a `DataBlob` from this snapshot's backup dir.
+    pub fn load_blob(&self, filename: &str) -> Result<DataBlob, Error> {
+        let mut path = self.full_path();
+        path.push(filename);
+
+        proxmox_lang::try_block!({
+            let mut file = std::fs::File::open(&path)?;
+            DataBlob::load_from_reader(&mut file)
+        })
+        .map_err(|err| format_err!("unable to load blob '{:?}' - {}", path, err))
     }
 
     /// Returns the filename to lock a manifest

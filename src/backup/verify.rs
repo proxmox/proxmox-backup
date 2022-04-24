@@ -41,11 +41,10 @@ impl VerifyWorker {
 }
 
 fn verify_blob(
-    datastore: Arc<DataStore>,
     backup_dir: &BackupDir,
     info: &FileInfo,
 ) -> Result<(), Error> {
-    let blob = datastore.load_blob(backup_dir, &info.filename)?;
+    let blob = backup_dir.load_blob(&info.filename)?;
 
     let raw_size = blob.raw_size();
     if raw_size != info.size {
@@ -399,7 +398,7 @@ pub fn verify_backup_dir_with_lock(
             match archive_type(&info.filename)? {
                 ArchiveType::FixedIndex => verify_fixed_index(verify_worker, backup_dir, info),
                 ArchiveType::DynamicIndex => verify_dynamic_index(verify_worker, backup_dir, info),
-                ArchiveType::Blob => verify_blob(verify_worker.datastore.clone(), backup_dir, info),
+                ArchiveType::Blob => verify_blob(backup_dir, info),
             }
         });
 

@@ -913,17 +913,6 @@ impl DataStore {
         self.inner.chunk_store.insert_chunk(chunk, digest)
     }
 
-    pub fn load_blob(&self, backup_dir: &BackupDir, filename: &str) -> Result<DataBlob, Error> {
-        let mut path = backup_dir.full_path();
-        path.push(filename);
-
-        proxmox_lang::try_block!({
-            let mut file = std::fs::File::open(&path)?;
-            DataBlob::load_from_reader(&mut file)
-        })
-        .map_err(|err| format_err!("unable to load blob '{:?}' - {}", path, err))
-    }
-
     pub fn stat_chunk(&self, digest: &[u8; 32]) -> Result<std::fs::Metadata, Error> {
         let (chunk_path, _digest_str) = self.inner.chunk_store.chunk_path(digest);
         std::fs::metadata(chunk_path).map_err(Error::from)
@@ -948,7 +937,7 @@ impl DataStore {
 
     /// Load the manifest without a lock. Must not be written back.
     pub fn load_manifest(&self, backup_dir: &BackupDir) -> Result<(BackupManifest, u64), Error> {
-        let blob = self.load_blob(backup_dir, MANIFEST_BLOB_NAME)?;
+        let blob = backup_dir.load_blob(MANIFEST_BLOB_NAME)?;
         let raw_size = blob.raw_size();
         let manifest = BackupManifest::try_from(blob)?;
         Ok((manifest, raw_size))
