@@ -1219,26 +1219,25 @@ impl Iterator for ListSnapshots {
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            let item = self.fd.next()?;
-            match item {
+            let item = self.fd.next()?; // either get a entry to check or return None if exhausted
+            let entry = match item {
                 Ok(ref entry) => {
-                    if let Ok(name) = entry.file_name().to_str() {
-                        match entry.file_type() {
-                            Some(nix::dir::Type::Directory) => {} // OK
-                            _ => continue,
-                        }
-                        if BACKUP_DATE_REGEX.is_match(name) {
-                            let backup_time = match proxmox_time::parse_rfc3339(&name) {
-                                Ok(time) => time,
-                                Err(err) => return Some(Err(err)),
-                            };
-
-                            return Some(BackupDir::with_group(self.group.clone(), backup_time));
-                        }
+                    match entry.file_type() {
+                        Some(nix::dir::Type::Directory) => entry, // OK
+                        _ => continue,
                     }
-                    continue; // file did not match regex or isn't valid utf-8
                 }
                 Err(err) => return Some(Err(err)),
+            };
+            if let Ok(name) = entry.file_name().to_str() {
+                if BACKUP_DATE_REGEX.is_match(name) {
+                    let backup_time = match proxmox_time::parse_rfc3339(&name) {
+                        Ok(time) => time,
+                        Err(err) => return Some(Err(err)),
+                    };
+
+                    return Some(BackupDir::with_group(self.group.clone(), backup_time));
+                }
             }
         }
     }
@@ -1274,47 +1273,46 @@ impl Iterator for ListGroups {
                         continue; // exhausted all IDs for the current group type, try others
                     }
                 };
-                match item {
+                let entry = match item {
                     Ok(ref entry) => {
-                        if let Ok(name) = entry.file_name().to_str() {
-                            match entry.file_type() {
-                                Some(nix::dir::Type::Directory) => {} // OK
-                                _ => continue,
-                            }
-                            if BACKUP_ID_REGEX.is_match(name) {
-                                return Some(Ok(BackupGroup::new(
-                                    Arc::clone(&self.store),
-                                    (group_type, name.to_owned()).into(),
-                                )));
-                            }
+                        match entry.file_type() {
+                            Some(nix::dir::Type::Directory) => entry, // OK
+                            _ => continue,
                         }
-                        continue; // file did not match regex or isn't valid utf-8
                     }
                     Err(err) => return Some(Err(err)),
+                };
+                if let Ok(name) = entry.file_name().to_str() {
+                    if BACKUP_ID_REGEX.is_match(name) {
+                        return Some(Ok(BackupGroup::new(
+                            Arc::clone(&self.store),
+                            (group_type, name.to_owned()).into(),
+                        )));
+                    }
                 }
             } else {
                 let item = self.type_fd.next()?;
-                match item {
+                let entry = match item {
+                    // filter directories
                     Ok(ref entry) => {
-                        if let Ok(name) = entry.file_name().to_str() {
-                            match entry.file_type() {
-                                Some(nix::dir::Type::Directory) => {} // OK
-                                _ => continue,
-                            }
-                            if let Ok(group_type) = BackupType::from_str(name) {
-                                // found a backup group type, descend into it to scan all IDs in it
-                                // by switching to the id-state branch
-                                let base_fd = entry.parent_fd();
-                                let id_dirfd = match proxmox_sys::fs::read_subdir(base_fd, name) {
-                                    Ok(dirfd) => dirfd,
-                                    Err(err) => return Some(Err(err.into())),
-                                };
-                                self.id_state = Some((group_type, id_dirfd));
-                            }
+                        match entry.file_type() {
+                            Some(nix::dir::Type::Directory) => entry, // OK
+                            _ => continue,
                         }
-                        continue; // file did not match regex or isn't valid utf-8
                     }
                     Err(err) => return Some(Err(err)),
+                };
+                if let Ok(name) = entry.file_name().to_str() {
+                    if let Ok(group_type) = BackupType::from_str(name) {
+                        // found a backup group type, descend into it to scan all IDs in it
+                        // by switching to the id-state branch
+                        let base_fd = entry.parent_fd();
+                        let id_dirfd = match proxmox_sys::fs::read_subdir(base_fd, name) {
+                            Ok(dirfd) => dirfd,
+                            Err(err) => return Some(Err(err.into())),
+                        };
+                        self.id_state = Some((group_type, id_dirfd));
+                    }
                 }
             }
         }
