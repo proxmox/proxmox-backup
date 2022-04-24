@@ -4,7 +4,6 @@ use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
 
 use anyhow::{bail, format_err, Error};
 use lazy_static::lazy_static;
@@ -21,7 +20,7 @@ use pbs_api_types::{
     Authid, BackupType, ChunkOrder, DataStoreConfig, DatastoreTuning, GarbageCollectionStatus,
     HumanByte, Operation, BACKUP_DATE_REGEX, BACKUP_ID_REGEX, UPID,
 };
-use pbs_config::{open_backup_lockfile, BackupLockGuard, ConfigVersionCache};
+use pbs_config::ConfigVersionCache;
 
 use crate::backup_info::{BackupDir, BackupGroup};
 use crate::chunk_store::ChunkStore;
@@ -30,7 +29,6 @@ use crate::fixed_index::{FixedIndexReader, FixedIndexWriter};
 use crate::index::IndexFile;
 use crate::manifest::{
     archive_type, ArchiveType, BackupManifest, CLIENT_LOG_BLOB_NAME, MANIFEST_BLOB_NAME,
-    MANIFEST_LOCK_NAME,
 };
 use crate::task_tracking::update_active_operations;
 use crate::DataBlob;
@@ -469,7 +467,7 @@ impl DataStore {
         let (_guard, _manifest_guard);
         if !force {
             _guard = lock_dir_noblock(&full_path, "snapshot", "possibly running or in use")?;
-            _manifest_guard = self.lock_manifest(&backup_dir)?;
+            _manifest_guard = backup_dir.lock_manifest()?;
         }
 
         if backup_dir.is_protected() {
@@ -482,7 +480,7 @@ impl DataStore {
         })?;
 
         // the manifest does not exists anymore, we do not need to keep the lock
-        if let Ok(path) = self.manifest_lock_path(&backup_dir) {
+        if let Ok(path) = backup_dir.manifest_lock_path() {
             // ignore errors
             let _ = std::fs::remove_file(path);
         }
@@ -1002,38 +1000,6 @@ impl DataStore {
         })
     }
 
-    /// Returns the filename to lock a manifest
-    ///
-    /// Also creates the basedir. The lockfile is located in
-    /// '/run/proxmox-backup/locks/{datastore}/{type}/{id}/{timestamp}.index.json.lck'
-    fn manifest_lock_path(&self, backup_dir: &BackupDir) -> Result<String, Error> {
-        let mut path = format!(
-            "/run/proxmox-backup/locks/{}/{}/{}",
-            self.name(),
-            backup_dir.backup_type(),
-            backup_dir.backup_id(),
-        );
-        std::fs::create_dir_all(&path)?;
-        use std::fmt::Write;
-        write!(
-            path,
-            "/{}{}",
-            backup_dir.backup_time_string(),
-            &MANIFEST_LOCK_NAME
-        )?;
-
-        Ok(path)
-    }
-
-    fn lock_manifest(&self, backup_dir: &BackupDir) -> Result<BackupLockGuard, Error> {
-        let path = self.manifest_lock_path(backup_dir)?;
-
-        // update_manifest should never take a long time, so if someone else has
-        // the lock we can simply block a bit and should get it soon
-        open_backup_lockfile(&path, Some(Duration::from_secs(5)), true)
-            .map_err(|err| format_err!("unable to acquire manifest lock {:?} - {}", &path, err))
-    }
-
     /// Load the manifest without a lock. Must not be written back.
     pub fn load_manifest(&self, backup_dir: &BackupDir) -> Result<(BackupManifest, u64), Error> {
         let blob = self.load_blob(backup_dir, MANIFEST_BLOB_NAME)?;
@@ -1049,7 +1015,7 @@ impl DataStore {
         backup_dir: &BackupDir,
         update_fn: impl FnOnce(&mut BackupManifest),
     ) -> Result<(), Error> {
-        let _guard = self.lock_manifest(backup_dir)?;
+        let _guard = backup_dir.lock_manifest()?;
         let (mut manifest, _) = self.load_manifest(backup_dir)?;
 
         update_fn(&mut manifest);

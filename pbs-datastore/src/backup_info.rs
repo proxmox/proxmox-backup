@@ -3,11 +3,12 @@ use std::os::unix::io::RawFd;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use anyhow::{bail, Error};
+use anyhow::{bail, format_err, Error};
 
 use pbs_api_types::{BackupType, GroupFilter, BACKUP_DATE_REGEX, BACKUP_FILE_REGEX};
+use pbs_config::{open_backup_lockfile, BackupLockGuard};
 
-use crate::manifest::MANIFEST_BLOB_NAME;
+use crate::manifest::{MANIFEST_BLOB_NAME, MANIFEST_LOCK_NAME};
 use crate::DataStore;
 
 /// BackupGroup is a directory containing a list of BackupDir
@@ -312,6 +313,29 @@ impl BackupDir {
     pub fn backup_time_to_string(backup_time: i64) -> Result<String, Error> {
         // fixme: can this fail? (avoid unwrap)
         proxmox_time::epoch_to_rfc3339_utc(backup_time)
+    }
+
+    /// Returns the filename to lock a manifest
+    ///
+    /// Also creates the basedir. The lockfile is located in
+    /// '/run/proxmox-backup/locks/{datastore}/{type}/{id}/{timestamp}.index.json.lck'
+    pub(crate) fn manifest_lock_path(&self) -> Result<String, Error> {
+        let mut path = format!("/run/proxmox-backup/locks/{}/{self}", self.store.name());
+        std::fs::create_dir_all(&path)?;
+        use std::fmt::Write;
+        let ts = self.backup_time_string();
+        write!(path, "/{ts}{}", &MANIFEST_LOCK_NAME)?;
+
+        Ok(path)
+    }
+
+    /// Locks the manifest of a snapshot, for example, to update or delete it.
+    pub(crate) fn lock_manifest(&self) -> Result<BackupLockGuard, Error> {
+        let path = self.manifest_lock_path()?;
+
+        // actions locking the manifest should be relatively short, only wait a few seconds
+        open_backup_lockfile(&path, Some(std::time::Duration::from_secs(5)), true)
+            .map_err(|err| format_err!("unable to acquire manifest lock {:?} - {}", &path, err))
     }
 }
 
