@@ -1209,8 +1209,10 @@ pub struct ListSnapshots {
 
 impl ListSnapshots {
     pub fn new(group: BackupGroup) -> Result<Self, Error> {
+        let group_path = group.full_group_path();
         Ok(ListSnapshots {
-            fd: proxmox_sys::fs::read_subdir(libc::AT_FDCWD, &group.full_group_path())?,
+            fd: proxmox_sys::fs::read_subdir(libc::AT_FDCWD, &group_path)
+                .map_err(|err| format_err!("read dir {group_path:?} - {err}"))?,
             group,
         })
     }
