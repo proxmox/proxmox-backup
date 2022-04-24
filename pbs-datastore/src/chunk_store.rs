@@ -204,19 +204,15 @@ impl ChunkStore {
         Ok(())
     }
 
-    pub fn cond_touch_chunk(
-        &self,
-        digest: &[u8; 32],
-        fail_if_not_exist: bool,
-    ) -> Result<bool, Error> {
+    pub fn cond_touch_chunk(&self, digest: &[u8; 32], assert_exists: bool) -> Result<bool, Error> {
         // unwrap: only `None` in unit tests
         assert!(self.locker.is_some());
 
         let (chunk_path, _digest_str) = self.chunk_path(digest);
-        self.cond_touch_path(&chunk_path, fail_if_not_exist)
+        self.cond_touch_path(&chunk_path, assert_exists)
     }
 
-    pub fn cond_touch_path(&self, path: &Path, fail_if_not_exist: bool) -> Result<bool, Error> {
+    pub fn cond_touch_path(&self, path: &Path, assert_exists: bool) -> Result<bool, Error> {
         // unwrap: only `None` in unit tests
         assert!(self.locker.is_some());
 
@@ -242,7 +238,7 @@ impl ChunkStore {
         })?;
 
         if let Err(err) = res {
-            if !fail_if_not_exist && err.as_errno() == Some(nix::errno::Errno::ENOENT) {
+            if !assert_exists && err.as_errno() == Some(nix::errno::Errno::ENOENT) {
                 return Ok(false);
             }
 
