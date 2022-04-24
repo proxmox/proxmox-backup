@@ -553,6 +553,16 @@ impl BackupNamespace {
         Ok(this)
     }
 
+    /// Create a new Namespace attached to parent
+    ///
+    /// `name` must be a single level namespace ID, that is, no '/' is allowed.
+    /// This rule also avoids confusion about the name being a NS or NS-path
+    pub fn from_parent_ns(parent: &Self, name: String) -> Result<Self, Error> {
+        let mut child = parent.to_owned();
+        child.push(name)?;
+        Ok(child)
+    }
+
     /// Create a new namespace directly from a vec.
     ///
     /// # Safety
