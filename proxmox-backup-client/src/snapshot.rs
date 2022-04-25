@@ -122,14 +122,7 @@ async fn list_snapshot_files(param: Value) -> Result<Value, Error> {
     let path = format!("api2/json/admin/datastore/{}/files", repo.store());
 
     let mut result = client
-        .get(
-            &path,
-            Some(json!({
-                "backup-type": snapshot.group.ty,
-                "backup-id": snapshot.group.id,
-                "backup-time": snapshot.time,
-            })),
-        )
+        .get(&path, Some(serde_json::to_value(snapshot)?))
         .await?;
 
     record_repository(&repo);
@@ -171,14 +164,7 @@ async fn forget_snapshots(param: Value) -> Result<Value, Error> {
     let path = format!("api2/json/admin/datastore/{}/snapshots", repo.store());
 
     let result = client
-        .delete(
-            &path,
-            Some(json!({
-                "backup-type": snapshot.group.ty,
-                "backup-id": snapshot.group.id,
-                "backup-time": snapshot.time,
-            })),
-        )
+        .delete(&path, Some(serde_json::to_value(snapshot)?))
         .await?;
 
     record_repository(&repo);
@@ -290,11 +276,7 @@ async fn show_notes(param: Value) -> Result<Value, Error> {
 
     let path = format!("api2/json/admin/datastore/{}/notes", repo.store());
 
-    let args = json!({
-        "backup-type": snapshot.group.ty,
-        "backup-id": snapshot.group.id,
-        "backup-time": snapshot.time,
-    });
+    let args = serde_json::to_value(snapshot)?;
 
     let output_format = get_output_format(&param);
 
@@ -347,12 +329,8 @@ async fn update_notes(param: Value) -> Result<Value, Error> {
 
     let path = format!("api2/json/admin/datastore/{}/notes", repo.store());
 
-    let args = json!({
-        "backup-type": snapshot.group.ty,
-        "backup-id": snapshot.group.id,
-        "backup-time": snapshot.time,
-        "notes": notes,
-    });
+    let mut args = serde_json::to_value(snapshot)?;
+    args["notes"] = Value::from(notes);
 
     client.put(&path, Some(args)).await?;
 
@@ -387,11 +365,7 @@ async fn show_protection(param: Value) -> Result<(), Error> {
 
     let path = format!("api2/json/admin/datastore/{}/protected", repo.store());
 
-    let args = json!({
-        "backup-type": snapshot.group.ty,
-        "backup-id": snapshot.group.id,
-        "backup-time": snapshot.time,
-    });
+    let args = serde_json::to_value(snapshot)?;
 
     let output_format = get_output_format(&param);
 
@@ -443,12 +417,8 @@ async fn update_protection(protected: bool, param: Value) -> Result<(), Error> {
 
     let path = format!("api2/json/admin/datastore/{}/protected", repo.store());
 
-    let args = json!({
-        "backup-type": snapshot.group.ty,
-        "backup-id": snapshot.group.id,
-        "backup-time": snapshot.time,
-        "protected": protected,
-    });
+    let mut args = serde_json::to_value(snapshot)?;
+    args["protected"] = Value::from(protected);
 
     client.put(&path, Some(args)).await?;
 

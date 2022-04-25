@@ -147,6 +147,10 @@ fn get_all_snapshot_files(
             store: {
                 schema: DATASTORE_SCHEMA,
             },
+            "backup-ns": {
+                type: BackupNamespace,
+                optional: true,
+            },
         },
     },
     returns: pbs_api_types::ADMIN_DATASTORE_LIST_GROUPS_RETURN_TYPE,
@@ -160,6 +164,7 @@ fn get_all_snapshot_files(
 /// List backup groups.
 pub fn list_groups(
     store: String,
+    backup_ns: Option<BackupNamespace>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<GroupListItem>, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
@@ -170,7 +175,7 @@ pub fn list_groups(
     let list_all = (user_privs & PRIV_DATASTORE_AUDIT) != 0;
 
     datastore
-        .iter_backup_groups(Default::default())? // FIXME: Namespaces and recursion parameters!
+        .iter_backup_groups(backup_ns.unwrap_or_default())? // FIXME: Namespaces and recursion parameters!
         .try_fold(Vec::new(), |mut group_info, group| {
             let group = group?;
             let owner = match datastore.get_owner(group.as_ref()) {

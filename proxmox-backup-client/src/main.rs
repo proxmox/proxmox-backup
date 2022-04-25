@@ -134,11 +134,10 @@ async fn api_datastore_list_snapshots(
 ) -> Result<Value, Error> {
     let path = format!("api2/json/admin/datastore/{}/snapshots", store);
 
-    let mut args = json!({});
-    if let Some(group) = group {
-        args["backup-type"] = group.ty.to_string().into();
-        args["backup-id"] = group.id.into();
-    }
+    let args = match group {
+        Some(group) => serde_json::to_value(group)?,
+        None => json!({}),
+    };
 
     let mut result = client.get(&path, Some(args)).await?;
 
@@ -243,6 +242,10 @@ async fn backup_image<P: AsRef<Path>>(
                 schema: REPO_URL_SCHEMA,
                 optional: true,
             },
+            "ns": {
+                type: BackupNamespace,
+                optional: true,
+            },
             "output-format": {
                 schema: OUTPUT_FORMAT,
                 optional: true,
@@ -260,7 +263,13 @@ async fn list_backup_groups(param: Value) -> Result<Value, Error> {
 
     let path = format!("api2/json/admin/datastore/{}/groups", repo.store());
 
-    let mut result = client.get(&path, None).await?;
+    let backup_ns: BackupNamespace = match &param["ns"] {
+        Value::String(s) => s.parse()?,
+        _ => BackupNamespace::root(),
+    };
+    let mut result = client
+        .get(&path, Some(json!({ "backup-ns": backup_ns })))
+        .await?;
 
     record_repository(&repo);
 
@@ -309,6 +318,13 @@ async fn list_backup_groups(param: Value) -> Result<Value, Error> {
     Ok(Value::Null)
 }
 
+fn merge_group_into(to: &mut serde_json::Map<String, Value>, group: BackupGroup) {
+    match serde_json::to_value(group).unwrap() {
+        Value::Object(group) => to.extend(group),
+        _ => unreachable!(),
+    }
+}
+
 #[api(
    input: {
         properties: {
@@ -336,8 +352,7 @@ async fn change_backup_owner(group: String, mut param: Value) -> Result<(), Erro
 
     let group: BackupGroup = group.parse()?;
 
-    param["backup-type"] = group.ty.to_string().into();
-    param["backup-id"] = group.id.into();
+    merge_group_into(param.as_object_mut().unwrap(), group);
 
     let path = format!("api2/json/admin/datastore/{}/change-owner", repo.store());
     client.post(&path, Some(param)).await?;
@@ -1419,8 +1434,7 @@ async fn prune(
     if let Some(dry_run) = dry_run {
         api_param["dry-run"] = dry_run.into();
     }
-    api_param["backup-type"] = group.ty.to_string().into();
-    api_param["backup-id"] = group.id.into();
+    merge_group_into(api_param.as_object_mut().unwrap(), group);
 
     let mut result = client.post(&path, Some(api_param)).await?;
 
