@@ -25,7 +25,7 @@ const_regex! {
     pub BACKUP_DATE_REGEX = concat!(r"^", BACKUP_TIME_RE!() ,r"$");
 
     pub GROUP_PATH_REGEX = concat!(
-        r"^(", BACKUP_NS_PATH_RE!(), r")?",
+        r"^(", BACKUP_NS_PATH_RE!(), r"/)?",
         r"(", BACKUP_TYPE_RE!(), ")/",
         r"(", BACKUP_ID_RE!(), r")$",
     );

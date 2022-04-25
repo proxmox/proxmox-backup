@@ -47,16 +47,20 @@ macro_rules! BACKUP_NS_PATH_RE {
 macro_rules! SNAPSHOT_PATH_REGEX_STR {
     () => (
         concat!(
-            r"(", BACKUP_NS_PATH_RE!(), ")?",
+            r"(?:(", BACKUP_NS_PATH_RE!(), ")/)?",
             r"(", BACKUP_TYPE_RE!(), ")/(", BACKUP_ID_RE!(), ")/(", BACKUP_TIME_RE!(), r")",
         )
     );
 }
 
+#[rustfmt::skip]
 #[macro_export]
 macro_rules! GROUP_OR_SNAPSHOT_PATH_REGEX_STR {
     () => {
-        concat!(SNAPSHOT_PATH_REGEX_STR!(), "?")
+        concat!(
+            r"(?:(", BACKUP_NS_PATH_RE!(), ")/)?",
+            r"(", BACKUP_TYPE_RE!(), ")/(", BACKUP_ID_RE!(), ")(?:/(", BACKUP_TIME_RE!(), r"))?",
+        )
     };
 }
 
