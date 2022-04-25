@@ -959,10 +959,9 @@ pub struct DataStoreStatusListItem {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub history_delta: Option<u64>,
     /// Estimation of the UNIX epoch when the storage will be full.
-    /// This is calculated via a simple Linear Regression (Least
-    /// Squares) of RRD data of the last Month. Missing if there are
-    /// not enough data points yet. If the estimate lies in the past,
-    /// the usage is decreasing or not changing.
+    /// It's calculated via a simple Linear Regression (Least Squares) over the RRD data of the
+    /// last Month. Missing if not enough data points are available yet. An estimate in the past
+    /// means that usage is declining or not changing.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub estimated_full_date: Option<i64>,
     /// An error description, for example, when the datastore could not be looked up
