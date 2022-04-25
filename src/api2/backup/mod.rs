@@ -18,8 +18,8 @@ use proxmox_sys::sortable;
 
 use pbs_api_types::{
     Authid, BackupType, Operation, SnapshotVerifyState, VerifyState, BACKUP_ARCHIVE_NAME_SCHEMA,
-    BACKUP_ID_SCHEMA, BACKUP_TIME_SCHEMA, BACKUP_TYPE_SCHEMA, CHUNK_DIGEST_SCHEMA,
-    DATASTORE_SCHEMA, PRIV_DATASTORE_BACKUP,
+    BACKUP_ID_SCHEMA, BACKUP_NAMESPACE_SCHEMA, BACKUP_TIME_SCHEMA, BACKUP_TYPE_SCHEMA,
+    CHUNK_DIGEST_SCHEMA, DATASTORE_SCHEMA, PRIV_DATASTORE_BACKUP,
 };
 use pbs_config::CachedUserInfo;
 use pbs_datastore::index::IndexFile;
@@ -44,6 +44,7 @@ pub const API_METHOD_UPGRADE_BACKUP: ApiMethod = ApiMethod::new(
         concat!("Upgraded to backup protocol ('", PROXMOX_BACKUP_PROTOCOL_ID_V1!(), "')."),
         &sorted!([
             ("store", false, &DATASTORE_SCHEMA),
+            ("backup-ns", true, &BACKUP_NAMESPACE_SCHEMA),
             ("backup-type", false, &BACKUP_TYPE_SCHEMA),
             ("backup-id", false, &BACKUP_ID_SCHEMA),
             ("backup-time", false, &BACKUP_TIME_SCHEMA),

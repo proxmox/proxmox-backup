@@ -35,8 +35,8 @@ use pbs_api_types::{
     Authid, BackupContent, BackupNamespace, BackupType, Counts, CryptMode, DataStoreListItem,
     DataStoreStatus, GarbageCollectionStatus, GroupListItem, Operation, PruneOptions, RRDMode,
     RRDTimeFrame, SnapshotListItem, SnapshotVerifyState, BACKUP_ARCHIVE_NAME_SCHEMA,
-    BACKUP_ID_SCHEMA, BACKUP_TIME_SCHEMA, BACKUP_TYPE_SCHEMA, DATASTORE_SCHEMA,
-    IGNORE_VERIFIED_BACKUPS_SCHEMA, PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP,
+    BACKUP_ID_SCHEMA, BACKUP_NAMESPACE_SCHEMA, BACKUP_TIME_SCHEMA, BACKUP_TYPE_SCHEMA,
+    DATASTORE_SCHEMA, IGNORE_VERIFIED_BACKUPS_SCHEMA, PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP,
     PRIV_DATASTORE_MODIFY, PRIV_DATASTORE_PRUNE, PRIV_DATASTORE_READ, PRIV_DATASTORE_VERIFY,
     UPID_SCHEMA, VERIFICATION_OUTDATED_AFTER_SCHEMA,
 };
@@ -835,13 +835,18 @@ pub fn prune(
         for (info, mark) in prune_info {
             let keep = keep_all || mark.keep();
 
-            prune_result.push(json!({
+            let mut result = json!({
                 "backup-type": info.backup_dir.backup_type(),
                 "backup-id": info.backup_dir.backup_id(),
                 "backup-time": info.backup_dir.backup_time(),
                 "keep": keep,
                 "protected": mark.protected(),
-            }));
+            });
+            let ns = info.backup_dir.backup_ns();
+            if !ns.is_root() {
+                result["backup-ns"] = serde_json::to_value(ns)?;
+            }
+            prune_result.push(result);
         }
         return Ok(json!(prune_result));
     }
@@ -876,13 +881,17 @@ pub fn prune(
 
         task_log!(worker, "{}", msg);
 
-        prune_result.push(json!({
+        let mut result = json!({
             "backup-type": group.ty,
             "backup-id": group.id,
             "backup-time": backup_time,
             "keep": keep,
             "protected": mark.protected(),
-        }));
+        });
+        if !group.ns.is_root() {
+            result["backup-ns"] = serde_json::to_value(&group.ns)?;
+        }
+        prune_result.push(result);
 
         if !(dry_run || keep) {
             if let Err(err) = datastore.remove_backup_dir(info.backup_dir.as_ref(), false) {
@@ -1075,6 +1084,7 @@ pub const API_METHOD_DOWNLOAD_FILE: ApiMethod = ApiMethod::new(
         "Download single raw file from backup snapshot.",
         &sorted!([
             ("store", false, &DATASTORE_SCHEMA),
+            ("backup-ns", true, &BACKUP_NAMESPACE_SCHEMA),
             ("backup-type", false, &BACKUP_TYPE_SCHEMA),
             ("backup-id", false, &BACKUP_ID_SCHEMA),
             ("backup-time", false, &BACKUP_TIME_SCHEMA),
@@ -1154,6 +1164,7 @@ pub const API_METHOD_DOWNLOAD_FILE_DECODED: ApiMethod = ApiMethod::new(
         "Download single decoded file from backup snapshot. Only works if it's not encrypted.",
         &sorted!([
             ("store", false, &DATASTORE_SCHEMA),
+            ("backup-ns", true, &BACKUP_NAMESPACE_SCHEMA),
             ("backup-type", false, &BACKUP_TYPE_SCHEMA),
             ("backup-id", false, &BACKUP_ID_SCHEMA),
             ("backup-time", false, &BACKUP_TIME_SCHEMA),
@@ -1283,6 +1294,7 @@ pub const API_METHOD_UPLOAD_BACKUP_LOG: ApiMethod = ApiMethod::new(
         "Upload the client backup log file into a backup snapshot ('client.log.blob').",
         &sorted!([
             ("store", false, &DATASTORE_SCHEMA),
+            ("backup-ns", true, &BACKUP_NAMESPACE_SCHEMA),
             ("backup-type", false, &BACKUP_TYPE_SCHEMA),
             ("backup-id", false, &BACKUP_ID_SCHEMA),
             ("backup-time", false, &BACKUP_TIME_SCHEMA),
@@ -1420,6 +1432,7 @@ pub const API_METHOD_PXAR_FILE_DOWNLOAD: ApiMethod = ApiMethod::new(
         "Download single file from pxar file of a backup snapshot. Only works if it's not encrypted.",
         &sorted!([
             ("store", false, &DATASTORE_SCHEMA),
+            ("backup-ns", true, &BACKUP_NAMESPACE_SCHEMA),
             ("backup-type", false, &BACKUP_TYPE_SCHEMA),
             ("backup-id", false,  &BACKUP_ID_SCHEMA),
             ("backup-time", false, &BACKUP_TIME_SCHEMA),
