@@ -30,7 +30,7 @@ macro_rules! BACKUP_TIME_RE { () => (r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]
 #[macro_export]
 macro_rules! BACKUP_NS_RE {
     () => (
-        concat!(r"(:?", PROXMOX_SAFE_ID_REGEX_STR!(), r"/){0,7}", PROXMOX_SAFE_ID_REGEX_STR!())
+        concat!(r"(?:", PROXMOX_SAFE_ID_REGEX_STR!(), r"/){0,7}", PROXMOX_SAFE_ID_REGEX_STR!())
     );
 }
 
@@ -38,7 +38,7 @@ macro_rules! BACKUP_NS_RE {
 #[macro_export]
 macro_rules! BACKUP_NS_PATH_RE {
     () => (
-        concat!(r"(:?ns/", PROXMOX_SAFE_ID_REGEX_STR!(), r"/){0,7}ns/", PROXMOX_SAFE_ID_REGEX_STR!())
+        concat!(r"(?:ns/", PROXMOX_SAFE_ID_REGEX_STR!(), r"/){0,7}ns/", PROXMOX_SAFE_ID_REGEX_STR!())
     );
 }
 
