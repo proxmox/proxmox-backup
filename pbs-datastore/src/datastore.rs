@@ -1,12 +1,14 @@
 use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
 use std::io::{self, Write};
+use std::os::unix::io::AsRawFd;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
 use anyhow::{bail, format_err, Error};
 use lazy_static::lazy_static;
+use nix::unistd::{unlinkat, UnlinkatFlags};
 
 use proxmox_schema::ApiType;
 
@@ -426,6 +428,84 @@ impl DataStore {
         let mut full_path = self.base_path();
         full_path.push(backup_dir.to_string());
         full_path
+    }
+
+    /// Remove all backup groups of a single namespace level but not the namespace itself.
+    ///
+    /// Does *not* descends into child-namespaces and doesn't remoes the namespace itself either.
+    ///
+    /// Returns true if all the groups were removed, and false if some were protected.
+    pub fn remove_namespace_groups(self: &Arc<Self>, ns: &BackupNamespace) -> Result<bool, Error> {
+        // FIXME: locking? The single groups/snapshots are already protected, so may not be
+        // necesarry (depends on what we all allow to do with namespaces)
+        log::info!("removing all groups in namespace {}:/{ns}", self.name());
+
+        let mut removed_all_groups = true;
+
+        for group in self.iter_backup_groups(ns.to_owned())? {
+            let removed_group = group?.destroy()?;
+            removed_all_groups = removed_all_groups && removed_group;
+        }
+
+        let base_file = std::fs::File::open(self.base_path())?;
+        let base_fd = base_file.as_raw_fd();
+        for ty in BackupType::iter() {
+            let mut ty_dir = ns.path();
+            ty_dir.push(ty.to_string());
+            // best effort only, but we probably should log the error
+            if let Err(err) = unlinkat(Some(base_fd), &ty_dir, UnlinkatFlags::RemoveDir) {
+                if err.as_errno() != Some(nix::errno::Errno::ENOENT) {
+                    log::error!("failed to remove backup type {ty} in {ns} - {err}");
+                }
+            }
+        }
+
+        Ok(removed_all_groups)
+    }
+
+    /// Remove a complete backup namespace including all it's, and child namespaces', groups.
+    ///
+    /// Returns true if all groups were removed, and false if some were protected
+    pub fn remove_namespace_recursive(
+        self: &Arc<Self>,
+        ns: &BackupNamespace,
+    ) -> Result<bool, Error> {
+        // FIXME: locking? The single groups/snapshots are already protected, so may not be
+        // necesarry (depends on what we all allow to do with namespaces)
+        log::info!("removing whole namespace recursively {}:/{ns}", self.name());
+
+        let mut removed_all_groups = true;
+        for ns in self.recursive_iter_backup_ns(ns.to_owned())? {
+            let removed_ns_groups = self.remove_namespace_groups(&ns?)?;
+
+            removed_all_groups = removed_all_groups && removed_ns_groups;
+        }
+
+        // now try to delete the actual namespaces, bottom up so that we can use safe rmdir that
+        // will choke if a new backup/group appeared in the meantime (but not on an new empty NS)
+        let mut children = self
+            .recursive_iter_backup_ns(ns.to_owned())?
+            .collect::<Result<Vec<BackupNamespace>, Error>>()?;
+
+        children.sort_by(|a, b| b.depth().cmp(&a.depth()));
+
+        let base_file = std::fs::File::open(self.base_path())?;
+        let base_fd = base_file.as_raw_fd();
+
+        for ns in children.iter() {
+            let mut ns_dir = ns.path();
+            ns_dir.push("ns");
+            let _ = unlinkat(Some(base_fd), &ns_dir, UnlinkatFlags::RemoveDir);
+
+            if !ns.is_root() {
+                match unlinkat(Some(base_fd), &ns.path(), UnlinkatFlags::RemoveDir) {
+                    Ok(()) => log::info!("removed namespace {ns}"),
+                    Err(err) => log::error!("failed to remove namespace {ns} - {err}"),
+                }
+            }
+        }
+
+        Ok(removed_all_groups)
     }
 
     /// Remove a complete backup group including all snapshots.
