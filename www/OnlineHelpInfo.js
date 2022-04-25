@@ -111,6 +111,14 @@ const proxmoxOnlineHelpInfo = {
     "link": "/docs/managing-remotes.html#syncjobs",
     "title": "Sync Jobs"
   },
+  "markdown-primer": {
+    "link": "/docs/markdown-primer.html#markdown-primer",
+    "title": "Markdown Primer"
+  },
+  "markdown-basics": {
+    "link": "/docs/markdown-primer.html#markdown-basics",
+    "title": "Markdown Basics"
+  },
   "sysadmin-network-configuration": {
     "link": "/docs/network-management.html#sysadmin-network-configuration",
     "title": "Network Management"
