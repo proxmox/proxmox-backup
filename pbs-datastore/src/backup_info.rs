@@ -7,7 +7,9 @@ use anyhow::{bail, format_err, Error};
 
 use proxmox_sys::fs::lock_dir_noblock;
 
-use pbs_api_types::{BackupType, GroupFilter, BACKUP_DATE_REGEX, BACKUP_FILE_REGEX};
+use pbs_api_types::{
+    BackupNamespace, BackupType, GroupFilter, BACKUP_DATE_REGEX, BACKUP_FILE_REGEX,
+};
 use pbs_config::{open_backup_lockfile, BackupLockGuard};
 
 use crate::manifest::{MANIFEST_BLOB_NAME, MANIFEST_LOCK_NAME};
@@ -41,10 +43,17 @@ impl BackupGroup {
         &self.group
     }
 
+    #[inline]
+    pub fn backup_ns(&self) -> &BackupNamespace {
+        &self.group.ns
+    }
+
+    #[inline]
     pub fn backup_type(&self) -> BackupType {
         self.group.ty
     }
 
+    #[inline]
     pub fn backup_id(&self) -> &str {
         &self.group.id
     }
@@ -293,6 +302,11 @@ impl BackupDir {
             dir: (group.group, backup_time).into(),
             backup_time_string,
         })
+    }
+
+    #[inline]
+    pub fn backup_ns(&self) -> &BackupNamespace {
+        &self.dir.group.ns
     }
 
     #[inline]
