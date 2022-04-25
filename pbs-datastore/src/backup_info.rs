@@ -335,6 +335,10 @@ impl BackupDir {
     /// Returns the absolute path for backup_dir, using the cached formatted time string.
     pub fn full_path(&self) -> PathBuf {
         let mut base_path = self.store.base_path();
+        for ns in self.dir.group.ns.components() {
+            base_path.push("ns");
+            base_path.push(ns);
+        }
         base_path.push(self.dir.group.ty.as_str());
         base_path.push(&self.dir.group.id);
         base_path.push(&self.backup_time_string);
