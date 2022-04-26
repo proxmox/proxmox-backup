@@ -269,6 +269,26 @@ span.snapshot-comment-column {
     content: "\f0ad";
 }
 
+/* the small icons TODO move to proxmox-widget-toolkit */
+.pmx-tree-icon-custom:after {
+    position: relative;
+    left: -4px;
+    top: 2px;
+    font-size: 0.8em;
+    text-shadow: -1px 0px 2px #fff;
+    content: "\ ";
+}
+
+/* datastore maintenance */
+.pmx-tree-icon-custom.maintenance:after {
+    content: "\f0ad";
+    color: #000;
+}
+
+.pmx-tree-icon-custom.maintenance:before {
+    color: #888;
+}
+
 /*' PBS specific icons */
 
 .pbs-icon-tape {

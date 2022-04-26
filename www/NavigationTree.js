@@ -1,6 +1,6 @@
 Ext.define('pbs-datastore-list', {
     extend: 'Ext.data.Model',
-    fields: ['name', 'comment'],
+    fields: ['name', 'comment', 'maintenance'],
     proxy: {
         type: 'proxmox',
         url: "/api2/json/admin/datastore",
@@ -236,13 +236,22 @@ Ext.define('PBS.view.main.NavigationTree', {
 		    j++;
 		}
 
+		let iconCls = 'fa fa-database';
+		const maintenance = records[i].data.maintenance;
+		if (maintenance) {
+		    iconCls = 'fa fa-database pmx-tree-icon-custom maintenance';
+		}
+
+		const child = {
+		    text: name,
+		    path: `DataStore-${name}`,
+		    iconCls,
+		    leaf: true,
+		};
 		if (getChildTextAt(j).localeCompare(name) !== 0) {
-		    list.insertChild(j, {
-			text: name,
-			path: `DataStore-${name}`,
-			iconCls: 'fa fa-database',
-			leaf: true,
-		    });
+		    list.insertChild(j, child);
+		} else {
+		    list.replaceChild(child, list.getChildAt(j));
 		}
 	    }
 
