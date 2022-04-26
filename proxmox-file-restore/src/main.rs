@@ -11,6 +11,7 @@ use proxmox_router::cli::{
     get_output_format, run_cli_command, CliCommand, CliCommandMap, CliEnvironment, ColumnConfig,
     OUTPUT_FORMAT,
 };
+use proxmox_router::{http_err, HttpError};
 use proxmox_schema::api;
 use proxmox_sys::fs::{create_path, CreateOptions};
 use pxar::accessor::aio::Accessor;
@@ -211,6 +212,18 @@ async fn list_files(
                schema: OUTPUT_FORMAT,
                optional: true,
            },
+           "json-error": {
+               type: Boolean,
+               description: "If set, errors are returned as json instead of writing to stderr",
+               optional: true,
+               default: false,
+           },
+           "timeout": {
+               type: Integer,
+               description: "Defines the maximum time the call can should take.",
+               minimum: 1,
+               optional: true,
+           },
        }
    },
    returns: {
@@ -222,7 +235,14 @@ async fn list_files(
    }
 )]
 /// List a directory from a backup snapshot.
-async fn list(snapshot: String, path: String, base64: bool, param: Value) -> Result<(), Error> {
+async fn list(
+    snapshot: String,
+    path: String,
+    base64: bool,
+    json_error: bool,
+    timeout: Option<u64>,
+    param: Value,
+) -> Result<(), Error> {
     let repo = extract_repository_from_value(&param)?;
     let snapshot: BackupDir = snapshot.parse()?;
     let path = parse_path(path, base64)?;
@@ -246,7 +266,43 @@ async fn list(snapshot: String, path: String, base64: bool, param: Value) -> Res
         None => None,
     };
 
-    let result = list_files(repo, snapshot, path, crypt_config, keyfile, driver).await?;
+    let result = if let Some(timeout) = timeout {
+        match tokio::time::timeout(
+            std::time::Duration::from_secs(timeout),
+            list_files(repo, snapshot, path, crypt_config, keyfile, driver),
+        )
+        .await
+        {
+            Ok(res) => res,
+            Err(_) => Err(http_err!(SERVICE_UNAVAILABLE, "list not finished in time")),
+        }
+    } else {
+        list_files(repo, snapshot, path, crypt_config, keyfile, driver).await
+    };
+
+    let output_format = get_output_format(&param);
+
+    if let Err(err) = result {
+        if !json_error {
+            return Err(err);
+        }
+        let (msg, code) = match err.downcast_ref::<HttpError>() {
+            Some(HttpError { code, message }) => (message.clone(), Some(code)),
+            None => (err.to_string(), None),
+        };
+        let mut json_err = json!({
+            "error": true,
+            "message": msg,
+        });
+        if let Some(code) = code {
+            json_err["code"] = Value::from(code.as_u16());
+        }
+        match output_format.as_ref() {
+            "json-pretty" => println!("{}", serde_json::to_string_pretty(&json_err)?),
+            _ => println!("{}", serde_json::to_string(&json_err)?),
+        }
+        return Ok(());
+    }
 
     let options = default_table_format_options()
         .sortby("type", false)
@@ -258,7 +314,7 @@ async fn list(snapshot: String, path: String, base64: bool, param: Value) -> Res
 
     let output_format = get_output_format(&param);
     format_and_print_result_full(
-        &mut json!(result),
+        &mut json!(result.unwrap()),
         &API_METHOD_LIST.returns,
         &output_format,
         &options,
