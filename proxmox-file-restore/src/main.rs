@@ -26,7 +26,7 @@ use pbs_client::tools::{
     },
     REPO_URL_SCHEMA,
 };
-use pbs_client::{BackupReader, RemoteChunkReader};
+use pbs_client::{BackupReader, BackupRepository, RemoteChunkReader};
 use pbs_config::key_config::decrypt_key;
 use pbs_datastore::catalog::{ArchiveEntry, CatalogReader, DirEntryAttribute};
 use pbs_datastore::dynamic_index::{BufferedDynamicReader, LocalDynamicReadAt};
@@ -90,6 +90,84 @@ fn keyfile_path(param: &Value) -> Option<String> {
     }
 
     None
+}
+
+async fn list_files(
+    repo: BackupRepository,
+    snapshot: BackupDir,
+    path: ExtractPath,
+    crypt_config: Option<Arc<CryptConfig>>,
+    keyfile: Option<String>,
+    driver: Option<BlockDriverType>,
+) -> Result<Vec<ArchiveEntry>, Error> {
+    let client = connect(&repo)?;
+    let client = BackupReader::start(
+        client,
+        crypt_config.clone(),
+        repo.store(),
+        snapshot.group.ty,
+        &snapshot.group.id,
+        snapshot.time,
+        true,
+    )
+    .await?;
+
+    let (manifest, _) = client.download_manifest().await?;
+    manifest.check_fingerprint(crypt_config.as_ref().map(Arc::as_ref))?;
+
+    match path {
+        ExtractPath::ListArchives => {
+            let mut entries = vec![];
+            for file in manifest.files() {
+                if !file.filename.ends_with(".pxar.didx") && !file.filename.ends_with(".img.fidx") {
+                    continue;
+                }
+                let path = format!("/{}", file.filename);
+                let attr = if file.filename.ends_with(".pxar.didx") {
+                    // a pxar file is a file archive, so it's root is also a directory root
+                    Some(&DirEntryAttribute::Directory { start: 0 })
+                } else {
+                    None
+                };
+                entries.push(ArchiveEntry::new_with_size(
+                    path.as_bytes(),
+                    attr,
+                    Some(file.size),
+                ));
+            }
+
+            Ok(entries)
+        }
+        ExtractPath::Pxar(file, mut path) => {
+            let index = client
+                .download_dynamic_index(&manifest, CATALOG_NAME)
+                .await?;
+            let most_used = index.find_most_used_chunks(8);
+            let file_info = manifest.lookup_file_info(CATALOG_NAME)?;
+            let chunk_reader = RemoteChunkReader::new(
+                client.clone(),
+                crypt_config,
+                file_info.chunk_crypt_mode(),
+                most_used,
+            );
+            let reader = BufferedDynamicReader::new(index, chunk_reader);
+            let mut catalog_reader = CatalogReader::new(reader);
+
+            let mut fullpath = file.into_bytes();
+            fullpath.append(&mut path);
+
+            catalog_reader.list_dir_contents(&fullpath)
+        }
+        ExtractPath::VM(file, path) => {
+            let details = SnapRestoreDetails {
+                manifest,
+                repo,
+                snapshot,
+                keyfile,
+            };
+            data_list(driver, details, file, path).await
+        }
+    }
 }
 
 #[api(
@@ -163,78 +241,12 @@ async fn list(snapshot: String, path: String, base64: bool, param: Value) -> Res
         }
     };
 
-    let client = connect(&repo)?;
-    let client = BackupReader::start(
-        client,
-        crypt_config.clone(),
-        repo.store(),
-        snapshot.group.ty,
-        &snapshot.group.id,
-        snapshot.time,
-        true,
-    )
-    .await?;
+    let driver: Option<BlockDriverType> = match param.get("driver") {
+        Some(drv) => Some(serde::Deserialize::deserialize(drv)?),
+        None => None,
+    };
 
-    let (manifest, _) = client.download_manifest().await?;
-    manifest.check_fingerprint(crypt_config.as_ref().map(Arc::as_ref))?;
-
-    let result = match path {
-        ExtractPath::ListArchives => {
-            let mut entries = vec![];
-            for file in manifest.files() {
-                if !file.filename.ends_with(".pxar.didx") && !file.filename.ends_with(".img.fidx") {
-                    continue;
-                }
-                let path = format!("/{}", file.filename);
-                let attr = if file.filename.ends_with(".pxar.didx") {
-                    // a pxar file is a file archive, so it's root is also a directory root
-                    Some(&DirEntryAttribute::Directory { start: 0 })
-                } else {
-                    None
-                };
-                entries.push(ArchiveEntry::new_with_size(
-                    path.as_bytes(),
-                    attr,
-                    Some(file.size),
-                ));
-            }
-
-            Ok(entries)
-        }
-        ExtractPath::Pxar(file, mut path) => {
-            let index = client
-                .download_dynamic_index(&manifest, CATALOG_NAME)
-                .await?;
-            let most_used = index.find_most_used_chunks(8);
-            let file_info = manifest.lookup_file_info(CATALOG_NAME)?;
-            let chunk_reader = RemoteChunkReader::new(
-                client.clone(),
-                crypt_config,
-                file_info.chunk_crypt_mode(),
-                most_used,
-            );
-            let reader = BufferedDynamicReader::new(index, chunk_reader);
-            let mut catalog_reader = CatalogReader::new(reader);
-
-            let mut fullpath = file.into_bytes();
-            fullpath.append(&mut path);
-
-            catalog_reader.list_dir_contents(&fullpath)
-        }
-        ExtractPath::VM(file, path) => {
-            let details = SnapRestoreDetails {
-                manifest,
-                repo,
-                snapshot,
-                keyfile,
-            };
-            let driver: Option<BlockDriverType> = match param.get("driver") {
-                Some(drv) => Some(serde::Deserialize::deserialize(drv)?),
-                None => None,
-            };
-            data_list(driver, details, file, path).await
-        }
-    }?;
+    let result = list_files(repo, snapshot, path, crypt_config, keyfile, driver).await?;
 
     let options = default_table_format_options()
         .sortby("type", false)
