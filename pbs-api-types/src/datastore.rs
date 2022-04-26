@@ -354,6 +354,11 @@ impl DataStoreConfig {
             optional: true,
             schema: SINGLE_LINE_COMMENT_SCHEMA,
         },
+        maintenance: {
+            optional: true,
+            format: &ApiStringFormat::PropertyString(&MaintenanceMode::API_SCHEMA),
+            type: String,
+        }
     },
 )]
 #[derive(Serialize, Deserialize)]
@@ -362,6 +367,9 @@ impl DataStoreConfig {
 pub struct DataStoreListItem {
     pub store: String,
     pub comment: Option<String>,
+    /// If the datastore is in maintenance mode, information about it
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub maintenance: Option<String>,
 }
 
 #[api(

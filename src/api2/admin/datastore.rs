@@ -1030,6 +1030,7 @@ pub fn get_datastore_list(
             list.push(DataStoreListItem {
                 store: store.clone(),
                 comment: data["comment"].as_str().map(String::from),
+                maintenance: data["maintenance-mode"].as_str().map(String::from),
             });
         }
     }
