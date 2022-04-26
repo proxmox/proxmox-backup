@@ -257,6 +257,18 @@ span.snapshot-comment-column {
     font-weight: 800;
 }
 
+.pbs-maintenance-mask div.x-mask-msg-text {
+    background: None;
+    padding: 12px 0 0;
+}
+
+.pbs-maintenance-mask:before {
+    font-size: 3em;
+    display: flex;
+    justify-content: center;
+    content: "\f0ad";
+}
+
 /*' PBS specific icons */
 
 .pbs-icon-tape {

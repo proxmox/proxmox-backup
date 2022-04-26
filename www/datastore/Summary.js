@@ -42,8 +42,30 @@ Ext.define('PBS.DataStoreInfo', {
 	xclass: 'Ext.app.ViewController',
 
 	onLoad: function(store, data, success) {
-	    if (!success) return;
 	    let me = this;
+	    if (!success) {
+		Proxmox.Utils.API2Request({
+		    url: `/config/datastore/${me.view.datastore}`,
+		    success: function(response) {
+			const config = response.result.data;
+			if (config['maintenance-mode']) {
+			    const [_type, msg] = config['maintenance-mode'].split(/,(.+)/);
+			    const message = msg ? ': ' + msg.split("=")[1]
+				.replace(/^"(.*)"$/, '$1')
+				.replaceAll('\\"', '"') : '';
+			    me.view.el.mask(
+				`${gettext('Datastore is in maintenance mode')}${message}`,
+				'fa pbs-maintenance-mask',
+			    );
+			} else {
+			    me.view.el.mask(gettext('Datastore is not available'));
+			}
+		    },
+		});
+		return;
+	    }
+	    me.view.el.unmask();
+
 	    let vm = me.getViewModel();
 
 	    let counts = store.getById('counts').data.value;
