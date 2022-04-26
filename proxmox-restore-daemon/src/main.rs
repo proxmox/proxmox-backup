@@ -36,6 +36,15 @@ lazy_static! {
     };
 }
 
+fn init_disk_state() {
+    info!("scanning all disks...");
+    {
+        let _disk_state = DISK_STATE.lock().unwrap();
+    }
+
+    info!("disk scan complete.")
+}
+
 /// This is expected to be run by 'proxmox-file-restore' within a mini-VM
 fn main() -> Result<(), Error> {
     pbs_tools::setup_libc_malloc_opts();
@@ -55,15 +64,6 @@ fn main() -> Result<(), Error> {
 
     info!("setup basic system environment...");
     setup_system_env().map_err(|err| format_err!("system environment setup failed: {}", err))?;
-
-    // scan all attached disks now, before starting the API
-    // this will panic and stop the VM if anything goes wrong
-    info!("scanning all disks...");
-    {
-        let _disk_state = DISK_STATE.lock().unwrap();
-    }
-
-    info!("disk scan complete, starting main runtime...");
 
     proxmox_async::runtime::main(run())
 }
@@ -95,6 +95,13 @@ fn setup_system_env() -> Result<(), Error> {
 async fn run() -> Result<(), Error> {
     watchdog_init();
 
+    let init_future = async move {
+        match tokio::time::timeout(std::time::Duration::from_secs(120), tokio::task::spawn_blocking(init_disk_state)).await {
+            Ok(res) => res.map_err(|err| format_err!("disk init failed: {}", err)),
+            Err(_) => bail!("disk init timed out after 120 seconds"),
+        }
+    };
+
     let adaptor = StaticAuthAdapter::new()
         .map_err(|err| format_err!("reading ticket file failed: {}", err))?;
 
@@ -106,7 +113,11 @@ async fn run() -> Result<(), Error> {
     let receiver_stream = ReceiverStream::new(connections);
     let acceptor = hyper::server::accept::from_stream(receiver_stream);
 
-    hyper::Server::builder(acceptor).serve(rest_server).await?;
+    let hyper_future = async move {
+        hyper::Server::builder(acceptor).serve(rest_server).await.map_err(|err| format_err!("hyper finished with error: {}", err))
+    };
+
+    tokio::try_join!(init_future, hyper_future)?;
 
     bail!("hyper server exited");
 }
