@@ -453,29 +453,11 @@ impl DiskState {
         cmd.args(["import", "-d", "/dev"].iter());
         let result = run_command(cmd, None).unwrap();
         for (pool, disks) in Self::parse_zpool_import(&result) {
-            let mut bucket = Bucket::ZPool(ZFSBucketData {
+            let bucket = Bucket::ZPool(ZFSBucketData {
                 name: pool.clone(),
                 size: None,
                 mountpoint: None,
             });
-
-            // anything more than 5 disks we assume to take too long to mount, so we don't
-            // automatically - this means that no size can be reported
-            if disks.len() <= 5 {
-                let mp = filesystems.ensure_mounted(&mut bucket);
-                info!(
-                    "zpool '{}' (on: {:?}) auto-mounted at '{:?}' (size: {:?})",
-                    &pool,
-                    &disks,
-                    mp,
-                    bucket.size(0)
-                );
-            } else {
-                info!(
-                    "zpool '{}' (on: {:?}) auto-mount skipped, too many disks",
-                    &pool, &disks
-                );
-            }
 
             for disk in disks {
                 if let Some(fidx) = drive_info.get(&disk) {
