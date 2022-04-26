@@ -148,8 +148,10 @@ fn list(
     let path_str = OsStr::from_bytes(&path[..]);
     let param_path_buf = Path::new(path_str);
 
-    let mut disk_state = crate::DISK_STATE.lock().unwrap();
-    let query_result = disk_state.resolve(param_path_buf)?;
+    let query_result = proxmox_async::runtime::block_in_place(move || {
+        let mut disk_state = crate::DISK_STATE.lock().unwrap();
+        disk_state.resolve(param_path_buf)
+    })?;
 
     match query_result {
         ResolveResult::Path(vm_path) => {
@@ -270,10 +272,10 @@ fn extract(
 
         let pxar = param["pxar"].as_bool().unwrap_or(true);
 
-        let query_result = {
+        let query_result = proxmox_async::runtime::block_in_place(move || {
             let mut disk_state = crate::DISK_STATE.lock().unwrap();
-            disk_state.resolve(path)?
-        };
+            disk_state.resolve(path)
+        })?;
 
         let vm_path = match query_result {
             ResolveResult::Path(vm_path) => vm_path,
