@@ -430,6 +430,30 @@ impl DataStore {
         full_path
     }
 
+    /// Create a backup namespace.
+    pub fn create_namespace(
+        self: &Arc<Self>,
+        parent: &BackupNamespace,
+        name: String,
+    ) -> Result<BackupNamespace, Error> {
+        let mut parent_path = self.base_path().to_owned();
+        parent_path.push(parent.path());
+
+        if !parent_path.exists() {
+            bail!("cannot create new namespace, parent {parent} doesn't already exists");
+        }
+
+        // construct ns before mkdir to enforce max-depth and name validity
+        let ns = BackupNamespace::from_parent_ns(parent, name)?;
+
+        let mut ns_full_path = self.base_path().to_owned();
+        ns_full_path.push(ns.path());
+
+        std::fs::create_dir_all(ns_full_path)?;
+
+        Ok(ns)
+    }
+
     /// Remove all backup groups of a single namespace level but not the namespace itself.
     ///
     /// Does *not* descends into child-namespaces and doesn't remoes the namespace itself either.
