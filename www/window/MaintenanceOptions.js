@@ -62,14 +62,10 @@ Ext.define('PBS.window.MaintenanceOptions', {
 	    'maintenance-msg': '',
 	};
 	if (values['maintenance-mode']) {
-	    let [type, message] = values['maintenance-mode'].split(/,(.+)/);
-	    type = type.split("=").pop();
-	    message = message ? message.split("=")[1]
-		.replace(/^"(.*)"$/, '$1')
-		.replaceAll('\\"', '"') : '';
+	    const [type, message] = PBS.Utils.parseMaintenanceMode(values['maintenance-mode']);
 	    options = {
 		'maintenance-type': type,
-		'maintenance-msg': message,
+		'maintenance-msg': message ?? '',
 	    };
 	}
 

@@ -640,13 +640,22 @@ Ext.define('PBS.Utils', {
 	return `${icon} ${value}`;
     },
 
+    // FIXME: this "parser" is brittle and relies on the order the arguments will appear in
+    parseMaintenanceMode: function(mode) {
+	let [type, message] = mode.split(/,(.+)/);
+	type = type.split("=").pop();
+	message = message ? message.split("=")[1]
+	    .replace(/^"(.*)"$/, '$1')
+	    .replaceAll('\\"', '"') : null;
+	return [type, message];
+    },
+
     renderMaintenance: function(mode, activeTasks) {
 	if (!mode) {
 	    return gettext('None');
 	}
-	// FIXME: this "parser" is brittle and relies on the order the arguments will appear in
-	let [type, message] = mode.split(",");
-	type = type.split("=").pop();
+
+	let [type, message] = PBS.Utils.parseMaintenanceMode(mode);
 
 	const conflictingTasks = activeTasks.write + (type === 'offline' ? activeTasks.read : 0);
 
@@ -659,7 +668,7 @@ Ext.define('PBS.Utils', {
 	}
 
 	if (message) {
-	    extra += ` (${message.split("=").pop()})`;
+	    extra += ` ("${message}")`;
 	}
 
 	let modeText = Proxmox.Utils.unknownText;

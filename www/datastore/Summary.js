@@ -49,12 +49,9 @@ Ext.define('PBS.DataStoreInfo', {
 		    success: function(response) {
 			const config = response.result.data;
 			if (config['maintenance-mode']) {
-			    const [_type, msg] = config['maintenance-mode'].split(/,(.+)/);
-			    const message = msg ? ': ' + msg.split("=")[1]
-				.replace(/^"(.*)"$/, '$1')
-				.replaceAll('\\"', '"') : '';
+			    const [_type, msg] = PBS.Utils.parseMaintenanceMode(config['maintenance-mode']);
 			    me.view.el.mask(
-				`${gettext('Datastore is in maintenance mode')}${message}`,
+				`${gettext('Datastore is in maintenance mode')}${msg ? ': ' + msg : ''}`,
 				'fa pbs-maintenance-mask',
 			    );
 			} else {
