@@ -127,16 +127,23 @@ fn record_repository(repo: &BackupRepository) {
     );
 }
 
+enum List {
+    Any,
+    Group(BackupGroup),
+    Namespace(BackupNamespace),
+}
+
 async fn api_datastore_list_snapshots(
     client: &HttpClient,
     store: &str,
-    group: Option<BackupGroup>,
+    list: List,
 ) -> Result<Value, Error> {
     let path = format!("api2/json/admin/datastore/{}/snapshots", store);
 
-    let args = match group {
-        Some(group) => serde_json::to_value(group)?,
-        None => json!({}),
+    let args = match list {
+        List::Group(group) => serde_json::to_value(group)?,
+        List::Namespace(ns) => json!({ "backup-ns": ns }),
+        List::Any => json!({}),
     };
 
     let mut result = client.get(&path, Some(args)).await?;
@@ -149,7 +156,7 @@ pub async fn api_datastore_latest_snapshot(
     store: &str,
     group: BackupGroup,
 ) -> Result<BackupDir, Error> {
-    let list = api_datastore_list_snapshots(client, store, Some(group.clone())).await?;
+    let list = api_datastore_list_snapshots(client, store, List::Group(group.clone())).await?;
     let mut list: Vec<SnapshotListItem> = serde_json::from_value(list)?;
 
     if list.is_empty() {

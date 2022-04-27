@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
-use anyhow::Error;
+use anyhow::{bail, Error};
 use serde_json::{json, Value};
 
 use proxmox_router::cli::*;
 use proxmox_schema::api;
 use proxmox_sys::fs::file_get_contents;
 
-use pbs_api_types::{BackupGroup, CryptMode, SnapshotListItem};
+use pbs_api_types::{BackupGroup, BackupNamespace, CryptMode, SnapshotListItem};
 use pbs_client::tools::key_source::get_encryption_key_password;
 use pbs_config::key_config::decrypt_key;
 use pbs_datastore::DataBlob;
@@ -17,7 +17,7 @@ use pbs_tools::json::required_string_param;
 use crate::{
     api_datastore_list_snapshots, complete_backup_group, complete_backup_snapshot,
     complete_repository, connect, crypto_parameters, extract_repository_from_value,
-    record_repository, BackupDir, KEYFD_SCHEMA, KEYFILE_SCHEMA, REPO_URL_SCHEMA,
+    record_repository, BackupDir, List, KEYFD_SCHEMA, KEYFILE_SCHEMA, REPO_URL_SCHEMA,
 };
 
 #[api(
@@ -25,6 +25,10 @@ use crate::{
         properties: {
             repository: {
                 schema: REPO_URL_SCHEMA,
+                optional: true,
+            },
+            "ns": {
+                type: BackupNamespace,
                 optional: true,
             },
             group: {
@@ -47,13 +51,22 @@ async fn list_snapshots(param: Value) -> Result<Value, Error> {
 
     let client = connect(&repo)?;
 
-    let group: Option<BackupGroup> = if let Some(path) = param["group"].as_str() {
-        Some(path.parse()?)
-    } else {
-        None
+    let group: Option<BackupGroup> = param["group"]
+        .as_str()
+        .map(|group| group.parse())
+        .transpose()?;
+
+    let backup_ns: Option<BackupNamespace> =
+        param["ns"].as_str().map(|ns| ns.parse()).transpose()?;
+
+    let list = match (group, backup_ns) {
+        (Some(group), None) => List::Group(group),
+        (None, Some(ns)) => List::Namespace(ns),
+        (None, None) => List::Any,
+        (Some(_), Some(_)) => bail!("'ns' and 'group' parameters are mutually exclusive"),
     };
 
-    let mut data = api_datastore_list_snapshots(&client, repo.store(), group).await?;
+    let mut data = api_datastore_list_snapshots(&client, repo.store(), list).await?;
 
     record_repository(&repo);
 
