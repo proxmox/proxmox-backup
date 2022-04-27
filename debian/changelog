@@ -1,3 +1,38 @@
+rust-proxmox-backup (2.1.7-1) bullseye; urgency=medium
+
+  * pbs-tape: sgutils2: check sense data when status is 'CHECK_CONDITION'
+
+  * rework & refactor datastore implementation for a more hierarchical access
+    structure
+
+  * datastore: implement Iterator for backup group and snapshot listing to
+    allow more efficient access for cases where we do not need the whole list
+    in memory
+
+  * pbs-client: extract: rewrite create_zip with sequential decoder
+
+  * pbs-client: extract: add top-level dir in tar.zst
+
+  * fix #3067: ui: add a separate notes view for longer markdown notes and
+    copy the markdown primer from Proxmox VE to Proxmox Backup Server docs
+
+  * restore-daemon: start disk initialization in parallel to the api
+
+  * restore-daemon: put blocking code into 'block_in_place'
+
+  * restore-daemon: avoid auto-pre-mounting zpools completely, the upfront
+    (time) cost can be to big to pay up initially, e.g., if there are many
+    subvolumes present, so only mount on demand.
+
+  * file-restore: add 'timeout' and 'json-error' parameter
+
+  * ui: add summary mask when in maintenance mode
+
+  * ui: update datastore's navigation icon and tooltip if it is in maintenance
+    mode
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 27 Apr 2022 19:53:53 +0200
+
 rust-proxmox-backup (2.1.6-1) bullseye; urgency=medium
 
   * api: verify: allow passing '0 days' for immediate re-verification
