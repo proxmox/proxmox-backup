@@ -50,14 +50,19 @@ impl BackupReader {
         backup: &BackupDir,
         debug: bool,
     ) -> Result<Arc<BackupReader>, Error> {
-        let param = json!({
-            "backup-ns": backup.ns(),
+        let mut param = json!({
             "backup-type": backup.ty(),
             "backup-id": backup.id(),
             "backup-time": backup.time,
             "store": datastore,
             "debug": debug,
         });
+
+        let ns = backup.ns();
+        if !ns.is_root() {
+            param["backup-ns"] = serde_json::to_value(ns)?;
+        }
+
         let req = HttpClient::request_builder(
             client.server(),
             client.port(),
