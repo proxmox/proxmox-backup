@@ -563,6 +563,25 @@ impl BackupNamespace {
         Ok(child)
     }
 
+    /// Pop one level off the namespace hierachy
+    pub fn pop(&mut self) {
+        if let Some(dropped) = self.inner.pop() {
+            self.len = self.len.saturating_sub(dropped.len() + 1);
+        }
+    }
+
+    /// Get the namespace parent as owned BackupNamespace
+    pub fn parent(&self) -> Self {
+        if self.is_root() {
+            return Self::root();
+        }
+
+        let mut parent = self.clone();
+        parent.pop();
+
+        parent
+    }
+
     /// Create a new namespace directly from a vec.
     ///
     /// # Safety
