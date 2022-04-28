@@ -96,7 +96,12 @@ async fn run() -> Result<(), Error> {
     watchdog_init();
 
     let init_future = async move {
-        match tokio::time::timeout(std::time::Duration::from_secs(120), tokio::task::spawn_blocking(init_disk_state)).await {
+        match tokio::time::timeout(
+            std::time::Duration::from_secs(120),
+            tokio::task::spawn_blocking(init_disk_state),
+        )
+        .await
+        {
             Ok(res) => res.map_err(|err| format_err!("disk init failed: {}", err)),
             Err(_) => bail!("disk init timed out after 120 seconds"),
         }
@@ -114,7 +119,10 @@ async fn run() -> Result<(), Error> {
     let acceptor = hyper::server::accept::from_stream(receiver_stream);
 
     let hyper_future = async move {
-        hyper::Server::builder(acceptor).serve(rest_server).await.map_err(|err| format_err!("hyper finished with error: {}", err))
+        hyper::Server::builder(acceptor)
+            .serve(rest_server)
+            .await
+            .map_err(|err| format_err!("hyper finished with error: {}", err))
     };
 
     tokio::try_join!(init_future, hyper_future)?;

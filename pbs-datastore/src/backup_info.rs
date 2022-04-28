@@ -11,7 +11,7 @@ use pbs_api_types::{BackupType, GroupFilter, BACKUP_DATE_REGEX, BACKUP_FILE_REGE
 use pbs_config::{open_backup_lockfile, BackupLockGuard};
 
 use crate::manifest::{MANIFEST_BLOB_NAME, MANIFEST_LOCK_NAME};
-use crate::{DataStore, DataBlob};
+use crate::{DataBlob, DataStore};
 
 /// BackupGroup is a directory containing a list of BackupDir
 #[derive(Clone)]

@@ -40,10 +40,7 @@ impl VerifyWorker {
     }
 }
 
-fn verify_blob(
-    backup_dir: &BackupDir,
-    info: &FileInfo,
-) -> Result<(), Error> {
+fn verify_blob(backup_dir: &BackupDir, info: &FileInfo) -> Result<(), Error> {
     let blob = backup_dir.load_blob(&info.filename)?;
 
     let raw_size = blob.raw_size();
