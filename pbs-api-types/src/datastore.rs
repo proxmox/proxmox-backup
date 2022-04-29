@@ -809,7 +809,7 @@ impl std::cmp::PartialOrd for BackupType {
 
 #[api(
     properties: {
-        "backup-ns": { type: BackupNamespace },
+        "backup-ns": { type: BackupNamespace, optional: true },
         "backup-type": { type: BackupType },
         "backup-id": { schema: BACKUP_ID_SCHEMA },
     },
