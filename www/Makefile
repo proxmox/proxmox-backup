@@ -65,7 +65,6 @@ JSSRC=							\
 	config/NodeOptionView.js			\
 	config/MetricServerView.js			\
 	window/ACLEdit.js				\
-	window/BackupFileDownloader.js			\
 	window/BackupGroupChangeOwner.js		\
 	window/CreateDirectory.js			\
 	window/DataStoreEdit.js				\
