@@ -28,7 +28,7 @@ use pbs_datastore::index::IndexFile;
 use pbs_datastore::manifest::{
     archive_type, ArchiveType, BackupManifest, FileInfo, CLIENT_LOG_BLOB_NAME, MANIFEST_BLOB_NAME,
 };
-use pbs_datastore::{DataStore, StoreProgress};
+use pbs_datastore::{check_backup_owner, DataStore, StoreProgress};
 use pbs_tools::sha::sha256;
 use proxmox_rest_server::WorkerTask;
 
@@ -799,6 +799,10 @@ pub async fn pull_store(
             for local_group in params.store.iter_backup_groups()? {
                 let local_group = local_group?;
                 if new_groups.contains(local_group.as_ref()) {
+                    continue;
+                }
+                let owner = params.store.get_owner(&local_group.group())?;
+                if check_backup_owner(&owner, &params.owner).is_err() {
                     continue;
                 }
                 if let Some(ref group_filter) = &params.group_filter {
