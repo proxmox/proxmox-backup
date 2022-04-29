@@ -103,12 +103,14 @@ pub fn sync_job_commands() -> CommandLineInterface {
                 .completion_cb("id", pbs_config::sync::complete_sync_job_id)
                 .completion_cb("schedule", pbs_config::datastore::complete_calendar_event)
                 .completion_cb("store", pbs_config::datastore::complete_datastore_name)
+                .completion_cb("ns", crate::complete_sync_local_datastore_namespace)
                 .completion_cb("remote", pbs_config::remote::complete_remote_name)
                 .completion_cb("remote-store", crate::complete_remote_datastore_name)
                 .completion_cb(
                     "group-filter",
                     crate::complete_remote_datastore_group_filter,
-                ),
+                )
+                .completion_cb("remote-ns", crate::complete_remote_datastore_namespace),
         )
         .insert(
             "update",
@@ -117,11 +119,13 @@ pub fn sync_job_commands() -> CommandLineInterface {
                 .completion_cb("id", pbs_config::sync::complete_sync_job_id)
                 .completion_cb("schedule", pbs_config::datastore::complete_calendar_event)
                 .completion_cb("store", pbs_config::datastore::complete_datastore_name)
+                .completion_cb("ns", crate::complete_sync_local_datastore_namespace)
                 .completion_cb("remote-store", crate::complete_remote_datastore_name)
                 .completion_cb(
                     "group-filter",
                     crate::complete_remote_datastore_group_filter,
-                ),
+                )
+                .completion_cb("remote-ns", crate::complete_remote_datastore_namespace),
         )
         .insert(
             "remove",

@@ -1060,9 +1060,22 @@ pub struct DatastoreWithNamespace {
 impl fmt::Display for DatastoreWithNamespace {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.ns.is_root() {
-            write!(f, "{}", self.store)
+            write!(f, "datastore {}, root namespace", self.store)
         } else {
-            write!(f, "{}/{}", self.store, self.ns)
+            write!(f, "datastore '{}', namespace '{}'", self.store, self.ns)
+        }
+    }
+}
+
+impl DatastoreWithNamespace {
+    pub fn acl_path(&self) -> Vec<&str> {
+        let mut path: Vec<&str> = vec!["datastore", &self.store];
+
+        if self.ns.is_root() {
+            path
+        } else {
+            path.extend(self.ns.inner.iter().map(|comp| comp.as_str()));
+            path
         }
     }
 }

@@ -9,9 +9,9 @@ use proxmox_schema::api;
 use proxmox_sys::task_log;
 
 use pbs_api_types::{
-    Authid, GroupFilter, RateLimitConfig, SyncJobConfig, DATASTORE_SCHEMA,
-    GROUP_FILTER_LIST_SCHEMA, PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_PRUNE, PRIV_REMOTE_READ,
-    REMOTE_ID_SCHEMA, REMOVE_VANISHED_BACKUPS_SCHEMA,
+    Authid, BackupNamespace, GroupFilter, RateLimitConfig, SyncJobConfig, DATASTORE_SCHEMA,
+    GROUP_FILTER_LIST_SCHEMA, NS_MAX_DEPTH_SCHEMA, PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_PRUNE,
+    PRIV_REMOTE_READ, REMOTE_ID_SCHEMA, REMOVE_VANISHED_BACKUPS_SCHEMA,
 };
 use pbs_config::CachedUserInfo;
 use proxmox_rest_server::WorkerTask;
@@ -22,13 +22,24 @@ use crate::server::pull::{pull_store, PullParameters};
 pub fn check_pull_privs(
     auth_id: &Authid,
     store: &str,
+    ns: Option<&str>,
     remote: &str,
     remote_store: &str,
     delete: bool,
 ) -> Result<(), Error> {
     let user_info = CachedUserInfo::new()?;
 
-    user_info.check_privs(auth_id, &["datastore", store], PRIV_DATASTORE_BACKUP, false)?;
+    let local_store_ns_acl_path = match ns {
+        Some(ns) => vec!["datastore", store, ns],
+        None => vec!["datastore", store],
+    };
+
+    user_info.check_privs(
+        auth_id,
+        &local_store_ns_acl_path,
+        PRIV_DATASTORE_BACKUP,
+        false,
+    )?;
     user_info.check_privs(
         auth_id,
         &["remote", remote, remote_store],
@@ -37,7 +48,12 @@ pub fn check_pull_privs(
     )?;
 
     if delete {
-        user_info.check_privs(auth_id, &["datastore", store], PRIV_DATASTORE_PRUNE, false)?;
+        user_info.check_privs(
+            auth_id,
+            &local_store_ns_acl_path,
+            PRIV_DATASTORE_PRUNE,
+            false,
+        )?;
     }
 
     Ok(())
@@ -49,14 +65,17 @@ impl TryFrom<&SyncJobConfig> for PullParameters {
     fn try_from(sync_job: &SyncJobConfig) -> Result<Self, Self::Error> {
         PullParameters::new(
             &sync_job.store,
+            sync_job.ns.clone().unwrap_or_default(),
             &sync_job.remote,
             &sync_job.remote_store,
+            sync_job.remote_ns.clone().unwrap_or_default(),
             sync_job
                 .owner
                 .as_ref()
                 .unwrap_or_else(|| Authid::root_auth_id())
                 .clone(),
             sync_job.remove_vanished,
+            sync_job.max_depth,
             sync_job.group_filter.clone(),
             sync_job.limit.clone(),
         )
@@ -71,10 +90,11 @@ pub fn do_sync_job(
     to_stdout: bool,
 ) -> Result<String, Error> {
     let job_id = format!(
-        "{}:{}:{}:{}",
+        "{}:{}:{}:{}:{}",
         sync_job.remote,
         sync_job.remote_store,
         sync_job.store,
+        sync_job.ns.clone().unwrap_or_default(),
         job.jobname()
     );
     let worker_type = job.jobtype().to_string();
@@ -154,14 +174,26 @@ pub fn do_sync_job(
             store: {
                 schema: DATASTORE_SCHEMA,
             },
+            ns: {
+                type: BackupNamespace,
+                optional: true,
+            },
             remote: {
                 schema: REMOTE_ID_SCHEMA,
             },
             "remote-store": {
                 schema: DATASTORE_SCHEMA,
             },
+            "remote-ns": {
+                type: BackupNamespace,
+                optional: true,
+            },
             "remove-vanished": {
                 schema: REMOVE_VANISHED_BACKUPS_SCHEMA,
+                optional: true,
+            },
+            "max-depth": {
+                schema: NS_MAX_DEPTH_SCHEMA,
                 optional: true,
             },
             "group-filter": {
@@ -186,9 +218,12 @@ The delete flag additionally requires the Datastore.Prune privilege on '/datasto
 /// Sync store from other repository
 async fn pull(
     store: String,
+    ns: Option<BackupNamespace>,
     remote: String,
     remote_store: String,
+    remote_ns: Option<BackupNamespace>,
     remove_vanished: Option<bool>,
+    max_depth: Option<usize>,
     group_filter: Option<Vec<GroupFilter>>,
     limit: RateLimitConfig,
     _info: &ApiMethod,
@@ -197,14 +232,32 @@ async fn pull(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let delete = remove_vanished.unwrap_or(false);
 
-    check_pull_privs(&auth_id, &store, &remote, &remote_store, delete)?;
+    let ns = ns.unwrap_or_default();
+    let max_depth = max_depth.unwrap_or(0);
+    let ns_str = if ns.is_root() {
+        None
+    } else {
+        Some(ns.to_string())
+    };
+
+    check_pull_privs(
+        &auth_id,
+        &store,
+        ns_str.as_deref(),
+        &remote,
+        &remote_store,
+        delete,
+    )?;
 
     let pull_params = PullParameters::new(
         &store,
+        ns,
         &remote,
         &remote_store,
+        remote_ns.unwrap_or_default(),
         auth_id.clone(),
         remove_vanished,
+        max_depth,
         group_filter,
         limit,
     )?;
@@ -217,7 +270,13 @@ async fn pull(
         auth_id.to_string(),
         true,
         move |worker| async move {
-            task_log!(worker, "sync datastore '{}' start", store);
+            task_log!(
+                worker,
+                "pull datastore '{}' from '{}/{}'",
+                store,
+                remote,
+                remote_store,
+            );
 
             let pull_future = pull_store(&worker, &client, &pull_params);
             let future = select! {
@@ -227,7 +286,7 @@ async fn pull(
 
             let _ = future?;
 
-            task_log!(worker, "sync datastore '{}' end", store);
+            task_log!(worker, "pull datastore '{}' end", store);
 
             Ok(())
         },

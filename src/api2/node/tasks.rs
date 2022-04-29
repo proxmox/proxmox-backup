@@ -39,6 +39,7 @@ fn check_job_privs(auth_id: &Authid, user_info: &CachedUserInfo, upid: &UPID) ->
                 let remote = captures.get(1);
                 let remote_store = captures.get(2);
                 let local_store = captures.get(3);
+                let local_ns = captures.get(4).map(|m| m.as_str());
 
                 if let (Some(remote), Some(remote_store), Some(local_store)) =
                     (remote, remote_store, local_store)
@@ -46,6 +47,7 @@ fn check_job_privs(auth_id: &Authid, user_info: &CachedUserInfo, upid: &UPID) ->
                     return check_pull_privs(
                         auth_id,
                         local_store.as_str(),
+                        local_ns,
                         remote.as_str(),
                         remote_store.as_str(),
                         false,

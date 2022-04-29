@@ -9,15 +9,15 @@ use proxmox_schema::*;
 use crate::{
     Authid, BackupNamespace, BackupType, RateLimitConfig, Userid, BACKUP_GROUP_SCHEMA,
     BACKUP_NAMESPACE_SCHEMA, DATASTORE_SCHEMA, DRIVE_NAME_SCHEMA, MEDIA_POOL_NAME_SCHEMA,
-    PROXMOX_SAFE_ID_FORMAT, REMOTE_ID_SCHEMA, SINGLE_LINE_COMMENT_SCHEMA,
+    NS_MAX_DEPTH_SCHEMA, PROXMOX_SAFE_ID_FORMAT, REMOTE_ID_SCHEMA, SINGLE_LINE_COMMENT_SCHEMA,
 };
 
 const_regex! {
 
     /// Regex for verification jobs 'DATASTORE:ACTUAL_JOB_ID'
     pub VERIFICATION_JOB_WORKER_ID_REGEX = concat!(r"^(", PROXMOX_SAFE_ID_REGEX_STR!(), r"):");
-    /// Regex for sync jobs 'REMOTE:REMOTE_DATASTORE:LOCAL_DATASTORE:ACTUAL_JOB_ID'
-    pub SYNC_JOB_WORKER_ID_REGEX = concat!(r"^(", PROXMOX_SAFE_ID_REGEX_STR!(), r"):(", PROXMOX_SAFE_ID_REGEX_STR!(), r"):(", PROXMOX_SAFE_ID_REGEX_STR!(), r"):");
+    /// Regex for sync jobs 'REMOTE:REMOTE_DATASTORE:LOCAL_DATASTORE:(?:LOCAL_NS_ANCHOR:)ACTUAL_JOB_ID'
+    pub SYNC_JOB_WORKER_ID_REGEX = concat!(r"^(", PROXMOX_SAFE_ID_REGEX_STR!(), r"):(", PROXMOX_SAFE_ID_REGEX_STR!(), r"):(", PROXMOX_SAFE_ID_REGEX_STR!(), r"):(?:", BACKUP_NS_RE!(), r"):");
 }
 
 pub const JOB_ID_SCHEMA: Schema = StringSchema::new("Job ID.")
@@ -413,6 +413,10 @@ pub const GROUP_FILTER_LIST_SCHEMA: Schema =
         store: {
            schema: DATASTORE_SCHEMA,
         },
+        ns: {
+            type: BackupNamespace,
+            optional: true,
+        },
         "owner": {
             type: Authid,
             optional: true,
@@ -423,8 +427,16 @@ pub const GROUP_FILTER_LIST_SCHEMA: Schema =
         "remote-store": {
             schema: DATASTORE_SCHEMA,
         },
+        "remote-ns": {
+            type: BackupNamespace,
+            optional: true,
+        },
         "remove-vanished": {
             schema: REMOVE_VANISHED_BACKUPS_SCHEMA,
+            optional: true,
+        },
+        "max-depth": {
+            schema: NS_MAX_DEPTH_SCHEMA,
             optional: true,
         },
         comment: {
@@ -452,11 +464,17 @@ pub struct SyncJobConfig {
     pub id: String,
     pub store: String,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub ns: Option<BackupNamespace>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub owner: Option<Authid>,
     pub remote: String,
     pub remote_store: String,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub remote_ns: Option<BackupNamespace>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub remove_vanished: Option<bool>,
+    #[serde(default)]
+    pub max_depth: usize,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]

@@ -1,6 +1,8 @@
 use ::serde::{Deserialize, Serialize};
 use anyhow::{bail, Error};
 use hex::FromHex;
+use pbs_api_types::BackupNamespace;
+use pbs_api_types::MAX_NAMESPACE_DEPTH;
 use serde_json::Value;
 
 use proxmox_router::{http_bail, Permission, Router, RpcEnvironment};
@@ -25,11 +27,21 @@ pub fn check_sync_job_read_access(
         return false;
     }
 
+    if let Some(ref ns) = job.ns {
+        let ns_privs = user_info.lookup_privs(auth_id, &["datastore", &job.store, &ns.to_string()]);
+        if ns_privs & PRIV_DATASTORE_AUDIT == 0 {
+            return false;
+        }
+    }
+
     let remote_privs = user_info.lookup_privs(auth_id, &["remote", &job.remote]);
     remote_privs & PRIV_REMOTE_AUDIT != 0
 }
 
-// user can run the corresponding pull job
+/// checks whether user can run the corresponding pull job
+///
+/// namespace creation/deletion ACL and backup group ownership checks happen in the pull code directly.
+/// remote side checks/filters remote datastore/namespace/group access.
 pub fn check_sync_job_modify_access(
     user_info: &CachedUserInfo,
     auth_id: &Authid,
@@ -38,6 +50,13 @@ pub fn check_sync_job_modify_access(
     let datastore_privs = user_info.lookup_privs(auth_id, &["datastore", &job.store]);
     if datastore_privs & PRIV_DATASTORE_BACKUP == 0 {
         return false;
+    }
+
+    if let Some(ref ns) = job.ns {
+        let ns_privs = user_info.lookup_privs(auth_id, &["datastore", &job.store, &ns.to_string()]);
+        if ns_privs & PRIV_DATASTORE_BACKUP == 0 {
+            return false;
+        }
     }
 
     if let Some(true) = job.remove_vanished {
@@ -198,6 +217,10 @@ pub enum DeletableProperty {
     rate_out,
     /// Delete the burst_out property.
     burst_out,
+    /// Delete the ns property,
+    ns,
+    /// Delete the remote_ns property,
+    remote_ns,
 }
 
 #[api(
@@ -283,9 +306,27 @@ pub fn update_sync_job(
                 DeletableProperty::burst_out => {
                     data.limit.burst_out = None;
                 }
+                DeletableProperty::ns => {
+                    data.ns = None;
+                }
+                DeletableProperty::remote_ns => {
+                    data.remote_ns = None;
+                }
             }
         }
     }
+
+    let check_max_depth = |ns: &BackupNamespace, depth| -> Result<(), Error> {
+        if ns.depth() + depth >= MAX_NAMESPACE_DEPTH {
+            bail!(
+                "namespace and recursion depth exceed limit: {} + {} >= {}",
+                ns.depth(),
+                depth,
+                MAX_NAMESPACE_DEPTH
+            );
+        }
+        Ok(())
+    };
 
     if let Some(comment) = update.comment {
         let comment = comment.trim().to_string();
@@ -299,11 +340,22 @@ pub fn update_sync_job(
     if let Some(store) = update.store {
         data.store = store;
     }
+    if let Some(ns) = update.ns {
+        check_max_depth(&ns, update.max_depth.unwrap_or(data.max_depth))?;
+        data.ns = Some(ns);
+    }
     if let Some(remote) = update.remote {
         data.remote = remote;
     }
     if let Some(remote_store) = update.remote_store {
         data.remote_store = remote_store;
+    }
+    if let Some(remote_ns) = update.remote_ns {
+        check_max_depth(
+            &remote_ns,
+            update.max_depth.unwrap_or(data.max_depth),
+        )?;
+        data.remote_ns = Some(remote_ns);
     }
     if let Some(owner) = update.owner {
         data.owner = Some(owner);
@@ -334,6 +386,15 @@ pub fn update_sync_job(
     }
     if update.remove_vanished.is_some() {
         data.remove_vanished = update.remove_vanished;
+    }
+    if let Some(max_depth) = update.max_depth {
+        if let Some(ref ns) = data.ns {
+            check_max_depth(ns, max_depth)?;
+        }
+        if let Some(ref ns) = data.remote_ns {
+            check_max_depth(ns, max_depth)?;
+        }
+        data.max_depth = max_depth;
     }
 
     if !check_sync_job_modify_access(&user_info, &auth_id, &data) {
@@ -453,10 +514,13 @@ acl:1:/remote/remote1/remotestore1:write@pbs:RemoteSyncOperator
         id: "regular".to_string(),
         remote: "remote0".to_string(),
         remote_store: "remotestore1".to_string(),
+        remote_ns: None,
         store: "localstore0".to_string(),
+        ns: None,
         owner: Some(write_auth_id.clone()),
         comment: None,
         remove_vanished: None,
+        max_depth: 0,
         group_filter: None,
         schedule: None,
         limit: pbs_api_types::RateLimitConfig::default(), // no limit

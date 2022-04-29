@@ -12,8 +12,9 @@ use proxmox_sys::fs::CreateOptions;
 use pbs_api_types::percent_encoding::percent_encode_component;
 use pbs_api_types::{
     BackupNamespace, GroupFilter, RateLimitConfig, SyncJobConfig, DATASTORE_SCHEMA,
-    GROUP_FILTER_LIST_SCHEMA, IGNORE_VERIFIED_BACKUPS_SCHEMA, REMOTE_ID_SCHEMA,
-    REMOVE_VANISHED_BACKUPS_SCHEMA, UPID_SCHEMA, VERIFICATION_OUTDATED_AFTER_SCHEMA,
+    GROUP_FILTER_LIST_SCHEMA, IGNORE_VERIFIED_BACKUPS_SCHEMA, NS_MAX_DEPTH_SCHEMA,
+    REMOTE_ID_SCHEMA, REMOVE_VANISHED_BACKUPS_SCHEMA, UPID_SCHEMA,
+    VERIFICATION_OUTDATED_AFTER_SCHEMA,
 };
 use pbs_client::{display_task_log, view_task_result};
 use pbs_config::sync;
@@ -234,8 +235,12 @@ fn task_mgmt_cli() -> CommandLineInterface {
 #[api(
    input: {
         properties: {
-            "local-store": {
+            "store": {
                 schema: DATASTORE_SCHEMA,
+            },
+            "ns": {
+                type: BackupNamespace,
+                optional: true,
             },
             remote: {
                 schema: REMOTE_ID_SCHEMA,
@@ -243,8 +248,16 @@ fn task_mgmt_cli() -> CommandLineInterface {
             "remote-store": {
                 schema: DATASTORE_SCHEMA,
             },
+            "remote-ns": {
+                type: BackupNamespace,
+                optional: true,
+            },
             "remove-vanished": {
                 schema: REMOVE_VANISHED_BACKUPS_SCHEMA,
+                optional: true,
+            },
+            "max-depth": {
+                schema: NS_MAX_DEPTH_SCHEMA,
                 optional: true,
             },
             "group-filter": {
@@ -266,8 +279,11 @@ fn task_mgmt_cli() -> CommandLineInterface {
 async fn pull_datastore(
     remote: String,
     remote_store: String,
-    local_store: String,
+    remote_ns: Option<BackupNamespace>,
+    store: String,
+    ns: Option<BackupNamespace>,
     remove_vanished: Option<bool>,
+    max_depth: Option<usize>,
     group_filter: Option<Vec<GroupFilter>>,
     limit: RateLimitConfig,
     param: Value,
@@ -277,11 +293,23 @@ async fn pull_datastore(
     let client = connect_to_localhost()?;
 
     let mut args = json!({
-        "store": local_store,
+        "store": store,
         "remote": remote,
         "remote-store": remote_store,
         "limit": limit,
     });
+
+    if remote_ns.is_some() {
+        args["remote-ns"] = json!(remote_ns);
+    }
+
+    if ns.is_some() {
+        args["local-ns"] = json!(ns);
+    }
+
+    if max_depth.is_some() {
+        args["max-depth"] = json!(max_depth);
+    }
 
     if group_filter.is_some() {
         args["group-filter"] = json!(group_filter);
@@ -406,14 +434,13 @@ async fn run() -> Result<(), Error> {
         .insert(
             "pull",
             CliCommand::new(&API_METHOD_PULL_DATASTORE)
-                .arg_param(&["remote", "remote-store", "local-store"])
-                .completion_cb(
-                    "local-store",
-                    pbs_config::datastore::complete_datastore_name,
-                )
+                .arg_param(&["remote", "remote-store", "store"])
+                .completion_cb("store", pbs_config::datastore::complete_datastore_name)
+                .completion_cb("ns", complete_sync_local_datastore_namespace)
                 .completion_cb("remote", pbs_config::remote::complete_remote_name)
                 .completion_cb("remote-store", complete_remote_datastore_name)
-                .completion_cb("group-filter", complete_remote_datastore_group_filter),
+                .completion_cb("group-filter", complete_remote_datastore_group_filter)
+                .completion_cb("remote-ns", complete_remote_datastore_namespace),
         )
         .insert(
             "verify",
@@ -507,6 +534,12 @@ fn get_remote_ns(param: &HashMap<String, String>) -> Option<BackupNamespace> {
     if let Some(ns_str) = param.get("remote-ns") {
         BackupNamespace::from_str(ns_str).ok()
     } else {
+        if let Some(id) = param.get("id") {
+            let job = get_sync_job(id).ok();
+            if let Some(ref job) = job {
+                return job.remote_ns.clone();
+            }
+        }
         None
     }
 }
