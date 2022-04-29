@@ -394,14 +394,18 @@ async fn accept_connection(
     sender: tokio::sync::mpsc::Sender<ClientStreamResult>,
 ) {
     let accept_counter = Arc::new(());
+    let mut shutdown_future = proxmox_rest_server::shutdown_future().fuse();
 
     loop {
-        let (sock, peer) = match listener.accept().await {
-            Ok(conn) => conn,
-            Err(err) => {
-                eprintln!("error accepting tcp connection: {}", err);
-                continue;
-            }
+        let (sock, peer) = select! {
+            res = listener.accept().fuse() => match res {
+                Ok(conn) => conn,
+                Err(err) => {
+                    eprintln!("error accepting tcp connection: {}", err);
+                    continue;
+                }
+            },
+            _ =  shutdown_future => break,
         };
 
         sock.set_nodelay(true).unwrap();
