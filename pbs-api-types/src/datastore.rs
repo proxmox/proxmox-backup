@@ -84,6 +84,13 @@ pub const BACKUP_NAMESPACE_SCHEMA: Schema = StringSchema::new("Namespace.")
     .max_length(MAX_BACKUP_NAMESPACE_LENGTH) // 256
     .schema();
 
+pub const NS_MAX_DEPTH_SCHEMA: Schema =
+    IntegerSchema::new("How many levels of namespaces should be operated on (0 == no recursion)")
+        .minimum(0)
+        .maximum(MAX_NAMESPACE_DEPTH as isize)
+        .default(0)
+        .schema();
+
 pub const DATASTORE_SCHEMA: Schema = StringSchema::new("Datastore name.")
     .format(&PROXMOX_SAFE_ID_FORMAT)
     .min_length(3)
