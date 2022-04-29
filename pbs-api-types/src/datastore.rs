@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use proxmox_schema::{
     api, const_regex, ApiStringFormat, ApiType, ArraySchema, EnumEntry, IntegerSchema, ReturnType,
-    Schema, StringSchema, Updater,
+    Schema, StringSchema, Updater, UpdaterType,
 };
 
 use crate::{
@@ -458,7 +458,7 @@ pub struct SnapshotVerifyState {
 /// Implementation note: The path a namespace resolves to is always prefixed with `/ns` to avoid
 /// clashes with backup group IDs and future backup_types and to have a clean separation between
 /// the namespace directories and the ones from a backup snapshot.
-#[derive(Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash, UpdaterType)]
 pub struct BackupNamespace {
     /// The namespace subdirectories without the `ns/` intermediate directories.
     inner: Vec<String>,
