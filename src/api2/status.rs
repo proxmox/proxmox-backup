@@ -63,6 +63,7 @@ pub fn datastore_status(
                     history_delta: None,
                     estimated_full_date: None,
                     error: Some(err.to_string()),
+                    gc_status: None,
                 });
                 continue;
             }
@@ -79,6 +80,7 @@ pub fn datastore_status(
             history_delta: None,
             estimated_full_date: None,
             error: None,
+            gc_status: Some(datastore.last_gc_status()),
         };
 
         let rrd_dir = format!("datastore/{}", store);

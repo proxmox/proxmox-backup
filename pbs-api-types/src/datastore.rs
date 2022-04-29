@@ -975,6 +975,9 @@ pub struct DataStoreStatusListItem {
     /// An error description, for example, when the datastore could not be looked up
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
+    /// Status of last GC
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub gc_status: Option<GarbageCollectionStatus>,
 }
 
 pub const ADMIN_DATASTORE_LIST_SNAPSHOTS_RETURN_TYPE: ReturnType = ReturnType {
