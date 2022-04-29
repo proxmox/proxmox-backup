@@ -484,6 +484,11 @@ impl BackupNamespace {
     /// Try to parse a string into a namespace.
     pub fn new(name: &str) -> Result<Self, Error> {
         let mut this = Self::root();
+
+        if name.is_empty() {
+            return Ok(this);
+        }
+
         for name in name.split('/') {
             this.push(name.to_string())?;
         }
