@@ -687,6 +687,33 @@ impl BackupNamespace {
     pub fn components(&self) -> impl Iterator<Item = &str> + '_ {
         self.inner.iter().map(String::as_str)
     }
+
+    /// Map NS by replacing `source_prefix` with `target_prefix`
+    pub fn map_prefix(
+        &self,
+        source_prefix: &BackupNamespace,
+        target_prefix: &BackupNamespace,
+    ) -> Result<Self, Error> {
+        let mut mapped = target_prefix.clone();
+        let mut source_iter = source_prefix.components();
+        let mut self_iter = self.components();
+
+        while let Some(comp) = self_iter.next() {
+            if let Some(source_comp) = source_iter.next() {
+                if source_comp != comp {
+                    bail!(
+                        "Failed to map namespace - {} is not a valid prefix of {}",
+                        source_prefix,
+                        self
+                    );
+                }
+                continue;
+            }
+            mapped.push(comp.to_owned())?;
+        }
+
+        Ok(mapped)
+    }
 }
 
 impl fmt::Display for BackupNamespace {
