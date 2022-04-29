@@ -469,7 +469,7 @@ async fn pull_snapshot(
     Ok(())
 }
 
-pub async fn pull_snapshot_from(
+async fn pull_snapshot_from(
     worker: &WorkerTask,
     reader: Arc<BackupReader>,
     tgt_store: Arc<DataStore>,
@@ -556,7 +556,7 @@ impl std::fmt::Display for SkipInfo {
     }
 }
 
-pub async fn pull_group(
+async fn pull_group(
     worker: &WorkerTask,
     client: &HttpClient,
     params: &PullParameters,
