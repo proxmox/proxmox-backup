@@ -34,21 +34,29 @@ use proxmox_rest_server::WorkerTask;
 
 use crate::tools::parallel_handler::ParallelHandler;
 
-// fixme: implement filters
-// fixme: delete vanished groups
-// Todo: correctly lock backup groups
-
+/// Parameters for a pull operation.
 pub struct PullParameters {
+    /// Remote that is pulled from
     remote: Remote,
+    /// Full specification of remote datastore
     source: BackupRepository,
+    /// Local store that is pulled into
     store: Arc<DataStore>,
+    /// Owner of synced groups (needs to match local owner of pre-existing groups)
     owner: Authid,
+    /// Whether to remove groups which exist locally, but not on the remote end
     remove_vanished: bool,
+    /// Filters for reducing the pull scope
     group_filter: Option<Vec<GroupFilter>>,
+    /// Rate limits for all transfers from `remote`
     limit: RateLimitConfig,
 }
 
 impl PullParameters {
+    /// Creates a new instance of `PullParameters`.
+    ///
+    /// `remote` will be dereferenced via [pbs_api_types::RemoteConfig], and combined into a
+    /// [BackupRepository] with `remote_store`.
     pub fn new(
         store: &str,
         remote: &str,
@@ -83,6 +91,7 @@ impl PullParameters {
         })
     }
 
+    /// Creates a new [HttpClient] for accessing the [Remote] that is pulled from.
     pub async fn client(&self) -> Result<HttpClient, Error> {
         crate::api2::config::remote::remote_client(&self.remote, Some(self.limit.clone())).await
     }
@@ -218,6 +227,14 @@ fn verify_archive(info: &FileInfo, csum: &[u8; 32], size: u64) -> Result<(), Err
     Ok(())
 }
 
+/// Pulls a single file referenced by a manifest.
+///
+/// Pulling an archive consists of the following steps:
+/// - Create tmp file for archive
+/// - Download archive file into tmp file
+/// - Verify tmp file checksum
+/// - if archive is an index, pull referenced chunks
+/// - Rename tmp file into real path
 async fn pull_single_archive(
     worker: &WorkerTask,
     reader: &BackupReader,
@@ -317,6 +334,15 @@ async fn try_client_log_download(
     Ok(())
 }
 
+/// Actual implementation of pulling a snapshot.
+///
+/// Pulling a snapshot consists of the following steps:
+/// - (Re)download the manifest
+/// -- if it matches, only download log and treat snapshot as already synced
+/// - Iterate over referenced files
+/// -- if file already exists, verify contents
+/// -- if not, pull it from the remote
+/// - Download log if not already existing
 async fn pull_snapshot(
     worker: &WorkerTask,
     reader: Arc<BackupReader>,
@@ -469,6 +495,8 @@ async fn pull_snapshot(
     Ok(())
 }
 
+/// Pulls a `snapshot` into `tgt_store`, differentiating between new snapshots (removed on error)
+/// and existing ones (kept even on error).
 async fn pull_snapshot_from(
     worker: &WorkerTask,
     reader: Arc<BackupReader>,
@@ -556,6 +584,19 @@ impl std::fmt::Display for SkipInfo {
     }
 }
 
+/// Pulls a group according to `params`.
+///
+/// Pulling a group consists of the following steps:
+/// - Query the list of snapshots available for this group on the remote, sort by snapshot time
+/// - Get last snapshot timestamp on local datastore
+/// - Iterate over list of snapshots
+/// -- Recreate client/BackupReader
+/// -- pull snapshot, unless it's not finished yet or older than last local snapshot
+/// - (remove_vanished) list all local snapshots, remove those that don't exist on remote
+///
+/// Permission checks:
+/// - remote snapshot access is checked by remote (twice: query and opening the backup reader)
+/// - local group owner is already checked by pull_store
 async fn pull_group(
     worker: &WorkerTask,
     client: &HttpClient,
@@ -695,6 +736,19 @@ async fn pull_group(
     Ok(())
 }
 
+/// Pulls a store according to `params`.
+///
+/// Pulling a store consists of the following steps:
+/// - Query list of groups on the remote
+/// - Filter list according to configured group filters
+/// - Iterate list and attempt to pull each group in turn
+/// - (remove_vanished) remove groups with matching owner and matching the configured group filters which are
+///   not or no longer available on the remote
+///
+/// Permission checks:
+/// - access to local datastore and remote entry need to be checked at call site
+/// - remote groups are filtered by remote
+/// - owner check for vanished groups done here
 pub async fn pull_store(
     worker: &WorkerTask,
     client: &HttpClient,
