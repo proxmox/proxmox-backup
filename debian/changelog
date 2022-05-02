@@ -1,3 +1,15 @@
+rust-proxmox-backup (2.1.8-1) bullseye; urgency=medium
+
+  * api: status: return gc-status again
+
+  * proxmox-backup-proxy: stop accept() loop on daemon shutdown to avoid that
+    new request get accepted while the REST stack is already stopped, for
+    example on the reload triggered by a package upgrade.
+
+  * pull: improve filtering local removal candidates
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 02 May 2022 17:36:11 +0200
+
 rust-proxmox-backup (2.1.7-1) bullseye; urgency=medium
 
   * pbs-tape: sgutils2: check sense data when status is 'CHECK_CONDITION'
