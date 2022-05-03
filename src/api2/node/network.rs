@@ -109,7 +109,7 @@ fn set_bond_slaves(iface: &mut Interface, slaves: Vec<String>) -> Result<(), Err
 pub fn list_network_devices(
     _param: Value,
     _info: &ApiMethod,
-    mut rpcenv: &mut dyn RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
     let (config, digest) = network::config()?;
     let digest = hex::encode(&digest);

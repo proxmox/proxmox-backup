@@ -44,7 +44,7 @@ use crate::server::jobstate;
 /// List all datastores
 pub fn list_datastores(
     _param: Value,
-    mut rpcenv: &mut dyn RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<DataStoreConfig>, Error> {
     let (config, digest) = pbs_config::datastore::config()?;
 
@@ -144,7 +144,7 @@ pub fn create_datastore(
 /// Read a datastore configuration.
 pub fn read_datastore(
     name: String,
-    mut rpcenv: &mut dyn RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<DataStoreConfig, Error> {
     let (config, digest) = pbs_config::datastore::config()?;
 

@@ -80,7 +80,7 @@ pub fn create_changer(config: ScsiTapeChanger) -> Result<(), Error> {
 pub fn get_config(
     name: String,
     _param: Value,
-    mut rpcenv: &mut dyn RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<ScsiTapeChanger, Error> {
     let (config, digest) = pbs_config::drive::config()?;
 
@@ -110,7 +110,7 @@ pub fn get_config(
 /// List changers
 pub fn list_changers(
     _param: Value,
-    mut rpcenv: &mut dyn RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<ScsiTapeChanger>, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;

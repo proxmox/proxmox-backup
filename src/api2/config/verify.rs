@@ -31,7 +31,7 @@ use pbs_config::CachedUserInfo;
 /// List all verification jobs
 pub fn list_verification_jobs(
     _param: Value,
-    mut rpcenv: &mut dyn RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<VerificationJobConfig>, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
@@ -120,7 +120,7 @@ pub fn create_verification_job(
 /// Read a verification job configuration.
 pub fn read_verification_job(
     id: String,
-    mut rpcenv: &mut dyn RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<VerificationJobConfig, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;

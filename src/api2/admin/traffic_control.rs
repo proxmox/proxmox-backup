@@ -44,7 +44,7 @@ pub struct TrafficControlCurrentRate {
 )]
 /// Show current traffic for all traffic control rules.
 pub fn show_current_traffic(
-    mut rpcenv: &mut dyn RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<TrafficControlCurrentRate>, Error> {
     let (config, digest) = pbs_config::traffic_control::config()?;
 

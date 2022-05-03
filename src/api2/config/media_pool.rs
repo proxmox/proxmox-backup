@@ -56,7 +56,7 @@ pub fn create_pool(config: MediaPoolConfig) -> Result<(), Error> {
     },
 )]
 /// List media pools
-pub fn list_pools(mut rpcenv: &mut dyn RpcEnvironment) -> Result<Vec<MediaPoolConfig>, Error> {
+pub fn list_pools(rpcenv: &mut dyn RpcEnvironment) -> Result<Vec<MediaPoolConfig>, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
 

@@ -30,7 +30,7 @@ use pbs_config::CachedUserInfo;
 /// List all tape backup jobs
 pub fn list_tape_backup_jobs(
     _param: Value,
-    mut rpcenv: &mut dyn RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<TapeBackupJobConfig>, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
@@ -104,7 +104,7 @@ pub fn create_tape_backup_job(
 /// Read a tape backup job configuration.
 pub fn read_tape_backup_job(
     id: String,
-    mut rpcenv: &mut dyn RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<TapeBackupJobConfig, Error> {
     let (config, digest) = pbs_config::tape_job::config()?;
 

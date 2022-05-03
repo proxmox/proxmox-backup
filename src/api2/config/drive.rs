@@ -80,7 +80,7 @@ pub fn create_drive(config: LtoTapeDrive) -> Result<(), Error> {
 pub fn get_config(
     name: String,
     _param: Value,
-    mut rpcenv: &mut dyn RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<LtoTapeDrive, Error> {
     let (config, digest) = pbs_config::drive::config()?;
 
@@ -110,7 +110,7 @@ pub fn get_config(
 /// List drives
 pub fn list_drives(
     _param: Value,
-    mut rpcenv: &mut dyn RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<LtoTapeDrive>, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;

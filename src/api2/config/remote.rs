@@ -37,7 +37,7 @@ use pbs_config::CachedUserInfo;
 pub fn list_remotes(
     _param: Value,
     _info: &ApiMethod,
-    mut rpcenv: &mut dyn RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<RemoteWithoutPassword>, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
@@ -120,7 +120,7 @@ pub fn create_remote(name: String, config: RemoteConfig, password: String) -> Re
 pub fn read_remote(
     name: String,
     _info: &ApiMethod,
-    mut rpcenv: &mut dyn RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<RemoteWithoutPassword, Error> {
     let (config, digest) = pbs_config::remote::config()?;
     let data: RemoteWithoutPassword = config.lookup("remote", &name)?;

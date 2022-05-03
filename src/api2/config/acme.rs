@@ -519,7 +519,7 @@ fn modify_cfg_for_api(id: &str, ty: &str, data: &Value) -> PluginConfig {
     },
 )]
 /// List ACME challenge plugins.
-pub fn list_plugins(mut rpcenv: &mut dyn RpcEnvironment) -> Result<Vec<PluginConfig>, Error> {
+pub fn list_plugins(rpcenv: &mut dyn RpcEnvironment) -> Result<Vec<PluginConfig>, Error> {
     let (plugins, digest) = plugin::config()?;
     rpcenv["digest"] = hex::encode(&digest).into();
     Ok(plugins
@@ -541,7 +541,7 @@ pub fn list_plugins(mut rpcenv: &mut dyn RpcEnvironment) -> Result<Vec<PluginCon
     returns: { type: PluginConfig },
 )]
 /// List ACME challenge plugins.
-pub fn get_plugin(id: String, mut rpcenv: &mut dyn RpcEnvironment) -> Result<PluginConfig, Error> {
+pub fn get_plugin(id: String, rpcenv: &mut dyn RpcEnvironment) -> Result<PluginConfig, Error> {
     let (plugins, digest) = plugin::config()?;
     rpcenv["digest"] = hex::encode(&digest).into();
 

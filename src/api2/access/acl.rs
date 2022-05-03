@@ -109,7 +109,7 @@ fn extract_acl_node_data(
 pub fn read_acl(
     path: Option<String>,
     exact: bool,
-    mut rpcenv: &mut dyn RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<AclListItem>, Error> {
     let auth_id = rpcenv.get_auth_id().unwrap().parse()?;
 

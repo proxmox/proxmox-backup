@@ -45,7 +45,7 @@ use crate::server::{
 pub fn list_verification_jobs(
     store: Option<String>,
     _param: Value,
-    mut rpcenv: &mut dyn RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<VerificationJobStatus>, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;

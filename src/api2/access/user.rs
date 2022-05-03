@@ -56,7 +56,7 @@ fn new_user_with_tokens(user: User) -> UserWithTokens {
 pub fn list_users(
     include_tokens: bool,
     _info: &ApiMethod,
-    mut rpcenv: &mut dyn RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<UserWithTokens>, Error> {
     let (config, digest) = pbs_config::user::config()?;
 
@@ -179,7 +179,7 @@ pub fn create_user(
     },
 )]
 /// Read user configuration data.
-pub fn read_user(userid: Userid, mut rpcenv: &mut dyn RpcEnvironment) -> Result<User, Error> {
+pub fn read_user(userid: Userid, rpcenv: &mut dyn RpcEnvironment) -> Result<User, Error> {
     let (config, digest) = pbs_config::user::config()?;
     let user = config.lookup("user", userid.as_str())?;
     rpcenv["digest"] = hex::encode(&digest).into();
@@ -417,7 +417,7 @@ pub fn read_token(
     userid: Userid,
     token_name: Tokenname,
     _info: &ApiMethod,
-    mut rpcenv: &mut dyn RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<ApiToken, Error> {
     let (config, digest) = pbs_config::user::config()?;
 
@@ -705,7 +705,7 @@ pub struct TokenApiEntry {
 pub fn list_tokens(
     userid: Userid,
     _info: &ApiMethod,
-    mut rpcenv: &mut dyn RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<TokenApiEntry>, Error> {
     let (config, digest) = pbs_config::user::config()?;
 

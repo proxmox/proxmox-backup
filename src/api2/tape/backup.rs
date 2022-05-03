@@ -79,7 +79,7 @@ fn check_backup_permission(
 /// List all tape backup jobs
 pub fn list_tape_backup_jobs(
     _param: Value,
-    mut rpcenv: &mut dyn RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<TapeBackupJobStatus>, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;

@@ -28,7 +28,7 @@ use pbs_api_types::{
 pub fn list_traffic_controls(
     _param: Value,
     _info: &ApiMethod,
-    mut rpcenv: &mut dyn RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<TrafficControlRule>, Error> {
     let (config, digest) = pbs_config::traffic_control::config()?;
 
@@ -91,7 +91,7 @@ pub fn create_traffic_control(config: TrafficControlRule) -> Result<(), Error> {
 pub fn read_traffic_control(
     name: String,
     _info: &ApiMethod,
-    mut rpcenv: &mut dyn RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<TrafficControlRule, Error> {
     let (config, digest) = pbs_config::traffic_control::config()?;
     let data: TrafficControlRule = config.lookup("rule", &name)?;

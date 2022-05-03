@@ -81,7 +81,7 @@ pub fn check_sync_job_modify_access(
 /// List all sync jobs
 pub fn list_sync_jobs(
     _param: Value,
-    mut rpcenv: &mut dyn RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<SyncJobConfig>, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
@@ -158,10 +158,7 @@ pub fn create_sync_job(
     },
 )]
 /// Read a sync job configuration.
-pub fn read_sync_job(
-    id: String,
-    mut rpcenv: &mut dyn RpcEnvironment,
-) -> Result<SyncJobConfig, Error> {
+pub fn read_sync_job(id: String, rpcenv: &mut dyn RpcEnvironment) -> Result<SyncJobConfig, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
 

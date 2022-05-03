@@ -30,7 +30,7 @@ use pbs_config::domains;
 /// List configured OpenId realms
 pub fn list_openid_realms(
     _param: Value,
-    mut rpcenv: &mut dyn RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<OpenIdRealmConfig>, Error> {
     let (config, digest) = domains::config()?;
 
@@ -132,7 +132,7 @@ pub fn delete_openid_realm(
 /// Read the OpenID realm configuration
 pub fn read_openid_realm(
     realm: String,
-    mut rpcenv: &mut dyn RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<OpenIdRealmConfig, Error> {
     let (domains, digest) = domains::config()?;
 

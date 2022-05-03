@@ -293,7 +293,7 @@ fn extract_upid(param: &Value) -> Result<UPID, Error> {
     },
 )]
 /// Read task log.
-async fn read_task_log(param: Value, mut rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
+async fn read_task_log(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
     let upid = extract_upid(&param)?;
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
@@ -463,7 +463,7 @@ pub fn list_tasks(
     typefilter: Option<String>,
     statusfilter: Option<Vec<TaskStateType>>,
     param: Value,
-    mut rpcenv: &mut dyn RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<TaskListItem>, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;

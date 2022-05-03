@@ -22,7 +22,7 @@ use pbs_api_types::BasicRealmInfo;
     }
 )]
 /// Authentication domain/realm index.
-fn list_domains(mut rpcenv: &mut dyn RpcEnvironment) -> Result<Vec<BasicRealmInfo>, Error> {
+fn list_domains(rpcenv: &mut dyn RpcEnvironment) -> Result<Vec<BasicRealmInfo>, Error> {
     let mut list = Vec::new();
 
     list.push(serde_json::from_value(json!({

@@ -35,7 +35,7 @@ use pbs_config::tape_encryption_keys::{
 pub fn list_keys(
     _param: Value,
     _info: &ApiMethod,
-    mut rpcenv: &mut dyn RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<KeyInfo>, Error> {
     let (key_map, digest) = load_key_configs()?;
 

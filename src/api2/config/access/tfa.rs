@@ -38,7 +38,7 @@ const WEBAUTHN_ROUTER: Router = Router::new()
 )]
 /// Get the TFA configuration.
 pub fn get_webauthn_config(
-    mut rpcenv: &mut dyn RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Option<WebauthnConfig>, Error> {
     let (config, digest) = match tfa::webauthn_config()? {
         Some(c) => c,

@@ -140,7 +140,7 @@ fn dump_journal(
 fn get_syslog(
     param: Value,
     _info: &ApiMethod,
-    mut rpcenv: &mut dyn RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
     let service = param["service"]
         .as_str()
