@@ -439,6 +439,7 @@ pub enum BackupType {
 
     /// "Host" backups.
     Host,
+    // NOTE: if you add new types, don't forget to adapt the iter below!
 }
 
 impl BackupType {
@@ -457,6 +458,10 @@ impl BackupType {
             BackupType::Host => 1,
             BackupType::Vm => 2,
         }
+    }
+
+    pub const fn iter() -> &'static [BackupType] {
+        &[Self::Vm, Self::Ct, Self::Host]
     }
 }
 
