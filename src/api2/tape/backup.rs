@@ -409,7 +409,18 @@ fn backup_worker(
     let mut pool_writer = PoolWriter::new(pool, &setup.drive, worker, email, force_media_set)?;
 
     // FIXME: Namespaces! Probably just recurse for now? Not sure about the usage here...
-    let mut group_list = datastore.list_backup_groups(Default::default())?;
+
+    let mut group_list = Vec::new();
+    let root_namespace = if let Some(ns) = &setup.ns {
+        ns.clone()
+    } else {
+        Default::default()
+    };
+    let namespaces =
+        datastore.recursive_iter_backup_ns_ok(root_namespace, setup.recursion_depth)?;
+    for ns in namespaces {
+        group_list.extend(datastore.list_backup_groups(ns)?);
+    }
 
     group_list.sort_unstable_by(|a, b| a.group().cmp(b.group()));
 

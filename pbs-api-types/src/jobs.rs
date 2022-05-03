@@ -277,6 +277,14 @@ pub struct VerificationJobStatus {
             schema: GROUP_FILTER_LIST_SCHEMA,
             optional: true,
         },
+        ns: {
+            type: BackupNamespace,
+            optional: true,
+        },
+        "recursion-depth": {
+            schema: crate::NS_MAX_DEPTH_SCHEMA,
+            optional: true,
+        },
     }
 )]
 #[derive(Serialize, Deserialize, Clone, Updater)]
@@ -297,6 +305,10 @@ pub struct TapeBackupJobSetup {
     pub notify_user: Option<Userid>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub group_filter: Option<Vec<GroupFilter>>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub ns: Option<BackupNamespace>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub recursion_depth: Option<usize>,
 }
 
 #[api(
