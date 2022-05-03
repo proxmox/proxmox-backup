@@ -288,6 +288,7 @@ impl PoolWriter {
             task_log!(worker, "moving to end of media");
             status.drive.move_to_eom(true)?;
             status.at_eom = true;
+            task_log!(worker, "arrived at end of media");
         }
 
         let current_file_number = status.drive.current_file_number()?;
