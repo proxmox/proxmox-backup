@@ -1071,6 +1071,12 @@ fn generate_host_stats_sync() {
                 .unwrap_or_default();
 
             for config in datastore_list {
+                if config
+                    .get_maintenance_mode()
+                    .map_or(false, |mode| mode.check(Some(Operation::Read)).is_err())
+                {
+                    continue;
+                }
                 let rrd_prefix = format!("datastore/{}", config.name);
                 let path = std::path::Path::new(&config.path);
                 gather_disk_stats(disk_manager.clone(), path, &rrd_prefix);
