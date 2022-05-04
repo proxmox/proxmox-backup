@@ -15,6 +15,7 @@ use nix::unistd::{fork, ForkResult};
 
 use proxmox_io::{ReadExt, WriteExt};
 use proxmox_sys::fd::{fd_change_cloexec, Fd};
+use proxmox_sys::fs::CreateOptions;
 
 // Unfortunately FnBox is nightly-only and Box<FnOnce> is unusable, so just use Box<Fn>...
 type BoxedStoreFunc = Box<dyn FnMut() -> Result<String, Error> + UnwindSafe + Send>;
@@ -81,7 +82,7 @@ impl Reloader {
         Ok(())
     }
 
-    pub fn fork_restart(self) -> Result<(), Error> {
+    pub fn fork_restart(self, pid_fn: Option<&str>) -> Result<(), Error> {
         // Get our parameters as Vec<CString>
         let args = std::env::args_os();
         let mut new_args = Vec::with_capacity(args.len());
@@ -179,6 +180,16 @@ impl Reloader {
                     }
                 });
 
+                if let Some(pid_fn) = pid_fn {
+                    let pid_str = format!("{}\n", child);
+                    proxmox_sys::fs::replace_file(
+                        pid_fn,
+                        pid_str.as_bytes(),
+                        CreateOptions::new(),
+                        false,
+                    )?;
+                }
+
                 if let Err(e) = systemd_notify(SystemdNotify::MainPid(child)) {
                     log::error!("failed to notify systemd about the new main pid: {}", e);
                 }
@@ -250,6 +261,7 @@ impl Reloadable for tokio::net::TcpListener {
 pub async fn create_daemon<F, S>(
     address: std::net::SocketAddr,
     create_service: F,
+    pidfn: Option<&str>,
 ) -> Result<(), Error>
 where
     F: FnOnce(tokio::net::TcpListener) -> Result<S, Error>,
@@ -295,7 +307,7 @@ where
             log::error!("failed to wait on systemd-processing: {}", e);
         }
 
-        if let Err(e) = reloader.take().unwrap().fork_restart() {
+        if let Err(e) = reloader.take().unwrap().fork_restart(pidfn) {
             log::error!("error during reload: {}", e);
             let _ = systemd_notify(SystemdNotify::Status("error during reload".to_string()));
         }

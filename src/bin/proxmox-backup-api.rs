@@ -138,19 +138,23 @@ async fn run() -> Result<(), Error> {
     )?;
 
     // http server future:
-    let server = daemon::create_daemon(([127, 0, 0, 1], 82).into(), move |listener| {
-        let incoming = hyper::server::conn::AddrIncoming::from_listener(listener)?;
+    let server = daemon::create_daemon(
+        ([127, 0, 0, 1], 82).into(),
+        move |listener| {
+            let incoming = hyper::server::conn::AddrIncoming::from_listener(listener)?;
 
-        Ok(async {
-            daemon::systemd_notify(daemon::SystemdNotify::Ready)?;
+            Ok(async {
+                daemon::systemd_notify(daemon::SystemdNotify::Ready)?;
 
-            hyper::Server::builder(incoming)
-                .serve(rest_server)
-                .with_graceful_shutdown(proxmox_rest_server::shutdown_future())
-                .map_err(Error::from)
-                .await
-        })
-    });
+                hyper::Server::builder(incoming)
+                    .serve(rest_server)
+                    .with_graceful_shutdown(proxmox_rest_server::shutdown_future())
+                    .map_err(Error::from)
+                    .await
+            })
+        },
+        Some(pbs_buildcfg::PROXMOX_BACKUP_API_PID_FN),
+    );
 
     proxmox_rest_server::write_pid(pbs_buildcfg::PROXMOX_BACKUP_API_PID_FN)?;
 

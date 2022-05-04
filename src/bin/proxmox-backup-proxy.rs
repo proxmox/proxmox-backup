@@ -301,20 +301,24 @@ async fn run() -> Result<(), Error> {
         Ok(Value::Null)
     })?;
 
-    let server = daemon::create_daemon(([0, 0, 0, 0, 0, 0, 0, 0], 8007).into(), move |listener| {
-        let connections = accept_connections(listener, acceptor, debug);
-        let connections = hyper::server::accept::from_stream(ReceiverStream::new(connections));
+    let server = daemon::create_daemon(
+        ([0, 0, 0, 0, 0, 0, 0, 0], 8007).into(),
+        move |listener| {
+            let connections = accept_connections(listener, acceptor, debug);
+            let connections = hyper::server::accept::from_stream(ReceiverStream::new(connections));
 
-        Ok(async {
-            daemon::systemd_notify(daemon::SystemdNotify::Ready)?;
+            Ok(async {
+                daemon::systemd_notify(daemon::SystemdNotify::Ready)?;
 
-            hyper::Server::builder(connections)
-                .serve(rest_server)
-                .with_graceful_shutdown(proxmox_rest_server::shutdown_future())
-                .map_err(Error::from)
-                .await
-        })
-    });
+                hyper::Server::builder(connections)
+                    .serve(rest_server)
+                    .with_graceful_shutdown(proxmox_rest_server::shutdown_future())
+                    .map_err(Error::from)
+                    .await
+            })
+        },
+        Some(pbs_buildcfg::PROXMOX_BACKUP_PROXY_PID_FN),
+    );
 
     proxmox_rest_server::write_pid(pbs_buildcfg::PROXMOX_BACKUP_PROXY_PID_FN)?;
 

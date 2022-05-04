@@ -210,15 +210,19 @@ async fn run() -> Result<(), Error> {
 
     // then we have to create a daemon that listens, accepts and serves
     // the api to clients
-    proxmox_rest_server::daemon::create_daemon(([127, 0, 0, 1], 65000).into(), move |listener| {
-        let incoming = hyper::server::conn::AddrIncoming::from_listener(listener)?;
+    proxmox_rest_server::daemon::create_daemon(
+        ([127, 0, 0, 1], 65000).into(),
+        move |listener| {
+            let incoming = hyper::server::conn::AddrIncoming::from_listener(listener)?;
 
-        Ok(async move {
-            hyper::Server::builder(incoming).serve(rest_server).await?;
+            Ok(async move {
+                hyper::Server::builder(incoming).serve(rest_server).await?;
 
-            Ok(())
-        })
-    })
+                Ok(())
+            })
+        },
+        None,
+    )
     .await?;
 
     Ok(())
