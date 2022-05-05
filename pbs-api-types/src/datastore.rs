@@ -69,7 +69,10 @@ pub const BACKUP_GROUP_SCHEMA: Schema = StringSchema::new("Backup Group")
     .format(&BACKUP_GROUP_FORMAT)
     .schema();
 
-pub const MAX_NAMESPACE_DEPTH: usize = 8;
+/// The maximal, inclusive depth for namespaces from the root ns downwards
+///
+/// The datastore root name space is at depth zero (0), so we have in total eight (8) levels
+pub const MAX_NAMESPACE_DEPTH: usize = 7;
 pub const MAX_BACKUP_NAMESPACE_LENGTH: usize = 32 * 8; // 256
 pub const BACKUP_NAMESPACE_SCHEMA: Schema = StringSchema::new("Namespace.")
     .format(&BACKUP_NAMESPACE_FORMAT)
@@ -611,7 +614,7 @@ impl BackupNamespace {
     /// Assumes `subdir` already does not contain any slashes.
     /// Performs remaining checks and updates the length.
     fn push_do(&mut self, subdir: String) -> Result<(), Error> {
-        if self.depth() >= MAX_NAMESPACE_DEPTH {
+        if self.depth() > MAX_NAMESPACE_DEPTH {
             bail!(
                 "namespace to deep, {} > max {}",
                 self.inner.len(),
