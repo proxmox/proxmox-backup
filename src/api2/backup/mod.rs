@@ -105,6 +105,10 @@ fn upgrade_to_backup_protocol(
             );
         }
 
+        if !datastore.ns_path(&backup_ns).exists() {
+            proxmox_router::http_bail!(NOT_FOUND, "namespace not found");
+        }
+
         let worker_id = format!("{}:{}/{}", store, backup_dir_arg.ty(), backup_dir_arg.id());
 
         let env_type = rpcenv.env_type();
