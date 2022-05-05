@@ -706,10 +706,11 @@ impl<R: Read + Seek> CatalogReader<R> {
             components.push(b'/');
             components.extend(&direntry.name);
             let mut entry = ArchiveEntry::new(&components, Some(&direntry.attr));
-            if let DirEntryAttribute::File { size, mtime } = direntry.attr {
-                entry.size = size.into();
-                entry.mtime = mtime.into();
+
+            if let DirEntryAttribute::Directory { start: _ } = direntry.attr {
+                entry.size = Some(u64::try_from(self.read_dir(&direntry)?.len())?);
             }
+
             res.push(entry);
         }
 
@@ -911,7 +912,8 @@ pub struct ArchiveEntry {
     pub entry_type: String,
     /// Is this entry a leaf node, or does it have children (i.e. a directory)?
     pub leaf: bool,
-    /// The file size, if entry_type is 'f' (file)
+    /// The file size, if entry_type is 'f' (file) or the amount of files in a
+    /// directory if entry_type is 'd' (directory)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub size: Option<u64>,
     /// The file "last modified" time stamp, if entry_type is 'f' (file)
