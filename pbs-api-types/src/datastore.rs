@@ -1464,6 +1464,39 @@ pub const ADMIN_DATASTORE_PRUNE_RETURN_TYPE: ReturnType = ReturnType {
     .schema(),
 };
 
+#[api(
+    properties: {
+        store: {
+            schema: DATASTORE_SCHEMA,
+        },
+        "max-depth": {
+            schema: NS_MAX_DEPTH_SCHEMA,
+            optional: true,
+        },
+     },
+)]
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+/// A namespace mapping
+pub struct TapeRestoreNamespace {
+    /// The source datastore
+    pub store: String,
+    /// The source namespace. Root namespace if omitted.
+    pub source: Option<BackupNamespace>,
+    /// The target namespace,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target: Option<BackupNamespace>,
+    /// The (optional) recursion depth
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_depth: Option<usize>,
+}
+
+pub const TAPE_RESTORE_NAMESPACE_SCHEMA: Schema = StringSchema::new("A namespace mapping")
+    .format(&ApiStringFormat::PropertyString(
+        &TapeRestoreNamespace::API_SCHEMA,
+    ))
+    .schema();
+
 /// Parse snapshots in the form 'ns/foo/ns/bar/ct/100/1970-01-01T00:00:00Z'
 /// into a [`BackupNamespace`] and [`BackupDir`]
 pub fn parse_ns_and_snapshot(input: &str) -> Result<(BackupNamespace, BackupDir), Error> {

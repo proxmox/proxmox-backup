@@ -10,16 +10,17 @@ use serde_json::Value;
 
 use proxmox_io::ReadExt;
 use proxmox_router::{Permission, Router, RpcEnvironment, RpcEnvironmentType};
-use proxmox_schema::api;
+use proxmox_schema::{api, ApiType};
 use proxmox_section_config::SectionConfigData;
 use proxmox_sys::fs::{replace_file, CreateOptions};
 use proxmox_sys::{task_log, task_warn, WorkerTaskContext};
 use proxmox_uuid::Uuid;
 
 use pbs_api_types::{
-    Authid, BackupNamespace, CryptMode, Operation, Userid, DATASTORE_MAP_ARRAY_SCHEMA,
-    DATASTORE_MAP_LIST_SCHEMA, DRIVE_NAME_SCHEMA, PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY,
-    PRIV_TAPE_READ, TAPE_RESTORE_SNAPSHOT_SCHEMA, UPID_SCHEMA,
+    Authid, BackupNamespace, CryptMode, Operation, TapeRestoreNamespace, Userid,
+    DATASTORE_MAP_ARRAY_SCHEMA, DATASTORE_MAP_LIST_SCHEMA, DRIVE_NAME_SCHEMA, MAX_NAMESPACE_DEPTH,
+    PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY, PRIV_TAPE_READ, TAPE_RESTORE_SNAPSHOT_SCHEMA,
+    UPID_SCHEMA,
 };
 use pbs_config::CachedUserInfo;
 use pbs_datastore::dynamic_index::DynamicIndexReader;
@@ -54,6 +55,71 @@ const RESTORE_TMP_DIR: &str = "/var/tmp/proxmox-backup";
 pub struct DataStoreMap {
     map: HashMap<String, Arc<DataStore>>,
     default: Option<Arc<DataStore>>,
+}
+
+struct NamespaceMap {
+    map: HashMap<String, HashMap<BackupNamespace, (BackupNamespace, usize)>>,
+}
+
+impl TryFrom<Vec<String>> for NamespaceMap {
+    type Error = Error;
+
+    fn try_from(mappings: Vec<String>) -> Result<Self, Error> {
+        let mut map = HashMap::new();
+
+        let mappings = mappings.into_iter().map(|s| {
+            let value = TapeRestoreNamespace::API_SCHEMA.parse_property_string(&s)?;
+            let value: TapeRestoreNamespace = serde_json::from_value(value)?;
+            Ok::<_, Error>(value)
+        });
+
+        for mapping in mappings {
+            let mapping = mapping?;
+            let source = mapping.source.unwrap_or_default();
+            let target = mapping.target.unwrap_or_default();
+            let max_depth = mapping.max_depth.unwrap_or(MAX_NAMESPACE_DEPTH);
+
+            let ns_map: &mut HashMap<BackupNamespace, (BackupNamespace, usize)> =
+                map.entry(mapping.store).or_insert_with(HashMap::new);
+
+            if ns_map.insert(source, (target, max_depth)).is_some() {
+                bail!("duplicate mapping found");
+            }
+        }
+
+        Ok(Self { map })
+    }
+}
+
+impl NamespaceMap {
+    fn used_namespaces<'a>(&self, datastore: &str) -> HashSet<BackupNamespace> {
+        let mut set = HashSet::new();
+        if let Some(mapping) = self.map.get(datastore) {
+            for (ns, _) in mapping.values() {
+                set.insert(ns.clone());
+            }
+        }
+
+        set
+    }
+
+    fn get_namespaces(&self, source_ds: &str, source_ns: &BackupNamespace) -> Vec<BackupNamespace> {
+        if let Some(mapping) = self.map.get(source_ds) {
+            return mapping
+                .iter()
+                .filter_map(|(ns, (target_ns, max_depth))| {
+                    // filter out prefixes which are too long
+                    if ns.depth() > source_ns.depth() || source_ns.depth() - ns.depth() > *max_depth
+                    {
+                        return None;
+                    }
+                    source_ns.map_prefix(ns, target_ns).ok()
+                })
+                .collect();
+        }
+
+        vec![]
+    }
 }
 
 impl TryFrom<String> for DataStoreMap {
