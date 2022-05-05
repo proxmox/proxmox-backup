@@ -115,7 +115,7 @@ async fn register_subscription(
         None
     };
 
-    let mut client = pbs_simple_http(proxy_config);
+    let client = pbs_simple_http(proxy_config);
 
     let uri = "https://shop.proxmox.com/modules/servers/licensing/verify.php";
     let query = json_object_to_query(params)?;

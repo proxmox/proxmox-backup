@@ -239,7 +239,7 @@ fn apt_get_changelog(param: Value) -> Result<Value, Error> {
     }
 
     let proxy_config = read_and_update_proxy_config()?;
-    let mut client = pbs_simple_http(proxy_config);
+    let client = pbs_simple_http(proxy_config);
 
     let changelog_url = &pkg_info[0].change_log_url;
     // FIXME: use 'apt-get changelog' for proxmox packages as well, once repo supports it
