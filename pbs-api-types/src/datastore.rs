@@ -575,10 +575,12 @@ impl BackupNamespace {
     }
 
     /// Pop one level off the namespace hierachy
-    pub fn pop(&mut self) {
-        if let Some(dropped) = self.inner.pop() {
+    pub fn pop(&mut self) -> Option<String> {
+        let dropped = self.inner.pop();
+        if let Some(ref dropped) = dropped {
             self.len = self.len.saturating_sub(dropped.len() + 1);
         }
+        dropped
     }
 
     /// Get the namespace parent as owned BackupNamespace
