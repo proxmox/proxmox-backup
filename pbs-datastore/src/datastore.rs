@@ -749,17 +749,21 @@ impl DataStore {
     pub fn recursive_iter_backup_ns_ok(
         self: &Arc<DataStore>,
         ns: BackupNamespace,
+        max_depth: Option<usize>,
     ) -> Result<impl Iterator<Item = BackupNamespace> + 'static, Error> {
         let this = Arc::clone(self);
-        Ok(
-            ListNamespacesRecursive::new(Arc::clone(&self), ns)?.filter_map(move |ns| match ns {
-                Ok(ns) => Some(ns),
-                Err(err) => {
-                    log::error!("list groups error on datastore {} - {}", this.name(), err);
-                    None
-                }
-            }),
-        )
+        Ok(if let Some(depth) = max_depth {
+            ListNamespacesRecursive::new_max_depth(Arc::clone(&self), ns, depth)?
+        } else {
+            ListNamespacesRecursive::new(Arc::clone(&self), ns)?
+        }
+        .filter_map(move |ns| match ns {
+            Ok(ns) => Some(ns),
+            Err(err) => {
+                log::error!("list groups error on datastore {} - {}", this.name(), err);
+                None
+            }
+        }))
     }
 
     /// Get a streaming iter over top-level backup groups of a datatstore
@@ -1504,15 +1508,30 @@ pub struct ListNamespacesRecursive {
     store: Arc<DataStore>,
     /// the starting namespace we search downward from
     ns: BackupNamespace,
+    /// the maximal recursion depth from the anchor start ns (depth == 0) downwards
+    max_depth: u8,
     state: Option<Vec<ListNamespaces>>, // vector to avoid code recursion
 }
 
 impl ListNamespacesRecursive {
     /// Creates an recursive namespace iterator.
     pub fn new(store: Arc<DataStore>, ns: BackupNamespace) -> Result<Self, Error> {
+        Self::new_max_depth(store, ns, pbs_api_types::MAX_NAMESPACE_DEPTH)
+    }
+
+    /// Creates an recursive namespace iterator with max_depth
+    pub fn new_max_depth(
+        store: Arc<DataStore>,
+        ns: BackupNamespace,
+        max_depth: usize,
+    ) -> Result<Self, Error> {
+        if max_depth > pbs_api_types::MAX_NAMESPACE_DEPTH {
+            bail!("max_depth must be smaller 8");
+        }
         Ok(ListNamespacesRecursive {
             store: store,
             ns,
+            max_depth: max_depth as u8,
             state: None,
         })
     }
@@ -1533,9 +1552,11 @@ impl Iterator for ListNamespacesRecursive {
                 };
                 match iter.next() {
                     Some(Ok(ns)) => {
-                        match ListNamespaces::new(Arc::clone(&self.store), ns.to_owned()) {
-                            Ok(iter) => state.push(iter),
-                            Err(err) => log::error!("failed to create child namespace iter {err}"),
+                        if state.len() < self.max_depth as usize {
+                            match ListNamespaces::new(Arc::clone(&self.store), ns.to_owned()) {
+                                Ok(iter) => state.push(iter),
+                                Err(err) => log::error!("failed to create child ns iter {err}"),
+                            }
                         }
                         return Some(Ok(ns));
                     }
@@ -1547,13 +1568,15 @@ impl Iterator for ListNamespacesRecursive {
             } else {
                 // first next call ever: initialize state vector and start iterating at our level
                 let mut state = Vec::with_capacity(pbs_api_types::MAX_NAMESPACE_DEPTH);
-                match ListNamespaces::new(Arc::clone(&self.store), self.ns.to_owned()) {
-                    Ok(list_ns) => state.push(list_ns),
-                    Err(err) => {
-                        // yield the error but set the state to Some to avoid re-try, a future
-                        // next() will then see the state, and the empty check yield's None
-                        self.state = Some(state);
-                        return Some(Err(err));
+                if self.max_depth as usize > 0 {
+                    match ListNamespaces::new(Arc::clone(&self.store), self.ns.to_owned()) {
+                        Ok(list_ns) => state.push(list_ns),
+                        Err(err) => {
+                            // yield the error but set the state to Some to avoid re-try, a future
+                            // next() will then see the state, and the empty check yield's None
+                            self.state = Some(state);
+                            return Some(Err(err));
+                        }
                     }
                 }
                 self.state = Some(state);
