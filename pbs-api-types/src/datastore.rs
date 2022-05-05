@@ -1054,6 +1054,22 @@ impl fmt::Display for BackupDir {
     }
 }
 
+/// Helper struct for places where sensible formatting of store+NS combo is required
+pub struct DatastoreWithNamespace {
+    pub store: String,
+    pub ns: BackupNamespace,
+}
+
+impl fmt::Display for DatastoreWithNamespace {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.ns.is_root() {
+            write!(f, "{}", self.store)
+        } else {
+            write!(f, "{}/{}", self.store, self.ns)
+        }
+    }
+}
+
 /// Used when both a backup group or a directory can be valid.
 pub enum BackupPart {
     Group(BackupGroup),
