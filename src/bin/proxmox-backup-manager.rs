@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::io::{self, Write};
+use std::str::FromStr;
 
 use anyhow::Error;
 use serde_json::{json, Value};
@@ -10,9 +11,9 @@ use proxmox_sys::fs::CreateOptions;
 
 use pbs_api_types::percent_encoding::percent_encode_component;
 use pbs_api_types::{
-    GroupFilter, RateLimitConfig, SyncJobConfig, DATASTORE_SCHEMA, GROUP_FILTER_LIST_SCHEMA,
-    IGNORE_VERIFIED_BACKUPS_SCHEMA, REMOTE_ID_SCHEMA, REMOVE_VANISHED_BACKUPS_SCHEMA, UPID_SCHEMA,
-    VERIFICATION_OUTDATED_AFTER_SCHEMA,
+    BackupNamespace, GroupFilter, RateLimitConfig, SyncJobConfig, DATASTORE_SCHEMA,
+    GROUP_FILTER_LIST_SCHEMA, IGNORE_VERIFIED_BACKUPS_SCHEMA, REMOTE_ID_SCHEMA,
+    REMOVE_VANISHED_BACKUPS_SCHEMA, UPID_SCHEMA, VERIFICATION_OUTDATED_AFTER_SCHEMA,
 };
 use pbs_client::{display_task_log, view_task_result};
 use pbs_config::sync;
@@ -502,6 +503,14 @@ fn get_remote_store(param: &HashMap<String, String>) -> Option<(String, String)>
     None
 }
 
+fn get_remote_ns(param: &HashMap<String, String>) -> Option<BackupNamespace> {
+    if let Some(ns_str) = param.get("remote-ns") {
+        BackupNamespace::from_str(ns_str).ok()
+    } else {
+        None
+    }
+}
+
 // shell completion helper
 pub fn complete_remote_datastore_name(_arg: &str, param: &HashMap<String, String>) -> Vec<String> {
     let mut list = Vec::new();
@@ -520,13 +529,76 @@ pub fn complete_remote_datastore_name(_arg: &str, param: &HashMap<String, String
 }
 
 // shell completion helper
-pub fn complete_remote_datastore_group(_arg: &str, param: &HashMap<String, String>) -> Vec<String> {
+pub fn complete_remote_datastore_namespace(
+    _arg: &str,
+    param: &HashMap<String, String>,
+) -> Vec<String> {
     let mut list = Vec::new();
 
     if let Some((remote, remote_store)) = get_remote_store(param) {
         if let Ok(data) = proxmox_async::runtime::block_on(async move {
-            crate::api2::config::remote::scan_remote_groups(remote.clone(), remote_store.clone())
-                .await
+            crate::api2::config::remote::scan_remote_namespaces(
+                remote.clone(),
+                remote_store.clone(),
+            )
+            .await
+        }) {
+            for item in data {
+                list.push(item.ns.name());
+            }
+        }
+    }
+
+    list
+}
+
+// shell completion helper
+pub fn complete_sync_local_datastore_namespace(
+    _arg: &str,
+    param: &HashMap<String, String>,
+) -> Vec<String> {
+    let mut list = Vec::new();
+    let mut rpcenv = CliEnvironment::new();
+    rpcenv.set_auth_id(Some(String::from("root@pam")));
+
+    let mut job: Option<SyncJobConfig> = None;
+
+    let store = param.get("store").map(|r| r.to_owned()).or_else(|| {
+        if let Some(id) = param.get("id") {
+            job = get_sync_job(id).ok();
+            if let Some(ref job) = job {
+                return Some(job.store.clone());
+            }
+        }
+        None
+    });
+
+    if let Some(store) = store {
+        if let Ok(data) =
+            crate::api2::admin::namespace::list_namespaces(store, None, None, &mut rpcenv)
+        {
+            for item in data {
+                list.push(item.ns.name());
+            }
+        }
+    }
+
+    list
+}
+
+// shell completion helper
+pub fn complete_remote_datastore_group(_arg: &str, param: &HashMap<String, String>) -> Vec<String> {
+    let mut list = Vec::new();
+
+    if let Some((remote, remote_store)) = get_remote_store(param) {
+        let ns = get_remote_ns(param);
+        if let Ok(data) = proxmox_async::runtime::block_on(async move {
+            crate::api2::config::remote::scan_remote_groups(
+                remote.clone(),
+                remote_store.clone(),
+                ns,
+            )
+            .await
         }) {
             for item in data {
                 list.push(format!("{}/{}", item.backup.ty, item.backup.id));
