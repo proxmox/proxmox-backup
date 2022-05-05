@@ -54,7 +54,7 @@ pub const API_METHOD_UPGRADE_BACKUP: ApiMethod = ApiMethod::new(
     )
 ).access(
     // Note: parameter 'store' is no uri parameter, so we need to test inside function body
-    Some("The user needs Datastore.Backup privilege on /datastore/{store} and needs to own the backup group."),
+    Some("Requires on /datastore/{store}[/{namespace}] DATASTORE_BACKUP and being the owner of the group"),
     &Permission::Anybody
 );
 
@@ -72,18 +72,21 @@ fn upgrade_to_backup_protocol(
         let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
         let store = required_string_param(&param, "store")?.to_owned();
+        let backup_dir_arg = pbs_api_types::BackupDir::deserialize(&param)?;
 
+        let backup_ns = &backup_dir_arg.group.ns;
         let user_info = CachedUserInfo::new()?;
-        user_info.check_privs(
-            &auth_id,
-            &["datastore", &store],
-            PRIV_DATASTORE_BACKUP,
-            false,
-        )?;
+
+        let privs = if backup_ns.is_root() {
+            user_info.lookup_privs(&auth_id, &["datastore", &store])
+        } else {
+            user_info.lookup_privs(&auth_id, &["datastore", &store, &backup_ns.to_string()])
+        };
+        if privs & PRIV_DATASTORE_BACKUP == 0 {
+            proxmox_router::http_bail!(FORBIDDEN, "permission check failed");
+        }
 
         let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
-
-        let backup_dir_arg = pbs_api_types::BackupDir::deserialize(&param)?;
 
         let protocols = parts
             .headers
