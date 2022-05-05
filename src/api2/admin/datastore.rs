@@ -80,13 +80,45 @@ fn check_priv_or_backup_owner(
     required_privs: u64,
 ) -> Result<(), Error> {
     let user_info = CachedUserInfo::new()?;
-    let privs = user_info.lookup_privs(auth_id, &["datastore", store.name()]);
+
+    let privs = if group.ns.is_root() {
+        user_info.lookup_privs(auth_id, &["datastore", store.name()])
+    } else {
+        user_info.lookup_privs(auth_id, &["datastore", store.name(), &group.ns.to_string()])
+    };
 
     if privs & required_privs == 0 {
         let owner = store.get_owner(group)?;
         check_backup_owner(&owner, auth_id)?;
     }
     Ok(())
+}
+
+// TODO: move somewhere we can reuse it from (namespace has its own copy atm.)
+fn get_ns_privs(store: &str, ns: &BackupNamespace, auth_id: &Authid) -> Result<u64, Error> {
+    let user_info = CachedUserInfo::new()?;
+
+    Ok(if ns.is_root() {
+        user_info.lookup_privs(auth_id, &["datastore", store])
+    } else {
+        user_info.lookup_privs(auth_id, &["datastore", store, &ns.to_string()])
+    })
+}
+
+// for asserting a base priv existence but also returning the prics for more fine grained checking
+// locally
+fn get_ns_privs_checked(
+    store: &str,
+    ns: &BackupNamespace,
+    auth_id: &Authid,
+    required_privs: u64,
+) -> Result<u64, Error> {
+    let privs = get_ns_privs(store, ns, auth_id)?;
+
+    if privs & required_privs == 0 {
+        proxmox_router::http_bail!(FORBIDDEN, "permission check failed");
+    }
+    Ok(privs)
 }
 
 fn read_backup_index(
@@ -155,10 +187,9 @@ fn get_all_snapshot_files(
     },
     returns: pbs_api_types::ADMIN_DATASTORE_LIST_GROUPS_RETURN_TYPE,
     access: {
-        permission: &Permission::Privilege(
-            &["datastore", "{store}"],
-            PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_BACKUP,
-            true),
+        permission: &Permission::Anybody,
+        description: "Requires DATASTORE_AUDIT for all or DATASTORE_BACKUP for owned groups on \
+            /datastore/{store}[/{namespace}]",
     },
 )]
 /// List backup groups.
@@ -168,14 +199,20 @@ pub fn list_groups(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<GroupListItem>, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-    let user_info = CachedUserInfo::new()?;
-    let user_privs = user_info.lookup_privs(&auth_id, &["datastore", &store]);
+
+    let backup_ns = backup_ns.unwrap_or_default();
+    let user_privs = get_ns_privs_checked(
+        &store,
+        &backup_ns,
+        &auth_id,
+        PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_BACKUP,
+    )?;
 
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
     let list_all = (user_privs & PRIV_DATASTORE_AUDIT) != 0;
 
     datastore
-        .iter_backup_groups(backup_ns.unwrap_or_default())? // FIXME: Namespaces and recursion parameters!
+        .iter_backup_groups(backup_ns)? // FIXME: Namespaces and recursion parameters!
         .try_fold(Vec::new(), |mut group_info, group| {
             let group = group?;
             let owner = match datastore.get_owner(group.as_ref()) {
@@ -238,10 +275,9 @@ pub fn list_groups(
         },
     },
     access: {
-        permission: &Permission::Privilege(
-            &["datastore", "{store}"],
-            PRIV_DATASTORE_MODIFY| PRIV_DATASTORE_PRUNE,
-            true),
+        permission: &Permission::Anybody,
+        description: "Requires on /datastore/{store}[/{namespace}] either DATASTORE_MODIFY for any\
+            or DATASTORE_PRUNE and being the owner of the group",
     },
 )]
 /// Delete backup group including all snapshots.
@@ -252,6 +288,13 @@ pub fn delete_group(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+
+    get_ns_privs_checked(
+        &store,
+        &group.ns,
+        &auth_id,
+        PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_PRUNE,
+    )?;
 
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
@@ -276,10 +319,9 @@ pub fn delete_group(
     },
     returns: pbs_api_types::ADMIN_DATASTORE_LIST_SNAPSHOT_FILES_RETURN_TYPE,
     access: {
-        permission: &Permission::Privilege(
-            &["datastore", "{store}"],
-            PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_READ | PRIV_DATASTORE_BACKUP,
-            true),
+        permission: &Permission::Anybody,
+        description: "Requires on /datastore/{store}[/{namespace}] either DATASTORE_AUDIT or \
+            DATASTORE_READ for any or DATASTORE_BACKUP and being the owner of the group",
     },
 )]
 /// List snapshot files.
@@ -290,6 +332,14 @@ pub fn list_snapshot_files(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<BackupContent>, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+
+    get_ns_privs_checked(
+        &store,
+        &backup_dir.group.ns,
+        &auth_id,
+        PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_READ | PRIV_DATASTORE_BACKUP,
+    )?;
+
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
 
     let snapshot = datastore.backup_dir(backup_dir)?;
@@ -319,10 +369,9 @@ pub fn list_snapshot_files(
         },
     },
     access: {
-        permission: &Permission::Privilege(
-            &["datastore", "{store}"],
-            PRIV_DATASTORE_MODIFY| PRIV_DATASTORE_PRUNE,
-            true),
+        permission: &Permission::Anybody,
+        description: "Requires on /datastore/{store}[/{namespace}] either DATASTORE_MODIFY for any\
+            or DATASTORE_PRUNE and being the owner of the group",
     },
 )]
 /// Delete backup snapshot.
@@ -333,6 +382,13 @@ pub fn delete_snapshot(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+
+    get_ns_privs_checked(
+        &store,
+        &backup_dir.group.ns,
+        &auth_id,
+        PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_PRUNE,
+    )?;
 
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
     let snapshot = datastore.backup_dir(backup_dir)?;
@@ -370,10 +426,9 @@ pub fn delete_snapshot(
     },
     returns: pbs_api_types::ADMIN_DATASTORE_LIST_SNAPSHOTS_RETURN_TYPE,
     access: {
-        permission: &Permission::Privilege(
-            &["datastore", "{store}"],
-            PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_BACKUP,
-            true),
+        permission: &Permission::Anybody,
+        description: "Requires on /datastore/{store}[/{namespace}] either DATASTORE_AUDIT for any \
+            or DATASTORE_BACKUP and being the owner of the group",
     },
 )]
 /// List backup snapshots.
@@ -387,14 +442,19 @@ pub fn list_snapshots(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<SnapshotListItem>, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-    let user_info = CachedUserInfo::new()?;
-    let user_privs = user_info.lookup_privs(&auth_id, &["datastore", &store]);
+
+    let backup_ns = backup_ns.unwrap_or_default();
+
+    let user_privs = get_ns_privs_checked(
+        &store,
+        &backup_ns,
+        &auth_id,
+        PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_BACKUP,
+    )?;
 
     let list_all = (user_privs & PRIV_DATASTORE_AUDIT) != 0;
 
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
-
-    let backup_ns = backup_ns.unwrap_or_default();
 
     // FIXME: filter also owner before collecting, for doing that nicely the owner should move into
     // backup group and provide an error free (Err -> None) accessor
@@ -575,7 +635,8 @@ fn get_snapshots_count(
         type: DataStoreStatus,
     },
     access: {
-        permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_BACKUP, true),
+        permission: &Permission::Privilege(
+            &["datastore", "{store}"], PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_BACKUP, true),
     },
 )]
 /// Get datastore status.
@@ -651,7 +712,9 @@ pub fn status(
         schema: UPID_SCHEMA,
     },
     access: {
-        permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_VERIFY | PRIV_DATASTORE_BACKUP, true),
+        permission: &Permission::Anybody,
+        description: "Requires on /datastore/{store}[/{namespace}] either DATASTORE_VERIFY for any \
+            or DATASTORE_BACKUP and being the owner of the group",
     },
 )]
 /// Verify backups.
@@ -668,10 +731,17 @@ pub fn verify(
     outdated_after: Option<i64>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let backup_ns = backup_ns.unwrap_or_default();
+    get_ns_privs_checked(
+        &store,
+        &backup_ns,
+        &auth_id,
+        PRIV_DATASTORE_VERIFY | PRIV_DATASTORE_BACKUP,
+    )?;
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
     let ignore_verified = ignore_verified.unwrap_or(true);
 
-    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let worker_id;
 
     let mut backup_dir = None;
@@ -680,8 +750,6 @@ pub fn verify(
 
     // FIXME: Recursion
     // FIXME: Namespaces and worker ID, could this be an issue?
-    let backup_ns = backup_ns.unwrap_or_default();
-
     match (backup_type, backup_id, backup_time) {
         (Some(backup_type), Some(backup_id), Some(backup_time)) => {
             worker_id = format!(
@@ -804,7 +872,9 @@ pub fn verify(
     },
     returns: pbs_api_types::ADMIN_DATASTORE_PRUNE_RETURN_TYPE,
     access: {
-        permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_PRUNE, true),
+        permission: &Permission::Anybody,
+        description: "Requires on /datastore/{store}[/{namespace}] either DATASTORE_MODIFY for any\
+            or DATASTORE_PRUNE and being the owner of the group",
     },
 )]
 /// Prune a group on the datastore
@@ -817,6 +887,12 @@ pub fn prune(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    get_ns_privs_checked(
+        &store,
+        &group.ns,
+        &auth_id,
+        PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_PRUNE,
+    )?;
 
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
@@ -937,7 +1013,8 @@ pub fn prune(
         schema: UPID_SCHEMA,
     },
     access: {
-        permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_PRUNE, true),
+        permission: &Permission::Privilege(
+            &["datastore", "{store}"], PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_PRUNE, true),
     },
 )]
 /// Prune the datastore
@@ -953,6 +1030,8 @@ pub fn prune_datastore(
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
     let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
+
+    // FIXME: also allow a per-namespace pruning with max-depth
 
     let upid_str = WorkerTask::new_thread(
         "prune",
@@ -1044,6 +1123,24 @@ pub fn garbage_collection_status(
     Ok(status)
 }
 
+fn can_access_any_ns(store: Arc<DataStore>, auth_id: &Authid, user_info: &CachedUserInfo) -> bool {
+    // NOTE: traversing the datastore could be avoided if we had an "ACL tree: is there any priv
+    // below /datastore/{store}" helper
+    let mut iter =
+        if let Ok(iter) = store.recursive_iter_backup_ns_ok(BackupNamespace::root(), None) {
+            iter
+        } else {
+            return false;
+        };
+    let wanted =
+        PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_READ | PRIV_DATASTORE_BACKUP;
+    let name = store.name();
+    iter.any(|ns| -> bool {
+        let user_privs = user_info.lookup_privs(&auth_id, &["datastore", name, &ns.to_string()]);
+        user_privs & wanted != 0
+    })
+}
+
 #[api(
     returns: {
         description: "List the accessible datastores.",
@@ -1070,10 +1167,24 @@ pub fn get_datastore_list(
     for (store, (_, data)) in &config.sections {
         let user_privs = user_info.lookup_privs(&auth_id, &["datastore", store]);
         let allowed = (user_privs & (PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_BACKUP)) != 0;
-        if allowed {
+
+        let mut allow_id = false;
+        if !allowed {
+            let scfg: pbs_api_types::DataStoreConfig = serde_json::from_value(data.to_owned())?;
+            // safety: we just cannot go through lookup as we must avoid an operation check
+            if let Ok(datastore) = unsafe { DataStore::open_from_config(scfg, None) } {
+                allow_id = can_access_any_ns(datastore, &auth_id, &user_info);
+            }
+        }
+
+        if allowed || allow_id {
             list.push(DataStoreListItem {
                 store: store.clone(),
-                comment: data["comment"].as_str().map(String::from),
+                comment: if !allowed {
+                    None
+                } else {
+                    data["comment"].as_str().map(String::from)
+                },
                 maintenance: data["maintenance-mode"].as_str().map(String::from),
             });
         }
@@ -1098,12 +1209,11 @@ pub const API_METHOD_DOWNLOAD_FILE: ApiMethod = ApiMethod::new(
     ),
 )
 .access(
-    None,
-    &Permission::Privilege(
-        &["datastore", "{store}"],
-        PRIV_DATASTORE_READ | PRIV_DATASTORE_BACKUP,
-        true,
+    Some(
+        "Requires on /datastore/{store}[/{namespace}] either DATASTORE_READ for any or \
+        DATASTORE_BACKUP and being the owner of the group",
     ),
+    &Permission::Anybody,
 );
 
 pub fn download_file(
@@ -1114,14 +1224,19 @@ pub fn download_file(
     rpcenv: Box<dyn RpcEnvironment>,
 ) -> ApiResponseFuture {
     async move {
-        let store = required_string_param(&param, "store")?;
-        let datastore = DataStore::lookup_datastore(store, Some(Operation::Read))?;
-
         let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+        let store = required_string_param(&param, "store")?;
+        let backup_dir: pbs_api_types::BackupDir = Deserialize::deserialize(&param)?;
+        get_ns_privs_checked(
+            &store,
+            &backup_dir.group.ns,
+            &auth_id,
+            PRIV_DATASTORE_READ | PRIV_DATASTORE_BACKUP,
+        )?;
+        let datastore = DataStore::lookup_datastore(store, Some(Operation::Read))?;
+        let backup_dir = datastore.backup_dir(backup_dir)?;
 
         let file_name = required_string_param(&param, "file-name")?.to_owned();
-
-        let backup_dir = datastore.backup_dir(Deserialize::deserialize(&param)?)?;
 
         check_priv_or_backup_owner(
             &datastore,
@@ -1178,12 +1293,11 @@ pub const API_METHOD_DOWNLOAD_FILE_DECODED: ApiMethod = ApiMethod::new(
     ),
 )
 .access(
-    None,
-    &Permission::Privilege(
-        &["datastore", "{store}"],
-        PRIV_DATASTORE_READ | PRIV_DATASTORE_BACKUP,
-        true,
+    Some(
+        "Requires on /datastore/{store}[/{namespace}] either DATASTORE_READ for any or \
+        DATASTORE_BACKUP and being the owner of the group",
     ),
+    &Permission::Anybody,
 );
 
 pub fn download_file_decoded(
@@ -1194,14 +1308,19 @@ pub fn download_file_decoded(
     rpcenv: Box<dyn RpcEnvironment>,
 ) -> ApiResponseFuture {
     async move {
-        let store = required_string_param(&param, "store")?;
-        let datastore = DataStore::lookup_datastore(store, Some(Operation::Read))?;
-
         let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+        let store = required_string_param(&param, "store")?;
+        let backup_dir: pbs_api_types::BackupDir = Deserialize::deserialize(&param)?;
+        get_ns_privs_checked(
+            &store,
+            &backup_dir.group.ns,
+            &auth_id,
+            PRIV_DATASTORE_READ | PRIV_DATASTORE_BACKUP,
+        )?;
+        let datastore = DataStore::lookup_datastore(store, Some(Operation::Read))?;
+        let backup_dir = datastore.backup_dir(backup_dir)?;
 
         let file_name = required_string_param(&param, "file-name")?.to_owned();
-
-        let backup_dir = datastore.backup_dir(Deserialize::deserialize(&param)?)?;
 
         check_priv_or_backup_owner(
             &datastore,
@@ -1308,7 +1427,7 @@ pub const API_METHOD_UPLOAD_BACKUP_LOG: ApiMethod = ApiMethod::new(
 )
 .access(
     Some("Only the backup creator/owner is allowed to do this."),
-    &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_BACKUP, false),
+    &Permission::Anybody,
 );
 
 pub fn upload_backup_log(
@@ -1319,14 +1438,20 @@ pub fn upload_backup_log(
     rpcenv: Box<dyn RpcEnvironment>,
 ) -> ApiResponseFuture {
     async move {
+        let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
         let store = required_string_param(&param, "store")?;
+        let backup_dir: pbs_api_types::BackupDir = Deserialize::deserialize(&param)?;
+        get_ns_privs_checked(
+            &store,
+            &backup_dir.group.ns,
+            &auth_id,
+            PRIV_DATASTORE_BACKUP,
+        )?;
         let datastore = DataStore::lookup_datastore(store, Some(Operation::Write))?;
+        let backup_dir = datastore.backup_dir(backup_dir)?;
 
         let file_name = CLIENT_LOG_BLOB_NAME;
 
-        let backup_dir = datastore.backup_dir(Deserialize::deserialize(&param)?)?;
-
-        let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
         let owner = datastore.get_owner(backup_dir.as_ref())?;
         check_backup_owner(&owner, &auth_id)?;
 
@@ -1374,7 +1499,9 @@ pub fn upload_backup_log(
         },
     },
     access: {
-        permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_READ | PRIV_DATASTORE_BACKUP, true),
+        description: "Requires on /datastore/{store}[/{namespace}] either DATASTORE_READ for any or \
+            DATASTORE_BACKUP and being the owner of the group",
+        permission: &Permission::Anybody,
     },
 )]
 /// Get the entries of the given path of the catalog
@@ -1384,10 +1511,15 @@ pub fn catalog(
     filepath: String,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<ArchiveEntry>, Error> {
-    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
-
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    get_ns_privs_checked(
+        &store,
+        &backup_dir.group.ns,
+        &auth_id,
+        PRIV_DATASTORE_READ | PRIV_DATASTORE_BACKUP,
+    )?;
 
+    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
     let backup_dir = datastore.backup_dir(backup_dir)?;
 
     check_priv_or_backup_owner(
@@ -1445,10 +1577,12 @@ pub const API_METHOD_PXAR_FILE_DOWNLOAD: ApiMethod = ApiMethod::new(
             ("tar", true, &BooleanSchema::new("Download as .tar.zst").schema()),
         ]),
     )
-).access(None, &Permission::Privilege(
-    &["datastore", "{store}"],
-    PRIV_DATASTORE_READ | PRIV_DATASTORE_BACKUP,
-    true)
+).access(
+    Some(
+        "Requires on /datastore/{store}[/{namespace}] either DATASTORE_READ for any or \
+        DATASTORE_BACKUP and being the owner of the group",
+    ),
+    &Permission::Anybody,
 );
 
 pub fn pxar_file_download(
@@ -1459,16 +1593,21 @@ pub fn pxar_file_download(
     rpcenv: Box<dyn RpcEnvironment>,
 ) -> ApiResponseFuture {
     async move {
-        let store = required_string_param(&param, "store")?;
-        let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
-
         let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+        let store = required_string_param(&param, "store")?;
+        let backup_dir: pbs_api_types::BackupDir = Deserialize::deserialize(&param)?;
+        get_ns_privs_checked(
+            &store,
+            &backup_dir.group.ns,
+            &auth_id,
+            PRIV_DATASTORE_READ | PRIV_DATASTORE_BACKUP,
+        )?;
+        let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
+        let backup_dir = datastore.backup_dir(backup_dir)?;
 
         let filepath = required_string_param(&param, "filepath")?.to_owned();
 
         let tar = param["tar"].as_bool().unwrap_or(false);
-
-        let backup_dir = datastore.backup_dir(Deserialize::deserialize(&param)?)?;
 
         check_priv_or_backup_owner(
             &datastore,
@@ -1585,7 +1724,8 @@ pub fn pxar_file_download(
         },
     },
     access: {
-        permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_BACKUP, true),
+        permission: &Permission::Privilege(
+            &["datastore", "{store}"], PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_BACKUP, true),
     },
 )]
 /// Read datastore stats
@@ -1648,7 +1788,9 @@ pub fn get_active_operations(store: String, _param: Value) -> Result<Value, Erro
         },
     },
     access: {
-        permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_BACKUP, true),
+        permission: &Permission::Anybody,
+        description: "Requires on /datastore/{store}[/{namespace}] either DATASTORE_AUDIT for any \
+            or DATASTORE_BACKUP and being the owner of the group",
     },
 )]
 /// Get "notes" for a backup group
@@ -1657,9 +1799,14 @@ pub fn get_group_notes(
     backup_group: pbs_api_types::BackupGroup,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
-    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
-
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    get_ns_privs_checked(
+        &store,
+        &backup_group.ns,
+        &auth_id,
+        PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_BACKUP,
+    )?;
+    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
 
     check_priv_or_backup_owner(&datastore, &backup_group, &auth_id, PRIV_DATASTORE_AUDIT)?;
 
@@ -1681,9 +1828,9 @@ pub fn get_group_notes(
         },
     },
     access: {
-        permission: &Permission::Privilege(&["datastore", "{store}"],
-                                           PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_BACKUP,
-                                           true),
+        permission: &Permission::Anybody,
+        description: "Requires on /datastore/{store}[/{namespace}] either DATASTORE_MODIFY for any \
+            or DATASTORE_BACKUP and being the owner of the group",
     },
 )]
 /// Set "notes" for a backup group
@@ -1693,9 +1840,14 @@ pub fn set_group_notes(
     notes: String,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
-    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
-
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    get_ns_privs_checked(
+        &store,
+        &backup_group.ns,
+        &auth_id,
+        PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_BACKUP,
+    )?;
+    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
     check_priv_or_backup_owner(&datastore, &backup_group, &auth_id, PRIV_DATASTORE_MODIFY)?;
 
@@ -1716,7 +1868,9 @@ pub fn set_group_notes(
         },
     },
     access: {
-        permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_BACKUP, true),
+        permission: &Permission::Anybody,
+        description: "Requires on /datastore/{store}[/{namespace}] either DATASTORE_AUDIT for any \
+            or DATASTORE_BACKUP and being the owner of the group",
     },
 )]
 /// Get "notes" for a specific backup
@@ -1725,9 +1879,15 @@ pub fn get_notes(
     backup_dir: pbs_api_types::BackupDir,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    get_ns_privs_checked(
+        &store,
+        &backup_dir.group.ns,
+        &auth_id,
+        PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_BACKUP,
+    )?;
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
 
-    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let backup_dir = datastore.backup_dir(backup_dir)?;
 
     check_priv_or_backup_owner(
@@ -1758,9 +1918,9 @@ pub fn get_notes(
         },
     },
     access: {
-        permission: &Permission::Privilege(&["datastore", "{store}"],
-                                           PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_BACKUP,
-                                           true),
+        permission: &Permission::Anybody,
+        description: "Requires on /datastore/{store}[/{namespace}] either DATASTORE_MODIFY for any \
+            or DATASTORE_BACKUP and being the owner of the group",
     },
 )]
 /// Set "notes" for a specific backup
@@ -1770,9 +1930,15 @@ pub fn set_notes(
     notes: String,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    get_ns_privs_checked(
+        &store,
+        &backup_dir.group.ns,
+        &auth_id,
+        PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_BACKUP,
+    )?;
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
-    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let backup_dir = datastore.backup_dir(backup_dir)?;
 
     check_priv_or_backup_owner(
@@ -1802,7 +1968,9 @@ pub fn set_notes(
         },
     },
     access: {
-        permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_BACKUP, true),
+        permission: &Permission::Anybody,
+        description: "Requires on /datastore/{store}[/{namespace}] either DATASTORE_AUDIT for any \
+            or DATASTORE_BACKUP and being the owner of the group",
     },
 )]
 /// Query protection for a specific backup
@@ -1811,9 +1979,15 @@ pub fn get_protection(
     backup_dir: pbs_api_types::BackupDir,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<bool, Error> {
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    get_ns_privs_checked(
+        &store,
+        &backup_dir.group.ns,
+        &auth_id,
+        PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_BACKUP,
+    )?;
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
 
-    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let backup_dir = datastore.backup_dir(backup_dir)?;
 
     check_priv_or_backup_owner(
@@ -1840,9 +2014,9 @@ pub fn get_protection(
         },
     },
     access: {
-        permission: &Permission::Privilege(&["datastore", "{store}"],
-                                           PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_BACKUP,
-                                           true),
+        permission: &Permission::Anybody,
+        description: "Requires on /datastore/{store}[/{namespace}] either DATASTORE_MODIFY for any \
+            or DATASTORE_BACKUP and being the owner of the group",
     },
 )]
 /// En- or disable protection for a specific backup
@@ -1852,9 +2026,15 @@ pub fn set_protection(
     protected: bool,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    get_ns_privs_checked(
+        &store,
+        &backup_dir.group.ns,
+        &auth_id,
+        PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_BACKUP,
+    )?;
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
-    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let backup_dir = datastore.backup_dir(backup_dir)?;
 
     check_priv_or_backup_owner(
@@ -1882,7 +2062,8 @@ pub fn set_protection(
     },
     access: {
         permission: &Permission::Anybody,
-        description: "Datastore.Modify on whole datastore, or changing ownership between user and a user's token for owned backups with Datastore.Backup"
+        description: "Datastore.Modify on whole datastore, or changing ownership between user and \
+            a user's token for owned backups with Datastore.Backup"
     },
 )]
 /// Change owner of a backup group
@@ -1894,17 +2075,12 @@ pub fn set_backup_owner(
 ) -> Result<(), Error> {
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let privs = get_ns_privs(&store, &backup_group.ns, &auth_id)?;
     let backup_group = datastore.backup_group(backup_group);
 
-    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-
-    let user_info = CachedUserInfo::new()?;
-
-    let privs = user_info.lookup_privs(&auth_id, &["datastore", &store]);
-
     let allowed = if (privs & PRIV_DATASTORE_MODIFY) != 0 {
-        // High-privilege user/token
-        true
+        true // High-privilege user/token
     } else if (privs & PRIV_DATASTORE_BACKUP) != 0 {
         let owner = datastore.get_owner(backup_group.as_ref())?;
 
@@ -1941,6 +2117,8 @@ pub fn set_backup_owner(
             new_owner,
         ));
     }
+
+    let user_info = CachedUserInfo::new()?;
 
     if !user_info.is_active_auth_id(&new_owner) {
         bail!(
