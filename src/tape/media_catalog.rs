@@ -995,6 +995,27 @@ impl MediaSetCatalog {
         }
         None
     }
+
+    /// Returns an iterator over all registered snapshots per datastore
+    /// as (datastore, snapshot).
+    /// The snapshot contains namespaces in the format 'ns/namespace'.
+    pub fn list_snapshots(&self) -> impl Iterator<Item = (&str, &str)> {
+        self.catalog_list
+            .values()
+            .map(|catalog| {
+                catalog
+                    .content
+                    .iter()
+                    .map(|(store, content)| {
+                        content
+                            .snapshot_index
+                            .keys()
+                            .map(move |key| (store.as_str(), key.as_str()))
+                    })
+                    .flatten()
+            })
+            .flatten()
+    }
 }
 
 // Type definitions for internal binary catalog encoding

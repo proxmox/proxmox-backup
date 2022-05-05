@@ -20,7 +20,7 @@ use pbs_config::media_pool::complete_pool_name;
 use pbs_api_types::{
     Authid, BackupNamespace, GroupListItem, HumanByte, Userid, DATASTORE_MAP_LIST_SCHEMA,
     DATASTORE_SCHEMA, DRIVE_NAME_SCHEMA, GROUP_FILTER_LIST_SCHEMA, MEDIA_LABEL_SCHEMA,
-    MEDIA_POOL_NAME_SCHEMA, NS_MAX_DEPTH_SCHEMA,
+    MEDIA_POOL_NAME_SCHEMA, NS_MAX_DEPTH_SCHEMA, TAPE_RESTORE_NAMESPACE_SCHEMA,
     TAPE_RESTORE_SNAPSHOT_SCHEMA,
 };
 use pbs_tape::{BlockReadError, MediaContentHeader, PROXMOX_BACKUP_CONTENT_HEADER_MAGIC_1_0};
@@ -884,6 +884,14 @@ async fn backup(mut param: Value) -> Result<(), Error> {
         properties: {
             store: {
                 schema: DATASTORE_MAP_LIST_SCHEMA,
+            },
+            "namespaces": {
+                description: "List of namespace to restore.",
+                type: Array,
+                optional: true,
+                items: {
+                    schema: TAPE_RESTORE_NAMESPACE_SCHEMA,
+                },
             },
             drive: {
                 schema: DRIVE_NAME_SCHEMA,

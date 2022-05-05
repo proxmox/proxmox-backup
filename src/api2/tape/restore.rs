@@ -17,10 +17,10 @@ use proxmox_sys::{task_log, task_warn, WorkerTaskContext};
 use proxmox_uuid::Uuid;
 
 use pbs_api_types::{
-    Authid, BackupNamespace, CryptMode, Operation, TapeRestoreNamespace, Userid,
-    DATASTORE_MAP_ARRAY_SCHEMA, DATASTORE_MAP_LIST_SCHEMA, DRIVE_NAME_SCHEMA, MAX_NAMESPACE_DEPTH,
-    PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY, PRIV_TAPE_READ, TAPE_RESTORE_SNAPSHOT_SCHEMA,
-    UPID_SCHEMA,
+    parse_ns_and_snapshot, print_ns_and_snapshot, Authid, BackupDir, BackupNamespace, CryptMode,
+    Operation, TapeRestoreNamespace, Userid, DATASTORE_MAP_ARRAY_SCHEMA, DATASTORE_MAP_LIST_SCHEMA,
+    DRIVE_NAME_SCHEMA, MAX_NAMESPACE_DEPTH, PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY,
+    PRIV_TAPE_READ, TAPE_RESTORE_NAMESPACE_SCHEMA, TAPE_RESTORE_SNAPSHOT_SCHEMA, UPID_SCHEMA,
 };
 use pbs_config::CachedUserInfo;
 use pbs_datastore::dynamic_index::DynamicIndexReader;
@@ -49,8 +49,6 @@ use crate::{
     },
     tools::parallel_handler::ParallelHandler,
 };
-
-const RESTORE_TMP_DIR: &str = "/var/tmp/proxmox-backup";
 
 pub struct DataStoreMap {
     map: HashMap<String, Arc<DataStore>>,
@@ -275,6 +273,14 @@ pub const ROUTER: Router = Router::new().post(&API_METHOD_RESTORE);
             store: {
                 schema: DATASTORE_MAP_LIST_SCHEMA,
             },
+            "namespaces": {
+                description: "List of namespace to restore.",
+                type: Array,
+                optional: true,
+                items: {
+                    schema: TAPE_RESTORE_NAMESPACE_SCHEMA,
+                },
+            },
             drive: {
                 schema: DRIVE_NAME_SCHEMA,
             },
@@ -315,6 +321,7 @@ pub const ROUTER: Router = Router::new().post(&API_METHOD_RESTORE);
 pub fn restore(
     store: String,
     drive: String,
+    namespaces: Option<Vec<String>>,
     media_set: String,
     notify_user: Option<Userid>,
     snapshots: Option<Vec<String>>,
@@ -324,14 +331,22 @@ pub fn restore(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
 
-    let store_map = DataStoreMap::try_from(store)
+    let mut store_map = DataStoreMap::try_from(store)
         .map_err(|err| format_err!("cannot parse store mapping: {}", err))?;
+    let namespaces = if let Some(maps) = namespaces {
+        store_map
+            .add_namespaces_maps(maps)
+            .map_err(|err| format_err!("cannot parse namespace mapping: {}", err))?
+    } else {
+        false
+    };
+
     let used_datastores = store_map.used_datastores();
     if used_datastores.is_empty() {
         bail!("no datastores given");
     }
 
-    for (_, (target, namespaces)) in used_datastores.iter() {
+    for (target, namespaces) in used_datastores.values() {
         check_datastore_privs(
             &user_info,
             target.name(),
@@ -375,8 +390,8 @@ pub fn restore(
     let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
     let taskid = used_datastores
-        .iter()
-        .map(|(_, (t, _))| t.name().to_string())
+        .values()
+        .map(|(t, _)| t.name().to_string())
         .collect::<Vec<String>>()
         .join(", ");
 
@@ -400,10 +415,10 @@ pub fn restore(
             task_log!(worker, "Mediaset '{}'", media_set);
             task_log!(worker, "Pool: {}", pool);
 
-            let res = if let Some(snapshots) = snapshots {
+            let res = if snapshots.is_some() || namespaces {
                 restore_list_worker(
                     worker.clone(),
-                    snapshots,
+                    snapshots.unwrap_or_else(Vec::new),
                     inventory,
                     media_set_uuid,
                     drive_config,
@@ -490,13 +505,13 @@ fn restore_full_worker(
         task_log!(worker, "Encryption key fingerprint: {}", fingerprint);
     }
 
+    let used_datastores = store_map.used_datastores();
     task_log!(
         worker,
         "Datastore(s): {}",
-        store_map
-            .used_datastores()
-            .into_iter()
-            .map(|(_, (t, _))| String::from(t.name()))
+        used_datastores
+            .values()
+            .map(|(t, _)| String::from(t.name()))
             .collect::<Vec<String>>()
             .join(", "),
     );
@@ -513,7 +528,7 @@ fn restore_full_worker(
     );
 
     let mut datastore_locks = Vec::new();
-    for (_, (target, _)) in store_map.used_datastores() {
+    for (target, _) in used_datastores.values() {
         // explicit create shared lock to prevent GC on newly created chunks
         let shared_store_lock = target.try_shared_chunk_store_lock()?;
         datastore_locks.push(shared_store_lock);
@@ -538,6 +553,97 @@ fn restore_full_worker(
     Ok(())
 }
 
+fn check_snapshot_restorable(
+    worker: &WorkerTask,
+    store_map: &DataStoreMap,
+    store: &str,
+    snapshot: &str,
+    ns: &BackupNamespace,
+    dir: &BackupDir,
+    required: bool,
+    user_info: &CachedUserInfo,
+    auth_id: &Authid,
+    restore_owner: &Authid,
+) -> Result<bool, Error> {
+    let (datastore, namespaces) = if required {
+        let (datastore, namespaces) = match store_map.get_targets(store, ns) {
+            Some((target_ds, target_ns)) => {
+                (target_ds, target_ns.unwrap_or_else(|| vec![ns.clone()]))
+            }
+            None => bail!("could not find target datastore for {store}:{snapshot}"),
+        };
+        if namespaces.is_empty() {
+            bail!("could not find target namespace for {store}:{snapshot}");
+        }
+
+        (datastore, namespaces)
+    } else {
+        match store_map.get_targets(store, ns) {
+            Some((ds, Some(ns))) => {
+                if ns.is_empty() {
+                    return Ok(false);
+                }
+                (ds, ns)
+            }
+            Some((_, None)) => return Ok(false),
+            None => return Ok(false),
+        }
+    };
+
+    let mut have_some_permissions = false;
+    let mut can_restore_some = false;
+    for ns in namespaces {
+        // only simple check, ns creation comes later
+        if let Err(err) = check_datastore_privs(
+            user_info,
+            datastore.name(),
+            &ns,
+            auth_id,
+            Some(restore_owner),
+        ) {
+            task_warn!(worker, "cannot restore {store}:{snapshot} to {ns}: '{err}'");
+            continue;
+        }
+
+        // rechecked when we create the group!
+        if let Ok(owner) = datastore.get_owner(&ns, dir.as_ref()) {
+            if restore_owner != &owner {
+                // only the owner is allowed to create additional snapshots
+                task_warn!(
+                    worker,
+                    "restore '{}' to {} failed - owner check failed ({} != {})",
+                    &snapshot,
+                    ns,
+                    restore_owner,
+                    owner,
+                );
+                continue;
+            }
+        }
+
+        have_some_permissions = true;
+
+        if datastore.snapshot_path(&ns, &dir).exists() {
+            task_warn!(
+                worker,
+                "found snapshot {} on target datastore/namespace, skipping...",
+                &snapshot,
+            );
+            continue;
+        }
+        can_restore_some = true;
+    }
+
+    if !have_some_permissions {
+        bail!(
+            "cannot restore {} to any target namespace due to permissions",
+            &snapshot
+        );
+    }
+
+    return Ok(can_restore_some);
+}
+
 fn restore_list_worker(
     worker: Arc<WorkerTask>,
     snapshots: Vec<String>,
@@ -551,101 +657,104 @@ fn restore_list_worker(
     user_info: Arc<CachedUserInfo>,
     auth_id: &Authid,
 ) -> Result<(), Error> {
-    // FIXME: Namespace needs to come from somewhere, `snapshots` is just a snapshot string list
-    // here.
-    let ns = BackupNamespace::root();
-
-    let base_path: PathBuf = format!("{}/{}", RESTORE_TMP_DIR, media_set_uuid).into();
-    std::fs::create_dir_all(&base_path)?;
-
     let catalog = get_media_set_catalog(&inventory, &media_set_uuid)?;
 
     let mut datastore_locks = Vec::new();
     let mut snapshot_file_hash: BTreeMap<Uuid, Vec<u64>> = BTreeMap::new();
-    let mut snapshot_locks = HashMap::new();
+    let mut skipped = Vec::new();
 
     let res = proxmox_lang::try_block!({
-        // assemble snapshot files/locks
-        for store_snapshot in snapshots.iter() {
-            let mut split = store_snapshot.splitn(2, ':');
-            let source_datastore = split
-                .next()
-                .ok_or_else(|| format_err!("invalid snapshot: {}", store_snapshot))?;
-            let snapshot = split
-                .next()
-                .ok_or_else(|| format_err!("invalid snapshot:{}", store_snapshot))?;
-            let backup_dir: pbs_api_types::BackupDir = snapshot.parse()?;
-
-            // FIXME ns
-            let (datastore, _) = store_map
-                .get_targets(source_datastore, &ns)
-                .ok_or_else(|| {
-                    format_err!(
-                        "could not find mapping for source datastore: {}",
-                        source_datastore
-                    )
-                })?;
-
-            // only simple check, ns creation comes later
-            if let Err(err) = check_datastore_privs(
-                &user_info,
-                datastore.name(),
-                &ns,
-                auth_id,
-                Some(restore_owner),
-            ) {
-                task_warn!(
-                    worker,
-                    "could not restore {}:{}: '{}'",
-                    source_datastore,
-                    snapshot,
-                    err
-                );
-                continue;
+        // phase 0
+        let snapshots = if snapshots.is_empty() {
+            let mut restorable = Vec::new();
+            // restore source namespaces
+            for (store, snapshot) in catalog.list_snapshots() {
+                if let Ok((ns, dir)) = parse_ns_and_snapshot(&snapshot) {
+                    if let Some((_, Some(_))) = store_map.get_targets(store, &ns) {
+                        let snapshot = print_ns_and_snapshot(&ns, &dir);
+                        match check_snapshot_restorable(
+                            &worker,
+                            &store_map,
+                            store,
+                            &snapshot,
+                            &ns,
+                            &dir,
+                            false,
+                            &user_info,
+                            auth_id,
+                            restore_owner,
+                        ) {
+                            Ok(true) => {
+                                restorable.push((store.to_string(), snapshot.to_string(), ns, dir))
+                            }
+                            Ok(false) => {}
+                            Err(err) => {
+                                task_warn!(worker, "{err}");
+                                skipped.push(format!("{store}:{snapshot}"));
+                            }
+                        }
+                    }
+                }
             }
+            restorable
+        } else {
+            snapshots
+                .into_iter()
+                .filter_map(|store_snapshot| {
+                    // we can unwrap here because of the api format
+                    let idx = store_snapshot.find(':').unwrap();
+                    let (store, snapshot) = store_snapshot.split_at(idx + 1);
+                    let store = &store[..idx]; // remove ':'
 
-            let (owner, _group_lock) =
-                datastore.create_locked_backup_group(&ns, backup_dir.as_ref(), restore_owner)?;
-            if restore_owner != &owner {
-                // only the owner is allowed to create additional snapshots
-                task_warn!(
-                    worker,
-                    "restore '{}' failed - owner check failed ({} != {})",
-                    snapshot,
-                    restore_owner,
-                    owner
-                );
-                continue;
-            }
-
-            let (media_id, file_num) = if let Some((media_uuid, file_num)) =
-                catalog.lookup_snapshot(source_datastore, snapshot)
-            {
-                let media_id = inventory.lookup_media(media_uuid).unwrap();
-                (media_id, file_num)
-            } else {
-                task_warn!(
-                    worker,
-                    "did not find snapshot '{}' in media set {}",
-                    snapshot,
-                    media_set_uuid
-                );
-                continue;
-            };
-
-            let (_rel_path, is_new, snap_lock) =
-                datastore.create_locked_backup_dir(&ns, &backup_dir)?;
-
-            if !is_new {
-                task_log!(
-                    worker,
-                    "found snapshot {} on target datastore, skipping...",
-                    snapshot
-                );
-                continue;
-            }
-
-            snapshot_locks.insert(store_snapshot.to_string(), snap_lock);
+                    match parse_ns_and_snapshot(&snapshot) {
+                        Ok((ns, dir)) => {
+                            match check_snapshot_restorable(
+                                &worker,
+                                &store_map,
+                                &store,
+                                &snapshot,
+                                &ns,
+                                &dir,
+                                true,
+                                &user_info,
+                                auth_id,
+                                restore_owner,
+                            ) {
+                                Ok(true) => {
+                                    Some((store.to_string(), snapshot.to_string(), ns, dir))
+                                }
+                                Ok(false) => None,
+                                Err(err) => {
+                                    task_warn!(worker, "{err}");
+                                    skipped.push(format!("{store}:{snapshot}"));
+                                    None
+                                }
+                            }
+                        }
+                        Err(err) => {
+                            task_warn!(worker, "could not restore {store_snapshot}: {err}");
+                            skipped.push(store_snapshot);
+                            None
+                        }
+                    }
+                })
+                .collect()
+        };
+        for (store, snapshot, ns, _) in snapshots.iter() {
+            // unwrap ok, we already checked those snapshots
+            let (datastore, _) = store_map.get_targets(store, &ns).unwrap();
+            let (media_id, file_num) =
+                if let Some((media_uuid, file_num)) = catalog.lookup_snapshot(store, &snapshot) {
+                    let media_id = inventory.lookup_media(media_uuid).unwrap();
+                    (media_id, file_num)
+                } else {
+                    task_warn!(
+                        worker,
+                        "did not find snapshot '{store}:{snapshot}' in media set",
+                    );
+                    skipped.push(format!("{store}:{snapshot}"));
+                    continue;
+                };
 
             let shared_store_lock = datastore.try_shared_chunk_store_lock()?;
             datastore_locks.push(shared_store_lock);
@@ -658,7 +767,7 @@ fn restore_list_worker(
             task_log!(
                 worker,
                 "found snapshot {} on {}: file {}",
-                snapshot,
+                &snapshot,
                 media_id.label.label_text,
                 file_num
             );
@@ -666,11 +775,18 @@ fn restore_list_worker(
 
         if snapshot_file_hash.is_empty() {
             task_log!(worker, "nothing to restore, skipping remaining phases...");
+            if !skipped.is_empty() {
+                task_log!(worker, "skipped the following snapshots:");
+                for snap in skipped {
+                    task_log!(worker, "  {snap}");
+                }
+            }
             return Ok(());
         }
 
         task_log!(worker, "Phase 1: temporarily restore snapshots to temp dir");
         let mut datastore_chunk_map: HashMap<String, HashSet<[u8; 32]>> = HashMap::new();
+        let mut tmp_paths = Vec::new();
         for (media_uuid, file_list) in snapshot_file_hash.iter_mut() {
             let media_id = inventory.lookup_media(media_uuid).unwrap();
             let (drive, info) = request_and_load_media(
@@ -681,9 +797,10 @@ fn restore_list_worker(
                 &email,
             )?;
             file_list.sort_unstable();
-            restore_snapshots_to_tmpdir(
+
+            let tmp_path = restore_snapshots_to_tmpdir(
                 worker.clone(),
-                &base_path,
+                &store_map,
                 file_list,
                 drive,
                 &info,
@@ -691,6 +808,7 @@ fn restore_list_worker(
                 &mut datastore_chunk_map,
             )
             .map_err(|err| format_err!("could not restore snapshots to tmpdir: {}", err))?;
+            tmp_paths.extend(tmp_path);
         }
 
         // sorted media_uuid => (sorted file_num => (set of digests)))
@@ -745,51 +863,110 @@ fn restore_list_worker(
             worker,
             "Phase 3: copy snapshots from temp dir to datastores"
         );
-        for (store_snapshot, _lock) in snapshot_locks.into_iter() {
-            proxmox_lang::try_block!({
-                let mut split = store_snapshot.splitn(2, ':');
-                let source_datastore = split
-                    .next()
-                    .ok_or_else(|| format_err!("invalid snapshot: {}", store_snapshot))?;
-                let snapshot = split
-                    .next()
-                    .ok_or_else(|| format_err!("invalid snapshot:{}", store_snapshot))?;
-                let backup_dir: pbs_api_types::BackupDir = snapshot.parse()?;
+        let mut errors = false;
+        for (source_datastore, snapshot, source_ns, backup_dir) in snapshots.into_iter() {
+            if let Err(err) = proxmox_lang::try_block!({
+                let (datastore, target_ns) = store_map
+                    .get_targets(&source_datastore, &source_ns)
+                    .ok_or_else(|| {
+                    format_err!("unexpected source datastore: {}", source_datastore)
+                })?;
 
-                // FIXME ns
-                let (datastore, _) =
-                    store_map
-                        .get_targets(source_datastore, &ns)
-                        .ok_or_else(|| {
-                            format_err!("unexpected source datastore: {}", source_datastore)
-                        })?;
+                let namespaces = target_ns.unwrap_or_else(|| vec![source_ns.clone()]);
 
-                let ns = BackupNamespace::root();
+                for ns in namespaces {
+                    if let Err(err) = proxmox_lang::try_block!({
+                        check_and_create_namespaces(
+                            &user_info,
+                            &datastore,
+                            &ns,
+                            auth_id,
+                            Some(restore_owner),
+                        )?;
 
-                let mut tmp_path = base_path.clone();
-                tmp_path.push(&source_datastore);
-                tmp_path.push(snapshot);
+                        let (owner, _group_lock) = datastore.create_locked_backup_group(
+                            &ns,
+                            backup_dir.as_ref(),
+                            restore_owner,
+                        )?;
+                        if restore_owner != &owner {
+                            bail!(
+                                "cannot restore snapshot '{}' into group '{}', owner check failed ({} != {})",
+                                snapshot,
+                                backup_dir.group,
+                                restore_owner,
+                                owner,
+                            );
+                        }
 
-                check_and_create_namespaces(
-                    &user_info,
-                    &datastore,
-                    &ns,
-                    auth_id,
-                    Some(restore_owner),
-                )?;
+                        let (_rel_path, is_new, _snap_lock) =
+                            datastore.create_locked_backup_dir(&ns, backup_dir.as_ref())?;
 
-                let path = datastore.snapshot_path(&ns, &backup_dir);
+                        if !is_new {
+                            bail!("snapshot {}/{} already exists", datastore.name(), &snapshot);
+                        }
 
-                for entry in std::fs::read_dir(tmp_path)? {
-                    let entry = entry?;
-                    let mut new_path = path.clone();
-                    new_path.push(entry.file_name());
-                    std::fs::copy(entry.path(), new_path)?;
+                        let path = datastore.snapshot_path(&ns, &backup_dir);
+                        let tmp_path = snapshot_tmpdir(
+                            &source_datastore,
+                            &datastore,
+                            &snapshot,
+                            &media_set_uuid,
+                        );
+
+                        for entry in std::fs::read_dir(tmp_path)? {
+                            let entry = entry?;
+                            let mut new_path = path.clone();
+                            new_path.push(entry.file_name());
+                            std::fs::copy(entry.path(), new_path)?;
+                        }
+
+                        Ok(())
+                    }) {
+                        task_warn!(
+                            worker,
+                            "could not restore {source_datastore}:{snapshot}: '{err}'"
+                        );
+                        skipped.push(format!("{source_datastore}:{snapshot}"));
+                    }
                 }
                 task_log!(worker, "Restore snapshot '{}' done", snapshot);
-                Ok(())
-            })
-            .map_err(|err: Error| format_err!("could not copy {}: {}", store_snapshot, err))?;
+                Ok::<_, Error>(())
+            }) {
+                task_warn!(
+                    worker,
+                    "could not copy {}:{}: {}",
+                    source_datastore,
+                    snapshot,
+                    err,
+                );
+                errors = true;
+            }
+        }
+
+        for tmp_path in tmp_paths {
+            if let Err(err) = proxmox_lang::try_block!({
+                std::fs::remove_dir_all(&tmp_path)
+                    .map_err(|err| format_err!("remove_dir_all failed - {err}"))
+            }) {
+                task_warn!(
+                    worker,
+                    "could not clean up temp dir {:?}: {}",
+                    tmp_path,
+                    err,
+                );
+                errors = true;
+            };
+        }
+
+        if errors {
+            bail!("errors during copy occurred");
+        }
+        if !skipped.is_empty() {
+            task_log!(worker, "(partially) skipped the following snapshots:");
+            for snap in skipped {
+                task_log!(worker, "  {snap}");
+            }
         }
         Ok(())
     });
@@ -801,9 +978,13 @@ fn restore_list_worker(
         );
     }
 
-    match std::fs::remove_dir_all(&base_path) {
-        Ok(()) => {}
-        Err(err) => task_warn!(worker, "error cleaning up: {}", err),
+    for (datastore, _) in store_map.used_datastores().values() {
+        let tmp_path = media_set_tmpdir(&datastore, &media_set_uuid);
+        match std::fs::remove_dir_all(&tmp_path) {
+            Ok(()) => {}
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
+            Err(err) => task_warn!(worker, "error cleaning up: {}", err),
+        }
     }
 
     res
@@ -839,15 +1020,35 @@ fn get_media_set_catalog(
     Ok(catalog)
 }
 
+fn media_set_tmpdir(datastore: &DataStore, media_set_uuid: &Uuid) -> PathBuf {
+    let mut path = datastore.base_path();
+    path.push(".tmp");
+    path.push(media_set_uuid.to_string());
+    path
+}
+
+fn snapshot_tmpdir(
+    source_datastore: &str,
+    datastore: &DataStore,
+    snapshot: &str,
+    media_set_uuid: &Uuid,
+) -> PathBuf {
+    let mut path = media_set_tmpdir(datastore, media_set_uuid);
+    path.push(source_datastore);
+    path.push(snapshot);
+    path
+}
+
 fn restore_snapshots_to_tmpdir(
     worker: Arc<WorkerTask>,
-    path: &PathBuf,
+    store_map: &DataStoreMap,
     file_list: &[u64],
     mut drive: Box<dyn TapeDriver>,
     media_id: &MediaId,
     media_set_uuid: &Uuid,
     chunks_list: &mut HashMap<String, HashSet<[u8; 32]>>,
-) -> Result<(), Error> {
+) -> Result<Vec<PathBuf>, Error> {
+    let mut tmp_paths = Vec::new();
     match media_id.media_set_label {
         None => {
             bail!(
@@ -916,9 +1117,26 @@ fn restore_snapshots_to_tmpdir(
 
                 let mut decoder = pxar::decoder::sync::Decoder::from_std(reader)?;
 
-                let mut tmp_path = path.clone();
-                tmp_path.push(&source_datastore);
-                tmp_path.push(snapshot);
+                let target_datastore =
+                    match store_map.get_targets(&source_datastore, &Default::default()) {
+                        Some((datastore, _)) => datastore,
+                        None => {
+                            task_warn!(
+                                worker,
+                                "could not find target datastore for {}:{}",
+                                source_datastore,
+                                snapshot
+                            );
+                            continue;
+                        }
+                    };
+
+                let tmp_path = snapshot_tmpdir(
+                    &source_datastore,
+                    &target_datastore,
+                    &snapshot,
+                    media_set_uuid,
+                );
                 std::fs::create_dir_all(&tmp_path)?;
 
                 let chunks = chunks_list
@@ -926,6 +1144,7 @@ fn restore_snapshots_to_tmpdir(
                     .or_insert_with(HashSet::new);
                 let manifest =
                     try_restore_snapshot_archive(worker.clone(), &mut decoder, &tmp_path)?;
+
                 for item in manifest.files() {
                     let mut archive_path = tmp_path.to_owned();
                     archive_path.push(&item.filename);
@@ -943,12 +1162,13 @@ fn restore_snapshots_to_tmpdir(
                         }
                     }
                 }
+                tmp_paths.push(tmp_path);
             }
             other => bail!("unexpected file type: {:?}", other),
         }
     }
 
-    Ok(())
+    Ok(tmp_paths)
 }
 
 fn restore_file_chunk_map(
@@ -1237,9 +1457,7 @@ fn restore_archive<'a>(
                 snapshot
             );
 
-            // FIXME: Namespace
-            let backup_ns = BackupNamespace::root();
-            let backup_dir: pbs_api_types::BackupDir = snapshot.parse()?;
+            let (backup_ns, backup_dir) = parse_ns_and_snapshot(&snapshot)?;
 
             if let Some((store_map, restore_owner)) = target.as_ref() {
                 if let Some((datastore, _)) = store_map.get_targets(&datastore_name, &backup_ns) {
