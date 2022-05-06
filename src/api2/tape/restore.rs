@@ -200,16 +200,25 @@ impl DataStoreMap {
 fn check_datastore_privs(
     user_info: &CachedUserInfo,
     store: &str,
+    ns: &BackupNamespace,
     auth_id: &Authid,
-    owner: &Option<Authid>,
+    owner: Option<&Authid>,
 ) -> Result<(), Error> {
-    let privs = user_info.lookup_privs(auth_id, &["datastore", store]);
+    let privs = if ns.is_root() {
+        user_info.lookup_privs(auth_id, &["datastore", store])
+    } else {
+        user_info.lookup_privs(auth_id, &["datastore", store, &ns.to_string()])
+    };
     if (privs & PRIV_DATASTORE_BACKUP) == 0 {
-        bail!("no permissions on /datastore/{}", store);
+        if ns.is_root() {
+            bail!("no permissions on /datastore/{}", store);
+        } else {
+            bail!("no permissions on /datastore/{}/{}", store, &ns.to_string());
+        }
     }
 
     if let Some(ref owner) = owner {
-        let correct_owner = owner == auth_id
+        let correct_owner = *owner == auth_id
             || (owner.is_token() && !auth_id.is_token() && owner.user() == auth_id.user());
 
         // same permission as changing ownership after syncing
@@ -218,6 +227,43 @@ fn check_datastore_privs(
         }
     }
 
+    Ok(())
+}
+
+fn check_and_create_namespaces(
+    user_info: &CachedUserInfo,
+    store: &Arc<DataStore>,
+    ns: &BackupNamespace,
+    auth_id: &Authid,
+    owner: Option<&Authid>,
+) -> Result<(), Error> {
+    // check normal restore privs first
+    check_datastore_privs(user_info, store.name(), ns, auth_id, owner)?;
+
+    // try create recursively if it does not exist
+    if !store.namespace_exists(ns) {
+        let mut tmp_ns: BackupNamespace = Default::default();
+        let has_datastore_priv = user_info.lookup_privs(auth_id, &["datastore", store.name()])
+            & PRIV_DATASTORE_MODIFY
+            != 0;
+
+        for comp in ns.components() {
+            tmp_ns.push(comp.to_string())?;
+            if !store.namespace_exists(&tmp_ns) {
+                if has_datastore_priv
+                    || user_info.lookup_privs(
+                        auth_id,
+                        &["datastore", store.name(), &tmp_ns.parent().to_string()],
+                    ) & PRIV_DATASTORE_MODIFY
+                        != 0
+                {
+                    store.create_namespace(&tmp_ns.parent(), comp.to_string())?;
+                } else {
+                    bail!("no permissions to create '{}'", tmp_ns);
+                }
+            }
+        }
+    }
     Ok(())
 }
 
@@ -260,11 +306,12 @@ pub const ROUTER: Router = Router::new().post(&API_METHOD_RESTORE);
     access: {
         // Note: parameters are no uri parameter, so we need to test inside function body
         description: "The user needs Tape.Read privilege on /tape/pool/{pool} \
-                      and /tape/drive/{drive}, Datastore.Backup privilege on /datastore/{store}.",
+                      and /tape/drive/{drive}, Datastore.Backup privilege on /datastore/{store}/[{namespace}],\
+                      Datastore.Modify privileges to create namespaces (if they don't exist).",
         permission: &Permission::Anybody,
     },
 )]
-/// Restore data from media-set
+/// Restore data from media-set. Namespaces will be automatically created if necessary.
 pub fn restore(
     store: String,
     drive: String,
@@ -284,8 +331,20 @@ pub fn restore(
         bail!("no datastores given");
     }
 
-    for (_, (target, _)) in used_datastores.iter() {
-        check_datastore_privs(&user_info, target.name(), &auth_id, &owner)?;
+    for (_, (target, namespaces)) in used_datastores.iter() {
+        check_datastore_privs(
+            &user_info,
+            target.name(),
+            &Default::default(),
+            &auth_id,
+            owner.as_ref(),
+        )?;
+
+        if let Some(namespaces) = namespaces {
+            for ns in namespaces {
+                check_and_create_namespaces(&user_info, target, ns, &auth_id, owner.as_ref())?;
+            }
+        }
     }
 
     let privs = user_info.lookup_privs(&auth_id, &["tape", "drive", &drive]);
@@ -352,6 +411,8 @@ pub fn restore(
                     store_map,
                     restore_owner,
                     email,
+                    user_info,
+                    &auth_id,
                 )
             } else {
                 restore_full_worker(
@@ -363,6 +424,7 @@ pub fn restore(
                     store_map,
                     restore_owner,
                     email,
+                    &auth_id,
                 )
             };
 
@@ -390,6 +452,7 @@ fn restore_full_worker(
     store_map: DataStoreMap,
     restore_owner: &Authid,
     email: Option<String>,
+    auth_id: &Authid,
 ) -> Result<(), Error> {
     let members = inventory.compute_media_set_members(&media_set_uuid)?;
 
@@ -468,6 +531,7 @@ fn restore_full_worker(
             &mut checked_chunks_map,
             restore_owner,
             &email,
+            &auth_id,
         )?;
     }
 
@@ -484,6 +548,8 @@ fn restore_list_worker(
     store_map: DataStoreMap,
     restore_owner: &Authid,
     email: Option<String>,
+    user_info: Arc<CachedUserInfo>,
+    auth_id: &Authid,
 ) -> Result<(), Error> {
     // FIXME: Namespace needs to come from somewhere, `snapshots` is just a snapshot string list
     // here.
@@ -519,6 +585,24 @@ fn restore_list_worker(
                         source_datastore
                     )
                 })?;
+
+            // only simple check, ns creation comes later
+            if let Err(err) = check_datastore_privs(
+                &user_info,
+                datastore.name(),
+                &ns,
+                auth_id,
+                Some(restore_owner),
+            ) {
+                task_warn!(
+                    worker,
+                    "could not restore {}:{}: '{}'",
+                    source_datastore,
+                    snapshot,
+                    err
+                );
+                continue;
+            }
 
             let (owner, _group_lock) =
                 datastore.create_locked_backup_group(&ns, backup_dir.as_ref(), restore_owner)?;
@@ -685,6 +769,14 @@ fn restore_list_worker(
                 let mut tmp_path = base_path.clone();
                 tmp_path.push(&source_datastore);
                 tmp_path.push(snapshot);
+
+                check_and_create_namespaces(
+                    &user_info,
+                    &datastore,
+                    &ns,
+                    auth_id,
+                    Some(restore_owner),
+                )?;
 
                 let path = datastore.snapshot_path(&ns, &backup_dir);
 
@@ -1000,6 +1092,7 @@ pub fn request_and_restore_media(
     checked_chunks_map: &mut HashMap<String, HashSet<[u8; 32]>>,
     restore_owner: &Authid,
     email: &Option<String>,
+    auth_id: &Authid,
 ) -> Result<(), Error> {
     let media_set_uuid = match media_id.media_set_label {
         None => bail!("restore_media: no media set - internal error"),
@@ -1042,6 +1135,7 @@ pub fn request_and_restore_media(
         Some((store_map, restore_owner)),
         checked_chunks_map,
         false,
+        auth_id,
     )
 }
 
@@ -1055,6 +1149,7 @@ pub fn restore_media(
     target: Option<(&DataStoreMap, &Authid)>,
     checked_chunks_map: &mut HashMap<String, HashSet<[u8; 32]>>,
     verbose: bool,
+    auth_id: &Authid,
 ) -> Result<(), Error> {
     let status_path = Path::new(TAPE_STATUS_DIR);
     let mut catalog = MediaCatalog::create_temporary_database(status_path, media_id, false)?;
@@ -1088,6 +1183,7 @@ pub fn restore_media(
             &mut catalog,
             checked_chunks_map,
             verbose,
+            &auth_id,
         )?;
     }
 
@@ -1106,7 +1202,10 @@ fn restore_archive<'a>(
     catalog: &mut MediaCatalog,
     checked_chunks_map: &mut HashMap<String, HashSet<[u8; 32]>>,
     verbose: bool,
+    auth_id: &Authid,
 ) -> Result<(), Error> {
+    let user_info = CachedUserInfo::new()?;
+
     let header: MediaContentHeader = unsafe { reader.read_le_value()? };
     if header.magic != PROXMOX_BACKUP_CONTENT_HEADER_MAGIC_1_0 {
         bail!("missing MediaContentHeader");
@@ -1144,6 +1243,13 @@ fn restore_archive<'a>(
 
             if let Some((store_map, restore_owner)) = target.as_ref() {
                 if let Some((datastore, _)) = store_map.get_targets(&datastore_name, &backup_ns) {
+                    check_and_create_namespaces(
+                        &user_info,
+                        &datastore,
+                        &backup_ns,
+                        &auth_id,
+                        Some(restore_owner),
+                    )?;
                     let (owner, _group_lock) = datastore.create_locked_backup_group(
                         &backup_ns,
                         backup_dir.as_ref(),

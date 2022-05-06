@@ -1244,6 +1244,7 @@ pub fn catalog_media(
     let verbose = verbose.unwrap_or(false);
     let force = force.unwrap_or(false);
     let scan = scan.unwrap_or(false);
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
     let upid_str = run_drive_worker(
         rpcenv,
@@ -1340,6 +1341,7 @@ pub fn catalog_media(
                 None,
                 &mut checked_chunks,
                 verbose,
+                &auth_id,
             )?;
 
             Ok(())

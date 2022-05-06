@@ -386,10 +386,7 @@ impl DataStore {
         parent: &BackupNamespace,
         name: String,
     ) -> Result<BackupNamespace, Error> {
-        let mut parent_path = self.base_path().to_owned();
-        parent_path.push(parent.path());
-
-        if !parent_path.exists() {
+        if !self.namespace_exists(parent) {
             bail!("cannot create new namespace, parent {parent} doesn't already exists");
         }
 
@@ -402,6 +399,13 @@ impl DataStore {
         std::fs::create_dir_all(ns_full_path)?;
 
         Ok(ns)
+    }
+
+    /// Returns if the given namespace exists on the datastore
+    pub fn namespace_exists(&self, ns: &BackupNamespace) -> bool {
+        let mut path = self.base_path().to_owned();
+        path.push(ns.path());
+        path.exists()
     }
 
     /// Remove all backup groups of a single namespace level but not the namespace itself.
