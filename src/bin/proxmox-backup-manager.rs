@@ -412,7 +412,7 @@ async fn run() -> Result<(), Error> {
                 )
                 .completion_cb("remote", pbs_config::remote::complete_remote_name)
                 .completion_cb("remote-store", complete_remote_datastore_name)
-                .completion_cb("group_filter", complete_remote_datastore_group_filter),
+                .completion_cb("group-filter", complete_remote_datastore_group_filter),
         )
         .insert(
             "verify",
