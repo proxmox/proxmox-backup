@@ -1007,6 +1007,10 @@ pub fn prune(
             store: {
                 schema: DATASTORE_SCHEMA,
             },
+            ns: {
+                type: BackupNamespace,
+                optional: true,
+            },
         },
     },
     returns: {
@@ -1022,6 +1026,7 @@ pub fn prune_datastore(
     dry_run: bool,
     prune_options: PruneOptions,
     store: String,
+    ns: Option<BackupNamespace>,
     _param: Value,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
@@ -1043,8 +1048,8 @@ pub fn prune_datastore(
                 worker,
                 auth_id,
                 prune_options,
-                &store,
                 datastore,
+                ns.unwrap_or_default(),
                 dry_run,
             )
         },

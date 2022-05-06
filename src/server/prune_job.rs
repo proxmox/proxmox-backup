@@ -4,7 +4,7 @@ use anyhow::Error;
 
 use proxmox_sys::{task_log, task_warn};
 
-use pbs_api_types::{Authid, Operation, PruneOptions, PRIV_DATASTORE_MODIFY};
+use pbs_api_types::{Authid, BackupNamespace, Operation, PruneOptions, PRIV_DATASTORE_MODIFY};
 use pbs_config::CachedUserInfo;
 use pbs_datastore::prune::compute_prune_info;
 use pbs_datastore::DataStore;
@@ -16,10 +16,12 @@ pub fn prune_datastore(
     worker: Arc<WorkerTask>,
     auth_id: Authid,
     prune_options: PruneOptions,
-    store: &str,
     datastore: Arc<DataStore>,
+    ns: BackupNamespace,
+    //max_depth: Option<usize>, // FIXME
     dry_run: bool,
 ) -> Result<(), Error> {
+    let store = &datastore.name();
     task_log!(worker, "Starting datastore prune on store \"{}\"", store);
 
     if dry_run {
@@ -42,8 +44,8 @@ pub fn prune_datastore(
     let privs = user_info.lookup_privs(&auth_id, &["datastore", store]);
     let has_privs = privs & PRIV_DATASTORE_MODIFY != 0;
 
-    // FIXME: Namespaces and recursion!
-    for group in datastore.iter_backup_groups(Default::default())? {
+    // FIXME: Namespace recursion!
+    for group in datastore.iter_backup_groups(ns)? {
         let group = group?;
         let list = group.list_backups()?;
 
@@ -115,8 +117,8 @@ pub fn do_prune_job(
                 worker.clone(),
                 auth_id,
                 prune_options,
-                &store,
                 datastore,
+                BackupNamespace::default(),
                 false,
             );
 
