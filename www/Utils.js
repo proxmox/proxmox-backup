@@ -359,8 +359,8 @@ Ext.define('PBS.Utils', {
 	var me = this;
 
 	let PROXMOX_SAFE_ID_REGEX = "([A-Za-z0-9_][A-Za-z0-9._-]*)";
-	// only anchored at beginning
-	// only parses datastore for now
+	me.SAFE_ID_RE = new RegExp(`^${PROXMOX_SAFE_ID_REGEX}$`);
+	// only anchored at beginning, only parses datastore for now
 	me.VERIFICATION_JOB_ID_RE = new RegExp("^" + PROXMOX_SAFE_ID_REGEX + ':?');
 	me.SYNC_JOB_ID_RE = new RegExp("^" + PROXMOX_SAFE_ID_REGEX + ':' +
 	    PROXMOX_SAFE_ID_REGEX + ':' + PROXMOX_SAFE_ID_REGEX + ':');
