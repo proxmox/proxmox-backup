@@ -10,7 +10,7 @@ use proxmox_sys::fs::CreateOptions;
 
 use pbs_api_types::percent_encoding::percent_encode_component;
 use pbs_api_types::{
-    GroupFilter, SyncJobConfig, DATASTORE_SCHEMA, GROUP_FILTER_LIST_SCHEMA,
+    GroupFilter, RateLimitConfig, SyncJobConfig, DATASTORE_SCHEMA, GROUP_FILTER_LIST_SCHEMA,
     IGNORE_VERIFIED_BACKUPS_SCHEMA, REMOTE_ID_SCHEMA, REMOVE_VANISHED_BACKUPS_SCHEMA, UPID_SCHEMA,
     VERIFICATION_OUTDATED_AFTER_SCHEMA,
 };
@@ -250,6 +250,10 @@ fn task_mgmt_cli() -> CommandLineInterface {
                 schema: GROUP_FILTER_LIST_SCHEMA,
                 optional: true,
             },
+            limit: {
+                type: RateLimitConfig,
+                flatten: true,
+            },
             "output-format": {
                 schema: OUTPUT_FORMAT,
                 optional: true,
@@ -264,6 +268,7 @@ async fn pull_datastore(
     local_store: String,
     remove_vanished: Option<bool>,
     group_filter: Option<Vec<GroupFilter>>,
+    limit: RateLimitConfig,
     param: Value,
 ) -> Result<Value, Error> {
     let output_format = get_output_format(&param);
@@ -274,6 +279,7 @@ async fn pull_datastore(
         "store": local_store,
         "remote": remote,
         "remote-store": remote_store,
+        "limit": limit,
     });
 
     if group_filter.is_some() {
