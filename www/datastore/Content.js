@@ -48,6 +48,7 @@ Ext.define('pbs-data-store-snapshots', {
 Ext.define('PBS.DataStoreContent', {
     extend: 'Ext.tree.Panel',
     alias: 'widget.pbsDataStoreContent',
+    mixins: ['Proxmox.Mixin.CBind'],
 
     rootVisible: false,
 
@@ -75,6 +76,18 @@ Ext.define('PBS.DataStoreContent', {
 	    Proxmox.Utils.monStoreErrors(view, this.store);
 	},
 
+	control: {
+	    'pbsNamespaceSelector': {
+		change: 'nsChange',
+	    },
+	},
+
+	nsChange: function(field, value) {
+	    let view = this.getView();
+	    view.namespace = value;
+	    this.reload();
+	},
+
 	reload: function() {
 	    let view = this.getView();
 
@@ -84,6 +97,9 @@ Ext.define('PBS.DataStoreContent', {
 	    }
 
 	    let url = `/api2/json/admin/datastore/${view.datastore}/snapshots`;
+	    if (view.namespace && view.namespace !== '') {
+		url += `?backup-ns=${encodeURIComponent(view.namespace)}`;
+	    }
 	    this.store.setProxy({
 		type: 'proxmox',
 		timeout: 300*1000, // 5 minutes, we should make that api call faster
@@ -1014,6 +1030,17 @@ Ext.define('PBS.DataStoreContent', {
 	    handler: 'pruneAll',
 	},
 	'->',
+	{
+	    xtype: 'tbtext',
+	    html: gettext('Namespace') + ':',
+	},
+	{
+	    xtype: 'pbsNamespaceSelector',
+	    cbind: {
+		datastore: '{datastore}',
+	    },
+	},
+	'-',
 	{
 	    xtype: 'tbtext',
 	    html: gettext('Search'),
