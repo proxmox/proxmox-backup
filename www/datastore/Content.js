@@ -382,6 +382,7 @@ Ext.define('PBS.DataStoreContent', {
 		items: [
 		    {
 			xtype: 'pbsPruneInputPanel',
+			ns: view.namespace,
 			dryrun: true,
 		    },
 		],

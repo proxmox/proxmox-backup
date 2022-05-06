@@ -12,7 +12,16 @@ Ext.define('PBS.panel.PruneInputPanel', {
     cbindData: function() {
 	let me = this;
 	me.isCreate = !!me.isCreate;
-	return {};
+	return {
+	    ns: me.ns ?? '',
+	};
+    },
+
+    onGetValues: function(values) {
+	if (values.ns === '') {
+	    delete values.ns;
+	}
+	return values;
     },
 
     column1: [
@@ -76,6 +85,14 @@ Ext.define('PBS.panel.PruneInputPanel', {
 	    cbind: {
 		hidden: '{!dryrun}',
 		disabled: '{!dryrun}',
+	    },
+	},
+	{
+	    xtype: 'proxmoxtextfield',
+	    name: 'ns',
+	    hidden: true,
+	    cbind: {
+		value: '{ns}',
 	    },
 	},
     ],
