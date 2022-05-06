@@ -388,6 +388,21 @@ Ext.define('PBS.DataStoreContent', {
 	    });
 	},
 
+	addNS: function() {
+	    let me = this;
+	    let view = me.getView();
+	    if (!view.datastore) return;
+
+	    Ext.create('PBS.window.NamespaceEdit', {
+		autoShow: true,
+		datastore: view.datastore,
+		listeners: {
+		    destroy: () => view.down('pbsNamespaceSelector').store?.load(),
+		},
+	    });
+	},
+
+
 	onVerify: function(view, rI, cI, item, e, rec) {
 	    let me = this;
 	    view = me.getView();
@@ -1036,9 +1051,16 @@ Ext.define('PBS.DataStoreContent', {
 	},
 	{
 	    xtype: 'pbsNamespaceSelector',
+	    width: 200,
 	    cbind: {
 		datastore: '{datastore}',
 	    },
+	},
+	{
+	    xtype: 'proxmoxButton',
+	    text: gettext('Add NS'),
+	    iconCls: 'fa fa-plus-square',
+	    handler: 'addNS',
 	},
 	'-',
 	{
