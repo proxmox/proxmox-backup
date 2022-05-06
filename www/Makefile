@@ -40,6 +40,7 @@ JSSRC=							\
 	form/AuthidSelector.js				\
 	form/RemoteSelector.js				\
 	form/DataStoreSelector.js			\
+	form/NamespaceSelector.js			\
 	form/CalendarEvent.js				\
 	form/PermissionPathSelector.js			\
 	form/GroupSelector.js				\
