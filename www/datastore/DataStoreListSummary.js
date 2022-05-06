@@ -22,6 +22,7 @@ Ext.define('PBS.datastore.DataStoreListSummary', {
 	    stillbad: 0,
 	    deduplication: 1.0,
 	    error: "",
+	    maintenance: '',
 	},
     },
     setTasks: function(taskdata, since) {
@@ -34,10 +35,21 @@ Ext.define('PBS.datastore.DataStoreListSummary', {
 	let vm = me.getViewModel();
 
 	if (statusData.error !== undefined) {
+	    Proxmox.Utils.API2Request({
+		url: `/config/datastore/${statusData.store}`,
+		success: (response) => {
+		    const config = response.result.data;
+		    if (config['maintenance-mode']) {
+			const [_type, msg] = PBS.Utils.parseMaintenanceMode(config['maintenance-mode']);
+			vm.set('maintenance', `${gettext('Datastore is in maintenance mode')}${msg ? ': ' + msg : ''}`);
+		    }
+		},
+	    });
 	    vm.set('error', statusData.error);
 	    return;
 	} else {
 	    vm.set('error', "");
+	    vm.set('maintenance', '');
 	}
 
 	let usage = statusData.used/statusData.total;
@@ -104,9 +116,28 @@ Ext.define('PBS.datastore.DataStoreListSummary', {
 			'</center>',
 		    ],
 		    bind: {
-			visible: '{error}',
+			visible: '{error && !maintenance}',
 			data: {
 			    text: '{error}',
+			},
+		    },
+		},
+		{
+		    xtype: 'box',
+		    reference: 'errorBox',
+		    hidden: true,
+		    tpl: [
+			'<center>',
+			`<h3>${gettext("Maintenance mode")}</h3>`,
+			'<i class="fa fa-5x fa-wrench"></i>',
+			'<br /><br/>',
+			'{text}',
+			'</center>',
+		    ],
+		    bind: {
+			visible: '{maintenance}',
+			data: {
+			    text: '{maintenance}',
 			},
 		    },
 		},
