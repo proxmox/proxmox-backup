@@ -433,12 +433,14 @@ fn restore_list_worker(
                 datastore.create_locked_backup_group(backup_dir.as_ref(), restore_owner)?;
             if restore_owner != &owner {
                 // only the owner is allowed to create additional snapshots
-                bail!(
+                task_warn!(
+                    worker,
                     "restore '{}' failed - owner check failed ({} != {})",
                     snapshot,
                     restore_owner,
                     owner
                 );
+                continue;
             }
 
             let (media_id, file_num) = if let Some((media_uuid, file_num)) =
