@@ -458,16 +458,25 @@ impl ChunkStore {
 
         let lock = self.mutex.lock();
 
+        let raw_data = chunk.raw_data();
+        let encoded_size = raw_data.len() as u64;
+
         if let Ok(metadata) = std::fs::metadata(&chunk_path) {
-            if metadata.is_file() {
-                self.touch_chunk(digest)?;
-                return Ok((true, metadata.len()));
-            } else {
+            if !metadata.is_file() {
                 bail!(
                     "Got unexpected file type on store '{}' for chunk {}",
                     self.name,
                     digest_str
                 );
+            }
+            let old_size = metadata.len();
+            if encoded_size == old_size {
+                self.touch_chunk(digest)?;
+                return Ok((true, old_size));
+            } else if old_size == 0 {
+                log::warn!("found empty chunk '{digest_str}' on disk, overwriting");
+            } else {
+                bail!("found chunk size mismatch for '{digest_str}': old {old_size} - new {encoded_size}");
             }
         }
 
@@ -482,9 +491,6 @@ impl ChunkStore {
                 err
             )
         })?;
-
-        let raw_data = chunk.raw_data();
-        let encoded_size = raw_data.len() as u64;
 
         file.write_all(raw_data).map_err(|err| {
             format_err!(
