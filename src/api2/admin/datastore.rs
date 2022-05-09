@@ -88,20 +88,25 @@ fn get_ns_privs(store: &str, ns: &BackupNamespace, auth_id: &Authid) -> Result<u
     })
 }
 
-// for asserting a base priv existence but also returning the privs for more fine grained checking
-// locally
-fn get_ns_privs_checked(
+// asserts that either either `full_access_privs` or `partial_access_privs` are fulfilled,
+// returning value indicates whether further checks like group ownerships are required
+fn check_ns_privs(
     store: &str,
     ns: &BackupNamespace,
     auth_id: &Authid,
-    required_privs: u64,
-) -> Result<u64, Error> {
+    full_access_privs: u64,
+    partial_access_privs: u64,
+) -> Result<bool, Error> {
     let privs = get_ns_privs(store, ns, auth_id)?;
 
-    if privs & required_privs == 0 {
-        proxmox_router::http_bail!(FORBIDDEN, "permission check failed");
+    if full_access_privs != 0 && (privs & full_access_privs) != 0 {
+        return Ok(false);
     }
-    Ok(privs)
+    if partial_access_privs != 0 && (privs & partial_access_privs) != 0 {
+        return Ok(true);
+    }
+
+    proxmox_router::http_bail!(FORBIDDEN, "permission check failed");
 }
 
 fn read_backup_index(
@@ -184,15 +189,15 @@ pub fn list_groups(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
     let backup_ns = backup_ns.unwrap_or_default();
-    let user_privs = get_ns_privs_checked(
+    let list_all = !check_ns_privs(
         &store,
         &backup_ns,
         &auth_id,
-        PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_BACKUP,
+        PRIV_DATASTORE_AUDIT,
+        PRIV_DATASTORE_BACKUP,
     )?;
 
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
-    let list_all = (user_privs & PRIV_DATASTORE_AUDIT) != 0;
 
     datastore
         .iter_backup_groups(backup_ns.clone())? // FIXME: Namespaces and recursion parameters!
@@ -279,16 +284,17 @@ pub fn delete_group(
 
     let backup_ns = backup_ns.unwrap_or_default();
 
-    let user_privs = get_ns_privs_checked(
+    let owner_check_required = check_ns_privs(
         &store,
         &backup_ns,
         &auth_id,
-        PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_PRUNE,
+        PRIV_DATASTORE_MODIFY,
+        PRIV_DATASTORE_PRUNE,
     )?;
 
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
-    if user_privs & PRIV_DATASTORE_MODIFY == 0 {
+    if owner_check_required {
         let owner = datastore.get_owner(&backup_ns, &group)?;
         check_backup_owner(&owner, &auth_id)?;
     }
@@ -333,16 +339,17 @@ pub fn list_snapshot_files(
 
     let backup_ns = backup_ns.unwrap_or_default();
 
-    let user_privs = get_ns_privs_checked(
+    let owner_check_required = check_ns_privs(
         &store,
         &backup_ns,
         &auth_id,
-        PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_READ | PRIV_DATASTORE_BACKUP,
+        PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_READ,
+        PRIV_DATASTORE_BACKUP,
     )?;
 
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
 
-    if user_privs & (PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_READ) == 0 {
+    if owner_check_required {
         let owner = datastore.get_owner(&backup_ns, &backup_dir.group)?;
         check_backup_owner(&owner, &auth_id)?;
     }
@@ -388,16 +395,17 @@ pub fn delete_snapshot(
 
     let backup_ns = backup_ns.unwrap_or_default();
 
-    let user_privs = get_ns_privs_checked(
+    let owner_check_required = check_ns_privs(
         &store,
         &backup_ns,
         &auth_id,
-        PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_PRUNE,
+        PRIV_DATASTORE_MODIFY,
+        PRIV_DATASTORE_PRUNE,
     )?;
 
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
-    if user_privs & PRIV_DATASTORE_MODIFY == 0 {
+    if owner_check_required {
         let owner = datastore.get_owner(&backup_ns, &backup_dir.group)?;
         check_backup_owner(&owner, &auth_id)?;
     }
@@ -449,14 +457,13 @@ pub fn list_snapshots(
 
     let backup_ns = backup_ns.unwrap_or_default();
 
-    let user_privs = get_ns_privs_checked(
+    let list_all = !check_ns_privs(
         &store,
         &backup_ns,
         &auth_id,
-        PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_BACKUP,
+        PRIV_DATASTORE_AUDIT,
+        PRIV_DATASTORE_BACKUP,
     )?;
-
-    let list_all = (user_privs & PRIV_DATASTORE_AUDIT) != 0;
 
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
 
@@ -738,13 +745,13 @@ pub fn verify(
 ) -> Result<Value, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let backup_ns = backup_ns.unwrap_or_default();
-    let user_privs = get_ns_privs_checked(
+    let owner_check_required = check_ns_privs(
         &store,
         &backup_ns,
         &auth_id,
-        PRIV_DATASTORE_VERIFY | PRIV_DATASTORE_BACKUP,
+        PRIV_DATASTORE_VERIFY,
+        PRIV_DATASTORE_BACKUP,
     )?;
-    let owner_check_required = user_privs & PRIV_DATASTORE_VERIFY == 0;
 
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
     let ignore_verified = ignore_verified.unwrap_or(true);
@@ -908,16 +915,17 @@ pub fn prune(
 
     let backup_ns = backup_ns.unwrap_or_default();
 
-    let user_privs = get_ns_privs_checked(
+    let owner_check_required = check_ns_privs(
         &store,
         &backup_ns,
         &auth_id,
-        PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_PRUNE,
+        PRIV_DATASTORE_MODIFY,
+        PRIV_DATASTORE_PRUNE,
     )?;
 
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
-    if user_privs & PRIV_DATASTORE_MODIFY == 0 {
+    if owner_check_required {
         let owner = datastore.get_owner(&backup_ns, &group)?;
         check_backup_owner(&owner, &auth_id)?;
     }
@@ -1253,15 +1261,16 @@ pub fn download_file(
         let store = required_string_param(&param, "store")?;
         let backup_ns = optional_ns_param(&param)?;
         let backup_dir: pbs_api_types::BackupDir = Deserialize::deserialize(&param)?;
-        let user_privs = get_ns_privs_checked(
+        let owner_check_required = check_ns_privs(
             &store,
             &backup_ns,
             &auth_id,
-            PRIV_DATASTORE_READ | PRIV_DATASTORE_BACKUP,
+            PRIV_DATASTORE_READ,
+            PRIV_DATASTORE_BACKUP,
         )?;
         let datastore = DataStore::lookup_datastore(store, Some(Operation::Read))?;
 
-        if user_privs & PRIV_DATASTORE_READ == 0 {
+        if owner_check_required {
             let owner = datastore.get_owner(&backup_ns, &backup_dir.group)?;
             check_backup_owner(&owner, &auth_id)?;
         }
@@ -1336,15 +1345,16 @@ pub fn download_file_decoded(
         let store = required_string_param(&param, "store")?;
         let backup_ns = optional_ns_param(&param)?;
         let backup_dir: pbs_api_types::BackupDir = Deserialize::deserialize(&param)?;
-        let user_privs = get_ns_privs_checked(
+        let owner_check_required = check_ns_privs(
             &store,
             &backup_ns,
             &auth_id,
-            PRIV_DATASTORE_READ | PRIV_DATASTORE_BACKUP,
+            PRIV_DATASTORE_READ,
+            PRIV_DATASTORE_BACKUP,
         )?;
         let datastore = DataStore::lookup_datastore(store, Some(Operation::Read))?;
 
-        if user_privs & PRIV_DATASTORE_READ == 0 {
+        if owner_check_required {
             let owner = datastore.get_owner(&backup_ns, &backup_dir.group)?;
             check_backup_owner(&owner, &auth_id)?;
         }
@@ -1466,7 +1476,9 @@ pub fn upload_backup_log(
         let store = required_string_param(&param, "store")?;
         let backup_ns = optional_ns_param(&param)?;
         let backup_dir: pbs_api_types::BackupDir = Deserialize::deserialize(&param)?;
-        get_ns_privs_checked(&store, &backup_ns, &auth_id, PRIV_DATASTORE_BACKUP)?;
+
+        check_ns_privs(&store, &backup_ns, &auth_id, PRIV_DATASTORE_BACKUP, 0)?;
+
         let datastore = DataStore::lookup_datastore(store, Some(Operation::Write))?;
         let backup_dir = datastore.backup_dir(backup_ns, backup_dir)?;
 
@@ -1537,16 +1549,17 @@ pub fn catalog(
 ) -> Result<Vec<ArchiveEntry>, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let backup_ns = backup_ns.unwrap_or_default();
-    let user_privs = get_ns_privs_checked(
+    let owner_check_required = check_ns_privs(
         &store,
         &backup_ns,
         &auth_id,
-        PRIV_DATASTORE_READ | PRIV_DATASTORE_BACKUP,
+        PRIV_DATASTORE_READ,
+        PRIV_DATASTORE_BACKUP,
     )?;
 
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
 
-    if user_privs & PRIV_DATASTORE_READ == 0 {
+    if owner_check_required {
         let owner = datastore.get_owner(&backup_ns, &backup_dir.group)?;
         check_backup_owner(&owner, &auth_id)?;
     }
@@ -1621,15 +1634,16 @@ pub fn pxar_file_download(
         let store = required_string_param(&param, "store")?;
         let backup_ns = optional_ns_param(&param)?;
         let backup_dir: pbs_api_types::BackupDir = Deserialize::deserialize(&param)?;
-        let user_privs = get_ns_privs_checked(
+        let owner_check_required = check_ns_privs(
             &store,
             &backup_ns,
             &auth_id,
-            PRIV_DATASTORE_READ | PRIV_DATASTORE_BACKUP,
+            PRIV_DATASTORE_READ,
+            PRIV_DATASTORE_BACKUP,
         )?;
         let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
 
-        if user_privs & PRIV_DATASTORE_READ == 0 {
+        if owner_check_required {
             let owner = datastore.get_owner(&backup_ns, &backup_dir.group)?;
             check_backup_owner(&owner, &auth_id)?;
         }
@@ -1830,15 +1844,16 @@ pub fn get_group_notes(
 ) -> Result<String, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let backup_ns = backup_ns.unwrap_or_default();
-    let user_privs = get_ns_privs_checked(
+    let owner_check_required = check_ns_privs(
         &store,
         &backup_ns,
         &auth_id,
-        PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_BACKUP,
+        PRIV_DATASTORE_AUDIT,
+        PRIV_DATASTORE_BACKUP,
     )?;
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
 
-    if user_privs & PRIV_DATASTORE_AUDIT == 0 {
+    if owner_check_required {
         let owner = datastore.get_owner(&backup_ns, &backup_group)?;
         check_backup_owner(&owner, &auth_id)?;
     }
@@ -1880,14 +1895,15 @@ pub fn set_group_notes(
 ) -> Result<(), Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let backup_ns = backup_ns.unwrap_or_default();
-    let user_privs = get_ns_privs_checked(
+    let owner_check_required = check_ns_privs(
         &store,
         &backup_ns,
         &auth_id,
-        PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_BACKUP,
+        PRIV_DATASTORE_MODIFY,
+        PRIV_DATASTORE_BACKUP,
     )?;
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
-    if user_privs & PRIV_DATASTORE_MODIFY == 0 {
+    if owner_check_required {
         let owner = datastore.get_owner(&backup_ns, &backup_group)?;
         check_backup_owner(&owner, &auth_id)?;
     }
@@ -1927,14 +1943,15 @@ pub fn get_notes(
 ) -> Result<String, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let backup_ns = backup_ns.unwrap_or_default();
-    let user_privs = get_ns_privs_checked(
+    let owner_check_required = check_ns_privs(
         &store,
         &backup_ns,
         &auth_id,
-        PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_BACKUP,
+        PRIV_DATASTORE_AUDIT,
+        PRIV_DATASTORE_BACKUP,
     )?;
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
-    if user_privs & PRIV_DATASTORE_AUDIT == 0 {
+    if owner_check_required {
         let owner = datastore.get_owner(&backup_ns, &backup_dir.group)?;
         check_backup_owner(&owner, &auth_id)?;
     }
@@ -1981,14 +1998,15 @@ pub fn set_notes(
 ) -> Result<(), Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let backup_ns = backup_ns.unwrap_or_default();
-    let user_privs = get_ns_privs_checked(
+    let owner_check_required = check_ns_privs(
         &store,
         &backup_ns,
         &auth_id,
-        PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_BACKUP,
+        PRIV_DATASTORE_MODIFY,
+        PRIV_DATASTORE_BACKUP,
     )?;
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
-    if user_privs & PRIV_DATASTORE_MODIFY == 0 {
+    if owner_check_required {
         let owner = datastore.get_owner(&backup_ns, &backup_dir.group)?;
         check_backup_owner(&owner, &auth_id)?;
     }
@@ -2033,14 +2051,16 @@ pub fn get_protection(
 ) -> Result<bool, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let backup_ns = backup_ns.unwrap_or_default();
-    let user_privs = get_ns_privs_checked(
+    let owner_check_required = check_ns_privs(
         &store,
         &backup_ns,
         &auth_id,
-        PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_BACKUP,
+        PRIV_DATASTORE_AUDIT,
+        PRIV_DATASTORE_BACKUP,
     )?;
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
-    if user_privs & PRIV_DATASTORE_AUDIT == 0 {
+
+    if owner_check_required {
         let owner = datastore.get_owner(&backup_ns, &backup_dir.group)?;
         check_backup_owner(&owner, &auth_id)?;
     }
@@ -2083,14 +2103,15 @@ pub fn set_protection(
 ) -> Result<(), Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let backup_ns = backup_ns.unwrap_or_default();
-    let user_privs = get_ns_privs_checked(
+    let owner_check_required = check_ns_privs(
         &store,
         &backup_ns,
         &auth_id,
-        PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_BACKUP,
+        PRIV_DATASTORE_MODIFY,
+        PRIV_DATASTORE_BACKUP,
     )?;
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
-    if user_privs & PRIV_DATASTORE_MODIFY == 0 {
+    if owner_check_required {
         let owner = datastore.get_owner(&backup_ns, &backup_dir.group)?;
         check_backup_owner(&owner, &auth_id)?;
     }
@@ -2135,21 +2156,19 @@ pub fn set_backup_owner(
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let backup_ns = backup_ns.unwrap_or_default();
-
-    let privs = get_ns_privs_checked(
+    let owner_check_required = check_ns_privs(
         &store,
         &backup_ns,
         &auth_id,
-        PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_BACKUP,
+        PRIV_DATASTORE_MODIFY,
+        PRIV_DATASTORE_BACKUP,
     )?;
     let backup_group = datastore.backup_group(backup_ns, backup_group);
 
-    let allowed = if (privs & PRIV_DATASTORE_MODIFY) != 0 {
-        true // High-privilege user/token
-    } else if (privs & PRIV_DATASTORE_BACKUP) != 0 {
+    if owner_check_required {
         let owner = backup_group.get_owner()?;
 
-        match (owner.is_token(), new_owner.is_token()) {
+        let allowed = match (owner.is_token(), new_owner.is_token()) {
             (true, true) => {
                 // API token to API token, owned by same user
                 let owner = owner.user();
@@ -2168,19 +2187,17 @@ pub fn set_backup_owner(
                 // User to User, not allowed for unprivileged users
                 false
             }
-        }
-    } else {
-        false
-    };
+        };
 
-    if !allowed {
-        return Err(http_err!(
-            UNAUTHORIZED,
-            "{} does not have permission to change owner of backup group '{}' to {}",
-            auth_id,
-            backup_group,
-            new_owner,
-        ));
+        if !allowed {
+            return Err(http_err!(
+                UNAUTHORIZED,
+                "{} does not have permission to change owner of backup group '{}' to {}",
+                auth_id,
+                backup_group,
+                new_owner,
+            ));
+        }
     }
 
     let user_info = CachedUserInfo::new()?;
