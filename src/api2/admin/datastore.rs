@@ -109,6 +109,24 @@ fn check_ns_privs(
     proxmox_router::http_bail!(FORBIDDEN, "permission check failed");
 }
 
+fn check_owner_load_store(
+    store: &str,
+    ns: &BackupNamespace,
+    auth_id: &Authid,
+    operation: Option<Operation>,
+    owner_check_required: bool,
+    backup_group: &pbs_api_types::BackupGroup,
+) -> Result<Arc<DataStore>, Error> {
+    let datastore = DataStore::lookup_datastore(&store, operation)?;
+
+    if owner_check_required {
+        let owner = datastore.get_owner(&ns, backup_group)?;
+        check_backup_owner(&owner, &auth_id)?;
+    }
+
+    Ok(datastore)
+}
+
 fn read_backup_index(
     store: &DataStore,
     backup_dir: &BackupDir,
@@ -292,12 +310,14 @@ pub fn delete_group(
         PRIV_DATASTORE_PRUNE,
     )?;
 
-    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
-
-    if owner_check_required {
-        let owner = datastore.get_owner(&backup_ns, &group)?;
-        check_backup_owner(&owner, &auth_id)?;
-    }
+    let datastore = check_owner_load_store(
+        &store,
+        &backup_ns,
+        &auth_id,
+        Some(Operation::Write),
+        owner_check_required,
+        &group,
+    )?;
 
     if !datastore.remove_backup_group(&backup_ns, &group)? {
         bail!("group only partially deleted due to protected snapshots");
@@ -347,12 +367,14 @@ pub fn list_snapshot_files(
         PRIV_DATASTORE_BACKUP,
     )?;
 
-    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
-
-    if owner_check_required {
-        let owner = datastore.get_owner(&backup_ns, &backup_dir.group)?;
-        check_backup_owner(&owner, &auth_id)?;
-    }
+    let datastore = check_owner_load_store(
+        &store,
+        &backup_ns,
+        &auth_id,
+        Some(Operation::Read),
+        owner_check_required,
+        &backup_dir.group,
+    )?;
 
     let snapshot = datastore.backup_dir(backup_ns, backup_dir)?;
 
@@ -403,12 +425,14 @@ pub fn delete_snapshot(
         PRIV_DATASTORE_PRUNE,
     )?;
 
-    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
-
-    if owner_check_required {
-        let owner = datastore.get_owner(&backup_ns, &backup_dir.group)?;
-        check_backup_owner(&owner, &auth_id)?;
-    }
+    let datastore = check_owner_load_store(
+        &store,
+        &backup_ns,
+        &auth_id,
+        Some(Operation::Write),
+        owner_check_required,
+        &backup_dir.group,
+    )?;
 
     let snapshot = datastore.backup_dir(backup_ns, backup_dir)?;
 
@@ -923,12 +947,14 @@ pub fn prune(
         PRIV_DATASTORE_PRUNE,
     )?;
 
-    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
-
-    if owner_check_required {
-        let owner = datastore.get_owner(&backup_ns, &group)?;
-        check_backup_owner(&owner, &auth_id)?;
-    }
+    let datastore = check_owner_load_store(
+        &store,
+        &backup_ns,
+        &auth_id,
+        Some(Operation::Write),
+        owner_check_required,
+        &group,
+    )?;
 
     let group = datastore.backup_group(backup_ns, group);
 
@@ -1268,12 +1294,16 @@ pub fn download_file(
             PRIV_DATASTORE_READ,
             PRIV_DATASTORE_BACKUP,
         )?;
-        let datastore = DataStore::lookup_datastore(store, Some(Operation::Read))?;
 
-        if owner_check_required {
-            let owner = datastore.get_owner(&backup_ns, &backup_dir.group)?;
-            check_backup_owner(&owner, &auth_id)?;
-        }
+        let datastore = check_owner_load_store(
+            store,
+            &backup_ns,
+            &auth_id,
+            Some(Operation::Read),
+            owner_check_required,
+            &backup_dir.group,
+        )?;
+
         let backup_dir = datastore.backup_dir(backup_ns, backup_dir)?;
 
         let file_name = required_string_param(&param, "file-name")?.to_owned();
@@ -1352,12 +1382,14 @@ pub fn download_file_decoded(
             PRIV_DATASTORE_READ,
             PRIV_DATASTORE_BACKUP,
         )?;
-        let datastore = DataStore::lookup_datastore(store, Some(Operation::Read))?;
-
-        if owner_check_required {
-            let owner = datastore.get_owner(&backup_ns, &backup_dir.group)?;
-            check_backup_owner(&owner, &auth_id)?;
-        }
+        let datastore = check_owner_load_store(
+            store,
+            &backup_ns,
+            &auth_id,
+            Some(Operation::Read),
+            owner_check_required,
+            &backup_dir.group,
+        )?;
 
         let backup_dir = datastore.backup_dir(backup_ns, backup_dir)?;
 
@@ -1476,10 +1508,23 @@ pub fn upload_backup_log(
         let store = required_string_param(&param, "store")?;
         let backup_ns = optional_ns_param(&param)?;
         let backup_dir: pbs_api_types::BackupDir = Deserialize::deserialize(&param)?;
+        check_ns_privs(&store, &backup_ns, &auth_id, PRIV_DATASTORE_BACKUP, 0).map_err(|_| {
+            http_err!(
+                UNAUTHORIZED,
+                "{} does not have permission to upload log for backup snapshot '{}'",
+                auth_id,
+                backup_dir,
+            )
+        })?;
 
-        check_ns_privs(&store, &backup_ns, &auth_id, PRIV_DATASTORE_BACKUP, 0)?;
-
-        let datastore = DataStore::lookup_datastore(store, Some(Operation::Write))?;
+        let datastore = check_owner_load_store(
+            store,
+            &backup_ns,
+            &auth_id,
+            Some(Operation::Write),
+            true,
+            &backup_dir.group,
+        )?;
         let backup_dir = datastore.backup_dir(backup_ns, backup_dir)?;
 
         let file_name = CLIENT_LOG_BLOB_NAME;
@@ -1557,12 +1602,14 @@ pub fn catalog(
         PRIV_DATASTORE_BACKUP,
     )?;
 
-    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
-
-    if owner_check_required {
-        let owner = datastore.get_owner(&backup_ns, &backup_dir.group)?;
-        check_backup_owner(&owner, &auth_id)?;
-    }
+    let datastore = check_owner_load_store(
+        &store,
+        &backup_ns,
+        &auth_id,
+        Some(Operation::Read),
+        owner_check_required,
+        &backup_dir.group,
+    )?;
 
     let backup_dir = datastore.backup_dir(backup_ns, backup_dir)?;
 
@@ -1641,12 +1688,14 @@ pub fn pxar_file_download(
             PRIV_DATASTORE_READ,
             PRIV_DATASTORE_BACKUP,
         )?;
-        let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
-
-        if owner_check_required {
-            let owner = datastore.get_owner(&backup_ns, &backup_dir.group)?;
-            check_backup_owner(&owner, &auth_id)?;
-        }
+        let datastore = check_owner_load_store(
+            &store,
+            &backup_ns,
+            &auth_id,
+            Some(Operation::Read),
+            owner_check_required,
+            &backup_dir.group,
+        )?;
 
         let backup_dir = datastore.backup_dir(backup_ns, backup_dir)?;
 
@@ -1851,12 +1900,14 @@ pub fn get_group_notes(
         PRIV_DATASTORE_AUDIT,
         PRIV_DATASTORE_BACKUP,
     )?;
-    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
-
-    if owner_check_required {
-        let owner = datastore.get_owner(&backup_ns, &backup_group)?;
-        check_backup_owner(&owner, &auth_id)?;
-    }
+    let datastore = check_owner_load_store(
+        &store,
+        &backup_ns,
+        &auth_id,
+        Some(Operation::Read),
+        owner_check_required,
+        &backup_group,
+    )?;
 
     let note_path = get_group_note_path(&datastore, &backup_ns, &backup_group);
     Ok(file_read_optional_string(note_path)?.unwrap_or_else(|| "".to_owned()))
@@ -1902,11 +1953,14 @@ pub fn set_group_notes(
         PRIV_DATASTORE_MODIFY,
         PRIV_DATASTORE_BACKUP,
     )?;
-    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
-    if owner_check_required {
-        let owner = datastore.get_owner(&backup_ns, &backup_group)?;
-        check_backup_owner(&owner, &auth_id)?;
-    }
+    let datastore = check_owner_load_store(
+        &store,
+        &backup_ns,
+        &auth_id,
+        Some(Operation::Write),
+        owner_check_required,
+        &backup_group,
+    )?;
 
     let note_path = get_group_note_path(&datastore, &backup_ns, &backup_group);
     replace_file(note_path, notes.as_bytes(), CreateOptions::new(), false)?;
@@ -1950,11 +2004,14 @@ pub fn get_notes(
         PRIV_DATASTORE_AUDIT,
         PRIV_DATASTORE_BACKUP,
     )?;
-    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
-    if owner_check_required {
-        let owner = datastore.get_owner(&backup_ns, &backup_dir.group)?;
-        check_backup_owner(&owner, &auth_id)?;
-    }
+    let datastore = check_owner_load_store(
+        &store,
+        &backup_ns,
+        &auth_id,
+        Some(Operation::Read),
+        owner_check_required,
+        &backup_dir.group,
+    )?;
 
     let backup_dir = datastore.backup_dir(backup_ns, backup_dir)?;
 
@@ -2005,11 +2062,14 @@ pub fn set_notes(
         PRIV_DATASTORE_MODIFY,
         PRIV_DATASTORE_BACKUP,
     )?;
-    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
-    if owner_check_required {
-        let owner = datastore.get_owner(&backup_ns, &backup_dir.group)?;
-        check_backup_owner(&owner, &auth_id)?;
-    }
+    let datastore = check_owner_load_store(
+        &store,
+        &backup_ns,
+        &auth_id,
+        Some(Operation::Write),
+        owner_check_required,
+        &backup_dir.group,
+    )?;
 
     let backup_dir = datastore.backup_dir(backup_ns, backup_dir)?;
 
@@ -2058,12 +2118,14 @@ pub fn get_protection(
         PRIV_DATASTORE_AUDIT,
         PRIV_DATASTORE_BACKUP,
     )?;
-    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
-
-    if owner_check_required {
-        let owner = datastore.get_owner(&backup_ns, &backup_dir.group)?;
-        check_backup_owner(&owner, &auth_id)?;
-    }
+    let datastore = check_owner_load_store(
+        &store,
+        &backup_ns,
+        &auth_id,
+        Some(Operation::Read),
+        owner_check_required,
+        &backup_dir.group,
+    )?;
 
     let backup_dir = datastore.backup_dir(backup_ns, backup_dir)?;
 
@@ -2110,11 +2172,14 @@ pub fn set_protection(
         PRIV_DATASTORE_MODIFY,
         PRIV_DATASTORE_BACKUP,
     )?;
-    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
-    if owner_check_required {
-        let owner = datastore.get_owner(&backup_ns, &backup_dir.group)?;
-        check_backup_owner(&owner, &auth_id)?;
-    }
+    let datastore = check_owner_load_store(
+        &store,
+        &backup_ns,
+        &auth_id,
+        Some(Operation::Write),
+        owner_check_required,
+        &backup_dir.group,
+    )?;
 
     let backup_dir = datastore.backup_dir(backup_ns, backup_dir)?;
 
