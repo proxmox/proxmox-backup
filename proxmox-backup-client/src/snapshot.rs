@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use anyhow::{bail, Error};
+use anyhow::Error;
 use serde_json::{json, Value};
 
 use proxmox_router::cli::*;
@@ -17,7 +17,7 @@ use pbs_tools::json::required_string_param;
 use crate::{
     api_datastore_list_snapshots, complete_backup_group, complete_backup_snapshot,
     complete_repository, connect, crypto_parameters, extract_repository_from_value,
-    record_repository, BackupDir, List, KEYFD_SCHEMA, KEYFILE_SCHEMA, REPO_URL_SCHEMA,
+    optional_ns_param, record_repository, BackupDir, KEYFD_SCHEMA, KEYFILE_SCHEMA, REPO_URL_SCHEMA,
 };
 
 #[api(
@@ -56,17 +56,10 @@ async fn list_snapshots(param: Value) -> Result<Value, Error> {
         .map(|group| group.parse())
         .transpose()?;
 
-    let backup_ns: Option<BackupNamespace> =
-        param["ns"].as_str().map(|ns| ns.parse()).transpose()?;
+    let backup_ns = optional_ns_param(&param)?;
 
-    let list = match (group, backup_ns) {
-        (Some(group), None) => List::Group(group),
-        (None, Some(ns)) => List::Namespace(ns),
-        (None, None) => List::Any,
-        (Some(_), Some(_)) => bail!("'ns' and 'group' parameters are mutually exclusive"),
-    };
-
-    let mut data = api_datastore_list_snapshots(&client, repo.store(), list).await?;
+    let mut data =
+        api_datastore_list_snapshots(&client, repo.store(), &backup_ns, group.as_ref()).await?;
 
     record_repository(&repo);
 

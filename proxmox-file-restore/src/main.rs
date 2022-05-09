@@ -17,7 +17,7 @@ use proxmox_sys::fs::{create_path, CreateOptions};
 use pxar::accessor::aio::Accessor;
 use pxar::decoder::aio::Decoder;
 
-use pbs_api_types::{BackupDir, CryptMode};
+use pbs_api_types::{BackupDir, BackupNamespace, CryptMode};
 use pbs_client::pxar::{create_zip, extract_sub_dir, extract_sub_dir_seq};
 use pbs_client::tools::{
     complete_group_or_snapshot, complete_repository, connect, extract_repository_from_value,
@@ -95,6 +95,7 @@ fn keyfile_path(param: &Value) -> Option<String> {
 
 async fn list_files(
     repo: BackupRepository,
+    ns: BackupNamespace,
     snapshot: BackupDir,
     path: ExtractPath,
     crypt_config: Option<Arc<CryptConfig>>,
@@ -102,8 +103,15 @@ async fn list_files(
     driver: Option<BlockDriverType>,
 ) -> Result<Vec<ArchiveEntry>, Error> {
     let client = connect(&repo)?;
-    let client =
-        BackupReader::start(client, crypt_config.clone(), repo.store(), &snapshot, true).await?;
+    let client = BackupReader::start(
+        client,
+        crypt_config.clone(),
+        repo.store(),
+        &ns,
+        &snapshot,
+        true,
+    )
+    .await?;
 
     let (manifest, _) = client.download_manifest().await?;
     manifest.check_fingerprint(crypt_config.as_ref().map(Arc::as_ref))?;
@@ -164,70 +172,75 @@ async fn list_files(
 }
 
 #[api(
-   input: {
-       properties: {
-           repository: {
-               schema: REPO_URL_SCHEMA,
-               optional: true,
-           },
-           snapshot: {
-               type: String,
-               description: "Group/Snapshot path.",
-           },
-           "path": {
-               description: "Path to restore. Directories will be restored as .zip files.",
-               type: String,
-           },
-           "base64": {
-               type: Boolean,
-               description: "If set, 'path' will be interpreted as base64 encoded.",
-               optional: true,
-               default: false,
-           },
-           keyfile: {
-               schema: KEYFILE_SCHEMA,
-               optional: true,
-           },
-           "keyfd": {
-               schema: KEYFD_SCHEMA,
-               optional: true,
-           },
-           "crypt-mode": {
-               type: CryptMode,
-               optional: true,
-           },
-           "driver": {
-               type: BlockDriverType,
-               optional: true,
-           },
-           "output-format": {
-               schema: OUTPUT_FORMAT,
-               optional: true,
-           },
-           "json-error": {
-               type: Boolean,
-               description: "If set, errors are returned as json instead of writing to stderr",
-               optional: true,
-               default: false,
-           },
-           "timeout": {
-               type: Integer,
-               description: "Defines the maximum time the call can should take.",
-               minimum: 1,
-               optional: true,
-           },
-       }
-   },
-   returns: {
-       description: "A list of elements under the given path",
-       type: Array,
-       items: {
-           type: ArchiveEntry,
-       }
-   }
+    input: {
+        properties: {
+            repository: {
+                schema: REPO_URL_SCHEMA,
+                optional: true,
+            },
+            ns: {
+                type: BackupNamespace,
+                optional: true,
+            },
+            snapshot: {
+                type: String,
+                description: "Group/Snapshot path.",
+            },
+            "path": {
+                description: "Path to restore. Directories will be restored as .zip files.",
+                type: String,
+            },
+            "base64": {
+                type: Boolean,
+                description: "If set, 'path' will be interpreted as base64 encoded.",
+                optional: true,
+                default: false,
+            },
+            keyfile: {
+                schema: KEYFILE_SCHEMA,
+                optional: true,
+            },
+            "keyfd": {
+                schema: KEYFD_SCHEMA,
+                optional: true,
+            },
+            "crypt-mode": {
+                type: CryptMode,
+                optional: true,
+            },
+            "driver": {
+                type: BlockDriverType,
+                optional: true,
+            },
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+            "json-error": {
+                type: Boolean,
+                description: "If set, errors are returned as json instead of writing to stderr",
+                optional: true,
+                default: false,
+            },
+            "timeout": {
+                type: Integer,
+                description: "Defines the maximum time the call can should take.",
+                minimum: 1,
+                optional: true,
+            },
+        }
+    },
+    returns: {
+        description: "A list of elements under the given path",
+        type: Array,
+        items: {
+            type: ArchiveEntry,
+        }
+    }
 )]
 /// List a directory from a backup snapshot.
 async fn list(
+    ns: Option<BackupNamespace>,
     snapshot: String,
     path: String,
     base64: bool,
@@ -236,6 +249,7 @@ async fn list(
     param: Value,
 ) -> Result<(), Error> {
     let repo = extract_repository_from_value(&param)?;
+    let ns = ns.unwrap_or_default();
     let snapshot: BackupDir = snapshot.parse()?;
     let path = parse_path(path, base64)?;
 
@@ -261,7 +275,7 @@ async fn list(
     let result = if let Some(timeout) = timeout {
         match tokio::time::timeout(
             std::time::Duration::from_secs(timeout),
-            list_files(repo, snapshot, path, crypt_config, keyfile, driver),
+            list_files(repo, ns, snapshot, path, crypt_config, keyfile, driver),
         )
         .await
         {
@@ -269,7 +283,7 @@ async fn list(
             Err(_) => Err(http_err!(SERVICE_UNAVAILABLE, "list not finished in time")),
         }
     } else {
-        list_files(repo, snapshot, path, crypt_config, keyfile, driver).await
+        list_files(repo, ns, snapshot, path, crypt_config, keyfile, driver).await
     };
 
     let output_format = get_output_format(&param);
@@ -316,58 +330,63 @@ async fn list(
 }
 
 #[api(
-   input: {
-       properties: {
-           repository: {
-               schema: REPO_URL_SCHEMA,
-               optional: true,
-           },
-           snapshot: {
-               type: String,
-               description: "Group/Snapshot path.",
-           },
-           "path": {
-               description: "Path to restore. Directories will be restored as .zip files if extracted to stdout.",
-               type: String,
-           },
-           "base64": {
-               type: Boolean,
-               description: "If set, 'path' will be interpreted as base64 encoded.",
-               optional: true,
-               default: false,
-           },
-           target: {
-               type: String,
-               optional: true,
-               description: "Target directory path. Use '-' to write to standard output.",
-           },
-           keyfile: {
-               schema: KEYFILE_SCHEMA,
-               optional: true,
-           },
-           "keyfd": {
-               schema: KEYFD_SCHEMA,
-               optional: true,
-           },
-           "crypt-mode": {
-               type: CryptMode,
-               optional: true,
-           },
-           verbose: {
-               type: Boolean,
-               description: "Print verbose information",
-               optional: true,
-               default: false,
-           },
-           "driver": {
-               type: BlockDriverType,
-               optional: true,
-           },
-       }
-   }
+    input: {
+        properties: {
+            repository: {
+                schema: REPO_URL_SCHEMA,
+                optional: true,
+            },
+            ns: {
+                type: BackupNamespace,
+                optional: true,
+            },
+            snapshot: {
+                type: String,
+                description: "Group/Snapshot path.",
+            },
+            "path": {
+                description: "Path to restore. Directories will be restored as .zip files if extracted to stdout.",
+                type: String,
+            },
+            "base64": {
+                type: Boolean,
+                description: "If set, 'path' will be interpreted as base64 encoded.",
+                optional: true,
+                default: false,
+            },
+            target: {
+                type: String,
+                optional: true,
+                description: "Target directory path. Use '-' to write to standard output.",
+            },
+            keyfile: {
+                schema: KEYFILE_SCHEMA,
+                optional: true,
+            },
+            "keyfd": {
+                schema: KEYFD_SCHEMA,
+                optional: true,
+            },
+            "crypt-mode": {
+                type: CryptMode,
+                optional: true,
+            },
+            verbose: {
+                type: Boolean,
+                description: "Print verbose information",
+                optional: true,
+                default: false,
+            },
+            "driver": {
+                type: BlockDriverType,
+                optional: true,
+            },
+        }
+    }
 )]
 /// Restore files from a backup snapshot.
 async fn extract(
+    ns: Option<BackupNamespace>,
     snapshot: String,
     path: String,
     base64: bool,
@@ -376,6 +395,7 @@ async fn extract(
     param: Value,
 ) -> Result<(), Error> {
     let repo = extract_repository_from_value(&param)?;
+    let ns = ns.unwrap_or_default();
     let snapshot: BackupDir = snapshot.parse()?;
     let orig_path = path;
     let path = parse_path(orig_path.clone(), base64)?;
@@ -401,8 +421,15 @@ async fn extract(
     };
 
     let client = connect(&repo)?;
-    let client =
-        BackupReader::start(client, crypt_config.clone(), repo.store(), &snapshot, true).await?;
+    let client = BackupReader::start(
+        client,
+        crypt_config.clone(),
+        repo.store(),
+        &ns,
+        &snapshot,
+        true,
+    )
+    .await?;
     let (manifest, _) = client.download_manifest().await?;
 
     match path {

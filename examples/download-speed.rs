@@ -37,13 +37,8 @@ async fn run() -> Result<(), Error> {
         client,
         None,
         "store2",
-        &(
-            BackupNamespace::root(),
-            BackupType::Host,
-            "elsa".to_string(),
-            backup_time,
-        )
-            .into(),
+        &BackupNamespace::root(),
+        &(BackupType::Host, "elsa".to_string(), backup_time).into(),
         true,
     )
     .await?;

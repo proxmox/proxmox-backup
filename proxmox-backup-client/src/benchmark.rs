@@ -242,13 +242,8 @@ async fn test_upload_speed(
         client,
         crypt_config.clone(),
         repo.store(),
-        &(
-            BackupNamespace::root(),
-            BackupType::Host,
-            "benchmark".to_string(),
-            backup_time,
-        )
-            .into(),
+        &BackupNamespace::root(),
+        &(BackupType::Host, "benchmark".to_string(), backup_time).into(),
         false,
         true,
     )

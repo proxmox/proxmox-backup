@@ -614,7 +614,7 @@ impl BackupEnvironment {
             .map_err(|err| format_err!("unable to update manifest blob - {}", err))?;
 
         if let Some(base) = &self.last_backup {
-            let path = self.datastore.snapshot_path(base.backup_dir.as_ref());
+            let path = base.backup_dir.full_path();
             if !path.exists() {
                 bail!(
                     "base snapshot {} was removed during backup, cannot finish as chunks might be missing",
@@ -710,8 +710,11 @@ impl BackupEnvironment {
         let mut state = self.state.lock().unwrap();
         state.finished = true;
 
-        self.datastore
-            .remove_backup_dir(self.backup_dir.as_ref(), true)?;
+        self.datastore.remove_backup_dir(
+            self.backup_dir.backup_ns(),
+            self.backup_dir.as_ref(),
+            true,
+        )?;
 
         Ok(())
     }

@@ -29,6 +29,7 @@ use pbs_tools::json::required_string_param;
 use proxmox_rest_server::{H2Service, WorkerTask};
 use proxmox_sys::fs::lock_dir_noblock_shared;
 
+use crate::api2::backup::optional_ns_param;
 use crate::api2::helpers;
 
 mod environment;
@@ -91,6 +92,7 @@ fn upgrade_to_backup_reader_protocol(
 
         let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
 
+        let backup_ns = optional_ns_param(&param)?;
         let backup_dir = pbs_api_types::BackupDir::deserialize(&param)?;
 
         let protocols = parts
@@ -112,9 +114,9 @@ fn upgrade_to_backup_reader_protocol(
 
         let env_type = rpcenv.env_type();
 
-        let backup_dir = datastore.backup_dir(backup_dir)?;
+        let backup_dir = datastore.backup_dir(backup_ns, backup_dir)?;
         if !priv_read {
-            let owner = datastore.get_owner(backup_dir.as_ref())?;
+            let owner = backup_dir.get_owner()?;
             let correct_owner = owner == auth_id
                 || (owner.is_token() && Authid::from(owner.user().clone()) == auth_id);
             if !correct_owner {

@@ -8,6 +8,7 @@ use serde_json::Value;
 use proxmox_router::cli::*;
 use proxmox_schema::api;
 
+use pbs_api_types::BackupNamespace;
 use pbs_client::tools::key_source::get_encryption_key_password;
 use pbs_client::{BackupReader, RemoteChunkReader};
 use pbs_tools::crypt_config::CryptConfig;
@@ -16,9 +17,9 @@ use pbs_tools::json::required_string_param;
 use crate::{
     complete_backup_snapshot, complete_group_or_snapshot, complete_pxar_archive_name,
     complete_repository, connect, crypto_parameters, decrypt_key, dir_or_last_from_group,
-    extract_repository_from_value, format_key_source, record_repository, BackupDir,
-    BufferedDynamicReadAt, BufferedDynamicReader, CatalogReader, DynamicIndexReader, IndexFile,
-    Shell, CATALOG_NAME, KEYFD_SCHEMA, REPO_URL_SCHEMA,
+    extract_repository_from_value, format_key_source, optional_ns_param, record_repository,
+    BackupDir, BufferedDynamicReadAt, BufferedDynamicReader, CatalogReader, DynamicIndexReader,
+    IndexFile, Shell, CATALOG_NAME, KEYFD_SCHEMA, REPO_URL_SCHEMA,
 };
 
 #[api(
@@ -26,6 +27,10 @@ use crate::{
         properties: {
             repository: {
                 schema: REPO_URL_SCHEMA,
+                optional: true,
+            },
+            ns: {
+                type: BackupNamespace,
                 optional: true,
             },
             snapshot: {
@@ -48,6 +53,7 @@ use crate::{
 async fn dump_catalog(param: Value) -> Result<Value, Error> {
     let repo = extract_repository_from_value(&param)?;
 
+    let backup_ns = optional_ns_param(&param)?;
     let path = required_string_param(&param, "snapshot")?;
     let snapshot: BackupDir = path.parse()?;
 
@@ -68,8 +74,15 @@ async fn dump_catalog(param: Value) -> Result<Value, Error> {
 
     let client = connect(&repo)?;
 
-    let client =
-        BackupReader::start(client, crypt_config.clone(), repo.store(), &snapshot, true).await?;
+    let client = BackupReader::start(
+        client,
+        crypt_config.clone(),
+        repo.store(),
+        &backup_ns,
+        &snapshot,
+        true,
+    )
+    .await?;
 
     let (manifest, _) = client.download_manifest().await?;
     manifest.check_fingerprint(crypt_config.as_ref().map(Arc::as_ref))?;
@@ -114,6 +127,10 @@ async fn dump_catalog(param: Value) -> Result<Value, Error> {
 #[api(
     input: {
         properties: {
+            ns: {
+                type: BackupNamespace,
+                optional: true,
+            },
             "snapshot": {
                 type: String,
                 description: "Group/Snapshot path.",
@@ -142,10 +159,11 @@ async fn dump_catalog(param: Value) -> Result<Value, Error> {
 async fn catalog_shell(param: Value) -> Result<(), Error> {
     let repo = extract_repository_from_value(&param)?;
     let client = connect(&repo)?;
+    let backup_ns = optional_ns_param(&param)?;
     let path = required_string_param(&param, "snapshot")?;
     let archive_name = required_string_param(&param, "archive-name")?;
 
-    let backup_dir = dir_or_last_from_group(&client, &repo, &path).await?;
+    let backup_dir = dir_or_last_from_group(&client, &repo, &backup_ns, &path).await?;
 
     let crypto = crypto_parameters(&param)?;
 
@@ -172,6 +190,7 @@ async fn catalog_shell(param: Value) -> Result<(), Error> {
         client,
         crypt_config.clone(),
         repo.store(),
+        &backup_ns,
         &backup_dir,
         true,
     )

@@ -8,13 +8,14 @@ use nix::dir::Dir;
 
 use proxmox_sys::fs::lock_dir_noblock_shared;
 
+use pbs_api_types::{BackupNamespace, Operation};
+
 use crate::backup_info::BackupDir;
 use crate::dynamic_index::DynamicIndexReader;
 use crate::fixed_index::FixedIndexReader;
 use crate::index::IndexFile;
 use crate::manifest::{archive_type, ArchiveType, CLIENT_LOG_BLOB_NAME, MANIFEST_BLOB_NAME};
 use crate::DataStore;
-use pbs_api_types::Operation;
 
 /// Helper to access the contents of a datastore backup snapshot
 ///
@@ -30,10 +31,14 @@ impl SnapshotReader {
     /// Lock snapshot, reads the manifest and returns a new instance
     pub fn new(
         datastore: Arc<DataStore>,
+        ns: BackupNamespace,
         snapshot: pbs_api_types::BackupDir,
     ) -> Result<Self, Error> {
-        let snapshot = datastore.backup_dir(snapshot)?;
+        Self::new_do(datastore.backup_dir(ns, snapshot)?)
+    }
 
+    pub(crate) fn new_do(snapshot: BackupDir) -> Result<Self, Error> {
+        let datastore = snapshot.datastore();
         let snapshot_path = snapshot.full_path();
 
         let locked_dir =

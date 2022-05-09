@@ -292,8 +292,16 @@ pub async fn complete_server_file_name_do(param: &HashMap<String, String>) -> Ve
         _ => return result,
     };
 
+    let ns: pbs_api_types::BackupNamespace = match param.get("ns") {
+        Some(ns) => match ns.parse() {
+            Ok(v) => v,
+            _ => return result,
+        },
+        _ => return result,
+    };
+
     let query = json_object_to_query(json!({
-        "backup-ns": snapshot.group.ns,
+        "backup-ns": ns,
         "backup-type": snapshot.group.ty,
         "backup-id": snapshot.group.id,
         "backup-time": snapshot.time,

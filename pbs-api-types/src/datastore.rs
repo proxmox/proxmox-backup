@@ -25,8 +25,7 @@ const_regex! {
     pub BACKUP_DATE_REGEX = concat!(r"^", BACKUP_TIME_RE!() ,r"$");
 
     pub GROUP_PATH_REGEX = concat!(
-        r"^(", BACKUP_NS_PATH_RE!(), r"/)?",
-        r"(", BACKUP_TYPE_RE!(), ")/",
+        r"^(", BACKUP_TYPE_RE!(), ")/",
         r"(", BACKUP_ID_RE!(), r")$",
     );
 
@@ -848,7 +847,6 @@ impl std::cmp::PartialOrd for BackupType {
 
 #[api(
     properties: {
-        "backup-ns": { type: BackupNamespace, optional: true },
         "backup-type": { type: BackupType },
         "backup-id": { schema: BACKUP_ID_SCHEMA },
     },
@@ -857,14 +855,6 @@ impl std::cmp::PartialOrd for BackupType {
 #[serde(rename_all = "kebab-case")]
 /// A backup group (without a data store).
 pub struct BackupGroup {
-    /// An optional namespace this backup belongs to.
-    #[serde(
-        rename = "backup-ns",
-        skip_serializing_if = "BackupNamespace::is_root",
-        default
-    )]
-    pub ns: BackupNamespace,
-
     /// Backup type.
     #[serde(rename = "backup-type")]
     pub ty: BackupType,
@@ -875,12 +865,8 @@ pub struct BackupGroup {
 }
 
 impl BackupGroup {
-    pub fn new<T: Into<String>>(ns: BackupNamespace, ty: BackupType, id: T) -> Self {
-        Self {
-            ns,
-            ty,
-            id: id.into(),
-        }
+    pub fn new<T: Into<String>>(ty: BackupType, id: T) -> Self {
+        Self { ty, id: id.into() }
     }
 
     pub fn matches(&self, filter: &crate::GroupFilter) -> bool {
@@ -906,24 +892,18 @@ impl AsRef<BackupGroup> for BackupGroup {
     }
 }
 
-impl From<(BackupNamespace, BackupType, String)> for BackupGroup {
+impl From<(BackupType, String)> for BackupGroup {
     #[inline]
-    fn from(data: (BackupNamespace, BackupType, String)) -> Self {
+    fn from(data: (BackupType, String)) -> Self {
         Self {
-            ns: data.0,
-            ty: data.1,
-            id: data.2,
+            ty: data.0,
+            id: data.1,
         }
     }
 }
 
 impl std::cmp::Ord for BackupGroup {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        let ns_order = self.ns.cmp(&other.ns);
-        if ns_order != std::cmp::Ordering::Equal {
-            return ns_order;
-        }
-
         let type_order = self.ty.cmp(&other.ty);
         if type_order != std::cmp::Ordering::Equal {
             return type_order;
@@ -949,11 +929,7 @@ impl std::cmp::PartialOrd for BackupGroup {
 
 impl fmt::Display for BackupGroup {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.ns.is_root() {
-            write!(f, "{}/{}", self.ty, self.id)
-        } else {
-            write!(f, "{}/{}/{}", self.ns.display_as_path(), self.ty, self.id)
-        }
+        write!(f, "{}/{}", self.ty, self.id)
     }
 }
 
@@ -969,9 +945,8 @@ impl std::str::FromStr for BackupGroup {
             .ok_or_else(|| format_err!("unable to parse backup group path '{}'", path))?;
 
         Ok(Self {
-            ns: BackupNamespace::from_path(cap.get(1).unwrap().as_str())?,
-            ty: cap.get(2).unwrap().as_str().parse()?,
-            id: cap.get(3).unwrap().as_str().to_owned(),
+            ty: cap.get(1).unwrap().as_str().parse()?,
+            id: cap.get(2).unwrap().as_str().to_owned(),
         })
     }
 }
@@ -1020,27 +995,22 @@ impl From<(BackupGroup, i64)> for BackupDir {
     }
 }
 
-impl From<(BackupNamespace, BackupType, String, i64)> for BackupDir {
-    fn from(data: (BackupNamespace, BackupType, String, i64)) -> Self {
+impl From<(BackupType, String, i64)> for BackupDir {
+    fn from(data: (BackupType, String, i64)) -> Self {
         Self {
-            group: (data.0, data.1, data.2).into(),
-            time: data.3,
+            group: (data.0, data.1).into(),
+            time: data.2,
         }
     }
 }
 
 impl BackupDir {
-    pub fn with_rfc3339<T>(
-        ns: BackupNamespace,
-        ty: BackupType,
-        id: T,
-        backup_time_string: &str,
-    ) -> Result<Self, Error>
+    pub fn with_rfc3339<T>(ty: BackupType, id: T, backup_time_string: &str) -> Result<Self, Error>
     where
         T: Into<String>,
     {
         let time = proxmox_time::parse_rfc3339(&backup_time_string)?;
-        let group = BackupGroup::new(ns, ty, id.into());
+        let group = BackupGroup::new(ty, id.into());
         Ok(Self { group, time })
     }
 
@@ -1052,11 +1022,6 @@ impl BackupDir {
     #[inline]
     pub fn id(&self) -> &str {
         &self.group.id
-    }
-
-    #[inline]
-    pub fn ns(&self) -> &BackupNamespace {
-        &self.group.ns
     }
 }
 
@@ -1071,15 +1036,10 @@ impl std::str::FromStr for BackupDir {
             .captures(path)
             .ok_or_else(|| format_err!("unable to parse backup snapshot path '{}'", path))?;
 
-        let ns = match cap.get(1) {
-            Some(cap) => BackupNamespace::from_path(cap.as_str())?,
-            None => BackupNamespace::root(),
-        };
         BackupDir::with_rfc3339(
-            ns,
-            cap.get(2).unwrap().as_str().parse()?,
+            cap.get(1).unwrap().as_str().parse()?,
+            cap.get(2).unwrap().as_str(),
             cap.get(3).unwrap().as_str(),
-            cap.get(4).unwrap().as_str(),
         )
     }
 }
@@ -1107,16 +1067,12 @@ impl std::str::FromStr for BackupPart {
             .captures(path)
             .ok_or_else(|| format_err!("unable to parse backup snapshot path '{}'", path))?;
 
-        let ns = match cap.get(1) {
-            Some(cap) => BackupNamespace::from_path(cap.as_str())?,
-            None => BackupNamespace::root(),
-        };
-        let ty = cap.get(2).unwrap().as_str().parse()?;
-        let id = cap.get(3).unwrap().as_str().to_string();
+        let ty = cap.get(1).unwrap().as_str().parse()?;
+        let id = cap.get(2).unwrap().as_str().to_string();
 
-        Ok(match cap.get(4) {
-            Some(time) => BackupPart::Dir(BackupDir::with_rfc3339(ns, ty, id, time.as_str())?),
-            None => BackupPart::Group((ns, ty, id).into()),
+        Ok(match cap.get(3) {
+            Some(time) => BackupPart::Dir(BackupDir::with_rfc3339(ty, id, time.as_str())?),
+            None => BackupPart::Group((ty, id).into()),
         })
     }
 }

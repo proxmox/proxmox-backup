@@ -17,9 +17,9 @@ use proxmox_schema::*;
 use proxmox_sys::sortable;
 
 use pbs_api_types::{
-    Authid, BackupType, Operation, SnapshotVerifyState, VerifyState, BACKUP_ARCHIVE_NAME_SCHEMA,
-    BACKUP_ID_SCHEMA, BACKUP_NAMESPACE_SCHEMA, BACKUP_TIME_SCHEMA, BACKUP_TYPE_SCHEMA,
-    CHUNK_DIGEST_SCHEMA, DATASTORE_SCHEMA, PRIV_DATASTORE_BACKUP,
+    Authid, BackupNamespace, BackupType, Operation, SnapshotVerifyState, VerifyState,
+    BACKUP_ARCHIVE_NAME_SCHEMA, BACKUP_ID_SCHEMA, BACKUP_NAMESPACE_SCHEMA, BACKUP_TIME_SCHEMA,
+    BACKUP_TYPE_SCHEMA, CHUNK_DIGEST_SCHEMA, DATASTORE_SCHEMA, PRIV_DATASTORE_BACKUP,
 };
 use pbs_config::CachedUserInfo;
 use pbs_datastore::index::IndexFile;
@@ -58,6 +58,14 @@ pub const API_METHOD_UPGRADE_BACKUP: ApiMethod = ApiMethod::new(
     &Permission::Anybody
 );
 
+pub(crate) fn optional_ns_param(param: &Value) -> Result<BackupNamespace, Error> {
+    match param.get("backup-ns") {
+        Some(Value::String(ns)) => ns.parse(),
+        None => Ok(BackupNamespace::root()),
+        _ => bail!("invalid backup-ns parameter"),
+    }
+}
+
 fn upgrade_to_backup_protocol(
     parts: Parts,
     req_body: Body,
@@ -72,9 +80,9 @@ fn upgrade_to_backup_protocol(
         let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
         let store = required_string_param(&param, "store")?.to_owned();
+        let backup_ns = optional_ns_param(&param)?;
         let backup_dir_arg = pbs_api_types::BackupDir::deserialize(&param)?;
 
-        let backup_ns = &backup_dir_arg.group.ns;
         let user_info = CachedUserInfo::new()?;
 
         let privs = if backup_ns.is_root() {
@@ -105,7 +113,7 @@ fn upgrade_to_backup_protocol(
             );
         }
 
-        if !datastore.ns_path(&backup_ns).exists() {
+        if !datastore.namespace_path(&backup_ns).exists() {
             proxmox_router::http_bail!(NOT_FOUND, "namespace not found");
         }
 
@@ -113,7 +121,7 @@ fn upgrade_to_backup_protocol(
 
         let env_type = rpcenv.env_type();
 
-        let backup_group = datastore.backup_group(backup_dir_arg.group.clone());
+        let backup_group = datastore.backup_group(backup_ns, backup_dir_arg.group.clone());
 
         let worker_type = if backup_group.backup_type() == BackupType::Host
             && backup_group.backup_id() == "benchmark"
@@ -130,8 +138,11 @@ fn upgrade_to_backup_protocol(
         };
 
         // lock backup group to only allow one backup per group at a time
-        let (owner, _group_guard) =
-            datastore.create_locked_backup_group(backup_group.as_ref(), &auth_id)?;
+        let (owner, _group_guard) = datastore.create_locked_backup_group(
+            backup_group.backup_ns(),
+            backup_group.as_ref(),
+            &auth_id,
+        )?;
 
         // permission check
         let correct_owner =
@@ -169,7 +180,7 @@ fn upgrade_to_backup_protocol(
             }
 
             // lock last snapshot to prevent forgetting/pruning it during backup
-            let full_path = datastore.snapshot_path(last.backup_dir.as_ref());
+            let full_path = last.backup_dir.full_path();
             Some(lock_dir_noblock_shared(
                 &full_path,
                 "snapshot",
@@ -179,7 +190,8 @@ fn upgrade_to_backup_protocol(
             None
         };
 
-        let (path, is_new, snap_guard) = datastore.create_locked_backup_dir(backup_dir.as_ref())?;
+        let (path, is_new, snap_guard) =
+            datastore.create_locked_backup_dir(backup_dir.backup_ns(), backup_dir.as_ref())?;
         if !is_new {
             bail!("backup directory already exists.");
         }
@@ -818,7 +830,7 @@ fn download_previous(
             None => bail!("no valid previous backup"),
         };
 
-        let mut path = env.datastore.snapshot_path(last_backup.backup_dir.as_ref());
+        let mut path = last_backup.backup_dir.full_path();
         path.push(&archive_name);
 
         {

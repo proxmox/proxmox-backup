@@ -12,7 +12,7 @@ use tokio::io::AsyncReadExt;
 use tokio::sync::{mpsc, oneshot};
 use tokio_stream::wrappers::ReceiverStream;
 
-use pbs_api_types::{BackupDir, HumanByte};
+use pbs_api_types::{BackupDir, BackupNamespace, HumanByte};
 use pbs_datastore::data_blob::{ChunkInfo, DataBlob, DataChunkBuilder};
 use pbs_datastore::dynamic_index::DynamicIndexReader;
 use pbs_datastore::fixed_index::FixedIndexReader;
@@ -86,6 +86,7 @@ impl BackupWriter {
         client: HttpClient,
         crypt_config: Option<Arc<CryptConfig>>,
         datastore: &str,
+        ns: &BackupNamespace,
         backup: &BackupDir,
         debug: bool,
         benchmark: bool,
@@ -99,7 +100,6 @@ impl BackupWriter {
             "benchmark": benchmark
         });
 
-        let ns = backup.ns();
         if !ns.is_root() {
             param["backup-ns"] = serde_json::to_value(ns)?;
         }

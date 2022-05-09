@@ -127,24 +127,21 @@ fn record_repository(repo: &BackupRepository) {
     );
 }
 
-enum List {
-    Any,
-    Group(BackupGroup),
-    Namespace(BackupNamespace),
-}
-
 async fn api_datastore_list_snapshots(
     client: &HttpClient,
     store: &str,
-    list: List,
+    ns: &BackupNamespace,
+    group: Option<&BackupGroup>,
 ) -> Result<Value, Error> {
     let path = format!("api2/json/admin/datastore/{}/snapshots", store);
 
-    let args = match list {
-        List::Group(group) => serde_json::to_value(group)?,
-        List::Namespace(ns) => json!({ "backup-ns": ns }),
-        List::Any => json!({}),
+    let mut args = match group {
+        Some(group) => serde_json::to_value(group)?,
+        None => json!({}),
     };
+    if !ns.is_root() {
+        args["backup-ns"] = serde_json::to_value(ns)?;
+    }
 
     let mut result = client.get(&path, Some(args)).await?;
 
@@ -154,9 +151,10 @@ async fn api_datastore_list_snapshots(
 pub async fn api_datastore_latest_snapshot(
     client: &HttpClient,
     store: &str,
+    ns: &BackupNamespace,
     group: BackupGroup,
 ) -> Result<BackupDir, Error> {
-    let list = api_datastore_list_snapshots(client, store, List::Group(group.clone())).await?;
+    let list = api_datastore_list_snapshots(client, store, ns, Some(&group)).await?;
     let mut list: Vec<SnapshotListItem> = serde_json::from_value(list)?;
 
     if list.is_empty() {
@@ -171,12 +169,13 @@ pub async fn api_datastore_latest_snapshot(
 pub async fn dir_or_last_from_group(
     client: &HttpClient,
     repo: &BackupRepository,
+    ns: &BackupNamespace,
     path: &str,
 ) -> Result<BackupDir, Error> {
     match path.parse::<BackupPart>()? {
         BackupPart::Dir(dir) => Ok(dir),
         BackupPart::Group(group) => {
-            api_datastore_latest_snapshot(&client, repo.store(), group).await
+            api_datastore_latest_snapshot(&client, repo.store(), ns, group).await
         }
     }
 }
@@ -242,6 +241,14 @@ async fn backup_image<P: AsRef<Path>>(
     Ok(stats)
 }
 
+pub fn optional_ns_param(param: &Value) -> Result<BackupNamespace, Error> {
+    Ok(match param.get("ns") {
+        Some(Value::String(ns)) => ns.parse()?,
+        Some(_) => bail!("invalid namespace parameter"),
+        None => BackupNamespace::root(),
+    })
+}
+
 #[api(
    input: {
         properties: {
@@ -270,10 +277,7 @@ async fn list_backup_groups(param: Value) -> Result<Value, Error> {
 
     let path = format!("api2/json/admin/datastore/{}/groups", repo.store());
 
-    let backup_ns: BackupNamespace = match &param["ns"] {
-        Value::String(s) => s.parse()?,
-        _ => BackupNamespace::root(),
-    };
+    let backup_ns = optional_ns_param(&param)?;
     let mut result = client
         .get(&path, Some(json!({ "backup-ns": backup_ns })))
         .await?;
@@ -692,7 +696,7 @@ async fn create_backup(
         .as_str()
         .unwrap_or(proxmox_sys::nodename());
 
-    let backup_namespace: BackupNamespace = match param.get("backup-ns") {
+    let backup_ns: BackupNamespace = match param.get("backup-ns") {
         Some(ns) => ns
             .as_str()
             .ok_or_else(|| format_err!("bad namespace {:?}", ns))?
@@ -822,13 +826,12 @@ async fn create_backup(
     let client = connect_rate_limited(&repo, rate_limit)?;
     record_repository(&repo);
 
-    let snapshot = BackupDir::from((
-        backup_namespace,
-        backup_type,
-        backup_id.to_owned(),
-        backup_time,
-    ));
-    println!("Starting backup: {snapshot}");
+    let snapshot = BackupDir::from((backup_type, backup_id.to_owned(), backup_time));
+    if backup_ns.is_root() {
+        println!("Starting backup: {snapshot}");
+    } else {
+        println!("Starting backup: [{backup_ns}]:{snapshot}");
+    }
 
     println!("Client name: {}", proxmox_sys::nodename());
 
@@ -875,6 +878,7 @@ async fn create_backup(
         client,
         crypt_config.clone(),
         repo.store(),
+        &backup_ns,
         &snapshot,
         verbose,
         false,
@@ -1151,55 +1155,59 @@ fn parse_archive_type(name: &str) -> (String, ArchiveType) {
 }
 
 #[api(
-   input: {
-       properties: {
-           repository: {
-               schema: REPO_URL_SCHEMA,
-               optional: true,
-           },
-           snapshot: {
-               type: String,
-               description: "Group/Snapshot path.",
-           },
-           "archive-name": {
-               description: "Backup archive name.",
-               type: String,
-           },
-           target: {
-               type: String,
-               description: r###"Target directory path. Use '-' to write to standard output.
+    input: {
+        properties: {
+            repository: {
+                schema: REPO_URL_SCHEMA,
+                optional: true,
+            },
+            ns: {
+                type: BackupNamespace,
+                optional: true,
+            },
+            snapshot: {
+                type: String,
+                description: "Group/Snapshot path.",
+            },
+            "archive-name": {
+                description: "Backup archive name.",
+                type: String,
+            },
+            target: {
+                type: String,
+                description: r###"Target directory path. Use '-' to write to standard output.
 
 We do not extract '.pxar' archives when writing to standard output.
 
 "###
-           },
-           rate: {
-               schema: TRAFFIC_CONTROL_RATE_SCHEMA,
-               optional: true,
-           },
-           burst: {
-               schema: TRAFFIC_CONTROL_BURST_SCHEMA,
-               optional: true,
-           },
-           "allow-existing-dirs": {
-               type: Boolean,
-               description: "Do not fail if directories already exists.",
-               optional: true,
-           },
-           keyfile: {
-               schema: KEYFILE_SCHEMA,
-               optional: true,
-           },
-           "keyfd": {
-               schema: KEYFD_SCHEMA,
-               optional: true,
-           },
-           "crypt-mode": {
-               type: CryptMode,
-               optional: true,
-           },
-       }
-   }
+            },
+            rate: {
+                schema: TRAFFIC_CONTROL_RATE_SCHEMA,
+                optional: true,
+            },
+            burst: {
+                schema: TRAFFIC_CONTROL_BURST_SCHEMA,
+                optional: true,
+            },
+            "allow-existing-dirs": {
+                type: Boolean,
+                description: "Do not fail if directories already exists.",
+                optional: true,
+            },
+            keyfile: {
+                schema: KEYFILE_SCHEMA,
+                optional: true,
+            },
+            "keyfd": {
+                schema: KEYFD_SCHEMA,
+                optional: true,
+            },
+            "crypt-mode": {
+                type: CryptMode,
+                optional: true,
+            },
+        }
+    }
 )]
 /// Restore backup repository.
 async fn restore(param: Value) -> Result<Value, Error> {
@@ -1225,9 +1233,14 @@ async fn restore(param: Value) -> Result<Value, Error> {
     let client = connect_rate_limited(&repo, rate_limit)?;
     record_repository(&repo);
 
+    let ns = match param.get("ns") {
+        Some(Value::String(ns)) => ns.parse()?,
+        Some(_) => bail!("invalid namespace parameter"),
+        None => BackupNamespace::root(),
+    };
     let path = json::required_string_param(&param, "snapshot")?;
 
-    let backup_dir = dir_or_last_from_group(&client, &repo, &path).await?;
+    let backup_dir = dir_or_last_from_group(&client, &repo, &ns, &path).await?;
 
     let target = json::required_string_param(&param, "target")?;
     let target = if target == "-" { None } else { Some(target) };
@@ -1250,6 +1263,7 @@ async fn restore(param: Value) -> Result<Value, Error> {
         client,
         crypt_config.clone(),
         repo.store(),
+        &ns,
         &backup_dir,
         true,
     )

@@ -8,7 +8,9 @@ use anyhow::{bail, format_err, Error};
 
 use proxmox_sys::{task_log, WorkerTaskContext};
 
-use pbs_api_types::{Authid, BackupType, CryptMode, SnapshotVerifyState, VerifyState, UPID};
+use pbs_api_types::{
+    Authid, BackupNamespace, BackupType, CryptMode, SnapshotVerifyState, VerifyState, UPID,
+};
 use pbs_datastore::backup_info::{BackupDir, BackupGroup, BackupInfo};
 use pbs_datastore::index::IndexFile;
 use pbs_datastore::manifest::{archive_type, ArchiveType, BackupManifest, FileInfo};
@@ -324,7 +326,7 @@ pub fn verify_backup_dir(
     filter: Option<&dyn Fn(&BackupManifest) -> bool>,
 ) -> Result<bool, Error> {
     let snap_lock = lock_dir_noblock_shared(
-        &verify_worker.datastore.snapshot_path(backup_dir.as_ref()),
+        &backup_dir.full_path(),
         "snapshot",
         "locked by another operation",
     );
@@ -510,7 +512,13 @@ pub fn verify_all_backups(
     }
 
     let filter_by_owner = |group: &BackupGroup| {
-        match (verify_worker.datastore.get_owner(group.as_ref()), &owner) {
+        match (
+            // FIXME: with recursion the namespace needs to come from the iterator...
+            verify_worker
+                .datastore
+                .get_owner(&BackupNamespace::root(), group.as_ref()),
+            &owner,
+        ) {
             (Ok(ref group_owner), Some(owner)) => {
                 group_owner == owner
                     || (group_owner.is_token()

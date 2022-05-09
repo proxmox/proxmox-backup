@@ -18,6 +18,7 @@ use proxmox_schema::*;
 use proxmox_sys::fd::Fd;
 use proxmox_sys::sortable;
 
+use pbs_api_types::BackupNamespace;
 use pbs_client::tools::key_source::get_encryption_key_password;
 use pbs_client::{BackupReader, RemoteChunkReader};
 use pbs_config::key_config::load_and_decrypt_key;
@@ -30,7 +31,7 @@ use pbs_tools::json::required_string_param;
 use crate::{
     complete_group_or_snapshot, complete_img_archive_name, complete_pxar_archive_name,
     complete_repository, connect, dir_or_last_from_group, extract_repository_from_value,
-    record_repository, BufferedDynamicReadAt, REPO_URL_SCHEMA,
+    optional_ns_param, record_repository, BufferedDynamicReadAt, REPO_URL_SCHEMA,
 };
 
 #[sortable]
@@ -39,6 +40,7 @@ const API_METHOD_MOUNT: ApiMethod = ApiMethod::new(
     &ObjectSchema::new(
         "Mount pxar archive.",
         &sorted!([
+            ("ns", true, &BackupNamespace::API_SCHEMA,),
             (
                 "snapshot",
                 false,
@@ -197,8 +199,9 @@ async fn mount_do(param: Value, pipe: Option<Fd>) -> Result<Value, Error> {
 
     record_repository(&repo);
 
+    let backup_ns = optional_ns_param(&param)?;
     let path = required_string_param(&param, "snapshot")?;
-    let backup_dir = dir_or_last_from_group(&client, &repo, &path).await?;
+    let backup_dir = dir_or_last_from_group(&client, &repo, &backup_ns, &path).await?;
 
     let keyfile = param["keyfile"].as_str().map(PathBuf::from);
     let crypt_config = match keyfile {
@@ -229,6 +232,7 @@ async fn mount_do(param: Value, pipe: Option<Fd>) -> Result<Value, Error> {
         client,
         crypt_config.clone(),
         repo.store(),
+        &backup_ns,
         &backup_dir,
         true,
     )

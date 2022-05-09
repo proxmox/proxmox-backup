@@ -15,7 +15,8 @@ use proxmox_router::HttpError;
 use proxmox_sys::task_log;
 
 use pbs_api_types::{
-    Authid, GroupFilter, GroupListItem, Operation, RateLimitConfig, Remote, SnapshotListItem,
+    Authid, BackupNamespace, GroupFilter, GroupListItem, Operation, RateLimitConfig, Remote,
+    SnapshotListItem,
 };
 
 use pbs_client::{
@@ -504,7 +505,9 @@ async fn pull_snapshot_from(
     snapshot: &pbs_api_types::BackupDir,
     downloaded_chunks: Arc<Mutex<HashSet<[u8; 32]>>>,
 ) -> Result<(), Error> {
-    let (_path, is_new, _snap_lock) = tgt_store.create_locked_backup_dir(snapshot)?;
+    // FIXME: Namespace support requires source AND target namespace
+    let ns = BackupNamespace::root();
+    let (_path, is_new, _snap_lock) = tgt_store.create_locked_backup_dir(&ns, snapshot)?;
 
     let snapshot_path = snapshot.to_string();
     if is_new {
@@ -519,7 +522,7 @@ async fn pull_snapshot_from(
         )
         .await
         {
-            if let Err(cleanup_err) = tgt_store.remove_backup_dir(snapshot, true) {
+            if let Err(cleanup_err) = tgt_store.remove_backup_dir(&ns, snapshot, true) {
                 task_log!(worker, "cleanup error - {}", cleanup_err);
             }
             return Err(err);
@@ -604,6 +607,9 @@ async fn pull_group(
     group: &pbs_api_types::BackupGroup,
     progress: &mut StoreProgress,
 ) -> Result<(), Error> {
+    // FIXME: Namespace support
+    let ns = BackupNamespace::root();
+
     let path = format!(
         "api2/json/admin/datastore/{}/snapshots",
         params.source.store()
@@ -623,7 +629,7 @@ async fn pull_group(
 
     let fingerprint = client.fingerprint();
 
-    let last_sync = params.store.last_successful_backup(group)?;
+    let last_sync = params.store.last_successful_backup(&ns, group)?;
 
     let mut remote_snapshots = std::collections::HashSet::new();
 
@@ -674,8 +680,15 @@ async fn pull_group(
             options,
         )?;
 
-        let reader =
-            BackupReader::start(new_client, None, params.source.store(), &snapshot, true).await?;
+        let reader = BackupReader::start(
+            new_client,
+            None,
+            params.source.store(),
+            &ns,
+            &snapshot,
+            true,
+        )
+        .await?;
 
         let result = pull_snapshot_from(
             worker,
@@ -693,7 +706,7 @@ async fn pull_group(
     }
 
     if params.remove_vanished {
-        let group = params.store.backup_group(group.clone());
+        let group = params.store.backup_group(ns.clone(), group.clone());
         let local_list = group.list_backups()?;
         for info in local_list {
             let backup_time = info.backup_dir.backup_time();
@@ -715,7 +728,7 @@ async fn pull_group(
             );
             params
                 .store
-                .remove_backup_dir(info.backup_dir.as_ref(), false)?;
+                .remove_backup_dir(&ns, info.backup_dir.as_ref(), false)?;
         }
     }
 
@@ -744,6 +757,10 @@ pub async fn pull_store(
     client: &HttpClient,
     params: &PullParameters,
 ) -> Result<(), Error> {
+    // FIXME: Namespace support requires source AND target namespace
+    let ns = BackupNamespace::root();
+    let local_ns = BackupNamespace::root();
+
     // explicit create shared lock to prevent GC on newly created chunks
     let _shared_store_lock = params.store.try_shared_chunk_store_lock()?;
 
@@ -806,22 +823,23 @@ pub async fn pull_store(
         progress.done_snapshots = 0;
         progress.group_snapshots = 0;
 
-        let (owner, _lock_guard) = match params
-            .store
-            .create_locked_backup_group(&group, &params.owner)
-        {
-            Ok(result) => result,
-            Err(err) => {
-                task_log!(
-                    worker,
-                    "sync group {} failed - group lock failed: {}",
-                    &group,
-                    err
-                );
-                errors = true; // do not stop here, instead continue
-                continue;
-            }
-        };
+        let (owner, _lock_guard) =
+            match params
+                .store
+                .create_locked_backup_group(&ns, &group, &params.owner)
+            {
+                Ok(result) => result,
+                Err(err) => {
+                    task_log!(
+                        worker,
+                        "sync group {} failed - group lock failed: {}",
+                        &group,
+                        err
+                    );
+                    errors = true; // do not stop here, instead continue
+                    continue;
+                }
+            };
 
         // permission check
         if params.owner != owner {
@@ -848,7 +866,7 @@ pub async fn pull_store(
                 if new_groups.contains(local_group.as_ref()) {
                     continue;
                 }
-                let owner = params.store.get_owner(&local_group.group())?;
+                let owner = params.store.get_owner(&local_ns, &local_group.group())?;
                 if check_backup_owner(&owner, &params.owner).is_err() {
                     continue;
                 }
@@ -863,7 +881,7 @@ pub async fn pull_store(
                     local_group.backup_type(),
                     local_group.backup_id()
                 );
-                match params.store.remove_backup_group(local_group.as_ref()) {
+                match params.store.remove_backup_group(&ns, local_group.as_ref()) {
                     Ok(true) => {}
                     Ok(false) => {
                         task_log!(

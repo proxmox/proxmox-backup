@@ -1,3 +1,4 @@
+use std::convert::TryFrom;
 use std::fmt;
 use std::os::unix::io::RawFd;
 use std::path::PathBuf;
@@ -8,11 +9,11 @@ use anyhow::{bail, format_err, Error};
 use proxmox_sys::fs::lock_dir_noblock;
 
 use pbs_api_types::{
-    BackupNamespace, BackupType, GroupFilter, BACKUP_DATE_REGEX, BACKUP_FILE_REGEX,
+    Authid, BackupNamespace, BackupType, GroupFilter, BACKUP_DATE_REGEX, BACKUP_FILE_REGEX,
 };
 use pbs_config::{open_backup_lockfile, BackupLockGuard};
 
-use crate::manifest::{MANIFEST_BLOB_NAME, MANIFEST_LOCK_NAME};
+use crate::manifest::{BackupManifest, MANIFEST_BLOB_NAME, MANIFEST_LOCK_NAME};
 use crate::{DataBlob, DataStore};
 
 /// BackupGroup is a directory containing a list of BackupDir
@@ -20,6 +21,7 @@ use crate::{DataBlob, DataStore};
 pub struct BackupGroup {
     store: Arc<DataStore>,
 
+    ns: BackupNamespace,
     group: pbs_api_types::BackupGroup,
 }
 
@@ -33,8 +35,12 @@ impl fmt::Debug for BackupGroup {
 }
 
 impl BackupGroup {
-    pub(crate) fn new(store: Arc<DataStore>, group: pbs_api_types::BackupGroup) -> Self {
-        Self { store, group }
+    pub(crate) fn new(
+        store: Arc<DataStore>,
+        ns: BackupNamespace,
+        group: pbs_api_types::BackupGroup,
+    ) -> Self {
+        Self { store, ns, group }
     }
 
     /// Access the underlying [`BackupGroup`](pbs_api_types::BackupGroup).
@@ -45,7 +51,7 @@ impl BackupGroup {
 
     #[inline]
     pub fn backup_ns(&self) -> &BackupNamespace {
-        &self.group.ns
+        &self.ns
     }
 
     #[inline]
@@ -59,11 +65,14 @@ impl BackupGroup {
     }
 
     pub fn full_group_path(&self) -> PathBuf {
-        self.store.base_path().join(self.group.to_string())
+        self.store.group_path(&self.ns, &self.group)
     }
 
     pub fn relative_group_path(&self) -> PathBuf {
-        self.group.to_string().into()
+        let mut path = self.store.namespace_path(&self.ns);
+        path.push(self.group.ty.as_str());
+        path.push(&self.group.id);
+        path
     }
 
     pub fn list_backups(&self) -> Result<Vec<BackupInfo>, Error> {
@@ -205,6 +214,26 @@ impl BackupGroup {
 
         Ok(removed_all_snaps)
     }
+
+    /// Returns the backup owner.
+    ///
+    /// The backup owner is the entity who first created the backup group.
+    pub fn get_owner(&self) -> Result<Authid, Error> {
+        self.store.get_owner(&self.ns, self.as_ref())
+    }
+
+    /// Set the backup owner.
+    pub fn set_owner(&self, auth_id: &Authid, force: bool) -> Result<(), Error> {
+        self.store
+            .set_owner(&self.ns, &self.as_ref(), auth_id, force)
+    }
+}
+
+impl AsRef<pbs_api_types::BackupNamespace> for BackupGroup {
+    #[inline]
+    fn as_ref(&self) -> &pbs_api_types::BackupNamespace {
+        &self.ns
+    }
 }
 
 impl AsRef<pbs_api_types::BackupGroup> for BackupGroup {
@@ -229,7 +258,11 @@ impl From<BackupGroup> for pbs_api_types::BackupGroup {
 impl fmt::Display for BackupGroup {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(&self.group, f)
+        if self.ns.is_root() {
+            fmt::Display::fmt(&self.group, f)
+        } else {
+            write!(f, "[{}]:{}", self.ns, self.group)
+        }
     }
 }
 
@@ -237,6 +270,7 @@ impl From<BackupDir> for BackupGroup {
     fn from(dir: BackupDir) -> BackupGroup {
         BackupGroup {
             store: dir.store,
+            ns: dir.ns,
             group: dir.dir.group,
         }
     }
@@ -246,6 +280,7 @@ impl From<&BackupDir> for BackupGroup {
     fn from(dir: &BackupDir) -> BackupGroup {
         BackupGroup {
             store: Arc::clone(&dir.store),
+            ns: dir.ns.clone(),
             group: dir.dir.group.clone(),
         }
     }
@@ -257,6 +292,7 @@ impl From<&BackupDir> for BackupGroup {
 #[derive(Clone)]
 pub struct BackupDir {
     store: Arc<DataStore>,
+    ns: BackupNamespace,
     dir: pbs_api_types::BackupDir,
     // backup_time as rfc3339
     backup_time_string: String,
@@ -279,6 +315,7 @@ impl BackupDir {
         Self {
             store: unsafe { DataStore::new_test() },
             backup_time_string: Self::backup_time_to_string(dir.time).unwrap(),
+            ns: BackupNamespace::root(),
             dir,
         }
     }
@@ -287,6 +324,7 @@ impl BackupDir {
         let backup_time_string = Self::backup_time_to_string(backup_time)?;
         Ok(Self {
             store: group.store,
+            ns: group.ns,
             dir: (group.group, backup_time).into(),
             backup_time_string,
         })
@@ -299,6 +337,7 @@ impl BackupDir {
         let backup_time = proxmox_time::parse_rfc3339(&backup_time_string)?;
         Ok(Self {
             store: group.store,
+            ns: group.ns,
             dir: (group.group, backup_time).into(),
             backup_time_string,
         })
@@ -306,7 +345,7 @@ impl BackupDir {
 
     #[inline]
     pub fn backup_ns(&self) -> &BackupNamespace {
-        &self.dir.group.ns
+        &self.ns
     }
 
     #[inline]
@@ -329,20 +368,16 @@ impl BackupDir {
     }
 
     pub fn relative_path(&self) -> PathBuf {
-        format!("{}/{}", self.dir.group, self.backup_time_string).into()
+        let mut path = self.store.namespace_path(&self.ns);
+        path.push(self.dir.group.ty.as_str());
+        path.push(&self.dir.group.id);
+        path.push(&self.backup_time_string);
+        path
     }
 
     /// Returns the absolute path for backup_dir, using the cached formatted time string.
     pub fn full_path(&self) -> PathBuf {
-        let mut base_path = self.store.base_path();
-        for ns in self.dir.group.ns.components() {
-            base_path.push("ns");
-            base_path.push(ns);
-        }
-        base_path.push(self.dir.group.ty.as_str());
-        base_path.push(&self.dir.group.id);
-        base_path.push(&self.backup_time_string);
-        base_path
+        self.store.snapshot_path(&self.ns, &self.dir)
     }
 
     pub fn protected_file(&self) -> PathBuf {
@@ -425,6 +460,46 @@ impl BackupDir {
 
         Ok(())
     }
+
+    /// Get the datastore.
+    pub fn datastore(&self) -> &Arc<DataStore> {
+        &self.store
+    }
+
+    /// Returns the backup owner.
+    ///
+    /// The backup owner is the entity who first created the backup group.
+    pub fn get_owner(&self) -> Result<Authid, Error> {
+        self.store.get_owner(&self.ns, self.as_ref())
+    }
+
+    /// Lock the snapshot and open a reader.
+    pub fn locked_reader(&self) -> Result<crate::SnapshotReader, Error> {
+        crate::SnapshotReader::new_do(self.clone())
+    }
+
+    /// Load the manifest without a lock. Must not be written back.
+    pub fn load_manifest(&self) -> Result<(BackupManifest, u64), Error> {
+        let blob = self.load_blob(MANIFEST_BLOB_NAME)?;
+        let raw_size = blob.raw_size();
+        let manifest = BackupManifest::try_from(blob)?;
+        Ok((manifest, raw_size))
+    }
+
+    /// Update the manifest of the specified snapshot. Never write a manifest directly,
+    /// only use this method - anything else may break locking guarantees.
+    pub fn update_manifest(
+        &self,
+        update_fn: impl FnOnce(&mut BackupManifest),
+    ) -> Result<(), Error> {
+        self.store.update_manifest(self, update_fn)
+    }
+}
+
+impl AsRef<pbs_api_types::BackupNamespace> for BackupDir {
+    fn as_ref(&self) -> &pbs_api_types::BackupNamespace {
+        &self.ns
+    }
 }
 
 impl AsRef<pbs_api_types::BackupDir> for BackupDir {
@@ -465,7 +540,15 @@ impl From<BackupDir> for pbs_api_types::BackupDir {
 
 impl fmt::Display for BackupDir {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}/{}", self.dir.group, self.backup_time_string)
+        if self.ns.is_root() {
+            write!(f, "{}/{}", self.dir.group, self.backup_time_string)
+        } else {
+            write!(
+                f,
+                "[{}]:{}/{}",
+                self.ns, self.dir.group, self.backup_time_string
+            )
+        }
     }
 }
 

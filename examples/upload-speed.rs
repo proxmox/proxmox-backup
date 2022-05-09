@@ -21,13 +21,8 @@ async fn upload_speed() -> Result<f64, Error> {
         client,
         None,
         datastore,
-        &(
-            BackupNamespace::root(),
-            BackupType::Host,
-            "speedtest".to_string(),
-            backup_time,
-        )
-            .into(),
+        &BackupNamespace::root(),
+        &(BackupType::Host, "speedtest".to_string(), backup_time).into(),
         false,
         true,
     )

@@ -1,5 +1,4 @@
 use std::collections::{HashMap, HashSet};
-use std::convert::TryFrom;
 use std::io::{self, Write};
 use std::os::unix::io::AsRawFd;
 use std::path::{Path, PathBuf};
@@ -350,6 +349,7 @@ impl DataStore {
         self.inner.chunk_store.base_path()
     }
 
+    /// Returns the absolute path for a backup namespace on this datastore
     pub fn namespace_path(&self, ns: &BackupNamespace) -> PathBuf {
         let mut path = self.base_path();
         path.reserve(ns.path_len());
@@ -409,23 +409,24 @@ impl DataStore {
         Ok(())
     }
 
-    /// Returns the absolute path for a backup namespace on this datastore
-    pub fn ns_path(&self, ns: &BackupNamespace) -> PathBuf {
-        let mut full_path = self.base_path();
-        full_path.push(ns.path());
-        full_path
-    }
-
     /// Returns the absolute path for a backup_group
-    pub fn group_path(&self, backup_group: &pbs_api_types::BackupGroup) -> PathBuf {
-        let mut full_path = self.base_path();
+    pub fn group_path(
+        &self,
+        ns: &BackupNamespace,
+        backup_group: &pbs_api_types::BackupGroup,
+    ) -> PathBuf {
+        let mut full_path = self.namespace_path(ns);
         full_path.push(backup_group.to_string());
         full_path
     }
 
     /// Returns the absolute path for backup_dir
-    pub fn snapshot_path(&self, backup_dir: &pbs_api_types::BackupDir) -> PathBuf {
-        let mut full_path = self.base_path();
+    pub fn snapshot_path(
+        &self,
+        ns: &BackupNamespace,
+        backup_dir: &pbs_api_types::BackupDir,
+    ) -> PathBuf {
+        let mut full_path = self.namespace_path(ns);
         full_path.push(backup_dir.to_string());
         full_path
     }
@@ -537,9 +538,10 @@ impl DataStore {
     /// Returns true if all snapshots were removed, and false if some were protected
     pub fn remove_backup_group(
         self: &Arc<Self>,
+        ns: &BackupNamespace,
         backup_group: &pbs_api_types::BackupGroup,
     ) -> Result<bool, Error> {
-        let backup_group = self.backup_group(backup_group.clone());
+        let backup_group = self.backup_group(ns.clone(), backup_group.clone());
 
         backup_group.destroy()
     }
@@ -547,10 +549,11 @@ impl DataStore {
     /// Remove a backup directory including all content
     pub fn remove_backup_dir(
         self: &Arc<Self>,
+        ns: &BackupNamespace,
         backup_dir: &pbs_api_types::BackupDir,
         force: bool,
     ) -> Result<(), Error> {
-        let backup_dir = self.backup_dir(backup_dir.clone())?;
+        let backup_dir = self.backup_dir(ns.clone(), backup_dir.clone())?;
 
         backup_dir.destroy(force)
     }
@@ -560,9 +563,10 @@ impl DataStore {
     /// Or None if there is no backup in the group (or the group dir does not exist).
     pub fn last_successful_backup(
         self: &Arc<Self>,
+        ns: &BackupNamespace,
         backup_group: &pbs_api_types::BackupGroup,
     ) -> Result<Option<i64>, Error> {
-        let backup_group = self.backup_group(backup_group.clone());
+        let backup_group = self.backup_group(ns.clone(), backup_group.clone());
 
         let group_path = backup_group.full_group_path();
 
@@ -573,23 +577,31 @@ impl DataStore {
         }
     }
 
+    /// Return the path of the 'owner' file.
+    fn owner_path(&self, ns: &BackupNamespace, group: &pbs_api_types::BackupGroup) -> PathBuf {
+        self.group_path(ns, group).join("owner")
+    }
+
     /// Returns the backup owner.
     ///
     /// The backup owner is the entity who first created the backup group.
-    pub fn get_owner(&self, backup_group: &pbs_api_types::BackupGroup) -> Result<Authid, Error> {
-        let mut full_path = self.base_path();
-        full_path.push(backup_group.to_string());
-        full_path.push("owner");
+    pub fn get_owner(
+        &self,
+        ns: &BackupNamespace,
+        backup_group: &pbs_api_types::BackupGroup,
+    ) -> Result<Authid, Error> {
+        let full_path = self.owner_path(ns, backup_group);
         let owner = proxmox_sys::fs::file_read_firstline(full_path)?;
         owner.trim_end().parse() // remove trailing newline
     }
 
     pub fn owns_backup(
         &self,
+        ns: &BackupNamespace,
         backup_group: &pbs_api_types::BackupGroup,
         auth_id: &Authid,
     ) -> Result<bool, Error> {
-        let owner = self.get_owner(backup_group)?;
+        let owner = self.get_owner(ns, backup_group)?;
 
         Ok(check_backup_owner(&owner, auth_id).is_ok())
     }
@@ -597,13 +609,12 @@ impl DataStore {
     /// Set the backup owner.
     pub fn set_owner(
         &self,
+        ns: &BackupNamespace,
         backup_group: &pbs_api_types::BackupGroup,
         auth_id: &Authid,
         force: bool,
     ) -> Result<(), Error> {
-        let mut path = self.base_path();
-        path.push(backup_group.to_string());
-        path.push("owner");
+        let path = self.owner_path(ns, backup_group);
 
         let mut open_options = std::fs::OpenOptions::new();
         open_options.write(true);
@@ -633,12 +644,13 @@ impl DataStore {
     /// This also acquires an exclusive lock on the directory and returns the lock guard.
     pub fn create_locked_backup_group(
         &self,
+        ns: &BackupNamespace,
         backup_group: &pbs_api_types::BackupGroup,
         auth_id: &Authid,
     ) -> Result<(Authid, DirLockGuard), Error> {
         // create intermediate path first:
         let mut full_path = self.base_path();
-        for ns in backup_group.ns.components() {
+        for ns in ns.components() {
             full_path.push("ns");
             full_path.push(ns);
         }
@@ -655,8 +667,8 @@ impl DataStore {
                     "backup group",
                     "another backup is already running",
                 )?;
-                self.set_owner(backup_group, auth_id, false)?;
-                let owner = self.get_owner(backup_group)?; // just to be sure
+                self.set_owner(ns, backup_group, auth_id, false)?;
+                let owner = self.get_owner(ns, backup_group)?; // just to be sure
                 Ok((owner, guard))
             }
             Err(ref err) if err.kind() == io::ErrorKind::AlreadyExists => {
@@ -665,7 +677,7 @@ impl DataStore {
                     "backup group",
                     "another backup is already running",
                 )?;
-                let owner = self.get_owner(backup_group)?; // just to be sure
+                let owner = self.get_owner(ns, backup_group)?; // just to be sure
                 Ok((owner, guard))
             }
             Err(err) => bail!("unable to create backup group {:?} - {}", full_path, err),
@@ -677,11 +689,15 @@ impl DataStore {
     /// The BackupGroup directory needs to exist.
     pub fn create_locked_backup_dir(
         &self,
+        ns: &BackupNamespace,
         backup_dir: &pbs_api_types::BackupDir,
     ) -> Result<(PathBuf, bool, DirLockGuard), Error> {
-        let relative_path = PathBuf::from(backup_dir.to_string());
-        let mut full_path = self.base_path();
-        full_path.push(&relative_path);
+        let full_path = self.snapshot_path(ns, backup_dir);
+        let relative_path = full_path.strip_prefix(self.base_path()).map_err(|err| {
+            format_err!(
+                "failed to produce correct path for backup {backup_dir} in namespace {ns}: {err}"
+            )
+        })?;
 
         let lock = || {
             lock_dir_noblock(
@@ -692,9 +708,9 @@ impl DataStore {
         };
 
         match std::fs::create_dir(&full_path) {
-            Ok(_) => Ok((relative_path, true, lock()?)),
+            Ok(_) => Ok((relative_path.to_owned(), true, lock()?)),
             Err(ref e) if e.kind() == io::ErrorKind::AlreadyExists => {
-                Ok((relative_path, false, lock()?))
+                Ok((relative_path.to_owned(), false, lock()?))
             }
             Err(e) => Err(e.into()),
         }
@@ -1135,10 +1151,7 @@ impl DataStore {
 
     /// Load the manifest without a lock. Must not be written back.
     pub fn load_manifest(&self, backup_dir: &BackupDir) -> Result<(BackupManifest, u64), Error> {
-        let blob = backup_dir.load_blob(MANIFEST_BLOB_NAME)?;
-        let raw_size = blob.raw_size();
-        let manifest = BackupManifest::try_from(blob)?;
-        Ok((manifest, raw_size))
+        backup_dir.load_manifest()
     }
 
     /// Update the manifest of the specified snapshot. Never write a manifest directly,
@@ -1240,8 +1253,12 @@ impl DataStore {
     }
 
     /// Open a backup group from this datastore.
-    pub fn backup_group(self: &Arc<Self>, group: pbs_api_types::BackupGroup) -> BackupGroup {
-        BackupGroup::new(Arc::clone(&self), group)
+    pub fn backup_group(
+        self: &Arc<Self>,
+        ns: BackupNamespace,
+        group: pbs_api_types::BackupGroup,
+    ) -> BackupGroup {
+        BackupGroup::new(Arc::clone(&self), ns, group)
     }
 
     /// Open a backup group from this datastore.
@@ -1254,19 +1271,25 @@ impl DataStore {
     where
         T: Into<String>,
     {
-        self.backup_group((ns, ty, id.into()).into())
+        self.backup_group(ns, (ty, id.into()).into())
     }
 
+    /*
     /// Open a backup group from this datastore by backup group path such as `vm/100`.
     ///
     /// Convenience method for `store.backup_group(path.parse()?)`
     pub fn backup_group_from_path(self: &Arc<Self>, path: &str) -> Result<BackupGroup, Error> {
-        Ok(self.backup_group(path.parse()?))
+        todo!("split out the namespace");
     }
+    */
 
     /// Open a snapshot (backup directory) from this datastore.
-    pub fn backup_dir(self: &Arc<Self>, dir: pbs_api_types::BackupDir) -> Result<BackupDir, Error> {
-        BackupDir::with_group(self.backup_group(dir.group), dir.time)
+    pub fn backup_dir(
+        self: &Arc<Self>,
+        ns: BackupNamespace,
+        dir: pbs_api_types::BackupDir,
+    ) -> Result<BackupDir, Error> {
+        BackupDir::with_group(self.backup_group(ns, dir.group), dir.time)
     }
 
     /// Open a snapshot (backup directory) from this datastore.
@@ -1280,7 +1303,7 @@ impl DataStore {
     where
         T: Into<String>,
     {
-        self.backup_dir((ns, ty, id.into(), time).into())
+        self.backup_dir(ns, (ty, id.into(), time).into())
     }
 
     /// Open a snapshot (backup directory) from this datastore with a cached rfc3339 time string.
@@ -1292,10 +1315,12 @@ impl DataStore {
         BackupDir::with_rfc3339(group, time_string.into())
     }
 
+    /*
     /// Open a snapshot (backup directory) from this datastore by a snapshot path.
     pub fn backup_dir_from_path(self: &Arc<Self>, path: &str) -> Result<BackupDir, Error> {
-        self.backup_dir(path.parse()?)
+        todo!("split out the namespace");
     }
+    */
 }
 
 /// A iterator for all BackupDir's (Snapshots) in a BackupGroup
@@ -1391,7 +1416,8 @@ impl Iterator for ListGroups {
                     if BACKUP_ID_REGEX.is_match(name) {
                         return Some(Ok(BackupGroup::new(
                             Arc::clone(&self.store),
-                            (self.ns.clone(), group_type, name.to_owned()).into(),
+                            self.ns.clone(),
+                            (group_type, name.to_owned()).into(),
                         )));
                     }
                 }

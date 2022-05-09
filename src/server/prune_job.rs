@@ -45,11 +45,12 @@ pub fn prune_datastore(
     let has_privs = privs & PRIV_DATASTORE_MODIFY != 0;
 
     // FIXME: Namespace recursion!
-    for group in datastore.iter_backup_groups(ns)? {
+    for group in datastore.iter_backup_groups(ns.clone())? {
+        let ns_recursed = &ns; // remove_backup_dir might need the inner one
         let group = group?;
         let list = group.list_backups()?;
 
-        if !has_privs && !datastore.owns_backup(group.as_ref(), &auth_id)? {
+        if !has_privs && !datastore.owns_backup(&ns_recursed, group.as_ref(), &auth_id)? {
             continue;
         }
 
@@ -75,7 +76,9 @@ pub fn prune_datastore(
                 info.backup_dir.backup_time_string()
             );
             if !keep && !dry_run {
-                if let Err(err) = datastore.remove_backup_dir(info.backup_dir.as_ref(), false) {
+                if let Err(err) =
+                    datastore.remove_backup_dir(ns_recursed, info.backup_dir.as_ref(), false)
+                {
                     task_warn!(
                         worker,
                         "failed to remove dir {:?}: {}",

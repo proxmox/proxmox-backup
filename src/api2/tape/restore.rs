@@ -17,9 +17,9 @@ use proxmox_sys::{task_log, task_warn, WorkerTaskContext};
 use proxmox_uuid::Uuid;
 
 use pbs_api_types::{
-    Authid, CryptMode, Operation, Userid, DATASTORE_MAP_ARRAY_SCHEMA, DATASTORE_MAP_LIST_SCHEMA,
-    DRIVE_NAME_SCHEMA, PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY, PRIV_TAPE_READ,
-    TAPE_RESTORE_SNAPSHOT_SCHEMA, UPID_SCHEMA,
+    Authid, BackupNamespace, CryptMode, Operation, Userid, DATASTORE_MAP_ARRAY_SCHEMA,
+    DATASTORE_MAP_LIST_SCHEMA, DRIVE_NAME_SCHEMA, PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY,
+    PRIV_TAPE_READ, TAPE_RESTORE_SNAPSHOT_SCHEMA, UPID_SCHEMA,
 };
 use pbs_config::CachedUserInfo;
 use pbs_datastore::dynamic_index::DynamicIndexReader;
@@ -401,6 +401,10 @@ fn restore_list_worker(
     restore_owner: &Authid,
     email: Option<String>,
 ) -> Result<(), Error> {
+    // FIXME: Namespace needs to come from somewhere, `snapshots` is just a snapshot string list
+    // here.
+    let ns = BackupNamespace::root();
+
     let base_path: PathBuf = format!("{}/{}", RESTORE_TMP_DIR, media_set_uuid).into();
     std::fs::create_dir_all(&base_path)?;
 
@@ -430,7 +434,7 @@ fn restore_list_worker(
             })?;
 
             let (owner, _group_lock) =
-                datastore.create_locked_backup_group(backup_dir.as_ref(), restore_owner)?;
+                datastore.create_locked_backup_group(&ns, backup_dir.as_ref(), restore_owner)?;
             if restore_owner != &owner {
                 // only the owner is allowed to create additional snapshots
                 task_warn!(
@@ -458,7 +462,8 @@ fn restore_list_worker(
                 continue;
             };
 
-            let (_rel_path, is_new, snap_lock) = datastore.create_locked_backup_dir(&backup_dir)?;
+            let (_rel_path, is_new, snap_lock) =
+                datastore.create_locked_backup_dir(&ns, &backup_dir)?;
 
             if !is_new {
                 task_log!(
@@ -586,7 +591,7 @@ fn restore_list_worker(
                 tmp_path.push(&source_datastore);
                 tmp_path.push(snapshot);
 
-                let path = datastore.snapshot_path(&backup_dir);
+                let path = datastore.snapshot_path(&ns, &backup_dir);
 
                 for entry in std::fs::read_dir(tmp_path)? {
                     let entry = entry?;
@@ -1036,12 +1041,17 @@ fn restore_archive<'a>(
                 snapshot
             );
 
+            // FIXME: Namespace
+            let backup_ns = BackupNamespace::root();
             let backup_dir: pbs_api_types::BackupDir = snapshot.parse()?;
 
             if let Some((store_map, authid)) = target.as_ref() {
                 if let Some(datastore) = store_map.get_datastore(&datastore_name) {
-                    let (owner, _group_lock) =
-                        datastore.create_locked_backup_group(backup_dir.as_ref(), authid)?;
+                    let (owner, _group_lock) = datastore.create_locked_backup_group(
+                        &backup_ns,
+                        backup_dir.as_ref(),
+                        authid,
+                    )?;
                     if *authid != &owner {
                         // only the owner is allowed to create additional snapshots
                         bail!(
@@ -1053,7 +1063,7 @@ fn restore_archive<'a>(
                     }
 
                     let (rel_path, is_new, _snap_lock) =
-                        datastore.create_locked_backup_dir(backup_dir.as_ref())?;
+                        datastore.create_locked_backup_dir(&backup_ns, backup_dir.as_ref())?;
                     let mut path = datastore.base_path();
                     path.push(rel_path);
 

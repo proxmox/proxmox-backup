@@ -17,7 +17,7 @@ use pbs_api_types::{
 
 use pbs_config::CachedUserInfo;
 use pbs_datastore::backup_info::{BackupDir, BackupGroup, BackupInfo};
-use pbs_datastore::{DataStore, SnapshotReader, StoreProgress};
+use pbs_datastore::{DataStore, StoreProgress};
 use proxmox_rest_server::WorkerTask;
 
 use crate::{
@@ -577,7 +577,7 @@ pub fn backup_snapshot(
 ) -> Result<bool, Error> {
     task_log!(worker, "backup snapshot {}", snapshot);
 
-    let snapshot_reader = match SnapshotReader::new(datastore.clone(), (&snapshot).into()) {
+    let snapshot_reader = match snapshot.locked_reader() {
         Ok(reader) => reader,
         Err(err) => {
             // ignore missing snapshots and continue
