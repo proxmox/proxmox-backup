@@ -88,17 +88,17 @@ impl TryFrom<String> for DataStoreMap {
 }
 
 impl DataStoreMap {
-    fn used_datastores<'a>(&self) -> HashSet<&str> {
-        let mut set = HashSet::new();
-        for store in self.map.values() {
-            set.insert(store.name());
+    fn used_datastores<'a>(&self) -> HashMap<&str, Arc<DataStore>> {
+        let mut map = HashMap::new();
+        for (source, target) in self.map.iter() {
+            map.insert(source.as_str(), Arc::clone(target));
         }
 
         if let Some(ref store) = self.default {
-            set.insert(store.name());
+            map.insert("", Arc::clone(store));
         }
 
-        set
+        map
     }
 
     fn get_datastore(&self, source: &str) -> Option<Arc<DataStore>> {
@@ -200,8 +200,8 @@ pub fn restore(
         bail!("no datastores given");
     }
 
-    for store in used_datastores.iter() {
-        check_datastore_privs(&user_info, store, &auth_id, &owner)?;
+    for (_, target) in used_datastores.iter() {
+        check_datastore_privs(&user_info, target.name(), &auth_id, &owner)?;
     }
 
     let privs = user_info.lookup_privs(&auth_id, &["tape", "drive", &drive]);
@@ -233,7 +233,7 @@ pub fn restore(
 
     let taskid = used_datastores
         .iter()
-        .map(|s| s.to_string())
+        .map(|(_, t)| t.name().to_string())
         .collect::<Vec<String>>()
         .join(", ");
 
@@ -349,7 +349,7 @@ fn restore_full_worker(
         store_map
             .used_datastores()
             .into_iter()
-            .map(String::from)
+            .map(|(_, t)| String::from(t.name()))
             .collect::<Vec<String>>()
             .join(", "),
     );
@@ -366,12 +366,10 @@ fn restore_full_worker(
     );
 
     let mut datastore_locks = Vec::new();
-    for store_name in store_map.used_datastores() {
+    for (_, target) in store_map.used_datastores() {
         // explicit create shared lock to prevent GC on newly created chunks
-        if let Some(store) = store_map.get_datastore(store_name) {
-            let shared_store_lock = store.try_shared_chunk_store_lock()?;
-            datastore_locks.push(shared_store_lock);
-        }
+        let shared_store_lock = target.try_shared_chunk_store_lock()?;
+        datastore_locks.push(shared_store_lock);
     }
 
     let mut checked_chunks_map = HashMap::new();
