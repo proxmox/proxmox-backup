@@ -2152,8 +2152,6 @@ pub fn set_backup_owner(
     new_owner: Authid,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
-    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
-
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let backup_ns = backup_ns.unwrap_or_default();
     let owner_check_required = check_ns_privs(
@@ -2163,6 +2161,9 @@ pub fn set_backup_owner(
         PRIV_DATASTORE_MODIFY,
         PRIV_DATASTORE_BACKUP,
     )?;
+
+    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
+
     let backup_group = datastore.backup_group(backup_ns, backup_group);
 
     if owner_check_required {
