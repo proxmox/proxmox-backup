@@ -7,9 +7,9 @@ use serde::{Deserialize, Serialize};
 use proxmox_schema::*;
 
 use crate::{
-    Authid, BackupType, RateLimitConfig, Userid, BACKUP_GROUP_SCHEMA, DATASTORE_SCHEMA,
-    DRIVE_NAME_SCHEMA, MEDIA_POOL_NAME_SCHEMA, PROXMOX_SAFE_ID_FORMAT, REMOTE_ID_SCHEMA,
-    SINGLE_LINE_COMMENT_SCHEMA,
+    Authid, BackupNamespace, BackupType, RateLimitConfig, Userid, BACKUP_GROUP_SCHEMA,
+    BACKUP_NAMESPACE_SCHEMA, DATASTORE_SCHEMA, DRIVE_NAME_SCHEMA, MEDIA_POOL_NAME_SCHEMA,
+    PROXMOX_SAFE_ID_FORMAT, REMOTE_ID_SCHEMA, SINGLE_LINE_COMMENT_SCHEMA,
 };
 
 const_regex! {
@@ -182,6 +182,10 @@ pub const VERIFICATION_OUTDATED_AFTER_SCHEMA: Schema =
             optional: true,
             schema: VERIFICATION_SCHEDULE_SCHEMA,
         },
+        ns: {
+            optional: true,
+            schema: BACKUP_NAMESPACE_SCHEMA,
+        },
     }
 )]
 #[derive(Serialize, Deserialize, Updater)]
@@ -205,6 +209,9 @@ pub struct VerificationJobConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     /// when to schedule this job in calendar event notation
     pub schedule: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    /// on which backup namespace to run the verification recursively
+    pub ns: Option<BackupNamespace>,
 }
 
 #[api(

@@ -19,6 +19,8 @@ use proxmox_sys::fs::lock_dir_noblock_shared;
 
 use crate::tools::parallel_handler::ParallelHandler;
 
+use crate::backup::hierarchy::ListAccessibleBackupGroups;
+
 /// A VerifyWorker encapsulates a task worker, datastore and information about which chunks have
 /// already been verified or detected as corrupt.
 pub struct VerifyWorker {
@@ -495,6 +497,8 @@ pub fn verify_backup_group(
 pub fn verify_all_backups(
     verify_worker: &VerifyWorker,
     upid: &UPID,
+    ns: BackupNamespace,
+    max_depth: Option<usize>,
     owner: Option<Authid>,
     filter: Option<&dyn Fn(&BackupManifest) -> bool>,
 ) -> Result<Vec<String>, Error> {
@@ -507,50 +511,36 @@ pub fn verify_all_backups(
         verify_worker.datastore.name()
     );
 
-    if let Some(owner) = &owner {
+    let owner_filtered = if let Some(owner) = &owner {
         task_log!(worker, "limiting to backups owned by {}", owner);
-    }
-
-    let filter_by_owner = |group: &BackupGroup| {
-        match (
-            // FIXME: with recursion the namespace needs to come from the iterator...
-            verify_worker
-                .datastore
-                .get_owner(&BackupNamespace::root(), group.as_ref()),
-            &owner,
-        ) {
-            (Ok(ref group_owner), Some(owner)) => {
-                group_owner == owner
-                    || (group_owner.is_token()
-                        && !owner.is_token()
-                        && group_owner.user() == owner.user())
-            }
-            (Ok(_), None) => true,
-            (Err(err), Some(_)) => {
-                // intentionally not in task log
-                // the task user might not be allowed to see this group!
-                println!("Failed to get owner of group '{}' - {}", group, err);
-                false
-            }
-            (Err(err), None) => {
-                // we don't filter by owner, but we want to log the error
-                task_log!(worker, "Failed to get owner of group '{} - {}", group, err);
-                errors.push(group.to_string());
-                true
-            }
-        }
+        true
+    } else {
+        false
     };
 
     // FIXME: This should probably simply enable recursion (or the call have a recursion parameter)
-    let mut list = match verify_worker
-        .datastore
-        .iter_backup_groups_ok(Default::default())
-    {
+    let store = Arc::clone(&verify_worker.datastore);
+    let max_depth = max_depth.unwrap_or(pbs_api_types::MAX_NAMESPACE_DEPTH);
+
+    let mut list = match ListAccessibleBackupGroups::new(store, ns.clone(), max_depth, owner) {
         Ok(list) => list
+            .filter_map(|group| match group {
+                Ok(group) => Some(group),
+                Err(err) if owner_filtered => {
+                    // intentionally not in task log, the user might not see this group!
+                    println!("error on iterating groups in ns '{ns}' - {err}");
+                    None
+                }
+                Err(err) => {
+                    // we don't filter by owner, but we want to log the error
+                    task_log!(worker, "error on iterating groups in ns '{ns}' - {err}");
+                    errors.push(err.to_string());
+                    None
+                }
+            })
             .filter(|group| {
                 !(group.backup_type() == BackupType::Host && group.backup_id() == "benchmark")
             })
-            .filter(filter_by_owner)
             .collect::<Vec<BackupGroup>>(),
         Err(err) => {
             task_log!(worker, "unable to list backups: {}", err,);

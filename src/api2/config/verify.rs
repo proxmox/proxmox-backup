@@ -155,6 +155,8 @@ pub enum DeletableProperty {
     Schedule,
     /// Delete outdated after property.
     OutdatedAfter,
+    /// Delete namespace property, defaulting to root namespace then.
+    Ns,
 }
 
 #[api(
@@ -234,6 +236,9 @@ pub fn update_verification_job(
                 DeletableProperty::Schedule => {
                     data.schedule = None;
                 }
+                DeletableProperty::Ns => {
+                    data.ns = None;
+                }
             }
         }
     }
@@ -267,6 +272,11 @@ pub fn update_verification_job(
     let schedule_changed = data.schedule != update.schedule;
     if update.schedule.is_some() {
         data.schedule = update.schedule;
+    }
+    if let Some(ns) = update.ns {
+        if !ns.is_root() {
+            data.ns = Some(ns);
+        }
     }
 
     config.set_data(&id, "verification", &data)?;

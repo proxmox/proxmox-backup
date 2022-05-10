@@ -40,10 +40,17 @@ pub fn do_verification_job(
                 task_log!(worker, "task triggered by schedule '{}'", event_str);
             }
 
+            let ns = match verification_job.ns {
+                Some(ref ns) => ns.clone(),
+                None => Default::default(),
+            };
+
             let verify_worker = crate::backup::VerifyWorker::new(worker.clone(), datastore);
             let result = verify_all_backups(
                 &verify_worker,
                 worker.upid(),
+                ns,
+                None,
                 None,
                 Some(&move |manifest| {
                     verify_filter(ignore_verified_snapshots, outdated_after, manifest)

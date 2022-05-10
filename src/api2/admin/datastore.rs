@@ -36,9 +36,9 @@ use pbs_api_types::{
     DataStoreStatus, GarbageCollectionStatus, GroupListItem, Operation, PruneOptions, RRDMode,
     RRDTimeFrame, SnapshotListItem, SnapshotVerifyState, BACKUP_ARCHIVE_NAME_SCHEMA,
     BACKUP_ID_SCHEMA, BACKUP_NAMESPACE_SCHEMA, BACKUP_TIME_SCHEMA, BACKUP_TYPE_SCHEMA,
-    DATASTORE_SCHEMA, IGNORE_VERIFIED_BACKUPS_SCHEMA, PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP,
-    PRIV_DATASTORE_MODIFY, PRIV_DATASTORE_PRUNE, PRIV_DATASTORE_READ, PRIV_DATASTORE_VERIFY,
-    UPID_SCHEMA, VERIFICATION_OUTDATED_AFTER_SCHEMA,
+    DATASTORE_SCHEMA, IGNORE_VERIFIED_BACKUPS_SCHEMA, NS_MAX_DEPTH_SCHEMA, PRIV_DATASTORE_AUDIT,
+    PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY, PRIV_DATASTORE_PRUNE, PRIV_DATASTORE_READ,
+    PRIV_DATASTORE_VERIFY, UPID_SCHEMA, VERIFICATION_OUTDATED_AFTER_SCHEMA,
 };
 use pbs_client::pxar::{create_tar, create_zip};
 use pbs_config::CachedUserInfo;
@@ -727,6 +727,10 @@ pub fn status(
                 schema: BACKUP_TIME_SCHEMA,
                 optional: true,
             },
+            "max-depth": {
+                schema: NS_MAX_DEPTH_SCHEMA,
+                optional: true,
+            },
         },
     },
     returns: {
@@ -750,6 +754,7 @@ pub fn verify(
     backup_time: Option<i64>,
     ignore_verified: Option<bool>,
     outdated_after: Option<i64>,
+    max_depth: Option<usize>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
@@ -771,8 +776,6 @@ pub fn verify(
     let mut backup_group = None;
     let mut worker_type = "verify";
 
-    // FIXME: Recursion
-    // FIXME: Namespaces and worker ID, could this be an issue?
     match (backup_type, backup_id, backup_time) {
         (Some(backup_type), Some(backup_id), Some(backup_time)) => {
             worker_id = format!(
@@ -783,8 +786,12 @@ pub fn verify(
                 backup_id,
                 backup_time
             );
-            let dir =
-                datastore.backup_dir_from_parts(backup_ns, backup_type, backup_id, backup_time)?;
+            let dir = datastore.backup_dir_from_parts(
+                backup_ns.clone(),
+                backup_type,
+                backup_id,
+                backup_time,
+            )?;
 
             if owner_check_required {
                 let owner = datastore.get_owner(dir.backup_ns(), dir.as_ref())?;
@@ -809,11 +816,15 @@ pub fn verify(
                 check_backup_owner(&owner, &auth_id)?;
             }
 
-            backup_group = Some(datastore.backup_group(backup_ns, group));
+            backup_group = Some(datastore.backup_group(backup_ns.clone(), group));
             worker_type = "verify_group";
         }
         (None, None, None) => {
-            worker_id = store.clone();
+            worker_id = if backup_ns.is_root() {
+                store.clone()
+            } else {
+                format!("{store}:{}", backup_ns.display_as_path())
+            };
         }
         _ => bail!("parameters do not specify a backup group or snapshot"),
     }
@@ -854,11 +865,11 @@ pub fn verify(
                     None
                 };
 
-                // FIXME namespace missing here..
-
                 verify_all_backups(
                     &verify_worker,
                     worker.upid(),
+                    backup_ns,
+                    max_depth,
                     owner,
                     Some(&move |manifest| verify_filter(ignore_verified, outdated_after, manifest)),
                 )?
