@@ -681,4 +681,9 @@ Ext.define('PBS.Utils', {
 	return `${modeText} ${extra}`;
     },
 
+    render_optional_namespace: function(value, metadata, record) {
+	if (!value) return '-'; // FIXME ??
+	return Ext.String.htmlEncode(value);
+    },
+
 });
