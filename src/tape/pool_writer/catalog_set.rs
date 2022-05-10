@@ -69,11 +69,12 @@ impl CatalogSet {
         uuid: Uuid, // Uuid form MediaContentHeader
         file_number: u64,
         store: &str,
-        snapshot: &str,
+        ns: &pbs_api_types::BackupNamespace,
+        snapshot: &pbs_api_types::BackupDir,
     ) -> Result<(), Error> {
         match self.catalog {
             Some(ref mut catalog) => {
-                catalog.register_snapshot(uuid, file_number, store, snapshot)?;
+                catalog.register_snapshot(uuid, file_number, store, ns, snapshot)?;
             }
             None => bail!("no catalog loaded - internal error"),
         }

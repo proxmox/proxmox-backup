@@ -420,7 +420,8 @@ impl PoolWriter {
                         content_uuid,
                         current_file_number,
                         &snapshot_reader.datastore_name().to_string(),
-                        &snapshot_reader.snapshot().to_string(),
+                        snapshot_reader.snapshot().backup_ns(),
+                        snapshot_reader.snapshot().as_ref(),
                     )?;
                     (true, writer.bytes_written())
                 }

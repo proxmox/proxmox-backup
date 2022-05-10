@@ -438,7 +438,7 @@ pub fn list_content(
             .unwrap_or_else(|_| set.uuid.to_string());
 
         for (store, snapshot) in media_catalog_snapshot_list(status_path, &media_id)? {
-            let backup_dir: pbs_api_types::BackupDir = snapshot.parse()?;
+            let (_, backup_dir) = pbs_api_types::parse_ns_and_snapshot(&snapshot)?;
 
             if let Some(backup_type) = filter.backup_type {
                 if backup_dir.ty() != backup_type {

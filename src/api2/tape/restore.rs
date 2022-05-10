@@ -1084,7 +1084,8 @@ fn restore_archive<'a>(
                                     Uuid::from(header.uuid),
                                     current_file_number,
                                     &datastore_name,
-                                    &snapshot,
+                                    &backup_ns,
+                                    &backup_dir,
                                 )?;
                                 catalog.commit_if_large()?;
                             }
@@ -1102,7 +1103,8 @@ fn restore_archive<'a>(
                     Uuid::from(header.uuid),
                     current_file_number,
                     &datastore_name,
-                    &snapshot,
+                    &backup_ns,
+                    &backup_dir,
                 )?;
                 catalog.commit_if_large()?;
             }

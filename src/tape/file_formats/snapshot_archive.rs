@@ -22,7 +22,9 @@ pub fn tape_write_snapshot_archive<'a>(
     writer: &mut (dyn TapeWrite + 'a),
     snapshot_reader: &SnapshotReader,
 ) -> Result<Option<Uuid>, std::io::Error> {
-    let snapshot = snapshot_reader.snapshot().to_string();
+    let backup_dir = snapshot_reader.snapshot();
+    let snapshot =
+        pbs_api_types::print_ns_and_snapshot(backup_dir.backup_ns(), backup_dir.as_ref());
     let store = snapshot_reader.datastore_name().to_string();
     let file_list = snapshot_reader.file_list();
 

@@ -14,6 +14,8 @@ use proxmox_io::{ReadExt, WriteExt};
 use proxmox_sys::fs::{create_path, fchown, CreateOptions};
 use proxmox_uuid::Uuid;
 
+use pbs_api_types::{parse_ns_and_snapshot, print_ns_and_snapshot, BackupDir, BackupNamespace};
+
 use crate::tape::{file_formats::MediaSetLabel, MediaId};
 
 pub struct DatastoreContent {
@@ -656,7 +658,7 @@ impl MediaCatalog {
         Ok(())
     }
 
-    fn check_register_snapshot(&self, file_number: u64, snapshot: &str) -> Result<(), Error> {
+    fn check_register_snapshot(&self, file_number: u64) -> Result<(), Error> {
         if self.current_archive.is_some() {
             bail!("register_snapshot failed: inside chunk_archive");
         }
@@ -681,14 +683,6 @@ impl MediaCatalog {
             );
         }
 
-        if let Err(err) = snapshot.parse::<pbs_api_types::BackupDir>() {
-            bail!(
-                "register_snapshot failed: unable to parse snapshot '{}' - {}",
-                snapshot,
-                err
-            );
-        }
-
         Ok(())
     }
 
@@ -698,25 +692,22 @@ impl MediaCatalog {
         uuid: Uuid, // Uuid form MediaContentHeader
         file_number: u64,
         store: &str,
-        snapshot: &str,
+        ns: &BackupNamespace,
+        snapshot: &BackupDir,
     ) -> Result<(), Error> {
-        self.check_register_snapshot(file_number, snapshot)?;
+        self.check_register_snapshot(file_number)?;
+
+        let path = print_ns_and_snapshot(ns, snapshot);
 
         let entry = SnapshotEntry {
             file_number,
             uuid: *uuid.as_bytes(),
             store_name_len: u8::try_from(store.len())?,
-            name_len: u16::try_from(snapshot.len())?,
+            name_len: u16::try_from(path.len())?,
         };
 
         if self.log_to_stdout {
-            println!(
-                "S|{}|{}|{}:{}",
-                file_number,
-                uuid.to_string(),
-                store,
-                snapshot
-            );
+            println!("S|{}|{}|{}:{}", file_number, uuid.to_string(), store, path,);
         }
 
         self.pending.push(b'S');
@@ -726,16 +717,14 @@ impl MediaCatalog {
         }
         self.pending.extend(store.as_bytes());
         self.pending.push(b':');
-        self.pending.extend(snapshot.as_bytes());
+        self.pending.extend(path.as_bytes());
 
         let content = self
             .content
             .entry(store.to_string())
             .or_insert(DatastoreContent::new());
 
-        content
-            .snapshot_index
-            .insert(snapshot.to_string(), file_number);
+        content.snapshot_index.insert(path, file_number);
 
         self.last_entry = Some((uuid, file_number));
 
@@ -891,7 +880,8 @@ impl MediaCatalog {
                     let snapshot = file.read_exact_allocated(name_len)?;
                     let snapshot = std::str::from_utf8(&snapshot)?;
 
-                    self.check_register_snapshot(file_number, snapshot)?;
+                    let _ = parse_ns_and_snapshot(snapshot)?;
+                    self.check_register_snapshot(file_number)?;
 
                     let content = self
                         .content
