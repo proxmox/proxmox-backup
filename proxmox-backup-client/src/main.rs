@@ -71,6 +71,7 @@ pub use catalog::*;
 mod snapshot;
 pub use snapshot::*;
 pub mod key;
+pub mod namespace;
 
 fn record_repository(repo: &BackupRepository) {
     let base = match BaseDirectories::with_prefix("proxmox-backup") {
@@ -1685,6 +1686,7 @@ fn main() {
         .insert("version", version_cmd_def)
         .insert("benchmark", benchmark_cmd_def)
         .insert("change-owner", change_owner_cmd_def)
+        .insert("namespace", namespace::cli_map())
         .alias(&["files"], &["snapshot", "files"])
         .alias(&["forget"], &["snapshot", "forget"])
         .alias(&["upload-log"], &["snapshot", "upload-log"])
