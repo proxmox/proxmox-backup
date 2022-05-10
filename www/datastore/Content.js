@@ -278,7 +278,10 @@ Ext.define('PBS.DataStoreContent', {
 	    });
 
 	    if (!children.length) {
-		view.setEmptyText(gettext('No Snapshots found'));
+		view.setEmptyText(Ext.String.format(
+		    gettext('No accessible snapshots found in namespace {0}'),
+		    view.namespace && view.namespace !== '' ? `'${view.namespace}'`: gettext('Root'),
+		));
 	    }
 
 	    this.updateGroupNotes(view);
