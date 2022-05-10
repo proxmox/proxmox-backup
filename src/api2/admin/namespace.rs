@@ -12,6 +12,17 @@ use pbs_api_types::{
 
 use pbs_datastore::DataStore;
 
+// TODO: move somewhere we can reuse it from (datastore has its own copy atm.)
+fn get_ns_privs(store: &str, ns: &BackupNamespace, auth_id: &Authid) -> Result<u64, Error> {
+    let user_info = CachedUserInfo::new()?;
+
+    Ok(if ns.is_root() {
+        user_info.lookup_privs(auth_id, &["datastore", store])
+    } else {
+        user_info.lookup_privs(auth_id, &["datastore", store, &ns.to_string()])
+    })
+}
+
 #[api(
     input: {
         properties: {
@@ -34,18 +45,8 @@ use pbs_datastore::DataStore;
     },
     returns: pbs_api_types::ADMIN_DATASTORE_LIST_NAMESPACE_RETURN_TYPE,
     access: {
-        permission: &Permission::Or(&[
-            &Permission::Privilege(
-                &["datastore", "{store}"],
-                PRIV_DATASTORE_MODIFY,
-                true,
-            ),
-            &Permission::Privilege(
-                &["datastore", "{store}", "{parent}"],
-                PRIV_DATASTORE_MODIFY,
-                true,
-            ),
-        ])
+        permission: &Permission::Anybody,
+        description: "Requires on /datastore/{store}[/{parent}] DATASTORE_MODIFY"
     },
 )]
 /// List the namespaces of a datastore.
@@ -53,9 +54,14 @@ pub fn create_namespace(
     store: String,
     name: String,
     parent: Option<BackupNamespace>,
-    _rpcenv: &mut dyn RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<BackupNamespace, Error> {
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let parent = parent.unwrap_or_default();
+
+    if get_ns_privs(&store, &parent, &auth_id)? & PRIV_DATASTORE_MODIFY == 0 {
+        proxmox_router::http_bail!(FORBIDDEN, "permission check failed");
+    }
 
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
 
@@ -82,18 +88,9 @@ pub fn create_namespace(
     },
     returns: pbs_api_types::ADMIN_DATASTORE_LIST_NAMESPACE_RETURN_TYPE,
     access: {
-        permission: &Permission::Or(&[
-            &Permission::Privilege(
-                &["datastore", "{store}"],
-                PRIV_DATASTORE_BACKUP | PRIV_DATASTORE_AUDIT,
-                true,
-            ),
-            &Permission::Privilege(
-                &["datastore", "{store}", "{parent}"],
-                PRIV_DATASTORE_BACKUP | PRIV_DATASTORE_AUDIT,
-                true,
-            ),
-        ])
+        permission: &Permission::Anybody,
+        description: "Requires DATASTORE_AUDIT, DATASTORE_MODIFY or DATASTORE_BACKUP /datastore/\
+            {store}[/{parent}]",
     },
 )]
 /// List the namespaces of a datastore.
@@ -103,11 +100,16 @@ pub fn list_namespaces(
     max_depth: Option<usize>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<NamespaceListItem>, Error> {
+    let parent = parent.unwrap_or_default();
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    const PRIVS_OK: u64 = PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_BACKUP | PRIV_DATASTORE_AUDIT;
+    // first do a base check to avoid leaking if a NS exists or not
+    if get_ns_privs(&store, &parent, &auth_id)? & PRIVS_OK == 0 {
+        proxmox_router::http_bail!(FORBIDDEN, "permission check failed");
+    }
     let user_info = CachedUserInfo::new()?;
 
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
-    let parent = parent.unwrap_or_default();
 
     let ns_to_item =
         |ns: BackupNamespace| -> NamespaceListItem { NamespaceListItem { ns, comment: None } };
@@ -119,7 +121,7 @@ pub fn list_namespaces(
                 return true; // already covered by access permission above
             }
             let privs = user_info.lookup_privs(&auth_id, &["datastore", &store, &ns.to_string()]);
-            privs & (PRIV_DATASTORE_BACKUP | PRIV_DATASTORE_AUDIT) != 0
+            privs & PRIVS_OK != 0
         })
         .map(ns_to_item)
         .collect())
@@ -145,21 +147,13 @@ pub fn delete_namespace(
     _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-    let user_info = CachedUserInfo::new()?;
-
     // we could allow it as easy purge-whole datastore, but lets be more restrictive for now
     if ns.is_root() {
         bail!("cannot delete root namespace!");
     };
-
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let parent = ns.parent(); // must have MODIFY permission on parent to allow deletion
-    let user_privs = if parent.is_root() {
-        user_info.lookup_privs(&auth_id, &["datastore", &store])
-    } else {
-        user_info.lookup_privs(&auth_id, &["datastore", &store, &parent.to_string()])
-    };
-    if (user_privs & PRIV_DATASTORE_MODIFY) == 0 {
+    if get_ns_privs(&store, &parent, &auth_id)? & PRIV_DATASTORE_MODIFY == 0 {
         http_bail!(FORBIDDEN, "permission check failed");
     }
 
