@@ -30,7 +30,9 @@ macro_rules! BACKUP_TIME_RE { () => (r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]
 #[macro_export]
 macro_rules! BACKUP_NS_RE {
     () => (
-        concat!(r"(?:", PROXMOX_SAFE_ID_REGEX_STR!(), r"/){0,7}", PROXMOX_SAFE_ID_REGEX_STR!())
+        concat!("(?:",
+            "(?:", PROXMOX_SAFE_ID_REGEX_STR!(), r"/){0,7}", PROXMOX_SAFE_ID_REGEX_STR!(),
+        ")?")
     );
 }
 
