@@ -38,7 +38,7 @@ pub fn verify_chunk_size(size: usize) -> Result<(), Error> {
     ];
 
     if !SIZES.contains(&size) {
-        bail!("Got unsupported chunk size '{}'", size);
+        bail!("Got unsupported chunk size '{size}'");
     }
     Ok(())
 }
@@ -95,7 +95,7 @@ impl ChunkStore {
         let base: PathBuf = path.into();
 
         if !base.is_absolute() {
-            bail!("expected absolute path - got {:?}", base);
+            bail!("expected absolute path - got {base:?}");
         }
 
         let chunk_dir = Self::chunk_dir(&base);
@@ -105,12 +105,7 @@ impl ChunkStore {
         let default_options = CreateOptions::new();
 
         match create_path(&base, Some(default_options), Some(options.clone())) {
-            Err(err) => bail!(
-                "unable to create chunk store '{}' at {:?} - {}",
-                name,
-                base,
-                err
-            ),
+            Err(err) => bail!("unable to create chunk store '{name}' at {base:?} - {err}"),
             Ok(res) => {
                 if !res {
                     nix::unistd::chown(&base, Some(uid), Some(gid))?
@@ -119,12 +114,7 @@ impl ChunkStore {
         }
 
         if let Err(err) = create_dir(&chunk_dir, options.clone()) {
-            bail!(
-                "unable to create chunk store '{}' subdir {:?} - {}",
-                name,
-                chunk_dir,
-                err
-            );
+            bail!("unable to create chunk store '{name}' subdir {chunk_dir:?} - {err}");
         }
 
         // create lock file with correct owner/group
@@ -159,9 +149,7 @@ impl ChunkStore {
 
     fn lockfile_path<P: Into<PathBuf>>(base: P) -> PathBuf {
         let mut lockfile_path: PathBuf = base.into();
-
         lockfile_path.push(".lock");
-
         lockfile_path
     }
 
@@ -175,12 +163,7 @@ impl ChunkStore {
         let chunk_dir = Self::chunk_dir(&base);
 
         if let Err(err) = std::fs::metadata(&chunk_dir) {
-            bail!(
-                "unable to open chunk store '{}' at {:?} - {}",
-                name,
-                chunk_dir,
-                err
-            );
+            bail!("unable to open chunk store '{name}' at {chunk_dir:?} - {err}");
         }
 
         let lockfile_path = Self::lockfile_path(&base);
@@ -241,8 +224,7 @@ impl ChunkStore {
             if !assert_exists && err.as_errno() == Some(nix::errno::Errno::ENOENT) {
                 return Ok(false);
             }
-
-            bail!("update atime failed for chunk/file {:?} - {}", path, err);
+            bail!("update atime failed for chunk/file {path:?} - {err}");
         }
 
         Ok(true)
@@ -265,10 +247,9 @@ impl ChunkStore {
         let base_handle =
             Dir::open(&self.chunk_dir, OFlag::O_RDONLY, Mode::empty()).map_err(|err| {
                 format_err!(
-                    "unable to open store '{}' chunk dir {:?} - {}",
+                    "unable to open store '{}' chunk dir {:?} - {err}",
                     self.name,
                     self.chunk_dir,
-                    err,
                 )
             })?;
 
@@ -332,7 +313,7 @@ impl ChunkStore {
                         done = true;
                         // and pass the error through:
                         return Some((
-                            Err(format_err!("unable to read subdir '{}' - {}", subdir, err)),
+                            Err(format_err!("unable to read subdir '{subdir}' - {err}")),
                             percentage,
                             false,
                         ));
@@ -384,9 +365,8 @@ impl ChunkStore {
             let (dirfd, entry) = match entry {
                 Ok(entry) => (entry.parent_fd(), entry),
                 Err(err) => bail!(
-                    "chunk iterator on chunk store '{}' failed - {}",
+                    "chunk iterator on chunk store '{}' failed - {err}",
                     self.name,
-                    err
                 ),
             };
 
@@ -416,10 +396,8 @@ impl ChunkStore {
                             status.still_bad += 1;
                         }
                         bail!(
-                            "unlinking chunk {:?} failed on store '{}' - {}",
-                            filename,
+                            "unlinking chunk {filename:?} failed on store '{}' - {err}",
                             self.name,
-                            err,
                         );
                     }
                     if bad {
@@ -461,22 +439,23 @@ impl ChunkStore {
         let raw_data = chunk.raw_data();
         let encoded_size = raw_data.len() as u64;
 
+        let name = &self.name;
+
         if let Ok(metadata) = std::fs::metadata(&chunk_path) {
             if !metadata.is_file() {
-                bail!(
-                    "Got unexpected file type on store '{}' for chunk {}",
-                    self.name,
-                    digest_str
-                );
+                bail!("got unexpected file type on store '{name}' for chunk {digest_str}");
             }
             let old_size = metadata.len();
             if encoded_size == old_size {
                 self.touch_chunk(digest)?;
                 return Ok((true, old_size));
             } else if old_size == 0 {
-                log::warn!("found empty chunk '{digest_str}' on disk, overwriting");
+                log::warn!("found empty chunk '{digest_str}' in store {name}, overwriting");
             } else {
-                bail!("found chunk size mismatch for '{digest_str}': old {old_size} - new {encoded_size}");
+                bail!(
+                    "found chunk size mismatch for '{digest_str}': old {old_size} - new \
+                    {encoded_size}"
+                );
             }
         }
 
@@ -484,31 +463,16 @@ impl ChunkStore {
         tmp_path.set_extension("tmp");
 
         let mut file = std::fs::File::create(&tmp_path).map_err(|err| {
-            format_err!(
-                "creating temporary chunk on store '{}' failed for {} - {}",
-                self.name,
-                digest_str,
-                err
-            )
+            format_err!("creating chunk on store '{name}' failed for {digest_str} - {err}")
         })?;
 
         file.write_all(raw_data).map_err(|err| {
-            format_err!(
-                "writing temporary chunk on store '{}' failed for {} - {}",
-                self.name,
-                digest_str,
-                err
-            )
+            format_err!("writing chunk on store '{name}' failed for {digest_str} - {err}")
         })?;
 
         if let Err(err) = std::fs::rename(&tmp_path, &chunk_path) {
             if std::fs::remove_file(&tmp_path).is_err() { /* ignore */ }
-            bail!(
-                "Atomic rename on store '{}' failed for chunk {} - {}",
-                self.name,
-                digest_str,
-                err,
-            );
+            bail!("atomic rename on store '{name}' failed for chunk {digest_str} - {err}");
         }
 
         drop(lock);
