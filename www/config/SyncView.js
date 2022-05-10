@@ -103,7 +103,7 @@ Ext.define('PBS.config.SyncJobView', {
 
 	render_optional_owner: function(value, metadata, record) {
 	    if (!value) return '-';
-	    return Ext.String.htmlEncode(value, metadata, record);
+	    return Ext.String.htmlEncode(value);
 	},
 
 	startStore: function() { this.getView().getStore().rstore.startUpdate(); },
