@@ -1463,3 +1463,26 @@ pub const ADMIN_DATASTORE_PRUNE_RETURN_TYPE: ReturnType = ReturnType {
     )
     .schema(),
 };
+
+/// Parse snapshots in the form 'ns/foo/ns/bar/ct/100/1970-01-01T00:00:00Z'
+/// into a [`BackupNamespace`] and [`BackupDir`]
+pub fn parse_ns_and_snapshot(input: &str) -> Result<(BackupNamespace, BackupDir), Error> {
+    match input.rmatch_indices('/').nth(2) {
+        Some((idx, _)) => {
+            let ns = BackupNamespace::from_path(&input[..idx])?;
+            let dir: BackupDir = (&input[idx + 1..]).parse()?;
+            Ok((ns, dir))
+        }
+        None => Ok((BackupNamespace::root(), input.parse()?)),
+    }
+}
+
+/// Prints a [`BackupNamespace`] and [`BackupDir`] in the form of
+/// 'ns/foo/bar/ct/100/1970-01-01T00:00:00Z'
+pub fn print_ns_and_snapshot(ns: &BackupNamespace, dir: &BackupDir) -> String {
+    if ns.is_root() {
+        dir.to_string()
+    } else {
+        format!("{}/{}", ns.display_as_path(), dir)
+    }
+}
