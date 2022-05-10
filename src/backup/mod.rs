@@ -5,3 +5,6 @@ pub const CATALOG_NAME: &str = "catalog.pcat1.didx";
 
 mod verify;
 pub use verify::*;
+
+mod hierarchy;
+pub use hierarchy::*;
