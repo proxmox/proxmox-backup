@@ -50,7 +50,7 @@ Ext.define('PBS.DataStoreContent', {
     alias: 'widget.pbsDataStoreContent',
     mixins: ['Proxmox.Mixin.CBind'],
 
-    rootVisible: false,
+    rootVisible: true,
 
     title: gettext('Content'),
 
@@ -272,8 +272,16 @@ Ext.define('PBS.DataStoreContent', {
 		children.push(group);
 	    }
 
+	    let isRootNS = !view.namespace || view.namespace === '';
+	    let rootText = isRootNS
+		? gettext('Root Namespace')
+		: Ext.String.format(gettext("Namespace '{0}'"), view.namespace);
+
 	    view.setRootNode({
+		text: rootText,
+		iconCls: "fa fa-" + (isRootNS ? 'database' : 'object-group'),
 		expanded: true,
+		expandable: false,
 		children: children,
 	    });
 
@@ -768,7 +776,7 @@ Ext.define('PBS.DataStoreContent', {
 	    flex: 1,
 	    renderer: (v, meta, record) => {
 		let data = record.data;
-		if (!data || data.leaf) {
+		if (!data || data.leaf || data.root) {
 		    return '';
 		}
 		if (v === undefined || v === null) {
@@ -791,17 +799,17 @@ Ext.define('PBS.DataStoreContent', {
 			}
 			let view = tree.up();
 			let controller = view.controller;
-			controller.onNotesEdit(view, rec.data, rec.parentNode.id === 'root');
+			controller.onNotesEdit(view, rec.data, rec.parentNode?.id === 'root');
 		    });
 		},
 		dblclick: function(tree, el, row, col, ev, rec) {
 		    let data = rec.data || {};
-		    if (data.leaf) {
+		    if (data.leaf || data.root) {
 			return;
 		    }
 		    let view = tree.up();
 		    let controller = view.controller;
-		    controller.onNotesEdit(view, rec.data, rec.parentNode.id === 'root');
+		    controller.onNotesEdit(view, rec.data, rec.parentNode?.id === 'root');
 		},
 	    },
 	},
@@ -814,39 +822,39 @@ Ext.define('PBS.DataStoreContent', {
 		{
 		    handler: 'onVerify',
 		    getTip: (v, m, rec) => Ext.String.format(gettext("Verify '{0}'"), v),
-		    getClass: (v, m, rec) => rec.data.leaf ? 'pmx-hidden' : 'pve-icon-verify-lettering',
+		    getClass: (v, m, rec) => rec.data.root || rec.data.leaf ? 'pmx-hidden' : 'pve-icon-verify-lettering',
 		    isActionDisabled: (v, r, c, i, rec) => !!rec.data.leaf,
                 },
                 {
 		    handler: 'onChangeOwner',
-		    getClass: (v, m, rec) => rec.parentNode.id ==='root' ? 'fa fa-user' : 'pmx-hidden',
+		    getClass: (v, m, rec) => rec.parentNode && rec.parentNode.id ==='root' ? 'fa fa-user' : 'pmx-hidden',
 		    getTip: (v, m, rec) => Ext.String.format(gettext("Change owner of '{0}'"), v),
-		    isActionDisabled: (v, r, c, i, rec) => rec.parentNode.id !=='root',
+		    isActionDisabled: (v, r, c, i, rec) => !rec.parentNode || rec.parentNode.id !=='root',
                 },
 		{
 		    handler: 'onPrune',
 		    getTip: (v, m, rec) => Ext.String.format(gettext("Prune '{0}'"), v),
-		    getClass: (v, m, rec) => rec.parentNode.id ==='root' ? 'fa fa-scissors' : 'pmx-hidden',
-		    isActionDisabled: (v, r, c, i, rec) => rec.parentNode.id !=='root',
+		    getClass: (v, m, rec) => rec.parentNode && rec.parentNode.id ==='root' ? 'fa fa-scissors' : 'pmx-hidden',
+		    isActionDisabled: (v, r, c, i, rec) => rec.parentNode?.id !=='root',
 		},
 		{
 		    handler: 'onProtectionChange',
 		    getTip: (v, m, rec) => Ext.String.format(gettext("Change protection of '{0}'"), v),
 		    getClass: (v, m, rec) => {
-			if (!rec.data.leaf && rec.parentNode.id !== 'root') {
+			if (!rec.data.leaf && rec.parentNode && rec.parentNode.id !== 'root') {
 			    let extraCls = rec.data.protected ? 'good' : 'faded';
 			    return `fa fa-shield ${extraCls}`;
 			}
 			return 'pmx-hidden';
 		    },
-		    isActionDisabled: (v, r, c, i, rec) => !!rec.data.leaf || rec.parentNode.id === 'root',
+		    isActionDisabled: (v, r, c, i, rec) => !!rec.data.leaf || !rec.parentNode || rec.parentNode.id === 'root',
 		},
 		{
 		    handler: 'onForget',
-		    getTip: (v, m, rec) => rec.parentNode.id !=='root'
+		    getTip: (v, m, rec) => rec.parentNode?.id !=='root'
 			? Ext.String.format(gettext("Permanently forget snapshot '{0}'"), v)
 			: Ext.String.format(gettext("Permanently forget group '{0}'"), v),
-		    getClass: (v, m, rec) => !rec.data.leaf ? 'fa critical fa-trash-o' : 'pmx-hidden',
+		    getClass: (v, m, rec) => !(rec.data.leaf || rec.data.root) ? 'fa critical fa-trash-o' : 'pmx-hidden',
 		    isActionDisabled: (v, r, c, i, rec) => !!rec.data.leaf,
 		},
 		{
@@ -888,7 +896,7 @@ Ext.define('PBS.DataStoreContent', {
 	    sortable: true,
 	    dataIndex: 'size',
 	    renderer: (v, meta, record) => {
-		if (record.data.text === 'client.log.blob' && v === undefined) {
+		if ((record.data.text === 'client.log.blob' && v === undefined) || record.data.root) {
 		    return '';
 		}
 		if (v === undefined || v === null) {
@@ -962,6 +970,9 @@ Ext.define('PBS.DataStoreContent', {
 		}
 	    },
 	    renderer: (v, meta, record) => {
+		if (!record.parentNode) {
+		    return ''; // TODO: accumulate verify of all groups into root NS node?
+		}
 		let i = (cls, txt) => `<i class="fa fa-fw fa-${cls}"></i> ${txt}`;
 		if (v === undefined || v === null) {
 		    return record.data.leaf ? '' : i('question-circle-o warning', gettext('None'));
