@@ -49,6 +49,9 @@ Ext.define('PBS.Datastore.PruneInputPanel', {
 
 	values["backup-type"] = me.backup_type;
 	values["backup-id"] = me.backup_id;
+	if (me.ns && me.ns !== '') {
+	    values['backup-ns'] = me.ns;
+	}
 	return values;
     },
 
@@ -122,6 +125,9 @@ Ext.define('PBS.Datastore.PruneInputPanel', {
 
 	    let params = view.getValues();
 	    params["dry-run"] = true;
+	    if (view.ns && view.ns !== '') {
+		params['backup-ns'] = view.ns;
+	    }
 
 	    Proxmox.Utils.API2Request({
 		url: view.url,
@@ -130,11 +136,9 @@ Ext.define('PBS.Datastore.PruneInputPanel', {
 		callback: function() {
 		     // for easy breakpoint setting
 		},
-		failure: function(response, opts) {
-		    Ext.Msg.alert(gettext('Error'), response.htmlStatus);
-		},
+		failure: response => Ext.Msg.alert(gettext('Error'), response.htmlStatus),
 		success: function(response, options) {
-		    var data = response.result.data;
+		    let data = response.result.data;
 		    addKeepReasons(data, params);
 		    view.prune_store.setData(data);
 		},
@@ -259,6 +263,7 @@ Ext.define('PBS.DataStorePrune', {
 	    items: [{
 		xtype: 'pbsDataStorePruneInputPanel',
 		url: '/api2/extjs/admin/datastore/' + me.datastore + "/prune",
+		ns: me.ns,
 		backup_type: me.backup_type,
 		backup_id: me.backup_id,
 	    }],

@@ -29,6 +29,9 @@ Ext.define('PBS.BackupGroupChangeOwner', {
 		onGetValues: function(values) {
 		    values["backup-type"] = me.backup_type;
 		    values["backup-id"] = me.backup_id;
+		    if (me.ns && me.ns !== '') {
+			values['backup-ns'] = me.ns;
+		    }
 		    return values;
 		},
 

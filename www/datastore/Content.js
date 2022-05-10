@@ -327,6 +327,7 @@ Ext.define('PBS.DataStoreContent', {
 
 	    let win = Ext.create('PBS.BackupGroupChangeOwner', {
 		datastore: view.datastore,
+		ns: view.namespace,
 		backup_type: data.backup_type,
 		backup_id: data.backup_id,
 		owner: data.owner,
@@ -336,7 +337,8 @@ Ext.define('PBS.DataStoreContent', {
 	},
 
 	onPrune: function(view, rI, cI, item, e, rec) {
-	    view = this.getView();
+	    let me = this;
+	    view = me.getView();
 
 	    if (!(rec && rec.data)) return;
 	    let data = rec.data;
@@ -344,28 +346,38 @@ Ext.define('PBS.DataStoreContent', {
 
 	    if (!view.datastore) return;
 
-	    let win = Ext.create('PBS.DataStorePrune', {
+	    Ext.create('PBS.DataStorePrune', {
+		autoShow: true,
 		datastore: view.datastore,
+		ns: view.namespace,
 		backup_type: data.backup_type,
 		backup_id: data.backup_id,
+		listeners: {
+		    destroy: () => me.reload(),
+		},
 	    });
-	    win.on('destroy', this.reload, this);
-	    win.show();
 	},
 
 	verifyAll: function() {
 	    var view = this.getView();
 
+	    let params = {};
+	    if (view.namespace && view.namespace !== '') {
+		params['backup-ns'] = view.namespace; // TODO backend?!
+	    }
+
 	    Proxmox.Utils.API2Request({
 		url: `/admin/datastore/${view.datastore}/verify`,
+		params,
 		method: 'POST',
 		failure: function(response) {
 		    Ext.Msg.alert(gettext('Error'), response.htmlStatus);
 		},
 		success: function(response, options) {
 		    Ext.create('Proxmox.window.TaskViewer', {
+			autoShow: true,
 			upid: response.result.data,
-		    }).show();
+		    });
 		},
 	    });
 	},
@@ -440,6 +452,9 @@ Ext.define('PBS.DataStoreContent', {
 		    "outdated-after": 29, // reverify after 29 days so match with the "old" display
 		};
 	    }
+	    if (view.namespace && view.namespace !== '') {
+		params['backup-ns'] = view.namespace;
+	    }
 
 	    Proxmox.Utils.API2Request({
 		params: params,
@@ -476,6 +491,9 @@ Ext.define('PBS.DataStoreContent', {
 		    "backup-time": (data['backup-time'].getTime()/1000).toFixed(0),
 		};
 	    }
+	    if (view.namespace && view.namespace !== '') {
+		params['backup-ns'] = view.namespace;
+	    }
 
 	    Ext.create('PBS.window.NotesEdit', {
 		url: url,
@@ -489,12 +507,17 @@ Ext.define('PBS.DataStoreContent', {
 	    let me = this;
 	    let view = me.getView();
 
+	    let params = {
+		"backup-type": data.backup_type,
+		"backup-id": data.backup_id,
+	    };
+	    if (view.namespace && view.namespace !== '') {
+		params['backup-ns'] = view.namespace;
+	    }
+
 	    Ext.create('Proxmox.window.SafeDestroy', {
 		url: `/admin/datastore/${view.datastore}/groups`,
-		params: {
-		    "backup-type": data.backup_type,
-		    "backup-id": data.backup_id,
-		},
+		params,
 		item: {
 		    id: data.text,
 		},
@@ -520,14 +543,18 @@ Ext.define('PBS.DataStoreContent', {
 		    if (btn !== 'yes') {
 		        return;
 		    }
+		    let params = {
+			"backup-type": data["backup-type"],
+			"backup-id": data["backup-id"],
+			"backup-time": (data['backup-time'].getTime()/1000).toFixed(0),
+		    };
+		    if (view.namespace && view.namespace !== '') {
+			params['backup-ns'] = view.namespace;
+		    }
 
 		    Proxmox.Utils.API2Request({
 			url: `/admin/datastore/${view.datastore}/snapshots`,
-			params: {
-			    "backup-type": data["backup-type"],
-			    "backup-id": data["backup-id"],
-			    "backup-time": (data['backup-time'].getTime()/1000).toFixed(0),
-			},
+			params,
 			method: 'DELETE',
 			waitMsgTarget: view,
 			failure: function(response, opts) {
@@ -556,6 +583,9 @@ Ext.define('PBS.DataStoreContent', {
 		'backup-id': id,
 		'backup-time': time,
 	    };
+	    if (view.namespace && view.namespace !== '') {
+		params['backup-ns'] = view.namespace;
+	    }
 
 	    let url = `/api2/extjs/admin/datastore/${view.datastore}/protected`;
 
@@ -630,6 +660,9 @@ Ext.define('PBS.DataStoreContent', {
 		'backup-time': (data['backup-time'].getTime()/1000).toFixed(0),
 		'file-name': file,
 	    };
+	    if (view.namespace && view.namespace !== '') {
+		params['backup-ns'] = view.namespace;
+	    }
 
 	    let idx = file.lastIndexOf('.');
 	    let filename = file.slice(0, idx);
@@ -656,17 +689,20 @@ Ext.define('PBS.DataStoreContent', {
 	    let time = data['backup-time'];
 	    let type = data['backup-type'];
 	    let timetext = PBS.Utils.render_datetime_utc(data["backup-time"]);
-
+	    let extraParams = {
+		'backup-id': id,
+		'backup-time': (time.getTime()/1000).toFixed(0),
+		'backup-type': type,
+	    };
+	    if (view.namespace && view.namespace !== '') {
+		extraParams['backup-ns'] = view.namespace;
+	    }
 	    Ext.create('Proxmox.window.FileBrowser', {
 		title: `${type}/${id}/${timetext}`,
 		listURL: `/api2/json/admin/datastore/${view.datastore}/catalog`,
 		downloadURL: `/api2/json/admin/datastore/${view.datastore}/pxar-file-download`,
 		enableTar: true,
-		extraParams: {
-		    'backup-id': id,
-		    'backup-time': (time.getTime()/1000).toFixed(0),
-		    'backup-type': type,
-		},
+		extraParams,
 		archive: rec.data.filename,
 	    }).show();
 	},
