@@ -279,7 +279,13 @@ async fn list_backup_groups(param: Value) -> Result<Value, Error> {
 
     let backup_ns = optional_ns_param(&param)?;
     let mut result = client
-        .get(&path, Some(json!({ "backup-ns": backup_ns })))
+        .get(
+            &path,
+            match backup_ns.is_root() {
+                true => None,
+                false => Some(json!({ "backup-ns": backup_ns })),
+            },
+        )
         .await?;
 
     record_repository(&repo);
