@@ -1,8 +1,9 @@
 Ext.define('pbs-sync-jobs-status', {
     extend: 'Ext.data.Model',
     fields: [
-	'id', 'owner', 'remote', 'remote-store', 'store', 'schedule', 'group-filter',
-	'next-run', 'last-run-upid', 'last-run-state', 'last-run-endtime',
+	'id', 'owner', 'remote', 'remote-store', 'remote-ns', 'store', 'ns',
+	'schedule', 'group-filter', 'next-run', 'last-run-upid', 'last-run-state',
+	'last-run-endtime',
 	{
 	    name: 'duration',
 	    calculate: function(data) {
@@ -196,6 +197,13 @@ Ext.define('PBS.config.SyncJobView', {
 	    sortable: true,
 	},
 	{
+		header: gettext('Namespace'),
+		dataIndex: 'ns',
+		width: 120,
+		sortable: true,
+		renderer: PBS.Utils.render_optional_namespace,
+	},
+	{
 	    header: gettext('Remote ID'),
 	    dataIndex: 'remote',
 	    width: 120,
@@ -205,6 +213,19 @@ Ext.define('PBS.config.SyncJobView', {
 	    header: gettext('Remote Store'),
 	    dataIndex: 'remote-store',
 	    width: 120,
+	    sortable: true,
+	},
+	{
+	    header: gettext('Remote Namespace'),
+	    dataIndex: 'remote-ns',
+	    width: 120,
+	    sortable: true,
+	    renderer: PBS.Utils.render_optional_namespace,
+	},
+	{
+	    header: gettext('Max. Recursion'),
+	    dataIndex: 'max-depth',
+	    width: 10,
 	    sortable: true,
 	},
 	{

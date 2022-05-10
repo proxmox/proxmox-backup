@@ -84,6 +84,109 @@ Ext.define('PBS.form.RemoteStoreSelector', {
     },
 });
 
+Ext.define('PBS.form.RemoteNamespaceSelector', {
+    extend: 'Proxmox.form.ComboGrid',
+    alias: 'widget.pbsRemoteNamespaceSelector',
+
+    queryMode: 'local',
+
+    valueField: 'ns',
+    displayField: 'ns',
+    emptyText: PBS.Utils.render_optional_namespace(''),
+    notFoundIsValid: true,
+
+    matchFieldWidth: false,
+    listConfig: {
+	loadingText: gettext('Scanning...'),
+	width: 350,
+	columns: [
+	    {
+		header: gettext('Namespace'),
+		sortable: true,
+		dataIndex: 'ns',
+		renderer: PBS.Utils.render_optional_namespace, // FIXME proper root-aware renderer
+		flex: 1,
+	    },
+	    {
+		header: gettext('Comment'),
+		dataIndex: 'comment',
+		renderer: Ext.String.htmlEncode,
+		flex: 1,
+	    },
+	],
+    },
+
+    doRawQuery: function() {
+	// do nothing.
+    },
+
+    setRemote: function(remote) {
+	let me = this;
+
+	if (me.remote === remote) {
+	    return;
+	}
+
+	me.remote = remote;
+
+	let store = me.store;
+	store.removeAll();
+
+	me.setDisabled(true);
+	me.clearValue();
+    },
+
+    setRemoteStore: function(remoteStore) {
+	let me = this;
+
+	if (me.remoteStore === remoteStore) {
+	    return;
+	}
+
+	me.remoteStore = remoteStore;
+
+	let store = me.store;
+	store.removeAll();
+
+	if (me.remote && me.remoteStore) {
+	    me.setDisabled(false);
+	    if (!me.firstLoad) {
+		me.clearValue();
+	    }
+
+	    store.proxy.url = '/api2/json/config/remote/' + encodeURIComponent(me.remote) + '/scan/' + encodeURIComponent(me.remoteStore) + '/namespaces';
+	    store.load();
+
+	    me.firstLoad = false;
+	} else {
+	    me.setDisabled(true);
+	    me.clearValue();
+	}
+    },
+
+    initComponent: function() {
+	let me = this;
+
+	me.firstLoad = true;
+
+	let store = Ext.create('Ext.data.Store', {
+	    fields: ['ns', 'comment'],
+	    proxy: {
+		type: 'proxmox',
+		url: '/api2/json/config/remote/' + encodeURIComponent(me.remote) + '/scan',
+	    },
+	});
+
+	store.sort('store', 'ASC');
+
+	Ext.apply(me, {
+	    store: store,
+	});
+
+	me.callParent();
+    },
+});
+
 
 Ext.define('PBS.window.SyncJobEdit', {
     extend: 'Proxmox.window.Edit',
@@ -156,6 +259,20 @@ Ext.define('PBS.window.SyncJobEdit', {
 			    allowBlank: false,
 			},
 		    },
+		    // TODO: make this hot-reloadable based on local store selection?
+		    {
+			xtype: 'pmxDisplayEditField',
+			fieldLabel: gettext('Local Namespace'),
+			name: 'ns',
+			cbind: {
+			    datastore: '{datastore}',
+			},
+			editable: true,
+			submitValue: true,
+			//editConfig: {
+			//	xtype: 'pbsNamespaceSelector',
+			//},
+		    },
 		    {
 			fieldLabel: gettext('Local Owner'),
 			xtype: 'pbsAuthidSelector',
@@ -166,15 +283,22 @@ Ext.define('PBS.window.SyncJobEdit', {
 			},
 		    },
 		    {
-			fieldLabel: gettext('Remove vanished'),
-			xtype: 'proxmoxcheckbox',
-			name: 'remove-vanished',
-			autoEl: {
-			    tag: 'div',
-			    'data-qtip': gettext('Remove snapshots from local datastore if they vanished from source datastore?'),
+			fieldLabel: gettext('Sync Schedule'),
+			xtype: 'pbsCalendarEvent',
+			name: 'schedule',
+			emptyText: gettext('none (disabled)'),
+			cbind: {
+				deleteEmpty: '{!isCreate}',
+				value: '{scheduleValue}',
 			},
-			uncheckedValue: false,
-			value: false,
+		    },
+		    {
+			xtype: 'pmxBandwidthField',
+			name: 'rate-in',
+			fieldLabel: gettext('Rate Limit'),
+			emptyText: gettext('Unlimited'),
+			submitAutoScaledSizeUnit: true,
+			// NOTE: handle deleteEmpty in onGetValues due to bandwidth field having a cbind too
 		    },
 		],
 
@@ -189,6 +313,8 @@ Ext.define('PBS.window.SyncJobEdit', {
 				let me = this;
 				let remoteStoreField = me.up('pbsSyncJobEdit').down('field[name=remote-store]');
 				remoteStoreField.setRemote(value);
+				let remoteNamespaceField = me.up('pbsSyncJobEdit').down('field[name=remote-ns]');
+				remoteNamespaceField.setRemote(value);
 			    },
 			},
 		    },
@@ -204,27 +330,47 @@ Ext.define('PBS.window.SyncJobEdit', {
 				let me = this;
 				let remoteField = me.up('pbsSyncJobEdit').down('field[name=remote]');
 				let remote = remoteField.getValue();
+				let remoteNamespaceField = me.up('pbsSyncJobEdit').down('field[name=remote-ns]');
+				remoteNamespaceField.setRemote(remote);
+				remoteNamespaceField.setRemoteStore(value);
 				me.up('tabpanel').down('pbsGroupFilter').setRemoteDatastore(remote, value);
 			    },
 			},
 		    },
 		    {
-			fieldLabel: gettext('Sync Schedule'),
-			xtype: 'pbsCalendarEvent',
-			name: 'schedule',
-			emptyText: gettext('none (disabled)'),
-			cbind: {
-			    deleteEmpty: '{!isCreate}',
-			    value: '{scheduleValue}',
+			fieldLabel: gettext('Source Namespace'),
+			xtype: 'pbsRemoteNamespaceSelector',
+			allowBlank: true,
+			autoSelect: false,
+			name: 'remote-ns',
+			disabled: true,
+			listeners: {
+			    change: function(field, value) {
+				let me = this;
+				let remoteField = me.up('pbsSyncJobEdit').down('field[name=remote]');
+				let remote = remoteField.getValue();
+				let remoteStoreField = me.up('pbsSyncJobEdit').down('field[name=remote-store]');
+				let remoteStore = remoteStoreField.getValue();
+				me.up('tabpanel').down('pbsGroupFilter').setRemoteNamespace(remote, remoteStore, value);
+			    },
 			},
 		    },
 		    {
-			xtype: 'pmxBandwidthField',
-			name: 'rate-in',
-			fieldLabel: gettext('Rate Limit'),
-			emptyText: gettext('Unlimited'),
-			submitAutoScaledSizeUnit: true,
-			// NOTE: handle deleteEmpty in onGetValues due to bandwidth field having a cbind too
+			xtype: 'pbsNamespaceMaxDepth',
+			name: 'max-depth',
+			fieldLabel: gettext('Max. Depth'),
+			deleteEmpty: true,
+		    },
+		    {
+			fieldLabel: gettext('Remove vanished'),
+			xtype: 'proxmoxcheckbox',
+			name: 'remove-vanished',
+			autoEl: {
+			    tag: 'div',
+			    'data-qtip': gettext('Remove snapshots from local datastore if they vanished from source datastore?'),
+			},
+			uncheckedValue: false,
+			value: false,
 		    },
 		],
 
