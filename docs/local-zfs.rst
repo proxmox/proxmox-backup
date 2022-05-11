@@ -191,12 +191,12 @@ With `systemd-boot`:
 
 .. code-block:: console
 
-  # pve-efiboot-tool format <new disk's ESP>
-  # pve-efiboot-tool init <new disk's ESP>
+  # proxmox-boot-tool format <new ESP>
+  # proxmox-boot-tool init <new ESP>
 
 .. NOTE:: `ESP` stands for EFI System Partition, which is setup as partition #2 on
-  bootable disks setup by the {pve} installer since version 5.4. For details, see
-  xref:sysboot_systemd_boot_setup[Setting up a new partition for use as synced ESP].
+  bootable disks setup by the `Proxmox Backup`_ installer. For details, see
+  :ref:`Setting up a new partition for use as synced ESP <systembooting-proxmox-boot-setup>`.
 
 With `grub`:
 
@@ -254,6 +254,7 @@ The above example limits the usage to 8 GiB ('8 * 2^30^').
    configuration in `/etc/modprobe.d/zfs.conf`, with:
 
 .. code-block:: console
+
   options zfs zfs_arc_min=8589934591
   options zfs zfs_arc_max=8589934592
 
@@ -273,8 +274,7 @@ Swap on ZFS
 ^^^^^^^^^^^
 
 Swap-space created on a zvol may cause some issues, such as blocking the
-server or generating a high IO load, often seen when starting a Backup
-to an external Storage.
+server or generating a high IO load.
 
 We strongly recommend using enough memory, so that you normally do not
 run into low memory situations. Should you need or want to add swap, it is
@@ -311,18 +311,20 @@ ZFS compression
 ^^^^^^^^^^^^^^^
 
 To activate compression:
+
 .. code-block:: console
 
   # zpool set compression=lz4 <pool>
 
 We recommend using the `lz4` algorithm, since it adds very little CPU overhead.
-Other algorithms such as `lzjb` and `gzip-N` (where `N` is an integer from `1-9`
+Other algorithms such as `lzjb`, `zstd` and `gzip-N` (where `N` is an integer from `1-9`
 representing the compression ratio, where 1 is fastest and 9 is best
 compression) are also available. Depending on the algorithm and how
 compressible the data is, having compression enabled can even increase I/O
 performance.
 
 You can disable compression at any time with:
+
 .. code-block:: console
 
   # zfs set compression=off <dataset>
