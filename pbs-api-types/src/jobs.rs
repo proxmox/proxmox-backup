@@ -186,6 +186,10 @@ pub const VERIFICATION_OUTDATED_AFTER_SCHEMA: Schema =
             optional: true,
             schema: BACKUP_NAMESPACE_SCHEMA,
         },
+        "max-depth": {
+            optional: true,
+            schema: crate::NS_MAX_DEPTH_SCHEMA,
+        },
     }
 )]
 #[derive(Serialize, Deserialize, Updater)]
@@ -212,6 +216,10 @@ pub struct VerificationJobConfig {
     #[serde(skip_serializing_if = "Option::is_none", default)]
     /// on which backup namespace to run the verification recursively
     pub ns: Option<BackupNamespace>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    /// how deep the verify should go from the `ns` level downwards. Passing 0 verifies only the
+    /// snapshots on the same level as the passed `ns`, or the datastore root if none.
+    pub max_depth: Option<usize>,
 }
 
 #[api(

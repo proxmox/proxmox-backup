@@ -50,7 +50,7 @@ pub fn do_verification_job(
                 &verify_worker,
                 worker.upid(),
                 ns,
-                None,
+                verification_job.max_depth,
                 None,
                 Some(&move |manifest| {
                     verify_filter(ignore_verified_snapshots, outdated_after, manifest)

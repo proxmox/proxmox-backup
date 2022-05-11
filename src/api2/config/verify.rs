@@ -157,6 +157,8 @@ pub enum DeletableProperty {
     OutdatedAfter,
     /// Delete namespace property, defaulting to root namespace then.
     Ns,
+    /// Delete max-depth property, defaulting to full recursion again
+    MaxDepth,
 }
 
 #[api(
@@ -239,6 +241,9 @@ pub fn update_verification_job(
                 DeletableProperty::Ns => {
                     data.ns = None;
                 }
+                DeletableProperty::MaxDepth => {
+                    data.max_depth = None;
+                }
             }
         }
     }
@@ -276,6 +281,11 @@ pub fn update_verification_job(
     if let Some(ns) = update.ns {
         if !ns.is_root() {
             data.ns = Some(ns);
+        }
+    }
+    if let Some(max_depth) = update.max_depth {
+        if max_depth <= pbs_api_types::MAX_NAMESPACE_DEPTH {
+            data.max_depth = Some(max_depth);
         }
     }
 
