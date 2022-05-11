@@ -56,16 +56,28 @@ Ext.define('PBS.form.NamespaceSelector', {
 	},
     },
 
+    setDatastore: function(datastore) {
+	let me = this;
+	if (datastore ?? false) {
+	    me.datastore = datastore;
+	    me.store.getProxy().setUrl(`/api2/json/admin/datastore/${me.datastore}/namespace`);
+	    if (me.isDisabled()) {
+		me.setDisabled(false);
+	    }
+	    me.store.load();
+	    me.validate();
+	}
+    },
+
     initComponent: function() {
 	let me = this;
 	if (!me.datastore) {
-	    console.error("no datastore passed");
-	    return;
+	    me.disabled = true;
 	}
 
 	me.store = Ext.create('Ext.data.Store', {
 	    model: 'pbs-namespaces',
-	    autoLoad: true,
+	    autoLoad: !!me.datastore,
 	    proxy: {
 		type: 'proxmox',
 		timeout: 30 * 1000,
@@ -76,4 +88,3 @@ Ext.define('PBS.form.NamespaceSelector', {
 	me.callParent();
     },
 });
-
