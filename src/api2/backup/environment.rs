@@ -607,8 +607,8 @@ impl BackupEnvironment {
 
         // check for valid manifest and store stats
         let stats = serde_json::to_value(state.backup_stat)?;
-        self.datastore
-            .update_manifest(&self.backup_dir, |manifest| {
+        self.backup_dir
+            .update_manifest(|manifest| {
                 manifest.unprotected["chunk_upload_stats"] = stats;
             })
             .map_err(|err| format_err!("unable to update manifest blob - {}", err))?;

@@ -46,7 +46,7 @@ impl SnapshotReader {
 
         let datastore_name = datastore.name().to_string();
 
-        let manifest = match datastore.load_manifest(&snapshot) {
+        let manifest = match snapshot.load_manifest() {
             Ok((manifest, _)) => manifest,
             Err(err) => {
                 bail!(

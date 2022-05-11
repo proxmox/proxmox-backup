@@ -155,7 +155,7 @@ fn upgrade_to_backup_protocol(
         let last_backup = {
             let info = backup_group.last_backup(true).unwrap_or(None);
             if let Some(info) = info {
-                let (manifest, _) = datastore.load_manifest(&info.backup_dir)?;
+                let (manifest, _) = info.backup_dir.load_manifest()?;
                 let verify = manifest.unprotected["verify_state"].clone();
                 match serde_json::from_value::<SnapshotVerifyState>(verify) {
                     Ok(verify) => match verify.state {

@@ -28,7 +28,7 @@ use crate::chunk_store::ChunkStore;
 use crate::dynamic_index::{DynamicIndexReader, DynamicIndexWriter};
 use crate::fixed_index::{FixedIndexReader, FixedIndexWriter};
 use crate::index::IndexFile;
-use crate::manifest::{archive_type, ArchiveType, BackupManifest, MANIFEST_BLOB_NAME};
+use crate::manifest::{archive_type, ArchiveType};
 use crate::task_tracking::update_active_operations;
 use crate::DataBlob;
 
@@ -1096,37 +1096,6 @@ impl DataStore {
                 err,
             )
         })
-    }
-
-    /// Load the manifest without a lock. Must not be written back.
-    pub fn load_manifest(&self, backup_dir: &BackupDir) -> Result<(BackupManifest, u64), Error> {
-        backup_dir.load_manifest()
-    }
-
-    /// Update the manifest of the specified snapshot. Never write a manifest directly,
-    /// only use this method - anything else may break locking guarantees.
-    pub fn update_manifest(
-        &self,
-        backup_dir: &BackupDir,
-        update_fn: impl FnOnce(&mut BackupManifest),
-    ) -> Result<(), Error> {
-        let _guard = backup_dir.lock_manifest()?;
-        let (mut manifest, _) = self.load_manifest(backup_dir)?;
-
-        update_fn(&mut manifest);
-
-        let manifest = serde_json::to_value(manifest)?;
-        let manifest = serde_json::to_string_pretty(&manifest)?;
-        let blob = DataBlob::encode(manifest.as_bytes(), None, true)?;
-        let raw_data = blob.raw_data();
-
-        let mut path = backup_dir.full_path();
-        path.push(MANIFEST_BLOB_NAME);
-
-        // atomic replace invalidates flock - no other writes past this point!
-        replace_file(&path, raw_data, CreateOptions::new(), false)?;
-
-        Ok(())
     }
 
     /// Updates the protection status of the specified snapshot.

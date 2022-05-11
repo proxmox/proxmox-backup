@@ -135,10 +135,9 @@ fn check_privs_and_load_store(
 }
 
 fn read_backup_index(
-    store: &DataStore,
     backup_dir: &BackupDir,
 ) -> Result<(BackupManifest, Vec<BackupContent>), Error> {
-    let (manifest, index_size) = store.load_manifest(backup_dir)?;
+    let (manifest, index_size) = backup_dir.load_manifest()?;
 
     let mut result = Vec::new();
     for item in manifest.files() {
@@ -162,10 +161,9 @@ fn read_backup_index(
 }
 
 fn get_all_snapshot_files(
-    store: &DataStore,
     info: &BackupInfo,
 ) -> Result<(BackupManifest, Vec<BackupContent>), Error> {
-    let (manifest, mut files) = read_backup_index(store, &info.backup_dir)?;
+    let (manifest, mut files) = read_backup_index(&info.backup_dir)?;
 
     let file_set = files.iter().fold(HashSet::new(), |mut acc, item| {
         acc.insert(item.filename.clone());
@@ -373,7 +371,7 @@ pub fn list_snapshot_files(
 
     let info = BackupInfo::new(snapshot)?;
 
-    let (_manifest, files) = get_all_snapshot_files(&datastore, &info)?;
+    let (_manifest, files) = get_all_snapshot_files(&info)?;
 
     Ok(files)
 }
@@ -503,7 +501,7 @@ pub fn list_snapshots(
         };
         let protected = info.backup_dir.is_protected();
 
-        match get_all_snapshot_files(&datastore, &info) {
+        match get_all_snapshot_files(&info) {
             Ok((manifest, files)) => {
                 // extract the first line from notes
                 let comment: Option<String> = manifest.unprotected["notes"]
@@ -1369,7 +1367,7 @@ pub fn download_file_decoded(
 
         let file_name = required_string_param(&param, "file-name")?.to_owned();
 
-        let (manifest, files) = read_backup_index(&datastore, &backup_dir)?;
+        let (manifest, files) = read_backup_index(&backup_dir)?;
         for file in files {
             if file.filename == file_name && file.crypt_mode == Some(CryptMode::Encrypt) {
                 bail!("cannot decode '{}' - is encrypted", file_name);
@@ -1572,7 +1570,7 @@ pub fn catalog(
 
     let file_name = CATALOG_NAME;
 
-    let (manifest, files) = read_backup_index(&datastore, &backup_dir)?;
+    let (manifest, files) = read_backup_index(&backup_dir)?;
     for file in files {
         if file.filename == file_name && file.crypt_mode == Some(CryptMode::Encrypt) {
             bail!("cannot decode '{}' - is encrypted", file_name);
@@ -1662,7 +1660,7 @@ pub fn pxar_file_download(
         let mut split = components.splitn(2, |c| *c == b'/');
         let pxar_name = std::str::from_utf8(split.next().unwrap())?;
         let file_path = split.next().unwrap_or(b"/");
-        let (manifest, files) = read_backup_index(&datastore, &backup_dir)?;
+        let (manifest, files) = read_backup_index(&backup_dir)?;
         for file in files {
             if file.filename == pxar_name && file.crypt_mode == Some(CryptMode::Encrypt) {
                 bail!("cannot decode '{}' - is encrypted", pxar_name);

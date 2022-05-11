@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use anyhow::{bail, format_err, Error};
 
-use proxmox_sys::fs::lock_dir_noblock;
+use proxmox_sys::fs::{lock_dir_noblock, replace_file, CreateOptions};
 
 use pbs_api_types::{
     Authid, BackupNamespace, BackupType, GroupFilter, BACKUP_DATE_REGEX, BACKUP_FILE_REGEX,
@@ -493,7 +493,22 @@ impl BackupDir {
         &self,
         update_fn: impl FnOnce(&mut BackupManifest),
     ) -> Result<(), Error> {
-        self.store.update_manifest(self, update_fn)
+        let _guard = self.lock_manifest()?;
+        let (mut manifest, _) = self.load_manifest()?;
+
+        update_fn(&mut manifest);
+
+        let manifest = serde_json::to_value(manifest)?;
+        let manifest = serde_json::to_string_pretty(&manifest)?;
+        let blob = DataBlob::encode(manifest.as_bytes(), None, true)?;
+        let raw_data = blob.raw_data();
+
+        let mut path = self.full_path();
+        path.push(MANIFEST_BLOB_NAME);
+
+        // atomic replace invalidates flock - no other writes past this point!
+        replace_file(&path, raw_data, CreateOptions::new(), false)?;
+        Ok(())
     }
 
     /// Cleans up the backup directory by removing any file not mentioned in the manifest.

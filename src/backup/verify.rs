@@ -357,7 +357,7 @@ pub fn verify_backup_dir_with_lock(
     filter: Option<&dyn Fn(&BackupManifest) -> bool>,
     _snap_lock: Dir,
 ) -> Result<bool, Error> {
-    let manifest = match verify_worker.datastore.load_manifest(backup_dir) {
+    let manifest = match backup_dir.load_manifest() {
         Ok((manifest, _)) => manifest,
         Err(err) => {
             task_log!(
@@ -425,9 +425,8 @@ pub fn verify_backup_dir_with_lock(
         upid,
     };
     let verify_state = serde_json::to_value(verify_state)?;
-    verify_worker
-        .datastore
-        .update_manifest(backup_dir, |manifest| {
+    backup_dir
+        .update_manifest(|manifest| {
             manifest.unprotected["verify_state"] = verify_state;
         })
         .map_err(|err| format_err!("unable to update manifest blob - {}", err))?;

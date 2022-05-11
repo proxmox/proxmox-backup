@@ -351,10 +351,7 @@ pub fn update_sync_job(
         data.remote_store = remote_store;
     }
     if let Some(remote_ns) = update.remote_ns {
-        check_max_depth(
-            &remote_ns,
-            update.max_depth.unwrap_or(data.max_depth),
-        )?;
+        check_max_depth(&remote_ns, update.max_depth.unwrap_or(data.max_depth))?;
         data.remote_ns = Some(remote_ns);
     }
     if let Some(owner) = update.owner {
