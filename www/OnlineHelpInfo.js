@@ -147,6 +147,50 @@ const proxmoxOnlineHelpInfo = {
     "link": "/docs/sysadmin.html#sysadmin-host-administration",
     "title": "Host System Administration"
   },
+  "chapter-systembooting": {
+    "link": "/docs/sysadmin.html#chapter-systembooting",
+    "title": "Host Bootloader"
+  },
+  "systembooting-installer-part-scheme": {
+    "link": "/docs/sysadmin.html#systembooting-installer-part-scheme",
+    "title": "Partitioning Scheme Used by the Installer"
+  },
+  "systembooting-proxmox-boot-tool": {
+    "link": "/docs/sysadmin.html#systembooting-proxmox-boot-tool",
+    "title": "Synchronizing the content of the ESP with ``proxmox-boot-tool``"
+  },
+  "systembooting-proxmox-boot-setup": {
+    "link": "/docs/sysadmin.html#systembooting-proxmox-boot-setup",
+    "title": "Setting up a new partition for use as synced ESP"
+  },
+  "systembooting-proxmox-boot-refresh": {
+    "link": "/docs/sysadmin.html#systembooting-proxmox-boot-refresh",
+    "title": "Updating the configuration on all ESPs"
+  },
+  "systembooting-determine-bootloader": {
+    "link": "/docs/sysadmin.html#systembooting-determine-bootloader",
+    "title": "Determine which Bootloader is Used"
+  },
+  "systembooting-grub": {
+    "link": "/docs/sysadmin.html#systembooting-grub",
+    "title": "Grub"
+  },
+  "systembooting-systemdboot": {
+    "link": "/docs/sysadmin.html#systembooting-systemdboot",
+    "title": "Systemd-boot"
+  },
+  "systembooting-systemd-boot-config": {
+    "link": "/docs/sysadmin.html#systembooting-systemd-boot-config",
+    "title": "Configuration"
+  },
+  "systembooting-edit-kernel-cmdline": {
+    "link": "/docs/sysadmin.html#systembooting-edit-kernel-cmdline",
+    "title": "Editing the Kernel Commandline"
+  },
+  "systembooting-kernel-pin": {
+    "link": "/docs/sysadmin.html#systembooting-kernel-pin",
+    "title": "Override the Kernel-Version for next Boot"
+  },
   "tape-backup": {
     "link": "/docs/tape-backup.html#tape-backup",
     "title": "Tape Backup"

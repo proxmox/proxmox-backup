@@ -26,4 +26,6 @@ please refer to the standard Debian documentation.
 
 .. include:: local-zfs.rst
 
+.. include:: system-booting.rst
+
 .. include:: services.rst

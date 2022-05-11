@@ -113,6 +113,7 @@ exclude_patterns = [
     'pbs-copyright.rst',
     'local-zfs.rst'
     'package-repositories.rst',
+    'system-booting.rst'
 ]
 
 # The reST default role (used for this markup: `text`) to use for all
