@@ -34,6 +34,20 @@ Ext.define('PBS.window.VerifyJobEdit', {
 	    'ignoreVerified': true,
 	},
     },
+    controller: {
+	xclass: 'Ext.app.ViewController',
+	control: {
+	    'pbsDataStoreSelector': {
+		change: 'storeChange',
+	    },
+	},
+
+	storeChange: function(field, value) {
+	    let view = this.getView();
+	    let nsSelector = view.down('pbsNamespaceSelector');
+	    nsSelector.setDatastore(value);
+	},
+    },
 
     items: {
 	xtype: 'inputpanel',
