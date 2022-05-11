@@ -742,12 +742,13 @@ impl MediaCatalog {
             return Ok((false, None, None));
         }
 
-        if magic == Self::PROXMOX_BACKUP_MEDIA_CATALOG_MAGIC_1_0 {
-            // only use in unreleased versions
-            bail!("old catalog format (v1.0) is no longer supported");
-        }
-        if magic != Self::PROXMOX_BACKUP_MEDIA_CATALOG_MAGIC_1_1 {
-            bail!("wrong magic number");
+        match magic {
+            // only used in unreleased versions
+            Self::PROXMOX_BACKUP_MEDIA_CATALOG_MAGIC_1_0 => {
+                bail!("old catalog format (v1.0) is no longer supported")
+            }
+            Self::PROXMOX_BACKUP_MEDIA_CATALOG_MAGIC_1_1 => {}
+            _ => bail!("wrong magic number"),
         }
 
         let mut entry_type = [0u8; 1];
@@ -800,12 +801,14 @@ impl MediaCatalog {
                     Ok(true) => { /* OK */ }
                     Err(err) => bail!("read failed - {}", err),
                 }
-                if magic == Self::PROXMOX_BACKUP_MEDIA_CATALOG_MAGIC_1_0 {
-                    // only use in unreleased versions
-                    bail!("old catalog format (v1.0) is no longer supported");
-                }
-                if magic != Self::PROXMOX_BACKUP_MEDIA_CATALOG_MAGIC_1_1 {
-                    bail!("wrong magic number");
+
+                match magic {
+                    // only used in unreleased versions
+                    Self::PROXMOX_BACKUP_MEDIA_CATALOG_MAGIC_1_0 => {
+                        bail!("old catalog format (v1.0) is no longer supported")
+                    }
+                    Self::PROXMOX_BACKUP_MEDIA_CATALOG_MAGIC_1_1 => {}
+                    _ => bail!("wrong magic number"),
                 }
                 found_magic_number = true;
                 continue;

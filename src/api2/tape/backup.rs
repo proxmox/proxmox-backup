@@ -10,9 +10,9 @@ use proxmox_schema::api;
 use proxmox_sys::{task_log, task_warn, WorkerTaskContext};
 
 use pbs_api_types::{
-    Authid, BackupNamespace, GroupFilter, MediaPoolConfig, Operation, TapeBackupJobConfig,
-    TapeBackupJobSetup, TapeBackupJobStatus, Userid, JOB_ID_SCHEMA, PRIV_DATASTORE_READ,
-    PRIV_TAPE_AUDIT, PRIV_TAPE_WRITE, UPID_SCHEMA,
+    Authid, GroupFilter, MediaPoolConfig, Operation, TapeBackupJobConfig, TapeBackupJobSetup,
+    TapeBackupJobStatus, Userid, JOB_ID_SCHEMA, PRIV_DATASTORE_READ, PRIV_TAPE_AUDIT,
+    PRIV_TAPE_WRITE, UPID_SCHEMA,
 };
 
 use pbs_config::CachedUserInfo;
