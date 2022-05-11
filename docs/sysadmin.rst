@@ -15,10 +15,8 @@ through that channel. In addition, we provide our own package
 repository to roll out all Proxmox related packages. This includes
 updates to some Debian packages when necessary.
 
-We also deliver a specially optimized Linux kernel, where we enable
-all required virtualization and container features. That kernel
-includes drivers for ZFS_, as well as several hardware drivers. For example,
-we ship Intel network card drivers to support their newest hardware.
+We also deliver a specially optimized Linux kernel, based on the Ubuntu
+kernel. That kernel includes drivers for ZFS_.
 
 The following sections will concentrate on backup related topics. They
 will explain things which are different on `Proxmox Backup`_, or
