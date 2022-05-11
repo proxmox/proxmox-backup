@@ -10,9 +10,9 @@ use proxmox_schema::api;
 use proxmox_sys::{task_log, task_warn, WorkerTaskContext};
 
 use pbs_api_types::{
-    Authid, GroupFilter, MediaPoolConfig, Operation, TapeBackupJobConfig, TapeBackupJobSetup,
-    TapeBackupJobStatus, Userid, JOB_ID_SCHEMA, PRIV_DATASTORE_READ, PRIV_TAPE_AUDIT,
-    PRIV_TAPE_WRITE, UPID_SCHEMA,
+    Authid, BackupNamespace, GroupFilter, MediaPoolConfig, Operation, TapeBackupJobConfig,
+    TapeBackupJobSetup, TapeBackupJobStatus, Userid, JOB_ID_SCHEMA, PRIV_DATASTORE_READ,
+    PRIV_TAPE_AUDIT, PRIV_TAPE_WRITE, UPID_SCHEMA,
 };
 
 use pbs_config::CachedUserInfo;
@@ -404,18 +404,15 @@ fn backup_worker(
     task_log!(worker, "update media online status");
     let changer_name = update_media_online_status(&setup.drive)?;
 
+    let root_namespace = setup.ns.clone().unwrap_or_default();
+    let ns_magic = !root_namespace.is_root() || setup.recursion_depth != Some(0);
+
     let pool = MediaPool::with_config(status_path, pool_config, changer_name, false)?;
 
-    let mut pool_writer = PoolWriter::new(pool, &setup.drive, worker, email, force_media_set)?;
-
-    // FIXME: Namespaces! Probably just recurse for now? Not sure about the usage here...
+    let mut pool_writer =
+        PoolWriter::new(pool, &setup.drive, worker, email, force_media_set, ns_magic)?;
 
     let mut group_list = Vec::new();
-    let root_namespace = if let Some(ns) = &setup.ns {
-        ns.clone()
-    } else {
-        Default::default()
-    };
     let namespaces =
         datastore.recursive_iter_backup_ns_ok(root_namespace, setup.recursion_depth)?;
     for ns in namespaces {

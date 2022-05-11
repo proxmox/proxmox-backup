@@ -39,10 +39,11 @@ use crate::{
         drive::{lock_tape_device, request_and_load_media, set_tape_device_state, TapeDriver},
         file_formats::{
             CatalogArchiveHeader, ChunkArchiveDecoder, ChunkArchiveHeader, SnapshotArchiveHeader,
-            PROXMOX_BACKUP_CATALOG_ARCHIVE_MAGIC_1_0, PROXMOX_BACKUP_CHUNK_ARCHIVE_MAGIC_1_0,
-            PROXMOX_BACKUP_CHUNK_ARCHIVE_MAGIC_1_1, PROXMOX_BACKUP_MEDIA_LABEL_MAGIC_1_0,
-            PROXMOX_BACKUP_MEDIA_SET_LABEL_MAGIC_1_0, PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_0,
-            PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_1,
+            PROXMOX_BACKUP_CATALOG_ARCHIVE_MAGIC_1_0, PROXMOX_BACKUP_CATALOG_ARCHIVE_MAGIC_1_1,
+            PROXMOX_BACKUP_CHUNK_ARCHIVE_MAGIC_1_0, PROXMOX_BACKUP_CHUNK_ARCHIVE_MAGIC_1_1,
+            PROXMOX_BACKUP_MEDIA_LABEL_MAGIC_1_0, PROXMOX_BACKUP_MEDIA_SET_LABEL_MAGIC_1_0,
+            PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_0, PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_1,
+            PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_2,
         },
         lock_media_set, Inventory, MediaCatalog, MediaId, MediaSet, MediaSetCatalog,
         TAPE_STATUS_DIR,
@@ -1096,7 +1097,8 @@ fn restore_snapshots_to_tmpdir(
         }
 
         match header.content_magic {
-            PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_1 => {
+            PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_1
+            | PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_2 => {
                 let header_data = reader.read_exact_allocated(header.size as usize)?;
 
                 let archive_header: SnapshotArchiveHeader = serde_json::from_slice(&header_data)
@@ -1440,7 +1442,7 @@ fn restore_archive<'a>(
         PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_0 => {
             bail!("unexpected snapshot archive version (v1.0)");
         }
-        PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_1 => {
+        PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_1 | PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_2 => {
             let header_data = reader.read_exact_allocated(header.size as usize)?;
 
             let archive_header: SnapshotArchiveHeader = serde_json::from_slice(&header_data)
@@ -1591,7 +1593,7 @@ fn restore_archive<'a>(
 
             reader.skip_data()?; // read all data
         }
-        PROXMOX_BACKUP_CATALOG_ARCHIVE_MAGIC_1_0 => {
+        PROXMOX_BACKUP_CATALOG_ARCHIVE_MAGIC_1_0 | PROXMOX_BACKUP_CATALOG_ARCHIVE_MAGIC_1_1 => {
             let header_data = reader.read_exact_allocated(header.size as usize)?;
 
             let archive_header: CatalogArchiveHeader = serde_json::from_slice(&header_data)
@@ -1937,7 +1939,9 @@ pub fn fast_catalog_restore(
                 bail!("missing MediaContentHeader");
             }
 
-            if header.content_magic == PROXMOX_BACKUP_CATALOG_ARCHIVE_MAGIC_1_0 {
+            if header.content_magic == PROXMOX_BACKUP_CATALOG_ARCHIVE_MAGIC_1_0
+                || header.content_magic == PROXMOX_BACKUP_CATALOG_ARCHIVE_MAGIC_1_1
+            {
                 task_log!(worker, "found catalog at pos {}", current_file_number);
 
                 let header_data = reader.read_exact_allocated(header.size as usize)?;

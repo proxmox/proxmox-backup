@@ -27,6 +27,10 @@ use crate::tape::{
     MediaCatalog, MediaId, MediaPool, COMMIT_BLOCK_SIZE, MAX_CHUNK_ARCHIVE_SIZE, TAPE_STATUS_DIR,
 };
 
+use super::file_formats::{
+    PROXMOX_BACKUP_CATALOG_ARCHIVE_MAGIC_1_0, PROXMOX_BACKUP_CATALOG_ARCHIVE_MAGIC_1_1,
+};
+
 struct PoolWriterState {
     drive: Box<dyn TapeDriver>,
     // Media Uuid from loaded media
@@ -44,6 +48,7 @@ pub struct PoolWriter {
     status: Option<PoolWriterState>,
     catalog_set: Arc<Mutex<CatalogSet>>,
     notify_email: Option<String>,
+    ns_magic: bool,
 }
 
 impl PoolWriter {
@@ -53,6 +58,7 @@ impl PoolWriter {
         worker: &WorkerTask,
         notify_email: Option<String>,
         force_media_set: bool,
+        ns_magic: bool,
     ) -> Result<Self, Error> {
         let current_time = proxmox_time::epoch_i64();
 
@@ -80,6 +86,7 @@ impl PoolWriter {
             status: None,
             catalog_set: Arc::new(Mutex::new(catalog_set)),
             notify_email,
+            ns_magic,
         })
     }
 
@@ -310,6 +317,8 @@ impl PoolWriter {
     /// archive is marked incomplete. The caller should mark the media
     /// as full and try again using another media.
     pub fn append_catalog_archive(&mut self, worker: &WorkerTask) -> Result<bool, Error> {
+        let catalog_magic = self.catalog_version();
+
         let status = match self.status {
             Some(ref mut status) => status,
             None => bail!("PoolWriter - no media loaded"),
@@ -344,8 +353,15 @@ impl PoolWriter {
 
         let mut file = Self::open_catalog_file(uuid)?;
 
-        let done = tape_write_catalog(writer.as_mut(), uuid, media_set.uuid(), seq_nr, &mut file)?
-            .is_some();
+        let done = tape_write_catalog(
+            writer.as_mut(),
+            uuid,
+            media_set.uuid(),
+            seq_nr,
+            &mut file,
+            catalog_magic,
+        )?
+        .is_some();
 
         Ok(done)
     }
@@ -359,6 +375,8 @@ impl PoolWriter {
             return Ok(());
         }
         media_list = &media_list[..(media_list.len() - 1)];
+
+        let catalog_magic = self.catalog_version();
 
         let status = match self.status {
             Some(ref mut status) => status,
@@ -379,8 +397,15 @@ impl PoolWriter {
 
             task_log!(worker, "write catalog for previous media: {}", uuid);
 
-            if tape_write_catalog(writer.as_mut(), uuid, media_set.uuid(), seq_nr, &mut file)?
-                .is_none()
+            if tape_write_catalog(
+                writer.as_mut(),
+                uuid,
+                media_set.uuid(),
+                seq_nr,
+                &mut file,
+                catalog_magic,
+            )?
+            .is_none()
             {
                 bail!("got EOM while writing start catalog");
             }
@@ -498,6 +523,14 @@ impl PoolWriter {
         snapshot_reader: Arc<Mutex<SnapshotReader>>,
     ) -> Result<(std::thread::JoinHandle<()>, NewChunksIterator), Error> {
         NewChunksIterator::spawn(datastore, snapshot_reader, Arc::clone(&self.catalog_set))
+    }
+
+    pub(crate) fn catalog_version(&self) -> [u8; 8] {
+        if self.ns_magic {
+            PROXMOX_BACKUP_CATALOG_ARCHIVE_MAGIC_1_1
+        } else {
+            PROXMOX_BACKUP_CATALOG_ARCHIVE_MAGIC_1_0
+        }
     }
 }
 

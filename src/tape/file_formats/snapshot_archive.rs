@@ -8,7 +8,10 @@ use proxmox_uuid::Uuid;
 use pbs_datastore::SnapshotReader;
 use pbs_tape::{MediaContentHeader, TapeWrite, PROXMOX_TAPE_BLOCK_SIZE};
 
-use crate::tape::file_formats::{SnapshotArchiveHeader, PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_1};
+use crate::tape::file_formats::{
+    SnapshotArchiveHeader, PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_1,
+    PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_2,
+};
 
 /// Write a set of files as `pxar` archive to the tape
 ///
@@ -34,10 +37,13 @@ pub fn tape_write_snapshot_archive<'a>(
         .as_bytes()
         .to_vec();
 
-    let header = MediaContentHeader::new(
-        PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_1,
-        header_data.len() as u32,
-    );
+    let version_magic = if backup_dir.backup_ns().is_root() {
+        PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_1
+    } else {
+        PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_2
+    };
+
+    let header = MediaContentHeader::new(version_magic, header_data.len() as u32);
     let content_uuid = header.uuid.into();
 
     let root_metadata = pxar::Metadata::dir_builder(0o0664).build();

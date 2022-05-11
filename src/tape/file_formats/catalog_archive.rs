@@ -6,7 +6,7 @@ use proxmox_uuid::Uuid;
 
 use pbs_tape::{MediaContentHeader, TapeWrite, PROXMOX_TAPE_BLOCK_SIZE};
 
-use crate::tape::file_formats::{CatalogArchiveHeader, PROXMOX_BACKUP_CATALOG_ARCHIVE_MAGIC_1_0};
+use crate::tape::file_formats::CatalogArchiveHeader;
 
 /// Write a media catalog to the tape
 ///
@@ -21,6 +21,7 @@ pub fn tape_write_catalog<'a>(
     media_set_uuid: &Uuid,
     seq_nr: usize,
     file: &mut File,
+    version: [u8; 8],
 ) -> Result<Option<Uuid>, std::io::Error> {
     let archive_header = CatalogArchiveHeader {
         uuid: uuid.clone(),
@@ -32,10 +33,7 @@ pub fn tape_write_catalog<'a>(
         .as_bytes()
         .to_vec();
 
-    let header = MediaContentHeader::new(
-        PROXMOX_BACKUP_CATALOG_ARCHIVE_MAGIC_1_0,
-        header_data.len() as u32,
-    );
+    let header = MediaContentHeader::new(version, header_data.len() as u32);
     let content_uuid: Uuid = header.uuid.into();
 
     let leom = writer.write_header(&header, &header_data)?;

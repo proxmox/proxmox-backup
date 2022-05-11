@@ -45,10 +45,16 @@ pub const PROXMOX_BACKUP_CHUNK_ARCHIVE_ENTRY_MAGIC_1_0: [u8; 8] =
 pub const PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_0: [u8; 8] = [9, 182, 2, 31, 125, 232, 114, 133];
 // openssl::sha::sha256(b"Proxmox Backup Snapshot Archive v1.1")[0..8];
 pub const PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_1: [u8; 8] = [218, 22, 21, 208, 17, 226, 154, 98];
+// v1.2 introduced an optional, in-line namespace prefix for the snapshot field
+// openssl::sha::sha256(b"Proxmox Backup Snapshot Archive v1.2")[0..8];
+pub const PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_2: [u8; 8] = [98, 16, 54, 155, 186, 16, 51, 29];
 
 // openssl::sha::sha256(b"Proxmox Backup Catalog Archive v1.0")[0..8];
 pub const PROXMOX_BACKUP_CATALOG_ARCHIVE_MAGIC_1_0: [u8; 8] =
     [183, 207, 199, 37, 158, 153, 30, 115];
+// v1.1 introduced an optional, in-line namespace prefix for the snapshot field
+// openssl::sha::sha256(b"Proxmox Backup Catalog Archive v1.1")[0..8];
+pub const PROXMOX_BACKUP_CATALOG_ARCHIVE_MAGIC_1_1: [u8; 8] = [179, 236, 113, 240, 173, 236, 2, 96];
 
 lazy_static::lazy_static! {
     // Map content magic numbers to human readable names.
@@ -60,7 +66,9 @@ lazy_static::lazy_static! {
         map.insert(&PROXMOX_BACKUP_CHUNK_ARCHIVE_MAGIC_1_1, "Proxmox Backup Chunk Archive v1.1");
         map.insert(&PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_0, "Proxmox Backup Snapshot Archive v1.0");
         map.insert(&PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_1, "Proxmox Backup Snapshot Archive v1.1");
+        map.insert(&PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_2, "Proxmox Backup Snapshot Archive v1.2");
         map.insert(&PROXMOX_BACKUP_CATALOG_ARCHIVE_MAGIC_1_0, "Proxmox Backup Catalog Archive v1.0");
+        map.insert(&PROXMOX_BACKUP_CATALOG_ARCHIVE_MAGIC_1_1, "Proxmox Backup Catalog Archive v1.1");
         map
     };
 }
