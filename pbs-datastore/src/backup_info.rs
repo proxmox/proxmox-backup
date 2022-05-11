@@ -13,7 +13,9 @@ use pbs_api_types::{
 };
 use pbs_config::{open_backup_lockfile, BackupLockGuard};
 
-use crate::manifest::{BackupManifest, MANIFEST_BLOB_NAME, MANIFEST_LOCK_NAME};
+use crate::manifest::{
+    BackupManifest, CLIENT_LOG_BLOB_NAME, MANIFEST_BLOB_NAME, MANIFEST_LOCK_NAME,
+};
 use crate::{DataBlob, DataStore};
 
 /// BackupGroup is a directory containing a list of BackupDir
@@ -492,6 +494,40 @@ impl BackupDir {
         update_fn: impl FnOnce(&mut BackupManifest),
     ) -> Result<(), Error> {
         self.store.update_manifest(self, update_fn)
+    }
+
+    /// Cleans up the backup directory by removing any file not mentioned in the manifest.
+    pub fn cleanup_unreferenced_files(&self, manifest: &BackupManifest) -> Result<(), Error> {
+        let full_path = self.full_path();
+
+        let mut wanted_files = std::collections::HashSet::new();
+        wanted_files.insert(MANIFEST_BLOB_NAME.to_string());
+        wanted_files.insert(CLIENT_LOG_BLOB_NAME.to_string());
+        manifest.files().iter().for_each(|item| {
+            wanted_files.insert(item.filename.clone());
+        });
+
+        for item in proxmox_sys::fs::read_subdir(libc::AT_FDCWD, &full_path)?.flatten() {
+            if let Some(file_type) = item.file_type() {
+                if file_type != nix::dir::Type::File {
+                    continue;
+                }
+            }
+            let file_name = item.file_name().to_bytes();
+            if file_name == b"." || file_name == b".." {
+                continue;
+            };
+            if let Ok(name) = std::str::from_utf8(file_name) {
+                if wanted_files.contains(name) {
+                    continue;
+                }
+            }
+            println!("remove unused file {:?}", item.file_name());
+            let dirfd = item.parent_fd();
+            let _res = unsafe { libc::unlinkat(dirfd, item.file_name().as_ptr(), 0) };
+        }
+
+        Ok(())
     }
 }
 

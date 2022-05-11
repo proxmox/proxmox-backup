@@ -28,9 +28,7 @@ use crate::chunk_store::ChunkStore;
 use crate::dynamic_index::{DynamicIndexReader, DynamicIndexWriter};
 use crate::fixed_index::{FixedIndexReader, FixedIndexWriter};
 use crate::index::IndexFile;
-use crate::manifest::{
-    archive_type, ArchiveType, BackupManifest, CLIENT_LOG_BLOB_NAME, MANIFEST_BLOB_NAME,
-};
+use crate::manifest::{archive_type, ArchiveType, BackupManifest, MANIFEST_BLOB_NAME};
 use crate::task_tracking::update_active_operations;
 use crate::DataBlob;
 
@@ -358,55 +356,6 @@ impl DataStore {
             path.push(part);
         }
         path
-    }
-
-    /// Cleanup a backup directory
-    ///
-    /// Removes all files not mentioned in the manifest.
-    pub fn cleanup_backup_dir(
-        &self,
-        backup_dir: impl AsRef<pbs_api_types::BackupDir>,
-        manifest: &BackupManifest,
-    ) -> Result<(), Error> {
-        self.cleanup_backup_dir_do(backup_dir.as_ref(), manifest)
-    }
-
-    fn cleanup_backup_dir_do(
-        &self,
-        backup_dir: &pbs_api_types::BackupDir,
-        manifest: &BackupManifest,
-    ) -> Result<(), Error> {
-        let mut full_path = self.base_path();
-        full_path.push(backup_dir.to_string());
-
-        let mut wanted_files = HashSet::new();
-        wanted_files.insert(MANIFEST_BLOB_NAME.to_string());
-        wanted_files.insert(CLIENT_LOG_BLOB_NAME.to_string());
-        manifest.files().iter().for_each(|item| {
-            wanted_files.insert(item.filename.clone());
-        });
-
-        for item in proxmox_sys::fs::read_subdir(libc::AT_FDCWD, &full_path)?.flatten() {
-            if let Some(file_type) = item.file_type() {
-                if file_type != nix::dir::Type::File {
-                    continue;
-                }
-            }
-            let file_name = item.file_name().to_bytes();
-            if file_name == b"." || file_name == b".." {
-                continue;
-            };
-            if let Ok(name) = std::str::from_utf8(file_name) {
-                if wanted_files.contains(name) {
-                    continue;
-                }
-            }
-            println!("remove unused file {:?}", item.file_name());
-            let dirfd = item.parent_fd();
-            let _res = unsafe { libc::unlinkat(dirfd, item.file_name().as_ptr(), 0) };
-        }
-
-        Ok(())
     }
 
     /// Returns the absolute path for a backup_group

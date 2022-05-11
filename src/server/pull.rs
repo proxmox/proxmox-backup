@@ -506,10 +506,7 @@ async fn pull_snapshot(
         try_client_log_download(worker, reader, &client_log_name).await?;
     }
 
-    // cleanup - remove stale files
-    snapshot
-        .datastore()
-        .cleanup_backup_dir(snapshot, &manifest)?;
+    snapshot.cleanup_unreferenced_files(&manifest)?;
 
     Ok(())
 }
