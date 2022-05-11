@@ -142,9 +142,11 @@ Ext.define('PBS.DataStoreContent', {
 
 	updateGroupNotes: async function(view) {
 	    try {
-		let { result: { data: groups } } = await Proxmox.Async.api2({
-		    url: `/api2/extjs/admin/datastore/${view.datastore}/groups`,
-		});
+		let url = `/api2/extjs/admin/datastore/${view.datastore}/groups`;
+		if (view.namespace && view.namespace !== '') {
+		    url += `?backup-ns=${encodeURIComponent(view.namespace)}`;
+		}
+		let { result: { data: groups } } = await Proxmox.Async.api2({ url });
 		let map = {};
 		for (const group of groups) {
 		    map[`${group["backup-type"]}/${group["backup-id"]}`] = group.comment;
