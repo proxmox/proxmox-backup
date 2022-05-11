@@ -702,25 +702,22 @@ impl BackupNamespace {
         source_prefix: &BackupNamespace,
         target_prefix: &BackupNamespace,
     ) -> Result<Self, Error> {
-        let mut mapped = target_prefix.clone();
-        let mut source_iter = source_prefix.components();
-        let mut self_iter = self.components();
+        let suffix = self
+            .inner
+            .strip_prefix(&source_prefix.inner[..])
+            .ok_or_else(|| {
+                format_err!(
+                    "Failed to map namespace - {} is not a valid prefix of {}",
+                    source_prefix,
+                    self
+                )
+            })?;
 
-        while let Some(comp) = self_iter.next() {
-            if let Some(source_comp) = source_iter.next() {
-                if source_comp != comp {
-                    bail!(
-                        "Failed to map namespace - {} is not a valid prefix of {}",
-                        source_prefix,
-                        self
-                    );
-                }
-                continue;
-            }
-            mapped.push(comp.to_owned())?;
+        let mut new = target_prefix.clone();
+        for item in suffix {
+            new.push(item.clone())?;
         }
-
-        Ok(mapped)
+        Ok(new)
     }
 }
 
