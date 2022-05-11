@@ -181,13 +181,22 @@ manually selected kernels, for example:
 Determine which Bootloader is Used
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+.. image:: images/screenshots/boot-grub.png
+  :target: _images/boot-grub.png
+  :align: left
+  :alt: Grub boot screen
 
 The simplest and most reliable way to determine which bootloader is used, is to
 watch the boot process of the `Proxmox Backup`_ node.
 
+
 You will either see the blue box of ``grub`` or the simple black on white
 ``systemd-boot``.
 
+.. image:: images/screenshots/boot-systemdboot.png
+  :target: _images/boot-systemdboot.png
+  :align: right
+  :alt: systemd-boot screen
 
 Determining the bootloader from a running system might not be 100% accurate. The
 safest way is to run the following command:
