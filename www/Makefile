@@ -45,6 +45,7 @@ JSSRC=							\
 	form/PermissionPathSelector.js			\
 	form/GroupSelector.js				\
 	form/GroupFilter.js				\
+	form/VerifyOutdatedAfter.js			\
 	data/RunningTasksStore.js			\
 	button/TaskButton.js				\
 	config/UserView.js				\
