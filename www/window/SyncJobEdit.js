@@ -32,6 +32,22 @@ Ext.define('PBS.window.SyncJobEdit', {
 	return { };
     },
 
+    controller: {
+	xclass: 'Ext.app.ViewController',
+	control: {
+	    'pbsDataStoreSelector[name=store]': {
+		change: 'storeChange',
+	    },
+	},
+
+	storeChange: function(field, value) {
+	    let view = this.getView();
+	    let nsSelector = view.down('pbsNamespaceSelector[name=ns]');
+	    nsSelector.setDatastore(value);
+	},
+    },
+
+
     items: {
 	xtype: 'tabpanel',
 	bodyPadding: 10,
@@ -69,19 +85,13 @@ Ext.define('PBS.window.SyncJobEdit', {
 			    allowBlank: false,
 			},
 		    },
-		    // TODO: make this hot-reloadable based on local store selection?
 		    {
-			xtype: 'pmxDisplayEditField',
+			xtype: 'pbsNamespaceSelector',
 			fieldLabel: gettext('Local Namespace'),
 			name: 'ns',
 			cbind: {
 			    datastore: '{datastore}',
 			},
-			editable: true,
-			submitValue: true,
-			//editConfig: {
-			//	xtype: 'pbsNamespaceSelector',
-			//},
 		    },
 		    {
 			fieldLabel: gettext('Local Owner'),
