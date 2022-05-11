@@ -391,13 +391,12 @@ async fn pull_snapshot(
                     StatusCode::NOT_FOUND => {
                         task_log!(
                             worker,
-                            "skipping snapshot {} - vanished since start of sync",
-                            snapshot
+                            "skipping snapshot {snapshot} - vanished since start of sync",
                         );
                         return Ok(());
                     }
                     _ => {
-                        bail!("HTTP error {} - {}", code, message);
+                        bail!("HTTP error {code} - {message}");
                     }
                 },
                 None => {
@@ -411,22 +410,14 @@ async fn pull_snapshot(
     if manifest_name.exists() {
         let manifest_blob = proxmox_lang::try_block!({
             let mut manifest_file = std::fs::File::open(&manifest_name).map_err(|err| {
-                format_err!(
-                    "unable to open local manifest {:?} - {}",
-                    manifest_name,
-                    err
-                )
+                format_err!("unable to open local manifest {manifest_name:?} - {err}")
             })?;
 
             let manifest_blob = DataBlob::load_from_reader(&mut manifest_file)?;
             Ok(manifest_blob)
         })
         .map_err(|err: Error| {
-            format_err!(
-                "unable to read local manifest {:?} - {}",
-                manifest_name,
-                err
-            )
+            format_err!("unable to read local manifest {manifest_name:?} - {err}")
         })?;
 
         if manifest_blob.raw_data() == tmp_manifest_blob.raw_data() {
