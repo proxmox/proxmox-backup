@@ -381,8 +381,7 @@ impl BackupDir {
     }
 
     pub fn protected_file(&self) -> PathBuf {
-        let mut path = self.store.base_path();
-        path.push(self.relative_path());
+        let mut path = self.full_path();
         path.push(".protected");
         path
     }
