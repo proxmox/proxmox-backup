@@ -497,7 +497,9 @@ async fn pull_snapshot(
         try_client_log_download(worker, reader, &client_log_name).await?;
     }
 
-    snapshot.cleanup_unreferenced_files(&manifest)?;
+    snapshot
+        .cleanup_unreferenced_files(&manifest)
+        .map_err(|err| format_err!("failed to cleanup unreferenced files - {err}"))?;
 
     Ok(())
 }
