@@ -9,7 +9,7 @@ Ext.define('PBS.window.SyncJobEdit', {
 
     isAdd: true,
 
-    subject: gettext('SyncJob'),
+    subject: gettext('Sync Job'),
 
     bodyPadding: 0,
 

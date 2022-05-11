@@ -42,8 +42,7 @@ Ext.define('PBS.form.RemoteStoreSelector', {
 
 	me.remote = remote;
 
-	let store = me.store;
-	store.removeAll();
+	me.store.removeAll();
 
 	if (me.remote) {
 	    me.setDisabled(false);
@@ -51,8 +50,8 @@ Ext.define('PBS.form.RemoteStoreSelector', {
 		me.clearValue();
 	    }
 
-	    store.proxy.url = '/api2/json/config/remote/' + encodeURIComponent(me.remote) + '/scan';
-	    store.load();
+	    me.store.proxy.url = `/api2/json/config/remote/${encodeURIComponent(me.remote)}/scan`;
+	    me.store.load();
 
 	    me.firstLoad = false;
 	} else {
@@ -122,15 +121,12 @@ Ext.define('PBS.form.RemoteNamespaceSelector', {
 
     setRemote: function(remote) {
 	let me = this;
-
 	if (me.remote === remote) {
 	    return;
 	}
-
 	me.remote = remote;
 
-	let store = me.store;
-	store.removeAll();
+	me.store.removeAll();
 
 	me.setDisabled(true);
 	me.clearValue();
@@ -138,24 +134,23 @@ Ext.define('PBS.form.RemoteNamespaceSelector', {
 
     setRemoteStore: function(remoteStore) {
 	let me = this;
-
 	if (me.remoteStore === remoteStore) {
 	    return;
 	}
-
 	me.remoteStore = remoteStore;
 
-	let store = me.store;
-	store.removeAll();
+	me.store.removeAll();
 
 	if (me.remote && me.remoteStore) {
 	    me.setDisabled(false);
 	    if (!me.firstLoad) {
 		me.clearValue();
 	    }
+	    let encodedRemote = encodeURIComponent(me.remote);
+	    let encodedStore = encodeURIComponent(me.remoteStore);
 
-	    store.proxy.url = '/api2/json/config/remote/' + encodeURIComponent(me.remote) + '/scan/' + encodeURIComponent(me.remoteStore) + '/namespaces';
-	    store.load();
+	    me.store.proxy.url = `/api2/json/config/remote/${encodedRemote}/scan/${encodedStore}/namespaces`;
+	    me.store.load();
 
 	    me.firstLoad = false;
 	} else {
@@ -173,11 +168,10 @@ Ext.define('PBS.form.RemoteNamespaceSelector', {
 	    fields: ['ns', 'comment'],
 	    proxy: {
 		type: 'proxmox',
-		url: '/api2/json/config/remote/' + encodeURIComponent(me.remote) + '/scan',
+		url: `/api2/json/config/remote/${encodeURIComponent(me.remote)}/scan`,
 	    },
 	});
-
-	store.sort('store', 'ASC');
+	store.sort('ns', 'ASC');
 
 	Ext.apply(me, {
 	    store: store,
