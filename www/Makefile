@@ -41,6 +41,7 @@ JSSRC=							\
 	form/RemoteSelector.js				\
 	form/DataStoreSelector.js			\
 	form/NamespaceSelector.js			\
+	form/NamespaceMaxDepth.js			\
 	form/CalendarEvent.js				\
 	form/PermissionPathSelector.js			\
 	form/GroupSelector.js				\

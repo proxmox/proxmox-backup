@@ -31,7 +31,7 @@ Ext.define('PBS.window.VerifyJobEdit', {
 
     viewModel: {
 	data: {
-	    'ignore-verified': true,
+	    'ignoreVerified': true,
 	},
     },
 
@@ -61,6 +61,23 @@ Ext.define('PBS.window.VerifyJobEdit', {
 		},
 	    },
 	    {
+		xtype: 'pbsNamespaceSelector',
+		name: 'ns',
+		fieldLabel: gettext('Namespace'),
+		cbind: {
+		    datastore: '{datastore}',
+		},
+	    },
+	    {
+		xtype: 'pbsNamespaceMaxDepth',
+		name: 'max-depth',
+		fieldLabel: gettext('Max. Depth'),
+		deleteEmpty: true,
+	    },
+	],
+
+	column2: [
+	    {
 		xtype: 'pbsCalendarEvent',
 		name: 'schedule',
 		fieldLabel: gettext('Schedule'),
@@ -70,35 +87,43 @@ Ext.define('PBS.window.VerifyJobEdit', {
 		    deleteEmpty: '{!isCreate}',
 		},
 	    },
-	],
-
-	column2: [
 	    {
 		xtype: 'proxmoxcheckbox',
 		name: 'ignore-verified',
-		fieldLabel: gettext('Skip verified snapshots'),
-		labelWidth: 150,
+		fieldLabel: gettext('Skip Verified'),
 		uncheckedValue: false,
 		value: true,
 		bind: {
-		    value: '{ignore-verified}',
+		    value: '{ignoreVerified}',
 		},
 	    },
 	    {
-		xtype: 'proxmoxintegerfield',
-		name: 'outdated-after',
-		fieldLabel: gettext('Re-Verify After (days)'),
-		labelWidth: 150,
-		minValue: 1,
-		value: 30,
-		allowBlank: true,
-		emptyText: gettext('Never'),
-		bind: {
-		    disabled: '{!ignore-verified}',
-		},
-		cbind: {
-		    deleteEmpty: '{!isCreate}',
-		},
+		xtype: 'fieldcontainer',
+		layout: 'hbox',
+		fieldLabel: gettext('Re-Verify After'),
+		items: [
+		    {
+			xtype: 'pbsVerifyOutdatedAfter',
+			name: 'outdated-after',
+			bind: {
+			    disabled: '{!ignoreVerified}',
+			},
+			cbind: {
+			    deleteEmpty: '{!isCreate}',
+			},
+			flex: 1,
+		    },
+		    {
+			xtype: 'displayfield',
+			padding: '0 0 0 5',
+			name: 'unit',
+			submitValue: false,
+			value: gettext('days'),
+			bind: {
+			    disabled: '{!ignoreVerified}',
+			},
+		    },
+		],
 	    },
 	],
 
