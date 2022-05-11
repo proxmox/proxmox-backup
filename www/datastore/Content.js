@@ -361,26 +361,14 @@ Ext.define('PBS.DataStoreContent', {
 	},
 
 	verifyAll: function() {
-	    var view = this.getView();
+	    let me = this;
+	    let view = me.getView();
 
-	    let params = {};
-	    if (view.namespace && view.namespace !== '') {
-		params['backup-ns'] = view.namespace; // TODO backend?!
-	    }
-
-	    Proxmox.Utils.API2Request({
-		url: `/admin/datastore/${view.datastore}/verify`,
-		params,
-		method: 'POST',
-		failure: function(response) {
-		    Ext.Msg.alert(gettext('Error'), response.htmlStatus);
-		},
-		success: function(response, options) {
-		    Ext.create('Proxmox.window.TaskViewer', {
-			autoShow: true,
-			upid: response.result.data,
-		    });
-		},
+	    Ext.create('PBS.window.VerifyAll', {
+		taskDone: () => me.reload(),
+		autoShow: true,
+		datastore: view.datastore,
+		namespace: view.namespace,
 	    });
 	},
 
@@ -393,17 +381,13 @@ Ext.define('PBS.DataStoreContent', {
 	    Ext.create('Proxmox.window.Edit', {
 		title: `Prune Datastore '${view.datastore}'`,
 		onlineHelp: 'maintenance_pruning',
-
 		method: 'POST',
 		submitText: "Prune",
 		autoShow: true,
 		isCreate: true,
 		showTaskViewer: true,
-
 		taskDone: () => me.reload(),
-
 		url: `/api2/extjs/admin/datastore/${view.datastore}/prune-datastore`,
-
 		items: [
 		    {
 			xtype: 'pbsPruneInputPanel',
@@ -1089,7 +1073,6 @@ Ext.define('PBS.DataStoreContent', {
 	{
 	    xtype: 'proxmoxButton',
 	    text: gettext('Verify All'),
-	    confirmMsg: gettext('Do you want to verify all snapshots now?'),
 	    handler: 'verifyAll',
 	},
 	{

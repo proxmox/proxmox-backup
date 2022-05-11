@@ -76,6 +76,7 @@ JSSRC=							\
 	window/Settings.js				\
 	window/TokenEdit.js				\
 	window/VerifyJobEdit.js				\
+	window/VerifyAll.js				\
 	window/ZFSCreate.js				\
 	dashboard/DataStoreStatistics.js		\
 	dashboard/LongestTasks.js			\
