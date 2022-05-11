@@ -368,7 +368,7 @@ impl BackupDir {
     }
 
     pub fn relative_path(&self) -> PathBuf {
-        let mut path = self.store.namespace_path(&self.ns);
+        let mut path = self.ns.path();
         path.push(self.dir.group.ty.as_str());
         path.push(&self.dir.group.id);
         path.push(&self.backup_time_string);
