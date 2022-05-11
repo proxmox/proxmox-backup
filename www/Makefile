@@ -39,6 +39,7 @@ JSSRC=							\
 	form/TokenSelector.js				\
 	form/AuthidSelector.js				\
 	form/RemoteSelector.js				\
+	form/RemoteTargetSelector.js   			\
 	form/DataStoreSelector.js			\
 	form/NamespaceSelector.js			\
 	form/NamespaceMaxDepth.js			\
