@@ -80,6 +80,7 @@ pub fn update_active_operations(name: &str, operation: Operation, count: i64) ->
                             match operation {
                                 Operation::Read => task.active_operations.read += count,
                                 Operation::Write => task.active_operations.write += count,
+                                Operation::Lookup => (), // no IO must happen there
                             };
                         }
                         Some(task.clone())
@@ -98,6 +99,7 @@ pub fn update_active_operations(name: &str, operation: Operation, count: i64) ->
             active_operations: match operation {
                 Operation::Read => ActiveOperationStats { read: 1, write: 0 },
                 Operation::Write => ActiveOperationStats { read: 0, write: 1 },
+                Operation::Lookup => ActiveOperationStats { read: 0, write: 0 },
             },
         })
     }
