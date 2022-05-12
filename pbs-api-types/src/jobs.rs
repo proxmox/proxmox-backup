@@ -473,8 +473,8 @@ pub struct SyncJobConfig {
     pub remote_ns: Option<BackupNamespace>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub remove_vanished: Option<bool>,
-    #[serde(default)]
-    pub max_depth: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_depth: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]

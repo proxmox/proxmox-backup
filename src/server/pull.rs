@@ -54,8 +54,8 @@ pub struct PullParameters {
     owner: Authid,
     /// Whether to remove groups which exist locally, but not on the remote end
     remove_vanished: bool,
-    /// How many levels of sub-namespaces to pull (0 == no recursion)
-    max_depth: usize,
+    /// How many levels of sub-namespaces to pull (0 == no recursion, None == maximum recursion)
+    max_depth: Option<usize>,
     /// Filters for reducing the pull scope
     group_filter: Option<Vec<GroupFilter>>,
     /// Rate limits for all transfers from `remote`
@@ -75,13 +75,14 @@ impl PullParameters {
         remote_ns: BackupNamespace,
         owner: Authid,
         remove_vanished: Option<bool>,
-        max_depth: usize,
+        max_depth: Option<usize>,
         group_filter: Option<Vec<GroupFilter>>,
         limit: RateLimitConfig,
     ) -> Result<Self, Error> {
         let store = DataStore::lookup_datastore(store, Some(Operation::Write))?;
 
-        let max_depth = min(max_depth, MAX_NAMESPACE_DEPTH - remote_ns.depth());
+        let max_depth =
+            max_depth.map(|max_depth| min(max_depth, MAX_NAMESPACE_DEPTH - remote_ns.depth()));
 
         let (remote_config, _digest) = pbs_config::remote::config()?;
         let remote: Remote = remote_config.lookup("remote", remote)?;
@@ -749,11 +750,11 @@ async fn query_namespaces(
         "api2/json/admin/datastore/{}/namespace",
         params.source.store()
     );
-    let data = json!({
-        "max-depth": params.max_depth,
-    });
+    let data = params
+        .max_depth
+        .map(|max_depth| json!({ "max-depth": max_depth }));
     let mut result = client
-        .get(&path, Some(data))
+        .get(&path, data)
         .await
         .map_err(|err| format_err!("Failed to retrieve namespaces from remote - {}", err))?;
     let mut list: Vec<NamespaceListItem> = serde_json::from_value(result["data"].take())?;
@@ -846,7 +847,7 @@ fn check_and_remove_vanished_ns(
 
     let mut local_ns_list: Vec<BackupNamespace> = params
         .store
-        .recursive_iter_backup_ns_ok(params.ns.clone(), Some(params.max_depth))?
+        .recursive_iter_backup_ns_ok(params.ns.clone(), params.max_depth)?
         .filter(|ns| {
             let store_with_ns = params.store_with_ns(ns.clone());
             let user_privs = user_info.lookup_privs(&params.owner, &store_with_ns.acl_path());
@@ -911,7 +912,7 @@ pub async fn pull_store(
     // explicit create shared lock to prevent GC on newly created chunks
     let _shared_store_lock = params.store.try_shared_chunk_store_lock()?;
 
-    let namespaces = if params.remote_ns.is_root() && params.max_depth == 0 {
+    let namespaces = if params.remote_ns.is_root() && params.max_depth == Some(0) {
         vec![params.remote_ns.clone()] // backwards compat - don't query remote namespaces!
     } else {
         query_namespaces(client, &params).await?
@@ -959,7 +960,7 @@ pub async fn pull_store(
             Ok((ns_progress, ns_errors)) => {
                 errors |= ns_errors;
 
-                if params.max_depth > 0 {
+                if params.max_depth != Some(0) {
                     groups += ns_progress.done_groups;
                     snapshots += ns_progress.done_snapshots;
                     task_log!(

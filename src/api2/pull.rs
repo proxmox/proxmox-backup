@@ -233,7 +233,6 @@ async fn pull(
     let delete = remove_vanished.unwrap_or(false);
 
     let ns = ns.unwrap_or_default();
-    let max_depth = max_depth.unwrap_or(0);
     let ns_str = if ns.is_root() {
         None
     } else {

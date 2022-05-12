@@ -221,6 +221,8 @@ pub enum DeletableProperty {
     ns,
     /// Delete the remote_ns property,
     remote_ns,
+    /// Delete the max_depth property,
+    max_depth,
 }
 
 #[api(
@@ -312,6 +314,9 @@ pub fn update_sync_job(
                 DeletableProperty::remote_ns => {
                     data.remote_ns = None;
                 }
+                DeletableProperty::max_depth => {
+                    data.max_depth = None;
+                }
             }
         }
     }
@@ -341,7 +346,9 @@ pub fn update_sync_job(
         data.store = store;
     }
     if let Some(ns) = update.ns {
-        check_max_depth(&ns, update.max_depth.unwrap_or(data.max_depth))?;
+        if let Some(explicit_depth) = update.max_depth.or(data.max_depth) {
+            check_max_depth(&ns, explicit_depth)?;
+        }
         data.ns = Some(ns);
     }
     if let Some(remote) = update.remote {
@@ -351,7 +358,9 @@ pub fn update_sync_job(
         data.remote_store = remote_store;
     }
     if let Some(remote_ns) = update.remote_ns {
-        check_max_depth(&remote_ns, update.max_depth.unwrap_or(data.max_depth))?;
+        if let Some(explicit_depth) = update.max_depth.or(data.max_depth) {
+            check_max_depth(&remote_ns, explicit_depth)?;
+        }
         data.remote_ns = Some(remote_ns);
     }
     if let Some(owner) = update.owner {
@@ -391,7 +400,7 @@ pub fn update_sync_job(
         if let Some(ref ns) = data.remote_ns {
             check_max_depth(ns, max_depth)?;
         }
-        data.max_depth = max_depth;
+        data.max_depth = Some(max_depth);
     }
 
     if !check_sync_job_modify_access(&user_info, &auth_id, &data) {
@@ -517,7 +526,7 @@ acl:1:/remote/remote1/remotestore1:write@pbs:RemoteSyncOperator
         owner: Some(write_auth_id.clone()),
         comment: None,
         remove_vanished: None,
-        max_depth: 0,
+        max_depth: None,
         group_filter: None,
         schedule: None,
         limit: pbs_api_types::RateLimitConfig::default(), // no limit
