@@ -742,9 +742,11 @@ async fn pull_group(
     Ok(())
 }
 
+// will modify params if switching to backwards mode for lack of NS support on remote end
 async fn query_namespaces(
+    worker: &WorkerTask,
     client: &HttpClient,
-    params: &PullParameters,
+    params: &mut PullParameters,
 ) -> Result<Vec<BackupNamespace>, Error> {
     let path = format!(
         "api2/json/admin/datastore/{}/namespace",
@@ -753,10 +755,32 @@ async fn query_namespaces(
     let data = params
         .max_depth
         .map(|max_depth| json!({ "max-depth": max_depth }));
-    let mut result = client
-        .get(&path, data)
-        .await
-        .map_err(|err| format_err!("Failed to retrieve namespaces from remote - {}", err))?;
+
+    let mut result = match client.get(&path, data).await {
+        Ok(res) => res,
+        Err(err) => match err.downcast_ref::<HttpError>() {
+            Some(HttpError { code, message }) => match *code {
+                StatusCode::NOT_FOUND => {
+                    if params.remote_ns.is_root() && params.max_depth.is_none() {
+                        task_log!(worker, "Could not query remote for namespaces (404) -> temporarily switching to backwards-compat mode");
+                        task_log!(worker, "Either make backwards-compat mode explicit (max-depth == 0) or upgrade remote system.");
+                        params.max_depth = Some(0);
+                    } else {
+                        bail!("Remote namespace set/recursive sync requested, but remote does not support namespaces.")
+                    }
+
+                    return Ok(vec![params.remote_ns.clone()]);
+                }
+                _ => {
+                    bail!("Querying namespaces failed - HTTP error {code} - {message}");
+                }
+            },
+            None => {
+                bail!("Querying namespaces failed - {err}");
+            }
+        },
+    };
+
     let mut list: Vec<NamespaceListItem> = serde_json::from_value(result["data"].take())?;
 
     // parents first
@@ -911,16 +935,18 @@ pub async fn pull_store(
 ) -> Result<(), Error> {
     // explicit create shared lock to prevent GC on newly created chunks
     let _shared_store_lock = params.store.try_shared_chunk_store_lock()?;
+    let mut errors = false;
 
+    let old_max_depth = params.max_depth;
     let namespaces = if params.remote_ns.is_root() && params.max_depth == Some(0) {
         vec![params.remote_ns.clone()] // backwards compat - don't query remote namespaces!
     } else {
-        query_namespaces(client, &params).await?
+        query_namespaces(worker, client, &mut params).await?
     };
+    errors |= old_max_depth != params.max_depth; // fail job if we switched to backwards-compat mode
 
     let (mut groups, mut snapshots) = (0, 0);
     let mut synced_ns = HashSet::with_capacity(namespaces.len());
-    let mut errors = false;
 
     for namespace in namespaces {
         let source_store_ns = DatastoreWithNamespace {
