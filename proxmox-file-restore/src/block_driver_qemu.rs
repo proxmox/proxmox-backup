@@ -10,7 +10,7 @@ use serde_json::json;
 
 use proxmox_sys::fs::lock_file;
 
-use pbs_api_types::BackupDir;
+use pbs_api_types::{BackupDir, BackupNamespace};
 use pbs_client::{BackupRepository, VsockClient, DEFAULT_VSOCK_PORT};
 use pbs_datastore::catalog::ArchiveEntry;
 
@@ -78,8 +78,12 @@ impl VMStateMap {
     }
 }
 
-fn make_name(repo: &BackupRepository, snap: &BackupDir) -> String {
-    let full = format!("qemu_{}/{}", repo, snap);
+fn make_name(repo: &BackupRepository, ns: &BackupNamespace, snap: &BackupDir) -> String {
+    let full = if ns.is_root() {
+        format!("qemu_{}/{}", repo, snap)
+    } else {
+        format!("qemu_{}:{}/{}", repo, ns, snap)
+    };
     proxmox_sys::systemd::escape_unit(&full, false)
 }
 
@@ -114,7 +118,7 @@ fn new_ticket() -> String {
 }
 
 async fn ensure_running(details: &SnapRestoreDetails) -> Result<VsockClient, Error> {
-    let name = make_name(&details.repo, &details.snapshot);
+    let name = make_name(&details.repo, &details.namespace, &details.snapshot);
     let mut state = VMStateMap::load()?;
 
     cleanup_map(&mut state.map).await;

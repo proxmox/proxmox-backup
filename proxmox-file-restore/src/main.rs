@@ -95,7 +95,7 @@ fn keyfile_path(param: &Value) -> Option<String> {
 
 async fn list_files(
     repo: BackupRepository,
-    ns: BackupNamespace,
+    namespace: BackupNamespace,
     snapshot: BackupDir,
     path: ExtractPath,
     crypt_config: Option<Arc<CryptConfig>>,
@@ -107,7 +107,7 @@ async fn list_files(
         client,
         crypt_config.clone(),
         repo.store(),
-        &ns,
+        &namespace,
         &snapshot,
         true,
     )
@@ -163,6 +163,7 @@ async fn list_files(
             let details = SnapRestoreDetails {
                 manifest,
                 repo,
+                namespace,
                 snapshot,
                 keyfile,
             };
@@ -395,7 +396,7 @@ async fn extract(
     param: Value,
 ) -> Result<(), Error> {
     let repo = extract_repository_from_value(&param)?;
-    let ns = ns.unwrap_or_default();
+    let namespace = ns.unwrap_or_default();
     let snapshot: BackupDir = snapshot.parse()?;
     let orig_path = path;
     let path = parse_path(orig_path.clone(), base64)?;
@@ -425,7 +426,7 @@ async fn extract(
         client,
         crypt_config.clone(),
         repo.store(),
-        &ns,
+        &namespace,
         &snapshot,
         true,
     )
@@ -456,6 +457,7 @@ async fn extract(
             let details = SnapRestoreDetails {
                 manifest,
                 repo,
+                namespace,
                 snapshot,
                 keyfile,
             };

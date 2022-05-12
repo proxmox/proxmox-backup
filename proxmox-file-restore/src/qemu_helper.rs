@@ -209,9 +209,14 @@ pub async fn start_vm(
         } else {
             "".to_owned()
         };
+        let namespace = if details.namespace.is_root() {
+            String::new()
+        } else {
+            format!(",,namespace={}", details.namespace)
+        };
         drives.push(format!(
-            "file=pbs:repository={},,snapshot={},,archive={}{},read-only=on,if=none,id=drive{}",
-            details.repo, details.snapshot, file, keyfile, id
+            "file=pbs:repository={}{},,snapshot={},,archive={}{},read-only=on,if=none,id=drive{}",
+            details.repo, namespace, details.snapshot, file, keyfile, id
         ));
 
         // a PCI bus can only support 32 devices, so add a new one every 32

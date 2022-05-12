@@ -11,7 +11,7 @@ use serde_json::{json, Value};
 use proxmox_router::cli::*;
 use proxmox_schema::api;
 
-use pbs_api_types::BackupDir;
+use pbs_api_types::{BackupDir, BackupNamespace};
 use pbs_client::BackupRepository;
 use pbs_datastore::catalog::ArchiveEntry;
 use pbs_datastore::manifest::BackupManifest;
@@ -21,6 +21,7 @@ use super::block_driver_qemu::QemuBlockDriver;
 /// Contains details about a snapshot that is to be accessed by block file restore
 pub struct SnapRestoreDetails {
     pub repo: BackupRepository,
+    pub namespace: BackupNamespace,
     pub snapshot: BackupDir,
     pub manifest: BackupManifest,
     pub keyfile: Option<String>,
