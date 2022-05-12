@@ -55,8 +55,7 @@ impl ServerAdapter for MinimalServer {
         })
     }
 
-    // this should return the index page of the webserver
-    // iow. what the user browses to
+    // this should return the index page of the webserver, iow. what the user browses to
     fn get_index(
         &self,
         _env: RestEnvironment,
@@ -208,8 +207,7 @@ async fn run() -> Result<(), Error> {
     )?;
     let rest_server = RestServer::new(config);
 
-    // then we have to create a daemon that listens, accepts and serves
-    // the api to clients
+    // then we have to create a daemon that listens, accepts and serves the api to clients
     proxmox_rest_server::daemon::create_daemon(
         ([127, 0, 0, 1], 65000).into(),
         move |listener| {
