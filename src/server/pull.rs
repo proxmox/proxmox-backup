@@ -906,7 +906,7 @@ fn check_and_remove_vanished_ns(
 pub async fn pull_store(
     worker: &WorkerTask,
     client: &HttpClient,
-    params: &PullParameters,
+    mut params: PullParameters,
 ) -> Result<(), Error> {
     // explicit create shared lock to prevent GC on newly created chunks
     let _shared_store_lock = params.store.try_shared_chunk_store_lock()?;
@@ -914,7 +914,7 @@ pub async fn pull_store(
     let namespaces = if params.remote_ns.is_root() && params.max_depth == 0 {
         vec![params.remote_ns.clone()] // backwards compat - don't query remote namespaces!
     } else {
-        query_namespaces(client, params).await?
+        query_namespaces(client, &params).await?
     };
 
     let (mut groups, mut snapshots) = (0, 0);
@@ -939,7 +939,7 @@ pub async fn pull_store(
 
         synced_ns.insert(target_ns.clone());
 
-        match check_and_create_ns(params, &target_store_ns) {
+        match check_and_create_ns(&params, &target_store_ns) {
             Ok(true) => task_log!(worker, "Created namespace {}", target_ns),
             Ok(false) => {}
             Err(err) => {
@@ -955,7 +955,7 @@ pub async fn pull_store(
             }
         }
 
-        match pull_ns(worker, client, params, namespace.clone(), target_ns).await {
+        match pull_ns(worker, client, &params, namespace.clone(), target_ns).await {
             Ok((ns_progress, ns_errors)) => {
                 errors |= ns_errors;
 
@@ -984,7 +984,7 @@ pub async fn pull_store(
     }
 
     if params.remove_vanished {
-        errors |= check_and_remove_vanished_ns(worker, params, synced_ns)?;
+        errors |= check_and_remove_vanished_ns(worker, &params, synced_ns)?;
     }
 
     if errors {

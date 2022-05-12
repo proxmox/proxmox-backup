@@ -128,7 +128,7 @@ pub fn do_sync_job(
                     sync_job.remote_store,
                 );
 
-                pull_store(&worker, &client, &pull_params).await?;
+                pull_store(&worker, &client, pull_params).await?;
 
                 task_log!(worker, "sync job '{}' end", &job_id);
 
@@ -278,7 +278,7 @@ async fn pull(
                 remote_store,
             );
 
-            let pull_future = pull_store(&worker, &client, &pull_params);
+            let pull_future = pull_store(&worker, &client, pull_params);
             let future = select! {
                 success = pull_future.fuse() => success,
                 abort = worker.abort_future().map(|_| Err(format_err!("pull aborted"))) => abort,
