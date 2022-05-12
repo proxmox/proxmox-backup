@@ -14,6 +14,8 @@ Ext.define('pbs-data-store-snapshots', {
 	'verification',
 	'fingerprint',
 	{ name: 'size', type: 'int', allowNull: true },
+	{ name: 'sortWeight', type: 'int', allowNull: true },
+	{ name: 'ty', type: 'string', allowNull: true },
 	{
 	    name: 'crypt-mode',
 	    type: 'boolean',
@@ -50,7 +52,7 @@ Ext.define('PBS.DataStoreContent', {
     alias: 'widget.pbsDataStoreContent',
     mixins: ['Proxmox.Mixin.CBind'],
 
-    rootVisible: true,
+    rootVisible: false,
 
     title: gettext('Content'),
 
@@ -69,7 +71,7 @@ Ext.define('PBS.DataStoreContent', {
 	    this.store.on('load', this.onLoad, this);
 
 	    view.getStore().setSorters([
-		'backup-group',
+		'sortWeight',
 		'text',
 		'backup-time',
 	    ]);
@@ -77,13 +79,28 @@ Ext.define('PBS.DataStoreContent', {
 	},
 
 	control: {
+	    '#': { // view
+		rowdblclick: 'rowDoubleClicked',
+	    },
 	    'pbsNamespaceSelector': {
 		change: 'nsChange',
 	    },
 	},
 
+	rowDoubleClicked: function(table, rec, el, rowId, ev) {
+	    if (rec?.data?.ty !== 'ns') {
+		return;
+	    }
+	    this.nsChange(null, rec.data.ns);
+	},
+
 	nsChange: function(field, value) {
 	    let view = this.getView();
+	    if (field === null) {
+		field = view.down('pbsNamespaceSelector');
+		field.setValue(value);
+		return;
+	    }
 	    view.namespace = value;
 	    this.reload();
 	},
@@ -162,7 +179,22 @@ Ext.define('PBS.DataStoreContent', {
 	    }
 	},
 
-	onLoad: function(store, records, success, operation) {
+	loadNamespaceFromSameLevel: async function() {
+	    let view = this.getView();
+	    try {
+		let url = `/api2/extjs/admin/datastore/${view.datastore}/namespace?max-depth=1`;
+		if (view.namespace && view.namespace !== '') {
+		    url += `&parent=${encodeURIComponent(view.namespace)}`;
+		}
+		let { result: { data: ns } } = await Proxmox.Async.api2({ url });
+		return ns;
+	    } catch (err) {
+		console.debug(err);
+	    }
+	    return [];
+	},
+
+	onLoad: async function(store, records, success, operation) {
 	    let me = this;
 	    let view = this.getView();
 
@@ -170,6 +202,8 @@ Ext.define('PBS.DataStoreContent', {
 		Proxmox.Utils.setErrorMask(view, Proxmox.Utils.getResponseErrorMessage(operation.getError()));
 		return;
 	    }
+
+	    let namespaces = await me.loadNamespaceFromSameLevel();
 
 	    let groups = this.getRecordGroups(records);
 
@@ -207,6 +241,7 @@ Ext.define('PBS.DataStoreContent', {
 		data.leaf = false;
 		data.cls = 'no-leaf-icons';
 		data.matchesFilter = true;
+		data.ty = 'dir';
 
 		data.expanded = !!expanded[data.text];
 
@@ -217,6 +252,7 @@ Ext.define('PBS.DataStoreContent', {
 		    file.fingerprint = data.fingerprint;
 		    file.leaf = true;
 		    file.matchesFilter = true;
+		    file.ty = 'file';
 
 		    data.children.push(file);
 		}
@@ -271,7 +307,26 @@ Ext.define('PBS.DataStoreContent', {
 		crypt.count = group.count;
 		group['crypt-mode'] = PBS.Utils.calculateCryptMode(crypt);
 		group.expanded = !!expanded[name];
+		group.sortWeight = 0;
+		group.ty = 'group';
 		children.push(group);
+	    }
+
+	    for (const item of namespaces) {
+		if (item.ns === view.namespace || (!view.namespace && item.ns === '')) {
+		    continue;
+		}
+		children.push({
+		    text: item.ns,
+		    iconCls: 'fa fa-object-group',
+		    expanded: true,
+		    expandable: false,
+		    ns: (view.namespaces ?? '') !== '' ? `/${item.ns}` : item.ns,
+		    ty: 'ns',
+		    sortWeight: 10,
+		    //qtip: gettext('Double-click to browse namespace.'),
+		    leaf: true,
+		});
 	    }
 
 	    let isRootNS = !view.namespace || view.namespace === '';
@@ -279,12 +334,33 @@ Ext.define('PBS.DataStoreContent', {
 		? gettext('Root Namespace')
 		: Ext.String.format(gettext("Namespace '{0}'"), view.namespace);
 
-	    view.setRootNode({
+	    let topNodes = [];
+	    if (!isRootNS) {
+		let parentNS = view.namespace.split('/').slice(0, -1).join('/');
+		topNodes.push({
+		    text: `.. (${parentNS === '' ? gettext('Root') : parentNS})`,
+		    iconCls: 'fa fa-level-up',
+		    //qtip: gettext('Double-click to go one namespace level up.'),
+		    ty: 'ns',
+		    ns: parentNS,
+		    sortWeight: -10,
+		    leaf: true,
+		});
+	    }
+	    topNodes.push({
 		text: rootText,
 		iconCls: "fa fa-" + (isRootNS ? 'database' : 'object-group'),
 		expanded: true,
 		expandable: false,
+		sortWeight: -5,
+		root: true, // fake root
+		ty: 'ns',
 		children: children,
+	    });
+
+	    view.setRootNode({
+		expanded: true,
+		children: topNodes,
 	    });
 
 	    if (!children.length) {
@@ -668,6 +744,11 @@ Ext.define('PBS.DataStoreContent', {
 	    let me = this;
 	    let view = me.getView();
 
+	    if (rec.data.ty === 'ns') {
+		me.nsChange(null, rec.data.ns);
+		return;
+	    }
+
 	    if (!(rec && rec.data)) return;
 	    let data = rec.parentNode.data;
 
@@ -711,7 +792,8 @@ Ext.define('PBS.DataStoreContent', {
 	    let store = view.getStore();
 	    if (!value && value !== 0) {
 		store.clearFilter();
-		store.getRoot().collapseChildren(true);
+		// only collapse the children below our toplevel namespace "root"
+		store.getRoot().lastChild.collapseChildren(true);
 		tf.triggers.clear.setVisible(false);
 		return;
 	    }
@@ -844,64 +926,62 @@ Ext.define('PBS.DataStoreContent', {
 		{
 		    handler: 'onVerify',
 		    getTip: (v, m, rec) => Ext.String.format(gettext("Verify '{0}'"), v),
-		    getClass: (v, m, rec) => rec.data.root || rec.data.leaf ? 'pmx-hidden' : 'pve-icon-verify-lettering',
+		    getClass: (v, m, { data }) => data.ty === 'group' || data.ty === 'dir' ? 'pve-icon-verify-lettering' : 'pmx-hidden',
 		    isActionDisabled: (v, r, c, i, rec) => !!rec.data.leaf,
                 },
                 {
 		    handler: 'onChangeOwner',
-		    getClass: (v, m, rec) => rec.parentNode && rec.parentNode.id ==='root' ? 'fa fa-user' : 'pmx-hidden',
+		    getClass: (v, m, { data }) => data.ty === 'group' ? 'fa fa-user' : 'pmx-hidden',
 		    getTip: (v, m, rec) => Ext.String.format(gettext("Change owner of '{0}'"), v),
-		    isActionDisabled: (v, r, c, i, rec) => !rec.parentNode || rec.parentNode.id !=='root',
+		    isActionDisabled: (v, r, c, i, { data }) => data.ty !== 'group',
                 },
 		{
 		    handler: 'onPrune',
 		    getTip: (v, m, rec) => Ext.String.format(gettext("Prune '{0}'"), v),
-		    getClass: (v, m, rec) => rec.parentNode && rec.parentNode.id ==='root' ? 'fa fa-scissors' : 'pmx-hidden',
-		    isActionDisabled: (v, r, c, i, rec) => rec.parentNode?.id !=='root',
+		    getClass: (v, m, { data }) => data.ty === 'group' ? 'fa fa-scissors' : 'pmx-hidden',
+		    isActionDisabled: (v, r, c, i, { data }) => data.ty !== 'group',
 		},
 		{
 		    handler: 'onProtectionChange',
 		    getTip: (v, m, rec) => Ext.String.format(gettext("Change protection of '{0}'"), v),
 		    getClass: (v, m, rec) => {
-			if (!rec.data.leaf && rec.parentNode && rec.parentNode.id !== 'root') {
+			if (rec.data.ty === 'dir') {
 			    let extraCls = rec.data.protected ? 'good' : 'faded';
 			    return `fa fa-shield ${extraCls}`;
 			}
 			return 'pmx-hidden';
 		    },
-		    isActionDisabled: (v, r, c, i, rec) => !!rec.data.leaf || !rec.parentNode || rec.parentNode.id === 'root',
+		    isActionDisabled: (v, r, c, i, rec) => rec.data.ty !== 'dir',
 		},
 		{
 		    handler: 'onForget',
-		    getTip: (v, m, rec) => rec.parentNode?.id !=='root'
+		    getTip: (v, m, { data }) => data ==='dir'
 			? Ext.String.format(gettext("Permanently forget snapshot '{0}'"), v)
 			: Ext.String.format(gettext("Permanently forget group '{0}'"), v),
-		    getClass: (v, m, rec) => !(rec.data.leaf || rec.data.root) ? 'fa critical fa-trash-o' : 'pmx-hidden',
-		    isActionDisabled: (v, r, c, i, rec) => !!rec.data.leaf,
+		    getClass: (v, m, { data }) =>
+		        data.ty === 'group' || data.ty === 'dir' ? 'fa critical fa-trash-o' : 'pmx-hidden',
+		    isActionDisabled: (v, r, c, i, { data }) => !(data.ty === 'group' || data.ty === 'dir'),
 		},
 		{
 		    handler: 'downloadFile',
 		    getTip: (v, m, rec) => Ext.String.format(gettext("Download '{0}'"), v),
-		    getClass: (v, m, rec) => rec.data.leaf && rec.data.filename ? 'fa fa-download' : 'pmx-hidden',
-		    isActionDisabled: (v, r, c, i, rec) => !rec.data.leaf || !rec.data.filename || rec.data['crypt-mode'] > 2,
+		    getClass: (v, m, { data }) => data.ty === 'file' ? 'fa fa-download' : 'pmx-hidden',
+		    isActionDisabled: (v, r, c, i, rec) => rec.data.ty !== 'file' || rec.data['crypt-mode'] > 2,
 		},
 		{
 		    handler: 'openPxarBrowser',
 		    tooltip: gettext('Browse'),
-		    getClass: (v, m, rec) => {
-			let data = rec.data;
-			if (data.leaf && data.filename && data.filename.endsWith('pxar.didx')) {
+		    getClass: (v, m, { data }) => {
+			if (
+			    (data.ty === 'file' && data.filename.endsWith('pxar.didx')) ||
+			    (data.ty === 'ns' && !data.root)
+			) {
 			    return 'fa fa-folder-open-o';
 			}
 			return 'pmx-hidden';
 		    },
-		    isActionDisabled: (v, r, c, i, rec) => {
-			let data = rec.data;
-			return !(data.leaf &&
-			    data.filename &&
-			    data.filename.endsWith('pxar.didx') &&
-			    data['crypt-mode'] < 3);
-		    },
+		    isActionDisabled: (v, r, c, i, { data }) =>
+			!(data.ty === 'file' && data.filename.endsWith('pxar.didx') && data['crypt-mode'] < 3) && data.ty !== 'ns',
 		},
 	    ],
 	},
@@ -917,8 +997,8 @@ Ext.define('PBS.DataStoreContent', {
 	    header: gettext("Size"),
 	    sortable: true,
 	    dataIndex: 'size',
-	    renderer: (v, meta, record) => {
-		if ((record.data.text === 'client.log.blob' && v === undefined) || record.data.root) {
+	    renderer: (v, meta, { data }) => {
+		if ((data.text === 'client.log.blob' && v === undefined) || (data.ty !== 'dir' && data.ty !== 'file')) {
 		    return '';
 		}
 		if (v === undefined || v === null) {
@@ -992,7 +1072,7 @@ Ext.define('PBS.DataStoreContent', {
 		}
 	    },
 	    renderer: (v, meta, record) => {
-		if (!record.parentNode) {
+		if (record.data.ty === 'ns') {
 		    return ''; // TODO: accumulate verify of all groups into root NS node?
 		}
 		let i = (cls, txt) => `<i class="fa fa-fw fa-${cls}"></i> ${txt}`;
