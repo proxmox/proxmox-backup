@@ -20,6 +20,14 @@ use crate::{
     optional_ns_param, record_repository, BackupDir, KEYFD_SCHEMA, KEYFILE_SCHEMA, REPO_URL_SCHEMA,
 };
 
+fn snapshot_args(ns: &BackupNamespace, snapshot: &BackupDir) -> Result<Value, Error> {
+    let mut args = serde_json::to_value(snapshot)?;
+    if !ns.is_root() {
+        args["backup-ns"] = serde_json::to_value(ns)?;
+    }
+    Ok(args)
+}
+
 #[api(
    input: {
         properties: {
@@ -27,7 +35,7 @@ use crate::{
                 schema: REPO_URL_SCHEMA,
                 optional: true,
             },
-            "ns": {
+            ns: {
                 type: BackupNamespace,
                 optional: true,
             },
@@ -103,6 +111,10 @@ async fn list_snapshots(param: Value) -> Result<Value, Error> {
                 schema: REPO_URL_SCHEMA,
                 optional: true,
             },
+            ns: {
+                type: BackupNamespace,
+                optional: true,
+            },
             snapshot: {
                 type: String,
                 description: "Snapshot path.",
@@ -118,6 +130,7 @@ async fn list_snapshots(param: Value) -> Result<Value, Error> {
 async fn list_snapshot_files(param: Value) -> Result<Value, Error> {
     let repo = extract_repository_from_value(&param)?;
 
+    let backup_ns = optional_ns_param(&param)?;
     let path = required_string_param(&param, "snapshot")?;
     let snapshot: BackupDir = path.parse()?;
 
@@ -128,7 +141,7 @@ async fn list_snapshot_files(param: Value) -> Result<Value, Error> {
     let path = format!("api2/json/admin/datastore/{}/files", repo.store());
 
     let mut result = client
-        .get(&path, Some(serde_json::to_value(snapshot)?))
+        .get(&path, Some(snapshot_args(&backup_ns, &snapshot)?))
         .await?;
 
     record_repository(&repo);
@@ -145,23 +158,28 @@ async fn list_snapshot_files(param: Value) -> Result<Value, Error> {
 }
 
 #[api(
-   input: {
+    input: {
         properties: {
             repository: {
                 schema: REPO_URL_SCHEMA,
                 optional: true,
             },
+            ns: {
+                type: BackupNamespace,
+                optional: true,
+            },
             snapshot: {
                 type: String,
                 description: "Snapshot path.",
-             },
+            },
         }
-   }
+    }
 )]
 /// Forget (remove) backup snapshots.
 async fn forget_snapshots(param: Value) -> Result<Value, Error> {
     let repo = extract_repository_from_value(&param)?;
 
+    let backup_ns = optional_ns_param(&param)?;
     let path = required_string_param(&param, "snapshot")?;
     let snapshot: BackupDir = path.parse()?;
 
@@ -170,7 +188,7 @@ async fn forget_snapshots(param: Value) -> Result<Value, Error> {
     let path = format!("api2/json/admin/datastore/{}/snapshots", repo.store());
 
     let result = client
-        .delete(&path, Some(serde_json::to_value(snapshot)?))
+        .delete(&path, Some(snapshot_args(&backup_ns, &snapshot)?))
         .await?;
 
     record_repository(&repo);
@@ -179,40 +197,45 @@ async fn forget_snapshots(param: Value) -> Result<Value, Error> {
 }
 
 #[api(
-   input: {
-       properties: {
-           repository: {
-               schema: REPO_URL_SCHEMA,
-               optional: true,
-           },
-           snapshot: {
-               type: String,
-               description: "Group/Snapshot path.",
-           },
-           logfile: {
-               type: String,
-               description: "The path to the log file you want to upload.",
-           },
-           keyfile: {
-               schema: KEYFILE_SCHEMA,
-               optional: true,
-           },
-           "keyfd": {
-               schema: KEYFD_SCHEMA,
-               optional: true,
-           },
-           "crypt-mode": {
-               type: CryptMode,
-               optional: true,
-           },
-       }
-   }
+    input: {
+        properties: {
+            repository: {
+                schema: REPO_URL_SCHEMA,
+                optional: true,
+            },
+            ns: {
+                type: BackupNamespace,
+                optional: true,
+            },
+            snapshot: {
+                type: String,
+                description: "Group/Snapshot path.",
+            },
+            logfile: {
+                type: String,
+                description: "The path to the log file you want to upload.",
+            },
+            keyfile: {
+                schema: KEYFILE_SCHEMA,
+                optional: true,
+            },
+            "keyfd": {
+                schema: KEYFD_SCHEMA,
+                optional: true,
+            },
+            "crypt-mode": {
+                type: CryptMode,
+                optional: true,
+            },
+        }
+    }
 )]
 /// Upload backup log file.
 async fn upload_log(param: Value) -> Result<Value, Error> {
     let logfile = required_string_param(&param, "logfile")?;
     let repo = extract_repository_from_value(&param)?;
 
+    let backup_ns = optional_ns_param(&param)?;
     let snapshot = required_string_param(&param, "snapshot")?;
     let snapshot: BackupDir = snapshot.parse()?;
 
@@ -246,7 +269,7 @@ async fn upload_log(param: Value) -> Result<Value, Error> {
         repo.store()
     );
 
-    let args = serde_json::to_value(&snapshot)?;
+    let args = snapshot_args(&backup_ns, &snapshot)?;
     let body = hyper::Body::from(raw_data);
 
     client
@@ -259,6 +282,10 @@ async fn upload_log(param: Value) -> Result<Value, Error> {
         properties: {
             repository: {
                 schema: REPO_URL_SCHEMA,
+                optional: true,
+            },
+            ns: {
+                type: BackupNamespace,
                 optional: true,
             },
             snapshot: {
@@ -277,12 +304,13 @@ async fn show_notes(param: Value) -> Result<Value, Error> {
     let repo = extract_repository_from_value(&param)?;
     let path = required_string_param(&param, "snapshot")?;
 
+    let backup_ns = optional_ns_param(&param)?;
     let snapshot: BackupDir = path.parse()?;
     let client = connect(&repo)?;
 
     let path = format!("api2/json/admin/datastore/{}/notes", repo.store());
 
-    let args = serde_json::to_value(snapshot)?;
+    let args = snapshot_args(&backup_ns, &snapshot)?;
 
     let output_format = get_output_format(&param);
 
@@ -313,6 +341,10 @@ async fn show_notes(param: Value) -> Result<Value, Error> {
                 schema: REPO_URL_SCHEMA,
                 optional: true,
             },
+            ns: {
+                type: BackupNamespace,
+                optional: true,
+            },
             snapshot: {
                 type: String,
                 description: "Snapshot path.",
@@ -330,12 +362,13 @@ async fn update_notes(param: Value) -> Result<Value, Error> {
     let path = required_string_param(&param, "snapshot")?;
     let notes = required_string_param(&param, "notes")?;
 
+    let backup_ns = optional_ns_param(&param)?;
     let snapshot: BackupDir = path.parse()?;
     let client = connect(&repo)?;
 
     let path = format!("api2/json/admin/datastore/{}/notes", repo.store());
 
-    let mut args = serde_json::to_value(snapshot)?;
+    let mut args = snapshot_args(&backup_ns, &snapshot)?;
     args["notes"] = Value::from(notes);
 
     client.put(&path, Some(args)).await?;
@@ -348,6 +381,10 @@ async fn update_notes(param: Value) -> Result<Value, Error> {
         properties: {
             repository: {
                 schema: REPO_URL_SCHEMA,
+                optional: true,
+            },
+            ns: {
+                type: BackupNamespace,
                 optional: true,
             },
             snapshot: {
@@ -366,12 +403,13 @@ async fn show_protection(param: Value) -> Result<(), Error> {
     let repo = extract_repository_from_value(&param)?;
     let path = required_string_param(&param, "snapshot")?;
 
+    let backup_ns = optional_ns_param(&param)?;
     let snapshot: BackupDir = path.parse()?;
     let client = connect(&repo)?;
 
     let path = format!("api2/json/admin/datastore/{}/protected", repo.store());
 
-    let args = serde_json::to_value(snapshot)?;
+    let args = snapshot_args(&backup_ns, &snapshot)?;
 
     let output_format = get_output_format(&param);
 
@@ -402,6 +440,10 @@ async fn show_protection(param: Value) -> Result<(), Error> {
                 schema: REPO_URL_SCHEMA,
                 optional: true,
             },
+            ns: {
+                type: BackupNamespace,
+                optional: true,
+            },
             snapshot: {
                 type: String,
                 description: "Snapshot path.",
@@ -418,12 +460,13 @@ async fn update_protection(protected: bool, param: Value) -> Result<(), Error> {
     let repo = extract_repository_from_value(&param)?;
     let path = required_string_param(&param, "snapshot")?;
 
+    let backup_ns = optional_ns_param(&param)?;
     let snapshot: BackupDir = path.parse()?;
     let client = connect(&repo)?;
 
     let path = format!("api2/json/admin/datastore/{}/protected", repo.store());
 
-    let mut args = serde_json::to_value(snapshot)?;
+    let mut args = snapshot_args(&backup_ns, &snapshot)?;
     args["protected"] = Value::from(protected);
 
     client.put(&path, Some(args)).await?;

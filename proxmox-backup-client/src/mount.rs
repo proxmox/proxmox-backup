@@ -80,6 +80,7 @@ const API_METHOD_MAP: ApiMethod = ApiMethod::new(
         "Map a drive image from a VM backup to a local loopback device. Use 'unmap' to undo.
 WARNING: Only do this with *trusted* backups!",
         &sorted!([
+            ("ns", true, &BackupNamespace::API_SCHEMA,),
             (
                 "snapshot",
                 false,
