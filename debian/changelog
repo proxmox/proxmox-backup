@@ -1,4 +1,4 @@
-rust-proxmox-backup (2.1.9-1) UNRELEASED; urgency=medium
+rust-proxmox-backup (2.1.9-2) bullseye; urgency=medium
 
   * api: tape restore: lock the target datastore, not the source one
 
@@ -19,7 +19,9 @@ rust-proxmox-backup (2.1.9-1) UNRELEASED; urgency=medium
 
   * ui: make various datastore related UI components namespace aware
 
- -- Proxmox Support Team <support@proxmox.com>  Thu, 12 May 2022 09:41:30 +0200
+  * fix various bugs, add namespace support to file-restore
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 12 May 2022 14:25:53 +0200
 
 rust-proxmox-backup (2.1.8-1) bullseye; urgency=medium
 
