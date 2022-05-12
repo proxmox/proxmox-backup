@@ -88,10 +88,9 @@ Ext.define('PBS.DataStoreContent', {
 	},
 
 	rowDoubleClicked: function(table, rec, el, rowId, ev) {
-	    if (rec?.data?.ty !== 'ns') {
-		return;
+	    if (rec?.data?.ty === 'ns' && !rec.data.root) {
+		this.nsChange(null, rec.data.ns);
 	    }
-	    this.nsChange(null, rec.data.ns);
 	},
 
 	nsChange: function(field, value) {
