@@ -130,9 +130,10 @@ Ext.define('PBS.store.NavigationStore', {
 Ext.define('CustomTreeListItem', {
     extend: 'Ext.list.TreeItem',
     xtype: 'qtiptreelistitem',
-    updateNode: function(node, oldNode) {
+
+    nodeUpdate: function(node, modifiedFieldNames) {
+	this.callParent(arguments);
 	const qtip = node ? node.get('qtip') : null;
-	this.callParent([node, oldNode]);
 	if (qtip) {
 	    this.element.dom.setAttribute('data-qtip', qtip);
 	} else {
@@ -261,17 +262,18 @@ Ext.define('PBS.view.main.NavigationTree', {
 		    iconCls = 'fa fa-database pmx-tree-icon-custom maintenance';
 		}
 
-		const child = {
-		    text: name,
-		    qtip,
-		    path: `DataStore-${name}`,
-		    iconCls,
-		    leaf: true,
-		};
 		if (getChildTextAt(j).localeCompare(name) !== 0) {
-		    list.insertChild(j, child);
+		    list.insertChild(j, {
+			text: name,
+			qtip,
+			path: `DataStore-${name}`,
+			iconCls,
+			leaf: true,
+		    });
 		} else {
-		    list.replaceChild(child, list.getChildAt(j));
+		    let oldChild = list.getChildAt(j);
+		    oldChild.set('qtip', qtip);
+		    oldChild.set('iconCls', iconCls);
 		}
 	    }
 
