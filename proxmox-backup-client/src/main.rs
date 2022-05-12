@@ -606,7 +606,7 @@ fn spawn_catalog_upload(
                optional: true,
                default: false,
            },
-           "backup-ns": {
+           "ns": {
                schema: BACKUP_NAMESPACE_SCHEMA,
                optional: true,
            },
@@ -703,13 +703,7 @@ async fn create_backup(
         .as_str()
         .unwrap_or(proxmox_sys::nodename());
 
-    let backup_ns: BackupNamespace = match param.get("backup-ns") {
-        Some(ns) => ns
-            .as_str()
-            .ok_or_else(|| format_err!("bad namespace {:?}", ns))?
-            .parse()?,
-        None => BackupNamespace::root(),
-    };
+    let backup_ns = optional_ns_param(&param)?;
 
     let backup_type: BackupType = param["backup-type"].as_str().unwrap_or("host").parse()?;
 
