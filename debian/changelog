@@ -1,3 +1,26 @@
+rust-proxmox-backup (2.1.9-1) UNRELEASED; urgency=medium
+
+  * api: tape restore: lock the target datastore, not the source one
+
+  * chunk store: force write chunk again if it exist but its metadata length
+    is zero
+
+  * completion: fix 'group-filter' parameter name
+
+  * implement backup namespaces for datastores, allowing one to reuse a single
+    chunkstore deduplication domain for multiple sources without naming
+    conflicts and with fine-grained access control.
+
+  * make various datastore related API calls backup namespace aware
+
+  * make sync and pull backup namespace aware
+
+  * ui: datastore content: show namespaces but only one level at a time
+
+  * ui: make various datastore related UI components namespace aware
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 12 May 2022 09:41:30 +0200
+
 rust-proxmox-backup (2.1.8-1) bullseye; urgency=medium
 
   * api: status: return gc-status again
