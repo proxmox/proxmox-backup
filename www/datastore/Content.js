@@ -483,7 +483,9 @@ Ext.define('PBS.DataStoreContent', {
 		datastore: view.datastore,
 		namespace: view.namespace ?? '',
 		listeners: {
-		    destroy: () => view.down('pbsNamespaceSelector').store?.load(),
+		    destroy: () => {
+			view.down('pbsNamespaceSelector').store?.load();
+		    },
 		},
 	    });
 	},

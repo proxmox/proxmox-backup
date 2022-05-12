@@ -29,7 +29,6 @@ pub enum Operation {
     ///
     /// NOTE: one must *not* do any IO operations when only helding this Op state
     Lookup,
-
     // GarbageCollect or Delete?
 }
 
@@ -43,7 +42,6 @@ pub enum MaintenanceType {
     //  - Add "GarbageCollection" or "DeleteOnly" as type and track GC (or all deletes) as separate
     //    operation, so that one can enable a mode where nothing new can be added but stuff can be
     //    cleaned
-
     /// Only read operations are allowed on the datastore.
     ReadOnly,
     /// Neither read nor write operations are allowed on the datastore.

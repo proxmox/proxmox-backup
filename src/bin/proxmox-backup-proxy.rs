@@ -597,7 +597,8 @@ async fn schedule_datastore_garbage_collection() {
             }
         };
 
-        { // limit datastore scope due to Op::Lookup
+        {
+            // limit datastore scope due to Op::Lookup
             let datastore = match DataStore::lookup_datastore(&store, Some(Operation::Lookup)) {
                 Ok(datastore) => datastore,
                 Err(err) => {
