@@ -168,7 +168,7 @@ Ext.define('PBS.DataStoreContent', {
 		    map[`${group["backup-type"]}/${group["backup-id"]}`] = group.comment;
 		}
 		view.getRootNode().cascade(node => {
-		    if (node.parentNode && node.parentNode.id === 'root') {
+		    if (node.data.ty === 'group') {
 			let group = `${node.data.backup_type}/${node.data.backup_id}`;
 			node.set('comment', map[group], { dirty: false });
 		    }
@@ -393,14 +393,12 @@ Ext.define('PBS.DataStoreContent', {
 	    }
 	},
 
-	onChangeOwner: function(view, rI, cI, item, e, rec) {
-	    view = this.getView();
+	onChangeOwner: function(table, rI, cI, item, e, { data }) {
+	    let view = this.getView();
 
-	    if (!rec || !rec.data || rec.parentNode.id !== 'root' || !view.datastore) {
+	    if (data.ty !== 'group' || !view.datastore) {
 		return;
 	    }
-
-	    let data = rec.data;
 
 	    let win = Ext.create('PBS.BackupGroupChangeOwner', {
 		datastore: view.datastore,
@@ -410,19 +408,19 @@ Ext.define('PBS.DataStoreContent', {
 		owner: data.owner,
 		autoShow: true,
 	    });
+	    // FIXME: don't reload all, use the record and query only its info, then update it
+	    // directly in the tree
 	    win.on('destroy', this.reload, this);
 	},
 
-	onPrune: function(view, rI, cI, item, e, rec) {
+	onPrune: function(table, rI, cI, item, e, rec) {
 	    let me = this;
-	    view = me.getView();
+	    let view = me.getView();
 
-	    if (!(rec && rec.data)) return;
+	    if (rec.data.ty !== 'group' || !view.datastore) {
+		return;
+	    }
 	    let data = rec.data;
-	    if (rec.parentNode.id !== 'root') return;
-
-	    if (!view.datastore) return;
-
 	    Ext.create('PBS.DataStorePrune', {
 		autoShow: true,
 		datastore: view.datastore,
@@ -430,6 +428,8 @@ Ext.define('PBS.DataStoreContent', {
 		backup_type: data.backup_type,
 		backup_id: data.backup_id,
 		listeners: {
+		    // FIXME: don't reload all, use the record and query only its info, then update
+		    // it directly in the tree
 		    destroy: () => me.reload(),
 		},
 	    });
@@ -490,19 +490,16 @@ Ext.define('PBS.DataStoreContent', {
 	    });
 	},
 
-
-	onVerify: function(view, rI, cI, item, e, rec) {
+	onVerify: function(view, rI, cI, item, e, { data }) {
 	    let me = this;
 	    view = me.getView();
 
-	    if (!view.datastore) return;
-
-	    if (!(rec && rec.data)) return;
-	    let data = rec.data;
+	    if ((data.ty !== 'group' && data.ty !== 'dir') || !view.datastore) {
+		return;
+	    }
 
 	    let params;
-
-	    if (rec.parentNode.id !== 'root') {
+	    if (data.ty === 'dir') {
 		params = {
 		    "backup-type": data["backup-type"],
 		    "backup-id": data["backup-id"],
@@ -536,11 +533,10 @@ Ext.define('PBS.DataStoreContent', {
 	    });
 	},
 
-	onNotesEdit: function(view, data, isGroup) {
+	onNotesEdit: function(view, data) {
 	    let me = this;
 
-	    let url = `/admin/datastore/${view.datastore}/`;
-	    url += isGroup ? 'group-notes' : 'notes';
+	    let isGroup = data.ty === 'group';
 
 	    let params;
 	    if (isGroup) {
@@ -560,7 +556,7 @@ Ext.define('PBS.DataStoreContent', {
 	    }
 
 	    Ext.create('PBS.window.NotesEdit', {
-		url: url,
+		url: `/admin/datastore/${view.datastore}/${isGroup ? 'group-notes' : 'notes'}`,
 		autoShow: true,
 		apiCallDone: () => me.reload(), // FIXME: do something more efficient?
 		extraRequestParams: params,
@@ -695,15 +691,14 @@ Ext.define('PBS.DataStoreContent', {
 	    });
 	},
 
-	onForget: function(view, rI, cI, item, e, rec) {
+	onForget: function(table, rI, cI, item, e, { data }) {
 	    let me = this;
-	    view = this.getView();
+	    let view = this.getView();
+	    if ((data.ty !== 'group' && data.ty !== 'dir') || !view.datastore) {
+		return;
+	    }
 
-	    if (!(rec && rec.data)) return;
-	    let data = rec.data;
-	    if (!view.datastore) return;
-
-	    if (rec.parentNode.id !== 'root') {
+	    if (data.ty === 'dir') {
 		me.forgetSnapshot(data);
 	    } else {
 		me.forgetGroup(data);
@@ -713,15 +708,14 @@ Ext.define('PBS.DataStoreContent', {
 	downloadFile: function(tV, rI, cI, item, e, rec) {
 	    let me = this;
 	    let view = me.getView();
+	    if (rec.data.ty !== 'file') return;
 
-	    if (!(rec && rec.data)) return;
-	    let data = rec.parentNode.data;
-
+	    let snapshot = rec.parentNode.data;
 	    let file = rec.data.filename;
 	    let params = {
-		'backup-id': data['backup-id'],
-		'backup-type': data['backup-type'],
-		'backup-time': (data['backup-time'].getTime()/1000).toFixed(0),
+		'backup-id': snapshot['backup-id'],
+		'backup-type': snapshot['backup-type'],
+		'backup-time': (snapshot['backup-time'].getTime()/1000).toFixed(0),
 		'file-name': file,
 	    };
 	    if (view.namespace && view.namespace !== '') {
@@ -731,7 +725,6 @@ Ext.define('PBS.DataStoreContent', {
 	    let idx = file.lastIndexOf('.');
 	    let filename = file.slice(0, idx);
 	    let atag = document.createElement('a');
-	    params['file-name'] = file;
 	    atag.download = filename;
 	    let url = new URL(
 	        `/api2/json/admin/datastore/${view.datastore}/download-decoded`,
@@ -753,14 +746,13 @@ Ext.define('PBS.DataStoreContent', {
 		me.nsChange(null, rec.data.ns);
 		return;
 	    }
+	    if (rec?.data?.ty !== 'file') return;
+	    let snapshot = rec.parentNode.data;
 
-	    if (!(rec && rec.data)) return;
-	    let data = rec.parentNode.data;
-
-	    let id = data['backup-id'];
-	    let time = data['backup-time'];
-	    let type = data['backup-type'];
-	    let timetext = PBS.Utils.render_datetime_utc(data["backup-time"]);
+	    let id = snapshot['backup-id'];
+	    let time = snapshot['backup-time'];
+	    let type = snapshot['backup-type'];
+	    let timetext = PBS.Utils.render_datetime_utc(snapshot["backup-time"]);
 	    let extraParams = {
 		'backup-id': id,
 		'backup-time': (time.getTime()/1000).toFixed(0),
@@ -908,7 +900,7 @@ Ext.define('PBS.DataStoreContent', {
 			}
 			let view = tree.up();
 			let controller = view.controller;
-			controller.onNotesEdit(view, rec.data, rec.parentNode?.id === 'root');
+			controller.onNotesEdit(view, rec.data);
 		    });
 		},
 		dblclick: function(tree, el, row, col, ev, rec) {
@@ -918,7 +910,7 @@ Ext.define('PBS.DataStoreContent', {
 		    }
 		    let view = tree.up();
 		    let controller = view.controller;
-		    controller.onNotesEdit(view, rec.data, rec.parentNode?.id === 'root');
+		    controller.onNotesEdit(view, rec.data);
 		},
 	    },
 	},
@@ -1047,7 +1039,7 @@ Ext.define('PBS.DataStoreContent', {
 		    tip = "Key: " + PBS.Utils.renderKeyID(record.data.fingerprint);
 		}
 		let txt = (iconTxt + PBS.Utils.cryptText[v]) || Proxmox.Utils.unknownText;
-		if (record.parentNode.id === 'root' || tip === undefined) {
+		if (record.data.ty === 'group' || tip === undefined) {
 		    return txt;
 		} else {
 		    return `<span data-qtip="${tip}">${txt}</span>`;
@@ -1085,7 +1077,7 @@ Ext.define('PBS.DataStoreContent', {
 		    return record.data.leaf ? '' : i('question-circle-o warning', gettext('None'));
 		}
 		let tip, iconCls, txt;
-		if (record.parentNode.id === 'root') {
+		if (record.data.ty === 'group') {
 		    if (v.failed === 0) {
 			if (v.none === 0) {
 			    if (v.outdated > 0) {
