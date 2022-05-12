@@ -572,14 +572,6 @@ async fn schedule_datastore_garbage_collection() {
     };
 
     for (store, (_, store_config)) in config.sections {
-        let datastore = match DataStore::lookup_datastore(&store, Some(Operation::Write)) {
-            Ok(datastore) => datastore,
-            Err(err) => {
-                eprintln!("lookup_datastore failed - {}", err);
-                continue;
-            }
-        };
-
         let store_config: DataStoreConfig = match serde_json::from_value(store_config) {
             Ok(c) => c,
             Err(err) => {
@@ -601,8 +593,18 @@ async fn schedule_datastore_garbage_collection() {
             }
         };
 
-        if datastore.garbage_collection_running() {
-            continue;
+        { // limit datastore scope due to Op::Lookup
+            let datastore = match DataStore::lookup_datastore(&store, Some(Operation::Lookup)) {
+                Ok(datastore) => datastore,
+                Err(err) => {
+                    eprintln!("lookup_datastore failed - {}", err);
+                    continue;
+                }
+            };
+
+            if datastore.garbage_collection_running() {
+                continue;
+            }
         }
 
         let worker_type = "garbage_collection";
@@ -610,10 +612,7 @@ async fn schedule_datastore_garbage_collection() {
         let last = match jobstate::last_run_time(worker_type, &store) {
             Ok(time) => time,
             Err(err) => {
-                eprintln!(
-                    "could not get last run time of {} {}: {}",
-                    worker_type, store, err
-                );
+                eprintln!("could not get last run time of {worker_type} {store}: {err}");
                 continue;
             }
         };
@@ -636,6 +635,14 @@ async fn schedule_datastore_garbage_collection() {
         let job = match Job::new(worker_type, &store) {
             Ok(job) => job,
             Err(_) => continue, // could not get lock
+        };
+
+        let datastore = match DataStore::lookup_datastore(&store, Some(Operation::Write)) {
+            Ok(datastore) => datastore,
+            Err(err) => {
+                log::warn!("skipping scheduled GC on {store}, could look it up - {err}");
+                continue;
+            }
         };
 
         let auth_id = Authid::root_auth_id();
