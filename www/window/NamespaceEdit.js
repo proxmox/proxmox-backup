@@ -34,6 +34,7 @@ Ext.define('PBS.window.NamespaceEdit', {
 		name: 'parent',
 		fieldLabel: gettext('Parent Namespace'),
 		cbind: {
+		    value: '{namespace}',
 		    datastore: '{datastore}',
 		},
 	    },

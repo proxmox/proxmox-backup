@@ -482,6 +482,7 @@ Ext.define('PBS.DataStoreContent', {
 	    Ext.create('PBS.window.NamespaceEdit', {
 		autoShow: true,
 		datastore: view.datastore,
+		namespace: view.namespace ?? '',
 		listeners: {
 		    destroy: () => view.down('pbsNamespaceSelector').store?.load(),
 		},
