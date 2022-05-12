@@ -338,9 +338,13 @@ Ext.define('PBS.Utils', {
 	if (!snapshot) {
 	    return [undefined, undefined, undefined];
 	}
-	let [_match, type, group, id] = /^([^/]+)\/([^/]+)\/(.+)$/.exec(snapshot);
+	let nsRegex = /(?:^|\/)(ns\/([^/]+))/g;
+	let namespaces = [];
+	let nsPaths = [];
+	snapshot = snapshot.replace(nsRegex, (_, nsPath, ns) => { nsPaths.push(nsPath); namespaces.push(ns); return ""; });
+	let [_match, type, group, id] = /^\/?([^/]+)\/([^/]+)\/(.+)$/.exec(snapshot);
 
-	return [type, group, id];
+	return [type, group, id, namespaces.join('/'), nsPaths.join('/')];
     },
 
     get_type_icon_cls: function(btype) {

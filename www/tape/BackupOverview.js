@@ -154,7 +154,8 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 			store: entry.store,
 			snapshot: entry.snapshot,
 		    };
-		    let iconCls = PBS.Utils.get_type_icon_cls(entry.snapshot);
+		    let [type, group, _id, namespace, nsPath] = PBS.Utils.parse_snapshot_id(entry.snapshot);
+		    let iconCls = PBS.Utils.get_type_icon_cls(type);
 		    if (iconCls !== '') {
 			entry.iconCls = `fa ${iconCls}`;
 		    }
@@ -182,13 +183,21 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 			    'media-set-uuid': entry['media-set-uuid'],
 			    'seq-nr': entry['seq-nr'],
 			    iconCls: 'pbs-icon-tape',
-			    expanded: true,
+			    namespaces: {},
 			    children: [],
 			};
 		    }
-		    let [type, group, _id] = PBS.Utils.parse_snapshot_id(entry.snapshot);
 
-		    let children = stores[store].tapes[tape].children;
+		    if (stores[store].tapes[tape].namespaces[namespace] === undefined) {
+			stores[store].tapes[tape].namespaces[namespace] = {
+			    text: namespace,
+			    'media-set-uuid': entry['media-set-uuid'],
+			    'is-namespace': true,
+			    children: [],
+			};
+		    }
+
+		    let children = stores[store].tapes[tape].namespaces[namespace].children;
 		    let text = `${type}/${group}`;
 		    if (children.length < 1 || children[children.length - 1].text !== text) {
 			children.push({
@@ -198,7 +207,7 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 			    restore: true,
 			    prefilter: {
 				store,
-				snapshot: `${type}/${group}/`,
+				snapshot: namespace ? `${nsPath}/${type}/${group}/` : `${type}/${group}`,
 			    },
 			    'media-set': media_set,
 			    iconCls: `fa ${iconCls}`,
@@ -213,6 +222,20 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 		let storeNameList = Object.keys(stores);
 		let expand = storeList.length === 1;
 		for (const store of storeList) {
+		    let tapeList = Object.values(store.tapes);
+		    for (const tape of tapeList) {
+			let rootNs = tape.namespaces[''];
+			if (rootNs) {
+			    tape.children.push(...rootNs.children);
+			    delete tape.namespaces[''];
+			}
+			tape.children.push(...Object.values(tape.namespaces));
+			if (tape.children.length === 1) {
+			    tape.children[0].expanded = true;
+			}
+			tape.expanded = tapeList.length === 1;
+			delete tape.namespaces;
+		    }
 		    store.children = Object.values(store.tapes);
 		    store.expanded = expand;
 		    delete store.tapes;
@@ -254,6 +277,10 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 	sorters: function(a, b) {
 	    if (a.data.is_media_set && b.data.is_media_set) {
 		return a.data['media-set-ctime'] - b.data['media-set-ctime'];
+	    } else if (a.data['is-namespace'] && !b.data['is-namespace']) {
+		return 1;
+	    } else if (!a.data['is-namespace'] && b.data['is-namespace']) {
+		return -1;
 	    } else {
 		return a.data.text.localeCompare(b.data.text);
 	    }
