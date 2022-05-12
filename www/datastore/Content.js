@@ -731,8 +731,10 @@ Ext.define('PBS.DataStoreContent', {
 	    let atag = document.createElement('a');
 	    params['file-name'] = file;
 	    atag.download = filename;
-	    let url = new URL(`/api2/json/admin/datastore/${view.datastore}/download-decoded`,
-	                      window.location.origin);
+	    let url = new URL(
+	        `/api2/json/admin/datastore/${view.datastore}/download-decoded`,
+	        window.location.origin,
+	    );
 	    for (const [key, value] of Object.entries(params)) {
 		url.searchParams.append(key, value);
 	    }
@@ -740,7 +742,8 @@ Ext.define('PBS.DataStoreContent', {
 	    atag.click();
 	},
 
-	openPxarBrowser: function(tv, rI, Ci, item, e, rec) {
+	// opens either a namespace or a pxar file-browser
+	openBrowser: function(tv, rI, Ci, item, e, rec) {
 	    let me = this;
 	    let view = me.getView();
 
@@ -969,7 +972,7 @@ Ext.define('PBS.DataStoreContent', {
 		    isActionDisabled: (v, r, c, i, rec) => rec.data.ty !== 'file' || rec.data['crypt-mode'] > 2,
 		},
 		{
-		    handler: 'openPxarBrowser',
+		    handler: 'openBrowser',
 		    tooltip: gettext('Browse'),
 		    getClass: (v, m, { data }) => {
 			if (
@@ -1130,13 +1133,12 @@ Ext.define('PBS.DataStoreContent', {
 	    },
 	    listeners: {
 		dblclick: function(view, el, row, col, ev, rec) {
-		    let data = rec.data || {};
-		    let verify = data.verification;
-		    if (verify && verify.upid && rec.parentNode.id !== 'root') {
-			let win = Ext.create('Proxmox.window.TaskViewer', {
+		    let verify = rec?.data?.verification;
+		    if (verify?.upid && rec.parentNode?.id !== 'root') {
+			Ext.create('Proxmox.window.TaskViewer', {
+			    autoShow: true,
 			    upid: verify.upid,
 			});
-			win.show();
 		    }
 		},
 	    },
