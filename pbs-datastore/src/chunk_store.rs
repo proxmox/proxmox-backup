@@ -452,10 +452,12 @@ impl ChunkStore {
             } else if old_size == 0 {
                 log::warn!("found empty chunk '{digest_str}' in store {name}, overwriting");
             } else {
-                bail!(
-                    "found chunk size mismatch for '{digest_str}': old {old_size} - new \
-                    {encoded_size}"
-                );
+                // other sizes can happen in legitimate and illegitimate ways:
+                //  - illegitimate: encryped chunks and bad actor client
+                //  - legitimate: same chunk but newer zstd version (or compression level) can
+                //    compress it better (or worse) so the
+                //  Ideally we could take the actual smaller chunk so that improved zstd tech gets
+                //  leveraged, but we could only allow to do that for un-encrypted ones.
             }
         }
 
