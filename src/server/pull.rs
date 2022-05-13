@@ -17,8 +17,8 @@ use proxmox_sys::task_log;
 
 use pbs_api_types::{
     Authid, BackupNamespace, DatastoreWithNamespace, GroupFilter, GroupListItem, NamespaceListItem,
-    Operation, RateLimitConfig, Remote, SnapshotListItem, PRIV_DATASTORE_AUDIT,
-    PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY,
+    Operation, RateLimitConfig, Remote, SnapshotListItem, MAX_NAMESPACE_DEPTH,
+    PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY,
 };
 
 use pbs_client::{
@@ -875,9 +875,14 @@ fn check_and_remove_vanished_ns(
     let mut errors = false;
     let user_info = CachedUserInfo::new()?;
 
+    // clamp like remote does so that we don't list more than we can ever have synced.
+    let max_depth = params
+        .max_depth
+        .unwrap_or_else(|| MAX_NAMESPACE_DEPTH - params.remote_ns.depth());
+
     let mut local_ns_list: Vec<BackupNamespace> = params
         .store
-        .recursive_iter_backup_ns_ok(params.ns.clone(), params.max_depth)?
+        .recursive_iter_backup_ns_ok(params.ns.clone(), Some(max_depth))?
         .filter(|ns| {
             let store_with_ns = params.store_with_ns(ns.clone());
             let user_privs = user_info.lookup_privs(&params.owner, &store_with_ns.acl_path());
