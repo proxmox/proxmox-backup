@@ -210,13 +210,13 @@ Ext.define('PBS.form.GroupFilter', {
 	let url;
 	if (me.remote) {
 	    url = `/api2/json/config/remote/${me.remote}/scan/${me.datastore}/groups`;
-		if (me.namespace) {
-			url += `?namespace=${me.namespace}`;
-		}
 	} else if (me.datastore) {
 	    url = `/api2/json/admin/datastore/${me.datastore}/groups`;
 	} else {
-		return;
+	    return;
+	}
+	if (me.namespace) {
+	    url += `?namespace=${me.namespace}`;
 	}
 	me.setDsStoreUrl(url);
 	me.dsStore.load({
