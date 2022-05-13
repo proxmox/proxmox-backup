@@ -854,7 +854,7 @@ pub fn verify(
                 failed_dirs
             } else {
                 let owner = if owner_check_required {
-                    Some(auth_id)
+                    Some(&auth_id)
                 } else {
                     None
                 };

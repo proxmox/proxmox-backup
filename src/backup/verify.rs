@@ -498,7 +498,7 @@ pub fn verify_all_backups(
     upid: &UPID,
     ns: BackupNamespace,
     max_depth: Option<usize>,
-    owner: Option<Authid>,
+    owner: Option<&Authid>,
     filter: Option<&dyn Fn(&BackupManifest) -> bool>,
 ) -> Result<Vec<String>, Error> {
     let mut errors = Vec::new();
