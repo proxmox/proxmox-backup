@@ -681,6 +681,16 @@ To remove a job, please use:
 
  # proxmox-tape backup-job remove job2
 
+By default, all (recursive) namespaces of the datastore are included in a tape
+backup. You can specify a single namespace wth ``ns`` and a depth with
+``max-depth``. For example:
+
+.. code-block:: console
+
+ # proxmox-tape backup-job update job2 --ns mynamespace --max-depth 3
+
+If no `max-depth` is given, it will include all recursive namespaces.
+
 .. image:: images/screenshots/pbs-gui-tape-backup-jobs-add.png
   :align: right
   :alt: Tape Backup: Add a backup job
@@ -797,6 +807,16 @@ The following options are available:
   media set into import-export slots. The operator can then pick up
   those tapes and move them to a media vault.
 
+--ns  The namespace to backup.
+
+  If you only want to backup a specific namespace. If omitted, the root
+  namespaces is assumed.
+
+--max-depth  The depth to recurse namespaces.
+
+  ``0`` means no recursion at all (only the given namespace). If omitted,
+  all namespaces are recursed (below the the given one).
+
 
 Restore from Tape
 ~~~~~~~~~~~~~~~~~
@@ -854,6 +874,30 @@ multiple snapshots with one restore action.
 .. NOTE:: When using the single snapshot restore, the tape must be traversed
    more than once, which, if you restore many snapshots at once, can take longer
    than restoring the whole datastore.
+
+Namespaces
+^^^^^^^^^^
+
+It is also possible to select and map specific namespaces from a media-set
+during a restore. This is possible with the ``namespaces`` parameter.
+The format of the parameter is
+
+.. code-block:: console
+
+ store=<source-datastore>[,source=<source-ns>][,target=<target-ns>][,max-depth=<depth>]
+
+If ``source`` or ``target`` is not given, the root namespace is assumed.
+When no ``max-depth`` is given, the source namespace will be fully recursed.
+
+An example restore command:
+
+.. code-block:: console
+
+ # proxmox-tape restore 9da37a55-aac7-4deb-91c6-482b3b675f30 mystore --namespaces store=sourcedatastore,source=ns1,target=ns2,max-depth=2
+
+The parameter can be given multiple times. It can also be combined with the
+``snapshots`` parameter to only restore those snapshots and map them to different
+namespaces.
 
 Update Inventory
 ~~~~~~~~~~~~~~~~
