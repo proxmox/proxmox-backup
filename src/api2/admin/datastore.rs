@@ -598,7 +598,8 @@ pub fn list_snapshots(
 }
 
 fn get_snapshots_count(store: &Arc<DataStore>, owner: Option<&Authid>) -> Result<Counts, Error> {
-    ListAccessibleBackupGroups::new(Arc::clone(store), Default::default(), MAX_NAMESPACE_DEPTH, owner)?
+    let root_ns = Default::default();
+    ListAccessibleBackupGroups::new(Arc::clone(store), root_ns, MAX_NAMESPACE_DEPTH, owner)?
         .try_fold(Counts::default(), |mut counts, group| {
             let group = match group {
                 Ok(group) => group,

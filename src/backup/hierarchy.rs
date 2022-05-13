@@ -21,7 +21,7 @@ pub struct ListAccessibleBackupGroups<'a> {
     ns_iter: ListNamespacesRecursive,
 }
 
-impl <'a> ListAccessibleBackupGroups<'a> {
+impl<'a> ListAccessibleBackupGroups<'a> {
     // TODO: builder pattern
 
     pub fn new(
@@ -41,7 +41,7 @@ impl <'a> ListAccessibleBackupGroups<'a> {
     }
 }
 
-impl <'a> Iterator for ListAccessibleBackupGroups<'a> {
+impl<'a> Iterator for ListAccessibleBackupGroups<'a> {
     type Item = Result<BackupGroup, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
