@@ -565,13 +565,6 @@ a single media pool, so a job only uses tapes from that pool.
    the password. Please make sure to remember the password, in case
    you need to restore the key.
 
-
-.. NOTE:: We use global content namespace, meaning we do not store the
-   source datastore name. Because of this, it is impossible to distinguish
-   store1:/vm/100 from store2:/vm/100. Please use different media pools
-   if the sources are from different namespaces with conflicting names
-   (for example, if the sources are from different Proxmox VE clusters).
-
 .. image:: images/screenshots/pbs-gui-tape-pools-add.png
   :align: right
   :alt: Tape Backup: Add a media pool
