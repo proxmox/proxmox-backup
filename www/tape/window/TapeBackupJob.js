@@ -13,6 +13,8 @@ Ext.define('PBS.TapeManagement.BackupJobEdit', {
 
     bodyPadding: 0,
 
+    onlineHelp: 'tape_backup_job_config',
+
     cbindData: function(initialConfig) {
 	let me = this;
 
