@@ -38,6 +38,8 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 	    singleSelectorLabel: get =>
 		get('singleDatastore') ? gettext('Target Datastore') : gettext('Default Datastore'),
 	    singleSelectorEmptyText: get => get('singleDatastore') ? '' : Proxmox.Utils.NoneText,
+	    singleSelectorLabelNs: get =>
+		get('singleDatastore') ? gettext('Target Namespace') : gettext('Default Namespace'),
 	},
     },
 
@@ -371,16 +373,29 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 		    xtype: 'inputpanel',
 		    onGetValues: function(values) {
 			let me = this;
+			let controller = me.up('window').getController();
 			let datastores = [];
 			if (values.store.toString() !== "") {
 			    datastores.push(values.store);
 			    delete values.store;
 			}
 
-			if (values.mapping.toString() !== "") {
-			    datastores.push(values.mapping);
+			let defaultNs = values.defaultNs;
+			delete values.defaultNs;
+
+			let [ds_map, ns_map] = me.down('pbsDataStoreMappingField').getValue();
+			if (ds_map !== '') {
+			    datastores.push(ds_map);
 			}
-			delete values.mapping;
+			if (ns_map.length > 0) {
+			    values.namespaces = ns_map;
+			}
+
+			if (defaultNs && ns_map.length === 0 && controller.datastores.length === 1) {
+			    // we only have one datastore and a default ns
+			    values.namespaces = [`store=${controller.datastores[0]},target=${defaultNs}`];
+			}
+
 
 			values.store = datastores.join(',');
 
@@ -427,7 +442,22 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 			    },
 			    listeners: {
 				change: function(field, value) {
-				    this.up('window').lookup('mappingGrid').setNeedStores(!value);
+				    this.up('window').lookup('mappingGrid').setDefaultStore(value);
+				    this.up('window').lookup('defaultNs').setDatastore(value);
+				},
+			    },
+			},
+			{
+			    xtype: 'pbsNamespaceSelector',
+			    name: 'defaultNs',
+			    reference: 'defaultNs',
+			    labelWidth: 120,
+			    bind: {
+				fieldLabel: '{singleSelectorLabelNs}',
+			    },
+			    listeners: {
+				change: function(field, value) {
+				    this.up('window').lookup('mappingGrid').setDefaultNs(value);
 				},
 			    },
 			},
@@ -444,9 +474,9 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 			},
 			{
 			    xtype: 'pbsDataStoreMappingField',
-			    name: 'mapping',
+			    isFormField: false,
 			    reference: 'mappingGrid',
-			    height: 260,
+			    height: 240,
 			    defaultBindProperty: 'value',
 			    bind: {
 				hidden: '{singleDatastore}',
@@ -473,28 +503,54 @@ Ext.define('PBS.TapeManagement.DataStoreMappingGrid', {
     getValue: function() {
 	let me = this;
 	let datastores = [];
+	let namespaces = [];
+	let defaultStore = me.getViewModel().get('defaultStore');
+	let defaultNs = me.getViewModel().get('defaultNs');
 	me.getStore().each(rec => {
-	    let { source, target } = rec.data;
+	    let { source, target, targetns } = rec.data;
 	    if (target && target !== "") {
 		datastores.push(`${source}=${target}`);
 	    }
+	    if (target || defaultStore) {
+		let ns = targetns || defaultNs;
+		if (ns) {
+		    namespaces.push(`store=${source},target=${ns}`);
+		}
+	    }
 	});
 
-	return datastores.join(',');
+	return [datastores.join(','), namespaces];
     },
 
     viewModel: {
 	data: {
-	    needStores: false, // this determines if we need at least one valid mapping
+	    defaultStore: '',
+	    defaultNs: false,
 	},
 	formulas: {
-	    emptyMeans: get => get('needStores') ? Proxmox.Utils.NoneText : Proxmox.Utils.defaultText,
+	    emptyStore: get => get('defaultStore') || Proxmox.Utils.NoneText,
+	    emptyNs: get => get('defaultNs') || gettext('Root'),
 	},
     },
 
-    setNeedStores: function(needStores) {
+    setDefaultStore: function(store) {
 	let me = this;
-	me.getViewModel().set('needStores', needStores);
+	me.getViewModel().set('defaultStore', store);
+	me.getStore().each((rec) => {
+	    if (!rec.dswidget) {
+		return; // not yet attached
+	    }
+	    if (!rec.dswidget.getValue()) {
+		rec.nswidget.setDatastore(store);
+	    }
+	});
+	me.checkChange();
+	me.validate();
+    },
+
+    setDefaultNs: function(defaultNs) {
+	let me = this;
+	me.getViewModel().set('defaultNs', defaultNs);
 	me.checkChange();
 	me.validate();
     },
@@ -509,7 +565,7 @@ Ext.define('PBS.TapeManagement.DataStoreMappingGrid', {
 	let me = this;
 	let error = false;
 
-	if (me.getViewModel().get('needStores')) {
+	if (me.getViewModel().get('defaultStore') !== '') {
 	    error = true;
 	    me.getStore().each(rec => {
 		if (rec.data.target) {
@@ -543,6 +599,7 @@ Ext.define('PBS.TapeManagement.DataStoreMappingGrid', {
 	    data.push({
 		source: datastore,
 		target: '',
+		targetNs: '',
 	    });
 	}
 
@@ -555,6 +612,16 @@ Ext.define('PBS.TapeManagement.DataStoreMappingGrid', {
 
     store: { data: [] },
 
+    listeners: {
+	beforedestroy: function() {
+	    // break cyclic reference
+	    this.getStore()?.each((rec) => {
+		delete rec.nswidget;
+		delete rec.dswidget;
+	    });
+	},
+    },
+
     columns: [
 	{
 	    text: gettext('Source Datastore'),
@@ -564,6 +631,10 @@ Ext.define('PBS.TapeManagement.DataStoreMappingGrid', {
 	{
 	    text: gettext('Target Datastore'),
 	    xtype: 'widgetcolumn',
+	    onWidgetAttach: function(col, widget, rec) {
+		// so that we can access it from the store
+		rec.dswidget = widget;
+	    },
 	    dataIndex: 'target',
 	    flex: 1,
 	    widget: {
@@ -571,7 +642,7 @@ Ext.define('PBS.TapeManagement.DataStoreMappingGrid', {
 		isFormField: false,
 		allowBlank: true,
 		bind: {
-		    emptyText: '{emptyMeans}',
+		    emptyText: '{emptyStore}',
 		},
 		listeners: {
 		    change: function(selector, value) {
@@ -581,6 +652,36 @@ Ext.define('PBS.TapeManagement.DataStoreMappingGrid', {
 			    return;
 			}
 			rec.set('target', value);
+			rec.nswidget.setDatastore(value);
+			me.up('grid').checkChange();
+		    },
+		},
+	    },
+	},
+	{
+	    text: gettext('Target Namespace'),
+	    xtype: 'widgetcolumn',
+	    onWidgetAttach: function(col, widget, rec) {
+		// so that we can access it from the store
+		rec.nswidget = widget;
+	    },
+	    dataIndex: 'targetns',
+	    flex: 1,
+	    widget: {
+		xtype: 'pbsNamespaceSelector',
+		isFormField: false,
+		allowBlank: true,
+		bind: {
+		    emptyText: '{emptyNs}',
+		},
+		listeners: {
+		    change: function(selector, value) {
+			let me = this;
+			let rec = me.getWidgetRecord();
+			if (!rec) {
+			    return;
+			}
+			rec.set('targetns', value);
 			me.up('grid').checkChange();
 		    },
 		},

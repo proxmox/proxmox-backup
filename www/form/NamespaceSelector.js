@@ -66,6 +66,9 @@ Ext.define('PBS.form.NamespaceSelector', {
 	    }
 	    me.store.load();
 	    me.validate();
+	} else {
+	    me.datastore = undefined;
+	    me.setDisabled(true);
 	}
     },
 
