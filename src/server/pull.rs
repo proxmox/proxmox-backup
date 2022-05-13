@@ -1,6 +1,5 @@
 //! Sync datastore from remote server
 
-use std::cmp::min;
 use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
 use std::io::{Seek, SeekFrom};
@@ -18,8 +17,8 @@ use proxmox_sys::task_log;
 
 use pbs_api_types::{
     Authid, BackupNamespace, DatastoreWithNamespace, GroupFilter, GroupListItem, NamespaceListItem,
-    Operation, RateLimitConfig, Remote, SnapshotListItem, MAX_NAMESPACE_DEPTH,
-    PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY,
+    Operation, RateLimitConfig, Remote, SnapshotListItem, PRIV_DATASTORE_AUDIT,
+    PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY,
 };
 
 use pbs_client::{
@@ -81,8 +80,10 @@ impl PullParameters {
     ) -> Result<Self, Error> {
         let store = DataStore::lookup_datastore(store, Some(Operation::Write))?;
 
-        let max_depth =
-            max_depth.map(|max_depth| min(max_depth, MAX_NAMESPACE_DEPTH - remote_ns.depth()));
+        if let Some(max_depth) = max_depth {
+            ns.check_max_depth(max_depth)?;
+            remote_ns.check_max_depth(max_depth)?;
+        }
 
         let (remote_config, _digest) = pbs_config::remote::config()?;
         let remote: Remote = remote_config.lookup("remote", remote)?;

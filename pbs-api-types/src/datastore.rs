@@ -719,6 +719,17 @@ impl BackupNamespace {
         }
         Ok(new)
     }
+
+    /// Check whether adding `depth` levels of sub-namespaces exceeds the max depth limit
+    pub fn check_max_depth(&self, depth: usize) -> Result<(), Error> {
+        let ns_depth = self.depth();
+        if ns_depth + depth > MAX_NAMESPACE_DEPTH {
+            bail!(
+                "namespace '{self}'s depth and recursion depth exceed limit: {ns_depth} + {depth} > {MAX_NAMESPACE_DEPTH}",
+            );
+        }
+        Ok(())
+    }
 }
 
 impl fmt::Display for BackupNamespace {

@@ -1,8 +1,6 @@
 use ::serde::{Deserialize, Serialize};
 use anyhow::{bail, Error};
 use hex::FromHex;
-use pbs_api_types::BackupNamespace;
-use pbs_api_types::MAX_NAMESPACE_DEPTH;
 use serde_json::Value;
 
 use proxmox_router::{http_bail, Permission, Router, RpcEnvironment};
@@ -145,6 +143,15 @@ pub fn create_sync_job(
 
     if !check_sync_job_modify_access(&user_info, &auth_id, &config) {
         bail!("permission check failed");
+    }
+
+    if let Some(max_depth) = config.max_depth {
+        if let Some(ref ns) = config.ns {
+            ns.check_max_depth(max_depth)?;
+        }
+        if let Some(ref ns) = config.remote_ns {
+            ns.check_max_depth(max_depth)?;
+        }
     }
 
     let (mut section_config, _digest) = sync::config()?;
@@ -321,18 +328,6 @@ pub fn update_sync_job(
         }
     }
 
-    let check_max_depth = |ns: &BackupNamespace, depth| -> Result<(), Error> {
-        if ns.depth() + depth >= MAX_NAMESPACE_DEPTH {
-            bail!(
-                "namespace and recursion depth exceed limit: {} + {} >= {}",
-                ns.depth(),
-                depth,
-                MAX_NAMESPACE_DEPTH
-            );
-        }
-        Ok(())
-    };
-
     if let Some(comment) = update.comment {
         let comment = comment.trim().to_string();
         if comment.is_empty() {
@@ -346,9 +341,6 @@ pub fn update_sync_job(
         data.store = store;
     }
     if let Some(ns) = update.ns {
-        if let Some(explicit_depth) = update.max_depth.or(data.max_depth) {
-            check_max_depth(&ns, explicit_depth)?;
-        }
         data.ns = Some(ns);
     }
     if let Some(remote) = update.remote {
@@ -358,9 +350,6 @@ pub fn update_sync_job(
         data.remote_store = remote_store;
     }
     if let Some(remote_ns) = update.remote_ns {
-        if let Some(explicit_depth) = update.max_depth.or(data.max_depth) {
-            check_max_depth(&remote_ns, explicit_depth)?;
-        }
         data.remote_ns = Some(remote_ns);
     }
     if let Some(owner) = update.owner {
@@ -394,13 +383,16 @@ pub fn update_sync_job(
         data.remove_vanished = update.remove_vanished;
     }
     if let Some(max_depth) = update.max_depth {
+        data.max_depth = Some(max_depth);
+    }
+
+    if let Some(max_depth) = data.max_depth {
         if let Some(ref ns) = data.ns {
-            check_max_depth(ns, max_depth)?;
+            ns.check_max_depth(max_depth)?;
         }
         if let Some(ref ns) = data.remote_ns {
-            check_max_depth(ns, max_depth)?;
+            ns.check_max_depth(max_depth)?;
         }
-        data.max_depth = Some(max_depth);
     }
 
     if !check_sync_job_modify_access(&user_info, &auth_id, &data) {
