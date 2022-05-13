@@ -9,7 +9,8 @@ use proxmox_schema::*;
 use crate::{
     Authid, BackupNamespace, BackupType, RateLimitConfig, Userid, BACKUP_GROUP_SCHEMA,
     BACKUP_NAMESPACE_SCHEMA, DATASTORE_SCHEMA, DRIVE_NAME_SCHEMA, MEDIA_POOL_NAME_SCHEMA,
-    NS_MAX_DEPTH_SCHEMA, PROXMOX_SAFE_ID_FORMAT, REMOTE_ID_SCHEMA, SINGLE_LINE_COMMENT_SCHEMA,
+    NS_MAX_DEPTH_REDUCED_SCHEMA, PROXMOX_SAFE_ID_FORMAT, REMOTE_ID_SCHEMA,
+    SINGLE_LINE_COMMENT_SCHEMA,
 };
 
 const_regex! {
@@ -436,7 +437,7 @@ pub const GROUP_FILTER_LIST_SCHEMA: Schema =
             optional: true,
         },
         "max-depth": {
-            schema: NS_MAX_DEPTH_SCHEMA,
+            schema: NS_MAX_DEPTH_REDUCED_SCHEMA,
             optional: true,
         },
         comment: {

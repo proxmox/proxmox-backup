@@ -90,6 +90,12 @@ pub const NS_MAX_DEPTH_SCHEMA: Schema =
         .default(0)
         .schema();
 
+pub const NS_MAX_DEPTH_REDUCED_SCHEMA: Schema =
+IntegerSchema::new("How many levels of namespaces should be operated on (0 == no recursion, empty == automatic full recursion, namespace depths reduce maximum allowed value)")
+    .minimum(0)
+    .maximum(MAX_NAMESPACE_DEPTH as isize)
+    .schema();
+
 pub const DATASTORE_SCHEMA: Schema = StringSchema::new("Datastore name.")
     .format(&PROXMOX_SAFE_ID_FORMAT)
     .min_length(3)

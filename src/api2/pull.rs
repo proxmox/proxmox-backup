@@ -10,8 +10,8 @@ use proxmox_sys::task_log;
 
 use pbs_api_types::{
     Authid, BackupNamespace, GroupFilter, RateLimitConfig, SyncJobConfig, DATASTORE_SCHEMA,
-    GROUP_FILTER_LIST_SCHEMA, NS_MAX_DEPTH_SCHEMA, PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_PRUNE,
-    PRIV_REMOTE_READ, REMOTE_ID_SCHEMA, REMOVE_VANISHED_BACKUPS_SCHEMA,
+    GROUP_FILTER_LIST_SCHEMA, NS_MAX_DEPTH_REDUCED_SCHEMA, PRIV_DATASTORE_BACKUP,
+    PRIV_DATASTORE_PRUNE, PRIV_REMOTE_READ, REMOTE_ID_SCHEMA, REMOVE_VANISHED_BACKUPS_SCHEMA,
 };
 use pbs_config::CachedUserInfo;
 use proxmox_rest_server::WorkerTask;
@@ -193,7 +193,7 @@ pub fn do_sync_job(
                 optional: true,
             },
             "max-depth": {
-                schema: NS_MAX_DEPTH_SCHEMA,
+                schema: NS_MAX_DEPTH_REDUCED_SCHEMA,
                 optional: true,
             },
             "group-filter": {
