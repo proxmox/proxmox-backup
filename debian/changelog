@@ -1,3 +1,34 @@
+rust-proxmox-backup (2.1.10-1) bullseye; urgency=medium
+
+  * datastore: drop bogus chunk size check, can cause trouble
+
+  * pull/sync: detect remote lack of namespace support
+
+  * pull/sync: correctly query with remote-ns as parent
+
+  * ui: sync: add reduced max-depth selector
+
+  * ui: group filter: make also local filter NS aware
+
+  * api types: set NS_MAX_DEPTH schema default to MAX_NAMESPACE_DEPTH instead
+    of 0
+
+  * tape: notify when arriving at end of media
+
+  * tree-wide: rename 'backup-ns' API parameters to 'ns'
+
+  * tape: add namespaces/recursion depth to tape backup jobs
+
+  * api: tape/restore: add namespace mapping
+
+  * tape: bump catalog/snapshot archive magic
+
+  * ui: tape: backup overview: show namespaces as their own level above groups
+
+  * ui: tape restore: allow simple namespace mapping
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 13 May 2022 14:26:32 +0200
+
 rust-proxmox-backup (2.1.9-2) bullseye; urgency=medium
 
   * api: tape restore: lock the target datastore, not the source one
