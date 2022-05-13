@@ -22,6 +22,7 @@ Ext.define('pbs-groups', {
 Ext.define('PBS.form.GroupSelector', {
     extend: 'Proxmox.form.ComboGrid',
     alias: 'widget.pbsGroupSelector',
+    mixins: ['Proxmox.Mixin.CBind'],
 
     allowBlank: false,
     autoSelect: false,
