@@ -831,6 +831,29 @@ data disk (datastore):
 
  # proxmox-tape restore 9da37a55-aac7-4deb-91c6-482b3b675f30 mystore
 
+Single Snapshot Restore
+^^^^^^^^^^^^^^^^^^^^^^^
+
+Sometimes it is not necessary to restore a whole media-set, but only some
+specific snapshots from the tape. This can be achieved  with the ``snapshots``
+parameter:
+
+
+.. code-block:: console
+
+ // proxmox-tape restore <media-set-uuid> <datastore> [<snapshot>]
+
+ # proxmox-tape restore 9da37a55-aac7-4deb-91c6-482b3b675f30 mystore sourcestore:host/hostname/2022-01-01T00:01:00Z
+
+This first restores the snapshot to a temporary location, then restores the relevant
+chunk archives, and finally restores the snapshot data to the target datastore.
+
+The ``snapshot`` parameter can be given multiple times, so one can restore
+multiple snapshots with one restore action.
+
+.. NOTE:: When using the single snapshot restore, the tape must be traversed
+   more than once, which, if you restore many snapshots at once, can take longer
+   than restoring the whole datastore.
 
 Update Inventory
 ~~~~~~~~~~~~~~~~
