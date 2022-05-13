@@ -32,6 +32,28 @@ Ext.define('PBS.window.SyncJobEdit', {
 	return { };
     },
 
+	calcMaxDepthLimit: function() {
+		let maxPrefixLength = 0;
+		let view = this.controller.getView();
+	    let nsSelector = view.down('pbsNamespaceSelector[name=ns]');
+		let ns = nsSelector.getValue();
+		if (ns !== undefined && ns !== null) {
+			maxPrefixLength = (ns.match(/\//g) || []).length + 1;
+		}
+
+		let remoteNsSelector = view.down('pbsRemoteNamespaceSelector[name=remote-ns]');
+		let remoteNs = remoteNsSelector.getValue();
+
+		if (remoteNs !== undefined && remoteNs !== null) {
+			let remotePrefixLength = (remoteNs.match(/\//g) || []).length + 1;
+			if (remotePrefixLength > maxPrefixLength) {
+				maxPrefixLength = remotePrefixLength;
+			}
+		}
+
+		return maxPrefixLength;
+	},
+
     controller: {
 	xclass: 'Ext.app.ViewController',
 	control: {
@@ -91,6 +113,14 @@ Ext.define('PBS.window.SyncJobEdit', {
 			name: 'ns',
 			cbind: {
 			    datastore: '{datastore}',
+			},
+			listeners: {
+			    change: function(field, value) {
+				let me = this;
+				let maxDepthField = me.up('pbsSyncJobEdit').down('field[name=max-depth]');
+				maxDepthField.setLimit(me.up('pbsSyncJobEdit').calcMaxDepthLimit());
+				maxDepthField.validate();
+			    },
 			},
 		    },
 		    {
@@ -172,11 +202,14 @@ Ext.define('PBS.window.SyncJobEdit', {
 				let remoteStoreField = me.up('pbsSyncJobEdit').down('field[name=remote-store]');
 				let remoteStore = remoteStoreField.getValue();
 				me.up('tabpanel').down('pbsGroupFilter').setRemoteNamespace(remote, remoteStore, value);
+				let maxDepthField = me.up('pbsSyncJobEdit').down('field[name=max-depth]');
+				maxDepthField.setLimit(me.up('pbsSyncJobEdit').calcMaxDepthLimit());
+				maxDepthField.validate();
 			    },
 			},
 		    },
 		    {
-			xtype: 'pbsNamespaceMaxDepth',
+			xtype: 'pbsNamespaceMaxDepthReduced',
 			name: 'max-depth',
 			fieldLabel: gettext('Max. Depth'),
 			deleteEmpty: true,

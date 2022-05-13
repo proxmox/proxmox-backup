@@ -31,3 +31,16 @@ Ext.define('PBS.form.NamespaceMaxDepth', {
     },
 });
 
+Ext.define('PBS.form.NamespaceMaxDepthReduced', {
+    extend: 'PBS.form.NamespaceMaxDepth',
+    alias: 'widget.pbsNamespaceMaxDepthReduced',
+
+	setLimit: function(maxPrefixLength) {
+		let me = this;
+		if (maxPrefixLength !== undefined) {
+			me.maxValue = 7-maxPrefixLength;
+		} else {
+			me.maxValue = 7;
+		}
+	},
+});
