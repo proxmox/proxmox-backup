@@ -405,7 +405,7 @@ fn backup_worker(
     let changer_name = update_media_online_status(&setup.drive)?;
 
     let root_namespace = setup.ns.clone().unwrap_or_default();
-    let ns_magic = !root_namespace.is_root() || setup.recursion_depth != Some(0);
+    let ns_magic = !root_namespace.is_root() || setup.max_depth != Some(0);
 
     let pool = MediaPool::with_config(status_path, pool_config, changer_name, false)?;
 
@@ -413,8 +413,7 @@ fn backup_worker(
         PoolWriter::new(pool, &setup.drive, worker, email, force_media_set, ns_magic)?;
 
     let mut group_list = Vec::new();
-    let namespaces =
-        datastore.recursive_iter_backup_ns_ok(root_namespace, setup.recursion_depth)?;
+    let namespaces = datastore.recursive_iter_backup_ns_ok(root_namespace, setup.max_depth)?;
     for ns in namespaces {
         group_list.extend(datastore.list_backup_groups(ns)?);
     }

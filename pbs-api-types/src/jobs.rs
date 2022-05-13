@@ -281,7 +281,7 @@ pub struct VerificationJobStatus {
             type: BackupNamespace,
             optional: true,
         },
-        "recursion-depth": {
+        "max-depth": {
             schema: crate::NS_MAX_DEPTH_SCHEMA,
             optional: true,
         },
@@ -308,7 +308,7 @@ pub struct TapeBackupJobSetup {
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub ns: Option<BackupNamespace>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub recursion_depth: Option<usize>,
+    pub max_depth: Option<usize>,
 }
 
 #[api(

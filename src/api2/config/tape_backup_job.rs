@@ -134,6 +134,10 @@ pub enum DeletableProperty {
     NotifyUser,
     /// Delete the 'group_filter' property
     GroupFilter,
+    /// Delete the 'max-depth' property
+    MaxDepth,
+    /// Delete the 'ns' property
+    Ns,
 }
 
 #[api(
@@ -207,6 +211,12 @@ pub fn update_tape_backup_job(
                 DeletableProperty::GroupFilter => {
                     data.setup.group_filter = None;
                 }
+                DeletableProperty::MaxDepth => {
+                    data.setup.max_depth = None;
+                }
+                DeletableProperty::Ns => {
+                    data.setup.ns = None;
+                }
             }
         }
     }
@@ -235,6 +245,12 @@ pub fn update_tape_backup_job(
     }
     if update.setup.group_filter.is_some() {
         data.setup.group_filter = update.setup.group_filter;
+    }
+    if update.setup.ns.is_some() {
+        data.setup.ns = update.setup.ns;
+    }
+    if update.setup.max_depth.is_some() {
+        data.setup.max_depth = update.setup.max_depth;
     }
 
     let schedule_changed = data.schedule != update.schedule;
