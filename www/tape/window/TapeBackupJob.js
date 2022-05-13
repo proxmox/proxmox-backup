@@ -29,6 +29,21 @@ Ext.define('PBS.TapeManagement.BackupJobEdit', {
 	return { };
     },
 
+    controller: {
+	xclass: 'Ext.app.ViewController',
+	control: {
+	    'pbsDataStoreSelector[name=store]': {
+		change: 'storeChange',
+	    },
+	},
+
+	storeChange: function(field, value) {
+	    let me = this;
+	    let nsSelector = me.lookup('namespace');
+	    nsSelector.setDatastore(value);
+	},
+    },
+
     items: {
 	xtype: 'tabpanel',
 	bodyPadding: 10,
@@ -67,6 +82,12 @@ Ext.define('PBS.TapeManagement.BackupJobEdit', {
 				me.up('tabpanel').down('pbsGroupFilter').setLocalDatastore(value);
 			    },
 			},
+		    },
+		    {
+			xtype: 'pbsNamespaceSelector',
+			fieldLabel: gettext('Local Namespace'),
+			reference: 'namespace',
+			name: 'ns',
 		    },
 		    {
 			xtype: 'pbsMediaPoolSelector',
@@ -133,6 +154,12 @@ Ext.define('PBS.TapeManagement.BackupJobEdit', {
 			cbind: {
 			    deleteEmpty: '{!isCreate}',
 			},
+		    },
+		    {
+			xtype: 'pbsNamespaceMaxDepth',
+			name: 'max-depth',
+			fieldLabel: gettext('Max. Depth'),
+			deleteEmpty: true,
 		    },
 		],
 
