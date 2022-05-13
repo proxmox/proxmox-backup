@@ -114,7 +114,7 @@ Ext.define('PBS.DataStoreContent', {
 
 	    let url = `/api2/json/admin/datastore/${view.datastore}/snapshots`;
 	    if (view.namespace && view.namespace !== '') {
-		url += `?backup-ns=${encodeURIComponent(view.namespace)}`;
+		url += `?ns=${encodeURIComponent(view.namespace)}`;
 	    }
 	    this.store.setProxy({
 		type: 'proxmox',
@@ -160,7 +160,7 @@ Ext.define('PBS.DataStoreContent', {
 	    try {
 		let url = `/api2/extjs/admin/datastore/${view.datastore}/groups`;
 		if (view.namespace && view.namespace !== '') {
-		    url += `?backup-ns=${encodeURIComponent(view.namespace)}`;
+		    url += `?ns=${encodeURIComponent(view.namespace)}`;
 		}
 		let { result: { data: groups } } = await Proxmox.Async.api2({ url });
 		let map = {};
@@ -514,7 +514,7 @@ Ext.define('PBS.DataStoreContent', {
 		};
 	    }
 	    if (view.namespace && view.namespace !== '') {
-		params['backup-ns'] = view.namespace;
+		params.ns = view.namespace;
 	    }
 
 	    Proxmox.Utils.API2Request({
@@ -552,7 +552,7 @@ Ext.define('PBS.DataStoreContent', {
 		};
 	    }
 	    if (view.namespace && view.namespace !== '') {
-		params['backup-ns'] = view.namespace;
+		params.ns = view.namespace;
 	    }
 
 	    Ext.create('PBS.window.NotesEdit', {
@@ -572,7 +572,7 @@ Ext.define('PBS.DataStoreContent', {
 		"backup-id": data.backup_id,
 	    };
 	    if (view.namespace && view.namespace !== '') {
-		params['backup-ns'] = view.namespace;
+		params.ns = view.namespace;
 	    }
 
 	    Ext.create('Proxmox.window.SafeDestroy', {
@@ -609,7 +609,7 @@ Ext.define('PBS.DataStoreContent', {
 			"backup-time": (data['backup-time'].getTime()/1000).toFixed(0),
 		    };
 		    if (view.namespace && view.namespace !== '') {
-			params['backup-ns'] = view.namespace;
+			params.ns = view.namespace;
 		    }
 
 		    Proxmox.Utils.API2Request({
@@ -644,7 +644,7 @@ Ext.define('PBS.DataStoreContent', {
 		'backup-time': time,
 	    };
 	    if (view.namespace && view.namespace !== '') {
-		params['backup-ns'] = view.namespace;
+		params.ns = view.namespace;
 	    }
 
 	    let url = `/api2/extjs/admin/datastore/${view.datastore}/protected`;
@@ -719,7 +719,7 @@ Ext.define('PBS.DataStoreContent', {
 		'file-name': file,
 	    };
 	    if (view.namespace && view.namespace !== '') {
-		params['backup-ns'] = view.namespace;
+		params.ns = view.namespace;
 	    }
 
 	    let idx = file.lastIndexOf('.');
@@ -759,7 +759,7 @@ Ext.define('PBS.DataStoreContent', {
 		'backup-type': type,
 	    };
 	    if (view.namespace && view.namespace !== '') {
-		extraParams['backup-ns'] = view.namespace;
+		extraParams.ns = view.namespace;
 	    }
 	    Ext.create('Proxmox.window.FileBrowser', {
 		title: `${type}/${id}/${timetext}`,

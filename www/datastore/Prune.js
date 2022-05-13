@@ -50,7 +50,7 @@ Ext.define('PBS.Datastore.PruneInputPanel', {
 	values["backup-type"] = me.backup_type;
 	values["backup-id"] = me.backup_id;
 	if (me.ns && me.ns !== '') {
-	    values['backup-ns'] = me.ns;
+	    values.ns = me.ns;
 	}
 	return values;
     },
@@ -126,7 +126,7 @@ Ext.define('PBS.Datastore.PruneInputPanel', {
 	    let params = view.getValues();
 	    params["dry-run"] = true;
 	    if (view.ns && view.ns !== '') {
-		params['backup-ns'] = view.ns;
+		params.ns = view.ns;
 	    }
 
 	    Proxmox.Utils.API2Request({

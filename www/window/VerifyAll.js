@@ -24,15 +24,15 @@ Ext.define('PBS.window.VerifyAll', {
 		data: { ignoreVerified: true },
 	    },
 	    onGetValues: values => {
-		if (!values['backup-ns'] || values['backup-ns'] === '') {
-		    delete values['backup-ns'];
+		if (!values.ns || values.ns === '') {
+		    delete values.ns;
 		}
 		return values;
 	    },
 	    items: [
 		{
 		    xtype: 'pbsNamespaceSelector',
-		    name: 'backup-ns',
+		    name: 'ns',
 		    fieldLabel: gettext('Namespace'),
 		    cbind: {
 			datastore: '{datastore}',
