@@ -141,7 +141,7 @@ async fn api_datastore_list_snapshots(
         None => json!({}),
     };
     if !ns.is_root() {
-        args["backup-ns"] = serde_json::to_value(ns)?;
+        args["ns"] = serde_json::to_value(ns)?;
     }
 
     let mut result = client.get(&path, Some(args)).await?;
@@ -284,7 +284,7 @@ async fn list_backup_groups(param: Value) -> Result<Value, Error> {
             &path,
             match backup_ns.is_root() {
                 true => None,
-                false => Some(json!({ "backup-ns": backup_ns })),
+                false => Some(json!({ "ns": backup_ns })),
             },
         )
         .await?;

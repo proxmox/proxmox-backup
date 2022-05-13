@@ -23,7 +23,7 @@ use crate::{
 fn snapshot_args(ns: &BackupNamespace, snapshot: &BackupDir) -> Result<Value, Error> {
     let mut args = serde_json::to_value(snapshot)?;
     if !ns.is_root() {
-        args["backup-ns"] = serde_json::to_value(ns)?;
+        args["ns"] = serde_json::to_value(ns)?;
     }
     Ok(args)
 }

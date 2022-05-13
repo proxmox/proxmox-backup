@@ -624,7 +624,7 @@ async fn pull_group(
     });
 
     if !remote_ns.is_root() {
-        args["backup-ns"] = serde_json::to_value(&remote_ns)?;
+        args["ns"] = serde_json::to_value(&remote_ns)?;
     }
 
     let target_ns = remote_ns.map_prefix(&params.remote_ns, &params.ns)?;
@@ -1055,7 +1055,7 @@ pub async fn pull_ns(
 
     let args = if !source_ns.is_root() {
         Some(json!({
-            "backup-ns": source_ns,
+            "ns": source_ns,
         }))
     } else {
         None

@@ -48,7 +48,7 @@ pub const API_METHOD_UPGRADE_BACKUP: ApiMethod = ApiMethod::new(
         ),
         &sorted!([
             ("store", false, &DATASTORE_SCHEMA),
-            ("backup-ns", true, &BACKUP_NAMESPACE_SCHEMA),
+            ("ns", true, &BACKUP_NAMESPACE_SCHEMA),
             ("backup-type", false, &BACKUP_TYPE_SCHEMA),
             ("backup-id", false, &BACKUP_ID_SCHEMA),
             ("backup-time", false, &BACKUP_TIME_SCHEMA),

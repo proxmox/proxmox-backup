@@ -60,7 +60,7 @@ impl BackupReader {
         });
 
         if !ns.is_root() {
-            param["backup-ns"] = serde_json::to_value(ns)?;
+            param["ns"] = serde_json::to_value(ns)?;
         }
 
         let req = HttpClient::request_builder(

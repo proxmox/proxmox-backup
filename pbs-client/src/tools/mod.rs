@@ -301,7 +301,7 @@ pub async fn complete_server_file_name_do(param: &HashMap<String, String>) -> Ve
     };
 
     let query = json_object_to_query(json!({
-        "backup-ns": ns,
+        "ns": ns,
         "backup-type": snapshot.group.ty,
         "backup-id": snapshot.group.id,
         "backup-time": snapshot.time,

@@ -44,7 +44,7 @@ pub const API_METHOD_UPGRADE_BACKUP: ApiMethod = ApiMethod::new(
         concat!("Upgraded to backup protocol ('", PROXMOX_BACKUP_PROTOCOL_ID_V1!(), "')."),
         &sorted!([
             ("store", false, &DATASTORE_SCHEMA),
-            ("backup-ns", true, &BACKUP_NAMESPACE_SCHEMA),
+            ("ns", true, &BACKUP_NAMESPACE_SCHEMA),
             ("backup-type", false, &BACKUP_TYPE_SCHEMA),
             ("backup-id", false, &BACKUP_ID_SCHEMA),
             ("backup-time", false, &BACKUP_TIME_SCHEMA),
@@ -59,10 +59,10 @@ pub const API_METHOD_UPGRADE_BACKUP: ApiMethod = ApiMethod::new(
 );
 
 pub(crate) fn optional_ns_param(param: &Value) -> Result<BackupNamespace, Error> {
-    match param.get("backup-ns") {
+    match param.get("ns") {
         Some(Value::String(ns)) => ns.parse(),
         None => Ok(BackupNamespace::root()),
-        _ => bail!("invalid backup-ns parameter"),
+        _ => bail!("invalid ns parameter"),
     }
 }
 

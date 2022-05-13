@@ -190,7 +190,7 @@ fn get_all_snapshot_files(
             store: {
                 schema: DATASTORE_SCHEMA,
             },
-            "backup-ns": {
+            ns: {
                 type: BackupNamespace,
                 optional: true,
             },
@@ -206,15 +206,15 @@ fn get_all_snapshot_files(
 /// List backup groups.
 pub fn list_groups(
     store: String,
-    backup_ns: Option<BackupNamespace>,
+    ns: Option<BackupNamespace>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<GroupListItem>, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-    let backup_ns = backup_ns.unwrap_or_default();
+    let ns = ns.unwrap_or_default();
     let list_all = !check_ns_privs(
         &store,
-        &backup_ns,
+        &ns,
         &auth_id,
         PRIV_DATASTORE_AUDIT,
         PRIV_DATASTORE_BACKUP,
@@ -223,10 +223,10 @@ pub fn list_groups(
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
 
     datastore
-        .iter_backup_groups(backup_ns.clone())? // FIXME: Namespaces and recursion parameters!
+        .iter_backup_groups(ns.clone())? // FIXME: Namespaces and recursion parameters!
         .try_fold(Vec::new(), |mut group_info, group| {
             let group = group?;
-            let owner = match datastore.get_owner(&backup_ns, group.as_ref()) {
+            let owner = match datastore.get_owner(&ns, group.as_ref()) {
                 Ok(auth_id) => auth_id,
                 Err(err) => {
                     let id = &store;
@@ -259,7 +259,7 @@ pub fn list_groups(
                 })
                 .to_owned();
 
-            let note_path = get_group_note_path(&datastore, &backup_ns, group.as_ref());
+            let note_path = get_group_note_path(&datastore, &ns, group.as_ref());
             let comment = file_read_firstline(&note_path).ok();
 
             group_info.push(GroupListItem {
@@ -279,7 +279,7 @@ pub fn list_groups(
     input: {
         properties: {
             store: { schema: DATASTORE_SCHEMA },
-            "backup-ns": {
+            ns: {
                 type: BackupNamespace,
                 optional: true,
             },
@@ -298,18 +298,18 @@ pub fn list_groups(
 /// Delete backup group including all snapshots.
 pub fn delete_group(
     store: String,
-    backup_ns: Option<BackupNamespace>,
+    ns: Option<BackupNamespace>,
     group: pbs_api_types::BackupGroup,
     _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-    let backup_ns = backup_ns.unwrap_or_default();
+    let ns = ns.unwrap_or_default();
 
     let datastore = check_privs_and_load_store(
         &store,
-        &backup_ns,
+        &ns,
         &auth_id,
         PRIV_DATASTORE_MODIFY,
         PRIV_DATASTORE_PRUNE,
@@ -317,7 +317,7 @@ pub fn delete_group(
         &group,
     )?;
 
-    if !datastore.remove_backup_group(&backup_ns, &group)? {
+    if !datastore.remove_backup_group(&ns, &group)? {
         bail!("group only partially deleted due to protected snapshots");
     }
 
@@ -328,7 +328,7 @@ pub fn delete_group(
     input: {
         properties: {
             store: { schema: DATASTORE_SCHEMA },
-            "backup-ns": {
+            ns: {
                 type: BackupNamespace,
                 optional: true,
             },
@@ -348,18 +348,18 @@ pub fn delete_group(
 /// List snapshot files.
 pub fn list_snapshot_files(
     store: String,
-    backup_ns: Option<BackupNamespace>,
+    ns: Option<BackupNamespace>,
     backup_dir: pbs_api_types::BackupDir,
     _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<BackupContent>, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-    let backup_ns = backup_ns.unwrap_or_default();
+    let ns = ns.unwrap_or_default();
 
     let datastore = check_privs_and_load_store(
         &store,
-        &backup_ns,
+        &ns,
         &auth_id,
         PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_READ,
         PRIV_DATASTORE_BACKUP,
@@ -367,7 +367,7 @@ pub fn list_snapshot_files(
         &backup_dir.group,
     )?;
 
-    let snapshot = datastore.backup_dir(backup_ns, backup_dir)?;
+    let snapshot = datastore.backup_dir(ns, backup_dir)?;
 
     let info = BackupInfo::new(snapshot)?;
 
@@ -380,7 +380,7 @@ pub fn list_snapshot_files(
     input: {
         properties: {
             store: { schema: DATASTORE_SCHEMA },
-            "backup-ns": {
+            ns: {
                 type: BackupNamespace,
                 optional: true,
             },
@@ -399,17 +399,17 @@ pub fn list_snapshot_files(
 /// Delete backup snapshot.
 pub fn delete_snapshot(
     store: String,
-    backup_ns: Option<BackupNamespace>,
+    ns: Option<BackupNamespace>,
     backup_dir: pbs_api_types::BackupDir,
     _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-    let backup_ns = backup_ns.unwrap_or_default();
+    let ns = ns.unwrap_or_default();
     let datastore = check_privs_and_load_store(
         &store,
-        &backup_ns,
+        &ns,
         &auth_id,
         PRIV_DATASTORE_MODIFY,
         PRIV_DATASTORE_PRUNE,
@@ -417,7 +417,7 @@ pub fn delete_snapshot(
         &backup_dir.group,
     )?;
 
-    let snapshot = datastore.backup_dir(backup_ns, backup_dir)?;
+    let snapshot = datastore.backup_dir(ns, backup_dir)?;
 
     snapshot.destroy(false)?;
 
@@ -429,7 +429,7 @@ pub fn delete_snapshot(
     input: {
         properties: {
             store: { schema: DATASTORE_SCHEMA },
-            "backup-ns": {
+            ns: {
                 type: BackupNamespace,
                 optional: true,
             },
@@ -453,7 +453,7 @@ pub fn delete_snapshot(
 /// List backup snapshots.
 pub fn list_snapshots(
     store: String,
-    backup_ns: Option<BackupNamespace>,
+    ns: Option<BackupNamespace>,
     backup_type: Option<BackupType>,
     backup_id: Option<String>,
     _param: Value,
@@ -462,11 +462,11 @@ pub fn list_snapshots(
 ) -> Result<Vec<SnapshotListItem>, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-    let backup_ns = backup_ns.unwrap_or_default();
+    let ns = ns.unwrap_or_default();
 
     let list_all = !check_ns_privs(
         &store,
-        &backup_ns,
+        &ns,
         &auth_id,
         PRIV_DATASTORE_AUDIT,
         PRIV_DATASTORE_BACKUP,
@@ -478,20 +478,20 @@ pub fn list_snapshots(
     // backup group and provide an error free (Err -> None) accessor
     let groups = match (backup_type, backup_id) {
         (Some(backup_type), Some(backup_id)) => {
-            vec![datastore.backup_group_from_parts(backup_ns, backup_type, backup_id)]
+            vec![datastore.backup_group_from_parts(ns, backup_type, backup_id)]
         }
         // FIXME: Recursion
         (Some(backup_type), None) => datastore
-            .iter_backup_groups_ok(backup_ns)?
+            .iter_backup_groups_ok(ns)?
             .filter(|group| group.backup_type() == backup_type)
             .collect(),
         // FIXME: Recursion
         (None, Some(backup_id)) => datastore
-            .iter_backup_groups_ok(backup_ns)?
+            .iter_backup_groups_ok(ns)?
             .filter(|group| group.backup_id() == backup_id)
             .collect(),
         // FIXME: Recursion
-        (None, None) => datastore.list_backup_groups(backup_ns)?,
+        (None, None) => datastore.list_backup_groups(ns)?,
     };
 
     let info_to_snapshot_list_item = |group: &BackupGroup, owner, info: BackupInfo| {
@@ -701,7 +701,7 @@ pub fn status(
             store: {
                 schema: DATASTORE_SCHEMA,
             },
-            "backup-ns": {
+            ns: {
                 type: BackupNamespace,
                 optional: true,
             },
@@ -746,7 +746,7 @@ pub fn status(
 /// or all backups in the datastore.
 pub fn verify(
     store: String,
-    backup_ns: Option<BackupNamespace>,
+    ns: Option<BackupNamespace>,
     backup_type: Option<BackupType>,
     backup_id: Option<String>,
     backup_time: Option<i64>,
@@ -756,10 +756,10 @@ pub fn verify(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-    let backup_ns = backup_ns.unwrap_or_default();
+    let ns = ns.unwrap_or_default();
     let owner_check_required = check_ns_privs(
         &store,
-        &backup_ns,
+        &ns,
         &auth_id,
         PRIV_DATASTORE_VERIFY,
         PRIV_DATASTORE_BACKUP,
@@ -779,17 +779,13 @@ pub fn verify(
             worker_id = format!(
                 "{}:{}/{}/{}/{:08X}",
                 store,
-                backup_ns.display_as_path(),
+                ns.display_as_path(),
                 backup_type,
                 backup_id,
                 backup_time
             );
-            let dir = datastore.backup_dir_from_parts(
-                backup_ns.clone(),
-                backup_type,
-                backup_id,
-                backup_time,
-            )?;
+            let dir =
+                datastore.backup_dir_from_parts(ns.clone(), backup_type, backup_id, backup_time)?;
 
             if owner_check_required {
                 let owner = datastore.get_owner(dir.backup_ns(), dir.as_ref())?;
@@ -803,25 +799,25 @@ pub fn verify(
             worker_id = format!(
                 "{}:{}/{}/{}",
                 store,
-                backup_ns.display_as_path(),
+                ns.display_as_path(),
                 backup_type,
                 backup_id
             );
             let group = pbs_api_types::BackupGroup::from((backup_type, backup_id));
 
             if owner_check_required {
-                let owner = datastore.get_owner(&backup_ns, &group)?;
+                let owner = datastore.get_owner(&ns, &group)?;
                 check_backup_owner(&owner, &auth_id)?;
             }
 
-            backup_group = Some(datastore.backup_group(backup_ns.clone(), group));
+            backup_group = Some(datastore.backup_group(ns.clone(), group));
             worker_type = "verify_group";
         }
         (None, None, None) => {
-            worker_id = if backup_ns.is_root() {
+            worker_id = if ns.is_root() {
                 store.clone()
             } else {
-                format!("{store}:{}", backup_ns.display_as_path())
+                format!("{store}:{}", ns.display_as_path())
             };
         }
         _ => bail!("parameters do not specify a backup group or snapshot"),
@@ -866,7 +862,7 @@ pub fn verify(
                 verify_all_backups(
                     &verify_worker,
                     worker.upid(),
-                    backup_ns,
+                    ns,
                     max_depth,
                     owner,
                     Some(&move |manifest| verify_filter(ignore_verified, outdated_after, manifest)),
@@ -889,7 +885,7 @@ pub fn verify(
 #[api(
     input: {
         properties: {
-            "backup-ns": {
+            ns: {
                 type: BackupNamespace,
                 optional: true,
             },
@@ -921,7 +917,7 @@ pub fn verify(
 )]
 /// Prune a group on the datastore
 pub fn prune(
-    backup_ns: Option<BackupNamespace>,
+    ns: Option<BackupNamespace>,
     group: pbs_api_types::BackupGroup,
     dry_run: bool,
     prune_options: PruneOptions,
@@ -930,10 +926,10 @@ pub fn prune(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-    let backup_ns = backup_ns.unwrap_or_default();
+    let ns = ns.unwrap_or_default();
     let datastore = check_privs_and_load_store(
         &store,
-        &backup_ns,
+        &ns,
         &auth_id,
         PRIV_DATASTORE_MODIFY,
         PRIV_DATASTORE_PRUNE,
@@ -941,7 +937,7 @@ pub fn prune(
         &group,
     )?;
 
-    let group = datastore.backup_group(backup_ns, group);
+    let group = datastore.backup_group(ns, group);
 
     let worker_id = format!("{}:{}", store, group);
 
@@ -966,9 +962,9 @@ pub fn prune(
                 "keep": keep,
                 "protected": mark.protected(),
             });
-            let ns = info.backup_dir.backup_ns();
-            if !ns.is_root() {
-                result["backup-ns"] = serde_json::to_value(ns)?;
+            let prune_ns = info.backup_dir.backup_ns();
+            if !prune_ns.is_root() {
+                result["ns"] = serde_json::to_value(prune_ns)?;
             }
             prune_result.push(result);
         }
@@ -1244,7 +1240,7 @@ pub const API_METHOD_DOWNLOAD_FILE: ApiMethod = ApiMethod::new(
         "Download single raw file from backup snapshot.",
         &sorted!([
             ("store", false, &DATASTORE_SCHEMA),
-            ("backup-ns", true, &BACKUP_NAMESPACE_SCHEMA),
+            ("ns", true, &BACKUP_NAMESPACE_SCHEMA),
             ("backup-type", false, &BACKUP_TYPE_SCHEMA),
             ("backup-id", false, &BACKUP_ID_SCHEMA),
             ("backup-time", false, &BACKUP_TIME_SCHEMA),
@@ -1325,7 +1321,7 @@ pub const API_METHOD_DOWNLOAD_FILE_DECODED: ApiMethod = ApiMethod::new(
         "Download single decoded file from backup snapshot. Only works if it's not encrypted.",
         &sorted!([
             ("store", false, &DATASTORE_SCHEMA),
-            ("backup-ns", true, &BACKUP_NAMESPACE_SCHEMA),
+            ("ns", true, &BACKUP_NAMESPACE_SCHEMA),
             ("backup-type", false, &BACKUP_TYPE_SCHEMA),
             ("backup-id", false, &BACKUP_ID_SCHEMA),
             ("backup-time", false, &BACKUP_TIME_SCHEMA),
@@ -1456,7 +1452,7 @@ pub const API_METHOD_UPLOAD_BACKUP_LOG: ApiMethod = ApiMethod::new(
         "Upload the client backup log file into a backup snapshot ('client.log.blob').",
         &sorted!([
             ("store", false, &DATASTORE_SCHEMA),
-            ("backup-ns", true, &BACKUP_NAMESPACE_SCHEMA),
+            ("ns", true, &BACKUP_NAMESPACE_SCHEMA),
             ("backup-type", false, &BACKUP_TYPE_SCHEMA),
             ("backup-id", false, &BACKUP_ID_SCHEMA),
             ("backup-time", false, &BACKUP_TIME_SCHEMA),
@@ -1526,7 +1522,7 @@ pub fn upload_backup_log(
     input: {
         properties: {
             store: { schema: DATASTORE_SCHEMA },
-            "backup-ns": {
+            ns: {
                 type: BackupNamespace,
                 optional: true,
             },
@@ -1549,16 +1545,16 @@ pub fn upload_backup_log(
 /// Get the entries of the given path of the catalog
 pub fn catalog(
     store: String,
-    backup_ns: Option<BackupNamespace>,
+    ns: Option<BackupNamespace>,
     backup_dir: pbs_api_types::BackupDir,
     filepath: String,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<ArchiveEntry>, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-    let backup_ns = backup_ns.unwrap_or_default();
+    let ns = ns.unwrap_or_default();
     let datastore = check_privs_and_load_store(
         &store,
-        &backup_ns,
+        &ns,
         &auth_id,
         PRIV_DATASTORE_READ,
         PRIV_DATASTORE_BACKUP,
@@ -1566,7 +1562,7 @@ pub fn catalog(
         &backup_dir.group,
     )?;
 
-    let backup_dir = datastore.backup_dir(backup_ns, backup_dir)?;
+    let backup_dir = datastore.backup_dir(ns, backup_dir)?;
 
     let file_name = CATALOG_NAME;
 
@@ -1608,7 +1604,7 @@ pub const API_METHOD_PXAR_FILE_DOWNLOAD: ApiMethod = ApiMethod::new(
         "Download single file from pxar file of a backup snapshot. Only works if it's not encrypted.",
         &sorted!([
             ("store", false, &DATASTORE_SCHEMA),
-            ("backup-ns", true, &BACKUP_NAMESPACE_SCHEMA),
+            ("ns", true, &BACKUP_NAMESPACE_SCHEMA),
             ("backup-type", false, &BACKUP_TYPE_SCHEMA),
             ("backup-id", false,  &BACKUP_ID_SCHEMA),
             ("backup-time", false, &BACKUP_TIME_SCHEMA),
@@ -1634,11 +1630,11 @@ pub fn pxar_file_download(
     async move {
         let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
         let store = required_string_param(&param, "store")?;
-        let backup_ns = optional_ns_param(&param)?;
+        let ns = optional_ns_param(&param)?;
         let backup_dir: pbs_api_types::BackupDir = Deserialize::deserialize(&param)?;
         let datastore = check_privs_and_load_store(
             &store,
-            &backup_ns,
+            &ns,
             &auth_id,
             PRIV_DATASTORE_READ,
             PRIV_DATASTORE_BACKUP,
@@ -1646,7 +1642,7 @@ pub fn pxar_file_download(
             &backup_dir.group,
         )?;
 
-        let backup_dir = datastore.backup_dir(backup_ns, backup_dir)?;
+        let backup_dir = datastore.backup_dir(ns, backup_dir)?;
 
         let filepath = required_string_param(&param, "filepath")?.to_owned();
 
@@ -1817,7 +1813,7 @@ pub fn get_active_operations(store: String, _param: Value) -> Result<Value, Erro
     input: {
         properties: {
             store: { schema: DATASTORE_SCHEMA },
-            "backup-ns": {
+            ns: {
                 type: BackupNamespace,
                 optional: true,
             },
@@ -1836,15 +1832,15 @@ pub fn get_active_operations(store: String, _param: Value) -> Result<Value, Erro
 /// Get "notes" for a backup group
 pub fn get_group_notes(
     store: String,
-    backup_ns: Option<BackupNamespace>,
+    ns: Option<BackupNamespace>,
     backup_group: pbs_api_types::BackupGroup,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-    let backup_ns = backup_ns.unwrap_or_default();
+    let ns = ns.unwrap_or_default();
     let datastore = check_privs_and_load_store(
         &store,
-        &backup_ns,
+        &ns,
         &auth_id,
         PRIV_DATASTORE_AUDIT,
         PRIV_DATASTORE_BACKUP,
@@ -1852,7 +1848,7 @@ pub fn get_group_notes(
         &backup_group,
     )?;
 
-    let note_path = get_group_note_path(&datastore, &backup_ns, &backup_group);
+    let note_path = get_group_note_path(&datastore, &ns, &backup_group);
     Ok(file_read_optional_string(note_path)?.unwrap_or_else(|| "".to_owned()))
 }
 
@@ -1860,7 +1856,7 @@ pub fn get_group_notes(
     input: {
         properties: {
             store: { schema: DATASTORE_SCHEMA },
-            "backup-ns": {
+            ns: {
                 type: BackupNamespace,
                 optional: true,
             },
@@ -1882,16 +1878,16 @@ pub fn get_group_notes(
 /// Set "notes" for a backup group
 pub fn set_group_notes(
     store: String,
-    backup_ns: Option<BackupNamespace>,
+    ns: Option<BackupNamespace>,
     backup_group: pbs_api_types::BackupGroup,
     notes: String,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-    let backup_ns = backup_ns.unwrap_or_default();
+    let ns = ns.unwrap_or_default();
     let datastore = check_privs_and_load_store(
         &store,
-        &backup_ns,
+        &ns,
         &auth_id,
         PRIV_DATASTORE_MODIFY,
         PRIV_DATASTORE_BACKUP,
@@ -1899,7 +1895,7 @@ pub fn set_group_notes(
         &backup_group,
     )?;
 
-    let note_path = get_group_note_path(&datastore, &backup_ns, &backup_group);
+    let note_path = get_group_note_path(&datastore, &ns, &backup_group);
     replace_file(note_path, notes.as_bytes(), CreateOptions::new(), false)?;
 
     Ok(())
@@ -1909,7 +1905,7 @@ pub fn set_group_notes(
     input: {
         properties: {
             store: { schema: DATASTORE_SCHEMA },
-            "backup-ns": {
+            ns: {
                 type: BackupNamespace,
                 optional: true,
             },
@@ -1928,15 +1924,15 @@ pub fn set_group_notes(
 /// Get "notes" for a specific backup
 pub fn get_notes(
     store: String,
-    backup_ns: Option<BackupNamespace>,
+    ns: Option<BackupNamespace>,
     backup_dir: pbs_api_types::BackupDir,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-    let backup_ns = backup_ns.unwrap_or_default();
+    let ns = ns.unwrap_or_default();
     let datastore = check_privs_and_load_store(
         &store,
-        &backup_ns,
+        &ns,
         &auth_id,
         PRIV_DATASTORE_AUDIT,
         PRIV_DATASTORE_BACKUP,
@@ -1944,7 +1940,7 @@ pub fn get_notes(
         &backup_dir.group,
     )?;
 
-    let backup_dir = datastore.backup_dir(backup_ns, backup_dir)?;
+    let backup_dir = datastore.backup_dir(ns, backup_dir)?;
 
     let (manifest, _) = backup_dir.load_manifest()?;
 
@@ -1957,7 +1953,7 @@ pub fn get_notes(
     input: {
         properties: {
             store: { schema: DATASTORE_SCHEMA },
-            "backup-ns": {
+            ns: {
                 type: BackupNamespace,
                 optional: true,
             },
@@ -1979,16 +1975,16 @@ pub fn get_notes(
 /// Set "notes" for a specific backup
 pub fn set_notes(
     store: String,
-    backup_ns: Option<BackupNamespace>,
+    ns: Option<BackupNamespace>,
     backup_dir: pbs_api_types::BackupDir,
     notes: String,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-    let backup_ns = backup_ns.unwrap_or_default();
+    let ns = ns.unwrap_or_default();
     let datastore = check_privs_and_load_store(
         &store,
-        &backup_ns,
+        &ns,
         &auth_id,
         PRIV_DATASTORE_MODIFY,
         PRIV_DATASTORE_BACKUP,
@@ -1996,7 +1992,7 @@ pub fn set_notes(
         &backup_dir.group,
     )?;
 
-    let backup_dir = datastore.backup_dir(backup_ns, backup_dir)?;
+    let backup_dir = datastore.backup_dir(ns, backup_dir)?;
 
     backup_dir
         .update_manifest(|manifest| {
@@ -2011,7 +2007,7 @@ pub fn set_notes(
     input: {
         properties: {
             store: { schema: DATASTORE_SCHEMA },
-            "backup-ns": {
+            ns: {
                 type: BackupNamespace,
                 optional: true,
             },
@@ -2030,15 +2026,15 @@ pub fn set_notes(
 /// Query protection for a specific backup
 pub fn get_protection(
     store: String,
-    backup_ns: Option<BackupNamespace>,
+    ns: Option<BackupNamespace>,
     backup_dir: pbs_api_types::BackupDir,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<bool, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-    let backup_ns = backup_ns.unwrap_or_default();
+    let ns = ns.unwrap_or_default();
     let datastore = check_privs_and_load_store(
         &store,
-        &backup_ns,
+        &ns,
         &auth_id,
         PRIV_DATASTORE_AUDIT,
         PRIV_DATASTORE_BACKUP,
@@ -2046,7 +2042,7 @@ pub fn get_protection(
         &backup_dir.group,
     )?;
 
-    let backup_dir = datastore.backup_dir(backup_ns, backup_dir)?;
+    let backup_dir = datastore.backup_dir(ns, backup_dir)?;
 
     Ok(backup_dir.is_protected())
 }
@@ -2055,7 +2051,7 @@ pub fn get_protection(
     input: {
         properties: {
             store: { schema: DATASTORE_SCHEMA },
-            "backup-ns": {
+            ns: {
                 type: BackupNamespace,
                 optional: true,
             },
@@ -2077,16 +2073,16 @@ pub fn get_protection(
 /// En- or disable protection for a specific backup
 pub fn set_protection(
     store: String,
-    backup_ns: Option<BackupNamespace>,
+    ns: Option<BackupNamespace>,
     backup_dir: pbs_api_types::BackupDir,
     protected: bool,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-    let backup_ns = backup_ns.unwrap_or_default();
+    let ns = ns.unwrap_or_default();
     let datastore = check_privs_and_load_store(
         &store,
-        &backup_ns,
+        &ns,
         &auth_id,
         PRIV_DATASTORE_MODIFY,
         PRIV_DATASTORE_BACKUP,
@@ -2094,7 +2090,7 @@ pub fn set_protection(
         &backup_dir.group,
     )?;
 
-    let backup_dir = datastore.backup_dir(backup_ns, backup_dir)?;
+    let backup_dir = datastore.backup_dir(ns, backup_dir)?;
 
     datastore.update_protection(&backup_dir, protected)
 }
@@ -2103,7 +2099,7 @@ pub fn set_protection(
     input: {
         properties: {
             store: { schema: DATASTORE_SCHEMA },
-            "backup-ns": {
+            ns: {
                 type: BackupNamespace,
                 optional: true,
             },
@@ -2125,16 +2121,16 @@ pub fn set_protection(
 /// Change owner of a backup group
 pub fn set_backup_owner(
     store: String,
-    backup_ns: Option<BackupNamespace>,
+    ns: Option<BackupNamespace>,
     backup_group: pbs_api_types::BackupGroup,
     new_owner: Authid,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-    let backup_ns = backup_ns.unwrap_or_default();
+    let ns = ns.unwrap_or_default();
     let owner_check_required = check_ns_privs(
         &store,
-        &backup_ns,
+        &ns,
         &auth_id,
         PRIV_DATASTORE_MODIFY,
         PRIV_DATASTORE_BACKUP,
@@ -2142,7 +2138,7 @@ pub fn set_backup_owner(
 
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
-    let backup_group = datastore.backup_group(backup_ns, backup_group);
+    let backup_group = datastore.backup_group(ns, backup_group);
 
     if owner_check_required {
         let owner = backup_group.get_owner()?;

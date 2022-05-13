@@ -482,7 +482,7 @@ pub async fn scan_remote_groups(
     let client = remote_client(&remote, None).await.map_err(map_remote_err)?;
 
     let args = if let Some(ns) = namespace {
-        Some(json!({ "backup-ns": ns }))
+        Some(json!({ "ns": ns }))
     } else {
         None
     };
