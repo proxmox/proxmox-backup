@@ -713,9 +713,7 @@ impl BackupNamespace {
             .strip_prefix(&source_prefix.inner[..])
             .ok_or_else(|| {
                 format_err!(
-                    "Failed to map namespace - {} is not a valid prefix of {}",
-                    source_prefix,
-                    self
+                    "Failed to map namespace - {source_prefix} is not a valid prefix of {self}",
                 )
             })?;
 
