@@ -841,11 +841,11 @@ async fn clean_drive(mut param: Value) -> Result<(), Error> {
                 schema: GROUP_FILTER_LIST_SCHEMA,
                 optional: true,
             },
-            namespace: {
+            ns: {
                 type: BackupNamespace,
                 optional: true,
             },
-            "recursion-depth": {
+            "max-depth": {
                 schema: NS_MAX_DEPTH_SCHEMA,
                 optional: true,
             },
