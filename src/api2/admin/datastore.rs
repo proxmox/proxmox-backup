@@ -36,9 +36,9 @@ use pbs_api_types::{
     DataStoreStatus, GarbageCollectionStatus, GroupListItem, Operation, PruneOptions, RRDMode,
     RRDTimeFrame, SnapshotListItem, SnapshotVerifyState, BACKUP_ARCHIVE_NAME_SCHEMA,
     BACKUP_ID_SCHEMA, BACKUP_NAMESPACE_SCHEMA, BACKUP_TIME_SCHEMA, BACKUP_TYPE_SCHEMA,
-    DATASTORE_SCHEMA, IGNORE_VERIFIED_BACKUPS_SCHEMA, NS_MAX_DEPTH_SCHEMA, PRIV_DATASTORE_AUDIT,
-    PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY, PRIV_DATASTORE_PRUNE, PRIV_DATASTORE_READ,
-    PRIV_DATASTORE_VERIFY, UPID_SCHEMA, VERIFICATION_OUTDATED_AFTER_SCHEMA,
+    DATASTORE_SCHEMA, IGNORE_VERIFIED_BACKUPS_SCHEMA, MAX_NAMESPACE_DEPTH, NS_MAX_DEPTH_SCHEMA,
+    PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY, PRIV_DATASTORE_PRUNE,
+    PRIV_DATASTORE_READ, PRIV_DATASTORE_VERIFY, UPID_SCHEMA, VERIFICATION_OUTDATED_AFTER_SCHEMA,
 };
 use pbs_client::pxar::{create_tar, create_zip};
 use pbs_config::CachedUserInfo;
@@ -61,7 +61,10 @@ use proxmox_rest_server::{formatter, WorkerTask};
 
 use crate::api2::backup::optional_ns_param;
 use crate::api2::node::rrd::create_value_from_rrd;
-use crate::backup::{verify_all_backups, verify_backup_dir, verify_backup_group, verify_filter};
+use crate::backup::{
+    verify_all_backups, verify_backup_dir, verify_backup_group, verify_filter,
+    ListAccessibleBackupGroups,
+};
 
 use crate::server::jobstate::Job;
 
@@ -594,29 +597,13 @@ pub fn list_snapshots(
     })
 }
 
-fn get_snapshots_count(
-    store: &Arc<DataStore>,
-    filter_owner: Option<&Authid>,
-) -> Result<Counts, Error> {
-    store
-        .iter_backup_groups_ok(Default::default())? // FIXME: Recurse!
-        .filter(|group| {
-            // FIXME: namespace:
-            let owner = match store.get_owner(&BackupNamespace::root(), group.as_ref()) {
-                Ok(owner) => owner,
-                Err(err) => {
-                    let id = store.name();
-                    eprintln!("Failed to get owner of group '{}/{}' - {}", id, group, err);
-                    return false;
-                }
-            };
-
-            match filter_owner {
-                Some(filter) => check_backup_owner(&owner, filter).is_ok(),
-                None => true,
-            }
-        })
+fn get_snapshots_count(store: &Arc<DataStore>, owner: Option<&Authid>) -> Result<Counts, Error> {
+    ListAccessibleBackupGroups::new(Arc::clone(store), Default::default(), MAX_NAMESPACE_DEPTH, owner)?
         .try_fold(Counts::default(), |mut counts, group| {
+            let group = match group {
+                Ok(group) => group,
+                Err(_) => return Ok(counts), // TODO: add this as error counts?
+            };
             let snapshot_count = group.list_backups()?.len() as u64;
 
             // only include groups with snapshots, counting/displaying emtpy groups can confuse
