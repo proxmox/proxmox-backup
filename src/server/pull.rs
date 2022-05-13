@@ -752,11 +752,16 @@ async fn query_namespaces(
         "api2/json/admin/datastore/{}/namespace",
         params.source.store()
     );
-    let data = params
-        .max_depth
-        .map(|max_depth| json!({ "max-depth": max_depth }));
+    let mut data = json!({});
+    if let Some(max_depth) = params.max_depth {
+        data["max-depth"] = json!(max_depth);
+    }
 
-    let mut result = match client.get(&path, data).await {
+    if !params.remote_ns.is_root() {
+        data["parent"] = json!(params.remote_ns);
+    }
+
+    let mut result = match client.get(&path, Some(data)).await {
         Ok(res) => res,
         Err(err) => match err.downcast_ref::<HttpError>() {
             Some(HttpError { code, message }) => match *code {
