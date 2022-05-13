@@ -87,7 +87,7 @@ pub const NS_MAX_DEPTH_SCHEMA: Schema =
     IntegerSchema::new("How many levels of namespaces should be operated on (0 == no recursion)")
         .minimum(0)
         .maximum(MAX_NAMESPACE_DEPTH as isize)
-        .default(0)
+        .default(MAX_NAMESPACE_DEPTH as isize)
         .schema();
 
 pub const NS_MAX_DEPTH_REDUCED_SCHEMA: Schema =
