@@ -155,7 +155,7 @@ Ext.define('PBS.view.main.NavigationTree', {
 	init: function(view) {
 	    view.rstore = Ext.create('Proxmox.data.UpdateStore', {
 		autoStart: true,
-		interval: 5 * 1000,
+		interval: 15 * 1000,
 		storeId: 'pbs-datastore-list', // NOTE: this is queried by selectors, avoid change!
 		model: 'pbs-datastore-list',
 	    });

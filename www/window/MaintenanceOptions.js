@@ -21,6 +21,16 @@ Ext.define('PBS.window.MaintenanceOptions', {
 	labelWidth: 120,
     },
 
+    apiCallDone: function(success, response, options) {
+	if (success) {
+	    let datastoreStore = Ext.data.StoreManager.lookup('pbs-datastore-list');
+	    if (datastoreStore) {
+		// delay a bit to allow the window to close and maintenance mode to take effect
+		setTimeout(() => datastoreStore.load(), 10);
+	    }
+	}
+    },
+
     items: {
 	xtype: 'inputpanel',
 	onGetValues: function(values) {
