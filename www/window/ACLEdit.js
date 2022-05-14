@@ -13,6 +13,7 @@ Ext.define('PBS.window.ACLEdit', {
 
     // caller can give a static path
     path: undefined,
+    defaultFocus: 'proxmoxcheckbox',
 
     initComponent: function() {
 	let me = this;
