@@ -91,7 +91,7 @@ Ext.define('PBS.form.RemoteNamespaceSelector', {
 
     valueField: 'ns',
     displayField: 'ns',
-    emptyText: PBS.Utils.render_optional_namespace(''),
+    emptyText: gettext('Root'),
     notFoundIsValid: true,
 
     matchFieldWidth: false,
@@ -103,7 +103,7 @@ Ext.define('PBS.form.RemoteNamespaceSelector', {
 		header: gettext('Namespace'),
 		sortable: true,
 		dataIndex: 'ns',
-		renderer: PBS.Utils.render_optional_namespace, // FIXME proper root-aware renderer
+		renderer: PBS.Utils.render_optional_namespace,
 		flex: 1,
 	    },
 	    {

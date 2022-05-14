@@ -686,7 +686,7 @@ Ext.define('PBS.Utils', {
     },
 
     render_optional_namespace: function(value, metadata, record) {
-	if (!value) return '-'; // FIXME ??
+	if (!value) return `- (${gettext('Root')})`;
 	return Ext.String.htmlEncode(value);
     },
 
