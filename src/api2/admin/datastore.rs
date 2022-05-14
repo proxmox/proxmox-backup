@@ -599,7 +599,7 @@ pub fn list_snapshots(
 
 fn get_snapshots_count(store: &Arc<DataStore>, owner: Option<&Authid>) -> Result<Counts, Error> {
     let root_ns = Default::default();
-    ListAccessibleBackupGroups::new(Arc::clone(store), root_ns, MAX_NAMESPACE_DEPTH, owner)?
+    ListAccessibleBackupGroups::new(store, root_ns, MAX_NAMESPACE_DEPTH, owner)?
         .try_fold(Counts::default(), |mut counts, group| {
             let group = match group {
                 Ok(group) => group,
@@ -1059,7 +1059,7 @@ pub fn prune_datastore(
 
     let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
-    // FIXME: also allow a per-namespace pruning with max-depth
+    // FIXME: add max-depth
 
     let upid_str = WorkerTask::new_thread(
         "prune",

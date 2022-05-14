@@ -518,7 +518,7 @@ pub fn verify_all_backups(
     };
 
     // FIXME: This should probably simply enable recursion (or the call have a recursion parameter)
-    let store = Arc::clone(&verify_worker.datastore);
+    let store = &verify_worker.datastore;
     let max_depth = max_depth.unwrap_or(pbs_api_types::MAX_NAMESPACE_DEPTH);
 
     let mut list = match ListAccessibleBackupGroups::new(store, ns.clone(), max_depth, owner) {

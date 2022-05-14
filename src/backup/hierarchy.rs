@@ -14,7 +14,7 @@ use pbs_datastore::{backup_info::BackupGroup, DataStore, ListGroups, ListNamespa
 /// Is basically just a filter-iter for pbs_datastore::ListNamespacesRecursive including access and
 /// optional owner checks.
 pub struct ListAccessibleBackupGroups<'a> {
-    store: Arc<DataStore>,
+    store: &'a Arc<DataStore>,
     auth_id: Option<&'a Authid>,
     user_info: Arc<CachedUserInfo>,
     state: Option<ListGroups>,
@@ -25,12 +25,12 @@ impl<'a> ListAccessibleBackupGroups<'a> {
     // TODO: builder pattern
 
     pub fn new(
-        store: Arc<DataStore>,
+        store: &'a Arc<DataStore>,
         ns: BackupNamespace,
         max_depth: usize,
         auth_id: Option<&'a Authid>,
     ) -> Result<Self, Error> {
-        let ns_iter = ListNamespacesRecursive::new_max_depth(Arc::clone(&store), ns, max_depth)?;
+        let ns_iter = ListNamespacesRecursive::new_max_depth(Arc::clone(store), ns, max_depth)?;
         Ok(ListAccessibleBackupGroups {
             auth_id,
             ns_iter,
