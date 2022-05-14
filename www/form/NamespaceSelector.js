@@ -27,6 +27,7 @@ Ext.define('PBS.form.NamespaceSelector', {
     editable: true,
     anyMatch: true,
     forceSelection: true,
+    queryMode: 'local',
 
     matchFieldWidth: false,
     listConfig: {
