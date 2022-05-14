@@ -121,20 +121,24 @@ Ext.define('PBS.form.RemoteNamespaceSelector', {
 
     setRemote: function(remote) {
 	let me = this;
-	if (me.remote === remote) {
+	let previousRemote = me.remote;
+	if (previousRemote === remote) {
 	    return;
 	}
 	me.remote = remote;
 
 	me.store.removeAll();
 
-	me.setDisabled(true);
-	me.clearValue();
+	if (previousRemote) {
+	    me.setDisabled(true);
+	    me.clearValue();
+	}
     },
 
     setRemoteStore: function(remoteStore) {
 	let me = this;
-	if (me.remoteStore === remoteStore) {
+	let previousStore = me.remoteStore;
+	if (previousStore === remoteStore) {
 	    return;
 	}
 	me.remoteStore = remoteStore;
@@ -153,7 +157,7 @@ Ext.define('PBS.form.RemoteNamespaceSelector', {
 	    me.store.load();
 
 	    me.firstLoad = false;
-	} else {
+	} else if (previousStore) {
 	    me.setDisabled(true);
 	    me.clearValue();
 	}
