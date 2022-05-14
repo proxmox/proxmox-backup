@@ -33,8 +33,7 @@ Ext.define('PBS.data.PermissionPathsStore', {
 	config = config || {};
 	me.callParent([config]);
 
-	// TODO: this is but a HACK until we have some sort of resource
-	// storage like PVE
+	// TODO: this is but a HACK until we have some sort of resource storage like PVE
 	let datastores = Ext.data.StoreManager.lookup('pbs-datastore-list');
 
 	if (datastores) {
