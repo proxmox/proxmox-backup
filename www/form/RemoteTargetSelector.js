@@ -94,6 +94,25 @@ Ext.define('PBS.form.RemoteNamespaceSelector', {
     emptyText: gettext('Root'),
     notFoundIsValid: true,
 
+    triggers: {
+	clear: {
+	    cls: 'pmx-clear-trigger',
+	    weight: -1,
+	    hidden: true,
+	    handler: function() {
+		this.triggers.clear.setVisible(false);
+		this.setValue('');
+	    },
+	},
+    },
+    listeners: {
+	change: function(field, value) {
+	    let canClear = value !== '';
+	    field.triggers.clear.setVisible(canClear);
+	},
+    },
+
+
     matchFieldWidth: false,
     listConfig: {
 	loadingText: gettext('Scanning...'),
