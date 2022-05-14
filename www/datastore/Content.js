@@ -453,8 +453,11 @@ Ext.define('PBS.DataStoreContent', {
 
 	    if (!view.datastore) return;
 
+	    let ns = view.namespace;
+	    let titleNS = ns && ns !== '' ? `Namespace '${ns}' on ` : '';
+
 	    Ext.create('Proxmox.window.Edit', {
-		title: `Prune Datastore '${view.datastore}'`,
+		title: `Prune ${titleNS}Datastore '${view.datastore}'`,
 		onlineHelp: 'maintenance_pruning',
 		method: 'POST',
 		submitText: "Prune",
@@ -466,7 +469,7 @@ Ext.define('PBS.DataStoreContent', {
 		items: [
 		    {
 			xtype: 'pbsPruneInputPanel',
-			ns: view.namespace,
+			ns,
 			dryrun: true,
 		    },
 		],
