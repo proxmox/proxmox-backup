@@ -50,6 +50,7 @@ JSSRC=							\
 	form/VerifyOutdatedAfter.js			\
 	data/RunningTasksStore.js			\
 	button/TaskButton.js				\
+	panel/PrunePanel.js				\
 	config/UserView.js				\
 	config/TokenView.js				\
 	config/RemoteView.js				\
