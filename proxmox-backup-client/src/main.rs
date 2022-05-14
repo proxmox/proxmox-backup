@@ -354,6 +354,10 @@ fn merge_group_into(to: &mut serde_json::Map<String, Value>, group: BackupGroup)
                 type: String,
                 description: "Backup group.",
             },
+            "ns": {
+                type: BackupNamespace,
+                optional: true,
+            },
             "new-owner": {
                 type: Authid,
             },
@@ -363,6 +367,7 @@ fn merge_group_into(to: &mut serde_json::Map<String, Value>, group: BackupGroup)
 /// Change owner of a backup group
 async fn change_backup_owner(group: String, mut param: Value) -> Result<(), Error> {
     let repo = extract_repository_from_value(&param)?;
+    let ns = optional_ns_param(&param)?;
 
     let client = connect(&repo)?;
 
@@ -371,6 +376,9 @@ async fn change_backup_owner(group: String, mut param: Value) -> Result<(), Erro
     let group: BackupGroup = group.parse()?;
 
     merge_group_into(param.as_object_mut().unwrap(), group);
+    if !ns.is_root() {
+        param["ns"] = serde_json::to_value(ns)?;
+    }
 
     let path = format!("api2/json/admin/datastore/{}/change-owner", repo.store());
     client.post(&path, Some(param)).await?;
@@ -1234,11 +1242,7 @@ async fn restore(param: Value) -> Result<Value, Error> {
     let client = connect_rate_limited(&repo, rate_limit)?;
     record_repository(&repo);
 
-    let ns = match param.get("ns") {
-        Some(Value::String(ns)) => ns.parse()?,
-        Some(_) => bail!("invalid namespace parameter"),
-        None => BackupNamespace::root(),
-    };
+    let ns = optional_ns_param(&param)?;
     let path = json::required_string_param(&param, "snapshot")?;
 
     let backup_dir = dir_or_last_from_group(&client, &repo, &ns, &path).await?;
@@ -1413,6 +1417,10 @@ async fn restore(param: Value) -> Result<Value, Error> {
                 type: String,
                 description: "Backup group",
             },
+            ns: {
+                type: BackupNamespace,
+                optional: true,
+            },
             "prune-options": {
                 type: PruneOptions,
                 flatten: true,
@@ -1443,6 +1451,7 @@ async fn prune(
     mut param: Value,
 ) -> Result<Value, Error> {
     let repo = extract_repository_from_value(&param)?;
+    let ns = optional_ns_param(&param)?;
 
     let client = connect(&repo)?;
 
@@ -1457,6 +1466,9 @@ async fn prune(
         api_param["dry-run"] = dry_run.into();
     }
     merge_group_into(api_param.as_object_mut().unwrap(), group);
+    if !ns.is_root() {
+        api_param["ns"] = serde_json::to_value(ns)?;
+    }
 
     let mut result = client.post(&path, Some(api_param)).await?;
 
