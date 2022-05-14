@@ -257,9 +257,11 @@ Ext.define('PBS.DataStorePrune', {
 	    throw "no backup_id specified";
 	}
 
+	let ns = me.ns && me.ns !== '' ? `${me.ns} ` : '';
+
 	Ext.apply(me, {
 	    url: '/api2/extjs/admin/datastore/' + me.datastore + "/prune",
-	    title: `Prune Group '${me.datastore}:${me.backup_type}/${me.backup_id}'`,
+	    title: `Prune Group '${me.backup_type}/${me.backup_id}' on '${me.datastore}:${ns}'`,
 	    items: [{
 		xtype: 'pbsDataStorePruneInputPanel',
 		url: '/api2/extjs/admin/datastore/' + me.datastore + "/prune",
