@@ -37,11 +37,10 @@ Ext.define('PBS.window.MaintenanceOptions', {
 	    if (values.delete === 'maintenance-type') {
 		values.delete = 'maintenance-mode';
 	    } else if (values['maintenance-type']) {
-		const escaped_message = (values['maintenance-msg'] ?? '')
+		const message = (values['maintenance-msg'] ?? '')
 		    .replaceAll('\\', '')
 		    .replaceAll('"', '\\"');
-		const maybe_message =
-		    values['maintenance-msg'] ? `,message="${escaped_message}"` : '';
+		const maybe_message = values['maintenance-msg'] ? `,message="${message}"` : '';
 		values['maintenance-mode'] = `type=${values['maintenance-type']}${maybe_message}`;
 	    }
 	    delete values['maintenance-type'];
