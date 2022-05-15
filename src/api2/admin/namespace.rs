@@ -168,7 +168,11 @@ pub fn delete_namespace(
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
     if !datastore.remove_namespace_recursive(&ns, delete_groups)? {
-        bail!("group only partially deleted due to protected snapshots");
+        if delete_groups {
+            bail!("group only partially deleted due to protected snapshots");
+        } else {
+            bail!("only partially deleted due to existing groups but `delete-groups` not true ");
+        }
     }
 
     Ok(Value::Null)

@@ -487,6 +487,7 @@ impl DataStore {
                         log::debug!("namespace {ns} already removed")
                     }
                     Err(nix::Error::Sys(nix::errno::Errno::ENOTEMPTY)) if !delete_groups => {
+                        removed_all_requested = false;
                         log::debug!("skip removal of non-empty namespace {ns}")
                     }
                     Err(err) => {
