@@ -227,7 +227,7 @@ impl BackupGroup {
     /// Set the backup owner.
     pub fn set_owner(&self, auth_id: &Authid, force: bool) -> Result<(), Error> {
         self.store
-            .set_owner(&self.ns, &self.as_ref(), auth_id, force)
+            .set_owner(&self.ns, self.as_ref(), auth_id, force)
     }
 }
 
@@ -572,7 +572,7 @@ impl From<&BackupDir> for pbs_api_types::BackupGroup {
 
 impl From<BackupDir> for pbs_api_types::BackupGroup {
     fn from(dir: BackupDir) -> pbs_api_types::BackupGroup {
-        dir.dir.group.into()
+        dir.dir.group
     }
 }
 

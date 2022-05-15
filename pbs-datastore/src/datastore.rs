@@ -394,7 +394,7 @@ impl DataStore {
         // construct ns before mkdir to enforce max-depth and name validity
         let ns = BackupNamespace::from_parent_ns(parent, name)?;
 
-        let mut ns_full_path = self.base_path().to_owned();
+        let mut ns_full_path = self.base_path();
         ns_full_path.push(ns.path());
 
         std::fs::create_dir_all(ns_full_path)?;
@@ -404,7 +404,7 @@ impl DataStore {
 
     /// Returns if the given namespace exists on the datastore
     pub fn namespace_exists(&self, ns: &BackupNamespace) -> bool {
-        let mut path = self.base_path().to_owned();
+        let mut path = self.base_path();
         path.push(ns.path());
         path.exists()
     }
@@ -704,7 +704,7 @@ impl DataStore {
     ) -> Result<impl Iterator<Item = BackupNamespace> + 'static, Error> {
         let this = Arc::clone(self);
         Ok(
-            ListNamespaces::new(Arc::clone(&self), ns)?.filter_map(move |ns| match ns {
+            ListNamespaces::new(Arc::clone(self), ns)?.filter_map(move |ns| match ns {
                 Ok(ns) => Some(ns),
                 Err(err) => {
                     log::error!("list groups error on datastore {} - {}", this.name(), err);
@@ -736,9 +736,9 @@ impl DataStore {
     ) -> Result<impl Iterator<Item = BackupNamespace> + 'static, Error> {
         let this = Arc::clone(self);
         Ok(if let Some(depth) = max_depth {
-            ListNamespacesRecursive::new_max_depth(Arc::clone(&self), ns, depth)?
+            ListNamespacesRecursive::new_max_depth(Arc::clone(self), ns, depth)?
         } else {
-            ListNamespacesRecursive::new(Arc::clone(&self), ns)?
+            ListNamespacesRecursive::new(Arc::clone(self), ns)?
         }
         .filter_map(move |ns| match ns {
             Ok(ns) => Some(ns),
@@ -770,7 +770,7 @@ impl DataStore {
     ) -> Result<impl Iterator<Item = BackupGroup> + 'static, Error> {
         let this = Arc::clone(self);
         Ok(
-            ListGroups::new(Arc::clone(&self), ns)?.filter_map(move |group| match group {
+            ListGroups::new(Arc::clone(self), ns)?.filter_map(move |group| match group {
                 Ok(group) => Some(group),
                 Err(err) => {
                     log::error!("list groups error on datastore {} - {}", this.name(), err);
@@ -865,11 +865,10 @@ impl DataStore {
             worker.fail_on_shutdown()?;
             let digest = index.index_digest(pos).unwrap();
             if !self.inner.chunk_store.cond_touch_chunk(digest, false)? {
+                let hex = hex::encode(digest);
                 task_warn!(
                     worker,
-                    "warning: unable to access non-existent chunk {}, required by {:?}",
-                    hex::encode(digest),
-                    file_name,
+                    "warning: unable to access non-existent chunk {hex}, required by {file_name:?}"
                 );
 
                 // touch any corresponding .bad files to keep them around, meaning if a chunk is
@@ -1194,7 +1193,7 @@ impl DataStore {
         ns: BackupNamespace,
         group: pbs_api_types::BackupGroup,
     ) -> BackupGroup {
-        BackupGroup::new(Arc::clone(&self), ns, group)
+        BackupGroup::new(Arc::clone(self), ns, group)
     }
 
     /// Open a backup group from this datastore.

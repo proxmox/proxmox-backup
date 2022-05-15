@@ -86,7 +86,7 @@ impl BackupManifest {
     pub fn new(snapshot: pbs_api_types::BackupDir) -> Self {
         Self {
             backup_type: snapshot.group.ty,
-            backup_id: snapshot.group.id.into(),
+            backup_id: snapshot.group.id,
             backup_time: snapshot.time,
             files: Vec::new(),
             unprotected: json!({}),

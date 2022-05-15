@@ -5,11 +5,11 @@ use anyhow::{bail, Error};
 use pbs_datastore::DataStore;
 
 fn run() -> Result<(), Error> {
-    let base: PathBuf = match std::env::args().skip(1).next() {
+    let base: PathBuf = match std::env::args().nth(1) {
         Some(path) => path.into(),
         None => bail!("no path passed!\n\nusage: ls-snapshots <path> [<max-depth>]"),
     };
-    let max_depth: Option<usize> = match std::env::args().skip(2).next() {
+    let max_depth: Option<usize> = match std::env::args().nth(2) {
         Some(depth) => match depth.parse::<usize>() {
             Ok(depth) if depth < 8 => Some(depth),
             Ok(_) => bail!("max-depth must be < 8"),
