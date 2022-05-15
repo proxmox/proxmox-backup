@@ -134,6 +134,13 @@ pub fn list_namespaces(
             ns: {
                 type: BackupNamespace,
             },
+            "delete-groups": {
+                type: bool,
+                description: "If set, all groups will be destroyed in the whole hierachy below and\
+                    including `ns`. If not set, only empty namespaces will be pruned.",
+                optional: true,
+                default: false,
+            },
         },
     },
     access: {
@@ -144,6 +151,7 @@ pub fn list_namespaces(
 pub fn delete_namespace(
     store: String,
     ns: BackupNamespace,
+    delete_groups: bool,
     _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
@@ -159,7 +167,7 @@ pub fn delete_namespace(
 
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
-    if !datastore.remove_namespace_recursive(&ns)? {
+    if !datastore.remove_namespace_recursive(&ns, delete_groups)? {
         bail!("group only partially deleted due to protected snapshots");
     }
 

@@ -441,22 +441,26 @@ impl DataStore {
         Ok(removed_all_groups)
     }
 
-    /// Remove a complete backup namespace including all it's, and child namespaces', groups.
+    /// Remove a complete backup namespace optionally including all it's, and child namespaces',
+    /// groups. If  `removed_groups` is false this only prunes empty namespaces.
     ///
-    /// Returns true if all groups were removed, and false if some were protected
+    /// Returns true if everything requested, and false if some groups were protected or if some
+    /// namespaces weren't empty even though all groups were deleted (race with new backup)
     pub fn remove_namespace_recursive(
         self: &Arc<Self>,
         ns: &BackupNamespace,
+        delete_groups: bool,
     ) -> Result<bool, Error> {
-        // FIXME: locking? The single groups/snapshots are already protected, so may not be
-        // necesarry (depends on what we all allow to do with namespaces)
-        log::info!("removing whole namespace recursively {}:/{ns}", self.name());
-
-        let mut removed_all_groups = true;
-        for ns in self.recursive_iter_backup_ns(ns.to_owned())? {
-            let removed_ns_groups = self.remove_namespace_groups(&ns?)?;
-
-            removed_all_groups = removed_all_groups && removed_ns_groups;
+        let store = self.name();
+        let mut removed_all_requested = true;
+        if delete_groups {
+            log::info!("removing whole namespace recursively below {store}:/{ns}",);
+            for ns in self.recursive_iter_backup_ns(ns.to_owned())? {
+                let removed_ns_groups = self.remove_namespace_groups(&ns?)?;
+                removed_all_requested = removed_all_requested && removed_ns_groups;
+            }
+        } else {
+            log::info!("pruning empty namespace recursively below {store}:/{ns}");
         }
 
         // now try to delete the actual namespaces, bottom up so that we can use safe rmdir that
@@ -477,13 +481,22 @@ impl DataStore {
 
             if !ns.is_root() {
                 match unlinkat(Some(base_fd), &ns.path(), UnlinkatFlags::RemoveDir) {
-                    Ok(()) => log::info!("removed namespace {ns}"),
-                    Err(err) => log::error!("failed to remove namespace {ns} - {err}"),
+                    Ok(()) => log::debug!("removed namespace {ns}"),
+                    Err(nix::Error::Sys(nix::errno::Errno::ENOENT)) => {
+                        log::debug!("namespace {ns} already removed")
+                    }
+                    Err(nix::Error::Sys(nix::errno::Errno::ENOTEMPTY)) if !delete_groups => {
+                        log::debug!("skip removal of non-empty namespace {ns}")
+                    }
+                    Err(err) => {
+                        removed_all_requested = false;
+                        log::warn!("failed to remove namespace {ns} - {err}")
+                    }
                 }
             }
         }
 
-        Ok(removed_all_groups)
+        Ok(removed_all_requested)
     }
 
     /// Remove a complete backup group including all snapshots.

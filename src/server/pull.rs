@@ -864,7 +864,7 @@ fn check_and_remove_ns(params: &PullParameters, local_ns: &BackupNamespace) -> R
         &params.owner,
         PRIV_DATASTORE_MODIFY,
     )?;
-    params.store.remove_namespace_recursive(local_ns)
+    params.store.remove_namespace_recursive(local_ns, true)
 }
 
 fn check_and_remove_vanished_ns(
