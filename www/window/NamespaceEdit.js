@@ -8,7 +8,7 @@ Ext.define('PBS.window.NamespaceEdit', {
     isCreate: true,
     subject: gettext('Namespace'),
     // avoid that the trigger of the combogrid fields open on window show
-    defaultFocus: 'proxmoxHelpButton',
+    defaultFocus: 'proxmoxtextfield[name=name]',
 
     cbind: {
 	url: '/api2/extjs/admin/datastore/{datastore}/namespace',
@@ -53,56 +53,52 @@ Ext.define('PBS.window.NamespaceEdit', {
 });
 
 Ext.define('PBS.window.NamespaceDelete', {
-    extend: 'Proxmox.window.Edit',
+    extend: 'Proxmox.window.SafeDestroy',
     xtype: 'pbsNamespaceDelete',
     mixins: ['Proxmox.Mixin.CBind'],
 
-    //onlineHelp: 'namespaces', // TODO
-
     viewModel: {},
 
-    isRemove: true,
-    isCreate: true, // because edit window is, well, a bit stupid..
-    title: gettext('Destroy Namespace'),
-    // avoid that the trigger of the combogrid fields open on window show
-    defaultFocus: 'proxmoxHelpButton',
+    autoShow: true,
+    taskName: 'delete-namespace',
 
     cbind: {
 	url: '/api2/extjs/admin/datastore/{datastore}/namespace',
     },
-    method: 'DELETE',
-
-    width: 450,
-
-    items: {
-	xtype: 'inputpanel',
-	items: [
-	    {
-		xtype: 'displayfield',
-		name: 'ns',
-		fieldLabel: gettext('Namespace'),
-		cbind: {
-		    value: '{namespace}',
-		    datastore: '{datastore}',
-		},
-		submitValue: true,
-	    },
-	    {
-		xtype: 'proxmoxcheckbox',
-		name: 'delete-groups',
-		reference: 'rmGroups',
-		boxLabel: gettext('Delete all Backup Groups'),
-		value: false,
-	    },
-	    {
-		xtype: 'box',
-		padding: '5 0 0 0',
-		html: `<span class="pmx-hint">${gettext('Note')}</span>: `
-		  + gettext('This will permanently remove all backups from the current namespace and all namespaces below it!'),
-		bind: {
-		    hidden: '{!rmGroups.checked}',
+    additionalItems: [
+	{
+	    xtype: 'proxmoxcheckbox',
+	    name: 'delete-groups',
+	    reference: 'rmGroups',
+	    boxLabel: gettext('Delete all Backup Groups'),
+	    value: false,
+	    listeners: {
+		change: function(field, value) {
+		    let win = field.up('proxmoxSafeDestroy');
+		    if (value) {
+			win.params['delete-groups'] = value;
+		    } else {
+			delete win.params['delete-groups'];
+		    }
 		},
 	    },
-	],
+	},
+	{
+	    xtype: 'box',
+	    padding: '5 0 0 0',
+	    html: `<span class="pmx-hint">${gettext('Note')}</span>: `
+	      + gettext('This will permanently remove all backups from the current namespace and all namespaces below it!'),
+	    bind: {
+		hidden: '{!rmGroups.checked}',
+	    },
+	},
+    ],
+
+    initComponent: function() {
+	let me = this;
+	me.title = Ext.String.format(gettext("Destroy Namespace '{0}'"), me.namespace);
+	me.params = { ns: me.namespace };
+
+	me.callParent();
     },
 });

@@ -571,16 +571,16 @@ Ext.define('PBS.DataStoreContent', {
 	    let view = me.getView();
 	    if (!view.namespace || view.namespace === '') {
 		console.warn('forgetNamespace called with root NS!');
-                return;
+		return;
 	    }
-	    let parentNS = view.namespace.split('/').slice(0, -1).join('/');
+	    let nsParts = view.namespace.split('/');
+	    let nsName = nsParts.pop();
+	    let parentNS = nsParts.join('/');
 
 	    Ext.create('PBS.window.NamespaceDelete', {
-		title: Ext.String.format(gettext("Destroy Namespace '{0}'"), view.namespace),
-		url: `/admin/datastore/${view.datastore}/namespace`,
 		datastore: view.datastore,
 		namespace: view.namespace,
-		autoShow: true,
+		item: { id: nsName },
 		apiCallDone: success => {
 		    if (success) {
 			view.namespace = parentNS; // move up before reload to avoid "ENOENT" error
