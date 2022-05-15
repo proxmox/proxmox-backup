@@ -599,8 +599,9 @@ pub fn list_snapshots(
 
 fn get_snapshots_count(store: &Arc<DataStore>, owner: Option<&Authid>) -> Result<Counts, Error> {
     let root_ns = Default::default();
-    ListAccessibleBackupGroups::new(store, root_ns, MAX_NAMESPACE_DEPTH, owner)?
-        .try_fold(Counts::default(), |mut counts, group| {
+    ListAccessibleBackupGroups::new(store, root_ns, MAX_NAMESPACE_DEPTH, owner)?.try_fold(
+        Counts::default(),
+        |mut counts, group| {
             let group = match group {
                 Ok(group) => group,
                 Err(_) => return Ok(counts), // TODO: add this as error counts?
@@ -620,7 +621,8 @@ fn get_snapshots_count(store: &Arc<DataStore>, owner: Option<&Authid>) -> Result
             }
 
             Ok(counts)
-        })
+        },
+    )
 }
 
 #[api(
