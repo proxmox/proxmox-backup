@@ -351,6 +351,7 @@ Ext.define('PBS.DataStoreContent', {
 		expandable: false,
 		sortWeight: -5,
 		root: true, // fake root
+		isRootNS,
 		ty: 'ns',
 		children: children,
 	    });
@@ -565,6 +566,30 @@ Ext.define('PBS.DataStoreContent', {
 	    });
 	},
 
+	forgetNamespace: function(data) {
+	    let me = this;
+	    let view = me.getView();
+	    if (!view.namespace || view.namespace === '') {
+		console.warn('forgetNamespace called with root NS!');
+                return;
+	    }
+	    let parentNS = view.namespace.split('/').slice(0, -1).join('/');
+
+	    Ext.create('PBS.window.NamespaceDelete', {
+		title: Ext.String.format(gettext("Destroy Namespace '{0}'"), view.namespace),
+		url: `/admin/datastore/${view.datastore}/namespace`,
+		datastore: view.datastore,
+		namespace: view.namespace,
+		autoShow: true,
+		apiCallDone: success => {
+		    if (success) {
+			view.namespace = parentNS; // move up before reload to avoid "ENOENT" error
+			me.reload();
+		    }
+		},
+	    });
+	},
+
 	forgetGroup: function(data) {
 	    let me = this;
 	    let view = me.getView();
@@ -696,11 +721,13 @@ Ext.define('PBS.DataStoreContent', {
 	onForget: function(table, rI, cI, item, e, { data }) {
 	    let me = this;
 	    let view = this.getView();
-	    if ((data.ty !== 'group' && data.ty !== 'dir') || !view.datastore) {
+	    if ((data.ty !== 'group' && data.ty !== 'dir' && data.ty !== 'ns') || !view.datastore) {
 		return;
 	    }
 
-	    if (data.ty === 'dir') {
+	    if (data.ty === 'ns') {
+		me.forgetNamespace(data);
+	    } else if (data.ty === 'dir') {
 		me.forgetSnapshot(data);
 	    } else {
 		me.forgetGroup(data);
@@ -955,12 +982,23 @@ Ext.define('PBS.DataStoreContent', {
 		},
 		{
 		    handler: 'onForget',
-		    getTip: (v, m, { data }) => data.ty ==='dir'
-			? Ext.String.format(gettext("Permanently forget snapshot '{0}'"), v)
-			: Ext.String.format(gettext("Permanently forget group '{0}'"), v),
+		    getTip: (v, m, { data }) => {
+			let tip = '{0}';
+			if (data.ty === 'ns') {
+			    tip = gettext("Remove namespace '{0}'");
+			} else if (data.ty === 'dir') {
+			    tip = gettext("Permanently forget snapshot '{0}'");
+			} else if (data.ty === 'group') {
+			    tip = gettext("Permanently forget group '{0}'");
+			}
+			return Ext.String.format(tip, v);
+		    },
 		    getClass: (v, m, { data }) =>
-		        data.ty === 'group' || data.ty === 'dir' ? 'fa critical fa-trash-o' : 'pmx-hidden',
-		    isActionDisabled: (v, r, c, i, { data }) => !(data.ty === 'group' || data.ty === 'dir'),
+		        (data.ty === 'ns' && !data.isRootNS && data.ns === undefined) ||
+		           data.ty === 'group' || data.ty === 'dir'
+		        ? 'fa critical fa-trash-o'
+		        : 'pmx-hidden',
+		    isActionDisabled: (v, r, c, i, { data }) => false,
 		},
 		{
 		    handler: 'downloadFile',

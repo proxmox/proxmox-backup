@@ -51,3 +51,58 @@ Ext.define('PBS.window.NamespaceEdit', {
 	],
     },
 });
+
+Ext.define('PBS.window.NamespaceDelete', {
+    extend: 'Proxmox.window.Edit',
+    xtype: 'pbsNamespaceDelete',
+    mixins: ['Proxmox.Mixin.CBind'],
+
+    //onlineHelp: 'namespaces', // TODO
+
+    viewModel: {},
+
+    isRemove: true,
+    isCreate: true, // because edit window is, well, a bit stupid..
+    title: gettext('Destroy Namespace'),
+    // avoid that the trigger of the combogrid fields open on window show
+    defaultFocus: 'proxmoxHelpButton',
+
+    cbind: {
+	url: '/api2/extjs/admin/datastore/{datastore}/namespace',
+    },
+    method: 'DELETE',
+
+    width: 450,
+
+    items: {
+	xtype: 'inputpanel',
+	items: [
+	    {
+		xtype: 'displayfield',
+		name: 'ns',
+		fieldLabel: gettext('Namespace'),
+		cbind: {
+		    value: '{namespace}',
+		    datastore: '{datastore}',
+		},
+		submitValue: true,
+	    },
+	    {
+		xtype: 'proxmoxcheckbox',
+		name: 'delete-groups',
+		reference: 'rmGroups',
+		boxLabel: gettext('Delete all Backup Groups'),
+		value: false,
+	    },
+	    {
+		xtype: 'box',
+		padding: '5 0 0 0',
+		html: `<span class="pmx-hint">${gettext('Note')}</span>: `
+		  + gettext('This will permanently remove all backups from the current namespace and all namespaces below it!'),
+		bind: {
+		    hidden: '{!rmGroups.checked}',
+		},
+	    },
+	],
+    },
+});
