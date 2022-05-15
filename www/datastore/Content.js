@@ -323,7 +323,6 @@ Ext.define('PBS.DataStoreContent', {
 		    ns: (view.namespaces ?? '') !== '' ? `/${item.ns}` : item.ns,
 		    ty: 'ns',
 		    sortWeight: 10,
-		    //qtip: gettext('Double-click to browse namespace.'),
 		    leaf: true,
 		});
 	    }
@@ -339,7 +338,6 @@ Ext.define('PBS.DataStoreContent', {
 		topNodes.push({
 		    text: `.. (${parentNS === '' ? gettext('Root') : parentNS})`,
 		    iconCls: 'fa fa-level-up',
-		    //qtip: gettext('Double-click to go one namespace level up.'),
 		    ty: 'ns',
 		    ns: parentNS,
 		    sortWeight: -10,
