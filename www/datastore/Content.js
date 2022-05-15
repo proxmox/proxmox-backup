@@ -956,7 +956,7 @@ Ext.define('PBS.DataStoreContent', {
 		},
 		{
 		    handler: 'onForget',
-		    getTip: (v, m, { data }) => data ==='dir'
+		    getTip: (v, m, { data }) => data.ty ==='dir'
 			? Ext.String.format(gettext("Permanently forget snapshot '{0}'"), v)
 			: Ext.String.format(gettext("Permanently forget group '{0}'"), v),
 		    getClass: (v, m, { data }) =>
