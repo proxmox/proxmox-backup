@@ -3,32 +3,28 @@
 Certificate Management
 ----------------------
 
-Access to the web-based administration interface is always encrypted
-through ``https``. Each `Proxmox Backup`_ host creates by default its
+Access to the API and thus the web-based administration interface is always
+encrypted through ``https``. Each `Proxmox Backup`_ host creates by default its
 own (self-signed) certificate. This certificate is used for encrypted
-communication with the host’s ``proxmox-backup-proxy`` service, for any API call
-between a user and the web-interface or between nodes in a cluster.
+communication with the host’s ``proxmox-backup-proxy`` service, for any API
+call between a user or backup-client and the web-interface.
 
-Certificate verification in a `Proxmox Backup`_ cluster is done based
-on pinning the certificate fingerprints in the cluster configuration and
-verifying that they match on connection.
+Certificate verification when sending backups to a `Proxmox Backup`_ server
+is either done based on pinning the certificate fingerprints in the storage/remote
+configuration, or by using certificates, signed by a trusted certificate authority.
 
 .. _sysadmin_certs_api_gui:
 
 Certificates for the API and SMTP
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`Proxmox Backup`_ uses two different certificates:
+`Proxmox Backup`_ stores it certificate and key in:
 
--  ``/etc/proxmox-backup/proxy.pem``: the required certificate used for Proxmox
-   Mail Gateway API requests.
+-  ``/etc/proxmox-backup/proxy.pem``
 
--  ``/etc/pmg/pmg-tls.pem``: the optional certificate used for SMTP TLS
-   connections, see `mailproxy TLS
-   configuration <#proxmox-backup-manager_mailproxy_tls>`_
-   `??? <#proxmox-backup-manager_mailproxy_tls>`_ for details.
+-  ``/etc/proxmox-backup/proxy.key``
 
-You have the following options for these certificates:
+You have the following options for the certificate:
 
 1. Keep using the default self-signed certificate in
    ``/etc/proxmox-backup/proxy.pem``.
@@ -37,8 +33,8 @@ You have the following options for these certificates:
    commercial Certificate Authority (CA)).
 
 3. Use an ACME provider like Let’s Encrypt to get a trusted certificate
-   with automatic renewal; this is also integrated in the Proxmox Mail
-   Gateway API and web interface.
+   with automatic renewal; this is also integrated in the `Proxmox Backup`_
+   API and web interface.
 
 Certificates are managed through the `Proxmox Backup`_
 web-interface/API or using the the ``proxmox-backup-manager`` CLI tool.
@@ -109,7 +105,7 @@ ACME Plugins
 ^^^^^^^^^^^^
 
 The ACME plugin’s role is to provide automatic verification that you,
-and thus the `Proxmox Backup`_ cluster under your operation, are the
+and thus the `Proxmox Backup`_ server under your operation, are the
 real owner of a domain. This is the basic building block of automatic
 certificate management.
 
@@ -129,7 +125,6 @@ box, you can configure plugins either over the web interface under
 ``proxmox-backup-manager acme plugin add`` command.
 
 ACME Plugin configurations are stored in ``/etc/proxmox-backup/acme/plugins.cfg``.
-A plugin is available for all nodes in the cluster.
 
 .. _domains:
 
@@ -146,10 +141,7 @@ desired ACME account is selected, you can order your new certificate
 over the web-interface. On success, the interface will reload after
 roughly 10 seconds.
 
-Renewal will happen
-`automatically <#sysadmin_certs_acme_automatic_renewal>`_ `Automatic
-renewal of ACME
-certificates <#sysadmin_certs_acme_automatic_renewal>`_.
+Renewal will happen `automatically <#sysadmin-certs-acme-automatic-renewal>`_
 
 .. _sysadmin_certs_acme_http_challenge:
 
@@ -163,8 +155,7 @@ port 80.
 .. note::
 
    The name ``standalone`` means that it can provide the validation on
-   its own, without any third party service. So this plugin also works
-   for cluster nodes.
+   its own, without any third party service.
 
 There are a few prerequisites to use this for certificate management
 with Let’s Encrypts ACME.
@@ -269,7 +260,7 @@ Automatic renewal of ACME certificates
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 If a node has been successfully configured with an ACME-provided
-certificate (either via proxmox-backup-manager or via the web-interface/API), the
+certificate (either via ``proxmox-backup-manager`` or via the web-interface/API), the
 certificate will be renewed automatically by the ``proxmox-backup-daily-update.service``.
 Currently, renewal is triggered if the certificate either has already
 expired or if it will expire in the next 30 days.
@@ -296,7 +287,7 @@ Follow the instructions on the screen, for example:
    State or Province Name (full name) [Some-State]:Vienna
    Locality Name (eg, city) []:Vienna
    Organization Name (eg, company) [Internet Widgits Pty Ltd]: Proxmox GmbH
-   Organizational Unit Name (eg, section) []:`Proxmox Backup`_
+   Organizational Unit Name (eg, section) []:Proxmox Backup
    Common Name (eg, YOUR name) []: yourproxmox.yourdomain.com
    Email Address []:support@yourdomain.com
 
@@ -309,12 +300,12 @@ file ``req.pem`` to your Certification Authority (CA). The CA will issue
 the certificate (BASE64 encoded), based on your request – save this file
 as ``cert.pem`` to your `Proxmox Backup`_.
 
-To activate the new certificate, do the following on your Proxmox Mail
-Gateway:
+To activate the new certificate, do the following on your `Proxmox Backup`_
 
 ::
 
-   cat key.pem cert.pem >/etc/proxmox-backup/proxy.pem
+   cp key.pem /etc/proxmox-backup/proxy.key
+   cp cert.pem /etc/proxmox-backup/proxy.pem
 
 Then restart the API servers:
 
@@ -330,25 +321,6 @@ Test your new certificate, using your browser.
    secure copy: If your desktop runs Linux, you can use the ``scp``
    command line tool. If your desktop PC runs windows, please use an scp
    client like WinSCP (see https://winscp.net/).
-
-.. _change_certificate_for_cluster_setups:
-
-Change Certificate for Cluster Setups
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-If you change the API certificate of an active cluster node manually,
-you also need to update the pinned fingerprint inside the cluster
-configuration.
-
-You can do that by executing the following command on the host where the
-certificate changed:
-
-::
-
-   pmgcm update-fingerprints
-
-Note, this will be done automatically if using the integrated ACME (for
-example, through Let’s Encrypt) feature.
 
 .. [1]
    acme.sh https://github.com/acmesh-official/acme.sh
