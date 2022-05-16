@@ -597,20 +597,6 @@ impl From<BackupDir> for pbs_api_types::BackupDir {
     }
 }
 
-impl fmt::Display for BackupDir {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.ns.is_root() {
-            write!(f, "{}/{}", self.dir.group, self.backup_time_string)
-        } else {
-            write!(
-                f,
-                "[{}]:{}/{}",
-                self.ns, self.dir.group, self.backup_time_string
-            )
-        }
-    }
-}
-
 /// Detailed Backup Information, lists files inside a BackupDir
 #[derive(Clone, Debug)]
 pub struct BackupInfo {
