@@ -257,17 +257,6 @@ impl From<BackupGroup> for pbs_api_types::BackupGroup {
     }
 }
 
-impl fmt::Display for BackupGroup {
-    #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.ns.is_root() {
-            fmt::Display::fmt(&self.group, f)
-        } else {
-            write!(f, "[{}]:{}", self.ns, self.group)
-        }
-    }
-}
-
 impl From<BackupDir> for BackupGroup {
     fn from(dir: BackupDir) -> BackupGroup {
         BackupGroup {
