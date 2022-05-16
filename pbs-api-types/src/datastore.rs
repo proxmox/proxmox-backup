@@ -629,12 +629,10 @@ impl BackupNamespace {
     /// Assumes `subdir` already does not contain any slashes.
     /// Performs remaining checks and updates the length.
     fn push_do(&mut self, subdir: String) -> Result<(), Error> {
-        if self.depth() > MAX_NAMESPACE_DEPTH {
-            bail!(
-                "namespace to deep, {} > max {}",
-                self.inner.len(),
-                MAX_NAMESPACE_DEPTH
-            );
+        let depth = self.depth();
+        // check for greater equal to account for the to be added subdir
+        if depth >= MAX_NAMESPACE_DEPTH {
+            bail!("namespace to deep, {depth} >= max {MAX_NAMESPACE_DEPTH}");
         }
 
         if self.len + subdir.len() + 1 > MAX_BACKUP_NAMESPACE_LENGTH {
