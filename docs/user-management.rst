@@ -306,7 +306,48 @@ The following roles exist:
 **TapeReader**
   Can read and inspect tape configuration and media content
 
-.. image:: images/screenshots/pbs-gui-user-management-add-user.png
+Objects and Paths
+~~~~~~~~~~~~~~~~~
+
+Access permissions are assigned to objects, such as a datastore, a namespace or
+some system resources.
+
+We use file system like paths to address these objects. These paths form a
+natural tree, and permissions of higher levels (shorter paths) can optionally
+be propagated down within this hierarchy.
+
+Paths can be templated, that means they can refer to the actual id of an
+configuration entry.  When an API call requires permissions on a templated
+path, the path may contain references to parameters of the API call. These
+references are specified in curly braces.
+
+Some examples are:
+
+* `/datastore`: Access to *all* datastores on a Proxmox Backup server
+* `/datastore/{store}`: Access to a specific datastore on a Proxmox Backup
+  server
+* `/remote`: Access to all remote entries
+* `/system/network`: Access to configuring the host network
+* `/tape/`: Access to tape devices, pools and jobs
+* `/access/users`: User administration
+* `/access/openid/{id}`: Administrative access to a specific OpenID Connect realm
+
+Inheritance
+^^^^^^^^^^^
+
+As mentioned earlier, object paths form a file system like tree, and
+permissions can be inherited by objects down that tree through the propagate
+flag, which is set by default. We use the following inheritance rules:
+
+* Permissions for API tokens are always clamped to the one of the user.
+* Permissions on deeper, more specific levels replace those inherited from an
+  upper level.
+
+
+Configuration & Management
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. image:: images/screenshots/pbs-gui-permissions-add.png
   :align: right
   :alt: Add permissions for user
 
