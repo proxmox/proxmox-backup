@@ -231,15 +231,24 @@ impl ListNamespacesRecursive {
         Self::new_max_depth(store, ns, pbs_api_types::MAX_NAMESPACE_DEPTH)
     }
 
-    /// Creates an recursive namespace iterator with max_depth
+    /// Creates an recursive namespace iterator that iterates recursively until depth is reached.
+    ///
+    /// `depth` must be smaller than pbs_api_types::MAX_NAMESPACE_DEPTH.
+    ///
+    /// Depth is counted relatively, that means not from the datastore as anchor, but from `ns`,
+    /// and it will be clamped to `min(depth, MAX_NAMESPACE_DEPTH - ns.depth())` automatically.
     pub fn new_max_depth(
         store: Arc<DataStore>,
         ns: BackupNamespace,
         max_depth: usize,
     ) -> Result<Self, Error> {
         if max_depth > pbs_api_types::MAX_NAMESPACE_DEPTH {
-            bail!("max_depth must be smaller 8");
+            let limit = pbs_api_types::MAX_NAMESPACE_DEPTH + 1;
+            bail!("depth must be smaller than {limit}");
         }
+        // always clamp, but don't error if we violated relative depth, makes it simpler to use.
+        let max_depth = std::cmp::min(max_depth, pbs_api_types::MAX_NAMESPACE_DEPTH - ns.depth());
+
         Ok(ListNamespacesRecursive {
             store,
             ns,
