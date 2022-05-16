@@ -51,3 +51,13 @@ The following commands are available in an interactive restore shell:
 --------
 
 .. include:: pxar/synopsis.rst
+
+
+``proxmox-file-restore``
+------------------------
+.. include:: proxmox-file-restore/synopsis.rst
+
+
+``proxmox-backup-debug``
+------------------------
+.. include:: proxmox-backup-debug/synopsis.rst

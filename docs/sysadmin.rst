@@ -29,3 +29,5 @@ please refer to the standard Debian documentation.
 .. include:: system-booting.rst
 
 .. include:: services.rst
+
+.. include:: command-line-tools.rst
