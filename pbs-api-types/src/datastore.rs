@@ -507,44 +507,6 @@ impl BackupNamespace {
         Ok(this)
     }
 
-    /*
-    /// Try to parse a file system path (where each sub-namespace is separated by an `ns`
-    /// subdirectory) into a valid namespace.
-    pub fn from_path<T: AsRef<Path>>(path: T) -> Result<Self, Error> {
-        use std::path::Component;
-
-        let mut this = Self::root();
-        let mut next_is_ns = true;
-        for component in path.as_ref().components() {
-            match component {
-                Component::Normal(component) if next_is_ns => {
-                    if component.to_str() != Some("ns") {
-                        bail!("invalid component in path: {:?}", component);
-                    }
-                    next_is_ns = false;
-                }
-                Component::Normal(component) => {
-                    this.push(
-                        component
-                            .to_str()
-                            .ok_or_else(|| {
-                                format_err!("invalid component in path: {:?}", component)
-                            })?
-                            .to_string(),
-                    )?;
-                    next_is_ns = true;
-                }
-                Component::RootDir => {
-                    next_is_ns = true;
-                }
-                _ => bail!("invalid component in path: {:?}", component.as_os_str()),
-            }
-        }
-
-        Ok(this)
-    }
-    */
-
     /// Try to parse a file path string (where each sub-namespace is separated by an `ns`
     /// subdirectory) into a valid namespace.
     pub fn from_path(mut path: &str) -> Result<Self, Error> {
