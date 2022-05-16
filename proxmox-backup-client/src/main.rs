@@ -32,8 +32,8 @@ use pbs_client::catalog_shell::Shell;
 use pbs_client::tools::{
     complete_archive_name, complete_auth_id, complete_backup_group, complete_backup_snapshot,
     complete_backup_source, complete_chunk_size, complete_group_or_snapshot,
-    complete_img_archive_name, complete_pxar_archive_name, complete_repository, connect,
-    connect_rate_limited, extract_repository_from_value,
+    complete_img_archive_name, complete_namespace, complete_pxar_archive_name, complete_repository,
+    connect, connect_rate_limited, extract_repository_from_value,
     key_source::{
         crypto_parameters, format_key_source, get_encryption_key_password, KEYFD_SCHEMA,
         KEYFILE_SCHEMA, MASTER_PUBKEY_FD_SCHEMA, MASTER_PUBKEY_FILE_SCHEMA,
@@ -1638,6 +1638,7 @@ fn main() {
         .completion_cb("keyfile", complete_file_name);
 
     let list_cmd_def = CliCommand::new(&API_METHOD_LIST_BACKUP_GROUPS)
+        .completion_cb("ns", complete_namespace)
         .completion_cb("repository", complete_repository);
 
     let garbage_collect_cmd_def = CliCommand::new(&API_METHOD_START_GARBAGE_COLLECTION)
@@ -1646,12 +1647,14 @@ fn main() {
     let restore_cmd_def = CliCommand::new(&API_METHOD_RESTORE)
         .arg_param(&["snapshot", "archive-name", "target"])
         .completion_cb("repository", complete_repository)
+        .completion_cb("ns", complete_namespace)
         .completion_cb("snapshot", complete_group_or_snapshot)
         .completion_cb("archive-name", complete_archive_name)
         .completion_cb("target", complete_file_name);
 
     let prune_cmd_def = CliCommand::new(&API_METHOD_PRUNE)
         .arg_param(&["group"])
+        .completion_cb("ns", complete_namespace)
         .completion_cb("group", complete_backup_group)
         .completion_cb("repository", complete_repository);
 
@@ -1669,6 +1672,7 @@ fn main() {
 
     let change_owner_cmd_def = CliCommand::new(&API_METHOD_CHANGE_BACKUP_OWNER)
         .arg_param(&["group", "new-owner"])
+        .completion_cb("ns", complete_namespace)
         .completion_cb("group", complete_backup_group)
         .completion_cb("new-owner", complete_auth_id)
         .completion_cb("repository", complete_repository);

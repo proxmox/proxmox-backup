@@ -16,8 +16,9 @@ use pbs_tools::json::required_string_param;
 
 use crate::{
     api_datastore_list_snapshots, complete_backup_group, complete_backup_snapshot,
-    complete_repository, connect, crypto_parameters, extract_repository_from_value,
-    optional_ns_param, record_repository, BackupDir, KEYFD_SCHEMA, KEYFILE_SCHEMA, REPO_URL_SCHEMA,
+    complete_namespace, complete_repository, connect, crypto_parameters,
+    extract_repository_from_value, optional_ns_param, record_repository, BackupDir, KEYFD_SCHEMA,
+    KEYFILE_SCHEMA, REPO_URL_SCHEMA,
 };
 
 fn snapshot_args(ns: &BackupNamespace, snapshot: &BackupDir) -> Result<Value, Error> {
@@ -480,12 +481,14 @@ fn protected_cli() -> CliCommandMap {
             "show",
             CliCommand::new(&API_METHOD_SHOW_PROTECTION)
                 .arg_param(&["snapshot"])
+                .completion_cb("ns", complete_namespace)
                 .completion_cb("snapshot", complete_backup_snapshot),
         )
         .insert(
             "update",
             CliCommand::new(&API_METHOD_UPDATE_PROTECTION)
                 .arg_param(&["snapshot", "protected"])
+                .completion_cb("ns", complete_namespace)
                 .completion_cb("snapshot", complete_backup_snapshot),
         )
 }
@@ -496,12 +499,14 @@ fn notes_cli() -> CliCommandMap {
             "show",
             CliCommand::new(&API_METHOD_SHOW_NOTES)
                 .arg_param(&["snapshot"])
+                .completion_cb("ns", complete_namespace)
                 .completion_cb("snapshot", complete_backup_snapshot),
         )
         .insert(
             "update",
             CliCommand::new(&API_METHOD_UPDATE_NOTES)
                 .arg_param(&["snapshot", "notes"])
+                .completion_cb("ns", complete_namespace)
                 .completion_cb("snapshot", complete_backup_snapshot),
         )
 }
@@ -514,6 +519,7 @@ pub fn snapshot_mgtm_cli() -> CliCommandMap {
             "list",
             CliCommand::new(&API_METHOD_LIST_SNAPSHOTS)
                 .arg_param(&["group"])
+                .completion_cb("ns", complete_namespace)
                 .completion_cb("group", complete_backup_group)
                 .completion_cb("repository", complete_repository),
         )
@@ -521,6 +527,7 @@ pub fn snapshot_mgtm_cli() -> CliCommandMap {
             "files",
             CliCommand::new(&API_METHOD_LIST_SNAPSHOT_FILES)
                 .arg_param(&["snapshot"])
+                .completion_cb("ns", complete_namespace)
                 .completion_cb("repository", complete_repository)
                 .completion_cb("snapshot", complete_backup_snapshot),
         )
@@ -528,6 +535,7 @@ pub fn snapshot_mgtm_cli() -> CliCommandMap {
             "forget",
             CliCommand::new(&API_METHOD_FORGET_SNAPSHOTS)
                 .arg_param(&["snapshot"])
+                .completion_cb("ns", complete_namespace)
                 .completion_cb("repository", complete_repository)
                 .completion_cb("snapshot", complete_backup_snapshot),
         )
@@ -535,6 +543,7 @@ pub fn snapshot_mgtm_cli() -> CliCommandMap {
             "upload-log",
             CliCommand::new(&API_METHOD_UPLOAD_LOG)
                 .arg_param(&["snapshot", "logfile"])
+                .completion_cb("ns", complete_namespace)
                 .completion_cb("snapshot", complete_backup_snapshot)
                 .completion_cb("logfile", complete_file_name)
                 .completion_cb("keyfile", complete_file_name)

@@ -29,9 +29,10 @@ use pbs_tools::crypt_config::CryptConfig;
 use pbs_tools::json::required_string_param;
 
 use crate::{
-    complete_group_or_snapshot, complete_img_archive_name, complete_pxar_archive_name,
-    complete_repository, connect, dir_or_last_from_group, extract_repository_from_value,
-    optional_ns_param, record_repository, BufferedDynamicReadAt, REPO_URL_SCHEMA,
+    complete_group_or_snapshot, complete_img_archive_name, complete_namespace,
+    complete_pxar_archive_name, complete_repository, connect, dir_or_last_from_group,
+    extract_repository_from_value, optional_ns_param, record_repository, BufferedDynamicReadAt,
+    REPO_URL_SCHEMA,
 };
 
 #[sortable]
@@ -129,6 +130,7 @@ pub fn mount_cmd_def() -> CliCommand {
     CliCommand::new(&API_METHOD_MOUNT)
         .arg_param(&["snapshot", "archive-name", "target"])
         .completion_cb("repository", complete_repository)
+        .completion_cb("ns", complete_namespace)
         .completion_cb("snapshot", complete_group_or_snapshot)
         .completion_cb("archive-name", complete_pxar_archive_name)
         .completion_cb("target", complete_file_name)
@@ -138,6 +140,7 @@ pub fn map_cmd_def() -> CliCommand {
     CliCommand::new(&API_METHOD_MAP)
         .arg_param(&["snapshot", "archive-name"])
         .completion_cb("repository", complete_repository)
+        .completion_cb("ns", complete_namespace)
         .completion_cb("snapshot", complete_group_or_snapshot)
         .completion_cb("archive-name", complete_img_archive_name)
 }

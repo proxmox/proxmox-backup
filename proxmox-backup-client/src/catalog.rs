@@ -15,11 +15,11 @@ use pbs_tools::crypt_config::CryptConfig;
 use pbs_tools::json::required_string_param;
 
 use crate::{
-    complete_backup_snapshot, complete_group_or_snapshot, complete_pxar_archive_name,
-    complete_repository, connect, crypto_parameters, decrypt_key, dir_or_last_from_group,
-    extract_repository_from_value, format_key_source, optional_ns_param, record_repository,
-    BackupDir, BufferedDynamicReadAt, BufferedDynamicReader, CatalogReader, DynamicIndexReader,
-    IndexFile, Shell, CATALOG_NAME, KEYFD_SCHEMA, REPO_URL_SCHEMA,
+    complete_backup_snapshot, complete_group_or_snapshot, complete_namespace,
+    complete_pxar_archive_name, complete_repository, connect, crypto_parameters, decrypt_key,
+    dir_or_last_from_group, extract_repository_from_value, format_key_source, optional_ns_param,
+    record_repository, BackupDir, BufferedDynamicReadAt, BufferedDynamicReader, CatalogReader,
+    DynamicIndexReader, IndexFile, Shell, CATALOG_NAME, KEYFD_SCHEMA, REPO_URL_SCHEMA,
 };
 
 #[api(
@@ -265,12 +265,14 @@ pub fn catalog_mgmt_cli() -> CliCommandMap {
     let catalog_shell_cmd_def = CliCommand::new(&API_METHOD_CATALOG_SHELL)
         .arg_param(&["snapshot", "archive-name"])
         .completion_cb("repository", complete_repository)
+        .completion_cb("ns", complete_namespace)
         .completion_cb("archive-name", complete_pxar_archive_name)
         .completion_cb("snapshot", complete_group_or_snapshot);
 
     let catalog_dump_cmd_def = CliCommand::new(&API_METHOD_DUMP_CATALOG)
         .arg_param(&["snapshot"])
         .completion_cb("repository", complete_repository)
+        .completion_cb("ns", complete_namespace)
         .completion_cb("snapshot", complete_backup_snapshot);
 
     CliCommandMap::new()

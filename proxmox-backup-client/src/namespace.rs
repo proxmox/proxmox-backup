@@ -9,7 +9,10 @@ use proxmox_router::cli::{
 };
 use proxmox_schema::api;
 
-use crate::{connect, extract_repository_from_value, optional_ns_param, record_repository};
+use crate::{
+    complete_namespace, connect, extract_repository_from_value, optional_ns_param,
+    record_repository,
+};
 
 #[api(
     input: {
@@ -157,14 +160,20 @@ pub fn cli_map() -> CliCommandMap {
     CliCommandMap::new()
         .insert(
             "list",
-            CliCommand::new(&API_METHOD_LIST_NAMESPACES).arg_param(&["ns"]),
+            CliCommand::new(&API_METHOD_LIST_NAMESPACES)
+                .arg_param(&["ns"])
+                .completion_cb("ns", complete_namespace),
         )
         .insert(
             "create",
-            CliCommand::new(&API_METHOD_CREATE_NAMESPACE).arg_param(&["ns"]),
+            CliCommand::new(&API_METHOD_CREATE_NAMESPACE)
+                .arg_param(&["ns"])
+                .completion_cb("ns", complete_namespace),
         )
         .insert(
             "delete",
-            CliCommand::new(&API_METHOD_DELETE_NAMESPACE).arg_param(&["ns"]),
+            CliCommand::new(&API_METHOD_DELETE_NAMESPACE)
+                .arg_param(&["ns"])
+                .completion_cb("ns", complete_namespace),
         )
 }
