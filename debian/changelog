@@ -1,3 +1,43 @@
+rust-proxmox-backup (2.2.0-1) bullseye; urgency=medium
+
+  * cli: improve namespace integration in proxmox-backup-client and
+    proxmox-tape
+
+  * docs: tape: add information about namespaces
+
+  * api: datastore status: make counts for groups and snapshots iterate over
+    all accessible namespaces recursively
+
+  * ui: fix storeId casing to register store correctly, so that we can query
+    it again for the ACL permission path selector
+
+  * ui: trigger datastore update after maintenance mode edit
+
+  * ui: namespace selector: set queryMode to local to avoid bogus background
+    requests on typing
+
+  * ui: sync job: fix clearing value of remote target-namespace by mistake on
+    edit
+
+  * ui: remote target ns selector: add clear trigger
+
+  * ui: prune group: add namespace info to title
+
+  * fix #4001: datastore/catalog: add number of files to directory entry
+
+  * fix #4001: ui: add prefix to files downloaded through the pxar browser
+
+  * ui: datastore: reload content tree on successful datastore add
+
+  * ui: datastore: allow deleting currently shown namespace
+
+  * docs: rework access control, list available privileges
+
+  * docs: access control: add "Objects and Paths" section and fix
+    add-permission screenshot
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 16 May 2022 11:06:05 +0200
+
 rust-proxmox-backup (2.1.10-1) bullseye; urgency=medium
 
   * datastore: drop bogus chunk size check, can cause trouble
