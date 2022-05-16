@@ -8,7 +8,7 @@ use nix::dir::Dir;
 
 use proxmox_sys::fs::lock_dir_noblock_shared;
 
-use pbs_api_types::{BackupNamespace, Operation};
+use pbs_api_types::{BackupNamespace, DatastoreWithNamespace, Operation};
 
 use crate::backup_info::BackupDir;
 use crate::dynamic_index::DynamicIndexReader;
@@ -39,20 +39,23 @@ impl SnapshotReader {
 
     pub(crate) fn new_do(snapshot: BackupDir) -> Result<Self, Error> {
         let datastore = snapshot.datastore();
+        let store_with_ns = DatastoreWithNamespace {
+            store: datastore.name().to_owned(),
+            ns: snapshot.backup_ns().clone(),
+        };
         let snapshot_path = snapshot.full_path();
 
         let locked_dir =
             lock_dir_noblock_shared(&snapshot_path, "snapshot", "locked by another operation")?;
 
         let datastore_name = datastore.name().to_string();
-
         let manifest = match snapshot.load_manifest() {
             Ok((manifest, _)) => manifest,
             Err(err) => {
                 bail!(
-                    "manifest load error on datastore '{}' snapshot '{}' - {}",
-                    datastore_name,
-                    snapshot,
+                    "manifest load error on {}, snapshot '{}' - {}",
+                    store_with_ns,
+                    snapshot.dir(),
                     err
                 );
             }

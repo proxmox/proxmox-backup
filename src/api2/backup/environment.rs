@@ -618,7 +618,7 @@ impl BackupEnvironment {
             if !path.exists() {
                 bail!(
                     "base snapshot {} was removed during backup, cannot finish as chunks might be missing",
-                    base.backup_dir
+                    base.backup_dir.dir(),
                 );
             }
         }

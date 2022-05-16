@@ -33,12 +33,13 @@ use pxar::EntryKind;
 
 use pbs_api_types::{
     Authid, BackupContent, BackupNamespace, BackupType, Counts, CryptMode, DataStoreListItem,
-    DataStoreStatus, GarbageCollectionStatus, GroupListItem, Operation, PruneOptions, RRDMode,
-    RRDTimeFrame, SnapshotListItem, SnapshotVerifyState, BACKUP_ARCHIVE_NAME_SCHEMA,
-    BACKUP_ID_SCHEMA, BACKUP_NAMESPACE_SCHEMA, BACKUP_TIME_SCHEMA, BACKUP_TYPE_SCHEMA,
-    DATASTORE_SCHEMA, IGNORE_VERIFIED_BACKUPS_SCHEMA, MAX_NAMESPACE_DEPTH, NS_MAX_DEPTH_SCHEMA,
-    PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY, PRIV_DATASTORE_PRUNE,
-    PRIV_DATASTORE_READ, PRIV_DATASTORE_VERIFY, UPID_SCHEMA, VERIFICATION_OUTDATED_AFTER_SCHEMA,
+    DataStoreStatus, DatastoreWithNamespace, GarbageCollectionStatus, GroupListItem, Operation,
+    PruneOptions, RRDMode, RRDTimeFrame, SnapshotListItem, SnapshotVerifyState,
+    BACKUP_ARCHIVE_NAME_SCHEMA, BACKUP_ID_SCHEMA, BACKUP_NAMESPACE_SCHEMA, BACKUP_TIME_SCHEMA,
+    BACKUP_TYPE_SCHEMA, DATASTORE_SCHEMA, IGNORE_VERIFIED_BACKUPS_SCHEMA, MAX_NAMESPACE_DEPTH,
+    NS_MAX_DEPTH_SCHEMA, PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY,
+    PRIV_DATASTORE_PRUNE, PRIV_DATASTORE_READ, PRIV_DATASTORE_VERIFY, UPID_SCHEMA,
+    VERIFICATION_OUTDATED_AFTER_SCHEMA,
 };
 use pbs_client::pxar::{create_tar, create_zip};
 use pbs_config::CachedUserInfo;
@@ -1257,6 +1258,11 @@ pub fn download_file(
         let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
         let store = required_string_param(&param, "store")?;
         let backup_ns = optional_ns_param(&param)?;
+
+        let store_with_ns = DatastoreWithNamespace {
+            store: store.to_owned(),
+            ns: backup_ns.clone(),
+        };
         let backup_dir: pbs_api_types::BackupDir = Deserialize::deserialize(&param)?;
         let datastore = check_privs_and_load_store(
             &store,
@@ -1268,14 +1274,14 @@ pub fn download_file(
             &backup_dir.group,
         )?;
 
-        let backup_dir = datastore.backup_dir(backup_ns, backup_dir)?;
-
         let file_name = required_string_param(&param, "file-name")?.to_owned();
 
         println!(
             "Download {} from {} ({}/{})",
-            file_name, store, backup_dir, file_name
+            file_name, store_with_ns, backup_dir, file_name
         );
+
+        let backup_dir = datastore.backup_dir(backup_ns, backup_dir)?;
 
         let mut path = datastore.base_path();
         path.push(backup_dir.relative_path());
@@ -1338,7 +1344,11 @@ pub fn download_file_decoded(
         let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
         let store = required_string_param(&param, "store")?;
         let backup_ns = optional_ns_param(&param)?;
-        let backup_dir: pbs_api_types::BackupDir = Deserialize::deserialize(&param)?;
+        let store_with_ns = DatastoreWithNamespace {
+            store: store.to_owned(),
+            ns: backup_ns.clone(),
+        };
+        let backup_dir_api: pbs_api_types::BackupDir = Deserialize::deserialize(&param)?;
         let datastore = check_privs_and_load_store(
             &store,
             &backup_ns,
@@ -1346,12 +1356,11 @@ pub fn download_file_decoded(
             PRIV_DATASTORE_READ,
             PRIV_DATASTORE_BACKUP,
             Some(Operation::Read),
-            &backup_dir.group,
+            &backup_dir_api.group,
         )?;
 
-        let backup_dir = datastore.backup_dir(backup_ns, backup_dir)?;
-
         let file_name = required_string_param(&param, "file-name")?.to_owned();
+        let backup_dir = datastore.backup_dir(backup_ns, backup_dir_api.clone())?;
 
         let (manifest, files) = read_backup_index(&backup_dir)?;
         for file in files {
@@ -1362,7 +1371,7 @@ pub fn download_file_decoded(
 
         println!(
             "Download {} from {} ({}/{})",
-            file_name, store, backup_dir, file_name
+            file_name, store_with_ns, backup_dir_api, file_name
         );
 
         let mut path = datastore.base_path();
@@ -1465,7 +1474,11 @@ pub fn upload_backup_log(
         let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
         let store = required_string_param(&param, "store")?;
         let backup_ns = optional_ns_param(&param)?;
-        let backup_dir: pbs_api_types::BackupDir = Deserialize::deserialize(&param)?;
+        let store_with_ns = DatastoreWithNamespace {
+            store: store.to_owned(),
+            ns: backup_ns.clone(),
+        };
+        let backup_dir_api: pbs_api_types::BackupDir = Deserialize::deserialize(&param)?;
 
         let datastore = check_privs_and_load_store(
             &store,
@@ -1474,9 +1487,9 @@ pub fn upload_backup_log(
             0,
             PRIV_DATASTORE_BACKUP,
             Some(Operation::Write),
-            &backup_dir.group,
+            &backup_dir_api.group,
         )?;
-        let backup_dir = datastore.backup_dir(backup_ns, backup_dir)?;
+        let backup_dir = datastore.backup_dir(backup_ns, backup_dir_api.clone())?;
 
         let file_name = CLIENT_LOG_BLOB_NAME;
 
@@ -1487,7 +1500,7 @@ pub fn upload_backup_log(
             bail!("backup already contains a log.");
         }
 
-        println!("Upload backup log to {store}/{backup_dir}/{file_name}");
+        println!("Upload backup log to {store_with_ns} {backup_dir_api}/{file_name}");
 
         let data = req_body
             .map_err(Error::from)

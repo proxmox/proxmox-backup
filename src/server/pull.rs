@@ -384,8 +384,6 @@ async fn pull_snapshot(
     let mut tmp_manifest_name = manifest_name.clone();
     tmp_manifest_name.set_extension("tmp");
 
-    let dir: &pbs_api_types::BackupDir = snapshot.as_ref();
-
     let download_res = download_manifest(&reader, &tmp_manifest_name).await;
     let mut tmp_manifest_file = match download_res {
         Ok(manifest_file) => manifest_file,
@@ -395,7 +393,8 @@ async fn pull_snapshot(
                     StatusCode::NOT_FOUND => {
                         task_log!(
                             worker,
-                            "skipping snapshot {dir} - vanished since start of sync",
+                            "skipping snapshot {} - vanished since start of sync",
+                            snapshot.dir(),
                         );
                         return Ok(());
                     }
@@ -518,30 +517,28 @@ async fn pull_snapshot_from(
     snapshot: &pbs_datastore::BackupDir,
     downloaded_chunks: Arc<Mutex<HashSet<[u8; 32]>>>,
 ) -> Result<(), Error> {
-    let dir: &pbs_api_types::BackupDir = snapshot.as_ref();
-
     let (_path, is_new, _snap_lock) = snapshot
         .datastore()
-        .create_locked_backup_dir(snapshot.backup_ns(), dir)?;
+        .create_locked_backup_dir(snapshot.backup_ns(), snapshot.as_ref())?;
 
     if is_new {
-        task_log!(worker, "sync snapshot {}", dir);
+        task_log!(worker, "sync snapshot {}", snapshot.dir());
 
         if let Err(err) = pull_snapshot(worker, reader, snapshot, downloaded_chunks).await {
-            if let Err(cleanup_err) =
-                snapshot
-                    .datastore()
-                    .remove_backup_dir(snapshot.backup_ns(), dir, true)
-            {
+            if let Err(cleanup_err) = snapshot.datastore().remove_backup_dir(
+                snapshot.backup_ns(),
+                snapshot.as_ref(),
+                true,
+            ) {
                 task_log!(worker, "cleanup error - {}", cleanup_err);
             }
             return Err(err);
         }
-        task_log!(worker, "sync snapshot {} done", dir);
+        task_log!(worker, "sync snapshot {} done", snapshot.dir());
     } else {
-        task_log!(worker, "re-sync snapshot {}", dir);
+        task_log!(worker, "re-sync snapshot {}", snapshot.dir());
         pull_snapshot(worker, reader, snapshot, downloaded_chunks).await?;
-        task_log!(worker, "re-sync snapshot {} done", dir);
+        task_log!(worker, "re-sync snapshot {} done", snapshot.dir());
     }
 
     Ok(())
@@ -716,22 +713,22 @@ async fn pull_group(
         let group = params.store.backup_group(target_ns.clone(), group.clone());
         let local_list = group.list_backups()?;
         for info in local_list {
-            let snapshot: &pbs_api_types::BackupDir = info.backup_dir.as_ref();
-            if remote_snapshots.contains(&snapshot.time) {
+            let snapshot = info.backup_dir;
+            if remote_snapshots.contains(&snapshot.backup_time()) {
                 continue;
             }
-            if info.backup_dir.is_protected() {
+            if snapshot.is_protected() {
                 task_log!(
                     worker,
                     "don't delete vanished snapshot {} (protected)",
-                    snapshot
+                    snapshot.dir()
                 );
                 continue;
             }
-            task_log!(worker, "delete vanished snapshot {}", snapshot);
+            task_log!(worker, "delete vanished snapshot {}", snapshot.dir());
             params
                 .store
-                .remove_backup_dir(&target_ns, snapshot, false)?;
+                .remove_backup_dir(&target_ns, snapshot.as_ref(), false)?;
         }
     }
 

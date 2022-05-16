@@ -341,7 +341,7 @@ pub fn verify_backup_dir(
                 verify_worker.worker,
                 "SKIPPED: verify {}:{} - could not acquire snapshot lock: {}",
                 verify_worker.datastore.name(),
-                backup_dir,
+                backup_dir.dir(),
                 err,
             );
             Ok(true)
@@ -364,7 +364,7 @@ pub fn verify_backup_dir_with_lock(
                 verify_worker.worker,
                 "verify {}:{} - manifest load error: {}",
                 verify_worker.datastore.name(),
-                backup_dir,
+                backup_dir.dir(),
                 err,
             );
             return Ok(false);
@@ -377,7 +377,7 @@ pub fn verify_backup_dir_with_lock(
                 verify_worker.worker,
                 "SKIPPED: verify {}:{} (recently verified)",
                 verify_worker.datastore.name(),
-                backup_dir,
+                backup_dir.dir(),
             );
             return Ok(true);
         }
@@ -387,7 +387,7 @@ pub fn verify_backup_dir_with_lock(
         verify_worker.worker,
         "verify {}:{}",
         verify_worker.datastore.name(),
-        backup_dir
+        backup_dir.dir()
     );
 
     let mut error_count = 0;
@@ -411,7 +411,7 @@ pub fn verify_backup_dir_with_lock(
                 verify_worker.worker,
                 "verify {}:{}/{} failed: {}",
                 verify_worker.datastore.name(),
-                backup_dir,
+                backup_dir.dir(),
                 info.filename,
                 err,
             );

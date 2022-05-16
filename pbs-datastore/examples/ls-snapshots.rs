@@ -28,7 +28,8 @@ fn run() -> Result<(), Error> {
             println!("    found group {}", group);
 
             for snapshot in group.iter_snapshots()? {
-                println!("\t{}", snapshot?);
+                let snapshot = snapshot?;
+                println!("\t{}", snapshot.dir());
             }
         }
     }
