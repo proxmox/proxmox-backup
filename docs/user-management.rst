@@ -157,34 +157,133 @@ Access Control
 --------------
 
 By default, new users and API tokens do not have any permissions. Instead you
-need to specify what is allowed and what is not. You can do this by assigning
-roles to users/tokens on specific objects, like datastores or remotes. The
-following roles exist:
+need to specify what is allowed and what is not.
+
+Proxmox Backup Server uses a role and path based permission management system.
+An entry in the permissions table allows a user, group or token to take on a
+specific role when accessing an 'object' or 'path'. This means that such an
+access rule can be represented as a triple of '(path, user, role)', '(path,
+group, role)' or '(path, token, role)', with the role containing a set of
+allowed actions, and the path representing the target of these actions.
+
+Privileges
+~~~~~~~~~~
+
+Privileges are the atoms that access roles are made off. They are internally
+used to enforce the actual permission checks in the API.
+
+We currently support the following privileges:
+
+**Sys.Audit**
+  Sys.Audit allows one to know about the system and its status.
+
+**Sys.Modify**
+  Sys.Modify allows one to modify system-level configuration and apply updates.
+
+**Sys.PowerManagement**
+  Sys.Modify allows one to to poweroff or reboot the system.
+
+**Datastore.Audit**
+  Datastore.Audit allows one to know about a datastore, including reading the
+  configuration entry and listing its contents.
+
+**Datastore.Allocate**
+  Datastore.Allocate allows one to create or deleting datastores.
+
+**Datastore.Modify**
+  Datastore.Modify allows one to modify a datastore and its contents, and to
+  create or delete namespaces inside a datastore.
+
+**Datastore.Read**
+  Datastore.Read allows one to read arbitrary backup contents, independent of
+  the backup group owner.
+
+**Datastore.Verify**
+  Allows verifying the backup snapshots in a datastore.
+
+**Datastore.Backup**
+  Datastore.Backup allows one create new backup snapshot and gives one also the
+  privileges of Datastore.Read and Datastore.Verify, but only if the backup
+  group is owned by the user or one of its tokens.
+
+**Datastore.Prune**
+  Datastore.Prune allows one to delete snapshots, but additionally requires
+  backup ownership
+
+**Permissions.Modify**
+  Permissions.Modify allows one to modifying ACLs
+
+  .. note:: One can always configure privileges for their own API tokens, as
+    they will clamped by the users privileges anyway.
+
+**Remote.Audit**
+  Remote.Audit allows one to read the remote and the sync configuration entries
+
+**Remote.Modify**
+  Remote.Modify allows one to modify the remote configuration
+
+**Remote.Read**
+  Remote.Read allows one to read data from a configured `Remote`
+
+**Sys.Console**
+  Sys.Console allows one to access to the system's console, note that for all
+  but `root@pam` a valid system login is still required.
+
+**Tape.Audit**
+  Tape.Audit allows one to read the configuration and status of tape drives,
+  changers and backups
+
+**Tape.Modify**
+  Tape.Modify allows one to modify the configuration of tape drives, changers
+  and backups
+
+**Tape.Write**
+  Tape.Write allows one to write to a tape media
+
+**Tape.Read**
+  Tape.Read allows one to read tape backup configuration and contents from a
+  tape media
+
+**Realm.Allocate**
+  Realm.Allocate allows one to view, create, modify and delete authentication
+  realms for users
+
+Access Roles
+~~~~~~~~~~~~
+
+An access role combines one or more privileges into something that can be
+assigned to an user or API token on an object path.
+
+Currently there are only built-in roles, that means, you cannot create your
+own, custom role.
+
+The following roles exist:
 
 **NoAccess**
   Disable Access - nothing is allowed.
 
 **Admin**
-  Can do anything.
+  Can do anything, on the object path assigned.
 
 **Audit**
-  Can view things, but is not allowed to change settings.
+  Can view the status and configuration of things, but is not allowed to change
+  settings.
 
 **DatastoreAdmin**
-  Can do anything on datastores.
+  Can do anything on *existing* datastores.
 
 **DatastoreAudit**
-  Can view datastore settings and list content. But
-  is not allowed to read the actual data.
+  Can view datastore metrics, settings and list content. But is not allowed to
+  read the actual data.
 
 **DatastoreReader**
-  Can Inspect datastore content and do restores.
+  Can inspect a datastore's or namespaces content and do restores.
 
 **DatastoreBackup**
   Can backup and restore owned backups.
 
 **DatastorePowerUser**
-  Can backup, restore, and prune owned backups.
+  Can backup, restore, and prune *owned* backups.
 
 **RemoteAdmin**
   Can do anything on remotes.
@@ -195,14 +294,14 @@ following roles exist:
 **RemoteSyncOperator**
   Is allowed to read data from a remote.
 
-**TapeAudit**
-  Can view tape related configuration and status
-
-**TapeAdministrat**
+**TapeAdmin**
   Can do anything related to tape backup
 
+**TapeAudit**
+  Can view tape related metrics, configuration and status
+
 **TapeOperator**
-  Can do tape backup and restore (but no configuration changes)
+  Can do tape backup and restore, but cannot change any configuration
 
 **TapeReader**
   Can read and inspect tape configuration and media content
