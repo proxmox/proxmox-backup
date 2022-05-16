@@ -31,6 +31,7 @@ impl fmt::Debug for BackupGroup {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("BackupGroup")
             .field("store", &self.store.name())
+            .field("ns", &self.ns)
             .field("group", &self.group)
             .finish()
     }
@@ -293,6 +294,7 @@ impl fmt::Debug for BackupDir {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("BackupDir")
             .field("store", &self.store.name())
+            .field("ns", &self.ns)
             .field("dir", &self.dir)
             .field("backup_time_string", &self.backup_time_string)
             .finish()
