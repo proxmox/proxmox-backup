@@ -64,12 +64,17 @@ fn check_job_privs(auth_id: &Authid, user_info: &CachedUserInfo, upid: &UPID) ->
             )
         }
         ("prune", Some(workerid)) => {
-            return user_info.check_privs(
-                auth_id,
-                &["datastore", workerid],
-                PRIV_DATASTORE_MODIFY,
-                true,
-            );
+            let mut acl_path = vec!["datastore"];
+            acl_path.extend(workerid.split(':'));
+            let acl_path = match acl_path.len() {
+                4 => &acl_path[..3],    // contains group as fourth element
+                2 | 3 => &acl_path[..], // store + optional NS
+                _ => {
+                    bail!("invalid worker ID for prune task");
+                }
+            };
+
+            return user_info.check_privs(auth_id, acl_path, PRIV_DATASTORE_MODIFY, true);
         }
         _ => bail!("not a scheduled job task"),
     };

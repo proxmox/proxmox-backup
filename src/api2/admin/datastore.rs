@@ -950,9 +950,8 @@ pub fn prune(
         ns: ns.clone(),
     };
 
+    let worker_id = format!("{}:{}:{}", store, ns, group);
     let group = datastore.backup_group(ns, group);
-
-    let worker_id = format!("{}:{}", store, group);
 
     let mut prune_result = Vec::new();
 
@@ -1081,6 +1080,8 @@ pub fn prune_datastore(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
+    let ns = ns.unwrap_or_default();
+    let worker_id = format!("{}:{}", store, ns);
 
     let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
@@ -1088,18 +1089,11 @@ pub fn prune_datastore(
 
     let upid_str = WorkerTask::new_thread(
         "prune",
-        Some(store.clone()),
+        Some(worker_id),
         auth_id.to_string(),
         to_stdout,
         move |worker| {
-            crate::server::prune_datastore(
-                worker,
-                auth_id,
-                prune_options,
-                datastore,
-                ns.unwrap_or_default(),
-                dry_run,
-            )
+            crate::server::prune_datastore(worker, auth_id, prune_options, datastore, ns, dry_run)
         },
     )?;
 

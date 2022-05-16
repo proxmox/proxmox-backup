@@ -104,13 +104,16 @@ pub fn do_prune_job(
 
     let worker_type = job.jobtype().to_string();
     let auth_id = auth_id.clone();
+    let worker_id = format!("{store}");
     let upid_str = WorkerTask::new_thread(
         &worker_type,
-        Some(job.jobname().to_string()),
+        Some(worker_id),
         auth_id.to_string(),
         false,
         move |worker| {
             job.start(&worker.upid().to_string())?;
+
+            task_log!(worker, "prune job '{}'", job.jobname());
 
             if let Some(event_str) = schedule {
                 task_log!(worker, "task triggered by schedule '{}'", event_str);
