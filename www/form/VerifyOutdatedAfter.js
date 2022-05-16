@@ -2,12 +2,11 @@ Ext.define('PBS.form.VerifyOutdatedAfter', {
     extend: 'Proxmox.form.field.Integer',
     alias: 'widget.pbsVerifyOutdatedAfter',
 
-    emptyText: gettext('Never'),
     name: 'outdated-after',
 
     minValue: 1,
     value: 30,
-    allowBlank: true,
+    allowBlank: false,
 
     triggers: {
 	clear: {
