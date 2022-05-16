@@ -685,25 +685,10 @@ Ext.define('PBS.DataStoreContent', {
 		isCreate: false,
 		autoLoad: true,
 
-		loadUrl: `${url}?${Ext.Object.toQueryString(params)}`,
 		url,
+		extraRequestParams: params,
 
 		items: [
-		    {
-			xtype: 'hidden',
-			name: 'backup-type',
-			value: type,
-		    },
-		    {
-			xtype: 'hidden',
-			name: 'backup-id',
-			value: id,
-		    },
-		    {
-			xtype: 'hidden',
-			name: 'backup-time',
-			value: time,
-		    },
 		    {
 			xtype: 'proxmoxcheckbox',
 			fieldLabel: gettext('Protected'),
