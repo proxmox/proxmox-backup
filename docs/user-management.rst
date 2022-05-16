@@ -326,6 +326,8 @@ Some examples are:
 * `/datastore`: Access to *all* datastores on a Proxmox Backup server
 * `/datastore/{store}`: Access to a specific datastore on a Proxmox Backup
   server
+* `/datastore/{store}/{ns}`: Access to a specific namespace on a specific
+  datastore
 * `/remote`: Access to all remote entries
 * `/system/network`: Access to configuring the host network
 * `/tape/`: Access to tape devices, pools and jobs
