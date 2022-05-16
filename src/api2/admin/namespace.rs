@@ -63,7 +63,7 @@ pub fn create_namespace(
         proxmox_router::http_bail!(FORBIDDEN, "permission check failed");
     }
 
-    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
+    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
     datastore.create_namespace(&parent, name)
 }
