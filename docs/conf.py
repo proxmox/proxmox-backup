@@ -108,6 +108,7 @@ today_fmt = '%A, %d %B %Y'
 exclude_patterns = [
     '_build', 'Thumbs.db', '.DS_Store',
     '*/man1.rst',
+    'certificate-management.rst',
     'config/*/man5.rst',
     'epilog.rst',
     'pbs-copyright.rst',
