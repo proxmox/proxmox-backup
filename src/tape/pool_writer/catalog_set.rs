@@ -29,13 +29,19 @@ impl CatalogSet {
     }
 
     /// Test if the catalog already contains a snapshot
-    pub fn contains_snapshot(&self, store: &str, snapshot: &str) -> bool {
+    pub fn contains_snapshot(
+        &self,
+        store: &str,
+        ns: &pbs_api_types::BackupNamespace,
+        snapshot: &pbs_api_types::BackupDir,
+    ) -> bool {
         if let Some(ref catalog) = self.catalog {
-            if catalog.contains_snapshot(store, snapshot) {
+            if catalog.contains_snapshot(store, ns, snapshot) {
                 return true;
             }
         }
-        self.media_set_catalog.contains_snapshot(store, snapshot)
+        self.media_set_catalog
+            .contains_snapshot(store, ns, snapshot)
     }
 
     /// Test if the catalog already contains a chunk

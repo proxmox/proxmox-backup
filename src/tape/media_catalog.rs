@@ -411,10 +411,16 @@ impl MediaCatalog {
     }
 
     /// Test if the catalog already contain a snapshot
-    pub fn contains_snapshot(&self, store: &str, snapshot: &str) -> bool {
+    pub fn contains_snapshot(
+        &self,
+        store: &str,
+        ns: &BackupNamespace,
+        snapshot: &BackupDir,
+    ) -> bool {
+        let path = print_ns_and_snapshot(ns, snapshot);
         match self.content.get(store) {
             None => false,
-            Some(content) => content.snapshot_index.contains_key(snapshot),
+            Some(content) => content.snapshot_index.contains_key(&path),
         }
     }
 
@@ -960,9 +966,14 @@ impl MediaSetCatalog {
     }
 
     /// Test if the catalog already contain a snapshot
-    pub fn contains_snapshot(&self, store: &str, snapshot: &str) -> bool {
+    pub fn contains_snapshot(
+        &self,
+        store: &str,
+        ns: &BackupNamespace,
+        snapshot: &BackupDir,
+    ) -> bool {
         for catalog in self.catalog_list.values() {
-            if catalog.contains_snapshot(store, snapshot) {
+            if catalog.contains_snapshot(store, ns, snapshot) {
                 return true;
             }
         }

@@ -100,11 +100,16 @@ impl PoolWriter {
         Ok(())
     }
 
-    pub fn contains_snapshot(&self, store: &str, snapshot: &str) -> bool {
+    pub fn contains_snapshot(
+        &self,
+        store: &str,
+        ns: &pbs_api_types::BackupNamespace,
+        snapshot: &pbs_api_types::BackupDir,
+    ) -> bool {
         self.catalog_set
             .lock()
             .unwrap()
-            .contains_snapshot(store, snapshot)
+            .contains_snapshot(store, ns, snapshot)
     }
 
     /// Eject media and drop PoolWriterState (close drive)

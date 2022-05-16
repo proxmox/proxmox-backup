@@ -496,7 +496,11 @@ fn backup_worker(
             if let Some(info) = snapshot_list.pop() {
                 let rel_path =
                     print_ns_and_snapshot(info.backup_dir.backup_ns(), info.backup_dir.as_ref());
-                if pool_writer.contains_snapshot(datastore_name, &rel_path) {
+                if pool_writer.contains_snapshot(
+                    datastore_name,
+                    &info.backup_dir.backup_ns(),
+                    info.backup_dir.as_ref(),
+                ) {
                     task_log!(worker, "skip snapshot {}", rel_path);
                     continue;
                 }
@@ -517,7 +521,11 @@ fn backup_worker(
                 let rel_path =
                     print_ns_and_snapshot(info.backup_dir.backup_ns(), info.backup_dir.as_ref());
 
-                if pool_writer.contains_snapshot(datastore_name, &rel_path) {
+                if pool_writer.contains_snapshot(
+                    datastore_name,
+                    &info.backup_dir.backup_ns(),
+                    info.backup_dir.as_ref(),
+                ) {
                     task_log!(worker, "skip snapshot {}", rel_path);
                     continue;
                 }
