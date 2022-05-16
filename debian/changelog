@@ -1,3 +1,23 @@
+rust-proxmox-backup (2.2.0-2) bullseye; urgency=medium
+
+  * client: add CLI auto-completion callbacks for ns parameters
+
+  * ui: fix setting protection in namespace
+
+  * ui: switch summary repo status to widget toolkit one
+
+  * ui: verify outdated: disallow blank and drop wrong empty text
+
+  * docs: add namespace section to sync documentation
+
+  * ui: datastore summary: add maintenance mask for offline entries
+
+  * ui: verify/sync: allow to optionally override ID again
+
+  * prune: fix workerid issues
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 16 May 2022 19:01:13 +0200
+
 rust-proxmox-backup (2.2.0-1) bullseye; urgency=medium
 
   * cli: improve namespace integration in proxmox-backup-client and
@@ -22,8 +42,6 @@ rust-proxmox-backup (2.2.0-1) bullseye; urgency=medium
   * ui: remote target ns selector: add clear trigger
 
   * ui: prune group: add namespace info to title
-
-  * fix #4001: datastore/catalog: add number of files to directory entry
 
   * fix #4001: ui: add prefix to files downloaded through the pxar browser
 
