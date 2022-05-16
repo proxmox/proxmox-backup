@@ -421,13 +421,14 @@ impl BackupDir {
     /// Returns the filename to lock a manifest
     ///
     /// Also creates the basedir. The lockfile is located in
-    /// '/run/proxmox-backup/locks/{datastore}/{type}/{id}/{timestamp}.index.json.lck'
-    fn manifest_lock_path(&self) -> Result<String, Error> {
-        let mut path = format!("/run/proxmox-backup/locks/{}/{self}", self.store.name());
+    /// '/run/proxmox-backup/locks/{datastore}/[ns/{ns}/]+{type}/{id}/{timestamp}.index.json.lck'
+    fn manifest_lock_path(&self) -> Result<PathBuf, Error> {
+        let mut path = PathBuf::from(&format!("/run/proxmox-backup/locks/{}", self.store.name()));
+        path.push(self.relative_path());
+
         std::fs::create_dir_all(&path)?;
-        use std::fmt::Write;
         let ts = self.backup_time_string();
-        write!(path, "/{ts}{}", &MANIFEST_LOCK_NAME)?;
+        path.push(&format!("{ts}{MANIFEST_LOCK_NAME}"));
 
         Ok(path)
     }
