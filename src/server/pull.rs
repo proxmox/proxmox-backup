@@ -1161,28 +1161,21 @@ pub async fn pull_ns(
         let result: Result<(), Error> = proxmox_lang::try_block!({
             for local_group in params.store.iter_backup_groups(target_ns.clone())? {
                 let local_group = local_group?;
-                if new_groups.contains(local_group.as_ref()) {
+                let local_group = local_group.group();
+                if new_groups.contains(local_group) {
                     continue;
                 }
-                let owner = params.store.get_owner(&target_ns, local_group.group())?;
+                let owner = params.store.get_owner(&target_ns, local_group)?;
                 if check_backup_owner(&owner, &params.owner).is_err() {
                     continue;
                 }
                 if let Some(ref group_filter) = &params.group_filter {
-                    if !apply_filters(local_group.as_ref(), group_filter) {
+                    if !apply_filters(local_group, group_filter) {
                         continue;
                     }
                 }
-                task_log!(
-                    worker,
-                    "delete vanished group '{}/{}'",
-                    local_group.backup_type(),
-                    local_group.backup_id()
-                );
-                match params
-                    .store
-                    .remove_backup_group(&target_ns, local_group.as_ref())
-                {
+                task_log!(worker, "delete vanished group '{local_group}'",);
+                match params.store.remove_backup_group(&target_ns, local_group) {
                     Ok(true) => {}
                     Ok(false) => {
                         task_log!(

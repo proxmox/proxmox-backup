@@ -225,16 +225,25 @@ pub fn list_groups(
     )?;
 
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
+    let store_with_ns = DatastoreWithNamespace {
+        store: store.to_owned(),
+        ns: ns.clone(),
+    };
 
     datastore
         .iter_backup_groups(ns.clone())? // FIXME: Namespaces and recursion parameters!
         .try_fold(Vec::new(), |mut group_info, group| {
             let group = group?;
+
             let owner = match datastore.get_owner(&ns, group.as_ref()) {
                 Ok(auth_id) => auth_id,
                 Err(err) => {
-                    let id = &store;
-                    eprintln!("Failed to get owner of group '{}/{}' - {}", id, group, err);
+                    eprintln!(
+                        "Failed to get owner of group '{}' in {} - {}",
+                        group.group(),
+                        store_with_ns,
+                        err
+                    );
                     return Ok(group_info);
                 }
             };
@@ -477,6 +486,10 @@ pub fn list_snapshots(
     )?;
 
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
+    let store_with_ns = DatastoreWithNamespace {
+        store: store.to_owned(),
+        ns: ns.clone(),
+    };
 
     // FIXME: filter also owner before collecting, for doing that nicely the owner should move into
     // backup group and provide an error free (Err -> None) accessor
@@ -575,8 +588,10 @@ pub fn list_snapshots(
             Ok(auth_id) => auth_id,
             Err(err) => {
                 eprintln!(
-                    "Failed to get owner of group '{}/{}' - {}",
-                    &store, group, err
+                    "Failed to get owner of group '{}' in {} - {}",
+                    &store_with_ns,
+                    group.group(),
+                    err
                 );
                 return Ok(snapshots);
             }
@@ -930,6 +945,10 @@ pub fn prune(
         Some(Operation::Write),
         &group,
     )?;
+    let store_with_ns = DatastoreWithNamespace {
+        store: store.to_owned(),
+        ns: ns.clone(),
+    };
 
     let group = datastore.backup_group(ns, group);
 
@@ -978,9 +997,9 @@ pub fn prune(
         );
         task_log!(
             worker,
-            "Starting prune on store \"{}\" group \"{}\"",
-            store,
-            group,
+            "Starting prune on {} group \"{}\"",
+            store_with_ns,
+            group.group(),
         );
     }
 
@@ -2175,7 +2194,7 @@ pub fn set_backup_owner(
                 UNAUTHORIZED,
                 "{} does not have permission to change owner of backup group '{}' to {}",
                 auth_id,
-                backup_group,
+                backup_group.group(),
                 new_owner,
             ));
         }

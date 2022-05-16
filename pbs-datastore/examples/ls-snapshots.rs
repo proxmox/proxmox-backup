@@ -25,7 +25,7 @@ fn run() -> Result<(), Error> {
 
         for group in store.iter_backup_groups(ns)? {
             let group = group?;
-            println!("    found group {}", group);
+            println!("    found group {}", group.group());
 
             for snapshot in group.iter_snapshots()? {
                 let snapshot = snapshot?;
