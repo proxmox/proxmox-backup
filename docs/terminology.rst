@@ -61,6 +61,15 @@ The manifest contains a list of all backed up files, and their
 sizes and checksums. It is used to verify the consistency of a
 backup.
 
+Backup Namespace
+----------------
+
+Namespaces allow for the reuse of a single chunk store deduplication domain for
+multiple sources, while avoiding naming conflicts and getting more fine-grained
+access control.
+
+Essentially they're implemented as simple directory structure and need no
+separate configuration.
 
 Backup Type
 -----------
@@ -82,25 +91,25 @@ The backup server groups backups by *type*, where *type* is one of:
     or container. Such backups may contain file and image archives; there are no
     restrictions in this regard.
 
-
 Backup ID
 ---------
 
-A unique ID. Usually the virtual machine or container ID. ``host``
-type backups normally use the hostname.
-
+A unique ID for a specific Backup Type and Backup Namesapce. Usually the
+virtual machine or container ID. ``host`` type backups normally use the
+hostname.
 
 Backup Time
 -----------
 
-The time when the backup was made.
+The time when the backup was made with second resolution.
 
 
 Backup Group
 ------------
 
-The tuple ``<type>/<ID>`` is called a backup group. Such a group
-may contain one or more backup snapshots.
+The tuple ``<type>/<id>`` is called a backup group. Such a group may contain
+one or more backup snapshots.
+
 
 .. _term_backup_snapshot:
 
