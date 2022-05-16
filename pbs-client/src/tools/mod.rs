@@ -14,7 +14,7 @@ use proxmox_router::cli::{complete_file_name, shellword_split};
 use proxmox_schema::*;
 use proxmox_sys::fs::file_get_json;
 
-use pbs_api_types::{Authid, RateLimitConfig, UserWithTokens, BACKUP_REPO_URL};
+use pbs_api_types::{Authid, BackupNamespace, RateLimitConfig, UserWithTokens, BACKUP_REPO_URL};
 use pbs_tools::json::json_object_to_query;
 
 use crate::{BackupRepository, HttpClient, HttpClientOptions};
@@ -439,6 +439,63 @@ pub fn complete_backup_source(arg: &str, param: &HashMap<String, String>) -> Vec
         result.push(format!("{}:{}", data[0], file));
     }
 
+    result
+}
+
+pub fn complete_namespace(arg: &str, param: &HashMap<String, String>) -> Vec<String> {
+    // the prefix includes the parent since we get the full namespace as API results
+    let prefix = arg;
+    let parent = match arg.rfind('/') {
+        // we're at a slash, so use the full namespace as a parent, no filter
+        Some(len) if len == arg.len() => &arg[..(len - 1)],
+        // there was a slash in the namespace, pop off the final component, use the
+        // remainder as a filter:
+        Some(len) => &arg[..len],
+        // no slashes, search root namespace
+        None => "",
+    };
+
+    let parent: BackupNamespace = match parent.parse() {
+        Ok(ns) => ns,
+        Err(_) => return Vec::new(),
+    };
+
+    proxmox_async::runtime::main(complete_namespace_do(parent, prefix, param))
+}
+
+pub async fn complete_namespace_do(
+    parent: BackupNamespace,
+    prefix: &str,
+    param: &HashMap<String, String>,
+) -> Vec<String> {
+    let repo = match extract_repository_from_map(param) {
+        Some(v) => v,
+        _ => return Vec::new(),
+    };
+
+    let mut param = json!({ "max-depth": 2 });
+    if !parent.is_root() {
+        param["parent"] = match serde_json::to_value(parent) {
+            Ok(p) => p,
+            Err(_) => return Vec::new(),
+        };
+    }
+    let query = json_object_to_query(param).unwrap();
+    let path = format!(
+        "api2/json/admin/datastore/{}/namespace?{query}",
+        repo.store()
+    );
+
+    let mut result = Vec::new();
+    let data = try_get(&repo, &path).await;
+    if let Value::Array(array) = data {
+        for mut item in array {
+            match item["ns"].take() {
+                Value::String(s) if s.starts_with(prefix) => result.push(s),
+                _ => (),
+            }
+        }
+    }
     result
 }
 
