@@ -62,17 +62,20 @@ Ext.define('PBS.Dashboard', {
 	updateRepositoryStatus: function(store, records, success) {
 	    if (!success) { return; }
 	    let me = this;
-	    me.lookup('nodeInfo').setRepositoryInfo(records[0].data['standard-repos']);
+	    let view = me.getView();
+	    view.down('#repositoryStatus').setRepositoryInfo(records[0].data['standard-repos']);
 	},
 
 	updateSubscription: function(store, records, success) {
 	    if (!success) { return; }
 	    let me = this;
+	    let view = me.getView();
 	    let status = records[0].data.status || 'unknown';
 	    // 2 = all good, 1 = different leves, 0 = none
+	    let subscriptionActive = status.toLowerCase() === 'active';
 	    let subStatus = status.toLowerCase() === 'active' ? 2 : 0;
 	    me.lookup('subscription').setSubStatus(subStatus);
-	    me.lookup('nodeInfo').setSubscriptionStatus(subStatus);
+	    view.down('#repositoryStatus').setSubscriptionStatus(subscriptionActive);
 	},
 
 	updateTasks: function(store, records, success) {
