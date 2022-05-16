@@ -48,7 +48,10 @@ If you already have a certificate which you want to use for a Proxmox
 Mail Gateway host, you can simply upload that certificate over the web
 interface.
 
-|pbs-gui-certs-upload-custom.png|
+
+.. image:: images/screenshots/pbs-gui-certs-upload-custom.png
+  :align: right
+  :alt: Upload a custom certificate
 
 Note that any certificate key files must not be password protected.
 
@@ -76,7 +79,9 @@ plugin supporting all the DNS API endpoints
 ACME Account
 ^^^^^^^^^^^^
 
-|pbs-gui-acme-create-account.png|
+.. image:: images/screenshots/pbs-gui-acme-create-account.png
+  :align: right
+  :alt: Create ACME Account
 
 You need to register an ACME account per cluster, with the endpoint you
 want to use. The email address used for that account will serve as the
@@ -117,7 +122,9 @@ not reachable from the public internet. The ``dns-01`` challenge can be
 used in such cases. This challenge is fulfilled by creating a certain
 DNS record in the domain’s zone.
 
-|pbs-gui-acme-create-challenge-plugin.png|
+.. image:: images/screenshots/pbs-gui-acme-create-challenge-plugin.png
+  :align: right
+  :alt: Create ACME Account
 
 `Proxmox Backup`_ supports both of those challenge types out of the
 box, you can configure plugins either over the web interface under
@@ -134,7 +141,9 @@ Domains
 You can add new or manage existing domain entries under
 ``Certificates``, or using the ``proxmox-backup-manager`` command.
 
-|pbs-gui-acme-add-domain.png|
+.. image:: images/screenshots/pbs-gui-acme-add-domain.png
+  :align: right
+  :alt: Add a Domain for ACME verification
 
 After configuring the desired domain(s) for a node and ensuring that the
 desired ACME account is selected, you can order your new certificate
@@ -190,8 +199,6 @@ on configuration of specific APIs.
 
 The easiest way to configure a new plugin with the DNS API is using the
 web interface (``Certificates -> ACME Accounts/Challenges``).
-
-|pbs-gui-acme-create-challenge-plugin.png|
 
 Here you can add a new challenge plugin by selecting your API provider
 and entering the credential data to access your account over their API.
@@ -324,8 +331,3 @@ Test your new certificate, using your browser.
 
 .. [1]
    acme.sh https://github.com/acmesh-official/acme.sh
-
-.. |pbs-gui-certs-upload-custom.png| image:: images/screenshots/pbs-gui-certs-upload-custom.png
-.. |pbs-gui-acme-create-account.png| image:: images/screenshots/pbs-gui-acme-create-account.png
-.. |pbs-gui-acme-create-challenge-plugin.png| image:: images/screenshots/pbs-gui-acme-create-challenge-plugin.png
-.. |pbs-gui-acme-add-domain.png| image:: images/screenshots/pbs-gui-acme-add-domain.png
