@@ -369,6 +369,14 @@ impl BackupDir {
         &self.backup_time_string
     }
 
+    pub fn dir(&self) -> &pbs_api_types::BackupDir {
+        &self.dir
+    }
+
+    pub fn group(&self) -> &pbs_api_types::BackupGroup {
+        &self.dir.group
+    }
+
     pub fn relative_path(&self) -> PathBuf {
         let mut path = self.ns.path();
         path.push(self.dir.group.ty.as_str());
