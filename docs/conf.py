@@ -111,9 +111,10 @@ exclude_patterns = [
     'config/*/man5.rst',
     'epilog.rst',
     'pbs-copyright.rst',
-    'local-zfs.rst'
+    'local-zfs.rst',
     'package-repositories.rst',
-    'system-booting.rst'
+    'system-booting.rst',
+    'traffic-control.rst',
 ]
 
 # The reST default role (used for this markup: `text`) to use for all
