@@ -9,7 +9,8 @@ use anyhow::{bail, format_err, Error};
 use proxmox_sys::{task_log, WorkerTaskContext};
 
 use pbs_api_types::{
-    Authid, BackupNamespace, BackupType, CryptMode, SnapshotVerifyState, VerifyState, UPID,
+    print_ns_and_snapshot, Authid, BackupNamespace, BackupType, CryptMode, SnapshotVerifyState,
+    VerifyState, UPID,
 };
 use pbs_datastore::backup_info::{BackupDir, BackupGroup, BackupInfo};
 use pbs_datastore::index::IndexFile;
@@ -477,7 +478,10 @@ pub fn verify_backup_group(
     BackupInfo::sort_list(&mut list, false); // newest first
     for (pos, info) in list.into_iter().enumerate() {
         if !verify_backup_dir(verify_worker, &info.backup_dir, upid.clone(), filter)? {
-            errors.push(info.backup_dir.to_string());
+            errors.push(print_ns_and_snapshot(
+                info.backup_dir.backup_ns(),
+                info.backup_dir.as_ref(),
+            ));
         }
         progress.done_snapshots = pos as u64 + 1;
         task_log!(verify_worker.worker, "percentage done: {}", progress);

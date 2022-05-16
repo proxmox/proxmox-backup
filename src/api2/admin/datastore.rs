@@ -32,14 +32,14 @@ use pxar::accessor::aio::Accessor;
 use pxar::EntryKind;
 
 use pbs_api_types::{
-    Authid, BackupContent, BackupNamespace, BackupType, Counts, CryptMode, DataStoreListItem,
-    DataStoreStatus, DatastoreWithNamespace, GarbageCollectionStatus, GroupListItem, Operation,
-    PruneOptions, RRDMode, RRDTimeFrame, SnapshotListItem, SnapshotVerifyState,
-    BACKUP_ARCHIVE_NAME_SCHEMA, BACKUP_ID_SCHEMA, BACKUP_NAMESPACE_SCHEMA, BACKUP_TIME_SCHEMA,
-    BACKUP_TYPE_SCHEMA, DATASTORE_SCHEMA, IGNORE_VERIFIED_BACKUPS_SCHEMA, MAX_NAMESPACE_DEPTH,
-    NS_MAX_DEPTH_SCHEMA, PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY,
-    PRIV_DATASTORE_PRUNE, PRIV_DATASTORE_READ, PRIV_DATASTORE_VERIFY, UPID_SCHEMA,
-    VERIFICATION_OUTDATED_AFTER_SCHEMA,
+    print_ns_and_snapshot, Authid, BackupContent, BackupNamespace, BackupType, Counts, CryptMode,
+    DataStoreListItem, DataStoreStatus, DatastoreWithNamespace, GarbageCollectionStatus,
+    GroupListItem, Operation, PruneOptions, RRDMode, RRDTimeFrame, SnapshotListItem,
+    SnapshotVerifyState, BACKUP_ARCHIVE_NAME_SCHEMA, BACKUP_ID_SCHEMA, BACKUP_NAMESPACE_SCHEMA,
+    BACKUP_TIME_SCHEMA, BACKUP_TYPE_SCHEMA, DATASTORE_SCHEMA, IGNORE_VERIFIED_BACKUPS_SCHEMA,
+    MAX_NAMESPACE_DEPTH, NS_MAX_DEPTH_SCHEMA, PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP,
+    PRIV_DATASTORE_MODIFY, PRIV_DATASTORE_PRUNE, PRIV_DATASTORE_READ, PRIV_DATASTORE_VERIFY,
+    UPID_SCHEMA, VERIFICATION_OUTDATED_AFTER_SCHEMA,
 };
 use pbs_client::pxar::{create_tar, create_zip};
 use pbs_config::CachedUserInfo;
@@ -831,7 +831,10 @@ pub fn verify(
                     worker.upid().clone(),
                     Some(&move |manifest| verify_filter(ignore_verified, outdated_after, manifest)),
                 )? {
-                    res.push(backup_dir.to_string());
+                    res.push(print_ns_and_snapshot(
+                        backup_dir.backup_ns(),
+                        backup_dir.as_ref(),
+                    ));
                 }
                 res
             } else if let Some(backup_group) = backup_group {

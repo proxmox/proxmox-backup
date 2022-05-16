@@ -10,9 +10,9 @@ use proxmox_schema::api;
 use proxmox_sys::{task_log, task_warn, WorkerTaskContext};
 
 use pbs_api_types::{
-    Authid, GroupFilter, MediaPoolConfig, Operation, TapeBackupJobConfig, TapeBackupJobSetup,
-    TapeBackupJobStatus, Userid, JOB_ID_SCHEMA, PRIV_DATASTORE_READ, PRIV_TAPE_AUDIT,
-    PRIV_TAPE_WRITE, UPID_SCHEMA,
+    print_ns_and_snapshot, Authid, GroupFilter, MediaPoolConfig, Operation, TapeBackupJobConfig,
+    TapeBackupJobSetup, TapeBackupJobStatus, Userid, JOB_ID_SCHEMA, PRIV_DATASTORE_READ,
+    PRIV_TAPE_AUDIT, PRIV_TAPE_WRITE, UPID_SCHEMA,
 };
 
 use pbs_config::CachedUserInfo;
@@ -484,18 +484,19 @@ fn backup_worker(
         if latest_only {
             progress.group_snapshots = 1;
             if let Some(info) = snapshot_list.pop() {
-                if pool_writer.contains_snapshot(datastore_name, &info.backup_dir.to_string()) {
-                    task_log!(worker, "skip snapshot {}", info.backup_dir);
+                let rel_path =
+                    print_ns_and_snapshot(info.backup_dir.backup_ns(), info.backup_dir.as_ref());
+                if pool_writer.contains_snapshot(datastore_name, &rel_path) {
+                    task_log!(worker, "skip snapshot {}", rel_path);
                     continue;
                 }
 
                 need_catalog = true;
 
-                let snapshot_name = info.backup_dir.to_string();
                 if !backup_snapshot(worker, &mut pool_writer, datastore.clone(), info.backup_dir)? {
                     errors = true;
                 } else {
-                    summary.snapshot_list.push(snapshot_name);
+                    summary.snapshot_list.push(rel_path);
                 }
                 progress.done_snapshots = 1;
                 task_log!(worker, "percentage done: {}", progress);
@@ -503,18 +504,20 @@ fn backup_worker(
         } else {
             progress.group_snapshots = snapshot_list.len() as u64;
             for (snapshot_number, info) in snapshot_list.into_iter().enumerate() {
-                if pool_writer.contains_snapshot(datastore_name, &info.backup_dir.to_string()) {
-                    task_log!(worker, "skip snapshot {}", info.backup_dir);
+                let rel_path =
+                    print_ns_and_snapshot(info.backup_dir.backup_ns(), info.backup_dir.as_ref());
+
+                if pool_writer.contains_snapshot(datastore_name, &rel_path) {
+                    task_log!(worker, "skip snapshot {}", rel_path);
                     continue;
                 }
 
                 need_catalog = true;
 
-                let snapshot_name = info.backup_dir.to_string();
                 if !backup_snapshot(worker, &mut pool_writer, datastore.clone(), info.backup_dir)? {
                     errors = true;
                 } else {
-                    summary.snapshot_list.push(snapshot_name);
+                    summary.snapshot_list.push(rel_path);
                 }
                 progress.done_snapshots = snapshot_number as u64 + 1;
                 task_log!(worker, "percentage done: {}", progress);
@@ -582,13 +585,19 @@ pub fn backup_snapshot(
     datastore: Arc<DataStore>,
     snapshot: BackupDir,
 ) -> Result<bool, Error> {
-    task_log!(worker, "backup snapshot {}", snapshot);
+    let snapshot_path = snapshot.relative_path();
+    task_log!(worker, "backup snapshot {:?}", snapshot_path);
 
     let snapshot_reader = match snapshot.locked_reader() {
         Ok(reader) => reader,
         Err(err) => {
             // ignore missing snapshots and continue
-            task_warn!(worker, "failed opening snapshot '{}': {}", snapshot, err);
+            task_warn!(
+                worker,
+                "failed opening snapshot {:?}: {}",
+                snapshot_path,
+                err
+            );
             return Ok(false);
         }
     };
@@ -650,7 +659,12 @@ pub fn backup_snapshot(
         }
     }
 
-    task_log!(worker, "end backup {}:{}", datastore.name(), snapshot);
+    task_log!(
+        worker,
+        "end backup {}:{:?}",
+        datastore.name(),
+        snapshot_path
+    );
 
     Ok(true)
 }
