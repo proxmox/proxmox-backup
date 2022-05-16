@@ -5,10 +5,11 @@ What is Proxmox Backup Server?
 ------------------------------
 
 Proxmox Backup Server is an enterprise-class, client-server backup solution that
-is capable of backing up :term:`virtual machine`\ s, :term:`container`\ s, and
-physical hosts. It is specially optimized for the `Proxmox Virtual Environment`_
-platform and allows you to back up your data securely, even between remote
-sites, providing easy management through a web-based user interface.
+is capable of backing up :term:`virtual machine<Virtual machine>`\ s,
+:term:`container<Container>`\ s, and physical hosts. It is specially optimized
+for the `Proxmox Virtual Environment`_ platform and allows you to back up your
+data securely, even between remote sites, providing easy management through a
+web-based user interface.
 
 It supports deduplication, compression, and authenticated
 encryption (AE_). Using :term:`Rust` as the implementation language guarantees
@@ -34,18 +35,18 @@ For QEMU_ and LXC_ within `Proxmox Virtual Environment`_, we deliver an
 integrated client.
 
 A single backup is allowed to contain several archives. For example, when you
-backup a :term:`virtual machine`, each disk is stored as a separate archive
-inside that backup. The VM configuration itself is stored as an extra file.
-This way, it's easy to access and restore only the important parts of the
-backup, without the need to scan the whole backup.
+backup a :term:`virtual machine<Virtual machine>`, each disk is stored as a
+separate archive inside that backup. The VM configuration itself is stored as
+an extra file.  This way, it's easy to access and restore only the important
+parts of the backup, without the need to scan the whole backup.
 
 
 Main Features
 -------------
 
 :Support for Proxmox VE: The `Proxmox Virtual Environment`_ is fully
-   supported, and you can easily backup :term:`virtual machine`\ s and
-   :term:`container`\ s.
+   supported, and you can easily backup :term:`virtual machine<Virtual machine>`\ s and
+   :term:`container<Container>`\ s.
 
 :Performance: The whole software stack is written in :term:`Rust`,
    in order to provide high speed and memory efficiency.

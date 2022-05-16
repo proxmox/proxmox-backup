@@ -77,13 +77,14 @@ Backup Type
 The backup server groups backups by *type*, where *type* is one of:
 
 ``vm``
-    This type is used for :term:`virtual machine`\ s. It typically
-    consists of the virtual machine's configuration file and an image archive
-    for each disk.
+    This type is used for :term:`virtual machine<Virtual machine>`\ s. It
+    typically consists of the virtual machine's configuration file and an image
+    archive for each disk.
 
 ``ct``
-    This type is used for :term:`container`\ s. It consists of the container's
-    configuration and a single file archive for the filesystem's contents.
+    This type is used for :term:`container<Container>`\ s. It consists of the
+    container's configuration and a single file archive for the filesystem's
+    contents.
 
 ``host``
     This type is used for file/directory backups created from within a machine.
