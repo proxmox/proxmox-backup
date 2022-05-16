@@ -632,7 +632,7 @@ impl BackupNamespace {
         let depth = self.depth();
         // check for greater equal to account for the to be added subdir
         if depth >= MAX_NAMESPACE_DEPTH {
-            bail!("namespace to deep, {depth} >= max {MAX_NAMESPACE_DEPTH}");
+            bail!("namespace too deep, {depth} >= max {MAX_NAMESPACE_DEPTH}");
         }
 
         if self.len + subdir.len() + 1 > MAX_BACKUP_NAMESPACE_LENGTH {
