@@ -228,6 +228,10 @@ Ext.define('PBS.window.SyncJobEdit', {
 			name: 'id',
 			allowBlank: true,
 			regex: PBS.Utils.SAFE_ID_RE,
+			cbind: {
+			    disabled: '{!isCreate}',
+			    hidden: '{!isCreate}',
+			},
 		    },
 		],
 	    },
