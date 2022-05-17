@@ -261,3 +261,15 @@ categorized by checksum, after a backup operation has been executed.
  276490 drwxr-x--- 1 backup backup 1.1M Jul  8 12:35 .
 
 
+Options
+~~~~~~~
+
+.. image:: images/screenshots/pbs-gui-datastore-options.png
+  :align: right
+  :alt: Datastore Options
+
+There are a few per-datastore options:
+
+* :ref:`Notifications <maintenance_notification>`
+* :ref:`Maintenance Mode <maintenance_mode>`
+* Verification of incoming backups
