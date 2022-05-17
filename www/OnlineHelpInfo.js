@@ -48,27 +48,27 @@ const proxmoxOnlineHelpInfo = {
     "title": "Dynamic Index Format (``.didx``)"
   },
   "sysadmin-package-repositories": {
-    "link": "/docs/package-repositories.html#sysadmin-package-repositories",
+    "link": "/docs/installation.html#sysadmin-package-repositories",
     "title": "Debian Package Repositories"
   },
   "package-repos-secure-apt": {
-    "link": "/docs/package-repositories.html#package-repos-secure-apt",
+    "link": "/docs/installation.html#package-repos-secure-apt",
     "title": "SecureApt"
   },
   "sysadmin-package-repos-enterprise": {
-    "link": "/docs/package-repositories.html#sysadmin-package-repos-enterprise",
+    "link": "/docs/installation.html#sysadmin-package-repos-enterprise",
     "title": "`Proxmox Backup`_ Enterprise Repository"
   },
   "package-repositories-client-only": {
-    "link": "/docs/package-repositories.html#package-repositories-client-only",
+    "link": "/docs/installation.html#package-repositories-client-only",
     "title": "Proxmox Backup Client-only Repository"
   },
   "package-repositories-client-only-apt": {
-    "link": "/docs/package-repositories.html#package-repositories-client-only-apt",
+    "link": "/docs/installation.html#package-repositories-client-only-apt",
     "title": "APT-based Proxmox Backup Client Repository"
   },
   "node-options-http-proxy": {
-    "link": "/docs/package-repositories.html#node-options-http-proxy",
+    "link": "/docs/installation.html#node-options-http-proxy",
     "title": "Repository Access Behind HTTP Proxy"
   },
   "get-help": {
@@ -78,14 +78,6 @@ const proxmoxOnlineHelpInfo = {
   "get-help-enterprise-support": {
     "link": "/docs/introduction.html#get-help-enterprise-support",
     "title": "Enterprise Support"
-  },
-  "chapter-zfs": {
-    "link": "/docs/sysadmin.html#chapter-zfs",
-    "title": "ZFS on Linux"
-  },
-  "local-zfs-special-device": {
-    "link": "/docs/sysadmin.html#local-zfs-special-device",
-    "title": "ZFS special device"
   },
   "maintenance-pruning": {
     "link": "/docs/maintenance.html#maintenance-pruning",
@@ -124,7 +116,7 @@ const proxmoxOnlineHelpInfo = {
     "title": "Network Management"
   },
   "sysadmin-traffic-control": {
-    "link": "/docs/traffic-control.html#sysadmin-traffic-control",
+    "link": "/docs/network-management.html#sysadmin-traffic-control",
     "title": "Traffic Control"
   },
   "pve-integration": {
@@ -146,6 +138,14 @@ const proxmoxOnlineHelpInfo = {
   "sysadmin-host-administration": {
     "link": "/docs/sysadmin.html#sysadmin-host-administration",
     "title": "Host System Administration"
+  },
+  "chapter-zfs": {
+    "link": "/docs/sysadmin.html#chapter-zfs",
+    "title": "ZFS on Linux"
+  },
+  "local-zfs-special-device": {
+    "link": "/docs/sysadmin.html#local-zfs-special-device",
+    "title": "ZFS special device"
   },
   "chapter-systembooting": {
     "link": "/docs/sysadmin.html#chapter-systembooting",
@@ -190,6 +190,66 @@ const proxmoxOnlineHelpInfo = {
   "systembooting-kernel-pin": {
     "link": "/docs/sysadmin.html#systembooting-kernel-pin",
     "title": "Override the Kernel-Version for next Boot"
+  },
+  "sysadmin-certificate-management": {
+    "link": "/docs/sysadmin.html#sysadmin-certificate-management",
+    "title": "Certificate Management"
+  },
+  "sysadmin-certs-api-gui": {
+    "link": "/docs/sysadmin.html#sysadmin-certs-api-gui",
+    "title": "Certificates for the API and SMTP"
+  },
+  "sysadmin-certs-upload-custom": {
+    "link": "/docs/sysadmin.html#sysadmin-certs-upload-custom",
+    "title": "Upload Custom Certificate"
+  },
+  "sysadmin-certs-get-trusted-acme-cert": {
+    "link": "/docs/sysadmin.html#sysadmin-certs-get-trusted-acme-cert",
+    "title": "Trusted certificates via Let\u2019s Encrypt (ACME)"
+  },
+  "sysadmin-certs-acme-account": {
+    "link": "/docs/sysadmin.html#sysadmin-certs-acme-account",
+    "title": "ACME Account"
+  },
+  "sysadmin-certs-acme-plugins": {
+    "link": "/docs/sysadmin.html#sysadmin-certs-acme-plugins",
+    "title": "ACME Plugins"
+  },
+  "domains": {
+    "link": "/docs/sysadmin.html#domains",
+    "title": "Domains"
+  },
+  "sysadmin-certs-acme-http-challenge": {
+    "link": "/docs/sysadmin.html#sysadmin-certs-acme-http-challenge",
+    "title": "ACME HTTP Challenge Plugin"
+  },
+  "sysadmin-certs-acme-dns-challenge": {
+    "link": "/docs/sysadmin.html#sysadmin-certs-acme-dns-challenge",
+    "title": "ACME DNS API Challenge Plugin"
+  },
+  "sysadmin-certs-acme-dns-api-config": {
+    "link": "/docs/sysadmin.html#sysadmin-certs-acme-dns-api-config",
+    "title": "Configuring ACME DNS APIs for validation"
+  },
+  "dns-validation-through-cname-alias": {
+    "link": "/docs/sysadmin.html#dns-validation-through-cname-alias",
+    "title": "DNS Validation through CNAME Alias"
+  },
+  "sysadmin-certs-acme-dns-wildcard": {
+    "link": "/docs/sysadmin.html#sysadmin-certs-acme-dns-wildcard",
+    "title": "Wildcard Certificates"
+  },
+  "combination-of-plugins": {
+    "link": "/docs/sysadmin.html#combination-of-plugins",
+    "title": "Combination of Plugins"
+  },
+  "sysadmin-certs-acme-automatic-renewal": {
+    "link": "/docs/sysadmin.html#sysadmin-certs-acme-automatic-renewal",
+    "title": "Automatic renewal of ACME certificates"
+  },
+  "manually-change-certificate-over-command-line": {
+    "link": "/docs/sysadmin.html#manually-change-certificate-over-command-line",
+    "title": "Manually Change Certificate over Command-Line"
   },
   "tape-backup": {
     "link": "/docs/tape-backup.html#tape-backup",
