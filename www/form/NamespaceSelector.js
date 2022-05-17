@@ -34,8 +34,8 @@ Ext.define('PBS.form.NamespaceSelector', {
 	minWidth: 170,
 	maxWidth: 500,
 	// below doesn't work :/
-	//minHeight: 30,
-	//emptyText: gettext('No namespaces accesible.'),
+	minHeight: 30,
+	emptyText: `<div class="x-grid-empty">${gettext('No namespaces accessible.')}</div>`,
     },
 
     triggers: {
@@ -82,6 +82,7 @@ Ext.define('PBS.form.NamespaceSelector', {
 	me.store = Ext.create('Ext.data.Store', {
 	    model: 'pbs-namespaces',
 	    autoLoad: !!me.datastore,
+	    filters: (rec) => rec.data.ns !== '',
 	    proxy: {
 		type: 'proxmox',
 		timeout: 30 * 1000,
