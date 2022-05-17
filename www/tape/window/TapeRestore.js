@@ -383,7 +383,7 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 			let defaultNs = values.defaultNs;
 			delete values.defaultNs;
 
-			// we have to get it manually but want it to be a form field
+			// cannot use the string serialized one from onGetValues, so gather manually
 			delete values.mapping;
 			let [ds_map, ns_map] = me.down('pbsDataStoreMappingField').getValue();
 			if (ds_map !== '') {
