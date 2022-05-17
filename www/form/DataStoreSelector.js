@@ -19,7 +19,14 @@ Ext.define('PBS.form.DataStoreSelector', {
 		header: gettext('Datastore'),
 		sortable: true,
 		dataIndex: 'store',
-		renderer: Ext.String.htmlEncode,
+		renderer: (v, metaData, rec) => {
+		    let icon = '';
+		    if (rec.data?.maintenance) {
+			let tip = Ext.String.htmlEncode(PBS.Utils.renderMaintenance(rec.data?.maintenance));
+			icon = ` <i data-qtip="${tip}" class="fa fa-wrench"></i>`;
+		    }
+		    return Ext.String.htmlEncode(v) + icon;
+		},
 		flex: 1,
 	    },
 	    {
@@ -29,15 +36,6 @@ Ext.define('PBS.form.DataStoreSelector', {
 		renderer: Ext.String.htmlEncode,
 		flex: 1,
 	    },
-	    {
-		header: gettext('Maintenance'),
-		sortable: true,
-		dataIndex: 'maintenance',
-		renderer: (value) => {
-		    return PBS.Utils.renderMaintenance(value);
-		},
-		flex: 1,
-	    }
 	],
     },
 });
