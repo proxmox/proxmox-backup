@@ -47,7 +47,7 @@ Ext.define('PBS.ServerStatus', {
     extend: 'Ext.panel.Panel',
     alias: 'widget.pbsServerStatus',
 
-    title: gettext('ServerStatus'),
+    title: gettext('Server Status'),
 
     scrollable: true,
 
