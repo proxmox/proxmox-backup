@@ -3,7 +3,7 @@ Ext.define('PBS.window.NamespaceEdit', {
     xtype: 'pbsNamespaceEdit', // for now rather "NamespaceAdd"
     mixins: ['Proxmox.Mixin.CBind'],
 
-    //onlineHelp: 'namespaces', // TODO
+    onlineHelp: 'storage-namespaces',
 
     isCreate: true,
     subject: gettext('Namespace'),

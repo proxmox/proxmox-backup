@@ -14,6 +14,8 @@ Ext.define('PBS.window.MaintenanceOptions', {
     xtype: 'pbsMaintenanceOptionEdit',
     mixins: ['Proxmox.Mixin.CBind'],
 
+    onlineHelp: 'maintenance-mode',
+
     subject: gettext('Maintenance mode'),
 
     width: 450,
