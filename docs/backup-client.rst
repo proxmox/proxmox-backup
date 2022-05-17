@@ -142,9 +142,16 @@ you want to back up two disks mounted at ``/mnt/disk1`` and ``/mnt/disk2``:
 
 This creates a backup of both disks.
 
-The backup command takes a list of backup specifications, which
-include the archive name on the server, the type of the archive, and the
-archive source at the client. The format is:
+If you want to use a namespace for the backup target you can add the `--ns`
+parameter:
+
+.. code-block:: console
+
+  # proxmox-backup-client backup disk1.pxar:/mnt/disk1 disk2.pxar:/mnt/disk2 --ns a/b/c
+
+The backup command takes a list of backup specifications, which include the
+archive name on the server, the type of the archive, and the archive source at
+the client. The format is:
 
     <archive-name>.<type>:<source-path>
 
@@ -409,6 +416,11 @@ list command provides a list of all the snapshots on the server:
   ├────────────────────────────────┼─────────────┼────────────────────────────────────┤
   ...
 
+
+.. tip:: List will by default only output the backup snapshots of the root
+   namespace itself. To list backups from another namespace use the ``--ns
+   <ns>`` option
+
 You can inspect the catalog to find specific files.
 
 .. code-block:: console
@@ -577,16 +589,24 @@ group.
 Pruning and Removing Backups
 ----------------------------
 
-You can manually delete a backup snapshot using the ``forget``
-command:
+You can manually delete a backup snapshot using the ``forget`` command:
 
 .. code-block:: console
 
   # proxmox-backup-client snapshot forget <snapshot>
 
 
-.. caution:: This command removes all archives in this backup
-   snapshot. They will be inaccessible and unrecoverable.
+.. caution:: This command removes all archives in this backup snapshot. They
+   will be inaccessible and *unrecoverable*.
+
+Don't forget to add the namespace ``--ns`` parameter if you want to forget a
+snapshot that is contained in the root namespace:
+
+.. code-block:: console
+
+  # proxmox-backup-client snapshot forget <snapshot> --ns <ns>
+
+
 
 
 Although manual removal is sometimes required, the ``prune``
