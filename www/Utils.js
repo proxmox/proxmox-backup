@@ -294,6 +294,7 @@ Ext.define('PBS.Utils', {
 	return Ext.String.format(gettext("in {0}"), duration);
     },
 
+    // FIXME: depreacted by Proxmox.Utils.render_size_usage ?!
     render_size_usage: function(val, max) {
 	if (max === 0) {
 	    return gettext('N/A');
