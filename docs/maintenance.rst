@@ -192,8 +192,8 @@ following options are available:
 Maintenance Mode
 ----------------
 
-Proxmox Backup Server implements setting the `read-only` and `offline`
-maintenance modes for a datastore.
+Proxmox Backup Server supports setting `read-only` and `offline`
+maintenance modes on a datastore.
 
 Once enabled, depending on the mode, new reads and/or writes to the datastore
 are blocked, allowing an administrator to safely execute maintenance tasks, for

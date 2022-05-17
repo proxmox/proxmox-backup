@@ -16,7 +16,7 @@ repository to roll out all Proxmox related packages. This includes
 updates to some Debian packages when necessary.
 
 We also deliver a specially optimized Linux kernel, based on the Ubuntu
-kernel. That kernel includes drivers for ZFS_.
+kernel. This kernel includes drivers for ZFS_.
 
 The following sections will concentrate on backup related topics. They
 will explain things which are different on `Proxmox Backup`_, or

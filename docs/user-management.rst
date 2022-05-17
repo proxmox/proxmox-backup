@@ -159,7 +159,7 @@ Access Control
 By default, new users and API tokens do not have any permissions. Instead you
 need to specify what is allowed and what is not.
 
-Proxmox Backup Server uses a role and path based permission management system.
+Proxmox Backup Server uses a role- and path-based permission management system.
 An entry in the permissions table allows a user, group or token to take on a
 specific role when accessing an 'object' or 'path'. This means that such an
 access rule can be represented as a triple of '(path, user, role)', '(path,
@@ -169,92 +169,92 @@ allowed actions, and the path representing the target of these actions.
 Privileges
 ~~~~~~~~~~
 
-Privileges are the atoms that access roles are made off. They are internally
+Privileges are the building blocks of access roles. They are internally
 used to enforce the actual permission checks in the API.
 
 We currently support the following privileges:
 
 **Sys.Audit**
-  Sys.Audit allows one to know about the system and its status.
+  Sys.Audit allows a user to know about the system and its status.
 
 **Sys.Modify**
-  Sys.Modify allows one to modify system-level configuration and apply updates.
+  Sys.Modify allows a user to modify system-level configuration and apply updates.
 
 **Sys.PowerManagement**
-  Sys.Modify allows one to to poweroff or reboot the system.
+  Sys.Modify allows a user to power-off and reboot the system.
 
 **Datastore.Audit**
-  Datastore.Audit allows one to know about a datastore, including reading the
+  Datastore.Audit allows a user to know about a datastore, including reading the
   configuration entry and listing its contents.
 
 **Datastore.Allocate**
-  Datastore.Allocate allows one to create or deleting datastores.
+  Datastore.Allocate allows a user to create or delete datastores.
 
 **Datastore.Modify**
-  Datastore.Modify allows one to modify a datastore and its contents, and to
+  Datastore.Modify allows a user to modify a datastore and its contents, and to
   create or delete namespaces inside a datastore.
 
 **Datastore.Read**
-  Datastore.Read allows one to read arbitrary backup contents, independent of
+  Datastore.Read allows a user to read arbitrary backup contents, independent of
   the backup group owner.
 
 **Datastore.Verify**
   Allows verifying the backup snapshots in a datastore.
 
 **Datastore.Backup**
-  Datastore.Backup allows one create new backup snapshot and gives one also the
+  Datastore.Backup allows a user create new backup snapshots and also provides the
   privileges of Datastore.Read and Datastore.Verify, but only if the backup
   group is owned by the user or one of its tokens.
 
 **Datastore.Prune**
-  Datastore.Prune allows one to delete snapshots, but additionally requires
-  backup ownership
+  Datastore.Prune allows a user to delete snapshots, but additionally requires
+  backup ownership.
 
 **Permissions.Modify**
-  Permissions.Modify allows one to modifying ACLs
+  Permissions.Modify allows a user to modify ACLs.
 
-  .. note:: One can always configure privileges for their own API tokens, as
-    they will clamped by the users privileges anyway.
+  .. note:: A user can always configure privileges for their own API tokens, as
+    they will be limited by the users privileges anyway.
 
 **Remote.Audit**
-  Remote.Audit allows one to read the remote and the sync configuration entries
+  Remote.Audit allows a user to read the remote and the sync configuration entries.
 
 **Remote.Modify**
-  Remote.Modify allows one to modify the remote configuration
+  Remote.Modify allows a user to modify the remote configuration.
 
 **Remote.Read**
-  Remote.Read allows one to read data from a configured `Remote`
+  Remote.Read allows a user to read data from a configured `Remote`.
 
 **Sys.Console**
-  Sys.Console allows one to access to the system's console, note that for all
+  Sys.Console allows a user to access the system's console, note that for all
   but `root@pam` a valid system login is still required.
 
 **Tape.Audit**
-  Tape.Audit allows one to read the configuration and status of tape drives,
-  changers and backups
+  Tape.Audit allows a user to read the configuration and status of tape drives,
+  changers and backups.
 
 **Tape.Modify**
-  Tape.Modify allows one to modify the configuration of tape drives, changers
-  and backups
+  Tape.Modify allows a user to modify the configuration of tape drives, changers
+  and backups.
 
 **Tape.Write**
-  Tape.Write allows one to write to a tape media
+  Tape.Write allows a user to write to a tape media.
 
 **Tape.Read**
-  Tape.Read allows one to read tape backup configuration and contents from a
-  tape media
+  Tape.Read allows a user to read tape backup configuration and contents from a
+  tape media.
 
 **Realm.Allocate**
-  Realm.Allocate allows one to view, create, modify and delete authentication
-  realms for users
+  Realm.Allocate allows a user to view, create, modify and delete authentication
+  realms for users.
 
 Access Roles
 ~~~~~~~~~~~~
 
 An access role combines one or more privileges into something that can be
-assigned to an user or API token on an object path.
+assigned to a user or API token on an object path.
 
-Currently there are only built-in roles, that means, you cannot create your
+Currently, there are only built-in roles, meaning you cannot create your
 own, custom role.
 
 The following roles exist:
@@ -277,7 +277,7 @@ The following roles exist:
   read the actual data.
 
 **DatastoreReader**
-  Can inspect a datastore's or namespaces content and do restores.
+  Can inspect a datastore's or namespace's content and do restores.
 
 **DatastoreBackup**
   Can backup and restore owned backups.
@@ -295,31 +295,31 @@ The following roles exist:
   Is allowed to read data from a remote.
 
 **TapeAdmin**
-  Can do anything related to tape backup
+  Can do anything related to tape backup.
 
 **TapeAudit**
-  Can view tape related metrics, configuration and status
+  Can view tape-related metrics, configuration and status.
 
 **TapeOperator**
-  Can do tape backup and restore, but cannot change any configuration
+  Can do tape backup and restore, but cannot change any configuration.
 
 **TapeReader**
-  Can read and inspect tape configuration and media content
+  Can read and inspect tape configuration and media content.
 
 Objects and Paths
 ~~~~~~~~~~~~~~~~~
 
-Access permissions are assigned to objects, such as a datastore, a namespace or
+Access permissions are assigned to objects, such as a datastore, namespace or
 some system resources.
 
-We use file system like paths to address these objects. These paths form a
+We use filesystem-like paths to address these objects. These paths form a
 natural tree, and permissions of higher levels (shorter paths) can optionally
 be propagated down within this hierarchy.
 
-Paths can be templated, that means they can refer to the actual id of an
-configuration entry.  When an API call requires permissions on a templated
+Paths can be templated, meaning they can refer to the actual id of a
+configuration entry. When an API call requires permissions on a templated
 path, the path may contain references to parameters of the API call. These
-references are specified in curly braces.
+references are specified in curly brackets.
 
 Some examples are:
 
@@ -329,7 +329,7 @@ Some examples are:
 * `/datastore/{store}/{ns}`: Access to a specific namespace on a specific
   datastore
 * `/remote`: Access to all remote entries
-* `/system/network`: Access to configuring the host network
+* `/system/network`: Access to configure the host network
 * `/tape/`: Access to tape devices, pools and jobs
 * `/access/users`: User administration
 * `/access/openid/{id}`: Administrative access to a specific OpenID Connect realm
@@ -341,7 +341,7 @@ As mentioned earlier, object paths form a file system like tree, and
 permissions can be inherited by objects down that tree through the propagate
 flag, which is set by default. We use the following inheritance rules:
 
-* Permissions for API tokens are always clamped to the one of the user.
+* Permissions for API tokens are always limited to those of the user.
 * Permissions on deeper, more specific levels replace those inherited from an
   upper level.
 

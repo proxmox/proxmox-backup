@@ -153,7 +153,7 @@ you want to back up two disks mounted at ``/mnt/disk1`` and ``/mnt/disk2``:
 
 This creates a backup of both disks.
 
-If you want to use a namespace for the backup target you can add the `--ns`
+If you want to use a namespace for the backup target, you can add the `--ns`
 parameter:
 
 .. code-block:: console
@@ -696,17 +696,17 @@ It is also possible to protect single snapshots from being pruned or deleted:
   # proxmox-backup-client snapshot protected update <snapshot> true
 
 This will set the protected flag on the snapshot and prevent pruning or manual
-deletion of this snapshot untilt he flag is removed again with:
+deletion of this snapshot until the flag is removed again with:
 
 .. code-block:: console
 
   # proxmox-backup-client snapshot protected update <snapshot> false
 
-When a group is with a protected snapshot is deleted, only the non-protected
-ones are removed and the group will remain.
+When a group with a protected snapshot is deleted, only the non-protected
+ones are removed, and the rest will remain.
 
 .. note:: This flag will not be synced when using pull or sync jobs. If you
-   want to protect a synced snapshot, you have to manually to this again on
+   want to protect a synced snapshot, you have to do this again manually on
    the target backup server.
 
 .. _client_garbage-collection:

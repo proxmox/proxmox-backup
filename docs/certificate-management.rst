@@ -18,7 +18,7 @@ configuration, or by using certificates, signed by a trusted certificate authori
 Certificates for the API and SMTP
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`Proxmox Backup`_ stores it certificate and key in:
+`Proxmox Backup`_ stores its certificate and key in:
 
 -  ``/etc/proxmox-backup/proxy.pem``
 

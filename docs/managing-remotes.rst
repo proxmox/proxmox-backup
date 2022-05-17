@@ -98,19 +98,20 @@ the local datastore as well. If the ``owner`` option is not set (defaulting to
 If the ``group-filter`` option is set, only backup groups matching at least one
 of the specified criteria are synced. The available criteria are:
 
-* backup type, for example to only sync groups of the `ct` (Container) type:
+* Backup type, for example, to only sync groups of the `ct` (Container) type:
     .. code-block:: console
 
      # proxmox-backup-manager sync-job update ID --group-filter type:ct
-* full group identifier
+* Full group identifier, to sync a specific backup group:
     .. code-block:: console
 
      # proxmox-backup-manager sync-job update ID --group-filter group:vm/100
-* regular expression matched against the full group identifier
+* Regular expression, matched against the full group identifier
+    .. code-block:: console
 
-.. todo:: add example for regex
+     # proxmox-backup-manager sync-job update ID --group-filter regex:'^vm/1\d{2,3}$'
 
-The same filter is applied to local groups for handling of the
+The same filter is applied to local groups, for handling of the
 ``remove-vanished`` option.
 
 .. note:: The ``protected`` flag of remote backup snapshots will not be synced.
@@ -118,9 +119,9 @@ The same filter is applied to local groups for handling of the
 Namespace Support
 ^^^^^^^^^^^^^^^^^
 
-Sync jobs can be configured to not only sync datastores, but also sub-sets of
+Sync jobs can be configured to not only sync datastores, but also subsets of
 datastores in the form of namespaces or namespace sub-trees. The following
-parameters influence how namespaces are treated as part of a sync job
+parameters influence how namespaces are treated as part of a sync job's
 execution:
 
 - ``remote-ns``: the remote namespace anchor (default: the root namespace)
@@ -199,10 +200,10 @@ sync job scope but only exist locally are treated as vanished and removed
 Bandwidth Limit
 ^^^^^^^^^^^^^^^
 
-Syncing a datastore to an archive can produce lots of traffic and impact other
-users of the network. So, to avoid network or storage congestion you can limit
-the bandwidth of the sync job by setting the ``rate-in`` option either in the
-web interface or using the ``proxmox-backup-manager`` command-line tool:
+Syncing a datastore to an archive can produce a lot of traffic and impact other
+users of the network. In order to avoid network or storage congestion, you can
+limit the bandwidth of the sync job by setting the ``rate-in`` option either in
+the web interface or using the ``proxmox-backup-manager`` command-line tool:
 
 .. code-block:: console
 

@@ -521,7 +521,7 @@ a single media pool, so a job only uses tapes from that pool.
 
      .. NOTE:: Retention period starts on the creation time of the next
         media-set or, if that does not exist, when the calendar event
-        triggers the next time after the current media-set start time.
+        next triggers after the current media-set start time.
 
    Additionally, the following events may allocate a new media set:
 
@@ -809,13 +809,13 @@ The following options are available:
 
 --ns  The namespace to backup.
 
-  If you only want to backup a specific namespace. If omitted, the root
-  namespaces is assumed.
+  Used if you only want to backup a specific namespace. If omitted, the root
+  namespace is assumed.
 
 --max-depth  The depth to recurse namespaces.
 
   ``0`` means no recursion at all (only the given namespace). If omitted,
-  all namespaces are recursed (below the the given one).
+  all namespaces are recursed (below the given one).
 
 
 Restore from Tape
@@ -854,8 +854,8 @@ data disk (datastore):
 Single Snapshot Restore
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-Sometimes it is not necessary to restore a whole media-set, but only some
-specific snapshots from the tape. This can be achieved  with the ``snapshots``
+Sometimes it is not necessary to restore an entire media-set, but only some
+specific snapshots from the tape. This can be achieved with the ``snapshots``
 parameter:
 
 
@@ -868,7 +868,7 @@ parameter:
 This first restores the snapshot to a temporary location, then restores the relevant
 chunk archives, and finally restores the snapshot data to the target datastore.
 
-The ``snapshot`` parameter can be given multiple times, so one can restore
+The ``snapshot`` parameter can be passed multiple times, in order to restore
 multiple snapshots with one restore action.
 
 .. NOTE:: When using the single snapshot restore, the tape must be traversed
@@ -880,7 +880,7 @@ Namespaces
 
 It is also possible to select and map specific namespaces from a media-set
 during a restore. This is possible with the ``namespaces`` parameter.
-The format of the parameter is
+The format for the parameter is:
 
 .. code-block:: console
 
@@ -1043,7 +1043,7 @@ This command does the following:
 Example Setups
 --------------
 
-Here are a few example setups for how to manage media pools and schedules.
+Here are a few example setups for managing media pools and schedules.
 This is not an exhaustive list, and there are many more possible combinations
 of useful settings.
 
@@ -1058,14 +1058,14 @@ Allocation policy:
 Retention policy:
   keep
 
-This setup has the advantage of being easy to manage and is re-using the benefits
-from deduplication as much as possible. But, it's also prone to a failure of
-any single tape, which would render all backups referring to chunks from that
-tape unusable.
+This setup has the advantage of being easy to manage and reuses the benefits
+from deduplication as much as possible. But, it also provides no redundancy,
+meaning a failure of any single tape would render all backups referring to
+chunks from that tape unusable.
 
 If you want to start a new media-set manually, you can set the currently
 writable media of the set either to 'full', or set the location to an
-offsite vault.
+off-site vault.
 
 Weekday Scheme
 ~~~~~~~~~~~~~~
@@ -1081,14 +1081,14 @@ Allocation policy:
 Retention policy:
   overwrite
 
-There should be a (or more) tape-backup jobs for each pool on the corresponding
+There should be one or more tape-backup jobs for each pool on the corresponding
 weekday. This scheme is still very manageable with one media set per weekday,
-and could be easily moved off-site.
+and could be moved off-site easily.
 
 Multiple Pools with Different Policies
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Complex setups are also possible with multiple media pools configured with
+Complex setups are also possible, with multiple media pools configured with
 different allocation and retention policies.
 
 An example would be to have two media pools. The first configured with weekly
@@ -1100,7 +1100,7 @@ Allocation policy:
 Retention policy:
   3 weeks
 
-The second pool configured yearly allocation that does not expire:
+The second pool configured with yearly allocation that does not expire:
 
 Allocation policy:
   yearly
@@ -1108,7 +1108,7 @@ Allocation policy:
 Retention policy:
   keep
 
-In combination with suited prune settings and tape backup schedules, this
-achieves long-term storage of some backups, while keeping the current
-backups on smaller media sets that get expired every three plus the current
-week (~ 4 weeks).
+In combination with fitting prune settings and tape backup schedules, this
+achieves long-term storage of some backups, while keeping the recent
+backups on smaller media sets that expire roughly every 4 weeks (that is, three
+plus the current week).

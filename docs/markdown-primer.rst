@@ -10,18 +10,18 @@ Markdown Primer
   --  John Gruber, https://daringfireball.net/projects/markdown/
 
 
-The Proxmox Backup Server (PBS) web-interface has support for using Markdown to
-rendering rich text formatting in node and virtual guest notes.
+The "Notes" panel of the Proxmox Backup Server web-interface supports
+rendering Markdown text.
 
-PBS supports CommonMark with most extensions of GFM (GitHub Flavoured Markdown),
-like tables or task-lists.
+Proxmox Backup Server supports CommonMark with most extensions of GFM (GitHub
+Flavoured Markdown), like tables or task-lists.
 
 .. _markdown_basics:
 
 Markdown Basics
 ---------------
 
-Note that we only describe the basics here, please search the web for more
+Note that we only describe the basics here. Please search the web for more
 extensive resources, for example on https://www.markdownguide.org/
 
 Headings
@@ -51,7 +51,7 @@ Combinations are also possible, for example:
 Links
 ~~~~~
 
-You can use automatic detection of links, for example,
+You can use automatic detection of links. For example,
 ``https://forum.proxmox.com/`` would transform it into a clickable link.
 
 You can also control the link text, for example:
@@ -76,7 +76,7 @@ Use ``*`` or ``-`` for unordered lists, for example:
   * Item 2b
 
 
-Adding an indentation can be used to created nested lists.
+You can create nested lists by adding indentation.
 
 Ordered Lists
 ^^^^^^^^^^^^^
@@ -94,7 +94,7 @@ NOTE: The integer of ordered lists does not need to be correct, they will be num
 Task Lists
 ^^^^^^^^^^
 
-Task list use a empty box ``[ ]`` for unfinished tasks and a box with an `X` for finished tasks.
+Task lists use a empty box ``[ ]`` for unfinished tasks and a box with an `X` for finished tasks.
 
 For example:
 
@@ -110,7 +110,7 @@ Tables
 ~~~~~~
 
 Tables use the pipe symbol ``|`` to separate columns, and ``-`` to separate the
-table header from the table body, in that separation one can also set the text
+table header from the table body. In that separation, you can also set the text
 alignment, making one column left-, center-, or right-aligned.
 
 
@@ -143,23 +143,24 @@ You can enter block quotes by prefixing a line with ``>``, similar as in plain-t
 Code and Snippets
 ~~~~~~~~~~~~~~~~~
 
-You can use backticks to avoid processing for a few word or paragraphs. That is useful for
-avoiding that a code or configuration hunk gets mistakenly interpreted as markdown.
+You can use backticks to avoid processing a group of words or paragraphs. This
+is useful for preventing a code or configuration hunk from being mistakenly
+interpreted as markdown.
 
-Inline code
+Inline Code
 ^^^^^^^^^^^
 
-Surrounding part of a line with single backticks allows to write code inline,
-for examples:
+Surrounding part of a line with single backticks allows you to write code
+inline, for examples:
 
 .. code-block:: md
 
   This hosts IP address is `10.0.0.1`.
 
-Whole blocks of code
-^^^^^^^^^^^^^^^^^^^^
+Entire Blocks of Code
+^^^^^^^^^^^^^^^^^^^^^
 
-For code blocks spanning several lines you can use triple-backticks to start
+For code blocks spanning several lines, you can use triple-backticks to start
 and end such a block, for example:
 
 .. code-block:: md

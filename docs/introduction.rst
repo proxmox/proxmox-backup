@@ -37,7 +37,7 @@ integrated client.
 A single backup is allowed to contain several archives. For example, when you
 backup a :term:`virtual machine<Virtual machine>`, each disk is stored as a
 separate archive inside that backup. The VM configuration itself is stored as
-an extra file.  This way, it's easy to access and restore only the important
+an extra file. This way, it's easy to access and restore only the important
 parts of the backup, without the need to scan the whole backup.
 
 

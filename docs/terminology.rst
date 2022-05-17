@@ -65,11 +65,11 @@ Backup Namespace
 ----------------
 
 Namespaces allow for the reuse of a single chunk store deduplication domain for
-multiple sources, while avoiding naming conflicts and getting more fine-grained
+multiple sources, while avoiding naming conflicts and enabling more fine-grained
 access control.
 
-Essentially they're implemented as simple directory structure and need no
-separate configuration.
+Essentially, they're implemented as a simple directory structure and don't
+require separate configuration.
 
 Backup Type
 -----------

@@ -261,28 +261,27 @@ categorized by checksum, after a backup operation has been executed.
  276490 drwxr-x--- 1 backup backup 1.1M Jul  8 12:35 .
 
 
-Once you uploaded some backups, or created namespaces, you may see the Backup
-Type (`ct`, `vm`, `host`) and the start of the namespace hierarchy (`ns`).
+Once you've uploaded some backups or created namespaces, you may see the backup
+type (`ct`, `vm`, `host`) and the start of the namespace hierachy (`ns`).
 
 .. _storage_namespaces:
 
 Backup Namespaces
 ~~~~~~~~~~~~~~~~~
 
-A datastore can host many backups as long as the underlying storage is big
-enough and provides the performance required for one's use case.
-But, without any hierarchy or separation its easy to run into naming conflicts,
+A datastore can host many backups, as long as the underlying storage is large
+enough and provides the performance required for a user's use case.
+However, without any hierarchy or separation, it's easy to run into naming conflicts,
 especially when using the same datastore for multiple Proxmox VE instances or
 multiple users.
 
 The backup namespace hierarchy allows you to clearly separate different users
-or backup sources in general, avoiding naming conflicts and providing
+or backup sources in general, avoiding naming conflicts and providing a
 well-organized backup content view.
 
-Each namespace level can host any backup type, CT, VM or Host but also other
-namespaces, up to a depth of 8 level, where the root namespace is the first
+Each namespace level can host any backup type, CT, VM or Host, but also other
+namespaces, up to a depth of 8 levels, where the root namespace is the first
 level.
-
 
 Namespace Permissions
 ^^^^^^^^^^^^^^^^^^^^^
@@ -290,15 +289,16 @@ Namespace Permissions
 You can make the permission configuration of a datastore more fine-grained by
 setting permissions only on a specific namespace.
 
-To see a datastore you need permission that has at least one of `AUDIT`,
+To view a datastore, you need a permission that has at least an `AUDIT`,
 `MODIFY`, `READ` or `BACKUP` privilege on any namespace it contains.
 
-To create or delete a namespace you require the modify privilege on the parent
-namespace. So, to initially create namespaces you need to have a permission
-with a access role that includes the `MODIFY` privilege on the datastore itself.
+To create or delete a namespace, you require the modify privilege on the parent
+namespace. Thus, to initially create namespaces, you need to have a permission
+with an access role that includes the `MODIFY` privilege on the datastore itself.
 
-For backup groups the existing privilege rules still apply, you either need a
-powerful permission or be the owner of the backup group, nothing changed here.
+For backup groups, the existing privilege rules still apply. You either need a
+privileged enough permission or to be the owner of the backup group; nothing
+changed here.
 
 .. todo:: continue
 
