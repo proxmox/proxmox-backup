@@ -186,3 +186,20 @@ following options are available:
 * Errors: send a notification for any scheduled task that results in an error
 
 * Never: do not send any notification at all
+
+.. _maintenance_mode:
+
+Maintenance Mode
+----------------
+
+Proxmox Backup Server implements setting the `read-only` and `offline`
+maintenance modes for a datastore.
+
+Once enabled, depending on the mode, new reads and/or writes to the datastore
+are blocked, allowing an administrator to safely execute maintenance tasks, for
+example, on the underlying storage.
+
+Internally Proxmox Backup Server tracks whether each datastore access is a
+write or read operation, so that it can gracefully enter the respective mode,
+by allowing conflicting operations that started before enabling the maintenance
+mode to finish.
