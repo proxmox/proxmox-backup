@@ -1,5 +1,5 @@
-Managing Remotes
-================
+Managing Remotes & Sync
+=======================
 
 .. _backup_remote:
 
