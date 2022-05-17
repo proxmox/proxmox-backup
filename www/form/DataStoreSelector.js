@@ -29,6 +29,15 @@ Ext.define('PBS.form.DataStoreSelector', {
 		renderer: Ext.String.htmlEncode,
 		flex: 1,
 	    },
+	    {
+		header: gettext('Maintenance'),
+		sortable: true,
+		dataIndex: 'maintenance',
+		renderer: (value) => {
+		    return PBS.Utils.renderMaintenance(value);
+		},
+		flex: 1,
+	    }
 	],
     },
 });

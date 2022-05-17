@@ -663,14 +663,17 @@ Ext.define('PBS.Utils', {
 
 	let [type, message] = PBS.Utils.parseMaintenanceMode(mode);
 
-	const conflictingTasks = activeTasks.write + (type === 'offline' ? activeTasks.read : 0);
-
 	let extra = '';
-	if (conflictingTasks > 0) {
-	    extra += '| <i class="fa fa-spinner fa-pulse fa-fw"></i> ';
-	    extra += Ext.String.format(gettext('{0} conflicting tasks still active.'), conflictingTasks);
-	} else {
-	    extra += '<i class="fa fa-check"></i>';
+
+	if (activeTasks !== undefined) {
+	    const conflictingTasks = activeTasks.write + (type === 'offline' ? activeTasks.read : 0);
+
+	    if (conflictingTasks > 0) {
+		extra += '| <i class="fa fa-spinner fa-pulse fa-fw"></i> ';
+		extra += Ext.String.format(gettext('{0} conflicting tasks still active.'), conflictingTasks);
+	    } else {
+		extra += '<i class="fa fa-check"></i>';
+	    }
 	}
 
 	if (message) {
