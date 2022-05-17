@@ -95,6 +95,10 @@ const proxmoxOnlineHelpInfo = {
     "link": "/docs/maintenance.html#maintenance-notification",
     "title": "Notifications"
   },
+  "maintenance-mode": {
+    "link": "/docs/maintenance.html#maintenance-mode",
+    "title": "Maintenance Mode"
+  },
   "backup-remote": {
     "link": "/docs/managing-remotes.html#backup-remote",
     "title": "Remote"
@@ -134,6 +138,10 @@ const proxmoxOnlineHelpInfo = {
   "storage-datastore-create": {
     "link": "/docs/storage.html#storage-datastore-create",
     "title": "Creating a Datastore"
+  },
+  "storage-namespaces": {
+    "link": "/docs/storage.html#storage-namespaces",
+    "title": "Backup Namespaces"
   },
   "sysadmin-host-administration": {
     "link": "/docs/sysadmin.html#sysadmin-host-administration",
