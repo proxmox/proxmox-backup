@@ -216,6 +216,8 @@ Ext.define('PBS.ServerStatus', {
 		    title: gettext('Memory usage'),
 		    fields: ['memtotal', 'memused'],
 		    fieldTitles: [gettext('Total'), gettext('RAM usage')],
+		    unit: 'bytes',
+		    powerOfTwo: true,
 		    store: rrdstore,
 		},
 		{
@@ -223,6 +225,8 @@ Ext.define('PBS.ServerStatus', {
 		    title: gettext('Swap usage'),
 		    fields: ['swaptotal', 'swapused'],
 		    fieldTitles: [gettext('Total'), gettext('Swap usage')],
+		    unit: 'bytes',
+		    powerOfTwo: true,
 		    store: rrdstore,
 		},
 		{
