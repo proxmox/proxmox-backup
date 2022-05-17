@@ -120,11 +120,11 @@ This will prompt you for a password, then upload a file archive named
    (i.e. ``--include-dev /boot/efi``). You can use this option
    multiple times for each mount point that should be included.
 
-The ``--repository`` option can get quite long and is used by all
-commands. You can avoid having to enter this value by setting the
-environment variable ``PBS_REPOSITORY``. Note that if you would like this to
-remain set over multiple sessions, you should instead add the below line to your
-``.bashrc`` file.
+The ``--repository`` option can get quite long and is used by all commands. You
+can avoid having to enter this value by setting the environment variable
+``PBS_REPOSITORY``. Note that if you would like this to remain set over
+multiple sessions, you should instead add the below line to your ``.bashrc``
+file.
 
 .. code-block:: console
 
@@ -159,21 +159,22 @@ device images. To create a backup of a block device, run the following command:
 Excluding Files/Directories from a Backup
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Sometimes it is desired to exclude certain files or directories from a backup archive.
-To tell the Proxmox Backup client when and how to ignore files and directories,
-place a text file named ``.pxarexclude`` in the filesystem hierarchy.
-Whenever the backup client encounters such a file in a directory, it interprets
-each line as a glob match pattern for files and directories that are to be excluded
-from the backup.
+Sometimes it is desired to exclude certain files or directories from a backup
+archive.  To tell the Proxmox Backup client when and how to ignore files and
+directories, place a text file named ``.pxarexclude`` in the filesystem
+hierarchy.  Whenever the backup client encounters such a file in a directory,
+it interprets each line as a glob match pattern for files and directories that
+are to be excluded from the backup.
 
 The file must contain a single glob pattern per line. Empty lines and lines
 starting with ``#`` (indicating a comment) are ignored.
-A ``!`` at the beginning of a line reverses the glob match pattern from an exclusion
-to an explicit inclusion. This makes it possible to exclude all entries in a
-directory except for a few single files/subdirectories.
+A ``!`` at the beginning of a line reverses the glob match pattern from an
+exclusion to an explicit inclusion. This makes it possible to exclude all
+entries in a directory except for a few single files/subdirectories.
 Lines ending in ``/`` match only on directories.
-The directory containing the ``.pxarexclude`` file is considered to be the root of
-the given patterns. It is only possible to match files in this directory and its subdirectories.
+The directory containing the ``.pxarexclude`` file is considered to be the root
+of the given patterns. It is only possible to match files in this directory and
+its subdirectories.
 
 .. Note:: Patterns without a leading ``/`` will also match in subdirectories,
    while patterns with a leading ``/`` will only match in the current directory.
@@ -185,15 +186,15 @@ the given patterns. It is only possible to match files in this directory and its
 the pattern ``**/*.tmp``, it would exclude all files ending in ``.tmp`` within
 a directory and its subdirectories.
 ``[...]`` matches a single character from any of the provided characters within
-the brackets. ``[!...]`` does the complementary and matches any single character
-not contained within the brackets. It is also possible to specify ranges with two
-characters separated by ``-``. For example, ``[a-z]`` matches any lowercase
-alphabetic character, and ``[0-9]`` matches any single digit.
+the brackets. ``[!...]`` does the complementary and matches any single
+character not contained within the brackets. It is also possible to specify
+ranges with two characters separated by ``-``. For example, ``[a-z]`` matches
+any lowercase alphabetic character, and ``[0-9]`` matches any single digit.
 
 The order of the glob match patterns defines whether a file is included or
 excluded, that is to say, later entries override earlier ones.
-This is also true for match patterns encountered deeper down the directory tree,
-which can override a previous exclusion.
+This is also true for match patterns encountered deeper down the directory
+tree, which can override a previous exclusion.
 
 .. Note:: Excluded directories will **not** be read by the backup client. Thus,
    a ``.pxarexclude`` file in an excluded subdirectory will have no effect.
@@ -565,10 +566,10 @@ user that has ``Datastore.Modify`` privileges on the datastore.
   # proxmox-backup-client change-owner vm/103 john@pbs
 
 This can also be done from within the web interface, by navigating to the
-`Content` section of the datastore that contains the backup group and
-selecting the user icon under the `Actions` column. Common cases for this could
-be to change the owner of a sync job from ``root@pam``, or to repurpose a
-backup group.
+`Content` section of the datastore that contains the backup group and selecting
+the user icon under the `Actions` column. Common cases for this could be to
+change the owner of a sync job from ``root@pam``, or to repurpose a backup
+group.
 
 
 .. _backup-pruning:
