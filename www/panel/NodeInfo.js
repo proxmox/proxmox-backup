@@ -150,7 +150,7 @@ Ext.define('PBS.NodeInfoPanel', {
 	{
 	    xtype: 'pmxNodeInfoRepoStatus',
 	    itemId: 'repositoryStatus',
-	    product: 'Proxmox Bacckup Server',
+	    product: 'Proxmox Backup Server',
 	    repoLink: '#pbsServerAdministration:aptrepositories',
 	},
     ],
