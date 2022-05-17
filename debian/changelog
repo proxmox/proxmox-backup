@@ -1,3 +1,31 @@
+rust-proxmox-backup (2.2.1-1) UNRELEASED; urgency=medium
+
+  * docs: update some screenshots and add new ones
+
+  * docs: port overcertificate management chapters from Proxmox VE
+
+  * ui: datastore/Summary: correctly show the io-delay chart
+
+  * ui: sync/verify jobs: use pmxDisplayEditField to fix editing
+
+  * ui: server status: use power of two base for memory and swap
+
+  * ui: use base 10 (SI) for all storage related displays
+
+  * ui: datastore selector: show maintenance mode in selector
+
+  * docs: basic maintenance mode section
+
+  * docs: storage: refer to options
+
+  * storage: add some initial namespace docs
+
+  * ui: tape restore: fix form validation for datastore mapping
+
+  * ui: namespace selector: show picker empty text if no namespace
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 17 May 2022 13:56:50 +0200
+
 rust-proxmox-backup (2.2.0-2) bullseye; urgency=medium
 
   * client: add CLI auto-completion callbacks for ns parameters
