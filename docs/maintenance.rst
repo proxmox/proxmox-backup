@@ -173,6 +173,10 @@ scheduled verification, garbage-collection and synchronization tasks results.
 By default, notifications are sent to the email address configured for the
 `root@pam` user. You can instead set this user for each datastore.
 
+.. image:: images/screenshots/pbs-gui-datastore-options.png
+  :align: right
+  :alt: Datastore Options
+
 You can also change the level of notification received per task type, the
 following options are available:
 

@@ -95,6 +95,10 @@ display S.M.A.R.T. attributes from the web interface or by using the command:
 :term:`Datastore`
 -----------------
 
+.. image:: images/screenshots/pbs-gui-datastore-summary.png
+  :align: right
+  :alt: Datastore Usage Overview
+
 A datastore refers to a location at which backups are stored. The current
 implementation uses a directory inside a standard Unix file system (``ext4``,
 ``xfs`` or ``zfs``) to store the backup data.

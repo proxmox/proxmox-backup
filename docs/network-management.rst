@@ -3,6 +3,10 @@
 Network Management
 ==================
 
+.. image:: images/screenshots/pbs-gui-system-config.png
+  :align: right
+  :alt: System and Network Configuration Overview
+
 Proxmox Backup Server provides both a web interface and a command line tool for
 network configuration. You can find the configuration options in the web
 interface under the **Network Interfaces** section of the **Configuration** menu
@@ -31,10 +35,6 @@ To get a list of available interfaces, use the following command:
   │ ens19 │ eth    │         1 │ manual │             │              │              │
   └───────┴────────┴───────────┴────────┴─────────────┴──────────────┴──────────────┘
 
-.. image:: images/screenshots/pbs-gui-network-create-bond.png
-  :align: right
-  :alt: Add a network interface
-
 To add a new network interface, use the ``create`` subcommand with the relevant
 parameters. For example, you may want to set up a bond, for the purpose of
 network redundancy. The following command shows a template for creating the bond shown
@@ -43,6 +43,10 @@ in the list above:
 .. code-block:: console
 
   # proxmox-backup-manager network create bond0 --type bond --bond_mode active-backup --slaves ens18,ens19 --autostart true --cidr x.x.x.x/x --gateway x.x.x.x
+
+.. image:: images/screenshots/pbs-gui-network-create-bond.png
+  :align: right
+  :alt: Add a network interface
 
 You can make changes to the configuration of a network interface with the
 ``update`` subcommand:
