@@ -383,6 +383,8 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 			let defaultNs = values.defaultNs;
 			delete values.defaultNs;
 
+			// we have to get it manually but want it to be a form field
+			delete values.mapping;
 			let [ds_map, ns_map] = me.down('pbsDataStoreMappingField').getValue();
 			if (ds_map !== '') {
 			    datastores.push(ds_map);
@@ -474,7 +476,7 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 			},
 			{
 			    xtype: 'pbsDataStoreMappingField',
-			    isFormField: false,
+			    name: 'mapping',
 			    reference: 'mappingGrid',
 			    height: 240,
 			    defaultBindProperty: 'value',
@@ -565,7 +567,7 @@ Ext.define('PBS.TapeManagement.DataStoreMappingGrid', {
 	let me = this;
 	let error = false;
 
-	if (me.getViewModel().get('defaultStore') !== '') {
+	if (!me.getViewModel().get('defaultStore')) {
 	    error = true;
 	    me.getStore().each(rec => {
 		if (rec.data.target) {
