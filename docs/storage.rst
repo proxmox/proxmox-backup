@@ -116,7 +116,7 @@ Datastore Configuration
 
 .. image:: images/screenshots/pbs-gui-datastore-content.png
   :align: right
-  :alt: Datastore Overview
+  :alt: Datastore Content Overview
 
 You can configure multiple datastores. A minimum of one datastore needs to be
 configured. The datastore is identified by a simple *name* and points to a
@@ -133,7 +133,7 @@ run periodically, based on a configured schedule (see
 
 Creating a Datastore
 ^^^^^^^^^^^^^^^^^^^^
-.. image:: images/screenshots/pbs-gui-datastore-create-general.png
+.. image:: images/screenshots/pbs-gui-datastore-create.png
   :align: right
   :alt: Create a datastore
 
