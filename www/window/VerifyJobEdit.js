@@ -153,12 +153,15 @@ Ext.define('PBS.window.VerifyJobEdit', {
 	],
 	advancedColumn1: [
 	    {
-		xtype: 'proxmoxtextfield',
+		xtype: 'pmxDisplayEditField',
 		fieldLabel: gettext('Job ID'),
 		emptyText: gettext('Autogenerate'),
 		name: 'id',
 		allowBlank: true,
 		regex: PBS.Utils.SAFE_ID_RE,
+		cbind: {
+		    editable: '{isCreate}',
+		},
 	    },
 	],
     },
