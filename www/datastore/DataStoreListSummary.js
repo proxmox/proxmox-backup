@@ -105,7 +105,6 @@ Ext.define('PBS.datastore.DataStoreListSummary', {
 	    items: [
 		{
 		    xtype: 'box',
-		    reference: 'errorBox',
 		    hidden: true,
 		    tpl: [
 			'<center>',
@@ -124,7 +123,6 @@ Ext.define('PBS.datastore.DataStoreListSummary', {
 		},
 		{
 		    xtype: 'box',
-		    reference: 'errorBox',
 		    hidden: true,
 		    tpl: [
 			'<center>',
