@@ -97,7 +97,7 @@ fn mode_string(entry: &Entry) -> String {
 
     let fmt_u = symbolic_mode((mode >> 6) & 7, 0 != mode & mode::ISUID, b's', b'S');
     let fmt_g = symbolic_mode((mode >> 3) & 7, 0 != mode & mode::ISGID, b's', b'S');
-    let fmt_o = symbolic_mode((mode >> 3) & 7, 0 != mode & mode::ISVTX, b't', b'T');
+    let fmt_o = symbolic_mode(mode & 7, 0 != mode & mode::ISVTX, b't', b'T');
 
     let has_acls = if meta.acl.is_empty() { ' ' } else { '+' };
 
