@@ -11,8 +11,13 @@ Disk Management
   :alt: List of disks
 
 Proxmox Backup Server comes with a set of disk utilities, which are
-accessed using the ``disk`` subcommand. This subcommand allows you to initialize
-disks, create various filesystems, and get information about the disks.
+accessed using the ``disk`` subcommand or the web interface. This subcommand
+allows you to initialize disks, create various filesystems, and get information
+about the disks.
+
+.. image:: images/screenshots/pbs-gui-disks.png
+  :align: right
+  :alt: Web Interface Administration: Disks
 
 To view the disks connected to the system, navigate to **Administration ->
 Storage/Disks** in the web interface or use the ``list`` subcommand of
