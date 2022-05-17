@@ -54,8 +54,8 @@ Ext.define('PBS.datastore.DataStoreListSummary', {
 
 	let usage = statusData.used/statusData.total;
 	let usagetext = Ext.String.format(gettext('{0} of {1}'),
-	    Proxmox.Utils.format_size(statusData.used),
-	    Proxmox.Utils.format_size(statusData.total),
+	    Proxmox.Utils.format_size(statusData.used, true),
+	    Proxmox.Utils.format_size(statusData.total, true),
 	);
 
 	let usagePanel = me.lookup('usage');

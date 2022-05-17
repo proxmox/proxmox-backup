@@ -114,7 +114,7 @@ Ext.define('PBS.NodeInfoPanel', {
 	    title: gettext('HD space') + '(root)',
 	    valueField: 'root',
 	    maxField: 'root',
-	    renderer: Proxmox.Utils.render_node_size_usage,
+	    renderer: ({ used, total }) => Proxmox.Utils.render_size_usage(used, total, true),
 	},
 	{
 	    iconCls: 'pmx-icon-size fa fa-fw fa-refresh',

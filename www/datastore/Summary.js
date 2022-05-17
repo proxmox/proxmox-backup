@@ -69,7 +69,7 @@ Ext.define('PBS.DataStoreInfo', {
 	    let total = store.getById('total').data.value;
 	    let used = store.getById('used').data.value;
 
-	    let usage = PBS.Utils.render_size_usage(used, total);
+	    let usage = Proxmox.Utils.render_size_usage(used, total, true);
 	    vm.set('usagetext', usage);
 	    vm.set('usage', used/total);
 
