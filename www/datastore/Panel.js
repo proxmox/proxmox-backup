@@ -21,9 +21,7 @@ Ext.define('PBS.DataStorePanel', {
 	    me.setActiveTab(state.tab);
 	} else if (state.tab) {
 	    // if we are not rendered yet, defer setting the activetab
-	    setTimeout(function() {
-		me.setActiveTab(state.tab);
-	    }, 10);
+	    setTimeout(() => me.setActiveTab(state.tab), 10);
 	}
     },
 

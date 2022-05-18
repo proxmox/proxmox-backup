@@ -40,9 +40,7 @@ Ext.define('PBS.config.ACLView', {
 		path: view.aclPath,
 		aclType: 'user',
 		listeners: {
-		    destroy: function() {
-			me.reload();
-		    },
+		    destroy: () => me.reload(),
 		},
 	    }).show();
 	},
@@ -54,9 +52,7 @@ Ext.define('PBS.config.ACLView', {
 		path: view.aclPath,
 		aclType: 'token',
 		listeners: {
-		    destroy: function() {
-			me.reload();
-		    },
+		    destroy: () => me.reload(),
 		},
 	    }).show();
 	},
