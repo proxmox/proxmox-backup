@@ -97,6 +97,7 @@ Ext.define('PBS.DataStorePanel', {
 	    iconCls: 'fa fa-unlock',
 	    cbind: {
 		aclPath: '{aclPath}',
+		datastore: '{datastore}',
 	    },
 	},
     ],

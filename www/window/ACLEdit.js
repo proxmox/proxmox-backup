@@ -21,15 +21,13 @@ Ext.define('PBS.window.ACLEdit', {
 	me.items = [];
 
 	me.items.push({
-	    xtype: 'pmxDisplayEditField',
+	    xtype: 'pbsPermissionPathSelector',
 	    name: 'path',
 	    fieldLabel: gettext('Path'),
-	    editConfig: {
-		xtype: 'pbsPermissionPathSelector',
-		allowBlank: false,
-	    },
-	    editable: !me.path,
+	    allowBlank: false,
+	    //editable: !me.path,
 	    value: me.path,
+	    datastore: me.datastore,
 	});
 
 	if (me.aclType === 'user') {
@@ -65,15 +63,4 @@ Ext.define('PBS.window.ACLEdit', {
 
 	me.callParent();
     },
-
-    getValues: function(dirtyOnly) {
-	let me = this;
-	let values = me.callParent(arguments);
-
-	if (me.path) {
-	    values.path = me.path;
-	}
-	return values;
-    },
-
 });

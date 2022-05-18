@@ -39,6 +39,7 @@ Ext.define('PBS.config.ACLView', {
 	    Ext.create('PBS.window.ACLEdit', {
 		path: view.aclPath,
 		aclType: 'user',
+		datastore: view.datastore,
 		listeners: {
 		    destroy: () => me.reload(),
 		},
@@ -51,6 +52,7 @@ Ext.define('PBS.config.ACLView', {
 	    Ext.create('PBS.window.ACLEdit', {
 		path: view.aclPath,
 		aclType: 'token',
+		datastore: view.datastore,
 		listeners: {
 		    destroy: () => me.reload(),
 		},

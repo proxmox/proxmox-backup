@@ -50,6 +50,10 @@ Ext.define('PBS.data.PermissionPathsStore', {
 	    });
 	    me.resumeEvents();
 
+	    if (me.datastore) {
+		me.setDatastore(me.datastore);
+	    }
+
 	    me.fireEvent('refresh', me);
 	    me.fireEvent('datachanged', me);
 	}
@@ -58,6 +62,34 @@ Ext.define('PBS.data.PermissionPathsStore', {
 	    property: 'value',
 	    direction: 'ASC',
 	});
+	me.initialized = true;
+    },
+
+    setDatastore: async function(datastore) {
+	let me = this;
+	if (!datastore) {
+	    me.clearFilter();
+	    return;
+	}
+	let url = `/api2/extjs/admin/datastore/${datastore}/namespace?max-depth=7`;
+	let { result: { data: ns } } = await Proxmox.Async.api2({ url });
+	// TODO: remove "old" datastore's ns paths?
+	if (ns.length > 0) {
+	    if (me.initialized) {
+		me.suspendEvents();
+	    }
+	    for (const item of ns) {
+		if (item.ns !== '') {
+		    me.add({ value: `/datastore/${datastore}/${item.ns}` });
+		}
+	    }
+	    if (me.initialized) {
+		me.resumeEvents();
+		me.fireEvent('refresh', me);
+		me.fireEvent('datachanged', me);
+	    }
+	}
+	me.filter(item => item.get('value')?.startsWith(`/datastore/${datastore}`));
     },
 });
 
@@ -65,6 +97,26 @@ Ext.define('PBS.form.PermissionPathSelector', {
     extend: 'Ext.form.field.ComboBox',
     xtype: 'pbsPermissionPathSelector',
     mixins: ['Proxmox.Mixin.CBind'],
+
+    config: {
+	datastore: null, // set to filter by a datastore, could be also made generic path
+    },
+
+    setDatastore: function(datastore) {
+	let me = this;
+	if (me.datastore === datastore) {
+	    return;
+	}
+	me.datastore = datastore;
+	let store = me.getStore();
+	if (!me.rendered) {
+	    if (store) {
+		store.datastore = datastore;
+	    }
+	} else {
+	    store.setDatastore(datastore);
+	}
+    },
 
     valueField: 'value',
     displayField: 'value',
