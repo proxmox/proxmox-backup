@@ -938,7 +938,8 @@ Ext.define('PBS.DataStoreContent', {
 		{
 		    handler: 'onVerify',
 		    getTip: (v, m, rec) => Ext.String.format(gettext("Verify '{0}'"), v),
-		    getClass: (v, m, { data }) => data.ty === 'group' || data.ty === 'dir' ? 'pve-icon-verify-lettering' : 'pmx-hidden',
+		    getClass: (v, m, { data }) => data.ty === 'group' || data.ty === 'dir'
+		        ? 'pve-icon-verify-lettering' : 'pmx-hidden',
 		    isActionDisabled: (v, r, c, i, rec) => !!rec.data.leaf,
                 },
                 {
@@ -1175,11 +1176,13 @@ Ext.define('PBS.DataStoreContent', {
 	{
 	    xtype: 'proxmoxButton',
 	    text: gettext('Verify All'),
+	    iconCls: 'pve-icon-verify-lettering',
 	    handler: 'verifyAll',
 	},
 	{
 	    xtype: 'proxmoxButton',
 	    text: gettext('Prune All'),
+	    iconCls: 'fa fa-scissors',
 	    handler: 'pruneAll',
 	},
 	'->',
