@@ -1,4 +1,4 @@
-rust-proxmox-backup (2.2.1-1) UNRELEASED; urgency=medium
+rust-proxmox-backup (2.2.1-1) bullseye; urgency=medium
 
   * docs: update some screenshots and add new ones
 
