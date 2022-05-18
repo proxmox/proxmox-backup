@@ -174,7 +174,8 @@ Ext.define('PBS.config.ACLView', {
     columns: [
 	{
 	    header: gettext('Path'),
-	    width: 250,
+	    minWidth: 250,
+	    flex: 4,
 	    sortable: true,
 	    renderer: Ext.String.htmlEncode,
 	    dataIndex: 'path',
@@ -194,7 +195,7 @@ Ext.define('PBS.config.ACLView', {
 	},
 	{
 	    header: gettext('Propagate'),
-	    flex: 1, // last element flex looks better
+	    flex: 9, // last element flex looks better
 	    sortable: true,
 	    renderer: Proxmox.Utils.format_boolean,
 	    dataIndex: 'propagate',
