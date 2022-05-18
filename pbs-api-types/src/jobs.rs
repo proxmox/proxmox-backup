@@ -200,7 +200,7 @@ pub struct VerificationJobConfig {
     /// unique ID to address this job
     #[updater(skip)]
     pub id: String,
-    /// the datastore ID this verificaiton job affects
+    /// the datastore ID this verification job affects
     pub store: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     /// if not set to false, check the age of the last snapshot verification to filter
