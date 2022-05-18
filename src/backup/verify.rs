@@ -595,7 +595,7 @@ pub fn verify_filter(
                     let now = proxmox_time::epoch_i64();
                     let days_since_last_verify = (now - last_verify.upid.starttime) / 86400;
 
-                    max_age == 0 || days_since_last_verify > max_age
+                    days_since_last_verify > max_age
                 }
             }
         }

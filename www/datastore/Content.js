@@ -507,7 +507,7 @@ Ext.define('PBS.DataStoreContent', {
 		    "backup-type": data["backup-type"],
 		    "backup-id": data["backup-id"],
 		    "backup-time": (data['backup-time'].getTime()/1000).toFixed(0),
-		    "outdated-after": 0, // always reverify single snapshots
+		    "ignore-verified": false, // always reverify single snapshots
 		};
 	    } else {
 		params = {
