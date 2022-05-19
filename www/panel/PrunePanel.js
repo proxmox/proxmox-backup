@@ -1,13 +1,14 @@
 Ext.define('PBS.panel.PruneInputPanel', {
     extend: 'Proxmox.panel.InputPanel',
     xtype: 'pbsPruneInputPanel',
-
     mixins: ['Proxmox.Mixin.CBind'],
 
     onlineHelp: 'maintenance_pruning',
 
-    // show/hide dry-run field
+    // show/hide dry-run field  FIXME: rename to canDryrun, this is confusing..
     dryrun: false,
+
+    canRecurse: false, // show a recursive/max-depth field
 
     cbindData: function() {
 	let me = this;
@@ -17,10 +18,19 @@ Ext.define('PBS.panel.PruneInputPanel', {
 	};
     },
 
+    viewModel: {
+	data: { canRecurse: false },
+    },
+
     onGetValues: function(values) {
-	if (values.ns === '') {
-	    delete values.ns;
+	let me = this;
+	if (me.ns && me.ns !== '') {
+	    values.ns = me.ns;
 	}
+	if (!values.recursive) {
+	    values['max-depth'] = 0;
+	}
+	delete values.recursive;
 	return values;
     },
 
@@ -49,6 +59,15 @@ Ext.define('PBS.panel.PruneInputPanel', {
 		deleteEmpty: '{!isCreate}',
 	    },
 	},
+	{
+	    xtype: 'proxmoxcheckbox',
+	    name: 'dry-run',
+	    fieldLabel: gettext('Dry Run'),
+	    cbind: {
+		hidden: '{!dryrun}',
+		disabled: '{!dryrun}',
+	    },
+	},
     ],
     column2: [
 	{
@@ -75,26 +94,36 @@ Ext.define('PBS.panel.PruneInputPanel', {
 		deleteEmpty: '{!isCreate}',
 	    },
 	},
-    ],
-
-    columnB: [
 	{
-	    xtype: 'proxmoxcheckbox',
-	    name: 'dry-run',
-	    fieldLabel: gettext('Dry Run'),
+	    xtype: 'fieldcontainer',
+	    layout: 'hbox',
+	    fieldLabel: gettext('Recursive'),
 	    cbind: {
-		hidden: '{!dryrun}',
-		disabled: '{!dryrun}',
+		hidden: '{!canRecurse}',
+		disabled: '{!canRecurse}',
 	    },
-	},
-	{
-	    xtype: 'proxmoxtextfield',
-	    name: 'ns',
-	    hidden: true,
-	    cbind: {
-		value: '{ns}',
-	    },
+	    items: [
+		{
+		    xtype: 'proxmoxcheckbox',
+		    name: 'recursive',
+		    uncheckedValue: false,
+		    value: true,
+		    bind: {
+			value: '{canRecurse}',
+		    },
+		},
+		{
+		    xtype: 'pbsNamespaceMaxDepth',
+		    name: 'max-depth',
+		    padding: '0 0 0 5',
+		    labelWidth: 75,
+		    deleteEmpty: false,
+		    bind: {
+			disabled: '{!canRecurse}',
+		    },
+		    flex: 1,
+		},
+	    ],
 	},
     ],
-
 });
