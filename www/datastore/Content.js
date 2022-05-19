@@ -470,6 +470,7 @@ Ext.define('PBS.DataStoreContent', {
 			xtype: 'pbsPruneInputPanel',
 			ns,
 			dryrun: true,
+			canRecurse: true,
 		    },
 		],
 	    });
