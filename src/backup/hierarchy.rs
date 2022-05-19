@@ -30,7 +30,7 @@ pub struct ListAccessibleBackupGroups<'a> {
 impl<'a> ListAccessibleBackupGroups<'a> {
     // TODO: builder pattern
 
-    pub fn new(
+    pub fn new_owned(
         store: &'a Arc<DataStore>,
         ns: BackupNamespace,
         max_depth: usize,
