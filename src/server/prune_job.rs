@@ -24,12 +24,19 @@ pub fn prune_datastore(
     dry_run: bool,
 ) -> Result<(), Error> {
     let store = &datastore.name();
+    let depth_str = if max_depth == pbs_api_types::MAX_NAMESPACE_DEPTH {
+        " down to full depth".to_string()
+    } else if max_depth > 0 {
+        format!("to depth {max_depth}")
+    } else {
+        "non-recursive".to_string()
+    };
     if ns.is_root() {
-        task_log!(worker, "Starting datastore prune on store '{store}'");
+        task_log!(worker, "Starting datastore prune on store '{store}', {depth_str}");
     } else {
         task_log!(
             worker,
-            "Starting datastore prune on store '{store}' namespace '{ns}'"
+            "Starting datastore prune on store '{store}' namespace '{ns}', {depth_str}"
         );
     }
 
