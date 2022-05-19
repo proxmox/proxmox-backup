@@ -25,7 +25,7 @@ use pbs_tools::crypt_config::CryptConfig;
                 type: String,
             },
             chunks: {
-                description: "Path to the directorty that contains the chunks, usually <datastore>/.chunks.",
+                description: "Path to the directory that contains the chunks, usually <datastore>/.chunks.",
                 type: String,
             },
             "keyfile": {
