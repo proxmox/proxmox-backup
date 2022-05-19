@@ -615,30 +615,35 @@ pub fn list_snapshots(
 
 fn get_snapshots_count(store: &Arc<DataStore>, owner: Option<&Authid>) -> Result<Counts, Error> {
     let root_ns = Default::default();
-    ListAccessibleBackupGroups::new(store, root_ns, MAX_NAMESPACE_DEPTH, owner)?.try_fold(
-        Counts::default(),
-        |mut counts, group| {
-            let group = match group {
-                Ok(group) => group,
-                Err(_) => return Ok(counts), // TODO: add this as error counts?
+    ListAccessibleBackupGroups::new_with_privs(
+        store,
+        root_ns,
+        MAX_NAMESPACE_DEPTH,
+        Some(PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_READ),
+        None,
+        owner,
+    )?
+    .try_fold(Counts::default(), |mut counts, group| {
+        let group = match group {
+            Ok(group) => group,
+            Err(_) => return Ok(counts), // TODO: add this as error counts?
+        };
+        let snapshot_count = group.list_backups()?.len() as u64;
+
+        // only include groups with snapshots, counting/displaying emtpy groups can confuse
+        if snapshot_count > 0 {
+            let type_count = match group.backup_type() {
+                BackupType::Ct => counts.ct.get_or_insert(Default::default()),
+                BackupType::Vm => counts.vm.get_or_insert(Default::default()),
+                BackupType::Host => counts.host.get_or_insert(Default::default()),
             };
-            let snapshot_count = group.list_backups()?.len() as u64;
 
-            // only include groups with snapshots, counting/displaying emtpy groups can confuse
-            if snapshot_count > 0 {
-                let type_count = match group.backup_type() {
-                    BackupType::Ct => counts.ct.get_or_insert(Default::default()),
-                    BackupType::Vm => counts.vm.get_or_insert(Default::default()),
-                    BackupType::Host => counts.host.get_or_insert(Default::default()),
-                };
+            type_count.groups += 1;
+            type_count.snapshots += snapshot_count;
+        }
 
-                type_count.groups += 1;
-                type_count.snapshots += snapshot_count;
-            }
-
-            Ok(counts)
-        },
-    )
+        Ok(counts)
+    })
 }
 
 #[api(
