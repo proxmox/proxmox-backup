@@ -4,6 +4,7 @@ use anyhow::Error;
 
 use pbs_api_types::{
     Authid, BackupNamespace, PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY,
+    PRIV_DATASTORE_READ,
 };
 use pbs_config::CachedUserInfo;
 use pbs_datastore::{backup_info::BackupGroup, DataStore, ListGroups, ListNamespacesRecursive};
@@ -41,11 +42,13 @@ impl<'a> ListAccessibleBackupGroups<'a> {
     }
 }
 
+static NS_PRIVS_OK: u64 =
+    PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_READ | PRIV_DATASTORE_BACKUP | PRIV_DATASTORE_AUDIT;
+
 impl<'a> Iterator for ListAccessibleBackupGroups<'a> {
     type Item = Result<BackupGroup, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        const PRIVS_OK: u64 = PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_BACKUP | PRIV_DATASTORE_AUDIT;
         loop {
             if let Some(ref mut state) = self.state {
                 match state.next() {
