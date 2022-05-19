@@ -18,7 +18,12 @@ pub struct ListAccessibleBackupGroups<'a> {
     store: &'a Arc<DataStore>,
     auth_id: Option<&'a Authid>,
     user_info: Arc<CachedUserInfo>,
-    state: Option<ListGroups>,
+    /// The priv on NS level that allows auth_id trump the owner check
+    override_owner_priv: u64,
+    /// The priv that auth_id is required to have on NS level additionally to being owner
+    owner_and_priv: u64,
+    /// Contains the intertnal state, group iter and a bool flag for override_owner_priv
+    state: Option<(ListGroups, bool)>,
     ns_iter: ListNamespacesRecursive,
 }
 
@@ -31,10 +36,24 @@ impl<'a> ListAccessibleBackupGroups<'a> {
         max_depth: usize,
         auth_id: Option<&'a Authid>,
     ) -> Result<Self, Error> {
+        // only owned groups by default and no extra priv required
+        Self::new_with_privs(store, ns, max_depth, None, None, auth_id)
+    }
+
+    pub fn new_with_privs(
+        store: &'a Arc<DataStore>,
+        ns: BackupNamespace,
+        max_depth: usize,
+        override_owner_priv: Option<u64>,
+        owner_and_priv: Option<u64>,
+        auth_id: Option<&'a Authid>,
+    ) -> Result<Self, Error> {
         let ns_iter = ListNamespacesRecursive::new_max_depth(Arc::clone(store), ns, max_depth)?;
         Ok(ListAccessibleBackupGroups {
             auth_id,
             ns_iter,
+            override_owner_priv: override_owner_priv.unwrap_or(0),
+            owner_and_priv: owner_and_priv.unwrap_or(0),
             state: None,
             store: store,
             user_info: CachedUserInfo::new()?,
@@ -50,9 +69,12 @@ impl<'a> Iterator for ListAccessibleBackupGroups<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            if let Some(ref mut state) = self.state {
+            if let Some((ref mut state, override_owner)) = self.state {
                 match state.next() {
                     Some(Ok(group)) => {
+                        if override_owner {
+                            return Some(Ok(group));
+                        }
                         if let Some(auth_id) = &self.auth_id {
                             match self.store.owns_backup(
                                 &group.backup_ns(),
@@ -75,6 +97,7 @@ impl<'a> Iterator for ListAccessibleBackupGroups<'a> {
             } else {
                 match self.ns_iter.next() {
                     Some(Ok(ns)) => {
+                        let mut override_owner = false;
                         if let Some(auth_id) = &self.auth_id {
                             let info = &self.user_info;
                             let privs = if ns.is_root() {
@@ -85,12 +108,19 @@ impl<'a> Iterator for ListAccessibleBackupGroups<'a> {
                                     &["datastore", self.store.name(), &ns.to_string()],
                                 )
                             };
-                            if privs & PRIVS_OK == 0 {
+                            if privs & NS_PRIVS_OK == 0 {
                                 continue;
+                            }
+
+                            // check first if *any* override owner priv is available up front
+                            if privs & self.override_owner_priv != 0 {
+                                override_owner = true;
+                            } else if privs & self.owner_and_priv != self.owner_and_priv {
+                                continue; // no owner override and no extra privs -> nothing visible
                             }
                         }
                         self.state = match ListGroups::new(Arc::clone(&self.store), ns) {
-                            Ok(iter) => Some(iter),
+                            Ok(iter) => Some((iter, override_owner)),
                             Err(err) => return Some(Err(err)),
                         };
                     }
