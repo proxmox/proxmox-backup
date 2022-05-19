@@ -503,13 +503,13 @@ pub async fn scan_remote_groups(
 }
 
 #[sortable]
-const DATASTORE_SCAN_SUBDIRS: SubdirMap = &[
+const DATASTORE_SCAN_SUBDIRS: SubdirMap = &sorted!([
     ("groups", &Router::new().get(&API_METHOD_SCAN_REMOTE_GROUPS)),
     (
         "namespaces",
         &Router::new().get(&API_METHOD_SCAN_REMOTE_NAMESPACES),
     ),
-];
+]);
 
 const DATASTORE_SCAN_ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(DATASTORE_SCAN_SUBDIRS))

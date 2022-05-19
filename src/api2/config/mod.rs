@@ -2,6 +2,7 @@
 
 use proxmox_router::list_subdirs_api_method;
 use proxmox_router::{Router, SubdirMap};
+use proxmox_sys::sortable;
 
 pub mod access;
 pub mod acme;
@@ -16,7 +17,8 @@ pub mod tape_encryption_keys;
 pub mod traffic_control;
 pub mod verify;
 
-const SUBDIRS: SubdirMap = &[
+#[sortable]
+const SUBDIRS: SubdirMap = &sorted!([
     ("access", &access::ROUTER),
     ("acme", &acme::ROUTER),
     ("changer", &changer::ROUTER),
@@ -29,7 +31,7 @@ const SUBDIRS: SubdirMap = &[
     ("tape-encryption-keys", &tape_encryption_keys::ROUTER),
     ("traffic-control", &traffic_control::ROUTER),
     ("verify", &verify::ROUTER),
-];
+]);
 
 pub const ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(SUBDIRS))
