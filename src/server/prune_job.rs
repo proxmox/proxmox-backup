@@ -22,7 +22,14 @@ pub fn prune_datastore(
     dry_run: bool,
 ) -> Result<(), Error> {
     let store = &datastore.name();
-    task_log!(worker, "Starting datastore prune on store \"{}\"", store);
+    if ns.is_root() {
+        task_log!(worker, "Starting datastore prune on store '{store}'");
+    } else {
+        task_log!(
+            worker,
+            "Starting datastore prune on store '{store}' namespace '{ns}'"
+        );
+    }
 
     if dry_run {
         task_log!(worker, "(dry test run)");
@@ -59,8 +66,7 @@ pub fn prune_datastore(
 
         task_log!(
             worker,
-            "Starting prune on store \"{}\" group \"{}/{}\"",
-            store,
+            "Pruning group \"{}/{}\"",
             group.backup_type(),
             group.backup_id()
         );
@@ -69,7 +75,8 @@ pub fn prune_datastore(
             let keep = keep_all || mark.keep();
             task_log!(
                 worker,
-                "{} {}/{}/{}",
+                "{}{} {}/{}/{}",
+                if dry_run { "would " } else { "" },
                 mark,
                 group.backup_type(),
                 group.backup_id(),
@@ -79,12 +86,8 @@ pub fn prune_datastore(
                 if let Err(err) =
                     datastore.remove_backup_dir(ns_recursed, info.backup_dir.as_ref(), false)
                 {
-                    task_warn!(
-                        worker,
-                        "failed to remove dir {:?}: {}",
-                        info.backup_dir.relative_path(),
-                        err,
-                    );
+                    let path = info.backup_dir.relative_path();
+                    task_warn!(worker, "failed to remove dir {path:?}: {err}");
                 }
             }
         }
