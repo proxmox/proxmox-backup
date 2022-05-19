@@ -582,7 +582,7 @@ pub fn verify_all_backups(
     Ok(errors)
 }
 
-/// Filter for the verification of snapshots
+/// Filter out any snapshot from being (re-)verified where this fn returns false.
 pub fn verify_filter(
     ignore_verified_snapshots: bool,
     outdated_after: Option<i64>,
