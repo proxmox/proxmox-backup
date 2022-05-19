@@ -1063,6 +1063,10 @@ pub fn prune(
                 type: BackupNamespace,
                 optional: true,
             },
+            "max-depth": {
+                schema: NS_MAX_DEPTH_SCHEMA,
+                optional: true,
+            },
         },
     },
     returns: {
@@ -1079,6 +1083,7 @@ pub fn prune_datastore(
     prune_options: PruneOptions,
     store: String,
     ns: Option<BackupNamespace>,
+    max_depth: Option<usize>,
     _param: Value,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
@@ -1090,15 +1095,21 @@ pub fn prune_datastore(
 
     let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
-    // FIXME: add max-depth
-
     let upid_str = WorkerTask::new_thread(
         "prune",
         Some(worker_id),
         auth_id.to_string(),
         to_stdout,
         move |worker| {
-            crate::server::prune_datastore(worker, auth_id, prune_options, datastore, ns, dry_run)
+            crate::server::prune_datastore(
+                worker,
+                auth_id,
+                prune_options,
+                datastore,
+                ns,
+                max_depth.unwrap_or(MAX_NAMESPACE_DEPTH), //  canoot rely on schema default
+                dry_run,
+            )
         },
     )?;
 

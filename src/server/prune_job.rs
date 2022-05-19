@@ -4,12 +4,14 @@ use anyhow::Error;
 
 use proxmox_sys::{task_log, task_warn};
 
-use pbs_api_types::{Authid, BackupNamespace, Operation, PruneOptions, PRIV_DATASTORE_MODIFY};
-use pbs_config::CachedUserInfo;
+use pbs_api_types::{
+    Authid, BackupNamespace, Operation, PruneOptions, PRIV_DATASTORE_MODIFY, PRIV_DATASTORE_PRUNE,
+};
 use pbs_datastore::prune::compute_prune_info;
 use pbs_datastore::DataStore;
 use proxmox_rest_server::WorkerTask;
 
+use crate::backup::ListAccessibleBackupGroups;
 use crate::server::jobstate::Job;
 
 pub fn prune_datastore(
@@ -18,7 +20,7 @@ pub fn prune_datastore(
     prune_options: PruneOptions,
     datastore: Arc<DataStore>,
     ns: BackupNamespace,
-    //max_depth: Option<usize>, // FIXME
+    max_depth: usize,
     dry_run: bool,
 ) -> Result<(), Error> {
     let store = &datastore.name();
@@ -47,26 +49,24 @@ pub fn prune_datastore(
         );
     }
 
-    let user_info = CachedUserInfo::new()?;
-    let privs = user_info.lookup_privs(&auth_id, &["datastore", store]);
-    let has_privs = privs & PRIV_DATASTORE_MODIFY != 0;
-
-    // FIXME: Namespace recursion!
-    for group in datastore.iter_backup_groups(ns.clone())? {
-        let ns_recursed = &ns; // remove_backup_dir might need the inner one
+    for group in ListAccessibleBackupGroups::new_with_privs(
+        &datastore,
+        ns.clone(),
+        max_depth,
+        Some(PRIV_DATASTORE_MODIFY), // overides the owner check
+        Some(PRIV_DATASTORE_PRUNE),  // additionally required if owner
+        Some(&auth_id),
+    )? {
         let group = group?;
+        let ns = group.backup_ns();
         let list = group.list_backups()?;
-
-        if !has_privs && !datastore.owns_backup(&ns_recursed, group.as_ref(), &auth_id)? {
-            continue;
-        }
 
         let mut prune_info = compute_prune_info(list, &prune_options)?;
         prune_info.reverse(); // delete older snapshots first
 
         task_log!(
             worker,
-            "Pruning group \"{}/{}\"",
+            "Pruning group {ns}:\"{}/{}\"",
             group.backup_type(),
             group.backup_id()
         );
@@ -83,9 +83,7 @@ pub fn prune_datastore(
                 info.backup_dir.backup_time_string()
             );
             if !keep && !dry_run {
-                if let Err(err) =
-                    datastore.remove_backup_dir(ns_recursed, info.backup_dir.as_ref(), false)
-                {
+                if let Err(err) = datastore.remove_backup_dir(ns, info.backup_dir.as_ref(), false) {
                     let path = info.backup_dir.relative_path();
                     task_warn!(worker, "failed to remove dir {path:?}: {err}");
                 }
@@ -128,6 +126,7 @@ pub fn do_prune_job(
                 prune_options,
                 datastore,
                 BackupNamespace::default(),
+                pbs_api_types::MAX_NAMESPACE_DEPTH,
                 false,
             );
 
