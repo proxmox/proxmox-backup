@@ -10,7 +10,7 @@ use proxmox_sys::{task_log, WorkerTaskContext};
 
 use pbs_api_types::{
     print_ns_and_snapshot, Authid, BackupNamespace, BackupType, CryptMode, DatastoreWithNamespace,
-    SnapshotVerifyState, VerifyState, UPID,
+    SnapshotVerifyState, VerifyState, PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_VERIFY, UPID,
 };
 use pbs_datastore::backup_info::{BackupDir, BackupGroup, BackupInfo};
 use pbs_datastore::index::IndexFile;
@@ -529,7 +529,14 @@ pub fn verify_all_backups(
     let store = &verify_worker.datastore;
     let max_depth = max_depth.unwrap_or(pbs_api_types::MAX_NAMESPACE_DEPTH);
 
-    let mut list = match ListAccessibleBackupGroups::new(store, ns.clone(), max_depth, owner) {
+    let mut list = match ListAccessibleBackupGroups::new_with_privs(
+        store,
+        ns.clone(),
+        max_depth,
+        Some(PRIV_DATASTORE_VERIFY),
+        Some(PRIV_DATASTORE_BACKUP),
+        owner,
+    ) {
         Ok(list) => list
             .filter_map(|group| match group {
                 Ok(group) => Some(group),
