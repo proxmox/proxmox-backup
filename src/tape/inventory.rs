@@ -112,7 +112,7 @@ impl Inventory {
 
     /// Reload the database
     pub fn reload(&mut self) -> Result<(), Error> {
-        self.map = Self::load_media_db(&self.inventory_path)?;
+        self.map = self.load_media_db()?;
         self.update_helpers();
         Ok(())
     }
@@ -140,8 +140,8 @@ impl Inventory {
         open_backup_lockfile(&self.lockfile_path, None, true)
     }
 
-    fn load_media_db(path: &Path) -> Result<BTreeMap<Uuid, MediaStateEntry>, Error> {
-        let data = file_get_json(path, Some(json!([])))?;
+    fn load_media_db(&self) -> Result<BTreeMap<Uuid, MediaStateEntry>, Error> {
+        let data = file_get_json(&self.inventory_path, Some(json!([])))?;
         let media_list: Vec<MediaStateEntry> = serde_json::from_value(data)?;
 
         let mut map = BTreeMap::new();
@@ -177,7 +177,7 @@ impl Inventory {
     /// Stores a single MediaID persistently
     pub fn store(&mut self, mut media_id: MediaId, clear_media_status: bool) -> Result<(), Error> {
         let _lock = self.lock()?;
-        self.map = Self::load_media_db(&self.inventory_path)?;
+        self.map = self.load_media_db()?;
 
         let uuid = media_id.label.uuid.clone();
 
@@ -217,7 +217,7 @@ impl Inventory {
     /// Remove a single media persistently
     pub fn remove_media(&mut self, uuid: &Uuid) -> Result<(), Error> {
         let _lock = self.lock()?;
-        self.map = Self::load_media_db(&self.inventory_path)?;
+        self.map = self.load_media_db()?;
         self.map.remove(uuid);
         self.update_helpers();
         self.replace_file()?;
@@ -659,7 +659,7 @@ impl Inventory {
     // Lock database, reload database, set status, store database
     fn set_media_status(&mut self, uuid: &Uuid, status: Option<MediaStatus>) -> Result<(), Error> {
         let _lock = self.lock()?;
-        self.map = Self::load_media_db(&self.inventory_path)?;
+        self.map = self.load_media_db()?;
         if let Some(entry) = self.map.get_mut(uuid) {
             entry.status = status;
             self.update_helpers();
@@ -697,7 +697,7 @@ impl Inventory {
         location: Option<MediaLocation>,
     ) -> Result<(), Error> {
         let _lock = self.lock()?;
-        self.map = Self::load_media_db(&self.inventory_path)?;
+        self.map = self.load_media_db()?;
         if let Some(entry) = self.map.get_mut(uuid) {
             entry.location = location;
             self.update_helpers();
@@ -721,7 +721,7 @@ impl Inventory {
     /// Update online status
     pub fn update_online_status(&mut self, online_map: &OnlineStatusMap) -> Result<(), Error> {
         let _lock = self.lock()?;
-        self.map = Self::load_media_db(&self.inventory_path)?;
+        self.map = self.load_media_db()?;
 
         for (uuid, entry) in self.map.iter_mut() {
             if let Some(changer_name) = online_map.lookup_changer(uuid) {
