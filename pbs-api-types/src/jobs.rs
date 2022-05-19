@@ -535,3 +535,185 @@ pub struct SyncJobStatus {
     #[serde(flatten)]
     pub status: JobScheduleStatus,
 }
+
+/// These are used separately without `ns`/`max-depth` sometimes in the API, specifically in the API
+/// call to prune a specific group, where `max-depth` makes no sense.
+#[api(
+    properties: {
+        "keep-last": {
+            schema: crate::PRUNE_SCHEMA_KEEP_LAST,
+            optional: true,
+        },
+        "keep-hourly": {
+            schema: crate::PRUNE_SCHEMA_KEEP_HOURLY,
+            optional: true,
+        },
+        "keep-daily": {
+            schema: crate::PRUNE_SCHEMA_KEEP_DAILY,
+            optional: true,
+        },
+        "keep-weekly": {
+            schema: crate::PRUNE_SCHEMA_KEEP_WEEKLY,
+            optional: true,
+        },
+        "keep-monthly": {
+            schema: crate::PRUNE_SCHEMA_KEEP_MONTHLY,
+            optional: true,
+        },
+        "keep-yearly": {
+            schema: crate::PRUNE_SCHEMA_KEEP_YEARLY,
+            optional: true,
+        },
+    }
+)]
+#[derive(Serialize, Deserialize, Default, Updater)]
+#[serde(rename_all = "kebab-case")]
+/// Common pruning options
+pub struct KeepOptions {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub keep_last: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub keep_hourly: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub keep_daily: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub keep_weekly: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub keep_monthly: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub keep_yearly: Option<u64>,
+}
+
+impl KeepOptions {
+    pub fn keeps_something(&self) -> bool {
+        self.keep_last.unwrap_or(0)
+            + self.keep_hourly.unwrap_or(0)
+            + self.keep_daily.unwrap_or(0)
+            + self.keep_monthly.unwrap_or(0)
+            + self.keep_yearly.unwrap_or(0)
+            > 0
+    }
+}
+
+#[api(
+    properties: {
+        keep: {
+            type: KeepOptions,
+        },
+        ns: {
+            type: BackupNamespace,
+            optional: true,
+        },
+        "max-depth": {
+            schema: NS_MAX_DEPTH_REDUCED_SCHEMA,
+            optional: true,
+        },
+    }
+)]
+#[derive(Serialize, Deserialize, Default, Updater)]
+#[serde(rename_all = "kebab-case")]
+/// Common pruning options
+pub struct PruneJobOptions {
+    #[serde(flatten)]
+    pub keep: KeepOptions,
+
+    /// The (optional) recursion depth
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_depth: Option<usize>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ns: Option<BackupNamespace>,
+}
+
+impl PruneJobOptions {
+    pub fn keeps_something(&self) -> bool {
+        self.keep.keeps_something()
+    }
+
+    pub fn acl_path<'a>(&'a self, store: &'a str) -> Vec<&'a str> {
+        match &self.ns {
+            Some(ns) => ns.acl_path(store),
+            None => vec!["datastore", store],
+        }
+    }
+}
+
+#[api(
+    properties: {
+        disable: {
+            type: Boolean,
+            optional: true,
+            default: false,
+        },
+        id: {
+            schema: JOB_ID_SCHEMA,
+        },
+        store: {
+            schema: DATASTORE_SCHEMA,
+        },
+        schedule: {
+            schema: PRUNE_SCHEDULE_SCHEMA,
+            optional: true,
+        },
+        comment: {
+            optional: true,
+            schema: SINGLE_LINE_COMMENT_SCHEMA,
+        },
+        options: {
+            type: PruneJobOptions,
+        },
+    },
+)]
+#[derive(Deserialize, Serialize, Updater)]
+#[serde(rename_all = "kebab-case")]
+/// Prune configuration.
+pub struct PruneJobConfig {
+    /// unique ID to address this job
+    #[updater(skip)]
+    pub id: String,
+
+    pub store: String,
+
+    /// Disable this job.
+    #[serde(default, skip_serializing_if = "is_false")]
+    #[updater(serde(skip_serializing_if = "Option::is_none"))]
+    pub disable: bool,
+
+    pub schedule: String,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub comment: Option<String>,
+
+    #[serde(flatten)]
+    pub options: PruneJobOptions,
+}
+
+impl PruneJobConfig {
+    pub fn acl_path(&self) -> Vec<&str> {
+        self.options.acl_path(&self.store)
+    }
+}
+
+fn is_false(b: &bool) -> bool {
+    !b
+}
+
+#[api(
+    properties: {
+        config: {
+            type: PruneJobConfig,
+        },
+        status: {
+            type: JobScheduleStatus,
+        },
+    },
+)]
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+/// Status of prune job
+pub struct PruneJobStatus {
+    #[serde(flatten)]
+    pub config: PruneJobConfig,
+    #[serde(flatten)]
+    pub status: JobScheduleStatus,
+}

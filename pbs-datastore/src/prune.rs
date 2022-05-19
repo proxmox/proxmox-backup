@@ -103,41 +103,6 @@ fn remove_incomplete_snapshots(mark: &mut HashMap<PathBuf, PruneMark>, list: &[B
     }
 }
 
-pub fn keeps_something(options: &PruneOptions) -> bool {
-    let mut keep_something = false;
-    if let Some(count) = options.keep_last {
-        if count > 0 {
-            keep_something = true;
-        }
-    }
-    if let Some(count) = options.keep_hourly {
-        if count > 0 {
-            keep_something = true;
-        }
-    }
-    if let Some(count) = options.keep_daily {
-        if count > 0 {
-            keep_something = true;
-        }
-    }
-    if let Some(count) = options.keep_weekly {
-        if count > 0 {
-            keep_something = true;
-        }
-    }
-    if let Some(count) = options.keep_monthly {
-        if count > 0 {
-            keep_something = true;
-        }
-    }
-    if let Some(count) = options.keep_yearly {
-        if count > 0 {
-            keep_something = true;
-        }
-    }
-    keep_something
-}
-
 pub fn cli_options_string(options: &PruneOptions) -> String {
     let mut opts = Vec::new();
 
