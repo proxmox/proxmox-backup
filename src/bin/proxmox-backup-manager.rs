@@ -430,6 +430,7 @@ async fn run() -> Result<(), Error> {
         .insert("subscription", subscription_commands())
         .insert("sync-job", sync_job_commands())
         .insert("verify-job", verify_job_commands())
+        .insert("prune-job", prune_job_commands())
         .insert("task", task_mgmt_cli())
         .insert(
             "pull",

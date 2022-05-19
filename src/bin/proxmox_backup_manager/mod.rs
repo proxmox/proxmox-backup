@@ -10,6 +10,8 @@ mod dns;
 pub use dns::*;
 mod network;
 pub use network::*;
+mod prune;
+pub use prune::*;
 mod remote;
 pub use remote::*;
 mod sync;

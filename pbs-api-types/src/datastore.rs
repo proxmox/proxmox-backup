@@ -264,14 +264,19 @@ pub const DATASTORE_TUNING_STRING_SCHEMA: Schema = StringSchema::new("Datastore 
 pub struct DataStoreConfig {
     #[updater(skip)]
     pub name: String,
+
     #[updater(skip)]
     pub path: String,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub gc_schedule: Option<String>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub prune_schedule: Option<String>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub keep_last: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -284,18 +289,23 @@ pub struct DataStoreConfig {
     pub keep_monthly: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub keep_yearly: Option<u64>,
+
     /// If enabled, all backups will be verified right after completion.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub verify_new: Option<bool>,
+
     /// Send job email notification to this user
     #[serde(skip_serializing_if = "Option::is_none")]
     pub notify_user: Option<Userid>,
+
     /// Send notification only for job errors
     #[serde(skip_serializing_if = "Option::is_none")]
     pub notify: Option<String>,
+
     /// Datastore tuning options
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tuning: Option<String>,
+
     /// Maintenance mode, type is either 'offline' or 'read-only', message should be enclosed in "
     #[serde(skip_serializing_if = "Option::is_none")]
     pub maintenance_mode: Option<String>,

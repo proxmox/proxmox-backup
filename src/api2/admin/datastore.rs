@@ -34,12 +34,12 @@ use pxar::EntryKind;
 use pbs_api_types::{
     print_ns_and_snapshot, print_store_and_ns, Authid, BackupContent, BackupNamespace, BackupType,
     Counts, CryptMode, DataStoreListItem, DataStoreStatus, GarbageCollectionStatus, GroupListItem,
-    Operation, PruneOptions, RRDMode, RRDTimeFrame, SnapshotListItem, SnapshotVerifyState,
-    BACKUP_ARCHIVE_NAME_SCHEMA, BACKUP_ID_SCHEMA, BACKUP_NAMESPACE_SCHEMA, BACKUP_TIME_SCHEMA,
-    BACKUP_TYPE_SCHEMA, DATASTORE_SCHEMA, IGNORE_VERIFIED_BACKUPS_SCHEMA, MAX_NAMESPACE_DEPTH,
-    NS_MAX_DEPTH_SCHEMA, PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY,
-    PRIV_DATASTORE_PRUNE, PRIV_DATASTORE_READ, PRIV_DATASTORE_VERIFY, UPID_SCHEMA,
-    VERIFICATION_OUTDATED_AFTER_SCHEMA,
+    KeepOptions, Operation, PruneJobOptions, RRDMode, RRDTimeFrame, SnapshotListItem,
+    SnapshotVerifyState, BACKUP_ARCHIVE_NAME_SCHEMA, BACKUP_ID_SCHEMA, BACKUP_NAMESPACE_SCHEMA,
+    BACKUP_TIME_SCHEMA, BACKUP_TYPE_SCHEMA, DATASTORE_SCHEMA, IGNORE_VERIFIED_BACKUPS_SCHEMA,
+    MAX_NAMESPACE_DEPTH, NS_MAX_DEPTH_SCHEMA, PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP,
+    PRIV_DATASTORE_MODIFY, PRIV_DATASTORE_PRUNE, PRIV_DATASTORE_READ, PRIV_DATASTORE_VERIFY,
+    UPID_SCHEMA, VERIFICATION_OUTDATED_AFTER_SCHEMA,
 };
 use pbs_client::pxar::{create_tar, create_zip};
 use pbs_config::CachedUserInfo;
@@ -888,10 +888,6 @@ pub fn verify(
 #[api(
     input: {
         properties: {
-            ns: {
-                type: BackupNamespace,
-                optional: true,
-            },
             group: {
                 type: pbs_api_types::BackupGroup,
                 flatten: true,
@@ -902,12 +898,16 @@ pub fn verify(
                 default: false,
                 description: "Just show what prune would do, but do not delete anything.",
             },
-            "prune-options": {
-                type: PruneOptions,
+            "keep-options": {
+                type: KeepOptions,
                 flatten: true,
             },
             store: {
                 schema: DATASTORE_SCHEMA,
+            },
+            ns: {
+                type: BackupNamespace,
+                optional: true,
             },
         },
     },
@@ -920,17 +920,16 @@ pub fn verify(
 )]
 /// Prune a group on the datastore
 pub fn prune(
-    ns: Option<BackupNamespace>,
     group: pbs_api_types::BackupGroup,
     dry_run: bool,
-    prune_options: PruneOptions,
+    keep_options: KeepOptions,
     store: String,
+    ns: Option<BackupNamespace>,
     _param: Value,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let ns = ns.unwrap_or_default();
-
     let datastore = check_privs_and_load_store(
         &store,
         &ns,
@@ -948,11 +947,11 @@ pub fn prune(
 
     let list = group.list_backups()?;
 
-    let mut prune_info = compute_prune_info(list, &prune_options)?;
+    let mut prune_info = compute_prune_info(list, &keep_options)?;
 
     prune_info.reverse(); // delete older snapshots first
 
-    let keep_all = !pbs_datastore::prune::keeps_something(&prune_options);
+    let keep_all = !keep_options.keeps_something();
 
     if dry_run {
         for (info, mark) in prune_info {
@@ -980,11 +979,13 @@ pub fn prune(
     if keep_all {
         task_log!(worker, "No prune selection - keeping all files.");
     } else {
-        task_log!(
-            worker,
-            "retention options: {}",
-            pbs_datastore::prune::cli_options_string(&prune_options)
-        );
+        let mut opts = Vec::new();
+        if !ns.is_root() {
+            opts.push(format!("--ns {ns}"));
+        }
+        crate::server::cli_keep_options(&mut opts, &keep_options);
+
+        task_log!(worker, "retention options: {}", opts.join(" "));
         task_log!(
             worker,
             "Starting prune on {} group \"{}\"",
@@ -1039,19 +1040,11 @@ pub fn prune(
                 description: "Just show what prune would do, but do not delete anything.",
             },
             "prune-options": {
-                type: PruneOptions,
+                type: PruneJobOptions,
                 flatten: true,
             },
             store: {
                 schema: DATASTORE_SCHEMA,
-            },
-            ns: {
-                type: BackupNamespace,
-                optional: true,
-            },
-            "max-depth": {
-                schema: NS_MAX_DEPTH_SCHEMA,
-                optional: true,
             },
         },
     },
@@ -1059,24 +1052,31 @@ pub fn prune(
         schema: UPID_SCHEMA,
     },
     access: {
-        permission: &Permission::Privilege(
-            &["datastore", "{store}"], PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_PRUNE, true),
+        permission: &Permission::Anybody,
+        description: "Requires Datastore.Modify or Datastore.Prune on the datastore/namespace.",
     },
 )]
 /// Prune the datastore
 pub fn prune_datastore(
     dry_run: bool,
-    prune_options: PruneOptions,
+    prune_options: PruneJobOptions,
     store: String,
-    ns: Option<BackupNamespace>,
-    max_depth: Option<usize>,
     _param: Value,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
+    let user_info = CachedUserInfo::new()?;
+
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
+    user_info.check_privs(
+        &auth_id,
+        &prune_options.acl_path(&store),
+        PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_PRUNE,
+        true,
+    )?;
+
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
-    let ns = ns.unwrap_or_default();
+    let ns = prune_options.ns.clone().unwrap_or_default();
     let worker_id = format!("{}:{}", store, ns);
 
     let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
@@ -1087,15 +1087,7 @@ pub fn prune_datastore(
         auth_id.to_string(),
         to_stdout,
         move |worker| {
-            crate::server::prune_datastore(
-                worker,
-                auth_id,
-                prune_options,
-                datastore,
-                ns,
-                max_depth.unwrap_or(MAX_NAMESPACE_DEPTH), //  canoot rely on schema default
-                dry_run,
-            )
+            crate::server::prune_datastore(worker, auth_id, prune_options, datastore, dry_run)
         },
     )?;
 

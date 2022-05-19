@@ -47,8 +47,8 @@ use pbs_buildcfg::configdir;
 use proxmox_time::CalendarEvent;
 
 use pbs_api_types::{
-    Authid, DataStoreConfig, Operation, PruneOptions, SyncJobConfig, TapeBackupJobConfig,
-    VerificationJobConfig,
+    Authid, DataStoreConfig, KeepOptions, Operation, PruneJobConfig, PruneJobOptions,
+    SyncJobConfig, TapeBackupJobConfig, VerificationJobConfig,
 };
 
 use proxmox_rest_server::daemon;
@@ -558,6 +558,7 @@ async fn run_task_scheduler() {
 async fn schedule_tasks() -> Result<(), Error> {
     schedule_datastore_garbage_collection().await;
     schedule_datastore_prune().await;
+    schedule_datastore_prune_jobs().await;
     schedule_datastore_sync_jobs().await;
     schedule_datastore_verify_jobs().await;
     schedule_tape_backup_jobs().await;
@@ -690,16 +691,19 @@ async fn schedule_datastore_prune() {
             None => continue,
         };
 
-        let prune_options = PruneOptions {
-            keep_last: store_config.keep_last,
-            keep_hourly: store_config.keep_hourly,
-            keep_daily: store_config.keep_daily,
-            keep_weekly: store_config.keep_weekly,
-            keep_monthly: store_config.keep_monthly,
-            keep_yearly: store_config.keep_yearly,
+        let prune_options = PruneJobOptions {
+            keep: KeepOptions {
+                keep_last: store_config.keep_last,
+                keep_hourly: store_config.keep_hourly,
+                keep_daily: store_config.keep_daily,
+                keep_weekly: store_config.keep_weekly,
+                keep_monthly: store_config.keep_monthly,
+                keep_yearly: store_config.keep_yearly,
+            },
+            ..Default::default()
         };
 
-        if !pbs_datastore::prune::keeps_something(&prune_options) {
+        if !prune_options.keeps_something() {
             // no prune settings - keep all
             continue;
         }
@@ -716,6 +720,52 @@ async fn schedule_datastore_prune() {
                 do_prune_job(job, prune_options, store.clone(), &auth_id, Some(event_str))
             {
                 eprintln!("unable to start datastore prune job {} - {}", &store, err);
+            }
+        };
+    }
+}
+
+async fn schedule_datastore_prune_jobs() {
+    let config = match pbs_config::prune::config() {
+        Err(err) => {
+            eprintln!("unable to read prune job config - {}", err);
+            return;
+        }
+        Ok((config, _digest)) => config,
+    };
+    for (job_id, (_, job_config)) in config.sections {
+        let job_config: PruneJobConfig = match serde_json::from_value(job_config) {
+            Ok(c) => c,
+            Err(err) => {
+                eprintln!("prune job config from_value failed - {}", err);
+                continue;
+            }
+        };
+
+        if job_config.disable {
+            continue;
+        }
+
+        if !job_config.options.keeps_something() {
+            // no 'keep' values set, keep all
+            continue;
+        }
+
+        let worker_type = "prunejob";
+        let auth_id = Authid::root_auth_id().clone();
+        if check_schedule(worker_type, &job_config.schedule, &job_id) {
+            let job = match Job::new(worker_type, &job_id) {
+                Ok(job) => job,
+                Err(_) => continue, // could not get lock
+            };
+            if let Err(err) = do_prune_job(
+                job,
+                job_config.options,
+                job_config.store,
+                &auth_id,
+                Some(job_config.schedule),
+            ) {
+                eprintln!("unable to start datastore prune job {} - {}", &job_id, err);
             }
         };
     }
