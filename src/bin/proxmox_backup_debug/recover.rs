@@ -38,7 +38,19 @@ use pbs_tools::crypt_config::CryptConfig;
                 type: Boolean,
                 optional: true,
                 default: false,
-            }
+            },
+            "ignore-missing-chunks": {
+                description: "If a chunk is missing, warn and write 0-bytes instead to attempt partial recovery.",
+                type: Boolean,
+                optional: true,
+                default: false,
+            },
+            "ignore-corrupt-chunks": {
+                description: "If a chunk is corrupt, warn and write 0-bytes instead to attempt partial recovery.",
+                type: Boolean,
+                optional: true,
+                default: false,
+            },
         }
     }
 )]
@@ -49,6 +61,8 @@ fn recover_index(
     chunks: String,
     keyfile: Option<String>,
     skip_crc: bool,
+    ignore_missing_chunks: bool,
+    ignore_corrupt_chunks: bool,
     _param: Value,
 ) -> Result<(), Error> {
     let file_path = Path::new(&file);
@@ -89,22 +103,78 @@ fn recover_index(
         let digest_str = hex::encode(chunk_digest);
         let digest_prefix = &digest_str[0..4];
         let chunk_path = chunks_path.join(digest_prefix).join(digest_str);
-        let mut chunk_file = std::fs::File::open(&chunk_path)
-            .map_err(|e| format_err!("could not open chunk file - {}", e))?;
 
-        data.clear();
-        chunk_file.read_to_end(&mut data)?;
-        let chunk_blob = DataBlob::from_raw(data.clone())?;
+        let create_zero_chunk = |msg: String| -> Result<(DataBlob, Option<&[u8; 32]>), Error> {
+            let info = index
+                .chunk_info(pos)
+                .ok_or_else(|| format_err!("Couldn't read chunk info from index at {pos}"))?;
+            let size = info.size();
 
-        if !skip_crc {
-            chunk_blob.verify_crc()?;
-        }
+            eprintln!("WARN: chunk {:?} {}", chunk_path, msg);
+            eprintln!("WARN: replacing output file {:?} with '\\0'", info.range,);
 
-        output_file.write_all(
-            chunk_blob
-                .decode(crypt_conf_opt.as_ref(), Some(chunk_digest))?
-                .as_slice(),
-        )?;
+            Ok((
+                DataBlob::encode(&vec![0; size as usize], crypt_conf_opt.as_ref(), true)?,
+                None,
+            ))
+        };
+
+        let (chunk_blob, chunk_digest) = match std::fs::File::open(&chunk_path) {
+            Ok(mut chunk_file) => {
+                data.clear();
+                chunk_file.read_to_end(&mut data)?;
+
+                // first chance for corrupt chunk - handling magic fails
+                DataBlob::from_raw(data.clone())
+                    .map(|blob| (blob, Some(chunk_digest)))
+                    .or_else(|err| {
+                        if ignore_corrupt_chunks {
+                            create_zero_chunk(format!("is corrupt - {err}"))
+                        } else {
+                            bail!("{err}");
+                        }
+                    })?
+            }
+            Err(err) => {
+                if ignore_missing_chunks && err.kind() == std::io::ErrorKind::NotFound {
+                    create_zero_chunk(format!("is missing"))?
+                } else {
+                    bail!("could not open chunk file - {}", err);
+                }
+            }
+        };
+
+        // second chance - we need CRC to detect truncated chunks!
+        let crc_res = if skip_crc {
+            Ok(())
+        } else {
+            chunk_blob.verify_crc()
+        };
+
+        let (chunk_blob, chunk_digest) = if let Err(crc_err) = crc_res {
+            if ignore_corrupt_chunks {
+                create_zero_chunk(format!("is corrupt - {crc_err}"))?
+            } else {
+                bail!("Error at chunk {:?} - {crc_err}", chunk_path);
+            }
+        } else {
+            (chunk_blob, chunk_digest)
+        };
+
+        // third chance - decoding might fail (digest, compression, encryption)
+        let decoded = chunk_blob
+            .decode(crypt_conf_opt.as_ref(), chunk_digest)
+            .or_else(|err| {
+                if ignore_corrupt_chunks {
+                    create_zero_chunk(format!("fails to decode - {err}"))?
+                        .0
+                        .decode(crypt_conf_opt.as_ref(), None)
+                } else {
+                    bail!("Failed to decode chunk {:?} = {}", chunk_path, err);
+                }
+            })?;
+
+        output_file.write_all(decoded.as_slice())?;
     }
 
     Ok(())
