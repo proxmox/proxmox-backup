@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 use std::fs::File;
-use std::io::{stdout, Read, Seek, SeekFrom, Write};
-use std::panic::{RefUnwindSafe, UnwindSafe};
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::Path;
 
 use anyhow::{bail, format_err, Error};
@@ -27,18 +26,6 @@ use pbs_datastore::index::IndexFile;
 use pbs_datastore::DataBlob;
 use pbs_tools::crypt_config::CryptConfig;
 
-// Returns either a new file, if a path is given, or stdout, if no path is given.
-fn outfile_or_stdout<P: AsRef<Path>>(
-    path: Option<P>,
-) -> std::io::Result<Box<dyn Write + Send + Sync + Unpin + RefUnwindSafe + UnwindSafe>> {
-    if let Some(path) = path {
-        let f = File::create(path)?;
-        Ok(Box::new(f) as Box<_>)
-    } else {
-        Ok(Box::new(stdout()) as Box<_>)
-    }
-}
-
 /// Decodes a blob and writes its content either to stdout or into a file
 fn decode_blob(
     mut output_path: Option<&Path>,
@@ -61,7 +48,8 @@ fn decode_blob(
         _ => output_path,
     };
 
-    outfile_or_stdout(output_path)?.write_all(blob.decode(crypt_conf_opt, digest)?.as_slice())?;
+    crate::outfile_or_stdout(output_path)?
+        .write_all(blob.decode(crypt_conf_opt, digest)?.as_slice())?;
     Ok(())
 }
 
