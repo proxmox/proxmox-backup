@@ -32,7 +32,10 @@ pub fn prune_datastore(
         "non-recursive".to_string()
     };
     if ns.is_root() {
-        task_log!(worker, "Starting datastore prune on store '{store}', {depth_str}");
+        task_log!(
+            worker,
+            "Starting datastore prune on store '{store}', {depth_str}"
+        );
     } else {
         task_log!(
             worker,
