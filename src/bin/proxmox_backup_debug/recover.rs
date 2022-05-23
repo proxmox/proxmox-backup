@@ -51,6 +51,11 @@ use pbs_tools::crypt_config::CryptConfig;
                 optional: true,
                 default: false,
             },
+            "output-path": {
+                type: String,
+                description: "Output file path, defaults to `file` without extension, '-' means STDOUT.",
+                optional: true,
+            },
         }
     }
 )]
@@ -63,6 +68,7 @@ fn recover_index(
     skip_crc: bool,
     ignore_missing_chunks: bool,
     ignore_corrupt_chunks: bool,
+    output_path: Option<String>,
     _param: Value,
 ) -> Result<(), Error> {
     let file_path = Path::new(&file);
@@ -92,9 +98,16 @@ fn recover_index(
         None
     };
 
-    let output_filename = file_path.file_stem().unwrap().to_str().unwrap();
-    let output_path = Path::new(output_filename);
-    let mut output_file = File::create(output_path)
+    let output_path = output_path.unwrap_or_else(|| {
+        let filename = file_path.file_stem().unwrap().to_str().unwrap();
+        filename.to_string()
+    });
+
+    let output_path = match output_path.as_str() {
+        "-" => None,
+        path => Some(path),
+    };
+    let mut output_file = crate::outfile_or_stdout(output_path)
         .map_err(|e| format_err!("could not create output file - {}", e))?;
 
     let mut data = Vec::with_capacity(4 * 1024 * 1024);
