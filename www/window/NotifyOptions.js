@@ -74,6 +74,13 @@ Ext.define('PBS.window.NotifyOptions', {
 	    },
 	    {
 		xtype: 'pbsNotifyType',
+		name: 'prune',
+		fieldLabel: gettext('Prune Jobs'),
+		value: '__default__',
+		deleteEmpty: false,
+	    },
+	    {
+		xtype: 'pbsNotifyType',
 		name: 'gc',
 		fieldLabel: gettext('Garbage Collection'),
 		value: '__default__',

@@ -58,6 +58,7 @@ JSSRC=							\
 	config/ACLView.js				\
 	config/SyncView.js				\
 	config/VerifyView.js				\
+	config/PruneView.js				\
 	config/WebauthnView.js				\
 	config/CertificateView.js			\
 	config/NodeOptionView.js			\
@@ -73,6 +74,7 @@ JSSRC=							\
 	window/TrafficControlEdit.js			\
 	window/NotifyOptions.js				\
 	window/SyncJobEdit.js				\
+	window/PruneJobEdit.js				\
 	window/UserEdit.js				\
 	window/UserPassword.js				\
 	window/Settings.js				\

@@ -41,6 +41,10 @@ Ext.define('PBS.datastore.DataStoreList', {
 		type = 'verify';
 	    }
 
+	    if (type === 'prunejob') {
+		type = 'prune';
+	    }
+
 	    let datastore = PBS.Utils.parse_datastore_worker_id(type, task.worker_id);
 	    if (!datastore) {
 		return;
@@ -232,6 +236,11 @@ Ext.define('PBS.datastore.DataStores', {
 	    iconCls: 'fa fa-refresh',
 	    itemId: 'syncjobs',
 	    xtype: 'pbsSyncJobView',
+	},
+	{
+	    iconCls: 'fa fa-trash-o',
+	    itemId: 'prunejobs',
+	    xtype: 'pbsPruneJobView',
 	},
 	{
 	    iconCls: 'fa fa-check-circle',

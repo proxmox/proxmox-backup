@@ -75,6 +75,14 @@ Ext.define('PBS.DataStorePanel', {
 	    },
 	},
 	{
+	    iconCls: 'fa fa-trash-o',
+	    itemId: 'prunejobs',
+	    xtype: 'pbsPruneJobView',
+	    cbind: {
+		datastore: '{datastore}',
+	    },
+	},
+	{
 	    iconCls: 'fa fa-check-circle',
 	    itemId: 'verifyjobs',
 	    xtype: 'pbsVerifyJobView',
