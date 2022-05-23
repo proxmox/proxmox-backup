@@ -292,7 +292,7 @@ async fn load_media_from_slot(mut param: Value) -> Result<(), Error> {
     let client = connect_to_localhost()?;
 
     let path = format!("api2/json/tape/drive/{}/load-slot", drive);
-    client.put(&path, Some(param)).await?;
+    client.post(&path, Some(param)).await?;
 
     Ok(())
 }
