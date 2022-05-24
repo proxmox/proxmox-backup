@@ -17,9 +17,9 @@ use proxmox_schema::{BooleanSchema, ObjectSchema};
 use proxmox_sys::sortable;
 
 use pbs_api_types::{
-    Authid, Operation, BACKUP_ARCHIVE_NAME_SCHEMA, BACKUP_ID_SCHEMA, BACKUP_NAMESPACE_SCHEMA,
-    BACKUP_TIME_SCHEMA, BACKUP_TYPE_SCHEMA, CHUNK_DIGEST_SCHEMA, DATASTORE_SCHEMA,
-    PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_READ,
+    Authid, DatastoreWithNamespace, Operation, BACKUP_ARCHIVE_NAME_SCHEMA, BACKUP_ID_SCHEMA,
+    BACKUP_NAMESPACE_SCHEMA, BACKUP_TIME_SCHEMA, BACKUP_TYPE_SCHEMA, CHUNK_DIGEST_SCHEMA,
+    DATASTORE_SCHEMA, PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_READ,
 };
 use pbs_config::CachedUserInfo;
 use pbs_datastore::index::IndexFile;
@@ -78,21 +78,26 @@ fn upgrade_to_backup_reader_protocol(
 
         let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
         let store = required_string_param(&param, "store")?.to_owned();
+        let backup_ns = optional_ns_param(&param)?;
+
+        let store_with_ns = DatastoreWithNamespace {
+            store: store.clone(),
+            ns: backup_ns.clone(),
+        };
 
         let user_info = CachedUserInfo::new()?;
-        let privs = user_info.lookup_privs(&auth_id, &["datastore", &store]);
+        let privs = user_info.lookup_privs(&auth_id, &store_with_ns.acl_path());
 
         let priv_read = privs & PRIV_DATASTORE_READ != 0;
         let priv_backup = privs & PRIV_DATASTORE_BACKUP != 0;
 
         // priv_backup needs owner check further down below!
         if !priv_read && !priv_backup {
-            bail!("no permissions on /datastore/{}", store);
+            bail!("no permissions on /{}", store_with_ns.acl_path().join("/"));
         }
 
         let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
 
-        let backup_ns = optional_ns_param(&param)?;
         let backup_dir = pbs_api_types::BackupDir::deserialize(&param)?;
 
         let protocols = parts
