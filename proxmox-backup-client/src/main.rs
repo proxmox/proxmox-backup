@@ -24,7 +24,7 @@ use pxar::accessor::{MaybeReady, ReadAt, ReadAtOperation};
 
 use pbs_api_types::{
     Authid, BackupDir, BackupGroup, BackupNamespace, BackupPart, BackupType, CryptMode,
-    Fingerprint, GroupListItem, HumanByte, PruneListItem, PruneOptions, RateLimitConfig,
+    Fingerprint, GroupListItem, HumanByte, PruneJobOptions, PruneListItem, RateLimitConfig,
     SnapshotListItem, StorageStatus, BACKUP_ID_SCHEMA, BACKUP_NAMESPACE_SCHEMA, BACKUP_TIME_SCHEMA,
     BACKUP_TYPE_SCHEMA, TRAFFIC_CONTROL_BURST_SCHEMA, TRAFFIC_CONTROL_RATE_SCHEMA,
 };
@@ -1417,12 +1417,8 @@ async fn restore(param: Value) -> Result<Value, Error> {
                 type: String,
                 description: "Backup group",
             },
-            ns: {
-                type: BackupNamespace,
-                optional: true,
-            },
             "prune-options": {
-                type: PruneOptions,
+                type: PruneJobOptions,
                 flatten: true,
             },
             "output-format": {
@@ -1446,12 +1442,11 @@ async fn restore(param: Value) -> Result<Value, Error> {
 async fn prune(
     dry_run: Option<bool>,
     group: String,
-    prune_options: PruneOptions,
+    prune_options: PruneJobOptions,
     quiet: bool,
     mut param: Value,
 ) -> Result<Value, Error> {
     let repo = extract_repository_from_value(&param)?;
-    let ns = optional_ns_param(&param)?;
 
     let client = connect(&repo)?;
 
@@ -1466,9 +1461,6 @@ async fn prune(
         api_param["dry-run"] = dry_run.into();
     }
     merge_group_into(api_param.as_object_mut().unwrap(), group);
-    if !ns.is_root() {
-        api_param["ns"] = serde_json::to_value(ns)?;
-    }
 
     let mut result = client.post(&path, Some(api_param)).await?;
 
