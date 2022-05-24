@@ -82,14 +82,10 @@ fn get_group_note_path(
 }
 
 // TODO: move somewhere we can reuse it from (namespace has its own copy atm.)
-fn get_ns_privs(store: &str, ns: &BackupNamespace, auth_id: &Authid) -> Result<u64, Error> {
+fn get_ns_privs(store_with_ns: &DatastoreWithNamespace, auth_id: &Authid) -> Result<u64, Error> {
     let user_info = CachedUserInfo::new()?;
 
-    Ok(if ns.is_root() {
-        user_info.lookup_privs(auth_id, &["datastore", store])
-    } else {
-        user_info.lookup_privs(auth_id, &["datastore", store, &ns.to_string()])
-    })
+    Ok(user_info.lookup_privs(auth_id, &store_with_ns.acl_path()))
 }
 
 // asserts that either either `full_access_privs` or `partial_access_privs` are fulfilled,
@@ -101,7 +97,11 @@ fn check_ns_privs(
     full_access_privs: u64,
     partial_access_privs: u64,
 ) -> Result<bool, Error> {
-    let privs = get_ns_privs(store, ns, auth_id)?;
+    let store_with_ns = DatastoreWithNamespace {
+        store: store.to_string(),
+        ns: ns.clone(),
+    };
+    let privs = get_ns_privs(&store_with_ns, auth_id)?;
 
     if full_access_privs != 0 && (privs & full_access_privs) != 0 {
         return Ok(false);
@@ -1199,7 +1199,11 @@ fn can_access_any_ns(store: Arc<DataStore>, auth_id: &Authid, user_info: &Cached
         PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_READ | PRIV_DATASTORE_BACKUP;
     let name = store.name();
     iter.any(|ns| -> bool {
-        let user_privs = user_info.lookup_privs(&auth_id, &["datastore", name, &ns.to_string()]);
+        let store_with_ns = DatastoreWithNamespace {
+            store: name.to_string(),
+            ns: ns,
+        };
+        let user_privs = user_info.lookup_privs(&auth_id, &store_with_ns.acl_path());
         user_privs & wanted != 0
     })
 }

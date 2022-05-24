@@ -3,8 +3,8 @@ use std::sync::Arc;
 use anyhow::Error;
 
 use pbs_api_types::{
-    Authid, BackupNamespace, PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY,
-    PRIV_DATASTORE_READ,
+    Authid, BackupNamespace, DatastoreWithNamespace, PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP,
+    PRIV_DATASTORE_MODIFY, PRIV_DATASTORE_READ,
 };
 use pbs_config::CachedUserInfo;
 use pbs_datastore::{backup_info::BackupGroup, DataStore, ListGroups, ListNamespacesRecursive};
@@ -100,14 +100,12 @@ impl<'a> Iterator for ListAccessibleBackupGroups<'a> {
                         let mut override_owner = false;
                         if let Some(auth_id) = &self.auth_id {
                             let info = &self.user_info;
-                            let privs = if ns.is_root() {
-                                info.lookup_privs(&auth_id, &["datastore", self.store.name()])
-                            } else {
-                                info.lookup_privs(
-                                    &auth_id,
-                                    &["datastore", self.store.name(), &ns.to_string()],
-                                )
+                            let store_with_ns = DatastoreWithNamespace {
+                                store: self.store.name().to_string(),
+                                ns: ns.clone(),
                             };
+                            let privs = info.lookup_privs(&auth_id, &store_with_ns.acl_path());
+
                             if privs & NS_PRIVS_OK == 0 {
                                 continue;
                             }

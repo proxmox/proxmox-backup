@@ -17,9 +17,10 @@ use proxmox_schema::*;
 use proxmox_sys::sortable;
 
 use pbs_api_types::{
-    Authid, BackupNamespace, BackupType, Operation, SnapshotVerifyState, VerifyState,
-    BACKUP_ARCHIVE_NAME_SCHEMA, BACKUP_ID_SCHEMA, BACKUP_NAMESPACE_SCHEMA, BACKUP_TIME_SCHEMA,
-    BACKUP_TYPE_SCHEMA, CHUNK_DIGEST_SCHEMA, DATASTORE_SCHEMA, PRIV_DATASTORE_BACKUP,
+    Authid, BackupNamespace, BackupType, DatastoreWithNamespace, Operation, SnapshotVerifyState,
+    VerifyState, BACKUP_ARCHIVE_NAME_SCHEMA, BACKUP_ID_SCHEMA, BACKUP_NAMESPACE_SCHEMA,
+    BACKUP_TIME_SCHEMA, BACKUP_TYPE_SCHEMA, CHUNK_DIGEST_SCHEMA, DATASTORE_SCHEMA,
+    PRIV_DATASTORE_BACKUP,
 };
 use pbs_config::CachedUserInfo;
 use pbs_datastore::index::IndexFile;
@@ -81,15 +82,15 @@ fn upgrade_to_backup_protocol(
 
         let store = required_string_param(&param, "store")?.to_owned();
         let backup_ns = optional_ns_param(&param)?;
+        let store_with_ns = DatastoreWithNamespace {
+            store: store.clone(),
+            ns: backup_ns.clone(),
+        };
         let backup_dir_arg = pbs_api_types::BackupDir::deserialize(&param)?;
 
         let user_info = CachedUserInfo::new()?;
 
-        let privs = if backup_ns.is_root() {
-            user_info.lookup_privs(&auth_id, &["datastore", &store])
-        } else {
-            user_info.lookup_privs(&auth_id, &["datastore", &store, &backup_ns.to_string()])
-        };
+        let privs = user_info.lookup_privs(&auth_id, &store_with_ns.acl_path());
         if privs & PRIV_DATASTORE_BACKUP == 0 {
             proxmox_router::http_bail!(FORBIDDEN, "permission check failed");
         }

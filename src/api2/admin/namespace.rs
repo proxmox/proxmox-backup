@@ -6,21 +6,18 @@ use proxmox_router::{http_bail, ApiMethod, Permission, Router, RpcEnvironment};
 use proxmox_schema::*;
 
 use pbs_api_types::{
-    Authid, BackupNamespace, NamespaceListItem, Operation, DATASTORE_SCHEMA, NS_MAX_DEPTH_SCHEMA,
-    PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY, PROXMOX_SAFE_ID_FORMAT,
+    Authid, BackupNamespace, DatastoreWithNamespace, NamespaceListItem, Operation,
+    DATASTORE_SCHEMA, NS_MAX_DEPTH_SCHEMA, PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP,
+    PRIV_DATASTORE_MODIFY, PROXMOX_SAFE_ID_FORMAT,
 };
 
 use pbs_datastore::DataStore;
 
 // TODO: move somewhere we can reuse it from (datastore has its own copy atm.)
-fn get_ns_privs(store: &str, ns: &BackupNamespace, auth_id: &Authid) -> Result<u64, Error> {
+fn get_ns_privs(store_with_ns: &DatastoreWithNamespace, auth_id: &Authid) -> Result<u64, Error> {
     let user_info = CachedUserInfo::new()?;
 
-    Ok(if ns.is_root() {
-        user_info.lookup_privs(auth_id, &["datastore", store])
-    } else {
-        user_info.lookup_privs(auth_id, &["datastore", store, &ns.to_string()])
-    })
+    Ok(user_info.lookup_privs(auth_id, &store_with_ns.acl_path()))
 }
 
 #[api(
@@ -59,7 +56,12 @@ pub fn create_namespace(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let parent = parent.unwrap_or_default();
 
-    if get_ns_privs(&store, &parent, &auth_id)? & PRIV_DATASTORE_MODIFY == 0 {
+    let store_with_parent = DatastoreWithNamespace {
+        store: store.clone(),
+        ns: parent.clone(),
+    };
+
+    if get_ns_privs(&store_with_parent, &auth_id)? & PRIV_DATASTORE_MODIFY == 0 {
         proxmox_router::http_bail!(FORBIDDEN, "permission check failed");
     }
 
@@ -104,7 +106,12 @@ pub fn list_namespaces(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     const PRIVS_OK: u64 = PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_BACKUP | PRIV_DATASTORE_AUDIT;
     // first do a base check to avoid leaking if a NS exists or not
-    if get_ns_privs(&store, &parent, &auth_id)? & PRIVS_OK == 0 {
+    let store_with_parent = DatastoreWithNamespace {
+        store: store.clone(),
+        ns: parent.clone(),
+    };
+
+    if get_ns_privs(&store_with_parent, &auth_id)? & PRIVS_OK == 0 {
         proxmox_router::http_bail!(FORBIDDEN, "permission check failed");
     }
     let user_info = CachedUserInfo::new()?;
@@ -161,7 +168,11 @@ pub fn delete_namespace(
     };
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let parent = ns.parent(); // must have MODIFY permission on parent to allow deletion
-    if get_ns_privs(&store, &parent, &auth_id)? & PRIV_DATASTORE_MODIFY == 0 {
+    let store_with_parent = DatastoreWithNamespace {
+        store: store.clone(),
+        ns: parent.clone(),
+    };
+    if get_ns_privs(&store_with_parent, &auth_id)? & PRIV_DATASTORE_MODIFY == 0 {
         http_bail!(FORBIDDEN, "permission check failed");
     }
 
