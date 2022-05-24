@@ -45,7 +45,7 @@ pub fn list_verification_jobs(
     let list = list
         .into_iter()
         .filter(|job: &VerificationJobConfig| {
-            let privs = user_info.lookup_privs(&auth_id, &["datastore", &job.store]);
+            let privs = user_info.lookup_privs(&auth_id, &job.store_with_ns().acl_path());
 
             privs & required_privs != 00
         })
@@ -81,7 +81,7 @@ pub fn create_verification_job(
 
     user_info.check_privs(
         &auth_id,
-        &["datastore", &config.store],
+        &config.store_with_ns().acl_path(),
         PRIV_DATASTORE_VERIFY,
         false,
     )?;
@@ -132,7 +132,7 @@ pub fn read_verification_job(
     let required_privs = PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_VERIFY;
     user_info.check_privs(
         &auth_id,
-        &["datastore", &verification_job.store],
+        &verification_job.store_with_ns().acl_path(),
         required_privs,
         true,
     )?;
@@ -215,10 +215,10 @@ pub fn update_verification_job(
 
     let mut data: VerificationJobConfig = config.lookup("verification", &id)?;
 
-    // check existing store
+    // check existing store and NS
     user_info.check_privs(
         &auth_id,
-        &["datastore", &data.store],
+        &data.store_with_ns().acl_path(),
         PRIV_DATASTORE_VERIFY,
         true,
     )?;
@@ -258,13 +258,6 @@ pub fn update_verification_job(
     }
 
     if let Some(store) = update.store {
-        // check new store
-        user_info.check_privs(
-            &auth_id,
-            &["datastore", &store],
-            PRIV_DATASTORE_VERIFY,
-            true,
-        )?;
         data.store = store;
     }
 
@@ -288,6 +281,14 @@ pub fn update_verification_job(
             data.max_depth = Some(max_depth);
         }
     }
+
+    // check new store and NS
+    user_info.check_privs(
+        &auth_id,
+        &data.store_with_ns().acl_path(),
+        PRIV_DATASTORE_VERIFY,
+        true,
+    )?;
 
     config.set_data(&id, "verification", &data)?;
 
@@ -334,7 +335,7 @@ pub fn delete_verification_job(
     let job: VerificationJobConfig = config.lookup("verification", &id)?;
     user_info.check_privs(
         &auth_id,
-        &["datastore", &job.store],
+        &job.store_with_ns().acl_path(),
         PRIV_DATASTORE_VERIFY,
         true,
     )?;

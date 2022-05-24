@@ -223,6 +223,15 @@ pub struct VerificationJobConfig {
     pub max_depth: Option<usize>,
 }
 
+impl VerificationJobConfig {
+    pub fn store_with_ns(&self) -> DatastoreWithNamespace {
+        DatastoreWithNamespace {
+            store: self.store.clone(),
+            ns: self.ns.clone().unwrap_or_default(),
+        }
+    }
+}
+
 #[api(
     properties: {
         config: {

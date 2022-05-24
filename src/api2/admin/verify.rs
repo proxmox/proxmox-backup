@@ -58,7 +58,7 @@ pub fn list_verification_jobs(
         .convert_to_typed_array("verification")?
         .into_iter()
         .filter(|job: &VerificationJobConfig| {
-            let privs = user_info.lookup_privs(&auth_id, &["datastore", &job.store]);
+            let privs = user_info.lookup_privs(&auth_id, &job.store_with_ns().acl_path());
             if privs & required_privs == 0 {
                 return false;
             }
@@ -114,9 +114,11 @@ pub fn run_verification_job(
     let (config, _digest) = verify::config()?;
     let verification_job: VerificationJobConfig = config.lookup("verification", &id)?;
 
+    let store_with_ns = verification_job.store_with_ns();
+
     user_info.check_privs(
         &auth_id,
-        &["datastore", &verification_job.store],
+        &store_with_ns.acl_path(),
         PRIV_DATASTORE_VERIFY,
         true,
     )?;
