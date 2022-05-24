@@ -18,9 +18,10 @@ use proxmox_uuid::Uuid;
 
 use pbs_api_types::{
     parse_ns_and_snapshot, print_ns_and_snapshot, Authid, BackupDir, BackupNamespace, CryptMode,
-    Operation, TapeRestoreNamespace, Userid, DATASTORE_MAP_ARRAY_SCHEMA, DATASTORE_MAP_LIST_SCHEMA,
-    DRIVE_NAME_SCHEMA, MAX_NAMESPACE_DEPTH, PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY,
-    PRIV_TAPE_READ, TAPE_RESTORE_NAMESPACE_SCHEMA, TAPE_RESTORE_SNAPSHOT_SCHEMA, UPID_SCHEMA,
+    DatastoreWithNamespace, Operation, TapeRestoreNamespace, Userid, DATASTORE_MAP_ARRAY_SCHEMA,
+    DATASTORE_MAP_LIST_SCHEMA, DRIVE_NAME_SCHEMA, MAX_NAMESPACE_DEPTH, PRIV_DATASTORE_BACKUP,
+    PRIV_DATASTORE_MODIFY, PRIV_TAPE_READ, TAPE_RESTORE_NAMESPACE_SCHEMA,
+    TAPE_RESTORE_SNAPSHOT_SCHEMA, UPID_SCHEMA,
 };
 use pbs_config::CachedUserInfo;
 use pbs_datastore::dynamic_index::DynamicIndexReader;
@@ -198,22 +199,13 @@ impl DataStoreMap {
 
 fn check_datastore_privs(
     user_info: &CachedUserInfo,
-    store: &str,
-    ns: &BackupNamespace,
+    store_with_ns: &DatastoreWithNamespace,
     auth_id: &Authid,
     owner: Option<&Authid>,
 ) -> Result<(), Error> {
-    let privs = if ns.is_root() {
-        user_info.lookup_privs(auth_id, &["datastore", store])
-    } else {
-        user_info.lookup_privs(auth_id, &["datastore", store, &ns.to_string()])
-    };
+    let privs = user_info.lookup_privs(auth_id, &store_with_ns.acl_path());
     if (privs & PRIV_DATASTORE_BACKUP) == 0 {
-        if ns.is_root() {
-            bail!("no permissions on /datastore/{}", store);
-        } else {
-            bail!("no permissions on /datastore/{}/{}", store, &ns.to_string());
-        }
+        bail!("no permissions on /{}", store_with_ns.acl_path().join("/"));
     }
 
     if let Some(ref owner) = owner {
@@ -237,29 +229,33 @@ fn check_and_create_namespaces(
     owner: Option<&Authid>,
 ) -> Result<(), Error> {
     // check normal restore privs first
-    check_datastore_privs(user_info, store.name(), ns, auth_id, owner)?;
+    let mut store_with_ns = DatastoreWithNamespace {
+        store: store.name().to_string(),
+        ns: ns.clone(),
+    };
+    check_datastore_privs(user_info, &store_with_ns, auth_id, owner)?;
 
     // try create recursively if it does not exist
     if !store.namespace_exists(ns) {
         let mut tmp_ns: BackupNamespace = Default::default();
-        let has_datastore_priv = user_info.lookup_privs(auth_id, &["datastore", store.name()])
-            & PRIV_DATASTORE_MODIFY
-            != 0;
 
         for comp in ns.components() {
             tmp_ns.push(comp.to_string())?;
             if !store.namespace_exists(&tmp_ns) {
-                if has_datastore_priv
-                    || user_info.lookup_privs(
+                // check parent modification privs
+                user_info
+                    .check_privs(
                         auth_id,
-                        &["datastore", store.name(), &tmp_ns.parent().to_string()],
-                    ) & PRIV_DATASTORE_MODIFY
-                        != 0
-                {
-                    store.create_namespace(&tmp_ns.parent(), comp.to_string())?;
-                } else {
-                    bail!("no permissions to create '{}'", tmp_ns);
-                }
+                        &store_with_ns.acl_path(),
+                        PRIV_DATASTORE_MODIFY,
+                        false,
+                    )
+                    .map_err(|_err| format_err!("no permission to create namespace '{tmp_ns}'"))?;
+
+                store.create_namespace(&tmp_ns.parent(), comp.to_string())?;
+
+                // update parent for next component
+                store_with_ns.ns = tmp_ns.clone();
             }
         }
     }
@@ -350,8 +346,10 @@ pub fn restore(
     for (target, namespaces) in used_datastores.values() {
         check_datastore_privs(
             &user_info,
-            target.name(),
-            &Default::default(),
+            &DatastoreWithNamespace {
+                store: target.name().to_string(),
+                ns: Default::default(),
+            },
             &auth_id,
             owner.as_ref(),
         )?;
@@ -595,13 +593,13 @@ fn check_snapshot_restorable(
     let mut can_restore_some = false;
     for ns in namespaces {
         // only simple check, ns creation comes later
-        if let Err(err) = check_datastore_privs(
-            user_info,
-            datastore.name(),
-            &ns,
-            auth_id,
-            Some(restore_owner),
-        ) {
+        let store_with_ns = DatastoreWithNamespace {
+            store: datastore.name().to_string(),
+            ns: ns.clone(),
+        };
+        if let Err(err) =
+            check_datastore_privs(user_info, &store_with_ns, auth_id, Some(restore_owner))
+        {
             task_warn!(worker, "cannot restore {store}:{snapshot} to {ns}: '{err}'");
             continue;
         }
