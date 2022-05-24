@@ -2,7 +2,7 @@ use anyhow::{bail, Error};
 use serde_json::Value;
 
 use pbs_config::CachedUserInfo;
-use proxmox_router::{http_bail, ApiMethod, Permission, Router, RpcEnvironment};
+use proxmox_router::{http_err, ApiMethod, Permission, Router, RpcEnvironment};
 use proxmox_schema::*;
 
 use pbs_api_types::{
@@ -14,10 +14,16 @@ use pbs_api_types::{
 use pbs_datastore::DataStore;
 
 // TODO: move somewhere we can reuse it from (datastore has its own copy atm.)
-fn get_ns_privs(store_with_ns: &DatastoreWithNamespace, auth_id: &Authid) -> Result<u64, Error> {
+fn check_ns_privs(
+    store_with_ns: &DatastoreWithNamespace,
+    auth_id: &Authid,
+    privs: u64,
+) -> Result<(), Error> {
     let user_info = CachedUserInfo::new()?;
 
-    Ok(user_info.lookup_privs(auth_id, &store_with_ns.acl_path()))
+    user_info
+        .check_privs(auth_id, &store_with_ns.acl_path(), privs, true)
+        .map_err(|err| http_err!(FORBIDDEN, "{err}"))
 }
 
 #[api(
@@ -61,9 +67,7 @@ pub fn create_namespace(
         ns: parent.clone(),
     };
 
-    if get_ns_privs(&store_with_parent, &auth_id)? & PRIV_DATASTORE_MODIFY == 0 {
-        proxmox_router::http_bail!(FORBIDDEN, "permission check failed");
-    }
+    check_ns_privs(&store_with_parent, &auth_id, PRIV_DATASTORE_MODIFY)?;
 
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
@@ -111,9 +115,8 @@ pub fn list_namespaces(
         ns: parent.clone(),
     };
 
-    if get_ns_privs(&store_with_parent, &auth_id)? & PRIVS_OK == 0 {
-        proxmox_router::http_bail!(FORBIDDEN, "permission check failed");
-    }
+    check_ns_privs(&store_with_parent, &auth_id, PRIVS_OK)?;
+
     let user_info = CachedUserInfo::new()?;
 
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
@@ -172,9 +175,7 @@ pub fn delete_namespace(
         store: store.clone(),
         ns: parent.clone(),
     };
-    if get_ns_privs(&store_with_parent, &auth_id)? & PRIV_DATASTORE_MODIFY == 0 {
-        http_bail!(FORBIDDEN, "permission check failed");
-    }
+    check_ns_privs(&store_with_parent, &auth_id, PRIV_DATASTORE_MODIFY)?;
 
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
