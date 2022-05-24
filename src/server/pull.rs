@@ -16,9 +16,9 @@ use proxmox_router::HttpError;
 use proxmox_sys::task_log;
 
 use pbs_api_types::{
-    Authid, BackupNamespace, DatastoreWithNamespace, GroupFilter, GroupListItem, NamespaceListItem,
-    Operation, RateLimitConfig, Remote, SnapshotListItem, MAX_NAMESPACE_DEPTH,
-    PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY,
+    privs_to_priv_names, Authid, BackupNamespace, DatastoreWithNamespace, GroupFilter,
+    GroupListItem, NamespaceListItem, Operation, RateLimitConfig, Remote, SnapshotListItem,
+    MAX_NAMESPACE_DEPTH, PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY,
 };
 
 use pbs_client::{
@@ -800,10 +800,13 @@ fn check_ns_privs(
 
     // TODO re-sync with API, maybe find common place?
 
-    let user_privs = user_info.lookup_privs(owner, &store_with_ns.acl_path());
+    let path = &store_with_ns.acl_path();
+    let user_privs = user_info.lookup_privs(owner, path);
 
     if (user_privs & privs) == 0 {
-        bail!("no permission to modify parent/datastore.");
+        let priv_names = privs_to_priv_names(privs).join("|");
+        let path = path.join("/");
+        bail!("privilege(s) {priv_names} missing on /{path}");
     }
     Ok(())
 }

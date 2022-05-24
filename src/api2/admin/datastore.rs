@@ -32,14 +32,14 @@ use pxar::accessor::aio::Accessor;
 use pxar::EntryKind;
 
 use pbs_api_types::{
-    print_ns_and_snapshot, Authid, BackupContent, BackupNamespace, BackupType, Counts, CryptMode,
-    DataStoreListItem, DataStoreStatus, DatastoreWithNamespace, GarbageCollectionStatus,
-    GroupListItem, Operation, PruneOptions, RRDMode, RRDTimeFrame, SnapshotListItem,
-    SnapshotVerifyState, BACKUP_ARCHIVE_NAME_SCHEMA, BACKUP_ID_SCHEMA, BACKUP_NAMESPACE_SCHEMA,
-    BACKUP_TIME_SCHEMA, BACKUP_TYPE_SCHEMA, DATASTORE_SCHEMA, IGNORE_VERIFIED_BACKUPS_SCHEMA,
-    MAX_NAMESPACE_DEPTH, NS_MAX_DEPTH_SCHEMA, PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP,
-    PRIV_DATASTORE_MODIFY, PRIV_DATASTORE_PRUNE, PRIV_DATASTORE_READ, PRIV_DATASTORE_VERIFY,
-    UPID_SCHEMA, VERIFICATION_OUTDATED_AFTER_SCHEMA,
+    print_ns_and_snapshot, privs_to_priv_names, Authid, BackupContent, BackupNamespace, BackupType,
+    Counts, CryptMode, DataStoreListItem, DataStoreStatus, DatastoreWithNamespace,
+    GarbageCollectionStatus, GroupListItem, Operation, PruneOptions, RRDMode, RRDTimeFrame,
+    SnapshotListItem, SnapshotVerifyState, BACKUP_ARCHIVE_NAME_SCHEMA, BACKUP_ID_SCHEMA,
+    BACKUP_NAMESPACE_SCHEMA, BACKUP_TIME_SCHEMA, BACKUP_TYPE_SCHEMA, DATASTORE_SCHEMA,
+    IGNORE_VERIFIED_BACKUPS_SCHEMA, MAX_NAMESPACE_DEPTH, NS_MAX_DEPTH_SCHEMA, PRIV_DATASTORE_AUDIT,
+    PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY, PRIV_DATASTORE_PRUNE, PRIV_DATASTORE_READ,
+    PRIV_DATASTORE_VERIFY, UPID_SCHEMA, VERIFICATION_OUTDATED_AFTER_SCHEMA,
 };
 use pbs_client::pxar::{create_tar, create_zip};
 use pbs_config::CachedUserInfo;
@@ -110,7 +110,13 @@ fn check_ns_privs(
         return Ok(true);
     }
 
-    proxmox_router::http_bail!(FORBIDDEN, "permission check failed");
+    let priv_names = privs_to_priv_names(full_access_privs | partial_access_privs).join("|");
+    let path = format!("/{}", store_with_ns.acl_path().join("/"));
+
+    proxmox_router::http_bail!(
+        FORBIDDEN,
+        "permission check failed - missing {priv_names} on {path}"
+    );
 }
 
 // helper to unify common sequence of checks:
