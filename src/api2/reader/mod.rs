@@ -134,6 +134,7 @@ fn upgrade_to_backup_reader_protocol(
 
         //let files = BackupInfo::list_files(&path, &backup_dir)?;
 
+        // FIXME: include namespace here?
         let worker_id = format!(
             "{}:{}/{}/{:08X}",
             store,

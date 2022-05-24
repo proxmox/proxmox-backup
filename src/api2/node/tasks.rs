@@ -22,6 +22,7 @@ use proxmox_rest_server::{upid_log_path, upid_read_status, TaskListInfoIterator,
 // matches respective job execution privileges
 fn check_job_privs(auth_id: &Authid, user_info: &CachedUserInfo, upid: &UPID) -> Result<(), Error> {
     match (upid.worker_type.as_str(), &upid.worker_id) {
+        // FIXME: parse namespace here?
         ("verificationjob", Some(workerid)) => {
             if let Some(captures) = VERIFICATION_JOB_WORKER_ID_REGEX.captures(workerid) {
                 if let Some(store) = captures.get(1) {

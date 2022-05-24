@@ -263,6 +263,7 @@ async fn pull(
     let client = pull_params.client().await?;
 
     // fixme: set to_stdout to false?
+    // FIXME: add namespace to worker id?
     let upid_str = WorkerTask::spawn(
         "sync",
         Some(store.clone()),

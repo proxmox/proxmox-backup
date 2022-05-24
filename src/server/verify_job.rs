@@ -25,6 +25,7 @@ pub fn do_verification_job(
 
     let (email, notify) = crate::server::lookup_datastore_notify_settings(&verification_job.store);
 
+    // FIXME encode namespace here for filter/ACL check?
     let job_id = format!("{}:{}", &verification_job.store, job.jobname());
     let worker_type = job.jobtype().to_string();
     let upid_str = WorkerTask::new_thread(

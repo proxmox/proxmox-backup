@@ -115,6 +115,7 @@ pub fn do_prune_job(
 
     let worker_type = job.jobtype().to_string();
     let auth_id = auth_id.clone();
+    // TODO include namespace info here once this becomes namespace-aware/configurable
     let worker_id = format!("{store}");
     let upid_str = WorkerTask::new_thread(
         &worker_type,
