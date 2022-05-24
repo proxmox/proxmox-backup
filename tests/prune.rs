@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::Error;
 
-use pbs_api_types::PruneOptions;
+use pbs_api_types::PruneJobOptions;
 use pbs_datastore::manifest::MANIFEST_BLOB_NAME;
 use pbs_datastore::prune::compute_prune_info;
 use pbs_datastore::{BackupDir, BackupInfo};
@@ -10,7 +10,7 @@ use pbs_datastore::{BackupDir, BackupInfo};
 fn get_prune_list(
     list: Vec<BackupInfo>,
     return_kept: bool,
-    options: &PruneOptions,
+    options: &PruneJobOptions,
 ) -> Vec<PathBuf> {
     let mut prune_info = compute_prune_info(list, options).unwrap();
 
@@ -67,13 +67,13 @@ fn test_prune_protected() -> Result<(), Error> {
 
     eprintln!("{:?}", orig_list);
 
-    let mut options = PruneOptions::default();
+    let mut options = PruneJobOptions::default();
     options.keep_last = Some(1);
     let remove_list = get_prune_list(orig_list.clone(), false, &options);
     let expect: Vec<PathBuf> = vec![PathBuf::from("host/elsa/2019-11-15T10:39:15Z")];
     assert_eq!(remove_list, expect);
 
-    let mut options = PruneOptions::default();
+    let mut options = PruneJobOptions::default();
     options.keep_hourly = Some(1);
     let remove_list = get_prune_list(orig_list.clone(), false, &options);
     let expect: Vec<PathBuf> = vec![PathBuf::from("host/elsa/2019-11-15T10:39:15Z")];
@@ -93,7 +93,7 @@ fn test_prune_hourly() -> Result<(), Error> {
     orig_list.push(create_info("host/elsa/2019-11-15T11:59:15Z", false));
 
     let list = orig_list.clone();
-    let mut options = PruneOptions::default();
+    let mut options = PruneJobOptions::default();
     options.keep_hourly = Some(3);
     let remove_list = get_prune_list(list, false, &options);
     let expect: Vec<PathBuf> = vec![
@@ -104,7 +104,7 @@ fn test_prune_hourly() -> Result<(), Error> {
     assert_eq!(remove_list, expect);
 
     let list = orig_list;
-    let mut options = PruneOptions::default();
+    let mut options = PruneJobOptions::default();
     options.keep_hourly = Some(2);
     let remove_list = get_prune_list(list, true, &options);
     let expect: Vec<PathBuf> = vec![
@@ -131,14 +131,14 @@ fn test_prune_simple2() -> Result<(), Error> {
     orig_list.push(create_info("host/elsa/2019-12-04T11:59:15Z", false));
 
     let list = orig_list.clone();
-    let mut options = PruneOptions::default();
+    let mut options = PruneJobOptions::default();
     options.keep_daily = Some(1);
     let remove_list = get_prune_list(list, true, &options);
     let expect: Vec<PathBuf> = vec![PathBuf::from("host/elsa/2019-12-04T11:59:15Z")];
     assert_eq!(remove_list, expect);
 
     let list = orig_list.clone();
-    let mut options = PruneOptions::default();
+    let mut options = PruneJobOptions::default();
     options.keep_last = Some(1);
     options.keep_daily = Some(1);
     let remove_list = get_prune_list(list, true, &options);
@@ -149,7 +149,7 @@ fn test_prune_simple2() -> Result<(), Error> {
     assert_eq!(remove_list, expect);
 
     let list = orig_list.clone();
-    let mut options = PruneOptions::default();
+    let mut options = PruneJobOptions::default();
     options.keep_daily = Some(1);
     options.keep_weekly = Some(1);
     let remove_list = get_prune_list(list, true, &options);
@@ -160,7 +160,7 @@ fn test_prune_simple2() -> Result<(), Error> {
     assert_eq!(remove_list, expect);
 
     let list = orig_list.clone();
-    let mut options = PruneOptions::default();
+    let mut options = PruneJobOptions::default();
     options.keep_daily = Some(1);
     options.keep_weekly = Some(1);
     options.keep_monthly = Some(1);
@@ -173,7 +173,7 @@ fn test_prune_simple2() -> Result<(), Error> {
     assert_eq!(remove_list, expect);
 
     let list = orig_list;
-    let mut options = PruneOptions::default();
+    let mut options = PruneJobOptions::default();
     options.keep_monthly = Some(1);
     options.keep_yearly = Some(1);
     let remove_list = get_prune_list(list, true, &options);
@@ -198,21 +198,21 @@ fn test_prune_simple() -> Result<(), Error> {
     // keep-last tests
 
     let list = orig_list.clone();
-    let mut options = PruneOptions::default();
+    let mut options = PruneJobOptions::default();
     options.keep_last = Some(4);
     let remove_list = get_prune_list(list, false, &options);
     let expect: Vec<PathBuf> = Vec::new();
     assert_eq!(remove_list, expect);
 
     let list = orig_list.clone();
-    let mut options = PruneOptions::default();
+    let mut options = PruneJobOptions::default();
     options.keep_last = Some(3);
     let remove_list = get_prune_list(list, false, &options);
     let expect: Vec<PathBuf> = vec![PathBuf::from("host/elsa/2019-12-02T11:59:15Z")];
     assert_eq!(remove_list, expect);
 
     let list = orig_list.clone();
-    let mut options = PruneOptions::default();
+    let mut options = PruneJobOptions::default();
     options.keep_last = Some(2);
     let remove_list = get_prune_list(list, false, &options);
     let expect: Vec<PathBuf> = vec![
@@ -222,7 +222,7 @@ fn test_prune_simple() -> Result<(), Error> {
     assert_eq!(remove_list, expect);
 
     let list = orig_list.clone();
-    let mut options = PruneOptions::default();
+    let mut options = PruneJobOptions::default();
     options.keep_last = Some(1);
     let remove_list = get_prune_list(list, false, &options);
     let expect: Vec<PathBuf> = vec![
@@ -233,7 +233,7 @@ fn test_prune_simple() -> Result<(), Error> {
     assert_eq!(remove_list, expect);
 
     let list = orig_list.clone();
-    let mut options = PruneOptions::default();
+    let mut options = PruneJobOptions::default();
     options.keep_last = Some(0);
     let remove_list = get_prune_list(list, false, &options);
     let expect: Vec<PathBuf> = vec![
@@ -246,7 +246,7 @@ fn test_prune_simple() -> Result<(), Error> {
 
     // keep-last, keep-daily mixed
     let list = orig_list.clone();
-    let mut options = PruneOptions::default();
+    let mut options = PruneJobOptions::default();
     options.keep_last = Some(2);
     options.keep_daily = Some(2);
     let remove_list = get_prune_list(list, false, &options);
@@ -255,7 +255,7 @@ fn test_prune_simple() -> Result<(), Error> {
 
     // keep-daily test
     let list = orig_list.clone();
-    let mut options = PruneOptions::default();
+    let mut options = PruneJobOptions::default();
     options.keep_daily = Some(3);
     let remove_list = get_prune_list(list, false, &options);
     let expect: Vec<PathBuf> = vec![PathBuf::from("host/elsa/2019-12-04T11:59:15Z")];
@@ -263,7 +263,7 @@ fn test_prune_simple() -> Result<(), Error> {
 
     // keep-daily test
     let list = orig_list.clone();
-    let mut options = PruneOptions::default();
+    let mut options = PruneJobOptions::default();
     options.keep_daily = Some(2);
     let remove_list = get_prune_list(list, false, &options);
     let expect: Vec<PathBuf> = vec![
@@ -274,7 +274,7 @@ fn test_prune_simple() -> Result<(), Error> {
 
     // keep-weekly
     let list = orig_list.clone();
-    let mut options = PruneOptions::default();
+    let mut options = PruneJobOptions::default();
     options.keep_weekly = Some(5);
     let remove_list = get_prune_list(list, false, &options);
     // all backup are within the same week, so we only keep a single file
@@ -287,7 +287,7 @@ fn test_prune_simple() -> Result<(), Error> {
 
     // keep-daily + keep-weekly
     let list = orig_list.clone();
-    let mut options = PruneOptions::default();
+    let mut options = PruneJobOptions::default();
     options.keep_daily = Some(1);
     options.keep_weekly = Some(5);
     let remove_list = get_prune_list(list, false, &options);
@@ -300,7 +300,7 @@ fn test_prune_simple() -> Result<(), Error> {
 
     // keep-monthly
     let list = orig_list.clone();
-    let mut options = PruneOptions::default();
+    let mut options = PruneJobOptions::default();
     options.keep_monthly = Some(6);
     let remove_list = get_prune_list(list, false, &options);
     // all backup are within the same month, so we only keep a single file
@@ -313,7 +313,7 @@ fn test_prune_simple() -> Result<(), Error> {
 
     // keep-yearly
     let list = orig_list.clone();
-    let mut options = PruneOptions::default();
+    let mut options = PruneJobOptions::default();
     options.keep_yearly = Some(7);
     let remove_list = get_prune_list(list, false, &options);
     // all backup are within the same year, so we only keep a single file
@@ -326,7 +326,7 @@ fn test_prune_simple() -> Result<(), Error> {
 
     // keep-weekly + keep-monthly + keep-yearly
     let list = orig_list;
-    let mut options = PruneOptions::default();
+    let mut options = PruneJobOptions::default();
     options.keep_weekly = Some(5);
     options.keep_monthly = Some(6);
     options.keep_yearly = Some(7);
