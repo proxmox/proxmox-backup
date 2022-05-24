@@ -47,20 +47,11 @@ fn check_backup_permission(
 ) -> Result<(), Error> {
     let user_info = CachedUserInfo::new()?;
 
-    let privs = user_info.lookup_privs(auth_id, &["datastore", store]);
-    if (privs & PRIV_DATASTORE_READ) == 0 {
-        bail!("no permissions on /datastore/{}", store);
-    }
+    user_info.check_privs(auth_id, &["datastore", store], PRIV_DATASTORE_READ, false)?;
 
-    let privs = user_info.lookup_privs(auth_id, &["tape", "drive", drive]);
-    if (privs & PRIV_TAPE_WRITE) == 0 {
-        bail!("no permissions on /tape/drive/{}", drive);
-    }
+    user_info.check_privs(auth_id, &["tape", "drive", drive], PRIV_TAPE_WRITE, false)?;
 
-    let privs = user_info.lookup_privs(auth_id, &["tape", "pool", pool]);
-    if (privs & PRIV_TAPE_WRITE) == 0 {
-        bail!("no permissions on /tape/pool/{}", pool);
-    }
+    user_info.check_privs(auth_id, &["tape", "pool", pool], PRIV_TAPE_WRITE, false)?;
 
     Ok(())
 }

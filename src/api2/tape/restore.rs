@@ -361,10 +361,7 @@ pub fn restore(
         }
     }
 
-    let privs = user_info.lookup_privs(&auth_id, &["tape", "drive", &drive]);
-    if (privs & PRIV_TAPE_READ) == 0 {
-        bail!("no permissions on /tape/drive/{}", drive);
-    }
+    user_info.check_privs(&auth_id, &["tape", "drive", &drive], PRIV_TAPE_READ, false)?;
 
     let media_set_uuid = media_set.parse()?;
 
@@ -376,10 +373,7 @@ pub fn restore(
 
     let pool = inventory.lookup_media_set_pool(&media_set_uuid)?;
 
-    let privs = user_info.lookup_privs(&auth_id, &["tape", "pool", &pool]);
-    if (privs & PRIV_TAPE_READ) == 0 {
-        bail!("no permissions on /tape/pool/{}", pool);
-    }
+    user_info.check_privs(&auth_id, &["tape", "pool", &pool], PRIV_TAPE_READ, false)?;
 
     let (drive_config, _digest) = pbs_config::drive::config()?;
 
