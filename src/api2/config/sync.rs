@@ -20,16 +20,9 @@ pub fn check_sync_job_read_access(
     auth_id: &Authid,
     job: &SyncJobConfig,
 ) -> bool {
-    let datastore_privs = user_info.lookup_privs(auth_id, &["datastore", &job.store]);
-    if datastore_privs & PRIV_DATASTORE_AUDIT == 0 {
+    let ns_anchor_privs = user_info.lookup_privs(auth_id, &job.store_with_ns().acl_path());
+    if ns_anchor_privs & PRIV_DATASTORE_AUDIT == 0 {
         return false;
-    }
-
-    if let Some(ref ns) = job.ns {
-        let ns_privs = user_info.lookup_privs(auth_id, &["datastore", &job.store, &ns.to_string()]);
-        if ns_privs & PRIV_DATASTORE_AUDIT == 0 {
-            return false;
-        }
     }
 
     let remote_privs = user_info.lookup_privs(auth_id, &["remote", &job.remote]);
@@ -45,20 +38,13 @@ pub fn check_sync_job_modify_access(
     auth_id: &Authid,
     job: &SyncJobConfig,
 ) -> bool {
-    let datastore_privs = user_info.lookup_privs(auth_id, &["datastore", &job.store]);
-    if datastore_privs & PRIV_DATASTORE_BACKUP == 0 {
+    let ns_anchor_privs = user_info.lookup_privs(auth_id, &job.store_with_ns().acl_path());
+    if ns_anchor_privs & PRIV_DATASTORE_BACKUP == 0 {
         return false;
     }
 
-    if let Some(ref ns) = job.ns {
-        let ns_privs = user_info.lookup_privs(auth_id, &["datastore", &job.store, &ns.to_string()]);
-        if ns_privs & PRIV_DATASTORE_BACKUP == 0 {
-            return false;
-        }
-    }
-
     if let Some(true) = job.remove_vanished {
-        if datastore_privs & PRIV_DATASTORE_PRUNE == 0 {
+        if ns_anchor_privs & PRIV_DATASTORE_PRUNE == 0 {
             return false;
         }
     }
@@ -73,7 +59,7 @@ pub fn check_sync_job_modify_access(
     };
 
     // same permission as changing ownership after syncing
-    if !correct_owner && datastore_privs & PRIV_DATASTORE_MODIFY == 0 {
+    if !correct_owner && ns_anchor_privs & PRIV_DATASTORE_MODIFY == 0 {
         return false;
     }
 

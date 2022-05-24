@@ -7,9 +7,9 @@ use serde::{Deserialize, Serialize};
 use proxmox_schema::*;
 
 use crate::{
-    Authid, BackupNamespace, BackupType, RateLimitConfig, Userid, BACKUP_GROUP_SCHEMA,
-    BACKUP_NAMESPACE_SCHEMA, DATASTORE_SCHEMA, DRIVE_NAME_SCHEMA, MEDIA_POOL_NAME_SCHEMA,
-    NS_MAX_DEPTH_REDUCED_SCHEMA, PROXMOX_SAFE_ID_FORMAT, REMOTE_ID_SCHEMA,
+    Authid, BackupNamespace, BackupType, DatastoreWithNamespace, RateLimitConfig, Userid,
+    BACKUP_GROUP_SCHEMA, BACKUP_NAMESPACE_SCHEMA, DATASTORE_SCHEMA, DRIVE_NAME_SCHEMA,
+    MEDIA_POOL_NAME_SCHEMA, NS_MAX_DEPTH_REDUCED_SCHEMA, PROXMOX_SAFE_ID_FORMAT, REMOTE_ID_SCHEMA,
     SINGLE_LINE_COMMENT_SCHEMA,
 };
 
@@ -496,6 +496,15 @@ pub struct SyncJobConfig {
     pub group_filter: Option<Vec<GroupFilter>>,
     #[serde(flatten)]
     pub limit: RateLimitConfig,
+}
+
+impl SyncJobConfig {
+    pub fn store_with_ns(&self) -> DatastoreWithNamespace {
+        DatastoreWithNamespace {
+            store: self.store.clone(),
+            ns: self.ns.clone().unwrap_or_default(),
+        }
+    }
 }
 
 #[api(
