@@ -603,15 +603,22 @@ impl AclTree {
         let mut node = &self.root;
         let mut role_map = node.extract_roles(auth_id, path.is_empty());
 
-        for (pos, comp) in path.iter().enumerate() {
-            let last_comp = (pos + 1) == path.len();
-            for scomp in comp.split('/') {
-                node = match node.children.get(scomp) {
+        let mut comp_iter = path.iter().peekable();
+
+        while let Some(comp) = comp_iter.next() {
+            let last_comp = comp_iter.peek().is_none();
+
+            let mut sub_comp_iter = comp.split('/').peekable();
+
+            while let Some(sub_comp) = sub_comp_iter.next() {
+                let last_sub_comp = last_comp && sub_comp_iter.peek().is_none();
+
+                node = match node.children.get(sub_comp) {
                     Some(n) => n,
                     None => return role_map, // path not found
                 };
 
-                let new_map = node.extract_roles(auth_id, last_comp);
+                let new_map = node.extract_roles(auth_id, last_sub_comp);
                 if !new_map.is_empty() {
                     // overwrite previous mappings
                     role_map = new_map;
