@@ -9,7 +9,7 @@ use hyper::{Body, Request, Response, StatusCode};
 use serde::Deserialize;
 use serde_json::{json, Value};
 
-use proxmox_router::list_subdirs_api_method;
+use proxmox_router::{http_err, list_subdirs_api_method};
 use proxmox_router::{
     ApiHandler, ApiMethod, ApiResponseFuture, Permission, Router, RpcEnvironment, SubdirMap,
 };
@@ -90,10 +90,14 @@ fn upgrade_to_backup_protocol(
 
         let user_info = CachedUserInfo::new()?;
 
-        let privs = user_info.lookup_privs(&auth_id, &store_with_ns.acl_path());
-        if privs & PRIV_DATASTORE_BACKUP == 0 {
-            proxmox_router::http_bail!(FORBIDDEN, "permission check failed");
-        }
+        user_info
+            .check_privs(
+                &auth_id,
+                &store_with_ns.acl_path(),
+                PRIV_DATASTORE_BACKUP,
+                false,
+            )
+            .map_err(|err| http_err!(FORBIDDEN, "{err}"))?;
 
         let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
