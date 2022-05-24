@@ -73,6 +73,17 @@ constnamedbitmap! {
     }
 }
 
+pub fn privs_to_priv_names(privs: u64) -> Vec<&'static str> {
+    PRIVILEGES
+        .iter()
+        .fold(Vec::new(), |mut priv_names, (name, value)| {
+            if value & privs != 0 {
+                priv_names.push(name);
+            }
+            priv_names
+        })
+}
+
 /// Admin always has all privileges. It can do everything except a few actions
 /// which are limited to the 'root@pam` superuser
 pub const ROLE_ADMIN: u64 = u64::MAX;
