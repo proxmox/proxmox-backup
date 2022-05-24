@@ -218,29 +218,8 @@ pub const DATASTORE_TUNING_STRING_SCHEMA: Schema = StringSchema::new("Datastore 
             optional: true,
             schema: PRUNE_SCHEDULE_SCHEMA,
         },
-        "keep-last": {
-            optional: true,
-            schema: PRUNE_SCHEMA_KEEP_LAST,
-        },
-        "keep-hourly": {
-            optional: true,
-            schema: PRUNE_SCHEMA_KEEP_HOURLY,
-        },
-        "keep-daily": {
-            optional: true,
-            schema: PRUNE_SCHEMA_KEEP_DAILY,
-        },
-        "keep-weekly": {
-            optional: true,
-            schema: PRUNE_SCHEMA_KEEP_WEEKLY,
-        },
-        "keep-monthly": {
-            optional: true,
-            schema: PRUNE_SCHEMA_KEEP_MONTHLY,
-        },
-        "keep-yearly": {
-            optional: true,
-            schema: PRUNE_SCHEMA_KEEP_YEARLY,
+        keep: {
+            type: crate::KeepOptions,
         },
         "verify-new": {
             description: "If enabled, all new backups will be verified right after completion.",
@@ -277,18 +256,8 @@ pub struct DataStoreConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub prune_schedule: Option<String>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub keep_last: Option<u64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub keep_hourly: Option<u64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub keep_daily: Option<u64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub keep_weekly: Option<u64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub keep_monthly: Option<u64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub keep_yearly: Option<u64>,
+    #[serde(flatten)]
+    pub keep: crate::KeepOptions,
 
     /// If enabled, all backups will be verified right after completion.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -319,12 +288,7 @@ impl DataStoreConfig {
             comment: None,
             gc_schedule: None,
             prune_schedule: None,
-            keep_last: None,
-            keep_hourly: None,
-            keep_daily: None,
-            keep_weekly: None,
-            keep_monthly: None,
-            keep_yearly: None,
+            keep: Default::default(),
             verify_new: None,
             notify_user: None,
             notify: None,

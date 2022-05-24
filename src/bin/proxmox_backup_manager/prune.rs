@@ -1,12 +1,13 @@
 use std::collections::HashMap;
 
 use anyhow::Error;
+use serde::Deserialize;
 use serde_json::Value;
 
 use proxmox_router::{cli::*, ApiHandler, RpcEnvironment};
 use proxmox_schema::api;
 
-use pbs_api_types::{PruneJobConfig, JOB_ID_SCHEMA};
+use pbs_api_types::{DataStoreConfig, PruneJobConfig, PruneJobOptions, JOB_ID_SCHEMA};
 use pbs_config::prune;
 
 use proxmox_backup::api2;
@@ -154,4 +155,78 @@ fn get_prune_job(id: &str) -> Result<PruneJobConfig, Error> {
     let (config, _digest) = prune::config()?;
 
     config.lookup("prune", id)
+}
+
+pub(crate) fn update_to_prune_jobs_config() -> Result<(), Error> {
+    use pbs_config::datastore;
+
+    let _prune_lock = prune::lock_config()?;
+    let _datastore_lock = datastore::lock_config()?;
+
+    let (mut data, _digest) = prune::config()?;
+    let (mut storeconfig, _digest) = datastore::config()?;
+
+    for (store, entry) in storeconfig.sections.iter_mut() {
+        let ty = &entry.0;
+
+        if ty != "datastore" {
+            continue;
+        }
+
+        let mut config = match DataStoreConfig::deserialize(&entry.1) {
+            Ok(c) => c,
+            Err(err) => {
+                eprintln!("failed to parse config of store {store}: {err}");
+                continue;
+            }
+        };
+
+        let options = PruneJobOptions {
+            keep: std::mem::take(&mut config.keep),
+            ..Default::default()
+        };
+
+        let schedule = config.prune_schedule.take();
+
+        entry.1 = serde_json::to_value(config)?;
+
+        let schedule = match schedule {
+            Some(s) => s,
+            None => {
+                eprintln!("dropping disabled prune job in datastore.cfg");
+                continue;
+            }
+        };
+
+        let mut id = format!("storeconfig-{store}");
+        id.truncate(32);
+        if data.sections.contains_key(&id) {
+            eprintln!("skipping existing converted prune job: {id}");
+            continue;
+        }
+
+        if !options.keeps_something() {
+            eprintln!("dropping empty prune job data in datastore.cfg");
+            continue;
+        }
+
+        let prune_config = PruneJobConfig {
+            id: id.clone(),
+            store: store.clone(),
+            disable: false,
+            comment: None,
+            schedule,
+            options,
+        };
+
+        let prune_config = serde_json::to_value(prune_config)?;
+
+        data.sections
+            .insert(id, ("prune".to_string(), prune_config));
+    }
+
+    prune::save_config(&data)?;
+    datastore::save_config(&storeconfig)?;
+
+    Ok(())
 }

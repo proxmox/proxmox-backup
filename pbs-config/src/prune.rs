@@ -39,6 +39,7 @@ pub fn config() -> Result<(SectionConfigData, [u8; 32]), Error> {
 
     let digest = openssl::sha::sha256(content.as_bytes());
     let data = CONFIG.parse(PRUNE_CFG_FILENAME, &content)?;
+
     Ok((data, digest))
 }
 

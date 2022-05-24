@@ -2,7 +2,7 @@ use anyhow::Error;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 
-use proxmox_schema::{ApiType, Schema};
+use proxmox_schema::{AllOfSchema, ApiType, Schema};
 use proxmox_section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin};
 
 use pbs_api_types::{DataStoreConfig, DATASTORE_SCHEMA};
@@ -14,15 +14,12 @@ lazy_static! {
 }
 
 fn init() -> SectionConfig {
-    let obj_schema = match DataStoreConfig::API_SCHEMA {
-        Schema::Object(ref obj_schema) => obj_schema,
-        _ => unreachable!(),
-    };
+    const OBJ_SCHEMA: &AllOfSchema = DataStoreConfig::API_SCHEMA.unwrap_all_of_schema();
 
     let plugin = SectionConfigPlugin::new(
         "datastore".to_string(),
         Some(String::from("name")),
-        obj_schema,
+        OBJ_SCHEMA,
     );
     let mut config = SectionConfig::new(&DATASTORE_SCHEMA);
     config.register_plugin(plugin);

@@ -47,8 +47,8 @@ use pbs_buildcfg::configdir;
 use proxmox_time::CalendarEvent;
 
 use pbs_api_types::{
-    Authid, DataStoreConfig, KeepOptions, Operation, PruneJobConfig, PruneJobOptions,
-    SyncJobConfig, TapeBackupJobConfig, VerificationJobConfig,
+    Authid, DataStoreConfig, Operation, PruneJobConfig, PruneJobOptions, SyncJobConfig,
+    TapeBackupJobConfig, VerificationJobConfig,
 };
 
 use proxmox_rest_server::daemon;
@@ -692,14 +692,7 @@ async fn schedule_datastore_prune() {
         };
 
         let prune_options = PruneJobOptions {
-            keep: KeepOptions {
-                keep_last: store_config.keep_last,
-                keep_hourly: store_config.keep_hourly,
-                keep_daily: store_config.keep_daily,
-                keep_weekly: store_config.keep_weekly,
-                keep_monthly: store_config.keep_monthly,
-                keep_yearly: store_config.keep_yearly,
-            },
+            keep: store_config.keep,
             ..Default::default()
         };
 

@@ -251,22 +251,22 @@ pub fn update_datastore(
                     data.prune_schedule = None;
                 }
                 DeletableProperty::keep_last => {
-                    data.keep_last = None;
+                    data.keep.keep_last = None;
                 }
                 DeletableProperty::keep_hourly => {
-                    data.keep_hourly = None;
+                    data.keep.keep_hourly = None;
                 }
                 DeletableProperty::keep_daily => {
-                    data.keep_daily = None;
+                    data.keep.keep_daily = None;
                 }
                 DeletableProperty::keep_weekly => {
-                    data.keep_weekly = None;
+                    data.keep.keep_weekly = None;
                 }
                 DeletableProperty::keep_monthly => {
-                    data.keep_monthly = None;
+                    data.keep.keep_monthly = None;
                 }
                 DeletableProperty::keep_yearly => {
-                    data.keep_yearly = None;
+                    data.keep.keep_yearly = None;
                 }
                 DeletableProperty::verify_new => {
                     data.verify_new = None;
@@ -308,23 +308,23 @@ pub fn update_datastore(
         data.prune_schedule = update.prune_schedule;
     }
 
-    if update.keep_last.is_some() {
-        data.keep_last = update.keep_last;
+    if update.keep.keep_last.is_some() {
+        data.keep.keep_last = update.keep.keep_last;
     }
-    if update.keep_hourly.is_some() {
-        data.keep_hourly = update.keep_hourly;
+    if update.keep.keep_hourly.is_some() {
+        data.keep.keep_hourly = update.keep.keep_hourly;
     }
-    if update.keep_daily.is_some() {
-        data.keep_daily = update.keep_daily;
+    if update.keep.keep_daily.is_some() {
+        data.keep.keep_daily = update.keep.keep_daily;
     }
-    if update.keep_weekly.is_some() {
-        data.keep_weekly = update.keep_weekly;
+    if update.keep.keep_weekly.is_some() {
+        data.keep.keep_weekly = update.keep.keep_weekly;
     }
-    if update.keep_monthly.is_some() {
-        data.keep_monthly = update.keep_monthly;
+    if update.keep.keep_monthly.is_some() {
+        data.keep.keep_monthly = update.keep.keep_monthly;
     }
-    if update.keep_yearly.is_some() {
-        data.keep_yearly = update.keep_yearly;
+    if update.keep.keep_yearly.is_some() {
+        data.keep.keep_yearly = update.keep.keep_yearly;
     }
 
     if let Some(notify_str) = update.notify {

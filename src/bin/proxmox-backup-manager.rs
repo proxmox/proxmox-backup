@@ -453,6 +453,9 @@ async fn run() -> Result<(), Error> {
         .insert("versions", CliCommand::new(&API_METHOD_GET_VERSIONS));
 
     let args: Vec<String> = std::env::args().take(2).collect();
+    if args.len() >= 2 && args[1] == "update-to-prune-jobs-config" {
+        return update_to_prune_jobs_config();
+    }
     let avoid_init = args.len() >= 2 && (args[1] == "bashcomplete" || args[1] == "printdoc");
 
     if !avoid_init {
@@ -460,6 +463,7 @@ async fn run() -> Result<(), Error> {
         let file_opts = CreateOptions::new()
             .owner(backup_user.uid)
             .group(backup_user.gid);
+
         proxmox_rest_server::init_worker_tasks(
             pbs_buildcfg::PROXMOX_BACKUP_LOG_DIR_M!().into(),
             file_opts,
