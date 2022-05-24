@@ -9,7 +9,7 @@ use proxmox_router::UserInformation;
 use proxmox_section_config::SectionConfigData;
 use proxmox_time::epoch_i64;
 
-use pbs_api_types::{ApiToken, Authid, User, Userid, ROLE_ADMIN};
+use pbs_api_types::{privs_to_priv_names, ApiToken, Authid, User, Userid, ROLE_ADMIN};
 
 use crate::acl::{AclTree, ROLE_NAMES};
 use crate::ConfigVersionCache;
@@ -123,7 +123,16 @@ impl CachedUserInfo {
         if !allowed {
             // printing the path doesn't leaks any information as long as we
             // always check privilege before resource existence
-            bail!("no permissions on '/{}'", path.join("/"));
+            let priv_names = privs_to_priv_names(required_privs);
+            let priv_names = if partial {
+                priv_names.join("|")
+            } else {
+                priv_names.join("&")
+            };
+            bail!(
+                "missing permissions '{priv_names}' on '/{}'",
+                path.join("/")
+            );
         }
         Ok(())
     }
