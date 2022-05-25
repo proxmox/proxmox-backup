@@ -470,7 +470,7 @@ impl DataStore {
             .recursive_iter_backup_ns(ns.to_owned())?
             .collect::<Result<Vec<BackupNamespace>, Error>>()?;
 
-        children.sort_by(|a, b| b.depth().cmp(&a.depth()));
+        children.sort_by_key(|b| std::cmp::Reverse(b.depth()));
 
         let base_file = std::fs::File::open(self.base_path())?;
         let base_fd = base_file.as_raw_fd();
@@ -982,8 +982,10 @@ impl DataStore {
                 .oldest_writer()
                 .unwrap_or(phase1_start_time);
 
-            let mut gc_status = GarbageCollectionStatus::default();
-            gc_status.upid = Some(upid.to_string());
+            let mut gc_status = GarbageCollectionStatus {
+                upid: Some(upid.to_string()),
+                ..Default::default()
+            };
 
             task_log!(worker, "Start GC phase1 (mark used chunks)");
 
@@ -1140,8 +1142,8 @@ impl DataStore {
         self.inner.verify_new
     }
 
-    /// returns a list of chunks sorted by their inode number on disk
-    /// chunks that could not be stat'ed are at the end of the list
+    /// returns a list of chunks sorted by their inode number on disk chunks that couldn't get
+    /// stat'ed are placed at the end of the list
     pub fn get_chunks_in_order<F, A>(
         &self,
         index: &Box<dyn IndexFile + Send>,

@@ -60,8 +60,7 @@ impl SnapshotReader {
         let mut client_log_path = snapshot_path;
         client_log_path.push(CLIENT_LOG_BLOB_NAME);
 
-        let mut file_list = Vec::new();
-        file_list.push(MANIFEST_BLOB_NAME.to_string());
+        let mut file_list = vec![MANIFEST_BLOB_NAME.to_string()];
         for item in manifest.files() {
             file_list.push(item.filename.clone());
         }
