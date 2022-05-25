@@ -164,7 +164,7 @@ impl<R: BufRead> NetworkParser<R> {
         let mask = if let Some(mask) = IPV4_MASK_HASH_LOCALNET.get(netmask.as_str()) {
             *mask
         } else {
-            match u8::from_str_radix(netmask.as_str(), 10) {
+            match netmask.as_str().parse::<u8>() {
                 Ok(mask) => mask,
                 Err(err) => {
                     bail!("unable to parse netmask '{}' - {}", netmask, err);
@@ -211,7 +211,7 @@ impl<R: BufRead> NetworkParser<R> {
         self.eat(Token::MTU)?;
 
         let mtu = self.next_text()?;
-        let mtu = match u64::from_str_radix(&mtu, 10) {
+        let mtu = match mtu.parse::<u64>() {
             Ok(mtu) => mtu,
             Err(err) => {
                 bail!("unable to parse mtu value '{}' - {}", mtu, err);

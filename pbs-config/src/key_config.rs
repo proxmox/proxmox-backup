@@ -370,8 +370,8 @@ fn fingerprint_checks() -> Result<(), Error> {
         131, 185, 101, 156, 10, 87, 174, 25, 144, 144, 21, 155,
     ]);
 
-    let mut data = serde_json::to_vec(&key).expect("encoding KeyConfig failed");
-    decrypt_key(&mut data, &{ || Ok(Vec::new()) })
+    let data = serde_json::to_vec(&key).expect("encoding KeyConfig failed");
+    decrypt_key(&data, &{ || Ok(Vec::new()) })
         .expect_err("decoding KeyConfig with wrong fingerprint worked");
 
     let key = KeyConfig {
@@ -383,8 +383,8 @@ fn fingerprint_checks() -> Result<(), Error> {
         hint: None,
     };
 
-    let mut data = serde_json::to_vec(&key).expect("encoding KeyConfig failed");
-    let (key_data, created, fingerprint) = decrypt_key(&mut data, &{ || Ok(Vec::new()) })
+    let data = serde_json::to_vec(&key).expect("encoding KeyConfig failed");
+    let (key_data, created, fingerprint) = decrypt_key(&data, &{ || Ok(Vec::new()) })
         .expect("decoding KeyConfig without fingerprint failed");
 
     assert_eq!(key.data, key_data);
