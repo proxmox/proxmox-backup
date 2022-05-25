@@ -9,7 +9,7 @@ use anyhow::{bail, format_err, Error};
 use proxmox_sys::{task_log, WorkerTaskContext};
 
 use pbs_api_types::{
-    print_ns_and_snapshot, Authid, BackupNamespace, BackupType, CryptMode, DatastoreWithNamespace,
+    print_ns_and_snapshot, print_store_and_ns, Authid, BackupNamespace, BackupType, CryptMode,
     SnapshotVerifyState, VerifyState, PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_VERIFY, UPID,
 };
 use pbs_datastore::backup_info::{BackupDir, BackupGroup, BackupInfo};
@@ -453,14 +453,10 @@ pub fn verify_backup_group(
     let mut list = match group.list_backups() {
         Ok(list) => list,
         Err(err) => {
-            let store_with_ns = DatastoreWithNamespace {
-                store: verify_worker.datastore.name().to_owned(),
-                ns: group.backup_ns().clone(),
-            };
             task_log!(
                 verify_worker.worker,
                 "verify {}, group {} - unable to list backups: {}",
-                store_with_ns,
+                print_store_and_ns(verify_worker.datastore.name(), group.backup_ns()),
                 group.group(),
                 err,
             );

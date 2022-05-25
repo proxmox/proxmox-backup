@@ -45,7 +45,7 @@ pub fn list_verification_jobs(
     let list = list
         .into_iter()
         .filter(|job: &VerificationJobConfig| {
-            let privs = user_info.lookup_privs(&auth_id, &job.store_with_ns().acl_path());
+            let privs = user_info.lookup_privs(&auth_id, &job.acl_path());
 
             privs & required_privs != 00
         })
@@ -79,12 +79,7 @@ pub fn create_verification_job(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
 
-    user_info.check_privs(
-        &auth_id,
-        &config.store_with_ns().acl_path(),
-        PRIV_DATASTORE_VERIFY,
-        false,
-    )?;
+    user_info.check_privs(&auth_id, &config.acl_path(), PRIV_DATASTORE_VERIFY, false)?;
 
     let _lock = verify::lock_config()?;
 
@@ -130,12 +125,7 @@ pub fn read_verification_job(
     let verification_job: VerificationJobConfig = config.lookup("verification", &id)?;
 
     let required_privs = PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_VERIFY;
-    user_info.check_privs(
-        &auth_id,
-        &verification_job.store_with_ns().acl_path(),
-        required_privs,
-        true,
-    )?;
+    user_info.check_privs(&auth_id, &verification_job.acl_path(), required_privs, true)?;
 
     rpcenv["digest"] = hex::encode(&digest).into();
 
@@ -216,12 +206,7 @@ pub fn update_verification_job(
     let mut data: VerificationJobConfig = config.lookup("verification", &id)?;
 
     // check existing store and NS
-    user_info.check_privs(
-        &auth_id,
-        &data.store_with_ns().acl_path(),
-        PRIV_DATASTORE_VERIFY,
-        true,
-    )?;
+    user_info.check_privs(&auth_id, &data.acl_path(), PRIV_DATASTORE_VERIFY, true)?;
 
     if let Some(delete) = delete {
         for delete_prop in delete {
@@ -283,12 +268,7 @@ pub fn update_verification_job(
     }
 
     // check new store and NS
-    user_info.check_privs(
-        &auth_id,
-        &data.store_with_ns().acl_path(),
-        PRIV_DATASTORE_VERIFY,
-        true,
-    )?;
+    user_info.check_privs(&auth_id, &data.acl_path(), PRIV_DATASTORE_VERIFY, true)?;
 
     config.set_data(&id, "verification", &data)?;
 
@@ -333,12 +313,7 @@ pub fn delete_verification_job(
     let (mut config, expected_digest) = verify::config()?;
 
     let job: VerificationJobConfig = config.lookup("verification", &id)?;
-    user_info.check_privs(
-        &auth_id,
-        &job.store_with_ns().acl_path(),
-        PRIV_DATASTORE_VERIFY,
-        true,
-    )?;
+    user_info.check_privs(&auth_id, &job.acl_path(), PRIV_DATASTORE_VERIFY, true)?;
 
     if let Some(ref digest) = digest {
         let digest = <[u8; 32]>::from_hex(digest)?;

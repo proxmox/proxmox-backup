@@ -10,7 +10,7 @@ use proxmox_schema::api;
 use proxmox_sys::{task_log, task_warn, WorkerTaskContext};
 
 use pbs_api_types::{
-    print_ns_and_snapshot, Authid, DatastoreWithNamespace, GroupFilter, MediaPoolConfig, Operation,
+    print_ns_and_snapshot, print_store_and_ns, Authid, GroupFilter, MediaPoolConfig, Operation,
     TapeBackupJobConfig, TapeBackupJobSetup, TapeBackupJobStatus, Userid, JOB_ID_SCHEMA,
     PRIV_DATASTORE_READ, PRIV_TAPE_AUDIT, PRIV_TAPE_WRITE, UPID_SCHEMA,
 };
@@ -453,11 +453,6 @@ fn backup_worker(
     let mut need_catalog = false; // avoid writing catalog for empty jobs
 
     for (group_number, group) in group_list.into_iter().enumerate() {
-        let store_with_ns = DatastoreWithNamespace {
-            store: datastore_name.to_owned(),
-            ns: group.backup_ns().clone(),
-        };
-
         progress.done_groups = group_number as u64;
         progress.done_snapshots = 0;
         progress.group_snapshots = 0;
@@ -474,7 +469,7 @@ fn backup_worker(
             task_log!(
                 worker,
                 "{}, group {} was empty",
-                store_with_ns,
+                print_store_and_ns(datastore_name, group.backup_ns()),
                 group.group()
             );
             continue;

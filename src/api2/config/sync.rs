@@ -20,7 +20,7 @@ pub fn check_sync_job_read_access(
     auth_id: &Authid,
     job: &SyncJobConfig,
 ) -> bool {
-    let ns_anchor_privs = user_info.lookup_privs(auth_id, &job.store_with_ns().acl_path());
+    let ns_anchor_privs = user_info.lookup_privs(auth_id, &job.acl_path());
     if ns_anchor_privs & PRIV_DATASTORE_AUDIT == 0 {
         return false;
     }
@@ -38,7 +38,7 @@ pub fn check_sync_job_modify_access(
     auth_id: &Authid,
     job: &SyncJobConfig,
 ) -> bool {
-    let ns_anchor_privs = user_info.lookup_privs(auth_id, &job.store_with_ns().acl_path());
+    let ns_anchor_privs = user_info.lookup_privs(auth_id, &job.acl_path());
     if ns_anchor_privs & PRIV_DATASTORE_BACKUP == 0 {
         return false;
     }

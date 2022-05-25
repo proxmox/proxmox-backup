@@ -3,38 +3,37 @@ use std::sync::Arc;
 use anyhow::{bail, Error};
 
 use pbs_api_types::{
-    privs_to_priv_names, Authid, BackupNamespace, DatastoreWithNamespace, PRIV_DATASTORE_AUDIT,
-    PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY, PRIV_DATASTORE_READ,
+    privs_to_priv_names, Authid, BackupNamespace, PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP,
+    PRIV_DATASTORE_MODIFY, PRIV_DATASTORE_READ,
 };
 use pbs_config::CachedUserInfo;
 use pbs_datastore::{backup_info::BackupGroup, DataStore, ListGroups, ListNamespacesRecursive};
 
 /// Asserts that `privs` are fulfilled on datastore + (optional) namespace.
 pub fn check_ns_privs(
-    store_with_ns: &DatastoreWithNamespace,
+    store: &str,
+    ns: &BackupNamespace,
     auth_id: &Authid,
     privs: u64,
 ) -> Result<(), Error> {
-    check_ns_privs_full(store_with_ns, auth_id, privs, 0).map(|_| ())
+    check_ns_privs_full(store, ns, auth_id, privs, 0).map(|_| ())
 }
 
 /// Asserts that `privs` for creating/destroying namespace in datastore are fulfilled.
 pub fn check_ns_modification_privs(
-    store_with_ns: &DatastoreWithNamespace,
+    store: &str,
+    ns: &BackupNamespace,
     auth_id: &Authid,
 ) -> Result<(), Error> {
     // we could allow it as easy purge-whole datastore, but lets be more restrictive for now
-    if store_with_ns.ns.is_root() {
+    if ns.is_root() {
         // TODO
         bail!("Cannot create/delete root namespace!");
     }
 
-    let parent = DatastoreWithNamespace {
-        store: store_with_ns.store.clone(),
-        ns: store_with_ns.ns.parent(),
-    };
+    let parent = ns.parent();
 
-    check_ns_privs(&parent, auth_id, PRIV_DATASTORE_MODIFY)
+    check_ns_privs(store, &parent, auth_id, PRIV_DATASTORE_MODIFY)
 }
 
 /// Asserts that either either `full_access_privs` or `partial_access_privs` are fulfilled on
@@ -43,13 +42,15 @@ pub fn check_ns_modification_privs(
 /// Return value indicates whether further checks like group ownerships are required because
 /// `full_access_privs` are missing.
 pub fn check_ns_privs_full(
-    store_with_ns: &DatastoreWithNamespace,
+    store: &str,
+    ns: &BackupNamespace,
     auth_id: &Authid,
     full_access_privs: u64,
     partial_access_privs: u64,
 ) -> Result<bool, Error> {
     let user_info = CachedUserInfo::new()?;
-    let privs = user_info.lookup_privs(auth_id, &store_with_ns.acl_path());
+    let acl_path = ns.acl_path(store);
+    let privs = user_info.lookup_privs(auth_id, &acl_path);
 
     if full_access_privs != 0 && (privs & full_access_privs) != 0 {
         return Ok(false);
@@ -59,7 +60,7 @@ pub fn check_ns_privs_full(
     }
 
     let priv_names = privs_to_priv_names(full_access_privs | partial_access_privs).join("|");
-    let path = format!("/{}", store_with_ns.acl_path().join("/"));
+    let path = format!("/{}", acl_path.join("/"));
 
     proxmox_router::http_bail!(
         FORBIDDEN,
@@ -158,11 +159,9 @@ impl<'a> Iterator for ListAccessibleBackupGroups<'a> {
                         let mut override_owner = false;
                         if let Some(auth_id) = &self.auth_id {
                             let info = &self.user_info;
-                            let store_with_ns = DatastoreWithNamespace {
-                                store: self.store.name().to_string(),
-                                ns: ns.clone(),
-                            };
-                            let privs = info.lookup_privs(&auth_id, &store_with_ns.acl_path());
+
+                            let privs =
+                                info.lookup_privs(&auth_id, &ns.acl_path(self.store.name()));
 
                             if privs & NS_PRIVS_OK == 0 {
                                 continue;

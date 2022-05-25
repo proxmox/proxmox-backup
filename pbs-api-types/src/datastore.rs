@@ -694,6 +694,17 @@ impl BackupNamespace {
         }
         Ok(())
     }
+
+    pub fn acl_path<'a>(&'a self, store: &'a str) -> Vec<&'a str> {
+        let mut path: Vec<&str> = vec!["datastore", store];
+
+        if self.is_root() {
+            path
+        } else {
+            path.extend(self.inner.iter().map(|comp| comp.as_str()));
+            path
+        }
+    }
 }
 
 impl fmt::Display for BackupNamespace {
@@ -1023,35 +1034,6 @@ impl fmt::Display for BackupDir {
         // FIXME: log error?
         let time = proxmox_time::epoch_to_rfc3339_utc(self.time).map_err(|_| fmt::Error)?;
         write!(f, "{}/{}", self.group, time)
-    }
-}
-
-/// Helper struct for places where sensible formatting of store+NS combo is required
-pub struct DatastoreWithNamespace {
-    pub store: String,
-    pub ns: BackupNamespace,
-}
-
-impl fmt::Display for DatastoreWithNamespace {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.ns.is_root() {
-            write!(f, "datastore {}, root namespace", self.store)
-        } else {
-            write!(f, "datastore '{}', namespace '{}'", self.store, self.ns)
-        }
-    }
-}
-
-impl DatastoreWithNamespace {
-    pub fn acl_path(&self) -> Vec<&str> {
-        let mut path: Vec<&str> = vec!["datastore", &self.store];
-
-        if self.ns.is_root() {
-            path
-        } else {
-            path.extend(self.ns.inner.iter().map(|comp| comp.as_str()));
-            path
-        }
     }
 }
 
@@ -1477,5 +1459,14 @@ pub fn print_ns_and_snapshot(ns: &BackupNamespace, dir: &BackupDir) -> String {
         dir.to_string()
     } else {
         format!("{}/{}", ns.display_as_path(), dir)
+    }
+}
+
+/// Prints a Datastore name and [`BackupNamespace`] for logs/errors.
+pub fn print_store_and_ns(store: &str, ns: &BackupNamespace) -> String {
+    if ns.is_root() {
+        format!("datastore '{}', root namespace", store)
+    } else {
+        format!("datastore '{}', namespace '{}'", store, ns)
     }
 }

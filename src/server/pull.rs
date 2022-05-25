@@ -16,7 +16,7 @@ use proxmox_router::HttpError;
 use proxmox_sys::task_log;
 
 use pbs_api_types::{
-    Authid, BackupNamespace, DatastoreWithNamespace, GroupFilter, GroupListItem, NamespaceListItem,
+    print_store_and_ns, Authid, BackupNamespace, GroupFilter, GroupListItem, NamespaceListItem,
     Operation, RateLimitConfig, Remote, SnapshotListItem, MAX_NAMESPACE_DEPTH,
     PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP,
 };
@@ -115,14 +115,6 @@ impl PullParameters {
     /// Creates a new [HttpClient] for accessing the [Remote] that is pulled from.
     pub async fn client(&self) -> Result<HttpClient, Error> {
         crate::api2::config::remote::remote_client(&self.remote, Some(self.limit.clone())).await
-    }
-
-    /// Returns DatastoreWithNamespace with namespace (or local namespace anchor).
-    pub fn store_with_ns(&self, ns: BackupNamespace) -> DatastoreWithNamespace {
-        DatastoreWithNamespace {
-            store: self.store.name().to_string(),
-            ns,
-        }
     }
 }
 
@@ -792,15 +784,12 @@ async fn query_namespaces(
     Ok(list.iter().map(|item| item.ns.clone()).collect())
 }
 
-fn check_and_create_ns(
-    params: &PullParameters,
-    store_with_ns: &DatastoreWithNamespace,
-) -> Result<bool, Error> {
-    let ns = &store_with_ns.ns;
+fn check_and_create_ns(params: &PullParameters, ns: &BackupNamespace) -> Result<bool, Error> {
     let mut created = false;
+    let store_ns_str = print_store_and_ns(params.store.name(), ns);
 
     if !ns.is_root() && !params.store.namespace_path(&ns).exists() {
-        check_ns_modification_privs(&store_with_ns, &params.owner)
+        check_ns_modification_privs(params.store.name(), ns, &params.owner)
             .map_err(|err| format_err!("Creating {ns} not allowed - {err}"))?;
 
         let name = match ns.components().last() {
@@ -811,24 +800,24 @@ fn check_and_create_ns(
         };
 
         if let Err(err) = params.store.create_namespace(&ns.parent(), name) {
-            bail!(
-                "sync into {} failed - namespace creation failed: {}",
-                &store_with_ns,
-                err
-            );
+            bail!("sync into {store_ns_str} failed - namespace creation failed: {err}");
         }
         created = true;
     }
 
-    check_ns_privs(&store_with_ns, &params.owner, PRIV_DATASTORE_BACKUP)
-        .map_err(|err| format_err!("sync into {store_with_ns} not allowed - {err}"))?;
+    check_ns_privs(
+        params.store.name(),
+        ns,
+        &params.owner,
+        PRIV_DATASTORE_BACKUP,
+    )
+    .map_err(|err| format_err!("sync into {store_ns_str} not allowed - {err}"))?;
 
     Ok(created)
 }
 
 fn check_and_remove_ns(params: &PullParameters, local_ns: &BackupNamespace) -> Result<bool, Error> {
-    let store_with_ns = params.store_with_ns(local_ns.clone());
-    check_ns_modification_privs(&store_with_ns, &params.owner)
+    check_ns_modification_privs(&params.store.name(), local_ns, &params.owner)
         .map_err(|err| format_err!("Removing {local_ns} not allowed - {err}"))?;
 
     params.store.remove_namespace_recursive(local_ns, true)
@@ -851,8 +840,8 @@ fn check_and_remove_vanished_ns(
         .store
         .recursive_iter_backup_ns_ok(params.ns.clone(), Some(max_depth))?
         .filter(|ns| {
-            let store_with_ns = params.store_with_ns(ns.clone());
-            let user_privs = user_info.lookup_privs(&params.owner, &store_with_ns.acl_path());
+            let user_privs =
+                user_info.lookup_privs(&params.owner, &ns.acl_path(params.store.name()));
             user_privs & (PRIV_DATASTORE_BACKUP | PRIV_DATASTORE_AUDIT) != 0
         })
         .collect();
@@ -927,32 +916,30 @@ pub async fn pull_store(
     let mut synced_ns = HashSet::with_capacity(namespaces.len());
 
     for namespace in namespaces {
-        let source_store_ns = DatastoreWithNamespace {
-            store: params.source.store().to_owned(),
-            ns: namespace.clone(),
-        };
+        let source_store_ns_str = print_store_and_ns(params.source.store(), &namespace);
+
         let target_ns = namespace.map_prefix(&params.remote_ns, &params.ns)?;
-        let target_store_ns = params.store_with_ns(target_ns.clone());
+        let target_store_ns_str = print_store_and_ns(params.store.name(), &target_ns);
 
         task_log!(worker, "----");
         task_log!(
             worker,
             "Syncing {} into {}",
-            source_store_ns,
-            target_store_ns
+            source_store_ns_str,
+            target_store_ns_str
         );
 
         synced_ns.insert(target_ns.clone());
 
-        match check_and_create_ns(&params, &target_store_ns) {
+        match check_and_create_ns(&params, &target_ns) {
             Ok(true) => task_log!(worker, "Created namespace {}", target_ns),
             Ok(false) => {}
             Err(err) => {
                 task_log!(
                     worker,
                     "Cannot sync {} into {} - {}",
-                    source_store_ns,
-                    target_store_ns,
+                    source_store_ns_str,
+                    target_store_ns_str,
                     err,
                 );
                 errors = true;

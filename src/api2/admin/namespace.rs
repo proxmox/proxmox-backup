@@ -6,9 +6,8 @@ use proxmox_router::{ApiMethod, Permission, Router, RpcEnvironment};
 use proxmox_schema::*;
 
 use pbs_api_types::{
-    Authid, BackupNamespace, DatastoreWithNamespace, NamespaceListItem, Operation,
-    DATASTORE_SCHEMA, NS_MAX_DEPTH_SCHEMA, PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP,
-    PRIV_DATASTORE_MODIFY, PROXMOX_SAFE_ID_FORMAT,
+    Authid, BackupNamespace, NamespaceListItem, Operation, DATASTORE_SCHEMA, NS_MAX_DEPTH_SCHEMA,
+    PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY, PROXMOX_SAFE_ID_FORMAT,
 };
 
 use pbs_datastore::DataStore;
@@ -54,12 +53,7 @@ pub fn create_namespace(
     let mut ns = parent.clone();
     ns.push(name.clone())?;
 
-    let store_with_ns = DatastoreWithNamespace {
-        store: store.clone(),
-        ns,
-    };
-
-    check_ns_modification_privs(&store_with_ns, &auth_id)?;
+    check_ns_modification_privs(&store, &ns, &auth_id)?;
 
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
@@ -102,12 +96,8 @@ pub fn list_namespaces(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     const PRIVS_OK: u64 = PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_BACKUP | PRIV_DATASTORE_AUDIT;
     // first do a base check to avoid leaking if a NS exists or not
-    let store_with_parent = DatastoreWithNamespace {
-        store: store.clone(),
-        ns: parent.clone(),
-    };
 
-    check_ns_privs(&store_with_parent, &auth_id, PRIVS_OK)?;
+    check_ns_privs(&store, &parent, &auth_id, PRIVS_OK)?;
 
     let user_info = CachedUserInfo::new()?;
 
@@ -122,7 +112,7 @@ pub fn list_namespaces(
             if ns.is_root() {
                 return true; // already covered by access permission above
             }
-            let privs = user_info.lookup_privs(&auth_id, &["datastore", &store, &ns.to_string()]);
+            let privs = user_info.lookup_privs(&auth_id, &ns.acl_path(&store));
             privs & PRIVS_OK != 0
         })
         .map(ns_to_item)
@@ -158,11 +148,8 @@ pub fn delete_namespace(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-    let store_with_ns = DatastoreWithNamespace {
-        store: store.clone(),
-        ns: ns.clone(),
-    };
-    check_ns_modification_privs(&store_with_ns, &auth_id)?;
+
+    check_ns_modification_privs(&store, &ns, &auth_id)?;
 
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
