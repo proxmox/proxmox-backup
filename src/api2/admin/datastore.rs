@@ -589,8 +589,8 @@ pub fn list_snapshots(
             Err(err) => {
                 eprintln!(
                     "Failed to get owner of group '{}' in {} - {}",
-                    &store_with_ns,
                     group.group(),
+                    &store_with_ns,
                     err
                 );
                 return Ok(snapshots);
