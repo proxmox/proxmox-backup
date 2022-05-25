@@ -373,14 +373,14 @@ impl DynamicIndexWriter {
             );
         }
 
-        let offset_le: &[u8; 8] = unsafe { &std::mem::transmute::<u64, [u8; 8]>(offset.to_le()) };
+        let offset_le: [u8; 8] = offset.to_le().to_ne_bytes();
 
         if let Some(ref mut csum) = self.csum {
-            csum.update(offset_le);
+            csum.update(&offset_le);
             csum.update(digest);
         }
 
-        self.writer.write_all(offset_le)?;
+        self.writer.write_all(&offset_le)?;
         self.writer.write_all(digest)?;
         Ok(())
     }
