@@ -18,7 +18,7 @@ use proxmox_sys::task_log;
 use pbs_api_types::{
     Authid, BackupNamespace, DatastoreWithNamespace, GroupFilter, GroupListItem, NamespaceListItem,
     Operation, RateLimitConfig, Remote, SnapshotListItem, MAX_NAMESPACE_DEPTH,
-    PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY,
+    PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP,
 };
 
 use pbs_client::{
@@ -35,6 +35,7 @@ use pbs_datastore::{check_backup_owner, DataStore, StoreProgress};
 use pbs_tools::sha::sha256;
 use proxmox_rest_server::WorkerTask;
 
+use crate::backup::{check_ns_modification_privs, check_ns_privs};
 use crate::tools::parallel_handler::ParallelHandler;
 
 /// Parameters for a pull operation.
@@ -791,18 +792,6 @@ async fn query_namespaces(
     Ok(list.iter().map(|item| item.ns.clone()).collect())
 }
 
-fn check_ns_privs(
-    store_with_ns: &DatastoreWithNamespace,
-    owner: &Authid,
-    privs: u64,
-) -> Result<(), Error> {
-    let user_info = CachedUserInfo::new()?;
-
-    // TODO re-sync with API, maybe find common place?
-
-    user_info.check_privs(owner, &store_with_ns.acl_path(), privs, true)
-}
-
 fn check_and_create_ns(
     params: &PullParameters,
     store_with_ns: &DatastoreWithNamespace,
@@ -811,32 +800,26 @@ fn check_and_create_ns(
     let mut created = false;
 
     if !ns.is_root() && !params.store.namespace_path(&ns).exists() {
-        let mut parent = ns.clone();
-        let name = parent.pop();
-
-        let parent = params.store_with_ns(parent);
-
-        check_ns_privs(&parent, &params.owner, PRIV_DATASTORE_MODIFY)
+        check_ns_modification_privs(&store_with_ns, &params.owner)
             .map_err(|err| format_err!("Creating {ns} not allowed - {err}"))?;
 
-        if let Some(name) = name {
-            if let Err(err) = params.store.create_namespace(&parent.ns, name) {
-                bail!(
-                    "sync into {} failed - namespace creation failed: {}",
-                    &store_with_ns,
-                    err
-                );
+        let name = match ns.components().last() {
+            Some(name) => name.to_owned(),
+            None => {
+                bail!("Failed to determine last component of namespace.");
             }
-            created = true;
-        } else {
+        };
+
+        if let Err(err) = params.store.create_namespace(&ns.parent(), name) {
             bail!(
-                "sync into {} failed - namespace creation failed - couldn't determine parent namespace",
+                "sync into {} failed - namespace creation failed: {}",
                 &store_with_ns,
+                err
             );
         }
+        created = true;
     }
 
-    // TODO re-sync with API, maybe find common place?
     check_ns_privs(&store_with_ns, &params.owner, PRIV_DATASTORE_BACKUP)
         .map_err(|err| format_err!("sync into {store_with_ns} not allowed - {err}"))?;
 
@@ -844,10 +827,10 @@ fn check_and_create_ns(
 }
 
 fn check_and_remove_ns(params: &PullParameters, local_ns: &BackupNamespace) -> Result<bool, Error> {
-    let parent = local_ns.clone().parent();
-    let store_with_parent = params.store_with_ns(parent);
-    check_ns_privs(&store_with_parent, &params.owner, PRIV_DATASTORE_MODIFY)
+    let store_with_ns = params.store_with_ns(local_ns.clone());
+    check_ns_modification_privs(&store_with_ns, &params.owner)
         .map_err(|err| format_err!("Removing {local_ns} not allowed - {err}"))?;
+
     params.store.remove_namespace_recursive(local_ns, true)
 }
 

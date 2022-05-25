@@ -32,14 +32,14 @@ use pxar::accessor::aio::Accessor;
 use pxar::EntryKind;
 
 use pbs_api_types::{
-    print_ns_and_snapshot, privs_to_priv_names, Authid, BackupContent, BackupNamespace, BackupType,
-    Counts, CryptMode, DataStoreListItem, DataStoreStatus, DatastoreWithNamespace,
-    GarbageCollectionStatus, GroupListItem, Operation, PruneOptions, RRDMode, RRDTimeFrame,
-    SnapshotListItem, SnapshotVerifyState, BACKUP_ARCHIVE_NAME_SCHEMA, BACKUP_ID_SCHEMA,
-    BACKUP_NAMESPACE_SCHEMA, BACKUP_TIME_SCHEMA, BACKUP_TYPE_SCHEMA, DATASTORE_SCHEMA,
-    IGNORE_VERIFIED_BACKUPS_SCHEMA, MAX_NAMESPACE_DEPTH, NS_MAX_DEPTH_SCHEMA, PRIV_DATASTORE_AUDIT,
-    PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY, PRIV_DATASTORE_PRUNE, PRIV_DATASTORE_READ,
-    PRIV_DATASTORE_VERIFY, UPID_SCHEMA, VERIFICATION_OUTDATED_AFTER_SCHEMA,
+    print_ns_and_snapshot, Authid, BackupContent, BackupNamespace, BackupType, Counts, CryptMode,
+    DataStoreListItem, DataStoreStatus, DatastoreWithNamespace, GarbageCollectionStatus,
+    GroupListItem, Operation, PruneOptions, RRDMode, RRDTimeFrame, SnapshotListItem,
+    SnapshotVerifyState, BACKUP_ARCHIVE_NAME_SCHEMA, BACKUP_ID_SCHEMA, BACKUP_NAMESPACE_SCHEMA,
+    BACKUP_TIME_SCHEMA, BACKUP_TYPE_SCHEMA, DATASTORE_SCHEMA, IGNORE_VERIFIED_BACKUPS_SCHEMA,
+    MAX_NAMESPACE_DEPTH, NS_MAX_DEPTH_SCHEMA, PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP,
+    PRIV_DATASTORE_MODIFY, PRIV_DATASTORE_PRUNE, PRIV_DATASTORE_READ, PRIV_DATASTORE_VERIFY,
+    UPID_SCHEMA, VERIFICATION_OUTDATED_AFTER_SCHEMA,
 };
 use pbs_client::pxar::{create_tar, create_zip};
 use pbs_config::CachedUserInfo;
@@ -63,7 +63,7 @@ use proxmox_rest_server::{formatter, WorkerTask};
 use crate::api2::backup::optional_ns_param;
 use crate::api2::node::rrd::create_value_from_rrd;
 use crate::backup::{
-    verify_all_backups, verify_backup_dir, verify_backup_group, verify_filter,
+    check_ns_privs_full, verify_all_backups, verify_backup_dir, verify_backup_group, verify_filter,
     ListAccessibleBackupGroups,
 };
 
@@ -81,63 +81,29 @@ fn get_group_note_path(
     note_path
 }
 
-// TODO: move somewhere we can reuse it from (namespace has its own copy atm.)
-fn get_ns_privs(store_with_ns: &DatastoreWithNamespace, auth_id: &Authid) -> Result<u64, Error> {
-    let user_info = CachedUserInfo::new()?;
-
-    Ok(user_info.lookup_privs(auth_id, &store_with_ns.acl_path()))
-}
-
-// asserts that either either `full_access_privs` or `partial_access_privs` are fulfilled,
-// returning value indicates whether further checks like group ownerships are required
-fn check_ns_privs(
-    store: &str,
-    ns: &BackupNamespace,
-    auth_id: &Authid,
-    full_access_privs: u64,
-    partial_access_privs: u64,
-) -> Result<bool, Error> {
-    let store_with_ns = DatastoreWithNamespace {
-        store: store.to_string(),
-        ns: ns.clone(),
-    };
-    let privs = get_ns_privs(&store_with_ns, auth_id)?;
-
-    if full_access_privs != 0 && (privs & full_access_privs) != 0 {
-        return Ok(false);
-    }
-    if partial_access_privs != 0 && (privs & partial_access_privs) != 0 {
-        return Ok(true);
-    }
-
-    let priv_names = privs_to_priv_names(full_access_privs | partial_access_privs).join("|");
-    let path = format!("/{}", store_with_ns.acl_path().join("/"));
-
-    proxmox_router::http_bail!(
-        FORBIDDEN,
-        "permission check failed - missing {priv_names} on {path}"
-    );
-}
-
 // helper to unify common sequence of checks:
 // 1. check privs on NS (full or limited access)
 // 2. load datastore
 // 3. if needed (only limited access), check owner of group
 fn check_privs_and_load_store(
-    store: &str,
-    ns: &BackupNamespace,
+    store_with_ns: &DatastoreWithNamespace,
     auth_id: &Authid,
     full_access_privs: u64,
     partial_access_privs: u64,
     operation: Option<Operation>,
     backup_group: &pbs_api_types::BackupGroup,
 ) -> Result<Arc<DataStore>, Error> {
-    let limited = check_ns_privs(store, ns, auth_id, full_access_privs, partial_access_privs)?;
+    let limited = check_ns_privs_full(
+        store_with_ns,
+        auth_id,
+        full_access_privs,
+        partial_access_privs,
+    )?;
 
-    let datastore = DataStore::lookup_datastore(&store, operation)?;
+    let datastore = DataStore::lookup_datastore(&store_with_ns.store, operation)?;
 
     if limited {
-        let owner = datastore.get_owner(&ns, backup_group)?;
+        let owner = datastore.get_owner(&store_with_ns.ns, backup_group)?;
         check_backup_owner(&owner, &auth_id)?;
     }
 
@@ -222,19 +188,19 @@ pub fn list_groups(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
     let ns = ns.unwrap_or_default();
-    let list_all = !check_ns_privs(
-        &store,
-        &ns,
+    let store_with_ns = DatastoreWithNamespace {
+        store: store.clone(),
+        ns: ns.clone(),
+    };
+
+    let list_all = !check_ns_privs_full(
+        &store_with_ns,
         &auth_id,
         PRIV_DATASTORE_AUDIT,
         PRIV_DATASTORE_BACKUP,
     )?;
 
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
-    let store_with_ns = DatastoreWithNamespace {
-        store: store.to_owned(),
-        ns: ns.clone(),
-    };
 
     datastore
         .iter_backup_groups(ns.clone())? // FIXME: Namespaces and recursion parameters!
@@ -327,8 +293,10 @@ pub fn delete_group(
     let ns = ns.unwrap_or_default();
 
     let datastore = check_privs_and_load_store(
-        &store,
-        &ns,
+        &DatastoreWithNamespace {
+            store: store.clone(),
+            ns: ns.clone(),
+        },
         &auth_id,
         PRIV_DATASTORE_MODIFY,
         PRIV_DATASTORE_PRUNE,
@@ -375,10 +343,13 @@ pub fn list_snapshot_files(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
     let ns = ns.unwrap_or_default();
+    let store_with_ns = DatastoreWithNamespace {
+        store: store.clone(),
+        ns: ns.clone(),
+    };
 
     let datastore = check_privs_and_load_store(
-        &store,
-        &ns,
+        &store_with_ns,
         &auth_id,
         PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_READ,
         PRIV_DATASTORE_BACKUP,
@@ -426,9 +397,13 @@ pub fn delete_snapshot(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
     let ns = ns.unwrap_or_default();
+    let store_with_ns = DatastoreWithNamespace {
+        store: store.clone(),
+        ns: ns.clone(),
+    };
+
     let datastore = check_privs_and_load_store(
-        &store,
-        &ns,
+        &store_with_ns,
         &auth_id,
         PRIV_DATASTORE_MODIFY,
         PRIV_DATASTORE_PRUNE,
@@ -482,20 +457,19 @@ pub fn list_snapshots(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
     let ns = ns.unwrap_or_default();
+    let store_with_ns = DatastoreWithNamespace {
+        store: store.clone(),
+        ns: ns.clone(),
+    };
 
-    let list_all = !check_ns_privs(
-        &store,
-        &ns,
+    let list_all = !check_ns_privs_full(
+        &store_with_ns,
         &auth_id,
         PRIV_DATASTORE_AUDIT,
         PRIV_DATASTORE_BACKUP,
     )?;
 
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
-    let store_with_ns = DatastoreWithNamespace {
-        store: store.to_owned(),
-        ns: ns.clone(),
-    };
 
     // FIXME: filter also owner before collecting, for doing that nicely the owner should move into
     // backup group and provide an error free (Err -> None) accessor
@@ -774,9 +748,13 @@ pub fn verify(
 ) -> Result<Value, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let ns = ns.unwrap_or_default();
-    let owner_check_required = check_ns_privs(
-        &store,
-        &ns,
+    let store_with_ns = DatastoreWithNamespace {
+        store: store.clone(),
+        ns: ns.clone(),
+    };
+
+    let owner_check_required = check_ns_privs_full(
+        &store_with_ns,
         &auth_id,
         PRIV_DATASTORE_VERIFY,
         PRIV_DATASTORE_BACKUP,
@@ -947,19 +925,19 @@ pub fn prune(
 ) -> Result<Value, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let ns = ns.unwrap_or_default();
+    let store_with_ns = DatastoreWithNamespace {
+        store: store.clone(),
+        ns: ns.clone(),
+    };
+
     let datastore = check_privs_and_load_store(
-        &store,
-        &ns,
+        &store_with_ns,
         &auth_id,
         PRIV_DATASTORE_MODIFY,
         PRIV_DATASTORE_PRUNE,
         Some(Operation::Write),
         &group,
     )?;
-    let store_with_ns = DatastoreWithNamespace {
-        store: store.to_owned(),
-        ns: ns.clone(),
-    };
 
     let worker_id = format!("{}:{}:{}", store, ns, group);
     let group = datastore.backup_group(ns, group);
@@ -1307,8 +1285,7 @@ pub fn download_file(
         };
         let backup_dir: pbs_api_types::BackupDir = Deserialize::deserialize(&param)?;
         let datastore = check_privs_and_load_store(
-            &store,
-            &backup_ns,
+            &store_with_ns,
             &auth_id,
             PRIV_DATASTORE_READ,
             PRIV_DATASTORE_BACKUP,
@@ -1392,8 +1369,7 @@ pub fn download_file_decoded(
         };
         let backup_dir_api: pbs_api_types::BackupDir = Deserialize::deserialize(&param)?;
         let datastore = check_privs_and_load_store(
-            &store,
-            &backup_ns,
+            &store_with_ns,
             &auth_id,
             PRIV_DATASTORE_READ,
             PRIV_DATASTORE_BACKUP,
@@ -1523,8 +1499,7 @@ pub fn upload_backup_log(
         let backup_dir_api: pbs_api_types::BackupDir = Deserialize::deserialize(&param)?;
 
         let datastore = check_privs_and_load_store(
-            &store,
-            &backup_ns,
+            &store_with_ns,
             &auth_id,
             0,
             PRIV_DATASTORE_BACKUP,
@@ -1597,9 +1572,13 @@ pub fn catalog(
 ) -> Result<Vec<ArchiveEntry>, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let ns = ns.unwrap_or_default();
+    let store_with_ns = DatastoreWithNamespace {
+        store: store.clone(),
+        ns: ns.clone(),
+    };
+
     let datastore = check_privs_and_load_store(
-        &store,
-        &ns,
+        &store_with_ns,
         &auth_id,
         PRIV_DATASTORE_READ,
         PRIV_DATASTORE_BACKUP,
@@ -1676,10 +1655,13 @@ pub fn pxar_file_download(
         let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
         let store = required_string_param(&param, "store")?;
         let ns = optional_ns_param(&param)?;
+        let store_with_ns = DatastoreWithNamespace {
+            store: store.to_owned(),
+            ns: ns.clone(),
+        };
         let backup_dir: pbs_api_types::BackupDir = Deserialize::deserialize(&param)?;
         let datastore = check_privs_and_load_store(
-            &store,
-            &ns,
+            &store_with_ns,
             &auth_id,
             PRIV_DATASTORE_READ,
             PRIV_DATASTORE_BACKUP,
@@ -1883,9 +1865,13 @@ pub fn get_group_notes(
 ) -> Result<String, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let ns = ns.unwrap_or_default();
+    let store_with_ns = DatastoreWithNamespace {
+        store: store.clone(),
+        ns: ns.clone(),
+    };
+
     let datastore = check_privs_and_load_store(
-        &store,
-        &ns,
+        &store_with_ns,
         &auth_id,
         PRIV_DATASTORE_AUDIT,
         PRIV_DATASTORE_BACKUP,
@@ -1930,9 +1916,12 @@ pub fn set_group_notes(
 ) -> Result<(), Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let ns = ns.unwrap_or_default();
+    let store_with_ns = DatastoreWithNamespace {
+        store: store.clone(),
+        ns: ns.clone(),
+    };
     let datastore = check_privs_and_load_store(
-        &store,
-        &ns,
+        &store_with_ns,
         &auth_id,
         PRIV_DATASTORE_MODIFY,
         PRIV_DATASTORE_BACKUP,
@@ -1975,9 +1964,13 @@ pub fn get_notes(
 ) -> Result<String, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let ns = ns.unwrap_or_default();
+    let store_with_ns = DatastoreWithNamespace {
+        store: store.clone(),
+        ns: ns.clone(),
+    };
+
     let datastore = check_privs_and_load_store(
-        &store,
-        &ns,
+        &store_with_ns,
         &auth_id,
         PRIV_DATASTORE_AUDIT,
         PRIV_DATASTORE_BACKUP,
@@ -2027,9 +2020,13 @@ pub fn set_notes(
 ) -> Result<(), Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let ns = ns.unwrap_or_default();
+    let store_with_ns = DatastoreWithNamespace {
+        store: store.clone(),
+        ns: ns.clone(),
+    };
+
     let datastore = check_privs_and_load_store(
-        &store,
-        &ns,
+        &store_with_ns,
         &auth_id,
         PRIV_DATASTORE_MODIFY,
         PRIV_DATASTORE_BACKUP,
@@ -2077,9 +2074,12 @@ pub fn get_protection(
 ) -> Result<bool, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let ns = ns.unwrap_or_default();
+    let store_with_ns = DatastoreWithNamespace {
+        store: store.clone(),
+        ns: ns.clone(),
+    };
     let datastore = check_privs_and_load_store(
-        &store,
-        &ns,
+        &store_with_ns,
         &auth_id,
         PRIV_DATASTORE_AUDIT,
         PRIV_DATASTORE_BACKUP,
@@ -2125,9 +2125,12 @@ pub fn set_protection(
 ) -> Result<(), Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let ns = ns.unwrap_or_default();
+    let store_with_ns = DatastoreWithNamespace {
+        store: store.clone(),
+        ns: ns.clone(),
+    };
     let datastore = check_privs_and_load_store(
-        &store,
-        &ns,
+        &store_with_ns,
         &auth_id,
         PRIV_DATASTORE_MODIFY,
         PRIV_DATASTORE_BACKUP,
@@ -2173,9 +2176,12 @@ pub fn set_backup_owner(
 ) -> Result<(), Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let ns = ns.unwrap_or_default();
-    let owner_check_required = check_ns_privs(
-        &store,
-        &ns,
+    let store_with_ns = DatastoreWithNamespace {
+        store: store.clone(),
+        ns: ns.clone(),
+    };
+    let owner_check_required = check_ns_privs_full(
+        &store_with_ns,
         &auth_id,
         PRIV_DATASTORE_MODIFY,
         PRIV_DATASTORE_BACKUP,

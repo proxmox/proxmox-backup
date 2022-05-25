@@ -2,7 +2,7 @@ use anyhow::{bail, Error};
 use serde_json::Value;
 
 use pbs_config::CachedUserInfo;
-use proxmox_router::{http_err, ApiMethod, Permission, Router, RpcEnvironment};
+use proxmox_router::{ApiMethod, Permission, Router, RpcEnvironment};
 use proxmox_schema::*;
 
 use pbs_api_types::{
@@ -13,18 +13,7 @@ use pbs_api_types::{
 
 use pbs_datastore::DataStore;
 
-// TODO: move somewhere we can reuse it from (datastore has its own copy atm.)
-fn check_ns_privs(
-    store_with_ns: &DatastoreWithNamespace,
-    auth_id: &Authid,
-    privs: u64,
-) -> Result<(), Error> {
-    let user_info = CachedUserInfo::new()?;
-
-    user_info
-        .check_privs(auth_id, &store_with_ns.acl_path(), privs, true)
-        .map_err(|err| http_err!(FORBIDDEN, "{err}"))
-}
+use crate::backup::{check_ns_modification_privs, check_ns_privs};
 
 #[api(
     input: {
@@ -62,12 +51,15 @@ pub fn create_namespace(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let parent = parent.unwrap_or_default();
 
-    let store_with_parent = DatastoreWithNamespace {
+    let mut ns = parent.clone();
+    ns.push(name.clone())?;
+
+    let store_with_ns = DatastoreWithNamespace {
         store: store.clone(),
-        ns: parent.clone(),
+        ns,
     };
 
-    check_ns_privs(&store_with_parent, &auth_id, PRIV_DATASTORE_MODIFY)?;
+    check_ns_modification_privs(&store_with_ns, &auth_id)?;
 
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
@@ -165,17 +157,12 @@ pub fn delete_namespace(
     _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-    // we could allow it as easy purge-whole datastore, but lets be more restrictive for now
-    if ns.is_root() {
-        bail!("cannot delete root namespace!");
-    };
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-    let parent = ns.parent(); // must have MODIFY permission on parent to allow deletion
-    let store_with_parent = DatastoreWithNamespace {
+    let store_with_ns = DatastoreWithNamespace {
         store: store.clone(),
-        ns: parent.clone(),
+        ns: ns.clone(),
     };
-    check_ns_privs(&store_with_parent, &auth_id, PRIV_DATASTORE_MODIFY)?;
+    check_ns_modification_privs(&store_with_ns, &auth_id)?;
 
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 

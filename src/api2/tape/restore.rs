@@ -34,6 +34,7 @@ use pbs_tape::{
 };
 use proxmox_rest_server::WorkerTask;
 
+use crate::backup::check_ns_modification_privs;
 use crate::{
     server::lookup_user_email,
     tape::{
@@ -237,25 +238,16 @@ fn check_and_create_namespaces(
 
     // try create recursively if it does not exist
     if !store.namespace_exists(ns) {
-        let mut tmp_ns: BackupNamespace = Default::default();
+        store_with_ns.ns = Default::default();
 
         for comp in ns.components() {
-            tmp_ns.push(comp.to_string())?;
-            if !store.namespace_exists(&tmp_ns) {
-                // check parent modification privs
-                user_info
-                    .check_privs(
-                        auth_id,
-                        &store_with_ns.acl_path(),
-                        PRIV_DATASTORE_MODIFY,
-                        false,
-                    )
-                    .map_err(|_err| format_err!("no permission to create namespace '{tmp_ns}'"))?;
+            store_with_ns.ns.push(comp.to_string())?;
+            if !store.namespace_exists(&store_with_ns.ns) {
+                check_ns_modification_privs(&store_with_ns, auth_id).map_err(|_err| {
+                    format_err!("no permission to create namespace '{}'", store_with_ns.ns)
+                })?;
 
-                store.create_namespace(&tmp_ns.parent(), comp.to_string())?;
-
-                // update parent for next component
-                store_with_ns.ns = tmp_ns.clone();
+                store.create_namespace(&store_with_ns.ns.parent(), comp.to_string())?;
             }
         }
     }
