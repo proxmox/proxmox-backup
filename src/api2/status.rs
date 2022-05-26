@@ -53,18 +53,7 @@ pub fn datastore_status(
         let datastore = match DataStore::lookup_datastore(&store, Some(Operation::Read)) {
             Ok(datastore) => datastore,
             Err(err) => {
-                list.push(DataStoreStatusListItem {
-                    store: store.clone(),
-                    total: -1,
-                    used: -1,
-                    avail: -1,
-                    history: None,
-                    history_start: None,
-                    history_delta: None,
-                    estimated_full_date: None,
-                    error: Some(err.to_string()),
-                    gc_status: None,
-                });
+                list.push(DataStoreStatusListItem::empty(store, Some(err.to_string())));
                 continue;
             }
         };

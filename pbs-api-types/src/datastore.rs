@@ -1361,6 +1361,23 @@ pub struct DataStoreStatusListItem {
     pub gc_status: Option<GarbageCollectionStatus>,
 }
 
+impl DataStoreStatusListItem {
+    pub fn empty(store: &str, err: Option<String>) -> Self {
+        DataStoreStatusListItem {
+            store: store.to_owned(),
+            total: -1,
+            used: -1,
+            avail: -1,
+            history: None,
+            history_start: None,
+            history_delta: None,
+            estimated_full_date: None,
+            error: err,
+            gc_status: None,
+        }
+    }
+}
+
 pub const ADMIN_DATASTORE_LIST_SNAPSHOTS_RETURN_TYPE: ReturnType = ReturnType {
     optional: false,
     schema: &ArraySchema::new(
