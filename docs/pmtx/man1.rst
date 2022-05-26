@@ -51,7 +51,7 @@ ENVIRONMENT
 :CHANGER: If set, replaces the `--device` option
 
 :PROXMOX_TAPE_DRIVE: If set, use the Proxmox Backup Server
-   configuration to find the associcated changer device.
+   configuration to find the associated changer device.
 
 
 .. include:: ../pbs-copyright.rst

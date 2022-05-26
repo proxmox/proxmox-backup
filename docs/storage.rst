@@ -262,7 +262,7 @@ categorized by checksum, after a backup operation has been executed.
 
 
 Once you uploaded some backups, or created namespaces, you may see the Backup
-Type (`ct`, `vm`, `host`) and the start of the namespace hierachy (`ns`).
+Type (`ct`, `vm`, `host`) and the start of the namespace hierarchy (`ns`).
 
 .. _storage_namespaces:
 

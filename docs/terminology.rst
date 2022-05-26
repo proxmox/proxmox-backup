@@ -95,7 +95,7 @@ The backup server groups backups by *type*, where *type* is one of:
 Backup ID
 ---------
 
-A unique ID for a specific Backup Type and Backup Namesapce. Usually the
+A unique ID for a specific Backup Type and Backup Namespace. Usually the
 virtual machine or container ID. ``host`` type backups normally use the
 hostname.
 

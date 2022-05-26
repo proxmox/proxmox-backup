@@ -682,7 +682,7 @@ To remove a job, please use:
  # proxmox-tape backup-job remove job2
 
 By default, all (recursive) namespaces of the datastore are included in a tape
-backup. You can specify a single namespace wth ``ns`` and a depth with
+backup. You can specify a single namespace with ``ns`` and a depth with
 ``max-depth``. For example:
 
 .. code-block:: console

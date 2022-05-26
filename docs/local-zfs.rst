@@ -217,7 +217,7 @@ errors. Newer ZFS packages ship the daemon in a separate package ``zfs-zed``,
 which should already be installed by default in `Proxmox Backup`_.
 
 You can configure the daemon via the file ``/etc/zfs/zed.d/zed.rc`` with your
-favorite editor. The required setting for email notfication is
+favorite editor. The required setting for email notification is
 ``ZED_EMAIL_ADDR``, which is set to ``root`` by default.
 
 .. code-block:: console
