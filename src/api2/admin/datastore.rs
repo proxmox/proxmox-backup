@@ -623,8 +623,9 @@ fn get_snapshots_count(store: &Arc<DataStore>, owner: Option<&Authid>) -> Result
         type: DataStoreStatus,
     },
     access: {
-        permission: &Permission::Privilege(
-            &["datastore", "{store}"], PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_BACKUP, true),
+        permission: &Permission::Anybody,
+        description: "Requires on /datastore/{store} either DATASTORE_AUDIT or DATASTORE_BACKUP for \
+            the full statistics. Counts of accessible groups are always returned, if any",
     },
 )]
 /// Get datastore status.
@@ -634,13 +635,27 @@ pub fn status(
     _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<DataStoreStatus, Error> {
-    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
-    let storage = crate::tools::disks::disk_usage(&datastore.base_path())?;
-    let (counts, gc_status) = if verbose {
-        let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-        let user_info = CachedUserInfo::new()?;
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let user_info = CachedUserInfo::new()?;
+    let store_privs = user_info.lookup_privs(&auth_id, &["datastore", &store]);
 
-        let store_privs = user_info.lookup_privs(&auth_id, &["datastore", &store]);
+    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read));
+
+    let store_stats = if store_privs & (PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_BACKUP) != 0 {
+        true
+    } else if store_privs & PRIV_DATASTORE_READ != 0 {
+        false // allow at least counts, user can read groups anyway..
+    } else if let Ok(ref datastore) = datastore {
+        if !can_access_any_namespace(Arc::clone(datastore), &auth_id, &user_info) {
+            return Err(http_err!(FORBIDDEN, "permission check failed"));
+        }
+        false
+    } else {
+        return Err(http_err!(FORBIDDEN, "permission check failed")); // avoid leaking existance info
+    };
+    let datastore = datastore?; // only unwrap no to avoid leaking existance info
+
+    let (counts, gc_status) = if verbose {
         let filter_owner = if store_privs & PRIV_DATASTORE_AUDIT != 0 {
             None
         } else {
@@ -648,19 +663,34 @@ pub fn status(
         };
 
         let counts = Some(get_snapshots_count(&datastore, filter_owner)?);
-        let gc_status = Some(datastore.last_gc_status());
+        let gc_status = if store_stats {
+            Some(datastore.last_gc_status())
+        } else {
+            None
+        };
 
         (counts, gc_status)
     } else {
         (None, None)
     };
 
-    Ok(DataStoreStatus {
-        total: storage.total,
-        used: storage.used,
-        avail: storage.avail,
-        gc_status,
-        counts,
+    Ok(if store_stats {
+        let storage = crate::tools::disks::disk_usage(&datastore.base_path())?;
+        DataStoreStatus {
+            total: storage.total,
+            used: storage.used,
+            avail: storage.avail,
+            gc_status,
+            counts,
+        }
+    } else {
+        DataStoreStatus {
+            total: 0,
+            used: 0,
+            avail: 0,
+            gc_status,
+            counts,
+        }
     })
 }
 
