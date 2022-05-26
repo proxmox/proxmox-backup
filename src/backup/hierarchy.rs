@@ -68,6 +68,28 @@ pub fn check_ns_privs_full(
     );
 }
 
+pub fn can_access_any_namespace(
+    store: Arc<DataStore>,
+    auth_id: &Authid,
+    user_info: &CachedUserInfo,
+) -> bool {
+    // NOTE: traversing the datastore could be avoided if we had an "ACL tree: is there any priv
+    // below /datastore/{store}" helper
+    let mut iter =
+        if let Ok(iter) = store.recursive_iter_backup_ns_ok(BackupNamespace::root(), None) {
+            iter
+        } else {
+            return false;
+        };
+    let wanted =
+        PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_READ | PRIV_DATASTORE_BACKUP;
+    let name = store.name();
+    iter.any(|ns| -> bool {
+        let user_privs = user_info.lookup_privs(&auth_id, &["datastore", name, &ns.to_string()]);
+        user_privs & wanted != 0
+    })
+}
+
 /// A priviledge aware iterator for all backup groups in all Namespaces below an anchor namespace,
 /// most often that will be the `BackupNamespace::root()` one.
 ///

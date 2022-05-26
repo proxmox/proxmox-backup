@@ -63,8 +63,8 @@ use proxmox_rest_server::{formatter, WorkerTask};
 use crate::api2::backup::optional_ns_param;
 use crate::api2::node::rrd::create_value_from_rrd;
 use crate::backup::{
-    check_ns_privs_full, verify_all_backups, verify_backup_dir, verify_backup_group, verify_filter,
-    ListAccessibleBackupGroups,
+    can_access_any_namespace, check_ns_privs_full, verify_all_backups, verify_backup_dir,
+    verify_backup_group, verify_filter, ListAccessibleBackupGroups,
 };
 
 use crate::server::jobstate::Job;
@@ -1142,23 +1142,6 @@ pub fn garbage_collection_status(
     Ok(status)
 }
 
-fn can_access_any_ns(store: Arc<DataStore>, auth_id: &Authid, user_info: &CachedUserInfo) -> bool {
-    // NOTE: traversing the datastore could be avoided if we had an "ACL tree: is there any priv
-    // below /datastore/{store}" helper
-    let mut iter =
-        if let Ok(iter) = store.recursive_iter_backup_ns_ok(BackupNamespace::root(), None) {
-            iter
-        } else {
-            return false;
-        };
-    let wanted =
-        PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_READ | PRIV_DATASTORE_BACKUP;
-    iter.any(|ns| -> bool {
-        let user_privs = user_info.lookup_privs(&auth_id, &ns.acl_path(store.name()));
-        user_privs & wanted != 0
-    })
-}
-
 #[api(
     returns: {
         description: "List the accessible datastores.",
@@ -1191,7 +1174,7 @@ pub fn get_datastore_list(
             let scfg: pbs_api_types::DataStoreConfig = serde_json::from_value(data.to_owned())?;
             // safety: we just cannot go through lookup as we must avoid an operation check
             if let Ok(datastore) = unsafe { DataStore::open_from_config(scfg, None) } {
-                allow_id = can_access_any_ns(datastore, &auth_id, &user_info);
+                allow_id = can_access_any_namespace(datastore, &auth_id, &user_info);
             }
         }
 
