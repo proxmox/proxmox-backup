@@ -125,7 +125,7 @@ execution:
 
 - ``remote-ns``: the remote namespace anchor (default: the root namespace)
 
-- ``ns``: the local namespace anchor (default: the root naemspace)
+- ``ns``: the local namespace anchor (default: the root namespace)
 
 - ``max-depth``: whether to recursively iterate over sub-namespaces of the remote
   namespace anchor (default: `None`)
