@@ -310,8 +310,8 @@ Ext.define('PBS.DataStoreSummary', {
 	});
 
 	me.mon(me.rrdstore, 'load', function(store, records, success) {
-	    let has_io_ticks = records.some((rec) => rec?.data?.io_ticks !== undefined);
-	    me.down('#ioDelayChart').setVisible(!success || has_io_ticks);
+	    let hasIoTicks = records?.some((rec) => rec?.data?.io_ticks !== undefined);
+	    me.down('#ioDelayChart').setVisible(!success || hasIoTicks);
 	}, undefined, { single: true });
 
 	me.query('proxmoxRRDChart').forEach((chart) => {
