@@ -73,20 +73,20 @@ Ext.define('PBS.DataStoreInfo', {
 	    vm.set('usagetext', usage);
 	    vm.set('usage', used/total);
 
-	    let gcstatus = store.getById('gc-status').data.value;
-
-	    let dedup = PBS.Utils.calculate_dedup_factor(gcstatus);
-
 	    let countstext = function(count) {
 		count = count || {};
 		return `${count.groups || 0} ${gettext('Groups')}, ${count.snapshots || 0} ${gettext('Snapshots')}`;
 	    };
+	    let gcstatus = store.getById('gc-status')?.data.value;
+	    if (gcstatus) {
+		let dedup = PBS.Utils.calculate_dedup_factor(gcstatus);
+		vm.set('deduplication', dedup.toFixed(2));
+		vm.set('stillbad', gcstatus['still-bad']);
+	    }
 
 	    vm.set('ctcount', countstext(counts.ct));
 	    vm.set('vmcount', countstext(counts.vm));
 	    vm.set('hostcount', countstext(counts.host));
-	    vm.set('deduplication', dedup.toFixed(2));
-	    vm.set('stillbad', gcstatus['still-bad']);
 	},
 
 	startStore: function() { this.store.startUpdate(); },
