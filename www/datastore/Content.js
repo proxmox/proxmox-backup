@@ -196,13 +196,20 @@ Ext.define('PBS.DataStoreContent', {
 	    let me = this;
 	    let view = this.getView();
 
-	    if (!success) {
-		let error = Proxmox.Utils.getResponseErrorMessage(operation.getError());
-		Proxmox.Utils.setErrorMask(view.down('treeview'), error);
-		return;
-	    }
-
 	    let namespaces = await me.loadNamespaceFromSameLevel();
+
+	    if (!success) {
+		// TODO also check error code for != 403 ?
+		if (namespaces.length === 0) {
+		    let error = Proxmox.Utils.getResponseErrorMessage(operation.getError());
+		    Proxmox.Utils.setErrorMask(view.down('treeview'), error);
+		    return;
+		} else {
+		    records = [];
+		}
+	    } else {
+		Proxmox.Utils.setErrorMask(view.down('treeview'));
+	    }
 
 	    let groups = this.getRecordGroups(records);
 
