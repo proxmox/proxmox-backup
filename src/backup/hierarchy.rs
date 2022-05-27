@@ -142,7 +142,7 @@ impl<'a> ListAccessibleBackupGroups<'a> {
     }
 }
 
-static NS_PRIVS_OK: u64 =
+pub static NS_PRIVS_OK: u64 =
     PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_READ | PRIV_DATASTORE_BACKUP | PRIV_DATASTORE_AUDIT;
 
 impl<'a> Iterator for ListAccessibleBackupGroups<'a> {

@@ -2,17 +2,17 @@ use anyhow::{bail, Error};
 use serde_json::Value;
 
 use pbs_config::CachedUserInfo;
-use proxmox_router::{ApiMethod, Permission, Router, RpcEnvironment};
+use proxmox_router::{http_bail, ApiMethod, Permission, Router, RpcEnvironment};
 use proxmox_schema::*;
 
 use pbs_api_types::{
     Authid, BackupNamespace, NamespaceListItem, Operation, DATASTORE_SCHEMA, NS_MAX_DEPTH_SCHEMA,
-    PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY, PROXMOX_SAFE_ID_FORMAT,
+    PROXMOX_SAFE_ID_FORMAT,
 };
 
 use pbs_datastore::DataStore;
 
-use crate::backup::{check_ns_modification_privs, check_ns_privs};
+use crate::backup::{check_ns_modification_privs, check_ns_privs, NS_PRIVS_OK};
 
 #[api(
     input: {
@@ -94,29 +94,34 @@ pub fn list_namespaces(
 ) -> Result<Vec<NamespaceListItem>, Error> {
     let parent = parent.unwrap_or_default();
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-    const PRIVS_OK: u64 = PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_BACKUP | PRIV_DATASTORE_AUDIT;
-    // first do a base check to avoid leaking if a NS exists or not
-
-    check_ns_privs(&store, &parent, &auth_id, PRIVS_OK)?;
-
     let user_info = CachedUserInfo::new()?;
+    // get result up-front to avoid cloning NS, it's relatively cheap anyway (no IO normally)
+    let parent_access = check_ns_privs(&store, &parent, &auth_id, NS_PRIVS_OK);
 
     let datastore = DataStore::lookup_datastore(&store, Some(Operation::Read))?;
+
+    let iter = match datastore.recursive_iter_backup_ns_ok(parent, max_depth) {
+        Ok(iter) => iter,
+        // parent NS doesn't exists and user has no privs on it, avoid info leakage.
+        Err(_) if parent_access.is_err() => http_bail!(FORBIDDEN, "permission check failed"),
+        Err(err) => return Err(err),
+    };
 
     let ns_to_item =
         |ns: BackupNamespace| -> NamespaceListItem { NamespaceListItem { ns, comment: None } };
 
-    Ok(datastore
-        .recursive_iter_backup_ns_ok(parent, max_depth)?
+    let namespace_list: Vec<NamespaceListItem> = iter
         .filter(|ns| {
-            if ns.is_root() {
-                return true; // already covered by access permission above
-            }
             let privs = user_info.lookup_privs(&auth_id, &ns.acl_path(&store));
-            privs & PRIVS_OK != 0
+            privs & NS_PRIVS_OK != 0
         })
         .map(ns_to_item)
-        .collect())
+        .collect();
+
+    if namespace_list.is_empty() && parent_access.is_err() {
+        http_bail!(FORBIDDEN, "permission check failed"); // avoid leakage
+    }
+    Ok(namespace_list)
 }
 
 #[api(
