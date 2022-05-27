@@ -197,7 +197,8 @@ Ext.define('PBS.DataStoreContent', {
 	    let view = this.getView();
 
 	    if (!success) {
-		Proxmox.Utils.setErrorMask(view, Proxmox.Utils.getResponseErrorMessage(operation.getError()));
+		let error = Proxmox.Utils.getResponseErrorMessage(operation.getError());
+		Proxmox.Utils.setErrorMask(view.down('treeview'), error);
 		return;
 	    }
 
