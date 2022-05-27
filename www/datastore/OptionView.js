@@ -34,8 +34,8 @@ Ext.define('PBS.Datastore.Options', {
 
 	    view.mon(me.activeOperationsRstore, 'load', (store, data, success) => {
 		let activeTasks = me.getView().maintenanceActiveTasks;
-		activeTasks.read = data[0].data.value;
-		activeTasks.write = data[1].data.value;
+		activeTasks.read = data?.[0]?.data.value ?? 0;
+		activeTasks.write = data?.[1]?.data.value ?? 0;
 	    });
 	},
 
