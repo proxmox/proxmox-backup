@@ -220,12 +220,6 @@ async fn list_files(
                 schema: OUTPUT_FORMAT,
                 optional: true,
             },
-            "json-error": {
-                type: Boolean,
-                description: "If set, errors are returned as json instead of writing to stderr",
-                optional: true,
-                default: false,
-            },
             "timeout": {
                 type: Integer,
                 description: "Defines the maximum time the call can should take.",
@@ -248,7 +242,6 @@ async fn list(
     snapshot: String,
     path: String,
     base64: bool,
-    json_error: bool,
     timeout: Option<u64>,
     param: Value,
 ) -> Result<(), Error> {
@@ -293,7 +286,7 @@ async fn list(
     let output_format = get_output_format(&param);
 
     if let Err(err) = result {
-        if !json_error {
+        if &output_format == "text" {
             return Err(err);
         }
         let (msg, code) = match err.downcast_ref::<HttpError>() {
@@ -301,7 +294,6 @@ async fn list(
             None => (err.to_string(), None),
         };
         let mut json_err = json!({
-            "error": true,
             "message": msg,
         });
         if let Some(code) = code {
