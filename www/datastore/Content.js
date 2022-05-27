@@ -75,7 +75,6 @@ Ext.define('PBS.DataStoreContent', {
 		'text',
 		'backup-time',
 	    ]);
-	    Proxmox.Utils.monStoreErrors(view, this.store);
 	},
 
 	control: {
