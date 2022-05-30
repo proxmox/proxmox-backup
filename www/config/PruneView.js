@@ -34,15 +34,23 @@ Ext.define('PBS.config.PruneJobView', {
     controller: {
 	xclass: 'Ext.app.ViewController',
 
+	init: function(view) {
+	    let params = {};
+	    if (view.datastore !== undefined) {
+		params.store = view.datastore;
+	    }
+	    view.getStore().rstore.getProxy().setExtraParams(params);
+	    Proxmox.Utils.monStoreErrors(view, view.getStore().rstore);
+	    this.reload();
+	},
+
 	addPruneJob: function() {
 	    let me = this;
 	    let view = me.getView();
             Ext.create('PBS.window.PruneJobEdit', {
 		datastore: view.datastore,
 		listeners: {
-		    destroy: function() {
-			me.reload();
-		    },
+		    destroy: () => me.reload(),
 		},
             }).show();
 	},
@@ -57,9 +65,7 @@ Ext.define('PBS.config.PruneJobView', {
 		datastore: view.datastore,
                 id: selection[0].data.id,
 		listeners: {
-		    destroy: function() {
-			me.reload();
-		    },
+		    destroy: () => me.reload(),
 		},
             }).show();
 	},
@@ -74,8 +80,9 @@ Ext.define('PBS.config.PruneJobView', {
 	    if (!upid) return;
 
 	    Ext.create('Proxmox.window.TaskViewer', {
+		autoShow: true,
 		upid,
-	    }).show();
+	    });
 	},
 
 	runPruneJob: function() {
@@ -90,35 +97,19 @@ Ext.define('PBS.config.PruneJobView', {
 		url: `/admin/prune/${id}/run`,
 		success: function(response, opt) {
 		    Ext.create('Proxmox.window.TaskViewer', {
+			autoShow: true,
 		        upid: response.result.data,
-		        taskDone: function(success) {
-			    me.reload();
-		        },
-		    }).show();
+		        taskDone: success => me.reload(),
+		    });
 		},
-		failure: function(response, opt) {
-		    Ext.Msg.alert(gettext('Error'), response.htmlStatus);
-		},
+		failure: response => Ext.Msg.alert(gettext('Error'), response.htmlStatus),
 	    });
-	},
-
-	render_optional_owner: function(value, metadata, record) {
-	    if (!value) return '-';
-	    return Ext.String.htmlEncode(value);
 	},
 
 	startStore: function() { this.getView().getStore().rstore.startUpdate(); },
 	stopStore: function() { this.getView().getStore().rstore.stopUpdate(); },
-
-	reload: function() { this.getView().getStore().rstore.load(); },
-
-	init: function(view) {
-	    let params = {};
-	    if (view.datastore !== undefined) {
-		params.store = view.datastore;
-	    }
-	    view.getStore().rstore.getProxy().setExtraParams(params);
-	    Proxmox.Utils.monStoreErrors(view, view.getStore().rstore);
+	reload: function() {
+	    this.getView().getStore().rstore.load();
 	},
     },
 
@@ -186,7 +177,7 @@ Ext.define('PBS.config.PruneJobView', {
 	    dataIndex: 'id',
 	    renderer: Ext.String.htmlEncode,
 	    maxWidth: 220,
-	    minWidth: 75,
+	    minWidth: 50,
 	    flex: 1,
 	    sortable: true,
 	},
@@ -199,14 +190,15 @@ Ext.define('PBS.config.PruneJobView', {
 	{
 	    header: gettext('Namespace'),
 	    dataIndex: 'ns',
-	    width: 120,
+	    minWidth: 75,
+	    flex: 2,
 	    sortable: true,
 	    renderer: PBS.Utils.render_optional_namespace,
 	},
 	{
-	    header: gettext('Max. Recursion'),
+	    header: gettext('Max. Depth'),
 	    dataIndex: 'max-depth',
-	    width: 40,
+	    width: 90,
 	    sortable: true,
 	},
 	{
@@ -220,7 +212,8 @@ Ext.define('PBS.config.PruneJobView', {
 	{
 	    text: gettext('Keep'),
 	    defaults: {
-		width: 60,
+		minWidth: 60,
+		flex: 1,
 	    },
 	    columns: [
 		['last', gettext('Last')],
