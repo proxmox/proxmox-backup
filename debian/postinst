@@ -41,7 +41,7 @@ case "$1" in
 			flock -w 30 /var/log/proxmox-backup/tasks/active.lock sed -i 's/:termproxy::\([^@]\+\): /:termproxy::\1@pam: /' /var/log/proxmox-backup/tasks/active || true
 		fi
 
-		if dpkg --compare-versions "$2" 'lt' '7.1-1' && test -e /etc/proxmox-backup/sync.cfg; then
+		if dpkg --compare-versions "$2" 'lt' '2.1.3~' && test -e /etc/proxmox-backup/sync.cfg; then
 			prev_job=""
 
 			# read from HERE doc because POSIX sh limitations
