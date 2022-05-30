@@ -2,7 +2,7 @@ use anyhow::Error;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 
-use proxmox_schema::{AllOfSchema, ApiType, Schema};
+use proxmox_schema::{AllOfSchema, ApiType};
 use proxmox_section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin};
 
 use pbs_api_types::{DataStoreConfig, DATASTORE_SCHEMA};
