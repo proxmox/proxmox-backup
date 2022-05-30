@@ -94,9 +94,8 @@ Ext.define('PBS.Datastore.PruneAndGC', {
 	multi: true,
     },
     defaults: {
-	collapsible: true,
-	animCollapse: false,
-	margin: '10 10 0 10',
+	collapsible: false,
+	margin: '7 10 3 10',
     },
     items: [
 	{
