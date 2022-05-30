@@ -47,8 +47,8 @@ use pbs_buildcfg::configdir;
 use proxmox_time::CalendarEvent;
 
 use pbs_api_types::{
-    Authid, DataStoreConfig, Operation, PruneJobConfig, PruneJobOptions, SyncJobConfig,
-    TapeBackupJobConfig, VerificationJobConfig,
+    Authid, DataStoreConfig, Operation, PruneJobConfig, SyncJobConfig, TapeBackupJobConfig,
+    VerificationJobConfig,
 };
 
 use proxmox_rest_server::daemon;
@@ -557,7 +557,6 @@ async fn run_task_scheduler() {
 
 async fn schedule_tasks() -> Result<(), Error> {
     schedule_datastore_garbage_collection().await;
-    schedule_datastore_prune().await;
     schedule_datastore_prune_jobs().await;
     schedule_datastore_sync_jobs().await;
     schedule_datastore_verify_jobs().await;
@@ -665,56 +664,6 @@ async fn schedule_datastore_garbage_collection() {
                 store, err
             );
         }
-    }
-}
-
-async fn schedule_datastore_prune() {
-    let config = match pbs_config::datastore::config() {
-        Err(err) => {
-            eprintln!("unable to read datastore config - {}", err);
-            return;
-        }
-        Ok((config, _digest)) => config,
-    };
-
-    for (store, (_, store_config)) in config.sections {
-        let store_config: DataStoreConfig = match serde_json::from_value(store_config) {
-            Ok(c) => c,
-            Err(err) => {
-                eprintln!("datastore '{}' config from_value failed - {}", store, err);
-                continue;
-            }
-        };
-
-        let event_str = match store_config.prune_schedule {
-            Some(event_str) => event_str,
-            None => continue,
-        };
-
-        let prune_options = PruneJobOptions {
-            keep: store_config.keep,
-            ..Default::default()
-        };
-
-        if !prune_options.keeps_something() {
-            // no prune settings - keep all
-            continue;
-        }
-
-        let worker_type = "prune";
-        if check_schedule(worker_type, &event_str, &store) {
-            let job = match Job::new(worker_type, &store) {
-                Ok(job) => job,
-                Err(_) => continue, // could not get lock
-            };
-
-            let auth_id = Authid::root_auth_id().clone();
-            if let Err(err) =
-                do_prune_job(job, prune_options, store.clone(), &auth_id, Some(event_str))
-            {
-                eprintln!("unable to start datastore prune job {} - {}", &store, err);
-            }
-        };
     }
 }
 
