@@ -302,29 +302,26 @@ pub fn update_datastore(
         data.gc_schedule = update.gc_schedule;
     }
 
-    let mut prune_schedule_changed = false;
-    if update.prune_schedule.is_some() {
-        prune_schedule_changed = data.prune_schedule != update.prune_schedule;
-        data.prune_schedule = update.prune_schedule;
+    macro_rules! prune_disabled {
+        ($(($param:literal, $($member:tt)+)),+) => {
+            $(
+                if update.$($member)+.is_some() {
+                    param_bail!(
+                        $param,
+                        "datastore prune settings have been replaced by prune jobs",
+                    );
+                }
+            )+
+        };
     }
-
-    if update.keep.keep_last.is_some() {
-        data.keep.keep_last = update.keep.keep_last;
-    }
-    if update.keep.keep_hourly.is_some() {
-        data.keep.keep_hourly = update.keep.keep_hourly;
-    }
-    if update.keep.keep_daily.is_some() {
-        data.keep.keep_daily = update.keep.keep_daily;
-    }
-    if update.keep.keep_weekly.is_some() {
-        data.keep.keep_weekly = update.keep.keep_weekly;
-    }
-    if update.keep.keep_monthly.is_some() {
-        data.keep.keep_monthly = update.keep.keep_monthly;
-    }
-    if update.keep.keep_yearly.is_some() {
-        data.keep.keep_yearly = update.keep.keep_yearly;
+    prune_disabled! {
+        ("keep-last", keep.keep_last),
+        ("keep-hourly", keep.keep_hourly),
+        ("keep-daily", keep.keep_daily),
+        ("keep-weekly", keep.keep_weekly),
+        ("keep-monthly", keep.keep_monthly),
+        ("keep-yearly", keep.keep_yearly),
+        ("prune-schedule", prune_schedule)
     }
 
     if let Some(notify_str) = update.notify {
@@ -365,10 +362,6 @@ pub fn update_datastore(
     // (e.g. going from monthly to weekly in the second week of the month)
     if gc_schedule_changed {
         jobstate::update_job_last_run_time("garbage_collection", &name)?;
-    }
-
-    if prune_schedule_changed {
-        jobstate::update_job_last_run_time("prune", &name)?;
     }
 
     Ok(())
