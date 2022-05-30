@@ -1,6 +1,6 @@
-Ext.define('PBS.DataStorePruneAndGC', {
+Ext.define('PBS.Datastore.GCOptions', {
     extend: 'Proxmox.grid.ObjectGrid',
-    alias: 'widget.pbsDataStorePruneAndGC',
+    alias: 'widget.pbsDatastoreGCOpts',
     mixins: ['Proxmox.Mixin.CBind'],
 
     onlineHelp: 'maintenance_pruning',
@@ -80,95 +80,41 @@ Ext.define('PBS.DataStorePruneAndGC', {
 		},
 	    },
 	},
-	"prune-schedule": {
-	    required: true,
-	    defaultValue: Proxmox.Utils.NoneText,
-	    header: gettext('Prune Schedule'),
-	    editor: {
-		xtype: 'proxmoxWindowEdit',
-		title: gettext('Prune Schedule'),
-		onlineHelp: 'maintenance_pruning',
-		items: {
-		    xtype: 'pbsCalendarEvent',
-		    name: 'prune-schedule',
-		    fieldLabel: gettext("Prune Schedule"),
-		    emptyText: Proxmox.Utils.noneText,
-		    deleteEmpty: true,
-		},
-	    },
-	},
-	"keep-last": {
-	    required: true,
-	    header: gettext('Keep Last'),
-	    editor: {
-		xtype: 'proxmoxWindowEdit',
-		title: gettext('Prune Options'),
-		onlineHelp: 'maintenance_pruning',
-		items: {
-		    xtype: 'pbsPruneInputPanel',
-		    isCreate: false,
-		},
-	    },
-	},
-	"keep-hourly": {
-	    required: true,
-	    header: gettext('Keep Hourly'),
-	    editor: {
-		xtype: 'proxmoxWindowEdit',
-		title: gettext('Prune Options'),
-		onlineHelp: 'maintenance_pruning',
-		items: {
-		    xtype: 'pbsPruneInputPanel',
-		},
-	    },
-	},
-	"keep-daily": {
-	    required: true,
-	    header: gettext('Keep Daily'),
-	    editor: {
-		xtype: 'proxmoxWindowEdit',
-		title: gettext('Prune Options'),
-		onlineHelp: 'maintenance_pruning',
-		items: {
-		    xtype: 'pbsPruneInputPanel',
-		},
-	    },
-	},
-	"keep-weekly": {
-	    required: true,
-	    header: gettext('Keep Weekly'),
-	    editor: {
-		xtype: 'proxmoxWindowEdit',
-		title: gettext('Prune Options'),
-		onlineHelp: 'maintenance_pruning',
-		items: {
-		    xtype: 'pbsPruneInputPanel',
-		},
-	    },
-	},
-	"keep-monthly": {
-	    required: true,
-	    header: gettext('Keep Monthly'),
-	    editor: {
-		xtype: 'proxmoxWindowEdit',
-		title: gettext('Prune Options'),
-		onlineHelp: 'maintenance_pruning',
-		items: {
-		    xtype: 'pbsPruneInputPanel',
-		},
-	    },
-	},
-	"keep-yearly": {
-	    required: true,
-	    header: gettext('Keep Yearly'),
-	    editor: {
-		xtype: 'proxmoxWindowEdit',
-		title: gettext('Prune Options'),
-		onlineHelp: 'maintenance_pruning',
-		items: {
-		    xtype: 'pbsPruneInputPanel',
-		},
-	    },
-	},
     },
+});
+
+Ext.define('PBS.Datastore.PruneAndGC', {
+    extend: 'Ext.panel.Panel',
+    alias: 'widget.pbsDatastorePruneAndGC',
+    mixins: ['Proxmox.Mixin.CBind'],
+
+    layout: {
+	type: 'vbox',
+	align: 'stretch',
+	multi: true,
+    },
+    defaults: {
+	collapsible: true,
+	animCollapse: false,
+	margin: '10 10 0 10',
+    },
+    items: [
+	{
+	    xtype: 'pbsDatastoreGCOpts',
+	    title: gettext('Garbage Collection'),
+	    nodename: 'localhost',
+	    cbind: {
+		datastore: '{datastore}',
+	    },
+	},
+	{
+	    xtype: 'pbsPruneJobView',
+	    nodename: 'localhost',
+	    flex: 1,
+	    minHeight: 200,
+	    cbind: {
+		datastore: '{datastore}',
+	    },
+	},
+    ],
 });
