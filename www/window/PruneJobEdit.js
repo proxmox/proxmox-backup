@@ -123,6 +123,7 @@ Ext.define('PBS.window.PruneJobEdit', {
 	columnB: [
 	    {
 		xtype: 'pbsPruneInputPanel',
+		getValues: () => ({}), // let that handle our inputpanel here
 	    },
 	    {
 		fieldLabel: gettext('Comment'),
