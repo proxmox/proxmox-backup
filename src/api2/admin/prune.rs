@@ -11,7 +11,7 @@ use proxmox_sys::sortable;
 
 use pbs_api_types::{
     Authid, PruneJobConfig, PruneJobStatus, DATASTORE_SCHEMA, JOB_ID_SCHEMA, PRIV_DATASTORE_AUDIT,
-    PRIV_DATASTORE_MODIFY, PRIV_DATASTORE_PRUNE,
+    PRIV_DATASTORE_MODIFY,
 };
 use pbs_config::prune;
 use pbs_config::CachedUserInfo;
@@ -49,7 +49,7 @@ pub fn list_prune_jobs(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
 
-    let required_privs = PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_PRUNE;
+    let required_privs = PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_MODIFY;
 
     let (config, digest) = prune::config()?;
 
@@ -117,12 +117,7 @@ pub fn run_prune_job(
     let (config, _digest) = prune::config()?;
     let prune_job: PruneJobConfig = config.lookup("prune", &id)?;
 
-    user_info.check_privs(
-        &auth_id,
-        &prune_job.acl_path(),
-        PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_PRUNE,
-        true,
-    )?;
+    user_info.check_privs(&auth_id, &prune_job.acl_path(), PRIV_DATASTORE_MODIFY, true)?;
 
     let job = Job::new("prunejob", &id)?;
 

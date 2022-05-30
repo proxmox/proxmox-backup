@@ -8,7 +8,7 @@ use proxmox_schema::{api, param_bail};
 
 use pbs_api_types::{
     Authid, PruneJobConfig, PruneJobConfigUpdater, JOB_ID_SCHEMA, PRIV_DATASTORE_AUDIT,
-    PRIV_DATASTORE_MODIFY, PRIV_DATASTORE_PRUNE, PROXMOX_CONFIG_DIGEST_SCHEMA,
+    PRIV_DATASTORE_MODIFY, PROXMOX_CONFIG_DIGEST_SCHEMA,
 };
 use pbs_config::prune;
 
@@ -37,7 +37,7 @@ pub fn list_prune_jobs(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
 
-    let required_privs = PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_PRUNE;
+    let required_privs = PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_MODIFY;
 
     let (config, digest) = prune::config()?;
 
@@ -79,12 +79,7 @@ pub fn create_prune_job(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
 
-    user_info.check_privs(
-        &auth_id,
-        &config.acl_path(),
-        PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_PRUNE,
-        true,
-    )?;
+    user_info.check_privs(&auth_id, &config.acl_path(), PRIV_DATASTORE_MODIFY, true)?;
 
     let _lock = prune::lock_config()?;
 
@@ -218,12 +213,7 @@ pub fn update_prune_job(
 
     let mut data: PruneJobConfig = config.lookup("prune", &id)?;
 
-    user_info.check_privs(
-        &auth_id,
-        &data.acl_path(),
-        PRIV_DATASTORE_PRUNE | PRIV_DATASTORE_MODIFY,
-        true,
-    )?;
+    user_info.check_privs(&auth_id, &data.acl_path(), PRIV_DATASTORE_MODIFY, true)?;
 
     if let Some(delete) = delete {
         for delete_prop in delete {
@@ -275,12 +265,7 @@ pub fn update_prune_job(
     }
 
     if recheck_privs {
-        user_info.check_privs(
-            &auth_id,
-            &data.acl_path(),
-            PRIV_DATASTORE_PRUNE | PRIV_DATASTORE_MODIFY,
-            true,
-        )?;
+        user_info.check_privs(&auth_id, &data.acl_path(), PRIV_DATASTORE_MODIFY, true)?;
     }
 
     let mut schedule_changed = false;
@@ -364,12 +349,7 @@ pub fn delete_prune_job(
 
     let job: PruneJobConfig = config.lookup("prune", &id)?;
 
-    user_info.check_privs(
-        &auth_id,
-        &job.acl_path(),
-        PRIV_DATASTORE_PRUNE | PRIV_DATASTORE_MODIFY,
-        true,
-    )?;
+    user_info.check_privs(&auth_id, &job.acl_path(), PRIV_DATASTORE_MODIFY, true)?;
 
     if let Some(ref digest) = digest {
         let digest = <[u8; 32]>::from_hex(digest)?;
