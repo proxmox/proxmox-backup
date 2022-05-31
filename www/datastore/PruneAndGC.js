@@ -101,6 +101,7 @@ Ext.define('PBS.Datastore.PruneAndGC', {
 	{
 	    xtype: 'pbsDatastoreGCOpts',
 	    title: gettext('Garbage Collection'),
+	    itemId: 'datastore-gc',
 	    nodename: 'localhost',
 	    cbind: {
 		datastore: '{datastore}',
@@ -109,6 +110,7 @@ Ext.define('PBS.Datastore.PruneAndGC', {
 	{
 	    xtype: 'pbsPruneJobView',
 	    nodename: 'localhost',
+	    itemId: 'datastore-prune-jobs',
 	    flex: 1,
 	    minHeight: 200,
 	    cbind: {
@@ -116,4 +118,16 @@ Ext.define('PBS.Datastore.PruneAndGC', {
 	    },
 	},
     ],
+    initComponent: function() {
+	let me = this;
+
+	let subPanelIds = me.items.map(el => el.itemId);
+
+	me.callParent();
+
+	for (const itemId of subPanelIds) {
+	    let component = me.getComponent(itemId);
+	    component.relayEvents(me, ['activate', 'deactivate', 'destroy']);
+	}
+    },
 });

@@ -41,7 +41,6 @@ Ext.define('PBS.config.PruneJobView', {
 	    }
 	    view.getStore().rstore.getProxy().setExtraParams(params);
 	    Proxmox.Utils.monStoreErrors(view, view.getStore().rstore);
-	    this.reload();
 	},
 
 	addPruneJob: function() {
