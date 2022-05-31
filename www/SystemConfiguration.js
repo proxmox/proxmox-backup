@@ -4,7 +4,6 @@ Ext.define('PBS.SystemConfiguration', {
 
     title: gettext('Configuration') + ': ' + gettext('System'),
     border: true,
-    scrollable: true,
     defaults: { border: false },
     tools: [PBS.Utils.get_help_tool("sysadmin-network-configuration")],
     items: [
@@ -18,10 +17,11 @@ Ext.define('PBS.SystemConfiguration', {
 		align: 'stretch',
 		multi: true,
 	    },
+	    scrollable: true,
 	    defaults: {
 		collapsible: true,
 		animCollapse: false,
-		margin: '10 10 0 10',
+		margin: '7 10 3 10',
 	    },
 	    items: [
 		{
@@ -55,10 +55,11 @@ Ext.define('PBS.SystemConfiguration', {
 		align: 'stretch',
 		multi: true,
 	    },
+	    scrollable: true,
 	    defaults: {
 		collapsible: true,
 		animCollapse: false,
-		margin: '10 10 0 10',
+		margin: '7 10 3 10',
 	    },
 	    items: [
 		{
