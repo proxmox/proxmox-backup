@@ -163,6 +163,15 @@ Ext.define('PBS.Utils', {
 	return `Datastore ${what} ${id}`;
     },
 
+    render_prune_job_worker_id: function(id, what) {
+	const res = id.match(/^(\S+?):(\S+)$/);
+	if (!res) {
+	    return `${what} on Datastore ${id}`;
+	}
+	let datastore = res[1], namespace = res[2];
+	return `${what} on Datastore ${datastore} Namespace  ${namespace}`;
+    },
+
     render_tape_backup_id: function(id, what) {
 	const res = id.match(/^(\S+?):(\S+?):(\S+?)(:(.+))?$/);
 	if (res) {
@@ -398,6 +407,7 @@ Ext.define('PBS.Utils', {
 	    'load-media': (type, id) => PBS.Utils.render_drive_load_media_id(id, gettext('Load Media')),
 	    logrotate: [null, gettext('Log Rotation')],
 	    prune: (type, id) => PBS.Utils.render_datastore_worker_id(id, gettext('Prune')),
+	    prunejob: (type, id) => PBS.Utils.render_prune_job_worker_id(id, gettext('Prune Job')),
 	    reader: (type, id) => PBS.Utils.render_datastore_worker_id(id, gettext('Read Objects')),
 	    'rewind-media': [gettext('Drive'), gettext('Rewind Media')],
 	    sync: ['Datastore', gettext('Remote Sync')],
