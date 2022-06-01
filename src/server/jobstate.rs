@@ -112,24 +112,17 @@ where
 pub fn remove_state_file(jobtype: &str, jobname: &str) -> Result<(), Error> {
     let mut path = get_path(jobtype, jobname);
     let _lock = get_lock(&path)?;
-    std::fs::remove_file(&path).map_err(|err| {
-        format_err!(
-            "cannot remove statefile for {} - {}: {}",
-            jobtype,
-            jobname,
-            err
-        )
-    })?;
+    if let Err(err) = std::fs::remove_file(&path) {
+        if err.kind() != std::io::ErrorKind::NotFound {
+            bail!("cannot remove statefile for {jobtype} - {jobname}: {err}");
+        }
+    }
     path.set_extension("lck");
-    // ignore errors
-    let _ = std::fs::remove_file(&path).map_err(|err| {
-        format_err!(
-            "cannot remove lockfile for {} - {}: {}",
-            jobtype,
-            jobname,
-            err
-        )
-    });
+    if let Err(err) = std::fs::remove_file(&path) {
+        if err.kind() != std::io::ErrorKind::NotFound {
+            bail!("cannot remove lockfile for {jobtype} - {jobname}: {err}");
+        }
+    }
     Ok(())
 }
 
