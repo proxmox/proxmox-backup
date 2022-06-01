@@ -126,6 +126,8 @@ pbs-tape = { path = "pbs-tape" }
 # Local path overrides
 # NOTE: You must run `cargo update` after changing this for it to take effect!
 [patch.crates-io]
+#proxmox-acme-rs = { path = "../proxmox-acme-rs" }
+#proxmox-apt = { path = "../proxmox-apt" }
 #proxmox-async = { path = "../proxmox/proxmox-async" }
 #proxmox-compression = { path = "../proxmox/proxmox-compression" }
 #proxmox-borrow = { path = "../proxmox/proxmox-borrow" }
@@ -133,6 +135,7 @@ pbs-tape = { path = "pbs-tape" }
 #proxmox-http = { path = "../proxmox/proxmox-http" }
 #proxmox-io = { path = "../proxmox/proxmox-io" }
 #proxmox-lang = { path = "../proxmox/proxmox-lang" }
+#proxmox-openid = { path = "../proxmox-openid-rs" }
 #proxmox-router = { path = "../proxmox/proxmox-router" }
 #proxmox-schema = { path = "../proxmox/proxmox-schema" }
 #proxmox-section-config = { path = "../proxmox/proxmox-section-config" }
