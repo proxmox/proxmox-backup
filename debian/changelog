@@ -1,3 +1,49 @@
+rust-proxmox-backup (2.2.2-1) bullseye; urgency=medium
+
+  * Revert "verify: allow '0' days for reverification", was already possible
+    by setting "ignore-verified" to false
+
+  * ui: datastore permissions: allow ACL path edit & query namespaces
+
+  * accessible group iter: allow NS descending with DATASTORE_READ privilege
+
+  * prune datastore: rework worker tak log
+
+  * prune datastore: support max-depth and improve priv checks
+
+  * ui: prune input: support opt-in recursive/max-depth field
+
+  * add prune job config and api, allowing one to setup a scheduled pruning
+    for a specific namespace only
+
+  * ui: add ui for prune jobs
+
+  * api: disable setting prune options in datastore.cfg and transform any
+    existing prune tasks from datastore config to new prune job config in a
+    post installation hook
+
+  * proxmox-tape: use correct api call for 'load-media-from-slot'
+
+  * avoid overly strict privilege restrictions for some API endpoints and
+    actions when using namespaces. Better support navigating the user
+    interface when only having Datastore.Admin on a (sub) namespace.
+
+  * include required privilege names in some permission errors
+
+  * docs: fix some typos
+
+  * api: status: include empty entry for stores with ns-only privs
+
+  * ui: datastore options: avoid breakage if rrd store ore active-ops cannot
+    be queried
+
+  * ui: datastore content: only mask the inner treeview, not the top bar on
+    error to allow a user to trigger a manual reload
+
+  * ui: system config: improve bottom margins and scroll behavior
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 01 Jun 2022 13:04:19 +0200
+
 rust-proxmox-backup (2.2.1-1) bullseye; urgency=medium
 
   * docs: update some screenshots and add new ones
