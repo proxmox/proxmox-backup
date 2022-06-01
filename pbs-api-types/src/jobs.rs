@@ -589,6 +589,7 @@ impl KeepOptions {
         self.keep_last.unwrap_or(0)
             + self.keep_hourly.unwrap_or(0)
             + self.keep_daily.unwrap_or(0)
+            + self.keep_weekly.unwrap_or(0)
             + self.keep_monthly.unwrap_or(0)
             + self.keep_yearly.unwrap_or(0)
             > 0
