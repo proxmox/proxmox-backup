@@ -42,7 +42,7 @@ rust-proxmox-backup (2.2.2-1) bullseye; urgency=medium
 
   * ui: system config: improve bottom margins and scroll behavior
 
- -- Proxmox Support Team <support@proxmox.com>  Wed, 01 Jun 2022 14:33:56 +0200
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 01 Jun 2022 15:09:36 +0200
 
 rust-proxmox-backup (2.2.1-1) bullseye; urgency=medium
 
