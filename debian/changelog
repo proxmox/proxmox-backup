@@ -1,3 +1,10 @@
+rust-proxmox-backup (2.2.2-2) bullseye; urgency=medium
+
+  * improvement of error handling when removing status files and locks from
+    jobs that were never executed.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 01 Jun 2022 16:22:22 +0200
+
 rust-proxmox-backup (2.2.2-1) bullseye; urgency=medium
 
   * Revert "verify: allow '0' days for reverification", was already possible
