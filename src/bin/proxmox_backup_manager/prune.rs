@@ -193,7 +193,13 @@ pub(crate) fn update_to_prune_jobs_config() -> Result<(), Error> {
         let schedule = match schedule {
             Some(s) => s,
             None => {
-                eprintln!("dropping disabled prune job in datastore.cfg");
+                if options.keeps_something() {
+                    eprintln!(
+                        "dropping prune job without schedule from datastore '{store}' in datastore.cfg"
+                    );
+                } else {
+                    eprintln!("ignoring empty prune job of datastore {store} in datastore.cfg");
+                }
                 continue;
             }
         };
@@ -201,12 +207,12 @@ pub(crate) fn update_to_prune_jobs_config() -> Result<(), Error> {
         let mut id = format!("storeconfig-{store}");
         id.truncate(32);
         if data.sections.contains_key(&id) {
-            eprintln!("skipping existing converted prune job: {id}");
+            eprintln!("skipping existing converted prune job for datastore {store}: {id}");
             continue;
         }
 
         if !options.keeps_something() {
-            eprintln!("dropping empty prune job data in datastore.cfg");
+            eprintln!("dropping empty prune job of datastore {store} in datastore.cfg");
             continue;
         }
 
