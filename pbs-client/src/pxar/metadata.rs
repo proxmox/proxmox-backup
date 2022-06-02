@@ -372,7 +372,7 @@ fn apply_chattr(fd: RawFd, chattr: libc::c_long, mask: libc::c_long) -> Result<(
     let mut fattr: libc::c_long = 0;
     match unsafe { fs::read_attr_fd(fd, &mut fattr) } {
         Ok(_) => (),
-        Err(nix::Error::Sys(errno)) if errno_is_unsupported(errno) => {
+        Err(errno) if errno_is_unsupported(errno) => {
             return Ok(());
         }
         Err(err) => bail!("failed to read file attributes: {}", err),
@@ -386,7 +386,7 @@ fn apply_chattr(fd: RawFd, chattr: libc::c_long, mask: libc::c_long) -> Result<(
 
     match unsafe { fs::write_attr_fd(fd, &attr) } {
         Ok(_) => Ok(()),
-        Err(nix::Error::Sys(errno)) if errno_is_unsupported(errno) => Ok(()),
+        Err(errno) if errno_is_unsupported(errno) => Ok(()),
         Err(err) => bail!("failed to set file attributes: {}", err),
     }
 }
@@ -400,7 +400,7 @@ fn apply_flags(flags: Flags, fd: RawFd, entry_flags: u64) -> Result<(), Error> {
     if fatattr != 0 {
         match unsafe { fs::write_fat_attr_fd(fd, &fatattr) } {
             Ok(_) => (),
-            Err(nix::Error::Sys(errno)) if errno_is_unsupported(errno) => (),
+            Err(errno) if errno_is_unsupported(errno) => (),
             Err(err) => bail!("failed to set file FAT attributes: {}", err),
         }
     }

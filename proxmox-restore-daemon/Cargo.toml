@@ -15,7 +15,7 @@ hyper = { version = "0.14", features = [ "full" ] }
 lazy_static = "1.4"
 libc = "0.2"
 log = "0.4.17"
-nix = "0.19.1"
+nix = "0.24"
 regex = "1.5"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -31,7 +31,7 @@ proxmox-compression = "0.1.1"
 proxmox-router = { version = "1.2", features = [ "cli" ] }
 proxmox-schema = { version = "1.3.1", features = [ "api-macro" ] }
 proxmox-time = "1"
-proxmox-sys = { version = "0.2",  features = [ "sortable-macro" ] }
+proxmox-sys = { version = "0.3",  features = [ "sortable-macro" ] }
 
 pbs-api-types = { path = "../pbs-api-types" }
 pbs-tools = { path = "../pbs-tools" }

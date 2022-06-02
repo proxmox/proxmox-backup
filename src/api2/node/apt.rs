@@ -1,6 +1,7 @@
 use anyhow::{bail, format_err, Error};
 use serde_json::{json, Value};
 use std::collections::HashMap;
+use std::os::unix::prelude::OsStrExt;
 
 use proxmox_router::{
     list_subdirs_api_method, Permission, Router, RpcEnvironment, RpcEnvironmentType, SubdirMap,
@@ -360,7 +361,7 @@ pub fn get_versions() -> Result<Vec<APTUpdateInfo>, Error> {
 
     let running_kernel = format!(
         "running kernel: {}",
-        nix::sys::utsname::uname().release().to_owned()
+        std::str::from_utf8(nix::sys::utsname::uname()?.release().as_bytes())?.to_owned()
     );
     if let Some(proxmox_backup) = pbs_packages
         .iter()

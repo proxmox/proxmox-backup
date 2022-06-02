@@ -1,5 +1,5 @@
-use std::path::Path;
 use std::process::Command;
+use std::{os::unix::prelude::OsStrExt, path::Path};
 
 use anyhow::{bail, format_err, Error};
 use serde_json::Value;
@@ -69,12 +69,12 @@ fn get_status(
     let cpuinfo = procfs::read_cpuinfo()?;
     let cpuinfo = cpuinfo.into();
 
-    let uname = nix::sys::utsname::uname();
+    let uname = nix::sys::utsname::uname()?;
     let kversion = format!(
         "{} {} {}",
-        uname.sysname(),
-        uname.release(),
-        uname.version()
+        std::str::from_utf8(uname.sysname().as_bytes())?,
+        std::str::from_utf8(uname.release().as_bytes())?,
+        std::str::from_utf8(uname.version().as_bytes())?
     );
 
     Ok(NodeStatus {

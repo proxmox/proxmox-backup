@@ -72,7 +72,7 @@ impl tower_service::Service<Uri> for VsockConnector {
             )?;
 
             let sock_addr = VsockAddr::new(cid, port as u32);
-            connect(sock_fd, &SockAddr::Vsock(sock_addr))?;
+            connect(sock_fd, &sock_addr)?;
 
             // connect sync, but set nonblock after (tokio requires it)
             let std_stream = unsafe { std::os::unix::net::UnixStream::from_raw_fd(sock_fd) };

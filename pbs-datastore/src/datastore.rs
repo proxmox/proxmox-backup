@@ -433,7 +433,7 @@ impl DataStore {
             ty_dir.push(ty.to_string());
             // best effort only, but we probably should log the error
             if let Err(err) = unlinkat(Some(base_fd), &ty_dir, UnlinkatFlags::RemoveDir) {
-                if err.as_errno() != Some(nix::errno::Errno::ENOENT) {
+                if err != nix::errno::Errno::ENOENT {
                     log::error!("failed to remove backup type {ty} in {ns} - {err}");
                 }
             }
@@ -483,10 +483,10 @@ impl DataStore {
             if !ns.is_root() {
                 match unlinkat(Some(base_fd), &ns.path(), UnlinkatFlags::RemoveDir) {
                     Ok(()) => log::debug!("removed namespace {ns}"),
-                    Err(nix::Error::Sys(nix::errno::Errno::ENOENT)) => {
+                    Err(nix::errno::Errno::ENOENT) => {
                         log::debug!("namespace {ns} already removed")
                     }
-                    Err(nix::Error::Sys(nix::errno::Errno::ENOTEMPTY)) if !delete_groups => {
+                    Err(nix::errno::Errno::ENOTEMPTY) if !delete_groups => {
                         removed_all_requested = false;
                         log::debug!("skip removal of non-empty namespace {ns}")
                     }

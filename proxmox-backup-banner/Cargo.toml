@@ -5,4 +5,5 @@ authors = ["Proxmox Support Team <support@proxmox.com>"]
 edition = "2018"
 
 [dependencies]
-nix = "0.19.1"
+anyhow = "1"
+nix = "0.24"

@@ -60,7 +60,7 @@ pub fn create_configdir() -> Result<(), Error> {
 
     match nix::unistd::mkdir(cfgdir, Mode::from_bits_truncate(0o700)) {
         Ok(()) => {}
-        Err(nix::Error::Sys(nix::errno::Errno::EEXIST)) => {
+        Err(nix::errno::Errno::EEXIST) => {
             check_configdir_permissions()?;
             return Ok(());
         }

@@ -196,7 +196,7 @@ impl Iterator for ListNamespaces {
 
                 let ns_dirfd = match proxmox_sys::fs::read_subdir(libc::AT_FDCWD, &base_path) {
                     Ok(dirfd) => dirfd,
-                    Err(nix::Error::Sys(nix::errno::Errno::ENOENT)) => return None,
+                    Err(nix::errno::Errno::ENOENT) => return None,
                     Err(err) => return Some(Err(err.into())),
                 };
                 // found a ns directory, descend into it to scan all it's namespaces

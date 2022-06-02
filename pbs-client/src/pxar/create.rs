@@ -329,13 +329,13 @@ impl Archiver {
                 Mode::empty(),
             ) {
                 Ok(fd) => Ok(Some(fd)),
-                Err(nix::Error::Sys(Errno::ENOENT)) => {
+                Err(Errno::ENOENT) => {
                     if existed {
                         self.report_vanished_file()?;
                     }
                     Ok(None)
                 }
-                Err(nix::Error::Sys(Errno::EACCES)) => {
+                Err(Errno::EACCES) => {
                     writeln!(
                         self.errors,
                         "failed to open file: {:?}: access denied",
@@ -343,7 +343,7 @@ impl Archiver {
                     )?;
                     Ok(None)
                 }
-                Err(nix::Error::Sys(Errno::EPERM)) if !noatime.is_empty() => {
+                Err(Errno::EPERM) if !noatime.is_empty() => {
                     // Retry without O_NOATIME:
                     noatime = OFlag::empty();
                     continue;
@@ -899,7 +899,7 @@ fn get_chattr(metadata: &mut Metadata, fd: RawFd) -> Result<(), Error> {
 
     match unsafe { fs::read_attr_fd(fd, &mut attr) } {
         Ok(_) => (),
-        Err(nix::Error::Sys(errno)) if errno_is_unsupported(errno) => {
+        Err(errno) if errno_is_unsupported(errno) => {
             return Ok(());
         }
         Err(err) => bail!("failed to read file attributes: {}", err),
@@ -921,7 +921,7 @@ fn get_fat_attr(metadata: &mut Metadata, fd: RawFd, fs_magic: i64) -> Result<(),
 
     match unsafe { fs::read_fat_attr_fd(fd, &mut attr) } {
         Ok(_) => (),
-        Err(nix::Error::Sys(errno)) if errno_is_unsupported(errno) => {
+        Err(errno) if errno_is_unsupported(errno) => {
             return Ok(());
         }
         Err(err) => bail!("failed to read fat attributes: {}", err),
@@ -959,10 +959,7 @@ fn get_quota_project_id(
 
     // On some FUSE filesystems it can happen that ioctl is not supported.
     // For these cases projid is set to 0 while the error is ignored.
-    if let Err(err) = res {
-        let errno = err
-            .as_errno()
-            .ok_or_else(|| format_err!("error while reading quota project id"))?;
+    if let Err(errno) = res {
         if errno_is_unsupported(errno) {
             return Ok(());
         } else {

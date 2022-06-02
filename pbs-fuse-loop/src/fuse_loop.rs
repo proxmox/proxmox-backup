@@ -330,7 +330,7 @@ fn unmap_from_backing(backing_file: &Path, loopdev: Option<&str>) -> Result<(), 
     // send SIGINT to trigger cleanup and exit in target process
     match signal::kill(pid, Signal::SIGINT) {
         Ok(()) => {}
-        Err(nix::Error::Sys(nix::errno::Errno::ESRCH)) => {
+        Err(nix::errno::Errno::ESRCH) => {
             emerg_cleanup(loopdev, backing_file.to_owned());
             return Ok(());
         }
@@ -348,7 +348,7 @@ fn unmap_from_backing(backing_file: &Path, loopdev: Option<&str>) -> Result<(), 
                 }
                 std::thread::sleep(std::time::Duration::from_millis(100));
             }
-            Err(nix::Error::Sys(nix::errno::Errno::ESRCH)) => {
+            Err(nix::errno::Errno::ESRCH) => {
                 break;
             }
             Err(e) => return Err(e.into()),

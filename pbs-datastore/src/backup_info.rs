@@ -147,7 +147,7 @@ impl BackupGroup {
                         /* close else this leaks! */
                         nix::unistd::close(rawfd)?;
                     }
-                    Err(nix::Error::Sys(nix::errno::Errno::ENOENT)) => {
+                    Err(nix::errno::Errno::ENOENT) => {
                         return Ok(());
                     }
                     Err(err) => {

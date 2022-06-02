@@ -19,7 +19,7 @@ hyper = { version = "0.14.5", features = [ "full" ] }
 lazy_static = "1.4"
 libc = "0.2"
 log = "0.4.17"
-nix = "0.19.1"
+nix = "0.24"
 once_cell = "1.3.1"
 percent-encoding = "2.1"
 regex = "1.5"
@@ -40,4 +40,4 @@ proxmox-http = { version = "0.6", features = [ "client" ] }
 proxmox-router = "1.2"
 proxmox-schema = { version = "1.3.1", features = [ "api-macro", "upid-api-impl" ] }
 proxmox-time = "1"
-proxmox-sys = "0.2"
+proxmox-sys = { version = "0.3", features = [ "logrotate" ] }

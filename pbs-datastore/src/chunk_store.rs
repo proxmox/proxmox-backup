@@ -221,7 +221,7 @@ impl ChunkStore {
         })?;
 
         if let Err(err) = res {
-            if !assert_exists && err.as_errno() == Some(nix::errno::Errno::ENOENT) {
+            if !assert_exists && err == nix::errno::Errno::ENOENT {
                 return Ok(false);
             }
             bail!("update atime failed for chunk/file {path:?} - {err}");
@@ -304,7 +304,7 @@ impl ChunkStore {
                         // start reading:
                         continue;
                     }
-                    Err(ref err) if err.as_errno() == Some(nix::errno::Errno::ENOENT) => {
+                    Err(ref err) if err == &nix::errno::Errno::ENOENT => {
                         // non-existing directories are okay, just keep going:
                         continue;
                     }

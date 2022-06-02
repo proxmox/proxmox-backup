@@ -90,7 +90,7 @@ pub fn cached_config() -> Result<Arc<SectionConfigData>, Error> {
 
     let stat = match nix::sys::stat::stat(USER_CFG_FILENAME) {
         Ok(stat) => Some(stat),
-        Err(nix::Error::Sys(nix::errno::Errno::ENOENT)) => None,
+        Err(nix::errno::Errno::ENOENT) => None,
         Err(err) => bail!("unable to stat '{}' - {}", USER_CFG_FILENAME, err),
     };
 

@@ -171,7 +171,7 @@ fn get_vsock_fd() -> Result<RawFd, Error> {
         None,
     )?;
     let sock_addr = VsockAddr::new(libc::VMADDR_CID_ANY, DEFAULT_VSOCK_PORT as u32);
-    bind(sock_fd, &SockAddr::Vsock(sock_addr))?;
+    bind(sock_fd, &sock_addr)?;
     listen(sock_fd, MAX_PENDING)?;
     Ok(sock_fd)
 }

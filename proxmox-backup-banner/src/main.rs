@@ -1,12 +1,29 @@
+use anyhow::{format_err, Error};
+
 use std::fmt::Write;
 use std::fs;
 use std::net::ToSocketAddrs;
+use std::os::unix::prelude::OsStrExt;
 
 use nix::sys::utsname::uname;
 
+fn nodename() -> Result<String, Error> {
+    let uname = uname().map_err(|err| format_err!("uname() failed - {err}"))?; // save on stack to avoid to_owned() allocation below
+    std::str::from_utf8(uname.nodename().as_bytes())?
+        .split('.')
+        .next()
+        .ok_or_else(|| format_err!("Failed to split FQDN to get hostname"))
+        .map(|s| s.to_owned())
+}
+
 fn main() {
-    let uname = uname(); // save on stack to avoid to_owned() allocation below
-    let nodename = uname.nodename().split('.').next().unwrap();
+    let nodename = match nodename() {
+        Ok(value) => value,
+        Err(err) => {
+            eprintln!("Failed to retrieve hostname: {err}");
+            "INVALID".to_string()
+        }
+    };
 
     let addr = format!("{}:8007", nodename);
 

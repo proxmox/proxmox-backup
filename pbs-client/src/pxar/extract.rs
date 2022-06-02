@@ -428,7 +428,7 @@ impl Extractor {
         if result.seeked_last {
             while match nix::unistd::ftruncate(file.as_raw_fd(), size as i64) {
                 Ok(_) => false,
-                Err(nix::Error::Sys(errno)) if errno == nix::errno::Errno::EINTR => true,
+                Err(errno) if errno == nix::errno::Errno::EINTR => true,
                 Err(err) => bail!("error setting file size: {}", err),
             } {}
         }
@@ -485,7 +485,7 @@ impl Extractor {
         if result.seeked_last {
             while match nix::unistd::ftruncate(file.as_raw_fd(), size as i64) {
                 Ok(_) => false,
-                Err(nix::Error::Sys(errno)) if errno == nix::errno::Errno::EINTR => true,
+                Err(errno) if errno == nix::errno::Errno::EINTR => true,
                 Err(err) => bail!("error setting file size: {}", err),
             } {}
         }

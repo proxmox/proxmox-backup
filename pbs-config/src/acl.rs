@@ -667,7 +667,7 @@ pub fn cached_config() -> Result<Arc<AclTree>, Error> {
 
     let stat = match nix::sys::stat::stat(ACL_CFG_FILENAME) {
         Ok(stat) => Some(stat),
-        Err(nix::Error::Sys(nix::errno::Errno::ENOENT)) => None,
+        Err(nix::errno::Errno::ENOENT) => None,
         Err(err) => bail!("unable to stat '{}' - {}", ACL_CFG_FILENAME, err),
     };
 
