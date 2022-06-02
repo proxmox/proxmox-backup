@@ -1,3 +1,15 @@
+rust-proxmox-backup (1.1.14-1) buster; urgency=medium
+
+  * drop RawWaker usage to avoid a leaking a refcount
+
+  * pbs-tools: LruCache: implement Drop to fix a memory leak for the cache
+
+  * ui: add notice for nearing PBS 1.1 End-of-Life
+
+  * backport "datastore: lookup: reuse ChunkStore on stale datastore re-open"
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 02 Jun 2022 18:07:54 +0200
+
 rust-proxmox-backup (1.1.13-3) buster; urgency=medium
 
   * fix sending log-rotation command to API daemons
