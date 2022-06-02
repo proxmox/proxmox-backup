@@ -77,7 +77,7 @@ syslog = "4.0"
 tokio = { version = "1.6", features = [ "fs", "io-util", "io-std", "macros", "net", "parking_lot", "process", "rt", "rt-multi-thread", "signal", "time" ] }
 tokio-openssl = "0.6.1"
 tokio-stream = "0.1.0"
-tokio-util = { version = "0.6", features = [ "codec", "io" ] }
+tokio-util = { version = "0.7", features = [ "codec", "io" ] }
 tower-service = "0.3.0"
 udev = "0.4"
 url = "2.1"
