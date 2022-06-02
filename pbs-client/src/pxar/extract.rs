@@ -584,8 +584,7 @@ where
             match entry.kind() {
                 EntryKind::File { .. } => {
                     let size = decoder.content_size().unwrap_or(0);
-                    tar_add_file(&mut tarencoder, decoder.contents(), size, &metadata, &path)
-                        .await?
+                    tar_add_file(&mut tarencoder, decoder.contents(), size, metadata, path).await?
                 }
                 EntryKind::Hardlink(link) => {
                     if !link.data.is_empty() {
@@ -614,7 +613,7 @@ where
                                         decoder.contents(),
                                         size,
                                         metadata,
-                                        &path,
+                                        path,
                                     )
                                     .await?;
                                     hardlinks.insert(realpath.to_owned(), path.to_owned());
