@@ -42,7 +42,7 @@ pub fn do_garbage_collection_job(
             if let Err(err) = job.finish(status) {
                 eprintln!(
                     "could not finish job state for {}: {}",
-                    job.jobtype().to_string(),
+                    job.jobtype(),
                     err
                 );
             }

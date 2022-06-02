@@ -230,7 +230,7 @@ pub fn do_tape_backup_job(
             if let Err(err) = job.finish(status) {
                 eprintln!(
                     "could not finish job state for {}: {}",
-                    job.jobtype().to_string(),
+                    job.jobtype(),
                     err
                 );
             }

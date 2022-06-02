@@ -204,7 +204,6 @@ pub fn complete_block_driver_ids<S: BuildHasher>(
     ALL_DRIVERS
         .iter()
         .map(BlockDriverType::resolve)
-        .map(|d| d.list())
-        .flatten()
+        .flat_map(|d| d.list())
         .collect()
 }

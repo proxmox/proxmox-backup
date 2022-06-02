@@ -58,7 +58,7 @@ pub fn prune_datastore(
 
     for group in ListAccessibleBackupGroups::new_with_privs(
         &datastore,
-        ns.clone(),
+        ns,
         max_depth,
         Some(PRIV_DATASTORE_MODIFY), // overides the owner check
         Some(PRIV_DATASTORE_PRUNE),  // additionally required if owner
@@ -190,7 +190,7 @@ pub fn do_prune_job(
             if let Err(err) = job.finish(status) {
                 eprintln!(
                     "could not finish job state for {}: {}",
-                    job.jobtype().to_string(),
+                    job.jobtype(),
                     err
                 );
             }

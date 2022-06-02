@@ -458,7 +458,7 @@ pub fn request_and_load_media(
                                 let label_string = format!(
                                     "{} ({})",
                                     media_id.label.label_text,
-                                    media_id.label.uuid.to_string(),
+                                    media_id.label.uuid,
                                 );
                                 TapeRequestError::WrongLabel(label_string)
                             }

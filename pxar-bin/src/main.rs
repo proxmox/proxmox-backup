@@ -147,7 +147,7 @@ fn extract_archive(
         feature_flags.remove(Flags::WITH_SOCKETS);
     }
 
-    let pattern = pattern.unwrap_or_else(Vec::new);
+    let pattern = pattern.unwrap_or_default();
     let target = target.as_ref().map_or_else(|| ".", String::as_str);
 
     let mut match_list = Vec::new();
@@ -297,7 +297,7 @@ async fn create_archive(
     entries_max: isize,
 ) -> Result<(), Error> {
     let patterns = {
-        let input = exclude.unwrap_or_else(Vec::new);
+        let input = exclude.unwrap_or_default();
         let mut patterns = Vec::with_capacity(input.len());
         for entry in input {
             patterns.push(

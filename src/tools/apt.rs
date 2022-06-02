@@ -132,7 +132,7 @@ fn get_changelog_url(
             Some(captures) => {
                 let base_capture = captures.get(1);
                 match base_capture {
-                    Some(base_underscore) => base_underscore.as_str().replace("_", "/"),
+                    Some(base_underscore) => base_underscore.as_str().replace('_', "/"),
                     None => bail!("incompatible filename, cannot find regex group"),
                 }
             }

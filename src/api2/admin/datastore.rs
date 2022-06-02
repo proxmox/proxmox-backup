@@ -1557,7 +1557,7 @@ pub fn catalog(
         &backup_dir.group,
     )?;
 
-    let backup_dir = datastore.backup_dir(ns.clone(), backup_dir)?;
+    let backup_dir = datastore.backup_dir(ns, backup_dir)?;
 
     let file_name = CATALOG_NAME;
 
@@ -1939,7 +1939,7 @@ pub fn get_notes(
         &backup_dir.group,
     )?;
 
-    let backup_dir = datastore.backup_dir(ns.clone(), backup_dir)?;
+    let backup_dir = datastore.backup_dir(ns, backup_dir)?;
 
     let (manifest, _) = backup_dir.load_manifest()?;
 
@@ -1992,7 +1992,7 @@ pub fn set_notes(
         &backup_dir.group,
     )?;
 
-    let backup_dir = datastore.backup_dir(ns.clone(), backup_dir)?;
+    let backup_dir = datastore.backup_dir(ns, backup_dir)?;
 
     backup_dir
         .update_manifest(|manifest| {
@@ -2042,7 +2042,7 @@ pub fn get_protection(
         &backup_dir.group,
     )?;
 
-    let backup_dir = datastore.backup_dir(ns.clone(), backup_dir)?;
+    let backup_dir = datastore.backup_dir(ns, backup_dir)?;
 
     Ok(backup_dir.is_protected())
 }
@@ -2090,7 +2090,7 @@ pub fn set_protection(
         &backup_dir.group,
     )?;
 
-    let backup_dir = datastore.backup_dir(ns.clone(), backup_dir)?;
+    let backup_dir = datastore.backup_dir(ns, backup_dir)?;
 
     datastore.update_protection(&backup_dir, protected)
 }

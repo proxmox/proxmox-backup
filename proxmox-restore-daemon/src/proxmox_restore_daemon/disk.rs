@@ -107,14 +107,14 @@ impl Bucket {
             Bucket::RawFs(_) => ty == "raw",
             Bucket::ZPool(data) => {
                 if let Some(ref comp) = comp.get(0) {
-                    ty == "zpool" && comp.as_ref() == &data.name
+                    ty == "zpool" && comp.as_ref() == data.name
                 } else {
                     false
                 }
             }
             Bucket::LVM(data) => {
                 if let (Some(ref vg), Some(ref lv)) = (comp.get(0), comp.get(1)) {
-                    ty == "lvm" && vg.as_ref() == &data.vg_name && lv.as_ref() == &data.lv_name
+                    ty == "lvm" && vg.as_ref() == data.vg_name && lv.as_ref() == data.lv_name
                 } else {
                     false
                 }

@@ -837,10 +837,7 @@ async fn schedule_task_log_rotate() {
     if !check_schedule(worker_type, schedule, job_id) {
         // if we never ran the rotation, schedule instantly
         match jobstate::JobState::load(worker_type, job_id) {
-            Ok(state) => match state {
-                jobstate::JobState::Created { .. } => {}
-                _ => return,
-            },
+            Ok(jobstate::JobState::Created { .. }) => {}
             _ => return,
         }
     }
@@ -1183,10 +1180,6 @@ fn gather_disk_stats(disk_manager: Arc<DiskManage>, path: &Path, rrd_prefix: &st
 }
 
 // Rate Limiter lookup
-
-// Test WITH
-// proxmox-backup-client restore vm/201/2021-10-22T09:55:56Z drive-scsi0.img img1.img --repository localhost:store2
-
 async fn run_traffic_control_updater() {
     loop {
         let delay_target = Instant::now() + Duration::from_secs(1);

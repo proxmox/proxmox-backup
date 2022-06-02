@@ -262,10 +262,8 @@ pub fn rotate_task_log_archive(
                         }
                     }
                 }
-            } else {
-                if let Err(err) = std::fs::remove_file(&file_name) {
-                    log::error!("could not remove {:?}: {}", file_name, err);
-                }
+            } else if let Err(err) = std::fs::remove_file(&file_name) {
+                log::error!("could not remove {:?}: {}", file_name, err);
             }
         }
     }
@@ -966,7 +964,7 @@ impl WorkerTask {
 
     /// Set progress indicator
     pub fn progress(&self, progress: f64) {
-        if progress >= 0.0 && progress <= 1.0 {
+        if (0.0..=1.0).contains(&progress) {
             let mut data = self.data.lock().unwrap();
             data.progress = progress;
         } else {

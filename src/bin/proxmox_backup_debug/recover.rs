@@ -3,7 +3,6 @@ use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::Path;
 
 use anyhow::{bail, format_err, Error};
-use serde_json::Value;
 
 use proxmox_router::cli::{CliCommand, CliCommandMap, CommandLineInterface};
 use proxmox_schema::api;
@@ -69,7 +68,6 @@ fn recover_index(
     ignore_missing_chunks: bool,
     ignore_corrupt_chunks: bool,
     output_path: Option<String>,
-    _param: Value,
 ) -> Result<(), Error> {
     let file_path = Path::new(&file);
     let chunks_path = Path::new(&chunks);
@@ -150,7 +148,7 @@ fn recover_index(
             }
             Err(err) => {
                 if ignore_missing_chunks && err.kind() == std::io::ErrorKind::NotFound {
-                    create_zero_chunk(format!("is missing"))?
+                    create_zero_chunk("is missing".to_string())?
                 } else {
                     bail!("could not open chunk file - {}", err);
                 }

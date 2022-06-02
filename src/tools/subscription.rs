@@ -278,7 +278,7 @@ pub fn read_subscription() -> Result<Option<SubscriptionInfo>, Error> {
     };
 
     let encoded: String = cfg.collect::<String>();
-    let decoded = base64::decode(encoded.to_owned())?;
+    let decoded = base64::decode(&encoded)?;
     let decoded = std::str::from_utf8(&decoded)?;
 
     let info: SubscriptionInfo = serde_json::from_str(decoded)?;

@@ -19,7 +19,7 @@ pub fn render_backup_file_list<S: Borrow<str>>(files: &[S]) -> String {
         .map(|v| strip_server_file_extension(v.borrow()))
         .collect();
 
-    files.sort();
+    files.sort_unstable();
 
     files.join(" ")
 }

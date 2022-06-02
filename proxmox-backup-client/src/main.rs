@@ -176,7 +176,7 @@ pub async fn dir_or_last_from_group(
     match path.parse::<BackupPart>()? {
         BackupPart::Dir(dir) => Ok(dir),
         BackupPart::Group(group) => {
-            api_datastore_latest_snapshot(&client, repo.store(), ns, group).await
+            api_datastore_latest_snapshot(client, repo.store(), ns, group).await
         }
     }
 }
@@ -1245,7 +1245,7 @@ async fn restore(param: Value) -> Result<Value, Error> {
     let ns = optional_ns_param(&param)?;
     let path = json::required_string_param(&param, "snapshot")?;
 
-    let backup_dir = dir_or_last_from_group(&client, &repo, &ns, &path).await?;
+    let backup_dir = dir_or_last_from_group(&client, &repo, &ns, path).await?;
 
     let target = json::required_string_param(&param, "target")?;
     let target = if target == "-" { None } else { Some(target) };

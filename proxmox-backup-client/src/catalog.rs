@@ -163,7 +163,7 @@ async fn catalog_shell(param: Value) -> Result<(), Error> {
     let path = required_string_param(&param, "snapshot")?;
     let archive_name = required_string_param(&param, "archive-name")?;
 
-    let backup_dir = dir_or_last_from_group(&client, &repo, &backup_ns, &path).await?;
+    let backup_dir = dir_or_last_from_group(&client, &repo, &backup_ns, path).await?;
 
     let crypto = crypto_parameters(&param)?;
 

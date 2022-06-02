@@ -205,7 +205,7 @@ async fn mount_do(param: Value, pipe: Option<Fd>) -> Result<Value, Error> {
 
     let backup_ns = optional_ns_param(&param)?;
     let path = required_string_param(&param, "snapshot")?;
-    let backup_dir = dir_or_last_from_group(&client, &repo, &backup_ns, &path).await?;
+    let backup_dir = dir_or_last_from_group(&client, &repo, &backup_ns, path).await?;
 
     let keyfile = param["keyfile"].as_str().map(PathBuf::from);
     let crypt_config = match keyfile {

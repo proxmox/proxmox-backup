@@ -449,7 +449,7 @@ impl PoolWriter {
                     self.catalog_set.lock().unwrap().register_snapshot(
                         content_uuid,
                         current_file_number,
-                        &snapshot_reader.datastore_name().to_string(),
+                        snapshot_reader.datastore_name(),
                         snapshot_reader.snapshot().backup_ns(),
                         snapshot_reader.snapshot().as_ref(),
                     )?;
