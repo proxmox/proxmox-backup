@@ -52,16 +52,20 @@ impl DataStore {
 
         let mut map = DATASTORE_MAP.lock().unwrap();
 
-        if let Some(datastore) = map.get(name) {
+        // reuse chunk store so that we keep using the same process locker instance!
+        let chunk_store = if let Some(datastore) = map.get(name) {
             // Compare Config - if changed, create new Datastore object!
             if datastore.chunk_store.base == path &&
                 datastore.verify_new == config.verify_new.unwrap_or(false)
             {
                 return Ok(datastore.clone());
             }
-        }
+            Arc::clone(&datastore.chunk_store)
+        } else {
+            Arc::new(ChunkStore::open(name, &config.path)?)
+        };
 
-        let datastore = DataStore::open_with_path(name, &path, config)?;
+        let datastore = DataStore::open_with_path(chunk_store, config)?;
 
         let datastore = Arc::new(datastore);
         map.insert(name.to_string(), datastore.clone());
@@ -81,9 +85,7 @@ impl DataStore {
         Ok(())
     }
 
-    fn open_with_path(store_name: &str, path: &Path, config: DataStoreConfig) -> Result<Self, Error> {
-        let chunk_store = ChunkStore::open(store_name, path)?;
-
+    fn open_with_path(chunk_store: Arc<ChunkStore>, config: DataStoreConfig) -> Result<Self, Error> {
         let mut gc_status_path = chunk_store.base_path();
         gc_status_path.push(".gc-status");
 
@@ -100,7 +102,7 @@ impl DataStore {
         };
 
         Ok(Self {
-            chunk_store: Arc::new(chunk_store),
+            chunk_store,
             gc_mutex: Mutex::new(()),
             last_gc_status: Mutex::new(gc_status),
             verify_new: config.verify_new.unwrap_or(false),
