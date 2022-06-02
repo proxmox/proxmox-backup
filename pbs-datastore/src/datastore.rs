@@ -145,8 +145,7 @@ impl DataStore {
         let mut map = DATASTORE_MAP.lock().unwrap();
         let entry = map.get(name);
 
-        // reuse chunk_store, we only want to reload the datastore config, and the path
-        // is normally not editable and requires a restart of the proxy
+        // reuse chunk store so that we keep using the same process locker instance!
         let chunk_store = if let Some(datastore) = &entry {
             if datastore.last_generation == generation && now < (datastore.last_update + 60) {
                 return Ok(Arc::new(Self {
