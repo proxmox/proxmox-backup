@@ -35,6 +35,14 @@ const proxmoxOnlineHelpInfo = {
     "link": "/docs/configuration-files.html#domains-cfg",
     "title": "``domains.cfg``"
   },
+  "faq-support-table": {
+    "link": "/docs/faq.html#faq-support-table",
+    "title": "How long will my Proxmox Backup Server version be supported?"
+  },
+  "faq-upgrade-major": {
+    "link": "/docs/faq.html#faq-upgrade-major",
+    "title": "How can I upgrade Proxmox Backup Server to the next major release?"
+  },
   "pxar-format": {
     "link": "/docs/file-formats.html#pxar-format",
     "title": "Proxmox File Archive Format (``.pxar``)"
