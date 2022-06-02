@@ -1,5 +1,5 @@
 use std::process::Command;
-use std::{os::unix::prelude::OsStrExt, path::Path};
+use std::os::unix::prelude::OsStrExt;
 
 use anyhow::{bail, format_err, Error};
 use serde_json::Value;
@@ -9,7 +9,9 @@ use proxmox_sys::linux::procfs;
 use proxmox_router::{ApiMethod, Permission, Router, RpcEnvironment};
 use proxmox_schema::api;
 
-use pbs_api_types::{NodePowerCommand, NODE_SCHEMA, PRIV_SYS_AUDIT, PRIV_SYS_POWER_MANAGEMENT};
+use pbs_api_types::{
+    NodePowerCommand, StorageStatus, NODE_SCHEMA, PRIV_SYS_AUDIT, PRIV_SYS_POWER_MANAGEMENT,
+};
 
 use crate::api2::types::{
     NodeCpuInformation, NodeInformation, NodeMemoryCounters, NodeStatus, NodeSwapCounters,
@@ -77,10 +79,16 @@ fn get_status(
         std::str::from_utf8(uname.version().as_bytes())?
     );
 
+    let disk = proxmox_sys::fs::fs_info(proxmox_lang::c_str!("/"))?;
+
     Ok(NodeStatus {
         memory,
         swap,
-        root: crate::tools::disks::disk_usage(Path::new("/"))?,
+        root: StorageStatus {
+            total: disk.total,
+            used: disk.used,
+            avail: disk.available,
+        },
         uptime: procfs::read_proc_uptime()?.0 as u64,
         loadavg,
         kversion,

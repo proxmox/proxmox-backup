@@ -19,7 +19,7 @@ use proxmox_lang::{io_bail, io_format_err};
 use proxmox_schema::api;
 use proxmox_sys::linux::procfs::{mountinfo::Device, MountInfo};
 
-use pbs_api_types::{StorageStatus, BLOCKDEVICE_NAME_REGEX};
+use pbs_api_types::BLOCKDEVICE_NAME_REGEX;
 
 mod zfs;
 pub use zfs::*;
@@ -526,24 +526,6 @@ impl Disk {
 
         Ok(map)
     }
-}
-
-/// Returns disk usage information (total, used, avail)
-pub fn disk_usage(path: &std::path::Path) -> Result<StorageStatus, Error> {
-    let mut stat: libc::statfs64 = unsafe { std::mem::zeroed() };
-
-    use nix::NixPath;
-
-    let res = path.with_nix_path(|cstr| unsafe { libc::statfs64(cstr.as_ptr(), &mut stat) })?;
-    nix::errno::Errno::result(res)?;
-
-    let bsize = stat.f_bsize as u64;
-
-    Ok(StorageStatus {
-        total: stat.f_blocks * bsize,
-        used: (stat.f_blocks - stat.f_bfree) * bsize,
-        avail: stat.f_bavail * bsize,
-    })
 }
 
 #[api()]

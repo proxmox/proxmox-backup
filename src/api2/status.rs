@@ -64,13 +64,13 @@ pub fn datastore_status(
                 continue;
             }
         };
-        let status = crate::tools::disks::disk_usage(&datastore.base_path())?;
+        let status = proxmox_sys::fs::fs_info(&datastore.base_path())?;
 
         let mut entry = DataStoreStatusListItem {
             store: store.clone(),
             total: status.total as i64,
             used: status.used as i64,
-            avail: status.avail as i64,
+            avail: status.available as i64,
             history: None,
             history_start: None,
             history_delta: None,

@@ -1123,7 +1123,7 @@ fn check_schedule(worker_type: &str, event_str: &str, id: &str) -> bool {
 }
 
 fn gather_disk_stats(disk_manager: Arc<DiskManage>, path: &Path, rrd_prefix: &str) {
-    match proxmox_backup::tools::disks::disk_usage(path) {
+    match proxmox_sys::fs::fs_info(path) {
         Ok(status) => {
             let rrd_key = format!("{}/total", rrd_prefix);
             rrd_update_gauge(&rrd_key, status.total as f64);
@@ -1131,7 +1131,7 @@ fn gather_disk_stats(disk_manager: Arc<DiskManage>, path: &Path, rrd_prefix: &st
             rrd_update_gauge(&rrd_key, status.used as f64);
         }
         Err(err) => {
-            eprintln!("read disk_usage on {:?} failed - {}", path, err);
+            eprintln!("read fs info on {:?} failed - {}", path, err);
         }
     }
 

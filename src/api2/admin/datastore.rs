@@ -674,11 +674,11 @@ pub fn status(
     };
 
     Ok(if store_stats {
-        let storage = crate::tools::disks::disk_usage(&datastore.base_path())?;
+        let storage = proxmox_sys::fs::fs_info(&datastore.base_path())?;
         DataStoreStatus {
             total: storage.total,
             used: storage.used,
-            avail: storage.avail,
+            avail: storage.available,
             gc_status,
             counts,
         }
