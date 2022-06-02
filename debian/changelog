@@ -1,3 +1,11 @@
+rust-proxmox-backup (2.2.2-3) bullseye; urgency=medium
+
+  * datastore: lookup: reuse ChunkStore on stale datastore re-open
+
+  * bump tokio (async framework) dependency
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 02 Jun 2022 17:25:01 +0200
+
 rust-proxmox-backup (2.2.2-2) bullseye; urgency=medium
 
   * improvement of error handling when removing status files and locks from
