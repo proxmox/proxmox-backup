@@ -944,7 +944,7 @@ impl BackupDir {
     where
         T: Into<String>,
     {
-        let time = proxmox_time::parse_rfc3339(&backup_time_string)?;
+        let time = proxmox_time::parse_rfc3339(backup_time_string)?;
         let group = BackupGroup::new(ty, id.into());
         Ok(Self { group, time })
     }

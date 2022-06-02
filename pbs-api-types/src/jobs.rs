@@ -390,7 +390,7 @@ impl std::str::FromStr for GroupFilter {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.split_once(":") {
+        match s.split_once(':') {
             Some(("group", value)) => BACKUP_GROUP_SCHEMA.parse_simple_value(value).map(|_| GroupFilter::Group(value.to_string())),
             Some(("type", value)) => Ok(GroupFilter::BackupType(value.parse()?)),
             Some(("regex", value)) => Ok(GroupFilter::Regex(Regex::new(value)?)),
