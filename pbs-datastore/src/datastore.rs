@@ -145,16 +145,20 @@ impl DataStore {
         let mut map = DATASTORE_MAP.lock().unwrap();
         let entry = map.get(name);
 
-        if let Some(datastore) = &entry {
+        // reuse chunk_store, we only want to reload the datastore config, and the path
+        // is normally not editable and requires a restart of the proxy
+        let chunk_store = if let Some(datastore) = &entry {
             if datastore.last_generation == generation && now < (datastore.last_update + 60) {
                 return Ok(Arc::new(Self {
                     inner: Arc::clone(datastore),
                     operation,
                 }));
             }
-        }
+            Arc::clone(&datastore.chunk_store)
+        } else {
+            Arc::new(ChunkStore::open(name, &config.path)?)
+        };
 
-        let chunk_store = ChunkStore::open(name, &config.path)?;
         let datastore = DataStore::with_store_and_config(chunk_store, config, generation, now)?;
 
         let datastore = Arc::new(datastore);
@@ -198,7 +202,12 @@ impl DataStore {
         let name = config.name.clone();
 
         let chunk_store = ChunkStore::open(&name, &config.path)?;
-        let inner = Arc::new(Self::with_store_and_config(chunk_store, config, 0, 0)?);
+        let inner = Arc::new(Self::with_store_and_config(
+            Arc::new(chunk_store),
+            config,
+            0,
+            0,
+        )?);
 
         if let Some(operation) = operation {
             update_active_operations(&name, operation, 1)?;
@@ -208,7 +217,7 @@ impl DataStore {
     }
 
     fn with_store_and_config(
-        chunk_store: ChunkStore,
+        chunk_store: Arc<ChunkStore>,
         config: DataStoreConfig,
         last_generation: usize,
         last_update: i64,
@@ -235,7 +244,7 @@ impl DataStore {
         let chunk_order = tuning.chunk_order.unwrap_or(ChunkOrder::Inode);
 
         Ok(DataStoreImpl {
-            chunk_store: Arc::new(chunk_store),
+            chunk_store,
             gc_mutex: Mutex::new(()),
             last_gc_status: Mutex::new(gc_status),
             verify_new: config.verify_new.unwrap_or(false),
