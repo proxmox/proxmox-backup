@@ -157,6 +157,6 @@ impl ConfigVersionCache {
         self.shmem
             .data()
             .datastore_generation
-            .fetch_add(1, Ordering::Acquire)
+            .fetch_add(1, Ordering::AcqRel)
     }
 }
