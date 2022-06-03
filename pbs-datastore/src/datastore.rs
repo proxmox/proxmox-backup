@@ -60,7 +60,6 @@ pub struct DataStoreImpl {
     verify_new: bool,
     chunk_order: ChunkOrder,
     last_generation: usize,
-    last_update: i64,
 }
 
 impl DataStoreImpl {
@@ -74,7 +73,6 @@ impl DataStoreImpl {
             verify_new: false,
             chunk_order: ChunkOrder::None,
             last_generation: 0,
-            last_update: 0,
         })
     }
 }
@@ -127,7 +125,6 @@ impl DataStore {
     ) -> Result<Arc<DataStore>, Error> {
         let version_cache = ConfigVersionCache::new()?;
         let generation = version_cache.datastore_generation();
-        let now = proxmox_time::epoch_i64();
 
         let (config, _digest) = pbs_config::datastore::config()?;
         let config: DataStoreConfig = config.lookup("datastore", name)?;
@@ -147,7 +144,7 @@ impl DataStore {
 
         // reuse chunk store so that we keep using the same process locker instance!
         let chunk_store = if let Some(datastore) = &entry {
-            if datastore.last_generation == generation && now < (datastore.last_update + 60) {
+            if datastore.last_generation == generation {
                 return Ok(Arc::new(Self {
                     inner: Arc::clone(datastore),
                     operation,
@@ -158,7 +155,7 @@ impl DataStore {
             Arc::new(ChunkStore::open(name, &config.path)?)
         };
 
-        let datastore = DataStore::with_store_and_config(chunk_store, config, generation, now)?;
+        let datastore = DataStore::with_store_and_config(chunk_store, config, generation)?;
 
         let datastore = Arc::new(datastore);
         map.insert(name.to_string(), datastore.clone());
@@ -205,7 +202,6 @@ impl DataStore {
             Arc::new(chunk_store),
             config,
             0,
-            0,
         )?);
 
         if let Some(operation) = operation {
@@ -219,7 +215,6 @@ impl DataStore {
         chunk_store: Arc<ChunkStore>,
         config: DataStoreConfig,
         last_generation: usize,
-        last_update: i64,
     ) -> Result<DataStoreImpl, Error> {
         let mut gc_status_path = chunk_store.base_path();
         gc_status_path.push(".gc-status");
@@ -249,7 +244,6 @@ impl DataStore {
             verify_new: config.verify_new.unwrap_or(false),
             chunk_order,
             last_generation,
-            last_update,
         })
     }
 
