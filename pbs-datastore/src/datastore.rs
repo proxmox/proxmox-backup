@@ -139,8 +139,8 @@ impl DataStore {
             update_active_operations(name, operation, 1)?;
         }
 
-        let mut map = DATASTORE_MAP.lock().unwrap();
-        let entry = map.get(name);
+        let mut datastore_cache = DATASTORE_MAP.lock().unwrap();
+        let entry = datastore_cache.get(name);
 
         // reuse chunk store so that we keep using the same process locker instance!
         let chunk_store = if let Some(datastore) = &entry {
@@ -158,7 +158,7 @@ impl DataStore {
         let datastore = DataStore::with_store_and_config(chunk_store, config, generation)?;
 
         let datastore = Arc::new(datastore);
-        map.insert(name.to_string(), datastore.clone());
+        datastore_cache.insert(name.to_string(), datastore.clone());
 
         Ok(Arc::new(Self {
             inner: datastore,
