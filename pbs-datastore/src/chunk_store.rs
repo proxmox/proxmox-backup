@@ -153,7 +153,12 @@ impl ChunkStore {
         lockfile_path
     }
 
-    pub fn open<P: Into<PathBuf>>(name: &str, base: P) -> Result<Self, Error> {
+    /// Opens the chunk store with a new process locker.
+    ///
+    /// Note that this must be used with care, as it's dangerous to create two instances on the
+    /// same base path, as closing the underlying ProcessLocker drops all locks from this process
+    /// on the lockfile (even if separate FDs)
+    pub(crate) fn open<P: Into<PathBuf>>(name: &str, base: P) -> Result<Self, Error> {
         let base: PathBuf = base.into();
 
         if !base.is_absolute() {
