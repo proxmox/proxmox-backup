@@ -1193,11 +1193,11 @@ pub fn get_datastore_list(
 
         let mut allow_id = false;
         if !allowed {
-            let scfg: pbs_api_types::DataStoreConfig = serde_json::from_value(data.to_owned())?;
-            // safety: we just cannot go through lookup as we must avoid an operation check
-            if let Ok(datastore) = unsafe { DataStore::open_from_config(scfg, None) } {
+            if let Ok(datastore) = DataStore::lookup_datastore(store, Some(Operation::Read)) {
                 allow_id = can_access_any_namespace(datastore, &auth_id, &user_info);
             }
+            // FIXME: check for any ACL on the datastore below in the error case, otherwise offline
+            // datastore will disappear for users that can only access a specific namespace
         }
 
         if allowed || allow_id {
