@@ -65,7 +65,7 @@ pub struct DataStoreImpl {
 impl DataStoreImpl {
     // This one just panics on everything
     #[doc(hidden)]
-    pub unsafe fn new_test() -> Arc<Self> {
+    pub(crate) unsafe fn new_test() -> Arc<Self> {
         Arc::new(Self {
             chunk_store: Arc::new(unsafe { ChunkStore::panic_store() }),
             gc_mutex: Mutex::new(()),
@@ -112,7 +112,7 @@ impl Drop for DataStore {
 impl DataStore {
     // This one just panics on everything
     #[doc(hidden)]
-    pub unsafe fn new_test() -> Arc<Self> {
+    pub(crate) unsafe fn new_test() -> Arc<Self> {
         Arc::new(Self {
             inner: unsafe { DataStoreImpl::new_test() },
             operation: None,
@@ -180,7 +180,8 @@ impl DataStore {
     ///
     /// # Safety
     /// See the safety section in `open_from_config`
-    pub unsafe fn open_path(
+    #[allow(dead_code)]
+    pub(crate) unsafe fn open_path(
         name: &str,
         path: impl AsRef<Path>,
         operation: Option<Operation>,
@@ -202,7 +203,7 @@ impl DataStore {
     /// chunkstore's process locker will close all locks from our process on the config.path,
     /// breaking guarantees we need to uphold for safe long backup + GC interaction on newer/older
     /// process instances (from package update).
-    pub unsafe fn open_from_config(
+    pub(crate) unsafe fn open_from_config(
         config: DataStoreConfig,
         operation: Option<Operation>,
     ) -> Result<Arc<Self>, Error> {
