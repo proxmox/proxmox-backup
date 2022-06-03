@@ -21,7 +21,6 @@ use pbs_api_types::{
     Authid, BackupNamespace, BackupType, ChunkOrder, DataStoreConfig, DatastoreTuning,
     GarbageCollectionStatus, HumanByte, Operation, UPID,
 };
-use pbs_config::ConfigVersionCache;
 
 use crate::backup_info::{BackupDir, BackupGroup};
 use crate::chunk_store::ChunkStore;
@@ -59,7 +58,7 @@ pub struct DataStoreImpl {
     last_gc_status: Mutex<GarbageCollectionStatus>,
     verify_new: bool,
     chunk_order: ChunkOrder,
-    last_generation: usize,
+    last_digest: Option<[u8; 32]>,
 }
 
 impl DataStoreImpl {
@@ -72,7 +71,7 @@ impl DataStoreImpl {
             last_gc_status: Mutex::new(GarbageCollectionStatus::default()),
             verify_new: false,
             chunk_order: ChunkOrder::None,
-            last_generation: 0,
+            last_digest: None,
         })
     }
 }
@@ -123,10 +122,9 @@ impl DataStore {
         name: &str,
         operation: Option<Operation>,
     ) -> Result<Arc<DataStore>, Error> {
-        let version_cache = ConfigVersionCache::new()?;
-        let generation = version_cache.datastore_generation();
-
-        let (config, _digest) = pbs_config::datastore::config()?;
+        // we could use the ConfigVersionCache's generation for staleness detection, but  we load
+        // the config anyway -> just use digest, additional benefit: manual changes get detected
+        let (config, digest) = pbs_config::datastore::config()?;
         let config: DataStoreConfig = config.lookup("datastore", name)?;
 
         if let Some(maintenance_mode) = config.get_maintenance_mode() {
@@ -144,7 +142,8 @@ impl DataStore {
 
         // reuse chunk store so that we keep using the same process locker instance!
         let chunk_store = if let Some(datastore) = &entry {
-            if datastore.last_generation == generation {
+            let last_digest = datastore.last_digest.as_ref();
+            if let Some(true) = last_digest.map(|last_digest| last_digest == &digest) {
                 return Ok(Arc::new(Self {
                     inner: Arc::clone(datastore),
                     operation,
@@ -155,7 +154,7 @@ impl DataStore {
             Arc::new(ChunkStore::open(name, &config.path)?)
         };
 
-        let datastore = DataStore::with_store_and_config(chunk_store, config, generation)?;
+        let datastore = DataStore::with_store_and_config(chunk_store, config, Some(digest))?;
 
         let datastore = Arc::new(datastore);
         datastore_cache.insert(name.to_string(), datastore.clone());
@@ -212,7 +211,7 @@ impl DataStore {
         let inner = Arc::new(Self::with_store_and_config(
             Arc::new(chunk_store),
             config,
-            0,
+            None,
         )?);
 
         if let Some(operation) = operation {
@@ -225,7 +224,7 @@ impl DataStore {
     fn with_store_and_config(
         chunk_store: Arc<ChunkStore>,
         config: DataStoreConfig,
-        last_generation: usize,
+        last_digest: Option<[u8; 32]>,
     ) -> Result<DataStoreImpl, Error> {
         let mut gc_status_path = chunk_store.base_path();
         gc_status_path.push(".gc-status");
@@ -254,7 +253,7 @@ impl DataStore {
             last_gc_status: Mutex::new(gc_status),
             verify_new: config.verify_new.unwrap_or(false),
             chunk_order,
-            last_generation,
+            last_digest,
         })
     }
 

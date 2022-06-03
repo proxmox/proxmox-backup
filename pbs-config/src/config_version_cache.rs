@@ -26,6 +26,7 @@ struct ConfigVersionCacheDataInner {
     // Traffic control (traffic-control.cfg) generation/version.
     traffic_control_generation: AtomicUsize,
     // datastore (datastore.cfg) generation/version
+    // FIXME: remove with PBS 3.0
     datastore_generation: AtomicUsize,
     // Add further atomics here
 }
@@ -144,15 +145,8 @@ impl ConfigVersionCache {
             .fetch_add(1, Ordering::AcqRel);
     }
 
-    /// Returns the datastore generation number.
-    pub fn datastore_generation(&self) -> usize {
-        self.shmem
-            .data()
-            .datastore_generation
-            .load(Ordering::Acquire)
-    }
-
     /// Increase the datastore generation number.
+    // FIXME: remove with PBS 3.0 or make actually useful again in datastore lookup
     pub fn increase_datastore_generation(&self) -> usize {
         self.shmem
             .data()
