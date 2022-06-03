@@ -177,6 +177,9 @@ impl DataStore {
     }
 
     /// Open a raw database given a name and a path.
+    ///
+    /// # Safety
+    /// See the safety section in `open_from_config`
     pub unsafe fn open_path(
         name: &str,
         path: impl AsRef<Path>,
@@ -191,6 +194,14 @@ impl DataStore {
     }
 
     /// Open a datastore given a raw configuration.
+    ///
+    /// # Safety
+    /// There's no memory saftey implication, but as this is opening a new ChunkStore it will
+    /// create a new process locker instance, potentially on the same path as existing safely
+    /// created ones. This is dangerous as dropping the reference of this and thus the underlying
+    /// chunkstore's process locker will close all locks from our process on the config.path,
+    /// breaking guarantees we need to uphold for safe long backup + GC interaction on newer/older
+    /// process instances (from package update).
     pub unsafe fn open_from_config(
         config: DataStoreConfig,
         operation: Option<Operation>,
