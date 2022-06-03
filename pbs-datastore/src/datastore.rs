@@ -180,8 +180,7 @@ impl DataStore {
     ///
     /// # Safety
     /// See the safety section in `open_from_config`
-    #[allow(dead_code)]
-    pub(crate) unsafe fn open_path(
+    pub unsafe fn open_path(
         name: &str,
         path: impl AsRef<Path>,
         operation: Option<Operation>,
@@ -203,7 +202,7 @@ impl DataStore {
     /// chunkstore's process locker will close all locks from our process on the config.path,
     /// breaking guarantees we need to uphold for safe long backup + GC interaction on newer/older
     /// process instances (from package update).
-    pub(crate) unsafe fn open_from_config(
+    unsafe fn open_from_config(
         config: DataStoreConfig,
         operation: Option<Operation>,
     ) -> Result<Arc<Self>, Error> {
