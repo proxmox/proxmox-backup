@@ -669,21 +669,25 @@ impl AclTree {
     }
 
     /// Checks whether the `auth_id` has any of the privilegs `privs` on any object below `path`.
-    pub fn any_priv_below(&self, auth_id: &Authid, path: &str, privs: u64) -> Result<bool, Error> {
-        let comps = split_acl_path(path);
+    pub fn any_privs_below(
+        &self,
+        auth_id: &Authid,
+        path: &[&str],
+        privs: u64,
+    ) -> Result<bool, Error> {
         let mut node = &self.root;
 
         // check first if there's any propagated priv we need to be aware of
-        for c in comps {
-            // set propagate to false to get only propagating roles
-            if node.check_any_privs(auth_id, privs, true)? {
-                return Ok(true);
+        for outer in path {
+            for c in outer.split('/') {
+                if node.check_any_privs(auth_id, privs, true)? {
+                    return Ok(true);
+                }
+                // check next component
+                node = node.children.get(&c.to_string()).ok_or(format_err!(
+                    "component '{c}' of path '{path:?}' does not exist in current acl tree"
+                ))?;
             }
-
-            // check next component
-            node = node.children.get(&c.to_string()).ok_or(format_err!(
-                "component '{c}' of path '{path}' does not exist in current acl tree"
-            ))?;
         }
 
         // check last node in the path too
@@ -945,22 +949,22 @@ acl:1:/storage/store1:user1@pbs:DatastoreBackup
         let user2: Authid = "user2@pbs".parse()?;
 
         // user1 has admin on "/store/store2/store3" -> return true
-        assert!(tree.any_priv_below(&user1, "/store", ROLE_ADMIN)?);
+        assert!(tree.any_privs_below(&user1, &["store"], ROLE_ADMIN)?);
 
         // user2 has not privileges under "/store/store2/store3" --> return false
-        assert!(!tree.any_priv_below(&user2, "/store/store2/store3", ROLE_DATASTORE_READER)?);
+        assert!(!tree.any_privs_below(&user2, &["store", "store2", "store3"], ROLE_DATASTORE_READER)?);
 
         // user2 has DatastoreReader privileges under "/store/store2/store31" --> return true
-        assert!(tree.any_priv_below(&user2, "/store/store2/store31", ROLE_DATASTORE_READER)?);
+        assert!(tree.any_privs_below(&user2, &["store/store2/store31"], ROLE_DATASTORE_READER)?);
 
         // user2 has no TapeReader privileges under "/store/store2/store31" --> return false
-        assert!(!tree.any_priv_below(&user2, "/store/store2/store31", ROLE_TAPE_READER)?);
+        assert!(!tree.any_privs_below(&user2, &["store/store2/store31"], ROLE_TAPE_READER)?);
 
         // user2 has no DatastoreReader propagating privileges on
         // "/store/store2/store31/store4/store6" --> return true
-        assert!(tree.any_priv_below(
+        assert!(tree.any_privs_below(
             &user2,
-            "/store/store2/store31/store4/store6",
+            &["store/store2/store31/store4/store6"],
             ROLE_DATASTORE_READER
         )?);
 
