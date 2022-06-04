@@ -302,18 +302,16 @@ impl AclTreeNode {
         }
     }
 
-    ///
     /// Check if auth_id has any of the provided privileges on the current note.
     ///
-    /// If `propagating` is set to true only propagating privileges will be checked.
-    ///
+    /// If `only_propagated` is set to true only propagating privileges will be checked.
     fn check_any_privs(
         &self,
         auth_id: &Authid,
         privs: u64,
-        propagating: bool,
+        only_propagated: bool,
     ) -> Result<bool, Error> {
-        for role in self.extract_roles(&auth_id, !propagating).into_keys() {
+        for role in self.extract_roles(&auth_id, !only_propagated).into_keys() {
             let current_privs = Role::from_str(&role)
                 .map_err(|e| format_err!("invalid role in current node: {role} - {e}"))?
                 as u64;
@@ -326,13 +324,10 @@ impl AclTreeNode {
         return Ok(false);
     }
 
-    ///
     /// Checks if the given auth_id has any of the privileges specified by `privs` on the sub-tree
     /// below the current node.
-    ///
-    ///
     fn any_privs_below(&self, auth_id: &Authid, privs: u64) -> Result<bool, Error> {
-        // set propagating to false to check all roles on the current node
+        // set only_propagated to false to check all roles on the current node
         if self.check_any_privs(auth_id, privs, false)? {
             return Ok(true);
         }
@@ -673,15 +668,12 @@ impl AclTree {
         role_map
     }
 
-    ///
     /// Checks whether the `auth_id` has any of the privilegs `privs` on any object below `path`.
-    ///
     pub fn any_priv_below(&self, auth_id: &Authid, path: &str, privs: u64) -> Result<bool, Error> {
         let comps = split_acl_path(path);
         let mut node = &self.root;
 
-        // first traverse the path to see if we have any propagating privileges we need to be aware
-        // of
+        // check first if there's any propagated priv we need to be aware of
         for c in comps {
             // set propagate to false to get only propagating roles
             if node.check_any_privs(auth_id, privs, true)? {
