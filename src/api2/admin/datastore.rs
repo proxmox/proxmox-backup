@@ -63,8 +63,8 @@ use proxmox_rest_server::{formatter, WorkerTask};
 use crate::api2::backup::optional_ns_param;
 use crate::api2::node::rrd::create_value_from_rrd;
 use crate::backup::{
-    can_access_any_namespace, check_ns_privs_full, verify_all_backups, verify_backup_dir,
-    verify_backup_group, verify_filter, ListAccessibleBackupGroups, NS_PRIVS_OK,
+    check_ns_privs_full, verify_all_backups, verify_backup_dir, verify_backup_group, verify_filter,
+    ListAccessibleBackupGroups, NS_PRIVS_OK,
 };
 
 use crate::server::jobstate::Job;
@@ -645,13 +645,12 @@ pub fn status(
         true
     } else if store_privs & PRIV_DATASTORE_READ != 0 {
         false // allow at least counts, user can read groups anyway..
-    } else if let Ok(ref datastore) = datastore {
-        if !can_access_any_namespace(Arc::clone(datastore), &auth_id, &user_info) {
-            return Err(http_err!(FORBIDDEN, "permission check failed"));
-        }
-        false
     } else {
-        return Err(http_err!(FORBIDDEN, "permission check failed")); // avoid leaking existance info
+        match user_info.any_privs_below(&auth_id, &["datastore", &store], NS_PRIVS_OK) {
+            // avoid leaking existance info if users hasn't at least any priv. below
+            Ok(false) | Err(_) => return Err(http_err!(FORBIDDEN, "permission check failed")),
+            _ => false,
+        }
     };
     let datastore = datastore?; // only unwrap no to avoid leaking existance info
 
