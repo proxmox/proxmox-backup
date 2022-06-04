@@ -64,7 +64,7 @@ use crate::api2::backup::optional_ns_param;
 use crate::api2::node::rrd::create_value_from_rrd;
 use crate::backup::{
     can_access_any_namespace, check_ns_privs_full, verify_all_backups, verify_backup_dir,
-    verify_backup_group, verify_filter, ListAccessibleBackupGroups,
+    verify_backup_group, verify_filter, ListAccessibleBackupGroups, NS_PRIVS_OK,
 };
 
 use crate::server::jobstate::Job;
@@ -1188,16 +1188,15 @@ pub fn get_datastore_list(
     let mut list = Vec::new();
 
     for (store, (_, data)) in &config.sections {
-        let user_privs = user_info.lookup_privs(&auth_id, &["datastore", store]);
+        let acl_path = &["datastore", store];
+        let user_privs = user_info.lookup_privs(&auth_id, acl_path);
         let allowed = (user_privs & (PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_BACKUP)) != 0;
 
         let mut allow_id = false;
         if !allowed {
-            if let Ok(datastore) = DataStore::lookup_datastore(store, Some(Operation::Read)) {
-                allow_id = can_access_any_namespace(datastore, &auth_id, &user_info);
+            if let Ok(any_privs) = user_info.any_privs_below(&auth_id, acl_path, NS_PRIVS_OK) {
+                allow_id = any_privs;
             }
-            // FIXME: check for any ACL on the datastore below in the error case, otherwise offline
-            // datastore will disappear for users that can only access a specific namespace
         }
 
         if allowed || allow_id {
