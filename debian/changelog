@@ -1,3 +1,16 @@
+rust-proxmox-backup (2.2.3-1) bullseye; urgency=medium
+
+  * datastore: swap dirtying the datastore cache every 60s by just using the
+    available config digest to detect any changes accuratly when the actually
+    happen
+
+  * api: datastore list and datastore status: avoid opening datastore and
+    possibly iterating over namespace (for lesser privileged users), but
+    rather use the in-memory ACL tree directly to check if there's access to
+    any namespace below.
+
+ -- Proxmox Support Team <support@proxmox.com>  Sat, 04 Jun 2022 16:30:05 +0200
+
 rust-proxmox-backup (2.2.2-3) bullseye; urgency=medium
 
   * datastore: lookup: reuse ChunkStore on stale datastore re-open
