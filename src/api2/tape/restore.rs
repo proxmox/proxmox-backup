@@ -698,9 +698,9 @@ fn restore_list_worker(
                 .collect()
         };
         for (store, snapshot, _ns, _) in snapshots.iter() {
-            let datastore = match store_map.get_targets(store, &ns) {
-                Some(store, _) => store,
-                _ => bail!("unexpected error"), // we already checked those
+            let datastore = match store_map.target_store(store) {
+                Some(store) => store,
+                None => bail!("unexpected error"), // we already checked those
             };
             let (media_id, file_num) =
                 if let Some((media_uuid, file_num)) = catalog.lookup_snapshot(store, &snapshot) {
@@ -773,11 +773,9 @@ fn restore_list_worker(
             BTreeMap::new();
 
         for (source_datastore, chunks) in datastore_chunk_map.into_iter() {
-            let (datastore, _) = store_map
-                .get_targets(&source_datastore, &Default::default())
-                .ok_or_else(|| {
-                    format_err!("could not find mapping for source datastore: {source_datastore}")
-                })?;
+            let datastore = store_map.target_store(&source_datastore).ok_or_else(|| {
+                format_err!("could not find mapping for source datastore: {source_datastore}")
+            })?;
             for digest in chunks.into_iter() {
                 // we only want to restore chunks that we do not have yet
                 if !datastore.cond_touch_chunk(&digest, false)? {
@@ -1051,17 +1049,16 @@ fn restore_snapshots_to_tmpdir(
 
                 let mut decoder = pxar::decoder::sync::Decoder::from_std(reader)?;
 
-                let target_datastore =
-                    match store_map.get_targets(&source_datastore, &Default::default()) {
-                        Some((datastore, _)) => datastore,
-                        None => {
-                            task_warn!(
-                                worker,
-                                "could not find target datastore for {source_datastore}:{snapshot}",
-                            );
-                            continue;
-                        }
-                    };
+                let target_datastore = match store_map.target_store(&source_datastore) {
+                    Some(datastore) => datastore,
+                    None => {
+                        task_warn!(
+                            worker,
+                            "could not find target datastore for {source_datastore}:{snapshot}",
+                        );
+                        continue;
+                    }
+                };
 
                 let tmp_path = snapshot_tmpdir(
                     &source_datastore,
@@ -1137,11 +1134,9 @@ fn restore_file_chunk_map(
                     "File {nr}: chunk archive for datastore '{source_datastore}'",
                 );
 
-                let (datastore, _) = store_map
-                    .get_targets(&source_datastore, &Default::default())
-                    .ok_or_else(|| {
-                        format_err!("unexpected chunk archive for store: {source_datastore}")
-                    })?;
+                let datastore = store_map.target_store(&source_datastore).ok_or_else(|| {
+                    format_err!("unexpected chunk archive for store: {source_datastore}")
+                })?;
 
                 let count = restore_partial_chunk_archive(
                     worker.clone(),
@@ -1381,7 +1376,7 @@ fn restore_archive<'a>(
             let (backup_ns, backup_dir) = parse_ns_and_snapshot(&snapshot)?;
 
             if let Some((store_map, restore_owner)) = target.as_ref() {
-                if let Some((datastore, _)) = store_map.get_targets(&datastore_name, &backup_ns) {
+                if let Some(datastore) = store_map.target_store(&datastore_name) {
                     check_and_create_namespaces(
                         &user_info,
                         &datastore,
@@ -1470,20 +1465,20 @@ fn restore_archive<'a>(
             );
             let datastore = target
                 .as_ref()
-                .and_then(|t| t.0.get_targets(&source_datastore, &Default::default()));
+                .and_then(|t| t.0.target_store(&source_datastore));
 
             if datastore.is_some() || target.is_none() {
                 let checked_chunks = checked_chunks_map
                     .entry(
                         datastore
                             .as_ref()
-                            .map(|(d, _)| d.name())
+                            .map(|d| d.name())
                             .unwrap_or("_unused_")
                             .to_string(),
                     )
                     .or_insert(HashSet::new());
 
-                let chunks = if let Some((datastore, _)) = datastore {
+                let chunks = if let Some(datastore) = datastore {
                     restore_chunk_archive(
                         worker.clone(),
                         reader,
