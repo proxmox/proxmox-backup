@@ -53,12 +53,6 @@ use crate::{
     tools::parallel_handler::ParallelHandler,
 };
 
-pub struct DataStoreMap {
-    map: HashMap<String, Arc<DataStore>>,
-    default: Option<Arc<DataStore>>,
-    ns_map: Option<NamespaceMap>,
-}
-
 struct NamespaceMap {
     map: HashMap<String, HashMap<BackupNamespace, (BackupNamespace, usize)>>,
 }
@@ -124,6 +118,12 @@ impl NamespaceMap {
     }
 }
 
+pub struct DataStoreMap {
+    map: HashMap<String, Arc<DataStore>>,
+    default: Option<Arc<DataStore>>,
+    ns_map: Option<NamespaceMap>,
+}
+
 impl TryFrom<String> for DataStoreMap {
     type Error = Error;
 
@@ -181,20 +181,26 @@ impl DataStoreMap {
         map
     }
 
+    fn target_ns(&self, datastore: &str, ns: &BackupNamespace) -> Option<Vec<BackupNamespace>> {
+        self.ns_map
+            .as_ref()
+            .map(|mapping| mapping.get_namespaces(datastore, ns))
+    }
+
+    fn target_store(&self, source_datastore: &str) -> Option<Arc<DataStore>> {
+        self.map
+            .get(source_datastore)
+            .or_else(|| self.default.as_ref())
+            .map(|store| Arc::clone(store))
+    }
+
     fn get_targets(
         &self,
-        source_ds: &str,
+        source_datastore: &str,
         source_ns: &BackupNamespace,
     ) -> Option<(Arc<DataStore>, Option<Vec<BackupNamespace>>)> {
-        if let Some(store) = self.map.get(source_ds).or(self.default.as_ref()) {
-            let ns = self
-                .ns_map
-                .as_ref()
-                .map(|map| map.get_namespaces(source_ds, source_ns));
-            return Some((Arc::clone(store), ns));
-        }
-
-        None
+        self.target_store(source_datastore)
+            .map(|store| (store, self.target_ns(source_datastore, source_ns)))
     }
 }
 
