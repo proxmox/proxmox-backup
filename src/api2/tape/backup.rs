@@ -228,11 +228,7 @@ pub fn do_tape_backup_job(
             }
 
             if let Err(err) = job.finish(status) {
-                eprintln!(
-                    "could not finish job state for {}: {}",
-                    job.jobtype(),
-                    err
-                );
+                eprintln!("could not finish job state for {}: {}", job.jobtype(), err);
             }
 
             if let Err(err) = set_tape_device_state(&setup.drive, "") {
