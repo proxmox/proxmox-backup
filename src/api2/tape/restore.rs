@@ -476,26 +476,19 @@ fn restore_full_worker(
     }
 
     let used_datastores = store_map.used_datastores();
-    task_log!(
-        worker,
-        "Datastore(s): {}",
-        used_datastores
-            .values()
-            .map(|(t, _)| String::from(t.name()))
-            .collect::<Vec<String>>()
-            .join(", "),
-    );
-
-    task_log!(worker, "Drive: {}", drive_name);
-    task_log!(
-        worker,
-        "Required media list: {}",
-        media_id_list
-            .iter()
-            .map(|media_id| media_id.label.label_text.as_str())
-            .collect::<Vec<&str>>()
-            .join(";")
-    );
+    let datastore_list = used_datastores
+        .values()
+        .map(|(t, _)| String::from(t.name()))
+        .collect::<Vec<String>>()
+        .join(", ");
+    task_log!(worker, "Datastore(s): {datastore_list}",);
+    task_log!(worker, "Drive: {drive_name}");
+    let required_media = media_id_list
+        .iter()
+        .map(|media_id| media_id.label.label_text.as_str())
+        .collect::<Vec<&str>>()
+        .join(";");
+    task_log!(worker, "Required media list: {required_media}",);
 
     let mut datastore_locks = Vec::new();
     for (target, _) in used_datastores.values() {
@@ -549,12 +542,8 @@ fn check_snapshot_restorable(
         (datastore, namespaces)
     } else {
         match store_map.get_targets(store, ns) {
-            Some((ds, Some(ns))) => {
-                if ns.is_empty() {
-                    return Ok(false);
-                }
-                (ds, ns)
-            }
+            Some((_, Some(ns))) if ns.is_empty() => return Ok(false),
+            Some((datastore, Some(ns))) => (datastore, ns),
             Some((_, None)) => return Ok(false),
             None => return Ok(false),
         }
@@ -830,9 +819,7 @@ fn restore_list_worker(
                     format_err!("unexpected source datastore: {}", source_datastore)
                 })?;
 
-                let namespaces = target_ns.unwrap_or_else(|| vec![source_ns.clone()]);
-
-                for ns in namespaces {
+                for ns in target_ns.unwrap_or_else(|| vec![source_ns.clone()]) {
                     if let Err(err) = proxmox_lang::try_block!({
                         check_and_create_namespaces(
                             &user_info,
