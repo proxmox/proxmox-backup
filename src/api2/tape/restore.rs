@@ -18,9 +18,10 @@ use proxmox_uuid::Uuid;
 
 use pbs_api_types::{
     parse_ns_and_snapshot, print_ns_and_snapshot, Authid, BackupDir, BackupNamespace, CryptMode,
-    Operation, TapeRestoreNamespace, Userid, DATASTORE_MAP_ARRAY_SCHEMA, DATASTORE_MAP_LIST_SCHEMA,
-    DRIVE_NAME_SCHEMA, MAX_NAMESPACE_DEPTH, PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY,
-    PRIV_TAPE_READ, TAPE_RESTORE_NAMESPACE_SCHEMA, TAPE_RESTORE_SNAPSHOT_SCHEMA, UPID_SCHEMA,
+    HumanByte, Operation, TapeRestoreNamespace, Userid, DATASTORE_MAP_ARRAY_SCHEMA,
+    DATASTORE_MAP_LIST_SCHEMA, DRIVE_NAME_SCHEMA, MAX_NAMESPACE_DEPTH, PRIV_DATASTORE_BACKUP,
+    PRIV_DATASTORE_MODIFY, PRIV_TAPE_READ, TAPE_RESTORE_NAMESPACE_SCHEMA,
+    TAPE_RESTORE_SNAPSHOT_SCHEMA, UPID_SCHEMA,
 };
 use pbs_config::CachedUserInfo;
 use pbs_datastore::dynamic_index::DynamicIndexReader;
@@ -1205,14 +1206,12 @@ fn restore_partial_chunk_archive<'a>(
     writer_pool.complete()?;
 
     let elapsed = start_time.elapsed()?.as_secs_f64();
-
-    let bytes = bytes.load(std::sync::atomic::Ordering::SeqCst);
-
+    let bytes = bytes.load(std::sync::atomic::Ordering::SeqCst) as f64;
     task_log!(
         worker,
-        "restored {} bytes ({:.2} MB/s)",
-        bytes,
-        (bytes as f64) / (1_000_000.0 * elapsed)
+        "restored {} ({:.2}/s)",
+        HumanByte::new_decimal(bytes),
+        HumanByte::new_decimal(bytes / elapsed),
     );
 
     Ok(count)
@@ -1653,14 +1652,12 @@ fn restore_chunk_archive<'a>(
     writer_pool.complete()?;
 
     let elapsed = start_time.elapsed()?.as_secs_f64();
-
-    let bytes = bytes.load(std::sync::atomic::Ordering::SeqCst);
-
+    let bytes = bytes.load(std::sync::atomic::Ordering::SeqCst) as f64;
     task_log!(
         worker,
-        "restored {} bytes ({:.2} MB/s)",
-        bytes,
-        (bytes as f64) / (1_000_000.0 * elapsed)
+        "restored {} ({:.2}/s)",
+        HumanByte::new_decimal(bytes),
+        HumanByte::new_decimal(bytes / elapsed),
     );
 
     Ok(Some(chunks))
