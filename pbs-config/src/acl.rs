@@ -952,7 +952,11 @@ acl:1:/storage/store1:user1@pbs:DatastoreBackup
         assert!(tree.any_privs_below(&user1, &["store"], ROLE_ADMIN)?);
 
         // user2 has not privileges under "/store/store2/store3" --> return false
-        assert!(!tree.any_privs_below(&user2, &["store", "store2", "store3"], ROLE_DATASTORE_READER)?);
+        assert!(!tree.any_privs_below(
+            &user2,
+            &["store", "store2", "store3"],
+            ROLE_DATASTORE_READER
+        )?);
 
         // user2 has DatastoreReader privileges under "/store/store2/store31" --> return true
         assert!(tree.any_privs_below(&user2, &["store/store2/store31"], ROLE_DATASTORE_READER)?);

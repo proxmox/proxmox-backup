@@ -297,9 +297,9 @@ pub const ROUTER: Router = Router::new().post(&API_METHOD_RESTORE);
     },
     access: {
         // Note: parameters are no uri parameter, so we need to test inside function body
-        description: "The user needs Tape.Read privilege on /tape/pool/{pool} \
-                      and /tape/drive/{drive}, Datastore.Backup privilege on /datastore/{store}/[{namespace}],\
-                      Datastore.Modify privileges to create namespaces (if they don't exist).",
+        description: "The user needs Tape.Read privilege on /tape/pool/{pool} and \
+            /tape/drive/{drive}, Datastore.Backup privilege on /datastore/{store}/[{namespace}], \
+            Datastore.Modify privileges to create namespaces (if they don't exist).",
         permission: &Permission::Anybody,
     },
 )]
