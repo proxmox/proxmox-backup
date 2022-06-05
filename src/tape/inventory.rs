@@ -18,7 +18,7 @@
 //! MediaSet Locking
 //!
 //! To add/remove media from a media set, or to modify catalogs we
-//! always do lock_media_set(). Also, we aquire this lock during
+//! always do lock_media_set(). Also, we acquire this lock during
 //! restore, to make sure it is not reused for backups.
 //!
 

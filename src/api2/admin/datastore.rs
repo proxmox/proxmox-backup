@@ -588,7 +588,7 @@ fn get_snapshots_count(store: &Arc<DataStore>, owner: Option<&Authid>) -> Result
         };
         let snapshot_count = group.list_backups()?.len() as u64;
 
-        // only include groups with snapshots, counting/displaying emtpy groups can confuse
+        // only include groups with snapshots, counting/displaying empty groups can confuse
         if snapshot_count > 0 {
             let type_count = match group.backup_type() {
                 BackupType::Ct => counts.ct.get_or_insert(Default::default()),
@@ -647,12 +647,12 @@ pub fn status(
         false // allow at least counts, user can read groups anyway..
     } else {
         match user_info.any_privs_below(&auth_id, &["datastore", &store], NS_PRIVS_OK) {
-            // avoid leaking existance info if users hasn't at least any priv. below
+            // avoid leaking existence info if users hasn't at least any priv. below
             Ok(false) | Err(_) => return Err(http_err!(FORBIDDEN, "permission check failed")),
             _ => false,
         }
     };
-    let datastore = datastore?; // only unwrap no to avoid leaking existance info
+    let datastore = datastore?; // only unwrap no to avoid leaking existence info
 
     let (counts, gc_status) = if verbose {
         let filter_owner = if store_privs & PRIV_DATASTORE_AUDIT != 0 {

@@ -317,7 +317,7 @@ fn upgrade_to_websocket(
 }
 
 #[api]
-/// List Nodes (only for compatiblity)
+/// List Nodes (only for compatibility)
 fn list_nodes() -> Result<Value, Error> {
     Ok(json!([ { "node": proxmox_sys::nodename().to_string() } ]))
 }

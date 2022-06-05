@@ -60,7 +60,7 @@ pub fn prune_datastore(
         &datastore,
         ns,
         max_depth,
-        Some(PRIV_DATASTORE_MODIFY), // overides the owner check
+        Some(PRIV_DATASTORE_MODIFY), // overrides the owner check
         Some(PRIV_DATASTORE_PRUNE),  // additionally required if owner
         Some(&auth_id),
     )? {
@@ -188,11 +188,7 @@ pub fn do_prune_job(
             let status = worker.create_state(&result);
 
             if let Err(err) = job.finish(status) {
-                eprintln!(
-                    "could not finish job state for {}: {}",
-                    job.jobtype(),
-                    err
-                );
+                eprintln!("could not finish job state for {}: {}", job.jobtype(), err);
             }
 
             result

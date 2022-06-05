@@ -1001,7 +1001,7 @@ async fn run_stat_generator() {
 async fn generate_host_stats() {
     match tokio::task::spawn_blocking(generate_host_stats_sync).await {
         Ok(()) => (),
-        Err(err) => log::error!("generate_host_stats paniced: {}", err),
+        Err(err) => log::error!("generate_host_stats panicked: {}", err),
     }
 }
 

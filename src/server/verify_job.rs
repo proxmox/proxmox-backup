@@ -75,11 +75,7 @@ pub fn do_verification_job(
             let status = worker.create_state(&job_result);
 
             if let Err(err) = job.finish(status) {
-                eprintln!(
-                    "could not finish job state for {}: {}",
-                    job.jobtype(),
-                    err
-                );
+                eprintln!("could not finish job state for {}: {}", job.jobtype(), err);
             }
 
             if let Some(email) = email {

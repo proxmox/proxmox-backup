@@ -133,7 +133,7 @@ pub fn list_namespaces(
             },
             "delete-groups": {
                 type: bool,
-                description: "If set, all groups will be destroyed in the whole hierachy below and\
+                description: "If set, all groups will be destroyed in the whole hierarchy below and\
                     including `ns`. If not set, only empty namespaces will be pruned.",
                 optional: true,
                 default: false,

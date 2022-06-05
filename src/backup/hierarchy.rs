@@ -90,7 +90,7 @@ pub fn can_access_any_namespace(
     })
 }
 
-/// A priviledge aware iterator for all backup groups in all Namespaces below an anchor namespace,
+/// A privilege aware iterator for all backup groups in all Namespaces below an anchor namespace,
 /// most often that will be the `BackupNamespace::root()` one.
 ///
 /// Is basically just a filter-iter for pbs_datastore::ListNamespacesRecursive including access and

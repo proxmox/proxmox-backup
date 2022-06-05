@@ -824,7 +824,7 @@ fn restore_list_worker(
         if !media_file_chunk_map.is_empty() {
             task_log!(worker, "Phase 2: restore chunks to datastores");
         } else {
-            task_log!(worker, "all chunks exist already, skipping phase 2...");
+            task_log!(worker, "All chunks are already present, skip phase 2...");
         }
 
         for (media_uuid, file_chunk_map) in media_file_chunk_map.iter_mut() {
@@ -1988,7 +1988,7 @@ pub fn fast_catalog_restore(
                         if &media_uuid != catalog_uuid {
                             task_log!(
                                 worker,
-                                "catalog uuid missmatch at pos {}",
+                                "catalog uuid mismatch at pos {}",
                                 current_file_number
                             );
                             continue;
@@ -1996,7 +1996,7 @@ pub fn fast_catalog_restore(
                         if media_set_uuid != archive_header.media_set_uuid {
                             task_log!(
                                 worker,
-                                "catalog media_set missmatch at pos {}",
+                                "catalog media_set mismatch at pos {}",
                                 current_file_number
                             );
                             continue;

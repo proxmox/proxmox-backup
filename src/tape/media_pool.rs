@@ -1,6 +1,6 @@
 //! Media Pool
 //!
-//! A set of backup medias.
+//! A set of backup mediums.
 //!
 //! This struct manages backup media state during backup. The main
 //! purpose is to allocate media sets and assign new tapes to it.
@@ -392,7 +392,7 @@ impl MediaPool {
 
         let uuid = media_id.label.uuid.clone();
 
-        MediaCatalog::overwrite(&self.state_path, &media_id, false)?; // overwite catalog
+        MediaCatalog::overwrite(&self.state_path, &media_id, false)?; // overwrite catalog
         let clear_media_status = true; // remove Full status
         self.inventory.store(media_id, clear_media_status)?; // store persistently
 

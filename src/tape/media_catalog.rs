@@ -483,7 +483,7 @@ impl MediaCatalog {
     pub fn register_label(
         &mut self,
         uuid: &Uuid, // Media/MediaSet Uuid
-        seq_nr: u64, // onyl used for media set labels
+        seq_nr: u64, // only used for media set labels
         file_number: u64,
     ) -> Result<(), Error> {
         self.check_register_label(file_number, uuid)?;

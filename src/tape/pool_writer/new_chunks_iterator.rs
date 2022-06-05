@@ -18,7 +18,7 @@ pub struct NewChunksIterator {
 impl NewChunksIterator {
     /// Creates the iterator, spawning a new thread
     ///
-    /// Make sure to join() the returnd thread handle.
+    /// Make sure to join() the returned thread handle.
     pub fn spawn(
         datastore: Arc<DataStore>,
         snapshot_reader: Arc<Mutex<SnapshotReader>>,

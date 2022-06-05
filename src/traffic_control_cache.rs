@@ -34,7 +34,7 @@ struct ParsedTcRule {
 
 /// Traffic control statistics
 pub struct TrafficStat {
-    /// Total incomming traffic (bytes)
+    /// Total incoming traffic (bytes)
     pub traffic_in: u64,
     /// Incoming data rate (bytes/second)
     pub rate_in: u64,

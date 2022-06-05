@@ -161,7 +161,7 @@ impl AcmeClient {
         let mut data = Vec::<u8>::new();
         self.write_to(&mut data)?;
         let account_path = self.account_path.as_ref().ok_or_else(|| {
-            format_err!("no account path set, cannot save upated account information")
+            format_err!("no account path set, cannot save updated account information")
         })?;
         crate::config::acme::make_acme_account_dir()?;
         replace_file(

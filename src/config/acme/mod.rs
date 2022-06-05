@@ -154,7 +154,7 @@ pub fn complete_acme_plugin(_arg: &str, _param: &HashMap<String, String>) -> Vec
 pub fn complete_acme_plugin_type(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
     vec![
         "dns".to_string(),
-        //"http".to_string(), // makes currently not realyl sense to create or the like
+        //"http".to_string(), // makes currently not really sense to create or the like
     ]
 }
 

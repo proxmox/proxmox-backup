@@ -121,7 +121,7 @@ pub fn update_webauthn_config(
     } else {
         let rp = webauthn
             .rp
-            .ok_or_else(|| format_err!("missing proeprty: 'rp'"))?;
+            .ok_or_else(|| format_err!("missing property: 'rp'"))?;
         let origin = webauthn.origin;
         let id = webauthn
             .id
