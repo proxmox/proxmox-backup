@@ -537,9 +537,8 @@ fn check_snapshot_restorable(
 ) -> Result<bool, Error> {
     let (datastore, namespaces) = if required {
         let (datastore, namespaces) = match store_map.get_targets(store, ns) {
-            Some((target_ds, target_ns)) => {
-                (target_ds, target_ns.unwrap_or_else(|| vec![ns.clone()]))
-            }
+            Some((target_ds, Some(target_ns))) => (target_ds, target_ns),
+            Some((target_ds, None)) => (target_ds, vec![ns.clone()]),
             None => bail!("could not find target datastore for {store}:{snapshot}"),
         };
         if namespaces.is_empty() {
@@ -551,8 +550,7 @@ fn check_snapshot_restorable(
         match store_map.get_targets(store, ns) {
             Some((_, Some(ns))) if ns.is_empty() => return Ok(false),
             Some((datastore, Some(ns))) => (datastore, ns),
-            Some((_, None)) => return Ok(false),
-            None => return Ok(false),
+            Some((_, None)) | None => return Ok(false),
         }
     };
 
@@ -699,9 +697,11 @@ fn restore_list_worker(
                 })
                 .collect()
         };
-        for (store, snapshot, ns, _) in snapshots.iter() {
-            // unwrap ok, we already checked those snapshots
-            let (datastore, _) = store_map.get_targets(store, &ns).unwrap();
+        for (store, snapshot, _ns, _) in snapshots.iter() {
+            let datastore = match store_map.get_targets(store, &ns) {
+                Some(store, _) => store,
+                _ => bail!("unexpected error"), // we already checked those
+            };
             let (media_id, file_num) =
                 if let Some((media_uuid, file_num)) = catalog.lookup_snapshot(store, &snapshot) {
                     let media_id = inventory.lookup_media(media_uuid).unwrap();
