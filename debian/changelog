@@ -1,7 +1,7 @@
 rust-proxmox-backup (2.2.3-1) bullseye; urgency=medium
 
   * datastore: swap dirtying the datastore cache every 60s by just using the
-    available config digest to detect any changes accuratly when the actually
+    available config digest to detect any changes accurately when the actually
     happen
 
   * api: datastore list and datastore status: avoid opening datastore and
@@ -478,7 +478,7 @@ rust-proxmox-backup (2.0.14-1) bullseye; urgency=medium
 
   * proxmox-backup-client: add rate/burst parameter to backup/restore CLI
 
-  * openid_login: vertify that firstname, lastname and email fits our
+  * openid_login: verify that firstname, lastname and email fits our
     schema definitions
 
   * docs: add info about protection flag to client docs
@@ -511,7 +511,7 @@ rust-proxmox-backup (2.0.13-1) bullseye; urgency=medium
 
   * use new fsync parameter to replace_file and atomic_open_or_create
 
-  * docs: langauge and formatting fixup
+  * docs: language and formatting fixup
 
   * docs: Update for new features/functionality
 
@@ -601,7 +601,7 @@ rust-proxmox-backup (2.0.8-1) bullseye; urgency=medium
 
   * tape: changer: handle libraries that sends wrong amount of data
 
-  * tape: changer: remove unnecesary inquiry parameter
+  * tape: changer: remove unnecessary inquiry parameter
 
   * api2: tape/restore: commit temporary catalog at the end
 
@@ -813,7 +813,7 @@ rust-proxmox-backup (1.1.9-1) stable; urgency=medium
 
   * file-restore-daemon: work around tokio DuplexStream bug
 
-  * apt: fix removal of non-existant http-proxy config
+  * apt: fix removal of non-existent http-proxy config
 
   * file-restore-daemon: disk: add RawFs bucket type
 
@@ -1188,7 +1188,7 @@ rust-proxmox-backup (1.0.7-1) unstable; urgency=medium
 
   * ui: running tasks: Use gettext for column labels
 
-  * login: add two-factor authenication (TFA) and integrate in web-interface
+  * login: add two-factor authentication (TFA) and integrate in web-interface
 
   * login: support webAuthn, recovery keys and TOTP as TFA methods
 
@@ -1319,7 +1319,7 @@ rust-proxmox-backup (1.0.0-1) unstable; urgency=medium
 
   * ui: move disks/directory views to its own tab panel
 
-  * fix #3060: continue sync if we cannot aquire the group lock
+  * fix #3060: continue sync if we cannot acquire the group lock
 
   * HttpsConnector: include destination on connect errors
 
@@ -1646,7 +1646,7 @@ rust-proxmox-backup (0.8.20-1) unstable; urgency=medium
 
   * improve sync speed
 
-  * benchmark: use compressable data to get more realistic result
+  * benchmark: use compressible data to get more realistic result
 
   * docs: add onlineHelp to some panels
 
@@ -1708,7 +1708,7 @@ rust-proxmox-backup (0.8.16-1) unstable; urgency=medium
 
   * BackupDir: make constructor fallible
 
-  * handle invalid mtime when formating entries
+  * handle invalid mtime when formatting entries
 
   * ui/docs: add onlineHelp button for syncjobs
 
@@ -2033,7 +2033,7 @@ rust-proxmox-backup (0.7.0-1) unstable; urgency=medium
 
   * improve docs
 
-  * client: add --encryption boolen parameter
+  * client: add --encryption boolean parameter
 
   * client: use default encryption key if it is available
 
