@@ -636,7 +636,7 @@ fn restore_list_worker(
                     Err(err) => {
                         task_warn!(worker, "couldn't parse snapshot {snapshot} - {err}");
                         continue;
-                    },
+                    }
                     _ => continue,
                 };
                 let snapshot = print_ns_and_snapshot(&ns, &dir);
@@ -1838,13 +1838,12 @@ pub fn fast_catalog_restore(
                 Err(BlockReadError::EndOfFile) => {
                     task_log!(
                         worker,
-                        "skip unexpected filemark at pos {}",
-                        current_file_number
+                        "skip unexpected filemark at pos {current_file_number}"
                     );
                     continue;
                 }
                 Err(BlockReadError::EndOfStream) => {
-                    task_log!(worker, "detected EOT after {} files", current_file_number);
+                    task_log!(worker, "detected EOT after {current_file_number} files");
                     break;
                 }
                 Err(BlockReadError::Error(err)) => {

@@ -1,5 +1,5 @@
-use std::process::Command;
 use std::os::unix::prelude::OsStrExt;
+use std::process::Command;
 
 use anyhow::{bail, format_err, Error};
 use serde_json::Value;
