@@ -198,7 +198,7 @@ pub fn create_ticket(
     let env: &RestEnvironment = rpcenv
         .as_any()
         .downcast_ref::<RestEnvironment>()
-        .ok_or_else(|| format_err!("detected worng RpcEnvironment type"))?;
+        .ok_or_else(|| format_err!("detected wrong RpcEnvironment type"))?;
 
     match authenticate_user(&username, &password, path, privs, port, tfa_challenge) {
         Ok(AuthResult::Success) => Ok(json!({ "username": username })),

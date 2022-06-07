@@ -111,7 +111,7 @@ pub fn openid_login(
     let env: &RestEnvironment = rpcenv
         .as_any()
         .downcast_ref::<RestEnvironment>()
-        .ok_or_else(|| format_err!("detected worng RpcEnvironment type"))?;
+        .ok_or_else(|| format_err!("detected wrong RpcEnvironment type"))?;
 
     let user_info = CachedUserInfo::new()?;
 
