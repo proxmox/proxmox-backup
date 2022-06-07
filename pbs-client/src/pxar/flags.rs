@@ -179,7 +179,7 @@ use libc::c_long;
         | FS_PROJINHERIT_FL;
 
 }
-use fs_flags::*; // for code formating/rusfmt
+use fs_flags::*; // for code formatting/rusfmt
 
 #[rustfmt::skip]
 const CHATTR_MAP: [(Flags, c_long); 10] = [

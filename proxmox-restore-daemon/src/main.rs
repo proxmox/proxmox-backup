@@ -55,7 +55,7 @@ fn main() -> Result<(), Error> {
         );
     }
 
-    // don't have a real syslog (and no persistance), so use env_logger to print to a log file (via
+    // don't have a real syslog (and no persistence), so use env_logger to print to a log file (via
     // stdout to a serial terminal attached by QEMU)
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
         .write_style(env_logger::WriteStyle::Never)
@@ -153,7 +153,7 @@ fn accept_vsock_connections(
                     }
                 }
                 Err(err) => {
-                    error!("error accepting vsock connetion: {}", err);
+                    error!("error accepting vsock connection: {}", err);
                 }
             }
         }

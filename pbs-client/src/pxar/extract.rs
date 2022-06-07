@@ -603,7 +603,7 @@ where
                         let stripped_path = match realpath.strip_prefix(prefix) {
                             Ok(path) => path,
                             Err(_) => {
-                                // outside of our tar archive, add the first occurrance to the tar
+                                // outside of our tar archive, add the first occurrence to the tar
                                 if let Some(path) = hardlinks.get(realpath) {
                                     path
                                 } else {

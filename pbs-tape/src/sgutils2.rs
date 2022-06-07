@@ -259,7 +259,7 @@ impl ModeParameterHeader {
 pub struct ModeBlockDescriptor {
     pub density_code: u8,
     pub number_of_blocks: [u8; 3],
-    reserverd: u8,
+    reserved: u8,
     pub block_length: [u8; 3],
 }
 

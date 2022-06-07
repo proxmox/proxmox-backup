@@ -104,7 +104,7 @@ lazy_static::lazy_static! {
     static ref PSTART: u64 = PidStat::read_from_pid(Pid::from_raw(*PID)).unwrap().starttime;
 }
 
-/// Retruns the current process ID (see [libc::getpid])
+/// Returns the current process ID (see [libc::getpid])
 ///
 /// The value is cached at startup (so it is invalid after a fork)
 pub(crate) fn pid() -> i32 {

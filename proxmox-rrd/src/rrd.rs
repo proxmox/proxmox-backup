@@ -8,7 +8,7 @@
 //! ## Features
 //!
 //! * Well defined data format [CBOR](https://datatracker.ietf.org/doc/html/rfc8949)
-//! * Plattform independent (big endian f64, hopefully a standard format?)
+//! * Platform independent (big endian f64, hopefully a standard format?)
 //! * Arbitrary number of RRAs (dynamically changeable)
 
 use std::io::{Read, Write};
@@ -456,7 +456,7 @@ impl RRD {
     /// This selects the RRA with specified [CF] and (minimum)
     /// resolution, and extract data from `start` to `end`.
     ///
-    /// `start`: Start time. If not sepecified, we simply extract 10 data points.
+    /// `start`: Start time. If not specified, we simply extract 10 data points.
     /// `end`: End time. Default is to use the current time.
     pub fn extract_data(
         &self,
@@ -600,7 +600,7 @@ mod tests {
         assert_eq!(reso, 60);
         assert_eq!(data, [Some(6.5), Some(8.5), Some(10.5), Some(12.5), None]);
 
-        // add much newer vaule (should delete all previous/outdated value)
+        // add much newer value (should delete all previous/outdated value)
         let i = 100;
         rrd.update((i as f64) * 30.0, i as f64);
         println!("TEST {:?}", serde_json::to_string_pretty(&rrd));

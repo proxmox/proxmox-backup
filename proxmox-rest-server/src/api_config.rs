@@ -42,7 +42,7 @@ impl ApiConfig {
     /// `api_auth` - The Authentication handler
     ///
     /// `get_index_fn` - callback to generate the root page
-    /// (index). Please note that this fuctions gets a reference to
+    /// (index). Please note that this functions gets a reference to
     /// the [ApiConfig], so it can use [Handlebars] templates
     /// ([render_template](Self::render_template) to generate pages.
     pub fn new<B: Into<PathBuf>>(

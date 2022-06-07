@@ -21,7 +21,7 @@ struct DummyUserInfo;
 
 impl UserInformation for DummyUserInfo {
     fn is_superuser(&self, _userid: &str) -> bool {
-        // Always return true here, so we have access to everthing
+        // Always return true here, so we have access to everything
         true
     }
     fn is_group_member(&self, _userid: &str, group: &str) -> bool {

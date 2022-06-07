@@ -195,7 +195,7 @@ impl DataStore {
     /// Open a datastore given a raw configuration.
     ///
     /// # Safety
-    /// There's no memory saftey implication, but as this is opening a new ChunkStore it will
+    /// There's no memory safety implication, but as this is opening a new ChunkStore it will
     /// create a new process locker instance, potentially on the same path as existing safely
     /// created ones. This is dangerous as dropping the reference of this and thus the underlying
     /// chunkstore's process locker will close all locks from our process on the config.path,
@@ -428,7 +428,7 @@ impl DataStore {
     /// Returns true if all the groups were removed, and false if some were protected.
     pub fn remove_namespace_groups(self: &Arc<Self>, ns: &BackupNamespace) -> Result<bool, Error> {
         // FIXME: locking? The single groups/snapshots are already protected, so may not be
-        // necesarry (depends on what we all allow to do with namespaces)
+        // necessary (depends on what we all allow to do with namespaces)
         log::info!("removing all groups in namespace {}:/{ns}", self.name());
 
         let mut removed_all_groups = true;

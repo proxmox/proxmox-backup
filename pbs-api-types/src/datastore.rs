@@ -470,7 +470,7 @@ impl BackupNamespace {
         Ok(child)
     }
 
-    /// Pop one level off the namespace hierachy
+    /// Pop one level off the namespace hierarchy
     pub fn pop(&mut self) -> Option<String> {
         let dropped = self.inner.pop();
         if let Some(ref dropped) = dropped {

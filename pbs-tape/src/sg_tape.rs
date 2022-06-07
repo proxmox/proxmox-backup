@@ -205,7 +205,7 @@ impl SgTape {
                 (has_format, is_worm)
             }
             Err(_) => {
-                // LTO3 and older do not supprt medium configuration mode page
+                // LTO3 and older do not support medium configuration mode page
                 (false, false)
             }
         };

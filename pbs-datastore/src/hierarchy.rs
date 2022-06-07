@@ -209,11 +209,11 @@ impl Iterator for ListNamespaces {
 /// A iterator for all Namespaces below an anchor namespace, most often that will be the
 /// `BackupNamespace::root()` one.
 ///
-/// Descends depth-first (pre-order) into the namespace hierachy yielding namespaces immediately as
+/// Descends depth-first (pre-order) into the namespace hierarchy yielding namespaces immediately as
 /// it finds them.
 ///
 /// Note: The anchor namespaces passed on creating the iterator will yielded as first element, this
-/// can be usefull for searching all backup groups from a certain anchor, as that can contain
+/// can be useful for searching all backup groups from a certain anchor, as that can contain
 /// sub-namespaces but also groups on its own level, so otherwise one would need to special case
 /// the ones from the own level.
 pub struct ListNamespacesRecursive {

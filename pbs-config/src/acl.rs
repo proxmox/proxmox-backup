@@ -695,7 +695,7 @@ impl AclTree {
             return Ok(true);
         }
 
-        // now search trough the sub-tree
+        // now search through the sub-tree
         for (_comp, child) in node.children.iter() {
             if child.any_privs_below(auth_id, privs)? {
                 return Ok(true);

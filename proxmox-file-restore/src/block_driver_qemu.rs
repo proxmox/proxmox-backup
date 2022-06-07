@@ -153,7 +153,7 @@ async fn ensure_running(details: &SnapRestoreDetails) -> Result<VsockClient, Err
                 .unwrap_or(0)
                 .wrapping_add(1);
 
-            // offset cid by user id, to avoid unneccessary retries
+            // offset cid by user id, to avoid unnecessary retries
             let running_uid = nix::unistd::Uid::current();
             cid = cid.wrapping_add(running_uid.as_raw() as i32);
 

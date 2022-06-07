@@ -113,7 +113,7 @@ pub struct TrafficControlRule {
     #[serde(flatten)]
     pub limit: RateLimitConfig,
     // fixme: expose this?
-    //    /// Bandwidth is shared accross all connections
+    //    /// Bandwidth is shared across all connections
     //    #[serde(skip_serializing_if="Option::is_none")]
     //    pub shared: Option<bool>,
     /// Enable the rule at specific times
