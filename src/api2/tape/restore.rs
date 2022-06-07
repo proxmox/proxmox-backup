@@ -633,6 +633,10 @@ fn restore_list_worker(
             for (store, snapshot) in catalog.list_snapshots() {
                 let (ns, dir) = match parse_ns_and_snapshot(&snapshot) {
                     Ok((ns, dir)) if store_map.has_full_mapping(store, &ns) => (ns, dir),
+                    Err(err) => {
+                        task_warn!(worker, "couldn't parse snapshot {snapshot} - {err}");
+                        continue;
+                    },
                     _ => continue,
                 };
                 let snapshot = print_ns_and_snapshot(&ns, &dir);
