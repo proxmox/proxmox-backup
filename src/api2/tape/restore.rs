@@ -202,6 +202,11 @@ impl DataStoreMap {
         self.target_store(source_datastore)
             .map(|store| (store, self.target_ns(source_datastore, source_ns)))
     }
+
+    /// Returns true if there's both a datastore and namespace mapping from a source datastore/ns
+    fn has_full_mapping(&self, datastore: &str, ns: &BackupNamespace) -> bool {
+        self.target_store(datastore).is_some() && self.target_ns(datastore, ns).is_some()
+    }
 }
 
 fn check_datastore_privs(
@@ -626,30 +631,28 @@ fn restore_list_worker(
             let mut restorable = Vec::new();
             // restore source namespaces
             for (store, snapshot) in catalog.list_snapshots() {
-                if let Ok((ns, dir)) = parse_ns_and_snapshot(&snapshot) {
-                    if let Some((_, Some(_))) = store_map.get_targets(store, &ns) {
-                        let snapshot = print_ns_and_snapshot(&ns, &dir);
-                        match check_snapshot_restorable(
-                            &worker,
-                            &store_map,
-                            store,
-                            &snapshot,
-                            &ns,
-                            &dir,
-                            false,
-                            &user_info,
-                            auth_id,
-                            restore_owner,
-                        ) {
-                            Ok(true) => {
-                                restorable.push((store.to_string(), snapshot.to_string(), ns, dir))
-                            }
-                            Ok(false) => {}
-                            Err(err) => {
-                                task_warn!(worker, "{err}");
-                                skipped.push(format!("{store}:{snapshot}"));
-                            }
-                        }
+                let (ns, dir) = match parse_ns_and_snapshot(&snapshot) {
+                    Ok((ns, dir)) if store_map.has_full_mapping(store, &ns) => (ns, dir),
+                    _ => continue,
+                };
+                let snapshot = print_ns_and_snapshot(&ns, &dir);
+                match check_snapshot_restorable(
+                    &worker,
+                    &store_map,
+                    store,
+                    &snapshot,
+                    &ns,
+                    &dir,
+                    false,
+                    &user_info,
+                    auth_id,
+                    restore_owner,
+                ) {
+                    Ok(true) => restorable.push((store.to_string(), snapshot.to_string(), ns, dir)),
+                    Ok(false) => {}
+                    Err(err) => {
+                        task_warn!(worker, "{err}");
+                        skipped.push(format!("{store}:{snapshot}"));
                     }
                 }
             }
