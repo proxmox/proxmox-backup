@@ -353,10 +353,10 @@ impl AclTree {
     /// Iterates over the tree looking for a node matching `path`.
     pub fn find_node(&mut self, path: &str) -> Option<&mut AclTreeNode> {
         let path = split_acl_path(path);
-        self.get_node(&path)
+        self.get_node_mut(&path)
     }
 
-    fn get_node(&mut self, path: &[&str]) -> Option<&mut AclTreeNode> {
+    fn get_node_mut(&mut self, path: &[&str]) -> Option<&mut AclTreeNode> {
         let mut node = &mut self.root;
         for comp in path {
             node = match node.children.get_mut(*comp) {
@@ -381,7 +381,7 @@ impl AclTree {
     /// does not exist on `path`.
     pub fn delete_group_role(&mut self, path: &str, group: &str, role: &str) {
         let path = split_acl_path(path);
-        let node = match self.get_node(&path) {
+        let node = match self.get_node_mut(&path) {
             Some(n) => n,
             None => return,
         };
@@ -394,7 +394,7 @@ impl AclTree {
     /// does not exist on `path`.
     pub fn delete_user_role(&mut self, path: &str, auth_id: &Authid, role: &str) {
         let path = split_acl_path(path);
-        let node = match self.get_node(&path) {
+        let node = match self.get_node_mut(&path) {
             Some(n) => n,
             None => return,
         };
