@@ -1,3 +1,13 @@
+rust-proxmox-backup (2.2.3-2) bullseye; urgency=medium
+
+  * api: tape restore: use HumanByte for friendlier total/throughput reporting
+
+  * fix some typos in log messages
+
+  * acl: fix any_priv_below when used with API tokens
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 08 Jun 2022 14:23:20 +0200
+
 rust-proxmox-backup (2.2.3-1) bullseye; urgency=medium
 
   * datastore: swap dirtying the datastore cache every 60s by just using the
