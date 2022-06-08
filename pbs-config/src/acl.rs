@@ -918,7 +918,11 @@ acl:1:/storage/store1:user1@pbs:DatastoreBackup
 
         // user1 has admin on "/store/store2/store3" -> return paths
         let paths = tree.get_child_paths(&user1, &["store"])?;
-        assert!(paths.contains(&"store/store2/store3".to_string()));
+        assert!(
+            paths.len() == 2
+                && paths.contains(&"store/store2".to_string())
+                && paths.contains(&"store/store2/store3".to_string())
+        );
 
         // user2 has no privileges under "/store/store2/store3" --> return empty
         assert!(tree
@@ -927,7 +931,9 @@ acl:1:/storage/store1:user1@pbs:DatastoreBackup
 
         // user2 has DatastoreReader privileges under "/store/store2/store31" --> return paths
         let paths = tree.get_child_paths(&user2, &["store/store2/store31"])?;
-        assert!(paths.contains(&"store/store2/store31/store4/store6".to_string()));
+        assert!(
+            paths.len() == 1 && paths.contains(&"store/store2/store31/store4/store6".to_string())
+        );
 
         // user2 has no privileges under "/store/store2/foo/bar/baz"
         assert!(tree
