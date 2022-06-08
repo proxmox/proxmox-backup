@@ -147,7 +147,7 @@ pub fn create_datastore_disk(
 
     let auth_id = rpcenv.get_auth_id().unwrap();
 
-    let info = get_disk_usage_info(&disk, true)?;
+    let info = get_disk_usage_info(&disk, true, false)?;
 
     if info.used != DiskUsageType::Unused {
         bail!("disk '{}' is already in use.", disk);

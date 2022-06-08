@@ -174,7 +174,7 @@ pub fn create_zpool(
         .map(|v| v.as_str().unwrap().to_string())
         .collect();
 
-    let disk_map = crate::tools::disks::get_disks(None, true)?;
+    let disk_map = crate::tools::disks::get_disks(None, true, false)?;
     for disk in devices.iter() {
         match disk_map.get(disk) {
             Some(info) => {

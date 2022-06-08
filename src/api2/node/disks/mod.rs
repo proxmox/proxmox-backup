@@ -33,6 +33,12 @@ pub mod zfs;
                 optional: true,
                 default: false,
             },
+            "include-partitions": {
+                description: "Include partitions.",
+                type: bool,
+                optional: true,
+                default: false,
+            },
             "usage-type": {
                 type: DiskUsageType,
                 optional: true,
@@ -53,11 +59,12 @@ pub mod zfs;
 /// List local disks
 pub fn list_disks(
     skipsmart: bool,
+    include_partitions: bool,
     usage_type: Option<DiskUsageType>,
 ) -> Result<Vec<DiskUsageInfo>, Error> {
     let mut list = Vec::new();
 
-    for (_, info) in get_disks(None, skipsmart)? {
+    for (_, info) in get_disks(None, skipsmart, include_partitions)? {
         if let Some(ref usage_type) = usage_type {
             if info.used == *usage_type {
                 list.push(info);
@@ -140,7 +147,7 @@ pub fn initialize_disk(
 
     let auth_id = rpcenv.get_auth_id().unwrap();
 
-    let info = get_disk_usage_info(&disk, true)?;
+    let info = get_disk_usage_info(&disk, true, false)?;
 
     if info.used != DiskUsageType::Unused {
         bail!("disk '{}' is already in use.", disk);

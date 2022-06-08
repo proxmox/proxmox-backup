@@ -587,6 +587,26 @@ fn get_file_system_devices(lsblk_info: &[LsblkInfo]) -> Result<HashSet<u64>, Err
 #[api()]
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
+pub enum PartitionUsageType {
+    /// Partition is not used (as far we can tell)
+    Unused,
+    /// Partition is used by LVM
+    LVM,
+    /// Partition is used by ZFS
+    ZFS,
+    /// Partition is ZFS reserved
+    ZfsReserved,
+    /// Partition is an EFI partition
+    EFI,
+    /// Partition is a BIOS partition
+    BIOS,
+    /// Partition contains a file system label
+    FileSystem,
+}
+
+#[api()]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
 pub enum DiskUsageType {
     /// Disk is not used (as far we can tell)
     Unused,
@@ -604,6 +624,27 @@ pub enum DiskUsageType {
     FileSystem,
 }
 
+#[api()]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+/// Baisc information about a partition
+pub struct PartitionInfo {
+    /// The partition name
+    pub name: String,
+    /// What the partition is used for
+    pub used: PartitionUsageType,
+    /// Is the partition mounted
+    pub mounted: bool,
+    /// The filesystem of the partition
+    pub filesystem: Option<String>,
+    /// The partition devpath
+    pub devpath: Option<String>,
+    /// Size in bytes
+    pub size: Option<u64>,
+    /// GPT partition
+    pub gpt: bool,
+}
+
 #[api(
     properties: {
         used: {
@@ -614,6 +655,12 @@ pub enum DiskUsageType {
         },
         status: {
             type: SmartStatus,
+        },
+        partitions: {
+            optional: true,
+            items: {
+                type: PartitionInfo
+            }
         }
     }
 )]
@@ -638,6 +685,8 @@ pub struct DiskUsageInfo {
     pub size: u64,
     /// Serisal number
     pub serial: Option<String>,
+    /// Partitions on the device
+    pub partitions: Option<Vec<PartitionInfo>>,
     /// Linux device path (/dev/xxx)
     pub devpath: Option<String>,
     /// Set if disk contains a GPT partition table
@@ -715,15 +764,77 @@ fn scan_partitions(
 }
 
 /// Get disk usage information for a single disk
-pub fn get_disk_usage_info(disk: &str, no_smart: bool) -> Result<DiskUsageInfo, Error> {
+pub fn get_disk_usage_info(
+    disk: &str,
+    no_smart: bool,
+    include_partitions: bool,
+) -> Result<DiskUsageInfo, Error> {
     let mut filter = Vec::new();
     filter.push(disk.to_string());
-    let mut map = get_disks(Some(filter), no_smart)?;
+    let mut map = get_disks(Some(filter), no_smart, include_partitions)?;
     if let Some(info) = map.remove(disk) {
         Ok(info)
     } else {
         bail!("failed to get disk usage info - internal error"); // should not happen
     }
+}
+
+fn get_partitions_info(
+    partitions: HashMap<u64, Disk>,
+    lvm_devices: &HashSet<u64>,
+    zfs_devices: &HashSet<u64>,
+    file_system_devices: &HashSet<u64>,
+) -> Vec<PartitionInfo> {
+    let lsblk_infos = get_lsblk_info().ok();
+    partitions
+        .iter()
+        .map(|(_nr, disk)| {
+            let devpath = disk
+                .device_path()
+                .map(|p| p.to_owned())
+                .map(|p| p.to_string_lossy().to_string());
+
+            let mut used = PartitionUsageType::Unused;
+
+            if let Some(devnum) = disk.devnum().ok() {
+                if lvm_devices.contains(&devnum) {
+                    used = PartitionUsageType::LVM;
+                } else if zfs_devices.contains(&devnum) {
+                    used = PartitionUsageType::ZFS;
+                } else if file_system_devices.contains(&devnum) {
+                    used = PartitionUsageType::FileSystem;
+                }
+            }
+
+            let mounted = disk.is_mounted().unwrap_or(false);
+            let mut filesystem = None;
+            if let (Some(devpath), Some(infos)) = (devpath.as_ref(), lsblk_infos.as_ref()) {
+                for info in infos.iter().filter(|i| i.path.eq(devpath)) {
+                    used = match info.partition_type.as_deref() {
+                        Some("21686148-6449-6e6f-744e-656564454649") => PartitionUsageType::BIOS,
+                        Some("c12a7328-f81f-11d2-ba4b-00a0c93ec93b") => PartitionUsageType::EFI,
+                        Some("6a945a3b-1dd2-11b2-99a6-080020736631") => {
+                            PartitionUsageType::ZfsReserved
+                        }
+                        _ => used,
+                    };
+                    if used == PartitionUsageType::FileSystem {
+                        filesystem = info.file_system_type.clone();
+                    }
+                }
+            }
+
+            PartitionInfo {
+                name: disk.sysname().to_str().unwrap_or("?").to_string(),
+                devpath,
+                used,
+                mounted,
+                filesystem,
+                size: disk.size().ok(),
+                gpt: disk.has_gpt(),
+            }
+        })
+        .collect()
 }
 
 /// Get disk usage information for multiple disks
@@ -732,6 +843,8 @@ pub fn get_disks(
     disks: Option<Vec<String>>,
     // do no include data from smartctl
     no_smart: bool,
+    // include partitions
+    include_partitions: bool,
 ) -> Result<HashMap<String, DiskUsageInfo>, Error> {
     let disk_manager = DiskManage::new();
 
@@ -819,6 +932,19 @@ pub fn get_disks(
 
         let wwn = disk.wwn().map(|s| s.to_string_lossy().into_owned());
 
+        let partitions: Option<Vec<PartitionInfo>> = if include_partitions {
+            disk.partitions().map_or(None, |parts| {
+                Some(get_partitions_info(
+                    parts,
+                    &lvm_devices,
+                    &zfs_devices,
+                    &file_system_devices,
+                ))
+            })
+        } else {
+            None
+        };
+
         if usage != DiskUsageType::Mounted {
             match scan_partitions(disk_manager.clone(), &lvm_devices, &zfs_devices, &name) {
                 Ok(part_usage) => {
@@ -852,6 +978,7 @@ pub fn get_disks(
             name: name.clone(),
             vendor,
             model,
+            partitions,
             serial,
             devpath,
             size,
@@ -971,7 +1098,6 @@ pub fn create_file_system(disk: &Disk, fs_type: FileSystemType) -> Result<(), Er
 
     Ok(())
 }
-
 /// Block device name completion helper
 pub fn complete_disk_name(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
     let dir =
