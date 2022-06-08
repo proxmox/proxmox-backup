@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::{Arc, RwLock};
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{bail, Error};
 
 use lazy_static::lazy_static;
 
@@ -302,43 +302,21 @@ impl AclTreeNode {
         }
     }
 
-    /// Check if auth_id has any of the provided privileges on the current note.
-    ///
-    /// If `only_propagated` is set to true only propagating privileges will be checked.
-    fn check_any_privs(
+    fn get_child_paths(
         &self,
+        path: String,
         auth_id: &Authid,
-        privs: u64,
-        only_propagated: bool,
-    ) -> Result<bool, Error> {
-        for role in self.extract_roles(&auth_id, !only_propagated).into_keys() {
-            let current_privs = Role::from_str(&role)
-                .map_err(|e| format_err!("invalid role in current node: {role} - {e}"))?
-                as u64;
-
-            if privs & current_privs != 0 {
-                return Ok(true);
+        paths: &mut Vec<String>,
+    ) -> Result<(), Error> {
+        for (sub_comp, child_node) in &self.children {
+            let roles = child_node.extract_roles(auth_id, true);
+            let child_path = format!("{path}/{sub_comp}");
+            if !roles.is_empty() {
+                paths.push(child_path.clone());
             }
+            child_node.get_child_paths(child_path, auth_id, paths)?;
         }
-
-        return Ok(false);
-    }
-
-    /// Checks if the given auth_id has any of the privileges specified by `privs` on the sub-tree
-    /// below the current node.
-    fn any_privs_below(&self, auth_id: &Authid, privs: u64) -> Result<bool, Error> {
-        // set only_propagated to false to check all roles on the current node
-        if self.check_any_privs(auth_id, privs, false)? {
-            return Ok(true);
-        }
-
-        for (_comp, child) in self.children.iter() {
-            if child.any_privs_below(auth_id, privs)? {
-                return Ok(true);
-            }
-        }
-
-        return Ok(false);
+        Ok(())
     }
 }
 
@@ -354,6 +332,17 @@ impl AclTree {
     pub fn find_node(&mut self, path: &str) -> Option<&mut AclTreeNode> {
         let path = split_acl_path(path);
         self.get_node_mut(&path)
+    }
+
+    fn get_node(&self, path: &[&str]) -> Option<&AclTreeNode> {
+        let mut node = &self.root;
+        for comp in path {
+            node = match node.children.get(*comp) {
+                Some(n) => n,
+                None => return None,
+            };
+        }
+        Some(node)
     }
 
     fn get_node_mut(&mut self, path: &[&str]) -> Option<&mut AclTreeNode> {
@@ -668,42 +657,16 @@ impl AclTree {
         role_map
     }
 
-    /// Checks whether the `auth_id` has any of the privilegs `privs` on any object below `path`.
-    pub fn any_privs_below(
-        &self,
-        auth_id: &Authid,
-        path: &[&str],
-        privs: u64,
-    ) -> Result<bool, Error> {
-        let mut node = &self.root;
+    pub fn get_child_paths(&self, auth_id: &Authid, path: &[&str]) -> Result<Vec<String>, Error> {
+        let path = path.join("/");
 
-        // check first if there's any propagated priv we need to be aware of
-        for outer in path {
-            for c in outer.split('/') {
-                if node.check_any_privs(auth_id, privs, true)? {
-                    return Ok(true);
-                }
-                // check next component
-                node = node.children.get(&c.to_string()).ok_or(format_err!(
-                    "component '{c}' of path '{path:?}' does not exist in current acl tree"
-                ))?;
-            }
+        let mut res = Vec::new();
+
+        if let Some(node) = self.get_node(&split_acl_path(&path)) {
+            node.get_child_paths(path, auth_id, &mut res)?;
         }
 
-        // check last node in the path too
-        if node.check_any_privs(auth_id, privs, true)? {
-            return Ok(true);
-        }
-
-        // now search through the sub-tree
-        for (_comp, child) in node.children.iter() {
-            if child.any_privs_below(auth_id, privs)? {
-                return Ok(true);
-            }
-        }
-
-        // we could not find any privileges, return false
-        return Ok(false);
+        Ok(res)
     }
 }
 
@@ -791,7 +754,7 @@ mod test {
     use super::AclTree;
     use anyhow::Error;
 
-    use pbs_api_types::{Authid, ROLE_ADMIN, ROLE_DATASTORE_READER, ROLE_TAPE_READER};
+    use pbs_api_types::Authid;
 
     fn check_roles(tree: &AclTree, auth_id: &Authid, path: &str, expected_roles: &str) {
         let path_vec = super::split_acl_path(path);
@@ -935,7 +898,7 @@ acl:1:/storage/store1:user1@pbs:DatastoreBackup
     }
 
     #[test]
-    fn test_any_privs_below() -> Result<(), Error> {
+    fn test_get_child_paths() -> Result<(), Error> {
         let tree = AclTree::from_raw(
             "\
             acl:0:/store/store2:user1@pbs:Admin\n\
@@ -948,29 +911,28 @@ acl:1:/storage/store1:user1@pbs:DatastoreBackup
         let user1: Authid = "user1@pbs".parse()?;
         let user2: Authid = "user2@pbs".parse()?;
 
-        // user1 has admin on "/store/store2/store3" -> return true
-        assert!(tree.any_privs_below(&user1, &["store"], ROLE_ADMIN)?);
+        // user1 has admin on "/store/store2/store3" -> return paths
+        let paths = tree.get_child_paths(&user1, &["store"])?;
+        assert!(paths.contains(&"store/store2/store3".to_string()));
 
-        // user2 has not privileges under "/store/store2/store3" --> return false
-        assert!(!tree.any_privs_below(
-            &user2,
-            &["store", "store2", "store3"],
-            ROLE_DATASTORE_READER
-        )?);
+        // user2 has no privileges under "/store/store2/store3" --> return empty
+        assert!(tree
+            .get_child_paths(&user2, &["store", "store2", "store3"],)?
+            .is_empty());
 
-        // user2 has DatastoreReader privileges under "/store/store2/store31" --> return true
-        assert!(tree.any_privs_below(&user2, &["store/store2/store31"], ROLE_DATASTORE_READER)?);
+        // user2 has DatastoreReader privileges under "/store/store2/store31" --> return paths
+        let paths = tree.get_child_paths(&user2, &["store/store2/store31"])?;
+        assert!(paths.contains(&"store/store2/store31/store4/store6".to_string()));
 
-        // user2 has no TapeReader privileges under "/store/store2/store31" --> return false
-        assert!(!tree.any_privs_below(&user2, &["store/store2/store31"], ROLE_TAPE_READER)?);
+        // user2 has no privileges under "/store/store2/foo/bar/baz"
+        assert!(tree
+            .get_child_paths(&user2, &["store", "store2", "foo/bar/baz"])?
+            .is_empty());
 
-        // user2 has no DatastoreReader propagating privileges on
-        // "/store/store2/store31/store4/store6" --> return true
-        assert!(tree.any_privs_below(
-            &user2,
-            &["store/store2/store31/store4/store6"],
-            ROLE_DATASTORE_READER
-        )?);
+        // user2 has DatastoreReader privileges on "/store/store2/store31/store4/store6", but not on any child paths --> return empty
+        assert!(tree
+            .get_child_paths(&user2, &["store/store2/store31/store4/store6"],)?
+            .is_empty());
 
         Ok(())
     }

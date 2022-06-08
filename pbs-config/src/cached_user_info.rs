@@ -187,7 +187,24 @@ impl CachedUserInfo {
         path: &[&str],
         privs: u64,
     ) -> Result<bool, Error> {
-        self.acl_tree.any_privs_below(auth_id, path, privs)
+        // if the anchor path itself has matching propagated privs, we skip checking children
+        let (_privs, propagated_privs) = self.lookup_privs_details(auth_id, path);
+        if propagated_privs & privs != 0 {
+            return Ok(true);
+        }
+
+        // get all sub-paths with roles defined for `auth_id`
+        let paths = self.acl_tree.get_child_paths(auth_id, path)?;
+
+        for path in paths.iter() {
+            // early return if any sub-path has any of the privs we are looking for
+            if privs & self.lookup_privs(auth_id, &[path.as_str()]) != 0 {
+                return Ok(true);
+            }
+        }
+
+        // no paths or no matching paths
+        Ok(false)
     }
 }
 
