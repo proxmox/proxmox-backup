@@ -120,6 +120,9 @@ pub use traffic_control::*;
 mod zfs;
 pub use zfs::*;
 
+mod metrics;
+pub use metrics::*;
+
 #[rustfmt::skip]
 #[macro_use]
 mod local_macros {
@@ -131,6 +134,7 @@ mod local_macros {
     macro_rules! DNS_ALIAS_NAME {
         () => (concat!(r"(?:(?:", DNS_ALIAS_LABEL!() , r"\.)*", DNS_ALIAS_LABEL!(), ")"))
     }
+    macro_rules! PORT_REGEX_STR { () => (r"(?:[0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])") }
 }
 
 const_regex! {
@@ -144,6 +148,8 @@ const_regex! {
     pub DNS_NAME_REGEX =  concat!(r"^", DNS_NAME!(), r"$");
     pub DNS_ALIAS_REGEX =  concat!(r"^", DNS_ALIAS_NAME!(), r"$");
     pub DNS_NAME_OR_IP_REGEX = concat!(r"^(?:", DNS_NAME!(), "|",  IPRE!(), r")$");
+    pub HOST_PORT_REGEX = concat!(r"^(?:", DNS_NAME!(), "|", IPRE_BRACKET!(), "):", PORT_REGEX_STR!() ,"$");
+    pub HTTP_URL_REGEX = concat!(r"^https?://(?:(?:(?:", DNS_NAME!(), "|", IPRE_BRACKET!(), ")(?::", PORT_REGEX_STR!() ,")?)|", IPV6RE!(),")(?:/[^\x00-\x1F\x7F]*)?$");
 
     pub SHA256_HEX_REGEX = r"^[a-f0-9]{64}$"; // fixme: define in common_regex ?
 
@@ -201,6 +207,8 @@ pub const SYSTEMD_DATETIME_FORMAT: ApiStringFormat =
 pub const HOSTNAME_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&HOSTNAME_REGEX);
 pub const OPENSSL_CIPHERS_TLS_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&OPENSSL_CIPHERS_REGEX);
+pub const HOST_PORT_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&HOST_PORT_REGEX);
+pub const HTTP_URL_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&HTTP_URL_REGEX);
 
 pub const DNS_ALIAS_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&DNS_ALIAS_REGEX);
 
@@ -242,6 +250,15 @@ pub const DNS_NAME_OR_IP_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&DNS
 
 pub const DNS_NAME_OR_IP_SCHEMA: Schema = StringSchema::new("DNS name or IP address.")
     .format(&DNS_NAME_OR_IP_FORMAT)
+    .schema();
+
+pub const HOST_PORT_SCHEMA: Schema =
+    StringSchema::new("host:port combination (Host can be DNS name or IP address).")
+        .format(&HOST_PORT_FORMAT)
+        .schema();
+
+pub const HTTP_URL_SCHEMA: Schema = StringSchema::new("HTTP(s) url with optional port.")
+    .format(&HTTP_URL_FORMAT)
     .schema();
 
 pub const NODE_SCHEMA: Schema = StringSchema::new("Node name (or 'localhost')")
