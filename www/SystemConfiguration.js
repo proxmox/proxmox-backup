@@ -46,6 +46,12 @@ Ext.define('PBS.SystemConfiguration', {
 	    ],
 	},
 	{
+	    title: gettext('Metric Server'),
+	    iconCls: 'fa fa-bar-chart',
+	    xtype: 'pbsMetricServerView',
+	    itemId: 'metrics',
+	},
+	{
 	    xtype: 'panel',
 	    title: gettext('Other'),
 	    itemId: 'other-options',

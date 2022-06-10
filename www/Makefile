@@ -36,6 +36,7 @@ TAPE_UI_FILES=						\
 
 JSSRC=							\
 	Utils.js					\
+	Schema.js					\
 	form/TokenSelector.js				\
 	form/AuthidSelector.js				\
 	form/RemoteSelector.js				\
@@ -62,6 +63,7 @@ JSSRC=							\
 	config/WebauthnView.js				\
 	config/CertificateView.js			\
 	config/NodeOptionView.js			\
+	config/MetricServerView.js			\
 	window/ACLEdit.js				\
 	window/BackupFileDownloader.js			\
 	window/BackupGroupChangeOwner.js		\
