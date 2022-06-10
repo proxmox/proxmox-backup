@@ -82,6 +82,7 @@ JSSRC=							\
 	window/VerifyJobEdit.js				\
 	window/VerifyAll.js				\
 	window/ZFSCreate.js				\
+	window/InfluxDbEdit.js				\
 	dashboard/DataStoreStatistics.js		\
 	dashboard/LongestTasks.js			\
 	dashboard/RunningTasks.js			\
