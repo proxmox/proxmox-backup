@@ -6,6 +6,7 @@ pub mod domains;
 pub mod drive;
 pub mod key_config;
 pub mod media_pool;
+pub mod metrics;
 pub mod network;
 pub mod prune;
 pub mod remote;
