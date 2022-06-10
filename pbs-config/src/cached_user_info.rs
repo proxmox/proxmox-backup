@@ -170,7 +170,6 @@ impl CachedUserInfo {
         if auth_id.is_token() {
             // limit privs to that of owning user
             let user_auth_id = Authid::from(auth_id.user().clone());
-            privs &= self.lookup_privs(&user_auth_id, path);
             let (owner_privs, owner_propagated_privs) =
                 self.lookup_privs_details(&user_auth_id, path);
             privs &= owner_privs;
