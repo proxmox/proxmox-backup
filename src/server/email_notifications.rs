@@ -522,7 +522,6 @@ pub fn send_updates_available(updates: &[&APTUpdateInfo]) -> Result<(), Error> {
 }
 
 /// send email on certificate renewal failure.
-/// `notify` currently only accepts `Notify::Error`.
 pub fn send_certificate_renewal_mail(result: &Result<(), Error>) -> Result<(), Error> {
     let error: String = match result {
         Err(e) => e.to_string().into(),
