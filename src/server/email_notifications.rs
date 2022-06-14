@@ -183,6 +183,18 @@ Please visit the web interface for further details:
 
 "###;
 
+const ACME_CERTIFICATE_ERR_RENEWAL: &str = r###"
+
+Proxmox Backup Server was not able to renew a TLS certificate.
+
+Error: {{error}}
+
+Please visit the web interface for further details:
+
+<https://{{fqdn}}:{{port}}/#pbsCertificateConfiguration>
+
+"###;
+
 lazy_static::lazy_static! {
 
     static ref HANDLEBARS: Handlebars<'static> = {
@@ -208,6 +220,8 @@ lazy_static::lazy_static! {
             hb.register_template_string("tape_backup_err_template", TAPE_BACKUP_ERR_TEMPLATE)?;
 
             hb.register_template_string("package_update_template", PACKAGE_UPDATES_TEMPLATE)?;
+
+            hb.register_template_string("certificate_renewal_err_template", ACME_CERTIFICATE_ERR_RENEWAL)?;
 
             Ok(())
         });
@@ -507,6 +521,34 @@ pub fn send_updates_available(updates: &[&APTUpdateInfo]) -> Result<(), Error> {
     Ok(())
 }
 
+/// send email on certificate renewal failure.
+/// `notify` currently only accepts `Notify::Error`.
+pub fn send_certificate_renewal_mail(result: &Result<(), Error>) -> Result<(), Error> {
+    let error: String = match result {
+        Err(e) => e.to_string().into(),
+        _ => return Ok(()),
+    };
+
+    if let Some(email) = lookup_user_email(Userid::root_userid()) {
+        let (fqdn, port) = get_server_url();
+
+        let text = HANDLEBARS.render(
+            "certificate_renewal_err_template",
+            &json!({
+                "fqdn": fqdn,
+                "port": port,
+                "error": error,
+            }),
+        )?;
+
+        let subject = "Could not renew certificate";
+
+        send_job_status_mail(&email, subject, &text)?;
+    }
+
+    Ok(())
+}
+
 /// Lookup users email address
 pub fn lookup_user_email(userid: &Userid) -> Option<String> {
     if let Ok(user_config) = pbs_config::user::cached_config() {
@@ -618,4 +660,6 @@ fn test_template_register() {
     assert!(HANDLEBARS.has_template("tape_backup_err_template"));
 
     assert!(HANDLEBARS.has_template("package_update_template"));
+
+    assert!(HANDLEBARS.has_template("certificate_renewal_err_template"));
 }

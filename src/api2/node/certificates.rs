@@ -20,6 +20,7 @@ use pbs_tools::cert;
 use crate::acme::AcmeClient;
 use crate::api2::types::AcmeDomain;
 use crate::config::node::NodeConfig;
+use crate::server::send_certificate_renewal_mail;
 use proxmox_rest_server::WorkerTask;
 
 pub const ROUTER: Router = Router::new()
@@ -544,11 +545,20 @@ fn spawn_certificate_worker(
     let auth_id = rpcenv.get_auth_id().unwrap();
 
     WorkerTask::spawn(name, None, auth_id, true, move |worker| async move {
-        if let Some(cert) = order_certificate(worker, &node_config).await? {
-            crate::config::set_proxy_certificate(&cert.certificate, &cert.private_key_pem)?;
-            crate::server::reload_proxy_certificate().await?;
-        }
-        Ok(())
+        let work = || async {
+            if let Some(cert) = order_certificate(worker, &node_config).await? {
+                crate::config::set_proxy_certificate(&cert.certificate, &cert.private_key_pem)?;
+                crate::server::reload_proxy_certificate().await?;
+            }
+
+            Ok(())
+        };
+
+        let res = work().await;
+
+        send_certificate_renewal_mail(&res)?;
+
+        res
     })
 }
 
