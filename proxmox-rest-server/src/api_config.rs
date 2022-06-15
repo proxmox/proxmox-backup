@@ -229,7 +229,7 @@ impl ApiConfig {
         self.request_log = Some(Arc::clone(&request_log));
 
         commando_sock.register_command("api-access-log-reopen".into(), move |_args| {
-            println!("re-opening access-log file");
+            log::info!("re-opening access-log file");
             request_log.lock().unwrap().reopen()?;
             Ok(serde_json::Value::Null)
         })?;
@@ -269,7 +269,7 @@ impl ApiConfig {
         self.auth_log = Some(Arc::clone(&auth_log));
 
         commando_sock.register_command("api-auth-log-reopen".into(), move |_args| {
-            println!("re-opening auth-log file");
+            log::info!("re-opening auth-log file");
             auth_log.lock().unwrap().reopen()?;
             Ok(serde_json::Value::Null)
         })?;

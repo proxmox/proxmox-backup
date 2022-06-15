@@ -125,7 +125,7 @@ impl FileLogger {
         if let Err(err) = self.file.write_all(line.as_bytes()) {
             // avoid panicking, log methods should not do that
             // FIXME: or, return result???
-            eprintln!("error writing to log file - {}", err);
+            log::error!("error writing to log file - {}", err);
         }
     }
 }

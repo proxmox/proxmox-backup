@@ -35,7 +35,7 @@ where
             let (conn, _addr) = match socket.accept().await {
                 Ok(data) => data,
                 Err(err) => {
-                    eprintln!("failed to accept on control socket {:?}: {}", path, err);
+                    log::error!("failed to accept on control socket {:?}: {}", path, err);
                     continue;
                 }
             };
@@ -44,7 +44,7 @@ where
             let cred = match socket::getsockopt(conn.as_raw_fd(), opt) {
                 Ok(cred) => cred,
                 Err(err) => {
-                    eprintln!("no permissions - unable to read peer credential - {}", err);
+                    log::error!("no permissions - unable to read peer credential - {}", err);
                     continue;
                 }
             };
@@ -52,7 +52,7 @@ where
             // check permissions (same gid, root user, or backup group)
             let mygid = unsafe { libc::getgid() };
             if !(cred.uid() == 0 || cred.gid() == mygid || cred.gid() == gid) {
-                eprintln!("no permissions for {:?}", cred);
+                log::error!("no permissions for {:?}", cred);
                 continue;
             }
 
@@ -80,7 +80,7 @@ where
                                 Ok(0) => break,
                                 Ok(_) => (),
                                 Err(err) => {
-                                    eprintln!("control socket {:?} read error: {}", path, err);
+                                    log::error!("control socket {:?} read error: {}", path, err);
                                     return;
                                 }
                             }
@@ -94,9 +94,10 @@ where
                             };
 
                             if let Err(err) = tx.write_all(response.as_bytes()).await {
-                                eprintln!(
+                                log::error!(
                                     "control socket {:?} write response error: {}",
-                                    path, err
+                                    path,
+                                    err
                                 );
                                 return;
                             }
