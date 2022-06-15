@@ -208,7 +208,7 @@ fn apply_xattrs(
         }
 
         if !xattr::is_valid_xattr_name(xattr.name()) {
-            eprintln!("skipping invalid xattr named {:?}", xattr.name());
+            log::info!("skipping invalid xattr named {:?}", xattr.name());
             continue;
         }
 
@@ -269,7 +269,7 @@ fn apply_acls(
             acl.add_entry_full(acl::ACL_GROUP_OBJ, None, mode)?;
 
             if !metadata.acl.users.is_empty() || !metadata.acl.groups.is_empty() {
-                eprintln!(
+                log::warn!(
                     "Warning: {:?}: Missing GROUP_OBJ entry in ACL, resetting to value of MASK",
                     path_info,
                 );

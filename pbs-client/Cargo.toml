@@ -17,6 +17,7 @@ hyper = { version = "0.14", features = [ "full" ] }
 lazy_static = "1.4"
 libc = "0.2"
 nix = "0.24"
+log = "0.4"
 openssl = "0.10"
 percent-encoding = "2.1"
 pin-project-lite = "0.2"

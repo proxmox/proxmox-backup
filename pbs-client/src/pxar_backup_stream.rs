@@ -53,17 +53,13 @@ impl PxarBackupStream {
                 StdChannelWriter::new(tx),
             ));
 
-            let verbose = options.verbose;
-
             let writer = pxar::encoder::sync::StandardWriter::new(writer);
             if let Err(err) = crate::pxar::create_archive(
                 dir,
                 writer,
                 crate::pxar::Flags::DEFAULT,
                 move |path| {
-                    if verbose {
-                        println!("{:?}", path);
-                    }
+                    log::debug!("{:?}", path);
                     Ok(())
                 },
                 Some(catalog),

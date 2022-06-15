@@ -101,7 +101,7 @@ fn complete_path(complete_me: &str, _map: &HashMap<String, String>) -> Vec<Strin
     match shell.complete_path(complete_me) {
         Ok(list) => list,
         Err(err) => {
-            eprintln!("error during completion: {}", err);
+            log::error!("error during completion: {}", err);
             Vec::new()
         }
     }
@@ -456,7 +456,7 @@ impl Shell {
             let args = match cli::shellword_split(&line) {
                 Ok(args) => args,
                 Err(err) => {
-                    println!("Error: {}", err);
+                    log::error!("Error: {}", err);
                     continue;
                 }
             };

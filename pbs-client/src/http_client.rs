@@ -347,14 +347,14 @@ impl HttpClient {
                             if let Err(err) =
                                 store_fingerprint(prefix.as_ref().unwrap(), &server, &fingerprint)
                             {
-                                eprintln!("{}", err);
+                                log::error!("{}", err);
                             }
                         }
                         *verified_fingerprint.lock().unwrap() = Some(fingerprint);
                         true
                     }
                     Err(err) => {
-                        eprintln!("certificate validation failed - {}", err);
+                        log::error!("certificate validation failed - {}", err);
                         false
                     }
                 },
@@ -457,7 +457,7 @@ impl HttpClient {
                         *auth2.write().unwrap() = auth;
                     }
                     Err(err) => {
-                        eprintln!("re-authentication failed: {}", err);
+                        log::error!("re-authentication failed: {}", err);
                         return;
                     }
                 }
@@ -580,14 +580,14 @@ impl HttpClient {
             if expected_fingerprint == fp_string {
                 return Ok(Some(fp_string));
             } else {
-                eprintln!("WARNING: certificate fingerprint does not match expected fingerprint!");
-                eprintln!("expected:    {}", expected_fingerprint);
+                log::warn!("WARNING: certificate fingerprint does not match expected fingerprint!");
+                log::warn!("expected:    {}", expected_fingerprint);
             }
         }
 
         // If we're on a TTY, query the user
         if interactive && tty::stdin_isatty() {
-            eprintln!("fingerprint: {}", fp_string);
+            log::info!("fingerprint: {}", fp_string);
             loop {
                 eprint!("Are you sure you want to continue connecting? (y/n): ");
                 let _ = std::io::stdout().flush();
@@ -775,7 +775,7 @@ impl HttpClient {
             .handshake(upgraded)
             .await?;
 
-        let connection = connection.map_err(|_| eprintln!("HTTP/2.0 connection failed"));
+        let connection = connection.map_err(|_| log::error!("HTTP/2.0 connection failed"));
 
         let (connection, abort) = futures::future::abortable(connection);
         // A cancellable future returns an Option which is None when cancelled and

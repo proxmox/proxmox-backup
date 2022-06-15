@@ -231,7 +231,7 @@ fn do_crypto_parameters(param: &Value, keep_keyfd_open: bool) -> Result<CryptoPa
             (None, master_pubkey) => match read_optional_default_encryption_key()? {
                 None => bail!("--crypt-mode without --keyfile and no default key file available"),
                 enc_key => {
-                    eprintln!("Encrypting with default encryption key!");
+                    log::info!("Encrypting with default encryption key!");
                     let master_pubkey = match master_pubkey {
                         None => read_optional_default_master_pubkey()?,
                         master_pubkey => master_pubkey,

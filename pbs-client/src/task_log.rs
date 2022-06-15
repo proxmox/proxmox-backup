@@ -31,10 +31,10 @@ pub async fn display_task_log(
 
     let abort_future = async move {
         while signal_stream.recv().await.is_some() {
-            println!("got shutdown request (SIGINT)");
+            log::info!("got shutdown request (SIGINT)");
             let prev_count = abort_count2.fetch_add(1, Ordering::SeqCst);
             if prev_count >= 1 {
-                println!("forced exit (task still running)");
+                log::info!("forced exit (task still running)");
                 break;
             }
         }
@@ -77,9 +77,9 @@ pub async fn display_task_log(
                 }
                 if strip_date && t.len() > 27 && &t[25..27] == ": " {
                     let line = &t[27..];
-                    println!("{}", line);
+                    log::info!("{}", line);
                 } else {
-                    println!("{}", t);
+                    log::info!("{}", t);
                 }
                 start += 1;
             }

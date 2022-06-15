@@ -532,12 +532,7 @@ where
 }
 
 /// Creates a tar file from `path` and writes it into `output`
-pub async fn create_tar<T, W, P>(
-    output: W,
-    accessor: Accessor<T>,
-    path: P,
-    verbose: bool,
-) -> Result<(), Error>
+pub async fn create_tar<T, W, P>(output: W, accessor: Accessor<T>, path: P) -> Result<(), Error>
 where
     T: Clone + pxar::accessor::ReadAt + Unpin + Send + Sync + 'static,
     W: tokio::io::AsyncWrite + Unpin + Send + 'static,
@@ -596,9 +591,7 @@ where
                         let metadata = realfile.entry().metadata();
                         let realpath = Path::new(link);
 
-                        if verbose {
-                            eprintln!("adding '{}' to tar", path.display());
-                        }
+                        log::debug!("adding '{}' to tar", path.display());
 
                         let stripped_path = match realpath.strip_prefix(prefix) {
                             Ok(path) => path,
@@ -632,9 +625,7 @@ where
                     }
                 }
                 EntryKind::Symlink(link) if !link.data.is_empty() => {
-                    if verbose {
-                        eprintln!("adding '{}' to tar", path.display());
-                    }
+                    log::debug!("adding '{}' to tar", path.display());
                     let realpath = Path::new(link);
                     let mut header = tar::Header::new_gnu();
                     header.set_entry_type(tar::EntryType::Symlink);
@@ -646,9 +637,7 @@ where
                         .map_err(|err| format_err!("could not send symlink entry: {}", err))?;
                 }
                 EntryKind::Fifo => {
-                    if verbose {
-                        eprintln!("adding '{}' to tar", path.display());
-                    }
+                    log::debug!("adding '{}' to tar", path.display());
                     let mut header = tar::Header::new_gnu();
                     header.set_entry_type(tar::EntryType::Fifo);
                     add_metadata_to_header(&mut header, metadata);
@@ -662,9 +651,7 @@ where
                         .map_err(|err| format_err!("could not send fifo entry: {}", err))?;
                 }
                 EntryKind::Directory => {
-                    if verbose {
-                        eprintln!("adding '{}' to tar", path.display());
-                    }
+                    log::debug!("adding '{}' to tar", path.display());
                     // we cannot add the root path itself
                     if path != Path::new("/") {
                         let mut header = tar::Header::new_gnu();
@@ -679,9 +666,7 @@ where
                     }
                 }
                 EntryKind::Device(device) => {
-                    if verbose {
-                        eprintln!("adding '{}' to tar", path.display());
-                    }
+                    log::debug!("adding '{}' to tar", path.display());
                     let entry_type = if metadata.stat.is_chardev() {
                         tar::EntryType::Char
                     } else {
@@ -704,18 +689,13 @@ where
     }
 
     tarencoder.finish().await.map_err(|err| {
-        eprintln!("error during finishing of zip: {}", err);
+        log::error!("error during finishing of zip: {}", err);
         err
     })?;
     Ok(())
 }
 
-pub async fn create_zip<T, W, P>(
-    output: W,
-    accessor: Accessor<T>,
-    path: P,
-    verbose: bool,
-) -> Result<(), Error>
+pub async fn create_zip<T, W, P>(output: W, accessor: Accessor<T>, path: P) -> Result<(), Error>
 where
     T: Clone + pxar::accessor::ReadAt + Unpin + Send + Sync + 'static,
     W: tokio::io::AsyncWrite + Unpin + Send + 'static,
@@ -758,9 +738,7 @@ where
 
             match entry.kind() {
                 EntryKind::File { .. } => {
-                    if verbose {
-                        eprintln!("adding '{}' to zip", path.display());
-                    }
+                    log::debug!("adding '{}' to zip", path.display());
                     let entry = ZipEntry::new(
                         path,
                         metadata.stat.mtime.secs,
@@ -778,9 +756,7 @@ where
                         .ok_or(format_err!("error looking up '{:?}'", path))?;
                     let realfile = accessor.follow_hardlink(&entry).await?;
                     let metadata = realfile.entry().metadata();
-                    if verbose {
-                        eprintln!("adding '{}' to zip", path.display());
-                    }
+                    log::debug!("adding '{}' to zip", path.display());
                     let entry = ZipEntry::new(
                         path,
                         metadata.stat.mtime.secs,
@@ -792,9 +768,7 @@ where
                         .map_err(|err| format_err!("could not send file entry: {}", err))?;
                 }
                 EntryKind::Directory => {
-                    if verbose {
-                        eprintln!("adding '{}' to zip", path.display());
-                    }
+                    log::debug!("adding '{}' to zip", path.display());
                     let entry = ZipEntry::new(
                         path,
                         metadata.stat.mtime.secs,
@@ -851,7 +825,6 @@ pub async fn extract_sub_dir<T, DEST, PATH>(
     destination: DEST,
     decoder: Accessor<T>,
     path: PATH,
-    verbose: bool,
 ) -> Result<(), Error>
 where
     T: Clone + pxar::accessor::ReadAt + Unpin + Send + Sync + 'static,
@@ -870,13 +843,12 @@ where
         .await?
         .ok_or(format_err!("error opening '{:?}'", path.as_ref()))?;
 
-    recurse_files_extractor(&mut extractor, file, verbose).await
+    recurse_files_extractor(&mut extractor, file).await
 }
 
 pub async fn extract_sub_dir_seq<S, DEST>(
     destination: DEST,
     mut decoder: Decoder<S>,
-    verbose: bool,
 ) -> Result<(), Error>
 where
     S: pxar::decoder::SeqRead + Unpin + Send + 'static,
@@ -891,8 +863,8 @@ where
 
     let mut extractor = get_extractor(destination, root.metadata().clone())?;
 
-    if let Err(err) = seq_files_extractor(&mut extractor, decoder, verbose).await {
-        eprintln!("error extracting pxar archive: {}", err);
+    if let Err(err) = seq_files_extractor(&mut extractor, decoder).await {
+        log::error!("error extracting pxar archive: {}", err);
     }
 
     Ok(())
@@ -948,7 +920,6 @@ fn get_filename(entry: &Entry) -> Result<(OsString, CString), Error> {
 async fn recurse_files_extractor<'a, T>(
     extractor: &'a mut Extractor,
     file: FileEntry<T>,
-    verbose: bool,
 ) -> Result<(), Error>
 where
     T: Clone + pxar::accessor::ReadAt + Unpin + Send + Sync + 'static,
@@ -957,9 +928,7 @@ where
     let metadata = entry.metadata();
     let (file_name_os, file_name) = get_filename(entry)?;
 
-    if verbose {
-        eprintln!("extracting: {}", file.path().display());
-    }
+    log::debug!("extracting: {}", file.path().display());
 
     match file.kind() {
         EntryKind::Directory => {
@@ -970,7 +939,7 @@ where
             let dir = file.enter_directory().await?;
             let mut seq_decoder = dir.decode_full().await?;
             seq_decoder.enable_goodbye_entries(true);
-            seq_files_extractor(extractor, seq_decoder, verbose).await?;
+            seq_files_extractor(extractor, seq_decoder).await?;
             extractor.leave_directory()?;
         }
         EntryKind::File { size, .. } => {
@@ -994,7 +963,6 @@ where
 async fn seq_files_extractor<'a, T>(
     extractor: &'a mut Extractor,
     mut decoder: pxar::decoder::aio::Decoder<T>,
-    verbose: bool,
 ) -> Result<(), Error>
 where
     T: pxar::decoder::SeqRead,
@@ -1009,8 +977,8 @@ where
         let metadata = entry.metadata();
         let (file_name_os, file_name) = get_filename(&entry)?;
 
-        if verbose && !matches!(entry.kind(), EntryKind::GoodbyeTable) {
-            eprintln!("extracting: {}", entry.path().display());
+        if !matches!(entry.kind(), EntryKind::GoodbyeTable) {
+            log::debug!("extracting: {}", entry.path().display());
         }
 
         if let Err(err) = async {
@@ -1044,7 +1012,7 @@ where
         .await
         {
             let display = entry.path().display().to_string();
-            eprintln!(
+            log::error!(
                 "error extracting {}: {}",
                 if matches!(entry.kind(), EntryKind::GoodbyeTable) {
                     "<directory>"

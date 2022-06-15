@@ -240,8 +240,8 @@ impl SessionImpl {
 
     /// Here's how we deal with errors:
     ///
-    /// Any error will be printed if the verbose flag was set, otherwise the message will be
-    /// silently dropped.
+    /// Any error will be logged if a log level of at least 'debug' was set, otherwise the
+    /// message will be silently dropped.
     ///
     /// Opaque errors will cause the fuse main loop to bail out with that error.
     ///
@@ -255,8 +255,8 @@ impl SessionImpl {
     ) {
         let final_result = match err.downcast::<io::Error>() {
             Ok(err) => {
-                if err.kind() == io::ErrorKind::Other && self.verbose {
-                    eprintln!("an IO error occurred: {}", err);
+                if err.kind() == io::ErrorKind::Other {
+                    log::error!("an IO error occurred: {}", err);
                 }
 
                 // fail the request
@@ -264,9 +264,7 @@ impl SessionImpl {
             }
             Err(err) => {
                 // `bail` (non-`io::Error`) is used for fatal errors which should actually cancel:
-                if self.verbose {
-                    eprintln!("internal error: {}, bailing out", err);
-                }
+                log::error!("internal error: {}, bailing out", err);
                 Err(err)
             }
         };
@@ -297,7 +295,7 @@ impl SessionImpl {
                 },
                 err = err_recv.next() => match err {
                     Some(err) => if self.verbose {
-                        eprintln!("cancelling fuse main loop due to error: {}", err);
+                        log::error!("cancelling fuse main loop due to error: {}", err);
                         return Err(err);
                     },
                     None => panic!("error channel was closed unexpectedly"),
@@ -385,9 +383,7 @@ impl SessionImpl {
                 }
             }
             other => {
-                if self.verbose {
-                    eprintln!("Received unexpected fuse request");
-                }
+                log::error!("Received unexpected fuse request");
                 other.fail(libc::ENOSYS).map_err(Error::from)
             }
         };

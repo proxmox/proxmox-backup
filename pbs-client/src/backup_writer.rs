@@ -28,7 +28,6 @@ use super::{H2Client, HttpClient};
 pub struct BackupWriter {
     h2: H2Client,
     abort: AbortHandle,
-    verbose: bool,
     crypt_config: Option<Arc<CryptConfig>>,
 }
 
@@ -66,17 +65,11 @@ type UploadQueueSender = mpsc::Sender<(MergedChunkInfo, Option<h2::client::Respo
 type UploadResultReceiver = oneshot::Receiver<Result<(), Error>>;
 
 impl BackupWriter {
-    fn new(
-        h2: H2Client,
-        abort: AbortHandle,
-        crypt_config: Option<Arc<CryptConfig>>,
-        verbose: bool,
-    ) -> Arc<Self> {
+    fn new(h2: H2Client, abort: AbortHandle, crypt_config: Option<Arc<CryptConfig>>) -> Arc<Self> {
         Arc::new(Self {
             h2,
             abort,
             crypt_config,
-            verbose,
         })
     }
 
@@ -117,7 +110,7 @@ impl BackupWriter {
             .start_h2_connection(req, String::from(PROXMOX_BACKUP_PROTOCOL_ID_V1!()))
             .await?;
 
-        Ok(BackupWriter::new(h2, abort, crypt_config, debug))
+        Ok(BackupWriter::new(h2, abort, crypt_config))
     }
 
     pub async fn get(&self, path: &str, param: Option<Value>) -> Result<Value, Error> {
@@ -338,23 +331,23 @@ impl BackupWriter {
                 None
             },
             options.compress,
-            self.verbose,
         )
         .await?;
 
         let size_dirty = upload_stats.size - upload_stats.size_reused;
         let size: HumanByte = upload_stats.size.into();
-        let archive = if self.verbose {
+        let archive = if log::log_enabled!(log::Level::Debug) {
             archive_name
         } else {
             pbs_tools::format::strip_server_file_extension(archive_name)
         };
+
         if archive_name != CATALOG_NAME {
             let speed: HumanByte =
                 ((size_dirty * 1_000_000) / (upload_stats.duration.as_micros() as usize)).into();
             let size_dirty: HumanByte = size_dirty.into();
             let size_compressed: HumanByte = upload_stats.size_compressed.into();
-            println!(
+            log::info!(
                 "{}: had to backup {} of {} (compressed {}) in {:.2}s",
                 archive,
                 size_dirty,
@@ -362,30 +355,34 @@ impl BackupWriter {
                 size_compressed,
                 upload_stats.duration.as_secs_f64()
             );
-            println!("{}: average backup speed: {}/s", archive, speed);
+            log::info!("{}: average backup speed: {}/s", archive, speed);
         } else {
-            println!("Uploaded backup catalog ({})", size);
+            log::info!("Uploaded backup catalog ({})", size);
         }
 
         if upload_stats.size_reused > 0 && upload_stats.size > 1024 * 1024 {
             let reused_percent = upload_stats.size_reused as f64 * 100. / upload_stats.size as f64;
             let reused: HumanByte = upload_stats.size_reused.into();
-            println!(
+            log::info!(
                 "{}: backup was done incrementally, reused {} ({:.1}%)",
-                archive, reused, reused_percent
+                archive,
+                reused,
+                reused_percent
             );
         }
-        if self.verbose && upload_stats.chunk_count > 0 {
-            println!(
+        if log::log_enabled!(log::Level::Debug) && upload_stats.chunk_count > 0 {
+            log::debug!(
                 "{}: Reused {} from {} chunks.",
-                archive, upload_stats.chunk_reused, upload_stats.chunk_count
+                archive,
+                upload_stats.chunk_reused,
+                upload_stats.chunk_count
             );
-            println!(
+            log::debug!(
                 "{}: Average chunk size was {}.",
                 archive,
                 HumanByte::from(upload_stats.size / upload_stats.chunk_count)
             );
-            println!(
+            log::debug!(
                 "{}: Average time per request: {} microseconds.",
                 archive,
                 (upload_stats.duration.as_micros()) / (upload_stats.chunk_count as u128)
@@ -405,9 +402,7 @@ impl BackupWriter {
         })
     }
 
-    fn response_queue(
-        verbose: bool,
-    ) -> (
+    fn response_queue() -> (
         mpsc::Sender<h2::client::ResponseFuture>,
         oneshot::Receiver<Result<(), Error>>,
     ) {
@@ -435,11 +430,7 @@ impl BackupWriter {
                     response
                         .map_err(Error::from)
                         .and_then(H2Client::h2api_response)
-                        .map_ok(move |result| {
-                            if verbose {
-                                println!("RESPONSE: {:?}", result)
-                            }
-                        })
+                        .map_ok(move |result| log::debug!("RESPONSE: {:?}", result))
                         .map_err(|err| format_err!("pipelined request failed: {}", err))
                 })
                 .map(|result| {
@@ -454,7 +445,6 @@ impl BackupWriter {
         h2: H2Client,
         wid: u64,
         path: String,
-        verbose: bool,
     ) -> (UploadQueueSender, UploadResultReceiver) {
         let (verify_queue_tx, verify_queue_rx) = mpsc::channel(64);
         let (verify_result_tx, verify_result_rx) = oneshot::channel();
@@ -491,7 +481,7 @@ impl BackupWriter {
                                 digest_list.push(hex::encode(&digest));
                                 offset_list.push(offset);
                             }
-                            if verbose { println!("append chunks list len ({})", digest_list.len()); }
+                            log::debug!("append chunks list len ({})", digest_list.len());
                             let param = json!({ "wid": wid, "digest-list": digest_list, "offset-list": offset_list });
                             let request = H2Client::request_builder("localhost", "PUT", &path, None, Some("application/json")).unwrap();
                             let param_data = bytes::Bytes::from(param.to_string().into_bytes());
@@ -547,13 +537,11 @@ impl BackupWriter {
             known_chunks.insert(*index.index_digest(i).unwrap());
         }
 
-        if self.verbose {
-            println!(
-                "{}: known chunks list length is {}",
-                archive_name,
-                index.index_count()
-            );
-        }
+        log::debug!(
+            "{}: known chunks list length is {}",
+            archive_name,
+            index.index_count()
+        );
 
         Ok(index)
     }
@@ -588,13 +576,11 @@ impl BackupWriter {
             known_chunks.insert(*index.index_digest(i).unwrap());
         }
 
-        if self.verbose {
-            println!(
-                "{}: known chunks list length is {}",
-                archive_name,
-                index.index_count()
-            );
-        }
+        log::debug!(
+            "{}: known chunks list length is {}",
+            archive_name,
+            index.index_count()
+        );
 
         Ok(index)
     }
@@ -641,7 +627,6 @@ impl BackupWriter {
         known_chunks: Arc<Mutex<HashSet<[u8; 32]>>>,
         crypt_config: Option<Arc<CryptConfig>>,
         compress: bool,
-        verbose: bool,
     ) -> impl Future<Output = Result<UploadStats, Error>> {
         let total_chunks = Arc::new(AtomicUsize::new(0));
         let total_chunks2 = total_chunks.clone();
@@ -660,7 +645,7 @@ impl BackupWriter {
         let is_fixed_chunk_size = prefix == "fixed";
 
         let (upload_queue, upload_result) =
-            Self::append_chunk_queue(h2.clone(), wid, append_chunk_path, verbose);
+            Self::append_chunk_queue(h2.clone(), wid, append_chunk_path);
 
         let start_time = std::time::Instant::now();
 
@@ -721,12 +706,12 @@ impl BackupWriter {
                     let digest = chunk_info.digest;
                     let digest_str = hex::encode(&digest);
 
-                    /* too verbose, needs finer verbosity setting granularity
-                    if verbose {
-                        println!("upload new chunk {} ({} bytes, offset {})", digest_str,
-                                 chunk_info.chunk_len, offset);
-                    }
-                    */
+                    log::trace!(
+                        "upload new chunk {} ({} bytes, offset {})",
+                        digest_str,
+                        chunk_info.chunk_len,
+                        offset
+                    );
 
                     let chunk_data = chunk_info.chunk.into_inner();
                     let param = json!({
@@ -793,7 +778,7 @@ impl BackupWriter {
     }
 
     /// Upload speed test - prints result to stderr
-    pub async fn upload_speedtest(&self, verbose: bool) -> Result<f64, Error> {
+    pub async fn upload_speedtest(&self) -> Result<f64, Error> {
         let mut data = vec![];
         // generate pseudo random byte sequence
         for i in 0..1024 * 1024 {
@@ -807,7 +792,7 @@ impl BackupWriter {
 
         let mut repeat = 0;
 
-        let (upload_queue, upload_result) = Self::response_queue(verbose);
+        let (upload_queue, upload_result) = Self::response_queue();
 
         let start_time = std::time::Instant::now();
 
@@ -817,9 +802,7 @@ impl BackupWriter {
                 break;
             }
 
-            if verbose {
-                eprintln!("send test data ({} bytes)", data.len());
-            }
+            log::debug!("send test data ({} bytes)", data.len());
             let request =
                 H2Client::request_builder("localhost", "POST", "speedtest", None, None).unwrap();
             let request_future = self
@@ -834,13 +817,13 @@ impl BackupWriter {
 
         let _ = upload_result.await?;
 
-        eprintln!(
+        log::info!(
             "Uploaded {} chunks in {} seconds.",
             repeat,
             start_time.elapsed().as_secs()
         );
         let speed = ((item_len * (repeat as usize)) as f64) / start_time.elapsed().as_secs_f64();
-        eprintln!(
+        log::info!(
             "Time per request: {} microseconds.",
             (start_time.elapsed().as_micros()) / (repeat as u128)
         );

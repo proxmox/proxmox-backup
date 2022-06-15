@@ -43,8 +43,6 @@ pub struct PxarCreateOptions {
     pub entries_max: usize,
     /// Skip lost+found directory
     pub skip_lost_and_found: bool,
-    /// Verbose output
-    pub verbose: bool,
 }
 
 fn detect_fs_type(fd: RawFd) -> Result<i64, Error> {
