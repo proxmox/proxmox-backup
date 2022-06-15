@@ -154,7 +154,7 @@ pub async fn start_vm(
     let mut logrotate = LogRotate::new(logfile, false, Some(16), None)?;
 
     if let Err(err) = logrotate.do_rotate() {
-        eprintln!("warning: logrotate for QEMU log file failed - {}", err);
+        log::warn!("warning: logrotate for QEMU log file failed - {}", err);
     }
 
     let mut logfd = OpenOptions::new()
@@ -297,11 +297,11 @@ pub async fn start_vm(
                     bail!("CID '{}' in use, but max attempts reached, aborting", cid);
                 }
                 // CID in use, try next higher one
-                eprintln!("CID '{}' in use by other VM, attempting next one", cid);
+                log::info!("CID '{}' in use by other VM, attempting next one", cid);
                 // skip special-meaning low values
                 cid = cid.wrapping_add(1).max(10);
             } else {
-                eprint!("{}", out);
+                log::error!("{}", out);
                 bail!("Starting VM failed. See output above for more information.");
             }
         }
@@ -317,12 +317,10 @@ pub async fn start_vm(
         if let Ok(Ok(_)) =
             time::timeout(Duration::from_secs(2), client.get("api2/json/status", None)).await
         {
-            if debug {
-                eprintln!(
-                    "Connect to '/run/proxmox-backup/file-restore-serial-{}.sock' for shell access",
-                    cid
-                )
-            }
+            log::debug!(
+                "Connect to '/run/proxmox-backup/file-restore-serial-{}.sock' for shell access",
+                cid
+            );
             return Ok((pid, cid as i32));
         }
         if kill(pid_t, None).is_err() {
@@ -338,7 +336,7 @@ pub async fn start_vm(
 
     // start failed
     if let Err(err) = try_kill_vm(pid) {
-        eprintln!("killing failed VM failed: {}", err);
+        log::error!("killing failed VM failed: {}", err);
     }
     bail!("starting VM timed out");
 }

@@ -98,7 +98,7 @@ async fn cleanup_map(map: &mut HashMap<String, VMState>) -> bool {
         if res.is_err() {
             // VM is not reachable, remove from map and inform user
             to_remove.push(name.clone());
-            eprintln!(
+            log::warn!(
                 "VM '{}' (pid: {}, cid: {}) was not reachable, removing from map",
                 name, state.pid, state.cid
             );
@@ -134,7 +134,7 @@ async fn ensure_running(details: &SnapRestoreDetails) -> Result<VsockClient, Err
                     return Ok(client);
                 }
                 Err(err) => {
-                    eprintln!("stale VM detected, restarting ({})", err);
+                    log::warn!("stale VM detected, restarting ({})", err);
                     // VM is dead, restart
                     let _ = super::qemu_helper::try_kill_vm(vm.pid);
                     let vms = start_vm(vm.cid, details).await?;
@@ -233,7 +233,7 @@ impl BlockRestoreDriver for QemuBlockDriver {
                     )
                     .await
                 {
-                    eprintln!("reading file extraction stream failed - {}", err);
+                    log::error!("reading file extraction stream failed - {}", err);
                     std::process::exit(1);
                 }
             });
