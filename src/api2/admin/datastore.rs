@@ -1702,11 +1702,10 @@ pub fn pxar_file_download(
                         channelwriter,
                         decoder,
                         path.clone(),
-                        false,
                     ));
                     let zstdstream = ZstdEncoder::new(ReceiverStream::new(receiver))?;
                     Body::wrap_stream(zstdstream.map_err(move |err| {
-                        eprintln!("error during streaming of tar.zst '{:?}' - {}", path, err);
+                        log::error!("error during streaming of tar.zst '{:?}' - {}", path, err);
                         err
                     }))
                 } else {
@@ -1714,10 +1713,9 @@ pub fn pxar_file_download(
                         channelwriter,
                         decoder,
                         path.clone(),
-                        false,
                     ));
                     Body::wrap_stream(ReceiverStream::new(receiver).map_err(move |err| {
-                        eprintln!("error during streaming of zip '{:?}' - {}", path, err);
+                        log::error!("error during streaming of zip '{:?}' - {}", path, err);
                         err
                     }))
                 }

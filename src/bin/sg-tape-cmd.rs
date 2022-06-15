@@ -25,13 +25,13 @@ fn get_tape_handle(param: &Value) -> Result<LtoTapeHandle, Error> {
     let handle = if let Some(name) = param["drive"].as_str() {
         let (config, _digest) = pbs_config::drive::config()?;
         let drive: LtoTapeDrive = config.lookup("lto", name)?;
-        eprintln!("using device {}", drive.path);
+        log::info!("using device {}", drive.path);
         open_lto_tape_drive(&drive)?
     } else if let Some(device) = param["device"].as_str() {
-        eprintln!("using device {}", device);
+        log::info!("using device {}", device);
         LtoTapeHandle::new(open_lto_tape_device(device)?)?
     } else if let Some(true) = param["stdin"].as_bool() {
-        eprintln!("using stdin");
+        log::info!("using stdin");
         let fd = std::io::stdin().as_raw_fd();
         let file = unsafe { File::from_raw_fd(fd) };
         check_tape_is_lto_tape_device(&file)?;
@@ -39,7 +39,7 @@ fn get_tape_handle(param: &Value) -> Result<LtoTapeHandle, Error> {
     } else if let Ok(name) = std::env::var("PROXMOX_TAPE_DRIVE") {
         let (config, _digest) = pbs_config::drive::config()?;
         let drive: LtoTapeDrive = config.lookup("lto", &name)?;
-        eprintln!("using device {}", drive.path);
+        log::info!("using device {}", drive.path);
         open_lto_tape_drive(&drive)?
     } else {
         let (config, _digest) = pbs_config::drive::config()?;
@@ -55,7 +55,7 @@ fn get_tape_handle(param: &Value) -> Result<LtoTapeHandle, Error> {
         if drive_names.len() == 1 {
             let name = drive_names[0];
             let drive: LtoTapeDrive = config.lookup("lto", name)?;
-            eprintln!("using device {}", drive.path);
+            log::info!("using device {}", drive.path);
             open_lto_tape_drive(&drive)?
         } else {
             bail!("no drive/device specified");

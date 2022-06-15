@@ -23,7 +23,6 @@ fn extract_archive_from_reader<R: std::io::Read>(
     reader: &mut R,
     target: &str,
     feature_flags: Flags,
-    verbose: bool,
     options: PxarExtractOptions,
 ) -> Result<(), Error> {
     pbs_client::pxar::extract_archive(
@@ -31,9 +30,7 @@ fn extract_archive_from_reader<R: std::io::Read>(
         Path::new(target),
         feature_flags,
         |path| {
-            if verbose {
-                println!("{:?}", path);
-            }
+            log::debug!("{:?}", path);
         },
         options,
     )
@@ -57,11 +54,6 @@ fn extract_archive_from_reader<R: std::io::Read>(
             target: {
                 description: "Target directory",
                 optional: true,
-            },
-            verbose: {
-                description: "Verbose output.",
-                optional: true,
-                default: false,
             },
             "no-xattrs": {
                 description: "Ignore extended file attributes.",
@@ -116,7 +108,6 @@ fn extract_archive(
     archive: String,
     pattern: Option<Vec<String>>,
     target: Option<String>,
-    verbose: bool,
     no_xattrs: bool,
     no_fcaps: bool,
     no_acls: bool,
@@ -179,7 +170,7 @@ fn extract_archive(
         // otherwise we want to log them but not act on them
         Some(Box::new(move |err| {
             was_ok.store(false, Ordering::Release);
-            eprintln!("error: {}", err);
+            log::error!("error: {}", err);
             Ok(())
         })
             as Box<dyn FnMut(Error) -> Result<(), Error> + Send>)
@@ -195,14 +186,12 @@ fn extract_archive(
     if archive == "-" {
         let stdin = std::io::stdin();
         let mut reader = stdin.lock();
-        extract_archive_from_reader(&mut reader, target, feature_flags, verbose, options)?;
+        extract_archive_from_reader(&mut reader, target, feature_flags, options)?;
     } else {
-        if verbose {
-            println!("PXAR extract: {}", archive);
-        }
+        log::debug!("PXAR extract: {}", archive);
         let file = std::fs::File::open(archive)?;
         let mut reader = std::io::BufReader::new(file);
-        extract_archive_from_reader(&mut reader, target, feature_flags, verbose, options)?;
+        extract_archive_from_reader(&mut reader, target, feature_flags, options)?;
     }
 
     if !was_ok.load(Ordering::Acquire) {
@@ -220,11 +209,6 @@ fn extract_archive(
             },
             source: {
                 description: "Source directory.",
-            },
-            verbose: {
-                description: "Verbose output.",
-                optional: true,
-                default: false,
             },
             "no-xattrs": {
                 description: "Ignore extended file attributes.",
@@ -285,7 +269,6 @@ fn extract_archive(
 async fn create_archive(
     archive: String,
     source: String,
-    verbose: bool,
     no_xattrs: bool,
     no_fcaps: bool,
     no_acls: bool,
@@ -318,7 +301,6 @@ async fn create_archive(
         entries_max: entries_max as usize,
         device_set,
         patterns,
-        verbose,
         skip_lost_and_found: false,
     };
 
@@ -363,9 +345,7 @@ async fn create_archive(
         writer,
         feature_flags,
         move |path| {
-            if verbose {
-                println!("{:?}", path);
-            }
+            log::debug!("{:?}", path);
             Ok(())
         },
         None,
@@ -404,9 +384,7 @@ async fn mount_archive(archive: String, mountpoint: String, verbose: bool) -> Re
     select! {
         res = session.fuse() => res?,
         _ = interrupt.recv().fuse() => {
-            if verbose {
-                eprintln!("interrupted");
-            }
+            log::debug!("interrupted");
         }
     }
 
@@ -419,23 +397,18 @@ async fn mount_archive(archive: String, mountpoint: String, verbose: bool) -> Re
             archive: {
                 description: "Archive name.",
             },
-            verbose: {
-                description: "Verbose output.",
-                optional: true,
-                default: false,
-            },
         },
     },
 )]
 /// List the contents of an archive.
-fn dump_archive(archive: String, verbose: bool) -> Result<(), Error> {
+fn dump_archive(archive: String) -> Result<(), Error> {
     for entry in pxar::decoder::Decoder::open(archive)? {
         let entry = entry?;
 
-        if verbose {
-            println!("{}", format_single_line_entry(&entry));
+        if log::log_enabled!(log::Level::Debug) {
+            log::debug!("{}", format_single_line_entry(&entry));
         } else {
-            println!("{:?}", entry.path());
+            log::info!("{:?}", entry.path());
         }
     }
     Ok(())

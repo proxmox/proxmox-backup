@@ -29,7 +29,7 @@ async fn upload_speed() -> Result<f64, Error> {
     .await?;
 
     println!("start upload speed test");
-    let res = client.upload_speedtest(true).await?;
+    let res = client.upload_speedtest().await?;
 
     Ok(res)
 }

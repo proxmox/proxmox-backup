@@ -336,7 +336,6 @@ fn extract(
                         entries_max: ENCODER_MAX_ENTRIES,
                         device_set: None,
                         patterns,
-                        verbose: false,
                         skip_lost_and_found: false,
                     };
 
