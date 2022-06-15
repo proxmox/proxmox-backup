@@ -64,7 +64,7 @@ async fn dump_catalog(param: Value) -> Result<Value, Error> {
         Some(key) => {
             let (key, _created, _fingerprint) = decrypt_key(&key.key, &get_encryption_key_password)
                 .map_err(|err| {
-                    eprintln!("{}", format_key_source(&key.source, "encryption"));
+                    log::error!("{}", format_key_source(&key.source, "encryption"));
                     err
                 })?;
             let crypt_config = CryptConfig::new(key)?;
@@ -172,7 +172,7 @@ async fn catalog_shell(param: Value) -> Result<(), Error> {
         Some(key) => {
             let (key, _created, _fingerprint) = decrypt_key(&key.key, &get_encryption_key_password)
                 .map_err(|err| {
-                    eprintln!("{}", format_key_source(&key.source, "encryption"));
+                    log::error!("{}", format_key_source(&key.source, "encryption"));
                     err
                 })?;
             let crypt_config = CryptConfig::new(key)?;
@@ -253,7 +253,7 @@ async fn catalog_shell(param: Value) -> Result<(), Error> {
     let catalog_reader = CatalogReader::new(catalogfile);
     let state = Shell::new(catalog_reader, &server_archive_name, decoder).await?;
 
-    println!("Starting interactive shell");
+    log::info!("Starting interactive shell");
     state.shell().await?;
 
     record_repository(&repo);

@@ -211,9 +211,9 @@ async fn mount_do(param: Value, pipe: Option<Fd>) -> Result<Value, Error> {
     let crypt_config = match keyfile {
         None => None,
         Some(path) => {
-            println!("Encryption key file: '{:?}'", path);
+            log::info!("Encryption key file: '{:?}'", path);
             let (key, _, fingerprint) = load_and_decrypt_key(&path, &get_encryption_key_password)?;
-            println!("Encryption key fingerprint: '{}'", fingerprint);
+            log::info!("Encryption key fingerprint: '{}'", fingerprint);
             Some(Arc::new(CryptConfig::new(key)?))
         }
     };
@@ -356,7 +356,7 @@ async fn mount_do(param: Value, pipe: Option<Fd>) -> Result<Value, Error> {
         }
 
         // daemonize only now to be able to print mapped loopdev or startup errors
-        println!("Image '{}' mapped on {}", name, loopdev);
+        log::info!("Image '{}' mapped on {}", name, loopdev);
         daemonize()?;
 
         // continue polling until complete or interrupted (which also happens on unmap)
@@ -370,7 +370,7 @@ async fn mount_do(param: Value, pipe: Option<Fd>) -> Result<Value, Error> {
             }
         }
 
-        println!("Image unmapped");
+        log::info!("Image unmapped");
     } else {
         bail!("unknown archive file extension (expected .pxar or .img)");
     }
@@ -390,7 +390,7 @@ fn unmap(
             let mut any = false;
             for (backing, loopdev) in pbs_fuse_loop::find_all_mappings()? {
                 let name = proxmox_sys::systemd::unescape_unit(&backing)?;
-                println!(
+                log::info!(
                     "{}:\t{}",
                     loopdev.unwrap_or_else(|| "(unmapped)".to_string()),
                     name
@@ -398,7 +398,7 @@ fn unmap(
                 any = true;
             }
             if !any {
-                println!("Nothing mapped.");
+                log::info!("Nothing mapped.");
             }
             return Ok(Value::Null);
         }

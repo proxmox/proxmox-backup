@@ -109,11 +109,6 @@ static BENCHMARK_RESULT_2020_TOP: BenchmarkResult = BenchmarkResult {
                schema: REPO_URL_SCHEMA,
                optional: true,
            },
-           verbose: {
-               description: "Verbose output.",
-               type: bool,
-               optional: true,
-           },
            keyfile: {
                schema: KEYFILE_SCHEMA,
                optional: true,
@@ -135,8 +130,6 @@ pub async fn benchmark(
 
     let keyfile = param["keyfile"].as_str().map(PathBuf::from);
 
-    let verbose = param["verbose"].as_bool().unwrap_or(false);
-
     let output_format = get_output_format(&param);
 
     let crypt_config = match keyfile {
@@ -152,10 +145,10 @@ pub async fn benchmark(
 
     // do repo tests first, because this may prompt for a password
     if let Some(repo) = repo {
-        test_upload_speed(&mut benchmark_result, repo, crypt_config.clone(), verbose).await?;
+        test_upload_speed(&mut benchmark_result, repo, crypt_config.clone()).await?;
     }
 
-    test_crypt_speed(&mut benchmark_result, verbose)?;
+    test_crypt_speed(&mut benchmark_result)?;
 
     render_result(&output_format, &benchmark_result)?;
 
@@ -228,16 +221,13 @@ async fn test_upload_speed(
     benchmark_result: &mut BenchmarkResult,
     repo: BackupRepository,
     crypt_config: Option<Arc<CryptConfig>>,
-    verbose: bool,
 ) -> Result<(), Error> {
     let backup_time = proxmox_time::epoch_i64();
 
     let client = connect(&repo)?;
     record_repository(&repo);
 
-    if verbose {
-        eprintln!("Connecting to backup server");
-    }
+    log::debug!("Connecting to backup server");
     let client = BackupWriter::start(
         client,
         crypt_config.clone(),
@@ -249,12 +239,10 @@ async fn test_upload_speed(
     )
     .await?;
 
-    if verbose {
-        eprintln!("Start TLS speed test");
-    }
-    let speed = client.upload_speedtest(verbose).await?;
+    log::debug!("Start TLS speed test");
+    let speed = client.upload_speedtest().await?;
 
-    eprintln!("TLS speed: {:.2} MB/s", speed / 1_000_000.0);
+    log::info!("TLS speed: {:.2} MB/s", speed / 1_000_000.0);
 
     benchmark_result.tls.speed = Some(speed);
 
@@ -262,7 +250,7 @@ async fn test_upload_speed(
 }
 
 // test hash/crypt/compress speed
-fn test_crypt_speed(benchmark_result: &mut BenchmarkResult, _verbose: bool) -> Result<(), Error> {
+fn test_crypt_speed(benchmark_result: &mut BenchmarkResult) -> Result<(), Error> {
     let pw = b"test";
 
     let kdf = KeyDerivationConfig::Scrypt {
@@ -301,7 +289,7 @@ fn test_crypt_speed(benchmark_result: &mut BenchmarkResult, _verbose: bool) -> R
     let speed = (bytes as f64) / start_time.elapsed().as_secs_f64();
     benchmark_result.sha256.speed = Some(speed);
 
-    eprintln!("SHA256 speed: {:.2} MB/s", speed / 1_000_000.0);
+    log::info!("SHA256 speed: {:.2} MB/s", speed / 1_000_000.0);
 
     let start_time = std::time::Instant::now();
 
@@ -317,7 +305,7 @@ fn test_crypt_speed(benchmark_result: &mut BenchmarkResult, _verbose: bool) -> R
     let speed = (bytes as f64) / start_time.elapsed().as_secs_f64();
     benchmark_result.compress.speed = Some(speed);
 
-    eprintln!("Compression speed: {:.2} MB/s", speed / 1_000_000.0);
+    log::info!("Compression speed: {:.2} MB/s", speed / 1_000_000.0);
 
     let start_time = std::time::Instant::now();
 
@@ -338,7 +326,7 @@ fn test_crypt_speed(benchmark_result: &mut BenchmarkResult, _verbose: bool) -> R
     let speed = (bytes as f64) / start_time.elapsed().as_secs_f64();
     benchmark_result.decompress.speed = Some(speed);
 
-    eprintln!("Decompress speed: {:.2} MB/s", speed / 1_000_000.0);
+    log::info!("Decompress speed: {:.2} MB/s", speed / 1_000_000.0);
 
     let start_time = std::time::Instant::now();
 
@@ -354,7 +342,7 @@ fn test_crypt_speed(benchmark_result: &mut BenchmarkResult, _verbose: bool) -> R
     let speed = (bytes as f64) / start_time.elapsed().as_secs_f64();
     benchmark_result.aes256_gcm.speed = Some(speed);
 
-    eprintln!("AES256/GCM speed: {:.2} MB/s", speed / 1_000_000.0);
+    log::info!("AES256/GCM speed: {:.2} MB/s", speed / 1_000_000.0);
 
     let start_time = std::time::Instant::now();
 
@@ -371,7 +359,7 @@ fn test_crypt_speed(benchmark_result: &mut BenchmarkResult, _verbose: bool) -> R
     let speed = (bytes as f64) / start_time.elapsed().as_secs_f64();
     benchmark_result.verify.speed = Some(speed);
 
-    eprintln!("Verify speed: {:.2} MB/s", speed / 1_000_000.0);
+    log::info!("Verify speed: {:.2} MB/s", speed / 1_000_000.0);
 
     Ok(())
 }

@@ -79,7 +79,7 @@ fn create(kdf: Option<Kdf>, path: Option<String>, hint: Option<String>) -> Resul
         Some(path) => PathBuf::from(path),
         None => {
             let path = place_default_encryption_key()?;
-            println!("creating default key at: {:?}", path);
+            log::info!("creating default key at: {:?}", path);
             path
         }
     };
@@ -157,7 +157,7 @@ async fn import_with_master_key(
             if path.exists() {
                 bail!("Please remove default encryption key at {:?} before importing to default location (or choose a non-default one).", path);
             }
-            println!("Importing key to default location at: {:?}", path);
+            log::info!("Importing key to default location at: {:?}", path);
             path
         }
     };
@@ -230,7 +230,7 @@ fn change_passphrase(
             let path = find_default_encryption_key()?.ok_or_else(|| {
                 format_err!("no encryption file provided and no default file found")
             })?;
-            println!("updating default key at: {:?}", path);
+            log::info!("updating default key at: {:?}", path);
             path
         }
     };
@@ -338,10 +338,10 @@ fn import_master_pubkey(path: String) -> Result<(), Error> {
     match openssl::pkey::PKey::public_key_from_pem(&pem_data) {
         Ok(key) => {
             let info = RsaPubKeyInfo::try_from(key.rsa()?)?;
-            println!("Found following key at {:?}", path);
-            println!("Modulus: {}", info.modulus);
-            println!("Exponent: {}", info.exponent);
-            println!("Length: {}", info.length);
+            log::info!("Found following key at {:?}", path);
+            log::info!("Modulus: {}", info.modulus);
+            log::info!("Exponent: {}", info.exponent);
+            log::info!("Length: {}", info.length);
         }
         Err(err) => bail!("Unable to decode PEM data - {}", err),
     };
@@ -350,7 +350,7 @@ fn import_master_pubkey(path: String) -> Result<(), Error> {
 
     replace_file(&target_path, &pem_data, CreateOptions::new(), true)?;
 
-    println!("Imported public master key to {:?}", target_path);
+    log::info!("Imported public master key to {:?}", target_path);
 
     Ok(())
 }
@@ -365,14 +365,13 @@ fn create_master_key() -> Result<(), Error> {
     }
 
     let bits = 4096;
-    println!("Generating {}-bit RSA key..", bits);
+    log::info!("Generating {}-bit RSA key..", bits);
     let rsa = openssl::rsa::Rsa::generate(bits)?;
     let public =
         openssl::rsa::Rsa::from_public_components(rsa.n().to_owned()?, rsa.e().to_owned()?)?;
     let info = RsaPubKeyInfo::try_from(public)?;
-    println!("Modulus: {}", info.modulus);
-    println!("Exponent: {}", info.exponent);
-    println!();
+    log::info!("Modulus: {}", info.modulus);
+    log::info!("Exponent: {}\n", info.exponent);
 
     let pkey = openssl::pkey::PKey::from_rsa(rsa)?;
 
@@ -380,7 +379,7 @@ fn create_master_key() -> Result<(), Error> {
 
     let pub_key: Vec<u8> = pkey.public_key_to_pem()?;
     let filename_pub = "master-public.pem";
-    println!("Writing public master key to {}", filename_pub);
+    log::info!("Writing public master key to {}", filename_pub);
     replace_file(filename_pub, pub_key.as_slice(), CreateOptions::new(), true)?;
 
     let cipher = openssl::symm::Cipher::aes_256_cbc();
@@ -388,7 +387,7 @@ fn create_master_key() -> Result<(), Error> {
         pkey.private_key_to_pem_pkcs8_passphrase(cipher, password.as_bytes())?;
 
     let filename_priv = "master-private.pem";
-    println!("Writing private master key to {}", filename_priv);
+    log::info!("Writing private master key to {}", filename_priv);
     replace_file(
         filename_priv,
         priv_key.as_slice(),

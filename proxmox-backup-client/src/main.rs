@@ -461,7 +461,7 @@ async fn api_version(param: Value) -> Result<(), Error> {
 
         match client.get("api2/json/version", None).await {
             Ok(mut result) => version_info["server"] = result["data"].take(),
-            Err(e) => eprintln!("could not connect to server - {}", e),
+            Err(e) => log::error!("could not connect to server - {}", e),
         }
     }
     if output_format == "text" {
@@ -547,7 +547,7 @@ fn spawn_catalog_upload(
             .await;
 
         if let Err(ref err) = catalog_upload_result {
-            eprintln!("catalog upload error - {}", err);
+            log::error!("catalog upload error - {}", err);
             client.cancel();
         }
 
@@ -657,12 +657,6 @@ fn spawn_catalog_upload(
                optional: true,
                default: pbs_client::pxar::ENCODER_MAX_ENTRIES as isize,
            },
-           "verbose": {
-               type: Boolean,
-               description: "Verbose output.",
-               optional: true,
-               default: false,
-           },
            "dry-run": {
                type: Boolean,
                description: "Just show what backup would do, but do not upload anything.",
@@ -678,7 +672,6 @@ async fn create_backup(
     all_file_systems: bool,
     skip_lost_and_found: bool,
     dry_run: bool,
-    verbose: bool,
     _info: &ApiMethod,
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
@@ -837,16 +830,16 @@ async fn create_backup(
 
     let snapshot = BackupDir::from((backup_type, backup_id.to_owned(), backup_time));
     if backup_ns.is_root() {
-        println!("Starting backup: {snapshot}");
+        log::info!("Starting backup: {snapshot}");
     } else {
-        println!("Starting backup: [{backup_ns}]:{snapshot}");
+        log::info!("Starting backup: [{backup_ns}]:{snapshot}");
     }
 
-    println!("Client name: {}", proxmox_sys::nodename());
+    log::info!("Client name: {}", proxmox_sys::nodename());
 
     let start_time = std::time::Instant::now();
 
-    println!(
+    log::info!(
         "Starting backup protocol: {}",
         strftime_local("%c", epoch_i64())?
     );
@@ -854,20 +847,20 @@ async fn create_backup(
     let (crypt_config, rsa_encrypted_key) = match crypto.enc_key {
         None => (None, None),
         Some(key_with_source) => {
-            println!(
+            log::info!(
                 "{}",
                 format_key_source(&key_with_source.source, "encryption")
             );
 
             let (key, created, fingerprint) =
                 decrypt_key(&key_with_source.key, &get_encryption_key_password)?;
-            println!("Encryption key fingerprint: {}", fingerprint);
+            log::info!("Encryption key fingerprint: {}", fingerprint);
 
             let crypt_config = CryptConfig::new(key)?;
 
             match crypto.master_pubkey {
                 Some(pem_with_source) => {
-                    println!("{}", format_key_source(&pem_with_source.source, "master"));
+                    log::info!("{}", format_key_source(&pem_with_source.source, "master"));
 
                     let rsa = openssl::rsa::Rsa::public_key_from_pem(&pem_with_source.key)?;
 
@@ -889,21 +882,21 @@ async fn create_backup(
         repo.store(),
         &backup_ns,
         &snapshot,
-        verbose,
+        true,
         false,
     )
     .await?;
 
     let download_previous_manifest = match client.previous_backup_time().await {
         Ok(Some(backup_time)) => {
-            println!(
+            log::info!(
                 "Downloading previous manifest ({})",
                 strftime_local("%c", backup_time)?
             );
             true
         }
         Ok(None) => {
-            println!("No previous manifest available.");
+            log::info!("No previous manifest available.");
             false
         }
         Err(_) => {
@@ -918,13 +911,13 @@ async fn create_backup(
                 match previous_manifest.check_fingerprint(crypt_config.as_ref().map(Arc::as_ref)) {
                     Ok(()) => Some(Arc::new(previous_manifest)),
                     Err(err) => {
-                        println!("Couldn't re-use previous manifest - {}", err);
+                        log::error!("Couldn't re-use previous manifest - {}", err);
                         None
                     }
                 }
             }
             Err(err) => {
-                println!("Couldn't download previous manifest - {}", err);
+                log::error!("Couldn't download previous manifest - {}", err);
                 None
             }
         }
@@ -939,7 +932,7 @@ async fn create_backup(
 
     let log_file = |desc: &str, file: &str, target: &str| {
         let what = if dry_run { "Would upload" } else { "Upload" };
-        println!("{} {} '{}' to '{}' as {}", what, desc, file, repo, target);
+        log::info!("{} {} '{}' to '{}' as {}", what, desc, file, repo, target);
     };
 
     for (backup_type, filename, target, size) in upload_list {
@@ -998,7 +991,6 @@ async fn create_backup(
                     patterns: pattern_list.clone(),
                     entries_max: entries_max as usize,
                     skip_lost_and_found,
-                    verbose,
                 };
 
                 let upload_options = UploadOptions {
@@ -1040,7 +1032,7 @@ async fn create_backup(
     }
 
     if dry_run {
-        println!("dry-run: no upload happened");
+        log::info!("dry-run: no upload happend");
         return Ok(Value::Null);
     }
 
@@ -1062,7 +1054,7 @@ async fn create_backup(
 
     if let Some(rsa_encrypted_key) = rsa_encrypted_key {
         let target = ENCRYPTED_KEY_BLOB_NAME;
-        println!("Upload RSA encoded key to '{:?}' as {}", repo, target);
+        log::info!("Upload RSA encoded key to '{:?}' as {}", repo, target);
         let options = UploadOptions {
             compress: false,
             encrypt: false,
@@ -1079,9 +1071,8 @@ async fn create_backup(
         .to_string(crypt_config.as_ref().map(Arc::as_ref))
         .map_err(|err| format_err!("unable to format manifest - {}", err))?;
 
-    if verbose {
-        println!("Upload index.json to '{}'", repo)
-    };
+    log::debug!("Upload index.json to '{}'", repo);
+
     let options = UploadOptions {
         compress: true,
         encrypt: false,
@@ -1095,10 +1086,8 @@ async fn create_backup(
 
     let end_time = std::time::Instant::now();
     let elapsed = end_time.duration_since(start_time);
-    println!("Duration: {:.2}s", elapsed.as_secs_f64());
-
-    println!("End Time: {}", strftime_local("%c", epoch_i64())?);
-
+    log::info!("Duration: {:.2}s", elapsed.as_secs_f64());
+    log::info!("End Time: {}", strftime_local("%c", epoch_i64())?);
     Ok(Value::Null)
 }
 
@@ -1108,7 +1097,6 @@ async fn dump_image<W: Write>(
     crypt_mode: CryptMode,
     index: FixedIndexReader,
     mut writer: W,
-    verbose: bool,
 ) -> Result<(), Error> {
     let most_used = index.find_most_used_chunks(8);
 
@@ -1125,23 +1113,21 @@ async fn dump_image<W: Write>(
         let raw_data = chunk_reader.read_chunk(digest).await?;
         writer.write_all(&raw_data)?;
         bytes += raw_data.len();
-        if verbose {
-            let next_per = ((pos + 1) * 100) / index.index_count();
-            if per != next_per {
-                eprintln!(
-                    "progress {}% (read {} bytes, duration {} sec)",
-                    next_per,
-                    bytes,
-                    start_time.elapsed().as_secs()
-                );
-                per = next_per;
-            }
+        let next_per = ((pos + 1) * 100) / index.index_count();
+        if per != next_per {
+            log::debug!(
+                "progress {}% (read {} bytes, duration {} sec)",
+                next_per,
+                bytes,
+                start_time.elapsed().as_secs()
+            );
+            per = next_per;
         }
     }
 
     let end_time = std::time::Instant::now();
     let elapsed = end_time.duration_since(start_time);
-    eprintln!(
+    log::info!(
         "restore image complete (bytes={}, duration={:.2}s, speed={:.2}MB/s)",
         bytes,
         elapsed.as_secs_f64(),
@@ -1222,8 +1208,6 @@ We do not extract '.pxar' archives when writing to standard output.
 async fn restore(param: Value) -> Result<Value, Error> {
     let repo = extract_repository_from_value(&param)?;
 
-    let verbose = param["verbose"].as_bool().unwrap_or(false);
-
     let allow_existing_dirs = param["allow-existing-dirs"].as_bool().unwrap_or(false);
 
     let archive_name = json::required_string_param(&param, "archive-name")?;
@@ -1257,7 +1241,7 @@ async fn restore(param: Value) -> Result<Value, Error> {
         Some(ref key) => {
             let (key, _, _) =
                 decrypt_key(&key.key, &get_encryption_key_password).map_err(|err| {
-                    eprintln!("{}", format_key_source(&key.source, "encryption"));
+                    log::error!("{}", format_key_source(&key.source, "encryption"));
                     err
                 })?;
             Some(Arc::new(CryptConfig::new(key)?))
@@ -1279,14 +1263,14 @@ async fn restore(param: Value) -> Result<Value, Error> {
     let (manifest, backup_index_data) = client.download_manifest().await?;
 
     if archive_name == ENCRYPTED_KEY_BLOB_NAME && crypt_config.is_none() {
-        eprintln!("Restoring encrypted key blob without original key - skipping manifest fingerprint check!")
+        log::info!("Restoring encrypted key blob without original key - skipping manifest fingerprint check!")
     } else {
         if manifest.signature.is_some() {
             if let Some(key) = &crypto.enc_key {
-                eprintln!("{}", format_key_source(&key.source, "encryption"));
+                log::info!("{}", format_key_source(&key.source, "encryption"));
             }
             if let Some(config) = &crypt_config {
-                eprintln!("Fingerprint: {}", Fingerprint::new(config.fingerprint()));
+                log::info!("Fingerprint: {}", Fingerprint::new(config.fingerprint()));
             }
         }
         manifest.check_fingerprint(crypt_config.as_ref().map(Arc::as_ref))?;
@@ -1356,9 +1340,7 @@ async fn restore(param: Value) -> Result<Value, Error> {
                 Path::new(target),
                 pbs_client::pxar::Flags::DEFAULT,
                 |path| {
-                    if verbose {
-                        println!("{:?}", path);
-                    }
+                    log::debug!("{:?}", path);
                 },
                 options,
             )
@@ -1397,7 +1379,6 @@ async fn restore(param: Value) -> Result<Value, Error> {
             file_info.chunk_crypt_mode(),
             index,
             &mut writer,
-            verbose,
         )
         .await?;
     }
