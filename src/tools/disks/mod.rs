@@ -763,19 +763,44 @@ fn scan_partitions(
     Ok(used)
 }
 
-/// Get disk usage information for a single disk
-pub fn get_disk_usage_info(
-    disk: &str,
-    no_smart: bool,
-    include_partitions: bool,
-) -> Result<DiskUsageInfo, Error> {
-    let mut filter = Vec::new();
-    filter.push(disk.to_string());
-    let mut map = get_disks(Some(filter), no_smart, include_partitions)?;
-    if let Some(info) = map.remove(disk) {
-        Ok(info)
-    } else {
-        bail!("failed to get disk usage info - internal error"); // should not happen
+pub struct DiskUsageQuery {
+    smart: bool,
+    partitions: bool,
+}
+
+impl DiskUsageQuery {
+    pub fn new() -> Self {
+        Self {
+            smart: true,
+            partitions: false,
+        }
+    }
+
+    pub fn smart(&mut self, smart: bool) -> &mut Self {
+        self.smart = smart;
+        self
+    }
+
+    pub fn partitions(&mut self, partitions: bool) -> &mut Self {
+        self.partitions = partitions;
+        self
+    }
+
+    pub fn query(&self) -> Result<HashMap<String, DiskUsageInfo>, Error> {
+        get_disks(None, !self.smart, self.partitions)
+    }
+
+    pub fn find(&self, disk: &str) -> Result<DiskUsageInfo, Error> {
+        let mut map = get_disks(Some(vec![disk.to_string()]), !self.smart, self.partitions)?;
+        if let Some(info) = map.remove(disk) {
+            Ok(info)
+        } else {
+            bail!("failed to get disk usage info - internal error"); // should not happen
+        }
+    }
+
+    pub fn find_all(&self, disks: Vec<String>) -> Result<HashMap<String, DiskUsageInfo>, Error> {
+        get_disks(Some(disks), !self.smart, self.partitions)
     }
 }
 
@@ -838,7 +863,7 @@ fn get_partitions_info(
 }
 
 /// Get disk usage information for multiple disks
-pub fn get_disks(
+fn get_disks(
     // filter - list of device names (without leading /dev)
     disks: Option<Vec<String>>,
     // do no include data from smartctl

@@ -13,8 +13,8 @@ use pbs_api_types::{
 };
 
 use crate::tools::disks::{
-    create_file_system, create_single_linux_partition, get_disk_usage_info, get_fs_uuid,
-    DiskManage, DiskUsageType, FileSystemType,
+    create_file_system, create_single_linux_partition, get_fs_uuid, DiskManage, DiskUsageQuery,
+    DiskUsageType, FileSystemType,
 };
 use crate::tools::systemd::{self, types::*};
 
@@ -147,7 +147,7 @@ pub fn create_datastore_disk(
 
     let auth_id = rpcenv.get_auth_id().unwrap();
 
-    let info = get_disk_usage_info(&disk, true, false)?;
+    let info = DiskUsageQuery::new().smart(false).find(&disk)?;
 
     if info.used != DiskUsageType::Unused {
         bail!("disk '{}' is already in use.", disk);

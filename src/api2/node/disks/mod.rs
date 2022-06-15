@@ -12,8 +12,8 @@ use pbs_api_types::{
 };
 
 use crate::tools::disks::{
-    get_disk_usage_info, get_disks, get_smart_data, inititialize_gpt_disk, DiskManage,
-    DiskUsageInfo, DiskUsageType, SmartData,
+    get_smart_data, inititialize_gpt_disk, DiskManage, DiskUsageInfo, DiskUsageQuery,
+    DiskUsageType, SmartData,
 };
 use proxmox_rest_server::WorkerTask;
 
@@ -64,7 +64,11 @@ pub fn list_disks(
 ) -> Result<Vec<DiskUsageInfo>, Error> {
     let mut list = Vec::new();
 
-    for (_, info) in get_disks(None, skipsmart, include_partitions)? {
+    for (_, info) in DiskUsageQuery::new()
+        .smart(!skipsmart)
+        .partitions(include_partitions)
+        .query()?
+    {
         if let Some(ref usage_type) = usage_type {
             if info.used == *usage_type {
                 list.push(info);
@@ -147,7 +151,7 @@ pub fn initialize_disk(
 
     let auth_id = rpcenv.get_auth_id().unwrap();
 
-    let info = get_disk_usage_info(&disk, true, false)?;
+    let info = DiskUsageQuery::new().find(&disk)?;
 
     if info.used != DiskUsageType::Unused {
         bail!("disk '{}' is already in use.", disk);
