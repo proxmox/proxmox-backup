@@ -86,11 +86,11 @@ fn execute_scsi_command<F: AsRawFd>(
                 let msg = err.to_string();
                 if let Some(ref last) = last_msg {
                     if &msg != last {
-                        eprintln!("{}", err);
+                        log::error!("{}", err);
                         last_msg = Some(msg);
                     }
                 } else {
-                    eprintln!("{}", err);
+                    log::error!("{}", err);
                     last_msg = Some(msg);
                 }
 

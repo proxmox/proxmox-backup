@@ -141,7 +141,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin> FuseLoopSession<R> {
         let cleanup = |session: futures::stream::Fuse<Fuse>| {
             // only warn for errors on cleanup, if these fail nothing is lost
             if let Err(err) = loopdev::unassign(&loopdev_path) {
-                eprintln!(
+                log::warn!(
                     "cleanup: warning: could not unassign file {} from loop device {} - {}",
                     &fuse_path, &loopdev_path, err,
                 );
@@ -151,13 +151,13 @@ impl<R: AsyncRead + AsyncSeek + Unpin> FuseLoopSession<R> {
             std::mem::drop(session);
 
             if let Err(err) = remove_file(&fuse_path) {
-                eprintln!(
+                log::warn!(
                     "cleanup: warning: could not remove temporary file {} - {}",
                     &fuse_path, err,
                 );
             }
             if let Err(err) = remove_file(&pid_path) {
-                eprintln!(
+                log::warn!(
                     "cleanup: warning: could not remove PID file {} - {}",
                     &pid_path, err,
                 );
@@ -200,7 +200,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin> FuseLoopSession<R> {
                         },
                         Some(_) => {
                             // only FUSE requests necessary for loop-mapping are implemented
-                            eprintln!("Unimplemented FUSE request type encountered");
+                            log::error!("Unimplemented FUSE request type encountered");
                             Ok(())
                         },
                         None => {
@@ -239,7 +239,7 @@ pub fn cleanup_unused_run_files(filter_name: Option<String>) {
                 // does nothing if files are already stagnant (e.g. instance crashed etc...)
                 if unmap_from_backing(&path, None).is_ok() {
                     // we have reaped some leftover instance, tell the user
-                    eprintln!(
+                    log::info!(
                         "Cleaned up dangling mapping '{}': no loop device assigned",
                         &name
                     );
@@ -291,7 +291,7 @@ fn get_backing_file(loopdev: &str) -> Result<String, Error> {
 // call in broken state: we found the mapping, but the client is already dead,
 // only thing to do is clean up what we can
 fn emerg_cleanup(loopdev: Option<&str>, mut backing_file: PathBuf) {
-    eprintln!(
+    log::warn!(
         "warning: found mapping with dead process ({:?}), attempting cleanup",
         &backing_file
     );

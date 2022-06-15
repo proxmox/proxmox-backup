@@ -33,12 +33,12 @@ fn get_changer_handle(param: &Value) -> Result<File, Error> {
     if let Some(name) = param["changer"].as_str() {
         let (config, _digest) = pbs_config::drive::config()?;
         let changer_config: ScsiTapeChanger = config.lookup("changer", name)?;
-        eprintln!("using device {}", changer_config.path);
+        log::info!("using device {}", changer_config.path);
         return sg_pt_changer::open(&changer_config.path);
     }
 
     if let Some(device) = param["device"].as_str() {
-        eprintln!("using device {}", device);
+        log::info!("using device {}", device);
         return sg_pt_changer::open(device);
     }
 
@@ -47,13 +47,13 @@ fn get_changer_handle(param: &Value) -> Result<File, Error> {
         let drive: LtoTapeDrive = config.lookup("lto", &name)?;
         if let Some(changer) = drive.changer {
             let changer_config: ScsiTapeChanger = config.lookup("changer", &changer)?;
-            eprintln!("using device {}", changer_config.path);
+            log::info!("using device {}", changer_config.path);
             return sg_pt_changer::open(&changer_config.path);
         }
     }
 
     if let Ok(device) = std::env::var("CHANGER") {
-        eprintln!("using device {}", device);
+        log::info!("using device {}", device);
         return sg_pt_changer::open(device);
     }
 
