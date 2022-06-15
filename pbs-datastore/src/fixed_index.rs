@@ -142,19 +142,6 @@ impl FixedIndexReader {
 
         Ok(())
     }
-
-    pub fn print_info(&self) {
-        log::info!("Size: {}", self.size);
-        log::info!("ChunkSize: {}", self.chunk_size);
-
-        let mut ctime_str = self.ctime.to_string();
-        if let Ok(s) = proxmox_time::strftime_local("%c", self.ctime) {
-            ctime_str = s;
-        }
-
-        log::info!("CTime: {}", ctime_str);
-        log::info!("UUID: {:?}", self.uuid);
-    }
 }
 
 impl IndexFile for FixedIndexReader {
