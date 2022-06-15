@@ -51,7 +51,7 @@ unsafe impl Sync for FixedIndexReader {}
 impl Drop for FixedIndexReader {
     fn drop(&mut self) {
         if let Err(err) = self.unmap() {
-            eprintln!("Unable to unmap file - {}", err);
+            log::error!("Unable to unmap file - {}", err);
         }
     }
 }
@@ -144,16 +144,16 @@ impl FixedIndexReader {
     }
 
     pub fn print_info(&self) {
-        println!("Size: {}", self.size);
-        println!("ChunkSize: {}", self.chunk_size);
+        log::info!("Size: {}", self.size);
+        log::info!("ChunkSize: {}", self.chunk_size);
 
         let mut ctime_str = self.ctime.to_string();
         if let Ok(s) = proxmox_time::strftime_local("%c", self.ctime) {
             ctime_str = s;
         }
 
-        println!("CTime: {}", ctime_str);
-        println!("UUID: {:?}", self.uuid);
+        log::info!("CTime: {}", ctime_str);
+        log::info!("UUID: {:?}", self.uuid);
     }
 }
 
@@ -247,7 +247,7 @@ impl Drop for FixedIndexWriter {
     fn drop(&mut self) {
         let _ = std::fs::remove_file(&self.tmp_filename); // ignore errors
         if let Err(err) = self.unmap() {
-            eprintln!("Unable to unmap file {:?} - {}", self.tmp_filename, err);
+            log::error!("Unable to unmap file {:?} - {}", self.tmp_filename, err);
         }
     }
 }
@@ -418,7 +418,7 @@ impl FixedIndexWriter {
 
         let digest = &chunk_info.digest;
 
-        println!(
+        log::info!(
             "ADD CHUNK {} {} {}% {} {}",
             idx,
             chunk_len,

@@ -233,7 +233,7 @@ impl DataStore {
             match serde_json::from_str(&state) {
                 Ok(state) => state,
                 Err(err) => {
-                    eprintln!("error reading gc-status: {}", err);
+                    log::error!("error reading gc-status: {}", err);
                     GarbageCollectionStatus::default()
                 }
             }

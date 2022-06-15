@@ -63,7 +63,7 @@ pub fn generate_paper_key<W: Write>(
                 (lines, false)
             }
             Err(err) => {
-                eprintln!("Couldn't parse data as KeyConfig - {}", err);
+                log::error!("Couldn't parse data as KeyConfig - {}", err);
                 bail!("Neither a PEM-formatted private key, nor a PBS key file.");
             }
         }

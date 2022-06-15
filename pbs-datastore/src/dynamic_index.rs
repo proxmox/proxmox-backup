@@ -465,7 +465,7 @@ impl DynamicChunkWriter {
                     self.stat.disk_size += compressed_size;
                 }
 
-                println!(
+                log::info!(
                     "ADD CHUNK {:016x} {} {}% {} {}",
                     self.chunk_offset,
                     chunk_size,

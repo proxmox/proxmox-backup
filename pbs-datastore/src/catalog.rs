@@ -636,7 +636,7 @@ impl<R: Read + Seek> CatalogReader<R> {
 
             match etype {
                 CatalogEntryType::Directory => {
-                    println!("{} {:?}", etype, path);
+                    log::info!("{} {:?}", etype, path);
                     if offset > start {
                         bail!("got wrong directory offset ({} > {})", offset, start);
                     }
@@ -649,10 +649,10 @@ impl<R: Read + Seek> CatalogReader<R> {
                         mtime_string = s;
                     }
 
-                    println!("{} {:?} {} {}", etype, path, size, mtime_string,);
+                    log::info!("{} {:?} {} {}", etype, path, size, mtime_string,);
                 }
                 _ => {
-                    println!("{} {:?}", etype, path);
+                    log::info!("{} {:?}", etype, path);
                 }
             }
 
