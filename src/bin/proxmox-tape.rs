@@ -989,6 +989,8 @@ async fn catalog_media(mut param: Value) -> Result<(), Error> {
 }
 
 fn main() {
+    init_cli_logger("PBS_LOG", "info");
+
     let cmd_def = CliCommandMap::new()
         .insert(
             "backup",

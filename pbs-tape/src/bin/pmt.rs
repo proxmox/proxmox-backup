@@ -801,6 +801,8 @@ fn options(
 }
 
 fn main() -> Result<(), Error> {
+    init_cli_logger("PBS_LOG", "info");
+
     let uid = nix::unistd::Uid::current();
 
     let username = match nix::unistd::User::from_uid(uid)? {

@@ -8,8 +8,8 @@ use serde_json::{json, Value};
 
 use proxmox_router::cli::{
     complete_file_name, default_table_format_options, format_and_print_result_full,
-    get_output_format, run_cli_command, CliCommand, CliCommandMap, CliEnvironment, ColumnConfig,
-    OUTPUT_FORMAT,
+    get_output_format, init_cli_logger, run_cli_command, CliCommand, CliCommandMap, CliEnvironment,
+    ColumnConfig, OUTPUT_FORMAT,
 };
 use proxmox_router::{http_err, HttpError};
 use proxmox_schema::api;
@@ -530,6 +530,8 @@ where
 }
 
 fn main() {
+    init_cli_logger("PBS_LOG", "info");
+
     let list_cmd_def = CliCommand::new(&API_METHOD_LIST)
         .arg_param(&["snapshot", "path"])
         .completion_cb("repository", complete_repository)

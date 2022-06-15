@@ -413,6 +413,8 @@ async fn get_versions(verbose: bool, param: Value) -> Result<Value, Error> {
 }
 
 async fn run() -> Result<(), Error> {
+    init_cli_logger("PBS_LOG", "info");
+
     let cmd_def = CliCommandMap::new()
         .insert("acl", acl_commands())
         .insert("datastore", datastore_commands())

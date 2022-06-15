@@ -123,6 +123,8 @@ fn set_encryption(
 }
 
 fn main() -> Result<(), Error> {
+    init_cli_logger("PBS_LOG", "info");
+
     // check if we are user root or backup
     let backup_uid = pbs_config::backup_user()?.uid;
     let backup_gid = pbs_config::backup_group()?.gid;

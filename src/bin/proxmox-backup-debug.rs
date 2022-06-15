@@ -1,5 +1,5 @@
 use proxmox_router::{
-    cli::{run_cli_command, CliCommandMap, CliEnvironment},
+    cli::{init_cli_logger, run_cli_command, CliCommandMap, CliEnvironment},
     RpcEnvironment,
 };
 
@@ -7,6 +7,8 @@ mod proxmox_backup_debug;
 use proxmox_backup_debug::*;
 
 fn main() {
+    init_cli_logger("PBS_LOG", "info");
+
     let cmd_def = CliCommandMap::new()
         .insert("inspect", inspect::inspect_commands())
         .insert("recover", recover::recover_commands())

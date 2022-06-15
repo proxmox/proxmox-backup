@@ -442,6 +442,8 @@ fn dump_archive(archive: String, verbose: bool) -> Result<(), Error> {
 }
 
 fn main() {
+    init_cli_logger("PXAR_LOG", "info");
+
     let cmd_def = CliCommandMap::new()
         .insert(
             "create",
