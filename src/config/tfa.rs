@@ -44,7 +44,7 @@ pub fn read() -> Result<TfaConfig, Error> {
 }
 
 pub(crate) fn webauthn_config_digest(config: &WebauthnConfig) -> Result<[u8; 32], Error> {
-    let digest_data = pbs_tools::json::to_canonical_json(&serde_json::to_value(config)?)?;
+    let digest_data = proxmox_serde::json::to_canonical_json(&serde_json::to_value(config)?)?;
     Ok(openssl::sha::sha256(&digest_data))
 }
 

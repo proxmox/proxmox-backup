@@ -140,7 +140,7 @@ impl BackupManifest {
 
     // Generate canonical json
     fn to_canonical_json(value: &Value) -> Result<Vec<u8>, Error> {
-        pbs_tools::json::to_canonical_json(value)
+        proxmox_serde::json::to_canonical_json(value)
     }
 
     /// Compute manifest signature
