@@ -19,7 +19,7 @@ pathpatterns = "0.1.2"
 #proxmox = "0.15.3"
 proxmox-async = "0.4"
 proxmox-schema = { version = "1.3.1", features = [ "api-macro" ] }
-proxmox-router = "1.2"
+proxmox-router = "1.2.4"
 proxmox-sys = "0.3"
 pxar = { version = "0.10.1", features = [ "tokio-io" ] }
 

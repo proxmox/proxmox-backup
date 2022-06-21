@@ -6,7 +6,7 @@ edition = "2018"
 description = "Simple RRD database implementation."
 
 [dev-dependencies]
-proxmox-router = "1.2"
+proxmox-router = "1.2.4"
 
 [dependencies]
 anyhow = "1.0"
