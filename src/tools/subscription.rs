@@ -7,9 +7,8 @@ use serde_json::json;
 use proxmox_schema::api;
 
 use proxmox_http::client::SimpleHttp;
+use proxmox_http::uri::json_object_to_query;
 use proxmox_sys::fs::{replace_file, CreateOptions};
-
-use pbs_tools::json::json_object_to_query;
 
 use crate::config::node;
 use crate::tools::{self, pbs_simple_http};

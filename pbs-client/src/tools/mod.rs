@@ -10,12 +10,12 @@ use anyhow::{bail, format_err, Context, Error};
 use serde_json::{json, Value};
 use xdg::BaseDirectories;
 
+use proxmox_http::uri::json_object_to_query;
 use proxmox_router::cli::{complete_file_name, shellword_split};
 use proxmox_schema::*;
 use proxmox_sys::fs::file_get_json;
 
 use pbs_api_types::{Authid, BackupNamespace, RateLimitConfig, UserWithTokens, BACKUP_REPO_URL};
-use pbs_tools::json::json_object_to_query;
 
 use crate::{BackupRepository, HttpClient, HttpClientOptions};
 
