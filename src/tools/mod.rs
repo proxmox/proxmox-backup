@@ -3,8 +3,7 @@
 //! This is a collection of small and useful tools.
 use std::any::Any;
 
-use anyhow::{bail, format_err, Error};
-use openssl::hash::{hash, DigestBytes, MessageDigest};
+use anyhow::{bail, Error};
 
 use proxmox_http::{client::SimpleHttp, client::SimpleHttpOptions, ProxyConfig};
 
@@ -17,26 +16,10 @@ mod shared_rate_limiter;
 pub use shared_rate_limiter::SharedRateLimiter;
 
 pub mod statistics;
-pub mod subscription;
 pub mod systemd;
 pub mod ticket;
 
 pub mod parallel_handler;
-
-/// Shortcut for md5 sums.
-pub fn md5sum(data: &[u8]) -> Result<DigestBytes, Error> {
-    hash(MessageDigest::md5(), data).map_err(Error::from)
-}
-
-pub fn get_hardware_address() -> Result<String, Error> {
-    static FILENAME: &str = "/etc/ssh/ssh_host_rsa_key.pub";
-
-    let contents = proxmox_sys::fs::file_get_contents(FILENAME)
-        .map_err(|e| format_err!("Error getting host key - {}", e))?;
-    let digest = md5sum(&contents).map_err(|e| format_err!("Error digesting host key - {}", e))?;
-
-    Ok(hex::encode(&digest).to_uppercase())
-}
 
 pub fn assert_if_modified(digest1: &str, digest2: &str) -> Result<(), Error> {
     if digest1 != digest2 {

@@ -19,9 +19,10 @@ use pbs_api_types::{
     APTUpdateInfo, NODE_SCHEMA, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY, PROXMOX_CONFIG_DIGEST_SCHEMA,
     UPID_SCHEMA,
 };
+use pbs_buildcfg::PROXMOX_BACKUP_SUBSCRIPTION_FN;
 
 use crate::config::node;
-use crate::tools::{apt, pbs_simple_http, subscription};
+use crate::tools::{apt, pbs_simple_http};
 use proxmox_rest_server::WorkerTask;
 
 #[api(
@@ -255,7 +256,10 @@ fn apt_get_changelog(param: Value) -> Result<Value, Error> {
             })?;
         Ok(json!(changelog))
     } else if changelog_url.starts_with("https://enterprise.proxmox.com/") {
-        let sub = match subscription::read_subscription()? {
+        let sub = match proxmox_subscription::files::read_subscription(
+            PROXMOX_BACKUP_SUBSCRIPTION_FN,
+            &super::subscription::subscription_signature_key()?,
+        )? {
             Some(sub) => sub,
             None => {
                 bail!("cannot retrieve changelog from enterprise repo: no subscription info found")

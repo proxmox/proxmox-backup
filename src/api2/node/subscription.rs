@@ -1,16 +1,86 @@
 use anyhow::{bail, format_err, Error};
 use serde_json::Value;
 
+use proxmox_http::client::{SimpleHttp, SimpleHttpOptions};
 use proxmox_router::{Permission, Router, RpcEnvironment};
 use proxmox_schema::api;
+use proxmox_subscription::{SubscriptionInfo, SubscriptionStatus};
+use proxmox_sys::fs::{file_get_contents, CreateOptions};
 
 use pbs_api_types::{
     Authid, NODE_SCHEMA, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY, SUBSCRIPTION_KEY_SCHEMA,
 };
 
-use crate::tools;
-use crate::tools::subscription::{self, SubscriptionInfo, SubscriptionStatus};
+use crate::config::node;
+use crate::tools::{DEFAULT_USER_AGENT_STRING, PROXMOX_BACKUP_TCP_KEEPALIVE_TIME};
+
+use pbs_buildcfg::{PROXMOX_BACKUP_SUBSCRIPTION_FN, PROXMOX_BACKUP_SUBSCRIPTION_SIGNATURE_KEY_FN};
 use pbs_config::CachedUserInfo;
+
+const PRODUCT_URL: &str = "https://www.proxmox.com/en/proxmox-backup-server/pricing";
+const APT_AUTH_FN: &str = "/etc/apt/auth.conf.d/pbs.conf";
+const APT_AUTH_URL: &str = "enterprise.proxmox.com/debian/pbs";
+
+fn subscription_file_opts() -> Result<CreateOptions, Error> {
+    let backup_user = pbs_config::backup_user()?;
+    let mode = nix::sys::stat::Mode::from_bits_truncate(0o0640);
+    Ok(CreateOptions::new()
+        .perm(mode)
+        .owner(nix::unistd::ROOT)
+        .group(backup_user.gid))
+}
+
+fn apt_auth_file_opts() -> CreateOptions {
+    let mode = nix::sys::stat::Mode::from_bits_truncate(0o0600);
+    CreateOptions::new().perm(mode).owner(nix::unistd::ROOT)
+}
+
+pub(crate) fn subscription_signature_key() -> Result<openssl::pkey::PKey<openssl::pkey::Public>, Error> {
+    let key = file_get_contents(PROXMOX_BACKUP_SUBSCRIPTION_SIGNATURE_KEY_FN)?;
+    openssl::pkey::PKey::public_key_from_pem(&key).map_err(|err| {
+        format_err!(
+            "Failed parsing public key from '{}' - {}",
+            PROXMOX_BACKUP_SUBSCRIPTION_SIGNATURE_KEY_FN,
+            err
+        )
+    })
+}
+
+fn check_and_write_subscription(key: String, server_id: String) -> Result<(), Error> {
+    let proxy_config = if let Ok((node_config, _digest)) = node::config() {
+        node_config.http_proxy()
+    } else {
+        None
+    };
+
+    let client = SimpleHttp::with_options(SimpleHttpOptions {
+        proxy_config,
+        user_agent: Some(DEFAULT_USER_AGENT_STRING.to_string()),
+        tcp_keepalive: Some(PROXMOX_BACKUP_TCP_KEEPALIVE_TIME),
+    });
+
+    let info = proxmox_subscription::check::check_subscription(
+        key,
+        server_id,
+        PRODUCT_URL.to_string(),
+        client,
+    )?;
+
+    proxmox_subscription::files::write_subscription(
+        PROXMOX_BACKUP_SUBSCRIPTION_FN,
+        subscription_file_opts()?,
+        &info,
+    )
+    .map_err(|e| format_err!("Error writing updated subscription status - {}", e))?;
+
+    proxmox_subscription::files::update_apt_auth(
+        APT_AUTH_FN,
+        apt_auth_file_opts(),
+        APT_AUTH_URL,
+        info.key,
+        info.serverid,
+    )
+}
 
 #[api(
     input: {
@@ -33,34 +103,39 @@ use pbs_config::CachedUserInfo;
 )]
 /// Check and update subscription status.
 pub fn check_subscription(force: bool) -> Result<(), Error> {
-    let info = match subscription::read_subscription() {
+    let mut info = match proxmox_subscription::files::read_subscription(
+        PROXMOX_BACKUP_SUBSCRIPTION_FN,
+        &subscription_signature_key()?,
+    ) {
         Err(err) => bail!("could not read subscription status: {}", err),
         Ok(Some(info)) => info,
         Ok(None) => return Ok(()),
     };
 
-    let server_id = tools::get_hardware_address()?;
-    let key = if let Some(key) = info.key {
+    let server_id = proxmox_subscription::get_hardware_address()?;
+    let key = if let Some(key) = info.key.as_ref() {
         // always update apt auth if we have a key to ensure user can access enterprise repo
-        subscription::update_apt_auth(Some(key.to_owned()), Some(server_id.to_owned()))?;
-        key
+        proxmox_subscription::files::update_apt_auth(
+            APT_AUTH_FN,
+            apt_auth_file_opts(),
+            APT_AUTH_URL,
+            Some(key.to_owned()),
+            Some(server_id.to_owned()),
+        )?;
+        key.to_owned()
     } else {
         String::new()
     };
 
-    if !force && info.status == SubscriptionStatus::ACTIVE {
-        let age = proxmox_time::epoch_i64() - info.checktime.unwrap_or(i64::MAX);
-        if age < subscription::MAX_LOCAL_KEY_AGE {
+    if !force && info.status == SubscriptionStatus::Active {
+        // will set to INVALID if last check too long ago
+        info.check_age(true);
+        if info.status == SubscriptionStatus::Active {
             return Ok(());
         }
     }
 
-    let info = subscription::check_subscription(key, server_id)?;
-
-    subscription::write_subscription(info)
-        .map_err(|e| format_err!("Error writing updated subscription status - {}", e))?;
-
-    Ok(())
+    check_and_write_subscription(key, server_id)
 }
 
 #[api(
@@ -81,16 +156,17 @@ pub fn get_subscription(
     _param: Value,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<SubscriptionInfo, Error> {
-    let url = "https://www.proxmox.com/en/proxmox-backup-server/pricing";
-
-    let info = match subscription::read_subscription() {
+    let info = match proxmox_subscription::files::read_subscription(
+        PROXMOX_BACKUP_SUBSCRIPTION_FN,
+        &subscription_signature_key()?,
+    ) {
         Err(err) => bail!("could not read subscription status: {}", err),
         Ok(Some(info)) => info,
         Ok(None) => SubscriptionInfo {
-            status: SubscriptionStatus::NOTFOUND,
+            status: SubscriptionStatus::NotFound,
             message: Some("There is no subscription key".into()),
-            serverid: Some(tools::get_hardware_address()?),
-            url: Some(url.into()),
+            serverid: Some(proxmox_subscription::get_hardware_address()?),
+            url: Some(PRODUCT_URL.into()),
             ..Default::default()
         },
     };
@@ -130,14 +206,9 @@ pub fn get_subscription(
 )]
 /// Set a subscription key and check it.
 pub fn set_subscription(key: String) -> Result<(), Error> {
-    let server_id = tools::get_hardware_address()?;
+    let server_id = proxmox_subscription::get_hardware_address()?;
 
-    let info = subscription::check_subscription(key, server_id)?;
-
-    subscription::write_subscription(info)
-        .map_err(|e| format_err!("Error writing subscription status - {}", e))?;
-
-    Ok(())
+    check_and_write_subscription(key, server_id)
 }
 
 #[api(
@@ -155,8 +226,16 @@ pub fn set_subscription(key: String) -> Result<(), Error> {
 )]
 /// Delete subscription info.
 pub fn delete_subscription() -> Result<(), Error> {
-    subscription::delete_subscription()
+    proxmox_subscription::files::delete_subscription(PROXMOX_BACKUP_SUBSCRIPTION_FN)
         .map_err(|err| format_err!("Deleting subscription failed: {}", err))?;
+
+    proxmox_subscription::files::update_apt_auth(
+        APT_AUTH_FN,
+        apt_auth_file_opts(),
+        APT_AUTH_URL,
+        None,
+        None,
+    )?;
 
     Ok(())
 }

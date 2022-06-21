@@ -5,7 +5,6 @@ use proxmox_router::{cli::*, ApiHandler, RpcEnvironment};
 use proxmox_sys::fs::CreateOptions;
 
 use proxmox_backup::api2;
-use proxmox_backup::tools::subscription;
 
 async fn wait_for_local_worker(upid_str: &str) -> Result<(), Error> {
     let upid: pbs_api_types::UPID = upid_str.parse()?;
@@ -27,20 +26,22 @@ async fn do_update(rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
     let method = &api2::node::subscription::API_METHOD_CHECK_SUBSCRIPTION;
     match method.handler {
         ApiHandler::Sync(handler) => {
-            if let Err(err) = (handler)(param, method, rpcenv) {
+            if let Err(err) = (handler)(param.clone(), method, rpcenv) {
                 log::error!("Error checking subscription - {}", err);
             }
         }
         _ => unreachable!(),
     }
-
-    let notify = match subscription::read_subscription() {
-        Ok(Some(subscription)) => subscription.status == subscription::SubscriptionStatus::ACTIVE,
-        Ok(None) => false,
-        Err(err) => {
-            log::error!("Error reading subscription - {}", err);
-            false
-        }
+    let method = &api2::node::subscription::API_METHOD_GET_SUBSCRIPTION;
+    let notify = match method.handler {
+        ApiHandler::Sync(handler) => match (handler)(param, method, rpcenv) {
+            Ok(value) => !value.is_null(),
+            Err(err) => {
+                log::error!("Error reading subscription - {}", err);
+                false
+            }
+        },
+        _ => unreachable!(),
     };
 
     let param = json!({
