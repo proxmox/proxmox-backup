@@ -5,6 +5,7 @@ use std::sync::Arc;
 use anyhow::{bail, format_err, Error};
 
 use pbs_api_types::{BackupNamespace, BackupType, BACKUP_DATE_REGEX, BACKUP_ID_REGEX};
+use proxmox_sys::fs::get_file_type;
 
 use crate::backup_info::{BackupDir, BackupGroup};
 use crate::DataStore;
@@ -36,6 +37,17 @@ impl Iterator for ListSnapshots {
                 Ok(ref entry) => {
                     match entry.file_type() {
                         Some(nix::dir::Type::Directory) => entry, // OK
+                        None => match get_file_type(entry.parent_fd(), entry.file_name()) {
+                            Ok(nix::dir::Type::Directory) => entry,
+                            Ok(_) => continue,
+                            Err(err) => {
+                                log::info!(
+                                    "error listing snapshots for {}: {err}",
+                                    self.group.group()
+                                );
+                                continue;
+                            }
+                        },
                         _ => continue,
                     }
                 }
@@ -93,6 +105,17 @@ impl Iterator for ListGroups {
                     Ok(ref entry) => {
                         match entry.file_type() {
                             Some(nix::dir::Type::Directory) => entry, // OK
+                            None => match get_file_type(entry.parent_fd(), entry.file_name()) {
+                                Ok(nix::dir::Type::Directory) => entry,
+                                Ok(_) => continue,
+                                Err(err) => {
+                                    log::info!(
+                                        "error listing groups for {}: {err}",
+                                        self.store.name()
+                                    );
+                                    continue;
+                                }
+                            },
                             _ => continue,
                         }
                     }
@@ -114,6 +137,17 @@ impl Iterator for ListGroups {
                     Ok(ref entry) => {
                         match entry.file_type() {
                             Some(nix::dir::Type::Directory) => entry, // OK
+                            None => match get_file_type(entry.parent_fd(), entry.file_name()) {
+                                Ok(nix::dir::Type::Directory) => entry,
+                                Ok(_) => continue,
+                                Err(err) => {
+                                    log::info!(
+                                        "error listing groups for {}: {err}",
+                                        self.store.name()
+                                    );
+                                    continue;
+                                }
+                            },
                             _ => continue,
                         }
                     }
@@ -176,6 +210,19 @@ impl Iterator for ListNamespaces {
                     Ok(ref entry) => {
                         match entry.file_type() {
                             Some(nix::dir::Type::Directory) => entry, // OK
+                            None => match get_file_type(entry.parent_fd(), entry.file_name()) {
+                                Ok(nix::dir::Type::Directory) => entry,
+                                Ok(_) => continue,
+                                Err(err) => {
+                                    let mut base_path = self.base_path.to_owned();
+                                    if !self.ns.is_root() {
+                                        base_path.push(self.ns.path());
+                                    }
+                                    base_path.push("ns");
+                                    log::info!("error listing dirs in {:?}: {err}", base_path);
+                                    continue;
+                                }
+                            },
                             _ => continue,
                         }
                     }

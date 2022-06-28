@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 use anyhow::{bail, format_err, Error};
 
 use pbs_api_types::GarbageCollectionStatus;
-use proxmox_sys::fs::{create_dir, create_path, CreateOptions};
+use proxmox_sys::fs::{create_dir, create_path, file_type_from_file_stat, CreateOptions};
 use proxmox_sys::process_locker::{
     ProcessLockExclusiveGuard, ProcessLockSharedGuard, ProcessLocker,
 };
@@ -375,24 +375,19 @@ impl ChunkStore {
                 ),
             };
 
-            let file_type = match entry.file_type() {
-                Some(file_type) => file_type,
-                None => bail!(
-                    "unsupported file system type on chunk store '{}'",
-                    self.name
-                ),
-            };
-            if file_type != nix::dir::Type::File {
-                continue;
-            }
-
-            chunk_count += 1;
-
             let filename = entry.file_name();
 
             let lock = self.mutex.lock();
 
             if let Ok(stat) = fstatat(dirfd, filename, nix::fcntl::AtFlags::AT_SYMLINK_NOFOLLOW) {
+                let file_type = file_type_from_file_stat(&stat);
+                if file_type != Some(nix::dir::Type::File) {
+                    drop(lock);
+                    continue;
+                }
+
+                chunk_count += 1;
+
                 if stat.st_atime < min_atime {
                     //let age = now - stat.st_atime;
                     //println!("UNLINK {}  {:?}", age/(3600*24), filename);
