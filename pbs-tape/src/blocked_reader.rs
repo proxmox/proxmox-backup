@@ -63,7 +63,7 @@ impl<R: BlockRead> BlockedReader<R> {
     fn check_buffer(buffer: &BlockHeader, seq_nr: u32) -> Result<(usize, bool), std::io::Error> {
         if buffer.magic != PROXMOX_TAPE_BLOCK_HEADER_MAGIC_1_0 {
             proxmox_lang::io_bail!(
-                "detected tape block with wrong magic number - not written by proxmox tape"
+                "got tape block with unknown magic number - not written by PBS or incompatible LTO version"
             );
         }
 
