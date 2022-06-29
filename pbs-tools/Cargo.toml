@@ -38,7 +38,7 @@ proxmox-borrow = "1"
 proxmox-io = { version = "1", features = [ "tokio" ] }
 proxmox-lang = { version = "1.1" }
 proxmox-time = { version = "1" }
-proxmox-sys = "0.3"
+proxmox-sys = "0.3.1"
 
 pbs-buildcfg = { path = "../pbs-buildcfg" }
 pbs-api-types = { path = "../pbs-api-types" }

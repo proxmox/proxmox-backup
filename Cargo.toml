@@ -105,7 +105,7 @@ proxmox-time = "1.1.2"
 proxmox-uuid = "1"
 proxmox-serde = "0.1"
 proxmox-shared-memory = "0.2"
-proxmox-sys = { version = "0.3", features = [ "sortable-macro" ] }
+proxmox-sys = { version = "0.3.1", features = [ "sortable-macro" ] }
 proxmox-compression = "0.1"
 
 
