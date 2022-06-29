@@ -1,10 +1,16 @@
-use anyhow::Error;
+use anyhow::{bail, Error};
 use serde_json::Value;
 
 use proxmox_router::{cli::*, ApiHandler, RpcEnvironment};
 use proxmox_schema::api;
+use proxmox_subscription::SubscriptionInfo;
 
-use proxmox_backup::api2;
+use proxmox_backup::api2::{
+    self,
+    node::subscription::{subscription_file_opts, subscription_signature_key},
+};
+
+use pbs_buildcfg::PROXMOX_BACKUP_SUBSCRIPTION_FN;
 
 #[api(
     input: {
@@ -32,6 +38,33 @@ fn get(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
     Ok(Value::Null)
 }
 
+#[api(
+    input: {
+        properties: {
+            "data": {
+                type: String,
+                description: "base64-encoded signed subscription info"
+            },
+        }
+    }
+)]
+/// (Internal use only!) Set a signed subscription info blob as offline key
+pub fn set_offline_subscription_key(data: String) -> Result<(), Error> {
+    let mut info: SubscriptionInfo = serde_json::from_slice(&base64::decode(data)?)?;
+    if !info.is_signed() {
+        bail!("Offline subscription key must be signed!");
+    }
+    info.check_signature(&subscription_signature_key()?);
+    info.check_age(false);
+    info.check_server_id();
+    proxmox_subscription::files::write_subscription(
+        PROXMOX_BACKUP_SUBSCRIPTION_FN,
+        subscription_file_opts()?,
+        &info,
+    )?;
+    Ok(())
+}
+
 pub fn subscription_commands() -> CommandLineInterface {
     let cmd_def = CliCommandMap::new()
         .insert("get", CliCommand::new(&API_METHOD_GET))
@@ -40,6 +73,10 @@ pub fn subscription_commands() -> CommandLineInterface {
             CliCommand::new(&api2::node::subscription::API_METHOD_SET_SUBSCRIPTION)
                 .fixed_param("node", "localhost".into())
                 .arg_param(&["key"]),
+        )
+        .insert(
+            "set-offline-key",
+            CliCommand::new(&API_METHOD_SET_OFFLINE_SUBSCRIPTION_KEY).arg_param(&["data"]),
         )
         .insert(
             "update",

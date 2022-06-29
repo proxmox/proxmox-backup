@@ -21,7 +21,7 @@ const PRODUCT_URL: &str = "https://www.proxmox.com/en/proxmox-backup-server/pric
 const APT_AUTH_FN: &str = "/etc/apt/auth.conf.d/pbs.conf";
 const APT_AUTH_URL: &str = "enterprise.proxmox.com/debian/pbs";
 
-fn subscription_file_opts() -> Result<CreateOptions, Error> {
+pub fn subscription_file_opts() -> Result<CreateOptions, Error> {
     let backup_user = pbs_config::backup_user()?;
     let mode = nix::sys::stat::Mode::from_bits_truncate(0o0640);
     Ok(CreateOptions::new()
@@ -35,7 +35,7 @@ fn apt_auth_file_opts() -> CreateOptions {
     CreateOptions::new().perm(mode).owner(nix::unistd::ROOT)
 }
 
-pub(crate) fn subscription_signature_key() -> Result<openssl::pkey::PKey<openssl::pkey::Public>, Error> {
+pub fn subscription_signature_key() -> Result<openssl::pkey::PKey<openssl::pkey::Public>, Error> {
     let key = file_get_contents(PROXMOX_BACKUP_SUBSCRIPTION_SIGNATURE_KEY_FN)?;
     openssl::pkey::PKey::public_key_from_pem(&key).map_err(|err| {
         format_err!(
@@ -126,6 +126,10 @@ pub fn check_subscription(force: bool) -> Result<(), Error> {
     } else {
         String::new()
     };
+
+    if info.is_signed() {
+        bail!("Updating offline key not possible - please remove and re-add subscription key to switch to online key.");
+    }
 
     if !force && info.status == SubscriptionStatus::Active {
         // will set to INVALID if last check too long ago
