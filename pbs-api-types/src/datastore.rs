@@ -579,7 +579,7 @@ impl BackupNamespace {
         Ok(())
     }
 
-    /// Return an adapter which [`Display`]s as a path with `"ns/"` prefixes in front of every
+    /// Return an adapter which [`fmt::Display`]s as a path with `"ns/"` prefixes in front of every
     /// component.
     pub fn display_as_path(&self) -> BackupNamespacePath {
         BackupNamespacePath(self)
@@ -691,7 +691,7 @@ impl ApiType for BackupNamespace {
 
 /// Helper to format a [`BackupNamespace`] as a path component of a [`BackupGroup`].
 ///
-/// This implements [`Display`] such that it includes the `ns/` subdirectory prefix in front of
+/// This implements [`fmt::Display`] such that it includes the `ns/` subdirectory prefix in front of
 /// every component.
 pub struct BackupNamespacePath<'a>(&'a BackupNamespace);
 
