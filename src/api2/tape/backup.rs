@@ -376,6 +376,12 @@ pub fn backup(
     Ok(upid_str.into())
 }
 
+enum SnapshotBackupResult {
+    Success,
+    Error,
+    Ignored,
+}
+
 fn backup_worker(
     worker: &WorkerTask,
     datastore: Arc<DataStore>,
@@ -489,10 +495,11 @@ fn backup_worker(
 
                 need_catalog = true;
 
-                if !backup_snapshot(worker, &mut pool_writer, datastore.clone(), info.backup_dir)? {
-                    errors = true;
-                } else {
-                    summary.snapshot_list.push(rel_path);
+                match backup_snapshot(worker, &mut pool_writer, datastore.clone(), info.backup_dir)?
+                {
+                    SnapshotBackupResult::Success => summary.snapshot_list.push(rel_path),
+                    SnapshotBackupResult::Error => errors = true,
+                    SnapshotBackupResult::Ignored => {}
                 }
                 progress.done_snapshots = 1;
                 task_log!(worker, "percentage done: {}", progress);
@@ -514,10 +521,11 @@ fn backup_worker(
 
                 need_catalog = true;
 
-                if !backup_snapshot(worker, &mut pool_writer, datastore.clone(), info.backup_dir)? {
-                    errors = true;
-                } else {
-                    summary.snapshot_list.push(rel_path);
+                match backup_snapshot(worker, &mut pool_writer, datastore.clone(), info.backup_dir)?
+                {
+                    SnapshotBackupResult::Success => summary.snapshot_list.push(rel_path),
+                    SnapshotBackupResult::Error => errors = true,
+                    SnapshotBackupResult::Ignored => {}
                 }
                 progress.done_snapshots = snapshot_number as u64 + 1;
                 task_log!(worker, "percentage done: {}", progress);
@@ -579,26 +587,31 @@ fn update_media_online_status(drive: &str) -> Result<Option<String>, Error> {
     }
 }
 
-pub fn backup_snapshot(
+fn backup_snapshot(
     worker: &WorkerTask,
     pool_writer: &mut PoolWriter,
     datastore: Arc<DataStore>,
     snapshot: BackupDir,
-) -> Result<bool, Error> {
+) -> Result<SnapshotBackupResult, Error> {
     let snapshot_path = snapshot.relative_path();
     task_log!(worker, "backup snapshot {:?}", snapshot_path);
 
     let snapshot_reader = match snapshot.locked_reader() {
         Ok(reader) => reader,
         Err(err) => {
-            // ignore missing snapshots and continue
+            if !snapshot.full_path().exists() {
+                // we got an error and the dir does not exist,
+                // it probably just vanished, so continue
+                task_log!(worker, "snapshot {:?} vanished, skipping", snapshot_path);
+                return Ok(SnapshotBackupResult::Ignored);
+            }
             task_warn!(
                 worker,
                 "failed opening snapshot {:?}: {}",
                 snapshot_path,
                 err
             );
-            return Ok(false);
+            return Ok(SnapshotBackupResult::Error);
         }
     };
 
@@ -666,5 +679,5 @@ pub fn backup_snapshot(
         snapshot_path
     );
 
-    Ok(true)
+    Ok(SnapshotBackupResult::Success)
 }
