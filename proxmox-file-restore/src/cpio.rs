@@ -1,6 +1,6 @@
 //! Provides a very basic "newc" format cpio encoder.
 //! See 'man 5 cpio' for format details, as well as:
-//! https://www.kernel.org/doc/html/latest/driver-api/early-userspace/buffer-format.html
+//! <https://www.kernel.org/doc/html/latest/driver-api/early-userspace/buffer-format.html>
 //! This does not provide full support for the format, only what is needed to include files in an
 //! initramfs intended for a linux kernel.
 use std::ffi::{CStr, CString};
