@@ -100,7 +100,9 @@ async fn cleanup_map(map: &mut HashMap<String, VMState>) -> bool {
             to_remove.push(name.clone());
             log::warn!(
                 "VM '{}' (pid: {}, cid: {}) was not reachable, removing from map",
-                name, state.pid, state.cid
+                name,
+                state.pid,
+                state.cid
             );
             let _ = super::qemu_helper::try_kill_vm(state.pid);
         }

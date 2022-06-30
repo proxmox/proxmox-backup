@@ -143,7 +143,9 @@ impl<R: AsyncRead + AsyncSeek + Unpin> FuseLoopSession<R> {
             if let Err(err) = loopdev::unassign(&loopdev_path) {
                 log::warn!(
                     "cleanup: warning: could not unassign file {} from loop device {} - {}",
-                    &fuse_path, &loopdev_path, err,
+                    &fuse_path,
+                    &loopdev_path,
+                    err,
                 );
             }
 
@@ -153,13 +155,15 @@ impl<R: AsyncRead + AsyncSeek + Unpin> FuseLoopSession<R> {
             if let Err(err) = remove_file(&fuse_path) {
                 log::warn!(
                     "cleanup: warning: could not remove temporary file {} - {}",
-                    &fuse_path, err,
+                    &fuse_path,
+                    err,
                 );
             }
             if let Err(err) = remove_file(&pid_path) {
                 log::warn!(
                     "cleanup: warning: could not remove PID file {} - {}",
-                    &pid_path, err,
+                    &pid_path,
+                    err,
                 );
             }
         };
