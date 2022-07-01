@@ -564,6 +564,14 @@ fn backup_worker(
         bail!("Tape backup finished with some errors. Please check the task log.");
     }
 
+    summary.used_tapes = match pool_writer.get_used_media_labels() {
+        Ok(tapes) => Some(tapes),
+        Err(err) => {
+            task_warn!(worker, "could not collect list of used tapes: {err}");
+            None
+        }
+    };
+
     summary.duration = start.elapsed();
 
     Ok(())

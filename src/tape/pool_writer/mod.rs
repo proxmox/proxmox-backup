@@ -4,6 +4,7 @@ pub use catalog_set::*;
 mod new_chunks_iterator;
 pub use new_chunks_iterator::*;
 
+use std::collections::HashSet;
 use std::fs::File;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
@@ -49,6 +50,7 @@ pub struct PoolWriter {
     catalog_set: Arc<Mutex<CatalogSet>>,
     notify_email: Option<String>,
     ns_magic: bool,
+    used_tapes: HashSet<Uuid>,
 }
 
 impl PoolWriter {
@@ -87,6 +89,7 @@ impl PoolWriter {
             catalog_set: Arc::new(Mutex::new(catalog_set)),
             notify_email,
             ns_magic,
+            used_tapes: HashSet::new(),
         })
     }
 
@@ -98,6 +101,16 @@ impl PoolWriter {
     pub fn set_media_status_full(&mut self, uuid: &Uuid) -> Result<(), Error> {
         self.pool.set_media_status_full(uuid)?;
         Ok(())
+    }
+
+    pub fn get_used_media_labels(&self) -> Result<Vec<String>, Error> {
+        let mut res = Vec::with_capacity(self.used_tapes.len());
+        for media_uuid in &self.used_tapes {
+            let media_info = self.pool.lookup_media(&media_uuid)?;
+            res.push(media_info.label_text().to_string());
+        }
+
+        Ok(res)
     }
 
     pub fn contains_snapshot(
@@ -208,6 +221,7 @@ impl PoolWriter {
         };
 
         if !media_changed {
+            self.used_tapes.insert(media_uuid.clone());
             return Ok(media_uuid);
         }
 
@@ -278,6 +292,7 @@ impl PoolWriter {
             self.append_media_set_catalogs(worker)?;
         }
 
+        self.used_tapes.insert(media_uuid.clone());
         Ok(media_uuid)
     }
 

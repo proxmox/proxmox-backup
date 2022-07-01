@@ -148,7 +148,12 @@ Snapshots included:
 {{/each~}}
 {{/if}}
 Duration: {{duration}}
-
+{{#if used-tapes }}
+Used Tapes:
+{{#each used-tapes~}}
+{{this}}
+{{/each~}}
+{{/if}}
 Tape Backup successful.
 
 
@@ -171,6 +176,12 @@ Tape Drive: {{job.drive}}
 Snapshots included:
 
 {{#each snapshot-list~}}
+{{this}}
+{{/each~}}
+{{/if}}
+{{#if used-tapes }}
+Used Tapes:
+{{#each used-tapes~}}
 {{this}}
 {{/each~}}
 {{/if}}
@@ -241,6 +252,8 @@ pub struct TapeBackupJobSummary {
     pub snapshot_list: Vec<String>,
     /// The total time of the backup job
     pub duration: std::time::Duration,
+    /// The labels of the used tapes of the backup job
+    pub used_tapes: Option<Vec<String>>,
 }
 
 fn send_job_status_mail(email: &str, subject: &str, text: &str) -> Result<(), Error> {
@@ -432,6 +445,7 @@ pub fn send_tape_backup_status(
         "port": port,
         "id": id,
         "snapshot-list": summary.snapshot_list,
+        "used-tapes": summary.used_tapes,
         "duration": duration.to_string(),
     });
 
