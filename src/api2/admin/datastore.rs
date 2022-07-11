@@ -629,7 +629,7 @@ fn get_snapshots_count(store: &Arc<DataStore>, owner: Option<&Authid>) -> Result
     },
 )]
 /// Get datastore status.
-pub fn status(
+pub async fn status(
     store: String,
     verbose: bool,
     _info: &ApiMethod,
@@ -674,7 +674,7 @@ pub fn status(
     };
 
     Ok(if store_stats {
-        let storage = proxmox_sys::fs::fs_info(&datastore.base_path())?;
+        let storage = crate::tools::fs::fs_info(datastore.base_path()).await?;
         DataStoreStatus {
             total: storage.total,
             used: storage.used,

@@ -11,6 +11,7 @@ use proxmox_http::{client::SimpleHttp, client::SimpleHttpOptions, ProxyConfig};
 pub mod apt;
 pub mod config;
 pub mod disks;
+pub mod fs;
 
 mod shared_rate_limiter;
 pub use shared_rate_limiter::SharedRateLimiter;

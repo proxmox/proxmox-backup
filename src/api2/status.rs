@@ -33,7 +33,7 @@ use crate::backup::can_access_any_namespace;
     },
 )]
 /// List Datastore usages and estimates
-pub fn datastore_status(
+pub async fn datastore_status(
     _param: Value,
     _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
@@ -64,7 +64,7 @@ pub fn datastore_status(
                 continue;
             }
         };
-        let status = proxmox_sys::fs::fs_info(&datastore.base_path())?;
+        let status = crate::tools::fs::fs_info(datastore.base_path()).await?;
 
         let mut entry = DataStoreStatusListItem {
             store: store.clone(),

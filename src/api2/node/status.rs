@@ -43,7 +43,7 @@ impl std::convert::From<procfs::ProcFsCPUInfo> for NodeCpuInformation {
     },
 )]
 /// Read node memory, CPU and (root) disk usage
-fn get_status(
+async fn get_status(
     _param: Value,
     _info: &ApiMethod,
     _rpcenv: &mut dyn RpcEnvironment,
@@ -79,7 +79,7 @@ fn get_status(
         std::str::from_utf8(uname.version().as_bytes())?
     );
 
-    let disk = proxmox_sys::fs::fs_info(proxmox_lang::c_str!("/"))?;
+    let disk = crate::tools::fs::fs_info_static(proxmox_lang::c_str!("/")).await?;
 
     Ok(NodeStatus {
         memory,
