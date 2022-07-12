@@ -426,7 +426,7 @@ pub fn delete_snapshot(
     },
 )]
 /// List backup snapshots.
-pub fn list_snapshots(
+pub async fn list_snapshots(
     store: String,
     ns: Option<BackupNamespace>,
     backup_type: Option<BackupType>,
@@ -437,6 +437,21 @@ pub fn list_snapshots(
 ) -> Result<Vec<SnapshotListItem>, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
+    tokio::task::spawn_blocking(move || unsafe {
+        list_snapshots_blocking(store, ns, backup_type, backup_id, auth_id)
+    })
+    .await
+    .map_err(|err| format_err!("failed to await blocking task: {err}"))?
+}
+
+/// This must not run in a main worker thread as it potentially does tons of I/O.
+unsafe fn list_snapshots_blocking(
+    store: String,
+    ns: Option<BackupNamespace>,
+    backup_type: Option<BackupType>,
+    backup_id: Option<String>,
+    auth_id: Authid,
+) -> Result<Vec<SnapshotListItem>, Error> {
     let ns = ns.unwrap_or_default();
 
     let list_all = !check_ns_privs_full(
