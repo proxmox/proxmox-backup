@@ -782,15 +782,15 @@ impl DataStore {
         ns: BackupNamespace,
     ) -> Result<impl Iterator<Item = BackupGroup> + 'static, Error> {
         let this = Arc::clone(self);
-        Ok(
-            ListGroups::new(Arc::clone(self), ns)?.filter_map(move |group| match group {
+        Ok(self
+            .iter_backup_groups(ns)?
+            .filter_map(move |group| match group {
                 Ok(group) => Some(group),
                 Err(err) => {
                     log::error!("list groups error on datastore {} - {}", this.name(), err);
                     None
                 }
-            }),
-        )
+            }))
     }
 
     /// Get a in-memory vector for all top-level backup groups of a datatstore
