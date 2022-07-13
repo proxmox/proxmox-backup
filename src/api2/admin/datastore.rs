@@ -597,37 +597,45 @@ unsafe fn list_snapshots_blocking(
     })
 }
 
-fn get_snapshots_count(store: &Arc<DataStore>, owner: Option<&Authid>) -> Result<Counts, Error> {
-    let root_ns = Default::default();
-    ListAccessibleBackupGroups::new_with_privs(
-        store,
-        root_ns,
-        MAX_NAMESPACE_DEPTH,
-        Some(PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_READ),
-        None,
-        owner,
-    )?
-    .try_fold(Counts::default(), |mut counts, group| {
-        let group = match group {
-            Ok(group) => group,
-            Err(_) => return Ok(counts), // TODO: add this as error counts?
-        };
-        let snapshot_count = group.list_backups()?.len() as u64;
-
-        // only include groups with snapshots, counting/displaying empty groups can confuse
-        if snapshot_count > 0 {
-            let type_count = match group.backup_type() {
-                BackupType::Ct => counts.ct.get_or_insert(Default::default()),
-                BackupType::Vm => counts.vm.get_or_insert(Default::default()),
-                BackupType::Host => counts.host.get_or_insert(Default::default()),
+async fn get_snapshots_count(
+    store: &Arc<DataStore>,
+    owner: Option<&Authid>,
+) -> Result<Counts, Error> {
+    let store = Arc::clone(store);
+    let owner = owner.cloned();
+    tokio::task::spawn_blocking(move || {
+        let root_ns = Default::default();
+        ListAccessibleBackupGroups::new_with_privs(
+            &store,
+            root_ns,
+            MAX_NAMESPACE_DEPTH,
+            Some(PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_READ),
+            None,
+            owner.as_ref(),
+        )?
+        .try_fold(Counts::default(), |mut counts, group| {
+            let group = match group {
+                Ok(group) => group,
+                Err(_) => return Ok(counts), // TODO: add this as error counts?
             };
+            let snapshot_count = group.list_backups()?.len() as u64;
 
-            type_count.groups += 1;
-            type_count.snapshots += snapshot_count;
-        }
+            // only include groups with snapshots, counting/displaying empty groups can confuse
+            if snapshot_count > 0 {
+                let type_count = match group.backup_type() {
+                    BackupType::Ct => counts.ct.get_or_insert(Default::default()),
+                    BackupType::Vm => counts.vm.get_or_insert(Default::default()),
+                    BackupType::Host => counts.host.get_or_insert(Default::default()),
+                };
 
-        Ok(counts)
+                type_count.groups += 1;
+                type_count.snapshots += snapshot_count;
+            }
+
+            Ok(counts)
+        })
     })
+    .await?
 }
 
 #[api(
@@ -687,7 +695,7 @@ pub async fn status(
             Some(&auth_id)
         };
 
-        let counts = Some(get_snapshots_count(&datastore, filter_owner)?);
+        let counts = Some(get_snapshots_count(&datastore, filter_owner).await?);
         let gc_status = if store_stats {
             Some(datastore.last_gc_status())
         } else {
