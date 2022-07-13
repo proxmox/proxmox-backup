@@ -2149,7 +2149,7 @@ pub async fn set_protection(
     },
 )]
 /// Change owner of a backup group
-pub fn set_backup_owner(
+pub async fn set_backup_owner(
     store: String,
     ns: Option<BackupNamespace>,
     backup_group: pbs_api_types::BackupGroup,
@@ -2157,71 +2157,75 @@ pub fn set_backup_owner(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-    let ns = ns.unwrap_or_default();
-    let owner_check_required = check_ns_privs_full(
-        &store,
-        &ns,
-        &auth_id,
-        PRIV_DATASTORE_MODIFY,
-        PRIV_DATASTORE_BACKUP,
-    )?;
 
-    let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
+    tokio::task::spawn_blocking(move || {
+        let ns = ns.unwrap_or_default();
+        let owner_check_required = check_ns_privs_full(
+            &store,
+            &ns,
+            &auth_id,
+            PRIV_DATASTORE_MODIFY,
+            PRIV_DATASTORE_BACKUP,
+        )?;
 
-    let backup_group = datastore.backup_group(ns, backup_group);
+        let datastore = DataStore::lookup_datastore(&store, Some(Operation::Write))?;
 
-    if owner_check_required {
-        let owner = backup_group.get_owner()?;
+        let backup_group = datastore.backup_group(ns, backup_group);
 
-        let allowed = match (owner.is_token(), new_owner.is_token()) {
-            (true, true) => {
-                // API token to API token, owned by same user
-                let owner = owner.user();
-                let new_owner = new_owner.user();
-                owner == new_owner && Authid::from(owner.clone()) == auth_id
+        if owner_check_required {
+            let owner = backup_group.get_owner()?;
+
+            let allowed = match (owner.is_token(), new_owner.is_token()) {
+                (true, true) => {
+                    // API token to API token, owned by same user
+                    let owner = owner.user();
+                    let new_owner = new_owner.user();
+                    owner == new_owner && Authid::from(owner.clone()) == auth_id
+                }
+                (true, false) => {
+                    // API token to API token owner
+                    Authid::from(owner.user().clone()) == auth_id && new_owner == auth_id
+                }
+                (false, true) => {
+                    // API token owner to API token
+                    owner == auth_id && Authid::from(new_owner.user().clone()) == auth_id
+                }
+                (false, false) => {
+                    // User to User, not allowed for unprivileged users
+                    false
+                }
+            };
+
+            if !allowed {
+                return Err(http_err!(
+                    UNAUTHORIZED,
+                    "{} does not have permission to change owner of backup group '{}' to {}",
+                    auth_id,
+                    backup_group.group(),
+                    new_owner,
+                ));
             }
-            (true, false) => {
-                // API token to API token owner
-                Authid::from(owner.user().clone()) == auth_id && new_owner == auth_id
-            }
-            (false, true) => {
-                // API token owner to API token
-                owner == auth_id && Authid::from(new_owner.user().clone()) == auth_id
-            }
-            (false, false) => {
-                // User to User, not allowed for unprivileged users
-                false
-            }
-        };
-
-        if !allowed {
-            return Err(http_err!(
-                UNAUTHORIZED,
-                "{} does not have permission to change owner of backup group '{}' to {}",
-                auth_id,
-                backup_group.group(),
-                new_owner,
-            ));
         }
-    }
 
-    let user_info = CachedUserInfo::new()?;
+        let user_info = CachedUserInfo::new()?;
 
-    if !user_info.is_active_auth_id(&new_owner) {
-        bail!(
-            "{} '{}' is inactive or non-existent",
-            if new_owner.is_token() {
-                "API token".to_string()
-            } else {
-                "user".to_string()
-            },
-            new_owner
-        );
-    }
+        if !user_info.is_active_auth_id(&new_owner) {
+            bail!(
+                "{} '{}' is inactive or non-existent",
+                if new_owner.is_token() {
+                    "API token".to_string()
+                } else {
+                    "user".to_string()
+                },
+                new_owner
+            );
+        }
 
-    backup_group.set_owner(&new_owner, true)?;
+        backup_group.set_owner(&new_owner, true)?;
 
-    Ok(())
+        Ok(())
+    })
+    .await?
 }
 
 #[sortable]
