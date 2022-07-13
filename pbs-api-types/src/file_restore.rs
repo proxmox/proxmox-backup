@@ -13,3 +13,18 @@ pub struct RestoreDaemonStatus {
     /// not set, as then the status call will have reset the timer before returning the value
     pub timeout: i64,
 }
+
+#[api]
+#[derive(Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+/// The desired format of the result.
+pub enum FileRestoreFormat {
+    /// Plain file (only works for single files)
+    Plain,
+    /// PXAR archive
+    Pxar,
+    /// ZIP archive
+    Zip,
+    /// TAR archive
+    Tar,
+}
