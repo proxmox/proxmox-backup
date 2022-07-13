@@ -2097,7 +2097,7 @@ pub fn get_protection(
     },
 )]
 /// En- or disable protection for a specific backup
-pub fn set_protection(
+pub async fn set_protection(
     store: String,
     ns: Option<BackupNamespace>,
     backup_dir: pbs_api_types::BackupDir,
@@ -2105,20 +2105,24 @@ pub fn set_protection(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-    let ns = ns.unwrap_or_default();
-    let datastore = check_privs_and_load_store(
-        &store,
-        &ns,
-        &auth_id,
-        PRIV_DATASTORE_MODIFY,
-        PRIV_DATASTORE_BACKUP,
-        Some(Operation::Write),
-        &backup_dir.group,
-    )?;
 
-    let backup_dir = datastore.backup_dir(ns, backup_dir)?;
+    tokio::task::spawn_blocking(move || {
+        let ns = ns.unwrap_or_default();
+        let datastore = check_privs_and_load_store(
+            &store,
+            &ns,
+            &auth_id,
+            PRIV_DATASTORE_MODIFY,
+            PRIV_DATASTORE_BACKUP,
+            Some(Operation::Write),
+            &backup_dir.group,
+        )?;
 
-    datastore.update_protection(&backup_dir, protected)
+        let backup_dir = datastore.backup_dir(ns, backup_dir)?;
+
+        datastore.update_protection(&backup_dir, protected)
+    })
+    .await?
 }
 
 #[api(
