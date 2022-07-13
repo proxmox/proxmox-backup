@@ -325,7 +325,7 @@ pub async fn delete_group(
     },
 )]
 /// List snapshot files.
-pub fn list_snapshot_files(
+pub async fn list_snapshot_files(
     store: String,
     ns: Option<BackupNamespace>,
     backup_dir: pbs_api_types::BackupDir,
@@ -333,25 +333,29 @@ pub fn list_snapshot_files(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<BackupContent>, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-    let ns = ns.unwrap_or_default();
 
-    let datastore = check_privs_and_load_store(
-        &store,
-        &ns,
-        &auth_id,
-        PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_READ,
-        PRIV_DATASTORE_BACKUP,
-        Some(Operation::Read),
-        &backup_dir.group,
-    )?;
+    tokio::task::spawn_blocking(move || {
+        let ns = ns.unwrap_or_default();
 
-    let snapshot = datastore.backup_dir(ns, backup_dir)?;
+        let datastore = check_privs_and_load_store(
+            &store,
+            &ns,
+            &auth_id,
+            PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_READ,
+            PRIV_DATASTORE_BACKUP,
+            Some(Operation::Read),
+            &backup_dir.group,
+        )?;
 
-    let info = BackupInfo::new(snapshot)?;
+        let snapshot = datastore.backup_dir(ns, backup_dir)?;
 
-    let (_manifest, files) = get_all_snapshot_files(&info)?;
+        let info = BackupInfo::new(snapshot)?;
 
-    Ok(files)
+        let (_manifest, files) = get_all_snapshot_files(&info)?;
+
+        Ok(files)
+    })
+    .await?
 }
 
 #[api(
