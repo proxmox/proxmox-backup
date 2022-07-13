@@ -4,8 +4,11 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::{bail, format_err, Error};
+use futures::StreamExt;
 use serde_json::{json, Value};
+use tokio::io::AsyncWriteExt;
 
+use proxmox_compression::zstd::ZstdEncoder;
 use proxmox_router::cli::{
     complete_file_name, default_table_format_options, format_and_print_result_full,
     get_output_format, init_cli_logger, run_cli_command, CliCommand, CliCommandMap, CliEnvironment,
@@ -17,8 +20,8 @@ use proxmox_sys::fs::{create_path, CreateOptions};
 use pxar::accessor::aio::Accessor;
 use pxar::decoder::aio::Decoder;
 
-use pbs_api_types::{BackupDir, BackupNamespace, CryptMode};
-use pbs_client::pxar::{create_zip, extract_sub_dir, extract_sub_dir_seq};
+use pbs_api_types::{file_restore::FileRestoreFormat, BackupDir, BackupNamespace, CryptMode};
+use pbs_client::pxar::{create_tar, create_zip, extract_sub_dir, extract_sub_dir_seq};
 use pbs_client::tools::{
     complete_group_or_snapshot, complete_repository, connect, extract_repository_from_value,
     key_source::{
@@ -346,8 +349,18 @@ async fn list(
                 description: "Group/Snapshot path.",
             },
             "path": {
-                description: "Path to restore. Directories will be restored as .zip files if extracted to stdout.",
+                description: "Path to restore. Directories will be restored as archive files if extracted to stdout.",
                 type: String,
+            },
+            "format": {
+                type: FileRestoreFormat,
+                optional: true,
+            },
+            "zstd": {
+                type: bool,
+                description: "If true, output will be zstd compressed.",
+                optional: true,
+                default: false,
             },
             "base64": {
                 type: Boolean,
@@ -392,6 +405,8 @@ async fn extract(
     path: String,
     base64: bool,
     target: Option<String>,
+    format: Option<FileRestoreFormat>,
+    zstd: bool,
     param: Value,
 ) -> Result<(), Error> {
     let repo = extract_repository_from_value(&param)?;
@@ -450,7 +465,7 @@ async fn extract(
             let archive_size = reader.archive_size();
             let reader = LocalDynamicReadAt::new(reader);
             let decoder = Accessor::new(reader, archive_size).await?;
-            extract_to_target(decoder, &path, target).await?;
+            extract_to_target(decoder, &path, target, format, zstd).await?;
         }
         ExtractPath::VM(file, path) => {
             let details = SnapRestoreDetails {
@@ -466,7 +481,15 @@ async fn extract(
             };
 
             if let Some(mut target) = target {
-                let reader = data_extract(driver, details, file, path.clone(), true).await?;
+                let reader = data_extract(
+                    driver,
+                    details,
+                    file,
+                    path.clone(),
+                    Some(FileRestoreFormat::Pxar),
+                    false,
+                )
+                .await?;
                 let decoder = Decoder::from_tokio(reader).await?;
                 extract_sub_dir_seq(&target, decoder).await?;
 
@@ -477,7 +500,8 @@ async fn extract(
                     format_err!("unable to remove temporary .pxarexclude-cli file - {}", e)
                 })?;
             } else {
-                let mut reader = data_extract(driver, details, file, path.clone(), false).await?;
+                let mut reader =
+                    data_extract(driver, details, file, path.clone(), format, zstd).await?;
                 tokio::io::copy(&mut reader, &mut tokio::io::stdout()).await?;
             }
         }
@@ -493,29 +517,75 @@ async fn extract_to_target<T>(
     decoder: Accessor<T>,
     path: &[u8],
     target: Option<PathBuf>,
+    format: Option<FileRestoreFormat>,
+    zstd: bool,
 ) -> Result<(), Error>
 where
     T: pxar::accessor::ReadAt + Clone + Send + Sync + Unpin + 'static,
 {
     let path = if path.is_empty() { b"/" } else { path };
-
-    let root = decoder.open_root().await?;
-    let file = root
-        .lookup(OsStr::from_bytes(path))
-        .await?
-        .ok_or_else(|| format_err!("error opening '{:?}'", path))?;
+    let path = OsStr::from_bytes(path);
 
     if let Some(target) = target {
-        extract_sub_dir(target, decoder, OsStr::from_bytes(path)).await?;
+        extract_sub_dir(target, decoder, path).await?;
     } else {
-        match file.kind() {
-            pxar::EntryKind::File { .. } => {
-                tokio::io::copy(&mut file.contents().await?, &mut tokio::io::stdout()).await?;
+        extract_archive(decoder, path, format, zstd).await?;
+    }
+
+    Ok(())
+}
+
+async fn extract_archive<T>(
+    decoder: Accessor<T>,
+    path: &OsStr,
+    format: Option<FileRestoreFormat>,
+    zstd: bool,
+) -> Result<(), Error>
+where
+    T: pxar::accessor::ReadAt + Clone + Send + Sync + Unpin + 'static,
+{
+    let path = path.to_owned();
+    let root = decoder.open_root().await?;
+    let file = root
+        .lookup(&path)
+        .await?
+        .ok_or_else(|| format_err!("error opening '{:?}'", &path))?;
+
+    let (mut writer, mut reader) = tokio::io::duplex(1024 * 1024);
+    if file.is_regular_file() {
+        match format {
+            Some(FileRestoreFormat::Plain) | None => {}
+            _ => bail!("cannot extract single files as archive"),
+        }
+        tokio::spawn(
+            async move { tokio::io::copy(&mut file.contents().await?, &mut writer).await },
+        );
+    } else {
+        match format {
+            Some(FileRestoreFormat::Pxar) => {
+                bail!("pxar target not supported for pxar source");
             }
-            _ => {
-                create_zip(tokio::io::stdout(), decoder, OsStr::from_bytes(path)).await?;
+            Some(FileRestoreFormat::Plain) => {
+                bail!("plain file not supported for non-regular files");
+            }
+            Some(FileRestoreFormat::Zip) | None => {
+                tokio::spawn(create_zip(writer, decoder, path));
+            }
+            Some(FileRestoreFormat::Tar) => {
+                tokio::spawn(create_tar(writer, decoder, path));
             }
         }
+    }
+
+    if zstd {
+        let mut zstdstream = ZstdEncoder::new(tokio_util::io::ReaderStream::new(reader))?;
+        let mut stdout = tokio::io::stdout();
+        while let Some(buf) = zstdstream.next().await {
+            let buf = buf?;
+            stdout.write_all(&buf).await?;
+        }
+    } else {
+        tokio::io::copy(&mut reader, &mut tokio::io::stdout()).await?;
     }
 
     Ok(())

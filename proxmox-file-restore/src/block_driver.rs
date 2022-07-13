@@ -11,7 +11,7 @@ use serde_json::{json, Value};
 use proxmox_router::cli::*;
 use proxmox_schema::api;
 
-use pbs_api_types::{BackupDir, BackupNamespace};
+use pbs_api_types::{file_restore::FileRestoreFormat, BackupDir, BackupNamespace};
 use pbs_client::BackupRepository;
 use pbs_datastore::catalog::ArchiveEntry;
 use pbs_datastore::manifest::BackupManifest;
@@ -55,7 +55,8 @@ pub trait BlockRestoreDriver {
         details: SnapRestoreDetails,
         img_file: String,
         path: Vec<u8>,
-        pxar: bool,
+        format: Option<FileRestoreFormat>,
+        zstd: bool,
     ) -> Async<Result<Box<dyn tokio::io::AsyncRead + Unpin + Send>, Error>>;
 
     /// Return status of all running/mapped images, result value is (id, extra data), where id must
@@ -101,10 +102,13 @@ pub async fn data_extract(
     details: SnapRestoreDetails,
     img_file: String,
     path: Vec<u8>,
-    pxar: bool,
+    format: Option<FileRestoreFormat>,
+    zstd: bool,
 ) -> Result<Box<dyn tokio::io::AsyncRead + Send + Unpin>, Error> {
     let driver = driver.unwrap_or(DEFAULT_DRIVER).resolve();
-    driver.data_extract(details, img_file, path, pxar).await
+    driver
+        .data_extract(details, img_file, path, format, zstd)
+        .await
 }
 
 #[api(

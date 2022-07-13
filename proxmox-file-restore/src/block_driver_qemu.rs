@@ -10,7 +10,7 @@ use serde_json::json;
 
 use proxmox_sys::fs::lock_file;
 
-use pbs_api_types::{BackupDir, BackupNamespace};
+use pbs_api_types::{file_restore::FileRestoreFormat, BackupDir, BackupNamespace};
 use pbs_client::{BackupRepository, VsockClient, DEFAULT_VSOCK_PORT};
 use pbs_datastore::catalog::ArchiveEntry;
 
@@ -217,7 +217,8 @@ impl BlockRestoreDriver for QemuBlockDriver {
         details: SnapRestoreDetails,
         img_file: String,
         mut path: Vec<u8>,
-        pxar: bool,
+        format: Option<FileRestoreFormat>,
+        zstd: bool,
     ) -> Async<Result<Box<dyn tokio::io::AsyncRead + Unpin + Send>, Error>> {
         async move {
             let client = ensure_running(&details).await?;
@@ -226,13 +227,13 @@ impl BlockRestoreDriver for QemuBlockDriver {
             }
             let path = base64::encode(img_file.bytes().chain(path).collect::<Vec<u8>>());
             let (mut tx, rx) = tokio::io::duplex(1024 * 4096);
+            let mut data = json!({ "path": path, "zstd": zstd });
+            if let Some(format) = format {
+                data["format"] = serde_json::to_value(format)?;
+            }
             tokio::spawn(async move {
                 if let Err(err) = client
-                    .download(
-                        "api2/json/extract",
-                        Some(json!({ "path": path, "pxar": pxar })),
-                        &mut tx,
-                    )
+                    .download("api2/json/extract", Some(data), &mut tx)
                     .await
                 {
                     log::error!("reading file extraction stream failed - {}", err);
