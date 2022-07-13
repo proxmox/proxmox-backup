@@ -379,7 +379,7 @@ pub async fn list_snapshot_files(
     },
 )]
 /// Delete backup snapshot.
-pub fn delete_snapshot(
+pub async fn delete_snapshot(
     store: String,
     ns: Option<BackupNamespace>,
     backup_dir: pbs_api_types::BackupDir,
@@ -387,23 +387,27 @@ pub fn delete_snapshot(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-    let ns = ns.unwrap_or_default();
 
-    let datastore = check_privs_and_load_store(
-        &store,
-        &ns,
-        &auth_id,
-        PRIV_DATASTORE_MODIFY,
-        PRIV_DATASTORE_PRUNE,
-        Some(Operation::Write),
-        &backup_dir.group,
-    )?;
+    tokio::task::spawn_blocking(move || {
+        let ns = ns.unwrap_or_default();
 
-    let snapshot = datastore.backup_dir(ns, backup_dir)?;
+        let datastore = check_privs_and_load_store(
+            &store,
+            &ns,
+            &auth_id,
+            PRIV_DATASTORE_MODIFY,
+            PRIV_DATASTORE_PRUNE,
+            Some(Operation::Write),
+            &backup_dir.group,
+        )?;
 
-    snapshot.destroy(false)?;
+        let snapshot = datastore.backup_dir(ns, backup_dir)?;
 
-    Ok(Value::Null)
+        snapshot.destroy(false)?;
+
+        Ok(Value::Null)
+    })
+    .await?
 }
 
 #[api(
