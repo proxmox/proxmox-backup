@@ -26,7 +26,7 @@ use crate::backup_info::{BackupDir, BackupGroup};
 use crate::chunk_store::ChunkStore;
 use crate::dynamic_index::{DynamicIndexReader, DynamicIndexWriter};
 use crate::fixed_index::{FixedIndexReader, FixedIndexWriter};
-use crate::hierarchy::{ListGroups, ListNamespaces, ListNamespacesRecursive};
+use crate::hierarchy::{ListGroups, ListGroupsType, ListNamespaces, ListNamespacesRecursive};
 use crate::index::IndexFile;
 use crate::manifest::{archive_type, ArchiveType};
 use crate::task_tracking::update_active_operations;
@@ -369,6 +369,13 @@ impl DataStore {
             path.push(part);
         }
         path
+    }
+
+    /// Returns the absolute path for a backup_type
+    pub fn type_path(&self, ns: &BackupNamespace, backup_type: BackupType) -> PathBuf {
+        let mut full_path = self.namespace_path(ns);
+        full_path.push(backup_type.to_string());
+        full_path
     }
 
     /// Returns the absolute path for a backup_group
@@ -762,6 +769,31 @@ impl DataStore {
         }))
     }
 
+    /// Get a streaming iter over top-level backup groups of a datatstore of a particular type.
+    ///
+    /// The iterated item is still a Result that can contain errors from rather unexptected FS or
+    /// parsing errors.
+    pub fn iter_backup_type(
+        self: &Arc<DataStore>,
+        ns: BackupNamespace,
+        ty: BackupType,
+    ) -> Result<ListGroupsType, Error> {
+        ListGroupsType::new(Arc::clone(self), ns, ty)
+    }
+
+    /// Get a streaming iter over top-level backup groups of a datatstore of a particular type,
+    /// filtered by `Ok` results
+    ///
+    /// The iterated item's result is already unwrapped, if it contained an error it will be
+    /// logged. Can be useful in iterator chain commands
+    pub fn iter_backup_type_ok(
+        self: &Arc<DataStore>,
+        ns: BackupNamespace,
+        ty: BackupType,
+    ) -> Result<impl Iterator<Item = BackupGroup> + 'static, Error> {
+        Ok(self.iter_backup_type(ns, ty)?.ok())
+    }
+
     /// Get a streaming iter over top-level backup groups of a datatstore
     ///
     /// The iterated item is still a Result that can contain errors from rather unexptected FS or
@@ -781,16 +813,7 @@ impl DataStore {
         self: &Arc<DataStore>,
         ns: BackupNamespace,
     ) -> Result<impl Iterator<Item = BackupGroup> + 'static, Error> {
-        let this = Arc::clone(self);
-        Ok(self
-            .iter_backup_groups(ns)?
-            .filter_map(move |group| match group {
-                Ok(group) => Some(group),
-                Err(err) => {
-                    log::error!("list groups error on datastore {} - {}", this.name(), err);
-                    None
-                }
-            }))
+        Ok(self.iter_backup_groups(ns)?.ok())
     }
 
     /// Get a in-memory vector for all top-level backup groups of a datatstore

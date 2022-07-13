@@ -1,3 +1,4 @@
+use std::os::unix::io::RawFd;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -67,24 +68,96 @@ impl Iterator for ListSnapshots {
     }
 }
 
+/// An iterator for a single backup group type.
+pub struct ListGroupsType {
+    store: Arc<DataStore>,
+    ns: BackupNamespace,
+    ty: BackupType,
+    dir: proxmox_sys::fs::ReadDir,
+}
+
+impl ListGroupsType {
+    pub fn new(store: Arc<DataStore>, ns: BackupNamespace, ty: BackupType) -> Result<Self, Error> {
+        Self::new_at(libc::AT_FDCWD, store, ns, ty)
+    }
+
+    fn new_at(
+        fd: RawFd,
+        store: Arc<DataStore>,
+        ns: BackupNamespace,
+        ty: BackupType,
+    ) -> Result<Self, Error> {
+        Ok(Self {
+            dir: proxmox_sys::fs::read_subdir(fd, &store.type_path(&ns, ty))?,
+            store,
+            ns,
+            ty,
+        })
+    }
+
+    pub(crate) fn ok(self) -> ListGroupsOk<Self> {
+        ListGroupsOk::new(self)
+    }
+}
+
+impl Iterator for ListGroupsType {
+    type Item = Result<BackupGroup, Error>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            let item = self.dir.next()?;
+
+            let entry = match item {
+                Ok(ref entry) => {
+                    match entry.file_type() {
+                        Some(nix::dir::Type::Directory) => entry, // OK
+                        None => match get_file_type(entry.parent_fd(), entry.file_name()) {
+                            Ok(nix::dir::Type::Directory) => entry,
+                            Ok(_) => continue,
+                            Err(err) => {
+                                log::info!("error listing groups for {}: {err}", self.store.name());
+                                continue;
+                            }
+                        },
+                        _ => continue,
+                    }
+                }
+                Err(err) => return Some(Err(err)),
+            };
+
+            if let Ok(name) = entry.file_name().to_str() {
+                if BACKUP_ID_REGEX.is_match(name) {
+                    return Some(Ok(BackupGroup::new(
+                        Arc::clone(&self.store),
+                        self.ns.clone(),
+                        (self.ty, name.to_owned()).into(),
+                    )));
+                }
+            }
+        }
+    }
+}
+
 /// A iterator for a (single) level of Backup Groups
 pub struct ListGroups {
     store: Arc<DataStore>,
     ns: BackupNamespace,
     type_fd: proxmox_sys::fs::ReadDir,
-    id_state: Option<(BackupType, proxmox_sys::fs::ReadDir)>,
+    id_state: Option<ListGroupsType>,
 }
 
 impl ListGroups {
     pub fn new(store: Arc<DataStore>, ns: BackupNamespace) -> Result<Self, Error> {
-        let mut base_path = store.base_path();
-        base_path.push(ns.path());
-        Ok(ListGroups {
-            type_fd: proxmox_sys::fs::read_subdir(libc::AT_FDCWD, &base_path)?,
+        Ok(Self {
+            type_fd: proxmox_sys::fs::read_subdir(libc::AT_FDCWD, &store.namespace_path(&ns))?,
             store,
             ns,
             id_state: None,
         })
+    }
+
+    pub(crate) fn ok(self) -> ListGroupsOk<Self> {
+        ListGroupsOk::new(self)
     }
 }
 
@@ -93,43 +166,14 @@ impl Iterator for ListGroups {
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            if let Some((group_type, ref mut id_fd)) = self.id_state {
-                let item = match id_fd.next() {
-                    Some(item) => item,
+            if let Some(ref mut id_iter) = self.id_state {
+                match id_iter.next() {
+                    Some(item) => return Some(item),
                     None => {
                         self.id_state = None;
-                        continue; // exhausted all IDs for the current group type, try others
+                        // exhausted all IDs for the current group type, try others
                     }
                 };
-                let entry = match item {
-                    Ok(ref entry) => {
-                        match entry.file_type() {
-                            Some(nix::dir::Type::Directory) => entry, // OK
-                            None => match get_file_type(entry.parent_fd(), entry.file_name()) {
-                                Ok(nix::dir::Type::Directory) => entry,
-                                Ok(_) => continue,
-                                Err(err) => {
-                                    log::info!(
-                                        "error listing groups for {}: {err}",
-                                        self.store.name()
-                                    );
-                                    continue;
-                                }
-                            },
-                            _ => continue,
-                        }
-                    }
-                    Err(err) => return Some(Err(err)),
-                };
-                if let Ok(name) = entry.file_name().to_str() {
-                    if BACKUP_ID_REGEX.is_match(name) {
-                        return Some(Ok(BackupGroup::new(
-                            Arc::clone(&self.store),
-                            self.ns.clone(),
-                            (group_type, name.to_owned()).into(),
-                        )));
-                    }
-                }
             } else {
                 let item = self.type_fd.next()?;
                 let entry = match item {
@@ -153,20 +197,79 @@ impl Iterator for ListGroups {
                     }
                     Err(err) => return Some(Err(err)),
                 };
+
                 if let Ok(name) = entry.file_name().to_str() {
                     if let Ok(group_type) = BackupType::from_str(name) {
                         // found a backup group type, descend into it to scan all IDs in it
                         // by switching to the id-state branch
-                        let base_fd = entry.parent_fd();
-                        let id_dirfd = match proxmox_sys::fs::read_subdir(base_fd, name) {
-                            Ok(dirfd) => dirfd,
+                        match ListGroupsType::new_at(
+                            entry.parent_fd(),
+                            Arc::clone(&self.store),
+                            self.ns.clone(),
+                            group_type,
+                        ) {
+                            Ok(ty) => self.id_state = Some(ty),
                             Err(err) => return Some(Err(err.into())),
-                        };
-                        self.id_state = Some((group_type, id_dirfd));
+                        }
                     }
                 }
             }
         }
+    }
+}
+
+pub(crate) trait GroupIter {
+    fn store_name(&self) -> &str;
+}
+
+impl GroupIter for ListGroups {
+    fn store_name(&self) -> &str {
+        self.store.name()
+    }
+}
+
+impl GroupIter for ListGroupsType {
+    fn store_name(&self) -> &str {
+        self.store.name()
+    }
+}
+
+pub(crate) struct ListGroupsOk<I>(Option<I>)
+where
+    I: GroupIter + Iterator<Item = Result<BackupGroup, Error>>;
+
+impl<I> ListGroupsOk<I>
+where
+    I: GroupIter + Iterator<Item = Result<BackupGroup, Error>>,
+{
+    fn new(inner: I) -> Self {
+        Self(Some(inner))
+    }
+}
+
+impl<I> Iterator for ListGroupsOk<I>
+where
+    I: GroupIter + Iterator<Item = Result<BackupGroup, Error>>,
+{
+    type Item = BackupGroup;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(iter) = &mut self.0 {
+            match iter.next() {
+                Some(Ok(item)) => return Some(item),
+                Some(Err(err)) => {
+                    log::error!(
+                        "list groups error on datastore {} - {}",
+                        iter.store_name(),
+                        err
+                    );
+                }
+                None => (),
+            }
+
+            self.0 = None;
+        }
+        None
     }
 }
 

@@ -209,7 +209,9 @@ mod datastore;
 pub use datastore::{check_backup_owner, DataStore};
 
 mod hierarchy;
-pub use hierarchy::{ListGroups, ListNamespaces, ListNamespacesRecursive, ListSnapshots};
+pub use hierarchy::{
+    ListGroups, ListGroupsType, ListNamespaces, ListNamespacesRecursive, ListSnapshots,
+};
 
 mod snapshot_reader;
 pub use snapshot_reader::SnapshotReader;
