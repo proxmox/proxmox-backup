@@ -273,31 +273,34 @@ pub fn list_groups(
     },
 )]
 /// Delete backup group including all snapshots.
-pub fn delete_group(
+pub async fn delete_group(
     store: String,
     ns: Option<BackupNamespace>,
     group: pbs_api_types::BackupGroup,
-    _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-    let ns = ns.unwrap_or_default();
 
-    let datastore = check_privs_and_load_store(
-        &store,
-        &ns,
-        &auth_id,
-        PRIV_DATASTORE_MODIFY,
-        PRIV_DATASTORE_PRUNE,
-        Some(Operation::Write),
-        &group,
-    )?;
+    tokio::task::spawn_blocking(move || {
+        let ns = ns.unwrap_or_default();
 
-    if !datastore.remove_backup_group(&ns, &group)? {
-        bail!("group only partially deleted due to protected snapshots");
-    }
+        let datastore = check_privs_and_load_store(
+            &store,
+            &ns,
+            &auth_id,
+            PRIV_DATASTORE_MODIFY,
+            PRIV_DATASTORE_PRUNE,
+            Some(Operation::Write),
+            &group,
+        )?;
 
-    Ok(Value::Null)
+        if !datastore.remove_backup_group(&ns, &group)? {
+            bail!("group only partially deleted due to protected snapshots");
+        }
+
+        Ok(Value::Null)
+    })
+    .await?
 }
 
 #[api(
