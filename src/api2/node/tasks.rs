@@ -64,7 +64,7 @@ fn check_job_privs(auth_id: &Authid, user_info: &CachedUserInfo, upid: &UPID) ->
                 true,
             )
         }
-        ("prune", Some(workerid)) => {
+        ("prune", Some(workerid)) | ("prunejob", Some(workerid)) => {
             let mut acl_path = vec!["datastore"];
             acl_path.extend(workerid.split(':'));
             let acl_path = match acl_path.len() {
@@ -103,6 +103,7 @@ fn check_job_store(upid: &UPID, store: &str) -> bool {
             }
         }
         ("prune", Some(workerid))
+        | ("prunejob", Some(workerid))
         | ("backup", Some(workerid))
         | ("garbage_collection", Some(workerid)) => {
             return workerid == store || workerid.starts_with(&format!("{}:", store));
