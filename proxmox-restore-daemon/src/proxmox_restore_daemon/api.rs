@@ -13,7 +13,7 @@ use serde_json::Value;
 use tokio::sync::Semaphore;
 
 use pathpatterns::{MatchEntry, MatchPattern, MatchType, Pattern};
-use proxmox_compression::zip::zip_directory;
+use proxmox_compression::{tar::tar_directory, zip::zip_directory, zstd::ZstdEncoder};
 use proxmox_router::{
     list_subdirs_api_method, ApiHandler, ApiMethod, ApiResponseFuture, Permission, Router,
     RpcEnvironment, SubdirMap,
@@ -22,7 +22,7 @@ use proxmox_schema::*;
 use proxmox_sys::fs::read_subdir;
 use proxmox_sys::sortable;
 
-use pbs_api_types::file_restore::RestoreDaemonStatus;
+use pbs_api_types::file_restore::{FileRestoreFormat, RestoreDaemonStatus};
 use pbs_client::pxar::{create_archive, Flags, PxarCreateOptions, ENCODER_MAX_ENTRIES};
 use pbs_datastore::catalog::{ArchiveEntry, DirEntryAttribute};
 use pbs_tools::json::required_string_param;
@@ -237,11 +237,19 @@ pub const API_METHOD_EXTRACT: ApiMethod = ApiMethod::new(
                 true,
                 &BooleanSchema::new(concat!(
                     "if true, return a pxar archive, otherwise either the ",
-                    "file content or the directory as a zip file"
+                    "file content or the directory as a zip file. DEPRECATED: use 'format' instead."
                 ))
                 .default(true)
                 .schema()
-            )
+            ),
+            ("format", true, &FileRestoreFormat::API_SCHEMA,),
+            (
+                "zstd",
+                true,
+                &BooleanSchema::new(concat!("if true, zstd compresses the result.",))
+                    .default(false)
+                    .schema()
+            ),
         ]),
     ),
 )
@@ -271,7 +279,13 @@ fn extract(
         }
         let path = Path::new(OsStr::from_bytes(&path[..]));
 
-        let pxar = param["pxar"].as_bool().unwrap_or(true);
+        let format = match (param["format"].as_str(), param["pxar"].as_bool()) {
+            (Some(format), None) => format.to_string(),
+            (Some(_), Some(_)) => bail!("cannot set 'pxar' and 'format' simultaneously"),
+            // FIXME, pxar 'false' defaulted to either zip or plain, remove with 3.0
+            (None, Some(false) | None) => String::new(),
+            (None, Some(true)) => "pxar".to_string(),
+        };
 
         let query_result = proxmox_async::runtime::block_in_place(move || {
             let mut disk_state = crate::DISK_STATE.lock().unwrap();
@@ -291,7 +305,7 @@ fn extract(
 
         let (mut writer, reader) = tokio::io::duplex(1024 * 64);
 
-        if pxar {
+        if format == "pxar" {
             tokio::spawn(async move {
                 let _inhibitor = _inhibitor;
                 let _permit = _permit;
@@ -349,12 +363,23 @@ fn extract(
                     error!("pxar streaming task failed - {}", err);
                 }
             });
+        } else if format == "tar" {
+            tokio::spawn(async move {
+                let _inhibitor = _inhibitor;
+                let _permit = _permit;
+                if let Err(err) = tar_directory(&mut writer, &vm_path).await {
+                    error!("file or dir streaming task failed - {}", err);
+                }
+            });
         } else {
+            if format == "plain" && vm_path.is_dir() {
+                bail!("cannot stream dir with format 'plain'");
+            }
             tokio::spawn(async move {
                 let _inhibitor = _inhibitor;
                 let _permit = _permit;
                 let result = async move {
-                    if vm_path.is_dir() {
+                    if vm_path.is_dir() || format == "zip" {
                         zip_directory(&mut writer, &vm_path).await?;
                         Ok(())
                     } else if vm_path.is_file() {
@@ -377,7 +402,12 @@ fn extract(
 
         let stream = tokio_util::io::ReaderStream::new(reader);
 
-        let body = Body::wrap_stream(stream);
+        let body = if param["zstd"].as_bool().unwrap_or(false) {
+            let stream = ZstdEncoder::new(stream)?;
+            Body::wrap_stream(stream)
+        } else {
+            Body::wrap_stream(stream)
+        };
         Ok(Response::builder()
             .status(StatusCode::OK)
             .header(header::CONTENT_TYPE, "application/octet-stream")
