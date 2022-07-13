@@ -1561,7 +1561,7 @@ pub fn upload_backup_log(
     },
 )]
 /// Get the entries of the given path of the catalog
-pub fn catalog(
+pub async fn catalog(
     store: String,
     ns: Option<BackupNamespace>,
     backup_dir: pbs_api_types::BackupDir,
@@ -1569,51 +1569,55 @@ pub fn catalog(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<ArchiveEntry>, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-    let ns = ns.unwrap_or_default();
 
-    let datastore = check_privs_and_load_store(
-        &store,
-        &ns,
-        &auth_id,
-        PRIV_DATASTORE_READ,
-        PRIV_DATASTORE_BACKUP,
-        Some(Operation::Read),
-        &backup_dir.group,
-    )?;
+    tokio::task::spawn_blocking(move || {
+        let ns = ns.unwrap_or_default();
 
-    let backup_dir = datastore.backup_dir(ns, backup_dir)?;
+        let datastore = check_privs_and_load_store(
+            &store,
+            &ns,
+            &auth_id,
+            PRIV_DATASTORE_READ,
+            PRIV_DATASTORE_BACKUP,
+            Some(Operation::Read),
+            &backup_dir.group,
+        )?;
 
-    let file_name = CATALOG_NAME;
+        let backup_dir = datastore.backup_dir(ns, backup_dir)?;
 
-    let (manifest, files) = read_backup_index(&backup_dir)?;
-    for file in files {
-        if file.filename == file_name && file.crypt_mode == Some(CryptMode::Encrypt) {
-            bail!("cannot decode '{}' - is encrypted", file_name);
+        let file_name = CATALOG_NAME;
+
+        let (manifest, files) = read_backup_index(&backup_dir)?;
+        for file in files {
+            if file.filename == file_name && file.crypt_mode == Some(CryptMode::Encrypt) {
+                bail!("cannot decode '{}' - is encrypted", file_name);
+            }
         }
-    }
 
-    let mut path = datastore.base_path();
-    path.push(backup_dir.relative_path());
-    path.push(file_name);
+        let mut path = datastore.base_path();
+        path.push(backup_dir.relative_path());
+        path.push(file_name);
 
-    let index = DynamicIndexReader::open(&path)
-        .map_err(|err| format_err!("unable to read dynamic index '{:?}' - {}", &path, err))?;
+        let index = DynamicIndexReader::open(&path)
+            .map_err(|err| format_err!("unable to read dynamic index '{:?}' - {}", &path, err))?;
 
-    let (csum, size) = index.compute_csum();
-    manifest.verify_file(file_name, &csum, size)?;
+        let (csum, size) = index.compute_csum();
+        manifest.verify_file(file_name, &csum, size)?;
 
-    let chunk_reader = LocalChunkReader::new(datastore, None, CryptMode::None);
-    let reader = BufferedDynamicReader::new(index, chunk_reader);
+        let chunk_reader = LocalChunkReader::new(datastore, None, CryptMode::None);
+        let reader = BufferedDynamicReader::new(index, chunk_reader);
 
-    let mut catalog_reader = CatalogReader::new(reader);
+        let mut catalog_reader = CatalogReader::new(reader);
 
-    let path = if filepath != "root" && filepath != "/" {
-        base64::decode(filepath)?
-    } else {
-        vec![b'/']
-    };
+        let path = if filepath != "root" && filepath != "/" {
+            base64::decode(filepath)?
+        } else {
+            vec![b'/']
+        };
 
-    catalog_reader.list_dir_contents(&path)
+        catalog_reader.list_dir_contents(&path)
+    })
+    .await?
 }
 
 #[sortable]
