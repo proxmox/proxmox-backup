@@ -69,9 +69,6 @@ source_suffix = '.rst'
 # The master toctree document.
 master_doc = 'index'
 
-epilog_file = open('epilog.rst', 'r')
-rst_epilog = epilog_file.read()
-
 # General information about the project.
 project = 'Proxmox Backup'
 copyright = '2019-2021, Proxmox Server Solutions GmbH'
@@ -87,6 +84,10 @@ vstr = lambda s: '<devbuild>' if s is None else str(s)
 version = vstr(os.getenv('DEB_VERSION_UPSTREAM'))
 # The full version, including alpha/beta/rc tags.
 release = vstr(os.getenv('DEB_VERSION'))
+
+epilog_file = open('epilog.rst', 'r')
+rst_epilog = epilog_file.read()
+rst_epilog += f"\n..  |VERSION| replace:: {version}"
 
 man_pages = [
     # CLI

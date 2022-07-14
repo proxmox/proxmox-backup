@@ -3,8 +3,6 @@
    We use this file to define external links and common replacement
    patterns.
 
-.. |VERSION| replace:: 1.0
-.. |AUTHOR| replace:: Proxmox Support Team <support@proxmox.com>
 .. |WEBSITE| replace:: https://www.proxmox.com
 .. |DOWNLOADS| replace:: https://www.proxmox.com/downloads
 
@@ -40,4 +38,3 @@
 .. _ISO Week date: https://en.wikipedia.org/wiki/ISO_week_date
 
 .. _systemd.time manpage: https://manpages.debian.org/buster/systemd/systemd.time.7.en.html
-
