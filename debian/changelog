@@ -1,3 +1,50 @@
+rust-proxmox-backup (2.2.4-1) bullseye; urgency=medium
+
+  * config: remove duplicate privilege lookup in cached_user_info
+
+  * add external metrics endpoint config
+
+  * proxmox-backup-proxy: send metrics to configured metrics server
+    endpoints
+
+  * ui: add view for configuring metric servers
+
+  * fix #3867: server/api: send emails on certificate renewal failure
+
+  * api: disk management: return partitions
+
+  * internal: replace print with log macro
+
+  * docs: add note for setting verbosity level
+
+  * restore-daemon: make file listing "streaming" for better
+    interactivity on initial response
+
+  * partially fix #2915: stat in case the entry from the read dir call does
+    not contains the file type, fixing issues on some odd filesystems.
+
+  * tape reader: improve error for unknown magic number
+
+  * api: tape/backup: improve behaviour for vanishing snapshots, only
+    log the event but do not fail the tasks
+
+  * tape: include used tapes in job notification e-mails
+
+  * api: move some blocking parts off to their own (reused) thread to
+    reduce the chance of sometimes blocking the tokio reactor thread handling
+    things like new incoming connections
+
+  * api: optimize filtered snapshot listing
+
+  * docs: let sphinx build man pages for better integration and less
+    cruft. With that we can better reuse central information from the
+    sphinx config
+
+  * proxy: scheduler: only do a single start-up round of time alignment to
+    faster resume pending tasks
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 14 Jul 2022 18:35:08 +0200
+
 rust-proxmox-backup (2.2.3-2) bullseye; urgency=medium
 
   * api: tape restore: use HumanByte for friendlier total/throughput reporting
