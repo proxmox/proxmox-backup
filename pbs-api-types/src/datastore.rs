@@ -741,8 +741,11 @@ impl BackupType {
         }
     }
 
-    pub const fn iter() -> &'static [BackupType] {
-        &[Self::Vm, Self::Ct, Self::Host]
+    #[inline]
+    pub fn iter() -> impl Iterator<Item = BackupType> + Send + Sync + Unpin + 'static {
+        [BackupType::Vm, BackupType::Ct, BackupType::Host]
+            .iter()
+            .copied()
     }
 }
 
