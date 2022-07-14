@@ -513,11 +513,17 @@ fn start_traffic_control_updater() {
 
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-fn next_minute() -> Result<Instant, Error> {
+fn next_minute() -> Instant {
     let now = SystemTime::now();
-    let epoch_now = now.duration_since(UNIX_EPOCH)?;
+    let epoch_now = match now.duration_since(UNIX_EPOCH) {
+        Ok(d) => d,
+        Err(err) => {
+            eprintln!("task scheduler: compute next minute alignment failed - {err}");
+            return Instant::now() + Duration::from_secs(60);
+        }
+    };
     let epoch_next = Duration::from_secs((epoch_now.as_secs() / 60 + 1) * 60);
-    Ok(Instant::now() + epoch_next - epoch_now)
+    Instant::now() + epoch_next - epoch_now
 }
 
 async fn run_task_scheduler() {
@@ -526,18 +532,7 @@ async fn run_task_scheduler() {
     loop {
         count += 1;
 
-        let delay_target = match next_minute() {
-            // try to run very minute
-            Ok(d) => d,
-            Err(err) => {
-                eprintln!("task scheduler: compute next minute failed - {}", err);
-                tokio::time::sleep_until(tokio::time::Instant::from_std(
-                    Instant::now() + Duration::from_secs(60),
-                ))
-                .await;
-                continue;
-            }
-        };
+        let delay_target = next_minute();
 
         if count > 2 {
             // wait 1..2 minutes before starting
