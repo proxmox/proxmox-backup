@@ -527,26 +527,19 @@ fn next_minute() -> Instant {
 }
 
 async fn run_task_scheduler() {
-    let mut count: usize = 0;
-
     loop {
-        count += 1;
-
+        // sleep first to align to next minute boundary for first round
         let delay_target = next_minute();
-
-        if count > 2 {
-            // wait 1..2 minutes before starting
-            match schedule_tasks().catch_unwind().await {
-                Err(panic) => match panic.downcast::<&str>() {
-                    Ok(msg) => eprintln!("task scheduler panic: {msg}"),
-                    Err(_) => eprintln!("task scheduler panic - unknown type"),
-                },
-                Ok(Err(err)) => eprintln!("task scheduler failed - {err:?}"),
-                Ok(Ok(_)) => {}
-            }
-        }
-
         tokio::time::sleep_until(tokio::time::Instant::from_std(delay_target)).await;
+
+        match schedule_tasks().catch_unwind().await {
+            Err(panic) => match panic.downcast::<&str>() {
+                Ok(msg) => eprintln!("task scheduler panic: {msg}"),
+                Err(_) => eprintln!("task scheduler panic - unknown type"),
+            },
+            Ok(Err(err)) => eprintln!("task scheduler failed - {err:?}"),
+            Ok(Ok(_)) => {}
+        }
     }
 }
 
