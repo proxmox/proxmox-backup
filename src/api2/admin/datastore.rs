@@ -483,13 +483,15 @@ unsafe fn list_snapshots_blocking(
         }
         // FIXME: Recursion
         (Some(backup_type), None) => datastore
-            .iter_backup_groups_ok(ns.clone())?
-            .filter(|group| group.backup_type() == backup_type)
+            .iter_backup_type_ok(ns.clone(), backup_type)?
             .collect(),
         // FIXME: Recursion
-        (None, Some(backup_id)) => datastore
-            .iter_backup_groups_ok(ns.clone())?
-            .filter(|group| group.backup_id() == backup_id)
+        (None, Some(backup_id)) => BackupType::iter()
+            .filter_map(|backup_type| {
+                let group =
+                    datastore.backup_group_from_parts(ns.clone(), backup_type, backup_id.clone());
+                group.exists().then(move || group)
+            })
             .collect(),
         // FIXME: Recursion
         (None, None) => datastore.list_backup_groups(ns.clone())?,
