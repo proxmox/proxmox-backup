@@ -95,15 +95,6 @@ ALLSPHINXOPTS   = -d $(BUILDDIR)/doctrees $(SPHINXOPTS) .
 
 all: ${MAN1_PAGES} ${MAN5_PAGES}
 
-pxar/synopsis.rst: ${COMPILEDIR}/pxar
-	${COMPILEDIR}/pxar printdoc > pxar/synopsis.rst
-
-pmtx/synopsis.rst: ${COMPILEDIR}/pmtx
-	${COMPILEDIR}/pmtx printdoc > pmtx/synopsis.rst
-
-pmt/synopsis.rst: ${COMPILEDIR}/pmt
-	${COMPILEDIR}/pmt printdoc > pmt/synopsis.rst
-
 config/datastore/config.rst: ${COMPILEDIR}/docgen
 	${COMPILEDIR}/docgen datastore.cfg >$@
 
@@ -131,23 +122,11 @@ config/tape/config.rst: ${COMPILEDIR}/docgen
 config/tape-job/config.rst: ${COMPILEDIR}/docgen
 	${COMPILEDIR}/docgen tape-job.cfg >$@
 
-proxmox-tape/synopsis.rst: ${COMPILEDIR}/proxmox-tape
-	${COMPILEDIR}/proxmox-tape printdoc > proxmox-tape/synopsis.rst
-
-proxmox-backup-client/synopsis.rst: ${COMPILEDIR}/proxmox-backup-client
-	${COMPILEDIR}/proxmox-backup-client printdoc > proxmox-backup-client/synopsis.rst
+%/synopsis.rst: ${COMPILEDIR}/%
+	$< printdoc > $@
 
 proxmox-backup-client/catalog-shell-synopsis.rst: ${COMPILEDIR}/dump-catalog-shell-cli
 	${COMPILEDIR}/dump-catalog-shell-cli > proxmox-backup-client/catalog-shell-synopsis.rst
-
-proxmox-backup-manager/synopsis.rst: ${COMPILEDIR}/proxmox-backup-manager
-	${COMPILEDIR}/proxmox-backup-manager printdoc > proxmox-backup-manager/synopsis.rst
-
-proxmox-file-restore/synopsis.rst: ${COMPILEDIR}/proxmox-file-restore
-	${COMPILEDIR}/proxmox-file-restore printdoc > proxmox-file-restore/synopsis.rst
-
-proxmox-backup-debug/synopsis.rst: ${COMPILEDIR}/proxmox-backup-debug
-	${COMPILEDIR}/proxmox-backup-debug printdoc > proxmox-backup-debug/synopsis.rst
 
 ${MAN1_PAGES} ${MAN5_PAGES}: man-pages
 
