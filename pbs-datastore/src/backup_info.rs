@@ -78,6 +78,12 @@ impl BackupGroup {
         path
     }
 
+    /// Simple check whether a group exists. This does not check whether there are any snapshots,
+    /// but rather it simply checks whether the directory exists.
+    pub fn exists(&self) -> bool {
+        self.full_group_path().exists()
+    }
+
     pub fn list_backups(&self) -> Result<Vec<BackupInfo>, Error> {
         let mut list = vec![];
 
