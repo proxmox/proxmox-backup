@@ -1,16 +1,6 @@
-==========================
+========
 user.cfg
-==========================
-
-.. include:: ../../epilog.rst
-
--------------------------------------------------------------
-User Configuration
--------------------------------------------------------------
-
-:Author: |AUTHOR|
-:Version: Version |VERSION|
-:Manual section: 5
+========
 
 Description
 ===========
@@ -23,11 +13,9 @@ File Format
 
 .. include:: format.rst
 
-
 Options
 =======
 
 .. include:: config.rst
-
 
 .. include:: ../../pbs-copyright.rst

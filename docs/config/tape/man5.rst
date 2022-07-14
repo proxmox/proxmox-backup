@@ -1,16 +1,6 @@
-==========================
+========
 tape.cfg
-==========================
-
-.. include:: ../../epilog.rst
-
--------------------------------------------------------------
-Tape Drive and Changer Configuration
--------------------------------------------------------------
-
-:Author: |AUTHOR|
-:Version: Version |VERSION|
-:Manual section: 5
+========
 
 Description
 ===========
@@ -23,11 +13,9 @@ File Format
 
 .. include:: format.rst
 
-
 Options
 =======
 
 .. include:: config.rst
-
 
 .. include:: ../../pbs-copyright.rst

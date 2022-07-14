@@ -2,17 +2,6 @@
 proxmox-backup
 ==========================
 
-.. include:: ../epilog.rst
-
--------------------------------------------------------------
-Proxmox Backup Local API Server
--------------------------------------------------------------
-
-:Author: |AUTHOR|
-:Version: Version |VERSION|
-:Manual section: 1
-
-
 Synopsis
 ==========
 
@@ -31,11 +20,9 @@ For debugging, you can start the daemon in foreground using::
 .. NOTE:: You need to stop the service before starting the daemon in
    foreground.
 
-
 Description
 ============
 
 .. include:: description.rst
-
 
 .. include:: ../pbs-copyright.rst

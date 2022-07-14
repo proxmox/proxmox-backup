@@ -2,22 +2,10 @@
 pmtx
 ==========================
 
-.. include:: ../epilog.rst
-
--------------------------------------------------------------
-Control SCSI media changer devices (tape autoloaders)
--------------------------------------------------------------
-
-:Author: |AUTHOR|
-:Version: Version |VERSION|
-:Manual section: 1
-
-
 Synopsis
 ==========
 
 .. include:: synopsis.rst
-
 
 Common Options
 ==============
@@ -38,12 +26,10 @@ parameter. It accepts the following values:
 
 :``json-pretty``: JSON (multiple lines, nicely formatted).
 
-
 Description
 ============
 
 .. include:: description.rst
-
 
 ENVIRONMENT
 ===========
@@ -52,6 +38,5 @@ ENVIRONMENT
 
 :PROXMOX_TAPE_DRIVE: If set, use the Proxmox Backup Server
    configuration to find the associated changer device.
-
 
 .. include:: ../pbs-copyright.rst

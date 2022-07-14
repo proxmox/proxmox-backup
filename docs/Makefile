@@ -95,87 +95,44 @@ ALLSPHINXOPTS   = -d $(BUILDDIR)/doctrees $(SPHINXOPTS) .
 
 all: ${MAN1_PAGES} ${MAN5_PAGES}
 
-# Build manual pages using rst2man
-
 pxar/synopsis.rst: ${COMPILEDIR}/pxar
 	${COMPILEDIR}/pxar printdoc > pxar/synopsis.rst
-
-pxar.1: pxar/man1.rst  pxar/description.rst pxar/synopsis.rst
-	rst2man $< >$@
-
 
 pmtx/synopsis.rst: ${COMPILEDIR}/pmtx
 	${COMPILEDIR}/pmtx printdoc > pmtx/synopsis.rst
 
-pmtx.1: pmtx/man1.rst  pmtx/description.rst pmtx/synopsis.rst
-	rst2man $< >$@
-
-
 pmt/synopsis.rst: ${COMPILEDIR}/pmt
 	${COMPILEDIR}/pmt printdoc > pmt/synopsis.rst
-
-pmt.1: pmt/man1.rst  pmt/description.rst pmt/options.rst pmt/synopsis.rst
-	rst2man $< >$@
 
 config/datastore/config.rst: ${COMPILEDIR}/docgen
 	${COMPILEDIR}/docgen datastore.cfg >$@
 
-datastore.cfg.5: config/datastore/man5.rst config/datastore/config.rst config/datastore/format.rst
-	rst2man $< >$@
-
 config/user/config.rst: ${COMPILEDIR}/docgen
 	${COMPILEDIR}/docgen user.cfg >$@
-
-user.cfg.5: config/user/man5.rst config/user/config.rst config/user/format.rst
-	rst2man $< >$@
 
 config/remote/config.rst: ${COMPILEDIR}/docgen
 	${COMPILEDIR}/docgen remote.cfg >$@
 
-remote.cfg.5: config/remote/man5.rst config/remote/config.rst config/remote/format.rst
-	rst2man $< >$@
-
 config/sync/config.rst: ${COMPILEDIR}/docgen
 	${COMPILEDIR}/docgen sync.cfg >$@
-
-sync.cfg.5: config/sync/man5.rst config/sync/config.rst config/sync/format.rst
-	rst2man $< >$@
 
 config/verification/config.rst: ${COMPILEDIR}/docgen
 	${COMPILEDIR}/docgen verification.cfg >$@
 
-verification.cfg.5: config/verification/man5.rst config/verification/config.rst config/verification/format.rst
-	rst2man $< >$@
-
 config/acl/roles.rst: ${COMPILEDIR}/docgen
 	${COMPILEDIR}/docgen "config::acl::Role" >$@
-
-acl.cfg.5: config/acl/man5.rst config/acl/roles.rst config/acl/format.rst
-	rst2man $< >$@
 
 config/media-pool/config.rst: ${COMPILEDIR}/docgen
 	${COMPILEDIR}/docgen media-pool.cfg >$@
 
-media-pool.cfg.5: config/media-pool/man5.rst config/media-pool/config.rst config/media-pool/format.rst
-	rst2man $< >$@
-
 config/tape/config.rst: ${COMPILEDIR}/docgen
 	${COMPILEDIR}/docgen tape.cfg >$@
-
-tape.cfg.5: config/tape/man5.rst config/tape/config.rst config/tape/format.rst
-	rst2man $< >$@
 
 config/tape-job/config.rst: ${COMPILEDIR}/docgen
 	${COMPILEDIR}/docgen tape-job.cfg >$@
 
-tape-job.cfg.5: config/tape-job/man5.rst config/tape-job/config.rst config/tape-job/format.rst
-	rst2man $< >$@
-
 proxmox-tape/synopsis.rst: ${COMPILEDIR}/proxmox-tape
 	${COMPILEDIR}/proxmox-tape printdoc > proxmox-tape/synopsis.rst
-
-proxmox-tape.1: proxmox-tape/man1.rst proxmox-tape/description.rst proxmox-tape/synopsis.rst
-	rst2man $< >$@
 
 proxmox-backup-client/synopsis.rst: ${COMPILEDIR}/proxmox-backup-client
 	${COMPILEDIR}/proxmox-backup-client printdoc > proxmox-backup-client/synopsis.rst
@@ -183,29 +140,20 @@ proxmox-backup-client/synopsis.rst: ${COMPILEDIR}/proxmox-backup-client
 proxmox-backup-client/catalog-shell-synopsis.rst: ${COMPILEDIR}/dump-catalog-shell-cli
 	${COMPILEDIR}/dump-catalog-shell-cli > proxmox-backup-client/catalog-shell-synopsis.rst
 
-proxmox-backup-client.1: proxmox-backup-client/man1.rst  proxmox-backup-client/description.rst proxmox-backup-client/synopsis.rst  proxmox-backup-client/catalog-shell-synopsis.rst
-	rst2man $< >$@
-
 proxmox-backup-manager/synopsis.rst: ${COMPILEDIR}/proxmox-backup-manager
 	${COMPILEDIR}/proxmox-backup-manager printdoc > proxmox-backup-manager/synopsis.rst
-
-proxmox-backup-manager.1: proxmox-backup-manager/man1.rst  proxmox-backup-manager/description.rst proxmox-backup-manager/synopsis.rst
-	rst2man $< >$@
-
-proxmox-backup-proxy.1: proxmox-backup-proxy/man1.rst  proxmox-backup-proxy/description.rst
-	rst2man $< >$@
 
 proxmox-file-restore/synopsis.rst: ${COMPILEDIR}/proxmox-file-restore
 	${COMPILEDIR}/proxmox-file-restore printdoc > proxmox-file-restore/synopsis.rst
 
-proxmox-file-restore.1: proxmox-file-restore/man1.rst  proxmox-file-restore/description.rst proxmox-file-restore/synopsis.rst
-	rst2man $< >$@
-
 proxmox-backup-debug/synopsis.rst: ${COMPILEDIR}/proxmox-backup-debug
 	${COMPILEDIR}/proxmox-backup-debug printdoc > proxmox-backup-debug/synopsis.rst
 
-proxmox-backup-debug.1: proxmox-backup-debug/man1.rst  proxmox-backup-debug/description.rst proxmox-backup-debug/synopsis.rst
-	rst2man $< >$@
+${MAN1_PAGES} ${MAN5_PAGES}: man-pages
+
+.PHONY: man-pages
+man-pages: ${GENERATED_SYNOPSIS}
+	${SPHINXBUILD} ${SPHINXOPTS} -b man ./ ${BUILDDIR}/man
 
 .PHONY: onlinehelpinfo
 onlinehelpinfo:
@@ -259,12 +207,11 @@ clean:
 	rm -r -f *~ *.1 ${BUILDDIR} ${GENERATED_SYNOPSIS} api-viewer/apidata.js
 	rm -f api-viewer/apidoc.js lto-barcode/lto-barcode-generator.js prune-simulator/prune-simulator.js
 
-
-install_manual_pages: ${MAN1_PAGES} ${MAN5_PAGES}
+install_manual_pages: man-pages
 	install -dm755 $(DESTDIR)$(MAN1DIR)
-	for i in ${MAN1_PAGES}; do install -m755 $$i $(DESTDIR)$(MAN1DIR)/ ; done
+	for i in ${MAN1_PAGES}; do install -m755 ${BUILDDIR}/man/$$i $(DESTDIR)$(MAN1DIR)/ ; done
 	install -dm755 $(DESTDIR)$(MAN5DIR)
-	for i in ${MAN5_PAGES}; do install -m755 $$i $(DESTDIR)$(MAN5DIR)/ ; done
+	for i in ${MAN5_PAGES}; do install -m755 ${BUILDDIR}/man/$$i $(DESTDIR)$(MAN5DIR)/ ; done
 
 install_html: html
 	install -dm755 $(DESTDIR)$(DOCDIR)

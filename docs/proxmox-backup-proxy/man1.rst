@@ -2,17 +2,6 @@
 proxmox-backup-proxy
 ==========================
 
-.. include:: ../epilog.rst
-
--------------------------------------------------------------
-Proxmox Backup Public API Server
--------------------------------------------------------------
-
-:Author: |AUTHOR|
-:Version: Version |VERSION|
-:Manual section: 1
-
-
 Synopsis
 ==========
 
@@ -36,6 +25,4 @@ Description
 
 .. include:: description.rst
 
-
 .. include:: ../pbs-copyright.rst
-
