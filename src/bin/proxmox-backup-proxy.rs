@@ -538,16 +538,10 @@ async fn run_task_scheduler() {
             // wait 1..2 minutes before starting
             match schedule_tasks().catch_unwind().await {
                 Err(panic) => match panic.downcast::<&str>() {
-                    Ok(msg) => {
-                        eprintln!("task scheduler panic: {}", msg);
-                    }
-                    Err(_) => {
-                        eprintln!("task scheduler panic - unknown type");
-                    }
+                    Ok(msg) => eprintln!("task scheduler panic: {msg}"),
+                    Err(_) => eprintln!("task scheduler panic - unknown type"),
                 },
-                Ok(Err(err)) => {
-                    eprintln!("task scheduler failed - {:?}", err);
-                }
+                Ok(Err(err)) => eprintln!("task scheduler failed - {err:?}"),
                 Ok(Ok(_)) => {}
             }
         }
@@ -690,8 +684,7 @@ async fn schedule_datastore_prune_jobs() {
         }
 
         if !job_config.options.keeps_something() {
-            // no 'keep' values set, keep all
-            continue;
+            continue; // no 'keep' values set, keep all
         }
 
         let worker_type = "prunejob";
