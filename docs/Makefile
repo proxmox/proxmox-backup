@@ -95,32 +95,11 @@ ALLSPHINXOPTS   = -d $(BUILDDIR)/doctrees $(SPHINXOPTS) .
 
 all: ${MAN1_PAGES} ${MAN5_PAGES}
 
-config/datastore/config.rst: ${COMPILEDIR}/docgen
-	${COMPILEDIR}/docgen datastore.cfg >$@
-
-config/user/config.rst: ${COMPILEDIR}/docgen
-	${COMPILEDIR}/docgen user.cfg >$@
-
-config/remote/config.rst: ${COMPILEDIR}/docgen
-	${COMPILEDIR}/docgen remote.cfg >$@
-
-config/sync/config.rst: ${COMPILEDIR}/docgen
-	${COMPILEDIR}/docgen sync.cfg >$@
-
-config/verification/config.rst: ${COMPILEDIR}/docgen
-	${COMPILEDIR}/docgen verification.cfg >$@
+config/%/config.rst: ${COMPILEDIR}/docgen
+	${COMPILEDIR}/docgen $*.cfg >$@
 
 config/acl/roles.rst: ${COMPILEDIR}/docgen
 	${COMPILEDIR}/docgen "config::acl::Role" >$@
-
-config/media-pool/config.rst: ${COMPILEDIR}/docgen
-	${COMPILEDIR}/docgen media-pool.cfg >$@
-
-config/tape/config.rst: ${COMPILEDIR}/docgen
-	${COMPILEDIR}/docgen tape.cfg >$@
-
-config/tape-job/config.rst: ${COMPILEDIR}/docgen
-	${COMPILEDIR}/docgen tape-job.cfg >$@
 
 %/synopsis.rst: ${COMPILEDIR}/%
 	$< printdoc > $@
