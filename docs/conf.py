@@ -88,6 +88,7 @@ release = vstr(os.getenv('DEB_VERSION'))
 epilog_file = open('epilog.rst', 'r')
 rst_epilog = epilog_file.read()
 rst_epilog += f"\n..  |VERSION| replace:: {version}"
+rst_epilog += f"\n..  |pbs-copyright| replace:: Copyright (C) {copyright}"
 
 man_pages = [
     # CLI

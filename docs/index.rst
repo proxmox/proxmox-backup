@@ -2,7 +2,7 @@
 
 Welcome to the Proxmox Backup documentation!
 ============================================
-| Copyright (C) 2019-2021 Proxmox Server Solutions GmbH
+| |pbs-copyright|
 | Version |version| -- |today|
 
 Permission is granted to copy, distribute and/or modify this document under the
