@@ -170,6 +170,17 @@ async fn run() -> Result<(), Error> {
         bail!("unable to start daemon - {}", err);
     }
 
+    // stop gap for https://github.com/tokio-rs/tokio/issues/4730 where the thread holding the
+    // IO-driver may block progress completely if it starts polling its own tasks (blocks).
+    // So, trigger a notify to parked threads, as we're immediately ready the woken up thread will
+    // acquire the IO driver, if blocked, before going to sleep, which allows progress again
+    // TODO: remove once tokio solves this at their level (see proposals in linked comments)
+    let rt_handle = tokio::runtime::Handle::current();
+    std::thread::spawn(move || loop {
+        rt_handle.spawn(std::future::ready(()));
+        std::thread::sleep(std::time::Duration::from_secs(3));
+    });
+
     server.await?;
     log::info!("server shutting down, waiting for active workers to complete");
     proxmox_rest_server::last_worker_future().await?;
