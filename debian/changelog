@@ -1,3 +1,12 @@
+rust-proxmox-backup (2.2.5-1) bullseye; urgency=medium
+
+  * fix #4157: docs: fix copy-paste error in repo examples
+
+  * api daemons: periodically trigger unparking of a tokio thread to ensure
+    work progress for all incoming requests on in some unfortunate occasions
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 18 Jul 2022 14:22:18 +0200
+
 rust-proxmox-backup (2.2.4-1) bullseye; urgency=medium
 
   * config: remove duplicate privilege lookup in cached_user_info
