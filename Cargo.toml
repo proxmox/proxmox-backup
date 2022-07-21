@@ -93,7 +93,7 @@ zstd = { version = "0.6", features = [ "bindgen" ] }
 pathpatterns = "0.1.2"
 pxar = { version = "0.10.1", features = [ "tokio-io" ] }
 
-proxmox-http = { version = "0.6.1", features = [ "client", "http-helpers", "websocket" ] }
+proxmox-http = { version = "0.6.4", features = [ "client", "http-helpers", "websocket" ] }
 proxmox-io = "1"
 proxmox-lang = "1.1"
 proxmox-metrics = "0.2"
