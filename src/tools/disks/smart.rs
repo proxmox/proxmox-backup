@@ -25,8 +25,11 @@ pub enum SmartStatus {
 pub struct SmartAttribute {
     /// Attribute name
     name: String,
-    /// Attribute raw value
+    // fixme remove value in major release
+    /// duplicate of raw - kept for API stability
     value: String,
+    /// Attribute raw value
+    raw: String,
     // the rest of the values is available for ATA type
     /// ATA Attribute ID
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -146,7 +149,8 @@ pub fn get_smart_data(disk: &super::Disk, health_only: bool) -> Result<SmartData
 
             attributes.push(SmartAttribute {
                 name,
-                value: raw_value,
+                value: raw_value.clone(),
+                raw: raw_value,
                 id: Some(id),
                 flags: Some(flags),
                 normalized: Some(normalized),
@@ -180,6 +184,7 @@ pub fn get_smart_data(disk: &super::Disk, health_only: bool) -> Result<SmartData
                 attributes.push(SmartAttribute {
                     name: name.to_string(),
                     value: value.to_string(),
+                    raw: value.to_string(),
                     id: None,
                     flags: None,
                     normalized: None,
