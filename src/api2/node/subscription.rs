@@ -5,7 +5,7 @@ use proxmox_http::client::{SimpleHttp, SimpleHttpOptions};
 use proxmox_router::{Permission, Router, RpcEnvironment};
 use proxmox_schema::api;
 use proxmox_subscription::{SubscriptionInfo, SubscriptionStatus};
-use proxmox_sys::fs::{file_get_contents, CreateOptions};
+use proxmox_sys::fs::CreateOptions;
 
 use pbs_api_types::{
     Authid, NODE_SCHEMA, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY, SUBSCRIPTION_KEY_SCHEMA,
@@ -14,7 +14,7 @@ use pbs_api_types::{
 use crate::config::node;
 use crate::tools::{DEFAULT_USER_AGENT_STRING, PROXMOX_BACKUP_TCP_KEEPALIVE_TIME};
 
-use pbs_buildcfg::{PROXMOX_BACKUP_SUBSCRIPTION_FN, PROXMOX_BACKUP_SUBSCRIPTION_SIGNATURE_KEY_FN};
+use pbs_buildcfg::PROXMOX_BACKUP_SUBSCRIPTION_FN;
 use pbs_config::CachedUserInfo;
 
 const PRODUCT_URL: &str = "https://www.proxmox.com/en/proxmox-backup-server/pricing";
@@ -33,17 +33,6 @@ pub fn subscription_file_opts() -> Result<CreateOptions, Error> {
 fn apt_auth_file_opts() -> CreateOptions {
     let mode = nix::sys::stat::Mode::from_bits_truncate(0o0600);
     CreateOptions::new().perm(mode).owner(nix::unistd::ROOT)
-}
-
-pub fn subscription_signature_key() -> Result<openssl::pkey::PKey<openssl::pkey::Public>, Error> {
-    let key = file_get_contents(PROXMOX_BACKUP_SUBSCRIPTION_SIGNATURE_KEY_FN)?;
-    openssl::pkey::PKey::public_key_from_pem(&key).map_err(|err| {
-        format_err!(
-            "Failed parsing public key from '{}' - {}",
-            PROXMOX_BACKUP_SUBSCRIPTION_SIGNATURE_KEY_FN,
-            err
-        )
-    })
 }
 
 fn check_and_write_subscription(key: String, server_id: String) -> Result<(), Error> {
@@ -105,7 +94,7 @@ fn check_and_write_subscription(key: String, server_id: String) -> Result<(), Er
 pub fn check_subscription(force: bool) -> Result<(), Error> {
     let mut info = match proxmox_subscription::files::read_subscription(
         PROXMOX_BACKUP_SUBSCRIPTION_FN,
-        &subscription_signature_key()?,
+        &[proxmox_subscription::files::DEFAULT_SIGNING_KEY],
     ) {
         Err(err) => bail!("could not read subscription status: {}", err),
         Ok(Some(info)) => info,
@@ -162,7 +151,7 @@ pub fn get_subscription(
 ) -> Result<SubscriptionInfo, Error> {
     let info = match proxmox_subscription::files::read_subscription(
         PROXMOX_BACKUP_SUBSCRIPTION_FN,
-        &subscription_signature_key()?,
+        &[proxmox_subscription::files::DEFAULT_SIGNING_KEY],
     ) {
         Err(err) => bail!("could not read subscription status: {}", err),
         Ok(Some(info)) => info,

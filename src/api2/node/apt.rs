@@ -258,7 +258,7 @@ fn apt_get_changelog(param: Value) -> Result<Value, Error> {
     } else if changelog_url.starts_with("https://enterprise.proxmox.com/") {
         let sub = match proxmox_subscription::files::read_subscription(
             PROXMOX_BACKUP_SUBSCRIPTION_FN,
-            &super::subscription::subscription_signature_key()?,
+            &[proxmox_subscription::files::DEFAULT_SIGNING_KEY],
         )? {
             Some(sub) => sub,
             None => {

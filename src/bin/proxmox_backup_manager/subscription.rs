@@ -5,10 +5,7 @@ use proxmox_router::{cli::*, ApiHandler, RpcEnvironment};
 use proxmox_schema::api;
 use proxmox_subscription::SubscriptionInfo;
 
-use proxmox_backup::api2::{
-    self,
-    node::subscription::{subscription_file_opts, subscription_signature_key},
-};
+use proxmox_backup::api2::{self, node::subscription::subscription_file_opts};
 
 use pbs_buildcfg::PROXMOX_BACKUP_SUBSCRIPTION_FN;
 
@@ -54,7 +51,7 @@ pub fn set_offline_subscription_key(data: String) -> Result<(), Error> {
     if !info.is_signed() {
         bail!("Offline subscription key must be signed!");
     }
-    info.check_signature(&subscription_signature_key()?);
+    info.check_signature(&[proxmox_subscription::files::DEFAULT_SIGNING_KEY]);
     info.check_age(false);
     info.check_server_id();
     proxmox_subscription::files::write_subscription(

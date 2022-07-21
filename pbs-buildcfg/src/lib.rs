@@ -91,8 +91,6 @@ pub const PROXMOX_BACKUP_KERNEL_FN: &str =
     concat!(PROXMOX_BACKUP_FILE_RESTORE_BIN_DIR_M!(), "/bzImage");
 
 pub const PROXMOX_BACKUP_SUBSCRIPTION_FN: &str = configdir!("/subscription");
-pub const PROXMOX_BACKUP_SUBSCRIPTION_SIGNATURE_KEY_FN: &str =
-    "/usr/share/keyrings/proxmox-offline-signing-key.pub";
 
 /// Prepend configuration directory to a file name
 ///
