@@ -111,7 +111,7 @@ proxmox-compression = "0.1"
 
 
 proxmox-acme-rs = "0.4"
-proxmox-apt = "0.8.0"
+proxmox-apt = "0.9.0"
 proxmox-async = "0.4"
 proxmox-openid = "0.9.0"
 
