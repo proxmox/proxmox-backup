@@ -554,7 +554,10 @@ pub fn add_repository(handle: APTRepositoryHandle, digest: Option<String>) -> Re
         );
     }
 
-    if let Some(file) = files.iter_mut().find(|file| file.path.as_ref() == Some(&path)) {
+    if let Some(file) = files
+        .iter_mut()
+        .find(|file| file.path.as_ref() == Some(&path))
+    {
         file.repositories.push(repo);
 
         file.write()?;
@@ -622,7 +625,10 @@ pub fn change_repository(
         bail!("unable to parse file {} - {}", error.path, error.error);
     }
 
-    if let Some(file) = files.iter_mut().find(|file| file.path.as_ref() == Some(&path)) {
+    if let Some(file) = files
+        .iter_mut()
+        .find(|file| file.path.as_ref() == Some(&path))
+    {
         if let Some(repo) = file.repositories.get_mut(index) {
             if let Some(enabled) = enabled {
                 repo.set_enabled(enabled);
