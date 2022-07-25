@@ -53,8 +53,11 @@ pub fn get_webauthn_config(
 #[serde(rename_all = "kebab-case")]
 /// Deletable property name
 pub enum DeletableProperty {
-    /// Delete the origin property.
+    /// Delete the `origin` property.
     Origin,
+
+    /// Delete the `allow_subdomains` property.
+    AllowSubdomains,
 }
 
 #[api(
@@ -105,6 +108,9 @@ pub fn update_webauthn_config(
                     DeletableProperty::Origin => {
                         wa.origin = None;
                     }
+                    DeletableProperty::AllowSubdomains => {
+                        wa.allow_subdomains = None;
+                    }
                 }
             }
         }
@@ -114,6 +120,9 @@ pub fn update_webauthn_config(
         }
         if webauthn.origin.is_some() {
             wa.origin = webauthn.origin;
+        }
+        if webauthn.allow_subdomains.is_some() {
+            wa.allow_subdomains = webauthn.allow_subdomains;
         }
         if let Some(id) = webauthn.id {
             wa.id = id;
@@ -126,7 +135,13 @@ pub fn update_webauthn_config(
         let id = webauthn
             .id
             .ok_or_else(|| format_err!("missing property: 'id'"))?;
-        tfa.webauthn = Some(WebauthnConfig { rp, origin, id });
+        let allow_subdomains = webauthn.allow_subdomains;
+        tfa.webauthn = Some(WebauthnConfig {
+            rp,
+            origin,
+            id,
+            allow_subdomains,
+        });
     }
 
     tfa::write(&tfa)?;
