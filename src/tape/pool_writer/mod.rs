@@ -106,7 +106,7 @@ impl PoolWriter {
     pub fn get_used_media_labels(&self) -> Result<Vec<String>, Error> {
         let mut res = Vec::with_capacity(self.used_tapes.len());
         for media_uuid in &self.used_tapes {
-            let media_info = self.pool.lookup_media(&media_uuid)?;
+            let media_info = self.pool.lookup_media(media_uuid)?;
             res.push(media_info.label_text().to_string());
         }
 
@@ -271,7 +271,7 @@ impl PoolWriter {
 
         self.catalog_set.lock().unwrap().append_catalog(catalog)?;
 
-        let media_set = media.media_set_label().clone().unwrap();
+        let media_set = media.media_set_label().unwrap();
 
         let encrypt_fingerprint = media_set
             .encryption_key_fingerprint
@@ -390,7 +390,7 @@ impl PoolWriter {
     fn append_media_set_catalogs(&mut self, worker: &WorkerTask) -> Result<(), Error> {
         let media_set = self.pool.current_media_set();
 
-        let mut media_list = &media_set.media_list()[..];
+        let mut media_list = media_set.media_list();
         if media_list.len() < 2 {
             return Ok(());
         }

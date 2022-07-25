@@ -337,7 +337,7 @@ impl AclTree {
     fn get_node(&self, path: &[&str]) -> Option<&AclTreeNode> {
         let mut node = &self.root;
         for outer in path {
-            for comp in outer.split("/") {
+            for comp in outer.split('/') {
                 node = match node.children.get(comp) {
                     Some(n) => n,
                     None => return None,
@@ -350,7 +350,7 @@ impl AclTree {
     fn get_node_mut(&mut self, path: &[&str]) -> Option<&mut AclTreeNode> {
         let mut node = &mut self.root;
         for outer in path {
-            for comp in outer.split("/") {
+            for comp in outer.split('/') {
                 node = match node.children.get_mut(comp) {
                     Some(n) => n,
                     None => return None,
@@ -363,7 +363,7 @@ impl AclTree {
     fn get_or_insert_node(&mut self, path: &[&str]) -> &mut AclTreeNode {
         let mut node = &mut self.root;
         for outer in path {
-            for comp in outer.split("/") {
+            for comp in outer.split('/') {
                 node = node.children.entry(String::from(comp)).or_default();
             }
         }
@@ -666,7 +666,7 @@ impl AclTree {
     pub fn get_child_paths(&self, auth_id: &Authid, path: &[&str]) -> Result<Vec<String>, Error> {
         let mut res = Vec::new();
 
-        if let Some(node) = self.get_node(&path) {
+        if let Some(node) = self.get_node(path) {
             let path = path.join("/");
             node.get_child_paths(path, auth_id, &mut res)?;
         }

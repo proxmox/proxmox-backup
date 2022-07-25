@@ -88,7 +88,7 @@ impl TryFrom<Vec<String>> for NamespaceMap {
 }
 
 impl NamespaceMap {
-    fn used_namespaces<'a>(&self, datastore: &str) -> HashSet<BackupNamespace> {
+    fn used_namespaces(&self, datastore: &str) -> HashSet<BackupNamespace> {
         let mut set = HashSet::new();
         if let Some(mapping) = self.map.get(datastore) {
             for (ns, _) in mapping.values() {
@@ -190,8 +190,8 @@ impl DataStoreMap {
     fn target_store(&self, source_datastore: &str) -> Option<Arc<DataStore>> {
         self.map
             .get(source_datastore)
-            .or_else(|| self.default.as_ref())
-            .map(|store| Arc::clone(store))
+            .or(self.default.as_ref())
+            .map(Arc::clone)
     }
 
     fn get_targets(
@@ -397,7 +397,7 @@ pub fn restore(
 
             let email = notify_user
                 .as_ref()
-                .and_then(|userid| lookup_user_email(userid))
+                .and_then(lookup_user_email)
                 .or_else(|| lookup_user_email(&auth_id.clone().into()));
 
             task_log!(worker, "Mediaset '{media_set}'");
@@ -406,7 +406,7 @@ pub fn restore(
             let res = if snapshots.is_some() || namespaces {
                 restore_list_worker(
                     worker.clone(),
-                    snapshots.unwrap_or_else(Vec::new),
+                    snapshots.unwrap_or_default(),
                     inventory,
                     media_set_uuid,
                     drive_config,
@@ -521,7 +521,7 @@ fn restore_full_worker(
             &mut checked_chunks_map,
             restore_owner,
             &email,
-            &auth_id,
+            auth_id,
         )?;
     }
 
@@ -589,7 +589,7 @@ fn check_snapshot_restorable(
 
         have_some_permissions = true;
 
-        if datastore.snapshot_path(&ns, &dir).exists() {
+        if datastore.snapshot_path(&ns, dir).exists() {
             task_warn!(
                 worker,
                 "found snapshot {snapshot} on target datastore/namespace, skipping...",
@@ -603,7 +603,7 @@ fn check_snapshot_restorable(
         bail!("cannot restore {snapshot} to any target namespace due to permissions");
     }
 
-    return Ok(can_restore_some);
+    Ok(can_restore_some)
 }
 
 fn restore_list_worker(
@@ -670,13 +670,13 @@ fn restore_list_worker(
                     let (store, snapshot) = store_snapshot.split_at(idx + 1);
                     let store = &store[..idx]; // remove ':'
 
-                    match parse_ns_and_snapshot(&snapshot) {
+                    match parse_ns_and_snapshot(snapshot) {
                         Ok((ns, dir)) => {
                             match check_snapshot_restorable(
                                 &worker,
                                 &store_map,
-                                &store,
-                                &snapshot,
+                                store,
+                                snapshot,
                                 &ns,
                                 &dir,
                                 true,
@@ -710,7 +710,7 @@ fn restore_list_worker(
                 None => bail!("unexpected error"), // we already checked those
             };
             let (media_id, file_num) =
-                if let Some((media_uuid, file_num)) = catalog.lookup_snapshot(store, &snapshot) {
+                if let Some((media_uuid, file_num)) = catalog.lookup_snapshot(store, snapshot) {
                     let media_id = inventory.lookup_media(media_uuid).unwrap();
                     (media_id, file_num)
                 } else {
@@ -926,7 +926,7 @@ fn restore_list_worker(
     }
 
     for (datastore, _) in store_map.used_datastores().values() {
-        let tmp_path = media_set_tmpdir(&datastore, &media_set_uuid);
+        let tmp_path = media_set_tmpdir(datastore, &media_set_uuid);
         match std::fs::remove_dir_all(&tmp_path) {
             Ok(()) => {}
             Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
@@ -1193,15 +1193,12 @@ fn restore_partial_chunk_archive<'a>(
 
     let verify_and_write_channel = writer_pool.channel();
 
-    loop {
-        let (digest, blob) = match decoder.next_chunk()? {
-            Some((digest, blob)) => (digest, blob),
-            None => break,
-        };
+    while let Some((digest, blob)) = decoder.next_chunk()? {
+            
         worker.check_abort()?;
 
         if chunk_list.remove(&digest) {
-            verify_and_write_channel.send((blob, digest.clone()))?;
+            verify_and_write_channel.send((blob, digest))?;
             count += 1;
         }
         if chunk_list.is_empty() {
@@ -1326,7 +1323,7 @@ pub fn restore_media(
             &mut catalog,
             checked_chunks_map,
             verbose,
-            &auth_id,
+            auth_id,
         )?;
     }
 
@@ -1388,7 +1385,7 @@ fn restore_archive<'a>(
                         &user_info,
                         &datastore,
                         &backup_ns,
-                        &auth_id,
+                        auth_id,
                         Some(restore_owner),
                     )?;
                     let (owner, _group_lock) = datastore.create_locked_backup_group(
@@ -1483,7 +1480,7 @@ fn restore_archive<'a>(
                             .unwrap_or("_unused_")
                             .to_string(),
                     )
-                    .or_insert(HashSet::new());
+                    .or_default();
 
                 let chunks = if let Some(datastore) = datastore {
                     restore_chunk_archive(
@@ -1649,8 +1646,8 @@ fn restore_chunk_archive<'a>(
         worker.check_abort()?;
 
         if !checked_chunks.contains(&digest) {
-            verify_and_write_channel.send((blob, digest.clone()))?;
-            checked_chunks.insert(digest.clone());
+            verify_and_write_channel.send((blob, digest))?;
+            checked_chunks.insert(digest);
         }
         chunks.push(digest);
     }
@@ -1884,11 +1881,10 @@ pub fn fast_catalog_restore(
                 let wanted = media_set
                     .media_list()
                     .iter()
-                    .find(|e| match e {
+                    .any(|e| match e {
                         None => false,
                         Some(uuid) => uuid == catalog_uuid,
-                    })
-                    .is_some();
+                    });
 
                 if !wanted {
                     task_log!(

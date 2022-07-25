@@ -486,7 +486,7 @@ fn backup_worker(
                     print_ns_and_snapshot(info.backup_dir.backup_ns(), info.backup_dir.as_ref());
                 if pool_writer.contains_snapshot(
                     datastore_name,
-                    &info.backup_dir.backup_ns(),
+                    info.backup_dir.backup_ns(),
                     info.backup_dir.as_ref(),
                 ) {
                     task_log!(worker, "skip snapshot {}", rel_path);
@@ -512,7 +512,7 @@ fn backup_worker(
 
                 if pool_writer.contains_snapshot(
                     datastore_name,
-                    &info.backup_dir.backup_ns(),
+                    info.backup_dir.backup_ns(),
                     info.backup_dir.as_ref(),
                 ) {
                     task_log!(worker, "skip snapshot {}", rel_path);

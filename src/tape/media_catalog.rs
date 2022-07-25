@@ -18,6 +18,7 @@ use pbs_api_types::{parse_ns_and_snapshot, print_ns_and_snapshot, BackupDir, Bac
 
 use crate::tape::{file_formats::MediaSetLabel, MediaId};
 
+#[derive(Default)]
 pub struct DatastoreContent {
     pub snapshot_index: HashMap<String, u64>, // snapshot => file_nr
     pub chunk_index: HashMap<[u8; 32], u64>,  // chunk => file_nr
@@ -611,7 +612,7 @@ impl MediaCatalog {
 
         self.content
             .entry(store.to_string())
-            .or_insert(DatastoreContent::new());
+            .or_default();
 
         self.current_archive = Some((uuid, file_number, store.to_string()));
 
@@ -728,7 +729,7 @@ impl MediaCatalog {
         let content = self
             .content
             .entry(store.to_string())
-            .or_insert(DatastoreContent::new());
+            .or_default();
 
         content.snapshot_index.insert(path, file_number);
 
@@ -858,7 +859,7 @@ impl MediaCatalog {
 
                     self.content
                         .entry(store.to_string())
-                        .or_insert(DatastoreContent::new());
+                        .or_default();
 
                     self.current_archive = Some((uuid, file_number, store.to_string()));
                 }
@@ -895,7 +896,7 @@ impl MediaCatalog {
                     let content = self
                         .content
                         .entry(store.to_string())
-                        .or_insert(DatastoreContent::new());
+                        .or_default();
 
                     content
                         .snapshot_index
@@ -1016,19 +1017,17 @@ impl MediaSetCatalog {
     pub fn list_snapshots(&self) -> impl Iterator<Item = (&str, &str)> {
         self.catalog_list
             .values()
-            .map(|catalog| {
+            .flat_map(|catalog| {
                 catalog
                     .content
                     .iter()
-                    .map(|(store, content)| {
+                    .flat_map(|(store, content)| {
                         content
                             .snapshot_index
                             .keys()
                             .map(move |key| (store.as_str(), key.as_str()))
                     })
-                    .flatten()
             })
-            .flatten()
     }
 }
 

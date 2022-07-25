@@ -135,7 +135,7 @@ pub fn update_online_status(
 
     for mut changer_config in changers {
         if let Some(changer) = changer {
-            if changer != &changer_config.name {
+            if changer != changer_config.name {
                 continue;
             }
             found_changer = true;
@@ -158,7 +158,7 @@ pub fn update_online_status(
     let vtapes: Vec<VirtualTapeDrive> = config.convert_to_typed_array("virtual")?;
     for mut vtape in vtapes {
         if let Some(changer) = changer {
-            if changer != &vtape.name {
+            if changer != vtape.name {
                 continue;
             }
             found_changer = true;

@@ -432,14 +432,14 @@ impl MediaPool {
             res
         });
 
-        free_media.pop().map(|e| e.clone())
+        free_media.pop().cloned()
     }
 
     // Get next empty media
     pub fn next_empty_media(&self, media_list: &[BackupMedia]) -> Option<MediaId> {
         let mut empty_media = Vec::new();
 
-        for media in media_list.into_iter() {
+        for media in media_list.iter() {
             if !self.location_is_available(media.location()) {
                 continue;
             }
@@ -472,7 +472,7 @@ impl MediaPool {
     ) -> Option<MediaId> {
         let mut expired_media = Vec::new();
 
-        for media in media_list.into_iter() {
+        for media in media_list.iter() {
             if !self.location_is_available(media.location()) {
                 continue;
             }

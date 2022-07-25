@@ -198,7 +198,7 @@ impl VirtualTapeHandle {
         match status.current_tape {
             Some(VirtualTapeStatus { ref mut pos, .. }) => {
                 if count <= *pos {
-                    *pos = *pos - count;
+                    *pos -= count;
                 } else {
                     bail!("backward_space_count_files failed: move before BOT");
                 }

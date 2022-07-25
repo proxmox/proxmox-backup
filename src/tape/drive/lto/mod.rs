@@ -49,7 +49,7 @@ pub fn open_lto_tape_drive(config: &LtoTapeDrive) -> Result<LtoTapeHandle, Error
 
         let mut handle = LtoTapeHandle::new(file)?;
 
-        if !handle.sg_tape.test_unit_ready().is_ok() {
+        if handle.sg_tape.test_unit_ready().is_err() {
             // for autoloader only, try to reload ejected tapes
             if config.changer.is_some() {
                 let _ = handle.sg_tape.load(); // just try, ignore error
@@ -302,7 +302,7 @@ impl TapeDriver for LtoTapeHandle {
 
                         let mut tape_key = [0u8; 32];
 
-                        let uuid_bytes: [u8; 16] = uuid.as_bytes().clone();
+                        let uuid_bytes: [u8; 16] = *uuid.as_bytes();
 
                         openssl::pkcs5::pbkdf2_hmac(
                             &item.key,
