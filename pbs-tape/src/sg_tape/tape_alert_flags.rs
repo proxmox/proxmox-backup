@@ -79,6 +79,7 @@ pub fn read_tape_alert_flags<F: AsRawFd>(file: &mut F) -> Result<TapeAlertFlags,
     decode_tape_alert_flags(&data)
 }
 
+#[allow(clippy::vec_init_then_push)]
 fn sg_read_tape_alert_flags<F: AsRawFd>(file: &mut F) -> Result<Vec<u8>, Error> {
     let mut sg_raw = SgRaw::new(file, 512)?;
 

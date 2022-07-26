@@ -236,10 +236,12 @@ pub struct ModeParameterHeader {
 }
 
 impl ModeParameterHeader {
+    #[allow(clippy::unusual_byte_groupings)]
     pub fn buffer_mode(&self) -> u8 {
-        (self.flags3 & 0b0111_0000) >> 4
+        (self.flags3 & 0b0_111_0000) >> 4
     }
 
+    #[allow(clippy::unusual_byte_groupings)]
     pub fn set_buffer_mode(&mut self, buffer_mode: bool) {
         let mut mode = self.flags3 & 0b1_000_1111;
         if buffer_mode {
@@ -248,8 +250,9 @@ impl ModeParameterHeader {
         self.flags3 = mode;
     }
 
+    #[allow(clippy::unusual_byte_groupings)]
     pub fn write_protect(&self) -> bool {
-        (self.flags3 & 0b1000_0000) != 0
+        (self.flags3 & 0b1_000_0000) != 0
     }
 }
 
@@ -380,13 +383,11 @@ impl<'a, F: AsRawFd> SgRaw<'a, F> {
     ///
     /// The file must be a handle to a SCSI device.
     pub fn new(file: &'a mut F, buffer_size: usize) -> Result<Self, Error> {
-        let buffer;
-
-        if buffer_size > 0 {
-            buffer = alloc_page_aligned_buffer(buffer_size)?;
+        let buffer = if buffer_size > 0 {
+            alloc_page_aligned_buffer(buffer_size)?
         } else {
-            buffer = Box::new([]);
-        }
+            Box::new([])
+        };
 
         let sense_buffer = [0u8; 32];
 
@@ -683,8 +684,7 @@ pub fn scsi_mode_sense<F: AsRawFd, P: Endian>(
     let allocation_len: u16 = 4096;
     let mut sg_raw = SgRaw::new(file, allocation_len as usize)?;
 
-    let mut cmd = Vec::new();
-    cmd.push(0x5A); // MODE SENSE(10)
+    let mut cmd = vec![0x5A]; // MODE SENSE(10)
     if disable_block_descriptor {
         cmd.push(8); // DBD=1 (Disable Block Descriptors)
     } else {

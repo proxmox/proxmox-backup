@@ -144,7 +144,7 @@ fn get_syslog(
 ) -> Result<Value, Error> {
     let service = param["service"]
         .as_str()
-        .map(|service| crate::api2::node::services::real_service_name(service));
+        .map(crate::api2::node::services::real_service_name);
 
     let (count, lines) = dump_journal(
         param["start"].as_u64(),

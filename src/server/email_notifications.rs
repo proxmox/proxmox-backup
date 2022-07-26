@@ -538,7 +538,7 @@ pub fn send_updates_available(updates: &[&APTUpdateInfo]) -> Result<(), Error> {
 /// send email on certificate renewal failure.
 pub fn send_certificate_renewal_mail(result: &Result<(), Error>) -> Result<(), Error> {
     let error: String = match result {
-        Err(e) => e.to_string().into(),
+        Err(e) => e.to_string(),
         _ => return Ok(()),
     };
 
@@ -620,8 +620,7 @@ fn handlebars_humam_bytes_helper(
 ) -> HelperResult {
     let param = h
         .param(0)
-        .map(|v| v.value().as_u64())
-        .flatten()
+        .and_then(|v| v.value().as_u64())
         .ok_or_else(|| RenderError::new("human-bytes: param not found"))?;
 
     out.write(&HumanByte::from(param).to_string())?;
@@ -638,13 +637,11 @@ fn handlebars_relative_percentage_helper(
 ) -> HelperResult {
     let param0 = h
         .param(0)
-        .map(|v| v.value().as_f64())
-        .flatten()
+        .and_then(|v| v.value().as_f64())
         .ok_or_else(|| RenderError::new("relative-percentage: param0 not found"))?;
     let param1 = h
         .param(1)
-        .map(|v| v.value().as_f64())
-        .flatten()
+        .and_then(|v| v.value().as_f64())
         .ok_or_else(|| RenderError::new("relative-percentage: param1 not found"))?;
 
     if param1 == 0.0 {

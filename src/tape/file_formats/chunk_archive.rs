@@ -116,13 +116,11 @@ impl<'a> ChunkArchiveWriter<'a> {
             } else {
                 self.write_all(&blob_data[start..end])?
             };
-            if leom {
-                if self.close_on_leom {
-                    let mut writer = self.writer.take().unwrap();
-                    writer.finish(false)?;
-                    self.bytes_written = writer.bytes_written();
-                    return Ok(chunk_is_complete);
-                }
+            if leom && self.close_on_leom {
+                let mut writer = self.writer.take().unwrap();
+                writer.finish(false)?;
+                self.bytes_written = writer.bytes_written();
+                return Ok(chunk_is_complete);
             }
             start = end;
         }

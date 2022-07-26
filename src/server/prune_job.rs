@@ -164,9 +164,9 @@ pub fn do_prune_job(
     let worker_type = job.jobtype().to_string();
     let auth_id = auth_id.clone();
     let worker_id = match &prune_options.ns {
-        Some(ns) if ns.is_root() => format!("{store}"),
+        Some(ns) if ns.is_root() => store,
         Some(ns) => format!("{store}:{ns}"),
-        None => format!("{store}"),
+        None => store,
     };
 
     let upid_str = WorkerTask::new_thread(

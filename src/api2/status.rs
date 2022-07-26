@@ -49,7 +49,7 @@ pub async fn datastore_status(
         let user_privs = user_info.lookup_privs(&auth_id, &["datastore", store]);
         let allowed = (user_privs & (PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_BACKUP)) != 0;
         if !allowed {
-            if let Ok(datastore) = DataStore::lookup_datastore(&store, Some(Operation::Lookup)) {
+            if let Ok(datastore) = DataStore::lookup_datastore(store, Some(Operation::Lookup)) {
                 if can_access_any_namespace(datastore, &auth_id, &user_info) {
                     list.push(DataStoreStatusListItem::empty(store, None));
                 }
@@ -57,7 +57,7 @@ pub async fn datastore_status(
             continue;
         }
 
-        let datastore = match DataStore::lookup_datastore(&store, Some(Operation::Read)) {
+        let datastore = match DataStore::lookup_datastore(store, Some(Operation::Read)) {
             Ok(datastore) => datastore,
             Err(err) => {
                 list.push(DataStoreStatusListItem::empty(store, Some(err.to_string())));
@@ -127,7 +127,7 @@ pub async fn datastore_status(
         list.push(entry);
     }
 
-    Ok(list.into())
+    Ok(list)
 }
 
 const SUBDIRS: SubdirMap = &[(

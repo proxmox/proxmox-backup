@@ -216,6 +216,7 @@ The delete flag additionally requires the Datastore.Prune privilege on '/datasto
     },
 )]
 /// Sync store from other repository
+#[allow(clippy::too_many_arguments)]
 async fn pull(
     store: String,
     ns: Option<BackupNamespace>,

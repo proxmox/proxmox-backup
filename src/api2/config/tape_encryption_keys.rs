@@ -90,6 +90,7 @@ pub fn list_keys(
     },
 )]
 /// Change the encryption key's password (and password hint).
+#[allow(clippy::too_many_arguments)]
 pub fn change_passphrase(
     kdf: Option<Kdf>,
     password: Option<String>,

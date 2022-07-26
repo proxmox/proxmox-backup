@@ -214,30 +214,28 @@ pub async fn list_media(
     let inventory = Inventory::load(status_path)?;
 
     let privs = user_info.lookup_privs(&auth_id, &["tape", "pool"]);
-    if (privs & PRIV_TAPE_AUDIT) != 0 {
-        if pool.is_none() {
-            for media_id in inventory.list_unassigned_media() {
-                let (mut status, location) = inventory.status_and_location(&media_id.label.uuid);
+    if (privs & PRIV_TAPE_AUDIT) != 0 && pool.is_none() {
+        for media_id in inventory.list_unassigned_media() {
+            let (mut status, location) = inventory.status_and_location(&media_id.label.uuid);
 
-                if status == MediaStatus::Unknown {
-                    status = MediaStatus::Writable;
-                }
-
-                list.push(MediaListEntry {
-                    uuid: media_id.label.uuid.clone(),
-                    ctime: media_id.label.ctime,
-                    label_text: media_id.label.label_text.to_string(),
-                    location,
-                    status,
-                    catalog: true, // empty, so we do not need a catalog
-                    expired: false,
-                    media_set_uuid: None,
-                    media_set_name: None,
-                    media_set_ctime: None,
-                    seq_nr: None,
-                    pool: None,
-                });
+            if status == MediaStatus::Unknown {
+                status = MediaStatus::Writable;
             }
+
+            list.push(MediaListEntry {
+                uuid: media_id.label.uuid.clone(),
+                ctime: media_id.label.ctime,
+                label_text: media_id.label.label_text.to_string(),
+                location,
+                status,
+                catalog: true, // empty, so we do not need a catalog
+                expired: false,
+                media_set_uuid: None,
+                media_set_name: None,
+                media_set_ctime: None,
+                seq_nr: None,
+                pool: None,
+            });
         }
     }
 

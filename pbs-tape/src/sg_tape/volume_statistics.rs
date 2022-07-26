@@ -22,6 +22,7 @@ pub fn read_volume_statistics<F: AsRawFd>(file: &mut F) -> Result<Lp17VolumeStat
     decode_volume_statistics(&data)
 }
 
+#[allow(clippy::vec_init_then_push)]
 fn sg_read_volume_statistics<F: AsRawFd>(file: &mut F) -> Result<Vec<u8>, Error> {
     let alloc_len: u16 = 8192;
     let mut sg_raw = SgRaw::new(file, alloc_len as usize)?;

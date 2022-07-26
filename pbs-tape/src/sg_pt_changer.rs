@@ -27,11 +27,10 @@ pub fn initialize_element_status<F: AsRawFd>(file: &mut F) -> Result<(), Error> 
     // like mtx(1), set a very long timeout (30 minutes)
     sg_raw.set_timeout(30 * 60);
 
-    let mut cmd = Vec::new();
-    cmd.extend(&[0x07, 0, 0, 0, 0, 0]); // INITIALIZE ELEMENT STATUS (07h)
+    let cmd = &[0x07, 0, 0, 0, 0, 0]; // INITIALIZE ELEMENT STATUS (07h)
 
     sg_raw
-        .do_command(&cmd)
+        .do_command(cmd)
         .map_err(|err| format_err!("initializte element status (07h) failed - {}", err))?;
 
     Ok(())
@@ -123,15 +122,16 @@ fn read_element_address_assignment<F: AsRawFd>(
     let mut sg_raw = SgRaw::new(file, allocation_len as usize)?;
     sg_raw.set_timeout(SCSI_CHANGER_DEFAULT_TIMEOUT);
 
-    let mut cmd = Vec::new();
-    cmd.push(0x1A); // MODE SENSE6 (1Ah)
-    cmd.push(0x08); // DBD=1 (The Disable Block Descriptors)
-    cmd.push(0x1D); // Element Address Assignment Page
-    cmd.push(0);
-    cmd.push(allocation_len); // allocation len
-    cmd.push(0); //control
+    let cmd = &[
+        0x1A, // MODE SENSE6 (1Ah)
+        0x08, // DBD=1 (The Disable Block Descriptors)
+        0x1D, // Element Address Assignment Page
+        0,
+        allocation_len, // allocation len
+        0,              //control
+    ];
 
-    let data = execute_scsi_command(&mut sg_raw, &cmd, "read element address assignment", true)?;
+    let data = execute_scsi_command(&mut sg_raw, cmd, "read element address assignment", true)?;
 
     proxmox_lang::try_block!({
         let mut reader = &data[..];
@@ -146,6 +146,7 @@ fn read_element_address_assignment<F: AsRawFd>(
     .map_err(|err: Error| format_err!("decode element address assignment page failed - {}", err))
 }
 
+#[allow(clippy::vec_init_then_push)]
 fn scsi_move_medium_cdb(
     medium_transport_address: u16,
     source_element_address: u16,
@@ -276,6 +277,7 @@ impl ElementType {
     }
 }
 
+#[allow(clippy::vec_init_then_push)]
 fn scsi_read_element_status_cdb(
     start_element_address: u16,
     number_of_elements: u16,

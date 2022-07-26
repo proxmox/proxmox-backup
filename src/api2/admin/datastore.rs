@@ -100,7 +100,7 @@ fn check_privs_and_load_store(
 
     if limited {
         let owner = datastore.get_owner(ns, backup_group)?;
-        check_backup_owner(&owner, &auth_id)?;
+        check_backup_owner(&owner, auth_id)?;
     }
 
     Ok(datastore)
@@ -778,6 +778,7 @@ pub async fn status(
 ///
 /// This function can verify a single backup snapshot, all backup from a backup group,
 /// or all backups in the datastore.
+#[allow(clippy::too_many_arguments)]
 pub fn verify(
     store: String,
     ns: Option<BackupNamespace>,
@@ -1287,7 +1288,7 @@ pub fn download_file(
 
         let backup_dir: pbs_api_types::BackupDir = Deserialize::deserialize(&param)?;
         let datastore = check_privs_and_load_store(
-            &store,
+            store,
             &backup_ns,
             &auth_id,
             PRIV_DATASTORE_READ,
@@ -1301,7 +1302,7 @@ pub fn download_file(
         println!(
             "Download {} from {} ({}/{})",
             file_name,
-            print_store_and_ns(&store, &backup_ns),
+            print_store_and_ns(store, &backup_ns),
             backup_dir,
             file_name
         );
@@ -1372,7 +1373,7 @@ pub fn download_file_decoded(
 
         let backup_dir_api: pbs_api_types::BackupDir = Deserialize::deserialize(&param)?;
         let datastore = check_privs_and_load_store(
-            &store,
+            store,
             &backup_ns,
             &auth_id,
             PRIV_DATASTORE_READ,
@@ -1394,7 +1395,7 @@ pub fn download_file_decoded(
         println!(
             "Download {} from {} ({}/{})",
             file_name,
-            print_store_and_ns(&store, &backup_ns),
+            print_store_and_ns(store, &backup_ns),
             backup_dir_api,
             file_name
         );
@@ -1403,7 +1404,7 @@ pub fn download_file_decoded(
         path.push(backup_dir.relative_path());
         path.push(&file_name);
 
-        let extension = file_name.rsplitn(2, '.').next().unwrap();
+        let (_, extension) = file_name.rsplit_once('.').unwrap();
 
         let body = match extension {
             "didx" => {
@@ -1503,7 +1504,7 @@ pub fn upload_backup_log(
         let backup_dir_api: pbs_api_types::BackupDir = Deserialize::deserialize(&param)?;
 
         let datastore = check_privs_and_load_store(
-            &store,
+            store,
             &backup_ns,
             &auth_id,
             0,
@@ -1524,7 +1525,7 @@ pub fn upload_backup_log(
 
         println!(
             "Upload backup log to {} {backup_dir_api}/{file_name}",
-            print_store_and_ns(&store, &backup_ns),
+            print_store_and_ns(store, &backup_ns),
         );
 
         let data = req_body
@@ -1667,7 +1668,7 @@ pub fn pxar_file_download(
 
         let backup_dir: pbs_api_types::BackupDir = Deserialize::deserialize(&param)?;
         let datastore = check_privs_and_load_store(
-            &store,
+            store,
             &ns,
             &auth_id,
             PRIV_DATASTORE_READ,

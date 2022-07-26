@@ -1181,7 +1181,7 @@ impl DataStore {
     /// stat'ed are placed at the end of the list
     pub fn get_chunks_in_order<F, A>(
         &self,
-        index: &Box<dyn IndexFile + Send>,
+        index: &(dyn IndexFile + Send),
         skip_chunk: F,
         check_abort: A,
     ) -> Result<Vec<(usize, u64)>, Error>

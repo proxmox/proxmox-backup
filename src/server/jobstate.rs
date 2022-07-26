@@ -324,10 +324,12 @@ pub fn compute_schedule_status(
         }
     };
 
-    let mut status = JobScheduleStatus::default();
-    status.last_run_upid = upid.map(String::from);
-    status.last_run_state = state;
-    status.last_run_endtime = endtime;
+    let mut status = JobScheduleStatus {
+        last_run_upid: upid.map(String::from),
+        last_run_state: state,
+        last_run_endtime: endtime,
+        ..Default::default()
+    };
 
     if let Some(schedule) = schedule {
         if let Ok(event) = schedule.parse::<CalendarEvent>() {

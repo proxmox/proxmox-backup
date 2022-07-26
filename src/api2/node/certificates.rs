@@ -397,7 +397,7 @@ async fn order_certificate(
                     .ok_or_else(|| format_err!("missing 'finalize' URL in order"))?;
                 if let Err(err) = acme.finalize(finalize, &csr.data).await {
                     if finalize_error_cnt >= 5 {
-                        return Err(err.into());
+                        return Err(err);
                     }
 
                     finalize_error_cnt += 1;

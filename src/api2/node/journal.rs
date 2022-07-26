@@ -59,6 +59,7 @@ use pbs_api_types::{NODE_SCHEMA, PRIV_SYS_AUDIT};
     },
 )]
 /// Read syslog entries.
+#[allow(clippy::too_many_arguments)]
 fn get_journal(
     since: Option<i64>,
     until: Option<i64>,

@@ -255,7 +255,7 @@ impl BackupEnvironment {
     pub fn lookup_chunk(&self, digest: &[u8; 32]) -> Option<u32> {
         let state = self.state.lock().unwrap();
 
-        state.known_chunks.get(digest).map(|len| *len)
+        state.known_chunks.get(digest).copied()
     }
 
     /// Store the writer with an unique ID

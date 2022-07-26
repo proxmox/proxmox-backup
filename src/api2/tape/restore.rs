@@ -316,6 +316,7 @@ pub const ROUTER: Router = Router::new().post(&API_METHOD_RESTORE);
     },
 )]
 /// Restore data from media-set. Namespaces will be automatically created if necessary.
+#[allow(clippy::too_many_arguments)]
 pub fn restore(
     store: String,
     drive: String,
@@ -631,7 +632,7 @@ fn restore_list_worker(
             let mut restorable = Vec::new();
             // restore source namespaces
             for (store, snapshot) in catalog.list_snapshots() {
-                let (ns, dir) = match parse_ns_and_snapshot(&snapshot) {
+                let (ns, dir) = match parse_ns_and_snapshot(snapshot) {
                     Ok((ns, dir)) if store_map.has_full_mapping(store, &ns) => (ns, dir),
                     Err(err) => {
                         task_warn!(worker, "couldn't parse snapshot {snapshot} - {err}");
@@ -1194,7 +1195,6 @@ fn restore_partial_chunk_archive<'a>(
     let verify_and_write_channel = writer_pool.channel();
 
     while let Some((digest, blob)) = decoder.next_chunk()? {
-            
         worker.check_abort()?;
 
         if chunk_list.remove(&digest) {
@@ -1878,13 +1878,10 @@ pub fn fast_catalog_restore(
 
                 let catalog_uuid = &archive_header.uuid;
 
-                let wanted = media_set
-                    .media_list()
-                    .iter()
-                    .any(|e| match e {
-                        None => false,
-                        Some(uuid) => uuid == catalog_uuid,
-                    });
+                let wanted = media_set.media_list().iter().any(|e| match e {
+                    None => false,
+                    Some(uuid) => uuid == catalog_uuid,
+                });
 
                 if !wanted {
                     task_log!(

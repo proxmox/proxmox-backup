@@ -56,7 +56,7 @@ impl<T: Any> AsAny for T {
 
 /// The default 2 hours are far too long for PBS
 pub const PROXMOX_BACKUP_TCP_KEEPALIVE_TIME: u32 = 120;
-pub const DEFAULT_USER_AGENT_STRING: &'static str = "proxmox-backup-client/1.0";
+pub const DEFAULT_USER_AGENT_STRING: &str = "proxmox-backup-client/1.0";
 
 /// Returns a new instance of `SimpleHttp` configured for PBS usage.
 pub fn pbs_simple_http(proxy_config: Option<ProxyConfig>) -> SimpleHttp {
@@ -64,7 +64,6 @@ pub fn pbs_simple_http(proxy_config: Option<ProxyConfig>) -> SimpleHttp {
         proxy_config,
         user_agent: Some(DEFAULT_USER_AGENT_STRING.to_string()),
         tcp_keepalive: Some(PROXMOX_BACKUP_TCP_KEEPALIVE_TIME),
-        ..Default::default()
     };
 
     SimpleHttp::with_options(options)

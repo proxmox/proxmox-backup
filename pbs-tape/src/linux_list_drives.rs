@@ -262,8 +262,8 @@ pub fn lookup_device<'a>(devices: &'a [TapeDeviceInfo], path: &str) -> Option<&'
 }
 
 /// Lookup optional drive identification attributes
-pub fn lookup_device_identification<'a>(
-    devices: &'a [TapeDeviceInfo],
+pub fn lookup_device_identification(
+    devices: &[TapeDeviceInfo],
     path: &str,
 ) -> OptionalDeviceIdentification {
     if let Some(info) = lookup_device(devices, path) {

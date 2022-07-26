@@ -82,6 +82,7 @@ struct LVMBucketData {
 ///         more subdirectories
 /// e.g.: "/drive-scsi0/part/0/etc/passwd"
 #[derive(Clone)]
+#[allow(clippy::upper_case_acronyms)]
 enum Bucket {
     Partition(PartitionBucketData),
     RawFs(PartitionBucketData),
@@ -91,7 +92,7 @@ enum Bucket {
 
 impl Bucket {
     fn filter_mut<'a, A: AsRef<str>, B: AsRef<str>>(
-        haystack: &'a mut Vec<Bucket>,
+        haystack: &'a mut [Bucket],
         ty: A,
         comp: &[B],
     ) -> Option<&'a mut Bucket> {

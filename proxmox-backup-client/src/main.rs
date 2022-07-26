@@ -702,7 +702,7 @@ async fn create_backup(
 
     let backup_id = param["backup-id"]
         .as_str()
-        .unwrap_or(proxmox_sys::nodename());
+        .unwrap_or_else(|| proxmox_sys::nodename());
 
     let backup_ns = optional_ns_param(&param)?;
 

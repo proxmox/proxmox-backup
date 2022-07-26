@@ -41,9 +41,9 @@ pub fn create_value_from_rrd(
 
         let mut t = start;
 
-        for index in 0..data.len() {
-            let entry = timemap.entry(t).or_insert(json!({ "time": t }));
-            if let Some(value) = data[index] {
+        for value in data {
+            let entry = timemap.entry(t).or_insert_with(|| json!({ "time": t }));
+            if let Some(value) = value {
                 entry[*name] = value.into();
             }
             t += reso;

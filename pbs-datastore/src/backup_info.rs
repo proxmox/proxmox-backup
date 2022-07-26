@@ -619,7 +619,7 @@ impl BackupInfo {
         })
     }
 
-    pub fn sort_list(list: &mut Vec<BackupInfo>, ascendending: bool) {
+    pub fn sort_list(list: &mut [BackupInfo], ascendending: bool) {
         if ascendending {
             // oldest first
             list.sort_unstable_by(|a, b| a.backup_dir.dir.time.cmp(&b.backup_dir.dir.time));

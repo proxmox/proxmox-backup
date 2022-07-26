@@ -24,6 +24,7 @@ struct MamAttributeHeader {
     len: u16,
 }
 
+#[allow(clippy::upper_case_acronyms)]
 enum MamFormat {
     BINARY,
     ASCII,

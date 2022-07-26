@@ -231,10 +231,7 @@ pub struct NodeConfig {
 impl NodeConfig {
     pub fn acme_config(&self) -> Option<Result<AcmeConfig, Error>> {
         self.acme.as_deref().map(|config| -> Result<_, Error> {
-            Ok(crate::tools::config::from_property_string(
-                config,
-                &AcmeConfig::API_SCHEMA,
-            )?)
+            crate::tools::config::from_property_string(config, &AcmeConfig::API_SCHEMA)
         })
     }
 

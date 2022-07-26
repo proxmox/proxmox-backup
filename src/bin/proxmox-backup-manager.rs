@@ -276,6 +276,7 @@ fn task_mgmt_cli() -> CommandLineInterface {
    }
 )]
 /// Sync datastore from another repository
+#[allow(clippy::too_many_arguments)]
 async fn pull_datastore(
     remote: String,
     remote_store: String,

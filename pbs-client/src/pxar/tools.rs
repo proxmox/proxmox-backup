@@ -134,10 +134,12 @@ pub fn format_single_line_entry(entry: &Entry) -> String {
         _ => ("0".to_string(), String::new()),
     };
 
+    let owner_string = format!("{}/{}", meta.stat.uid, meta.stat.gid);
+
     format!(
         "{} {:<13} {} {:>8} {:?}{}",
         mode_string,
-        format!("{}/{}", meta.stat.uid, meta.stat.gid),
+        owner_string,
         format_mtime(&meta.stat.mtime),
         size,
         entry.path(),

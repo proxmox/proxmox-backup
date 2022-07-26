@@ -481,11 +481,7 @@ pub async fn scan_remote_groups(
 
     let client = remote_client(&remote, None).await.map_err(map_remote_err)?;
 
-    let args = if let Some(ns) = namespace {
-        Some(json!({ "ns": ns }))
-    } else {
-        None
-    };
+    let args = namespace.map(|ns| json!({ "ns": ns }));
 
     let api_res = client
         .get(&format!("api2/json/admin/datastore/{}/groups", store), args)

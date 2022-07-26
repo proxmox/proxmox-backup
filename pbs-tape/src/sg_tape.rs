@@ -175,6 +175,7 @@ impl SgTape {
     /// of data. After the command is successfully completed, the
     /// drive is positioned immediately before End Of Data (not End Of
     /// Tape).
+    #[allow(clippy::vec_init_then_push)]
     pub fn erase_media(&mut self, fast: bool) -> Result<(), Error> {
         let mut sg_raw = SgRaw::new(&mut self.file, 16)?;
         sg_raw.set_timeout(Self::SCSI_TAPE_DEFAULT_TIMEOUT);
@@ -273,6 +274,7 @@ impl SgTape {
         Ok(())
     }
 
+    #[allow(clippy::unusual_byte_groupings)]
     pub fn locate_file(&mut self, position: u64) -> Result<(), Error> {
         if position == 0 {
             return self.rewind();
@@ -534,8 +536,7 @@ impl SgTape {
         })?;
 
         sg_raw.set_timeout(Self::SCSI_TAPE_DEFAULT_TIMEOUT);
-        let mut cmd = Vec::new();
-        cmd.push(0x10);
+        let mut cmd = vec![0x10];
         if immediate {
             cmd.push(1); // IMMED=1
         } else {
@@ -668,16 +669,17 @@ impl SgTape {
         let mut sg_raw = SgRaw::new(&mut self.file, 0).unwrap(); // cannot fail with size 0
 
         sg_raw.set_timeout(Self::SCSI_TAPE_DEFAULT_TIMEOUT);
-        let mut cmd = Vec::new();
-        cmd.push(0x08); // READ
-        cmd.push(0x02); // VARIABLE SIZED BLOCKS, SILI=1
-                        //cmd.push(0x00); // VARIABLE SIZED BLOCKS, SILI=0
-        cmd.push(((transfer_len >> 16) & 0xff) as u8);
-        cmd.push(((transfer_len >> 8) & 0xff) as u8);
-        cmd.push((transfer_len & 0xff) as u8);
-        cmd.push(0); // control byte
+        let cmd = &[
+            0x08, // READ
+            0x02, // VARIABLE SIZED BLOCKS, SILI=1
+            //0x00, // VARIABLE SIZED BLOCKS, SILI=0
+            ((transfer_len >> 16) & 0xff) as u8,
+            ((transfer_len >> 8) & 0xff) as u8,
+            (transfer_len & 0xff) as u8,
+            0, // control byte
+        ];
 
-        let data = match sg_raw.do_in_command(&cmd, buffer) {
+        let data = match sg_raw.do_in_command(cmd, buffer) {
             Ok(data) => data,
             Err(ScsiError::Sense(SenseInfo {
                 sense_key: 0,
@@ -734,6 +736,7 @@ impl SgTape {
     }
 
     /// Set important drive options
+    #[allow(clippy::vec_init_then_push)]
     pub fn set_drive_options(
         &mut self,
         compression: Option<bool>,

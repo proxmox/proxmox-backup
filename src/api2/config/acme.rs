@@ -246,9 +246,9 @@ pub async fn do_register_account<'a>(
     rsa_bits: Option<u32>,
 ) -> Result<&'a Account, Error> {
     let contact = account_contact_from_string(&contact);
-    Ok(client
+    client
         .new_account(name, agree_to_tos, contact, rsa_bits)
-        .await?)
+        .await
 }
 
 #[api(

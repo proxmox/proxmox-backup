@@ -17,6 +17,7 @@ pub trait ProxmoxAuthenticator {
     fn remove_password(&self, username: &UsernameRef) -> Result<(), Error>;
 }
 
+#[allow(clippy::upper_case_acronyms)]
 struct PAM();
 
 impl ProxmoxAuthenticator for PAM {
@@ -70,6 +71,7 @@ impl ProxmoxAuthenticator for PAM {
     }
 }
 
+#[allow(clippy::upper_case_acronyms)]
 struct PBS();
 
 const SHADOW_CONFIG_FILENAME: &str = configdir!("/shadow.json");

@@ -478,7 +478,7 @@ impl Disk {
             let stat = unsafe { std::str::from_utf8_unchecked(&stat) };
             let stat: Vec<u64> = stat
                 .split_ascii_whitespace()
-                .map(|s| u64::from_str_radix(s, 10).unwrap_or(0))
+                .map(|s| s.parse().unwrap_or_default())
                 .collect();
 
             if stat.len() < 15 {
@@ -821,7 +821,7 @@ fn get_partitions_info(
 
             let mut used = PartitionUsageType::Unused;
 
-            if let Some(devnum) = disk.devnum().ok() {
+            if let Ok(devnum) = disk.devnum() {
                 if lvm_devices.contains(&devnum) {
                     used = PartitionUsageType::LVM;
                 } else if zfs_devices.contains(&devnum) {

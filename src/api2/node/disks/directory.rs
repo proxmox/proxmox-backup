@@ -88,7 +88,7 @@ pub fn list_datastore_mounts() -> Result<Vec<DatastoreMountInfo>, Error> {
         let name = data
             .Where
             .strip_prefix(BASE_MOUNT_DIR)
-            .unwrap_or_else(|| &data.Where)
+            .unwrap_or(&data.Where)
             .to_string();
 
         list.push(DatastoreMountInfo {

@@ -85,7 +85,7 @@ pub fn can_access_any_namespace(
         PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_READ | PRIV_DATASTORE_BACKUP;
     let name = store.name();
     iter.any(|ns| -> bool {
-        let user_privs = user_info.lookup_privs(&auth_id, &["datastore", name, &ns.to_string()]);
+        let user_privs = user_info.lookup_privs(auth_id, &["datastore", name, &ns.to_string()]);
         user_privs & wanted != 0
     })
 }
@@ -136,7 +136,7 @@ impl<'a> ListAccessibleBackupGroups<'a> {
             override_owner_priv: override_owner_priv.unwrap_or(0),
             owner_and_priv: owner_and_priv.unwrap_or(0),
             state: None,
-            store: store,
+            store,
             user_info: CachedUserInfo::new()?,
         })
     }
@@ -157,11 +157,10 @@ impl<'a> Iterator for ListAccessibleBackupGroups<'a> {
                             return Some(Ok(group));
                         }
                         if let Some(auth_id) = &self.auth_id {
-                            match self.store.owns_backup(
-                                &group.backup_ns(),
-                                group.group(),
-                                &auth_id,
-                            ) {
+                            match self
+                                .store
+                                .owns_backup(group.backup_ns(), group.group(), auth_id)
+                            {
                                 Ok(is_owner) if is_owner => return Some(Ok(group)),
                                 Ok(_) => continue,
                                 Err(err) => return Some(Err(err)),
@@ -182,8 +181,7 @@ impl<'a> Iterator for ListAccessibleBackupGroups<'a> {
                         if let Some(auth_id) = &self.auth_id {
                             let info = &self.user_info;
 
-                            let privs =
-                                info.lookup_privs(&auth_id, &ns.acl_path(self.store.name()));
+                            let privs = info.lookup_privs(auth_id, &ns.acl_path(self.store.name()));
 
                             if privs & NS_PRIVS_OK == 0 {
                                 continue;
@@ -196,7 +194,7 @@ impl<'a> Iterator for ListAccessibleBackupGroups<'a> {
                                 continue; // no owner override and no extra privs -> nothing visible
                             }
                         }
-                        self.state = match ListGroups::new(Arc::clone(&self.store), ns) {
+                        self.state = match ListGroups::new(Arc::clone(self.store), ns) {
                             Ok(iter) => Some((iter, override_owner)),
                             Err(err) => return Some(Err(err)),
                         };

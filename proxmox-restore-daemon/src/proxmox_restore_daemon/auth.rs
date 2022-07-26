@@ -59,7 +59,7 @@ impl ServerAdapter for StaticAuthAdapter {
     > {
         Box::pin(async move {
             match headers.get(hyper::header::AUTHORIZATION) {
-                Some(header) if header.to_str().unwrap_or("") == &self.ticket => {
+                Some(header) if header.to_str().unwrap_or("") == self.ticket => {
                     let user_info: Box<dyn UserInformation + Send + Sync> =
                         Box::new(SimpleUserInformation {});
                     Ok((String::from("root@pam"), user_info))

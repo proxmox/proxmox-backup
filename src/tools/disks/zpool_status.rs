@@ -1,4 +1,4 @@
-use std::mem::replace;
+use std::mem::{replace, take};
 
 use anyhow::{bail, Error};
 use serde::{Deserialize, Serialize};
@@ -255,7 +255,7 @@ where
             stack.push(StackItem {
                 node: replace(&mut cur.node, node),
                 level: replace(&mut cur.level, vdev_level),
-                children_of_parent: replace(&mut cur.children_of_parent, Vec::new()),
+                children_of_parent: take(&mut cur.children_of_parent),
             });
         } else {
             // same indentation level, add to children of the previous level:

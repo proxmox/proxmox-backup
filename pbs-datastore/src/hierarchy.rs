@@ -209,7 +209,7 @@ impl Iterator for ListGroups {
                             group_type,
                         ) {
                             Ok(ty) => self.id_state = Some(ty),
-                            Err(err) => return Some(Err(err.into())),
+                            Err(err) => return Some(Err(err)),
                         }
                     }
                 }

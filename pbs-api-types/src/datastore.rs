@@ -1190,7 +1190,7 @@ pub struct TypeCounts {
         },
     },
 )]
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 /// Garbage collection status.
 pub struct GarbageCollectionStatus {
@@ -1215,24 +1215,6 @@ pub struct GarbageCollectionStatus {
     pub removed_bad: usize,
     /// Number of chunks still marked as .bad after garbage collection.
     pub still_bad: usize,
-}
-
-impl Default for GarbageCollectionStatus {
-    fn default() -> Self {
-        GarbageCollectionStatus {
-            upid: None,
-            index_file_count: 0,
-            index_data_bytes: 0,
-            disk_bytes: 0,
-            disk_chunks: 0,
-            removed_bytes: 0,
-            removed_chunks: 0,
-            pending_bytes: 0,
-            pending_chunks: 0,
-            removed_bad: 0,
-            still_bad: 0,
-        }
-    }
 }
 
 #[api(

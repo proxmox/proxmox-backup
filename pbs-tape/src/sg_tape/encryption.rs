@@ -73,6 +73,7 @@ struct SspSetDataEncryptionPage {
     /* key follows */
 }
 
+#[allow(clippy::vec_init_then_push)]
 fn sg_spout_set_encryption<F: AsRawFd>(
     file: &mut F,
     algorythm_index: u8,
@@ -129,6 +130,7 @@ fn sg_spout_set_encryption<F: AsRawFd>(
 }
 
 // Warning: this blocks and fails if there is no media loaded
+#[allow(clippy::vec_init_then_push)]
 fn sg_spin_data_encryption_status<F: AsRawFd>(file: &mut F) -> Result<Vec<u8>, Error> {
     let allocation_len: u32 = 8192 + 4;
 
@@ -157,6 +159,7 @@ fn sg_spin_data_encryption_status<F: AsRawFd>(file: &mut F) -> Result<Vec<u8>, E
 }
 
 // Warning: this blocks and fails if there is no media loaded
+#[allow(clippy::vec_init_then_push)]
 fn sg_spin_data_encryption_caps<F: AsRawFd>(file: &mut F) -> Result<Vec<u8>, Error> {
     let allocation_len: u32 = 8192 + 4;
 

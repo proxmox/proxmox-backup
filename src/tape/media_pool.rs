@@ -344,13 +344,11 @@ impl MediaPool {
             MediaLocation::Online(name) => {
                 if self.force_media_availability {
                     true
+                } else if let Some(ref changer_name) = self.changer_name {
+                    name == changer_name
                 } else {
-                    if let Some(ref changer_name) = self.changer_name {
-                        name == changer_name
-                    } else {
-                        // a standalone drive cannot use media currently inside a library
-                        false
-                    }
+                    // a standalone drive cannot use media currently inside a library
+                    false
                 }
             }
             MediaLocation::Offline => {
@@ -686,10 +684,8 @@ impl MediaPool {
                     let media_location = media.location();
                     if self.location_is_available(media_location) {
                         last_is_writable = true;
-                    } else {
-                        if let MediaLocation::Vault(vault) = media_location {
-                            bail!("writable media offsite in vault '{}'", vault);
-                        }
+                    } else if let MediaLocation::Vault(vault) = media_location {
+                        bail!("writable media offsite in vault '{}'", vault);
                     }
                 }
                 _ => bail!(

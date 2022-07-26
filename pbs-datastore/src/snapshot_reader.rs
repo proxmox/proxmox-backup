@@ -146,7 +146,7 @@ impl<'a, F: Fn(&[u8; 32]) -> bool> Iterator for SnapshotChunkIterator<'a, F> {
                             Some(Operation::Read),
                         )?;
                         let order =
-                            datastore.get_chunks_in_order(&index, &self.skip_fn, |_| Ok(()))?;
+                            datastore.get_chunks_in_order(&*index, &self.skip_fn, |_| Ok(()))?;
 
                         self.current_index = Some((Arc::new(index), 0, order));
                     } else {

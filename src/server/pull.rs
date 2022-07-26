@@ -788,7 +788,7 @@ fn check_and_create_ns(params: &PullParameters, ns: &BackupNamespace) -> Result<
     let mut created = false;
     let store_ns_str = print_store_and_ns(params.store.name(), ns);
 
-    if !ns.is_root() && !params.store.namespace_path(&ns).exists() {
+    if !ns.is_root() && !params.store.namespace_path(ns).exists() {
         check_ns_modification_privs(params.store.name(), ns, &params.owner)
             .map_err(|err| format_err!("Creating {ns} not allowed - {err}"))?;
 
@@ -817,7 +817,7 @@ fn check_and_create_ns(params: &PullParameters, ns: &BackupNamespace) -> Result<
 }
 
 fn check_and_remove_ns(params: &PullParameters, local_ns: &BackupNamespace) -> Result<bool, Error> {
-    check_ns_modification_privs(&params.store.name(), local_ns, &params.owner)
+    check_ns_modification_privs(params.store.name(), local_ns, &params.owner)
         .map_err(|err| format_err!("Removing {local_ns} not allowed - {err}"))?;
 
     params.store.remove_namespace_recursive(local_ns, true)

@@ -257,7 +257,7 @@ fn openid_auth_url(
 
     let url = open_id.authorize_url(PROXMOX_BACKUP_RUN_DIR_M!(), &realm)?;
 
-    Ok(url.into())
+    Ok(url)
 }
 
 #[sortable]

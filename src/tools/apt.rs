@@ -110,13 +110,12 @@ fn get_changelog_url(
         command.arg("--print-uris");
         command.arg(package);
         let output = proxmox_sys::command::run_command(command, None)?; // format: 'http://foo/bar' package.changelog
-        let output = match output.splitn(2, ' ').next() {
-            Some(output) => {
-                if output.len() < 2 {
-                    bail!("invalid output (URI part too short) from 'apt-get changelog --print-uris': {}", output)
-                }
-                output[1..output.len() - 1].to_owned()
-            }
+        let output = match output.split_once(' ') {
+            Some((uri, _file_name)) if uri.len() > 2 => uri[1..uri.len() - 1].to_owned(),
+            Some((uri, _file_name)) => bail!(
+                "invalid output (URI part too short) from 'apt-get changelog --print-uris': {}",
+                uri
+            ),
             None => bail!(
                 "invalid output from 'apt-get changelog --print-uris': {}",
                 output

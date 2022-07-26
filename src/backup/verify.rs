@@ -198,7 +198,7 @@ fn verify_index_chunks(
     let chunk_list =
         verify_worker
             .datastore
-            .get_chunks_in_order(&index, skip_chunk, check_abort)?;
+            .get_chunks_in_order(&*index, skip_chunk, check_abort)?;
 
     for (pos, _) in chunk_list {
         verify_worker.worker.check_abort()?;

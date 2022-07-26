@@ -610,9 +610,7 @@ impl MediaCatalog {
         }
         self.pending.extend(store.as_bytes());
 
-        self.content
-            .entry(store.to_string())
-            .or_default();
+        self.content.entry(store.to_string()).or_default();
 
         self.current_archive = Some((uuid, file_number, store.to_string()));
 
@@ -726,10 +724,7 @@ impl MediaCatalog {
         self.pending.push(b':');
         self.pending.extend(path.as_bytes());
 
-        let content = self
-            .content
-            .entry(store.to_string())
-            .or_default();
+        let content = self.content.entry(store.to_string()).or_default();
 
         content.snapshot_index.insert(path, file_number);
 
@@ -857,9 +852,7 @@ impl MediaCatalog {
 
                     self.check_start_chunk_archive(file_number)?;
 
-                    self.content
-                        .entry(store.to_string())
-                        .or_default();
+                    self.content.entry(store.to_string()).or_default();
 
                     self.current_archive = Some((uuid, file_number, store.to_string()));
                 }
@@ -893,10 +886,7 @@ impl MediaCatalog {
                     let _ = parse_ns_and_snapshot(snapshot)?;
                     self.check_register_snapshot(file_number)?;
 
-                    let content = self
-                        .content
-                        .entry(store.to_string())
-                        .or_default();
+                    let content = self.content.entry(store.to_string()).or_default();
 
                     content
                         .snapshot_index
@@ -1015,19 +1005,14 @@ impl MediaSetCatalog {
     /// as (datastore, snapshot).
     /// The snapshot contains namespaces in the format 'ns/namespace'.
     pub fn list_snapshots(&self) -> impl Iterator<Item = (&str, &str)> {
-        self.catalog_list
-            .values()
-            .flat_map(|catalog| {
-                catalog
-                    .content
-                    .iter()
-                    .flat_map(|(store, content)| {
-                        content
-                            .snapshot_index
-                            .keys()
-                            .map(move |key| (store.as_str(), key.as_str()))
-                    })
+        self.catalog_list.values().flat_map(|catalog| {
+            catalog.content.iter().flat_map(|(store, content)| {
+                content
+                    .snapshot_index
+                    .keys()
+                    .map(move |key| (store.as_str(), key.as_str()))
             })
+        })
     }
 }
 

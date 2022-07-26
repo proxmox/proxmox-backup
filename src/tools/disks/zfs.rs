@@ -21,9 +21,9 @@ lazy_static! {
 
 fn get_pool_from_dataset(dataset: &str) -> &str {
     if let Some(idx) = dataset.find('/') {
-        &dataset[0..idx].as_ref()
+        dataset[0..idx].as_ref()
     } else {
-        dataset.as_ref()
+        dataset
     }
 }
 
@@ -53,7 +53,7 @@ pub fn zfs_pool_stats(pool: &OsStr) -> Result<Option<BlockDevStat>, Error> {
     // All times are nanoseconds
     let stat: Vec<u64> = lines[2]
         .split_ascii_whitespace()
-        .map(|s| u64::from_str_radix(s, 10).unwrap_or(0))
+        .map(|s| s.parse().unwrap_or_default())
         .collect();
 
     let ticks = (stat[4] + stat[7]) / 1_000_000; // convert to milisec
@@ -147,12 +147,10 @@ fn parse_objset_stat(pool: &str, objset_id: &str) -> Result<(String, BlockDevSta
         let value = parts.next().ok_or_else(|| format_err!("no value found"))?;
         match name {
             Some("dataset_name") => dataset_name = value.to_string(),
-            Some("writes") => stat.write_ios = u64::from_str_radix(value, 10).unwrap_or(0),
-            Some("nwritten") => {
-                stat.write_sectors = u64::from_str_radix(value, 10).unwrap_or(0) / 512
-            }
-            Some("reads") => stat.read_ios = u64::from_str_radix(value, 10).unwrap_or(0),
-            Some("nread") => stat.read_sectors = u64::from_str_radix(value, 10).unwrap_or(0) / 512,
+            Some("writes") => stat.write_ios = value.parse().unwrap_or_default(),
+            Some("nwritten") => stat.write_sectors = value.parse::<u64>().unwrap_or_default() / 512,
+            Some("reads") => stat.read_ios = value.parse().unwrap_or_default(),
+            Some("nread") => stat.read_sectors = value.parse::<u64>().unwrap_or_default() / 512,
             _ => {}
         }
     }

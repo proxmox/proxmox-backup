@@ -203,7 +203,7 @@ pub fn get_smart_data(disk: &super::Disk, health_only: bool) -> Result<SmartData
     })
 }
 
-static WEAROUT_FIELD_ORDER: &[&'static str] = &[
+static WEAROUT_FIELD_ORDER: &[&str] = &[
     "Media_Wearout_Indicator",
     "SSD_Life_Left",
     "Wear_Leveling_Count",

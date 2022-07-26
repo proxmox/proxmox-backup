@@ -542,7 +542,7 @@ where
     let file = root
         .lookup(&path)
         .await?
-        .ok_or(format_err!("error opening '{:?}'", path.as_ref()))?;
+        .ok_or_else(|| format_err!("error opening '{:?}'", path.as_ref()))?;
 
     let mut components = file.entry().path().components();
     components.next_back(); // discard last
@@ -586,7 +586,7 @@ where
                         let entry = root
                             .lookup(&path)
                             .await?
-                            .ok_or(format_err!("error looking up '{:?}'", path))?;
+                            .ok_or_else(|| format_err!("error looking up '{:?}'", path))?;
                         let realfile = accessor.follow_hardlink(&entry).await?;
                         let metadata = realfile.entry().metadata();
                         let realpath = Path::new(link);
@@ -705,7 +705,7 @@ where
     let file = root
         .lookup(&path)
         .await?
-        .ok_or(format_err!("error opening '{:?}'", path.as_ref()))?;
+        .ok_or_else(|| format_err!("error opening '{:?}'", path.as_ref()))?;
 
     let prefix = {
         let mut components = file.entry().path().components();
@@ -753,7 +753,7 @@ where
                     let entry = root
                         .lookup(&path)
                         .await?
-                        .ok_or(format_err!("error looking up '{:?}'", path))?;
+                        .ok_or_else(|| format_err!("error looking up '{:?}'", path))?;
                     let realfile = accessor.follow_hardlink(&entry).await?;
                     let metadata = realfile.entry().metadata();
                     log::debug!("adding '{}' to zip", path.display());
@@ -841,7 +841,7 @@ where
     let file = root
         .lookup(&path)
         .await?
-        .ok_or(format_err!("error opening '{:?}'", path.as_ref()))?;
+        .ok_or_else(|| format_err!("error opening '{:?}'", path.as_ref()))?;
 
     recurse_files_extractor(&mut extractor, file).await
 }
@@ -917,8 +917,8 @@ fn get_filename(entry: &Entry) -> Result<(OsString, CString), Error> {
     Ok((file_name_os, file_name))
 }
 
-async fn recurse_files_extractor<'a, T>(
-    extractor: &'a mut Extractor,
+async fn recurse_files_extractor<T>(
+    extractor: &mut Extractor,
     file: FileEntry<T>,
 ) -> Result<(), Error>
 where
@@ -960,8 +960,8 @@ where
     Ok(())
 }
 
-async fn seq_files_extractor<'a, T>(
-    extractor: &'a mut Extractor,
+async fn seq_files_extractor<T>(
+    extractor: &mut Extractor,
     mut decoder: pxar::decoder::aio::Decoder<T>,
 ) -> Result<(), Error>
 where
