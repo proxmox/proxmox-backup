@@ -73,6 +73,15 @@ impl From<Error> for AuthError {
     }
 }
 
+/// Result of [`ServerAdapter::check_auth`].
+pub type ServerAdapterCheckAuth<'a> = Pin<
+    Box<
+        dyn Future<Output = Result<(String, Box<dyn UserInformation + Sync + Send>), AuthError>>
+            + Send
+            + 'a,
+    >,
+>;
+
 /// User Authentication and index/root page generation methods
 pub trait ServerAdapter: Send + Sync {
     /// Returns the index/root page
@@ -90,13 +99,7 @@ pub trait ServerAdapter: Send + Sync {
         &'a self,
         headers: &'a HeaderMap,
         method: &'a Method,
-    ) -> Pin<
-        Box<
-            dyn Future<Output = Result<(String, Box<dyn UserInformation + Sync + Send>), AuthError>>
-                + Send
-                + 'a,
-        >,
-    >;
+    ) -> ServerAdapterCheckAuth<'a>;
 }
 
 lazy_static::lazy_static! {

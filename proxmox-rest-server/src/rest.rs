@@ -362,7 +362,7 @@ async fn get_request_parameters<S: 'static + BuildHasher + Send>(
     .try_fold(Vec::new(), |mut acc, chunk| async move {
         // FIXME: max request body size?
         if acc.len() + chunk.len() < 64 * 1024 {
-            acc.extend_from_slice(&*chunk);
+            acc.extend_from_slice(&chunk);
             Ok(acc)
         } else {
             Err(http_err!(BAD_REQUEST, "Request body too large"))
