@@ -301,7 +301,9 @@ pub fn resize_rrd(path: String, rra_index: usize, slots: i64) -> Result<(), Erro
 
     let rra_end = rra.slot_end_time(rrd.source.last_update as u64);
     let rra_start = rra_end - rra.resolution * (rra.data.len() as u64);
-    let (start, reso, data) = rra.extract_data(rra_start, rra_end, rrd.source.last_update);
+    let (start, reso, data) = rra
+        .extract_data(rra_start, rra_end, rrd.source.last_update)
+        .into();
 
     let mut new_rra = RRA::new(rra.cf, rra.resolution, new_slots as usize);
     new_rra.last_count = rra.last_count;

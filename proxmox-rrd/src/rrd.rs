@@ -28,7 +28,7 @@ use crate::rrd_v1;
 pub const PROXMOX_RRD_MAGIC_2_0: [u8; 8] = [224, 200, 228, 27, 239, 112, 122, 159];
 
 #[api()]
-#[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 /// RRD data source type
 pub enum DST {
@@ -42,7 +42,7 @@ pub enum DST {
 }
 
 #[api()]
-#[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 /// Consolidation function
 pub enum CF {
@@ -66,6 +66,42 @@ pub struct DataSource {
     /// Stores the last value, used to compute differential value for
     /// derive/counters
     pub last_value: f64,
+}
+
+/// An RRD entry.
+///
+/// Serializes as a tuple.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(
+    from = "(u64, u64, Vec<Option<f64>>)",
+    into = "(u64, u64, Vec<Option<f64>>)"
+)]
+pub struct Entry {
+    pub start: u64,
+    pub resolution: u64,
+    pub data: Vec<Option<f64>>,
+}
+
+impl Entry {
+    pub const fn new(start: u64, resolution: u64, data: Vec<Option<f64>>) -> Self {
+        Self {
+            start,
+            resolution,
+            data,
+        }
+    }
+}
+
+impl From<Entry> for (u64, u64, Vec<Option<f64>>) {
+    fn from(entry: Entry) -> (u64, u64, Vec<Option<f64>>) {
+        (entry.start, entry.resolution, entry.data)
+    }
+}
+
+impl From<(u64, u64, Vec<Option<f64>>)> for Entry {
+    fn from(data: (u64, u64, Vec<Option<f64>>)) -> Self {
+        Self::new(data.0, data.1, data.2)
+    }
 }
 
 impl DataSource {
@@ -265,12 +301,7 @@ impl RRA {
     /// Extract data from `start` to `end`. The RRA itself does not
     /// store the `last_update` time, so you need to pass this a
     /// parameter (see [DataSource]).
-    pub fn extract_data(
-        &self,
-        start: u64,
-        end: u64,
-        last_update: f64,
-    ) -> (u64, u64, Vec<Option<f64>>) {
+    pub fn extract_data(&self, start: u64, end: u64, last_update: f64) -> Entry {
         let last_update = last_update as u64;
         let reso = self.resolution;
         let num_entries = self.data.len() as u64;
@@ -303,7 +334,7 @@ impl RRA {
             }
         }
 
-        (start, reso, list)
+        Entry::new(start, reso, list)
     }
 }
 
@@ -464,7 +495,7 @@ impl RRD {
         resolution: u64,
         start: Option<u64>,
         end: Option<u64>,
-    ) -> Result<(u64, u64, Vec<Option<f64>>), Error> {
+    ) -> Result<Entry, Error> {
         let mut rra: Option<&RRA> = None;
         for item in self.rra_list.iter() {
             if item.cf != cf {
@@ -507,9 +538,13 @@ mod tests {
             rrd.update((i as f64) * 30.0, i as f64);
         }
 
-        let (start, reso, data) = rrd.extract_data(CF::Maximum, 60, Some(0), Some(5 * 60))?;
+        let Entry {
+            start,
+            resolution,
+            data,
+        } = rrd.extract_data(CF::Maximum, 60, Some(0), Some(5 * 60))?;
         assert_eq!(start, 0);
-        assert_eq!(reso, 60);
+        assert_eq!(resolution, 60);
         assert_eq!(data, [None, Some(3.0), Some(5.0), Some(7.0), Some(9.0)]);
 
         Ok(())
@@ -524,9 +559,13 @@ mod tests {
             rrd.update((i as f64) * 30.0, i as f64);
         }
 
-        let (start, reso, data) = rrd.extract_data(CF::Minimum, 60, Some(0), Some(5 * 60))?;
+        let Entry {
+            start,
+            resolution,
+            data,
+        } = rrd.extract_data(CF::Minimum, 60, Some(0), Some(5 * 60))?;
         assert_eq!(start, 0);
-        assert_eq!(reso, 60);
+        assert_eq!(resolution, 60);
         assert_eq!(data, [None, Some(2.0), Some(4.0), Some(6.0), Some(8.0)]);
 
         Ok(())
@@ -547,9 +586,13 @@ mod tests {
             "CF::Average should not exist"
         );
 
-        let (start, reso, data) = rrd.extract_data(CF::Last, 60, Some(0), Some(20 * 60))?;
+        let Entry {
+            start,
+            resolution,
+            data,
+        } = rrd.extract_data(CF::Last, 60, Some(0), Some(20 * 60))?;
         assert_eq!(start, 0);
-        assert_eq!(reso, 60);
+        assert_eq!(resolution, 60);
         assert_eq!(data, [None, Some(3.0), Some(5.0), Some(7.0), Some(9.0)]);
 
         Ok(())
@@ -564,9 +607,13 @@ mod tests {
             rrd.update((i as f64) * 30.0, (i * 60) as f64);
         }
 
-        let (start, reso, data) = rrd.extract_data(CF::Average, 60, Some(60), Some(5 * 60))?;
+        let Entry {
+            start,
+            resolution,
+            data,
+        } = rrd.extract_data(CF::Average, 60, Some(60), Some(5 * 60))?;
         assert_eq!(start, 60);
-        assert_eq!(reso, 60);
+        assert_eq!(resolution, 60);
         assert_eq!(data, [Some(1.0), Some(2.0), Some(2.0), Some(2.0), None]);
 
         Ok(())
@@ -581,23 +628,35 @@ mod tests {
             rrd.update((i as f64) * 30.0, i as f64);
         }
 
-        let (start, reso, data) = rrd.extract_data(CF::Average, 60, Some(60), Some(5 * 60))?;
+        let Entry {
+            start,
+            resolution,
+            data,
+        } = rrd.extract_data(CF::Average, 60, Some(60), Some(5 * 60))?;
         assert_eq!(start, 60);
-        assert_eq!(reso, 60);
+        assert_eq!(resolution, 60);
         assert_eq!(data, [Some(2.5), Some(4.5), Some(6.5), Some(8.5), None]);
 
         for i in 10..14 {
             rrd.update((i as f64) * 30.0, i as f64);
         }
 
-        let (start, reso, data) = rrd.extract_data(CF::Average, 60, Some(60), Some(5 * 60))?;
+        let Entry {
+            start,
+            resolution,
+            data,
+        } = rrd.extract_data(CF::Average, 60, Some(60), Some(5 * 60))?;
         assert_eq!(start, 60);
-        assert_eq!(reso, 60);
+        assert_eq!(resolution, 60);
         assert_eq!(data, [None, Some(4.5), Some(6.5), Some(8.5), Some(10.5)]);
 
-        let (start, reso, data) = rrd.extract_data(CF::Average, 60, Some(3 * 60), Some(8 * 60))?;
+        let Entry {
+            start,
+            resolution,
+            data,
+        } = rrd.extract_data(CF::Average, 60, Some(3 * 60), Some(8 * 60))?;
         assert_eq!(start, 3 * 60);
-        assert_eq!(reso, 60);
+        assert_eq!(resolution, 60);
         assert_eq!(data, [Some(6.5), Some(8.5), Some(10.5), Some(12.5), None]);
 
         // add much newer value (should delete all previous/outdated value)
@@ -605,16 +664,23 @@ mod tests {
         rrd.update((i as f64) * 30.0, i as f64);
         println!("TEST {:?}", serde_json::to_string_pretty(&rrd));
 
-        let (start, reso, data) =
-            rrd.extract_data(CF::Average, 60, Some(100 * 30), Some(100 * 30 + 5 * 60))?;
+        let Entry {
+            start,
+            resolution,
+            data,
+        } = rrd.extract_data(CF::Average, 60, Some(100 * 30), Some(100 * 30 + 5 * 60))?;
         assert_eq!(start, 100 * 30);
-        assert_eq!(reso, 60);
+        assert_eq!(resolution, 60);
         assert_eq!(data, [Some(100.0), None, None, None, None]);
 
         // extract with end time smaller than start time
-        let (start, reso, data) = rrd.extract_data(CF::Average, 60, Some(100 * 30), Some(60))?;
+        let Entry {
+            start,
+            resolution,
+            data,
+        } = rrd.extract_data(CF::Average, 60, Some(100 * 30), Some(60))?;
         assert_eq!(start, 100 * 30);
-        assert_eq!(reso, 60);
+        assert_eq!(resolution, 60);
         assert_eq!(data, []);
 
         Ok(())

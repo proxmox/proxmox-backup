@@ -13,6 +13,7 @@ use crossbeam_channel::{bounded, TryRecvError};
 use proxmox_sys::fs::{create_path, CreateOptions};
 
 use crate::rrd::{CF, DST, RRA, RRD};
+use crate::Entry;
 
 mod journal;
 use journal::*;
@@ -217,7 +218,7 @@ impl RRDCache {
         resolution: u64,
         start: Option<u64>,
         end: Option<u64>,
-    ) -> Result<Option<(u64, u64, Vec<Option<f64>>)>, Error> {
+    ) -> Result<Option<Entry>, Error> {
         self.rrd_map
             .read()
             .unwrap()

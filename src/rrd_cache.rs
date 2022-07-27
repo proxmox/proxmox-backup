@@ -80,7 +80,7 @@ pub fn extract_rrd_data(
     name: &str,
     timeframe: RRDTimeFrame,
     mode: RRDMode,
-) -> Result<Option<(u64, u64, Vec<Option<f64>>)>, Error> {
+) -> Result<Option<proxmox_rrd::Entry>, Error> {
     let end = proxmox_time::epoch_f64() as u64;
 
     let (start, resolution) = match timeframe {

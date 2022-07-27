@@ -9,6 +9,8 @@
 mod rrd_v1;
 
 pub mod rrd;
+#[doc(inline)]
+pub use rrd::Entry;
 
 mod cache;
 pub use cache::*;

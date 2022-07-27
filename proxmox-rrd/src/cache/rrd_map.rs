@@ -9,6 +9,7 @@ use proxmox_sys::fs::create_path;
 use crate::rrd::{CF, DST, RRD};
 
 use super::CacheConfig;
+use crate::Entry;
 
 pub struct RRDMap {
     config: Arc<CacheConfig>,
@@ -87,7 +88,7 @@ impl RRDMap {
         resolution: u64,
         start: Option<u64>,
         end: Option<u64>,
-    ) -> Result<Option<(u64, u64, Vec<Option<f64>>)>, Error> {
+    ) -> Result<Option<Entry>, Error> {
         match self.map.get(&format!("{}/{}", base, name)) {
             Some(rrd) => Ok(Some(rrd.extract_data(cf, resolution, start, end)?)),
             None => Ok(None),

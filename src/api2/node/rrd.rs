@@ -23,7 +23,7 @@ pub fn create_value_from_rrd(
 
     for name in list {
         let (start, reso, data) = match extract_rrd_data(basedir, name, timeframe, mode)? {
-            Some(result) => result,
+            Some(result) => result.into(),
             None => continue,
         };
 

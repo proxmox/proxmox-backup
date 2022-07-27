@@ -87,7 +87,17 @@ pub async fn datastore_status(
         let total_res = get_rrd("total")?;
         let used_res = get_rrd("used")?;
 
-        if let (Some((start, reso, total_list)), Some((_, _, used_list))) = (total_res, used_res) {
+        if let (
+            Some(proxmox_rrd::Entry {
+                start,
+                resolution,
+                data: total_list,
+            }),
+            Some(proxmox_rrd::Entry {
+                data: used_list, ..
+            }),
+        ) = (total_res, used_res)
+        {
             let mut usage_list: Vec<f64> = Vec::new();
             let mut time_list: Vec<u64> = Vec::new();
             let mut history = Vec::new();
@@ -101,7 +111,7 @@ pub async fn datastore_status(
 
                 match (total, used) {
                     (Some(total), Some(used)) if total != 0.0 => {
-                        time_list.push(start + (idx as u64) * reso);
+                        time_list.push(start + (idx as u64) * resolution);
                         let usage = used / total;
                         usage_list.push(usage);
                         history.push(Some(usage));
@@ -111,7 +121,7 @@ pub async fn datastore_status(
             }
 
             entry.history_start = Some(start);
-            entry.history_delta = Some(reso);
+            entry.history_delta = Some(resolution);
             entry.history = Some(history);
 
             // we skip the calculation for datastores with not enough data
