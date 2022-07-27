@@ -52,6 +52,6 @@ pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
 pub fn complete_prune_job_id(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
     match config() {
         Ok((data, _digest)) => data.sections.iter().map(|(id, _)| id.to_string()).collect(),
-        Err(_) => return vec![],
+        Err(_) => Vec::new(),
     }
 }

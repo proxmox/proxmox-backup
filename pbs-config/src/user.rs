@@ -157,7 +157,7 @@ pub fn complete_userid(_arg: &str, _param: &HashMap<String, String>) -> Vec<Stri
                 }
             })
             .collect(),
-        Err(_) => return vec![],
+        Err(_) => Vec::new(),
     }
 }
 

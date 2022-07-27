@@ -101,7 +101,7 @@ pub fn check_drive_exists(config: &SectionConfigData, drive: &str) -> Result<(),
 pub fn complete_drive_name(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
     match config() {
         Ok((data, _digest)) => data.sections.iter().map(|(id, _)| id.to_string()).collect(),
-        Err(_) => return vec![],
+        Err(_) => Vec::new(),
     }
 }
 
@@ -114,7 +114,7 @@ pub fn complete_lto_drive_name(_arg: &str, _param: &HashMap<String, String>) -> 
             .filter(|(_id, (section_type, _))| section_type == "lto")
             .map(|(id, _)| id.to_string())
             .collect(),
-        Err(_) => return vec![],
+        Err(_) => Vec::new(),
     }
 }
 
@@ -127,6 +127,6 @@ pub fn complete_changer_name(_arg: &str, _param: &HashMap<String, String>) -> Ve
             .filter(|(_id, (section_type, _))| section_type == "changer")
             .map(|(id, _)| id.to_string())
             .collect(),
-        Err(_) => return vec![],
+        Err(_) => Vec::new(),
     }
 }

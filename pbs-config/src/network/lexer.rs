@@ -4,7 +4,7 @@ use std::iter::Iterator;
 
 use lazy_static::lazy_static;
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Token {
     Text,
     Comment,

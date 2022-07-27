@@ -501,7 +501,7 @@ pub fn save_config(config: &NetworkConfig) -> Result<(), Error> {
 pub fn complete_interface_name(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
     match config() {
         Ok((data, _digest)) => data.interfaces.keys().map(|id| id.to_string()).collect(),
-        Err(_) => return vec![],
+        Err(_) => Vec::new(),
     }
 }
 
@@ -515,7 +515,7 @@ pub fn complete_port_list(arg: &str, _param: &HashMap<String, String>) -> Vec<St
                 }
             }
         }
-        Err(_) => return vec![],
+        Err(_) => return Vec::new(),
     };
 
     let arg = arg.trim();
