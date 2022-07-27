@@ -10,7 +10,7 @@ pub const VAULT_NAME_SCHEMA: Schema = StringSchema::new("Vault name.")
     .max_length(32)
     .schema();
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 /// Media location
 pub enum MediaLocation {
     /// Ready for use (inside tape library)

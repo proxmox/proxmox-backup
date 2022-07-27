@@ -158,7 +158,7 @@ pub const PRUNE_SCHEMA_KEEP_YEARLY: Schema =
         .schema();
 
 #[api]
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 /// The order to sort chunks by
 pub enum ChunkOrder {
@@ -357,7 +357,7 @@ pub struct BackupContent {
 }
 
 #[api()]
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 /// Result of a verify operation.
 pub enum VerifyState {
@@ -1397,7 +1397,7 @@ pub fn parse_ns_and_snapshot(input: &str) -> Result<(BackupNamespace, BackupDir)
     match input.rmatch_indices('/').nth(2) {
         Some((idx, _)) => {
             let ns = BackupNamespace::from_path(&input[..idx])?;
-            let dir: BackupDir = (&input[idx + 1..]).parse()?;
+            let dir: BackupDir = input[(idx + 1)..].parse()?;
             Ok((ns, dir))
         }
         None => Ok((BackupNamespace::root(), input.parse()?)),

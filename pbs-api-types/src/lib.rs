@@ -401,7 +401,7 @@ pub struct APTUpdateInfo {
 }
 
 #[api()]
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 /// Node Power command type.
 pub enum NodePowerCommand {

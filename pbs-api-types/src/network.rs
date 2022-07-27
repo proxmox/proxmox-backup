@@ -42,7 +42,7 @@ pub const CIDR_SCHEMA: Schema =
         .schema();
 
 #[api()]
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 /// Interface configuration method
 pub enum NetworkConfigMethod {
@@ -57,7 +57,7 @@ pub enum NetworkConfigMethod {
 }
 
 #[api()]
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[allow(non_camel_case_types)]
 #[repr(u8)]
@@ -81,7 +81,7 @@ pub enum LinuxBondMode {
 }
 
 #[api()]
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[allow(non_camel_case_types)]
 #[repr(u8)]
@@ -98,7 +98,7 @@ pub enum BondXmitHashPolicy {
 }
 
 #[api()]
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 /// Network interface type
 pub enum NetworkInterfaceType {

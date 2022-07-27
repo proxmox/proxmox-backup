@@ -33,7 +33,7 @@ pub enum Operation {
 }
 
 #[api]
-#[derive(Deserialize, Serialize, PartialEq)]
+#[derive(Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 /// Maintenance type.
 pub enum MaintenanceType {

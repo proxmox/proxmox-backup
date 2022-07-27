@@ -316,7 +316,7 @@ impl PartialEq<Realm> for RealmRef {
 
 impl PartialEq<Realm> for &RealmRef {
     fn eq(&self, rhs: &Realm) -> bool {
-        (*self).0 == rhs.0
+        self.0 == rhs.0
     }
 }
 
@@ -453,7 +453,7 @@ impl Userid {
 
     /// Get the "root@pam" user id.
     pub fn root_userid() -> &'static Self {
-        &*ROOT_USERID
+        &ROOT_USERID
     }
 }
 
@@ -586,7 +586,7 @@ impl Authid {
 
     /// Get the "root@pam" auth id.
     pub fn root_auth_id() -> &'static Self {
-        &*ROOT_AUTHID
+        &ROOT_AUTHID
     }
 }
 

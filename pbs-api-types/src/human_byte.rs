@@ -3,7 +3,7 @@ use anyhow::{bail, Error};
 use proxmox_schema::{ApiStringFormat, ApiType, Schema, StringSchema, UpdaterType};
 
 /// Size units for byte sizes
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum SizeUnit {
     Byte,
     // SI (base 10)

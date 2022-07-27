@@ -17,7 +17,7 @@ pub const ZPOOL_NAME_SCHEMA: Schema = StringSchema::new("ZFS Pool Name")
     .schema();
 
 #[api(default: "On")]
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 /// The ZFS compression algorithm to use.
 pub enum ZfsCompressionType {
@@ -38,7 +38,7 @@ pub enum ZfsCompressionType {
 }
 
 #[api()]
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 /// The ZFS RAID level to use.
 pub enum ZfsRaidLevel {

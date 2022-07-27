@@ -102,7 +102,7 @@ pub struct JobScheduleStatus {
 }
 
 #[api()]
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 /// When do we send notifications
 pub enum Notify {

@@ -4,7 +4,7 @@ use proxmox_schema::api;
 
 #[api()]
 /// Media status
-#[derive(Debug, PartialEq, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 /// Media Status
 pub enum MediaStatus {
