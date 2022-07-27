@@ -121,6 +121,7 @@ pub struct SeekableCachedChunkReader<
     reader: Arc<CachedChunkReader<I, R>>,
     index_bytes: u64,
     position: u64,
+    #[allow(clippy::type_complexity)]
     read_future: Option<Pin<Box<dyn Future<Output = Result<(Vec<u8>, usize), Error>> + Send>>>,
 }
 

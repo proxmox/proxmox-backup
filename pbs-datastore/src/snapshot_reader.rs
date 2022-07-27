@@ -121,6 +121,7 @@ pub struct SnapshotChunkIterator<'a, F: Fn(&[u8; 32]) -> bool> {
     snapshot_reader: &'a SnapshotReader,
     todo_list: Vec<String>,
     skip_fn: F,
+    #[allow(clippy::type_complexity)]
     current_index: Option<(Arc<Box<dyn IndexFile + Send>>, usize, Vec<(usize, u64)>)>,
 }
 

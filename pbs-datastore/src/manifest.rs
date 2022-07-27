@@ -57,7 +57,7 @@ pub struct BackupManifest {
     pub signature: Option<String>,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Eq)]
 pub enum ArchiveType {
     FixedIndex,
     DynamicIndex,

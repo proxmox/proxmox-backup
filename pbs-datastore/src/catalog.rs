@@ -31,7 +31,7 @@ pub trait BackupCatalogWriter {
 }
 
 #[repr(u8)]
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum CatalogEntryType {
     Directory = b'd',
     File = b'f',
@@ -86,14 +86,14 @@ impl fmt::Display for CatalogEntryType {
 ///
 /// The ``attr`` property contain the exact type with type specific
 /// attributes.
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct DirEntry {
     pub name: Vec<u8>,
     pub attr: DirEntryAttribute,
 }
 
 /// Used to specific additional attributes inside DirEntry
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum DirEntryAttribute {
     Directory { start: u64 },
     File { size: u64, mtime: i64 },
