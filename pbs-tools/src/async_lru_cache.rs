@@ -27,6 +27,7 @@ pub trait AsyncCacher<K, V: Clone>: Sync + Send {
 /// AsyncCacher.
 #[derive(Clone)]
 pub struct AsyncLruCache<K, V> {
+    #[allow(clippy::type_complexity)]
     maps: Arc<Mutex<(LruCache<K, V>, HashMap<K, BroadcastFuture<Option<V>>>)>>,
 }
 
