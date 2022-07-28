@@ -24,7 +24,7 @@ proxmox-section-config = "1"
 proxmox-time = "1"
 proxmox-serde = "0.1"
 proxmox-shared-memory = "0.2"
-proxmox-sys = "0.3.1"
+proxmox-sys = { version = "0.4", features = [ "acl", "crypt" ] }
 proxmox-metrics = "0.2"
 
 pbs-api-types = { path = "../pbs-api-types" }

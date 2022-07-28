@@ -22,4 +22,4 @@ serde_cbor = "0.11.1"
 #proxmox = { version = "0.15.3" }
 proxmox-time = "1"
 proxmox-schema = { version = "1.3.1", features = [ "api-macro" ] }
-proxmox-sys = "0.3.1"
+proxmox-sys = "0.4"

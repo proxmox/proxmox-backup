@@ -29,7 +29,7 @@ proxmox-uuid = "1"
 
 # router::cli is only used by binaries, so maybe we should split them out
 proxmox-router = "1.2.4"
-proxmox-sys = "0.3.1"
+proxmox-sys = "0.4"
 
 pbs-api-types = { path = "../pbs-api-types" }
 pbs-config = { path = "../pbs-config" }
