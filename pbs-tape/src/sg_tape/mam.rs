@@ -207,15 +207,18 @@ fn decode_mam_attributes(data: &[u8]) -> Result<Vec<MamAttribute>, Error> {
 
     let expected_len = data_len as usize;
 
-    if reader.len() < expected_len {
-        bail!(
+    use std::cmp::Ordering;
+    match reader.len().cmp(&expected_len) {
+        Ordering::Less => bail!(
             "read_mam_attributes: got unexpected data len ({} != {})",
             reader.len(),
             expected_len
-        );
-    } else if reader.len() > expected_len {
-        // Note: Quantum hh7 returns the allocation_length instead of real data_len
-        reader = &data[4..expected_len + 4];
+        ),
+        Ordering::Greater => {
+            // Note: Quantum hh7 returns the allocation_length instead of real data_len
+            reader = &data[4..expected_len + 4];
+        }
+        _ => (),
     }
 
     let mut list = Vec::new();

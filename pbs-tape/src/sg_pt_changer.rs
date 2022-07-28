@@ -701,14 +701,15 @@ fn decode_element_status_page(
         let len = head.byte_count_of_report_available;
         let len = ((len[0] as usize) << 16) + ((len[1] as usize) << 8) + (len[2] as usize);
 
-        if len < reader.len() {
-            reader = &reader[..len];
-        } else if len > reader.len() {
-            bail!(
+        use std::cmp::Ordering;
+        match len.cmp(&reader.len()) {
+            Ordering::Less => reader = &reader[..len],
+            Ordering::Greater => bail!(
                 "wrong amount of data: expected {}, got {}",
                 len,
                 reader.len()
-            );
+            ),
+            _ => (),
         }
 
         loop {
