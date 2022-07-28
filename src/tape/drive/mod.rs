@@ -214,6 +214,9 @@ pub trait TapeDriver {
     }
 }
 
+/// A boxed implementor of [`MediaChange`].
+pub type MediaChanger = Box<dyn MediaChange>;
+
 /// Get the media changer (MediaChange + name) associated with a tape drive.
 ///
 /// Returns Ok(None) if the drive has no associated changer device.
@@ -224,7 +227,7 @@ pub trait TapeDriver {
 pub fn media_changer(
     config: &SectionConfigData,
     drive: &str,
-) -> Result<Option<(Box<dyn MediaChange>, String)>, Error> {
+) -> Result<Option<(MediaChanger, String)>, Error> {
     match config.sections.get(drive) {
         Some((section_type_name, config)) => match section_type_name.as_ref() {
             "virtual" => {
@@ -256,7 +259,7 @@ pub fn media_changer(
 pub fn required_media_changer(
     config: &SectionConfigData,
     drive: &str,
-) -> Result<(Box<dyn MediaChange>, String), Error> {
+) -> Result<(MediaChanger, String), Error> {
     match media_changer(config, drive) {
         Ok(Some(result)) => Ok(result),
         Ok(None) => {

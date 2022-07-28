@@ -555,6 +555,7 @@ impl PoolWriter {
 }
 
 /// write up to <max_size> of chunks
+#[allow(clippy::type_complexity)]
 fn write_chunk_archive<'a>(
     _worker: &WorkerTask,
     writer: Box<dyn 'a + TapeWrite>,

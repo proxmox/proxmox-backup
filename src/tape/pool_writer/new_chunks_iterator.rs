@@ -12,6 +12,7 @@ use crate::tape::CatalogSet;
 /// The iterator skips duplicate chunks and chunks already in the
 /// catalog.
 pub struct NewChunksIterator {
+    #[allow(clippy::type_complexity)]
     rx: std::sync::mpsc::Receiver<Result<Option<([u8; 32], DataBlob)>, Error>>,
 }
 
