@@ -39,7 +39,7 @@ use crate::backup::{check_ns_modification_privs, check_ns_privs};
 use crate::tools::parallel_handler::ParallelHandler;
 
 /// Parameters for a pull operation.
-pub struct PullParameters {
+pub(crate) struct PullParameters {
     /// Remote that is pulled from
     remote: Remote,
     /// Full specification of remote datastore
@@ -67,7 +67,8 @@ impl PullParameters {
     ///
     /// `remote` will be dereferenced via [pbs_api_types::RemoteConfig], and combined into a
     /// [BackupRepository] with `remote_store`.
-    pub fn new(
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn new(
         store: &str,
         ns: BackupNamespace,
         remote: &str,
@@ -895,7 +896,7 @@ fn check_and_remove_vanished_ns(
 /// - remote namespaces are filtered by remote
 /// - creation and removal of sub-NS checked here
 /// - access to sub-NS checked here
-pub async fn pull_store(
+pub(crate) async fn pull_store(
     worker: &WorkerTask,
     client: &HttpClient,
     mut params: PullParameters,
@@ -998,7 +999,7 @@ pub async fn pull_store(
 /// Permission checks:
 /// - remote namespaces are filtered by remote
 /// - owner check for vanished groups done here
-pub async fn pull_ns(
+pub(crate) async fn pull_ns(
     worker: &WorkerTask,
     client: &HttpClient,
     params: &PullParameters,
