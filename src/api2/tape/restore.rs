@@ -445,6 +445,7 @@ pub fn restore(
     Ok(upid_str.into())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn restore_full_worker(
     worker: Arc<WorkerTask>,
     inventory: Inventory,
@@ -529,6 +530,7 @@ fn restore_full_worker(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn check_snapshot_restorable(
     worker: &WorkerTask,
     store_map: &DataStoreMap,
@@ -607,6 +609,7 @@ fn check_snapshot_restorable(
     Ok(can_restore_some)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn restore_list_worker(
     worker: Arc<WorkerTask>,
     snapshots: Vec<String>,
@@ -1223,6 +1226,7 @@ fn restore_partial_chunk_archive<'a>(
 }
 
 /// Request and restore complete media without using existing catalog (create catalog instead)
+#[allow(clippy::too_many_arguments)]
 pub fn request_and_restore_media(
     worker: Arc<WorkerTask>,
     media_id: &MediaId,
@@ -1334,6 +1338,7 @@ pub fn restore_media(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn restore_archive<'a>(
     worker: Arc<WorkerTask>,
     mut reader: Box<dyn 'a + TapeRead>,
