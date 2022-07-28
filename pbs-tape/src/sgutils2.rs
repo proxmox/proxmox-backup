@@ -521,17 +521,15 @@ impl<'a, F: AsRawFd> SgRaw<'a, F> {
                 Err(ScsiError::Sense(sense))
             }
             SCSI_PT_RESULT_TRANSPORT_ERR => {
-                return Err(format_err!("scsi command failed: transport error").into())
+                Err(format_err!("scsi command failed: transport error").into())
             }
             SCSI_PT_RESULT_OS_ERR => {
                 let errno = unsafe { get_scsi_pt_os_err(ptvp.as_ptr()) };
                 let err = nix::errno::Errno::from_i32(errno);
-                return Err(format_err!("scsi command failed with err {}", err).into());
+                Err(format_err!("scsi command failed with err {}", err).into())
             }
             unknown => {
-                return Err(
-                    format_err!("scsi command failed: unknown result category {}", unknown).into(),
-                )
+                Err(format_err!("scsi command failed: unknown result category {}", unknown).into())
             }
         }
     }
