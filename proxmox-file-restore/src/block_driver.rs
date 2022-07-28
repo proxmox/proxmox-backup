@@ -69,7 +69,7 @@ pub trait BlockRestoreDriver {
 }
 
 #[api()]
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Copy)]
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Clone, Copy)]
 pub enum BlockDriverType {
     /// Uses a small QEMU/KVM virtual machine to map images securely. Requires PVE-patched QEMU.
     Qemu,

@@ -106,12 +106,11 @@ async fn create_temp_initramfs(ticket: &str, debug: bool) -> Result<(File, Strin
         &mut f,
         ticket.as_bytes(),
         &name,
-        0,
-        (libc::S_IFREG | 0o400) as u16,
-        0,
-        0,
-        0,
-        ticket.len() as u32,
+        cpio::Entry {
+            mode: (libc::S_IFREG | 0o400) as u16,
+            size: ticket.len() as u32,
+            ..Default::default()
+        },
     )
     .await?;
     cpio::append_trailer(&mut f).await?;
