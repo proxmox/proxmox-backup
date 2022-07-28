@@ -1530,7 +1530,7 @@ pub fn upload_backup_log(
         let data = req_body
             .map_err(Error::from)
             .try_fold(Vec::new(), |mut acc, chunk| {
-                acc.extend_from_slice(&*chunk);
+                acc.extend_from_slice(&chunk);
                 future::ok::<_, Error>(acc)
             })
             .await?;
