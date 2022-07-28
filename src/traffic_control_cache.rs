@@ -20,6 +20,8 @@ use pbs_config::ConfigVersionCache;
 
 use crate::tools::SharedRateLimiter;
 
+pub type SharedRateLimit = Arc<dyn ShareableRateLimit>;
+
 lazy_static::lazy_static! {
     /// Shared traffic control cache singleton.
     pub static ref TRAFFIC_CONTROL_CACHE: Arc<Mutex<TrafficControlCache>> =
@@ -54,13 +56,7 @@ pub struct TrafficControlCache {
     last_update: i64,
     last_traffic_control_generation: usize,
     rules: Vec<ParsedTcRule>,
-    limiter_map: HashMap<
-        String,
-        (
-            Option<Arc<dyn ShareableRateLimit>>,
-            Option<Arc<dyn ShareableRateLimit>>,
-        ),
-    >,
+    limiter_map: HashMap<String, (Option<SharedRateLimit>, Option<SharedRateLimit>)>,
     use_utc: bool, // currently only used for testing
 }
 
@@ -115,7 +111,7 @@ fn create_limiter(
     name: &str,
     rate: u64,
     burst: u64,
-) -> Result<Arc<dyn ShareableRateLimit>, Error> {
+) -> Result<SharedRateLimit, Error> {
     if use_shared_memory {
         let limiter = SharedRateLimiter::mmap_shmem(name, rate, burst)?;
         Ok(Arc::new(limiter))
@@ -339,11 +335,7 @@ impl TrafficControlCache {
         &self,
         peer: SocketAddr,
         now: i64,
-    ) -> (
-        &str,
-        Option<Arc<dyn ShareableRateLimit>>,
-        Option<Arc<dyn ShareableRateLimit>>,
-    ) {
+    ) -> (&str, Option<SharedRateLimit>, Option<SharedRateLimit>) {
         let peer_ip = cannonical_ip(peer.ip());
 
         log::debug!("lookup_rate_limiter: {:?}", peer_ip);

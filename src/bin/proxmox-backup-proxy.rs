@@ -17,7 +17,7 @@ use openssl::ssl::{SslAcceptor, SslFiletype, SslMethod};
 use serde_json::{json, Value};
 use tokio_stream::wrappers::ReceiverStream;
 
-use proxmox_http::client::{RateLimitedStream, ShareableRateLimit};
+use proxmox_http::client::RateLimitedStream;
 use proxmox_lang::try_block;
 use proxmox_metrics::MetricsData;
 use proxmox_router::{RpcEnvironment, RpcEnvironmentType, UserInformation};
@@ -46,7 +46,7 @@ use proxmox_backup::{
         jobstate::{self, Job},
     },
     tools::disks::BlockDevStat,
-    traffic_control_cache::TRAFFIC_CONTROL_CACHE,
+    traffic_control_cache::{SharedRateLimit, TRAFFIC_CONTROL_CACHE},
 };
 
 use pbs_buildcfg::configdir;
@@ -1387,10 +1387,7 @@ async fn run_traffic_control_updater() {
 
 fn lookup_rate_limiter(
     peer: std::net::SocketAddr,
-) -> (
-    Option<Arc<dyn ShareableRateLimit>>,
-    Option<Arc<dyn ShareableRateLimit>>,
-) {
+) -> (Option<SharedRateLimit>, Option<SharedRateLimit>) {
     let mut cache = TRAFFIC_CONTROL_CACHE.lock().unwrap();
 
     let now = proxmox_time::epoch_i64();

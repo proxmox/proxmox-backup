@@ -64,11 +64,9 @@ impl ServerAdapter for StaticAuthAdapter {
                         Box::new(SimpleUserInformation {});
                     Ok((String::from("root@pam"), user_info))
                 }
-                _ => {
-                    return Err(AuthError::Generic(format_err!(
-                        "invalid file restore ticket provided"
-                    )));
-                }
+                _ => Err(AuthError::Generic(format_err!(
+                    "invalid file restore ticket provided"
+                ))),
             }
         })
     }
