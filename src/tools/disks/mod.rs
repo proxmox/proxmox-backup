@@ -585,7 +585,7 @@ fn get_file_system_devices(lsblk_info: &[LsblkInfo]) -> Result<HashSet<u64>, Err
 }
 
 #[api()]
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum PartitionUsageType {
     /// Partition is not used (as far we can tell)
@@ -605,7 +605,7 @@ pub enum PartitionUsageType {
 }
 
 #[api()]
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum DiskUsageType {
     /// Disk is not used (as far we can tell)
@@ -1078,7 +1078,7 @@ pub fn create_single_linux_partition(disk: &Disk) -> Result<Disk, Error> {
 }
 
 #[api()]
-#[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum FileSystemType {
     /// Linux Ext4

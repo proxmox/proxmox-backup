@@ -298,11 +298,9 @@ impl TapeDriver for VirtualTapeHandle {
                 let reader = BlockedReader::open(reader)?;
                 Ok(Box::new(reader))
             }
-            None => {
-                return Err(BlockReadError::Error(proxmox_lang::io_format_err!(
-                    "drive is empty (no tape loaded)."
-                )));
-            }
+            None => Err(BlockReadError::Error(proxmox_lang::io_format_err!(
+                "drive is empty (no tape loaded)."
+            ))),
         }
     }
 
