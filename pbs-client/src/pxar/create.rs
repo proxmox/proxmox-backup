@@ -147,6 +147,7 @@ struct Archiver {
     fs_feature_flags: Flags,
     fs_magic: i64,
     patterns: Vec<MatchEntry>,
+    #[allow(clippy::type_complexity)]
     callback: Box<dyn FnMut(&Path) -> Result<(), Error> + Send>,
     catalog: Option<Arc<Mutex<dyn BackupCatalogWriter + Send>>>,
     path: PathBuf,

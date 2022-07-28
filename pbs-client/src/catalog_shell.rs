@@ -334,7 +334,7 @@ impl<'a> Iterator for PathComponentIter<'a> {
 
         // skip slashes
         let had_slashes = self.path[0] == b'/';
-        while self.path.get(0).copied() == Some(b'/') {
+        while self.path.first().copied() == Some(b'/') {
             self.path = &self.path[1..];
         }
 
