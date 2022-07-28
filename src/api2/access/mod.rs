@@ -40,7 +40,7 @@ enum AuthResult {
     CreateTicket,
 
     /// A partial ticket which requires a 2nd factor will be created.
-    Partial(TfaChallenge),
+    Partial(Box<TfaChallenge>),
 }
 
 fn authenticate_user(
@@ -110,7 +110,7 @@ fn authenticate_user(
 
     Ok(match crate::config::tfa::login_challenge(userid)? {
         None => AuthResult::CreateTicket,
-        Some(challenge) => AuthResult::Partial(challenge),
+        Some(challenge) => AuthResult::Partial(Box::new(challenge)),
     })
 }
 
@@ -119,7 +119,7 @@ fn authenticate_2nd(
     challenge_ticket: &str,
     response: &str,
 ) -> Result<AuthResult, Error> {
-    let challenge: TfaChallenge = Ticket::<ApiTicket>::parse(challenge_ticket)?
+    let challenge: Box<TfaChallenge> = Ticket::<ApiTicket>::parse(challenge_ticket)?
         .verify_with_time_frame(public_auth_key(), "PBS", Some(userid.as_str()), -60..600)?
         .require_partial()?;
 
@@ -205,7 +205,7 @@ pub fn create_ticket(
     match authenticate_user(&username, &password, path, privs, port, tfa_challenge) {
         Ok(AuthResult::Success) => Ok(json!({ "username": username })),
         Ok(AuthResult::CreateTicket) => {
-            let api_ticket = ApiTicket::full(username.clone());
+            let api_ticket = ApiTicket::Full(username.clone());
             let ticket = Ticket::new("PBS", &api_ticket)?.sign(private_auth_key(), None)?;
             let token = assemble_csrf_prevention_token(csrf_secret(), &username);
 
@@ -218,7 +218,7 @@ pub fn create_ticket(
             }))
         }
         Ok(AuthResult::Partial(challenge)) => {
-            let api_ticket = ApiTicket::partial(challenge);
+            let api_ticket = ApiTicket::Partial(challenge);
             let ticket = Ticket::new("PBS", &api_ticket)?
                 .sign(private_auth_key(), Some(username.as_str()))?;
             Ok(json!({

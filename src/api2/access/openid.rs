@@ -200,7 +200,7 @@ pub fn openid_login(
             }
         }
 
-        let api_ticket = ApiTicket::full(user_id.clone());
+        let api_ticket = ApiTicket::Full(user_id.clone());
         let ticket = Ticket::new("PBS", &api_ticket)?.sign(private_auth_key(), None)?;
         let token = assemble_csrf_prevention_token(csrf_secret(), &user_id);
 

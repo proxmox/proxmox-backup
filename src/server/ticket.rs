@@ -21,7 +21,7 @@ pub struct PartialTicket {
 /// parse the userid ticket content.
 pub enum ApiTicket {
     Full(Userid),
-    Partial(tfa::TfaChallenge),
+    Partial(Box<tfa::TfaChallenge>),
 }
 
 impl ApiTicket {
@@ -35,21 +35,11 @@ impl ApiTicket {
 
     /// Expect the ticket to contain a tfa challenge, otherwise error with a meaningful error
     /// message.
-    pub fn require_partial(self) -> Result<tfa::TfaChallenge, Error> {
+    pub fn require_partial(self) -> Result<Box<tfa::TfaChallenge>, Error> {
         match self {
             ApiTicket::Full(_) => bail!("invalid tfa challenge"),
             ApiTicket::Partial(challenge) => Ok(challenge),
         }
-    }
-
-    /// Create a new full ticket.
-    pub fn full(userid: Userid) -> Self {
-        ApiTicket::Full(userid)
-    }
-
-    /// Create a new partial ticket.
-    pub fn partial(challenge: tfa::TfaChallenge) -> Self {
-        ApiTicket::Partial(challenge)
     }
 }
 
