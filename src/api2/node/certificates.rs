@@ -373,7 +373,7 @@ async fn order_certificate(
             );
         }
 
-        let _: () = result?;
+        result?;
     }
 
     task_log!(worker, "All domains validated");

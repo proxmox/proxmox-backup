@@ -883,14 +883,13 @@ pub fn verify(
                 }
                 res
             } else if let Some(backup_group) = backup_group {
-                let failed_dirs = verify_backup_group(
+                verify_backup_group(
                     &verify_worker,
                     &backup_group,
                     &mut StoreProgress::new(1),
                     worker.upid(),
                     Some(&move |manifest| verify_filter(ignore_verified, outdated_after, manifest)),
-                )?;
-                failed_dirs
+                )?
             } else {
                 let owner = if owner_check_required {
                     Some(&auth_id)

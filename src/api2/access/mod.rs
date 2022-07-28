@@ -105,6 +105,7 @@ fn authenticate_user(
         }
     }
 
+    #[allow(clippy::let_unit_value)]
     let _: () = crate::auth::authenticate_user(userid, password)?;
 
     Ok(match crate::config::tfa::login_challenge(userid)? {
@@ -122,6 +123,7 @@ fn authenticate_2nd(
         .verify_with_time_frame(public_auth_key(), "PBS", Some(userid.as_str()), -60..600)?
         .require_partial()?;
 
+    #[allow(clippy::let_unit_value)]
     let _: () = crate::config::tfa::verify_challenge(userid, &challenge, response.parse()?)?;
 
     Ok(AuthResult::CreateTicket)

@@ -29,6 +29,7 @@ fn tfa_update_auth(
 
     if authid.user() != Userid::root_userid() {
         let password = password.ok_or_else(|| http_err!(UNAUTHORIZED, "missing password"))?;
+        #[allow(clippy::let_unit_value)]
         let _: () = crate::auth::authenticate_user(authid.user(), &password)
             .map_err(|err| http_err!(UNAUTHORIZED, "{}", err))?;
     }

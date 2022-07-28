@@ -280,12 +280,10 @@ async fn pull(
             );
 
             let pull_future = pull_store(&worker, &client, pull_params);
-            let future = select! {
+            (select! {
                 success = pull_future.fuse() => success,
                 abort = worker.abort_future().map(|_| Err(format_err!("pull aborted"))) => abort,
-            };
-
-            let _ = future?;
+            })?;
 
             task_log!(worker, "pull datastore '{}' end", store);
 
