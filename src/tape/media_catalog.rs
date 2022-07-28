@@ -928,6 +928,7 @@ impl MediaCatalog {
 /// Media set catalog
 ///
 /// Catalog for multiple media.
+#[derive(Default)]
 pub struct MediaSetCatalog {
     catalog_list: HashMap<Uuid, MediaCatalog>,
 }
@@ -935,9 +936,7 @@ pub struct MediaSetCatalog {
 impl MediaSetCatalog {
     /// Creates a new instance
     pub fn new() -> Self {
-        Self {
-            catalog_list: HashMap::new(),
-        }
+        Self::default()
     }
 
     /// Add a catalog

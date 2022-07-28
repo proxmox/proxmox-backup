@@ -15,6 +15,7 @@ pub struct MediaSet {
 impl MediaSet {
     pub const MEDIA_SET_MAX_SEQ_NR: u64 = 100;
 
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         let uuid = Uuid::generate();
         Self {

@@ -7,6 +7,7 @@ use crate::tape::{MediaCatalog, MediaSetCatalog};
 /// Helper to build and query sets of catalogs
 ///
 /// Similar to MediaSetCatalog, but allows to modify the last catalog.
+#[derive(Default)]
 pub struct CatalogSet {
     // read only part
     pub media_set_catalog: MediaSetCatalog,
@@ -17,10 +18,7 @@ pub struct CatalogSet {
 impl CatalogSet {
     /// Create empty instance
     pub fn new() -> Self {
-        Self {
-            media_set_catalog: MediaSetCatalog::new(),
-            catalog: None,
-        }
+        Self::default()
     }
 
     /// Add catalog to the read-only set

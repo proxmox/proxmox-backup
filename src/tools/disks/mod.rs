@@ -769,7 +769,7 @@ pub struct DiskUsageQuery {
 }
 
 impl DiskUsageQuery {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             smart: true,
             partitions: false,
