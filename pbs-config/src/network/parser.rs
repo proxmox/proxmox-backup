@@ -384,8 +384,9 @@ impl<R: BufRead> NetworkParser<R> {
                 if mask.is_some() {
                     // address already has a mask  - ignore netmask
                 } else {
+                    use std::fmt::Write as _;
                     check_netmask(netmask, is_v6)?;
-                    cidr.push_str(&format!("/{}", netmask));
+                    let _ = write!(cidr, "/{}", netmask);
                 }
                 if is_v6 {
                     set_cidr_v6(interface, cidr)?;

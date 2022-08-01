@@ -174,12 +174,13 @@ pub fn update_dns(
 
     let mut data = String::new();
 
+    use std::fmt::Write as _;
     if let Some(search) = config["search"].as_str() {
-        data.push_str(&format!("search {}\n", search));
+        let _ = writeln!(data, "search {}", search);
     }
     for opt in &["dns1", "dns2", "dns3"] {
         if let Some(server) = config[opt].as_str() {
-            data.push_str(&format!("nameserver {}\n", server));
+            let _ = writeln!(data, "nameserver {}", server);
         }
     }
     if let Some(options) = config["options"].as_str() {

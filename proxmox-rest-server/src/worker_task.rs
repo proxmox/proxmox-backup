@@ -637,12 +637,9 @@ pub struct TaskListInfo {
 fn render_task_line(info: &TaskListInfo) -> String {
     let mut raw = String::new();
     if let Some(status) = &info.state {
-        raw.push_str(&format!(
-            "{} {:08X} {}\n",
-            info.upid_str,
-            status.endtime(),
-            status
-        ));
+        use std::fmt::Write as _;
+
+        let _ = writeln!(raw, "{} {:08X} {}", info.upid_str, status.endtime(), status);
     } else {
         raw.push_str(&info.upid_str);
         raw.push('\n');

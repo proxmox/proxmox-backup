@@ -476,21 +476,24 @@ pub fn send_load_media_email(
     to: &str,
     reason: Option<String>,
 ) -> Result<(), Error> {
+    use std::fmt::Write as _;
+
     let subject = format!("Load Media '{}' request for drive '{}'", label_text, drive);
 
     let mut text = String::new();
 
     if let Some(reason) = reason {
-        text.push_str(&format!(
+        let _ = write!(
+            text,
             "The drive has the wrong or no tape inserted. Error:\n{}\n\n",
             reason
-        ));
+        );
     }
 
     text.push_str("Please insert the requested media into the backup drive.\n\n");
 
-    text.push_str(&format!("Drive: {}\n", drive));
-    text.push_str(&format!("Media: {}\n", label_text));
+    let _ = writeln!(text, "Drive: {}", drive);
+    let _ = writeln!(text, "Media: {}", label_text);
 
     send_job_status_mail(to, &subject, &text)
 }
