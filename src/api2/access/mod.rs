@@ -106,7 +106,9 @@ fn authenticate_user(
     }
 
     #[allow(clippy::let_unit_value)]
-    let _: () = crate::auth::authenticate_user(userid, password)?;
+    {
+        let _: () = crate::auth::authenticate_user(userid, password)?;
+    }
 
     Ok(match crate::config::tfa::login_challenge(userid)? {
         None => AuthResult::CreateTicket,
@@ -124,7 +126,9 @@ fn authenticate_2nd(
         .require_partial()?;
 
     #[allow(clippy::let_unit_value)]
-    let _: () = crate::config::tfa::verify_challenge(userid, &challenge, response.parse()?)?;
+    {
+        let _: () = crate::config::tfa::verify_challenge(userid, &challenge, response.parse()?)?;
+    }
 
     Ok(AuthResult::CreateTicket)
 }
