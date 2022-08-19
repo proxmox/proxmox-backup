@@ -1,7 +1,8 @@
 use anyhow::{bail, format_err, Error};
 use serde_json::Value;
 
-use proxmox_http::client::{SimpleHttp, SimpleHttpOptions};
+use proxmox_http::client::Client;
+use proxmox_http::HttpOptions;
 use proxmox_router::{Permission, Router, RpcEnvironment};
 use proxmox_schema::api;
 use proxmox_subscription::{SubscriptionInfo, SubscriptionStatus};
@@ -42,7 +43,7 @@ fn check_and_write_subscription(key: String, server_id: String) -> Result<(), Er
         None
     };
 
-    let client = SimpleHttp::with_options(SimpleHttpOptions {
+    let client = Client::with_options(HttpOptions {
         proxy_config,
         user_agent: Some(DEFAULT_USER_AGENT_STRING.to_string()),
         tcp_keepalive: Some(PROXMOX_BACKUP_TCP_KEEPALIVE_TIME),

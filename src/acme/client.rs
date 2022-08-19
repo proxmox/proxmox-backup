@@ -15,7 +15,7 @@ use proxmox_acme_rs::account::AccountData as AcmeAccountData;
 use proxmox_acme_rs::order::{Order, OrderData};
 use proxmox_acme_rs::Request as AcmeRequest;
 use proxmox_acme_rs::{Account, Authorization, Challenge, Directory, Error, ErrorResponse};
-use proxmox_http::client::SimpleHttp;
+use proxmox_http::client::Client;
 use proxmox_sys::fs::{replace_file, CreateOptions};
 
 use crate::api2::types::AcmeAccountName;
@@ -59,7 +59,7 @@ pub struct AcmeClient {
     account: Option<Account>,
     directory: Option<Directory>,
     nonce: Option<String>,
-    http_client: SimpleHttp,
+    http_client: Client,
 }
 
 impl AcmeClient {
@@ -480,7 +480,7 @@ impl AcmeResponse {
 impl AcmeClient {
     /// Non-self-borrowing run_request version for borrow workarounds.
     async fn execute(
-        http_client: &mut SimpleHttp,
+        http_client: &mut Client,
         request: AcmeRequest,
         nonce: &mut Option<String>,
     ) -> Result<AcmeResponse, Error> {
@@ -584,7 +584,7 @@ impl AcmeClient {
     }
 
     async fn get_directory<'a, 'b>(
-        http_client: &mut SimpleHttp,
+        http_client: &mut Client,
         directory_url: &str,
         directory: &'a mut Option<Directory>,
         nonce: &'b mut Option<String>,
@@ -617,7 +617,7 @@ impl AcmeClient {
     /// Like `get_directory`, but if the directory provides no nonce, also performs a `HEAD`
     /// request on the new nonce URL.
     async fn get_dir_nonce<'a, 'b>(
-        http_client: &mut SimpleHttp,
+        http_client: &mut Client,
         directory_url: &str,
         directory: &'a mut Option<Directory>,
         nonce: &'b mut Option<String>,
@@ -637,7 +637,7 @@ impl AcmeClient {
     }
 
     async fn get_nonce<'a>(
-        http_client: &mut SimpleHttp,
+        http_client: &mut Client,
         nonce: &'a mut Option<String>,
         new_nonce_url: &str,
     ) -> Result<&'a str, Error> {
