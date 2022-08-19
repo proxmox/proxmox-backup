@@ -75,6 +75,11 @@ fn extract_archive_from_reader<R: std::io::Read>(
                 optional: true,
                 default: false,
             },
+            "overwrite": {
+                description: "overwrite already existing files",
+                optional: true,
+                default: false,
+            },
             "files-from": {
                 description: "File containing match pattern for files to restore.",
                 optional: true,
@@ -112,6 +117,7 @@ fn extract_archive(
     no_fcaps: bool,
     no_acls: bool,
     allow_existing_dirs: bool,
+    overwrite: bool,
     files_from: Option<String>,
     no_device_nodes: bool,
     no_fifos: bool,
@@ -179,6 +185,7 @@ fn extract_archive(
     let options = PxarExtractOptions {
         match_list: &match_list,
         allow_existing_dirs,
+        overwrite,
         extract_match_default,
         on_error,
     };

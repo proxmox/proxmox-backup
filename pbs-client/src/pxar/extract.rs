@@ -34,6 +34,7 @@ pub struct PxarExtractOptions<'a> {
     pub match_list: &'a [MatchEntry],
     pub extract_match_default: bool,
     pub allow_existing_dirs: bool,
+    pub overwrite: bool,
     pub on_error: Option<ErrorHandler>,
 }
 
@@ -80,6 +81,7 @@ where
         dir,
         root.metadata().clone(),
         options.allow_existing_dirs,
+        options.overwrite,
         feature_flags,
     );
 
@@ -198,6 +200,7 @@ where
                 &mut decoder.contents().ok_or_else(|| {
                     format_err!("found regular file entry without contents in archive")
                 })?,
+                extractor.overwrite,
             ),
             (false, _) => Ok(()), // skip this
         }
@@ -215,6 +218,7 @@ where
 pub struct Extractor {
     feature_flags: Flags,
     allow_existing_dirs: bool,
+    overwrite: bool,
     dir_stack: PxarDirStack,
 
     /// For better error output we need to track the current path in the Extractor state.
@@ -231,11 +235,13 @@ impl Extractor {
         root_dir: Dir,
         metadata: Metadata,
         allow_existing_dirs: bool,
+        overwrite: bool,
         feature_flags: Flags,
     ) -> Self {
         Self {
             dir_stack: PxarDirStack::new(root_dir, metadata),
             allow_existing_dirs,
+            overwrite,
             feature_flags,
             current_path: Arc::new(Mutex::new(OsString::new())),
             on_error: Box::new(Err),
@@ -392,14 +398,21 @@ impl Extractor {
         metadata: &Metadata,
         size: u64,
         contents: &mut dyn io::Read,
+        overwrite: bool,
     ) -> Result<(), Error> {
         let parent = self.parent_fd()?;
+        let mut oflags = OFlag::O_CREAT | OFlag::O_WRONLY | OFlag::O_CLOEXEC;
+        if overwrite {
+            oflags = oflags | OFlag::O_TRUNC;
+        } else {
+            oflags = oflags | OFlag::O_EXCL;
+        }
         let mut file = unsafe {
             std::fs::File::from_raw_fd(
                 nix::fcntl::openat(
                     parent,
                     file_name,
-                    OFlag::O_CREAT | OFlag::O_EXCL | OFlag::O_WRONLY | OFlag::O_CLOEXEC,
+                    oflags,
                     Mode::from_bits(0o600).unwrap(),
                 )
                 .map_err(|err| format_err!("failed to create file {:?}: {}", file_name, err))?,
@@ -448,14 +461,21 @@ impl Extractor {
         metadata: &Metadata,
         size: u64,
         contents: &mut T,
+        overwrite: bool,
     ) -> Result<(), Error> {
         let parent = self.parent_fd()?;
+        let mut oflags = OFlag::O_CREAT | OFlag::O_WRONLY | OFlag::O_CLOEXEC;
+        if overwrite {
+            oflags = oflags | OFlag::O_TRUNC;
+        } else {
+            oflags = oflags | OFlag::O_EXCL;
+        }
         let mut file = tokio::fs::File::from_std(unsafe {
             std::fs::File::from_raw_fd(
                 nix::fcntl::openat(
                     parent,
                     file_name,
-                    OFlag::O_CREAT | OFlag::O_EXCL | OFlag::O_WRONLY | OFlag::O_CLOEXEC,
+                    oflags,
                     Mode::from_bits(0o600).unwrap(),
                 )
                 .map_err(|err| format_err!("failed to create file {:?}: {}", file_name, err))?,
@@ -818,7 +838,7 @@ where
         )
     })?;
 
-    Ok(Extractor::new(dir, metadata, false, Flags::DEFAULT))
+    Ok(Extractor::new(dir, metadata, false, false, Flags::DEFAULT))
 }
 
 pub async fn extract_sub_dir<T, DEST, PATH>(
@@ -951,6 +971,7 @@ where
                     &mut file.contents().await.map_err(|_| {
                         format_err!("found regular file entry without contents in archive")
                     })?,
+                    extractor.overwrite,
                 )
                 .await?
         }
@@ -998,6 +1019,7 @@ where
                             &mut decoder.contents().ok_or_else(|| {
                                 format_err!("found regular file entry without contents in archive")
                             })?,
+                            extractor.overwrite,
                         )
                         .await?
                 }

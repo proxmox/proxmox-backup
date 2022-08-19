@@ -984,7 +984,7 @@ impl Shell {
             .clone();
 
         let extractor =
-            crate::pxar::extract::Extractor::new(rootdir, root_meta, true, Flags::DEFAULT);
+            crate::pxar::extract::Extractor::new(rootdir, root_meta, true, false, Flags::DEFAULT);
 
         let mut extractor = ExtractorState::new(
             &mut self.catalog,
@@ -1172,7 +1172,7 @@ impl<'a> ExtractorState<'a> {
                 let file_name = CString::new(entry.file_name().as_bytes())?;
                 let mut contents = entry.contents().await?;
                 self.extractor
-                    .async_extract_file(&file_name, entry.metadata(), *size, &mut contents)
+                    .async_extract_file(&file_name, entry.metadata(), *size, &mut contents, false)
                     .await
             }
             _ => {
