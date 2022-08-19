@@ -84,7 +84,7 @@ url = "2.1"
 #valgrind_request = { git = "https://github.com/edef1c/libvalgrind_request", version = "1.1.0", optional = true }
 walkdir = "2"
 xdg = "2.2"
-nom = "5.1"
+nom = "7"
 crossbeam-channel = "0.5"
 
 # Used only by examples currently:

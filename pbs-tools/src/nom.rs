@@ -4,7 +4,7 @@ use nom::{
     bytes::complete::{take_while, take_while1},
     character::complete::digit1,
     combinator::{all_consuming, map_res, recognize},
-    error::{ParseError, VerboseError},
+    error::{ContextError, VerboseError},
 };
 
 pub type IResult<I, O, E = VerboseError<I>> = Result<(I, O), nom::Err<E>>;
@@ -44,7 +44,7 @@ pub fn parse_u64(i: &str) -> IResult<&str, u64> {
 /// Parse complete input, generate verbose error message with line numbers
 pub fn parse_complete<'a, F, O>(what: &str, i: &'a str, parser: F) -> Result<O, Error>
 where
-    F: Fn(&'a str) -> IResult<&'a str, O>,
+    F: FnMut(&'a str) -> IResult<&'a str, O>,
 {
     match all_consuming(parser)(i) {
         Err(nom::Err::Error(err)) | Err(nom::Err::Failure(err)) => {

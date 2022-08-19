@@ -157,7 +157,7 @@ fn parse_zpool_status_field(i: &str) -> IResult<&str, (String, String)> {
 
     let indent: usize = prefix_len + 2;
 
-    let parse_continuation = opt(space_indented_line(indent));
+    let mut parse_continuation = opt(space_indented_line(indent));
 
     let mut value = value.to_string();
 
