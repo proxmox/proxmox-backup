@@ -409,13 +409,8 @@ impl Extractor {
         }
         let mut file = unsafe {
             std::fs::File::from_raw_fd(
-                nix::fcntl::openat(
-                    parent,
-                    file_name,
-                    oflags,
-                    Mode::from_bits(0o600).unwrap(),
-                )
-                .map_err(|err| format_err!("failed to create file {:?}: {}", file_name, err))?,
+                nix::fcntl::openat(parent, file_name, oflags, Mode::from_bits(0o600).unwrap())
+                    .map_err(|err| format_err!("failed to create file {:?}: {}", file_name, err))?,
             )
         };
 
@@ -472,13 +467,8 @@ impl Extractor {
         }
         let mut file = tokio::fs::File::from_std(unsafe {
             std::fs::File::from_raw_fd(
-                nix::fcntl::openat(
-                    parent,
-                    file_name,
-                    oflags,
-                    Mode::from_bits(0o600).unwrap(),
-                )
-                .map_err(|err| format_err!("failed to create file {:?}: {}", file_name, err))?,
+                nix::fcntl::openat(parent, file_name, oflags, Mode::from_bits(0o600).unwrap())
+                    .map_err(|err| format_err!("failed to create file {:?}: {}", file_name, err))?,
             )
         });
 

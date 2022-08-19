@@ -1237,14 +1237,14 @@ We do not extract '.pxar' archives when writing to standard output.
 )]
 /// Restore backup repository.
 async fn restore(
-        param: Value,
-        allow_existing_dirs: bool,
-        ignore_acls: bool,
-        ignore_xattrs: bool,
-        ignore_ownership: bool,
-        ignore_permissions: bool,
-        overwrite: bool
-    ) -> Result<Value, Error> {
+    param: Value,
+    allow_existing_dirs: bool,
+    ignore_acls: bool,
+    ignore_xattrs: bool,
+    ignore_ownership: bool,
+    ignore_permissions: bool,
+    overwrite: bool,
+) -> Result<Value, Error> {
     let repo = extract_repository_from_value(&param)?;
 
     let archive_name = json::required_string_param(&param, "archive-name")?;
