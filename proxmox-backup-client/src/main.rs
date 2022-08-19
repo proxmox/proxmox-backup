@@ -1188,6 +1188,7 @@ We do not extract '.pxar' archives when writing to standard output.
                 type: Boolean,
                 description: "Do not fail if directories already exists.",
                 optional: true,
+                default: false,
             },
             keyfile: {
                 schema: KEYFILE_SCHEMA,
@@ -1201,14 +1202,50 @@ We do not extract '.pxar' archives when writing to standard output.
                 type: CryptMode,
                 optional: true,
             },
+            "ignore-acls": {
+                type: Boolean,
+                description: "ignore acl settings",
+                optional: true,
+                default: false,
+            },
+            "ignore-xattrs": {
+                type: Boolean,
+                description: "ignore xattr settings",
+                optional: true,
+                default: false,
+            },
+            "ignore-ownership": {
+                type: Boolean,
+                description: "ignore owner settings (no chown)",
+                optional: true,
+                default: false,
+            },
+            "ignore-permissions": {
+                type: Boolean,
+                description: "ignore permission settings (no chmod)",
+                optional: true,
+                default: false,
+            },
+            "overwrite": {
+                type: Boolean,
+                description: "overwrite already existing files",
+                optional: true,
+                default: false,
+            },
         }
     }
 )]
 /// Restore backup repository.
-async fn restore(param: Value) -> Result<Value, Error> {
+async fn restore(
+        param: Value,
+        allow_existing_dirs: bool,
+        ignore_acls: bool,
+        ignore_xattrs: bool,
+        ignore_ownership: bool,
+        ignore_permissions: bool,
+        overwrite: bool
+    ) -> Result<Value, Error> {
     let repo = extract_repository_from_value(&param)?;
-
-    let allow_existing_dirs = param["allow-existing-dirs"].as_bool().unwrap_or(false);
 
     let archive_name = json::required_string_param(&param, "archive-name")?;
 
@@ -1331,14 +1368,30 @@ async fn restore(param: Value) -> Result<Value, Error> {
             match_list: &[],
             extract_match_default: true,
             allow_existing_dirs,
+            overwrite,
             on_error: None,
         };
+
+        let mut feature_flags = pbs_client::pxar::Flags::DEFAULT;
+
+        if ignore_acls {
+            feature_flags.remove(pbs_client::pxar::Flags::WITH_ACL);
+        }
+        if ignore_xattrs {
+            feature_flags.remove(pbs_client::pxar::Flags::WITH_XATTRS);
+        }
+        if ignore_ownership {
+            feature_flags.remove(pbs_client::pxar::Flags::WITH_OWNER);
+        }
+        if ignore_permissions {
+            feature_flags.remove(pbs_client::pxar::Flags::WITH_PERMISSIONS);
+        }
 
         if let Some(target) = target {
             pbs_client::pxar::extract_archive(
                 pxar::decoder::Decoder::from_std(reader)?,
                 Path::new(target),
-                pbs_client::pxar::Flags::DEFAULT,
+                feature_flags,
                 |path| {
                     log::debug!("{:?}", path);
                 },
