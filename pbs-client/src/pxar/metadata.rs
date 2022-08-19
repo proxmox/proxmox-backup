@@ -100,19 +100,7 @@ pub fn apply(
     on_error: &mut (dyn FnMut(Error) -> Result<(), Error> + Send),
 ) -> Result<(), Error> {
     let c_proc_path = CString::new(format!("/proc/self/fd/{}", fd)).unwrap();
-
-    unsafe {
-        // UID and GID first, as this fails if we lose access anyway.
-        c_result!(libc::chown(
-            c_proc_path.as_ptr(),
-            metadata.stat.uid,
-            metadata.stat.gid
-        ))
-        .map(drop)
-        .or_else(allow_notsupp)
-        .map_err(|err| format_err!("failed to set ownership: {}", err))
-        .or_else(&mut *on_error)?;
-    }
+    apply_ownership(flags, c_proc_path.as_ptr(), metadata, &mut *on_error)?;
 
     let mut skip_xattrs = false;
     apply_xattrs(flags, c_proc_path.as_ptr(), metadata, &mut skip_xattrs)
@@ -125,7 +113,7 @@ pub fn apply(
 
     // Finally mode and time. We may lose access with mode, but the changing the mode also
     // affects times.
-    if !metadata.is_symlink() {
+    if !metadata.is_symlink() && flags.contains(Flags::WITH_PERMISSIONS) {
         c_result!(unsafe {
             libc::chmod(c_proc_path.as_ptr(), perms_from_metadata(metadata)?.bits())
         })
@@ -159,6 +147,30 @@ pub fn apply(
         apply_flags(flags, fd, metadata.stat.flags).or_else(&mut *on_error)?;
     }
 
+    Ok(())
+}
+
+pub fn apply_ownership(
+    flags: Flags,
+    c_proc_path: *const libc::c_char,
+    metadata: &Metadata,
+    on_error: &mut (dyn FnMut(Error) -> Result<(), Error> + Send),
+) -> Result<(), Error> {
+    if !flags.contains(Flags::WITH_OWNER) {
+        return Ok(());
+    }
+    unsafe {
+        // UID and GID first, as this fails if we lose access anyway.
+        c_result!(libc::chown(
+            c_proc_path,
+            metadata.stat.uid,
+            metadata.stat.gid
+        ))
+        .map(drop)
+        .or_else(allow_notsupp)
+        .map_err(|err| format_err!("failed to set ownership: {}", err))
+        .or_else(&mut *on_error)?;
+    }
     Ok(())
 }
 

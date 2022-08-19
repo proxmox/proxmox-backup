@@ -71,6 +71,9 @@ bitflags! {
         /// Preserve XFS/ext4/ZFS project quota ID
         const WITH_QUOTA_PROJID                = 0x0001_0000_0000;
 
+        /// UNIX OWNERSHIP
+        const WITH_OWNER                       = 0x0002_0000_0000;
+
         /// Support ".pxarexclude" files
         const EXCLUDE_FILE                     = 0x1000_0000_0000_0000;
         /// Exclude submounts
@@ -105,6 +108,7 @@ bitflags! {
             Flags::WITH_2SEC_TIME.bits() |
             Flags::WITH_READ_ONLY.bits() |
             Flags::WITH_PERMISSIONS.bits() |
+            Flags::WITH_OWNER.bits() |
             Flags::WITH_SYMLINKS.bits() |
             Flags::WITH_DEVICE_NODES.bits() |
             Flags::WITH_FIFOS.bits() |
@@ -135,6 +139,8 @@ bitflags! {
             Flags::WITH_FLAG_PROJINHERIT.bits() |
             Flags::WITH_SUBVOLUME.bits() |
             Flags::WITH_SUBVOLUME_RO.bits() |
+            Flags::WITH_PERMISSIONS.bits() |
+            Flags::WITH_OWNER.bits() |
             Flags::WITH_XATTRS.bits() |
             Flags::WITH_ACL.bits() |
             Flags::WITH_SELINUX.bits() |
