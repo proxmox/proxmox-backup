@@ -403,9 +403,9 @@ impl Extractor {
         let parent = self.parent_fd()?;
         let mut oflags = OFlag::O_CREAT | OFlag::O_WRONLY | OFlag::O_CLOEXEC;
         if overwrite {
-            oflags = oflags | OFlag::O_TRUNC;
+            oflags |= OFlag::O_TRUNC;
         } else {
-            oflags = oflags | OFlag::O_EXCL;
+            oflags |= OFlag::O_EXCL;
         }
         let mut file = unsafe {
             std::fs::File::from_raw_fd(
@@ -461,9 +461,9 @@ impl Extractor {
         let parent = self.parent_fd()?;
         let mut oflags = OFlag::O_CREAT | OFlag::O_WRONLY | OFlag::O_CLOEXEC;
         if overwrite {
-            oflags = oflags | OFlag::O_TRUNC;
+            oflags |= OFlag::O_TRUNC;
         } else {
-            oflags = oflags | OFlag::O_EXCL;
+            oflags |= OFlag::O_EXCL;
         }
         let mut file = tokio::fs::File::from_std(unsafe {
             std::fs::File::from_raw_fd(
