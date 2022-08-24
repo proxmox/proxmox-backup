@@ -72,7 +72,7 @@ impl BackupGroup {
     }
 
     pub fn relative_group_path(&self) -> PathBuf {
-        let mut path = self.store.namespace_path(&self.ns);
+        let mut path = self.ns.path();
         path.push(self.group.ty.as_str());
         path.push(&self.group.id);
         path
