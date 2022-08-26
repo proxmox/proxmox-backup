@@ -18,6 +18,27 @@ referenced by the indexes in a backup snapshot. This means that multiple
 indexes can reference the same chunks, reducing the amount of space needed to
 contain the data (even across backup snapshots).
 
+Snapshots
+---------
+
+A Snapshot is the collection of manifest, blobs and indexes that represent
+a backup. When a client creates a snapshot, it can upload blobs (single files
+which are not chunked, e.g. the client log), or one or more indexes
+(fixed or dynamic).
+
+When uploading an index, the client first has to read the source data, chunk it
+and send the data as chunks with their identifying checksum to the server.
+
+If there is a previous Snapshot in the backup group, the client can first
+download the chunk list of the previous Snapshot. If it detects a chunk that
+already exists on the server, it can send only the checksum instead of data
+and checksum. This way the actual upload of Snapshots is incremental while
+each Snapshot references all chunks and is thus a full backup.
+
+After uploading all data, the client has to signal to the server that the
+backup is finished. If that is not done before the connection closes, the
+server will remove the unfinished snapshot.
+
 Chunks
 ------
 
