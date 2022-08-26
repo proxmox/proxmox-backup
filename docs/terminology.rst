@@ -118,7 +118,7 @@ Backup Snapshot
 ---------------
 
 The triplet ``<type>/<ID>/<time>`` is called a backup snapshot. It
-uniquely identifies a specific backup within a datastore.
+uniquely identifies a specific backup within a namespace.
 
 .. code-block:: console
    :caption: Backup Snapshot Examples
