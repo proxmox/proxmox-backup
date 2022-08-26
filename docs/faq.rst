@@ -66,9 +66,11 @@ be able to read the data.
   :ref:`backup client encryption section <client_encryption>`.
 
 
-Is the backup incremental/deduplicated?
+Is the backup incremental/deduplicated/full?
 ---------------------------------------
 
 With Proxmox Backup Server, backups are sent incrementally to the server, and
 data is then deduplicated on the server. This minimizes both the storage
-consumed and the impact on the network.
+consumed and the impact on the network. Each backup still references all
+data and such is a full backup. For details see the
+:ref:`Technical Overview <tech_design_overview>`
