@@ -298,7 +298,7 @@ Ext.define('PBS.LoginView', {
 			{
 			    xtype: 'proxmoxLanguageSelector',
 			    fieldLabel: gettext('Language'),
-			    value: Ext.util.Cookies.get('PBSLangCookie') || Proxmox.defaultLang || 'en',
+			    value: Ext.util.Cookies.get('PBSLangCookie') || Proxmox.defaultLang || '__default__',
 			    name: 'lang',
 			    reference: 'langField',
 			    submitValue: false,
