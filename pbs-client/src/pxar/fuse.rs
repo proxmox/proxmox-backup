@@ -566,8 +566,19 @@ impl SessionImpl {
         let file = self.get_lookup(inode)?;
         let content = self.open_content(&file)?;
         let mut buf = vec::undefined(len);
-        let got = content.read_at(&mut buf, offset).await?;
-        buf.truncate(got);
+        let mut pos = 0;
+        // fuse' read is different from normal read - no short reads allowed except for EOF!
+        // the returned data will be 0-byte padded up to len by fuse
+        loop {
+            let got = content
+                .read_at(&mut buf[pos..], offset + pos as u64)
+                .await?;
+            pos += got;
+            if got == 0 || pos >= len {
+                break;
+            }
+        }
+        buf.truncate(pos);
         Ok(buf)
     }
 
