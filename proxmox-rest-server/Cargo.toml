@@ -40,4 +40,4 @@ proxmox-http = { version = "0.6.4", features = [ "client" ] }
 proxmox-router = "1.2.4"
 proxmox-schema = { version = "1.3.1", features = [ "api-macro", "upid-api-impl" ] }
 proxmox-time = "1"
-proxmox-sys = { version = "0.4", features = [ "logrotate" ] }
+proxmox-sys = { version = "0.4", features = [ "logrotate", "timer" ] }
