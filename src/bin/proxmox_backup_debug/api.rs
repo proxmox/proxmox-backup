@@ -241,6 +241,9 @@ async fn call_api_code(
         }
         ApiHandler::Sync(handler) => (handler)(params, method, rpcenv),
         ApiHandler::Async(handler) => (handler)(params, method, rpcenv).await,
+        _ => {
+            bail!("Unknown API handler type");
+        }
     }
 }
 

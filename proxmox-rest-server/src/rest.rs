@@ -470,6 +470,9 @@ pub(crate) async fn handle_api_request<Env: RpcEnvironment, S: 'static + BuildHa
                 .await
                 .map(|data| formatter.format_data(data, &rpcenv))
         }
+        _ => {
+            bail!("Unknown API handler type");
+        }
     };
 
     let mut resp = match result {
