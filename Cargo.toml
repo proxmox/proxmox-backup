@@ -105,7 +105,7 @@ proxmox-time = "1.1.2"
 proxmox-uuid = "1"
 proxmox-serde = { version = "0.1.1", features = [ "serde_json" ] }
 proxmox-shared-memory = "0.2"
-proxmox-subscription = { version = "0.2", features = [ "api-types" ] }
+proxmox-subscription = { version = "0.3", features = [ "api-types" ] }
 proxmox-sys = { version = "0.4", features = [ "sortable-macro", "timer" ] }
 proxmox-compression = "0.1"
 
