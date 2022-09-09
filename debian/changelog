@@ -1,3 +1,16 @@
+rust-proxmox-backup (2.2.6-1) bullseye; urgency=medium
+
+  * manager: add 'subscription set-offline-key' command
+
+  * tfa: allow modifying 'allow-subdomains'
+
+  * proxmox-backup-client: added ignore-acls/xattrs/ownership/permissions &
+    overwrite parameters
+
+  * docs: package repos: fix typo
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 09 Sep 2022 14:15:11 +0200
+
 rust-proxmox-backup (2.2.5-1) bullseye; urgency=medium
 
   * fix #4157: docs: fix copy-paste error in repo examples
