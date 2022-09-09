@@ -164,7 +164,7 @@ This repository is tested with:
 - Debian Bullseye
 
 Edit the file ``/etc/apt/sources.list.d/pbs-client.list`` and add the following
-snipped
+snippet
 
 .. code-block:: sources.list
   :caption: File: ``/etc/apt/sources.list``
@@ -181,7 +181,7 @@ This repository is tested with:
 It may work with older, and should work with more recent released versions.
 
 Edit the file ``/etc/apt/sources.list.d/pbs-client.list`` and add the following
-snipped
+snippet
 
 .. code-block:: sources.list
   :caption: File: ``/etc/apt/sources.list``
