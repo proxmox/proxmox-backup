@@ -83,9 +83,7 @@ fn main() -> Result<(), Error> {
 
     if running_uid != backup_uid || running_gid != backup_gid {
         bail!(
-            "proxy not running as backup user or group (got uid {} gid {})",
-            running_uid,
-            running_gid
+            "proxy not running as backup user or group (got uid {running_uid} gid {running_gid})"
         );
     }
 
@@ -121,7 +119,7 @@ impl ServerAdapter for ProxmoxBackupProxyAdapter {
 /// check for a cookie with the user-preferred language, fallback to the config one if not set or
 /// not existing
 fn get_language(headers: &http::HeaderMap) -> String {
-    let exists = |l: &str| Path::new(&format!("/usr/share/pbs-i18n/pbs-lang-{}.js", l)).exists();
+    let exists = |l: &str| Path::new(&format!("/usr/share/pbs-i18n/pbs-lang-{l}.js")).exists();
 
     match cookie_from_header(headers, "PBSLangCookie") {
         Some(cookie_lang) if exists(&cookie_lang) => cookie_lang,
@@ -181,7 +179,7 @@ async fn get_index_future(env: RestEnvironment, parts: Parts) -> Response<Body> 
 
     let (ct, index) = match api.render_template(template_file, &data) {
         Ok(index) => ("text/html", index),
-        Err(err) => ("text/plain", format!("Error rendering template: {}", err)),
+        Err(err) => ("text/plain", format!("Error rendering template: {err}")),
     };
 
     let mut resp = Response::builder()
@@ -211,7 +209,7 @@ async fn run() -> Result<(), Error> {
         },
         Some("proxmox-backup-proxy"),
     ) {
-        bail!("unable to inititialize syslog - {}", err);
+        bail!("unable to inititialize syslog - {err}");
     }
 
     let _ = public_auth_key(); // load with lazy_static
@@ -289,7 +287,7 @@ async fn run() -> Result<(), Error> {
         move |_value| -> Result<_, Error> {
             log::info!("reloading certificate");
             match make_tls_acceptor() {
-                Err(err) => log::error!("error reloading certificate: {}", err),
+                Err(err) => log::error!("error reloading certificate: {err}"),
                 Ok(new_acceptor) => {
                     let mut guard = acceptor.lock().unwrap();
                     *guard = new_acceptor;
@@ -302,7 +300,7 @@ async fn run() -> Result<(), Error> {
     // to remove references for not configured datastores
     commando_sock.register_command("datastore-removed".to_string(), |_value| {
         if let Err(err) = DataStore::remove_unused_datastores() {
-            log::error!("could not refresh datastores: {}", err);
+            log::error!("could not refresh datastores: {err}");
         }
         Ok(Value::Null)
     })?;
@@ -337,7 +335,7 @@ async fn run() -> Result<(), Error> {
     });
 
     if let Err(err) = init_result {
-        bail!("unable to start daemon - {}", err);
+        bail!("unable to start daemon - {err}");
     }
 
     // stop gap for https://github.com/tokio-rs/tokio/issues/4730 where the thread holding the
@@ -380,10 +378,10 @@ fn make_tls_acceptor() -> Result<SslAcceptor, Error> {
     }
     acceptor
         .set_private_key_file(key_path, SslFiletype::PEM)
-        .map_err(|err| format_err!("unable to read proxy key {} - {}", key_path, err))?;
+        .map_err(|err| format_err!("unable to read proxy key {key_path} - {err}"))?;
     acceptor
         .set_certificate_chain_file(cert_path)
-        .map_err(|err| format_err!("unable to read proxy cert {} - {}", cert_path, err))?;
+        .map_err(|err| format_err!("unable to read proxy cert {cert_path} - {err}"))?;
     acceptor.set_options(openssl::ssl::SslOptions::NO_RENEGOTIATION);
     acceptor.check_private_key().unwrap();
 
@@ -422,7 +420,7 @@ async fn accept_connection(
             res = listener.accept().fuse() => match res {
                 Ok(conn) => conn,
                 Err(err) => {
-                    eprintln!("error accepting tcp connection: {}", err);
+                    eprintln!("error accepting tcp connection: {err}");
                     continue;
                 }
             },
@@ -443,10 +441,7 @@ async fn accept_connection(
             match openssl::ssl::Ssl::new(acceptor_guard.context()) {
                 Ok(ssl) => ssl,
                 Err(err) => {
-                    eprintln!(
-                        "failed to create Ssl object from Acceptor context - {}",
-                        err
-                    );
+                    eprintln!("failed to create Ssl object from Acceptor context - {err}");
                     continue;
                 }
             }
@@ -455,10 +450,7 @@ async fn accept_connection(
         let stream = match tokio_openssl::SslStream::new(ssl, sock) {
             Ok(stream) => stream,
             Err(err) => {
-                eprintln!(
-                    "failed to create SslStream using ssl and connection socket - {}",
-                    err
-                );
+                eprintln!("failed to create SslStream using ssl and connection socket - {err}");
                 continue;
             }
         };
@@ -486,7 +478,7 @@ async fn accept_connection(
                 }
                 Ok(Err(err)) => {
                     if debug {
-                        eprintln!("https handshake failed - {}", err);
+                        eprintln!("https handshake failed - {err}");
                     }
                 }
                 Err(_) => {
@@ -568,7 +560,7 @@ async fn schedule_tasks() -> Result<(), Error> {
 async fn schedule_datastore_garbage_collection() {
     let config = match pbs_config::datastore::config() {
         Err(err) => {
-            eprintln!("unable to read datastore config - {}", err);
+            eprintln!("unable to read datastore config - {err}");
             return;
         }
         Ok((config, _digest)) => config,
@@ -578,7 +570,7 @@ async fn schedule_datastore_garbage_collection() {
         let store_config: DataStoreConfig = match serde_json::from_value(store_config) {
             Ok(c) => c,
             Err(err) => {
-                eprintln!("datastore config from_value failed - {}", err);
+                eprintln!("datastore config from_value failed - {err}");
                 continue;
             }
         };
@@ -591,7 +583,7 @@ async fn schedule_datastore_garbage_collection() {
         let event: CalendarEvent = match event_str.parse() {
             Ok(event) => event,
             Err(err) => {
-                eprintln!("unable to parse schedule '{}' - {}", event_str, err);
+                eprintln!("unable to parse schedule '{event_str}' - {err}");
                 continue;
             }
         };
@@ -601,7 +593,7 @@ async fn schedule_datastore_garbage_collection() {
             let datastore = match DataStore::lookup_datastore(&store, Some(Operation::Lookup)) {
                 Ok(datastore) => datastore,
                 Err(err) => {
-                    eprintln!("lookup_datastore failed - {}", err);
+                    eprintln!("lookup_datastore failed - {err}");
                     continue;
                 }
             };
@@ -625,7 +617,7 @@ async fn schedule_datastore_garbage_collection() {
             Ok(Some(next)) => next,
             Ok(None) => continue,
             Err(err) => {
-                eprintln!("compute_next_event for '{}' failed - {}", event_str, err);
+                eprintln!("compute_next_event for '{event_str}' failed - {err}");
                 continue;
             }
         };
@@ -658,10 +650,7 @@ async fn schedule_datastore_garbage_collection() {
             Some(event_str),
             false,
         ) {
-            eprintln!(
-                "unable to start garbage collection job on datastore {} - {}",
-                store, err
-            );
+            eprintln!("unable to start garbage collection job on datastore {store} - {err}");
         }
     }
 }
@@ -669,7 +658,7 @@ async fn schedule_datastore_garbage_collection() {
 async fn schedule_datastore_prune_jobs() {
     let config = match pbs_config::prune::config() {
         Err(err) => {
-            eprintln!("unable to read prune job config - {}", err);
+            eprintln!("unable to read prune job config - {err}");
             return;
         }
         Ok((config, _digest)) => config,
@@ -678,7 +667,7 @@ async fn schedule_datastore_prune_jobs() {
         let job_config: PruneJobConfig = match serde_json::from_value(job_config) {
             Ok(c) => c,
             Err(err) => {
-                eprintln!("prune job config from_value failed - {}", err);
+                eprintln!("prune job config from_value failed - {err}");
                 continue;
             }
         };
@@ -705,7 +694,7 @@ async fn schedule_datastore_prune_jobs() {
                 &auth_id,
                 Some(job_config.schedule),
             ) {
-                eprintln!("unable to start datastore prune job {} - {}", &job_id, err);
+                eprintln!("unable to start datastore prune job {job_id} - {err}");
             }
         };
     }
@@ -714,7 +703,7 @@ async fn schedule_datastore_prune_jobs() {
 async fn schedule_datastore_sync_jobs() {
     let config = match pbs_config::sync::config() {
         Err(err) => {
-            eprintln!("unable to read sync job config - {}", err);
+            eprintln!("unable to read sync job config - {err}");
             return;
         }
         Ok((config, _digest)) => config,
@@ -724,7 +713,7 @@ async fn schedule_datastore_sync_jobs() {
         let job_config: SyncJobConfig = match serde_json::from_value(job_config) {
             Ok(c) => c,
             Err(err) => {
-                eprintln!("sync job config from_value failed - {}", err);
+                eprintln!("sync job config from_value failed - {err}");
                 continue;
             }
         };
@@ -743,7 +732,7 @@ async fn schedule_datastore_sync_jobs() {
 
             let auth_id = Authid::root_auth_id().clone();
             if let Err(err) = do_sync_job(job, job_config, &auth_id, Some(event_str), false) {
-                eprintln!("unable to start datastore sync job {} - {}", &job_id, err);
+                eprintln!("unable to start datastore sync job {job_id} - {err}");
             }
         };
     }
@@ -752,7 +741,7 @@ async fn schedule_datastore_sync_jobs() {
 async fn schedule_datastore_verify_jobs() {
     let config = match pbs_config::verify::config() {
         Err(err) => {
-            eprintln!("unable to read verification job config - {}", err);
+            eprintln!("unable to read verification job config - {err}");
             return;
         }
         Ok((config, _digest)) => config,
@@ -761,7 +750,7 @@ async fn schedule_datastore_verify_jobs() {
         let job_config: VerificationJobConfig = match serde_json::from_value(job_config) {
             Ok(c) => c,
             Err(err) => {
-                eprintln!("verification job config from_value failed - {}", err);
+                eprintln!("verification job config from_value failed - {err}");
                 continue;
             }
         };
@@ -779,10 +768,7 @@ async fn schedule_datastore_verify_jobs() {
             };
             if let Err(err) = do_verification_job(job, job_config, &auth_id, Some(event_str), false)
             {
-                eprintln!(
-                    "unable to start datastore verification job {} - {}",
-                    &job_id, err
-                );
+                eprintln!("unable to start datastore verification job {job_id} - {err}");
             }
         };
     }
@@ -791,7 +777,7 @@ async fn schedule_datastore_verify_jobs() {
 async fn schedule_tape_backup_jobs() {
     let config = match pbs_config::tape_job::config() {
         Err(err) => {
-            eprintln!("unable to read tape job config - {}", err);
+            eprintln!("unable to read tape job config - {err}");
             return;
         }
         Ok((config, _digest)) => config,
@@ -800,7 +786,7 @@ async fn schedule_tape_backup_jobs() {
         let job_config: TapeBackupJobConfig = match serde_json::from_value(job_config) {
             Ok(c) => c,
             Err(err) => {
-                eprintln!("tape backup job config from_value failed - {}", err);
+                eprintln!("tape backup job config from_value failed - {err}");
                 continue;
             }
         };
@@ -819,7 +805,7 @@ async fn schedule_tape_backup_jobs() {
             if let Err(err) =
                 do_tape_backup_job(job, job_config.setup, &auth_id, Some(event_str), false)
             {
-                eprintln!("unable to start tape backup job {} - {}", &job_id, err);
+                eprintln!("unable to start tape backup job {job_id} - {err}");
             }
         };
     }
@@ -918,7 +904,7 @@ async fn schedule_task_log_rotate() {
                 if has_rotated {
                     task_log!(worker, "cleaning up old task logs");
                     if let Err(err) = cleanup_old_tasks(&worker, true) {
-                        task_warn!(worker, "could not completely cleanup old tasks: {}", err);
+                        task_warn!(worker, "could not completely cleanup old tasks: {err}");
                     }
                 }
 
@@ -928,13 +914,13 @@ async fn schedule_task_log_rotate() {
             let status = worker.create_state(&result);
 
             if let Err(err) = job.finish(status) {
-                eprintln!("could not finish job state for {}: {}", worker_type, err);
+                eprintln!("could not finish job state for {worker_type}: {err}");
             }
 
             result
         },
     ) {
-        eprintln!("unable to start task log rotation: {}", err);
+        eprintln!("unable to start task log rotation: {err}");
     }
 }
 
@@ -952,12 +938,10 @@ async fn command_reopen_access_logfiles() -> Result<(), Error> {
 
     match futures::join!(f1, f2) {
         (Err(e1), Err(e2)) => Err(format_err!(
-            "reopen commands failed, proxy: {}; api: {}",
-            e1,
-            e2
+            "reopen commands failed, proxy: {e1}; api: {e2}"
         )),
-        (Err(e1), Ok(_)) => Err(format_err!("reopen commands failed, proxy: {}", e1)),
-        (Ok(_), Err(e2)) => Err(format_err!("reopen commands failed, api: {}", e2)),
+        (Err(e1), Ok(_)) => Err(format_err!("reopen commands failed, proxy: {e1}")),
+        (Ok(_), Err(e2)) => Err(format_err!("reopen commands failed, api: {e2}")),
         _ => Ok(()),
     }
 }
@@ -974,12 +958,10 @@ async fn command_reopen_auth_logfiles() -> Result<(), Error> {
 
     match futures::join!(f1, f2) {
         (Err(e1), Err(e2)) => Err(format_err!(
-            "reopen commands failed, proxy: {}; api: {}",
-            e1,
-            e2
+            "reopen commands failed, proxy: {e1}; api: {e2}"
         )),
-        (Err(e1), Ok(_)) => Err(format_err!("reopen commands failed, proxy: {}", e1)),
-        (Ok(_), Err(e2)) => Err(format_err!("reopen commands failed, api: {}", e2)),
+        (Err(e1), Ok(_)) => Err(format_err!("reopen commands failed, proxy: {e1}")),
+        (Ok(_), Err(e2)) => Err(format_err!("reopen commands failed, api: {e2}")),
         _ => Ok(()),
     }
 }
@@ -997,7 +979,7 @@ async fn run_stat_generator() {
         {
             Ok(res) => res,
             Err(err) => {
-                log::error!("collecting host stats panicked: {}", err);
+                log::error!("collecting host stats panicked: {err}");
                 tokio::time::sleep_until(tokio::time::Instant::from_std(delay_target)).await;
                 continue;
             }
@@ -1015,10 +997,10 @@ async fn run_stat_generator() {
 
         let (rrd_res, metrics_res) = join!(rrd_future, metrics_future);
         if let Err(err) = rrd_res {
-            log::error!("rrd update panicked: {}", err);
+            log::error!("rrd update panicked: {err}");
         }
         if let Err(err) = metrics_res {
-            log::error!("error during metrics sending: {}", err);
+            log::error!("error during metrics sending: {err}");
         }
 
         tokio::time::sleep_until(tokio::time::Instant::from_std(delay_target)).await;
@@ -1104,13 +1086,13 @@ async fn send_data_to_metric_servers(
         .zip(channel_list.iter().map(|(_, name)| name))
     {
         if let Err(err) = res {
-            log::error!("error sending into channel of {}: {}", name, err);
+            log::error!("error sending into channel of {name}: {err}");
         }
     }
 
     futures::future::join_all(channel_list.into_iter().map(|(channel, name)| async move {
         if let Err(err) = channel.join().await {
-            log::error!("error sending to metric server {}: {}", name, err);
+            log::error!("error sending to metric server {name}: {err}");
         }
     }))
     .await;
@@ -1159,7 +1141,7 @@ fn collect_host_stats_sync() -> HostStats {
     let proc = match read_proc_stat() {
         Ok(stat) => Some(stat),
         Err(err) => {
-            eprintln!("read_proc_stat failed - {}", err);
+            eprintln!("read_proc_stat failed - {err}");
             None
         }
     };
@@ -1167,7 +1149,7 @@ fn collect_host_stats_sync() -> HostStats {
     let meminfo = match read_meminfo() {
         Ok(stat) => Some(stat),
         Err(err) => {
-            eprintln!("read_meminfo failed - {}", err);
+            eprintln!("read_meminfo failed - {err}");
             None
         }
     };
@@ -1175,7 +1157,7 @@ fn collect_host_stats_sync() -> HostStats {
     let net = match read_proc_net_dev() {
         Ok(netdev) => Some(netdev),
         Err(err) => {
-            eprintln!("read_prox_net_dev failed - {}", err);
+            eprintln!("read_prox_net_dev failed - {err}");
             None
         }
     };
@@ -1183,7 +1165,7 @@ fn collect_host_stats_sync() -> HostStats {
     let load = match read_loadavg() {
         Ok(loadavg) => Some(loadavg),
         Err(err) => {
-            eprintln!("read_loadavg failed - {}", err);
+            eprintln!("read_loadavg failed - {err}");
             None
         }
     };
@@ -1220,7 +1202,7 @@ fn collect_disk_stats_sync() -> (DiskStat, Vec<DiskStat>) {
             }
         }
         Err(err) => {
-            eprintln!("read datastore config failed - {}", err);
+            eprintln!("read datastore config failed - {err}");
         }
     }
 
@@ -1295,7 +1277,7 @@ fn check_schedule(worker_type: &str, event_str: &str, id: &str) -> bool {
     let event: CalendarEvent = match event_str.parse() {
         Ok(event) => event,
         Err(err) => {
-            eprintln!("unable to parse schedule '{}' - {}", event_str, err);
+            eprintln!("unable to parse schedule '{event_str}' - {err}");
             return false;
         }
     };
@@ -1303,10 +1285,7 @@ fn check_schedule(worker_type: &str, event_str: &str, id: &str) -> bool {
     let last = match jobstate::last_run_time(worker_type, id) {
         Ok(time) => time,
         Err(err) => {
-            eprintln!(
-                "could not get last run time of {} {}: {}",
-                worker_type, id, err
-            );
+            eprintln!("could not get last run time of {worker_type} {id}: {err}");
             return false;
         }
     };
@@ -1315,7 +1294,7 @@ fn check_schedule(worker_type: &str, event_str: &str, id: &str) -> bool {
         Ok(Some(next)) => next,
         Ok(None) => return false,
         Err(err) => {
-            eprintln!("compute_next_event for '{}' failed - {}", event_str, err);
+            eprintln!("compute_next_event for '{event_str}' failed - {err}");
             return false;
         }
     };
@@ -1328,7 +1307,7 @@ fn gather_disk_stats(disk_manager: Arc<DiskManage>, path: &Path, name: &str) -> 
     let usage = match proxmox_sys::fs::fs_info(path) {
         Ok(status) => Some(status),
         Err(err) => {
-            eprintln!("read fs info on {:?} failed - {}", path, err);
+            eprintln!("read fs info on {path:?} failed - {err}");
             None
         }
     };
@@ -1341,17 +1320,17 @@ fn gather_disk_stats(disk_manager: Arc<DiskManage>, path: &Path, name: &str) -> 
                 ("zfs", Some(source)) => match source.into_string() {
                     Ok(dataset) => match zfs_dataset_stats(&dataset) {
                         Ok(stat) => device_stat = Some(stat),
-                        Err(err) => eprintln!("zfs_dataset_stats({:?}) failed - {}", dataset, err),
+                        Err(err) => eprintln!("zfs_dataset_stats({dataset:?}) failed - {err}"),
                     },
                     Err(source) => {
-                        eprintln!("zfs_pool_stats({:?}) failed - invalid characters", source)
+                        eprintln!("zfs_pool_stats({source:?}) failed - invalid characters")
                     }
                 },
                 _ => {
                     if let Ok(disk) = disk_manager.clone().disk_by_dev_num(device.into_dev_t()) {
                         match disk.read_stat() {
                             Ok(stat) => device_stat = stat,
-                            Err(err) => eprintln!("disk.read_stat {:?} failed - {}", path, err),
+                            Err(err) => eprintln!("disk.read_stat {path:?} failed - {err}"),
                         }
                     }
                 }
@@ -1359,7 +1338,7 @@ fn gather_disk_stats(disk_manager: Arc<DiskManage>, path: &Path, name: &str) -> 
             device_stat
         }
         Err(err) => {
-            eprintln!("find_mounted_device failed - {}", err);
+            eprintln!("find_mounted_device failed - {err}");
             None
         }
     };
