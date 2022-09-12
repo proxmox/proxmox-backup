@@ -172,6 +172,7 @@ Depends: fonts-font-awesome,
          ${shlibs:Depends},
 Recommends: zfsutils-linux,
             ifupdown2,
+            proxmox-offline-mirror-helper,
 Description: Proxmox Backup Server daemon with tools and GUI
  This package contains the Proxmox Backup Server daemons and related
  tools. This includes a web-based graphical user interface.
