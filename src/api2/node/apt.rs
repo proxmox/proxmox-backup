@@ -330,6 +330,7 @@ pub fn get_versions() -> Result<Vec<APTUpdateInfo>, Error> {
         "proxmox-backup-client",
         "proxmox-backup-server",
         "proxmox-mini-journalreader",
+        "proxmox-offline-mirror-helper",
         "proxmox-widget-toolkit",
         "pve-xtermjs",
         "smartmontools",
