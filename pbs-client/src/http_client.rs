@@ -23,6 +23,7 @@ use proxmox_sys::linux::tty;
 
 use proxmox_async::broadcast_future::BroadcastFuture;
 use proxmox_http::client::{HttpsConnector, RateLimiter};
+use proxmox_http::ProxyConfig;
 use proxmox_http::uri::{build_authority, json_object_to_query};
 
 use pbs_api_types::percent_encoding::DEFAULT_ENCODE_SET;
@@ -387,6 +388,12 @@ impl HttpClient {
                 rate_out.as_u64(),
                 burst_out,
             )))));
+        }
+
+        let proxy_config = ProxyConfig::from_proxy_env()?;
+        if let Some(config) = proxy_config {
+            log::info!("Using proxy connection: {}:{}", config.host, config.port);
+            https.set_proxy(config);
         }
 
         let client = Client::builder()

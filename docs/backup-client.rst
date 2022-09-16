@@ -69,6 +69,17 @@ Environment Variables
   When set, this value is used to verify the server certificate (only used if
   the system CA certificates cannot validate the certificate).
 
+``ALL_PROXY``
+  When set, the client uses the specified HTTP proxy for all connections to the
+  backup server. Currently only HTTP proxies are supported. Valid proxy
+  configurations have the following format:
+  `[http://][user:password@]<host>[:port]`. Default `port` is 1080, if not
+  otherwise specified.
+
+
+.. Note:: The recommended solution for shielding hosts is using tunnels such as
+   wireguard, instead of using an HTTP proxy.
+
 
 .. Note:: Passwords must be valid UTF-8 and may not contain newlines. For your
    convenience, Proxmox Backup Server only uses the first line as password, so
