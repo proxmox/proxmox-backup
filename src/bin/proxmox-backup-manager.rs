@@ -305,7 +305,7 @@ async fn pull_datastore(
     }
 
     if ns.is_some() {
-        args["local-ns"] = json!(ns);
+        args["ns"] = json!(ns);
     }
 
     if max_depth.is_some() {
