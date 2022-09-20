@@ -2,7 +2,6 @@
 function gettext(val) { return val; };
 
 Ext.onReady(function() {
-    const NOW = new Date();
     const COLORS = {
 	'keep-last': 'orange',
 	'keep-hourly': 'purple',
@@ -180,7 +179,7 @@ Ext.onReady(function() {
 
 	    let html = '<table class="cal">';
 
-	    let now = new Date(NOW.getTime());
+	    let now = new Date(me.up().getViewModel().get('now'));
 	    let skip = 7 - parseInt(Ext.Date.format(now, 'N'), 10);
 	    let tableStartDate = Ext.Date.add(now, Ext.Date.DAY, skip);
 
@@ -295,6 +294,9 @@ Ext.onReady(function() {
 	alias: 'widget.prunesimulatorPanel',
 
 	viewModel: {
+	    data: {
+		now: new Date(),
+	    },
 	},
 
 	getValues: function() {
@@ -424,6 +426,8 @@ Ext.onReady(function() {
 
 	    // backups are sorted descending by date
 	    populateFromSchedule: function(weekdays, hours, minutes, weekCount) {
+		const me = this;
+
 		let weekdayFlags = [
 		    weekdays.includes('sun'),
 		    weekdays.includes('mon'),
@@ -434,7 +438,8 @@ Ext.onReady(function() {
 		    weekdays.includes('sat'),
 		];
 
-		let todaysDate = new Date(NOW.getTime());
+		const vmDate = me.getViewModel().get('now');
+		let todaysDate = new Date(vmDate);
 
 		let timesOnSingleDay = [];
 
@@ -456,9 +461,10 @@ Ext.onReady(function() {
 		    let weekday = parseInt(Ext.Date.format(daysDate, 'w'), 10);
 		    if (weekdayFlags[weekday]) {
 			timesOnSingleDay.forEach(function(time) {
-			    backups.push({
-				backuptime: Ext.Date.subtract(new Date(time), Ext.Date.DAY, i),
-			    });
+			    const backuptime = Ext.Date.subtract(new Date(time), Ext.Date.DAY, i);
+			    if (backuptime <= vmDate) {
+				backups.push({ backuptime: backuptime });
+			    }
 			});
 		    }
 		}
@@ -619,6 +625,7 @@ Ext.onReady(function() {
 
 	initComponent: function() {
 	    var me = this;
+	    const vm = me.getViewModel();
 
 	    me.pruneStore = Ext.create('Ext.data.Store', {
 		model: 'pbs-prune-list',
@@ -661,48 +668,108 @@ Ext.onReady(function() {
 			{ xtype: "panel", width: 1, border: 1 },
 			{
 			    xtype: 'form',
-			    layout: 'anchor',
-			    flex: 1,
+			    layout: 'hbox',
+			    flex: 2,
 			    border: false,
 			    title: 'Simulated Backup Schedule',
-			    defaults: {
-				labelWidth: 120,
-			    },
 			    bodyPadding: 10,
 			    items: [
 				{
-				    xtype: 'prunesimulatorDayOfWeekSelector',
-				    name: 'schedule-weekdays',
-				    fieldLabel: 'Day of week',
-				    value: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'],
-				    allowBlank: false,
-				    multiSelect: true,
-				    padding: '0 0 0 10',
+				    xtype: 'container',
+				    layout: 'anchor',
+				    defaults: {
+					labelWidth: 120,
+				    },
+				    items: [
+					{
+					    xtype: 'prunesimulatorDayOfWeekSelector',
+					    name: 'schedule-weekdays',
+					    fieldLabel: 'Day of week',
+					    value: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'],
+					    allowBlank: false,
+					    multiSelect: true,
+					    padding: '0 0 0 10',
+					},
+					{
+					    xtype: 'prunesimulatorCalendarEvent',
+					    name: 'schedule-time',
+					    allowBlank: false,
+					    value: '0/6:00',
+					    fieldLabel: 'Backup schedule',
+					    padding: '0 0 0 10',
+					},
+					{
+					    xtype: 'numberfield',
+					    name: 'numberOfWeeks',
+					    allowBlank: false,
+					    fieldLabel: 'Number of weeks',
+					    minValue: 1,
+					    value: 15,
+					    maxValue: 260, // five years
+					    padding: '0 0 0 10',
+					},
+					{
+					    xtype: 'button',
+					    name: 'schedule-button',
+					    text: 'Update Schedule',
+					    formBind: true,
+					    handler: 'reloadFull',
+					},
+				    ],
 				},
 				{
-				    xtype: 'prunesimulatorCalendarEvent',
-				    name: 'schedule-time',
-				    allowBlank: false,
-				    value: '0/6:00',
-				    fieldLabel: 'Backup schedule',
-				    padding: '0 0 0 10',
-				},
-				{
-				    xtype: 'numberfield',
-				    name: 'numberOfWeeks',
-				    allowBlank: false,
-				    fieldLabel: 'Number of weeks',
-				    minValue: 1,
-				    value: 15,
-				    maxValue: 260, // five years
-				    padding: '0 0 0 10',
-				},
-				{
-				    xtype: 'button',
-				    name: 'schedule-button',
-				    text: 'Update Schedule',
-				    formBind: true,
-				    handler: 'reloadFull',
+				    xtype: 'container',
+				    layout: 'anchor',
+				    defaults: {
+					labelWidth: 60,
+				    },
+				    items: [
+					{
+					    xtype: 'datefield',
+					    name: 'currentDate',
+					    fieldLabel: 'Date',
+					    allowBlank: false,
+					    padding: '0 0 0 10',
+					    format: 'Y-m-d',
+					    value: vm.get('now'),
+					    listeners: {
+						change: function(self, newDate) {
+						    if (!self.isValid()) {
+							return;
+						    }
+						    const date = me.getViewModel().get('now');
+						    date.setFullYear(
+							newDate.getFullYear(),
+							newDate.getMonth(),
+							newDate.getDate(),
+						    );
+						},
+					    },
+					},
+					{
+					    xtype: 'timefield',
+					    name: 'currentTime',
+					    reference: 'currentTime',
+					    fieldLabel: 'Time',
+					    allowBlank: false,
+					    padding: '0 0 0 10',
+					    format: 'H:i',
+					    // cant bind value because ExtJS sets the year
+					    // to 2008 to protect against DST issues
+					    // and date picker zeroes hour/minute
+					    value: vm.get('now'),
+					    listeners: {
+						change: function(self, time) {
+						    if (!self.isValid()) {
+							return;
+						    }
+						    const date = me.getViewModel().get('now');
+						    date.setHours(time.getHours());
+						    date.setMinutes(time.getMinutes());
+						},
+					    },
+					},
+				    ],
 				},
 			    ],
 			},
@@ -734,7 +801,7 @@ Ext.onReady(function() {
 			    xtype: 'prunesimulatorPruneList',
 			    store: me.pruneStore,
 			    reference: 'pruneList',
-			    flex: 1,
+			    flex: 2,
 			},
 		    ],
 		},
