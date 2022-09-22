@@ -2,6 +2,7 @@ use anyhow::Error;
 use serde_json::json;
 
 use proxmox_router::{cli::*, ApiHandler, RpcEnvironment};
+use proxmox_subscription::SubscriptionStatus;
 use proxmox_sys::fs::CreateOptions;
 
 use proxmox_backup::api2;
@@ -32,16 +33,12 @@ async fn do_update(rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
         }
         _ => unreachable!(),
     }
-    let method = &api2::node::subscription::API_METHOD_GET_SUBSCRIPTION;
-    let notify = match method.handler {
-        ApiHandler::Sync(handler) => match (handler)(param, method, rpcenv) {
-            Ok(value) => !value.is_null(),
-            Err(err) => {
-                log::error!("Error reading subscription - {}", err);
-                false
-            }
+    let notify = match api2::node::subscription::get_subscription(param, rpcenv) {
+        Ok(info) => info.status == SubscriptionStatus::Active,
+        Err(err) => {
+            log::error!("Error reading subscription - {}", err);
+            false
         },
-        _ => unreachable!(),
     };
 
     let param = json!({
