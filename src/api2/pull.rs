@@ -4,7 +4,7 @@ use std::convert::TryFrom;
 use anyhow::{format_err, Error};
 use futures::{future::FutureExt, select};
 
-use proxmox_router::{ApiMethod, Permission, Router, RpcEnvironment};
+use proxmox_router::{Permission, Router, RpcEnvironment};
 use proxmox_schema::api;
 use proxmox_sys::task_log;
 
@@ -227,7 +227,6 @@ async fn pull(
     max_depth: Option<usize>,
     group_filter: Option<Vec<GroupFilter>>,
     limit: RateLimitConfig,
-    _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
