@@ -109,63 +109,61 @@ Ext.onReady(function() {
 	extend: 'Ext.panel.Panel',
 	alias: 'widget.prunesimulatorPruneList',
 
+	viewModel: {},
+
+	items: [{
+	    xtype: 'grid',
+	    bind: {
+		store: '{store}',
+	    },
+	    border: false,
+	    columns: [
+		{
+		    header: 'Backup Time',
+		    dataIndex: 'backuptime',
+		    renderer: function(value, metaData, { data }) {
+			let text = Ext.Date.format(value, 'Y-m-d H:i:s');
+			if (data.mark !== 'keep') {
+			    return `<div style="text-decoration: line-through;">${text}</div>`;
+			}
+			if (me.useColors) {
+			    let bgColor = COLORS[data.keepName];
+			    let textColor = TEXT_COLORS[data.keepName];
+			    return `<div style="background-color: ${bgColor};color: ${textColor};">${text}</div>`;
+			} else {
+			    return text;
+			}
+		    },
+		    flex: 1,
+		    sortable: false,
+		},
+		{
+		    header: 'Keep (reason)',
+		    dataIndex: 'mark',
+		    renderer: function(value, metaData, { data }) {
+			if (data.mark !== 'keep') {
+			    return value;
+			}
+			if (data.keepCount) {
+			    return `keep (${data.keepName}: ${data.keepCount})`;
+			} else {
+			    return `keep (${data.keepName})`;
+			}
+		    },
+		    width: 200,
+		    sortable: false,
+		},
+	    ],
+	}],
+
 	initComponent: function() {
 	    let me = this;
 
 	    if (!me.store) {
 		throw "no store specified";
 	    }
-
-	    me.items = [
-		{
-		    xtype: 'grid',
-		    store: me.store,
-		    border: false,
-		    columns: [
-			{
-			    header: 'Backup Time',
-			    dataIndex: 'backuptime',
-			    renderer: function(value, metaData, record) {
-				let text = Ext.Date.format(value, 'Y-m-d H:i:s');
-				if (record.data.mark === 'keep') {
-				    if (me.useColors) {
-					let bgColor = COLORS[record.data.keepName];
-					let textColor = TEXT_COLORS[record.data.keepName];
-					return '<div style="background-color: ' + bgColor + '; ' +
-							    'color: ' + textColor + ';">' + text + '</div>';
-				    } else {
-					return text;
-				    }
-				} else {
-				    return '<div style="text-decoration: line-through;">' + text + '</div>';
-				}
-			    },
-			    flex: 1,
-			    sortable: false,
-			},
-			{
-			    header: 'Keep (reason)',
-			    dataIndex: 'mark',
-			    renderer: function(value, metaData, record) {
-				if (record.data.mark === 'keep') {
-				    if (record.data.keepCount) {
-					return 'keep (' + record.data.keepName +
-					       ': ' + record.data.keepCount + ')';
-				    } else {
-					return 'keep (' + record.data.keepName + ')';
-				    }
-				} else {
-				    return value;
-				}
-			    },
-			    width: 200,
-			    sortable: false,
-			},
-		    ],
-		},
-	    ];
-
 	    me.callParent();
+	    me.getViewModel().set('store', me.store);
 	},
     });
 
@@ -222,8 +220,7 @@ Ext.onReady(function() {
 			    if (me.useColors) {
 				let bgColor = COLORS[backup.data.keepName];
 				let textColor = TEXT_COLORS[backup.data.keepName];
-				html += `<span style="background-color: ${bgColor};
-				    color: ${textColor};">${text}</span>`;
+				html += `<span style="background-color: ${bgColor}; color: ${textColor};">${text}</span>`;
 			    } else {
 				html += `<span class="black">${text}</span>`;
 			    }
