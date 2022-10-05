@@ -51,10 +51,16 @@
 </style>
 </head>
 <body>
-<p>A simulator to experiment with different backup schedules and prune
-options.</p>
+<p>A simulator to experiment with different backup schedules and prune options.</p>
 
-<h3>Schedule</h3>
+<h3>Simulation Options</h3>
+<h4>Time Range</h4>
+
+<p>A backup job scenario is simulated for a <code>Duration</code> in weeks, ending with the
+configurable <code>End Date</code> and <code>End Time</code>. By default, 15 weeks are simulated,
+ending with the current date and time.</p>
+
+<h4>Schedule</h4>
 <p>Select weekdays with the combobox and input hour and minute
 specification separated by a colon, i.e. <code>HOUR:MINUTE</code>. Each of
 <code>HOUR</code> and <code>MINUTE</code> can be either a single value or
