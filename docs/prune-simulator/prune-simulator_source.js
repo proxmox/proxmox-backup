@@ -382,7 +382,6 @@ Ext.onReady(function() {
 		};
 
 		let hours, minutes;
-
 		try {
 		    hours = matchTimeSpec(hourSpec, 0, 23);
 		    minutes = matchTimeSpec(minuteSpec, 0, 59);
@@ -390,17 +389,23 @@ Ext.onReady(function() {
 		    Ext.Msg.alert('Error', err);
 		    return;
 		}
+		let formEl = view.down('form')?.el;
+		formEl?.mask(gettext('Please wait...'), 'x-mask-loading');
 
-		let backups = me.populateFromSchedule(
-		    params['schedule-weekdays'],
-		    hours,
-		    minutes,
-		    params.numberOfWeeks,
-		);
+		setTimeout(() => { // run re-calculation async afterwards to allow masking
+		    let backups = me.populateFromSchedule(
+			params['schedule-weekdays'],
+			hours,
+			minutes,
+			params.numberOfWeeks,
+		    );
 
-		me.pruneSelect(backups, params);
+		    me.pruneSelect(backups, params);
 
-		view.pruneStore.setData(backups);
+		    view.pruneStore.setData(backups);
+
+		    formEl?.unmask();
+		}, 1);
 	    },
 
 	    reloadPrune: function() {
