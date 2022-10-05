@@ -1,3 +1,31 @@
+rust-proxmox-backup (2.2.7-1) bullseye; urgency=medium
+
+  * ui: fix default language display
+
+  * docs: terminology: update snapshot uniqueness for namespaces
+
+  * docs: technical overview: add section about snapshots
+
+  * fix #4095: make http client use proxy config from 'ALL_PROXY' env var
+
+  * proxmox-backup-manager CLI: fix `pull` command not respecting local name
+    space setting
+
+  * daily update: fix subscription check
+
+  * fix #4165: SMART: add raw field
+
+  * prune-simulator: allow setting a custom date/time
+
+  * prune simulator: rework simulation options layout
+
+  * restore-daemon: add 'format' and 'zstd' parameters to the 'extract'
+    handler in preparation to exposing them in Proxmox VE
+
+  * file-restore: add 'format' and 'zstd' parameters to 'extract' CLI command
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 05 Oct 2022 18:59:31 +0200
+
 rust-proxmox-backup (2.2.6-1) bullseye; urgency=medium
 
   * manager: add 'subscription set-offline-key' command
