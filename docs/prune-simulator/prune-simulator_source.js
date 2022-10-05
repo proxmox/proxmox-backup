@@ -430,15 +430,8 @@ Ext.onReady(function() {
 	    populateFromSchedule: function(weekdays, hours, minutes, weekCount) {
 		const me = this;
 
-		let weekdayFlags = [
-		    weekdays.includes('sun'),
-		    weekdays.includes('mon'),
-		    weekdays.includes('tue'),
-		    weekdays.includes('wed'),
-		    weekdays.includes('thu'),
-		    weekdays.includes('fri'),
-		    weekdays.includes('sat'),
-		];
+		let weekdayFlags = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
+		    .map(v => weekdays.includes(v));
 
 		const vmDate = me.getViewModel().get('now');
 		let todaysDate = new Date(vmDate);
