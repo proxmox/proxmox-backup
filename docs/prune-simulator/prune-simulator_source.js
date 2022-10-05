@@ -639,7 +639,7 @@ Ext.onReady(function() {
 		    border: false,
 		    items: [
 			{
-			    title: 'View',
+			    title: 'View Options',
 			    layout: 'anchor',
 			    flex: 1,
 			    border: false,
@@ -668,14 +668,28 @@ Ext.onReady(function() {
 			    layout: 'hbox',
 			    flex: 2,
 			    border: false,
-			    title: 'Simulated Backup Schedule',
-			    bodyPadding: 10,
+			    title: 'Backup Job Simulation',
+			    dockedItems: [{
+				xtype: 'button',
+				text: 'Update Simulation',
+				handler: 'reloadFull',
+				formBind: true,
+				dock: 'bottom',
+				margin: '1 15',
+			    }],
+			    bodyPadding: 3,
 			    items: [
 				{
-				    xtype: 'container',
+				    xtype: 'fieldset',
+				    title: 'Backup Job',
 				    layout: 'anchor',
+				    flex: 4,
+				    height: 110,
 				    defaults: {
-					labelWidth: 120,
+					labelWidth: 90,
+					padding: '0 0 0 10',
+					width: '95%',
+					minWidth: 150,
 				    },
 				    items: [
 					{
@@ -685,48 +699,35 @@ Ext.onReady(function() {
 					    value: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'],
 					    allowBlank: false,
 					    multiSelect: true,
-					    padding: '0 0 0 10',
 					},
 					{
 					    xtype: 'prunesimulatorCalendarEvent',
 					    name: 'schedule-time',
 					    allowBlank: false,
 					    value: '0/6:00',
-					    fieldLabel: 'Backup schedule',
-					    padding: '0 0 0 10',
-					},
-					{
-					    xtype: 'numberfield',
-					    name: 'numberOfWeeks',
-					    allowBlank: false,
-					    fieldLabel: 'Number of weeks',
-					    minValue: 1,
-					    value: 15,
-					    maxValue: 260, // five years
-					    padding: '0 0 0 10',
-					},
-					{
-					    xtype: 'button',
-					    name: 'schedule-button',
-					    text: 'Update Schedule',
-					    formBind: true,
-					    handler: 'reloadFull',
+					    fieldLabel: 'Schedule',
 					},
 				    ],
 				},
 				{
-				    xtype: 'container',
+				    xtype: 'fieldset',
+				    title: 'Simulation Time Range',
 				    layout: 'anchor',
+				    flex: 3,
+				    height: 110,
 				    defaults: {
-					labelWidth: 60,
+					labelWidth: 70,
+					width: 220,
+					padding: '0 0 0 10',
+					width: '95%',
+					minWidth: 150,
 				    },
 				    items: [
 					{
 					    xtype: 'datefield',
 					    name: 'currentDate',
-					    fieldLabel: 'Date',
+					    fieldLabel: 'End Date',
 					    allowBlank: false,
-					    padding: '0 0 0 10',
 					    format: 'Y-m-d',
 					    value: vm.get('now'),
 					    listeners: {
@@ -747,13 +748,11 @@ Ext.onReady(function() {
 					    xtype: 'timefield',
 					    name: 'currentTime',
 					    reference: 'currentTime',
-					    fieldLabel: 'Time',
+					    fieldLabel: 'End Time',
 					    allowBlank: false,
-					    padding: '0 0 0 10',
 					    format: 'H:i',
-					    // cant bind value because ExtJS sets the year
-					    // to 2008 to protect against DST issues
-					    // and date picker zeroes hour/minute
+					    // cant bind value because ExtJS sets the year to 2008 to
+					    // protect against DST issues and date picker zeroes hour/minute
 					    value: vm.get('now'),
 					    listeners: {
 						change: function(self, time) {
@@ -765,6 +764,28 @@ Ext.onReady(function() {
 						    date.setMinutes(time.getMinutes());
 						},
 					    },
+					},
+					{
+					    xtype: 'fieldcontainer',
+					    fieldLabel: 'Duration',
+					    layout: 'hbox',
+					    items: [{
+						xtype: 'numberfield',
+						name: 'numberOfWeeks',
+						hideLabel: true,
+						allowBlank: false,
+						minValue: 1,
+						value: 15,
+						maxValue: 260, // five years
+						flex: 1,
+					    }, {
+						xtype: 'displayfield',
+						value: 'Weeks',
+						submitValue: false,
+						hideLabel: true,
+						padding: '0 0 0 5',
+						width: 40,
+					    }],
 					},
 				    ],
 				},
