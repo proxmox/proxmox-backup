@@ -735,7 +735,7 @@ Ext.onReady(function() {
 						    if (!self.isValid()) {
 							return;
 						    }
-						    const date = me.getViewModel().get('now');
+						    let date = me.getViewModel().get('now');
 						    date.setFullYear(
 							newDate.getFullYear(),
 							newDate.getMonth(),
@@ -759,7 +759,7 @@ Ext.onReady(function() {
 						    if (!self.isValid()) {
 							return;
 						    }
-						    const date = me.getViewModel().get('now');
+						    let date = me.getViewModel().get('now');
 						    date.setHours(time.getHours());
 						    date.setMinutes(time.getMinutes());
 						},
