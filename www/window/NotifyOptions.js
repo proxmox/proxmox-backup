@@ -36,7 +36,7 @@ Ext.define('PBS.window.NotifyOptions', {
 	xtype: 'inputpanel',
 	onGetValues: function(values) {
 	    let notify = {};
-	    for (const k of ['verify', 'sync', 'gc']) {
+	    for (const k of ['verify', 'sync', 'gc', 'prune']) {
 		notify[k] = values[k];
 		delete values[k];
 	    }

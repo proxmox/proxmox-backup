@@ -119,6 +119,34 @@ Please visit the web interface for further details:
 
 "###;
 
+const PRUNE_OK_TEMPLATE: &str = r###"
+
+Job ID:       {{jobname}}
+Datastore:    {{store}}
+
+Pruning successful.
+
+
+Please visit the web interface for further details:
+
+<https://{{fqdn}}:{{port}}/#DataStore-{{store}}>
+
+"###;
+
+const PRUNE_ERR_TEMPLATE: &str = r###"
+
+Job ID:       {{jobname}}
+Datastore:    {{store}}
+
+Pruning failed: {{error}}
+
+
+Please visit the web interface for further details:
+
+<https://{{fqdn}}:{{port}}/#pbsServerAdministration:tasks>
+
+"###;
+
 const PACKAGE_UPDATES_TEMPLATE: &str = r###"
 Proxmox Backup Server has the following updates available:
 {{#each updates }}
@@ -226,6 +254,9 @@ lazy_static::lazy_static! {
 
             hb.register_template_string("sync_ok_template", SYNC_OK_TEMPLATE)?;
             hb.register_template_string("sync_err_template", SYNC_ERR_TEMPLATE)?;
+
+            hb.register_template_string("prune_ok_template", PRUNE_OK_TEMPLATE)?;
+            hb.register_template_string("prune_err_template", PRUNE_ERR_TEMPLATE)?;
 
             hb.register_template_string("tape_backup_ok_template", TAPE_BACKUP_OK_TEMPLATE)?;
             hb.register_template_string("tape_backup_err_template", TAPE_BACKUP_ERR_TEMPLATE)?;
@@ -380,6 +411,51 @@ pub fn send_verify_status(
     };
 
     send_job_status_mail(email, &subject, &text)?;
+
+    Ok(())
+}
+
+pub fn send_prune_status(
+    store: &str,
+    jobname: &str,
+    result: &Result<(), Error>,
+) -> Result<(), Error> {
+    let (email, notify) = match lookup_datastore_notify_settings(&store) {
+        (Some(email), notify) => (email, notify),
+        (None, _) => return Ok(()),
+    };
+
+    match notify.prune {
+        None => { /* send notifications by default */ }
+        Some(notify) => {
+            if notify == Notify::Never || (result.is_ok() && notify == Notify::Error) {
+                return Ok(());
+            }
+        }
+    }
+
+    let (fqdn, port) = get_server_url();
+    let mut data = json!({
+        "jobname": jobname,
+        "store": store,
+        "fqdn": fqdn,
+        "port": port,
+    });
+
+    let text = match result {
+        Ok(()) => HANDLEBARS.render("prune_ok_template", &data)?,
+        Err(err) => {
+            data["error"] = err.to_string().into();
+            HANDLEBARS.render("prune_err_template", &data)?
+        }
+    };
+
+    let subject = match result {
+        Ok(()) => format!("Pruning datastore '{}' successful", store,),
+        Err(_) => format!("Pruning datastore '{}' failed", store,),
+    };
+
+    send_job_status_mail(&email, &subject, &text)?;
 
     Ok(())
 }
@@ -584,6 +660,7 @@ pub fn lookup_datastore_notify_settings(store: &str) -> (Option<String>, Datasto
         gc: None,
         verify: None,
         sync: None,
+        prune: None,
     };
 
     let (config, _digest) = match pbs_config::datastore::config() {

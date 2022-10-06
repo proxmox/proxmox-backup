@@ -331,6 +331,7 @@ pub fn update_datastore(
             gc: None,
             verify: None,
             sync: None,
+            prune: None,
         } = notify
         {
             data.notify = None;

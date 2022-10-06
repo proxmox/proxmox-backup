@@ -164,9 +164,9 @@ pub fn do_prune_job(
     let worker_type = job.jobtype().to_string();
     let auth_id = auth_id.clone();
     let worker_id = match &prune_options.ns {
-        Some(ns) if ns.is_root() => store,
+        Some(ns) if ns.is_root() => store.clone(),
         Some(ns) => format!("{store}:{ns}"),
-        None => store,
+        None => store.clone(),
     };
 
     let upid_str = WorkerTask::new_thread(
@@ -191,6 +191,9 @@ pub fn do_prune_job(
                 eprintln!("could not finish job state for {}: {}", job.jobtype(), err);
             }
 
+            if let Err(err) = crate::server::send_prune_status(&store, job.jobname(), &result) {
+                log::error!("send prune notification failed: {}", err);
+            }
             result
         },
     )?;

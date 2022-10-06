@@ -128,6 +128,10 @@ pub enum Notify {
             type: Notify,
             optional: true,
         },
+        prune: {
+            type: Notify,
+            optional: true,
+        },
     },
 )]
 #[derive(Debug, Serialize, Deserialize)]
@@ -139,6 +143,8 @@ pub struct DatastoreNotify {
     pub verify: Option<Notify>,
     /// Sync job setting
     pub sync: Option<Notify>,
+    /// Prune job setting
+    pub prune: Option<Notify>,
 }
 
 pub const DATASTORE_NOTIFY_STRING_SCHEMA: Schema =
