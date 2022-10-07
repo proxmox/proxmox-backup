@@ -120,35 +120,18 @@ pub(crate) fn cli_prune_options_string(options: &PruneJobOptions) -> String {
 }
 
 pub(crate) fn cli_keep_options(opts: &mut Vec<String>, options: &KeepOptions) {
-    if let Some(count) = options.keep_last {
-        if count > 0 {
-            opts.push(format!("--keep-last {}", count));
-        }
-    }
-    if let Some(count) = options.keep_hourly {
-        if count > 0 {
-            opts.push(format!("--keep-hourly {}", count));
-        }
-    }
-    if let Some(count) = options.keep_daily {
-        if count > 0 {
-            opts.push(format!("--keep-daily {}", count));
-        }
-    }
-    if let Some(count) = options.keep_weekly {
-        if count > 0 {
-            opts.push(format!("--keep-weekly {}", count));
-        }
-    }
-    if let Some(count) = options.keep_monthly {
-        if count > 0 {
-            opts.push(format!("--keep-monthly {}", count));
-        }
-    }
-    if let Some(count) = options.keep_yearly {
-        if count > 0 {
-            opts.push(format!("--keep-yearly {}", count));
-        }
+    for (key, keep) in [
+        ("last", options.keep_last),
+        ("hourly", options.keep_hourly),
+        ("daily", options.keep_daily),
+        ("weekly", options.keep_weekly),
+        ("monthly", options.keep_monthly),
+        ("yearly", options.keep_yearly),
+    ] {
+        match keep {
+            Some(count) if count > 0 => opts.push(format!("--keep-{key} {count}")),
+            _ => {}
+        };
     }
 }
 
