@@ -245,18 +245,6 @@ span.snapshot-comment-column {
     content: "V.";
 }
 
-.x-action-col-icon {
-    margin: 0 1px;
-    font-size: 14px;
-}
-.x-action-col-icon:before, .x-action-col-icon:after {
-    font-size: 14px;
-}
-.x-action-col-icon:hover:before, .x-action-col-icon:hover:after {
-    text-shadow: 1px 1px 1px #AAA;
-    font-weight: 800;
-}
-
 .pbs-maintenance-mask div.x-mask-msg-text {
     background: None;
     padding: 12px 0 0;
