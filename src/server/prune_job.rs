@@ -5,8 +5,8 @@ use anyhow::Error;
 use proxmox_sys::{task_log, task_warn};
 
 use pbs_api_types::{
-    print_store_and_ns, Authid, KeepOptions, Operation, PruneJobOptions, PRIV_DATASTORE_MODIFY,
-    PRIV_DATASTORE_PRUNE,
+    print_store_and_ns, Authid, KeepOptions, Operation, PruneJobOptions, MAX_NAMESPACE_DEPTH,
+    PRIV_DATASTORE_MODIFY, PRIV_DATASTORE_PRUNE,
 };
 use pbs_datastore::prune::compute_prune_info;
 use pbs_datastore::DataStore;
@@ -23,22 +23,15 @@ pub fn prune_datastore(
     dry_run: bool,
 ) -> Result<(), Error> {
     let store = &datastore.name();
-    let max_depth = prune_options
-        .max_depth
-        .unwrap_or(pbs_api_types::MAX_NAMESPACE_DEPTH);
-    let depth_str = if max_depth == pbs_api_types::MAX_NAMESPACE_DEPTH {
-        " down to full depth".to_string()
-    } else if max_depth > 0 {
-        format!("to depth {max_depth}")
-    } else {
-        "non-recursive".to_string()
+    let max_depth = prune_options.max_depth.unwrap_or(MAX_NAMESPACE_DEPTH);
+    let depth = match max_depth {
+        MAX_NAMESPACE_DEPTH => "down to full depth".to_string(),
+        max_depth if max_depth > 0 => format!("to depth {max_depth}"),
+        _ => "non-recursive".to_string(),
     };
     let ns = prune_options.ns.clone().unwrap_or_default();
-    task_log!(
-        worker,
-        "Starting datastore prune on {}, {depth_str}",
-        print_store_and_ns(store, &ns),
-    );
+    let store_ns = print_store_and_ns(store, &ns);
+    task_log!(worker, "Starting datastore prune on {store_ns}, {depth}");
 
     if dry_run {
         task_log!(worker, "(dry test run)");
@@ -49,11 +42,8 @@ pub fn prune_datastore(
     if keep_all {
         task_log!(worker, "No prune selection - keeping all files.");
     } else {
-        task_log!(
-            worker,
-            "retention options: {}",
-            cli_prune_options_string(&prune_options)
-        );
+        let rendered_options = cli_prune_options_string(&prune_options);
+        task_log!(worker, "retention options: {rendered_options}");
     }
 
     for group in ListAccessibleBackupGroups::new_with_privs(
@@ -106,7 +96,7 @@ pub(crate) fn cli_prune_options_string(options: &PruneJobOptions) -> String {
 
     if let Some(ns) = &options.ns {
         if !ns.is_root() {
-            opts.push(format!("--ns {}", ns));
+            opts.push(format!("--ns {ns}"));
         }
     }
     if let Some(max_depth) = options.max_depth {
@@ -163,7 +153,7 @@ pub fn do_prune_job(
             task_log!(worker, "prune job '{}'", job.jobname());
 
             if let Some(event_str) = schedule {
-                task_log!(worker, "task triggered by schedule '{}'", event_str);
+                task_log!(worker, "task triggered by schedule '{event_str}'");
             }
 
             let result = prune_datastore(worker.clone(), auth_id, prune_options, datastore, false);
@@ -171,11 +161,11 @@ pub fn do_prune_job(
             let status = worker.create_state(&result);
 
             if let Err(err) = job.finish(status) {
-                eprintln!("could not finish job state for {}: {}", job.jobtype(), err);
+                eprintln!("could not finish job state for {}: {err}", job.jobtype());
             }
 
             if let Err(err) = crate::server::send_prune_status(&store, job.jobname(), &result) {
-                log::error!("send prune notification failed: {}", err);
+                log::error!("send prune notification failed: {err}");
             }
             result
         },
