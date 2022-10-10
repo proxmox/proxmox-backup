@@ -511,44 +511,40 @@ acl:1:/remote/remote1/remotestore1:write@pbs:RemoteSyncOperator
     };
 
     // should work without ACLs
-    assert!(
-        check_sync_job_read_access(&user_info, root_auth_id, &job)
-    );
-    assert!(
-        check_sync_job_modify_access(&user_info, root_auth_id, &job)
-    );
+    assert!(check_sync_job_read_access(&user_info, root_auth_id, &job));
+    assert!(check_sync_job_modify_access(&user_info, root_auth_id, &job));
 
     // user without permissions must fail
-    assert!(
-        !check_sync_job_read_access(&user_info, &no_perm_auth_id, &job)
-    );
-    assert!(
-        !check_sync_job_modify_access(&user_info, &no_perm_auth_id, &job)
-    );
+    assert!(!check_sync_job_read_access(
+        &user_info,
+        &no_perm_auth_id,
+        &job
+    ));
+    assert!(!check_sync_job_modify_access(
+        &user_info,
+        &no_perm_auth_id,
+        &job
+    ));
 
     // reading without proper read permissions on either remote or local must fail
-    assert!(
-        !check_sync_job_read_access(&user_info, &read_auth_id, &job)
-    );
+    assert!(!check_sync_job_read_access(&user_info, &read_auth_id, &job));
 
     // reading without proper read permissions on local end must fail
     job.remote = "remote1".to_string();
-    assert!(
-        !check_sync_job_read_access(&user_info, &read_auth_id, &job)
-    );
+    assert!(!check_sync_job_read_access(&user_info, &read_auth_id, &job));
 
     // reading without proper read permissions on remote end must fail
     job.remote = "remote0".to_string();
     job.store = "localstore1".to_string();
-    assert!(
-        !check_sync_job_read_access(&user_info, &read_auth_id, &job)
-    );
+    assert!(!check_sync_job_read_access(&user_info, &read_auth_id, &job));
 
     // writing without proper write permissions on either end must fail
     job.store = "localstore0".to_string();
-    assert!(
-        !check_sync_job_modify_access(&user_info, &write_auth_id, &job)
-    );
+    assert!(!check_sync_job_modify_access(
+        &user_info,
+        &write_auth_id,
+        &job
+    ));
 
     // writing without proper write permissions on local end must fail
     job.remote = "remote1".to_string();
@@ -556,72 +552,90 @@ acl:1:/remote/remote1/remotestore1:write@pbs:RemoteSyncOperator
     // writing without proper write permissions on remote end must fail
     job.remote = "remote0".to_string();
     job.store = "localstore1".to_string();
-    assert!(
-        !check_sync_job_modify_access(&user_info, &write_auth_id, &job)
-    );
+    assert!(!check_sync_job_modify_access(
+        &user_info,
+        &write_auth_id,
+        &job
+    ));
 
     // reset remote to one where users have access
     job.remote = "remote1".to_string();
 
     // user with read permission can only read, but not modify/run
-    assert!(
-        check_sync_job_read_access(&user_info, &read_auth_id, &job)
-    );
+    assert!(check_sync_job_read_access(&user_info, &read_auth_id, &job));
     job.owner = Some(read_auth_id.clone());
-    assert!(
-        !check_sync_job_modify_access(&user_info, &read_auth_id, &job)
-    );
+    assert!(!check_sync_job_modify_access(
+        &user_info,
+        &read_auth_id,
+        &job
+    ));
     job.owner = None;
-    assert!(
-        !check_sync_job_modify_access(&user_info, &read_auth_id, &job)
-    );
+    assert!(!check_sync_job_modify_access(
+        &user_info,
+        &read_auth_id,
+        &job
+    ));
     job.owner = Some(write_auth_id.clone());
-    assert!(
-        !check_sync_job_modify_access(&user_info, &read_auth_id, &job)
-    );
+    assert!(!check_sync_job_modify_access(
+        &user_info,
+        &read_auth_id,
+        &job
+    ));
 
     // user with simple write permission can modify/run
-    assert!(
-        check_sync_job_read_access(&user_info, &write_auth_id, &job)
-    );
-    assert!(
-        check_sync_job_modify_access(&user_info, &write_auth_id, &job)
-    );
+    assert!(check_sync_job_read_access(&user_info, &write_auth_id, &job));
+    assert!(check_sync_job_modify_access(
+        &user_info,
+        &write_auth_id,
+        &job
+    ));
 
     // but can't modify/run with deletion
     job.remove_vanished = Some(true);
-    assert!(
-        !check_sync_job_modify_access(&user_info, &write_auth_id, &job)
-    );
+    assert!(!check_sync_job_modify_access(
+        &user_info,
+        &write_auth_id,
+        &job
+    ));
 
     // unless they have Datastore.Prune as well
     job.store = "localstore2".to_string();
-    assert!(
-        check_sync_job_modify_access(&user_info, &write_auth_id, &job)
-    );
+    assert!(check_sync_job_modify_access(
+        &user_info,
+        &write_auth_id,
+        &job
+    ));
 
     // changing owner is not possible
     job.owner = Some(read_auth_id.clone());
-    assert!(
-        !check_sync_job_modify_access(&user_info, &write_auth_id, &job)
-    );
+    assert!(!check_sync_job_modify_access(
+        &user_info,
+        &write_auth_id,
+        &job
+    ));
 
     // also not to the default 'root@pam'
     job.owner = None;
-    assert!(
-        !check_sync_job_modify_access(&user_info, &write_auth_id, &job)
-    );
+    assert!(!check_sync_job_modify_access(
+        &user_info,
+        &write_auth_id,
+        &job
+    ));
 
     // unless they have Datastore.Modify as well
     job.store = "localstore3".to_string();
     job.owner = Some(read_auth_id);
-    assert!(
-        check_sync_job_modify_access(&user_info, &write_auth_id, &job)
-    );
+    assert!(check_sync_job_modify_access(
+        &user_info,
+        &write_auth_id,
+        &job
+    ));
     job.owner = None;
-    assert!(
-        check_sync_job_modify_access(&user_info, &write_auth_id, &job)
-    );
+    assert!(check_sync_job_modify_access(
+        &user_info,
+        &write_auth_id,
+        &job
+    ));
 
     Ok(())
 }

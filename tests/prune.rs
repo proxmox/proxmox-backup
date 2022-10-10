@@ -53,16 +53,10 @@ fn create_info_protected(snapshot: &str, partial: bool) -> BackupInfo {
 #[test]
 fn test_prune_protected() -> Result<(), Error> {
     let orig_list = vec![
-        create_info_protected(
-            "host/elsa/2019-11-15T09:39:15Z",
-            false,
-        ),
+        create_info_protected("host/elsa/2019-11-15T09:39:15Z", false),
         create_info("host/elsa/2019-11-15T10:39:15Z", false),
         create_info("host/elsa/2019-11-15T10:49:15Z", false),
-        create_info_protected(
-            "host/elsa/2019-11-15T10:59:15Z",
-            false,
-        ),
+        create_info_protected("host/elsa/2019-11-15T10:59:15Z", false),
     ];
 
     eprintln!("{:?}", orig_list);
@@ -194,7 +188,7 @@ fn test_prune_simple() -> Result<(), Error> {
         create_info("host/elsa/2019-12-04T11:59:15Z", false),
         create_info("host/elsa/2019-12-04T12:59:15Z", false),
     ];
-    
+
     // keep-last tests
 
     let list = orig_list.clone();

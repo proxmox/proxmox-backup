@@ -38,7 +38,7 @@ async fn do_update(rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
         Err(err) => {
             log::error!("Error reading subscription - {}", err);
             false
-        },
+        }
     };
 
     let param = json!({

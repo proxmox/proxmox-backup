@@ -118,37 +118,17 @@ fn test_media_expire_time() -> Result<(), Error> {
         &MediaStatus::Writable
     );
 
-    assert!(
-        !pool.media_is_expired(&pool.lookup_media(&tape0_uuid)?, 0)
-    );
-    assert!(
-        !pool.media_is_expired(&pool.lookup_media(&tape0_uuid)?, 60)
-    );
-    assert!(
-        !pool.media_is_expired(&pool.lookup_media(&tape0_uuid)?, 120)
-    );
-    assert!(
-        pool.media_is_expired(&pool.lookup_media(&tape0_uuid)?, 180)
-    );
+    assert!(!pool.media_is_expired(&pool.lookup_media(&tape0_uuid)?, 0));
+    assert!(!pool.media_is_expired(&pool.lookup_media(&tape0_uuid)?, 60));
+    assert!(!pool.media_is_expired(&pool.lookup_media(&tape0_uuid)?, 120));
+    assert!(pool.media_is_expired(&pool.lookup_media(&tape0_uuid)?, 180));
 
-    assert!(
-        !pool.media_is_expired(&pool.lookup_media(&tape1_uuid)?, 0)
-    );
-    assert!(
-        !pool.media_is_expired(&pool.lookup_media(&tape1_uuid)?, 60)
-    );
-    assert!(
-        !pool.media_is_expired(&pool.lookup_media(&tape1_uuid)?, 120)
-    );
-    assert!(
-        !pool.media_is_expired(&pool.lookup_media(&tape1_uuid)?, 180)
-    );
-    assert!(
-        !pool.media_is_expired(&pool.lookup_media(&tape1_uuid)?, 190)
-    );
-    assert!(
-        pool.media_is_expired(&pool.lookup_media(&tape1_uuid)?, 240)
-    );
+    assert!(!pool.media_is_expired(&pool.lookup_media(&tape1_uuid)?, 0));
+    assert!(!pool.media_is_expired(&pool.lookup_media(&tape1_uuid)?, 60));
+    assert!(!pool.media_is_expired(&pool.lookup_media(&tape1_uuid)?, 120));
+    assert!(!pool.media_is_expired(&pool.lookup_media(&tape1_uuid)?, 180));
+    assert!(!pool.media_is_expired(&pool.lookup_media(&tape1_uuid)?, 190));
+    assert!(pool.media_is_expired(&pool.lookup_media(&tape1_uuid)?, 240));
 
     Ok(())
 }
