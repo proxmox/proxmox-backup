@@ -25,7 +25,6 @@ members = [
     "pbs-config",
     "pbs-datastore",
     "pbs-fuse-loop",
-    "proxmox-rest-server",
     "proxmox-rrd",
     "pbs-tape",
     "pbs-tools",
@@ -108,6 +107,7 @@ proxmox-shared-memory = "0.2"
 proxmox-subscription = { version = "0.3", features = [ "api-types" ] }
 proxmox-sys = { version = "0.4", features = [ "sortable-macro", "timer" ] }
 proxmox-compression = "0.1"
+proxmox-rest-server = "0.2"
 
 
 proxmox-acme-rs = "0.4"
@@ -120,7 +120,6 @@ pbs-buildcfg = { path = "pbs-buildcfg" }
 pbs-client = { path = "pbs-client" }
 pbs-config = { path = "pbs-config" }
 pbs-datastore = { path = "pbs-datastore" }
-proxmox-rest-server = { path = "proxmox-rest-server" }
 proxmox-rrd = { path = "proxmox-rrd" }
 pbs-tools = { path = "pbs-tools" }
 pbs-tape = { path = "pbs-tape" }
@@ -138,6 +137,7 @@ pbs-tape = { path = "pbs-tape" }
 #proxmox-io = { path = "../proxmox/proxmox-io" }
 #proxmox-lang = { path = "../proxmox/proxmox-lang" }
 #proxmox-openid = { path = "../proxmox-openid-rs" }
+#proxmox-router = { path = "../proxmox/proxmox-rest-server" }
 #proxmox-router = { path = "../proxmox/proxmox-router" }
 #proxmox-schema = { path = "../proxmox/proxmox-schema" }
 #proxmox-section-config = { path = "../proxmox/proxmox-section-config" }
