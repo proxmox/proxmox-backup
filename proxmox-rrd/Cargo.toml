@@ -3,6 +3,7 @@ name = "proxmox-rrd"
 version = "0.1.0"
 authors = ["Proxmox Support Team <support@proxmox.com>"]
 edition = "2018"
+license = "AGPL-3"
 description = "Simple RRD database implementation."
 
 [dev-dependencies]
