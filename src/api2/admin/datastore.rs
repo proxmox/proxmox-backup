@@ -490,7 +490,7 @@ unsafe fn list_snapshots_blocking(
             .filter_map(|backup_type| {
                 let group =
                     datastore.backup_group_from_parts(ns.clone(), backup_type, backup_id.clone());
-                group.exists().then(move || group)
+                group.exists().then_some(group)
             })
             .collect(),
         // FIXME: Recursion

@@ -52,18 +52,18 @@ fn create_info_protected(snapshot: &str, partial: bool) -> BackupInfo {
 
 #[test]
 fn test_prune_protected() -> Result<(), Error> {
-    let mut orig_list = Vec::new();
-
-    orig_list.push(create_info_protected(
-        "host/elsa/2019-11-15T09:39:15Z",
-        false,
-    ));
-    orig_list.push(create_info("host/elsa/2019-11-15T10:39:15Z", false));
-    orig_list.push(create_info("host/elsa/2019-11-15T10:49:15Z", false));
-    orig_list.push(create_info_protected(
-        "host/elsa/2019-11-15T10:59:15Z",
-        false,
-    ));
+    let orig_list = vec![
+        create_info_protected(
+            "host/elsa/2019-11-15T09:39:15Z",
+            false,
+        ),
+        create_info("host/elsa/2019-11-15T10:39:15Z", false),
+        create_info("host/elsa/2019-11-15T10:49:15Z", false),
+        create_info_protected(
+            "host/elsa/2019-11-15T10:59:15Z",
+            false,
+        ),
+    ];
 
     eprintln!("{:?}", orig_list);
 
@@ -75,7 +75,7 @@ fn test_prune_protected() -> Result<(), Error> {
 
     let mut options = PruneJobOptions::default();
     options.keep.keep_hourly = Some(1);
-    let remove_list = get_prune_list(orig_list.clone(), false, &options);
+    let remove_list = get_prune_list(orig_list, false, &options);
     let expect: Vec<PathBuf> = vec![PathBuf::from("host/elsa/2019-11-15T10:39:15Z")];
     assert_eq!(remove_list, expect);
     Ok(())
@@ -83,14 +83,14 @@ fn test_prune_protected() -> Result<(), Error> {
 
 #[test]
 fn test_prune_hourly() -> Result<(), Error> {
-    let mut orig_list = Vec::new();
-
-    orig_list.push(create_info("host/elsa/2019-11-15T09:39:15Z", false));
-    orig_list.push(create_info("host/elsa/2019-11-15T10:49:15Z", false));
-    orig_list.push(create_info("host/elsa/2019-11-15T10:59:15Z", false));
-    orig_list.push(create_info("host/elsa/2019-11-15T11:39:15Z", false));
-    orig_list.push(create_info("host/elsa/2019-11-15T11:49:15Z", false));
-    orig_list.push(create_info("host/elsa/2019-11-15T11:59:15Z", false));
+    let orig_list = vec![
+        create_info("host/elsa/2019-11-15T09:39:15Z", false),
+        create_info("host/elsa/2019-11-15T10:49:15Z", false),
+        create_info("host/elsa/2019-11-15T10:59:15Z", false),
+        create_info("host/elsa/2019-11-15T11:39:15Z", false),
+        create_info("host/elsa/2019-11-15T11:49:15Z", false),
+        create_info("host/elsa/2019-11-15T11:59:15Z", false),
+    ];
 
     let list = orig_list.clone();
     let mut options = PruneJobOptions::default();
@@ -118,17 +118,17 @@ fn test_prune_hourly() -> Result<(), Error> {
 
 #[test]
 fn test_prune_simple2() -> Result<(), Error> {
-    let mut orig_list = Vec::new();
-
-    orig_list.push(create_info("host/elsa/2018-11-15T11:59:15Z", false));
-    orig_list.push(create_info("host/elsa/2019-11-15T11:59:15Z", false));
-    orig_list.push(create_info("host/elsa/2019-11-21T11:59:15Z", false));
-    orig_list.push(create_info("host/elsa/2019-11-22T11:59:15Z", false));
-    orig_list.push(create_info("host/elsa/2019-11-29T11:59:15Z", false));
-    orig_list.push(create_info("host/elsa/2019-12-01T11:59:15Z", false));
-    orig_list.push(create_info("host/elsa/2019-12-02T11:59:15Z", false));
-    orig_list.push(create_info("host/elsa/2019-12-03T11:59:15Z", false));
-    orig_list.push(create_info("host/elsa/2019-12-04T11:59:15Z", false));
+    let orig_list = vec![
+        create_info("host/elsa/2018-11-15T11:59:15Z", false),
+        create_info("host/elsa/2019-11-15T11:59:15Z", false),
+        create_info("host/elsa/2019-11-21T11:59:15Z", false),
+        create_info("host/elsa/2019-11-22T11:59:15Z", false),
+        create_info("host/elsa/2019-11-29T11:59:15Z", false),
+        create_info("host/elsa/2019-12-01T11:59:15Z", false),
+        create_info("host/elsa/2019-12-02T11:59:15Z", false),
+        create_info("host/elsa/2019-12-03T11:59:15Z", false),
+        create_info("host/elsa/2019-12-04T11:59:15Z", false),
+    ];
 
     let list = orig_list.clone();
     let mut options = PruneJobOptions::default();
@@ -188,13 +188,13 @@ fn test_prune_simple2() -> Result<(), Error> {
 
 #[test]
 fn test_prune_simple() -> Result<(), Error> {
-    let mut orig_list = Vec::new();
-
-    orig_list.push(create_info("host/elsa/2019-12-02T11:59:15Z", false));
-    orig_list.push(create_info("host/elsa/2019-12-03T11:59:15Z", false));
-    orig_list.push(create_info("host/elsa/2019-12-04T11:59:15Z", false));
-    orig_list.push(create_info("host/elsa/2019-12-04T12:59:15Z", false));
-
+    let orig_list = vec![
+        create_info("host/elsa/2019-12-02T11:59:15Z", false),
+        create_info("host/elsa/2019-12-03T11:59:15Z", false),
+        create_info("host/elsa/2019-12-04T11:59:15Z", false),
+        create_info("host/elsa/2019-12-04T12:59:15Z", false),
+    ];
+    
     // keep-last tests
 
     let list = orig_list.clone();

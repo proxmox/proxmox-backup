@@ -391,6 +391,7 @@ async fn list(
     }
 )]
 /// Restore files from a backup snapshot.
+#[allow(clippy::too_many_arguments)]
 async fn extract(
     ns: Option<BackupNamespace>,
     snapshot: String,

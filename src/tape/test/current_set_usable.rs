@@ -38,7 +38,7 @@ fn test_current_set_usable_1() -> Result<(), Error> {
         false,
     )?;
 
-    assert_eq!(pool.current_set_usable()?, false);
+    assert!(!pool.current_set_usable()?);
 
     Ok(())
 }
@@ -64,7 +64,7 @@ fn test_current_set_usable_2() -> Result<(), Error> {
         false,
     )?;
 
-    assert_eq!(pool.current_set_usable()?, false);
+    assert!(!pool.current_set_usable()?);
 
     Ok(())
 }
@@ -92,7 +92,7 @@ fn test_current_set_usable_3() -> Result<(), Error> {
         false,
     )?;
 
-    assert_eq!(pool.current_set_usable()?, false);
+    assert!(!pool.current_set_usable()?);
 
     Ok(())
 }
@@ -120,7 +120,7 @@ fn test_current_set_usable_4() -> Result<(), Error> {
         false,
     )?;
 
-    assert_eq!(pool.current_set_usable()?, true);
+    assert!(pool.current_set_usable()?);
 
     Ok(())
 }
@@ -150,7 +150,7 @@ fn test_current_set_usable_5() -> Result<(), Error> {
         false,
     )?;
 
-    assert_eq!(pool.current_set_usable()?, true);
+    assert!(pool.current_set_usable()?);
 
     Ok(())
 }

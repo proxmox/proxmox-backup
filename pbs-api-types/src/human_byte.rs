@@ -246,7 +246,7 @@ fn test_human_byte_parser() -> Result<(), Error> {
         }
 
         let new = h.to_string();
-        if &new != as_str {
+        if new != *as_str {
             bail!("to_string failed for '{}' ({:?} != {:?})", v, new, as_str);
         }
         Ok(())

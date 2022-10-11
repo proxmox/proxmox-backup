@@ -94,13 +94,13 @@ fn test_list_pool_media() -> Result<(), Error> {
 
     let tape2 = list
         .iter()
-        .find(|media_id| &media_id.label.uuid == &tape2_uuid)
+        .find(|media_id| media_id.label.uuid == tape2_uuid)
         .unwrap();
     assert!(tape2.media_set_label.is_none());
 
     let tape3 = list
         .iter()
-        .find(|media_id| &media_id.label.uuid == &tape3_uuid)
+        .find(|media_id| media_id.label.uuid == tape3_uuid)
         .unwrap();
     match tape3.media_set_label {
         None => bail!("missing media set label"),

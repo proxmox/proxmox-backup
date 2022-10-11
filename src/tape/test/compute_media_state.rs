@@ -118,46 +118,36 @@ fn test_media_expire_time() -> Result<(), Error> {
         &MediaStatus::Writable
     );
 
-    assert_eq!(
-        pool.media_is_expired(&pool.lookup_media(&tape0_uuid)?, 0),
-        false
+    assert!(
+        !pool.media_is_expired(&pool.lookup_media(&tape0_uuid)?, 0)
     );
-    assert_eq!(
-        pool.media_is_expired(&pool.lookup_media(&tape0_uuid)?, 60),
-        false
+    assert!(
+        !pool.media_is_expired(&pool.lookup_media(&tape0_uuid)?, 60)
     );
-    assert_eq!(
-        pool.media_is_expired(&pool.lookup_media(&tape0_uuid)?, 120),
-        false
+    assert!(
+        !pool.media_is_expired(&pool.lookup_media(&tape0_uuid)?, 120)
     );
-    assert_eq!(
-        pool.media_is_expired(&pool.lookup_media(&tape0_uuid)?, 180),
-        true
+    assert!(
+        pool.media_is_expired(&pool.lookup_media(&tape0_uuid)?, 180)
     );
 
-    assert_eq!(
-        pool.media_is_expired(&pool.lookup_media(&tape1_uuid)?, 0),
-        false
+    assert!(
+        !pool.media_is_expired(&pool.lookup_media(&tape1_uuid)?, 0)
     );
-    assert_eq!(
-        pool.media_is_expired(&pool.lookup_media(&tape1_uuid)?, 60),
-        false
+    assert!(
+        !pool.media_is_expired(&pool.lookup_media(&tape1_uuid)?, 60)
     );
-    assert_eq!(
-        pool.media_is_expired(&pool.lookup_media(&tape1_uuid)?, 120),
-        false
+    assert!(
+        !pool.media_is_expired(&pool.lookup_media(&tape1_uuid)?, 120)
     );
-    assert_eq!(
-        pool.media_is_expired(&pool.lookup_media(&tape1_uuid)?, 180),
-        false
+    assert!(
+        !pool.media_is_expired(&pool.lookup_media(&tape1_uuid)?, 180)
     );
-    assert_eq!(
-        pool.media_is_expired(&pool.lookup_media(&tape1_uuid)?, 190),
-        false
+    assert!(
+        !pool.media_is_expired(&pool.lookup_media(&tape1_uuid)?, 190)
     );
-    assert_eq!(
-        pool.media_is_expired(&pool.lookup_media(&tape1_uuid)?, 240),
-        true
+    assert!(
+        pool.media_is_expired(&pool.lookup_media(&tape1_uuid)?, 240)
     );
 
     Ok(())

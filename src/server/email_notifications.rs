@@ -420,7 +420,7 @@ pub fn send_prune_status(
     jobname: &str,
     result: &Result<(), Error>,
 ) -> Result<(), Error> {
-    let (email, notify) = match lookup_datastore_notify_settings(&store) {
+    let (email, notify) = match lookup_datastore_notify_settings(store) {
         (Some(email), notify) => (email, notify),
         (None, _) => return Ok(()),
     };
