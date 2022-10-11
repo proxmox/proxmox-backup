@@ -28,6 +28,7 @@ Ext.define('PBS.config.CertificatesView', {
     defaults: {
 	border: false,
     },
+    scrollable: 'y',
 
     items: [
 	{
