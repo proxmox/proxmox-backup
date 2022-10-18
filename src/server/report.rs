@@ -28,6 +28,7 @@ fn commands() -> Vec<(&'static str, Vec<&'static str>)> {
         ("ls", vec!["-l", "/dev/disk/by-id", "/dev/disk/by-path"]),
         ("zpool", vec!["status"]),
         ("zfs", vec!["list"]),
+        ("arcstat", vec![]),
     ]
 }
 
