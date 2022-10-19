@@ -319,7 +319,7 @@ impl Archiver {
 
         let mut noatime = OFlag::O_NOATIME;
         loop {
-            return match proxmox_sys::fd::Fd::openat(
+            return match proxmox_sys::fd::openat(
                 &parent,
                 file_name,
                 oflags | noatime,
