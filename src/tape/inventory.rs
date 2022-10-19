@@ -89,11 +89,11 @@ impl Inventory {
     pub const MEDIA_INVENTORY_LOCKFILE: &'static str = ".inventory.lck";
 
     /// Create empty instance, no data loaded
-    pub fn new(base_path: &Path) -> Self {
-        let mut inventory_path = base_path.to_owned();
+    pub fn new<P: AsRef<Path>>(base_path: P) -> Self {
+        let mut inventory_path = base_path.as_ref().to_owned();
         inventory_path.push(Self::MEDIA_INVENTORY_FILENAME);
 
-        let mut lockfile_path = base_path.to_owned();
+        let mut lockfile_path = base_path.as_ref().to_owned();
         lockfile_path.push(Self::MEDIA_INVENTORY_LOCKFILE);
 
         Self {
@@ -104,7 +104,7 @@ impl Inventory {
         }
     }
 
-    pub fn load(base_path: &Path) -> Result<Self, Error> {
+    pub fn load<P: AsRef<Path>>(base_path: P) -> Result<Self, Error> {
         let mut me = Self::new(base_path);
         me.reload()?;
         Ok(me)
@@ -751,8 +751,8 @@ impl Inventory {
 }
 
 /// Lock a media pool
-pub fn lock_media_pool(base_path: &Path, name: &str) -> Result<BackupLockGuard, Error> {
-    let mut path = base_path.to_owned();
+pub fn lock_media_pool<P: AsRef<Path>>(base_path: P, name: &str) -> Result<BackupLockGuard, Error> {
+    let mut path = base_path.as_ref().to_owned();
     path.push(format!(".pool-{}", name));
     path.set_extension("lck");
 
@@ -760,7 +760,7 @@ pub fn lock_media_pool(base_path: &Path, name: &str) -> Result<BackupLockGuard, 
 }
 
 /// Lock for media not assigned to any pool
-pub fn lock_unassigned_media_pool(base_path: &Path) -> Result<BackupLockGuard, Error> {
+pub fn lock_unassigned_media_pool<P: AsRef<Path>>(base_path: P) -> Result<BackupLockGuard, Error> {
     // lock artificial "__UNASSIGNED__" pool to avoid races
     lock_media_pool(base_path, "__UNASSIGNED__")
 }
@@ -768,12 +768,12 @@ pub fn lock_unassigned_media_pool(base_path: &Path) -> Result<BackupLockGuard, E
 /// Lock a media set
 ///
 /// Timeout is 10 seconds by default
-pub fn lock_media_set(
-    base_path: &Path,
+pub fn lock_media_set<P: AsRef<Path>>(
+    base_path: P,
     media_set_uuid: &Uuid,
     timeout: Option<Duration>,
 ) -> Result<BackupLockGuard, Error> {
-    let mut path = base_path.to_owned();
+    let mut path = base_path.as_ref().to_owned();
     path.push(format!(".media-set-{}", media_set_uuid));
     path.set_extension("lck");
 
@@ -784,7 +784,7 @@ pub fn lock_media_set(
 
 /// List of known media uuids
 pub fn complete_media_uuid(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
-    let inventory = match Inventory::load(Path::new(TAPE_STATUS_DIR)) {
+    let inventory = match Inventory::load(TAPE_STATUS_DIR) {
         Ok(inventory) => inventory,
         Err(_) => return Vec::new(),
     };
@@ -794,7 +794,7 @@ pub fn complete_media_uuid(_arg: &str, _param: &HashMap<String, String>) -> Vec<
 
 /// List of known media sets
 pub fn complete_media_set_uuid(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
-    let inventory = match Inventory::load(Path::new(TAPE_STATUS_DIR)) {
+    let inventory = match Inventory::load(TAPE_STATUS_DIR) {
         Ok(inventory) => inventory,
         Err(_) => return Vec::new(),
     };
@@ -809,7 +809,7 @@ pub fn complete_media_set_uuid(_arg: &str, _param: &HashMap<String, String>) -> 
 
 /// List of known media labels (barcodes)
 pub fn complete_media_label_text(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
-    let inventory = match Inventory::load(Path::new(TAPE_STATUS_DIR)) {
+    let inventory = match Inventory::load(TAPE_STATUS_DIR) {
         Ok(inventory) => inventory,
         Err(_) => return Vec::new(),
     };
@@ -826,8 +826,7 @@ pub fn complete_media_set_snapshots(_arg: &str, param: &HashMap<String, String>)
         Some(uuid) => uuid,
         None => return Vec::new(),
     };
-    let status_path = Path::new(TAPE_STATUS_DIR);
-    let inventory = match Inventory::load(status_path) {
+    let inventory = match Inventory::load(TAPE_STATUS_DIR) {
         Ok(inventory) => inventory,
         Err(_) => return Vec::new(),
     };
@@ -843,7 +842,7 @@ pub fn complete_media_set_snapshots(_arg: &str, param: &HashMap<String, String>)
             });
 
     for media_id in media_ids {
-        let catalog = match MediaCatalog::open(status_path, &media_id, false, false) {
+        let catalog = match MediaCatalog::open(TAPE_STATUS_DIR, &media_id, false, false) {
             Ok(catalog) => catalog,
             Err(_) => continue,
         };

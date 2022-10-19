@@ -1,4 +1,3 @@
-use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use anyhow::{bail, format_err, Error};
@@ -88,7 +87,6 @@ pub fn list_tape_backup_jobs(
         });
 
     let mut list = Vec::new();
-    let status_path = Path::new(TAPE_STATUS_DIR);
     let current_time = proxmox_time::epoch_i64();
 
     for job in job_list_iter {
@@ -111,7 +109,8 @@ pub fn list_tape_backup_jobs(
             if let Ok(Some((_, name))) = media_changer(&drive_config, &job.setup.drive) {
                 changer_name = Some(name);
             }
-            if let Ok(mut pool) = MediaPool::with_config(status_path, &pool, changer_name, true) {
+            if let Ok(mut pool) = MediaPool::with_config(TAPE_STATUS_DIR, &pool, changer_name, true)
+            {
                 if pool.start_write_session(next_run, false).is_ok() {
                     if let Ok(media_id) = pool.guess_next_writable_media(next_run) {
                         next_media_label = Some(media_id.label.label_text);
@@ -391,7 +390,6 @@ fn backup_worker(
     summary: &mut TapeBackupJobSummary,
     force_media_set: bool,
 ) -> Result<(), Error> {
-    let status_path = Path::new(TAPE_STATUS_DIR);
     let start = std::time::Instant::now();
 
     task_log!(worker, "update media online status");
@@ -400,7 +398,7 @@ fn backup_worker(
     let root_namespace = setup.ns.clone().unwrap_or_default();
     let ns_magic = !root_namespace.is_root() || setup.max_depth != Some(0);
 
-    let pool = MediaPool::with_config(status_path, pool_config, changer_name, false)?;
+    let pool = MediaPool::with_config(TAPE_STATUS_DIR, pool_config, changer_name, false)?;
 
     let mut pool_writer =
         PoolWriter::new(pool, &setup.drive, worker, email, force_media_set, ns_magic)?;
@@ -584,8 +582,7 @@ fn update_media_online_status(drive: &str) -> Result<Option<String>, Error> {
     if let Ok(Some((mut changer, changer_name))) = media_changer(&config, drive) {
         let label_text_list = changer.online_media_label_texts()?;
 
-        let status_path = Path::new(TAPE_STATUS_DIR);
-        let mut inventory = Inventory::load(status_path)?;
+        let mut inventory = Inventory::load(TAPE_STATUS_DIR)?;
 
         update_changer_online_status(&config, &mut inventory, &changer_name, &label_text_list)?;
 

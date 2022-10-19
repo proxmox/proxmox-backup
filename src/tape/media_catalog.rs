@@ -66,10 +66,10 @@ impl MediaCatalog {
         [76, 142, 232, 193, 32, 168, 137, 113];
 
     /// List media with catalogs
-    pub fn media_with_catalogs(base_path: &Path) -> Result<HashSet<Uuid>, Error> {
+    pub fn media_with_catalogs<P: AsRef<Path>>(base_path: P) -> Result<HashSet<Uuid>, Error> {
         let mut catalogs = HashSet::new();
 
-        for entry in read_subdir(libc::AT_FDCWD, base_path)? {
+        for entry in read_subdir(libc::AT_FDCWD, base_path.as_ref())? {
             let entry = entry?;
             let name = unsafe { entry.file_name_utf8_unchecked() };
             if !name.ends_with(".log") {
@@ -83,27 +83,27 @@ impl MediaCatalog {
         Ok(catalogs)
     }
 
-    pub fn catalog_path(base_path: &Path, uuid: &Uuid) -> PathBuf {
-        let mut path = base_path.to_owned();
+    fn catalog_path<P: AsRef<Path>>(base_path: P, uuid: &Uuid) -> PathBuf {
+        let mut path = base_path.as_ref().to_owned();
         path.push(uuid.to_string());
         path.set_extension("log");
         path
     }
 
-    fn tmp_catalog_path(base_path: &Path, uuid: &Uuid) -> PathBuf {
-        let mut path = base_path.to_owned();
+    fn tmp_catalog_path<P: AsRef<Path>>(base_path: P, uuid: &Uuid) -> PathBuf {
+        let mut path = base_path.as_ref().to_owned();
         path.push(uuid.to_string());
         path.set_extension("tmp");
         path
     }
 
     /// Test if a catalog exists
-    pub fn exists(base_path: &Path, uuid: &Uuid) -> bool {
+    pub fn exists<P: AsRef<Path>>(base_path: P, uuid: &Uuid) -> bool {
         Self::catalog_path(base_path, uuid).exists()
     }
 
     /// Destroy the media catalog (remove all files)
-    pub fn destroy(base_path: &Path, uuid: &Uuid) -> Result<(), Error> {
+    pub fn destroy<P: AsRef<Path>>(base_path: P, uuid: &Uuid) -> Result<(), Error> {
         let path = Self::catalog_path(base_path, uuid);
 
         match std::fs::remove_file(path) {
@@ -114,7 +114,10 @@ impl MediaCatalog {
     }
 
     /// Destroy the media catalog if media_set uuid does not match
-    pub fn destroy_unrelated_catalog(base_path: &Path, media_id: &MediaId) -> Result<(), Error> {
+    pub fn destroy_unrelated_catalog<P: AsRef<Path>>(
+        base_path: P,
+        media_id: &MediaId,
+    ) -> Result<(), Error> {
         let uuid = &media_id.label.uuid;
 
         let path = Self::catalog_path(base_path, uuid);
@@ -165,7 +168,7 @@ impl MediaCatalog {
         self.log_to_stdout = enable;
     }
 
-    fn create_basedir(base_path: &Path) -> Result<(), Error> {
+    fn create_basedir<P: AsRef<Path>>(base_path: P) -> Result<(), Error> {
         let backup_user = pbs_config::backup_user()?;
         let mode = nix::sys::stat::Mode::from_bits_truncate(0o0640);
         let opts = CreateOptions::new()
@@ -179,15 +182,15 @@ impl MediaCatalog {
     }
 
     /// Open a catalog database, load into memory
-    pub fn open(
-        base_path: &Path,
+    pub fn open<P: AsRef<Path>>(
+        base_path: P,
         media_id: &MediaId,
         write: bool,
         create: bool,
     ) -> Result<Self, Error> {
         let uuid = &media_id.label.uuid;
 
-        let path = Self::catalog_path(base_path, uuid);
+        let path = Self::catalog_path(&base_path, uuid);
 
         let me = proxmox_lang::try_block!({
             Self::create_basedir(base_path)?;
@@ -239,8 +242,11 @@ impl MediaCatalog {
     }
 
     /// Creates a temporary empty catalog file
-    pub fn create_temporary_database_file(base_path: &Path, uuid: &Uuid) -> Result<File, Error> {
-        Self::create_basedir(base_path)?;
+    pub fn create_temporary_database_file<P: AsRef<Path>>(
+        base_path: P,
+        uuid: &Uuid,
+    ) -> Result<File, Error> {
+        Self::create_basedir(&base_path)?;
 
         let tmp_path = Self::tmp_catalog_path(base_path, uuid);
 
@@ -270,14 +276,14 @@ impl MediaCatalog {
     /// Creates a temporary, empty catalog database
     ///
     /// Creates a new catalog file using a ".tmp" file extension.
-    pub fn create_temporary_database(
-        base_path: &Path,
+    pub fn create_temporary_database<P: AsRef<Path>>(
+        base_path: P,
         media_id: &MediaId,
         log_to_stdout: bool,
     ) -> Result<Self, Error> {
         let uuid = &media_id.label.uuid;
 
-        let tmp_path = Self::tmp_catalog_path(base_path, uuid);
+        let tmp_path = Self::tmp_catalog_path(&base_path, uuid);
 
         let me = proxmox_lang::try_block!({
             let file = Self::create_temporary_database_file(base_path, uuid)?;
@@ -322,8 +328,8 @@ impl MediaCatalog {
     ///
     /// With commit set, we rename the ".tmp" file extension to
     /// ".log". When commit is false, we remove the ".tmp" file.
-    pub fn finish_temporary_database(
-        base_path: &Path,
+    pub fn finish_temporary_database<P: AsRef<Path>>(
+        base_path: P,
         uuid: &Uuid,
         commit: bool,
     ) -> Result<(), Error> {
@@ -397,14 +403,14 @@ impl MediaCatalog {
     }
 
     /// Destroy existing catalog, opens a new one
-    pub fn overwrite(
-        base_path: &Path,
+    pub fn overwrite<P: AsRef<Path>>(
+        base_path: P,
         media_id: &MediaId,
         log_to_stdout: bool,
     ) -> Result<Self, Error> {
         let uuid = &media_id.label.uuid;
 
-        let me = Self::create_temporary_database(base_path, media_id, log_to_stdout)?;
+        let me = Self::create_temporary_database(&base_path, media_id, log_to_stdout)?;
 
         Self::finish_temporary_database(base_path, uuid, true)?;
 

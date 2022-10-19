@@ -6,7 +6,7 @@ pub use new_chunks_iterator::*;
 
 use std::collections::HashSet;
 use std::fs::File;
-use std::path::Path;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
 
@@ -77,8 +77,7 @@ impl PoolWriter {
         // load all catalogs read-only at start
         for media_uuid in pool.current_media_list()? {
             let media_info = pool.lookup_media(media_uuid).unwrap();
-            let media_catalog =
-                MediaCatalog::open(Path::new(TAPE_STATUS_DIR), media_info.id(), false, false)?;
+            let media_catalog = MediaCatalog::open(TAPE_STATUS_DIR, media_info.id(), false, false)?;
             catalog_set.append_read_only_catalog(media_catalog)?;
         }
 
@@ -297,8 +296,7 @@ impl PoolWriter {
     }
 
     fn open_catalog_file(uuid: &Uuid) -> Result<File, Error> {
-        let status_path = Path::new(TAPE_STATUS_DIR);
-        let mut path = status_path.to_owned();
+        let mut path = PathBuf::from(TAPE_STATUS_DIR);
         path.push(uuid.to_string());
         path.set_extension("log");
 
@@ -634,13 +632,11 @@ fn update_media_set_label(
         None
     };
 
-    let status_path = Path::new(TAPE_STATUS_DIR);
-
     let new_media = match old_set {
         None => {
             task_log!(worker, "writing new media set label");
             drive.write_media_set_label(new_set, key_config.as_ref())?;
-            media_catalog = MediaCatalog::overwrite(status_path, media_id, false)?;
+            media_catalog = MediaCatalog::overwrite(TAPE_STATUS_DIR, media_id, false)?;
             true
         }
         Some(media_set_label) => {
@@ -656,7 +652,7 @@ fn update_media_set_label(
                 {
                     bail!("detected changed encryption fingerprint - internal error");
                 }
-                media_catalog = MediaCatalog::open(status_path, media_id, true, false)?;
+                media_catalog = MediaCatalog::open(TAPE_STATUS_DIR, media_id, true, false)?;
 
                 // todo: verify last content/media_catalog somehow?
 
@@ -670,7 +666,7 @@ fn update_media_set_label(
                 );
 
                 drive.write_media_set_label(new_set, key_config.as_ref())?;
-                media_catalog = MediaCatalog::overwrite(status_path, media_id, false)?;
+                media_catalog = MediaCatalog::overwrite(TAPE_STATUS_DIR, media_id, false)?;
                 true
             }
         }

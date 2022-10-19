@@ -119,8 +119,8 @@ pub fn mtx_status_to_online_set(status: &MtxStatus, inventory: &Inventory) -> Ha
 /// Update online media status
 ///
 /// For a single 'changer', or else simply ask all changer devices.
-pub fn update_online_status(
-    state_path: &Path,
+pub fn update_online_status<P: AsRef<Path>>(
+    state_path: P,
     changer: Option<&str>,
 ) -> Result<OnlineStatusMap, Error> {
     let (config, _digest) = pbs_config::drive::config()?;

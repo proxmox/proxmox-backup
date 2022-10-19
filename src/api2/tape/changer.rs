@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::path::Path;
 
 use anyhow::Error;
 use serde_json::Value;
@@ -55,8 +54,7 @@ pub async fn get_status(name: String, cache: bool) -> Result<Vec<MtxStatusEntry>
 
     let status = tokio::task::spawn_blocking(move || changer_config.status(cache)).await??;
 
-    let state_path = Path::new(TAPE_STATUS_DIR);
-    let mut inventory = Inventory::load(state_path)?;
+    let mut inventory = Inventory::load(TAPE_STATUS_DIR)?;
 
     let mut map = OnlineStatusMap::new(&config)?;
     let online_set = mtx_status_to_online_set(&status, &inventory);

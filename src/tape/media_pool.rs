@@ -56,9 +56,9 @@ impl MediaPool {
     /// `changer`, all offline media is considered available (backups
     /// to standalone drives may not use media from inside a tape
     /// library).
-    pub fn new(
+    pub fn new<P: AsRef<Path>>(
         name: &str,
-        state_path: &Path,
+        state_path: P,
         media_set_policy: MediaSetPolicy,
         retention: RetentionPolicy,
         changer_name: Option<String>,
@@ -68,10 +68,10 @@ impl MediaPool {
         let _pool_lock = if no_media_set_locking {
             None
         } else {
-            Some(lock_media_pool(state_path, name)?)
+            Some(lock_media_pool(&state_path, name)?)
         };
 
-        let inventory = Inventory::load(state_path)?;
+        let inventory = Inventory::load(&state_path)?;
 
         let current_media_set = match inventory.latest_media_set(name) {
             Some(set_uuid) => inventory.compute_media_set_members(&set_uuid)?,
@@ -81,12 +81,12 @@ impl MediaPool {
         let current_media_set_lock = if no_media_set_locking {
             None
         } else {
-            Some(lock_media_set(state_path, current_media_set.uuid(), None)?)
+            Some(lock_media_set(&state_path, current_media_set.uuid(), None)?)
         };
 
         Ok(MediaPool {
             name: String::from(name),
-            state_path: state_path.to_owned(),
+            state_path: state_path.as_ref().to_owned(),
             media_set_policy,
             retention,
             changer_name,
@@ -112,8 +112,8 @@ impl MediaPool {
     }
 
     /// Creates a new instance using the media pool configuration
-    pub fn with_config(
-        state_path: &Path,
+    pub fn with_config<P: AsRef<Path>>(
+        state_path: P,
         config: &MediaPoolConfig,
         changer_name: Option<String>,
         no_media_set_locking: bool, // for list_media()

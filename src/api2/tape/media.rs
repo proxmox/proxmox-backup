@@ -1,5 +1,4 @@
 use std::collections::HashSet;
-use std::path::Path;
 
 use anyhow::{bail, format_err, Error};
 
@@ -41,8 +40,6 @@ pub async fn list_media_sets(
 
     let (config, _digest) = pbs_config::media_pool::config()?;
 
-    let status_path = Path::new(TAPE_STATUS_DIR);
-
     let mut media_sets: HashSet<Uuid> = HashSet::new();
     let mut list = Vec::new();
 
@@ -60,7 +57,7 @@ pub async fn list_media_sets(
         let config: MediaPoolConfig = config.lookup("pool", pool_name)?;
 
         let changer_name = None; // assume standalone drive
-        let pool = MediaPool::with_config(status_path, &config, changer_name, true)?;
+        let pool = MediaPool::with_config(TAPE_STATUS_DIR, &config, changer_name, true)?;
 
         for media in pool.list_media() {
             if let Some(label) = media.media_set_label() {
@@ -130,18 +127,18 @@ pub async fn list_media(
 
     let (config, _digest) = pbs_config::media_pool::config()?;
 
-    let status_path = Path::new(TAPE_STATUS_DIR);
-
     let catalogs = tokio::task::spawn_blocking(move || {
         if update_status {
             // update online media status
-            if let Err(err) = update_online_status(status_path, update_status_changer.as_deref()) {
+            if let Err(err) =
+                update_online_status(TAPE_STATUS_DIR, update_status_changer.as_deref())
+            {
                 eprintln!("{}", err);
                 eprintln!("update online media status failed - using old state");
             }
         }
         // test what catalog files we have
-        MediaCatalog::media_with_catalogs(status_path)
+        MediaCatalog::media_with_catalogs(TAPE_STATUS_DIR)
     })
     .await??;
 
@@ -166,7 +163,7 @@ pub async fn list_media(
         let config: MediaPoolConfig = config.lookup("pool", pool_name)?;
 
         let changer_name = None; // assume standalone drive
-        let mut pool = MediaPool::with_config(status_path, &config, changer_name, true)?;
+        let mut pool = MediaPool::with_config(TAPE_STATUS_DIR, &config, changer_name, true)?;
 
         let current_time = proxmox_time::epoch_i64();
 
@@ -211,7 +208,7 @@ pub async fn list_media(
         }
     }
 
-    let inventory = Inventory::load(status_path)?;
+    let inventory = Inventory::load(TAPE_STATUS_DIR)?;
 
     let privs = user_info.lookup_privs(&auth_id, &["tape", "pool"]);
     if (privs & PRIV_TAPE_AUDIT) != 0 && pool.is_none() {
@@ -295,8 +292,7 @@ pub async fn list_media(
 )]
 /// Change Tape location to vault (if given), or offline.
 pub fn move_tape(label_text: String, vault_name: Option<String>) -> Result<(), Error> {
-    let status_path = Path::new(TAPE_STATUS_DIR);
-    let mut inventory = Inventory::load(status_path)?;
+    let mut inventory = Inventory::load(TAPE_STATUS_DIR)?;
 
     let uuid = inventory
         .find_media_by_label_text(&label_text)
@@ -332,8 +328,7 @@ pub fn move_tape(label_text: String, vault_name: Option<String>) -> Result<(), E
 pub fn destroy_media(label_text: String, force: Option<bool>) -> Result<(), Error> {
     let force = force.unwrap_or(false);
 
-    let status_path = Path::new(TAPE_STATUS_DIR);
-    let mut inventory = Inventory::load(status_path)?;
+    let mut inventory = Inventory::load(TAPE_STATUS_DIR)?;
 
     let media_id = inventory
         .find_media_by_label_text(&label_text)
@@ -389,8 +384,7 @@ pub fn list_content(
 
     let (config, _digest) = pbs_config::media_pool::config()?;
 
-    let status_path = Path::new(TAPE_STATUS_DIR);
-    let inventory = Inventory::load(status_path)?;
+    let inventory = Inventory::load(TAPE_STATUS_DIR)?;
 
     let mut list = Vec::new();
 
@@ -435,7 +429,7 @@ pub fn list_content(
             .generate_media_set_name(&set.uuid, template)
             .unwrap_or_else(|_| set.uuid.to_string());
 
-        for (store, snapshot) in media_catalog_snapshot_list(status_path, &media_id)? {
+        for (store, snapshot) in media_catalog_snapshot_list(TAPE_STATUS_DIR, &media_id)? {
             let (_, backup_dir) = pbs_api_types::parse_ns_and_snapshot(&snapshot)?;
 
             if let Some(backup_type) = filter.backup_type {
@@ -478,8 +472,7 @@ pub fn list_content(
 )]
 /// Get current media status
 pub fn get_media_status(uuid: Uuid) -> Result<MediaStatus, Error> {
-    let status_path = Path::new(TAPE_STATUS_DIR);
-    let inventory = Inventory::load(status_path)?;
+    let inventory = Inventory::load(TAPE_STATUS_DIR)?;
 
     let (status, _location) = inventory.status_and_location(&uuid);
 
@@ -504,8 +497,7 @@ pub fn get_media_status(uuid: Uuid) -> Result<MediaStatus, Error> {
 /// It is not allowed to set status to 'writable' or 'unknown' (those
 /// are internally managed states).
 pub fn update_media_status(uuid: Uuid, status: Option<MediaStatus>) -> Result<(), Error> {
-    let status_path = Path::new(TAPE_STATUS_DIR);
-    let mut inventory = Inventory::load(status_path)?;
+    let mut inventory = Inventory::load(TAPE_STATUS_DIR)?;
 
     match status {
         None => inventory.clear_media_status(&uuid)?,

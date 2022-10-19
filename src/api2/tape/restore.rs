@@ -362,11 +362,10 @@ pub fn restore(
     user_info.check_privs(&auth_id, &["tape", "drive", &drive], PRIV_TAPE_READ, false)?;
 
     let media_set_uuid = media_set.parse()?;
-    let status_path = Path::new(TAPE_STATUS_DIR);
 
-    let _lock = lock_media_set(status_path, &media_set_uuid, None)?;
+    let _lock = lock_media_set(TAPE_STATUS_DIR, &media_set_uuid, None)?;
 
-    let inventory = Inventory::load(status_path)?;
+    let inventory = Inventory::load(TAPE_STATUS_DIR)?;
 
     let pool = inventory.lookup_media_set_pool(&media_set_uuid)?;
     user_info.check_privs(&auth_id, &["tape", "pool", &pool], PRIV_TAPE_READ, false)?;
@@ -945,8 +944,6 @@ fn get_media_set_catalog(
     inventory: &Inventory,
     media_set_uuid: &Uuid,
 ) -> Result<MediaSetCatalog, Error> {
-    let status_path = Path::new(TAPE_STATUS_DIR);
-
     let members = inventory.compute_media_set_members(media_set_uuid)?;
     let media_list = members.media_list();
     let mut catalog = MediaSetCatalog::new();
@@ -958,7 +955,7 @@ fn get_media_set_catalog(
             }
             Some(media_uuid) => {
                 let media_id = inventory.lookup_media(media_uuid).unwrap();
-                let media_catalog = MediaCatalog::open(status_path, media_id, false, false)?;
+                let media_catalog = MediaCatalog::open(TAPE_STATUS_DIR, media_id, false, false)?;
                 catalog.append_catalog(media_catalog)?;
             }
         }
@@ -1295,8 +1292,7 @@ pub fn restore_media(
     verbose: bool,
     auth_id: &Authid,
 ) -> Result<(), Error> {
-    let status_path = Path::new(TAPE_STATUS_DIR);
-    let mut catalog = MediaCatalog::create_temporary_database(status_path, media_id, false)?;
+    let mut catalog = MediaCatalog::create_temporary_database(TAPE_STATUS_DIR, media_id, false)?;
 
     loop {
         let current_file_number = drive.current_file_number()?;
@@ -1333,7 +1329,7 @@ pub fn restore_media(
 
     catalog.commit()?;
 
-    MediaCatalog::finish_temporary_database(status_path, &media_id.label.uuid, true)?;
+    MediaCatalog::finish_temporary_database(TAPE_STATUS_DIR, &media_id.label.uuid, true)?;
 
     Ok(())
 }
@@ -1820,8 +1816,6 @@ pub fn fast_catalog_restore(
     media_set: &MediaSet,
     uuid: &Uuid, // current media Uuid
 ) -> Result<bool, Error> {
-    let status_path = Path::new(TAPE_STATUS_DIR);
-
     let current_file_number = drive.current_file_number()?;
     if current_file_number != 2 {
         bail!("fast_catalog_restore: wrong media position - internal error");
@@ -1902,7 +1896,7 @@ pub fn fast_catalog_restore(
                     // always restore and overwrite catalog
                 } else {
                     // only restore if catalog does not exist
-                    if MediaCatalog::exists(status_path, catalog_uuid) {
+                    if MediaCatalog::exists(TAPE_STATUS_DIR, catalog_uuid) {
                         task_log!(
                             worker,
                             "catalog for media '{}' already exists",
@@ -1914,7 +1908,7 @@ pub fn fast_catalog_restore(
                 }
 
                 let mut file =
-                    MediaCatalog::create_temporary_database_file(status_path, catalog_uuid)?;
+                    MediaCatalog::create_temporary_database_file(TAPE_STATUS_DIR, catalog_uuid)?;
 
                 std::io::copy(&mut reader, &mut file)?;
 
@@ -1939,7 +1933,11 @@ pub fn fast_catalog_restore(
                             continue;
                         }
 
-                        MediaCatalog::finish_temporary_database(status_path, &media_uuid, true)?;
+                        MediaCatalog::finish_temporary_database(
+                            TAPE_STATUS_DIR,
+                            &media_uuid,
+                            true,
+                        )?;
 
                         if catalog_uuid == uuid {
                             task_log!(worker, "successfully restored catalog");
