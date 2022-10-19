@@ -1,5 +1,5 @@
 use std::ffi::OsString;
-use std::os::unix::io::{AsRawFd, RawFd};
+use std::os::unix::io::{AsRawFd, BorrowedFd, RawFd};
 use std::path::{Path, PathBuf};
 
 use anyhow::{bail, format_err, Error};
@@ -8,7 +8,6 @@ use nix::fcntl::OFlag;
 use nix::sys::stat::{mkdirat, Mode};
 
 use proxmox_sys::error::SysError;
-use proxmox_sys::fd::BorrowedFd;
 use pxar::Metadata;
 
 use crate::pxar::tools::{assert_single_path_component, perms_from_metadata};
@@ -65,14 +64,18 @@ impl PxarDir {
             Mode::empty(),
         )?;
 
-        let fd = BorrowedFd::new(&dir);
+        // FIXME: Once `nix` adds `AsFd` support use `.as_fd()` instead.
+        let fd = unsafe { BorrowedFd::borrow_raw(dir.as_raw_fd()) };
         self.dir = Some(dir);
 
         Ok(fd)
     }
 
     pub fn try_as_borrowed_fd(&self) -> Option<BorrowedFd> {
-        self.dir.as_ref().map(BorrowedFd::new)
+        // Once `nix` adds `AsFd` support use `.as_fd()` instead.
+        self.dir
+            .as_ref()
+            .map(|dir| unsafe { BorrowedFd::borrow_raw(dir.as_raw_fd()) })
     }
 
     pub fn metadata(&self) -> &Metadata {
