@@ -66,7 +66,7 @@ pub fn apply_at(
     path_info: &Path,
     on_error: &mut (dyn FnMut(Error) -> Result<(), Error> + Send),
 ) -> Result<(), Error> {
-    let fd = proxmox_sys::fd::Fd::openat(
+    let fd = proxmox_sys::fd::openat(
         &unsafe { RawFdNum::from_raw_fd(parent) },
         file_name,
         OFlag::O_PATH | OFlag::O_CLOEXEC | OFlag::O_NOFOLLOW,

@@ -3,7 +3,7 @@ use std::ffi::{CStr, CString, OsStr};
 use std::fmt;
 use std::io::{self, Read, Write};
 use std::os::unix::ffi::OsStrExt;
-use std::os::unix::io::{AsRawFd, FromRawFd, IntoRawFd, RawFd};
+use std::os::unix::io::{AsRawFd, FromRawFd, IntoRawFd, OwnedFd, RawFd};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
@@ -22,7 +22,6 @@ use pxar::Metadata;
 use proxmox_io::vec;
 use proxmox_lang::c_str;
 use proxmox_sys::error::SysError;
-use proxmox_sys::fd::Fd;
 use proxmox_sys::fd::RawFdNum;
 use proxmox_sys::fs::{self, acl, xattr};
 
@@ -315,13 +314,13 @@ impl Archiver {
         file_name: &CStr,
         oflags: OFlag,
         existed: bool,
-    ) -> Result<Option<Fd>, Error> {
+    ) -> Result<Option<OwnedFd>, Error> {
         // common flags we always want to use:
         let oflags = oflags | OFlag::O_CLOEXEC | OFlag::O_NOCTTY;
 
         let mut noatime = OFlag::O_NOATIME;
         loop {
-            return match Fd::openat(
+            return match proxmox_sys::fd::openat(
                 &unsafe { RawFdNum::from_raw_fd(parent) },
                 file_name,
                 oflags | noatime,
@@ -725,7 +724,7 @@ impl Archiver {
     async fn add_regular_file<T: SeqWrite + Send>(
         &mut self,
         encoder: &mut Encoder<'_, T>,
-        fd: Fd,
+        fd: OwnedFd,
         file_name: &Path,
         metadata: &Metadata,
         file_size: u64,
@@ -764,7 +763,7 @@ impl Archiver {
     async fn add_symlink<T: SeqWrite + Send>(
         &mut self,
         encoder: &mut Encoder<'_, T>,
-        fd: Fd,
+        fd: OwnedFd,
         file_name: &Path,
         metadata: &Metadata,
     ) -> Result<(), Error> {
