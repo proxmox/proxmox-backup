@@ -375,46 +375,40 @@ Ext.define('PBS.TapeManagement.ChangerStatus', {
 		return;
 	    }
 
-	    let singleDrive = me.drives.length === 1 ? me.drives[0] : undefined;
+	    Ext.create('Proxmox.window.Edit', {
+		title: gettext('Inventory'),
+		showTaskViewer: true,
+		method: 'PUT',
+		url: '/api2/extjs/tape/drive',
+		submitUrl: function(url, values) {
+		    let drive = values.drive;
+		    delete values.drive;
+		    return `${url}/${encodeURIComponent(drive)}/inventory`;
+		},
 
-	    if (singleDrive !== undefined) {
-		Proxmox.Utils.API2Request({
-		    method: 'PUT',
-		    url: `/api2/extjs/tape/drive/${singleDrive}/inventory`,
-		    success: function(response, opt) {
-			Ext.create('Proxmox.window.TaskViewer', {
-			    upid: response.result.data,
-			    taskDone: function(success) {
-				me.reload();
-			    },
-			}).show();
+		items: [
+		    {
+			xtype: 'pbsDriveSelector',
+			labelWidth: 120,
+			fieldLabel: gettext('Drive'),
+			name: 'drive',
+			changer: changer,
+			autoSelect: true,
 		    },
-		    failure: function(response, opt) {
-			Ext.Msg.alert(gettext('Error'), response.htmlStatus);
+		    {
+			xtype: 'proxmoxcheckbox',
+			labelWidth: 120,
+			fieldLabel: gettext('Restore Catalogs'),
+			name: 'catalog',
 		    },
-		});
-	    } else {
-		Ext.create('Proxmox.window.Edit', {
-		    title: gettext('Inventory'),
-		    showTaskViewer: true,
-		    method: 'PUT',
-		    url: '/api2/extjs/tape/drive',
-		    submitUrl: function(url, values) {
-			let drive = values.drive;
-			delete values.drive;
-			return `${url}/${encodeURIComponent(drive)}/inventory`;
+		    {
+			xtype: 'proxmoxcheckbox',
+			labelWidth: 120,
+			fieldLabel: gettext('Force all Tapes'),
+			name: 'read-all-labels',
 		    },
-
-		    items: [
-			{
-			    xtype: 'pbsDriveSelector',
-			    fieldLabel: gettext('Drive'),
-			    name: 'drive',
-			    changer: changer,
-			},
-		    ],
-		}).show();
-	    }
+		],
+	    }).show();
 	},
 
 	scheduleReload: function(time) {
