@@ -444,6 +444,12 @@ async fn read_label(mut param: Value) -> Result<(), Error> {
                 type: bool,
                 optional: true,
             },
+            "catalog": {
+                description: "Try to restore catalogs from tapes.",
+                type: bool,
+                default: false,
+                optional: true,
+            }
         },
     },
 )]
@@ -451,6 +457,7 @@ async fn read_label(mut param: Value) -> Result<(), Error> {
 async fn inventory(
     read_labels: Option<bool>,
     read_all_labels: Option<bool>,
+    catalog: bool,
     mut param: Value,
 ) -> Result<(), Error> {
     let output_format = extract_output_format(&mut param);
@@ -458,7 +465,8 @@ async fn inventory(
     let (config, _digest) = pbs_config::drive::config()?;
     let drive = extract_drive_name(&mut param, &config)?;
 
-    let do_read = read_labels.unwrap_or(false) || read_all_labels.unwrap_or(false);
+    let read_all_labels = read_all_labels.unwrap_or(false);
+    let do_read = read_labels.unwrap_or(false) || read_all_labels || catalog;
 
     let client = connect_to_localhost()?;
 
@@ -466,9 +474,8 @@ async fn inventory(
 
     if do_read {
         let mut param = json!({});
-        if let Some(true) = read_all_labels {
-            param["read-all-labels"] = true.into();
-        }
+        param["read-all-labels"] = read_all_labels.into();
+        param["catalog"] = catalog.into();
 
         let result = client.put(&path, Some(param)).await?; // update inventory
         view_task_result(&client, result, &output_format).await?;
