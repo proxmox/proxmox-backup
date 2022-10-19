@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::hash::BuildHasher;
-use std::os::unix::io::AsRawFd;
+use std::os::unix::io::{AsRawFd, OwnedFd};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -15,7 +15,6 @@ use tokio::signal::unix::{signal, SignalKind};
 
 use proxmox_router::{cli::*, ApiHandler, ApiMethod, RpcEnvironment};
 use proxmox_schema::*;
-use proxmox_sys::fd::Fd;
 use proxmox_sys::sortable;
 
 use pbs_api_types::BackupNamespace;
@@ -178,6 +177,8 @@ fn mount(
     // Process should be daemonized.
     // Make sure to fork before the async runtime is instantiated to avoid troubles.
     let (pr, pw) = proxmox_sys::pipe()?;
+    let pr: OwnedFd = pr.into(); // until next sys bump
+    let pw: OwnedFd = pw.into();
     match unsafe { fork() } {
         Ok(ForkResult::Parent { .. }) => {
             drop(pw);
@@ -194,7 +195,7 @@ fn mount(
     }
 }
 
-async fn mount_do(param: Value, pipe: Option<Fd>) -> Result<Value, Error> {
+async fn mount_do(param: Value, pipe: Option<OwnedFd>) -> Result<Value, Error> {
     let repo = extract_repository_from_value(&param)?;
     let archive_name = required_string_param(&param, "archive-name")?;
     let client = connect(&repo)?;
@@ -266,7 +267,7 @@ async fn mount_do(param: Value, pipe: Option<Fd>) -> Result<Value, Error> {
             // Signal the parent process that we are done with the setup and it can
             // terminate.
             nix::unistd::write(pipe.as_raw_fd(), &[0u8])?;
-            let _: Fd = pipe;
+            let _: OwnedFd = pipe;
         }
 
         Ok(())
