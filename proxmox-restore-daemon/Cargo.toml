@@ -32,7 +32,7 @@ proxmox-rest-server = "0.2"
 proxmox-router = { version = "1.3.0", features = [ "cli", "server" ] }
 proxmox-schema = { version = "1.3.1", features = [ "api-macro" ] }
 proxmox-time = "1"
-proxmox-sys = { version = "0.4",  features = [ "sortable-macro" ] }
+proxmox-sys = { version = "0.4.1",  features = [ "sortable-macro" ] }
 
 pbs-api-types = { path = "../pbs-api-types" }
 pbs-tools = { path = "../pbs-tools" }

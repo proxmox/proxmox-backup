@@ -42,7 +42,7 @@ proxmox-lang = "1.1"
 proxmox-router = { version = "1.3.0", features = [ "cli" ] }
 proxmox-schema = "1.3.1"
 proxmox-time = "1"
-proxmox-sys = "0.4"
+proxmox-sys = "0.4.1"
 
 pxar = { version = "0.10.1", features = [ "tokio-io" ] }
 

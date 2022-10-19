@@ -33,7 +33,7 @@ proxmox-schema = { version = "1.3.1", features = [ "api-macro" ] }
 proxmox-serde = { version = "0.1.1", features = [ "serde_json" ] }
 proxmox-time = "1"
 proxmox-uuid = "1"
-proxmox-sys = "0.4"
+proxmox-sys = "0.4.1"
 
 pbs-api-types = { path = "../pbs-api-types" }
 pbs-buildcfg = { path = "../pbs-buildcfg" }
