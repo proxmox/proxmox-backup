@@ -438,11 +438,13 @@ async fn read_label(mut param: Value) -> Result<(), Error> {
                 description: "Load unknown tapes and try read labels",
                 type: bool,
                 optional: true,
+                default: false,
             },
             "read-all-labels": {
                 description: "Load all tapes and try read labels (even if already inventoried)",
                 type: bool,
                 optional: true,
+                default: false,
             },
             "catalog": {
                 description: "Try to restore catalogs from tapes.",
@@ -455,8 +457,8 @@ async fn read_label(mut param: Value) -> Result<(), Error> {
 )]
 /// List (and update) media labels (Changer Inventory)
 async fn inventory(
-    read_labels: Option<bool>,
-    read_all_labels: Option<bool>,
+    read_labels: bool,
+    read_all_labels: bool,
     catalog: bool,
     mut param: Value,
 ) -> Result<(), Error> {
@@ -465,8 +467,7 @@ async fn inventory(
     let (config, _digest) = pbs_config::drive::config()?;
     let drive = extract_drive_name(&mut param, &config)?;
 
-    let read_all_labels = read_all_labels.unwrap_or(false);
-    let do_read = read_labels.unwrap_or(false) || read_all_labels || catalog;
+    let do_read = read_labels || read_all_labels || catalog;
 
     let client = connect_to_localhost()?;
 
