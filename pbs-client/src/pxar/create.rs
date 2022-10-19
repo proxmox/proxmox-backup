@@ -22,7 +22,6 @@ use pxar::Metadata;
 use proxmox_io::vec;
 use proxmox_lang::c_str;
 use proxmox_sys::error::SysError;
-use proxmox_sys::fd::RawFdNum;
 use proxmox_sys::fs::{self, acl, xattr};
 
 use pbs_datastore::catalog::BackupCatalogWriter;
@@ -320,13 +319,13 @@ impl Archiver {
 
         let mut noatime = OFlag::O_NOATIME;
         loop {
-            return match proxmox_sys::fd::openat(
-                &unsafe { RawFdNum::from_raw_fd(parent) },
+            return match proxmox_sys::fd::Fd::openat(
+                &parent,
                 file_name,
                 oflags | noatime,
                 Mode::empty(),
             ) {
-                Ok(fd) => Ok(Some(fd)),
+                Ok(fd) => Ok(Some(fd.into())),
                 Err(Errno::ENOENT) => {
                     if existed {
                         self.report_vanished_file()?;

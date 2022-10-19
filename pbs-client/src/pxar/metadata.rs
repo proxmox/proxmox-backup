@@ -1,5 +1,5 @@
 use std::ffi::{CStr, CString};
-use std::os::unix::io::{AsRawFd, FromRawFd, RawFd};
+use std::os::unix::io::{AsRawFd, RawFd};
 use std::path::Path;
 
 use anyhow::{bail, format_err, Error};
@@ -11,7 +11,6 @@ use pxar::Metadata;
 
 use proxmox_sys::c_result;
 use proxmox_sys::error::SysError;
-use proxmox_sys::fd::RawFdNum;
 use proxmox_sys::fs::{self, acl, xattr};
 
 use crate::pxar::tools::perms_from_metadata;
@@ -66,8 +65,8 @@ pub fn apply_at(
     path_info: &Path,
     on_error: &mut (dyn FnMut(Error) -> Result<(), Error> + Send),
 ) -> Result<(), Error> {
-    let fd = proxmox_sys::fd::openat(
-        &unsafe { RawFdNum::from_raw_fd(parent) },
+    let fd = proxmox_sys::fd::Fd::openat(
+        &parent,
         file_name,
         OFlag::O_PATH | OFlag::O_CLOEXEC | OFlag::O_NOFOLLOW,
         Mode::empty(),
