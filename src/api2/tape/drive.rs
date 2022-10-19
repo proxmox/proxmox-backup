@@ -848,6 +848,13 @@ pub async fn inventory(drive: String) -> Result<Vec<LabelUuidMap>, Error> {
             "read-all-labels": {
                 description: "Load all tapes and try read labels (even if already inventoried)",
                 type: bool,
+                default: false,
+                optional: true,
+            },
+            "catalog": {
+                description: "Restore the catalog from tape.",
+                type: bool,
+                default: false,
                 optional: true,
             },
         },
@@ -867,10 +874,13 @@ pub async fn inventory(drive: String) -> Result<Vec<LabelUuidMap>, Error> {
 /// then loads any unknown media into the drive, reads the label, and
 /// store the result to the media database.
 ///
+/// If `catalog` is true, also tries to restore the catalog from tape.
+///
 /// Note: This updates the media online status.
 pub fn update_inventory(
     drive: String,
-    read_all_labels: Option<bool>,
+    read_all_labels: bool,
+    catalog: bool,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
     let upid_str = run_drive_worker(
@@ -898,11 +908,13 @@ pub fn update_inventory(
 
                 let label_text = label_text.to_string();
 
-                if !read_all_labels.unwrap_or(false)
-                    && inventory.find_media_by_label_text(&label_text).is_some()
-                {
-                    task_log!(worker, "media '{}' already inventoried", label_text);
-                    continue;
+                if !read_all_labels {
+                    if let Some(media_id) = inventory.find_media_by_label_text(&label_text) {
+                        if !catalog || MediaCatalog::exists(TAPE_STATUS_DIR, &media_id.label.uuid) {
+                            task_log!(worker, "media '{}' already inventoried", label_text);
+                            continue;
+                        }
+                    }
                 }
 
                 if let Err(err) = changer.load_media(&label_text) {
@@ -947,7 +959,22 @@ pub fn update_inventory(
                             let _pool_lock = lock_media_pool(TAPE_STATUS_DIR, pool)?;
                             let _lock = lock_media_set(TAPE_STATUS_DIR, uuid, None)?;
                             MediaCatalog::destroy_unrelated_catalog(TAPE_STATUS_DIR, &media_id)?;
-                            inventory.store(media_id, false)?;
+                            inventory.store(media_id.clone(), false)?;
+
+                            if catalog {
+                                let media_set = inventory.compute_media_set_members(uuid)?;
+                                if let Err(err) = fast_catalog_restore(
+                                    &worker,
+                                    &mut drive,
+                                    &media_set,
+                                    &media_id.label.uuid,
+                                ) {
+                                    task_warn!(
+                                        worker,
+                                        "could not restore catalog for {label_text}: {err}"
+                                    );
+                                }
+                            }
                         } else {
                             let _lock = lock_unassigned_media_pool(TAPE_STATUS_DIR)?;
                             MediaCatalog::destroy(TAPE_STATUS_DIR, &media_id.label.uuid)?;
