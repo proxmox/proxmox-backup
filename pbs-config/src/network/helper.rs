@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::os::unix::io::{AsRawFd, FromRawFd};
+use std::os::unix::io::{AsRawFd, FromRawFd, OwnedFd};
 use std::path::Path;
 use std::process::Command;
 
@@ -10,8 +10,6 @@ use nix::sys::socket::{socket, AddressFamily, SockFlag, SockType};
 use regex::Regex;
 
 use pbs_api_types::*; // for IP macros
-
-use proxmox_sys::fd::Fd;
 
 pub static IPV4_REVERSE_MASK: &[&str] = &[
     "0.0.0.0",
@@ -141,7 +139,7 @@ pub fn get_network_interfaces() -> Result<HashMap<String, bool>, Error> {
     let lines = raw.lines();
 
     let sock = unsafe {
-        Fd::from_raw_fd(
+        OwnedFd::from_raw_fd(
             socket(
                 AddressFamily::Inet,
                 SockType::Datagram,
