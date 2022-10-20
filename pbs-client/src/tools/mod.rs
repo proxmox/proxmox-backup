@@ -297,7 +297,10 @@ pub async fn complete_server_file_name_do(param: &HashMap<String, String>) -> Ve
             Ok(v) => v,
             _ => return result,
         },
-        _ => return result,
+        _ => {
+            // If no namespace flag is provided, we assume the root namespace
+            pbs_api_types::BackupNamespace::root()
+        }
     };
 
     let query = json_object_to_query(json!({
