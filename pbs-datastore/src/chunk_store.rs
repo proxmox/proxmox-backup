@@ -1,4 +1,3 @@
-use std::io::Write;
 use std::os::unix::io::AsRawFd;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -461,21 +460,9 @@ impl ChunkStore {
             }
         }
 
-        let mut tmp_path = chunk_path.clone();
-        tmp_path.set_extension("tmp");
-
-        let mut file = std::fs::File::create(&tmp_path).map_err(|err| {
-            format_err!("creating chunk on store '{name}' failed for {digest_str} - {err}")
-        })?;
-
-        file.write_all(raw_data).map_err(|err| {
-            format_err!("writing chunk on store '{name}' failed for {digest_str} - {err}")
-        })?;
-
-        if let Err(err) = std::fs::rename(&tmp_path, &chunk_path) {
-            if std::fs::remove_file(&tmp_path).is_err() { /* ignore */ }
-            bail!("atomic rename on store '{name}' failed for chunk {digest_str} - {err}");
-        }
+        proxmox_sys::fs::replace_file(chunk_path, raw_data, CreateOptions::new(), false).map_err(
+            |err| format_err!("inserting chunk on store '{name}' failed for {digest_str} - {err}"),
+        )?;
 
         drop(lock);
 
