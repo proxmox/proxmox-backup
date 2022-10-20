@@ -168,6 +168,42 @@ pub enum ChunkOrder {
     Inode,
 }
 
+#[api]
+#[derive(PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+/// The level of syncing that is done when writing into a datastore.
+pub enum DatastoreFSyncLevel {
+    /// No special fsync or syncfs calls are triggered. The system default dirty write back
+    /// mechanism ensures that data gets is flushed eventually via the `dirty_writeback_centisecs`
+    /// and `dirty_expire_centisecs` kernel sysctls, defaulting to ~ 30s.
+    ///
+    /// This mode provides generally the best performance, as all write back can happen async,
+    /// which reduces IO pressure.
+    /// But it may cause losing data on powerloss or system crash without any uninterruptible power
+    /// supply.
+    None,
+    /// Triggers a fsync after writing any chunk on the datastore. While this can slow down
+    /// backups significantly, depending on the underlying file system and storage used, it
+    /// will ensure fine-grained consistency. Depending on the exact setup, there might be no
+    /// benefits over the file system level sync, so if the setup allows it, you should prefer
+    /// that one. Despite the possible negative impact in performance, it's the most consistent
+    /// mode.
+    File,
+    /// Trigger a filesystem wide sync after all backup data got written but before finishing the
+    /// task. This allows that every finished backup is fully written back to storage
+    /// while reducing the impact on many file systems in contrast to the file level sync.
+    /// Depending on the setup, it might have a negative impact on unrelated write operations
+    /// of the underlying filesystem, but it is generally a good compromise between performance
+    /// and consitency.
+    Filesystem,
+}
+
+impl Default for DatastoreFSyncLevel {
+    fn default() -> Self {
+        DatastoreFSyncLevel::None
+    }
+}
+
 #[api(
     properties: {
         "chunk-order": {
@@ -182,6 +218,7 @@ pub enum ChunkOrder {
 pub struct DatastoreTuning {
     /// Iterate chunks in this order
     pub chunk_order: Option<ChunkOrder>,
+    pub sync_level: Option<DatastoreFSyncLevel>,
 }
 
 pub const DATASTORE_TUNING_STRING_SCHEMA: Schema = StringSchema::new("Datastore tuning options")

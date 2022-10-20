@@ -18,8 +18,8 @@ use proxmox_sys::WorkerTaskContext;
 use proxmox_sys::{task_log, task_warn};
 
 use pbs_api_types::{
-    Authid, BackupNamespace, BackupType, ChunkOrder, DataStoreConfig, DatastoreTuning,
-    GarbageCollectionStatus, HumanByte, Operation, UPID,
+    Authid, BackupNamespace, BackupType, ChunkOrder, DataStoreConfig, DatastoreFSyncLevel,
+    DatastoreTuning, GarbageCollectionStatus, HumanByte, Operation, UPID,
 };
 
 use crate::backup_info::{BackupDir, BackupGroup};
@@ -59,6 +59,7 @@ pub struct DataStoreImpl {
     verify_new: bool,
     chunk_order: ChunkOrder,
     last_digest: Option<[u8; 32]>,
+    sync_level: DatastoreFSyncLevel,
 }
 
 impl DataStoreImpl {
@@ -72,6 +73,7 @@ impl DataStoreImpl {
             verify_new: false,
             chunk_order: ChunkOrder::None,
             last_digest: None,
+            sync_level: Default::default(),
         })
     }
 }
@@ -151,7 +153,15 @@ impl DataStore {
             }
             Arc::clone(&datastore.chunk_store)
         } else {
-            Arc::new(ChunkStore::open(name, &config.path)?)
+            let tuning: DatastoreTuning = serde_json::from_value(
+                DatastoreTuning::API_SCHEMA
+                    .parse_property_string(config.tuning.as_deref().unwrap_or(""))?,
+            )?;
+            Arc::new(ChunkStore::open(
+                name,
+                &config.path,
+                tuning.sync_level.unwrap_or_default(),
+            )?)
         };
 
         let datastore = DataStore::with_store_and_config(chunk_store, config, Some(digest))?;
@@ -207,7 +217,12 @@ impl DataStore {
     ) -> Result<Arc<Self>, Error> {
         let name = config.name.clone();
 
-        let chunk_store = ChunkStore::open(&name, &config.path)?;
+        let tuning: DatastoreTuning = serde_json::from_value(
+            DatastoreTuning::API_SCHEMA
+                .parse_property_string(config.tuning.as_deref().unwrap_or(""))?,
+        )?;
+        let chunk_store =
+            ChunkStore::open(&name, &config.path, tuning.sync_level.unwrap_or_default())?;
         let inner = Arc::new(Self::with_store_and_config(
             Arc::new(chunk_store),
             config,
@@ -254,6 +269,7 @@ impl DataStore {
             verify_new: config.verify_new.unwrap_or(false),
             chunk_order,
             last_digest,
+            sync_level: tuning.sync_level.unwrap_or_default(),
         })
     }
 
@@ -1294,4 +1310,19 @@ impl DataStore {
         todo!("split out the namespace");
     }
     */
+
+    /// Syncs the filesystem of the datastore if 'sync_level' is set to
+    /// [`DatastoreFSyncLevel::Filesystem`]. Uses syncfs(2).
+    pub fn try_ensure_sync_level(&self) -> Result<(), Error> {
+        if self.inner.sync_level != DatastoreFSyncLevel::Filesystem {
+            return Ok(());
+        }
+        let file = std::fs::File::open(self.base_path())?;
+        let fd = file.as_raw_fd();
+        log::info!("syncinc filesystem");
+        if unsafe { libc::syncfs(fd) } < 0 {
+            bail!("error during syncfs: {}", std::io::Error::last_os_error());
+        }
+        Ok(())
+    }
 }

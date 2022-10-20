@@ -11,8 +11,8 @@ use proxmox_section_config::SectionConfigData;
 use proxmox_sys::WorkerTaskContext;
 
 use pbs_api_types::{
-    Authid, DataStoreConfig, DataStoreConfigUpdater, DatastoreNotify, DATASTORE_SCHEMA,
-    PRIV_DATASTORE_ALLOCATE, PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_MODIFY,
+    Authid, DataStoreConfig, DataStoreConfigUpdater, DatastoreNotify, DatastoreTuning,
+    DATASTORE_SCHEMA, PRIV_DATASTORE_ALLOCATE, PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_MODIFY,
     PROXMOX_CONFIG_DIGEST_SCHEMA,
 };
 use pbs_config::BackupLockGuard;
@@ -70,6 +70,10 @@ pub(crate) fn do_create_datastore(
 ) -> Result<(), Error> {
     let path: PathBuf = datastore.path.clone().into();
 
+    let tuning: DatastoreTuning = serde_json::from_value(
+        DatastoreTuning::API_SCHEMA
+            .parse_property_string(datastore.tuning.as_deref().unwrap_or(""))?,
+    )?;
     let backup_user = pbs_config::backup_user()?;
     let _store = ChunkStore::create(
         &datastore.name,
@@ -77,6 +81,7 @@ pub(crate) fn do_create_datastore(
         backup_user.uid,
         backup_user.gid,
         worker,
+        tuning.sync_level.unwrap_or_default(),
     )?;
 
     config.set_data(&datastore.name, "datastore", &datastore)?;

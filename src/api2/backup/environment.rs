@@ -623,6 +623,8 @@ impl BackupEnvironment {
             }
         }
 
+        self.datastore.try_ensure_sync_level()?;
+
         // marks the backup as successful
         state.finished = true;
 

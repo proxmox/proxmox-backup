@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::{bail, format_err, Error};
 
-use pbs_api_types::GarbageCollectionStatus;
+use pbs_api_types::{DatastoreFSyncLevel, GarbageCollectionStatus};
 use proxmox_sys::fs::{create_dir, create_path, file_type_from_file_stat, CreateOptions};
 use proxmox_sys::process_locker::{
     ProcessLockExclusiveGuard, ProcessLockSharedGuard, ProcessLocker,
@@ -21,6 +21,7 @@ pub struct ChunkStore {
     chunk_dir: PathBuf,
     mutex: Mutex<()>,
     locker: Option<Arc<Mutex<ProcessLocker>>>,
+    sync_level: DatastoreFSyncLevel,
 }
 
 // TODO: what about sysctl setting vm.vfs_cache_pressure (0 - 100) ?
@@ -67,6 +68,7 @@ impl ChunkStore {
             chunk_dir: PathBuf::new(),
             mutex: Mutex::new(()),
             locker: None,
+            sync_level: Default::default(),
         }
     }
 
@@ -87,6 +89,7 @@ impl ChunkStore {
         uid: nix::unistd::Uid,
         gid: nix::unistd::Gid,
         worker: Option<&dyn WorkerTaskContext>,
+        sync_level: DatastoreFSyncLevel,
     ) -> Result<Self, Error>
     where
         P: Into<PathBuf>,
@@ -143,7 +146,7 @@ impl ChunkStore {
             }
         }
 
-        Self::open(name, base)
+        Self::open(name, base, sync_level)
     }
 
     fn lockfile_path<P: Into<PathBuf>>(base: P) -> PathBuf {
@@ -157,7 +160,11 @@ impl ChunkStore {
     /// Note that this must be used with care, as it's dangerous to create two instances on the
     /// same base path, as closing the underlying ProcessLocker drops all locks from this process
     /// on the lockfile (even if separate FDs)
-    pub(crate) fn open<P: Into<PathBuf>>(name: &str, base: P) -> Result<Self, Error> {
+    pub(crate) fn open<P: Into<PathBuf>>(
+        name: &str,
+        base: P,
+        sync_level: DatastoreFSyncLevel,
+    ) -> Result<Self, Error> {
         let base: PathBuf = base.into();
 
         if !base.is_absolute() {
@@ -180,6 +187,7 @@ impl ChunkStore {
             chunk_dir,
             locker: Some(locker),
             mutex: Mutex::new(()),
+            sync_level,
         })
     }
 
@@ -460,9 +468,27 @@ impl ChunkStore {
             }
         }
 
-        proxmox_sys::fs::replace_file(chunk_path, raw_data, CreateOptions::new(), false).map_err(
-            |err| format_err!("inserting chunk on store '{name}' failed for {digest_str} - {err}"),
-        )?;
+        let chunk_dir_path = chunk_path
+            .parent()
+            .ok_or_else(|| format_err!("unable to get chunk dir"))?
+            .to_owned();
+
+        proxmox_sys::fs::replace_file(
+            chunk_path,
+            raw_data,
+            CreateOptions::new(),
+            self.sync_level == DatastoreFSyncLevel::File,
+        )
+        .map_err(|err| {
+            format_err!("inserting chunk on store '{name}' failed for {digest_str} - {err}")
+        })?;
+
+        if self.sync_level == DatastoreFSyncLevel::File {
+            // fsync dir handle to persist the tmp rename
+            let dir = std::fs::File::open(chunk_dir_path)?;
+            nix::unistd::fsync(dir.as_raw_fd())
+                .map_err(|err| format_err!("fsync failed: {err}"))?;
+        }
 
         drop(lock);
 
@@ -519,13 +545,21 @@ fn test_chunk_store1() {
 
     if let Err(_e) = std::fs::remove_dir_all(".testdir") { /* ignore */ }
 
-    let chunk_store = ChunkStore::open("test", &path);
+    let chunk_store = ChunkStore::open("test", &path, DatastoreFSyncLevel::None);
     assert!(chunk_store.is_err());
 
     let user = nix::unistd::User::from_uid(nix::unistd::Uid::current())
         .unwrap()
         .unwrap();
-    let chunk_store = ChunkStore::create("test", &path, user.uid, user.gid, None).unwrap();
+    let chunk_store = ChunkStore::create(
+        "test",
+        &path,
+        user.uid,
+        user.gid,
+        None,
+        DatastoreFSyncLevel::None,
+    )
+    .unwrap();
 
     let (chunk, digest) = crate::data_blob::DataChunkBuilder::new(&[0u8, 1u8])
         .build()
@@ -537,7 +571,14 @@ fn test_chunk_store1() {
     let (exists, _) = chunk_store.insert_chunk(&chunk, &digest).unwrap();
     assert!(exists);
 
-    let chunk_store = ChunkStore::create("test", &path, user.uid, user.gid, None);
+    let chunk_store = ChunkStore::create(
+        "test",
+        &path,
+        user.uid,
+        user.gid,
+        None,
+        DatastoreFSyncLevel::None,
+    );
     assert!(chunk_store.is_err());
 
     if let Err(_e) = std::fs::remove_dir_all(".testdir") { /* ignore */ }
