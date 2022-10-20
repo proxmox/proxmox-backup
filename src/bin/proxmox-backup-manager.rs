@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::io::{self, Write};
 use std::str::FromStr;
 
-use anyhow::Error;
+use anyhow::{Error, format_err};
 use serde_json::{json, Value};
 
 use proxmox_router::{cli::*, RpcEnvironment};
@@ -297,7 +297,6 @@ async fn pull_datastore(
         "store": store,
         "remote": remote,
         "remote-store": remote_store,
-        "limit": limit,
     });
 
     if remote_ns.is_some() {
@@ -319,6 +318,16 @@ async fn pull_datastore(
     if let Some(remove_vanished) = remove_vanished {
         args["remove-vanished"] = Value::from(remove_vanished);
     }
+
+    let mut limit_json = json!(limit);
+    let limit_map = limit_json
+        .as_object_mut()
+        .ok_or_else(|| format_err!("limit is not an Object"))?;
+
+    args
+        .as_object_mut()
+        .unwrap()
+        .append(limit_map);
 
     let result = client.post("api2/json/pull", Some(args)).await?;
 
