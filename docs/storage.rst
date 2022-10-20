@@ -315,3 +315,26 @@ There are a few per-datastore options:
 * :ref:`Notifications <maintenance_notification>`
 * :ref:`Maintenance Mode <maintenance_mode>`
 * Verification of incoming backups
+
+Tuning
+^^^^^^
+There are some tuning related options for the datastore that are more advanced
+and only available on the CLI:
+
+* ``chunk-order``: Chunk order for verify & tape backup:
+
+  You can specify the order in which Proxmox Backup Server iterates the chunks
+  when doing a verify or backing up to tape. The two options are:
+
+  - `inode`  (default): Sorts the chunks by inode number of the filesystem before iterating
+    over them. This should be fine for most storages, especially spinning disks.
+  - `none`  Iterates the chunks in the order they appear in the
+    index file (.fidx/.didx). While this might slow down iterating on many slow
+    storages, on very fast ones (for example: NVMEs) the collecting and sorting
+    can take more time than gained through the sorted iterating.
+  This option can be set with:
+
+.. code-block:: console
+
+  # proxmox-backup-manager datastore update <storename> --tuning 'chunk-order=none'
+
