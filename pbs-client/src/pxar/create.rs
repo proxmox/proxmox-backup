@@ -325,7 +325,7 @@ impl Archiver {
                 oflags | noatime,
                 Mode::empty(),
             ) {
-                Ok(fd) => Ok(Some(fd.into())),
+                Ok(fd) => Ok(Some(fd)),
                 Err(Errno::ENOENT) => {
                     if existed {
                         self.report_vanished_file()?;

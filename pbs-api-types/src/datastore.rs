@@ -169,7 +169,7 @@ pub enum ChunkOrder {
 }
 
 #[api]
-#[derive(PartialEq, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 /// The level of syncing that is done when writing into a datastore.
 pub enum DatastoreFSyncLevel {
