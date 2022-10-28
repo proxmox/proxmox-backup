@@ -338,3 +338,39 @@ and only available on the CLI:
 
   # proxmox-backup-manager datastore update <storename> --tuning 'chunk-order=none'
 
+* ``sync-level``: Datastore fsync level:
+
+  You can set the level of syncing on the datastore for chunks, which influences
+  the crash resistance of backups in case of a powerloss or hard shutoff.
+  There are currently three levels:
+
+  - `none` (default): Does not do any syncing when writing chunks. This is fast
+    and normally OK, since the kernel eventually flushes writes onto the disk.
+    The kernel sysctls `dirty_expire_centisecs` and `dirty_writeback_centisecs`
+    are used to tune that behaviour, while the default is to flush old data
+    after ~30s.
+
+  - `filesystem` : This triggers a ``syncfs(2)`` after a backup, but before
+    the task returns `OK`. This way it is ensured that the written backups
+    are on disk. This is a good balance between speed and consistency.
+    Note that the underlying storage device still needs to protect itself against
+    powerloss to flush its internal ephemeral caches to the permanent storage layer.
+
+  - `file` With this mode, a fsync is triggered on every chunk insertion, which
+    makes sure each and every chunk reaches the disk as soon as possible. While
+    this reaches the highest level of consistency, for many storages (especially
+    slower ones) this comes at the cost of speed. For many users the `filesystem`
+    mode is better suited, but for very fast storages this mode can be OK.
+
+  This can be set with:
+
+.. code-block:: console
+
+  # proxmox-backup-manager datastore update <storename> --tuning 'sync-level=filesystem'
+
+If you want to set multiple tuning options simultaneously, you can separate them
+with a comma, like this:
+
+.. code-block:: console
+
+  # proxmox-backup-manager datastore update <storename> --tuning 'sync-level=filesystem,chunk-order=none'
