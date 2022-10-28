@@ -470,11 +470,10 @@ impl ChunkStore {
 
         let chunk_dir_path = chunk_path
             .parent()
-            .ok_or_else(|| format_err!("unable to get chunk dir"))?
-            .to_owned();
+            .ok_or_else(|| format_err!("unable to get chunk dir"))?;
 
         proxmox_sys::fs::replace_file(
-            chunk_path,
+            &chunk_path,
             raw_data,
             CreateOptions::new(),
             self.sync_level == DatastoreFSyncLevel::File,
