@@ -1,6 +1,9 @@
 Implements debugging functionality to inspect Proxmox Backup datastore
 files, verify the integrity of chunks.
 
+The 'diff' subcommand allows comparing .pxar archives for two
+arbitrary snapshots. A list of added/modified/deleted files will be displayed.
+
 Also contains an 'api' subcommand where arbitrary api paths can be called
 (get/create/set/delete) as well as display their parameters (usage) and
 their child-links (ls).

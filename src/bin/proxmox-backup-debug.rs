@@ -12,7 +12,8 @@ fn main() {
     let cmd_def = CliCommandMap::new()
         .insert("inspect", inspect::inspect_commands())
         .insert("recover", recover::recover_commands())
-        .insert("api", api::api_commands());
+        .insert("api", api::api_commands())
+        .insert("diff", diff::diff_commands());
 
     let uid = nix::unistd::Uid::current();
     let username = match nix::unistd::User::from_uid(uid) {

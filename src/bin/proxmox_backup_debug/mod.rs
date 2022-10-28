@@ -6,6 +6,7 @@ use std::{
 };
 
 pub mod api;
+pub mod diff;
 pub mod inspect;
 pub mod recover;
 
