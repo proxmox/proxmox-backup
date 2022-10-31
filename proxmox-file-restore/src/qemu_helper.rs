@@ -264,7 +264,7 @@ pub async fn start_vm(
             let debug_args = [
                 "-chardev",
                 &format!(
-                    "socket,id=debugser,path=/run/proxmox-backup/file-restore-serial-{}.sock,server,nowait",
+                    "socket,id=debugser,path=/run/proxmox-backup/file-restore-serial-{}.sock,server=on,wait=off",
                     cid
                 ),
                 "-serial",
