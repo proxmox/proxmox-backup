@@ -6,7 +6,12 @@ use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use anyhow::{bail, format_err, Error};
-use tokio::time;
+use serde_json::json;
+use tokio::io::AsyncBufRead;
+use tokio::{
+    io::{AsyncBufReadExt, AsyncWrite, AsyncWriteExt},
+    time,
+};
 
 use nix::sys::signal::{kill, Signal};
 use nix::unistd::Pid;
@@ -22,6 +27,8 @@ use crate::{backup_user, cpio};
 
 const PBS_VM_NAME: &str = "pbs-restore-vm";
 const MAX_CID_TRIES: u64 = 32;
+const DYNAMIC_MEMORY_MB: usize = 1024;
+const QMP_SOCKET_PREFIX: &str = "/run/proxmox-backup/file-restore-qmp-";
 
 fn create_restore_log_dir() -> Result<String, Error> {
     let logpath = format!("{}/file-restore", pbs_buildcfg::PROXMOX_BACKUP_LOG_DIR);
@@ -121,6 +128,54 @@ async fn create_temp_initramfs(ticket: &str, debug: bool) -> Result<(File, Strin
     Ok((tmp_file, path))
 }
 
+async fn send_qmp_request<T: AsyncBufRead + AsyncWrite + Unpin>(
+    stream: &mut T,
+    request: &str,
+) -> Result<String, Error> {
+    stream.write_all(request.as_bytes()).await?;
+    stream.flush().await?;
+    let mut buf = String::new();
+    let _ = stream.read_line(&mut buf).await?;
+    Ok(buf)
+}
+
+pub async fn set_dynamic_memory(cid: i32, target_memory: Option<usize>) -> Result<(), Error> {
+    let target_memory = match target_memory {
+        Some(size) if size > DYNAMIC_MEMORY_MB => {
+            bail!("cannot set to {}M, maximum is {}M", size, DYNAMIC_MEMORY_MB)
+        }
+        Some(size) => size,
+        None => DYNAMIC_MEMORY_MB,
+    };
+
+    let path = format!("{}{}.sock", QMP_SOCKET_PREFIX, cid);
+    let mut stream = tokio::io::BufStream::new(tokio::net::UnixStream::connect(path).await?);
+
+    let _ = stream.read_line(&mut String::new()).await?; // initial qmp message
+    let _ = send_qmp_request(&mut stream, "{\"execute\":\"qmp_capabilities\"}\n").await?;
+
+    let request = json!({
+        "execute": "object-add",
+        "arguments": {
+            "qom-type": "memory-backend-ram",
+            "id": "mem0",
+            "size": target_memory * 1024 * 1024,
+        }
+    });
+    let _ = send_qmp_request(&mut stream, &serde_json::to_string(&request)?).await?;
+    let request = json!({
+        "execute": "device_add",
+        "arguments": {
+            "driver": "pc-dimm",
+            "id": "dimm0",
+            "memdev": "mem0",
+        }
+    });
+    let _ = send_qmp_request(&mut stream, &serde_json::to_string(&request)?).await?;
+
+    Ok(())
+}
+
 pub async fn start_vm(
     // u16 so we can do wrapping_add without going too high
     mut cid: u16,
@@ -185,7 +240,8 @@ pub async fn start_vm(
         &ramfs_path,
         "-append",
         &format!(
-            "{} panic=1 zfs_arc_min=0 zfs_arc_max=0",
+            "{} panic=1 zfs_arc_min=0 zfs_arc_max=0 memhp_default_state=online_kernel
+",
             if debug { "debug" } else { "quiet" }
         ),
         "-daemonize",
@@ -252,13 +308,23 @@ pub async fn start_vm(
         let mut qemu_cmd = std::process::Command::new("qemu-system-x86_64");
         qemu_cmd.args(base_args.iter());
         qemu_cmd.arg("-m");
-        qemu_cmd.arg(ram.to_string());
+        qemu_cmd.arg(format!(
+            "{ram}M,slots=1,maxmem={}M",
+            DYNAMIC_MEMORY_MB + ram
+        ));
         qemu_cmd.args(&drives);
         qemu_cmd.arg("-device");
         qemu_cmd.arg(format!(
             "vhost-vsock-pci,guest-cid={},disable-legacy=on",
             cid
         ));
+        qemu_cmd.arg("-chardev");
+        qemu_cmd.arg(format!(
+            "socket,id=qmp,path={}{}.sock,server=on,wait=off",
+            QMP_SOCKET_PREFIX, cid
+        ));
+        qemu_cmd.arg("-mon");
+        qemu_cmd.arg("chardev=qmp,mode=control");
 
         if debug {
             let debug_args = [

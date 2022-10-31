@@ -1,7 +1,10 @@
 //! Block file access via a small QEMU restore VM using the PBS block driver in QEMU
 use std::collections::HashMap;
+use std::ffi::OsStr;
 use std::fs::{File, OpenOptions};
 use std::io::{prelude::*, BufReader, BufWriter, SeekFrom};
+use std::os::unix::prelude::OsStrExt;
+use std::path::Path;
 
 use anyhow::{bail, Error};
 use futures::FutureExt;
@@ -16,6 +19,7 @@ use pbs_datastore::catalog::ArchiveEntry;
 
 use super::block_driver::*;
 use crate::get_user_run_dir;
+use crate::qemu_helper::set_dynamic_memory;
 
 const RESTORE_VM_MAP: &str = "restore-vm-map.json";
 
@@ -119,7 +123,7 @@ fn new_ticket() -> String {
     proxmox_uuid::Uuid::generate().to_string()
 }
 
-async fn ensure_running(details: &SnapRestoreDetails) -> Result<VsockClient, Error> {
+async fn ensure_running(details: &SnapRestoreDetails) -> Result<(i32, VsockClient), Error> {
     let name = make_name(&details.repo, &details.namespace, &details.snapshot);
     let mut state = VMStateMap::load()?;
 
@@ -133,7 +137,7 @@ async fn ensure_running(details: &SnapRestoreDetails) -> Result<VsockClient, Err
             match res {
                 Ok(_) => {
                     // VM is running and we just reset its timeout, nothing to do
-                    return Ok(client);
+                    return Ok((vm.cid, client));
                 }
                 Err(err) => {
                     log::warn!("stale VM detected, restarting ({})", err);
@@ -170,11 +174,28 @@ async fn ensure_running(details: &SnapRestoreDetails) -> Result<VsockClient, Err
     };
 
     state.write()?;
-    Ok(VsockClient::new(
+    Ok((
         new_cid,
-        DEFAULT_VSOCK_PORT,
-        Some(vms.ticket),
+        VsockClient::new(new_cid, DEFAULT_VSOCK_PORT, Some(vms.ticket)),
     ))
+}
+
+fn path_is_zfs(path: &[u8]) -> bool {
+    if path.is_empty() {
+        return false;
+    }
+    let path = Path::new(OsStr::from_bytes(path));
+    let mut components = path.components();
+    let part = match components.next() {
+        Some(std::path::Component::RootDir) => match components.next() {
+            Some(std::path::Component::Normal(comp)) => comp,
+            _ => return false,
+        },
+        Some(std::path::Component::Normal(comp)) => comp,
+        _ => return false,
+    };
+
+    part == OsStr::new("zpool") && components.next().is_some()
 }
 
 async fn start_vm(cid_request: i32, details: &SnapRestoreDetails) -> Result<VMState, Error> {
@@ -199,9 +220,14 @@ impl BlockRestoreDriver for QemuBlockDriver {
         mut path: Vec<u8>,
     ) -> Async<Result<Vec<ArchiveEntry>, Error>> {
         async move {
-            let client = ensure_running(&details).await?;
+            let (cid, client) = ensure_running(&details).await?;
             if !path.is_empty() && path[0] != b'/' {
                 path.insert(0, b'/');
+            }
+            if path_is_zfs(&path) {
+                if let Err(err) = set_dynamic_memory(cid, None).await {
+                    log::error!("could not increase memory: {err}");
+                }
             }
             let path = base64::encode(img_file.bytes().chain(path).collect::<Vec<u8>>());
             let mut result = client
@@ -221,9 +247,14 @@ impl BlockRestoreDriver for QemuBlockDriver {
         zstd: bool,
     ) -> Async<Result<Box<dyn tokio::io::AsyncRead + Unpin + Send>, Error>> {
         async move {
-            let client = ensure_running(&details).await?;
+            let (cid, client) = ensure_running(&details).await?;
             if !path.is_empty() && path[0] != b'/' {
                 path.insert(0, b'/');
+            }
+            if path_is_zfs(&path) {
+                if let Err(err) = set_dynamic_memory(cid, None).await {
+                    log::error!("could not increase memory: {err}");
+                }
             }
             let path = base64::encode(img_file.bytes().chain(path).collect::<Vec<u8>>());
             let (mut tx, rx) = tokio::io::duplex(1024 * 4096);
