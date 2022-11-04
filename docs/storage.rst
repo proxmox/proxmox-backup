@@ -344,13 +344,13 @@ and only available on the CLI:
   the crash resistance of backups in case of a powerloss or hard shutoff.
   There are currently three levels:
 
-  - `none` (default): Does not do any syncing when writing chunks. This is fast
+  - `none` : Does not do any syncing when writing chunks. This is fast
     and normally OK, since the kernel eventually flushes writes onto the disk.
     The kernel sysctls `dirty_expire_centisecs` and `dirty_writeback_centisecs`
     are used to tune that behaviour, while the default is to flush old data
     after ~30s.
 
-  - `filesystem` : This triggers a ``syncfs(2)`` after a backup, but before
+  - `filesystem` (default): This triggers a ``syncfs(2)`` after a backup, but before
     the task returns `OK`. This way it is ensured that the written backups
     are on disk. This is a good balance between speed and consistency.
     Note that the underlying storage device still needs to protect itself against

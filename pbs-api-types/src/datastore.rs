@@ -181,7 +181,6 @@ pub enum DatastoreFSyncLevel {
     /// which reduces IO pressure.
     /// But it may cause losing data on powerloss or system crash without any uninterruptible power
     /// supply.
-    #[default]
     None,
     /// Triggers a fsync after writing any chunk on the datastore. While this can slow down
     /// backups significantly, depending on the underlying file system and storage used, it
@@ -196,6 +195,7 @@ pub enum DatastoreFSyncLevel {
     /// Depending on the setup, it might have a negative impact on unrelated write operations
     /// of the underlying filesystem, but it is generally a good compromise between performance
     /// and consitency.
+    #[default]
     Filesystem,
 }
 
