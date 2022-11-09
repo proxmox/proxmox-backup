@@ -1255,6 +1255,8 @@ fn rrd_update_disk_stat(disk: &DiskStat, rrd_prefix: &str) {
         rrd_update_gauge(&rrd_key, status.total as f64);
         let rrd_key = format!("{}/used", rrd_prefix);
         rrd_update_gauge(&rrd_key, status.used as f64);
+        let rrd_key = format!("{}/available", rrd_prefix);
+        rrd_update_gauge(&rrd_key, status.available as f64);
     }
 
     if let Some(stat) = &disk.dev {

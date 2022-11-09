@@ -86,42 +86,39 @@ pub async fn datastore_status(
 
         let total_res = get_rrd("total")?;
         let used_res = get_rrd("used")?;
+        let avail_res = get_rrd("available")?;
 
-        if let (
-            Some(proxmox_rrd::Entry {
-                start,
-                resolution,
-                data: total_list,
-            }),
-            Some(proxmox_rrd::Entry {
-                data: used_list, ..
-            }),
-        ) = (total_res, used_res)
-        {
+        if let Some(((total_entry, used), avail)) = total_res.zip(used_res).zip(avail_res) {
             let mut usage_list: Vec<f64> = Vec::new();
             let mut time_list: Vec<u64> = Vec::new();
             let mut history = Vec::new();
 
-            for (idx, used) in used_list.iter().enumerate() {
-                let total = if idx < total_list.len() {
-                    total_list[idx]
-                } else {
-                    None
+            for (idx, used) in used.data.iter().enumerate() {
+                let used = match used {
+                    Some(used) => used,
+                    _ => {
+                        history.push(None);
+                        continue;
+                    }
                 };
 
-                match (total, used) {
-                    (Some(total), Some(used)) if total != 0.0 => {
-                        time_list.push(start + (idx as u64) * resolution);
-                        let usage = used / total;
-                        usage_list.push(usage);
-                        history.push(Some(usage));
-                    }
-                    _ => history.push(None),
-                }
+                let total = if idx < avail.data.len() && avail.data[idx].is_some() {
+                    avail.data[idx].unwrap() + used
+                } else if idx < total_entry.data.len() && total_entry.data[idx].is_some() {
+                    total_entry.data[idx].unwrap()
+                } else {
+                    history.push(None);
+                    continue;
+                };
+
+                let usage = used / total;
+                time_list.push(total_entry.start + (idx as u64) * total_entry.resolution);
+                usage_list.push(usage);
+                history.push(Some(usage));
             }
 
-            entry.history_start = Some(start);
-            entry.history_delta = Some(resolution);
+            entry.history_start = Some(total_entry.start);
+            entry.history_delta = Some(total_entry.resolution);
             entry.history = Some(history);
 
             // we skip the calculation for datastores with not enough data
