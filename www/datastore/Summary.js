@@ -3,6 +3,20 @@ Ext.define('pve-rrd-datastore', {
     fields: [
 	'used',
 	'total',
+	{
+	    name: 'unpriv-total', // Can't resuse 'total' here as that creates a stack overflow
+	    calculate: function(data) {
+		let used = data.used;
+		let avail = data.available;
+
+		if (avail && used) {
+		    return avail + used;
+		}
+
+		return data.total;
+	    },
+	},
+	'available',
 	'read_ios',
 	'read_bytes',
 	'write_ios',
@@ -66,8 +80,8 @@ Ext.define('PBS.DataStoreInfo', {
 	    let vm = me.getViewModel();
 
 	    let counts = store.getById('counts').data.value;
-	    let total = store.getById('total').data.value;
 	    let used = store.getById('used').data.value;
+	    let total = store.getById('avail').data.value + used;
 
 	    let usage = Proxmox.Utils.render_size_usage(used, total, true);
 	    vm.set('usagetext', usage);
@@ -236,7 +250,7 @@ Ext.define('PBS.DataStoreSummary', {
 	{
 	    xtype: 'proxmoxRRDChart',
 	    title: gettext('Storage usage (bytes)'),
-	    fields: ['total', 'used'],
+	    fields: ['unpriv-total', 'used'],
 	    fieldTitles: [gettext('Total'), gettext('Storage usage')],
 	},
 	{

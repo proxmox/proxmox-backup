@@ -3,7 +3,12 @@ Ext.define('pbs-datastore-statistics', {
 
     fields: [
 	'store',
-	'total',
+	{
+	    name: 'total',
+	    calculate: function(data) {
+		return data.avail + data.used;
+	    },
+	},
 	'used',
 	'avail',
 	'estimated-full-date',

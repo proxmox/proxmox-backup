@@ -1804,6 +1804,7 @@ pub fn get_rrd_stats(
 
     let mut rrd_fields = vec![
         "total",
+        "available",
         "used",
         "read_ios",
         "read_bytes",
