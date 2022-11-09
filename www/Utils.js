@@ -285,7 +285,11 @@ Ext.define('PBS.Utils', {
 	return tokenid.match(/^(.+)!([^!]+)$/)[2];
     },
 
-    render_estimate: function(value) {
+    render_estimate: function(value, metaData, record) {
+	if (record.data.avail === 0) {
+	    return gettext("Full");
+	}
+
 	if (value === undefined) {
 	    return gettext('Not enough data');
 	}

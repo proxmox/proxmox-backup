@@ -62,7 +62,8 @@ Ext.define('PBS.datastore.DataStoreListSummary', {
 	let usagePanel = me.lookup('usage');
 	usagePanel.updateValue(usage, usagetext);
 
-	let estimate = PBS.Utils.render_estimate(statusData['estimated-full-date']);
+	let estimate = PBS.Utils.render_estimate(statusData['estimated-full-date'], null, { data: statusData });
+
 	vm.set('full', estimate);
 	vm.set('deduplication', PBS.Utils.calculate_dedup_factor(statusData['gc-status']).toFixed(2));
 	vm.set('stillbad', statusData['gc-status']['still-bad']);
