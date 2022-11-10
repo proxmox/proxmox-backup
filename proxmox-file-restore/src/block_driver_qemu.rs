@@ -218,13 +218,14 @@ impl BlockRestoreDriver for QemuBlockDriver {
         details: SnapRestoreDetails,
         img_file: String,
         mut path: Vec<u8>,
+        dynamic_memory: bool,
     ) -> Async<Result<Vec<ArchiveEntry>, Error>> {
         async move {
             let (cid, client) = ensure_running(&details).await?;
             if !path.is_empty() && path[0] != b'/' {
                 path.insert(0, b'/');
             }
-            if path_is_zfs(&path) {
+            if path_is_zfs(&path) && dynamic_memory {
                 if let Err(err) = set_dynamic_memory(cid, None).await {
                     log::error!("could not increase memory: {err}");
                 }
@@ -245,13 +246,14 @@ impl BlockRestoreDriver for QemuBlockDriver {
         mut path: Vec<u8>,
         format: Option<FileRestoreFormat>,
         zstd: bool,
+        dynamic_memory: bool,
     ) -> Async<Result<Box<dyn tokio::io::AsyncRead + Unpin + Send>, Error>> {
         async move {
             let (cid, client) = ensure_running(&details).await?;
             if !path.is_empty() && path[0] != b'/' {
                 path.insert(0, b'/');
             }
-            if path_is_zfs(&path) {
+            if path_is_zfs(&path) && dynamic_memory {
                 if let Err(err) = set_dynamic_memory(cid, None).await {
                     log::error!("could not increase memory: {err}");
                 }
