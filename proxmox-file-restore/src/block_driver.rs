@@ -43,7 +43,7 @@ pub trait BlockRestoreDriver {
         details: SnapRestoreDetails,
         img_file: String,
         path: Vec<u8>,
-        dynamic_memory: bool,
+        auto_memory_hotplug: bool,
     ) -> Async<Result<Vec<ArchiveEntry>, Error>>;
 
     /// pxar=true:
@@ -58,7 +58,7 @@ pub trait BlockRestoreDriver {
         path: Vec<u8>,
         format: Option<FileRestoreFormat>,
         zstd: bool,
-        dynamic_memory: bool,
+        auto_memory_hotplug: bool,
     ) -> Async<Result<Box<dyn tokio::io::AsyncRead + Unpin + Send>, Error>>;
 
     /// Return status of all running/mapped images, result value is (id, extra data), where id must
@@ -94,11 +94,11 @@ pub async fn data_list(
     details: SnapRestoreDetails,
     img_file: String,
     path: Vec<u8>,
-    dynamic_memory: bool,
+    auto_memory_hotplug: bool,
 ) -> Result<Vec<ArchiveEntry>, Error> {
     let driver = driver.unwrap_or(DEFAULT_DRIVER).resolve();
     driver
-        .data_list(details, img_file, path, dynamic_memory)
+        .data_list(details, img_file, path, auto_memory_hotplug)
         .await
 }
 
@@ -109,11 +109,11 @@ pub async fn data_extract(
     path: Vec<u8>,
     format: Option<FileRestoreFormat>,
     zstd: bool,
-    dynamic_memory: bool,
+    auto_memory_hotplug: bool,
 ) -> Result<Box<dyn tokio::io::AsyncRead + Send + Unpin>, Error> {
     let driver = driver.unwrap_or(DEFAULT_DRIVER).resolve();
     driver
-        .data_extract(details, img_file, path, format, zstd, dynamic_memory)
+        .data_extract(details, img_file, path, format, zstd, auto_memory_hotplug)
         .await
 }
 

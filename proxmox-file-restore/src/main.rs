@@ -105,7 +105,7 @@ async fn list_files(
     crypt_config: Option<Arc<CryptConfig>>,
     keyfile: Option<String>,
     driver: Option<BlockDriverType>,
-    dynamic_memory: bool,
+    auto_memory_hotplug: bool,
 ) -> Result<Vec<ArchiveEntry>, Error> {
     let client = connect(&repo)?;
     let client = BackupReader::start(
@@ -172,7 +172,7 @@ async fn list_files(
                 snapshot,
                 keyfile,
             };
-            data_list(driver, details, file, path, dynamic_memory).await
+            data_list(driver, details, file, path, auto_memory_hotplug).await
         }
     }
 }
@@ -228,9 +228,9 @@ async fn list_files(
                 minimum: 1,
                 optional: true,
             },
-            "dynamic-memory": {
+            "auto-memory-hotplug": {
                 type: Boolean,
-                description: "If enabled, automatically increases memory for started vms in case of accessing a zpool inside.",
+                description: "If enabled, automatically hot-plugs memory for started VM if a ZFS pool is accessed.",
                 default: false,
                 optional: true,
             },
@@ -251,7 +251,7 @@ async fn list(
     path: String,
     base64: bool,
     timeout: Option<u64>,
-    dynamic_memory: bool,
+    auto_memory_hotplug: bool,
     param: Value,
 ) -> Result<(), Error> {
     let repo = extract_repository_from_value(&param)?;
@@ -289,7 +289,7 @@ async fn list(
                 crypt_config,
                 keyfile,
                 driver,
-                dynamic_memory,
+                auto_memory_hotplug,
             ),
         )
         .await
@@ -306,7 +306,7 @@ async fn list(
             crypt_config,
             keyfile,
             driver,
-            dynamic_memory,
+            auto_memory_hotplug,
         )
         .await
     };
@@ -415,9 +415,9 @@ async fn list(
                 type: BlockDriverType,
                 optional: true,
             },
-            "dynamic-memory": {
+            "auto-memory-hotplug": {
                 type: Boolean,
-                description: "If enabled, automatically increases memory for started vms in case of accessing a zpool inside.",
+                description: "If enabled, automatically hot-plugs memory for started VM if a ZFS pool is accessed.",
                 default: false,
                 optional: true,
             },
@@ -434,7 +434,7 @@ async fn extract(
     target: Option<String>,
     format: Option<FileRestoreFormat>,
     zstd: bool,
-    dynamic_memory: bool,
+    auto_memory_hotplug: bool,
     param: Value,
 ) -> Result<(), Error> {
     let repo = extract_repository_from_value(&param)?;
@@ -516,7 +516,7 @@ async fn extract(
                     path.clone(),
                     Some(FileRestoreFormat::Pxar),
                     false,
-                    dynamic_memory,
+                    auto_memory_hotplug,
                 )
                 .await?;
                 let decoder = Decoder::from_tokio(reader).await?;
@@ -536,7 +536,7 @@ async fn extract(
                     path.clone(),
                     format,
                     zstd,
-                    dynamic_memory,
+                    auto_memory_hotplug,
                 )
                 .await?;
                 tokio::io::copy(&mut reader, &mut tokio::io::stdout()).await?;

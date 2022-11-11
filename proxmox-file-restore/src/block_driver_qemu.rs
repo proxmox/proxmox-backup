@@ -19,7 +19,7 @@ use pbs_datastore::catalog::ArchiveEntry;
 
 use super::block_driver::*;
 use crate::get_user_run_dir;
-use crate::qemu_helper::set_dynamic_memory;
+use crate::qemu_helper::set_auto_memory_hotplug;
 
 const RESTORE_VM_MAP: &str = "restore-vm-map.json";
 
@@ -218,15 +218,15 @@ impl BlockRestoreDriver for QemuBlockDriver {
         details: SnapRestoreDetails,
         img_file: String,
         mut path: Vec<u8>,
-        dynamic_memory: bool,
+        auto_memory_hotplug: bool,
     ) -> Async<Result<Vec<ArchiveEntry>, Error>> {
         async move {
             let (cid, client) = ensure_running(&details).await?;
             if !path.is_empty() && path[0] != b'/' {
                 path.insert(0, b'/');
             }
-            if path_is_zfs(&path) && dynamic_memory {
-                if let Err(err) = set_dynamic_memory(cid, None).await {
+            if path_is_zfs(&path) && auto_memory_hotplug {
+                if let Err(err) = set_auto_memory_hotplug(cid, None).await {
                     log::error!("could not increase memory: {err}");
                 }
             }
@@ -246,15 +246,15 @@ impl BlockRestoreDriver for QemuBlockDriver {
         mut path: Vec<u8>,
         format: Option<FileRestoreFormat>,
         zstd: bool,
-        dynamic_memory: bool,
+        auto_memory_hotplug: bool,
     ) -> Async<Result<Box<dyn tokio::io::AsyncRead + Unpin + Send>, Error>> {
         async move {
             let (cid, client) = ensure_running(&details).await?;
             if !path.is_empty() && path[0] != b'/' {
                 path.insert(0, b'/');
             }
-            if path_is_zfs(&path) && dynamic_memory {
-                if let Err(err) = set_dynamic_memory(cid, None).await {
+            if path_is_zfs(&path) && auto_memory_hotplug {
+                if let Err(err) = set_auto_memory_hotplug(cid, None).await {
                     log::error!("could not increase memory: {err}");
                 }
             }
