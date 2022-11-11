@@ -191,7 +191,7 @@ async fn list_files(
                 description: "Group/Snapshot path.",
             },
             "path": {
-                description: "Path to restore. Directories will be restored as .zip files.",
+                description: "(Sub-)Path to list.",
                 type: String,
             },
             "base64": {
