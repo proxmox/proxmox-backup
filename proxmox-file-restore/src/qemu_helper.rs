@@ -235,9 +235,10 @@ pub async fn start_vm(
         "-initrd",
         &ramfs_path,
         "-append",
+        // NOTE: ZFS requires that the ARC can at least grow to the max transaction size of 64MB
+        // also: setting any of min/max to zero will rather do the opposite of what one wants here
         &format!(
-            "{} panic=1 zfs_arc_min=0 zfs_arc_max=0 memhp_default_state=online_kernel
-",
+            "{} panic=1 zfs_arc_min=16777216 zfs_arc_max=67108864 memhp_default_state=online_kernel",
             if debug { "debug" } else { "quiet" }
         ),
         "-daemonize",
