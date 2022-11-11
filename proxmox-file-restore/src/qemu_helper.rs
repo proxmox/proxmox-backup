@@ -47,7 +47,7 @@ fn create_restore_log_dir() -> Result<String, Error> {
         create_path(&logpath, None, Some(opts_root))?;
         Ok(())
     })
-    .map_err(|err: Error| format_err!("unable to create file-restore log dir - {}", err))?;
+    .map_err(|err: Error| format_err!("unable to create file-restore log dir - {err}"))?;
 
     Ok(logpath)
 }
@@ -70,16 +70,12 @@ pub fn try_kill_vm(pid: i32) -> Result<(), Error> {
     if kill(pid, None).is_ok() {
         // process is running (and we could kill it), check if it is actually ours
         // (if it errors assume we raced with the process's death and ignore it)
-        if let Ok(cmdline) = file_read_string(format!("/proc/{}/cmdline", pid)) {
+        if let Ok(cmdline) = file_read_string(format!("/proc/{pid}/cmdline")) {
             if cmdline.split('\0').any(|a| a == PBS_VM_NAME) {
                 // yes, it's ours, kill it brutally with SIGKILL, no reason to take
                 // any chances - in this state it's most likely broken anyway
                 if let Err(err) = kill(pid, Signal::SIGKILL) {
-                    bail!(
-                        "reaping broken VM (pid {}) with SIGKILL failed: {}",
-                        pid,
-                        err
-                    );
+                    bail!("reaping broken VM (pid {pid}) with SIGKILL failed: {err}");
                 }
             }
         }
@@ -142,13 +138,13 @@ async fn send_qmp_request<T: AsyncBufRead + AsyncWrite + Unpin>(
 pub async fn set_dynamic_memory(cid: i32, target_memory: Option<usize>) -> Result<(), Error> {
     let target_memory = match target_memory {
         Some(size) if size > DYNAMIC_MEMORY_MB => {
-            bail!("cannot set to {}M, maximum is {}M", size, DYNAMIC_MEMORY_MB)
+            bail!("cannot set to {size}M, maximum is {DYNAMIC_MEMORY_MB}M")
         }
         Some(size) => size,
         None => DYNAMIC_MEMORY_MB,
     };
 
-    let path = format!("{}{}.sock", QMP_SOCKET_PREFIX, cid);
+    let path = format!("{QMP_SOCKET_PREFIX}{cid}.sock");
     let mut stream = tokio::io::BufStream::new(tokio::net::UnixStream::connect(path).await?);
 
     let _ = stream.read_line(&mut String::new()).await?; // initial qmp message
@@ -204,11 +200,11 @@ pub async fn start_vm(
     let (_ramfs_pid, ramfs_path) = create_temp_initramfs(ticket, debug).await?;
 
     let logpath = create_restore_log_dir()?;
-    let logfile = &format!("{}/qemu.log", logpath);
+    let logfile = &format!("{logpath}/qemu.log");
     let mut logrotate = LogRotate::new(logfile, false, Some(16), None)?;
 
     if let Err(err) = logrotate.do_rotate() {
-        log::warn!("warning: logrotate for QEMU log file failed - {}", err);
+        log::warn!("warning: logrotate for QEMU log file failed - {err}");
     }
 
     let mut logfd = OpenOptions::new()
@@ -260,7 +256,7 @@ pub async fn start_vm(
         }
         drives.push("-drive".to_owned());
         let keyfile = if let Some(ref keyfile) = details.keyfile {
-            format!(",,keyfile={}", keyfile)
+            format!(",,keyfile={keyfile}")
         } else {
             "".to_owned()
         };
@@ -278,15 +274,14 @@ pub async fn start_vm(
         let bus = (id / 32) + 2;
         if id % 32 == 0 {
             drives.push("-device".to_owned());
-            drives.push(format!("pci-bridge,id=bridge{},chassis_nr={}", bus, bus));
+            drives.push(format!("pci-bridge,id=bridge{bus},chassis_nr={bus}"));
         }
 
         drives.push("-device".to_owned());
         // drive serial is used by VM to map .fidx files to /dev paths
         let serial = file.strip_suffix(".img.fidx").unwrap_or(&file);
         drives.push(format!(
-            "virtio-blk-pci,drive=drive{},serial={},bus=bridge{}",
-            id, serial, bus
+            "virtio-blk-pci,drive=drive{id},serial={serial},bus=bridge{bus}"
         ));
         id += 1;
     }
@@ -383,8 +378,7 @@ pub async fn start_vm(
             time::timeout(Duration::from_secs(2), client.get("api2/json/status", None)).await
         {
             log::debug!(
-                "Connect to '/run/proxmox-backup/file-restore-serial-{}.sock' for shell access",
-                cid
+                "Connect to '/run/proxmox-backup/file-restore-serial-{cid}.sock' for shell access"
             );
             return Ok((pid, cid as i32));
         }
@@ -401,7 +395,7 @@ pub async fn start_vm(
 
     // start failed
     if let Err(err) = try_kill_vm(pid) {
-        log::error!("killing failed VM failed: {}", err);
+        log::error!("killing failed VM failed: {err}");
     }
     bail!("starting VM timed out");
 }

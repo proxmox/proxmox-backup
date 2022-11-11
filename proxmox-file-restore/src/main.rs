@@ -55,7 +55,7 @@ enum ExtractPath {
 fn parse_path(path: String, base64: bool) -> Result<ExtractPath, Error> {
     let mut bytes = if base64 {
         base64::decode(&path)
-            .map_err(|err| format_err!("Failed base64-decoding path '{}' - {}", path, err))?
+            .map_err(|err| format_err!("Failed base64-decoding path '{path}' - {err}"))?
     } else {
         path.into_bytes()
     };
@@ -80,7 +80,7 @@ fn parse_path(path: String, base64: bool) -> Result<ExtractPath, Error> {
     } else if file.ends_with(".img.fidx") {
         Ok(ExtractPath::VM(file, path))
     } else {
-        bail!("'{}' is not supported for file-restore", file);
+        bail!("'{file}' is not supported for file-restore");
     }
 }
 
@@ -90,7 +90,7 @@ fn keyfile_path(param: &Value) -> Option<String> {
     }
 
     if let Some(Value::Number(keyfd)) = param.get("keyfd") {
-        return Some(format!("/dev/fd/{}", keyfd));
+        return Some(format!("/dev/fd/{keyfd}"));
     }
 
     None
