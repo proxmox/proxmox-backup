@@ -135,14 +135,10 @@ async fn send_qmp_request<T: AsyncBufRead + AsyncWrite + Unpin>(
     Ok(buf)
 }
 
-pub async fn set_dynamic_memory(cid: i32, target_memory: Option<usize>) -> Result<(), Error> {
-    let target_memory = match target_memory {
-        Some(size) if size > MAX_MEMORY_DIMM_SIZE => {
-            bail!("cannot set to {size}M, maximum is {DYNAMIC_MEMORY_MB}M")
-        }
-        Some(size) => size,
-        None => MAX_MEMORY_DIMM_SIZE,
-    };
+pub(crate) async fn hotplug_memory(cid: i32, dimm_mb: usize) -> Result<(), Error> {
+    if dimm_mb > MAX_MEMORY_DIMM_SIZE {
+        bail!("cannot set to {dimm_mb}M, maximum is {MAX_MEMORY_DIMM_SIZE}M");
+    }
 
     let path = format!("{QMP_SOCKET_PREFIX}{cid}.sock");
     let mut stream = tokio::io::BufStream::new(tokio::net::UnixStream::connect(path).await?);
@@ -155,7 +151,7 @@ pub async fn set_dynamic_memory(cid: i32, target_memory: Option<usize>) -> Resul
         "arguments": {
             "qom-type": "memory-backend-ram",
             "id": "mem0",
-            "size": target_memory * 1024 * 1024,
+            "size": dimm_mb * 1024 * 1024,
         }
     });
     let _ = send_qmp_request(&mut stream, &serde_json::to_string(&request)?).await?;

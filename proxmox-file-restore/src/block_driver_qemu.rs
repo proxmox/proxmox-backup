@@ -19,7 +19,7 @@ use pbs_datastore::catalog::ArchiveEntry;
 
 use super::block_driver::*;
 use crate::get_user_run_dir;
-use crate::qemu_helper;
+use crate::qemu_helper::{self, MAX_MEMORY_DIMM_SIZE};
 
 const RESTORE_VM_MAP: &str = "restore-vm-map.json";
 
@@ -204,9 +204,17 @@ async fn handle_extra_guest_memory_needs(cid: i32, path: &[u8]) {
         Some("true") => (),
         _ => return, // this is opt-in
     }
+    let size = match var("PBS_FILE_RESTORE_MEM_HOTPLUG_SIZE_MB").map(|v| v.parse::<usize>()) {
+        Ok(Ok(size)) if size > MAX_MEMORY_DIMM_SIZE => {
+            log::warn!("limit memory request of {size} to {MAX_MEMORY_DIMM_SIZE}");
+            MAX_MEMORY_DIMM_SIZE
+        }
+        Ok(Ok(size)) => size,
+        _ => 256, // in practice this means a total of ~ 512 MB depending on disk count
+    };
 
     if path_is_zfs(path) {
-        if let Err(err) = qemu_helper::set_dynamic_memory(cid, None).await {
+        if let Err(err) = qemu_helper::hotplug_memory(cid, size).await {
             log::error!("could not increase memory: {err}");
         }
     }
