@@ -96,7 +96,6 @@ fn keyfile_path(param: &Value) -> Option<String> {
     None
 }
 
-#[allow(clippy::too_many_arguments)]
 async fn list_files(
     repo: BackupRepository,
     namespace: BackupNamespace,
@@ -105,7 +104,6 @@ async fn list_files(
     crypt_config: Option<Arc<CryptConfig>>,
     keyfile: Option<String>,
     driver: Option<BlockDriverType>,
-    auto_memory_hotplug: bool,
 ) -> Result<Vec<ArchiveEntry>, Error> {
     let client = connect(&repo)?;
     let client = BackupReader::start(
@@ -172,7 +170,7 @@ async fn list_files(
                 snapshot,
                 keyfile,
             };
-            data_list(driver, details, file, path, auto_memory_hotplug).await
+            data_list(driver, details, file, path).await
         }
     }
 }
@@ -228,12 +226,6 @@ async fn list_files(
                 minimum: 1,
                 optional: true,
             },
-            "auto-memory-hotplug": {
-                type: Boolean,
-                description: "If enabled, automatically hot-plugs memory for started VM if a ZFS pool is accessed.",
-                default: false,
-                optional: true,
-            },
         }
     },
     returns: {
@@ -251,7 +243,6 @@ async fn list(
     path: String,
     base64: bool,
     timeout: Option<u64>,
-    auto_memory_hotplug: bool,
     param: Value,
 ) -> Result<(), Error> {
     let repo = extract_repository_from_value(&param)?;
@@ -281,16 +272,7 @@ async fn list(
     let result = if let Some(timeout) = timeout {
         match tokio::time::timeout(
             std::time::Duration::from_secs(timeout),
-            list_files(
-                repo,
-                ns,
-                snapshot,
-                path,
-                crypt_config,
-                keyfile,
-                driver,
-                auto_memory_hotplug,
-            ),
+            list_files(repo, ns, snapshot, path, crypt_config, keyfile, driver),
         )
         .await
         {
@@ -298,17 +280,7 @@ async fn list(
             Err(_) => Err(http_err!(SERVICE_UNAVAILABLE, "list not finished in time")),
         }
     } else {
-        list_files(
-            repo,
-            ns,
-            snapshot,
-            path,
-            crypt_config,
-            keyfile,
-            driver,
-            auto_memory_hotplug,
-        )
-        .await
+        list_files(repo, ns, snapshot, path, crypt_config, keyfile, driver).await
     };
 
     let output_format = get_output_format(&param);
@@ -415,12 +387,6 @@ async fn list(
                 type: BlockDriverType,
                 optional: true,
             },
-            "auto-memory-hotplug": {
-                type: Boolean,
-                description: "If enabled, automatically hot-plugs memory for started VM if a ZFS pool is accessed.",
-                default: false,
-                optional: true,
-            },
         }
     }
 )]
@@ -434,7 +400,6 @@ async fn extract(
     target: Option<String>,
     format: Option<FileRestoreFormat>,
     zstd: bool,
-    auto_memory_hotplug: bool,
     param: Value,
 ) -> Result<(), Error> {
     let repo = extract_repository_from_value(&param)?;
@@ -516,7 +481,6 @@ async fn extract(
                     path.clone(),
                     Some(FileRestoreFormat::Pxar),
                     false,
-                    auto_memory_hotplug,
                 )
                 .await?;
                 let decoder = Decoder::from_tokio(reader).await?;
@@ -529,16 +493,8 @@ async fn extract(
                     format_err!("unable to remove temporary .pxarexclude-cli file - {}", e)
                 })?;
             } else {
-                let mut reader = data_extract(
-                    driver,
-                    details,
-                    file,
-                    path.clone(),
-                    format,
-                    zstd,
-                    auto_memory_hotplug,
-                )
-                .await?;
+                let mut reader =
+                    data_extract(driver, details, file, path.clone(), format, zstd).await?;
                 tokio::io::copy(&mut reader, &mut tokio::io::stdout()).await?;
             }
         }

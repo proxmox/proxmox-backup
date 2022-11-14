@@ -19,7 +19,7 @@ use pbs_datastore::catalog::ArchiveEntry;
 
 use super::block_driver::*;
 use crate::get_user_run_dir;
-use crate::qemu_helper::set_auto_memory_hotplug;
+use crate::qemu_helper;
 
 const RESTORE_VM_MAP: &str = "restore-vm-map.json";
 
@@ -198,6 +198,20 @@ fn path_is_zfs(path: &[u8]) -> bool {
     part == OsStr::new("zpool") && components.next().is_some()
 }
 
+async fn handle_extra_guest_memory_needs(cid: i32, path: &[u8]) {
+    use std::env::var;
+    match var("PBS_FILE_RESTORE_MEM_HOTPLUG_ALLOW").ok().as_deref() {
+        Some("true") => (),
+        _ => return, // this is opt-in
+    }
+
+    if path_is_zfs(path) {
+        if let Err(err) = qemu_helper::set_dynamic_memory(cid, None).await {
+            log::error!("could not increase memory: {err}");
+        }
+    }
+}
+
 async fn start_vm(cid_request: i32, details: &SnapRestoreDetails) -> Result<VMState, Error> {
     let ticket = new_ticket();
     let files = details
@@ -218,18 +232,13 @@ impl BlockRestoreDriver for QemuBlockDriver {
         details: SnapRestoreDetails,
         img_file: String,
         mut path: Vec<u8>,
-        auto_memory_hotplug: bool,
     ) -> Async<Result<Vec<ArchiveEntry>, Error>> {
         async move {
             let (cid, client) = ensure_running(&details).await?;
             if !path.is_empty() && path[0] != b'/' {
                 path.insert(0, b'/');
             }
-            if path_is_zfs(&path) && auto_memory_hotplug {
-                if let Err(err) = set_auto_memory_hotplug(cid, None).await {
-                    log::error!("could not increase memory: {err}");
-                }
-            }
+            handle_extra_guest_memory_needs(cid, &path).await;
             let path = base64::encode(img_file.bytes().chain(path).collect::<Vec<u8>>());
             let mut result = client
                 .get("api2/json/list", Some(json!({ "path": path })))
@@ -246,18 +255,13 @@ impl BlockRestoreDriver for QemuBlockDriver {
         mut path: Vec<u8>,
         format: Option<FileRestoreFormat>,
         zstd: bool,
-        auto_memory_hotplug: bool,
     ) -> Async<Result<Box<dyn tokio::io::AsyncRead + Unpin + Send>, Error>> {
         async move {
             let (cid, client) = ensure_running(&details).await?;
             if !path.is_empty() && path[0] != b'/' {
                 path.insert(0, b'/');
             }
-            if path_is_zfs(&path) && auto_memory_hotplug {
-                if let Err(err) = set_auto_memory_hotplug(cid, None).await {
-                    log::error!("could not increase memory: {err}");
-                }
-            }
+            handle_extra_guest_memory_needs(cid, &path).await;
             let path = base64::encode(img_file.bytes().chain(path).collect::<Vec<u8>>());
             let (mut tx, rx) = tokio::io::duplex(1024 * 4096);
             let mut data = json!({ "path": path, "zstd": zstd });
