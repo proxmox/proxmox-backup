@@ -27,7 +27,7 @@ use crate::{backup_user, cpio};
 
 const PBS_VM_NAME: &str = "pbs-restore-vm";
 const MAX_CID_TRIES: u64 = 32;
-const DYNAMIC_MEMORY_MB: usize = 1024;
+pub const MAX_MEMORY_DIMM_SIZE: usize = 512;
 const QMP_SOCKET_PREFIX: &str = "/run/proxmox-backup/file-restore-qmp-";
 
 fn create_restore_log_dir() -> Result<String, Error> {
@@ -137,11 +137,11 @@ async fn send_qmp_request<T: AsyncBufRead + AsyncWrite + Unpin>(
 
 pub async fn set_dynamic_memory(cid: i32, target_memory: Option<usize>) -> Result<(), Error> {
     let target_memory = match target_memory {
-        Some(size) if size > DYNAMIC_MEMORY_MB => {
+        Some(size) if size > MAX_MEMORY_DIMM_SIZE => {
             bail!("cannot set to {size}M, maximum is {DYNAMIC_MEMORY_MB}M")
         }
         Some(size) => size,
-        None => DYNAMIC_MEMORY_MB,
+        None => MAX_MEMORY_DIMM_SIZE,
     };
 
     let path = format!("{QMP_SOCKET_PREFIX}{cid}.sock");
@@ -306,7 +306,7 @@ pub async fn start_vm(
         qemu_cmd.arg("-m");
         qemu_cmd.arg(format!(
             "{ram}M,slots=1,maxmem={}M",
-            DYNAMIC_MEMORY_MB + ram
+            MAX_MEMORY_DIMM_SIZE + ram
         ));
         qemu_cmd.args(&drives);
         qemu_cmd.arg("-device");
