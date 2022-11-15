@@ -56,6 +56,16 @@ Ext.define('PBS.window.PruneJobEdit', {
 		    values.delete = values.delete.split(',');
 		}
 	    }
+	    values.disable = !values.enable;
+	    delete values.enable;
+
+	    return values;
+	},
+	onSetValues: function(values) {
+	    let me = this;
+	    values.enable = !values.disable;
+	    delete values.disable;
+
 	    return values;
 	},
 	column1: [
