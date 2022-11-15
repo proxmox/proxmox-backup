@@ -84,9 +84,9 @@ impl VMStateMap {
 
 fn make_name(repo: &BackupRepository, ns: &BackupNamespace, snap: &BackupDir) -> String {
     let full = if ns.is_root() {
-        format!("qemu_{}/{}", repo, snap)
+        format!("qemu_{repo}/{snap}")
     } else {
-        format!("qemu_{}:{}/{}", repo, ns, snap)
+        format!("qemu_{repo}:{ns}/{snap}")
     };
     proxmox_sys::systemd::escape_unit(&full, false)
 }
@@ -321,13 +321,12 @@ impl BlockRestoreDriver for QemuBlockDriver {
                             }
                         }
                         None => {
-                            let err =
-                                format!("invalid JSON received from /status call: {}", status);
+                            let err = format!("invalid JSON received from /status call: {status}");
                             extra["error"] = json!(err);
                         }
                     },
                     Err(err) => {
-                        let err = format!("error during /status API call: {}", err);
+                        let err = format!("error during /status API call: {err}");
                         extra["error"] = json!(err);
                     }
                 }
@@ -363,7 +362,7 @@ impl BlockRestoreDriver for QemuBlockDriver {
                     if map_mod {
                         map.write()?;
                     }
-                    bail!("VM with name '{}' not found", name);
+                    bail!("VM with name '{name}' not found");
                 }
             }
             Ok(())

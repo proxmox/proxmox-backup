@@ -163,9 +163,9 @@ pub async fn status(driver: Option<BlockDriverType>, param: Value) -> Result<(),
             }
             Err(err) => {
                 if text {
-                    eprintln!("error getting status from driver '{}' - {}", drv_name, err);
+                    eprintln!("error getting status from driver '{drv_name}' - {err}");
                 } else {
-                    ret[drv_name] = json!({ "error": format!("{}", err) });
+                    ret[drv_name] = json!({ "error": format!("{err}") });
                 }
             }
         }
@@ -197,7 +197,7 @@ pub async fn stop(name: String) -> Result<(), Error> {
         }
     }
 
-    bail!("no mapping with name '{}' found", name);
+    bail!("no mapping with name '{name}' found");
 }
 
 /// Autocompletion handler for block mappings

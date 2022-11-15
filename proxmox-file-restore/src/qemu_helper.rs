@@ -369,7 +369,7 @@ pub async fn start_vm(
             let mut pidstr = String::new();
             pid_file.read_to_string(&mut pidstr)?;
             pid = pidstr.trim_end().parse().map_err(|err| {
-                format_err!("cannot parse PID returned by QEMU ('{}'): {}", &pidstr, err)
+                format_err!("cannot parse PID returned by QEMU ('{pidstr}'): {err}")
             })?;
             break;
         } else {
@@ -377,14 +377,14 @@ pub async fn start_vm(
             if out.contains("unable to set guest cid: Address already in use") {
                 attempts += 1;
                 if attempts >= MAX_CID_TRIES {
-                    bail!("CID '{}' in use, but max attempts reached, aborting", cid);
+                    bail!("CID '{cid}' in use, but max attempts reached, aborting");
                 }
                 // CID in use, try next higher one
-                log::info!("CID '{}' in use by other VM, attempting next one", cid);
+                log::info!("CID '{cid}' in use by other VM, attempting next one");
                 // skip special-meaning low values
                 cid = cid.wrapping_add(1).max(10);
             } else {
-                log::error!("{}", out);
+                log::error!("{out}");
                 bail!("Starting VM failed. See output above for more information.");
             }
         }
