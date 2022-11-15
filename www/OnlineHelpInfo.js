@@ -165,15 +165,15 @@ const proxmoxOnlineHelpInfo = {
   },
   "systembooting-proxmox-boot-tool": {
     "link": "/docs/sysadmin.html#systembooting-proxmox-boot-tool",
-    "title": "Synchronizing the content of the ESP with ``proxmox-boot-tool``"
+    "title": "Synchronizing the Content of the ESP with ``proxmox-boot-tool``"
   },
   "systembooting-proxmox-boot-setup": {
     "link": "/docs/sysadmin.html#systembooting-proxmox-boot-setup",
-    "title": "Setting up a new partition for use as synced ESP"
+    "title": "Setting up a New Partition for use as Synced ESP"
   },
   "systembooting-proxmox-boot-refresh": {
     "link": "/docs/sysadmin.html#systembooting-proxmox-boot-refresh",
-    "title": "Updating the configuration on all ESPs"
+    "title": "Updating the Configuration on all ESPs"
   },
   "systembooting-determine-bootloader": {
     "link": "/docs/sysadmin.html#systembooting-determine-bootloader",
