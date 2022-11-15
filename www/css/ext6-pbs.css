@@ -292,21 +292,27 @@ span.snapshot-comment-column {
 /*' PBS specific icons */
 
 .pbs-icon-tape {
-    background-repeat: no-repeat;
-    background-position: bottom;
     padding: 0;
-    background-size: 16px;
-    height: 20px;
+    height: 16px;
+    width: 16px;
     background-image:url(../images/icon-tape.svg);
+    background-position: bottom;
+    background-repeat: no-repeat;
+    background-size: 16px;
 }
 
 .pbs-icon-tape-drive {
-    background-repeat: no-repeat;
-    background-position: bottom;
     padding: 0;
-    background-size: 16px;
-    height: 20px;
+    height: 16px;
+    width: 16px;
     background-image:url(../images/icon-tape-drive.svg);
+    background-position: bottom;
+    background-repeat: no-repeat;
+    background-size: 16px;
+}
+
+.x-treelist-item-icon.pbs-icon-tape, .x-treelist-item-icon.pbs-icon-tape-drive {
+    height: 20px;
 }
 
 .info-pointer div.right-aligned {
