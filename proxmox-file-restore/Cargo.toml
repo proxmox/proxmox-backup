@@ -16,7 +16,7 @@ serde_json = "1.0"
 tokio = { version = "1.6", features = [ "io-std", "rt", "rt-multi-thread", "time" ] }
 tokio-util = { version = "0.7", features = ["io"] }
 
-pxar = { version = "0.10.1", features = [ "tokio-io" ] }
+pxar = { version = "0.10.2", features = [ "tokio-io" ] }
 
 #proxmox = { version = "0.15.3" }
 proxmox-async = "0.4"

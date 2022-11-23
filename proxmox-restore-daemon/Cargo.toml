@@ -24,7 +24,7 @@ tokio-stream = "0.1.0"
 tokio-util = { version = "0.7", features = [ "codec", "io" ] }
 
 pathpatterns = "0.1.2"
-pxar = { version = "0.10.1", features = [ "tokio-io" ] }
+pxar = { version = "0.10.2", features = [ "tokio-io" ] }
 
 proxmox-async = "0.4"
 proxmox-compression = "0.1.1"

@@ -24,7 +24,7 @@ walkdir = "2"
 zstd = { version = "0.6", features = [ "bindgen" ] }
 
 pathpatterns = "0.1.2"
-pxar = "0.10.1"
+pxar = "0.10.2"
 
 proxmox-borrow = "1"
 proxmox-io = "1"

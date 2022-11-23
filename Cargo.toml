@@ -90,7 +90,7 @@ crossbeam-channel = "0.5"
 zstd = { version = "0.6", features = [ "bindgen" ] }
 
 pathpatterns = "0.1.2"
-pxar = { version = "0.10.1", features = [ "tokio-io" ] }
+pxar = { version = "0.10.2", features = [ "tokio-io" ] }
 
 proxmox-http = { version = "0.7", features = [ "client", "client-trait", "http-helpers", "proxmox-async", "websocket" ] }
 proxmox-io = "1"
