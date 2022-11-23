@@ -2,10 +2,18 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 
 use anyhow::{bail, Error};
+use futures::FutureExt;
+use http::request::Parts;
+use http::{header, Response, StatusCode};
+use hyper::Body;
+use proxmox_async::stream::AsyncReaderStream;
 use serde_json::{json, Value};
 
-use proxmox_router::{list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap};
-use proxmox_schema::api;
+use proxmox_router::{
+    list_subdirs_api_method, ApiHandler, ApiMethod, ApiResponseFuture, Permission, Router,
+    RpcEnvironment, SubdirMap,
+};
+use proxmox_schema::{api, BooleanSchema, IntegerSchema, ObjectSchema, Schema};
 use proxmox_sys::sortable;
 
 use pbs_api_types::{
@@ -18,6 +26,27 @@ use crate::api2::pull::check_pull_privs;
 
 use pbs_config::CachedUserInfo;
 use proxmox_rest_server::{upid_log_path, upid_read_status, TaskListInfoIterator, TaskState};
+
+pub const START_PARAM_SCHEMA: Schema =
+    IntegerSchema::new("Start at this line when reading the tasklog")
+        .minimum(0)
+        .default(0)
+        .schema();
+
+pub const LIMIT_PARAM_SCHEMA: Schema =
+    IntegerSchema::new("The amount of lines to read from the tasklog. Setting this parameter to 0 will return all lines until the end of the file.")
+        .minimum(0)
+        .default(50)
+        .schema();
+
+pub const DOWNLOAD_PARAM_SCHEMA: Schema =
+    BooleanSchema::new("Whether the tasklog file should be downloaded. This parameter can't be used in conjunction with other parameters")
+        .default(false)
+        .schema();
+
+pub const TEST_STATUS_PARAM_SCHEMA: Schema =
+    BooleanSchema::new("Test task status, and set result attribute \"active\" accordingly.")
+        .schema();
 
 // matches respective job execution privileges
 fn check_job_privs(auth_id: &Authid, user_info: &CachedUserInfo, upid: &UPID) -> Result<(), Error> {
@@ -268,90 +297,110 @@ fn extract_upid(param: &Value) -> Result<UPID, Error> {
     upid_str.parse::<UPID>()
 }
 
-#[api(
-    input: {
-        properties: {
-            node: {
-                schema: NODE_SCHEMA,
-            },
-            upid: {
-                schema: UPID_SCHEMA,
-            },
-            "test-status": {
-                type: bool,
-                optional: true,
-                description: "Test task status, and set result attribute \"active\" accordingly.",
-            },
-            start: {
-                type: u64,
-                optional: true,
-                description: "Start at this line.",
-                default: 0,
-            },
-            limit: {
-                type: u64,
-                optional: true,
-                description: "Only list this amount of lines.",
-                default: 50,
-            },
-        },
-    },
-    access: {
-        description: "Users can access their own tasks, or need Sys.Audit on /system/tasks.",
-        permission: &Permission::Anybody,
-    },
-)]
-/// Read task log.
-async fn read_task_log(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
-    let upid = extract_upid(&param)?;
+#[sortable]
+pub const API_METHOD_READ_TASK_LOG: ApiMethod = ApiMethod::new(
+    &ApiHandler::AsyncHttp(&read_task_log),
+    &ObjectSchema::new(
+        "Read the task log",
+        &sorted!([
+            ("node", false, &NODE_SCHEMA),
+            ("upid", false, &UPID_SCHEMA),
+            ("start", true, &START_PARAM_SCHEMA),
+            ("limit", true, &LIMIT_PARAM_SCHEMA),
+            ("download", true, &DOWNLOAD_PARAM_SCHEMA),
+            ("test-status", true, &TEST_STATUS_PARAM_SCHEMA)
+        ]),
+    ),
+)
+.access(
+    Some("Users can access their own tasks, or need Sys.Audit on /system/tasks."),
+    &Permission::Anybody,
+);
+fn read_task_log(
+    _parts: Parts,
+    _req_body: Body,
+    param: Value,
+    _info: &ApiMethod,
+    rpcenv: Box<dyn RpcEnvironment>,
+) -> ApiResponseFuture {
+    async move {
+        let upid: UPID = extract_upid(&param)?;
+        let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+        check_task_access(&auth_id, &upid)?;
 
-    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+        let download = param["download"].as_bool().unwrap_or(false);
+        let path = upid_log_path(&upid)?;
 
-    check_task_access(&auth_id, &upid)?;
-
-    let test_status = param["test-status"].as_bool().unwrap_or(false);
-
-    let start = param["start"].as_u64().unwrap_or(0);
-    let mut limit = param["limit"].as_u64().unwrap_or(50);
-
-    let mut count: u64 = 0;
-
-    let path = upid_log_path(&upid)?;
-
-    let file = File::open(path)?;
-
-    let mut lines: Vec<Value> = vec![];
-
-    for line in BufReader::new(file).lines() {
-        match line {
-            Ok(line) => {
-                count += 1;
-                if count < start {
-                    continue;
-                };
-                if limit == 0 {
-                    continue;
-                };
-
-                lines.push(json!({ "n": count, "t": line }));
-
-                limit -= 1;
+        if download {
+            if !param["start"].is_null()
+                || !param["limit"].is_null()
+                || !param["test-status"].is_null()
+            {
+                bail!("Parameter 'download' cannot be used with other parameters");
             }
-            Err(err) => {
-                log::error!("reading task log failed: {}", err);
-                break;
+
+            let header_disp = format!("attachment; filename={}", &upid.to_string());
+            let stream = AsyncReaderStream::new(tokio::fs::File::open(path).await?);
+
+            Ok(Response::builder()
+                .status(StatusCode::OK)
+                .header(header::CONTENT_TYPE, "text/plain")
+                .header(header::CONTENT_DISPOSITION, &header_disp)
+                .body(Body::wrap_stream(stream))
+                .unwrap())
+        } else {
+            let start = param["start"].as_u64().unwrap_or(0);
+            let mut limit = param["limit"].as_u64().unwrap_or(50);
+            let test_status = param["test-status"].as_bool().unwrap_or(false);
+
+            let file = File::open(path)?;
+
+            let mut count: u64 = 0;
+            let mut lines: Vec<Value> = vec![];
+            let read_until_end = if limit == 0 { true } else { false };
+
+            for line in BufReader::new(file).lines() {
+                match line {
+                    Ok(line) => {
+                        count += 1;
+                        if count < start {
+                            continue;
+                        };
+                        if !read_until_end {
+                            if limit == 0 {
+                                continue;
+                            };
+                            limit -= 1;
+                        }
+
+                        lines.push(json!({ "n": count, "t": line }));
+                    }
+                    Err(err) => {
+                        log::error!("reading task log failed: {}", err);
+                        break;
+                    }
+                }
             }
+
+            let mut json = json!({
+                "data": lines,
+                "total": count,
+                "success": 1,
+            });
+
+            if test_status {
+                let active = proxmox_rest_server::worker_is_active(&upid).await?;
+                json["test-status"] = Value::from(active);
+            }
+
+            Ok(Response::builder()
+                .status(StatusCode::OK)
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(json.to_string()))
+                .unwrap())
         }
     }
-
-    rpcenv["total"] = Value::from(count);
-
-    if test_status {
-        let active = proxmox_rest_server::worker_is_active(&upid).await?;
-        rpcenv["active"] = Value::from(active);
-    }
-
-    Ok(json!(lines))
+    .boxed()
 }
 
 #[api(
