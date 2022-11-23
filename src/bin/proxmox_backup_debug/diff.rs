@@ -428,7 +428,8 @@ fn show_file_list(
         let entry_kind = match entry.kind() {
             EntryKind::Symlink(_) => "l",
             EntryKind::Hardlink(_) => "h",
-            EntryKind::Device(_) => "c/b",
+            EntryKind::Device(_) if entry.metadata().stat.is_blockdev() => "b",
+            EntryKind::Device(_) => "c",
             EntryKind::Socket => "s",
             EntryKind::Fifo => "p",
             EntryKind::File { .. } => "f",
