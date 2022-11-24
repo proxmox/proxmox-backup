@@ -102,10 +102,10 @@ pub async fn datastore_status(
                     }
                 };
 
-                let total = if idx < avail.data.len() && avail.data[idx].is_some() {
-                    avail.data[idx].unwrap() + used
-                } else if idx < total_entry.data.len() && total_entry.data[idx].is_some() {
-                    total_entry.data[idx].unwrap()
+                let total = if let Some(avail) = avail.get(idx) {
+                    avail + used
+                } else if let Some(total) = total_entry.get(idx) {
+                    total
                 } else {
                     history.push(None);
                     continue;
