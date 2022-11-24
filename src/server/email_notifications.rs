@@ -425,13 +425,9 @@ pub fn send_prune_status(
         (None, _) => return Ok(()),
     };
 
-    match notify.prune {
-        None => { /* send notifications by default */ }
-        Some(notify) => {
-            if notify == Notify::Never || (result.is_ok() && notify == Notify::Error) {
-                return Ok(());
-            }
-        }
+    let notify_prune = notify.prune.unwrap_or(Notify::Error);
+    if notify_prune == Notify::Never || (result.is_ok() && notify_prune == Notify::Error) {
+        return Ok(());
     }
 
     let (fqdn, port) = get_server_url();

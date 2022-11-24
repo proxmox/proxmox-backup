@@ -10,6 +10,18 @@ Ext.define('PBS.form.NotifyType', {
     ],
 });
 
+Ext.define('PBS.form.NotifyErrorDefaultType', {
+    extend: 'Proxmox.form.KVComboBox',
+    alias: 'widget.pbsNotifyErrorDefaultType',
+
+    comboItems: [
+	['__default__', gettext('Default (Errors)')],
+	['always', gettext('Always')],
+	['error', gettext('Errors')],
+	['never', gettext('Never')],
+    ],
+});
+
 Ext.define('PBS.window.NotifyOptions', {
     extend: 'Proxmox.window.Edit',
     xtype: 'pbsNotifyOptionEdit',
@@ -73,7 +85,7 @@ Ext.define('PBS.window.NotifyOptions', {
 		deleteEmpty: false,
 	    },
 	    {
-		xtype: 'pbsNotifyType',
+		xtype: 'pbsNotifyErrorDefaultType',
 		name: 'prune',
 		fieldLabel: gettext('Prune Jobs'),
 		value: '__default__',
