@@ -90,6 +90,12 @@ impl Entry {
             data,
         }
     }
+
+    /// Get a data point at a specific index which also does bound checking and returns `None` for
+    /// out of bounds indices.
+    pub fn get(&self, idx: usize) -> Option<f64> {
+        self.data.get(idx).copied().flatten()
+    }
 }
 
 impl From<Entry> for (u64, u64, Vec<Option<f64>>) {
