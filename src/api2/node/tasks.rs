@@ -6,9 +6,9 @@ use futures::FutureExt;
 use http::request::Parts;
 use http::{header, Response, StatusCode};
 use hyper::Body;
-use proxmox_async::stream::AsyncReaderStream;
 use serde_json::{json, Value};
 
+use proxmox_async::stream::AsyncReaderStream;
 use proxmox_router::{
     list_subdirs_api_method, ApiHandler, ApiMethod, ApiResponseFuture, Permission, Router,
     RpcEnvironment, SubdirMap,
@@ -33,16 +33,20 @@ pub const START_PARAM_SCHEMA: Schema =
         .default(0)
         .schema();
 
-pub const LIMIT_PARAM_SCHEMA: Schema =
-    IntegerSchema::new("The amount of lines to read from the tasklog. Setting this parameter to 0 will return all lines until the end of the file.")
-        .minimum(0)
-        .default(50)
-        .schema();
+pub const LIMIT_PARAM_SCHEMA: Schema = IntegerSchema::new(
+    "The amount of lines to read from the tasklog. \
+         Setting this parameter to 0 will return all lines until the end of the file.",
+)
+.minimum(0)
+.default(50)
+.schema();
 
-pub const DOWNLOAD_PARAM_SCHEMA: Schema =
-    BooleanSchema::new("Whether the tasklog file should be downloaded. This parameter can't be used in conjunction with other parameters")
-        .default(false)
-        .schema();
+pub const DOWNLOAD_PARAM_SCHEMA: Schema = BooleanSchema::new(
+    "Whether the tasklog file should be downloaded. \
+        This parameter can't be used in conjunction with other parameters",
+)
+.default(false)
+.schema();
 
 pub const TEST_STATUS_PARAM_SCHEMA: Schema =
     BooleanSchema::new("Test task status, and set result attribute \"active\" accordingly.")
@@ -342,63 +346,62 @@ fn read_task_log(
             let header_disp = format!("attachment; filename={}", &upid.to_string());
             let stream = AsyncReaderStream::new(tokio::fs::File::open(path).await?);
 
-            Ok(Response::builder()
+            return Ok(Response::builder()
                 .status(StatusCode::OK)
                 .header(header::CONTENT_TYPE, "text/plain")
                 .header(header::CONTENT_DISPOSITION, &header_disp)
                 .body(Body::wrap_stream(stream))
-                .unwrap())
-        } else {
-            let start = param["start"].as_u64().unwrap_or(0);
-            let mut limit = param["limit"].as_u64().unwrap_or(50);
-            let test_status = param["test-status"].as_bool().unwrap_or(false);
+                .unwrap());
+        }
+        let start = param["start"].as_u64().unwrap_or(0);
+        let mut limit = param["limit"].as_u64().unwrap_or(50);
+        let test_status = param["test-status"].as_bool().unwrap_or(false);
 
-            let file = File::open(path)?;
+        let file = File::open(path)?;
 
-            let mut count: u64 = 0;
-            let mut lines: Vec<Value> = vec![];
-            let read_until_end = if limit == 0 { true } else { false };
+        let mut count: u64 = 0;
+        let mut lines: Vec<Value> = vec![];
+        let read_until_end = limit == 0;
 
-            for line in BufReader::new(file).lines() {
-                match line {
-                    Ok(line) => {
-                        count += 1;
-                        if count < start {
+        for line in BufReader::new(file).lines() {
+            match line {
+                Ok(line) => {
+                    count += 1;
+                    if count < start {
+                        continue;
+                    };
+                    if !read_until_end {
+                        if limit == 0 {
                             continue;
                         };
-                        if !read_until_end {
-                            if limit == 0 {
-                                continue;
-                            };
-                            limit -= 1;
-                        }
+                        limit -= 1;
+                    }
 
-                        lines.push(json!({ "n": count, "t": line }));
-                    }
-                    Err(err) => {
-                        log::error!("reading task log failed: {}", err);
-                        break;
-                    }
+                    lines.push(json!({ "n": count, "t": line }));
+                }
+                Err(err) => {
+                    log::error!("reading task log failed: {}", err);
+                    break;
                 }
             }
-
-            let mut json = json!({
-                "data": lines,
-                "total": count,
-                "success": 1,
-            });
-
-            if test_status {
-                let active = proxmox_rest_server::worker_is_active(&upid).await?;
-                json["test-status"] = Value::from(active);
-            }
-
-            Ok(Response::builder()
-                .status(StatusCode::OK)
-                .header(header::CONTENT_TYPE, "application/json")
-                .body(Body::from(json.to_string()))
-                .unwrap())
         }
+
+        let mut json = json!({
+            "data": lines,
+            "total": count,
+            "success": 1,
+        });
+
+        if test_status {
+            let active = proxmox_rest_server::worker_is_active(&upid).await?;
+            json["test-status"] = Value::from(active);
+        }
+
+        Ok(Response::builder()
+            .status(StatusCode::OK)
+            .header(header::CONTENT_TYPE, "application/json")
+            .body(Body::from(json.to_string()))
+            .unwrap())
     }
     .boxed()
 }
