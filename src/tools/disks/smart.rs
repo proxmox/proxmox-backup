@@ -94,7 +94,7 @@ pub fn get_smart_data(disk: &super::Disk, health_only: bool) -> Result<SmartData
     let output = proxmox_sys::command::run_command(
         command,
         Some(
-            |exitcode| (exitcode & 0b0111) == 0, // only bits 0-2 are fatal errors
+            |exitcode| (exitcode & 0b0011) == 0, // only bits 0-1 are fatal errors
         ),
     )?;
 
