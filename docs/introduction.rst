@@ -44,8 +44,8 @@ parts of the backup, without the need to scan the whole backup.
 Main Features
 -------------
 
-:Support for Proxmox VE: The `Proxmox Virtual Environment`_ is fully
-   supported, and you can easily backup :term:`virtual machine<Virtual machine>`\ s and
+:Support for Proxmox VE: The `Proxmox Virtual Environment`_ is fully supported,
+   and you can easily backup :term:`virtual machine<Virtual machine>`\ s and
    :term:`container<Container>`\ s.
 
 :Performance: The whole software stack is written in :term:`Rust`,
@@ -58,8 +58,8 @@ Main Features
 :Incremental backups: Changes between backups are typically low. Reading and
    sending only the delta reduces the storage and network impact of backups.
 
-:Data Integrity: The built-in `SHA-256`_ checksum algorithm ensures accuracy and
-   consistency in your backups.
+:Data Integrity: The built-in `SHA-256`_ checksum algorithm ensures accuracy
+   and consistency in your backups.
 
 :Remote Sync: It is possible to efficiently synchronize data to remote
    sites. Only deltas containing new data are transferred.
