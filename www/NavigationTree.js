@@ -145,6 +145,13 @@ Ext.define('CustomTreeListItem', {
 Ext.define('PBS.view.main.NavigationTree', {
     extend: 'Ext.list.Tree',
     xtype: 'navigationtree',
+
+    animation: false,
+    expanderOnly: true,
+    expanderFirst: false,
+    store: 'NavigationStore',
+    ui: 'nav',
+
     defaults: {
 	xtype: 'qtiptreelistitem',
     },
@@ -329,10 +336,4 @@ Ext.define('PBS.view.main.NavigationTree', {
 	    me.pathToSelect = path;
 	}
     },
-
-    animation: false,
-    expanderOnly: true,
-    expanderFirst: false,
-    store: 'NavigationStore',
-    ui: 'nav',
 });
