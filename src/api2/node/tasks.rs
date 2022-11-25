@@ -394,7 +394,7 @@ fn read_task_log(
 
         if test_status {
             let active = proxmox_rest_server::worker_is_active(&upid).await?;
-            json["test-status"] = Value::from(active);
+            json["active"] = Value::from(active);
         }
 
         Ok(Response::builder()
