@@ -47,6 +47,8 @@ pub enum MaintenanceType {
     /// Neither read nor write operations are allowed on the datastore.
     Offline,
 }
+serde_plain::derive_display_from_serialize!(MaintenanceType);
+serde_plain::derive_fromstr_from_deserialize!(MaintenanceType);
 
 #[api(
     properties: {
