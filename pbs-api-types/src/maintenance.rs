@@ -17,7 +17,7 @@ pub const MAINTENANCE_MESSAGE_SCHEMA: Schema =
         .max_length(64)
         .schema();
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 /// Operation requirements, used when checking for maintenance mode.
 pub enum Operation {
     /// for any read operation like backup restore or RRD metric collection
