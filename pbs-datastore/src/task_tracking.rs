@@ -34,10 +34,37 @@ struct TaskOperations {
     active_operations: ActiveOperationStats,
 }
 
-pub fn get_active_operations(name: &str) -> Result<ActiveOperationStats, Error> {
-    let path = PathBuf::from(format!("{}/{}", crate::ACTIVE_OPERATIONS_DIR, name));
+fn open_lock_file(name: &str) -> Result<(std::fs::File, CreateOptions), Error> {
+    let user = pbs_config::backup_user()?;
 
-    Ok(match file_read_optional_string(&path)? {
+    let lock_path = PathBuf::from(format!("{}/{}.lock", crate::ACTIVE_OPERATIONS_DIR, name));
+
+    let options = CreateOptions::new()
+        .group(user.gid)
+        .owner(user.uid)
+        .perm(nix::sys::stat::Mode::from_bits_truncate(0o660));
+
+    let timeout = std::time::Duration::new(10, 0);
+
+    Ok((
+        open_file_locked(&lock_path, timeout, true, options.clone())?,
+        options,
+    ))
+}
+
+/// MUST return `Some(file)` when `lock` is `true`.
+fn get_active_operations_do(
+    name: &str,
+    lock: bool,
+) -> Result<(ActiveOperationStats, Option<std::fs::File>), Error> {
+    let path = PathBuf::from(format!("{}/{}", crate::ACTIVE_OPERATIONS_DIR, name));
+    let lock = if lock {
+        Some(open_lock_file(name)?.0)
+    } else {
+        None
+    };
+
+    let data = match file_read_optional_string(&path)? {
         Some(data) => serde_json::from_str::<Vec<TaskOperations>>(&data)?
             .iter()
             .filter_map(
@@ -48,21 +75,26 @@ pub fn get_active_operations(name: &str) -> Result<ActiveOperationStats, Error> 
             )
             .sum(),
         None => ActiveOperationStats::default(),
-    })
+    };
+
+    Ok((data, lock))
+}
+
+pub fn get_active_operations(name: &str) -> Result<ActiveOperationStats, Error> {
+    Ok(get_active_operations_do(name, false)?.0)
+}
+
+pub fn get_active_operations_locked(
+    name: &str,
+) -> Result<(ActiveOperationStats, std::fs::File), Error> {
+    let (data, lock) = get_active_operations_do(name, true)?;
+    Ok((data, lock.unwrap()))
 }
 
 pub fn update_active_operations(name: &str, operation: Operation, count: i64) -> Result<(), Error> {
     let path = PathBuf::from(format!("{}/{}", crate::ACTIVE_OPERATIONS_DIR, name));
-    let lock_path = PathBuf::from(format!("{}/{}.lock", crate::ACTIVE_OPERATIONS_DIR, name));
 
-    let user = pbs_config::backup_user()?;
-    let options = CreateOptions::new()
-        .group(user.gid)
-        .owner(user.uid)
-        .perm(nix::sys::stat::Mode::from_bits_truncate(0o660));
-
-    let timeout = std::time::Duration::new(10, 0);
-    let _lock = open_file_locked(&lock_path, timeout, true, options.clone())?;
+    let (_lock, options) = open_lock_file(name)?;
 
     let pid = std::process::id();
     let starttime = procfs::PidStat::read_from_pid(Pid::from_raw(pid as pid_t))?.starttime;

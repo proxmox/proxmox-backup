@@ -11,6 +11,7 @@ use nix::unistd::{unlinkat, UnlinkatFlags};
 
 use proxmox_schema::ApiType;
 
+use proxmox_sys::error::SysError;
 use proxmox_sys::fs::{file_read_optional_string, replace_file, CreateOptions};
 use proxmox_sys::fs::{lock_dir_noblock, DirLockGuard};
 use proxmox_sys::process_locker::ProcessLockSharedGuard;
@@ -29,7 +30,7 @@ use crate::fixed_index::{FixedIndexReader, FixedIndexWriter};
 use crate::hierarchy::{ListGroups, ListGroupsType, ListNamespaces, ListNamespacesRecursive};
 use crate::index::IndexFile;
 use crate::manifest::{archive_type, ArchiveType};
-use crate::task_tracking::update_active_operations;
+use crate::task_tracking::{self, update_active_operations};
 use crate::DataBlob;
 
 lazy_static! {
@@ -124,6 +125,10 @@ impl DataStore {
         name: &str,
         operation: Option<Operation>,
     ) -> Result<Arc<DataStore>, Error> {
+        // Avoid TOCTOU between checking maintenance mode and updating active operation counter, as
+        // we use it to decide whether it is okay to delete the datastore.
+        let config_lock = pbs_config::datastore::lock_config()?;
+
         // we could use the ConfigVersionCache's generation for staleness detection, but  we load
         // the config anyway -> just use digest, additional benefit: manual changes get detected
         let (config, digest) = pbs_config::datastore::config()?;
@@ -138,6 +143,9 @@ impl DataStore {
         if let Some(operation) = operation {
             update_active_operations(name, operation, 1)?;
         }
+
+        // Our operation is registered, unlock the config.
+        drop(config_lock);
 
         let mut datastore_cache = DATASTORE_MAP.lock().unwrap();
         let entry = datastore_cache.get(name);
@@ -1323,6 +1331,112 @@ impl DataStore {
         if unsafe { libc::syncfs(fd) } < 0 {
             bail!("error during syncfs: {}", std::io::Error::last_os_error());
         }
+        Ok(())
+    }
+
+    /// Destroy a datastore. This requires that there are no active operations on the datastore.
+    ///
+    /// This is a synchronous operation and should be run in a worker-thread.
+    pub fn destroy(
+        name: &str,
+        destroy_data: bool,
+        worker: &dyn WorkerTaskContext,
+    ) -> Result<(), Error> {
+        let config_lock = pbs_config::datastore::lock_config()?;
+
+        let (mut config, _digest) = pbs_config::datastore::config()?;
+        let mut datastore_config: DataStoreConfig = config.lookup("datastore", name)?;
+
+        datastore_config.maintenance_mode = Some("type=delete".to_string());
+        config.set_data(name, "datastore", &datastore_config)?;
+        pbs_config::datastore::save_config(&config)?;
+        drop(config_lock);
+
+        let (operations, _lock) = task_tracking::get_active_operations_locked(name)?;
+
+        if operations.read != 0 || operations.write != 0 {
+            bail!("datastore is currently in use");
+        }
+
+        let base = PathBuf::from(&datastore_config.path);
+
+        let mut ok = true;
+        if destroy_data {
+            let remove = |subdir, ok: &mut bool| {
+                if let Err(err) = std::fs::remove_dir_all(base.join(subdir)) {
+                    if err.kind() != io::ErrorKind::NotFound {
+                        task_warn!(worker, "failed to remove {subdir:?} subdirectory: {err}");
+                        *ok = false;
+                    }
+                }
+            };
+
+            task_log!(worker, "Deleting datastore data...");
+            remove("ns", &mut ok); // ns first
+            remove("ct", &mut ok);
+            remove("vm", &mut ok);
+            remove("host", &mut ok);
+
+            if ok {
+                if let Err(err) = std::fs::remove_file(base.join(".gc-status")) {
+                    if err.kind() != io::ErrorKind::NotFound {
+                        task_warn!(worker, "failed to remove .gc-status file: {err}");
+                        ok = false;
+                    }
+                }
+            }
+
+            // chunks get removed last and only if the backups were successfully deleted
+            if ok {
+                remove(".chunks", &mut ok);
+            }
+        }
+
+        // now the config
+        if ok {
+            task_log!(worker, "Removing datastore from config...");
+            let _lock = pbs_config::datastore::lock_config()?;
+            let _ = config.sections.remove(name);
+            pbs_config::datastore::save_config(&config)?;
+        }
+
+        // finally the lock & toplevel directory
+        if destroy_data {
+            if ok {
+                if let Err(err) = std::fs::remove_file(base.join(".lock")) {
+                    if err.kind() != io::ErrorKind::NotFound {
+                        task_warn!(worker, "failed to remove .lock file: {err}");
+                        ok = false;
+                    }
+                }
+            }
+
+            if ok {
+                task_log!(worker, "Finished deleting data.");
+
+                match std::fs::remove_dir(base) {
+                    Ok(()) => task_log!(worker, "Removed empty datastore directory."),
+                    Err(err) if err.kind() == io::ErrorKind::NotFound => {
+                        // weird, but ok
+                    }
+                    Err(err) if err.is_errno(nix::errno::Errno::EBUSY) => {
+                        task_warn!(
+                            worker,
+                            "Cannot delete datastore directory (is it a mount point?)."
+                        )
+                    }
+                    Err(err) if err.is_errno(nix::errno::Errno::ENOTEMPTY) => {
+                        task_warn!(worker, "Datastore directory not empty, not deleting.")
+                    }
+                    Err(err) => {
+                        task_warn!(worker, "Failed to remove datastore directory: {err}");
+                    }
+                }
+            } else {
+                task_log!(worker, "There were errors deleting data.");
+            }
+        }
+
         Ok(())
     }
 }

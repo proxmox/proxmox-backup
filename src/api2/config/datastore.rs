@@ -8,12 +8,12 @@ use serde_json::Value;
 use proxmox_router::{http_bail, Permission, Router, RpcEnvironment, RpcEnvironmentType};
 use proxmox_schema::{api, param_bail, ApiType};
 use proxmox_section_config::SectionConfigData;
-use proxmox_sys::WorkerTaskContext;
+use proxmox_sys::{task_warn, WorkerTaskContext};
 
 use pbs_api_types::{
     Authid, DataStoreConfig, DataStoreConfigUpdater, DatastoreNotify, DatastoreTuning,
     DATASTORE_SCHEMA, PRIV_DATASTORE_ALLOCATE, PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_MODIFY,
-    PROXMOX_CONFIG_DIGEST_SCHEMA,
+    PROXMOX_CONFIG_DIGEST_SCHEMA, UPID_SCHEMA,
 };
 use pbs_config::BackupLockGuard;
 use pbs_datastore::chunk_store::ChunkStore;
@@ -386,6 +386,12 @@ pub fn update_datastore(
                 optional: true,
                 default: false,
             },
+            "destroy-data": {
+                description: "Delete the datastore's underlying contents",
+                optional: true,
+                type: bool,
+                default: false,
+            },
             digest: {
                 optional: true,
                 schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
@@ -395,28 +401,29 @@ pub fn update_datastore(
     access: {
         permission: &Permission::Privilege(&["datastore", "{name}"], PRIV_DATASTORE_ALLOCATE, false),
     },
+    returns: {
+        schema: UPID_SCHEMA,
+    },
 )]
-/// Remove a datastore configuration.
+/// Remove a datastore configuration and optionally delete all its contents.
 pub async fn delete_datastore(
     name: String,
     keep_job_configs: bool,
+    destroy_data: bool,
     digest: Option<String>,
     rpcenv: &mut dyn RpcEnvironment,
-) -> Result<(), Error> {
+) -> Result<String, Error> {
     let _lock = pbs_config::datastore::lock_config()?;
 
-    let (mut config, expected_digest) = pbs_config::datastore::config()?;
+    let (config, expected_digest) = pbs_config::datastore::config()?;
 
     if let Some(ref digest) = digest {
         let digest = <[u8; 32]>::from_hex(digest)?;
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 
-    match config.sections.get(&name) {
-        Some(_) => {
-            config.sections.remove(&name);
-        }
-        None => http_bail!(NOT_FOUND, "datastore '{}' does not exist.", name),
+    if !config.sections.contains_key(&name) {
+        http_bail!(NOT_FOUND, "datastore '{}' does not exist.", name);
     }
 
     if !keep_job_configs {
@@ -436,15 +443,32 @@ pub async fn delete_datastore(
         }
     }
 
-    pbs_config::datastore::save_config(&config)?;
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
-    // ignore errors
-    let _ = jobstate::remove_state_file("prune", &name);
-    let _ = jobstate::remove_state_file("garbage_collection", &name);
+    let upid = WorkerTask::new_thread(
+        "delete-datastore",
+        Some(name.clone()),
+        auth_id.to_string(),
+        to_stdout,
+        move |worker| {
+            pbs_datastore::DataStore::destroy(&name, destroy_data, &worker)?;
 
-    crate::server::notify_datastore_removed().await?;
+            // ignore errors
+            let _ = jobstate::remove_state_file("prune", &name);
+            let _ = jobstate::remove_state_file("garbage_collection", &name);
 
-    Ok(())
+            if let Err(err) =
+                proxmox_async::runtime::block_on(crate::server::notify_datastore_removed())
+            {
+                task_warn!(worker, "failed to notify after datastore removal: {err}");
+            }
+
+            Ok(())
+        },
+    )?;
+
+    Ok(upid)
 }
 
 const ITEM_ROUTER: Router = Router::new()

@@ -4,7 +4,7 @@ use serde_json::Value;
 use proxmox_router::{cli::*, ApiHandler, RpcEnvironment};
 use proxmox_schema::api;
 
-use pbs_api_types::{DataStoreConfig, DATASTORE_SCHEMA};
+use pbs_api_types::{DataStoreConfig, DATASTORE_SCHEMA, PROXMOX_CONFIG_DIGEST_SCHEMA};
 use pbs_client::view_task_result;
 
 use proxmox_backup::api2;
@@ -99,6 +99,46 @@ async fn create_datastore(mut param: Value) -> Result<Value, Error> {
     Ok(Value::Null)
 }
 
+#[api(
+    protected: true,
+    input: {
+        properties: {
+            name: {
+                schema: DATASTORE_SCHEMA,
+            },
+            "keep-job-configs": {
+                description: "If enabled, the job configurations related to this datastore will be kept.",
+                type: bool,
+                optional: true,
+                default: false,
+            },
+            "destroy-data": {
+                description: "Delete the datastore's underlying contents",
+                optional: true,
+                type: bool,
+                default: false,
+            },
+            digest: {
+                optional: true,
+                schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
+            },
+        },
+    },
+)]
+/// Remove a datastore configuration.
+async fn delete_datastore(mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
+    param["node"] = "localhost".into();
+
+    let info = &api2::config::datastore::API_METHOD_DELETE_DATASTORE;
+    let result = match info.handler {
+        ApiHandler::Async(handler) => (handler)(param, info, rpcenv).await?,
+        _ => unreachable!(),
+    };
+
+    crate::wait_for_local_worker(result.as_str().unwrap()).await?;
+    Ok(())
+}
+
 pub fn datastore_commands() -> CommandLineInterface {
     let cmd_def = CliCommandMap::new()
         .insert("list", CliCommand::new(&API_METHOD_LIST_DATASTORES))
@@ -128,7 +168,7 @@ pub fn datastore_commands() -> CommandLineInterface {
         )
         .insert(
             "remove",
-            CliCommand::new(&api2::config::datastore::API_METHOD_DELETE_DATASTORE)
+            CliCommand::new(&API_METHOD_DELETE_DATASTORE)
                 .arg_param(&["name"])
                 .completion_cb("name", pbs_config::datastore::complete_datastore_name),
         );
