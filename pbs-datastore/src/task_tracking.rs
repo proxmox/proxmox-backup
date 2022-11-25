@@ -62,7 +62,7 @@ pub fn update_active_operations(name: &str, operation: Operation, count: i64) ->
         .perm(nix::sys::stat::Mode::from_bits_truncate(0o660));
 
     let timeout = std::time::Duration::new(10, 0);
-    open_file_locked(&lock_path, timeout, true, options.clone())?;
+    let _lock = open_file_locked(&lock_path, timeout, true, options.clone())?;
 
     let pid = std::process::id();
     let starttime = procfs::PidStat::read_from_pid(Pid::from_raw(pid as pid_t))?.starttime;
