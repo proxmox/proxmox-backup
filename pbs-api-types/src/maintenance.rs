@@ -46,6 +46,8 @@ pub enum MaintenanceType {
     ReadOnly,
     /// Neither read nor write operations are allowed on the datastore.
     Offline,
+    /// The datastore is being deleted.
+    Delete,
 }
 serde_plain::derive_display_from_serialize!(MaintenanceType);
 serde_plain::derive_fromstr_from_deserialize!(MaintenanceType);
@@ -76,6 +78,10 @@ pub struct MaintenanceMode {
 
 impl MaintenanceMode {
     pub fn check(&self, operation: Option<Operation>) -> Result<(), Error> {
+        if self.ty == MaintenanceType::Delete {
+            bail!("datastore is being deleted");
+        }
+
         let message = percent_encoding::percent_decode_str(self.message.as_deref().unwrap_or(""))
             .decode_utf8()
             .unwrap_or(Cow::Borrowed(""));
