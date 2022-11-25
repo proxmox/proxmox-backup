@@ -374,3 +374,81 @@ with a comma, like this:
 .. code-block:: console
 
   # proxmox-backup-manager datastore update <storename> --tuning 'sync-level=filesystem,chunk-order=none'
+
+.. _ransomware_protection:
+
+Ransomware Protection
+---------------------
+
+Prevention by Proxmox Backup Server
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+`Ransomware <https://en.wikipedia.org/wiki/Ransomware>`_ is a type of malware
+that encrypts files until a ransom is paid. Proxmox Backup Server includes
+features to mitigate ransomware attacks by offering easy restoration from backups.
+
+As a best practice, you should keep multiple backups, including outside of your
+network and on different media. Proxmox Backup Server provides the tools to do
+both. It is possible to create :ref:`remote sync jobs <backup_remote>`; by
+setting up a remote Proxmox Backup Server you can take advantage of the sync job
+feature and create off-site copies of your backups. This is recommended, since
+offsite instances are less likely to be infected by the ransomware in your local
+network. It is also possible to create :ref:`tape backups <tape_backup>` as a
+second storage medium. This way you get an additional copy of your data which
+can easily be moved off-site.
+
+Proxmox Backup Server does not rewrite data for existing blocks. This means that
+a compromised Proxmox VE host, or any other compromised system using
+the client to back up data, cannot corrupt existing backups.
+
+Furthermore, comprehensive :ref:`user management <user_mgmt>` is offered by
+Proxmox Backup Server. By limiting a sync user's or an access token's right to
+only write backups, not delete them, compromised clients cannot delete
+existing backups. Following this best practice, backup pruning should be done
+by the Proxmox Backup Server using prune jobs.
+
+While your Proxmox Backup Server can still be compromised, if your backup is 
+encrypted by ransomware, the SHA-256 checksums of the backups will not match
+the previously recorded ones anymore. Hence, restoring the backup will fail.
+
+To detect ransomware inside a compromised guest, it is recommended to frequently
+test restoring and booting backups. Make sure to restore to a new guest and
+not to overwrite your current guest. In the case of many backed-up guests, it is
+recommended to automate this restore testing or, if this is not possible, to
+restore random samples from the backups.
+
+In order to be able to react quickly in case of a ransomware attack, it
+is recommended to regularly test restoring from your backups. Make sure to
+restore to a new guest and not to overwrite your current guest. Restoring
+many guests at once can be cumbersome, which is why it is advisable to
+automate this task and verify that your automated process works. If this is not
+feasible, it is recommended to restore random samples from your backups. While
+creating backups is is important, verifying that the backups work is equally
+important. This ensures that you are able to react quickly in case of an emergency
+and keeps disruption of your services to a minimum.
+
+
+
+Other Prevention Methods and Best Practices
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+It is recommended to take additional security measures, apart from the ones offered
+by Proxmox Backup Server. These recommendations include, but are not limited to: 
+
+* Keeping the firmware and software up-to-date to patch exploits and
+  vulnerabilities (such as
+  `Spectre <https://en.wikipedia.org/wiki/Spectre_(security_vulnerability)>`_ or
+  `Meltdown <https://en.wikipedia.org/wiki/Meltdown_(security_vulnerability)>`_).
+* Following safe and secure network practices, for example using logging and
+  monitoring tools and setting up VLANs.
+* Making plenty of backups using the
+  `3-2-1 rule <https://en.wikipedia.org/wiki/Backup#Storage>`_: creating
+  3 backups on 2 storage media, of which 1 copy is kept off-site.
+* Retention. Since some ransomware might lay dormant a couple of days or weeks
+  before starting to encrypt data, it can be that older, existing backups are
+  compromised. Thus, it is important to keep at least a few backups over longer
+  periods of time.
+
+For more information on how to avoid ransomware attacks and what to do in case
+of a ransomware infection, see Cisa and
+`their guide <https://www.cisa.gov/stopransomware/ransomware-guide>`_.

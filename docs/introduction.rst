@@ -58,10 +58,10 @@ Main Features
 :Incremental backups: Changes between backups are typically low. Reading and
    sending only the delta reduces the storage and network impact of backups.
 
-:Data Integrity: The built-in `SHA-256`_ checksum algorithm ensures accuracy
+:Data integrity: The built-in `SHA-256`_ checksum algorithm ensures accuracy
    and consistency in your backups.
 
-:Remote Sync: It is possible to efficiently synchronize data to remote
+:Remote sync: It is possible to efficiently synchronize data to remote
    sites. Only deltas containing new data are transferred.
 
 :Compression: The ultra-fast Zstandard_ compression is able to compress
@@ -76,16 +76,21 @@ Main Features
    provides extensive support for backing up to tape and managing tape
    libraries.
 
+:Ransomware protection: :ref:`Protect your critical data from ransomware attacks
+   <ransomware_protection>` with Proxmox Backup Server's fine-grained access
+   control, data integrity verification, and off-site backup through remote sync
+   and tape backup.
+
 :Web interface: Manage the Proxmox Backup Server with the integrated, web-based
    user interface.
 
-:Open Source: No secrets. Proxmox Backup Server is free and open-source
+:Open source: No secrets. Proxmox Backup Server is free and open-source
    software. The source code is licensed under AGPL, v3.
 
-:No Limits: Proxmox Backup Server has no artificial limits for backup storage or
+:No limits: Proxmox Backup Server has no artificial limits for backup storage or
    backup-clients.
 
-:Enterprise Support: Proxmox Server Solutions GmbH offers enterprise support in
+:Enterprise support: Proxmox Server Solutions GmbH offers enterprise support in
    the form of `Proxmox Backup Server Subscription Plans
    <https://www.proxmox.com/en/proxmox-backup-server/pricing>`_. Users at every
    subscription level get access to the Proxmox Backup :ref:`Enterprise
