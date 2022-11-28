@@ -391,11 +391,11 @@ backups.
 As a best practice, you should keep multiple backups, including outside of your
 network and on different media. Proxmox Backup Server provides the tools to do
 both.
-It is possible to create :ref:`remote sync jobs <backup_remote>`; by
-setting up a remote Proxmox Backup Server you can take advantage of the sync
-job feature and create off-site copies of your backups.
+By setting up a remote Proxmox Backup Server you can take advantage of the
+:ref:`remote sync jobs <backup_remote>`; feature and create off-site copies of
+your backups.
 This is recommended, since offsite instances are less likely to be infected by
-the ransomware in your local network. It is also possible to create :ref:`tape
+ransomware in your local network. It is also possible to create :ref:`tape
 backups <tape_backup>` as a second storage medium.
 This way you get an additional copy of your data which can easily be moved
 off-site.
@@ -428,9 +428,9 @@ to a new guest and not to overwrite your current guest.
 Restoring many guests at once can be cumbersome, which is why it is advisable
 to automate this task and verify that your automated process works. If this is
 not feasible, it is recommended to restore random samples from your backups.
-While creating backups is is important, verifying that the backups work is
-equally important. This ensures that you are able to react quickly in case of
-an emergency and keeps disruption of your services to a minimum.
+While creating backups is important, verifying that the backups work is equally
+important. This ensures that you are able to react quickly in case of an
+emergency and keeps disruption of your services to a minimum.
 
 
 Other Prevention Methods and Best Practices
@@ -455,5 +455,5 @@ limited to:
   periods of time.
 
 For more information on how to avoid ransomware attacks and what to do in case
-of a ransomware infection, see Cisa and
+of a ransomware infection, see CISA and
 `their guide <https://www.cisa.gov/stopransomware/ransomware-guide>`_.
