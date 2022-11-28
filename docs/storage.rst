@@ -317,8 +317,7 @@ There are a few per-datastore options:
 
 Tuning
 ^^^^^^
-There are some tuning related options for the datastore that are more advanced
-and only available on the CLI:
+There are some tuning related options for the datastore that are more advanced:
 
 * ``chunk-order``: Chunk order for verify & tape backup:
 
