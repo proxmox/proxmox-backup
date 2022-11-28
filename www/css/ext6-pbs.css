@@ -277,6 +277,15 @@ span.snapshot-comment-column {
     color: #888;
 }
 
+.pmx-tree-icon-custom.destroying:after {
+    content: "\f1f8";
+    color: #000;
+}
+
+.pmx-tree-icon-custom.destroying:before {
+    color: #888;
+}
+
 /*' PBS specific icons */
 
 .pbs-icon-tape {
