@@ -381,7 +381,7 @@ Ransomware Protection & Recovery
 `Ransomware <https://en.wikipedia.org/wiki/Ransomware>`_ is a type of malware
 that encrypts files until a ransom is paid. Proxmox Backup Server includes
 features that help mitigate and recover from ransomware attacks by offering
-off-server and off-site synchronizations and easy restoration from backups.
+off-server and off-site synchronization and easy restoration from backups.
 
 Built-in Protection
 ~~~~~~~~~~~~~~~~~~~
@@ -397,39 +397,40 @@ The 3-2-1 Rule with Proxmox Backup Server
 
 The `3-2-1 rule <https://en.wikipedia.org/wiki/Backup#Storage>`_ is simple but
 effective in protecting important data from all sorts of threats, be it fires,
-natural disasters or attacks on your infrastructure by adversaries .
+natural disasters or attacks on your infrastructure by adversaries.
 In short, the rule states that one should create *3* backups on at least *2*
 different types of storage media, of which *1* copy is kept off-site.
 
 Proxmox Backup Server provides tools for storing extra copies of backups in
 remote locations and on various types of media.
 
-By setting up a remote Proxmox Backup Server you can take advantage of the
+By setting up a remote Proxmox Backup Server, you can take advantage of the
 :ref:`remote sync jobs <backup_remote>` feature and easily create off-site
 copies of your backups.
 This is recommended, since off-site instances are less likely to be infected by
 ransomware in your local network.
-You can configure sync jobs to not removed snapshots if they vanished on the
+You can configure sync jobs to not remove snapshots if they vanished on the
 remote-source to avoid that an attacker that took over the source can cause
 deletions of backups on the target hosts.
-If the source-host became victim of a ransomware attack, there's a good chance
-that sync jobs will fail triggering an :ref:`error notification
+If the source-host became victim of a ransomware attack, there is a good chance
+that sync jobs will fail, triggering an :ref:`error notification
 <maintenance_notification>`.
 
 It is also possible to create :ref:`tape backups <tape_backup>` as a second
-storage medium. This way you get an additional copy of your data on a
-different, for long-term storage designed medium type which can easily be moved
-around, be it to and off-site location or, for example into an on-site fire
-proof vault for quicker access.
+storage medium. This way, you get an additional copy of your data on a
+different storage medium designed for long-term storage. Additionally, it can
+easily be moved around, be it to and off-site location or, for example, into an
+on-site fireproof vault for quicker access.
 
 Restrictive User & Access Management
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Proxmox Backup Server offers a comprehensive and fine grained :ref:`user and
+Proxmox Backup Server offers a comprehensive and fine-grained :ref:`user and
 access management <user_mgmt>` system. The `Datastore.Backup` privilege, for
 example, allows only to create, but not to delete or alter existing backups.
 
 The best way to leverage this access control system is to:
+
 - Use separate API tokens for each host or Proxmox VE Cluster that should be
   able to back data up to a Proxmox Backup Server.
 - Configure only minimal permissions for such API tokens. They should only have
@@ -441,8 +442,8 @@ The best way to leverage this access control system is to:
    permissions, but to perform backup pruning directly on Proxmox Backup Server
    using :ref:`prune jobs <maintenance_prune_jobs>`.
 
-Please note that same also applies for sync jobs. By limiting a sync user's or
-an access token's right to only write backups, not delete them, compromised
+Please note that the same also applies for sync jobs. By limiting a sync user's
+or an access token's right to only write backups, not delete them, compromised
 clients cannot delete existing backups.
 
 Ransomware Detection
@@ -459,8 +460,8 @@ To detect ransomware inside a compromised guest, it is recommended to
 frequently test restoring and booting backups. Make sure to restore to a new
 guest and not to overwrite your current guest.
 In the case of many backed-up guests, it is recommended to automate this
-restore testing or, if this is not possible, to restore random samples from the
-backups periodically (for example, once a week or month).
+restore testing. If this is not possible, restoring random samples from the
+backups periodically (for example, once a week or month), is advised'.
 
 In order to be able to react quickly in case of a ransomware attack, it is
 recommended to regularly test restoring from your backups. Make sure to restore
@@ -468,7 +469,7 @@ to a new guest and not to overwrite your current guest.
 Restoring many guests at once can be cumbersome, which is why it is advisable
 to automate this task and verify that your automated process works. If this is
 not feasible, it is recommended to restore random samples from your backups.
-While creating backups is important, verifying that the backups work is equally
+While creating backups is important, verifying that they work is equally
 important. This ensures that you are able to react quickly in case of an
 emergency and keeps disruption of your services to a minimum.
 
@@ -487,13 +488,13 @@ limited to:
 * Following safe and secure network practices, for example using logging and
   monitoring tools and dividing your network so that infrastructure traffic and
   user or even public traffic are separated, for example by setting up VLANs.
-* Set up a long term retention. Since some ransomware might lay dormant a
+* Set up a long-term retention. Since some ransomware might lay dormant a
   couple of days or weeks before starting to encrypt data, it can be that
   older, existing backups are compromised. Thus, it is important to keep at
   least a few backups over longer periods of time.
 
 For more information on how to avoid ransomware attacks and what to do in case
-of a ransomware infection, see official goverment recommendations like `CISA's
+of a ransomware infection, see official government recommendations like `CISA's
 (USA) guide <https://www.cisa.gov/stopransomware/ransomware-guide>`_ or EU
 resources like ENSIA's `Threat Landscape for Ransomware Attacks
 <https://www.enisa.europa.eu/publications/enisa-threat-landscape-for-ransomware-attacks>`_
