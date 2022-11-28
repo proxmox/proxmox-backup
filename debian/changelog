@@ -1,3 +1,12 @@
+rust-proxmox-backup (2.3.1-1) bullseye; urgency=medium
+
+  * d/postinst: try to fixup installations with wrong .datastore.lck owner for
+    very old setups
+
+  * docs: link all screenshots to their image file
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 28 Nov 2022 17:18:07 +0100
+
 rust-proxmox-backup (2.3.0-1) bullseye; urgency=medium
 
   * proxmox-backup-manager CLI: fix checking for 'active' state when reading
