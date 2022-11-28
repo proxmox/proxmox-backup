@@ -419,7 +419,7 @@ that sync jobs will fail, triggering an :ref:`error notification
 It is also possible to create :ref:`tape backups <tape_backup>` as a second
 storage medium. This way, you get an additional copy of your data on a
 different storage medium designed for long-term storage. Additionally, it can
-easily be moved around, be it to and off-site location or, for example, into an
+easily be moved around, be it to an off-site location or, for example, into an
 on-site fireproof vault for quicker access.
 
 Restrictive User & Access Management
