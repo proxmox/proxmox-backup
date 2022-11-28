@@ -377,50 +377,92 @@ with a comma, like this:
 
 .. _ransomware_protection:
 
-Ransomware Protection
----------------------
-
-Prevention by Proxmox Backup Server
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Ransomware Protection & Recovery
+--------------------------------
 
 `Ransomware <https://en.wikipedia.org/wiki/Ransomware>`_ is a type of malware
 that encrypts files until a ransom is paid. Proxmox Backup Server includes
-features to mitigate ransomware attacks by offering easy restoration from
-backups.
+features that help mitigate and recover from ransomware attacks by offering
+off-server and off-site synchronizations and easy restoration from backups.
 
-As a best practice, you should keep multiple backups, including outside of your
-network and on different media. Proxmox Backup Server provides the tools to do
-both.
-By setting up a remote Proxmox Backup Server you can take advantage of the
-:ref:`remote sync jobs <backup_remote>`; feature and create off-site copies of
-your backups.
-This is recommended, since offsite instances are less likely to be infected by
-ransomware in your local network. It is also possible to create :ref:`tape
-backups <tape_backup>` as a second storage medium.
-This way you get an additional copy of your data which can easily be moved
-off-site.
+Built-in Protection
+~~~~~~~~~~~~~~~~~~~
 
 Proxmox Backup Server does not rewrite data for existing blocks. This means
-that a compromised Proxmox VE host, or any other compromised system using the
-client to back up data, cannot corrupt existing backups.
+that a compromised Proxmox VE host or any other compromised system that uses
+the client to back up data cannot corrupt or modify existing backups in any
+way.
 
-Furthermore, comprehensive :ref:`user management <user_mgmt>` is offered by
-Proxmox Backup Server.
-By limiting a sync user's or an access token's right to only write backups, not
-delete them, compromised clients cannot delete existing backups.
-Following this best practice, backup pruning should be done by the Proxmox
-Backup Server using prune jobs.
 
-While your Proxmox Backup Server can still be compromised, if your backup is
-encrypted by ransomware, the SHA-256 checksums of the backups will not match
-the previously recorded ones anymore. Hence, restoring the backup will fail.
+The 3-2-1 Rule with Proxmox Backup Server
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The `3-2-1 rule <https://en.wikipedia.org/wiki/Backup#Storage>`_ is simple but
+effective in protecting important data from all sorts of threats, be it fires,
+natural disasters or attacks on your infrastructure by adversaries .
+In short, the rule states that one should create *3* backups on at least *2*
+different types of storage media, of which *1* copy is kept off-site.
+
+Proxmox Backup Server provides tools for storing extra copies of backups in
+remote locations and on various types of media.
+
+By setting up a remote Proxmox Backup Server you can take advantage of the
+:ref:`remote sync jobs <backup_remote>` feature and easily create off-site
+copies of your backups.
+This is recommended, since off-site instances are less likely to be infected by
+ransomware in your local network.
+You can configure sync jobs to not removed snapshots if they vanished on the
+remote-source to avoid that an attacker that took over the source can cause
+deletions of backups on the target hosts.
+If the source-host became victim of a ransomware attack, there's a good chance
+that sync jobs will fail triggering an :ref:`error notification
+<maintenance_notification>`.
+
+It is also possible to create :ref:`tape backups <tape_backup>` as a second
+storage medium. This way you get an additional copy of your data on a
+different, for long-term storage designed medium type which can easily be moved
+around, be it to and off-site location or, for example into an on-site fire
+proof vault for quicker access.
+
+Restrictive User & Access Management
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Proxmox Backup Server offers a comprehensive and fine grained :ref:`user and
+access management <user_mgmt>` system. The `Datastore.Backup` privilege, for
+example, allows only to create, but not to delete or alter existing backups.
+
+The best way to leverage this access control system is to:
+- Use separate API tokens for each host or Proxmox VE Cluster that should be
+  able to back data up to a Proxmox Backup Server.
+- Configure only minimal permissions for such API tokens. They should only have
+  a single permission that grants the `DataStore` access role on a very narrow
+  ACL path that is restricted to a specific namespace on a specific datastore,
+  for example `/datastore/tank/pve-abc-cluster`.
+
+.. tip:: One best practice to protect against ransomware is not to grant delete
+   permissions, but to perform backup pruning directly on Proxmox Backup Server
+   using :ref:`prune jobs <maintenance_prune_jobs>`.
+
+Please note that same also applies for sync jobs. By limiting a sync user's or
+an access token's right to only write backups, not delete them, compromised
+clients cannot delete existing backups.
+
+Ransomware Detection
+~~~~~~~~~~~~~~~~~~~~
+
+A Proxmox Backup Server might still get compromised within insecure networks,
+if physical access to the server is attained, or due to  weak or insufficiently
+protected credentials.
+If that happens, and your on-site backups are encrypted by ransomware, the
+SHA-256 checksums of the backups will not match the previously recorded ones
+anymore, hence, restoring the backup will fail.
 
 To detect ransomware inside a compromised guest, it is recommended to
 frequently test restoring and booting backups. Make sure to restore to a new
 guest and not to overwrite your current guest.
 In the case of many backed-up guests, it is recommended to automate this
 restore testing or, if this is not possible, to restore random samples from the
-backups.
+backups periodically (for example, once a week or month).
 
 In order to be able to react quickly in case of a ransomware attack, it is
 recommended to regularly test restoring from your backups. Make sure to restore
@@ -433,8 +475,8 @@ important. This ensures that you are able to react quickly in case of an
 emergency and keeps disruption of your services to a minimum.
 
 
-Other Prevention Methods and Best Practices
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+General Prevention Methods and Best Practices
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 It is recommended to take additional security measures, apart from the ones
 offered by Proxmox Backup Server. These recommendations include, but are not
@@ -445,15 +487,16 @@ limited to:
   `Spectre <https://en.wikipedia.org/wiki/Spectre_(security_vulnerability)>`_ or
   `Meltdown <https://en.wikipedia.org/wiki/Meltdown_(security_vulnerability)>`_).
 * Following safe and secure network practices, for example using logging and
-  monitoring tools and setting up VLANs.
-* Making plenty of backups using the
-  `3-2-1 rule <https://en.wikipedia.org/wiki/Backup#Storage>`_: creating
-  3 backups on 2 storage media, of which 1 copy is kept off-site.
-* Retention. Since some ransomware might lay dormant a couple of days or weeks
-  before starting to encrypt data, it can be that older, existing backups are
-  compromised. Thus, it is important to keep at least a few backups over longer
-  periods of time.
+  monitoring tools and dividing your network so that infrastructure traffic and
+  user or even public traffic are separated, for example by setting up VLANs.
+* Set up a long term retention. Since some ransomware might lay dormant a
+  couple of days or weeks before starting to encrypt data, it can be that
+  older, existing backups are compromised. Thus, it is important to keep at
+  least a few backups over longer periods of time.
 
 For more information on how to avoid ransomware attacks and what to do in case
-of a ransomware infection, see CISA and
-`their guide <https://www.cisa.gov/stopransomware/ransomware-guide>`_.
+of a ransomware infection, see official goverment recommendations like `CISA's
+(USA) guide <https://www.cisa.gov/stopransomware/ransomware-guide>`_ or EU
+resources like ENSIA's `Threat Landscape for Ransomware Attacks
+<https://www.enisa.europa.eu/publications/enisa-threat-landscape-for-ransomware-attacks>`_
+or `nomoreransom.org <https://www.nomoreransom.org/en/index.html>`_.
