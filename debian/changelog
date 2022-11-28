@@ -1,3 +1,32 @@
+rust-proxmox-backup (2.3.0-1) bullseye; urgency=medium
+
+  * proxmox-backup-manager CLI: fix checking for 'active' state when reading
+    task logs
+
+  * datastore: make 'filesystem' the default sync-level
+
+  * docs: add section on ransomware and describe how Proxmox Backup Server can
+    help to protect and recover from such attacks
+
+  * ui: datastore: allow editing the `sync-level` and `chunk-order` tuning
+    settings in the datastore options
+
+  * docs: update disks, datastore prune/GC and datastore options screenshots
+
+  * docs: add section for prune jobs
+
+  * fix #3335: allow removing all datastore contents on delete by setting new
+    `destroy-data` opt-in flag.
+
+  * ui: datastore: override maintenance icon to a trash can if a datastore
+    gets currently destroyed
+
+  * docs: don't mention CLI only anymore for tuning options
+
+  * docs: add paragraph on verification jobs to ransomware section
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 28 Nov 2022 16:10:43 +0100
+
 rust-proxmox-backup (2.2.8-1) bullseye; urgency=medium
 
   * fix #4274: implement prune notifications, defaulting to sending a mail on
