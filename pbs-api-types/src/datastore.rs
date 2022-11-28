@@ -158,13 +158,14 @@ pub const PRUNE_SCHEMA_KEEP_YEARLY: Schema =
         .schema();
 
 #[api]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 /// The order to sort chunks by
 pub enum ChunkOrder {
     /// Iterate chunks in the index order
     None,
     /// Iterate chunks in inode order
+    #[default]
     Inode,
 }
 

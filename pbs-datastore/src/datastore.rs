@@ -72,7 +72,7 @@ impl DataStoreImpl {
             gc_mutex: Mutex::new(()),
             last_gc_status: Mutex::new(GarbageCollectionStatus::default()),
             verify_new: false,
-            chunk_order: ChunkOrder::None,
+            chunk_order: Default::default(),
             last_digest: None,
             sync_level: Default::default(),
         })
@@ -268,14 +268,13 @@ impl DataStore {
             DatastoreTuning::API_SCHEMA
                 .parse_property_string(config.tuning.as_deref().unwrap_or(""))?,
         )?;
-        let chunk_order = tuning.chunk_order.unwrap_or(ChunkOrder::Inode);
 
         Ok(DataStoreImpl {
             chunk_store,
             gc_mutex: Mutex::new(()),
             last_gc_status: Mutex::new(gc_status),
             verify_new: config.verify_new.unwrap_or(false),
-            chunk_order,
+            chunk_order: tuning.chunk_order.unwrap_or_default(),
             last_digest,
             sync_level: tuning.sync_level.unwrap_or_default(),
         })
