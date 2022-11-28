@@ -473,6 +473,13 @@ While creating backups is important, verifying that they work is equally
 important. This ensures that you are able to react quickly in case of an
 emergency and keeps disruption of your services to a minimum.
 
+:ref:`Verification jobs <maintenance_verification>` can also assist in detecting
+a ransomware presence on a Proxmox Backup Server. Since verification jobs
+regularly check if all backups still match the checksums on record, they will
+start to fail if a ransomware starts to encrypt existing backups. Please be
+aware, that an advanced enough ransomware could circumvent this mechanism.
+Hence, consider verification jobs only as an additional, but not a sufficient
+protection measure.
 
 General Prevention Methods and Best Practices
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
