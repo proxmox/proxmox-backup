@@ -4,6 +4,7 @@ Network Management
 ==================
 
 .. image:: images/screenshots/pbs-gui-system-config.png
+  :target: _images/pbs-gui-system-config.png
   :align: right
   :alt: System and Network Configuration Overview
 
@@ -45,6 +46,7 @@ in the list above:
   # proxmox-backup-manager network create bond0 --type bond --bond_mode active-backup --slaves ens18,ens19 --autostart true --cidr x.x.x.x/x --gateway x.x.x.x
 
 .. image:: images/screenshots/pbs-gui-network-create-bond.png
+  :target: _images/pbs-gui-network-create-bond.png
   :align: right
   :alt: Add a network interface
 

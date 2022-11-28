@@ -50,6 +50,7 @@ interface.
 
 
 .. image:: images/screenshots/pbs-gui-certs-upload-custom.png
+  :target: _images/pbs-gui-certs-upload-custom.png
   :align: right
   :alt: Upload a custom certificate
 
@@ -80,6 +81,7 @@ ACME Account
 ^^^^^^^^^^^^
 
 .. image:: images/screenshots/pbs-gui-acme-create-account.png
+  :target: _images/pbs-gui-acme-create-account.png
   :align: right
   :alt: Create ACME Account
 
@@ -123,6 +125,7 @@ used in such cases. This challenge is fulfilled by creating a certain
 DNS record in the domain’s zone.
 
 .. image:: images/screenshots/pbs-gui-acme-create-challenge-plugin.png
+  :target: _images/pbs-gui-acme-create-challenge-plugin.png
   :align: right
   :alt: Create ACME Account
 
@@ -142,6 +145,7 @@ You can add new or manage existing domain entries under
 ``Certificates``, or using the ``proxmox-backup-manager`` command.
 
 .. image:: images/screenshots/pbs-gui-acme-add-domain.png
+  :target: _images/pbs-gui-acme-add-domain.png
   :align: right
   :alt: Add a Domain for ACME verification
 

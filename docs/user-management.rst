@@ -8,6 +8,7 @@ User Configuration
 ------------------
 
 .. image:: images/screenshots/pbs-gui-user-management.png
+  :target: _images/pbs-gui-user-management.png
   :align: right
   :alt: User management
 
@@ -39,6 +40,7 @@ command line tool to list or manipulate users:
   └─────────────┴────────┴────────┴───────────┴──────────┴────────────────┴────────────────────┘
 
 .. image:: images/screenshots/pbs-gui-user-management-add-user.png
+  :target: _images/pbs-gui-user-management-add-user.png
   :align: right
   :alt: Add a new user
 
@@ -94,6 +96,7 @@ API Tokens
 ----------
 
 .. image:: images/screenshots/pbs-gui-apitoken-overview.png
+  :target: _images/pbs-gui-apitoken-overview.png
   :align: right
   :alt: API Token Overview
 
@@ -112,6 +115,7 @@ need to be provided to the client in place of the user ID (``user@realm``) and
 the user password, respectively.
 
 .. image:: images/screenshots/pbs-gui-apitoken-secret-value.png
+  :target: _images/pbs-gui-apitoken-secret-value.png
   :align: right
   :alt: API secret value
 
@@ -350,6 +354,7 @@ Configuration & Management
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. image:: images/screenshots/pbs-gui-permissions-add.png
+  :target: _images/pbs-gui-permissions-add.png
   :align: right
   :alt: Add permissions for user
 
@@ -465,6 +470,7 @@ account, as even if they have the password, they will not have access to the
 physical object (second factor).
 
 .. image:: images/screenshots/pbs-gui-tfa-login.png
+  :target: _images/pbs-gui-tfa-login.png
   :align: right
   :alt: Add a new user
 
@@ -502,6 +508,7 @@ TOTP
 ^^^^
 
 .. image:: images/screenshots/pbs-gui-tfa-add-totp.png
+  :target: _images/pbs-gui-tfa-add-totp.png
   :align: right
   :alt: Add a new user
 
@@ -535,6 +542,7 @@ Recovery Keys
 ^^^^^^^^^^^^^
 
 .. image:: images/screenshots/pbs-gui-tfa-add-recovery-keys.png
+  :target: _images/pbs-gui-tfa-add-recovery-keys.png
   :align: right
   :alt: Add a new user
 

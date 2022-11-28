@@ -29,6 +29,7 @@ Login
 -----
 
 .. image:: images/screenshots/pbs-gui-login-window.png
+  :target: _images/pbs-gui-login-window.png
   :align: right
   :alt: PBS login window
 
@@ -44,6 +45,7 @@ GUI Overview
 ------------
 
 .. image:: images/screenshots/pbs-gui-dashboard.png
+  :target: _images/pbs-gui-dashboard.png
   :align: right
   :alt: PBS GUI Dashboard
 
@@ -92,6 +94,7 @@ Administration
 ^^^^^^^^^^^^^^
 
 .. image:: images/screenshots/pbs-gui-administration-serverstatus.png
+  :target: _images/pbs-gui-administration-serverstatus.png
   :align: right
   :alt: Administration: Server Status overview
 
@@ -107,6 +110,7 @@ tasks and information. These are:
 * **Tasks**: Task history with multiple filter options
 
 .. image:: images/screenshots/pbs-gui-disks.png
+  :target: _images/pbs-gui-disks.png
   :align: right
   :alt: Administration: Disks
 
@@ -121,6 +125,7 @@ Tape Backup
 ^^^^^^^^^^^
 
 .. image:: images/screenshots/pbs-gui-tape-changer-overview.png
+  :target: _images/pbs-gui-tape-changer-overview.png
   :align: right
   :alt: Tape Backup: Tape changer overview
 
@@ -143,6 +148,7 @@ Datastore
 ^^^^^^^^^
 
 .. image:: images/screenshots/pbs-gui-datastore-summary.png
+  :target: _images/pbs-gui-datastore-summary.png
   :align: right
   :alt: Datastore Configuration
 

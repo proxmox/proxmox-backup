@@ -4,6 +4,7 @@ Tape Backup
 ===========
 
 .. image:: images/screenshots/pbs-gui-tape-changer-overview.png
+  :target: _images/pbs-gui-tape-changer-overview.png
   :align: right
   :alt: Tape Backup: Tape changer overview
 
@@ -188,6 +189,7 @@ Tape changers
 ~~~~~~~~~~~~~
 
 .. image:: images/screenshots/pbs-gui-tape-changers.png
+  :target: _images/pbs-gui-tape-changers.png
   :align: right
   :alt: Tape Backup: Tape Changers
 
@@ -223,6 +225,7 @@ Where ``sl3`` is an arbitrary name you can choose.
    different device after reboot, and that is not what you want.
 
 .. image:: images/screenshots/pbs-gui-tape-changers-add.png
+  :target: _images/pbs-gui-tape-changers-add.png
   :align: right
   :alt: Tape Backup: Add a new tape changer
 
@@ -329,6 +332,7 @@ Tape drives
 ~~~~~~~~~~~
 
 .. image:: images/screenshots/pbs-gui-tape-drives.png
+  :target: _images/pbs-gui-tape-drives.png
   :align: right
   :alt: Tape Backup: Drive list
 
@@ -345,6 +349,7 @@ of available tape drives using:
  └────────────────────────────────┴────────┴─────────────┴────────┘
 
 .. image:: images/screenshots/pbs-gui-tape-drives-add.png
+  :target: _images/pbs-gui-tape-drives-add.png
   :align: right
   :alt: Tape Backup: Add a tape drive
 
@@ -448,6 +453,7 @@ Media Pools
 ~~~~~~~~~~~
 
 .. image:: images/screenshots/pbs-gui-tape-pools.png
+  :target: _images/pbs-gui-tape-pools.png
   :align: right
   :alt: Tape Backup: Media Pools
 
@@ -566,6 +572,7 @@ a single media pool, so a job only uses tapes from that pool.
    you need to restore the key.
 
 .. image:: images/screenshots/pbs-gui-tape-pools-add.png
+  :target: _images/pbs-gui-tape-pools-add.png
   :align: right
   :alt: Tape Backup: Add a media pool
 
@@ -603,6 +610,7 @@ Tape Backup Jobs
 ~~~~~~~~~~~~~~~~
 
 .. image:: images/screenshots/pbs-gui-tape-backup-jobs.png
+  :target: _images/pbs-gui-tape-backup-jobs.png
   :align: right
   :alt: Tape Backup: Tape Backup Jobs
 
@@ -692,6 +700,7 @@ backup. You can specify a single namespace with ``ns`` and a depth with
 If no `max-depth` is given, it will include all recursive namespaces.
 
 .. image:: images/screenshots/pbs-gui-tape-backup-jobs-add.png
+  :target: _images/pbs-gui-tape-backup-jobs-add.png
   :align: right
   :alt: Tape Backup: Add a backup job
 
@@ -922,6 +931,7 @@ Encryption Key Management
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. image:: images/screenshots/pbs-gui-tape-crypt-keys.png
+  :target: _images/pbs-gui-tape-crypt-keys.png
   :align: right
   :alt: Tape Backup: Encryption Keys
 

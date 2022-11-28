@@ -4,6 +4,7 @@ Traffic Control
 ---------------
 
 .. image:: images/screenshots/pbs-gui-traffic-control-add.png
+  :target: _images/pbs-gui-traffic-control-add.png
   :align: right
   :alt: Add a traffic control limit
 

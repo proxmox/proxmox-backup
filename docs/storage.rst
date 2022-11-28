@@ -40,6 +40,7 @@ To initialize a disk with a new GPT, use the ``initialize`` subcommand:
   # proxmox-backup-manager disk initialize sdX
 
 .. image:: images/screenshots/pbs-gui-disks-dir-create.png
+  :target: _images/pbs-gui-disks-dir-create.png
   :align: right
   :alt: Create a directory
 
@@ -93,6 +94,7 @@ display S.M.A.R.T. attributes from the web interface or by using the command:
 -----------------
 
 .. image:: images/screenshots/pbs-gui-datastore-summary.png
+  :target: _images/pbs-gui-datastore-summary.png
   :align: right
   :alt: Datastore Usage Overview
 
@@ -116,6 +118,7 @@ Datastore Configuration
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 .. image:: images/screenshots/pbs-gui-datastore-content.png
+  :target: _images/pbs-gui-datastore-content.png
   :align: right
   :alt: Datastore Content Overview
 
@@ -135,6 +138,7 @@ run periodically, based on a configured schedule (see
 Creating a Datastore
 ^^^^^^^^^^^^^^^^^^^^
 .. image:: images/screenshots/pbs-gui-datastore-create.png
+  :target: _images/pbs-gui-datastore-create.png
   :align: right
   :alt: Create a datastore
 
@@ -304,6 +308,7 @@ Options
 ~~~~~~~
 
 .. image:: images/screenshots/pbs-gui-datastore-options.png
+  :target: _images/pbs-gui-datastore-options.png
   :align: right
   :alt: Datastore Options
 

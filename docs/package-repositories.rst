@@ -28,6 +28,7 @@ In addition, you need a package repository from Proxmox to get Proxmox Backup
 updates.
 
 .. image:: images/screenshots/pbs-gui-administration-apt-repos.png
+  :target: _images/pbs-gui-administration-apt-repos.png
   :align: right
   :alt: APT Repository Management in the Web Interface
 

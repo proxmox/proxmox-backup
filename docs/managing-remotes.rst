@@ -14,6 +14,7 @@ configuration information for remotes is stored in the file
 ``/etc/proxmox-backup/remote.cfg``.
 
 .. image:: images/screenshots/pbs-gui-remote-add.png
+  :target: _images/pbs-gui-remote-add.png
   :align: right
   :alt: Add a remote
 
@@ -55,6 +56,7 @@ Sync Jobs
 ---------
 
 .. image:: images/screenshots/pbs-gui-syncjob-add.png
+  :target: _images/pbs-gui-syncjob-add.png
   :align: right
   :alt: Add a Sync Job
 
