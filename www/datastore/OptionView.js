@@ -182,10 +182,7 @@ Ext.define('PBS.Datastore.Options', {
 			}
 			return { tuning };
 		    },
-		    setValues: function(values) {
-			values = PBS.Utils.parsePropertyString(values?.tuning);
-			return Proxmox.panel.InputPanel.prototype.setValues.call(this, values);
-		    },
+		    onSetValues: values => PBS.Utils.parsePropertyString(values?.tuning),
 		    items: [
 			{
 			    xtype: 'proxmoxKVComboBox',
