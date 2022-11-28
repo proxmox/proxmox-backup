@@ -7,10 +7,20 @@ Ext.define('PBS.window.SafeDatastoreDestroy', {
 	url: `/config/datastore/{datastore}`,
 	item: get => ({ id: get('datastore') }),
     },
+    viewModel: {
+	data: {
+	    'destroyData': 0,
+	},
+	formulas: {
+	    destroyNote: get => get('destroyData')
+		? gettext('All backup snapshots and their data will be permanently destroyed!')
+		: gettext('Configuration change only, no data will be deleted.'),
+	    destroyNoteCls: get => get('destroyData') ? 'pmx-hint' : '',
+	},
+    },
 
     autoShow: true,
     taskName: 'delete-datastore',
-    note: gettext('Configuration change only, no data will be deleted.'),
 
     apiCallDone: function(success) {
 	if (success) {
@@ -20,6 +30,29 @@ Ext.define('PBS.window.SafeDatastoreDestroy', {
 	    mainview.getController().redirectTo('pbsDataStores');
 	}
     },
+
+    getParams: function() {
+	let viewModel = this.getViewModel();
+
+	let params = { 'destroy-data': viewModel.get('destroyData') };
+	return `?${Ext.Object.toQueryString(params)}`;
+    },
+    additionalItems: [{
+	xtype: 'proxmoxcheckbox',
+	name: 'destroy-data',
+	boxLabel: gettext("Destroy all data (dangerous!)"),
+	defaultValue: false,
+	bind: {
+	    value: '{destroyData}',
+	},
+    }, {
+	xtype: 'component',
+	reference: 'noteCmp',
+	bind: {
+	    html: '{destroyNote}',
+	    userCls: '{destroyNoteCls}',
+	},
+    }],
 });
 
 Ext.define('PBS.Datastore.Options', {
