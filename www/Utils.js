@@ -709,4 +709,37 @@ Ext.define('PBS.Utils', {
 	return Ext.String.htmlEncode(value);
     },
 
+    tuningOptions: {
+	'chunk-order': {
+	    '__default__': Proxmox.Utils.defaultText + ` (${gettext('None')})`,
+	    none: gettext('None'),
+	    inode: gettext('Inode'),
+	},
+	'sync-level': {
+	    '__default__': Proxmox.Utils.defaultText + ` (${gettext('Filesystem')})`,
+	    none: gettext('None'),
+	    file: gettext('File'),
+	    filesystem: gettext('Filesystem'),
+	},
+    },
+
+    render_tuning_options: function(tuning) {
+	let options = [];
+	let order = tuning['chunk-order'];
+	delete tuning['chunk-order'];
+	order = PBS.Utils.tuningOptions['chunk-order'][order ?? '__default__'];
+	options.push(`${gettext('Chunk Order')}: ${order}`);
+
+	let sync = tuning['sync-level'];
+	delete tuning['sync-level'];
+	sync = PBS.Utils.tuningOptions['sync-level'][sync ?? '__default__'];
+	options.push(`${gettext('Sync Level')}: ${sync}`);
+
+	for (const [k, v] of Object.entries(tuning)) {
+	    options.push(`${k}: ${v}`);
+	}
+
+	return options.join(', ');
+    },
+
 });

@@ -157,5 +157,62 @@ Ext.define('PBS.Datastore.Options', {
 		xtype: 'pbsMaintenanceOptionEdit',
 	    },
 	},
+	'tuning': {
+	    required: true,
+	    header: gettext('Tuning Options'),
+	    renderer: function(value) {
+		let tuning = PBS.Utils.parsePropertyString(value);
+		return PBS.Utils.render_tuning_options(tuning);
+	    },
+	    editor: {
+		xtype: 'proxmoxWindowEdit',
+		title: gettext('Tuning Options'),
+		onlineHelp: 'datastore_tuning_options',
+		width: 350,
+		items: {
+		    xtype: 'inputpanel',
+		    onGetValues: function(values) {
+			if (!Ext.isArray(values.delete ?? [])) {
+			    values.delete = [values.delete];
+			}
+			for (const k of values.delete ?? []) {
+			    delete values[k];
+			}
+			delete values.delete;
+			let tuning = PBS.Utils.printPropertyString(values);
+			if (!tuning) {
+			    return {
+				'delete': 'tuning',
+			    };
+			}
+			return {
+			    tuning,
+			};
+		    },
+		    setValues: function(values) {
+			values = PBS.Utils.parsePropertyString(values?.tuning);
+			return Proxmox.panel.InputPanel.prototype.setValues.call(this, values);
+		    },
+		    items: [
+			{
+			    xtype: 'proxmoxKVComboBox',
+			    name: 'chunk-order',
+			    fieldLabel: gettext('Chunk Order'),
+			    comboItems: Object.entries(PBS.Utils.tuningOptions['chunk-order']),
+			    deleteEmpty: true,
+			    value: '__default__',
+			},
+			{
+			    xtype: 'proxmoxKVComboBox',
+			    name: 'sync-level',
+			    fieldLabel: gettext('Sync Level'),
+			    comboItems: Object.entries(PBS.Utils.tuningOptions['sync-level']),
+			    deleteEmpty: true,
+			    value: '__default__',
+			},
+		    ],
+		},
+	    },
+	},
     },
 });

@@ -143,6 +143,10 @@ const proxmoxOnlineHelpInfo = {
     "link": "/docs/storage.html#storage-namespaces",
     "title": "Backup Namespaces"
   },
+  "datastore-tuning-options": {
+    "link": "/docs/storage.html#datastore-tuning-options",
+    "title": "Tuning"
+  },
   "sysadmin-host-administration": {
     "link": "/docs/sysadmin.html#sysadmin-host-administration",
     "title": "Host System Administration"

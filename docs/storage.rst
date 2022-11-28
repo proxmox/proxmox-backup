@@ -313,6 +313,8 @@ There are a few per-datastore options:
 * :ref:`Maintenance Mode <maintenance_mode>`
 * Verification of incoming backups
 
+.. _datastore_tuning_options:
+
 Tuning
 ^^^^^^
 There are some tuning related options for the datastore that are more advanced
