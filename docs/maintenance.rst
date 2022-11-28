@@ -64,8 +64,10 @@ To manually prune a specific backup group, you can use
 :ref:`backup-pruning`, or navigate to the **Content** tab of the datastore and
 click the scissors icon in the **Actions** column of the relevant backup group.
 
-Prune Schedules
-^^^^^^^^^^^^^^^
+.. _maintenance_prune_jobs:
+
+Prune Jobs
+^^^^^^^^^^
 
 To prune on a datastore level, scheduling options can be found under the
 **Prune & GC** tab of the datastore. Here you can set retention settings and
