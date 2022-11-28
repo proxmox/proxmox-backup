@@ -5,7 +5,7 @@ Ext.define('PBS.window.PruneJobEdit', {
 
     userid: undefined,
 
-    onlineHelp: 'prunejobs',
+    onlineHelp: 'maintenance_prune_jobs',
 
     isAdd: true,
 
