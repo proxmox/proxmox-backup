@@ -711,7 +711,7 @@ Ext.define('PBS.Utils', {
 
     tuningOptions: {
 	'chunk-order': {
-	    '__default__': Proxmox.Utils.defaultText + ` (${gettext('None')})`,
+	    '__default__': Proxmox.Utils.defaultText + ` (${gettext('Inode')})`,
 	    none: gettext('None'),
 	    inode: gettext('Inode'),
 	},
