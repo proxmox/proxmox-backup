@@ -83,6 +83,10 @@ const proxmoxOnlineHelpInfo = {
     "link": "/docs/maintenance.html#maintenance-pruning",
     "title": "Pruning"
   },
+  "maintenance-prune-jobs": {
+    "link": "/docs/maintenance.html#maintenance-prune-jobs",
+    "title": "Prune Jobs"
+  },
   "maintenance-gc": {
     "link": "/docs/maintenance.html#maintenance-gc",
     "title": "Garbage Collection"
@@ -146,6 +150,10 @@ const proxmoxOnlineHelpInfo = {
   "datastore-tuning-options": {
     "link": "/docs/storage.html#datastore-tuning-options",
     "title": "Tuning"
+  },
+  "ransomware-protection": {
+    "link": "/docs/storage.html#ransomware-protection",
+    "title": "Ransomware Protection & Recovery"
   },
   "sysadmin-host-administration": {
     "link": "/docs/sysadmin.html#sysadmin-host-administration",
