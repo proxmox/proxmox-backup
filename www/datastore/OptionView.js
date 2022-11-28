@@ -1,3 +1,26 @@
+Ext.define('PBS.window.SafeDatastoreDestroy', {
+    extend: 'Proxmox.window.SafeDestroy',
+    xtype: 'pbsDatastoreSafeDestroy',
+    mixins: ['Proxmox.Mixin.CBind'],
+
+    cbind: {
+	url: `/config/datastore/{datastore}`,
+	item: get => ({ id: get('datastore') }),
+    },
+
+    autoShow: true,
+    taskName: 'delete-datastore',
+    note: gettext('Configuration change only, no data will be deleted.'),
+
+    apiCallDone: function(success) {
+	if (success) {
+	    let navtree = Ext.ComponentQuery.query('navigationtree')[0];
+	    navtree.rstore.load();
+	    let mainview = Ext.ComponentQuery.query('mainview')[0];
+	    mainview.getController().redirectTo('pbsDataStores');
+	}
+    },
+});
 
 Ext.define('PBS.Datastore.Options', {
     extend: 'Proxmox.grid.ObjectGrid',
@@ -45,21 +68,8 @@ Ext.define('PBS.Datastore.Options', {
 
 	removeDatastore: function() {
 	    let me = this;
-	    let datastore = me.getView().datastore;
-	    Ext.create('Proxmox.window.SafeDestroy', {
-		url: `/config/datastore/${datastore}`,
-		item: {
-		    id: datastore,
-		},
-		note: gettext('Configuration change only, no data will be deleted.'),
-		autoShow: true,
-		taskName: 'delete-datastore',
-		apiCallDone: (success) => {
-		    let navtree = Ext.ComponentQuery.query('navigationtree')[0];
-		    navtree.rstore.load();
-		    let mainview = me.getView().up('mainview');
-		    mainview.getController().redirectTo('pbsDataStores');
-		},
+	    Ext.create('PBS.window.SafeDatastoreDestroy', {
+		datastore: me.getView().datastore,
 	    });
 	},
 
