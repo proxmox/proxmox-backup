@@ -6,8 +6,8 @@ Maintenance Tasks
 Pruning
 -------
 
-Prune lets you specify which backup snapshots you want to keep. The
-following retention options are available:
+Prune lets you specify which backup snapshots you want to keep.
+The following retention options are available:
 
 ``keep-last <N>``
   Keep the last ``<N>`` backup snapshots.
@@ -40,9 +40,9 @@ The retention options are processed in the order given above. Each option
 only covers backups within its time period. The next option does not take care
 of already covered backups. It will only consider older backups.
 
-Unfinished and incomplete backups will be removed by the prune command, unless
-they are newer than the last successful backup. In this case, the last failed
-backup is retained.
+Old unfinished or incomplete backups will be removed by the prune command,
+unless they are newer than the last successful backup. In this case, the last
+failed backup is retained.
 
 Prune Simulator
 ^^^^^^^^^^^^^^^
@@ -50,6 +50,60 @@ Prune Simulator
 You can use the built-in `prune simulator <prune-simulator/index.html>`_
 to explore the effect of different retention options with various backup
 schedules.
+
+.. _maintenance_prune_jobs:
+
+Prune Jobs
+^^^^^^^^^^
+
+.. image:: images/screenshots/pbs-gui-datastore-prunegc.png
+  :target: _images/pbs-gui-datastore-prunegc.png
+  :align: right
+  :alt: Prune and garbage collection options
+
+Prune jobs are configured to periodically prune a datastore or a subset of it.
+You can manage prune jobs in the web interface, from the **Prune & GC** tab of
+the **Datastore** panel or from that of the Datastore itself. Alternatively,
+you can manage them with the ``proxmox-backup-manager prune-job`` command. The
+configuration information for prune jobs is stored at
+``/etc/proxmox-backup/prune.cfg``. To create a new prune job, click the add
+button in the GUI, or use the manager CLI's ``create`` subcommand. After
+creating a prune job, you can either start it manually from the GUI or provide
+it with a schedule (see :ref:`calendar-event-scheduling`) to run regularly.
+
+Each prune job has settings for retention, limitation of scope and frequency.
+
+``store <datastore>``
+ The datastore you want to run this prune job on.
+
+``ns <namespace>``
+ Limit the prune job to a specific namespace.
+
+``max-depth <N>``
+ Configure the namespace depth it should prune from below the configured
+ namespace. For example, `0` to only prune the backup groups available directly
+ on the configured namespace itself. Omit the parameter to scan to the full
+ depth below.
+
+.. image:: images/screenshots/pbs-gui-datastore-prune-job-add.png
+  :target: _images/pbs-gui-datastore-prune-job-add.png
+  :align: right
+  :alt: Prune Job creation and edit dialogue
+
+``schedule``
+ Configure a :ref:`calendar event interval <calendar-event-scheduling>` for
+ when to automatically trigger this job. You can omit this if you want to
+ trigger a job only manually.
+
+``keep-X``
+ See the description of the various retention options above.
+
+``disable``
+ Set to disable a job temporarily while keeping its settings.
+
+``comment``
+ You can add a short comment for a job, for example about it intentions.
+
 
 Manual Pruning
 ^^^^^^^^^^^^^^
@@ -63,20 +117,6 @@ To manually prune a specific backup group, you can use
 ``proxmox-backup-client``'s ``prune`` subcommand, discussed in
 :ref:`backup-pruning`, or navigate to the **Content** tab of the datastore and
 click the scissors icon in the **Actions** column of the relevant backup group.
-
-.. _maintenance_prune_jobs:
-
-Prune Jobs
-^^^^^^^^^^
-
-To prune on a datastore level, scheduling options can be found under the
-**Prune & GC** tab of the datastore. Here you can set retention settings and
-edit the interval at which pruning takes place.
-
-.. image:: images/screenshots/pbs-gui-datastore-prunegc.png
-  :target: _images/pbs-gui-datastore-prunegc.png
-  :align: right
-  :alt: Prune and garbage collection options
 
 
 Retention Settings Example
@@ -113,7 +153,6 @@ period of 10 years, and the period between backups stored gradually grows.
 We recommend that you use a higher retention period than is minimally required
 by your environment; you can always reduce it if you find it is unnecessarily
 high, but you cannot recreate backup snapshots from the past.
-
 
 .. _maintenance_gc:
 
