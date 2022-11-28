@@ -160,10 +160,7 @@ Ext.define('PBS.Datastore.Options', {
 	'tuning': {
 	    required: true,
 	    header: gettext('Tuning Options'),
-	    renderer: function(value) {
-		let tuning = PBS.Utils.parsePropertyString(value);
-		return PBS.Utils.render_tuning_options(tuning);
-	    },
+	    renderer: v => PBS.Utils.render_tuning_options(PBS.Utils.parsePropertyString(v)),
 	    editor: {
 		xtype: 'proxmoxWindowEdit',
 		title: gettext('Tuning Options'),
@@ -181,13 +178,9 @@ Ext.define('PBS.Datastore.Options', {
 			delete values.delete;
 			let tuning = PBS.Utils.printPropertyString(values);
 			if (!tuning) {
-			    return {
-				'delete': 'tuning',
-			    };
+			    return { 'delete': 'tuning' };
 			}
-			return {
-			    tuning,
-			};
+			return { tuning };
 		    },
 		    setValues: function(values) {
 			values = PBS.Utils.parsePropertyString(values?.tuning);
