@@ -952,17 +952,17 @@ pub fn update_inventory(
                             media_id.label.uuid
                         );
 
-                        if let Some(MediaSetLabel {
-                            ref pool, ref uuid, ..
-                        }) = media_id.media_set_label
-                        {
-                            let _pool_lock = lock_media_pool(TAPE_STATUS_DIR, pool)?;
-                            let _lock = lock_media_set(TAPE_STATUS_DIR, uuid, None)?;
+                        if let Some(ref set) = media_id.media_set_label {
+                            if set.unassigned() {
+                                continue;
+                            }
+                            let _pool_lock = lock_media_pool(TAPE_STATUS_DIR, &set.pool)?;
+                            let _lock = lock_media_set(TAPE_STATUS_DIR, &set.uuid, None)?;
                             MediaCatalog::destroy_unrelated_catalog(TAPE_STATUS_DIR, &media_id)?;
                             inventory.store(media_id.clone(), false)?;
 
                             if catalog {
-                                let media_set = inventory.compute_media_set_members(uuid)?;
+                                let media_set = inventory.compute_media_set_members(&set.uuid)?;
                                 if let Err(err) = fast_catalog_restore(
                                     &worker,
                                     &mut drive,
