@@ -168,4 +168,12 @@ impl MediaSetLabel {
             encryption_key_fingerprint,
         }
     }
+
+    pub fn new_unassigned(pool: &str, ctime: i64) -> Self {
+        Self::with_data(pool, [0u8; 16].into(), 0, ctime, None)
+    }
+
+    pub fn unassigned(&self) -> bool {
+        self.uuid.as_ref() == [0u8; 16]
+    }
 }

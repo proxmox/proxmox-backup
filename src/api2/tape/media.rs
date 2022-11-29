@@ -336,8 +336,7 @@ pub fn destroy_media(label_text: String, force: Option<bool>) -> Result<(), Erro
 
     if !force {
         if let Some(ref set) = media_id.media_set_label {
-            let is_empty = set.uuid.as_ref() == [0u8; 16];
-            if !is_empty {
+            if !set.unassigned() {
                 bail!(
                     "media '{}' contains data (please use 'force' flag to remove.",
                     label_text

@@ -185,7 +185,7 @@ impl Inventory {
             // do not overwrite unsaved pool assignments
             if media_id.media_set_label.is_none() {
                 if let Some(ref set) = previous.id.media_set_label {
-                    if set.uuid.as_ref() == [0u8; 16] {
+                    if set.unassigned() {
                         media_id.media_set_label = Some(set.clone());
                     }
                 }
@@ -251,15 +251,11 @@ impl Inventory {
     pub fn lookup_media_pool(&self, uuid: &Uuid) -> Option<(&str, bool)> {
         match self.map.get(uuid) {
             None => None,
-            Some(entry) => {
-                match entry.id.media_set_label {
-                    None => None, // not assigned to any pool
-                    Some(ref set) => {
-                        let is_empty = set.uuid.as_ref() == [0u8; 16];
-                        Some((&set.pool, is_empty))
-                    }
-                }
-            }
+            Some(entry) => entry
+                .id
+                .media_set_label
+                .as_ref()
+                .map(|set| (set.pool.as_str(), set.unassigned())),
         }
     }
 
@@ -275,7 +271,7 @@ impl Inventory {
                         continue; // belong to another pool
                     }
 
-                    if set.uuid.as_ref() == [0u8; 16] {
+                    if set.unassigned() {
                         list.push(MediaId {
                             label: entry.id.label.clone(),
                             media_set_label: None,
@@ -298,7 +294,7 @@ impl Inventory {
             match entry.id.media_set_label {
                 None => continue, // not assigned to any pool
                 Some(ref set) => {
-                    if set.uuid.as_ref() != [0u8; 16] {
+                    if set.unassigned() {
                         list.push(entry.id.clone());
                     }
                 }
@@ -410,7 +406,7 @@ impl Inventory {
             .map
             .values()
             .filter_map(|entry| entry.id.media_set_label.as_ref())
-            .filter(|set| set.pool == pool && set.uuid.as_ref() != [0u8; 16]);
+            .filter(|set| set.pool == pool && !set.unassigned());
 
         for set in set_list {
             match last_set {
@@ -435,7 +431,7 @@ impl Inventory {
             .map
             .values()
             .filter_map(|entry| entry.id.media_set_label.as_ref())
-            .filter(|set| set.pool == pool && set.uuid.as_ref() != [0u8; 16]);
+            .filter(|set| set.pool == pool && !set.unassigned());
 
         for set in set_list {
             if set.uuid != uuid && set.ctime >= ctime {
@@ -600,7 +596,7 @@ impl Inventory {
 
         let uuid = label.uuid.clone();
 
-        let set = MediaSetLabel::with_data(pool, [0u8; 16].into(), 0, ctime, None);
+        let set = MediaSetLabel::new_unassigned(pool, ctime);
 
         self.store(
             MediaId {

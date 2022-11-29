@@ -528,7 +528,7 @@ fn write_media_label(
             label.label_text,
             pool
         );
-        let set = MediaSetLabel::with_data(pool, [0u8; 16].into(), 0, label.ctime, None);
+        let set = MediaSetLabel::new_unassigned(pool, label.ctime);
 
         drive.write_media_set_label(&set, None)?;
 
@@ -575,7 +575,7 @@ fn write_media_label(
             if let Some(ref pool) = pool {
                 match info.media_set_label {
                     Some(set) => {
-                        if set.uuid != [0u8; 16].into() {
+                        if !set.unassigned() {
                             bail!("verify media set label failed - got wrong set uuid");
                         }
                         if &set.pool != pool {
@@ -1301,7 +1301,7 @@ pub fn catalog_media(
                     return Ok(());
                 }
                 Some(ref set) => {
-                    if set.uuid.as_ref() == [0u8; 16] {
+                    if set.unassigned() {
                         // media is empty
                         task_log!(worker, "media is empty");
                         let _lock = lock_unassigned_media_pool(TAPE_STATUS_DIR)?;

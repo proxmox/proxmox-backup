@@ -181,7 +181,7 @@ impl MediaPool {
             // should never trigger
             return (MediaStatus::Unknown, location); // belong to another pool
         }
-        if set.uuid.as_ref() == [0u8; 16] {
+        if set.unassigned() {
             // not assigned to any pool
             return (MediaStatus::Writable, location);
         }
