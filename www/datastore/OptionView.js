@@ -154,7 +154,8 @@ Ext.define('PBS.Datastore.Options', {
 		let notify = PBS.Utils.parsePropertyString(value);
 		let res = [];
 		for (const k of ['Verify', 'Sync', 'GC', 'Prune']) {
-		    let v = Ext.String.capitalize(notify[k.toLowerCase()]) || 'Always';
+		    let fallback = k === 'Prune' ? 'Error' : 'Always';
+		    let v = Ext.String.capitalize(notify[k.toLowerCase()]) || fallback;
 		    res.push(`${k}=${v}`);
 		}
 		return res.join(', ');
