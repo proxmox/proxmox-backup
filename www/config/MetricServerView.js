@@ -65,9 +65,9 @@ Ext.define('PBS.config.MetricServerView', {
 	},
 	{
 	    text: gettext('Enabled'),
-	    dataIndex: 'disable',
+	    dataIndex: 'enable',
 	    width: 100,
-	    renderer: Proxmox.Utils.format_neg_boolean,
+	    renderer: v => Proxmox.Utils.format_boolean(v ?? true),
 	},
 	{
 	    text: gettext('Target Server'),
