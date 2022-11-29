@@ -3,7 +3,7 @@ use serde_json::{json, Value};
 
 use proxmox_router::{Permission, Router, RpcEnvironment, RpcEnvironmentType};
 use proxmox_schema::api;
-use proxmox_sys::task_log;
+use proxmox_sys::{task_error, task_log};
 
 use pbs_api_types::{
     DataStoreConfig, ZfsCompressionType, ZfsRaidLevel, ZpoolListItem, DATASTORE_SCHEMA,
@@ -277,8 +277,13 @@ pub fn create_zpool(
 
             task_log!(worker, "# {:?}", command);
 
-            let output = proxmox_sys::command::run_command(command, None)?;
-            task_log!(worker, "{}", output);
+            match proxmox_sys::command::run_command(command, None) {
+                Ok(output) => task_log!(worker, "{output}"),
+                Err(err) => {
+                    task_error!(worker, "{err}");
+                    bail!("Error during 'zpool create', see task log for more details");
+                }
+            };
 
             if std::path::Path::new("/lib/systemd/system/zfs-import@.service").exists() {
                 let import_unit = format!(
@@ -295,8 +300,13 @@ pub fn create_zpool(
             }
             command.args(["relatime=on", &name]);
             task_log!(worker, "# {:?}", command);
-            let output = proxmox_sys::command::run_command(command, None)?;
-            task_log!(worker, "{}", output);
+            match proxmox_sys::command::run_command(command, None) {
+                Ok(output) => task_log!(worker, "{output}"),
+                Err(err) => {
+                    task_error!(worker, "{err}");
+                    bail!("Error during 'zfs set', see task log for more details");
+                }
+            };
 
             if add_datastore {
                 let lock = pbs_config::datastore::lock_config()?;
