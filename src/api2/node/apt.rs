@@ -329,6 +329,7 @@ pub fn get_versions() -> Result<Vec<APTUpdateInfo>, Error> {
         "proxmox-backup-docs",
         "proxmox-backup-client",
         "proxmox-backup-server",
+        "proxmox-mail-forward",
         "proxmox-mini-journalreader",
         "proxmox-offline-mirror-helper",
         "proxmox-widget-toolkit",
