@@ -82,7 +82,7 @@ pub fn get_smart_data(disk: &super::Disk, health_only: bool) -> Result<SmartData
     let mut command = std::process::Command::new(SMARTCTL_BIN_PATH);
     command.arg("-H");
     if !health_only {
-        command.args(&["-A", "-j"]);
+        command.args(["-A", "-j"]);
     }
 
     let disk_path = match disk.device_path() {

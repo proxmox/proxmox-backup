@@ -425,12 +425,12 @@ impl RRD {
         options: CreateOptions,
         avoid_page_cache: bool,
     ) -> Result<(), Error> {
-        let (fd, tmp_path) = make_tmp_file(&path, options)?;
+        let (fd, tmp_path) = make_tmp_file(path, options)?;
         let mut file = unsafe { std::fs::File::from_raw_fd(fd.into_raw_fd()) };
 
         let mut try_block = || -> Result<(), Error> {
             let mut data: Vec<u8> = Vec::new();
-            data.extend(&PROXMOX_RRD_MAGIC_2_0);
+            data.extend(PROXMOX_RRD_MAGIC_2_0);
             serde_cbor::to_writer(&mut data, self)?;
             file.write_all(&data)?;
 
@@ -454,7 +454,7 @@ impl RRD {
             }
         }
 
-        if let Err(err) = std::fs::rename(&tmp_path, &path) {
+        if let Err(err) = std::fs::rename(&tmp_path, path) {
             let _ = nix::unistd::unlink(&tmp_path);
             bail!("Atomic rename failed - {}", err);
         }

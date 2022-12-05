@@ -45,7 +45,7 @@ fn list_domains(rpcenv: &mut dyn RpcEnvironment) -> Result<Vec<BasicRealmInfo>, 
         list.push(serde_json::from_value(entry)?);
     }
 
-    rpcenv["digest"] = hex::encode(&digest).into();
+    rpcenv["digest"] = hex::encode(digest).into();
 
     Ok(list)
 }

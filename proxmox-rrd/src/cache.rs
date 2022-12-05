@@ -430,7 +430,7 @@ fn commit_journal_impl(
 
     for rel_path in files.iter() {
         let mut path = config.basedir.clone();
-        path.push(&rel_path);
+        path.push(rel_path);
         fsync_file_or_dir(&path)
             .map_err(|err| format_err!("fsync rrd file {} failed - {}", rel_path, err))?;
     }

@@ -186,7 +186,7 @@ impl SgTape {
         } else {
             cmd.push(1); // LONG=1
         }
-        cmd.extend(&[0, 0, 0, 0]);
+        cmd.extend([0, 0, 0, 0]);
 
         sg_raw
             .do_command(&cmd)
@@ -229,7 +229,7 @@ impl SgTape {
             let mut cmd = Vec::new();
 
             if has_format {
-                cmd.extend(&[0x04, 0, 0, 0, 0, 0]); // FORMAT
+                cmd.extend([0x04, 0, 0, 0, 0, 0]); // FORMAT
                 sg_raw.do_command(&cmd)?;
                 if !fast {
                     self.erase_media(false)?; // overwrite everything
@@ -248,7 +248,7 @@ impl SgTape {
         let mut sg_raw = SgRaw::new(&mut self.file, 16)?;
         sg_raw.set_timeout(Self::SCSI_TAPE_DEFAULT_TIMEOUT);
         let mut cmd = Vec::new();
-        cmd.extend(&[0x1E, 0, 0, 0]);
+        cmd.extend([0x1E, 0, 0, 0]);
         if allow {
             cmd.push(0);
         } else {
@@ -265,7 +265,7 @@ impl SgTape {
         let mut sg_raw = SgRaw::new(&mut self.file, 16)?;
         sg_raw.set_timeout(Self::SCSI_TAPE_DEFAULT_TIMEOUT);
         let mut cmd = Vec::new();
-        cmd.extend(&[0x01, 0, 0, 0, 0, 0]); // REWIND
+        cmd.extend([0x01, 0, 0, 0, 0, 0]); // REWIND
 
         sg_raw
             .do_command(&cmd)
@@ -315,9 +315,9 @@ impl SgTape {
         let fixed_position = fixed_position.saturating_sub(1);
 
         let mut cmd = Vec::new();
-        cmd.extend(&[0x92, 0b000_01_000, 0, 0]); // LOCATE(16) filemarks
-        cmd.extend(&fixed_position.to_be_bytes());
-        cmd.extend(&[0, 0, 0, 0]);
+        cmd.extend([0x92, 0b000_01_000, 0, 0]); // LOCATE(16) filemarks
+        cmd.extend(fixed_position.to_be_bytes());
+        cmd.extend([0, 0, 0, 0]);
 
         sg_raw
             .do_command(&cmd)
@@ -365,7 +365,7 @@ impl SgTape {
         // READ POSITION LONG FORM works on LTO4 or newer (with recent
         // firmware), although it is missing in the IBM LTO4 SSCI
         // reference manual.
-        cmd.extend(&[0x34, 0x06, 0, 0, 0, 0, 0, 0, 0, 0]); // READ POSITION LONG FORM
+        cmd.extend([0x34, 0x06, 0, 0, 0, 0, 0, 0, 0, 0]); // READ POSITION LONG FORM
 
         let data = sg_raw
             .do_command(&cmd)
@@ -442,7 +442,7 @@ impl SgTape {
         let mut sg_raw = SgRaw::new(&mut self.file, 16)?;
         sg_raw.set_timeout(Self::SCSI_TAPE_DEFAULT_TIMEOUT);
         let mut cmd = Vec::new();
-        cmd.extend(&[0x11, 0x03, 0, 0, 0, 0]); // SPACE(6) move to EOD
+        cmd.extend([0x11, 0x03, 0, 0, 0, 0]); // SPACE(6) move to EOD
 
         sg_raw
             .do_command(&cmd)
@@ -479,10 +479,10 @@ impl SgTape {
             } else {
                 cmd.push(1); // filemarks
             }
-            cmd.extend(&[0, 0]); // reserved
+            cmd.extend([0, 0]); // reserved
             let count: i64 = count as i64;
-            cmd.extend(&count.to_be_bytes());
-            cmd.extend(&[0, 0, 0, 0]); // reserved
+            cmd.extend(count.to_be_bytes());
+            cmd.extend([0, 0, 0, 0]); // reserved
         }
 
         sg_raw.do_command(&cmd)?;
@@ -504,7 +504,7 @@ impl SgTape {
         let mut sg_raw = SgRaw::new(&mut self.file, 16)?;
         sg_raw.set_timeout(Self::SCSI_TAPE_DEFAULT_TIMEOUT);
         let mut cmd = Vec::new();
-        cmd.extend(&[0x1B, 0, 0, 0, 0, 0]); // LODA/UNLOAD HOLD=0, LOAD=0
+        cmd.extend([0x1B, 0, 0, 0, 0, 0]); // LODA/UNLOAD HOLD=0, LOAD=0
 
         sg_raw
             .do_command(&cmd)
@@ -517,7 +517,7 @@ impl SgTape {
         let mut sg_raw = SgRaw::new(&mut self.file, 16)?;
         sg_raw.set_timeout(Self::SCSI_TAPE_DEFAULT_TIMEOUT);
         let mut cmd = Vec::new();
-        cmd.extend(&[0x1B, 0, 0, 0, 0b0000_0001, 0]); // LODA/UNLOAD HOLD=0, LOAD=1
+        cmd.extend([0x1B, 0, 0, 0, 0b0000_0001, 0]); // LODA/UNLOAD HOLD=0, LOAD=1
 
         sg_raw
             .do_command(&cmd)
@@ -542,7 +542,7 @@ impl SgTape {
         } else {
             cmd.push(0); // IMMED=0
         }
-        cmd.extend(&[0, 0, count as u8]); // COUNT
+        cmd.extend([0, 0, count as u8]); // COUNT
         cmd.push(0); // control byte
 
         match sg_raw.do_command(&cmd) {
@@ -570,7 +570,7 @@ impl SgTape {
         let mut sg_raw = SgRaw::new(&mut self.file, 16)?;
         sg_raw.set_timeout(30); // use short timeout
         let mut cmd = Vec::new();
-        cmd.extend(&[0x00, 0, 0, 0, 0, 0]); // TEST UNIT READY
+        cmd.extend([0x00, 0, 0, 0, 0, 0]); // TEST UNIT READY
 
         match sg_raw.do_command(&cmd) {
             Ok(_) => Ok(()),
@@ -774,10 +774,10 @@ impl SgTape {
         let mut cmd = Vec::new();
         cmd.push(0x55); // MODE SELECT(10)
         cmd.push(0b0001_0000); // PF=1
-        cmd.extend(&[0, 0, 0, 0, 0]); //reserved
+        cmd.extend([0, 0, 0, 0, 0]); //reserved
 
         let param_list_len: u16 = data.len() as u16;
-        cmd.extend(&param_list_len.to_be_bytes());
+        cmd.extend(param_list_len.to_be_bytes());
         cmd.push(0); // control
 
         let mut buffer = alloc_page_aligned_buffer(4096)?;

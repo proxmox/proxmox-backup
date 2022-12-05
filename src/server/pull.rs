@@ -221,7 +221,7 @@ async fn download_manifest(
         .create(true)
         .truncate(true)
         .read(true)
-        .open(&filename)?;
+        .open(filename)?;
 
     reader
         .download(MANIFEST_BLOB_NAME, &mut tmp_manifest_file)
@@ -345,7 +345,7 @@ async fn try_client_log_download(
 
     // Note: be silent if there is no log - only log successful download
     if let Ok(()) = reader.download(CLIENT_LOG_BLOB_NAME, tmpfile).await {
-        if let Err(err) = std::fs::rename(&tmp_path, &path) {
+        if let Err(err) = std::fs::rename(&tmp_path, path) {
             bail!("Atomic rename file {:?} failed - {}", path, err);
         }
         task_log!(worker, "got backup log file {:?}", CLIENT_LOG_BLOB_NAME);

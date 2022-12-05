@@ -68,7 +68,7 @@ impl CertInfo {
 
     pub fn fingerprint(&self) -> Result<String, Error> {
         let fp = self.x509.digest(openssl::hash::MessageDigest::sha256())?;
-        Ok(hex::encode(&fp)
+        Ok(hex::encode(fp)
             .as_bytes()
             .chunks(2)
             .map(|v| std::str::from_utf8(v).unwrap())

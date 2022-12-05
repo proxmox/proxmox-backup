@@ -484,7 +484,7 @@ fn create_fixed_index(
         };
 
         let (old_csum, _) = index.compute_csum();
-        let old_csum = hex::encode(&old_csum);
+        let old_csum = hex::encode(old_csum);
         if old_csum != csum {
             bail!(
                 "expected csum ({}) doesn't match last backup's ({}), cannot do incremental backup",

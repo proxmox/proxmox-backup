@@ -165,7 +165,7 @@ fn upload_fixed_chunk(
             UploadChunk::new(req_body, env.datastore.clone(), digest, size, encoded_size).await?;
 
         env.register_fixed_chunk(wid, digest, size, compressed_size, is_duplicate)?;
-        let digest_str = hex::encode(&digest);
+        let digest_str = hex::encode(digest);
         env.debug(format!("upload_chunk done: {} bytes, {}", size, digest_str));
 
         let result = Ok(json!(digest_str));
@@ -234,7 +234,7 @@ fn upload_dynamic_chunk(
             UploadChunk::new(req_body, env.datastore.clone(), digest, size, encoded_size).await?;
 
         env.register_dynamic_chunk(wid, digest, size, compressed_size, is_duplicate)?;
-        let digest_str = hex::encode(&digest);
+        let digest_str = hex::encode(digest);
         env.debug(format!("upload_chunk done: {} bytes, {}", size, digest_str));
 
         let result = Ok(json!(digest_str));

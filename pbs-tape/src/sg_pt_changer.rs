@@ -155,9 +155,9 @@ fn scsi_move_medium_cdb(
     let mut cmd = Vec::new();
     cmd.push(0xA5); // MOVE MEDIUM (A5h)
     cmd.push(0); // reserved
-    cmd.extend(&medium_transport_address.to_be_bytes());
-    cmd.extend(&source_element_address.to_be_bytes());
-    cmd.extend(&destination_element_address.to_be_bytes());
+    cmd.extend(medium_transport_address.to_be_bytes());
+    cmd.extend(source_element_address.to_be_bytes());
+    cmd.extend(destination_element_address.to_be_bytes());
     cmd.push(0); // reserved
     cmd.push(0); // reserved
     cmd.push(0); // Invert=0
@@ -287,9 +287,9 @@ fn scsi_read_element_status_cdb(
     let mut cmd = Vec::new();
     cmd.push(0xB8); // READ ELEMENT STATUS (B8h)
     cmd.push(element_type.byte1());
-    cmd.extend(&start_element_address.to_be_bytes());
+    cmd.extend(start_element_address.to_be_bytes());
 
-    cmd.extend(&number_of_elements.to_be_bytes());
+    cmd.extend(number_of_elements.to_be_bytes());
     cmd.push(element_type.byte6());
     cmd.extend(&allocation_len.to_be_bytes()[1..4]);
     cmd.push(0);

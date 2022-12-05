@@ -18,7 +18,7 @@ fn compute_csrf_secret_digest(timestamp: i64, secret: &[u8], userid: &Userid) ->
     hasher.update(data.as_bytes());
     hasher.update(secret);
 
-    base64::encode_config(&hasher.finish(), base64::STANDARD_NO_PAD)
+    base64::encode_config(hasher.finish(), base64::STANDARD_NO_PAD)
 }
 
 pub fn assemble_csrf_prevention_token(secret: &[u8], userid: &Userid) -> String {

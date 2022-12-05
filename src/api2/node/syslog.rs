@@ -18,13 +18,13 @@ fn dump_journal(
     let mut args = vec!["-o", "short", "--no-pager"];
 
     if let Some(service) = service {
-        args.extend(&["--unit", service]);
+        args.extend(["--unit", service]);
     }
     if let Some(since) = since {
-        args.extend(&["--since", since]);
+        args.extend(["--since", since]);
     }
     if let Some(until) = until {
-        args.extend(&["--until", until]);
+        args.extend(["--until", until]);
     }
 
     let mut lines: Vec<Value> = vec![];

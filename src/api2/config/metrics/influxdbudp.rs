@@ -42,7 +42,7 @@ pub fn list_influxdb_udp_servers(
 
     let list = config.convert_to_typed_array("influxdb-udp")?;
 
-    rpcenv["digest"] = hex::encode(&digest).into();
+    rpcenv["digest"] = hex::encode(digest).into();
 
     Ok(list)
 }
@@ -145,7 +145,7 @@ pub fn read_influxdb_udp_server(
 
     let config = metrics.lookup("influxdb-udp", &name)?;
 
-    rpcenv["digest"] = hex::encode(&digest).into();
+    rpcenv["digest"] = hex::encode(digest).into();
 
     Ok(config)
 }

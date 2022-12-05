@@ -39,8 +39,8 @@ pub fn lock_config() -> Result<BackupLockGuard, Error> {
 }
 
 pub fn config() -> Result<(SectionConfigData, [u8; 32]), Error> {
-    let content = proxmox_sys::fs::file_read_optional_string(DOMAINS_CFG_FILENAME)?
-        .unwrap_or_else(|| "".to_string());
+    let content =
+        proxmox_sys::fs::file_read_optional_string(DOMAINS_CFG_FILENAME)?.unwrap_or_default();
 
     let digest = openssl::sha::sha256(content.as_bytes());
     let data = CONFIG.parse(DOMAINS_CFG_FILENAME, &content)?;

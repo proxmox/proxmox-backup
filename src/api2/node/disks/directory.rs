@@ -261,7 +261,7 @@ pub fn delete_datastore_disk(name: String) -> Result<(), Error> {
     let mount_unit_path = format!("/etc/systemd/system/{}", mount_unit_name);
     let full_path = std::path::Path::new(&mount_unit_path);
     log::info!("removing systemd mount unit {:?}", full_path);
-    std::fs::remove_file(&full_path)?;
+    std::fs::remove_file(full_path)?;
 
     // try to unmount, if that fails tell the user to reboot or unmount manually
     let mut command = std::process::Command::new("umount");

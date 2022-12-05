@@ -134,7 +134,7 @@ impl TryFrom<&cert::CertInfo> for CertificateInfo {
 
 fn get_certificate_pem() -> Result<String, Error> {
     let cert_path = configdir!("/proxy.pem");
-    let cert_pem = proxmox_sys::fs::file_get_contents(&cert_path)?;
+    let cert_pem = proxmox_sys::fs::file_get_contents(cert_path)?;
     String::from_utf8(cert_pem)
         .map_err(|_| format_err!("certificate in {:?} is not a valid PEM file", cert_path))
 }
@@ -253,11 +253,11 @@ pub async fn upload_custom_certificate(
 pub async fn delete_custom_certificate() -> Result<(), Error> {
     let cert_path = configdir!("/proxy.pem");
     // Here we fail since if this fails nothing else breaks anyway
-    std::fs::remove_file(&cert_path)
+    std::fs::remove_file(cert_path)
         .map_err(|err| format_err!("failed to unlink {:?} - {}", cert_path, err))?;
 
     let key_path = configdir!("/proxy.key");
-    if let Err(err) = std::fs::remove_file(&key_path) {
+    if let Err(err) = std::fs::remove_file(key_path) {
         // Here we just log since the certificate is already gone and we'd rather try to generate
         // the self-signed certificate even if this fails:
         log::error!(

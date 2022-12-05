@@ -114,7 +114,7 @@ pub fn mark_account_deactivated(name: &str) -> Result<(), Error> {
 }
 
 pub fn load_dns_challenge_schema() -> Result<Vec<AcmeChallengeSchema>, Error> {
-    let raw = file_read_string(&ACME_DNS_SCHEMA_FN)?;
+    let raw = file_read_string(ACME_DNS_SCHEMA_FN)?;
     let schemas: serde_json::Map<String, Value> = serde_json::from_str(&raw)?;
 
     Ok(schemas

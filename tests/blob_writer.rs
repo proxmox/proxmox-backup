@@ -74,7 +74,7 @@ fn test_uncompressed_blob_writer() -> Result<(), Error> {
     let mut blob_writer = DataBlobWriter::new_uncompressed(tmp)?;
     blob_writer.write_all(&TEST_DATA)?;
 
-    verify_test_blob(blob_writer.finish()?, &*TEST_DIGEST_PLAIN)
+    verify_test_blob(blob_writer.finish()?, &TEST_DIGEST_PLAIN)
 }
 
 #[test]
@@ -83,7 +83,7 @@ fn test_compressed_blob_writer() -> Result<(), Error> {
     let mut blob_writer = DataBlobWriter::new_compressed(tmp)?;
     blob_writer.write_all(&TEST_DATA)?;
 
-    verify_test_blob(blob_writer.finish()?, &*TEST_DIGEST_PLAIN)
+    verify_test_blob(blob_writer.finish()?, &TEST_DIGEST_PLAIN)
 }
 
 #[test]
@@ -92,7 +92,7 @@ fn test_encrypted_blob_writer() -> Result<(), Error> {
     let mut blob_writer = DataBlobWriter::new_encrypted(tmp, CRYPT_CONFIG.clone())?;
     blob_writer.write_all(&TEST_DATA)?;
 
-    verify_test_blob(blob_writer.finish()?, &*TEST_DIGEST_ENC)
+    verify_test_blob(blob_writer.finish()?, &TEST_DIGEST_ENC)
 }
 
 #[test]
@@ -101,5 +101,5 @@ fn test_encrypted_compressed_blob_writer() -> Result<(), Error> {
     let mut blob_writer = DataBlobWriter::new_encrypted_compressed(tmp, CRYPT_CONFIG.clone())?;
     blob_writer.write_all(&TEST_DATA)?;
 
-    verify_test_blob(blob_writer.finish()?, &*TEST_DIGEST_ENC)
+    verify_test_blob(blob_writer.finish()?, &TEST_DIGEST_ENC)
 }

@@ -29,8 +29,8 @@ pub fn report_density<F: AsRawFd>(file: &mut F) -> Result<u8, Error> {
     let mut sg_raw = SgRaw::new(file, alloc_len as usize)?;
 
     let mut cmd = Vec::new();
-    cmd.extend(&[0x44, 0, 0, 0, 0, 0, 0]); // REPORT DENSITY SUPPORT (MEDIA=0)
-    cmd.extend(&alloc_len.to_be_bytes()); // alloc len
+    cmd.extend([0x44, 0, 0, 0, 0, 0, 0]); // REPORT DENSITY SUPPORT (MEDIA=0)
+    cmd.extend(alloc_len.to_be_bytes()); // alloc len
     cmd.push(0u8); // control byte
 
     let data = sg_raw

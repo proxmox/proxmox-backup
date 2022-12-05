@@ -360,7 +360,7 @@ async fn compare_files<'a>(
         let file_a = entries_a.get(&p).context("File entry not in map")?;
         let file_b = entries_b.get(&p).context("File entry not in map")?;
 
-        if !compare_file(&file_a, &file_b).await {
+        if !compare_file(file_a, file_b).await {
             modified_files.insert(path, entry);
         }
     }

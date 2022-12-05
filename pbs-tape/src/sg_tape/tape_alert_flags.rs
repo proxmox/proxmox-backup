@@ -94,7 +94,7 @@ fn sg_read_tape_alert_flags<F: AsRawFd>(file: &mut F) -> Result<Vec<u8>, Error> 
     cmd.push(0);
     cmd.push(0);
     cmd.push(0);
-    cmd.extend(&[2u8, 0u8]); // alloc len
+    cmd.extend([2u8, 0u8]); // alloc len
     cmd.push(0u8); // control byte
 
     sg_raw

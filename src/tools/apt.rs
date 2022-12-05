@@ -36,7 +36,7 @@ pub fn write_pkg_cache(state: &PkgState) -> Result<(), Error> {
 }
 
 pub fn read_pkg_state() -> Result<Option<PkgState>, Error> {
-    let serialized_state = match file_read_optional_string(&APT_PKG_STATE_FN) {
+    let serialized_state = match file_read_optional_string(APT_PKG_STATE_FN) {
         Ok(Some(raw)) => raw,
         Ok(None) => return Ok(None),
         Err(err) => bail!("could not read cached package state file - {}", err),

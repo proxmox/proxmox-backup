@@ -86,7 +86,7 @@ pub fn get_config(
 
     let data: ScsiTapeChanger = config.lookup("changer", &name)?;
 
-    rpcenv["digest"] = hex::encode(&digest).into();
+    rpcenv["digest"] = hex::encode(digest).into();
 
     Ok(data)
 }
@@ -127,7 +127,7 @@ pub fn list_changers(
         })
         .collect();
 
-    rpcenv["digest"] = hex::encode(&digest).into();
+    rpcenv["digest"] = hex::encode(digest).into();
 
     Ok(list)
 }

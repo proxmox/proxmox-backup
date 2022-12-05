@@ -37,7 +37,7 @@ fn get_full_service_state(service: &str) -> Result<Value, Error> {
     let real_service_name = real_service_name(service);
 
     let mut child = Command::new("systemctl")
-        .args(&["show", real_service_name])
+        .args(["show", real_service_name])
         .stdout(Stdio::piped())
         .spawn()?;
 
@@ -198,7 +198,7 @@ fn run_service_command(service: &str, cmd: &str, auth_id: Authid) -> Result<Valu
             let real_service_name = real_service_name(&service);
 
             let status = Command::new("systemctl")
-                .args(&[&cmd, real_service_name])
+                .args([&cmd, real_service_name])
                 .status()?;
 
             if !status.success() {

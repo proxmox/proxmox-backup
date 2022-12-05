@@ -141,8 +141,8 @@ pub fn lock() -> Result<BackupLockGuard, Error> {
 }
 
 pub fn config() -> Result<(PluginData, [u8; 32]), Error> {
-    let content = proxmox_sys::fs::file_read_optional_string(ACME_PLUGIN_CFG_FILENAME)?
-        .unwrap_or_else(|| "".to_string());
+    let content =
+        proxmox_sys::fs::file_read_optional_string(ACME_PLUGIN_CFG_FILENAME)?.unwrap_or_default();
 
     let digest = openssl::sha::sha256(content.as_bytes());
     let mut data = CONFIG.parse(ACME_PLUGIN_CFG_FILENAME, &content)?;

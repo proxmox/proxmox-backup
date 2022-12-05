@@ -364,7 +364,7 @@ impl DataStore {
             self.stat_chunk(&info.digest).map_err(|err| {
                 format_err!(
                     "fast_index_verification error, stat_chunk {} failed - {}",
-                    hex::encode(&info.digest),
+                    hex::encode(info.digest),
                     err,
                 )
             })?;

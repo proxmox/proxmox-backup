@@ -148,7 +148,7 @@ impl BackupManifest {
     /// By generating a HMAC SHA256 over the canonical json
     /// representation, The 'unpreotected' property is excluded.
     pub fn signature(&self, crypt_config: &CryptConfig) -> Result<[u8; 32], Error> {
-        Self::json_signature(&serde_json::to_value(&self)?, crypt_config)
+        Self::json_signature(&serde_json::to_value(self)?, crypt_config)
     }
 
     fn json_signature(data: &Value, crypt_config: &CryptConfig) -> Result<[u8; 32], Error> {
@@ -166,11 +166,11 @@ impl BackupManifest {
 
     /// Converts the Manifest into json string, and add a signature if there is a crypt_config.
     pub fn to_string(&self, crypt_config: Option<&CryptConfig>) -> Result<String, Error> {
-        let mut manifest = serde_json::to_value(&self)?;
+        let mut manifest = serde_json::to_value(self)?;
 
         if let Some(crypt_config) = crypt_config {
             let sig = self.signature(crypt_config)?;
-            manifest["signature"] = hex::encode(&sig).into();
+            manifest["signature"] = hex::encode(sig).into();
             let fingerprint = &Fingerprint::new(crypt_config.fingerprint());
             manifest["unprotected"]["key-fingerprint"] = serde_json::to_value(fingerprint)?;
         }
@@ -223,7 +223,7 @@ impl BackupManifest {
 
         if let Some(crypt_config) = crypt_config {
             if let Some(signature) = signature {
-                let expected_signature = hex::encode(&Self::json_signature(&json, crypt_config)?);
+                let expected_signature = hex::encode(Self::json_signature(&json, crypt_config)?);
 
                 let fingerprint = &json["unprotected"]["key-fingerprint"];
                 if fingerprint != &Value::Null {
@@ -300,7 +300,7 @@ fn test_manifest_signature() -> Result<(), Error> {
     );
 
     let manifest: BackupManifest = serde_json::from_value(manifest)?;
-    let expected_signature = hex::encode(&manifest.signature(&crypt_config)?);
+    let expected_signature = hex::encode(manifest.signature(&crypt_config)?);
 
     assert_eq!(signature, expected_signature);
 

@@ -72,7 +72,7 @@ pub fn list_pools(rpcenv: &mut dyn RpcEnvironment) -> Result<Vec<MediaPoolConfig
         })
         .collect();
 
-    rpcenv["digest"] = hex::encode(&digest).into();
+    rpcenv["digest"] = hex::encode(digest).into();
 
     Ok(list)
 }

@@ -44,7 +44,7 @@ pub fn get_webauthn_config(
         Some(c) => c,
         None => return Ok(None),
     };
-    rpcenv["digest"] = hex::encode(&digest).into();
+    rpcenv["digest"] = hex::encode(digest).into();
     Ok(Some(config))
 }
 

@@ -51,7 +51,7 @@ pub fn list_prune_jobs(
         })
         .collect();
 
-    rpcenv["digest"] = hex::encode(&digest).into();
+    rpcenv["digest"] = hex::encode(digest).into();
 
     Ok(list)
 }
@@ -127,7 +127,7 @@ pub fn read_prune_job(
     let required_privs = PRIV_DATASTORE_AUDIT;
     user_info.check_privs(&auth_id, &prune_job.acl_path(), required_privs, true)?;
 
-    rpcenv["digest"] = hex::encode(&digest).into();
+    rpcenv["digest"] = hex::encode(digest).into();
 
     Ok(prune_job)
 }

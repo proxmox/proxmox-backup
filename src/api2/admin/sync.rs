@@ -78,7 +78,7 @@ pub fn list_sync_jobs(
         });
     }
 
-    rpcenv["digest"] = hex::encode(&digest).into();
+    rpcenv["digest"] = hex::encode(digest).into();
 
     Ok(list)
 }

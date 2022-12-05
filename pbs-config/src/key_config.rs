@@ -251,7 +251,7 @@ impl KeyConfig {
                     .write(true)
                     .mode(0o0600)
                     .create_new(true)
-                    .open(&path)?;
+                    .open(path)?;
 
                 file.write_all(data.as_bytes())?;
             }
@@ -269,7 +269,7 @@ pub fn load_and_decrypt_key(
     path: &std::path::Path,
     passphrase: &dyn Fn() -> Result<Vec<u8>, Error>,
 ) -> Result<([u8; 32], i64, Fingerprint), Error> {
-    decrypt_key(&file_get_contents(&path)?, passphrase)
+    decrypt_key(&file_get_contents(path)?, passphrase)
         .with_context(|| format!("failed to load decryption key from {:?}", path))
 }
 

@@ -40,7 +40,7 @@ pub fn read_etc_resolv_conf() -> Result<Value, Error> {
 
     let raw = file_get_contents(RESOLV_CONF_FN)?;
 
-    result["digest"] = Value::from(hex::encode(&sha::sha256(&raw)));
+    result["digest"] = Value::from(hex::encode(sha::sha256(&raw)));
 
     let data = String::from_utf8(raw)?;
 

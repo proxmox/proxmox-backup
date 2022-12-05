@@ -30,7 +30,7 @@ impl Future for PipeToSendStream {
     fn poll(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
         let this = self.get_mut();
 
-        if this.data != None {
+        if this.data.is_some() {
             // just reserve 1 byte to make sure there's some
             // capacity available. h2 will handle the capacity
             // management for the actual body chunk.

@@ -35,7 +35,7 @@ fn sg_read_volume_statistics<F: AsRawFd>(file: &mut F) -> Result<Vec<u8>, Error>
     cmd.push(0);
     cmd.push(0);
     cmd.push(0);
-    cmd.extend(&alloc_len.to_be_bytes()); // alloc len
+    cmd.extend(alloc_len.to_be_bytes()); // alloc len
     cmd.push(0u8); // control byte
 
     sg_raw

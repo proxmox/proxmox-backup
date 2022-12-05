@@ -58,7 +58,7 @@ pub fn list_remotes(
         })
         .collect();
 
-    rpcenv["digest"] = hex::encode(&digest).into();
+    rpcenv["digest"] = hex::encode(digest).into();
     Ok(list)
 }
 
@@ -127,7 +127,7 @@ pub fn read_remote(
 ) -> Result<RemoteWithoutPassword, Error> {
     let (config, digest) = pbs_config::remote::config()?;
     let data: RemoteWithoutPassword = config.lookup("remote", &name)?;
-    rpcenv["digest"] = hex::encode(&digest).into();
+    rpcenv["digest"] = hex::encode(digest).into();
     Ok(data)
 }
 

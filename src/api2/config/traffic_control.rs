@@ -34,7 +34,7 @@ pub fn list_traffic_controls(
 
     let list: Vec<TrafficControlRule> = config.convert_to_typed_array("rule")?;
 
-    rpcenv["digest"] = hex::encode(&digest).into();
+    rpcenv["digest"] = hex::encode(digest).into();
 
     Ok(list)
 }
@@ -95,7 +95,7 @@ pub fn read_traffic_control(
 ) -> Result<TrafficControlRule, Error> {
     let (config, digest) = pbs_config::traffic_control::config()?;
     let data: TrafficControlRule = config.lookup("rule", &name)?;
-    rpcenv["digest"] = hex::encode(&digest).into();
+    rpcenv["digest"] = hex::encode(digest).into();
     Ok(data)
 }
 

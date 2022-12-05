@@ -51,7 +51,7 @@ pub fn list_verification_jobs(
         })
         .collect();
 
-    rpcenv["digest"] = hex::encode(&digest).into();
+    rpcenv["digest"] = hex::encode(digest).into();
 
     Ok(list)
 }
@@ -127,7 +127,7 @@ pub fn read_verification_job(
     let required_privs = PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_VERIFY;
     user_info.check_privs(&auth_id, &verification_job.acl_path(), required_privs, true)?;
 
-    rpcenv["digest"] = hex::encode(&digest).into();
+    rpcenv["digest"] = hex::encode(digest).into();
 
     Ok(verification_job)
 }

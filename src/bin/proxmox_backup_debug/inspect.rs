@@ -125,7 +125,7 @@ fn inspect_chunk(
     let decode_output_path = decode.as_ref().map(Path::new);
 
     let blob = DataBlob::load_from_reader(
-        &mut std::fs::File::open(&chunk_path)
+        &mut std::fs::File::open(chunk_path)
             .map_err(|e| format_err!("could not open chunk file - {}", e))?,
     )?;
 

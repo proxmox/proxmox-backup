@@ -83,7 +83,7 @@ pub fn list_metric_servers(
         list.push(serde_json::from_value(entry)?);
     }
 
-    rpcenv["digest"] = hex::encode(&digest).into();
+    rpcenv["digest"] = hex::encode(digest).into();
 
     Ok(list)
 }

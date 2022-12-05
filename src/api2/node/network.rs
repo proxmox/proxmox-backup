@@ -112,7 +112,7 @@ pub fn list_network_devices(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
     let (config, digest) = network::config()?;
-    let digest = hex::encode(&digest);
+    let digest = hex::encode(digest);
 
     let mut list = Vec::new();
 
@@ -157,7 +157,7 @@ pub fn read_interface(iface: String) -> Result<Value, Error> {
     let interface = config.lookup(&iface)?;
 
     let mut data: Value = to_value(interface)?;
-    data["digest"] = hex::encode(&digest).into();
+    data["digest"] = hex::encode(digest).into();
 
     Ok(data)
 }

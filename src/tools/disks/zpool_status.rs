@@ -369,7 +369,7 @@ fn test_vdev_list_to_tree() {
 
 pub fn zpool_status(pool: &str) -> Result<Vec<(String, String)>, Error> {
     let mut command = std::process::Command::new("zpool");
-    command.args(&["status", "-p", "-P", pool]);
+    command.args(["status", "-p", "-P", pool]);
 
     let output = proxmox_sys::command::run_command(command, None)?;
 

@@ -238,7 +238,7 @@ pub fn create_zpool(
             );
 
             let mut command = std::process::Command::new("zpool");
-            command.args(&[
+            command.args([
                 "create",
                 "-o",
                 &format!("ashift={}", ashift),
@@ -293,7 +293,7 @@ pub fn create_zpool(
             if let Some(compression) = compression {
                 command.arg(&format!("compression={}", compression));
             }
-            command.args(&["relatime=on", &name]);
+            command.args(["relatime=on", &name]);
             task_log!(worker, "# {:?}", command);
             let output = proxmox_sys::command::run_command(command, None)?;
             task_log!(worker, "{}", output);

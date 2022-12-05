@@ -36,7 +36,7 @@ pub fn list_openid_realms(
 
     let list = config.convert_to_typed_array("openid")?;
 
-    rpcenv["digest"] = hex::encode(&digest).into();
+    rpcenv["digest"] = hex::encode(digest).into();
 
     Ok(list)
 }
@@ -138,7 +138,7 @@ pub fn read_openid_realm(
 
     let config = domains.lookup("openid", &realm)?;
 
-    rpcenv["digest"] = hex::encode(&digest).into();
+    rpcenv["digest"] = hex::encode(digest).into();
 
     Ok(config)
 }

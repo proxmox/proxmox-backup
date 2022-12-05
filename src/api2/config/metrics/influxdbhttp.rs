@@ -57,7 +57,7 @@ pub fn list_influxdb_http_servers(
         item.token = None;
     }
 
-    rpcenv["digest"] = hex::encode(&digest).into();
+    rpcenv["digest"] = hex::encode(digest).into();
 
     Ok(list)
 }
@@ -160,7 +160,7 @@ pub fn read_influxdb_http_server(
 
     config.token = None;
 
-    rpcenv["digest"] = hex::encode(&digest).into();
+    rpcenv["digest"] = hex::encode(digest).into();
 
     Ok(config)
 }

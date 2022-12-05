@@ -67,7 +67,7 @@ pub fn show_current_traffic(
     }
 
     // also return the configuration digest
-    rpcenv["digest"] = hex::encode(&digest).into();
+    rpcenv["digest"] = hex::encode(digest).into();
 
     Ok(list)
 }

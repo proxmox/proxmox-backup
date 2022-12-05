@@ -86,7 +86,7 @@ pub fn get_config(
 
     let data: LtoTapeDrive = config.lookup("lto", &name)?;
 
-    rpcenv["digest"] = hex::encode(&digest).into();
+    rpcenv["digest"] = hex::encode(digest).into();
 
     Ok(data)
 }
@@ -127,7 +127,7 @@ pub fn list_drives(
         })
         .collect();
 
-    rpcenv["digest"] = hex::encode(&digest).into();
+    rpcenv["digest"] = hex::encode(digest).into();
 
     Ok(drive_list)
 }

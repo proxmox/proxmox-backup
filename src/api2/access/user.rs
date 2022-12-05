@@ -76,7 +76,7 @@ pub fn list_users(
 
     let list: Vec<User> = config.convert_to_typed_array("user")?;
 
-    rpcenv["digest"] = hex::encode(&digest).into();
+    rpcenv["digest"] = hex::encode(digest).into();
 
     let iter = list.into_iter().filter(filter_by_privs);
     let list = if include_tokens {
@@ -182,7 +182,7 @@ pub fn create_user(
 pub fn read_user(userid: Userid, rpcenv: &mut dyn RpcEnvironment) -> Result<User, Error> {
     let (config, digest) = pbs_config::user::config()?;
     let user = config.lookup("user", userid.as_str())?;
-    rpcenv["digest"] = hex::encode(&digest).into();
+    rpcenv["digest"] = hex::encode(digest).into();
     Ok(user)
 }
 
@@ -423,7 +423,7 @@ pub fn read_token(
 
     let tokenid = Authid::from((userid, Some(token_name)));
 
-    rpcenv["digest"] = hex::encode(&digest).into();
+    rpcenv["digest"] = hex::encode(digest).into();
     config.lookup("token", &tokenid.to_string())
 }
 
@@ -711,7 +711,7 @@ pub fn list_tokens(
 
     let list: Vec<ApiToken> = config.convert_to_typed_array("token")?;
 
-    rpcenv["digest"] = hex::encode(&digest).into();
+    rpcenv["digest"] = hex::encode(digest).into();
 
     let filter_by_owner = |token: ApiToken| {
         if token.tokenid.is_token() && token.tokenid.user() == &userid {

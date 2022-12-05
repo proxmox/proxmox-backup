@@ -133,7 +133,7 @@ pub fn read_acl(
         extract_acl_node_data(&tree.root, "", &mut list, exact, &auth_id_filter);
     }
 
-    rpcenv["digest"] = hex::encode(&digest).into();
+    rpcenv["digest"] = hex::encode(digest).into();
 
     Ok(list)
 }

@@ -471,7 +471,7 @@ impl DynamicChunkWriter {
                     chunk_size,
                     (compressed_size * 100) / (chunk_size as u64),
                     is_duplicate,
-                    hex::encode(&digest)
+                    hex::encode(digest)
                 );
                 self.index.add_chunk(self.chunk_offset as u64, &digest)?;
                 self.chunk_buffer.truncate(0);

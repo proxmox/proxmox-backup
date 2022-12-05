@@ -45,7 +45,7 @@ pub fn list_keys(
         list.push(item.into());
     }
 
-    rpcenv["digest"] = hex::encode(&digest).into();
+    rpcenv["digest"] = hex::encode(digest).into();
 
     Ok(list)
 }

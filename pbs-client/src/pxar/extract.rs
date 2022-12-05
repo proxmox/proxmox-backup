@@ -64,7 +64,7 @@ where
     }
 
     create_path(
-        &destination,
+        destination,
         None,
         Some(CreateOptions::new().perm(Mode::from_bits_truncate(0o700))),
     )

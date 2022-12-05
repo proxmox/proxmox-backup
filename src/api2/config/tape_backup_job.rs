@@ -47,7 +47,7 @@ pub fn list_tape_backup_jobs(
         })
         .collect();
 
-    rpcenv["digest"] = hex::encode(&digest).into();
+    rpcenv["digest"] = hex::encode(digest).into();
 
     Ok(list)
 }
@@ -110,7 +110,7 @@ pub fn read_tape_backup_job(
 
     let job = config.lookup("backup", &id)?;
 
-    rpcenv["digest"] = hex::encode(&digest).into();
+    rpcenv["digest"] = hex::encode(digest).into();
 
     Ok(job)
 }

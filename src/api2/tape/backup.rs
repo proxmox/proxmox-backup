@@ -126,7 +126,7 @@ pub fn list_tape_backup_jobs(
         });
     }
 
-    rpcenv["digest"] = hex::encode(&digest).into();
+    rpcenv["digest"] = hex::encode(digest).into();
 
     Ok(list)
 }

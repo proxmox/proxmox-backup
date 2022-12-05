@@ -93,7 +93,7 @@ pub fn list_sync_jobs(
 
     let list = config.convert_to_typed_array("sync")?;
 
-    rpcenv["digest"] = hex::encode(&digest).into();
+    rpcenv["digest"] = hex::encode(digest).into();
 
     let list = list
         .into_iter()
@@ -181,7 +181,7 @@ pub fn read_sync_job(id: String, rpcenv: &mut dyn RpcEnvironment) -> Result<Sync
         bail!("permission check failed");
     }
 
-    rpcenv["digest"] = hex::encode(&digest).into();
+    rpcenv["digest"] = hex::encode(digest).into();
 
     Ok(sync_job)
 }

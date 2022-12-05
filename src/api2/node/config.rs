@@ -30,7 +30,7 @@ pub const ROUTER: Router = Router::new()
 /// Get the node configuration
 pub fn get_node_config(rpcenv: &mut dyn RpcEnvironment) -> Result<NodeConfig, Error> {
     let (config, digest) = crate::config::node::config()?;
-    rpcenv["digest"] = hex::encode(&digest).into();
+    rpcenv["digest"] = hex::encode(digest).into();
     Ok(config)
 }
 

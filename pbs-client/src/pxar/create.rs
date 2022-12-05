@@ -1003,7 +1003,7 @@ fn get_acl_do(
     // In order to be able to get ACLs with type ACL_TYPE_DEFAULT, we have
     // to create a path for acl_get_file(). acl_get_fd() only allows to get
     // ACL_TYPE_ACCESS attributes.
-    let acl = match acl::ACL::get_file(&proc_path, acl_type) {
+    let acl = match acl::ACL::get_file(proc_path, acl_type) {
         Ok(acl) => acl,
         // Don't bail if underlying endpoint does not support acls
         Err(Errno::EOPNOTSUPP) => {
@@ -1079,10 +1079,10 @@ fn process_acl(
             metadata.acl.group_obj = acl_group_obj;
         }
         acl::ACL_TYPE_DEFAULT => {
-            if user_obj_permissions != None
-                || group_obj_permissions != None
-                || other_permissions != None
-                || mask_permissions != None
+            if user_obj_permissions.is_some()
+                || group_obj_permissions.is_some()
+                || other_permissions.is_some()
+                || mask_permissions.is_some()
             {
                 acl_default = Some(pxar_acl::Default {
                     // The value is set to UINT64_MAX as placeholder if one

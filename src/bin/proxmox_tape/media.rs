@@ -80,7 +80,7 @@ async fn list_media(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<(),
     fn render_status(_value: &Value, record: &Value) -> Result<String, Error> {
         let record = MediaListEntry::deserialize(record)?;
         Ok(match record.status {
-            MediaStatus::Damaged | MediaStatus::Retired => serde_json::to_value(&record.status)?
+            MediaStatus::Damaged | MediaStatus::Retired => serde_json::to_value(record.status)?
                 .as_str()
                 .unwrap()
                 .to_string(),
@@ -88,7 +88,7 @@ async fn list_media(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<(),
                 if record.expired {
                     String::from("expired")
                 } else {
-                    serde_json::to_value(&record.status)?
+                    serde_json::to_value(record.status)?
                         .as_str()
                         .unwrap()
                         .to_string()

@@ -573,7 +573,7 @@ impl HttpClient {
             Ok(fp) => fp,
             Err(err) => bail!("failed to calculate certificate FP - {}", err), // should not happen
         };
-        let fp_string = hex::encode(&fp);
+        let fp_string = hex::encode(fp);
         let fp_string = fp_string
             .as_bytes()
             .chunks(2)

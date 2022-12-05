@@ -182,10 +182,10 @@ fn read_tape_mam<F: AsRawFd>(file: &mut F) -> Result<Vec<u8>, Error> {
     let mut sg_raw = SgRaw::new(file, alloc_len as usize)?;
 
     let mut cmd = Vec::new();
-    cmd.extend(&[0x8c, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8]);
-    cmd.extend(&[0u8, 0u8]); // first attribute
-    cmd.extend(&alloc_len.to_be_bytes()); // alloc len
-    cmd.extend(&[0u8, 0u8]);
+    cmd.extend([0x8c, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8]);
+    cmd.extend([0u8, 0u8]); // first attribute
+    cmd.extend(alloc_len.to_be_bytes()); // alloc len
+    cmd.extend([0u8, 0u8]);
 
     sg_raw
         .do_command(&cmd)

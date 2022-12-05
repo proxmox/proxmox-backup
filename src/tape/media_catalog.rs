@@ -228,7 +228,7 @@ impl MediaCatalog {
 
             if !found_magic_number {
                 me.pending
-                    .extend(&Self::PROXMOX_BACKUP_MEDIA_CATALOG_MAGIC_1_1);
+                    .extend(Self::PROXMOX_BACKUP_MEDIA_CATALOG_MAGIC_1_1);
             }
 
             if write {
@@ -301,7 +301,7 @@ impl MediaCatalog {
             me.log_to_stdout = log_to_stdout;
 
             me.pending
-                .extend(&Self::PROXMOX_BACKUP_MEDIA_CATALOG_MAGIC_1_1);
+                .extend(Self::PROXMOX_BACKUP_MEDIA_CATALOG_MAGIC_1_1);
 
             me.register_label(&media_id.label.uuid, 0, 0)?;
 

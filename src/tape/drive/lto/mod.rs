@@ -339,8 +339,8 @@ impl TapeDriver for LtoTapeHandle {
 fn run_sg_tape_cmd(subcmd: &str, args: &[&str], fd: RawFd) -> Result<String, Error> {
     let mut command =
         std::process::Command::new("/usr/lib/x86_64-linux-gnu/proxmox-backup/sg-tape-cmd");
-    command.args(&[subcmd]);
-    command.args(&["--stdin"]);
+    command.args([subcmd]);
+    command.args(["--stdin"]);
     command.args(args);
     let device_fd = nix::unistd::dup(fd)?;
     command.stdin(unsafe { std::process::Stdio::from_raw_fd(device_fd) });

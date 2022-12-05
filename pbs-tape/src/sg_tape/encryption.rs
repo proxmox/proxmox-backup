@@ -120,7 +120,7 @@ fn sg_spout_set_encryption<F: AsRawFd>(
     cmd.push(0x10); // Set Data Encryption page
     cmd.push(0);
     cmd.push(0);
-    cmd.extend(&(outbuf_len as u32).to_be_bytes()); // data out len
+    cmd.extend((outbuf_len as u32).to_be_bytes()); // data out len
     cmd.push(0);
     cmd.push(0);
 
@@ -143,7 +143,7 @@ fn sg_spin_data_encryption_status<F: AsRawFd>(file: &mut F) -> Result<Vec<u8>, E
     cmd.push(0x20); // Data Encryption Status page
     cmd.push(0);
     cmd.push(0);
-    cmd.extend(&allocation_len.to_be_bytes());
+    cmd.extend(allocation_len.to_be_bytes());
     cmd.push(0);
     cmd.push(0);
 
@@ -172,7 +172,7 @@ fn sg_spin_data_encryption_caps<F: AsRawFd>(file: &mut F) -> Result<Vec<u8>, Err
     cmd.push(0x10); // Data Encryption Capabilities page
     cmd.push(0);
     cmd.push(0);
-    cmd.extend(&allocation_len.to_be_bytes());
+    cmd.extend(allocation_len.to_be_bytes());
     cmd.push(0);
     cmd.push(0);
 

@@ -51,7 +51,7 @@ pub fn list_datastores(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
 
-    rpcenv["digest"] = hex::encode(&digest).into();
+    rpcenv["digest"] = hex::encode(digest).into();
 
     let list: Vec<DataStoreConfig> = config.convert_to_typed_array("datastore")?;
     let filter_by_privs = |store: &DataStoreConfig| {
@@ -154,7 +154,7 @@ pub fn read_datastore(
     let (config, digest) = pbs_config::datastore::config()?;
 
     let store_config = config.lookup("datastore", &name)?;
-    rpcenv["digest"] = hex::encode(&digest).into();
+    rpcenv["digest"] = hex::encode(digest).into();
 
     Ok(store_config)
 }

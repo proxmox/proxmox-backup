@@ -87,7 +87,7 @@ pub fn list_prune_jobs(
         });
     }
 
-    rpcenv["digest"] = hex::encode(&digest).into();
+    rpcenv["digest"] = hex::encode(digest).into();
 
     Ok(list)
 }

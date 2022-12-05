@@ -644,7 +644,7 @@ pub fn scsi_inquiry<F: AsRawFd>(file: &mut F) -> Result<InquiryInfo, Error> {
     sg_raw.set_timeout(30); // use short timeout
 
     let mut cmd = Vec::new();
-    cmd.extend(&[0x12, 0, 0, 0, allocation_len, 0]); // INQUIRY
+    cmd.extend([0x12, 0, 0, 0, allocation_len, 0]); // INQUIRY
 
     let data = sg_raw
         .do_command(&cmd)
@@ -691,8 +691,8 @@ pub fn scsi_mode_sense<F: AsRawFd, P: Endian>(
     cmd.push(page_code & 63); // report current values for page_code
     cmd.push(sub_page_code);
 
-    cmd.extend(&[0, 0, 0]); // reserved
-    cmd.extend(&allocation_len.to_be_bytes()); // allocation len
+    cmd.extend([0, 0, 0]); // reserved
+    cmd.extend(allocation_len.to_be_bytes()); // allocation len
     cmd.push(0); //control
 
     let data = sg_raw
@@ -752,7 +752,7 @@ pub fn scsi_request_sense<F: AsRawFd>(file: &mut F) -> Result<RequestSenseFixed,
     let mut sg_raw = SgRaw::new(file, allocation_len as usize)?;
     sg_raw.set_timeout(30); // use short timeout
     let mut cmd = Vec::new();
-    cmd.extend(&[0x03, 0, 0, 0, allocation_len, 0]); // REQUEST SENSE FIXED FORMAT
+    cmd.extend([0x03, 0, 0, 0, allocation_len, 0]); // REQUEST SENSE FIXED FORMAT
 
     let data = sg_raw
         .do_command(&cmd)

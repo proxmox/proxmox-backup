@@ -11,7 +11,7 @@ pub fn mtx_status(config: &ScsiTapeChanger) -> Result<MtxStatus, Error> {
     let path = &config.path;
 
     let mut command = std::process::Command::new("mtx");
-    command.args(&["-f", path, "status"]);
+    command.args(["-f", path, "status"]);
 
     let output = run_command(command, None)?;
 
@@ -25,7 +25,7 @@ pub fn mtx_status(config: &ScsiTapeChanger) -> Result<MtxStatus, Error> {
 /// Run 'mtx load'
 pub fn mtx_load(path: &str, slot: u64, drivenum: u64) -> Result<(), Error> {
     let mut command = std::process::Command::new("mtx");
-    command.args(&["-f", path, "load", &slot.to_string(), &drivenum.to_string()]);
+    command.args(["-f", path, "load", &slot.to_string(), &drivenum.to_string()]);
     run_command(command, None)?;
 
     Ok(())
@@ -34,7 +34,7 @@ pub fn mtx_load(path: &str, slot: u64, drivenum: u64) -> Result<(), Error> {
 /// Run 'mtx unload'
 pub fn mtx_unload(path: &str, slot: u64, drivenum: u64) -> Result<(), Error> {
     let mut command = std::process::Command::new("mtx");
-    command.args(&[
+    command.args([
         "-f",
         path,
         "unload",
@@ -49,7 +49,7 @@ pub fn mtx_unload(path: &str, slot: u64, drivenum: u64) -> Result<(), Error> {
 /// Run 'mtx transfer'
 pub fn mtx_transfer(path: &str, from_slot: u64, to_slot: u64) -> Result<(), Error> {
     let mut command = std::process::Command::new("mtx");
-    command.args(&[
+    command.args([
         "-f",
         path,
         "transfer",

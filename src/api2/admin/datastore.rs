@@ -1516,7 +1516,7 @@ pub fn upload_backup_log(
         let file_name = CLIENT_LOG_BLOB_NAME;
 
         let mut path = backup_dir.full_path();
-        path.push(&file_name);
+        path.push(file_name);
 
         if path.exists() {
             bail!("backup already contains a log.");

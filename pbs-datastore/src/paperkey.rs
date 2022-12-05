@@ -227,7 +227,7 @@ fn paperkey_text<W: Write>(
 
 fn generate_qr_code(output_type: &str, lines: &[String]) -> Result<Vec<u8>, Error> {
     let mut child = Command::new("qrencode")
-        .args(&["-t", output_type, "-m0", "-s1", "-lm", "--output", "-"])
+        .args(["-t", output_type, "-m0", "-s1", "-lm", "--output", "-"])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .spawn()?;

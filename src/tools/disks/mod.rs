@@ -559,7 +559,7 @@ pub struct BlockDevStat {
 /// Use lsblk to read partition type uuids and file system types.
 pub fn get_lsblk_info() -> Result<Vec<LsblkInfo>, Error> {
     let mut command = std::process::Command::new("lsblk");
-    command.args(&["--json", "-o", "path,parttype,fstype"]);
+    command.args(["--json", "-o", "path,parttype,fstype"]);
 
     let output = proxmox_sys::command::run_command(command, None)?;
 
@@ -1049,7 +1049,7 @@ pub fn inititialize_gpt_disk(disk: &Disk, uuid: Option<&str>) -> Result<(), Erro
 
     let mut command = std::process::Command::new("sgdisk");
     command.arg(disk_path);
-    command.args(&["-U", uuid]);
+    command.args(["-U", uuid]);
 
     proxmox_sys::command::run_command(command, None)?;
 
@@ -1064,7 +1064,7 @@ pub fn create_single_linux_partition(disk: &Disk) -> Result<Disk, Error> {
     };
 
     let mut command = std::process::Command::new("sgdisk");
-    command.args(&["-n1", "-t1:8300"]);
+    command.args(["-n1", "-t1:8300"]);
     command.arg(disk_path);
 
     proxmox_sys::command::run_command(command, None)?;
@@ -1116,7 +1116,7 @@ pub fn create_file_system(disk: &Disk, fs_type: FileSystemType) -> Result<(), Er
     let fs_type = fs_type.to_string();
 
     let mut command = std::process::Command::new("mkfs");
-    command.args(&["-t", &fs_type]);
+    command.args(["-t", &fs_type]);
     command.arg(disk_path);
 
     proxmox_sys::command::run_command(command, None)?;
@@ -1146,7 +1146,7 @@ pub fn get_fs_uuid(disk: &Disk) -> Result<String, Error> {
     };
 
     let mut command = std::process::Command::new("blkid");
-    command.args(&["-o", "export"]);
+    command.args(["-o", "export"]);
     command.arg(disk_path);
 
     let output = proxmox_sys::command::run_command(command, None)?;

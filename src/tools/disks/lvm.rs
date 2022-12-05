@@ -22,7 +22,7 @@ pub fn get_lvm_devices(lsblk_info: &[LsblkInfo]) -> Result<HashSet<u64>, Error> 
     const PVS_BIN_PATH: &str = "pvs";
 
     let mut command = std::process::Command::new(PVS_BIN_PATH);
-    command.args(&[
+    command.args([
         "--reportformat",
         "json",
         "--noheadings",

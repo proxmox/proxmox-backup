@@ -1569,7 +1569,7 @@ fn scan_chunk_archive<'a>(
         worker.check_abort()?;
 
         if verbose {
-            task_log!(worker, "Found chunk: {}", hex::encode(&digest));
+            task_log!(worker, "Found chunk: {}", hex::encode(digest));
         }
 
         chunks.push(digest);
@@ -1602,7 +1602,7 @@ fn restore_chunk_archive<'a>(
             let chunk_exists = datastore.cond_touch_chunk(&digest, false)?;
             if !chunk_exists {
                 if verbose {
-                    task_log!(worker2, "Insert chunk: {}", hex::encode(&digest));
+                    task_log!(worker2, "Insert chunk: {}", hex::encode(digest));
                 }
                 bytes2.fetch_add(chunk.raw_size(), std::sync::atomic::Ordering::SeqCst);
                 // println!("verify and write {}", hex::encode(&digest));
@@ -1613,7 +1613,7 @@ fn restore_chunk_archive<'a>(
 
                 datastore.insert_chunk(&chunk, &digest)?;
             } else if verbose {
-                task_log!(worker2, "Found existing chunk: {}", hex::encode(&digest));
+                task_log!(worker2, "Found existing chunk: {}", hex::encode(digest));
             }
             Ok(())
         },
@@ -1747,7 +1747,7 @@ fn try_restore_snapshot_archive<R: pxar::decoder::SeqRead>(
         };
 
         let mut archive_path = snapshot_path.to_owned();
-        archive_path.push(&filename);
+        archive_path.push(filename);
 
         let mut tmp_path = archive_path.clone();
         tmp_path.set_extension("tmp");

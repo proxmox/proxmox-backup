@@ -141,7 +141,7 @@ pub fn zpool_list(pool: Option<String>, verbose: bool) -> Result<Vec<ZFSPoolInfo
     // and maybe other things.
 
     let mut command = std::process::Command::new("zpool");
-    command.args(&["list", "-H", "-p", "-P"]);
+    command.args(["list", "-H", "-p", "-P"]);
 
     // Note: We do not use -o to define output properties, because zpool command ignores
     // that completely for special vdevs and devices

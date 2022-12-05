@@ -48,8 +48,8 @@ pub fn lock() -> Result<BackupLockGuard, Error> {
 
 /// Read and parse the configuration file
 pub fn config() -> Result<(SectionConfigData, [u8; 32]), Error> {
-    let content = proxmox_sys::fs::file_read_optional_string(MEDIA_POOL_CFG_FILENAME)?
-        .unwrap_or_else(|| "".to_string());
+    let content =
+        proxmox_sys::fs::file_read_optional_string(MEDIA_POOL_CFG_FILENAME)?.unwrap_or_default();
 
     let digest = openssl::sha::sha256(content.as_bytes());
     let data = CONFIG.parse(MEDIA_POOL_CFG_FILENAME, &content)?;

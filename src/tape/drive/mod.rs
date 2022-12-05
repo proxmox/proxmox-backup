@@ -79,7 +79,7 @@ pub trait TapeDriver {
 
         self.format_media(true)?; // this rewinds the tape
 
-        let raw = serde_json::to_string_pretty(&serde_json::to_value(&label)?)?;
+        let raw = serde_json::to_string_pretty(&serde_json::to_value(label)?)?;
 
         let header =
             MediaContentHeader::new(PROXMOX_BACKUP_MEDIA_LABEL_MAGIC_1_0, raw.len() as u32);

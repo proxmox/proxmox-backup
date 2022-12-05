@@ -114,7 +114,7 @@ impl DnsPlugin {
         let mut command = Command::new("/usr/bin/setpriv");
 
         #[rustfmt::skip]
-        command.args(&[
+        command.args([
             "--reuid", "nobody",
             "--regid", "nogroup",
             "--clear-groups",
