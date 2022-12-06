@@ -22,7 +22,6 @@
 //! compared with each other, as in those cases the comparison has meaning.
 
 use std::borrow::Borrow;
-use std::convert::TryFrom;
 use std::fmt;
 
 use anyhow::{bail, format_err, Error};

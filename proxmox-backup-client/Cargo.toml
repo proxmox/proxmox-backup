@@ -2,7 +2,7 @@
 name = "proxmox-backup-client"
 version = "0.1.0"
 authors = ["Proxmox Support Team <support@proxmox.com>"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 anyhow = "1.0"

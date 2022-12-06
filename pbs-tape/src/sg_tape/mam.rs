@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::convert::TryInto;
 use std::os::unix::io::AsRawFd;
 
 use anyhow::{bail, format_err, Error};

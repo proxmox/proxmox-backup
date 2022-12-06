@@ -1,4 +1,3 @@
-use std::convert::TryFrom;
 use std::io::Read;
 use std::os::unix::io::{FromRawFd, RawFd};
 use std::path::PathBuf;

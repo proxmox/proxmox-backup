@@ -1,7 +1,6 @@
 //! Code for extraction of pxar contents onto the file system.
 
 use std::collections::HashMap;
-use std::convert::TryFrom;
 use std::ffi::{CStr, CString, OsStr, OsString};
 use std::io;
 use std::os::unix::ffi::OsStrExt;

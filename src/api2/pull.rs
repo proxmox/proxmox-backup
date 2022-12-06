@@ -1,6 +1,4 @@
 //! Sync datastore from remote server
-use std::convert::TryFrom;
-
 use anyhow::{format_err, Error};
 use futures::{future::FutureExt, select};
 

@@ -1,6 +1,4 @@
 //! OpenID redirect/login API
-use std::convert::TryFrom;
-
 use anyhow::{bail, format_err, Error};
 use serde_json::{json, Value};
 

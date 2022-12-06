@@ -1,7 +1,6 @@
 //! Traffic control implementation
 
 use std::collections::HashMap;
-use std::convert::TryInto;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;

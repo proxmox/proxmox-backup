@@ -1,7 +1,6 @@
 //! Asynchronous fuse implementation.
 
 use std::collections::BTreeMap;
-use std::convert::TryFrom;
 use std::ffi::{OsStr, OsString};
 use std::future::Future;
 use std::io;

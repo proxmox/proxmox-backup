@@ -12,8 +12,6 @@
 /// - support tape alert flags
 /// - support volume statistics
 /// - read cartridge memory
-use std::convert::TryInto;
-
 use anyhow::{bail, Error};
 use serde_json::Value;
 

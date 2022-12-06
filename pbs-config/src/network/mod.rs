@@ -231,8 +231,6 @@ pub struct NetworkConfig {
     order: Vec<NetworkOrderEntry>,
 }
 
-use std::convert::TryFrom;
-
 impl TryFrom<NetworkConfig> for String {
     type Error = Error;
 

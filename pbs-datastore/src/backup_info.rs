@@ -1,4 +1,3 @@
-use std::convert::TryFrom;
 use std::fmt;
 use std::os::unix::io::RawFd;
 use std::path::PathBuf;

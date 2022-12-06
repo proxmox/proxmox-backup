@@ -1,5 +1,4 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::convert::TryFrom;
 use std::ffi::OsStr;
 use std::io::{Seek, SeekFrom};
 use std::path::{Path, PathBuf};

@@ -1,7 +1,6 @@
 //! Sync datastore from remote server
 
 use std::collections::{HashMap, HashSet};
-use std::convert::TryFrom;
 use std::io::{Seek, SeekFrom};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};

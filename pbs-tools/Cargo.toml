@@ -2,7 +2,7 @@
 name = "pbs-tools"
 version = "0.1.0"
 authors = ["Proxmox Support Team <support@proxmox.com>"]
-edition = "2018"
+edition = "2021"
 description = "common tools used throughout pbs"
 
 # This must not depend on any subcrates more closely related to pbs itself.

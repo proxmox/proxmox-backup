@@ -1,4 +1,3 @@
-use std::convert::TryFrom;
 use std::ffi::{CStr, CString, OsStr};
 use std::fmt;
 use std::io::{Read, Seek, SeekFrom, Write};

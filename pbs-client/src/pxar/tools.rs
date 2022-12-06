@@ -1,6 +1,5 @@
 //! Some common methods used within the pxar code.
 
-use std::convert::TryFrom;
 use std::ffi::OsStr;
 use std::os::unix::ffi::OsStrExt;
 use std::path::Path;

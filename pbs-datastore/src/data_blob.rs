@@ -1,4 +1,3 @@
-use std::convert::TryInto;
 use std::io::Write;
 
 use anyhow::{bail, Error};

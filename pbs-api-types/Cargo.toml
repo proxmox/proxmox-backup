@@ -2,7 +2,7 @@
 name = "pbs-api-types"
 version = "0.1.0"
 authors = ["Proxmox Support Team <support@proxmox.com>"]
-edition = "2018"
+edition = "2021"
 description = "general API type helpers for PBS"
 
 [dependencies]

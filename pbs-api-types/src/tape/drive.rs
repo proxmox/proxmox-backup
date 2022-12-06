@@ -1,6 +1,4 @@
 //! Types for tape drive API
-use std::convert::TryFrom;
-
 use anyhow::{bail, Error};
 use serde::{Deserialize, Serialize};
 

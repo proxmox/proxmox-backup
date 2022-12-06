@@ -11,7 +11,6 @@
 //!
 //! - unability to detect EOT (you just get EIO)
 
-use std::convert::TryInto;
 use std::fs::File;
 use std::os::unix::io::{AsRawFd, FromRawFd, RawFd};
 
