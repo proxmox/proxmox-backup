@@ -12,9 +12,7 @@ use futures::select;
 use tokio::signal::unix::{signal, SignalKind};
 
 use pathpatterns::{MatchEntry, MatchType, PatternFlag};
-use pbs_client::pxar::{
-    format_single_line_entry, fuse, Flags, PxarExtractOptions, ENCODER_MAX_ENTRIES,
-};
+use pbs_client::pxar::{format_single_line_entry, Flags, PxarExtractOptions, ENCODER_MAX_ENTRIES};
 
 use proxmox_router::cli::*;
 use proxmox_schema::api;
@@ -382,7 +380,7 @@ async fn mount_archive(archive: String, mountpoint: String, verbose: bool) -> Re
     let mountpoint = Path::new(&mountpoint);
     let options = OsStr::new("ro,default_permissions");
 
-    let session = fuse::Session::mount_path(archive, options, verbose, mountpoint)
+    let session = pbs_pxar_fuse::Session::mount_path(archive, options, verbose, mountpoint)
         .await
         .map_err(|err| format_err!("pxar mount failed: {}", err))?;
 

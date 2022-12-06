@@ -17,15 +17,19 @@ use pathpatterns::{MatchEntry, MatchList, MatchPattern, MatchType, PatternFlag};
 use proxmox_router::cli::{self, CliCommand, CliCommandMap, CliHelper, CommandLineInterface};
 use proxmox_schema::api;
 use proxmox_sys::fs::{create_path, CreateOptions};
+use pxar::accessor::ReadAt;
 use pxar::{EntryKind, Metadata};
 
 use pbs_datastore::catalog::{self, DirEntryAttribute};
 use proxmox_async::runtime::block_in_place;
 
-use crate::pxar::fuse::{Accessor, FileEntry};
 use crate::pxar::Flags;
 
 type CatalogReader = pbs_datastore::catalog::CatalogReader<std::fs::File>;
+
+type Reader = std::sync::Arc<dyn ReadAt + Send + Sync + 'static>;
+type Accessor = pxar::accessor::aio::Accessor<Reader>;
+type FileEntry = pxar::accessor::aio::FileEntry<Reader>;
 
 const MAX_SYMLINK_COUNT: usize = 40;
 

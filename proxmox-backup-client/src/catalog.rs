@@ -219,8 +219,8 @@ async fn catalog_shell(param: Value) -> Result<(), Error> {
     );
     let reader = BufferedDynamicReader::new(index, chunk_reader);
     let archive_size = reader.archive_size();
-    let reader: pbs_client::pxar::fuse::Reader = Arc::new(BufferedDynamicReadAt::new(reader));
-    let decoder = pbs_client::pxar::fuse::Accessor::new(reader, archive_size).await?;
+    let reader: pbs_pxar_fuse::Reader = Arc::new(BufferedDynamicReadAt::new(reader));
+    let decoder = pbs_pxar_fuse::Accessor::new(reader, archive_size).await?;
 
     client.download(CATALOG_NAME, &mut tmpfile).await?;
     let index = DynamicIndexReader::new(tmpfile)

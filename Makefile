@@ -38,13 +38,14 @@ SUBCRATES := \
 	pbs-config \
 	pbs-datastore \
 	pbs-fuse-loop \
-	proxmox-rrd \
+	pbs-pxar-fuse \
 	pbs-tape \
 	pbs-tools \
 	proxmox-backup-banner \
 	proxmox-backup-client \
 	proxmox-file-restore \
 	proxmox-restore-daemon \
+	proxmox-rrd \
 	pxar-bin
 
 ifeq ($(BUILD_MODE), release)

@@ -1,0 +1,19 @@
+[package]
+name = "pbs-pxar-fuse"
+version = "0.1.0"
+edition = "2021"
+description = "pxar fuse file system code"
+
+[dependencies]
+anyhow = "1.0"
+futures = "0.3"
+libc = "0.2"
+log = "0.4"
+tokio = "1.6"
+
+proxmox-fuse = "0.1.3"
+proxmox-io = "1.0.1"
+proxmox-lang = "1.1"
+proxmox-sys = "0.4.1"
+
+pxar = { version = "0.10.2", features = [ "tokio-io" ] }

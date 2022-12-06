@@ -295,16 +295,12 @@ async fn mount_do(param: Value, pipe: Option<OwnedFd>) -> Result<Value, Error> {
         );
         let reader = BufferedDynamicReader::new(index, chunk_reader);
         let archive_size = reader.archive_size();
-        let reader: pbs_client::pxar::fuse::Reader = Arc::new(BufferedDynamicReadAt::new(reader));
-        let decoder = pbs_client::pxar::fuse::Accessor::new(reader, archive_size).await?;
+        let reader: pbs_pxar_fuse::Reader = Arc::new(BufferedDynamicReadAt::new(reader));
+        let decoder = pbs_pxar_fuse::Accessor::new(reader, archive_size).await?;
 
-        let session = pbs_client::pxar::fuse::Session::mount(
-            decoder,
-            options,
-            false,
-            Path::new(target.unwrap()),
-        )
-        .map_err(|err| format_err!("pxar mount failed: {}", err))?;
+        let session =
+            pbs_pxar_fuse::Session::mount(decoder, options, false, Path::new(target.unwrap()))
+                .map_err(|err| format_err!("pxar mount failed: {}", err))?;
 
         daemonize()?;
 
