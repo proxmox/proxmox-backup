@@ -1,5 +1,4 @@
-[package]
-name = "proxmox-backup"
+[workspace.package]
 version = "2.3.1"
 authors = [
     "Dietmar Maurer <dietmar@proxmox.com>",
@@ -13,8 +12,17 @@ authors = [
 ]
 edition = "2021"
 license = "AGPL-3"
+repository = "https://git.proxmox.com/?p=proxmox-backup.git"
+
+[package]
+name = "proxmox-backup"
 description = "Proxmox Backup"
 homepage = "https://www.proxmox.com"
+
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
 
 exclude = [ "build", "debian", "tests/catar_data/test_symlink/symlink1"]
 

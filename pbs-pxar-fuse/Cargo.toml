@@ -1,7 +1,7 @@
 [package]
 name = "pbs-pxar-fuse"
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
 description = "pxar fuse file system code"
 
 [dependencies]

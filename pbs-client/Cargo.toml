@@ -1,8 +1,8 @@
 [package]
 name = "pbs-client"
 version = "0.1.0"
-authors = ["Wolfgang Bumiller <w.bumiller@proxmox.com>"]
-edition = "2021"
+authors.workspace = true
+edition.workspace = true
 description = "The main proxmox backup client crate"
 
 [dependencies]

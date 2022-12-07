@@ -1,9 +1,9 @@
 [package]
 name = "proxmox-rrd"
 version = "0.1.0"
-authors = ["Proxmox Support Team <support@proxmox.com>"]
-edition = "2021"
-license = "AGPL-3"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
 description = "Simple RRD database implementation."
 
 [dev-dependencies]
