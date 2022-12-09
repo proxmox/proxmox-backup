@@ -12,7 +12,7 @@ lazy_static.workspace = true
 percent-encoding.workspace = true
 regex.workspace = true
 serde.workspace = true
-serde_plain = "1"
+serde_plain.workspace = true
 
 proxmox-lang.workspace=true
 proxmox-schema = { workspace = true, features = [ "api-macro" ] }
