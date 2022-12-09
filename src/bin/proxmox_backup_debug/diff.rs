@@ -11,7 +11,7 @@ use futures::FutureExt;
 use proxmox_router::cli::{CliCommand, CliCommandMap, CommandLineInterface};
 use proxmox_schema::api;
 
-use pbs_api_types::{BackupNamespace, BackupPart};
+use pbs_api_types::{BackupNamespace, BackupPart, HumanByte};
 use pbs_client::tools::key_source::{
     crypto_parameters, format_key_source, get_encryption_key_password, KEYFD_SCHEMA,
 };
@@ -173,15 +173,18 @@ async fn diff_archive(
     // If file is present in both snapshots, it *might* be modified, but does not have to be.
     // If another, unmodified file resides in the same chunk as an actually modified one,
     // it will also show up as modified here...
-    let potentially_modified: HashMap<&OsStr, &FileEntry> = files_in_a
+    let potentially_modified: HashMap<&OsStr, (&FileEntry, &FileEntry)> = files_in_a
         .iter()
-        .filter(|(path, _)| files_in_b.contains_key(*path))
-        .map(|(path, entry)| (path.as_os_str(), entry))
+        .filter_map(|(path, entry_a)| {
+            files_in_b
+                .get(path)
+                .map(|entry_b| (path.as_os_str(), (entry_a, entry_b)))
+        })
         .collect();
 
     // ... so we compare the file metadata/contents to narrow the selection down to files
     // which where *really* modified.
-    let modified_files = compare_files(&files_in_a, &files_in_b, potentially_modified).await?;
+    let modified_files = compare_files(potentially_modified).await?;
 
     show_file_list(&added_files, &deleted_files, &modified_files);
 
@@ -335,7 +338,6 @@ fn visit_directory<'f, 'c>(
                 let digest = chunk_list.get(chunk_index).context("Invalid chunk index")?;
 
                 if chunk_diff.get(digest).is_some() {
-                    // files.insert(file_path.clone().into_os_string());
                     entries.insert(file_path.into_os_string(), entry);
                     break;
                 }
@@ -349,62 +351,179 @@ fn visit_directory<'f, 'c>(
 
 /// Check if files were actually modified
 async fn compare_files<'a>(
-    entries_a: &HashMap<OsString, FileEntry>,
-    entries_b: &HashMap<OsString, FileEntry>,
-    files: HashMap<&'a OsStr, &'a FileEntry>,
-) -> Result<HashMap<&'a OsStr, &'a FileEntry>, Error> {
+    files: HashMap<&'a OsStr, (&'a FileEntry, &'a FileEntry)>,
+) -> Result<HashMap<&'a OsStr, (&'a FileEntry, ChangedProperties)>, Error> {
     let mut modified_files = HashMap::new();
 
-    for (path, entry) in files {
-        let p = path.to_os_string();
-        let file_a = entries_a.get(&p).context("File entry not in map")?;
-        let file_b = entries_b.get(&p).context("File entry not in map")?;
-
-        if !compare_file(file_a, file_b).await {
-            modified_files.insert(path, entry);
+    for (path, (entry_a, entry_b)) in files {
+        if let Some(changed) = compare_file(entry_a, entry_b).await? {
+            modified_files.insert(path, (entry_b, changed));
         }
     }
 
     Ok(modified_files)
 }
 
-async fn compare_file(file_a: &FileEntry, file_b: &FileEntry) -> bool {
-    if file_a.metadata() != file_b.metadata() {
-        // Check if mtime, permissions, ACLs, etc. have changed - if they have changed, we consider
-        // the file as modified.
-        return false;
-    }
+async fn compare_file(
+    file_a: &FileEntry,
+    file_b: &FileEntry,
+) -> Result<Option<ChangedProperties>, Error> {
+    let mut changed = ChangedProperties::default();
+
+    changed.set_from_metadata(file_a, file_b);
 
     match (file_a.kind(), file_b.kind()) {
         (EntryKind::Symlink(a), EntryKind::Symlink(b)) => {
             // Check whether the link target has changed.
-            a.as_os_str() == b.as_os_str()
+            changed.content = a.as_os_str() != b.as_os_str();
         }
         (EntryKind::Hardlink(a), EntryKind::Hardlink(b)) => {
             // Check whether the link target has changed.
-            a.as_os_str() == b.as_os_str()
+            changed.content = a.as_os_str() != b.as_os_str();
         }
-        (EntryKind::Device(a), EntryKind::Device(b)) => a.major == b.major && a.minor == b.minor,
-        (EntryKind::Socket, EntryKind::Socket) => true,
-        (EntryKind::Fifo, EntryKind::Fifo) => true,
+        (EntryKind::Device(a), EntryKind::Device(b)) => {
+            changed.content = a.major != b.major
+                || a.minor != b.minor
+                || file_a.metadata().stat.is_blockdev() != file_b.metadata().stat.is_blockdev();
+        }
         (EntryKind::File { size: size_a, .. }, EntryKind::File { size: size_b, .. }) => {
-            // At this point we know that all metadata including mtime is
-            // the same. To speed things up, we consider the files as equal if they also have
-            // the same size.
-            // If one were completely paranoid, one could compare the actual file contents,
-            // but this decreases performance drastically.
-            size_a == size_b
+            if size_a != size_b {
+                changed.size = true;
+                changed.content = true;
+            };
         }
-        (EntryKind::Directory, EntryKind::Directory) => true,
-        (_, _) => false, // Kind has changed, so we of course consider it modified.
+        (EntryKind::Directory, EntryKind::Directory) => {}
+        (EntryKind::Socket, EntryKind::Socket) => {}
+        (EntryKind::Fifo, EntryKind::Fifo) => {}
+        (_, _) => {
+            changed.entry_type = true;
+        }
     }
+
+    if changed.any() {
+        Ok(Some(changed))
+    } else {
+        Ok(None)
+    }
+}
+
+#[derive(Copy, Clone, Default)]
+struct ChangedProperties {
+    entry_type: bool,
+    mtime: bool,
+    acl: bool,
+    xattrs: bool,
+    fcaps: bool,
+    quota_project_id: bool,
+    mode: bool,
+    flags: bool,
+    uid: bool,
+    gid: bool,
+    size: bool,
+    content: bool,
+}
+
+impl ChangedProperties {
+    fn set_from_metadata(&mut self, file_a: &FileEntry, file_b: &FileEntry) {
+        let a = file_a.metadata();
+        let b = file_b.metadata();
+
+        self.acl = a.acl != b.acl;
+        self.xattrs = a.xattrs != b.xattrs;
+        self.fcaps = a.fcaps != b.fcaps;
+        self.quota_project_id = a.quota_project_id != b.quota_project_id;
+        self.mode = a.stat.mode != b.stat.mode;
+        self.flags = a.stat.flags != b.stat.flags;
+        self.uid = a.stat.uid != b.stat.uid;
+        self.gid = a.stat.gid != b.stat.gid;
+        self.mtime = a.stat.mtime != b.stat.mtime;
+    }
+
+    fn any(&self) -> bool {
+        self.entry_type
+            || self.mtime
+            || self.acl
+            || self.xattrs
+            || self.fcaps
+            || self.quota_project_id
+            || self.mode
+            || self.flags
+            || self.uid
+            || self.gid
+            || self.content
+    }
+}
+
+fn change_indicator(changed: bool) -> &'static str {
+    if changed {
+        "*"
+    } else {
+        " "
+    }
+}
+
+fn format_filesize(entry: &FileEntry, changed: bool) -> String {
+    if let Some(size) = entry.file_size() {
+        format!(
+            "{}{:.1}",
+            change_indicator(changed),
+            HumanByte::new_decimal(size as f64)
+        )
+    } else {
+        String::new()
+    }
+}
+
+fn format_mtime(entry: &FileEntry, changed: bool) -> String {
+    let mtime = &entry.metadata().stat.mtime;
+
+    let format = if changed { "*%F %T" } else { " %F %T" };
+
+    proxmox_time::strftime_local(format, mtime.secs).unwrap_or_default()
+}
+
+fn format_mode(entry: &FileEntry, changed: bool) -> String {
+    let mode = entry.metadata().stat.mode & 0o7777;
+    format!("{}{:o}", change_indicator(changed), mode)
+}
+
+fn format_entry_type(entry: &FileEntry, changed: bool) -> String {
+    let kind = match entry.kind() {
+        EntryKind::Symlink(_) => "l",
+        EntryKind::Hardlink(_) => "h",
+        EntryKind::Device(_) if entry.metadata().stat.is_blockdev() => "b",
+        EntryKind::Device(_) => "c",
+        EntryKind::Socket => "s",
+        EntryKind::Fifo => "p",
+        EntryKind::File { .. } => "f",
+        EntryKind::Directory => "d",
+        _ => " ",
+    };
+
+    format!("{}{}", change_indicator(changed), kind)
+}
+
+fn format_uid(entry: &FileEntry, changed: bool) -> String {
+    format!("{}{}", change_indicator(changed), entry.metadata().stat.uid)
+}
+
+fn format_gid(entry: &FileEntry, changed: bool) -> String {
+    format!("{}{}", change_indicator(changed), entry.metadata().stat.gid)
+}
+
+fn format_file_name(entry: &FileEntry, changed: bool) -> String {
+    format!(
+        "{}{}",
+        change_indicator(changed),
+        entry.file_name().to_string_lossy()
+    )
 }
 
 /// Display a sorted list of added, modified, deleted files.
 fn show_file_list(
     added: &HashMap<&OsStr, &FileEntry>,
     deleted: &HashMap<&OsStr, &FileEntry>,
-    modified: &HashMap<&OsStr, &FileEntry>,
+    modified: &HashMap<&OsStr, (&FileEntry, ChangedProperties)>,
 ) {
     let mut all: Vec<&OsStr> = Vec::new();
 
@@ -415,28 +534,24 @@ fn show_file_list(
     all.sort();
 
     for file in all {
-        let (op, entry) = if let Some(entry) = added.get(file) {
-            ("A", *entry)
+        let (op, entry, changed) = if let Some(entry) = added.get(file) {
+            ("A", entry, ChangedProperties::default())
         } else if let Some(entry) = deleted.get(file) {
-            ("D", *entry)
-        } else if let Some(entry) = modified.get(file) {
-            ("M", *entry)
+            ("D", entry, ChangedProperties::default())
+        } else if let Some((entry, changed)) = modified.get(file) {
+            ("M", entry, *changed)
         } else {
             unreachable!();
         };
 
-        let entry_kind = match entry.kind() {
-            EntryKind::Symlink(_) => "l",
-            EntryKind::Hardlink(_) => "h",
-            EntryKind::Device(_) if entry.metadata().stat.is_blockdev() => "b",
-            EntryKind::Device(_) => "c",
-            EntryKind::Socket => "s",
-            EntryKind::Fifo => "p",
-            EntryKind::File { .. } => "f",
-            EntryKind::Directory => "d",
-            _ => " ",
-        };
+        let entry_type = format_entry_type(entry, changed.entry_type);
+        let uid = format_uid(entry, changed.uid);
+        let gid = format_gid(entry, changed.gid);
+        let mode = format_mode(entry, changed.mode);
+        let size = format_filesize(entry, changed.size);
+        let mtime = format_mtime(entry, changed.mtime);
+        let name = format_file_name(entry, changed.content);
 
-        println!("{} {} {}", op, entry_kind, file.to_string_lossy());
+        println!("{op} {entry_type:>2} {mode:>5} {uid:>6} {gid:>6} {size:>10} {mtime:11} {name}");
     }
 }
