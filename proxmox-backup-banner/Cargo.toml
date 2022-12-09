@@ -5,5 +5,5 @@ authors.workspace = true
 edition.workspace = true
 
 [dependencies]
-anyhow = "1"
-nix = "0.24"
+anyhow.workspace = true
+nix.workspace = true

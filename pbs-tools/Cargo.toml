@@ -7,32 +7,30 @@ description = "common tools used throughout pbs"
 
 # This must not depend on any subcrates more closely related to pbs itself.
 [dependencies]
-anyhow = "1.0"
-base64 = "0.13"
-bytes = "1.0"
-crc32fast = "1"
-endian_trait = { version = "0.6", features = ["arrays"] }
-flate2 = "1.0"
+anyhow.workspace = true
+base64.workspace = true
+bytes.workspace = true
+crc32fast.workspace = true
+endian_trait.workspace = true
+flate2.workspace = true
 foreign-types = "0.3"
-futures = "0.3"
-hex = "0.4.3"
-lazy_static = "1.4"
-libc = "0.2"
-log = "0.4.17"
-nix = "0.24"
-nom = "7"
-openssl = "0.10"
-percent-encoding = "2.1"
-regex = "1.5"
-serde = "1.0"
-serde_json = "1.0"
+futures.workspace = true
+hex.workspace = true
+lazy_static.workspace = true
+libc.workspace = true
+log.workspace = true
+nix.workspace = true
+nom.workspace = true
+openssl.workspace = true
+percent-encoding.workspace = true
+regex.workspace = true
+serde_json.workspace = true
 # rt-multi-thread is required for block_in_place
-tokio = { version = "1.6", features = [ "fs", "io-util", "rt", "rt-multi-thread", "sync" ] }
-url = "2.1"
-walkdir = "2"
-zstd = { version = "0.6", features = [ "bindgen" ] }
+tokio = { workspace = true, features = [ "fs", "io-util", "rt", "rt-multi-thread", "sync" ] }
+url.workspace = true
+walkdir.workspace = true
+zstd.workspace = true
 
-#proxmox = { version = "0.15.3", default-features = false, features = [ "tokio" ] }
 proxmox-async.workspace = true
 proxmox-io= { workspace = true, features = [ "tokio" ] }
 proxmox-lang.workspace=true
@@ -43,4 +41,4 @@ pbs-buildcfg.workspace = true
 pbs-api-types.workspace = true
 
 [dev-dependencies]
-tokio = { version = "1.6", features = [ "macros" ] }
+tokio = { workspace = true, features = [ "macros" ] }

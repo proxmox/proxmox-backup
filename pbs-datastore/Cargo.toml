@@ -6,22 +6,22 @@ edition.workspace = true
 description = "low level pbs data storage access"
 
 [dependencies]
-anyhow = "1.0"
-base64 = "0.13"
-crc32fast = "1"
-endian_trait = { version = "0.6", features = [ "arrays" ] }
-futures = "0.3"
-hex = { version = "0.4.3", features = [ "serde" ] }
-lazy_static = "1.4"
-libc = "0.2"
-log = "0.4.17"
-nix = "0.24"
-openssl = "0.10"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-tokio = { version = "1.6", features = [] }
-walkdir = "2"
-zstd = { version = "0.6", features = [ "bindgen" ] }
+anyhow.workspace = true
+base64.workspace = true
+crc32fast.workspace = true
+endian_trait.workspace = true
+futures.workspace = true
+hex = { workspace = true, features = [ "serde" ] }
+lazy_static.workspace = true
+libc.workspace = true
+log.workspace = true
+nix.workspace = true
+openssl.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio = { workspace = true, features = [] }
+walkdir.workspace = true
+zstd.workspace = true
 
 pathpatterns.workspace = true
 pxar.workspace = true

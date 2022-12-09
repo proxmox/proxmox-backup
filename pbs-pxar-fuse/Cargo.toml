@@ -5,11 +5,11 @@ edition.workspace = true
 description = "pxar fuse file system code"
 
 [dependencies]
-anyhow = "1.0"
-futures = "0.3"
-libc = "0.2"
-log = "0.4"
-tokio = "1.6"
+anyhow.workspace = true
+futures.workspace = true
+libc.workspace = true
+log.workspace = true
+tokio.workspace = true
 
 proxmox-fuse.workspace = true
 proxmox-io.workspace = true

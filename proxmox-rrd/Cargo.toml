@@ -10,17 +10,16 @@ description = "Simple RRD database implementation."
 proxmox-router = { workspace = true, features = ["cli", "server"] }
 
 [dependencies]
-anyhow = "1.0"
-bitflags = "1.2.1"
-crossbeam-channel = "0.5"
-libc = "0.2"
-log = "0.4.17"
-nix = "0.24"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+anyhow.workspace = true
+bitflags.workspace = true
+crossbeam-channel.workspace = true
+libc.workspace = true
+log.workspace = true
+nix.workspace = true
+serde.workspace = true
+serde_json.workspace = true
 serde_cbor = "0.11.1"
 
-#proxmox = { version = "0.15.3" }
 proxmox-time.workspace = true
 proxmox-schema = { workspace = true, features = [ "api-macro" ] }
 proxmox-sys.workspace = true
