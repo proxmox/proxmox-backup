@@ -31,21 +31,21 @@ tower-service = "0.3.0"
 xdg = "2.2"
 tar = "0.4"
 
-pathpatterns = "0.1.2"
+pathpatterns.workspace = true
 
-proxmox-async = "0.4"
-proxmox-compression = "0.1.1"
-proxmox-http = { version = "0.7", features = [ "client", "http-helpers", "websocket" ] }
-proxmox-io = { version = "1.0.1", features = [ "tokio" ] }
-proxmox-lang = "1.1"
-proxmox-router = { version = "1.3.0", features = [ "cli" ] }
-proxmox-schema = "1.3.1"
-proxmox-time = "1"
-proxmox-sys = "0.4.1"
+proxmox-async.workspace = true
+proxmox-compression.workspace = true
+proxmox-http.workspace = true
+proxmox-io = { workspace = true, features = [ "tokio" ] }
+proxmox-lang.workspace = true
+proxmox-router = { workspace = true, features = [ "cli", "server" ] }
+proxmox-schema.workspace = true
+proxmox-time.workspace = true
+proxmox-sys.workspace = true
 
-pxar = { version = "0.10.2", features = [ "tokio-io" ] }
+pxar.workspace = true
 
-pbs-api-types = { path = "../pbs-api-types" }
-pbs-buildcfg = { path = "../pbs-buildcfg" }
-pbs-datastore = { path = "../pbs-datastore" }
-pbs-tools = { path = "../pbs-tools" }
+pbs-api-types.workspace = true
+pbs-buildcfg.workspace = true
+pbs-datastore.workspace = true
+pbs-tools.workspace = true

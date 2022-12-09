@@ -23,18 +23,18 @@ tokio = { version = "1.6", features = ["macros", "parking_lot", "sync"] }
 tokio-stream = "0.1.0"
 tokio-util = { version = "0.7", features = [ "codec", "io" ] }
 
-pathpatterns = "0.1.2"
-pxar = { version = "0.10.2", features = [ "tokio-io" ] }
+pathpatterns.workspace = true
+pxar.workspace = true
 
-proxmox-async = "0.4"
-proxmox-compression = "0.1.1"
-proxmox-rest-server = "0.2"
-proxmox-router = { version = "1.3.0", features = [ "cli", "server" ] }
-proxmox-schema = { version = "1.3.1", features = [ "api-macro" ] }
-proxmox-time = "1"
-proxmox-sys = { version = "0.4.1",  features = [ "sortable-macro" ] }
+proxmox-async.workspace = true
+proxmox-compression.workspace = true
+proxmox-rest-server.workspace = true
+proxmox-router = { workspace = true, features = [ "cli", "server" ] }
+proxmox-schema = { workspace = true, features = [ "api-macro" ] }
+proxmox-time.workspace = true
+proxmox-sys = { workspace = true,  features = [ "sortable-macro" ] }
 
-pbs-api-types = { path = "../pbs-api-types" }
-pbs-tools = { path = "../pbs-tools" }
-pbs-datastore = { path = "../pbs-datastore" }
-pbs-client = { path = "../pbs-client" }
+pbs-api-types.workspace = true
+pbs-tools.workspace = true
+pbs-datastore.workspace = true
+pbs-client.workspace = true

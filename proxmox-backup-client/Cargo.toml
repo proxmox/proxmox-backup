@@ -20,22 +20,22 @@ tokio-util = { version = "0.7", features = [ "codec", "io" ] }
 xdg = "2.2"
 zstd = { version = "0.6", features = [ "bindgen" ] }
 
-pathpatterns = "0.1.2"
-pxar = { version = "0.10.2", features = [ "tokio-io" ] }
+pathpatterns.workspace = true
+pxar.workspace = true
 
-proxmox-async = "0.4"
-proxmox-fuse = "0.1.3"
-proxmox-io = "1.0.1"
-proxmox-router = { version = "1.3.0", features = [ "cli" ] }
-proxmox-schema = { version = "1.3.1", features = [ "api-macro" ] }
-proxmox-sys = { version = "0.4.1",  features = [ "sortable-macro" ] }
-proxmox-time = "1"
+proxmox-async.workspace = true
+proxmox-fuse.workspace = true
+proxmox-io.workspace = true
+proxmox-router = { workspace = true, features = [ "cli" ] }
+proxmox-schema = { workspace = true, features = [ "api-macro" ] }
+proxmox-sys = { workspace = true,  features = [ "sortable-macro" ] }
+proxmox-time.workspace = true
 
-pbs-api-types = { path = "../pbs-api-types" }
-pbs-buildcfg = { path = "../pbs-buildcfg" }
-pbs-client = { path = "../pbs-client" }
-pbs-config = { path = "../pbs-config" }
-pbs-datastore = { path = "../pbs-datastore" }
-pbs-fuse-loop = { path = "../pbs-fuse-loop" }
-pbs-pxar-fuse = { path = "../pbs-pxar-fuse" }
-pbs-tools = { path = "../pbs-tools" }
+pbs-api-types.workspace = true
+pbs-buildcfg.workspace = true
+pbs-client.workspace = true
+pbs-config.workspace = true
+pbs-datastore.workspace = true
+pbs-fuse-loop.workspace = true
+pbs-pxar-fuse.workspace = true
+pbs-tools.workspace = true

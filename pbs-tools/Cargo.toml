@@ -33,14 +33,14 @@ walkdir = "2"
 zstd = { version = "0.6", features = [ "bindgen" ] }
 
 #proxmox = { version = "0.15.3", default-features = false, features = [ "tokio" ] }
-proxmox-async = "0.4"
-proxmox-io = { version = "1", features = [ "tokio" ] }
-proxmox-lang = { version = "1.1" }
-proxmox-time = { version = "1" }
-proxmox-sys = "0.4.1"
+proxmox-async.workspace = true
+proxmox-io= { workspace = true, features = [ "tokio" ] }
+proxmox-lang.workspace=true
+proxmox-time.workspace = true
+proxmox-sys.workspace = true
 
-pbs-buildcfg = { path = "../pbs-buildcfg" }
-pbs-api-types = { path = "../pbs-api-types" }
+pbs-buildcfg.workspace = true
+pbs-api-types.workspace = true
 
 [dev-dependencies]
 tokio = { version = "1.6", features = [ "macros" ] }

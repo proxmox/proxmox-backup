@@ -14,8 +14,8 @@ regex = "1.5.5"
 serde = { version = "1.0", features = ["derive"] }
 serde_plain = "1"
 
-proxmox-lang = "1.0.0"
-proxmox-schema = { version = "1.2.1", features = [ "api-macro" ] }
-proxmox-serde = "0.1"
-proxmox-time = "1.1.1"
-proxmox-uuid = { version = "1.0.0", features = [ "serde" ] }
+proxmox-lang.workspace=true
+proxmox-schema = { workspace = true, features = [ "api-macro" ] }
+proxmox-serde.workspace = true
+proxmox-time.workspace = true
+proxmox-uuid = { workspace = true, features = [ "serde" ] }
