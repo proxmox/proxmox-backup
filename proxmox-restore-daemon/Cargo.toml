@@ -31,10 +31,10 @@ proxmox-compression.workspace = true
 proxmox-rest-server.workspace = true
 proxmox-router = { workspace = true, features = [ "cli", "server" ] }
 proxmox-schema = { workspace = true, features = [ "api-macro" ] }
-proxmox-time.workspace = true
 proxmox-sys = { workspace = true,  features = [ "sortable-macro" ] }
+proxmox-time.workspace = true
 
 pbs-api-types.workspace = true
-pbs-tools.workspace = true
-pbs-datastore.workspace = true
 pbs-client.workspace = true
+pbs-datastore.workspace = true
+pbs-tools.workspace = true

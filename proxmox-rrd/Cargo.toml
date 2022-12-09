@@ -17,9 +17,9 @@ libc.workspace = true
 log.workspace = true
 nix.workspace = true
 serde.workspace = true
-serde_json.workspace = true
 serde_cbor.workspace = true
+serde_json.workspace = true
 
-proxmox-time.workspace = true
 proxmox-schema = { workspace = true, features = [ "api-macro" ] }
 proxmox-sys.workspace = true
+proxmox-time.workspace = true

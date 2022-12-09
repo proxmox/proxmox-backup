@@ -37,5 +37,5 @@ proxmox-sys.workspace = true
 
 pbs-api-types.workspace = true
 pbs-buildcfg.workspace = true
-pbs-tools.workspace = true
 pbs-config.workspace = true
+pbs-tools.workspace = true

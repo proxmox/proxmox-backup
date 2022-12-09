@@ -34,11 +34,11 @@ zstd.workspace = true
 proxmox-async.workspace = true
 proxmox-io= { workspace = true, features = [ "tokio" ] }
 proxmox-lang.workspace=true
-proxmox-time.workspace = true
 proxmox-sys.workspace = true
+proxmox-time.workspace = true
 
-pbs-buildcfg.workspace = true
 pbs-api-types.workspace = true
+pbs-buildcfg.workspace = true
 
 [dev-dependencies]
 tokio = { workspace = true, features = [ "macros" ] }

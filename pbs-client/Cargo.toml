@@ -10,14 +10,14 @@ anyhow.workspace = true
 bitflags.workspace = true
 bytes.workspace = true
 futures.workspace = true
-hex.workspace = true
 h2.workspace = true
+hex.workspace = true
 http.workspace = true
 hyper.workspace = true
 lazy_static.workspace = true
 libc.workspace = true
-nix.workspace = true
 log.workspace = true
+nix.workspace = true
 openssl.workspace = true
 percent-encoding.workspace = true
 pin-project-lite.workspace = true
@@ -25,11 +25,11 @@ regex.workspace = true
 rustyline.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+tar.workspace = true
 tokio = { workspace = true, features = [ "fs", "signal" ] }
 tokio-stream.workspace = true
 tower-service.workspace = true
 xdg.workspace = true
-tar.workspace = true
 
 pathpatterns.workspace = true
 
@@ -40,8 +40,8 @@ proxmox-io = { workspace = true, features = [ "tokio" ] }
 proxmox-lang.workspace = true
 proxmox-router = { workspace = true, features = [ "cli", "server" ] }
 proxmox-schema.workspace = true
-proxmox-time.workspace = true
 proxmox-sys.workspace = true
+proxmox-time.workspace = true
 
 pxar.workspace = true
 

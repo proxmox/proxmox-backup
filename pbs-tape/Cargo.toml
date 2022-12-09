@@ -6,30 +6,31 @@ edition.workspace = true
 description = "LTO tape support"
 
 [dependencies]
+anyhow.workspace = true
+bitflags.workspace = true
+endian_trait.workspace = true
+hex.workspace = true
 lazy_static.workspace = true
 libc.workspace = true
 log.workspace = true
-anyhow.workspace = true
-thiserror.workspace = true
-endian_trait.workspace = true
-hex.workspace = true
 nix.workspace = true
+regex.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-bitflags.workspace = true
-regex.workspace = true
+thiserror.workspace = true
 udev.workspace = true
 
 proxmox-io.workspace = true
 proxmox-lang.workspace=true
-# api-macro is only used by the binaries, so maybe we should split them out
-proxmox-schema = { workspace = true, features = [ "api-macro" ] }
+proxmox-sys.workspace = true
 proxmox-time.workspace = true
 proxmox-uuid.workspace = true
 
+# api-macro is only used by the binaries, so maybe we should split them out
+proxmox-schema = { workspace = true, features = [ "api-macro" ] }
+
 # router::cli is only used by binaries, so maybe we should split them out
 proxmox-router = { workspace = true, features = ["cli", "server"] }
-proxmox-sys.workspace = true
 
 pbs-api-types.workspace = true
 pbs-config.workspace = true

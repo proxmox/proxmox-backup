@@ -10,11 +10,11 @@ anyhow.workspace = true
 futures.workspace = true
 lazy_static.workspace = true
 libc.workspace = true
-nix.workspace = true
 log.workspace = true
+nix.workspace = true
 regex.workspace = true
 tokio = { workspace = true, features = ["io-util"] }
 
-proxmox-time.workspace = true
 proxmox-fuse.workspace = true
 proxmox-sys.workspace = true
+proxmox-time.workspace = true
