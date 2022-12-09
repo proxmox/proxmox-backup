@@ -25,9 +25,9 @@ use pbs_config::key_config::decrypt_key;
 use pbs_datastore::dynamic_index::{BufferedDynamicReader, DynamicIndexReader, LocalDynamicReadAt};
 use pbs_datastore::index::IndexFile;
 use pbs_tools::crypt_config::CryptConfig;
-use pbs_tools::json::required_string_param;
 use pxar::accessor::ReadAt;
 use pxar::EntryKind;
+use serde::Deserialize;
 use serde_json::Value;
 
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
@@ -88,12 +88,12 @@ pub fn diff_commands() -> CommandLineInterface {
             "compare-content": {
                 optional: true,
                 type: bool,
+                default: false,
                 description: "Compare file content rather than solely relying on mtime for detecting modified files.",
             },
             "color": {
                 optional: true,
-                type: String,
-                description: "Set mode for colored output. Can be `always`, `auto` or `never`. `auto` will display colors only if stdout is a tty. Defaults to `auto`."
+                type: ColorMode,
             }
         }
     }
@@ -102,29 +102,19 @@ pub fn diff_commands() -> CommandLineInterface {
 /// For modified files, the file metadata (e.g. mode, uid, gid, size, etc.) will be considered. For detecting
 /// modification of file content, only mtime will be used by default. If the --compare-content flag is provided,
 /// mtime is ignored and file content will be compared.
-async fn diff_archive_cmd(param: Value) -> Result<(), Error> {
+async fn diff_archive_cmd(
+    prev_snapshot: String,
+    snapshot: String,
+    archive_name: String,
+    compare_content: bool,
+    color: Option<ColorMode>,
+    ns: Option<BackupNamespace>,
+    param: Value,
+) -> Result<(), Error> {
     let repo = extract_repository_from_value(&param)?;
-    let snapshot_a = required_string_param(&param, "prev-snapshot")?;
-    let snapshot_b = required_string_param(&param, "snapshot")?;
-    let archive_name = required_string_param(&param, "archive-name")?;
 
-    let compare_contents = match param.get("compare-content") {
-        Some(Value::Bool(value)) => *value,
-        Some(_) => bail!("invalid flag for compare-content"),
-        None => false,
-    };
-
-    let color = match param.get("color") {
-        Some(Value::String(color)) => color.as_str().try_into()?,
-        Some(_) => bail!("invalid color parameter. Valid choices are `always`, `auto` and `never`"),
-        None => ColorMode::Auto,
-    };
-
-    let namespace = match param.get("ns") {
-        Some(Value::String(ns)) => ns.parse()?,
-        Some(_) => bail!("invalid namespace parameter"),
-        None => BackupNamespace::root(),
-    };
+    let color = color.unwrap_or_default();
+    let namespace = ns.unwrap_or_else(BackupNamespace::root);
 
     let crypto = crypto_parameters(&param)?;
 
@@ -152,11 +142,11 @@ async fn diff_archive_cmd(param: Value) -> Result<(), Error> {
     if archive_name.ends_with(".pxar") {
         let file_name = format!("{}.didx", archive_name);
         diff_archive(
-            snapshot_a,
-            snapshot_b,
+            &prev_snapshot,
+            &snapshot,
             &file_name,
             &repo_params,
-            compare_contents,
+            compare_content,
             &output_params,
         )
         .await?;
@@ -232,23 +222,18 @@ async fn diff_archive(
     Ok(())
 }
 
+#[api(default: "auto")]
+#[derive(Default, Deserialize)]
+#[serde(rename_all = "lowercase")]
+/// Color output options
 enum ColorMode {
+    /// Always output colors
     Always,
+    /// Output colors if STDOUT is a tty and neither of TERM=dumb or NO_COLOR is set
+    #[default]
     Auto,
+    /// Never output colors
     Never,
-}
-
-impl TryFrom<&str> for ColorMode {
-    type Error = Error;
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        match value {
-            "auto" => Ok(Self::Auto),
-            "always" => Ok(Self::Always),
-            "never" => Ok(Self::Never),
-            _ => bail!("invalid color parameter. Valid choices are `always`, `auto` and `never`"),
-        }
-    }
 }
 
 struct RepoParams {
