@@ -96,15 +96,18 @@ proxmox-rrd = { path = "proxmox-rrd" }
 
 # regular crates
 anyhow = "1.0"
+apt-pkg-native = "0.3.2"
 base64 = "0.13"
 bitflags = "1.2.1"
 bytes = "1.0"
+cidr = "0.2.1"
 crc32fast = "1"
 crossbeam-channel = "0.5"
 endian_trait = { version = "0.6", features = ["arrays"] }
 flate2 = "1.0"
 futures = "0.3"
 h2 = { version = "0.3", features = [ "stream" ] }
+handlebars = "3.0"
 hex = "0.4.3"
 http = "0.2"
 hyper = { version = "0.14", features = [ "full" ] }
@@ -113,15 +116,22 @@ libc = "0.2"
 log = "0.4.17"
 nix = "0.24"
 nom = "7"
+num-traits = "0.2"
 once_cell = "1.3.1"
 openssl = "0.10.40"
+pam = "0.7"
+pam-sys = "0.5"
 percent-encoding = "2.1"
 regex = "1.5.5"
 rustyline = "9"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+siphasher = "0.3"
+syslog = "4.0"
+termcolor = "1.1.2"
 thiserror = "1.0"
 tokio = "1.6"
+tokio-openssl = "0.6.1"
 tokio-stream = "0.1.0"
 tokio-util = { version = "0.7", features = [ "io" ] }
 tower-service = "0.3.0"
@@ -133,11 +143,11 @@ zstd = { version = "0.6", features = [ "bindgen" ] }
 
 [dependencies]
 anyhow.workspace = true
-apt-pkg-native = "0.3.2"
+apt-pkg-native.workspace = true
 base64.workspace = true
 bitflags.workspace = true
 bytes.workspace = true
-cidr = "0.2.1"
+cidr.workspace = true
 crc32fast.workspace = true
 crossbeam-channel.workspace = true
 endian_trait.workspace = true
@@ -145,7 +155,7 @@ flate2.workspace = true
 thiserror.workspace = true
 futures.workspace = true
 h2.workspace = true
-handlebars = "3.0"
+handlebars.workspace = true
 hex.workspace = true
 http.workspace = true
 hyper.workspace = true
@@ -154,21 +164,21 @@ libc.workspace = true
 log.workspace = true
 nix.workspace = true
 nom.workspace = true
-num-traits = "0.2"
+num-traits.workspace = true
 once_cell.workspace = true
 openssl.workspace = true
-pam = "0.7"
-pam-sys = "0.5"
+pam.workspace = true
+pam-sys.workspace = true
 percent-encoding.workspace = true
 regex.workspace = true
 rustyline.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-siphasher = "0.3"
-syslog = "4.0"
-termcolor = "1.1.2"
+siphasher.workspace = true
+syslog.workspace = true
+termcolor.workspace = true
 tokio = { workspace = true, features = [ "fs", "io-util", "io-std", "macros", "net", "parking_lot", "process", "rt", "rt-multi-thread", "signal", "time" ] }
-tokio-openssl = "0.6.1"
+tokio-openssl.workspace = true
 tokio-stream.workspace = true
 tokio-util = { workspace = true, features = [ "codec" ] }
 tower-service.workspace = true
