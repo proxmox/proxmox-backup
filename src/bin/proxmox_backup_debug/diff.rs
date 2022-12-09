@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::ffi::{OsStr, OsString};
+use std::io::Write;
 use std::iter::FromIterator;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -28,6 +29,8 @@ use pbs_tools::json::required_string_param;
 use pxar::accessor::ReadAt;
 use pxar::EntryKind;
 use serde_json::Value;
+
+use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 use tokio::io::AsyncReadExt;
 
 type ChunkDigest = [u8; 32];
@@ -87,6 +90,11 @@ pub fn diff_commands() -> CommandLineInterface {
                 type: bool,
                 description: "Compare file content rather than solely relying on mtime for detecting modified files.",
             },
+            "color": {
+                optional: true,
+                type: String,
+                description: "Set mode for colored output. Can be `always`, `auto` or `never`. `auto` will display colors only if stdout is a tty. Defaults to `auto`."
+            }
         }
     }
 )]
@@ -104,6 +112,12 @@ async fn diff_archive_cmd(param: Value) -> Result<(), Error> {
         Some(Value::Bool(value)) => *value,
         Some(_) => bail!("invalid flag for compare-content"),
         None => false,
+    };
+
+    let color = match param.get("color") {
+        Some(Value::String(color)) => color.as_str().try_into()?,
+        Some(_) => bail!("invalid color parameter. Valid choices are `always`, `auto` and `never`"),
+        None => ColorMode::Auto,
     };
 
     let namespace = match param.get("ns") {
@@ -133,6 +147,8 @@ async fn diff_archive_cmd(param: Value) -> Result<(), Error> {
         namespace,
     };
 
+    let output_params = OutputParams { color };
+
     if archive_name.ends_with(".pxar") {
         let file_name = format!("{}.didx", archive_name);
         diff_archive(
@@ -141,6 +157,7 @@ async fn diff_archive_cmd(param: Value) -> Result<(), Error> {
             &file_name,
             &repo_params,
             compare_contents,
+            &output_params,
         )
         .await?;
     } else {
@@ -156,6 +173,7 @@ async fn diff_archive(
     file_name: &str,
     repo_params: &RepoParams,
     compare_contents: bool,
+    output_params: &OutputParams,
 ) -> Result<(), Error> {
     let (index_a, accessor_a) = open_dynamic_index(snapshot_a, file_name, repo_params).await?;
     let (index_b, accessor_b) = open_dynamic_index(snapshot_b, file_name, repo_params).await?;
@@ -209,15 +227,38 @@ async fn diff_archive(
     // which where *really* modified.
     let modified_files = compare_files(potentially_modified, compare_contents).await?;
 
-    show_file_list(&added_files, &deleted_files, &modified_files);
+    show_file_list(&added_files, &deleted_files, &modified_files, output_params)?;
 
     Ok(())
+}
+
+enum ColorMode {
+    Always,
+    Auto,
+    Never,
+}
+
+impl TryFrom<&str> for ColorMode {
+    type Error = Error;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "auto" => Ok(Self::Auto),
+            "always" => Ok(Self::Always),
+            "never" => Ok(Self::Never),
+            _ => bail!("invalid color parameter. Valid choices are `always`, `auto` and `never`"),
+        }
+    }
 }
 
 struct RepoParams {
     repo: BackupRepository,
     crypt_config: Option<Arc<CryptConfig>>,
     namespace: BackupNamespace,
+}
+
+struct OutputParams {
+    color: ColorMode,
 }
 
 async fn open_dynamic_index(
@@ -533,70 +574,271 @@ impl ChangedProperties {
     }
 }
 
-fn change_indicator(changed: bool) -> &'static str {
-    if changed {
-        "*"
-    } else {
-        " "
+enum FileOperation {
+    Added,
+    Modified,
+    Deleted,
+}
+
+struct ColumnWidths {
+    operation: usize,
+    entry_type: usize,
+    uid: usize,
+    gid: usize,
+    mode: usize,
+    filesize: usize,
+    mtime: usize,
+}
+
+impl Default for ColumnWidths {
+    fn default() -> Self {
+        Self {
+            operation: 1,
+            entry_type: 2,
+            uid: 6,
+            gid: 6,
+            mode: 6,
+            filesize: 10,
+            mtime: 11,
+        }
     }
 }
 
-fn format_filesize(entry: &FileEntry, changed: bool) -> String {
-    if let Some(size) = entry.file_size() {
-        format!(
-            "{}{:.1}",
-            change_indicator(changed),
-            HumanByte::new_decimal(size as f64)
-        )
-    } else {
-        String::new()
+struct FileEntryPrinter {
+    stream: StandardStream,
+    column_widths: ColumnWidths,
+    changed_color: Color,
+}
+
+impl FileEntryPrinter {
+    pub fn new(output_params: &OutputParams) -> Self {
+        let color_choice = match output_params.color {
+            ColorMode::Always => ColorChoice::Always,
+            ColorMode::Auto => {
+                if unsafe { libc::isatty(1) == 1 } {
+                    // Show colors unless `TERM=dumb` or `NO_COLOR` is set.
+                    ColorChoice::Auto
+                } else {
+                    ColorChoice::Never
+                }
+            }
+            ColorMode::Never => ColorChoice::Never,
+        };
+
+        let stdout = StandardStream::stdout(color_choice);
+
+        Self {
+            stream: stdout,
+            column_widths: ColumnWidths::default(),
+            changed_color: Color::Yellow,
+        }
     }
-}
 
-fn format_mtime(entry: &FileEntry, changed: bool) -> String {
-    let mtime = &entry.metadata().stat.mtime;
+    fn change_indicator(&self, changed: bool) -> &'static str {
+        if changed {
+            "*"
+        } else {
+            " "
+        }
+    }
 
-    let mut format = change_indicator(changed).to_owned();
-    format.push_str("%F %T");
+    fn set_color_if_changed(&mut self, changed: bool) -> Result<(), Error> {
+        if changed {
+            self.stream
+                .set_color(ColorSpec::new().set_fg(Some(self.changed_color)))?;
+        }
 
-    proxmox_time::strftime_local(&format, mtime.secs).unwrap_or_default()
-}
+        Ok(())
+    }
 
-fn format_mode(entry: &FileEntry, changed: bool) -> String {
-    let mode = entry.metadata().stat.mode & 0o7777;
-    format!("{}{:o}", change_indicator(changed), mode)
-}
+    fn write_operation(&mut self, op: FileOperation) -> Result<(), Error> {
+        let (text, color) = match op {
+            FileOperation::Added => ("A", Color::Green),
+            FileOperation::Modified => ("M", Color::Yellow),
+            FileOperation::Deleted => ("D", Color::Red),
+        };
 
-fn format_entry_type(entry: &FileEntry, changed: bool) -> String {
-    let kind = match entry.kind() {
-        EntryKind::Symlink(_) => "l",
-        EntryKind::Hardlink(_) => "h",
-        EntryKind::Device(_) if entry.metadata().stat.is_blockdev() => "b",
-        EntryKind::Device(_) => "c",
-        EntryKind::Socket => "s",
-        EntryKind::Fifo => "p",
-        EntryKind::File { .. } => "f",
-        EntryKind::Directory => "d",
-        _ => " ",
-    };
+        self.stream
+            .set_color(ColorSpec::new().set_fg(Some(color)))?;
 
-    format!("{}{}", change_indicator(changed), kind)
-}
+        write!(
+            self.stream,
+            "{text:>width$}",
+            width = self.column_widths.operation,
+        )?;
 
-fn format_uid(entry: &FileEntry, changed: bool) -> String {
-    format!("{}{}", change_indicator(changed), entry.metadata().stat.uid)
-}
+        self.stream.reset()?;
 
-fn format_gid(entry: &FileEntry, changed: bool) -> String {
-    format!("{}{}", change_indicator(changed), entry.metadata().stat.gid)
-}
+        Ok(())
+    }
 
-fn format_file_name(entry: &FileEntry, changed: bool) -> String {
-    format!(
-        "{}{}",
-        change_indicator(changed),
-        entry.file_name().to_string_lossy()
-    )
+    fn write_filesize(&mut self, entry: &FileEntry, changed: bool) -> Result<(), Error> {
+        let output = if let Some(size) = entry.file_size() {
+            format!(
+                "{}{:.1}",
+                self.change_indicator(changed),
+                HumanByte::new_decimal(size as f64)
+            )
+        } else {
+            String::new()
+        };
+
+        self.set_color_if_changed(changed)?;
+        write!(
+            self.stream,
+            "{output:>width$}",
+            width = self.column_widths.filesize,
+        )?;
+        self.stream.reset()?;
+
+        Ok(())
+    }
+
+    fn write_mtime(&mut self, entry: &FileEntry, changed: bool) -> Result<(), Error> {
+        let mtime = &entry.metadata().stat.mtime;
+
+        let mut format = self.change_indicator(changed).to_owned();
+        format.push_str("%F %T");
+
+        let output = proxmox_time::strftime_local(&format, mtime.secs).unwrap_or_default();
+
+        self.set_color_if_changed(changed)?;
+        write!(
+            self.stream,
+            "{output:>width$}",
+            width = self.column_widths.mtime,
+        )?;
+        self.stream.reset()?;
+
+        Ok(())
+    }
+
+    fn write_mode(&mut self, entry: &FileEntry, changed: bool) -> Result<(), Error> {
+        let mode = entry.metadata().stat.mode & 0o7777;
+        let output = format!("{}{:o}", self.change_indicator(changed), mode);
+
+        self.set_color_if_changed(changed)?;
+        write!(
+            self.stream,
+            "{output:>width$}",
+            width = self.column_widths.mode,
+        )?;
+        self.stream.reset()?;
+
+        Ok(())
+    }
+
+    fn write_entry_type(&mut self, entry: &FileEntry, changed: bool) -> Result<(), Error> {
+        let kind = match entry.kind() {
+            EntryKind::Symlink(_) => "l",
+            EntryKind::Hardlink(_) => "h",
+            EntryKind::Device(_) if entry.metadata().stat.is_blockdev() => "b",
+            EntryKind::Device(_) => "c",
+            EntryKind::Socket => "s",
+            EntryKind::Fifo => "p",
+            EntryKind::File { .. } => "f",
+            EntryKind::Directory => "d",
+            _ => " ",
+        };
+
+        let output = format!("{}{}", self.change_indicator(changed), kind);
+
+        self.set_color_if_changed(changed)?;
+        write!(
+            self.stream,
+            "{output:>width$}",
+            width = self.column_widths.entry_type,
+        )?;
+        self.stream.reset()?;
+
+        Ok(())
+    }
+
+    fn write_uid(&mut self, entry: &FileEntry, changed: bool) -> Result<(), Error> {
+        let output = format!(
+            "{}{}",
+            self.change_indicator(changed),
+            entry.metadata().stat.uid
+        );
+
+        self.set_color_if_changed(changed)?;
+        write!(
+            self.stream,
+            "{output:>width$}",
+            width = self.column_widths.uid,
+        )?;
+        self.stream.reset()?;
+        Ok(())
+    }
+
+    fn write_gid(&mut self, entry: &FileEntry, changed: bool) -> Result<(), Error> {
+        let output = format!(
+            "{}{}",
+            self.change_indicator(changed),
+            entry.metadata().stat.gid
+        );
+
+        self.set_color_if_changed(changed)?;
+        write!(
+            self.stream,
+            "{output:>width$}",
+            width = self.column_widths.gid,
+        )?;
+        self.stream.reset()?;
+        Ok(())
+    }
+
+    fn write_file_name(&mut self, entry: &FileEntry, changed: bool) -> Result<(), Error> {
+        self.set_color_if_changed(changed)?;
+        write!(
+            self.stream,
+            "{}{}",
+            self.change_indicator(changed),
+            entry.file_name().to_string_lossy()
+        )?;
+        self.stream.reset()?;
+
+        Ok(())
+    }
+
+    fn write_column_seperator(&mut self) -> Result<(), Error> {
+        write!(self.stream, " ")?;
+        Ok(())
+    }
+
+    /// Print a file entry, including `changed` indicators and column seperators
+    pub fn print_file_entry(
+        &mut self,
+        entry: &FileEntry,
+        changed: &ChangedProperties,
+        operation: FileOperation,
+    ) -> Result<(), Error> {
+        self.write_operation(operation)?;
+        self.write_column_seperator()?;
+
+        self.write_entry_type(entry, changed.entry_type)?;
+        self.write_column_seperator()?;
+
+        self.write_uid(entry, changed.uid)?;
+        self.write_column_seperator()?;
+
+        self.write_gid(entry, changed.gid)?;
+        self.write_column_seperator()?;
+
+        self.write_mode(entry, changed.mode)?;
+        self.write_column_seperator()?;
+
+        self.write_filesize(entry, changed.size)?;
+        self.write_column_seperator()?;
+
+        self.write_mtime(entry, changed.mtime)?;
+        self.write_column_seperator()?;
+
+        self.write_file_name(entry, changed.content)?;
+        writeln!(self.stream)?;
+
+        Ok(())
+    }
 }
 
 /// Display a sorted list of added, modified, deleted files.
@@ -604,7 +846,8 @@ fn show_file_list(
     added: &HashMap<&OsStr, &FileEntry>,
     deleted: &HashMap<&OsStr, &FileEntry>,
     modified: &HashMap<&OsStr, (&FileEntry, ChangedProperties)>,
-) {
+    output_params: &OutputParams,
+) -> Result<(), Error> {
     let mut all: Vec<&OsStr> = Vec::new();
 
     all.extend(added.keys());
@@ -613,27 +856,23 @@ fn show_file_list(
 
     all.sort();
 
+    let mut printer = FileEntryPrinter::new(output_params);
+
     for file in all {
-        let (op, entry, changed) = if let Some(entry) = added.get(file) {
-            ("A", entry, ChangedProperties::default())
+        let (operation, entry, changed) = if let Some(entry) = added.get(file) {
+            (FileOperation::Added, entry, ChangedProperties::default())
         } else if let Some(entry) = deleted.get(file) {
-            ("D", entry, ChangedProperties::default())
+            (FileOperation::Deleted, entry, ChangedProperties::default())
         } else if let Some((entry, changed)) = modified.get(file) {
-            ("M", entry, *changed)
+            (FileOperation::Modified, entry, *changed)
         } else {
             unreachable!();
         };
 
-        let entry_type = format_entry_type(entry, changed.entry_type);
-        let uid = format_uid(entry, changed.uid);
-        let gid = format_gid(entry, changed.gid);
-        let mode = format_mode(entry, changed.mode);
-        let size = format_filesize(entry, changed.size);
-        let mtime = format_mtime(entry, changed.mtime);
-        let name = format_file_name(entry, changed.content);
-
-        println!("{op} {entry_type:>2} {mode:>5} {uid:>6} {gid:>6} {size:>10} {mtime:11} {name}");
+        printer.print_file_entry(entry, &changed, operation)?;
     }
+
+    Ok(())
 }
 
 #[cfg(test)]
