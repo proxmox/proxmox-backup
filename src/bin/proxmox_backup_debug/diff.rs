@@ -28,11 +28,14 @@ use pbs_tools::json::required_string_param;
 use pxar::accessor::ReadAt;
 use pxar::EntryKind;
 use serde_json::Value;
+use tokio::io::AsyncReadExt;
 
 type ChunkDigest = [u8; 32];
 type FileEntry = pxar::accessor::aio::FileEntry<Arc<dyn ReadAt + Send + Sync>>;
 type Accessor = pxar::accessor::aio::Accessor<Arc<dyn ReadAt + Send + Sync>>;
 type Directory = pxar::accessor::aio::Directory<Arc<dyn ReadAt + Send + Sync>>;
+
+const BUFFERSIZE: usize = 4096;
 
 pub fn diff_commands() -> CommandLineInterface {
     let cmd_def = CliCommandMap::new().insert(
@@ -79,17 +82,29 @@ pub fn diff_commands() -> CommandLineInterface {
                 schema: KEYFD_SCHEMA,
                 optional: true,
             },
+            "compare-content": {
+                optional: true,
+                type: bool,
+                description: "Compare file content rather than solely relying on mtime for detecting modified files.",
+            },
         }
     }
 )]
 /// Diff an archive in two snapshots. The command will output a list of added, modified and deleted files.
-/// For modified files, only the file metadata (e.g. mtime, size, etc.) will be considered. The actual
-/// file contents will not be compared.
+/// For modified files, the file metadata (e.g. mode, uid, gid, size, etc.) will be considered. For detecting
+/// modification of file content, only mtime will be used by default. If the --compare-content flag is provided,
+/// mtime is ignored and file content will be compared.
 async fn diff_archive_cmd(param: Value) -> Result<(), Error> {
     let repo = extract_repository_from_value(&param)?;
     let snapshot_a = required_string_param(&param, "prev-snapshot")?;
     let snapshot_b = required_string_param(&param, "snapshot")?;
     let archive_name = required_string_param(&param, "archive-name")?;
+
+    let compare_contents = match param.get("compare-content") {
+        Some(Value::Bool(value)) => *value,
+        Some(_) => bail!("invalid flag for compare-content"),
+        None => false,
+    };
 
     let namespace = match param.get("ns") {
         Some(Value::String(ns)) => ns.parse()?,
@@ -120,7 +135,14 @@ async fn diff_archive_cmd(param: Value) -> Result<(), Error> {
 
     if archive_name.ends_with(".pxar") {
         let file_name = format!("{}.didx", archive_name);
-        diff_archive(snapshot_a, snapshot_b, &file_name, &repo_params).await?;
+        diff_archive(
+            snapshot_a,
+            snapshot_b,
+            &file_name,
+            &repo_params,
+            compare_contents,
+        )
+        .await?;
     } else {
         bail!("Only .pxar files are supported");
     }
@@ -133,6 +155,7 @@ async fn diff_archive(
     snapshot_b: &str,
     file_name: &str,
     repo_params: &RepoParams,
+    compare_contents: bool,
 ) -> Result<(), Error> {
     let (index_a, accessor_a) = open_dynamic_index(snapshot_a, file_name, repo_params).await?;
     let (index_b, accessor_b) = open_dynamic_index(snapshot_b, file_name, repo_params).await?;
@@ -184,7 +207,7 @@ async fn diff_archive(
 
     // ... so we compare the file metadata/contents to narrow the selection down to files
     // which where *really* modified.
-    let modified_files = compare_files(potentially_modified).await?;
+    let modified_files = compare_files(potentially_modified, compare_contents).await?;
 
     show_file_list(&added_files, &deleted_files, &modified_files);
 
@@ -352,11 +375,12 @@ fn visit_directory<'f, 'c>(
 /// Check if files were actually modified
 async fn compare_files<'a>(
     files: HashMap<&'a OsStr, (&'a FileEntry, &'a FileEntry)>,
+    compare_contents: bool,
 ) -> Result<HashMap<&'a OsStr, (&'a FileEntry, ChangedProperties)>, Error> {
     let mut modified_files = HashMap::new();
 
     for (path, (entry_a, entry_b)) in files {
-        if let Some(changed) = compare_file(entry_a, entry_b).await? {
+        if let Some(changed) = compare_file(entry_a, entry_b, compare_contents).await? {
             modified_files.insert(path, (entry_b, changed));
         }
     }
@@ -367,6 +391,7 @@ async fn compare_files<'a>(
 async fn compare_file(
     file_a: &FileEntry,
     file_b: &FileEntry,
+    compare_contents: bool,
 ) -> Result<Option<ChangedProperties>, Error> {
     let mut changed = ChangedProperties::default();
 
@@ -387,10 +412,22 @@ async fn compare_file(
                 || file_a.metadata().stat.is_blockdev() != file_b.metadata().stat.is_blockdev();
         }
         (EntryKind::File { size: size_a, .. }, EntryKind::File { size: size_b, .. }) => {
-            if size_a != size_b {
-                changed.size = true;
-                changed.content = true;
-            };
+            changed.size = size_a != size_b;
+
+            if compare_contents {
+                if changed.size {
+                    changed.content = true;
+                } else {
+                    let content_identical = compare_file_contents(file_a, file_b).await?;
+                    if content_identical && !changed.any_without_mtime() {
+                        // If the content is identical and nothing, exluding mtime,
+                        // has changed, we don't consider the entry as modified.
+                        changed.mtime = false;
+                    }
+
+                    changed.content = !content_identical;
+                }
+            }
         }
         (EntryKind::Directory, EntryKind::Directory) => {}
         (EntryKind::Socket, EntryKind::Socket) => {}
@@ -405,6 +442,45 @@ async fn compare_file(
     } else {
         Ok(None)
     }
+}
+
+async fn compare_file_contents(file_a: &FileEntry, file_b: &FileEntry) -> Result<bool, Error> {
+    let mut contents_a = file_a.contents().await?;
+    let mut contents_b = file_b.contents().await?;
+
+    compare_readers(&mut contents_a, &mut contents_b).await
+}
+
+async fn compare_readers<T>(reader_a: &mut T, reader_b: &mut T) -> Result<bool, Error>
+where
+    T: AsyncReadExt + Unpin,
+{
+    let mut buf_a = Box::new([0u8; BUFFERSIZE]);
+    let mut buf_b = Box::new([0u8; BUFFERSIZE]);
+
+    loop {
+        // Put the both read calls into their own async blocks, otherwise
+        // tokio::try_join! in combination with our #[api] macro leads to some
+        // weird `higher-order lifetime error`
+        let read_fut_a = async { reader_a.read(buf_a.as_mut_slice()).await };
+        let read_fut_b = async { reader_b.read(buf_b.as_mut_slice()).await };
+
+        let (bytes_read_a, bytes_read_b) = tokio::try_join!(read_fut_a, read_fut_b)?;
+
+        if bytes_read_a != bytes_read_b {
+            return Ok(false);
+        }
+
+        if bytes_read_a == 0 {
+            break;
+        }
+
+        if buf_a[..bytes_read_a] != buf_b[..bytes_read_b] {
+            return Ok(false);
+        }
+    }
+
+    Ok(true)
 }
 
 #[derive(Copy, Clone, Default)]
@@ -440,8 +516,11 @@ impl ChangedProperties {
     }
 
     fn any(&self) -> bool {
+        self.any_without_mtime() || self.mtime
+    }
+
+    fn any_without_mtime(&self) -> bool {
         self.entry_type
-            || self.mtime
             || self.acl
             || self.xattrs
             || self.fcaps
@@ -477,9 +556,10 @@ fn format_filesize(entry: &FileEntry, changed: bool) -> String {
 fn format_mtime(entry: &FileEntry, changed: bool) -> String {
     let mtime = &entry.metadata().stat.mtime;
 
-    let format = if changed { "*%F %T" } else { " %F %T" };
+    let mut format = change_indicator(changed).to_owned();
+    format.push_str("%F %T");
 
-    proxmox_time::strftime_local(format, mtime.secs).unwrap_or_default()
+    proxmox_time::strftime_local(&format, mtime.secs).unwrap_or_default()
 }
 
 fn format_mode(entry: &FileEntry, changed: bool) -> String {
@@ -553,5 +633,59 @@ fn show_file_list(
         let name = format_file_name(entry, changed.content);
 
         println!("{op} {entry_type:>2} {mode:>5} {uid:>6} {gid:>6} {size:>10} {mtime:11} {name}");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use std::{
+        io::Cursor,
+        pin::Pin,
+        task::{Context, Poll},
+    };
+    use tokio::io::{AsyncRead, ReadBuf};
+
+    struct MockedAsyncReader(Cursor<Vec<u8>>);
+
+    impl AsyncRead for MockedAsyncReader {
+        fn poll_read(
+            self: Pin<&mut Self>,
+            _cx: &mut Context<'_>,
+            read_buf: &mut ReadBuf<'_>,
+        ) -> Poll<std::io::Result<()>> {
+            let mut buf = vec![0u8; 100];
+
+            let res = std::io::Read::read(&mut self.get_mut().0, &mut buf);
+
+            if let Ok(bytes) = res {
+                read_buf.put_slice(&buf[..bytes]);
+            }
+
+            Poll::Ready(res.map(|_| ()))
+        }
+    }
+
+    #[test]
+    fn test_do_compare_file_contents() {
+        fn compare(a: Vec<u8>, b: Vec<u8>) -> Result<bool, Error> {
+            let mut mock_a = MockedAsyncReader(Cursor::new(a));
+            let mut mock_b = MockedAsyncReader(Cursor::new(b));
+
+            proxmox_async::runtime::block_on(compare_readers(&mut mock_a, &mut mock_b))
+        }
+
+        assert!(matches!(compare(vec![0; 15], vec![0; 15]), Ok(true)));
+        assert!(matches!(compare(vec![0; 15], vec![0; 14]), Ok(false)));
+        assert!(matches!(compare(vec![0; 15], vec![1; 15]), Ok(false)));
+
+        let mut buf = vec![1u8; 2 * BUFFERSIZE];
+        buf[BUFFERSIZE] = 0;
+        assert!(matches!(compare(vec![1u8; 2 * BUFFERSIZE], buf), Ok(false)));
+
+        let mut buf = vec![1u8; 2 * BUFFERSIZE];
+        buf[2 * BUFFERSIZE - 1] = 0;
+        assert!(matches!(compare(vec![1u8; 2 * BUFFERSIZE], buf), Ok(false)));
     }
 }
