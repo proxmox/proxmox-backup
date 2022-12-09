@@ -28,6 +28,7 @@ exclude = [ "build", "debian", "tests/catar_data/test_symlink/symlink1"]
 
 [workspace]
 members = [
+    "pbs-api-types",
     "pbs-buildcfg",
     "pbs-client",
     "pbs-config",
