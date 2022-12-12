@@ -15,13 +15,13 @@ use anyhow::{bail, Error};
 use proxmox_sys::{task_log, task_warn};
 use proxmox_uuid::Uuid;
 
-use pbs_config::tape_encryption_keys::load_key_configs;
 use pbs_datastore::{DataStore, SnapshotReader};
 use pbs_tape::{sg_tape::tape_alert_flags_critical, TapeWrite};
 use proxmox_rest_server::WorkerTask;
 
 use crate::tape::{
     drive::{media_changer, request_and_load_media, TapeDriver},
+    encryption_keys::load_key_configs,
     file_formats::{
         tape_write_catalog, tape_write_snapshot_archive, ChunkArchiveWriter, MediaSetLabel,
     },

@@ -18,8 +18,8 @@ mod inventory;
 pub use inventory::*;
 
 pub mod changer;
-
 pub mod drive;
+pub mod encryption_keys;
 
 mod media_pool;
 pub use media_pool::*;

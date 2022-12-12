@@ -22,7 +22,6 @@ use pbs_api_types::{
 
 use pbs_api_types::{PRIV_TAPE_AUDIT, PRIV_TAPE_READ, PRIV_TAPE_WRITE};
 
-use pbs_config::tape_encryption_keys::insert_key;
 use pbs_config::CachedUserInfo;
 use pbs_tape::{
     linux_list_drives::{lookup_device_identification, lto_tape_device_list, open_lto_tape_device},
@@ -40,6 +39,7 @@ use crate::{
             open_lto_tape_drive, required_media_changer, set_tape_device_state, LtoTapeHandle,
             TapeDriver,
         },
+        encryption_keys::insert_key,
         file_formats::{MediaLabel, MediaSetLabel},
         lock_media_pool, lock_media_set, lock_unassigned_media_pool, Inventory, MediaCatalog,
         MediaId, TAPE_STATUS_DIR,

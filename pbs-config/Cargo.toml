@@ -27,5 +27,3 @@ proxmox-time.workspace = true
 
 pbs-api-types.workspace = true
 pbs-buildcfg.workspace = true
-pbs-key-config.workspace = true
-pbs-tools.workspace = true

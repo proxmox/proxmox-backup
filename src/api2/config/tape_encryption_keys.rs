@@ -13,10 +13,11 @@ use pbs_api_types::{
 use pbs_config::CachedUserInfo;
 
 use pbs_config::open_backup_lockfile;
-use pbs_config::tape_encryption_keys::{
+use pbs_key_config::KeyConfig;
+
+use crate::tape::encryption_keys::{
     insert_key, load_key_configs, load_keys, save_key_configs, save_keys, TAPE_KEYS_LOCKFILE,
 };
-use pbs_key_config::KeyConfig;
 
 #[api(
     input: {

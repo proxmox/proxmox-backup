@@ -10,11 +10,11 @@ use pbs_api_types::{
     TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
 };
 
-use pbs_config::tape_encryption_keys::{complete_key_fingerprint, load_key_configs};
 use pbs_datastore::paperkey::{generate_paper_key, PaperkeyFormat};
 use pbs_key_config::KeyConfig;
 
 use proxmox_backup::api2;
+use proxmox_backup::tape::encryption_keys::{complete_key_fingerprint, load_key_configs};
 
 pub fn encryption_key_commands() -> CommandLineInterface {
     let cmd_def = CliCommandMap::new()

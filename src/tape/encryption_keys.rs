@@ -15,11 +15,11 @@ use std::collections::HashMap;
 use anyhow::{bail, Error};
 use serde::{Deserialize, Serialize};
 
-use pbs_api_types::Fingerprint;
-use pbs_key_config::KeyConfig;
 use proxmox_sys::fs::file_read_optional_string;
 
-use crate::{open_backup_lockfile, replace_backup_config, replace_secret_config};
+use pbs_api_types::Fingerprint;
+use pbs_config::{open_backup_lockfile, replace_backup_config, replace_secret_config};
+use pbs_key_config::KeyConfig;
 
 mod hex_key {
     use hex::FromHex;

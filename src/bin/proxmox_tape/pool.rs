@@ -6,9 +6,9 @@ use proxmox_schema::api;
 
 use pbs_api_types::MEDIA_POOL_NAME_SCHEMA;
 use pbs_config::media_pool::complete_pool_name;
-use pbs_config::tape_encryption_keys::complete_key_fingerprint;
 
 use proxmox_backup::api2;
+use proxmox_backup::tape::encryption_keys::complete_key_fingerprint;
 
 pub fn pool_commands() -> CommandLineInterface {
     let cmd_def = CliCommandMap::new()

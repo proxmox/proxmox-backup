@@ -294,7 +294,7 @@ impl TapeDriver for LtoTapeHandle {
     ) -> Result<(), Error> {
         if nix::unistd::Uid::effective().is_root() {
             if let Some((ref key_fingerprint, ref uuid)) = key_fingerprint {
-                let (key_map, _digest) = pbs_config::tape_encryption_keys::load_keys()?;
+                let (key_map, _digest) = crate::tape::encryption_keys::load_keys()?;
                 match key_map.get(key_fingerprint) {
                     Some(item) => {
                         // derive specialized key for each media-set

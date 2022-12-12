@@ -10,7 +10,6 @@ pub mod network;
 pub mod prune;
 pub mod remote;
 pub mod sync;
-pub mod tape_encryption_keys;
 pub mod tape_job;
 pub mod token_shadow;
 pub mod traffic_control;
