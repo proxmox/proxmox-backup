@@ -451,13 +451,15 @@ impl HttpClient {
                 {
                     Ok(auth) => {
                         if use_ticket_cache && prefix2.is_some() {
-                            let _ = store_ticket_info(
+                            if let Err(err) = store_ticket_info(
                                 prefix2.as_ref().unwrap(),
                                 &server2,
                                 &auth.auth_id.to_string(),
                                 &auth.ticket,
                                 &auth.token,
-                            );
+                            ) {
+                                log::error!("storing login ticket failed: {}", err);
+                            }
                         }
                         *auth2.write().unwrap() = auth;
                     }
@@ -485,13 +487,15 @@ impl HttpClient {
 
             move |auth| {
                 if use_ticket_cache && prefix.is_some() {
-                    let _ = store_ticket_info(
+                    if let Err(err) = store_ticket_info(
                         prefix.as_ref().unwrap(),
                         &server,
                         &auth.auth_id.to_string(),
                         &auth.ticket,
                         &auth.token,
-                    );
+                    ) {
+                        log::error!("storing login ticket failed: {}", err);
+                    }
                 }
                 *authinfo.write().unwrap() = auth;
                 tokio::spawn(renewal_future);
