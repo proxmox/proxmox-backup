@@ -222,7 +222,7 @@ async fn diff_archive(
     Ok(())
 }
 
-#[api(default: "auto")]
+#[api]
 #[derive(Default, Deserialize)]
 #[serde(rename_all = "lowercase")]
 /// Color output options
