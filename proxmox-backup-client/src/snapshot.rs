@@ -9,8 +9,8 @@ use proxmox_sys::fs::file_get_contents;
 
 use pbs_api_types::{BackupGroup, BackupNamespace, CryptMode, SnapshotListItem};
 use pbs_client::tools::key_source::get_encryption_key_password;
-use pbs_config::key_config::decrypt_key;
 use pbs_datastore::DataBlob;
+use pbs_key_config::decrypt_key;
 use pbs_tools::crypt_config::CryptConfig;
 use pbs_tools::json::required_string_param;
 

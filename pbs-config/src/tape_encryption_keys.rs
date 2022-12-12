@@ -16,9 +16,9 @@ use anyhow::{bail, Error};
 use serde::{Deserialize, Serialize};
 
 use pbs_api_types::Fingerprint;
+use pbs_key_config::KeyConfig;
 use proxmox_sys::fs::file_read_optional_string;
 
-use crate::key_config::KeyConfig;
 use crate::{open_backup_lockfile, replace_backup_config, replace_secret_config};
 
 mod hex_key {

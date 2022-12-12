@@ -17,16 +17,15 @@ regex.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 
-proxmox-lang.workspace=true
 proxmox-metrics.workspace = true
 proxmox-router = { workspace = true, default-features = false }
 proxmox-schema.workspace = true
 proxmox-section-config.workspace = true
-proxmox-serde.workspace = true
 proxmox-shared-memory.workspace = true
 proxmox-sys = { workspace = true, features = [ "acl", "crypt", "timer" ] }
 proxmox-time.workspace = true
 
 pbs-api-types.workspace = true
 pbs-buildcfg.workspace = true
+pbs-key-config.workspace = true
 pbs-tools.workspace = true

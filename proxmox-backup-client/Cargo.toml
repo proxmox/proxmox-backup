@@ -37,5 +37,6 @@ pbs-client.workspace = true
 pbs-config.workspace = true
 pbs-datastore.workspace = true
 pbs-fuse-loop.workspace = true
+pbs-key-config.workspace = true
 pbs-pxar-fuse.workspace = true
 pbs-tools.workspace = true

@@ -10,9 +10,9 @@ use pbs_api_types::{
     TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
 };
 
-use pbs_config::key_config::KeyConfig;
 use pbs_config::tape_encryption_keys::{complete_key_fingerprint, load_key_configs};
 use pbs_datastore::paperkey::{generate_paper_key, PaperkeyFormat};
+use pbs_key_config::KeyConfig;
 
 use proxmox_backup::api2;
 

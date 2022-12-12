@@ -23,7 +23,7 @@ use proxmox_sys::{task_log, WorkerTaskContext};
 use proxmox_uuid::Uuid;
 
 use pbs_api_types::{Fingerprint, LtoTapeDrive, VirtualTapeDrive};
-use pbs_config::key_config::KeyConfig;
+use pbs_key_config::KeyConfig;
 
 use pbs_tape::{sg_tape::TapeAlertFlags, BlockReadError, MediaContentHeader, TapeRead, TapeWrite};
 

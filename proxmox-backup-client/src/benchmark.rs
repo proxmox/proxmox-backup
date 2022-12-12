@@ -17,8 +17,8 @@ use proxmox_schema::{api, ApiType, ReturnType};
 use pbs_api_types::{BackupNamespace, BackupType};
 use pbs_client::tools::key_source::get_encryption_key_password;
 use pbs_client::{BackupRepository, BackupWriter};
-use pbs_config::key_config::{load_and_decrypt_key, KeyDerivationConfig};
 use pbs_datastore::data_blob::{DataBlob, DataChunkBuilder};
+use pbs_key_config::{load_and_decrypt_key, KeyDerivationConfig};
 use pbs_tools::crypt_config::CryptConfig;
 
 use crate::{

@@ -17,8 +17,8 @@ use pbs_client::tools::key_source::{
     find_default_encryption_key, find_default_master_pubkey, get_encryption_key_password,
     place_default_encryption_key, place_default_master_pubkey,
 };
-use pbs_config::key_config::{rsa_decrypt_key_config, KeyConfig};
 use pbs_datastore::paperkey::{generate_paper_key, PaperkeyFormat};
+use pbs_key_config::{rsa_decrypt_key_config, KeyConfig};
 
 #[api]
 #[derive(Deserialize, Serialize)]

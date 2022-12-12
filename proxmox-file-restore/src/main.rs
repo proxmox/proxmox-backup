@@ -31,11 +31,11 @@ use pbs_client::tools::{
     REPO_URL_SCHEMA,
 };
 use pbs_client::{BackupReader, BackupRepository, RemoteChunkReader};
-use pbs_config::key_config::decrypt_key;
 use pbs_datastore::catalog::{ArchiveEntry, CatalogReader, DirEntryAttribute};
 use pbs_datastore::dynamic_index::{BufferedDynamicReader, LocalDynamicReadAt};
 use pbs_datastore::index::IndexFile;
 use pbs_datastore::CATALOG_NAME;
+use pbs_key_config::decrypt_key;
 use pbs_tools::crypt_config::CryptConfig;
 
 pub mod block_driver;

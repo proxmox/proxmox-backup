@@ -46,7 +46,6 @@ use pbs_client::{
     FixedChunkStream, HttpClient, PxarBackupStream, RemoteChunkReader, UploadOptions,
     BACKUP_SOURCE_SCHEMA,
 };
-use pbs_config::key_config::{decrypt_key, rsa_encrypt_key_config, KeyConfig};
 use pbs_datastore::catalog::{BackupCatalogWriter, CatalogReader, CatalogWriter};
 use pbs_datastore::chunk_store::verify_chunk_size;
 use pbs_datastore::dynamic_index::{BufferedDynamicReader, DynamicIndexReader};
@@ -57,6 +56,7 @@ use pbs_datastore::manifest::{
 };
 use pbs_datastore::read_chunk::AsyncReadChunk;
 use pbs_datastore::CATALOG_NAME;
+use pbs_key_config::{decrypt_key, rsa_encrypt_key_config, KeyConfig};
 use pbs_tools::crypt_config::CryptConfig;
 use pbs_tools::json;
 

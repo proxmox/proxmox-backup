@@ -20,10 +20,10 @@ use proxmox_sys::sortable;
 use pbs_api_types::BackupNamespace;
 use pbs_client::tools::key_source::get_encryption_key_password;
 use pbs_client::{BackupReader, RemoteChunkReader};
-use pbs_config::key_config::load_and_decrypt_key;
 use pbs_datastore::cached_chunk_reader::CachedChunkReader;
 use pbs_datastore::dynamic_index::BufferedDynamicReader;
 use pbs_datastore::index::IndexFile;
+use pbs_key_config::load_and_decrypt_key;
 use pbs_tools::crypt_config::CryptConfig;
 use pbs_tools::json::required_string_param;
 

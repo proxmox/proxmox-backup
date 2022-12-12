@@ -32,4 +32,5 @@ pbs-buildcfg.workspace = true
 pbs-client.workspace = true
 pbs-config.workspace = true
 pbs-datastore.workspace = true
+pbs-key-config.workspace = true
 pbs-tools.workspace = true

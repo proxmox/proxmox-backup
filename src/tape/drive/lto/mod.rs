@@ -21,7 +21,7 @@ use proxmox_uuid::Uuid;
 use pbs_api_types::{
     Fingerprint, Lp17VolumeStatistics, LtoDriveAndMediaStatus, LtoTapeDrive, MamAttribute,
 };
-use pbs_config::key_config::KeyConfig;
+use pbs_key_config::KeyConfig;
 use pbs_tape::{
     linux_list_drives::open_lto_tape_device,
     sg_tape::{SgTape, TapeAlertFlags},

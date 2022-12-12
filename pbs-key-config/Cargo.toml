@@ -1,0 +1,21 @@
+[package]
+name = "pbs-key-config"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+description = "Encryption key configuration and usage for PBS clients"
+
+[dependencies]
+anyhow.workspace = true
+nix.workspace = true
+openssl.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+proxmox-lang.workspace = true
+proxmox-serde.workspace = true
+proxmox-sys.workspace = true
+proxmox-time.workspace = true
+
+pbs-api-types.workspace = true
+pbs-tools.workspace = true

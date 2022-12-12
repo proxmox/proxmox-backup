@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use proxmox_schema::api;
 
-use pbs_config::key_config::KeyConfig;
+use pbs_key_config::KeyConfig;
 
 #[api()]
 #[derive(Debug, Serialize, Deserialize)]

@@ -34,6 +34,7 @@ members = [
     "pbs-config",
     "pbs-datastore",
     "pbs-fuse-loop",
+    "pbs-key-config",
     "pbs-pxar-fuse",
     "pbs-tape",
     "pbs-tools",
@@ -89,6 +90,7 @@ pbs-client = { path = "pbs-client" }
 pbs-config = { path = "pbs-config" }
 pbs-datastore = { path = "pbs-datastore" }
 pbs-fuse-loop = { path = "pbs-fuse-loop" }
+pbs-key-config = { path = "pbs-key-config" }
 pbs-pxar-fuse = { path = "pbs-pxar-fuse" }
 pbs-tape = { path = "pbs-tape" }
 pbs-tools = { path = "pbs-tools" }
@@ -225,6 +227,7 @@ pbs-buildcfg.workspace = true
 pbs-client.workspace = true
 pbs-config.workspace = true
 pbs-datastore.workspace = true
+pbs-key-config.workspace = true
 pbs-tape.workspace = true
 pbs-tools.workspace = true
 proxmox-rrd.workspace = true

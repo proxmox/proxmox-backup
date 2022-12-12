@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use proxmox_sys::fs::{replace_file, CreateOptions};
 
-use pbs_config::key_config::KeyConfig;
+use pbs_key_config::KeyConfig;
 use pbs_tape::{
     BlockReadError, BlockedReader, BlockedWriter, DriveStatus, ElementStatus, EmulateTapeReader,
     EmulateTapeWriter, MediaContentHeader, MtxStatus, StorageElementStatus, TapeRead, TapeWrite,

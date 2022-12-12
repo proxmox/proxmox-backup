@@ -266,7 +266,7 @@ impl TryFrom<super::DataBlob> for BackupManifest {
 
 #[test]
 fn test_manifest_signature() -> Result<(), Error> {
-    use pbs_config::key_config::KeyDerivationConfig;
+    use pbs_key_config::KeyDerivationConfig;
 
     let pw = b"test";
 
