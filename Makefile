@@ -31,22 +31,7 @@ SERVICE_BIN := \
 RESTORE_BIN := \
 	proxmox-restore-daemon
 
-SUBCRATES := \
-	pbs-api-types \
-	pbs-buildcfg \
-	pbs-client \
-	pbs-config \
-	pbs-datastore \
-	pbs-fuse-loop \
-	pbs-pxar-fuse \
-	pbs-tape \
-	pbs-tools \
-	proxmox-backup-banner \
-	proxmox-backup-client \
-	proxmox-file-restore \
-	proxmox-restore-daemon \
-	proxmox-rrd \
-	pxar-bin
+SUBCRATES != cargo metadata --format-version=1 | jq -r .workspace_members'[]' | awk '{ print $$1 }' | grep -v '^proxmox-backup$$' | tr '\n' ' '
 
 ifeq ($(BUILD_MODE), release)
 CARGO_BUILD_ARGS += --release
