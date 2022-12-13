@@ -6,7 +6,7 @@ use proxmox_router::UserInformation;
 
 use pbs_api_types::{Authid, Userid};
 use pbs_config::{token_shadow, CachedUserInfo};
-use pbs_tools::ticket::{self, Ticket};
+use pbs_ticket::Ticket;
 use proxmox_rest_server::{extract_cookie, AuthError};
 
 use crate::auth_helpers::*;
@@ -61,7 +61,7 @@ pub async fn check_pbs_auth(
     match auth_data {
         Some(AuthData::User(user_auth_data)) => {
             let ticket = user_auth_data.ticket.clone();
-            let ticket_lifetime = ticket::TICKET_LIFETIME;
+            let ticket_lifetime = pbs_ticket::TICKET_LIFETIME;
 
             let userid: Userid = Ticket::<super::ticket::ApiTicket>::parse(&ticket)?
                 .verify_with_time_frame(public_auth_key(), "PBS", None, -300..ticket_lifetime)?

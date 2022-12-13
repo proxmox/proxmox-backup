@@ -18,7 +18,7 @@ use pbs_api_types::{
 };
 use pbs_config::acl::AclTreeNode;
 use pbs_config::CachedUserInfo;
-use pbs_tools::ticket::{self, Empty, Ticket};
+use pbs_ticket::{Empty, Ticket};
 
 use crate::auth_helpers::*;
 use crate::config::tfa::TfaChallenge;
@@ -84,7 +84,7 @@ fn authenticate_user(
         if let Ok(Empty) = Ticket::parse(password).and_then(|ticket| {
             ticket.verify(
                 public_auth_key(),
-                ticket::TERM_PREFIX,
+                pbs_ticket::TERM_PREFIX,
                 Some(&crate::tools::ticket::term_aad(userid, &path, port)),
             )
         }) {

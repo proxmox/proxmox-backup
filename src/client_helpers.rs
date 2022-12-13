@@ -2,7 +2,7 @@ use anyhow::Error;
 
 use pbs_api_types::{Authid, Userid};
 use pbs_client::{HttpClient, HttpClientOptions};
-use pbs_tools::ticket::Ticket;
+use pbs_ticket::Ticket;
 
 use crate::auth_helpers::private_auth_key;
 

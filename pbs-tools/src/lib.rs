@@ -5,7 +5,6 @@ pub mod json;
 pub mod lru_cache;
 pub mod nom;
 pub mod sha;
-pub mod ticket;
 
 pub mod async_lru_cache;
 

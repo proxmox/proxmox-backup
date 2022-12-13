@@ -25,7 +25,7 @@ use proxmox_schema::*;
 use proxmox_rest_server::WorkerTask;
 
 use pbs_api_types::{Authid, NODE_SCHEMA, PRIV_SYS_CONSOLE};
-use pbs_tools::ticket::{self, Empty, Ticket};
+use pbs_ticket::{Empty, Ticket};
 
 use crate::auth_helpers::private_auth_key;
 use crate::tools;
@@ -119,7 +119,7 @@ async fn termproxy(cmd: Option<String>, rpcenv: &mut dyn RpcEnvironment) -> Resu
     let listener = TcpListener::bind("localhost:0")?;
     let port = listener.local_addr()?.port();
 
-    let ticket = Ticket::new(ticket::TERM_PREFIX, &Empty)?.sign(
+    let ticket = Ticket::new(pbs_ticket::TERM_PREFIX, &Empty)?.sign(
         private_auth_key(),
         Some(&tools::ticket::term_aad(userid, path, port)),
     )?;
@@ -292,7 +292,7 @@ fn upgrade_to_websocket(
         // will be checked again by termproxy
         Ticket::<Empty>::parse(ticket)?.verify(
             crate::auth_helpers::public_auth_key(),
-            ticket::TERM_PREFIX,
+            pbs_ticket::TERM_PREFIX,
             Some(&tools::ticket::term_aad(userid, "/system", port)),
         )?;
 

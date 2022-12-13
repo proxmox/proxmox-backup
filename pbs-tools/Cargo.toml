@@ -22,7 +22,6 @@ log.workspace = true
 nix.workspace = true
 nom.workspace = true
 openssl.workspace = true
-percent-encoding.workspace = true
 regex.workspace = true
 serde_json.workspace = true
 # rt-multi-thread is required for block_in_place

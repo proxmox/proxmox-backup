@@ -15,7 +15,7 @@ use pbs_api_types::{
     OPENID_DEFAILT_SCOPE_LIST, REALM_ID_SCHEMA,
 };
 use pbs_buildcfg::PROXMOX_BACKUP_RUN_DIR_M;
-use pbs_tools::ticket::Ticket;
+use pbs_ticket::Ticket;
 
 use pbs_config::open_backup_lockfile;
 use pbs_config::CachedUserInfo;

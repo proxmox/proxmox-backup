@@ -48,4 +48,5 @@ pxar.workspace = true
 pbs-api-types.workspace = true
 pbs-buildcfg.workspace = true
 pbs-datastore.workspace = true
+pbs-ticket.workspace = true
 pbs-tools.workspace = true

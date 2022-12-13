@@ -37,6 +37,7 @@ members = [
     "pbs-key-config",
     "pbs-pxar-fuse",
     "pbs-tape",
+    "pbs-ticket",
     "pbs-tools",
 
     "proxmox-backup-banner",
@@ -93,6 +94,7 @@ pbs-fuse-loop = { path = "pbs-fuse-loop" }
 pbs-key-config = { path = "pbs-key-config" }
 pbs-pxar-fuse = { path = "pbs-pxar-fuse" }
 pbs-tape = { path = "pbs-tape" }
+pbs-ticket = { path = "pbs-ticket" }
 pbs-tools = { path = "pbs-tools" }
 proxmox-rrd = { path = "proxmox-rrd" }
 
@@ -229,6 +231,7 @@ pbs-config.workspace = true
 pbs-datastore.workspace = true
 pbs-key-config.workspace = true
 pbs-tape.workspace = true
+pbs-ticket.workspace = true
 pbs-tools.workspace = true
 proxmox-rrd.workspace = true
 
