@@ -48,7 +48,7 @@ case "$1" in
 			true
 		fi
 
-		if dpkg --compare-versions "$2" 'lt' '2.3.1~'; then
+		if dpkg --compare-versions "$2" 'lt' '2.3.1~' && test -e /etc/proxmox-backup/.datastore.lck; then
 			lock_user="$(stat --format '%U' /etc/proxmox-backup/.datastore.lck)"
 			if [ "${lock_user}" != "backup" ]; then
 				echo "updating /etc/proxmox-backup/.datastore.lck from wrong user '${lock_user}' to 'backup'"
