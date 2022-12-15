@@ -75,7 +75,7 @@ pub const EMAIL_SCHEMA: Schema = StringSchema::new("E-Mail Address.")
         },
     }
 )]
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 /// User properties with added list of ApiTokens
 pub struct UserWithTokens {
     pub userid: Userid,
@@ -114,7 +114,7 @@ pub struct UserWithTokens {
         },
     }
 )]
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 /// ApiToken properties.
 pub struct ApiToken {
     pub tokenid: Authid,

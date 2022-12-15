@@ -149,7 +149,7 @@ pub struct LabelUuidMap {
         },
     },
 )]
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 /// Media content list entry
 pub struct MediaContentEntry {

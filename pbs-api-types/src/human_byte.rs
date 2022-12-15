@@ -121,7 +121,7 @@ fn strip_unit(v: &str) -> (&str, SizeUnit) {
 }
 
 /// Byte size which can be displayed in a human friendly way
-#[derive(Debug, Copy, Clone, UpdaterType)]
+#[derive(Debug, Copy, Clone, UpdaterType, PartialEq)]
 pub struct HumanByte {
     /// The siginficant value, it does not includes any factor of the `unit`
     size: f64,

@@ -270,7 +270,7 @@ pub const DATASTORE_TUNING_STRING_SCHEMA: Schema = StringSchema::new("Datastore 
         },
     }
 )]
-#[derive(Serialize, Deserialize, Updater)]
+#[derive(Serialize, Deserialize, Updater, Clone, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 /// Datastore configuration properties.
 pub struct DataStoreConfig {
@@ -354,7 +354,7 @@ impl DataStoreConfig {
         }
     },
 )]
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 /// Basic information about a datastore.
 pub struct DataStoreListItem {
@@ -1141,7 +1141,7 @@ pub struct GroupListItem {
 }
 
 #[api()]
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 /// Basic information about a backup namespace.
 pub struct NamespaceListItem {
@@ -1223,7 +1223,7 @@ pub struct TypeCounts {
         },
     },
 )]
-#[derive(Clone, Default, Serialize, Deserialize)]
+#[derive(Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 /// Garbage collection status.
 pub struct GarbageCollectionStatus {
@@ -1295,7 +1295,7 @@ pub struct DataStoreStatus {
         },
      },
 )]
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 /// Status of a Datastore
 pub struct DataStoreStatusListItem {

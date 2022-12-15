@@ -46,7 +46,7 @@ pub const REMOTE_ID_SCHEMA: Schema = StringSchema::new("Remote ID.")
         },
     },
 )]
-#[derive(Serialize, Deserialize, Updater)]
+#[derive(Serialize, Deserialize, Updater, Clone, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 /// Remote configuration properties.
 pub struct RemoteConfig {
@@ -96,7 +96,7 @@ pub struct Remote {
         },
     },
 )]
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 /// Remote properties.
 pub struct RemoteWithoutPassword {

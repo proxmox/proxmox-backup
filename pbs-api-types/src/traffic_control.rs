@@ -48,7 +48,7 @@ pub const TRAFFIC_CONTROL_BURST_SCHEMA: Schema =
         },
     },
 )]
-#[derive(Serialize, Deserialize, Default, Clone, Updater)]
+#[derive(Serialize, Deserialize, Default, Clone, Updater, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 ///  Rate Limit Configuration
 pub struct RateLimitConfig {

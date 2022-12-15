@@ -87,7 +87,7 @@ pub const REMOVE_VANISHED_BACKUPS_SCHEMA: Schema = BooleanSchema::new(
         },
     }
 )]
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Clone, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 /// Job Scheduling Status
 pub struct JobScheduleStatus {
@@ -392,6 +392,17 @@ pub enum GroupFilter {
     Regex(Regex),
 }
 
+impl PartialEq for GroupFilter {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::BackupType(a), Self::BackupType(b)) => a == b,
+            (Self::Group(a), Self::Group(b)) => a == b,
+            (Self::Regex(a), Self::Regex(b)) => a.as_str() == b.as_str(),
+            _ => false,
+        }
+    }
+}
+
 impl std::str::FromStr for GroupFilter {
     type Err = anyhow::Error;
 
@@ -484,7 +495,7 @@ pub const GROUP_FILTER_LIST_SCHEMA: Schema =
         },
     }
 )]
-#[derive(Serialize, Deserialize, Clone, Updater)]
+#[derive(Serialize, Deserialize, Clone, Updater, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 /// Sync Job
 pub struct SyncJobConfig {
@@ -532,7 +543,7 @@ impl SyncJobConfig {
         },
     },
 )]
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 /// Status of Sync Job
 pub struct SyncJobStatus {
@@ -572,7 +583,7 @@ pub struct SyncJobStatus {
         },
     }
 )]
-#[derive(Serialize, Deserialize, Default, Updater)]
+#[derive(Serialize, Deserialize, Default, Updater, Clone, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 /// Common pruning options
 pub struct KeepOptions {

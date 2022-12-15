@@ -492,7 +492,7 @@ pub enum RRDTimeFrame {
 }
 
 #[api]
-#[derive(Deserialize, Serialize, PartialEq, Eq)]
+#[derive(Deserialize, Serialize, Copy, Clone, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 /// type of the realm
 pub enum RealmType {
@@ -518,7 +518,7 @@ pub enum RealmType {
         },
     },
 )]
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Clone, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 /// Basic Information about a realm
 pub struct BasicRealmInfo {
