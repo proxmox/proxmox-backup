@@ -77,9 +77,9 @@ pub async fn display_task_log(
                 }
                 if strip_date && t.len() > 27 && &t[25..27] == ": " {
                     let line = &t[27..];
-                    log::info!("{}", line);
+                    println!("{}", line);
                 } else {
-                    log::info!("{}", t);
+                    println!("{}", t);
                 }
                 start += 1;
             }
