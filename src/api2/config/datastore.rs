@@ -18,7 +18,10 @@ use pbs_api_types::{
 use pbs_config::BackupLockGuard;
 use pbs_datastore::chunk_store::ChunkStore;
 
-use crate::api2::admin::{sync::list_sync_jobs, verify::list_verification_jobs};
+use crate::api2::admin::{
+    prune::list_prune_jobs, sync::list_sync_jobs, verify::list_verification_jobs,
+};
+use crate::api2::config::prune::delete_prune_job;
 use crate::api2::config::sync::delete_sync_job;
 use crate::api2::config::tape_backup_job::{delete_tape_backup_job, list_tape_backup_jobs};
 use crate::api2::config::verify::delete_verification_job;
@@ -432,6 +435,9 @@ pub async fn delete_datastore(
         }
         for job in list_sync_jobs(Some(name.clone()), Value::Null, rpcenv)? {
             delete_sync_job(job.config.id, None, rpcenv)?
+        }
+        for job in list_prune_jobs(Some(name.clone()), Value::Null, rpcenv)? {
+            delete_prune_job(job.config.id, None, rpcenv)?
         }
 
         let tape_jobs = list_tape_backup_jobs(Value::Null, rpcenv)?;
