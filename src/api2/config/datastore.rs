@@ -440,6 +440,10 @@ pub async fn delete_datastore(
             delete_prune_job(job.config.id, None, rpcenv)?
         }
 
+        let (mut tree, _digest) = pbs_config::acl::config()?;
+        tree.delete_node(&format!("/datastore/{}", name));
+        pbs_config::acl::save_config(&tree)?;
+
         let tape_jobs = list_tape_backup_jobs(Value::Null, rpcenv)?;
         for job_config in tape_jobs
             .into_iter()
