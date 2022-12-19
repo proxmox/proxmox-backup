@@ -396,6 +396,21 @@ impl AclTree {
         node.delete_user_role(auth_id, role);
     }
 
+    /// Deletes the [AclTreeNode] at the specified patth
+    ///
+    /// Never fails, deletes a node iff the specified path exists.
+    pub fn delete_node(&mut self, path: &str) {
+        let mut path = split_acl_path(path);
+        let last = path.pop();
+        let parent = match self.get_node_mut(&path) {
+            Some(n) => n,
+            None => return,
+        };
+        if let Some(name) = last {
+            parent.children.remove(name);
+        }
+    }
+
     /// Inserts the specified `role` into the `group` ACL on `path`.
     ///
     /// The [AclTreeNode] representing `path` will be created and inserted into the tree if
@@ -944,6 +959,52 @@ acl:1:/storage/store1:user1@pbs:DatastoreBackup
         assert!(tree
             .get_child_paths(&user2, &["store/store2/store31/store4/store6"],)?
             .is_empty());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_delete_node() -> Result<(), Error> {
+        let mut tree = AclTree::new();
+
+        let user1: Authid = "user1@pbs".parse()?;
+
+        tree.insert_user_role("/storage", &user1, "NoAccess", true);
+        tree.insert_user_role("/storage/a", &user1, "NoAccess", true);
+        tree.insert_user_role("/storage/b", &user1, "NoAccess", true);
+        tree.insert_user_role("/storage/b/a", &user1, "NoAccess", true);
+        tree.insert_user_role("/storage/b/b", &user1, "NoAccess", true);
+        tree.insert_user_role("/datastore/c", &user1, "NoAccess", true);
+        tree.insert_user_role("/datastore/d", &user1, "NoAccess", true);
+
+        assert!(tree.find_node("/storage/b/a").is_some());
+        tree.delete_node("/storage/b/a");
+        assert!(tree.find_node("/storage/b/a").is_none());
+
+        assert!(tree.find_node("/storage/b/b").is_some());
+        assert!(tree.find_node("/storage/b").is_some());
+        tree.delete_node("/storage/b");
+        assert!(tree.find_node("/storage/b/b").is_none());
+        assert!(tree.find_node("/storage/b").is_none());
+
+        assert!(tree.find_node("/storage").is_some());
+        assert!(tree.find_node("/storage/a").is_some());
+        tree.delete_node("/storage");
+        assert!(tree.find_node("/storage").is_none());
+        assert!(tree.find_node("/storage/a").is_none());
+
+        assert!(tree.find_node("/datastore/c").is_some());
+        tree.delete_node("/datastore/c");
+        assert!(tree.find_node("/datastore/c").is_none());
+
+        assert!(tree.find_node("/datastore/d").is_some());
+        tree.delete_node("/datastore/d");
+        assert!(tree.find_node("/datastore/d").is_none());
+
+        // '/' should not be deletable
+        assert!(tree.find_node("/").is_some());
+        tree.delete_node("/");
+        assert!(tree.find_node("/").is_some());
 
         Ok(())
     }
