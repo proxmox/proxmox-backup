@@ -15,8 +15,8 @@ use pbs_api_types::{Authid, Role, Userid, ROLE_NAME_NO_ACCESS};
 use crate::{open_backup_lockfile, replace_backup_config, BackupLockGuard};
 
 lazy_static! {
-    /// Map of pre-defined [Roles](Role) to their associated [privileges](PRIVILEGES) combination and
-    /// description.
+    /// Map of pre-defined [Roles](Role) to their associated [privileges](PRIVILEGES) combination
+    /// and description.
     pub static ref ROLE_NAMES: HashMap<&'static str, (u64, &'static str)> = {
         let mut map = HashMap::new();
 
@@ -171,7 +171,7 @@ pub struct AclTree {
     /// Root node of the tree.
     ///
     /// The rest of the tree is available via [find_node()](AclTree::find_node()) or an
-    /// [AclTreeNode]'s [children](AclTreeNode::children) member.
+    /// [`AclTreeNode`]'s [children](AclTreeNode::children) member.
     pub root: AclTreeNode,
 }
 
@@ -200,8 +200,8 @@ impl AclTreeNode {
     /// Returns applicable [Role] and their propagation status for a given
     /// [Authid](pbs_api_types::Authid).
     ///
-    /// If the `Authid` is a [User](pbs_api_types::User) that has no specific `Roles` configured on this node,
-    /// applicable `Group` roles will be returned instead.
+    /// If the `Authid` is a [User](pbs_api_types::User) that has no specific `Roles` configured on
+    /// this node, applicable `Group` roles will be returned instead.
     ///
     /// If `leaf` is `false`, only those roles where the propagate flag in the ACL is set to `true`
     /// are returned. Otherwise, all roles will be returned.
@@ -396,7 +396,7 @@ impl AclTree {
         node.delete_user_role(auth_id, role);
     }
 
-    /// Deletes the [AclTreeNode] at the specified patth
+    /// Deletes the [`AclTreeNode`] at the specified patth
     ///
     /// Never fails, deletes a node iff the specified path exists.
     pub fn delete_node(&mut self, path: &str) {
@@ -413,7 +413,7 @@ impl AclTree {
 
     /// Inserts the specified `role` into the `group` ACL on `path`.
     ///
-    /// The [AclTreeNode] representing `path` will be created and inserted into the tree if
+    /// The [`AclTreeNode`] representing `path` will be created and inserted into the tree if
     /// necessary.
     pub fn insert_group_role(&mut self, path: &str, group: &str, role: &str, propagate: bool) {
         let path = split_acl_path(path);
@@ -423,7 +423,7 @@ impl AclTree {
 
     /// Inserts the specified `role` into the `user` ACL on `path`.
     ///
-    /// The [AclTreeNode] representing `path` will be created and inserted into the tree if
+    /// The [`AclTreeNode`] representing `path` will be created and inserted into the tree if
     /// necessary.
     pub fn insert_user_role(&mut self, path: &str, auth_id: &Authid, role: &str, propagate: bool) {
         let path = split_acl_path(path);
@@ -690,9 +690,9 @@ impl AclTree {
     }
 }
 
-/// Filename where [AclTree] is stored.
+/// Filename where [`AclTree`] is stored.
 pub const ACL_CFG_FILENAME: &str = "/etc/proxmox-backup/acl.cfg";
-/// Path used to lock the [AclTree] when modifying.
+/// Path used to lock the [`AclTree`] when modifying.
 pub const ACL_CFG_LOCKFILE: &str = "/etc/proxmox-backup/.acl.lck";
 
 /// Get exclusive lock
@@ -700,13 +700,14 @@ pub fn lock_config() -> Result<BackupLockGuard, Error> {
     open_backup_lockfile(ACL_CFG_LOCKFILE, None, true)
 }
 
-/// Reads the [AclTree] from the [default path](ACL_CFG_FILENAME).
+/// Reads the [`AclTree`] from the [default path](ACL_CFG_FILENAME).
 pub fn config() -> Result<(AclTree, [u8; 32]), Error> {
     let path = PathBuf::from(ACL_CFG_FILENAME);
     AclTree::load(&path)
 }
 
-/// Returns a cached [AclTree] or fresh copy read directly from the [default path](ACL_CFG_FILENAME)
+/// Returns a cached [`AclTree`] or fresh copy read directly from the [default
+/// path](ACL_CFG_FILENAME)
 ///
 /// Since the AclTree is used for every API request's permission check, this caching mechanism
 /// allows to skip reading and parsing the file again if it is unchanged.
@@ -759,7 +760,7 @@ pub fn cached_config() -> Result<Arc<AclTree>, Error> {
     Ok(config)
 }
 
-/// Saves an [AclTree] to the [default path](ACL_CFG_FILENAME), ensuring proper ownership and
+/// Saves an [`AclTree`] to the [default path](ACL_CFG_FILENAME), ensuring proper ownership and
 /// file permissions.
 pub fn save_config(acl: &AclTree) -> Result<(), Error> {
     let mut raw: Vec<u8> = Vec::new();
@@ -955,7 +956,8 @@ acl:1:/storage/store1:user1@pbs:DatastoreBackup
             .get_child_paths(&user2, &["store", "store2", "foo/bar/baz"])?
             .is_empty());
 
-        // user2 has DatastoreReader privileges on "/store/store2/store31/store4/store6", but not on any child paths --> return empty
+        // user2 has DatastoreReader privileges on "/store/store2/store31/store4/store6", but not
+        // on any child paths --> return empty
         assert!(tree
             .get_child_paths(&user2, &["store/store2/store31/store4/store6"],)?
             .is_empty());
