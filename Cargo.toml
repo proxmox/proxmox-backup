@@ -1,5 +1,5 @@
 [workspace.package]
-version = "2.3.1"
+version = "2.3.2"
 authors = [
     "Dietmar Maurer <dietmar@proxmox.com>",
     "Dominik Csapak <d.csapak@proxmox.com>",

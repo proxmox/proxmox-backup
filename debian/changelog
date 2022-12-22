@@ -1,3 +1,41 @@
+rust-proxmox-backup (2.3.2-1) bullseye; urgency=medium
+
+  * ui: datastore options: fix default for prune notify render
+
+  * tape: hide internal use of all zero uuid for unassigned tapes
+
+  * tape: inventory: skip unassigned tapes
+
+  * ui: metricserver: fix enable column
+
+  * code re-organization
+
+  * tree-wide: bump edition to 2021
+
+  * debug cli: show more file attributes for `diff archive` command
+
+  * debug cli: add 'compare-content' flag to `diff archive` command
+
+  * debug cli: add colored output for `diff archive`
+
+  * use workspace inheritance feature of cargo 0.65
+
+  * update for new proxmox-api-macro
+
+  * fix #4346: pbs-client: don't fail silently when storing ticket
+
+  * d/control: add jq as a build dependency
+
+  * d/postinst: check if datastore lockfile actually exists
+
+  * fix #4387: pbs-client: print task-logs to stdout
+
+  * fix #4256: api2: remove prune jobs on datastore delete
+
+  * fix #4256: api2: remove datastore ACL-node on removal of datastore
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 22 Dec 2022 11:31:17 +0100
+
 rust-proxmox-backup (2.3.1-1) bullseye; urgency=medium
 
   * d/postinst: try to fixup installations with wrong .datastore.lck owner for

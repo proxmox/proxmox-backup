@@ -3,7 +3,7 @@ Section: admin
 Priority: optional
 Build-Depends: debhelper (>= 12),
  dh-cargo (>= 24),
- cargo:native,
+ cargo:native (>= 0.65.0-1),
  rustc:native,
  libstd-rust-dev,
  librust-anyhow-1+default-dev,
