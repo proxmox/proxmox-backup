@@ -76,12 +76,26 @@ fn get_full_service_state(service: &str) -> Result<Value, Error> {
 fn json_service_state(service: &str, status: Value) -> Value {
     if let Some(desc) = status["Description"].as_str() {
         let name = status["Name"].as_str().unwrap_or(service);
-        let state = status["SubState"].as_str().unwrap_or("unknown");
+
+        let state = if status["Type"] == "oneshot" && status["SubState"] == "dead" {
+            status["Result"].as_str().or(status["SubState"].as_str())
+        } else {
+            status["SubState"].as_str()
+        }
+        .unwrap_or("unknown");
+
+        let unit_state = if status["LoadState"] == "not-found" {
+            "not-found"
+        } else {
+            status["UnitFileState"].as_str().unwrap_or("unknown")
+        };
+
         return json!({
             "service": service,
             "name": name,
             "desc": desc,
             "state": state,
+            "unit-state": unit_state,
         });
     }
 
@@ -116,6 +130,10 @@ fn json_service_state(service: &str, status: Value) -> Value {
                 state: {
                     type: String,
                     description: "systemd service 'SubState'.",
+                },
+                "unit-state": {
+                    type: String,
+                    description: "systemd service unit state.",
                 },
             },
         },
