@@ -13,6 +13,8 @@ Ext.define('pbs-verify-jobs-status', {
 	    },
 	},
 	'comment',
+	'ns',
+	'max-depth',
     ],
     idProperty: 'id',
     proxy: {
@@ -188,6 +190,20 @@ Ext.define('PBS.config.VerifyJobView', {
 	    header: gettext('Datastore'),
 	    dataIndex: 'store',
 	    flex: 1,
+	},
+	{
+	    header: gettext('Namespace'),
+	    dataIndex: 'ns',
+	    minWidth: 75,
+	    flex: 2,
+	    sortable: true,
+	    renderer: PBS.Utils.render_optional_namespace,
+	},
+	{
+	    header: gettext('Max. Depth'),
+	    dataIndex: 'max-depth',
+	    width: 90,
+	    sortable: true,
 	},
 	{
 	    header: gettext('Skip Verified'),
