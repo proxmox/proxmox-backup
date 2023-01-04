@@ -189,12 +189,13 @@ Ext.define('PBS.config.VerifyJobView', {
 	{
 	    header: gettext('Datastore'),
 	    dataIndex: 'store',
+	    minWidth: 80,
 	    flex: 1,
 	},
 	{
 	    header: gettext('Namespace'),
 	    dataIndex: 'ns',
-	    minWidth: 75,
+	    minWidth: 80,
 	    flex: 2,
 	    sortable: true,
 	    renderer: PBS.Utils.render_optional_namespace,
