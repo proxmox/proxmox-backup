@@ -181,7 +181,7 @@ Ext.define('PBS.config.PruneJobView', {
 	    sortable: true,
 	},
 	{
-	    header: gettext('Store'),
+	    header: gettext('Datastore'),
 	    dataIndex: 'store',
 	    width: 120,
 	    sortable: true,
