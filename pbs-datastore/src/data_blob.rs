@@ -96,7 +96,7 @@ impl DataBlob {
         let mut blob = if let Some(config) = config {
             let compr_data;
             let (_compress, data, magic) = if compress {
-                compr_data = zstd::block::compress(data, 1)?;
+                compr_data = zstd::bulk::compress(data, 1)?;
                 // Note: We only use compression if result is shorter
                 if compr_data.len() < data.len() {
                     (true, &compr_data[..], ENCR_COMPR_BLOB_MAGIC_1_0)

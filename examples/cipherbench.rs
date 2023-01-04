@@ -35,7 +35,7 @@ fn main() -> Result<(), Error> {
     });
 
     rate_test("zstd", &|| {
-        zstd::block::compress(&input, 1).unwrap();
+        zstd::bulk::compress(&input, 1).unwrap();
         input.len()
     });
 
