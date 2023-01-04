@@ -17,6 +17,10 @@ export CARGO_HOME = $(CURDIR)/debian/cargo_home
 export DEB_CARGO_CRATE=proxmox-backup_$(DEB_VERSION_UPSTREAM)
 export DEB_CARGO_PACKAGE=proxmox-backup
 
+ifneq ("$(wildcard .repoid)","")
+	export REPOID=$(shell cat .repoid)
+endif
+
 %:
 	dh $@ --with=bash-completion
 

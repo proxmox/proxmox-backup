@@ -89,6 +89,7 @@ doc:
 build:
 	rm -rf build
 	mkdir build
+	git rev-parse HEAD > build/.repoid
 	cp -a debian \
 	  Cargo.toml src \
 	  $(SUBCRATES) \
