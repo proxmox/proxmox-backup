@@ -104,8 +104,8 @@ impl FixedIndexReader {
 
         let data = unsafe {
             nix::sys::mman::mmap(
-                std::ptr::null_mut(),
-                index_size,
+                None,
+                std::num::NonZeroUsize::new(index_size).ok_or_else(|| format_err!("invalid index size"))?,
                 nix::sys::mman::ProtFlags::PROT_READ,
                 nix::sys::mman::MapFlags::MAP_PRIVATE,
                 file.as_raw_fd(),
@@ -290,8 +290,8 @@ impl FixedIndexWriter {
 
         let data = unsafe {
             nix::sys::mman::mmap(
-                std::ptr::null_mut(),
-                index_size,
+                None,
+                std::num::NonZeroUsize::new(index_size).ok_or_else(|| format_err!("invalid index size"))?,
                 nix::sys::mman::ProtFlags::PROT_READ | nix::sys::mman::ProtFlags::PROT_WRITE,
                 nix::sys::mman::MapFlags::MAP_SHARED,
                 file.as_raw_fd(),

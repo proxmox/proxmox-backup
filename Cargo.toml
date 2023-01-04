@@ -63,16 +63,16 @@ proxmox-http = { version = "0.7", features = [ "client", "http-helpers", "websoc
 proxmox-io = "1.0.1" # tools and client use "tokio" feature
 proxmox-lang = "1.1"
 proxmox-metrics = "0.2"
-proxmox-rest-server = "0.2"
+proxmox-rest-server = "0.2.1"
 # some use "cli", some use "cli" and "server", pbs-config uses nothing
-proxmox-router = { version = "1.3.0", default_features = false }
+proxmox-router = { version = "1.3.1", default_features = false }
 # everything but pbs-config and pbs-client ues "api-macro"
-proxmox-schema = "1.3.1"
+proxmox-schema = "1.3.6"
 proxmox-section-config = "1"
 proxmox-serde = "0.1.1"
-proxmox-shared-memory = "0.2"
+proxmox-shared-memory = "0.2.3"
 proxmox-subscription = { version = "0.3", features = [ "api-types" ] }
-proxmox-sys = "0.4.1"
+proxmox-sys = "0.4.2"
 proxmox-tfa = { version = "2.1", features = [ "api", "api-types" ] }
 proxmox-time = "1.1.2"
 proxmox-uuid = "1"
@@ -81,7 +81,7 @@ proxmox-uuid = "1"
 pathpatterns = "0.1.2"
 proxmox-acme-rs = "0.4"
 proxmox-apt = "0.9.0"
-proxmox-openid = "0.9.0"
+proxmox-openid = "0.9.8"
 pxar = "0.10.2"
 
 # PBS workspace
@@ -120,7 +120,7 @@ hyper = { version = "0.14", features = [ "full" ] }
 lazy_static = "1.4"
 libc = "0.2"
 log = "0.4.17"
-nix = "0.24"
+nix = "0.26.1"
 nom = "7"
 num-traits = "0.2"
 once_cell = "1.3.1"
