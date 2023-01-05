@@ -1,3 +1,5 @@
+use std::fmt;
+
 use serde::{Deserialize, Serialize};
 
 use proxmox_schema::*;
@@ -59,42 +61,64 @@ pub enum NetworkConfigMethod {
 #[api()]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-#[allow(non_camel_case_types)]
 #[repr(u8)]
 /// Linux Bond Mode
 pub enum LinuxBondMode {
     /// Round-robin policy
-    balance_rr = 0,
+    BalanceRr = 0,
     /// Active-backup policy
-    active_backup = 1,
+    ActiveBackup = 1,
     /// XOR policy
-    balance_xor = 2,
+    BalanceXor = 2,
     /// Broadcast policy
-    broadcast = 3,
+    Broadcast = 3,
     /// IEEE 802.3ad Dynamic link aggregation
     #[serde(rename = "802.3ad")]
-    ieee802_3ad = 4,
+    Ieee802_3ad = 4,
     /// Adaptive transmit load balancing
-    balance_tlb = 5,
+    BalanceTlb = 5,
     /// Adaptive load balancing
-    balance_alb = 6,
+    BalanceAlb = 6,
+}
+
+impl fmt::Display for LinuxBondMode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str(match self {
+            LinuxBondMode::BalanceRr => "balance-rr",
+            LinuxBondMode::ActiveBackup => "active-backup",
+            LinuxBondMode::BalanceXor => "balance-xor",
+            LinuxBondMode::Broadcast => "broadcast",
+            LinuxBondMode::Ieee802_3ad => "802.3ad",
+            LinuxBondMode::BalanceTlb => "balance-tlb",
+            LinuxBondMode::BalanceAlb => "balance-alb",
+        })
+    }
 }
 
 #[api()]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-#[allow(non_camel_case_types)]
 #[repr(u8)]
 /// Bond Transmit Hash Policy for LACP (802.3ad)
 pub enum BondXmitHashPolicy {
     /// Layer 2
-    layer2 = 0,
+    Layer2 = 0,
     /// Layer 2+3
     #[serde(rename = "layer2+3")]
-    layer2_3 = 1,
+    Layer2_3 = 1,
     /// Layer 3+4
     #[serde(rename = "layer3+4")]
-    layer3_4 = 2,
+    Layer3_4 = 2,
+}
+
+impl fmt::Display for BondXmitHashPolicy {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str(match self {
+            BondXmitHashPolicy::Layer2 => "layer2",
+            BondXmitHashPolicy::Layer2_3 => "layer2+3",
+            BondXmitHashPolicy::Layer3_4 => "layer3+4",
+        })
+    }
 }
 
 #[api()]

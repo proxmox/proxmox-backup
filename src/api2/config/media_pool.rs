@@ -103,19 +103,18 @@ pub fn get_config(name: String) -> Result<MediaPoolConfig, Error> {
 
 #[api()]
 #[derive(Serialize, Deserialize)]
-#[allow(non_camel_case_types)]
 /// Deletable property name
 pub enum DeletableProperty {
     /// Delete media set allocation policy.
-    allocation,
+    Allocation,
     /// Delete pool retention policy
-    retention,
+    Retention,
     /// Delete media set naming template
-    template,
+    Template,
     /// Delete encryption fingerprint
-    encrypt,
+    Encrypt,
     /// Delete comment
-    comment,
+    Comment,
 }
 
 #[api(
@@ -158,19 +157,19 @@ pub fn update_pool(
     if let Some(delete) = delete {
         for delete_prop in delete {
             match delete_prop {
-                DeletableProperty::allocation => {
+                DeletableProperty::Allocation => {
                     data.allocation = None;
                 }
-                DeletableProperty::retention => {
+                DeletableProperty::Retention => {
                     data.retention = None;
                 }
-                DeletableProperty::template => {
+                DeletableProperty::Template => {
                     data.template = None;
                 }
-                DeletableProperty::encrypt => {
+                DeletableProperty::Encrypt => {
                     data.encrypt = None;
                 }
-                DeletableProperty::comment => {
+                DeletableProperty::Comment => {
                     data.comment = None;
                 }
             }

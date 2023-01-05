@@ -22,15 +22,14 @@ static RESOLV_CONF_FN: &str = "/etc/resolv.conf";
 
 #[api()]
 #[derive(Serialize, Deserialize)]
-#[allow(non_camel_case_types)]
 /// Deletable property name
 pub enum DeletableProperty {
     /// Delete first nameserver entry
-    dns1,
+    Dns1,
     /// Delete second nameserver entry
-    dns2,
+    Dns2,
     /// Delete third nameserver entry
-    dns3,
+    Dns3,
 }
 
 pub fn read_etc_resolv_conf() -> Result<Value, Error> {
@@ -146,13 +145,13 @@ pub fn update_dns(
         for delete_prop in delete {
             let config = config.as_object_mut().unwrap();
             match delete_prop {
-                DeletableProperty::dns1 => {
+                DeletableProperty::Dns1 => {
                     config.remove("dns1");
                 }
-                DeletableProperty::dns2 => {
+                DeletableProperty::Dns2 => {
                     config.remove("dns2");
                 }
-                DeletableProperty::dns3 => {
+                DeletableProperty::Dns3 => {
                     config.remove("dns3");
                 }
             }

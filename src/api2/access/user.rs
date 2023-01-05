@@ -189,16 +189,15 @@ pub fn read_user(userid: Userid, rpcenv: &mut dyn RpcEnvironment) -> Result<User
 #[api()]
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-#[allow(non_camel_case_types)]
 pub enum DeletableProperty {
     /// Delete the comment property.
-    comment,
+    Comment,
     /// Delete the firstname property.
-    firstname,
+    Firstname,
     /// Delete the lastname property.
-    lastname,
+    Lastname,
     /// Delete the email property.
-    email,
+    Email,
 }
 
 #[api(
@@ -261,10 +260,10 @@ pub fn update_user(
     if let Some(delete) = delete {
         for delete_prop in delete {
             match delete_prop {
-                DeletableProperty::comment => data.comment = None,
-                DeletableProperty::firstname => data.firstname = None,
-                DeletableProperty::lastname => data.lastname = None,
-                DeletableProperty::email => data.email = None,
+                DeletableProperty::Comment => data.comment = None,
+                DeletableProperty::Firstname => data.firstname = None,
+                DeletableProperty::Lastname => data.lastname = None,
+                DeletableProperty::Email => data.email = None,
             }
         }
     }

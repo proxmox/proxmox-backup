@@ -133,15 +133,14 @@ pub fn read_remote(
 
 #[api()]
 #[derive(Serialize, Deserialize)]
-#[allow(non_camel_case_types)]
 /// Deletable property name
 pub enum DeletableProperty {
     /// Delete the comment property.
-    comment,
+    Comment,
     /// Delete the fingerprint property.
-    fingerprint,
+    Fingerprint,
     /// Delete the port property.
-    port,
+    Port,
 }
 
 #[api(
@@ -200,13 +199,13 @@ pub fn update_remote(
     if let Some(delete) = delete {
         for delete_prop in delete {
             match delete_prop {
-                DeletableProperty::comment => {
+                DeletableProperty::Comment => {
                     data.config.comment = None;
                 }
-                DeletableProperty::fingerprint => {
+                DeletableProperty::Fingerprint => {
                     data.config.fingerprint = None;
                 }
-                DeletableProperty::port => {
+                DeletableProperty::Port => {
                     data.config.port = None;
                 }
             }

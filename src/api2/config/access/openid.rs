@@ -146,21 +146,20 @@ pub fn read_openid_realm(
 #[api()]
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-#[allow(non_camel_case_types)]
 /// Deletable property name
 pub enum DeletableProperty {
     /// Delete the client key.
-    client_key,
+    ClientKey,
     /// Delete the comment property.
-    comment,
+    Comment,
     /// Delete the autocreate property
-    autocreate,
+    Autocreate,
     /// Delete the scopes property
-    scopes,
+    Scopes,
     /// Delete the prompt property
-    prompt,
+    Prompt,
     /// Delete the acr_values property
-    acr_values,
+    AcrValues,
 }
 
 #[api(
@@ -215,22 +214,22 @@ pub fn update_openid_realm(
     if let Some(delete) = delete {
         for delete_prop in delete {
             match delete_prop {
-                DeletableProperty::client_key => {
+                DeletableProperty::ClientKey => {
                     config.client_key = None;
                 }
-                DeletableProperty::comment => {
+                DeletableProperty::Comment => {
                     config.comment = None;
                 }
-                DeletableProperty::autocreate => {
+                DeletableProperty::Autocreate => {
                     config.autocreate = None;
                 }
-                DeletableProperty::scopes => {
+                DeletableProperty::Scopes => {
                     config.scopes = None;
                 }
-                DeletableProperty::prompt => {
+                DeletableProperty::Prompt => {
                     config.prompt = None;
                 }
-                DeletableProperty::acr_values => {
+                DeletableProperty::AcrValues => {
                     config.acr_values = None;
                 }
             }

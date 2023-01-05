@@ -134,14 +134,13 @@ pub fn list_drives(
 
 #[api()]
 #[derive(Serialize, Deserialize)]
-#[allow(non_camel_case_types)]
 #[serde(rename_all = "kebab-case")]
 /// Deletable property name
 pub enum DeletableProperty {
     /// Delete the changer property.
-    changer,
+    Changer,
     /// Delete the changer-drivenum property.
-    changer_drivenum,
+    ChangerDrivenum,
 }
 
 #[api(
@@ -195,11 +194,11 @@ pub fn update_drive(
     if let Some(delete) = delete {
         for delete_prop in delete {
             match delete_prop {
-                DeletableProperty::changer => {
+                DeletableProperty::Changer => {
                     data.changer = None;
                     data.changer_drivenum = None;
                 }
-                DeletableProperty::changer_drivenum => {
+                DeletableProperty::ChangerDrivenum => {
                     data.changer_drivenum = None;
                 }
             }

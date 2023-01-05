@@ -37,37 +37,36 @@ pub fn get_node_config(rpcenv: &mut dyn RpcEnvironment) -> Result<NodeConfig, Er
 #[api()]
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-#[allow(non_camel_case_types)]
 /// Deletable property name
 pub enum DeletableProperty {
     /// Delete the acme property.
-    acme,
+    Acme,
     /// Delete the acmedomain0 property.
-    acmedomain0,
+    Acmedomain0,
     /// Delete the acmedomain1 property.
-    acmedomain1,
+    Acmedomain1,
     /// Delete the acmedomain2 property.
-    acmedomain2,
+    Acmedomain2,
     /// Delete the acmedomain3 property.
-    acmedomain3,
+    Acmedomain3,
     /// Delete the acmedomain4 property.
-    acmedomain4,
+    Acmedomain4,
     /// Delete the http-proxy property.
-    http_proxy,
+    HttpProxy,
     /// Delete the email-from property.
-    email_from,
+    EmailFrom,
     /// Delete the ciphers-tls-1.3 property.
     #[serde(rename = "ciphers-tls-1.3")]
-    ciphers_tls_1_3,
+    CiphersTls1_3,
     /// Delete the ciphers-tls-1.2 property.
     #[serde(rename = "ciphers-tls-1.2")]
-    ciphers_tls_1_2,
+    CiphersTls1_2,
     /// Delete the default-lang property.
-    default_lang,
+    DefaultLang,
     /// Delete any description
-    description,
+    Description,
     /// Delete the task-log-max-days property
-    task_log_max_days,
+    TaskLogMaxDays,
 }
 
 #[api(
@@ -117,43 +116,43 @@ pub fn update_node_config(
     if let Some(delete) = delete {
         for delete_prop in delete {
             match delete_prop {
-                DeletableProperty::acme => {
+                DeletableProperty::Acme => {
                     config.acme = None;
                 }
-                DeletableProperty::acmedomain0 => {
+                DeletableProperty::Acmedomain0 => {
                     config.acmedomain0 = None;
                 }
-                DeletableProperty::acmedomain1 => {
+                DeletableProperty::Acmedomain1 => {
                     config.acmedomain1 = None;
                 }
-                DeletableProperty::acmedomain2 => {
+                DeletableProperty::Acmedomain2 => {
                     config.acmedomain2 = None;
                 }
-                DeletableProperty::acmedomain3 => {
+                DeletableProperty::Acmedomain3 => {
                     config.acmedomain3 = None;
                 }
-                DeletableProperty::acmedomain4 => {
+                DeletableProperty::Acmedomain4 => {
                     config.acmedomain4 = None;
                 }
-                DeletableProperty::http_proxy => {
+                DeletableProperty::HttpProxy => {
                     config.http_proxy = None;
                 }
-                DeletableProperty::email_from => {
+                DeletableProperty::EmailFrom => {
                     config.email_from = None;
                 }
-                DeletableProperty::ciphers_tls_1_3 => {
+                DeletableProperty::CiphersTls1_3 => {
                     config.ciphers_tls_1_3 = None;
                 }
-                DeletableProperty::ciphers_tls_1_2 => {
+                DeletableProperty::CiphersTls1_2 => {
                     config.ciphers_tls_1_2 = None;
                 }
-                DeletableProperty::default_lang => {
+                DeletableProperty::DefaultLang => {
                     config.default_lang = None;
                 }
-                DeletableProperty::description => {
+                DeletableProperty::Description => {
                     config.description = None;
                 }
-                DeletableProperty::task_log_max_days => {
+                DeletableProperty::TaskLogMaxDays => {
                     config.task_log_max_days = None;
                 }
             }

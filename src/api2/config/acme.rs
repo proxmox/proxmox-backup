@@ -633,13 +633,12 @@ pub fn delete_plugin(id: String) -> Result<(), Error> {
 #[api()]
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-#[allow(non_camel_case_types)]
 /// Deletable property name
 pub enum DeletableProperty {
     /// Delete the disable property
-    disable,
+    Disable,
     /// Delete the validation-delay property
-    validation_delay,
+    ValidationDelay,
 }
 
 #[api(
@@ -711,10 +710,10 @@ pub fn update_plugin(
             if let Some(delete) = delete {
                 for delete_prop in delete {
                     match delete_prop {
-                        DeletableProperty::validation_delay => {
+                        DeletableProperty::ValidationDelay => {
                             plugin.core.validation_delay = None;
                         }
-                        DeletableProperty::disable => {
+                        DeletableProperty::Disable => {
                             plugin.core.disable = None;
                         }
                     }

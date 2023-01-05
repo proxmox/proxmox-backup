@@ -101,22 +101,21 @@ pub fn read_traffic_control(
 
 #[api()]
 #[derive(Serialize, Deserialize)]
-#[allow(non_camel_case_types)]
 #[serde(rename_all = "kebab-case")]
 /// Deletable property name
 pub enum DeletableProperty {
     /// Delete the rate_in property.
-    rate_in,
+    RateIn,
     /// Delete the burst_in property.
-    burst_in,
+    BurstIn,
     /// Delete the rate_out property.
-    rate_out,
+    RateOut,
     /// Delete the burst_out property.
-    burst_out,
+    BurstOut,
     /// Delete the comment property.
-    comment,
+    Comment,
     /// Delete the timeframe property
-    timeframe,
+    Timeframe,
 }
 
 // fixme: use  TrafficControlUpdater
@@ -170,22 +169,22 @@ pub fn update_traffic_control(
     if let Some(delete) = delete {
         for delete_prop in delete {
             match delete_prop {
-                DeletableProperty::rate_in => {
+                DeletableProperty::RateIn => {
                     data.limit.rate_in = None;
                 }
-                DeletableProperty::rate_out => {
+                DeletableProperty::RateOut => {
                     data.limit.rate_out = None;
                 }
-                DeletableProperty::burst_in => {
+                DeletableProperty::BurstIn => {
                     data.limit.burst_in = None;
                 }
-                DeletableProperty::burst_out => {
+                DeletableProperty::BurstOut => {
                     data.limit.burst_out = None;
                 }
-                DeletableProperty::comment => {
+                DeletableProperty::Comment => {
                     data.comment = None;
                 }
-                DeletableProperty::timeframe => {
+                DeletableProperty::Timeframe => {
                     data.timeframe = None;
                 }
             }

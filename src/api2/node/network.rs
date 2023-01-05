@@ -356,13 +356,13 @@ pub fn create_interface(
             if let Some(mode) = bond_mode {
                 interface.bond_mode = bond_mode;
                 if bond_primary.is_some() {
-                    if mode != LinuxBondMode::active_backup {
+                    if mode != LinuxBondMode::ActiveBackup {
                         bail!("bond-primary is only valid with Active/Backup mode");
                     }
                     interface.bond_primary = bond_primary;
                 }
                 if bond_xmit_hash_policy.is_some() {
-                    if mode != LinuxBondMode::ieee802_3ad && mode != LinuxBondMode::balance_xor {
+                    if mode != LinuxBondMode::Ieee802_3ad && mode != LinuxBondMode::BalanceXor {
                         bail!("bond_xmit_hash_policy is only valid with LACP(802.3ad) or balance-xor mode");
                     }
                     interface.bond_xmit_hash_policy = bond_xmit_hash_policy;
@@ -400,40 +400,39 @@ pub fn create_interface(
 
 #[api()]
 #[derive(Serialize, Deserialize)]
-#[allow(non_camel_case_types)]
 /// Deletable property name
 pub enum DeletableProperty {
     /// Delete the IPv4 address property.
-    cidr,
+    Cidr,
     /// Delete the IPv6 address property.
-    cidr6,
+    Cidr6,
     /// Delete the IPv4 gateway property.
-    gateway,
+    Gateway,
     /// Delete the IPv6 gateway property.
-    gateway6,
+    Gateway6,
     /// Delete the whole IPv4 configuration entry.
-    method,
+    Method,
     /// Delete the whole IPv6 configuration entry.
-    method6,
+    Method6,
     /// Delete IPv4 comments
-    comments,
+    Comments,
     /// Delete IPv6 comments
-    comments6,
+    Comments6,
     /// Delete mtu.
-    mtu,
+    Mtu,
     /// Delete autostart flag
-    autostart,
+    Autostart,
     /// Delete bridge ports (set to 'none')
-    bridge_ports,
+    BridgePorts,
     /// Delete bridge-vlan-aware flag
-    bridge_vlan_aware,
+    BridgeVlanAware,
     /// Delete bond-slaves (set to 'none')
-    slaves,
+    Slaves,
     /// Delete bond-primary
     #[serde(rename = "bond-primary")]
-    bond_primary,
+    BondPrimary,
     /// Delete bond transmit hash policy
-    bond_xmit_hash_policy,
+    BondXmitHashPolicy,
 }
 
 #[api(
@@ -595,49 +594,49 @@ pub fn update_interface(
     if let Some(delete) = delete {
         for delete_prop in delete {
             match delete_prop {
-                DeletableProperty::cidr => {
+                DeletableProperty::Cidr => {
                     interface.cidr = None;
                 }
-                DeletableProperty::cidr6 => {
+                DeletableProperty::Cidr6 => {
                     interface.cidr6 = None;
                 }
-                DeletableProperty::gateway => {
+                DeletableProperty::Gateway => {
                     interface.gateway = None;
                 }
-                DeletableProperty::gateway6 => {
+                DeletableProperty::Gateway6 => {
                     interface.gateway6 = None;
                 }
-                DeletableProperty::method => {
+                DeletableProperty::Method => {
                     interface.method = None;
                 }
-                DeletableProperty::method6 => {
+                DeletableProperty::Method6 => {
                     interface.method6 = None;
                 }
-                DeletableProperty::comments => {
+                DeletableProperty::Comments => {
                     interface.comments = None;
                 }
-                DeletableProperty::comments6 => {
+                DeletableProperty::Comments6 => {
                     interface.comments6 = None;
                 }
-                DeletableProperty::mtu => {
+                DeletableProperty::Mtu => {
                     interface.mtu = None;
                 }
-                DeletableProperty::autostart => {
+                DeletableProperty::Autostart => {
                     interface.autostart = false;
                 }
-                DeletableProperty::bridge_ports => {
+                DeletableProperty::BridgePorts => {
                     set_bridge_ports(interface, Vec::new())?;
                 }
-                DeletableProperty::bridge_vlan_aware => {
+                DeletableProperty::BridgeVlanAware => {
                     interface.bridge_vlan_aware = None;
                 }
-                DeletableProperty::slaves => {
+                DeletableProperty::Slaves => {
                     set_bond_slaves(interface, Vec::new())?;
                 }
-                DeletableProperty::bond_primary => {
+                DeletableProperty::BondPrimary => {
                     interface.bond_primary = None;
                 }
-                DeletableProperty::bond_xmit_hash_policy => interface.bond_xmit_hash_policy = None,
+                DeletableProperty::BondXmitHashPolicy => interface.bond_xmit_hash_policy = None,
             }
         }
     }
@@ -668,13 +667,13 @@ pub fn update_interface(
     if let Some(mode) = bond_mode {
         interface.bond_mode = bond_mode;
         if bond_primary.is_some() {
-            if mode != LinuxBondMode::active_backup {
+            if mode != LinuxBondMode::ActiveBackup {
                 bail!("bond-primary is only valid with Active/Backup mode");
             }
             interface.bond_primary = bond_primary;
         }
         if bond_xmit_hash_policy.is_some() {
-            if mode != LinuxBondMode::ieee802_3ad && mode != LinuxBondMode::balance_xor {
+            if mode != LinuxBondMode::Ieee802_3ad && mode != LinuxBondMode::BalanceXor {
                 bail!("bond_xmit_hash_policy is only valid with LACP(802.3ad) or balance-xor mode");
             }
             interface.bond_xmit_hash_policy = bond_xmit_hash_policy;

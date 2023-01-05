@@ -189,33 +189,32 @@ pub fn read_sync_job(id: String, rpcenv: &mut dyn RpcEnvironment) -> Result<Sync
 #[api()]
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-#[allow(non_camel_case_types)]
 /// Deletable property name
 pub enum DeletableProperty {
     /// Delete the owner property.
-    owner,
+    Owner,
     /// Delete the comment property.
-    comment,
+    Comment,
     /// Delete the job schedule.
-    schedule,
+    Schedule,
     /// Delete the remove-vanished flag.
-    remove_vanished,
+    RemoveVanished,
     /// Delete the group_filter property.
-    group_filter,
+    GroupFilter,
     /// Delete the rate_in property.
-    rate_in,
+    RateIn,
     /// Delete the burst_in property.
-    burst_in,
+    BurstIn,
     /// Delete the rate_out property.
-    rate_out,
+    RateOut,
     /// Delete the burst_out property.
-    burst_out,
+    BurstOut,
     /// Delete the ns property,
-    ns,
+    Ns,
     /// Delete the remote_ns property,
-    remote_ns,
+    RemoteNs,
     /// Delete the max_depth property,
-    max_depth,
+    MaxDepth,
 }
 
 #[api(
@@ -274,40 +273,40 @@ pub fn update_sync_job(
     if let Some(delete) = delete {
         for delete_prop in delete {
             match delete_prop {
-                DeletableProperty::owner => {
+                DeletableProperty::Owner => {
                     data.owner = None;
                 }
-                DeletableProperty::comment => {
+                DeletableProperty::Comment => {
                     data.comment = None;
                 }
-                DeletableProperty::schedule => {
+                DeletableProperty::Schedule => {
                     data.schedule = None;
                 }
-                DeletableProperty::remove_vanished => {
+                DeletableProperty::RemoveVanished => {
                     data.remove_vanished = None;
                 }
-                DeletableProperty::group_filter => {
+                DeletableProperty::GroupFilter => {
                     data.group_filter = None;
                 }
-                DeletableProperty::rate_in => {
+                DeletableProperty::RateIn => {
                     data.limit.rate_in = None;
                 }
-                DeletableProperty::rate_out => {
+                DeletableProperty::RateOut => {
                     data.limit.rate_out = None;
                 }
-                DeletableProperty::burst_in => {
+                DeletableProperty::BurstIn => {
                     data.limit.burst_in = None;
                 }
-                DeletableProperty::burst_out => {
+                DeletableProperty::BurstOut => {
                     data.limit.burst_out = None;
                 }
-                DeletableProperty::ns => {
+                DeletableProperty::Ns => {
                     data.ns = None;
                 }
-                DeletableProperty::remote_ns => {
+                DeletableProperty::RemoteNs => {
                     data.remote_ns = None;
                 }
-                DeletableProperty::max_depth => {
+                DeletableProperty::MaxDepth => {
                     data.max_depth = None;
                 }
             }

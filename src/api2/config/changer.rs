@@ -133,12 +133,11 @@ pub fn list_changers(
 }
 #[api()]
 #[derive(Serialize, Deserialize)]
-#[allow(non_camel_case_types)]
 #[serde(rename_all = "kebab-case")]
 /// Deletable property name
 pub enum DeletableProperty {
     /// Delete export-slots.
-    export_slots,
+    ExportSlots,
 }
 
 #[api(
@@ -192,7 +191,7 @@ pub fn update_changer(
     if let Some(delete) = delete {
         for delete_prop in delete {
             match delete_prop {
-                DeletableProperty::export_slots => {
+                DeletableProperty::ExportSlots => {
                     data.export_slots = None;
                 }
             }

@@ -36,29 +36,9 @@ pub fn bond_mode_from_str(s: &str) -> Result<LinuxBondMode, Error> {
         .map_err(|_: value::Error| format_err!("invalid bond_mode '{}'", s))
 }
 
-pub fn bond_mode_to_str(mode: LinuxBondMode) -> &'static str {
-    match mode {
-        LinuxBondMode::balance_rr => "balance-rr",
-        LinuxBondMode::active_backup => "active-backup",
-        LinuxBondMode::balance_xor => "balance-xor",
-        LinuxBondMode::broadcast => "broadcast",
-        LinuxBondMode::ieee802_3ad => "802.3ad",
-        LinuxBondMode::balance_tlb => "balance-tlb",
-        LinuxBondMode::balance_alb => "balance-alb",
-    }
-}
-
 pub fn bond_xmit_hash_policy_from_str(s: &str) -> Result<BondXmitHashPolicy, Error> {
     BondXmitHashPolicy::deserialize(s.into_deserializer())
         .map_err(|_: value::Error| format_err!("invalid bond_xmit_hash_policy '{}'", s))
-}
-
-pub fn bond_xmit_hash_policy_to_str(policy: &BondXmitHashPolicy) -> &'static str {
-    match policy {
-        BondXmitHashPolicy::layer2 => "layer2",
-        BondXmitHashPolicy::layer2_3 => "layer2+3",
-        BondXmitHashPolicy::layer3_4 => "layer3+4",
-    }
 }
 
 // Write attributes not depending on address family
@@ -78,21 +58,17 @@ fn write_iface_attributes(iface: &Interface, w: &mut dyn Write) -> Result<(), Er
             }
         }
         NetworkInterfaceType::Bond => {
-            let mode = iface.bond_mode.unwrap_or(LinuxBondMode::balance_rr);
-            writeln!(w, "\tbond-mode {}", bond_mode_to_str(mode))?;
+            let mode = iface.bond_mode.unwrap_or(LinuxBondMode::BalanceRr);
+            writeln!(w, "\tbond-mode {mode}")?;
             if let Some(primary) = &iface.bond_primary {
-                if mode == LinuxBondMode::active_backup {
+                if mode == LinuxBondMode::ActiveBackup {
                     writeln!(w, "\tbond-primary {}", primary)?;
                 }
             }
 
             if let Some(xmit_policy) = &iface.bond_xmit_hash_policy {
-                if mode == LinuxBondMode::ieee802_3ad || mode == LinuxBondMode::balance_xor {
-                    writeln!(
-                        w,
-                        "\tbond_xmit_hash_policy {}",
-                        bond_xmit_hash_policy_to_str(xmit_policy)
-                    )?;
+                if mode == LinuxBondMode::Ieee802_3ad || mode == LinuxBondMode::BalanceXor {
+                    writeln!(w, "\tbond_xmit_hash_policy {xmit_policy}")?;
                 }
             }
 

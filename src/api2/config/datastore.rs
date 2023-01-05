@@ -165,37 +165,36 @@ pub fn read_datastore(
 #[api()]
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-#[allow(non_camel_case_types)]
 /// Deletable property name
 pub enum DeletableProperty {
     /// Delete the comment property.
-    comment,
+    Comment,
     /// Delete the garbage collection schedule.
-    gc_schedule,
+    GcSchedule,
     /// Delete the prune job schedule.
-    prune_schedule,
+    PruneSchedule,
     /// Delete the keep-last property
-    keep_last,
+    KeepLast,
     /// Delete the keep-hourly property
-    keep_hourly,
+    KeepHourly,
     /// Delete the keep-daily property
-    keep_daily,
+    KeepDaily,
     /// Delete the keep-weekly property
-    keep_weekly,
+    KeepWeekly,
     /// Delete the keep-monthly property
-    keep_monthly,
+    KeepMonthly,
     /// Delete the keep-yearly property
-    keep_yearly,
+    KeepYearly,
     /// Delete the verify-new property
-    verify_new,
+    VerifyNew,
     /// Delete the notify-user property
-    notify_user,
+    NotifyUser,
     /// Delete the notify property
-    notify,
+    Notify,
     /// Delete the tuning property
-    tuning,
+    Tuning,
     /// Delete the maintenance-mode property
-    maintenance_mode,
+    MaintenanceMode,
 }
 
 #[api(
@@ -249,46 +248,46 @@ pub fn update_datastore(
     if let Some(delete) = delete {
         for delete_prop in delete {
             match delete_prop {
-                DeletableProperty::comment => {
+                DeletableProperty::Comment => {
                     data.comment = None;
                 }
-                DeletableProperty::gc_schedule => {
+                DeletableProperty::GcSchedule => {
                     data.gc_schedule = None;
                 }
-                DeletableProperty::prune_schedule => {
+                DeletableProperty::PruneSchedule => {
                     data.prune_schedule = None;
                 }
-                DeletableProperty::keep_last => {
+                DeletableProperty::KeepLast => {
                     data.keep.keep_last = None;
                 }
-                DeletableProperty::keep_hourly => {
+                DeletableProperty::KeepHourly => {
                     data.keep.keep_hourly = None;
                 }
-                DeletableProperty::keep_daily => {
+                DeletableProperty::KeepDaily => {
                     data.keep.keep_daily = None;
                 }
-                DeletableProperty::keep_weekly => {
+                DeletableProperty::KeepWeekly => {
                     data.keep.keep_weekly = None;
                 }
-                DeletableProperty::keep_monthly => {
+                DeletableProperty::KeepMonthly => {
                     data.keep.keep_monthly = None;
                 }
-                DeletableProperty::keep_yearly => {
+                DeletableProperty::KeepYearly => {
                     data.keep.keep_yearly = None;
                 }
-                DeletableProperty::verify_new => {
+                DeletableProperty::VerifyNew => {
                     data.verify_new = None;
                 }
-                DeletableProperty::notify => {
+                DeletableProperty::Notify => {
                     data.notify = None;
                 }
-                DeletableProperty::notify_user => {
+                DeletableProperty::NotifyUser => {
                     data.notify_user = None;
                 }
-                DeletableProperty::tuning => {
+                DeletableProperty::Tuning => {
                     data.tuning = None;
                 }
-                DeletableProperty::maintenance_mode => {
+                DeletableProperty::MaintenanceMode => {
                     data.maintenance_mode = None;
                 }
             }
