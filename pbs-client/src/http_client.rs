@@ -458,7 +458,9 @@ impl HttpClient {
                                 &auth.ticket,
                                 &auth.token,
                             ) {
-                                log::error!("storing login ticket failed: {}", err);
+                                if tty::stdout_isatty() {
+                                    log::error!("storing login ticket failed: {}", err);
+                                }
                             }
                         }
                         *auth2.write().unwrap() = auth;
@@ -494,7 +496,9 @@ impl HttpClient {
                         &auth.ticket,
                         &auth.token,
                     ) {
-                        log::error!("storing login ticket failed: {}", err);
+                        if tty::stdout_isatty() {
+                            log::error!("storing login ticket failed: {}", err);
+                        }
                     }
                 }
                 *authinfo.write().unwrap() = auth;
