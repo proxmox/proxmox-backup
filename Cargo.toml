@@ -81,7 +81,7 @@ proxmox-uuid = "1"
 pathpatterns = "0.1.2"
 proxmox-acme-rs = "0.4"
 proxmox-apt = "0.9.0"
-proxmox-openid = "0.9.8"
+proxmox-openid = "0.9.9"
 pxar = "0.10.2"
 
 # PBS workspace
