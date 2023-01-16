@@ -262,21 +262,17 @@ impl Inventory {
 
         for entry in self.map.values() {
             match entry.id.media_set_label {
-                None => continue, // not assigned to any pool
-                Some(ref set) => {
-                    if set.pool != pool {
-                        continue; // belong to another pool
-                    }
-
-                    if set.unassigned() {
-                        list.push(MediaId {
+                Some(ref set) if set.pool == pool => {
+                    let id = match set.unassigned() {
+                        true => MediaId {
                             label: entry.id.label.clone(),
                             media_set_label: None,
-                        })
-                    } else {
-                        list.push(entry.id.clone());
-                    }
+                        },
+                        false => entry.id.clone(),
+                    };
+                    list.push(id);
                 }
+                _ => continue, // not assigned to any pool or belongs to another pool
             }
         }
 
