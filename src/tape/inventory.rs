@@ -294,7 +294,7 @@ impl Inventory {
             match entry.id.media_set_label {
                 None => continue, // not assigned to any pool
                 Some(ref set) => {
-                    if set.unassigned() {
+                    if !set.unassigned() {
                         list.push(entry.id.clone());
                     }
                 }
