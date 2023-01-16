@@ -249,14 +249,11 @@ impl Inventory {
     ///
     /// Returns (pool, is_empty)
     pub fn lookup_media_pool(&self, uuid: &Uuid) -> Option<(&str, bool)> {
-        match self.map.get(uuid) {
-            None => None,
-            Some(entry) => entry
-                .id
-                .media_set_label
-                .as_ref()
-                .map(|set| (set.pool.as_str(), set.unassigned())),
-        }
+        let pool = self.map.get(uuid)?;
+        pool.id
+            .media_set_label
+            .as_ref()
+            .map(|media_set| (media_set.pool.as_str(), media_set.unassigned()))
     }
 
     /// List all media assigned to the pool
