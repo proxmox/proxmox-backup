@@ -288,32 +288,22 @@ impl Inventory {
 
     /// List all used media
     pub fn list_used_media(&self) -> Vec<MediaId> {
-        let mut list = Vec::new();
-
-        for entry in self.map.values() {
-            match entry.id.media_set_label {
-                None => continue, // not assigned to any pool
-                Some(ref set) => {
-                    if !set.unassigned() {
-                        list.push(entry.id.clone());
-                    }
-                }
-            }
-        }
-
-        list
+        self.map
+            .values()
+            .filter_map(|entry| match entry.id.media_set_label {
+                Some(ref set) if !set.unassigned() => Some(entry.id.clone()),
+                _ => None,
+            })
+            .collect()
     }
 
     /// List media not assigned to any pool
     pub fn list_unassigned_media(&self) -> Vec<MediaId> {
         self.map
             .values()
-            .filter_map(|entry| {
-                if entry.id.media_set_label.is_none() {
-                    Some(entry.id.clone())
-                } else {
-                    None
-                }
+            .filter_map(|entry| match entry.id.media_set_label {
+                None => Some(entry.id.clone()),
+                _ => None,
             })
             .collect()
     }
