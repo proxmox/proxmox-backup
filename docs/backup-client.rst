@@ -757,7 +757,7 @@ unused data blocks are removed.
   Average chunk size: 2486565
   TASK OK
 
-Garbage collection can also be scheduled using ``promxox-backup-manager`` or
+Garbage collection can also be scheduled using ``proxmox-backup-manager`` or
 from the Proxmox Backup Server's web interface.
 
 Benchmarking
