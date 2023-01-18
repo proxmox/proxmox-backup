@@ -189,7 +189,7 @@ async fn task_log(param: Value) -> Result<Value, Error> {
 
     let client = connect_to_localhost()?;
 
-    display_task_log(&client, upid, true).await?;
+    display_task_log(&client, upid, true, false).await?;
 
     Ok(Value::Null)
 }

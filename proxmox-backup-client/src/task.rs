@@ -104,7 +104,7 @@ async fn task_log(param: Value) -> Result<Value, Error> {
 
     let client = connect(&repo)?;
 
-    display_task_log(&client, upid, true).await?;
+    display_task_log(&client, upid, true, false).await?;
 
     Ok(Value::Null)
 }

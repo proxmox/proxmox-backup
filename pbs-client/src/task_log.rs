@@ -17,13 +17,14 @@ use super::HttpClient;
 /// Display task log on console
 ///
 /// This polls the task API and prints the log to the console. It also
-/// catches interrupt signals, and sends a abort request to the task if
-/// the user presses CTRL-C. Two interrupts cause an immediate end of
-/// the loop. The task may still run in that case.
+/// catches interrupt signals, and sends an abort request to the task if the
+/// user presses CTRL-C and `forward_interrupt` is true. Two interrupts cause an
+/// immediate end of the loop. The task may still run in that case.
 pub async fn display_task_log(
     client: &HttpClient,
     upid_str: &str,
     strip_date: bool,
+    forward_interrupt: bool,
 ) -> Result<(), Error> {
     let mut signal_stream = signal(SignalKind::interrupt())?;
     let abort_count = Arc::new(AtomicUsize::new(0));
@@ -48,11 +49,15 @@ pub async fn display_task_log(
         loop {
             let abort = abort_count.load(Ordering::Relaxed);
             if abort > 0 {
-                let path = format!(
-                    "api2/json/nodes/localhost/tasks/{}",
-                    percent_encode_component(upid_str)
-                );
-                let _ = client.delete(&path, None).await?;
+                if forward_interrupt {
+                    let path = format!(
+                        "api2/json/nodes/localhost/tasks/{}",
+                        percent_encode_component(upid_str)
+                    );
+                    let _ = client.delete(&path, None).await?;
+                } else {
+                    return Ok(());
+                }
             }
 
             let param = json!({ "start": start, "limit": limit, "test-status": true });
@@ -111,6 +116,9 @@ pub async fn display_task_log(
 }
 
 /// Display task result (upid), or view task log - depending on output format
+///
+/// In case of a task log of a running task, this will forward interrupt signals
+/// to the task and potentially abort it!
 pub async fn view_task_result(
     client: &HttpClient,
     result: Value,
@@ -119,7 +127,7 @@ pub async fn view_task_result(
     let data = &result["data"];
     if output_format == "text" {
         if let Some(upid) = data.as_str() {
-            display_task_log(client, upid, true).await?;
+            display_task_log(client, upid, true, true).await?;
         }
     } else {
         format_and_print_result(data, output_format);
