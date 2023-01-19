@@ -400,6 +400,7 @@ pub fn create_interface(
 
 #[api()]
 #[derive(Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 /// Deletable property name
 pub enum DeletableProperty {
     /// Delete the IPv4 address property.
@@ -423,15 +424,17 @@ pub enum DeletableProperty {
     /// Delete autostart flag
     Autostart,
     /// Delete bridge ports (set to 'none')
+    #[serde(rename = "bridge_ports")]
     BridgePorts,
     /// Delete bridge-vlan-aware flag
+    #[serde(rename = "bridge_vlan_aware")]
     BridgeVlanAware,
     /// Delete bond-slaves (set to 'none')
     Slaves,
     /// Delete bond-primary
-    #[serde(rename = "bond-primary")]
     BondPrimary,
     /// Delete bond transmit hash policy
+    #[serde(rename = "bond_xmit_hash_policy")]
     BondXmitHashPolicy,
 }
 

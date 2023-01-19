@@ -103,6 +103,7 @@ pub fn get_config(name: String) -> Result<MediaPoolConfig, Error> {
 
 #[api()]
 #[derive(Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 /// Deletable property name
 pub enum DeletableProperty {
     /// Delete media set allocation policy.

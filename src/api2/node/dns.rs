@@ -22,6 +22,7 @@ static RESOLV_CONF_FN: &str = "/etc/resolv.conf";
 
 #[api()]
 #[derive(Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 /// Deletable property name
 pub enum DeletableProperty {
     /// Delete first nameserver entry

@@ -133,6 +133,7 @@ pub fn read_remote(
 
 #[api()]
 #[derive(Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 /// Deletable property name
 pub enum DeletableProperty {
     /// Delete the comment property.
