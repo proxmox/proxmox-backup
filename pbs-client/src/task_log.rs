@@ -46,14 +46,13 @@ pub async fn display_task_log(
         let mut start = 1;
         let limit = 500;
 
+        let upid_encoded = percent_encode_component(upid_str);
+
         loop {
             let abort = abort_count.load(Ordering::Relaxed);
             if abort > 0 {
                 if forward_interrupt {
-                    let path = format!(
-                        "api2/json/nodes/localhost/tasks/{}",
-                        percent_encode_component(upid_str)
-                    );
+                    let path = format!("api2/json/nodes/localhost/tasks/{upid_encoded}");
                     let _ = client.delete(&path, None).await?;
                 } else {
                     return Ok(());
@@ -62,10 +61,7 @@ pub async fn display_task_log(
 
             let param = json!({ "start": start, "limit": limit, "test-status": true });
 
-            let path = format!(
-                "api2/json/nodes/localhost/tasks/{}/log",
-                percent_encode_component(upid_str)
-            );
+            let path = format!("api2/json/nodes/localhost/tasks/{upid_encoded}/log");
             let result = client.get(&path, Some(param)).await?;
 
             let active = result["active"].as_bool().unwrap();
