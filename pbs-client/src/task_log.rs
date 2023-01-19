@@ -74,13 +74,13 @@ pub async fn display_task_log(
                 let n = item["n"].as_u64().unwrap();
                 let t = item["t"].as_str().unwrap();
                 if n != start {
-                    bail!("got wrong line number in response data ({} != {}", n, start);
+                    bail!("got wrong line number in response data ({n} != {start}");
                 }
                 if strip_date && t.len() > 27 && &t[25..27] == ": " {
                     let line = &t[27..];
-                    println!("{}", line);
+                    println!("{line}");
                 } else {
-                    println!("{}", t);
+                    println!("{t}");
                 }
                 start += 1;
             }
@@ -92,11 +92,7 @@ pub async fn display_task_log(
                     break;
                 }
             } else if lines != limit {
-                bail!(
-                    "got wrong number of lines from server ({} != {})",
-                    lines,
-                    limit
-                );
+                bail!("got wrong number of lines from server ({lines} != {limit})");
             }
         }
 
