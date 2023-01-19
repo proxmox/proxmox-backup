@@ -296,9 +296,7 @@ async fn get_task_status(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Resul
 }
 
 fn extract_upid(param: &Value) -> Result<UPID, Error> {
-    let upid_str = pbs_tools::json::required_string_param(param, "upid")?;
-
-    upid_str.parse::<UPID>()
+    pbs_tools::json::required_string_param(param, "upid")?.parse::<UPID>()
 }
 
 #[sortable]
@@ -559,8 +557,7 @@ pub fn list_tasks(
         if let Some(since) = since {
             if let Some(ref state) = info.state {
                 if state.endtime() < since {
-                    // we reached the tasks that ended before our 'since'
-                    // so we can stop iterating
+                    // we reached the tasks that ended before our 'since' so we can stop iterating
                     break;
                 }
             }
