@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use anyhow::Error;
 use lazy_static::lazy_static;
 
-use proxmox_metrics::{influxdb_http, influxdb_udp, Metrics};
 use proxmox_schema::*;
 use proxmox_section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin};
 
@@ -67,39 +66,4 @@ pub fn complete_remote_name(_arg: &str, _param: &HashMap<String, String>) -> Vec
         Ok((data, _digest)) => data.sections.keys().cloned().collect(),
         Err(_) => Vec::new(),
     }
-}
-
-/// Get the metric server connections from a config
-pub fn get_metric_server_connections(
-    metric_config: SectionConfigData,
-) -> Result<Vec<(Metrics, String)>, Error> {
-    let mut res = Vec::new();
-
-    for config in
-        metric_config.convert_to_typed_array::<pbs_api_types::InfluxDbUdp>("influxdb-udp")?
-    {
-        if !config.enable {
-            continue;
-        }
-        let future = influxdb_udp(&config.host, config.mtu);
-        res.push((future, config.name));
-    }
-
-    for config in
-        metric_config.convert_to_typed_array::<pbs_api_types::InfluxDbHttp>("influxdb-http")?
-    {
-        if !config.enable {
-            continue;
-        }
-        let future = influxdb_http(
-            &config.url,
-            config.organization.as_deref().unwrap_or("proxmox"),
-            config.bucket.as_deref().unwrap_or("proxmox"),
-            config.token.as_deref(),
-            config.verify_tls.unwrap_or(true),
-            config.max_body_size.unwrap_or(25_000_000),
-        )?;
-        res.push((future, config.name));
-    }
-    Ok(res)
 }
