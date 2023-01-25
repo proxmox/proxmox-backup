@@ -107,10 +107,13 @@ async fn run() -> Result<(), Error> {
         }
     };
 
-    let adaptor = StaticAuthAdapter::new()
-        .map_err(|err| format_err!("reading ticket file failed: {}", err))?;
+    let ticket =
+        auth::read_ticket().map_err(|err| format_err!("reading ticket file failed: {}", err))?;
 
-    let config = ApiConfig::new("", &ROUTER, RpcEnvironmentType::PUBLIC, adaptor)?;
+    let config = ApiConfig::new("", RpcEnvironmentType::PUBLIC)
+        .default_api2_handler(&ROUTER)
+        .index_handler_func(|_, _| auth::get_index())
+        .auth_handler_func(move |h, m| Box::pin(auth::check_auth(Arc::clone(&ticket), h, m)));
     let rest_server = RestServer::new(config);
 
     let vsock_fd = get_vsock_fd()?;

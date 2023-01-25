@@ -22,9 +22,9 @@ use proxmox_sys::fs::{file_get_json, replace_file, CreateOptions};
 use proxmox_sys::linux::tty;
 
 use proxmox_async::broadcast_future::BroadcastFuture;
-use proxmox_http::client::{HttpsConnector, RateLimiter};
+use proxmox_http::client::HttpsConnector;
 use proxmox_http::uri::{build_authority, json_object_to_query};
-use proxmox_http::ProxyConfig;
+use proxmox_http::{ProxyConfig, RateLimiter};
 
 use pbs_api_types::percent_encoding::DEFAULT_ENCODE_SET;
 use pbs_api_types::{Authid, RateLimitConfig, Userid};

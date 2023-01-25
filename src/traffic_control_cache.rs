@@ -8,7 +8,7 @@ use std::time::Instant;
 use anyhow::Error;
 use cidr::IpInet;
 
-use proxmox_http::client::{RateLimiter, ShareableRateLimit};
+use proxmox_http::{RateLimiter, ShareableRateLimit};
 use proxmox_section_config::SectionConfigData;
 
 use proxmox_time::{parse_daily_duration, DailyDuration, TmEditor};

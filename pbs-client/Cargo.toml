@@ -35,7 +35,7 @@ pathpatterns.workspace = true
 
 proxmox-async.workspace = true
 proxmox-compression.workspace = true
-proxmox-http.workspace = true
+proxmox-http = { workspace = true, features = [ "rate-limiter" ] }
 proxmox-io = { workspace = true, features = [ "tokio" ] }
 proxmox-lang.workspace = true
 proxmox-router = { workspace = true, features = [ "cli", "server" ] }

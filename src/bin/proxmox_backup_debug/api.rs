@@ -11,7 +11,7 @@ use proxmox_schema::{api, ApiType, ParameterSchema, Schema};
 
 use pbs_api_types::PROXMOX_UPID_REGEX;
 use pbs_client::view_task_result;
-use proxmox_rest_server::normalize_uri_path;
+use proxmox_rest_server::normalize_path_with_components;
 
 use proxmox_backup::client_helpers::connect_to_localhost;
 
@@ -94,7 +94,7 @@ async fn get_child_links(
     path: &str,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<String>, Error> {
-    let (path, components) = normalize_uri_path(path)?;
+    let (path, components) = normalize_path_with_components(path)?;
 
     let info = &proxmox_backup::api2::ROUTER
         .find_route(&components, &mut HashMap::new())
@@ -132,7 +132,7 @@ fn get_api_method(
         _ => unreachable!(),
     };
     let mut uri_param = HashMap::new();
-    let (path, components) = normalize_uri_path(path)?;
+    let (path, components) = normalize_path_with_components(path)?;
     if let Some(method) =
         &proxmox_backup::api2::ROUTER.find_method(&components, method.clone(), &mut uri_param)
     {
@@ -384,7 +384,7 @@ async fn get_api_children(
     let mut res = Vec::new();
     for link in get_child_links(&path, rpcenv).await? {
         let path = format!("{}/{}", path, link);
-        let (path, _) = normalize_uri_path(&path)?;
+        let (path, _) = normalize_path_with_components(&path)?;
         let mut cap = String::new();
 
         if get_child_links(&path, rpcenv).await.is_ok() {

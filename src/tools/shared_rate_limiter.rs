@@ -7,7 +7,7 @@ use nix::sys::stat::Mode;
 
 use proxmox_sys::fs::{create_path, CreateOptions};
 
-use proxmox_http::client::{RateLimit, RateLimiter, ShareableRateLimit};
+use proxmox_http::{RateLimit, RateLimiter, ShareableRateLimit};
 use proxmox_shared_memory::{check_subtype, initialize_subtype};
 use proxmox_shared_memory::{Init, SharedMemory, SharedMutex};
 

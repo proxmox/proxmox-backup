@@ -1,7 +1,4 @@
-use std::future::Future;
-use std::os::unix::io::AsRawFd;
 use std::path::{Path, PathBuf};
-use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
 use anyhow::{bail, format_err, Error};
@@ -12,28 +9,22 @@ use hyper::header;
 use hyper::{Body, StatusCode};
 use url::form_urlencoded;
 
-use http::{HeaderMap, Method};
-use openssl::ssl::{SslAcceptor, SslFiletype, SslMethod};
+use openssl::ssl::SslAcceptor;
 use serde_json::{json, Value};
-use tokio_stream::wrappers::ReceiverStream;
 
-use proxmox_http::client::RateLimitedStream;
 use proxmox_lang::try_block;
 use proxmox_metrics::MetricsData;
-use proxmox_router::{RpcEnvironment, RpcEnvironmentType, UserInformation};
+use proxmox_router::{RpcEnvironment, RpcEnvironmentType};
 use proxmox_sys::fs::{CreateOptions, FileSystemInformation};
-use proxmox_sys::linux::{
-    procfs::{Loadavg, ProcFsMemInfo, ProcFsNetDev, ProcFsStat},
-    socket::set_tcp_keepalive,
-};
+use proxmox_sys::linux::procfs::{Loadavg, ProcFsMemInfo, ProcFsNetDev, ProcFsStat};
 use proxmox_sys::logrotate::LogRotate;
 use proxmox_sys::{task_log, task_warn};
 
 use pbs_datastore::DataStore;
 
 use proxmox_rest_server::{
-    cleanup_old_tasks, cookie_from_header, rotate_task_log_archive, ApiConfig, AuthError,
-    RestEnvironment, RestServer, ServerAdapter, WorkerTask,
+    cleanup_old_tasks, cookie_from_header, rotate_task_log_archive, ApiConfig, RestEnvironment,
+    RestServer, WorkerTask,
 };
 
 use proxmox_backup::rrd_cache::{
@@ -87,32 +78,6 @@ fn main() -> Result<(), Error> {
     }
 
     proxmox_async::runtime::main(run())
-}
-
-struct ProxmoxBackupProxyAdapter;
-
-impl ServerAdapter for ProxmoxBackupProxyAdapter {
-    fn get_index(
-        &self,
-        env: RestEnvironment,
-        parts: Parts,
-    ) -> Pin<Box<dyn Future<Output = Response<Body>> + Send>> {
-        Box::pin(get_index_future(env, parts))
-    }
-
-    fn check_auth<'a>(
-        &'a self,
-        headers: &'a HeaderMap,
-        method: &'a Method,
-    ) -> Pin<
-        Box<
-            dyn Future<Output = Result<(String, Box<dyn UserInformation + Sync + Send>), AuthError>>
-                + Send
-                + 'a,
-        >,
-    > {
-        Box::pin(async move { check_pbs_auth(headers, method).await })
-    }
 }
 
 /// check for a cookie with the user-preferred language, fallback to the config one if not set or
@@ -217,29 +182,28 @@ async fn run() -> Result<(), Error> {
     let rrd_cache = initialize_rrd_cache()?;
     rrd_cache.apply_journal()?;
 
-    let mut config = ApiConfig::new(
-        pbs_buildcfg::JS_DIR,
-        &proxmox_backup::api2::ROUTER,
-        RpcEnvironmentType::PUBLIC,
-        ProxmoxBackupProxyAdapter,
-    )?;
-
-    config.add_alias("novnc", "/usr/share/novnc-pve");
-    config.add_alias("extjs", "/usr/share/javascript/extjs");
-    config.add_alias("qrcodejs", "/usr/share/javascript/qrcodejs");
-    config.add_alias("fontawesome", "/usr/share/fonts-font-awesome");
-    config.add_alias("xtermjs", "/usr/share/pve-xtermjs");
-    config.add_alias("locale", "/usr/share/pbs-i18n");
-    config.add_alias(
-        "widgettoolkit",
-        "/usr/share/javascript/proxmox-widget-toolkit",
-    );
-    config.add_alias("docs", "/usr/share/doc/proxmox-backup/html");
-
     let mut indexpath = PathBuf::from(pbs_buildcfg::JS_DIR);
     indexpath.push("index.hbs");
-    config.register_template("index", &indexpath)?;
-    config.register_template("console", "/usr/share/pve-xtermjs/index.html.hbs")?;
+
+    let mut config = ApiConfig::new(pbs_buildcfg::JS_DIR, RpcEnvironmentType::PUBLIC)
+        .index_handler_func(|e, p| Box::pin(get_index_future(e, p)))
+        .auth_handler_func(|h, m| Box::pin(check_pbs_auth(h, m)))
+        .register_template("index", &indexpath)?
+        .register_template("console", "/usr/share/pve-xtermjs/index.html.hbs")?
+        .default_api2_handler(&proxmox_backup::api2::ROUTER)
+        .aliases([
+            ("novnc", "/usr/share/novnc-pve"),
+            ("extjs", "/usr/share/javascript/extjs"),
+            ("qrcodejs", "/usr/share/javascript/qrcodejs"),
+            ("fontawesome", "/usr/share/fonts-font-awesome"),
+            ("xtermjs", "/usr/share/pve-xtermjs"),
+            ("locale", "/usr/share/pbs-i18n"),
+            (
+                "widgettoolkit",
+                "/usr/share/javascript/proxmox-widget-toolkit",
+            ),
+            ("docs", "/usr/share/doc/proxmox-backup/html"),
+        ]);
 
     let backup_user = pbs_config::backup_user()?;
     let mut commando_sock = proxmox_rest_server::CommandSocket::new(
@@ -254,19 +218,19 @@ async fn run() -> Result<(), Error> {
         .owner(backup_user.uid)
         .group(backup_user.gid);
 
-    config.enable_access_log(
-        pbs_buildcfg::API_ACCESS_LOG_FN,
-        Some(dir_opts.clone()),
-        Some(file_opts.clone()),
-        &mut commando_sock,
-    )?;
-
-    config.enable_auth_log(
-        pbs_buildcfg::API_AUTH_LOG_FN,
-        Some(dir_opts.clone()),
-        Some(file_opts.clone()),
-        &mut commando_sock,
-    )?;
+    config = config
+        .enable_access_log(
+            pbs_buildcfg::API_ACCESS_LOG_FN,
+            Some(dir_opts.clone()),
+            Some(file_opts.clone()),
+            &mut commando_sock,
+        )?
+        .enable_auth_log(
+            pbs_buildcfg::API_AUTH_LOG_FN,
+            Some(dir_opts.clone()),
+            Some(file_opts.clone()),
+            &mut commando_sock,
+        )?;
 
     let rest_server = RestServer::new(config);
     proxmox_rest_server::init_worker_tasks(
@@ -304,11 +268,14 @@ async fn run() -> Result<(), Error> {
         Ok(Value::Null)
     })?;
 
+    let connections = proxmox_rest_server::connection::AcceptBuilder::with_acceptor(acceptor)
+        .debug(debug)
+        .rate_limiter_lookup(Arc::new(lookup_rate_limiter))
+        .tcp_keepalive_time(PROXMOX_BACKUP_TCP_KEEPALIVE_TIME);
     let server = daemon::create_daemon(
         ([0, 0, 0, 0, 0, 0, 0, 0], 8007).into(),
         move |listener| {
-            let connections = accept_connections(listener, acceptor, debug);
-            let connections = hyper::server::accept::from_stream(ReceiverStream::new(connections));
+            let connections = connections.accept(listener);
 
             Ok(async {
                 daemon::systemd_notify(daemon::SystemdNotify::Ready)?;
@@ -368,128 +335,18 @@ fn make_tls_acceptor() -> Result<SslAcceptor, Error> {
     let ciphers_tls_1_3 = config.ciphers_tls_1_3;
     let ciphers_tls_1_2 = config.ciphers_tls_1_2;
 
-    let mut acceptor = SslAcceptor::mozilla_intermediate_v5(SslMethod::tls()).unwrap();
+    let mut acceptor = proxmox_rest_server::connection::TlsAcceptorBuilder::new()
+        .certificate_paths_pem(key_path, cert_path);
+
+    //let mut acceptor = SslAcceptor::mozilla_intermediate_v5(SslMethod::tls()).unwrap();
     if let Some(ciphers) = ciphers_tls_1_3.as_deref() {
-        acceptor.set_ciphersuites(ciphers)?;
+        acceptor = acceptor.cipher_suites(ciphers.to_string());
     }
     if let Some(ciphers) = ciphers_tls_1_2.as_deref() {
-        acceptor.set_cipher_list(ciphers)?;
+        acceptor = acceptor.cipher_list(ciphers.to_string());
     }
-    acceptor
-        .set_private_key_file(key_path, SslFiletype::PEM)
-        .map_err(|err| format_err!("unable to read proxy key {key_path} - {err}"))?;
-    acceptor
-        .set_certificate_chain_file(cert_path)
-        .map_err(|err| format_err!("unable to read proxy cert {cert_path} - {err}"))?;
-    acceptor.set_options(openssl::ssl::SslOptions::NO_RENEGOTIATION);
-    acceptor.check_private_key().unwrap();
 
-    Ok(acceptor.build())
-}
-
-type ClientStreamResult = Result<
-    std::pin::Pin<Box<tokio_openssl::SslStream<RateLimitedStream<tokio::net::TcpStream>>>>,
-    Error,
->;
-const MAX_PENDING_ACCEPTS: usize = 1024;
-
-fn accept_connections(
-    listener: tokio::net::TcpListener,
-    acceptor: Arc<Mutex<openssl::ssl::SslAcceptor>>,
-    debug: bool,
-) -> tokio::sync::mpsc::Receiver<ClientStreamResult> {
-    let (sender, receiver) = tokio::sync::mpsc::channel(MAX_PENDING_ACCEPTS);
-
-    tokio::spawn(accept_connection(listener, acceptor, debug, sender));
-
-    receiver
-}
-
-async fn accept_connection(
-    listener: tokio::net::TcpListener,
-    acceptor: Arc<Mutex<openssl::ssl::SslAcceptor>>,
-    debug: bool,
-    sender: tokio::sync::mpsc::Sender<ClientStreamResult>,
-) {
-    let accept_counter = Arc::new(());
-    let mut shutdown_future = proxmox_rest_server::shutdown_future().fuse();
-
-    loop {
-        let (sock, peer) = select! {
-            res = listener.accept().fuse() => match res {
-                Ok(conn) => conn,
-                Err(err) => {
-                    eprintln!("error accepting tcp connection: {err}");
-                    continue;
-                }
-            },
-            _ =  shutdown_future => break,
-        };
-
-        sock.set_nodelay(true).unwrap();
-        let _ = set_tcp_keepalive(sock.as_raw_fd(), PROXMOX_BACKUP_TCP_KEEPALIVE_TIME);
-
-        let sock =
-            RateLimitedStream::with_limiter_update_cb(sock, move || lookup_rate_limiter(peer));
-
-        let ssl = {
-            // limit acceptor_guard scope
-            // Acceptor can be reloaded using the command socket "reload-certificate" command
-            let acceptor_guard = acceptor.lock().unwrap();
-
-            match openssl::ssl::Ssl::new(acceptor_guard.context()) {
-                Ok(ssl) => ssl,
-                Err(err) => {
-                    eprintln!("failed to create Ssl object from Acceptor context - {err}");
-                    continue;
-                }
-            }
-        };
-
-        let stream = match tokio_openssl::SslStream::new(ssl, sock) {
-            Ok(stream) => stream,
-            Err(err) => {
-                eprintln!("failed to create SslStream using ssl and connection socket - {err}");
-                continue;
-            }
-        };
-
-        let mut stream = Box::pin(stream);
-        let sender = sender.clone();
-
-        if Arc::strong_count(&accept_counter) > MAX_PENDING_ACCEPTS {
-            eprintln!("connection rejected - to many open connections");
-            continue;
-        }
-
-        let accept_counter = Arc::clone(&accept_counter);
-        tokio::spawn(async move {
-            let accept_future =
-                tokio::time::timeout(Duration::new(10, 0), stream.as_mut().accept());
-
-            let result = accept_future.await;
-
-            match result {
-                Ok(Ok(())) => {
-                    if sender.send(Ok(stream)).await.is_err() && debug {
-                        eprintln!("detect closed connection channel");
-                    }
-                }
-                Ok(Err(err)) => {
-                    if debug {
-                        eprintln!("https handshake failed - {err}");
-                    }
-                }
-                Err(_) => {
-                    if debug {
-                        eprintln!("https handshake timeout");
-                    }
-                }
-            }
-
-            drop(accept_counter); // decrease reference count
-        });
-    }
+    acceptor.build()
 }
 
 fn start_stat_generator() {
