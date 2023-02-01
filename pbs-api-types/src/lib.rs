@@ -2,6 +2,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use proxmox_auth_api::{APITOKEN_ID_REGEX_STR, USER_ID_REGEX_STR};
+
 pub mod common_regex;
 pub mod percent_encoding;
 
@@ -85,14 +87,14 @@ pub use maintenance::*;
 mod network;
 pub use network::*;
 
-#[macro_use]
-mod userid;
-pub use userid::Authid;
-pub use userid::Userid;
-pub use userid::{Realm, RealmRef};
-pub use userid::{Tokenname, TokennameRef};
-pub use userid::{Username, UsernameRef};
-pub use userid::{PROXMOX_GROUP_ID_SCHEMA, PROXMOX_TOKEN_ID_SCHEMA, PROXMOX_TOKEN_NAME_SCHEMA};
+pub use proxmox_auth_api::types as userid;
+pub use proxmox_auth_api::types::{Authid, Userid};
+pub use proxmox_auth_api::types::{Realm, RealmRef};
+pub use proxmox_auth_api::types::{Tokenname, TokennameRef};
+pub use proxmox_auth_api::types::{Username, UsernameRef};
+pub use proxmox_auth_api::types::{
+    PROXMOX_GROUP_ID_SCHEMA, PROXMOX_TOKEN_ID_SCHEMA, PROXMOX_TOKEN_NAME_SCHEMA,
+};
 
 #[macro_use]
 mod user;

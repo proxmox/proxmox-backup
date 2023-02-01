@@ -34,6 +34,7 @@ xdg.workspace = true
 pathpatterns.workspace = true
 
 proxmox-async.workspace = true
+proxmox-auth-api.workspace = true
 proxmox-compression.workspace = true
 proxmox-http = { workspace = true, features = [ "rate-limiter" ] }
 proxmox-io = { workspace = true, features = [ "tokio" ] }
@@ -48,5 +49,4 @@ pxar.workspace = true
 pbs-api-types.workspace = true
 pbs-buildcfg.workspace = true
 pbs-datastore.workspace = true
-pbs-ticket.workspace = true
 pbs-tools.workspace = true

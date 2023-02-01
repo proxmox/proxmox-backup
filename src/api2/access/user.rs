@@ -377,7 +377,7 @@ pub fn delete_user(userid: Userid, digest: Option<String>) -> Result<(), Error> 
 
     match crate::config::tfa::read().and_then(|mut cfg| {
         let _: proxmox_tfa::api::NeedsSaving =
-            cfg.remove_user(crate::config::tfa::UserAccess, userid.as_str())?;
+            cfg.remove_user(&crate::config::tfa::UserAccess, userid.as_str())?;
         crate::config::tfa::write(&cfg)
     }) {
         Ok(()) => (),

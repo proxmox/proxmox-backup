@@ -71,6 +71,8 @@ async fn run() -> Result<(), Error> {
     }
     let _ = csrf_secret(); // load with lazy_static
 
+    proxmox_backup::auth_helpers::setup_auth_context(true);
+
     let backup_user = pbs_config::backup_user()?;
     let mut commando_sock = proxmox_rest_server::CommandSocket::new(
         proxmox_rest_server::our_ctrl_sock(),

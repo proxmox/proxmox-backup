@@ -176,8 +176,7 @@ async fn run() -> Result<(), Error> {
         bail!("unable to inititialize syslog - {err}");
     }
 
-    let _ = public_auth_key(); // load with lazy_static
-    let _ = csrf_secret(); // load with lazy_static
+    proxmox_backup::auth_helpers::setup_auth_context(false);
 
     let rrd_cache = initialize_rrd_cache()?;
     rrd_cache.apply_journal()?;

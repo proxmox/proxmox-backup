@@ -37,7 +37,6 @@ members = [
     "pbs-key-config",
     "pbs-pxar-fuse",
     "pbs-tape",
-    "pbs-ticket",
     "pbs-tools",
 
     "proxmox-backup-banner",
@@ -56,6 +55,7 @@ path = "src/lib.rs"
 [workspace.dependencies]
 # proxmox workspace
 proxmox-async = "0.4"
+proxmox-auth-api = "0.1"
 proxmox-borrow = "1"
 proxmox-compression = "0.1.1"
 proxmox-fuse = "0.1.3"
@@ -75,7 +75,7 @@ proxmox-shared-memory = "0.2.3"
 proxmox-sortable-macro = "0.1.2"
 proxmox-subscription = { version = "0.3", features = [ "api-types" ] }
 proxmox-sys = "0.4.2"
-proxmox-tfa = { version = "2.1", features = [ "api", "api-types" ] }
+proxmox-tfa = { version = "3", features = [ "api", "api-types" ] }
 proxmox-time = "1.1.2"
 proxmox-uuid = "1"
 
@@ -96,7 +96,6 @@ pbs-fuse-loop = { path = "pbs-fuse-loop" }
 pbs-key-config = { path = "pbs-key-config" }
 pbs-pxar-fuse = { path = "pbs-pxar-fuse" }
 pbs-tape = { path = "pbs-tape" }
-pbs-ticket = { path = "pbs-ticket" }
 pbs-tools = { path = "pbs-tools" }
 proxmox-rrd = { path = "proxmox-rrd" }
 
@@ -203,6 +202,7 @@ zstd.workspace = true
 #valgrind_request = { git = "https://github.com/edef1c/libvalgrind_request", version = "1.1.0", optional = true }
 
 proxmox-async.workspace = true
+proxmox-auth-api = { workspace = true, features = [ "api", "pam-authenticator" ] }
 proxmox-compression.workspace = true
 proxmox-http = { workspace = true, features = [ "client-trait", "proxmox-async", "rate-limited-stream" ] } # pbs-client doesn't use these
 proxmox-io.workspace = true
@@ -235,7 +235,6 @@ pbs-config.workspace = true
 pbs-datastore.workspace = true
 pbs-key-config.workspace = true
 pbs-tape.workspace = true
-pbs-ticket.workspace = true
 pbs-tools.workspace = true
 proxmox-rrd.workspace = true
 
@@ -244,6 +243,7 @@ proxmox-rrd.workspace = true
 [patch.crates-io]
 #proxmox-acme-rs = { path = "../proxmox-acme-rs" }
 #proxmox-async = { path = "../proxmox/proxmox-async" }
+#proxmox-auth-api = { path = "../proxmox/proxmox-auth-api" }
 #proxmox-borrow = { path = "../proxmox/proxmox-borrow" }
 #proxmox-compression = { path = "../proxmox/proxmox-compression" }
 #proxmox-fuse = { path = "../proxmox-fuse" }

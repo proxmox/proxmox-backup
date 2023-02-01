@@ -31,8 +31,6 @@ pub use email_notifications::*;
 mod report;
 pub use report::*;
 
-pub mod ticket;
-
 pub mod auth;
 
 pub(crate) mod pull;

@@ -12,22 +12,21 @@ use hyper::Request;
 use serde_json::{json, Value};
 use tokio::io::{AsyncBufReadExt, BufReader};
 
-use proxmox_sys::fd::fd_change_cloexec;
-use proxmox_sortable_macro::sortable;
-
+use proxmox_auth_api::ticket::{Empty, Ticket};
+use proxmox_auth_api::types::Authid;
 use proxmox_http::websocket::WebSocket;
+use proxmox_rest_server::WorkerTask;
 use proxmox_router::list_subdirs_api_method;
 use proxmox_router::{
     ApiHandler, ApiMethod, ApiResponseFuture, Permission, Router, RpcEnvironment, SubdirMap,
 };
 use proxmox_schema::*;
+use proxmox_sortable_macro::sortable;
+use proxmox_sys::fd::fd_change_cloexec;
 
-use proxmox_rest_server::WorkerTask;
+use pbs_api_types::{NODE_SCHEMA, PRIV_SYS_CONSOLE};
 
-use pbs_api_types::{Authid, NODE_SCHEMA, PRIV_SYS_CONSOLE};
-use pbs_ticket::{Empty, Ticket};
-
-use crate::auth_helpers::private_auth_key;
+use crate::auth::auth_keyring;
 use crate::tools;
 
 pub mod apt;
@@ -119,8 +118,8 @@ async fn termproxy(cmd: Option<String>, rpcenv: &mut dyn RpcEnvironment) -> Resu
     let listener = TcpListener::bind("localhost:0")?;
     let port = listener.local_addr()?.port();
 
-    let ticket = Ticket::new(pbs_ticket::TERM_PREFIX, &Empty)?.sign(
-        private_auth_key(),
+    let ticket = Ticket::new(crate::auth::TERM_PREFIX, &Empty)?.sign(
+        auth_keyring(),
         Some(&tools::ticket::term_aad(userid, path, port)),
     )?;
 
@@ -291,8 +290,8 @@ fn upgrade_to_websocket(
 
         // will be checked again by termproxy
         Ticket::<Empty>::parse(ticket)?.verify(
-            crate::auth_helpers::public_auth_key(),
-            pbs_ticket::TERM_PREFIX,
+            auth_keyring(),
+            crate::auth::TERM_PREFIX,
             Some(&tools::ticket::term_aad(userid, "/system", port)),
         )?;
 

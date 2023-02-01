@@ -2,6 +2,8 @@
 use anyhow::{bail, format_err, Error};
 use serde_json::{json, Value};
 
+use proxmox_auth_api::api::ApiTicket;
+use proxmox_auth_api::ticket::Ticket;
 use proxmox_router::{
     http_err, list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap,
 };
@@ -15,13 +17,12 @@ use pbs_api_types::{
     OPENID_DEFAILT_SCOPE_LIST, REALM_ID_SCHEMA,
 };
 use pbs_buildcfg::PROXMOX_BACKUP_RUN_DIR_M;
-use pbs_ticket::Ticket;
 
 use pbs_config::open_backup_lockfile;
 use pbs_config::CachedUserInfo;
 
+use crate::auth::auth_keyring;
 use crate::auth_helpers::*;
-use crate::server::ticket::ApiTicket;
 
 fn openid_authenticator(
     realm_config: &OpenIdRealmConfig,
@@ -199,7 +200,7 @@ pub fn openid_login(
         }
 
         let api_ticket = ApiTicket::Full(user_id.clone());
-        let ticket = Ticket::new("PBS", &api_ticket)?.sign(private_auth_key(), None)?;
+        let ticket = Ticket::new("PBS", &api_ticket)?.sign(auth_keyring(), None)?;
         let token = assemble_csrf_prevention_token(csrf_secret(), &user_id);
 
         env.log_auth(user_id.as_str());

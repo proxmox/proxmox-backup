@@ -23,7 +23,7 @@ pub mod api2;
 
 pub mod auth_helpers;
 
-pub mod auth;
+pub(crate) mod auth;
 
 pub mod tape;
 

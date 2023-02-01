@@ -2,99 +2,34 @@
 //!
 //! This library contains helper to authenticate users.
 
-use std::io::Write;
 use std::path::PathBuf;
 use std::pin::Pin;
-use std::process::{Command, Stdio};
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{bail, Error};
 use futures::Future;
+use once_cell::sync::OnceCell;
 use proxmox_router::http_bail;
 use serde_json::json;
+
+use proxmox_auth_api::api::{Authenticator, LockedTfaConfig};
+use proxmox_auth_api::ticket::{Empty, Ticket};
+use proxmox_auth_api::types::Authid;
+use proxmox_auth_api::Keyring;
+use proxmox_ldap::{Config, Connection, ConnectionMode};
+use proxmox_tfa::api::{OpenUserChallengeData, TfaConfig};
 
 use pbs_api_types::{LdapMode, LdapRealmConfig, OpenIdRealmConfig, RealmRef, Userid, UsernameRef};
 use pbs_buildcfg::configdir;
 
 use crate::auth_helpers;
-use proxmox_ldap::{Config, Connection, ConnectionMode};
 
-pub trait ProxmoxAuthenticator {
-    fn authenticate_user<'a>(
-        &'a self,
-        username: &'a UsernameRef,
-        password: &'a str,
-    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>>;
-    fn store_password(&self, username: &UsernameRef, password: &str) -> Result<(), Error>;
-    fn remove_password(&self, username: &UsernameRef) -> Result<(), Error>;
-}
+pub const TERM_PREFIX: &str = "PBSTERM";
 
-struct PamAuthenticator();
-
-impl ProxmoxAuthenticator for PamAuthenticator {
-    fn authenticate_user<'a>(
-        &self,
-        username: &'a UsernameRef,
-        password: &'a str,
-    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>> {
-        Box::pin(async move {
-            let mut auth = pam::Authenticator::with_password("proxmox-backup-auth").unwrap();
-            auth.get_handler()
-                .set_credentials(username.as_str(), password);
-            auth.authenticate()?;
-            Ok(())
-        })
-    }
-
-    fn store_password(&self, username: &UsernameRef, password: &str) -> Result<(), Error> {
-        let mut child = Command::new("passwd")
-            .arg(username.as_str())
-            .stdin(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .map_err(|err| {
-                format_err!(
-                    "unable to set password for '{}' - execute passwd failed: {}",
-                    username.as_str(),
-                    err,
-                )
-            })?;
-
-        // Note: passwd reads password twice from stdin (for verify)
-        writeln!(child.stdin.as_mut().unwrap(), "{}\n{}", password, password)?;
-
-        let output = child.wait_with_output().map_err(|err| {
-            format_err!(
-                "unable to set password for '{}' - wait failed: {}",
-                username.as_str(),
-                err,
-            )
-        })?;
-
-        if !output.status.success() {
-            bail!(
-                "unable to set password for '{}' - {}",
-                username.as_str(),
-                String::from_utf8_lossy(&output.stderr),
-            );
-        }
-
-        Ok(())
-    }
-
-    // do not remove password for pam users
-    fn remove_password(&self, _username: &UsernameRef) -> Result<(), Error> {
-        http_bail!(
-            NOT_IMPLEMENTED,
-            "removing passwords is not implemented for PAM realms"
-        );
-    }
-}
-
-struct PbsAuthenticator();
+struct PbsAuthenticator;
 
 const SHADOW_CONFIG_FILENAME: &str = configdir!("/shadow.json");
 
-impl ProxmoxAuthenticator for PbsAuthenticator {
+impl Authenticator for PbsAuthenticator {
     fn authenticate_user<'a>(
         &self,
         username: &'a UsernameRef,
@@ -150,7 +85,7 @@ struct OpenIdAuthenticator();
 /// When a user is manually added, the lookup_authenticator is called to verify that
 /// the realm exists. Thus, it is necessary to have an (empty) implementation for
 /// OpendID as well.
-impl ProxmoxAuthenticator for OpenIdAuthenticator {
+impl Authenticator for OpenIdAuthenticator {
     fn authenticate_user<'a>(
         &'a self,
         _username: &'a UsernameRef,
@@ -184,7 +119,7 @@ pub struct LdapAuthenticator {
     config: LdapRealmConfig,
 }
 
-impl ProxmoxAuthenticator for LdapAuthenticator {
+impl Authenticator for LdapAuthenticator {
     /// Authenticate user in LDAP realm
     fn authenticate_user<'a>(
         &'a self,
@@ -254,12 +189,12 @@ impl LdapAuthenticator {
 }
 
 /// Lookup the autenticator for the specified realm
-pub fn lookup_authenticator(
+pub(crate) fn lookup_authenticator(
     realm: &RealmRef,
-) -> Result<Box<dyn ProxmoxAuthenticator + Send + Sync + 'static>, Error> {
+) -> Result<Box<dyn Authenticator + Send + Sync>, Error> {
     match realm.as_str() {
-        "pam" => Ok(Box::new(PamAuthenticator())),
-        "pbs" => Ok(Box::new(PbsAuthenticator())),
+        "pam" => Ok(Box::new(proxmox_auth_api::Pam::new("proxmox-backup-auth"))),
+        "pbs" => Ok(Box::new(PbsAuthenticator)),
         realm => {
             let (domains, _digest) = pbs_config::domains::config()?;
             if let Ok(config) = domains.lookup::<LdapRealmConfig>("ldap", realm) {
@@ -274,7 +209,7 @@ pub fn lookup_authenticator(
 }
 
 /// Authenticate users
-pub fn authenticate_user<'a>(
+pub(crate) fn authenticate_user<'a>(
     userid: &'a Userid,
     password: &'a str,
 ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>> {
@@ -284,4 +219,141 @@ pub fn authenticate_user<'a>(
             .await?;
         Ok(())
     })
+}
+
+static AUTH_CONTEXT: OnceCell<PbsAuthContext> = OnceCell::new();
+
+pub fn setup_auth_context(use_private_key: bool) {
+    let keyring = if use_private_key {
+        Keyring::with_private_key(crate::auth_helpers::private_auth_key().clone().into())
+    } else {
+        Keyring::with_public_key(crate::auth_helpers::public_auth_key().clone().into())
+    };
+
+    AUTH_CONTEXT
+        .set(PbsAuthContext {
+            keyring,
+            csrf_secret: crate::auth_helpers::csrf_secret().to_vec(),
+        })
+        .map_err(drop)
+        .expect("auth context setup twice");
+
+    proxmox_auth_api::set_auth_context(AUTH_CONTEXT.get().unwrap());
+}
+
+pub(crate) fn auth_keyring() -> &'static Keyring {
+    &AUTH_CONTEXT
+        .get()
+        .expect("setup_auth_context not called")
+        .keyring
+}
+
+struct PbsAuthContext {
+    keyring: Keyring,
+    csrf_secret: Vec<u8>,
+}
+
+impl proxmox_auth_api::api::AuthContext for PbsAuthContext {
+    fn lookup_realm(&self, realm: &RealmRef) -> Option<Box<dyn Authenticator + Send + Sync>> {
+        lookup_authenticator(realm).ok()
+    }
+
+    /// Get the current authentication keyring.
+    fn keyring(&self) -> &Keyring {
+        &self.keyring
+    }
+
+    /// The auth prefix without the separating colon. Eg. `"PBS"`.
+    fn auth_prefix(&self) -> &'static str {
+        "PBS"
+    }
+
+    /// API token prefix (without the `'='`).
+    fn auth_token_prefix(&self) -> &'static str {
+        "PBSAPIToken"
+    }
+
+    /// Auth cookie name.
+    fn auth_cookie_name(&self) -> &'static str {
+        "PBSAuthCookie"
+    }
+
+    /// Check if a userid is enabled and return a [`UserInformation`] handle.
+    fn auth_id_is_active(&self, auth_id: &Authid) -> Result<bool, Error> {
+        Ok(pbs_config::CachedUserInfo::new()?.is_active_auth_id(auth_id))
+    }
+
+    /// Access the TFA config with an exclusive lock.
+    fn tfa_config_write_lock(&self) -> Result<Box<dyn LockedTfaConfig>, Error> {
+        Ok(Box::new(PbsLockedTfaConfig {
+            _lock: crate::config::tfa::read_lock()?,
+            config: crate::config::tfa::read()?,
+        }))
+    }
+
+    /// CSRF prevention token secret data.
+    fn csrf_secret(&self) -> &[u8] {
+        &self.csrf_secret
+    }
+
+    /// Verify a token secret.
+    fn verify_token_secret(&self, token_id: &Authid, token_secret: &str) -> Result<(), Error> {
+        pbs_config::token_shadow::verify_secret(token_id, token_secret)
+    }
+
+    /// Check path based tickets. (Used for terminal tickets).
+    fn check_path_ticket(
+        &self,
+        userid: &Userid,
+        password: &str,
+        path: String,
+        privs: String,
+        port: u16,
+    ) -> Result<Option<bool>, Error> {
+        if !password.starts_with("PBSTERM:") {
+            return Ok(None);
+        }
+
+        if let Ok(Empty) = Ticket::parse(password).and_then(|ticket| {
+            ticket.verify(
+                &self.keyring,
+                TERM_PREFIX,
+                Some(&crate::tools::ticket::term_aad(userid, &path, port)),
+            )
+        }) {
+            let user_info = pbs_config::CachedUserInfo::new()?;
+            let auth_id = Authid::from(userid.clone());
+            for (name, privilege) in pbs_api_types::PRIVILEGES {
+                if *name == privs {
+                    let mut path_vec = Vec::new();
+                    for part in path.split('/') {
+                        if !part.is_empty() {
+                            path_vec.push(part);
+                        }
+                    }
+                    user_info.check_privs(&auth_id, &path_vec, *privilege, false)?;
+                    return Ok(Some(true));
+                }
+            }
+        }
+
+        Ok(Some(false))
+    }
+}
+
+struct PbsLockedTfaConfig {
+    _lock: pbs_config::BackupLockGuard,
+    config: TfaConfig,
+}
+
+static USER_ACCESS: crate::config::tfa::UserAccess = crate::config::tfa::UserAccess;
+
+impl LockedTfaConfig for PbsLockedTfaConfig {
+    fn config_mut(&mut self) -> (&dyn OpenUserChallengeData, &mut TfaConfig) {
+        (&USER_ACCESS, &mut self.config)
+    }
+
+    fn save_config(&mut self) -> Result<(), Error> {
+        crate::config::tfa::write(&self.config)
+    }
 }

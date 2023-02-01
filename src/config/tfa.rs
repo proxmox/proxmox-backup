@@ -12,7 +12,8 @@ use proxmox_sys::fs::CreateOptions;
 use proxmox_tfa::totp::Totp;
 
 pub use proxmox_tfa::api::{
-    TfaChallenge, TfaConfig, TfaResponse, WebauthnConfig, WebauthnConfigUpdater,
+    TfaChallenge, TfaConfig, TfaResponse, UserChallengeAccess, WebauthnConfig,
+    WebauthnConfigUpdater,
 };
 
 use pbs_api_types::{User, Userid};
@@ -110,10 +111,7 @@ impl TfaUserChallengeData {
     /// itself, as it is in `/run`, and the typical error case for this particular situation
     /// (machine loses power) simply prevents some login, but that'll probably fail anyway for
     /// other reasons then...
-    ///
-    /// This currently consumes selfe as we never perform more than 1 insertion/removal, and this
-    /// way also unlocks early.
-    fn save(mut self) -> Result<(), Error> {
+    fn save(&mut self) -> Result<(), Error> {
         self.rewind()?;
 
         serde_json::to_writer(io::BufWriter::new(&mut &self.lock), &self.inner).map_err(|err| {
@@ -122,12 +120,6 @@ impl TfaUserChallengeData {
 
         Ok(())
     }
-}
-
-/// Get an optional TFA challenge for a user.
-pub fn login_challenge(userid: &Userid) -> Result<Option<TfaChallenge>, Error> {
-    let _lock = write_lock()?;
-    read()?.authentication_challenge(UserAccess, userid.as_str(), None)
 }
 
 /// Add a TOTP entry for a user. Returns the ID.
@@ -153,7 +145,7 @@ pub fn add_recovery(userid: &Userid) -> Result<Vec<String>, Error> {
 pub fn add_u2f_registration(userid: &Userid, description: String) -> Result<String, Error> {
     let _lock = crate::config::tfa::write_lock();
     let mut data = read()?;
-    let challenge = data.u2f_registration_challenge(UserAccess, userid.as_str(), description)?;
+    let challenge = data.u2f_registration_challenge(&UserAccess, userid.as_str(), description)?;
     write(&data)?;
     Ok(challenge)
 }
@@ -166,7 +158,7 @@ pub fn finish_u2f_registration(
 ) -> Result<String, Error> {
     let _lock = crate::config::tfa::write_lock();
     let mut data = read()?;
-    let id = data.u2f_registration_finish(UserAccess, userid.as_str(), challenge, response)?;
+    let id = data.u2f_registration_finish(&UserAccess, userid.as_str(), challenge, response)?;
     write(&data)?;
     Ok(id)
 }
@@ -176,7 +168,7 @@ pub fn add_webauthn_registration(userid: &Userid, description: String) -> Result
     let _lock = crate::config::tfa::write_lock();
     let mut data = read()?;
     let challenge =
-        data.webauthn_registration_challenge(UserAccess, userid.as_str(), description, None)?;
+        data.webauthn_registration_challenge(&UserAccess, userid.as_str(), description, None)?;
     write(&data)?;
     Ok(challenge)
 }
@@ -190,26 +182,9 @@ pub fn finish_webauthn_registration(
     let _lock = crate::config::tfa::write_lock();
     let mut data = read()?;
     let id =
-        data.webauthn_registration_finish(UserAccess, userid.as_str(), challenge, response, None)?;
+        data.webauthn_registration_finish(&UserAccess, userid.as_str(), challenge, response, None)?;
     write(&data)?;
     Ok(id)
-}
-
-/// Verify a TFA challenge.
-pub fn verify_challenge(
-    userid: &Userid,
-    challenge: &TfaChallenge,
-    response: TfaResponse,
-) -> Result<(), Error> {
-    let _lock = crate::config::tfa::write_lock();
-    let mut data = read()?;
-    if data
-        .verify(UserAccess, userid.as_str(), challenge, response, None)?
-        .needs_saving()
-    {
-        write(&data)?;
-    }
-    Ok(())
 }
 
 #[derive(Clone, Copy)]
@@ -218,11 +193,9 @@ pub struct UserAccess;
 
 /// Build th
 impl proxmox_tfa::api::OpenUserChallengeData for UserAccess {
-    type Data = TfaUserChallengeData;
-
     /// Load the user's current challenges with the intent to create a challenge (create the file
     /// if it does not exist), and keep a lock on the file.
-    fn open(&self, userid: &str) -> Result<Self::Data, Error> {
+    fn open(&self, userid: &str) -> Result<Box<dyn UserChallengeAccess>, Error> {
         crate::server::create_run_dir()?;
         let options = CreateOptions::new().perm(Mode::from_bits_truncate(0o0600));
         proxmox_sys::fs::create_path(CHALLENGE_DATA_PATH, Some(options.clone()), Some(options))
@@ -269,15 +242,15 @@ impl proxmox_tfa::api::OpenUserChallengeData for UserAccess {
             }
         };
 
-        Ok(TfaUserChallengeData {
+        Ok(Box::new(TfaUserChallengeData {
             inner,
             path,
             lock: file,
-        })
+        }))
     }
 
     /// `open` without creating the file if it doesn't exist, to finish WA authentications.
-    fn open_no_create(&self, userid: &str) -> Result<Option<Self::Data>, Error> {
+    fn open_no_create(&self, userid: &str) -> Result<Option<Box<dyn UserChallengeAccess>>, Error> {
         let path = challenge_data_path_str(userid);
         let mut file = match std::fs::OpenOptions::new()
             .read(true)
@@ -297,11 +270,11 @@ impl proxmox_tfa::api::OpenUserChallengeData for UserAccess {
             format_err!("failed to read challenge data for user {}: {}", userid, err)
         })?;
 
-        Ok(Some(TfaUserChallengeData {
+        Ok(Some(Box::new(TfaUserChallengeData {
             inner,
             path,
             lock: file,
-        }))
+        })))
     }
 
     /// `remove` user data if it exists.
@@ -320,7 +293,7 @@ impl proxmox_tfa::api::UserChallengeAccess for TfaUserChallengeData {
         &mut self.inner
     }
 
-    fn save(self) -> Result<(), Error> {
+    fn save(&mut self) -> Result<(), Error> {
         TfaUserChallengeData::save(self)
     }
 }

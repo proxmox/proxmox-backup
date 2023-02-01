@@ -14,6 +14,7 @@ regex.workspace = true
 serde.workspace = true
 serde_plain.workspace = true
 
+proxmox-auth-api = { workspace = true, features = [ "api-types" ] }
 proxmox-lang.workspace=true
 proxmox-schema = { workspace = true, features = [ "api-macro" ] }
 proxmox-serde.workspace = true

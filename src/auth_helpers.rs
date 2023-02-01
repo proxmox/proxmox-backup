@@ -14,6 +14,8 @@ use pbs_api_types::Userid;
 use pbs_buildcfg::configdir;
 use serde_json::json;
 
+pub use crate::auth::setup_auth_context;
+
 fn compute_csrf_secret_digest(timestamp: i64, secret: &[u8], userid: &Userid) -> String {
     let mut hasher = sha::Sha256::new();
     let data = format!("{:08X}:{}:", timestamp, userid);

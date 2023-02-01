@@ -225,7 +225,7 @@ async fn add_tfa_entry(
     let mut data = crate::config::tfa::read()?;
     let out = methods::add_tfa_entry(
         &mut data,
-        UserAccess,
+        &UserAccess,
         userid.as_str(),
         description,
         totp,

@@ -249,7 +249,7 @@ fn store_ticket_info(
 
     let mut new_data = json!({});
 
-    let ticket_lifetime = pbs_ticket::TICKET_LIFETIME - 60;
+    let ticket_lifetime = proxmox_auth_api::TICKET_LIFETIME - 60;
 
     let empty = serde_json::map::Map::new();
     for (server, info) in data.as_object().unwrap_or(&empty) {
@@ -280,7 +280,7 @@ fn load_ticket_info(prefix: &str, server: &str, userid: &Userid) -> Option<(Stri
     let path = base.place_runtime_file("tickets").ok()?;
     let data = file_get_json(&path, None).ok()?;
     let now = proxmox_time::epoch_i64();
-    let ticket_lifetime = pbs_ticket::TICKET_LIFETIME - 60;
+    let ticket_lifetime = proxmox_auth_api::TICKET_LIFETIME - 60;
     let uinfo = data[server][userid.as_str()].as_object()?;
     let timestamp = uinfo["timestamp"].as_i64()?;
     let age = now - timestamp;
