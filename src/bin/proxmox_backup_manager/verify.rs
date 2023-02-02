@@ -70,6 +70,24 @@ fn show_verification_job(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Resul
     Ok(Value::Null)
 }
 
+#[api(
+    input: {
+        properties: {
+            id: {
+                schema: JOB_ID_SCHEMA,
+            },
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+        }
+    }
+)]
+/// Run the specified verification job
+async fn run_verification_job(param: Value) -> Result<Value, Error> {
+    crate::run_job("verify", param).await
+}
+
 pub fn verify_job_commands() -> CommandLineInterface {
     let cmd_def = CliCommandMap::new()
         .insert("list", CliCommand::new(&API_METHOD_LIST_VERIFICATION_JOBS))
@@ -95,6 +113,12 @@ pub fn verify_job_commands() -> CommandLineInterface {
                 .completion_cb("schedule", pbs_config::datastore::complete_calendar_event)
                 .completion_cb("store", pbs_config::datastore::complete_datastore_name)
                 .completion_cb("remote-store", crate::complete_remote_datastore_name),
+        )
+        .insert(
+            "run",
+            CliCommand::new(&API_METHOD_RUN_VERIFICATION_JOB)
+                .arg_param(&["id"])
+                .completion_cb("id", pbs_config::verify::complete_verification_job_id),
         )
         .insert(
             "remove",

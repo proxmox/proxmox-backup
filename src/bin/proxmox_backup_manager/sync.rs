@@ -87,6 +87,24 @@ fn show_sync_job(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value,
     Ok(Value::Null)
 }
 
+#[api(
+    input: {
+        properties: {
+            id: {
+                schema: JOB_ID_SCHEMA,
+            },
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+        }
+    }
+)]
+/// Run the specified sync job
+async fn run_sync_job(param: Value) -> Result<Value, Error> {
+    crate::run_job("sync", param).await
+}
+
 pub fn sync_job_commands() -> CommandLineInterface {
     let cmd_def = CliCommandMap::new()
         .insert("list", CliCommand::new(&API_METHOD_LIST_SYNC_JOBS))
@@ -126,6 +144,12 @@ pub fn sync_job_commands() -> CommandLineInterface {
                     crate::complete_remote_datastore_group_filter,
                 )
                 .completion_cb("remote-ns", crate::complete_remote_datastore_namespace),
+        )
+        .insert(
+            "run",
+            CliCommand::new(&API_METHOD_RUN_SYNC_JOB)
+                .arg_param(&["id"])
+                .completion_cb("id", pbs_config::sync::complete_sync_job_id),
         )
         .insert(
             "remove",

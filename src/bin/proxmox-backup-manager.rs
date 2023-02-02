@@ -500,6 +500,21 @@ fn main() -> Result<(), Error> {
     proxmox_async::runtime::main(run())
 }
 
+/// Run the job of a given type (one of "prune", "sync", "verify"),
+/// specified by the 'id' parameter.
+async fn run_job(job_type: &str, param: Value) -> Result<Value, Error> {
+    let output_format = get_output_format(&param);
+    let id = required_string_param(&param, "id")?;
+
+    let client = connect_to_localhost()?;
+
+    let path = format!("api2/json/admin/{}/{}/run", job_type, id);
+    let result = client.post(&path, None).await?;
+    view_task_result(&client, result, &output_format).await?;
+
+    Ok(Value::Null)
+}
+
 fn get_sync_job(id: &str) -> Result<SyncJobConfig, Error> {
     let (config, _digest) = sync::config()?;
 

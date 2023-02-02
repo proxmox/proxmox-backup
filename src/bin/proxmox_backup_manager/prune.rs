@@ -80,6 +80,24 @@ fn show_prune_job(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value
     Ok(Value::Null)
 }
 
+#[api(
+    input: {
+        properties: {
+            id: {
+                schema: JOB_ID_SCHEMA,
+            },
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+        }
+    }
+)]
+/// Run the specified prune job
+async fn run_prune_job(param: Value) -> Result<Value, Error> {
+    crate::run_job("prune", param).await
+}
+
 pub fn prune_job_commands() -> CommandLineInterface {
     let cmd_def = CliCommandMap::new()
         .insert("list", CliCommand::new(&API_METHOD_LIST_PRUNE_JOBS))
@@ -106,6 +124,12 @@ pub fn prune_job_commands() -> CommandLineInterface {
                 .completion_cb("schedule", pbs_config::datastore::complete_calendar_event)
                 .completion_cb("store", pbs_config::datastore::complete_datastore_name)
                 .completion_cb("ns", complete_prune_local_datastore_namespace),
+        )
+        .insert(
+            "run",
+            CliCommand::new(&API_METHOD_RUN_PRUNE_JOB)
+                .arg_param(&["id"])
+                .completion_cb("id", pbs_config::prune::complete_prune_job_id),
         )
         .insert(
             "remove",
