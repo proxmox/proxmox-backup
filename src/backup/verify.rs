@@ -328,6 +328,16 @@ pub fn verify_backup_dir(
     upid: UPID,
     filter: Option<&dyn Fn(&BackupManifest) -> bool>,
 ) -> Result<bool, Error> {
+    if !backup_dir.full_path().exists() {
+        task_log!(
+            verify_worker.worker,
+            "SKIPPED: verify {}:{} - snapshot does not exist (anymore).",
+            verify_worker.datastore.name(),
+            backup_dir.dir(),
+        );
+        return Ok(true);
+    }
+
     let snap_lock = lock_dir_noblock_shared(
         &backup_dir.full_path(),
         "snapshot",

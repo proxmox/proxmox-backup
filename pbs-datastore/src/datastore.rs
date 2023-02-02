@@ -1180,6 +1180,10 @@ impl DataStore {
     pub fn update_protection(&self, backup_dir: &BackupDir, protection: bool) -> Result<(), Error> {
         let full_path = backup_dir.full_path();
 
+        if !full_path.exists() {
+            bail!("snapshot {} does not exist!", backup_dir.dir());
+        }
+
         let _guard = lock_dir_noblock(&full_path, "snapshot", "possibly running or in use")?;
 
         let protected_path = backup_dir.protected_file();
