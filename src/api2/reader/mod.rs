@@ -125,6 +125,10 @@ fn upgrade_to_backup_reader_protocol(
             }
         }
 
+        if !backup_dir.full_path().exists() {
+            bail!("snapshot {} does not exist.", backup_dir.dir());
+        }
+
         let _guard = lock_dir_noblock_shared(
             &backup_dir.full_path(),
             "snapshot",

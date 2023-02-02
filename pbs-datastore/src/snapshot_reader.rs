@@ -41,6 +41,10 @@ impl SnapshotReader {
         let datastore = snapshot.datastore();
         let snapshot_path = snapshot.full_path();
 
+        if !snapshot_path.exists() {
+            bail!("snapshot {} does not exist!", snapshot.dir());
+        }
+
         let locked_dir =
             lock_dir_noblock_shared(&snapshot_path, "snapshot", "locked by another operation")?;
 
