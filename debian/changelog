@@ -1,3 +1,30 @@
+rust-proxmox-backup (2.3.3-1) bullseye; urgency=medium
+
+  * fix #4448: ui: verify jobs: add namespace and max-depth columns
+
+  * fix #4448: ui: prune jobs: rename Store to Datastore for consistency
+
+  * ui: verify jobs: set/improve min-width for datastore and namespace columns
+
+  * api: service status: handle optional services and expose unit-state, like
+    in Proxmox VE
+
+  * disk api: improve error logging for zfs commands
+
+  * http client: suppress bogus "storing login ticket"-error when not using a
+    TTY
+
+  * fix #4466: fix showing snapshots in media content again
+
+  * api: apt: versions: add proxmox-mail-forward to package list
+
+  * docs: fix typo in garbage collection section
+
+  * fix #4483: fix `task log` command interrupt handling in the
+    proxmox-backup-client and proxmox-backup-manager 'task log' command
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 08 Feb 2023 14:36:03 +0100
+
 rust-proxmox-backup (2.3.2-1) bullseye; urgency=medium
 
   * ui: datastore options: fix default for prune notify render
