@@ -71,13 +71,13 @@ pub fn complete_realm_name(_arg: &str, _param: &HashMap<String, String>) -> Vec<
     }
 }
 
-pub fn complete_openid_realm_name(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
+fn complete_realm_of_type(realm_type: &str) -> Vec<String> {
     match config() {
         Ok((data, _digest)) => data
             .sections
             .iter()
             .filter_map(|(id, (t, _))| {
-                if t == "openid" {
+                if t == realm_type {
                     Some(id.to_string())
                 } else {
                     None
@@ -86,4 +86,12 @@ pub fn complete_openid_realm_name(_arg: &str, _param: &HashMap<String, String>) 
             .collect(),
         Err(_) => Vec::new(),
     }
+}
+
+pub fn complete_openid_realm_name(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
+    complete_realm_of_type("openid")
+}
+
+pub fn complete_ldap_realm_name(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
+    complete_realm_of_type("ldap")
 }

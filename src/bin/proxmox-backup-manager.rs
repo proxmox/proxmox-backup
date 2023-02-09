@@ -427,6 +427,7 @@ async fn run() -> Result<(), Error> {
         .insert("datastore", datastore_commands())
         .insert("disk", disk_commands())
         .insert("dns", dns_commands())
+        .insert("ldap", ldap_commands())
         .insert("network", network_commands())
         .insert("node", node_commands())
         .insert("user", user_commands())

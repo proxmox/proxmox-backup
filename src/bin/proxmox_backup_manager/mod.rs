@@ -8,6 +8,8 @@ mod datastore;
 pub use datastore::*;
 mod dns;
 pub use dns::*;
+mod ldap;
+pub use ldap::*;
 mod network;
 pub use network::*;
 mod prune;
