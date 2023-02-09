@@ -12,7 +12,7 @@ use futures::Future;
 use proxmox_router::http_bail;
 use serde_json::json;
 
-use pbs_api_types::{LdapMode, LdapRealmConfig, RealmRef, Userid, UsernameRef};
+use pbs_api_types::{LdapMode, LdapRealmConfig, OpenIdRealmConfig, RealmRef, Userid, UsernameRef};
 use pbs_buildcfg::configdir;
 
 use crate::auth_helpers;
@@ -148,6 +148,39 @@ impl ProxmoxAuthenticator for PBS {
     }
 }
 
+struct OpenIdAuthenticator();
+/// When a user is manually added, the lookup_authenticator is called to verify that
+/// the realm exists. Thus, it is necessary to have an (empty) implementation for
+/// OpendID as well.
+impl ProxmoxAuthenticator for OpenIdAuthenticator {
+    fn authenticate_user<'a>(
+        &'a self,
+        _username: &'a UsernameRef,
+        _password: &'a str,
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>> {
+        Box::pin(async move {
+            http_bail!(
+                NOT_IMPLEMENTED,
+                "password authentication is not implemented for OpenID realms"
+            );
+        })
+    }
+
+    fn store_password(&self, _username: &UsernameRef, _password: &str) -> Result<(), Error> {
+        http_bail!(
+            NOT_IMPLEMENTED,
+            "storing passwords is not implemented for OpenID realms"
+        );
+    }
+
+    fn remove_password(&self, _username: &UsernameRef) -> Result<(), Error> {
+        http_bail!(
+            NOT_IMPLEMENTED,
+            "storing passwords is not implemented for OpenID realms"
+        );
+    }
+}
+
 #[allow(clippy::upper_case_acronyms)]
 pub struct LdapAuthenticator {
     config: LdapRealmConfig,
@@ -233,6 +266,8 @@ pub fn lookup_authenticator(
             let (domains, _digest) = pbs_config::domains::config()?;
             if let Ok(config) = domains.lookup::<LdapRealmConfig>("ldap", realm) {
                 Ok(Box::new(LdapAuthenticator { config }))
+            } else if domains.lookup::<OpenIdRealmConfig>("openid", realm).is_ok() {
+                Ok(Box::new(OpenIdAuthenticator()))
             } else {
                 bail!("unknown realm '{}'", realm);
             }
