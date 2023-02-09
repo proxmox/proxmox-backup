@@ -43,7 +43,7 @@ enum AuthResult {
     Partial(Box<TfaChallenge>),
 }
 
-fn authenticate_user(
+async fn authenticate_user(
     userid: &Userid,
     password: &str,
     path: Option<String>,
@@ -107,7 +107,7 @@ fn authenticate_user(
 
     #[allow(clippy::let_unit_value)]
     {
-        let _: () = crate::auth::authenticate_user(userid, password)?;
+        let _: () = crate::auth::authenticate_user(userid, password).await?;
     }
 
     Ok(match crate::config::tfa::login_challenge(userid)? {
@@ -190,7 +190,7 @@ fn authenticate_2nd(
 /// Create or verify authentication ticket.
 ///
 /// Returns: An authentication ticket with additional infos.
-pub fn create_ticket(
+pub async fn create_ticket(
     username: Userid,
     password: String,
     path: Option<String>,
@@ -206,7 +206,7 @@ pub fn create_ticket(
         .downcast_ref::<RestEnvironment>()
         .ok_or_else(|| format_err!("detected wrong RpcEnvironment type"))?;
 
-    match authenticate_user(&username, &password, path, privs, port, tfa_challenge) {
+    match authenticate_user(&username, &password, path, privs, port, tfa_challenge).await {
         Ok(AuthResult::Success) => Ok(json!({ "username": username })),
         Ok(AuthResult::CreateTicket) => {
             let api_ticket = ApiTicket::Full(username.clone());

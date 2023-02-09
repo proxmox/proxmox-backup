@@ -19,7 +19,7 @@ use crate::config::tfa::UserAccess;
 /// This means that user admins need to type in their own password while editing a user, and
 /// regular users, which can only change their own TFA settings (checked at the API level), can
 /// change their own settings using their own password.
-fn tfa_update_auth(
+async fn tfa_update_auth(
     rpcenv: &mut dyn RpcEnvironment,
     userid: &Userid,
     password: Option<String>,
@@ -32,6 +32,7 @@ fn tfa_update_auth(
         #[allow(clippy::let_unit_value)]
         {
             let _: () = crate::auth::authenticate_user(authid.user(), &password)
+                .await
                 .map_err(|err| http_err!(UNAUTHORIZED, "{}", err))?;
         }
     }
@@ -114,13 +115,13 @@ fn get_tfa_entry(userid: Userid, id: String) -> Result<methods::TypedTfaInfo, Er
     },
 )]
 /// Delete a single TFA entry.
-fn delete_tfa(
+async fn delete_tfa(
     userid: Userid,
     id: String,
     password: Option<String>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
-    tfa_update_auth(rpcenv, &userid, password, false)?;
+    tfa_update_auth(rpcenv, &userid, password, false).await?;
 
     let _lock = crate::config::tfa::write_lock()?;
 
@@ -207,7 +208,7 @@ fn list_tfa(rpcenv: &mut dyn RpcEnvironment) -> Result<Vec<methods::TfaUser>, Er
 )]
 /// Add a TFA entry to the user.
 #[allow(clippy::too_many_arguments)]
-fn add_tfa_entry(
+async fn add_tfa_entry(
     userid: Userid,
     description: Option<String>,
     totp: Option<String>,
@@ -217,7 +218,7 @@ fn add_tfa_entry(
     r#type: methods::TfaType,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<methods::TfaUpdateInfo, Error> {
-    tfa_update_auth(rpcenv, &userid, password, true)?;
+    tfa_update_auth(rpcenv, &userid, password, true).await?;
 
     let _lock = crate::config::tfa::write_lock()?;
 
@@ -269,7 +270,7 @@ fn add_tfa_entry(
     },
 )]
 /// Update user's TFA entry description.
-fn update_tfa_entry(
+async fn update_tfa_entry(
     userid: Userid,
     id: String,
     description: Option<String>,
@@ -277,7 +278,7 @@ fn update_tfa_entry(
     password: Option<String>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
-    tfa_update_auth(rpcenv, &userid, password, true)?;
+    tfa_update_auth(rpcenv, &userid, password, true).await?;
 
     let _lock = crate::config::tfa::write_lock()?;
 
