@@ -172,7 +172,7 @@ impl ApiToken {
         },
     }
 )]
-#[derive(Serialize, Deserialize, Updater)]
+#[derive(Serialize, Deserialize, Updater, PartialEq, Eq)]
 /// User properties.
 pub struct User {
     #[updater(skip)]

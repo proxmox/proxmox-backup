@@ -22,6 +22,9 @@ pub use prune_job::*;
 mod gc_job;
 pub use gc_job::*;
 
+mod realm_sync_job;
+pub use realm_sync_job::*;
+
 mod email_notifications;
 pub use email_notifications::*;
 

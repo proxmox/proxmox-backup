@@ -337,7 +337,7 @@ Ext.define('PBS.Utils', {
 	    handler: function() {
 		window.open(docsURI);
 	    },
-        };
+	};
     },
 
     calculate_dedup_factor: function(gcstatus) {
@@ -406,6 +406,7 @@ Ext.define('PBS.Utils', {
 	    "format-media": [gettext('Drive'), gettext('Format media')],
 	    "forget-group": [gettext('Group'), gettext('Remove Group')],
 	    garbage_collection: ['Datastore', gettext('Garbage Collect')],
+	    'realm-sync': ['Realm', gettext('User Sync')],
 	    'inventory-update': [gettext('Drive'), gettext('Inventory Update')],
 	    'label-media': [gettext('Drive'), gettext('Label Media')],
 	    'load-media': (type, id) => PBS.Utils.render_drive_load_media_id(id, gettext('Load Media')),
@@ -433,6 +434,7 @@ Ext.define('PBS.Utils', {
 		add: false,
 		edit: false,
 		pwchange: true,
+		sync: false,
 	    },
 	});
     },
