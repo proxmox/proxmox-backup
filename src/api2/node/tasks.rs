@@ -341,7 +341,12 @@ fn read_task_log(
                 bail!("Parameter 'download' cannot be used with other parameters");
             }
 
-            let header_disp = format!("attachment; filename={}", &upid.to_string());
+            let header_disp = format!(
+                "attachment; filename=task-{}-{}-{}.log",
+                upid.node,
+                upid.worker_type,
+                proxmox_time::epoch_to_rfc3339_utc(upid.starttime)?
+            );
             let stream = AsyncReaderStream::new(tokio::fs::File::open(path).await?);
 
             return Ok(Response::builder()
