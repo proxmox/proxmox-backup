@@ -108,6 +108,9 @@ pub mod file_restore;
 mod openid;
 pub use openid::*;
 
+mod ldap;
+pub use ldap::*;
+
 mod remote;
 pub use remote::*;
 
@@ -502,6 +505,8 @@ pub enum RealmType {
     Pbs,
     /// An OpenID Connect realm
     OpenId,
+    /// An LDAP realm
+    Ldap,
 }
 
 #[api(
