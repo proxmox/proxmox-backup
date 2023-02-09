@@ -31,6 +31,10 @@ const proxmoxOnlineHelpInfo = {
     "link": "/docs/calendarevents.html#calendar-event-scheduling",
     "title": "Calendar Events"
   },
+  "domains-cfg": {
+    "link": "/docs/configuration-files.html#domains-cfg",
+    "title": "``domains.cfg``"
+  },
   "pxar-format": {
     "link": "/docs/file-formats.html#pxar-format",
     "title": "Proxmox File Archive Format (``.pxar``)"
@@ -334,5 +338,9 @@ const proxmoxOnlineHelpInfo = {
   "user-tfa-setup-recovery-keys": {
     "link": "/docs/user-management.html#user-tfa-setup-recovery-keys",
     "title": "Recovery Keys"
+  },
+  "user-realms-ldap": {
+    "link": "/docs/user-management.html#user-realms-ldap",
+    "title": "LDAP"
   }
 };

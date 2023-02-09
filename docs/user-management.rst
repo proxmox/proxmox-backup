@@ -25,6 +25,8 @@ choose the realm when you add a new user. Possible realms are:
 :openid: OpenID Connect server. Users can authenticate against an external
          OpenID Connect server.
 
+:ldap: LDAP server. Users can authenticate against external LDAP servers.
+
 After installation, there is a single user, ``root@pam``, which corresponds to
 the Unix superuser. User configuration information is stored in the file
 ``/etc/proxmox-backup/user.cfg``. You can use the ``proxmox-backup-manager``
@@ -560,3 +562,59 @@ Two-factor authentication is only implemented for the web-interface. You should
 use :ref:`API Tokens <user_tokens>` for all other use cases, especially
 non-interactive ones (for example, adding a Proxmox Backup Server to Proxmox VE
 as a storage).
+
+
+Authentication Realms
+---------------------
+
+.. _user_realms_ldap:
+
+LDAP
+~~~~
+
+Proxmox Backup Server can utilize external LDAP servers for user authentication. To achieve this,
+a realm of the type ``ldap`` has to be configured.
+
+In LDAP, users are uniquely identified
+by their domain (``dn``). For instance, in the following LDIF dataset, the user ``user1`` has the
+unique domain ``uid=user1,ou=People,dc=ldap-test,dc=com``:
+
+
+.. code-block:: console
+
+  # user1 of People at ldap-test.com
+  dn: uid=user1,ou=People,dc=ldap-test,dc=com
+  objectClass: top
+  objectClass: person
+  objectClass: organizationalPerson
+  objectClass: inetOrgPerson
+  uid: user1
+  cn: Test User 1
+  sn: Testers
+  description: This is the first test user.
+
+In in similar manner, Proxmox Backup Server uses user identifiers (``userid``) to uniquely identify users.
+Thus, it is necessary to establish a mapping between PBS's ``userid`` and LDAP's ``dn``.
+This mapping is established by the ``user-attr`` configuration parameter - it contains the name of the
+LDAP attribute containing a valid PBS user identifier.
+
+For the example above, setting ``user-attr`` to ``uid`` will have the effect that the user ``user1@<realm-name>`` will be mapped to the LDAP entity
+``uid=user1,ou=People,dc=ldap-test,dc=com``. On user login, PBS will perform a `subtree search` under the configured Base Domain (``base-dn``) to query
+the user's ``dn``. Once the ``dn`` is known, an LDAP bind operation is performed to authenticate the user against the LDAP server.
+
+As not all LDAP servers allow `anonymous` search operations, it is possible to configure a bind domain (``bind-dn``) and a bind password (``password``).
+If set, PBS will bind to the LDAP server using these credentials before performing any search operations.
+
+A full list of all configuration parameters can be found at :ref:`domains.cfg`.
+
+.. note:: In order to allow a particular user to authenticate using the LDAP server, you must also add them as a user of that realm in Proxmox Backup Server. 
+  This can be carried out automatically with syncing.
+
+User Synchronization in LDAP realms
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+It is possible to automatically sync users for LDAP-based realms, rather than having to add them to Proxmox VE manually.
+Synchronization options can be set in the LDAP realm configuration dialog window in the GUI and via the ``proxmox-backup-manager ldap create/update`` command.
+User synchronization can started in the GUI at Configuration > Access Control > Realms by selecting a realm and pressing the `Sync` button. In the sync dialog,
+some of the default options set in the realm configuration can be overridden. Alternatively,
+user synchronization can also be started via the ``proxmox-backup-manager ldap sync`` command.

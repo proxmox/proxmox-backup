@@ -36,8 +36,10 @@ Options
 
 .. include:: config/datastore/config.rst
 
+.. _domains.cfg:
+
 ``domains.cfg``
-~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
 
 File Format
 ^^^^^^^^^^^
