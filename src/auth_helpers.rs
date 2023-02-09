@@ -6,11 +6,13 @@ use openssl::pkey::{PKey, Private, Public};
 use openssl::rsa::Rsa;
 use openssl::sha;
 
+use pbs_config::BackupLockGuard;
 use proxmox_lang::try_block;
 use proxmox_sys::fs::{file_get_contents, replace_file, CreateOptions};
 
 use pbs_api_types::Userid;
 use pbs_buildcfg::configdir;
+use serde_json::json;
 
 fn compute_csrf_secret_digest(timestamp: i64, secret: &[u8], userid: &Userid) -> String {
     let mut hasher = sha::Sha256::new();
@@ -179,4 +181,60 @@ pub fn private_auth_key() -> &'static PKey<Private> {
     }
 
     &KEY
+}
+
+const LDAP_PASSWORDS_FILENAME: &str = configdir!("/ldap_passwords.json");
+
+/// Store LDAP bind passwords in protected file. The domain config must be locked while this
+/// function is executed.
+pub fn store_ldap_bind_password(
+    realm: &str,
+    password: &str,
+    _domain_lock: &BackupLockGuard,
+) -> Result<(), Error> {
+    let mut data = proxmox_sys::fs::file_get_json(LDAP_PASSWORDS_FILENAME, Some(json!({})))?;
+    data[realm] = password.into();
+
+    let mode = nix::sys::stat::Mode::from_bits_truncate(0o0600);
+    let options = proxmox_sys::fs::CreateOptions::new()
+        .perm(mode)
+        .owner(nix::unistd::ROOT)
+        .group(nix::unistd::Gid::from_raw(0));
+
+    let data = serde_json::to_vec_pretty(&data)?;
+    proxmox_sys::fs::replace_file(LDAP_PASSWORDS_FILENAME, &data, options, true)?;
+
+    Ok(())
+}
+
+/// Remove stored LDAP bind password. The domain config must be locked while this
+/// function is executed.
+pub fn remove_ldap_bind_password(realm: &str, _domain_lock: &BackupLockGuard) -> Result<(), Error> {
+    let mut data = proxmox_sys::fs::file_get_json(LDAP_PASSWORDS_FILENAME, Some(json!({})))?;
+    if let Some(map) = data.as_object_mut() {
+        map.remove(realm);
+    }
+
+    let mode = nix::sys::stat::Mode::from_bits_truncate(0o0600);
+    let options = proxmox_sys::fs::CreateOptions::new()
+        .perm(mode)
+        .owner(nix::unistd::ROOT)
+        .group(nix::unistd::Gid::from_raw(0));
+
+    let data = serde_json::to_vec_pretty(&data)?;
+    proxmox_sys::fs::replace_file(LDAP_PASSWORDS_FILENAME, &data, options, true)?;
+
+    Ok(())
+}
+
+/// Retrieve stored LDAP bind password
+pub fn get_ldap_bind_password(realm: &str) -> Result<Option<String>, Error> {
+    let data = proxmox_sys::fs::file_get_json(LDAP_PASSWORDS_FILENAME, Some(json!({})))?;
+
+    let password = data
+        .get(realm)
+        .and_then(|s| s.as_str())
+        .map(|s| s.to_owned());
+
+    Ok(password)
 }

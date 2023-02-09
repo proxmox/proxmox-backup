@@ -1,5 +1,4 @@
 use ::serde::{Deserialize, Serialize};
-/// Configure OpenId realms
 use anyhow::Error;
 use hex::FromHex;
 use serde_json::Value;
@@ -8,33 +7,35 @@ use proxmox_router::{http_bail, Permission, Router, RpcEnvironment};
 use proxmox_schema::{api, param_bail};
 
 use pbs_api_types::{
-    OpenIdRealmConfig, OpenIdRealmConfigUpdater, PRIV_REALM_ALLOCATE, PRIV_SYS_AUDIT,
+    LdapRealmConfig, LdapRealmConfigUpdater, PRIV_REALM_ALLOCATE, PRIV_SYS_AUDIT,
     PROXMOX_CONFIG_DIGEST_SCHEMA, REALM_ID_SCHEMA,
 };
 
 use pbs_config::domains;
+
+use crate::auth_helpers;
 
 #[api(
     input: {
         properties: {},
     },
     returns: {
-        description: "List of configured OpenId realms.",
+        description: "List of configured LDAP realms.",
         type: Array,
-        items: { type: OpenIdRealmConfig },
+        items: { type: LdapRealmConfig },
     },
     access: {
         permission: &Permission::Privilege(&["access", "domains"], PRIV_REALM_ALLOCATE, false),
     },
 )]
-/// List configured OpenId realms
-pub fn list_openid_realms(
+/// List configured LDAP realms
+pub fn list_ldap_realms(
     _param: Value,
     rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Vec<OpenIdRealmConfig>, Error> {
+) -> Result<Vec<LdapRealmConfig>, Error> {
     let (config, digest) = domains::config()?;
 
-    let list = config.convert_to_typed_array("openid")?;
+    let list = config.convert_to_typed_array("ldap")?;
 
     rpcenv["digest"] = hex::encode(digest).into();
 
@@ -46,18 +47,22 @@ pub fn list_openid_realms(
     input: {
         properties: {
             config: {
-                type: OpenIdRealmConfig,
+                type: LdapRealmConfig,
                 flatten: true,
             },
+            password: {
+                description: "LDAP bind password",
+                optional: true,
+            }
         },
     },
     access: {
         permission: &Permission::Privilege(&["access", "domains"], PRIV_REALM_ALLOCATE, false),
     },
 )]
-/// Create a new OpenId realm
-pub fn create_openid_realm(config: OpenIdRealmConfig) -> Result<(), Error> {
-    let _lock = domains::lock_config()?;
+/// Create a new LDAP realm
+pub fn create_ldap_realm(config: LdapRealmConfig, password: Option<String>) -> Result<(), Error> {
+    let domain_config_lock = domains::lock_config()?;
 
     let (mut domains, _digest) = domains::config()?;
 
@@ -65,7 +70,11 @@ pub fn create_openid_realm(config: OpenIdRealmConfig) -> Result<(), Error> {
         param_bail!("realm", "realm '{}' already exists.", config.realm);
     }
 
-    domains.set_data(&config.realm, "openid", &config)?;
+    if let Some(password) = password {
+        auth_helpers::store_ldap_bind_password(&config.realm, &password, &domain_config_lock)?;
+    }
+
+    domains.set_data(&config.realm, "ldap", &config)?;
 
     domains::save_config(&domains)?;
 
@@ -89,13 +98,13 @@ pub fn create_openid_realm(config: OpenIdRealmConfig) -> Result<(), Error> {
         permission: &Permission::Privilege(&["access", "domains"], PRIV_REALM_ALLOCATE, false),
     },
 )]
-/// Remove a OpenID realm configuration
-pub fn delete_openid_realm(
+/// Remove an LDAP realm configuration
+pub fn delete_ldap_realm(
     realm: String,
     digest: Option<String>,
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
-    let _lock = domains::lock_config()?;
+    let domain_config_lock = domains::lock_config()?;
 
     let (mut domains, expected_digest) = domains::config()?;
 
@@ -110,6 +119,10 @@ pub fn delete_openid_realm(
 
     domains::save_config(&domains)?;
 
+    if auth_helpers::remove_ldap_bind_password(&realm, &domain_config_lock).is_err() {
+        log::error!("Could not remove stored LDAP bind password for realm {realm}");
+    }
+
     Ok(())
 }
 
@@ -121,19 +134,19 @@ pub fn delete_openid_realm(
             },
         },
     },
-    returns:  { type: OpenIdRealmConfig },
+    returns:  { type: LdapRealmConfig },
     access: {
         permission: &Permission::Privilege(&["access", "domains"], PRIV_SYS_AUDIT, false),
     },
 )]
-/// Read the OpenID realm configuration
-pub fn read_openid_realm(
+/// Read the LDAP realm configuration
+pub fn read_ldap_realm(
     realm: String,
     rpcenv: &mut dyn RpcEnvironment,
-) -> Result<OpenIdRealmConfig, Error> {
+) -> Result<LdapRealmConfig, Error> {
     let (domains, digest) = domains::config()?;
 
-    let config = domains.lookup("openid", &realm)?;
+    let config = domains.lookup("ldap", &realm)?;
 
     rpcenv["digest"] = hex::encode(digest).into();
 
@@ -145,18 +158,20 @@ pub fn read_openid_realm(
 #[serde(rename_all = "kebab-case")]
 /// Deletable property name
 pub enum DeletableProperty {
-    /// Delete the client key.
-    ClientKey,
-    /// Delete the comment property.
+    /// Fallback LDAP server address
+    Server2,
+    /// Port
+    Port,
+    /// Comment
     Comment,
-    /// Delete the autocreate property
-    Autocreate,
-    /// Delete the scopes property
-    Scopes,
-    /// Delete the prompt property
-    Prompt,
-    /// Delete the acr_values property
-    AcrValues,
+    /// Verify server certificate
+    Verify,
+    /// Mode (ldap, ldap+starttls or ldaps),
+    Mode,
+    /// Bind Domain
+    BindDn,
+    /// LDAP bind passwort
+    Password,
 }
 
 #[api(
@@ -167,8 +182,12 @@ pub enum DeletableProperty {
                 schema: REALM_ID_SCHEMA,
             },
             update: {
-                type: OpenIdRealmConfigUpdater,
+                type: LdapRealmConfigUpdater,
                 flatten: true,
+            },
+            password: {
+                description: "LDAP bind password",
+                optional: true,
             },
             delete: {
                 description: "List of properties to delete.",
@@ -184,20 +203,21 @@ pub enum DeletableProperty {
             },
         },
     },
-    returns:  { type: OpenIdRealmConfig },
+    returns:  { type: LdapRealmConfig },
     access: {
         permission: &Permission::Privilege(&["access", "domains"], PRIV_REALM_ALLOCATE, false),
     },
 )]
-/// Update an OpenID realm configuration
-pub fn update_openid_realm(
+/// Update an LDAP realm configuration
+pub fn update_ldap_realm(
     realm: String,
-    update: OpenIdRealmConfigUpdater,
+    update: LdapRealmConfigUpdater,
+    password: Option<String>,
     delete: Option<Vec<DeletableProperty>>,
     digest: Option<String>,
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
-    let _lock = domains::lock_config()?;
+    let domain_config_lock = domains::lock_config()?;
 
     let (mut domains, expected_digest) = domains::config()?;
 
@@ -206,31 +226,54 @@ pub fn update_openid_realm(
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 
-    let mut config: OpenIdRealmConfig = domains.lookup("openid", &realm)?;
+    let mut config: LdapRealmConfig = domains.lookup("ldap", &realm)?;
 
     if let Some(delete) = delete {
         for delete_prop in delete {
             match delete_prop {
-                DeletableProperty::ClientKey => {
-                    config.client_key = None;
+                DeletableProperty::Server2 => {
+                    config.server2 = None;
                 }
                 DeletableProperty::Comment => {
                     config.comment = None;
                 }
-                DeletableProperty::Autocreate => {
-                    config.autocreate = None;
+                DeletableProperty::Port => {
+                    config.port = None;
                 }
-                DeletableProperty::Scopes => {
-                    config.scopes = None;
+                DeletableProperty::Verify => {
+                    config.verify = None;
                 }
-                DeletableProperty::Prompt => {
-                    config.prompt = None;
+                DeletableProperty::Mode => {
+                    config.mode = None;
                 }
-                DeletableProperty::AcrValues => {
-                    config.acr_values = None;
+                DeletableProperty::BindDn => {
+                    config.bind_dn = None;
+                }
+                DeletableProperty::Password => {
+                    auth_helpers::remove_ldap_bind_password(&realm, &domain_config_lock)?;
                 }
             }
         }
+    }
+
+    if let Some(server1) = update.server1 {
+        config.server1 = server1;
+    }
+
+    if let Some(server2) = update.server2 {
+        config.server2 = Some(server2);
+    }
+
+    if let Some(port) = update.port {
+        config.port = Some(port);
+    }
+
+    if let Some(base_dn) = update.base_dn {
+        config.base_dn = base_dn;
+    }
+
+    if let Some(user_attr) = update.user_attr {
+        config.user_attr = user_attr;
     }
 
     if let Some(comment) = update.comment {
@@ -242,30 +285,23 @@ pub fn update_openid_realm(
         }
     }
 
-    if let Some(issuer_url) = update.issuer_url {
-        config.issuer_url = issuer_url;
-    }
-    if let Some(client_id) = update.client_id {
-        config.client_id = client_id;
+    if let Some(mode) = update.mode {
+        config.mode = Some(mode);
     }
 
-    if update.client_key.is_some() {
-        config.client_key = update.client_key;
-    }
-    if update.autocreate.is_some() {
-        config.autocreate = update.autocreate;
-    }
-    if update.scopes.is_some() {
-        config.scopes = update.scopes;
-    }
-    if update.prompt.is_some() {
-        config.prompt = update.prompt;
-    }
-    if update.acr_values.is_some() {
-        config.acr_values = update.acr_values;
+    if let Some(verify) = update.verify {
+        config.verify = Some(verify);
     }
 
-    domains.set_data(&realm, "openid", &config)?;
+    if let Some(bind_dn) = update.bind_dn {
+        config.bind_dn = Some(bind_dn);
+    }
+
+    if let Some(password) = password {
+        auth_helpers::store_ldap_bind_password(&realm, &password, &domain_config_lock)?;
+    }
+
+    domains.set_data(&realm, "ldap", &config)?;
 
     domains::save_config(&domains)?;
 
@@ -273,11 +309,11 @@ pub fn update_openid_realm(
 }
 
 const ITEM_ROUTER: Router = Router::new()
-    .get(&API_METHOD_READ_OPENID_REALM)
-    .put(&API_METHOD_UPDATE_OPENID_REALM)
-    .delete(&API_METHOD_DELETE_OPENID_REALM);
+    .get(&API_METHOD_READ_LDAP_REALM)
+    .put(&API_METHOD_UPDATE_LDAP_REALM)
+    .delete(&API_METHOD_DELETE_LDAP_REALM);
 
 pub const ROUTER: Router = Router::new()
-    .get(&API_METHOD_LIST_OPENID_REALMS)
-    .post(&API_METHOD_CREATE_OPENID_REALM)
+    .get(&API_METHOD_LIST_LDAP_REALMS)
+    .post(&API_METHOD_CREATE_LDAP_REALM)
     .match_all("realm", &ITEM_ROUTER);

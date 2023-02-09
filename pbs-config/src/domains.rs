@@ -3,35 +3,41 @@ use std::collections::HashMap;
 use anyhow::Error;
 use lazy_static::lazy_static;
 
-use proxmox_schema::{ApiType, Schema};
+use pbs_buildcfg::configdir;
+use proxmox_schema::{ApiType, ObjectSchema};
 use proxmox_section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin};
 
 use crate::{open_backup_lockfile, replace_backup_config, BackupLockGuard};
-use pbs_api_types::{OpenIdRealmConfig, REALM_ID_SCHEMA};
+use pbs_api_types::{LdapRealmConfig, OpenIdRealmConfig, REALM_ID_SCHEMA};
 
 lazy_static! {
     pub static ref CONFIG: SectionConfig = init();
 }
 
 fn init() -> SectionConfig {
-    let obj_schema = match OpenIdRealmConfig::API_SCHEMA {
-        Schema::Object(ref obj_schema) => obj_schema,
-        _ => unreachable!(),
-    };
+    const LDAP_SCHEMA: &ObjectSchema = LdapRealmConfig::API_SCHEMA.unwrap_object_schema();
+    const OPENID_SCHEMA: &ObjectSchema = OpenIdRealmConfig::API_SCHEMA.unwrap_object_schema();
+
+    let mut config = SectionConfig::new(&REALM_ID_SCHEMA);
 
     let plugin = SectionConfigPlugin::new(
         "openid".to_string(),
         Some(String::from("realm")),
-        obj_schema,
+        OPENID_SCHEMA,
     );
-    let mut config = SectionConfig::new(&REALM_ID_SCHEMA);
+
+    config.register_plugin(plugin);
+
+    let plugin =
+        SectionConfigPlugin::new("ldap".to_string(), Some(String::from("realm")), LDAP_SCHEMA);
+
     config.register_plugin(plugin);
 
     config
 }
 
-pub const DOMAINS_CFG_FILENAME: &str = "/etc/proxmox-backup/domains.cfg";
-pub const DOMAINS_CFG_LOCKFILE: &str = "/etc/proxmox-backup/.domains.lck";
+pub const DOMAINS_CFG_FILENAME: &str = configdir!("/domains.cfg");
+pub const DOMAINS_CFG_LOCKFILE: &str = configdir!("/.domains.lck");
 
 /// Get exclusive lock
 pub fn lock_config() -> Result<BackupLockGuard, Error> {
@@ -50,6 +56,11 @@ pub fn config() -> Result<(SectionConfigData, [u8; 32]), Error> {
 pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
     let raw = CONFIG.write(DOMAINS_CFG_FILENAME, config)?;
     replace_backup_config(DOMAINS_CFG_FILENAME, raw.as_bytes())
+}
+
+/// Check if a realm with the given name exists
+pub fn exists(domains: &SectionConfigData, realm: &str) -> bool {
+    realm == "pbs" || realm == "pam" || domains.sections.get(realm).is_some()
 }
 
 // shell completion helper
