@@ -1,9 +1,7 @@
 use anyhow::{bail, format_err, Error};
-use futures::FutureExt;
 use hyper::Method;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use tokio::signal::unix::{signal, SignalKind};
 
 use std::collections::HashMap;
 
@@ -11,7 +9,7 @@ use proxmox_router::{cli::*, ApiHandler, ApiMethod, RpcEnvironment, SubRoute};
 use proxmox_schema::format::DocumentationFormat;
 use proxmox_schema::{api, ApiType, ParameterSchema, Schema};
 
-use pbs_api_types::{PROXMOX_UPID_REGEX, UPID};
+use pbs_api_types::PROXMOX_UPID_REGEX;
 use pbs_client::view_task_result;
 use proxmox_rest_server::normalize_uri_path;
 
@@ -247,27 +245,6 @@ async fn call_api_code(
     }
 }
 
-async fn handle_worker(upid_str: &str) -> Result<(), Error> {
-    let upid: UPID = upid_str.parse()?;
-    let mut signal_stream = signal(SignalKind::interrupt())?;
-    let abort_future = async move {
-        while signal_stream.recv().await.is_some() {
-            println!("got shutdown request (SIGINT)");
-            proxmox_rest_server::abort_local_worker(upid.clone());
-        }
-        Ok::<_, Error>(())
-    };
-
-    let result_future = proxmox_rest_server::wait_for_local_worker(upid_str);
-
-    futures::select! {
-        result = result_future.fuse() => result?,
-        abort = abort_future.fuse() => abort?,
-    };
-
-    Ok(())
-}
-
 async fn call_api_and_format_result(
     method: String,
     path: String,
@@ -285,7 +262,7 @@ async fn call_api_and_format_result(
                 return Ok(());
             }
 
-            handle_worker(upid).await?;
+            proxmox_rest_server::handle_worker(upid).await?;
 
             if output_format == "text" {
                 return Ok(());
