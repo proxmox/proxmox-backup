@@ -28,10 +28,9 @@ pub trait ProxmoxAuthenticator {
     fn remove_password(&self, username: &UsernameRef) -> Result<(), Error>;
 }
 
-#[allow(clippy::upper_case_acronyms)]
-struct PAM();
+struct PamAuthenticator();
 
-impl ProxmoxAuthenticator for PAM {
+impl ProxmoxAuthenticator for PamAuthenticator {
     fn authenticate_user<'a>(
         &self,
         username: &'a UsernameRef,
@@ -91,12 +90,11 @@ impl ProxmoxAuthenticator for PAM {
     }
 }
 
-#[allow(clippy::upper_case_acronyms)]
-struct PBS();
+struct PbsAuthenticator();
 
 const SHADOW_CONFIG_FILENAME: &str = configdir!("/shadow.json");
 
-impl ProxmoxAuthenticator for PBS {
+impl ProxmoxAuthenticator for PbsAuthenticator {
     fn authenticate_user<'a>(
         &self,
         username: &'a UsernameRef,
@@ -260,8 +258,8 @@ pub fn lookup_authenticator(
     realm: &RealmRef,
 ) -> Result<Box<dyn ProxmoxAuthenticator + Send + Sync + 'static>, Error> {
     match realm.as_str() {
-        "pam" => Ok(Box::new(PAM())),
-        "pbs" => Ok(Box::new(PBS())),
+        "pam" => Ok(Box::new(PamAuthenticator())),
+        "pbs" => Ok(Box::new(PbsAuthenticator())),
         realm => {
             let (domains, _digest) = pbs_config::domains::config()?;
             if let Ok(config) = domains.lookup::<LdapRealmConfig>("ldap", realm) {
