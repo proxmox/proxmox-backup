@@ -105,6 +105,7 @@ man_pages = [
     # configs
     ('config/acl/man5', 'acl.cfg', 'Access Control Configuration', [author], 5),
     ('config/datastore/man5', 'datastore.cfg', 'Datastore Configuration', [author], 5),
+    ('config/domains/man5', 'domains.cfg', 'Realm Configuration', [author], 5),
     ('config/media-pool/man5', 'media-pool.cfg', 'Media Pool Configuration', [author], 5),
     ('config/remote/man5', 'remote.cfg', 'Remote Server Configuration', [author], 5),
     ('config/sync/man5', 'sync.cfg', 'Synchronization Job Configuration', [author], 5),

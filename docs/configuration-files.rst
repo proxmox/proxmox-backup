@@ -36,6 +36,20 @@ Options
 
 .. include:: config/datastore/config.rst
 
+``domains.cfg``
+~~~~~~~~~~~~~~~~~
+
+File Format
+^^^^^^^^^^^
+
+.. include:: config/domains/format.rst
+
+
+Options
+^^^^^^^
+
+.. include:: config/domains/config.rst
+
 
 ``media-pool.cfg``
 ~~~~~~~~~~~~~~~~~~

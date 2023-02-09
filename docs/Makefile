@@ -18,7 +18,8 @@ GENERATED_SYNOPSIS := 						\
 	config/sync/config.rst					\
 	config/verification/config.rst				\
 	config/acl/roles.rst					\
-	config/datastore/config.rst
+	config/datastore/config.rst				\
+	config/domains/config.rst
 
 MAN1_PAGES := 				\
 	pxar.1				\
@@ -40,7 +41,8 @@ MAN5_PAGES :=				\
 	remote.cfg.5			\
 	sync.cfg.5			\
 	verification.cfg.5		\
-	datastore.cfg.5
+	datastore.cfg.5			\
+	domains.cfg.5
 
 PRUNE_SIMULATOR_FILES := 					\
 	prune-simulator/index.html				\
