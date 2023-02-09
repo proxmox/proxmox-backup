@@ -280,6 +280,13 @@ impl AclTreeNode {
         roles.remove(role);
     }
 
+    fn delete_authid(&mut self, auth_id: &Authid) {
+        for node in self.children.values_mut() {
+            node.delete_authid(auth_id);
+        }
+        self.users.remove(auth_id);
+    }
+
     fn insert_group_role(&mut self, group: String, role: String, propagate: bool) {
         let map = self.groups.entry(group).or_default();
         if role == ROLE_NAME_NO_ACCESS {
@@ -409,6 +416,14 @@ impl AclTree {
         if let Some(name) = last {
             parent.children.remove(name);
         }
+    }
+
+    /// Deletes a user or token from the ACL-tree
+    ///
+    /// Traverses the tree in-order and removes the given user/token by their Authid
+    /// from every node in the tree.
+    pub fn delete_authid(&mut self, auth_id: &Authid) {
+        self.root.delete_authid(auth_id);
     }
 
     /// Inserts the specified `role` into the `group` ACL on `path`.
@@ -1007,6 +1022,62 @@ acl:1:/storage/store1:user1@pbs:DatastoreBackup
         assert!(tree.find_node("/").is_some());
         tree.delete_node("/");
         assert!(tree.find_node("/").is_some());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_delete_authid() -> Result<(), Error> {
+        let mut tree = AclTree::new();
+
+        let user1: Authid = "user1@pbs".parse()?;
+        let user2: Authid = "user2@pbs".parse()?;
+
+        let user1_paths = vec![
+            "/",
+            "/storage",
+            "/storage/a",
+            "/storage/a/b",
+            "/storage/b",
+            "/storage/b/a",
+            "/storage/b/b",
+            "/storage/a/a",
+        ];
+        let user2_paths = vec!["/", "/storage", "/storage/a/b", "/storage/a/a"];
+
+        for path in &user1_paths {
+            tree.insert_user_role(path, &user1, "NoAccess", true);
+        }
+        for path in &user2_paths {
+            tree.insert_user_role(path, &user2, "NoAccess", true);
+        }
+
+        tree.delete_authid(&user1);
+
+        for path in &user1_paths {
+            let node = tree.find_node(path);
+            assert!(node.is_some());
+            if let Some(node) = node {
+                assert!(node.users.get(&user1).is_none());
+            }
+        }
+        for path in &user2_paths {
+            let node = tree.find_node(path);
+            assert!(node.is_some());
+            if let Some(node) = node {
+                assert!(node.users.get(&user2).is_some());
+            }
+        }
+
+        tree.delete_authid(&user2);
+
+        for path in &user2_paths {
+            let node = tree.find_node(path);
+            assert!(node.is_some());
+            if let Some(node) = node {
+                assert!(node.users.get(&user2).is_none());
+            }
+        }
 
         Ok(())
     }
