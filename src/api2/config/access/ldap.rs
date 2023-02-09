@@ -172,6 +172,14 @@ pub enum DeletableProperty {
     BindDn,
     /// LDAP bind passwort
     Password,
+    /// User filter
+    Filter,
+    /// Default options for user sync
+    SyncDefaultsOptions,
+    /// user attributes to sync with LDAP attributes
+    SyncAttributes,
+    /// User classes
+    UserClasses,
 }
 
 #[api(
@@ -252,6 +260,18 @@ pub fn update_ldap_realm(
                 DeletableProperty::Password => {
                     auth_helpers::remove_ldap_bind_password(&realm, &domain_config_lock)?;
                 }
+                DeletableProperty::Filter => {
+                    config.filter = None;
+                }
+                DeletableProperty::SyncDefaultsOptions => {
+                    config.sync_defaults_options = None;
+                }
+                DeletableProperty::SyncAttributes => {
+                    config.sync_attributes = None;
+                }
+                DeletableProperty::UserClasses => {
+                    config.user_classes = None;
+                }
             }
         }
     }
@@ -299,6 +319,19 @@ pub fn update_ldap_realm(
 
     if let Some(password) = password {
         auth_helpers::store_ldap_bind_password(&realm, &password, &domain_config_lock)?;
+    }
+
+    if let Some(filter) = update.filter {
+        config.filter = Some(filter);
+    }
+    if let Some(sync_defaults_options) = update.sync_defaults_options {
+        config.sync_defaults_options = Some(sync_defaults_options);
+    }
+    if let Some(sync_attributes) = update.sync_attributes {
+        config.sync_attributes = Some(sync_attributes);
+    }
+    if let Some(user_classes) = update.user_classes {
+        config.user_classes = Some(user_classes);
     }
 
     domains.set_data(&realm, "ldap", &config)?;
