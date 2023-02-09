@@ -1,3 +1,27 @@
+Ext.define('PBS.window.UserEditViewModel', {
+    extend: 'Ext.app.ViewModel',
+
+    alias: 'viewmodel.pbsUserEdit',
+
+    data: {
+	realm: 'pbs',
+    },
+
+    formulas: {
+	maySetPassword: function(get) {
+	    // Dummy read, so that ExtJS will update the formula when
+	    // the combobox changes
+	    let _dummy = get('realm');
+
+	    // All in all a bit hacky, is there a nicer way to do this?
+	    let realm_type = this.data.realmComboBox.selection?.data.type
+		? this.data.realmComboBox.selection?.data.type : 'pbs';
+
+	    return Proxmox.Schema.authDomains[realm_type].pwchange && this.config.view.isCreate;
+	},
+    },
+});
+
 Ext.define('PBS.window.UserEdit', {
     extend: 'Proxmox.window.Edit',
     alias: 'widget.pbsUserEdit',
@@ -12,6 +36,10 @@ Ext.define('PBS.window.UserEdit', {
     subject: gettext('User'),
 
     fieldDefaults: { labelWidth: 120 },
+
+    viewModel: {
+	type: 'pbsUserEdit',
+    },
 
     cbindData: function(initialConfig) {
 	var me = this;
@@ -44,6 +72,43 @@ Ext.define('PBS.window.UserEdit', {
 		},
 	    },
 	    {
+		xtype: 'pmxRealmComboBox',
+		name: 'realm',
+		fieldLabel: gettext('Realm'),
+		allowBlank: false,
+		matchFieldWidth: false,
+		listConfig: { width: 300 },
+		reference: 'realmComboBox',
+		bind: '{realm}',
+		cbind: {
+		    hidden: '{!isCreate}',
+		    disabled: '{!isCreate}',
+		},
+
+		submitValue: true,
+		// Let's override the default controller so that we can
+		// remove the PAM realm. We don't want to manually add users
+		// for the PAM realm.
+		controller: {
+		    xclass: 'Ext.app.ViewController',
+
+		    init: function(view) {
+			view.store.on('load', this.onLoad, view);
+		    },
+
+		    onLoad: function(store, records, success) {
+			if (!success) {
+			    return;
+			}
+
+			let pamRecord = this.store.findRecord('realm', 'pam', 0, false, true, true);
+
+			this.store.remove(pamRecord);
+			this.setValue('pbs');
+		    },
+		},
+	    },
+	    {
 		xtype: 'textfield',
 		inputType: 'password',
 		fieldLabel: gettext('Password'),
@@ -51,16 +116,16 @@ Ext.define('PBS.window.UserEdit', {
 		allowBlank: false,
 		name: 'password',
 		listeners: {
-                    change: function(field) {
+		    change: function(field) {
 			field.next().validate();
-                    },
-                    blur: function(field) {
+		    },
+		    blur: function(field) {
 			field.next().validate();
-                    },
+		    },
 		},
-		cbind: {
-		    hidden: '{!isCreate}',
-		    disabled: '{!isCreate}',
+		bind: {
+		    disabled: '{!maySetPassword}',
+		    hidden: '{!maySetPassword}',
 		},
 	    },
 	    {
@@ -72,19 +137,19 @@ Ext.define('PBS.window.UserEdit', {
 		initialPassField: 'password',
 		allowBlank: false,
 		submitValue: false,
-		cbind: {
-		    hidden: '{!isCreate}',
-		    disabled: '{!isCreate}',
+		bind: {
+		    disabled: '{!maySetPassword}',
+		    hidden: '{!maySetPassword}',
 		},
 	    },
 	    {
-                xtype: 'datefield',
-                name: 'expire',
+		xtype: 'datefield',
+		name: 'expire',
 		emptyText: Proxmox.Utils.neverText,
 		format: 'Y-m-d',
 		submitFormat: 'U',
-                fieldLabel: gettext('Expire'),
-            },
+		fieldLabel: gettext('Expire'),
+	    },
 	    {
 		xtype: 'proxmoxcheckbox',
 		fieldLabel: gettext('Enabled'),
@@ -146,7 +211,7 @@ Ext.define('PBS.window.UserEdit', {
 	}
 
 	if (me.isCreate) {
-	    values.userid = values.userid + '@pbs';
+	    values.userid = values.userid + '@' + values.realm;
 	}
 
 	delete values.username;
