@@ -26,6 +26,7 @@ usr/share/man/man1/pmtx.1
 usr/share/man/man1/pmt.1
 usr/share/man/man5/acl.cfg.5
 usr/share/man/man5/datastore.cfg.5
+usr/share/man/man5/domains.cfg.5
 usr/share/man/man5/user.cfg.5
 usr/share/man/man5/remote.cfg.5
 usr/share/man/man5/sync.cfg.5
