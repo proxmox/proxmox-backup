@@ -1,14 +1,14 @@
 use anyhow::Error;
+use pbs_client::view_task_result;
+use pbs_tools::json::required_string_param;
 use serde_json::Value;
 
 use proxmox_router::{cli::*, ApiHandler, Permission, RpcEnvironment};
 use proxmox_schema::api;
 
-use pbs_api_types::{
-    Realm, PRIV_PERMISSIONS_MODIFY, PROXMOX_UPID_REGEX, REALM_ID_SCHEMA, REMOVE_VANISHED_SCHEMA,
-};
+use pbs_api_types::{Realm, PRIV_PERMISSIONS_MODIFY, REALM_ID_SCHEMA, REMOVE_VANISHED_SCHEMA};
 
-use proxmox_backup::api2;
+use proxmox_backup::{api2, client_helpers::connect_to_localhost};
 
 #[api(
     input: {
@@ -98,18 +98,13 @@ fn show_ldap_realm(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Valu
     },
 )]
 /// Sync a given LDAP realm
-async fn sync_ldap_realm(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
-    let info = &api2::access::domain::API_METHOD_SYNC_REALM;
-    let data = match info.handler {
-        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
-        _ => unreachable!(),
-    };
+async fn sync_ldap_realm(param: Value) -> Result<Value, Error> {
+    let realm = required_string_param(&param, "realm")?;
+    let client = connect_to_localhost()?;
 
-    if let Some(upid) = data.as_str() {
-        if PROXMOX_UPID_REGEX.is_match(upid) {
-            proxmox_rest_server::handle_worker(upid).await?;
-        }
-    }
+    let path = format!("api2/json/access/domains/{}/sync", realm);
+    let result = client.post(&path, Some(param)).await?;
+    view_task_result(&client, result, "text").await?;
 
     Ok(Value::Null)
 }
