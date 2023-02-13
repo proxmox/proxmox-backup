@@ -1,16 +1,18 @@
 use anyhow::{bail, Context, Error};
 use pbs_config::{acl::AclTree, token_shadow, BackupLockGuard};
+use proxmox_lang::try_block;
 use proxmox_ldap::{Config, Connection, SearchParameters, SearchResult};
 use proxmox_rest_server::WorkerTask;
-use proxmox_schema::ApiType;
+use proxmox_schema::{ApiType, Schema};
 use proxmox_section_config::SectionConfigData;
-use proxmox_sys::task_log;
+use proxmox_sys::{task_log, task_warn};
 
 use std::{collections::HashSet, sync::Arc};
 
 use pbs_api_types::{
     ApiToken, Authid, LdapRealmConfig, Realm, RemoveVanished, SyncAttributes as LdapSyncAttributes,
-    SyncDefaultsOptions, User, Userid, REMOVE_VANISHED_ARRAY, USER_CLASSES_ARRAY,
+    SyncDefaultsOptions, User, Userid, EMAIL_SCHEMA, FIRST_NAME_SCHEMA, LAST_NAME_SCHEMA,
+    REMOVE_VANISHED_ARRAY, USER_CLASSES_ARRAY,
 };
 
 use crate::{auth, server::jobstate::Job};
@@ -157,20 +159,32 @@ impl LdapRealmSyncJob {
         let mut retrieved_users = HashSet::new();
 
         for result in users {
-            let mut username = result
-                .attributes
-                .get(&self.ldap_sync_settings.user_attr)
-                .context("userid attribute not in search result")?
-                .get(0)
-                .context("userid attribute array is empty")?
-                .clone();
+            let user_id_attribute = &self.ldap_sync_settings.user_attr;
 
-            username.push_str(&format!("@{}", self.realm.as_str()));
+            let result = try_block!({
+                let username = result
+                    .attributes
+                    .get(user_id_attribute)
+                    .context(format!(
+                        "userid attribute `{user_id_attribute}` not in LDAP search result"
+                    ))?
+                    .get(0)
+                    .context("userid attribute array is empty")?
+                    .clone();
 
-            let userid: Userid = username.parse()?;
-            retrieved_users.insert(userid.clone());
+                let username = format!("{username}@{realm}", realm = self.realm.as_str());
 
-            self.create_or_update_user(user_config, userid, result)?;
+                let userid: Userid = username
+                    .parse()
+                    .context(format!("could not parse username `{username}`"))?;
+                retrieved_users.insert(userid.clone());
+
+                self.create_or_update_user(user_config, &userid, result)?;
+                anyhow::Ok(())
+            });
+            if let Err(e) = result {
+                task_log!(self.worker, "could not create/update user: {e}");
+            }
         }
 
         Ok(retrieved_users)
@@ -179,7 +193,7 @@ impl LdapRealmSyncJob {
     fn create_or_update_user(
         &self,
         user_config: &mut SectionConfigData,
-        userid: Userid,
+        userid: &Userid,
         result: &SearchResult,
     ) -> Result<(), Error> {
         let existing_user = user_config.lookup::<User>("user", userid.as_str()).ok();
@@ -213,37 +227,67 @@ impl LdapRealmSyncJob {
     fn construct_or_update_user(
         &self,
         result: &SearchResult,
-        userid: Userid,
+        userid: &Userid,
         existing_user: Option<&User>,
     ) -> User {
-        let lookup = |a: Option<&String>| {
-            a.and_then(|e| result.attributes.get(e))
+        let lookup = |attribute: &str, ldap_attribute: Option<&String>, schema: Schema| {
+            ldap_attribute
+                .and_then(|e| result.attributes.get(e))
                 .and_then(|v| v.get(0))
+                .and_then(|value| {
+                    let schema = schema.unwrap_string_schema();
+
+                    if let Err(e) = schema.check_constraints(value) {
+                        task_warn!(
+                            self.worker,
+                            "{userid}: ignoring attribute `{attribute}`: {e}"
+                        );
+
+                        None
+                    } else {
+                        Some(value)
+                    }
+                })
                 .cloned()
         };
 
         User {
-            userid,
+            userid: userid.clone(),
             comment: existing_user.as_ref().and_then(|u| u.comment.clone()),
             enable: existing_user
                 .and_then(|o| o.enable)
                 .or(Some(self.general_sync_settings.enable_new)),
             expire: existing_user.and_then(|u| u.expire).or(Some(0)),
-            firstname: lookup(self.ldap_sync_settings.firstname_attr.as_ref()).or_else(|| {
+            firstname: lookup(
+                "firstname",
+                self.ldap_sync_settings.firstname_attr.as_ref(),
+                FIRST_NAME_SCHEMA,
+            )
+            .or_else(|| {
                 if !self.general_sync_settings.should_remove_properties() {
                     existing_user.and_then(|o| o.firstname.clone())
                 } else {
                     None
                 }
             }),
-            lastname: lookup(self.ldap_sync_settings.lastname_attr.as_ref()).or_else(|| {
+            lastname: lookup(
+                "lastname",
+                self.ldap_sync_settings.lastname_attr.as_ref(),
+                LAST_NAME_SCHEMA,
+            )
+            .or_else(|| {
                 if !self.general_sync_settings.should_remove_properties() {
                     existing_user.and_then(|o| o.lastname.clone())
                 } else {
                     None
                 }
             }),
-            email: lookup(self.ldap_sync_settings.email_attr.as_ref()).or_else(|| {
+            email: lookup(
+                "email",
+                self.ldap_sync_settings.email_attr.as_ref(),
+                EMAIL_SCHEMA,
+            )
+            .or_else(|| {
                 if !self.general_sync_settings.should_remove_properties() {
                     existing_user.and_then(|o| o.email.clone())
                 } else {
@@ -304,7 +348,9 @@ impl LdapRealmSyncJob {
                     user_config.sections.remove(&tokenid_string);
 
                     if !self.dry_run {
-                        token_shadow::delete_secret(&tokenid)?;
+                        if let Err(e) = token_shadow::delete_secret(&tokenid) {
+                            task_warn!(self.worker, "could not delete token for user {userid}: {e}",)
+                        }
                     }
 
                     if self.general_sync_settings.should_remove_acls() {
