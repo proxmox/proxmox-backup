@@ -224,13 +224,17 @@ Normally, datastore admins don't want to bother triggering GC's manually.
 That's why you can configure a schedule to let Proxmox Backup Server handle it.
 
 Setting or editing a datastore's GC schedule can be either done by using the
-`proxmox-backup-manager datastore update test --gc-schedule` CLI command or
-in the web UI in each datastore's **Prune & GC** tab.
+``proxmox-backup-manager datastore update <datastore> --gc-schedule <schedule>``
+CLI command or the edit window in the web UI in each datastore's **Prune & GC**
+tab.
 
 The GC scheduling uses the :ref:`calendar-event-scheduling` format.
 
-.. tip:: You can disable automatic GC runs by clearing the schedule, e.g.,
-   during maintenance or if you archive a datastore for good.
+.. tip:: You can disable automatic GC runs by clearing the schedule by either
+   clearing the content of the field in the web UI or using the
+   ``proxmox-backup-manager datastore update <datastore> --delete gc-schedule``
+   CLI command. This might be, for example, useful during maintenance or if you
+   archive a datastore for good.
 
 .. _maintenance_verification:
 
