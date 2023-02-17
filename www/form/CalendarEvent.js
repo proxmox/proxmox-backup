@@ -49,6 +49,25 @@ Ext.define('PBS.form.CalendarEvent', {
 	return data;
     },
 
+    triggers: {
+	clear: {
+	    cls: 'pmx-clear-trigger',
+	    weight: -1,
+	    hidden: true,
+	    handler: function() {
+		this.triggers.clear.setVisible(false);
+		this.setValue('');
+	    },
+	},
+    },
+
+    listeners: {
+	change: function(field, value) {
+	    let canClear = (value ?? '') !== '';
+	    field.triggers.clear.setVisible(canClear);
+	},
+    },
+
     store: {
 	type: 'calendarEventExamples',
     },
