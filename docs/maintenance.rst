@@ -159,16 +159,78 @@ high, but you cannot recreate backup snapshots from the past.
 Garbage Collection
 ------------------
 
+Garbage collection (GC) is the process that frees up space in a datastore by
+deleting all unused backup chunks from chunk storage. GC completes the pruning
+of backup snapshots, which deletes only the metadata, not the underlying backup
+data.
+
+It's recommended to setup a schedule to ensure that unused space is cleaned up
+periodically. For most setups a weekly schedule provides a good interval to
+start.
+
+GC Background
+^^^^^^^^^^^^^
+
+In Proxmox Backup Server, backup data is not saved directly, but rather as
+chunks that are referred to by the indexes of each backup snapshot. This
+approach enables reuse of chunks through deduplication, among other benefits
+that are detailed in the :ref:`tech_design_overview`.
+
+When deleting a backup snapshot, Proxmox Backup Server cannot directly remove
+the chunks associated with it because other backups, even ones that are still
+running, may have references to those chunks. To avoid excessive load and slow
+performance, the whole datastore cannot be locked to scan all other indexes for
+references to the same chunks on every snapshot deletion. Moreover, locking the
+entire datastore is not feasible because new backups would be blocked until the deletion
+process was complete.
+
+Therefore, Proxmox Backup Server uses a garbage collection (GC) process to
+identify and remove the unused backup chunks that are no longer needed by any
+snapshot in the datastore. The GC process is designed to efficiently reclaim
+the space occupied by these chunks with low impact on the performance of the
+datastore or interfering with other backups.
+
+The garbage collection (GC) process is performed per datastore and is split
+into two phases:
+
+- Phase one: Mark
+  All index files are read, and the access time of the referred chunk files is
+  updated.
+
+- Phase two: Sweep
+  The task iterates over all chunks, checks their file access time, and if it
+  is older than the cutoff time (i.e., the time when GC started, plus some
+  headroom for safety and Linux file system behavior), the task knows that the
+  chunk was neither referred to in any backup index nor part of any currently
+  running backup that has no index to scan for. As such, the chunk can be
+  safely deleted.
+
+Manually Starting GC
+^^^^^^^^^^^^^^^^^^^^
+
 You can monitor and run :ref:`garbage collection <client_garbage-collection>` on the
 Proxmox Backup Server using the ``garbage-collection`` subcommand of
 ``proxmox-backup-manager``. You can use the ``start`` subcommand to manually
 start garbage collection on an entire datastore and the ``status`` subcommand to
 see attributes relating to the :ref:`garbage collection <client_garbage-collection>`.
 
-This functionality can also be accessed in the GUI, by navigating to **Prune &
-GC** from the top panel of a datastore. From here, you can edit the schedule at
-which garbage collection runs and manually start the operation.
+This functionality can also be accessed in the web UI using the `Start Garbage
+Collection` button found in each datastore's **Prune & GC** tab.
 
+Scheduled GC
+^^^^^^^^^^^^
+
+Normally, datastore admins don't want to bother triggering GC's manually.
+That's why you can configure a schedule to let Proxmox Backup Server handle it.
+
+Setting or editing a datastore's GC schedule can be either done by using the
+`proxmox-backup-manager datastore update test --gc-schedule` CLI command or
+in the web UI in each datastore's **Prune & GC** tab.
+
+The GC scheduling uses the :ref:`calendar-event-scheduling` format.
+
+.. tip:: You can disable automatic GC runs by clearing the schedule, e.g.,
+   during maintenance or if you archive a datastore for good.
 
 .. _maintenance_verification:
 
