@@ -21,6 +21,7 @@ fn files() -> Vec<&'static str> {
 fn commands() -> Vec<(&'static str, Vec<&'static str>)> {
     vec![
         //  ("<command>", vec![<arg [, arg]>])
+        ("date", vec!["-R"]),
         ("proxmox-backup-manager", vec!["versions", "--verbose"]),
         ("proxmox-backup-manager", vec!["subscription", "get"]),
         ("df", vec!["-h"]),
