@@ -278,9 +278,9 @@ fn upgrade_to_backup_protocol(
                     let verify = |env: BackupEnvironment| {
                         if let Err(err) = env.verify_after_complete(snap_guard) {
                             env.log(format!(
-                        "backup finished, but starting the requested verify task failed: {}",
-                        err
-                    ));
+                                "backup finished, but starting the requested verify task failed: {}",
+                                err
+                            ));
                         }
                     };
 
