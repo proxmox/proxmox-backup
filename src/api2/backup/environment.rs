@@ -7,7 +7,7 @@ use ::serde::Serialize;
 use serde_json::{json, Value};
 
 use proxmox_router::{RpcEnvironment, RpcEnvironmentType};
-use proxmox_sys::fs::{replace_file, CreateOptions};
+use proxmox_sys::fs::{lock_dir_noblock_shared, replace_file, CreateOptions};
 
 use pbs_api_types::Authid;
 use pbs_datastore::backup_info::{BackupDir, BackupInfo};
@@ -634,13 +634,21 @@ impl BackupEnvironment {
     /// If verify-new is set on the datastore, this will run a new verify task
     /// for the backup. If not, this will return and also drop the passed lock
     /// immediately.
-    pub fn verify_after_complete(&self, snap_lock: Dir) -> Result<(), Error> {
+    pub fn verify_after_complete(&self, excl_snap_lock: Dir) -> Result<(), Error> {
         self.ensure_finished()?;
 
         if !self.datastore.verify_new() {
             // no verify requested, do nothing
             return Ok(());
         }
+
+        // Downgrade to shared lock, the backup itself is finished
+        drop(excl_snap_lock);
+        let snap_lock = lock_dir_noblock_shared(
+            &self.backup_dir.full_path(),
+            "snapshot",
+            "snapshot is already locked by another operation",
+        )?;
 
         let worker_id = format!(
             "{}:{}/{}/{:08X}",
