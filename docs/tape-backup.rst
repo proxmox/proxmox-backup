@@ -1050,6 +1050,21 @@ This command does the following:
 
 - unload the cleaning tape (to slot 3)
 
+WORM Tapes
+----------
+
+WORM (write once, read many) tapes are special cartridges that cannot be deleted
+or overwritten, which may be useful for legal or protection purposes.
+
+Since they cannot be overwritten or deleted, if you want to use them, you must
+use a media pool with a retention policy of `keep`, otherwise a backup job
+potentially fails when trying to erase or overwrite it.
+
+Proxmox Backup Server does not handle WORM tapes differently, so it is
+recommended to use a different naming scheme, use only seperate media pools
+and not mix WORM and non-WORM tapes in a media pool together (since it may
+lead to confusion about which tapes are not overwritable).
+
 Example Setups
 --------------
 
