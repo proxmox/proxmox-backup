@@ -953,13 +953,14 @@ pub fn update_inventory(
                         );
 
                         if let Some(ref set) = media_id.media_set_label {
-                            if set.unassigned() {
-                                continue;
-                            }
                             let _pool_lock = lock_media_pool(TAPE_STATUS_DIR, &set.pool)?;
                             let _lock = lock_media_set(TAPE_STATUS_DIR, &set.uuid, None)?;
                             MediaCatalog::destroy_unrelated_catalog(TAPE_STATUS_DIR, &media_id)?;
                             inventory.store(media_id.clone(), false)?;
+
+                            if set.unassigned() {
+                                continue;
+                            }
 
                             if catalog {
                                 let media_set = inventory.compute_media_set_members(&set.uuid)?;
