@@ -131,6 +131,9 @@ pub struct MediaLabel {
     pub label_text: String,
     /// Creation time stamp
     pub ctime: i64,
+    /// The initial pool the media is reserved for
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pool: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

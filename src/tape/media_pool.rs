@@ -205,13 +205,9 @@ impl MediaPool {
             Some(media_id) => media_id.clone(),
         };
 
-        if let Some(ref set) = media_id.media_set_label {
-            if set.pool != self.name {
-                bail!(
-                    "media does not belong to pool ({} != {})",
-                    set.pool,
-                    self.name
-                );
+        if let Some(pool) = media_id.pool() {
+            if pool != self.name {
+                bail!("media does not belong to pool ({} != {})", pool, self.name);
             }
         }
 

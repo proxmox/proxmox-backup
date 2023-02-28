@@ -346,19 +346,23 @@ pub fn format_media(
 
                     let mut inventory = Inventory::new(TAPE_STATUS_DIR);
 
-                    if let Some(MediaSetLabel {
-                        ref pool, ref uuid, ..
-                    }) = media_id.media_set_label
-                    {
-                        let _pool_lock = lock_media_pool(TAPE_STATUS_DIR, pool)?;
-                        let _media_set_lock = lock_media_set(TAPE_STATUS_DIR, uuid, None)?;
-                        MediaCatalog::destroy(TAPE_STATUS_DIR, &media_id.label.uuid)?;
-                        inventory.remove_media(&media_id.label.uuid)?;
+                    let _pool_lock = if let Some(pool) = media_id.pool() {
+                        lock_media_pool(TAPE_STATUS_DIR, &pool)?
                     } else {
-                        let _lock = lock_unassigned_media_pool(TAPE_STATUS_DIR)?;
-                        MediaCatalog::destroy(TAPE_STATUS_DIR, &media_id.label.uuid)?;
-                        inventory.remove_media(&media_id.label.uuid)?;
+                        lock_unassigned_media_pool(TAPE_STATUS_DIR)?
                     };
+
+                    let _media_set_lock = match media_id.media_set_label {
+                        Some(MediaSetLabel { ref uuid, .. }) => {
+                            Some(lock_media_set(TAPE_STATUS_DIR, uuid, None)?)
+                        }
+                        None => None,
+                    };
+
+                    MediaCatalog::destroy(TAPE_STATUS_DIR, &media_id.label.uuid)?;
+                    inventory.remove_media(&media_id.label.uuid)?;
+                    drop(_media_set_lock);
+                    drop(_pool_lock);
 
                     handle.format_media(fast.unwrap_or(true))?;
                 }
@@ -504,6 +508,7 @@ pub fn label_media(
                 label_text: label_text.to_string(),
                 uuid: Uuid::generate(),
                 ctime,
+                pool: pool.clone(),
             };
 
             write_media_label(worker, &mut drive, label, pool)
@@ -520,50 +525,31 @@ fn write_media_label(
     pool: Option<String>,
 ) -> Result<(), Error> {
     drive.label_tape(&label)?;
-    let media_id = if let Some(ref pool) = pool {
-        // assign media to pool by writing special media set label
+    if let Some(ref pool) = pool {
         task_log!(
             worker,
             "Label media '{}' for pool '{}'",
             label.label_text,
             pool
         );
-        let set = MediaSetLabel::new_unassigned(pool, label.ctime);
-
-        drive.write_media_set_label(&set, None)?;
-
-        let media_id = MediaId {
-            label,
-            media_set_label: Some(set),
-        };
-
-        // Create the media catalog
-        MediaCatalog::overwrite(TAPE_STATUS_DIR, &media_id, false)?;
-
-        let mut inventory = Inventory::new(TAPE_STATUS_DIR);
-        inventory.store(media_id.clone(), false)?;
-
-        media_id
     } else {
         task_log!(
             worker,
             "Label media '{}' (no pool assignment)",
             label.label_text
         );
+    }
 
-        let media_id = MediaId {
-            label,
-            media_set_label: None,
-        };
-
-        // Create the media catalog
-        MediaCatalog::overwrite(TAPE_STATUS_DIR, &media_id, false)?;
-
-        let mut inventory = Inventory::new(TAPE_STATUS_DIR);
-        inventory.store(media_id.clone(), false)?;
-
-        media_id
+    let media_id = MediaId {
+        label,
+        media_set_label: None,
     };
+
+    // Create the media catalog
+    MediaCatalog::overwrite(TAPE_STATUS_DIR, &media_id, false)?;
+
+    let mut inventory = Inventory::new(TAPE_STATUS_DIR);
+    inventory.store(media_id.clone(), false)?;
 
     drive.rewind()?;
 
@@ -573,8 +559,8 @@ fn write_media_label(
                 bail!("verify label failed - got wrong label uuid");
             }
             if let Some(ref pool) = pool {
-                match info.media_set_label {
-                    Some(set) => {
+                match (info.label.pool, info.media_set_label) {
+                    (None, Some(set)) => {
                         if !set.unassigned() {
                             bail!("verify media set label failed - got wrong set uuid");
                         }
@@ -582,7 +568,12 @@ fn write_media_label(
                             bail!("verify media set label failed - got wrong pool");
                         }
                     }
-                    None => {
+                    (Some(initial_pool), _) => {
+                        if initial_pool != *pool {
+                            bail!("verify media label failed - got wrong pool");
+                        }
+                    }
+                    (None, None) => {
                         bail!("verify media set label failed (missing set label)");
                     }
                 }
@@ -686,7 +677,7 @@ pub async fn read_label(drive: String, inventorize: Option<bool>) -> Result<Medi
                 label_text: media_id.label.label_text.clone(),
                 media_set_ctime: None,
                 media_set_uuid: None,
-                pool: None,
+                pool: media_id.label.pool.clone(),
                 seq_nr: None,
                 uuid: media_id.label.uuid.clone(),
             }
@@ -695,19 +686,20 @@ pub async fn read_label(drive: String, inventorize: Option<bool>) -> Result<Medi
         if let Some(true) = inventorize {
             let mut inventory = Inventory::new(TAPE_STATUS_DIR);
 
-            if let Some(MediaSetLabel {
-                ref pool, ref uuid, ..
-            }) = media_id.media_set_label
-            {
-                let _pool_lock = lock_media_pool(TAPE_STATUS_DIR, pool)?;
+            let _pool_lock = if let Some(pool) = media_id.pool() {
+                lock_media_pool(TAPE_STATUS_DIR, &pool)?
+            } else {
+                lock_unassigned_media_pool(TAPE_STATUS_DIR)?
+            };
+
+            if let Some(MediaSetLabel { ref uuid, .. }) = media_id.media_set_label {
                 let _lock = lock_media_set(TAPE_STATUS_DIR, uuid, None)?;
                 MediaCatalog::destroy_unrelated_catalog(TAPE_STATUS_DIR, &media_id)?;
-                inventory.store(media_id, false)?;
             } else {
-                let _lock = lock_unassigned_media_pool(TAPE_STATUS_DIR)?;
                 MediaCatalog::destroy(TAPE_STATUS_DIR, &media_id.label.uuid)?;
-                inventory.store(media_id, false)?;
             };
+
+            inventory.store(media_id, false)?;
         }
 
         Ok(label)
@@ -952,8 +944,13 @@ pub fn update_inventory(
                             media_id.label.uuid
                         );
 
+                        let _pool_lock = if let Some(pool) = media_id.pool() {
+                            lock_media_pool(TAPE_STATUS_DIR, &pool)?
+                        } else {
+                            lock_unassigned_media_pool(TAPE_STATUS_DIR)?
+                        };
+
                         if let Some(ref set) = media_id.media_set_label {
-                            let _pool_lock = lock_media_pool(TAPE_STATUS_DIR, &set.pool)?;
                             let _lock = lock_media_set(TAPE_STATUS_DIR, &set.uuid, None)?;
                             MediaCatalog::destroy_unrelated_catalog(TAPE_STATUS_DIR, &media_id)?;
                             inventory.store(media_id.clone(), false)?;
@@ -977,7 +974,6 @@ pub fn update_inventory(
                                 }
                             }
                         } else {
-                            let _lock = lock_unassigned_media_pool(TAPE_STATUS_DIR)?;
                             MediaCatalog::destroy(TAPE_STATUS_DIR, &media_id.label.uuid)?;
                             inventory.store(media_id, false)?;
                         };
@@ -1113,6 +1109,7 @@ fn barcode_label_media_worker(
             label_text: label_text.to_string(),
             uuid: Uuid::generate(),
             ctime,
+            pool: pool.clone(),
         };
 
         write_media_label(worker.clone(), &mut drive, label, pool.clone())?
@@ -1296,7 +1293,11 @@ pub fn catalog_media(
             let (_media_set_lock, media_set_uuid) = match media_id.media_set_label {
                 None => {
                     task_log!(worker, "media is empty");
-                    let _lock = lock_unassigned_media_pool(TAPE_STATUS_DIR)?;
+                    let _pool_lock = if let Some(pool) = media_id.pool() {
+                        lock_media_pool(TAPE_STATUS_DIR, &pool)?
+                    } else {
+                        lock_unassigned_media_pool(TAPE_STATUS_DIR)?
+                    };
                     MediaCatalog::destroy(TAPE_STATUS_DIR, &media_id.label.uuid)?;
                     inventory.store(media_id.clone(), false)?;
                     return Ok(());

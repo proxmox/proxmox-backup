@@ -240,37 +240,45 @@ pub async fn list_media(
     // set status to MediaStatus::Unknown
     for uuid in inventory.media_list() {
         let media_id = inventory.lookup_media(uuid).unwrap();
-        let media_set_label = match media_id.media_set_label {
-            Some(ref set) => set,
-            None => continue,
-        };
 
-        if config.sections.get(&media_set_label.pool).is_some() {
-            continue;
-        }
+        if let Some(pool) = media_id.pool() {
+            if config.sections.get(&pool).is_some() {
+                continue;
+            }
 
-        let privs = user_info.lookup_privs(&auth_id, &["tape", "pool", &media_set_label.pool]);
-        if (privs & PRIV_TAPE_AUDIT) == 0 {
+            let privs = user_info.lookup_privs(&auth_id, &["tape", "pool", &pool]);
+            if (privs & PRIV_TAPE_AUDIT) == 0 {
+                continue;
+            }
+        } else {
             continue;
         }
 
         let (_status, location) = inventory.status_and_location(uuid);
-
-        let media_set_name = inventory.generate_media_set_name(&media_set_label.uuid, None)?;
+        let (media_set_name, media_set_ctime, media_set_uuid, seq_nr) =
+            match media_id.media_set_label {
+                Some(ref set) => (
+                    Some(inventory.generate_media_set_name(&set.uuid, None)?),
+                    Some(set.ctime),
+                    Some(set.uuid.clone()),
+                    Some(set.seq_nr),
+                ),
+                None => (None, None, None, None),
+            };
 
         list.push(MediaListEntry {
             uuid: media_id.label.uuid.clone(),
             label_text: media_id.label.label_text.clone(),
             ctime: media_id.label.ctime,
-            pool: Some(media_set_label.pool.clone()),
+            pool: media_id.pool(),
             location,
             status: MediaStatus::Unknown,
             catalog: catalogs.contains(uuid),
             expired: false,
-            media_set_ctime: Some(media_set_label.ctime),
-            media_set_uuid: Some(media_set_label.uuid.clone()),
-            media_set_name: Some(media_set_name),
-            seq_nr: Some(media_set_label.seq_nr),
+            media_set_ctime,
+            media_set_uuid,
+            media_set_name,
+            seq_nr,
         });
     }
 

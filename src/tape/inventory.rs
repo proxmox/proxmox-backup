@@ -64,6 +64,15 @@ pub struct MediaId {
     pub media_set_label: Option<MediaSetLabel>,
 }
 
+impl MediaId {
+    pub fn pool(&self) -> Option<String> {
+        if let Some(set) = &self.media_set_label {
+            return Some(set.pool.to_owned());
+        }
+        self.label.pool.to_owned()
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 struct MediaStateEntry {
     id: MediaId,
@@ -249,11 +258,12 @@ impl Inventory {
     ///
     /// Returns (pool, is_empty)
     pub fn lookup_media_pool(&self, uuid: &Uuid) -> Option<(&str, bool)> {
-        let pool = self.map.get(uuid)?;
-        pool.id
-            .media_set_label
-            .as_ref()
-            .map(|media_set| (media_set.pool.as_str(), media_set.unassigned()))
+        let media_id = &self.map.get(uuid)?.id;
+        match (&media_id.label.pool, &media_id.media_set_label) {
+            (_, Some(media_set)) => Some((media_set.pool.as_str(), media_set.unassigned())),
+            (Some(pool), None) => Some((pool.as_str(), true)),
+            (None, None) => None,
+        }
     }
 
     /// List all media assigned to the pool
@@ -261,18 +271,16 @@ impl Inventory {
         let mut list = Vec::new();
 
         for entry in self.map.values() {
-            match entry.id.media_set_label {
-                Some(ref set) if set.pool == pool => {
-                    let id = match set.unassigned() {
-                        true => MediaId {
-                            label: entry.id.label.clone(),
-                            media_set_label: None,
-                        },
-                        false => entry.id.clone(),
-                    };
-                    list.push(id);
+            if entry.id.pool().as_deref() == Some(pool) {
+                match entry.id.media_set_label {
+                    Some(ref set) if set.unassigned() => list.push(MediaId {
+                        label: entry.id.label.clone(),
+                        media_set_label: None,
+                    }),
+                    _ => {
+                        list.push(entry.id.clone());
+                    }
                 }
-                _ => continue, // not assigned to any pool or belongs to another pool
             }
         }
 
@@ -294,7 +302,7 @@ impl Inventory {
     pub fn list_unassigned_media(&self) -> Vec<MediaId> {
         self.map
             .values()
-            .filter_map(|entry| match entry.id.media_set_label {
+            .filter_map(|entry| match entry.id.pool() {
                 None => Some(entry.id.clone()),
                 _ => None,
             })
@@ -553,6 +561,7 @@ impl Inventory {
             label_text: label_text.to_string(),
             uuid: Uuid::generate(),
             ctime,
+            pool: None,
         };
         let uuid = label.uuid.clone();
 
@@ -575,16 +584,15 @@ impl Inventory {
             label_text: label_text.to_string(),
             uuid: Uuid::generate(),
             ctime,
+            pool: Some(pool.to_string()),
         };
 
         let uuid = label.uuid.clone();
 
-        let set = MediaSetLabel::new_unassigned(pool, ctime);
-
         self.store(
             MediaId {
                 label,
-                media_set_label: Some(set),
+                media_set_label: None,
             },
             false,
         )
@@ -599,6 +607,7 @@ impl Inventory {
             label_text: label_text.to_string(),
             uuid: Uuid::generate(),
             ctime,
+            pool: Some(set.pool.clone()),
         };
         let uuid = label.uuid.clone();
 
