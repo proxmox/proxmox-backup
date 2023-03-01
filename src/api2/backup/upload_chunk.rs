@@ -11,7 +11,7 @@ use serde_json::{json, Value};
 
 use proxmox_router::{ApiHandler, ApiMethod, ApiResponseFuture, RpcEnvironment};
 use proxmox_schema::*;
-use proxmox_sys::sortable;
+use proxmox_sortable_macro::sortable;
 
 use pbs_api_types::{BACKUP_ARCHIVE_NAME_SCHEMA, CHUNK_DIGEST_SCHEMA};
 use pbs_datastore::file_formats::{DataBlobHeader, EncryptedDataBlobHeader};

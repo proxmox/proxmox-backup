@@ -10,7 +10,7 @@ use proxmox_router::{
 };
 use proxmox_schema::api;
 use proxmox_section_config::SectionConfigData;
-use proxmox_sys::sortable;
+use proxmox_sortable_macro::sortable;
 use proxmox_sys::{task_log, task_warn};
 use proxmox_uuid::Uuid;
 

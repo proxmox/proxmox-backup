@@ -5,7 +5,7 @@ use pbs_api_types::BackupNamespace;
 use pbs_api_types::NamespaceListItem;
 use proxmox_router::list_subdirs_api_method;
 use proxmox_router::SubdirMap;
-use proxmox_sys::sortable;
+use proxmox_sortable_macro::sortable;
 use serde_json::Value;
 
 use proxmox_router::{http_bail, http_err, ApiMethod, Permission, Router, RpcEnvironment};

@@ -5,7 +5,8 @@ use proxmox_router::{
     list_subdirs_api_method, Permission, Router, RpcEnvironment, RpcEnvironmentType, SubdirMap,
 };
 use proxmox_schema::api;
-use proxmox_sys::{sortable, task_log};
+use proxmox_sortable_macro::sortable;
+use proxmox_sys::task_log;
 
 use pbs_api_types::{
     BLOCKDEVICE_NAME_SCHEMA, NODE_SCHEMA, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY, UPID_SCHEMA,

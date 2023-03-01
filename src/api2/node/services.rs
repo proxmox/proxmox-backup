@@ -5,7 +5,7 @@ use serde_json::{json, Value};
 
 use proxmox_router::{list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap};
 use proxmox_schema::api;
-use proxmox_sys::sortable;
+use proxmox_sortable_macro::sortable;
 
 use pbs_api_types::{Authid, NODE_SCHEMA, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY, SERVICE_ID_SCHEMA};
 

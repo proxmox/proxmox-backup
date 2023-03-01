@@ -2,7 +2,7 @@
 
 use proxmox_router::list_subdirs_api_method;
 use proxmox_router::{Router, SubdirMap};
-use proxmox_sys::sortable;
+use proxmox_sortable_macro::sortable;
 
 pub mod access;
 pub mod acme;

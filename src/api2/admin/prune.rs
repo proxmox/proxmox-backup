@@ -7,7 +7,7 @@ use proxmox_router::{
     list_subdirs_api_method, ApiMethod, Permission, Router, RpcEnvironment, SubdirMap,
 };
 use proxmox_schema::api;
-use proxmox_sys::sortable;
+use proxmox_sortable_macro::sortable;
 
 use pbs_api_types::{
     Authid, PruneJobConfig, PruneJobStatus, DATASTORE_SCHEMA, JOB_ID_SCHEMA, PRIV_DATASTORE_AUDIT,

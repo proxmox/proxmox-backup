@@ -14,7 +14,7 @@ use proxmox_router::{
     Router, RpcEnvironment, SubdirMap,
 };
 use proxmox_schema::{BooleanSchema, ObjectSchema};
-use proxmox_sys::sortable;
+use proxmox_sortable_macro::sortable;
 
 use pbs_api_types::{
     Authid, Operation, BACKUP_ARCHIVE_NAME_SCHEMA, BACKUP_ID_SCHEMA, BACKUP_NAMESPACE_SCHEMA,

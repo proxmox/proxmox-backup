@@ -25,7 +25,7 @@ use proxmox_schema::*;
 use proxmox_sys::fs::{
     file_read_firstline, file_read_optional_string, replace_file, CreateOptions,
 };
-use proxmox_sys::sortable;
+use proxmox_sortable_macro::sortable;
 use proxmox_sys::{task_log, task_warn};
 
 use pxar::accessor::aio::Accessor;

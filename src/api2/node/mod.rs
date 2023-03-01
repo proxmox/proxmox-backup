@@ -13,7 +13,7 @@ use serde_json::{json, Value};
 use tokio::io::{AsyncBufReadExt, BufReader};
 
 use proxmox_sys::fd::fd_change_cloexec;
-use proxmox_sys::sortable;
+use proxmox_sortable_macro::sortable;
 
 use proxmox_http::websocket::WebSocket;
 use proxmox_router::list_subdirs_api_method;

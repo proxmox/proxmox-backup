@@ -14,7 +14,7 @@ use proxmox_router::{
     ApiHandler, ApiMethod, ApiResponseFuture, Permission, Router, RpcEnvironment, SubdirMap,
 };
 use proxmox_schema::*;
-use proxmox_sys::sortable;
+use proxmox_sortable_macro::sortable;
 
 use pbs_api_types::{
     Authid, BackupNamespace, BackupType, Operation, SnapshotVerifyState, VerifyState,

@@ -1,6 +1,6 @@
 //! The Proxmox Backup Server API
 
-use proxmox_sys::sortable;
+use proxmox_sortable_macro::sortable;
 
 pub mod access;
 pub mod admin;

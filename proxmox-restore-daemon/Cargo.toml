@@ -31,7 +31,8 @@ proxmox-compression.workspace = true
 proxmox-rest-server.workspace = true
 proxmox-router = { workspace = true, features = [ "cli", "server" ] }
 proxmox-schema = { workspace = true, features = [ "api-macro" ] }
-proxmox-sys = { workspace = true,  features = [ "sortable-macro" ] }
+proxmox-sortable-macro.workspace = true
+proxmox-sys.workspace = true
 proxmox-time.workspace = true
 
 pbs-api-types.workspace = true

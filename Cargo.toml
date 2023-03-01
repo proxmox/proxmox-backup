@@ -72,6 +72,7 @@ proxmox-schema = "1.3.6"
 proxmox-section-config = "1"
 proxmox-serde = "0.1.1"
 proxmox-shared-memory = "0.2.3"
+proxmox-sortable-macro = "0.1.2"
 proxmox-subscription = { version = "0.3", features = [ "api-types" ] }
 proxmox-sys = "0.4.2"
 proxmox-tfa = { version = "2.1", features = [ "api", "api-types" ] }
@@ -214,8 +215,9 @@ proxmox-schema = { workspace = true, features = [ "api-macro" ] }
 proxmox-section-config.workspace = true
 proxmox-serde = { workspace = true, features = [ "serde_json" ] }
 proxmox-shared-memory.workspace = true
+proxmox-sortable-macro.workspace = true
 proxmox-subscription.workspace = true
-proxmox-sys = { workspace = true, features = [ "sortable-macro", "timer" ] }
+proxmox-sys = { workspace = true, features = [ "timer" ] }
 proxmox-tfa.workspace = true
 proxmox-time.workspace = true
 proxmox-uuid.workspace = true

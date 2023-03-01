@@ -8,7 +8,7 @@ use proxmox_router::{
     SubdirMap,
 };
 use proxmox_schema::api;
-use proxmox_sys::sortable;
+use proxmox_sortable_macro::sortable;
 
 use pbs_api_types::{Authid, SyncJobConfig, SyncJobStatus, DATASTORE_SCHEMA, JOB_ID_SCHEMA};
 use pbs_config::sync;

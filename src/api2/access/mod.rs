@@ -10,7 +10,7 @@ use proxmox_router::{
     http_err, list_subdirs_api_method, Permission, Router, RpcEnvironment, SubdirMap,
 };
 use proxmox_schema::api;
-use proxmox_sys::sortable;
+use proxmox_sortable_macro::sortable;
 
 use pbs_api_types::{
     Authid, Userid, ACL_PATH_SCHEMA, PASSWORD_SCHEMA, PRIVILEGES, PRIV_PERMISSIONS_MODIFY,
