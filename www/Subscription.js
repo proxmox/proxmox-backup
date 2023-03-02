@@ -49,7 +49,8 @@ Ext.define('PBS.Subscription', {
 	    },
 	});
 
-	var reportWindow = Ext.create('Ext.window.Window', {
+	let reportWindow;
+	reportWindow = Ext.create('Ext.window.Window', {
 	    title: gettext('System Report'),
 	    width: 1024,
 	    height: 600,
@@ -86,9 +87,6 @@ Ext.define('PBS.Subscription', {
 	    url: '/api2/extjs/nodes/' + me.nodename + '/report',
 	    method: 'GET',
 	    waitMsgTarget: me,
-	    failure: function(response) {
-		Ext.Msg.alert(gettext('Error'), response.htmlStatus);
-	    },
 	    success: function(response) {
 		var report = Ext.htmlEncode(response.result.data);
 		reportWindow.show();
@@ -154,11 +152,13 @@ Ext.define('PBS.Subscription', {
 		    text: gettext('Upload Subscription Key'),
 		    iconCls: 'fa fa-ticket',
 		    handler: function() {
-			let win = Ext.create('PBS.SubscriptionKeyEdit', {
+			Ext.create('PBS.SubscriptionKeyEdit', {
 			    url: '/api2/extjs/' + baseurl,
 			    autoShow: true,
+			    listener: {
+				destroy: () => reload(),
+			    },
 			});
-			win.on('destroy', reload);
 		    },
 		},
 		{
@@ -170,9 +170,6 @@ Ext.define('PBS.Subscription', {
 			    url: baseurl,
 			    method: 'POST',
 			    waitMsgTarget: me,
-			    failure: function(response, opts) {
-				Ext.Msg.alert(gettext('Error'), response.htmlStatus);
-			    },
 			    callback: reload,
 			});
 		    },
