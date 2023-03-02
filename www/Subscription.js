@@ -61,22 +61,12 @@ Ext.define('PBS.Subscription', {
 		{
 		    text: gettext('Download'),
 		    handler: function() {
-			var fileContent = Ext.String.htmlDecode(reportWindow.getComponent('system-report-view').html);
-			var fileName = getReportFileName();
+			let fileContent = Ext.htmlDecode(reportWindow.getComponent('system-report-view').html);
+			let fileName = getReportFileName();
 
-			// Internet Explorer
-			if (window.navigator.msSaveOrOpenBlob) {
-			    navigator.msSaveOrOpenBlob(new Blob([fileContent]), fileName);
-			} else {
-			    var element = document.createElement('a');
-			    element.setAttribute('href', 'data:text/plain;charset=utf-8,' +
-			      encodeURIComponent(fileContent));
-			    element.setAttribute('download', fileName);
-			    element.style.display = 'none';
-			    document.body.appendChild(element);
-			    element.click();
-			    document.body.removeChild(element);
-			}
+			let dataUrl = `data:text/plain;charset=utf-8,${encodeURIComponent(fileContent)}`;
+
+			Proxmox.Utils.downloadAsFile(dataUrl, fileName);
 		    },
 		},
 	    ],
