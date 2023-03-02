@@ -1053,17 +1053,18 @@ This command does the following:
 WORM Tapes
 ----------
 
-WORM (write once, read many) tapes are special cartridges that cannot be deleted
-or overwritten, which may be useful for legal or protection purposes.
+WORM (write once, read many) tapes are special cartridges that cannot be
+deleted or overwritten. This may be useful for legal or protection purposes.
 
-Since they cannot be overwritten or deleted, if you want to use them, you must
-use a media pool with a retention policy of `keep`, otherwise a backup job
-potentially fails when trying to erase or overwrite it.
+If you want to use them, you must use a media pool with a retention policy of
+`keep`. Otherwise, a backup job can fail when it tries to erase or overwrite
+the tape.
 
-Proxmox Backup Server does not handle WORM tapes differently, so it is
-recommended to use a different naming scheme, use only seperate media pools
-and not mix WORM and non-WORM tapes in a media pool together (since it may
-lead to confusion about which tapes are not overwritable).
+Proxmox Backup Server makes no distinction between normal and WORM tapes. To
+avoid confusion, use a different naming scheme for WORM backups and use
+dedicated media pools for them. Do not mix WORM and non-WORM tapes in the same
+media pool.
+
 
 Example Setups
 --------------
