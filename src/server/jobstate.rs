@@ -88,7 +88,7 @@ pub fn create_jobstate_dir() -> Result<(), Error> {
         .group(backup_user.gid);
 
     create_path(JOB_STATE_BASEDIR, Some(opts.clone()), Some(opts))
-        .map_err(|err: Error| format_err!("unable to create rrdb stat dir - {}", err))?;
+        .map_err(|err: Error| format_err!("unable to create job stat dir - {}", err))?;
 
     Ok(())
 }
