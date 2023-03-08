@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::ffi::{CStr, CString, OsStr};
 use std::fmt;
-use std::io::{self, Read, Write};
+use std::io::{self, Read};
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::io::{AsRawFd, FromRawFd, IntoRawFd, OwnedFd, RawFd};
 use std::path::{Path, PathBuf};
@@ -113,19 +113,6 @@ struct HardLinkInfo {
     st_ino: u64,
 }
 
-/// And the error case.
-struct ErrorReporter;
-
-impl std::io::Write for ErrorReporter {
-    fn write(&mut self, data: &[u8]) -> io::Result<usize> {
-        std::io::stderr().write(data)
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        std::io::stderr().flush()
-    }
-}
-
 struct Archiver {
     feature_flags: Flags,
     fs_feature_flags: Flags,
@@ -140,7 +127,6 @@ struct Archiver {
     current_st_dev: libc::dev_t,
     device_set: Option<HashSet<u64>>,
     hardlinks: HashMap<HardLinkInfo, (PathBuf, LinkOffset)>,
-    errors: ErrorReporter,
     file_copy_buffer: Vec<u8>,
 }
 
@@ -205,7 +191,6 @@ where
         current_st_dev: stat.st_dev,
         device_set,
         hardlinks: HashMap::new(),
-        errors: ErrorReporter,
         file_copy_buffer: vec::undefined(4 * 1024 * 1024),
     };
 
@@ -317,11 +302,7 @@ impl Archiver {
                     Ok(None)
                 }
                 Err(Errno::EACCES) => {
-                    writeln!(
-                        self.errors,
-                        "failed to open file: {:?}: access denied",
-                        file_name
-                    )?;
+                    log::warn!("failed to open file: {:?}: access denied", file_name);
                     Ok(None)
                 }
                 Err(Errno::EPERM) if !noatime.is_empty() => {
@@ -351,10 +332,10 @@ impl Archiver {
             let line = match line {
                 Ok(line) => line,
                 Err(err) => {
-                    let _ = writeln!(
-                        self.errors,
+                    log::warn!(
                         "ignoring .pxarexclude after read error in {:?}: {}",
-                        self.path, err,
+                        self.path,
+                        err,
                     );
                     self.patterns.truncate(old_pattern_count);
                     return Ok(());
@@ -394,7 +375,7 @@ impl Archiver {
                     }
                 }
                 Err(err) => {
-                    let _ = writeln!(self.errors, "bad pattern in {:?}: {}", self.path, err);
+                    log::error!("bad pattern in {:?}: {}", self.path, err);
                 }
             }
         }
@@ -493,29 +474,23 @@ impl Archiver {
     }
 
     fn report_vanished_file(&mut self) -> Result<(), Error> {
-        writeln!(
-            self.errors,
-            "warning: file vanished while reading: {:?}",
-            self.path
-        )?;
+        log::warn!("warning: file vanished while reading: {:?}", self.path);
         Ok(())
     }
 
     fn report_file_shrunk_while_reading(&mut self) -> Result<(), Error> {
-        writeln!(
-            self.errors,
+        log::warn!(
             "warning: file size shrunk while reading: {:?}, file will be padded with zeros!",
             self.path,
-        )?;
+        );
         Ok(())
     }
 
     fn report_file_grew_while_reading(&mut self) -> Result<(), Error> {
-        writeln!(
-            self.errors,
+        log::warn!(
             "warning: file size increased while reading: {:?}, file will be truncated!",
             self.path,
-        )?;
+        );
         Ok(())
     }
 
