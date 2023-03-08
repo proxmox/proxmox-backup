@@ -248,6 +248,14 @@ Ext.define('PBS.MainView', {
 			    handler: () => Ext.create('PBS.window.Settings').show(),
 			},
 			{
+			    iconCls: 'fa fa-paint-brush',
+			    text: gettext('Theme'),
+			    handler: () => Ext.create('Proxmox.window.ThemeEditWindow', {
+				cookieName: 'PBSThemeCookie',
+				autoShow: true,
+			    }),
+			},
+			{
 			    iconCls: 'fa fa-language',
 			    text: gettext('Language'),
 			    reference: 'languageButton',

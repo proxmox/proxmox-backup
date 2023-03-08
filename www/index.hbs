@@ -12,6 +12,13 @@
     <link rel="stylesheet" type="text/css" href="/fontawesome/css/font-awesome.css" />
     <link rel="stylesheet" type="text/css" href="/widgettoolkit/css/ext6-pmx.css" />
     <link rel="stylesheet" type="text/css" href="/css/ext6-pbs.css" />
+    {{~#if theme}}
+      {{~#if auto}}
+    <link rel="stylesheet" type="text/css" media="(prefers-color-scheme: dark)" href="/widgettoolkit/themes/theme-proxmox-dark.css" />
+      {{~else}}
+    <link rel="stylesheet" type="text/css" href="/widgettoolkit/themes/theme-{{ theme }}.css" />
+      {{~/if}}
+    {{~/if}}
     {{#if language}}
     <script type='text/javascript' src='/locale/pbs-lang-{{ language }}.js'></script>
     {{else}}

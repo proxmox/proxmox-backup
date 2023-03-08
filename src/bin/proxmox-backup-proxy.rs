@@ -94,6 +94,21 @@ fn get_language(headers: &http::HeaderMap) -> String {
     }
 }
 
+fn get_theme(headers: &http::HeaderMap) -> String {
+    let exists = |t: &str| {
+        Path::new(&format!(
+            "/usr/share/javascript/proxmox-widget-toolkit/themes/theme-{t}.css"
+        ))
+        .exists()
+    };
+
+    match cookie_from_header(headers, "PBSThemeCookie") {
+        Some(theme) if theme == "auto" => theme,
+        Some(theme) if theme != "__default__" && exists(&theme) => theme,
+        _ => String::from(""),
+    }
+}
+
 async fn get_index_future(env: RestEnvironment, parts: Parts) -> Response<Body> {
     let auth_id = env.get_auth_id();
     let api = env.api_config();
@@ -133,11 +148,15 @@ async fn get_index_future(env: RestEnvironment, parts: Parts) -> Response<Body> 
         }
     }
 
+    let theme = get_theme(&parts.headers);
+
     let data = json!({
         "NodeName": nodename,
         "UserName": user,
         "CSRFPreventionToken": csrf_token,
         "language": get_language(&parts.headers),
+        "theme": theme,
+        "auto": theme == "auto",
         "debug": debug,
     });
 
