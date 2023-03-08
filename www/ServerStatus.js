@@ -60,7 +60,6 @@ Ext.define('PBS.ServerStatus', {
 	    id: 'pkgversions',
 	    padding: 5,
 	    style: {
-		'background-color': 'white',
 		'white-space': 'pre',
 		'font-family': 'monospace',
 	    },
