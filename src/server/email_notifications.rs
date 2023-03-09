@@ -269,7 +269,7 @@ lazy_static::lazy_static! {
         });
 
         if let Err(err) = result {
-            eprintln!("error during template registration: {}", err);
+            eprintln!("error during template registration: {err}");
         }
 
         hb
@@ -291,16 +291,13 @@ fn send_job_status_mail(email: &str, subject: &str, text: &str) -> Result<(), Er
     let (config, _) = crate::config::node::config()?;
     let from = config.email_from;
 
-    // Note: OX has serious problems displaying text mails,
-    // so we include html as well
-    let html = format!(
-        "<html><body><pre>\n{}\n<pre>",
-        handlebars::html_escape(text)
-    );
+    // NOTE: some (web)mailers have big problems displaying text mails, so include html as well
+    let escaped_text = handlebars::html_escape(text);
+    let html = format!("<html><body><pre>\n{escaped_text}\n<pre>");
 
     let nodename = proxmox_sys::nodename();
 
-    let author = format!("Proxmox Backup Server - {}", nodename);
+    let author = format!("Proxmox Backup Server - {nodename}");
 
     sendmail(
         &[email],
@@ -357,8 +354,8 @@ pub fn send_gc_status(
     };
 
     let subject = match result {
-        Ok(()) => format!("Garbage Collect Datastore '{}' successful", datastore,),
-        Err(_) => format!("Garbage Collect Datastore '{}' failed", datastore,),
+        Ok(()) => format!("Garbage Collect Datastore '{datastore}' successful"),
+        Err(_) => format!("Garbage Collect Datastore '{datastore}' failed"),
     };
 
     send_job_status_mail(email, &subject, &text)?;
@@ -406,8 +403,8 @@ pub fn send_verify_status(
     }
 
     let subject = match result {
-        Ok(errors) if errors.is_empty() => format!("Verify Datastore '{}' successful", job.store,),
-        _ => format!("Verify Datastore '{}' failed", job.store,),
+        Ok(errors) if errors.is_empty() => format!("Verify Datastore '{}' successful", job.store),
+        _ => format!("Verify Datastore '{}' failed", job.store),
     };
 
     send_job_status_mail(email, &subject, &text)?;
@@ -447,8 +444,8 @@ pub fn send_prune_status(
     };
 
     let subject = match result {
-        Ok(()) => format!("Pruning datastore '{}' successful", store,),
-        Err(_) => format!("Pruning datastore '{}' failed", store,),
+        Ok(()) => format!("Pruning datastore '{store}' successful"),
+        Err(_) => format!("Pruning datastore '{store}' failed"),
     };
 
     send_job_status_mail(&email, &subject, &text)?;
@@ -530,9 +527,9 @@ pub fn send_tape_backup_status(
     };
 
     let subject = match (result, id) {
-        (Ok(()), Some(id)) => format!("Tape Backup '{}' datastore '{}' successful", id, job.store,),
+        (Ok(()), Some(id)) => format!("Tape Backup '{id}' datastore '{}' successful", job.store,),
         (Ok(()), None) => format!("Tape Backup datastore '{}' successful", job.store,),
-        (Err(_), Some(id)) => format!("Tape Backup '{}' datastore '{}' failed", id, job.store,),
+        (Err(_), Some(id)) => format!("Tape Backup '{id}' datastore '{}' failed", job.store,),
         (Err(_), None) => format!("Tape Backup datastore '{}' failed", job.store,),
     };
 
@@ -550,22 +547,21 @@ pub fn send_load_media_email(
 ) -> Result<(), Error> {
     use std::fmt::Write as _;
 
-    let subject = format!("Load Media '{}' request for drive '{}'", label_text, drive);
+    let subject = format!("Load Media '{label_text}' request for drive '{drive}'");
 
     let mut text = String::new();
 
     if let Some(reason) = reason {
         let _ = write!(
             text,
-            "The drive has the wrong or no tape inserted. Error:\n{}\n\n",
-            reason
+            "The drive has the wrong or no tape inserted. Error:\n{reason}\n\n"
         );
     }
 
     text.push_str("Please insert the requested media into the backup drive.\n\n");
 
-    let _ = writeln!(text, "Drive: {}", drive);
-    let _ = writeln!(text, "Media: {}", label_text);
+    let _ = writeln!(text, "Drive: {drive}");
+    let _ = writeln!(text, "Media: {label_text}");
 
     send_job_status_mail(to, &subject, &text)
 }
@@ -592,7 +588,7 @@ pub fn send_updates_available(updates: &[&APTUpdateInfo]) -> Result<(), Error> {
     // update mails always go to the root@pam configured email..
     if let Some(email) = lookup_user_email(Userid::root_userid()) {
         let nodename = proxmox_sys::nodename();
-        let subject = format!("New software packages available ({})", nodename);
+        let subject = format!("New software packages available ({nodename})");
 
         let (fqdn, port) = get_server_url();
 

@@ -88,14 +88,14 @@ pub fn create_jobstate_dir() -> Result<(), Error> {
         .group(backup_user.gid);
 
     create_path(JOB_STATE_BASEDIR, Some(opts.clone()), Some(opts))
-        .map_err(|err: Error| format_err!("unable to create job state dir - {}", err))?;
+        .map_err(|err: Error| format_err!("unable to create job state dir - {err}"))?;
 
     Ok(())
 }
 
 fn get_path(jobtype: &str, jobname: &str) -> PathBuf {
     let mut path = PathBuf::from(JOB_STATE_BASEDIR);
-    path.push(format!("{}-{}.json", jobtype, jobname));
+    path.push(format!("{jobtype}-{jobname}.json"));
     path
 }
 
@@ -176,7 +176,7 @@ pub fn last_run_time(jobtype: &str, jobname: &str) -> Result<i64, Error> {
         } => {
             let upid: UPID = upid
                 .parse()
-                .map_err(|err| format_err!("could not parse upid from state: {}", err))?;
+                .map_err(|err| format_err!("could not parse upid from state: {err}"))?;
             Ok(upid.starttime)
         }
     }
@@ -195,11 +195,11 @@ impl JobState {
                 JobState::Started { upid } => {
                     let parsed: UPID = upid
                         .parse()
-                        .map_err(|err| format_err!("error parsing upid: {}", err))?;
+                        .map_err(|err| format_err!("error parsing upid: {err}"))?;
 
                     if !worker_is_active_local(&parsed) {
                         let state = upid_read_status(&parsed)
-                            .map_err(|err| format_err!("error reading upid log status: {}", err))?;
+                            .map_err(|err| format_err!("error reading upid log status: {err}"))?;
 
                         Ok(JobState::Finished {
                             upid,

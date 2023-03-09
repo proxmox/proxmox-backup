@@ -89,6 +89,6 @@ pub fn create_active_operations_dir() -> Result<(), Error> {
         .group(backup_user.gid);
 
     create_path(pbs_datastore::ACTIVE_OPERATIONS_DIR, None, Some(options))
-        .map_err(|err: Error| format_err!("unable to create active operations dir - {}", err))?;
+        .map_err(|err: Error| format_err!("unable to create active operations dir - {err}"))?;
     Ok(())
 }

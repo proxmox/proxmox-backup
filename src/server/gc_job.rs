@@ -7,7 +7,7 @@ use pbs_api_types::Authid;
 use pbs_datastore::DataStore;
 use proxmox_rest_server::WorkerTask;
 
-use crate::server::jobstate::Job;
+use crate::server::{jobstate::Job, send_gc_status};
 
 /// Runs a garbage collection job.
 pub fn do_garbage_collection_job(
@@ -30,9 +30,9 @@ pub fn do_garbage_collection_job(
         move |worker| {
             job.start(&worker.upid().to_string())?;
 
-            task_log!(worker, "starting garbage collection on store {}", store);
+            task_log!(worker, "starting garbage collection on store {store}");
             if let Some(event_str) = schedule {
-                task_log!(worker, "task triggered by schedule '{}'", event_str);
+                task_log!(worker, "task triggered by schedule '{event_str}'");
             }
 
             let result = datastore.garbage_collection(&*worker, worker.upid());
@@ -40,15 +40,13 @@ pub fn do_garbage_collection_job(
             let status = worker.create_state(&result);
 
             if let Err(err) = job.finish(status) {
-                eprintln!("could not finish job state for {}: {}", job.jobtype(), err);
+                eprintln!("could not finish job state for {}: {err}", job.jobtype());
             }
 
             if let Some(email) = email {
                 let gc_status = datastore.last_gc_status();
-                if let Err(err) =
-                    crate::server::send_gc_status(&email, notify, &store, &gc_status, &result)
-                {
-                    eprintln!("send gc notification failed: {}", err);
+                if let Err(err) = send_gc_status(&email, notify, &store, &gc_status, &result) {
+                    eprintln!("send gc notification failed: {err}");
                 }
             }
 
