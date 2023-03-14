@@ -103,9 +103,9 @@ fn get_theme(headers: &http::HeaderMap) -> String {
     };
 
     match cookie_from_header(headers, "PBSThemeCookie") {
-        Some(theme) if theme == "auto" => theme,
-        Some(theme) if theme != "__default__" && exists(&theme) => theme,
-        _ => String::from(""),
+        Some(theme) if theme == "crisp" => String::from(""),
+        Some(theme) if exists(&theme) => theme,
+        _ => String::from("auto"),
     }
 }
 
