@@ -96,10 +96,12 @@ fn get_language(headers: &http::HeaderMap) -> String {
 
 fn get_theme(headers: &http::HeaderMap) -> String {
     let exists = |t: &str| {
-        Path::new(&format!(
-            "/usr/share/javascript/proxmox-widget-toolkit/themes/theme-{t}.css"
-        ))
-        .exists()
+        t.len() < 32
+            && !t.contains('/')
+            && Path::new(&format!(
+                "/usr/share/javascript/proxmox-widget-toolkit/themes/theme-{t}.css"
+            ))
+            .exists()
     };
 
     match cookie_from_header(headers, "PBSThemeCookie") {
