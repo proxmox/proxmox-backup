@@ -86,3 +86,119 @@ div.document, div.footer {
         margin: 15px auto 0px auto;
     }
 }
+
+@media screen and (prefers-color-scheme: dark) {
+    :root {
+        color-scheme: dark;
+        --pdt-grey-850: hsl(0deg, 0%, 85%);
+        --pdt-grey-500: hsl(0deg, 0%, 50%);
+        --pdt-grey-400: hsl(0deg, 0%, 40%);
+        --pdt-grey-250: hsl(0deg, 0%, 25%);
+        --pdt-grey-200: hsl(0deg, 0%, 20%);
+        --pdt-grey-150: hsl(0deg, 0%, 15%);
+        --pdt-grey-100: hsl(0deg, 0%, 10%);
+        --pdt-primary-850: hsl(205deg, 100%, 85%);
+        --pdt-primary-800: hsl(205deg, 100%, 80%);
+        --pdt-primary-700: hsl(205deg, 100%, 70%);
+        --pdt-secondary-850: hsl(250deg, 100%, 85%);
+        --pdt-body-background: var(--pdt-grey-150);
+        --pdt-text: var(--pdt-grey-850);
+        --pdt-headline: var(--pdt-primary-800);
+        --pdt-link: var(--pdt-primary-700);
+        --pdt-background-admonition: var(--pdt-grey-250);
+    }
+
+    /* body and links */
+    body, div.body {
+        color: var(--pdt-text);
+        background-color: var(--pdt-body-background);
+    }
+
+    a,
+    a:hover,
+    a.reference:hover {
+        color: var(--pdt-link);
+        border-bottom-color: var(--pdt-link);
+    }
+
+    a.headerlink:hover {
+        color: var(--pdt-text);
+        background-color: var(--pdt-background-admonition)
+    }
+
+    div.sphinxsidebar ul ul a {
+        color: var(--pdt-text);
+        border-bottom-color: var(--pdt-grey-500);
+    }
+
+    ul li.toctree-l1 > a,
+    div.sphinxsidebar ul,
+    div.sphinxsidebar a:hover {
+        color: var(--pdt-text);
+        border-bottom-color: var(--pdt-grey-500);
+    }
+
+    /* highlighting backgrounds */
+    div.admonition,
+    div.highlight,
+    a:hover code,
+    pre {
+        background-color: var(--pdt-background-admonition);
+    }
+
+    div.caution, div.warning {
+        background-color: #422;
+    }
+
+    div.topic {
+        background-color: var(--pdt-grey-200);
+    }
+
+    img.logo {
+        filter: invert(100%) hue-rotate(180deg) brightness(90%);
+    }
+
+    table.docutils {
+        box-shadow: 2px 2px 4px var(--pdt-grey-100);
+    }
+
+    /* style headlines, titles etc. */
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6,
+    span.caption-text,
+    div.sphinxsidebar h3,
+    div.sphinxsidebar h4 {
+        color: var(--pdt-headline);
+    }
+
+    /* code */
+
+    code {
+        color: var(--pdt-text);
+        background-color: var(--pdt-background-admonition);
+    }
+
+
+    .highlight span {
+        filter: brightness(1.5);
+    }
+
+    .highlight .gh,
+    .highlight .nt {
+        color: var(--pdt-headline);
+        filter: none;
+    }
+
+    .highlight .go {
+        color: var(--pdt-text);
+        filter: none;
+    }
+
+    span.highlighted {
+        background-color: #a19231;
+    }
+}
