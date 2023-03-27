@@ -1,4 +1,4 @@
-use anyhow::{bail, Context, Error};
+use anyhow::{bail, format_err, Context, Error};
 use pbs_config::{acl::AclTree, token_shadow, BackupLockGuard};
 use proxmox_lang::try_block;
 use proxmox_ldap::{Config, Connection, SearchParameters, SearchResult};
@@ -165,9 +165,11 @@ impl LdapRealmSyncJob {
                 let username = result
                     .attributes
                     .get(user_id_attribute)
-                    .context(format!(
-                        "userid attribute `{user_id_attribute}` not in LDAP search result"
-                    ))?
+                    .ok_or_else(|| {
+                        format_err!(
+                            "userid attribute `{user_id_attribute}` not in LDAP search result"
+                        )
+                    })?
                     .get(0)
                     .context("userid attribute array is empty")?
                     .clone();
@@ -176,7 +178,7 @@ impl LdapRealmSyncJob {
 
                 let userid: Userid = username
                     .parse()
-                    .context(format!("could not parse username `{username}`"))?;
+                    .map_err(|err| format_err!("could not parse username `{username}` - {err}"))?;
                 retrieved_users.insert(userid.clone());
 
                 self.create_or_update_user(user_config, &userid, result)?;
