@@ -231,24 +231,19 @@ impl LdapRealmSyncJob {
         existing_user: Option<&User>,
     ) -> User {
         let lookup = |attribute: &str, ldap_attribute: Option<&String>, schema: &'static Schema| {
-            ldap_attribute
-                .and_then(|e| result.attributes.get(e))
-                .and_then(|v| v.get(0))
-                .and_then(|value| {
-                    let schema = schema.unwrap_string_schema();
+            let value = result.attributes.get(ldap_attribute?)?.get(0)?;
+            let schema = schema.unwrap_string_schema();
 
-                    if let Err(e) = schema.check_constraints(value) {
-                        task_warn!(
-                            self.worker,
-                            "{userid}: ignoring attribute `{attribute}`: {e}"
-                        );
+            if let Err(e) = schema.check_constraints(value) {
+                task_warn!(
+                    self.worker,
+                    "{userid}: ignoring attribute `{attribute}`: {e}"
+                );
 
-                        None
-                    } else {
-                        Some(value)
-                    }
-                })
-                .cloned()
+                None
+            } else {
+                Some(value.clone())
+            }
         };
 
         User {
