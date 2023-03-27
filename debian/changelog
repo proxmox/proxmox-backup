@@ -1,3 +1,47 @@
+rust-proxmox-backup (2.4.0-2) bullseye; urgency=medium
+
+  * backup restore: improve error message if snapshot doesn't exist
+
+  * fix #4341: manager cli: add commands to run prune/sync/verify jobs
+
+  * api: add routes for managing LDAP realms
+
+  * auth: add LDAP realm authenticator
+
+  * server: implement LDAP realm sync job
+
+  * manager CLI: add commands for managing LDAP realms
+
+  * docs: add documentation for LDAP realms
+
+  * fix #4534: add clear trigger for simpler clearing schedule
+
+  * docs: maintenance: expand garbage collection section
+
+  * tape: inventory: don't skip unassigned tapes completely
+
+  * fix #4412: tape: initial WORM (Write Once Read Many) support and add
+    documentation
+
+  * api, ui: implement theme switcher for new dark mode color theme
+
+  * docs: implement dark mode that honors the prefers-color-scheme media query
+    automatically
+
+  * docs: add dark mode support to the api viewer
+
+  * fix #4578: use log crate for pxar create logging for a higher runtime
+    control via PBS_LOG, so that users can decide themselves which messages,
+    sources and levels are interesting for a particular use case.
+
+  * report: add `date -R` to general system info section
+
+  * drop exclusive lock for verify-after-complete, decreasing the chances of
+    triggering the issues with failing to lock backup snapshots on sync due to
+    verification still having held it by mistace (see #4523)
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 27 Mar 2023 19:42:30 +0200
+
 rust-proxmox-backup (2.3.3-1) bullseye; urgency=medium
 
   * fix #4448: ui: verify jobs: add namespace and max-depth columns
