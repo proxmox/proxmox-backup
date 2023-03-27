@@ -230,7 +230,7 @@ impl LdapRealmSyncJob {
         userid: &Userid,
         existing_user: Option<&User>,
     ) -> User {
-        let lookup = |attribute: &str, ldap_attribute: Option<&String>, schema: Schema| {
+        let lookup = |attribute: &str, ldap_attribute: Option<&String>, schema: &'static Schema| {
             ldap_attribute
                 .and_then(|e| result.attributes.get(e))
                 .and_then(|v| v.get(0))
@@ -261,7 +261,7 @@ impl LdapRealmSyncJob {
             firstname: lookup(
                 "firstname",
                 self.ldap_sync_settings.firstname_attr.as_ref(),
-                FIRST_NAME_SCHEMA,
+                &FIRST_NAME_SCHEMA,
             )
             .or_else(|| {
                 if !self.general_sync_settings.should_remove_properties() {
@@ -273,7 +273,7 @@ impl LdapRealmSyncJob {
             lastname: lookup(
                 "lastname",
                 self.ldap_sync_settings.lastname_attr.as_ref(),
-                LAST_NAME_SCHEMA,
+                &LAST_NAME_SCHEMA,
             )
             .or_else(|| {
                 if !self.general_sync_settings.should_remove_properties() {
@@ -285,7 +285,7 @@ impl LdapRealmSyncJob {
             email: lookup(
                 "email",
                 self.ldap_sync_settings.email_attr.as_ref(),
-                EMAIL_SCHEMA,
+                &EMAIL_SCHEMA,
             )
             .or_else(|| {
                 if !self.general_sync_settings.should_remove_properties() {
