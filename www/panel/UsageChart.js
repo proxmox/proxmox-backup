@@ -101,6 +101,27 @@ Ext.define('PBS.widget.UsageChart', {
 	me.getComponent('title').update({ title: title });
     },
 
+    checkThemeColors: function() {
+	let me = this;
+	let rootStyle = getComputedStyle(document.documentElement);
+
+	// get color
+	let background = rootStyle.getPropertyValue("--pwt-panel-background").trim() || "#ffffff";
+	let text = rootStyle.getPropertyValue("--pwt-text-color").trim() || "#000000";
+	let gridStroke = rootStyle.getPropertyValue("--pwt-chart-grid-stroke").trim() || "#dddddd";
+
+	// set the colors
+	me.chart.setBackground(background);
+	if (!me.color) {
+	    me.chart.axes.forEach((axis) => {
+		axis.setLabel({ color: text });
+		axis.setTitle({ color: text });
+		axis.setStyle({ strokeStyle: gridStroke });
+	    });
+	}
+	me.chart.redraw();
+    },
+
     initComponent: function() {
 	var me = this;
 	me.callParent();
@@ -116,5 +137,12 @@ Ext.define('PBS.widget.UsageChart', {
 		stroke: me.color,
 	    });
 	}
+
+	me.checkThemeColors();
+
+	// switch colors on media query changes
+	me.mediaQueryList = window.matchMedia("(prefers-color-scheme: dark)");
+	me.themeListener = (e) => { me.checkThemeColors(); };
+	me.mediaQueryList.addEventListener("change", me.themeListener);
     },
 });
