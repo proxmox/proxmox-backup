@@ -1,3 +1,21 @@
+rust-proxmox-backup (2.4.1-1) bullseye; urgency=medium
+
+  * fix #4521: api/tasks: replace upid as filename for task log downloads
+
+  * docs: exand PBS to Proxmox Backup (Server)
+
+  * ui: dark mode: add dark mode colors to the datastore usage charts
+
+  * api-types: ldap: add verification regex for LDAP DNs derived from Proxmox
+    VE
+
+  * cli: manager, tape, debug: setup auth context to make local connect work
+    again
+
+  * ui: user edit: fix filtering out pam realm from selector on user-add
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 28 Mar 2023 19:23:15 +0200
+
 rust-proxmox-backup (2.4.0-2) bullseye; urgency=medium
 
   * backup restore: improve error message if snapshot doesn't exist
