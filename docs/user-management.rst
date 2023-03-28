@@ -595,21 +595,21 @@ in the following LDIF dataset, the user ``user1`` has the unique domain
 
 In in similar manner, Proxmox Backup Server uses user identifiers (``userid``)
 to uniquely identify users. Thus, it is necessary to establish a mapping
-between PBS's ``userid`` and LDAP's ``dn``. This mapping is established by
-the ``user-attr`` configuration parameter - it contains the name of the LDAP
-attribute containing a valid PBS user identifier.
+between a Proxmox Backup Server ``userid`` and an LDAP ``dn``. This mapping is
+established by the ``user-attr`` configuration parameter - it contains the name
+of the LDAP attribute containing a valid Proxmox Backup Server user identifier.
 
 For the example above, setting ``user-attr`` to ``uid`` will have the effect
 that the user ``user1@<realm-name>`` will be mapped to the LDAP entity
-``uid=user1,ou=People,dc=ldap-test,dc=com``. On user login, PBS will perform
-a `subtree search` under the configured Base Domain (``base-dn``) to query
-the user's ``dn``. Once the ``dn`` is known, an LDAP bind operation is performed
-to authenticate the user against the LDAP server.
+``uid=user1,ou=People,dc=ldap-test,dc=com``. On user login, Proxmox Backup
+Server will perform a `subtree search` under the configured Base Domain
+(``base-dn``) to query the user's ``dn``. Once the ``dn`` is known, an LDAP
+bind operation is performed to authenticate the user against the LDAP server.
 
 As not all LDAP servers allow `anonymous` search operations, it is possible to
 configure a bind domain (``bind-dn``) and a bind password (``password``).
-If set, PBS will bind to the LDAP server using these credentials before
-performing any search operations.
+If set, Proxmox Backup Server will bind to the LDAP server using these
+credentials before performing any search operations.
 
 A full list of all configuration parameters can be found at :ref:`domains.cfg`.
 

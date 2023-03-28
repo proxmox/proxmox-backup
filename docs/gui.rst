@@ -31,7 +31,7 @@ Login
 .. image:: images/screenshots/pbs-gui-login-window.png
   :target: _images/pbs-gui-login-window.png
   :align: right
-  :alt: PBS login window
+  :alt: Proxmox Backup Server login window
 
 When you connect to the web interface, you will first see the login window.
 Proxmox Backup Server supports various languages and authentication back ends
@@ -47,7 +47,7 @@ GUI Overview
 .. image:: images/screenshots/pbs-gui-dashboard.png
   :target: _images/pbs-gui-dashboard.png
   :align: right
-  :alt: PBS GUI Dashboard
+  :alt: Proxmox Backup Server GUI Dashboard
 
 The Proxmox Backup Server web interface consists of 3 main sections:
 

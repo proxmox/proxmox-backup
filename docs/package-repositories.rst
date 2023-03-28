@@ -110,7 +110,7 @@ We recommend to configure this repository in ``/etc/apt/sources.list``.
   deb http://ftp.debian.org/debian bullseye main contrib
   deb http://ftp.debian.org/debian bullseye-updates main contrib
 
-  # PBS pbs-no-subscription repository provided by proxmox.com,
+  # Proxmox Backup Server pbs-no-subscription repository provided by proxmox.com,
   # NOT recommended for production use
   deb http://download.proxmox.com/debian/pbs bullseye pbs-no-subscription
 
