@@ -1,6 +1,5 @@
 Ext.define('PBS.window.UserEditViewModel', {
     extend: 'Ext.app.ViewModel',
-
     alias: 'viewmodel.pbsUserEdit',
 
     data: {
@@ -9,15 +8,16 @@ Ext.define('PBS.window.UserEditViewModel', {
 
     formulas: {
 	maySetPassword: function(get) {
-	    // Dummy read, so that ExtJS will update the formula when
-	    // the combobox changes
-	    let _dummy = get('realm');
+	    let realm = get('realm');
 
-	    // All in all a bit hacky, is there a nicer way to do this?
-	    let realm_type = this.data.realmComboBox.selection?.data.type
-		? this.data.realmComboBox.selection?.data.type : 'pbs';
-
-	    return Proxmox.Schema.authDomains[realm_type].pwchange && this.config.view.isCreate;
+	    let view = this.getView();
+	    let realmStore = view.down('pmxRealmComboBox').getStore();
+	    if (realmStore.isLoaded()) {
+		let rec = realmStore.findRecord('realm', realm, 0, false, true, true);
+		return Proxmox.Schema.authDomains[rec.data.type]?.pwchange && view.isCreate;
+	    } else {
+		return view.isCreate;
+	    }
 	},
     },
 });
@@ -78,8 +78,9 @@ Ext.define('PBS.window.UserEdit', {
 		allowBlank: false,
 		matchFieldWidth: false,
 		listConfig: { width: 300 },
-		reference: 'realmComboBox',
-		bind: '{realm}',
+		bind: {
+		    value: '{realm}',
+		},
 		cbind: {
 		    hidden: '{!isCreate}',
 		    disabled: '{!isCreate}',
