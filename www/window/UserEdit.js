@@ -84,29 +84,8 @@ Ext.define('PBS.window.UserEdit', {
 		    hidden: '{!isCreate}',
 		    disabled: '{!isCreate}',
 		},
-
 		submitValue: true,
-		// Let's override the default controller so that we can
-		// remove the PAM realm. We don't want to manually add users
-		// for the PAM realm.
-		controller: {
-		    xclass: 'Ext.app.ViewController',
-
-		    init: function(view) {
-			view.store.on('load', this.onLoad, view);
-		    },
-
-		    onLoad: function(store, records, success) {
-			if (!success) {
-			    return;
-			}
-
-			let pamRecord = this.store.findRecord('realm', 'pam', 0, false, true, true);
-
-			this.store.remove(pamRecord);
-			this.setValue('pbs');
-		    },
-		},
+		storeFilter: rec => rec.data?.type !== 'pam',
 	    },
 	    {
 		xtype: 'textfield',
