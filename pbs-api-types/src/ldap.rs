@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-use proxmox_schema::{api, ApiStringFormat, ApiType, ArraySchema, Schema, StringSchema, Updater};
+use proxmox_schema::{
+    api, const_regex, ApiStringFormat, ApiType, ArraySchema, Schema, StringSchema, Updater,
+};
 
 use super::{REALM_ID_SCHEMA, SINGLE_LINE_COMMENT_SCHEMA};
 
@@ -45,6 +47,13 @@ pub enum LdapMode {
             optional: true,
             schema: USER_CLASSES_SCHEMA,
         },
+        "base-dn" : {
+            schema: LDAP_DOMAIN_SCHEMA,
+        },
+        "bind-dn" : {
+            schema: LDAP_DOMAIN_SCHEMA,
+            optional: true,
+        }
     },
 )]
 #[derive(Serialize, Deserialize, Updater, Clone)]
@@ -132,6 +141,28 @@ pub enum RemoveVanished {
     /// Remove vanished properties from users (e.g. email)
     Properties,
 }
+
+macro_rules! DOMAIN_PART_REGEX {
+    () => {
+        r#"("[^"]+"|[^ ,+"/<>;=#][^,+"/<>;=]*[^ ,+"/<>;=]|[^ ,+"/<>;=#])"#
+    };
+}
+
+const_regex! {
+    pub LDAP_DOMAIN_REGEX = concat!(
+        r#"\w+="#,
+        DOMAIN_PART_REGEX!(),
+        r#"(,\s*\w+="#,
+        DOMAIN_PART_REGEX!(),
+        ")*"
+    );
+}
+
+pub const LDAP_DOMAIN_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&LDAP_DOMAIN_REGEX);
+
+pub const LDAP_DOMAIN_SCHEMA: Schema = StringSchema::new("LDAP Domain")
+    .format(&LDAP_DOMAIN_FORMAT)
+    .schema();
 
 pub const SYNC_DEFAULTS_STRING_SCHEMA: Schema = StringSchema::new("sync defaults options")
     .format(&ApiStringFormat::PropertyString(
