@@ -23,7 +23,10 @@ fn main() {
     let mut rpcenv = CliEnvironment::new();
     rpcenv.set_auth_id(Some(format!("{}@pam", username)));
 
-    proxmox_backup::auth_helpers::setup_auth_context(true);
+    let args: Vec<String> = std::env::args().take(2).collect();
+    if args.len() < 2 || args[1] != "printdoc" {
+        proxmox_backup::auth_helpers::setup_auth_context(true);
+    }
 
     run_cli_command(
         cmd_def,
