@@ -21,7 +21,7 @@ use pbs_buildcfg::PROXMOX_BACKUP_RUN_DIR_M;
 use pbs_config::open_backup_lockfile;
 use pbs_config::CachedUserInfo;
 
-use crate::auth::auth_keyring;
+use crate::auth::private_auth_keyring;
 use crate::auth_helpers::*;
 
 fn openid_authenticator(
@@ -200,7 +200,7 @@ pub fn openid_login(
         }
 
         let api_ticket = ApiTicket::Full(user_id.clone());
-        let ticket = Ticket::new("PBS", &api_ticket)?.sign(auth_keyring(), None)?;
+        let ticket = Ticket::new("PBS", &api_ticket)?.sign(private_auth_keyring(), None)?;
         let token = assemble_csrf_prevention_token(csrf_secret(), &user_id);
 
         env.log_auth(user_id.as_str());

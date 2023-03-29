@@ -7,7 +7,7 @@ use std::pin::Pin;
 
 use anyhow::{bail, Error};
 use futures::Future;
-use once_cell::sync::OnceCell;
+use once_cell::sync::{Lazy, OnceCell};
 use proxmox_router::http_bail;
 use serde_json::json;
 
@@ -221,13 +221,17 @@ pub(crate) fn authenticate_user<'a>(
     })
 }
 
+static PRIVATE_KEYRING: Lazy<Keyring> =
+    Lazy::new(|| Keyring::with_private_key(crate::auth_helpers::private_auth_key().clone().into()));
+static PUBLIC_KEYRING: Lazy<Keyring> =
+    Lazy::new(|| Keyring::with_public_key(crate::auth_helpers::public_auth_key().clone().into()));
 static AUTH_CONTEXT: OnceCell<PbsAuthContext> = OnceCell::new();
 
 pub fn setup_auth_context(use_private_key: bool) {
     let keyring = if use_private_key {
-        Keyring::with_private_key(crate::auth_helpers::private_auth_key().clone().into())
+        &*PRIVATE_KEYRING
     } else {
-        Keyring::with_public_key(crate::auth_helpers::public_auth_key().clone().into())
+        &*PUBLIC_KEYRING
     };
 
     AUTH_CONTEXT
@@ -241,15 +245,16 @@ pub fn setup_auth_context(use_private_key: bool) {
     proxmox_auth_api::set_auth_context(AUTH_CONTEXT.get().unwrap());
 }
 
-pub(crate) fn auth_keyring() -> &'static Keyring {
-    &AUTH_CONTEXT
-        .get()
-        .expect("setup_auth_context not called")
-        .keyring
+pub(crate) fn private_auth_keyring() -> &'static Keyring {
+    &*PRIVATE_KEYRING
+}
+
+pub(crate) fn public_auth_keyring() -> &'static Keyring {
+    &*PUBLIC_KEYRING
 }
 
 struct PbsAuthContext {
-    keyring: Keyring,
+    keyring: &'static Keyring,
     csrf_secret: Vec<u8>,
 }
 
@@ -260,7 +265,7 @@ impl proxmox_auth_api::api::AuthContext for PbsAuthContext {
 
     /// Get the current authentication keyring.
     fn keyring(&self) -> &Keyring {
-        &self.keyring
+        self.keyring
     }
 
     /// The auth prefix without the separating colon. Eg. `"PBS"`.

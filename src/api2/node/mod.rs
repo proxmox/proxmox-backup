@@ -26,7 +26,7 @@ use proxmox_sys::fd::fd_change_cloexec;
 
 use pbs_api_types::{NODE_SCHEMA, PRIV_SYS_CONSOLE};
 
-use crate::auth::auth_keyring;
+use crate::auth::{private_auth_keyring, public_auth_keyring};
 use crate::tools;
 
 pub mod apt;
@@ -119,7 +119,7 @@ async fn termproxy(cmd: Option<String>, rpcenv: &mut dyn RpcEnvironment) -> Resu
     let port = listener.local_addr()?.port();
 
     let ticket = Ticket::new(crate::auth::TERM_PREFIX, &Empty)?.sign(
-        auth_keyring(),
+        private_auth_keyring(),
         Some(&tools::ticket::term_aad(userid, path, port)),
     )?;
 
@@ -290,7 +290,7 @@ fn upgrade_to_websocket(
 
         // will be checked again by termproxy
         Ticket::<Empty>::parse(ticket)?.verify(
-            auth_keyring(),
+            public_auth_keyring(),
             crate::auth::TERM_PREFIX,
             Some(&tools::ticket::term_aad(userid, "/system", port)),
         )?;
