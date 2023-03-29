@@ -150,11 +150,11 @@ macro_rules! DOMAIN_PART_REGEX {
 
 const_regex! {
     pub LDAP_DOMAIN_REGEX = concat!(
-        r#"\w+="#,
+        r#"^\w+="#,
         DOMAIN_PART_REGEX!(),
         r#"(,\s*\w+="#,
         DOMAIN_PART_REGEX!(),
-        ")*"
+        ")*$"
     );
 }
 
