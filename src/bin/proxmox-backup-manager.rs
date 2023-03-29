@@ -490,10 +490,6 @@ async fn run() -> Result<(), Error> {
     let mut rpcenv = CliEnvironment::new();
     rpcenv.set_auth_id(Some(String::from("root@pam")));
 
-    if args.len() < 2 || args[1] != "printdoc" {
-        proxmox_backup::auth_helpers::setup_auth_context(true);
-    }
-
     run_async_cli_command(cmd_def, rpcenv).await; // this call exit(-1) on error
 
     Ok(())
