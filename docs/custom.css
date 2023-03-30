@@ -202,3 +202,9 @@ div.document, div.footer {
         background-color: #a19231;
     }
 }
+
+@media screen and (max-width: 875px) and (prefers-color-scheme: dark) {
+    div.documentwrapper {
+        background: initial;
+    }
+}
