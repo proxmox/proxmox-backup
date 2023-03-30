@@ -133,20 +133,20 @@ static MAM_ATTRIBUTES: &[(u16, u16, MamFormat, &str)] = &[
     (0x08_0B, 16, MamFormat::ASCII, "Application Format Version"),
     (
         0x08_0C,
-        50,
-        MamFormat::ASCII,
+        0, // length is not specified for IBM, and HP says 23-n
+        MamFormat::BINARY,
         "Volume Coherency Information",
     ),
     (
         0x08_20,
         36,
-        MamFormat::ASCII,
+        MamFormat::BINARY,
         "Medium Globally Unique Identifier",
     ),
     (
         0x08_21,
         36,
-        MamFormat::ASCII,
+        MamFormat::BINARY,
         "Media Pool Globally Unique Identifier",
     ),
     (
@@ -238,7 +238,7 @@ fn decode_mam_attributes(data: &[u8]) -> Result<Vec<MamAttribute>, Error> {
         };
 
         if let Some(info) = MAM_ATTRIBUTE_NAMES.get(&head_id) {
-            if info.1 == head.len {
+            if info.1 == 0 || info.1 == head.len {
                 let value = match info.2 {
                     MamFormat::ASCII => String::from_utf8_lossy(&data).to_string(),
                     MamFormat::DEC => {
