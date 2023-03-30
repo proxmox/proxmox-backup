@@ -30,7 +30,7 @@ use proxmox_uuid::Uuid;
 use crate::{BackupType, BACKUP_ID_SCHEMA, FINGERPRINT_SHA256_FORMAT};
 
 const_regex! {
-    pub TAPE_RESTORE_SNAPSHOT_REGEX = concat!(r"^", PROXMOX_SAFE_ID_REGEX_STR!(), r":(:?", BACKUP_NS_PATH_RE!(),")?", SNAPSHOT_PATH_REGEX_STR!(), r"$");
+    pub TAPE_RESTORE_SNAPSHOT_REGEX = concat!(r"^", PROXMOX_SAFE_ID_REGEX_STR!(), r":(?:", BACKUP_NS_PATH_RE!(),")?", SNAPSHOT_PATH_REGEX_STR!(), r"$");
 }
 
 pub const TAPE_RESTORE_SNAPSHOT_FORMAT: ApiStringFormat =
