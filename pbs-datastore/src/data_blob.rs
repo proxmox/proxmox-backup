@@ -295,6 +295,12 @@ impl DataBlob {
         magic == &ENCR_COMPR_BLOB_MAGIC_1_0 || magic == &ENCRYPTED_BLOB_MAGIC_1_0
     }
 
+    /// Returns if chunk is compressed
+    pub fn is_compressed(&self) -> bool {
+        let magic = self.magic();
+        magic == &ENCR_COMPR_BLOB_MAGIC_1_0 || magic == &COMPRESSED_BLOB_MAGIC_1_0
+    }
+
     /// Verify digest and data length for unencrypted chunks.
     ///
     /// To do that, we need to decompress data first. Please note that

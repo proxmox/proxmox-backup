@@ -5,6 +5,7 @@ use std::sync::{Arc, Mutex};
 use anyhow::{bail, format_err, Error};
 
 use pbs_api_types::{DatastoreFSyncLevel, GarbageCollectionStatus};
+use proxmox_io::ReadExt;
 use proxmox_sys::fs::{create_dir, create_path, file_type_from_file_stat, CreateOptions};
 use proxmox_sys::process_locker::{
     ProcessLockExclusiveGuard, ProcessLockSharedGuard, ProcessLocker,
@@ -12,6 +13,9 @@ use proxmox_sys::process_locker::{
 use proxmox_sys::task_log;
 use proxmox_sys::WorkerTaskContext;
 
+use crate::file_formats::{
+    COMPRESSED_BLOB_MAGIC_1_0, ENCRYPTED_BLOB_MAGIC_1_0, UNCOMPRESSED_BLOB_MAGIC_1_0,
+};
 use crate::DataBlob;
 
 /// File system based chunk store
@@ -460,13 +464,35 @@ impl ChunkStore {
                 return Ok((true, old_size));
             } else if old_size == 0 {
                 log::warn!("found empty chunk '{digest_str}' in store {name}, overwriting");
+            } else if chunk.is_encrypted() {
+                // incoming chunk is encrypted, possible attack or hash collision!
+                let mut existing_file = std::fs::File::open(&chunk_path)?;
+                let magic = existing_file.read_exact_allocated(8)?;
+
+                // going from unencrypted to encrypted can never be right, since the digest
+                // includes data derived from the encryption key
+                if magic == UNCOMPRESSED_BLOB_MAGIC_1_0 || magic == COMPRESSED_BLOB_MAGIC_1_0 {
+                    bail!("Overwriting unencrypted chunk '{digest_str}' on store '{name}' with encrypted chunk with same digest not allowed!");
+                }
+
+                // if both chunks are uncompressed and encrypted and have the same digest, but
+                // their sizes are different, one of them *must* be invalid
+                if magic == ENCRYPTED_BLOB_MAGIC_1_0 && !chunk.is_compressed() {
+                    bail!("Overwriting existing (encrypted) chunk '{digest_str}' on store '{name}' is not allowed!")
+                }
+
+                // we can't tell if either chunk is invalid if either or both of them are
+                // compressed, the size mismatch could be caused by different zstd versions
+                // so let's keep the one that was uploaded first, bit-rot is hopefully detected by
+                // verification at some point..
+                self.touch_chunk(digest)?;
+                return Ok((true, old_size));
+            } else if old_size < encoded_size {
+                log::debug!("Got another copy of chunk with digest '{digest_str}', existing chunk is smaller, discarding uploaded one.");
+                self.touch_chunk(digest)?;
+                return Ok((true, old_size));
             } else {
-                // other sizes can happen in legitimate and illegitimate ways:
-                //  - illegitimate: encryped chunks and bad actor client
-                //  - legitimate: same chunk but newer zstd version (or compression level) can
-                //    compress it better (or worse) so the
-                //  Ideally we could take the actual smaller chunk so that improved zstd tech gets
-                //  leveraged, but we could only allow to do that for un-encrypted ones.
+                log::debug!("Got another copy of chunk with digest '{digest_str}', existing chunk is bigger, replacing with uploaded one.");
             }
         }
 
