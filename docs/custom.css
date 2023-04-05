@@ -92,20 +92,24 @@ div.document, div.footer {
         color-scheme: dark;
         --pdt-grey-850: hsl(0deg, 0%, 85%);
         --pdt-grey-500: hsl(0deg, 0%, 50%);
-        --pdt-grey-400: hsl(0deg, 0%, 40%);
         --pdt-grey-250: hsl(0deg, 0%, 25%);
         --pdt-grey-200: hsl(0deg, 0%, 20%);
         --pdt-grey-150: hsl(0deg, 0%, 15%);
         --pdt-grey-100: hsl(0deg, 0%, 10%);
-        --pdt-primary-850: hsl(205deg, 100%, 85%);
         --pdt-primary-800: hsl(205deg, 100%, 80%);
         --pdt-primary-700: hsl(205deg, 100%, 70%);
-        --pdt-secondary-850: hsl(250deg, 100%, 85%);
+        --pdt-red-200: hsl(360deg, 30%, 20%);
+        --pdt-yellow-250: hsl(40deg, 100%, 25%);
         --pdt-body-background: var(--pdt-grey-150);
         --pdt-text: var(--pdt-grey-850);
+        --pdt-border: var(--pdt-grey-500);
+        --pdt-shadow: var(--pdt-grey-100);
         --pdt-headline: var(--pdt-primary-800);
         --pdt-link: var(--pdt-primary-700);
-        --pdt-background-admonition: var(--pdt-grey-250);
+        --pdt-admonition-background: var(--pdt-grey-250);
+        --pdt-topic-background: var(--pdt-grey-200);
+        --pdt-warn: var(--pdt-yellow-250);
+        --pdt-crit: var(--pdt-red-200);
     }
 
     /* body and links */
@@ -123,19 +127,19 @@ div.document, div.footer {
 
     a.headerlink:hover {
         color: var(--pdt-text);
-        background-color: var(--pdt-background-admonition)
+        background-color: var(--pdt-admonition-background)
     }
 
     div.sphinxsidebar ul ul a {
         color: var(--pdt-text);
-        border-bottom-color: var(--pdt-grey-500);
+        border-bottom-color: var(--pdt-border);
     }
 
     ul li.toctree-l1 > a,
     div.sphinxsidebar ul,
     div.sphinxsidebar a:hover {
         color: var(--pdt-text);
-        border-bottom-color: var(--pdt-grey-500);
+        border-bottom-color: var(--pdt-border);
     }
 
     /* highlighting backgrounds */
@@ -143,15 +147,15 @@ div.document, div.footer {
     div.highlight,
     a:hover code,
     pre {
-        background-color: var(--pdt-background-admonition);
+        background-color: var(--pdt-admonition-background);
     }
 
     div.caution, div.warning {
-        background-color: #422;
+        background-color: var(--pdt-crit);
     }
 
     div.topic {
-        background-color: var(--pdt-grey-200);
+        background-color: var(--pdt-topic-background);
     }
 
     img.logo {
@@ -159,7 +163,7 @@ div.document, div.footer {
     }
 
     table.docutils {
-        box-shadow: 2px 2px 4px var(--pdt-grey-100);
+        box-shadow: 2px 2px 4px var(--pdt-shadow);
     }
 
     /* style headlines, titles etc. */
@@ -176,10 +180,9 @@ div.document, div.footer {
     }
 
     /* code */
-
     code {
         color: var(--pdt-text);
-        background-color: var(--pdt-background-admonition);
+        background-color: var(--pdt-admonition-background);
     }
 
 
@@ -199,7 +202,7 @@ div.document, div.footer {
     }
 
     span.highlighted {
-        background-color: #a19231;
+        background-color: var(--pdt-warn);
     }
 }
 
