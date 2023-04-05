@@ -99,6 +99,7 @@ div.document, div.footer {
         --pdt-primary-800: hsl(205deg, 100%, 80%);
         --pdt-primary-700: hsl(205deg, 100%, 70%);
         --pdt-red-200: hsl(360deg, 30%, 20%);
+        --pdt-red-350: hsl(360deg, 30%, 35%);
         --pdt-yellow-250: hsl(40deg, 100%, 25%);
         --pdt-body-background: var(--pdt-grey-150);
         --pdt-text: var(--pdt-grey-850);
@@ -110,6 +111,7 @@ div.document, div.footer {
         --pdt-topic-background: var(--pdt-grey-200);
         --pdt-warn: var(--pdt-yellow-250);
         --pdt-crit: var(--pdt-red-200);
+        --pdt-crit-border: var(--pdt-red-350);
     }
 
     /* body and links */
@@ -125,6 +127,10 @@ div.document, div.footer {
         border-bottom-color: var(--pdt-link);
     }
 
+    a.reference {
+        border-color: var(--pdt-border);
+    }
+
     a.headerlink:hover {
         color: var(--pdt-text);
         background-color: var(--pdt-admonition-background)
@@ -135,6 +141,7 @@ div.document, div.footer {
         border-bottom-color: var(--pdt-border);
     }
 
+    div.sphinxsidebar a,
     ul li.toctree-l1 > a,
     div.sphinxsidebar ul,
     div.sphinxsidebar a:hover {
@@ -152,10 +159,18 @@ div.document, div.footer {
 
     div.caution, div.warning {
         background-color: var(--pdt-crit);
+        border-color: var(--pdt-crit-border);
     }
 
     div.topic {
         background-color: var(--pdt-topic-background);
+        border-color: var(--pdt-border);
+    }
+
+    div.tip,
+    div.note,
+    div.important {
+        border-color: var(--pdt-border);
     }
 
     img.logo {
@@ -164,6 +179,10 @@ div.document, div.footer {
 
     table.docutils {
         box-shadow: 2px 2px 4px var(--pdt-shadow);
+    }
+
+    hr.docutils {
+        border-color: var(--pdt-border);
     }
 
     /* style headlines, titles etc. */
@@ -203,6 +222,19 @@ div.document, div.footer {
 
     span.highlighted {
         background-color: var(--pdt-warn);
+    }
+
+    .related.bottom {
+        border-color: var(--pdt-border);
+    }
+
+    /* sidebar */
+    div.sphinxsidebar hr {
+        border-color: var(--pdt-border);
+    }
+
+    div.sphinxsidebar input {
+        border-color: var(--pdt-border);
     }
 }
 
