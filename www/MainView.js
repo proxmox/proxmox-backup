@@ -249,7 +249,7 @@ Ext.define('PBS.MainView', {
 			},
 			{
 			    iconCls: 'fa fa-paint-brush',
-			    text: gettext('Theme'),
+			    text: gettext('Color Theme'),
 			    handler: () => Ext.create('Proxmox.window.ThemeEditWindow', {
 				cookieName: 'PBSThemeCookie',
 				autoShow: true,
