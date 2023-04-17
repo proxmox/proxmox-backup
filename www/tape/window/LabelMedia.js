@@ -50,10 +50,12 @@ Ext.define('PBS.TapeManagement.LabelMediaWindow', {
 	{
 	    fieldLabel: gettext('Label'),
 	    name: 'label-text',
-	    xtype: 'proxmoxtextfield',
+	    xtype: 'pmxDisplayEditField',
+	    submitValue: true,
 	    allowBlank: false,
 	    cbind: {
 		value: '{label}',
+		editable: '{!label}',
 	    },
 	},
 	{
