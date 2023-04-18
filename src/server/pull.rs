@@ -535,19 +535,39 @@ async fn pull_snapshot_from(
     } else {
         task_log!(worker, "re-sync snapshot {}", snapshot.dir());
         pull_snapshot(worker, reader, snapshot, downloaded_chunks).await?;
-        task_log!(worker, "re-sync snapshot {} done", snapshot.dir());
     }
 
     Ok(())
+}
+
+enum SkipReason {
+    AlreadySynced,
+    TransferLast,
 }
 
 struct SkipInfo {
     oldest: i64,
     newest: i64,
     count: u64,
+    skip_reason: SkipReason,
 }
 
 impl SkipInfo {
+    fn new(skip_reason: SkipReason) -> Self {
+        SkipInfo {
+            oldest: i64::MAX,
+            newest: i64::MIN,
+            count: 0,
+            skip_reason,
+        }
+    }
+
+    fn reset(&mut self) {
+        self.count = 0;
+        self.oldest = i64::MAX;
+        self.newest = i64::MIN;
+    }
+
     fn update(&mut self, backup_time: i64) {
         self.count += 1;
 
@@ -575,11 +595,17 @@ impl SkipInfo {
 
 impl std::fmt::Display for SkipInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let reason_string = match self.skip_reason {
+            SkipReason::AlreadySynced => "older than the newest local snapshot",
+            SkipReason::TransferLast => "due to transfer-last",
+        };
+
         write!(
             f,
-            "skipped: {} snapshot(s) ({}) older than the newest local snapshot",
+            "skipped: {} snapshot(s) ({}) - {}",
             self.count,
-            self.affected().map_err(|_| std::fmt::Error)?
+            self.affected().map_err(|_| std::fmt::Error)?,
+            reason_string
         )
     }
 }
@@ -610,6 +636,8 @@ async fn pull_group(
     remote_ns: BackupNamespace,
     progress: &mut StoreProgress,
 ) -> Result<(), Error> {
+    task_log!(worker, "sync group {}", group);
+
     let path = format!(
         "api2/json/admin/datastore/{}/snapshots",
         params.source.store()
@@ -645,11 +673,8 @@ async fn pull_group(
 
     progress.group_snapshots = list.len() as u64;
 
-    let mut skip_info = SkipInfo {
-        oldest: i64::MAX,
-        newest: i64::MIN,
-        count: 0,
-    };
+    let mut already_synced_skip_info = SkipInfo::new(SkipReason::AlreadySynced);
+    let mut transfer_last_skip_info = SkipInfo::new(SkipReason::TransferLast);
 
     let total_amount = list.len();
 
@@ -674,12 +699,19 @@ async fn pull_group(
         remote_snapshots.insert(snapshot.time);
 
         if last_sync_time > snapshot.time {
-            skip_info.update(snapshot.time);
+            already_synced_skip_info.update(snapshot.time);
             continue;
+        } else if already_synced_skip_info.count > 0 {
+            task_log!(worker, "{}", already_synced_skip_info);
+            already_synced_skip_info.reset();
         }
 
         if pos < cutoff && last_sync_time != snapshot.time {
+            transfer_last_skip_info.update(snapshot.time);
             continue;
+        } else if transfer_last_skip_info.count > 0 {
+            task_log!(worker, "{}", transfer_last_skip_info);
+            transfer_last_skip_info.reset();
         }
 
         // get updated auth_info (new tickets)
@@ -737,10 +769,6 @@ async fn pull_group(
                 .store
                 .remove_backup_dir(&target_ns, snapshot.as_ref(), false)?;
         }
-    }
-
-    if skip_info.count > 0 {
-        task_log!(worker, "{}", skip_info);
     }
 
     Ok(())
