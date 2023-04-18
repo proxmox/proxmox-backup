@@ -59,6 +59,8 @@ pub(crate) struct PullParameters {
     group_filter: Option<Vec<GroupFilter>>,
     /// Rate limits for all transfers from `remote`
     limit: RateLimitConfig,
+    /// How many snapshots should be transferred at most (taking the newest N snapshots)
+    transfer_last: Option<usize>,
 }
 
 impl PullParameters {
@@ -78,6 +80,7 @@ impl PullParameters {
         max_depth: Option<usize>,
         group_filter: Option<Vec<GroupFilter>>,
         limit: RateLimitConfig,
+        transfer_last: Option<usize>,
     ) -> Result<Self, Error> {
         let store = DataStore::lookup_datastore(store, Some(Operation::Write))?;
 
@@ -109,6 +112,7 @@ impl PullParameters {
             max_depth,
             group_filter,
             limit,
+            transfer_last,
         })
     }
 
@@ -632,6 +636,7 @@ async fn pull_group(
     let fingerprint = client.fingerprint();
 
     let last_sync = params.store.last_successful_backup(&target_ns, group)?;
+    let last_sync_time = last_sync.unwrap_or(i64::MIN);
 
     let mut remote_snapshots = std::collections::HashSet::new();
 
@@ -645,6 +650,13 @@ async fn pull_group(
         newest: i64::MIN,
         count: 0,
     };
+
+    let total_amount = list.len();
+
+    let cutoff = params
+        .transfer_last
+        .map(|count| total_amount.saturating_sub(count))
+        .unwrap_or_default();
 
     for (pos, item) in list.into_iter().enumerate() {
         let snapshot = item.backup;
@@ -661,11 +673,13 @@ async fn pull_group(
 
         remote_snapshots.insert(snapshot.time);
 
-        if let Some(last_sync_time) = last_sync {
-            if last_sync_time > snapshot.time {
-                skip_info.update(snapshot.time);
-                continue;
-            }
+        if last_sync_time > snapshot.time {
+            skip_info.update(snapshot.time);
+            continue;
+        }
+
+        if pos < cutoff && last_sync_time != snapshot.time {
+            continue;
         }
 
         // get updated auth_info (new tickets)

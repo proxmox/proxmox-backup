@@ -215,6 +215,8 @@ pub enum DeletableProperty {
     RemoteNs,
     /// Delete the max_depth property,
     MaxDepth,
+    /// Delete the transfer_last property,
+    TransferLast,
 }
 
 #[api(
@@ -309,6 +311,9 @@ pub fn update_sync_job(
                 DeletableProperty::MaxDepth => {
                     data.max_depth = None;
                 }
+                DeletableProperty::TransferLast => {
+                    data.transfer_last = None;
+                }
             }
         }
     }
@@ -342,6 +347,9 @@ pub fn update_sync_job(
     }
     if let Some(group_filter) = update.group_filter {
         data.group_filter = Some(group_filter);
+    }
+    if let Some(transfer_last) = update.transfer_last {
+        data.transfer_last = Some(transfer_last);
     }
 
     if update.limit.rate_in.is_some() {
@@ -507,6 +515,7 @@ acl:1:/remote/remote1/remotestore1:write@pbs:RemoteSyncOperator
         group_filter: None,
         schedule: None,
         limit: pbs_api_types::RateLimitConfig::default(), // no limit
+        transfer_last: None,
     };
 
     // should work without ACLs

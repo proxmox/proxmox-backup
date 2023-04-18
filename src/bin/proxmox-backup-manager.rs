@@ -13,7 +13,7 @@ use pbs_api_types::percent_encoding::percent_encode_component;
 use pbs_api_types::{
     BackupNamespace, GroupFilter, RateLimitConfig, SyncJobConfig, DATASTORE_SCHEMA,
     GROUP_FILTER_LIST_SCHEMA, IGNORE_VERIFIED_BACKUPS_SCHEMA, NS_MAX_DEPTH_SCHEMA,
-    REMOTE_ID_SCHEMA, REMOVE_VANISHED_BACKUPS_SCHEMA, UPID_SCHEMA,
+    REMOTE_ID_SCHEMA, REMOVE_VANISHED_BACKUPS_SCHEMA, TRANSFER_LAST_SCHEMA, UPID_SCHEMA,
     VERIFICATION_OUTDATED_AFTER_SCHEMA,
 };
 use pbs_client::{display_task_log, view_task_result};
@@ -272,6 +272,10 @@ fn task_mgmt_cli() -> CommandLineInterface {
                 schema: OUTPUT_FORMAT,
                 optional: true,
             },
+            "transfer-last": {
+                schema: TRANSFER_LAST_SCHEMA,
+                optional: true,
+            },
         }
    }
 )]
@@ -287,6 +291,7 @@ async fn pull_datastore(
     max_depth: Option<usize>,
     group_filter: Option<Vec<GroupFilter>>,
     limit: RateLimitConfig,
+    transfer_last: Option<usize>,
     param: Value,
 ) -> Result<Value, Error> {
     let output_format = get_output_format(&param);
@@ -317,6 +322,10 @@ async fn pull_datastore(
 
     if let Some(remove_vanished) = remove_vanished {
         args["remove-vanished"] = Value::from(remove_vanished);
+    }
+
+    if transfer_last.is_some() {
+        args["transfer-last"] = json!(transfer_last)
     }
 
     let mut limit_json = json!(limit);

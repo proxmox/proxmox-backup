@@ -10,6 +10,7 @@ use pbs_api_types::{
     Authid, BackupNamespace, GroupFilter, RateLimitConfig, SyncJobConfig, DATASTORE_SCHEMA,
     GROUP_FILTER_LIST_SCHEMA, NS_MAX_DEPTH_REDUCED_SCHEMA, PRIV_DATASTORE_BACKUP,
     PRIV_DATASTORE_PRUNE, PRIV_REMOTE_READ, REMOTE_ID_SCHEMA, REMOVE_VANISHED_BACKUPS_SCHEMA,
+    TRANSFER_LAST_SCHEMA,
 };
 use pbs_config::CachedUserInfo;
 use proxmox_rest_server::WorkerTask;
@@ -76,6 +77,7 @@ impl TryFrom<&SyncJobConfig> for PullParameters {
             sync_job.max_depth,
             sync_job.group_filter.clone(),
             sync_job.limit.clone(),
+            sync_job.transfer_last,
         )
     }
 }
@@ -201,7 +203,11 @@ pub fn do_sync_job(
             limit: {
                 type: RateLimitConfig,
                 flatten: true,
-            }
+            },
+            "transfer-last": {
+                schema: TRANSFER_LAST_SCHEMA,
+                optional: true,
+            },
         },
     },
     access: {
@@ -225,6 +231,7 @@ async fn pull(
     max_depth: Option<usize>,
     group_filter: Option<Vec<GroupFilter>>,
     limit: RateLimitConfig,
+    transfer_last: Option<usize>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
@@ -257,6 +264,7 @@ async fn pull(
         max_depth,
         group_filter,
         limit,
+        transfer_last,
     )?;
     let client = pull_params.client().await?;
 

@@ -444,6 +444,11 @@ pub const GROUP_FILTER_SCHEMA: Schema = StringSchema::new(
 pub const GROUP_FILTER_LIST_SCHEMA: Schema =
     ArraySchema::new("List of group filters.", &GROUP_FILTER_SCHEMA).schema();
 
+pub const TRANSFER_LAST_SCHEMA: Schema =
+    IntegerSchema::new("Limit transfer to last N snapshots (per group), skipping others")
+        .minimum(1)
+        .schema();
+
 #[api(
     properties: {
         id: {
@@ -493,6 +498,10 @@ pub const GROUP_FILTER_LIST_SCHEMA: Schema =
             schema: GROUP_FILTER_LIST_SCHEMA,
             optional: true,
         },
+        "transfer-last": {
+            schema: TRANSFER_LAST_SCHEMA,
+            optional: true,
+        },
     }
 )]
 #[derive(Serialize, Deserialize, Clone, Updater, PartialEq)]
@@ -522,6 +531,8 @@ pub struct SyncJobConfig {
     pub group_filter: Option<Vec<GroupFilter>>,
     #[serde(flatten)]
     pub limit: RateLimitConfig,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transfer_last: Option<usize>,
 }
 
 impl SyncJobConfig {
