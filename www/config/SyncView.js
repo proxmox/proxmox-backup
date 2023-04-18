@@ -3,7 +3,7 @@ Ext.define('pbs-sync-jobs-status', {
     fields: [
 	'id', 'owner', 'remote', 'remote-store', 'remote-ns', 'store', 'ns',
 	'schedule', 'group-filter', 'next-run', 'last-run-upid', 'last-run-state',
-	'last-run-endtime',
+	'last-run-endtime', 'transfer-last',
 	{
 	    name: 'duration',
 	    calculate: function(data) {
@@ -240,6 +240,13 @@ Ext.define('PBS.config.SyncJobView', {
 	    dataIndex: 'group-filter',
 	    renderer: v => v ? Ext.String.htmlEncode(v) : gettext('All'),
 	    width: 80,
+	},
+	{
+	    header: gettext('Transfer Last'),
+	    dataIndex: 'transfer-last',
+	    flex: 1,
+	    sortable: true,
+	    hidden: true,
 	},
 	{
 	    header: gettext('Schedule'),

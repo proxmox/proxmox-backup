@@ -232,6 +232,19 @@ Ext.define('PBS.window.SyncJobEdit', {
 			    editable: '{isCreate}',
 			},
 		    },
+		    {
+			fieldLabel: gettext('Transfer Last'),
+			xtype: 'pbsPruneKeepInput',
+			name: 'transfer-last',
+			emptyText: gettext('all'),
+			autoEl: {
+			    tag: 'div',
+			    'data-qtip': gettext('The maximum amount of snapshots to be transferred (per group)'),
+			},
+			cbind: {
+			    deleteEmpty: '{!isCreate}',
+			},
+		    },
 		],
 	    },
 	    {
