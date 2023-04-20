@@ -964,7 +964,7 @@ impl DataStore {
             if let Some(backup_dir_path) = img.parent() {
                 let backup_dir_path = backup_dir_path.strip_prefix(self.base_path())?;
                 if let Some(backup_dir_str) = backup_dir_path.to_str() {
-                    if pbs_api_types::BackupDir::from_str(backup_dir_str).is_err() {
+                    if pbs_api_types::parse_ns_and_snapshot(backup_dir_str).is_err() {
                         strange_paths_count += 1;
                     }
                 }
