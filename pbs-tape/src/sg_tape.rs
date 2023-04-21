@@ -30,8 +30,9 @@ use pbs_api_types::{Lp17VolumeStatistics, LtoDriveAndMediaStatus, MamAttribute};
 
 use crate::{
     sgutils2::{
-        alloc_page_aligned_buffer, scsi_inquiry, scsi_mode_sense, scsi_request_sense, InquiryInfo,
-        ModeBlockDescriptor, ModeParameterHeader, ScsiError, SenseInfo, SgRaw,
+        alloc_page_aligned_buffer, scsi_inquiry, scsi_mode_sense, scsi_request_sense,
+        scsi_cmd_mode_select6, scsi_cmd_mode_select10,
+        InquiryInfo, ModeBlockDescriptor, ModeParameterHeader, ScsiError, SenseInfo, SgRaw,
     },
     BlockRead, BlockReadError, BlockWrite, BlockedReader, BlockedWriter,
 };
@@ -748,7 +749,7 @@ impl SgTape {
         let mut sg_raw = SgRaw::new(&mut self.file, 0)?;
         sg_raw.set_timeout(Self::SCSI_TAPE_DEFAULT_TIMEOUT);
 
-        head.mode_data_len = 0; // need to b e zero
+        head.reset_mode_data_len(); // mode_data_len need to be zero
 
         if let Some(compression) = compression {
             page.set_compression(compression);
@@ -762,29 +763,48 @@ impl SgTape {
             head.set_buffer_mode(buffer_mode);
         }
 
-        let mut data = Vec::new();
-        unsafe {
-            data.write_be_value(head)?;
-            data.write_be_value(block_descriptor)?;
-            data.write_be_value(page)?;
+        match head {
+            ModeParameterHeader::Long(head) => {
+                let mut data = Vec::new();
+                unsafe {
+                    data.write_be_value(head)?;
+                    data.write_be_value(block_descriptor)?;
+                    data.write_be_value(page)?;
+                }
+
+                let param_list_len: u16 = data.len() as u16;
+                let cmd = scsi_cmd_mode_select10(param_list_len);
+
+                let mut buffer = alloc_page_aligned_buffer(4096)?;
+
+                buffer[..data.len()].copy_from_slice(&data[..]);
+
+                sg_raw
+                    .do_out_command(&cmd, &buffer[..data.len()])
+                    .map_err(|err| format_err!("set drive options (mode select(10)) failed - {}", err))?;
+            }
+            ModeParameterHeader::Short(head) => {
+                let mut data = Vec::new();
+                unsafe {
+                    data.write_be_value(head)?;
+                    data.write_be_value(block_descriptor)?;
+                    data.write_be_value(page)?;
+                }
+
+                if data.len() > u8::MAX as usize {
+                    bail!("set drive options (mode select(6)) failed - parameters too long")
+                }
+                let cmd = scsi_cmd_mode_select6(data.len() as u8);
+
+                let mut buffer = alloc_page_aligned_buffer(4096)?;
+
+                buffer[..data.len()].copy_from_slice(&data[..]);
+
+                sg_raw
+                    .do_out_command(&cmd, &buffer[..data.len()])
+                    .map_err(|err| format_err!("set drive options (mode select(6)) failed - {err}"))?;
+            }
         }
-
-        let mut cmd = Vec::new();
-        cmd.push(0x55); // MODE SELECT(10)
-        cmd.push(0b0001_0000); // PF=1
-        cmd.extend([0, 0, 0, 0, 0]); //reserved
-
-        let param_list_len: u16 = data.len() as u16;
-        cmd.extend(param_list_len.to_be_bytes());
-        cmd.push(0); // control
-
-        let mut buffer = alloc_page_aligned_buffer(4096)?;
-
-        buffer[..data.len()].copy_from_slice(&data[..]);
-
-        sg_raw
-            .do_out_command(&cmd, &buffer[..data.len()])
-            .map_err(|err| format_err!("set drive options failed - {}", err))?;
 
         Ok(())
     }

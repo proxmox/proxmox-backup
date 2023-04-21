@@ -224,7 +224,7 @@ pub struct InquiryInfo {
 
 #[repr(C, packed)]
 #[derive(Endian, Debug, Copy, Clone)]
-pub struct ModeParameterHeader {
+pub struct ModeParameterHeader10 {
     pub mode_data_len: u16,
     // Note: medium_type and density_code are not the same. On HP
     // drives, medium_type provides very limited information and is
@@ -235,7 +235,19 @@ pub struct ModeParameterHeader {
     pub block_descriptior_len: u16,
 }
 
-impl ModeParameterHeader {
+#[repr(C, packed)]
+#[derive(Endian, Debug, Copy, Clone)]
+pub struct ModeParameterHeader6 {
+    pub mode_data_len: u8,
+    // Note: medium_type and density_code are not the same. On HP
+    // drives, medium_type provides very limited information and is
+    // not compatible with IBM.
+    pub medium_type: u8,
+    pub flags2: u8,
+    pub block_descriptior_len: u8,
+}
+
+impl ModeParameterHeader10 {
     #[allow(clippy::unusual_byte_groupings)]
     pub fn buffer_mode(&self) -> u8 {
         (self.flags3 & 0b0_111_0000) >> 4
@@ -253,6 +265,63 @@ impl ModeParameterHeader {
     #[allow(clippy::unusual_byte_groupings)]
     pub fn write_protect(&self) -> bool {
         (self.flags3 & 0b1_000_0000) != 0
+    }
+}
+
+impl ModeParameterHeader6 {
+    #[allow(clippy::unusual_byte_groupings)]
+    pub fn buffer_mode(&self) -> u8 {
+        (self.flags2 & 0b0_111_0000) >> 4
+    }
+
+    #[allow(clippy::unusual_byte_groupings)]
+    pub fn set_buffer_mode(&mut self, buffer_mode: bool) {
+        let mut mode = self.flags2 & 0b1_000_1111;
+        if buffer_mode {
+            mode |= 0b0_001_0000;
+        }
+        self.flags2 = mode;
+    }
+
+    #[allow(clippy::unusual_byte_groupings)]
+    pub fn write_protect(&self) -> bool {
+        (self.flags2 & 0b1_000_0000) != 0
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum ModeParameterHeader {
+    Long(ModeParameterHeader10),
+    Short(ModeParameterHeader6),
+}
+
+impl ModeParameterHeader {
+    pub fn buffer_mode(&self) -> u8 {
+        match self {
+            ModeParameterHeader::Long(mode) => mode.buffer_mode(),
+            ModeParameterHeader::Short(mode) => mode.buffer_mode(),
+        }
+    }
+
+    pub fn set_buffer_mode(&mut self, buffer_mode: bool) {
+        match self {
+            ModeParameterHeader::Long(mode) => mode.set_buffer_mode(buffer_mode),
+            ModeParameterHeader::Short(mode) => mode.set_buffer_mode(buffer_mode),
+        }
+    }
+
+    pub fn write_protect(&self) -> bool {
+        match self {
+            ModeParameterHeader::Long(mode) => mode.write_protect(),
+            ModeParameterHeader::Short(mode) => mode.write_protect(),
+        }
+    }
+
+    pub fn reset_mode_data_len(&mut self) {
+        match self {
+            ModeParameterHeader::Long(mode) => mode.mode_data_len = 0,
+            ModeParameterHeader::Short(mode) => mode.mode_data_len = 0,
+        }
     }
 }
 
@@ -670,7 +739,166 @@ pub fn scsi_inquiry<F: AsRawFd>(file: &mut F) -> Result<InquiryInfo, Error> {
     .map_err(|err: Error| format_err!("decode inquiry page failed - {}", err))
 }
 
-/// Run SCSI Mode Sense
+fn decode_mode_sense10_result<P: Endian>(
+    data: &[u8],
+    disable_block_descriptor: bool,
+) -> Result<(ModeParameterHeader10, Option<ModeBlockDescriptor>, P), Error> {
+    let mut reader = data;
+
+    let head: ModeParameterHeader10 = unsafe { reader.read_be_value()? };
+    let expected_len = head.mode_data_len as usize + 2;
+
+    use std::cmp::Ordering;
+    match data.len().cmp(&expected_len) {
+        Ordering::Less => bail!(
+            "wrong mode_data_len: got {}, expected {}",
+            data.len(),
+            expected_len
+        ),
+        Ordering::Greater => {
+            // Note: Some hh7 drives returns the allocation_length
+            // instead of real data_len
+            let header_size = std::mem::size_of::<ModeParameterHeader10>();
+            reader = &data[header_size..expected_len];
+        }
+        _ => (),
+    }
+
+    if disable_block_descriptor && head.block_descriptior_len != 0 {
+        let len = head.block_descriptior_len;
+        bail!("wrong block_descriptior_len: {}, expected 0", len);
+    }
+
+    let mut block_descriptor: Option<ModeBlockDescriptor> = None;
+
+    if !disable_block_descriptor {
+        if head.block_descriptior_len != 8 {
+            let len = head.block_descriptior_len;
+            bail!("wrong block_descriptior_len: {}, expected 8", len);
+        }
+
+        block_descriptor = Some(unsafe { reader.read_be_value()? });
+    }
+
+    let page: P = unsafe { reader.read_be_value()? };
+
+    Ok((head, block_descriptor, page))
+}
+
+fn decode_mode_sense6_result<P: Endian>(
+    data: &[u8],
+    disable_block_descriptor: bool,
+) -> Result<(ModeParameterHeader6, Option<ModeBlockDescriptor>, P), Error> {
+    let mut reader = data;
+
+    let head: ModeParameterHeader6 = unsafe { reader.read_be_value()? };
+    let expected_len = head.mode_data_len as usize + 1;
+
+    use std::cmp::Ordering;
+    match data.len().cmp(&expected_len) {
+        Ordering::Less => bail!(
+            "wrong mode_data_len: got {}, expected {}",
+            data.len(),
+            expected_len
+        ),
+        Ordering::Greater => {
+            // Note: Some hh7 drives returns the allocation_length
+            // instead of real data_len
+            let header_size = std::mem::size_of::<ModeParameterHeader10>();
+            reader = &data[header_size..expected_len];
+        }
+        _ => (),
+    }
+
+    if disable_block_descriptor && head.block_descriptior_len != 0 {
+        let len = head.block_descriptior_len;
+        bail!("wrong block_descriptior_len: {}, expected 0", len);
+    }
+
+    let mut block_descriptor: Option<ModeBlockDescriptor> = None;
+
+    if !disable_block_descriptor {
+        if head.block_descriptior_len != 8 {
+            let len = head.block_descriptior_len;
+            bail!("wrong block_descriptior_len: {}, expected 8", len);
+        }
+
+        block_descriptor = Some(unsafe { reader.read_be_value()? });
+    }
+
+    let page: P = unsafe { reader.read_be_value()? };
+
+    Ok((head, block_descriptor, page))
+}
+
+pub(crate) fn scsi_cmd_mode_select10(param_list_len: u16) -> Vec<u8> {
+    let mut cmd = Vec::new();
+    cmd.push(0x55); // MODE SELECT(10)
+    cmd.push(0b0001_0000); // PF=1
+    cmd.extend([0, 0, 0, 0, 0]); //reserved
+    cmd.extend(param_list_len.to_be_bytes());
+    cmd.push(0); // control
+    cmd
+}
+
+pub(crate) fn scsi_cmd_mode_select6(param_list_len: u8) -> Vec<u8> {
+    let mut cmd = Vec::new();
+    cmd.push(0x15); // MODE SELECT(6)
+    cmd.push(0b0001_0000); // PF=1
+    cmd.extend([0, 0]); //reserved
+    cmd.push(param_list_len);
+    cmd.push(0); // control
+    cmd
+}
+
+fn scsi_cmd_mode_sense(
+    long: bool,
+    page_code: u8,
+    sub_page_code: u8,
+    disable_block_descriptor: bool,
+) -> Vec<u8> {
+    let mut cmd = Vec::new();
+    if long {
+        let allocation_len: u16 = 4096;
+
+        cmd.push(0x5A); // MODE SENSE(10)
+
+        if disable_block_descriptor {
+            cmd.push(8); // DBD=1 (Disable Block Descriptors)
+        } else {
+            cmd.push(0); // DBD=0 (Include Block Descriptors)
+        }
+        cmd.push(page_code & 63); // report current values for page_code
+        cmd.push(sub_page_code);
+
+        cmd.extend([0, 0, 0]); // reserved
+        cmd.extend(allocation_len.to_be_bytes()); // allocation len
+        cmd.push(0); // control
+    } else {
+        cmd.push(0x1A); // MODE SENSE(6)
+
+        if disable_block_descriptor {
+            cmd.push(8); // DBD=1 (Disable Block Descriptors)
+        } else {
+            cmd.push(0); // DBD=0 (Include Block Descriptors)
+        }
+        cmd.push(page_code & 63); // report current values for page_code
+        cmd.push(sub_page_code);
+
+        cmd.push(0xff); // allocation len
+        cmd.push(0); // control
+    }
+    cmd
+}
+
+/// True if the given sense info is INVALID COMMAND OPERATION CODE
+/// means that the device does not know/support the command
+/// https://www.t10.org/lists/asc-num.htm#ASC_20
+pub fn sense_err_is_invalid_command(err: &SenseInfo) -> bool {
+    err.sense_key == SENSE_KEY_ILLEGAL_REQUEST && err.asc == 0x20 && err.ascq == 0x00
+}
+
+/// Run SCSI Mode Sense - try Mode Sense(10) first, fallback to Mode Sense(6)
 ///
 /// Warning: P needs to be repr(C, packed)]
 pub fn scsi_mode_sense<F: AsRawFd, P: Endian>(
@@ -679,69 +907,74 @@ pub fn scsi_mode_sense<F: AsRawFd, P: Endian>(
     page_code: u8,
     sub_page_code: u8,
 ) -> Result<(ModeParameterHeader, Option<ModeBlockDescriptor>, P), Error> {
+    let mut sg_raw = SgRaw::new(file, 4096)?;
+
+    let cmd10 = scsi_cmd_mode_sense(true, page_code, sub_page_code, disable_block_descriptor);
+
+    match sg_raw.do_command(&cmd10) {
+        Ok(data10) => decode_mode_sense10_result(data10, disable_block_descriptor)
+            .map(|(head, block_descriptor, page)| {
+                (ModeParameterHeader::Long(head), block_descriptor, page)
+            })
+            .map_err(|err| format_err!("decode mode sense(10) failed - {}", err)),
+        Err(ScsiError::Sense(err)) if sense_err_is_invalid_command(&err) => {
+            let cmd6 =
+                scsi_cmd_mode_sense(false, page_code, sub_page_code, disable_block_descriptor);
+            match sg_raw.do_command(&cmd6) {
+                Ok(data6) => decode_mode_sense6_result(data6, disable_block_descriptor)
+                    .map(|(head, block_descriptor, page)| {
+                        (ModeParameterHeader::Short(head), block_descriptor, page)
+                    })
+                    .map_err(|err| format_err!("decode mode sense(6) failed - {}", err)),
+                Err(err) => Err(format_err!("mode sense(6) failed - {}", err)),
+            }
+        }
+        Err(err) => Err(format_err!("mode sense(10) failed - {}", err)),
+    }
+}
+
+/// Run SCSI Mode Sense(10)
+///
+/// Warning: P needs to be repr(C, packed)]
+pub fn scsi_mode_sense10<F: AsRawFd, P: Endian>(
+    file: &mut F,
+    disable_block_descriptor: bool,
+    page_code: u8,
+    sub_page_code: u8,
+) -> Result<(ModeParameterHeader10, Option<ModeBlockDescriptor>, P), Error> {
     let allocation_len: u16 = 4096;
     let mut sg_raw = SgRaw::new(file, allocation_len as usize)?;
 
-    let mut cmd = vec![0x5A]; // MODE SENSE(10)
-    if disable_block_descriptor {
-        cmd.push(8); // DBD=1 (Disable Block Descriptors)
-    } else {
-        cmd.push(0); // DBD=0 (Include Block Descriptors)
-    }
-    cmd.push(page_code & 63); // report current values for page_code
-    cmd.push(sub_page_code);
-
-    cmd.extend([0, 0, 0]); // reserved
-    cmd.extend(allocation_len.to_be_bytes()); // allocation len
-    cmd.push(0); //control
+    let cmd = scsi_cmd_mode_sense(true, page_code, sub_page_code, disable_block_descriptor);
 
     let data = sg_raw
         .do_command(&cmd)
-        .map_err(|err| format_err!("mode sense failed - {}", err))?;
+        .map_err(|err| format_err!("mode sense(10) failed - {}", err))?;
 
-    proxmox_lang::try_block!({
-        let mut reader = data;
+    decode_mode_sense10_result(data, disable_block_descriptor)
+        .map_err(|err| format_err!("decode mode sense failed - {}", err))
+}
 
-        let head: ModeParameterHeader = unsafe { reader.read_be_value()? };
-        let expected_len = head.mode_data_len as usize + 2;
+/// Run SCSI Mode Sense(6)
+///
+/// Warning: P needs to be repr(C, packed)]
+pub fn scsi_mode_sense6<F: AsRawFd, P: Endian>(
+    file: &mut F,
+    disable_block_descriptor: bool,
+    page_code: u8,
+    sub_page_code: u8,
+) -> Result<(ModeParameterHeader6, Option<ModeBlockDescriptor>, P), Error> {
+    let allocation_len: u8 = 0xff;
+    let mut sg_raw = SgRaw::new(file, allocation_len as usize)?;
 
-        use std::cmp::Ordering;
-        match data.len().cmp(&expected_len) {
-            Ordering::Less => bail!(
-                "wrong mode_data_len: got {}, expected {}",
-                data.len(),
-                expected_len
-            ),
-            Ordering::Greater => {
-                // Note: Some hh7 drives returns the allocation_length
-                // instead of real data_len
-                let header_size = std::mem::size_of::<ModeParameterHeader>();
-                reader = &data[header_size..expected_len];
-            }
-            _ => (),
-        }
+    let cmd = scsi_cmd_mode_sense(false, page_code, sub_page_code, disable_block_descriptor);
 
-        if disable_block_descriptor && head.block_descriptior_len != 0 {
-            let len = head.block_descriptior_len;
-            bail!("wrong block_descriptior_len: {}, expected 0", len);
-        }
+    let data = sg_raw
+        .do_command(&cmd)
+        .map_err(|err| format_err!("mode sense(6) failed - {}", err))?;
 
-        let mut block_descriptor: Option<ModeBlockDescriptor> = None;
-
-        if !disable_block_descriptor {
-            if head.block_descriptior_len != 8 {
-                let len = head.block_descriptior_len;
-                bail!("wrong block_descriptior_len: {}, expected 8", len);
-            }
-
-            block_descriptor = Some(unsafe { reader.read_be_value()? });
-        }
-
-        let page: P = unsafe { reader.read_be_value()? };
-
-        Ok((head, block_descriptor, page))
-    })
-    .map_err(|err: Error| format_err!("decode mode sense failed - {}", err))
+    decode_mode_sense6_result(data, disable_block_descriptor)
+        .map_err(|err| format_err!("decode mode sense(6) failed - {}", err))
 }
 
 /// Resuqest Sense
