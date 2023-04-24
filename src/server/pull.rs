@@ -540,9 +540,23 @@ async fn pull_snapshot_from(
     Ok(())
 }
 
+#[derive(PartialEq, Eq)]
 enum SkipReason {
     AlreadySynced,
     TransferLast,
+}
+
+impl std::fmt::Display for SkipReason {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                SkipReason::AlreadySynced => "older than the newest local snapshot",
+                SkipReason::TransferLast => "due to transfer-last",
+            }
+        )
+    }
 }
 
 struct SkipInfo {
@@ -595,17 +609,12 @@ impl SkipInfo {
 
 impl std::fmt::Display for SkipInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let reason_string = match self.skip_reason {
-            SkipReason::AlreadySynced => "older than the newest local snapshot",
-            SkipReason::TransferLast => "due to transfer-last",
-        };
-
         write!(
             f,
             "skipped: {} snapshot(s) ({}) - {}",
             self.count,
             self.affected().map_err(|_| std::fmt::Error)?,
-            reason_string
+            self.skip_reason,
         )
     }
 }
