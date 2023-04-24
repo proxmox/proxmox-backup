@@ -192,7 +192,7 @@ pub struct RequestSenseFixed {
     pub command_specific_information: [u8; 4],
     pub additional_sense_code: u8,
     pub additional_sense_code_qualifier: u8,
-    pub field_replacable_unit_code: u8,
+    pub field_replaceable_unit_code: u8,
     pub sense_key_specific: [u8; 3],
 }
 
@@ -232,7 +232,7 @@ pub struct ModeParameterHeader10 {
     pub medium_type: u8,
     pub flags3: u8,
     reserved4: [u8; 2],
-    pub block_descriptior_len: u16,
+    pub block_descriptor_len: u16,
 }
 
 #[repr(C, packed)]
@@ -243,8 +243,8 @@ pub struct ModeParameterHeader6 {
     // drives, medium_type provides very limited information and is
     // not compatible with IBM.
     pub medium_type: u8,
-    pub flags2: u8,
-    pub block_descriptior_len: u8,
+    pub flags3: u8,
+    pub block_descriptor_len: u8,
 }
 
 impl ModeParameterHeader10 {
@@ -271,21 +271,21 @@ impl ModeParameterHeader10 {
 impl ModeParameterHeader6 {
     #[allow(clippy::unusual_byte_groupings)]
     pub fn buffer_mode(&self) -> u8 {
-        (self.flags2 & 0b0_111_0000) >> 4
+        (self.flags3 & 0b0_111_0000) >> 4
     }
 
     #[allow(clippy::unusual_byte_groupings)]
     pub fn set_buffer_mode(&mut self, buffer_mode: bool) {
-        let mut mode = self.flags2 & 0b1_000_1111;
+        let mut mode = self.flags3 & 0b1_000_1111;
         if buffer_mode {
             mode |= 0b0_001_0000;
         }
-        self.flags2 = mode;
+        self.flags3 = mode;
     }
 
     #[allow(clippy::unusual_byte_groupings)]
     pub fn write_protect(&self) -> bool {
-        (self.flags2 & 0b1_000_0000) != 0
+        (self.flags3 & 0b1_000_0000) != 0
     }
 }
 
@@ -764,17 +764,17 @@ fn decode_mode_sense10_result<P: Endian>(
         _ => (),
     }
 
-    if disable_block_descriptor && head.block_descriptior_len != 0 {
-        let len = head.block_descriptior_len;
-        bail!("wrong block_descriptior_len: {}, expected 0", len);
+    if disable_block_descriptor && head.block_descriptor_len != 0 {
+        let len = head.block_descriptor_len;
+        bail!("wrong block_descriptor_len: {}, expected 0", len);
     }
 
     let mut block_descriptor: Option<ModeBlockDescriptor> = None;
 
     if !disable_block_descriptor {
-        if head.block_descriptior_len != 8 {
-            let len = head.block_descriptior_len;
-            bail!("wrong block_descriptior_len: {}, expected 8", len);
+        if head.block_descriptor_len != 8 {
+            let len = head.block_descriptor_len;
+            bail!("wrong block_descriptor_len: {}, expected 8", len);
         }
 
         block_descriptor = Some(unsafe { reader.read_be_value()? });
@@ -810,17 +810,17 @@ fn decode_mode_sense6_result<P: Endian>(
         _ => (),
     }
 
-    if disable_block_descriptor && head.block_descriptior_len != 0 {
-        let len = head.block_descriptior_len;
-        bail!("wrong block_descriptior_len: {}, expected 0", len);
+    if disable_block_descriptor && head.block_descriptor_len != 0 {
+        let len = head.block_descriptor_len;
+        bail!("wrong block_descriptor_len: {}, expected 0", len);
     }
 
     let mut block_descriptor: Option<ModeBlockDescriptor> = None;
 
     if !disable_block_descriptor {
-        if head.block_descriptior_len != 8 {
-            let len = head.block_descriptior_len;
-            bail!("wrong block_descriptior_len: {}, expected 8", len);
+        if head.block_descriptor_len != 8 {
+            let len = head.block_descriptor_len;
+            bail!("wrong block_descriptor_len: {}, expected 8", len);
         }
 
         block_descriptor = Some(unsafe { reader.read_be_value()? });
@@ -977,7 +977,7 @@ pub fn scsi_mode_sense6<F: AsRawFd, P: Endian>(
         .map_err(|err| format_err!("decode mode sense(6) failed - {}", err))
 }
 
-/// Resuqest Sense
+/// Request Sense
 pub fn scsi_request_sense<F: AsRawFd>(file: &mut F) -> Result<RequestSenseFixed, ScsiError> {
     // request 252 bytes, as mentioned in the Seagate SCSI reference
     let allocation_len: u8 = 252;
