@@ -189,7 +189,8 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 		    let snapshot = snapshotOrDatastore;
 		    let match = snapshot.split(':');
 		    datastore = match[0];
-		} datastores[datastore] = true;
+		}
+		datastores[datastore] = true;
 	    });
 
 	    me.setDataStores(Object.keys(datastores));
