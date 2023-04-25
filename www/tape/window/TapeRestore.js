@@ -375,9 +375,15 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 		    onGetValues: function(values) {
 			let me = this;
 			let controller = me.up('window').getController();
+			let vm = controller.getViewModel();
 			let datastores = [];
 			if (values.store.toString() !== "") {
-			    datastores.push(values.store);
+			    if (vm.get('singleDatastore')) {
+				let source = controller.lookup('snapshotGrid').getValue();
+				datastores.push(`${source}=${values.store}`);
+			    } else {
+				datastores.push(values.store);
+			    }
 			    delete values.store;
 			}
 
