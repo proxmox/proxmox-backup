@@ -106,6 +106,10 @@ Ext.define('PBS.Dashboard', {
 		    type = 'verify';
 		}
 
+		if (type.startsWith('prune')) {
+		    type = 'prune';
+		}
+
 		if (data[type] && task.status) {
 		    let parsed = Proxmox.Utils.parse_task_status(task.status);
 		    data[type][parsed]++;
