@@ -17,6 +17,8 @@ Ext.define('PBS.TaskSummary', {
 	"garbage_collection",
 	"sync",
 	"verify",
+	"tape-backup",
+	"tape-restore",
     ],
 
     typeFilterMap: {
@@ -29,6 +31,8 @@ Ext.define('PBS.TaskSummary', {
 	"garbage_collection": gettext('Garbage collections'),
 	"sync": gettext('Syncs'),
 	"verify": gettext('Verify'),
+	"tape-backup": gettext('Tape Backup'),
+	"tape-restore": gettext('Tape Restore'),
     },
 
     // set true to show the onclick panel as modal grid

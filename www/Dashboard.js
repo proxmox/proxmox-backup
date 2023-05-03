@@ -93,6 +93,8 @@ Ext.define('PBS.Dashboard', {
 		garbage_collection: { error: 0, warning: 0, ok: 0 },
 		sync: { error: 0, warning: 0, ok: 0 },
 		verify: { error: 0, warning: 0, ok: 0 },
+		'tape-backup': { error: 0, warning: 0, ok: 0 },
+		'tape-restore': { error: 0, warning: 0, ok: 0 },
 	    };
 
 	    records.forEach(record => {
@@ -108,6 +110,10 @@ Ext.define('PBS.Dashboard', {
 
 		if (type.startsWith('prune')) {
 		    type = 'prune';
+		}
+
+		if (type.startsWith('tape-backup')) {
+		    type = 'tape-backup';
 		}
 
 		if (data[type] && task.status) {
@@ -258,13 +264,13 @@ Ext.define('PBS.Dashboard', {
 		Ext.String.format(gettext('{0} days'), '{days}') + ')',
 	    },
 	    xtype: 'pbsTaskSummary',
-	    height: 200,
+	    height: 250,
 	    reference: 'tasksummary',
 	},
 	{
 	    iconCls: 'fa fa-ticket',
 	    title: 'Subscription',
-	    height: 200,
+	    height: 250,
 	    reference: 'subscription',
 	    xtype: 'pbsSubscriptionInfo',
 	},
