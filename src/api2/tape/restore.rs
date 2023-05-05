@@ -495,12 +495,11 @@ fn restore_full_worker(
         .join(", ");
     task_log!(worker, "Datastore(s): {datastore_list}",);
     task_log!(worker, "Drive: {drive_name}");
-    let required_media = media_id_list
-        .iter()
-        .map(|media_id| media_id.label.label_text.as_str())
-        .collect::<Vec<&str>>()
-        .join(";");
-    task_log!(worker, "Required media list: {required_media}",);
+    log_required_tapes(
+        &worker,
+        &inventory,
+        media_id_list.iter().map(|id| &id.label.uuid),
+    );
 
     let mut datastore_locks = Vec::new();
     for (target, _) in used_datastores.values() {
@@ -605,6 +604,25 @@ fn check_snapshot_restorable(
     }
 
     Ok(can_restore_some)
+}
+
+fn log_required_tapes<'a>(
+    worker: &WorkerTask,
+    inventory: &Inventory,
+    list: impl Iterator<Item = &'a Uuid>,
+) {
+    let mut tape_list = list
+        .map(|uuid| {
+            inventory
+                .lookup_media(uuid)
+                .unwrap()
+                .label
+                .label_text
+                .as_str()
+        })
+        .collect::<Vec<&str>>();
+    tape_list.sort_unstable();
+    task_log!(worker, "Required media list: {}", tape_list.join(";"));
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -751,6 +769,7 @@ fn restore_list_worker(
         }
 
         task_log!(worker, "Phase 1: temporarily restore snapshots to temp dir");
+        log_required_tapes(&worker, &inventory, snapshot_file_hash.keys());
         let mut datastore_chunk_map: HashMap<String, HashSet<[u8; 32]>> = HashMap::new();
         let mut tmp_paths = Vec::new();
         for (media_uuid, file_list) in snapshot_file_hash.iter_mut() {
@@ -804,6 +823,7 @@ fn restore_list_worker(
 
         if !media_file_chunk_map.is_empty() {
             task_log!(worker, "Phase 2: restore chunks to datastores");
+            log_required_tapes(&worker, &inventory, media_file_chunk_map.keys());
         } else {
             task_log!(worker, "All chunks are already present, skip phase 2...");
         }
