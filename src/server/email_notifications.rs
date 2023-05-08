@@ -540,27 +540,34 @@ pub fn send_tape_backup_status(
 
 /// Send email to a person to request a manual media change
 pub fn send_load_media_email(
-    drive: &str,
+    changer: bool,
+    device: &str,
     label_text: &str,
     to: &str,
     reason: Option<String>,
 ) -> Result<(), Error> {
     use std::fmt::Write as _;
 
-    let subject = format!("Load Media '{label_text}' request for drive '{drive}'");
+    let device_type = if changer { "changer" } else { "drive" };
+
+    let subject = format!("Load Media '{label_text}' request for {device_type} '{device}'");
 
     let mut text = String::new();
 
     if let Some(reason) = reason {
         let _ = write!(
             text,
-            "The drive has the wrong or no tape inserted. Error:\n{reason}\n\n"
+            "The {device_type} has the wrong or no tape(s) inserted. Error:\n{reason}\n\n"
         );
     }
 
-    text.push_str("Please insert the requested media into the backup drive.\n\n");
-
-    let _ = writeln!(text, "Drive: {drive}");
+    if changer {
+        text.push_str("Please insert the requested media into the changer.\n\n");
+        let _ = writeln!(text, "Changer: {device}");
+    } else {
+        text.push_str("Please insert the requested media into the backup drive.\n\n");
+        let _ = writeln!(text, "Drive: {device}");
+    }
     let _ = writeln!(text, "Media: {label_text}");
 
     send_job_status_mail(to, &subject, &text)

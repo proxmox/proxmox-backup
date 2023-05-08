@@ -298,6 +298,7 @@ enum TapeRequestError {
     OpenFailed(String),
     WrongLabel(String),
     ReadFailed(String),
+    LoadingFailed(String),
 }
 
 impl std::fmt::Display for TapeRequestError {
@@ -320,6 +321,9 @@ impl std::fmt::Display for TapeRequestError {
             }
             TapeRequestError::ReadFailed(reason) => {
                 write!(f, "tape read failed - {}", reason)
+            }
+            TapeRequestError::LoadingFailed(reason) => {
+                write!(f, "could not load tape into drive - {}", reason)
             }
         }
     }
@@ -374,40 +378,31 @@ pub fn request_and_load_media(
 
                     let label_text = label.label_text.clone();
 
-                    if drive_config.changer.is_some() {
-                        task_log!(
-                            worker,
-                            "loading media '{}' into drive '{}'",
-                            label_text,
-                            drive
-                        );
-
-                        let mut changer = MtxMediaChanger::with_drive_config(&drive_config)?;
-                        changer.load_media(&label_text)?;
-
-                        let mut handle: Box<dyn TapeDriver> =
-                            Box::new(open_lto_tape_drive(&drive_config)?);
-
-                        let media_id = check_label(handle.as_mut(), &label.uuid)?;
-
-                        return Ok((handle, media_id));
-                    }
-
                     let mut last_error = TapeRequestError::None;
+
+                    let changer = &drive_config.changer;
 
                     let update_and_log_request_error =
                         |old: &mut TapeRequestError, new: TapeRequestError| -> Result<(), Error> {
                             if new != *old {
                                 task_log!(worker, "{}", new);
+                                let (device_type, device) = if let Some(changer) = changer {
+                                    ("changer", changer.as_str())
+                                } else {
+                                    ("drive", drive)
+                                };
+
                                 task_log!(
                                     worker,
-                                    "Please insert media '{}' into drive '{}'",
+                                    "Please insert media '{}' into {} '{}'",
                                     label_text,
-                                    drive
+                                    device_type,
+                                    device
                                 );
                                 if let Some(to) = notify_email {
                                     send_load_media_email(
-                                        drive,
+                                        changer.is_some(),
+                                        device,
                                         &label_text,
                                         to,
                                         Some(new.to_string()),
@@ -427,13 +422,31 @@ pub fn request_and_load_media(
                                 worker.check_abort()?;
                                 std::thread::sleep(std::time::Duration::from_millis(100));
                             }
-                        } else {
+                        } else if drive_config.changer.is_none() {
                             task_log!(
                                 worker,
                                 "Checking for media '{}' in drive '{}'",
                                 label_text,
                                 drive
                             );
+                        } else {
+                            task_log!(
+                                worker,
+                                "trying to load media '{}' into drive '{}'",
+                                label_text,
+                                drive
+                            );
+                        }
+
+                        if drive_config.changer.is_some() {
+                            let mut changer = MtxMediaChanger::with_drive_config(&drive_config)?;
+                            if let Err(err) = changer.load_media(&label_text) {
+                                update_and_log_request_error(
+                                    &mut last_error,
+                                    TapeRequestError::LoadingFailed(err.to_string()),
+                                )?;
+                                continue;
+                            }
                         }
 
                         let mut handle = match open_lto_tape_drive(&drive_config) {
