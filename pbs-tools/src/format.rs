@@ -3,7 +3,7 @@ use std::borrow::Borrow;
 use anyhow::Error;
 use serde_json::Value;
 
-use pbs_api_types::HumanByte;
+use proxmox_human_byte::HumanByte;
 
 pub fn strip_server_file_extension(name: &str) -> &str {
     if name.ends_with(".didx") || name.ends_with(".fidx") || name.ends_with(".blob") {

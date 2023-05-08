@@ -31,7 +31,8 @@ walkdir.workspace = true
 zstd.workspace = true
 
 proxmox-async.workspace = true
-proxmox-io= { workspace = true, features = [ "tokio" ] }
+proxmox-io = { workspace = true, features = [ "tokio" ] }
+proxmox-human-byte.workspace = true
 proxmox-lang.workspace=true
 proxmox-sys.workspace = true
 proxmox-time.workspace = true

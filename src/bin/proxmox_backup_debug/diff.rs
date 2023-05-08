@@ -9,10 +9,11 @@ use anyhow::{bail, Context as AnyhowContext, Error};
 use futures::future::BoxFuture;
 use futures::FutureExt;
 
+use proxmox_human_byte::HumanByte;
 use proxmox_router::cli::{CliCommand, CliCommandMap, CommandLineInterface};
 use proxmox_schema::api;
 
-use pbs_api_types::{BackupNamespace, BackupPart, HumanByte};
+use pbs_api_types::{BackupNamespace, BackupPart};
 use pbs_client::tools::key_source::{
     crypto_parameters, format_key_source, get_encryption_key_password, KEYFD_SCHEMA,
 };

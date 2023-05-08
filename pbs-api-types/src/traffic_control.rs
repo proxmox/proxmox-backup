@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
 
+use proxmox_human_byte::HumanByte;
 use proxmox_schema::{api, IntegerSchema, Schema, StringSchema, Updater};
 
 use crate::{
-    HumanByte, CIDR_SCHEMA, DAILY_DURATION_FORMAT, PROXMOX_SAFE_ID_FORMAT,
-    SINGLE_LINE_COMMENT_SCHEMA,
+    CIDR_SCHEMA, DAILY_DURATION_FORMAT, PROXMOX_SAFE_ID_FORMAT, SINGLE_LINE_COMMENT_SCHEMA,
 };
 
 pub const TRAFFIC_CONTROL_TIMEFRAME_SCHEMA: Schema =

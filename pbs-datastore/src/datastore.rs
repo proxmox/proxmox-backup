@@ -8,6 +8,7 @@ use anyhow::{bail, format_err, Error};
 use lazy_static::lazy_static;
 use nix::unistd::{unlinkat, UnlinkatFlags};
 
+use proxmox_human_byte::HumanByte;
 use proxmox_schema::ApiType;
 
 use proxmox_sys::error::SysError;
@@ -19,7 +20,7 @@ use proxmox_sys::{task_log, task_warn};
 
 use pbs_api_types::{
     Authid, BackupNamespace, BackupType, ChunkOrder, DataStoreConfig, DatastoreFSyncLevel,
-    DatastoreTuning, GarbageCollectionStatus, HumanByte, Operation, UPID,
+    DatastoreTuning, GarbageCollectionStatus, Operation, UPID,
 };
 
 use crate::backup_info::{BackupDir, BackupGroup};

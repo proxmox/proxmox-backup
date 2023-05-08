@@ -28,6 +28,7 @@ pxar.workspace = true
 
 proxmox-borrow.workspace = true
 proxmox-io.workspace = true
+proxmox-human-byte.workspace = true
 proxmox-lang.workspace=true
 proxmox-schema = { workspace = true, features = [ "api-macro" ] }
 proxmox-serde = { workspace = true, features = [ "serde_json" ] }

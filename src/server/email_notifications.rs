@@ -5,12 +5,13 @@ use handlebars::{
     Context, Handlebars, Helper, HelperResult, Output, RenderContext, RenderError, TemplateError,
 };
 
+use proxmox_human_byte::HumanByte;
 use proxmox_lang::try_block;
 use proxmox_schema::ApiType;
 use proxmox_sys::email::sendmail;
 
 use pbs_api_types::{
-    APTUpdateInfo, DataStoreConfig, DatastoreNotify, GarbageCollectionStatus, HumanByte, Notify,
+    APTUpdateInfo, DataStoreConfig, DatastoreNotify, GarbageCollectionStatus, Notify,
     SyncJobConfig, TapeBackupJobSetup, User, Userid, VerificationJobConfig,
 };
 

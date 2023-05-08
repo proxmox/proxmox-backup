@@ -72,9 +72,6 @@ pub use acl::*;
 mod datastore;
 pub use datastore::*;
 
-mod human_byte;
-pub use human_byte::HumanByte;
-
 mod jobs;
 pub use jobs::*;
 

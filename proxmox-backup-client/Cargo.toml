@@ -25,6 +25,7 @@ pxar.workspace = true
 
 proxmox-async.workspace = true
 proxmox-fuse.workspace = true
+proxmox-human-byte.workspace = true
 proxmox-io.workspace = true
 proxmox-router = { workspace = true, features = [ "cli" ] }
 proxmox-schema = { workspace = true, features = [ "api-macro" ] }

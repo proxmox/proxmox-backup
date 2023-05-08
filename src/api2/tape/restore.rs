@@ -7,6 +7,7 @@ use std::sync::Arc;
 use anyhow::{bail, format_err, Error};
 use serde_json::Value;
 
+use proxmox_human_byte::HumanByte;
 use proxmox_io::ReadExt;
 use proxmox_router::{Permission, Router, RpcEnvironment, RpcEnvironmentType};
 use proxmox_schema::{api, ApiType};
@@ -17,10 +18,9 @@ use proxmox_uuid::Uuid;
 
 use pbs_api_types::{
     parse_ns_and_snapshot, print_ns_and_snapshot, Authid, BackupDir, BackupNamespace, CryptMode,
-    HumanByte, Operation, TapeRestoreNamespace, Userid, DATASTORE_MAP_ARRAY_SCHEMA,
-    DATASTORE_MAP_LIST_SCHEMA, DRIVE_NAME_SCHEMA, MAX_NAMESPACE_DEPTH, PRIV_DATASTORE_BACKUP,
-    PRIV_DATASTORE_MODIFY, PRIV_TAPE_READ, TAPE_RESTORE_NAMESPACE_SCHEMA,
-    TAPE_RESTORE_SNAPSHOT_SCHEMA, UPID_SCHEMA,
+    Operation, TapeRestoreNamespace, Userid, DATASTORE_MAP_ARRAY_SCHEMA, DATASTORE_MAP_LIST_SCHEMA,
+    DRIVE_NAME_SCHEMA, MAX_NAMESPACE_DEPTH, PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY,
+    PRIV_TAPE_READ, TAPE_RESTORE_NAMESPACE_SCHEMA, TAPE_RESTORE_SNAPSHOT_SCHEMA, UPID_SCHEMA,
 };
 use pbs_config::CachedUserInfo;
 use pbs_datastore::dynamic_index::DynamicIndexReader;
