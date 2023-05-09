@@ -51,7 +51,7 @@ lazy_static! {
     pub static ref IPV4_MASK_HASH_LOCALNET: HashMap<&'static str, u8> = {
         let mut map = HashMap::new();
         #[allow(clippy::needless_range_loop)]
-        for i in 8..32 {
+        for i in 0..IPV4_REVERSE_MASK.len() {
             map.insert(IPV4_REVERSE_MASK[i], i as u8);
         }
         map
