@@ -1,3 +1,49 @@
+rust-proxmox-backup (2.4.2-1) bullseye; urgency=medium
+
+  * docs: dark mode: adapt background for bottom links in mobile view
+
+  * docs: make dark mode variables more consistent
+
+  * docs: make logo path and index link absolute
+
+  * chunk store: handle insertion edge cases on clash for more cases
+
+  * tape: use correct read medium auxiliary memory (MAM) attribute definitions
+    and implement 6 byte fallback for MODE SENSE/SELECT commands to improve
+    compatibility with some tape drives & libraries, e.g., the StarWinds VTL.
+
+  * ui: tape: prevent mislabeling tapes in changers
+
+  * partial fix #3701: sync job: add transfer-last parameter and add to UI
+
+  * sync job: improve log output
+
+  * docs: fix the description for the location of the WebAuthn UI panel
+
+  * tape restore: show required tape list on single snapshot restore
+
+  * fix #4719: wait for tape to be available in changer
+
+  * bump proxmox-tfa dependency to 4
+
+  * ui: fix reloading subscription info after key upload
+
+  * fix #4722: allow all network mask values for reverse lookup
+
+  * ui: dashboard: fix missing prune jobs on task summary
+
+  * ui: dashboard: show tape backups/restores on task summary
+
+  * fix #4357: datastore: take into account namespaces when marking chunks to
+    avoid potentially confusing warning message.
+
+  * api-viewer: fix dark theme path
+
+  * ui: main view: rename "Theme" selector to "Color Theme" to stay
+    consistent with Proxmox VE
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 17 May 2023 17:37:23 +0200
+
 rust-proxmox-backup (2.4.1-1) bullseye; urgency=medium
 
   * fix #4521: api/tasks: replace upid as filename for task log downloads
