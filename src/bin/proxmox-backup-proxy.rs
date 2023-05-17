@@ -1149,7 +1149,7 @@ fn rrd_update_host_stats_sync(host: &HostStats, hostdisk: &DiskStat, datastores:
     }
 
     if let Some(loadavg) = &host.load {
-        rrd_update_gauge("host/loadavg", loadavg.0 as f64);
+        rrd_update_gauge("host/loadavg", loadavg.0);
     }
 
     rrd_update_disk_stat(hostdisk, "host");

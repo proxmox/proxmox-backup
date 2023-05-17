@@ -322,7 +322,7 @@ fn get_plugin(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error
 )]
 /// Show acme account information.
 fn add_plugin(r#type: String, core: DnsPluginCore, data: String) -> Result<(), Error> {
-    let data = base64::encode(&file_get_contents(&data)?);
+    let data = base64::encode(file_get_contents(data)?);
     api2::config::acme::add_plugin(r#type, core, data)?;
     Ok(())
 }

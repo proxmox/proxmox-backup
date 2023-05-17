@@ -30,7 +30,7 @@ pub fn render_epoch(value: &Value, _record: &Value) -> Result<String, Error> {
     }
     let text = match value.as_i64() {
         Some(epoch) => {
-            if let Ok(epoch_string) = proxmox_time::strftime_local("%c", epoch as i64) {
+            if let Ok(epoch_string) = proxmox_time::strftime_local("%c", epoch) {
                 epoch_string
             } else {
                 epoch.to_string()

@@ -812,8 +812,8 @@ fn get_partitions_info(
 ) -> Vec<PartitionInfo> {
     let lsblk_infos = get_lsblk_info().ok();
     partitions
-        .iter()
-        .map(|(_nr, disk)| {
+        .values()
+        .map(|disk| {
             let devpath = disk
                 .device_path()
                 .map(|p| p.to_owned())
