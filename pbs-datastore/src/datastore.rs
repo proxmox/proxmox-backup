@@ -2,7 +2,6 @@ use std::collections::{HashMap, HashSet};
 use std::io::{self, Write};
 use std::os::unix::io::AsRawFd;
 use std::path::{Path, PathBuf};
-use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
 use anyhow::{bail, format_err, Error};
