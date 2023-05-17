@@ -144,7 +144,7 @@ Ext.define('PBS.Subscription', {
 			Ext.create('PBS.SubscriptionKeyEdit', {
 			    url: '/api2/extjs/' + baseurl,
 			    autoShow: true,
-			    listener: {
+			    listeners: {
 				destroy: () => reload(),
 			    },
 			});
