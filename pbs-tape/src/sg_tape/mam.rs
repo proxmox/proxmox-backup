@@ -203,15 +203,13 @@ fn decode_mam_attributes(data: &[u8]) -> Result<Vec<MamAttribute>, Error> {
     let mut reader = data;
 
     let data_len: u32 = unsafe { reader.read_be_value()? };
-
     let expected_len = data_len as usize;
 
     use std::cmp::Ordering;
     match reader.len().cmp(&expected_len) {
         Ordering::Less => bail!(
-            "read_mam_attributes: got unexpected data len ({} != {})",
-            reader.len(),
-            expected_len
+            "read_mam_attributes: got unexpected data len ({} != {expected_len})",
+            reader.len()
         ),
         Ordering::Greater => {
             // Note: Quantum hh7 returns the allocation_length instead of real data_len
@@ -237,43 +235,40 @@ fn decode_mam_attributes(data: &[u8]) -> Result<Vec<MamAttribute>, Error> {
             Vec::new()
         };
 
-        if let Some(info) = MAM_ATTRIBUTE_NAMES.get(&head_id) {
-            if info.1 == 0 || info.1 == head.len {
-                let value = match info.2 {
-                    MamFormat::ASCII => String::from_utf8_lossy(&data).to_string(),
-                    MamFormat::DEC => {
-                        if info.1 == 2 {
-                            format!("{}", u16::from_be_bytes(data[0..2].try_into()?))
-                        } else if info.1 == 4 {
-                            format!("{}", u32::from_be_bytes(data[0..4].try_into()?))
-                        } else if info.1 == 8 {
-                            if head_id == 2 {
-                                // Tape Alert Flags
-                                let value = u64::from_be_bytes(data[0..8].try_into()?);
-                                let flags = TapeAlertFlags::from_bits_truncate(value);
-                                format!("{:?}", flags)
-                            } else {
-                                format!("{}", u64::from_be_bytes(data[0..8].try_into()?))
-                            }
+        let info = match MAM_ATTRIBUTE_NAMES.get(&head_id) {
+            None => continue, // skip unknown IDs
+            Some(info) => info,
+        };
+        if info.1 == 0 || info.1 == head.len {
+            let value = match info.2 {
+                MamFormat::ASCII => String::from_utf8_lossy(&data).to_string(),
+                MamFormat::DEC => {
+                    if info.1 == 2 {
+                        format!("{}", u16::from_be_bytes(data[0..2].try_into()?))
+                    } else if info.1 == 4 {
+                        format!("{}", u32::from_be_bytes(data[0..4].try_into()?))
+                    } else if info.1 == 8 {
+                        if head_id == 2 {
+                            // Tape Alert Flags
+                            let value = u64::from_be_bytes(data[0..8].try_into()?);
+                            let flags = TapeAlertFlags::from_bits_truncate(value);
+                            format!("{:?}", flags)
                         } else {
-                            unreachable!();
+                            format!("{}", u64::from_be_bytes(data[0..8].try_into()?))
                         }
+                    } else {
+                        unreachable!();
                     }
-                    MamFormat::BINARY => hex::encode(&data),
-                };
-                list.push(MamAttribute {
-                    id: head_id,
-                    name: info.3.to_string(),
-                    value,
-                });
-            } else {
-                eprintln!(
-                    "read_mam_attributes: got starnge data len for id {:04X}",
-                    head_id
-                );
-            }
+                }
+                MamFormat::BINARY => hex::encode(&data),
+            };
+            list.push(MamAttribute {
+                id: head_id,
+                name: info.3.to_string(),
+                value,
+            });
         } else {
-            // skip unknown IDs
+            eprintln!("read_mam_attributes: got strange data len for id {head_id:04X}");
         }
     }
     Ok(list)
