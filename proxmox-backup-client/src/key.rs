@@ -161,8 +161,8 @@ async fn import_with_master_key(
         }
     };
 
-    let encrypted_key = file_get_contents(&encrypted_keyfile)?;
-    let master_key = file_get_contents(&master_keyfile)?;
+    let encrypted_key = file_get_contents(encrypted_keyfile)?;
+    let master_key = file_get_contents(master_keyfile)?;
     let password = tty::read_password("Master Key Password: ")?;
 
     let master_key = openssl::pkey::PKey::private_key_from_pem_passphrase(&master_key, &password)
@@ -479,7 +479,7 @@ fn paper_key(
             .ok_or_else(|| format_err!("no encryption file provided and no default file found"))?,
     };
 
-    let data = file_get_contents(&path)?;
+    let data = file_get_contents(path)?;
     let data = String::from_utf8(data)?;
 
     generate_paper_key(std::io::stdout(), &data, subject, output_format)
