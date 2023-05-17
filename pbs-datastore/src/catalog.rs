@@ -644,7 +644,7 @@ impl<R: Read + Seek> CatalogReader<R> {
                 }
                 CatalogEntryType::File => {
                     let mut mtime_string = mtime.to_string();
-                    if let Ok(s) = proxmox_time::strftime_local("%FT%TZ", mtime as i64) {
+                    if let Ok(s) = proxmox_time::strftime_local("%FT%TZ", mtime) {
                         mtime_string = s;
                     }
 

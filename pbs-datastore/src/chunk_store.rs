@@ -183,7 +183,7 @@ impl ChunkStore {
 
         let lockfile_path = Self::lockfile_path(&base);
 
-        let locker = ProcessLocker::new(&lockfile_path)?;
+        let locker = ProcessLocker::new(lockfile_path)?;
 
         Ok(ChunkStore {
             name: name.to_owned(),

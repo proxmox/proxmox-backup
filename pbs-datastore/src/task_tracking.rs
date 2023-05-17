@@ -47,7 +47,7 @@ fn open_lock_file(name: &str) -> Result<(std::fs::File, CreateOptions), Error> {
     let timeout = std::time::Duration::new(10, 0);
 
     Ok((
-        open_file_locked(&lock_path, timeout, true, options.clone())?,
+        open_file_locked(lock_path, timeout, true, options.clone())?,
         options,
     ))
 }
@@ -64,7 +64,7 @@ fn get_active_operations_do(
         None
     };
 
-    let data = match file_read_optional_string(&path)? {
+    let data = match file_read_optional_string(path)? {
         Some(data) => serde_json::from_str::<Vec<TaskOperations>>(&data)?
             .iter()
             .filter_map(

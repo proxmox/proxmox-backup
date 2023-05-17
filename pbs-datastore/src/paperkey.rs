@@ -130,7 +130,7 @@ fn paperkey_html<W: Write>(
             writeln!(output, "</p>")?;
 
             let qr_code = generate_qr_code("svg", block)?;
-            let qr_code = base64::encode_config(&qr_code, base64::STANDARD_NO_PAD);
+            let qr_code = base64::encode_config(qr_code, base64::STANDARD_NO_PAD);
 
             writeln!(output, "<center>")?;
             writeln!(output, "<img")?;
@@ -164,7 +164,7 @@ fn paperkey_html<W: Write>(
     writeln!(output, "</p>")?;
 
     let qr_code = generate_qr_code("svg", lines)?;
-    let qr_code = base64::encode_config(&qr_code, base64::STANDARD_NO_PAD);
+    let qr_code = base64::encode_config(qr_code, base64::STANDARD_NO_PAD);
 
     writeln!(output, "<center>")?;
     writeln!(output, "<img")?;

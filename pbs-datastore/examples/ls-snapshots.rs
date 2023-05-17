@@ -18,7 +18,7 @@ fn run() -> Result<(), Error> {
         None => None,
     };
 
-    let store = unsafe { DataStore::open_path("", &base, None)? };
+    let store = unsafe { DataStore::open_path("", base, None)? };
 
     for ns in store.recursive_iter_backup_ns_ok(Default::default(), max_depth)? {
         println!("found namespace store:/{}", ns);

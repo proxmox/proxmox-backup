@@ -247,7 +247,7 @@ impl IndexFile for DynamicIndexReader {
     }
 
     fn index_size(&self) -> usize {
-        self.size as usize
+        self.size
     }
 
     fn chunk_from_offset(&self, offset: u64) -> Option<(usize, u64)> {

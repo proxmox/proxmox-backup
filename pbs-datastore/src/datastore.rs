@@ -855,7 +855,7 @@ impl DataStore {
 
         use walkdir::WalkDir;
 
-        let walker = WalkDir::new(&base).into_iter();
+        let walker = WalkDir::new(base).into_iter();
 
         // make sure we skip .chunks (and other hidden files to keep it simple)
         fn is_hidden(entry: &walkdir::DirEntry) -> bool {

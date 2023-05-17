@@ -27,8 +27,8 @@ impl ChunkStat {
 impl std::fmt::Debug for ChunkStat {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let avg = ((self.size as f64) / (self.chunk_count as f64)) as usize;
-        let compression = (self.compressed_size * 100) / (self.size as u64);
-        let rate = (self.disk_size * 100) / (self.size as u64);
+        let compression = (self.compressed_size * 100) / self.size;
+        let rate = (self.disk_size * 100) / self.size;
 
         let elapsed = self.start_time.elapsed().unwrap();
         let elapsed = (elapsed.as_secs() as f64) + (elapsed.subsec_millis() as f64) / 1000.0;
