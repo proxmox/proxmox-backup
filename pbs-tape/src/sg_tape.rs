@@ -30,9 +30,9 @@ use pbs_api_types::{Lp17VolumeStatistics, LtoDriveAndMediaStatus, MamAttribute};
 
 use crate::{
     sgutils2::{
-        alloc_page_aligned_buffer, scsi_inquiry, scsi_mode_sense, scsi_request_sense,
-        scsi_cmd_mode_select6, scsi_cmd_mode_select10,
-        InquiryInfo, ModeBlockDescriptor, ModeParameterHeader, ScsiError, SenseInfo, SgRaw,
+        alloc_page_aligned_buffer, scsi_cmd_mode_select10, scsi_cmd_mode_select6, scsi_inquiry,
+        scsi_mode_sense, scsi_request_sense, InquiryInfo, ModeBlockDescriptor, ModeParameterHeader,
+        ScsiError, SenseInfo, SgRaw,
     },
     BlockRead, BlockReadError, BlockWrite, BlockedReader, BlockedWriter,
 };
@@ -189,7 +189,7 @@ impl SgTape {
 
         sg_raw
             .do_command(&cmd)
-            .map_err(|err| format_err!("erase failed - {}", err))?;
+            .map_err(|err| format_err!("erase failed - {err}"))?;
 
         Ok(())
     }
@@ -268,7 +268,7 @@ impl SgTape {
 
         sg_raw
             .do_command(&cmd)
-            .map_err(|err| format_err!("rewind failed - {}", err))?;
+            .map_err(|err| format_err!("rewind failed - {err}"))?;
 
         Ok(())
     }
@@ -288,7 +288,7 @@ impl SgTape {
             sg_raw.set_timeout(Self::SCSI_TAPE_DEFAULT_TIMEOUT);
             sg_raw
                 .do_command(SPACE_ONE_FILEMARK)
-                .map_err(|err| format_err!("locate file {} (space) failed - {}", position, err))?;
+                .map_err(|err| format_err!("locate file {position} (space) failed - {err}"))?;
             return Ok(());
         }
 
@@ -320,13 +320,13 @@ impl SgTape {
 
         sg_raw
             .do_command(&cmd)
-            .map_err(|err| format_err!("locate file {} failed - {}", position, err))?;
+            .map_err(|err| format_err!("locate file {position} failed - {err}"))?;
 
         // LOCATE always position at the BOT side of the filemark, so
         // we need to move to other side of filemark
         sg_raw
             .do_command(SPACE_ONE_FILEMARK)
-            .map_err(|err| format_err!("locate file {} (space) failed - {}", position, err))?;
+            .map_err(|err| format_err!("locate file {position} (space) failed - {err}"))?;
 
         if self.locate_offset.is_none() {
             // check if we landed at correct position
@@ -335,10 +335,7 @@ impl SgTape {
                 let offset: i64 = i64::try_from((position as i128) - (current_file as i128))
                     .map_err(|err| {
                         format_err!(
-                            "locate_file: offset between {} and {} invalid: {}",
-                            position,
-                            current_file,
-                            err
+                            "locate_file: offset between {position} and {current_file} invalid: {err}",
                         )
                     })?;
                 self.locate_offset = Some(offset);
@@ -385,7 +382,7 @@ impl SgTape {
 
             Ok(page)
         })
-        .map_err(|err: Error| format_err!("decode position page failed - {}", err))?;
+        .map_err(|err: Error| format_err!("decode position page failed - {err}"))?;
 
         if page.partition_number != 0 {
             bail!("detecthed partitioned tape - not supported");
@@ -412,7 +409,7 @@ impl SgTape {
             Ok(_) => {
                 self.space(1, true) // move back to end
                     .map_err(|err| {
-                        format_err!("check_filemark failed (space forward) - {}", err)
+                        format_err!("check_filemark failed (space forward) - {err}")
                     })?;
                 Ok(false)
             }
@@ -424,16 +421,11 @@ impl SgTape {
                 // Filemark detected - good
                 self.space(1, false) // move to EOT side of filemark
                     .map_err(|err| {
-                        format_err!(
-                            "check_filemark failed (move to EOT side of filemark) - {}",
-                            err
-                        )
+                        format_err!("check_filemark failed (move to EOT side of filemark) - {err}")
                     })?;
                 Ok(true)
             }
-            Err(err) => {
-                bail!("check_filemark failed - {:?}", err);
-            }
+            Err(err) => bail!("check_filemark failed - {err:?}"),
         }
     }
 
@@ -445,7 +437,7 @@ impl SgTape {
 
         sg_raw
             .do_command(&cmd)
-            .map_err(|err| format_err!("move to EOD failed - {}", err))?;
+            .map_err(|err| format_err!("move to EOD failed - {err}"))?;
 
         if write_missing_eof && !self.check_filemark()? {
             self.write_filemarks(1, false)?;
@@ -491,12 +483,12 @@ impl SgTape {
 
     pub fn space_filemarks(&mut self, count: isize) -> Result<(), Error> {
         self.space(count, false)
-            .map_err(|err| format_err!("space filemarks failed - {}", err))
+            .map_err(|err| format_err!("space filemarks failed - {err}"))
     }
 
     pub fn space_blocks(&mut self, count: isize) -> Result<(), Error> {
         self.space(count, true)
-            .map_err(|err| format_err!("space blocks failed - {}", err))
+            .map_err(|err| format_err!("space blocks failed - {err}"))
     }
 
     pub fn eject(&mut self) -> Result<(), Error> {
@@ -507,7 +499,7 @@ impl SgTape {
 
         sg_raw
             .do_command(&cmd)
-            .map_err(|err| format_err!("eject failed - {}", err))?;
+            .map_err(|err| format_err!("eject failed - {err}"))?;
 
         Ok(())
     }
@@ -520,18 +512,18 @@ impl SgTape {
 
         sg_raw
             .do_command(&cmd)
-            .map_err(|err| format_err!("load media failed - {}", err))?;
+            .map_err(|err| format_err!("load media failed - {err}"))?;
 
         Ok(())
     }
 
     pub fn write_filemarks(&mut self, count: usize, immediate: bool) -> Result<(), std::io::Error> {
         if count > 255 {
-            proxmox_lang::io_bail!("write_filemarks failed: got strange count '{}'", count);
+            proxmox_lang::io_bail!("write_filemarks failed: got strange count '{count}'");
         }
 
         let mut sg_raw = SgRaw::new(&mut self.file, 16).map_err(|err| {
-            proxmox_lang::io_format_err!("write_filemarks failed (alloc) - {}", err)
+            proxmox_lang::io_format_err!("write_filemarks failed (alloc) - {err}")
         })?;
 
         sg_raw.set_timeout(Self::SCSI_TAPE_DEFAULT_TIMEOUT);
@@ -552,7 +544,7 @@ impl SgTape {
                 ascq: 2,
             })) => { /* LEOM - ignore */ }
             Err(err) => {
-                proxmox_lang::io_bail!("write filemark  failed - {}", err);
+                proxmox_lang::io_bail!("write filemark  failed - {err}");
             }
         }
 
@@ -574,7 +566,7 @@ impl SgTape {
         match sg_raw.do_command(&cmd) {
             Ok(_) => Ok(()),
             Err(err) => {
-                bail!("test_unit_ready failed - {}", err);
+                bail!("test_unit_ready failed - {err}");
             }
         }
     }
@@ -651,7 +643,7 @@ impl SgTape {
                 Ok(true) // LEOM
             }
             Err(err) => {
-                proxmox_lang::io_bail!("write failed - {}", err);
+                proxmox_lang::io_bail!("write failed - {err}");
             }
         }
     }
@@ -781,7 +773,9 @@ impl SgTape {
 
                 sg_raw
                     .do_out_command(&cmd, &buffer[..data.len()])
-                    .map_err(|err| format_err!("set drive options (mode select(10)) failed - {}", err))?;
+                    .map_err(|err| {
+                        format_err!("set drive options (mode select(10)) failed - {err}")
+                    })?;
             }
             ModeParameterHeader::Short(head) => {
                 let mut data = Vec::new();
@@ -802,7 +796,9 @@ impl SgTape {
 
                 sg_raw
                     .do_out_command(&cmd, &buffer[..data.len()])
-                    .map_err(|err| format_err!("set drive options (mode select(6)) failed - {err}"))?;
+                    .map_err(|err| {
+                        format_err!("set drive options (mode select(6)) failed - {err}")
+                    })?;
             }
         }
 
@@ -837,7 +833,7 @@ impl SgTape {
 
             Ok((head, block_descriptor, page))
         })
-        .map_err(|err| format_err!("read_medium_configuration failed - {}", err))
+        .map_err(|err| format_err!("read_medium_configuration failed - {err}"))
     }
 
     fn read_compression_page(
@@ -868,7 +864,7 @@ impl SgTape {
 
             Ok((head, block_descriptor, page))
         })
-        .map_err(|err| format_err!("read_compression_page failed: {}", err))
+        .map_err(|err| format_err!("read_compression_page failed: {err}"))
     }
 
     /// Read drive options/status

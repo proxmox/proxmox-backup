@@ -163,9 +163,7 @@ impl BlockHeader {
 
         let mut buffer = unsafe {
             let ptr = alloc_zeroed(Layout::from_size_align(Self::SIZE, page_size).unwrap());
-            Box::from_raw(
-                std::slice::from_raw_parts_mut(ptr, Self::SIZE - 16) as *mut [u8] as *mut Self,
-            )
+            Box::from_raw(core::ptr::slice_from_raw_parts_mut(ptr, Self::SIZE - 16) as *mut Self)
         };
         buffer.magic = PROXMOX_TAPE_BLOCK_HEADER_MAGIC_1_0;
         buffer
