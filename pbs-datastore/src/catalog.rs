@@ -518,7 +518,7 @@ impl<R: Read + Seek> CatalogReader<R> {
                 attr: DirEntryAttribute::Directory { start },
                 ..
             } => self.dump_dir(std::path::Path::new("./"), start),
-            _ => unreachable!(),
+            _ => bail!("unexpected root entry type, not a directory!"),
         }
     }
 
