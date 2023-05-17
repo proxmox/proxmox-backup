@@ -796,8 +796,8 @@ mod test {
         let path_vec = super::split_acl_path(path);
         let mut roles = tree
             .roles(auth_id, &path_vec)
-            .iter()
-            .map(|(v, _)| v.clone())
+            .keys()
+            .cloned()
             .collect::<Vec<String>>();
         roles.sort();
         let roles = roles.join(",");

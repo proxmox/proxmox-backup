@@ -56,7 +56,7 @@ pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
 // shell completion helper
 pub fn complete_verification_job_id(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
     match config() {
-        Ok((data, _digest)) => data.sections.iter().map(|(id, _)| id.to_string()).collect(),
+        Ok((data, _digest)) => data.sections.keys().map(|id| id.to_string()).collect(),
         Err(_) => Vec::new(),
     }
 }
