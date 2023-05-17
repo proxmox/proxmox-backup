@@ -35,7 +35,7 @@ pub async fn append_file<W: AsyncWrite + Unpin, R: AsyncRead + Unpin>(
     print_cpio_hex(&mut target, entry.uid as u64).await?; // c_uid
     print_cpio_hex(&mut target, entry.gid as u64).await?; // c_gid
     print_cpio_hex(&mut target, 0).await?; // c_nlink
-    print_cpio_hex(&mut target, entry.mtime as u64).await?; // c_mtime
+    print_cpio_hex(&mut target, entry.mtime).await?; // c_mtime
     print_cpio_hex(&mut target, entry.size as u64).await?; // c_filesize
     print_cpio_hex(&mut target, 0).await?; // c_devmajor
     print_cpio_hex(&mut target, 0).await?; // c_devminor

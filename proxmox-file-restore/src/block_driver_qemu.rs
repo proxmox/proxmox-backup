@@ -88,7 +88,7 @@ fn make_name(repo: &BackupRepository, ns: &BackupNamespace, snap: &BackupDir) ->
     } else {
         format!("qemu_{repo}:{ns}/{snap}")
     };
-    proxmox_sys::systemd::escape_unit(&full, false)
+    proxmox_sys::systemd::escape_unit(full, false)
 }
 
 /// remove non-responsive VMs from given map, returns 'true' if map was modified

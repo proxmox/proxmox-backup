@@ -381,13 +381,13 @@ impl DiskState {
                 continue;
             }
 
-            let sys_path: &str = &format!("/sys/block/{}", name);
+            let sys_path: &str = &format!("/sys/block/{name}");
 
-            let serial = fs::file_read_string(&format!("{}/serial", sys_path));
+            let serial = fs::file_read_string(format!("{sys_path}/serial"));
             let fidx = match serial {
                 Ok(serial) => serial,
                 Err(err) => {
-                    warn!("disk '{}': could not read serial file - {}", name, err);
+                    warn!("disk '{name}': could not read serial file - {err}");
                     continue;
                 }
             };
@@ -405,10 +405,7 @@ impl DiskState {
             });
             if filesystems.ensure_mounted(&mut dfs_bucket).is_ok() {
                 // mount succeeded, add bucket and skip any other checks for the disk
-                info!(
-                    "drive '{}' ('{}', '{}') contains fs directly ({}B)",
-                    name, fidx, dev_node, size
-                );
+                info!("drive '{name}' ('{fidx}', '{dev_node}') contains fs directly ({size}B)");
                 disk_map.insert(fidx, vec![dfs_bucket]);
                 continue;
             }
@@ -418,19 +415,18 @@ impl DiskState {
                 .filter_map(Result::ok)
             {
                 let part_name = unsafe { entry.file_name_utf8_unchecked() };
-                let dev_node = format!("/dev/{}", part_name);
-                let part_path = format!("/sys/block/{}/{}", name, part_name);
+                let dev_node = format!("/dev/{part_name}");
+                let part_path = format!("/sys/block/{name}/{part_name}");
 
                 // create partition device node for further use
                 let size = Self::make_dev_node(&dev_node, &part_path)?;
 
-                let number = fs::file_read_firstline(&format!("{}/partition", part_path))?
+                let number = fs::file_read_firstline(format!("{part_path}/partition"))?
                     .trim()
                     .parse::<i32>()?;
 
                 info!(
-                    "drive '{}' ('{}'): found partition '{}' ({}, {}B)",
-                    name, fidx, dev_node, number, size
+                    "drive '{name}' ('{fidx}'): found partition '{dev_node}' ({number}, {size}B)"
                 );
 
                 let bucket = Bucket::Partition(PartitionBucketData {
@@ -549,7 +545,7 @@ impl DiskState {
                     cmd.args(["-ay", "-y", &format!("{}/{}", vg_name, metadata)].iter());
                     if let Err(err) = run_command(cmd, None) {
                         // not critical, will simply mean its children can't be loaded
-                        warn!("LVM: activating thinpool failed: {}", err);
+                        warn!("LVM: activating thinpool failed: {err}");
                     } else {
                         thinpools.push((vg_name, metadata));
                     }
@@ -562,7 +558,7 @@ impl DiskState {
             // cannot leave the metadata LV active, otherwise child-LVs won't activate
             for (vg_name, metadata) in thinpools {
                 let mut cmd = Command::new("/sbin/lvchange");
-                cmd.args(["-an", "-y", &format!("{}/{}", vg_name, metadata)].iter());
+                cmd.args(["-an", "-y", &format!("{vg_name}/{metadata}")].iter());
                 let _ = run_command(cmd, None);
             }
 
@@ -587,19 +583,15 @@ impl DiskState {
                 // activate the LV so 'vgscan' can create a node later - this may fail, and if it
                 // does, we ignore it and continue
                 let mut cmd = Command::new("/sbin/lvchange");
-                cmd.args(["-ay", &format!("{}/{}", vg_name, lv_name)].iter());
+                cmd.args(["-ay", &format!("{vg_name}/{lv_name}")].iter());
                 if let Err(err) = run_command(cmd, None) {
                     warn!(
-                        "LVM: LV '{}' on '{}' ({}B) failed to activate: {}",
-                        lv_name, vg_name, lv_size, err
+                        "LVM: LV '{lv_name}' on '{vg_name}' ({lv_size}B) failed to activate: {err}"
                     );
                     continue;
                 }
 
-                info!(
-                    "LVM: found LV '{}' on '{}' ({}B)",
-                    lv_name, vg_name, lv_size
-                );
+                info!("LVM: found LV '{lv_name}' on '{vg_name}' ({lv_size}B)");
 
                 if let Some(drives) = pv_map.get(vg_name) {
                     for fidx in drives {
@@ -647,7 +639,7 @@ impl DiskState {
                 .unwrap_or_else(|| req_fidx.as_ref()),
         ) {
             Some(x) => x,
-            None => bail!("given image '{}' not found", req_fidx),
+            None => bail!("given image '{req_fidx}' not found"),
         };
 
         let bucket_type = match cmp.next() {
@@ -698,9 +690,7 @@ impl DiskState {
         let bucket = match Bucket::filter_mut(buckets, &bucket_type, &components) {
             Some(bucket) => bucket,
             None => bail!(
-                "bucket/component path not found: {}/{}/{}",
-                req_fidx,
-                bucket_type,
+                "bucket/component path not found: {req_fidx}/{bucket_type}/{}",
                 components.join("/")
             ),
         };
@@ -708,11 +698,8 @@ impl DiskState {
         // bucket found, check mount
         let mountpoint = self.filesystems.ensure_mounted(bucket).map_err(|err| {
             format_err!(
-                "mounting '{}/{}/{}' failed: {}",
-                req_fidx,
-                bucket_type,
+                "mounting '{req_fidx}/{bucket_type}/{}' failed: {err}",
                 components.join("/"),
-                err
             )
         })?;
 
@@ -726,13 +713,13 @@ impl DiskState {
     }
 
     fn make_dev_node(devnode: &str, sys_path: &str) -> Result<u64, Error> {
-        let dev_num_str = fs::file_read_firstline(&format!("{}/dev", sys_path))?;
+        let dev_num_str = fs::file_read_firstline(format!("{sys_path}/dev"))?;
         let (major, minor) = dev_num_str.split_at(dev_num_str.find(':').unwrap());
         Self::mknod_blk(devnode, major.parse()?, minor[1..].trim_end().parse()?)?;
 
         // this *always* contains the number of 512-byte sectors, regardless of the true
         // blocksize of this disk - which should always be 512 here anyway
-        let size = fs::file_read_firstline(&format!("{}/size", sys_path))?
+        let size = fs::file_read_firstline(format!("{sys_path}/size"))?
             .trim()
             .parse::<u64>()?
             * 512;
