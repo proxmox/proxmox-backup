@@ -30,146 +30,93 @@ enum MamFormat {
     DEC,
 }
 
-static MAM_ATTRIBUTES: &[(u16, u16, MamFormat, &str)] = &[
-    (
-        0x00_00,
-        8,
-        MamFormat::DEC,
-        "Remaining Capacity In Partition",
-    ),
-    (0x00_01, 8, MamFormat::DEC, "Maximum Capacity In Partition"),
-    (0x00_02, 8, MamFormat::DEC, "Tapealert Flags"),
-    (0x00_03, 8, MamFormat::DEC, "Load Count"),
-    (0x00_04, 8, MamFormat::DEC, "MAM Space Remaining"),
-    (0x00_05, 8, MamFormat::ASCII, "Assigning Organization"),
-    (0x00_06, 1, MamFormat::BINARY, "Formatted Density Code"),
-    (0x00_07, 2, MamFormat::DEC, "Initialization Count"),
-    (0x00_09, 4, MamFormat::BINARY, "Volume Change Reference"),
-    (
-        0x02_0A,
-        40,
-        MamFormat::ASCII,
-        "Device Vendor/Serial Number at Last Load",
-    ),
-    (
-        0x02_0B,
-        40,
-        MamFormat::ASCII,
-        "Device Vendor/Serial Number at Load-1",
-    ),
-    (
-        0x02_0C,
-        40,
-        MamFormat::ASCII,
-        "Device Vendor/Serial Number at Load-2",
-    ),
-    (
-        0x02_0D,
-        40,
-        MamFormat::ASCII,
-        "Device Vendor/Serial Number at Load-3",
-    ),
-    (
-        0x02_20,
-        8,
-        MamFormat::DEC,
-        "Total MBytes Written in Medium Life",
-    ),
-    (
-        0x02_21,
-        8,
-        MamFormat::DEC,
-        "Total MBytes Read In Medium Life",
-    ),
-    (
-        0x02_22,
-        8,
-        MamFormat::DEC,
-        "Total MBytes Written in Current Load",
-    ),
-    (
-        0x02_23,
-        8,
-        MamFormat::DEC,
-        "Total MBytes Read in Current/Last Load",
-    ),
-    (
-        0x02_24,
-        8,
-        MamFormat::BINARY,
-        "Logical Position of First Encrypted Block",
-    ),
-    (
+struct MamType {
+    pub id: u16,
+    pub len: u16,
+    pub format: MamFormat,
+    pub description: &'static str,
+}
+
+impl MamType {
+    const fn new(id: u16, len: u16, format: MamFormat, description: &'static str) -> Self {
+        MamType {
+            id,
+            len,
+            format,
+            description,
+        }
+    }
+    const fn bin(id: u16, len: u16, description: &'static str) -> Self {
+        Self::new(id, len, MamFormat::BINARY, description)
+    }
+    const fn ascii(id: u16, len: u16, description: &'static str) -> Self {
+        Self::new(id, len, MamFormat::ASCII, description)
+    }
+    const fn dec(id: u16, len: u16, description: &'static str) -> Self {
+        Self::new(id, len, MamFormat::DEC, description)
+    }
+}
+
+static MAM_ATTRIBUTES: &[MamType] = &[
+    MamType::dec(0x00_00, 8, "Remaining Capacity In Partition"),
+    MamType::dec(0x00_01, 8, "Maximum Capacity In Partition"),
+    MamType::dec(0x00_02, 8, "Tapealert Flags"),
+    MamType::dec(0x00_03, 8, "Load Count"),
+    MamType::dec(0x00_04, 8, "MAM Space Remaining"),
+    MamType::ascii(0x00_05, 8, "Assigning Organization"),
+    MamType::bin(0x00_06, 1, "Formatted Density Code"),
+    MamType::dec(0x00_07, 2, "Initialization Count"),
+    MamType::bin(0x00_09, 4, "Volume Change Reference"),
+    MamType::ascii(0x02_0A, 40, "Device Vendor/Serial Number at Last Load"),
+    MamType::ascii(0x02_0B, 40, "Device Vendor/Serial Number at Load-1"),
+    MamType::ascii(0x02_0C, 40, "Device Vendor/Serial Number at Load-2"),
+    MamType::ascii(0x02_0D, 40, "Device Vendor/Serial Number at Load-3"),
+    MamType::dec(0x02_20, 8, "Total MBytes Written in Medium Life"),
+    MamType::dec(0x02_21, 8, "Total MBytes Read In Medium Life"),
+    MamType::dec(0x02_22, 8, "Total MBytes Written in Current Load"),
+    MamType::dec(0x02_23, 8, "Total MBytes Read in Current/Last Load"),
+    MamType::bin(0x02_24, 8, "Logical Position of First Encrypted Block"),
+    MamType::bin(
         0x02_25,
         8,
-        MamFormat::BINARY,
         "Logical Position of First Unencrypted Block After the First Encrypted Block",
     ),
-    (0x04_00, 8, MamFormat::ASCII, "Medium Manufacturer"),
-    (0x04_01, 32, MamFormat::ASCII, "Medium Serial Number"),
-    (0x04_02, 4, MamFormat::DEC, "Medium Length"),
-    (0x04_03, 4, MamFormat::DEC, "Medium Width"),
-    (0x04_04, 8, MamFormat::ASCII, "Assigning Organization"),
-    (0x04_05, 1, MamFormat::BINARY, "Medium Density Code"),
-    (0x04_06, 8, MamFormat::ASCII, "Medium Manufacture Date"),
-    (0x04_07, 8, MamFormat::DEC, "MAM Capacity"),
-    (0x04_08, 1, MamFormat::BINARY, "Medium Type"),
-    (0x04_09, 2, MamFormat::BINARY, "Medium Type Information"),
-    (0x04_0B, 10, MamFormat::BINARY, "Supported Density Codes"),
-    (0x08_00, 8, MamFormat::ASCII, "Application Vendor"),
-    (0x08_01, 32, MamFormat::ASCII, "Application Name"),
-    (0x08_02, 8, MamFormat::ASCII, "Application Version"),
-    (0x08_03, 160, MamFormat::ASCII, "User Medium Text Label"),
-    (0x08_04, 12, MamFormat::ASCII, "Date And Time Last Written"),
-    (
-        0x08_05,
-        1,
-        MamFormat::BINARY,
-        "Text Localization Identifier",
-    ),
-    (0x08_06, 32, MamFormat::ASCII, "Barcode"),
-    (0x08_07, 80, MamFormat::ASCII, "Owning Host Textual Name"),
-    (0x08_08, 160, MamFormat::ASCII, "Media Pool"),
-    (0x08_0B, 16, MamFormat::ASCII, "Application Format Version"),
-    (
-        0x08_0C,
-        0, // length is not specified for IBM, and HP says 23-n
-        MamFormat::BINARY,
-        "Volume Coherency Information",
-    ),
-    (
-        0x08_20,
-        36,
-        MamFormat::BINARY,
-        "Medium Globally Unique Identifier",
-    ),
-    (
-        0x08_21,
-        36,
-        MamFormat::BINARY,
-        "Media Pool Globally Unique Identifier",
-    ),
-    (
-        0x10_00,
-        28,
-        MamFormat::BINARY,
-        "Unique Cartridge Identify (UCI)",
-    ),
-    (
-        0x10_01,
-        24,
-        MamFormat::BINARY,
-        "Alternate Unique Cartridge Identify (Alt-UCI)",
-    ),
+    MamType::ascii(0x04_00, 8, "Medium Manufacturer"),
+    MamType::ascii(0x04_01, 32, "Medium Serial Number"),
+    MamType::dec(0x04_02, 4, "Medium Length"),
+    MamType::dec(0x04_03, 4, "Medium Width"),
+    MamType::ascii(0x04_04, 8, "Assigning Organization"),
+    MamType::bin(0x04_05, 1, "Medium Density Code"),
+    MamType::ascii(0x04_06, 8, "Medium Manufacture Date"),
+    MamType::dec(0x04_07, 8, "MAM Capacity"),
+    MamType::bin(0x04_08, 1, "Medium Type"),
+    MamType::bin(0x04_09, 2, "Medium Type Information"),
+    MamType::bin(0x04_0B, 10, "Supported Density Codes"),
+    MamType::ascii(0x08_00, 8, "Application Vendor"),
+    MamType::ascii(0x08_01, 32, "Application Name"),
+    MamType::ascii(0x08_02, 8, "Application Version"),
+    MamType::ascii(0x08_03, 160, "User Medium Text Label"),
+    MamType::ascii(0x08_04, 12, "Date And Time Last Written"),
+    MamType::bin(0x08_05, 1, "Text Localization Identifier"),
+    MamType::ascii(0x08_06, 32, "Barcode"),
+    MamType::ascii(0x08_07, 80, "Owning Host Textual Name"),
+    MamType::ascii(0x08_08, 160, "Media Pool"),
+    MamType::ascii(0x08_0B, 16, "Application Format Version"),
+    // length for vol. coherency is not specified for IBM, and HP says 23-n
+    MamType::bin(0x08_0C, 0, "Volume Coherency Information"),
+    MamType::bin(0x08_20, 36, "Medium Globally Unique Identifier"),
+    MamType::bin(0x08_21, 36, "Media Pool Globally Unique Identifier"),
+    MamType::bin(0x10_00, 28, "Unique Cartridge Identify (UCI)"),
+    MamType::bin(0x10_01, 24, "Alternate Unique Cartridge Identify (Alt-UCI)"),
 ];
 
 lazy_static::lazy_static! {
 
-    static ref MAM_ATTRIBUTE_NAMES: HashMap<u16, &'static (u16, u16, MamFormat, &'static str)> = {
+    static ref MAM_ATTRIBUTE_NAMES: HashMap<u16, &'static MamType> = {
         let mut map = HashMap::new();
 
         for entry in MAM_ATTRIBUTES {
-            map.insert(entry.0, entry);
+            map.insert(entry.id, entry);
         }
 
         map
@@ -239,15 +186,15 @@ fn decode_mam_attributes(data: &[u8]) -> Result<Vec<MamAttribute>, Error> {
             None => continue, // skip unknown IDs
             Some(info) => info,
         };
-        if info.1 == 0 || info.1 == head.len {
-            let value = match info.2 {
+        if info.len == 0 || info.len == head.len {
+            let value = match info.format {
                 MamFormat::ASCII => String::from_utf8_lossy(&data).to_string(),
                 MamFormat::DEC => {
-                    if info.1 == 2 {
+                    if info.len == 2 {
                         format!("{}", u16::from_be_bytes(data[0..2].try_into()?))
-                    } else if info.1 == 4 {
+                    } else if info.len == 4 {
                         format!("{}", u32::from_be_bytes(data[0..4].try_into()?))
-                    } else if info.1 == 8 {
+                    } else if info.len == 8 {
                         if head_id == 2 {
                             // Tape Alert Flags
                             let value = u64::from_be_bytes(data[0..8].try_into()?);
@@ -257,14 +204,14 @@ fn decode_mam_attributes(data: &[u8]) -> Result<Vec<MamAttribute>, Error> {
                             format!("{}", u64::from_be_bytes(data[0..8].try_into()?))
                         }
                     } else {
-                        bail!("unexpected MAM attribute length {}", info.1);
+                        bail!("unexpected MAM attribute length {}", info.len);
                     }
                 }
                 MamFormat::BINARY => hex::encode(&data),
             };
             list.push(MamAttribute {
                 id: head_id,
-                name: info.3.to_string(),
+                name: info.description.to_string(),
                 value,
             });
         } else {
