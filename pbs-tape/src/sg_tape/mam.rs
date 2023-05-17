@@ -257,7 +257,7 @@ fn decode_mam_attributes(data: &[u8]) -> Result<Vec<MamAttribute>, Error> {
                             format!("{}", u64::from_be_bytes(data[0..8].try_into()?))
                         }
                     } else {
-                        unreachable!();
+                        bail!("unexpected MAM attribute length {}", info.1);
                     }
                 }
                 MamFormat::BINARY => hex::encode(&data),
