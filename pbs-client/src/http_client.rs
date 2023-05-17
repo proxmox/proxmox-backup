@@ -215,7 +215,7 @@ fn load_fingerprint(prefix: &str, server: &str) -> Option<String> {
     // usually ~/.config/<prefix>/fingerprints
     let path = base.place_config_file("fingerprints").ok()?;
 
-    let raw = std::fs::read_to_string(&path).ok()?;
+    let raw = std::fs::read_to_string(path).ok()?;
 
     for line in raw.split('\n') {
         let items: Vec<String> = line.split_whitespace().map(String::from).collect();
@@ -278,7 +278,7 @@ fn load_ticket_info(prefix: &str, server: &str, userid: &Userid) -> Option<(Stri
 
     // usually /run/user/<uid>/...
     let path = base.place_runtime_file("tickets").ok()?;
-    let data = file_get_json(&path, None).ok()?;
+    let data = file_get_json(path, None).ok()?;
     let now = proxmox_time::epoch_i64();
     let ticket_lifetime = proxmox_auth_api::TICKET_LIFETIME - 60;
     let uinfo = data[server][userid.as_str()].as_object()?;

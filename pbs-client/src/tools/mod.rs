@@ -414,7 +414,7 @@ pub fn complete_repository(_arg: &str, _param: &HashMap<String, String>) -> Vec<
         _ => return result,
     };
 
-    let data = file_get_json(&path, None).unwrap_or_else(|_| json!({}));
+    let data = file_get_json(path, None).unwrap_or_else(|_| json!({}));
 
     if let Some(map) = data.as_object() {
         for (repo, _count) in map {

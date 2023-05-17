@@ -447,7 +447,7 @@ impl Archiver {
             let match_path = PathBuf::from("/").join(full_path.clone());
             if self
                 .patterns
-                .matches(match_path.as_os_str().as_bytes(), Some(stat.st_mode as u32))
+                .matches(match_path.as_os_str().as_bytes(), Some(stat.st_mode))
                 == Some(MatchType::Exclude)
             {
                 continue;
@@ -533,7 +533,7 @@ impl Archiver {
         let match_path = PathBuf::from("/").join(self.path.clone());
         if self
             .patterns
-            .matches(match_path.as_os_str().as_bytes(), Some(stat.st_mode as u32))
+            .matches(match_path.as_os_str().as_bytes(), Some(stat.st_mode))
             == Some(MatchType::Exclude)
         {
             return Ok(());
