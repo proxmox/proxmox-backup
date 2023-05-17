@@ -13,7 +13,7 @@ use crate::sgutils2::SgRaw;
 use super::TapeAlertFlags;
 
 // Read Medium auxiliary memory attributes (MAM)
-// see IBM SCSI reference: https://www-01.ibm.com/support/docview.wss?uid=ssg1S7003556&aid=1
+// see IBM SCSI reference: https://www.ibm.com/support/pages/node/6490249
 
 #[derive(Endian)]
 #[repr(C, packed)]
