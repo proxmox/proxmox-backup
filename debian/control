@@ -1,7 +1,7 @@
 Source: rust-proxmox-backup
 Section: admin
 Priority: optional
-Build-Depends: debhelper (>= 12),
+Build-Depends: debhelper-compat (= 13),
  dh-cargo (>= 24),
  cargo:native (>= 0.65.0~),
  rustc:native,
