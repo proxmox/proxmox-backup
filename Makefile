@@ -53,18 +53,18 @@ COMPILED_BINS := \
 
 export DEB_VERSION DEB_VERSION_UPSTREAM
 
-SERVER_DEB=${PACKAGE}-server_${DEB_VERSION}_${ARCH}.deb
-SERVER_DBG_DEB=${PACKAGE}-server-dbgsym_${DEB_VERSION}_${ARCH}.deb
-CLIENT_DEB=${PACKAGE}-client_${DEB_VERSION}_${ARCH}.deb
-CLIENT_DBG_DEB=${PACKAGE}-client-dbgsym_${DEB_VERSION}_${ARCH}.deb
-RESTORE_DEB=proxmox-backup-file-restore_${DEB_VERSION}_${ARCH}.deb
-RESTORE_DBG_DEB=proxmox-backup-file-restore-dbgsym_${DEB_VERSION}_${ARCH}.deb
-DOC_DEB=${PACKAGE}-docs_${DEB_VERSION}_all.deb
+SERVER_DEB=$(PACKAGE)-server_$(DEB_VERSION)_$(ARCH).deb
+SERVER_DBG_DEB=$(PACKAGE)-server-dbgsym_$(DEB_VERSION)_$(ARCH).deb
+CLIENT_DEB=$(PACKAGE)-client_$(DEB_VERSION)_$(ARCH).deb
+CLIENT_DBG_DEB=$(PACKAGE)-client-dbgsym_$(DEB_VERSION)_$(ARCH).deb
+RESTORE_DEB=proxmox-backup-file-restore_$(DEB_VERSION)_$(ARCH).deb
+RESTORE_DBG_DEB=proxmox-backup-file-restore-dbgsym_$(DEB_VERSION)_$(ARCH).deb
+DOC_DEB=$(PACKAGE)-docs_$(DEB_VERSION)_all.deb
 
-DEBS=${SERVER_DEB} ${SERVER_DBG_DEB} ${CLIENT_DEB} ${CLIENT_DBG_DEB} \
-     ${RESTORE_DEB} ${RESTORE_DBG_DEB} ${DEBUG_DEB} ${DEBUG_DBG_DEB}
+DEBS=$(SERVER_DEB) $(SERVER_DBG_DEB) $(CLIENT_DEB) $(CLIENT_DBG_DEB) \
+     $(RESTORE_DEB) $(RESTORE_DBG_DEB) $(DEBUG_DEB) $(DEBUG_DBG_DEB)
 
-DSC = rust-${PACKAGE}_${DEB_VERSION}.dsc
+DSC = rust-$(PACKAGE)_$(DEB_VERSION).dsc
 
 DESTDIR=
 
@@ -139,8 +139,8 @@ clean-deb:
 	rm -f *.deb *.dsc *.tar.* *.buildinfo *.build *.changes
 
 .PHONY: dinstall
-dinstall: ${SERVER_DEB} ${SERVER_DBG_DEB} ${CLIENT_DEB} ${CLIENT_DBG_DEB} \
-  ${DEBUG_DEB} ${DEBUG_DBG_DEB}
+dinstall: $(SERVER_DEB) $(SERVER_DBG_DEB) $(CLIENT_DEB) $(CLIENT_DBG_DEB) \
+  $(DEBUG_DEB) $(DEBUG_DBG_DEB)
 	dpkg -i $^
 
 # make sure we build binaries before docs
@@ -207,11 +207,11 @@ install: $(COMPILED_BINS)
 	$(MAKE) -C docs install
 
 .PHONY: upload
-upload: ${SERVER_DEB} ${CLIENT_DEB} ${RESTORE_DEB} ${DOC_DEB} ${DEBUG_DEB}
+upload: $(SERVER_DEB) $(CLIENT_DEB) $(RESTORE_DEB) $(DOC_DEB) $(DEBUG_DEB)
 	# check if working directory is clean
 	git diff --exit-code --stat && git diff --exit-code --stat --staged
-	tar cf - ${SERVER_DEB} ${SERVER_DBG_DEB} ${DOC_DEB} ${CLIENT_DEB} \
-	    ${CLIENT_DBG_DEB} ${DEBUG_DEB} ${DEBUG_DBG_DEB} \
+	tar cf - $(SERVER_DEB) $(SERVER_DBG_DEB) $(DOC_DEB) $(CLIENT_DEB) \
+	    $(CLIENT_DBG_DEB) $(DEBUG_DEB) $(DEBUG_DBG_DEB) \
 	  | ssh -X repoman@repo.proxmox.com upload --product pbs --dist bullseye
-	tar cf - ${CLIENT_DEB} ${CLIENT_DBG_DEB} | ssh -X repoman@repo.proxmox.com upload --product "pve,pmg,pbs-client" --dist bullseye
-	tar cf - ${RESTORE_DEB} ${RESTORE_DBG_DEB} | ssh -X repoman@repo.proxmox.com upload --product "pve" --dist bullseye
+	tar cf - $(CLIENT_DEB) $(CLIENT_DBG_DEB) | ssh -X repoman@repo.proxmox.com upload --product "pve,pmg,pbs-client" --dist bullseye
+	tar cf - $(RESTORE_DEB) $(RESTORE_DBG_DEB) | ssh -X repoman@repo.proxmox.com upload --product "pve" --dist bullseye
