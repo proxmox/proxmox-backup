@@ -31,7 +31,9 @@ SERVICE_BIN := \
 RESTORE_BIN := \
 	proxmox-restore-daemon
 
-SUBCRATES != cargo metadata --no-deps --format-version=1 | jq -r .workspace_members'[]' | awk '{ print $$1 }' | grep -v '^proxmox-backup$$' | tr '\n' ' '
+SUBCRATES != cargo metadata --no-deps --format-version=1 \
+	| jq -r .workspace_members'[]' \
+	| awk '!/^proxmox-backup\s/ { printf "%s ", $$1 }'
 
 ifeq ($(BUILD_MODE), release)
 CARGO_BUILD_ARGS += --release
