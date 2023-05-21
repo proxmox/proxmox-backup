@@ -132,11 +132,11 @@ clean: clean-deb
 	    $(MAKE) -C $(i) clean ;)
 	$(CARGO) clean
 	rm -f .do-cargo-build
-	find . -name '*~' -exec rm {} ';'
 
-# allows one to avoid running cargo clean when one just wants to tidy up after a packgae build
+# allows one to avoid running cargo clean when one just wants to tidy up after a package build
 clean-deb:
-	rm -rf *.deb *.dsc *.tar.gz *.buildinfo *.changes build/
+	rm -rf build/
+	rm -f *.deb *.dsc *.tar.* *.buildinfo *.build *.changes
 
 .PHONY: dinstall
 dinstall: ${SERVER_DEB} ${SERVER_DBG_DEB} ${CLIENT_DEB} ${CLIENT_DBG_DEB} \
