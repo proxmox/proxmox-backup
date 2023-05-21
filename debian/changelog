@@ -1,3 +1,9 @@
+rust-proxmox-backup (2.99.0-1) bookworm; urgency=medium
+
+  * initial re-build for Debian 12 Bookworm based releases
+
+ -- Proxmox Support Team <support@proxmox.com>  Sun, 21 May 2023 13:51:05 +0200
+
 rust-proxmox-backup (2.4.2-1) bullseye; urgency=medium
 
   * docs: dark mode: adapt background for bottom links in mobile view
