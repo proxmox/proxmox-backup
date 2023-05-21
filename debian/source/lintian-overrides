@@ -1,0 +1,2 @@
+rust-proxmox-backup source: field-too-long Build-Depends (* chars > 5000)
+rust-proxmox-backup source: absolute-symbolic-link-target-in-source /link/to/somewhere [tests/catar_data/test_symlink/symlink1]
