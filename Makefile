@@ -108,14 +108,13 @@ proxmox-backup-docs: build
 	lintian $(DOC_DEB)
 
 # copy the local target/ dir as a build-cache
-.PHONY: deb
-$(DEBS): deb
-deb: build
+.PHONY: deb dsc deb-nodoc
+deb-nodoc: build
 	cd build; dpkg-buildpackage -b -us -uc --no-pre-clean --build-profiles=nodoc
 	lintian $(DEBS)
 
-.PHONY: deb-all
-deb-all: build
+$(DEBS): deb
+deb: build
 	cd build; dpkg-buildpackage -b -us -uc --no-pre-clean
 	lintian $(DEBS) $(DOC_DEB)
 
