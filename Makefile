@@ -115,13 +115,13 @@ deb-nodoc: build
 
 $(DEBS): deb
 deb: build
-	cd build; dpkg-buildpackage -b -us -uc --no-pre-clean
+	cd build; dpkg-buildpackage -b -us -uc
 	lintian $(DEBS) $(DOC_DEB)
 
 .PHONY: dsc
 dsc: $(DSC)
 $(DSC): build
-	cd build; dpkg-buildpackage -S -us -uc -d -nc
+	cd build; dpkg-buildpackage -S -us -uc -d
 	lintian $(DSC)
 
 .PHONY: clean distclean deb clean
