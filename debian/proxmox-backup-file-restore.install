@@ -1,4 +1,4 @@
 usr/bin/proxmox-file-restore
+usr/lib/x86_64-linux-gnu/proxmox-backup/file-restore/proxmox-restore-daemon
 usr/share/man/man1/proxmox-file-restore.1
 usr/share/zsh/vendor-completions/_proxmox-file-restore
-usr/lib/x86_64-linux-gnu/proxmox-backup/file-restore/proxmox-restore-daemon
