@@ -120,10 +120,16 @@ deb: build
 	lintian $(DEBS) $(DOC_DEB)
 
 .PHONY: dsc
-dsc: $(DSC)
+dsc:
+	rm -rf $(DSC) build/
+	$(MAKE) $(DSC)
+	lintian $(DSC)
+
 $(DSC): build
 	cd build; dpkg-buildpackage -S -us -uc -d
-	lintian $(DSC)
+
+sbuild: $(DSC)
+	sbuild $<
 
 .PHONY: clean distclean deb clean
 distclean: clean
