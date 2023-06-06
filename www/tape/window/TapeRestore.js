@@ -380,6 +380,19 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 			if (values.store.toString() !== "") {
 			    if (vm.get('singleDatastore')) {
 				let source = controller.lookup('snapshotGrid').getValue();
+				if (source === 'all') {
+				    // all values are selected
+				    source = values.store;
+				} else if (Ext.isArray(source)) {
+				    if (source[0].indexOf(':') !== -1) {
+					// one or multiple snapshots are selected
+					// extract datastore from first
+					source = source[0].split(':')[0];
+				    } else {
+					// one whole datstore is selected
+					source = source[0];
+				    }
+				}
 				datastores.push(`${source}=${values.store}`);
 			    } else {
 				datastores.push(values.store);
