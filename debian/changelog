@@ -1,3 +1,9 @@
+rust-proxmox-backup (2.4.2-2) bullseye; urgency=medium
+
+  * ui: tape: fix restore datastore mapping parameter construction
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 06 Jun 2023 13:16:41 +0200
+
 rust-proxmox-backup (2.4.2-1) bullseye; urgency=medium
 
   * docs: dark mode: adapt background for bottom links in mobile view
