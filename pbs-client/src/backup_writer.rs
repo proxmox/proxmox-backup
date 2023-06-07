@@ -284,33 +284,41 @@ impl BackupWriter {
         let close_path = format!("{}_close", prefix);
 
         if let Some(manifest) = options.previous_manifest {
-            // try, but ignore errors
-            match ArchiveType::from_path(archive_name) {
-                Ok(ArchiveType::FixedIndex) => {
-                    if let Err(err) = self
-                        .download_previous_fixed_index(
-                            archive_name,
-                            &manifest,
-                            known_chunks.clone(),
-                        )
-                        .await
-                    {
-                        log::warn!("Error downloading .fidx from previous manifest: {}", err);
+            if !manifest
+                .files()
+                .iter()
+                .any(|file| file.filename == archive_name)
+            {
+                log::info!("There is no index with the name {archive_name}");
+            } else {
+                // try, but ignore errors
+                match ArchiveType::from_path(archive_name) {
+                    Ok(ArchiveType::FixedIndex) => {
+                        if let Err(err) = self
+                            .download_previous_fixed_index(
+                                archive_name,
+                                &manifest,
+                                known_chunks.clone(),
+                            )
+                            .await
+                        {
+                            log::warn!("Error downloading .fidx from previous manifest: {}", err);
+                        }
                     }
-                }
-                Ok(ArchiveType::DynamicIndex) => {
-                    if let Err(err) = self
-                        .download_previous_dynamic_index(
-                            archive_name,
-                            &manifest,
-                            known_chunks.clone(),
-                        )
-                        .await
-                    {
-                        log::warn!("Error downloading .didx from previous manifest: {}", err);
+                    Ok(ArchiveType::DynamicIndex) => {
+                        if let Err(err) = self
+                            .download_previous_dynamic_index(
+                                archive_name,
+                                &manifest,
+                                known_chunks.clone(),
+                            )
+                            .await
+                        {
+                            log::warn!("Error downloading .didx from previous manifest: {}", err);
+                        }
                     }
+                    _ => { /* do nothing */ }
                 }
-                _ => { /* do nothing */ }
             }
         }
 
