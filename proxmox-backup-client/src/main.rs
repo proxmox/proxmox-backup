@@ -1590,9 +1590,12 @@ async fn status(param: Value) -> Result<Value, Error> {
         let v = v.as_u64().unwrap();
         let total = record["total"].as_u64().unwrap();
         let roundup = total / 200;
-        let per = ((v + roundup) * 100) / total;
-        let info = format!(" ({} %)", per);
-        Ok(format!("{} {:>8}", v, info))
+        if let Some(per) = ((v + roundup) * 100).checked_div(total) {
+            let info = format!(" ({} %)", per);
+            Ok(format!("{} {:>8}", v, info))
+        } else {
+            bail!("Cannot render total percentage: denominator is zero");
+        }
     };
 
     let options = default_table_format_options()
