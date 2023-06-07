@@ -295,7 +295,7 @@ impl BackupWriter {
                         )
                         .await
                     {
-                        eprintln!("Error downloading .fidx from previous manifest: {}", err);
+                        log::warn!("Error downloading .fidx from previous manifest: {}", err);
                     }
                 }
                 Ok(ArchiveType::DynamicIndex) => {
@@ -307,7 +307,7 @@ impl BackupWriter {
                         )
                         .await
                     {
-                        eprintln!("Error downloading .didx from previous manifest: {}", err);
+                        log::warn!("Error downloading .didx from previous manifest: {}", err);
                     }
                 }
                 _ => { /* do nothing */ }
