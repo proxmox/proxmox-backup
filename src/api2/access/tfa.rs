@@ -28,12 +28,14 @@ async fn tfa_update_auth(
     let authid: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
     if authid.user() != Userid::root_userid() {
+        let client_ip = rpcenv.get_client_ip().map(|sa| sa.ip());
         let password = password.ok_or_else(|| http_err!(UNAUTHORIZED, "missing password"))?;
         #[allow(clippy::let_unit_value)]
         {
-            let _: () = crate::auth::authenticate_user(authid.user(), &password)
-                .await
-                .map_err(|err| http_err!(UNAUTHORIZED, "{}", err))?;
+            let _: () =
+                crate::auth::authenticate_user(authid.user(), &password, client_ip.as_ref())
+                    .await
+                    .map_err(|err| http_err!(UNAUTHORIZED, "{}", err))?;
         }
     }
 

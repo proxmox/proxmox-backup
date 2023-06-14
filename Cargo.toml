@@ -55,7 +55,7 @@ path = "src/lib.rs"
 [workspace.dependencies]
 # proxmox workspace
 proxmox-async = "0.4"
-proxmox-auth-api = "0.2"
+proxmox-auth-api = "0.3"
 proxmox-borrow = "1"
 proxmox-compression = "0.2"
 proxmox-fuse = "0.1.3"

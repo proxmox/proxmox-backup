@@ -2,6 +2,7 @@
 //!
 //! This library contains helper to authenticate users.
 
+use std::net::IpAddr;
 use std::path::PathBuf;
 use std::pin::Pin;
 
@@ -34,6 +35,7 @@ impl Authenticator for PbsAuthenticator {
         &self,
         username: &'a UsernameRef,
         password: &'a str,
+        _client_ip: Option<&'a IpAddr>,
     ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>> {
         Box::pin(async move {
             let data = proxmox_sys::fs::file_get_json(SHADOW_CONFIG_FILENAME, Some(json!({})))?;
@@ -45,7 +47,12 @@ impl Authenticator for PbsAuthenticator {
         })
     }
 
-    fn store_password(&self, username: &UsernameRef, password: &str) -> Result<(), Error> {
+    fn store_password(
+        &self,
+        username: &UsernameRef,
+        password: &str,
+        _client_ip: Option<&IpAddr>,
+    ) -> Result<(), Error> {
         let enc_password = proxmox_sys::crypt::encrypt_pw(password)?;
         let mut data = proxmox_sys::fs::file_get_json(SHADOW_CONFIG_FILENAME, Some(json!({})))?;
         data[username.as_str()] = enc_password.into();
@@ -90,6 +97,7 @@ impl Authenticator for OpenIdAuthenticator {
         &'a self,
         _username: &'a UsernameRef,
         _password: &'a str,
+        _client_ip: Option<&'a IpAddr>,
     ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>> {
         Box::pin(async move {
             http_bail!(
@@ -99,7 +107,12 @@ impl Authenticator for OpenIdAuthenticator {
         })
     }
 
-    fn store_password(&self, _username: &UsernameRef, _password: &str) -> Result<(), Error> {
+    fn store_password(
+        &self,
+        _username: &UsernameRef,
+        _password: &str,
+        _client_ip: Option<&IpAddr>,
+    ) -> Result<(), Error> {
         http_bail!(
             NOT_IMPLEMENTED,
             "storing passwords is not implemented for OpenID realms"
@@ -125,6 +138,7 @@ impl Authenticator for LdapAuthenticator {
         &'a self,
         username: &'a UsernameRef,
         password: &'a str,
+        _client_ip: Option<&'a IpAddr>,
     ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>> {
         Box::pin(async move {
             let ldap_config = Self::api_type_to_config(&self.config)?;
@@ -134,7 +148,12 @@ impl Authenticator for LdapAuthenticator {
         })
     }
 
-    fn store_password(&self, _username: &UsernameRef, _password: &str) -> Result<(), Error> {
+    fn store_password(
+        &self,
+        _username: &UsernameRef,
+        _password: &str,
+        _client_ip: Option<&IpAddr>,
+    ) -> Result<(), Error> {
         http_bail!(
             NOT_IMPLEMENTED,
             "storing passwords is not implemented for LDAP realms"
@@ -212,10 +231,11 @@ pub(crate) fn lookup_authenticator(
 pub(crate) fn authenticate_user<'a>(
     userid: &'a Userid,
     password: &'a str,
+    client_ip: Option<&'a IpAddr>,
 ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>> {
     Box::pin(async move {
         lookup_authenticator(userid.realm())?
-            .authenticate_user(userid.name(), password)
+            .authenticate_user(userid.name(), password, client_ip)
             .await?;
         Ok(())
     })

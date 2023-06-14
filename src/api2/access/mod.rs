@@ -79,7 +79,8 @@ pub fn change_password(
     }
 
     let authenticator = crate::auth::lookup_authenticator(userid.realm())?;
-    authenticator.store_password(userid.name(), &password)?;
+    let client_ip = rpcenv.get_client_ip().map(|sa| sa.ip());
+    authenticator.store_password(userid.name(), &password, client_ip.as_ref())?;
 
     Ok(Value::Null)
 }
