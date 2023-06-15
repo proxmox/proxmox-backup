@@ -585,7 +585,12 @@ where
 }
 
 fn main() {
-    init_cli_logger("PBS_LOG", "info");
+    let loglevel = match std::env::var("PBS_QEMU_DEBUG") {
+        Ok(val) if !val.is_empty() => "debug",
+        _ => "info"
+    };
+
+    init_cli_logger("PBS_LOG", loglevel);
 
     let list_cmd_def = CliCommand::new(&API_METHOD_LIST)
         .arg_param(&["snapshot", "path"])
