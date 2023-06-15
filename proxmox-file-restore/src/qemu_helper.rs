@@ -194,6 +194,10 @@ pub(crate) async fn hotplug_memory(cid: i32, dimm_mb: usize) -> Result<(), Error
     Ok(())
 }
 
+pub fn debug_mode() -> bool {
+    std::env::var("PBS_QEMU_DEBUG").map(|s| !s.is_empty()).unwrap_or(false)
+}
+
 pub async fn start_vm(
     // u16 so we can do wrapping_add without going too high
     mut cid: u16,
@@ -205,11 +209,7 @@ pub async fn start_vm(
         bail!("environment variable PBS_PASSWORD has to be set for QEMU VM restore");
     }
 
-    let debug = if let Ok(val) = std::env::var("PBS_QEMU_DEBUG") {
-        !val.is_empty()
-    } else {
-        false
-    };
+    let debug = debug_mode();
 
     validate_img_existance(debug)?;
 
