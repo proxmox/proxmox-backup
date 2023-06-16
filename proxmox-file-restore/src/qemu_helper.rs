@@ -195,7 +195,9 @@ pub(crate) async fn hotplug_memory(cid: i32, dimm_mb: usize) -> Result<(), Error
 }
 
 pub fn debug_mode() -> bool {
-    std::env::var("PBS_QEMU_DEBUG").map(|s| !s.is_empty()).unwrap_or(false)
+    std::env::var("PBS_QEMU_DEBUG")
+        .map(|s| !s.is_empty())
+        .unwrap_or(false)
 }
 
 pub async fn start_vm(
