@@ -279,9 +279,7 @@ impl MediaPool {
                         .inventory
                         .media_set_start_time(self.current_media_set.uuid())
                     {
-                        if let Ok(Some(alloc_time)) =
-                            event.compute_next_event(set_start_time as i64)
-                        {
+                        if let Ok(Some(alloc_time)) = event.compute_next_event(set_start_time) {
                             if current_time >= alloc_time {
                                 create_new_set =
                                     Some(String::from("policy CreateAt event triggered"));
