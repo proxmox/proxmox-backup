@@ -35,7 +35,7 @@ pub(crate) fn get_acme_plugin(
         }
         "standalone" => {
             // this one has no config
-            Box::new(StandaloneServer::default())
+            Box::<StandaloneServer>::default()
         }
         other => bail!("missing implementation for plugin type '{}'", other),
     }))
