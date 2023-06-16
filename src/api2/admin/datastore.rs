@@ -237,7 +237,7 @@ pub fn list_groups(
                 .to_owned();
 
             let note_path = get_group_note_path(&datastore, &ns, group.as_ref());
-            let comment = file_read_firstline(&note_path).ok();
+            let comment = file_read_firstline(note_path).ok();
 
             group_info.push(GroupListItem {
                 backup: group.into(),

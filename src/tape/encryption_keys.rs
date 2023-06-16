@@ -38,7 +38,7 @@ mod hex_key {
         D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        <[u8; 32]>::from_hex(&s).map_err(serde::de::Error::custom)
+        <[u8; 32]>::from_hex(s).map_err(serde::de::Error::custom)
     }
 }
 

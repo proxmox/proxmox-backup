@@ -254,7 +254,7 @@ impl MediaCatalog {
             .write(true)
             .create(true)
             .truncate(true)
-            .open(&tmp_path)?;
+            .open(tmp_path)?;
 
         if cfg!(test) {
             // We cannot use chown inside test environment (no permissions)

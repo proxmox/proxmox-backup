@@ -122,7 +122,7 @@ lazy_static::lazy_static! {
 fn parse_objset_stat(pool: &str, objset_id: &str) -> Result<(String, BlockDevStat), Error> {
     let path = PathBuf::from(format!("{}/{}/{}", ZFS_KSTAT_BASE_PATH, pool, objset_id));
 
-    let text = match proxmox_sys::fs::file_read_optional_string(&path)? {
+    let text = match proxmox_sys::fs::file_read_optional_string(path)? {
         Some(text) => text,
         None => bail!("could not parse '{}' stat file", objset_id),
     };

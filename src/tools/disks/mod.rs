@@ -108,7 +108,7 @@ impl DiskManage {
     /// Get a `Disk` for a name in `/sys/block/<name>`.
     pub fn disk_by_name(self: Arc<Self>, name: &str) -> io::Result<Disk> {
         let syspath = format!("/sys/block/{}", name);
-        self.disk_by_sys_path(&syspath)
+        self.disk_by_sys_path(syspath)
     }
 
     /// Gather information about mounted disks:

@@ -90,7 +90,7 @@ impl VirtualTapeHandle {
 
     fn load_tape_index(&self, tape_name: &str) -> Result<TapeIndex, Error> {
         let path = self.tape_index_path(tape_name);
-        let raw = proxmox_sys::fs::file_get_contents(&path)?;
+        let raw = proxmox_sys::fs::file_get_contents(path)?;
         if raw.is_empty() {
             return Ok(TapeIndex { files: 0 });
         }
@@ -103,7 +103,7 @@ impl VirtualTapeHandle {
         let raw = serde_json::to_string_pretty(&serde_json::to_value(index)?)?;
 
         let options = CreateOptions::new();
-        replace_file(&path, raw.as_bytes(), options, false)?;
+        replace_file(path, raw.as_bytes(), options, false)?;
         Ok(())
     }
 
@@ -131,7 +131,7 @@ impl VirtualTapeHandle {
 
         let default = serde_json::to_value(VirtualDriveStatus { current_tape: None })?;
 
-        let data = proxmox_sys::fs::file_get_json(&path, Some(default))?;
+        let data = proxmox_sys::fs::file_get_json(path, Some(default))?;
         let status: VirtualDriveStatus = serde_json::from_value(data)?;
         Ok(status)
     }
@@ -141,7 +141,7 @@ impl VirtualTapeHandle {
         let raw = serde_json::to_string_pretty(&serde_json::to_value(status)?)?;
 
         let options = CreateOptions::new();
-        replace_file(&path, raw.as_bytes(), options, false)?;
+        replace_file(path, raw.as_bytes(), options, false)?;
         Ok(())
     }
 

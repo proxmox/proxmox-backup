@@ -229,7 +229,7 @@ impl Job {
     pub fn new(jobtype: &str, jobname: &str) -> Result<Self, Error> {
         let path = get_path(jobtype, jobname);
 
-        let _lock = get_lock(&path)?;
+        let _lock = get_lock(path)?;
 
         Ok(Self {
             jobtype: jobtype.to_string(),

@@ -281,7 +281,7 @@ impl proxmox_tfa::api::OpenUserChallengeData for UserAccess {
     /// `remove` user data if it exists.
     fn remove(&self, userid: &str) -> Result<bool, Error> {
         let path = challenge_data_path_str(userid);
-        match std::fs::remove_file(&path) {
+        match std::fs::remove_file(path) {
             Ok(()) => Ok(true),
             Err(err) if err.not_found() => Ok(false),
             Err(err) => Err(err.into()),

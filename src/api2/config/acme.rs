@@ -585,7 +585,7 @@ pub fn add_plugin(r#type: String, core: DnsPluginCore, data: String) -> Result<(
         param_bail!("type", "invalid ACME plugin type: {:?}", r#type);
     }
 
-    let data = String::from_utf8(base64::decode(&data)?)
+    let data = String::from_utf8(base64::decode(data)?)
         .map_err(|_| format_err!("data must be valid UTF-8"))?;
 
     let id = core.id.clone();
@@ -695,7 +695,7 @@ pub fn update_plugin(
     let (mut plugins, expected_digest) = plugin::config()?;
 
     if let Some(digest) = digest {
-        let digest = <[u8; 32]>::from_hex(&digest)?;
+        let digest = <[u8; 32]>::from_hex(digest)?;
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 

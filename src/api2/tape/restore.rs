@@ -949,7 +949,7 @@ fn restore_list_worker(
 
     for (datastore, _) in store_map.used_datastores().values() {
         let tmp_path = media_set_tmpdir(datastore, &media_set_uuid);
-        match std::fs::remove_dir_all(&tmp_path) {
+        match std::fs::remove_dir_all(tmp_path) {
             Ok(()) => {}
             Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
             Err(err) => task_warn!(worker, "error cleaning up: {}", err),

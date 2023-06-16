@@ -341,7 +341,7 @@ impl proxmox_auth_api::api::AuthContext for PbsAuthContext {
 
         if let Ok(Empty) = Ticket::parse(password).and_then(|ticket| {
             ticket.verify(
-                &self.keyring,
+                self.keyring,
                 TERM_PREFIX,
                 Some(&crate::tools::ticket::term_aad(userid, &path, port)),
             )
