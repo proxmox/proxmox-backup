@@ -652,7 +652,7 @@ pub async fn read_label(drive: String, inventorize: Option<bool>) -> Result<Medi
         let mut drive = open_drive(&config, &drive)?;
 
         let (media_id, _key_config) = drive.read_label()?;
-        let media_id = media_id.ok_or(format_err!("Media is empty (no label)."))?;
+        let media_id = media_id.ok_or_else(|| format_err!("Media is empty (no label)."))?;
 
         let label = if let Some(ref set) = media_id.media_set_label {
             let key = &set.encryption_key_fingerprint;

@@ -78,7 +78,9 @@ fn json_service_state(service: &str, status: Value) -> Value {
         let name = status["Name"].as_str().unwrap_or(service);
 
         let state = if status["Type"] == "oneshot" && status["SubState"] == "dead" {
-            status["Result"].as_str().or(status["SubState"].as_str())
+            status["Result"]
+                .as_str()
+                .or_else(|| status["SubState"].as_str())
         } else {
             status["SubState"].as_str()
         }
