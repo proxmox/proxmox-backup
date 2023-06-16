@@ -266,11 +266,11 @@ pub fn setup_auth_context(use_private_key: bool) {
 }
 
 pub(crate) fn private_auth_keyring() -> &'static Keyring {
-    &*PRIVATE_KEYRING
+    &PRIVATE_KEYRING
 }
 
 pub(crate) fn public_auth_keyring() -> &'static Keyring {
-    &*PUBLIC_KEYRING
+    &PUBLIC_KEYRING
 }
 
 struct PbsAuthContext {
