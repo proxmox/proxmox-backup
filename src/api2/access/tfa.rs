@@ -56,6 +56,11 @@ async fn tfa_update_auth(
     input: {
         properties: { userid: { type: Userid } },
     },
+    returns: {
+        description: "The list of TFA entries.",
+        type: Array,
+        items: { type: methods::TypedTfaInfo }
+    },
     access: {
         permission: &Permission::Or(&[
             &Permission::Privilege(&["access", "users"], PRIV_PERMISSIONS_MODIFY, false),
