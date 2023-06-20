@@ -46,7 +46,7 @@ override_dh_auto_install:
 override_dh_installsystemd:
 	dh_installsystemd -pproxmox-backup-server  proxmox-backup-daily-update.timer
 	# note: we start/try-reload-restart services manually in postinst
-	dh_installsystemd --no-start --no-restart-after-upgrade
+	dh_installsystemd --no-start --no-restart-after-upgrade --no-stop-on-upgrade
 
 override_dh_fixperms:
 	dh_fixperms --exclude sg-tape-cmd
