@@ -728,6 +728,36 @@ pub fn list_tokens(
     Ok(res)
 }
 
+#[api(
+    protected: true,
+    input: {
+        properties: {
+            userid: {
+                type: Userid,
+            },
+        },
+    },
+    returns: {
+        type: bool,
+        description: "Whether the user was previously locked out of any 2nd factor.",
+    },
+    access: {
+        permission: &Permission::Privilege(&["access", "users"], PRIV_PERMISSIONS_MODIFY, false),
+    },
+)]
+/// Unlock a user's TFA authentication.
+pub fn unlock_tfa(userid: Userid) -> Result<bool, Error> {
+    let _lock = crate::config::tfa::write_lock()?;
+
+    let mut config = crate::config::tfa::read()?;
+    if proxmox_tfa::api::methods::unlock_tfa(&mut config, userid.as_str())? {
+        crate::config::tfa::write(&config)?;
+        Ok(true)
+    } else {
+        Ok(false)
+    }
+}
+
 const TOKEN_ITEM_ROUTER: Router = Router::new()
     .get(&API_METHOD_READ_TOKEN)
     .put(&API_METHOD_UPDATE_TOKEN)
@@ -738,7 +768,9 @@ const TOKEN_ROUTER: Router = Router::new()
     .get(&API_METHOD_LIST_TOKENS)
     .match_all("token-name", &TOKEN_ITEM_ROUTER);
 
-const USER_SUBDIRS: SubdirMap = &[("token", &TOKEN_ROUTER)];
+const UNLOCK_TFA_ROUTER: Router = Router::new().put(&API_METHOD_UNLOCK_TFA);
+
+const USER_SUBDIRS: SubdirMap = &[("token", &TOKEN_ROUTER), ("unlock-tfa", &UNLOCK_TFA_ROUTER)];
 
 const USER_ROUTER: Router = Router::new()
     .get(&API_METHOD_READ_USER)
