@@ -257,5 +257,11 @@ fn tfa_commands() -> CommandLineInterface {
                 .completion_cb("userid", pbs_config::user::complete_userid)
                 .completion_cb("id", proxmox_backup::config::tfa::complete_tfa_id),
         )
+        .insert(
+            "unlock",
+            CliCommand::new(&api2::access::user::API_METHOD_UNLOCK_TFA)
+                .arg_param(&["userid"])
+                .completion_cb("userid", pbs_config::user::complete_userid),
+        )
         .into()
 }
