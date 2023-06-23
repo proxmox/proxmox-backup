@@ -1,5 +1,7 @@
 include ../defines.mk
 
+ESLINT ?= $(if $(shell command -v pve-eslint), pve-eslint, eslint)
+
 IMAGES := \
 	images/icon-tape.svg 				\
 	images/icon-tape-drive.svg			\
@@ -133,11 +135,11 @@ js/proxmox-backup-gui.js: .lint-incremental js OnlineHelpInfo.js ${JSSRC}
 
 .PHONY: check
 check:
-	eslint --strict ${JSSRC}
+	$(ESLINT) --strict ${JSSRC}
 	touch ".lint-incremental"
 
 .lint-incremental: ${JSSRC}
-	eslint $?
+	$(ESLINT) $?
 	touch "$@"
 
 .PHONY: clean
