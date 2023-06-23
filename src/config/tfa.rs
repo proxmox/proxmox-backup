@@ -288,9 +288,8 @@ impl proxmox_tfa::api::OpenUserChallengeData for UserAccess {
         }
     }
 
-    // TODO: enable once we have admin ui stuff to unlock locked-out users
     fn enable_lockout(&self) -> bool {
-        false
+        true
     }
 }
 
