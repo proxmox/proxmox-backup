@@ -69,7 +69,7 @@ async fn tfa_update_auth(
     },
 )]
 /// Add a TOTP secret to the user.
-fn list_user_tfa(userid: Userid) -> Result<Vec<methods::TypedTfaInfo>, Error> {
+pub fn list_user_tfa(userid: Userid) -> Result<Vec<methods::TypedTfaInfo>, Error> {
     let _lock = crate::config::tfa::read_lock()?;
 
     methods::list_user_tfa(&crate::config::tfa::read()?, userid.as_str())
@@ -122,7 +122,7 @@ fn get_tfa_entry(userid: Userid, id: String) -> Result<methods::TypedTfaInfo, Er
     },
 )]
 /// Delete a single TFA entry.
-async fn delete_tfa(
+pub async fn delete_tfa(
     userid: Userid,
     id: String,
     password: Option<String>,

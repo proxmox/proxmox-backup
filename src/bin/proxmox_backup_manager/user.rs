@@ -157,6 +157,40 @@ fn list_permissions(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Val
     Ok(Value::Null)
 }
 
+#[api(
+    input: {
+        properties: {
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+            userid: {
+                type: Userid,
+            }
+        },
+    }
+)]
+/// List all tfa methods for a user.
+fn list_user_tfa(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
+    let output_format = get_output_format(&param);
+
+    let info = &api2::access::tfa::API_METHOD_LIST_USER_TFA;
+    let mut data = match info.handler {
+        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
+        _ => unreachable!(),
+    };
+
+    let options = default_table_format_options()
+        .column(ColumnConfig::new("id"))
+        .column(ColumnConfig::new("type"))
+        .column(ColumnConfig::new("description"))
+        .column(ColumnConfig::new("created").renderer(pbs_tools::format::render_epoch));
+
+    format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
+
+    Ok(Value::Null)
+}
+
 pub fn user_commands() -> CommandLineInterface {
     let cmd_def = CliCommandMap::new()
         .insert("list", CliCommand::new(&API_METHOD_LIST_USERS))
@@ -196,6 +230,7 @@ pub fn user_commands() -> CommandLineInterface {
                 .completion_cb("userid", pbs_config::user::complete_userid)
                 .completion_cb("token-name", pbs_config::user::complete_token_name),
         )
+        .insert("tfa", tfa_commands())
         .insert(
             "permissions",
             CliCommand::new(&API_METHOD_LIST_PERMISSIONS)
@@ -205,4 +240,22 @@ pub fn user_commands() -> CommandLineInterface {
         );
 
     cmd_def.into()
+}
+
+fn tfa_commands() -> CommandLineInterface {
+    CliCommandMap::new()
+        .insert(
+            "list",
+            CliCommand::new(&API_METHOD_LIST_USER_TFA)
+                .arg_param(&["userid"])
+                .completion_cb("userid", pbs_config::user::complete_userid),
+        )
+        .insert(
+            "delete",
+            CliCommand::new(&api2::access::tfa::API_METHOD_DELETE_TFA)
+                .arg_param(&["userid", "id"])
+                .completion_cb("userid", pbs_config::user::complete_userid)
+                .completion_cb("id", proxmox_backup::config::tfa::complete_tfa_id),
+        )
+        .into()
 }

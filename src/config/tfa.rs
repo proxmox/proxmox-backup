@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom};
 use std::os::unix::fs::OpenOptionsExt;
@@ -301,4 +302,31 @@ impl proxmox_tfa::api::UserChallengeAccess for TfaUserChallengeData {
     fn save(&mut self) -> Result<(), Error> {
         TfaUserChallengeData::save(self)
     }
+}
+
+// shell completion helper
+pub fn complete_tfa_id(_arg: &str, param: &HashMap<String, String>) -> Vec<String> {
+    let mut results = Vec::new();
+
+    let data = match read() {
+        Ok(data) => data,
+        Err(_err) => return results,
+    };
+    let user = match param
+        .get("userid")
+        .and_then(|user_name| data.users.get(user_name))
+    {
+        Some(user) => user,
+        None => return results,
+    };
+
+    results.extend(user.totp.iter().map(|token| token.info.id.clone()));
+    results.extend(user.u2f.iter().map(|token| token.info.id.clone()));
+    results.extend(user.webauthn.iter().map(|token| token.info.id.clone()));
+    results.extend(user.yubico.iter().map(|token| token.info.id.clone()));
+    if user.recovery.is_some() {
+        results.push("recovery".to_string());
+    };
+
+    results
 }
