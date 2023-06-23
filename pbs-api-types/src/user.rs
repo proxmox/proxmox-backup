@@ -73,9 +73,20 @@ pub const EMAIL_SCHEMA: Schema = StringSchema::new("E-Mail Address.")
                 type: ApiToken
             },
         },
+        "totp-locked": {
+            type: bool,
+            optional: true,
+            default: false,
+            description: "True if the user is currently locked out of TOTP factors",
+        },
+        "tfa-locked-until": {
+            optional: true,
+            description: "Contains a timestamp until when a user is locked out of 2nd factors",
+        },
     }
 )]
 #[derive(Serialize, Deserialize, Clone, PartialEq)]
+#[serde(rename_all = "kebab-case")]
 /// User properties with added list of ApiTokens
 pub struct UserWithTokens {
     pub userid: Userid,
@@ -93,6 +104,14 @@ pub struct UserWithTokens {
     pub email: Option<String>,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub tokens: Vec<ApiToken>,
+    #[serde(skip_serializing_if = "bool_is_false")]
+    pub totp_locked: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tfa_locked_until: Option<i64>,
+}
+
+fn bool_is_false(b: &bool) -> bool {
+    !b
 }
 
 #[api(

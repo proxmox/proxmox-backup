@@ -8,6 +8,7 @@ use std::collections::HashMap;
 
 use proxmox_router::{ApiMethod, Permission, Router, RpcEnvironment, SubdirMap};
 use proxmox_schema::api;
+use proxmox_tfa::api::TfaConfig;
 
 use pbs_api_types::{
     ApiToken, Authid, Tokenname, User, UserUpdater, UserWithTokens, Userid, ENABLE_USER_SCHEMA,
@@ -18,8 +19,17 @@ use pbs_config::token_shadow;
 
 use pbs_config::CachedUserInfo;
 
-fn new_user_with_tokens(user: User) -> UserWithTokens {
+fn new_user_with_tokens(user: User, tfa: &TfaConfig) -> UserWithTokens {
     UserWithTokens {
+        totp_locked: tfa
+            .users
+            .get(user.userid.as_str())
+            .map(|data| data.totp_locked)
+            .unwrap_or(false),
+        tfa_locked_until: tfa
+            .users
+            .get(user.userid.as_str())
+            .and_then(|data| data.tfa_locked_until),
         userid: user.userid,
         comment: user.comment,
         enable: user.enable,
@@ -32,6 +42,7 @@ fn new_user_with_tokens(user: User) -> UserWithTokens {
 }
 
 #[api(
+    protected: true,
     input: {
         properties: {
             include_tokens: {
@@ -78,6 +89,8 @@ pub fn list_users(
 
     rpcenv["digest"] = hex::encode(digest).into();
 
+    let tfa_data = crate::config::tfa::read()?;
+
     let iter = list.into_iter().filter(filter_by_privs);
     let list = if include_tokens {
         let tokens: Vec<ApiToken> = config.convert_to_typed_array("token")?;
@@ -93,13 +106,14 @@ pub fn list_users(
             },
         );
         iter.map(|user: User| {
-            let mut user = new_user_with_tokens(user);
+            let mut user = new_user_with_tokens(user, &tfa_data);
             user.tokens = user_to_tokens.remove(&user.userid).unwrap_or_default();
             user
         })
         .collect()
     } else {
-        iter.map(new_user_with_tokens).collect()
+        iter.map(|user: User| new_user_with_tokens(user, &tfa_data))
+            .collect()
     };
 
     Ok(list)
