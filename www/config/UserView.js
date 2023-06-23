@@ -156,6 +156,16 @@ Ext.define('PBS.config.UserView', {
 	    handler: 'showPermissions',
 	    disabled: true,
 	},
+	'-',
+	{
+	    xtype: 'proxmoxButton',
+	    text: gettext('Unlock TFA'),
+	    handler: 'unlockTfa',
+	    enableFn: (rec) => {
+		rec.data['totp-locked'] ||
+		(rec.data['tfa-locked-until'] > (new Date().getTime() / 1000))
+	    },
+	},
     ],
 
     viewConfig: {
@@ -197,6 +207,27 @@ Ext.define('PBS.config.UserView', {
 	    sortable: true,
 	    dataIndex: 'firstname',
 	    renderer: 'renderName',
+	},
+	{
+	    header: gettext('TFA Lock'),
+	    width: 120,
+	    sortable: true,
+	    dataIndex: 'totp-locked',
+	    renderer: function(v, metaData, record) {
+		let locked_until = record.data['tfa-locked-until'];
+		if (locked_until !== undefined) {
+		    let now = new Date().getTime() / 1000;
+		    if (locked_until > now) {
+			return gettext('Locked');
+		    }
+		}
+
+		if (record.data['totp-locked']) {
+		    return gettext('TOTP Locked');
+		}
+
+		return Proxmox.Utils.noText;
+	    },
 	},
 	{
 	    header: gettext('Comment'),
