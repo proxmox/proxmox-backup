@@ -170,6 +170,16 @@ impl Authenticator for LdapAuthenticator {
 
 impl LdapAuthenticator {
     pub fn api_type_to_config(config: &LdapRealmConfig) -> Result<Config, Error> {
+        Self::api_type_to_config_with_password(
+            config,
+            auth_helpers::get_ldap_bind_password(&config.realm)?,
+        )
+    }
+
+    pub fn api_type_to_config_with_password(
+        config: &LdapRealmConfig,
+        password: Option<String>,
+    ) -> Result<Config, Error> {
         let mut servers = vec![config.server1.clone()];
         if let Some(server) = &config.server2 {
             servers.push(server.clone());
@@ -198,7 +208,7 @@ impl LdapAuthenticator {
             user_attr: config.user_attr.clone(),
             base_dn: config.base_dn.clone(),
             bind_dn: config.bind_dn.clone(),
-            bind_password: auth_helpers::get_ldap_bind_password(&config.realm)?,
+            bind_password: password,
             tls_mode,
             verify_certificate: config.verify.unwrap_or_default(),
             additional_trusted_certificates: trusted_cert,

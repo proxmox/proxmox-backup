@@ -1,8 +1,10 @@
+use crate::auth::LdapAuthenticator;
 use ::serde::{Deserialize, Serialize};
-use anyhow::Error;
+use anyhow::{format_err, Error};
 use hex::FromHex;
 use serde_json::Value;
 
+use proxmox_ldap::Connection;
 use proxmox_router::{http_bail, Permission, Router, RpcEnvironment};
 use proxmox_schema::{api, param_bail};
 
@@ -69,6 +71,11 @@ pub fn create_ldap_realm(config: LdapRealmConfig, password: Option<String>) -> R
     if domains::exists(&domains, &config.realm) {
         param_bail!("realm", "realm '{}' already exists.", config.realm);
     }
+
+    let ldap_config =
+        LdapAuthenticator::api_type_to_config_with_password(&config, password.clone())?;
+    let conn = Connection::new(ldap_config);
+    proxmox_async::runtime::block_on(conn.check_connection()).map_err(|e| format_err!("{e:#}"))?;
 
     if let Some(password) = password {
         auth_helpers::store_ldap_bind_password(&config.realm, &password, &domain_config_lock)?;
@@ -317,10 +324,6 @@ pub fn update_ldap_realm(
         config.bind_dn = Some(bind_dn);
     }
 
-    if let Some(password) = password {
-        auth_helpers::store_ldap_bind_password(&realm, &password, &domain_config_lock)?;
-    }
-
     if let Some(filter) = update.filter {
         config.filter = Some(filter);
     }
@@ -332,6 +335,19 @@ pub fn update_ldap_realm(
     }
     if let Some(user_classes) = update.user_classes {
         config.user_classes = Some(user_classes);
+    }
+
+    let ldap_config = if let Some(_) = password {
+        LdapAuthenticator::api_type_to_config_with_password(&config, password.clone())?
+    } else {
+        LdapAuthenticator::api_type_to_config(&config)?
+    };
+
+    let conn = Connection::new(ldap_config);
+    proxmox_async::runtime::block_on(conn.check_connection()).map_err(|e| format_err!("{e:#}"))?;
+
+    if let Some(password) = password {
+        auth_helpers::store_ldap_bind_password(&realm, &password, &domain_config_lock)?;
     }
 
     domains.set_data(&realm, "ldap", &config)?;

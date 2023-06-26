@@ -1,8 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use proxmox_schema::{
-    api, const_regex, ApiStringFormat, ApiType, ArraySchema, Schema, StringSchema, Updater,
-};
+use proxmox_schema::{api, ApiStringFormat, ApiType, ArraySchema, Schema, StringSchema, Updater};
 
 use super::{REALM_ID_SCHEMA, SINGLE_LINE_COMMENT_SCHEMA};
 
@@ -142,27 +140,7 @@ pub enum RemoveVanished {
     Properties,
 }
 
-macro_rules! DOMAIN_PART_REGEX {
-    () => {
-        r#"("[^"]+"|[^ ,+"/<>;=#][^,+"/<>;=]*[^ ,+"/<>;=]|[^ ,+"/<>;=#])"#
-    };
-}
-
-const_regex! {
-    pub LDAP_DOMAIN_REGEX = concat!(
-        r#"^\w+="#,
-        DOMAIN_PART_REGEX!(),
-        r#"(,\s*\w+="#,
-        DOMAIN_PART_REGEX!(),
-        ")*$"
-    );
-}
-
-pub const LDAP_DOMAIN_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&LDAP_DOMAIN_REGEX);
-
-pub const LDAP_DOMAIN_SCHEMA: Schema = StringSchema::new("LDAP Domain")
-    .format(&LDAP_DOMAIN_FORMAT)
-    .schema();
+pub const LDAP_DOMAIN_SCHEMA: Schema = StringSchema::new("LDAP Domain").schema();
 
 pub const SYNC_DEFAULTS_STRING_SCHEMA: Schema = StringSchema::new("sync defaults options")
     .format(&ApiStringFormat::PropertyString(
