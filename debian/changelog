@@ -1,3 +1,35 @@
+rust-proxmox-backup (3.0.0-1) bookworm; urgency=medium
+
+  * ui: tape: fix restore datastore mapping parameter construction
+
+  * fix #4638: proxmox-backup-client: status: guard against div by zero
+
+  * file-restore: add zfs. prefix to arc_min/max settings so that they get
+    actually applied
+
+  * file-restore: set zfs_arc_min to current lowest valid minimum of 32M
+
+  * fix #4734: manager: add user tfa {list, delete} commands
+
+  * api: fix schema return annotation of tfa_update_auth
+
+  * access: ldap check connection on creation and change
+
+  * api, manager: add user tfa unlock endpoint and command
+
+  * enable TFA lockout, for the relatively low-entropy TOTP type after 8
+    consecutive tries, for all other types after 1000 consecutive tries, as
+    they have much higher entropy
+
+  * ui: add TFA lock status and unlock button
+
+  * docs: user-management: add section for TFA lockouts
+
+  * docs: update package repos and secure APT release key checksums for
+    Debian 12 Bookworm based release
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 26 Jun 2023 19:59:56 +0200
+
 rust-proxmox-backup (2.99.0-1) bookworm; urgency=medium
 
   * initial re-build for Debian 12 Bookworm based releases
