@@ -563,6 +563,32 @@ use :ref:`API Tokens <user_tokens>` for all other use cases, especially
 non-interactive ones (for example, adding a Proxmox Backup Server to Proxmox VE
 as a storage).
 
+.. _user_tfa_lockout:
+
+Limits and Lockout of Two-Factor Authentication
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A second factor is meant to protect users if their password is somehow leaked
+or guessed. However, some factors could still be broken by brute force. For
+this reason, users will be locked out after too many failed 2nd factor login
+attempts.
+
+For TOTP, 8 failed attempts will disable the user's TOTP factors. They are
+unlocked when logging in with a recovery key. If TOTP was the only available
+factor, admin intervention is required, and it is highly recommended to require
+the user to change their password immediately.
+
+Since FIDO2/Webauthn and recovery keys are less susceptible to brute force
+attacks, the limit there is higher (100 tries), but all second factors are
+blocked for an hour when exceeded.
+
+An admin can unlock a user's Two-Factor Authentication at any time via the user
+list view in the web UI, or using the command line:
+
+.. code-block:: console
+
+  proxmox-backup-manager user tfa unlock joe@pve
+
 
 Authentication Realms
 ---------------------
