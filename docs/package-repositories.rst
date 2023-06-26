@@ -17,11 +17,11 @@ update``.
 .. code-block:: sources.list
   :caption: File: ``/etc/apt/sources.list``
 
-  deb http://ftp.debian.org/debian bullseye main contrib
-  deb http://ftp.debian.org/debian bullseye-updates main contrib
+  deb http://deb.debian.org/debian bookworm main contrib
+  deb http://deb.debian.org/debian bookworm-updates main contrib
 
   # security updates
-  deb http://security.debian.org/debian-security bullseye-security main contrib
+  deb http://security.debian.org/debian-security bookworm-security main contrib
 
 
 In addition, you need a package repository from Proxmox to get Proxmox Backup
@@ -48,21 +48,21 @@ key with the following commands:
 
 .. code-block:: console
 
- # wget https://enterprise.proxmox.com/debian/proxmox-release-bullseye.gpg -O /etc/apt/trusted.gpg.d/proxmox-release-bullseye.gpg
+ # wget https://enterprise.proxmox.com/debian/proxmox-release-bookworm.gpg -O /etc/apt/trusted.gpg.d/proxmox-release-bookworm.gpg
 
 Verify the SHA512 checksum afterwards with the expected output below:
 
 .. code-block:: console
 
- # sha512sum /etc/apt/trusted.gpg.d/proxmox-release-bullseye.gpg
- 7fb03ec8a1675723d2853b84aa4fdb49a46a3bb72b9951361488bfd19b29aab0a789a4f8c7406e71a69aabbc727c936d3549731c4659ffa1a08f44db8fdcebfa  /etc/apt/trusted.gpg.d/proxmox-release-bullseye.gpg
+ # sha512sum /etc/apt/trusted.gpg.d/proxmox-release-bookworm.gpg
+ 7da6fe34168adc6e479327ba517796d4702fa2f8b4f0a9833f5ea6e6b48f6507a6da403a274fe201595edc86a84463d50383d07f64bdde2e3658108db7d6dc87  /etc/apt/trusted.gpg.d/proxmox-release-bookworm.gpg
 
 and the md5sum, with the expected output below:
 
 .. code-block:: console
 
- # md5sum /etc/apt/trusted.gpg.d/proxmox-release-bullseye.gpg
- bcc35c7173e0845c0d6ad6470b70f50e /etc/apt/trusted.gpg.d/proxmox-release-bullseye.gpg
+ # md5sum /etc/apt/trusted.gpg.d/proxmox-release-bookworm.gpg
+ 41558dc019ef90bd0f6067644a51cf5b /etc/apt/trusted.gpg.d/proxmox-release-bookworm.gpg
 
 .. _sysadmin_package_repos_enterprise:
 
@@ -77,7 +77,7 @@ enabled by default:
 .. code-block:: sources.list
   :caption: File: ``/etc/apt/sources.list.d/pbs-enterprise.list``
 
-  deb https://enterprise.proxmox.com/debian/pbs bullseye pbs-enterprise
+  deb https://enterprise.proxmox.com/debian/pbs bookworm pbs-enterprise
 
 
 To never miss important security fixes, the superuser (``root@pam`` user) is
@@ -107,15 +107,15 @@ We recommend to configure this repository in ``/etc/apt/sources.list``.
 .. code-block:: sources.list
   :caption: File: ``/etc/apt/sources.list``
 
-  deb http://ftp.debian.org/debian bullseye main contrib
-  deb http://ftp.debian.org/debian bullseye-updates main contrib
+  deb http://deb.debian.org/debian bookworm main contrib
+  deb http://deb.debian.org/debian bookworm-updates main contrib
 
   # Proxmox Backup Server pbs-no-subscription repository provided by proxmox.com,
   # NOT recommended for production use
-  deb http://download.proxmox.com/debian/pbs bullseye pbs-no-subscription
+  deb http://download.proxmox.com/debian/pbs bookworm pbs-no-subscription
 
   # security updates
-  deb http://security.debian.org/debian-security bullseye-security main contrib
+  deb http://security.debian.org/debian-security bookworm-security main contrib
 
 
 `Proxmox Backup`_ Test Repository
@@ -133,7 +133,7 @@ You can access this repository by adding the following line to
 .. code-block:: sources.list
   :caption: sources.list entry for ``pbstest``
 
-  deb http://download.proxmox.com/debian/pbs bullseye pbstest
+  deb http://download.proxmox.com/debian/pbs bookworm pbstest
 
 .. _package_repositories_client_only:
 
@@ -157,6 +157,20 @@ and Ubuntu Derivative do, you may be able to use the APT-based repository.
 In order to configure this repository you need to first :ref:`setup the Proxmox
 release key <package_repos_secure_apt>`. After that, add the repository URL to
 the APT sources lists.
+
+**Repositories for Debian 12 (Bookworm) based releases**
+
+This repository is tested with:
+
+- Debian Bookworm
+
+Edit the file ``/etc/apt/sources.list.d/pbs-client.list`` and add the following
+snippet
+
+.. code-block:: sources.list
+  :caption: File: ``/etc/apt/sources.list``
+
+  deb http://download.proxmox.com/debian/pbs-client bookworm main
 
 **Repositories for Debian 11 (Bullseye) based releases**
 
