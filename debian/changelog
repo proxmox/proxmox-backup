@@ -1,3 +1,9 @@
+rust-proxmox-backup (3.0.0-2) bookworm; urgency=medium
+
+  * etc/pbs-enterprise.list: change to bookworm
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 26 Jun 2023 22:13:43 +0200
+
 rust-proxmox-backup (3.0.0-1) bookworm; urgency=medium
 
   * ui: tape: fix restore datastore mapping parameter construction
