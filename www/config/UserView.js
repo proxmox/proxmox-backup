@@ -161,10 +161,8 @@ Ext.define('PBS.config.UserView', {
 	    xtype: 'proxmoxButton',
 	    text: gettext('Unlock TFA'),
 	    handler: 'unlockTfa',
-	    enableFn: (rec) => {
-		rec.data['totp-locked'] ||
-		(rec.data['tfa-locked-until'] > (new Date().getTime() / 1000))
-	    },
+	    enableFn: ({ data }) =>
+	        data['totp-locked'] || (data['tfa-locked-until'] > (new Date().getTime() / 1000)),
 	},
     ],
 
