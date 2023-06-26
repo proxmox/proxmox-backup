@@ -1,1 +1,1 @@
-deb https://enterprise.proxmox.com/debian/pbs bullseye pbs-enterprise
+deb https://enterprise.proxmox.com/debian/pbs bookworm pbs-enterprise
