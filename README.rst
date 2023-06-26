@@ -47,8 +47,8 @@ Build
 on Debian 11 Bullseye
 
 Setup:
-  1. # echo 'deb http://download.proxmox.com/debian/devel/ bullseye main' | sudo tee /etc/apt/sources.list.d/proxmox-devel.list
-  2. # sudo wget https://enterprise.proxmox.com/debian/proxmox-release-bullseye.gpg -O /etc/apt/trusted.gpg.d/proxmox-release-bullseye.gpg
+  1. # echo 'deb http://download.proxmox.com/debian/devel/ bookworm main' | sudo tee /etc/apt/sources.list.d/proxmox-devel.list
+  2. # sudo wget https://enterprise.proxmox.com/debian/proxmox-release-bookworm.gpg -O /etc/apt/trusted.gpg.d/proxmox-release-bookworm.gpg
   3. # sudo apt update
   4. # sudo apt install devscripts debcargo clang
   5. # git clone git://git.proxmox.com/git/proxmox-backup.git
