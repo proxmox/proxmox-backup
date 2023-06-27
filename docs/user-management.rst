@@ -587,7 +587,7 @@ list view in the web UI, or using the command line:
 
 .. code-block:: console
 
-  proxmox-backup-manager user tfa unlock joe@pve
+  proxmox-backup-manager user tfa unlock joe@pbs
 
 
 Authentication Realms
