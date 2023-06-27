@@ -15,10 +15,10 @@ static SERVICE_NAME_LIST: [&str; 7] = [
     "proxmox-backup",
     "proxmox-backup-proxy",
     "sshd",
-    "syslog",
+    "systemd-journald",
     "cron",
     "postfix",
-    "systemd-timesyncd",
+    "chrony",
 ];
 
 pub fn real_service_name(service: &str) -> &str {
