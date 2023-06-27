@@ -180,7 +180,7 @@ Configuration
 -------------
 
 Please note that you can configure anything using the graphical user
-interface or the command line interface. Both methods result in the
+interface or the command-line interface. Both methods result in the
 same configuration.
 
 .. _tape_changer_config:
@@ -712,7 +712,7 @@ backup and *Media Pool* is the pool to back up to.
 Administration
 --------------
 
-Many sub-commands of the ``proxmox-tape`` command line tools take a
+Many sub-commands of the ``proxmox-tape`` command-line tools take a
 parameter called ``--drive``, which specifies the tape drive you want
 to work on. For convenience, you can set this in an environment
 variable:
@@ -937,8 +937,8 @@ Encryption Key Management
 
 Proxmox Backup Server also provides an interface for handling encryption keys on
 the backup server. Encryption keys can be managed from the **Tape Backup ->
-Encryption Keys** section of the GUI or through the ``proxmox-tape key`` command
-line tool. To create a new encryption key from the command line:
+Encryption Keys** section of the GUI or through the ``proxmox-tape key``
+command-line tool. To create a new encryption key from the command line:
 
 .. code-block:: console
 

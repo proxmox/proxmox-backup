@@ -1,7 +1,7 @@
 Command Syntax
 ==============
 
-.. NOTE:: Logging verbosity for the command line tools can be controlled with the
+.. NOTE:: Logging verbosity for the command-line tools can be controlled with the
     ``PBS_LOG`` (for ``pxar``: ``PXAR_LOG``) environment variable. Possible values are `off`,
     `error`, `warn`, `info`, `debug` and `trace` with `info` being the default.
 

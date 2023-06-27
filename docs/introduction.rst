@@ -30,7 +30,7 @@ backup data and provides an API to create and manage datastores. With the
 API, it's also possible to manage disks and other server-side resources.
 
 The backup client uses this API to access the backed up data. You can use the
-``proxmox-backup-client`` command line tool to create and restore file backups.
+``proxmox-backup-client`` command-line tool to create and restore file backups.
 For QEMU_ and LXC_ within `Proxmox Virtual Environment`_, we deliver an
 integrated client.
 

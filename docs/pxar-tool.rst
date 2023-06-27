@@ -1,4 +1,4 @@
-pxar Command Line Tool
+pxar Command-line Tool
 ======================
 
 .. include:: pxar/description.rst

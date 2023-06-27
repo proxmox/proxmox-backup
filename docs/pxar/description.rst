@@ -1,4 +1,4 @@
-``pxar`` is a command line utility for creating and manipulating archives in the
+``pxar`` is a command-line utility for creating and manipulating archives in the
 :ref:`pxar-format`.
 It is inspired by `casync file archive format
 <http://0pointer.net/blog/casync-a-tool-for-distributing-file-system-images.html>`_,

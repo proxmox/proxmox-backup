@@ -30,7 +30,7 @@ choose the realm when you add a new user. Possible realms are:
 After installation, there is a single user, ``root@pam``, which corresponds to
 the Unix superuser. User configuration information is stored in the file
 ``/etc/proxmox-backup/user.cfg``. You can use the ``proxmox-backup-manager``
-command line tool to list or manipulate users:
+command-line tool to list or manipulate users:
 
 .. code-block:: console
 

@@ -1,7 +1,7 @@
 Backup Client Usage
 ===================
 
-The command line client for Proxmox Backup Server is called
+The command-line client for Proxmox Backup Server is called
 :command:`proxmox-backup-client`.
 
 .. _client_repository:
@@ -23,7 +23,7 @@ port (for example, with NAT and port forwarding configurations).
 Note that if the server uses an IPv6 address, you have to write it with square
 brackets (for example, `[fe80::01]`).
 
-You can pass the repository with the ``--repository`` command line option, or
+You can pass the repository with the ``--repository`` command-line option, or
 by setting the ``PBS_REPOSITORY`` environment variable.
 
 Below are some examples of valid repositories and their corresponding real
@@ -472,7 +472,7 @@ to use the interactive recovery shell.
   bin        boot       dev        etc        home       lib        lib32
   ...
 
-The interactive recovery shell is a minimal command line interface that
+The interactive recovery shell is a minimal command-line interface that
 utilizes the metadata stored in the catalog to quickly list, navigate and
 search for files in a file archive.
 To restore files, you can select them individually or match them with a glob

@@ -91,8 +91,8 @@ contact point for renewal-due or similar notifications from the ACME
 endpoint.
 
 You can register or deactivate ACME accounts over the web interface
-``Certificates -> ACME Accounts`` or using the ``proxmox-backup-manager`` command
-line tool.
+``Certificates -> ACME Accounts`` or using the ``proxmox-backup-manager``
+command-line tool.
 
 ::
 
@@ -278,7 +278,7 @@ expired or if it will expire in the next 30 days.
 
 .. _manually_change_certificate_over_command_line:
 
-Manually Change Certificate over Command-Line
+Manually Change Certificate over the Command Line
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 If you want to get rid of certificate verification warnings, you have to
@@ -330,7 +330,7 @@ Test your new certificate, using your browser.
 
    To transfer files to and from your `Proxmox Backup`_, you can use
    secure copy: If your desktop runs Linux, you can use the ``scp``
-   command line tool. If your desktop PC runs windows, please use an scp
+   command-line tool. If your desktop PC runs windows, please use an scp
    client like WinSCP (see https://winscp.net/).
 
 .. [1]

@@ -1,4 +1,4 @@
-Command Line Tools
+Command-line Tools
 ------------------
 
 ``proxmox-backup-client``

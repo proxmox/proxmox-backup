@@ -194,7 +194,7 @@ Index files(*.fidx*, *.didx*) contain information about how to rebuild a file.
 More precisely, they contain an ordered list of references to the chunks that
 the original file was split into. If there is something wrong with a snapshot,
 it might be useful to find out which chunks are referenced in it, and check
-whether they are present and intact. The ``proxmox-backup-debug`` command line
+whether they are present and intact. The ``proxmox-backup-debug`` command-line
 tool can be used to inspect such files and recover their contents. For example,
 to get a list of the referenced chunks of a *.fidx* index:
 

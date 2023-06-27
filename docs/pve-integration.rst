@@ -20,7 +20,7 @@ Server as of `Proxmox VE 6.3
 
 A Proxmox Backup Server can be added under ``Datacenter -> Storage``.
 
-Using the Proxmox VE Command-Line
+Using the Proxmox VE Command Line
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 You need to define a new storage with type 'pbs' on your `Proxmox VE`_
