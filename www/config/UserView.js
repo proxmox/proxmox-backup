@@ -1,7 +1,7 @@
 Ext.define('pmx-users', {
     extend: 'Ext.data.Model',
     fields: [
-	'userid', 'firstname', 'lastname', 'email', 'comment',
+	'userid', 'firstname', 'lastname', 'email', 'comment', 'totp-locked',
 	{ type: 'boolean', name: 'enable', defaultValue: true },
 	{ type: 'date', dateFormat: 'timestamp', name: 'expire' },
     ],
