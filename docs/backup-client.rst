@@ -391,7 +391,7 @@ To set up a master key:
 It is recommended that you keep your master key safe, but easily accessible, in
 order for quick disaster recovery. For this reason, the best place to store it
 is in your password manager, where it is immediately recoverable. As a backup to
-this, you should also save the key to a USB drive and store that in a secure
+this, you should also save the key to a USB flash drive and store that in a secure
 place. This way, it is detached from any system, but is still easy to recover
 from, in case of emergency. Finally, in preparation for the worst case scenario,
 you should also consider keeping a paper copy of your master key locked away in
