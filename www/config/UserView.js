@@ -100,6 +100,30 @@ Ext.define('PBS.config.UserView', {
 	init: function(view) {
 	    Proxmox.Utils.monStoreErrors(view, view.getStore().rstore);
 	},
+
+	unlockTfa: function(btn, event, rec) {
+	    let me = this;
+	    let view = me.getView();
+	    Ext.Msg.confirm(
+		Ext.String.format(gettext('Unlock TFA authentication for {0}'), rec.data.userid),
+		gettext("Locked 2nd factors can happen if the user's password was leaked. Are you sure you want to unlock the user?"),
+		function(btn_response) {
+		    if (btn_response === 'yes') {
+			Proxmox.Utils.API2Request({
+			    url: `/access/users/${rec.data.userid}/unlock-tfa`,
+			    waitMsgTarget: view,
+			    method: 'PUT',
+			    failure: function(response, options) {
+				Ext.Msg.alert(gettext('Error'), response.htmlStatus);
+			    },
+			    success: function(response, options) {
+				me.reload();
+			    },
+			});
+		    }
+		},
+	    );
+	},
     },
 
     listeners: {
