@@ -1,3 +1,23 @@
+rust-proxmox-backup (3.0.1-1) bookworm; urgency=medium
+
+  * build with newer proxmox-rest-server to remove the full static file path
+    from error messages, which might trigger some simple security scanners
+    confusing the API server with a classic (file serving) HTTP server.
+
+  * build with newer proxmox-apt to fix #4653: (In)Release file: improve
+    handling of special suites
+
+  * ui: user view: fix refresh for TOTP-locked column
+
+  * api: node services: switch to systemd-journald and chrony instead of
+    syslog and systemd-timesyncd, respectively
+
+  * docs: consistent spelling of "USB flash drive"
+
+  * docs: fix spelling of "command line" (noun) & "command-line" (adjective)
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 27 Jun 2023 16:04:19 +0200
+
 rust-proxmox-backup (3.0.0-2) bookworm; urgency=medium
 
   * etc/pbs-enterprise.list: change to bookworm
