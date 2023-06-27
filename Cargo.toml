@@ -65,7 +65,7 @@ proxmox-io = "1.0.1" # tools and client use "tokio" feature
 proxmox-lang = "1.1"
 proxmox-ldap = "0.2"
 proxmox-metrics = "0.3"
-proxmox-rest-server = { version = "0.4.0", features = [ "templates" ] }
+proxmox-rest-server = { version = "0.4.1", features = [ "templates" ] }
 # some use "cli", some use "cli" and "server", pbs-config uses nothing
 proxmox-router = { version = "1.3.1", default_features = false }
 # everything but pbs-config and pbs-client ues "api-macro"
@@ -83,7 +83,7 @@ proxmox-uuid = "1"
 # other proxmox crates
 pathpatterns = "0.1.2"
 proxmox-acme-rs = "0.4"
-proxmox-apt = "0.10.0"
+proxmox-apt = "0.10.2"
 proxmox-openid = "0.10.0"
 pxar = "0.10.2"
 
