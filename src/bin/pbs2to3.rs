@@ -401,7 +401,7 @@ impl Checker {
         } else if self.get_systemd_unit_state("ntp.service")?.1 == SystemdUnitState::Active {
             self.output.log_info(
                 "Debian deprecated and removed the ntp package for Bookworm, but the system \
-	            will automatically migrate to the 'ntpsec' replacement package on upgrade.",
+                    will automatically migrate to the 'ntpsec' replacement package on upgrade.",
             )?;
         } else if self.get_systemd_unit_state("chrony.service")?.1 == SystemdUnitState::Active
             || self.get_systemd_unit_state("openntpd.service")?.1 == SystemdUnitState::Active
