@@ -11,6 +11,7 @@ usr/lib/x86_64-linux-gnu/proxmox-backup/proxmox-daily-update
 usr/lib/x86_64-linux-gnu/proxmox-backup/sg-tape-cmd
 usr/sbin/proxmox-backup-debug
 usr/sbin/proxmox-backup-manager
+usr/sbin/pbs2to3
 usr/bin/pmtx
 usr/bin/pmt
 usr/bin/proxmox-tape
@@ -39,3 +40,4 @@ usr/share/zsh/vendor-completions/_proxmox-backup-manager
 usr/share/zsh/vendor-completions/_proxmox-tape
 usr/share/zsh/vendor-completions/_pmtx
 usr/share/zsh/vendor-completions/_pmt
+usr/share/zsh/vendor-completions/_pbs2to3

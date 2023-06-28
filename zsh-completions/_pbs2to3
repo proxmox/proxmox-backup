@@ -1,0 +1,13 @@
+#compdef _pbs2to3() pbs2to3
+
+function _pbs2to3() {
+    local cwords line point cmd curr prev
+    cwords=${#words[@]}
+    line=$words
+    point=${#line}
+    cmd=${words[1]}
+    curr=${words[cwords]}
+    prev=${words[cwords-1]}
+    compadd -- $(COMP_CWORD="$cwords" COMP_LINE="$line" COMP_POINT="$point" \
+        pbs2to3 bashcomplete "$cmd" "$curr" "$prev")
+}

@@ -19,6 +19,7 @@ USR_BIN := \
 USR_SBIN := \
 	proxmox-backup-manager \
 	proxmox-backup-debug \
+	pbs2to3
 
 # Binaries for services:
 SERVICE_BIN := \
