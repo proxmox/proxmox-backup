@@ -296,7 +296,7 @@ impl Checker {
                 if suite != OLD_SUITE && suite != NEW_SUITE {
                     let location = repo_file.path.clone().unwrap_or_default();
                     self.output.log_notice(format!(
-                        "found unusual suite '{suite}', neighter old '{OLD_SUITE}' nor new \
+                        "found unusual suite '{suite}', neither old '{OLD_SUITE}' nor new \
                             '{NEW_SUITE}'..\n        Affected file {location}\n        Please \
                             assure this is shipping compatible packages for the upgrade!"
                     ))?;
