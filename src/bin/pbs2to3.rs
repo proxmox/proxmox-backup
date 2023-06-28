@@ -485,19 +485,22 @@ impl ConsoleOutput {
         Ok(())
     }
 
-    pub fn set_color(&mut self, color: Color) -> Result<(), Error> {
+    pub fn set_color(&mut self, color: Color, bold: bool) -> Result<(), Error> {
         self.stream
-            .set_color(ColorSpec::new().set_fg(Some(color)))?;
+            .set_color(ColorSpec::new().set_fg(Some(color)).set_bold(bold))?;
         Ok(())
+    }
+
+    pub fn reset(&mut self) -> Result<(), std::io::Error> {
+        self.stream.reset()
     }
 
     pub fn log_line(&mut self, level: LogLevel, message: &str) -> Result<(), Error> {
         match level {
             LogLevel::Pass => {
                 self.counters.pass += 1;
-                self.set_color(Color::Green)?;
+                self.set_color(Color::Green, false)?;
                 writeln!(&mut self.stream, "PASS: {}", message)?;
-                self.set_color(Color::White)?;
             }
             LogLevel::Info => {
                 writeln!(&mut self.stream, "INFO: {}", message)?;
@@ -508,21 +511,21 @@ impl ConsoleOutput {
             }
             LogLevel::Notice => {
                 self.counters.notice += 1;
+                self.set_color(Color::White, true)?;
                 writeln!(&mut self.stream, "NOTICE: {}", message)?;
             }
             LogLevel::Warn => {
                 self.counters.warn += 1;
-                self.set_color(Color::Yellow)?;
+                self.set_color(Color::Yellow, true)?;
                 writeln!(&mut self.stream, "WARN: {}", message)?;
-                self.set_color(Color::White)?;
             }
             LogLevel::Fail => {
                 self.counters.fail += 1;
-                self.set_color(Color::Red)?;
+                self.set_color(Color::Red, true)?;
                 writeln!(&mut self.stream, "FAIL: {}", message)?;
-                self.set_color(Color::White)?;
             }
         }
+        self.reset()?;
         Ok(())
     }
 
@@ -559,28 +562,28 @@ impl ConsoleOutput {
             + self.counters.skip
             + self.counters.warn;
 
-        self.set_color(Color::White)?;
         writeln!(&mut self.stream, "TOTAL:     {total}")?;
-        self.set_color(Color::Green)?;
+        self.set_color(Color::Green, false)?;
         writeln!(&mut self.stream, "PASSED:    {}", self.counters.pass)?;
-        self.set_color(Color::White)?;
+        self.reset()?;
         writeln!(&mut self.stream, "SKIPPED:   {}", self.counters.skip)?;
         writeln!(&mut self.stream, "NOTICE:    {}", self.counters.notice)?;
         if self.counters.warn > 0 {
-            self.set_color(Color::Yellow)?;
+            self.set_color(Color::Yellow, false)?;
             writeln!(&mut self.stream, "WARNINGS:  {}", self.counters.warn)?;
         }
         if self.counters.fail > 0 {
-            self.set_color(Color::Red)?;
+            self.set_color(Color::Red, true)?;
             writeln!(&mut self.stream, "FAILURES:  {}", self.counters.fail)?;
         }
         if self.counters.warn > 0 || self.counters.fail > 0 {
-            let mut color = Color::Yellow;
-            if self.counters.fail > 0 {
-                color = Color::Red;
-            }
+            let (color, bold) = if self.counters.fail > 0 {
+                (Color::Red, true)
+            } else {
+                (Color::Yellow, false)
+            };
 
-            self.set_color(color)?;
+            self.set_color(color, bold)?;
             writeln!(
                 &mut self.stream,
                 "\nATTENTION: Please check the output for detailed information!",
@@ -592,7 +595,7 @@ impl ConsoleOutput {
                 )?;
             }
         }
-        self.set_color(Color::White)?;
+        self.reset()?;
         Ok(())
     }
 }
