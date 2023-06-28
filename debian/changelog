@@ -1,3 +1,11 @@
+rust-proxmox-backup (2.4.3-1) bullseye; urgency=medium
+
+  * add pbs2to3 major-upgrade checker binary
+
+  * cargo: bump proxmox-apt to 0.9.4 to improve repository API during upgrade
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 28 Jun 2023 18:55:03 +0200
+
 rust-proxmox-backup (2.4.2-2) bullseye; urgency=medium
 
   * ui: tape: fix restore datastore mapping parameter construction
