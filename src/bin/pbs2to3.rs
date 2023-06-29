@@ -516,7 +516,7 @@ impl ConsoleOutput {
             }
             LogLevel::Warn => {
                 self.counters.warn += 1;
-                self.set_color(Color::Yellow, true)?;
+                self.set_color(Color::Yellow, false)?;
                 writeln!(&mut self.stream, "WARN: {}", message)?;
             }
             LogLevel::Fail => {
