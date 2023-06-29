@@ -19,7 +19,6 @@ USR_BIN := \
 USR_SBIN := \
 	proxmox-backup-manager \
 	proxmox-backup-debug \
-	pbs2to3
 
 # Binaries for services:
 SERVICE_BIN := \
@@ -196,6 +195,7 @@ install: $(COMPILED_BINS)
 	$(foreach i,$(USR_SBIN), \
 	    install -m755 $(COMPILEDIR)/$(i) $(DESTDIR)$(SBINDIR)/ ; \
 	    install -m644 zsh-completions/_$(i) $(DESTDIR)$(ZSH_COMPL_DEST)/ ;)
+	install -m755 $(COMPILEDIR)/pbs2to3 $(DESTDIR)$(SBINDIR)/
 	install -dm755 $(DESTDIR)$(LIBEXECDIR)/proxmox-backup
 	install -dm755 $(DESTDIR)$(LIBEXECDIR)/proxmox-backup/file-restore
 	$(foreach i,$(RESTORE_BIN), \

@@ -40,4 +40,3 @@ usr/share/zsh/vendor-completions/_proxmox-backup-manager
 usr/share/zsh/vendor-completions/_proxmox-tape
 usr/share/zsh/vendor-completions/_pmtx
 usr/share/zsh/vendor-completions/_pmt
-usr/share/zsh/vendor-completions/_pbs2to3
