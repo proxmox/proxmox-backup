@@ -102,6 +102,7 @@ man_pages = [
     ('pxar/man1', 'pxar', 'Proxmox File Archive CLI Tool', [author], 1),
     ('pmt/man1', 'pmt', 'Control Linux Tape Devices', [author], 1),
     ('pmtx/man1', 'pmtx', 'Control SCSI media changer devices (tape autoloaders)', [author], 1),
+    ('pbs2to3/man1', 'pbs2to3', 'Proxmox Backup Server upgrade checker script for 2.4+ to current 3.x major upgrades', [author], 1),
     # configs
     ('config/acl/man5', 'acl.cfg', 'Access Control Configuration', [author], 5),
     ('config/datastore/man5', 'datastore.cfg', 'Datastore Configuration', [author], 5),
