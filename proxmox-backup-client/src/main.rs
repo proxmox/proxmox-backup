@@ -1055,7 +1055,7 @@ async fn create_backup(
 
     if let Some(rsa_encrypted_key) = rsa_encrypted_key {
         let target = ENCRYPTED_KEY_BLOB_NAME;
-        log::info!("Upload RSA encoded key to '{:?}' as {}", repo, target);
+        log::info!("Upload RSA encoded key to '{}' as {}", repo, target);
         let options = UploadOptions {
             compress: false,
             encrypt: false,
