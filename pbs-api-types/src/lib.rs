@@ -398,8 +398,6 @@ pub struct APTUpdateInfo {
     pub priority: String,
     /// Package section
     pub section: String,
-    /// URL under which the package's changelog can be retrieved
-    pub change_log_url: String,
     /// Custom extra field for additional package information
     #[serde(skip_serializing_if = "Option::is_none")]
     pub extra_info: Option<String>,

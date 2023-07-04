@@ -90,70 +90,6 @@ const_regex! {
     FILENAME_EXTRACT_REGEX = r"^.*/.*?_(.*)_Packages$";
 }
 
-// FIXME: once the 'changelog' API call switches over to 'apt-get changelog' only,
-// consider removing this function entirely, as it's value is never used anywhere
-// then (widget-toolkit doesn't use the value either)
-fn get_changelog_url(
-    package: &str,
-    filename: &str,
-    version: &str,
-    origin: &str,
-    component: &str,
-) -> Result<String, Error> {
-    if origin.is_empty() {
-        bail!("no origin available for package {}", package);
-    }
-
-    if origin == "Debian" {
-        let mut command = std::process::Command::new("apt-get");
-        command.arg("changelog");
-        command.arg("--print-uris");
-        command.arg(package);
-        let output = proxmox_sys::command::run_command(command, None)?; // format: 'http://foo/bar' package.changelog
-        let output = match output.split_once(' ') {
-            Some((uri, _file_name)) if uri.len() > 2 => uri[1..uri.len() - 1].to_owned(),
-            Some((uri, _file_name)) => bail!(
-                "invalid output (URI part too short) from 'apt-get changelog --print-uris': {}",
-                uri
-            ),
-            None => bail!(
-                "invalid output from 'apt-get changelog --print-uris': {}",
-                output
-            ),
-        };
-        return Ok(output);
-    } else if origin == "Proxmox" {
-        // FIXME: Use above call to 'apt changelog <pkg> --print-uris' as well.
-        // Currently not possible as our packages do not have a URI set in their Release file.
-        let version = (VERSION_EPOCH_REGEX.regex_obj)().replace_all(version, "");
-
-        let base = match (FILENAME_EXTRACT_REGEX.regex_obj)().captures(filename) {
-            Some(captures) => {
-                let base_capture = captures.get(1);
-                match base_capture {
-                    Some(base_underscore) => base_underscore.as_str().replace('_', "/"),
-                    None => bail!("incompatible filename, cannot find regex group"),
-                }
-            }
-            None => bail!("incompatible filename, doesn't match regex"),
-        };
-
-        if component == "pbs-enterprise" {
-            return Ok(format!(
-                "https://enterprise.proxmox.com/{}/{}_{}.changelog",
-                base, package, version
-            ));
-        } else {
-            return Ok(format!(
-                "http://download.proxmox.com/{}/{}_{}.changelog",
-                base, package, version
-            ));
-        }
-    }
-
-    bail!("unknown origin ({}) or component ({})", origin, component)
-}
-
 pub struct FilterData<'a> {
     /// package name
     pub package: &'a str,
@@ -273,7 +209,6 @@ where
         let mut origin_res = "unknown".to_owned();
         let mut section_res = "unknown".to_owned();
         let mut priority_res = "unknown".to_owned();
-        let mut change_log_url = "".to_owned();
         let mut short_desc = package.clone();
         let mut long_desc = "".to_owned();
 
@@ -317,17 +252,6 @@ where
                     if let Some(origin_name) = pkg_file.origin() {
                         origin_res = origin_name;
                     }
-
-                    let filename = pkg_file.file_name();
-                    let component = pkg_file.component();
-
-                    // build changelog URL from gathered information
-                    // ignore errors, use empty changelog instead
-                    let url =
-                        get_changelog_url(&package, &filename, &version, &origin_res, &component);
-                    if let Ok(url) = url {
-                        change_log_url = url;
-                    }
                 }
             }
 
@@ -352,7 +276,6 @@ where
                 title: short_desc,
                 arch: view.arch(),
                 description: long_desc,
-                change_log_url,
                 origin: origin_res,
                 version: candidate_version.clone(),
                 old_version: match current_version {

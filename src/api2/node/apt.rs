@@ -1,6 +1,5 @@
 use anyhow::{bail, format_err, Error};
 use serde_json::{json, Value};
-use std::collections::HashMap;
 use std::os::unix::prelude::OsStrExt;
 
 use proxmox_router::{
@@ -19,10 +18,9 @@ use pbs_api_types::{
     APTUpdateInfo, NODE_SCHEMA, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY, PROXMOX_CONFIG_DIGEST_SCHEMA,
     UPID_SCHEMA,
 };
-use pbs_buildcfg::PROXMOX_BACKUP_SUBSCRIPTION_FN;
 
 use crate::config::node;
-use crate::tools::{apt, pbs_simple_http};
+use crate::tools::apt;
 use proxmox_rest_server::WorkerTask;
 
 #[api(
@@ -224,81 +222,17 @@ pub fn apt_update_database(
     },
 )]
 /// Retrieve the changelog of the specified package.
-fn apt_get_changelog(param: Value) -> Result<Value, Error> {
-    let name = pbs_tools::json::required_string_param(&param, "name")?.to_owned();
-    let version = param["version"].as_str();
-
-    let pkg_info = apt::list_installed_apt_packages(
-        |data| match version {
-            Some(version) => version == data.active_version,
-            None => data.active_version == data.candidate_version,
-        },
-        Some(&name),
-    );
-
-    if pkg_info.is_empty() {
-        bail!("Package '{}' not found", name);
-    }
-
-    let proxy_config = read_and_update_proxy_config()?;
-    let client = pbs_simple_http(proxy_config);
-
-    let changelog_url = &pkg_info[0].change_log_url;
-    // FIXME: use 'apt-get changelog' for proxmox packages as well, once repo supports it
-    if changelog_url.starts_with("http://download.proxmox.com/") {
-        let changelog = proxmox_async::runtime::block_on(client.get_string(changelog_url, None))
-            .map_err(|err| {
-                format_err!(
-                    "Error downloading changelog from '{}': {}",
-                    changelog_url,
-                    err
-                )
-            })?;
-        Ok(json!(changelog))
-    } else if changelog_url.starts_with("https://enterprise.proxmox.com/") {
-        let sub = match proxmox_subscription::files::read_subscription(
-            PROXMOX_BACKUP_SUBSCRIPTION_FN,
-            &[proxmox_subscription::files::DEFAULT_SIGNING_KEY],
-        )? {
-            Some(sub) => sub,
-            None => {
-                bail!("cannot retrieve changelog from enterprise repo: no subscription info found")
-            }
-        };
-        let (key, id) = match sub.key {
-            Some(key) => match sub.serverid {
-                Some(id) => (key, id),
-                None => bail!("cannot retrieve changelog from enterprise repo: no server id found"),
-            },
-            None => {
-                bail!("cannot retrieve changelog from enterprise repo: no subscription key found")
-            }
-        };
-
-        let mut auth_header = HashMap::new();
-        auth_header.insert(
-            "Authorization".to_owned(),
-            format!("Basic {}", base64::encode(format!("{}:{}", key, id))),
-        );
-
-        let changelog =
-            proxmox_async::runtime::block_on(client.get_string(changelog_url, Some(&auth_header)))
-                .map_err(|err| {
-                    format_err!(
-                        "Error downloading changelog from '{}': {}",
-                        changelog_url,
-                        err
-                    )
-                })?;
-        Ok(json!(changelog))
+fn apt_get_changelog(name: String, version: Option<String>) -> Result<Value, Error> {
+    let mut command = std::process::Command::new("apt-get");
+    command.arg("changelog");
+    command.arg("-qq"); // don't display download progress
+    if let Some(ver) = version {
+        command.arg(format!("{name}={ver}"));
     } else {
-        let mut command = std::process::Command::new("apt-get");
-        command.arg("changelog");
-        command.arg("-qq"); // don't display download progress
         command.arg(name);
-        let output = proxmox_sys::command::run_command(command, None)?;
-        Ok(json!(output))
     }
+    let output = proxmox_sys::command::run_command(command, None)?;
+    Ok(json!(output))
 }
 
 #[api(
@@ -349,7 +283,6 @@ pub fn get_versions() -> Result<Vec<APTUpdateInfo>, Error> {
             origin: "unknown".into(),
             priority: "unknown".into(),
             section: "unknown".into(),
-            change_log_url: "unknown".into(),
             extra_info,
         }
     }
