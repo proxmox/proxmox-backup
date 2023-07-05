@@ -764,7 +764,11 @@ pub fn unlock_tfa(userid: Userid) -> Result<bool, Error> {
     let _lock = crate::config::tfa::write_lock()?;
 
     let mut config = crate::config::tfa::read()?;
-    if proxmox_tfa::api::methods::unlock_tfa(&mut config, userid.as_str())? {
+    if proxmox_tfa::api::methods::unlock_and_reset_tfa(
+        &mut config,
+        &crate::config::tfa::UserAccess,
+        userid.as_str(),
+    )? {
         crate::config::tfa::write(&config)?;
         Ok(true)
     } else {
