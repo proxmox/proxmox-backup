@@ -149,7 +149,7 @@ udev = "0.4"
 url = "2.1"
 walkdir = "2"
 xdg = "2.2"
-zstd = { version = ">= 0.6, < 0.13", features = [ "bindgen" ] }
+zstd = { version = "0.12", features = [ "bindgen" ] }
 
 [dependencies]
 anyhow.workspace = true
