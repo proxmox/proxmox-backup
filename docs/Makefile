@@ -30,7 +30,8 @@ MAN1_PAGES := 				\
 	proxmox-backup-client.1		\
 	proxmox-backup-manager.1	\
 	proxmox-file-restore.1		\
-	proxmox-backup-debug.1
+	proxmox-backup-debug.1		\
+	pbs2to3.1			\
 
 MAN5_PAGES :=				\
 	media-pool.cfg.5		\
