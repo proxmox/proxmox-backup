@@ -48,12 +48,12 @@ You can create an ``ext4`` or ``xfs`` filesystem on a disk using ``fs
 create``, or by navigating to **Administration -> Storage/Disks -> Directory**
 in the web interface and creating one from there. The following command creates
 an ``ext4`` filesystem and passes the ``--add-datastore`` parameter, in order to
-automatically create a datastore on the disk (in this case ``sdd``). This will
+automatically create a datastore on the disk. This will
 create a datastore at the location ``/mnt/datastore/store1``:
 
 .. code-block:: console
 
-  # proxmox-backup-manager disk fs create store1 --disk sdd --filesystem ext4 --add-datastore true
+  # proxmox-backup-manager disk fs create store1 --disk sdX --filesystem ext4 --add-datastore true
 
 .. image:: images/screenshots/pbs-gui-disks-zfs-create.png
   :align: right
@@ -61,12 +61,12 @@ create a datastore at the location ``/mnt/datastore/store1``:
 
 You can also create a ``zpool`` with various raid levels from **Administration
 -> Storage/Disks -> ZFS** in the web interface, or by using ``zpool create``. The command
-below creates a mirrored ``zpool`` using two disks (``sdb`` & ``sdc``) and
+below creates a mirrored ``zpool`` using two disks and
 mounts it under ``/mnt/datastore/zpool1``:
 
 .. code-block:: console
 
-  # proxmox-backup-manager disk zpool create zpool1 --devices sdb,sdc --raidlevel mirror
+  # proxmox-backup-manager disk zpool create zpool1 --devices sdX,sdY --raidlevel mirror
 
 .. note:: You can also pass the ``--add-datastore`` parameter here, to automatically
   create a datastore from the disk.
