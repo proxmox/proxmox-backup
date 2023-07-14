@@ -185,6 +185,25 @@ pub fn dump_schema(schema: &Schema) -> Value {
             data = dump_property_schema(alloff_schema);
             data["type"] = "object".into();
         }
+        Schema::OneOf(schema) => {
+            let mut type_schema = dump_schema(schema.type_schema());
+            if schema.type_property_entry.1 {
+                type_schema["optional"] = true.into();
+            }
+            data = json!({
+                "type": "object",
+                "description": schema.description,
+                "typeProperty": schema.type_property(),
+                "typeSchema": type_schema,
+            });
+            let mut variants = Vec::with_capacity(schema.list.len());
+            for (title, variant) in schema.list {
+                let mut entry = dump_schema(variant);
+                entry["title"] = (*title).into();
+                variants.push(entry);
+            }
+            data["oneOf"] = variants.into();
+        }
     };
 
     data
