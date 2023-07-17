@@ -8,7 +8,7 @@ use std::os::unix::io::{AsRawFd, FromRawFd, RawFd};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use anyhow::{bail, Context, Error};
+use anyhow::{bail, format_err, Context, Error};
 use nix::dir::Dir;
 use nix::fcntl::OFlag;
 use nix::sys::stat::Mode;
@@ -40,75 +40,203 @@ pub struct PxarExtractOptions<'a> {
 pub type ErrorHandler = Box<dyn FnMut(Error) -> Result<(), Error> + Send>;
 
 pub fn extract_archive<T, F>(
-    mut decoder: pxar::decoder::Decoder<T>,
+    decoder: pxar::decoder::Decoder<T>,
     destination: &Path,
     feature_flags: Flags,
-    mut callback: F,
+    callback: F,
     options: PxarExtractOptions,
 ) -> Result<(), Error>
 where
     T: pxar::decoder::SeqRead,
     F: FnMut(&Path),
 {
-    // we use this to keep track of our directory-traversal
-    decoder.enable_goodbye_entries(true);
+    ExtractorIter::new(decoder, destination, feature_flags, callback, options)
+        .context("failed to initialize extractor")?
+        .collect::<Result<(), Error>>()
+        .context("encountered unexpected error during extraction")
+}
 
-    let root = decoder
-        .next()
-        .context("found empty pxar archive")?
-        .context("error reading pxar archive")?;
+struct ExtractorIterState {
+    match_stack: Vec<bool>,
+    err_path_stack: Vec<OsString>,
+    current_match: bool,
+    end_reached: bool,
+}
 
-    if !root.is_dir() {
-        bail!("pxar archive does not start with a directory entry!");
+/// An [`Iterator`] that encapsulates the process of extraction in [extract_archive].
+/// Therefore, traversing over an [`ExtractorIter`] until exhaustion extracts an
+/// entire PXAR archive.
+struct ExtractorIter<'a, T, F>
+where
+    T: pxar::decoder::SeqRead,
+    F: FnMut(&Path),
+{
+    decoder: pxar::decoder::Decoder<T>,
+    callback: F,
+    extractor: Extractor,
+    match_list: &'a [MatchEntry],
+    state: ExtractorIterState,
+}
+
+impl ExtractorIterState {
+    fn new(options: &PxarExtractOptions) -> Self {
+        Self {
+            match_stack: Vec::new(),
+            err_path_stack: Vec::new(),
+            current_match: options.extract_match_default,
+            end_reached: false,
+        }
     }
+}
 
-    create_path(
-        destination,
-        None,
-        Some(CreateOptions::new().perm(Mode::from_bits_truncate(0o700))),
-    )
-    .with_context(|| format!("error creating directory {:?}", destination))?;
+impl<'a, T, F> ExtractorIter<'a, T, F>
+where
+    T: pxar::decoder::SeqRead,
+    F: FnMut(&Path),
+{
+    /// Creates and initializes the state of a new [`ExtractorIter`].
+    ///
+    /// This function requires that the given [`Decoder`][D] has not made a single
+    /// traversal (a call to [`next()`][next]) yet.
+    ///
+    /// [D]: pxar::decoder::Decoder
+    /// [next]: std::iter::Iterator::next()
+    fn new(
+        mut decoder: pxar::decoder::Decoder<T>,
+        destination: &Path,
+        feature_flags: Flags,
+        callback: F,
+        options: PxarExtractOptions<'a>,
+    ) -> Result<Self, Error> {
+        // we use this to keep track of our directory-traversal
+        decoder.enable_goodbye_entries(true);
 
-    let dir = Dir::open(
-        destination,
-        OFlag::O_DIRECTORY | OFlag::O_CLOEXEC,
-        Mode::empty(),
-    )
-    .with_context(|| format!("unable to open target directory {:?}", destination))?;
+        let root = decoder
+            .next()
+            .context("found empty pxar archive")?
+            .context("error reading pxar archive")?;
 
-    let mut extractor = Extractor::new(
-        dir,
-        root.metadata().clone(),
-        options.allow_existing_dirs,
-        options.overwrite,
-        feature_flags,
-    );
-
-    if let Some(on_error) = options.on_error {
-        extractor.on_error(on_error);
-    }
-
-    let mut match_stack = Vec::new();
-    let mut err_path_stack = vec![OsString::from("/")];
-    let mut current_match = options.extract_match_default;
-    while let Some(entry) = decoder.next() {
-        let entry = entry.context("error reading pxar archive")?;
-
-        let file_name_os = entry.file_name();
-
-        // safety check: a file entry in an archive must never contain slashes:
-        if file_name_os.as_bytes().contains(&b'/') {
-            bail!("archive file entry contains slashes, which is invalid and a security concern");
+        if !root.is_dir() {
+            bail!("pxar archive does not start with a directory entry!");
         }
 
-        let file_name = CString::new(file_name_os.as_bytes())
-            .context("encountered file name with null-bytes")?;
+        let mut state = ExtractorIterState::new(&options);
+        state.err_path_stack.push(OsString::from("/"));
+
+        create_path(
+            destination,
+            None,
+            Some(CreateOptions::new().perm(Mode::from_bits_truncate(0o700))),
+        )
+        .with_context(|| format!("error creating directory {destination:?}"))?;
+
+        let dir = Dir::open(
+            destination,
+            OFlag::O_DIRECTORY | OFlag::O_CLOEXEC,
+            Mode::empty(),
+        )
+        .with_context(|| format!("unable to open target directory {destination:?}"))?;
+
+        let mut extractor = Extractor::new(
+            dir,
+            root.metadata().clone(),
+            options.allow_existing_dirs,
+            options.overwrite,
+            feature_flags,
+        );
+
+        if let Some(on_error) = options.on_error {
+            extractor.on_error(on_error);
+        }
+
+        Ok(Self {
+            decoder,
+            callback,
+            extractor,
+            match_list: options.match_list,
+            state,
+        })
+    }
+
+    #[inline(always)]
+    fn callback(&mut self, path: &Path) {
+        (self.callback)(path)
+    }
+}
+
+impl<'a, T, F> Iterator for ExtractorIter<'a, T, F>
+where
+    T: pxar::decoder::SeqRead,
+    F: FnMut(&Path),
+{
+    type Item = Result<(), Error>;
+
+    /// Performs the extraction of [`Entries`][E] yielded by the [`Decoder`][D].
+    ///
+    /// In detail, the [`ExtractorIter`] will stop if and only if one of the
+    /// following conditions is true:
+    ///   * The [`Decoder`][D] is exhausted
+    ///   * The [`Decoder`][D] failed to read from the archive and consequently
+    ///     yielded an [`io::Error`]
+    ///   * The [`Entry`][E]'s filename is invalid (contains nul bytes or a slash)
+    ///
+    /// Should an error occur during any point of extraction (**not** while
+    /// fetching the next [`Entry`][E]), the error may be handled by the
+    /// [`ErrorHandler`] provided by the [`PxarExtractOptions`] used to
+    /// initialize the iterator.
+    ///
+    /// [E]: pxar::Entry
+    /// [D]: pxar::decoder::Decoder
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.state.end_reached {
+            return None;
+        }
+
+        let entry = match self.decoder.next() {
+            None => {
+                self.state.end_reached = true;
+
+                if !self.extractor.dir_stack.is_empty() {
+                    return Some(Err(format_err!(
+                        "unexpected eof while decoding pxar archive"
+                    )));
+                } else {
+                    return None;
+                }
+            }
+            Some(Err(err)) => {
+                self.state.end_reached = true;
+
+                return Some(Err(format_err!(err).context("error reading pxar archive")));
+            }
+            Some(Ok(entry)) => entry,
+        };
+
+        let file_name_os = entry.file_name();
+        let file_name_bytes = file_name_os.as_bytes();
+
+        if file_name_bytes.contains(&b'/') {
+            self.state.end_reached = true;
+
+            return Some(Err(format_err!(
+                "archive file entry contains slashes, which is invalid and a security concern"
+            )));
+        }
+
+        let file_name = match CString::new(file_name_bytes) {
+            Err(err) => {
+                self.state.end_reached = true;
+
+                return Some(Err(format_err!(err)));
+            }
+            Ok(file_name_ref) => file_name_ref,
+        };
 
         let metadata = entry.metadata();
 
-        extractor.set_path(entry.path().as_os_str().to_owned());
+        self.extractor.set_path(entry.path().as_os_str().to_owned());
 
-        let match_result = options.match_list.matches(
+        let match_result = self.match_list.matches(
             entry.path().as_os_str().as_bytes(),
             Some(metadata.file_type() as u32),
         );
@@ -116,101 +244,114 @@ where
         let did_match = match match_result {
             Some(MatchType::Include) => true,
             Some(MatchType::Exclude) => false,
-            None => current_match,
+            None => self.state.current_match,
         };
-        match (did_match, entry.kind()) {
+
+        let extract_res = match (did_match, entry.kind()) {
             (_, EntryKind::Directory) => {
-                callback(entry.path());
+                self.callback(entry.path());
 
-                let create = current_match && match_result != Some(MatchType::Exclude);
-                extractor
-                    .enter_directory(file_name_os.to_owned(), metadata.clone(), create)
-                    .with_context(|| format!("error at entry {:?}", file_name_os))?;
+                let create = self.state.current_match && match_result != Some(MatchType::Exclude);
+                let res = self.extractor.enter_directory(
+                    file_name_os.to_owned(),
+                    metadata.clone(),
+                    create,
+                );
 
-                // We're starting a new directory, push our old matching state and replace it with
-                // our new one:
-                match_stack.push(current_match);
-                current_match = did_match;
+                if res.is_ok() {
+                    // We're starting a new directory, push our old matching state and replace it with
+                    // our new one:
+                    self.state.match_stack.push(self.state.current_match);
+                    self.state.current_match = did_match;
 
-                // When we hit the goodbye table we'll try to apply metadata to the directory, but
-                // the Goodbye entry will not contain the path, so push it to our path stack for
-                // error messages:
-                err_path_stack.push(extractor.clone_path());
+                    // When we hit the goodbye table we'll try to apply metadata to the directory, but
+                    // the Goodbye entry will not contain the path, so push it to our path stack for
+                    // error messages:
+                    self.state.err_path_stack.push(self.extractor.clone_path());
+                }
 
-                Ok(())
+                res
             }
             (_, EntryKind::GoodbyeTable) => {
                 // go up a directory
 
-                extractor.set_path(err_path_stack.pop().with_context(|| {
-                    format!(
-                        "error at entry {:?} - unexpected end of directory",
-                        file_name_os
-                    )
-                })?);
+                let res = self
+                    .state
+                    .err_path_stack
+                    .pop()
+                    .context("unexpected end of directory")
+                    .map(|path| self.extractor.set_path(path))
+                    .and(self.extractor.leave_directory());
 
-                extractor
-                    .leave_directory()
-                    .with_context(|| format!("error at entry {:?}", file_name_os))?;
+                if res.is_ok() {
+                    // We left a directory, also get back our previous matching state. This is in sync
+                    // with `dir_stack` so this should never be empty except for the final goodbye
+                    // table, in which case we get back to the default of `true`.
+                    self.state.current_match = self.state.match_stack.pop().unwrap_or(true);
+                }
 
-                // We left a directory, also get back our previous matching state. This is in sync
-                // with `dir_stack` so this should never be empty except for the final goodbye
-                // table, in which case we get back to the default of `true`.
-                current_match = match_stack.pop().unwrap_or(true);
-
-                Ok(())
+                res
             }
             (true, EntryKind::Symlink(link)) => {
-                callback(entry.path());
-                extractor.extract_symlink(&file_name, metadata, link.as_ref())
+                self.callback(entry.path());
+                self.extractor
+                    .extract_symlink(&file_name, metadata, link.as_ref())
             }
             (true, EntryKind::Hardlink(link)) => {
-                callback(entry.path());
-                extractor.extract_hardlink(&file_name, link.as_os_str())
+                self.callback(entry.path());
+                self.extractor
+                    .extract_hardlink(&file_name, link.as_os_str())
             }
             (true, EntryKind::Device(dev)) => {
-                if extractor.contains_flags(Flags::WITH_DEVICE_NODES) {
-                    callback(entry.path());
-                    extractor.extract_device(&file_name, metadata, dev)
+                if self.extractor.contains_flags(Flags::WITH_DEVICE_NODES) {
+                    self.callback(entry.path());
+                    self.extractor.extract_device(&file_name, metadata, dev)
                 } else {
                     Ok(())
                 }
             }
             (true, EntryKind::Fifo) => {
-                if extractor.contains_flags(Flags::WITH_FIFOS) {
-                    callback(entry.path());
-                    extractor.extract_special(&file_name, metadata, 0)
+                if self.extractor.contains_flags(Flags::WITH_FIFOS) {
+                    self.callback(entry.path());
+                    self.extractor.extract_special(&file_name, metadata, 0)
                 } else {
                     Ok(())
                 }
             }
             (true, EntryKind::Socket) => {
-                if extractor.contains_flags(Flags::WITH_SOCKETS) {
-                    callback(entry.path());
-                    extractor.extract_special(&file_name, metadata, 0)
+                if self.extractor.contains_flags(Flags::WITH_SOCKETS) {
+                    self.callback(entry.path());
+                    self.extractor.extract_special(&file_name, metadata, 0)
                 } else {
                     Ok(())
                 }
             }
-            (true, EntryKind::File { size, .. }) => extractor.extract_file(
-                &file_name,
-                metadata,
-                *size,
-                &mut decoder
-                    .contents()
-                    .context("found regular file entry without contents in archive")?,
-                extractor.overwrite,
-            ),
+            (true, EntryKind::File { size, .. }) => {
+                let contents = self.decoder.contents();
+
+                if let Some(mut contents) = contents {
+                    self.extractor.extract_file(
+                        &file_name,
+                        metadata,
+                        *size,
+                        &mut contents,
+                        self.extractor.overwrite,
+                    )
+                } else {
+                    Err(format_err!(
+                        "found regular file entry without contents in archive"
+                    ))
+                }
+            }
             (false, _) => Ok(()), // skip this
-        }
-        .with_context(|| format!("error at entry {:?}", file_name_os))?;
-    }
+        };
 
-    if !extractor.dir_stack.is_empty() {
-        bail!("unexpected eof while decoding pxar archive");
+        Some(
+            extract_res
+                .with_context(|| format!("error at entry {file_name_os:?}"))
+                .or_else(&mut *self.extractor.on_error),
+        )
     }
-
-    Ok(())
 }
 
 /// Common state for file extraction.
