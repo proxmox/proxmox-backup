@@ -7,7 +7,7 @@ use std::os::unix::io::{AsRawFd, FromRawFd, IntoRawFd, OwnedFd, RawFd};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{bail, Context, Error};
 use futures::future::BoxFuture;
 use futures::FutureExt;
 use nix::dir::Dir;
@@ -159,7 +159,7 @@ where
         fs_magic,
         &mut fs_feature_flags,
     )
-    .map_err(|err| format_err!("failed to get metadata for source directory: {}", err))?;
+    .context("failed to get metadata for source directory")?;
 
     let mut device_set = options.device_set.clone();
     if let Some(ref mut set) = device_set {
@@ -441,7 +441,7 @@ impl Archiver {
             ) {
                 Ok(stat) => stat,
                 Err(ref err) if err.not_found() => continue,
-                Err(err) => bail!("stat failed on {:?}: {}", full_path, err),
+                Err(err) => return Err(err).context(format!("stat failed on {:?}", full_path)),
             };
 
             let match_path = PathBuf::from("/").join(full_path.clone());
@@ -796,7 +796,7 @@ fn get_fcaps(
             Ok(())
         }
         Err(Errno::EBADF) => Ok(()), // symlinks
-        Err(err) => bail!("failed to read file capabilities: {}", err),
+        Err(err) => Err(err).context("failed to read file capabilities"),
     }
 }
 
@@ -818,7 +818,7 @@ fn get_xattr_fcaps_acl(
             return Ok(());
         }
         Err(Errno::EBADF) => return Ok(()), // symlinks
-        Err(err) => bail!("failed to read xattrs: {}", err),
+        Err(err) => return Err(err).context("failed to read xattrs"),
     };
 
     for attr in &xattrs {
@@ -843,7 +843,9 @@ fn get_xattr_fcaps_acl(
             Err(Errno::ENODATA) => (), // it got removed while we were iterating...
             Err(Errno::EOPNOTSUPP) => (), // shouldn't be possible so just ignore this
             Err(Errno::EBADF) => (),   // symlinks, shouldn't be able to reach this either
-            Err(err) => bail!("error reading extended attribute {:?}: {}", attr, err),
+            Err(err) => {
+                return Err(err).context(format!("error reading extended attribute {attr:?}"))
+            }
         }
     }
 
@@ -858,7 +860,7 @@ fn get_chattr(metadata: &mut Metadata, fd: RawFd) -> Result<(), Error> {
         Err(errno) if errno_is_unsupported(errno) => {
             return Ok(());
         }
-        Err(err) => bail!("failed to read file attributes: {}", err),
+        Err(err) => return Err(err).context("failed to read file attributes"),
     }
 
     metadata.stat.flags |= Flags::from_chattr(attr).bits();
@@ -880,7 +882,7 @@ fn get_fat_attr(metadata: &mut Metadata, fd: RawFd, fs_magic: i64) -> Result<(),
         Err(errno) if errno_is_unsupported(errno) => {
             return Ok(());
         }
-        Err(err) => bail!("failed to read fat attributes: {}", err),
+        Err(err) => return Err(err).context("failed to read fat attributes"),
     }
 
     metadata.stat.flags |= Flags::from_fat_attr(attr).bits();
@@ -919,7 +921,7 @@ fn get_quota_project_id(
         if errno_is_unsupported(errno) {
             return Ok(());
         } else {
-            bail!("error while reading quota project id ({})", errno);
+            return Err(errno).context("error while reading quota project id");
         }
     }
 
@@ -973,7 +975,7 @@ fn get_acl_do(
         Err(Errno::EBADF) => return Ok(()),
         // Don't bail if there is no data
         Err(Errno::ENODATA) => return Ok(()),
-        Err(err) => bail!("error while reading ACL - {}", err),
+        Err(err) => return Err(err).context("error while reading ACL"),
     };
 
     process_acl(metadata, acl, acl_type)

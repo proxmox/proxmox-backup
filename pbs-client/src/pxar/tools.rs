@@ -4,7 +4,7 @@ use std::ffi::OsStr;
 use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{bail, Context, Error};
 use nix::sys::stat::Mode;
 
 use pxar::{format::StatxTimestamp, mode, Entry, EntryKind, Metadata};
@@ -12,10 +12,13 @@ use pxar::{format::StatxTimestamp, mode, Entry, EntryKind, Metadata};
 /// Get the file permissions as `nix::Mode`
 pub fn perms_from_metadata(meta: &Metadata) -> Result<Mode, Error> {
     let mode = meta.stat.get_permission_bits();
+
     u32::try_from(mode)
-        .map_err(drop)
-        .and_then(|mode| Mode::from_bits(mode).ok_or(()))
-        .map_err(|_| format_err!("mode contains illegal bits: 0x{:x} (0o{:o})", mode, mode))
+        .context("couldn't narrow permission bits")
+        .and_then(|mode| {
+            Mode::from_bits(mode)
+                .with_context(|| format!("mode contains illegal bits: 0x{:x} (0o{:o})", mode, mode))
+        })
 }
 
 /// Make sure path is relative and not '.' or '..'.

@@ -2,7 +2,7 @@ use std::ffi::OsString;
 use std::os::unix::io::{AsRawFd, BorrowedFd, RawFd};
 use std::path::{Path, PathBuf};
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{bail, Context, Error};
 use nix::dir::Dir;
 use nix::fcntl::OFlag;
 use nix::sys::stat::{mkdirat, Mode};
@@ -130,7 +130,7 @@ impl PxarDirStack {
         let dirs_len = self.dirs.len();
         let mut fd = self.dirs[self.created - 1]
             .try_as_borrowed_fd()
-            .ok_or_else(|| format_err!("lost track of directory file descriptors"))?
+            .context("lost track of directory file descriptors")?
             .as_raw_fd();
 
         while self.created < dirs_len {
@@ -142,7 +142,7 @@ impl PxarDirStack {
 
         self.dirs[self.created - 1]
             .try_as_borrowed_fd()
-            .ok_or_else(|| format_err!("lost track of directory file descriptors"))
+            .context("lost track of directory file descriptors")
     }
 
     pub fn create_last_dir(&mut self, allow_existing_dirs: bool) -> Result<(), Error> {
@@ -156,7 +156,7 @@ impl PxarDirStack {
 
         self.dirs[0]
             .try_as_borrowed_fd()
-            .ok_or_else(|| format_err!("lost track of directory file descriptors"))
+            .context("lost track of directory file descriptors")
     }
 
     pub fn path(&self) -> &Path {

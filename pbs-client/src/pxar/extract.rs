@@ -8,7 +8,7 @@ use std::os::unix::io::{AsRawFd, FromRawFd, RawFd};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{bail, Context, Error};
 use nix::dir::Dir;
 use nix::fcntl::OFlag;
 use nix::sys::stat::Mode;
@@ -55,8 +55,8 @@ where
 
     let root = decoder
         .next()
-        .ok_or_else(|| format_err!("found empty pxar archive"))?
-        .map_err(|err| format_err!("error reading pxar archive: {}", err))?;
+        .context("found empty pxar archive")?
+        .context("error reading pxar archive")?;
 
     if !root.is_dir() {
         bail!("pxar archive does not start with a directory entry!");
@@ -67,14 +67,14 @@ where
         None,
         Some(CreateOptions::new().perm(Mode::from_bits_truncate(0o700))),
     )
-    .map_err(|err| format_err!("error creating directory {:?}: {}", destination, err))?;
+    .with_context(|| format!("error creating directory {:?}", destination))?;
 
     let dir = Dir::open(
         destination,
         OFlag::O_DIRECTORY | OFlag::O_CLOEXEC,
         Mode::empty(),
     )
-    .map_err(|err| format_err!("unable to open target directory {:?}: {}", destination, err,))?;
+    .with_context(|| format!("unable to open target directory {:?}", destination))?;
 
     let mut extractor = Extractor::new(
         dir,
@@ -92,7 +92,7 @@ where
     let mut err_path_stack = vec![OsString::from("/")];
     let mut current_match = options.extract_match_default;
     while let Some(entry) = decoder.next() {
-        let entry = entry.map_err(|err| format_err!("error reading pxar archive: {}", err))?;
+        let entry = entry.context("error reading pxar archive")?;
 
         let file_name_os = entry.file_name();
 
@@ -102,7 +102,7 @@ where
         }
 
         let file_name = CString::new(file_name_os.as_bytes())
-            .map_err(|_| format_err!("encountered file name with null-bytes"))?;
+            .context("encountered file name with null-bytes")?;
 
         let metadata = entry.metadata();
 
@@ -125,7 +125,7 @@ where
                 let create = current_match && match_result != Some(MatchType::Exclude);
                 extractor
                     .enter_directory(file_name_os.to_owned(), metadata.clone(), create)
-                    .map_err(|err| format_err!("error at entry {:?}: {}", file_name_os, err))?;
+                    .with_context(|| format!("error at entry {:?}", file_name_os))?;
 
                 // We're starting a new directory, push our old matching state and replace it with
                 // our new one:
@@ -142,16 +142,16 @@ where
             (_, EntryKind::GoodbyeTable) => {
                 // go up a directory
 
-                extractor.set_path(err_path_stack.pop().ok_or_else(|| {
-                    format_err!(
-                        "error at entry {:?}: unexpected end of directory",
+                extractor.set_path(err_path_stack.pop().with_context(|| {
+                    format!(
+                        "error at entry {:?} - unexpected end of directory",
                         file_name_os
                     )
                 })?);
 
                 extractor
                     .leave_directory()
-                    .map_err(|err| format_err!("error at entry {:?}: {}", file_name_os, err))?;
+                    .with_context(|| format!("error at entry {:?}", file_name_os))?;
 
                 // We left a directory, also get back our previous matching state. This is in sync
                 // with `dir_stack` so this should never be empty except for the final goodbye
@@ -196,14 +196,14 @@ where
                 &file_name,
                 metadata,
                 *size,
-                &mut decoder.contents().ok_or_else(|| {
-                    format_err!("found regular file entry without contents in archive")
-                })?,
+                &mut decoder
+                    .contents()
+                    .context("found regular file entry without contents in archive")?,
                 extractor.overwrite,
             ),
             (false, _) => Ok(()), // skip this
         }
-        .map_err(|err| format_err!("error at entry {:?}: {}", file_name_os, err))?;
+        .with_context(|| format!("error at entry {:?}", file_name_os))?;
     }
 
     if !extractor.dir_stack.is_empty() {
@@ -254,7 +254,7 @@ impl Extractor {
     pub fn on_error(&mut self, mut on_error: Box<dyn FnMut(Error) -> Result<(), Error> + Send>) {
         let path = Arc::clone(&self.current_path);
         self.on_error = Box::new(move |err: Error| -> Result<(), Error> {
-            on_error(format_err!("error at {:?}: {}", path.lock().unwrap(), err))
+            on_error(err.context(format!("error at {:?}", path.lock().unwrap())))
         });
     }
 
@@ -291,8 +291,8 @@ impl Extractor {
         let dir = self
             .dir_stack
             .pop()
-            .map_err(|err| format_err!("unexpected end of directory entry: {}", err))?
-            .ok_or_else(|| format_err!("broken pxar archive (directory stack underrun)"))?;
+            .context("unexpected end of directory entry")?
+            .context("broken pxar archive (directory stack underrun)")?;
 
         if let Some(fd) = dir.try_as_borrowed_fd() {
             metadata::apply(
@@ -302,7 +302,7 @@ impl Extractor {
                 &path_info,
                 &mut self.on_error,
             )
-            .map_err(|err| format_err!("failed to apply directory metadata: {}", err))?;
+            .context("failed to apply directory metadata")?;
         }
 
         Ok(())
@@ -316,7 +316,7 @@ impl Extractor {
         self.dir_stack
             .last_dir_fd(self.allow_existing_dirs)
             .map(|d| d.as_raw_fd())
-            .map_err(|err| format_err!("failed to get parent directory file descriptor: {}", err))
+            .context("failed to get parent directory file descriptor")
     }
 
     pub fn extract_symlink(
@@ -370,16 +370,12 @@ impl Extractor {
         device: libc::dev_t,
     ) -> Result<(), Error> {
         let mode = metadata.stat.mode;
-        let mode = u32::try_from(mode).map_err(|_| {
-            format_err!(
-                "device node's mode contains illegal bits: 0x{:x} (0o{:o})",
-                mode,
-                mode,
-            )
+        let mode = u32::try_from(mode).with_context(|| {
+            format!("device node's mode contains illegal bits: 0x{mode:x} (0o{mode:o})")
         })?;
         let parent = self.parent_fd()?;
         unsafe { c_result!(libc::mknodat(parent, file_name.as_ptr(), mode, device)) }
-            .map_err(|err| format_err!("failed to create device node: {}", err))?;
+            .context("failed to create device node")?;
 
         metadata::apply_at(
             self.feature_flags,
@@ -409,7 +405,7 @@ impl Extractor {
         let mut file = unsafe {
             std::fs::File::from_raw_fd(
                 nix::fcntl::openat(parent, file_name, oflags, Mode::from_bits(0o600).unwrap())
-                    .map_err(|err| format_err!("failed to create file {:?}: {}", file_name, err))?,
+                    .with_context(|| format!("failed to create file {file_name:?}"))?,
             )
         };
 
@@ -419,10 +415,10 @@ impl Extractor {
             file.as_raw_fd(),
             &mut self.on_error,
         )
-        .map_err(|err| format_err!("failed to apply initial flags: {}", err))?;
+        .context("failed to apply initial flags")?;
 
-        let result = sparse_copy(&mut *contents, &mut file)
-            .map_err(|err| format_err!("failed to copy file contents: {}", err))?;
+        let result =
+            sparse_copy(&mut *contents, &mut file).context("failed to copy file contents")?;
 
         if size != result.written {
             bail!(
@@ -436,7 +432,7 @@ impl Extractor {
             while match nix::unistd::ftruncate(file.as_raw_fd(), size as i64) {
                 Ok(_) => false,
                 Err(errno) if errno == nix::errno::Errno::EINTR => true,
-                Err(err) => bail!("error setting file size: {}", err),
+                Err(err) => return Err(err).context("error setting file size"),
             } {}
         }
 
@@ -467,7 +463,7 @@ impl Extractor {
         let mut file = tokio::fs::File::from_std(unsafe {
             std::fs::File::from_raw_fd(
                 nix::fcntl::openat(parent, file_name, oflags, Mode::from_bits(0o600).unwrap())
-                    .map_err(|err| format_err!("failed to create file {:?}: {}", file_name, err))?,
+                    .with_context(|| format!("failed to create file {file_name:?}"))?,
             )
         });
 
@@ -477,11 +473,11 @@ impl Extractor {
             file.as_raw_fd(),
             &mut self.on_error,
         )
-        .map_err(|err| format_err!("failed to apply initial flags: {}", err))?;
+        .context("failed to apply initial flags")?;
 
         let result = sparse_copy_async(&mut *contents, &mut file)
             .await
-            .map_err(|err| format_err!("failed to copy file contents: {}", err))?;
+            .context("failed to copy file contents")?;
 
         if size != result.written {
             bail!(
@@ -495,7 +491,7 @@ impl Extractor {
             while match nix::unistd::ftruncate(file.as_raw_fd(), size as i64) {
                 Ok(_) => false,
                 Err(errno) if errno == nix::errno::Errno::EINTR => true,
-                Err(err) => bail!("error setting file size: {}", err),
+                Err(err) => return Err(err).context("error setting file size"),
             } {}
         }
 
@@ -532,12 +528,12 @@ where
     header.set_size(size);
     add_metadata_to_header(&mut header, metadata);
     header.set_cksum();
+
     match contents {
         Some(content) => tar.add_entry(&mut header, path, content).await,
         None => tar.add_entry(&mut header, path, tokio::io::empty()).await,
     }
-    .map_err(|err| format_err!("could not send file entry: {}", err))?;
-    Ok(())
+    .context("could not send file entry")
 }
 
 /// Creates a tar file from `path` and writes it into `output`
@@ -551,7 +547,7 @@ where
     let file = root
         .lookup(&path)
         .await?
-        .ok_or_else(|| format_err!("error opening '{:?}'", path.as_ref()))?;
+        .with_context(|| format!("error opening {:?}", path.as_ref()))?;
 
     let mut components = file.entry().path().components();
     components.next_back(); // discard last
@@ -574,13 +570,13 @@ where
             tarencoder
                 .add_entry(&mut header, path, tokio::io::empty())
                 .await
-                .map_err(|err| format_err!("could not send dir entry: {}", err))?;
+                .context("could not send dir entry")?;
         }
 
         let mut decoder = dir.decode_full().await?;
         decoder.enable_goodbye_entries(false);
         while let Some(entry) = decoder.next().await {
-            let entry = entry.map_err(|err| format_err!("cannot decode entry: {}", err))?;
+            let entry = entry.context("cannot decode entry")?;
 
             let metadata = entry.metadata();
             let path = entry.path().strip_prefix(prefix)?;
@@ -595,7 +591,7 @@ where
                         let entry = root
                             .lookup(&path)
                             .await?
-                            .ok_or_else(|| format_err!("error looking up '{:?}'", path))?;
+                            .with_context(|| format!("error looking up {path:?}"))?;
                         let realfile = accessor.follow_hardlink(&entry).await?;
                         let metadata = realfile.entry().metadata();
                         let realpath = Path::new(link);
@@ -630,7 +626,7 @@ where
                         tarencoder
                             .add_link(&mut header, path, stripped_path)
                             .await
-                            .map_err(|err| format_err!("could not send hardlink entry: {}", err))?;
+                            .context("could not send hardlink entry")?;
                     }
                 }
                 EntryKind::Symlink(link) if !link.data.is_empty() => {
@@ -643,7 +639,7 @@ where
                     tarencoder
                         .add_link(&mut header, path, realpath)
                         .await
-                        .map_err(|err| format_err!("could not send symlink entry: {}", err))?;
+                        .context("could not send symlink entry")?;
                 }
                 EntryKind::Fifo => {
                     log::debug!("adding '{}' to tar", path.display());
@@ -657,7 +653,7 @@ where
                     tarencoder
                         .add_entry(&mut header, path, tokio::io::empty())
                         .await
-                        .map_err(|err| format_err!("could not send fifo entry: {}", err))?;
+                        .context("coult not send fifo entry")?;
                 }
                 EntryKind::Directory => {
                     log::debug!("adding '{}' to tar", path.display());
@@ -671,7 +667,7 @@ where
                         tarencoder
                             .add_entry(&mut header, path, tokio::io::empty())
                             .await
-                            .map_err(|err| format_err!("could not send dir entry: {}", err))?;
+                            .context("could not send dir entry")?;
                     }
                 }
                 EntryKind::Device(device) => {
@@ -690,7 +686,7 @@ where
                     tarencoder
                         .add_entry(&mut header, path, tokio::io::empty())
                         .await
-                        .map_err(|err| format_err!("could not send device entry: {}", err))?;
+                        .context("could not send device entry")?;
                 }
                 _ => {} // ignore all else
             }
@@ -714,7 +710,7 @@ where
     let file = root
         .lookup(&path)
         .await?
-        .ok_or_else(|| format_err!("error opening '{:?}'", path.as_ref()))?;
+        .with_context(|| format!("error opening {:?}", path.as_ref()))?;
 
     let prefix = {
         let mut components = file.entry().path().components();
@@ -756,13 +752,13 @@ where
                     );
                     zip.add_entry(entry, decoder.contents())
                         .await
-                        .map_err(|err| format_err!("could not send file entry: {}", err))?;
+                        .context("could not send file entry")?;
                 }
                 EntryKind::Hardlink(_) => {
                     let entry = root
                         .lookup(&path)
                         .await?
-                        .ok_or_else(|| format_err!("error looking up '{:?}'", path))?;
+                        .with_context(|| format!("error looking up {:?}", path))?;
                     let realfile = accessor.follow_hardlink(&entry).await?;
                     let metadata = realfile.entry().metadata();
                     log::debug!("adding '{}' to zip", path.display());
@@ -774,7 +770,7 @@ where
                     );
                     zip.add_entry(entry, decoder.contents())
                         .await
-                        .map_err(|err| format_err!("could not send file entry: {}", err))?;
+                        .context("could not send file entry")?;
                 }
                 EntryKind::Directory => {
                     log::debug!("adding '{}' to zip", path.display());
@@ -806,26 +802,14 @@ where
         None,
         Some(CreateOptions::new().perm(Mode::from_bits_truncate(0o700))),
     )
-    .map_err(|err| {
-        format_err!(
-            "error creating directory {:?}: {}",
-            destination.as_ref(),
-            err
-        )
-    })?;
+    .with_context(|| format!("error creating directory {:?}", destination.as_ref()))?;
 
     let dir = Dir::open(
         destination.as_ref(),
         OFlag::O_DIRECTORY | OFlag::O_CLOEXEC,
         Mode::empty(),
     )
-    .map_err(|err| {
-        format_err!(
-            "unable to open target directory {:?}: {}",
-            destination.as_ref(),
-            err,
-        )
-    })?;
+    .with_context(|| format!("unable to open target directory {:?}", destination.as_ref()))?;
 
     Ok(Extractor::new(dir, metadata, false, false, Flags::DEFAULT))
 }
@@ -850,7 +834,7 @@ where
     let file = root
         .lookup(&path)
         .await?
-        .ok_or_else(|| format_err!("error opening '{:?}'", path.as_ref()))?;
+        .with_context(|| format!("error opening {:?}", path.as_ref()))?;
 
     recurse_files_extractor(&mut extractor, file).await
 }
@@ -866,7 +850,7 @@ where
     decoder.enable_goodbye_entries(true);
     let root = match decoder.next().await {
         Some(Ok(root)) => root,
-        Some(Err(err)) => bail!("error getting root entry from pxar: {}", err),
+        Some(Err(err)) => return Err(err).context("error getting root entry from pxar"),
         None => bail!("cannot extract empty archive"),
     };
 
@@ -920,8 +904,8 @@ fn get_filename(entry: &Entry) -> Result<(OsString, CString), Error> {
         bail!("archive file entry contains slashes, which is invalid and a security concern");
     }
 
-    let file_name = CString::new(file_name_os.as_bytes())
-        .map_err(|_| format_err!("encountered file name with null-bytes"))?;
+    let file_name =
+        CString::new(file_name_os.as_bytes()).context("encountered file name with null-bytes")?;
 
     Ok((file_name_os, file_name))
 }
@@ -943,7 +927,7 @@ where
         EntryKind::Directory => {
             extractor
                 .enter_directory(file_name_os.to_owned(), metadata.clone(), true)
-                .map_err(|err| format_err!("error at entry {:?}: {}", file_name_os, err))?;
+                .with_context(|| format!("error at entry {file_name_os:?}"))?;
 
             let dir = file.enter_directory().await?;
             let mut seq_decoder = dir.decode_full().await?;
@@ -957,9 +941,10 @@ where
                     &file_name,
                     metadata,
                     *size,
-                    &mut file.contents().await.map_err(|_| {
-                        format_err!("found regular file entry without contents in archive")
-                    })?,
+                    &mut file
+                        .contents()
+                        .await
+                        .context("found regular file entry without contents in archive")?,
                     extractor.overwrite,
                 )
                 .await?
@@ -997,7 +982,7 @@ where
                     dir_level += 1;
                     extractor
                         .enter_directory(file_name_os.to_owned(), metadata.clone(), true)
-                        .map_err(|err| format_err!("error at entry {:?}: {}", file_name_os, err))?;
+                        .with_context(|| format!("error at entry {file_name_os:?}"))?;
                 }
                 EntryKind::File { size, .. } => {
                     extractor
@@ -1005,9 +990,9 @@ where
                             &file_name,
                             metadata,
                             *size,
-                            &mut decoder.contents().ok_or_else(|| {
-                                format_err!("found regular file entry without contents in archive")
-                            })?,
+                            &mut decoder
+                                .contents()
+                                .context("found regular file entry without contents in archive")?,
                             extractor.overwrite,
                         )
                         .await?

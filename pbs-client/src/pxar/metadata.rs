@@ -2,7 +2,7 @@ use std::ffi::{CStr, CString};
 use std::os::unix::io::{AsRawFd, RawFd};
 use std::path::Path;
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{anyhow, bail, Context, Error};
 use nix::errno::Errno;
 use nix::fcntl::OFlag;
 use nix::sys::stat::Mode;
@@ -106,7 +106,7 @@ pub fn apply(
         .or_else(&mut *on_error)?;
     add_fcaps(flags, c_proc_path.as_ptr(), metadata, &mut skip_xattrs).or_else(&mut *on_error)?;
     apply_acls(flags, &c_proc_path, metadata, path_info)
-        .map_err(|err| format_err!("failed to apply acls: {}", err))
+        .context("failed to apply acls")
         .or_else(&mut *on_error)?;
     apply_quota_project_id(flags, fd, metadata).or_else(&mut *on_error)?;
 
@@ -118,7 +118,7 @@ pub fn apply(
         })
         .map(drop)
         .or_else(allow_notsupp)
-        .map_err(|err| format_err!("failed to change file mode: {}", err))
+        .context("failed to change file mode")
         .or_else(&mut *on_error)?;
     }
 
@@ -134,11 +134,9 @@ pub fn apply(
         Ok(_) => (),
         Err(ref err) if err.is_errno(Errno::EOPNOTSUPP) => (),
         Err(err) => {
-            on_error(format_err!(
-                "failed to restore mtime attribute on {:?}: {}",
-                path_info,
-                err
-            ))?;
+            on_error(anyhow!(err).context(format!(
+                "failed to restore mtime attribute on {path_info:?}"
+            )))?;
         }
     }
 
@@ -167,7 +165,7 @@ pub fn apply_ownership(
         ))
         .map(drop)
         .or_else(allow_notsupp)
-        .map_err(|err| format_err!("failed to set ownership: {}", err))
+        .context("failed to set ownership")
         .or_else(&mut *on_error)?;
     }
     Ok(())
@@ -198,9 +196,7 @@ fn add_fcaps(
     })
     .map(drop)
     .or_else(|err| allow_notsupp_remember(err, skip_xattrs))
-    .map_err(|err| format_err!("failed to apply file capabilities: {}", err))?;
-
-    Ok(())
+    .context("failed to apply file capabilities")
 }
 
 fn apply_xattrs(
@@ -234,7 +230,7 @@ fn apply_xattrs(
         })
         .map(drop)
         .or_else(|err| allow_notsupp_remember(err, &mut *skip_xattrs))
-        .map_err(|err| format_err!("failed to apply extended attributes: {}", err))?;
+        .context("failed to apply extended attributes")?;
     }
 
     Ok(())
@@ -348,21 +344,13 @@ fn apply_quota_project_id(flags: Flags, fd: RawFd, metadata: &Metadata) -> Resul
 
     let mut fsxattr = fs::FSXAttr::default();
     unsafe {
-        fs::fs_ioc_fsgetxattr(fd, &mut fsxattr).map_err(|err| {
-            format_err!(
-                "error while getting fsxattr to restore quota project id - {}",
-                err
-            )
-        })?;
+        fs::fs_ioc_fsgetxattr(fd, &mut fsxattr)
+            .context("error while getting fsxattr to restore quota project id")?;
 
         fsxattr.fsx_projid = projid.projid as u32;
 
-        fs::fs_ioc_fssetxattr(fd, &fsxattr).map_err(|err| {
-            format_err!(
-                "error while setting fsxattr to restore quota project id - {}",
-                err
-            )
-        })?;
+        fs::fs_ioc_fssetxattr(fd, &fsxattr)
+            .context("error while setting fsxattr to restore quota project id")?;
     }
 
     Ok(())
@@ -386,7 +374,7 @@ fn apply_chattr(fd: RawFd, chattr: libc::c_long, mask: libc::c_long) -> Result<(
         Err(errno) if errno_is_unsupported(errno) => {
             return Ok(());
         }
-        Err(err) => bail!("failed to read file attributes: {}", err),
+        Err(err) => return Err(err).context("failed to read file attributes"),
     }
 
     let attr = (chattr & mask) | (fattr & !mask);
@@ -398,7 +386,7 @@ fn apply_chattr(fd: RawFd, chattr: libc::c_long, mask: libc::c_long) -> Result<(
     match unsafe { fs::write_attr_fd(fd, &attr) } {
         Ok(_) => Ok(()),
         Err(errno) if errno_is_unsupported(errno) => Ok(()),
-        Err(err) => bail!("failed to set file attributes: {}", err),
+        Err(err) => Err(err).context("failed to set file attributes"),
     }
 }
 
@@ -412,7 +400,7 @@ fn apply_flags(flags: Flags, fd: RawFd, entry_flags: u64) -> Result<(), Error> {
         match unsafe { fs::write_fat_attr_fd(fd, &fatattr) } {
             Ok(_) => (),
             Err(errno) if errno_is_unsupported(errno) => (),
-            Err(err) => bail!("failed to set file FAT attributes: {}", err),
+            Err(err) => return Err(err).context("failed to set file FAT attributes"),
         }
     }
 
