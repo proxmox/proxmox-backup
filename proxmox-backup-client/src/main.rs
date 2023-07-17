@@ -30,6 +30,7 @@ use pbs_api_types::{
     BACKUP_TYPE_SCHEMA, TRAFFIC_CONTROL_BURST_SCHEMA, TRAFFIC_CONTROL_RATE_SCHEMA,
 };
 use pbs_client::catalog_shell::Shell;
+use pbs_client::pxar::ErrorHandler as PxarErrorHandler;
 use pbs_client::tools::{
     complete_archive_name, complete_auth_id, complete_backup_group, complete_backup_snapshot,
     complete_backup_source, complete_chunk_size, complete_group_or_snapshot,
@@ -1233,6 +1234,12 @@ We do not extract '.pxar' archives when writing to standard output.
                 optional: true,
                 default: false,
             },
+            "ignore-extract-device-errors": {
+                type: Boolean,
+                description: "ignore errors that occur during device node extraction",
+                optional: true,
+                default: false,
+            }
         }
     }
 )]
@@ -1245,6 +1252,7 @@ async fn restore(
     ignore_ownership: bool,
     ignore_permissions: bool,
     overwrite: bool,
+    ignore_extract_device_errors: bool,
 ) -> Result<Value, Error> {
     let repo = extract_repository_from_value(&param)?;
 
@@ -1365,12 +1373,27 @@ async fn restore(
 
         let mut reader = BufferedDynamicReader::new(index, chunk_reader);
 
+        let on_error = if ignore_extract_device_errors {
+            let handler: PxarErrorHandler = Box::new(move |err: Error| {
+                use pbs_client::pxar::PxarExtractContext;
+
+                match err.downcast_ref::<PxarExtractContext>() {
+                    Some(PxarExtractContext::ExtractDevice) => Ok(()),
+                    _ => Err(err),
+                }
+            });
+
+            Some(handler)
+        } else {
+            None
+        };
+
         let options = pbs_client::pxar::PxarExtractOptions {
             match_list: &[],
             extract_match_default: true,
             allow_existing_dirs,
             overwrite,
-            on_error: None,
+            on_error,
         };
 
         let mut feature_flags = pbs_client::pxar::Flags::DEFAULT;
