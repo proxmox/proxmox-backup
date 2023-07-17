@@ -185,6 +185,8 @@ where
     /// [`ErrorHandler`] provided by the [`PxarExtractOptions`] used to
     /// initialize the iterator.
     ///
+    /// Extraction errors will have a corresponding [`PxarExtractContext`] attached.
+    ///
     /// [E]: pxar::Entry
     /// [D]: pxar::decoder::Decoder
     fn next(&mut self) -> Option<Self::Item> {
@@ -252,11 +254,10 @@ where
                 self.callback(entry.path());
 
                 let create = self.state.current_match && match_result != Some(MatchType::Exclude);
-                let res = self.extractor.enter_directory(
-                    file_name_os.to_owned(),
-                    metadata.clone(),
-                    create,
-                );
+                let res = self
+                    .extractor
+                    .enter_directory(file_name_os.to_owned(), metadata.clone(), create)
+                    .context(PxarExtractContext::EnterDirectory);
 
                 if res.is_ok() {
                     // We're starting a new directory, push our old matching state and replace it with
@@ -281,7 +282,8 @@ where
                     .pop()
                     .context("unexpected end of directory")
                     .map(|path| self.extractor.set_path(path))
-                    .and(self.extractor.leave_directory());
+                    .and(self.extractor.leave_directory())
+                    .context(PxarExtractContext::LeaveDirectory);
 
                 if res.is_ok() {
                     // We left a directory, also get back our previous matching state. This is in sync
@@ -296,16 +298,20 @@ where
                 self.callback(entry.path());
                 self.extractor
                     .extract_symlink(&file_name, metadata, link.as_ref())
+                    .context(PxarExtractContext::ExtractSymlink)
             }
             (true, EntryKind::Hardlink(link)) => {
                 self.callback(entry.path());
                 self.extractor
                     .extract_hardlink(&file_name, link.as_os_str())
+                    .context(PxarExtractContext::ExtractHardlink)
             }
             (true, EntryKind::Device(dev)) => {
                 if self.extractor.contains_flags(Flags::WITH_DEVICE_NODES) {
                     self.callback(entry.path());
-                    self.extractor.extract_device(&file_name, metadata, dev)
+                    self.extractor
+                        .extract_device(&file_name, metadata, dev)
+                        .context(PxarExtractContext::ExtractDevice)
                 } else {
                     Ok(())
                 }
@@ -313,7 +319,9 @@ where
             (true, EntryKind::Fifo) => {
                 if self.extractor.contains_flags(Flags::WITH_FIFOS) {
                     self.callback(entry.path());
-                    self.extractor.extract_special(&file_name, metadata, 0)
+                    self.extractor
+                        .extract_special(&file_name, metadata, 0)
+                        .context(PxarExtractContext::ExtractFifo)
                 } else {
                     Ok(())
                 }
@@ -321,7 +329,9 @@ where
             (true, EntryKind::Socket) => {
                 if self.extractor.contains_flags(Flags::WITH_SOCKETS) {
                     self.callback(entry.path());
-                    self.extractor.extract_special(&file_name, metadata, 0)
+                    self.extractor
+                        .extract_special(&file_name, metadata, 0)
+                        .context(PxarExtractContext::ExtractSocket)
                 } else {
                     Ok(())
                 }
@@ -342,6 +352,7 @@ where
                         "found regular file entry without contents in archive"
                     ))
                 }
+                .context(PxarExtractContext::ExtractFile)
             }
             (false, _) => Ok(()), // skip this
         };
@@ -351,6 +362,75 @@ where
                 .with_context(|| format!("error at entry {file_name_os:?}"))
                 .or_else(&mut *self.extractor.on_error),
         )
+    }
+}
+
+/// Provides additional [context][C] for [`anyhow::Error`]s that are returned
+/// while traversing an [`ExtractorIter`]. The [`PxarExtractContext`] can then
+/// be accessed [via `anyhow`'s facilities][A] and may aid during error handling.
+///
+///
+/// # Example
+///
+/// ```
+/// # use anyhow::{anyhow, Error};
+/// # use std::io;
+/// # use pbs_client::pxar::PxarExtractContext;
+///
+/// let err = anyhow!("oh noes!").context(PxarExtractContext::ExtractFile);
+///
+/// if let Some(ctx) = err.downcast_ref::<PxarExtractContext>() {
+///     match ctx {
+///         PxarExtractContext::ExtractFile => {
+///             // Conditionally handle the underlying error by type
+///             if let Some(io_err) = err.downcast_ref::<io::Error>() {
+///                 // ...
+///             };
+///         },
+///         PxarExtractContext::ExtractSocket => {
+///             // ...
+///         },
+///         // ...
+/// #        _ => (),
+///     }
+/// }
+/// ```
+///
+/// [A]: anyhow::Error
+/// [C]: anyhow::Context
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum PxarExtractContext {
+    EnterDirectory,
+    LeaveDirectory,
+    ExtractSymlink,
+    ExtractHardlink,
+    ExtractDevice,
+    ExtractFifo,
+    ExtractSocket,
+    ExtractFile,
+}
+
+impl PxarExtractContext {
+    #[inline]
+    pub fn as_str(&self) -> &'static str {
+        use PxarExtractContext::*;
+
+        match *self {
+            EnterDirectory => "failed to enter directory",
+            LeaveDirectory => "failed to leave directory",
+            ExtractSymlink => "failed to extract symlink",
+            ExtractHardlink => "failed to extract hardlink",
+            ExtractDevice => "failed to extract device",
+            ExtractFifo => "failed to extract named pipe",
+            ExtractSocket => "failed to extract unix socket",
+            ExtractFile => "failed to extract file",
+        }
+    }
+}
+
+impl std::fmt::Display for PxarExtractContext {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
     }
 }
 

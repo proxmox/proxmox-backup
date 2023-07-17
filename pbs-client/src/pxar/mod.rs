@@ -59,7 +59,7 @@ pub use flags::Flags;
 pub use create::{create_archive, PxarCreateOptions};
 pub use extract::{
     create_tar, create_zip, extract_archive, extract_sub_dir, extract_sub_dir_seq, ErrorHandler,
-    PxarExtractOptions,
+    PxarExtractContext, PxarExtractOptions,
 };
 
 /// The format requires to build sorted directory lookup tables in
