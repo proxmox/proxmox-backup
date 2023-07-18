@@ -354,7 +354,8 @@ pub fn get_versions() -> Result<Vec<APTUpdateInfo>, Error> {
         }
     }
 
-    let is_kernel = |name: &str| name.starts_with("pve-kernel-");
+    let is_kernel =
+        |name: &str| name.starts_with("pve-kernel-") || name.starts_with("proxmox-kernel");
 
     let mut packages: Vec<APTUpdateInfo> = Vec::new();
     let pbs_packages = apt::list_installed_apt_packages(

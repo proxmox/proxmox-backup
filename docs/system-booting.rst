@@ -84,7 +84,7 @@ Setting up a New Partition for use as Synced ESP
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To format and initialize a partition as synced ESP, for example, after replacing a
-failed vdev in an rpool, ``proxmox-boot-tool`` from ``pve-kernel-helper`` can be used.
+failed vdev in an rpool, ``proxmox-boot-tool`` from ``proxmox-kernel-helper`` can be used.
 
 WARNING: the ``format`` command will format the ``<partition>``. Make sure to pass
 in the right device/partition!

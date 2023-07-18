@@ -131,7 +131,7 @@ impl Checker {
         let (krunning, kinstalled) = if self.upgraded {
             (
                 Regex::new(r"^6\.(?:2\.(?:[2-9]\d+|1[6-8]|1\d\d+)|5)[^~]*$")?,
-                "pve-kernel-6.2",
+                "proxmox-kernel-6.2",
             )
         } else {
             (Regex::new(r"^(?:5\.(?:13|15)|6\.2)")?, "pve-kernel-5.15")
