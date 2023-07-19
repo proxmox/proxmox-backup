@@ -289,7 +289,7 @@ impl BackupWriter {
                 .iter()
                 .any(|file| file.filename == archive_name)
             {
-                log::info!("There is no index with the name {archive_name}");
+                log::info!("Previous manifest does not contain an archive called '{archive_name}', skipping download..");
             } else {
                 // try, but ignore errors
                 match ArchiveType::from_path(archive_name) {
