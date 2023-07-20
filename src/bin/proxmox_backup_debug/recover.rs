@@ -142,7 +142,7 @@ fn recover_index(
                         if ignore_corrupt_chunks {
                             create_zero_chunk(format!("is corrupt - {err}"))
                         } else {
-                            bail!("{err}");
+                            bail!("Failed to parse chunk {chunk_path:?} - {err}");
                         }
                     })?
             }

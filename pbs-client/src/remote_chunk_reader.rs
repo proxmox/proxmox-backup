@@ -3,7 +3,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
-use anyhow::{bail, Error};
+use anyhow::{bail, format_err, Error};
 
 use proxmox_async::runtime::block_on;
 
@@ -51,7 +51,8 @@ impl RemoteChunkReader {
 
         self.client.download_chunk(digest, &mut chunk_data).await?;
 
-        let chunk = DataBlob::load_from_reader(&mut &chunk_data[..])?;
+        let chunk = DataBlob::load_from_reader(&mut &chunk_data[..])
+            .map_err(|err| format_err!("Failed to parse chunk {} - {err}", hex::encode(digest)))?;
 
         match self.crypt_mode {
             CryptMode::Encrypt => match chunk.crypt_mode()? {
