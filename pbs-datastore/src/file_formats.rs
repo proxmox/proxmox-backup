@@ -35,8 +35,8 @@ pub const DYNAMIC_SIZED_CHUNK_INDEX_1_0: [u8; 8] = [28, 145, 78, 165, 25, 186, 1
 ///
 /// (MAGIC || CRC32 || Data)
 ///
-/// This is basically the same format we use for chunks, but
-/// with other magic numbers so that we can distinguish them.
+/// This format is used for blobs (stored in a BackupDir and accessed directly) and chunks (stored
+/// in a chunk store and accessed via a ChunkReader / index file).
 #[derive(Endian)]
 #[repr(C, packed)]
 pub struct DataBlobHeader {
