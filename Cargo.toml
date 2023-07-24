@@ -67,10 +67,10 @@ proxmox-ldap = "0.2"
 proxmox-metrics = "0.3"
 proxmox-rest-server = { version = "0.4.1", features = [ "templates" ] }
 # some use "cli", some use "cli" and "server", pbs-config uses nothing
-proxmox-router = { version = "1.3.1", default_features = false }
+proxmox-router = { version = "2.0.0", default_features = false }
 # everything but pbs-config and pbs-client ues "api-macro"
-proxmox-schema = "1.3.6"
-proxmox-section-config = "1"
+proxmox-schema = "2.0.0"
+proxmox-section-config = "2"
 proxmox-serde = "0.1.1"
 proxmox-shared-memory = "0.3.0"
 proxmox-sortable-macro = "0.1.2"
