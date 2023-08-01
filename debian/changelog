@@ -1,3 +1,33 @@
+rust-proxmox-backup (3.0.2-1) bookworm; urgency=medium
+
+  * docs: update FAQ release support table, add PBS 2.x EOL date
+
+  * encrypted backup: fix log message
+
+  * reset tfa failure count when unlocking
+
+  * sync over pbs2to3 upgrade check-list script to master
+
+  * pbs-client: pxar: preserve error context
+
+  * pbs-client: pxar: refactor body of `extract_archive` to `ExtractorIter`
+
+  * pbs-client: pxar: add PxarExtractContext
+
+  * proxmox-backup-client: restore: add 'ignore-extract-device-errors' flag
+
+  * docs: replace concrete device paths with pseudo paths
+
+  * pbs-client: backup-writer: use log::warn instead of eprintln!
+
+  * fix #4591: pbs-client: backup_writer: improve error reporting
+
+  * backup: improve skipped download error message
+
+  * handle pve-kernel -> proxmox-kernel rename
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 01 Aug 2023 11:53:07 +0200
+
 rust-proxmox-backup (3.0.1-1) bookworm; urgency=medium
 
   * build with newer proxmox-rest-server to remove the full static file path
