@@ -104,7 +104,7 @@ pub struct UserWithTokens {
     pub email: Option<String>,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub tokens: Vec<ApiToken>,
-    #[serde(skip_serializing_if = "bool_is_false")]
+    #[serde(skip_serializing_if = "bool_is_false", default)]
     pub totp_locked: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tfa_locked_until: Option<i64>,
