@@ -434,6 +434,15 @@ impl Archiver {
             assert_single_path_component(os_file_name)?;
             let full_path = self.path.join(os_file_name);
 
+            let match_path = PathBuf::from("/").join(full_path.clone());
+            if self
+                .patterns
+                .matches(match_path.as_os_str().as_bytes(), None)
+                == Some(MatchType::Exclude)
+            {
+                continue;
+            }
+
             let stat = match nix::sys::stat::fstatat(
                 dir_fd,
                 file_name.as_c_str(),
@@ -443,15 +452,6 @@ impl Archiver {
                 Err(ref err) if err.not_found() => continue,
                 Err(err) => bail!("stat failed on {:?}: {}", full_path, err),
             };
-
-            let match_path = PathBuf::from("/").join(full_path.clone());
-            if self
-                .patterns
-                .matches(match_path.as_os_str().as_bytes(), Some(stat.st_mode))
-                == Some(MatchType::Exclude)
-            {
-                continue;
-            }
 
             self.entry_counter += 1;
             if self.entry_counter > self.entry_limit {
