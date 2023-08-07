@@ -260,8 +260,8 @@ proxmox-rrd.workspace = true
 #proxmox-time = { path = "../proxmox/proxmox-time" }
 #proxmox-uuid = { path = "../proxmox/proxmox-uuid" }
 
-#proxmox-apt = { path = "../proxmox-apt" }
-#proxmox-openid = { path = "../proxmox-openid-rs" }
+#proxmox-apt = { path = "../proxmox/proxmox-apt" }
+#proxmox-openid = { path = "../proxmox/proxmox-openid" }
 
 #pxar = { path = "../pxar" }
 
