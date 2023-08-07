@@ -44,7 +44,7 @@ example for proxmox crate above).
 
 Build
 =====
-on Debian 11 Bullseye
+on Debian 12 Bookworm
 
 Setup:
   1. # echo 'deb http://download.proxmox.com/debian/devel/ bookworm main' | sudo tee /etc/apt/sources.list.d/proxmox-devel.list
@@ -58,7 +58,7 @@ Note: 2. may be skipped if you already added the PVE or PBS package repository
 
 You are now able to build using the Makefile or cargo itself, e.g.::
 
-  # make deb-all
+  # make deb
   # # or for a non-package build
   # cargo build --all --release
 
