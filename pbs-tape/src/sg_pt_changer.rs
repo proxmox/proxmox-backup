@@ -398,20 +398,22 @@ pub fn read_element_status<F: AsRawFd>(file: &mut F) -> Result<MtxStatus, Error>
 
     // get the serial + vendor + model,
     // some changer require this to be an extra scsi command
-    let page = get_element(
+    // some changers don't support this
+    if let Ok(page) = get_element(
         &mut sg_raw,
         ElementType::DataTransferWithDVCID,
         allocation_len,
         false,
-    )?;
-    // should be in same order and same count, but be on the safe side.
-    // there should not be too many drives normally
-    for drive in drives.iter_mut() {
-        for drive2 in &page.drives {
-            if drive2.element_address == drive.element_address {
-                drive.vendor = drive2.vendor.clone();
-                drive.model = drive2.model.clone();
-                drive.drive_serial_number = drive2.drive_serial_number.clone();
+    ) {
+        // should be in same order and same count, but be on the safe side.
+        // there should not be too many drives normally
+        for drive in drives.iter_mut() {
+            for drive2 in &page.drives {
+                if drive2.element_address == drive.element_address {
+                    drive.vendor = drive2.vendor.clone();
+                    drive.model = drive2.model.clone();
+                    drive.drive_serial_number = drive2.drive_serial_number.clone();
+                }
             }
         }
     }
