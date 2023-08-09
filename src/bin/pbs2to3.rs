@@ -203,7 +203,7 @@ impl Checker {
             return Ok(());
         }
 
-        if !Path::new("/sys/firmware/efi").is_file() {
+        if !Path::new("/sys/firmware/efi").is_dir() {
             self.output
                 .log_skip("System booted in legacy-mode - no need for systemd-boot")?;
             return Ok(());
