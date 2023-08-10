@@ -130,6 +130,8 @@ pub enum TapeDensity {
     LTO7M8,
     /// LTO8
     LTO8,
+    /// LTO9
+    LTO9,
 }
 
 impl TryFrom<u8> for TapeDensity {
@@ -147,6 +149,7 @@ impl TryFrom<u8> for TapeDensity {
             0x5c => TapeDensity::LTO7,
             0x5d => TapeDensity::LTO7M8,
             0x5e => TapeDensity::LTO8,
+            0x60 => TapeDensity::LTO9,
             _ => bail!("unknown tape density code 0x{:02x}", value),
         };
         Ok(density)
