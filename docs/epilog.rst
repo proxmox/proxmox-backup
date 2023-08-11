@@ -10,7 +10,7 @@
 .. _Zstandard: https://en.wikipedia.org/wiki/Zstandard
 .. _Proxmox: https://www.proxmox.com
 .. _Proxmox Community Forum: https://forum.proxmox.com
-.. _Proxmox Virtual Environment: https://www.proxmox.com/proxmox-ve
+.. _Proxmox Virtual Environment: https://www.proxmox.com/proxmox-virtual-environment/overview
 .. _Proxmox Backup: https://pbs.proxmox.com/wiki/index.php/Main_Page
 .. _PBS Development List: https://lists.proxmox.com/cgi-bin/mailman/listinfo/pbs-devel
 .. _reStructuredText: https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html
