@@ -547,7 +547,21 @@ impl Extractor {
         link: &OsStr,
     ) -> Result<(), Error> {
         let parent = self.parent_fd()?;
-        nix::unistd::symlinkat(link, Some(parent), file_name)?;
+
+        match nix::unistd::symlinkat(link, Some(parent), file_name) {
+            Ok(()) => {}
+            Err(err @ nix::errno::Errno::EEXIST) => {
+                if !self.overwrite {
+                    return Err(err.into());
+                }
+                // Never unlink directories
+                let flag = nix::unistd::UnlinkatFlags::NoRemoveDir;
+                nix::unistd::unlinkat(Some(parent), file_name, flag)?;
+                nix::unistd::symlinkat(link, Some(parent), file_name)?;
+            }
+            Err(err) => return Err(err.into())
+        }
+
         metadata::apply_at(
             self.feature_flags,
             metadata,
@@ -564,13 +578,29 @@ impl Extractor {
         let parent = self.parent_fd()?;
         let root = self.dir_stack.root_dir_fd()?;
         let target = CString::new(link.as_bytes())?;
-        nix::unistd::linkat(
-            Some(root.as_raw_fd()),
-            target.as_c_str(),
-            Some(parent),
-            file_name,
-            nix::unistd::LinkatFlags::NoSymlinkFollow,
-        )?;
+        let dolink = || {
+            nix::unistd::linkat(
+                Some(root.as_raw_fd()),
+                target.as_c_str(),
+                Some(parent),
+                file_name,
+                nix::unistd::LinkatFlags::NoSymlinkFollow,
+            )
+        };
+
+        match dolink() {
+            Ok(()) => {}
+            Err(err @ nix::errno::Errno::EEXIST) => {
+                if !self.overwrite {
+                    return Err(err.into());
+                }
+                // Never unlink directories
+                let flag = nix::unistd::UnlinkatFlags::NoRemoveDir;
+                nix::unistd::unlinkat(Some(parent), file_name, flag)?;
+                dolink()?;
+            }
+            Err(err) => return Err(err.into())
+        }
 
         Ok(())
     }
