@@ -12,7 +12,9 @@ use futures::select;
 use tokio::signal::unix::{signal, SignalKind};
 
 use pathpatterns::{MatchEntry, MatchType, PatternFlag};
-use pbs_client::pxar::{format_single_line_entry, Flags, PxarExtractOptions, ENCODER_MAX_ENTRIES};
+use pbs_client::pxar::{
+    format_single_line_entry, Flags, OverwriteFlags, PxarExtractOptions, ENCODER_MAX_ENTRIES,
+};
 
 use proxmox_router::cli::*;
 use proxmox_schema::api;
@@ -74,7 +76,22 @@ fn extract_archive_from_reader<R: std::io::Read>(
                 default: false,
             },
             "overwrite": {
+                description: "overwrite already existing files, symlinks and hardlinks",
+                optional: true,
+                default: false,
+            },
+            "overwrite-files": {
                 description: "overwrite already existing files",
+                optional: true,
+                default: false,
+            },
+            "overwrite-symlinks": {
+                description: "overwrite already existing entries by archives symlink",
+                optional: true,
+                default: false,
+            },
+            "overwrite-hardlinks": {
+                description: "overwrite already existing entries by archives hardlink",
                 optional: true,
                 default: false,
             },
@@ -116,6 +133,9 @@ fn extract_archive(
     no_acls: bool,
     allow_existing_dirs: bool,
     overwrite: bool,
+    overwrite_files: bool,
+    overwrite_symlinks: bool,
+    overwrite_hardlinks: bool,
     files_from: Option<String>,
     no_device_nodes: bool,
     no_fifos: bool,
@@ -140,6 +160,14 @@ fn extract_archive(
     }
     if no_sockets {
         feature_flags.remove(Flags::WITH_SOCKETS);
+    }
+
+    let mut overwrite_flags = OverwriteFlags::empty();
+    overwrite_flags.set(OverwriteFlags::FILE, overwrite_files);
+    overwrite_flags.set(OverwriteFlags::SYMLINK, overwrite_symlinks);
+    overwrite_flags.set(OverwriteFlags::HARDLINK, overwrite_hardlinks);
+    if overwrite {
+        overwrite_flags.insert(OverwriteFlags::all());
     }
 
     let pattern = pattern.unwrap_or_default();
@@ -183,7 +211,7 @@ fn extract_archive(
     let options = PxarExtractOptions {
         match_list: &match_list,
         allow_existing_dirs,
-        overwrite,
+        overwrite_flags,
         extract_match_default,
         on_error,
     };

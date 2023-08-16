@@ -1234,6 +1234,21 @@ We do not extract '.pxar' archives when writing to standard output.
                 optional: true,
                 default: false,
             },
+            "overwrite-files": {
+                description: "overwrite already existing files",
+                optional: true,
+                default: false,
+            },
+            "overwrite-symlinks": {
+                description: "overwrite already existing entries by archives symlink",
+                optional: true,
+                default: false,
+            },
+            "overwrite-hardlinks": {
+                description: "overwrite already existing entries by archives hardlink",
+                optional: true,
+                default: false,
+            },
             "ignore-extract-device-errors": {
                 type: Boolean,
                 description: "ignore errors that occur during device node extraction",
@@ -1252,6 +1267,9 @@ async fn restore(
     ignore_ownership: bool,
     ignore_permissions: bool,
     overwrite: bool,
+    overwrite_files: bool,
+    overwrite_symlinks: bool,
+    overwrite_hardlinks: bool,
     ignore_extract_device_errors: bool,
 ) -> Result<Value, Error> {
     let repo = extract_repository_from_value(&param)?;
@@ -1388,11 +1406,25 @@ async fn restore(
             None
         };
 
+        let mut overwrite_flags = pbs_client::pxar::OverwriteFlags::empty();
+        overwrite_flags.set(pbs_client::pxar::OverwriteFlags::FILE, overwrite_files);
+        overwrite_flags.set(
+            pbs_client::pxar::OverwriteFlags::SYMLINK,
+            overwrite_symlinks,
+        );
+        overwrite_flags.set(
+            pbs_client::pxar::OverwriteFlags::HARDLINK,
+            overwrite_hardlinks,
+        );
+        if overwrite {
+            overwrite_flags.insert(pbs_client::pxar::OverwriteFlags::all());
+        }
+
         let options = pbs_client::pxar::PxarExtractOptions {
             match_list: &[],
             extract_match_default: true,
             allow_existing_dirs,
-            overwrite,
+            overwrite_flags,
             on_error,
         };
 

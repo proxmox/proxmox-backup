@@ -987,8 +987,13 @@ impl Shell {
             .metadata()
             .clone();
 
-        let extractor =
-            crate::pxar::extract::Extractor::new(rootdir, root_meta, true, false, Flags::DEFAULT);
+        let extractor = crate::pxar::extract::Extractor::new(
+            rootdir,
+            root_meta,
+            true,
+            crate::pxar::extract::OverwriteFlags::empty(),
+            Flags::DEFAULT,
+        );
 
         let mut extractor = ExtractorState::new(
             &mut self.catalog,

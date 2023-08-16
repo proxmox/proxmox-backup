@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use anyhow::{bail, format_err, Context, Error};
+use bitflags::bitflags;
 use nix::dir::Dir;
 use nix::fcntl::OFlag;
 use nix::sys::stat::Mode;
@@ -33,8 +34,20 @@ pub struct PxarExtractOptions<'a> {
     pub match_list: &'a [MatchEntry],
     pub extract_match_default: bool,
     pub allow_existing_dirs: bool,
-    pub overwrite: bool,
+    pub overwrite_flags: OverwriteFlags,
     pub on_error: Option<ErrorHandler>,
+}
+
+bitflags! {
+    #[derive(Default)]
+    pub struct OverwriteFlags: u8 {
+        /// Overwrite existing entries file content
+        const FILE = 0x1;
+        /// Overwrite existing entry with symlink
+        const SYMLINK = 0x2;
+        /// Overwrite existing entry with hardlink
+        const HARDLINK = 0x4;
+    }
 }
 
 pub type ErrorHandler = Box<dyn FnMut(Error) -> Result<(), Error> + Send>;
@@ -141,7 +154,7 @@ where
             dir,
             root.metadata().clone(),
             options.allow_existing_dirs,
-            options.overwrite,
+            options.overwrite_flags,
             feature_flags,
         );
 
@@ -345,7 +358,9 @@ where
                         metadata,
                         *size,
                         &mut contents,
-                        self.extractor.overwrite,
+                        self.extractor
+                            .overwrite_flags
+                            .contains(OverwriteFlags::FILE),
                     )
                 } else {
                     Err(format_err!(
@@ -438,7 +453,7 @@ impl std::fmt::Display for PxarExtractContext {
 pub struct Extractor {
     feature_flags: Flags,
     allow_existing_dirs: bool,
-    overwrite: bool,
+    overwrite_flags: OverwriteFlags,
     dir_stack: PxarDirStack,
 
     /// For better error output we need to track the current path in the Extractor state.
@@ -455,13 +470,13 @@ impl Extractor {
         root_dir: Dir,
         metadata: Metadata,
         allow_existing_dirs: bool,
-        overwrite: bool,
+        overwrite_flags: OverwriteFlags,
         feature_flags: Flags,
     ) -> Self {
         Self {
             dir_stack: PxarDirStack::new(root_dir, metadata),
             allow_existing_dirs,
-            overwrite,
+            overwrite_flags,
             feature_flags,
             current_path: Arc::new(Mutex::new(OsString::new())),
             on_error: Box::new(Err),
@@ -551,7 +566,7 @@ impl Extractor {
         match nix::unistd::symlinkat(link, Some(parent), file_name) {
             Ok(()) => {}
             Err(err @ nix::errno::Errno::EEXIST) => {
-                if !self.overwrite {
+                if !self.overwrite_flags.contains(OverwriteFlags::SYMLINK) {
                     return Err(err.into());
                 }
                 // Never unlink directories
@@ -559,7 +574,7 @@ impl Extractor {
                 nix::unistd::unlinkat(Some(parent), file_name, flag)?;
                 nix::unistd::symlinkat(link, Some(parent), file_name)?;
             }
-            Err(err) => return Err(err.into())
+            Err(err) => return Err(err.into()),
         }
 
         metadata::apply_at(
@@ -591,7 +606,7 @@ impl Extractor {
         match dolink() {
             Ok(()) => {}
             Err(err @ nix::errno::Errno::EEXIST) => {
-                if !self.overwrite {
+                if !self.overwrite_flags.contains(OverwriteFlags::HARDLINK) {
                     return Err(err.into());
                 }
                 // Never unlink directories
@@ -599,7 +614,7 @@ impl Extractor {
                 nix::unistd::unlinkat(Some(parent), file_name, flag)?;
                 dolink()?;
             }
-            Err(err) => return Err(err.into())
+            Err(err) => return Err(err.into()),
         }
 
         Ok(())
@@ -1062,7 +1077,13 @@ where
     )
     .with_context(|| format!("unable to open target directory {:?}", destination.as_ref()))?;
 
-    Ok(Extractor::new(dir, metadata, false, false, Flags::DEFAULT))
+    Ok(Extractor::new(
+        dir,
+        metadata,
+        false,
+        OverwriteFlags::empty(),
+        Flags::DEFAULT,
+    ))
 }
 
 pub async fn extract_sub_dir<T, DEST, PATH>(
@@ -1196,7 +1217,7 @@ where
                         .contents()
                         .await
                         .context("found regular file entry without contents in archive")?,
-                    extractor.overwrite,
+                    extractor.overwrite_flags.contains(OverwriteFlags::FILE),
                 )
                 .await?
         }
@@ -1244,7 +1265,7 @@ where
                             &mut decoder
                                 .contents()
                                 .context("found regular file entry without contents in archive")?,
-                            extractor.overwrite,
+                            extractor.overwrite_flags.contains(OverwriteFlags::FILE),
                         )
                         .await?
                 }
