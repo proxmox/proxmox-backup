@@ -565,10 +565,9 @@ impl Extractor {
 
         match nix::unistd::symlinkat(link, Some(parent), file_name) {
             Ok(()) => {}
-            Err(err @ nix::errno::Errno::EEXIST) => {
-                if !self.overwrite_flags.contains(OverwriteFlags::SYMLINK) {
-                    return Err(err.into());
-                }
+            Err(nix::errno::Errno::EEXIST)
+                if self.overwrite_flags.contains(OverwriteFlags::SYMLINK) =>
+            {
                 // Never unlink directories
                 let flag = nix::unistd::UnlinkatFlags::NoRemoveDir;
                 nix::unistd::unlinkat(Some(parent), file_name, flag)?;
@@ -605,10 +604,9 @@ impl Extractor {
 
         match dolink() {
             Ok(()) => {}
-            Err(err @ nix::errno::Errno::EEXIST) => {
-                if !self.overwrite_flags.contains(OverwriteFlags::HARDLINK) {
-                    return Err(err.into());
-                }
+            Err(nix::errno::Errno::EEXIST)
+                if self.overwrite_flags.contains(OverwriteFlags::HARDLINK) =>
+            {
                 // Never unlink directories
                 let flag = nix::unistd::UnlinkatFlags::NoRemoveDir;
                 nix::unistd::unlinkat(Some(parent), file_name, flag)?;
