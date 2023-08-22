@@ -251,15 +251,19 @@ where
 
         self.extractor.set_path(entry.path().as_os_str().to_owned());
 
-        let match_result = self.match_list.matches(
-            entry.path().as_os_str().as_bytes(),
-            Some(metadata.file_type() as u32),
-        );
+        // We can `unwrap()` safely here because we get a `Result<_, std::convert::Infallible>`
+        let match_result = self
+            .match_list
+            .matches(
+                entry.path().as_os_str().as_bytes(),
+                metadata.file_type() as u32,
+            )
+            .unwrap();
 
         let did_match = match match_result {
             Some(MatchType::Include) => true,
             Some(MatchType::Exclude) => false,
-            None => self.state.current_match,
+            _ => self.state.current_match,
         };
 
         let extract_res = match (did_match, entry.kind()) {

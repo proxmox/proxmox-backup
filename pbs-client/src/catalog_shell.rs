@@ -1138,14 +1138,14 @@ impl<'a> ExtractorState<'a> {
     pub async fn handle_entry(&mut self, entry: catalog::DirEntry) -> Result<(), Error> {
         let match_result = self.match_list.matches(&self.path, entry.get_file_mode());
         let did_match = match match_result {
-            Some(MatchType::Include) => true,
-            Some(MatchType::Exclude) => false,
-            None => self.matches,
+            Ok(Some(MatchType::Include)) => true,
+            Ok(Some(MatchType::Exclude)) => false,
+            _ => self.matches,
         };
 
         match (did_match, &entry.attr) {
             (_, DirEntryAttribute::Directory { .. }) => {
-                self.handle_new_directory(entry, match_result).await?;
+                self.handle_new_directory(entry, match_result?).await?;
             }
             (true, DirEntryAttribute::File { .. }) => {
                 self.dir_stack.push(PathStackEntry::new(entry));

@@ -678,9 +678,9 @@ impl<R: Read + Seek> CatalogReader<R> {
             }
             file_path.extend(&e.name);
             match match_list.matches(&file_path, e.get_file_mode()) {
-                Some(MatchType::Exclude) => continue,
-                Some(MatchType::Include) => callback(file_path)?,
-                None => (),
+                Ok(Some(MatchType::Exclude)) => continue,
+                Ok(Some(MatchType::Include)) => callback(file_path)?,
+                _ => (),
             }
             if is_dir {
                 self.find(&e, file_path, match_list, callback)?;

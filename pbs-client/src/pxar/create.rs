@@ -16,12 +16,12 @@ use nix::fcntl::OFlag;
 use nix::sys::stat::{FileStat, Mode};
 
 use pathpatterns::{MatchEntry, MatchFlag, MatchList, MatchType, PatternFlag};
+use proxmox_sys::error::SysError;
 use pxar::encoder::{LinkOffset, SeqWrite};
 use pxar::Metadata;
 
 use proxmox_io::vec;
 use proxmox_lang::c_str;
-use proxmox_sys::error::SysError;
 use proxmox_sys::fs::{self, acl, xattr};
 
 use pbs_datastore::catalog::BackupCatalogWriter;
@@ -420,7 +420,7 @@ impl Archiver {
         for file in dir.iter() {
             let file = file?;
 
-            let file_name = file.file_name().to_owned();
+            let file_name = file.file_name();
             let file_name_bytes = file_name.to_bytes();
             if file_name_bytes == b"." || file_name_bytes == b".." {
                 continue;
@@ -434,24 +434,41 @@ impl Archiver {
             assert_single_path_component(os_file_name)?;
             let full_path = self.path.join(os_file_name);
 
-            let stat = match nix::sys::stat::fstatat(
-                dir_fd,
-                file_name.as_c_str(),
-                nix::fcntl::AtFlags::AT_SYMLINK_NOFOLLOW,
-            ) {
-                Ok(stat) => stat,
-                Err(ref err) if err.not_found() => continue,
-                Err(err) => return Err(err).context(format!("stat failed on {:?}", full_path)),
+            let match_path = PathBuf::from("/").join(full_path.clone());
+
+            let mut stat_results: Option<FileStat> = None;
+
+            let get_file_mode = || {
+                nix::sys::stat::fstatat(
+                    dir_fd,
+                    file_name.to_owned().as_c_str(),
+                    nix::fcntl::AtFlags::AT_SYMLINK_NOFOLLOW,
+                )
             };
 
-            let match_path = PathBuf::from("/").join(full_path.clone());
-            if self
+            match self
                 .patterns
-                .matches(match_path.as_os_str().as_bytes(), Some(stat.st_mode))
-                == Some(MatchType::Exclude)
-            {
-                continue;
+                .matches(match_path.as_os_str().as_bytes(), || {
+                    Ok::<_, Errno>(match &stat_results {
+                        Some(result) => result.st_mode,
+                        None => stat_results.insert(get_file_mode()?).st_mode,
+                    })
+                }) {
+                Ok(Some(MatchType::Exclude)) => continue,
+                Ok(_) => (),
+                Err(err) => {
+                    if err.not_found() {
+                        continue;
+                    } else {
+                        return Err(err).with_context(|| format!("stat failed on {:?}", full_path));
+                    }
+                }
             }
+
+            let stat = stat_results
+                .map(Ok)
+                .unwrap_or_else(get_file_mode)
+                .with_context(|| format!("stat failed on {:?}", full_path))?;
 
             self.entry_counter += 1;
             if self.entry_counter > self.entry_limit {
@@ -462,7 +479,7 @@ impl Archiver {
             }
 
             file_list.push(FileListEntry {
-                name: file_name,
+                name: file_name.to_owned(),
                 path: full_path,
                 stat,
             });
@@ -533,7 +550,7 @@ impl Archiver {
         let match_path = PathBuf::from("/").join(self.path.clone());
         if self
             .patterns
-            .matches(match_path.as_os_str().as_bytes(), Some(stat.st_mode))
+            .matches(match_path.as_os_str().as_bytes(), stat.st_mode)?
             == Some(MatchType::Exclude)
         {
             return Ok(());

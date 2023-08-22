@@ -264,8 +264,9 @@ proxmox-rrd.workspace = true
 #proxmox-sortable-macro = { path = "../proxmox/proxmox-sortable-macro" }
 #proxmox-human-byte = { path = "../proxmox/proxmox-human-byte" }
 
-#proxmox-apt = { path = "../proxmox/proxmox-apt" }
-#proxmox-openid = { path = "../proxmox/proxmox-openid" }
+#proxmox-apt = { path = "../proxmox-apt" }
+#proxmox-openid = { path = "../proxmox-openid-rs" }
+#pathpatterns = {path = "../pathpatterns" }
 
 #pxar = { path = "../pxar" }
 
