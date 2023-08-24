@@ -439,11 +439,7 @@ impl Archiver {
             let mut stat_results: Option<FileStat> = None;
 
             let get_file_mode = || {
-                nix::sys::stat::fstatat(
-                    dir_fd,
-                    file_name.to_owned().as_c_str(),
-                    nix::fcntl::AtFlags::AT_SYMLINK_NOFOLLOW,
-                )
+                nix::sys::stat::fstatat(dir_fd, file_name, nix::fcntl::AtFlags::AT_SYMLINK_NOFOLLOW)
             };
 
             match self
