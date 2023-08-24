@@ -442,29 +442,28 @@ impl Archiver {
                 nix::sys::stat::fstatat(dir_fd, file_name, nix::fcntl::AtFlags::AT_SYMLINK_NOFOLLOW)
             };
 
-            match self
+            let match_result = self
                 .patterns
                 .matches(match_path.as_os_str().as_bytes(), || {
                     Ok::<_, Errno>(match &stat_results {
                         Some(result) => result.st_mode,
                         None => stat_results.insert(get_file_mode()?).st_mode,
                     })
-                }) {
+                });
+
+            match match_result {
                 Ok(Some(MatchType::Exclude)) => continue,
                 Ok(_) => (),
+                Err(err) if err.not_found() => continue,
                 Err(err) => {
-                    if err.not_found() {
-                        continue;
-                    } else {
-                        return Err(err).with_context(|| format!("stat failed on {:?}", full_path));
-                    }
+                    return Err(err).with_context(|| format!("stat failed on {full_path:?}"))
                 }
             }
 
             let stat = stat_results
                 .map(Ok)
                 .unwrap_or_else(get_file_mode)
-                .with_context(|| format!("stat failed on {:?}", full_path))?;
+                .with_context(|| format!("stat failed on {full_path:?}"))?;
 
             self.entry_counter += 1;
             if self.entry_counter > self.entry_limit {

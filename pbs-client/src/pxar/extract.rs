@@ -263,7 +263,7 @@ where
         let did_match = match match_result {
             Some(MatchType::Include) => true,
             Some(MatchType::Exclude) => false,
-            _ => self.state.current_match,
+            None => self.state.current_match,
         };
 
         let extract_res = match (did_match, entry.kind()) {
