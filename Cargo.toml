@@ -81,7 +81,7 @@ proxmox-time = "1.1.2"
 proxmox-uuid = "1"
 
 # other proxmox crates
-pathpatterns = "0.1.2"
+pathpatterns = "0.2"
 proxmox-acme-rs = "0.4"
 proxmox-apt = "0.10.5"
 proxmox-openid = "0.10.0"
