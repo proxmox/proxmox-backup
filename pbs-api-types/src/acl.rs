@@ -280,7 +280,7 @@ pub const ACL_UGID_TYPE_SCHEMA: Schema = StringSchema::new("Type of 'ugid' prope
         }
     }
 )]
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 /// ACL list entry.
 pub struct AclListItem {
     pub path: String,
