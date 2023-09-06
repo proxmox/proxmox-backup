@@ -54,6 +54,7 @@ path = "src/lib.rs"
 
 [workspace.dependencies]
 # proxmox workspace
+proxmox-apt = "0.10.5"
 proxmox-async = "0.4"
 proxmox-auth-api = "0.3"
 proxmox-borrow = "1"
@@ -65,6 +66,7 @@ proxmox-io = "1.0.1" # tools and client use "tokio" feature
 proxmox-lang = "1.1"
 proxmox-ldap = "0.2.1"
 proxmox-metrics = "0.3"
+proxmox-openid = "0.10.0"
 proxmox-rest-server = { version = "0.4.1", features = [ "templates" ] }
 # some use "cli", some use "cli" and "server", pbs-config uses nothing
 proxmox-router = { version = "2.0.0", default_features = false }
@@ -83,8 +85,6 @@ proxmox-uuid = "1"
 # other proxmox crates
 pathpatterns = "0.2"
 proxmox-acme-rs = "0.4"
-proxmox-apt = "0.10.5"
-proxmox-openid = "0.10.0"
 pxar = "0.10.2"
 
 # PBS workspace
@@ -198,6 +198,8 @@ zstd.workspace = true
 
 #valgrind_request = { git = "https://github.com/edef1c/libvalgrind_request", version = "1.1.0", optional = true }
 
+# proxmox workspace
+proxmox-apt.workspace = true
 proxmox-async.workspace = true
 proxmox-auth-api = { workspace = true, features = [ "api", "pam-authenticator" ] }
 proxmox-compression.workspace = true
@@ -207,6 +209,7 @@ proxmox-io.workspace = true
 proxmox-lang.workspace = true
 proxmox-ldap.workspace = true
 proxmox-metrics.workspace = true
+proxmox-openid.workspace = true
 proxmox-rest-server = { workspace = true, features = [ "rate-limited-stream" ] }
 proxmox-router = { workspace = true, features = [ "cli", "server"] }
 proxmox-schema = { workspace = true, features = [ "api-macro" ] }
@@ -220,12 +223,12 @@ proxmox-tfa.workspace = true
 proxmox-time.workspace = true
 proxmox-uuid.workspace = true
 
+# in their respective repo
 pathpatterns.workspace = true
 proxmox-acme-rs.workspace = true
-proxmox-apt.workspace = true
-proxmox-openid.workspace = true
 pxar.workspace = true
 
+# proxmox-backup workspace/internal crates
 pbs-api-types.workspace = true
 pbs-buildcfg.workspace = true
 pbs-client.workspace = true
@@ -239,35 +242,35 @@ proxmox-rrd.workspace = true
 # Local path overrides
 # NOTE: You must run `cargo update` after changing this for it to take effect!
 [patch.crates-io]
-#proxmox-acme-rs = { path = "../proxmox-acme-rs" }
+
+#proxmox-apt = { path = "../proxmox/proxmox-apt" }
 #proxmox-async = { path = "../proxmox/proxmox-async" }
 #proxmox-auth-api = { path = "../proxmox/proxmox-auth-api" }
 #proxmox-borrow = { path = "../proxmox/proxmox-borrow" }
 #proxmox-compression = { path = "../proxmox/proxmox-compression" }
 #proxmox-fuse = { path = "../proxmox-fuse" }
 #proxmox-http = { path = "../proxmox/proxmox-http" }
+#proxmox-human-byte = { path = "../proxmox/proxmox-human-byte" }
 #proxmox-io = { path = "../proxmox/proxmox-io" }
 #proxmox-lang = { path = "../proxmox/proxmox-lang" }
+#proxmox-ldap = { path = "../proxmox/proxmox-ldap" }
+#proxmox-metrics = { path = "../proxmox/proxmox-metrics" }
+#proxmox-openid = { path = "../proxmox/proxmox-openid" }
 #proxmox-rest-server = { path = "../proxmox/proxmox-rest-server" }
 #proxmox-router = { path = "../proxmox/proxmox-router" }
 #proxmox-schema = { path = "../proxmox/proxmox-schema" }
 #proxmox-section-config = { path = "../proxmox/proxmox-section-config" }
 #proxmox-serde = { path = "../proxmox/proxmox-serde" }
 #proxmox-shared-memory = { path = "../proxmox/proxmox-shared-memory" }
+#proxmox-sortable-macro = { path = "../proxmox/proxmox-sortable-macro" }
 #proxmox-subscription = { path = "../proxmox/proxmox-subscription" }
 #proxmox-sys = { path = "../proxmox/proxmox-sys" }
 #proxmox-tfa = { path = "../proxmox/proxmox-tfa" }
 #proxmox-time = { path = "../proxmox/proxmox-time" }
 #proxmox-uuid = { path = "../proxmox/proxmox-uuid" }
-#proxmox-ldap = { path = "../proxmox/proxmox-ldap" }
-#proxmox-metrics = { path = "../proxmox/proxmox-metrics" }
-#proxmox-sortable-macro = { path = "../proxmox/proxmox-sortable-macro" }
-#proxmox-human-byte = { path = "../proxmox/proxmox-human-byte" }
 
-#proxmox-apt = { path = "../proxmox/proxmox-apt" }
-#proxmox-openid = { path = "../proxmox/proxmox-openid" }
+#proxmox-acme-rs = { path = "../proxmox-acme-rs" }
 #pathpatterns = {path = "../pathpatterns" }
-
 #pxar = { path = "../pxar" }
 
 [features]
