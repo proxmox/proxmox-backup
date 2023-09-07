@@ -5,6 +5,7 @@ Ext.define('PBS.window.CreateZFS', {
     subject: 'ZFS',
 
     showProgress: true,
+    isCreate: true,
 
     onlineHelp: 'chapter_zfs',
 
