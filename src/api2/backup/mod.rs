@@ -214,9 +214,12 @@ fn upgrade_to_backup_protocol(
                 env.debug = debug;
                 env.last_backup = last_backup;
 
+                let origin = match rpcenv.get_client_ip().map(|addr| addr.ip()) {
+                    Some(ip) => format!(" from {ip}"),
+                    None => "".into(),
+                };
                 env.log(format!(
-                    "starting new {} on datastore '{}': {:?}",
-                    worker_type, store, path
+                    "starting new {worker_type} on datastore '{store}'{origin}: {path:?}",
                 ));
 
                 let service =
