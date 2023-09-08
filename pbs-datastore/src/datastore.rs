@@ -866,26 +866,22 @@ impl DataStore {
                 .unwrap_or(false)
         }
         let handle_entry_err = |err: walkdir::Error| {
-            if let Some(inner) = err.io_error() {
-                if let Some(path) = err.path() {
-                    if inner.kind() == io::ErrorKind::PermissionDenied {
-                        // only allow to skip ext4 fsck directory, avoid GC if, for example,
-                        // a user got file permissions wrong on datastore rsync to new server
-                        if err.depth() > 1 || !path.ends_with("lost+found") {
-                            bail!("cannot continue garbage-collection safely, permission denied on: {:?}", path)
-                        }
-                    } else {
-                        bail!(
-                            "unexpected error on datastore traversal: {} - {:?}",
-                            inner,
-                            path
-                        )
-                    }
-                } else {
-                    bail!("unexpected error on datastore traversal: {}", inner)
+            // first, extract the actual IO error and the affected path
+            let (inner, path) = match (err.io_error(), err.path()) {
+                (None, _) => return Ok(()), // not an IO-error
+                (Some(inner), Some(path)) => (inner, path),
+                (Some(inner), None) => bail!("unexpected error on datastore traversal: {inner}"),
+            };
+            if inner.kind() == io::ErrorKind::PermissionDenied {
+                if err.depth() == 0 && path.ends_with("lost+found") {
+                    // allow skipping ext4 fsck-directory on EPERM only, otherwise we might prune
+                    // too many chunks. E.g., if users messed up with owner/perms on a rsync
+                    return Ok(());
                 }
+                bail!("cannot continue garbage-collection safely, permission denied on: {path:?}");
+            } else {
+                bail!("unexpected error on datastore traversal: {inner} - {path:?}");
             }
-            Ok(())
         };
         for entry in walker.filter_entry(|e| !is_hidden(e)) {
             let path = match entry {
