@@ -880,6 +880,9 @@ impl DataStore {
                 // .. but do not ignore EPERM in general, otherwise we might prune too many chunks.
                 // E.g., if users messed up with owner/perms on a rsync
                 bail!("cannot continue garbage-collection safely, permission denied on: {path:?}");
+            } else if inner.kind() == io::ErrorKind::NotFound {
+                log::info!("ignoring vanished file: {path:?}");
+                return Ok(());
             } else {
                 bail!("unexpected error on datastore traversal: {inner} - {path:?}");
             }
