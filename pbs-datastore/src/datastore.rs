@@ -875,10 +875,11 @@ impl DataStore {
             };
             if inner.kind() == io::ErrorKind::PermissionDenied {
                 if err.depth() <= 1 && path.ends_with("lost+found") {
-                    // allow skipping ext4 fsck-directory on EPERM only, otherwise we might prune
-                    // too many chunks. E.g., if users messed up with owner/perms on a rsync
+                    // allow skipping of (root-only) ext4 fsck-directory on EPERM ..
                     return Ok(());
                 }
+                // .. but do not ignore EPERM in general, otherwise we might prune too many chunks.
+                // E.g., if users messed up with owner/perms on a rsync
                 bail!("cannot continue garbage-collection safely, permission denied on: {path:?}");
             } else {
                 bail!("unexpected error on datastore traversal: {inner} - {path:?}");
