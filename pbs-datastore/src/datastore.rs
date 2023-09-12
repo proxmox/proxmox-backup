@@ -873,7 +873,7 @@ impl DataStore {
                 (Some(inner), None) => bail!("unexpected error on datastore traversal: {inner}"),
             };
             if inner.kind() == io::ErrorKind::PermissionDenied {
-                if err.depth() == 0 && path.ends_with("lost+found") {
+                if err.depth() <= 1 && path.ends_with("lost+found") {
                     // allow skipping ext4 fsck-directory on EPERM only, otherwise we might prune
                     // too many chunks. E.g., if users messed up with owner/perms on a rsync
                     return Ok(());
