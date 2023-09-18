@@ -661,11 +661,11 @@ impl<R: Read + Seek> CatalogReader<R> {
 
     /// Finds all entries matching the given match patterns and calls the
     /// provided callback on them.
-    pub fn find(
+    pub fn find<'a>(
         &mut self,
         parent: &DirEntry,
         file_path: &mut Vec<u8>,
-        match_list: &impl MatchList, //&[MatchEntry],
+        match_list: &'a impl MatchList<'a>, //&[MatchEntry],
         callback: &mut dyn FnMut(&[u8]) -> Result<(), Error>,
     ) -> Result<(), Error> {
         let file_len = file_path.len();
