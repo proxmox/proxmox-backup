@@ -198,8 +198,9 @@ impl JobState {
                         .map_err(|err| format_err!("error parsing upid: {err}"))?;
 
                     if !worker_is_active_local(&parsed) {
-                        let state = upid_read_status(&parsed)
-                            .map_err(|err| format_err!("error reading upid log status: {err}"))?;
+                        let state = upid_read_status(&parsed).unwrap_or(TaskState::Unknown {
+                            endtime: parsed.starttime,
+                        });
 
                         Ok(JobState::Finished {
                             upid,
