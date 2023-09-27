@@ -13,15 +13,16 @@ rust-proxmox-backup (3.0.3-1) bookworm; urgency=medium
   * fix #4761: client: restore: unlink existing entries for hard/symlinks
     when overwrite-existing flag is enabled
 
-  * client: restore: provide finer-grained controls for what (files, symlinks,
-    hardlinks, or all) to overwrite on restore if the target already exists.
+  * client: restore: provide finer-grained controls for what (files,
+    sym-links, hard-links, or all) to overwrite on restore if the target
+    already exists.
 
   * ui: don't show form-reset button on ZFS creation
 
   * close #3777: backup: add client-ip information to worker task log
 
   * fix #4343: client cli: exit with failure-code if a worker-task finished
-    with a unkown, or an error status.
+    with a unknown, or an error status.
 
   * fix #4823: datastore: ignore vanished files when walking over namespace
     and groups hierarchy. This avoids a rare chance of failing a running
@@ -30,7 +31,7 @@ rust-proxmox-backup (3.0.3-1) bookworm; urgency=medium
 
   * fix #4895: scheduled jobs: ignore task-log not found error to avoid a
     stuck job after, e.g., the system was shutdown uncleanly, for example, due
-    to a powerloss.
+    to a powerless.
 
  -- Proxmox Support Team <support@proxmox.com>  Wed, 27 Sep 2023 18:19:49 +0200
 
