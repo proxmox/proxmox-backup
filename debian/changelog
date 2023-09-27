@@ -1,3 +1,39 @@
+rust-proxmox-backup (3.0.3-1) bookworm; urgency=medium
+
+  * fix #4380: client: check if file is excluded before running `stat()` to
+    get metadata
+
+  * improve error messages when parsing a chunk fails
+
+  * add support for LTO-9 tape density code
+
+  * pbs2to3: fix boot-mode detection, "/sys/firmware/efi" either doesn't exist
+    (legacy boot) or is a directory (EFI boot), but never a file.
+
+  * fix #4761: client: restore: unlink existing entries for hard/symlinks
+    when overwrite-existing flag is enabled
+
+  * client: restore: provide finer-grained controls for what (files, symlinks,
+    hardlinks, or all) to overwrite on restore if the target already exists.
+
+  * ui: don't show form-reset button on ZFS creation
+
+  * close #3777: backup: add client-ip information to worker task log
+
+  * fix #4343: client cli: exit with failure-code if a worker-task finished
+    with a unkown, or an error status.
+
+  * fix #4823: datastore: ignore vanished files when walking over namespace
+    and groups hierarchy. This avoids a rare chance of failing a running
+    garbage-collection when a snapshot is removed by the user or a prune job
+    during the same time.
+
+  * fix #4895: scheduled jobs: ignore task-log not found error to avoid a
+    stuck job after, e.g., the system was shutdown uncleanly, for example, due
+    to a powerloss.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 27 Sep 2023 18:19:49 +0200
+
 rust-proxmox-backup (3.0.2-1) bookworm; urgency=medium
 
   * docs: update FAQ release support table, add PBS 2.x EOL date
