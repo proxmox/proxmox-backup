@@ -84,6 +84,9 @@ pub use maintenance::*;
 mod network;
 pub use network::*;
 
+mod node;
+pub use node::*;
+
 pub use proxmox_auth_api::types as userid;
 pub use proxmox_auth_api::types::{Authid, Userid};
 pub use proxmox_auth_api::types::{Realm, RealmRef};

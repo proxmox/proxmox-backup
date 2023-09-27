@@ -13,17 +13,15 @@ use pbs_api_types::{
     NodePowerCommand, StorageStatus, NODE_SCHEMA, PRIV_SYS_AUDIT, PRIV_SYS_POWER_MANAGEMENT,
 };
 
-use crate::api2::types::{
+use pbs_api_types::{
     NodeCpuInformation, NodeInformation, NodeMemoryCounters, NodeStatus, NodeSwapCounters,
 };
 
-impl std::convert::From<procfs::ProcFsCPUInfo> for NodeCpuInformation {
-    fn from(info: procfs::ProcFsCPUInfo) -> Self {
-        Self {
-            model: info.model,
-            sockets: info.sockets,
-            cpus: info.cpus,
-        }
+fn procfs_to_node_cpu_info(info: procfs::ProcFsCPUInfo) -> NodeCpuInformation {
+    NodeCpuInformation {
+        model: info.model,
+        sockets: info.sockets,
+        cpus: info.cpus,
     }
 }
 
@@ -69,7 +67,7 @@ async fn get_status(
     let loadavg = [loadavg.one(), loadavg.five(), loadavg.fifteen()];
 
     let cpuinfo = procfs::read_cpuinfo()?;
-    let cpuinfo = cpuinfo.into();
+    let cpuinfo = procfs_to_node_cpu_info(cpuinfo);
 
     let uname = nix::sys::utsname::uname()?;
     let kversion = format!(
