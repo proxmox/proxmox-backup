@@ -97,12 +97,12 @@ pub async fn display_task_log(
         }
 
         let status_path = format!("api2/json/nodes/localhost/tasks/{upid_encoded}/status");
-        let status_result = client.get(&status_path, None).await?;
-        if status_result["data"]["status"].as_str() == Some("stopped") {
-            if let Some(status) = status_result["data"]["exitstatus"].as_str() {
-                if status != "OK" && !status.starts_with("WARNINGS") {
-                    bail!("task failed");
-                }
+        let task_result = &client.get(&status_path, None).await?["data"];
+        if task_result["status"].as_str() == Some("stopped") {
+            match task_result["exitstatus"].as_str() {
+                None => bail!("task stopped with unknown status"),
+                Some(status) if status == "OK" || status.starts_with("WARNINGS") => (),
+                Some(status) => bail!("task failed (status {status})"),
             }
         }
 
