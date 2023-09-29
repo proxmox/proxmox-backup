@@ -55,16 +55,23 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 		    data[pool] = {};
 		}
 
+		let seq_nr = entry['seq-nr'];
+
 		if (data[pool][media_set] === undefined) {
 		    data[pool][media_set] = entry;
 		    data[pool][media_set].text = media_set;
 		    data[pool][media_set].restore = true;
 		    data[pool][media_set].tapes = 1;
 		    data[pool][media_set]['seq-nr'] = undefined;
+		    data[pool][media_set]['max-seq-nr'] = seq_nr;
 		    data[pool][media_set].is_media_set = true;
 		    data[pool][media_set].typeText = 'media-set';
 		} else {
 		    data[pool][media_set].tapes++;
+		}
+
+		if (data[pool][media_set]['max-seq-nr'] < seq_nr) {
+		    data[pool][media_set]['max-seq-nr'] = seq_nr;
 		}
 	    }
 
@@ -309,11 +316,33 @@ Ext.define('PBS.TapeManagement.BackupOverview', {
 	},
     ],
 
+    viewConfig: {
+	getRowClass: function(rec) {
+	    let tapeCount = (rec.get('max-seq-nr') ?? 0) + 1;
+	    let actualTapeCount = rec.get('tapes') ?? 1;
+
+	    if (tapeCount !== actualTapeCount) {
+		return 'proxmox-warning-row';
+	    }
+
+	    return '';
+	},
+    },
+
     columns: [
 	{
 	    xtype: 'treecolumn',
 	    text: gettext('Pool/Media-Set/Snapshot'),
 	    dataIndex: 'text',
+	    renderer: function(value, mD, rec) {
+		let tapeCount = (rec.get('max-seq-nr') ?? 0) + 1;
+		let actualTapeCount = rec.get('tapes') ?? 1;
+
+		if (tapeCount !== actualTapeCount) {
+		    return `${value} (${gettext('Incomplete')})`;
+		}
+		return value;
+	    },
 	    sortable: false,
 	    flex: 3,
 	},
