@@ -723,7 +723,7 @@ Ext.define('PBS.TapeManagement.SnapshotGrid', {
 	let me = this;
 	let snapshots = [];
 
-	let storeCounts = {};
+	let selectedStoreCounts = {};
 
 	me.getSelection().forEach((rec) => {
 	    let id = rec.get('id');
@@ -732,10 +732,10 @@ Ext.define('PBS.TapeManagement.SnapshotGrid', {
 	    // only add if not filtered
 	    if (me.store.findExact('id', id) !== -1) {
 		snapshots.push(`${store}:${snap}`);
-		if (storeCounts[store] === undefined) {
-		    storeCounts[store] = 0;
+		if (selectedStoreCounts[store] === undefined) {
+		    selectedStoreCounts[store] = 0;
 		}
-		storeCounts[store]++;
+		selectedStoreCounts[store]++;
 	    }
 	});
 
@@ -747,17 +747,17 @@ Ext.define('PBS.TapeManagement.SnapshotGrid', {
 	}
 
 	let wholeStores = [];
-	let wholeStoresSelected = true;
-	for (const [store, count] of Object.entries(storeCounts)) {
-	    if (me.storeCounts[store] === count) {
+	let onlyWholeStoresSelected = true;
+	for (const [store, selectedCount] of Object.entries(selectedStoreCounts)) {
+	    if (me.storeCounts[store] === selectedCount) {
 		wholeStores.push(store);
 	    } else {
-		wholeStoresSelected = false;
+		onlyWholeStoresSelected = false;
 		break;
 	    }
 	}
 
-	if (wholeStoresSelected) {
+	if (onlyWholeStoresSelected) {
 	    return wholeStores;
 	}
 
