@@ -179,9 +179,6 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 
 	updateDatastores: function(grid, values) {
 	    let me = this;
-	    if (values === 'all') {
-		values = [];
-	    }
 	    let datastores = {};
 	    values.forEach((snapshotOrDatastore) => {
 		let datastore = snapshotOrDatastore;
@@ -297,14 +294,12 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 		    onGetValues: function(values) {
 			let me = this;
 
-			if (values !== "all" &&
-			    Ext.isString(values.snapshots) &&
-			    values.snapshots &&
-			    values.snapshots.indexOf(':') !== -1
-			) {
-			    values.snapshots = values.snapshots.split(',');
-			} else {
-			    delete values.snapshots;
+			// cannot use the string serialized one from onGetValues, so gather manually
+			delete values.snapshots;
+			let snapshots = me.down('pbsTapeSnapshotGrid').getValue();
+
+			if (snapshots.length > 0 && snapshots[0].indexOf(':') !== -1) {
+			    values.snapshots = snapshots;
 			}
 
 			return values;
@@ -378,12 +373,14 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 			let vm = controller.getViewModel();
 			let datastores = [];
 			if (values.store.toString() !== "") {
+			    let target = values.store.toString();
+			    delete values.store;
+
+			    let source = [];
 			    if (vm.get('singleDatastore')) {
-				let source = controller.lookup('snapshotGrid').getValue();
-				if (source === 'all') {
-				    // all values are selected
-				    source = values.store;
-				} else if (Ext.isArray(source)) {
+				// can be '[]' (for all), a list of datastores, or a list of snapshots
+				source = controller.lookup('snapshotGrid').getValue();
+				if (source.length > 0) {
 				    if (source[0].indexOf(':') !== -1) {
 					// one or multiple snapshots are selected
 					// extract datastore from first
@@ -392,12 +389,19 @@ Ext.define('PBS.TapeManagement.TapeRestoreWindow', {
 					// one whole datstore is selected
 					source = source[0];
 				    }
+				} else {
+				    // must be [] (all snapshots) so we use it as a default target
 				}
-				datastores.push(`${source}=${values.store}`);
 			    } else {
-				datastores.push(values.store);
+				// there is more than one datastore to be restored, so this is just
+				// the default fallback
 			    }
-			    delete values.store;
+
+			    if (Ext.isString(source)) {
+				datastores.push(`${source}=${target}`);
+			    } else {
+				datastores.push(target);
+			    }
 			}
 
 			let defaultNs = values.defaultNs;
@@ -743,7 +747,7 @@ Ext.define('PBS.TapeManagement.SnapshotGrid', {
 	let originalData = me.store.getData().getSource() || me.store.getData();
 
 	if (snapshots.length === originalData.length) {
-	    return "all";
+	    return [];
 	}
 
 	let wholeStores = [];
