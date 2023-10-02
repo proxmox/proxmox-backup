@@ -1,3 +1,10 @@
+rust-proxmox-backup (3.0.4-1) bookworm; urgency=medium
+
+  * rebuild with env_logger 0.10, proxmox-api-macro 1.0.6 and syn 2
+  * update dependencies (tokio, libc, serde, openssl, futures, bindgen)
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 02 Oct 2023 10:19:32 +0200
+
 rust-proxmox-backup (3.0.3-1) bookworm; urgency=medium
 
   * fix #4380: client: check if file is excluded before running `stat()` to
