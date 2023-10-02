@@ -537,6 +537,8 @@ Ext.define('PBS.TapeManagement.DataStoreMappingGrid', {
 		let ns = targetns || defaultNs;
 		if (ns) {
 		    namespaces.push(`store=${source},target=${ns}`);
+		} else {
+		    namespaces.push(`store=${source}`);
 		}
 	    }
 	});
