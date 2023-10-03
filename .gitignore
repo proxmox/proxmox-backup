@@ -14,9 +14,14 @@
 /*.deb
 /*.dsc
 /*.tar*
+/Cargo.lock
+/docs/output
 /etc/proxmox-backup-proxy.service
 /etc/proxmox-backup.service
+/proxmox-backup-server-dpkg-contents.txt
 /target
+/www/.lint-incremental
+/www/js/
 __pycache__/
 build/
 local.mak
