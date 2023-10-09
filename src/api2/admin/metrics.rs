@@ -1,54 +1,11 @@
 use anyhow::Error;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use proxmox_router::{Permission, Router, RpcEnvironment};
 use proxmox_schema::api;
 
-use pbs_api_types::{METRIC_SERVER_ID_SCHEMA, PRIV_SYS_AUDIT, SINGLE_LINE_COMMENT_SCHEMA};
+use pbs_api_types::{PRIV_SYS_AUDIT, MetricServerInfo};
 use pbs_config::metrics;
-
-#[api]
-#[derive(Deserialize, Serialize, PartialEq, Eq)]
-/// Type of the metric server
-pub enum MetricServerType {
-    /// InfluxDB HTTP
-    #[serde(rename = "influxdb-http")]
-    InfluxDbHttp,
-    /// InfluxDB UDP
-    #[serde(rename = "influxdb-udp")]
-    InfluxDbUdp,
-}
-
-#[api(
-    properties: {
-        name: {
-            schema: METRIC_SERVER_ID_SCHEMA,
-        },
-        "type": {
-            type: MetricServerType,
-        },
-        comment: {
-            optional: true,
-            schema: SINGLE_LINE_COMMENT_SCHEMA,
-        },
-    },
-)]
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-/// Basic information about a metric server thats available for all types
-pub struct MetricServerInfo {
-    pub name: String,
-    #[serde(rename = "type")]
-    pub ty: MetricServerType,
-    /// Enables or disables the metrics server
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub enable: Option<bool>,
-    /// The target server
-    pub server: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub comment: Option<String>,
-}
 
 #[api(
     input: {

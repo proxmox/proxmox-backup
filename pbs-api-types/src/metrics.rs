@@ -146,3 +146,46 @@ pub struct InfluxDbHttp {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
 }
+
+
+#[api]
+#[derive(Copy, Clone, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
+/// Type of the metric server
+pub enum MetricServerType {
+    /// InfluxDB HTTP
+    #[serde(rename = "influxdb-http")]
+    InfluxDbHttp,
+    /// InfluxDB UDP
+    #[serde(rename = "influxdb-udp")]
+    InfluxDbUdp,
+}
+
+#[api(
+    properties: {
+        name: {
+            schema: METRIC_SERVER_ID_SCHEMA,
+        },
+        "type": {
+            type: MetricServerType,
+        },
+        comment: {
+            optional: true,
+            schema: SINGLE_LINE_COMMENT_SCHEMA,
+        },
+    },
+)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(rename_all = "kebab-case")]
+/// Basic information about a metric server thats available for all types
+pub struct MetricServerInfo {
+    pub name: String,
+    #[serde(rename = "type")]
+    pub ty: MetricServerType,
+    /// Enables or disables the metrics server
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub enable: Option<bool>,
+    /// The target server
+    pub server: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub comment: Option<String>,
+}
