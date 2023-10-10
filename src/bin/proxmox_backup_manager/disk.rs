@@ -317,6 +317,31 @@ async fn create_datastore_disk(
     Ok(Value::Null)
 }
 
+#[api(
+   input: {
+        properties: {
+            name: {
+                schema: DATASTORE_SCHEMA,
+            },
+        },
+   },
+)]
+/// Remove a Filesystem mounted under '/mnt/datastore/<name>'.
+async fn delete_datastore_disk(
+    mut param: Value,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
+    param["node"] = "localhost".into();
+
+    let info = &api2::node::disks::directory::API_METHOD_DELETE_DATASTORE_DISK;
+    let _result = match info.handler {
+        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
+        _ => unreachable!(),
+    };
+
+    Ok(Value::Null)
+}
+
 pub fn filesystem_commands() -> CommandLineInterface {
     let cmd_def = CliCommandMap::new()
         .insert("list", CliCommand::new(&API_METHOD_LIST_DATASTORE_MOUNTS))
@@ -325,6 +350,10 @@ pub fn filesystem_commands() -> CommandLineInterface {
             CliCommand::new(&API_METHOD_CREATE_DATASTORE_DISK)
                 .arg_param(&["name"])
                 .completion_cb("disk", complete_disk_name),
+        ).insert(
+            "delete",
+            CliCommand::new(&API_METHOD_DELETE_DATASTORE_DISK)
+                .arg_param(&["name"]),
         );
 
     cmd_def.into()
