@@ -238,7 +238,7 @@ pub const NETWORK_INTERFACE_LIST_SCHEMA: Schema =
         },
     }
 )]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 /// Network Interface configuration
 pub struct Interface {
     /// Autostart interface
