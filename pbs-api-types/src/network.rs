@@ -268,9 +268,9 @@ pub struct Interface {
     /// IPv6 gateway
     pub gateway6: Option<String>,
 
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub options: Vec<String>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub options6: Vec<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
