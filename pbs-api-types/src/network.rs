@@ -295,6 +295,7 @@ pub struct Interface {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "bond-primary")]
     pub bond_primary: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub bond_xmit_hash_policy: Option<BondXmitHashPolicy>,
 }
 
