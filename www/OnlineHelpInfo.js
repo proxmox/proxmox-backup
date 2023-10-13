@@ -273,7 +273,7 @@ const proxmoxOnlineHelpInfo = {
   },
   "manually-change-certificate-over-command-line": {
     "link": "/docs/sysadmin.html#manually-change-certificate-over-command-line",
-    "title": "Manually Change Certificate over Command-Line"
+    "title": "Manually Change Certificate over the Command Line"
   },
   "tape-backup": {
     "link": "/docs/tape-backup.html#tape-backup",
@@ -338,6 +338,10 @@ const proxmoxOnlineHelpInfo = {
   "user-tfa-setup-recovery-keys": {
     "link": "/docs/user-management.html#user-tfa-setup-recovery-keys",
     "title": "Recovery Keys"
+  },
+  "user-tfa-lockout": {
+    "link": "/docs/user-management.html#user-tfa-lockout",
+    "title": "Limits and Lockout of Two-Factor Authentication"
   },
   "user-realms-ldap": {
     "link": "/docs/user-management.html#user-realms-ldap",
