@@ -227,6 +227,10 @@ span.snapshot-comment-column {
     width: calc(100% - 18px);
 }
 
+.pmx-faded {
+    opacity: 0.7;
+}
+
 .x-action-col-icon.good:before {
     color: #21BF4B;
 }

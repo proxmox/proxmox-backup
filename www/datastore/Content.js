@@ -287,6 +287,7 @@ Ext.define('PBS.DataStoreContent', {
 		    if (item["backup-time"] > last_backup && item.size !== null) {
 			last_backup = item["backup-time"];
 			group["backup-time"] = last_backup;
+			group["last-comment"] = item.comment;
 			group.files = item.files;
 			group.size = item.size;
 			group.owner = item.owner;
@@ -903,13 +904,20 @@ Ext.define('PBS.DataStoreContent', {
 		if (!data || data.leaf || data.root) {
 		    return '';
 		}
-		if (v === undefined || v === null) {
-		    v = '';
+
+		let additionalClasses = "";
+		if (!v) {
+		    if (!data.expanded) {
+			v = data['last-comment'] ?? '';
+			additionalClasses = "pmx-faded";
+		    } else {
+			v = '';
+		    }
 		}
 		v = Ext.String.htmlEncode(v);
 		let icon = 'x-action-col-icon fa fa-fw fa-pencil pointer';
 
-		return `<span class="snapshot-comment-column">${v}</span>
+		return `<span class="snapshot-comment-column ${additionalClasses}">${v}</span>
 		    <i data-qtip="${gettext('Edit')}" style="float: right; margin: 0px;" class="${icon}"></i>`;
 	    },
 	    listeners: {
