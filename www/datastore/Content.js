@@ -909,7 +909,7 @@ Ext.define('PBS.DataStoreContent', {
 		if (!v) {
 		    if (!data.expanded) {
 			v = data['last-comment'] ?? '';
-			additionalClasses = "pmx-faded";
+			additionalClasses = 'pmx-opacity-75';
 		    } else {
 			v = '';
 		    }

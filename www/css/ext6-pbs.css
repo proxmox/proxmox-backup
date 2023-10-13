@@ -227,8 +227,8 @@ span.snapshot-comment-column {
     width: calc(100% - 18px);
 }
 
-.pmx-faded {
-    opacity: 0.7;
+.pmx-opacity-75 {
+    opacity: 0.75;
 }
 
 .x-action-col-icon.good:before {
