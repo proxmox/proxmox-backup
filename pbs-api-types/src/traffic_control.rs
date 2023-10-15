@@ -128,7 +128,7 @@ pub struct TrafficControlRule {
         },
     },
 )]
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 /// Traffic control rule config with current rates
 pub struct TrafficControlCurrentRate {
