@@ -1,31 +1,11 @@
 use anyhow::Error;
-use serde::{Deserialize, Serialize};
 
 use proxmox_router::{Permission, Router, RpcEnvironment};
 use proxmox_schema::api;
 
-use pbs_api_types::{TrafficControlRule, PRIV_SYS_AUDIT};
+use pbs_api_types::{TrafficControlRule, TrafficControlCurrentRate, PRIV_SYS_AUDIT};
 
 use crate::traffic_control_cache::TRAFFIC_CONTROL_CACHE;
-
-#[api(
-    properties: {
-        config: {
-            type: TrafficControlRule,
-        },
-    },
-)]
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-/// Traffic control rule config with current rates
-pub struct TrafficControlCurrentRate {
-    #[serde(flatten)]
-    config: TrafficControlRule,
-    /// Current ingress rate in bytes/second
-    cur_rate_in: u64,
-    /// Current egress rate in bytes/second
-    cur_rate_out: u64,
-}
 
 #[api(
     input: {

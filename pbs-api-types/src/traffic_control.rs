@@ -120,3 +120,22 @@ pub struct TrafficControlRule {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub timeframe: Option<Vec<String>>,
 }
+
+#[api(
+    properties: {
+        config: {
+            type: TrafficControlRule,
+        },
+    },
+)]
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+/// Traffic control rule config with current rates
+pub struct TrafficControlCurrentRate {
+    #[serde(flatten)]
+    pub config: TrafficControlRule,
+    /// Current ingress rate in bytes/second
+    pub cur_rate_in: u64,
+    /// Current egress rate in bytes/second
+    pub cur_rate_out: u64,
+}
