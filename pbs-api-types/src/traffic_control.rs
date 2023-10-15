@@ -100,7 +100,7 @@ impl RateLimitConfig {
         },
     },
 )]
-#[derive(Serialize, Deserialize, Updater)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Updater)]
 #[serde(rename_all = "kebab-case")]
 ///  Traffic control rule
 pub struct TrafficControlRule {
