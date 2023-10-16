@@ -188,13 +188,13 @@ async fn forget_snapshots(param: Value) -> Result<Value, Error> {
 
     let path = format!("api2/json/admin/datastore/{}/snapshots", repo.store());
 
-    let result = client
+    client
         .delete(&path, Some(snapshot_args(&backup_ns, &snapshot)?))
         .await?;
 
     record_repository(&repo);
 
-    Ok(result)
+    Ok(Value::Null)
 }
 
 #[api(
