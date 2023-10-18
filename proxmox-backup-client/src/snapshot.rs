@@ -177,7 +177,7 @@ async fn list_snapshot_files(param: Value) -> Result<Value, Error> {
     }
 )]
 /// Forget (remove) backup snapshots.
-async fn forget_snapshots(param: Value) -> Result<Value, Error> {
+async fn forget_snapshots(param: Value) -> Result<(), Error> {
     let repo = extract_repository_from_value(&param)?;
 
     let backup_ns = optional_ns_param(&param)?;
@@ -194,7 +194,7 @@ async fn forget_snapshots(param: Value) -> Result<Value, Error> {
 
     record_repository(&repo);
 
-    Ok(Value::Null)
+    Ok(())
 }
 
 #[api(
