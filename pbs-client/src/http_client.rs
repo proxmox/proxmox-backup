@@ -765,6 +765,8 @@ impl HttpClient {
         }
 
         req.headers_mut()
+            .insert("Connection", HeaderValue::from_str("upgrade").unwrap());
+        req.headers_mut()
             .insert("UPGRADE", HeaderValue::from_str(&protocol_name).unwrap());
 
         let resp = tokio::time::timeout(HTTP_TIMEOUT, client.request(req))
