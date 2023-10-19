@@ -83,7 +83,7 @@ proxmox-time = "1.1.2"
 proxmox-uuid = "1"
 
 # other proxmox crates
-pathpatterns = "0.2"
+pathpatterns = "0.3"
 proxmox-acme-rs = "0.4"
 pxar = "0.10.2"
 
