@@ -1,20 +1,45 @@
 use std::path::Path;
 use std::process::Command;
 
-fn files() -> Vec<&'static str> {
+fn files() -> Vec<(&'static str, Vec<&'static str>)> {
     vec![
-        "/etc/hostname",
-        "/etc/hosts",
-        "/etc/network/interfaces",
-        "/etc/proxmox-backup/datastore.cfg",
-        "/etc/proxmox-backup/user.cfg",
-        "/etc/proxmox-backup/acl.cfg",
-        "/etc/proxmox-backup/remote.cfg",
-        "/etc/proxmox-backup/sync.cfg",
-        "/etc/proxmox-backup/verification.cfg",
-        "/etc/proxmox-backup/tape.cfg",
-        "/etc/proxmox-backup/media-pool.cfg",
-        "/etc/proxmox-backup/traffic-control.cfg",
+        (
+            "Host & Network",
+            vec!["/etc/hostname", "/etc/hosts", "/etc/network/interfaces"],
+        ),
+        (
+            "Datastores & Remotes",
+            vec!["/etc/proxmox-backup/datastore.cfg"],
+        ),
+        (
+            "User & Access",
+            vec![
+                "/etc/proxmox-backup/user.cfg",
+                "/etc/proxmox-backup/acl.cfg",
+            ],
+        ),
+        ("Remotes", vec!["/etc/proxmox-backup/remote.cfg"]),
+        (
+            "Jobs",
+            vec![
+                "/etc/proxmox-backup/sync.cfg",
+                "/etc/proxmox-backup/verification.cfg",
+            ],
+        ),
+        (
+            "Tape",
+            vec![
+                "/etc/proxmox-backup/tape.cfg",
+                "/etc/proxmox-backup/media-pool.cfg",
+            ],
+        ),
+        (
+            "Others",
+            vec![
+                "/etc/proxmox-backup/node.cfg",
+                "/etc/proxmox-backup/traffic-control.cfg",
+            ],
+        ),
     ]
 }
 
@@ -66,14 +91,22 @@ pub fn generate_report() -> String {
 
     let file_contents = files()
         .iter()
-        .map(|file_name| {
-            let content = match file_read_optional_string(Path::new(file_name)) {
-                Ok(Some(content)) => content,
-                Ok(None) => String::from("# file does not exist"),
-                Err(err) => err.to_string(),
-            };
-            let content = content.trim_end();
-            format!("`$ cat '{file_name}'`\n```\n{content}\n```")
+        .map(|group| {
+            let (group, files) = group;
+            let group_content = files
+                .iter()
+                .map(|file_name| {
+                    let content = match file_read_optional_string(Path::new(file_name)) {
+                        Ok(Some(content)) => content,
+                        Ok(None) => String::from("# file does not exist"),
+                        Err(err) => err.to_string(),
+                    };
+                    format!("`$ cat '{file_name}'`\n```\n{}\n```", content.trim_end())
+                })
+                .collect::<Vec<String>>()
+                .join("\n\n");
+
+            format!("### {group}\n\n{group_content}")
         })
         .collect::<Vec<String>>()
         .join("\n\n");
