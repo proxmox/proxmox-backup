@@ -5,8 +5,14 @@ use std::process::Command;
 fn files() -> Vec<(&'static str, Vec<&'static str>)> {
     vec![
         (
-            "Host & Network",
-            vec!["/etc/hostname", "/etc/hosts", "/etc/network/interfaces"],
+            "General System Info",
+            vec![
+                "/etc/hostname",
+                "/etc/hosts",
+                "/etc/network/interfaces",
+                "/etc/apt/sources.list",
+                "/etc/apt/sources.list.d/",
+            ],
         ),
         (
             "Datastores & Remotes",
