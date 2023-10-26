@@ -72,7 +72,8 @@ pub fn generate_report() -> String {
                 Ok(None) => String::from("# file does not exist"),
                 Err(err) => err.to_string(),
             };
-            format!("$ cat '{}'\n{}", file_name, content)
+            let content = content.trim_end();
+            format!("`$ cat '{file_name}'`\n```\n{content}\n```")
         })
         .collect::<Vec<String>>()
         .join("\n\n");
@@ -88,19 +89,22 @@ pub fn generate_report() -> String {
                 Ok(output) => String::from_utf8_lossy(&output.stdout).to_string(),
                 Err(err) => err.to_string(),
             };
-            format!("$ `{} {}`\n{}", command, args.join(" "), output)
+            let output = output.trim_end();
+            format!("$ `{command} {}`\n```\n{output}\n```", args.join(" "))
         })
         .collect::<Vec<String>>()
         .join("\n\n");
 
     let function_outputs = function_calls()
         .iter()
-        .map(|(desc, function)| format!("$ {}\n{}", desc, function()))
+        .map(|(desc, function)| {
+            let output = function();
+            format!("#### {desc}\n```\n{}\n```", output.trim_end())
+        })
         .collect::<Vec<String>>()
         .join("\n\n");
 
     format!(
-        "= FILES =\n\n{}\n= COMMANDS =\n\n{}\n= FUNCTIONS =\n\n{}\n",
-        file_contents, command_outputs, function_outputs
+        "## FILES\n\n{file_contents}\n## COMMANDS\n\n{command_outputs}\n## FUNCTIONS\n\n{function_outputs}\n"
     )
 }
