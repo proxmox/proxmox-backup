@@ -148,6 +148,19 @@ fn get_directory_content(path: impl AsRef<Path>) -> String {
     out
 }
 
+fn get_command_output(exe: &str, args: &Vec<&str>) -> String {
+    let output = Command::new(exe)
+        .env("PROXMOX_OUTPUT_NO_BORDER", "1")
+        .args(args)
+        .output();
+    let output = match output {
+        Ok(output) => String::from_utf8_lossy(&output.stdout).to_string(),
+        Err(err) => err.to_string(),
+    };
+    let output = output.trim_end();
+    format!("$ `{exe} {}`\n```\n{output}\n```", args.join(" "))
+}
+
 pub fn generate_report() -> String {
     let file_contents = files()
         .iter()
@@ -173,18 +186,7 @@ pub fn generate_report() -> String {
 
     let command_outputs = commands()
         .iter()
-        .map(|(command, args)| {
-            let output = Command::new(command)
-                .env("PROXMOX_OUTPUT_NO_BORDER", "1")
-                .args(args)
-                .output();
-            let output = match output {
-                Ok(output) => String::from_utf8_lossy(&output.stdout).to_string(),
-                Err(err) => err.to_string(),
-            };
-            let output = output.trim_end();
-            format!("$ `{command} {}`\n```\n{output}\n```", args.join(" "))
-        })
+        .map(|(command, args)| get_command_output(command, args))
         .collect::<Vec<String>>()
         .join("\n\n");
 
