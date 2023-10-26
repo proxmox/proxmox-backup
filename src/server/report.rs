@@ -25,7 +25,15 @@ fn commands() -> Vec<(&'static str, Vec<&'static str>)> {
         ("proxmox-backup-manager", vec!["versions", "--verbose"]),
         ("proxmox-backup-manager", vec!["subscription", "get"]),
         ("df", vec!["-h"]),
-        ("lsblk", vec!["--ascii"]),
+        (
+            "lsblk",
+            vec![
+                "--ascii",
+                "-M",
+                "-o",
+                "+HOTPLUG,ROTA,PHY-SEC,FSTYPE,MODEL,TRAN",
+            ],
+        ),
         ("ls", vec!["-l", "/dev/disk/by-id", "/dev/disk/by-path"]),
         ("zpool", vec!["status"]),
         ("zfs", vec!["list"]),
