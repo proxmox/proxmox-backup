@@ -1,3 +1,4 @@
+use std::fmt::Write;
 use std::path::Path;
 use std::process::Command;
 
@@ -86,9 +87,48 @@ fn function_calls() -> Vec<FunctionMapping> {
     })]
 }
 
-pub fn generate_report() -> String {
+fn get_file_content(file: impl AsRef<Path>) -> String {
     use proxmox_sys::fs::file_read_optional_string;
+    let content = match file_read_optional_string(&file) {
+        Ok(Some(content)) => content,
+        Ok(None) => String::from("# file does not exist"),
+        Err(err) => err.to_string(),
+    };
+    let file_name = file.as_ref().display();
+    format!("`$ cat '{file_name}'`\n```\n{}\n```", content.trim_end())
+}
 
+fn get_directory_content(path: impl AsRef<Path>) -> String {
+    let read_dir_iter = match std::fs::read_dir(&path) {
+        Ok(iter) => iter,
+        Err(err) => {
+            return format!(
+                "`$ cat '{}*'`\n```\n# read dir failed - {}\n```",
+                path.as_ref().display(),
+                err.to_string(),
+            );
+        }
+    };
+    let mut out = String::new();
+    for entry in read_dir_iter {
+        let entry = match entry {
+            Ok(entry) => entry,
+            Err(err) => {
+                let _ = writeln!(out, "error during read-dir - {}", err.to_string());
+                continue;
+            }
+        };
+        let path = entry.path();
+        if path.is_file() {
+            let _ = writeln!(out, "{}", get_file_content(path));
+        } else {
+            let _ = writeln!(out, "skipping sub-directory `{}`", path.display());
+        }
+    }
+    out
+}
+
+pub fn generate_report() -> String {
     let file_contents = files()
         .iter()
         .map(|group| {
@@ -96,12 +136,12 @@ pub fn generate_report() -> String {
             let group_content = files
                 .iter()
                 .map(|file_name| {
-                    let content = match file_read_optional_string(Path::new(file_name)) {
-                        Ok(Some(content)) => content,
-                        Ok(None) => String::from("# file does not exist"),
-                        Err(err) => err.to_string(),
-                    };
-                    format!("`$ cat '{file_name}'`\n```\n{}\n```", content.trim_end())
+                    let path = Path::new(file_name);
+                    if path.is_dir() {
+                        get_directory_content(&path)
+                    } else {
+                        get_file_content(file_name)
+                    }
                 })
                 .collect::<Vec<String>>()
                 .join("\n\n");
