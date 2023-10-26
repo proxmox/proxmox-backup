@@ -154,10 +154,20 @@ fn get_command_output(exe: &str, args: &Vec<&str>) -> String {
         .args(args)
         .output();
     let output = match output {
-        Ok(output) => String::from_utf8_lossy(&output.stdout).to_string(),
+        Ok(output) => {
+            let mut out = String::from_utf8_lossy(&output.stdout)
+                .trim_end()
+                .to_string();
+            let stderr = String::from_utf8_lossy(&output.stderr)
+                .trim_end()
+                .to_string();
+            if !stderr.is_empty() {
+                writeln!(out, "\n```\nSTDERR:\n```\n{stderr}");
+            }
+            out
+        }
         Err(err) => err.to_string(),
     };
-    let output = output.trim_end();
     format!("$ `{exe} {}`\n```\n{output}\n```", args.join(" "))
 }
 
