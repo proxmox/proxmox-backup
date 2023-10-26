@@ -12,6 +12,7 @@ fn files() -> Vec<(&'static str, Vec<&'static str>)> {
                 "/etc/network/interfaces",
                 "/etc/apt/sources.list",
                 "/etc/apt/sources.list.d/",
+                "/proc/pressure/",
             ],
         ),
         (
@@ -79,18 +80,30 @@ fn commands() -> Vec<(&'static str, Vec<&'static str>)> {
 type FunctionMapping = (&'static str, fn() -> String);
 
 fn function_calls() -> Vec<FunctionMapping> {
-    vec![("Datastores", || {
-        let config = match pbs_config::datastore::config() {
-            Ok((config, _digest)) => config,
-            _ => return String::from("could not read datastore config"),
-        };
+    vec![
+        ("Datastores", || {
+            let config = match pbs_config::datastore::config() {
+                Ok((config, _digest)) => config,
+                _ => return String::from("could not read datastore config"),
+            };
 
-        let mut list = Vec::new();
-        for store in config.sections.keys() {
-            list.push(store.as_str());
-        }
-        list.join(", ")
-    })]
+            let mut list = Vec::new();
+            for store in config.sections.keys() {
+                list.push(store.as_str());
+            }
+            list.join(", ")
+        }),
+        ("System Load & Uptime", || {
+            let output = Command::new("top")
+                .args(vec!["-b", "-c", "-w512", "-n", "1", "-o", "TIME"])
+                .output();
+            let output = match output {
+                Ok(output) => String::from_utf8_lossy(&output.stdout).to_string(),
+                Err(err) => err.to_string(),
+            };
+            output.lines().take(30).collect::<Vec<&str>>().join("\n")
+        }),
+    ]
 }
 
 fn get_file_content(file: impl AsRef<Path>) -> String {
