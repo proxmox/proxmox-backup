@@ -24,6 +24,8 @@ fn commands() -> Vec<(&'static str, Vec<&'static str>)> {
         ("date", vec!["-R"]),
         ("proxmox-backup-manager", vec!["versions", "--verbose"]),
         ("proxmox-backup-manager", vec!["subscription", "get"]),
+        ("proxmox-backup-manager", vec!["ldap", "list"]),
+        ("proxmox-backup-manager", vec!["openid", "list"]),
         ("df", vec!["-h"]),
         (
             "lsblk",
