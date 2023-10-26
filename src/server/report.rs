@@ -59,6 +59,7 @@ fn commands() -> Vec<(&'static str, Vec<&'static str>)> {
         ("proxmox-backup-manager", vec!["subscription", "get"]),
         ("proxmox-backup-manager", vec!["ldap", "list"]),
         ("proxmox-backup-manager", vec!["openid", "list"]),
+        ("proxmox-boot-tool", vec!["status"]),
         ("df", vec!["-h"]),
         (
             "lsblk",
