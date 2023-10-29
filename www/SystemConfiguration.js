@@ -9,7 +9,7 @@ Ext.define('PBS.SystemConfiguration', {
     items: [
 	{
 	    xtype: 'panel',
-	    title: gettext(' Network/Time'),
+	    title: gettext('Network/Time'),
 	    itemId: 'network',
 	    iconCls: 'fa fa-exchange',
 	    layout: {
