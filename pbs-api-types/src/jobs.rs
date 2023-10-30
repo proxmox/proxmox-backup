@@ -151,12 +151,13 @@ pub struct DatastoreNotify {
     pub prune: Option<Notify>,
 }
 
-pub const DATASTORE_NOTIFY_STRING_SCHEMA: Schema =
-    StringSchema::new("Datastore notification setting")
-        .format(&ApiStringFormat::PropertyString(
-            &DatastoreNotify::API_SCHEMA,
-        ))
-        .schema();
+pub const DATASTORE_NOTIFY_STRING_SCHEMA: Schema = StringSchema::new(
+    "Datastore notification setting, enum can be one of 'always', 'never', or 'error'.",
+)
+.format(&ApiStringFormat::PropertyString(
+    &DatastoreNotify::API_SCHEMA,
+))
+.schema();
 
 pub const IGNORE_VERIFIED_BACKUPS_SCHEMA: Schema = BooleanSchema::new(
     "Do not verify backups that are already verified if their verification is not outdated.",
