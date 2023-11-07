@@ -279,7 +279,7 @@ expired or if it will expire in the next 30 days.
 .. _manually_change_certificate_over_command_line:
 
 Manually Change Certificate over the Command Line
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 If you want to get rid of certificate verification warnings, you have to
 generate a valid certificate for your server.
