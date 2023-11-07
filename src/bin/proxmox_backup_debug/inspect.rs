@@ -191,12 +191,14 @@ fn inspect_chunk(
             "crc": crc_status,
             "encryption": blob.crypt_mode()?,
             "is-compressed": blob.is_compressed(),
+            "size": blob.raw_size(),
             "referenced-by": references
         }),
         None => json!({
              "crc": crc_status,
              "encryption": blob.crypt_mode()?,
              "is-compressed": blob.is_compressed(),
+             "size": blob.raw_size(),
         }),
     };
 
@@ -204,6 +206,7 @@ fn inspect_chunk(
         println!("CRC: {}", val["crc"]);
         println!("encryption: {}", val["encryption"]);
         println!("is-compressed: {}", val["is-compressed"]);
+        println!("size: {}", val["size"]);
         if let Some(refs) = val["referenced-by"].as_array() {
             println!("referenced by:");
             for reference in refs {
