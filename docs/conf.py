@@ -415,6 +415,8 @@ latex_logo = "images/proxmox-logo.png"
 #
 # latex_domain_indices = True
 
+latex_table_style = ['booktabs', 'colorrows']
+
 
 # -- Options for Epub output ----------------------------------------------
 
