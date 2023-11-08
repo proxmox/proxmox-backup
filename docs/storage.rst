@@ -335,11 +335,11 @@ There are some tuning related options for the datastore that are more advanced:
     index file (.fidx/.didx). While this might slow down iterating on many slow
     storages, on very fast ones (for example: NVMEs) the collecting and sorting
     can take more time than gained through the sorted iterating.
-  This option can be set with:
+    This option can be set with:
 
-.. code-block:: console
+    .. code-block:: console
 
-  # proxmox-backup-manager datastore update <storename> --tuning 'chunk-order=none'
+      # proxmox-backup-manager datastore update <storename> --tuning 'chunk-order=none'
 
 * ``sync-level``: Datastore fsync level:
 
