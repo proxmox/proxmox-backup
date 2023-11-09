@@ -3,7 +3,7 @@ use serde_json::Value;
 
 use proxmox_router::{cli::*, ApiHandler, RpcEnvironment};
 use proxmox_schema::api;
-use proxmox_subscription::SubscriptionInfo;
+use proxmox_subscription::{ProductType, SubscriptionInfo};
 
 use proxmox_backup::api2::{self, node::subscription::subscription_file_opts};
 
@@ -51,6 +51,12 @@ pub fn set_offline_subscription_key(data: String) -> Result<(), Error> {
     if !info.is_signed() {
         bail!("Offline subscription key must be signed!");
     }
+
+    let product_type = info.get_product_type()?;
+    if product_type != ProductType::Pbs {
+        bail!("Subscription is not a PBS subscription ({product_type})!");
+    }
+
     info.check_signature(&[proxmox_subscription::files::DEFAULT_SIGNING_KEY]);
     info.check_age(false);
     info.check_server_id();
