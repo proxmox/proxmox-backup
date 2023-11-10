@@ -147,7 +147,7 @@ pub fn zpool_details(name: String) -> Result<Value, Error> {
         permission: &Permission::Privilege(&["system", "disks"], PRIV_SYS_MODIFY, false),
     },
 )]
-/// Create a new ZFS pool. Will be mounted under '/mnt/datastore/<name>'.
+/// Create a new ZFS pool. Will be mounted under `/mnt/datastore/<name>`.
 pub fn create_zpool(
     name: String,
     devices: String,

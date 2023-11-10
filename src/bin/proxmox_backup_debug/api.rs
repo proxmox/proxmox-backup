@@ -301,7 +301,7 @@ async fn call_api_and_format_result(
         },
     },
 )]
-/// Call API on <api-path>
+/// Call API on `<api-path>`
 async fn api_call(
     method: String,
     api_path: String,
@@ -327,7 +327,7 @@ async fn api_call(
         },
     },
 )]
-/// Get API usage information for <path>
+/// Get API usage information for `<path>`
 async fn usage(
     path: String,
     verbose: bool,
@@ -427,7 +427,7 @@ async fn get_api_children(
         },
     },
 )]
-/// Get API usage information for <path>
+/// Get API usage information for `<path>`
 async fn ls(
     path: Option<String>,
     mut param: Value,

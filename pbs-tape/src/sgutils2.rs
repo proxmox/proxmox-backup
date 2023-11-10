@@ -893,7 +893,7 @@ fn scsi_cmd_mode_sense(
 
 /// True if the given sense info is INVALID COMMAND OPERATION CODE
 /// means that the device does not know/support the command
-/// https://www.t10.org/lists/asc-num.htm#ASC_20
+/// <https://www.t10.org/lists/asc-num.htm#ASC_20>
 pub fn sense_err_is_invalid_command(err: &SenseInfo) -> bool {
     err.sense_key == SENSE_KEY_ILLEGAL_REQUEST && err.asc == 0x20 && err.ascq == 0x00
 }

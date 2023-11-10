@@ -547,7 +547,7 @@ pub enum DiskType {
 }
 
 #[derive(Debug)]
-/// Represents the contents of the /sys/block/<dev>/stat file.
+/// Represents the contents of the `/sys/block/<dev>/stat` file.
 pub struct BlockDevStat {
     pub read_ios: u64,
     pub read_sectors: u64,
@@ -668,7 +668,7 @@ pub struct PartitionInfo {
 #[serde(rename_all = "kebab-case")]
 /// Information about how a Disk is used
 pub struct DiskUsageInfo {
-    /// Disk name (/sys/block/<name>)
+    /// Disk name (`/sys/block/<name>`)
     pub name: String,
     pub used: DiskUsageType,
     pub disk_type: DiskType,

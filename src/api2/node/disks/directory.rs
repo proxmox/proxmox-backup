@@ -135,7 +135,7 @@ pub fn list_datastore_mounts() -> Result<Vec<DatastoreMountInfo>, Error> {
         permission: &Permission::Privilege(&["system", "disks"], PRIV_SYS_MODIFY, false),
     },
 )]
-/// Create a Filesystem on an unused disk. Will be mounted under '/mnt/datastore/<name>'.".
+/// Create a Filesystem on an unused disk. Will be mounted under `/mnt/datastore/<name>`.
 pub fn create_datastore_disk(
     name: String,
     disk: String,
@@ -235,7 +235,7 @@ pub fn create_datastore_disk(
         permission: &Permission::Privilege(&["system", "disks"], PRIV_SYS_MODIFY, false),
     },
 )]
-/// Remove a Filesystem mounted under '/mnt/datastore/<name>'.
+/// Remove a Filesystem mounted under `/mnt/datastore/<name>`.
 pub fn delete_datastore_disk(name: String) -> Result<(), Error> {
     let path = format!("{}{}", BASE_MOUNT_DIR, name);
     // path of datastore cannot be changed

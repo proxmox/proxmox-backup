@@ -21,7 +21,7 @@
 //! chunks (VMs, whole block devices).
 //!
 //! A chunk is defined as a binary blob, which is stored inside a
-//! [ChunkStore](struct.ChunkStore.html) instead of the backup directory
+//! [ChunkStore] instead of the backup directory
 //! directly, and can be addressed by its SHA256 digest.
 //!
 //!
@@ -98,7 +98,7 @@
 //! still referenced.
 //!
 //! To do this we use the
-//! [ProcessLocker](../tools/struct.ProcessLocker.html).
+//! [ProcessLocker](proxmox_sys::process_locker::ProcessLocker).
 //!
 //! ### ChunkStore-wide
 //!

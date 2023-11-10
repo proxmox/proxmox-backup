@@ -299,7 +299,7 @@ fn list_datastore_mounts(
         },
    },
 )]
-/// Create a Filesystem on an unused disk. Will be mounted under '/mnt/datastore/<name>'.
+/// Create a Filesystem on an unused disk. Will be mounted under `/mnt/datastore/<name>`.
 async fn create_datastore_disk(
     mut param: Value,
     rpcenv: &mut dyn RpcEnvironment,
@@ -326,7 +326,7 @@ async fn create_datastore_disk(
         },
    },
 )]
-/// Remove a Filesystem mounted under '/mnt/datastore/<name>'.
+/// Remove a Filesystem mounted under `/mnt/datastore/<name>`.
 async fn delete_datastore_disk(
     mut param: Value,
     rpcenv: &mut dyn RpcEnvironment,
