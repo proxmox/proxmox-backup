@@ -1,0 +1,4 @@
+Proxmox Backup Version    , Debian Version           , First Release , Debian EOL , Proxmox Backup EOL
+Proxmox Backup 3          , Debian 12 (Bookworm)     , 2023-06       , TBA        , TBA
+Proxmox Backup 2          , Debian 11 (Bullseye)     , 2021-07       , 2024-07    , 2024-07
+Proxmox Backup 1          , Debian 10 (Buster)       , 2020-11       , 2022-08    , 2022-07
