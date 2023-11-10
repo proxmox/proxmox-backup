@@ -26,15 +26,10 @@ future plans to support 32-bit processors.
 How long will my Proxmox Backup Server version be supported?
 ------------------------------------------------------------
 
-+-----------------------+----------------------+---------------+------------+--------------------+
-|Proxmox Backup Version | Debian Version       | First Release | Debian EOL | Proxmox Backup EOL |
-+=======================+======================+===============+============+====================+
-|Proxmox Backup 3.x     | Debian 12 (Bookworm) | 2023-06       | tba        | tba                |
-+-----------------------+----------------------+---------------+------------+--------------------+
-|Proxmox Backup 2.x     | Debian 11 (Bullseye) | 2021-07       | 2024-07    | 2024-07            |
-+-----------------------+----------------------+---------------+------------+--------------------+
-|Proxmox Backup 1.x     | Debian 10 (Buster)   | 2020-11       | 2022-08    | 2022-07            |
-+-----------------------+----------------------+---------------+------------+--------------------+
+.. csv-table:: Table Title
+   :file: faq-release-support-table.csv
+   :widths: 30 26 13 13 18
+   :header-rows: 1
 
 How can I upgrade Proxmox Backup Server to the next point release?
 ------------------------------------------------------------------
