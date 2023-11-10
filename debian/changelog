@@ -1,3 +1,29 @@
+rust-proxmox-backup (2.4.4-1) bullseye; urgency=medium
+
+  * pbs2to3: fix boot-mode detection
+
+  * fix #4823: datastore: ignore vanished files when walking directory
+
+  * fix #4380: stat() is run when file is executed
+
+  * fix #4779: client: add missing "Connection" header for HTTP2 upgrade
+
+  * fix #4971: client: Improve output on successful snapshot deletion
+
+  * fix #4638: proxmox-backup-client: status: guard against div by zero
+
+  * 6cc67d99 ui: tape restore: fix default namespace mapping
+
+  * fix #4895: scheduled jobs: ignore task-log not found error
+
+  * ui: tape: mark incomplete media-sets as such
+
+  * fix #4977: ui: tape: restore: rework snapshot selection logic
+
+  * docs: update FAQ release support table, add PBS 2.x EOL date
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 10 Nov 2023 16:05:35 +0100
+
 rust-proxmox-backup (2.4.3-1) bullseye; urgency=medium
 
   * add pbs2to3 major-upgrade checker binary
