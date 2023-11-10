@@ -21,6 +21,8 @@ Proxmox Backup Server only supports 64-bit CPUs (AMD or Intel). There are no
 future plans to support 32-bit processors.
 
 
+.. _faq-support-table:
+
 How long will my Proxmox Backup Server version be supported?
 ------------------------------------------------------------
 
