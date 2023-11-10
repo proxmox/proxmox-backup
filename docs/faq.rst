@@ -111,3 +111,7 @@ data is then deduplicated on the server. This minimizes both the storage
 consumed and the impact on the network. Each backup still references all
 data and such is a full backup. For details see the
 :ref:`Technical Overview <tech_design_overview>`
+
+.. todo:: document our stabillity guarantees, i.e., the separate one for, in
+   increasing duration of how long we'll support it: api compat, backup
+   protocol compat and backup format compat
