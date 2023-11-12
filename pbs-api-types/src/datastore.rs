@@ -213,7 +213,9 @@ pub enum DatastoreFSyncLevel {
 /// Datastore tuning options
 pub struct DatastoreTuning {
     /// Iterate chunks in this order
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub chunk_order: Option<ChunkOrder>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub sync_level: Option<DatastoreFSyncLevel>,
 }
 
