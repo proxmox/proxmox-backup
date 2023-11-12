@@ -138,12 +138,16 @@ pub enum Notify {
 /// Datastore notify settings
 pub struct DatastoreNotify {
     /// Garbage collection settings
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub gc: Option<Notify>,
     /// Verify job setting
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub verify: Option<Notify>,
     /// Sync job setting
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub sync: Option<Notify>,
     /// Prune job setting
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub prune: Option<Notify>,
 }
 
