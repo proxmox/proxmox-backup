@@ -103,8 +103,8 @@ async fn register_account(
     contact: String,
     directory: Option<String>,
 ) -> Result<(), Error> {
-    let directory = match directory {
-        Some(directory) => directory,
+    let (directory_url, custom_directory) = match directory {
+        Some(directory) => (directory, true),
         None => {
             println!("Directory endpoints:");
             for (i, dir) in KNOWN_ACME_DIRECTORIES.iter().enumerate() {
@@ -122,12 +122,12 @@ async fn register_account(
 
                 match input.trim().parse::<usize>() {
                     Ok(n) if n < KNOWN_ACME_DIRECTORIES.len() => {
-                        break KNOWN_ACME_DIRECTORIES[n].url.to_owned();
+                        break (KNOWN_ACME_DIRECTORIES[n].url.to_owned(), false);
                     }
                     Ok(n) if n == KNOWN_ACME_DIRECTORIES.len() => {
                         input.clear();
                         std::io::stdin().read_line(&mut input)?;
-                        break input.trim().to_owned();
+                        break (input.trim().to_owned(), true);
                     }
                     _ => eprintln!("Invalid selection."),
                 }
@@ -140,9 +140,13 @@ async fn register_account(
         }
     };
 
-    println!("Attempting to fetch Terms of Service from {:?}", directory);
-    let mut client = AcmeClient::new(directory.clone());
-    let tos_agreed = if let Some(tos_url) = client.terms_of_service_url().await? {
+    println!(
+        "Attempting to fetch Terms of Service from {:?}",
+        directory_url
+    );
+    let mut client = AcmeClient::new(directory_url.clone());
+    let directory = client.directory().await?;
+    let tos_agreed = if let Some(tos_url) = directory.terms_of_service_url() {
         println!("Terms of Service: {}", tos_url);
         print!("Do you agree to the above terms? [y|N]: ");
         std::io::stdout().flush()?;
@@ -154,7 +158,36 @@ async fn register_account(
         true
     };
 
-    println!("Attempting to register account with {:?}...", directory);
+    let mut eab_enabled = directory.external_account_binding_required();
+    if !eab_enabled && custom_directory {
+        print!("Do you want to use external account binding? [y|N]: ");
+        std::io::stdout().flush()?;
+        let mut input = String::new();
+        std::io::stdin().read_line(&mut input)?;
+        eab_enabled = input.trim().eq_ignore_ascii_case("y");
+    } else if eab_enabled {
+        println!("The CA requires external account binding.");
+    }
+
+    let eab_creds = if eab_enabled {
+        println!("You should have received a key id and a key from your CA.");
+
+        print!("Enter EAB key id: ");
+        std::io::stdout().flush()?;
+        let mut eab_kid = String::new();
+        std::io::stdin().read_line(&mut eab_kid)?;
+
+        print!("Enter EAB key: ");
+        std::io::stdout().flush()?;
+        let mut eab_hmac_key = String::new();
+        std::io::stdin().read_line(&mut eab_hmac_key)?;
+
+        Some((eab_kid.trim().to_owned(), eab_hmac_key.trim().to_owned()))
+    } else {
+        None
+    };
+
+    println!("Attempting to register account with {:?}...", directory_url);
 
     let account = api2::config::acme::do_register_account(
         &mut client,
@@ -162,7 +195,7 @@ async fn register_account(
         tos_agreed,
         contact,
         None,
-        None,
+        eab_creds,
     )
     .await?;
 

@@ -577,7 +577,7 @@ impl AcmeClient {
         Self::execute(&mut self.http_client, request, &mut self.nonce).await
     }
 
-    async fn directory(&mut self) -> Result<&Directory, Error> {
+    pub async fn directory(&mut self) -> Result<&Directory, Error> {
         Ok(Self::get_directory(
             &mut self.http_client,
             &self.directory_url,
