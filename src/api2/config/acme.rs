@@ -182,6 +182,16 @@ fn account_contact_from_string(s: &str) -> Vec<String> {
                 description: "The ACME Directory.",
                 optional: true,
             },
+            eab_kid: {
+                type: String,
+                description: "Key Identifier for External Account Binding.",
+                optional: true,
+            },
+            eab_hmac_key: {
+                type: String,
+                description: "HMAC Key for External Account Binding.",
+                optional: true,
+            }
         },
     },
     access: {
@@ -196,6 +206,8 @@ fn register_account(
     contact: String,
     tos_url: Option<String>,
     directory: Option<String>,
+    eab_kid: Option<String>,
+    eab_hmac_key: Option<String>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
@@ -203,6 +215,15 @@ fn register_account(
     let name = name.unwrap_or_else(|| unsafe {
         AcmeAccountName::from_string_unchecked("default".to_string())
     });
+
+    // TODO: this should be done via the api definition, but
+    // the api macro currently lacks this ability (2023-11-06)
+    if eab_kid.is_some() ^ eab_hmac_key.is_some() {
+        http_bail!(
+            BAD_REQUEST,
+            "either both or none of 'eab_kid' and 'eab_hmac_key' have to be set."
+        );
+    }
 
     if Path::new(&crate::config::acme::account_path(&name)).exists() {
         http_bail!(BAD_REQUEST, "account {} already exists", name);
@@ -224,8 +245,15 @@ fn register_account(
 
             task_log!(worker, "Registering ACME account '{}'...", &name);
 
-            let account =
-                do_register_account(&mut client, &name, tos_url.is_some(), contact, None).await?;
+            let account = do_register_account(
+                &mut client,
+                &name,
+                tos_url.is_some(),
+                contact,
+                None,
+                eab_kid.zip(eab_hmac_key),
+            )
+            .await?;
 
             task_log!(
                 worker,
@@ -244,10 +272,11 @@ pub async fn do_register_account<'a>(
     agree_to_tos: bool,
     contact: String,
     rsa_bits: Option<u32>,
+    eab_creds: Option<(String, String)>,
 ) -> Result<&'a Account, Error> {
     let contact = account_contact_from_string(&contact);
     client
-        .new_account(name, agree_to_tos, contact, rsa_bits)
+        .new_account(name, agree_to_tos, contact, rsa_bits, eab_creds)
         .await
 }
 

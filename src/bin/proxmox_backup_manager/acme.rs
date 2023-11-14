@@ -156,9 +156,15 @@ async fn register_account(
 
     println!("Attempting to register account with {:?}...", directory);
 
-    let account =
-        api2::config::acme::do_register_account(&mut client, &name, tos_agreed, contact, None)
-            .await?;
+    let account = api2::config::acme::do_register_account(
+        &mut client,
+        &name,
+        tos_agreed,
+        contact,
+        None,
+        None,
+    )
+    .await?;
 
     println!("Registration successful, account URL: {}", account.location);
 
