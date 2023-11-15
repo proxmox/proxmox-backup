@@ -203,7 +203,7 @@ pub const VERIFICATION_OUTDATED_AFTER_SCHEMA: Schema =
         },
     }
 )]
-#[derive(Serialize, Deserialize, Updater)]
+#[derive(Serialize, Deserialize, Updater, Clone, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 /// Verification Job
 pub struct VerificationJobConfig {
@@ -252,7 +252,7 @@ impl VerificationJobConfig {
         },
     },
 )]
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 /// Status of Verification Job
 pub struct VerificationJobStatus {
@@ -306,7 +306,7 @@ pub struct VerificationJobStatus {
         },
     }
 )]
-#[derive(Serialize, Deserialize, Clone, Updater)]
+#[derive(Serialize, Deserialize, Clone, Updater, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 /// Tape Backup Job Setup
 pub struct TapeBackupJobSetup {
@@ -348,7 +348,7 @@ pub struct TapeBackupJobSetup {
         },
     }
 )]
-#[derive(Serialize, Deserialize, Clone, Updater)]
+#[derive(Serialize, Deserialize, Clone, Updater, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 /// Tape Backup Job
 pub struct TapeBackupJobConfig {
@@ -372,7 +372,7 @@ pub struct TapeBackupJobConfig {
         },
     },
 )]
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 /// Status of Tape Backup Job
 pub struct TapeBackupJobStatus {
@@ -643,7 +643,7 @@ impl KeepOptions {
         },
     }
 )]
-#[derive(Serialize, Deserialize, Default, Updater)]
+#[derive(Serialize, Deserialize, Default, Updater, Clone, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 /// Common pruning options
 pub struct PruneJobOptions {
@@ -697,7 +697,7 @@ impl PruneJobOptions {
         },
     },
 )]
-#[derive(Deserialize, Serialize, Updater)]
+#[derive(Deserialize, Serialize, Updater, Clone, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 /// Prune configuration.
 pub struct PruneJobConfig {
@@ -741,7 +741,7 @@ fn is_false(b: &bool) -> bool {
         },
     },
 )]
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 /// Status of prune job
 pub struct PruneJobStatus {
