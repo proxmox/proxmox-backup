@@ -686,7 +686,6 @@ impl PruneJobOptions {
         },
         schedule: {
             schema: PRUNE_SCHEDULE_SCHEMA,
-            optional: true,
         },
         comment: {
             optional: true,
