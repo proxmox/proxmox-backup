@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::ffi::{OsStr, OsString};
-use std::io::Write;
+use std::io::{IsTerminal, Write};
 use std::iter::FromIterator;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -601,7 +601,7 @@ impl FileEntryPrinter {
         let color_choice = match output_params.color {
             ColorMode::Always => ColorChoice::Always,
             ColorMode::Auto => {
-                if unsafe { libc::isatty(1) == 1 } {
+                if std::io::stdout().is_terminal() {
                     // Show colors unless `TERM=dumb` or `NO_COLOR` is set.
                     ColorChoice::Auto
                 } else {

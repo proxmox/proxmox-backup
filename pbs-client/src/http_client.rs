@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::io::{IsTerminal, Write};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::Duration;
 
@@ -458,7 +458,7 @@ impl HttpClient {
                                 &auth.ticket,
                                 &auth.token,
                             ) {
-                                if tty::stdout_isatty() {
+                                if std::io::stdout().is_terminal() {
                                     log::error!("storing login ticket failed: {}", err);
                                 }
                             }
@@ -496,7 +496,7 @@ impl HttpClient {
                         &auth.ticket,
                         &auth.token,
                     ) {
-                        if tty::stdout_isatty() {
+                        if std::io::stdout().is_terminal() {
                             log::error!("storing login ticket failed: {}", err);
                         }
                     }
@@ -548,7 +548,7 @@ impl HttpClient {
 
     fn get_password(username: &Userid, interactive: bool) -> Result<String, Error> {
         // If we're on a TTY, query the user for a password
-        if interactive && tty::stdin_isatty() {
+        if interactive && std::io::stdin().is_terminal() {
             let msg = format!("Password for \"{}\": ", username);
             return Ok(String::from_utf8(tty::read_password(&msg)?)?);
         }
@@ -599,7 +599,7 @@ impl HttpClient {
         }
 
         // If we're on a TTY, query the user
-        if interactive && tty::stdin_isatty() {
+        if interactive && std::io::stdin().is_terminal() {
             log::info!("fingerprint: {}", fp_string);
             loop {
                 eprint!("Are you sure you want to continue connecting? (y/n): ");

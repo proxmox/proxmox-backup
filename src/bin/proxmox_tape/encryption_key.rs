@@ -1,3 +1,5 @@
+use std::io::IsTerminal;
+
 use anyhow::{bail, format_err, Error};
 use serde_json::Value;
 
@@ -149,7 +151,7 @@ fn change_passphrase(
     mut param: Value,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
-    if !tty::stdin_isatty() {
+    if !std::io::stdin().is_terminal() {
         bail!("unable to change passphrase - no tty");
     }
 
@@ -208,7 +210,7 @@ async fn restore_key(
     } else if !drive_passed && key.is_none() && key_file.is_none() {
         bail!("one of either 'drive' or 'key' parameter must be set!");
     }
-    if !tty::stdin_isatty() {
+    if !std::io::stdin().is_terminal() {
         bail!("no password input mechanism available");
     }
 
@@ -283,7 +285,7 @@ async fn restore_key(
 )]
 /// Create key (read password from stdin)
 fn create_key(mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error> {
-    if !tty::stdin_isatty() {
+    if !std::io::stdin().is_terminal() {
         bail!("no password input mechanism available");
     }
 

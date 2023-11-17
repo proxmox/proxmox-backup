@@ -1,3 +1,4 @@
+use std::io::IsTerminal;
 use std::path::PathBuf;
 
 use anyhow::{bail, format_err, Error};
@@ -100,7 +101,7 @@ fn create(kdf: Option<Kdf>, path: Option<String>, hint: Option<String>) -> Resul
         }
         Kdf::Scrypt | Kdf::PBKDF2 => {
             // always read passphrase from tty
-            if !tty::stdin_isatty() {
+            if !std::io::stdin().is_terminal() {
                 bail!("unable to read passphrase - no tty");
             }
 
@@ -236,7 +237,7 @@ fn change_passphrase(
 
     let kdf = kdf.unwrap_or_default();
 
-    if !tty::stdin_isatty() {
+    if !std::io::stdin().is_terminal() {
         bail!("unable to change passphrase - no tty");
     }
 
@@ -359,7 +360,7 @@ fn import_master_pubkey(path: String) -> Result<(), Error> {
 /// encryption key onto the backup server along with each backup.
 fn create_master_key() -> Result<(), Error> {
     // we need a TTY to query the new password
-    if !tty::stdin_isatty() {
+    if !std::io::stdin().is_terminal() {
         bail!("unable to create master key - no tty");
     }
 

@@ -1,4 +1,4 @@
-use std::io::Read;
+use std::io::{IsTerminal, Read};
 use std::os::unix::io::{FromRawFd, RawFd};
 use std::path::PathBuf;
 
@@ -351,7 +351,7 @@ pub fn get_encryption_key_password() -> Result<Vec<u8>, Error> {
     }
 
     // If we're on a TTY, query the user for a password
-    if tty::stdin_isatty() {
+    if std::io::stdin().is_terminal() {
         return tty::read_password("Encryption Key Password: ");
     }
 
