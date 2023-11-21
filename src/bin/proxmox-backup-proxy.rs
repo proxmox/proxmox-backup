@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{bail, format_err, Context, Error};
 use futures::*;
 use http::request::Parts;
 use http::Response;
@@ -23,8 +23,8 @@ use proxmox_sys::{task_log, task_warn};
 use pbs_datastore::DataStore;
 
 use proxmox_rest_server::{
-    cleanup_old_tasks, cookie_from_header, rotate_task_log_archive, ApiConfig, RestEnvironment,
-    RestServer, WorkerTask,
+    cleanup_old_tasks, cookie_from_header, rotate_task_log_archive, ApiConfig, Redirector,
+    RestEnvironment, RestServer, WorkerTask,
 };
 
 use proxmox_backup::rrd_cache::{
@@ -253,6 +253,7 @@ async fn run() -> Result<(), Error> {
         )?;
 
     let rest_server = RestServer::new(config);
+    let redirector = Redirector::new();
     proxmox_rest_server::init_worker_tasks(
         pbs_buildcfg::PROXMOX_BACKUP_LOG_DIR_M!().into(),
         file_opts.clone(),
@@ -288,23 +289,47 @@ async fn run() -> Result<(), Error> {
         Ok(Value::Null)
     })?;
 
-    let connections = proxmox_rest_server::connection::AcceptBuilder::with_acceptor(acceptor)
+    let connections = proxmox_rest_server::connection::AcceptBuilder::new()
         .debug(debug)
         .rate_limiter_lookup(Arc::new(lookup_rate_limiter))
         .tcp_keepalive_time(PROXMOX_BACKUP_TCP_KEEPALIVE_TIME);
+
     let server = daemon::create_daemon(
         ([0, 0, 0, 0, 0, 0, 0, 0], 8007).into(),
         move |listener| {
-            let connections = connections.accept(listener);
+            let (secure_connections, insecure_connections) =
+                connections.accept_tls_optional(listener, acceptor);
 
             Ok(async {
                 daemon::systemd_notify(daemon::SystemdNotify::Ready)?;
 
-                hyper::Server::builder(connections)
+                let secure_server = hyper::Server::builder(secure_connections)
                     .serve(rest_server)
                     .with_graceful_shutdown(proxmox_rest_server::shutdown_future())
-                    .map_err(Error::from)
-                    .await
+                    .map_err(Error::from);
+
+                let insecure_server = hyper::Server::builder(insecure_connections)
+                    .serve(redirector)
+                    .with_graceful_shutdown(proxmox_rest_server::shutdown_future())
+                    .map_err(Error::from);
+
+                let (secure_res, insecure_res) =
+                    try_join!(tokio::spawn(secure_server), tokio::spawn(insecure_server))
+                        .context("failed to complete REST server task")?;
+
+                let results = [secure_res, insecure_res];
+
+                if results.iter().any(Result::is_err) {
+                    let cat_errors = results
+                        .into_iter()
+                        .filter_map(|res| res.err().map(|err| err.to_string()))
+                        .collect::<Vec<_>>()
+                        .join("\n");
+
+                    bail!(cat_errors);
+                }
+
+                Ok(())
             })
         },
         Some(pbs_buildcfg::PROXMOX_BACKUP_PROXY_PID_FN),
