@@ -542,7 +542,7 @@ fn get_remote(param: &HashMap<String, String>) -> Option<String> {
     })
 }
 
-fn get_remote_store(param: &HashMap<String, String>) -> Option<(String, String)> {
+fn get_remote_store(param: &HashMap<String, String>) -> Option<(Option<String>, String)> {
     let mut job: Option<SyncJobConfig> = None;
 
     let remote = param.get("remote").map(|r| r.to_owned()).or_else(|| {
@@ -555,15 +555,13 @@ fn get_remote_store(param: &HashMap<String, String>) -> Option<(String, String)>
         None
     });
 
-    if let Some(remote) = remote {
-        let store = param
-            .get("remote-store")
-            .map(|r| r.to_owned())
-            .or_else(|| job.map(|job| job.remote_store));
+    let store = param
+        .get("remote-store")
+        .map(|r| r.to_owned())
+        .or_else(|| job.map(|job| job.remote_store));
 
-        if let Some(store) = store {
-            return Some((remote, store));
-        }
+    if let Some(store) = store {
+        return Some((remote, store));
     }
 
     None
@@ -584,7 +582,7 @@ fn get_remote_ns(param: &HashMap<String, String>) -> Option<BackupNamespace> {
 }
 
 // shell completion helper
-pub fn complete_remote_datastore_name(_arg: &str, param: &HashMap<String, String>) -> Vec<String> {
+pub fn complete_remote_datastore_name(arg: &str, param: &HashMap<String, String>) -> Vec<String> {
     let mut list = Vec::new();
 
     if let Some(remote) = get_remote(param) {
@@ -595,7 +593,9 @@ pub fn complete_remote_datastore_name(_arg: &str, param: &HashMap<String, String
                 list.push(item.store);
             }
         }
-    }
+    } else {
+        list = pbs_config::datastore::complete_datastore_name(arg, param);
+    };
 
     list
 }
@@ -607,17 +607,25 @@ pub fn complete_remote_datastore_namespace(
 ) -> Vec<String> {
     let mut list = Vec::new();
 
-    if let Some((remote, remote_store)) = get_remote_store(param) {
-        if let Ok(data) = proxmox_async::runtime::block_on(async move {
+    if let Some(data) = match get_remote_store(param) {
+        Some((Some(remote), remote_store)) => proxmox_async::runtime::block_on(async move {
             crate::api2::config::remote::scan_remote_namespaces(
                 remote.clone(),
                 remote_store.clone(),
             )
             .await
-        }) {
-            for item in data {
-                list.push(item.ns.name());
-            }
+            .ok()
+        }),
+        Some((None, source_store)) => {
+            let mut rpcenv = CliEnvironment::new();
+            rpcenv.set_auth_id(Some(String::from("root@pam")));
+            crate::api2::admin::namespace::list_namespaces(source_store, None, None, &mut rpcenv)
+                .ok()
+        }
+        _ => None,
+    } {
+        for item in data {
+            list.push(item.ns.name());
         }
     }
 
@@ -662,19 +670,26 @@ pub fn complete_sync_local_datastore_namespace(
 pub fn complete_remote_datastore_group(_arg: &str, param: &HashMap<String, String>) -> Vec<String> {
     let mut list = Vec::new();
 
-    if let Some((remote, remote_store)) = get_remote_store(param) {
-        let ns = get_remote_ns(param);
-        if let Ok(data) = proxmox_async::runtime::block_on(async move {
+    let ns = get_remote_ns(param);
+    if let Some(data) = match get_remote_store(param) {
+        Some((Some(remote), remote_store)) => proxmox_async::runtime::block_on(async move {
             crate::api2::config::remote::scan_remote_groups(
                 remote.clone(),
                 remote_store.clone(),
                 ns,
             )
             .await
-        }) {
-            for item in data {
-                list.push(format!("{}/{}", item.backup.ty, item.backup.id));
-            }
+            .ok()
+        }),
+        Some((None, source_store)) => {
+            let mut rpcenv = CliEnvironment::new();
+            rpcenv.set_auth_id(Some(String::from("root@pam")));
+            crate::api2::admin::datastore::list_groups(source_store, ns, &mut rpcenv).ok()
+        }
+        _ => None,
+    } {
+        for item in data {
+            list.push(format!("{}/{}", item.backup.ty, item.backup.id));
         }
     }
 
