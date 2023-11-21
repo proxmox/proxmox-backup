@@ -1,5 +1,5 @@
 //! Sync datastore from remote server
-use anyhow::{format_err, Error};
+use anyhow::{bail, format_err, Error};
 use futures::{future::FutureExt, select};
 
 use proxmox_router::{Permission, Router, RpcEnvironment};
@@ -22,7 +22,7 @@ pub fn check_pull_privs(
     auth_id: &Authid,
     store: &str,
     ns: Option<&str>,
-    remote: &str,
+    remote: Option<&str>,
     remote_store: &str,
     delete: bool,
 ) -> Result<(), Error> {
@@ -39,12 +39,22 @@ pub fn check_pull_privs(
         PRIV_DATASTORE_BACKUP,
         false,
     )?;
-    user_info.check_privs(
-        auth_id,
-        &["remote", remote, remote_store],
-        PRIV_REMOTE_READ,
-        false,
-    )?;
+
+    if let Some(remote) = remote {
+        user_info.check_privs(
+            auth_id,
+            &["remote", remote, remote_store],
+            PRIV_REMOTE_READ,
+            false,
+        )?;
+    } else {
+        user_info.check_privs(
+            auth_id,
+            &["datastore", remote_store],
+            PRIV_DATASTORE_BACKUP,
+            false,
+        )?;
+    }
 
     if delete {
         user_info.check_privs(
@@ -65,7 +75,7 @@ impl TryFrom<&SyncJobConfig> for PullParameters {
         PullParameters::new(
             &sync_job.store,
             sync_job.ns.clone().unwrap_or_default(),
-            Some(&sync_job.remote),
+            sync_job.remote.as_deref(),
             &sync_job.remote_store,
             sync_job.remote_ns.clone().unwrap_or_default(),
             sync_job
@@ -91,13 +101,17 @@ pub fn do_sync_job(
 ) -> Result<String, Error> {
     let job_id = format!(
         "{}:{}:{}:{}:{}",
-        sync_job.remote,
+        sync_job.remote.as_deref().unwrap_or("-"),
         sync_job.remote_store,
         sync_job.store,
         sync_job.ns.clone().unwrap_or_default(),
         job.jobname()
     );
     let worker_type = job.jobtype().to_string();
+
+    if sync_job.remote.is_none() && sync_job.store == sync_job.remote_store {
+        bail!("can't sync to same datastore");
+    }
 
     let (email, notify) = crate::server::lookup_datastore_notify_settings(&sync_job.store);
 
@@ -121,9 +135,12 @@ pub fn do_sync_job(
                 }
                 task_log!(
                     worker,
-                    "sync datastore '{}' from '{}/{}'",
+                    "sync datastore '{}' from '{}{}'",
                     sync_job.store,
-                    sync_job.remote,
+                    sync_job
+                        .remote
+                        .as_deref()
+                        .map_or(String::new(), |remote| format!("{remote}/")),
                     sync_job.remote_store,
                 );
 
@@ -179,6 +196,7 @@ pub fn do_sync_job(
             },
             remote: {
                 schema: REMOTE_ID_SCHEMA,
+                optional: true,
             },
             "remote-store": {
                 schema: DATASTORE_SCHEMA,
@@ -223,7 +241,7 @@ The delete flag additionally requires the Datastore.Prune privilege on '/datasto
 async fn pull(
     store: String,
     ns: Option<BackupNamespace>,
-    remote: String,
+    remote: Option<String>,
     remote_store: String,
     remote_ns: Option<BackupNamespace>,
     remove_vanished: Option<bool>,
@@ -236,6 +254,10 @@ async fn pull(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let delete = remove_vanished.unwrap_or(false);
 
+    if remote.is_none() && store == remote_store {
+        bail!("can't sync to same datastore");
+    }
+
     let ns = ns.unwrap_or_default();
     let ns_str = if ns.is_root() {
         None
@@ -247,7 +269,7 @@ async fn pull(
         &auth_id,
         &store,
         ns_str.as_deref(),
-        &remote,
+        remote.as_deref(),
         &remote_store,
         delete,
     )?;
@@ -255,7 +277,7 @@ async fn pull(
     let pull_params = PullParameters::new(
         &store,
         ns,
-        Some(&remote),
+        remote.as_deref(),
         &remote_store,
         remote_ns.unwrap_or_default(),
         auth_id.clone(),
@@ -278,7 +300,7 @@ async fn pull(
                 worker,
                 "pull datastore '{}' from '{}/{}'",
                 store,
-                remote,
+                remote.as_deref().unwrap_or("-"),
                 remote_store,
             );
 

@@ -535,7 +535,7 @@ fn get_remote(param: &HashMap<String, String>) -> Option<String> {
     param.get("remote").map(|r| r.to_owned()).or_else(|| {
         if let Some(id) = param.get("id") {
             if let Ok(job) = get_sync_job(id) {
-                return Some(job.remote);
+                return job.remote;
             }
         }
         None
@@ -549,7 +549,7 @@ fn get_remote_store(param: &HashMap<String, String>) -> Option<(Option<String>, 
         if let Some(id) = param.get("id") {
             job = get_sync_job(id).ok();
             if let Some(ref job) = job {
-                return Some(job.remote.clone());
+                return job.remote.clone();
             }
         }
         None

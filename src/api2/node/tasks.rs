@@ -78,11 +78,12 @@ fn check_job_privs(auth_id: &Authid, user_info: &CachedUserInfo, upid: &UPID) ->
                 if let (Some(remote), Some(remote_store), Some(local_store)) =
                     (remote, remote_store, local_store)
                 {
+                    let remote_str = remote.as_str();
                     return check_pull_privs(
                         auth_id,
                         local_store.as_str(),
                         local_ns,
-                        remote.as_str(),
+                        (remote_str != "-").then_some(remote_str),
                         remote_store.as_str(),
                         false,
                     );

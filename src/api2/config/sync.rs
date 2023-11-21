@@ -8,8 +8,8 @@ use proxmox_schema::{api, param_bail};
 
 use pbs_api_types::{
     Authid, SyncJobConfig, SyncJobConfigUpdater, JOB_ID_SCHEMA, PRIV_DATASTORE_AUDIT,
-    PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY, PRIV_DATASTORE_PRUNE, PRIV_REMOTE_AUDIT,
-    PRIV_REMOTE_READ, PROXMOX_CONFIG_DIGEST_SCHEMA,
+    PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY, PRIV_DATASTORE_PRUNE, PRIV_DATASTORE_READ,
+    PRIV_REMOTE_AUDIT, PRIV_REMOTE_READ, PROXMOX_CONFIG_DIGEST_SCHEMA,
 };
 use pbs_config::sync;
 
@@ -25,8 +25,13 @@ pub fn check_sync_job_read_access(
         return false;
     }
 
-    let remote_privs = user_info.lookup_privs(auth_id, &["remote", &job.remote]);
-    remote_privs & PRIV_REMOTE_AUDIT != 0
+    if let Some(remote) = &job.remote {
+        let remote_privs = user_info.lookup_privs(auth_id, &["remote", remote]);
+        remote_privs & PRIV_REMOTE_AUDIT != 0
+    } else {
+        let source_ds_privs = user_info.lookup_privs(auth_id, &["datastore", &job.remote_store]);
+        source_ds_privs & PRIV_DATASTORE_AUDIT != 0
+    }
 }
 
 /// checks whether user can run the corresponding pull job
@@ -63,8 +68,13 @@ pub fn check_sync_job_modify_access(
         return false;
     }
 
-    let remote_privs = user_info.lookup_privs(auth_id, &["remote", &job.remote, &job.remote_store]);
-    remote_privs & PRIV_REMOTE_READ != 0
+    if let Some(remote) = &job.remote {
+        let remote_privs = user_info.lookup_privs(auth_id, &["remote", remote, &job.remote_store]);
+        remote_privs & PRIV_REMOTE_READ != 0
+    } else {
+        let source_ds_privs = user_info.lookup_privs(auth_id, &["datastore", &job.remote_store]);
+        source_ds_privs & PRIV_DATASTORE_READ != 0
+    }
 }
 
 #[api(
@@ -191,6 +201,8 @@ pub fn read_sync_job(id: String, rpcenv: &mut dyn RpcEnvironment) -> Result<Sync
 #[serde(rename_all = "kebab-case")]
 /// Deletable property name
 pub enum DeletableProperty {
+    /// Delete the remote property(-> meaning local).
+    Remote,
     /// Delete the owner property.
     Owner,
     /// Delete the comment property.
@@ -275,6 +287,9 @@ pub fn update_sync_job(
     if let Some(delete) = delete {
         for delete_prop in delete {
             match delete_prop {
+                DeletableProperty::Remote => {
+                    data.remote = None;
+                }
                 DeletableProperty::Owner => {
                     data.owner = None;
                 }
@@ -334,7 +349,7 @@ pub fn update_sync_job(
         data.ns = Some(ns);
     }
     if let Some(remote) = update.remote {
-        data.remote = remote;
+        data.remote = Some(remote);
     }
     if let Some(remote_store) = update.remote_store {
         data.remote_store = remote_store;
@@ -503,7 +518,7 @@ acl:1:/remote/remote1/remotestore1:write@pbs:RemoteSyncOperator
 
     let mut job = SyncJobConfig {
         id: "regular".to_string(),
-        remote: "remote0".to_string(),
+        remote: Some("remote0".to_string()),
         remote_store: "remotestore1".to_string(),
         remote_ns: None,
         store: "localstore0".to_string(),
@@ -538,11 +553,11 @@ acl:1:/remote/remote1/remotestore1:write@pbs:RemoteSyncOperator
     assert!(!check_sync_job_read_access(&user_info, &read_auth_id, &job));
 
     // reading without proper read permissions on local end must fail
-    job.remote = "remote1".to_string();
+    job.remote = Some("remote1".to_string());
     assert!(!check_sync_job_read_access(&user_info, &read_auth_id, &job));
 
     // reading without proper read permissions on remote end must fail
-    job.remote = "remote0".to_string();
+    job.remote = Some("remote0".to_string());
     job.store = "localstore1".to_string();
     assert!(!check_sync_job_read_access(&user_info, &read_auth_id, &job));
 
@@ -555,10 +570,10 @@ acl:1:/remote/remote1/remotestore1:write@pbs:RemoteSyncOperator
     ));
 
     // writing without proper write permissions on local end must fail
-    job.remote = "remote1".to_string();
+    job.remote = Some("remote1".to_string());
 
     // writing without proper write permissions on remote end must fail
-    job.remote = "remote0".to_string();
+    job.remote = Some("remote0".to_string());
     job.store = "localstore1".to_string();
     assert!(!check_sync_job_modify_access(
         &user_info,
@@ -567,7 +582,7 @@ acl:1:/remote/remote1/remotestore1:write@pbs:RemoteSyncOperator
     ));
 
     // reset remote to one where users have access
-    job.remote = "remote1".to_string();
+    job.remote = Some("remote1".to_string());
 
     // user with read permission can only read, but not modify/run
     assert!(check_sync_job_read_access(&user_info, &read_auth_id, &job));

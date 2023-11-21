@@ -268,7 +268,7 @@ pub fn delete_remote(name: String, digest: Option<String>) -> Result<(), Error> 
 
     let job_list: Vec<SyncJobConfig> = sync_jobs.convert_to_typed_array("sync")?;
     for job in job_list {
-        if job.remote == name {
+        if job.remote.map_or(false, |id| id == name) {
             param_bail!(
                 "name",
                 "remote '{}' is used by sync job '{}' (datastore '{}')",
