@@ -107,7 +107,7 @@ async fn list_files(
 ) -> Result<Vec<ArchiveEntry>, Error> {
     let client = connect(&repo)?;
     let client = BackupReader::start(
-        client,
+        &client,
         crypt_config.clone(),
         repo.store(),
         &namespace,
@@ -430,7 +430,7 @@ async fn extract(
 
     let client = connect(&repo)?;
     let client = BackupReader::start(
-        client,
+        &client,
         crypt_config.clone(),
         repo.store(),
         &namespace,

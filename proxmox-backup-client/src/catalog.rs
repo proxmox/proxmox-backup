@@ -75,7 +75,7 @@ async fn dump_catalog(param: Value) -> Result<Value, Error> {
     let client = connect(&repo)?;
 
     let client = BackupReader::start(
-        client,
+        &client,
         crypt_config.clone(),
         repo.store(),
         &backup_ns,
@@ -187,7 +187,7 @@ async fn catalog_shell(param: Value) -> Result<(), Error> {
     };
 
     let client = BackupReader::start(
-        client,
+        &client,
         crypt_config.clone(),
         repo.store(),
         &backup_ns,

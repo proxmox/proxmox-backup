@@ -294,7 +294,7 @@ async fn create_backup_reader(
     };
     let client = connect(&params.repo)?;
     let backup_reader = BackupReader::start(
-        client,
+        &client,
         params.crypt_config.clone(),
         params.repo.store(),
         &params.namespace,

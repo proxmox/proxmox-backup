@@ -738,7 +738,7 @@ async fn pull_group(
         )?;
 
         let reader = BackupReader::start(
-            new_client,
+            &new_client,
             None,
             params.source.store(),
             &remote_ns,

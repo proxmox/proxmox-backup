@@ -44,7 +44,7 @@ impl BackupReader {
 
     /// Create a new instance by upgrading the connection at '/api2/json/reader'
     pub async fn start(
-        client: HttpClient,
+        client: &HttpClient,
         crypt_config: Option<Arc<CryptConfig>>,
         datastore: &str,
         ns: &BackupNamespace,

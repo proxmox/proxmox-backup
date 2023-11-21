@@ -1313,7 +1313,7 @@ async fn restore(
     };
 
     let client = BackupReader::start(
-        client,
+        &client,
         crypt_config.clone(),
         repo.store(),
         &ns,

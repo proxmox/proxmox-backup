@@ -34,7 +34,7 @@ async fn run() -> Result<(), Error> {
     let backup_time = proxmox_time::parse_rfc3339("2019-06-28T10:49:48Z")?;
 
     let client = BackupReader::start(
-        client,
+        &client,
         None,
         "store2",
         &BackupNamespace::root(),
