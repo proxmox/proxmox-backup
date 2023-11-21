@@ -300,8 +300,8 @@ pub fn delete_remote(name: String, digest: Option<String>) -> Result<(), Error> 
     Ok(())
 }
 
-/// Helper to get client for remote.cfg entry
-pub async fn remote_client(
+/// Helper to get client for remote.cfg entry without login, just config
+pub fn remote_client_config(
     remote: &Remote,
     limit: Option<RateLimitConfig>,
 ) -> Result<HttpClient, Error> {
@@ -320,6 +320,16 @@ pub async fn remote_client(
         &remote.config.auth_id,
         options,
     )?;
+
+    Ok(client)
+}
+
+/// Helper to get client for remote.cfg entry
+pub async fn remote_client(
+    remote: &Remote,
+    limit: Option<RateLimitConfig>,
+) -> Result<HttpClient, Error> {
+    let client = remote_client_config(remote, limit)?;
     let _auth_info = client
         .login() // make sure we can auth
         .await

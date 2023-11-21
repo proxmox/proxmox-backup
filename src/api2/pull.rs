@@ -65,7 +65,7 @@ impl TryFrom<&SyncJobConfig> for PullParameters {
         PullParameters::new(
             &sync_job.store,
             sync_job.ns.clone().unwrap_or_default(),
-            &sync_job.remote,
+            Some(&sync_job.remote),
             &sync_job.remote_store,
             sync_job.remote_ns.clone().unwrap_or_default(),
             sync_job
@@ -114,7 +114,6 @@ pub fn do_sync_job(
 
             let worker_future = async move {
                 let pull_params = PullParameters::try_from(&sync_job)?;
-                let client = pull_params.client().await?;
 
                 task_log!(worker, "Starting datastore sync job '{}'", job_id);
                 if let Some(event_str) = schedule {
@@ -128,7 +127,7 @@ pub fn do_sync_job(
                     sync_job.remote_store,
                 );
 
-                pull_store(&worker, &client, pull_params).await?;
+                pull_store(&worker, pull_params).await?;
 
                 task_log!(worker, "sync job '{}' end", &job_id);
 
@@ -256,7 +255,7 @@ async fn pull(
     let pull_params = PullParameters::new(
         &store,
         ns,
-        &remote,
+        Some(&remote),
         &remote_store,
         remote_ns.unwrap_or_default(),
         auth_id.clone(),
@@ -266,7 +265,6 @@ async fn pull(
         limit,
         transfer_last,
     )?;
-    let client = pull_params.client().await?;
 
     // fixme: set to_stdout to false?
     // FIXME: add namespace to worker id?
@@ -284,7 +282,7 @@ async fn pull(
                 remote_store,
             );
 
-            let pull_future = pull_store(&worker, &client, pull_params);
+            let pull_future = pull_store(&worker, pull_params);
             (select! {
                 success = pull_future.fuse() => success,
                 abort = worker.abort_future().map(|_| Err(format_err!("pull aborted"))) => abort,
