@@ -44,20 +44,25 @@ Ext.define('PBS.form.RemoteStoreSelector', {
 
 	me.store.removeAll();
 
-	if (me.remote) {
-	    me.setDisabled(false);
-	    if (!me.firstLoad) {
-		me.clearValue();
-	    }
-
-	    me.store.proxy.url = `/api2/json/config/remote/${encodeURIComponent(me.remote)}/scan`;
-	    me.store.load();
-
-	    me.firstLoad = false;
-	} else {
-	    me.setDisabled(true);
+	me.setDisabled(false);
+	if (!me.firstLoad) {
 	    me.clearValue();
 	}
+	if (me.remote) {
+	    me.store.proxy.url = `/api2/json/config/remote/${encodeURIComponent(me.remote)}/scan`;
+	    me.store.removeFilter('storeFilter');
+	} else {
+	    me.store.proxy.url = '/api2/json/admin/datastore';
+	    me.store.addFilter({
+		filterFn: function(item) {
+		    return item.get('store') !== me.datastore;
+		},
+		id: 'storeFilter',
+	    });
+	}
+	me.store.load();
+
+	me.firstLoad = false;
     },
 
     initComponent: function() {
@@ -173,6 +178,17 @@ Ext.define('PBS.form.RemoteNamespaceSelector', {
 	    let encodedStore = encodeURIComponent(me.remoteStore);
 
 	    me.store.proxy.url = `/api2/json/config/remote/${encodedRemote}/scan/${encodedStore}/namespaces`;
+	    me.store.load();
+
+	    me.firstLoad = false;
+	} else if (me.remoteStore) {
+	    me.setDisabled(false);
+	    if (!me.firstLoad) {
+		me.clearValue();
+	    }
+	    let encodedStore = encodeURIComponent(me.remoteStore);
+
+	    me.store.proxy.url = `/api2/json/admin/datastore/${encodedStore}/namespace`;
 	    me.store.load();
 
 	    me.firstLoad = false;

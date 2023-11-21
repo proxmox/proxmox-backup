@@ -208,6 +208,7 @@ Ext.define('PBS.config.SyncJobView', {
 	    dataIndex: 'remote',
 	    width: 120,
 	    sortable: true,
+	    renderer: PBS.Utils.render_optional_remote,
 	},
 	{
 	    header: gettext('Remote Store'),

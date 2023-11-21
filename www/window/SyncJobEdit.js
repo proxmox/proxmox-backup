@@ -47,6 +47,15 @@ Ext.define('PBS.window.SyncJobEdit', {
 	},
     },
 
+    setValues: function(values) {
+	let me = this;
+	if (values.id && !values.remote) {
+	    values.location = 'local';
+	} else {
+	    values.location = 'remote';
+	}
+	me.callParent([values]);
+    },
 
     items: {
 	xtype: 'tabpanel',
@@ -135,15 +144,75 @@ Ext.define('PBS.window.SyncJobEdit', {
 
 		column2: [
 		    {
+			xtype: 'radiogroup',
+			fieldLabel: gettext('Location'),
+			defaultType: 'radiofield',
+			items: [
+			    {
+				boxLabel: 'Local',
+				name: 'location',
+				inputValue: 'local',
+				submitValue: false,
+			    },
+			    {
+				boxLabel: 'Remote',
+				name: 'location',
+				inputValue: 'remote',
+				submitValue: false,
+				checked: true,
+			    },
+			],
+			listeners: {
+			    change: function(_group, radio) {
+				let me = this;
+				let form = me.up('pbsSyncJobEdit');
+				let nsField = form.down('field[name=remote-ns]');
+				let rateLimitField = form.down('field[name=rate-in]');
+				let remoteField = form.down('field[name=remote]');
+				let storeField = form.down('field[name=remote-store]');
+
+				if (!storeField.value) {
+				    nsField.clearValue();
+				    nsField.setDisabled(true);
+				}
+
+				let isLocalSync = radio.location === 'local';
+				remoteField.allowBlank = isLocalSync;
+				remoteField.setDisabled(isLocalSync);
+				storeField.setDisabled(!isLocalSync && !remoteField.value);
+				if (isLocalSync === !!remoteField.value) {
+				    storeField.clearValue();
+				    remoteField.clearValue();
+				}
+
+				if (isLocalSync) {
+				    storeField.setDisabled(false);
+				    rateLimitField.setValue(null);
+				} else {
+				    remoteField.validate();
+				}
+			    },
+			},
+		    },
+		    {
 			fieldLabel: gettext('Source Remote'),
 			xtype: 'pbsRemoteSelector',
 			allowBlank: false,
 			name: 'remote',
+			cbind: {
+			    deleteEmpty: '{!isCreate}',
+			},
+			skipEmptyText: true,
 			listeners: {
 			    change: function(f, value) {
 				let me = this;
 				let remoteStoreField = me.up('pbsSyncJobEdit').down('field[name=remote-store]');
 				remoteStoreField.setRemote(value);
+				let rateLimitField = me.up('pbsSyncJobEdit').down('field[name=rate-in]');
+				rateLimitField.setDisabled(!value);
+				if (!value) {
+				    rateLimitField.setValue(null);
+				}
 				let remoteNamespaceField = me.up('pbsSyncJobEdit').down('field[name=remote-ns]');
 				remoteNamespaceField.setRemote(value);
 			    },
@@ -155,7 +224,9 @@ Ext.define('PBS.window.SyncJobEdit', {
 			allowBlank: false,
 			autoSelect: false,
 			name: 'remote-store',
-			disabled: true,
+			cbind: {
+			    datastore: '{datastore}',
+			},
 			listeners: {
 			    change: function(field, value) {
 				let me = this;

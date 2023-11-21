@@ -711,6 +711,11 @@ Ext.define('PBS.Utils', {
 	return Ext.String.htmlEncode(value);
     },
 
+    render_optional_remote: function(value, metadata, record) {
+	if (!value) return `- (${gettext('Local')})`;
+	return Ext.String.htmlEncode(value);
+    },
+
     tuningOptions: {
 	'chunk-order': {
 	    '__default__': Proxmox.Utils.defaultText + ` (${gettext('Inode')})`,
