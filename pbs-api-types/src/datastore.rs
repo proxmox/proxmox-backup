@@ -378,7 +378,7 @@ pub struct DataStoreListItem {
         },
     },
 )]
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 /// Basic information about archive files inside a backup snapshot.
 pub struct BackupContent {
@@ -412,7 +412,7 @@ pub enum VerifyState {
         },
     },
 )]
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 /// Task properties.
 pub struct SnapshotVerifyState {
     /// UPID of the verify task
@@ -1076,7 +1076,7 @@ impl std::str::FromStr for BackupPart {
         },
     },
 )]
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 /// Basic information about backup snapshot.
 pub struct SnapshotListItem {
@@ -1122,7 +1122,7 @@ pub struct SnapshotListItem {
         },
     },
 )]
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 /// Basic information about a backup group.
 pub struct GroupListItem {
