@@ -9,11 +9,12 @@ use proxmox_router::{http_bail, Permission, Router, RpcEnvironment, RpcEnvironme
 use proxmox_schema::{api, param_bail, ApiType};
 use proxmox_section_config::SectionConfigData;
 use proxmox_sys::{task_warn, WorkerTaskContext};
+use proxmox_uuid::Uuid;
 
 use pbs_api_types::{
-    Authid, DataStoreConfig, DataStoreConfigUpdater, DatastoreNotify, DatastoreTuning,
-    DATASTORE_SCHEMA, PRIV_DATASTORE_ALLOCATE, PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_MODIFY,
-    PROXMOX_CONFIG_DIGEST_SCHEMA, UPID_SCHEMA,
+    Authid, DataStoreConfig, DataStoreConfigUpdater, DatastoreNotify, DatastoreTuning, KeepOptions,
+    PruneJobConfig, PruneJobOptions, DATASTORE_SCHEMA, PRIV_DATASTORE_ALLOCATE,
+    PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_MODIFY, PROXMOX_CONFIG_DIGEST_SCHEMA, UPID_SCHEMA,
 };
 use pbs_config::BackupLockGuard;
 use pbs_datastore::chunk_store::ChunkStore;
@@ -21,7 +22,7 @@ use pbs_datastore::chunk_store::ChunkStore;
 use crate::api2::admin::{
     prune::list_prune_jobs, sync::list_sync_jobs, verify::list_verification_jobs,
 };
-use crate::api2::config::prune::delete_prune_job;
+use crate::api2::config::prune::{delete_prune_job, do_create_prune_job};
 use crate::api2::config::sync::delete_sync_job;
 use crate::api2::config::tape_backup_job::{delete_tape_backup_job, list_tape_backup_jobs};
 use crate::api2::config::verify::delete_verification_job;
@@ -91,10 +92,7 @@ pub(crate) fn do_create_datastore(
 
     pbs_config::datastore::save_config(&config)?;
 
-    jobstate::create_state_file("prune", &datastore.name)?;
-    jobstate::create_state_file("garbage_collection", &datastore.name)?;
-
-    Ok(())
+    jobstate::create_state_file("garbage_collection", &datastore.name)
 }
 
 #[api(
@@ -127,12 +125,45 @@ pub fn create_datastore(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
 
+    let prune_job_config = config.prune_schedule.as_ref().map(|schedule| {
+        let mut id = format!("default-{}-{}", config.name, Uuid::generate());
+        id.truncate(32);
+
+        PruneJobConfig {
+            id,
+            store: config.name.clone(),
+            comment: None,
+            disable: false,
+            schedule: schedule.clone(),
+            options: PruneJobOptions {
+                keep: config.keep.clone(),
+                max_depth: None,
+                ns: None,
+            },
+        }
+    });
+
+    // clearing prune settings in the datastore config, as they are now handled by prune jobs
+    let config = DataStoreConfig {
+        prune_schedule: None,
+        keep: KeepOptions::default(),
+        ..config
+    };
+
     WorkerTask::new_thread(
         "create-datastore",
         Some(config.name.to_string()),
         auth_id.to_string(),
         to_stdout,
-        move |worker| do_create_datastore(lock, section_config, config, Some(&worker)),
+        move |worker| {
+            do_create_datastore(lock, section_config, config, Some(&worker))?;
+
+            if let Some(prune_job_config) = prune_job_config {
+                do_create_prune_job(prune_job_config, Some(&worker))
+            } else {
+                Ok(())
+            }
+        },
     )
 }
 
