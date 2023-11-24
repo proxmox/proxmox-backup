@@ -234,8 +234,8 @@ Restore without a Running Proxmox Backup Server
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 It's possible to restore specific files from a snapshot, without a running
-Proxmox Backup Server instance, using the ``recover`` subcommand, provided you
-have access to the intact index and chunk files. Note that you also need the
+`Proxmox Backup`_ Server instance, using the ``recover`` subcommand, provided
+you have access to the intact index and chunk files. Note that you also need the
 corresponding key file if the backup was encrypted.
 
 .. code-block:: console

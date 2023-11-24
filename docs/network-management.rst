@@ -8,8 +8,8 @@ Network Management
   :align: right
   :alt: System and Network Configuration Overview
 
-Proxmox Backup Server provides both a web interface and a command-line tool for
-network configuration. You can find the configuration options in the web
+`Proxmox Backup`_ Server provides both a web interface and a command-line tool
+for network configuration. You can find the configuration options in the web
 interface under the **Network Interfaces** section of the **Configuration** menu
 tree item. The command-line tool is accessed via the ``network`` subcommand.
 These interfaces allow you to carry out some basic network management tasks,

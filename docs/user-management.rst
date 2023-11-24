@@ -12,7 +12,7 @@ User Configuration
   :align: right
   :alt: User management
 
-Proxmox Backup Server supports several authentication realms, and you need to
+`Proxmox Backup`_ Server supports several authentication realms, and you need to
 choose the realm when you add a new user. Possible realms are:
 
 :pam: Linux PAM standard authentication. Use this if you want to

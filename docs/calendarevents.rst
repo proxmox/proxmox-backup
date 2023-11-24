@@ -7,7 +7,7 @@ Introduction and Format
 -----------------------
 
 Certain tasks, for example pruning and garbage collection, need to be
-performed on a regular basis. Proxmox Backup Server uses a format inspired
+performed on a regular basis. `Proxmox Backup`_ Server uses a format inspired
 by the systemd Time and Date Specification (see `systemd.time manpage`_)
 called `calendar events` for its schedules.
 
@@ -89,11 +89,11 @@ Not all features of systemd calendar events are implemented:
 Notes on Scheduling
 -------------------
 
-In `Proxmox Backup`_, scheduling for most tasks is done in the
+In Proxmox Backup, scheduling for most tasks is done in the
 `proxmox-backup-proxy`. This daemon checks all job schedules
 every minute, to see if any are due. This means that even though
 `calendar events` can contain seconds, it will only be checked
 once per minute.
 
 Also, all schedules will be checked against the timezone set
-in the `Proxmox Backup`_ server.
+in the Proxmox Backup Server.

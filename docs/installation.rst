@@ -16,10 +16,10 @@ The backup server stores the actual backed up data and provides a web based GUI
 for various management tasks such as disk management.
 
 .. note:: You always need a backup server. It is not possible to use
-   `Proxmox Backup`_ without the server part.
+   Proxmox Backup without the server part.
 
 The disk image (ISO file) provided by Proxmox includes a complete Debian system
-as well as all necessary packages for the `Proxmox Backup`_ Server.
+as well as all necessary packages for the Proxmox Backup Server.
 
 The installer will guide you through the setup process and allow
 you to partition the local disk(s), apply basic system configuration
@@ -27,7 +27,7 @@ you to partition the local disk(s), apply basic system configuration
 The provided ISO will get you started in just a few minutes, and is the
 recommended method for new and existing users.
 
-Alternatively, `Proxmox Backup`_ Server can be installed on top of an
+Alternatively, Proxmox Backup Server can be installed on top of an
 existing Debian system.
 
 Install `Proxmox Backup`_ Server using the Installer
@@ -36,7 +36,7 @@ Install `Proxmox Backup`_ Server using the Installer
 Download the ISO from |DOWNLOADS|.
 It includes the following:
 
-* The `Proxmox Backup`_ Server installer, which partitions the local
+* The Proxmox Backup Server installer, which partitions the local
   disk(s) with ext4, xfs or ZFS, and installs the operating system
 
 * Complete operating system (Debian Linux, 64-bit)
@@ -77,7 +77,7 @@ does, please use the following:
 This will install all required packages, the Proxmox kernel with ZFS_
 support, and a set of common and useful packages.
 
-.. caution:: Installing `Proxmox Backup`_ on top of an existing Debian_
+.. caution:: Installing Proxmox Backup on top of an existing Debian_
   installation looks easy, but it assumes that the base system and local
   storage have been set up correctly. In general this is not trivial, especially
   when LVM_ or ZFS_ is used. The network configuration is completely up to you
@@ -110,7 +110,7 @@ After configuring the
 Client Installation
 -------------------
 
-Install `Proxmox Backup`_ Client on Debian
+Install Proxmox Backup Client on Debian
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Proxmox ships as a set of Debian packages to be installed on top of a standard

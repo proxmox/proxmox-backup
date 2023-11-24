@@ -1,7 +1,7 @@
 Backup Client Usage
 ===================
 
-The command-line client for Proxmox Backup Server is called
+The command-line client for `Proxmox Backup`_ Server is called
 :command:`proxmox-backup-client`.
 
 .. _client_repository:

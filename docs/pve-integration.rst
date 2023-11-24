@@ -3,8 +3,8 @@
 `Proxmox VE`_ Integration
 -------------------------
 
-Proxmox Backup Server can be integrated into a Proxmox VE standalone or cluster
-setup, by adding it as a storage in Proxmox VE.
+`Proxmox Backup`_ Server can be integrated into a Proxmox VE standalone or
+cluster setup, by adding it as a storage in Proxmox VE.
 
 See also the `Proxmox VE Storage - Proxmox Backup Server
 <https://pve.proxmox.com/pve-docs/pve-admin-guide.html#storage_pbs>`_ section

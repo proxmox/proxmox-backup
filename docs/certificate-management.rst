@@ -9,7 +9,7 @@ own (self-signed) certificate. This certificate is used for encrypted
 communication with the host’s ``proxmox-backup-proxy`` service, for any API
 call between a user or backup-client and the web-interface.
 
-Certificate verification when sending backups to a `Proxmox Backup`_ server
+Certificate verification when sending backups to a Proxmox Backup Server
 is either done based on pinning the certificate fingerprints in the storage/remote
 configuration, or by using certificates, signed by a trusted certificate authority.
 
@@ -18,7 +18,7 @@ configuration, or by using certificates, signed by a trusted certificate authori
 Certificates for the API and SMTP
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`Proxmox Backup`_ stores its certificate and key in:
+Proxmox Backup stores its certificate and key in:
 
 -  ``/etc/proxmox-backup/proxy.pem``
 
@@ -33,11 +33,11 @@ You have the following options for the certificate:
    commercial Certificate Authority (CA)).
 
 3. Use an ACME provider like Let’s Encrypt to get a trusted certificate
-   with automatic renewal; this is also integrated in the `Proxmox Backup`_
+   with automatic renewal; this is also integrated in the Proxmox Backup
    API and web interface.
 
-Certificates are managed through the `Proxmox Backup`_
-web-interface/API or using the the ``proxmox-backup-manager`` CLI tool.
+Certificates are managed through the Proxmox Backup
+web-interface/API or using the ``proxmox-backup-manager`` CLI tool.
 
 .. _sysadmin_certs_upload_custom:
 
@@ -61,9 +61,9 @@ Note that any certificate key files must not be password protected.
 Trusted certificates via Let’s Encrypt (ACME)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`Proxmox Backup`_ includes an implementation of the **A**\ utomatic
+Proxmox Backup includes an implementation of the **A**\ utomatic
 **C**\ ertificate **M**\ anagement **E**\ nvironment (**ACME**)
-protocol, allowing `Proxmox Backup`_ admins to use an ACME provider
+protocol, allowing Proxmox Backup admins to use an ACME provider
 like Let’s Encrypt for easy setup of TLS certificates, which are
 accepted and trusted by modern operating systems and web browsers out of
 the box.
@@ -112,7 +112,7 @@ ACME Plugins
 ^^^^^^^^^^^^
 
 The ACME plugin’s role is to provide automatic verification that you,
-and thus the `Proxmox Backup`_ server under your operation, are the
+and thus the Proxmox Backup Server under your operation, are the
 real owner of a domain. This is the basic building block of automatic
 certificate management.
 
@@ -129,7 +129,7 @@ DNS record in the domain’s zone.
   :align: right
   :alt: Create ACME Account
 
-`Proxmox Backup`_ supports both of those challenge types out of the
+Proxmox Backup supports both of those challenge types out of the
 box, you can configure plugins either over the web interface under
 ``Certificates -> ACME Challenges``, or using the
 ``proxmox-backup-manager acme plugin add`` command.
@@ -180,7 +180,7 @@ with Let’s Encrypts ACME.
 -  There **must** be no other listener on port 80.
 
 -  The requested (sub)domain needs to resolve to a public IP of the
-   `Proxmox Backup`_ host.
+   Proxmox Backup host.
 
 .. _sysadmin_certs_acme_dns_challenge:
 
@@ -197,7 +197,7 @@ allows provisioning of ``TXT`` records via an API.
 Configuring ACME DNS APIs for validation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`Proxmox Backup`_ re-uses the DNS plugins developed for the
+Proxmox Backup re-uses the DNS plugins developed for the
 ``acme.sh``  [1]_ project. Please refer to its documentation for details
 on configuration of specific APIs.
 
@@ -215,7 +215,7 @@ and entering the credential data to access your account over their API.
    your provider. Configuration values do not need to be quoted with
    single or double quotes; for some plugins that is even an error.
 
-As there are many DNS providers and API endpoints, `Proxmox Backup`_
+As there are many DNS providers and API endpoints, Proxmox Backup
 automatically generates the form for the credentials, but not all
 providers are annotated yet. For those you will see a bigger text area,
 into which you simply need to copy all the credential’s
@@ -231,7 +231,7 @@ domain/DNS server, in case your primary/real DNS does not support
 provisioning via an API. Manually set up a permanent ``CNAME`` record
 for ``_acme-challenge.domain1.example`` pointing to
 ``_acme-challenge.domain2.example``, and set the ``alias`` property in
-the `Proxmox Backup`_ node configuration file ``/etc/proxmox-backup/node.cfg``
+the Proxmox Backup node configuration file ``/etc/proxmox-backup/node.cfg``
 to ``domain2.example`` to allow the DNS server of ``domain2.example`` to
 validate all challenges for ``domain1.example``.
 
@@ -284,7 +284,7 @@ Manually Change Certificate over the Command Line
 If you want to get rid of certificate verification warnings, you have to
 generate a valid certificate for your server.
 
-Log in to your `Proxmox Backup`_ via ssh or use the console:
+Log in to your Proxmox Backup via ssh or use the console:
 
 ::
 
@@ -309,9 +309,9 @@ Follow the instructions on the screen, for example:
 After you have finished the certificate request, you have to send the
 file ``req.pem`` to your Certification Authority (CA). The CA will issue
 the certificate (BASE64 encoded), based on your request – save this file
-as ``cert.pem`` to your `Proxmox Backup`_.
+as ``cert.pem`` to your Proxmox Backup.
 
-To activate the new certificate, do the following on your `Proxmox Backup`_
+To activate the new certificate, do the following on your Proxmox Backup
 
 ::
 
@@ -328,7 +328,7 @@ Test your new certificate, using your browser.
 
 .. note::
 
-   To transfer files to and from your `Proxmox Backup`_, you can use
+   To transfer files to and from your Proxmox Backup, you can use
    secure copy: If your desktop runs Linux, you can use the ``scp``
    command-line tool. If your desktop PC runs windows, please use an scp
    client like WinSCP (see https://winscp.net/).

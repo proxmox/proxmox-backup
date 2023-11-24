@@ -3,8 +3,8 @@
 It is inspired by `casync file archive format
 <http://0pointer.net/blog/casync-a-tool-for-distributing-file-system-images.html>`_,
 which caters to a similar use-case.
-The ``.pxar`` format is adapted to fulfill the specific needs of the Proxmox
-Backup Server, for example, efficient storage of hard links.
+The ``.pxar`` format is adapted to fulfill the specific needs of the
+`Proxmox Backup`_ Server, for example, efficient storage of hard links.
 The format is designed to reduce the required storage on the server by
 achieving a high level of deduplication.
 

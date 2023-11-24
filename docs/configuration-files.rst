@@ -1,7 +1,7 @@
 Configuration Files
 ===================
 
-All Proxmox Backup Server configuration files reside in the directory
+All `Proxmox Backup`_ Server configuration files reside in the directory
 ``/etc/proxmox-backup/``.
 
 

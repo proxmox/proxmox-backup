@@ -1,7 +1,7 @@
 Backup Protocol
 ===============
 
-Proxmox Backup Server uses a REST-based API. While the management
+`Proxmox Backup`_ Server uses a REST-based API. While the management
 interface uses normal HTTP, the actual backup and restore interface uses
 HTTP/2 for improved performance. Both HTTP and HTTP/2 are well known
 standards, so the following section assumes that you are familiar with

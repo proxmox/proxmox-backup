@@ -10,7 +10,7 @@ Markdown Primer
   --  John Gruber, https://daringfireball.net/projects/markdown/
 
 
-The "Notes" panel of the Proxmox Backup Server web-interface supports
+The "Notes" panel of the `Proxmox Backup`_ Server web-interface supports
 rendering Markdown text.
 
 Proxmox Backup Server supports CommonMark with most extensions of GFM (GitHub

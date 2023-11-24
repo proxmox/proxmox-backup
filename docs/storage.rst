@@ -11,7 +11,7 @@ Disk Management
   :align: right
   :alt: List of disks
 
-Proxmox Backup Server comes with a set of disk utilities, which are
+`Proxmox Backup`_ Server comes with a set of disk utilities, which are
 accessed using the ``disk`` subcommand or the web interface. This subcommand
 allows you to initialize disks, create various filesystems, and get information
 about the disks.

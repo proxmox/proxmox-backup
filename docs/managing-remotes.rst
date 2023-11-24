@@ -6,11 +6,11 @@ Managing Remotes & Sync
 :term:`Remote`
 --------------
 
-A remote refers to a separate Proxmox Backup Server installation and a user on that
-installation, from which you can `sync` datastores to a local datastore with a
-`Sync Job`. You can configure remotes in the web interface, under **Configuration
--> Remotes**. Alternatively, you can use the ``remote`` subcommand. The
-configuration information for remotes is stored in the file
+A remote refers to a separate `Proxmox Backup`_ Server installation and a user
+on that installation, from which you can `sync` datastores to a local datastore
+with a `Sync Job`. You can configure remotes in the web interface, under
+**Configuration -> Remotes**. Alternatively, you can use the ``remote``
+subcommand. The configuration information for remotes is stored in the file
 ``/etc/proxmox-backup/remote.cfg``.
 
 .. image:: images/screenshots/pbs-gui-remote-add.png

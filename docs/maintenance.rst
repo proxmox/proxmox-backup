@@ -171,7 +171,7 @@ start.
 GC Background
 ^^^^^^^^^^^^^
 
-In Proxmox Backup Server, backup data is not saved directly, but rather as
+In `Proxmox Backup`_ Server, backup data is not saved directly, but rather as
 chunks that are referred to by the indexes of each backup snapshot. This
 approach enables reuse of chunks through deduplication, among other benefits
 that are detailed in the :ref:`tech_design_overview`.

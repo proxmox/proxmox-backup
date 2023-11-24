@@ -4,7 +4,7 @@ FAQ
 What distribution is Proxmox Backup Server (PBS) based on?
 ----------------------------------------------------------
 
-Proxmox Backup Server is based on `Debian GNU/Linux <https://www.debian.org/>`_.
+`Proxmox Backup`_ Server is based on `Debian GNU/Linux <https://www.debian.org/>`_.
 
 
 Which platforms are supported as a backup source (client)?

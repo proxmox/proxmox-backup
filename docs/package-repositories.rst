@@ -70,7 +70,7 @@ and the md5sum, with the expected output below:
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This is the stable, recommended repository. It is available for
-all `Proxmox Backup`_ subscription users. It contains the most stable packages,
+all Proxmox Backup subscription users. It contains the most stable packages,
 and is suitable for production use. The ``pbs-enterprise`` repository is
 enabled by default:
 

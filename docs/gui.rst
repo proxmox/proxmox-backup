@@ -1,7 +1,7 @@
 Graphical User Interface
 ========================
 
-Proxmox Backup Server offers an integrated, web-based interface to manage the
+`Proxmox Backup`_ Server offers an integrated, web-based interface to manage the
 server. This means that you can carry out all administration tasks through your
 web browser, and that you don't have to worry about installing extra management
 tools. The web interface also provides a built-in console, so if you prefer the

@@ -17,7 +17,7 @@ backup virtual machine images.
 Variable sized chunking needs more CPU power, but is essential to get
 good deduplication rates for file archives.
 
-The Proxmox Backup Server supports both strategies.
+The `Proxmox Backup`_ Server supports both strategies.
 
 
 Image Archives: ``<name>.img``

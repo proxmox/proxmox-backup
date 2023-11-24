@@ -17,7 +17,7 @@ also applies to systems which are installed on top of Debian).
 Partitioning Scheme Used by the Installer
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The `Proxmox Backup`_ installer creates 3 partitions on all disks selected for
+The Proxmox Backup installer creates 3 partitions on all disks selected for
 installation.
 
 The created partitions are:
@@ -96,7 +96,7 @@ For example, to format an empty partition ``/dev/sda2`` as ESP, run the followin
   # proxmox-boot-tool format /dev/sda2
 
 To setup an existing, unmounted ESP located on ``/dev/sda2`` for inclusion in
-`Proxmox Backup`_'s kernel update synchronization mechanism, use the following:
+Proxmox Backup's kernel update synchronization mechanism, use the following:
 
 .. code-block:: console
 
@@ -187,7 +187,7 @@ Determine which Bootloader is Used
   :alt: Grub boot screen
 
 The simplest and most reliable way to determine which bootloader is used, is to
-watch the boot process of the `Proxmox Backup`_ node.
+watch the boot process of the Proxmox Backup node.
 
 
 You will either see the blue box of ``grub`` or the simple black on white
@@ -265,8 +265,8 @@ Systemd-boot
 ``systemd-boot`` is a lightweight EFI bootloader. It reads the kernel and initrd
 images directly from the EFI Service Partition (ESP) where it is installed.
 The main advantage of directly loading the kernel from the ESP is that it does
-not need to reimplement the drivers for accessing the storage. In `Proxmox
-Backup`_, :ref:`proxmox-boot-tool <systembooting-proxmox-boot-tool>` is used to
+not need to reimplement the drivers for accessing the storage. In Proxmox
+Backup, :ref:`proxmox-boot-tool <systembooting-proxmox-boot-tool>` is used to
 keep the configuration on the ESPs synchronized.
 
 .. _systembooting-systemd-boot-config:
@@ -342,7 +342,7 @@ would run:
   # proxmox-boot-tool kernel pin 5.15.30-1-pve
 
 
-.. TIP:: The pinning functionality works for all `Proxmox Backup`_ systems, not only those using
+.. TIP:: The pinning functionality works for all Proxmox Backup systems, not only those using
    ``proxmox-boot-tool`` to synchronize the contents of the ESPs, if your system
    does not use ``proxmox-boot-tool`` for synchronizing, you can also skip the
    ``proxmox-boot-tool refresh`` call in the end.
