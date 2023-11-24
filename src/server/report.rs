@@ -162,7 +162,7 @@ fn get_command_output(exe: &str, args: &Vec<&str>) -> String {
                 .trim_end()
                 .to_string();
             if !stderr.is_empty() {
-                writeln!(out, "\n```\nSTDERR:\n```\n{stderr}");
+                let _ = writeln!(out, "\n```\nSTDERR:\n```\n{stderr}");
             }
             out
         }
