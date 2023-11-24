@@ -204,6 +204,7 @@ html_theme_options = {
         'API Viewer' : 'api-viewer/index.html',
         'Prune Simulator' : 'prune-simulator/index.html',
         'LTO Barcode Generator' : 'lto-barcode/index.html',
+        'Wiki' : 'https://pbs.proxmox.com'
     },
 
     'sidebar_width': '320px',
