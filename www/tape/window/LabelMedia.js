@@ -32,7 +32,7 @@ Ext.define('PBS.TapeManagement.LabelMediaWindow', {
 	{
 	    xtype: 'displayfield',
 	    cls: 'pmx-hint',
-	    value: gettext('Make sure that the correct tape is inserted the selected drive and type in the label written on the tape.'),
+	    value: gettext('Make sure that the correct tape is inserted in the selected drive and type in the label written on the tape.'),
 	},
 	{
 	    xtype: 'pmxDisplayEditField',
