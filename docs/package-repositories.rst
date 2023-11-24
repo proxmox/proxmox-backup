@@ -140,7 +140,7 @@ You can access this repository by adding the following line to
 Proxmox Backup Client-only Repository
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-If you want to :ref:`use the the Proxmox Backup Client <client_creating_backups>`
+If you want to :ref:`use the Proxmox Backup Client <client_creating_backups>`
 on systems using a Linux distribution not based on Proxmox projects, you can
 use the client-only repository.
 

@@ -567,7 +567,7 @@ a single media pool, so a job only uses tapes from that pool.
       will be double encrypted.
 
    The password protected key is stored on each medium, so that it is
-   possbible to `restore the key <tape_restore_encryption_key_>`_ using
+   possible to `restore the key <tape_restore_encryption_key_>`_ using
    the password. Please make sure to remember the password, in case
    you need to restore the key.
 
@@ -998,7 +998,7 @@ into the drive. Then run:
 .. code-block:: console
 
  # proxmox-tape key restore
- Tepe Encryption Key Password: ***********
+ Tape Encryption Key Password: ***********
 
 If the password is correct, the key will get imported to the
 database. Further restore jobs automatically use any available key.

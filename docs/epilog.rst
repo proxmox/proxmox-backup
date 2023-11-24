@@ -12,7 +12,7 @@
 .. _Proxmox Community Forum: https://forum.proxmox.com
 .. _Proxmox Virtual Environment: https://www.proxmox.com/proxmox-virtual-environment
 .. _Proxmox Backup: https://www.proxmox.com/proxmox-backup-server
-.. _Proxmox Backup Sever Development List: https://lists.proxmox.com/cgi-bin/mailman/listinfo/pbs-devel
+.. _Proxmox Backup Server Development List: https://lists.proxmox.com/cgi-bin/mailman/listinfo/pbs-devel
 .. _reStructuredText: https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html
 .. _Rust: https://www.rust-lang.org/
 .. _SHA-256: https://en.wikipedia.org/wiki/SHA-2

@@ -178,7 +178,7 @@ Mailing Lists
 Proxmox Backup Server is fully open-source and contributions are welcome! Here
 is the primary communication channel for developers:
 
-:Mailing list for developers: `Proxmox Backup Sever Development List`_
+:Mailing list for developers: `Proxmox Backup Server Development List`_
 
 Bug Tracker
 ~~~~~~~~~~~
