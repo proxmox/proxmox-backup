@@ -329,16 +329,19 @@ references are specified in curly brackets.
 
 Some examples are:
 
-* `/datastore`: Access to *all* datastores on a Proxmox Backup server
-* `/datastore/{store}`: Access to a specific datastore on a Proxmox Backup
-  server
-* `/datastore/{store}/{ns}`: Access to a specific namespace on a specific
-  datastore
-* `/remote`: Access to all remote entries
-* `/system/network`: Access to configure the host network
-* `/tape/`: Access to tape devices, pools and jobs
-* `/access/users`: User administration
-* `/access/openid/{id}`: Administrative access to a specific OpenID Connect realm
+.. table::
+  :align: left
+
+  =========================== =========================================================
+  ``/datastore``              Access to *all* datastores on a Proxmox Backup server
+  ``/datastore/{store}``      Access to a specific datastore on a Proxmox Backup server
+  ``/datastore/{store}/{ns}`` Access to a specific namespace on a specific datastore
+  ``/remote``                 Access to all remote entries
+  ``/system/network``         Access to configure the host network
+  ``/tape/``                  Access to tape devices, pools and jobs
+  ``/access/users``           User administration
+  ``/access/openid/{id}``     Administrative access to a specific OpenID Connect realm
+  =========================== =========================================================
 
 Inheritance
 ^^^^^^^^^^^
