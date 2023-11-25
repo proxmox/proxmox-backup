@@ -1453,7 +1453,7 @@ async fn restore(
                 },
                 options,
             )
-            .map_err(|err| format_err!("error extracting archive - {}", err))?;
+            .map_err(|err| format_err!("error extracting archive - {:#}", err))?;
         } else {
             let mut writer = std::fs::OpenOptions::new()
                 .write(true)
