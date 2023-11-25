@@ -712,7 +712,9 @@ Ext.define('PBS.Utils', {
     },
 
     render_optional_remote: function(value, metadata, record) {
-	if (!value) return `- (${gettext('Local')})`;
+	if (!value) {
+	    return `- (${gettext('Local')})`;
+	}
 	return Ext.String.htmlEncode(value);
     },
 
