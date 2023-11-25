@@ -199,7 +199,7 @@ html_theme_options = {
     'show_powered_by': False,
 
     'extra_nav_links': {
-        'Proxmox Homepage': 'https://proxmox.com',
+        'Proxmox Homepage': 'https://www.proxmox.com',
         'PDF': 'proxmox-backup.pdf',
         'API Viewer' : 'api-viewer/index.html',
         'Prune Simulator' : 'prune-simulator/index.html',
