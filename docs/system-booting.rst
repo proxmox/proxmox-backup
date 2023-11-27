@@ -86,8 +86,8 @@ Setting up a New Partition for use as Synced ESP
 To format and initialize a partition as synced ESP, for example, after replacing a
 failed vdev in an rpool, ``proxmox-boot-tool`` from ``proxmox-kernel-helper`` can be used.
 
-WARNING: the ``format`` command will format the ``<partition>``. Make sure to pass
-in the right device/partition!
+.. WARNING:: the ``format`` command will format the ``<partition>``. Make sure
+   to pass in the right device/partition!
 
 For example, to format an empty partition ``/dev/sda2`` as ESP, run the following:
 
@@ -243,6 +243,8 @@ and is quite well documented
 (see the `Grub Manual
 <https://www.gnu.org/software/grub/manual/grub/grub.html>`_).
 
+.. _systembooting-grub-config:
+
 Configuration
 ^^^^^^^^^^^^^
 
@@ -300,6 +302,8 @@ Editing the Kernel Commandline
 You can modify the kernel commandline in the following places, depending on the
 bootloader used:
 
+.. _systembooting-kernel-cmdline-grub:
+
 Grub
 ^^^^
 
@@ -307,6 +311,8 @@ The kernel commandline needs to be placed in the variable
 ``GRUB_CMDLINE_LINUX_DEFAULT`` in the file ``/etc/default/grub``. Running
 ``update-grub`` appends its content to all ``linux`` entries in
 ``/boot/grub/grub.cfg``.
+
+.. _systembooting-kernel-cmdline-systemd-boot:
 
 systemd-boot
 ^^^^^^^^^^^^
