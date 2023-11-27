@@ -141,6 +141,10 @@ pub fn create_sync_job(
         bail!("permission check failed");
     }
 
+    if config.remote.is_none() && config.store.eq(&config.remote_store) {
+        bail!("source and target datastore can't be the same");
+    }
+
     if let Some(max_depth) = config.max_depth {
         if let Some(ref ns) = config.ns {
             ns.check_max_depth(max_depth)?;
