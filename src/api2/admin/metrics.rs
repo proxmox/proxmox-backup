@@ -4,7 +4,7 @@ use serde_json::Value;
 use proxmox_router::{Permission, Router, RpcEnvironment};
 use proxmox_schema::api;
 
-use pbs_api_types::{PRIV_SYS_AUDIT, MetricServerInfo};
+use pbs_api_types::{MetricServerInfo, PRIV_SYS_AUDIT};
 use pbs_config::metrics;
 
 #[api(

@@ -350,10 +350,10 @@ pub fn filesystem_commands() -> CommandLineInterface {
             CliCommand::new(&API_METHOD_CREATE_DATASTORE_DISK)
                 .arg_param(&["name"])
                 .completion_cb("disk", complete_disk_name),
-        ).insert(
+        )
+        .insert(
             "delete",
-            CliCommand::new(&API_METHOD_DELETE_DATASTORE_DISK)
-                .arg_param(&["name"]),
+            CliCommand::new(&API_METHOD_DELETE_DATASTORE_DISK).arg_param(&["name"]),
         );
 
     cmd_def.into()

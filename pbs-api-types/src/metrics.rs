@@ -147,7 +147,6 @@ pub struct InfluxDbHttp {
     pub comment: Option<String>,
 }
 
-
 #[api]
 #[derive(Copy, Clone, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
 /// Type of the metric server

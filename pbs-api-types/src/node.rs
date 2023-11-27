@@ -1,8 +1,7 @@
-use serde::{Deserialize, Serialize};
 use proxmox_schema::*;
+use serde::{Deserialize, Serialize};
 
 use crate::StorageStatus;
-
 
 #[api]
 #[derive(Serialize, Deserialize, Default)]
