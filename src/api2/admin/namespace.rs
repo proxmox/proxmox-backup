@@ -34,13 +34,13 @@ use crate::backup::{check_ns_modification_privs, check_ns_privs, NS_PRIVS_OK};
             },
         },
     },
-    returns: pbs_api_types::ADMIN_DATASTORE_LIST_NAMESPACE_RETURN_TYPE,
+    returns: { type: BackupNamespace },
     access: {
         permission: &Permission::Anybody,
         description: "Requires on /datastore/{store}[/{parent}] DATASTORE_MODIFY"
     },
 )]
-/// List the namespaces of a datastore.
+/// Create a new datastore namespace.
 pub fn create_namespace(
     store: String,
     name: String,
