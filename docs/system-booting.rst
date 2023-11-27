@@ -381,3 +381,188 @@ content and configuration on the ESPs by running the ``refresh`` subcommand.
 .. code-block:: console
 
   # proxmox-boot-tool refresh
+
+
+
+.. _systembooting-secure-boot:
+
+Secure Boot
+~~~~~~~~~~~
+
+Since Proxmox Backup 3.1, Secure Boot is supported out of the box via signed
+packages and integration in ``proxmox-boot-tool``.
+
+The following packages need to be installed for Secure Boot to be enabled:
+
+* ``shim-signed`` (shim bootloader signed by Microsoft)
+* ``shim-helpers-amd64-signed`` (fallback bootloader and MOKManager, signed by Proxmox)
+* ``grub-efi-amd64-signed`` (Grub EFI bootloader, signed by Proxmox)
+* ``proxmox-kernel-6.X.Y-Z-pve-signed`` (Kernel image, signed by Proxmox)
+
+Only Grub as bootloader is supported out of the box, since there are no other
+pre-signed bootloader packages available. Any new installation of Proxmox Backup
+will automatically have all of the above packages included.
+
+More details about how Secure Boot works, and how to customize the setup, are
+available in `our wiki <https://pve.proxmox.com/wiki/Secure_Boot_Setup>`_.
+
+
+.. _systembooting-secure-boot-existing-installation:
+
+Switching an Existing Installation to Secure Boot
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. WARNING:: This can lead to an unbootable installation in some cases if not
+   done correctly. Reinstalling the host will setup Secure Boot automatically if
+   available, without any extra interactions. **Make sure you have a working and
+   well-tested backup of your Proxmox Backup host!**
+
+An existing UEFI installation can be switched over to Secure Boot if desired,
+without having to reinstall Proxmox Backup from scratch.
+
+First, ensure all your system is up-to-date. Next, install all the required
+pre-signed packages as listed above. Grub automatically creates the needed EFI
+boot entry for booting via the default shim.
+
+.. _systembooting-secure-boot-existing-systemd-boot:
+
+**systemd-boot**
+""""""""""""""""
+
+If ``systemd-boot`` is used as a bootloader (see
+:ref:`Determine which Bootloader is used <systembooting-determine-bootloader>`),
+some additional setup is needed. This is only the case if Proxmox Backup was
+installed with ZFS-on-root.
+
+To check the latter, run:
+
+.. code-block:: console
+
+  # findmnt /
+
+
+If the host is indeed using ZFS as root filesystem, the ``FSTYPE`` column should
+contain ``zfs``:
+
+.. code-block:: console
+
+  TARGET SOURCE           FSTYPE OPTIONS
+  /      rpool/ROOT/pbs-1 zfs    rw,relatime,xattr,noacl
+
+Next, a suitable potential ESP (EFI system partition) must be found. This can be
+done using the ``lsblk`` command as following:
+
+.. code-block:: console
+
+  # lsblk -o +FSTYPE
+
+The output should look something like this:
+
+.. code-block:: console
+
+  NAME   MAJ:MIN RM  SIZE RO TYPE MOUNTPOINTS FSTYPE
+  sda      8:0    0   32G  0 disk
+  ├─sda1   8:1    0 1007K  0 part
+  ├─sda2   8:2    0  512M  0 part             vfat
+  └─sda3   8:3    0 31.5G  0 part             zfs_member
+  sdb      8:16   0   32G  0 disk
+  ├─sdb1   8:17   0 1007K  0 part
+  ├─sdb2   8:18   0  512M  0 part             vfat
+  └─sdb3   8:19   0 31.5G  0 part             zfs_member
+
+In this case, the partitions ``sda2`` and ``sdb2`` are the targets. They can be
+identified by the their size of 512M and their ``FSTYPE`` being ``vfat``, in
+this case on a ZFS RAID-1 installation.
+
+These partitions must be properly set up for booting through Grub using
+``proxmox-boot-tool``. This command (using ``sda2`` as an example) must be run
+separately for each individual ESP:
+
+.. code-block:: console
+
+  # proxmox-boot-tool init /dev/sda2 grub
+
+Afterwards, you can sanity-check the setup by running the following command:
+
+.. code-block:: console
+
+  # efibootmgr -v
+
+This list should contain an entry looking similar to this:
+
+.. code-block:: console
+
+  [..]
+  Boot0009* proxmox       HD(2,GPT,..,0x800,0x100000)/File(\EFI\proxmox\shimx64.efi)
+  [..]
+
+.. NOTE:: The old ``systemd-boot`` bootloader will be kept, but Grub will be
+   preferred. This way, if booting using Grub in Secure Boot mode does not work
+   for any reason, the system can still be booted using ``systemd-boot`` with
+   Secure Boot turned off.
+
+Now the host can be rebooted and Secure Boot enabled in the UEFI firmware setup
+utility.
+
+On reboot, a new entry named ``proxmox`` should be selectable in the UEFI
+firmware boot menu, which boots using the pre-signed EFI shim.
+
+If, for any reason, no ``proxmox`` entry can be found in the UEFI boot menu, you
+can try adding it manually (if supported by the firmware), by adding the file
+``\EFI\proxmox\shimx64.efi`` as a custom boot entry.
+
+.. NOTE:: Some UEFI firmwares are known to drop the ``proxmox`` boot option on
+   reboot. This can happen if the ``proxmox`` boot entry is pointing to a Grub
+   installation on a disk, where the disk itself is not a boot option. If
+   possible, try adding the disk as a boot option in the UEFI firmware setup
+   utility and run ``proxmox-boot-tool`` again.
+
+.. TIP:: To enroll custom keys, see the accompanying `Secure Boot wiki page
+   <https://pve.proxmox.com/wiki/Secure_Boot_Setup#Setup_instructions_for_db_key_variant>`_.
+
+
+.. _systembooting-secure-boot-other-modules:
+
+Using DKMS/Third Party Modules With Secure Boot
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+On systems with Secure Boot enabled, the kernel will refuse to load modules
+which are not signed by a trusted key. The default set of modules shipped with
+the kernel packages is signed with an ephemeral key embedded in the kernel
+image which is trusted by that specific version of the kernel image.
+
+In order to load other modules, such as those built with DKMS or manually, they
+need to be signed with a key trusted by the Secure Boot stack. The easiest way
+to achieve this is to enroll them as Machine Owner Key (``MOK``) with
+``mokutil``.
+
+The ``dkms`` tool will automatically generate a keypair and certificate in
+``/var/lib/dkms/mok.key`` and ``/var/lib/dkms/mok.pub`` and use it for signing
+the kernel modules it builds and installs.
+
+You can view the certificate contents with
+
+.. code-block:: console
+
+  # openssl x509 -in /var/lib/dkms/mok.pub -noout -text
+
+and enroll it on your system using the following command:
+
+.. code-block:: console
+
+  # mokutil --import /var/lib/dkms/mok.pub
+  input password:
+  input password again:
+
+The ``mokutil`` command will ask for a (temporary) password twice, this password
+needs to be entered one more time in the next step of the process! Rebooting
+the system should automatically boot into the ``MOKManager`` EFI binary, which
+allows you to verify the key/certificate and confirm the enrollment using the
+password selected when starting the enrollment using ``mokutil``. Afterwards,
+the kernel should allow loading modules built with DKMS (which are signed with
+the enrolled ``MOK``). The ``MOK`` can also be used to sign custom EFI binaries
+and kernel images if desired.
+
+The same procedure can also be used for custom/third-party modules not managed
+with DKMS, but the key/certificate generation and signing steps need to be done
+manually in that case.
