@@ -17,6 +17,7 @@ Ext.define('PBS.StorageAndDiskPanel', {
 	    xtype: 'pmxDiskList',
 	    title: gettext('Disks'),
 	    includePartitions: true,
+	    supportsWipeDisk: true,
 	    itemId: 'disks',
 	    iconCls: 'fa fa-hdd-o',
 	},

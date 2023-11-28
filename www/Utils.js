@@ -425,6 +425,7 @@ Ext.define('PBS.Utils', {
 	    verify: ['Datastore', gettext('Verification')],
 	    verify_group: ['Group', gettext('Verification')],
 	    verify_snapshot: ['Snapshot', gettext('Verification')],
+	    wipedisk: ['Device', gettext('Wipe Disk')],
 	    zfscreate: [gettext('ZFS Storage'), gettext('Create')],
 	});
 
