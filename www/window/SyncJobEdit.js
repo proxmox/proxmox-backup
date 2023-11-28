@@ -181,15 +181,15 @@ Ext.define('PBS.window.SyncJobEdit', {
 				remoteField.setDisabled(isLocalSync);
 				storeField.setDisabled(!isLocalSync && !remoteField.value);
 				if (isLocalSync === !!remoteField.value) {
-				    storeField.clearValue();
 				    remoteField.clearValue();
 				}
 
 				if (isLocalSync) {
 				    storeField.setDisabled(false);
 				    rateLimitField.setValue(null);
-				    storeField.setRemote(null);
+				    storeField.setRemote(null, true);
 				} else {
+				    storeField.clearValue();
 				    remoteField.validate();
 				}
 			    },

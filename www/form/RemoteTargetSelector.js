@@ -33,10 +33,10 @@ Ext.define('PBS.form.RemoteStoreSelector', {
 	// do nothing.
     },
 
-    setRemote: function(remote) {
+    setRemote: function(remote, forceReload = false) {
 	let me = this;
 
-	if (me.remote === remote) {
+	if (!forceReload && me.remote === remote) {
 	    return;
 	}
 
