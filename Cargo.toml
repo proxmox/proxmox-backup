@@ -67,7 +67,7 @@ proxmox-lang = "1.1"
 proxmox-ldap = "0.2.1"
 proxmox-metrics = "0.3"
 proxmox-openid = "0.10.0"
-proxmox-rest-server = { version = "0.5", features = [ "templates" ] }
+proxmox-rest-server = { version = "0.5.1", features = [ "templates" ] }
 # some use "cli", some use "cli" and "server", pbs-config uses nothing
 proxmox-router = { version = "2.0.0", default_features = false }
 # everything but pbs-config and pbs-client use "api-macro"
