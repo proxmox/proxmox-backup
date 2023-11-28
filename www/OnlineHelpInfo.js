@@ -35,6 +35,14 @@ const proxmoxOnlineHelpInfo = {
     "link": "/docs/configuration-files.html#domains-cfg",
     "title": "``domains.cfg``"
   },
+  "faq-support-table": {
+    "link": "/docs/faq.html#faq-support-table",
+    "title": "How long will my Proxmox Backup Server version be supported?"
+  },
+  "faq-upgrade-major": {
+    "link": "/docs/faq.html#faq-upgrade-major",
+    "title": "How can I upgrade Proxmox Backup Server to the next major release?"
+  },
   "pxar-format": {
     "link": "/docs/file-formats.html#pxar-format",
     "title": "Proxmox File Archive Format (``.pxar``)"
@@ -199,6 +207,10 @@ const proxmoxOnlineHelpInfo = {
     "link": "/docs/sysadmin.html#systembooting-grub",
     "title": "Grub"
   },
+  "systembooting-grub-config": {
+    "link": "/docs/sysadmin.html#systembooting-grub-config",
+    "title": "Configuration"
+  },
   "systembooting-systemdboot": {
     "link": "/docs/sysadmin.html#systembooting-systemdboot",
     "title": "Systemd-boot"
@@ -211,9 +223,33 @@ const proxmoxOnlineHelpInfo = {
     "link": "/docs/sysadmin.html#systembooting-edit-kernel-cmdline",
     "title": "Editing the Kernel Commandline"
   },
+  "systembooting-kernel-cmdline-grub": {
+    "link": "/docs/sysadmin.html#systembooting-kernel-cmdline-grub",
+    "title": "Grub"
+  },
+  "systembooting-kernel-cmdline-systemd-boot": {
+    "link": "/docs/sysadmin.html#systembooting-kernel-cmdline-systemd-boot",
+    "title": "systemd-boot"
+  },
   "systembooting-kernel-pin": {
     "link": "/docs/sysadmin.html#systembooting-kernel-pin",
     "title": "Override the Kernel-Version for next Boot"
+  },
+  "systembooting-secure-boot": {
+    "link": "/docs/sysadmin.html#systembooting-secure-boot",
+    "title": "Secure Boot"
+  },
+  "systembooting-secure-boot-existing-installation": {
+    "link": "/docs/sysadmin.html#systembooting-secure-boot-existing-installation",
+    "title": "Switching an Existing Installation to Secure Boot"
+  },
+  "systembooting-secure-boot-existing-systemd-boot": {
+    "link": "/docs/sysadmin.html#systembooting-secure-boot-existing-systemd-boot",
+    "title": "**systemd-boot**"
+  },
+  "systembooting-secure-boot-other-modules": {
+    "link": "/docs/sysadmin.html#systembooting-secure-boot-other-modules",
+    "title": "Using DKMS/Third Party Modules With Secure Boot"
   },
   "sysadmin-certificate-management": {
     "link": "/docs/sysadmin.html#sysadmin-certificate-management",
