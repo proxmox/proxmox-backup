@@ -134,6 +134,7 @@ fn get_directory_content(path: impl AsRef<Path>) -> String {
         }
     };
     let mut out = String::new();
+    let mut first = true;
     for entry in read_dir_iter {
         let entry = match entry {
             Ok(entry) => entry,
@@ -144,7 +145,12 @@ fn get_directory_content(path: impl AsRef<Path>) -> String {
         };
         let path = entry.path();
         if path.is_file() {
-            let _ = writeln!(out, "{}", get_file_content(path));
+            if first {
+                let _ = writeln!(out, "{}", get_file_content(path));
+                first = false;
+            } else {
+                let _ = writeln!(out, "\n{}", get_file_content(path));
+            }
         } else {
             let _ = writeln!(out, "skipping sub-directory `{}`", path.display());
         }
