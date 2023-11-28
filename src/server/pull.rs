@@ -17,7 +17,7 @@ use serde_json::json;
 use pbs_api_types::{
     print_store_and_ns, Authid, BackupDir, BackupGroup, BackupNamespace, CryptMode, GroupFilter,
     GroupListItem, Operation, RateLimitConfig, Remote, SnapshotListItem, MAX_NAMESPACE_DEPTH,
-    PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP,
+    PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_READ,
 };
 use pbs_client::{BackupReader, BackupRepository, HttpClient, RemoteChunkReader};
 use pbs_config::CachedUserInfo;
@@ -271,8 +271,8 @@ impl PullSource for LocalSource {
             &self.store,
             namespace.clone(),
             0,
-            None,
-            None,
+            Some(PRIV_DATASTORE_READ),
+            Some(PRIV_DATASTORE_BACKUP),
             Some(owner),
         )?
         .filter_map(Result::ok)

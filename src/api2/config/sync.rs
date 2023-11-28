@@ -8,8 +8,8 @@ use proxmox_schema::{api, param_bail};
 
 use pbs_api_types::{
     Authid, SyncJobConfig, SyncJobConfigUpdater, JOB_ID_SCHEMA, PRIV_DATASTORE_AUDIT,
-    PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY, PRIV_DATASTORE_PRUNE, PRIV_DATASTORE_READ,
-    PRIV_REMOTE_AUDIT, PRIV_REMOTE_READ, PROXMOX_CONFIG_DIGEST_SCHEMA,
+    PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_MODIFY, PRIV_DATASTORE_PRUNE, PRIV_REMOTE_AUDIT,
+    PRIV_REMOTE_READ, PROXMOX_CONFIG_DIGEST_SCHEMA,
 };
 use pbs_config::sync;
 
@@ -70,11 +70,9 @@ pub fn check_sync_job_modify_access(
 
     if let Some(remote) = &job.remote {
         let remote_privs = user_info.lookup_privs(auth_id, &["remote", remote, &job.remote_store]);
-        remote_privs & PRIV_REMOTE_READ != 0
-    } else {
-        let source_ds_privs = user_info.lookup_privs(auth_id, &["datastore", &job.remote_store]);
-        source_ds_privs & PRIV_DATASTORE_READ != 0
+        return remote_privs & PRIV_REMOTE_READ != 0;
     }
+    true
 }
 
 #[api(
