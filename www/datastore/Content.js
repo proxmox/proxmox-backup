@@ -870,6 +870,36 @@ Ext.define('PBS.DataStoreContent', {
 		me.firstLoad = true;
 	    }
 	},
+	itemcontextmenu: function(panel, record, item, index, event) {
+	    event.stopEvent();
+	    let menu;
+	    let view = panel.up('pbsDataStoreContent');
+	    let controller = view.getController();
+	    let createControllerCallback = function(name) {
+		return function() {
+		    controller[name](view, undefined, undefined, undefined, undefined, record);
+		};
+	    };
+	    if (record.data.ty === 'group') {
+		menu = Ext.create('PBS.datastore.GroupCmdMenu', {
+		    title: gettext('Group'),
+		    onVerify: createControllerCallback('onVerify'),
+		    onChangeOwner: createControllerCallback('onChangeOwner'),
+		    onPrune: createControllerCallback('onPrune'),
+		    onForget: createControllerCallback('onForget'),
+		});
+	    } else if (record.data.ty === 'dir') {
+		menu = Ext.create('PBS.datastore.SnapshotCmdMenu', {
+		    title: gettext('Snapshot'),
+		    onVerify: createControllerCallback('onVerify'),
+		    onProtectionChange: createControllerCallback('onProtectionChange'),
+		    onForget: createControllerCallback('onForget'),
+		});
+	    }
+	    if (menu) {
+		menu.showAt(event.getXY());
+	    }
+	},
     },
 
     viewConfig: {
@@ -1244,6 +1274,90 @@ Ext.define('PBS.DataStoreContent', {
 		    fn: 'search',
 		    buffer: 500,
 		},
+	    },
+	},
+    ],
+});
+
+Ext.define('PBS.datastore.GroupCmdMenu', {
+    extend: 'Ext.menu.Menu',
+    mixins: ['Proxmox.Mixin.CBind'],
+
+    onVerify: undefined,
+    onChangeOwner: undefined,
+    onPrune: undefined,
+    onForget: undefined,
+
+    items: [
+	{
+	    text: gettext('Verify'),
+	    iconCls: 'pve-icon-verify-lettering',
+	    handler: function() { this.up('menu').onVerify(); },
+	    cbind: {
+		hidden: '{!onVerify}',
+	    },
+	},
+	{
+	    text: gettext('Change owner'),
+	    iconCls: 'fa fa-user',
+	    handler: function() { this.up('menu').onChangeOwner(); },
+	    cbind: {
+		hidden: '{!onChangeOwner}',
+	    },
+	},
+	{
+	    text: gettext('Prune'),
+	    iconCls: 'fa fa-scissors',
+	    handler: function() { this.up('menu').onPrune(); },
+	    cbind: {
+		hidden: '{!onPrune}',
+	    },
+	},
+	{
+	    text: gettext('Remove'),
+	    iconCls: 'fa critical fa-trash-o',
+	    handler: function() { this.up('menu').onForget(); },
+	    cbind: {
+		hidden: '{!onForget}',
+	    },
+	},
+    ],
+});
+
+Ext.define('PBS.datastore.SnapshotCmdMenu', {
+    extend: 'Ext.menu.Menu',
+    mixins: ['Proxmox.Mixin.CBind'],
+
+    onVerify: undefined,
+    onProtectionChange: undefined,
+    onForget: undefined,
+
+    items: [
+	{
+	    text: gettext('Verify'),
+	    iconCls: 'pve-icon-verify-lettering',
+	    handler: function() { this.up('menu').onVerify(); },
+	    cbind: {
+		hidden: '{!onVerify}',
+		disabled: '{!onVerify}',
+	    },
+	},
+	{
+	    text: gettext('Change Protection'),
+	    iconCls: 'fa fa-shield',
+	    handler: function() { this.up('menu').onProtectionChange(); },
+	    cbind: {
+		hidden: '{!onProtectionChange}',
+		disabled: '{!onProtectionChange}',
+	    },
+	},
+	{
+	    text: gettext('Remove'),
+	    iconCls: 'fa critical fa-trash-o',
+	    handler: function() { this.up('menu').onForget(); },
+	    cbind: {
+		hidden: '{!onForget}',
+		disabled: '{!onForget}',
 	    },
 	},
     ],
