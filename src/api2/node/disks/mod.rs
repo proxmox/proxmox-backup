@@ -9,12 +9,13 @@ use proxmox_sortable_macro::sortable;
 use proxmox_sys::task_log;
 
 use pbs_api_types::{
-    BLOCKDEVICE_NAME_SCHEMA, NODE_SCHEMA, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY, UPID_SCHEMA,
+    BLOCKDEVICE_DISK_AND_PARTITION_NAME_SCHEMA, BLOCKDEVICE_NAME_SCHEMA, NODE_SCHEMA,
+    PRIV_SYS_AUDIT, PRIV_SYS_MODIFY, UPID_SCHEMA,
 };
 
 use crate::tools::disks::{
-    get_smart_data, inititialize_gpt_disk, DiskManage, DiskUsageInfo, DiskUsageQuery,
-    DiskUsageType, SmartData,
+    get_smart_data, inititialize_gpt_disk, wipe_blockdev, DiskManage, DiskUsageInfo,
+    DiskUsageQuery, DiskUsageType, SmartData,
 };
 use proxmox_rest_server::WorkerTask;
 
@@ -178,6 +179,51 @@ pub fn initialize_disk(
     Ok(json!(upid_str))
 }
 
+#[api(
+    protected: true,
+    input: {
+        properties: {
+            node: {
+                schema: NODE_SCHEMA,
+            },
+            disk: {
+                schema: BLOCKDEVICE_DISK_AND_PARTITION_NAME_SCHEMA,
+            },
+        },
+    },
+    returns: {
+        schema: UPID_SCHEMA,
+    },
+    access: {
+        permission: &Permission::Privilege(&["system", "disks"], PRIV_SYS_MODIFY, false),
+    },
+)]
+/// wipe disk
+pub fn wipe_disk(disk: String, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
+    let to_stdout = rpcenv.env_type() == RpcEnvironmentType::CLI;
+
+    let auth_id = rpcenv.get_auth_id().unwrap();
+
+    let upid_str = WorkerTask::new_thread(
+        "wipedisk",
+        Some(disk.clone()),
+        auth_id,
+        to_stdout,
+        move |worker| {
+            task_log!(worker, "wipe disk {}", disk);
+
+            let disk_manager = DiskManage::new();
+            let disk_info = disk_manager.partition_by_name(&disk)?;
+
+            wipe_blockdev(&disk_info, worker)?;
+
+            Ok(())
+        },
+    )?;
+
+    Ok(json!(upid_str))
+}
+
 #[sortable]
 const SUBDIRS: SubdirMap = &sorted!([
     //    ("lvm", &lvm::ROUTER),
@@ -186,6 +232,7 @@ const SUBDIRS: SubdirMap = &sorted!([
     ("initgpt", &Router::new().post(&API_METHOD_INITIALIZE_DISK)),
     ("list", &Router::new().get(&API_METHOD_LIST_DISKS)),
     ("smart", &Router::new().get(&API_METHOD_SMART_STATUS)),
+    ("wipedisk", &Router::new().put(&API_METHOD_WIPE_DISK)),
 ]);
 
 pub const ROUTER: Router = Router::new()
