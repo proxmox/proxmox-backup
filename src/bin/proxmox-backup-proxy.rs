@@ -226,7 +226,7 @@ async fn run() -> Result<(), Error> {
         ]);
 
     let backup_user = pbs_config::backup_user()?;
-    let mut commando_sock = proxmox_rest_server::CommandSocket::new(
+    let mut command_sock = proxmox_rest_server::CommandSocket::new(
         proxmox_rest_server::our_ctrl_sock(),
         backup_user.gid,
     );
@@ -243,13 +243,13 @@ async fn run() -> Result<(), Error> {
             pbs_buildcfg::API_ACCESS_LOG_FN,
             Some(dir_opts.clone()),
             Some(file_opts.clone()),
-            &mut commando_sock,
+            &mut command_sock,
         )?
         .enable_auth_log(
             pbs_buildcfg::API_AUTH_LOG_FN,
             Some(dir_opts.clone()),
             Some(file_opts.clone()),
-            &mut commando_sock,
+            &mut command_sock,
         )?;
 
     let rest_server = RestServer::new(config);
@@ -266,7 +266,7 @@ async fn run() -> Result<(), Error> {
     let acceptor = Arc::new(Mutex::new(acceptor));
 
     // to renew the acceptor we just add a command-socket handler
-    commando_sock.register_command("reload-certificate".to_string(), {
+    command_sock.register_command("reload-certificate".to_string(), {
         let acceptor = Arc::clone(&acceptor);
         move |_value| -> Result<_, Error> {
             log::info!("reloading certificate");
@@ -282,7 +282,7 @@ async fn run() -> Result<(), Error> {
     })?;
 
     // to remove references for not configured datastores
-    commando_sock.register_command("datastore-removed".to_string(), |_value| {
+    command_sock.register_command("datastore-removed".to_string(), |_value| {
         if let Err(err) = DataStore::remove_unused_datastores() {
             log::error!("could not refresh datastores: {err}");
         }
@@ -338,8 +338,8 @@ async fn run() -> Result<(), Error> {
     proxmox_rest_server::write_pid(pbs_buildcfg::PROXMOX_BACKUP_PROXY_PID_FN)?;
 
     let init_result: Result<(), Error> = try_block!({
-        proxmox_rest_server::register_task_control_commands(&mut commando_sock)?;
-        commando_sock.spawn()?;
+        proxmox_rest_server::register_task_control_commands(&mut command_sock)?;
+        command_sock.spawn()?;
         proxmox_rest_server::catch_shutdown_signal()?;
         proxmox_rest_server::catch_reload_signal()?;
         Ok(())
