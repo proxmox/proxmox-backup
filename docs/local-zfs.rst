@@ -290,17 +290,17 @@ an editor of your choice and add the following line:
   vm.swappiness = 10
 
 .. table:: Linux kernel `swappiness` parameter values
-  :widths:auto
+  :widths: 1, 3
 
-  ====================  ===============================================================
-   Value                Strategy
-  ====================  ===============================================================
-   vm.swappiness = 0    The kernel will swap only to avoid an 'out of memory' condition
-   vm.swappiness = 1    Minimum amount of swapping without disabling it entirely.
-   vm.swappiness = 10   Sometimes recommended to improve performance when sufficient memory exists in a system.
-   vm.swappiness = 60   The default value.
-   vm.swappiness = 100  The kernel will swap aggressively.
-  ====================  ===============================================================
+  ===================  ===============================================================
+  Value                Strategy
+  ===================  ===============================================================
+  vm.swappiness = 0    The kernel will swap only to avoid an 'out of memory' condition
+  vm.swappiness = 1    Minimum amount of swapping without disabling it entirely.
+  vm.swappiness = 10   Sometimes recommended to improve performance when sufficient memory exists in a system.
+  vm.swappiness = 60   The default value.
+  vm.swappiness = 100  The kernel will swap aggressively.
+  ===================  ===============================================================
 
 ZFS compression
 ^^^^^^^^^^^^^^^
