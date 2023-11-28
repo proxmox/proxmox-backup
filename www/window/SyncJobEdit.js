@@ -73,6 +73,7 @@ Ext.define('PBS.window.SyncJobEdit', {
 		    }
 		    if (!me.isCreate) {
 			PBS.Utils.delete_if_default(values, 'rate-in');
+			PBS.Utils.delete_if_default(values, 'remote');
 			if (typeof values.delete === 'string') {
 			    values.delete = values.delete.split(',');
 			}
@@ -200,9 +201,6 @@ Ext.define('PBS.window.SyncJobEdit', {
 			xtype: 'pbsRemoteSelector',
 			allowBlank: false,
 			name: 'remote',
-			cbind: {
-			    deleteEmpty: '{!isCreate}',
-			},
 			skipEmptyText: true,
 			listeners: {
 			    change: function(f, value) {
