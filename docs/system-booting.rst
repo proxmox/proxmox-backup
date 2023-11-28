@@ -8,8 +8,9 @@ Host Bootloader
 selected in the installer.
 
 For EFI Systems installed with ZFS as the root filesystem ``systemd-boot`` is
-used. All other deployments use the standard ``grub`` bootloader (this usually
-also applies to systems which are installed on top of Debian).
+used, unless Secure Boot is enabled. All other deployments use the standard
+``grub`` bootloader (this usually also applies to systems which are installed
+on top of Debian).
 
 
 .. _systembooting-installer-part-scheme:
@@ -30,9 +31,10 @@ The created partitions are:
   remaining space available for the chosen storage type
 
 Systems using ZFS as a root filesystem are booted with a kernel and initrd image
-stored on the 512 MB EFI System Partition. For legacy BIOS systems, ``grub`` is
-used, for EFI systems ``systemd-boot`` is used. Both are installed and configured
-to point to the ESPs.
+stored on the 512 MB EFI System Partition. For legacy BIOS systems, and EFI
+systems with Secure Boot enabled, ``grub`` is used, for EFI systems without
+Secure Boot, ``systemd-boot`` is used. Both are installed and configured to
+point to the ESPs.
 
 ``grub`` in BIOS mode (``--target i386-pc``) is installed onto the BIOS Boot
 Partition of all selected disks on all systems booted with ``grub`` (that is,
@@ -101,6 +103,15 @@ Proxmox Backup's kernel update synchronization mechanism, use the following:
 .. code-block:: console
 
   # proxmox-boot-tool init /dev/sda2
+
+or
+
+.. code-block:: console
+
+  # proxmox-boot-tool init /dev/sda2 grub
+
+to force initialization with Grub instead of systemd-boot, for example for
+Secure Boot support.
 
 Following this, `/etc/kernel/proxmox-boot-uuids`` should contain a new line with the
 UUID of the newly added partition. The ``init`` command will also automatically
