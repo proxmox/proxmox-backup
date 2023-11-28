@@ -60,8 +60,8 @@ standard Debian installation. After configuring the
 
 .. code-block:: console
 
-  # apt-get update
-  # apt-get install proxmox-backup-server
+  # apt update
+  # apt install proxmox-backup-server
 
 The above commands keep the current (Debian) kernel and install a minimal
 set of required packages.
@@ -71,8 +71,8 @@ does, please use the following:
 
 .. code-block:: console
 
-  # apt-get update
-  # apt-get install proxmox-backup
+  # apt update
+  # apt install proxmox-backup
 
 This will install all required packages, the Proxmox kernel with ZFS_
 support, and a set of common and useful packages.
@@ -95,8 +95,8 @@ After configuring the
 
 .. code-block:: console
 
-  # apt-get update
-  # apt-get install proxmox-backup-server
+  # apt update
+  # apt install proxmox-backup-server
 
 .. caution:: Installing the backup server directly on the hypervisor
    is not recommended. It is safer to use a separate physical
@@ -119,8 +119,8 @@ you need to run:
 
 .. code-block:: console
 
-  # apt-get update
-  # apt-get install proxmox-backup-client
+  # apt update
+  # apt install proxmox-backup-client
 
 
 .. note:: The client-only repository should be usable by most recent Debian and
