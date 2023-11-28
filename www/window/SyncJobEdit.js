@@ -223,9 +223,6 @@ Ext.define('PBS.window.SyncJobEdit', {
 			allowBlank: false,
 			autoSelect: false,
 			name: 'remote-store',
-			cbind: {
-			    datastore: '{datastore}',
-			},
 			listeners: {
 			    change: function(field, value) {
 				let me = this;
