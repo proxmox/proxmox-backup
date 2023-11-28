@@ -2,6 +2,19 @@ use std::fmt::Write;
 use std::path::Path;
 use std::process::Command;
 
+fn get_top_processes() -> String {
+    let (exe, args) = ("top", vec!["-b", "-c", "-w512", "-n", "1", "-o", "TIME"]);
+    let output = Command::new(exe)
+        .args(&args)
+        .output();
+    let output = match output {
+        Ok(output) => String::from_utf8_lossy(&output.stdout).to_string(),
+        Err(err) => err.to_string(),
+    };
+    let output = output.lines().take(30).collect::<Vec<&str>>().join("\n");
+    format!("$ `{exe} {}`\n```\n{output}\n```", args.join(" "))
+}
+
 fn files() -> Vec<(&'static str, Vec<&'static str>)> {
     vec![
         (
@@ -94,16 +107,7 @@ fn function_calls() -> Vec<FunctionMapping> {
             }
             list.join(", ")
         }),
-        ("System Load & Uptime", || {
-            let output = Command::new("top")
-                .args(vec!["-b", "-c", "-w512", "-n", "1", "-o", "TIME"])
-                .output();
-            let output = match output {
-                Ok(output) => String::from_utf8_lossy(&output.stdout).to_string(),
-                Err(err) => err.to_string(),
-            };
-            output.lines().take(30).collect::<Vec<&str>>().join("\n")
-        }),
+        ("System Load & Uptime", get_top_processes),
     ]
 }
 
