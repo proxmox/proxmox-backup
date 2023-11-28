@@ -26,7 +26,7 @@ future plans to support 32-bit processors.
 How long will my Proxmox Backup Server version be supported?
 ------------------------------------------------------------
 
-.. csv-table:: Table Title
+.. csv-table::
    :file: faq-release-support-table.csv
    :widths: 30 26 13 13 18
    :header-rows: 1
