@@ -1,3 +1,55 @@
+rust-proxmox-backup (3.0.5-1) bookworm; urgency=medium
+
+  * ui: tape restore: fix default namespace mapping
+
+  * fix #4260: ui: fallback to note of last snapshot for backup group comment
+
+  * fix #4971: client: Improve output on successful snapshot deletion
+
+  * fix #4779: client: add missing "Connection" header for HTTP2 upgrade as
+    specified by RFC 9110, fixing issues with some strict proxies.
+
+  * system report: switch to markdown-like output syntax to make it easier to
+    digest
+
+  * system report: add information about block devices, basic uptime, usage
+    and process info, all apt repo files, proxmox-boot-tool status output and
+    ldap and oidc realm list
+
+  * cli: add option to remove systemd mount unit
+
+  * ui: add Remove button for directory-based storage types
+
+  * debug CLI tool: show the size of chunks and if they are compressed when
+    using the inspect command
+
+  * fix #4977: ui tape: restore: rework snapshot selection logic to avoid some
+    confusing edge cases
+
+  * docs: faq: add entries for how to do minor and major upgrades
+
+  * api apt: use `apt changelog` for changelog fetching
+
+  * fix #4374: create a prune job upon datastore creation
+
+  * docs: add a link to the Proxmox Backup Server wiki to sidebar
+
+  * docs: various fixes for typos, wording and some layout issues
+
+  * pull: add support for pulling from local datastore
+
+  * tape: library status: don't fail if the library does not support DVCID
+
+  * manager: check if offline subscription is for the correct product
+
+  * proxy: redirect HTTP requests to HTTPS
+
+  * fix #3211: document the possible values to the "notify" parameter
+
+  * docs: sysadmin: add section about Secure Boot
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 28 Nov 2023 12:41:56 +0100
+
 rust-proxmox-backup (3.0.4-1) bookworm; urgency=medium
 
   * rebuild with env_logger 0.10, proxmox-api-macro 1.0.6 and syn 2
