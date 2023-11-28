@@ -191,6 +191,7 @@ const_regex! {
     );
 
     pub BLOCKDEVICE_NAME_REGEX = r"^(?:(?:h|s|x?v)d[a-z]+)|(?:nvme\d+n\d+)$";
+    pub BLOCKDEVICE_DISK_AND_PARTITION_NAME_REGEX = r"^(?:(?:h|s|x?v)d[a-z]+\d*)|(?:nvme\d+n\d+(p\d+)?)$";
     pub SUBSCRIPTION_KEY_REGEX = concat!(r"^pbs(?:[cbsp])-[0-9a-f]{10}$");
 }
 
@@ -205,6 +206,8 @@ pub const PASSWORD_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&PASSWORD_
 pub const UUID_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&UUID_REGEX);
 pub const BLOCKDEVICE_NAME_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&BLOCKDEVICE_NAME_REGEX);
+pub const BLOCKDEVICE_DISK_AND_PARTITION_NAME_FORMAT: ApiStringFormat =
+    ApiStringFormat::Pattern(&BLOCKDEVICE_DISK_AND_PARTITION_NAME_REGEX);
 pub const SUBSCRIPTION_KEY_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&SUBSCRIPTION_KEY_REGEX);
 pub const SYSTEMD_DATETIME_FORMAT: ApiStringFormat =
@@ -281,6 +284,13 @@ pub const TIME_ZONE_SCHEMA: Schema = StringSchema::new(
 pub const BLOCKDEVICE_NAME_SCHEMA: Schema =
     StringSchema::new("Block device name (/sys/block/<name>).")
         .format(&BLOCKDEVICE_NAME_FORMAT)
+        .min_length(3)
+        .max_length(64)
+        .schema();
+
+pub const BLOCKDEVICE_DISK_AND_PARTITION_NAME_SCHEMA: Schema =
+    StringSchema::new("(Partition) block device name (/sys/class/block/<name>).")
+        .format(&BLOCKDEVICE_DISK_AND_PARTITION_NAME_FORMAT)
         .min_length(3)
         .max_length(64)
         .schema();
