@@ -148,6 +148,21 @@ Ext.define('PBS.NodeInfoPanel', {
 	    value: '',
 	},
 	{
+	    colspan: 2,
+	    title: gettext('Boot Mode'),
+	    printBar: false,
+	    textField: 'boot-info',
+	    renderer: boot => {
+		if (boot.mode === 'legacy-bios') {
+		    return 'Legacy BIOS';
+		} else if (boot.mode === 'efi') {
+		    return `EFI${boot.secureboot ? ' (Secure Boot)' : ''}`;
+		}
+		return Proxmox.Utils.unknownText;
+	    },
+	    value: '',
+	},
+	{
 	    xtype: 'pmxNodeInfoRepoStatus',
 	    itemId: 'repositoryStatus',
 	    product: 'Proxmox Backup Server',
