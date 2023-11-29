@@ -179,7 +179,7 @@ impl BackupEnvironment {
 
         state.ensure_unfinished()?;
 
-        let mut data = match state.fixed_writers.get_mut(&wid) {
+        let data = match state.fixed_writers.get_mut(&wid) {
             Some(data) => data,
             None => bail!("fixed writer '{}' not registered", wid),
         };
@@ -233,7 +233,7 @@ impl BackupEnvironment {
 
         state.ensure_unfinished()?;
 
-        let mut data = match state.dynamic_writers.get_mut(&wid) {
+        let data = match state.dynamic_writers.get_mut(&wid) {
             Some(data) => data,
             None => bail!("dynamic writer '{}' not registered", wid),
         };
@@ -328,7 +328,7 @@ impl BackupEnvironment {
 
         state.ensure_unfinished()?;
 
-        let mut data = match state.dynamic_writers.get_mut(&wid) {
+        let data = match state.dynamic_writers.get_mut(&wid) {
             Some(data) => data,
             None => bail!("dynamic writer '{}' not registered", wid),
         };
@@ -362,7 +362,7 @@ impl BackupEnvironment {
 
         state.ensure_unfinished()?;
 
-        let mut data = match state.fixed_writers.get_mut(&wid) {
+        let data = match state.fixed_writers.get_mut(&wid) {
             Some(data) => data,
             None => bail!("fixed writer '{}' not registered", wid),
         };

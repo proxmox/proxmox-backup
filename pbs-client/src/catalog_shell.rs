@@ -633,7 +633,7 @@ impl Shell {
     /// This assumes that there are no more symlinks in the path stack.
     async fn walk_pxar_archive(
         accessor: &Accessor,
-        mut stack: &mut [PathStackEntry],
+        stack: &mut [PathStackEntry],
     ) -> Result<FileEntry, Error> {
         if stack[0].pxar.is_none() {
             stack[0].pxar = Some(accessor.open_root().await?.lookup_self().await?);
