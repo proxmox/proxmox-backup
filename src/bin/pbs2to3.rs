@@ -263,12 +263,38 @@ impl Checker {
         Ok(())
     }
 
+    fn check_dkms_modules(&mut self) -> Result<(), Error> {
+        let kver = std::process::Command::new("uname")
+            .arg("-r")
+            .output()
+            .map_err(|err| format_err!("failed to retrieve running kernel version - {err}"))?;
+
+        let output = std::process::Command::new("dkms")
+            .arg("status")
+            .arg("-k")
+            .arg(std::str::from_utf8(&kver.stdout)?)
+            .output();
+        match output {
+            Err(_err) => self.output.log_skip("could not get dkms status")?,
+            Ok(ret) => {
+                let num_dkms_modules = std::str::from_utf8(&ret.stdout)?.lines().count();
+                if num_dkms_modules == 0 {
+                    self.output.log_pass("no dkms modules found")?;
+                } else {
+                    self.output.log_warn("dkms modules found, this might cause issues during upgrade.")?;
+                }
+            }
+        }
+        Ok(())
+    }
+
     pub fn check_misc(&mut self) -> Result<(), Error> {
         self.output.print_header("MISCELLANEOUS CHECKS")?;
         self.check_pbs_services()?;
         self.check_time_sync()?;
         self.check_apt_repos()?;
         self.check_bootloader()?;
+        self.check_dkms_modules()?;
         Ok(())
     }
 
