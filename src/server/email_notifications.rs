@@ -90,11 +90,14 @@ Please visit the web interface for further details:
 
 const SYNC_OK_TEMPLATE: &str = r###"
 
-Job ID:       {{job.id}}
-Datastore:    {{job.store}}
-Remote:       {{job.remote}}
-Remote Store: {{job.remote-store}}
-
+Job ID:             {{job.id}}
+Datastore:          {{job.store}}
+{{#if job.remote~}}
+Remote:             {{job.remote}}
+Remote Store:       {{job.remote-store}}
+{{else~}}
+Local Source Store: {{job.remote-store}}
+{{/if}}
 Synchronization successful.
 
 
@@ -106,11 +109,14 @@ Please visit the web interface for further details:
 
 const SYNC_ERR_TEMPLATE: &str = r###"
 
-Job ID:       {{job.id}}
-Datastore:    {{job.store}}
-Remote:       {{job.remote}}
-Remote Store: {{job.remote-store}}
-
+Job ID:             {{job.id}}
+Datastore:          {{job.store}}
+{{#if job.remote~}}
+Remote:             {{job.remote}}
+Remote Store:       {{job.remote-store}}
+{{else~}}
+Local Source Store: {{job.remote-store}}
+{{/if}}
 Synchronization failed: {{error}}
 
 
