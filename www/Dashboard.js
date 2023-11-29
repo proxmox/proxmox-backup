@@ -239,11 +239,11 @@ Ext.define('PBS.Dashboard', {
 	{
 	    xtype: 'pbsNodeInfoPanel',
 	    reference: 'nodeInfo',
-	    height: 280,
+	    height: 290,
 	},
 	{
 	    xtype: 'pbsDatastoresStatistics',
-	    height: 280,
+	    height: 290,
 	},
 	{
 	    xtype: 'pbsLongestTasks',
@@ -252,11 +252,11 @@ Ext.define('PBS.Dashboard', {
 		Ext.String.format(gettext('{0} days'), '{days}') + ')',
 	    },
 	    reference: 'longesttasks',
-	    height: 280,
+	    height: 290,
 	},
 	{
 	    xtype: 'pbsRunningTasks',
-	    height: 280,
+	    height: 290,
 	},
 	{
 	    bind: {
