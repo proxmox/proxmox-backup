@@ -34,7 +34,10 @@ Ext.define('PBS.window.SafeDatastoreDestroy', {
     getParams: function() {
 	let viewModel = this.getViewModel();
 
-	let params = { 'destroy-data': viewModel.get('destroyData') };
+	let params = {
+	    'destroy-data': viewModel.get('destroyData'),
+	    'keep-job-configs': viewModel.get('keepJobConfigs'),
+	};
 	return `?${Ext.Object.toQueryString(params)}`;
     },
     additionalItems: [{
@@ -44,6 +47,14 @@ Ext.define('PBS.window.SafeDatastoreDestroy', {
 	defaultValue: false,
 	bind: {
 	    value: '{destroyData}',
+	},
+    }, {
+	xtype: 'proxmoxcheckbox',
+	name: 'keep-job-configs',
+	boxLabel: gettext("Keep configured jobs and permissions"),
+	defaultValue: false,
+	bind: {
+	    value: '{keepJobConfigs}',
 	},
     }, {
 	xtype: 'component',
