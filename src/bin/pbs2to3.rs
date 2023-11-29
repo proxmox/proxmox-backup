@@ -205,7 +205,8 @@ impl Checker {
                 return Ok(());
             }
             if Path::new("/usr/share/doc/systemd-boot/changelog.Debian.gz").is_file() {
-                self.output.log_pass("bootloader packages installed correctly")?;
+                self.output
+                    .log_pass("bootloader packages installed correctly")?;
                 return Ok(());
             }
             self.output.log_warn(
@@ -216,13 +217,14 @@ impl Checker {
             return Ok(());
         } else if !Path::new("/usr/share/doc/grub-efi-amd64/changelog.Debian.gz").is_file() {
             self.output.log_warn(
-            "System booted in uefi mode but grub-efi-amd64 meta-package not installed, \
+                "System booted in uefi mode but grub-efi-amd64 meta-package not installed, \
              new grub versions will not be installed to /boot/efi!
-             Install grub-efi-amd64."
+             Install grub-efi-amd64.",
             )?;
             return Ok(());
         } else {
-            self.output.log_pass("bootloader packages installed correctly")?;
+            self.output
+                .log_pass("bootloader packages installed correctly")?;
         }
 
         Ok(())
@@ -287,7 +289,8 @@ impl Checker {
                 if num_dkms_modules == 0 {
                     self.output.log_pass("no dkms modules found")?;
                 } else {
-                    self.output.log_warn("dkms modules found, this might cause issues during upgrade.")?;
+                    self.output
+                        .log_warn("dkms modules found, this might cause issues during upgrade.")?;
                 }
             }
         }

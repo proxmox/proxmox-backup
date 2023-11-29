@@ -4,9 +4,7 @@ use std::process::Command;
 
 fn get_top_processes() -> String {
     let (exe, args) = ("top", vec!["-b", "-c", "-w512", "-n", "1", "-o", "TIME"]);
-    let output = Command::new(exe)
-        .args(&args)
-        .output();
+    let output = Command::new(exe).args(&args).output();
     let output = match output {
         Ok(output) => String::from_utf8_lossy(&output.stdout).to_string(),
         Err(err) => err.to_string(),
