@@ -38,6 +38,29 @@ pub struct NodeInformation {
     pub fingerprint: String,
 }
 
+
+#[api]
+#[derive(Serialize, Deserialize, Copy, Clone)]
+#[serde(rename_all = "kebab-case")]
+/// The possible BootModes
+pub enum BootMode {
+    /// The BootMode is EFI/UEFI
+    Efi,
+    /// The BootMode is Legacy BIOS
+    LegacyBios,
+}
+
+#[api]
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "lowercase")]
+/// Holds the Bootmodes
+pub struct BootModeInformation {
+    /// The BootMode, either Efi or Bios
+    pub mode: BootMode,
+    /// SecureBoot status
+    pub secureboot: bool,
+}
+
 #[api]
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "kebab-case")]
@@ -77,7 +100,7 @@ pub struct NodeCpuInformation {
         }
     },
 )]
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 /// The Node status
 pub struct NodeStatus {
@@ -96,4 +119,6 @@ pub struct NodeStatus {
     pub wait: f64,
     pub cpuinfo: NodeCpuInformation,
     pub info: NodeInformation,
+    /// Current boot mode
+    pub boot_info: BootModeInformation,
 }

@@ -1,16 +1,18 @@
-use std::os::unix::prelude::OsStrExt;
+use std::os::unix::ffi::OsStrExt;
 use std::process::Command;
 
 use anyhow::{bail, format_err, Error};
 use serde_json::Value;
 
+use proxmox_sys::boot_mode;
 use proxmox_sys::linux::procfs;
 
 use proxmox_router::{ApiMethod, Permission, Router, RpcEnvironment};
 use proxmox_schema::api;
 
 use pbs_api_types::{
-    NodePowerCommand, StorageStatus, NODE_SCHEMA, PRIV_SYS_AUDIT, PRIV_SYS_POWER_MANAGEMENT,
+    BootModeInformation, NodePowerCommand, StorageStatus, NODE_SCHEMA, PRIV_SYS_AUDIT,
+    PRIV_SYS_POWER_MANAGEMENT,
 };
 
 use pbs_api_types::{
@@ -22,6 +24,26 @@ fn procfs_to_node_cpu_info(info: procfs::ProcFsCPUInfo) -> NodeCpuInformation {
         model: info.model,
         sockets: info.sockets,
         cpus: info.cpus,
+    }
+}
+
+fn boot_mode_to_info(bm: boot_mode::BootMode, sb: boot_mode::SecureBoot) -> BootModeInformation {
+    use boot_mode::BootMode;
+    use boot_mode::SecureBoot;
+
+    match (bm, sb) {
+        (BootMode::Efi, SecureBoot::Enabled) => BootModeInformation {
+            mode: pbs_api_types::BootMode::Efi,
+            secureboot: true,
+        },
+        (BootMode::Efi, SecureBoot::Disabled) => BootModeInformation {
+            mode: pbs_api_types::BootMode::Efi,
+            secureboot: false,
+        },
+        (BootMode::Bios, _) => BootModeInformation {
+            mode: pbs_api_types::BootMode::LegacyBios,
+            secureboot: false,
+        },
     }
 }
 
@@ -79,6 +101,8 @@ async fn get_status(
 
     let disk = crate::tools::fs::fs_info_static(proxmox_lang::c_str!("/")).await?;
 
+    let boot_info = boot_mode_to_info(boot_mode::BootMode::query(), boot_mode::SecureBoot::query());
+
     Ok(NodeStatus {
         memory,
         swap,
@@ -96,6 +120,7 @@ async fn get_status(
         info: NodeInformation {
             fingerprint: crate::cert_info()?.fingerprint()?,
         },
+        boot_info,
     })
 }
 
