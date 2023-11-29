@@ -26,6 +26,9 @@ brackets (for example, `[fe80::01]`).
 You can pass the repository with the ``--repository`` command-line option, or
 by setting the ``PBS_REPOSITORY`` environment variable.
 
+The web interface provides copyable repository text in the datastore summary
+with the `Show Connection Information` button.
+
 Below are some examples of valid repositories and their corresponding real
 values:
 
