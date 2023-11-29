@@ -140,11 +140,20 @@ Ext.define('PBS.NodeInfoPanel', {
 	    value: '',
 	},
 	{
-	    itemId: 'kversion',
 	    colspan: 2,
 	    title: gettext('Kernel Version'),
 	    printBar: false,
-	    textField: 'kversion',
+	    // TODO: remove with next major and only use newish current-kernel textfield
+	    multiField: true,
+	    //textField: 'current-kernel',
+	    renderer: ({ data }) => {
+		if (!data['current-kernel']) {
+		    return data.kversion;
+		}
+		let kernel = data['current-kernel'];
+		let buildDate = kernel.version.match(/\((.+)\)\s*$/)[1] ?? 'unknown';
+		return `${kernel.sysname} ${kernel.release} (${buildDate})`;
+	    },
 	    value: '',
 	},
 	{
