@@ -751,5 +751,4 @@ Ext.define('PBS.Utils', {
 
 	return options.join(', ');
     },
-
 });

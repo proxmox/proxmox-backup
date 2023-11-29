@@ -218,7 +218,24 @@ Ext.define('PBS.DataStoreSummary', {
 	padding: 5,
     },
 
-    tbar: ['->', { xtype: 'proxmoxRRDTypeSelector' }],
+    tbar: [
+	{
+	    xtype: 'button',
+	    text: gettext('Show Connection Information'),
+	    handler: function() {
+		let me = this;
+		let datastore = me.up('panel').datastore;
+		Ext.create('PBS.window.DatastoreRepoInfo', {
+		    datastore,
+		    autoShow: true,
+		});
+	    },
+	},
+	'->',
+	{
+	    xtype: 'proxmoxRRDTypeSelector',
+	},
+    ],
 
     items: [
 	{
