@@ -73,7 +73,7 @@ fn pxar_create_and_extract() {
         .unwrap_or_else(|err| panic!("Failed to invoke 'rm': {}", err));
 
     // If source and destination folder contain the same content,
-    // the output of the rsync invokation should yield no lines.
+    // the output of the rsync invocation should yield no lines.
     if linecount != 0 {
         panic!("pxar create and extract did not yield the same contents");
     }

@@ -125,7 +125,7 @@ pub fn dump_schema(schema: &Schema) -> Value {
                             data["format"] = dump_schema(subschema);
                             data["typetext"] = get_property_string_type_text(subschema).into();
                         }
-                        _ => { /* do nothing  - shouldnot happen */ }
+                        _ => { /* do nothing  - should not happen */ }
                     };
                 }
             }

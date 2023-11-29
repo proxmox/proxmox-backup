@@ -55,7 +55,7 @@ pub fn do_realm_sync_job(
     Ok(upid_str)
 }
 
-/// Implemenation for syncing LDAP realms
+/// Implementation for syncing LDAP realms
 struct LdapRealmSyncJob {
     worker: Arc<WorkerTask>,
     realm: Realm,
@@ -361,7 +361,7 @@ impl LdapRealmSyncJob {
     }
 }
 
-/// General realm sync settings - Override for manual invokation
+/// General realm sync settings - Override for manual invocation
 struct GeneralSyncSettingsOverride {
     remove_vanished: Option<String>,
     enable_new: Option<bool>,

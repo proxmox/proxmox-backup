@@ -13,7 +13,7 @@ pub const PROXMOX_RRD_MAGIC_1_0: [u8; 8] = [206, 46, 26, 212, 172, 158, 5, 186];
 use crate::rrd::{DataSource, CF, DST, RRA, RRD};
 
 bitflags! {
-    /// Flags to specify the data soure type and consolidation function
+    /// Flags to specify the data source type and consolidation function
     pub struct RRAFlags: u64 {
         // Data Source Types
         const DST_GAUGE  = 1;
@@ -34,9 +34,9 @@ bitflags! {
 /// RRD files.
 #[repr(C)]
 pub struct RRAv1 {
-    /// Defined the data soure type and consolidation function
+    /// Defined the data source type and consolidation function
     pub flags: RRAFlags,
-    /// Resulution (seconds)
+    /// Resolution (seconds)
     pub resolution: u64,
     /// Last update time (epoch)
     pub last_update: f64,
@@ -213,7 +213,7 @@ impl RRDv1 {
         let (start, reso, data) = self.hour_max.extract_data();
         day_max.insert_data(start, reso, data)?;
 
-        // compute montly average (merge old self.month_avg,
+        // compute monthly average (merge old self.month_avg,
         // self.week_avg and self.day_avg)
         let mut month_avg = RRA::new(CF::Average, 30 * 60, 1440);
 
@@ -228,7 +228,7 @@ impl RRDv1 {
         let (start, reso, data) = self.day_avg.extract_data();
         month_avg.insert_data(start, reso, data)?;
 
-        // compute montly maximum (merge old self.month_max,
+        // compute monthly maximum (merge old self.month_max,
         // self.week_max and self.day_max)
         let mut month_max = RRA::new(CF::Maximum, 30 * 60, 1440);
 

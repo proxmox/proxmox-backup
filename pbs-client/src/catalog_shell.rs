@@ -374,7 +374,7 @@ pub struct Shell {
     /// Interactive prompt.
     prompt: String,
 
-    /// Calalog reader instance to navigate
+    /// Catalog reader instance to navigate
     catalog: CatalogReader,
 
     /// List of selected paths for restore

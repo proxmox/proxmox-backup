@@ -352,7 +352,7 @@ fn visit_directory<'f, 'c>(
 
             let first_chunk = index
                 .chunk_from_offset(range.start)
-                .context("Invalid offest")?
+                .context("Invalid offset")?
                 .0;
             let last_chunk = index
                 .chunk_from_offset(range.end)
@@ -447,7 +447,7 @@ async fn compare_file(
                 } else {
                     let content_identical = compare_file_contents(file_a, file_b).await?;
                     if content_identical && !changed.any_without_mtime() {
-                        // If the content is identical and nothing, exluding mtime,
+                        // If the content is identical and nothing, excluding mtime,
                         // has changed, we don't consider the entry as modified.
                         changed.mtime = false;
                     }
@@ -792,7 +792,7 @@ impl FileEntryPrinter {
         Ok(())
     }
 
-    /// Print a file entry, including `changed` indicators and column seperators
+    /// Print a file entry, including `changed` indicators and column separators
     pub fn print_file_entry(
         &mut self,
         entry: &FileEntry,

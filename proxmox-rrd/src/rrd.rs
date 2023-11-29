@@ -147,7 +147,7 @@ impl DataSource {
                 // we update last_value anyways, so that we can compute the diff
                 // next time.
                 self.last_value = value;
-                bail!("conter overflow/reset detected");
+                bail!("counter overflow/reset detected");
             } else {
                 value - self.last_value
             };

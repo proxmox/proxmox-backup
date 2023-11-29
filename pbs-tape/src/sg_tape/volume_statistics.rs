@@ -56,7 +56,7 @@ fn decode_volume_statistics(data: &[u8]) -> Result<Lp17VolumeStatistics, Error> 
     let read_be_counter = |reader: &mut &[u8], len: u8| {
         let len = len as usize;
         if len == 0 || len > 8 {
-            bail!("invalid conter size '{}'", len);
+            bail!("invalid counter size '{}'", len);
         }
         let mut buffer = [0u8; 8];
         reader.read_exact(&mut buffer[..len])?;

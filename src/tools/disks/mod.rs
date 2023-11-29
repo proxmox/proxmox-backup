@@ -635,7 +635,7 @@ pub enum DiskUsageType {
 #[api()]
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-/// Baisc information about a partition
+/// Basic information about a partition
 pub struct PartitionInfo {
     /// The partition name
     pub name: String,

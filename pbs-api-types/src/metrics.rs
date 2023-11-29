@@ -175,7 +175,7 @@ pub enum MetricServerType {
 )]
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "kebab-case")]
-/// Basic information about a metric server thats available for all types
+/// Basic information about a metric server that's available for all types
 pub struct MetricServerInfo {
     pub name: String,
     #[serde(rename = "type")]

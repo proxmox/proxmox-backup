@@ -102,7 +102,7 @@ impl RRDCache {
     /// * cf=average,r=7*86400,n=570 => 10years
     /// * cf=maximum,r=7*86400,n=570 => 10year
     ///
-    /// The resultion data file size is about 80KB.
+    /// The resulting data file size is about 80KB.
     pub fn create_proxmox_backup_default_rrd(dst: DST) -> RRD {
         let rra_list = vec![
             // 1 min * 1440 => 1 day
@@ -207,7 +207,7 @@ impl RRDCache {
 
     /// Extract data from cached RRD
     ///
-    /// `start`: Start time. If not sepecified, we simply extract 10 data points.
+    /// `start`: Start time. If not specified, we simply extract 10 data points.
     ///
     /// `end`: End time. Default is to use the current time.
     pub fn extract_cached_data(

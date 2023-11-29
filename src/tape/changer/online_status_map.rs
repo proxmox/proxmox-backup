@@ -46,12 +46,12 @@ impl OnlineStatusMap {
         })
     }
 
-    /// Returns the assiciated changer name for a media.
+    /// Returns the associated changer name for a media.
     pub fn lookup_changer(&self, uuid: &Uuid) -> Option<&String> {
         self.changer_map.get(uuid)
     }
 
-    /// Returns the map which assiciates media uuids with changer names.
+    /// Returns the map which associates media uuids with changer names.
     pub fn changer_map(&self) -> &HashMap<Uuid, String> {
         &self.changer_map
     }

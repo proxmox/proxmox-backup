@@ -141,7 +141,7 @@ Ext.define('PBS.form.GroupFilter', {
 	    view.dsStore.each(record => recs.push(record.data));
 	    group.getStore().setData(recs);
 
-	    // add a widget reference to the record so we can acces them from the other column
+	    // add a widget reference to the record so we can access them from the other column
 	    rec.widgets = {
 		type,
 		regex,

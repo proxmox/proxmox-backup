@@ -1034,7 +1034,7 @@ async fn create_backup(
     }
 
     if dry_run {
-        log::info!("dry-run: no upload happend");
+        log::info!("dry-run: no upload happened");
         return Ok(Value::Null);
     }
 

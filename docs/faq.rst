@@ -37,7 +37,7 @@ How can I upgrade Proxmox Backup Server to the next point release?
 Minor version upgrades, for example upgrading from Proxmox Backup Server in
 version 3.1 to 3.2 or 3.3, can be done just like any normal update.
 But, you should still check the `release notes
-<https://pbs.proxmox.com/wiki/index.php/Roadmap>`_ for any relevant noteable,
+<https://pbs.proxmox.com/wiki/index.php/Roadmap>`_ for any relevant notable,
 or breaking change.
 
 For the update itself use either the Web UI *Node -> Updates* panel or
@@ -112,6 +112,6 @@ consumed and the impact on the network. Each backup still references all
 data and such is a full backup. For details see the
 :ref:`Technical Overview <tech_design_overview>`
 
-.. todo:: document our stabillity guarantees, i.e., the separate one for, in
+.. todo:: document our stability guarantees, i.e., the separate one for, in
    increasing duration of how long we'll support it: api compat, backup
    protocol compat and backup format compat

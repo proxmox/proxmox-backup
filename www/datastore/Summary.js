@@ -4,7 +4,7 @@ Ext.define('pve-rrd-datastore', {
 	'used',
 	'total',
 	{
-	    name: 'unpriv-total', // Can't resuse 'total' here as that creates a stack overflow
+	    name: 'unpriv-total', // Can't reuse 'total' here as that creates a stack overflow
 	    calculate: function(data) {
 		let used = data.used;
 		let avail = data.available;

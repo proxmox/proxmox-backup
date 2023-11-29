@@ -195,7 +195,7 @@ pub enum DatastoreFSyncLevel {
     /// while reducing the impact on many file systems in contrast to the file level sync.
     /// Depending on the setup, it might have a negative impact on unrelated write operations
     /// of the underlying filesystem, but it is generally a good compromise between performance
-    /// and consitency.
+    /// and consistency.
     #[default]
     Filesystem,
 }

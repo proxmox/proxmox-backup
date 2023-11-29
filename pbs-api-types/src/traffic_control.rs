@@ -8,7 +8,7 @@ use crate::{
 };
 
 pub const TRAFFIC_CONTROL_TIMEFRAME_SCHEMA: Schema =
-    StringSchema::new("Timeframe to specify when the rule is actice.")
+    StringSchema::new("Timeframe to specify when the rule is active.")
         .format(&DAILY_DURATION_FORMAT)
         .schema();
 

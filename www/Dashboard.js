@@ -71,7 +71,7 @@ Ext.define('PBS.Dashboard', {
 	    let me = this;
 	    let view = me.getView();
 	    let status = records[0].data.status || 'unknown';
-	    // 2 = all good, 1 = different leves, 0 = none
+	    // 2 = all good, 1 = different levels, 0 = none
 	    let subscriptionActive = status.toLowerCase() === 'active';
 	    let subStatus = status.toLowerCase() === 'active' ? 2 : 0;
 	    me.lookup('subscription').setSubStatus(subStatus);

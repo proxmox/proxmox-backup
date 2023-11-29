@@ -217,7 +217,7 @@ impl LdapAuthenticator {
     }
 }
 
-/// Lookup the autenticator for the specified realm
+/// Lookup the authenticator for the specified realm
 pub(crate) fn lookup_authenticator(
     realm: &RealmRef,
 ) -> Result<Box<dyn Authenticator + Send + Sync>, Error> {

@@ -921,7 +921,7 @@ where
                     tarencoder
                         .add_entry(&mut header, path, tokio::io::empty())
                         .await
-                        .context("coult not send fifo entry")?;
+                        .context("could not send fifo entry")?;
                 }
                 EntryKind::Directory => {
                     log::debug!("adding '{}' to tar", path.display());

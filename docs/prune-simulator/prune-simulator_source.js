@@ -749,7 +749,7 @@ Ext.onReady(function() {
 					    fieldLabel: 'End Time',
 					    allowBlank: false,
 					    format: 'H:i',
-					    // cant bind value because ExtJS sets the year to 2008 to
+					    // can't bind value because ExtJS sets the year to 2008 to
 					    // protect against DST issues and date picker zeroes hour/minute
 					    value: vm.get('now'),
 					    listeners: {

@@ -124,10 +124,10 @@ pub fn update_rrd(path: String, time: Option<u64>, value: f64) -> Result<(), Err
                type: CF,
            },
            resolution: {
-               description: "Time resulution",
+               description: "Time resolution",
            },
            start: {
-               description: "Start time. If not sepecified, we simply extract 10 data points.",
+               description: "Start time. If not specified, we simply extract 10 data points.",
                optional: true,
            },
            end: {
@@ -292,11 +292,11 @@ pub fn resize_rrd(path: String, rra_index: usize, slots: i64) -> Result<(), Erro
     let new_slots = (rra.data.len() as i64) + slots;
 
     if new_slots < 1 {
-        bail!("numer of new slots is too small ('{}' < 1)", new_slots);
+        bail!("number of new slots is too small ('{}' < 1)", new_slots);
     }
 
     if new_slots > 1024 * 1024 {
-        bail!("numer of new slots is too big ('{}' > 1M)", new_slots);
+        bail!("number of new slots is too big ('{}' > 1M)", new_slots);
     }
 
     let rra_end = rra.slot_end_time(rrd.source.last_update as u64);

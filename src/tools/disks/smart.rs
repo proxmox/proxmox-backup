@@ -25,7 +25,7 @@ pub enum SmartStatus {
 pub struct SmartAttribute {
     /// Attribute name
     name: String,
-    // FIXME: remove value with next major relase (PBS 3.0)
+    // FIXME: remove value with next major release (PBS 3.0)
     /// duplicate of raw - kept for API stability
     value: String,
     /// Attribute raw value

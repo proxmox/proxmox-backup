@@ -212,7 +212,7 @@ impl Checker {
             self.output.log_warn(
                 "proxmox-boot-tool is used for bootloader configuration in uefi mode \
                  but the separate systemd-boot package, is not installed.\n\
-                 initializing new ESPs will not work unitl the package is installed.",
+                 initializing new ESPs will not work until the package is installed.",
             )?;
             return Ok(());
         } else if !Path::new("/usr/share/doc/grub-efi-amd64/changelog.Debian.gz").is_file() {

@@ -17,7 +17,7 @@ use pbs_config::metrics;
 async fn test_server(address: &str) -> Result<(), Error> {
     test_influxdb_udp(address)
         .await
-        .map_err(|err| format_err!("cannot conect to {}: {}", address, err))
+        .map_err(|err| format_err!("cannot connect to {}: {}", address, err))
 }
 
 #[api(
