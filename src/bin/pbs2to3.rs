@@ -191,34 +191,40 @@ impl Checker {
         self.output
             .log_info("Checking bootloader configuration...")?;
 
-        // PBS packages version check needs to be run before
-        if !self.upgraded {
-            self.output
-                .log_skip("not yet upgraded, no need to check the presence of systemd-boot")?;
-        }
-
-        if !Path::new("/etc/kernel/proxmox-boot-uuids").is_file() {
-            self.output
-                .log_skip("proxmox-boot-tool not used for bootloader configuration")?;
-            return Ok(());
-        }
-
         if !Path::new("/sys/firmware/efi").is_dir() {
             self.output
                 .log_skip("System booted in legacy-mode - no need for systemd-boot")?;
             return Ok(());
         }
 
-        if Path::new("/usr/share/doc/systemd-boot/changelog.Debian.gz").is_file() {
-            self.output.log_pass("systemd-boot is installed")?;
-        } else {
+        if Path::new("/etc/kernel/proxmox-boot-uuids").is_file() {
+            // PBS packages version check needs to be run before
+            if !self.upgraded {
+                self.output
+                    .log_skip("not yet upgraded, no need to check the presence of systemd-boot")?;
+                return Ok(());
+            }
+            if Path::new("/usr/share/doc/systemd-boot/changelog.Debian.gz").is_file() {
+                self.output.log_pass("bootloader packages installed correctly")?;
+                return Ok(());
+            }
             self.output.log_warn(
                 "proxmox-boot-tool is used for bootloader configuration in uefi mode \
-                 but the separate systemd-boot package, existing in Debian Bookworm \
-                 is not installed.\n\
+                 but the separate systemd-boot package, is not installed.\n\
                  initializing new ESPs will not work unitl the package is installed.",
             )?;
+            return Ok(());
+        } else if !Path::new("/usr/share/doc/grub-efi-amd64/changelog.Debian.gz").is_file() {
+            self.output.log_warn(
+            "System booted in uefi mode but grub-efi-amd64 meta-package not installed, \
+             new grub versions will not be installed to /boot/efi!
+             Install grub-efi-amd64."
+            )?;
+            return Ok(());
+        } else {
+            self.output.log_pass("bootloader packages installed correctly")?;
         }
+
         Ok(())
     }
 
