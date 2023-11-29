@@ -1121,17 +1121,8 @@ pub fn wipe_blockdev(disk: &Disk, worker: Arc<WorkerTask>) -> Result<(), Error> 
         Some(path) => path,
         None => bail!("disk {:?} has no node in /dev", disk.syspath()),
     };
-    let disk_path_str = match disk_path.to_str() {
-        Some(path) => path,
-        None => bail!("disk {:?} could not transform into a str", disk.syspath()),
-    };
 
-    let mut is_partition = false;
-    for disk_info in get_lsblk_info()?.iter() {
-        if disk_info.path == disk_path_str && disk_info.partition_type.is_some() {
-            is_partition = true;
-        }
-    }
+    let is_partition = disk.is_partition();
 
     let mut to_wipe: Vec<PathBuf> = Vec::new();
 
