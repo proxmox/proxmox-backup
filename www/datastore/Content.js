@@ -1313,6 +1313,7 @@ Ext.define('PBS.datastore.GroupCmdMenu', {
 		hidden: '{!onPrune}',
 	    },
 	},
+	{ xtype: 'menuseparator' },
 	{
 	    text: gettext('Remove'),
 	    iconCls: 'fa critical fa-trash-o',
@@ -1351,6 +1352,7 @@ Ext.define('PBS.datastore.SnapshotCmdMenu', {
 		disabled: '{!onProtectionChange}',
 	    },
 	},
+	{ xtype: 'menuseparator' },
 	{
 	    text: gettext('Remove'),
 	    iconCls: 'fa critical fa-trash-o',
