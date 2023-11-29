@@ -13,6 +13,7 @@ Ext.define('PBS.window.DatastoreRepoInfo', {
 
     cbindData: function() {
 	let me = this;
+	let fingerprint = Proxmox.Fingerprint;
 	let host = window.location.hostname;
 	let hostname = host;
 	if (window.location.port.toString() !== "8007") {
@@ -26,6 +27,7 @@ Ext.define('PBS.window.DatastoreRepoInfo', {
 	return {
 	    datastore,
 	    hostname,
+	    fingerprint,
 	    repository,
 	    repositoryWithUser,
 	};
@@ -47,6 +49,13 @@ Ext.define('PBS.window.DatastoreRepoInfo', {
 	    fieldLabel: gettext('Hostname/IP'),
 	    cbind: {
 		value: '{hostname}',
+	    },
+	},
+	{
+	    fieldLabel: gettext('Fingerprint'),
+	    cbind: {
+		value: '{fingerprint}',
+		hidden: '{!fingerprint}',
 	    },
 	},
 	{

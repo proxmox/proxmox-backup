@@ -184,6 +184,17 @@ Ext.define('PBS.MainView', {
 		interval: 15*60*1000,
 	    });
 
+	    Proxmox.Utils.API2Request({
+		url: `/api2/extjs/nodes/localhost/status`,
+		success: function({ result }) {
+		    if (result?.data?.info?.fingerprint) {
+			Proxmox.Fingerprint = result.data.info.fingerprint;
+		    }
+		},
+		failure: function() {
+		    // silently ignore errors
+		},
+	    });
 
 	    // select treeitem and load page from url fragment, if set
 	    let token = Ext.util.History.getToken() || 'pbsDashboard';
