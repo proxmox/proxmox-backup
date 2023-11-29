@@ -214,6 +214,12 @@ struct DiskInfo {
     serial: OnceCell<Option<OsString>>,
     // for perl: #[serde(skip_serializing)]
     partition_table_type: OnceCell<Option<OsString>>,
+    // for perl: #[serde(skip_serializing)]
+    partition_entry_scheme: OnceCell<Option<OsString>>,
+    // for perl: #[serde(skip_serializing)]
+    partition_entry_uuid: OnceCell<Option<OsString>>,
+    // for perl: #[serde(skip_serializing)]
+    partition_entry_type: OnceCell<Option<OsString>>,
     gpt: OnceCell<bool>,
     // ???
     bus: OnceCell<Option<OsString>>,
@@ -410,6 +416,50 @@ impl Disk {
                 .map(|s| s == "gpt")
                 .unwrap_or(false)
         })
+    }
+
+    /// Get the partitioning scheme of which this device is a partition.
+    pub fn partition_entry_scheme(&self) -> Option<&OsStr> {
+        self.info
+            .partition_entry_scheme
+            .get_or_init(|| {
+                self.device
+                    .property_value("ID_PART_ENTRY_SCHEME")
+                    .map(|v| v.to_owned())
+            })
+            .as_ref()
+            .map(OsString::as_os_str)
+    }
+
+    /// Check if this is a partition.
+    pub fn is_partition(&self) -> bool {
+        self.partition_entry_scheme().is_some()
+    }
+
+    /// Get the type of partition entry (ie. type UUID from the entry in the GPT partition table).
+    pub fn partition_entry_type(&self) -> Option<&OsStr> {
+        self.info
+            .partition_entry_type
+            .get_or_init(|| {
+                self.device
+                    .property_value("ID_PART_ENTRY_TYPE")
+                    .map(|v| v.to_owned())
+            })
+            .as_ref()
+            .map(OsString::as_os_str)
+    }
+
+    /// Get the partition entry UUID (ie. the UUID from the entry in the GPT partition table).
+    pub fn partition_entry_uuid(&self) -> Option<&OsStr> {
+        self.info
+            .partition_entry_uuid
+            .get_or_init(|| {
+                self.device
+                    .property_value("ID_PART_ENTRY_UUID")
+                    .map(|v| v.to_owned())
+            })
+            .as_ref()
+            .map(OsString::as_os_str)
     }
 
     /// Get the bus type used for this disk.
