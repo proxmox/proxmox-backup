@@ -1,3 +1,32 @@
+rust-proxmox-backup (3.1.0-1) bookworm; urgency=medium
+
+  * ui: fix some edge cases with editing local sync jobs
+
+  * ui: datastore content: add context menu to groups and snapshots
+
+  * fix #3690: support wiping disks
+    - api: add endpoint for wipe block devices
+    - manager cli: add wipe commands to disk group
+    - ui: enable wipe-disk feature in system disk view
+
+  * ui: add 'keep configuration' checkbox to datastore removal window
+
+  * docs: add further secure boot information
+
+  * ui: disable rate-limit for local sync jobs for now
+
+  * pbs2to3: add check for dkms modules
+
+  * pbs2to3: check for proper grub meta-package for boot-mode
+
+  * ui: dashboard: show the current boot-mode
+
+  * ui: dashboard: nicely display kernel version
+
+  * ui: add 'show connection information' button for datastores
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 29 Nov 2023 17:55:22 +0100
+
 rust-proxmox-backup (3.0.5-1) bookworm; urgency=medium
 
   * ui: tape restore: fix default namespace mapping
