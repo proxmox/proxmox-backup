@@ -178,6 +178,7 @@ Ext.define('PBS.window.SyncJobEdit', {
 				}
 
 				let isLocalSync = radio.location === 'local';
+				rateLimitField.setDisabled(isLocalSync);
 				remoteField.allowBlank = isLocalSync;
 				remoteField.setDisabled(isLocalSync);
 				storeField.setDisabled(!isLocalSync && !remoteField.value);
