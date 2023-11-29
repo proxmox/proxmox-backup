@@ -1,7 +1,6 @@
 //! Tools and utilities
 //!
 //! This is a collection of small and useful tools.
-use std::any::Any;
 
 use anyhow::{bail, Error};
 
@@ -39,19 +38,6 @@ pub fn detect_modified_configuration_file(
         bail!("detected modified configuration - file changed by other user? Try again.");
     }
     Ok(())
-}
-
-/// An easy way to convert types to Any
-///
-/// Mostly useful to downcast trait objects (see RpcEnvironment).
-pub trait AsAny {
-    fn as_any(&self) -> &dyn Any;
-}
-
-impl<T: Any> AsAny for T {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 /// The default 2 hours are far too long for PBS
