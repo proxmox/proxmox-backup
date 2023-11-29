@@ -1,3 +1,5 @@
+use std::ffi::OsStr;
+
 use proxmox_schema::*;
 use serde::{Deserialize, Serialize};
 
@@ -38,6 +40,40 @@ pub struct NodeInformation {
     pub fingerprint: String,
 }
 
+#[api]
+#[derive(Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+/// The current kernel version (output of `uname`)
+pub struct KernelVersionInformation {
+    /// The systemname/nodename
+    pub sysname: String,
+    /// The kernel release number
+    pub release: String,
+    /// The kernel version
+    pub version: String,
+    /// The machine architecture
+    pub machine: String,
+}
+
+impl KernelVersionInformation {
+    pub fn from_uname_parts(
+        sysname: &OsStr,
+        release: &OsStr,
+        version: &OsStr,
+        machine: &OsStr,
+    ) -> Self {
+        KernelVersionInformation {
+            sysname: sysname.to_str().map(String::from).unwrap_or_default(),
+            release: release.to_str().map(String::from).unwrap_or_default(),
+            version: version.to_str().map(String::from).unwrap_or_default(),
+            machine: machine.to_str().map(String::from).unwrap_or_default(),
+        }
+    }
+
+    pub fn get_legacy(&self) -> String {
+        format!("{} {} {}", self.sysname, self.release, self.version)
+    }
+}
 
 #[api]
 #[derive(Serialize, Deserialize, Copy, Clone)]
@@ -111,7 +147,9 @@ pub struct NodeStatus {
     pub uptime: u64,
     /// Load for 1, 5 and 15 minutes.
     pub loadavg: [f64; 3],
-    /// The current kernel version.
+    /// The current kernel version (NEW struct type).
+    pub current_kernel: KernelVersionInformation,
+    /// The current kernel version (LEGACY string type).
     pub kversion: String,
     /// Total CPU usage since last query.
     pub cpu: f64,

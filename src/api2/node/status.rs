@@ -1,4 +1,3 @@
-use std::os::unix::ffi::OsStrExt;
 use std::process::Command;
 
 use anyhow::{bail, format_err, Error};
@@ -11,8 +10,8 @@ use proxmox_router::{ApiMethod, Permission, Router, RpcEnvironment};
 use proxmox_schema::api;
 
 use pbs_api_types::{
-    BootModeInformation, NodePowerCommand, StorageStatus, NODE_SCHEMA, PRIV_SYS_AUDIT,
-    PRIV_SYS_POWER_MANAGEMENT,
+    BootModeInformation, KernelVersionInformation, NodePowerCommand, StorageStatus, NODE_SCHEMA,
+    PRIV_SYS_AUDIT, PRIV_SYS_POWER_MANAGEMENT,
 };
 
 use pbs_api_types::{
@@ -92,11 +91,11 @@ async fn get_status(
     let cpuinfo = procfs_to_node_cpu_info(cpuinfo);
 
     let uname = nix::sys::utsname::uname()?;
-    let kversion = format!(
-        "{} {} {}",
-        std::str::from_utf8(uname.sysname().as_bytes())?,
-        std::str::from_utf8(uname.release().as_bytes())?,
-        std::str::from_utf8(uname.version().as_bytes())?
+    let kernel_version = KernelVersionInformation::from_uname_parts(
+        uname.sysname(),
+        uname.release(),
+        uname.version(),
+        uname.machine(),
     );
 
     let disk = crate::tools::fs::fs_info_static(proxmox_lang::c_str!("/")).await?;
@@ -113,7 +112,8 @@ async fn get_status(
         },
         uptime: procfs::read_proc_uptime()?.0 as u64,
         loadavg,
-        kversion,
+        kversion: kernel_version.get_legacy(),
+        current_kernel: kernel_version,
         cpuinfo,
         cpu,
         wait,
