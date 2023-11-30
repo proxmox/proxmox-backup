@@ -1,3 +1,11 @@
+rust-proxmox-backup (3.1.2-1) bookworm; urgency=medium
+
+  * sync: fix recent regression with recursive remote sync
+
+  * sync: fix source store+namespace printing to refer to the actual namespace
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 30 Nov 2023 11:56:43 +0100
+
 rust-proxmox-backup (3.1.1-1) bookworm; urgency=medium
 
   * ui: fix deleting datastore without 'keep-job-configs'
