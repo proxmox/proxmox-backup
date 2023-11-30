@@ -187,7 +187,7 @@ impl PullSource for RemoteSource {
 
     async fn list_backup_dirs(
         &self,
-        _namespace: &BackupNamespace,
+        namespace: &BackupNamespace,
         group: &BackupGroup,
         worker: &WorkerTask,
     ) -> Result<Vec<BackupDir>, Error> {
@@ -198,8 +198,8 @@ impl PullSource for RemoteSource {
             "backup-id": group.id,
         });
 
-        if !self.ns.is_root() {
-            args["ns"] = serde_json::to_value(&self.ns)?;
+        if !namespace.is_root() {
+            args["ns"] = serde_json::to_value(&namespace)?;
         }
 
         self.client.login().await?;
