@@ -10,6 +10,7 @@ Ext.define('PBS.window.SafeDatastoreDestroy', {
     viewModel: {
 	data: {
 	    'destroyData': 0,
+	    'keepJobConfigs': 0,
 	},
 	formulas: {
 	    destroyNote: get => get('destroyData')
