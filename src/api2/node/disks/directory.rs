@@ -1,6 +1,7 @@
 use ::serde::{Deserialize, Serialize};
 use anyhow::{bail, Error};
 use serde_json::json;
+use std::os::linux::fs::MetadataExt;
 
 use proxmox_router::{Permission, Router, RpcEnvironment, RpcEnvironmentType};
 use proxmox_schema::api;
@@ -155,13 +156,21 @@ pub fn create_datastore_disk(
 
     let mount_point = format!("{}{}", BASE_MOUNT_DIR, &name);
 
-    // check if the default path does exist already and bail if it does
+    // check if the default path exists already.
+    // bail if it is not empty or another filesystem mounted on top
     let default_path = std::path::PathBuf::from(&mount_point);
 
     match std::fs::metadata(&default_path) {
         Err(_) => {} // path does not exist
-        Ok(_) => {
-            bail!("path {:?} already exists", default_path);
+        Ok(stat) => {
+            let basedir_dev = std::fs::metadata(BASE_MOUNT_DIR)?.st_dev();
+            if stat.st_dev() != basedir_dev {
+                bail!("path {default_path:?} already exists and is mountpoint");
+            }
+            let is_empty = default_path.read_dir()?.next().is_none();
+            if !is_empty {
+                bail!("path {default_path:?} already exists and is not empty");
+            }
         }
     }
 
