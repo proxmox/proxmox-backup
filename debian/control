@@ -163,6 +163,7 @@ Rules-Requires-Root: binary-targets
 Package: proxmox-backup-server
 Architecture: any
 Depends: fonts-font-awesome,
+         gdisk,
          libjs-extjs (>= 7~),
          libjs-qrcodejs (>= 1.20201119),
          libproxmox-acme-plugins,
