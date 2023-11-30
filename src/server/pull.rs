@@ -91,7 +91,7 @@ trait PullSource: Send + Sync {
         worker: &WorkerTask,
     ) -> Result<Vec<BackupDir>, Error>;
     fn get_ns(&self) -> BackupNamespace;
-    fn print_store_and_ns(&self) -> String;
+    fn get_store(&self) -> &str;
 
     /// Returns a reader for reading data from a specific backup directory.
     async fn reader(
@@ -229,8 +229,8 @@ impl PullSource for RemoteSource {
         self.ns.clone()
     }
 
-    fn print_store_and_ns(&self) -> String {
-        print_store_and_ns(self.repo.store(), &self.ns)
+    fn get_store(&self) -> &str {
+        &self.repo.store()
     }
 
     async fn reader(
@@ -299,8 +299,8 @@ impl PullSource for LocalSource {
         self.ns.clone()
     }
 
-    fn print_store_and_ns(&self) -> String {
-        print_store_and_ns(self.store.name(), &self.ns)
+    fn get_store(&self) -> &str {
+        self.store.name()
     }
 
     async fn reader(
@@ -1269,7 +1269,7 @@ pub(crate) async fn pull_store(
     let mut synced_ns = HashSet::with_capacity(namespaces.len());
 
     for namespace in namespaces {
-        let source_store_ns_str = params.source.print_store_and_ns();
+        let source_store_ns_str = print_store_and_ns(params.source.get_store(), &namespace);
 
         let target_ns = namespace.map_prefix(&params.source.get_ns(), &params.target.ns)?;
         let target_store_ns_str = print_store_and_ns(params.target.store.name(), &target_ns);
