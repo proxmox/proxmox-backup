@@ -79,7 +79,7 @@ pub struct RemoteConfig {
 pub struct Remote {
     pub name: String,
     // Note: The stored password is base64 encoded
-    #[serde(skip_serializing_if = "String::is_empty")]
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     #[serde(with = "proxmox_serde::string_as_base64")]
     pub password: String,
     #[serde(flatten)]
