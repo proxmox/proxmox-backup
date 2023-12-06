@@ -217,8 +217,8 @@ fn register_account(
     });
 
     // TODO: this should be done via the api definition, but
-    // the api macro currently lacks this ability (2023-11-06)
-    if eab_kid.is_some() ^ eab_hmac_key.is_some() {
+    // the api schema currently lacks this ability (2023-11-06)
+    if eab_kid.is_some() != eab_hmac_key.is_some() {
         http_bail!(
             BAD_REQUEST,
             "either both or none of 'eab_kid' and 'eab_hmac_key' have to be set."
