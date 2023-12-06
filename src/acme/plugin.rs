@@ -9,7 +9,7 @@ use hyper::{Body, Request, Response};
 use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWriteExt, BufReader};
 use tokio::process::Command;
 
-use proxmox_acme_rs::{Authorization, Challenge};
+use proxmox_acme::{Authorization, Challenge};
 
 use crate::acme::AcmeClient;
 use crate::api2::types::AcmeDomain;

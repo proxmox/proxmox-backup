@@ -10,11 +10,11 @@ use hyper::{Body, Request};
 use nix::sys::stat::Mode;
 use serde::{Deserialize, Serialize};
 
-use proxmox_acme_rs::account::AccountCreator;
-use proxmox_acme_rs::account::AccountData as AcmeAccountData;
-use proxmox_acme_rs::order::{Order, OrderData};
-use proxmox_acme_rs::Request as AcmeRequest;
-use proxmox_acme_rs::{Account, Authorization, Challenge, Directory, Error, ErrorResponse};
+use proxmox_acme::account::AccountCreator;
+use proxmox_acme::account::AccountData as AcmeAccountData;
+use proxmox_acme::order::{Order, OrderData};
+use proxmox_acme::Request as AcmeRequest;
+use proxmox_acme::{Account, Authorization, Challenge, Directory, Error, ErrorResponse};
 use proxmox_http::client::Client;
 use proxmox_sys::fs::{replace_file, CreateOptions};
 
@@ -507,7 +507,7 @@ impl AcmeClient {
             .await
             .map_err(|err| Error::Custom(format!("failed to retrieve response body: {}", err)))?;
 
-        let got_nonce = if let Some(new_nonce) = parts.headers.get(proxmox_acme_rs::REPLAY_NONCE) {
+        let got_nonce = if let Some(new_nonce) = parts.headers.get(proxmox_acme::REPLAY_NONCE) {
             let new_nonce = new_nonce.to_str().map_err(|err| {
                 Error::Client(format!(
                     "received invalid replay-nonce header from ACME server: {}",
@@ -555,7 +555,7 @@ impl AcmeClient {
             ))
         })?;
 
-        if error.ty == proxmox_acme_rs::error::BAD_NONCE {
+        if error.ty == proxmox_acme::error::BAD_NONCE {
             if !got_nonce {
                 return Err(Error::InvalidApi(
                     "badNonce without a new Replay-Nonce header".to_string(),

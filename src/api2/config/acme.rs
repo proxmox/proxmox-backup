@@ -16,8 +16,8 @@ use proxmox_router::{
 use proxmox_schema::{api, param_bail};
 use proxmox_sys::{task_log, task_warn};
 
-use proxmox_acme_rs::account::AccountData as AcmeAccountData;
-use proxmox_acme_rs::Account;
+use proxmox_acme::account::AccountData as AcmeAccountData;
+use proxmox_acme::Account;
 
 use pbs_api_types::{Authid, PRIV_SYS_MODIFY};
 

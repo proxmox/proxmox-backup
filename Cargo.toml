@@ -84,7 +84,7 @@ proxmox-uuid = "1"
 
 # other proxmox crates
 pathpatterns = "0.3"
-proxmox-acme-rs = "0.4"
+proxmox-acme = "0.5"
 pxar = "0.10.2"
 
 # PBS workspace
@@ -227,7 +227,7 @@ proxmox-uuid.workspace = true
 
 # in their respective repo
 pathpatterns.workspace = true
-proxmox-acme-rs.workspace = true
+proxmox-acme.workspace = true
 pxar.workspace = true
 
 # proxmox-backup workspace/internal crates
@@ -271,7 +271,7 @@ proxmox-rrd.workspace = true
 #proxmox-time = { path = "../proxmox/proxmox-time" }
 #proxmox-uuid = { path = "../proxmox/proxmox-uuid" }
 
-#proxmox-acme-rs = { path = "../proxmox-acme-rs" }
+#proxmox-acme = { path = "../proxmox-acme" }
 #pathpatterns = {path = "../pathpatterns" }
 #pxar = { path = "../pxar" }
 

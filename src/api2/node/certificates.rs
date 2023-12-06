@@ -281,8 +281,8 @@ async fn order_certificate(
     worker: Arc<WorkerTask>,
     node_config: &NodeConfig,
 ) -> Result<Option<OrderedCertificate>, Error> {
-    use proxmox_acme_rs::authorization::Status;
-    use proxmox_acme_rs::order::Identifier;
+    use proxmox_acme::authorization::Status;
+    use proxmox_acme::order::Identifier;
 
     let domains = node_config.acme_domains().try_fold(
         Vec::<AcmeDomain>::new(),
@@ -378,12 +378,12 @@ async fn order_certificate(
     task_log!(worker, "All domains validated");
     task_log!(worker, "Creating CSR");
 
-    let csr = proxmox_acme_rs::util::Csr::generate(&identifiers, &Default::default())?;
+    let csr = proxmox_acme::util::Csr::generate(&identifiers, &Default::default())?;
     let mut finalize_error_cnt = 0u8;
     let order_url = &order.location;
     let mut order;
     loop {
-        use proxmox_acme_rs::order::Status;
+        use proxmox_acme::order::Status;
 
         order = acme.get_order(order_url).await?;
 
@@ -453,7 +453,7 @@ async fn request_validation(
     tokio::time::sleep(Duration::from_secs(5)).await;
 
     loop {
-        use proxmox_acme_rs::authorization::Status;
+        use proxmox_acme::authorization::Status;
 
         let auth = acme.get_authorization(auth_url).await?;
         match auth.status {
