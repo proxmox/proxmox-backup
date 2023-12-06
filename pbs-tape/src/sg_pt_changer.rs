@@ -326,7 +326,9 @@ fn get_element<F: AsRawFd>(
 
         let data = execute_scsi_command(sg_raw, &cmd, "read element status (B8h)", retry)?;
 
-        let page = decode_element_status_page(&data, start_element_address)?;
+        let page = decode_element_status_page(&data, start_element_address).map_err(|err| {
+            format_err!("decode element status for {element_type:?} on {start_element_address} failed - {err}")
+        })?;
 
         retry = false; // only retry the first command
 
@@ -679,149 +681,146 @@ fn decode_element_status_page(
     data: &[u8],
     start_element_address: u16,
 ) -> Result<DecodedStatusPage, Error> {
-    proxmox_lang::try_block!({
-        let mut result = DecodedStatusPage {
-            last_element_address: None,
-            transports: Vec::new(),
-            drives: Vec::new(),
-            storage_slots: Vec::new(),
-            import_export_slots: Vec::new(),
-        };
+    let mut result = DecodedStatusPage {
+        last_element_address: None,
+        transports: Vec::new(),
+        drives: Vec::new(),
+        storage_slots: Vec::new(),
+        import_export_slots: Vec::new(),
+    };
 
-        let mut reader = data;
+    let mut reader = data;
 
-        let head: ElementStatusHeader = unsafe { reader.read_be_value()? };
+    let head: ElementStatusHeader = unsafe { reader.read_be_value()? };
 
-        if head.number_of_elements_available == 0 {
-            return Ok(result);
+    if head.number_of_elements_available == 0 {
+        return Ok(result);
+    }
+
+    if head.first_element_address_reported < start_element_address {
+        bail!("got wrong first_element_address_reported"); // sanity check
+    }
+
+    let len = head.byte_count_of_report_available;
+    let len = ((len[0] as usize) << 16) + ((len[1] as usize) << 8) + (len[2] as usize);
+
+    use std::cmp::Ordering;
+    match len.cmp(&reader.len()) {
+        Ordering::Less => reader = &reader[..len],
+        Ordering::Greater => bail!(
+            "wrong amount of data: expected {}, got {}",
+            len,
+            reader.len()
+        ),
+        _ => (),
+    }
+
+    loop {
+        if reader.is_empty() {
+            break;
         }
 
-        if head.first_element_address_reported < start_element_address {
-            bail!("got wrong first_element_address_reported"); // sanity check
+        let subhead: SubHeader = unsafe { reader.read_be_value()? };
+
+        let len = subhead.byte_count_of_descriptor_data_available;
+        let mut len = ((len[0] as usize) << 16) + ((len[1] as usize) << 8) + (len[2] as usize);
+        if len > reader.len() {
+            len = reader.len();
         }
 
-        let len = head.byte_count_of_report_available;
-        let len = ((len[0] as usize) << 16) + ((len[1] as usize) << 8) + (len[2] as usize);
+        let descr_data = reader.read_exact_allocated(len)?;
 
-        use std::cmp::Ordering;
-        match len.cmp(&reader.len()) {
-            Ordering::Less => reader = &reader[..len],
-            Ordering::Greater => bail!(
-                "wrong amount of data: expected {}, got {}",
-                len,
-                reader.len()
-            ),
-            _ => (),
+        let descr_len = subhead.descriptor_length as usize;
+
+        if descr_len == 0 {
+            bail!("got elements, but descriptor length 0");
         }
 
-        loop {
-            if reader.is_empty() {
-                break;
-            }
+        for descriptor in descr_data.chunks_exact(descr_len) {
+            let mut reader = descriptor;
 
-            let subhead: SubHeader = unsafe { reader.read_be_value()? };
+            match subhead.element_type_code {
+                1 => {
+                    let desc: TransportDescriptor = unsafe { reader.read_be_value()? };
 
-            let len = subhead.byte_count_of_descriptor_data_available;
-            let mut len = ((len[0] as usize) << 16) + ((len[1] as usize) << 8) + (len[2] as usize);
-            if len > reader.len() {
-                len = reader.len();
-            }
+                    let full = (desc.flags1 & 1) != 0;
+                    let volume_tag = subhead.parse_optional_volume_tag(&mut reader, full)?;
 
-            let descr_data = reader.read_exact_allocated(len)?;
+                    subhead.skip_alternate_volume_tag(&mut reader)?;
 
-            let descr_len = subhead.descriptor_length as usize;
+                    result.last_element_address = Some(desc.element_address);
 
-            if descr_len == 0 {
-                bail!("got elements, but descriptor length 0");
-            }
-
-            for descriptor in descr_data.chunks_exact(descr_len) {
-                let mut reader = descriptor;
-
-                match subhead.element_type_code {
-                    1 => {
-                        let desc: TransportDescriptor = unsafe { reader.read_be_value()? };
-
-                        let full = (desc.flags1 & 1) != 0;
-                        let volume_tag = subhead.parse_optional_volume_tag(&mut reader, full)?;
-
-                        subhead.skip_alternate_volume_tag(&mut reader)?;
-
-                        result.last_element_address = Some(desc.element_address);
-
-                        let status = TransportElementStatus {
-                            status: create_element_status(full, volume_tag),
-                            element_address: desc.element_address,
-                        };
-                        result.transports.push(status);
-                    }
-                    2 | 3 => {
-                        let desc: StorageDescriptor = unsafe { reader.read_be_value()? };
-
-                        let full = (desc.flags1 & 1) != 0;
-                        let volume_tag = subhead.parse_optional_volume_tag(&mut reader, full)?;
-
-                        subhead.skip_alternate_volume_tag(&mut reader)?;
-
-                        result.last_element_address = Some(desc.element_address);
-
-                        if subhead.element_type_code == 3 {
-                            let status = StorageElementStatus {
-                                import_export: true,
-                                status: create_element_status(full, volume_tag),
-                                element_address: desc.element_address,
-                            };
-                            result.import_export_slots.push(status);
-                        } else {
-                            let status = StorageElementStatus {
-                                import_export: false,
-                                status: create_element_status(full, volume_tag),
-                                element_address: desc.element_address,
-                            };
-                            result.storage_slots.push(status);
-                        }
-                    }
-                    4 => {
-                        let desc: TransferDescriptor = unsafe { reader.read_be_value()? };
-
-                        let loaded_slot = if (desc.flags2 & 128) != 0 {
-                            // SValid
-                            Some(desc.source_storage_element_address as u64)
-                        } else {
-                            None
-                        };
-
-                        let full = (desc.flags1 & 1) != 0;
-                        let volume_tag = subhead.parse_optional_volume_tag(&mut reader, full)?;
-
-                        subhead.skip_alternate_volume_tag(&mut reader)?;
-
-                        let dvcid = decode_dvcid_info(&mut reader).unwrap_or(DvcidInfo {
-                            vendor: None,
-                            model: None,
-                            serial: None,
-                        });
-
-                        result.last_element_address = Some(desc.element_address);
-
-                        let drive = DriveStatus {
-                            loaded_slot,
-                            status: create_element_status(full, volume_tag),
-                            drive_serial_number: dvcid.serial,
-                            vendor: dvcid.vendor,
-                            model: dvcid.model,
-                            element_address: desc.element_address,
-                        };
-                        result.drives.push(drive);
-                    }
-                    code => bail!("got unknown element type code {}", code),
+                    let status = TransportElementStatus {
+                        status: create_element_status(full, volume_tag),
+                        element_address: desc.element_address,
+                    };
+                    result.transports.push(status);
                 }
+                2 | 3 => {
+                    let desc: StorageDescriptor = unsafe { reader.read_be_value()? };
+
+                    let full = (desc.flags1 & 1) != 0;
+                    let volume_tag = subhead.parse_optional_volume_tag(&mut reader, full)?;
+
+                    subhead.skip_alternate_volume_tag(&mut reader)?;
+
+                    result.last_element_address = Some(desc.element_address);
+
+                    if subhead.element_type_code == 3 {
+                        let status = StorageElementStatus {
+                            import_export: true,
+                            status: create_element_status(full, volume_tag),
+                            element_address: desc.element_address,
+                        };
+                        result.import_export_slots.push(status);
+                    } else {
+                        let status = StorageElementStatus {
+                            import_export: false,
+                            status: create_element_status(full, volume_tag),
+                            element_address: desc.element_address,
+                        };
+                        result.storage_slots.push(status);
+                    }
+                }
+                4 => {
+                    let desc: TransferDescriptor = unsafe { reader.read_be_value()? };
+
+                    let loaded_slot = if (desc.flags2 & 128) != 0 {
+                        // SValid
+                        Some(desc.source_storage_element_address as u64)
+                    } else {
+                        None
+                    };
+
+                    let full = (desc.flags1 & 1) != 0;
+                    let volume_tag = subhead.parse_optional_volume_tag(&mut reader, full)?;
+
+                    subhead.skip_alternate_volume_tag(&mut reader)?;
+
+                    let dvcid = decode_dvcid_info(&mut reader).unwrap_or(DvcidInfo {
+                        vendor: None,
+                        model: None,
+                        serial: None,
+                    });
+
+                    result.last_element_address = Some(desc.element_address);
+
+                    let drive = DriveStatus {
+                        loaded_slot,
+                        status: create_element_status(full, volume_tag),
+                        drive_serial_number: dvcid.serial,
+                        vendor: dvcid.vendor,
+                        model: dvcid.model,
+                        element_address: desc.element_address,
+                    };
+                    result.drives.push(drive);
+                }
+                code => bail!("got unknown element type code {}", code),
             }
         }
+    }
 
-        Ok(result)
-    })
-    .map_err(|err: Error| format_err!("decode element status failed - {}", err))
+    Ok(result)
 }
 
 /// Open the device for read/write, returns the file handle
