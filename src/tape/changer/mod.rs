@@ -384,8 +384,7 @@ fn load_changer_state_cache(changer: &str) -> Result<Option<MtxStatus>, Error> {
 
 /// Implements MediaChange using 'mtx' linux cli tool
 pub struct MtxMediaChanger {
-    drive_name: String, // used for error messages
-    drive_number: u64,
+    drive: LtoTapeDrive,
     config: ScsiTapeChanger,
 }
 
@@ -398,8 +397,7 @@ impl MtxMediaChanger {
         };
 
         Ok(Self {
-            drive_name: drive_config.name.clone(),
-            drive_number: drive_config.changer_drivenum.unwrap_or(0),
+            drive: drive_config.clone(),
             config: changer_config,
         })
     }
@@ -407,11 +405,11 @@ impl MtxMediaChanger {
 
 impl MediaChange for MtxMediaChanger {
     fn drive_number(&self) -> u64 {
-        self.drive_number
+        self.drive.changer_drivenum.unwrap_or(0)
     }
 
     fn drive_name(&self) -> &str {
-        &self.drive_name
+        &self.drive.name
     }
 
     fn status(&mut self) -> Result<MtxStatus, Error> {
@@ -423,12 +421,12 @@ impl MediaChange for MtxMediaChanger {
     }
 
     fn load_media_from_slot(&mut self, slot: u64) -> Result<MtxStatus, Error> {
-        self.config.load_slot(slot, self.drive_number)
+        self.config.load_slot(slot, self.drive_number())
     }
 
     fn unload_media(&mut self, target_slot: Option<u64>) -> Result<MtxStatus, Error> {
         if let Some(target_slot) = target_slot {
-            self.config.unload(target_slot, self.drive_number)
+            self.config.unload(target_slot, self.drive_number())
         } else {
             let status = self.status()?;
             self.unload_to_free_slot(status)

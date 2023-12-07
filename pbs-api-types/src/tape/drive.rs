@@ -59,7 +59,7 @@ pub struct VirtualTapeDrive {
         },
     }
 )]
-#[derive(Serialize, Deserialize, Updater)]
+#[derive(Serialize, Deserialize, Updater, Clone)]
 #[serde(rename_all = "kebab-case")]
 /// Lto SCSI tape driver
 pub struct LtoTapeDrive {
