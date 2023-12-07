@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 use proxmox_schema::{
-    api, ApiStringFormat, ArraySchema, IntegerSchema, Schema, StringSchema, Updater,
+    api, ApiStringFormat, ApiType, ArraySchema, IntegerSchema, Schema, StringSchema, Updater,
 };
 
 use crate::{OptionalDeviceIdentification, PROXMOX_SAFE_ID_FORMAT};
@@ -39,6 +39,26 @@ Import/Export, i.e. any media in those slots are considered to be
 .format(&ApiStringFormat::PropertyString(&SLOT_ARRAY_SCHEMA))
 .schema();
 
+fn is_false(b: &bool) -> bool {
+    !b
+}
+
+#[api]
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+/// Options for Changers
+pub struct ChangerOptions {
+    #[serde(default, skip_serializing_if = "is_false")]
+    /// if set to true, tapes are ejected manually before unloading
+    pub eject_before_unload: bool,
+}
+
+pub const CHANGER_OPTIONS_STRING_SCHEMA: Schema = StringSchema::new("Changer options")
+    .format(&ApiStringFormat::PropertyString(
+        &ChangerOptions::API_SCHEMA,
+    ))
+    .schema();
+
 #[api(
     properties: {
         name: {
@@ -51,6 +71,10 @@ Import/Export, i.e. any media in those slots are considered to be
             schema: EXPORT_SLOT_LIST_SCHEMA,
             optional: true,
         },
+        options: {
+            optional: true,
+            schema: CHANGER_OPTIONS_STRING_SCHEMA,
+        },
     },
 )]
 #[derive(Serialize, Deserialize, Updater)]
@@ -62,6 +86,8 @@ pub struct ScsiTapeChanger {
     pub path: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub export_slots: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub options: Option<String>,
 }
 
 #[api(

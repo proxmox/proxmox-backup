@@ -4,6 +4,7 @@ pub mod mtx;
 
 mod online_status_map;
 pub use online_status_map::*;
+use proxmox_schema::ApiType;
 
 use std::path::PathBuf;
 
@@ -11,9 +12,11 @@ use anyhow::{bail, Error};
 
 use proxmox_sys::fs::{file_read_optional_string, replace_file, CreateOptions};
 
-use pbs_api_types::{LtoTapeDrive, ScsiTapeChanger};
+use pbs_api_types::{ChangerOptions, LtoTapeDrive, ScsiTapeChanger};
 
-use pbs_tape::{sg_pt_changer, ElementStatus, MtxStatus};
+use pbs_tape::{linux_list_drives::open_lto_tape_device, sg_pt_changer, ElementStatus, MtxStatus};
+
+use crate::tape::drive::{LtoTapeHandle, TapeDriver};
 
 /// Interface to SCSI changer devices
 pub trait ScsiMediaChange {
@@ -425,6 +428,20 @@ impl MediaChange for MtxMediaChanger {
     }
 
     fn unload_media(&mut self, target_slot: Option<u64>) -> Result<MtxStatus, Error> {
+        let options: ChangerOptions = serde_json::from_value(
+            ChangerOptions::API_SCHEMA
+                .parse_property_string(self.config.options.as_deref().unwrap_or_default())?,
+        )?;
+
+        if options.eject_before_unload {
+            let file = open_lto_tape_device(&self.drive.path)?;
+            let mut handle = LtoTapeHandle::new(file)?;
+
+            if handle.medium_present() {
+                handle.eject_media()?;
+            }
+        }
+
         if let Some(target_slot) = target_slot {
             self.config.unload(target_slot, self.drive_number())
         } else {

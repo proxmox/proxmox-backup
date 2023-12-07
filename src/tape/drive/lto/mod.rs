@@ -162,6 +162,11 @@ impl LtoTapeHandle {
             .set_medium_removal(true)
             .map_err(|err| format_err!("unlock door failed - {}", err))
     }
+
+    /// Returns if a medium is present
+    pub fn medium_present(&mut self) -> bool {
+        self.sg_tape.test_unit_ready().is_ok()
+    }
 }
 
 impl TapeDriver for LtoTapeHandle {

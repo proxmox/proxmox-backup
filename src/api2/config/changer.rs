@@ -138,6 +138,8 @@ pub fn list_changers(
 pub enum DeletableProperty {
     /// Delete export-slots.
     ExportSlots,
+    /// Delete options.
+    Options,
 }
 
 #[api(
@@ -194,6 +196,9 @@ pub fn update_changer(
                 DeletableProperty::ExportSlots => {
                     data.export_slots = None;
                 }
+                DeletableProperty::Options => {
+                    data.options = None;
+                }
             }
         }
     }
@@ -220,6 +225,10 @@ pub fn update_changer(
             let slots = slots.join(",");
             data.export_slots = Some(slots);
         }
+    }
+
+    if let Some(options) = update.options {
+        data.options = Some(options);
     }
 
     config.set_data(&name, "changer", &data)?;
