@@ -52,12 +52,20 @@ Ext.define('PBS.datastore.DataStoreListSummary', {
 	    vm.set('maintenance', '');
 	}
 
-	let total = statusData.avail + statusData.used;
-	let usage = statusData.used / total;
-	let usagetext = Ext.String.format(gettext('{0} of {1}'),
-	    Proxmox.Utils.format_size(statusData.used, true),
-	    Proxmox.Utils.format_size(total, true),
-	);
+	let usagetext;
+	let usage;
+
+	if (Object.hasOwn(statusData, 'avail') && Object.hasOwn(statusData, 'used')) {
+	    let total = statusData.avail + statusData.used;
+	    usage = statusData.used / total;
+	    usagetext = Ext.String.format(gettext('{0} of {1}'),
+		Proxmox.Utils.format_size(statusData.used, true),
+		Proxmox.Utils.format_size(total, true),
+	    );
+	} else {
+	    usagetext = Ext.String.format(gettext('{0} of {1}'), 0, 0);
+	    usage = 0;
+	}
 
 	let usagePanel = me.lookup('usage');
 	usagePanel.updateValue(usage, usagetext);
