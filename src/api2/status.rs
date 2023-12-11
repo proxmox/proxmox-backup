@@ -68,9 +68,9 @@ pub async fn datastore_status(
 
         let mut entry = DataStoreStatusListItem {
             store: store.clone(),
-            total: status.total as i64,
-            used: status.used as i64,
-            avail: status.available as i64,
+            total: Some(status.total),
+            used: Some(status.used),
+            avail: Some(status.available),
             history: None,
             history_start: None,
             history_delta: None,

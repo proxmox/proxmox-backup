@@ -1302,12 +1302,15 @@ pub struct DataStoreStatus {
 /// Status of a Datastore
 pub struct DataStoreStatusListItem {
     pub store: String,
-    /// The Size of the underlying storage in bytes. (-1 on error)
-    pub total: i64,
-    /// The used bytes of the underlying storage. (-1 on error)
-    pub used: i64,
+    /// The Size of the underlying storage in bytes.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub total: Option<u64>,
+    /// The used bytes of the underlying storage.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub used: Option<u64>,
     /// The available bytes of the underlying storage. (-1 on error)
-    pub avail: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub avail: Option<u64>,
     /// A list of usages of the past (last Month).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub history: Option<Vec<Option<f64>>>,
@@ -1335,9 +1338,9 @@ impl DataStoreStatusListItem {
     pub fn empty(store: &str, err: Option<String>) -> Self {
         DataStoreStatusListItem {
             store: store.to_owned(),
-            total: -1,
-            used: -1,
-            avail: -1,
+            total: None,
+            used: None,
+            avail: None,
             history: None,
             history_start: None,
             history_delta: None,
