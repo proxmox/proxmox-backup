@@ -108,7 +108,7 @@ pub struct MamAttribute {
 }
 
 #[api()]
-#[derive(Serialize, Deserialize, Copy, Clone, Debug)]
+#[derive(Serialize, Deserialize, Copy, Clone, Debug, PartialOrd, PartialEq)]
 pub enum TapeDensity {
     /// Unknown (no media loaded)
     Unknown,
