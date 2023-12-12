@@ -16,7 +16,7 @@ use proxmox_uuid::Uuid;
 
 use pbs_api_types::{
     Authid, DriveListEntry, LabelUuidMap, Lp17VolumeStatistics, LtoDriveAndMediaStatus,
-    LtoTapeDrive, MamAttribute, MediaIdFlat, CHANGER_NAME_SCHEMA, DRIVE_NAME_SCHEMA,
+    LtoTapeDrive, MamAttribute, MediaIdFlat, TapeDensity, CHANGER_NAME_SCHEMA, DRIVE_NAME_SCHEMA,
     MEDIA_LABEL_SCHEMA, MEDIA_POOL_NAME_SCHEMA, UPID_SCHEMA,
 };
 
@@ -308,6 +308,21 @@ pub fn format_media(
             }
 
             let mut handle = open_drive(&config, &drive)?;
+
+            if !fast.unwrap_or(true) {
+                let drive_config: LtoTapeDrive = config.lookup("lto", &drive)?;
+                let file = open_lto_tape_device(&drive_config.path)?;
+                let mut handle = LtoTapeHandle::new(file)?;
+                if let Ok(status) = handle.get_drive_and_media_status() {
+                    if status.density >= TapeDensity::LTO9 {
+                        task_log!(worker, "Slow formatting LTO9+ media.");
+                        task_log!(
+                            worker,
+                            "This can take a very long time due to media optimization."
+                        );
+                    }
+                }
+            }
 
             match handle.read_label() {
                 Err(err) => {
