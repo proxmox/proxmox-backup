@@ -326,6 +326,25 @@ the status output:
  │ slot          │       14 │            │             │
  └───────────────┴──────────┴────────────┴─────────────┘
 
+
+Advanced options
+^^^^^^^^^^^^^^^^
+
+Since not all tape changer behave the same, there is sometimes the need
+for configuring advanced options.
+
+Currently there are the following:
+
+* `eject-before-unload` : This is needed for some changers that require a tape
+  to be ejected before unloading from the drive.
+
+You can set these options with `proxmox-tape` like this:
+
+.. code-block:: console
+
+ # proxmox-tape changer update sl3 --options eject-before-unload=true
+
+
 .. _tape_drive_config:
 
 Tape drives
