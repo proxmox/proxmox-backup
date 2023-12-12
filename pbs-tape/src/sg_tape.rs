@@ -26,7 +26,7 @@ pub use report_density::*;
 use proxmox_io::{ReadExt, WriteExt};
 use proxmox_sys::error::SysResult;
 
-use pbs_api_types::{Lp17VolumeStatistics, LtoDriveAndMediaStatus, MamAttribute};
+use pbs_api_types::{Lp17VolumeStatistics, LtoDriveAndMediaStatus, MamAttribute, TapeDensity};
 
 use crate::{
     sgutils2::{
@@ -197,16 +197,17 @@ impl SgTape {
     /// Format media, single partition
     pub fn format_media(&mut self, fast: bool) -> Result<(), Error> {
         // try to get info about loaded media first
-        let (has_format, is_worm) = match self.read_medium_configuration_page() {
+        let (density, is_worm) = match self.read_medium_configuration_page() {
             Ok((_head, block_descriptor, page)) => {
                 // FORMAT requires LTO5 or newer
-                let has_format = block_descriptor.density_code >= 0x58;
+                let density: TapeDensity = TapeDensity::try_from(block_descriptor.density_code)
+                    .unwrap_or(TapeDensity::Unknown);
                 let is_worm = page.is_worm();
-                (has_format, is_worm)
+                (density, is_worm)
             }
             Err(_) => {
                 // LTO3 and older do not support medium configuration mode page
-                (false, false)
+                (TapeDensity::Unknown, false)
             }
         };
 
@@ -227,14 +228,21 @@ impl SgTape {
             sg_raw.set_timeout(Self::SCSI_TAPE_DEFAULT_TIMEOUT);
             let mut cmd = Vec::new();
 
-            if has_format {
+            if density >= TapeDensity::LTO5 && density <= TapeDensity::LTO8 {
                 cmd.extend([0x04, 0, 0, 0, 0, 0]); // FORMAT
                 sg_raw.do_command(&cmd)?;
                 if !fast {
                     self.erase_media(false)?; // overwrite everything
                 }
+            } else if density >= TapeDensity::LTO9 && !fast {
+                cmd.extend([0x04, 0x01, 0, 0, 0, 0]); // FORMAT, set IMMED
+                sg_raw.do_command(&cmd)?;
+                self.wait_until_ready(Some(60 * 60 * 2)) // 2 hours, max. initialization time
+                    .map_err(|err| format_err!("error waiting for LTO9+ initialization: {err}"))?;
+                self.erase_media(false)?; // overwrite everything
             } else {
                 // try rewind/erase instead
+                // we also do this for LTO9+ to avoid reinitialization on FORMAT(04h)
                 self.erase_media(fast)?
             }
 
