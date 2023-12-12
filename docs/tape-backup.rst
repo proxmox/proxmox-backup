@@ -664,16 +664,16 @@ dust protection than inside a drive:
 
 .. Note:: For failed jobs, the tape remains in the drive.
 
-For tape libraries, the ``export-media`` option moves all tapes from
+For tape libraries, the ``export-media-set`` option moves all tapes from
 the media set to an export slot, making sure that the following backup
 cannot use the tapes. An operator can pick up those tapes and move them
 to a vault.
 
 .. code-block:: console
 
- # proxmox-tape backup-job update job2 --export-media
+ # proxmox-tape backup-job update job2 --export-media-set
 
-.. Note:: The ``export-media`` option can be used to force the start
+.. Note:: The ``export-media-set`` option can be used to force the start
    of a new media set, because tapes from the current set are no
    longer online.
 
