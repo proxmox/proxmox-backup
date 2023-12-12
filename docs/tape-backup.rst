@@ -98,6 +98,31 @@ so it takes 33 hours to read the 12TB needed to fill up an LTO-8 tape. If you wa
 to write to your tape at full speed, please make sure that the source
 datastore is able to deliver that performance (for example, by using SSDs).
 
+LTO-9+ considerations
+~~~~~~~~~~~~~~~~~~~~
+
+Since LTO-9, it is necessary to initialize new media in your drives, this is
+called `Media Optimization`. This usually takes between 40 and 120 minutes per
+medium. It is recommended to initialize your media in this manner with the
+tools provided by your hardware vendor of your drive or changer. Some tape
+changers have a method to 'bulk' initialize your media.
+
+Because of this, formatting tapes is handled differently in Proxmox Backup
+Server to avoid re-optimizing on each format/labelling. If you want to format
+your media for use with the Proxmox Backup Server the first time or after use
+with another program, either use the functionality of your drive/changer, or
+use the 'slow' format on the cli:
+
+.. code-block:: console
+
+ # proxmox-tape format --drive your-drive --fast 0
+
+This will completely remove all pre-existing data and trigger a `Media
+Optimization` pass.
+
+If you format a partitioned LTO-9 medium with the 'fast' method (the default or
+by setting `--fast 1`), only the first partition will be formatted, so make
+sure to use the 'slow' method.
 
 Terminology
 -----------
