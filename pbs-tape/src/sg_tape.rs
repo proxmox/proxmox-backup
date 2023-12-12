@@ -571,9 +571,10 @@ impl SgTape {
         }
     }
 
-    pub fn wait_until_ready(&mut self) -> Result<(), Error> {
+    pub fn wait_until_ready(&mut self, timeout: Option<u64>) -> Result<(), Error> {
         let start = SystemTime::now();
-        let max_wait = std::time::Duration::new(Self::SCSI_TAPE_DEFAULT_TIMEOUT as u64, 0);
+        let timeout = timeout.unwrap_or(Self::SCSI_TAPE_DEFAULT_TIMEOUT as u64);
+        let max_wait = std::time::Duration::new(timeout, 0);
 
         loop {
             match self.test_unit_ready() {

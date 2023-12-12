@@ -55,7 +55,7 @@ pub fn open_lto_tape_drive(config: &LtoTapeDrive) -> Result<LtoTapeHandle, Error
             }
         }
 
-        handle.sg_tape.wait_until_ready()?;
+        handle.sg_tape.wait_until_ready(None)?;
 
         handle.set_default_options()?;
 
