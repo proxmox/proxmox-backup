@@ -247,7 +247,7 @@ pub fn transfer_medium<F: AsRawFd>(
     Ok(())
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 enum ElementType {
     MediumTransport,
     Storage,
