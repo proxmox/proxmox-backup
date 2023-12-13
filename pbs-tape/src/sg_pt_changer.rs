@@ -369,7 +369,7 @@ pub fn read_element_status<F: AsRawFd>(file: &mut F) -> Result<MtxStatus, Error>
     // first, request address assignment (used for sanity checks)
     let setup = read_element_address_assignment(file)?;
 
-    let allocation_len: u32 = 0x10000;
+    let allocation_len: u32 = 0xFFFF; // some changer only use the lower 2 bytes
 
     let mut sg_raw = SgRaw::new(file, allocation_len as usize)?;
     sg_raw.set_timeout(SCSI_CHANGER_DEFAULT_TIMEOUT);
