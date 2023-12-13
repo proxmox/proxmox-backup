@@ -433,7 +433,7 @@ impl MediaChange for MtxMediaChanger {
                 .parse_property_string(self.config.options.as_deref().unwrap_or_default())?,
         )?;
 
-        if options.eject_before_unload {
+        if options.eject_before_unload.unwrap_or(false) {
             let file = open_lto_tape_device(&self.drive.path)?;
             let mut handle = LtoTapeHandle::new(file)?;
 

@@ -39,18 +39,21 @@ Import/Export, i.e. any media in those slots are considered to be
 .format(&ApiStringFormat::PropertyString(&SLOT_ARRAY_SCHEMA))
 .schema();
 
-fn is_false(b: &bool) -> bool {
-    !b
-}
-
-#[api]
+#[api(
+    properties: {
+        "eject-before-unload": {
+            optional: true,
+            default: false,
+        },
+    },
+)]
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 /// Options for Changers
 pub struct ChangerOptions {
-    #[serde(default, skip_serializing_if = "is_false")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     /// if set to true, tapes are ejected manually before unloading
-    pub eject_before_unload: bool,
+    pub eject_before_unload: Option<bool>,
 }
 
 pub const CHANGER_OPTIONS_STRING_SCHEMA: Schema = StringSchema::new("Changer options")
