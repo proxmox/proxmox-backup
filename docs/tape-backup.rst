@@ -367,7 +367,7 @@ You can set these options with `proxmox-tape` like this:
 
 .. code-block:: console
 
- # proxmox-tape changer update sl3 --options eject-before-unload=true
+ # proxmox-tape changer update sl3 --eject-before-unload true
 
 
 .. _tape_drive_config:

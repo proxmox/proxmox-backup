@@ -138,8 +138,8 @@ pub fn list_changers(
 pub enum DeletableProperty {
     /// Delete export-slots.
     ExportSlots,
-    /// Delete options.
-    Options,
+    /// Delete eject-before-unload.
+    EjectBeforeUnload,
 }
 
 #[api(
@@ -196,8 +196,8 @@ pub fn update_changer(
                 DeletableProperty::ExportSlots => {
                     data.export_slots = None;
                 }
-                DeletableProperty::Options => {
-                    data.options = None;
+                DeletableProperty::EjectBeforeUnload => {
+                    data.eject_before_unload = None;
                 }
             }
         }
@@ -227,8 +227,8 @@ pub fn update_changer(
         }
     }
 
-    if let Some(options) = update.options {
-        data.options = Some(options);
+    if let Some(eject_before_unload) = update.eject_before_unload {
+        data.eject_before_unload = Some(eject_before_unload);
     }
 
     config.set_data(&name, "changer", &data)?;

@@ -161,7 +161,7 @@ fn get_config(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<(), Error
     let options = default_table_format_options()
         .column(ColumnConfig::new("name"))
         .column(ColumnConfig::new("path"))
-        .column(ColumnConfig::new("options"))
+        .column(ColumnConfig::new("eject-before-unload"))
         .column(ColumnConfig::new("export-slots"));
 
     format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
