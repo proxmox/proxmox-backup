@@ -151,7 +151,7 @@ Ext.define('PBS.NodeInfoPanel', {
 		    return data.kversion;
 		}
 		let kernel = data['current-kernel'];
-		let buildDate = kernel.version.match(/\((.+)\)\s*$/)[1] ?? 'unknown';
+		let buildDate = kernel.version.match(/\((.+)\)\s*$/)?.[1] ?? 'unknown';
 		return `${kernel.sysname} ${kernel.release} (${buildDate})`;
 	    },
 	    value: '',
