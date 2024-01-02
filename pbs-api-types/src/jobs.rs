@@ -388,7 +388,7 @@ pub struct TapeBackupJobStatus {
 
 #[derive(Clone, Debug)]
 /// Filter for matching `BackupGroup`s, for use with `BackupGroup::filter`.
-pub enum GroupFilter {
+pub enum FilterType {
     /// BackupGroup type - either `vm`, `ct`, or `host`.
     BackupType(BackupType),
     /// Full identifier of BackupGroup, including type
@@ -397,7 +397,7 @@ pub enum GroupFilter {
     Regex(Regex),
 }
 
-impl PartialEq for GroupFilter {
+impl PartialEq for FilterType {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::BackupType(a), Self::BackupType(b)) => a == b,
@@ -408,27 +408,52 @@ impl PartialEq for GroupFilter {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct GroupFilter {
+    pub is_exclude: bool,
+    pub filter_type: FilterType,
+}
+
+impl PartialEq for GroupFilter {
+    fn eq(&self, other: &Self) -> bool {
+        self.filter_type == other.filter_type && self.is_exclude == other.is_exclude
+    }
+}
+
+impl Eq for GroupFilter {}
+
 impl std::str::FromStr for GroupFilter {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.split_once(':') {
-            Some(("group", value)) => BACKUP_GROUP_SCHEMA.parse_simple_value(value).map(|_| GroupFilter::Group(value.to_string())),
-            Some(("type", value)) => Ok(GroupFilter::BackupType(value.parse()?)),
-            Some(("regex", value)) => Ok(GroupFilter::Regex(Regex::new(value)?)),
+        let (is_exclude, type_str) = match s.split_once(':') {
+            Some(("include", value)) => (false, value),
+            Some(("exclude", value)) => (true, value),
+            _ => (false, s),
+        };
+
+        let filter_type = match type_str.split_once(':') {
+            Some(("group", value)) => BACKUP_GROUP_SCHEMA.parse_simple_value(value).map(|_| FilterType::Group(value.to_string())),
+            Some(("type", value)) => Ok(FilterType::BackupType(value.parse()?)),
+            Some(("regex", value)) => Ok(FilterType::Regex(Regex::new(value)?)),
             Some((ty, _value)) => Err(format_err!("expected 'group', 'type' or 'regex' prefix, got '{}'", ty)),
             None => Err(format_err!("input doesn't match expected format '<group:GROUP||type:<vm|ct|host>|regex:REGEX>'")),
-        }.map_err(|err| format_err!("'{}' - {}", s, err))
+        }?;
+        Ok(GroupFilter {
+            is_exclude,
+            filter_type,
+        })
     }
 }
 
 // used for serializing below, caution!
 impl std::fmt::Display for GroupFilter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            GroupFilter::BackupType(backup_type) => write!(f, "type:{}", backup_type),
-            GroupFilter::Group(backup_group) => write!(f, "group:{}", backup_group),
-            GroupFilter::Regex(regex) => write!(f, "regex:{}", regex.as_str()),
+        let exclude = if self.is_exclude { "exclude:" } else { "" };
+        match &self.filter_type {
+            FilterType::BackupType(backup_type) => write!(f, "{}type:{}", exclude, backup_type),
+            FilterType::Group(backup_group) => write!(f, "{}group:{}", exclude, backup_group),
+            FilterType::Regex(regex) => write!(f, "{}regex:{}", exclude, regex.as_str()),
         }
     }
 }
@@ -441,9 +466,9 @@ fn verify_group_filter(input: &str) -> Result<(), anyhow::Error> {
 }
 
 pub const GROUP_FILTER_SCHEMA: Schema = StringSchema::new(
-    "Group filter based on group identifier ('group:GROUP'), group type ('type:<vm|ct|host>'), or regex ('regex:RE').")
+    "Group filter based on group identifier ('group:GROUP'), group type ('type:<vm|ct|host>'), or regex ('regex:RE'). Can be inverted by adding 'exclude:' before.")
     .format(&ApiStringFormat::VerifyFn(verify_group_filter))
-    .type_text("<type:<vm|ct|host>|group:GROUP|regex:RE>")
+    .type_text("[<exclude:|include:>]<type:<vm|ct|host>|group:GROUP|regex:RE>")
     .schema();
 
 pub const GROUP_FILTER_LIST_SCHEMA: Schema =

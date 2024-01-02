@@ -486,7 +486,7 @@ pub(crate) struct PullParameters {
     /// How many levels of sub-namespaces to pull (0 == no recursion, None == maximum recursion)
     max_depth: Option<usize>,
     /// Filters for reducing the pull scope
-    group_filter: Option<Vec<GroupFilter>>,
+    group_filter: Vec<GroupFilter>,
     /// How many snapshots should be transferred at most (taking the newest N snapshots)
     transfer_last: Option<usize>,
 }
@@ -537,6 +537,11 @@ impl PullParameters {
         let target = PullTarget {
             store: DataStore::lookup_datastore(store, Some(Operation::Write))?,
             ns,
+        };
+
+        let group_filter = match group_filter {
+            Some(f) => f,
+            None => Vec::<GroupFilter>::new(),
         };
 
         Ok(Self {
@@ -1358,7 +1363,6 @@ pub(crate) async fn pull_ns(
 ) -> Result<(StoreProgress, bool), Error> {
     let mut list: Vec<BackupGroup> = params.source.list_groups(namespace, &params.owner).await?;
 
-    let total_count = list.len();
     list.sort_unstable_by(|a, b| {
         let type_order = a.ty.cmp(&b.ty);
         if type_order == std::cmp::Ordering::Equal {
@@ -1368,27 +1372,17 @@ pub(crate) async fn pull_ns(
         }
     });
 
-    let apply_filters = |group: &BackupGroup, filters: &[GroupFilter]| -> bool {
-        filters.iter().any(|filter| group.matches(filter))
-    };
-
-    let list = if let Some(ref group_filter) = &params.group_filter {
-        let unfiltered_count = list.len();
-        let list: Vec<BackupGroup> = list
-            .into_iter()
-            .filter(|group| apply_filters(group, group_filter))
-            .collect();
-        task_log!(
-            worker,
-            "found {} groups to sync (out of {} total)",
-            list.len(),
-            unfiltered_count
-        );
-        list
-    } else {
-        task_log!(worker, "found {} groups to sync", total_count);
-        list
-    };
+    let unfiltered_count = list.len();
+    let list: Vec<BackupGroup> = list
+        .into_iter()
+        .filter(|group| group.apply_filters(&params.group_filter))
+        .collect();
+    task_log!(
+        worker,
+        "found {} groups to sync (out of {} total)",
+        list.len(),
+        unfiltered_count
+    );
 
     let mut errors = false;
 
@@ -1457,10 +1451,8 @@ pub(crate) async fn pull_ns(
                 if check_backup_owner(&owner, &params.owner).is_err() {
                     continue;
                 }
-                if let Some(ref group_filter) = &params.group_filter {
-                    if !apply_filters(local_group, group_filter) {
-                        continue;
-                    }
+                if !local_group.apply_filters(&params.group_filter) {
+                    continue;
                 }
                 task_log!(worker, "delete vanished group '{local_group}'",);
                 match params

@@ -9,13 +9,13 @@ use proxmox_schema::api;
 use proxmox_sys::{task_log, task_warn, WorkerTaskContext};
 
 use pbs_api_types::{
-    print_ns_and_snapshot, print_store_and_ns, Authid, GroupFilter, MediaPoolConfig, Operation,
+    print_ns_and_snapshot, print_store_and_ns, Authid, MediaPoolConfig, Operation,
     TapeBackupJobConfig, TapeBackupJobSetup, TapeBackupJobStatus, Userid, JOB_ID_SCHEMA,
     PRIV_DATASTORE_READ, PRIV_TAPE_AUDIT, PRIV_TAPE_WRITE, UPID_SCHEMA,
 };
 
 use pbs_config::CachedUserInfo;
-use pbs_datastore::backup_info::{BackupDir, BackupGroup, BackupInfo};
+use pbs_datastore::backup_info::{BackupDir, BackupInfo};
 use pbs_datastore::{DataStore, StoreProgress};
 use proxmox_rest_server::WorkerTask;
 
@@ -411,31 +411,24 @@ fn backup_worker(
 
     group_list.sort_unstable_by(|a, b| a.group().cmp(b.group()));
 
-    let (group_list, group_count) = if let Some(group_filters) = &setup.group_filter {
-        let filter_fn = |group: &BackupGroup, group_filters: &[GroupFilter]| {
-            group_filters.iter().any(|filter| group.matches(filter))
-        };
+    let group_count_full = group_list.len();
 
-        let group_count_full = group_list.len();
-        let list: Vec<BackupGroup> = group_list
+    let group_list = match &setup.group_filter {
+        Some(f) => group_list
             .into_iter()
-            .filter(|group| filter_fn(group, group_filters))
-            .collect();
-        let group_count = list.len();
-        task_log!(
-            worker,
-            "found {} groups (out of {} total)",
-            group_count,
-            group_count_full
-        );
-        (list, group_count)
-    } else {
-        let group_count = group_list.len();
-        task_log!(worker, "found {} groups", group_count);
-        (group_list, group_count)
+            .filter(|group| group.group().apply_filters(f))
+            .collect(),
+        None => group_list,
     };
 
-    let mut progress = StoreProgress::new(group_count as u64);
+    task_log!(
+        worker,
+        "found {} groups (out of {} total)",
+        group_list.len(),
+        group_count_full
+    );
+
+    let mut progress = StoreProgress::new(group_list.len() as u64);
 
     let latest_only = setup.latest_only.unwrap_or(false);
 

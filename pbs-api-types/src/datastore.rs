@@ -10,9 +10,9 @@ use proxmox_schema::{
 };
 
 use crate::{
-    Authid, CryptMode, Fingerprint, MaintenanceMode, Userid, DATASTORE_NOTIFY_STRING_SCHEMA,
-    GC_SCHEDULE_SCHEMA, PROXMOX_SAFE_ID_FORMAT, PRUNE_SCHEDULE_SCHEMA, SHA256_HEX_REGEX,
-    SINGLE_LINE_COMMENT_SCHEMA, UPID,
+    Authid, CryptMode, Fingerprint, GroupFilter, MaintenanceMode, Userid,
+    DATASTORE_NOTIFY_STRING_SCHEMA, GC_SCHEDULE_SCHEMA, PROXMOX_SAFE_ID_FORMAT,
+    PRUNE_SCHEDULE_SCHEMA, SHA256_HEX_REGEX, SINGLE_LINE_COMMENT_SCHEMA, UPID,
 };
 
 const_regex! {
@@ -843,18 +843,36 @@ impl BackupGroup {
     }
 
     pub fn matches(&self, filter: &crate::GroupFilter) -> bool {
-        use crate::GroupFilter;
-
-        match filter {
-            GroupFilter::Group(backup_group) => {
+        use crate::FilterType;
+        match &filter.filter_type {
+            FilterType::Group(backup_group) => {
                 match backup_group.parse::<BackupGroup>() {
                     Ok(group) => *self == group,
                     Err(_) => false, // shouldn't happen if value is schema-checked
                 }
             }
-            GroupFilter::BackupType(ty) => self.ty == *ty,
-            GroupFilter::Regex(regex) => regex.is_match(&self.to_string()),
+            FilterType::BackupType(ty) => self.ty == *ty,
+            FilterType::Regex(regex) => regex.is_match(&self.to_string()),
         }
+    }
+
+    pub fn apply_filters(&self, filters: &[GroupFilter]) -> bool {
+        // since there will only be view filter in the list, an extra iteration to get the umber of
+        // include filter should not be an issue
+        let is_included = if filters.iter().filter(|f| !f.is_exclude).count() == 0 {
+            true
+        } else {
+            filters
+                .iter()
+                .filter(|f| !f.is_exclude)
+                .any(|filter| self.matches(filter))
+        };
+
+        is_included
+            && !filters
+                .iter()
+                .filter(|f| f.is_exclude)
+                .any(|filter| self.matches(filter))
     }
 }
 
