@@ -35,13 +35,36 @@ Ext.define('PBS.form.GroupFilter', {
 	    // break cyclic reference
 	    me.removeReferences(record);
 
-	    me.lookup('grid').getStore().remove(record);
+	    me.lookup('grid-include').getStore().remove(record);
+	    me.lookup('grid-exclude').getStore().remove(record);
 	    me.updateRealField();
 	},
 
-	addFilter: function() {
+	addIncludeFilter: function() {
 	    let me = this;
-	    me.lookup('grid').getStore().add({});
+	    me.lookup('grid-include').getStore().add({ behavior: 'include' });
+	    me.updateRealField();
+	},
+
+	addExcludeFilter: function() {
+	    let me = this;
+	    me.lookup('grid-exclude').getStore().add({ behavior: 'exclude' });
+	    me.updateRealField();
+	},
+
+
+	onBehaviorChange: function(field, value) {
+	    let me = this;
+	    let record = field.getWidgetRecord();
+	    if (record === undefined) {
+		return;
+	    }
+
+	    record.set('behavior', value);
+	    record.commit();
+	    if (record.widgets) {
+		me.setInputValue(record.widgets, record);
+	    }
 	    me.updateRealField();
 	},
 
@@ -77,8 +100,12 @@ Ext.define('PBS.form.GroupFilter', {
 	},
 
 	parseGroupFilter: function(filter) {
-	    let [, type, input] = filter.match(/^(type|group|regex):(.*)$/);
+	    let [, behavior, type, input] = filter.match(/^(?:(exclude|include):)?(type|group|regex):(.*)$/);
+	    if (behavior === undefined) {
+		behavior = "include";
+	    }
 	    return {
+		behavior,
 		type,
 		input,
 	    };
@@ -86,13 +113,16 @@ Ext.define('PBS.form.GroupFilter', {
 
 	onValueChange: function(field, values) {
 	    let me = this;
-	    let grid = me.lookup('grid');
+	    let grid_include = me.lookup('grid-include');
+	    let grid_exclude = me.lookup('grid-exclude');
 	    if (!values || values.length === 0) {
-		grid.getStore().removeAll();
+		grid_include.getStore().removeAll();
+		grid_exclude.getStore().removeAll();
 		return;
 	    }
 	    let records = values.map((filter) => me.parseGroupFilter(filter));
-	    grid.getStore().setData(records);
+	    grid_include.getStore().setData(records);
+	    grid_exclude.getStore().setData(records);
 	},
 
 	setInputValue: function(widgets, rec) {
@@ -162,9 +192,18 @@ Ext.define('PBS.form.GroupFilter', {
 	    let me = this;
 
 	    let filter = [];
-	    me.lookup('grid').getStore().each((rec) => {
-		if (rec.data.type && rec.data.input) {
-		    filter.push(`${rec.data.type}:${rec.data.input}`);
+	    me.lookup('grid-include').getStore().each((rec) => {
+	    if (rec.data.type && rec.data.input) {
+		filter.push(`${rec.data.type}:${rec.data.input}`);
+		}
+	    });
+	    me.lookup('grid-exclude').getStore().each((rec) => {
+		if (rec.data.type && rec.data.input && rec.data.behavior) {
+		    let behavior_string = '';
+		    if (rec.data.behavior === 'exclude') {
+			behavior_string = 'exclude:';
+		    }
+		    filter.push(`${behavior_string}${rec.data.type}:${rec.data.input}`);
 		}
 	    });
 
@@ -175,6 +214,9 @@ Ext.define('PBS.form.GroupFilter', {
 	},
 
 	control: {
+	    'grid pbsGroupBehaviorSelector': {
+		change: 'onBehaviorChange',
+	    },
 	    'grid pbsGroupFilterTypeSelector': {
 		change: 'onTypeChange',
 	    },
@@ -264,71 +306,58 @@ Ext.define('PBS.form.GroupFilter', {
 
     items: [
 	{
-	    xtype: 'grid',
-	    reference: 'grid',
+	    xtype: 'pbsGroupFilterGrid',
+	    title: 'Include filters',
 	    margin: '0 0 5 0',
-	    scrollable: true,
-	    height: 300,
+	    reference: 'grid-include',
 	    store: {
-		fields: ['type', 'input'],
-	    },
+		filters: [
+		    function(item) {
+                    return item.data.behavior === "include";
+		    },
+		],
+            },
 	    emptyText: gettext('Include all groups'),
 	    viewConfig: {
 		deferEmptyText: false,
 	    },
-	    columns: [
+	},
+	{
+	    xtype: 'container',
+	    layout: {
+		type: 'hbox',
+	    },
+	    items: [
 		{
-		    text: gettext('Filter Type'),
-		    xtype: 'widgetcolumn',
-		    dataIndex: 'type',
-		    flex: 1,
-		    widget: {
-			xtype: 'pbsGroupFilterTypeSelector',
-			isFormField: false,
-		    },
+		    xtype: 'button',
+		    text: gettext('Add include'),
+		    iconCls: 'fa fa-plus-circle',
+		    handler: 'addIncludeFilter',
 		},
 		{
-		    text: gettext('Filter Value'),
-		    xtype: 'widgetcolumn',
+		    xtype: 'box',
 		    flex: 1,
-		    onWidgetAttach: 'newInputColumn',
-		    widget: {
-			padding: 0,
-			bodyPadding: 0,
-			xtype: 'fieldcontainer',
-			layout: 'fit',
-			defaults: {
-			    margin: 0,
-			},
-			items: [
-			    {
-				hidden: true,
-				xtype: 'pbsGroupTypeSelector',
-				isFormField: false,
-			    },
-			    {
-				hidden: true,
-				xtype: 'textfield',
-				type: 'regex',
-				isFormField: false,
-			    },
-			    {
-				hidden: true,
-				xtype: 'pbsGroupSelector',
-				isFormField: false,
-			    },
-			],
-		    },
 		},
 		{
-		    xtype: 'widgetcolumn',
-		    width: 40,
-		    widget: {
-			xtype: 'button',
-			iconCls: 'fa fa-trash-o',
-		    },
+		    xtype: 'box',
+		    style: 'margin: 3px 0px;',
+		    html: `<span class="pmx-hint">${gettext('Note')}</span>: `
+			+ gettext('Filters are additive'),
 		},
 	    ],
+	},
+	{
+	    xtype: 'pbsGroupFilterGrid',
+	    title: 'Exclude filters',
+	    margin: '10 0 5 0',
+	    reference: 'grid-exclude',
+	    store: {
+		filters: [
+		    function(item) {
+                    return item.data.behavior === "exclude";
+		    },
+		],
+            },
 	},
 	{
 	    xtype: 'hiddenfield',
@@ -356,9 +385,9 @@ Ext.define('PBS.form.GroupFilter', {
 	    items: [
 		{
 		    xtype: 'button',
-		    text: gettext('Add'),
+		    text: gettext('Add exclude'),
 		    iconCls: 'fa fa-plus-circle',
-		    handler: 'addFilter',
+		    handler: 'addExcludeFilter',
 		},
 		{
 		    xtype: 'box',
@@ -368,7 +397,7 @@ Ext.define('PBS.form.GroupFilter', {
 		    xtype: 'box',
 		    style: 'margin: 3px 0px;',
 		    html: `<span class="pmx-hint">${gettext('Note')}</span>: `
-			+ gettext('Filters are additive (OR-like)'),
+			+ gettext('Exclude filters will be applied after include filters'),
 		},
 	    ],
 	},
@@ -382,6 +411,82 @@ Ext.define('PBS.form.GroupFilter', {
 	    model: 'pbs-groups',
 	});
     },
+});
+
+Ext.define('PBS.form.pbsGroupBehaviorSelector', {
+    extend: 'Proxmox.form.KVComboBox',
+    alias: 'widget.pbsGroupBehaviorSelector',
+
+    allowBlank: false,
+
+    comboItems: [
+	['include', gettext('Include')],
+	['exclude', gettext('Exclude')],
+    ],
+});
+Ext.define('PBS.form.GroupFilterGrid', {
+    extend: 'Ext.grid.Panel',
+    alias: 'widget.pbsGroupFilterGrid',
+
+    scrollable: true,
+    height: 200,
+    store: {
+	fields: ['type', 'input'],
+            },
+    columns: [
+	{
+	    text: gettext('Filter Type'),
+	    xtype: 'widgetcolumn',
+	    dataIndex: 'type',
+	    flex: 1,
+	    widget: {
+		xtype: 'pbsGroupFilterTypeSelector',
+		isFormField: false,
+	    },
+	},
+	{
+	    text: gettext('Filter Value'),
+	    xtype: 'widgetcolumn',
+	    flex: 1,
+	    onWidgetAttach: 'newInputColumn',
+	    widget: {
+		padding: 0,
+		bodyPadding: 0,
+		xtype: 'fieldcontainer',
+		layout: 'fit',
+		defaults:
+		{
+		    margin: 0,
+		},
+		items: [
+		    {
+			hidden: true,
+			xtype: 'pbsGroupTypeSelector',
+			isFormField: false,
+		    },
+		    {
+			hidden: true,
+			xtype: 'textfield',
+			type: 'regex',
+			isFormField: false,
+		    },
+		    {
+			hidden: true,
+			xtype: 'pbsGroupSelector',
+			isFormField: false,
+		    },
+		],
+	    },
+	},
+	{
+	    xtype: 'widgetcolumn',
+	    width: 40,
+	    widget: {
+		xtype: 'button',
+		iconCls: 'fa fa-trash-o',
+	    },
+	},
+    ],
 });
 
 Ext.define('PBS.form.GroupFilterTypeSelector', {
