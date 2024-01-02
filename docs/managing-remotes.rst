@@ -116,6 +116,19 @@ of the specified criteria are synced. The available criteria are:
 The same filter is applied to local groups, for handling of the
 ``remove-vanished`` option.
 
+A ``group-filter`` can be inverted by adding ``exclude:`` to its beginning.
+
+* Regular expression example, excluding the match:
+    .. code-block:: console
+
+     # proxmox-backup-manager sync-job update ID --group-filter exclude:regex:'^vm/1\d{2,3}$'
+
+For mixing include and exclude filter, following rules apply:
+
+ - no filters: all backup groups
+ - include: only those matching the include filters
+ - exclude: all but those matching the exclude filters
+ - both: those matching the include filters, but without those matching the exclude filters
 .. note:: The ``protected`` flag of remote backup snapshots will not be synced.
 
 Namespace Support
