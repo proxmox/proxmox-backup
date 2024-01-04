@@ -482,7 +482,7 @@ fn verify_group_filter(input: &str) -> Result<(), anyhow::Error> {
 }
 
 pub const GROUP_FILTER_SCHEMA: Schema = StringSchema::new(
-    "Group filter based on group identifier ('group:GROUP'), group type ('type:<vm|ct|host>'), or regex ('regex:RE'). Can be inverted by adding 'exclude:' before.")
+    "Group filter based on group identifier ('group:GROUP'), group type ('type:<vm|ct|host>'), or regex ('regex:RE'). Can be inverted by prepending 'exclude:'.")
     .format(&ApiStringFormat::VerifyFn(verify_group_filter))
     .type_text("[<exclude:|include:>]<type:<vm|ct|host>|group:GROUP|regex:RE>")
     .schema();

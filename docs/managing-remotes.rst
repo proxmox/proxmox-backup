@@ -116,7 +116,7 @@ of the specified criteria are synced. The available criteria are:
 The same filter is applied to local groups, for handling of the
 ``remove-vanished`` option.
 
-A ``group-filter`` can be inverted by adding ``exclude:`` to its beginning.
+A ``group-filter`` can be inverted by prepending ``exclude:`` to it.
 
 * Regular expression example, excluding the match:
     .. code-block:: console
