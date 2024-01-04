@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use anyhow::format_err;
+use anyhow::bail;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
@@ -408,6 +408,20 @@ impl PartialEq for FilterType {
     }
 }
 
+impl std::str::FromStr for FilterType {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s.split_once(':') {
+            Some(("group", value)) => BACKUP_GROUP_SCHEMA.parse_simple_value(value).map(|_| FilterType::Group(value.to_string()))?,
+            Some(("type", value)) => FilterType::BackupType(value.parse()?),
+            Some(("regex", value)) => FilterType::Regex(Regex::new(value)?),
+            Some((ty, _value)) => bail!("expected 'group', 'type' or 'regex' prefix, got '{}'", ty),
+            None => bail!("input doesn't match expected format '<group:GROUP||type:<vm|ct|host>|regex:REGEX>'"),
+        })
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct GroupFilter {
     pub is_exclude: bool,
@@ -432,16 +446,9 @@ impl std::str::FromStr for GroupFilter {
             _ => (false, s),
         };
 
-        let filter_type = match type_str.split_once(':') {
-            Some(("group", value)) => BACKUP_GROUP_SCHEMA.parse_simple_value(value).map(|_| FilterType::Group(value.to_string())),
-            Some(("type", value)) => Ok(FilterType::BackupType(value.parse()?)),
-            Some(("regex", value)) => Ok(FilterType::Regex(Regex::new(value)?)),
-            Some((ty, _value)) => Err(format_err!("expected 'group', 'type' or 'regex' prefix, got '{}'", ty)),
-            None => Err(format_err!("input doesn't match expected format '<group:GROUP||type:<vm|ct|host>|regex:REGEX>'")),
-        }?;
         Ok(GroupFilter {
             is_exclude,
-            filter_type,
+            filter_type: type_str.parse()?,
         })
     }
 }
