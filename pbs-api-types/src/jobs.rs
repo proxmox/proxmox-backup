@@ -422,6 +422,17 @@ impl std::str::FromStr for FilterType {
     }
 }
 
+// used for serializing below, caution!
+impl std::fmt::Display for FilterType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FilterType::BackupType(backup_type) => write!(f, "type:{}", backup_type),
+            FilterType::Group(backup_group) => write!(f, "group:{}", backup_group),
+            FilterType::Regex(regex) => write!(f, "regex:{}", regex.as_str()),
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct GroupFilter {
     pub is_exclude: bool,
@@ -456,12 +467,10 @@ impl std::str::FromStr for GroupFilter {
 // used for serializing below, caution!
 impl std::fmt::Display for GroupFilter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let exclude = if self.is_exclude { "exclude:" } else { "" };
-        match &self.filter_type {
-            FilterType::BackupType(backup_type) => write!(f, "{}type:{}", exclude, backup_type),
-            FilterType::Group(backup_group) => write!(f, "{}group:{}", exclude, backup_group),
-            FilterType::Regex(regex) => write!(f, "{}regex:{}", exclude, regex.as_str()),
+        if self.is_exclude {
+            f.write_str("exclude:")?;
         }
+        std::fmt::Display::fmt(&self.filter_type, f)
     }
 }
 
