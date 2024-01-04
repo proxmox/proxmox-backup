@@ -539,10 +539,7 @@ impl PullParameters {
             ns,
         };
 
-        let group_filter = match group_filter {
-            Some(f) => f,
-            None => Vec::<GroupFilter>::new(),
-        };
+        let group_filter = group_filter.unwrap_or_default();
 
         Ok(Self {
             source,
