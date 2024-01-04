@@ -1,6 +1,6 @@
-use anyhow::format_err;
 use std::str::FromStr;
 
+use anyhow::format_err;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
