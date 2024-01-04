@@ -44,6 +44,7 @@ fn files() -> Vec<(&'static str, Vec<&'static str>)> {
             "Jobs",
             vec![
                 "/etc/proxmox-backup/sync.cfg",
+                "/etc/proxmox-backup/prune.cfg",
                 "/etc/proxmox-backup/verification.cfg",
             ],
         ),
