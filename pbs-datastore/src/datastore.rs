@@ -602,7 +602,12 @@ impl DataStore {
     ) -> Result<Authid, Error> {
         let full_path = self.owner_path(ns, backup_group);
         let owner = proxmox_sys::fs::file_read_firstline(full_path)?;
-        owner.trim_end().parse() // remove trailing newline
+        owner
+            .trim_end() // remove trailing newline
+            .parse()
+            .map_err(|err| {
+                format_err!("parsing owner for {backup_group} failed: {err}")
+            })
     }
 
     pub fn owns_backup(
